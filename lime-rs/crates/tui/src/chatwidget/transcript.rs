@@ -6,7 +6,7 @@
 use super::ChatWidget;
 use crate::history_cell::HistoryRenderMode;
 use crate::pager_overlay::PagerOverlay;
-use crate::status::StatusFacts;
+use crate::status::{StatusFacts, StatusSnapshot};
 use app_server_protocol::protocol::v2::{McpServerStatus, McpServerStatusDetail};
 use std::time::Instant;
 
@@ -32,8 +32,6 @@ impl ChatWidget {
     }
 
     pub(crate) fn toggle_history_render_mode(&mut self) -> bool {
-        self.transcript_viewport.suppress_next_activity();
-        self.transcript_prompt_header.clear();
         self.history_render_mode = match self.history_render_mode {
             HistoryRenderMode::Rich => HistoryRenderMode::Raw,
             HistoryRenderMode::Raw => HistoryRenderMode::Rich,
@@ -41,21 +39,7 @@ impl ChatWidget {
         self.is_raw_output_mode()
     }
 
-    pub(crate) fn open_transcript_pager(&mut self) {
-        if let Some(scroll) = self.transcript_search.close() {
-            self.transcript_scroll = scroll;
-        }
-        self.bottom_pane.clear_completion_popup();
-        self.dismiss_pager_overlay();
-        let pager = self
-            .transcript_presentation
-            .open(self.locale, self.runtime_keymap.transcript().clone());
-        pager.set_older_history_available(self.scrollback_has_older_history);
-        self.pager_overlay = Some(pager);
-    }
-
     pub(crate) fn dismiss_pager_overlay(&mut self) {
-        self.primary_clipboard_lease = None;
         let Some(pager) = self.pager_overlay.take() else {
             return;
         };
@@ -70,70 +54,36 @@ impl ChatWidget {
         {
             self.pager_overlay = None;
         }
-        self.primary_clipboard_lease = None;
         self.transcript_presentation.clear();
     }
 
     pub(crate) fn reset_thread_surface(&mut self, active_turn_id: Option<&str>, now: Instant) {
-        self.primary_clipboard_lease = None;
+        self.copy_picker = None;
+        self.last_status_copy_targets = None;
         self.queued_submissions.clear();
-        self.transcript_scroll = 0;
-        self.transcript_viewport.clear();
-        self.transcript_follow_control.clear();
-        self.transcript_composer_gap.clear();
-        self.transcript_prompt_header.clear();
-        self.transcript_search.clear();
-        self.transcript_selection.reset();
+
         self.turn_lifecycle.reset_thread();
         self.turn_lifecycle.restore_running(active_turn_id, now);
     }
 
     pub(crate) fn reset_for_hydrated_thread(&mut self) {
+        self.copy_picker = None;
+        self.last_status_copy_targets = None;
         self.set_active_reasoning_effort_baseline();
         self.status_line_setup = None;
         self.terminal_title_setup = None;
-        self.primary_clipboard_lease = None;
-        self.transcript_scroll = 0;
-        self.transcript_viewport.clear();
-        self.transcript_follow_control.clear();
-        self.transcript_composer_gap.clear();
-        self.transcript_prompt_header.clear();
-        self.transcript_search.clear();
-        self.transcript_selection.reset();
+
         self.turn_lifecycle.reset_thread();
-    }
-
-    pub(crate) fn scroll_up(&mut self, amount: usize) {
-        self.transcript_scroll = self.transcript_scroll.saturating_add(amount);
-    }
-
-    pub(crate) fn scroll_down(&mut self, amount: usize) {
-        self.transcript_scroll = self.transcript_scroll.saturating_sub(amount);
-    }
-
-    pub(crate) fn scroll_top(&mut self) {
-        self.transcript_scroll = usize::MAX;
-    }
-
-    pub(crate) fn scroll_bottom(&mut self) {
-        self.transcript_scroll = 0;
-    }
-
-    pub(crate) fn finish_transcript_selection(&mut self, follow: bool) {
-        if follow {
-            self.scroll_bottom();
-        } else if let Some(distance) = self.transcript_selection.take_resume_distance_from_bottom()
-        {
-            self.transcript_scroll = distance;
-        }
-        self.transcript_selection.clear();
-        self.primary_clipboard_lease = None;
     }
 
     pub(crate) fn open_status_pager(&mut self, facts: StatusFacts<'_>) {
         self.dismiss_pager_overlay();
+        let snapshot = std::sync::Arc::new(StatusSnapshot::from_facts(facts));
+        self.last_status_copy_targets = Some(super::copy_picker::StatusCopySource {
+            handle: std::sync::Arc::clone(&snapshot),
+        });
         self.pager_overlay = Some(
-            PagerOverlay::status(self.locale, facts)
+            PagerOverlay::status(self.locale, snapshot)
                 .with_keymap(self.runtime_keymap.transcript().clone()),
         );
     }

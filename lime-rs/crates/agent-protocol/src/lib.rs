@@ -8,6 +8,7 @@ pub mod message_content;
 pub mod model_context;
 pub mod multi_agent_mode;
 pub mod openai;
+pub mod parse_command;
 pub mod provider_trace;
 pub mod response_item;
 pub mod session_context;

@@ -1,12 +1,12 @@
 //! Chat surface interaction helpers owned by `ChatWidget`.
 //!
 //! The terminal host still decides which `AppAction` to dispatch, but mutable presentation
-//! state and pager construction stay with the chat surface. This keeps interaction routing from
-//! becoming a second transcript owner in `App`.
+//! state and generic dialog construction stay with the chat surface. Main reading interaction
+//! belongs to the App-owned `TranscriptView`.
 
 use std::path::PathBuf;
 
-use crossterm::event::{Event, KeyEvent, MouseEvent};
+use crossterm::event::{Event, KeyEvent};
 
 use super::transcript_export::ExportPickerAction;
 use super::ChatWidget;
@@ -19,7 +19,6 @@ use crate::model_picker::{ModelPickerAction, ModelSelection};
 use crate::pager_overlay::{PagerAction, PagerOverlay};
 use crate::resume_picker::PickerAction;
 use crate::resume_picker::PickerState;
-use crate::transcript_view::{SearchAction, TranscriptFollowAction, TranscriptSelectionAction};
 
 #[derive(Debug)]
 pub(crate) enum ExportPickerEvent {
@@ -91,22 +90,6 @@ impl ChatWidget {
         self.bottom_pane.dismiss_shortcut_overlay();
     }
 
-    pub(crate) fn begin_transcript_search(&mut self) {
-        self.transcript_search
-            .begin(self.transcript_scroll, /*restore_on_close*/ true);
-        self.transcript_follow_control.clear();
-    }
-
-    pub(crate) fn end_interaction_drag(&mut self) {
-        self.transcript_selection.end_drag();
-        if let Some(pager) = self.pager_overlay.as_ref() {
-            pager.end_transcript_drag();
-        }
-        if let Some(picker) = self.resume_picker.as_ref() {
-            picker.end_transcript_drag();
-        }
-    }
-
     pub(crate) fn open_approval_details_pager(&mut self, key: KeyEvent) -> bool {
         let Some((title, lines)) = self.bottom_pane.approval_details_for_key(key, self.locale)
         else {
@@ -120,97 +103,11 @@ impl ChatWidget {
         true
     }
 
-    pub(crate) fn route_modal_transcript_wheel(
-        &mut self,
-        event: &Event,
-    ) -> Option<TranscriptSelectionAction> {
-        let Event::Mouse(mouse) = event else {
-            return None;
-        };
-        if !matches!(
-            mouse.kind,
-            crossterm::event::MouseEventKind::ScrollUp
-                | crossterm::event::MouseEventKind::ScrollDown
-        ) {
-            return None;
-        }
-
-        match self.transcript_selection.handle_event(event) {
-            Some(TranscriptSelectionAction::Scroll { rows }) => {
-                if self.transcript_selection.is_active() {
-                    self.transcript_selection.scroll_rows(rows);
-                    Some(TranscriptSelectionAction::Consumed)
-                } else {
-                    Some(TranscriptSelectionAction::Scroll { rows })
-                }
-            }
-            Some(action) => Some(action),
-            None => None,
-        }
-    }
-
-    pub(crate) fn handle_main_transcript_selection(
-        &mut self,
-        event: &Event,
-    ) -> Option<TranscriptSelectionAction> {
-        let had_selection = self.transcript_selection.is_active();
-        let action = self.transcript_selection.handle_event(event)?;
-        if had_selection && !self.transcript_selection.is_active() {
-            self.finish_transcript_selection(false);
-        }
-        Some(action)
-    }
-
-    pub(crate) fn finish_main_transcript_selection_if_active(&mut self) {
-        if self.transcript_selection.is_active() {
-            self.finish_transcript_selection(false);
-        }
-    }
-
-    pub(crate) fn scroll_main_selection(&mut self, rows: isize) -> bool {
-        if !self.transcript_selection.is_active() {
-            return false;
-        }
-        self.transcript_selection.scroll_rows(rows);
-        true
-    }
-
-    pub(crate) fn reveal_main_selection_row(&mut self, row: usize) {
-        self.transcript_selection.reveal_row(row);
-    }
-
     pub(crate) fn handle_pager_event(&mut self, event: &Event) -> Option<PagerAction> {
         let pager = self.pager_overlay.as_mut()?;
         let action = pager.handle_event(event);
         if action == PagerAction::Close {
             self.dismiss_pager_overlay();
-        }
-        Some(action)
-    }
-
-    pub(crate) fn handle_transcript_search_event(&mut self, event: &Event) -> Option<SearchAction> {
-        if !self.transcript_search.is_active() {
-            return None;
-        }
-        let action = self
-            .transcript_search
-            .handle_event(event, self.scrollback_has_older_history);
-        if let SearchAction::Closed {
-            restore_scroll: Some(scroll),
-        } = action
-        {
-            self.transcript_scroll = scroll;
-        }
-        Some(action)
-    }
-
-    pub(crate) fn handle_transcript_follow_mouse(
-        &mut self,
-        mouse: MouseEvent,
-    ) -> Option<TranscriptFollowAction> {
-        let action = self.transcript_follow_control.handle_mouse(mouse)?;
-        if action == TranscriptFollowAction::ReturnToLatest {
-            self.scroll_bottom();
         }
         Some(action)
     }

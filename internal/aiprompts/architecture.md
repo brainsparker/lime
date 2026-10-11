@@ -71,9 +71,18 @@ server同步），runtime不再传入启动时options.cwd，防止跨目录resum
 重绘可见帧后交出输入，editor返回时强制回主屏，再恢复模式并重新进入alternate screen。
 Ratatui没有公开previous_buffer，`draw_for_handoff`经同一draw/view入口在交接前捕获一次
 Buffer，随后take并释放；普通draw零复制，不建立长期第二帧或第二renderer/projection owner。
-常规viewport同步归Tui::draw，在实际绘制前查询geometry；runtime输入循环不再无条件
-逐事件查询backend。Resize仍立即用事件尺寸更新viewport，外部editor帧捕获复用同一draw。
+几何策略归同名 `tui/screen_size::ScreenSizePolicy`，主runtime与独立resume picker都先
+消费 `Tui::screen_size_for_event`：普通键/帧复用缓存，Resize使用事件尺寸并在75ms后
+采样settled尺寸，Resume与外部editor归还时刷新。`Tui::draw` 消费一次预留尺寸，使用
+Ratatui官方Fixed viewport；布局与帧同宽，无每draw双重查询或自定义renderer。
+同名 `tui/size_monitor::SizeMonitor` 只在Unix tmux由EventBroker持有，后台window_size
+采样不持共享锁；pause/observe/drop以generation使旧采样失效，恢复事件仍进入同一
+TuiEvent链。旧sync_viewport/terminal_mut查询入口已删除。root确认此架构，2026-10-11；
+Codex在paste门禁延期时保留deferred_size；Lime的pending_draw_size已跨延期保存，并允许
+新的Resize/settled事件替换，复用现有事实源，不预建同义状态。
 该收敛减少host输入路径的同步IO，不改变PasteBurst阈值，不作为历史分段的已证实唯一根因。
+共享composer的handle_paste_tab按Codex在短IME前缀后使用已有burst窗口接入literal Tab，
+防止notes把raw Tab当焦点shortcut清空正文；旧handle_paste_burst_tab已直接迁移，无alias。
 真实PTY夹具阻塞等待stdin，观察编辑期间alternate screen与草稿可见，再释放editor；editor
 主动退出alternate screen后检查TUI重新进入。Windows实机与历史首Left稳定性仍未验收。
 架构图确认：ChatWidget -> App editor launch -> Tui terminal handoff -> external editor ->
@@ -105,6 +114,211 @@ active notes 使用自身 composer，picker/pager/approval 不读取隐藏主 ed
 Resume 独立 host 都直接消费它，不绕过为 `terminal_mut().draw`。Ratatui Frame 无 Codex
 custom Frame 的 style 字段，因此只在当前 Tui host 注入 presentation 参数，不复制终端库。
 普通退出、panic、失败初始化与 external editor handoff 均恢复 DefaultUserShape。
+
+scheduled frame准备归`runtime/render::prepare_draw`：先消费ChatWidget的paste门禁，
+capturing或刚flush均请求下一帧并保留预留几何，再执行App pre_draw的view timers与
+canonical response动作；通过门禁后才允许同一Tui绘制。Draw reducer不再重复执行tick，
+BottomPane/notes pre_draw不再flush，键盘/handoff的settle仍归已有composer输入路径。
+main composer、UserInput notes、MCP fields共用同一门禁；断线可flush草稿，不处理交互
+timer。transcript_reflow仅保留真正消费的TranscriptViewport与settled采样常量，零消费
+的旧reflow状态机已删除，不能用同名占位类型宣称Codex reflow完成。
+`tui/input_clock::InputClock`只为paste提供source-idle时间：crossterm连续Ready期间冻结，
+首次Pending开始记录等待，重复Pending不重置等待窗口。runtime在事件交接后读取同一
+input_time，App普通输入、active notes/MCP与scheduled paste tick直接消费；队列消费、
+绘制和host调度延迟不再成为粘贴分段信号。此时钟不提供逐键真实到达时间：来源已排队
+但实际到达间隔未知的按键按一个ready batch处理。图片250ms重复抑制、请求倒计时、
+动画与terminal title继续使用wall clock。断线restricted edit没有idle计时器，每键先
+materialize原草稿再编辑，Enter/Tab保留不提交，不另建输入时钟或业务状态机。
+诊断探针仅用于第109取证，必须从最终生产构建移除；EventStream round-robin和现有
+8ms阈值保持原合同。架构图确认：EventBroker readiness -> InputClock -> runtime input
+handoff -> App/BottomPane paste -> scheduled paste gate -> Tui，普通timer仍wall clock，
+业务共享App Server/RuntimeCore/canonical投影；root，2026-10-11。第109最终无探针CLI
+原四场景真实stdio/PTY验收通过；历史未取得相同时序的自然失败仍保持开放。
+架构确认：EventBroker -> ScreenSizePolicy -> scheduled paste gate -> App view tick/action
+dispatch -> Tui/Ratatui；业务仍Product Surface -> App Server -> shared runtime -> canonical
+Thread/Turn/Item，无新后端/协议/持久化owner。root，2026-10-11。
+
+剪贴板动作与异步完成反馈归Codex同名`app/clipboard`：App持有当前请求id/thread/selection
+上下文，runtime只分发动作，在scheduled draw的paste gate通过后调用`finish_clipboard`。
+`Tui.clipboard`统一消费`clipboard_copy/worker`，同一请求号/in_flight串行化native copy与
+text read；旧`clipboard_paste/worker`及Tui第二worker字段已删除。App不复制平台API、协议或
+canonical投影。完成只消费匹配请求一次，晚到结果不改变新thread或已关闭surface的反馈/
+selection。原选区内持有复制票据，记录端点及请求时阅读位置；替换选区（包括同文本）、
+移动端点/阅读位置或隐藏composer后不能结束新选区。输入框鼠标/键盘复制均在确认成功
+后由textarea清除原选区，旧clear*selection动作参数与直接清除包装已删除。
+页面反馈票据独立于选区：原main/pager页面在选区替换后仍显示该次复制结果；重开
+pager/picker后新页面没有旧票据，不能接收反馈。独立resume picker host也消费同一
+PagerOverlay完成路径，不持有第二套选区清除算法。
+同thread原页面隐藏时仍完成自身反馈，选区/阅读位置和前台状态只由当前可见且拥有
+输入的surface消费；旧thread结果不作用于新页面。原生CLIPBOARD/PRIMARY两个lease归
+同一session-lived worker线程，CopyOutcome.store是唯一保留/替换规则；UI只接收
+`CopyResult = Result<CopyStatus, String>`。忽略完成、页面关闭与thread切换不会释放系统
+所有权；unconfirmed/error保留原lease，下次confirmed native owner独立替换对应lease。
+ChatWidget及独立resume host的旧lease字段/释放路径、带平台资源的CopyCompletion包装
+均已删除。worker退出在完成channel断开前释放native owners；UI Drop关闭请求后最多
+等待250ms channel断开，不join OS调用。队列中的完成只会被排空，不能提前结束交接
+等待；超预算返回后worker仍负责完成受阻native调用及清理，不在退出阶段发送OSC 52。
+图片读取先检查同一worker
+忙态；取消或超时后必须等待native响应被排空才解除busy，不能重叠第二平台操作。
+copy setup使用Codex同名`CopySetup/Setup`，UI deadline与worker的begin_delivery在同一
+短Mutex临界区选择Pending/Delivering/Abandoned。平台先初始化native broker，再在任何
+native写入或WSL/tmux/OSC 52 fallback前检查交付门；过期的成功/失败初始化都不得开始
+写入，已Delivering则必须完成，不能因后续draw超过setup预算误报失败。PRIMARY同样
+消费交付门。worker只返回经大小验证的terminal_text，OSC 52仅由UI draw的poll发送；
+晚到/重复完成不发送，native确认不因可选终端写入错误丢失。external editor交接期间
+host await且停止poll，故后台完成不写外部程序的屏幕。无第二调度器或业务状态机；
+鼠标release独立发出静默PRIMARY publication；显式copy只写CLIPBOARD。Selection保留Arc
+scope，CopySetup与latest-only publication只持Weak；替换/移动/clear/reset、FocusLost/Resume
+和隐藏surface取消未交付工作。已Delivering和worker内native lease不受scope释放影响。
+poll不启动排队发布，App在idle draw验证页面owner后调用advance；独立resume host同样
+消费PagerOverlay的publish_primary与idle advance，不建立第二剪贴板实现。
+读取source归worker的Codex同名PasteSource；App PendingPaste持Arc scope，worker只持Weak。
+CLIPBOARD忙时拒绝，PRIMARY最多排队一次，advance在最新publication之后开始读取，
+保留原请求deadline且等待计入五秒预算。操作类型随in_flight保留，取消/超时不能误把
+仍在执行的native read当copy而接受另一个read。App在draw验证thread/draft/target后
+释放失效scope；普通input也直接释放scope，旧request_read/cancel_read与ClipboardTextSource
+入口已删除。read完成仍匹配id/thread/draft，native结果晚到必须drain且不能进入新草稿。
+HTML/Markdown格式和text/primary平台读取owner仍待迁移，不能据此宣称全部worker
+合同完成。架构图确认：native setup -> shared delivery gate -> worker response -> owned UI
+poll -> terminal send/原view反馈，业务仍同一App Server/runtime/canonical投影。root，2026-10-11。
+`chatwidget/clipboard`持有250ms图片粘贴抑制窗口：重复Press滑动延长，其它普通Press/
+Release重置，Repeat不读取新图片；成功和失败均从完成时钟延长窗口。无新增业务状态机。
+全屏归属由`app/interaction::fullscreen_surface`计算，`FullscreenSurface`仅是即时只读
+投影，没有第二份状态：pager先接收输入；inline审批/导出/设置/启动保护优先于保留的
+resume picker和agents overview。view绘制、cursor style、App键盘路由和复制完成共享
+同一选择，删除view的独立resume-first优先级及clipboard的第二套字段判断。暂时隐藏
+的view仍保留自身反馈与草稿，只有当前owner可结束选区或更新前台状态。root确认
+架构图仍为terminal event -> current surface -> App/ChatWidget -> 单Tui worker，业务
+继续共用App Server/RuntimeCore/canonical Thread/Turn/Item。2026-10-11。
+worker内native clipboard lease保留系统所有权，PRIMARY独立且不影响CLIPBOARD确认状态。
+PRIMARY独立完成只用于排空worker；没有CLIPBOARD反馈票据，不显示复制成功或结束选区。
+只有显式CLIPBOARD确认决定页面复制反馈。生产
+callback直接调用同一平台边界，测试夹具才注入可观测资源，不新增fallback或业务后端。
+架构图确认：native delivery -> worker-owned leases -> status/terminal_text -> UI poll ->
+原surface反馈，业务仍同一App Server/runtime/canonical；root，2026-10-11。第110最终
+原四场景真实stdio/PTY与verify:local smart已通过；Linux真实X11/Wayland生命周期
+尚未由macOS测试证明。第111鼠标PRIMARY publication/选区scope/latest-only队列已接入，
+第112 PRIMARY read scope/排队及timeout drain frame已通过全TUI/严格Clippy/verify:local
+smart与冻结CLI原四场景真实stdio/PTY；第111全TUI/严格Clippy/verify:local smart及冻结CLI原
+四场景真实stdio/PTY已通过，仍未证明真实Linux PRIMARY、GUI或live provider。
+架构图确认：mouse release -> current Selection Arc scope -> App/pager action -> session worker
+Weak setup/最新PRIMARY -> native delivery/worker lease；idle draw -> surface owner校验 -> poll
+-> advance。显式copy直接CLIPBOARD，GUI/TUI业务仍共享App Server/runtime/canonical。
+root，2026-10-11；无新协议、业务后端或compat包装。
+第112架构图确认：mouse PRIMARY read -> App PendingPaste Arc scope -> worker Weak/原deadline
+-> idle owner校验 -> 最新PRIMARY publication -> 一次queued read -> matching id/thread/draft
+-> composer paste；失效scope只取消交付/插入，native忙态直到drain。过期Pending保留原
+操作类型直到drain，不新增分类副本或业务状态机；业务仍同一App Server/runtime/canonical。
+root，2026-10-11；第112限定macOS验收通过，Linux真实PRIMARY另验。
+第113架构图确认：TUI session退出 -> worker请求channel关闭 -> worker native lease清理
+-> response channel断开 -> UI Drop返回；250ms先到则UI返回，后台仍收尾，永不join。
+业务继续共享App Server/runtime/canonical，无新后端或退出状态机；root，2026-10-11。
+第113全TUI/严格Clippy/verify:local smart及冻结CLI原四场景真实stdio/PTY通过；macOS
+资源夹具不能替代Linux clipboard-manager真实交接证据。
+第114平台读取owner收敛为Codex同名`clipboard_paste/text`与`clipboard_copy/primary`。
+架构图确认：App scoped paste -> session worker/排队原deadline -> text或PRIMARY平台读取
+-> 共享native_result（空内容、Unicode字符上限、deadline）-> matching id/thread/draft
+-> composer；WSL只读固定Windows系统位置的PowerShell宿主剪贴板，输出受限且超时回收。
+已知错误由`locale/clipboard`覆盖五语言，未知平台诊断保留。旧根层读取/PRIMARY复制
+入口直接删除，无compat或第二worker。业务继续共享App Server/runtime/canonical；
+root，2026-10-11；真实WSL/Windows与Linux PRIMARY尚未验证。
+第114全TUI/严格Clippy/verify:local smart与冻结CLI原四场景真实stdio/PTY通过；
+Unix命令fixture只证明预算、输出与回收，不能替代WSL宿主实机证据。
+第115架构图确认：current copy action -> worker.copy -> CopyStatus Pending(id)/Busy
+-> 原surface ticket -> native delivery -> Confirmed/Unconfirmed -> matching completion。
+提交和交付共用Codex同名CopyStatus；Pending/Busy不能被surface当成交付完成，也不消耗
+选区ticket。App反馈重复分支合并，locale/clipboard负责五语言对象与进度消息；独立
+resume host同样消费此合同，busy不显示复制失败。旧request_copy/Option<id>复制合同与
+私有request包装直接删除；scope/read队列继续原owner，无新业务协议或兼容层。
+业务仍同一App Server/runtime/canonical；root，2026-10-11。
+第115全TUI/严格Clippy/verify:local smart与冻结CLI原四场景真实stdio/PTY通过；
+复制进度/忙态合同已收敛，Markdown/HTML双表示及semantic selection仍未对齐。
+第116架构图确认：canonical response/export Markdown -> App CopyFormat -> session worker
+immutable format/text -> clipboard_html -> native HTML+original text -> 原CopyStatus完成链。
+composer与暂缺semantic mapping的visible selection继续明确PlainText；PRIMARY始终文字。
+HTML renderer将raw HTML作为literal text，仅现有web_destination可产生链接，image仅alt。
+共享markdown/fences复用既有table_detect规范化md/markdown表格围栏；无新增table parser。
+native HTML失败回退原文，tmux/OSC52/WSL继续原文；native lease/scope/原deadline不迁出worker。
+仅tui开启既有pulldown-cmark的html feature，锁文件新增escape；业务继续同一App Server/
+RuntimeCore/canonical，root，2026-10-11。semantic selection与native平台实机仍未验收。
+第116全TUI/严格检查与workspace verify:local通过（真实code-mode-host前置产物补齐后，
+39 crate/6833通过、5 ignored）；冻结CLI原四场景真实stdio/PTY exit0。本批macOS验收
+通过不代表semantic selection或系统富文本接收应用已对齐，整体仍partial/active。
+第117架构图确认：canonical projection -> Markdown renderer CopyLine -> HyperlinkLine
+LogicalLineSource -> authoritative wrapping ranges -> frozen selection SelectedLine ->
+literal text + MarkdownSelection -> 原session worker/native HTML -> 原CopyStatus ticket。
+PRIMARY只取literal text，主transcript/pager/resume预览共享selection；引用前缀从renderer
+标注读取，不由颜色反推；表格行只投影选中cell来源。业务仍同一App Server/RuntimeCore/
+Thread/Turn/Item，没有协议或GUI后端变化。root，2026-10-11；本批macOS验收通过：
+全TUI1849、147守卫、严格检查、workspace verify:local 39 crate/6849项与新冻结CLI
+原四场景真实stdio/PTY通过。copy mode/source blocks、系统富文本接收应用与跨平台/
+GUI/live/full仍开放，不以本批证据关闭整体partial状态。
+第118架构图确认：canonical entries -> history_ui/TranscriptContent copy payload/range ->
+materialized transcript -> transcript_view/copy_mode + 同一frozen selection -> 原App clipboard
+action/worker/ticket完成链。renderer/fences SourceBlock只为真实copy mode消费者提供表格
+围栏原payload，CopyLine code_source/quote_source身份贯通wrapping，区分相邻等值块；
+Ctrl+O仍为直接复制最近回复，/copy进入目标导航。mode/布局/高亮均为terminal presentation，
+协议/runtime/持久化/GUI后端owner不变。root，2026-10-11；本批macOS验收通过：
+全TUI1865、严格检查、workspace local 39 crate/6865与冻结CLI真实stdio/PTY（原四场景
+追加copy-mode）通过。首轮fixture顺序导致complete共享ledger零回合断言失败，保持
+原断言后同产物按原顺序复验通过。未加载历史导航、owned inline与status copy picker
+仍开放；原生系统富文本接收应用、GUI/live/跨平台/full未由该终端证据关闭。
+第119架构图确认：copy_mode target -> locale title/navigation -> transcript_view/footer ->
+同一pager两行footer；navigation_line消费共享key_hint_style与first_fitting_line，窄屏
+仅选择完整可执行提示，不截断快捷键。反馈占title行，导航仍可见；不增加projection/
+clipboard/runtime事实源。root，2026-10-11；本批macOS限定验收通过：全TUI1869、
+147守卫、严格检查、workspace local 39 crate/6869及新冻结CLI原四场景加copy-mode
+真实stdio/PTY通过。旧combined hint已删除并负向守卫；未加载历史、owned inline、
+status copy picker、原生富文本接收应用及GUI/live/跨平台/full仍开放。
+第120架构图确认：canonical status facts -> 一份StatusSnapshot -> status pager +
+ChatWidget StatusCopySource -> chatwidget/copy_picker -> shared ListSelectionView/ListKeymap
+-> App CopySelection -> 原clipboard worker/ticket。preview只截断展示，不改原payload；
+状态快照在线程重置/新提交/其它slash命令清理，活动picker持有自己的冻结选择数据。
+GUI/TUI共享协议、RuntimeCore、Thread/Turn/Item不变；root，2026-10-11。本批macOS限定
+验收通过：全TUI1884、148守卫、严格检查、workspace local 39 crate/6884与同冻结CLI
+真实stdio/PTY通过，两个copy marker由真实screen确认。首轮夹具误用未绑定Esc的失败
+保留，修正为配置ctrl-x q后同产物复验；没有修改production取消规则或放宽断言。
+未加载历史复制导航、owned inline、系统富文本接收应用及GUI/live/跨平台/full继续开放。
+第121架构图确认：App Server接受的旧页 -> 当前projection新增entry身份差集 -> 既有
+history_ui renderer -> frozen TranscriptContent::prepend_snapshot_history -> 原选区/source
+targets/reading position/copy ticket重映射 -> 同一clipboard worker。边界Up/PageUp按一页
+加载，Home按All；current分页cursor/线程/重连拒绝规则不变。冻结副本保持旧header与原
+回复，只插入明确接受的新页，live tail和replacement不进入原copy revision。copy helper
+原copy helper已由第122迁到pager_overlay/history；runtime仅选择既有load mode与接收
+完成，不添加复制业务。
+GUI/TUI共用protocol、runtime、存储不变，无新compat/deprecated；root，2026-10-11。
+第121初轮全TUI1893、149守卫和严格Clippy通过；后续真实stdio/PTY与最终local已完成
+macOS限定验收，最终计数和范围见下，整体partial。
+第121真实Find重试暴露render内新scan的后续frame丢失，新增runtime/render::finish_draw
+只查询统一search continuation（bounded scan或待消费history request）并调度下一帧；
+pre_draw_tick保留唯一输入timer/flush和history动作消费。main/pager/resume共享predicate，
+不执行第二次tick/flush，不增业务状态机。root，2026-10-12；旧产物稳定红灯保留，
+新冻结产物的完整历史领域Gate已通过：3页/207 items、同canonical Thread的Copy历史
+导航/冻结最新回复/resize/cancel/无新turn及terminal恢复；既有Find/pager失败重试与
+线程切换/重连均实跑。原四场景加copy-mode同冻结CLI完整Gate exit0，fixture
+tui-gate-b-H9j7im，真实copy/status marker与终端恢复均确认；最终local 39 crate/
+6893 passed/5 ignored、全TUI1894与149守卫通过，本批macOS限定4/4。普通冻结阅读/
+选区吸收历史、owned inline与原生/跨平台/GUI/live/full仍开放，整体partial/active。
+第122架构图确认：普通mouse/keyboard选区与copy_mode -> 同一PagerOverlay冻结已显示
+TranscriptContent -> accepted page身份差集 -> pager_overlay/history ->
+transcript_view/mutations::prepend_snapshot_history -> 端点/origin/scroll/clipboard ticket。
+copy_mode只重建语义targets，不再拥有通用selection插入；旧pager_overlay/copy_mode入口
+直接删除，无compat。快照在未选中frame记录，gesture后的首帧不捕获live replacement/
+tail；重复页按原content key拒绝。普通PageUp顶部一次请求，in-flight拒绝/失败重试复用
+原App Server cursor。选中状态阻止完成路径重置阅读锚点；只有尺寸改变才进行冻结锚点
+重排，普通滚动/edge drag仍由原pager拥有。GUI/TUI共享协议、runtime、存储不变；root，
+2026-10-12，本批macOS限定验收已完成，owned inline与整产品仍partial/active。
+第122真实OnePage Gate暴露宿主只为copy_mode释放Loading门禁；完成接线改为所有current
+transcript pager，仍只接受App Server已校验的thread/cursor页，没有新分页owner/状态链。
+第122同冻结CLI完整历史领域Gate已通过：同canonical Thread的copy与ordinary selection
+两个marker、3页/207 items、真实mouse高亮/分页保留/resize恢复/Esc清除/无新turn/终端
+恢复；legacy与既有Find/重试/切换/重连/top-up通过。原五场景同冻结CLI完整Gate exit0，
+fixture tui-gate-b-Dcm2J1；最终local 39 crate/6896 passed/5 ignored、全TUI1898、149守卫
+及严格检查通过。root，2026-10-12，本批macOS限定4/4；ordinary held reading/owned inline、
+dispatcher与原生/跨平台/GUI/live/full仍开放，整体partial/active。
+仅测试`copy*\*\_with`反馈实现已删除，回归直接消费生产完成路径。架构确认：terminal event
+-> App clipboard action -> Tui worker -> matching App completion -> current selection反馈，业务
+仍Product Surface -> App Server -> shared runtime -> canonical Thread/Turn/Item。root，2026-10-11。
 
 终端标题由 `app/terminal_title` 读取同一 `status_surface_data`、canonical active turn
 clock 与 BottomPane request queue。activity/thread-name/cwd basename fallback 只是展示投影，
@@ -306,6 +520,11 @@ flatten rich input 或改附件 owner。start 在环境/设置副作用前拒绝
 小于 800 行；无第二 backend/私有限制配置/compat。root 确认此边界，2026-10-01。
 `ComposerDraft` 是历史搜索、未提交草稿与 Vim 撤销/重做
 共享的内存快照，包含文本、原子范围、pending paste、mention binding 和附件；offline editing 保留该 owner。
+断线编辑统一进入 `chat_composer/reconnect::handle_restricted_key`：先物化 PasteBurst 已接收
+但未 flush 的正文，再逆序展开已登记的 pending paste 范围，之后才执行普通 TextArea/Vim
+编辑。图像/mention 身份与其余原子范围保持，Enter/Tab 不提交或排队；恢复连接继续同一
+normal 输入路径。旧 `handle_disconnected_key` 已删除，无 alias/compat、UnavailableThread
+预留状态或第二 backend。责任开发者 root 确认此图，2026-10-10。
 编辑配置沿 `core::TuiEditorKeymap -> App Server config/read -> LocalSettings ->
 RuntimeKeymap.editor (Arc<EditorKeymap>) -> ChatWidget.bottom_pane -> ChatComposer ->
 TextArea::set_keymap_bindings` 进入。
@@ -358,7 +577,10 @@ JSON-RPC response 已有精确 id，不复制 Codex native Op 的 FIFO/按 call-
 架构图确认：root，2026-10-02；GUI/TUI共享业务主链和 canonical authority 不变，主输入/交互
 以及 pager、transcript scroll/viewport/follow/search/selection/footer、外部编辑器生命周期与 startup
 protected-request pending 等
-session-local presentation 状态已经由 `ChatWidget` 单一持有，完整 ChatWidget lifecycle（collaboration scope、replay seed
+session-local presentation 状态原由 `ChatWidget` 持有；第123将主阅读的scroll/viewport/
+follow/search/selection/footer/prompt header/composer gap直接迁到`App::transcript_view`，
+`ChatWidget`只保留BottomPane与dialog presentation，不保留主阅读字段或委托入口。
+完整 ChatWidget lifecycle（collaboration scope、replay seed
 和其它 Codex session state）迁移继续 partial，不增加空壳、Deref 或第二 backend。
 capture 前由同一 paste-burst owner 物化 held typing，不能丢失或在新 Thread 上迟到 flush。
 `ChatComposer::restore_thread_input_state` 创建 fresh `DraftState/TextArea`，恢复完整 rich draft
@@ -379,6 +601,62 @@ model、agent、resume 与 export picker 也由 `ChatWidget` 持有 transient st
 和 picker lifecycle 必须读取同一 ChatWidget 实例，不允许恢复 App 级平行 picker 字段或第二个
 render owner。picker 的 catalog、session settings 和 canonical request 仍由既有 App Server
 边界提供，不把 UI owner 迁成 TUI 私有后端。
+第123架构图确认：App canonical projection -> app/owned_transcript::render_owned_transcript
+-> App::TranscriptView { viewport/scroll, selection/search, follow/footer/header/gap }；terminal
+input -> 同一TranscriptView input owner -> AppAction -> 原App Server/shared runtime。
+Thread reset/hydrate由App组合TranscriptView::reset与ChatWidget surface reset，删除旧ChatWidget
+重复清空/滚动/selection/search方法；view只安排屏幕区域并调用App-owned主绘制，无alias/
+compat或第二canonical store。责任root，2026-10-12；架构图已确认。第123全TUI1898、
+149守卫、strict Clippy/fmt、local 39 crate/6896 passed/5 ignored与同冻结CLI真实历史/
+原五场景Gate通过，本批macOS限定4/4；完整owned inline/held reading仍partial/active。
+第124架构图确认：同一App Server session接受canonical旧页 -> projection新增entry差集
+-> history_ui主界面既有Rich/Raw composition -> TranscriptView::prepend_snapshot_history
+-> selection统一mutation与配对PromptHeaderSource。旧冻结文字/metadata/阅读锚点/复制票据
+保留，live tail/replacement不进入snapshot；CopyPosition区分主阅读DistanceFromBottom与
+pager Row，不把终端坐标当业务事实。主阅读PageUp/wheel到顶部 -> AppAction -> App的
+history_load_mode OnePage -> 原stdio/App Server分页游标；不存在第二历史store或后端。
+责任root，2026-10-12；架构图已确认。第124全TUI1903、149守卫、strict Clippy/fmt、
+local 39 crate/6900 passed/5 ignored与同冻结CLI完整历史领域/原五场景Gate通过；新增
+主阅读mouse分页marker绑定canonical Thread，证明原高亮/草稿/resize/Esc/零新turn/
+无overlay与终端恢复。macOS限定条件4/4，ordinary held reading/group pins与完整owned
+inline、dispatcher和原生/跨平台/GUI/live/full继续partial/active。
+第125架构图确认：canonical entry/group composition -> 配对cell identities/mutable metadata
+-> TranscriptView::hold_live_reading -> ViewSnapshot { layout/source, initial visible pins }。
+page接受 -> 同一TextLayout插入mutation -> snapshot新增页差集；未显示且未pin的group可
+按canonical identities合并，已显示或pin的revision保留。terminal scroll -> App-owned
+composition -> surviving stable cell检测 -> 释放snapshot/失效旧layout -> 接回current显示。
+选区结束保留retired reading；explicit latest/top/raw/thread reset释放旧presentation。
+所有snapshot/cell metadata只属于terminal surface，不成为canonical store或新backend；
+App Server/shared runtime/GUI协议不变。责任root，2026-10-12；架构图已确认，本批验收通过。
+第125领域验收：1909 TUI/150守卫/strict Clippy与同冻结CLI完整历史领域通过；普通reader
+与mouse selection都经透明ws relay到真实stdio App Server，接受100/22两页canonical
+items，99条旧group保留并在导航到稳定cell后显示120条merged group。新完整composer布局
+回归覆盖page-before-resize；PTY resize先排空旧帧，避免按新尺寸解析未读旧帧。relay和
+排空均为test-only，不新增server事实或改变产品transport。最终原五场景同冻结CLI Gate通过，
+verify:local 39 crate/6905 passed/5 ignored与冻结SHA复核通过；本批macOS限定4/4（100%）。
+owned inline/group/search完整语义、dispatcher、durable command actions与原生/跨平台/GUI/
+live/full继续partial/active。
+
+第126架构图确认：canonical Command { command,cwd,metadata } -> 共享 App Server
+thread/projection/item -> tool-runtime::parse_command（Bash AST / argv PowerShell 展示解析）
+-> agent-protocol::parse_command::ParsedCommand -> v2 CommandAction::from_core_with_cwd
+-> 同一 CommandExecution { commandActions,source } -> live notification / read-resume /
+items page -> GUI/TUI。解析器按 operand/shell/summary/test 职责拆分，新增依赖只为实际使用
+的 shlex/tree-sitter/tree-sitter-bash；所有 crate 保留 workspace Rust edition 2021，
+Codex let-chain 改写为等价 filter/nested condition，保留原回归。App Server 大投影模块
+拆成 item、command、metadata；v2 command
+类型迁到 item/command，公共 type/字段/method 和 schema 形状保持一致。
+不建立 renderer/TUI 私有 parser、第二 runtime、状态 store 或 compat/deprecated 包装。
+展示解析不授予工具权限；原 shell_analysis/execution_policy owner 不变。责任 root，
+2026-10-12；架构图已确认。新完整冻结 App Server/CLI 真实 stdio 的 command live/read/
+page 对象相等、冷恢复 PTY 探索分组/Unknown/userShell/resize/终端恢复与原历史/五场景
+Gate 通过；CLI Gate B、Electron current fixture 和 GUI smoke 通过，GUI canonical reader
+52项回归通过。普通共享 Clippy 通过，strict 仍受既有告警影响；两项 test-only deny 已
+清除，未加 allow。最终 local 39 crate/7017 passed/5 ignored通过；本批退出条件3/4
+（75%），共享 strict 基线未清，整体仍 partial/active。Windows 原生 script/宿主
+argv 持久化、GUI 探索分组布局与跨平台实机需独立验收，不以 macOS 静态 PowerShell
+回归或 GUI regression 宣称完整覆盖。旧恒空 commandActions 路径已直接替换，未新增
+compat/deprecated；详见第126执行计划与限定证据。
 session settings 的 surface projection 也归 `ChatWidget`：`model_catalog`、`model`、
 `model_provider`、`reasoning_effort`、`permissions`、`permission_profiles` 与
 `collaboration_mode` 由该 owner 同步并供 picker、status、快捷键和历史展示读取；
@@ -3067,12 +3345,35 @@ GUI/contract 验证门禁。
 
 ### 33.2 Unified exec command/test lifecycle
 
+第127架构图确认（实施验证中）：actual gateway request { argv, resolved cwd }
+-> tool-runtime unified_exec::Invocation -> typed CommandStartEvent -> current Agent
+canonical Command ItemStarted -> App Server JSON-RPC -> GUI/TUI；同一 session invocation
+-> output delta / poll / write_stdin / terminal Item -> durable read/items page/restart。
+generic dispatch不提前发布Command；执行准备失败以Unknown/no process的invocation
+started/completed记录拒绝结果，不绕过App Server lifecycle validator。canonical Item
+独占开始/完成，coding_events mirror仅补output/test/terminal interaction，清除重复的
+command.started/exited及其覆盖实际argv/source/process事实的路径。
+Invocation独占bounded的脱敏terminalInteractions快照；poll/write记录成功交互后沿同一
+output/result进入canonical Item，projection以实际envelope区分快照替换与独立interaction
+增量追加。原单值producer已删除，镜像仅消费最后一项摘要；snapshot不会重复镜像事实，
+真实相同摘要的多次输入仍保留。实际OS public stdio完整live/read/page/restart对象相等已
+通过，原失败证据与新冻结产物登记在第127执行计划。
+event sequence verifier以canonical Command开闭同一command scope，仍拒绝重复开始、
+无开始/完成后输出和未关闭Turn；未流式尾部输出必须在canonical完成前发布，静默完成
+不生成假output。校验器与current_provider_turn的tests已拆到各自领域目录，旧镜像并非
+canonical开始条件，不通过放宽sequence/tool lifecycle gate掩盖接线缺口。
+unified_exec按definitions/shell/session/collect/output/invocation拆分；Agent protocol按
+DTO/tool_lifecycle/tests拆分；coding_events按canonical/metadata/policy/tests拆分，相关
+主文件均不越800行。不新增method/schema/wire shape、第二后端、GUI/TUI parser或compat。
+责任root，2026-10-12；已确认依赖方向与唯一事实源，真实public transport/产品Gate
+及最终local证据仍在验证，不以owner回归替代实际OS执行或跨平台验收。
+
 Thread 内的 Codex `exec_command` 不再把 `Command` Item 当成只在终态读取的 batch outcome。`tool-runtime::unified_exec`
 从同一个 `RuntimeLiveExecutionGateway` 读取 `ExecutionProcessSnapshot`，把 `processId`、`executionProcessStatus`、
 `stdinWritable`、bounded output counters、exit code 与 `executionSurface=unified_exec` 写入每次 canonical result；
 因此短命令、yield 后仍运行的命令和 `write_stdin` 续接都保留同一 process identity。App Server
 `runtime_backend::coding_events::CodingEventMirror` 消费 `Command` Item 的 `ItemStarted -> ItemUpdated ->
-ItemCompleted`，统一产出 `command.started/output/exited` 与 test command 的 `test.started/completed`，Workbench/read
+ItemCompleted`，仅补 `command.output` 与 test command 的 `test.started/completed`，Workbench/read
 model 不再只依赖最后一个 ToolEnd metadata。需要 workspace sandbox backend 的命令仍由 Agent sandbox executor 承接；
 unified exec 只能通过 `RuntimeLiveExecutionGateway -> ExecutionProcessServer`，不能降级裸进程或创建并行 owner。
 
@@ -3803,10 +4104,11 @@ CLI/TUI Host -> App Server JSON-RPC -> RuntimeCore -> Thread/Turn/Item projectio
 ```
 
 `ChatWidget` 是终端 chat surface 的唯一 session-local owner。除主 composer、BottomPane 交互与 transcript
-presentation 外，它还持有 locale/copy presentation、runtime keymap/global chord matcher、CLIPBOARD/PRIMARY
-lease、right-click paste 竞态、queued submissions、per-thread `BottomPaneInputState` 快照、turn lifecycle 以及
+presentation 外，它还持有 locale/copy presentation、runtime keymap/global chord matcher、
+selection scope与right-click paste 竞态、queued submissions、per-thread `BottomPaneInputState` 快照、turn lifecycle 以及
 skill/MCP startup warning presentation state。`App` 只保留 host 生命周期、transport/session action、Thread/notification routing 和 canonical
 projection；不得恢复同名平行字段、getter、Deref facade 或第二份 queue/history/backend。
+CLIPBOARD/PRIMARY native leases只归session-lived `Tui.clipboard` worker，不能恢复到ChatWidget。
 
 主 composer 的 `input_enabled`、禁用态 placeholder、popup 清理与 cursor 可见性也属于同一
 `ChatWidget -> BottomPane -> ChatComposer` presentation owner。输入禁用只阻断终端编辑、粘贴和鼠标

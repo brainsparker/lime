@@ -1,12 +1,20 @@
 #!/usr/bin/env node
 
-import { access, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import {
+  access,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { deepStrictEqual } from "node:assert";
 import { localAppServerBinaryPath } from "../lib/electron-dev-sidecar.mjs";
 import { buildTerminalGateBinaries } from "./terminal-gate-binaries.mjs";
 
@@ -109,6 +117,124 @@ async function main() {
     const legacyThreadId = legacyStarted.result.thread.id;
     await seedCompletedTurns(connection, legacyThreadId, "LEGACY", 51);
 
+    const readingStarted = await connection.startSession({
+      cwd: tempDir,
+      runtimeWorkspaceRoots: [tempDir],
+      model: "fixture-model",
+      modelProvider: "fixture-provider",
+      historyMode: "paginated",
+    });
+    assertHistoryMode(readingStarted, "paginated");
+    const readingThreadId = readingStarted.result.thread.id;
+    const readingTurn = await connection.startTurn({
+      threadId: readingThreadId,
+      input: [{ type: "text", text: "GROUP_SEED" }],
+    });
+    await drainTurnCompletion(
+      connection,
+      readingTurn,
+      readingTurn.result.turn.id,
+    );
+    const readingThread = await connection.readThread({
+      threadId: readingThreadId,
+      includeTurns: true,
+    });
+    const seededTurn = readingThread.result.thread.turns.find(
+      (turn) => turn.id === readingTurn.result.turn.id,
+    );
+    if (seededTurn?.status !== "completed") {
+      throw new Error(
+        `reading seed failed: ${JSON.stringify(seededTurn?.error)}`,
+      );
+    }
+    const readingStats = await threadItemStats(connection, readingThreadId);
+    assertPagination(readingStats, { minimumItems: 122, minimumPages: 2 });
+    const readingPage = await connection.listThreadItems({
+      threadId: readingThreadId,
+      limit: 100,
+      sortDirection: "desc",
+    });
+    const initialActions = readingPage.result.data.filter(
+      (entry) => entry.item.type === "mcpToolCall",
+    ).length;
+    if (initialActions !== 99) {
+      throw new Error(
+        `reading group must cross the page: actions=${initialActions}`,
+      );
+    }
+
+    const commandStarted = await connection.startSession({
+      cwd: tempDir,
+      runtimeWorkspaceRoots: [tempDir],
+      model: "fixture-model",
+      modelProvider: "fixture-provider",
+      historyMode: "paginated",
+    });
+    const commandThreadId = commandStarted.result.thread.id;
+    const commandTurn = await connection.startTurn({
+      threadId: commandThreadId,
+      input: [{ type: "text", text: "COMMAND_SEED" }],
+    });
+    const commandNotifications = await drainTurnCompletion(
+      connection,
+      commandTurn,
+      commandTurn.result.turn.id,
+    );
+    const commandRead = await connection.readThread({
+      threadId: commandThreadId,
+      includeTurns: true,
+    });
+    const commandItems = commandRead.result.thread.turns
+      .flatMap((turn) => turn.items)
+      .filter((item) => item.type === "commandExecution");
+    deepStrictEqual(
+      commandItems.map((item) =>
+        item.commandActions.map((action) => action.type),
+      ),
+      [["read"], ["read"], ["search", "listFiles"], ["unknown"], ["read"]],
+    );
+    deepStrictEqual(
+      commandItems[0].commandActions[0].path,
+      path.join(tempDir, "docs/guide one.md"),
+    );
+    deepStrictEqual(commandItems[4].source, "userShell");
+    for (const item of commandItems) {
+      for (const method of ["item/started", "item/completed"]) {
+        const notification = commandNotifications.find(
+          (entry) =>
+            entry.method === method && entry.params?.item?.id === item.id,
+        );
+        deepStrictEqual(
+          notification?.params.item.commandActions,
+          item.commandActions,
+        );
+      }
+    }
+    const commandPage = await connection.listThreadItems({
+      threadId: commandThreadId,
+      limit: 100,
+      sortDirection: "asc",
+    });
+    deepStrictEqual(
+      commandPage.result.data
+        .filter((entry) => entry.item.type === "commandExecution")
+        .map((entry) => entry.item),
+      commandItems,
+    );
+    await writeFile(
+      path.join(tempDir, "command-actions-live-read.json"),
+      JSON.stringify(
+        {
+          threadId: commandThreadId,
+          notifications: commandNotifications,
+          thread: commandRead.result.thread,
+          page: commandPage.result,
+        },
+        null,
+        2,
+      ),
+    );
+
     const review = await connection.startReview({
       threadId,
       delivery: "inline",
@@ -157,9 +283,11 @@ async function main() {
         backendPath,
         ledgerPath,
         legacyThreadId,
+        readingThreadId,
+        commandThreadId,
       }),
     );
-    await execFileAsync(
+    const evidence = await execFileAsync(
       process.env.CARGO || "cargo",
       [
         "test",
@@ -192,6 +320,8 @@ async function main() {
             : {}),
           LIME_TEST_TUI_HISTORY_THREAD_ID: resumeThreadId,
           LIME_TEST_TUI_LEGACY_THREAD_ID: legacyThreadId,
+          LIME_TEST_TUI_READING_THREAD_ID: readingThreadId,
+          LIME_TEST_TUI_COMMAND_THREAD_ID: commandThreadId,
           LIME_TEST_TUI_GATE_B: "1",
         },
         maxBuffer: 4 * 1024 * 1024,
@@ -199,6 +329,56 @@ async function main() {
         windowsHide: true,
       },
     );
+    const copyMarker = evidence.stdout.match(
+      /TUI_COPY_HISTORY_OK thread=(\S+) pages=canonical oldest=SEED_000 latest=frozen resize=preserved cancel=restored turns=none terminal=restored/u,
+    );
+    if (!copyMarker) {
+      throw new Error(
+        "copy history PTY fixture did not prove canonical pages and terminal restoration",
+      );
+    }
+    if (copyMarker[1] !== resumeThreadId) {
+      throw new Error(
+        "copy history PTY evidence belongs to a different canonical thread",
+      );
+    }
+    console.log(copyMarker[0]);
+    const selectionMarker = evidence.stdout.match(
+      /TUI_SELECTION_HISTORY_OK thread=(\S+) gesture=mouse pages=canonical oldest=SEED_000 latest=frozen resize=preserved cancel=selection-first turns=none terminal=restored/u,
+    );
+    if (!selectionMarker || selectionMarker[1] !== resumeThreadId) {
+      throw new Error(
+        "ordinary selection PTY fixture did not prove history and restoration for the canonical thread",
+      );
+    }
+    console.log(selectionMarker[0]);
+    const mainSelectionMarker = evidence.stdout.match(
+      /TUI_MAIN_SELECTION_HISTORY_OK thread=(\S+) gesture=mouse pages=canonical oldest=SEED_000 latest=frozen resize=preserved cancel=selection-only draft=preserved overlay=none turns=none terminal=restored/u,
+    );
+    if (!mainSelectionMarker || mainSelectionMarker[1] !== resumeThreadId) {
+      throw new Error(
+        "main selection PTY fixture did not prove canonical history, draft and terminal restoration",
+      );
+    }
+    console.log(mainSelectionMarker[0]);
+    const readingMarker = evidence.stdout.match(
+      /TUI_READING_HISTORY_OK thread=(\S+) transport=ws-relay-real-stdio initial=99 joined=120 reading=retained navigation=current selection=retained resize=preserved latest=restored turns=none terminal=restored/u,
+    );
+    if (!readingMarker || readingMarker[1] !== readingThreadId) {
+      throw new Error(
+        "reading revision PTY fixture did not prove the canonical group join through the real App Server",
+      );
+    }
+    console.log(readingMarker[0]);
+    const commandMarker = evidence.stdout.match(
+      /TUI_COMMAND_ACTIONS_OK thread=(\S+) transport=real-stdio read=grouped search=listFiles unknown=opaque userShell=separate resize=preserved turns=none terminal=restored/u,
+    );
+    if (!commandMarker || commandMarker[1] !== commandThreadId) {
+      throw new Error(
+        "command action PTY evidence is missing for the canonical thread",
+      );
+    }
+    console.log(commandMarker[0]);
     console.log(
       `[smoke:tui-history-pagination] ok paginated=${resumeThreadId} pages=${paginatedStats.pages} items=${paginatedStats.items} legacy=${legacyThreadId} pages=${legacyStats.pages} items=${legacyStats.items} review=nested-filtered underfilled=auto-filled alternate-screen=restored`,
     );
@@ -215,7 +395,9 @@ async function main() {
 function assertHistoryMode(started, expected) {
   const actual = started?.result?.thread?.historyMode;
   if (actual !== expected) {
-    throw new Error(`thread/start historyMode mismatch: expected=${expected} actual=${actual}`);
+    throw new Error(
+      `thread/start historyMode mismatch: expected=${expected} actual=${actual}`,
+    );
   }
 }
 
@@ -248,7 +430,9 @@ async function threadItemStats(connection, threadId) {
     const nextCursor = response.result.nextCursor;
     if (!nextCursor) break;
     if (seenCursors.has(nextCursor)) {
-      throw new Error(`thread/items/list repeated cursor for ${threadId}: ${nextCursor}`);
+      throw new Error(
+        `thread/items/list repeated cursor for ${threadId}: ${nextCursor}`,
+      );
     }
     seenCursors.add(nextCursor);
     cursor = nextCursor;
@@ -299,13 +483,22 @@ async function resolveRuntimeEnvironment() {
 
 async function drainTurnCompletion(connection, initial, turnId) {
   const notifications = initial.notifications || [];
-  if (notifications.some((entry) => entry.method === "turn/completed" && entry.params?.turn?.id === turnId)) {
-    return;
+  if (
+    notifications.some(
+      (entry) =>
+        entry.method === "turn/completed" && entry.params?.turn?.id === turnId,
+    )
+  ) {
+    return notifications;
   }
   while (true) {
     const notification = await connection.nextNotification(30_000);
-    if (notification.method === "turn/completed" && notification.params?.turn?.id === turnId) {
-      return;
+    notifications.push(notification);
+    if (
+      notification.method === "turn/completed" &&
+      notification.params?.turn?.id === turnId
+    ) {
+      return notifications;
     }
   }
 }
@@ -343,7 +536,79 @@ const threadId = request.session?.threadId || null;
 const blocked = input.kind === "turnStart" && text.includes("NESTED_REVIEW_PROMPT");
 let events = [{ type: "turn.started", payload: {} }];
 if (input.kind === "turnStart" && !blocked) {
-  const assistantText = text.match(/(?:SEED|LEGACY)_\\d{3}/)?.[0] || "review complete";
+  const group = text.includes("GROUP_SEED");
+  const commandActions = text.includes("COMMAND_SEED");
+  if (commandActions) {
+    const commands = [
+      "cd docs && cat 'guide one.md'",
+      "cat README.md | head -n 3",
+      "rg -n 'COMMAND_QUERY' src; rg --files lib",
+      "cat README.md && cargo test",
+      "cat USER_SHELL.md",
+    ];
+    for (let index = 0; index < commands.length; index += 1) {
+      const item = {
+        sessionId: request.session.sessionId,
+        threadId,
+        turnId,
+        itemId: "item_command-" + index + "-" + turnId,
+        sequence: index + 2,
+        ordinal: index + 2,
+        createdAtMs: Date.now(),
+        updatedAtMs: Date.now(),
+        completedAtMs: Date.now(),
+        kind: "command",
+        status: "completed",
+        payload: { type: "command", command: commands[index], cwd: request.runtimeOptions.runtimeRequest.workingDir, output: "canonical command result", exitCode: 0 },
+        metadata: index === 4 ? { commandExecutionSource: "userShell" } : {},
+      };
+      const started = { ...item, status: "inProgress", payload: { ...item.payload } };
+      delete started.completedAtMs;
+      delete started.payload.output;
+      delete started.payload.exitCode;
+      events.push({ type: "item.started", payload: { item: started } });
+      events.push({ type: "item.completed", payload: { item } });
+      if (index === 1) {
+        const itemId = "command-separator-" + turnId;
+        events.push({ type: "message.delta", payload: { itemId, text: "COMMAND_READS_DONE" } });
+        events.push({ type: "message.completed", payload: { itemId, status: "completed", text: "COMMAND_READS_DONE" } });
+      }
+    }
+  }
+  if (group) {
+    for (let index = 0; index < 120; index += 1) {
+      const item = {
+        sessionId: request.session.sessionId,
+        threadId,
+        turnId,
+        itemId: "reading-action-" + index + "-" + turnId,
+        sequence: index + 2,
+        ordinal: index + 2,
+        createdAtMs: Date.now(),
+        updatedAtMs: Date.now(),
+        completedAtMs: Date.now(),
+        kind: "mcpToolCall",
+        status: "completed",
+        payload: {
+          type: "mcpToolCall",
+          call_id: "reading-action-" + index,
+          server_name: "cua_repl",
+          tool_name: "js",
+          arguments: [],
+          output: { text: "canonical action " + index, truncated: false },
+        },
+        metadata: {},
+      };
+      const started = { ...item, status: "inProgress", payload: { ...item.payload } };
+      delete started.completedAtMs;
+      delete started.payload.output;
+      events.push({ type: "item.started", payload: { item: started } });
+      events.push({ type: "item.completed", payload: { item } });
+    }
+  }
+  const assistantText = group
+    ? Array.from({ length: 45 }, (_, index) => "READING_SURVIVING_ROW_" + String(index).padStart(2, "0")).join("\\n")
+    : commandActions ? "COMMAND_ACTIONS_DONE" : text.match(/(?:SEED|LEGACY)_\\d{3}/)?.[0] || "review complete";
   events.push({ type: "message.delta", payload: { itemId: "assistant-" + turnId, text: assistantText } });
   events.push({ type: "message.completed", payload: { itemId: "assistant-" + turnId, status: "completed", text: assistantText } });
   events.push({ type: "turn.completed", payload: { status: "completed" } });
@@ -357,6 +622,9 @@ if (blocked) { setInterval(() => {}, 1000); await new Promise(() => {}); }
 }
 
 main().catch((error) => {
-  console.error(`[smoke:tui-history-pagination] failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (error.stdout) console.error(error.stdout);
+  console.error(
+    `[smoke:tui-history-pagination] failed: ${error instanceof Error ? error.message : String(error)}`,
+  );
   process.exitCode = 1;
 });

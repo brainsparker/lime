@@ -1,0 +1,8 @@
+OpenAI Codex shell-command and protocol/parse_command.rs
+Copyright 2025 OpenAI
+Licensed under Apache License 2.0 (see LICENSE).
+Upstream commit: 4aaee872e31abefe0d32e91faab23b09b6968824
+
+Modified for Lime: existing tool-runtime and agent-protocol owners,
+separate operand/shell/summary/test modules, minimal shell detection,
+no execution or safety parser ownership added.

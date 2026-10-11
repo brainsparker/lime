@@ -155,8 +155,28 @@ async fn real_pty_mcp_form_uses_stdio_rich_drafts_and_restores_terminal() {
         !screen.contents().contains("Complete the terminal form")
             && screen.contents().contains("Ask Lime to do anything")
     });
-    pty.write(b"\x04");
     let deadline = Instant::now() + Duration::from_secs(15);
+    // The form can close before the original tool caller receives its result. Keep stdio alive
+    // until that business event, sharing the existing exit budget instead of adding a grace wait.
+    tokio::time::timeout_at(tokio::time::Instant::from_std(deadline), async {
+        let mut tick = tokio::time::interval(Duration::from_millis(20));
+        loop {
+            let ledger = std::fs::read(&ledger_path).unwrap();
+            let mut complete_entries = ledger
+                .split_inclusive(|byte| *byte == b'\n')
+                .filter(|line| line.ends_with(b"\n"))
+                .map(|line| serde_json::from_slice::<Value>(line).unwrap());
+            if complete_entries.any(|entry| {
+                entry["direction"] == "server" && entry["message"]["id"] == "mcp-pty-tool-call"
+            }) {
+                break;
+            }
+            tick.tick().await;
+        }
+    })
+    .await
+    .expect("MCP tool result must reach its caller before terminal shutdown");
+    pty.write(b"\x04");
     loop {
         if let Some(status) = pty.child.try_wait().unwrap() {
             assert!(status.success());
@@ -213,5 +233,5 @@ async fn real_pty_mcp_form_uses_stdio_rich_drafts_and_restores_terminal() {
     assert_eq!(read["thread"]["id"], thread_id);
     assert_eq!(read["thread"]["turns"], json!([]));
     session.shutdown().await.unwrap();
-    eprintln!("PTY_MCP_FORM_OK thread={thread_id} transport=real-stdio raw=atomic drafts=restored response=complete exactly-once=true turns=none terminal=restored");
+    eprintln!("PTY_MCP_FORM_OK thread={thread_id} transport=real-stdio raw=atomic drafts=restored response=complete tool=resolved-before-exit exactly-once=true turns=none terminal=restored");
 }

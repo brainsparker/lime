@@ -197,8 +197,8 @@ fn vim_undo_redo_replace_recovery_and_offline_edits_preserve_payloads() {
     assert_eq!(composer.current_text_with_pending(), pasted);
     composer.set_vim_enabled(false);
     key(&mut composer, KeyCode::End);
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
-    assert!(composer.is_empty());
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    assert_eq!(composer.text(), "x".repeat(1000));
     assert!(composer.draft.pending_pastes.is_empty());
 }
 

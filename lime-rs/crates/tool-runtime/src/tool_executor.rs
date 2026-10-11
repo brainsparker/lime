@@ -307,7 +307,7 @@ impl RuntimeToolExecutorHandle {
                         "tool_environment_ambiguous".to_string(),
                     )),
                 )
-                .before_handler())
+                .before_handler());
             }
         };
         self.executor

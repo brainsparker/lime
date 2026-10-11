@@ -141,7 +141,19 @@ impl PtyLime {
         )
     }
 
-    fn start_with_mode(
+    pub(super) fn test_command(cwd: &Path) -> CommandBuilder {
+        Self::command_for_mode(
+            &required_test_path("LIME_TEST_CLI_BIN"),
+            &required_test_path("LIME_TEST_APP_SERVER_BIN"),
+            &required_test_path("LIME_TEST_TERMINAL_BACKEND"),
+            &cwd.join("ledger.jsonl"),
+            cwd,
+            &required_test_path("LIME_TEST_NODE_BIN"),
+            StartMode::Tui,
+        )
+    }
+
+    fn command_for_mode(
         cli_bin: &Path,
         app_server_bin: &Path,
         backend_path: &Path,
@@ -149,13 +161,7 @@ impl PtyLime {
         cwd: &Path,
         node_bin: &Path,
         mode: StartMode<'_>,
-    ) -> Result<Self> {
-        let pair = native_pty_system().openpty(PtySize {
-            rows: 32,
-            cols: 120,
-            pixel_width: 0,
-            pixel_height: 0,
-        })?;
+    ) -> CommandBuilder {
         let mut command = CommandBuilder::new(cli_bin);
         let mut arguments = Vec::new();
         let remote = match mode {
@@ -219,6 +225,33 @@ impl PtyLime {
             command.env("DYLD_LIBRARY_PATH", runtime_path);
         }
 
+        command
+    }
+
+    fn start_with_mode(
+        cli_bin: &Path,
+        app_server_bin: &Path,
+        backend_path: &Path,
+        ledger_path: &Path,
+        cwd: &Path,
+        node_bin: &Path,
+        mode: StartMode<'_>,
+    ) -> Result<Self> {
+        let pair = native_pty_system().openpty(PtySize {
+            rows: 32,
+            cols: 120,
+            pixel_width: 0,
+            pixel_height: 0,
+        })?;
+        let command = Self::command_for_mode(
+            cli_bin,
+            app_server_bin,
+            backend_path,
+            ledger_path,
+            cwd,
+            node_bin,
+            mode,
+        );
         let child = pair.slave.spawn_command(command)?;
         let mut reader = pair.master.try_clone_reader()?;
         let writer = pair.master.take_writer()?;
@@ -327,6 +360,24 @@ impl PtyLime {
         Ok(())
     }
 
+    /// Drain prior frames before another gesture or a terminal geometry change.
+    pub(super) fn drain_output(&mut self) -> Result<()> {
+        let deadline = Instant::now() + STARTUP_TIMEOUT;
+        while Instant::now() < deadline {
+            match self.reader.recv_timeout(Duration::from_millis(50)) {
+                Ok(chunk) => {
+                    self.output.extend_from_slice(&chunk);
+                    self.parser.process(&chunk);
+                }
+                Err(std::sync::mpsc::RecvTimeoutError::Timeout) => return Ok(()),
+                Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                    bail!("PTY closed while draining output");
+                }
+            }
+        }
+        bail!("PTY output did not become quiet within {STARTUP_TIMEOUT:?}")
+    }
+
     pub(super) fn write_input(&mut self, bytes: &[u8]) -> Result<()> {
         self.writer.write_all(bytes)?;
         self.writer.flush()?;
@@ -377,7 +428,15 @@ impl PtyLime {
         self.parser.screen().contents()
     }
 
+    pub(super) fn screen_cell_inverse(&self, row: u16, column: u16) -> bool {
+        self.parser
+            .screen()
+            .cell(row, column)
+            .is_some_and(|cell| cell.inverse())
+    }
+
     pub(super) fn resize(&mut self, rows: u16, cols: u16) -> Result<()> {
+        self.drain_output()?;
         let output_len = self.output.len();
         // The terminal adopts its new geometry before the application can repaint. Parsing
         // that repaint at the old size clamps cursor moves and wraps text into stale rows.

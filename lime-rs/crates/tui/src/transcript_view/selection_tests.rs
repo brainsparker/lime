@@ -2,7 +2,7 @@ use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
 };
 use ratatui::buffer::Buffer;
-use ratatui::style::{Color, Style};
+use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::Widget;
 
@@ -12,6 +12,18 @@ use crate::transcript_view::TranscriptSelectionAction;
 
 fn line(text: &str) -> HyperlinkLine {
     HyperlinkLine::new(Line::raw(text.to_string()))
+}
+
+#[test]
+fn mouse_release_publishes_selection_without_requesting_clipboard_copy() {
+    let owner = TranscriptSelection::default();
+    owner.update_layout(Rect::new(0, 0, 20, 2), 0, &[line("selected text")]);
+    owner.handle_event(&mouse(MouseEventKind::Down(MouseButton::Left), 0, 0));
+    owner.handle_event(&mouse(MouseEventKind::Drag(MouseButton::Left), 8, 0));
+    let action = owner.handle_event(&mouse(MouseEventKind::Up(MouseButton::Left), 8, 0));
+    assert_eq!(action, Some(TranscriptSelectionAction::PublishPrimary));
+    assert!(owner.is_active());
+    assert_eq!(owner.selected_text().as_deref(), Some("selected"));
 }
 
 fn mouse(kind: MouseEventKind, column: u16, row: u16) -> Event {
@@ -42,7 +54,7 @@ fn select(owner: &TranscriptSelection, start: (u16, u16), end: (u16, u16)) {
     );
     assert_eq!(
         owner.handle_event(&mouse(MouseEventKind::Up(MouseButton::Left), end.0, end.1,)),
-        Some(TranscriptSelectionAction::Consumed)
+        Some(TranscriptSelectionAction::PublishPrimary)
     );
 }
 
@@ -54,13 +66,20 @@ fn wrapped_rows_copy_source_text_without_soft_newlines() {
 
     select(&owner, (0, 0), (4, 2));
 
-    let Some(TranscriptSelectionAction::Copy { text, follow }) = owner.handle_event(&Event::Key(
-        KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
-    )) else {
+    let Some(TranscriptSelectionAction::Copy {
+        text,
+        format,
+        follow,
+    }) = owner.handle_event(&Event::Key(KeyEvent::new(
+        KeyCode::Char('c'),
+        KeyModifiers::CONTROL,
+    )))
+    else {
         panic!("copy action");
     };
     assert_eq!(text, "alpha beta gamm");
     assert!(!follow);
+    assert_eq!(format, crate::clipboard_copy::CopyFormat::PlainText);
     assert!(!text.contains('\n'));
 }
 
@@ -78,10 +97,8 @@ fn cross_line_selection_keeps_only_canonical_hard_newlines() {
 #[test]
 fn quoted_selection_omits_rendered_markers_but_preserves_literal_markers_and_mixed_content() {
     let quoted = |text: &str| {
-        HyperlinkLine::new(Line::from(Span::styled(
-            text.to_string(),
-            Style::default().fg(Color::Green),
-        )))
+        crate::markdown_render::render_markdown_lines_with_width(text, Style::default(), None)
+            .remove(0)
     };
 
     let owner = TranscriptSelection::default();
@@ -144,6 +161,8 @@ fn hit_testing_stays_on_utf8_grapheme_boundaries_and_keeps_tabs() {
     }
 
     owner.selection.replace(Some(Selection {
+        pending_copy: None,
+        primary_scope: None,
         snapshot: Arc::new(lines),
         excluded_lines: Arc::new(HashSet::new()),
         start: Anchor { line: 0, offset: 0 },
@@ -175,6 +194,8 @@ fn copied_text_removes_controls_but_preserves_newlines_and_tabs() {
     let owner = TranscriptSelection::default();
     let lines = vec![line("a\u{1b}b\tc"), line("next")];
     owner.selection.replace(Some(Selection {
+        pending_copy: None,
+        primary_scope: None,
         snapshot: Arc::new(lines),
         excluded_lines: Arc::new(HashSet::new()),
         start: Anchor { line: 0, offset: 0 },
@@ -229,6 +250,7 @@ fn right_click_and_copy_shortcuts_request_copy_but_escape_clears() {
     assert_eq!(
         owner.handle_event(&mouse(MouseEventKind::Down(MouseButton::Right), 3, 3,)),
         Some(TranscriptSelectionAction::Copy {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "copy".to_string(),
             follow: false,
         })
@@ -239,6 +261,7 @@ fn right_click_and_copy_shortcuts_request_copy_but_escape_clears() {
             KeyModifiers::CONTROL,
         ))),
         Some(TranscriptSelectionAction::Copy {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "copy".to_string(),
             follow: false,
         })
@@ -249,6 +272,7 @@ fn right_click_and_copy_shortcuts_request_copy_but_escape_clears() {
             KeyModifiers::SUPER,
         ))),
         Some(TranscriptSelectionAction::Copy {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "copy".to_string(),
             follow: false,
         })
@@ -259,6 +283,7 @@ fn right_click_and_copy_shortcuts_request_copy_but_escape_clears() {
             KeyModifiers::NONE,
         ))),
         Some(TranscriptSelectionAction::Copy {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "copy".to_string(),
             follow: true,
         })

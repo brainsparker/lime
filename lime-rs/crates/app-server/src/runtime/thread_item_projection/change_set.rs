@@ -8,6 +8,10 @@
 use agent_protocol::{ItemId, ThreadHistoryChangeSet, ThreadItem, Turn};
 use std::collections::HashMap;
 
+#[cfg(test)]
+#[path = "change_set/command_tests.rs"]
+mod command_tests;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(in crate::runtime) enum MaterializationError {
     EventIdentityCollision {
@@ -226,6 +230,12 @@ pub(in crate::runtime) fn merge_item_snapshot(
     ) {
         if let Some(interactions) = previous_terminal_interactions {
             if let Some(metadata) = next.metadata.as_object_mut() {
+                // Canonical arrays are complete snapshots; interaction events are deltas.
+                if source_event_type.as_deref() != Some("command.interaction")
+                    && metadata.contains_key("terminalInteractions")
+                {
+                    return next;
+                }
                 let next_interactions = metadata
                     .get("terminalInteractions")
                     .and_then(serde_json::Value::as_array)

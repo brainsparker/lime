@@ -3,7 +3,9 @@ use ratatui::style::Style;
 use std::borrow::Cow;
 use std::path::Path;
 
-use crate::markdown;
+mod local_links;
+pub(crate) mod renderer;
+mod table;
 use crate::terminal_hyperlinks::HyperlinkLine;
 
 /// Replace only recognized follow-up directives with their visible Markdown label.
@@ -252,8 +254,7 @@ pub(crate) fn render_markdown_lines_with_width(
     base_style: Style,
     width: Option<usize>,
 ) -> Vec<HyperlinkLine> {
-    let input = followup_labels(input);
-    markdown::render(input.as_ref(), base_style, width)
+    renderer::render(input, base_style, width)
 }
 
 pub(crate) fn render_markdown_lines_with_width_and_cwd(
@@ -262,8 +263,7 @@ pub(crate) fn render_markdown_lines_with_width_and_cwd(
     width: Option<usize>,
     cwd: &Path,
 ) -> Vec<HyperlinkLine> {
-    let input = followup_labels(input);
-    markdown::render_with_cwd(input.as_ref(), base_style, width, Some(cwd))
+    renderer::render_with_cwd(input, base_style, width, Some(cwd))
 }
 
 #[allow(dead_code)]

@@ -381,15 +381,12 @@ async fn read_notification(output: &mut Lines<BufReader<DuplexStream>>, method: 
 }
 
 async fn read_message(output: &mut Lines<BufReader<DuplexStream>>) -> Value {
-    loop {
-        let line = timeout(Duration::from_secs(5), output.next_line())
-            .await
-            .expect("JSON-RPC response timeout")
-            .expect("read JSON-RPC response")
-            .expect("JSON-RPC output closed");
-        let message: Value = serde_json::from_str(&line).expect("decode JSON-RPC message");
-        return message;
-    }
+    let line = timeout(Duration::from_secs(5), output.next_line())
+        .await
+        .expect("JSON-RPC response timeout")
+        .expect("read JSON-RPC response")
+        .expect("JSON-RPC output closed");
+    serde_json::from_str(&line).expect("decode JSON-RPC message")
 }
 
 async fn initialize(server: &AppServer) {

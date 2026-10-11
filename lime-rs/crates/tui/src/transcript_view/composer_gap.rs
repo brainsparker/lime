@@ -28,9 +28,26 @@ struct CopyFeedback {
 #[derive(Debug, Default)]
 pub(crate) struct TranscriptComposerGap {
     feedback: Cell<Option<CopyFeedback>>,
+    pending_copy: Cell<Option<(u64, usize)>>,
 }
 
 impl TranscriptComposerGap {
+    pub(crate) fn defer_copy(&self, id: u64, characters: usize) {
+        self.pending_copy.set(Some((id, characters)));
+    }
+
+    pub(crate) fn finish_copy(&self, id: u64, result: &Result<CopyStatus, String>) -> bool {
+        let Some((pending_id, characters)) = self.pending_copy.get() else {
+            return false;
+        };
+        if id != pending_id || matches!(result, Ok(CopyStatus::Pending(_) | CopyStatus::Busy)) {
+            return false;
+        }
+        self.pending_copy.set(None);
+        self.show_copy_feedback(result, characters);
+        true
+    }
+
     pub(crate) fn show_copy_feedback(
         &self,
         result: &Result<CopyStatus, String>,
@@ -45,6 +62,7 @@ impl TranscriptComposerGap {
 
     pub(crate) fn clear(&self) {
         self.feedback.set(None);
+        self.pending_copy.set(None);
     }
 
     /// Clear expired feedback or return the exact delay for the existing frame scheduler.
@@ -73,6 +91,9 @@ impl TranscriptComposerGap {
         let text = match feedback.result {
             Ok(CopyStatus::Confirmed) => locale.transcript_copy_confirmed(feedback.characters),
             Ok(CopyStatus::Unconfirmed) => locale.transcript_copy_unconfirmed().to_string(),
+            Ok(status @ (CopyStatus::Pending(_) | CopyStatus::Busy)) => {
+                locale.copy_status(status, "selected text")
+            }
             Err(()) => locale.transcript_copy_failed().to_string(),
         };
         let line =

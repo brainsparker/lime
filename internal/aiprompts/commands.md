@@ -282,6 +282,10 @@ TUI successful thread handoff 同时移交 `ThreadInputState` 中的 rich draft 
 消费快照并注入当前keymap；打开Agent Center不提前搬走输入。相同Thread的resolved、
 turn terminal、item started与ThreadClosed清理当前/休眠view，MCP只按其独立resolved或
 ThreadClosed清理。断线统一清旧connection交互和bounded replay，不丢主输入草稿。
+断线主输入经 BottomPane 委托唯一 `ChatComposer::handle_restricted_key`，先 flush 已接收
+的 held/raw paste，再按登记范围逆序展开长粘贴；Backspace 删除一个 grapheme，保留
+图片/mention 身份。Enter/Tab 仍不 submit/queue，恢复后继续 normal PasteBurst；旧
+`handle_disconnected_key` 已删除，无兼容入口或 TUI 私有 runtime。
 所有这些均为TUI内存投影，canonical queue、waiter、Thread/Turn/Item仍归共享App Server；
 不新增GUI私有策略、method/schema、配置或另一套后端。完整ChatWidget owner迁移仍partial。
 bounded ThreadEventStore 的 replay 只认同一张 exact request-id 未决表，不以 item/category
@@ -323,10 +327,19 @@ FrameRequester和active notes pre_draw_tick完成。navigation先落入草稿再
 修改接受答案时暂存字符也撤销接受，不提前回复App Server或把placeholder发送为正文。
 混合ASCII/IME输入先落入held ASCII再即时插入IME；既有burst续写刷新idle时间，
 保证正文与canonical答案的字符顺序，主输入/notes/MCP字段复用同一composer规则。
+同名handle_paste_tab覆盖尚未active的短IME前缀：窗口内Tab接入原PasteBurst，保留备注
+焦点和Unicode正文；窗口过期仍交给surface导航。不新增检测器或延长既有时间阈值。
 常规runtime仅在消费TuiEvent::Draw后绘制，键盘和异步投影更新只请求FrameRequester；
 Ratatui复用与Codex一致的layout-cache，避免每帧重复求解布局放大粘贴识别间隔。
-常规geometry同步同样归Tui::draw，runtime不再每次键盘/Paste/通知loop无条件查询backend
-尺寸；Resize用事件携带尺寸立即更新viewport，普通帧与editor handoff复用同一draw。
+主runtime与独立resume picker统一经 `Tui::screen_size_for_event` 解析geometry：普通键/
+Paste/帧消费缓存，Resize即时采用事件尺寸并75ms后重采样，Resume/editor归还刷新。
+`Tui::draw` 消费预留尺寸，Ratatui官方Fixed viewport避免隐式autoresize再次查询；滚动/
+历史top-up同样读取缓存。Unix tmux的漏通知由broker后台SizeMonitor恢复，pause/observe/
+drop使旧采样失效，不增加终端surface之外的策略或backend。
+真实resize验收归 `scripts/app-server/terminal-resize-gate-b.mjs`：直接PTY保留正常信号回归，
+Unix额外运行隔离tmux，fixture launcher在CLI spawn前屏蔽SIGWINCH，验证无键盘输入的
+高/宽重排，以及editor期间resize、归还后首键、精确canonical提交和原tty模式恢复。
+tmux缺失或不受测平台输出not-run，不能算monitor实跑通过；不修改用户tmux会话。
 Windows Terminal显式`sendInput`的`ESC[13;2u`由`tui/windows_key_sequence`在现有
 event source内还原为Shift+Enter，再进入同一BottomPane/ChatComposer换行逻辑；不把Esc
 透传为取消操作或把序列尾部写入正文。只有完整无修饰Press序列接受映射，配对Release
@@ -505,6 +518,28 @@ root 并重建受管目录，不删除 Thread/Turn/Item、event log、projection
 `dead / deleted / forbidden-to-restore`；workspace memory reset 不再作为未被产品消费的平级公开能力保留。
 
 ## Command Exec 主链
+
+canonical `Command` 的展示动作统一由 `tool-runtime::parse_command` 解析，再通过 App Server
+`thread/projection/command` 投影到既有 v2 `commandActions`。实时 `item/started|completed`、
+`thread/read|resume` 与 `thread/items/list` 共用同一 item projection；GUI/TUI 不解析 shell 文本。
+读取路径从 item 的 `cwd` 解析，不借用 App Server 进程工作目录；保留搜索 query 和列表 path hint。
+已记录的 `commandArgv` 优先于 script 文本，非法 argv facts 投影 Unknown；无 argv 的旧 script
+使用保守 Bash AST。任何未识别的 stage 都折叠为完整原命令，不能把 mutation 隐藏成纯探索。
+`userShell` source 保持独立，TUI 不把用户 shell 命令并入探索分组。这是展示分类，不是权限
+证明；shell_analysis、execution policy 和 process supervisor 继续持有原业务职责。
+
+`exec_command` 的真实 `commandArgv`、canonical cwd 与 process id 来自同一
+`RuntimeLiveExecutionGateway::start_process` 请求，经 typed `CommandStartEvent` 进入
+canonical Command。generic dispatch Started 不提前冒充执行开始；准备失败在终态前
+记录一次没有 process/argv 的 Unknown invocation start，保持 started/completed 校验。
+session、output delta、结果与 `write_stdin` 复用同一 invocation，不能借用新请求的 cwd。
+invocation 同时保存最多20项脱敏 `terminalInteractions`，empty poll也保留；canonical数组
+是完整快照，materializer以实际envelope区分snapshot与`command.interaction`增量。
+snapshot替换、delta追加，不按摘要文本去重真实重复输入；无interaction字段的完成态
+保留已观察事实。旧单值metadata producer已删除，live/read/page/restart共用同一列表。
+canonical Item 独占 command 的开始/完成；`CodingEventMirror` 对 canonical Command 仅
+增加输出、测试和安全 terminal interaction facts，不再重复 command.started/exited。
+所有产品继续消费既有 `item/started|completed` 与 read model，没有新增 GUI/TUI 解析器。
 
 Codex exact 独立命令执行与 Desktop 交互终端只允许走 connection-scoped App Server JSON-RPC：
 

@@ -37,8 +37,12 @@ impl PagerOverlay {
         }
 
         let header = Rect::new(area.x, area.y, area.width, 1);
-        let footer_height = u16::from(area.height >= 2);
-        let separator_height = u16::from(area.height >= 3);
+        let footer_height = if self.is_copy_mode() {
+            area.height.saturating_sub(1).min(2)
+        } else {
+            u16::from(area.height >= 2)
+        };
+        let separator_height = u16::from(area.height > footer_height + 1);
         let content_y = area.y.saturating_add(1);
         let content_height = area
             .height
@@ -68,8 +72,14 @@ impl PagerOverlay {
                     &fallback_content
                 }
             };
+            // Retain the source of the displayed frame before a gesture can freeze its lines.
+            // Accepted history may arrive before the first selected draw; live text must stay out.
+            let mut snapshot = self.snapshot_content.borrow_mut();
+            if !self.transcript_selection.is_active() && snapshot.as_ref() != Some(transcript) {
+                *snapshot = Some(transcript.clone());
+            }
             Some(self.disclosure.materialize_with_presentation(
-                transcript,
+                snapshot.as_ref().unwrap_or(transcript),
                 locale,
                 content.width,
                 transcript_shortcut.as_deref(),
@@ -78,6 +88,22 @@ impl PagerOverlay {
         } else {
             None
         };
+        if self.copy_mode_requested.replace(false) {
+            if let Some(rendered) = materialized.as_ref() {
+                self.transcript_selection.update_layout_with_exclusions(
+                    content,
+                    usize::MAX,
+                    &rendered.lines,
+                    &rendered.excluded_lines,
+                );
+                if self.transcript_selection.begin_copy_mode(rendered) {
+                    self.pinned_to_bottom.set(false);
+                    if let Some(scroll) = self.transcript_selection.reveal_copy_context() {
+                        self.scroll.set(scroll);
+                    }
+                }
+            }
+        }
         let selection_snapshot = self.transcript_selection.snapshot_lines();
         let selection_excluded = self.transcript_selection.snapshot_excluded_lines();
         let status_lines;
@@ -123,7 +149,7 @@ impl PagerOverlay {
         let total_height = paragraph.line_count(content.width);
         let page_height = usize::from(content.height);
         let max_scroll = total_height.saturating_sub(page_height);
-        let transcript_frame = (self.is_transcript() && selection_snapshot.is_none()).then(|| {
+        let transcript_frame = self.is_transcript().then(|| {
             TranscriptFrame::new(
                 lines.to_vec(),
                 materialized
@@ -133,8 +159,10 @@ impl PagerOverlay {
                 content.width,
             )
         });
-        if let Some(frame) = transcript_frame.as_ref() {
-            self.remap_transcript_anchor(frame, max_scroll);
+        if selection_snapshot.is_none() {
+            if let Some(frame) = transcript_frame.as_ref() {
+                self.remap_transcript_anchor(frame, max_scroll);
+            }
         }
         let browsing_range = self.browsing.as_ref().and_then(|state| {
             materialized
@@ -163,6 +191,12 @@ impl PagerOverlay {
         } else {
             self.scroll.get().min(max_scroll)
         };
+        if selection_snapshot.is_some()
+            && !self.is_copy_mode()
+            && self.transcript_selection.layout_size_changed(content)
+        {
+            scroll = self.transcript_selection.frozen_scroll(content, scroll);
+        }
         if let Some(selected) = self.search.selected_match() {
             let page_height = page_height.max(1);
             if selected.row_start < scroll
@@ -183,6 +217,18 @@ impl PagerOverlay {
         self.scroll.set(scroll);
         self.page_height.set(page_height.max(1));
         self.max_scroll.set(max_scroll);
+        if self.transcript_selection.copy_target_kind().is_some() {
+            self.transcript_selection.update_layout_with_exclusions(
+                content,
+                scroll,
+                lines,
+                excluded_lines,
+            );
+            if let Some(revealed) = self.transcript_selection.reveal_copy_context() {
+                scroll = revealed;
+                self.scroll.set(scroll);
+            }
+        }
         frame.render_widget(
             paragraph.scroll(u16::try_from(scroll).unwrap_or(u16::MAX)),
             content,
@@ -254,7 +300,16 @@ impl PagerOverlay {
                         locale.transcript_copy_confirmed(feedback.characters)
                     }
                     Ok(CopyStatus::Unconfirmed) => locale.transcript_copy_unconfirmed().to_string(),
+                    Ok(status @ (CopyStatus::Pending(_) | CopyStatus::Busy)) => {
+                        locale.copy_status(status, "selected text")
+                    }
                     Err(()) => locale.transcript_copy_failed().to_string(),
+                }
+            } else if let Some(kind) = self.transcript_selection.copy_target_kind() {
+                match self.history_load_state.get() {
+                    HistoryLoadState::Loading => locale.transcript_pager_loading().to_string(),
+                    HistoryLoadState::Failed => locale.transcript_pager_retry_footer().to_string(),
+                    HistoryLoadState::Idle => locale.transcript_copy_mode_title(kind),
                 }
             } else if self.search.is_active() {
                 let status = search_status(&self.search, locale);
@@ -300,13 +355,23 @@ impl PagerOverlay {
             } else {
                 locale.pager_footer().to_string()
             };
-            frame.render_widget(
-                Paragraph::new(truncate_line_with_ellipsis_if_overflow(
-                    Line::styled(footer_text, Style::default().fg(Color::DarkGray)),
-                    usize::from(footer.width),
-                )),
-                footer,
-            );
+            if let Some(kind) = self.transcript_selection.copy_target_kind() {
+                crate::transcript_view::TranscriptFooter.render_copy_mode(
+                    frame,
+                    footer,
+                    locale,
+                    kind,
+                    self.transcript_copy_feedback.map(|_| footer_text.as_str()),
+                );
+            } else {
+                frame.render_widget(
+                    Paragraph::new(truncate_line_with_ellipsis_if_overflow(
+                        Line::styled(footer_text, Style::default().fg(Color::DarkGray)),
+                        usize::from(footer.width),
+                    )),
+                    footer,
+                );
+            }
         }
         if let Some(frame) = transcript_frame {
             *self.previous_transcript_frame.borrow_mut() = Some(frame);

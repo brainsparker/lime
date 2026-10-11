@@ -32,7 +32,7 @@ fn held_typing_is_materialized_before_capture_and_never_flushed_into_the_new_thr
     handoff(&mut app, "child");
     app.chat_widget
         .bottom_pane
-        .pre_draw_tick(now + std::time::Duration::from_secs(1));
+        .flush_paste_burst_if_due(now + std::time::Duration::from_secs(1));
     assert!(
         app.chat_widget.bottom_pane.composer_is_empty(),
         "child must not receive the previous editor's held key"

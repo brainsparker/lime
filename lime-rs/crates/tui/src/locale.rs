@@ -1,5 +1,6 @@
 mod agents;
 mod backtrack;
+mod clipboard;
 mod composer;
 mod external_editor;
 mod pickers;
@@ -315,11 +316,11 @@ impl Locale {
             (Self::EnUs, SlashCommand::Status) => "show the current session status",
             (Self::JaJp, SlashCommand::Status) => "現在のセッション状態を表示",
             (Self::KoKr, SlashCommand::Status) => "현재 세션 상태 보기",
-            (Self::ZhCn, SlashCommand::Copy) => "复制最后一条回复",
-            (Self::ZhTw, SlashCommand::Copy) => "複製最後一則回覆",
-            (Self::EnUs, SlashCommand::Copy) => "copy the last response",
-            (Self::JaJp, SlashCommand::Copy) => "最後の応答をコピー",
-            (Self::KoKr, SlashCommand::Copy) => "마지막 응답 복사",
+            (Self::ZhCn, SlashCommand::Copy) => "选择回复或文本块复制",
+            (Self::ZhTw, SlashCommand::Copy) => "選擇回覆或文字區塊複製",
+            (Self::EnUs, SlashCommand::Copy) => "choose a response or text block to copy",
+            (Self::JaJp, SlashCommand::Copy) => "応答やテキストブロックを選択してコピー",
+            (Self::KoKr, SlashCommand::Copy) => "응답 또는 텍스트 블록을 선택하여 복사",
             (Self::ZhCn, SlashCommand::Export) => "导出完整对话",
             (Self::ZhTw, SlashCommand::Export) => "匯出完整對話",
             (Self::EnUs, SlashCommand::Export) => "export the complete conversation",

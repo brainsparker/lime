@@ -48,7 +48,7 @@ fn cursor_style_belongs_to_export_focus_and_restores_the_retained_composer() {
 #[test]
 fn cursor_style_of_a_hidden_insert_composer_does_not_leak_into_pagers() {
     let mut app = vim_insert_app();
-    app.chat_widget.open_transcript_pager();
+    app.open_transcript_pager();
     assert_eq!(cursor_style(&app), SetCursorStyle::DefaultUserShape);
     app.chat_widget.dismiss_pager_overlay();
     assert_eq!(cursor_style(&app), SetCursorStyle::SteadyBar);

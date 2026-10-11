@@ -285,6 +285,10 @@ fn materialized_item_metadata(
             metadata.insert("source_call_id".to_string(), Value::String(command_id));
         }
         if event.event_type == "command.interaction" {
+            metadata.insert(
+                "source_event_type".to_string(),
+                Value::String(event.event_type.clone()),
+            );
             if let (Some(process_id), Some(stdin)) = (
                 map_string(source, &["processId", "process_id"]),
                 map_string(source, &["stdin"])
@@ -401,8 +405,11 @@ fn canonical_item_from_event(
         item.updated_at_ms = timestamp;
         item.status = canonical_item_lifecycle_status(event.event_type.as_str(), item.status);
         item.completed_at_ms = item.status.is_terminal().then_some(timestamp);
-        if matches!(item.payload, ThreadItemPayload::Reasoning { .. }) {
-            // Typed reasoning lifecycle payloads are snapshots, not deltas. The envelope owns
+        if matches!(
+            item.payload,
+            ThreadItemPayload::Reasoning { .. } | ThreadItemPayload::Command { .. }
+        ) {
+            // Typed lifecycle payloads are snapshots, not deltas. The envelope owns
             // this distinction even when nested metadata is absent or names a previous event.
             let mut metadata = item.metadata.as_object().cloned().unwrap_or_default();
             metadata.insert(

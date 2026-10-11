@@ -9,7 +9,7 @@ use app_server_protocol::protocol::v2::{QueuedSubmission, ServerNotification};
 
 use crate::app::right_click_paste::PendingPaste;
 use crate::bottom_pane::pending_input_preview::can_restore_submission;
-use crate::clipboard_paste::ClipboardTextSource;
+use crate::clipboard_copy::worker::PasteSource;
 
 impl ChatWidget {
     pub(crate) fn handle_paste_burst_tick(
@@ -36,15 +36,11 @@ impl ChatWidget {
         self.pending_clipboard_paste.as_ref()
     }
 
-    pub(crate) fn take_pending_clipboard_paste(&mut self) -> Option<PendingPaste> {
-        self.pending_clipboard_paste.take()
-    }
-
     pub(crate) fn clear_pending_clipboard_paste(&mut self) {
         self.pending_clipboard_paste = None;
     }
 
-    pub(crate) fn pending_clipboard_source(&self) -> Option<ClipboardTextSource> {
+    pub(crate) fn pending_clipboard_source(&self) -> Option<PasteSource> {
         self.pending_clipboard_paste
             .as_ref()
             .map(PendingPaste::source)

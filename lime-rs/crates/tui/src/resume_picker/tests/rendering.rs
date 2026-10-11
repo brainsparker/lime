@@ -1,6 +1,158 @@
 use super::*;
 
 #[test]
+fn picker_copy_completion_stays_with_its_original_transcript_view() {
+    for change in ["none", "replace", "reopen", "hide", "move", "scroll"] {
+        let mut picker = PickerState::new(
+            vec![thread("one", "first", false)],
+            SessionPickerAction::Resume,
+            SessionStatus::Active,
+            None,
+            true,
+        );
+        picker.transcripts.insert(
+            "one".into(),
+            SessionTranscriptState::Loaded(vec![TranscriptEntry {
+                id: "entry-1".into(),
+                kind: EntryKind::Assistant,
+                text: (0..16)
+                    .map(|index| format!("assistant line {index}"))
+                    .collect::<Vec<_>>()
+                    .join("\n"),
+                streaming: false,
+                status: None,
+                summary: Vec::new(),
+                activity_group: None,
+                activity_detail: None,
+            }]),
+        );
+        assert_eq!(picker.open_transcript_pager(Locale::EnUs), None);
+        let mut terminal = Terminal::new(TestBackend::new(40, 8)).unwrap();
+        terminal
+            .draw(|frame| render_with_locale(frame, &picker, Locale::EnUs))
+            .unwrap();
+        let select = |picker: &mut PickerState| {
+            for (kind, column) in [
+                (MouseEventKind::Down(MouseButton::Left), 0),
+                (MouseEventKind::Drag(MouseButton::Left), 4),
+                (MouseEventKind::Up(MouseButton::Left), 4),
+            ] {
+                picker.handle_transcript_pager_event(&Event::Mouse(MouseEvent {
+                    kind,
+                    column,
+                    row: 1,
+                    modifiers: KeyModifiers::NONE,
+                }));
+            }
+        };
+        select(&mut picker);
+        picker.defer_transcript_copy(7, 4);
+        for status in [
+            crate::clipboard_copy::CopyStatus::Pending(7),
+            crate::clipboard_copy::CopyStatus::Busy,
+        ] {
+            assert_eq!(
+                picker.finish_transcript_copy(7, true, &Ok(status), true),
+                None,
+                "{change} {status:?}"
+            );
+            assert!(
+                picker
+                    .transcript_pager
+                    .as_ref()
+                    .unwrap()
+                    .overlay
+                    .has_transcript_selection(),
+                "{change} {status:?}"
+            );
+        }
+        match change {
+            "replace" => {
+                picker
+                    .transcript_pager
+                    .as_ref()
+                    .unwrap()
+                    .overlay
+                    .clear_transcript_selection();
+                select(&mut picker);
+            }
+            "reopen" => {
+                assert_eq!(picker.open_transcript_pager(Locale::EnUs), None);
+                terminal
+                    .draw(|frame| render_with_locale(frame, &picker, Locale::EnUs))
+                    .unwrap();
+                select(&mut picker);
+            }
+            "move" => {
+                picker.handle_transcript_pager_event(&Event::Key(crossterm::event::KeyEvent::new(
+                    KeyCode::Left,
+                    KeyModifiers::NONE,
+                )));
+            }
+            "scroll" => {
+                picker.handle_transcript_pager_event(&Event::Key(crossterm::event::KeyEvent::new(
+                    KeyCode::PageUp,
+                    KeyModifiers::NONE,
+                )));
+            }
+            _ => {}
+        }
+        assert_eq!(
+            picker.finish_transcript_copy(
+                6,
+                true,
+                &Ok(crate::clipboard_copy::CopyStatus::Confirmed),
+                true
+            ),
+            None,
+            "{change}"
+        );
+        let before = picker
+            .transcript_pager
+            .as_ref()
+            .unwrap()
+            .overlay
+            .transcript_scroll_position();
+        assert_eq!(
+            picker.finish_transcript_copy(
+                7,
+                true,
+                &Ok(crate::clipboard_copy::CopyStatus::Confirmed),
+                change != "hide"
+            ),
+            match change {
+                "none" => Some(true),
+                "replace" | "move" | "scroll" => Some(false),
+                _ => None,
+            },
+            "{change}"
+        );
+        let pager = &picker.transcript_pager.as_ref().unwrap().overlay;
+        assert_eq!(
+            pager.has_transcript_selection(),
+            change != "none",
+            "{change}"
+        );
+        if change != "none" {
+            assert_eq!(pager.transcript_scroll_position(), before, "{change}");
+        }
+        terminal
+            .draw(|frame| render_with_locale(frame, &picker, Locale::EnUs))
+            .unwrap();
+        assert_eq!(
+            buffer_text(&terminal).contains("Copied 4 chars"),
+            change != "reopen",
+            "{change}"
+        );
+        assert_eq!(
+            picker.finish_transcript_copy(7, true, &Err("duplicate".into()), true),
+            None,
+            "{change}"
+        );
+    }
+}
+
+#[test]
 fn short_picker_layout_preserves_the_selected_session_before_chrome() {
     for height in [1, 2, 4, 8, 12, 24] {
         for selected in [0, 4, 8] {
@@ -416,25 +568,32 @@ fn transcript_pager_renders_canonical_entries_scrolls_and_closes_with_ctrl_t() {
         (MouseEventKind::Drag(MouseButton::Left), 4),
         (MouseEventKind::Up(MouseButton::Left), 4),
     ] {
-        assert!(picker
-            .handle_transcript_pager_event(&Event::Mouse(MouseEvent {
+        assert_eq!(
+            picker.handle_transcript_pager_event(&Event::Mouse(MouseEvent {
                 kind,
                 column,
                 row: 1,
                 modifiers: KeyModifiers::NONE,
-            }))
-            .is_none());
+            })),
+            if kind == MouseEventKind::Up(MouseButton::Left) {
+                Some(PagerAction::PublishPrimarySelection)
+            } else {
+                None
+            }
+        );
     }
     assert!(matches!(
         picker.handle_transcript_pager_event(&Event::Key(
             crossterm::event::KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL,)
         )),
-        Some(PagerAction::CopyTranscriptSelection { text, follow: false }) if !text.is_empty()
+        Some(PagerAction::CopyTranscriptSelection { text, follow: false, .. }) if !text.is_empty()
     ));
-    picker.apply_transcript_copy_result(
+    picker.defer_transcript_copy(1, 5);
+    picker.finish_transcript_copy(
+        1,
         false,
-        5,
         &Ok(crate::clipboard_copy::CopyStatus::Unconfirmed),
+        true,
     );
     assert!(picker
         .transcript_pager
@@ -446,10 +605,12 @@ fn transcript_pager_renders_canonical_entries_scrolls_and_closes_with_ctrl_t() {
         .draw(|frame| render_with_locale(frame, &picker, Locale::EnUs))
         .expect("unconfirmed copy draw");
     assert!(buffer_text(&terminal).contains("Copy sent to terminal"));
-    picker.apply_transcript_copy_result(
+    picker.defer_transcript_copy(2, 5);
+    picker.finish_transcript_copy(
+        2,
         false,
-        5,
         &Ok(crate::clipboard_copy::CopyStatus::Confirmed),
+        true,
     );
     let pager = picker.transcript_pager.as_mut().expect("pager");
     assert!(!pager.overlay.has_transcript_selection());

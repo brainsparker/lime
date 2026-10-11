@@ -1,17 +1,102 @@
 # TUI/CLI 继续同步 Codex 执行计划
 
 状态：in-progress（当前切片已验证；总体对齐仍有明确 defer/partial）
-日期：2026-09-08（最新续跑 2026-10-10）
+日期：2026-09-08（最新续跑 2026-10-12）
 参考实现：`/Users/coso/Documents/dev/rust/codex`
 当前基线：Rust commit `4aaee872e31abefe0d32e91faab23b09b6968824`（参考目录当前 checkout）
 
-最新续跑（2026-10-10）：第97删除editor入口的启动cwd参数，直接读取服务端同步的App.cwd，
+最新续跑（2026-10-12）：第117语义选区完成macOS限定验收；第118已贯通/copy语义
+导航、SourceBlock与renderer表格围栏规范化，Ctrl+O保留直接复制最近回复。全TUI1865、
+严格检查、workspace verify:local 39 crate/6865通过；同冻结CLI原四场景与新增/copy
+真实stdio/PTY通过。首次fixture顺序/shared ledger失败已保留，并按原顺序同产物复验。
+第119两行复制footer、共享按键样式与窄屏完整提示已完成macOS限定验收：全TUI1869、
+147守卫、严格检查、workspace local 39 crate/6869与新冻结CLI真实stdio/PTY通过。
+第120状态复制选择器、冻结状态源与共享列表导航已完成macOS限定验收：全TUI1884、
+148守卫、严格检查、workspace local 39 crate/6884与同冻结CLI真实stdio/PTY通过。
+首轮取消键夹具失败已保留，按当前配置修正后同产物复验；未放宽可见断言或预算。
+第121复制历史页吸收与Find绘制继续调度已完成macOS限定验收：全TUI1894、149守卫、
+严格检查、workspace local 39 crate/6893 passed/5 ignored及同冻结CLI历史领域/原五场景
+真实stdio/PTY通过；两轮失败与生产/夹具根因保留。第122普通pager选区与copy共享历史
+mutation/端点与票据重映射、真实mouse高亮/分页/resize/取消已完成macOS限定验收：
+全TUI1898、149守卫、严格检查、local 39 crate/6896 passed/5 ignored及同冻结CLI历史/
+原五场景Gate通过，首轮OnePage完成接线红灯及夹具时序失败保留。
+第123 App-owned TranscriptView与主阅读绘制已完成macOS限定验收：全TUI1898、149守卫、
+strict Clippy/fmt、local 39 crate/6896 passed/5 ignored和同冻结CLI历史领域/原五场景Gate
+均通过。八组ChatWidget旧字段与主阅读委托入口删除，未新增compat。完整owned inline
+继续partial。第124主阅读冻结选区canonical旧页吸收与OnePage加载已完成macOS限定验收：
+全TUI1903、149守卫、strict Clippy/fmt、local 39 crate/6900 passed/5 ignored与同冻结CLI
+历史领域/原五场景Gate均通过；新增真实主阅读mouse分页marker证明草稿/高亮/resize/Esc
+与终端恢复。下一刀继续ordinary held reading/历史group join与snapshot pins。整体partial/active；
+普通held reading、owned inline transcript、runtime dispatcher拆分、
+系统富文本接收应用及跨平台/GUI/live/full与历史时序缺口仍开放。详见第117至124；
+不按文件数量计算总体对齐率。
+
+前序续跑（2026-10-11）：第105修复复制完成的同线程选区/页面归属，原Selection内
+保存票据、端点和阅读位置，页面反馈独立完成。composer鼠标/键盘确认均清原选区，
+删除旧clear_selection参数/直接清除包装；两个resume picker消费者共享PagerOverlay。
+修改前2项稳定红灯，修复后全TUI1773、137守卫、strict Clippy和治理/docs通过。
+最终测试/fmt已通过，locked CLI build与新冻结CLI真实stdio/PTY待完成；整体partial。下一项
+已确认缺口为Codex图片粘贴250ms重复抑制与worker忙态门禁，继续在surface owner实现。
+
+前序续跑（2026-10-11）：第104将剪贴板动作与完成反馈迁到Codex同名app/clipboard，
+runtime由2050降到1385行，删除3项仅测试反馈实现，8项回归直接消费生产完成路径。
+最终全TUI1767、strict Clippy/fmt/locked CLI build、137守卫及治理通过。新冻结CLI
+首轮MCP PTY因工具caller结果尚未返回就退出而失败；夹具改为等待真实工具结果，
+与退出共用原15s预算，不修改生产源码/raw framing/阈值/完整响应断言。同一冻结CLI
+原四场景真实stdio/PTY聚合复验exit0，保留首轮失败。限定macOS验收4/4（100%）；
+整体partial，第103/第88raw稳定性根因、剩余host职责、共享editor权限合同及Windows/
+GUI/live Provider/完整verify:local仍open；单次绿色不代表整体完成或负载稳定。
+
+最新续跑（2026-10-11）：第103收敛输入突发与绘制准备顺序：唯一runtime/render先
+paste门禁再view tick，主composer/notes/MCP共用；旧Draw tick、重复flush与无生产消费
+的reflow状态机/正向测试已删除，无compat。保留ScreenSizePolicy预留尺寸，不加同义
+deferred_size。旧顺序3项稳定红灯，4项行为/8项尺寸回归、全TUI1763、strict Clippy/
+fmt/locked CLI build、136守卫及治理通过。同源码冻结CLI的四场景真实stdio/PTY聚合
+首轮MCP raw atomic失败；旧CLI单次对照及当前同产物完整复验通过，均保留原断言。
+限定macOS验收条件4/4（100%）；整体partial，首轮MCP与第88稳定性根因、Windows/
+GUI/live Provider及完整verify:local仍open，不把一次复验绿灯当成根因关闭。
+
+前序续跑（2026-10-11）：第102补齐真实tmux漏Resize与editor交接。四项direct PTY测试
+已改正误导tmux命名，无alias；真实tmux用私有socket/server、仅fixture子进程屏蔽
+SIGWINCH，证明无按键高/宽恢复与锚点、editor期间尺寸变化、归还首键/Unicode草稿、
+精确单次canonical提交与原tty恢复。第100旧产物在原predicate稳定红灯，当前产物通过。
+resize Gate从1001行聚合脚本拆出，强制消费两项真实证据，缺失平台显式not-run。
+全TUI1761（另1 ignored launcher）、strict Clippy/fmt/locked CLI build、135守卫及治理
+通过；冻结CLI的complete/images/user-input聚合首次exit0，含新tmux与既有raw notes/
+editor/reconnect/stdin/cold-read/终端恢复。限定macOS切片3/3（100%）；整体仍partial，
+第88分段/editor首键/aggregate根因、Windows/GUI/live Provider、完整verify:local待补。
+
+前序续跑（2026-10-11）：第101收敛同名tui/screen_size::ScreenSizePolicy和size_monitor，
+主runtime/独立resume picker共享事件缓存、预留帧尺寸与75ms settled重采样；Ratatui官方
+Fixed viewport删除普通draw双重查询，Unix tmux漏通知由broker后台恢复，pause/observe/
+drop代次失效。旧sync_viewport/terminal_mut已删除，无compat或自定义renderer。新增11项
+回归、全TUI1759、strict Clippy/fmt/locked CLI build、133唯一守卫和inventory1543文件及
+治理通过。无插桩冻结产物complete/images与user-input均首次exit0，raw长答案atomic/
+完整typed user_note/once、resize/reflow/editor恢复均通过。限定macOS切片3/3（100%）；
+raw分段诊断三次未复现，探针已移除，历史根因仍open。Codex deferred_size无当前消费链，
+真实tmux漏通知与Windows/GUI/live Provider、完整verify:local仍未验，不声明总体对齐率。
+
+前序续跑（2026-10-10）：第100直接迁移Codex同名handle_restricted_key，受限编辑前
+flush已接收held/raw正文并逆序展开登记paste；Backspace按grapheme编辑，图片/mention
+身份保持。旧handle_disconnected_key已删除，无alias/compat或第二后端。旧实现3项稳定
+红灯与修复后7项reconnect回归通过；全TUI1748、strict Clippy/fmt、133唯一守卫、
+inventory1539文件与治理/docs、locked CLI build已通过。新冻结产物真实complete/images
+首次exit0，user-input首次atomic显示失败、同产物原断言定向复验exit0，完整canonical
+答案恰好一次、线程handoff与终端恢复通过。第100限定macOS切片3/3（100%），不代表
+稳定性根因关闭或整体对齐完成；首次失败与第88负载分段/首键/aggregate缺口仍open。
+第99已用同一冻结CLI、原预算/raw framing/断言串行补验完整user-input与complete/images，
+IME_ORDER/IME_TAB/raw BURST、长答案atomic/typed/backtrack/once、canonical cwd/冷读与
+终端恢复全部通过，限定macOS切片3/3（100%）。此前超时、startup与atomic失败证据保留，
+不因本次低负载绿灯关闭根因。第98geometry查询已从每事件runtime loop收回Tui::draw，
+条件4在同源码后续产物补验通过；当时ScreenSizePolicy/resize monitor的defer由第101推进，
+第101实现边界保留，真实tmux证据由第102补验；其它剩余边界以最新限定验收为准。
+第97删除editor入口的启动cwd参数，直接读取服务端同步的App.cwd，
 修复跨目录resume后正文临时文件仍落在旧启动目录的问题，无wrapper/compat或第二后端。
 第96冻结CLI的真实跨目录PTY红灯已保留；全TUI1742、strict Clippy/fmt/locked CLI build、
 132唯一守卫、inventory1539文件与治理/docs通过。新冻结CLI真实complete/images门禁exit0，
 强制消费TUI_EDITOR_CWD_OK，含空格/Unicode目录、草稿、首Left/Right、唯一canonical提交、
 冷读cwd/正文与终端恢复均通过；两次KeepScreen可见性/stdin/退出重入断言保持。
-本切片条件4/4（100%，macOS）；Windows、GUI、live Provider与完整verify:local未由本轮验证。
+第97切片条件4/4（100%，macOS）；Windows、GUI、live Provider与完整verify:local未由该轮验证。
 第96同名TerminalHandoff/with_restored、一次帧所有权与普通帧零复制仍current；
 第95标准平台parser/错误/清空行为仍current，第95/96各4/5（80%，Windows/MSVC/editor未验）。
 Codex policy-aware editor_directory需共享有效filesystem/grantedPermissions查询或投影合同，
@@ -9899,3 +9984,2439 @@ user-input/canonical完整答案/once/终端恢复。历史失败只按可重复
 通过关闭。Windows/Desktop/live Provider独立未验。root确认架构图为TuiEvent::Resize ->
 ViewportState、scheduled draw -> Tui::draw -> viewport sync -> Ratatui，业务图仍shared
 App Server -> RuntimeCore -> Thread/Turn/Item，2026-10-10。
+
+当前代码/检查记录：新增geometry守卫在旧runtime实现稳定红灯（stage98-geometry-red.log），
+属于结构回流证据，不冒充PTY性能根因。移除旧调用后，限定current scripts/app-server
+目录的七文件133唯一守卫通过（stage98-current-guards.log）；首次Vitest按路径substring
+发现并行生成的.lime/releases/v1.153.0/candidate测试副本，三份旧快照导致六项失败，
+保留stage98-guards.log，不修改或删除候选目录、不把旧快照混算为current测试。ESLint、
+inventory1539文件、legacy零候选/漂移/违规、scripts/docs与diff检查通过。全TUI1742通过，
+strict all-target Clippy与fmt通过；locked CLI build与latest Gate仍在进行中。
+本刀为merge：Ratatui真实draw仍会查询backend，Codex完整ScreenSizePolicy的pending
+draw size/deferred size/settled recheck与resize monitor没有在本刀实现，继续defer；不以
+移动一处sync调用宣称完整geometry策略或历史性能问题已对齐。
+
+新冻结CLI为tui-stage98-final-PlBfOv/binaries/lime；locked CLI build通过，Rust日志末尾
+STAGE98_RUST_OK。complete/images真实门禁exit0，保持两次KeepScreen、跨目录cwd/
+首Left-Right/冷读、reasoning通知/恢复、typed backtrack、focus/resize/reconnect与terminal
+恢复断言；stage98-final-gate-b.log及fixture tui-gate-b-ELrXlA保留。随后同一产物的
+user-input再次在原raw atomic label断言失败，stage98-notes-gate-b.log exit1，fixture
+tui-gate-b-GQkzb6保留。geometry收敛不是该历史缺口的充分根因。条件1-3通过、条件4
+未通过，当前3/4（75%，仅本刀），不得标完成或扩大问答验收范围。
+
+后续诊断窄写集只临时扩展共享paste_burst::flush_if_due与composer flush调用位置：
+在首次实际active timeout时记录长度、间隔和调用位置，不记录正文/凭证、不写PTY屏幕。
+探针仅本次子进程环境显式启用，位于/tmp，首条超时形成后才写诊断文件；后续写入可能
+影响时序，不以整份样本当无扰动基准。诊断后移除所有源码探针，保留第98冻结无插桩
+产物与上述明确的通过/失败范围，不调8ms/60ms阈值、不替换raw framing或放宽断言。
+
+临时探针真实PTY本次exit0（stage98-paste-probe-pty.log），pid48589，active timeout记录
+为2字符/10772us、1038字符/10653us、1045字符/10817us；后两次均在notes idle flush，
+本样本没有中途分段，不能解释此前两次失败或宣称性能根因已关闭。沿用既有已编译PTY
+test executable驱动临时CLI与隔离App Server/backend/config，避免因探针重编测试产物。
+保留fixture tui-stage98-paste-probe-XwiIrf及paste-timing.log。所有track_caller/环境probe/
+文件写入已原位移除，不把诊断binary当最终产物。第98冻结无插桩产物仍保留明确的3/4范围。
+
+## 第九十九阶段：短IME前缀后的raw Tab输入（实现完成；验收partial）
+
+对照同一Codex chat_composer/paste_input::handle_paste_tab确认确定差异：没有hold的短
+Unicode前缀尚未active时，Codex使用direct_insert_newline_should_insert与空retro buffer
+接入Tab；Lime只append_control_char_if_active后返回false。带选项notes会把这个raw Tab
+当焦点shortcut，清空已输入IME正文。复用共享PasteBurst补该遗漏分支，直接把旧冗长
+handle_paste_burst_tab迁为Codex同名handle_paste_tab，不保留alias/wrapper，不调整阈值。
+窄写集为shared paste_input/input调用、notes state_tests、既有request_user_input PTY/
+必需marker与门禁守卫、architecture/commands/本计划及inventory；共享业务/GUI/CLI/
+MCP/release仍避让，无协议/配置/依赖/文案变更。退出条件：1) 稳定旧实现红灯、主输入/
+plain_text/notes exact答案及过期Tab回归；2) 全TUI/Clippy/fmt/locked CLI build、守卫/
+inventory/治理；3) fresh真实IME+Tab notes/一次response、complete/images/cwd与终端恢复。
+第88分段/首键/aggregate与第98历史失败不由本独立输入差异冒充闭环。root确认架构图
+沿共享ChatComposer -> PasteBurst -> notes draft -> typed App Server response，2026-10-10。
+
+红灯已闭环：旧实现的两项fast*tab_after*回归均稳定失败（stage99-ime-tab-red.log）：
+shared composer不能接管Tab，notes编辑焦点已切回Options。现已直接迁三处声明/调用为
+handle_paste_tab，补Codex同源短IME fallback及textarea mode约束；新增过期Tab测试保留
+surface导航边界。真实notes PTY追加短IME+literal Tab+suffix、可见焦点/正文、取消与零
+response断言，并在既有Gate/guard强制消费marker。不替换已有长raw粘贴或canonical断言。
+
+最终静态/Rust检查：全TUI1721 library +23 integration +1 dependency guard，唯一1745项
+通过；普通gated early return不计真实PTY。strict all-target Clippy --no-deps -D warnings、
+fmt与locked CLI build通过，/tmp/lime-tui-stage99-rust-validation.log末尾STAGE99_RUST_OK。
+限定current scripts/app-server目录的七文件133唯一守卫通过，日志
+/tmp/lime-tui-stage99-current-guards.log；ESLint/Prettier、inventory1539文件、legacy零
+候选/漂移/违规、scripts/docs与diff check通过。全部临时paste探针已移除；无后续源码
+改动，不重复全量Rust检查。architecture-confirmation脚本无PR event/body-file，未检查，
+不记为通过；root架构图确认已落在本计划及architecture.md，不创建PR或提交。
+
+新CLI冻结于
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage99-final-rl89Lx/binaries/lime，
+App Server继续使用第91完整冻结包tui-stage91-final-CSWesg/binaries/app-server及同目录
+动态库。所有Gate串行、复用同一冻结CLI，使用受控external backend/隔离storage，不调用
+live Provider，不冒充GUI或默认11场景验收。实际结果如下：
+
+- complete/images组合exit1：/tmp/lime-tui-stage99-final-gate-b.log，fixture
+  /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-0QZmX1。complete已输出
+  六项输入/弹窗marker及KeepScreen/stdin/editor重入marker，随后经过status/title流程，
+  在TUI_FOOTER phase=ordinary-context阶段被原180000ms总预算终止。未跑到独立cwd/
+  完成后冷读、images及终端恢复，不能用第97/98历史绿灯补为latest通过。
+- 首次user-input exit1：/tmp/lime-tui-stage99-notes-gate-b.log，fixture
+  /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-YKYw6O。启动后的原10秒
+  Ask Lime to do anything predicate无输出，未进入notes，不当成IME修复红灯。
+- 同产物user-input定向重试exit1：/tmp/lime-tui-stage99-notes-retry-gate-b.log，fixture
+  /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-aQuEFK。真实PTY输出
+  TUI_NOTES_IME_ORDER_OK、TUI_NOTES_IME_TAB_OK及TUI_NOTES_BURST_OK；短IME+Tab正文/
+  焦点保留、显式取消和零actionRespond已实跑。后续long notes stay compact predicate
+  超时，屏幕显示展开Unicode正文，未出现完整atomic label；第88长raw粘贴缺口仍open。
+  canonical完整答案、exactly-once、typed handoff及终端恢复尚未执行，整个Gate不能记绿。
+- 独立images exit1：/tmp/lime-tui-stage99-images-gate-b.log，fixture
+  /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-QWTZLu。与首次notes一样，
+  原10秒startup predicate无输出，未执行图片/editor断言。
+
+环境事实：上述顺序期间uptime的1分钟load分别41.90、110.72、81.73，盘可用49Gi；
+只读观察到其它用户应用和Playwright进程，未停止它们、改系统配置或清理产物。高负载
+不能单独证明产品失败根因，也不据此延长8ms/60ms检测阈值、10秒predicate或Gate预算。
+补核Codex handle_input_basic_with_time同样先flush due再处理IME/ASCII，apply_paste
+同样clear_after_explicit_paste；不为此次分段猜测性更改其时序规则。
+
+分类：handle_paste_tab和同一ChatComposer/PasteBurst为current；旧handler命名为dead/
+deleted/negative-guard-only，未删除文件，无新增compat/deprecated。新增PTY片段为test-only。
+KISS直接补遗漏分支，DRY复用原burst窗口，SRP保持terminal输入与共享业务边界。原退出
+条件1-2已完成，条件3部分验证，当前2/3（约67%，仅本刀）；总体partial/in-progress，
+无可信全项目对齐率分母，未达到release-ready。Windows/MSVC、Desktop GUI、live Provider
+和完整verify:local未验，本轮无对应平台/GUI/模型或跨共享合同变更，不扩张验证声明。
+下一刀继续在current终端输入/绘制owner定位第88长raw分段与complete总时限，不放宽
+现有断言；policy-aware editor_directory仍需shared有效filesystem/grantedPermissions
+投影或查询合同及GUI消费者同步，不能在TUI复制权限算法。CLI/MCP/release并行写集保留。
+
+### 第99限定验收补齐（2026-10-10）
+
+继续沿同一主链、同一第99冻结CLI与第91完整App Server包，无源码/断言/时间预算变更，
+串行重试user-input及complete/images。当前1分钟load 9.19，首次user-input完整exit0，
+日志/tmp/lime-tui-stage100-baseline-notes-gate-b.log，fixture tui-gate-b-ZXuomG；IME_TAB/
+IME_ORDER/raw BURST、长答案atomic、rich revisit/unanswered、完整typed答案、exactly-once、
+thread handoff stdio与终端恢复均通过。随后complete/images完整exit0，日志
+/tmp/lime-tui-stage100-baseline-complete-gate-b.log，fixture tui-gate-b-jssgxb；KeepScreen/
+stdin/editor重入、跨目录canonical cwd、首Left/Right、冷读、reasoning parts/resume、typed
+backtrack、状态栏/标题/context、图片和终端恢复保持原断言。第99原条件3补齐，限定macOS
+切片3/3（100%）；第98条件4在同源码后续产物补验通过，原冻结产物失败证据保留。
+此补验不关闭第88负载分段/首键/aggregate根因，也不证明Windows、Desktop或live Provider。
+
+## 第一百阶段：断线编辑先物化待flush正文与原子粘贴（限定macOS验收完成；稳定性缺口仍open）
+
+只读核对同一Codex reconnect::handle_restricted_key：限制编辑前先flush已接收字符，
+将登记的pending paste按范围逆序展开，图像/mention原子元素保持。Lime旧入口直接操作
+textarea，held ASCII在后续Unicode之后flush；collapsed paste的Backspace会整段删除。
+本刀在唯一ChatComposer恢复owner修复顺序与编辑语义，迁移为Codex同名handle_restricted_key，
+不保留handle_disconnected_key alias、不预建UnavailableThread模式或第二runtime。协议、
+配置、共享backend及GUI只读；限制态仍不submit/queue，恢复后继续原normal输入。
+
+窄写集：chat_composer/reconnect及既有回归、BottomPane/App唯一调用与相关测试、现有
+remote reconnect PTY及Gate必需marker、结构守卫、architecture/commands/scripts README/
+本计划及生成inventory。不提交/推送/建分支、不改其它进程产物，不新增依赖/协议/文案。
+退出条件：1) 旧实现held/active/atomic稳定红灯，修复后exact正文、Unicode/光标、五语言/
+多paste/image身份回归；2) TUI crate/Clippy/fmt/locked build及守卫/治理通过；3) fresh真实
+PTY offline编辑/同线程resume/零新Turn、notes完整答案、complete/images/cwd与终端恢复。
+Windows、真实GUI、live Provider独立待验，不将transport fixture冒充真实App Server后端。
+root确认架构图为terminal restriction -> BottomPane -> ChatComposer -> TextArea原范围展开，
+业务图保持App Server -> shared RuntimeCore -> canonical Thread/Turn/Item，2026-10-10。
+
+旧实现红灯已保留：/tmp/lime-tui-stage100-restricted-red.log，4 passed / 3 failed，
+held ASCII顺序、active raw paste物化、长paste单grapheme编辑均稳定失败。修复后7项
+reconnect回归通过，含五语言、重复paste、image身份、完整正文与光标。首次全TUI为
+1723 passed / 1 failed，日志/tmp/lime-tui-stage100-rust-validation.log；旧slash completion
+回归借用断线入口测试普通Vim撤销，仍期待paste折叠。已直接迁回正常handle_key_event，
+保留完整ComposerDraft前后相等、附件/mention/paste身份和提交正文断言，未降低语义门槛。
+
+### 第100源码验证与冻结产物
+
+终版全TUI为1724 library +23 integration +1 dependency guard，唯一1748项通过；strict
+all-target no-deps Clippy -D warnings、workspace fmt check与locked CLI build通过，日志
+/tmp/lime-tui-stage100-rust-validation-final.log末尾STAGE100_RUST_OK。普通Vim completion
+定向回归通过见stage100-rust-validation-v2.log，随后格式换行已修正。最终PTY同时验证
+恢复后的长paste尾部和原preserved-draft!前缀，保留原config/read、resume/read methods、
+reasoning与零turn/start断言，不以新marker替代原检查。
+
+重新生成inventory1539文件，current scripts/app-server七文件133唯一守卫通过，日志
+/tmp/lime-tui-stage100-current-guards-final.log；JS ESLint/Prettier、legacy零边界违规、
+scripts治理与docs boundary通过。没有新增协议/schema/config/依赖或shared backend写入。
+
+CLI冻结于
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage100-final-goNWOj/binaries/lime；
+App Server继续使用第91完整已验收包，DYLD_LIBRARY_PATH固定其binaries目录。不覆盖第99
+冻结产物；本轮fresh Gate串行执行complete/images与user-input，保持原预算与raw framing。
+
+### 第100真实complete/images结果
+
+complete/images组合exit0，日志/tmp/lime-tui-stage100-final-complete-gate-b.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-2E01BP。首次即强制消费
+TUI_RESTRICTED_PASTE_OK，断线bracketed长正文Backspace只删末尾emoji，原草稿前缀与
+编辑后尾部在同Thread恢复后均可见；config/read一次、canonical history methods、reasoning
+detail/raw隐藏、零turn/start与终端恢复保持原断言。该remote链为public JSON-RPC
+WebSocket transport fixture，不冒充真实backend。
+
+真实stdio主链Thread 01a1262f-9419-7ea1-b6d5-d8cfd71b830f、Turn
+turn_d72e0e6aeef447feb1afadd958d7df2c，canonical complete/cold read/backtrack/typed revert、
+KeepScreen/editor stdin与退出重入、跨目录cwd/首Left-Right、reasoning parts/resume、状态栏/
+context/标题、images/focus/resize与terminal=restored均通过。
+CLI SHA256：c7a4b27cd4d030444c2183608f6d165b7dd3feb3cb33a9c2b49d3fec1fe8d390。
+
+### 第100真实user-input与限定验收
+
+首次user-input exit1，日志/tmp/lime-tui-stage100-final-notes-gate-b.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-HgxHgs；IME_ORDER、IME_TAB与
+首段raw BURST通过，随后原long notes atomic predicate在原10秒预算失败，12.50s测试
+结束，完整response/once/terminal尚未验到。失败屏幕显示展开的长正文，保留原始日志。
+系统load观察59.05/32.58/24.48与随后19.92/29.89/25.58，仅作为环境事实，不据此归因。
+
+同一冻结CLI和App Server包、无源码/阈值/预算/raw framing/断言变更的定向复验exit0，
+日志/tmp/lime-tui-stage100-final-notes-retry-gate-b.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-UVX8Q5。Thread
+01a12631-f420-7e60-970c-7cf8e28ff1df、Turn turn_3128cda9ecd34d8aa6f6803e9a838b33，
+强制消费IME_ORDER/IME_TAB/raw BURST、atomic paste、rich revisit/unanswered、完整typed
+user_note、exactly-once=true、thread-input-stdio与终端恢复markers；同样消费新的
+TUI_RESTRICTED_PASTE_OK。真实stdio走同一App Server/canonical投影，remote reconnect
+仍只证明WebSocket transport fixture，二者不混称。
+
+限定退出条件1/2/3均满足，macOS切片3/3（100%）；首轮notes失败证明稳定性缺口仍存在，
+不将复验绿灯用作第88root-cause关闭证据，也不将本刀视为release readiness。current为
+ChatComposer restricted输入、TextArea范围/附件身份与正常PasteBurst；旧入口名为
+dead/deleted/forbidden-to-restore，仅负向守卫和历史evidence保留，无新compat/deprecated。
+治理技能要求的唯一owner、直接替换与负向守卫已落实；质量技能限定Rust/真实PTY证据，
+没有以静态测试冒充GUI或live Provider验收。
+
+下一刀回到raw paste分段的输入时钟/调度链定位，保留原payload与原断言；Codex
+tui/screen_size::ScreenSizePolicy和size_monitor已只读核对，事件几何/一帧同宽与延迟重采样
+仍是明确defer，不把第98draw查询收敛误记成完整实现。Windows/MSVC未在本macOS环境
+实跑，Desktop GUI未启动，live Provider未调用，完整verify:local未扩跑；本刀仅涉及
+terminal surface，shared protocol/runtime/config/依赖/GUI均只读。root手工架构确认已落仓；
+没有PR请求或body-file，不创建PR，也不标记architecture-confirmation自动检查已通过。
+
+## 第一百零一阶段：输入诊断与事件几何owner收敛（限定macOS验收完成；根因仍open）
+
+继续输入主链，第100首次notes失败是当前问题证据，同产物复验绿灯不能关闭。参考Codex
+HEAD仍为4aaee872e31abefe0d32e91faab23b09b6968824；逐键Instant和8ms窗口同源，暂不能
+归因为阈值或geometry。先定位发生部分flush时的caller、长度、事件间隔及上次绘制/
+输入处理耗时，再据实修复唯一owner。不调阈值/预算、不改raw framing或原答案断言。
+
+窄写集：PasteBurst/composer/runtime的临时诊断、定位后必要的输入owner及定向回归、
+既有PTY/Gate守卫、architecture/commands/本计划与生成inventory。GUI、App Server/
+protocol/shared runtime/provider、CLI与release只读，不覆盖前序改动、不提交或建分支。
+诊断只在隔离子进程显式启用，记录时间/长度而非正文，第一次部分flush之后才写/tmp，
+后续样本可能受写入扰动。退出时删除全部探针；不把插桩产物当最终Gate证据。
+退出条件：1) 可重复根因与稳定回归，或如实记录未定位边界；2) 定向/全TUI、Clippy/fmt/
+build及current守卫；3) 无插桩冻结产物真实stdio/PTY，canonical答案/once/恢复保持。
+共享架构仍为Product Surface -> App Server -> RuntimeCore -> Thread/Turn/Item；仅terminal
+输入/绘制owner内定位。root，2026-10-11。
+
+### 诊断结果与第101实施范围
+
+临时插桩CLI三次独立raw user-input PTY均exit0，无17..999字符active timeout记录，日志
+/tmp/lime-tui-stage101-probe-pty.log，隔离目录tui-stage101-paste-probe-d8fw19。该范围只用于
+捕获中途部分flush；没有记录不等于所有潜在分段均排除。探针已全部原位删除，不调整
+paste算法，不把三次绿灯当根因关闭证据。
+
+转入确定的Codex geometry缺口：同名tui/screen_size::ScreenSizePolicy按事件消费缓存，
+Resize使用事件尺寸并安排75ms settled重采样，Resume/editor归还刷新，普通键/帧不查询；
+用Ratatui官方Fixed viewport承接显式尺寸，删除每draw双重backend查询，不建立自定义
+terminal/renderer。tmux漏Resize由同名size_monitor在broker后台恢复，pause/observe/drop
+代次使旧采样失效，OS调用不持锁；其它平台不新增轮询。复用既有tmux识别owner。
+实际写集扩展为tui.rs、tui/screen_size/size_monitor及独立测试、event_stream/runtime接线、
+既有render守卫和文档/inventory；shared业务仍只读。新退出条件1为geometry查询次数/
+尺寸一致/重采样/monitor生命周期确定性回归，2/3保持原Rust和无插桩真实PTY门槛。
+root确认架构：EventBroker(size_monitor) -> TuiEvent -> Tui(ScreenSizePolicy) -> Ratatui
+Fixed viewport -> view/frame；GUI/TUI共享App Server业务主链不变，2026-10-11。
+
+### 第101源码验证与真实complete/images
+
+新增ScreenSizePolicy七项和SizeMonitor四项确定性回归通过，覆盖普通事件零query、Resize
+预留/settled一次采样、resize storm、Focus/Resume、错误后缓存、Ratatui固定帧与显式resize；
+monitor用barrier覆盖changed/unchanged/zero/error、take一次、observe清pending、pause/
+resume代次、阻塞query不持锁与Drop不join/不发布。无sleep或用户环境修改。
+全TUI1735 library +23 integration +1 dependency guard，唯一1759项通过；strict all-target
+no-deps Clippy -D warnings、workspace fmt、locked CLI build均通过，日志
+/tmp/lime-tui-stage101-rust-validation.log末尾STAGE101_RUST_OK。
+
+inventory已再生为1543文件。首次current守卫132/133通过，唯一失败是旧terminal-modes
+测试查找已删除terminal.size启动入口；已迁到backend.size并保留原错误清理/退出断言。
+最终七文件133/133通过见/tmp/lime-tui-stage101-current-guards-final.log。JS ESLint/
+Prettier、legacy零违规、scripts/docs治理通过，日志stage101-governance.log。probe环境/
+track_caller/文件写入均已删除，PasteBurst阈值和实现未改，旧入口不加alias/compat。
+
+无插桩CLI冻结于
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage101-final-6FYLBU/binaries/lime，
+SHA256 b71bdd0b0055ca62e6666c3e4f5c87d581997e8912a4861034b5f1c7ea17bafb；App Server
+沿用第91完整包与对应DYLD_LIBRARY_PATH，不覆盖旧冻结产物。complete/images首次exit0，
+日志/tmp/lime-tui-stage101-final-complete-gate-b.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-DdaWRj。Thread
+01a12729-f992-71b3-b197-b111d7a83bd3、Turn turn_a02215ce0bb54ff59c82ceae43f839a6，
+原180000ms complete总预算与各predicate保持。真实resize/reflow、focus、KeepScreen两屏/
+stdin/editor重入、canonical cwd/首Left-Right/冷读、typed backtrack、reasoning、images、
+reconnect restricted-paste与terminal=restored均通过。user-input仍待同产物串行结果。
+
+本刀实现event cache/reserved draw/settled recheck与tmux monitor，Codex deferred_size只有
+延迟reflow消费者需要，目前不预建空状态；不将局部geometry owner实现报为全部Codex
+终端架构完成。tmux worker竞态是unit证据，真实tmux漏通知/Windows/MSVC/GUI/live Provider
+未由上述PTY证明，完整verify:local未扩跑，raw分段/editor首键/aggregate历史根因仍open。
+
+### 第101真实user-input与限定验收
+
+同一无插桩冻结CLI的user-input首次exit0，日志
+/tmp/lime-tui-stage101-final-notes-gate-b.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-SScjAY。Thread
+01a1272a-ef17-7f02-b31a-3e48cbab7133、Turn turn_47fadaa486fe4c368991240def49d909，
+IME_ORDER/IME_TAB/raw BURST、长备注atomic、rich revisit/unanswered、完整typed user_note、
+exactly-once=true、真实thread-input-stdio、focus/resize/reconnect和terminal=restored全部
+保持原断言。该次绿灯补齐本刀条件3，不是第88稳定性根因关闭证据。
+
+本刀条件1/2/3均满足，限定macOS 3/3（100%）；current为ScreenSizePolicy、SizeMonitor、
+唯一Tui/官方Ratatui与同一App Server canonical主链；旧sync_viewport/terminal_mut查询
+入口为dead/deleted/forbidden-to-restore，没有新compat/deprecated。四个新模块保持独立
+职责与窄接口，复用既有frame/reflow/tmux识别，不新增协议/配置/依赖/用户文案。治理技能
+要求的旧入口清理和current回流守卫已落实；质量技能下的真实PTY不能替代Desktop/live
+或Windows。root架构确认已落仓，无PR请求/body-file，不创建PR或声明自动架构检查通过。
+
+下一刀继续对照Codex输入/显示主链，优先补真实tmux丢resize时的后台恢复与editor handoff
+生命周期证据；raw paste只在再现可重复分段后据实修复，不调阈值或依靠重复绿灯结案。
+
+## 第一百零二阶段：真实tmux漏通知与editor交接（限定macOS验收完成；整体partial）
+
+主目标仍为Codex CLI/TUI功能、UI/UX、命名/目录/设计模式对齐。本刀补第101监测owner的
+真实进程证据，参考Codex同名size_monitor与external_editor_tests。现有四个tmux前缀测试
+实际运行portable-pty，直接改名为pty，不保留alias或双轨。真实tmux需独立临时socket，
+不读取用户tmux配置、不触碰现有session；只在fixture launcher屏蔽SIGWINCH，生产不插桩。
+
+窄写集：tests/suite/focus_palette共享命令builder、resize_reflow命名、tmux及editor测试；
+既有Gate resize调用拆出领域helper（当前tui-gate-b已1001行，不继续堆叠），对应守卫、
+scripts README、commands/本计划与生成inventory。生产terminal owner仅在发现可复现缺陷
+后修改；GUI/App Server/protocol/shared runtime/provider/配置/依赖/release保持只读。
+沿用前序改动，不提交、推送或建分支；不启动子Agent。
+
+退出条件：1) 屏蔽真实SIGWINCH下无按键resize恢复与editor尺寸/首键/草稿/tty恢复；2) 定向及完整TUI、strict Clippy/fmt与current守卫/治理；3) 无插桩冻结CLI的既有真实
+stdio/PTY Gate，强制消费新tmux证据。tmux缺失/非Unix必须显式not-run，不冒充通过。
+第88分段/editor首键/aggregate根因仍open，真实Windows/GUI/live Provider未由本刀证明。
+事实源仍为EventBroker -> TuiEvent -> ScreenSizePolicy -> Ratatui官方帧；业务仍共享
+Product Surface -> App Server -> RuntimeCore -> Thread/Turn/Item。本刀验收基础设施
+不改变生产边界，root，2026-10-11。
+
+### 第102定向真实tmux与反向证据
+
+四项旧tmux前缀已直接改为pty，断言/预算不变。新增tests/suite/tmux_resize与同名
+external_editor_tests，共享focus_palette的命令builder，不复制App Server参数；launcher
+仅在私有tmux pane显式调用，CLI所有线程继承已验证的SIGWINCH屏蔽，生产零探针。
+tmux使用私有临时socket、-f /dev/null和明确fixture pane，Drop只清理该server。
+
+首轮日志/tmp/lime-tui-stage102-tmux-first.log，fixture tui-stage102-tmux-first-qqKLBI：
+高/宽无按键重排已观察，但editor的tmux Enter产生CR，Unix read未收到LF；另有最终
+恢复标记与pane_dead观察竞态。夹具改为既有direct PTY同样的literal LF，pane结束时再
+消费最终观察，保留原5秒预算及草稿/首键/canonical/once/tty断言，不改生产算法。
+
+定向同第101无插桩冻结CLI通过，日志/tmp/lime-tui-stage102-tmux-second.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage102-tmux-second-eixLfw。
+TUI_TMUX_RESIZE_OK覆盖height14/20/10/32与width60/120无按键重排、composer anchor、零
+turn及原tty/alternate恢复。TUI_TMUX_EDITOR_OK覆盖editor持有stdin时16x80、归还首Left
+穿过Unicode grapheme再插入!、monitor恢复后32x120、精确单次canonical提交与终端恢复。
+Thread 01a12915-1f19-7120-89a8-cd7453685a94，Turn turn_81e4dcbbef984581a25c9fa491a42fd0。
+
+同夹具对第100无SizeMonitor冻结CLI稳定红灯，日志
+/tmp/lime-tui-stage102-tmux-negative-final.log，fixture tui-stage102-tmux-negative-final-sUcgPW：
+首次32->14高度改变后旧composer留在错误行，原5秒predicate失败，退出101；负向runner
+只接受这一明确原因，末尾STAGE102_NEGATIVE_OK。证明新夹具能检出缺失恢复owner。
+
+全TUI1735 library +25 integration +1 dependency guard=1761唯一项通过，另有1项仅在
+tmux pane调用的ignored launcher；默认cargo中的Gate条件短路不冒充真实PTY证明。
+strict Clippy/fmt通过，locked CLI build进行中，Rust日志stage102-rust-final.log。八文件
+current守卫135/135，ESLint、legacy零违规、scripts/docs/diff通过。inventory source1543
+文件，test tree新增两文件。初次无关V8预解析触发下载，已停止本轮两组冗余下载进程；
+CLI/TUI构建图不含V8，后续直接按crate检查，不改缓存规则、依赖或共享后端。
+
+目前退出条件1/2已取得对应证据（build仍待返回），条件3待同源码冻结CLI聚合门禁。
+不关闭第88根因，不把真实tmux等同Windows/MSVC或Desktop GUI/live Provider验证。
+
+### 第102冻结聚合Gate与限定验收
+
+locked CLI build完成，stage102-rust-final.log末尾STAGE102_RUST_OK；生产源码本刀未改，
+CLI重新构建后独立冻结于
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage102-final-sLYrk0/binaries/lime。
+SHA256 b71bdd0b0055ca62e6666c3e4f5c87d581997e8912a4861034b5f1c7ea17bafb，与第101相同；
+App Server沿用第91完整包及DYLD_LIBRARY_PATH。没有覆盖旧冻结目录或混用源码产物。
+
+complete/images/user-input串行聚合首次exit0，日志/tmp/lime-tui-stage102-final-gate-b.log，
+fixture /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-xH1eVN。主Thread
+01a1291a-58e6-7590-ae6e-b733c3f63ea3，Turn turn_d266349e36754b97878f66c938d717e7。
+新TUI_TMUX_RESIZE_OK与TUI_TMUX_EDITOR_OK均强制消费，后者Thread
+01a1291b-175a-7350-9f7b-07e49f043142，Turn turn_50770073c7dd41d48281e06bfbbf5b84。
+TUI_NOTES_RESPONSE_OK的Thread 01a1291a-e08a-7a31-8642-b6b8e4c37db1，Turn
+turn_466461fbb02d4bd5a58e963764b8f310，encoding=user_note、response=complete、once=true。
+既有IME_ORDER/IME_TAB/raw BURST、atomic/rich revisit/unanswered、thread-input-stdio、
+KeepScreen两屏/stdin、canonical cwd/首arrow/冷读、typed backtrack、reasoning/images、
+focus/reconnect/resize与terminal=restored全部保留原预算、framing及断言。
+
+最终八文件135/135守卫见/tmp/lime-tui-stage102-current-guards-final.log；Prettier、
+docs:boundary与全工作树diff检查通过，分别见stage102-prettier-final.log、
+stage102-docs-final.log。ESLint、legacy零违规与scripts治理的本刀证据保持。
+
+本刀条件1/2/3均满足，限定macOS 3/3（100%）；current为既有Tui/EventBroker/
+ScreenSizePolicy/SizeMonitor、官方Ratatui帧与共享App Server主链，新resize领域Gate只
+承接验收环境与真实证据消费。旧误导tmux前缀和聚合脚本内resize启动重复块为
+dead/deleted/forbidden-to-restore，调用直接迁到唯一helper，无新compat/deprecated。
+复用命令builder体现DRY；两类PTY证据职责清晰，治理清理服务同一输入/显示主链。
+source inventory1543、Lime tests14文件；聚合Gate由1001降至968行，后续仍须优先拆分。
+root确认本刀仅测试/验收基础设施，生产owner/协议/依赖方向不变；无PR请求/body-file，
+不创建PR、提交或分支，也不声明自动架构确认检查通过。
+
+真实tmux只证明本机tmux3.5a/macOS；Windows/MSVC、GUI/live Provider与完整verify:local
+未在本刀运行。第88负载分段/editor首键/aggregate根因仍open，不因本次聚合绿灯结案。
+下一刀回到Codex输入/显示的viewport/reflow消费链对照，deferred_size仍需真实消费者；
+raw paste只在取得可重复分段证据后修复，不调8ms/60ms阈值或放宽原验收预算。
+
+## 第一百零三阶段：输入突发门禁先于绘制准备（限定macOS验收完成；整体partial）
+
+主目标仍是Codex CLI/TUI输入/显示、命名与设计模式对齐。Codex app Draw先调用
+handle_paste_burst_tick，仍捕获或刚flush则延期，再执行pre_draw_tick。Lime此前Draw
+reducer先pre_draw，BottomPane及notes重复flush，host循环顶部的paste门禁后执行，
+刚flush状态被吞掉。修正前序未核实“缺门禁”判断，不新增第二门禁或空deferred_size。
+
+窄写集：runtime已有绘制块及独立render准备模块/行为回归，app Draw路由与原tick测试，
+BottomPane/notes重复flush及原测试迁移；transcript_reflow仅删无生产消费者的
+TranscriptReflowState/TranscriptWidthChange及3项旧正向测试，保留真正消费的
+TranscriptViewport和75ms常量；screen_size仅补跨延期事件的预留尺寸回归；既有render/
+inventory守卫、生成inventory、architecture/本计划。GUI、App Server/protocol/runtime、
+provider、配置/依赖只读。用户已授权批量迁移和清理，沿用前序工作树，不提交/建分支。
+
+退出条件：1) 主composer、UserInput notes、MCP fields在burst和刚flush帧均延期，
+下一帧绘制完整草稿，准确一次响应；2) Resize尺寸跨延期/普通输入保存，settled尺寸
+与实际消费一致，不增加backend查询；3) dead状态机及正向守卫清掉，定向/全TUI/
+strict Clippy/fmt、current守卫/治理通过；4) 同源码冻结CLI真实stdio/PTY聚合Gate，
+保留原预算、raw framing、canonical/once/terminal恢复，不能用unit代替Gate B。
+
+runtime.rs当前2051行；本刀仅把既有normal draw/准备逻辑迁出到runtime/render，不向
+超1000行文件新增业务分支。后续host action拆分仍待推进。唯一帧owner仍Ratatui，
+ScreenSizePolicy已有pending_draw_size跨延期保留，是否增deferred_size以真实行为为准。
+删除旧状态机是去掉没有接入当前显示主链的假owner，不当作补齐Codexreflow实现。
+责任root，2026-10-11；Windows/GUI/live Provider/verify:local和第88根因继续open。
+
+### 第103稳定红灯与实施
+
+先将旧normal draw/准备顺序迁出到runtime/render，并保留pre_draw在paste gate之前的
+真实顺序，用注入Instant经当前App/BottomPane/composer构造raw Enter/Tab/Unicode正文。
+首轮编译的测试variant拼写错误已修正，不算行为证据；最终红灯日志
+/tmp/lime-tui-stage103-render-red-final.log：4项中3项精确失败于newly flushed input
+must defer，分别为main composer/UserInput notes/MCP field；断线held输入1项通过。
+不是靠放宽预算或改PasteBurst阈值取得结果。
+
+实现把paste gate移到唯一prepare_draw之前，返回None时不运行view tick/不允许draw；
+frame请求仍走原FrameRequester，几何仍由ScreenSizePolicy保留。移除App Draw reducer
+tick及BottomPane/notes重复flush，原timing/selection测试直接迁到对应owner。
+零生产消费TranscriptReflowState/TranscriptWidthChange与3项正向测试删除，结构守卫
+改为真正TranscriptViewport及负向禁止旧类型。新增尺寸跨延期/输入/focus/settled回归。
+行为回归同时验证延期必须安排后续帧、idle停止paste帧、TestBackend可见TAIL、全量
+typed提交/response以及再Enter不重复响应。完整验证与冻结Gate待执行，不标记完成。
+
+4项scheduled render回归和8项screen_size回归均通过，current守卫136/136、lint/
+Prettier/scripts/docs/diff与legacy零违规。首次全TUI1733通过/4失败，日志
+/tmp/lime-tui-stage103-rust-final.log：4项bottom_pane/input_tests仍从pre_draw假定flush，
+按唯一paste owner迁移到flush_paste_burst_if_due，原正文/notes/MCP/图片断言不变。
+thread_input及paste_input内status popup测试里的同类等待调用也迁移，继续真的消费
+paste owner以防弱化测试，不恢复重复flush或修改门禁预算。窄写集包含这三份原
+消费者测试；生产接线没有新修补，随后定向复验再续完整检查。
+
+迁移后bottom_pane::input::tests 18/18通过，完整TUI为1737 library +25 integration +
+1 dependency guard=1763唯一项通过，另1 ignored tmux launcher；默认Gate条件短路
+不算真实PTY证据。日志/tmp/lime-tui-stage103-rust-second.log，strict Clippy/fmt与
+locked CLI build继续执行。源码最终八文件守卫136/136见
+/tmp/lime-tui-stage103-current-guards-source-final.log，inventory1545 source文件。
+最终聚合除complete/images/user-input外补mcp-elicitation，要求同源码冻结CLI经真实
+MCP peer/App Server stdio/PTY、atomic raw/字段草稿/complete response/once/tty恢复；
+不扩大生产写集，不将controlled fixture冒充live Provider或Desktop GUI。
+
+### 第103冻结产物与首轮真实验收
+
+strict all-target no-deps Clippy -D warnings、workspace fmt check与locked CLI build已
+通过，/tmp/lime-tui-stage103-rust-second.log末尾STAGE103_RUST_OK。重新构建后经既有
+snapshotTerminalGateBinaries独立冻结到
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage103-final-btcd11/binaries/lime，
+SHA256 d96d0866439bec974eb9e1f55d6a77c3c64658219d65ae0cffd81f6909f5d933。
+App Server沿用第91完整包与原DYLD loader上下文；本刀无shared backend改动，不混用
+旧CLI或覆盖前序冻结目录。complete/images/user-input/mcp-elicitation聚合运行中，日志
+/tmp/lime-tui-stage103-final-gate-b.log；STDIO_MCP_FORM_OK已观察，条件4仍待整个
+真实PTY聚合完成，不能以该一项提升整切片完成度。
+
+首轮聚合exit1，fixture tui-gate-b-oGCfJb：MCP stdio完整响应一次已通过，MCP PTY在
+原raw atomic draft predicate失败（40.37s），末屏仍显示长Unicode正文与MCP_PTY_TAIL，
+未形成整段预期占位。日志/tmp/lime-tui-stage103-final-gate-b.log保留，后续不直接输出
+其中完整relay/config dump。与第88负载分段形态相同，尚不能断言由本刀引入或已解决；
+原framing/预算/atomic/canonical/once断言不变，先对第102旧冻结CLI同夹具对照，再
+复验当前产物。条件4仍未满足，不以stdio/单测绿灯替代真实PTY通过。
+
+旧第102冻结CLI同原夹具的serial MCP stdio/PTY均exit0，日志
+/tmp/lime-tui-stage103-mcp-old-baseline.log，PTY Thread
+01a12967-e2b9-7fe3-acc3-3435e68b5af9。该单次对照不足以区分新回归与已知时序分段；
+不修改生产算法或阈值，当前同一冻结CLI开始第二次原四场景串行聚合，日志
+/tmp/lime-tui-stage103-final-gate-b-second.log，保留首轮失败并继续追踪稳定性。
+
+### 第103完整复验与限定验收
+
+同一冻结CLI、原四场景/预算/raw framing/断言的第二次完整串行聚合exit0，日志
+/tmp/lime-tui-stage103-final-gate-b-second.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-KZszzF。
+MCP stdio Thread 01a12969-1bf1-7941-808e-6520ea7ff820，PTY Thread
+01a12969-26dd-79f0-ac64-84324755031a：real-stdio/raw=atomic/drafts=restored/
+response=complete/exactly-once/turns=none/terminal=restored均实际消费。
+主Thread 01a12969-340b-75c2-a2d7-07c513d3a4fe，Turn
+turn_069ba528cb4b498a8026805ee50e3c8a。notes Thread
+01a12969-ead7-7cc1-bae4-0014309c1a03，Turn turn_17f3074ed55e493f90305ed413d92939，
+完整typed user_note、rich revisit/unanswered、IME_ORDER/IME_TAB、raw burst atomic均
+保留。tmux editor Thread 01a1296a-2de3-7de1-b97f-04015bf02b27，Turn
+turn_95994bda5186434487de0b934e122207，SIGWINCH屏蔽、editor高/宽恢复、Unicode首键、
+canonical once、tty恢复通过。既有KeepScreen/stdin、canonical cwd/冷读、backtrack/
+reasoning/images/focus/reconnect/resize/thread-input-stdio全部保留原验收。
+
+current为runtime/render的scheduled frame准备、ChatWidget/BottomPane唯一paste gate、
+ScreenSizePolicy预留尺寸、TranscriptViewport以及同一Ratatui/App Server主链。
+Draw reducer旧tick与BottomPane/notes重复flush、零生产消费reflow状态机和3项旧正向
+测试为dead/deleted/forbidden-to-restore，调用直接迁移，无新compat/deprecated。
+SRP将帧准备迁出大循环，DRY消除重复flush，KISS复用已有几何预留而不建第二状态。
+runtime.rs仍2050行，后续须继续拆host action；本刀没有向其堆叠第二renderer或业务后端。
+inventory为Codex1084+Lime461=1545 source，Lime tests14文件，不能作为总体功能对齐率。
+
+本刀退出条件1/2/3/4均取得限定证据，macOS 4/4（100%），整体仍partial。首轮新MCP
+atomic失败、旧单次对照和新复验均保留；这些观测不能确认或排除新时序回归，也不能
+关闭第88分段/editor首键/aggregate根因。Windows/MSVC、GUI/live Provider与完整
+verify:local未运行，本刀不改这些边界，不能提升对应readiness。
+root确认架构仍为事件几何->paste gate->view tick/action->官方Ratatui，业务仍共享
+App Server/RuntimeCore/canonical Thread/Turn/Item；无public boundary/schema/依赖改动。
+无PR请求/body-file，不创建PR、提交或分支，不声明人工架构审批或自动门禁已替代。
+下一刀继续输入/显示事件消费的Codex对照，优先取得raw分段的可重复到达/flush时序
+证据；宿主action拆分服务该主链，不回到无消费占位类型的正向“对齐”。
+
+最终Prettier与docs:boundary通过，日志stage103-prettier-complete.log及
+stage103-docs-complete.log；ESLint、scripts治理、legacy边界零违规及全工作树diff检查
+均通过。收尾只回填计划/证据，不再改变已冻结并完成真实验收的生产源码。
+
+## 第一百零四阶段：剪贴板动作与完成反馈迁回App（限定macOS验收完成；整体partial）
+
+主目标仍为Codex CLI/TUI输入、显示与职责/命名对齐。先用第103冻结CLI运行原
+MCP stdio/PTY：均exit0，raw atomic/rich draft/complete response/once/tty恢复保留。
+这一次观测不能关闭第103首轮或第88分段/首键/aggregate根因，后续仍需到达/flush
+时序证据，不臆测修改PasteBurst、framing或时间预算。
+
+窄写集：runtime.rs的PendingCopy、剪贴板动作/完成poll、相关helper及测试；
+app.rs与新增同名app/clipboard及独立回归；受影响的结构守卫/inventory、architecture
+与本计划。保留前序工作树；App Server/protocol/runtime、GUI、provider、依赖只读。
+用户授权继续迁移清理；不提交、推送、建分支，不新增compat。
+
+事实源：App clipboard只负责terminal host动作、异步完成及当前selection反馈，实际
+平台worker仍归现有`clipboard_copy`/`clipboard_paste`，canonical投影仍消费App Server。
+runtime只分发动作与安排帧，不持有第二套反馈算法。原仅测试`copy_*_with`实现删除，
+相关测试直接调用生产完成路径，避免替代实现绿灯掩盖真实消费者问题。
+
+退出条件：1) 剪贴板动作、完成身份与反馈在app/clipboard唯一消费；2) 原copy反馈/
+selection/scroll/lease断言迁到生产路径，补跨thread/关闭surface的晚到完成隔离；3) 定向及全TUI、Clippy/fmt、current守卫/inventory/治理通过；4) 同源码冻结CLI的
+原complete/images/user-input/mcp-elicitation真实stdio/PTY聚合通过。runtime超过1000行
+的退出条件仍为继续迁出剩余host actions，本刀不向大循环新增业务逻辑。
+
+责任root，2026-10-11。Windows/MSVC、真实GUI、live Provider、完整verify:local未由
+本刀覆盖；总体partial，限定验收完成度在收尾按实际通过条件回填。
+
+### 第104实施与定向验证
+
+剪贴板PendingCopy上下文、动作派发和完成反馈已直接迁入app/clipboard；runtime删除
+原上下文及helper，scheduled draw在同一paste gate通过后调用App finish_clipboard。
+App持有当前请求身份，平台worker与frame请求继续复用Tui，无第二输入/业务后端。
+runtime由2050降到1385行，clipboard生产276行、独立回归约430行；仍需继续拆剩余
+host actions，不能把本次缩减当作全部目录/职责对齐完成。
+
+删除3项仅测试`copy_*_with`实现，原4项copy/selection/reading-position/lease回归迁到
+生产finish_clipboard_copy，新增4项身份/duplicate/late-thread/closed-pager/PRIMARY隔离
+回归。旧helper的composer反馈含字符数、生产反馈不含字符数，测试现在按既有真实
+生产合同断言，用户文案没有新增或修改，也未调用真实系统剪贴板作为单元依赖。
+首次定向编译有迁移遗留app/self及TuiEvent导入错误，已修复；这属于实现错误，
+不算业务红灯。第二次定向已发现多余花括号warning并修正，随后执行最终完整验证。
+
+current八文件守卫136/136，inventory1547 source文件（Codex1084、Lime463），
+docs边界通过；该计数不是功能完成率。全TUI/Clippy/fmt/locked CLI及真实Gate待完成。
+
+第二次定向7/8通过，新增跨thread回归错误地把“确认复制后恢复的阅读距离4”当成
+“完成前当前scroll值”；生产隔离实际保持0，夹具前提错误。断言修为保存完成前
+scroll并验证不变，不修改生产算法。为避免旧测试源码的无效重复编译，停止本进程
+已启动的完整验证，保留stage104-rust-final.log，随后按定向->全TUI->Clippy/fmt/build
+顺序重跑；只有最终源码验证结果进入验收。该失败不作为历史raw分段的证据。
+
+最终顺序定向8/8、全TUI1741 library+25 integration+1 dependency guard=1767唯一项
+通过，另1 ignored tmux launcher；纯Rust默认短路不冒充真实PTY。严格Clippy要求将
+匹配请求的负向is_some_and改为等价is_none_or，按建议简化，未放宽-D warnings。
+该等价变更后仍复验定向/完整测试及后续Clippy/fmt/build，再冻结真实Gate产物。
+本机14:57运行条件：load 83.97/73.99/58.23，swap使用15997.81MiB；只解释验证耗时
+并记录资源上下文，不能作为历史raw paste分段的已证实根因，不改变原预算或阈值。
+
+### 第104最终源码验证与冻结
+
+第三次最终源码验证完成，日志/tmp/lime-tui-stage104-rust-third-final.log，末尾
+STAGE104_RUST_OK。严格all-target/no-deps Clippy -D warnings、8/8剪贴板回归、完整
+TUI1741 library+25 integration+1 dependency guard=1767唯一项（另1 ignored tmux
+launcher）、workspace fmt check与locked CLI build均通过。没有弱化原断言或禁用lint。
+最终结构守卫136/136、ESLint、Prettier、scripts/docs边界与legacy零违规，diff check
+通过；最终is_none_or写法的inventory已重建，source1547（Codex1084+Lime463）。
+
+CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage104-final-dvkVZC/binaries/lime，
+SHA256 c0dd58c374ce69b728dae8d1365299ecf5a23712f54b6141fcd21ac2ddd921ed。
+App Server继续使用第91完整包及其DYLD loader上下文，共享后端未修改；CLI冻结后
+不再修改生产源码，不使用旧CLI对本轮实施宣称成功。
+原complete/images/user-input/mcp-elicitation串行真实stdio/PTY聚合已开始，日志
+/tmp/lime-tui-stage104-final-gate-b.log。条件1/2/3通过，条件4待完整聚合，限定切片
+当前3/4（75%），整体partial；真实Gate结果与失败记录在结束后继续回填。
+
+### 第104真实Gate首轮失败与夹具退出修正
+
+首轮聚合exit1，fixture tui-gate-b-T3B45P，日志stage104-final-gate-b.log。MCP stdio
+通过，PTY完成原raw atomic、rich draft/cursor恢复、表单完整响应一次、零turn以及退出/
+terminal模式断言后，在找mcp-pty-tool-call的server结果时unwrap None（5.19s）。
+与第103raw atomic predicate失败不同，不能混为同一问题或据此关闭历史分段根因。
+代码显示夹具在表单消失后立即Ctrl-D，工具caller的异步结果尚未作为退出前提。
+
+窄写集扩至既有mcp_server_elicitation/pty_tests.rs及其Gate守卫。夹具在退出前观察
+真实relay中完整JSON行的server工具结果，共用原15s退出deadline；不增加grace timer、
+不更改raw framing/阈值、不修改响应/once/canonical/terminal原断言。未完成末行留待
+下一次观察，完整行解析仍严格报错。tool结果不是测试侧合成事件，最终仍验证完整
+structuredContent。生产源码与冻结CLI不变；只修改test-only验收同步点，复验待完成。
+
+### 第104完整复验与限定验收
+
+test-only退出同步修正后，all-target/no-deps Clippy -D warnings、全TUI1767唯一项与
+workspace fmt再次通过，日志/tmp/lime-tui-stage104-fixture-rust-final.log，末尾
+STAGE104_FIXTURE_RUST_OK；8项剪贴板回归仍包含在最终全库中，另1 ignored launcher。
+最终八文件守卫137/137，日志stage104-fixture-guards-final.log；新守卫限定真实tool结果
+先于Ctrl-D，并防止重新建立额外退出deadline。ESLint/docs与diff check通过，source
+inventory1547文件已按最终test-only源码重建。没有修改冻结生产CLI或共享App Server。
+
+同一冻结CLI的原complete/images/user-input/mcp-elicitation完整串行聚合exit0，日志
+/tmp/lime-tui-stage104-final-gate-b-second.log，fixture
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-gate-b-hafEVn。
+MCP stdio Thread 01a129d0-d737-71b1-a445-c6180e8b402f，PTY Thread
+01a129d0-e2d3-71b2-bdda-fac98ba7cd3f，实际观察raw=atomic/drafts=restored/response=
+complete/tool=resolved-before-exit/exactly-once/turns=none/terminal=restored。
+主Thread 01a129d0-ef65-7960-b8ed-11022ee77090，Turn
+turn_a81dbbccf77b450eaddd65a72f090933。notes Thread
+01a129d1-d1ec-7b80-91f8-bbad87d65e8e，Turn turn_a2a170cb4a16435d98e01be919e8e75c，
+完整typed user_note、rich revisit/unanswered、IME_ORDER/IME_TAB和raw burst均保留。
+tmux editor Thread 01a129d2-3050-7c72-b33b-acd7d579e063，Turn
+turn_f9a7df9d0be24564a012479d888bba90，无按键resize/editor首键、canonical once与tty
+恢复通过；两次KeepScreen/stdin、canonical cwd/冷读、backtrack、reasoning/images、
+focus/reconnect/resize及thread-input-stdio保持原验收。
+
+current为app/clipboard的唯一动作/完成反馈owner、App请求身份以及同一Tui平台worker。
+runtime内旧clipboard上下文/helper与3项仅测试反馈算法为dead/deleted/forbidden-to-
+restore，无新增compat/deprecated。旧正向结构断言已迁为生产接线与负向回流守卫。
+SRP迁移host职责，DRY删除重复反馈算法，KISS复用既有worker与同一退出预算。
+runtime仍1385行，继续迁出剩余host actions的退出条件保留，不增加业务分支。
+
+退出条件1/2/3/4取得限定证据，macOS 4/4（100%）；总体仍partial。第104夹具的工具
+caller完成/退出顺序已有修复与真实结果证据，但第103首轮MCP raw atomic、第88负载
+分段/editor首键/aggregate根因没有关闭。同线程新选区代次仍不属于本刀隔离证据。
+共享有效filesystem/grantedPermissions的editor_directory合同、Windows/MSVC、真实
+GUI/live Provider及完整verify:local未由该macOS TUI切片验证，不能提升对应readiness。
+root确认架构为terminal action -> App clipboard -> Tui worker -> matched completion ->
+current selection反馈；业务仍共享App Server/RuntimeCore/canonical Thread/Turn/Item。
+无public boundary/schema/依赖改动，无PR请求，不提交、推送或建分支。
+下一刀继续输入/显示时序的可重复取证与剩余host action职责迁移，不能用守卫数量、
+同名文件数或本轮100%代替总体功能/UI/UX对齐率。最后只回填文档与证据。
+
+## 第一百零五阶段：复制完成归属原选区（限定macOS修复复验完成；整体partial）
+
+主目标仍为完整Codex CLI/TUI功能、UI/UX和职责对齐。第104只检查App请求号/thread/
+surface类型，同线程替换选区或重开同类页面仍可能误清除新选区。参考Codex commit
+4aaee872e31abefe0d32e91faab23b09b6968824的transcript_view/selection、textarea/mouse：
+请求票据保存在原Selection内，端点/阅读位置改变或原owner被替换后不能消费完成。
+反馈票据独立于选区，原页面复制反馈可完成，但不能误结束新选区。composer的鼠标和
+键盘复制都只在确认成功后清除原选区，去掉旧clear_selection双语义。
+
+窄写集：app/clipboard及回归、AppAction/runtime复制参数接线、bottom_pane/composer和
+chat_composer/mouse、textarea/mouse、transcript_view选区/复制/反馈、pager_overlay、
+resume_picker及host消费者；受影响结构守卫/inventory、architecture与本计划。
+前序脏改动保留；共享App Server/protocol/runtime、GUI、provider与依赖只读。
+无提交/推送/分支；用户已授权迁移清理，不新增兼容包装或第二业务状态机。
+
+退出条件：1) 同文本新选区、移动端点/阅读位置、重开pager及隐藏composer有稳定
+生产路径回归；2) 复制票据在原选区生命周期内，所有pager/picker消费者迁移，CLIPBOARD
+lease和独立PRIMARY语义保留；3) 定向/全TUI、严格Clippy/fmt、current守卫/inventory及
+治理通过；4) 本轮冻结CLI的真实stdio/PTY聚合通过并保留原断言。
+runtime仍1385行，其退出条件为继续迁出剩余host动作，不在其中新增业务算法。
+责任root，2026-10-11。整体没有可信功能完成率分母，保持partial；Windows/MSVC、
+GUI/live Provider、shared editor权限合同与历史raw分段根因不由本刀自动关闭。
+
+### 第105实施与红灯证据
+
+修改前新增2项生产完成路径回归，原8项通过，两项稳定失败：旧完成结束同线程替换
+选区、重开pager后清除新页面选区。日志/tmp/lime-tui-stage105-red.log，exit101。
+选区的pending_copy已迁到原Selection/MouseSelection生命周期，记录请求号、端点及
+阅读位置；transcript复制代码拆入transcript_view/clipboard，避免继续堆selection模块。
+输入框键盘/鼠标确认均由textarea完成；删除clear_selection参数和clear_mouse_selection
+包装，消费者直接迁移。未新增文案、协议、依赖或持久化状态。
+
+反馈与选区票据分开：main composer gap及PagerOverlay保存自己的反馈票据，原页面
+替换选区仍完成复制反馈；页面reset/suspend/reopen后旧票据无效。PRIMARY只能在原
+选区有效时接收，CLIPBOARD native lease即使选区失效仍保持。独立resume_picker/host
+同步消费同一PagerOverlay路径，并在关闭后仍保留晚到native CLIPBOARD lease。
+原仅测试反馈算法没有恢复；测试通过生产defer_copy注册请求身份、只注入worker完成。
+
+首次迁移后10/10剪贴板回归通过，日志stage105-green-first.log。随后增加真实键盘
+CopyComposerSelection、禁用/隐藏/编辑/同文本重选、main阅读位置/呈现切换、pager
+反馈独立生命周期及picker替换/重开/移动/滚动覆盖，正在执行全TUI验证。
+SRP让选区owner决定是否消费完成，DRY让两个picker host共享同一完成算法，KISS复用
+选区生命周期而不引入全局generation计数器。root确认架构与共享业务主链不变。
+
+新增覆盖后全TUI1747 library+25 integration+1 dependency guard=1773唯一项通过，
+另1 ignored tmux launcher；11项App剪贴板回归及gap/pager/picker生命周期回归通过。
+第105最终getter has_transcript_selection已无生产消费，收为cfg(test)查询，不保留dead
+生产API或放宽warning。严格all-target/no-deps Clippy -D warnings通过，最终同源码全
+TUI/fmt/locked CLI build顺序验证进行中，日志/tmp/lime-tui-stage105-rust-final.log。
+137/137守卫通过（首轮一项因rustfmt换行导致字符串误判，改为空白稳定regex后通过，
+不弱化票据/端点/位置守卫）；ESLint、docs/scripts、legacy边界零违规与diff check通过。
+inventory1548 source（Codex1084+Lime464），没有把文件/符号数量算成功能完成率。
+15:44机器load100.26/54.44/39.75，swap15898.06MiB，只记录验证运行环境与耗时，
+不作为历史raw粘贴分段的根因结论。退出条件1/2通过、3最终复验中、4待真实Gate。
+
+最终同源码全TUI1773与workspace fmt均再次通过；locked CLI构建正在重编译依赖，
+尚无编译错误，不调整原fixture输入/预算/断言。构建完后冻结新CLI再运行原四场景，
+不使用第104产物替代第105证据。额外clipboard format、焦点/PRIMARY native取消和
+跨平台行为仍需后续Codex对照，选区票据完成不代表全部clipboard能力已对齐。
+
+### 第105冻结与真实Gate失败
+
+最终源码全TUI1773、严格all-target/no-deps Clippy -D warnings、workspace fmt check及
+locked CLI build通过，日志/tmp/lime-tui-stage105-rust-final.log，STAGE105_RUST_OK。
+CLI冻结于/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage105-final-5o8MZu/binaries/lime，
+SHA256 fa2b70fa17fff46663b0256b9a7ddf8b4902b8dbe3c95338c10a9802584fd6a0。
+App Server沿用第91完整包，共享后端未修改。原四场景聚合exit1，日志
+/tmp/lime-tui-stage105-final-gate-b.log，fixture tui-gate-b-J6T9sU：MCP stdio完整响应一次
+通过；PTY在原raw atomic draft predicate超时（31.01s），画面仍含长Unicode正文和
+MCP_PTY_TAIL，未形成整段占位。complete/images/user-input尚未执行，不能以单测提升
+真实Gate状态。原raw framing、15s等待预算与atomic/once/canonical断言不变。
+本刀条件1/2/3通过、4未通过，限定3/4（75%），整体partial。该失败与第103首轮及第88
+历史分段形态相同，尚无到达/flush时序证据，不猜测根因，不以重跑绿灯关闭问题。
+
+### 第105隐藏页面反馈补齐
+
+继续对照Codex发现：原页面隐藏时仍应完成匹配反馈票据，但不可结束选区、跳转阅读
+位置或覆盖前台状态。窄写集仍为App/PagerOverlay复制完成路径及回归；新增main gap
+和picker重新显示的用户可见反馈断言，以及被resume picker遮住的main pager完成隔离。
+旧冻结产物不代表后续源码，修复后需重新构建/冻结/验证。另记录view渲染resume picker
+优先而App输入路由pager优先的职责差异，后续必须统一，当前复制完成需同时检查可见性
+和输入归属，不把隐藏选择误当成current。root，2026-10-11。
+
+## 第一百零六阶段：统一剪贴板调度与图片粘贴按键（限定macOS验收完成；整体partial）
+
+主目标为Codex输入交互和职责对齐。Codex clipboard_copy/worker统一调度复制、文本读取
+和busy状态，chatwidget/clipboard管理250ms图片粘贴重复抑制。Lime当前Tui分别持有
+clipboard_paste/worker与clipboard_copy/worker，两套in_flight允许跨操作重叠；每次
+Ctrl/Alt+V Press直接读取图片，无busy门禁或重复抑制。不能只加两个worker的is_busy
+包装后把双调度事实源留下，也不新建兼容层。
+
+窄写集：clipboard_copy/worker及独立测试，删除clipboard_paste/worker与模块入口；
+Tui/App clipboard/runtime/resume picker host消费者直接迁移至同一个worker；
+chatwidget/clipboard、input_flow重复按键路由及回归；结构守卫/inventory/architecture/
+本计划。保留前序成果，不改App Server/协议/shared runtime/GUI/provider/依赖，不提交。
+
+退出条件：1) 单一worker同时串行化copy/read/image忙态，取消或超时后仍busy到native
+响应被排空，late结果不插入新草稿；2) Ctrl/Alt+V连续Press滑动延长250ms抑制，其它
+Press/Release重置，Repeat不重新读图，成功/失败后都延长窗口；3) 定向及全TUI、严格
+Clippy/fmt、current/retired守卫/治理通过；4) 最终源码冻结CLI真实原四场景stdio/PTY
+证据，raw分段失败必须保留且单独追踪，不改预算/framing/断言来制造通过。
+
+此阶段初始0/4，不作为阶段105验收成功；跨平台/native PRIMARY/HTML格式与完整GUI
+交付仍开放。计划复用一个pending/in_flight和请求号，不增加第二业务状态机。
+
+### 第105补充红灯与第106实施
+
+pre-fix测试产物新增隐藏反馈红灯：picker重新显示无复制结果（33/34），main隐藏原gap
+无结果以及hidden pager误覆盖前台状态（App10/12）。日志
+/tmp/lime-tui-stage105-hidden-red.log与/tmp/lime-tui-stage105-hidden-app-red.log；原剪贴板
+确认/端点/线程/lease回归仍通过。该测试产物只证明修改前行为，不作为新源码验证。
+编译耗时25m20s；不改原交互预算，不将环境负载定为raw分段根因。
+
+隐藏页面现在先完成原反馈票据，再独立检查是否允许结束选区/跟随/更新前台状态。
+旧thread仍不能更新新反馈。App同时检查pager/picker的渲染与输入优先级；上述既有
+优先级差异尚待统一，当前不会把被遮挡或无输入权页面的选区当成current。
+
+第106已直接迁移单一clipboard_copy/worker：请求操作、完成类型与取消/timeout/drain
+共享一个pending/in_flight/id。旧read worker及其重复poll/cancel/start算法删除，原
+worker回归迁至独立worker_tests，补copy/read跨操作互斥及取消不误取消copy。
+App/runtime/独立picker消费者已迁移，无包装；图片native读取先检查共享busy，
+成功/失败统一进入finish_image_paste，再更新ChatWidget重复抑制窗口。使用既有五语言
+clipboard busy文案，没有增加i18n key、协议或依赖。
+
+已补真实App键盘路由的滑动250ms、Repeat/Release/普通Press与完成时钟回归、busy时
+native reader禁止调用且草稿不变；native系统调用仅由测试注入依赖替换，反馈算法仍
+是生产路径。当前cargo check --tests --locked进行中，日志stage106-check.log；最终
+全TUI/Clippy/fmt/build及冻结/真实Gate尚未完成，不能提升完成率。root确认SRP平台
+调度归单worker、DRY移除双排空算法，业务仍共享App Server/RuntimeCore/canonical
+Thread/Turn/Item，架构确认同步architecture；不创建PR、提交或分支。
+
+### 第105补充修复与第106最终验证
+
+第106首次check的test-only夹具用Drop类型struct update产生E0509，修为先Default再
+赋注入channel；随后定向编译发现新增ChatWidget字段私有导致既有fixture构造E0451，
+按现有状态字段保持crate可见，状态更新仍由chatwidget/clipboard唯一消费。这两项为
+实现错误，不算业务红灯；未放宽warning或删现有测试。最终41项clipboard定向回归
+通过，日志/tmp/lime-tui-stage106-targeted-second.log。隐藏main/pager/picker反馈与
+选区/前台隔离均通过，Ctrl-C/D早退保留抑制、普通Press/Release重置、Repeat不再读图。
+
+最终同源码全TUI1753 library +25 integration +1 dependency guard =1779唯一项通过，
+另1 ignored tmux launcher；真实PTY另行执行，不把默认短路算成Gate B。严格all-target/
+no-deps Clippy -D warnings、workspace fmt check、locked CLI build通过，日志
+/tmp/lime-tui-stage106-rust-final.log，构建进程exit0。八文件守卫138/138、ESLint、
+Prettier、docs/scripts治理与legacy零边界违规通过，diff check通过。最终inventory
+1550 source（Codex1084 +Lime466），增加的是独立回归和current owner，已删旧worker；
+计数不是总体功能完成率。
+
+CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage106-final-dHUpm0/binaries/lime，
+SHA256 716cfb97b7ca7c933e59608f868b3d8afd85eb48f4e16dda66a224613da8f75c。
+App Server继续第91完整包及原DYLD loader上下文，共享后端未改；冻结后没有修改生产
+源码。原complete/images/user-input/mcp-elicitation串行真实stdio/PTY聚合exit0，日志
+/tmp/lime-tui-stage106-final-gate-b.log，fixture tui-gate-b-vJ4Rj0。
+MCP stdio Thread 01a12a3f-1c7e-7352-b26f-a97d97aa09bb，PTY Thread
+01a12a3f-28fa-7180-ab78-69ba33072ed8：raw=atomic/drafts=restored/response=complete/
+tool=resolved-before-exit/exactly-once/turns=none/terminal=restored均真实观察。
+主Thread 01a12a3f-32b0-7f31-b9d6-7ba0f3e74e1a，Turn
+turn_9e52ba65a3aa46bca132ec9f480583d9；notes Thread
+01a12a3f-9729-7691-b2f1-8d22fd7d1ed9，Turn turn_1dc7a3a40595497089e1b6fe74a97019；
+tmux editor Thread 01a12a3f-b7e5-7f61-b9af-a4812a1904e9，Turn
+turn_ab52e1ada0bb441d9624ec4d84b14b89。原IME/raw burst、typed user_note/rich revisit、
+首键/resize/canonical once、KeepScreen/stdin、history/backtrack/reasoning/images/focus/
+reconnect/thread-input-stdio与终端恢复均保留原验收，不修改framing/阈值/等待预算。
+
+current：单一clipboard_copy/worker、App完成身份与隐藏原页面反馈、ChatWidget图片
+抑制；dead/deleted/forbidden-to-restore：clipboard_paste/worker、Tui第二worker字段
+和重复read poll/cancel/start算法；无新增compat/deprecated。SRP固定平台调度owner，
+DRY删除双worker排空，KISS复用原请求身份/页面票据；GUI/TUI业务主链不变。
+第105补充修复和第106限定macOS条件1/2/3/4均有证据，4/4（100%）；整体仍partial。
+第105首轮、第103首轮及第88的raw分段/首键根因仍开放，本次通过不予关闭。Windows/
+MSVC、GUI/live Provider、完整verify:local、shared editor权限、PRIMARY原生取消/延迟
+发布及HTML/Markdown formats未由本刀验证或实现，不提升对应readiness。
+root，2026-10-11，架构图确认仍为terminal event -> App/ChatWidget -> 单Tui worker ->
+匹配完成 -> 原view反馈/当前选区；业务仍App Server/RuntimeCore/canonical投影。
+下一刀统一fullscreen页面绘制与输入归属的优先级，并继续raw到达/消费/flush时序取证。
+无PR请求，不提交、推送或建分支，不以局部100%冒充总体完整对齐。
+
+## 第一百零七阶段：全屏绘制、输入与复制完成共享归属（限定macOS验收完成；整体partial）
+
+目标仍为Codex TUI输入/显示和owner对齐。第105/106只保守隔离被遮挡或无输入权的
+复制完成，没有消除view的resume优先与App的pager/审批优先差异。原状态能让屏幕
+显示resume picker而键盘关闭另一pager，或让审批接收按键却不可见。
+
+窄写集：app/interaction归属选择、app模块导出、view绘制/光标与稳定回归；App复制
+完成消费者及对应优先级回归；结构守卫/inventory/architecture/本计划。第106冻结CLI
+保持原状作为历史证据；无App Server/协议/GUI/provider/依赖改动，无提交/分支。
+
+事实源为按现有App输入优先级计算的只读surface选择：pager高于inline受保护/设置
+surface，再到resume picker/agents overview。所有消费者使用同一选择，不新建状态机
+或持久化字段；被隐藏的原页面仍保留独立反馈票据，不能结束隐藏选区或覆盖前台。
+
+退出条件：1) pager/resume和approval/resume共存时绘制与实际键盘路由一致，有修改前
+稳定红灯；2) 完成反馈/选区与光标共享归属，原页面保留状态，重开和跨thread隔离保留；3) 定向/全TUI、严格Clippy/fmt、current守卫/治理通过；4) 最终源码新冻结CLI原四场景
+真实stdio/PTY聚合通过。当前0/4，历史raw分段、Windows/GUI/native PRIMARY仍开放。
+
+### 第107红灯与实施
+
+修改前9项view交互回归7通过、2失败：pager/resume共存时PAGER_OWNER不可见，审批/
+resume共存时Approve command不可见。日志/tmp/lime-tui-stage107-red.log，exit101；
+旧审批详情、窄屏/多语言等7项仍通过。Codex app.rs使用同一overlay存在性控制渲染/
+输入/clipboard，Lime按现有App输入优先级收敛，未预建第二overlay业务状态机。
+
+FullscreenSurface只读计算当前归属；view、cursor style、App路由和clipboard直接迁移
+消费者。旧第106的hidden main pager测试基于当时错误resume-first绘制，本刀迁为真实
+view渲染的visible pager先于resume并消费完成；新增hidden resume picker在pager/approval/
+status/title四类前台owner下的生产完成回归，验证前台状态不变、原反馈重显、原选区和
+composer draft保留。没有用旧隐藏断言掩盖新owner规则，也没有保留两套优先级算法。
+
+最终当前源码lib1756/1756通过，日志/tmp/lime-tui-stage107-library-first.log；新增两个
+view红灯与hidden picker回归均绿。架构同步architecture，root确认SRP归属选择在
+interaction，DRY删除绘制/clipboard字段优先级重复，KISS使用即时投影不新增可变状态。
+后续集成、Clippy/fmt/build和新冻结真实Gate待完成，暂不提升整切片完成率。
+
+### 第107最终源码与真实Gate验收
+
+同源码lib1756通过后只补集成target all/manager_dependency_regression/test_backend，
+25+1项通过，另1 ignored tmux launcher，未无理由重复全库。总1782唯一项，日志
+/tmp/lime-tui-stage107-library-first.log与/tmp/lime-tui-stage107-rust-final.log；严格
+all-target/no-deps Clippy -D warnings、workspace fmt check、locked CLI build均通过，
+验证进程exit0。current八文件守卫139/139，日志stage107-guards-second.log。首轮
+一项agents_overview旧单行字符串因rustfmt换行误报，改空白稳定regex后通过，仍要求
+同一ChatWidget owner，无边界放宽。ESLint/Prettier/docs/scripts及legacy零边界违规、
+diff check通过。inventory1551 source（Codex1084+Lime467），不作为总体完成率。
+
+CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage107-final-mytqa6/binaries/lime，
+SHA256 7e1ea6fface22cf611139c6fcd1d2b227e419f4a6da65b6426585ab1cb6a3dbb。
+App Server继续第91完整包/原DYLD上下文；冻结后没有修改生产Rust。原
+complete/images/user-input/mcp-elicitation串行聚合exit0，日志
+/tmp/lime-tui-stage107-final-gate-b.log，fixture tui-gate-b-16ZQVX。
+MCP stdio Thread 01a12a4c-9b2a-78f1-adb8-c29168d6424e，PTY Thread
+01a12a4c-a683-7652-928e-173a98dcc941，raw=atomic/drafts=restored/response=complete/
+tool=resolved-before-exit/once/turns=none/terminal=restored真实观察。
+主Thread 01a12a4c-ae4e-7492-87a9-9a827184b040，Turn
+turn_aad128a69f65406e96e78849232399d3；notes Thread
+01a12a4d-0dac-7a70-b471-e5cce1bf9fb0，Turn turn_670c39c4944d40adb715fccd9a120775；
+tmux editor Thread 01a12a4d-3a19-7182-818d-d5a755b5014d，Turn
+turn_95fbaae2614d4e4ba368f6ace234fc50。原KeepScreen/stdin、IME/rich notes/raw burst、
+resize/editor首键/canonical once、history/backtrack/reasoning/images/focus/reconnect/
+thread-input-stdio与终端恢复均保持原输入/预算/断言，未替换mock后端或放宽协议。
+
+current为interaction只读FullscreenSurface归属选择与同一view/App/clipboard消费者；
+dead/deleted为view独立resume-first绘制优先级及clipboard的重复字段判断；无新增
+compat/deprecated或可变overlay状态。原页面隐藏的反馈、草稿和选区由原owner保留，
+前台输入/绘制/完成一致。SRP/DRY/KISS与共享后端架构确认见本阶段及architecture。
+本刀条件1/2/3/4，限定macOS 4/4（100%），整体仍partial；第105/103/88的raw分段
+和首键历史根因没有关闭，Windows/MSVC、GUI/live Provider、完整verify:local、shared
+editor权限与PRIMARY/HTML格式未由本刀覆盖。不提交、推送、建分支或创建PR。
+下一刀继续实际输入到达/消费/flush时序取证及剩余runtime host动作迁出，后续对齐
+仍以真实用户交互和canonical消费为准，不以文件/测试计数或本刀100%替代总体完成度。
+
+## 第一百零八阶段：剪贴板 setup 与终端交付生命周期（代码验收通过；真实Gate partial）
+
+主目标仍为Codex CLI/TUI的交互、目录和职责全方位对齐。本刀对照Codex
+clipboard_copy/worker的CopySetup/Setup，以及平台copy_to_clipboard的begin_delivery
+合同：原Lime仅在UI poll过期时丢弃结果，无法阻止初始化晚返回后的native/fallback写入；
+后台OSC 52直接写tty/stdout还会与绘制或external editor交接并发。
+
+窄写集：clipboard_copy平台/worker及独立回归，必要的真实host消费者与结构守卫；
+inventory/architecture/本计划。所有既有脏改动为连续任务成果，保留；Codex只读。
+无协议、GUI/backend、provider、依赖变更，不提交、推送或建分支。
+
+退出条件：1) 初始化超时或UI已放弃时，native失败/成功均不能开启任何复制fallback，
+PRIMARY同样消费交付门；2) 已开始交付不被setup deadline误判失败，OSC 52由UI poll
+唯一发送，迟到/重复结果不发送，native确认不被可选终端错误覆盖；3) 定向/全TUI、
+严格Clippy/fmt/locked build、current与retired守卫/治理通过；4) 最终源码新冻结CLI
+原四场景真实stdio/PTY证据通过，历史raw分段根因保持开放。
+
+当前0/4。只迁移setup/terminal delivery完整合同，不把此切片宣称为全部worker对齐；
+native lease归属、PRIMARY Arc/Weak选区生命周期/排队、CopyFormat与HTML/语义Markdown、
+Windows/MSVC/GUI/live provider及完整verify:local仍待交付。copy/read继续一个worker，
+业务主链仍Product Surface -> App Server -> RuntimeCore -> canonical Thread/Turn/Item。
+
+### 第108修改前红灯与实施
+
+新增真实worker完成回归在修改前稳定失败：复制已完成，但晚draw越过setup deadline，
+poll仍报告clipboard setup timed out。日志/tmp/lime-tui-stage108-red.log，exit101。
+现在CopySetup的Pending/Delivering/Abandoned由UI和native delivery共享；旧OperationKind
+与copy/read统一绝对超时判断删除，read仍保留whole-operation预算。平台先初始化再
+检查begin_delivery，成功/失败的迟到broker都不能触发任何fallback；PRIMARY同门。
+worker不再调用直接终端写函数，只返回经OSC 52大小校验的terminal_text；App/runtime/
+独立resume host的现有draw poll是唯一发送路径，editor handoff期间host await不poll。
+native copy平台入口签名直接迁移，无双轨或兼容包装；旧arboard_copy自行创建broker
+的合同删除。原native lease归属本刀保留并明确追踪，不假称完整Codex worker迁移。
+
+首次定向clipboard 48/48通过，含过期初始化成功/失败、晚draw已交付、no-poll过期、
+UI线程发送、duplicate/late抑制与native确认保护；随后强化真实worker交接等待和
+Delivering尚未返回时busy回归，需以最终源码继续验证。SRP交付门归worker/platform，
+DRY共用setup决策，KISS不新增owner副本；架构确认已更新architecture。current为共享
+setup和UI发送；dead/deleted为后台OSC 52直接交付、copy统一绝对超时与旧broker创建
+合同；无新增compat/deprecated。定向最终/all-TUI/Clippy/build/真实冻结Gate待执行，
+仍0/4；raw分段和跨平台/GUI未验证范围保持开放。root，2026-10-11。
+
+### 第108最终源码验证与真实PTY失败
+
+最终定向clipboard 49/49，全TUI library1763 +integration25 +dependency guard1 =1789
+唯一项通过，另1 ignored tmux launcher；严格all-target/no-deps Clippy -D warnings、
+workspace fmt check与locked CLI build均exit0。日志/tmp/lime-tui-stage108-targeted-final.log、
+/tmp/lime-tui-stage108-rust-final.log；八文件结构守卫140/140，日志
+/tmp/lime-tui-stage108-guards.log；ESLint/Prettier、docs/scripts治理、legacy零边界违规和
+全工作树diff check通过。inventory1551 source（Codex1084+Lime467），没有新增文件或
+以同名符号计数代替能力验收。SRP共享交付决策、DRY消除双timeout判定、KISS保留一个
+worker/in_flight，GUI/TUI的共享业务边界不变，架构图已由root确认。
+
+CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage108-final-RGtmPJ/binaries/lime，
+SHA256 2d6371082f2dc514af0a8a7371af50c03e549873e9a4e365608022892f00746c。
+App Server复用第91完整包与原DYLD上下文；冻结后未改生产Rust。
+原complete/images/user-input/mcp-elicitation真实stdio/PTY聚合exit1，日志
+/tmp/lime-tui-stage108-final-gate-b.log，保留fixture tui-gate-b-bRKUkT。
+MCP stdio Thread 01a12a5f-e153-7fd1-8f90-18c23a171289、PTY Thread
+01a12a5f-eb6a-7c71-a104-ad8dbfcea85e均成功，raw=atomic/drafts=restored/response=complete/
+tool=resolved-before-exit/once/turns=none/terminal=restored；complete/images的PTY已返回，
+KeepScreen/editor cwd/首键及popup键盘标记通过，但聚合尾部canonical检查未执行，
+不能把它们提升为四场景完整通过。
+
+user-input保留原单次write的raw正文、Enter/Tab、10s screen predicate和atomic断言，
+在notes burst处失败：屏幕仍显示长Unicode正文与PTY_NOTES_BURST_TAIL，未形成完整
+placeholder。IME顺序与literal Tab此前通过。这是历史raw分段问题的新真实复现，
+尚无到达/消费/flush时序证据，不能把剪贴板改动或环境负载认定为根因；不重跑洗绿、
+增加预算、调整8ms阈值、替换framing或弱化断言。
+
+current为CopySetup/Setup平台交付门和UI poll发送；dead/deleted为旧OperationKind、
+统一绝对copy超时、后台直接OSC 52及旧native初始化入口；无新增compat/deprecated。
+限定macOS代码条件1/2/3通过，真实条件4未通过，3/4（75%），整体partial/active。
+PRIMARY原生生命周期/lease迁移、HTML/Markdown、Windows/MSVC、GUI/live Provider与
+完整verify:local未由本刀验证。下一刀先定位raw的到达/消费/flush差异，再继续PRIMARY
+及runtime host职责迁移；本失败保留为阻塞交互验收事实，不发布或提交。
+
+## 第一百零九阶段：raw 输入分段的真实时序与根因修复（本批macOS验收通过；整体partial）
+
+上一goal轮为实质进展：迁移CopySetup/终端交付，完成1789测试并新增真实notes失败证据；
+不是重复状态或等待。本轮回到输入交互主链，先证实单次PTY raw write、crossterm source
+ready/pending、App消费与PasteBurst flush的关系，再补根因回归和直接修复。Codex的
+EventBroker、round-robin与PasteBurst合同仍是参考，不能靠调阈值或切换framing洗绿。
+
+窄写集：临时metadata-only取证模块与tui/event_stream、runtime/input、PasteBurst/composer
+观测点，原notes PTY fixture的单次write时间标记；取证后按证据收敛实际修复与回归。
+本计划/architecture/结构守卫/inventory随最终写集同步。原工作树为连续任务成果，保留。
+不改App Server/canonical/provider/GUI业务、不提交/建分支。
+
+临时取证只记录时钟、事件种类、字节/字符数、ready/pending和flush原因，不记录输入
+正文、凭证或配置。内存有界批采集，独立线程用既有core LogStore写隔离fixture根，
+不往PTY屏幕输出，不以同步逐键文件写入制造延迟；启用仅用于诊断冻结CLI。诊断模块、
+环境入口和生产观测点在最终交付前必须删除，不能成为新平行日志/runtime owner。
+
+退出条件：1) 获得真实原raw输入的metadata时序，区分到达/消费/flush且不扩大推论；2) 根因层新增稳定修改前红灯并直接修复，原IME、键盘公平性、退出与恢复合同保留；3) 删除临时诊断，最终源码定向/全TUI/严格Clippy/fmt/build/守卫治理通过；4) 新冻结
+最终CLI原四场景真实stdio/PTY通过，未覆盖的历史形态仍明确保留。当前0/4。
+
+### 第109取证与候选修复
+
+普通metadata探针五个自然样本通过，不能关闭第108/105/103/88的历史失败；样本2/4
+1039 source key（含焦点Tab与1002 Unicode），约10–12ms消费，max gap109–570µs，
+原raw消费期间pending/draw/flush均为0。样本3退出尾部记录丢失，不能据缺记录认定
+没有flush；随后已补退出flush，临时实现仍将在最终交付前删除。
+
+受控暂停红灯使用原单次write、原正文、10s predicate与atomic断言，在第204个Unicode
+source处故意暂停25ms，实测约30ms；source持续Ready、没有Pending，恢复后711 bytes/
+214 chars提前flush（gap30049µs），下一Unicode约72µs后仍Ready，剩余2832 bytes独立
+flush。日志/tmp/lime-tui-stage109-stall-red-gate.log，exit1；冻结CLI为
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage109-stall-red-jU7xWz/binaries/lime，
+SHA256 252de3b3d466cea794c11c076c9ed7551091579a4c4838de6b8f21352d441852。
+隔离metadata位于该产物observations/observability/log/lime.log，仅记种类/数量/时间。
+这证明“消费排队时间被误作粘贴空闲”的机制，不证明历史自然失败的全部到达原因。
+
+候选InputClock归tui/input_clock：首次Pending记录等待，Ready吸收等待并冻结连续ready
+消费；App普通输入和modal notes/MCP、runtime draw paste tick直接迁同一input_at。
+普通图片抑制/请求倒计时/标题/动画保留wall clock。没有调阈值、改变framing、优先级
+或round-robin；新时钟不声称取得逐键到达时间，实际不同时间到达但同在ready队列的
+输入仍按一个batch处理。断线restricted edit是每键handoff materialize，无idle计时，
+无需伪造第二\_at入口；原Enter/Tab不提交合同保留。
+
+窄写集扩大为tui/input_clock及回归、event_stream与独立test文件、runtime/render及
+回归、App interaction/input_flow与直接参数消费者、BottomPane input；旧零调用App
+handle_key_event包装删除，BottomPane墙钟便利入口限制test-only，active modal的旧
+handle_event墙钟路径直接替换。初版回归在notes第214键后的draw失败，揭示modal分支
+漏迁；修正后主输入/notes/MCP均保持完整1038 chars占位符与canonical提交/响应一次，
+公平draw与key交替。日志/tmp/lime-tui-stage109-queued-green.log，1/1通过。
+两项InputClock边界和普通请求倒计时回归已补；定向验证/诊断CLI build进行中。
+
+current为同一source-idle时钟与已有PasteBurst；dead/deleted为App无消费者包装及modal
+独立墙钟输入路径，无compat/deprecated。SRP把readiness timing放terminal owner，DRY
+所有paste消费者同一时间合同，KISS只新增两字段时钟、不新增业务状态机或后端。
+架构图已更新architecture并由root确认；临时探针尚未删除，真实受控绿灯与最终原四
+场景验收待完成。条件1已获受控证据，2/3/4仍待完整验收，保持partial/active。
+
+### 第109最终验收与历史范围
+
+候选诊断CLI SHA256 5abac0896fca9ff3965b7b38c8df564414c4ac77f38ede4bbb6d8b88810aebb6，
+位于/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage109-candidate-XXXXXX.skWKj5CDJs/binaries/lime。
+同一25ms受控暂停实测29484µs，原单次write3544 bytes（焦点Tab+正文3543 bytes），
+最终只flush完整3543 bytes，input idle gap10080µs；1039 keys与1002 Unicode完整，
+长正文仍为1038 chars同一placeholder。受控user-input Gate exit0，日志
+/tmp/lime-tui-stage109-candidate-stall-gate.log；候选原四场景自然Gate亦exit0，日志
+/tmp/lime-tui-stage109-candidate-natural-gate.log，fixture tui-gate-b-yjDh9U。
+定向event_stream11 +clock2 +draw5 +image5共23项通过；最初image filter匹配0项，已
+纠正为app::clipboard::image_paste_tests并实际通过5项，不把0项计入验证。
+
+临时input_timing模块、trace/stall两个环境入口、生产所有观测点和fixture临时时间
+标记全部删除；诊断CLI与metadata保留为隔离历史证据。最终无探针源码lib1767 +
+integration25 +dependency guard1 =1793唯一项通过，另1 ignored tmux launcher；严格
+all-target/no-deps Clippy -D warnings、workspace fmt check、locked CLI build exit0，日志
+/tmp/lime-tui-stage109-rust-final.log。current八文件守卫首轮140通过、1旧两参数断言
+失败；直接迁为三参数合同后inventory30/30通过，共141唯一项通过，日志
+/tmp/lime-tui-stage109-guards.log与/tmp/lime-tui-stage109-inventory-guard-final.log。
+ESLint/Prettier/docs/scripts、legacy零边界违规和全工作树diff check通过。
+inventory1554 source（Codex1084 +Lime470），增加clock及独立test文件，不作完成率。
+
+最终CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage109-final.6qvf1569wH/binaries/lime，
+SHA256 93ca671438fe2e19438539cea86ed7ff022459b8e4d52ae90faf76b875f29d3c。
+App Server继续第91完整包/原DYLD；冻结至第109 Gate结束未修改生产Rust。原complete/images/user-input/
+mcp-elicitation真实stdio/PTY聚合exit0，日志/tmp/lime-tui-stage109-final-gate-b.log，
+fixture tui-gate-b-J2AAvn。主Thread 01a12a8f-9604-7d30-a9f9-7b13aafc404a，Turn
+turn_f15232a85d1f45419115ec67ab39d984；notes Thread 01a12a90-0f08-7693-9f5a-7d8c15f55f0f，
+Turn turn_08806d6b2edb42d0972599a46487c4d1；tmux editor Thread
+01a12a90-3436-7e33-afc0-d6db0f374c96，Turn turn_680337814af740fcaf2a72ec2698fef6。
+原raw/IME/literal Enter/Tab/notes revisit、MCP rich fields、KeepScreen与editor首键、
+history/backtrack/reasoning/images/focus/reconnect/canonical once与终端恢复均通过；
+未改原输入、预算、framing、atomic predicate或canonical断言。
+
+本刀source-ready消费停顿机制已红转绿，限定macOS条件1/2/3/4均完成，4/4（100%）；
+历史自然失败未取得相同时序的完整证据，不把受控样本或一次最终绿灯推广为所有
+raw/首键历史形态已解决。整体仍partial/active；PRIMARY scope/queue/native lease、
+HTML/Markdown、剩余runtime host职责、Windows/MSVC、GUI/live Provider、完整verify:local
+仍开放。current为InputClock唯一paste时间合同；dead/deleted为modal独立wall-clock
+输入与无调用包装/临时探针，无新增compat/deprecated。架构图确认仍见architecture，
+不提交/推送/建分支/发布。下一刀迁native lease至session-lived clipboard worker。
+
+## 第一百一十阶段：原生剪贴板所有权归worker（本批macOS验收通过；整体partial）
+
+继续Codex clipboard_copy/worker的owner对齐。当前CopyOutcome携带native lease进入UI
+完成队列；App忽略未知/重复完成、旧view关闭或PRIMARY反馈失效时，结果被丢弃会
+释放真实Linux所有权。ChatWidget与独立resume host还各持有系统lease，使原生资源
+依赖页面生命周期。Codex把CLIPBOARD/PRIMARY两个lease留在同一session worker，只向
+UI返回CopyStatus；平台CopyOutcome.store是唯一保留/替换语义。
+
+窄写集：clipboard_copy worker/lease测试夹具、App clipboard及对应回归、ChatWidget
+旧lease字段与transcript释放逻辑、resume host直接消费者；current守卫/inventory/
+architecture/本计划。第109最终CLI不覆盖，先补稳定生命周期红灯再迁移。无协议/
+GUI业务/provider/依赖改动，不提交/建分支，保留连续工作树。
+
+退出条件：1) UI丢弃完成不释放已交付CLIPBOARD，unconfirmed/error不替换旧lease，
+下一次native成功替换原owner；2) native CLIPBOARD/PRIMARY资源互不覆盖，UI不再持有
+或清空平台资源；3) 定向/全TUI、严格Clippy/fmt/build、守卫治理通过；4) 新冻结CLI
+原四场景Gate通过。Linux真实X11/Wayland、PRIMARY scope/queue、HTML/Markdown与未覆盖
+历史失败仍明确开放。本阶段只迁lease所有权，不把它等同于完整PRIMARY实现。0/4。
+
+### 第110生命周期红灯与直接迁移
+
+修改前真实worker/native夹具完成后UI丢弃结果，tracked lease持有数从1降至0，稳定
+违反所有权合同；日志/tmp/lime-tui-stage110-native-lease-red.log，exit101。
+只给test lease增加Arc观测，不引入生产环境入口或测试后端；完成依旧经过真实worker
+线程/request/response/poll。现在worker内独立保留CLIPBOARD与PRIMARY资源，platform
+CopyOutcome.store唯一决定保留/替换，只发送CopyStatus。PRIMARY错误在worker内消费，
+不能覆盖CLIPBOARD确认；native owner替换、unconfirmed/error保留、普通copy不触碰
+PRIMARY、UI丢弃和shutdown释放均由真实worker路径回归验证。
+
+App与resume host直接迁status合同；ChatWidget旧clipboard_lease/primary_clipboard_lease
+字段、transcript的系统资源清空、UI CopyCompletion包装与completion.primary合同删除。
+原UI字段断言迁至worker生命周期回归，UI测试继续验证旧/重复完成、选区替换、隐藏
+和关闭页面、草稿与反馈隔离；旧“关闭选区释放PRIMARY”测试删除，由session owner
+退出释放合同承接。platform native callback和test seam共用同一start，无compat包装。
+worker thread名迁Codex clipboard-copy，不新增品牌/退役名称或业务后端。
+
+最终当前定向clipboard51/51通过，日志/tmp/lime-tui-stage110-clipboard-green.log；
+含红灯对应绿灯、两种native lease独立生命周期、PRIMARY失败确认保护及原setup/
+UI发送/图片抑制/原页面反馈回归。严格编译check -p tui --tests --locked通过。
+SRP原生资源归session worker、UI只处理反馈；DRY唯一store语义，KISS删除一字段
+包装与页面资源副本。architecture已同步并由root确认，native核心主链不变。
+全TUI/Clippy/build、守卫治理与新冻结四场景真实Gate待执行，保持partial/active。
+
+### 第110最终验收与下一刀
+
+最终当前源码lib1768 +integration25 +dependency guard1 =1794唯一项通过，另1 ignored
+tmux launcher。首次严格Clippy发现macOS的test lease构造器使用无效struct update；
+改为按Linux cfg显式字段后，最终全TUI/严格all-target/no-deps Clippy -D warnings、
+workspace fmt check与locked CLI build均exit0，日志
+/tmp/lime-tui-stage110-rust-final-fixed.log。原失败日志stage110-rust-final.log保留，不把
+失败轮计为通过。current八文件守卫首轮141通过、1旧inline PRIMARY begin_delivery
+断言失败；合同直接迁至ensure_started真实平台callback，并要求worker把共享setup
+传给copy/primary_copy，最终inventory31/31通过，共142唯一项通过。日志
+/tmp/lime-tui-stage110-guards.log、/tmp/lime-tui-stage110-inventory-guard-final.log。
+ESLint/Prettier/docs/scripts、legacy零边界违规及全工作树diff check通过；inventory
+1554 source（Codex1084 +Lime470），只统计结构，不作全方位对齐完成率。
+
+最终CLI冻结到/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage110-final.AhwENaBarG/binaries/lime，
+SHA256 99688a275b0670fb419c0acf164192d59174e63acd7d4018af2a8f4b8edafdd5。
+App Server继续第91完整包与原DYLD上下文；冻结至第110 Gate结束未修改生产Rust。
+原complete/images/user-input/mcp-elicitation真实stdio/PTY聚合exit0，日志
+/tmp/lime-tui-stage110-final-gate-b.log，fixture tui-gate-b-HDBie2。
+MCP stdio Thread 01a12a9f-fbbb-7a81-b9fd-855cdf3ee74b，PTY Thread
+01a12aa0-6609-7340-a1e9-f255c07e460f；主Thread 01a12aa2-4c64-71c0-950f-e0e5e534cfc7，
+Turn turn_db6aeed523544a3ba0295b8c01da563f；notes Thread
+01a12aa2-baac-7661-9e7e-fa48197d5838，Turn turn_b75b2e505dfa478fa4437288229c7d5c；
+tmux editor Thread 01a12aa2-e18f-7b30-bb8f-308ceb7127b9，Turn
+turn_0ec570d7d43644838a2c72e65fcef558。原raw atomic、IME/literal Enter/Tab、rich notes/
+MCP、editor首键与KeepScreen、canonical once、history/backtrack/reasoning/images/focus/
+resize/reconnect与terminal restore全部保持原输入、预算、framing和断言。
+
+标准npm run verify:local（smart）exit0，日志/tmp/lime-tui-stage110-verify-local.log：
+85个当前改动路径选中版本一致性与Rust changed scope；反向依赖扩展cli，实际CLI
+lib8与TUI lib1768均通过，版本1.154.0一致。这不等于full模式、GUI/Electron或live
+Provider验证；不重复计算已计入1794的TUI library。该次local与Gate的cargo test争用
+同一target锁，均在原预算内完成；后续同target Rust构建/fixture按顺序执行，避免
+无谓锁等待，不增加Gate预算或重跑洗绿。
+
+current为session worker独立native leases与status-only UI完成；dead/deleted为
+ChatWidget/resume host平台资源字段、transcript清空系统owner、CopyCompletion及
+completion.primary UI合同。无compat/deprecated，原UI草稿、页面反馈与选区票据由原
+owner保留；SRP/DRY/KISS与架构图由root确认。限定macOS代码/可观测资源合同条件
+1/2/3/4完成，4/4（100%）；Linux真实X11/Wayland、Windows/MSVC、GUI/live Provider、
+verify:local:full、未证明覆盖的历史raw/首键形态仍开放，整体partial/active。无提交、
+推送、分支或发布。
+
+下一刀只读对照已确认：Codex transcript_view/selection的publish_primary独立静默
+发布并将Arc scope放在Selection中；显式copy_selected_text按clear_selection区分，
+busy时只保留最新PRIMARY publication与一次PRIMARY read，advance在UI验证owner后的
+idle draw执行。Lime pointer_up当前只返回Consumed，未发布PRIMARY；App却对main/pager
+显式follow=false复制统一尝试PRIMARY，缺少静默publication/显式copy的区分。
+应先修正这条真实交互链，再迁Weak scope与队列，保持已交付native lease不随取消
+scope释放；无config/协议扩展时先不预建自动CLIPBOARD策略或HTML格式包装。
+写集从transcript selection/action、App clipboard、worker及实际host消费者收敛，
+新增稳定红灯必须覆盖鼠标释放不宣称CLIPBOARD复制、显式复制不覆盖PRIMARY、选区
+结束后的setup不交付、busy latest-only与read排序；Linux平台真实验收单独记录。
+
+## 第一百一十一阶段：鼠标选区静默PRIMARY发布与作用域（本批macOS验收通过；整体partial）
+
+主目标仍是Codex CLI/TUI全方位对齐。本刀直接迁移鼠标release、显式CLIPBOARD复制、
+main/pager/resume三个真实消费者；session clipboard worker是唯一native owner。
+新增Weak选区scope与busy latest-only PRIMARY publication，idle draw先验证页面owner
+再advance；取消scope不释放第110已交付native lease。无自动CLIPBOARD策略、HTML格式、
+协议或GUI后端扩展。PRIMARY read排队和read scope留给下一刀，不以本刀冒充全部合同。
+
+窄写集：clipboard_copy worker与独立选区回归、transcript_view input/selection/clipboard、
+App action/interaction/clipboard、pager/resume及runtime直接消费者，计划/架构/结构守卫。
+保留连续任务脏改动，不提交/推送/分支。退出条件：1)鼠标释放发出静默PRIMARY动作且
+保留选区，显式copy只写CLIPBOARD；2)取消setup不交付、busy仅发布最新有效选区、native
+lease不随scope消失；3)定向/全TUI/Clippy/fmt/build与结构治理通过；4)冻结新CLI真实
+四场景stdio/PTY Gate通过。0/4；整体partial/active，Linux平台实际PRIMARY仍未验证。
+
+### 第111稳定红灯与current迁移
+
+鼠标release回归在修改前稳定返回Consumed，要求静默publication失败，exit101；日志
+/tmp/lime-tui-stage111-primary-red.log。现release独立PublishPrimary，非空选区保留，
+stationary link与空选区原合同保留；主视图/pager/resume picker/独立resume host均直接
+迁消费者。显式复制统一只写CLIPBOARD，旧request_copy_with_primary及bool混合目标删除。
+worker只保留最后一项PRIMARY publication；poll不抢占后续input，idle draw验证原页面
+scope后advance。Selection持Arc，setup/队列只持Weak；替换、端点移动、clear/reset、
+FocusLost/Resume或隐藏owner取消未交付工作，已经Delivering继续完成。
+
+真实worker/native夹具覆盖初始化暂停后scope丢弃、busy latest-only、显式copy不排队、
+超时native drain后才能advance，以及第110独立native资源保留；scope结束不释放native
+PRIMARY。定向clipboard57通过，日志/tmp/lime-tui-stage111-clipboard-green.log；随后
+新增main生产action与七种Selection取消回归。首次全TUI四项旧release=Consumed/None
+断言失败，直接迁三条实际消费者断言，原复制内容/反馈/关闭恢复保持；失败日志
+/tmp/lime-tui-stage111-tui-final.log保留。最终lib1776+integration25+dependency guard1=
+1802唯一测试通过，另1 ignored tmux launcher，日志
+/tmp/lime-tui-stage111-tui-final-fixed.log。严格all-target/no-deps Clippy -D warnings通过，
+日志/tmp/lime-tui-stage111-clippy.log；current八文件守卫140/140通过，日志
+/tmp/lime-tui-stage111-guards.log，inventory1555 source（Codex1084+Lime471），不作对齐率。
+
+current为独立静默publication、selection scope/latest-only worker和显式CLIPBOARD；
+dead/deleted为显式copy的PRIMARY混合入口，无compat/deprecated。SRP资源归worker、
+scope归Selection、反馈归原页面；DRY三条产品消费者共用发布路径；KISS没有通用backlog
+或新业务后端。架构图已同步architecture并由root确认。条件1/2通过，3最终build/
+local/governance及4冻结真实Gate待完成；整体仍partial/active。
+
+### 第111最终验收
+
+locked CLI build、workspace fmt check、ESLint/Prettier、docs/scripts边界、legacy零违规及
+diff check通过；日志/tmp/lime-tui-stage111-build.log、stage111-eslint.log、stage111-docs.log、
+stage111-scripts.log、stage111-legacy.log。最终inventory32/32重验通过，八文件仍140
+唯一结构守卫，不重复计数。标准verify:local smart exit0，87个改动路径选中版本一致性
+及Rust changed scope，CLI lib8+TUI lib1776通过，日志
+/tmp/lime-tui-stage111-verify-local.log；不是full模式、GUI/Electron或live provider验证。
+
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage111-final.gLxfxA/binaries/lime，
+SHA256 3b56fce7f5f350f6d92229326db8ca47b47b9135d5d5ab1336ae475a5e722323。
+App Server继续第91完整包与原DYLD上下文；冻结至Gate结束未修改Rust生产源码。
+complete/images/user-input/mcp-elicitation原四场景聚合exit0，日志
+/tmp/lime-tui-stage111-final-gate-b.log。真实stdio/PTY、raw atomic/IME/notes/MCP、editor
+KeepScreen与首键、canonical once、history/backtrack/reasoning/images/focus/resize/
+reconnect、终端恢复通过，原输入/预算/framing/predicate保持。条件1/2/3/4限定macOS
+验收完成，4/4（100%）；不把macOS的unsupported PRIMARY或native夹具当真实Linux
+X11/Wayland证据。整体仍partial/active，PRIMARY read排队/scope/命名、HTML/Markdown、
+runtime host职责、Windows/MSVC、GUI/live Provider/full质量矩阵与未证明的历史raw/
+首键形态继续开放。不提交/推送/建分支/发布，下一刀回到worker PRIMARY read合同。
+
+## 第一百一十二阶段：PRIMARY读取顺序与paste scope（本批macOS验收通过；整体partial）
+
+主目标继续Codex CLI/TUI与共享业务底层对齐。本刀只改剪贴板读取合同：同名PasteSource
+归worker，UI保留Arc读取scope；busy最多接受一个PRIMARY read，idle advance先publication
+再read，CLIPBOARD read和显式copy不建立backlog。读取预算包含等待，取消/超时native
+调用继续busy直到drain，过期结果不能进入新草稿。直接迁App/ChatWidget/composer/platform
+消费者，删除ClipboardTextSource旧命名、request_read/cancel_read旧入口。
+
+窄写集：worker/read独立回归、clipboard_paste平台源、app right_click_paste/clipboard、
+runtime取消消费与composer源类型及既有测试、结构守卫/架构/本计划。不改协议/provider/
+GUI业务，保留第111冻结CLI。退出条件：1)PRIMARY读在publication之后，最多一个，
+CLIPBOARD忙时不排队；2)scope取消与全预算超时不启动/不插入旧读取，native drain保持；3)定向/全TUI/Clippy/fmt/build/local/治理通过；4)新冻结CLI原四场景Gate通过。0/4；
+Linux真实PRIMARY与其他整体缺口继续开放。
+
+### 第112稳定红灯与current迁移
+
+修改前busy PRIMARY read返回None，稳定未接受选区发布之后的一次读取，日志
+/tmp/lime-tui-stage112-primary-read-red.log，exit101。当前read_text最多接受一个PRIMARY
+read；CLIPBOARD忙时拒绝，advance先latest publication再read，读deadline不重置。
+PasteSource直接归worker；旧ClipboardTextSource/request_read/cancel_read及零调用
+ChatWidget take_pending_clipboard_paste删除，所有App/composer/platform消费者直接迁移。
+PendingPaste持Arc scope，native/queue只持Weak；输入和idle thread/draft/target验证释放
+失效scope。取消/超时Pending保持原操作类型和expired状态直到native drain，阻止第二
+read；已完成但过期的read不插入新草稿。没有通用backlog、平行状态机或compat层。
+
+排队读取新增ordering、最多一次、全预算等待、scope取消、native drain与disconnect
+回归；App真实取消消费验证输入、草稿、thread和overlay变化。定向clipboard65通过，
+日志/tmp/lime-tui-stage112-clipboard-green.log。随后新增timeout draw回归：首版夹具
+提前丢调度器，Closed不是产品根因证据；修正为保留session FrameRequester后稳定
+Elapsed，日志/tmp/lime-tui-stage112-timeout-frame-red-fixed-fixture.log，exit101。
+排队timeout先返回错误会消费唯一draw，已经到达的copy response无法排空；现在queued
+与native timeout反馈各rearm一次draw，仍不抢占输入、不改变PasteBurst/readiness合同。
+
+最终lib1784+integration25+dependency guard1=1810唯一TUI测试通过，另1 ignored tmux
+launcher；包含修正夹具对应绿灯。日志/tmp/lime-tui-stage112-tui-final.log。严格
+all-target/no-deps Clippy -D warnings通过，日志/tmp/lime-tui-stage112-clippy.log。
+结构守卫初轮旧OperationKind禁止断言指出类型分类副本不符简化方向，生产直接改为
+过期Pending保留原variant至drain，无新增分类副本；后续八文件140通过、1旧
+take_pending_clipboard_paste正向断言失败，已迁为scope释放/idle验证和旧入口负向守卫。
+原失败日志均保留，最终守卫/build/local/冻结Gate待完成。架构图由root确认，SRP/DRY/
+KISS保证平台资源、读取scope和UI反馈分别归既有owner，整体仍partial/active。
+
+### 第112最终验收
+
+最终八文件141/141唯一结构守卫通过，日志/tmp/lime-tui-stage112-guards-final.log；
+inventory1556 source（Codex1084+Lime472），不当全产品对齐率。locked CLI build、fmt
+check、ESLint/Prettier、docs/scripts、legacy零违规及diff check通过；执行计划一次
+Prettier check指出格式，直接formatter修正后最终通过，不把失败轮计为通过。
+标准verify:local smart exit0，版本1.154.0一致，CLI lib8+TUI lib1784通过；日志
+/tmp/lime-tui-stage112-verify-local.log。不是full/GUI/Electron/live provider证据。
+
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage112-final.yazbuM/binaries/lime，
+SHA256 a835fda008951cd0a08bc3fe524948916277f52159a4e30abbfb548c9e2b5fe6。
+App Server继续第91完整包与原DYLD；冻结至Gate结束未修改生产Rust。原四场景
+complete/images/user-input/mcp-elicitation聚合exit0，日志
+/tmp/lime-tui-stage112-final-gate-b.log，fixture tui-gate-b-gHQYwp。
+主Thread 01a12ad0-e832-7983-9f43-90078ce00bc7，Turn
+turn_2461317d27314f78946f82b398792c52；notes Thread
+01a12ad1-51f7-7cb2-b182-63a38e507dd9，Turn turn_5981c65496384d2291eb00813a0c5e9c。
+原raw/IME/literal Enter/Tab/notes revisit/MCP rich fields、editor KeepScreen/首键、
+canonical once/history/backtrack/reasoning/images/focus/resize/reconnect与终端恢复
+均通过，原输入、预算、framing与atomic断言保持。
+
+current为PasteSource/read_text、UI Arc scope、只排一个PRIMARY read及原deadline/
+timeout drain frame；dead/deleted为旧来源类型、显式cancel/request入口和零调用
+take包装，无compat/deprecated。条件1/2/3/4限定macOS完成，4/4（100%）；真实Linux
+PRIMARY、Windows/MSVC、GUI/live provider/full矩阵与未证明历史形态仍开放。整体
+partial/active，不提交/推送/建分支/发布。下一刀对照text/primary平台owner、WSL真实
+宿主文本读取、空剪贴板/大小预算、Markdown/HTML和bounded shutdown的剩余差距。
+
+## 第一百一十三阶段：剪贴板退出交接的有界等待（本批macOS验收通过；整体partial）
+
+主目标保持Codex CLI/TUI全方位对齐。本刀先补session worker Drop合同：关闭请求后，
+最多等待250ms response channel断开；只有断开才代表native leases已释放/完成平台
+交接，队列中copy result不等于交接完成。无join、无无限等待，受阻native call在后台
+继续退出，不释放未交付工作到新owner。窄写集worker/独立shutdown回归、结构守卫/
+架构/本计划；不改协议、GUI、provider或平台后端，不提交/建分支。
+
+退出条件：1)正常worker包括未poll结果在lease清理后完成Drop；2)受阻native调用最多
+250ms等待预算且响应不能提前结束交接等待；3)定向/全TUI/Clippy/fmt/build/local与
+治理通过；4)新冻结CLI原四场景Gate通过。0/4，整体partial/active；Linux实际clipboard
+manager交接与Windows仍须实平台证据。
+
+### 第113稳定红灯与current退出合同
+
+真实worker线程native read通过channel阻塞，原Drop实测86.583µs即返回，不等候交接；
+日志/tmp/lime-tui-stage113-shutdown-red.log，exit101。现关闭请求后，UI最多等待250ms
+response channel断开；queued result只排空不提前结束等待，显式期限保护也防止响应
+队列超过等待预算。永不join，Drop不poll或发送OSC 52；worker仍在channel断开前清理
+native leases。没有第二退出状态机，也不提前放行重叠native操作。
+
+回归收至独立worker_shutdown_tests：受阻native调用、queued response不能提前结束、
+未poll copy的真实native lease清理。clipboard_copy定向42通过，日志
+/tmp/lime-tui-stage113-clipboard-green.log；最终lib1787+integration25+dependency guard1=
+1813唯一TUI测试通过，另1 ignored tmux launcher，日志/tmp/lime-tui-stage113-tui-final.log。
+八文件142/142唯一结构守卫通过，日志/tmp/lime-tui-stage113-guards-final.log；inventory
+1557 source（Codex1084+Lime473）不作对齐率。严格Clippy/fmt/build/local/最终治理与
+冻结四场景Gate正在收尾。current是worker有界退出交接；dead/deleted是立即Drop
+且不等native交接的旧行为，无compat/deprecated。KISS只用已有channel/deadline，
+SRP保留worker资源owner；架构图root已确认，整体仍partial/active。
+
+### 第113最终验收
+
+严格all-target/no-deps Clippy -D warnings、workspace fmt check与locked CLI build exit0，
+日志/tmp/lime-tui-stage113-clippy.log、stage113-build.log。ESLint/Prettier/docs/scripts、
+legacy零边界违规和diff check通过。标准verify:local smart exit0，CLI lib8+TUI lib1787
+通过，版本1.154.0一致；日志/tmp/lime-tui-stage113-verify-local.log。不是full模式、
+GUI/Electron或live provider验证。
+
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage113-final.TzPzCH/binaries/lime，
+SHA256 bdc54f50d2b63e7bcf83921c0e839489d7a881332817e8174cb80ce0a7540d03。
+App Server继续第91完整包/原DYLD，冻结至Gate结束未修改生产Rust。原四场景聚合
+exit0，日志/tmp/lime-tui-stage113-final-gate-b.log，fixture tui-gate-b-G9H2MN。
+主Thread 01a12adf-60eb-7ae0-8435-4874a4937953，Turn turn_6364432d5cee4be2ad89c0549426a217；
+notes Thread 01a12adf-c74a-70c0-8fa5-3031c1bbea46，Turn turn_e43254c475984dd7b10d467d9db2c28c。
+stdio/PTY、原raw/IME/notes/MCP/editor首键/KeepScreen、canonical once/history/backtrack/
+reasoning/images/focus/resize/reconnect与终端恢复均通过；原输入、预算、framing与
+atomic断言保持。限定macOS条件1/2/3/4完成，4/4（100%）；真实Linux clipboard-manager
+handoff、PRIMARY与Windows/MSVC、GUI/live provider/full矩阵及未证明历史形态继续开放。
+整体partial/active，无提交/推送/分支/发布。下一刀继续text/primary平台读取owner
+及WSL/空剪贴板/文本消息大小与预算合同。
+
+## 第一百一十四阶段：text/primary平台入口与文本读取合同（本批macOS验收通过；整体partial）
+
+主目标继续全方位Codex对齐，下一刀迁Codex同名clipboard_paste/text及clipboard_copy/
+primary；删除根层read_clipboard_text/copy_to_primary旧入口和分散的PRIMARY平台读取。
+native_result统一空剪贴板、deadline和canonical消息字符上限，worker把原read deadline
+传给平台，WSL只读Windows宿主，不回退Linux clipboard。Windows读取子进程使用已有
+tokio、固定Windows系统位置与隔离命令fixture验证预算、UTF-8、输出边界及回收，不新增依赖或环境入口。
+已知读取错误补五语言细节，未知平台错误保留诊断。
+
+窄写集：clipboard_paste根与text/primary新领域模块和独立测试、worker读取callback/
+既有回归、locale clipboard独立模块及App错误消费者、结构守卫/inventory/架构/本计划。
+不改协议、provider、GUI业务或native图片读取，不提交/建分支。退出条件：1)唯一
+平台owner与消费者直迁，无旧入口/第二source；2)empty/Unicode字符限制/原deadline/
+WSL命令预算和回收正确，五语言稳定；3)定向/全TUI/Clippy/fmt/build/local/治理通过；
+4)冻结CLI原四场景Gate通过。0/4，整体partial/active，真实Linux/WSL/Windows仍单独验。
+
+### 第114实现与定向/结构验证
+
+已迁入Codex同名text/primary owner，worker将排队原deadline直接传给平台；
+ContentNotAvailable为empty/noop、字符边界复用canonical MAX_USER_INPUT_TEXT_CHARS。
+WSL读取固定系统PowerShell，以Tokio限制输出/原预算/UTF-8并在错误时kill/reap；
+不通过ambient PATH、不回退Linux clipboard。PRIMARY availability排除VSCode。
+locale/clipboard覆盖已知平台读取错误的五语言细节，App两条失败消费者直接迁移。
+
+首次编译发现9处非读取测试callback误迁为双参数，已逐处修正；没有再批量替换。
+原clipboard定向75通过，增加真实worker线程回归后76通过，日志
+/tmp/lime-tui-stage114-clipboard-final.log。真实线程回归证明native reader收到排队前
+创建的deadline；Unix实际命令证明empty/UTF-8/输出边界及超时PID已回收，不冒充WSL证据。
+最终全TUI lib1794+integration25+dependency guard1=1820唯一测试通过，另1 ignored
+tmux launcher；日志/tmp/lime-tui-stage114-tui-final.log。8文件144结构守卫通过，日志
+/tmp/lime-tui-stage114-guards-final.log；新增owner、旧入口禁止回流与WSL读取合同守卫。
+inventory1561 source=Codex1084+Lime477，仅结构统计，不是对齐率。
+
+current为text/primary/worker与五语言消费者；dead/deleted为read_clipboard_text和
+copy_to_primary根入口，无新增compat/deprecated。KISS/DRY复用同一native_result与
+canonical字符常量，SRP分离平台与UI反馈owner。架构图root已确认；条件1/2完成，
+2/4（50%），严格Clippy/fmt/build/local/治理与冻结Gate待验，整体partial/active。
+
+### 第114最终验收
+
+严格all-target/no-deps Clippy -D warnings、workspace fmt check、locked CLI build、
+ESLint/Prettier、docs/scripts/legacy零边界违规、diff check全部通过；标准verify:local
+smart exit0（CLI lib8+TUI lib1794，版本1.154.0一致），不是full/GUI或live provider。
+日志/tmp/lime-tui-stage114-clippy.log、stage114-build.log、stage114-verify-local.log。
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage114-final.NPGjMw/binaries/lime，
+SHA256 440f8a5a5e70a5bd8dacc8d9127ab490f64fb4e22a088b4f418b04502944b4d6；
+App Server复用第91完整包与原DYLD。冻结至Gate结束未修改生产Rust，原四场景exit0，
+日志/tmp/lime-tui-stage114-final-gate-b.log，fixture tui-gate-b-zjdpbT。
+主Thread 01a12af2-81a9-7432-8b36-c37991dbb1a9，Turn turn_272a621d91b94300864e48c43ee0cb1e；
+notes Thread 01a12af2-e5a0-7ca1-b999-fbce724d22ca，Turn turn_46b9ab4dc315428fbf78a8f556c24c48。
+真实stdio/PTY、原raw/IME/notes/MCP/editor首键/KeepScreen、canonical once/history/
+backtrack/reasoning/images/focus/resize/reconnect及终端恢复通过，原输入/预算/framing/
+atomic断言未改。限定macOS退出条件4/4（100%），整体partial/active；真实Linux/WSL/
+Windows、GUI/live provider/full与未证明的历史时序形态继续开放。无提交/推送/分支。
+
+## 第一百一十五阶段：统一CopyStatus提交合同（本批macOS验收通过；整体partial）
+
+主目标继续全方位Codex对齐，本刀迁Codex同名worker.copy和CopyStatus Pending/Busy。
+同一状态合同表达提交/确认/未确认，不再用Option<id>表达复制busy；读取scope合同保持
+归其原owner。App和独立resume host直接迁移，删除request_copy与无独立职责的request
+包装。状态只归terminal host，不改App Server/shared runtime/GUI协议。
+
+窄写集：clipboard_copy根/worker及既有测试、App clipboard、独立resume host、
+locale/clipboard、transcript/pager进度呈现、相应测试与结构守卫/inventory/架构/本计划。
+退出条件：1)唯一CopyStatus合同与消费者直迁，无旧入口；2)pending/busy不伪造完成或
+清理选区，busy不替换原ticket，五语言反馈稳定；3)定向/全TUI/Clippy/fmt/build/local/
+治理通过；4)冻结CLI原四场景Gate通过。0/4，整体partial/active。
+
+### 第115实现与Rust/结构验证
+
+worker.copy/copy_to统一返回CopyResult，CopyStatus覆盖Confirmed/Unconfirmed/Pending(id)/
+Busy；copy直接分配/发送原请求，删除零独立职责的request和request_copy旧入口。
+busy不分配新id、不替换原pending，也不排队显式CLIPBOARD；PRIMARY/read原scope与预算
+行为不变。App PendingCopyContext只提供对象label，locale/clipboard统一五语言复制对象/
+进度文案；standalone resume host将busy显示为进度，删除其busy伪装失败分支。
+
+App、composer textarea、transcript composer gap、pager和resume预览拒绝把Pending/Busy
+作为交付完成，不消费原ticket或清理选区。合并App四组重复完成状态分支，确认/未确认/
+失败继续按当前owner与身份应用。新增App ticket保留、gap进度/非终态保留和五语言
+CopyStatus回归，扩展worker busy identity及pager/resume已有真实选择回归。
+clipboard定向76通过，日志/tmp/lime-tui-stage115-clipboard.log；最终copy定向70通过，
+日志/tmp/lime-tui-stage115-copy-final.log。全TUI lib1797+integration25+dependency guard1=
+1823唯一测试通过，另1 ignored tmux launcher，日志/tmp/lime-tui-stage115-tui-final.log。
+8文件145结构守卫通过，日志/tmp/lime-tui-stage115-guards-final.log；inventory1561 source
+仅结构统计。严格all-target/no-deps Clippy -D warnings exit0，日志stage115-clippy.log。
+
+current为统一CopyStatus/worker.copy与五语言进度；dead/deleted为request_copy、复制
+Option<id>合同、私有request包装与busy伪装失败；无新增compat/deprecated。DRY合并
+完成反馈，KISS复用既有request序列/忙态和frame scheduler，不建立第二状态机。
+架构图root已确认，条件1/2完成，2/4（50%）；fmt/build/local/治理和冻结Gate待验。
+整体partial/active；Markdown/HTML复制与semantic selection、平台实机矩阵继续开放。
+
+### 第115最终验收
+
+workspace fmt check、locked CLI build、ESLint/Prettier、docs/scripts/legacy零边界违规
+和diff check通过；标准verify:local smart exit0，CLI lib8+TUI lib1797通过，版本
+1.154.0一致。日志/tmp/lime-tui-stage115-build.log、stage115-verify-local.log。
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage115-final.pxfdzj/binaries/lime，
+SHA256 fb2f7e60173c0bae3e11ac97cf3dfd7b5c7ef2f82ed866528261a92fc95389a1；
+App Server继续第91完整包/原DYLD。冻结至Gate结束未修改生产Rust；原四场景exit0，
+日志/tmp/lime-tui-stage115-final-gate-b.log，fixture tui-gate-b-3xu2o0。
+主Thread 01a12afc-89d1-76a2-83ab-5bb93b963f3e，Turn turn_4d5f176251a241d5a4d3090001c11093；
+notes Thread 01a12afc-ecee-7cf1-98a5-50f0fe025567，Turn turn_6d4bd34e2dda4505bb678fd62181cb44。
+stdio/PTY、原raw/IME/notes/MCP/editor首键/KeepScreen、canonical once/history/backtrack/
+reasoning/images/focus/resize/reconnect和终端恢复均通过，原输入/预算/framing/atomic
+断言保持。限定macOS条件4/4（100%），整体partial/active；不是GUI/Electron、live
+provider、full或真实Linux/WSL/Windows平台验证。无提交/推送/分支/发布。
+
+下一刀：Codex clipboard_html/render_markdown与CopyFormat，先接最后回复与完整对话
+Markdown的native HTML/plain text双表示，并守住HTML转义、web-link策略、image alt与
+native失败回落文字的合同。随后补transcript可见布局到semantic Markdown的映射；
+当前TranscriptLayout只有visible text/anchor，不得将可见字符串直接当原Markdown。
+本地pulldown-cmark关闭默认feature，启用HTML时必须同步manifest、锁文件与依赖消费者
+检查；底层业务仍App Server/shared runtime/canonical唯一主链。
+
+## 第一百一十六阶段：Markdown/HTML复制链（本批macOS验收通过；整体partial）
+
+主目标继续完整Codex对齐；本刀接Codex同名CopyFormat与clipboard_html/render_markdown，
+最后回复/整段对话copy为Markdown，composer与尚无语义映射的visible selection为PlainText。
+这只是实际依赖顺序，semantic selection仍是下一刀必做项，不能据此宣称复制完全对齐。
+native提供HTML与原文本双表示，HTML失败落回原文本；OSC52/tmux/WSL始终保留原文本。
+HTML转义raw HTML，仅允许现有web_destination链接，图像只保留alt。md/markdown中的
+table fence按Codex语义保守展开；既有markdown根超过1000行，新增业务放独立fences模块。
+
+窄写集：tui manifest/锁文件、clipboard_html及独立测试、markdown/fences领域模块与
+根re-export、CopyFormat/native写入/worker及消费者、既有测试迁移、结构守卫/inventory/
+architecture/本计划。无新协议、GUI业务或第二后端。退出条件：1)格式贯通current复制
+链且不误解析visible text；2)HTML/链接/图片/表格fence合同与回退成立；3)异步格式与
+原ticket/PRIMARY/read/lease不回退，全TUI/依赖消费者/Clippy/fmt/build/local/治理通过；
+4)冻结CLI原四场景Gate通过。0/4，整体partial/active；平台native实机另验。
+
+### 第116实现与定向/结构验证
+
+CopyFormat贯通App context/worker request/native callback；最后回复与canonical完整对话
+为Markdown，composer/visible selection为PlainText，PRIMARY固定文字。Codex同名
+clipboard_html/render_markdown提供raw HTML转义、web-link policy、local destination可见
+保留和image alt；native提供HTML+原Markdown，HTML写入失败再写原文，终端/WSL仅原文。
+copy_to_clipboard在native setup返回后先检查begin_delivery，再进入Codex同签名的
+copy_to_clipboard_with，已迁所有既有callback及abandonment回归，无并行旧copy签名。
+
+首次clipboard83通过。新增短delimiter围栏回归稳定红灯：parser接受|-|导致错误展开，
+日志/tmp/lime-tui-stage116-fences-red.log exit101。最终规范化复用现有table_detect的
+header/delimiter/escaped pipe/fence/blockquotes合同，清理本批临时strip_quote/marker与
+pair parser检测；fences定向2通过，日志/tmp/lime-tui-stage116-fences-final.log。
+HTML五条回归覆盖结构化rich内容、local链接、图片惰性、raw HTML/unsafe URL与table
+fences；native与真实worker回归证明request格式/原文不可变、fallback仅原文、确认状态
+与lease保留。最终clipboard86通过，日志/tmp/lime-tui-stage116-clipboard-final.log。
+全TUI lib1807+integration25+dependency guard1=1833唯一测试通过，另1 ignored tmux
+launcher，日志/tmp/lime-tui-stage116-tui-final.log。8文件146结构守卫通过，日志
+/tmp/lime-tui-stage116-guards.log；inventory1565 source=Codex1084+Lime481，仅结构统计。
+
+tui manifest仅启用现有pulldown-cmark html feature，Cargo.lock新增其pulldown-cmark-escape
+0.10.1，不升级parser或其它依赖。current为CopyFormat/clipboard_html/fences及真实
+复制消费者，dead/deleted为单参数native copy与格式缺失的copy链、本批重复表格检测；
+无新增compat/deprecated。DRY复用现有table_detect和copy状态，SRP新增业务不堆入1106行
+markdown根；架构图root已确认。条件1/2完成，2/4（50%），整体partial/active；严格
+检查、依赖消费者/local与冻结Gate待验。当前HTML/native行为为fixture证据，不冒充
+操作系统富文本应用验收；visible selection的semantic mapping仍必做。
+
+### 第116最终验收
+
+严格all-target/no-deps Clippy -D warnings、workspace fmt check与locked CLI build通过，
+日志/tmp/lime-tui-stage116-clippy.log、stage116-build.log；ESLint/Prettier、docs/scripts/
+legacy零违规与diff check通过。verify:local因Cargo.lock边界真实扩大到workspace。
+首次exit101是code-mode的进程集成测试缺少当前target的code-mode-host，日志
+/tmp/lime-tui-stage116-verify-local.log。直接cargo构建又触及默认V8下载404，随后使用
+既有resolveRustyV8CargoEnv校验的Codex sandbox artifact构建真实宿主，日志
+/tmp/lime-tui-stage116-host-build-current.log exit0；不改测试、不跳过crate、不缩小门禁。
+重跑verify:local exit0，39个crate的6833项通过、5 ignored，日志
+/tmp/lime-tui-stage116-verify-local-final.log。此前1833唯一TUI测试包含integration，不与
+workspace重复结果累加。
+
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage116-final-4GqKQj/binaries/lime，
+SHA256 9d6e0a40b7849732b447b9cdab34d62df0e2c8783320023108c1208ae8ff553f；App Server复用
+第91完整包/原DYLD。冻结至Gate结束未修改生产Rust；原四场景真实stdio/PTY exit0，
+日志/tmp/lime-tui-stage116-final-gate-b.log，fixture tui-gate-b-8k0KkQ。
+主Thread 01a12b16-68e4-76a0-aced-1699197e119e，Turn turn_7703260e22e84fec813eb603dbebfafe；
+notes Thread 01a12b16-c6d9-7071-9309-268781c418ad，Turn turn_ac76a2ae77ac4ebfa06f9a98de80ceab。
+原raw/IME/notes/MCP/editor首键/KeepScreen、canonical once/history/backtrack/reasoning/images/
+focus/resize/reconnect与终端恢复通过，输入/预算/framing/atomic断言未改。
+本批macOS退出条件4/4（100%），整体partial/active；系统富文本接收应用、真实Linux/
+WSL/Windows、GUI/Electron、live provider、full与历史未证明时序仍开放。
+
+## 第一百一十七阶段：选区语义与逻辑行来源（本批 macOS 验收通过）
+
+主目标继续完整Codex对齐；本刀让renderer、wrapping和selection共享真实逻辑行来源，
+选区分别提供literal text与HTML用的balanced Markdown。引用前缀不再依赖颜色推断，
+表格复制只取选中cell fragment，不从原表格补未选文字。主transcript、pager和resume
+预览共用同一selection owner与MarkdownSelection合同，不建立第二业务后端。
+
+窄写集：markdown_render领域与markdown委托、markdown_copy及table、terminal_hyperlinks/
+source与source wrapping、wrapping来源合同、transcript_view/text/selection/clipboard与
+既有surface action/copy消费者、定向测试、结构守卫/inventory/architecture/本计划。
+退出条件：1)有真实consumer的CopyLine/LogicalLineSource/MarkdownSelection贯通；
+2)部分样式/链接/引用/代码/列表/表格、宽度重排、冻结选区与literal文字稳定；
+3)旧颜色反推/无来源copy入口删除，全TUI/严格检查/local/治理通过；
+4)冻结CLI原四场景Gate通过。0/4，整体partial/active。
+
+### 第117实现与定向/结构验证
+
+Codex同名markdown_copy/CopyLine、SelectedLine与table只接实际renderer/selection消费链；
+MarkdownSelection携带独立Arc语义Markdown，copy文字保持选中literal text。native从语义
+Markdown生成HTML，fallback/OSC52/tmux/WSL使用literal原文；PRIMARY固定文字。
+CopyFormat贯通主transcript、pager、App与独立resume host，不恢复入口或格式缺失包装。
+local链接延迟label保留原inline标注，生成target单独标为literal；mixed输出转义Markdown
+标点以保持HTML可见文字，不将filename重新解释为链接/样式。
+
+旧1108行markdown根收敛为504行normalization/test入口，生产renderer/table/local_links
+迁到markdown_render领域，旧markdown/table与local_links物理删除。wrapping根由大文件
+拆到projected/url/source/tests，以既有算法直接输出WrappedLine range/prefix_bytes，不靠
+显示字符串反查来源；terminal_hyperlinks/source保留消费所需text/copy/range/gutter。
+表格grid/record/fallback共享cell来源和表格identity，只序列化选中fragment；引用/list
+容器由renderer标注。transcript_view/text持有TextLayout与几何，selection不再识别颜色。
+user来源copy_as_prose避免mixed复制误成代码；history/reasoning的换行保留同一来源。
+无无人消费的SourceBlock/code_source/quote_source预留，后续copy mode实现时再贯通。
+
+新增16项真实renderer->鼠标选区->复制回归，覆盖部分样式/Unicode/链接/代码/引用/列表/
+task/table/grid/records/冻结来源，以及排除行边界。旧颜色测试改为真实renderer fixture；
+native与真实worker原回归扩展为literal/MarkdownSelection双表示。共享来源排除中间行
+稳定红灯会复制alpha secret omega，日志/tmp/lime-tui-stage117-excluded-red.log exit101；
+修复后只复制alpha和omega，合并只允许连续或纯空白间隙，未选文字不回流。
+最终全TUI lib1823+integration25+dependency guard1=1849唯一测试通过，另1 ignored
+tmux launcher，日志/tmp/lime-tui-stage117-tui-final-2.log；8文件147守卫通过，日志
+/tmp/lime-tui-stage117-guards-final.log；inventory1577 source=Codex1084+Lime493，仅结构统计。
+严格all-target/no-deps Clippy -D warnings通过，日志/tmp/lime-tui-stage117-clippy-final.log。
+
+current为CopyLine/LogicalLineSource/MarkdownSelection与真实source-aware消费链；
+dead/deleted为颜色反推、旧渲染目录、own_lines/owned_line及格式缺失action合同；无新增
+compat/deprecated。SRP拆renderer/布局/换行领域；DRY保留一个copy serializer和状态链，
+KISS/YAGNI不搬Codex尚无consumer字段/可视化旁路，不改edition/协议/共享业务后端。
+root架构图已确认；条件1/2的定向证据见上，最终门禁与Gate证据见下。
+整体partial/active；系统富文本接收应用和平台实机矩阵仍未验。
+
+### 第117最终验收
+
+workspace fmt check、locked CLI build、ESLint/Prettier与diff check通过。verify:local因
+Cargo.lock边界扩大到workspace，39个crate的6849项通过、5 ignored，exit0，日志
+/tmp/lime-tui-stage117-verify-local.log。TUI integration已在前述1849唯一测试中统计，
+不与workspace结果累加。legacy零违规、docs boundary与scripts governance通过，日志
+/tmp/lime-tui-stage117-legacy.log、stage117-docs-final.log、stage117-scripts.log。
+
+最终CLI冻结/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage117-final-4nqn4c/binaries/lime，
+SHA256 b446680e0326608bbb6efa17bd34e45e30a52e56e3eb52824925d9e29a861e4d；App Server复用
+第91完整包/原DYLD。冻结至Gate结束未修改生产Rust；原四场景真实stdio/PTY exit0，
+日志/tmp/lime-tui-stage117-final-gate-b.log，fixture tui-gate-b-tJRcFm。
+主Thread 01a12b42-2ec7-70f1-81d2-e4545aeaa136，Turn turn_fb08a72281314a86a014617df839a53b；
+notes Thread 01a12b42-9089-7c90-be9a-bb533b5b4e2a，Turn turn_adff1bcf6baf4fa69712b8677360dad2。
+原raw/IME/notes/MCP/editor首键/KeepScreen、canonical once/history/backtrack/reasoning/images/
+focus/resize/reconnect与终端恢复通过，输入/预算/framing/atomic断言未改。
+本批macOS退出条件4/4（100%），整体partial/active；完整copy mode/source blocks、
+系统富文本接收应用、Linux/WSL/Windows、GUI/Electron、live provider、full与历史未证明
+时序仍开放。下一刀继续真实copy mode消费者与renderer源块身份，不增加无消费者预留。
+
+## 第一百一十八阶段：语义复制导航与显示源块（本批 macOS 验收通过）
+
+主目标继续完整Codex对齐；/copy进入冻结transcript的Whole response/User message/
+Code block/Blockquote导航，Ctrl+O继续直接复制最近回复。renderer接入Markdown表格围栏
+规范化，源块身份区分相邻相同内容，复制保留原payload；GUI/TUI共享业务主链不变。
+窄写集：markdown/fences、markdown_render/renderer入口、markdown_copy来源字段、
+transcript_view/copy_mode/text/selection/input、transcript content/disclosure、pager接线、
+App slash/runtime dispatch与history_ui投影、locale/回归、结构守卫/inventory/架构/本计划。
+退出条件：1)真实/copy入口与既有clipboard完成链贯通；2)块身份、原payload、用户消息、
+导航/resize/冻结/退出与五语言稳定；3)定向/全TUI/严格检查/local/治理通过；
+4)新冻结CLI真实stdio/PTY含/copy场景通过。0/4；整体partial/active。
+current唯一owner为transcript_view/copy_mode，复用selection与session clipboard worker；
+旧/copy直接复制映射替换，不新增compat/deprecated或第二业务后端。root架构图已确认。
+真实PTY写集补入runtime_pty_tests/copy_mode与根module/call（根只增加接线）、既有
+tui-gate-b supplemental copy-mode场景；原complete/images/user-input/MCP输入/预算不变。
+
+### 第118实现与定向/结构验证
+
+/copy迁为SelectTranscriptCopy，在既有pager内选择Whole response/User message/Code block/
+Blockquote；Ctrl+O保留Codex直接复制最近回复语义。copy_mode冻结同一selection的source
+与payload；↑/↓、J/K、Home/End、g/G导航，Enter/复制键消费原App clipboard action。
+代码与引用目标按Codex交付PlainText，完整回复交付Markdown；不靠颜色或显示内容反查
+块身份。失败/未确认保持目标；只有匹配原选区/页面/thread的confirmed完成返回composer，
+导航、关闭再打开、投影更新与窗口重排不让迟到完成结束新选区；Esc恢复原草稿。
+
+renderer接入既有表格围栏normalization；SourceBlock只保存已变换围栏的range与原payload。
+普通/高亮代码统一保留parser原文，CopyLine code_source/quote_source共享身份贯通表格/
+引用/list/wrapping，相邻等值块不会合并。TextLayout.copy_block_ranges是真实consumer；
+块高亮覆盖空行/软换行/剩余行宽，选中块在窗口中保留上下文，PageUp/Down仍可阅读。
+五语言同步目标标签、空状态与/copy描述。新测试文件按Codex路径app/tests/copy_mode_tests
+与transcript_view/copy_mode_tests收敛；不新增第二业务后端/协议/edition或依赖。
+
+16项定向语义/App接线回归通过，日志/tmp/lime-tui-stage118-copy-mode-app.log。
+全TUI lib1839+integration25+dependency guard1=1865唯一测试通过，另1 ignored tmux
+launcher，日志/tmp/lime-tui-stage118-tui-final.log。8文件147结构守卫中首次1项新guard
+因JS循环变量缺少const失败；补齐声明后该文件35项复验通过，其它7文件112项原通过，
+不把此次测试作者错误当作生产根因红灯。日志/tmp/lime-tui-stage118-guards.log与
+stage118-gate-guard-final.log。inventory1581 source=Codex1084+Lime497，仅结构统计。
+严格all-target/no-deps Clippy -D warnings通过，日志/tmp/lime-tui-stage118-clippy.log；
+ESLint、workspace fmt check与diff check通过。locked CLI build通过，日志
+/tmp/lime-tui-stage118-build.log；verify:local workspace 39 crate/6865通过、5 ignored，
+exit0，日志/tmp/lime-tui-stage118-verify-local.log；legacy零违规、docs/scripts通过。
+条件1/2/3完成，3/4（75%）；本批是已加载source的复制导航，不代表未加载历史导航、
+owned inline transcript、status copy picker或所有Codex UI已对齐。系统富文本接收应用、
+Linux/WSL/Windows、GUI/live/full与历史未证明时序仍开放。SRP归copy mode/布局/renderer，
+DRY复用既有选区与完成票据，KISS/YAGNI只保留当前导航真实消费的来源字段。
+
+第118首次冻结Gate将copy-mode排在complete前，新增copy-mode真实PTY导航/表格显示/
+resize/取消/只一个回合通过；随后complete的原composer零turnStart断言失败，日志
+/tmp/lime-tui-stage118-final-gate-b.log，fixture tui-gate-b-Wgf1db。实际ledger只有
+copy-mode Thread 01a12b5b-deaa-7432-8e26-5b209462cfab的turnStart，没有complete回合；
+原因是该聚合夹具共享ledger且complete启动前断言要求空ledger，不是/copy新增回合。
+保持原断言/输入/预算与同冻结CLI，按complete/images/user-input/copy-mode/MCP顺序重跑，
+日志/tmp/lime-tui-stage118-final-gate-b-ordered.log；最终exit0。生产Rust未再修改。
+现有1694行runtime_pty_tests根只加module/call；新PTY业务放copy_mode独立文件，退出
+条件是后续场景不再向根增加业务分支正文。tui-gate-b接近1000行，下一新场景必须先拆
+领域runner，不能继续把测试业务堆在聚合入口。
+
+### 第118最终验收
+
+同冻结CLI按原complete/images/user-input顺序并追加copy-mode/MCP，聚合真实stdio/PTY
+exit0，日志/tmp/lime-tui-stage118-final-gate-b-ordered.log，fixture tui-gate-b-VNiJsz。
+最终CLI /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage118-final-8oLtA3/binaries/lime，
+SHA256 3a5579966a815fb844fb9e63be668f26c5da5fe6867097bc543d7f86d6cffbb9；App Server仍为
+第91完整包/原DYLD。冻结到最终Gate结束生产Rust没有修改。主Thread
+01a12b5d-1162-74a1-b764-6216a51f7351，Turn turn_b979d40dd06a4d9a964a99f0b2cf98f8；notes
+Thread 01a12b5d-70a5-7720-9101-f23401d52169，Turn turn_e15bc1d617b04471b8bf830d4c8bab0b。
+/copy真实PTY经过stdio/App Server/canonical response、块导航、Markdown表格显示、
+copy-mode Thread 01a12b5d-7e01-7e50-85f2-ccc16cb9c7af，Turn turn_0d9cce10a3d146e69b56b3d739d4bd43。
+窗口重排、用户消息目标与取消恢复，ledger证明不新增回合；实际native复制交付由既有
+worker测试与本批App完成链回归证明，本PTY场景不冒充系统富文本接收应用验收。
+原raw/IME/MCP/notes/editor/first-key/terminal restore等断言与预算未削弱。
+current为copy_mode、SourceBlock与真实block range消费者；dead/deleted为旧/copy直接
+复制映射，无新增compat/deprecated。本批条件4/4（100%），整体partial/active。
+下一刀对齐Codex两行复制footer（目标标题/按键导航）与窄屏可执行提示；未加载历史
+导航、owned inline transcript与status copy picker仍开放。
+
+## 第一百一十九阶段：复制 footer 与窄屏按键提示（macOS限定验收完成）
+
+继续Codex UI/UX主线：复制目标标题/导航分两行，使用共享key_hint_style；宽屏与Codex
+同形，窄屏逐级选择完整可执行提示，优先保留enter/esc。复用transcript_view/footer与
+既有first_fitting_line，不建新overlay或后端。窄写集：locale/clipboard、key_hint、
+transcript_view/footer与回归、pager/render、App/copy mode回归、既有copy-mode PTY观察、
+结构守卫/inventory/architecture/本计划。退出条件：1)两行footer真实消费者/五语言；
+2)宽度/高度/反馈/取消回归；3)全TUI/严格检查/local/治理；4)新冻结原四场景与copy-mode
+真实Gate。4/4（100%，仅本批macOS切片），整体partial/active；旧combined hint直接删除，无compat/deprecated。
+
+### 第119实现与验收
+
+目标标题bold与导航分两行，反馈只占title行。导航按完整本地化提示、无动作词提示、
+enter/esc、esc逐级适配宽度，复用first_fitting_line与key_label_spans/key_hint_style；
+高度不足两行时保留导航。实际pager调整footer/content/separator几何，旧
+transcript_copy_mode_hint combined入口为dead/deleted/forbidden-to-restore，结构守卫禁止
+恢复；没有新compat/deprecated或第二套clipboard/projection/runtime。
+
+copy_mode定向17、footer定向5通过；全TUI为library1843+integration25+dependency guard1，
+1869唯一测试通过，另1显式tmux launcher ignored。147守卫、all-target/no-deps Clippy
+-D warnings、fmt、ESLint/Prettier、diff check、docs/scripts/legacy治理通过。守卫首轮误用
+Node runner未执行Vitest断言，日志/tmp/lime-tui-stage119-guards.log保留；正确Vitest入口
+/tmp/lime-tui-stage119-guards-vitest.log为8文件147/147，exit0。workspace local因既有
+Cargo.lock范围扩大为39 crate，6869 passed/5 ignored，exit0；不升级为local:full证据。
+日志/tmp/lime-tui-stage119-{copy-mode,footer,tui-final,clippy,verify-local,build}.log。
+inventory1581源文件=Codex1084+Lime497，仅用于差异盘点。
+
+locked CLI build后冻结
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage119-final-nXPoc2/binaries/lime，
+SHA256 c0e924d3c58abe36c99e0b7c2f14e6b4874eb76adcc4901fd183f686947392a0；
+App Server复用第91完整包，production Rust从冻结到Gate结束未修改。原四场景加
+copy-mode按complete,images,user-input,copy-mode,mcp-elicitation顺序，真实stdio/PTY
+聚合exit0。日志/tmp/lime-tui-stage119-final-gate-b.log，fixture tui-gate-b-LpUsfF；
+主Thread 01a12b6b-ced0-79b3-ac61-fe4e056c777a，Turn
+turn_bdb2bb55b5c040f3a13428b542441e5b。copy-mode真实screen观察宽屏最后一行完整
+enter copy/esc close、窄屏完整enter/esc，代码/引用/表格/用户目标、resize、cancel、
+单canonical回合与terminal恢复通过；未调用native clipboard write，接收应用富文本
+验收仍开放。原场景输入、等待预算、raw framing/atomic断言未放宽。
+
+current为唯一transcript footer/pager与同一copy worker消费链；dead为旧combined hint。
+本批条件1-4限定macOS全部完成。未加载历史导航、owned inline、status copy picker、
+系统富文本接收应用、Linux/WSL/Windows实机、GUI/live/full与历史时序根因继续开放。
+
+## 第一百二十阶段：状态复制选择器（macOS限定验收完成）
+
+下一刀对照Codex chatwidget/copy_picker与StatusCopySource：/status展示时捕获同一
+StatusSnapshot，/copy优先选择Whole status、Model、Directory、可用Thread name/Session ID；
+没有状态快照时继续既有transcript copy mode，Ctrl+O保持直接复制最近回复。复用
+ListSelectionView/ListKeymap、原App clipboard dispatch/worker/ticket，不新增App Server
+method、runtime或持久化。current owner为ChatWidget的copy_picker及status presentation。
+窄写集：status/mod与相关fixture、chatwidget/copy_picker及状态/生命周期接线、AppAction/
+clipboard/interaction/input_submission、view/footer、locale/clipboard、既有copy-mode PTY
+观察与结构守卫/inventory/architecture/本计划。不触及GUI/Electron/provider/共享协议。
+退出条件：1)五语言真实picker与完整原payload；2)取消/导航/按键/快照/线程切换/异步完成
+回归；3)定向/全TUI/严格检查/local/治理；4)新冻结原四场景加copy-mode真实Gate。
+条件1-4限定macOS完成，4/4（100%）；整体partial/active。没有新增compat/deprecated，
+旧status无复制交互入口原位补齐。
+架构图确认由root在同批architecture记录，macOS验收不代替系统clipboard或其它平台。
+runtime.rs已1392行，本批仅增加CopySelection的host dispatch接线，业务与测试均落在
+独立copy_picker/clipboard owner；退出条件为后续拆host dispatcher，禁止继续向root堆
+复制业务。tui-gate-b聚合入口本批仅将既有copy-mode marker检查收为列表，状态交互放在
+已有runtime_pty_tests/copy_mode子模块；下一新场景必须拆领域runner，不扩聚合owner。
+
+第120首轮定向8 passed/1 failed：测试错误使用KeybindingsSpec数组而不是当前字符串，
+改为生产支持的ctrl-x enter/alt-d后通过；删除新增status构造测试的unused import。
+结构守卫首轮147 passed/1 failed，负向thread/匹配到说明注释thread/configuration，
+现限制为RPC字符串引用，既有147项未变；复验148/148通过。最终检查补充发现Alt+R
+在App通用分支早于两种复制surface接线；新增真实App边界回归两项稳定红灯，日志
+/tmp/lime-tui-stage120-raw-key-surfaces-red.log。门禁只屏蔽活动status copy picker或
+transcript copy mode对该全局快捷键的旁路，其它正常raw入口继续current。随后新增
+活动选择器Repeat Enter不复制或提交草稿的App接线回归，copy相关69项复验通过；
+全TUI最新1857 library+25 integration+1 dependency guard=1883唯一通过，另1显式
+tmux launcher ignored；148守卫及严格all-target Clippy通过。最新local与冻结Gate待验。
+额外探针发现关闭picker后Repeat Enter会按composer原合同提交草稿；Codex同样在
+chat_composer接受Press/Repeat，input_flow的defer仅暂停queue autosend，未定义release
+guard。本批不把该探针推断成Codex差距；回归以实际活动surface归属为范围，没有新增
+偏离参考的全局repeat策略。探针日志/tmp/lime-tui-stage120-copy-final.log保留。
+
+### 第120最新静态/本地验收
+
+最新全TUI1858+25+1=1884唯一通过（另1显式tmux launcher ignored）；148结构/夹具守卫通过。
+严格all-target/no-deps Clippy -D warnings、fmt、locked CLI build、ESLint/Prettier、
+diff check、docs/scripts/legacy治理通过，legacy零违规/漂移/零引用候选。
+workspace local最新39 crate/6884 passed/5 ignored、exit0；此前6880/6883的local日志仅为
+补充修复前证据，最新以/tmp/lime-tui-stage120-verify-local-repair.log为准。
+最终全TUI、Clippy、守卫与文档日志/tmp/lime-tui-stage120-{tui,clippy,guards,docs}-repair.log；
+locked build与legacy日志保留/tmp/lime-tui-stage120-{build,legacy}-verified.log。
+inventory1584=Codex1084+Lime500源文件，仅结构统计。copy_picker生产203行、App
+clipboard429行；无新增proto/schema/config/依赖、compat/deprecated或生产mock路径。
+
+冻结CLI为
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage120-final-GoqvEp/binaries/lime，
+SHA256 552d4c12140078f4e2f1a6d1047eee0363e8b27306e1dff8dfd43abf9ea8282d。
+App Server复用第91完整包；从冻结起不改生产Rust。
+
+第120首次冻结Gate已通过copy-mode与status字段/导航/窄屏重排，但在新增status取消
+等待失败；真实屏幕footer为f9 select / ctrl+x q back，新PTY步骤误用未绑定Esc。
+fixture tui-gate-b-3jnonE，日志/tmp/lime-tui-stage120-final-gate-b.log保留，exit1。
+这是当前ListKeymap的配置消费证据：修正新增状态步骤发送原夹具ctrl-x q，不改变
+production/default取消规则，不放宽等待/可见断言或原四场景。补同配置的Esc不退出、
+ctrl-x q退出owner回归；同一冻结CLI完整复验exit0，production Rust从冻结到验收结束未改。
+
+最终日志/tmp/lime-tui-stage120-final-gate-b-repair.log，fixture tui-gate-b-PHmGuZ；
+主Thread 01a12b99-9bbc-7e11-a9b8-ad5d87449f3d，Turn
+turn_5bfb1d0fdf624f35b07853def89a5b59。保留complete,images,user-input,copy-mode,
+mcp-elicitation原顺序。TUI_COPY_MODE_OK和TUI_STATUS_COPY_OK均由真实screen观察确认；
+状态字段model/directory/session、共享导航、resize后选择保留、草稿取消恢复与无新增
+canonical turn通过。原场景、raw framing/atomic断言、等待预算与终端恢复合同保持。
+current为ChatWidget状态快照/copy_picker、ListSelectionView/ListKeymap和原clipboard
+worker/ticket；无新增compat/deprecated，也无第二套状态、持久化或复制后端。
+本批macOS限定4/4（100%），未执行native clipboard write，系统富文本接收应用、
+Linux PRIMARY/clipboard manager、WSL/Windows native、GUI/Electron/live Provider/full
+及历史时序根因仍开放。下一刀继续未加载历史复制导航与owned inline transcript。
+
+## 第一百二十一阶段：复制模式吸收明确加载的历史页（本批 macOS 验收通过）
+
+主目标为Codex全维度UI/UX与owner对齐；本刀对照transcript_view/copy_mode与
+mutations::prepend_snapshot_history，不把当前live projection重建成新的冻结副本。
+复制向上耗尽目标或Home时触发既有App Server分页；仅已接受页的新canonical entry
+加入冻结presentation，原回复/目标/选择身份保持。普通Up只加载一页，Home加载到开头，
+失败可重试、in-flight不重入；不新增协议、存储、runtime或GUI私有后端。
+窄写集：transcript_view/copy_mode及回归、TranscriptContent历史插入、pager复制子模块/
+render及独立测试、app/history_pagination/history_ui、runtime既有分页dispatch/完成接线、
+既有真实历史/复制PTY fixture与领域runner、结构守卫/inventory/architecture/本计划。
+责任root；保留此前连续脏树，不提交/推送/建分支。新业务不能堆进runtime.rs或1002行
+tui-gate-b聚合脚本；真实新场景必须落既有领域runner。退出条件：1)边界加载/冻结页吸收；
+2)选择/原payload/重试/重复页/线程归属稳定回归；3)crate/严格检查/local/治理；
+4)新冻结CLI真实stdio/PTY。当前0/4，整体partial/active；无新增compat/deprecated。
+
+实现后代码条件1/2已通过：旧边界回归稳定红灯（Consumed而非LoadOlderHistory），
+日志/tmp/lime-tui-stage121-history-red.log；修复后Up/PageUp一页、Home全部、in-flight
+不重入和失败重试通过。冻结presentation保留header/source block/原payload；只吸收
+accepted page新增entry，重复页按key拒绝，live新尾巴不进入原副本。选区端点、视觉
+scroll与clipboard ticket同步重映射并按新viewport边界clamp。生产仍同一App Server
+分页/cursor/线程owner，不创建第二history store。新增独立pager/App/真实PTY测试模块。
+首轮新增pager测试误用private selected_text导致编译失败，改为真实Copy action的已有
+payload断言；未扩大生产API或删测试覆盖，日志/tmp/lime-tui-stage121-history.log记录最终
+5/5。最终全TUI1866 library+26 integration+1 dependency guard=1893唯一通过（另1
+显式tmux launcher ignored）；新增real-history测试默认未启用Gate时只证明可编译，
+真实证据待领域runner执行。149守卫、all-target/no-deps Clippy -D warnings、fmt、
+ESLint/Prettier、diff check与legacy零违规/漂移/零引用候选通过。
+inventory1587=Codex1084+Lime503仅结构统计。runtime.rs超过1000行的既有退出条件沿用：
+本刀只加模式/完成host接线，复制业务留独立owner，后续必须拆dispatcher；不扩1002行
+tui-gate-b聚合。真实新copy-history场景落既有tui-history-pagination领域runner与子模块。
+架构图由root在architecture同批确认；local、locked CLI build与冻结真实Gate待验。
+
+### 第121首轮真实证据与额外根因修复（2026-10-12）
+
+第一次冻结69c8ace10107e863b135d4eb316f81b8a58460298d9192e5e3bf7dff0965600e，
+CLI目录tui-stage121-final-qIp5ZT。workspace local 39 crate/6892 passed/5 ignored通过。
+首次历史领域Gate fixture tui-history-pagination-yFJ1mD，日志
+/tmp/lime-tui-stage121-history-gate-b.log，exit1；新copy及两项既有Find可见状态失败。
+新copy同产物定向探针稳定复现：/tmp/lime-tui-stage121-history-copy-probe.log。
+临时test-only trace保存原始PTY bytes，证明复制已加载到SEED_000，失败发生在resize
+恢复后；窄屏clip后的已有SEED_000谓词立即满足，第二次resize早于实际窄屏绘制。
+夹具改为先等待窄屏Copy user message footer，再恢复宽屏；同产物、同原预算及完整
+copy/footer/latest断言复验exit0，/tmp/lime-tui-stage121-history-copy-repair.log。
+Thread 01a12bb1-edd4-78b2-b2a1-594fdbcf149a，canonical三页、最旧SEED_000、原最新回复、
+hidden prompt排除、resize/cancel/无新turn/终端恢复通过；临时trace插桩已移除。
+
+既有thread-switch Find夹具原目标字符串也出现在resume picker卡片，补真实picker
+关闭谓词后再检查目标线程；不更改目标身份或旧query拒绝断言。另一Find重试在同产物
+定向稳定失败，/tmp/lime-tui-stage121-history-search-probe.log：page接受后render内重启
+bounded scan，但pre_draw_tick已读完旧状态，未安排后续frame，界面停Searching。
+生产修复落runtime/render::finish_draw，只读取统一search continuation状态并schedule，
+不再执行tick/flush；main/pager/resume共用App predicate，history request保持原consume
+owner。新增有界scan/完成停止/首次history request行为回归；原main/notes/MCP paste
+flush门禁5项保持。最新全TUI1867+26+1=1894、149守卫待最终核验，新产物需重新冻结。
+本批写集追加search/readiness predicate、App root消费者减法、runtime/render及守卫；
+这是同一历史交互缺口的真实根因修复，无协议/GUI/runtime后端扩展。
+
+第121第二次完整历史Gate（fixture tui-history-pagination-CnObF2）仍失败，日志
+/tmp/lime-tui-stage121-history-gate-b-repair.log保留；Find生产修复已通过，剩余为main Find
+thread-switch夹具。之前同形wait补到了普通transcript场景，现两处都在目标picker预览后
+明确等待选择器关闭；不放宽旧query/错误拒绝谓词。main Find同配置定向复验exit0，
+/tmp/lime-tui-stage121-history-switch-repair.log；原source预算/输入/身份保持。
+
+新生产源码完成后重新locked build并冻结CLI
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage121-repair-zqmTCt/binaries/lime，
+SHA256 174c60b04781e8766ce84229cabca9abec2216dbc5f143a2caba7634fb535b43；
+App Server继续第91完整包。最终全TUI1894、149守卫、严格Clippy/fmt/ESLint/Prettier/
+docs/scripts/legacy通过；新冻结CLI的同一Find失败重试定向exit0（旧产物两次稳定30s
+失败，新产物1.2s通过），日志/tmp/lime-tui-stage121-history-search-repair.log。
+
+同新冻结CLI完整历史领域runner最终exit0，日志
+/tmp/lime-tui-stage121-history-gate-b-final.log，fixture tui-history-pagination-uwnLUT；
+Thread 01a12bc9-a006-7920-9e65-b60f083acc8a，3页/207 items；legacy
+01a12bc9-716c-76e2-af91-e1e6e9f4ee84，2页/102 items。TUI_COPY_HISTORY_OK强制匹配
+同一canonical Thread：初始旧页未显示、复制Home读取到SEED_000、原最新回复冻结、
+hidden prompt排除、真实窄屏frame/恢复/cancel/无新turn/alternate screen恢复通过。
+既有普通pager/main Find分页失败重试、线程切换/重连、legacy/自动top-up均同runner
+实跑通过；不以默认skip的Rust integration结果替代真实证据。
+
+原四场景加copy-mode完整Gate exit0，日志/tmp/lime-tui-stage121-final-gate-b.log，fixture
+tui-gate-b-H9j7im；主Thread 01a12bcb-3686-7ec1-938b-2e38e71f8020，Turn
+turn_85919892a02f4a03a567829ae03ac42f。按complete/images/user-input/copy-mode/
+mcp-elicitation原顺序，TUI_COPY_MODE_OK与TUI_STATUS_COPY_OK均确认，原raw atomic/
+canonical/终端恢复合同保持。最终local exit0：39 crate/6893 passed/5 ignored，日志
+/tmp/lime-tui-stage121-verify-local-final.log。冻结SHA256复核一致，生产Rust从最终冻结到
+Gate/local收尾未修改。本批macOS条件4/4（100%），整体仍partial/active；current为
+既有历史分页/冻结presentation/search调度，未新增compat/deprecated。普通冻结阅读/
+选区历史吸收、owned inline、原生clipboard/富文本接收应用、跨平台/GUI/live/full和
+历史时序根因仍开放，下一刀继续普通选区的accepted-page吸收。
+
+## 第一百二十二阶段：普通选区与复制模式共享历史快照变更（本批 macOS 验收通过）
+
+主目标继续Codex全维度对齐；本刀补普通pager选区PageUp边界加载/accepted-page吸收，
+对照transcript_view/mutations，删除复制模式专属的重复历史变更职责。current事实源仍
+App Server分页 -> canonical projection身份差集 -> 一份冻结presentation/selection；
+普通held reading与owned inline不在本切片声称完成。窄写集：transcript_view/mutations/
+copy_mode/selection，pager_overlay/history/render及独立回归，app/history_pagination消费者，
+既有历史领域PTY/runner、结构守卫/inventory与架构/本计划。保留连续脏树，不提交/建分支。
+退出条件：1)普通选区边界一次加载/in-flight拒绝/失败重试；2)shared mutation保留端点/
+票据/header/原payload且拒绝live tail与重复页，resize锚点稳定；3)TUI/严格检查/local/
+治理；4)冻结CLI真实历史领域和原五场景Gate。本批0/4；整体partial/active。
+
+修改前两项普通选区稳定红灯，/tmp/lime-tui-stage122-history-red.log；第121冻结CLI在
+新真实鼠标/PTY场景也稳定停初始页SEED_053至058，无法吸收SEED_000，原30s预算exit101，
+/tmp/lime-tui-stage122-selection-gate-red.log。shared mutation实现后两项通过；首轮42/43
+发现每帧frozen_scroll吞edge drag，限定只有尺寸变化时重排后43/43通过。
+新增取消分页选区回归稳定红灯（scroll20而非0），/tmp/lime-tui-stage122-cancel-red.log：
+原previous frame仍引用分页前初始内容。现render/materialization与history接受后更新同一
+冻结frame，取消选择保留刚显示的older source，不捕获live tail/replacement。
+最终全TUI1870 library+27 integration+1 guard=1898唯一通过（另1 tmux launcher ignored）；
+默认integration只证明编译，真实Gate另验。149守卫、inventory1589仅结构统计。
+严格Clippy首轮拒绝collapsible_if，直接合并条件，不加allow；最终严格检查/build/local/
+新冻结真实Gate待验。代码条件1/2完成，2/4（50%，仅本切片），整体partial/active。
+
+首次新冻结49c7e51c2f295ceb8a5905b37207a2a40f3354ee957a816d0d7ee7bb37ea27ca已完成
+locked build。新真实鼠标场景仍稳定exit101，/tmp/lime-tui-stage122-selection-gate.log：
+已吸收一页至SEED_003，但footer卡Loading older history。runtime OnePage成功分支只对
+is_copy_mode调用完成，普通选区的loading门禁未释放；修正为current transcript pager，
+仅宿主完成接线，写集追加runtime这一处filter与回流守卫。原30s/可见marker/输入保持，
+重新冻结与复验，不把这次生产红灯当夹具抖动。runtime拆dispatcher退出条件继续沿用。
+
+完成接线修复后重新冻结CLI
+/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/tui-stage122-repair.0zHA3I5H90/binaries/lime，
+SHA256 ab6b78395f1d854f3fdd674de3fdc2a2e579290f9364ff14ac8156148a96ca5a；App Server
+沿用第91完整包/原DYLD。此后生产Rust未改。首次同产物复验已到最旧页，因夹具用
+连续TRANSCRIPT匹配实际分隔字母标题而失败，/tmp/lime-tui-stage122-selection-gate-repair.log。
+改为实际compact标题与完整footer关闭谓词，并新增test-only VT100 cell inverse观察原语，
+真实mouse高亮/resize后恢复/Esc清除均强制检查，不调用native clipboard或新增production API。
+高亮首次探针失败，/tmp/lime-tui-stage122-selection-gate-final.log：标题/回复已出现但
+pager frame未完整绘制，鼠标坐标仍取自残留inline行。新增等待完整Home/End footer后再
+定位坐标，同产物/原预算/更严格高亮断言定向exit0，1.4s，日志
+/tmp/lime-tui-stage122-selection-highlight-probe.log。仍为同canonical Thread
+01a12bb1-edd4-78b2-b2a1-594fdbcf149a，SEED_000/原回复/highlight/resize/selection-first
+取消/no turns/terminal恢复通过。写集追加既有focus_palette PTY只读cell观察原语；不恢复
+raw trace或扩大production测试API。最终完整历史/原五场景Gate及local待验。
+
+同最终冻结CLI完整历史领域runner exit0，/tmp/lime-tui-stage122-history-gate-b.log；fixture
+tui-history-pagination-KuDi7K，paginated Thread 01a12bed-c902-7121-8970-10407d5a5f61，
+3页/207 items；legacy 01a12bed-99d9-7222-bb89-80abd1d1857c，2页/102 items。
+TUI_COPY_HISTORY_OK与TUI_SELECTION_HISTORY_OK均由Node强制匹配同一seeded canonical
+Thread，普通鼠标高亮真实显示/分页后保留/resize后恢复/Esc清除/无新turn/终端恢复均通过。
+同runner既有Find失败重试、thread switch/reconnect、legacy和自动top-up实跑通过。
+最终严格Clippy/fmt/149守卫/docs/scripts/legacy通过；原五场景Gate运行中，最终local待验。
+
+原五场景同冻结CLI完整Gate exit0，/tmp/lime-tui-stage122-final-gate-b.log；fixture
+tui-gate-b-Dcm2J1，主Thread 01a12bee-ae59-7b21-b297-c30142e286ff，Turn
+turn_00ad8df9fd094ca4b50e800a9787b3a6。complete/images/user-input/copy-mode/
+mcp-elicitation原顺序，copy/status两marker与原raw atomic/canonical/重连/tmux resize/
+editor/终端恢复均确认；SHA256复核一致，生产Rust从最终冻结到Gate结束未改。
+最终local运行中；不提前提升本批条件3或整体完成度。
+
+最终local exit0，/tmp/lime-tui-stage122-verify-local.log，39 crate/6896 passed/5 ignored。
+最终严格all-target/no-deps Clippy -D warnings、fmt、ESLint/Prettier、149守卫、docs/scripts/
+legacy零边界违规/漂移/零引用候选与diff check通过；全TUI1898（1870+27+1，另1 tmux
+launcher ignored），默认Gate integration只证明编译，真实证据见上述两个完整runner。
+inventory1589=Codex1084+Lime505仅源树结构计数，不用于总体对齐率。
+current为既有canonical history loader、pager frozen presentation和共享mutations；
+旧pager_overlay/copy_mode与copy专属selection插入职责为dead/deleted/forbidden-to-restore，
+源树守卫防回流，无新增compat/deprecated。DRY/SOLID收敛通用selection变更与语义targets
+职责，KISS复用原页差集/cursor/worker/ticket；不创建第二history/runtime/store或GUI后端。
+本批macOS退出条件4/4（100%）；整体partial/active。普通held reading/owned inline、
+runtime dispatcher拆分、原生clipboard write/富文本接收应用、Linux PRIMARY/WSL/Windows、
+GUI/Electron/live Provider/verify:local:full及历史raw/负载/首键时序根因仍开放。
+下一刀回到owned inline/阅读状态owner，宿主dispatcher拆分必须服务同一UI主链。
+
+## 第一百二十三阶段：App-owned TranscriptView 与主阅读绘制（macOS限定验收完成）
+
+完整对齐目标不缩小；上一轮为progress（生产修复、旧入口删除与真实证据已落仓）。本刀
+对照Codex App::transcript_view与app/owned_transcript，不继续扩展ChatWidget分散的主阅读
+状态。八组主界面presentation状态直接迁入App的TranscriptView，主阅读绘制迁入同名
+app/owned_transcript；旧ChatWidget字段/方法与view::render_transcript直接删除，不加alias/
+compat。canonical projection、App Server、runtime和GUI共享底层不变。
+窄写集为tui/src/transcript_view owner、app/owned_transcript/root接线、chatwidget主阅读旧
+字段/方法、view绘制迁移及rg确认的TUI消费/回归文件（字段/方法迁移为机械改名）；对应
+结构守卫/inventory/architecture/本计划。责任root，沿用连续脏树，不覆盖未知改动，不
+提交/建分支。退出条件：1)App唯一主阅读状态owner/旧字段与入口零引用；2)渲染/选区/
+搜索/草稿/线程切换与清空行为真实消费新owner，稳定回归；3)TUI/严格检查/local/治理；
+4)新冻结CLI历史领域/原五场景真实stdio/PTY。当前0/4，整体partial/active；本次不将
+owner迁移单独等同于全部owned-screen UI完成，继续保留layout/pagination等明确未对齐项。
+
+App-owned迁移已完成实际生产消费：八个旧ChatWidget字段删除，输入/复制票据/resize/
+Find/线程恢复与清空都读取App::TranscriptView；主绘制迁到app/owned_transcript（142行），
+view由568降至441行，旧render_transcript函数删除。通用pager与BottomPane保持各自
+presentation owner，只有canonical projection/协议/runtime是共享业务事实源。
+首轮编译报告Find缺older-history参数与三个跨模块App pager入口visibility错误，直接补
+既有availability输入并设置crate内可见，不加旧方法wrapper；日志
+/tmp/lime-tui-stage123-compile.log。全TUI1870+27+1=1898（另1 tmux launcher ignored）通过；
+全部已有行为回归迁到新字段，无删测试或正向保留旧owner。149守卫首轮148/149，唯一
+失败为viewport守卫仍要求ChatWidget旧owner，改为检查TranscriptView唯一viewport并
+负向禁止旧字段后149/149。两个既有composer结构守卫改为App-owned当前合同，旧字段/
+方法改为负向回流断言，原通用dialog/composer约束保持。
+strict all-target/no-deps Clippy -D warnings、fmt、ESLint、docs/scripts治理、legacy零违规/
+漂移/零引用候选与locked CLI build通过；inventory1590=Codex1084+Lime506只作结构计数。
+架构图root已在architecture同批确认。条件1/2通过，2/4（50%，仅本切片）；最终local和
+新冻结CLI真实历史领域/原五场景Gate待验，整体partial/active。
+
+最终验收：冻结CLI为tui-stage123-final.8GZVpcTlSA/binaries/lime，SHA256
+d3ce98d3db741f9b9f495dc9fe59680e2dfef666f3447376c72d67c3896a52eb；App Server继续第91
+完整包。历史领域Gate exit0，fixture tui-history-pagination-PUYYpZ，paginated Thread
+01a12c0a-4190-7203-b9e5-35e813f67de3为3页/207 items，legacy Thread
+01a12c09-f031-7693-8995-c2c863005c06为2页/102 items；copy与普通pager mouse选区marker
+绑定同一canonical Thread，分页/resize/Esc/零新turn/终端恢复通过。日志
+/tmp/lime-tui-stage123-history-gate-b.log。原五场景complete,images,user-input,copy-mode,
+mcp-elicitation按原顺序同产物Gate exit0，fixture tui-gate-b-S0uUkE，主Thread
+01a12c0d-ad44-7b00-b88c-4ce280ba1f44、Turn turn_8dda955df1694bd0b3a6d1f883a7bed2；
+copy/status、tmux/editor、输入root/child、canonical回退冷读与终端恢复均通过。日志
+/tmp/lime-tui-stage123-final-gate-b.log。最终verify:local exit0，实数39 crate/6896 passed/
+5 ignored；日志/tmp/lime-tui-stage123-verify-local.log，冻结SHA复核一致。
+本批macOS限定条件4/4（100%）；current=App::TranscriptView/app/owned_transcript，
+dead/deleted=ChatWidget八组主阅读字段/委托方法与view::render_transcript，无新增compat/
+deprecated。普通held reading、主阅读选区旧页吸收、完整owned-screen layout、dispatcher、
+系统clipboard/富文本接收应用、Linux/Windows/GUI/live/full与历史时序根因仍开放。
+
+## 第一百二十四阶段：主阅读冻结选区的历史分页（macOS限定验收完成）
+
+继续完整Codex CLI/TUI对齐。对照Codex transcript_view/mutations与history_pagination，
+补主界面选区到达旧页边界后的OnePage请求与明确接受页的snapshot吸收，不重建为当前live
+projection。当前canonical分页游标/票据归App Server session，渲染metadata/冻结选区归
+App::TranscriptView；主阅读和pager共用mutation，保留原文字、端点、阅读锚点和异步复制
+票据，live tail/替换不能混入。主阅读距离尾部坐标与pager行坐标必须明确区分。
+窄写集：app/history_ui/history_pagination/owned_transcript及相应独立回归；transcript_view
+mutations/prompt_header/clipboard/input及pager/App clipboard调用接线；App interaction与
+runtime的OnePage选择；现有历史PTY/fixture与结构守卫、inventory/architecture/本计划。
+连续脏树只增量修改，Codex/GUI/protocol/runtime业务owner只读，无新依赖/协议/后端。
+退出条件：1)真实生产输入到边界请求单页、原冻结文字和metadata/锚点/票据保持；2)只吸收
+canonical新页差集，重复页幂等、hidden过滤/live tail/replacement隔离与resize/Esc回归；
+3)定向/完整TUI/strict/local/治理；4)新冻结CLI真实主阅读mouse分页与原历史/五场景Gate。
+责任root，2026-10-12。当前0/4，整体partial/active，不把该切片当全部held reading完成。
+
+旧实现稳定红灯2项：已接受旧页不进入主选区、PageUp到顶部不发起加载；首轮测试误用
+private selected_text API的编译失败已修为生产AppAction复制断言，不扩大生产visibility。
+日志/tmp/lime-tui-stage124-main-red.log（1 passed/2 failed）。修复后3项通过，再加独立
+mutation回归验证DistanceFromBottom(37)复制票据、有/无header边界与重复metadata幂等。
+主阅读pageup/wheel边界请求复用AppAction/OnePage，history_load_mode归App领域owner，
+runtime只调度。main/pager都从同canonical新页差集延伸，main复用既有Rich/Raw group/
+completion渲染，不从live投影重建snapshot。223项history定向通过；更新raw与metadata
+回归后继续全TUI/strict/local和新主阅读mouse PTY。架构图root已同批确认，整体partial。
+
+最终静态/领域验证：全TUI1874 lib+28 integration+1 guard=1903通过，另1显式tmux launcher
+ignored；日志/tmp/lime-tui-stage124-tui.log。Rich/Raw两种主阅读都保留原snapshot、旧页
+prompt metadata与Unicode，复制票据/resize/Esc/幂等稳定回归通过；普通integration默认
+门禁跳过不计真实证据。strict all-target/no-deps Clippy -D warnings、fmt、149结构守卫、
+ESLint/Prettier、docs/scripts、legacy零违规/漂移/零引用候选与locked CLI build均通过。
+inventory1591=Codex1084+Lime507只作源树结构计数。
+冻结CLI=tui-stage124-final.Sss43Dlupn/binaries/lime，SHA256
+b98ef0fe33d58e3f3da99f1ef72f93231ec28a2f3c70f8ddf900d9882d5515d6；App Server继续第91
+完整包。完整历史领域Gate首次exit0，fixture tui-history-pagination-KjrqdQ，paginated
+Thread 01a12c1f-3945-7b81-a712-ee98ab1f2636为3页/207 items；legacy Thread
+01a12c1f-08cf-7651-b20e-412bd2e1d4b7为2页/102 items。copy/pager-selection和新增
+TUI_MAIN_SELECTION_HISTORY_OK都精确绑定同canonical Thread；主阅读真实mouse高亮、
+PageUp加载到SEED_000、PageDown返回原高亮、窄宽resize、Esc只清选区、草稿保留、
+无overlay/零新turn与终端恢复全部通过。日志/tmp/lime-tui-stage124-history-gate-b.log。
+最终原五场景与verify:local待验，整体partial/active，生产Rust冻结保持到最终Gate结束。
+
+最终原五场景complete,images,user-input,copy-mode,mcp-elicitation按原顺序同冻结CLI
+Gate首次exit0，fixture tui-gate-b-A65R23，主Thread
+01a12c20-51be-7ba1-b521-1cca4eca7776、Turn turn_e7a8df80228a4926ac16be0472ec9d33；
+copy/status、Find、root/child输入、cold-revert、MCP atomic完整响应、tmux/editor与terminal
+恢复全部通过，原raw framing/预算/可见断言保持。日志/tmp/lime-tui-stage124-final-gate-b.log。
+最终verify:local exit0，实数39 crate/6900 passed/5 ignored；日志
+/tmp/lime-tui-stage124-verify-local.log。冻结SHA复核一致，docs boundary/diff check通过。
+本批macOS限定退出条件4/4（100%）；current=App::TranscriptView/history_pagination与
+同一selection mutation；dead/deleted=旧无分页main selection分支与无坐标类型的复制票据
+合同，无新增compat/deprecated。本批没有新用户文案/协议/schema/依赖/第二后端。
+GUI/Electron、live Provider、verify:local:full、原生clipboard/富文本接收应用及Linux/WSL/
+Windows实机不在本批验证范围；既有raw/负载/首键时序根因继续open，不能以绿灯关闭。
+
+下一刀只读对照已确认：Codex transcript_view/snapshot.rs在mutable/live/replaced group的
+普通阅读中保留ViewSnapshot，按canonical EntryKey pin可见布局；导航到surviving cell才
+释放held reading，selection结束可移交同snapshot。Lime目前普通主阅读仍用扁平行重排，
+缺少group revision/pins与selection取消后的retired-group阅读保留。应在现有View/主render
+记录canonical cell metadata并重建该真实交互，不能简单冻结所有current内容或复制业务
+store；下一阶段先补对应page-join稳定红灯，再统一当前selection/metadata快照owner。
+runtime.rs仍约1398行，dispatcher退出条件持续开放；transcript_reflow的旧owner注释
+App::transcript_scroll也已发现，随owner重构直接更新，不保留旧命名包装。
+
+## 第一百二十五阶段：普通阅读保留分组版本与导航接回（本批验收完成）
+
+上一goal turn为progress：第123/124生产owner迁移与主选区分页、静态/真实Gate/local均已
+落仓。继续完整CLI/TUI/命名/目录/设计模式对齐，不缩小总目标。对照Codex
+transcript_view/snapshot.rs与mutations的held_reading/pins/surviving cell合同，Lime普通
+reader不能只靠扁平行匹配；加载旧页导致工具group替换时，保留可见revision，导航离开
+该group才接回当前canonical显示。selection结束也应保留已退役group的阅读位置。
+窄写集：transcript_view/snapshot及paired metadata/selection/mutations/input，App-owned
+render与scroll接线、history_ui/history_pagination及独立回归，现有真实历史fixture与PTY，
+结构守卫/inventory/architecture/本计划。保留连续脏树；Codex只读，GUI/shared protocol/
+runtime业务owner不变；不提交/建分支/启动子Agent。所有保留数据仅为surface presentation，
+不复制业务store、分页游标或runtime。责任root，2026-10-12。
+退出条件：1)普通reader在page group join/mutable cell中保留当前可见revision和锚点；
+2)按canonical cell身份导航释放、选区结束移交、resize/分页/return-latest正确；3)稳定
+红灯到绿灯、定向/全TUI/strict/治理/local；4)冻结CLI真实PTY历史和原五场景证据。
+启动0/4，整体partial/active；分组pins/未显示group更新必须按当前真实消费者实现。
+
+首轮生产App+canonical ItemCompleted/历史page TestBackend两项稳定红灯：join后Read
+current.rs被直接替换为Read older.rs,current.rs；Esc后同样跳到merged revision。日志
+/tmp/lime-tui-stage125-reading-red.log。新ViewSnapshot已由App-owned主绘制与scroll真实消费，
+记录所有group canonical ids/mutable事实；初始visible pins与当前viewport保护revision，
+只允许explicit accepted page合并未显示group。选择器与普通reader共享TextLayout历史插入
+和源坐标rewrap；selection结束的移交只发生于真实选区/已绘制resume intent，普通打开
+pager不制造held reading，空选区恢复follow。首轮存活cell回归误用streaming tail，修为
+completed canonical Item后导航验证通过；4项reading回归绿灯，含mutable delta隔离、
+resize/return-latest与unseen group join。严格/完整TUI/真实PTY/local待验，整体partial。
+
+本轮全TUI发现普通held reader的viewport仍沿用上一frame的底部位置，导致Back to bottom
+不可见；resolve_frozen_anchor现在接受实际reader snapshot source，将当前导航offset映射
+到canonical坐标，再提交tail/unseen状态。既有follow-control真实App回归恢复，1878 lib
+首轮全部通过；snapshot与selection继续共用一个绘制/metadata owner。新真实证据在既有
+历史fixture单独seed同一Turn的120个canonical MCP computer items与45行completed tail，
+跨100-item页。PTY经透明WebSocket relay连接真实stdio App Server，只延迟原JSON-RPC旧页
+response，不合成任何server facts；原直连stdio历史领域仍全量保留。独立验证普通reader与
+mouse selection/Esc/resize/navigation/latest，marker将明确标注ws-relay-real-stdio且绑定
+canonical Thread；验收仍进行中。已发现durable command projection的command_actions恒空，
+不能用伪造typed Read页充当真实证据，按共享App Server恢复事实源缺口留待后续对齐。
+
+真实历史验收首次造数被tool_item_completed_without_start拒绝（attempt1日志），fixture
+补合法started/completed且检查canonical seed Turn完成。第二次透明relay误把thread/resume
+提供的inclusive首屏cursor作为older cursor，导致startup超时；改为首个item page直接转发。
+同次copy resize停在SEED_002，原日志保留/tmp/lime-tui-stage125-history-gate-b-attempt2.log。
+独立reading前两次运行失败分别为anchor停在session header、旧宽帧在新尺寸被PTY parser
+提前解析。新完整composer/canonical MCP page TestBackend回归单次绿灯，未调整生产断言；
+PTY改为按真实wheel/geometry定位group的top reading anchor，等真实旧页后的Turn lookup并
+排空上一帧再resize。共用PtyLime::resize只新增排空已有raw字节，未改变内容断言/期限，
+不生成server响应或模拟App状态。独立同冻结CLI reading Gate现exit0，真实metadata响应与
+100/22两页原始JSON-RPC均落reading-relay trace；普通/selection两分支99保留、120接回、
+mouse高亮/Esc/resize/latest/零turn/终端恢复通过。日志
+/tmp/lime-tui-stage125-reading-gate-b.log；完整历史/原五场景/local仍待最终验收。
+
+最终静态/领域：1879 lib+29 integration+1 guard=1909 TUI通过，另1显式tmux launcher
+ignored；日志/tmp/lime-tui-stage125-tui.log。150结构守卫、all-target/no-deps strict Clippy
+-D warnings、fmt、ESLint/Prettier、docs/scripts/legacy（零违规/漂移/零引用候选）通过。
+inventory1593=Codex1084+Lime509，仅为src结构统计，另tests为18/17，不作总体完成度。
+CLI locked build已冻结到tui-stage125-final.UCOItETTAu/binaries/lime，SHA256
+90ae799887b2a61b54991004b23f5f06907b1975bedf58cbbbb0b565d2cf25b8；App Server仍为第91
+完整包。fixture与PTY修正后完整历史领域exit0（此前失败全部保留，不能称首次通过）；
+fixture tui-history-pagination-Vwxi0E，paginated Thread
+01a12c5d-f198-7a80-a0bf-8be1229ab6af为3页/207 items，legacy
+01a12c5d-970f-78c3-9bf6-5b5a7a5579d6为2页/102 items；原copy/pager/main selection均绑定
+同canonical Thread并保持全部内容/鼠标/草稿/Esc/resize/零turn/终端恢复断言。新增reading
+Thread 01a12c5d-caa7-73b2-a938-af5196a65ca9真实canonical两页，透明ws relay只转发原stdio
+响应，99->120分组的普通reader与mouse selection两分支、stable-cell navigation/Esc/resize/
+latest/零turn/terminal恢复全部通过。日志/tmp/lime-tui-stage125-history-gate-b.log。
+raw/負載/首键时序的既有根因仍open：本次修正了PTY排空合同，不能用本次绿灯替代
+其它原始失败的根因证明。原五场景与最终local进行中，生产Rust仍使用同冻结产物。
+
+原五场景complete,images,user-input,copy-mode,mcp-elicitation按原顺序同冻结CLI首次exit0；
+fixture tui-gate-b-m61WVB，主Thread 01a12c5f-8c10-7c20-aa54-637aa8448996、Turn
+turn_179c9a4f6e714646891fa741ade74014。原raw framing/预算/可见内容断言、copy/status、Find、
+root/child输入、cold-revert、MCP完整响应与exactly-once、tmux/editor、Unicode草稿/首键与
+terminal恢复均保持通过。日志/tmp/lime-tui-stage125-final-gate-b.log。冻结SHA复核一致，
+最终verify:local待验；整个goal保持active。
+
+最终verify:local exit0，39 crate/6905 passed/5 ignored（本地Rust门禁按lib运行，不把
+默认跳过的PTY integration计入真实证据），日志/tmp/lime-tui-stage125-verify-local.log。
+fmt --check与冻结SHA复核通过；本批macOS限定退出条件4/4（100%）。current=
+App::TranscriptView/ViewSnapshot、paired PromptHeaderSource与单一TextLayout mutation；
+test-only=真实stdio response透明relay与PTY旧帧排空；旧直接替换当前reader group的路径
+已在current owner内替换，未新增compat/deprecated包装，本批未删除独立文件。保留连续
+脏树，无提交/分支/重置。没有新增用户文案、协议/schema、依赖或第二业务backend。
+GUI/Electron、live Provider、verify:local:full、原生clipboard/富文本接收应用及Linux/
+WSL/Windows实机未由本批终端证据验证；完整owned inline/group/search/selection pins语义
+及runtime dispatcher拆分仍开放，整体partial/active。下一刀先沿共享App Server command
+projection恢复command actions的唯一事实源，避免GUI/TUI各自猜测；随后继续当前view/
+composer/popup结构与交互对齐。已发现的raw/負載/首键时序根因不因本轮绿灯关闭。
+
+## 第一百二十六阶段：共享命令动作事实投影（核心链路验收通过，strict基线开放）
+
+主目标仍为 Codex CLI/TUI 全面对齐；本阶段修复 App Server canonical Command
+在实时通知、read/resume 和分页恢复中 commandActions 恒空的问题，直接服务探索分组 UI。
+参考 Codex 4aaee872e31abefe0d32e91faab23b09b6968824 的 shell-command/parse_command
+及 protocol ParsedCommand、v2 CommandAction。迁移 AST 解析与原回归，保留 Unknown
+折叠、connector 顺序、cd/read path、格式化 pipeline 和保守 PowerShell 读取语义。
+展示分类不承担安全、权限或执行决策；shell_analysis 原权限 owner 不与它混用。
+
+窄写集：tool-runtime 命令展示解析、agent-protocol ParsedCommand、App Server v2
+CommandAction conversion 与 thread/projection；配套测试、既有真实 fixture 和本计划/
+architecture/commands。App Server projection.rs 当前 1222 行，先拆分 item/metadata
+职责再修空投影；新增 parser 按 shell/operand/summary 拆分，单文件不越 800 行。
+依赖只增加实际消费的 shlex/tree-sitter/tree-sitter-bash。crate 级 Rust 2024 试迁触发
+广泛 import/semicolon 格式变化和 collapsible-if lint，已收回；Codex let-chain 仅在新增
+parser 改写为等价 filter/nested condition，继续使用工作区 Rust 2021 与既有格式。
+保留已有连续任务脏树，不提交、不建分支、不覆盖其它写集。
+
+退出条件：
+1. canonical command live/cold/page 回归先红后绿，所有 surface 共用一处动作投影。
+2. Codex parser 回归与相关 crate、strict Clippy/fmt、contracts/version 门禁通过。
+3. 新完整 App Server/CLI 冻结产物通过真实 stdio commandActions/TUI 探索分组证据，
+   补 current Agent fixture 和 GUI smoke；不以伪造 typed actions 页替代真实后端。
+4. 文档登记 owner/classification、架构图确认、实际验证和未验证范围；整个目标仍 active。
+
+架构图确认：canonical Command {command,cwd,metadata} -> App Server item projection
+-> tool-runtime::parse_command -> canonical ParsedCommand -> v2 CommandAction
+-> 同一 ThreadItem（实时通知/read/resume/items page）-> GUI/TUI surface projection。
+不新增 method、第二后端、renderer/TUI parser 或 compatibility wrapper。
+责任 root，2026-10-12；以上为本阶段预期图，实际实施后再次确认。
+
+实施记录：三项新 canonical command 投影回归先红（left=[]），原始日志
+/tmp/lime-tui-stage126-projection-red-resolved.log；首次构建未到断言，缺省 V8 URL 404，
+已使用仓库 resolveRustyV8CargoEnv 的校验缓存，不调整业务版本。首轮四 crate 2452 测试
+通过，包含原 Codex 106 项解析/AST 回归；随后补 durable PowerShell argv/invalid facts、
+unified exec source 和无 IO lexical path normalization，最终全量相关验证进行中。
+projection 主文件已拆到 568 行、item 517 行；原恒空动作路径已直接替换，现有 v2
+command DTO 迁到 item/command，wire/schema/method 形状不变。crate edition 保持 2021；
+四个 tool-runtime 文件只有 rustfmt 补 return 分号的机械改动，无业务变更。
+
+真实 fixture 新增 canonical Command seed（没有注入 typed commandActions，也不实际执行
+这些命令），真实 stdio App Server 解析、通知与 read/items page 相等断言，冷恢复 TUI PTY
+显示读取合并、search/list、opaque Unknown、独立 userShell、resize/零 turn/终端恢复。
+此证据仅证明 external fixture -> 真实共享 App Server -> 产品投影，不冒充 live Provider
+或 OS shell 执行事实。CLI/GUI 真实 current 主链验收仍待运行。
+
+strict Clippy 扩大到共享 owner 首次遇到既有 agent-protocol 2 项、app-server-protocol 6 项
+lint（大 media enum、可派生 Default、explicit auto deref），原日志 stage126-clippy.log /
+stage126-clippy-owners.log 保留。Rust 2024 试迁又触发 tool-runtime 广泛 collapsible-if，
+对应 stage126-clippy-surface.log 保留；已收回 edition，不能将该次结果作为最终基线结论。
+不添加 allow 或隐藏失败；Rust 2021 最终 strict 与真实 Gate 仍待验收。152 结构守卫通过
+（143+9），契约/版本/ESLint/Prettier、legacy 零引用候选/零漂移/零违规通过。
+
+最终五个相关 lib crate 4334 passed（43+1797+134+481+1879），Codex 106 项回归在
+Rust 2021 等价语法下保留；stage126-final-crates.log。TUI all-target/no-deps strict
+-D warnings 通过，stage126-clippy-tui.log。共享 owner all-target ordinary Clippy 仍非绿灯：
+agent-protocol 2、app-server-protocol 6、tool-runtime lib 20/test 24、app-server lib 126/
+test 158 warnings，最终因未修改的 tests/mcp_exact_jsonrpc.rs:382 never_loop deny 失败。
+完整 stage126-clippy-final-baseline.log 保留；新 parser、item/command 与拆分投影模块
+没有该日志中的诊断，不以普通告警或 TUI strict 代替共享 owner strict 的缺口。
+这些是明确未修改的共享 owner 基线问题，后续治理需按领域拆分处理；未加 lint allow。
+现阶段不能标记本批 100%。contracts 最终复核、renderer smoke build 与源 reference
+commit/clean-source 校验通过；新完整 App Server/CLI/code-mode host 构建进行中。
+
+同轮清理阻塞 ordinary Clippy 的 MCP integration fixture 无效 loop：read_message 每次
+首行即 return，直接改为一发读取，保留原 timeout/EOF/decode 断言与 read_notification 的
+真实过滤循环。窄写集仅增加 tests/mcp_exact_jsonrpc.rs；这是 test-only 清理，未改变生产
+App Server 或扩大到共享 owner 的大范围 lint 修复。对应 integration 与 Clippy 待复核。
+
+MCP integration 复核 3/3 通过，日志 /tmp/lime-tui-stage126-mcp-exact.log；fmt --check
+通过。第126新完整产物冻结到 tui-stage126-final-qyDEkf/binaries，CLI SHA256
+5c0d8b1db4cd5be699df5fb4c1f4bbe02797f728e576fd2db62b5a78d512126c，App Server
+bfa2873d535f3936cc313ccddf5c990903637b11b3e42efa4dd5173ec904c4bf，code-mode host
+4bf0ee36619c887ca24fdf778b6897a0dbddfa938fce38232637b3079b915f98。冻结包包含
+四个 ONNX/sherpa dylib，三个 executable 均经标准 rpath helper 准备；GUI resources 已由
+prepareElectronAppServerAssets 从同包复制并登记相同 SHA。后续真实证据不再复用第91
+App Server。production Rust 保持冻结。ordinary Clippy 复核遇到第二项旧 deny：
+model_catalog_refresh_jsonrpc fixture 忽略 HTTP socket read 长度；基线日志
+/tmp/lime-tui-stage126-clippy-baseline-recheck.log 保留，窄写集增加该 test-only fixture，
+读取完整 GET headers 后才发送响应，原重试/认证事实断言保持。真实 Gate/local 待验。
+
+catalog refresh integration 2/2 通过（stage126-catalog-refresh.log）。最终 ordinary all-target
+Clippy exit0（stage126-clippy-baseline-final.log），两项 test-only deny 已清除；仍有既有
+agent-protocol 2、app-server-protocol 6、tool-runtime lib 20/test 24、App Server lib 122/
+test 152 warnings，不能宣称共享 owner strict 通过。未新增 allow，未扩大 production 写集。
+
+同冻结新包完整 history Gate 首次 exit0（stage126-history-gate-b-attempt1.log）；fixture
+tui-history-pagination-2pcu9f，paginated Thread 01a12c9f-14de-7232-b867-120d0e143dfd
+为3页/207 items，legacy 01a12c9e-cec1-7e00-9c01-a2ca745ee741 为2页/102 items。
+原 copy/pager/main selection 与普通reader 99->120 group join/鼠标选区/resize/latest/
+零 turn/terminal restoration 全部通过。command Thread
+01a12c9f-107a-7613-8175-e753ecc82685 的真实 canonical 五项命令经 App Server 得到
+read/read/search+listFiles/unknown/read；live started/completed、read、items page 完整
+对象相等证据落 command-actions-live-read.json。新增 PTY marker 绑定同 Thread，证明
+两组 Explored、读取合并、search/list、opaque Unknown、userShell 独立、窄宽 resize/
+零新 turn/terminal restoration；未注入 typed commandActions 或实际执行示例 shell。
+冻结 CLI/App Server SHA 复核一致。CLI/原五场景/Desktop/local 验收继续进行中。
+
+同包 CLI Gate B 首次 exit0（stage126-cli-gate-b.log），fixture cli-gate-b-yKmSAL，主 Thread
+01a12ca0-6b2e-7373-9a03-1c6e2fb3c222/Turn turn_1bbc3553dc514c98992a7582d812ac42；
+human 五语言、JSONL、resume/fork/review/images/schema/stdin/output 与 fail-closed 通过。
+outer stdin 非TTY导致 human TTY 分支明确 NOT_RUN，其它结果不能冒充该证据。
+原五场景 complete,images,user-input,copy-mode,mcp-elicitation 同包原顺序首次 exit0
+（stage126-five-gate-b.log），fixture tui-gate-b-Lnnx89，主 Thread
+01a12ca1-ecb1-7c13-aff5-3bfe0b147b48/Turn turn_89765fab1dc344db99e12490e78b6c53。
+原 raw framing/预算/内容断言保持；copy/status/Find/root-child输入/cold-revert/MCP完整响应
+与 exactly-once、tmux/editor/Unicode草稿/首键及终端恢复通过。既有 raw/负载/首键时序
+根因继续 open，不因本次通过关闭。Agent current fixture/Desktop/local 待验。
+
+Agent current fixture 聚合首次 exit0（stage126-agent-current-fixture.log），覆盖真实 Electron
+首页发送、Coding Workbench、图片请求、停止后继续、审批四分支、rich draft restore、
+active steer 同 Turn、Plan hydrate、Skills 三入口、MCP structured content、媒体卡片、
+typed retry 成功/失败与 Article Editor；liveProviderUsed=false，mockFallbackHitCount=0。
+fixture 环境保留显式 APP_SERVER_BIN，现场进程检查确认 Electron sidecar 为冻结第126
+路径（PID21102）。标准 fixture freshness build 另从同新源码准备 GUI resources，资源
+App Server SHA=17365be60ad51a6a532146005b98cad0e6ac858c84c56f74d227b6c50a84a9a8，
+code-mode host=c75bcc038e06e340c6c96e41d1af82739a99ecf94f23f891e830c1f5356a9cac；
+与 CLI 冻结包不同构建目标组合，不能把资源 SHA 当成该 fixture 实际 sidecar SHA。
+同冻结 binary 的 GUI smoke 与最终 verify:local 继续验收。
+
+GUI smoke 首次 exit0（stage126-gui-smoke.log），run_id=tui-stage126-gui-smoke，正式
+shell-01-electron-smoke summary=result pass。真实 Electron/preload/IPC/current App Server
+initialize、Workbench reload、3种 responsive viewport 和 Memory settings 通过；
+mockFallbackHitCount=0。GUI regression 不等于 GUI 新增了探索分组布局，也不冒充 live
+Provider、原生剪贴板或跨平台证据。最终 verify:local 进行中，整体 goal 仍 active。
+
+GUI canonical item/thread projection 两个 current 回归文件直接执行 52/52 通过，日志
+stage126-gui-command-projection-direct.log。标准 test:related 的依赖扫描先因 EISDIR
+（将 electron 目录当文件读取）失败，原 stage126-gui-command-projection-tests.log 保留；
+复核使用既有 runVitestSmoke 和相同测试文件，不改生产 resolver 或将失败归零。
+该依赖扫描缺口仍 open，不把定向通过当作 frontend full 通过。
+
+下一刀只读确认：Codex ToolEmitter::unified_exec 以实际 command argv/cwd 建立展示事实；
+Lime unified_exec 的 gateway 已取得 argv 与 resolved cwd，但 session/output 仅保存 script/
+cwd，未持久化 commandArgv，初始 lifecycle 的 cwd 又只从显式 workdir 取值。下一阶段
+需先给实际执行、长命令写入/轮询和冷恢复补稳定失败证据，在 tool-runtime/current
+canonical lifecycle 内保存同一 argv/cwd；不能由 GUI/TUI 或 provider metadata 猜测平台。
+unified_exec.rs 911行，应先按 shell/session/output 领域拆分再扩展；runtime.rs 1396行
+dispatcher 与完整 owned inline/group/search/selection 语义仍开放。本批 production 冻结
+保持到 local 完成，以上仅为下一阶段候选写集，不提前修改执行或 GUI owner。
+
+最终 verify:local exit0，实数39 crate/7017 passed/5 ignored；日志
+/tmp/lime-tui-stage126-verify-local.log。只统计该 local 的 Rust lib 门禁，独立真实 PTY
+与 Electron 证据另列，不把默认 gated integration 算为真实验收。最终 docs boundary/
+diff check 通过。第126退出条件1/3/4满足，条件2的相关crate/格式/契约/版本与TUI strict
+满足，但共享 owner strict 受已记录基线告警阻塞；因此本批3/4（75%），不标100%。
+current=tool-runtime 展示 parser、agent-protocol ParsedCommand、v2 CommandAction 与
+唯一 App Server item projection；test-only=canonical raw Command seed、真实PTY断言和
+两项旧 integration fixture 清理；dead/deleted=恒空 commandActions 旧路径、无效MCP
+loop与假设单次HTTP read完整的旧fixture路径。没有新增compat/deprecated或第二后端，
+没有改方法/schema/wire shape或新增用户文案；新增依赖与Cargo.lock已同步。
+本批真实验收范围限定macOS/external或runtime fixture，不调用live Provider；GUI的
+探索分组新布局、Linux/WSL/Windows实机、原生剪贴板/富文本接收应用、frontend full/
+verify:local:full均未验证；test:related的EISDIR扫描缺口、共享strict告警及旧raw/负载/
+首键时序根因继续open。整体完整对齐goal保持active，无提交/推送/分支/重置。
+
+## 第一百二十七阶段：真实执行 argv/cwd 的 canonical 生命周期（实施中）
+
+上一轮为 progress：共享 command actions 的生产投影、真实 CLI/TUI/Electron 与 local
+证据已落仓。完整对齐 goal 保持 active，本阶段沿 Codex ToolEmitter::unified_exec 补
+实际 shell argv/cwd，而非用 script 推断执行环境。Codex reference HEAD仍为4aaee872。
+当前网关已经接收实际 argv/resolved cwd，unified session/结果 metadata 却只保存 script；
+初始 generic tool lifecycle 又在执行准备前发布，缺少实际 invocation。
+
+窄写集：tool-runtime unified_exec 的 shell/session/output/collect 拆分与 invocation facts，
+tool_lifecycle 的 typed command start 发布；agent current tool lifecycle emitter 的同一
+canonical ItemStarted/Updated 接线及回归；实际 runtime/public JSON-RPC fixture 与对应
+当前测试；architecture/commands/本计划。保留第126和此前TUI连续脏树，Codex只读，
+无新业务后端/renderer或TUI parser/compat包装/方法/schema/依赖，无提交/推送/分支。
+generic工具开始记录与真正execution开始的状态必须区分；实际准备后只更新同一Item，
+不能重复开始或把 metadata 发布当成假输出。argv/cwd由同一执行请求产生并沿原call_id/
+Turn/session保存，write_stdin与empty poll不得按新上下文重建。
+
+退出条件：1) argv/cwd发布/结果/输出/写入轮询稳定红绿，执行开始与cold canonical事实
+一致；2)职责拆分不越800行，相关crate/既有strict基线/格式与契约门禁；3)新冻结完整包
+实际OS shell执行的public stdio事实+原CLI/TUI/历史Gate，GUI共享链回归；4)架构确认与
+actual evidence/classification/未验证范围回填。共享strict基线仍由第126登记，不加allow。
+root负责，2026-10-12；当前0/4，整体partial/active。
+
+unified_exec已按definitions/shell/session/collect/output机械拆分，主文件353行、各子模块
+不越180行，原10项unified exec回归通过；两项新增 invocation 回归稳定失败于结果
+commandArgv=None（stage127-invocation-red-resolved.log）。首轮新增模块路径声明缺少
+显式tests目录导致编译未到断言，已修正，原stage127-invocation-red.log保留。真实执行
+准备使用typed CommandStartEvent，避免把metadata开始当成空output delta或假的完成结果。
+agent/protocol原1453行同步拆为774行主DTO、tool_lifecycle事实转换与独立tests；只有
+相关领域owner接线，不在巨大root protocol或emitter继续堆叠独立转换业务。
+
+invocation绿灯12/12，Agent首轮272/272；准备失败终态缺commandArgv的独立回归先红
+（stage127-preparation-red.log，Null != []），随后所有未取得实际argv的command终态
+显式保留Unknown。公共通知接线复核发现v2没有item/updated，不能仅更新提前开始的
+canonical Command后就宣称实时UI已取得事实。本轮直接清理unified exec的generic
+Started投影：dispatch准备不再假装execution开始，真正gateway成功后的typed start
+首次发布同一call_id的ItemStarted；后续poll/write仍更新同一Item。两项开始回归先红
+（stage127-execution-start-red.log，preparation is not execution），修正后Agent273/273。
+这是对本阶段预期图的实施修正，无新wire method/notification或compat包装。
+
+增加既有scripts/app-server领域的command-invocation-fixture：真实runtime backend、
+public provider CRUD与localhost请求捕获、实际OS shell、相对含空格cwd、PTY轮询/写入、
+准备失败、live/read/page及进程重启cold对象相等；尚在新完整产物构建/真实验证中。
+同阶段跨Turn write_stdin的canonical身份尚未验证，不能把tool-runtime原turn的output
+delta单元证明扩大为跨Turn投影验收。原shared strict告警、UI布局/平台/live/full缺口保留。
+
+真实runtime/OS stdio第1次fixture未达到行为断言：scripted tool参数误用args而非既有
+arguments合同，修正测试构造，保留stage127-invocation-stdio-attempt1.log与失败目录。
+第2次实际执行了短命令、PTY命令及empty poll/stdin，却发现prepare失败completion缺少
+start，被原tool lifecycle validator拒绝；同时真实通知直接证明canonical Item与旧
+CodingEventMirror各发布一遍开始/完成，后者又丢失process/source。未放宽validator。
+mirror独立三项红灯（stage127-mirror-red.log，17 passed/3 failed），准备失败补Unknown
+invocation start+failed完成，实际执行仍只由typed start开始。mirror仅补output/test事实，
+不再重复canonical Command生命周期。原coding_events.rs1366行先机械拆为756行主入口、
+canonical312、metadata158、policy153及657行tests+468行command回归；该窄写集拓展只
+服务同一显示/生命周期主链，未改权限决策或第二后端。相关全量回归和新包验证进行中。
+
+App Server1797回归与Agent273回归分别通过；其中两项旧测试曾仍断言镜像生命周期/
+单事件terminal，在保留完整原断言意图后迁到唯一canonical合同。current_provider_turn
+原1103行同步拆为538行入口+571行tests，未改provider控制业务。contracts/fmt/version/
+scripts治理通过。真实OS/stdIO第3次（stage127-invocation-stdio-attempt3.log）明确复现
+旧event sequence verifier只认command.started/exited，拒绝canonical开始后的输出；
+三项新增sequence回归稳定红（15 passed/3 failed，stage127-sequence-red.log）。
+校验器改为canonical Command的ItemStarted/Completed开闭同一command scope，仍拒绝
+重复镜像开始、未开始/终态后输出和未关闭Turn；没有放宽gate或恢复重复producer。
+该778行文件先把tests移出，主入口约470行。复核还修正未流式输出的terminal顺序：
+真实尾部output在canonical完成前发布，无输出命令不制造metadata-only假输出。新增
+silent OS shell场景与owner回归，fixture现需7次真实provider请求/4个canonical命令。
+第3次失败冻结包仅为失败证据，不作为最终验收包；新最终构建与完整Gate尚待执行。
+
+五相关crate4647 passed（211+1801+273+483+1879），GUI canonical reader/projection52/52；
+shared ordinary all-target Clippy通过，TUI all-target strict -D warnings通过。共享strict仍
+受既有告警约束：protocol2/6、tool-runtime20/24、agent-runtime18/20、agent16、App
+Server122/152；新canonical/typed-start/sequence模块没有新增诊断，collect的8参数告警
+来自第126unified_exec.rs:401原基线，未加allow。第4次真实fixture已通过7次provider
+请求、实际OS短/静默/PTY命令与轮询写入、单次开始/完成，却被完整live/read相等断言
+查出终端interaction丢失（stage127-invocation-stdio-attempt4.log）。保留失败而不降断言。
+旧单个terminal_interaction metadata直接迁为Invocation持有的最多20项
+terminalInteractions完整快照；empty poll/stdin共享原process身份，旧scalar producer和
+消费者删除。mirror仅消费最新已脱敏摘要；canonical snapshot替换数组，独立interaction
+delta按envelope追加，防止镜像+终态重复，同时保留真正重复的等长输入。materializer
+对canonical Command同reasoning一样以实际envelope标记snapshot，不能沿用旧delta标记。
+新增两项snapshot/delta回归，实际fixture要求完整poll+stdin列表；相关验证进行中。
+
+interaction快照最终定向回归通过：App Server1803、tool-runtime483，共2286 passed，
+日志stage127-interaction-snapshots-final.log。此前新增测试误写ThreadItemKind和移出root的
+json宏导入造成两次编译失败，均未到行为断言；原green/recheck日志保留，修正为payload.kind()
+与test模块自有json导入后才取得上述绿灯。最终contracts、fmt、scripts治理和legacy report
+exit0；本阶段真实fixture尚未通过，不沿用第126或第127第4次失败产物作为最终证据。
+
+最新production构建完成并冻结至tui-stage127-final3-0jAuOo/binaries：CLI SHA256
+5c0d8b1db4cd5be699df5fb4c1f4bbe02797f728e576fd2db62b5a78d512126c，App Server
+79904054e18d323034ead85d28f9f20df19fef7ee62d9091c41699d205103170，code-mode host
+4bf0ee36619c887ca24fdf778b6897a0dbddfa938fce38232637b3079b915f98；四个必要dylib和
+三个executable的rpath已准备。shared ordinary all-target Clippy及TUI strict通过，旧告警
+数量仍20/24、18/20、16、122/152，不新增allow。真实runtime/public stdio第5次exit0，
+日志stage127-invocation-stdio-attempt5.log，fixture command-invocation-jMbCl5，Thread
+01a12d1f-c4da-7b70-9503-81f0451c6830/Turn turn_7228ae397e33493790895b8c7188ae03。
+7个真实provider fixture请求、4个actual shell命令、单次开始/完成、完整poll/stdin列表、
+live/read/page/restart冷恢复全对象相等通过；未调用live Provider。GUI canonical reader/
+thread projection52/52最终复核通过（stage127-gui-command-projection-final-recheck.log）。
+额外尝试conversation reducer suite因既有smoke helper不支持app-server-client/browser alias
+未收集测试，保留stage127-gui-command-projection-final.log，不将40项通过算成完整suite。
+既定52项回归改用原测试文件后通过；该helper缺口不改生产owner，后续独立治理。
+CLI/TUI/history/Desktop与verify:local继续串行验收，同包production Rust保持冻结。
+
+同新冻结包CLI Gate B exit0（stage127-cli-gate-b.log），fixture cli-gate-b-SfcqFA，Thread
+01a12d3a-64d2-7261-9cf2-a769157f04f5/Turn turn_517541e235064d93937e7c4281eff6d5。
+本次通过outer PTY启动，CLI_HUMAN_TTY_OK真实验证双流TTY最终回答一次，补齐第126的
+该not-run；五语言/JSONL/resume/fork/review/images/schema/stdin/output-file和失败退出
+均通过。原五场景TUI Gate B exit0（stage127-five-gate-b.log），fixture tui-gate-b-ZGIxWc，
+Thread01a12d3b-ac28-7911-a3e5-d2ce35d8950d/Turn turn_f7ea5c9aab8f4709899cfff6ef8bda47；
+原raw/预算/键盘与内容断言保持，complete/images/user-input/copy-mode/mcp-elicitation、
+Find/root-child/typed-cold-revert/MCP exactly-once/tmux-editor/首键与terminal恢复通过。
+history首次也exit0，但启动时上一TUI还在最后reasoning场景；该短暂overlap不作为最终
+串行产品证据，保留stage127-history-gate-b.log与tui-history-pagination-8zzVxv，再在TUI
+完全结束后跑stage127-history-gate-b-serial。Codex HEAD与clean source复核未变化，
+app-version通过。Desktop及local仍待验，不能从terminal结果推断。
+
+history串行复核exit0（stage127-history-gate-b-serial.log），fixture
+tui-history-pagination-lVeZ91；Paginated Thread01a12d3e-b260-77d3-bb21-335015869a76
+为3页/207 items，Legacy Thread01a12d3e-6395-71c0-8e4d-d648c0818fea为2页/102 items。
+同canonical read/page/完整历史、copy/pager/main selection、普通reader99->120 group join、
+鼠标选区/resize/latest/零新Turn/terminal恢复通过。Command Thread
+01a12d3e-ad84-7411-88ef-78e2ca6f3e03的五项current raw Command，经真实App Server得到
+同一live/read/page actions，再由真实PTY验证两组Explored、read合并/search+listFiles/
+Unknown/userShell独立/resize。未注入typed actions，未冒充真实执行示例shell；actual OS
+执行另由invocation runtime fixture证明。后续Agent current fixture/Desktop/local验收。

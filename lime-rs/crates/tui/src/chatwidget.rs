@@ -1,9 +1,8 @@
 //! Chat surface owner shared by the terminal host and the canonical transcript.
 //!
 //! Codex keeps the chat surface separate from the process-level `App`: the widget owns the
-//! bottom-pane input, transcript presentation and interaction state, while `App` owns transport,
-//! thread routing and lifecycle decisions. Keeping this surface boundary explicit prevents the
-//! host from becoming a second composer or transcript owner.
+//! bottom-pane input and dialog presentation, while `App` owns transport, thread routing and
+//! the main `TranscriptView`. Main reading, search and selection must not return to this widget.
 
 use self::transcript_export::ExportPicker;
 use crate::app::agent_navigation::AgentNavigationState;
@@ -23,6 +22,8 @@ use app_server_protocol::protocol::v2::QueuedSubmission;
 use lime_core::config::RightClickPaste;
 use std::collections::HashMap;
 
+mod clipboard;
+pub(crate) mod copy_picker;
 mod footer;
 mod input;
 mod interaction;
@@ -105,12 +106,9 @@ pub(crate) struct ChatWidget {
     pub(crate) locale: Locale,
     pub(crate) runtime_keymap: RuntimeKeymap,
     pub(crate) global_key_chord_matcher: KeyChordMatcher,
-    pub(crate) clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
-    /// Independent X11 PRIMARY owner retained while a transcript selection remains active.
-    /// CLIPBOARD and PRIMARY are separate X11 selections and must not share a lease.
-    pub(crate) primary_clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>,
     pub(crate) right_click_paste: RightClickPaste,
     pub(crate) pending_clipboard_paste: Option<PendingPaste>,
+    pub(crate) suppress_image_paste_until: Option<std::time::Instant>,
     pub(crate) queued_submissions: Vec<QueuedSubmission>,
     pub(crate) thread_input_states: HashMap<String, crate::bottom_pane::BottomPaneInputState>,
     pub(crate) turn_lifecycle: crate::app::turn_lifecycle::TurnLifecycleState,
@@ -122,6 +120,8 @@ pub(crate) struct ChatWidget {
     pub(crate) agent_picker: Option<AgentPicker>,
     pub(crate) resume_picker: Option<PickerState>,
     pub(crate) export_picker: Option<ExportPicker>,
+    pub(crate) copy_picker: Option<copy_picker::CopyPicker>,
+    pub(crate) last_status_copy_targets: Option<copy_picker::StatusCopySource>,
     pub(crate) model_catalog: ModelCatalog,
     pub(crate) collaboration_mode: Option<agent_protocol::CollaborationMode>,
     pub(crate) model: Option<String>,
@@ -133,14 +133,6 @@ pub(crate) struct ChatWidget {
     pub(crate) scrollback_has_older_history: bool,
     pub(crate) pager_overlay: Option<PagerOverlay>,
     pub(crate) transcript_presentation: TranscriptPresentation,
-    pub(crate) transcript_scroll: usize,
-    pub(crate) transcript_viewport: crate::transcript_reflow::TranscriptViewport,
-    pub(crate) transcript_follow_control: crate::transcript_view::TranscriptFollowControl,
-    pub(crate) transcript_composer_gap: crate::transcript_view::TranscriptComposerGap,
-    pub(crate) transcript_footer: crate::transcript_view::TranscriptFooter,
-    pub(crate) transcript_prompt_header: crate::transcript_view::TranscriptPromptHeader,
-    pub(crate) transcript_search: crate::transcript_view::TranscriptSearch,
-    pub(crate) transcript_selection: crate::transcript_view::TranscriptSelection,
     pub(crate) external_editor_state: ExternalEditorState,
     /// True while a startup-scoped protected request is waiting to be shown in the pane.
     ///

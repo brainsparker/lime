@@ -236,7 +236,7 @@ fn failure_cancel_thread_handoff_and_repeated_cursor_reject_stale_completions() 
 #[test]
 fn browsing_from_existing_pager_cancels_to_the_original_bookmark_and_search_has_priority() {
     let mut app = app(Locale::EnUs);
-    app.chat_widget.open_transcript_pager();
+    app.open_transcript_pager();
     key(&mut app, KeyCode::Home);
     screen(&app, 60);
     let origin = app.chat_widget.pager_overlay.as_ref().unwrap().bookmark();

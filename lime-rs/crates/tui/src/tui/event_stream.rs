@@ -24,6 +24,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use std::task::Context;
 use std::task::Poll;
+use std::time::Instant;
 
 use crossterm::event::Event;
 use tokio::sync::broadcast;
@@ -51,6 +52,7 @@ pub trait EventSource: Send + 'static {
 pub struct EventBroker<S: EventSource = CrosstermEventSource> {
     state: Mutex<EventBrokerState<S>>,
     resume_events_tx: watch::Sender<()>,
+    size_monitor: Option<super::size_monitor::SizeMonitor>,
 }
 
 /// Tracks state of underlying [`EventSource`].
@@ -83,11 +85,31 @@ impl<S: EventSource + Default> EventBroker<S> {
         Self {
             state: Mutex::new(EventBrokerState::Start),
             resume_events_tx,
+            size_monitor: None,
+        }
+    }
+
+    pub(super) fn with_size_monitor(
+        size: ratatui::layout::Size,
+        draw_tx: broadcast::Sender<()>,
+    ) -> Self {
+        Self {
+            size_monitor: super::size_monitor::SizeMonitor::start(size, draw_tx),
+            ..Self::new()
+        }
+    }
+
+    pub(super) fn observe_size(&self, size: ratatui::layout::Size) {
+        if let Some(monitor) = &self.size_monitor {
+            monitor.observe(size);
         }
     }
 
     /// Drop the underlying event source
     pub fn pause_events(&self) {
+        if let Some(monitor) = &self.size_monitor {
+            monitor.set_active(false);
+        }
         let mut state = self
             .state
             .lock()
@@ -97,6 +119,9 @@ impl<S: EventSource + Default> EventBroker<S> {
 
     /// Create a new instance of the underlying event source
     pub fn resume_events(&self) {
+        if let Some(monitor) = &self.size_monitor {
+            monitor.set_active(true);
+        }
         let mut state = self
             .state
             .lock()
@@ -165,6 +190,7 @@ pub struct TuiEventStream<S: EventSource + Default + Unpin = CrosstermEventSourc
     resume_stream: WatchStream<()>,
     terminal_focused: Arc<AtomicBool>,
     poll_draw_first: bool,
+    input_clock: super::input_clock::InputClock,
 }
 
 impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
@@ -180,7 +206,13 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
             resume_stream,
             terminal_focused,
             poll_draw_first: false,
+            input_clock: super::input_clock::InputClock::new(Instant::now()),
         }
+    }
+
+    /// Shared paste clock for key consumption and idle draw ticks; wall timers stay separate.
+    pub(crate) fn input_time(&self) -> Instant {
+        self.input_clock.now(Instant::now())
     }
 
     /// Poll the shared crossterm stream for the next mapped `TuiEvent`.
@@ -211,12 +243,16 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
                     }
                 };
                 match Pin::new(events).poll_next(cx) {
-                    Poll::Ready(Some(Ok(event))) => Some(event),
+                    Poll::Ready(Some(Ok(event))) => {
+                        self.input_clock.ready(Instant::now());
+                        Some(event)
+                    }
                     Poll::Ready(Some(Err(_))) | Poll::Ready(None) => {
                         *state = EventBrokerState::Start;
                         return Poll::Ready(None);
                     }
                     Poll::Pending => {
+                        self.input_clock.pending(Instant::now());
                         drop(state);
                         // Poll resume_stream so resume_events can wake us even while waiting on stdin
                         match Pin::new(&mut self.resume_stream).poll_next(cx) {
@@ -237,9 +273,13 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
     /// Poll the draw broadcast stream for the next draw event. Draw events are used to trigger a redraw of the TUI.
     pub fn poll_draw_event(&mut self, cx: &mut Context<'_>) -> Poll<Option<TuiEvent>> {
         match Pin::new(&mut self.draw_stream).poll_next(cx) {
-            Poll::Ready(Some(Ok(()))) => Poll::Ready(Some(TuiEvent::Draw)),
-            Poll::Ready(Some(Err(BroadcastStreamRecvError::Lagged(_)))) => {
-                Poll::Ready(Some(TuiEvent::Draw))
+            Poll::Ready(Some(Ok(()) | Err(BroadcastStreamRecvError::Lagged(_)))) => {
+                let resize = self
+                    .broker
+                    .size_monitor
+                    .as_ref()
+                    .and_then(super::size_monitor::SizeMonitor::take_resize);
+                Poll::Ready(Some(resize.map_or(TuiEvent::Draw, TuiEvent::Resize)))
             }
             Poll::Ready(None) => Poll::Ready(None),
             Poll::Pending => Poll::Pending,
@@ -251,6 +291,8 @@ impl<S: EventSource + Default + Unpin> TuiEventStream<S> {
         match event {
             Event::Key(key_event) => Some(TuiEvent::Key(key_event)),
             Event::Resize(width, height) => {
+                self.broker
+                    .observe_size(ratatui::layout::Size { width, height });
                 Some(TuiEvent::Resize(ratatui::layout::Size { width, height }))
             }
             Event::Paste(pasted) => Some(TuiEvent::Paste(pasted)),
@@ -300,295 +342,5 @@ impl<S: EventSource + Default + Unpin> Stream for TuiEventStream<S> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crossterm::event::Event;
-    use crossterm::event::KeyCode;
-    use crossterm::event::KeyEvent;
-    use crossterm::event::KeyModifiers;
-    use crossterm::event::MouseEvent;
-    use crossterm::event::MouseEventKind;
-    use pretty_assertions::assert_eq;
-    use std::task::Context;
-    use std::task::Poll;
-    use std::time::Duration;
-    use tokio::sync::broadcast;
-    use tokio::sync::mpsc;
-    use tokio::time::timeout;
-    use tokio_stream::StreamExt;
-
-    /// Simple fake event source for tests; feed events via the handle.
-    struct FakeEventSource {
-        rx: mpsc::UnboundedReceiver<EventResult>,
-        tx: mpsc::UnboundedSender<EventResult>,
-    }
-
-    struct FakeEventSourceHandle {
-        broker: Arc<EventBroker<FakeEventSource>>,
-    }
-
-    impl FakeEventSource {
-        fn new() -> Self {
-            let (tx, rx) = mpsc::unbounded_channel();
-            Self { rx, tx }
-        }
-    }
-
-    impl Default for FakeEventSource {
-        fn default() -> Self {
-            Self::new()
-        }
-    }
-
-    impl FakeEventSourceHandle {
-        fn new(broker: Arc<EventBroker<FakeEventSource>>) -> Self {
-            Self { broker }
-        }
-
-        fn send(&self, event: EventResult) {
-            let mut state = self
-                .broker
-                .state
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let Some(source) = state.active_event_source_mut() else {
-                return;
-            };
-            let _ = source.tx.send(event);
-        }
-    }
-
-    impl EventSource for FakeEventSource {
-        fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<EventResult>> {
-            Pin::new(&mut self.get_mut().rx).poll_recv(cx)
-        }
-    }
-
-    fn make_stream(
-        broker: Arc<EventBroker<FakeEventSource>>,
-        draw_rx: broadcast::Receiver<()>,
-        terminal_focused: Arc<AtomicBool>,
-    ) -> TuiEventStream<FakeEventSource> {
-        TuiEventStream::new(broker, draw_rx, terminal_focused)
-    }
-
-    type SetupState = (
-        Arc<EventBroker<FakeEventSource>>,
-        FakeEventSourceHandle,
-        broadcast::Sender<()>,
-        broadcast::Receiver<()>,
-        Arc<AtomicBool>,
-    );
-
-    fn setup() -> SetupState {
-        let source = FakeEventSource::new();
-        let broker = Arc::new(EventBroker::new());
-        *broker.state.lock().unwrap() = EventBrokerState::Running(source);
-        let handle = FakeEventSourceHandle::new(broker.clone());
-
-        let (draw_tx, draw_rx) = broadcast::channel(1);
-        let terminal_focused = Arc::new(AtomicBool::new(true));
-        (broker, handle, draw_tx, draw_rx, terminal_focused)
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn mouse_and_key_events_are_forwarded_in_order() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx, terminal_focused);
-
-        let expected_mouse = MouseEvent {
-            kind: MouseEventKind::Moved,
-            column: 0,
-            row: 0,
-            modifiers: KeyModifiers::NONE,
-        };
-        handle.send(Ok(Event::Mouse(expected_mouse)));
-        handle.send(Ok(Event::Key(KeyEvent::new(
-            KeyCode::Char('a'),
-            KeyModifiers::NONE,
-        ))));
-
-        match stream.next().await.unwrap() {
-            TuiEvent::Mouse(mouse) => assert_eq!(mouse, expected_mouse),
-            other => panic!("expected mouse event, got {other:?}"),
-        }
-        match stream.next().await.unwrap() {
-            TuiEvent::Key(key) => {
-                assert_eq!(key, KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE));
-            }
-            other => panic!("expected key event, got {other:?}"),
-        }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn focus_lost_is_forwarded_and_updates_terminal_state() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx, terminal_focused.clone());
-
-        handle.send(Ok(Event::FocusLost));
-
-        assert!(matches!(stream.next().await, Some(TuiEvent::FocusLost)));
-        assert!(!terminal_focused.load(Ordering::Relaxed));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn focus_lost_consumed_by_startup_remains_visible_to_the_tui() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut startup_events = make_stream(broker, draw_rx, terminal_focused.clone());
-        handle.send(Ok(Event::FocusLost));
-
-        assert!(matches!(
-            startup_events.next().await,
-            Some(TuiEvent::FocusLost)
-        ));
-        assert!(!terminal_focused.load(Ordering::Relaxed));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn focus_gained_preserves_already_queued_key() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        terminal_focused.store(false, Ordering::Relaxed);
-        let mut stream = make_stream(broker.clone(), draw_rx, terminal_focused.clone());
-        let expected_key = KeyEvent::new(KeyCode::Char('f'), KeyModifiers::NONE);
-
-        handle.send(Ok(Event::FocusGained));
-        handle.send(Ok(Event::Key(expected_key)));
-
-        assert!(matches!(stream.next().await, Some(TuiEvent::FocusGained)));
-        assert!(terminal_focused.load(Ordering::Relaxed));
-        assert!(matches!(
-            &*broker
-                .state
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-            EventBrokerState::Running(_)
-        ));
-
-        let next = timeout(Duration::from_millis(/*millis*/ 100), stream.next())
-            .await
-            .expect("focus handling discarded an already queued key");
-
-        match next {
-            Some(TuiEvent::Key(key)) => assert_eq!(key, expected_key),
-            other => panic!("expected queued key event, got {other:?}"),
-        }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn draw_and_key_events_yield_both() {
-        let (broker, handle, draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx, terminal_focused);
-
-        let expected_key = KeyEvent::new(KeyCode::Char('a'), KeyModifiers::NONE);
-        let _ = draw_tx.send(());
-        handle.send(Ok(Event::Key(expected_key)));
-
-        let first = stream.next().await.unwrap();
-        let second = stream.next().await.unwrap();
-
-        let mut saw_draw = false;
-        let mut saw_key = false;
-        for event in [first, second] {
-            match event {
-                TuiEvent::Draw => {
-                    saw_draw = true;
-                }
-                TuiEvent::Key(key) => {
-                    assert_eq!(key, expected_key);
-                    saw_key = true;
-                }
-                other => panic!("expected draw or key event, got {other:?}"),
-            }
-        }
-
-        assert!(saw_draw && saw_key, "expected both draw and key events");
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn lagged_draw_maps_to_draw() {
-        let (broker, _handle, draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx.resubscribe(), terminal_focused);
-
-        // Fill channel to force Lagged on the receiver.
-        let _ = draw_tx.send(());
-        let _ = draw_tx.send(());
-
-        let first = stream.next().await;
-        assert!(matches!(first, Some(TuiEvent::Draw)));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resize_event_maps_to_resize() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx, terminal_focused);
-
-        handle.send(Ok(Event::Resize(80, 24)));
-
-        let next = stream.next().await;
-        assert!(matches!(
-            next,
-            Some(TuiEvent::Resize(ratatui::layout::Size {
-                width: 80,
-                height: 24
-            }))
-        ));
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn error_or_eof_ends_stream() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker, draw_rx, terminal_focused);
-
-        handle.send(Err(std::io::Error::other("boom")));
-
-        let next = stream.next().await;
-        assert!(next.is_none());
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resume_wakes_paused_stream() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker.clone(), draw_rx, terminal_focused);
-
-        broker.pause_events();
-
-        let task = tokio::spawn(async move { stream.next().await });
-        tokio::task::yield_now().await;
-
-        broker.resume_events();
-        let expected_key = KeyEvent::new(KeyCode::Char('r'), KeyModifiers::NONE);
-        handle.send(Ok(Event::Key(expected_key)));
-
-        let event = timeout(Duration::from_millis(100), task)
-            .await
-            .expect("timed out waiting for resumed event")
-            .expect("join failed");
-        match event {
-            Some(TuiEvent::Key(key)) => assert_eq!(key, expected_key),
-            other => panic!("expected key event, got {other:?}"),
-        }
-    }
-
-    #[tokio::test(flavor = "current_thread")]
-    async fn resume_wakes_pending_stream() {
-        let (broker, handle, _draw_tx, draw_rx, terminal_focused) = setup();
-        let mut stream = make_stream(broker.clone(), draw_rx, terminal_focused);
-
-        let task = tokio::spawn(async move { stream.next().await });
-        tokio::task::yield_now().await;
-
-        broker.pause_events();
-        broker.resume_events();
-        let expected_key = KeyEvent::new(KeyCode::Char('p'), KeyModifiers::NONE);
-        handle.send(Ok(Event::Key(expected_key)));
-
-        let event = timeout(Duration::from_millis(100), task)
-            .await
-            .expect("timed out waiting for resumed event")
-            .expect("join failed");
-        match event {
-            Some(TuiEvent::Key(key)) => assert_eq!(key, expected_key),
-            other => panic!("expected key event, got {other:?}"),
-        }
-    }
-}
+#[path = "event_stream_tests.rs"]
+mod tests;

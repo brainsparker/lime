@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 
@@ -13,6 +13,589 @@ const inventory = JSON.parse(
 );
 
 describe("Codex TUI structure inventory", () => {
+  it("retains reading revisions only in the transcript surface and rejoins stable canonical cells", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    const snapshot = source("transcript_view/snapshot.rs");
+    expect(source("transcript_view.rs")).toContain("held_reading:");
+    expect(snapshot).toContain(
+      "cell.identities == retained.identities && !cell.mutable",
+    );
+    expect(snapshot).toContain("self.pinned.contains(&cell.key)");
+    expect(snapshot).toContain("snapshot.surviving_row(lines, source)");
+    expect(source("transcript_view/mutations.rs")).toContain(
+      "held.prepend_snapshot_history(",
+    );
+    expect(source("app/owned_transcript.rs")).toContain(
+      ".scroll_held_reading(rows,",
+    );
+    expect(source("app/owned_transcript.rs")).toContain(
+      ".hold_live_reading(current_lines,",
+    );
+    expect(source("app/history_pagination.rs")).toContain(
+      ".replace_unseen_groups(",
+    );
+    expect(source("transcript_view/prompt_header.rs")).toContain(
+      "identities: Vec<String>",
+    );
+    expect(source("chatwidget.rs")).not.toContain("held_reading");
+    expect(source("runtime.rs")).not.toContain("ViewSnapshot");
+    const gate = readFileSync(
+      path.resolve("scripts/app-server/tui-history-pagination-fixture.mjs"),
+      "utf8",
+    );
+    expect(gate).toContain("TUI_READING_HISTORY_OK thread=");
+    expect(gate).toContain("readingMarker[1] !== readingThreadId");
+    const pty = readFileSync(
+      path.resolve(
+        "lime-rs/crates/tui/tests/suite/history_pagination/reading.rs",
+      ),
+      "utf8",
+    );
+    expect(pty).toContain("Command::new(&fixture.app_server_bin)");
+    expect(pty).toContain("socket.send(Message::Text(line))");
+    expect(pty).toContain("transport=ws-relay-real-stdio");
+  });
+  it("extends frozen selection history only from accepted canonical pages through one mutation owner", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    expect(source("app/history_pagination.rs")).toContain(
+      ".filter(|entry| !existing.contains(&entry.id))",
+    );
+    expect(source("app/history_pagination.rs")).toContain(
+      "pager.prepend_snapshot_history(content, self.chat_widget.locale)",
+    );
+    expect(source("app/history_pagination.rs")).toContain(
+      ".and_then(PagerOverlay::snapshot_history_width)",
+    );
+    expect(source("app/history_pagination.rs")).toContain(
+      "render_main_transcript_entries_content(",
+    );
+    expect(source("app/history_pagination.rs")).toContain(
+      ".prepend_snapshot_history(content.lines, content.prompt_header)",
+    );
+    expect(source("transcript_view/mutations.rs")).toContain(
+      "self.prompt_header.replace_snapshot_source(source)",
+    );
+    expect(source("transcript_view/clipboard.rs")).toContain(
+      "if let CopyPosition::Row(position)",
+    );
+    expect(source("app/clipboard.rs")).toContain(
+      "CopyPosition::DistanceFromBottom(self.transcript_view.scroll)",
+    );
+    expect(source("pager_overlay.rs")).toContain(
+      "CopyPosition::Row(self.scroll.get())",
+    );
+    expect(source("app/interaction.rs")).toContain(
+      "self.transcript_view.selection.is_at_top()",
+    );
+    expect(source("pager_overlay/history.rs")).toContain(
+      "frozen.prepend_snapshot_history(older)",
+    );
+    expect(
+      existsSync(
+        path.resolve("lime-rs/crates/tui/src/pager_overlay/copy_mode.rs"),
+      ),
+    ).toBe(false);
+    expect(source("transcript_view/mutations.rs")).toContain(
+      "pending.prepend_history(",
+    );
+    expect(source("transcript_view/copy_mode.rs")).not.toContain(
+      "fn prepend_snapshot_history(",
+    );
+    expect(source("transcript_view/copy_mode.rs")).toContain(
+      "mode.history_request.set(Some(",
+    );
+    expect(source("runtime.rs")).toContain("app.history_load_mode()");
+    expect(source("app/history_pagination.rs")).toContain(
+      "PagerOverlay::history_load_mode",
+    );
+    expect(source("runtime.rs")).not.toContain(
+      "pager_overlay.as_ref().filter(|pager| pager.is_copy_mode())",
+    );
+    expect(source("pager_overlay/render.rs")).toContain(
+      "*snapshot = Some(transcript.clone())",
+    );
+    const gate = readFileSync(
+      path.resolve("scripts/app-server/tui-history-pagination-fixture.mjs"),
+      "utf8",
+    );
+    expect(gate).toContain("TUI_COPY_HISTORY_OK thread=");
+    expect(gate).toContain("if (!copyMarker)");
+    expect(gate).toContain("TUI_SELECTION_HISTORY_OK thread=");
+    expect(gate).toContain("selectionMarker[1] !== resumeThreadId");
+    expect(gate).toContain("TUI_MAIN_SELECTION_HISTORY_OK thread=");
+    expect(gate).toContain("mainSelectionMarker[1] !== resumeThreadId");
+  });
+  it("routes slash copy through frozen semantic targets while Ctrl-O keeps immediate response copy", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    expect(source("app.rs")).toContain(
+      "SlashCommand::Copy => AppAction::SelectTranscriptCopy",
+    );
+    expect(source("app/input_flow.rs")).toContain(
+      "AppAction::CopyLastResponse",
+    );
+    expect(source("runtime.rs")).toContain(
+      "AppAction::SelectTranscriptCopy => app.select_transcript_copy()",
+    );
+    expect(source("app/clipboard.rs")).toContain("pager.begin_copy_mode()");
+    expect(source("transcript_view/copy_mode.rs")).toContain(
+      "layout.copy_block_ranges",
+    );
+    expect(source("transcript_view/copy_mode.rs")).toContain(
+      "self.select_copy_target()",
+    );
+    expect(source("transcript_view/text.rs")).toContain(
+      "Arc::ptr_eq(previous, source)",
+    );
+    expect(source("markdown_render/renderer.rs")).toContain(
+      "unwrap_markdown_fences_with_sources",
+    );
+    expect(source("markdown_render/renderer.rs")).toContain(
+      "copy.code_source = container.code_source.clone()",
+    );
+    expect(source("markdown_render/renderer.rs")).toContain(
+      "copy.quote_source = container.quote_source.clone()",
+    );
+    expect(source("transcript_view/selection.rs")).toContain(
+      "target.kind.format()",
+    );
+    expect(source("pager_overlay/render.rs")).toContain(
+      "TranscriptFooter.render_copy_mode(",
+    );
+    expect(source("locale/clipboard.rs")).not.toContain(
+      "fn transcript_copy_mode_hint(",
+    );
+    expect(source("transcript_view/footer.rs")).toContain(
+      "crate::key_hint::key_label_spans(key)",
+    );
+    expect(source("transcript_view/footer.rs")).toContain(
+      "crate::footer_hint::first_fitting_line",
+    );
+  });
+  it("offers Markdown HTML only through the native clipboard while keeping terminal text literal", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    const copy = source("clipboard_copy.rs");
+    const html = source("clipboard_html.rs");
+    const worker = source("clipboard_copy/worker.rs");
+    expect(copy).toContain("pub(crate) enum CopyFormat");
+    expect(copy).toContain("crate::clipboard_html::render_markdown(text)");
+    expect(copy).toContain("native_copy(text, html.as_deref())");
+    expect(copy).toContain(".set_html(html, Some(text))");
+    expect(copy).toContain(".or_else(|_| clipboard.set_text(text))");
+    expect(copy).toContain("wsl_copy(text)");
+    expect(copy).toContain("terminal_copy(text, environment.tmux_session");
+    expect(worker).toContain("copy(&text, format, &setup)");
+    expect(html).toContain(
+      "Event::Html(text) | Event::InlineHtml(text) => Event::Text(text)",
+    );
+    expect(html).toContain(
+      "crate::terminal_hyperlinks::web_destination(dest_url)",
+    );
+    expect(html).toContain(
+      "Event::Start(Tag::Image { .. }) | Event::End(TagEnd::Image) => return None",
+    );
+    expect(html).toContain("crate::markdown::unwrap_markdown_fences(markdown)");
+    const app = source("app/clipboard.rs");
+    expect(app).toContain(
+      "Self::LastResponse | Self::ExportClipboard => CopyFormat::Markdown",
+    );
+    expect(app).toContain("Self::ComposerSelection => CopyFormat::PlainText");
+    expect(app).toContain(
+      "Self::TranscriptSelection { format, .. } => format.clone()",
+    );
+    expect(source("resume_picker/host.rs")).toContain(
+      ".copy(text, format, frame_requester.clone())",
+    );
+  });
+  it("shares semantic copy origins across renderer, wrapping, selection, and every transcript surface", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    expect(source("clipboard_copy.rs")).toContain(
+      "MarkdownSelection(std::sync::Arc<str>)",
+    );
+    expect(source("clipboard_copy.rs")).toContain(
+      "CopyFormat::MarkdownSelection(markdown)",
+    );
+    expect(source("terminal_hyperlinks.rs")).toContain(
+      "source: Option<LogicalLineSource>",
+    );
+    expect(source("terminal_hyperlinks/wrapping.rs")).toContain(
+      "logical.wrapped(wrapped.range, wrapped.prefix_bytes)",
+    );
+    expect(source("wrapping/source.rs")).toContain(
+      "pub(crate) struct WrappedLine",
+    );
+    expect(source("markdown_render/renderer.rs")).toContain(
+      "source.copy = Some(Arc::new(std::mem::take(&mut self.copy_line)))",
+    );
+    expect(source("markdown_render/table.rs")).toContain(
+      "crate::markdown_copy::table::annotate_cell",
+    );
+    expect(source("transcript_view/text.rs")).toContain(
+      "crate::markdown_copy::SelectedLine::append",
+    );
+    expect(source("transcript_view/selection.rs")).toContain(
+      "crate::markdown_copy::literal_selection",
+    );
+    expect(source("transcript_view/selection.rs")).not.toContain(
+      "blockquote_prefix_len",
+    );
+    expect(source("transcript_view/selection.rs")).not.toContain(
+      "Color::Green",
+    );
+    expect(source("app/interaction.rs")).toContain(
+      "TranscriptSelectionAction::Copy",
+    );
+    expect(source("pager_overlay.rs")).toContain(
+      "TranscriptSelectionAction::Copy",
+    );
+    expect(source("resume_picker/host.rs")).toContain(
+      ".copy(text, format, frame_requester.clone())",
+    );
+    for (const retired of ["markdown/table.rs", "markdown/local_links.rs"]) {
+      expect(existsSync(path.resolve("lime-rs/crates/tui/src", retired))).toBe(
+        false,
+      );
+    }
+    expect(source("wrapping.rs")).not.toContain("fn own_lines");
+  });
+  it("shares Codex CopyStatus for submission and delivery without legacy copy tickets", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    const backend = source("clipboard_copy.rs");
+    const worker = source("clipboard_copy/worker.rs");
+    expect(backend).toContain("Pending(u64)");
+    expect(backend).toContain("Busy");
+    expect(backend).toContain("fn message(self, label: &str)");
+    expect(worker).toMatch(/pub\(crate\) fn copy\([\s\S]*?\) -> CopyResult/u);
+    expect(worker).toContain("Ok(CopyStatus::Pending(id))");
+    expect(worker).toContain("Ok(CopyStatus::Busy)");
+    expect(worker).not.toContain("fn request(");
+    for (const owner of [
+      "clipboard_copy/worker.rs",
+      "app/clipboard.rs",
+      "resume_picker/host.rs",
+    ]) {
+      expect(source(owner)).not.toContain("request_copy");
+    }
+    expect(source("app/clipboard.rs")).toContain(
+      "copy_status(status, context.label())",
+    );
+    expect(source("resume_picker/host.rs")).toContain(
+      "Ok(crate::clipboard_copy::CopyStatus::Pending(id))",
+    );
+  });
+  it("owns clipboard and PRIMARY text reads in Codex platform modules with one deadline", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    const worker = source("clipboard_copy/worker.rs");
+    const text = source("clipboard_paste/text.rs");
+    const primary = source("clipboard_copy/primary.rs");
+    expect(worker).toContain("read(source, deadline)");
+    expect(worker).toContain("crate::clipboard_paste::text::read(deadline)");
+    expect(worker).toContain("super::primary::read(deadline)");
+    expect(primary).toContain("crate::clipboard_paste::text::native_result(");
+    expect(primary).toContain("VscodeDetection::VsCode");
+    expect(text).toContain(
+      "Err(arboard::Error::ContentNotAvailable) => String::new()",
+    );
+    expect(text).toContain("agent_protocol::input::MAX_USER_INPUT_TEXT_CHARS");
+    expect(text).toContain("text.chars().count() > MAX_USER_INPUT_TEXT_CHARS");
+    for (const file of [
+      "clipboard_copy.rs",
+      "clipboard_paste.rs",
+      "clipboard_copy/worker.rs",
+    ]) {
+      expect(source(file)).not.toMatch(
+        /\b(?:read_clipboard_text|copy_to_primary|ClipboardTextSource)\b/u,
+      );
+    }
+  });
+  it("bounds Windows host text reading without PATH or Linux clipboard fallback", () => {
+    const text = readFileSync(
+      "lime-rs/crates/tui/src/clipboard_paste/text.rs",
+      "utf8",
+    );
+    expect(text).toContain('canonicalize("/mnt/c/Windows/System32")');
+    expect(text).toContain("executable.starts_with(&system)");
+    expect(text).not.toMatch(/(?:which|var|var_os)\([^\n]*PATH/u);
+    const hostRead = text.slice(
+      text.indexOf("if crate::clipboard_copy::is_wsl_session()"),
+      text.indexOf('#[cfg(not(target_os = "android"))]'),
+    );
+    expect(hostRead).toContain("return tokio::runtime::Builder");
+    expect(hostRead).toContain(".block_on(read_command(command, deadline))");
+    expect(text).toContain("timeout_at(deadline.into()");
+    expect(text).toContain(".take((limit + 1) as u64)");
+    expect(text).toContain("String::from_utf8(bytes)");
+    expect(text).toContain("child.kill().await");
+    for (const file of ["app/clipboard.rs", "app/right_click_paste.rs"]) {
+      expect(
+        readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8"),
+      ).toContain("clipboard_paste_failure(&error)");
+    }
+  });
+  it("bounds clipboard shutdown while waiting for lease cleanup rather than queued feedback", () => {
+    const worker = readFileSync(
+      "lime-rs/crates/tui/src/clipboard_copy/worker.rs",
+      "utf8",
+    );
+    const shutdown = worker.slice(
+      worker.indexOf("impl Drop for ClipboardWorker"),
+      worker.indexOf('#[cfg(test)]\n#[path = "worker_tests.rs"]'),
+    );
+    expect(shutdown).toContain("self.requests.take()");
+    expect(shutdown).toContain("Duration::from_millis(250)");
+    expect(shutdown).toContain("Instant::now() < deadline");
+    expect(shutdown).toContain(
+      ".recv_timeout(deadline.saturating_duration_since(Instant::now()))",
+    );
+    expect(shutdown).not.toContain(".join(");
+    expect(shutdown).not.toContain("osc52_copy");
+  });
+  it("queues only scoped PRIMARY reads behind publication with the original budget", () => {
+    const source = (file) =>
+      readFileSync(`lime-rs/crates/tui/src/${file}`, "utf8");
+    const worker = source("clipboard_copy/worker.rs");
+    const owner = source("app/right_click_paste.rs");
+    const app = source("app/clipboard.rs");
+    expect(worker).toContain("enum PasteSource");
+    expect(worker).toContain("queued_read: Option<Request>");
+    expect(worker).toContain("PendingOperation::Read { .. }");
+    expect(worker).toContain("!pending.expired");
+    expect(worker).toContain(
+      "source == PasteSource::Clipboard && self.is_busy()",
+    );
+    expect(worker).toContain("fn read_text(");
+    expect(worker).toContain("owner: Weak<()>");
+    expect(owner).toContain("_scope: Arc<()>");
+    expect(app.indexOf("self.validate_clipboard_paste()")).toBeLessThan(
+      app.indexOf("tui.clipboard.advance("),
+    );
+    const advance = worker.slice(
+      worker.indexOf("fn advance("),
+      worker.indexOf("fn copy_to("),
+    );
+    expect(advance.indexOf("self.primary.take()")).toBeLessThan(
+      advance.indexOf("self.queued_read.take()"),
+    );
+    for (const file of [
+      "clipboard_copy/worker.rs",
+      "clipboard_paste.rs",
+      "app.rs",
+      "app/clipboard.rs",
+      "app/right_click_paste.rs",
+      "bottom_pane/composer.rs",
+      "bottom_pane/chat_composer/mouse.rs",
+      "chatwidget/input.rs",
+      "runtime.rs",
+    ]) {
+      const text = source(file);
+      expect(text).not.toContain("ClipboardTextSource");
+      expect(text).not.toContain("request_read");
+      expect(text).not.toContain("cancel_read");
+      expect(text).not.toContain("take_pending_clipboard_paste");
+    }
+  });
+  it("publishes mouse PRIMARY silently with scoped latest-only work at idle draws", () => {
+    const source = (file) =>
+      readFileSync(`lime-rs/crates/tui/src/${file}`, "utf8");
+    const worker = source("clipboard_copy/worker.rs");
+    const input = source("transcript_view/input.rs");
+    const selection = source("transcript_view/clipboard.rs");
+    const app = source("app/clipboard.rs");
+    expect(worker).toContain("owner: Option<Weak<()>>");
+    expect(worker).toContain("primary: Option<(String, Weak<()>)>");
+    expect(worker).toContain("fn select(");
+    expect(worker).toContain("fn advance(");
+    expect(worker).not.toContain("request_copy_with_primary");
+    expect(input).toContain("TranscriptSelectionAction::PublishPrimary");
+    expect(source("transcript_view/selection.rs")).toContain(
+      "primary_scope: Option<Arc<()>>",
+    );
+    expect(selection).toContain("selection.primary_scope = Some(scope)");
+    expect(selection).toContain("selection.primary_scope = None");
+    expect(app).toMatch(
+      /\.copy\(text, context\.format\(\), tui\.frame_requester\(\)\)/u,
+    );
+    expect(app).not.toContain("request_copy_with_primary");
+    expect(app.indexOf("cancel_primary()")).toBeLessThan(
+      app.indexOf("tui.clipboard.advance("),
+    );
+    for (const owner of [
+      "app/interaction.rs",
+      "runtime.rs",
+      "pager_overlay.rs",
+      "resume_picker.rs",
+      "resume_picker/host.rs",
+    ]) {
+      expect(source(owner)).toContain("PublishPrimarySelection");
+    }
+    expect(source("resume_picker/host.rs")).toContain(
+      "terminal.clipboard.advance(frame_requester.clone())",
+    );
+  });
+  it("retains native clipboard leases in the session worker and sends only status to UI", () => {
+    const source = (file) =>
+      readFileSync(`lime-rs/crates/tui/src/${file}`, "utf8");
+    const worker = source("clipboard_copy/worker.rs");
+    expect(worker).toContain("type CopyResult = Result<CopyStatus, String>");
+    const native = worker.slice(worker.indexOf(".spawn(move ||"));
+    expect(native).toContain("let mut lease: Option<ClipboardLease>");
+    expect(native).toContain("let mut primary_lease: Option<ClipboardLease>");
+    expect(native).toContain("outcome.store(&mut primary_lease)");
+    expect(native).toContain("outcome.store(&mut lease)");
+    expect(native.indexOf("drop((lease, primary_lease))")).toBeLessThan(
+      native.indexOf("drop(response_tx)"),
+    );
+    for (const owner of [
+      "app/clipboard.rs",
+      "chatwidget.rs",
+      "chatwidget/transcript.rs",
+      "resume_picker/host.rs",
+    ]) {
+      expect(source(owner)).not.toContain("ClipboardLease");
+      expect(source(owner)).not.toContain("clipboard_lease");
+      expect(source(owner)).not.toContain("outcome.store(");
+    }
+    expect(worker).not.toContain("struct CopyCompletion");
+  });
+  it("shares fullscreen ownership across input, rendering, cursor and completion", () => {
+    const interaction = readFileSync(
+      "lime-rs/crates/tui/src/app/interaction.rs",
+      "utf8",
+    );
+    const view = readFileSync("lime-rs/crates/tui/src/view.rs", "utf8");
+    const clipboard = readFileSync(
+      "lime-rs/crates/tui/src/app/clipboard.rs",
+      "utf8",
+    );
+    expect(interaction).toContain("fn fullscreen_surface(");
+    expect(view).toContain("let fullscreen = app.fullscreen_surface()");
+    expect(view).toContain("if app.fullscreen_surface().is_some()");
+    for (const surface of ["Pager", "ResumePicker", "AgentsOverview"]) {
+      expect(interaction).toMatch(
+        new RegExp(
+          `self\\.fullscreen_surface\\(\\)\\s*==\\s*Some\\(FullscreenSurface::${surface}\\)`,
+          "u",
+        ),
+      );
+      expect(view).toContain(
+        `fullscreen == Some(FullscreenSurface::${surface})`,
+      );
+    }
+    for (const surface of ["Pager", "ResumePicker"]) {
+      expect(clipboard).toMatch(
+        new RegExp(
+          `self\\.fullscreen_surface\\(\\)\\s*==\\s*Some\\(FullscreenSurface::${surface}\\)`,
+          "u",
+        ),
+      );
+    }
+    expect(clipboard).not.toContain(
+      "let current = self.chat_widget.resume_picker.is_none()",
+    );
+  });
+  it("keeps clipboard reads and writes on one session worker", () => {
+    const tui = readFileSync("lime-rs/crates/tui/src/tui.rs", "utf8");
+    const worker = readFileSync(
+      "lime-rs/crates/tui/src/clipboard_copy/worker.rs",
+      "utf8",
+    );
+    const app = readFileSync("lime-rs/crates/tui/src/app/clipboard.rs", "utf8");
+    const widget = readFileSync(
+      "lime-rs/crates/tui/src/chatwidget/clipboard.rs",
+      "utf8",
+    );
+    const picker = readFileSync(
+      "lime-rs/crates/tui/src/resume_picker/host.rs",
+      "utf8",
+    );
+    expect(tui).toContain(
+      "clipboard: crate::clipboard_copy::worker::ClipboardWorker",
+    );
+    expect(tui).not.toMatch(/\bclipboard_copy\s*:\s*crate/u);
+    expect(tui).not.toContain("clipboard_paste::worker");
+    expect(existsSync("lime-rs/crates/tui/src/clipboard_paste/worker.rs")).toBe(
+      false,
+    );
+    expect(worker).toContain("fn is_busy(");
+    expect(worker).toContain("fn read_text(");
+    expect(worker).not.toContain("fn cancel_read(");
+    expect(worker).toContain("enum Operation");
+    expect(worker).toContain("enum Completion");
+    expect(app).toContain("Completion::Read(result)");
+    expect(app).toContain("Completion::Copy(completion)");
+    expect(app).toContain("clipboard.is_busy()");
+    expect(picker).toContain("terminal.clipboard.poll()");
+    expect(picker).not.toContain(".clipboard_copy");
+    expect(widget).toContain("IMAGE_PASTE_REPEAT_WINDOW");
+    expect(widget).toContain("Duration::from_millis(250)");
+    expect(widget).toContain("note_image_paste_finished");
+  });
+  it("shares copy setup abandonment and sends terminal output only on UI poll", () => {
+    const source = (file) =>
+      readFileSync(path.resolve("lime-rs/crates/tui/src", file), "utf8");
+    const worker = source("clipboard_copy/worker.rs");
+    const backend = source("clipboard_copy.rs");
+    expect(worker).toContain("struct CopySetup");
+    expect(worker).toContain("phase: Mutex<Setup>");
+    expect(worker).toContain("enum Setup");
+    expect(worker).toContain("Delivering");
+    expect(worker).toContain("Abandoned");
+    expect(worker).toContain("pending.operation.timed_out(now)");
+    expect(worker).toContain("self.poll_with(now, osc52_copy)");
+    expect(worker).toContain("terminal_text: Option<String>");
+    const thread = worker.slice(worker.indexOf("    fn start("));
+    expect(thread).not.toContain("osc52_copy");
+    expect(thread).toContain("primary_copy(&text, &setup)");
+    expect(thread).toContain("copy(&text, format, &setup)");
+    expect(worker).toMatch(
+      /\|text, setup\|\s*super::primary::copy\(text,\s*\|\|\s*setup\.begin_delivery\(\)\)/u,
+    );
+    const initialization = worker.slice(
+      worker.indexOf("fn ensure_started("),
+      worker.indexOf("fn start("),
+    );
+    expect(initialization).toContain("copy_to_clipboard(");
+    expect(initialization).toContain("|| setup.begin_delivery()");
+    const delivery = backend.slice(
+      backend.indexOf("fn copy_to_clipboard("),
+      backend.indexOf("fn copy_to_clipboard_with("),
+    );
+    expect(delivery.indexOf("begin_delivery()?;")).toBeGreaterThan(0);
+    expect(delivery.indexOf("begin_delivery()?;")).toBeLessThan(
+      delivery.indexOf("    copy_to_clipboard_with("),
+    );
+    expect(backend).not.toMatch(/fn arboard_copy\(text:/u);
+    expect(worker).not.toContain("enum OperationKind");
+  });
+  it("keeps only the consumed transcript viewport owner", () => {
+    const transcript = readFileSync(
+      "lime-rs/crates/tui/src/transcript_reflow.rs",
+      "utf8",
+    );
+    for (const retired of ["TranscriptReflowState", "TranscriptWidthChange"]) {
+      expect(transcript).not.toContain(retired);
+      expect(
+        inventory.trees["lime-rs/crates/tui/src"].symbols.map(
+          ({ name }) => name,
+        ),
+      ).not.toContain(retired);
+    }
+    expect(transcript).toContain("struct TranscriptViewport");
+    const widget = readFileSync("lime-rs/crates/tui/src/chatwidget.rs", "utf8");
+    expect(widget).not.toContain(
+      "crate::transcript_reflow::TranscriptViewport",
+    );
+    expect(
+      readFileSync("lime-rs/crates/tui/src/transcript_view.rs", "utf8"),
+    ).toContain("viewport: crate::transcript_reflow::TranscriptViewport");
+  });
+
   it("keeps Agent Center interaction on one view rather than fake shared state", () => {
     const source = (file) =>
       readFileSync(
@@ -314,6 +897,8 @@ describe("Codex TUI structure inventory", () => {
         "suite/focus_palette.rs",
         "suite/reconnect.rs",
         "suite/resize_reflow.rs",
+        "suite/tmux_resize.rs",
+        "suite/external_editor_tests.rs",
       ]),
     );
     expect(inventory.comparisons.testFilesMissingInLime).toEqual(
@@ -507,7 +1092,7 @@ describe("Codex TUI structure inventory", () => {
       "yank",
       "beginning_of_previous_word",
       "end_of_next_word",
-      "handle_disconnected_key",
+      "handle_restricted_key",
       "cursor_pos_with_state",
       "desired_height",
       "render_ref_masked",
@@ -519,7 +1104,8 @@ describe("Codex TUI structure inventory", () => {
       "handle_mouse",
       "mouse_selection_range",
       "copy_selection_request",
-      "clear_mouse_selection",
+      "defer_composer_copy",
+      "finish_composer_copy",
       "ApprovalOverlay",
       "ActionRequiredItem",
       "Tui",
@@ -541,8 +1127,7 @@ describe("Codex TUI structure inventory", () => {
       "thread_to_transcript_entries",
       "selection_option_row",
       "selection_option_row_with_dim",
-      "TranscriptReflowState",
-      "TranscriptWidthChange",
+      "TranscriptViewport",
       "TranscriptAnchorRange",
       "TranscriptBookmark",
       "TranscriptFrame",
@@ -752,7 +1337,7 @@ describe("Codex TUI structure inventory", () => {
         "table_wraps_file_paths_before_collapsing_narrative_columns_snapshot",
         "web_link_labels_have_a_visible_underline_snapshot",
       ],
-      "lime-rs/crates/tui/src/terminal_hyperlinks.rs": [
+      "lime-rs/crates/tui/src/terminal_hyperlinks/tests.rs": [
         "buffer_hyperlinks_follow_scrolled_wrapped_rows",
         "forced_width_hyperlinks_render_wide_and_halfwidth_cells_snapshot",
       ],
@@ -906,7 +1491,9 @@ describe("Codex TUI structure inventory", () => {
     expect(app).not.toContain("fn handle_tui_event");
     expect(interaction).toContain("fn handle_tui_event");
     expect(inputFlow).toContain("fn handle_key_event");
-    expect(runtime).toContain("app.handle_tui_event_runtime(event, connected)");
+    expect(runtime).toContain(
+      "app.handle_tui_event_runtime(event, connected, input_at)",
+    );
     expect(runtime).not.toContain("handle_terminal_event");
     expect(runtime).not.toContain("handle_disconnected_event");
   });
@@ -956,7 +1543,12 @@ describe("Codex TUI structure inventory", () => {
     expect(selection).toContain("pub(crate) struct TranscriptSelection");
     expect(selection).toContain("snapshot: Arc<Vec<HyperlinkLine>>");
     expect(selection).toContain("fn selected_text");
-    expect(selection).toContain("fn word_wrap_cells");
+    expect(
+      readFileSync(
+        path.resolve("lime-rs/crates/tui/src/transcript_view/text.rs"),
+        "utf8",
+      ),
+    ).toContain("fn word_wrap_cells");
     expect(selection).toContain("moved_vertically: bool");
     expect(selection).toContain("pointer_origin_row: u16");
     expect(selection).toContain("fn edge_scroll_direction");
@@ -976,7 +1568,58 @@ describe("Codex TUI structure inventory", () => {
     expect(historyCell).toContain("fn compact_hyperlink_lines");
     expect(historyCell).toContain("fn activity_ids");
     expect(historyCell).toContain("fn expanded_hyperlink_lines");
-    expect(runtime).toContain("fn copy_transcript_selection_with");
+    expect(runtime).toContain("app.copy_transcript_selection(");
+    const clipboard = readFileSync(
+      "lime-rs/crates/tui/src/app/clipboard.rs",
+      "utf8",
+    );
+    expect(clipboard).toContain("fn finish_clipboard(");
+    expect(clipboard).toContain("fn copy_transcript_selection(");
+    expect(runtime).toContain("app.finish_clipboard(&mut terminal)");
+    expect(clipboard).toContain("pending.thread_id == self.thread_id");
+    expect(clipboard).toContain("self.defer_copy(id, context)");
+    expect(clipboard).toContain(".finish_composer_copy(id, &status, current)");
+    expect(clipboard).not.toContain("clear_mouse_selection");
+    const selectionClipboard = readFileSync(
+      "lime-rs/crates/tui/src/transcript_view/clipboard.rs",
+      "utf8",
+    );
+    expect(selection).toContain(
+      "pending_copy: Option<super::clipboard::PendingCopy>",
+    );
+    expect(selectionClipboard).toMatch(
+      /selection\s*\.pending_copy\s*\.take\(\)/u,
+    );
+    expect(selectionClipboard).toContain("(pending.start, pending.end)");
+    expect(selectionClipboard).toContain("pending.position == position");
+    expect(pager).toContain("fn defer_transcript_copy(");
+    expect(pager).toContain("fn finish_transcript_copy(");
+    expect(pager).not.toContain("fn apply_transcript_copy_result(");
+    const pickerHost = readFileSync(
+      "lime-rs/crates/tui/src/resume_picker/host.rs",
+      "utf8",
+    );
+    expect(pickerHost).toContain(
+      "pager.overlay.defer_transcript_copy(id, characters)",
+    );
+    expect(pickerHost).toContain("pager.overlay.finish_transcript_copy(");
+    expect(pickerHost).not.toContain("apply_transcript_copy_result");
+    for (const retired of [
+      "fn copy_last_response_with",
+      "fn copy_composer_selection_with",
+      "fn copy_transcript_selection_with",
+    ]) {
+      expect(clipboard).not.toContain(retired);
+    }
+    for (const retired of [
+      "fn copy_last_response_with",
+      "fn copy_composer_selection_with",
+      "fn copy_transcript_selection_with",
+      "fn apply_copy_completion",
+      "struct PendingCopy",
+    ]) {
+      expect(runtime).not.toContain(retired);
+    }
     expect(runtime).toContain("frame_requester.schedule_frame_in(delay)");
     expect(selection).not.toContain("ThreadStore");
     expect(selection).not.toContain("AppServerSession");

@@ -59,9 +59,7 @@ fn held_typing_is_drawn_on_idle_without_accepting_the_question() {
         request.next_frame_delay(now),
         Some(crate::tui::TARGET_FRAME_INTERVAL)
     );
-    assert!(request
-        .pre_draw_tick(now + Duration::from_secs(1))
-        .is_none());
+    assert!(request.flush_paste_burst_if_due(now + Duration::from_secs(1)));
     assert_eq!(request.composer.text(), "x");
     assert!(!request.answers[0].answer_committed);
     assert_eq!(request.next_frame_delay(now + Duration::from_secs(1)), None);
@@ -84,7 +82,7 @@ fn rapid_multiline_unicode_notes_keep_enter_tab_and_expand_only_on_submission() 
     type_burst(&mut request, &text, now);
     assert!(request.pending_submission_draft.is_none());
     assert!(!request.answers[0].answer_committed);
-    request.pre_draw_tick(now + Duration::from_secs(1));
+    request.flush_paste_burst_if_due(now + Duration::from_secs(1));
     assert_eq!(request.composer.text(), "[Pasted Content 1020 chars]");
     assert!(!request.composer.completion_popup_active());
     assert_eq!(request.composer.current_text_with_pending(), text);
@@ -194,7 +192,7 @@ fn release_enter_neither_snoozes_auto_resolution_nor_consumes_a_burst() {
     assert!(!request.auto_resolution_snoozed);
     type_burst(&mut request, "ab\ncd", now);
     assert!(request.handle_key_event_at(release, now).is_none());
-    request.pre_draw_tick(now + Duration::from_secs(1));
+    request.flush_paste_burst_if_due(now + Duration::from_secs(1));
     assert_eq!(request.composer.text(), "ab\ncd");
     assert_eq!(
         response(&mut request, now + Duration::from_secs(1)).answers["q0"].answers,

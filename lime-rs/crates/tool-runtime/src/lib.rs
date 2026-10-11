@@ -26,6 +26,7 @@ pub mod memory_store;
 pub mod native_dispatch;
 pub mod native_dispatch_execution;
 pub mod native_overlay;
+pub mod parse_command;
 pub mod path_guard;
 pub mod path_uri;
 pub mod request_permissions;

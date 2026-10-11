@@ -76,6 +76,7 @@ impl ChatWidget {
             Some(agent_protocol::ModeKind::Plan)
         ) && !self.bottom_pane.is_active()
             && self.model_picker.is_none()
+            && self.copy_picker.is_none()
             && self.agent_picker.is_none()
             && self.agents_overview.is_none()
             && self.resume_picker.is_none()

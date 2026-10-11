@@ -12,6 +12,25 @@ const sourcePath = (file) =>
   path.resolve(process.cwd(), "lime-rs/crates/tui/src", file);
 
 describe("Codex structured mention owners", () => {
+  it("keeps status copying in the shared presentation and clipboard owners", () => {
+    const picker = source("chatwidget/copy_picker.rs");
+    expect(picker).toContain("ListSelectionView");
+    expect(picker).toContain("self.keymap.dispatch");
+    expect(picker).not.toMatch(
+      /arboard::|ClipboardWorker|AppServerSession|std::fs/,
+    );
+    expect(picker).not.toContain('"thread/');
+    expect(picker).not.toContain('"turn/');
+    expect(source("chatwidget/transcript.rs")).toContain(
+      "Arc::clone(&snapshot)",
+    );
+    expect(source("app/clipboard.rs")).toContain(
+      "PendingCopyContext::Selection { label, format }",
+    );
+    expect(source("runtime.rs")).toContain(
+      "app.copy_selection(&mut terminal, text, label, format)",
+    );
+  });
   it("keeps effort effects in the composer with one frame requester and explicit restore baselines", () => {
     const effort = source("bottom_pane/chat_composer/effort.rs");
     expect(effort).toContain("fn set_active_reasoning_effort_baseline");
@@ -1174,8 +1193,8 @@ describe("ChatWidget live composer ownership", () => {
     ]) {
       expect(interaction, old).not.toContain(old);
     }
-    expect(interaction).toContain(
-      "self.chat_widget.bottom_pane.handle_event(event.clone())",
+    expect(interaction).toMatch(
+      /self\s*\.chat_widget\s*\.bottom_pane\s*\.handle_event_at\(event\.clone\(\), input_at\)/u,
     );
     expect(source("bottom_pane/input.rs")).toContain(
       "self.handle_interaction_event_at(event, now)",
@@ -1222,20 +1241,12 @@ describe("ChatWidget live composer ownership", () => {
     );
   });
 
-  it("keeps transcript presentation state inside the ChatWidget owner", () => {
+  it("keeps main reading in one App-owned TranscriptView and dialog presentation in ChatWidget", () => {
     const widget = source("chatwidget.rs");
     const app = source("app.rs");
     for (const field of [
       "pager_overlay: Option<PagerOverlay>",
       "transcript_presentation: TranscriptPresentation",
-      "transcript_scroll: usize",
-      "transcript_viewport:",
-      "transcript_follow_control:",
-      "transcript_composer_gap:",
-      "transcript_footer:",
-      "transcript_prompt_header:",
-      "transcript_search:",
-      "transcript_selection:",
     ]) {
       expect(widget, field).toContain(field);
     }
@@ -1257,8 +1268,31 @@ describe("ChatWidget live composer ownership", () => {
     ]) {
       expect(appStruct, field).not.toContain(field);
     }
+    for (const field of [
+      "scroll",
+      "viewport",
+      "follow_control",
+      "composer_gap",
+      "footer",
+      "prompt_header",
+      "search",
+      "selection",
+    ]) {
+      expect(widget).not.toContain(`transcript_${field}:`);
+      expect(source("transcript_view.rs")).toContain(`pub(crate) ${field}:`);
+    }
+    expect(appStruct).toContain(
+      "transcript_view: crate::transcript_view::TranscriptView",
+    );
+    expect(source("app/owned_transcript.rs")).toContain(
+      "fn render_owned_transcript(",
+    );
+    expect(source("view.rs")).toContain(
+      "app.render_owned_transcript(frame, chunks.transcript)",
+    );
+    expect(source("view.rs")).not.toContain("fn render_transcript(");
     const presentation = source("app/transcript_presentation.rs");
-    expect(presentation).toContain("self.chat_widget.open_transcript_pager()");
+    expect(presentation).toContain("self.transcript_view.search.close()");
     expect(presentation).toContain("self.chat_widget.dismiss_pager_overlay()");
     expect(presentation).toContain(
       "self.chat_widget.reset_transcript_presentation()",
@@ -1267,30 +1301,38 @@ describe("ChatWidget live composer ownership", () => {
     for (const method of [
       "fn toggle_history_render_mode(",
       "fn is_raw_output_mode(",
-      "fn open_transcript_pager(",
       "fn dismiss_pager_overlay(",
       "fn reset_transcript_presentation(",
       "fn reset_thread_surface(",
       "fn reset_for_hydrated_thread(",
-      "fn scroll_up(",
-      "fn scroll_down(",
-      "fn scroll_top(",
-      "fn scroll_bottom(",
-      "fn finish_transcript_selection(",
       "fn open_status_pager(",
       "fn open_mcp_inventory(",
     ]) {
       expect(transcript, method).toContain(method);
     }
+    for (const method of [
+      "fn open_transcript_pager(",
+      "fn scroll_up(",
+      "fn scroll_down(",
+      "fn scroll_top(",
+      "fn scroll_bottom(",
+      "fn finish_transcript_selection(",
+    ]) {
+      expect(transcript).not.toContain(method);
+    }
     expect(transcript).toContain("self.transcript_presentation");
     expect(transcript).toContain("self.pager_overlay");
     expect(source("app.rs")).toContain(
-      "self.chat_widget.finish_transcript_selection(follow)",
+      "self.transcript_view.finish_selection(follow)",
     );
-    expect(source("app.rs")).toContain("self.chat_widget.scroll_up(amount)");
-    expect(source("app.rs")).toContain("self.chat_widget.scroll_down(amount)");
-    expect(source("app.rs")).toContain("self.chat_widget.scroll_top()");
-    expect(source("app.rs")).toContain("self.chat_widget.scroll_bottom()");
+    expect(source("app.rs")).toContain(
+      "self.transcript_view.scroll_up(amount)",
+    );
+    expect(source("app.rs")).toContain(
+      "self.transcript_view.scroll_down(amount)",
+    );
+    expect(source("app.rs")).toContain("self.transcript_view.scroll_top()");
+    expect(source("app.rs")).toContain("self.transcript_view.scroll_bottom()");
     expect(source("app.rs")).toContain(
       "self.chat_widget.open_status_pager(StatusFacts",
     );
@@ -1320,8 +1362,8 @@ describe("ChatWidget live composer ownership", () => {
     expect(source("app/agents_overview_threads.rs")).toContain(
       "self.chat_widget.agents_overview.as_mut()",
     );
-    expect(source("view.rs")).toContain(
-      "app.chat_widget.agents_overview.as_ref()",
+    expect(source("view.rs")).toMatch(
+      /app\s*\.chat_widget\s*\.agents_overview\s*\.as_ref\(\)/u,
     );
   });
 
@@ -1352,7 +1394,7 @@ describe("ChatWidget live composer ownership", () => {
       /\b(?:app|self)\s*\.\s*(?:model_picker|agent_picker|resume_picker|export_picker)\b/u,
     );
     expect(source("view.rs")).toContain("app.chat_widget.model_picker");
-    expect(source("view.rs")).toContain("app.chat_widget.resume_picker");
+    expect(source("view.rs")).toMatch(/app\s*\.chat_widget\s*\.resume_picker/u);
     expect(source("app/interaction.rs")).toContain(
       "self.chat_widget.model_picker",
     );
@@ -1603,12 +1645,10 @@ describe("ChatWidget live composer ownership", () => {
     expect(source("runtime.rs")).toContain("app.chat_widget.runtime_keymap");
   });
 
-  it("keeps clipboard leases, mouse-paste guards and queued submissions in ChatWidget", () => {
+  it("keeps mouse-paste guards and queued submissions in ChatWidget", () => {
     const widget = source("chatwidget.rs");
     const app = source("app.rs");
     for (const field of [
-      "clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>",
-      "primary_clipboard_lease: Option<crate::clipboard_copy::ClipboardLease>",
       "right_click_paste: RightClickPaste",
       "pending_clipboard_paste: Option<PendingPaste>",
       "queued_submissions: Vec<QueuedSubmission>",
@@ -1628,6 +1668,8 @@ describe("ChatWidget live composer ownership", () => {
     ]) {
       expect(appStruct, field).not.toContain(field);
     }
+    expect(widget).not.toContain("clipboard_lease:");
+    expect(widget).not.toContain("primary_clipboard_lease:");
     const widgetInput = source("chatwidget/input.rs");
     for (const method of [
       "fn queued_submissions(",
@@ -1656,14 +1698,16 @@ describe("ChatWidget live composer ownership", () => {
       "fn set_pending_clipboard_paste(",
       "fn pending_clipboard_paste(",
       "fn pending_clipboard_source(",
-      "fn take_pending_clipboard_paste(",
       "fn clear_pending_clipboard_paste(",
     ]) {
       expect(pasteWidgetInput, method).toContain(method);
     }
     expect(paste).toContain("self.chat_widget.set_pending_clipboard_paste(");
     expect(paste).toContain("self.chat_widget.pending_clipboard_paste()");
-    expect(paste).toContain("take_pending_clipboard_paste()");
+    expect(paste).not.toContain("take_pending_clipboard_paste()");
+    expect(pasteWidgetInput).not.toContain("fn take_pending_clipboard_paste(");
+    expect(paste).toContain("_scope: Arc<()>");
+    expect(paste).toContain("fn validate_clipboard_paste(");
     expect(paste).toContain("self.chat_widget.clear_pending_clipboard_paste()");
     expect(paste).not.toContain("self.chat_widget.pending_clipboard_paste =");
   });
@@ -1769,36 +1813,44 @@ describe("ChatWidget live composer ownership", () => {
     );
   });
 
-  it("keeps modal transcript interaction and approval detail pager construction in ChatWidget", () => {
+  it("routes main interaction to TranscriptView while ChatWidget owns dialog interaction", () => {
     const interaction = source("app/interaction.rs");
     const widgetInteraction = source("chatwidget/interaction.rs");
     for (const method of [
-      "fn end_interaction_drag(",
       "fn open_approval_details_pager(",
-      "fn route_modal_transcript_wheel(",
-      "fn handle_main_transcript_selection(",
-      "fn finish_main_transcript_selection_if_active(",
-      "fn scroll_main_selection(",
-      "fn reveal_main_selection_row(",
       "fn handle_pager_event(",
-      "fn handle_transcript_search_event(",
-      "fn handle_transcript_follow_mouse(",
       "fn reset_global_key_chord(",
       "fn dispatch_global_key(",
       "fn dismiss_shortcut_overlay(",
-      "fn begin_transcript_search(",
     ]) {
       expect(widgetInteraction, method).toContain(method);
     }
-    expect(interaction).toContain("self.chat_widget.end_interaction_drag()");
+    for (const method of [
+      "begin_search",
+      "route_modal_wheel",
+      "handle_selection_event",
+      "finish_selection_if_active",
+      "scroll_selection",
+      "reveal_selection_row",
+      "handle_search_event",
+      "handle_follow_mouse",
+    ]) {
+      expect(source("transcript_view/input.rs")).toContain(`fn ${method}(`);
+    }
+    expect(widgetInteraction).not.toContain("transcript_selection");
+    expect(widgetInteraction).not.toContain("transcript_search");
+    expect(source("app/owned_transcript.rs")).toContain(
+      "fn end_interaction_drag(",
+    );
+    expect(interaction).toContain("self.end_interaction_drag()");
     expect(interaction).toContain(
       "self.chat_widget.open_approval_details_pager(*key)",
     );
     expect(interaction).toContain(
-      "self.chat_widget.route_modal_transcript_wheel(&event)",
+      "self.transcript_view.route_modal_wheel(&event)",
     );
     expect(interaction).toContain(
-      "self.chat_widget.handle_main_transcript_selection(&event)",
+      "self.transcript_view.handle_selection_event(&event)",
     );
     expect(interaction).not.toContain("approval_details_for_key(");
     expect(interaction).not.toContain("transcript_selection.handle_event(");

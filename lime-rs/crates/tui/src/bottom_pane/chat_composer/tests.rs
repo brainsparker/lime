@@ -164,7 +164,7 @@ fn disconnected_submit_keys_clear_history_recall_state() {
     composer.handle_key_event(key(KeyCode::Up));
     assert_eq!(composer.text(), "older prompt");
 
-    composer.handle_disconnected_key(key(KeyCode::Enter));
+    composer.handle_restricted_key(key(KeyCode::Enter));
     composer.handle_key_event(key(KeyCode::Up));
 
     assert_eq!(composer.text(), "older prompt");

@@ -1,5 +1,6 @@
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
+use std::sync::Arc;
 
 use crossterm::event::{Event, KeyEventKind, MouseButton, MouseEventKind};
 use ratatui::layout::Rect;
@@ -12,15 +13,23 @@ use crate::clipboard_copy::CopyStatus;
 use crate::keymap::{KeyChordMatcher, KeymapMatch, PagerKeymapAction, TranscriptKeymap};
 use crate::line_truncation::truncate_line_with_ellipsis_if_overflow;
 use crate::locale::Locale;
-use crate::status::{StatusFacts, StatusSnapshot};
+use crate::status::StatusSnapshot;
 use crate::terminal_hyperlinks::{wrapped_line_starts, HyperlinkLine, HyperlinkParagraph};
 use crate::transcript_view::{
-    search_status, SearchAction, TranscriptBookmark, TranscriptContent, TranscriptDisclosure,
-    TranscriptFrame, TranscriptSearch, TranscriptSelection, TranscriptSelectionAction,
+    search_status, CopyPosition, SearchAction, TranscriptBookmark, TranscriptContent,
+    TranscriptDisclosure, TranscriptFrame, TranscriptSearch, TranscriptSelection,
+    TranscriptSelectionAction,
 };
 
 mod browsing;
+mod history;
 mod render;
+
+#[cfg(test)]
+mod copy_mode_tests;
+
+#[cfg(test)]
+mod history_tests;
 
 #[cfg(test)]
 mod disclosure_tests;
@@ -31,7 +40,12 @@ pub(crate) enum PagerAction {
     ScheduleFrame,
     ContinueTranscriptSelection,
     LoadOlderHistory,
-    CopyTranscriptSelection { text: String, follow: bool },
+    CopyTranscriptSelection {
+        text: String,
+        format: crate::clipboard_copy::CopyFormat,
+        follow: bool,
+    },
+    PublishPrimarySelection,
     OpenLink(String),
     Close,
 }
@@ -54,7 +68,7 @@ pub(crate) struct PagerOverlay {
     browsing: Option<browsing::BrowsingPresentation>,
     title: String,
     static_lines: Option<Vec<HyperlinkLine>>,
-    status_snapshot: Option<StatusSnapshot>,
+    status_snapshot: Option<Arc<StatusSnapshot>>,
     scroll: Cell<usize>,
     page_height: Cell<usize>,
     max_scroll: Cell<usize>,
@@ -67,15 +81,18 @@ pub(crate) struct PagerOverlay {
     pending_transcript_bookmark: RefCell<Option<TranscriptBookmark>>,
     search: TranscriptSearch,
     transcript_copy_feedback: Option<TranscriptCopyFeedback>,
+    pending_transcript_copy: Option<(u64, usize)>,
     disclosure: TranscriptDisclosure,
     transcript_selection: TranscriptSelection,
+    copy_mode_requested: Cell<bool>,
+    snapshot_content: RefCell<Option<TranscriptContent>>,
+    selection_history_mode: Cell<crate::app_event::OlderHistoryLoadMode>,
     keymap: TranscriptKeymap,
     key_chord_matcher: KeyChordMatcher,
 }
 
 impl PagerOverlay {
-    pub(crate) fn status(locale: Locale, facts: StatusFacts<'_>) -> Self {
-        let status_snapshot = StatusSnapshot::from_facts(facts);
+    pub(crate) fn status(locale: Locale, status_snapshot: Arc<StatusSnapshot>) -> Self {
         let lines = status_snapshot.raw_lines(locale);
         let mut overlay = Self::new(locale.status_title().to_string(), lines);
         overlay.status_snapshot = Some(status_snapshot);
@@ -98,8 +115,12 @@ impl PagerOverlay {
             pending_transcript_bookmark: RefCell::new(None),
             search: TranscriptSearch::default(),
             transcript_copy_feedback: None,
+            pending_transcript_copy: None,
             disclosure: TranscriptDisclosure::default(),
             transcript_selection: TranscriptSelection::default(),
+            copy_mode_requested: Cell::new(false),
+            snapshot_content: RefCell::new(None),
+            selection_history_mode: Cell::new(crate::app_event::OlderHistoryLoadMode::OnePage),
             keymap: TranscriptKeymap::default(),
             key_chord_matcher: KeyChordMatcher::default(),
         }
@@ -121,8 +142,12 @@ impl PagerOverlay {
             pending_transcript_bookmark: RefCell::new(None),
             search: TranscriptSearch::default(),
             transcript_copy_feedback: None,
+            pending_transcript_copy: None,
             disclosure: TranscriptDisclosure::default(),
             transcript_selection: TranscriptSelection::default(),
+            copy_mode_requested: Cell::new(false),
+            snapshot_content: RefCell::new(None),
+            selection_history_mode: Cell::new(crate::app_event::OlderHistoryLoadMode::OnePage),
             keymap: TranscriptKeymap::default(),
             key_chord_matcher: KeyChordMatcher::default(),
         }
@@ -136,6 +161,15 @@ impl PagerOverlay {
 
     pub(crate) fn is_transcript(&self) -> bool {
         self.static_lines.is_none()
+    }
+
+    pub(crate) fn begin_copy_mode(&self) {
+        self.transcript_selection.clear();
+        self.copy_mode_requested.set(true);
+    }
+
+    pub(crate) fn is_copy_mode(&self) -> bool {
+        self.copy_mode_requested.get() || self.transcript_selection.copy_target_kind().is_some()
     }
 
     pub(crate) fn set_older_history_available(&self, available: bool) {
@@ -170,6 +204,9 @@ impl PagerOverlay {
 
     pub(crate) fn search_needs_frame(&self) -> bool {
         self.search.needs_frame()
+            || self
+                .search
+                .history_request_pending(self.older_history_available.get())
     }
 
     pub(crate) fn take_search_history_request(&self) -> bool {
@@ -179,7 +216,7 @@ impl PagerOverlay {
 
     /// Keep the transcript at the actual beginning after Home loads all older pages.
     pub(crate) fn reset_transcript_anchor_at_top(&self) {
-        if !self.is_transcript() {
+        if !self.is_transcript() || self.transcript_selection.is_active() {
             return;
         }
         self.pinned_to_bottom.set(false);
@@ -207,6 +244,18 @@ impl PagerOverlay {
         self.transcript_selection.clear();
     }
 
+    pub(crate) fn publish_primary(
+        &self,
+        clipboard: &mut crate::clipboard_copy::worker::ClipboardWorker,
+        frames: crate::tui::FrameRequester,
+    ) {
+        self.transcript_selection.publish_primary(clipboard, frames);
+    }
+
+    pub(crate) fn cancel_primary(&self) {
+        self.transcript_selection.cancel_primary();
+    }
+
     /// Drop short-lived interaction while retaining the detailed reading position and disclosure.
     pub(crate) fn suspend_transcript_interaction(&mut self) {
         if !self.is_transcript() {
@@ -214,8 +263,11 @@ impl PagerOverlay {
         }
         self.close_search();
         self.transcript_selection.clear();
+        self.copy_mode_requested.set(false);
+        self.snapshot_content.replace(None);
         self.disclosure.clear_focus();
         self.transcript_copy_feedback = None;
+        self.pending_transcript_copy = None;
         self.history_load_state.set(HistoryLoadState::Idle);
     }
 
@@ -250,10 +302,42 @@ impl PagerOverlay {
         }
     }
 
-    /// Apply clipboard acknowledgement without treating a terminal request as delivery.
-    pub(crate) fn apply_transcript_copy_result(
+    pub(crate) fn defer_transcript_copy(&mut self, id: u64, characters: usize) {
+        self.pending_transcript_copy = Some((id, characters));
+        self.transcript_selection
+            .defer_copy(id, CopyPosition::Row(self.scroll.get()));
+    }
+
+    /// Feedback survives selection replacement within this view; only the original ticket clears it.
+    pub(crate) fn finish_transcript_copy(
         &mut self,
+        id: u64,
         follow: bool,
+        result: &Result<CopyStatus, String>,
+        current: bool,
+    ) -> Option<bool> {
+        let (pending_id, characters) = self.pending_transcript_copy?;
+        if pending_id != id || matches!(result, Ok(CopyStatus::Pending(_) | CopyStatus::Busy)) {
+            return None;
+        }
+        self.pending_transcript_copy = None;
+        let selection_current = self.transcript_selection.finish_copy(
+            id,
+            current,
+            CopyPosition::Row(self.scroll.get()),
+        );
+        self.show_transcript_copy_feedback(characters, result);
+        if !current {
+            return None;
+        }
+        if selection_current && matches!(result, Ok(CopyStatus::Confirmed)) {
+            self.confirm_transcript_copy(follow);
+        }
+        Some(selection_current)
+    }
+
+    pub(crate) fn show_transcript_copy_feedback(
+        &mut self,
         characters: usize,
         result: &Result<CopyStatus, String>,
     ) {
@@ -261,11 +345,9 @@ impl PagerOverlay {
             result: result.as_ref().copied().map_err(|_| ()),
             characters,
         });
-        if matches!(result, Ok(CopyStatus::Confirmed)) {
-            self.confirm_transcript_copy(follow);
-        }
     }
 
+    #[cfg(test)]
     pub(crate) fn has_transcript_selection(&self) -> bool {
         self.transcript_selection.snapshot_lines().is_some()
     }
@@ -290,13 +372,29 @@ impl PagerOverlay {
         }
         self.transcript_copy_feedback = None;
         if self.is_transcript() {
-            if !self.search.is_active() && self.disclosure.handle_event(event) {
+            if self.is_copy_mode()
+                && matches!(event, Event::Key(key) if key.kind == KeyEventKind::Press && key.code == crossterm::event::KeyCode::Esc && key.modifiers.is_empty())
+            {
+                return PagerAction::Close;
+            }
+            if !self.is_copy_mode()
+                && !self.search.is_active()
+                && self.disclosure.handle_event(event)
+            {
                 self.transcript_selection.clear();
                 self.pinned_to_bottom.set(false);
                 return PagerAction::Consumed;
             }
             if let Some(action) = self.transcript_selection.handle_event(event) {
                 self.disclosure.clear_focus();
+                if let Some(mode) = self.transcript_selection.take_copy_history_request() {
+                    if self.older_history_available.get()
+                        && self.history_load_state.get() != HistoryLoadState::Loading
+                    {
+                        self.selection_history_mode.set(mode);
+                        return PagerAction::LoadOlderHistory;
+                    }
+                }
                 return match action {
                     TranscriptSelectionAction::Consumed
                         if matches!(
@@ -308,14 +406,32 @@ impl PagerOverlay {
                         PagerAction::ContinueTranscriptSelection
                     }
                     TranscriptSelectionAction::Consumed => PagerAction::Consumed,
-                    TranscriptSelectionAction::Copy { text, follow } => {
-                        PagerAction::CopyTranscriptSelection { text, follow }
+                    TranscriptSelectionAction::PublishPrimary => {
+                        PagerAction::PublishPrimarySelection
                     }
+                    TranscriptSelectionAction::Copy {
+                        text,
+                        format,
+                        follow,
+                    } => PagerAction::CopyTranscriptSelection {
+                        text,
+                        format,
+                        follow,
+                    },
                     TranscriptSelectionAction::OpenLink(destination) => {
                         PagerAction::OpenLink(destination)
                     }
                     TranscriptSelectionAction::Scroll { rows } => {
                         self.scroll_transcript_rows(rows);
+                        if rows < 0
+                            && self.scroll.get() == 0
+                            && self.older_history_available.get()
+                            && self.history_load_state.get() != HistoryLoadState::Loading
+                        {
+                            self.selection_history_mode
+                                .set(crate::app_event::OlderHistoryLoadMode::OnePage);
+                            return PagerAction::LoadOlderHistory;
+                        }
                         PagerAction::Consumed
                     }
                     TranscriptSelectionAction::RevealRow(row) => {
@@ -427,6 +543,8 @@ impl PagerOverlay {
                 .set(self.scroll.get() == self.max_scroll.get());
         }
         if load_older && self.scroll.get() == 0 {
+            self.selection_history_mode
+                .set(crate::app_event::OlderHistoryLoadMode::All);
             PagerAction::LoadOlderHistory
         } else {
             PagerAction::Consumed

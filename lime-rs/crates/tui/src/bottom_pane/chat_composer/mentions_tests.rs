@@ -41,8 +41,8 @@ fn selected_skill_has_stable_identity_and_atomic_delete_without_binding_literal(
     );
     composer.restore_draft(snapshot);
     assert_eq!(composer.textarea().text_element_snapshots(), elements);
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
     assert_eq!(composer.text(), "literal $review 界 ");
     assert!(composer.snapshot_mention_bindings().is_empty());
     assert!(composer.textarea().text_elements().is_empty());
@@ -102,29 +102,29 @@ fn vim_delete_undo_redo_and_replace_backspace_preserve_mention_identity() {
     let mut composer = ChatComposer::default();
     composer.set_vim_enabled(true);
     select_review(&mut composer, "/one/SKILL.md");
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
     composer.draft.textarea.set_cursor(0);
     let snapshot = composer.textarea().text_element_snapshots();
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE));
     assert!(composer.snapshot_mention_bindings().is_empty());
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
     assert_eq!(
         composer.snapshot_mention_bindings(),
         vec![binding("/one/SKILL.md")]
     );
     assert_eq!(composer.textarea().text_element_snapshots(), snapshot);
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
     assert!(composer.snapshot_mention_bindings().is_empty());
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
     composer.draft.textarea.set_cursor(0);
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::NONE));
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('R'), KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Char('z'), KeyModifiers::NONE));
     assert_eq!(
         composer.snapshot_mention_bindings(),
         vec![binding("/one/SKILL.md")]
     );
     assert_eq!(composer.textarea().text_element_snapshots(), snapshot);
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
     assert_eq!(
         composer.snapshot_mention_bindings(),
         vec![binding("/one/SKILL.md")]

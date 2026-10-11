@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::app_event_sender::AppEventSender;
-use crate::clipboard_paste::ClipboardTextSource;
+use crate::clipboard_copy::worker::PasteSource;
 use crate::tui::TuiEvent;
 use app_server_protocol::protocol::v2::{FuzzyFileSearchResult, SkillMetadata};
 
@@ -300,20 +300,29 @@ impl BottomPane {
         self.composer.key_chord_pending()
     }
 
-    pub(crate) fn copy_selection_request(&mut self, event: &TuiEvent) -> Option<(String, bool)> {
+    pub(crate) fn copy_selection_request(&mut self, event: &TuiEvent) -> Option<String> {
         self.composer.copy_selection_request(event)
     }
 
-    pub(crate) fn clipboard_paste_request(&self, event: &TuiEvent) -> Option<ClipboardTextSource> {
+    pub(crate) fn defer_composer_copy(&mut self, id: u64) {
+        self.composer.defer_copy(id);
+    }
+
+    pub(crate) fn finish_composer_copy(
+        &mut self,
+        id: u64,
+        result: &Result<crate::clipboard_copy::CopyStatus, String>,
+        current: bool,
+    ) -> Option<usize> {
+        self.composer.finish_copy(id, result, current)
+    }
+
+    pub(crate) fn clipboard_paste_request(&self, event: &TuiEvent) -> Option<PasteSource> {
         self.composer.clipboard_paste_request(event)
     }
 
     pub(crate) fn clipboard_paste_target(&self) -> Option<(String, usize)> {
         self.composer.clipboard_paste_target()
-    }
-
-    pub(crate) fn clear_mouse_selection(&mut self) {
-        self.composer.clear_mouse_selection()
     }
 
     pub(crate) fn dismiss_shortcut_overlay(&mut self) -> bool {

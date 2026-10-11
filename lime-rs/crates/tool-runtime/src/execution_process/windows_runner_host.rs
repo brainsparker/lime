@@ -350,7 +350,7 @@ fn wait_for_complete_frame(pipe: &File, process: HANDLE, timeout: Duration) -> i
                 return Err(io::Error::new(
                     io::ErrorKind::BrokenPipe,
                     "Windows sandbox runner exited before ready",
-                ))
+                ));
             }
             WAIT_TIMEOUT => {}
             _ => return Err(last_os_error("WaitForSingleObject(runner ready)")),

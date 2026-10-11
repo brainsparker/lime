@@ -46,13 +46,13 @@ pub(super) fn run() -> io::Result<()> {
                     io::ErrorKind::InvalidData,
                     "runner expected a spawn request",
                 ),
-            )
+            );
         }
         Ok(None) => {
             return Err(io::Error::new(
                 io::ErrorKind::UnexpectedEof,
                 "runner pipe closed before spawn request",
-            ))
+            ));
         }
         Err(error) => return send_start_error(&pipe_write, error),
     };

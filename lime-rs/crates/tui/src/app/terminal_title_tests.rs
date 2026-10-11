@@ -223,7 +223,7 @@ fn title_ctrl_c_disconnect_and_hydrate_restore_saved_selection_without_inventing
     assert!(app.chat_widget.terminal_title_setup.is_none());
     assert_eq!(app.terminal_title_text(now).as_deref(), Some("lime"));
     app.chat_widget.show_terminal_title_setup();
-    app.chat_widget.reset_for_hydrated_thread();
+    app.reset_for_hydrated_thread();
     assert!(app.chat_widget.terminal_title_setup.is_none());
     assert_eq!(app.terminal_title_text(now).as_deref(), Some("lime"));
     app.chat_widget.tui_config.terminal_title = Some(vec![]);

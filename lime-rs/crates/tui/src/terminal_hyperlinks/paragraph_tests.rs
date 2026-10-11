@@ -22,6 +22,7 @@ fn wrapped_surfaces_paint_only_visible_rows_and_keep_gutters_links_and_source_te
                 3..8,
                 "https://example.test/path".into(),
             )],
+            source: None,
         },
         HyperlinkLine::from("plain tail"),
     ];

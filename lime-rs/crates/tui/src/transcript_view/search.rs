@@ -229,11 +229,15 @@ impl TranscriptSearch {
         self.active && self.scan.borrow().is_some() && !self.matches_valid.get()
     }
 
-    pub(crate) fn take_history_request(&self, older_history_available: bool) -> bool {
+    pub(crate) fn history_request_pending(&self, older_history_available: bool) -> bool {
         self.active
             && older_history_available
             && self.history_state.get() != SearchHistoryState::Loading
-            && self.wants_history.replace(false)
+            && self.wants_history.get()
+    }
+
+    pub(crate) fn take_history_request(&self, older_history_available: bool) -> bool {
+        self.history_request_pending(older_history_available) && self.wants_history.replace(false)
     }
 
     pub(crate) fn handle_event(

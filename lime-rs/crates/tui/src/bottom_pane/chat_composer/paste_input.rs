@@ -148,7 +148,7 @@ impl ChatComposer {
         }
         match key.code {
             KeyCode::Enter => self.handle_paste_burst_enter(now),
-            KeyCode::Tab => self.handle_paste_burst_tab(key, now),
+            KeyCode::Tab => self.handle_paste_tab(key, now),
             _ => false,
         }
     }
@@ -278,14 +278,37 @@ impl ChatComposer {
         false
     }
 
-    pub(super) fn handle_paste_burst_tab(&mut self, key: KeyEvent, now: Instant) -> bool {
-        if self.draft.disable_paste_burst || key.code != KeyCode::Tab || !key.modifiers.is_empty() {
+    pub(super) fn handle_paste_tab(&mut self, key: KeyEvent, now: Instant) -> bool {
+        if self.draft.disable_paste_burst
+            || key.code != KeyCode::Tab
+            || !key.modifiers.is_empty()
+            || !self.draft.textarea.allows_paste_burst()
+        {
             return false;
         }
         self.handle_paste_burst_flush(now);
-        self.draft
+        if self
+            .draft
             .paste_burst
             .append_control_char_if_active('\t', now)
+        {
+            return true;
+        }
+        // Short IME prefixes are inserted immediately, before a burst can become active.
+        if self
+            .draft
+            .paste_burst
+            .direct_insert_newline_should_insert(now)
+        {
+            self.draft
+                .paste_burst
+                .begin_with_retro_grabbed(String::new(), now);
+            return self
+                .draft
+                .paste_burst
+                .append_control_char_if_active('\t', now);
+        }
+        false
     }
 }
 
@@ -295,6 +318,42 @@ mod tests {
     use crate::app::{App, AppAction};
     use crate::tui::TuiEvent;
     use std::time::Duration;
+
+    #[test]
+    fn fast_tab_after_a_short_unicode_prefix_enters_the_shared_paste_buffer() {
+        for config in [
+            super::super::ChatComposerConfig::default(),
+            super::super::ChatComposerConfig::plain_text(),
+        ] {
+            let mut composer = ChatComposer::new_with_config(config);
+            let now = Instant::now();
+            composer
+                .handle_key_event_at(KeyEvent::new(KeyCode::Char('界'), KeyModifiers::NONE), now);
+            assert!(composer.prepare_key_event(
+                KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+                now + Duration::from_millis(1)
+            ));
+            composer.handle_key_event_at(
+                KeyEvent::new(KeyCode::Char('🙂'), KeyModifiers::NONE),
+                now + Duration::from_millis(2),
+            );
+            composer.handle_paste_burst_flush(now + Duration::from_secs(1));
+            assert_eq!(composer.current_text_with_pending(), "界\t🙂");
+        }
+    }
+
+    #[test]
+    fn expired_unicode_prefix_keeps_tab_available_to_the_parent_surface() {
+        let mut composer = ChatComposer::default();
+        let now = Instant::now();
+        composer.handle_key_event_at(KeyEvent::new(KeyCode::Char('界'), KeyModifiers::NONE), now);
+        assert!(!composer.prepare_key_event(
+            KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE),
+            now + Duration::from_secs(1)
+        ));
+        assert_eq!(composer.current_text_with_pending(), "界");
+        assert!(!composer.paste_burst_needs_frame());
+    }
 
     #[test]
     fn held_ascii_precedes_immediate_unicode_input() {
@@ -336,13 +395,17 @@ mod tests {
             app.handle_tui_event_runtime(
                 TuiEvent::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE)),
                 true,
+                Instant::now(),
             ),
             AppAction::None
         );
-        app.pre_draw_tick(Instant::now());
+        app.chat_widget
+            .bottom_pane
+            .flush_paste_burst_if_due(Instant::now());
         app.handle_tui_event_runtime(
             TuiEvent::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)),
             true,
+            Instant::now(),
         );
         assert!(app.chat_widget.bottom_pane.composer.is_empty());
         assert!(!app

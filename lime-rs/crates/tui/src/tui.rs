@@ -31,6 +31,9 @@ use crate::viewport::ViewportState;
 pub(crate) mod event_stream;
 mod frame_rate_limiter;
 mod frame_requester;
+mod input_clock;
+mod screen_size;
+mod size_monitor;
 #[cfg(any(windows, test))]
 mod windows_console;
 #[cfg(any(windows, test))]
@@ -212,13 +215,13 @@ pub(crate) struct Tui {
     visible_frame: Option<Buffer>,
     terminal_title: ManagedTerminalTitle,
     viewport: ViewportState,
+    screen_size: screen_size::ScreenSizePolicy,
     restored: bool,
     event_broker: Arc<EventBroker>,
     draw_tx: broadcast::Sender<()>,
     frame_requester: FrameRequester,
     terminal_focused: Arc<AtomicBool>,
-    pub(crate) clipboard: crate::clipboard_paste::worker::ClipboardWorker,
-    pub(crate) clipboard_copy: crate::clipboard_copy::worker::ClipboardWorker,
+    pub(crate) clipboard: crate::clipboard_copy::worker::ClipboardWorker,
 }
 
 impl Tui {
@@ -250,16 +253,17 @@ impl Tui {
             cleanup_failed_enter(&mut output);
             return Err(error);
         }
-        let terminal = match RatatuiTerminal::new(CrosstermBackend::new(output)) {
-            Ok(terminal) => terminal,
+        let backend = CrosstermBackend::new(output);
+        let size = match backend.size() {
+            Ok(size) => size,
             Err(error) => {
                 let mut output = stdout();
                 cleanup_failed_enter(&mut output);
                 return Err(error);
             }
         };
-        let size = match terminal.size() {
-            Ok(size) => size,
+        let terminal = match screen_size::terminal_with_size(backend, size) {
+            Ok(terminal) => terminal,
             Err(error) => {
                 let mut output = stdout();
                 cleanup_failed_enter(&mut output);
@@ -309,8 +313,8 @@ impl Tui {
             }
         });
         viewport.enter_alternate_screen(size);
-        let event_broker = Arc::new(EventBroker::new());
         let (draw_tx, _) = broadcast::channel(8);
+        let event_broker = Arc::new(EventBroker::with_size_monitor(size, draw_tx.clone()));
         let frame_requester = FrameRequester::new(draw_tx.clone());
         let terminal_focused = Arc::new(AtomicBool::new(true));
         TERMINAL_ACTIVE.store(true, Ordering::Release);
@@ -319,18 +323,14 @@ impl Tui {
             visible_frame: None,
             terminal_title: ManagedTerminalTitle::default(),
             viewport,
+            screen_size: screen_size::ScreenSizePolicy::new(size),
             restored: false,
             event_broker,
             draw_tx,
             frame_requester,
             terminal_focused,
-            clipboard: crate::clipboard_paste::worker::ClipboardWorker::default(),
-            clipboard_copy: crate::clipboard_copy::worker::ClipboardWorker::default(),
+            clipboard: crate::clipboard_copy::worker::ClipboardWorker::default(),
         })
-    }
-
-    pub(crate) fn terminal_mut(&mut self) -> &mut Terminal {
-        &mut self.terminal
     }
 
     /// Apply focused cursor and title presentation through the same host as frame drawing.
@@ -340,7 +340,7 @@ impl Tui {
         terminal_title: Option<&str>,
         render: impl FnOnce(&mut ratatui::Frame<'_>),
     ) -> io::Result<()> {
-        self.sync_viewport()?;
+        self.take_event_screen_size()?;
         self.terminal.draw(render)?;
         execute!(self.terminal.backend_mut(), cursor_style)?;
         // A tab-title failure must not stop the canonical conversation or frame drawing.
@@ -375,12 +375,6 @@ impl Tui {
         result
     }
 
-    pub(crate) fn screen_size(&self) -> Size {
-        self.terminal
-            .size()
-            .unwrap_or_else(|_| self.viewport.area().as_size())
-    }
-
     pub(crate) fn last_known_cursor_position(&mut self) -> Position {
         self.terminal
             .backend_mut()
@@ -402,12 +396,6 @@ impl Tui {
 
     pub(crate) fn update_viewport(&mut self, screen_size: Size, content_height: u16) {
         self.viewport.update_inline(screen_size, content_height);
-    }
-
-    pub(crate) fn sync_viewport(&mut self) -> io::Result<()> {
-        let screen_size = self.terminal.size()?;
-        self.update_viewport(screen_size, screen_size.height);
-        Ok(())
     }
 
     #[allow(dead_code)]
@@ -512,6 +500,7 @@ impl Tui {
         }
 
         self.resume_events();
+        self.schedule_screen_size_recheck(Duration::ZERO);
         self.frame_requester.schedule_frame();
         output
     }
@@ -565,6 +554,7 @@ impl Tui {
             EnableMouseCapture
         )?;
         if let Ok(size) = self.terminal.size() {
+            self.reset_screen_size(size);
             self.viewport.enter_alternate_screen(size);
             self.terminal
                 .resize(ratatui::layout::Rect::new(0, 0, size.width, size.height))?;

@@ -16,11 +16,16 @@ pub(crate) enum ChatWidgetAction {
 impl BottomPane {
     /// Give modal, query, popup and editor chords priority over host shortcuts.
     /// Ordinary keys pass through so App can decide global navigation and interruption.
+    #[cfg(test)]
     pub(crate) fn handle_event(&mut self, event: Event) -> Option<ChatWidgetAction> {
         self.handle_event_at(event, Instant::now())
     }
 
-    fn handle_event_at(&mut self, event: Event, now: Instant) -> Option<ChatWidgetAction> {
+    pub(crate) fn handle_event_at(
+        &mut self,
+        event: Event,
+        now: Instant,
+    ) -> Option<ChatWidgetAction> {
         if self.is_active() {
             return Some(
                 self.handle_interaction_event_at(event, now)
@@ -166,8 +171,8 @@ impl BottomPane {
         }
     }
 
-    pub(crate) fn handle_disconnected_key(&mut self, key: KeyEvent) {
-        self.composer.handle_disconnected_key(key);
+    pub(crate) fn handle_restricted_key(&mut self, key: KeyEvent) {
+        self.composer.handle_restricted_key(key);
         self.composer.clear_completion_popup();
     }
 

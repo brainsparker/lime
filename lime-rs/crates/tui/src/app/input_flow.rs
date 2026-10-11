@@ -9,9 +9,28 @@ use crate::bottom_pane::pending_input_preview::can_restore_submission;
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 
 impl App {
-    pub(crate) fn handle_key_event(&mut self, key_event: KeyEvent) -> AppAction {
+    pub(crate) fn handle_key_event_at(
+        &mut self,
+        key_event: KeyEvent,
+        now: std::time::Instant,
+        input_at: std::time::Instant,
+    ) -> AppAction {
         if let Some(action) = self.handle_backtrack_main_key(key_event) {
             return action;
+        }
+        let image_paste_press = key_event.kind == KeyEventKind::Press
+            && key_event
+                .modifiers
+                .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
+            && matches!(key_event.code, KeyCode::Char(value) if value.eq_ignore_ascii_case(&'v'))
+            && !crate::key_hint::is_altgr(key_event.modifiers);
+        let control_exit_press = key_event.kind == KeyEventKind::Press
+            && key_event.modifiers.contains(KeyModifiers::CONTROL)
+            && matches!(key_event.code, KeyCode::Char(value) if value.eq_ignore_ascii_case(&'c') || value.eq_ignore_ascii_case(&'d'));
+        if key_event.kind == KeyEventKind::Release
+            || key_event.kind == KeyEventKind::Press && !image_paste_press && !control_exit_press
+        {
+            self.chat_widget.reset_image_paste_suppression();
         }
         if crate::key_hint::is_altgr(key_event.modifiers)
             && matches!(key_event.code, KeyCode::Char(_))
@@ -19,7 +38,7 @@ impl App {
             let action = self
                 .chat_widget
                 .bottom_pane
-                .handle_key_event_at(key_event, std::time::Instant::now());
+                .handle_key_event_at(key_event, input_at);
             return self.map_chat_widget_action(action);
         }
         if key_event.modifiers.contains(KeyModifiers::ALT)
@@ -93,7 +112,7 @@ impl App {
                 code: KeyCode::Esc,
                 kind: KeyEventKind::Press,
                 ..
-            } if self.chat_widget.transcript_scroll > 0 => {
+            } if self.transcript_view.scroll > 0 => {
                 self.scroll_bottom();
                 AppAction::None
             }
@@ -110,7 +129,11 @@ impl App {
             } if modifiers.intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
                 && value.eq_ignore_ascii_case(&'v') =>
             {
-                AppAction::PasteImage
+                if self.chat_widget.suppress_repeated_image_paste(now) {
+                    AppAction::None
+                } else {
+                    AppAction::PasteImage
+                }
             }
             KeyEvent {
                 code: KeyCode::Char(value),
@@ -137,14 +160,14 @@ impl App {
                 let action = self
                     .chat_widget
                     .bottom_pane
-                    .handle_key_event_at(key_event, std::time::Instant::now());
+                    .handle_key_event_at(key_event, input_at);
                 self.map_chat_widget_action(action)
             }
             _ => {
                 let action = self
                     .chat_widget
                     .bottom_pane
-                    .handle_key_event_at(key_event, std::time::Instant::now());
+                    .handle_key_event_at(key_event, input_at);
                 self.map_chat_widget_action(action)
             }
         }

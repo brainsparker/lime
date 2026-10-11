@@ -555,7 +555,7 @@ pub fn read_windows_sandbox_password(account: &str) -> io::Result<String> {
             return Err(io::Error::new(
                 io::ErrorKind::InvalidInput,
                 "unknown Windows sandbox account",
-            ))
+            ));
         }
     };
     let protected = BASE64_STANDARD

@@ -119,6 +119,22 @@ async fn catalog_refresh_server(api_host: &str) -> CatalogRefreshServer {
     }
 }
 
+async fn read_models_request_headers(stream: &mut tokio::net::TcpStream) -> String {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        let mut headers = Vec::new();
+        while !headers.ends_with(b"\r\n\r\n") {
+            assert!(
+                headers.len() < 4096,
+                "models request headers exceed fixture limit"
+            );
+            headers.push(stream.read_u8().await.expect("read models request headers"));
+        }
+        String::from_utf8(headers).expect("UTF-8 models request headers")
+    })
+    .await
+    .expect("models request headers timed out")
+}
+
 async fn spawn_models_fixture() -> (String, tokio::task::JoinHandle<String>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
         .await
@@ -126,11 +142,7 @@ async fn spawn_models_fixture() -> (String, tokio::task::JoinHandle<String>) {
     let address = listener.local_addr().expect("models fixture address");
     let server = tokio::spawn(async move {
         let (mut stream, _) = listener.accept().await.expect("accept models request");
-        let mut request = [0_u8; 4096];
-        let size = stream
-            .read(&mut request)
-            .await
-            .expect("read models request");
+        let request = read_models_request_headers(&mut stream).await;
         let body = json!({
             "data": [{
                 "id": "rotating-model",
@@ -151,7 +163,7 @@ async fn spawn_models_fixture() -> (String, tokio::task::JoinHandle<String>) {
             .write_all(response.as_bytes())
             .await
             .expect("write models response");
-        String::from_utf8_lossy(&request[..size]).into_owned()
+        request
     });
     (format!("http://{address}/v1"), server)
 }
@@ -164,11 +176,7 @@ async fn spawn_flaky_models_fixture() -> (String, tokio::task::JoinHandle<usize>
     let server = tokio::spawn(async move {
         for request_index in 0..2 {
             let (mut stream, _) = listener.accept().await.expect("accept models request");
-            let mut request = [0_u8; 4096];
-            stream
-                .read(&mut request)
-                .await
-                .expect("read models request");
+            read_models_request_headers(&mut stream).await;
             if request_index == 0 {
                 stream
                     .write_all(

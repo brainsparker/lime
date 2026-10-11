@@ -30,6 +30,7 @@ enum TranscriptBlock {
     Source {
         keys: Vec<String>,
         lines: Vec<HyperlinkLine>,
+        copy: Option<(std::sync::Arc<str>, bool)>,
     },
     Activity {
         ids: Vec<String>,
@@ -40,6 +41,36 @@ enum TranscriptBlock {
 }
 
 impl TranscriptContent {
+    /// Preserve existing blocks and insert only new page identities behind the session header.
+    pub(crate) fn prepend_snapshot_history(&mut self, older: Self) -> bool {
+        let keys = |block: &TranscriptBlock| match block {
+            TranscriptBlock::Source { keys, .. } => keys.clone(),
+            TranscriptBlock::Activity { ids, .. } => ids.clone(),
+        };
+        let existing = self.blocks.iter().flat_map(&keys).collect::<HashSet<_>>();
+        let mut seen = existing;
+        let older = older
+            .blocks
+            .into_iter()
+            .filter(|block| {
+                let identities = keys(block);
+                if identities.is_empty() || identities.iter().any(|key| seen.contains(key)) {
+                    return false;
+                }
+                seen.extend(identities);
+                true
+            })
+            .collect::<Vec<_>>();
+        if older.is_empty() {
+            return false;
+        }
+        let boundary = self.blocks.iter().take_while(|block| {
+            matches!(block, TranscriptBlock::Source { keys, .. } if keys.iter().any(|key| key == "session-header" || key == "session-body-gap"))
+        }).count();
+        self.blocks.splice(boundary..boundary, older);
+        true
+    }
+
     pub(crate) fn from_lines(lines: Vec<HyperlinkLine>) -> Self {
         let mut content = Self::default();
         content.push_lines(lines);
@@ -66,8 +97,30 @@ impl TranscriptContent {
             Some(TranscriptBlock::Source {
                 keys: current_keys,
                 lines: current,
+                copy: None,
             }) if current_keys.is_empty() && keys.is_empty() => current.extend(lines),
-            _ => self.blocks.push(TranscriptBlock::Source { keys, lines }),
+            _ => self.blocks.push(TranscriptBlock::Source {
+                keys,
+                lines,
+                copy: None,
+            }),
+        }
+    }
+
+    /// Copy payloads belong to the same displayed canonical entry, independently of gutters.
+    pub(crate) fn push_copyable_lines(
+        &mut self,
+        key: String,
+        lines: Vec<HyperlinkLine>,
+        text: String,
+        user: bool,
+    ) {
+        if !lines.is_empty() {
+            self.blocks.push(TranscriptBlock::Source {
+                keys: vec![key],
+                lines,
+                copy: Some((text.into(), user)),
+            });
         }
     }
 
@@ -100,11 +153,12 @@ impl TranscriptContent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct MaterializedTranscript {
     pub(crate) lines: Vec<HyperlinkLine>,
     pub(crate) excluded_lines: HashSet<usize>,
     pub(crate) anchor_ranges: Vec<TranscriptAnchorRange>,
+    pub(super) copy_entries: Vec<super::copy_mode::CopyEntry>,
     controls: Vec<MaterializedControl>,
 }
 
@@ -120,6 +174,16 @@ struct RenderedControl {
     ids: Vec<String>,
     row: usize,
     columns: Range<u16>,
+}
+
+impl MaterializedTranscript {
+    pub(super) fn from_snapshot(lines: Vec<HyperlinkLine>, excluded_lines: HashSet<usize>) -> Self {
+        Self {
+            lines,
+            excluded_lines,
+            ..Self::default()
+        }
+    }
 }
 
 #[derive(Debug, Default)]
@@ -168,14 +232,23 @@ impl TranscriptDisclosure {
         let mut excluded_lines = HashSet::new();
         let mut anchor_ranges = Vec::new();
         let mut controls = Vec::new();
+        let mut copy_entries = Vec::new();
         for block in &content.blocks {
             match block {
                 TranscriptBlock::Source {
                     keys,
                     lines: source,
+                    copy,
                 } => {
                     let start = lines.len();
                     lines.extend(source.iter().cloned());
+                    if let Some((text, user)) = copy {
+                        copy_entries.push(super::copy_mode::CopyEntry {
+                            lines: start..lines.len(),
+                            text: std::sync::Arc::clone(text),
+                            user: *user,
+                        });
+                    }
                     if !keys.is_empty() {
                         anchor_ranges
                             .push(TranscriptAnchorRange::new(keys.clone(), start..lines.len()));
@@ -245,6 +318,7 @@ impl TranscriptDisclosure {
             lines,
             excluded_lines,
             anchor_ranges,
+            copy_entries,
             controls,
         }
     }

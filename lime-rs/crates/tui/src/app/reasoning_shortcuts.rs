@@ -15,7 +15,7 @@ impl App {
             || self.chat_widget.export_picker.is_some()
             || self.chat_widget.status_line_setup.is_some()
             || self.chat_widget.terminal_title_setup.is_some()
-            || self.chat_widget.transcript_search.is_active()
+            || self.transcript_view.search.is_active()
             || self.chat_widget.bottom_pane.popup_active()
             || self.chat_widget.bottom_pane.history_search_active()
             || self.chat_widget.bottom_pane.vim_search_active()

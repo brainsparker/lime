@@ -1,5 +1,4 @@
 use super::*;
-use crate::status::StatusFacts;
 use crate::terminal_hyperlinks::TerminalHyperlink;
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use ratatui::backend::TestBackend;
@@ -84,6 +83,76 @@ fn static_overlay_wraps_scrolls_jumps_and_closes() {
 }
 
 #[test]
+fn pending_copy_feedback_survives_reselection_without_finishing_the_new_range() {
+    let mut overlay = PagerOverlay::transcript(Locale::EnUs);
+    let lines = vec![HyperlinkLine::from("alpha beta")];
+    let mut terminal = Terminal::new(TestBackend::new(40, 8)).unwrap();
+    terminal
+        .draw(|frame| overlay.render(frame, frame.area(), Locale::EnUs, &lines))
+        .unwrap();
+    let select = |overlay: &mut PagerOverlay| {
+        for (kind, column) in [
+            (MouseEventKind::Down(MouseButton::Left), 0),
+            (MouseEventKind::Drag(MouseButton::Left), 5),
+            (MouseEventKind::Up(MouseButton::Left), 5),
+        ] {
+            assert_eq!(
+                overlay.handle_event(&mouse(kind, column, 1)),
+                if kind == MouseEventKind::Up(MouseButton::Left) {
+                    PagerAction::PublishPrimarySelection
+                } else {
+                    PagerAction::Consumed
+                }
+            );
+        }
+    };
+    select(&mut overlay);
+    overlay.defer_transcript_copy(1, 5);
+    for status in [CopyStatus::Pending(1), CopyStatus::Busy] {
+        assert_eq!(
+            overlay.finish_transcript_copy(1, true, &Ok(status), true),
+            None,
+            "{status:?}"
+        );
+        assert_eq!(overlay.pending_transcript_copy, Some((1, 5)), "{status:?}");
+        assert!(overlay.has_transcript_selection());
+        assert!(overlay.transcript_copy_feedback.is_none());
+    }
+    assert_eq!(
+        overlay.finish_transcript_copy(0, true, &Ok(CopyStatus::Confirmed), true),
+        None
+    );
+    overlay.clear_transcript_selection();
+    select(&mut overlay);
+    assert_eq!(
+        overlay.finish_transcript_copy(1, true, &Ok(CopyStatus::Confirmed), true),
+        Some(false)
+    );
+    assert!(overlay.has_transcript_selection());
+    assert_eq!(
+        overlay.transcript_copy_feedback.unwrap().result,
+        Ok(CopyStatus::Confirmed)
+    );
+    terminal
+        .draw(|frame| overlay.render(frame, frame.area(), Locale::EnUs, &lines))
+        .unwrap();
+    assert!(buffer_text(&terminal).contains("Copied 5 chars"));
+    assert_eq!(
+        overlay.finish_transcript_copy(1, true, &Err("duplicate".into()), true),
+        None
+    );
+    overlay.defer_transcript_copy(2, 5);
+    overlay.suspend_transcript_interaction();
+    select(&mut overlay);
+    assert_eq!(
+        overlay.finish_transcript_copy(2, true, &Ok(CopyStatus::Confirmed), true),
+        None
+    );
+    assert!(overlay.has_transcript_selection());
+    assert!(overlay.transcript_copy_feedback.is_none());
+}
+
+#[test]
 fn resize_recomputes_scroll_bounds_and_tiny_areas_do_not_panic() {
     let overlay = PagerOverlay::new(
         "STATUS".to_string(),
@@ -117,16 +186,19 @@ fn resize_recomputes_scroll_bounds_and_tiny_areas_do_not_panic() {
 fn status_overlay_uses_current_values_without_a_second_session_model() {
     let overlay = PagerOverlay::status(
         Locale::EnUs,
-        StatusFacts {
-            thread_id: Some("thread-1"),
-            model: Some("gpt-5"),
-            provider: Some("openai"),
-            effort: Some("high"),
-            permissions: Some(":workspace"),
-            cwd: "/workspace",
-            status: "running",
-            token_usage: None,
-        },
+        Arc::new(crate::status::StatusSnapshot::from_facts(
+            crate::status::StatusFacts {
+                thread_id: Some("thread-1"),
+                thread_name: None,
+                model: Some("gpt-5"),
+                provider: Some("openai"),
+                effort: Some("high"),
+                permissions: Some(":workspace"),
+                cwd: "/workspace",
+                status: "running",
+                token_usage: None,
+            },
+        )),
     );
     let text = overlay
         .static_lines
@@ -161,16 +233,19 @@ fn status_overlay_localizes_an_empty_projection_status_as_ready() {
     ] {
         let overlay = PagerOverlay::status(
             locale,
-            StatusFacts {
-                thread_id: None,
-                model: None,
-                provider: None,
-                effort: None,
-                permissions: None,
-                cwd: "/workspace",
-                status: "",
-                token_usage: None,
-            },
+            Arc::new(crate::status::StatusSnapshot::from_facts(
+                crate::status::StatusFacts {
+                    thread_id: None,
+                    thread_name: None,
+                    model: None,
+                    provider: None,
+                    effort: None,
+                    permissions: None,
+                    cwd: "/workspace",
+                    status: "",
+                    token_usage: None,
+                },
+            )),
         );
         let text = overlay
             .static_lines
@@ -232,7 +307,15 @@ fn transcript_selection_owns_copy_without_destroying_active_search() {
         mouse(MouseEventKind::Drag(MouseButton::Left), 5, 1),
         mouse(MouseEventKind::Up(MouseButton::Left), 5, 1),
     ] {
-        assert_eq!(overlay.handle_event(&event), PagerAction::Consumed);
+        assert_eq!(
+            overlay.handle_event(&event),
+            if matches!(event, Event::Mouse(mouse) if mouse.kind == MouseEventKind::Up(MouseButton::Left))
+            {
+                PagerAction::PublishPrimarySelection
+            } else {
+                PagerAction::Consumed
+            }
+        );
     }
 
     assert!(overlay.search.is_active());
@@ -243,6 +326,7 @@ fn transcript_selection_owns_copy_without_destroying_active_search() {
             KeyModifiers::CONTROL | KeyModifiers::SHIFT,
         ))),
         PagerAction::CopyTranscriptSelection {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "alpha".to_string(),
             follow: false,
         }
@@ -454,15 +538,18 @@ fn transcript_enter_copy_confirmation_resumes_tail_following() {
     assert_eq!(
         overlay.handle_event(&key(KeyCode::Enter)),
         PagerAction::CopyTranscriptSelection {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "line".to_string(),
             follow: true,
         }
     );
 
-    overlay.apply_transcript_copy_result(
+    overlay.defer_transcript_copy(1, 4);
+    overlay.finish_transcript_copy(
+        1,
         true,
-        4,
         &Ok(crate::clipboard_copy::CopyStatus::Unconfirmed),
+        true,
     );
     assert!(!overlay.pinned_to_bottom.get());
     assert!(overlay.has_transcript_selection());
@@ -472,10 +559,12 @@ fn transcript_enter_copy_confirmation_resumes_tail_following() {
         .expect("unconfirmed draw");
     assert!(buffer_text(&terminal).contains("Copy sent to term"));
 
-    overlay.apply_transcript_copy_result(
+    overlay.defer_transcript_copy(2, 4);
+    overlay.finish_transcript_copy(
+        2,
         true,
-        4,
         &Ok(crate::clipboard_copy::CopyStatus::Confirmed),
+        true,
     );
     assert!(overlay.pinned_to_bottom.get());
     assert_eq!(overlay.scroll.get(), overlay.max_scroll.get());

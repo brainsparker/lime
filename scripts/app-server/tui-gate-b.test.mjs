@@ -11,6 +11,62 @@ const runtimeSource = readFileSync(
   path.resolve(process.cwd(), "lime-rs/crates/tui/src/runtime.rs"),
   "utf8",
 );
+
+it("adds semantic copy navigation evidence without replacing the original complete fixture", () => {
+  expect(gateSource).toContain('scenario === "copy-mode"');
+  expect(gateSource).toContain("? scrollableCompletedText");
+  expect(gateSource).toContain("? copyModeCompletedText");
+  expect(gateSource).toContain('"| **PTY_COPY_TABLE** | exact |"');
+  const copyFixture = readFileSync(
+    "lime-rs/crates/tui/src/runtime_pty_tests/copy_mode.rs",
+    "utf8",
+  );
+  const statusMarker =
+    "TUI_STATUS_COPY_OK source=canonical-snapshot fields=model,directory,session navigation=shared resize=preserved cancel=restored turns=none";
+  expect(gateSource).toContain(statusMarker);
+  expect(copyFixture).toContain(statusMarker);
+  for (const label of [
+    "Copy whole response",
+    "Copy code block",
+    "Copy blockquote",
+    "Copy user message",
+  ]) {
+    expect(copyFixture).toContain(label);
+  }
+  expect(copyFixture).toContain(
+    "copy navigation and cancellation must not submit a canonical turn",
+  );
+  expect(copyFixture).toContain(
+    "TUI_COPY_MODE_OK whole=source blocks=code,quote,table user=literal resize=frozen cancel=restored turns=once",
+  );
+  expect(gateSource).toContain(
+    "TUI_COPY_MODE_OK whole=source blocks=code,quote,table user=literal resize=frozen cancel=restored turns=once",
+  );
+});
+
+it("keeps MCP tool completion before stdio shutdown within the original exit budget", () => {
+  const fixture = readFileSync(
+    "lime-rs/crates/tui/src/bottom_pane/mcp_server_elicitation/pty_tests.rs",
+    "utf8",
+  );
+  const finish = fixture.slice(
+    fixture.indexOf('pty.wait("resolved form"'),
+    fixture.indexOf("reader.join().unwrap()"),
+  );
+  const completion = finish.indexOf(
+    'expect("MCP tool result must reach its caller before terminal shutdown")',
+  );
+  const shutdown = finish.indexOf('pty.write(b"\\x04")');
+  expect(completion).toBeGreaterThanOrEqual(0);
+  expect(shutdown).toBeGreaterThan(completion);
+  expect(finish).toContain(
+    "timeout_at(tokio::time::Instant::from_std(deadline)",
+  );
+  expect(finish).toContain("mcp-pty-tool-call");
+  expect(finish).toContain('line.ends_with(b"\\n")');
+  expect(finish.slice(shutdown)).not.toContain("let deadline =");
+  expect(fixture).toContain("tool=resolved-before-exit");
+});
 const ptyTestSource = readFileSync(
   path.resolve(process.cwd(), "lime-rs/crates/tui/src/runtime_pty_tests.rs"),
   "utf8",
@@ -98,6 +154,10 @@ const resizeTestSource = readFileSync(
     process.cwd(),
     "lime-rs/crates/tui/tests/suite/resize_reflow.rs",
   ),
+  "utf8",
+);
+const resizeGateSource = readFileSync(
+  path.resolve(process.cwd(), "scripts/app-server/terminal-resize-gate-b.mjs"),
   "utf8",
 );
 const reconnectTestSource = readFileSync(
@@ -828,10 +888,23 @@ describe("TUI Gate B", () => {
       "TUI_NOTES_IME_ORDER_OK ascii-prefix=preserved unicode=immediate cancel=explicit";
     expect(gateSource).toContain(imeOrderMarker);
     expect(requestInputTestSource).toContain(imeOrderMarker);
+    const imeTabMarker =
+      "TUI_NOTES_IME_TAB_OK prefix=immediate tab=literal draft=preserved cancel=explicit response=none";
+    expect(gateSource).toContain(imeTabMarker);
+    expect(requestInputTestSource).toContain(imeTabMarker);
+    const pasteSource = readFileSync(
+      "lime-rs/crates/tui/src/bottom_pane/chat_composer/paste_input.rs",
+      "utf8",
+    );
+    expect(pasteSource).toContain("fn handle_paste_tab(");
+    expect(pasteSource).not.toContain("handle_paste_burst_tab(");
     expect(requestInputTestSource).toContain(
       "raw paste Enter and Tab must not accept or resolve the question",
     );
-    expect(runtimeSource).toContain("handle_paste_burst_tick");
+    expect(runtimeSource).toContain("render::prepare_draw(");
+    expect(
+      readFileSync("lime-rs/crates/tui/src/runtime/render.rs", "utf8"),
+    ).toContain("handle_paste_burst_tick");
     expect(requestInputTestSource).toContain(
       "unanswered confirmation must not submit a stale accepted answer",
     );
@@ -940,20 +1013,21 @@ describe("TUI Gate B", () => {
       "focus regain queried terminal colors after startup palette was cached",
     );
     expect(focusTestSource).toContain('b"\\x1b[?1049l"');
-    expect(gateSource).toContain('"suite::resize_reflow::"');
-    expect(gateSource).toContain('"--test-threads=1"');
+    expect(gateSource).toContain("await runTerminalResizeGateB({");
+    expect(resizeGateSource).toContain('"suite::resize_reflow::"');
+    expect(resizeGateSource).toContain('"--test-threads=1"');
     expect(gateSource).toContain('"resize-reflow=ok"');
     expect(resizeTestSource).toContain(
-      "tmux_split_preserves_fresh_session_composer_row_after_resize_reflow",
+      "pty_split_preserves_fresh_session_composer_row_after_resize_reflow",
     );
     expect(resizeTestSource).toContain(
-      "tmux_repeated_resizes_do_not_push_composer_down",
+      "pty_repeated_resizes_do_not_push_composer_down",
     );
     expect(resizeTestSource).toContain(
-      "tmux_width_resize_restore_keeps_visible_content_anchored",
+      "pty_width_resize_restore_keeps_visible_content_anchored",
     );
     expect(resizeTestSource).toContain(
-      "tmux_scrolled_composer_resize_preserves_visible_draft_text",
+      "pty_scrolled_composer_resize_preserves_visible_draft_text",
     );
     expect(resizeTestSource).toContain("terminal.resize(");
     expect(resizeTestSource).toContain(
@@ -963,6 +1037,7 @@ describe("TUI Gate B", () => {
       "!screen.contains(&compact_text(DRAFT_INPUT_TAIL))",
     );
     expect(resizeTestSource).not.toContain("&[3, 3, 3]");
+    expect(resizeTestSource).not.toMatch(/fn tmux_/u);
     expect(focusTestSource).toContain("self.master.resize");
     expect(gateSource).toContain(
       "suite::reconnect::automatic_reconnect_restores_draft_and_routes_new_notifications",
@@ -979,6 +1054,20 @@ describe("TUI Gate B", () => {
     );
     expect(reconnectTestSource).toContain("fresh-notification-after-reconnect");
     expect(reconnectTestSource).toContain("preserved-draft!");
+    const restrictedPasteMarker =
+      "TUI_RESTRICTED_PASTE_OK framing=bracketed edit=single-grapheme draft=resumed turns=none terminal=restored transport=websocket-fixture";
+    expect(gateSource).toContain(restrictedPasteMarker);
+    expect(reconnectTestSource).toContain(restrictedPasteMarker);
+    expect(reconnectTestSource).toContain("RECONNECT_PASTE_TAIL界");
+    expect(reconnectTestSource).toContain(
+      "offline Backspace did not edit exactly one grapheme",
+    );
+    const restrictedInputSource = readFileSync(
+      "lime-rs/crates/tui/src/bottom_pane/chat_composer/reconnect.rs",
+      "utf8",
+    );
+    expect(restrictedInputSource).toContain("fn handle_restricted_key(");
+    expect(restrictedInputSource).not.toContain("handle_disconnected_key(");
     expect(reconnectTestSource).toContain('b"\\x1b[?1049l"');
     expect(ptyTestSource).toContain("native_pty_system()");
     expect(ptyTestSource).toContain('output.contains("\\u{1b}[?1049h")');

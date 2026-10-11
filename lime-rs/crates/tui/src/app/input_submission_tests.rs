@@ -435,10 +435,10 @@ fn canonical_image_without_inline_metadata_adds_owned_prefix_but_never_reuses_li
     );
     app.chat_widget
         .bottom_pane
-        .handle_disconnected_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
+        .handle_restricted_key(KeyEvent::new(KeyCode::Home, KeyModifiers::NONE));
     app.chat_widget
         .bottom_pane
-        .handle_disconnected_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
+        .handle_restricted_key(KeyEvent::new(KeyCode::Delete, KeyModifiers::NONE));
     assert_eq!(
         app.chat_widget.bottom_pane.composer_text(),
         " literal [Image #1]"

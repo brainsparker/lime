@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use anyhow::{bail, Context, Result};
 use app_server_client::{AppServerEvent, RemoteTransportConfig, StdioTransportConfig};
-#[cfg(test)]
-use app_server_protocol::protocol::v2::ServerNotification;
 use futures::StreamExt;
 
 use crate::app::event_dispatch::{EventContext, EventDispatch};
@@ -16,7 +14,6 @@ use crate::app::{App, AppAction};
 use crate::app_server_session::AppServerSession;
 use crate::bottom_pane::FileSearchRequest;
 use crate::chatwidget::ExternalEditorState;
-use crate::clipboard_paste::paste_image_to_temp_png;
 use crate::locale::Locale;
 use crate::projection::TranscriptEntry;
 use crate::resume_picker::{
@@ -28,6 +25,7 @@ use crate::tui::{Tui, TuiEvent};
 use crate::view;
 
 mod input_submission;
+mod render;
 
 #[derive(Debug, Clone)]
 pub struct TuiOptions {
@@ -51,25 +49,6 @@ struct FileSearchEvent {
     generation: u64,
     query: String,
     files: Vec<app_server_protocol::protocol::v2::FuzzyFileSearchResult>,
-}
-
-enum PendingCopyContext {
-    LastResponse,
-    ComposerSelection {
-        clear_selection: bool,
-    },
-    TranscriptSelection {
-        text: String,
-        follow: bool,
-        target: crate::app::TranscriptSelectionTarget,
-    },
-    ExportClipboard,
-}
-
-struct PendingCopy {
-    id: u64,
-    thread_id: Option<String>,
-    context: PendingCopyContext,
 }
 
 const ACTIVE_TURN_FRAME_INTERVAL: Duration = Duration::from_millis(100);
@@ -207,7 +186,6 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
             tokio::sync::mpsc::unbounded_channel::<FileSearchEvent>();
         let (mcp_login_tx, mut mcp_login_rx) =
             tokio::sync::mpsc::unbounded_channel::<crate::app::mcp_login::McpLoginStarted>();
-        let mut pending_copy: Option<PendingCopy> = None;
         let mut draw_requested = false;
         loop {
             if let Some(active_session) = session.as_mut() {
@@ -260,16 +238,8 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                     }
                 }
             }
-            if std::mem::take(&mut draw_requested)
-                && !app.chat_widget.handle_paste_burst_tick(&frame_requester, std::time::Instant::now())
-            {
-                terminal
-                    .draw(
-                        view::cursor_style(&app),
-                        app.terminal_title_text(std::time::Instant::now()).as_deref(),
-                        |frame| view::render(frame, &app),
-                    )
-                    .context("failed to render terminal")?;
+            if std::mem::take(&mut draw_requested) {
+                render::draw(&mut terminal, &app)?;
             }
 
             if app.chat_widget.external_editor_state() == ExternalEditorState::Requested {
@@ -352,6 +322,9 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                                             complete_history_load(&mut app);
                                         } else {
                                             clear_history_page_error(&mut app);
+                                            if let Some(pager) = app.chat_widget.pager_overlay.as_ref().filter(|pager| pager.is_transcript()) {
+                                                pager.complete_older_history_load();
+                                            }
                                         }
                                     }
                                     Some(Ok(false)) => {}
@@ -469,6 +442,8 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                 }
                 event = input.next() => {
                     let Some(event) = event else { break };
+                    let input_at = input.input_time();
+                    terminal.screen_size_for_event(&event)?;
                     let event = match event {
                         TuiEvent::Draw => {
                             if app.projection.active_turn_id().is_some() {
@@ -477,7 +452,6 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                             TuiEvent::Draw
                         }
                         TuiEvent::Resize(size) => {
-                            terminal.update_viewport(size, size.height);
                             history_top_up_requested = true;
                             TuiEvent::Resize(size)
                         }
@@ -485,34 +459,23 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                     };
                     let connected = session.is_some();
                     let is_draw = matches!(&event, TuiEvent::Draw);
-                    if is_draw {
-                        draw_requested = true;
-                    } else {
+                    if !is_draw {
                         frame_requester.schedule_frame();
                     }
                     let event_for_clipboard = event.clone();
-                    if let Some(id) = app.invalidate_clipboard_paste(&event_for_clipboard) {
-                        terminal.clipboard.cancel(Some(id));
-                    }
-                    let action = app.handle_tui_event_runtime(event, connected);
+                    app.invalidate_clipboard_paste(&event_for_clipboard);
+                    let action = if is_draw {
+                        let Some(action) = render::prepare_draw(
+                            &mut app, connected, &frame_requester, std::time::Instant::now(),
+                            input_at,
+                        ) else { continue; };
+                        draw_requested = true;
+                        action
+                    } else {
+                        app.handle_tui_event_runtime(event, connected, input_at)
+                    };
                     if is_draw {
-                        if let Some((id, result)) = terminal.clipboard.poll() {
-                            app.finish_clipboard_paste(id, result);
-                        }
-                        if let Some((id, result)) = terminal.clipboard_copy.poll() {
-                            if pending_copy.as_ref().is_some_and(|pending| pending.id == id) {
-                                let pending = pending_copy
-                                    .take()
-                                    .expect("pending copy exists after matching completion");
-                                let same_thread = pending.thread_id == app.thread_id;
-                                apply_copy_completion(
-                                    &mut app,
-                                    pending.context,
-                                    result,
-                                    same_thread,
-                                );
-                            }
-                        }
+                        app.finish_clipboard(&mut terminal);
                     }
                     if connected {
                         if let Some(request) = app.chat_widget.bottom_pane.take_file_search_request() {
@@ -699,59 +662,19 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                                     .set_status(format!("queue edit failed: {error}")),
                             }
                         }
-                        AppAction::CopyLastResponse => {
-                            if let Some((id, context)) = queue_last_response_copy(
-                                &mut terminal,
-                                &mut app,
-                                frame_requester.clone(),
-                            ) {
-                                pending_copy = Some(PendingCopy {
-                                    id,
-                                    thread_id: app.thread_id.clone(),
-                                    context,
-                                });
-                            }
+                        AppAction::CopyLastResponse => app.copy_last_response(&mut terminal),
+                        AppAction::SelectTranscriptCopy => app.select_transcript_copy(),
+                        AppAction::CopySelection { text, label, format } => {
+                            app.copy_selection(&mut terminal, text, label, format);
                         }
-                        AppAction::CopyComposerSelection {
-                            text,
-                            clear_selection,
-                        } => {
-                            if let Some((id, context)) = queue_copy(
-                                &mut terminal,
-                                &mut app,
-                                text,
-                                PendingCopyContext::ComposerSelection { clear_selection },
-                                frame_requester.clone(),
-                            ) {
-                                pending_copy = Some(PendingCopy {
-                                    id,
-                                    thread_id: app.thread_id.clone(),
-                                    context,
-                                });
-                            }
+                        AppAction::CopyComposerSelection { text } => {
+                            app.copy_composer_selection(&mut terminal, text);
                         }
-                        AppAction::CopyTranscriptSelection {
-                            text,
-                            follow,
-                            target,
-                        } => {
-                            if let Some((id, context)) = queue_copy(
-                                &mut terminal,
-                                &mut app,
-                                text.clone(),
-                                PendingCopyContext::TranscriptSelection {
-                                    text,
-                                    follow,
-                                    target,
-                                },
-                                frame_requester.clone(),
-                            ) {
-                                pending_copy = Some(PendingCopy {
-                                    id,
-                                    thread_id: app.thread_id.clone(),
-                                    context,
-                                });
-                            }
+                        AppAction::CopyTranscriptSelection { text, format, follow, target } => {
+                            app.copy_transcript_selection(&mut terminal, text, format, follow, target);
+                        }
+                        AppAction::PublishPrimarySelection { target } => {
+                            app.publish_primary_selection(&mut terminal, target);
                         }
                         AppAction::OpenLink(destination) => match open_link(&destination) {
                             Ok(()) => app
@@ -780,54 +703,12 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                             )
                             .await;
                             if let Some(markdown) = exported {
-                                if let Some((id, context)) = queue_copy(
-                                    &mut terminal,
-                                    &mut app,
-                                    markdown,
-                                    PendingCopyContext::ExportClipboard,
-                                    frame_requester.clone(),
-                                ) {
-                                    pending_copy = Some(PendingCopy {
-                                        id,
-                                        thread_id: app.thread_id.clone(),
-                                        context,
-                                    });
-                                }
+                                app.copy_export(&mut terminal, markdown);
                             }
                         }
-                        AppAction::PasteImage => match paste_image_to_temp_png() {
-                            Ok((path, info)) => {
-                                app.attach_image(path);
-                                app.projection.set_status(format!(
-                                    "image attached: {}x{}",
-                                    info.width, info.height
-                                ));
-                            }
-                            Err(error) => app
-                                .projection
-                                .set_status(format!("image paste failed: {error}")),
-                        },
+                        AppAction::PasteImage => app.paste_image(&terminal),
                         AppAction::PasteClipboardText(source) => {
-                            match terminal
-                                .clipboard
-                                .request_read(source, frame_requester.clone())
-                            {
-                                Ok(Some(id)) => {
-                                    if !app.begin_clipboard_paste(id, source) {
-                                        terminal.clipboard.cancel(Some(id));
-                                    }
-                                }
-                                Ok(None) => app
-                                    .projection
-                                    .set_status(
-                                        app.chat_widget.locale.status("clipboard is busy"),
-                                    ),
-                                Err(error) => app
-                                    .projection
-                                    .set_status(app.chat_widget.locale.status(&format!(
-                                        "clipboard paste failed: {error}"
-                                    ))),
-                            }
+                            app.paste_clipboard_text(&mut terminal, source);
                         }
                         AppAction::Interrupt => {
                             if let Some(turn_id) = app.projection.active_turn_id() {
@@ -882,18 +763,19 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                         AppAction::ScrollTop => app.scroll_top(),
                         AppAction::ScrollBottom => app.scroll_bottom(),
                         AppAction::LoadOlderHistory => {
+                            let mode = app.history_load_mode();
                             if let Some(pager) = app.chat_widget.pager_overlay.as_ref() {
                                 pager.begin_older_history_load();
                             }
-                            if app.chat_widget.transcript_search.is_active() {
-                                app.chat_widget.transcript_search.begin_history_load();
+                            if app.transcript_view.search.is_active() {
+                                app.transcript_view.search.begin_history_load();
                             }
-                            history_load_all_requested = true;
+                            history_load_all_requested = mode == crate::app_event::OlderHistoryLoadMode::All;
                             if let Some(active_session) = session.as_mut() {
                                 if app.spawn_older_history_page_load(
                                     active_session,
                                     &app_event_tx,
-                                    crate::app_event::OlderHistoryLoadMode::All,
+                                    mode,
                                 ) == crate::app::history_pagination::OlderHistoryLoadStart::Unavailable {
                                     history_load_all_requested = false;
                                     complete_history_load(&mut app);
@@ -1232,22 +1114,19 @@ fn complete_history_load(app: &mut App) {
         pager.complete_older_history_load();
         pager.reset_transcript_anchor_at_top();
     }
-    app.chat_widget.transcript_search.complete_history_load();
+    app.transcript_view.search.complete_history_load();
 }
 
 fn fail_history_load(app: &mut App, message: &str) {
     if let Some(pager) = app.chat_widget.pager_overlay.as_ref() {
         pager.fail_older_history_load();
     }
-    app.chat_widget.transcript_search.fail_history_load();
+    app.transcript_view.search.fail_history_load();
     app.projection.set_status(message);
 }
 
 fn current_transcript_page_size(terminal: &mut Tui, app: &App) -> Result<usize> {
-    let size = terminal
-        .terminal_mut()
-        .size()
-        .context("failed to read terminal size")?;
+    let size = terminal.screen_size();
     Ok(view::transcript_page_size(size.width, size.height, app))
 }
 
@@ -1266,10 +1145,7 @@ fn history_top_up_needed(terminal: &mut Tui, app: &App) -> Result<bool> {
     if !app.chat_widget.scrollback_has_older_history() {
         return Ok(false);
     }
-    let size = terminal
-        .terminal_mut()
-        .size()
-        .context("failed to read terminal size for history top-up")?;
+    let size = terminal.screen_size();
     let minimum_rows = view::transcript_page_size(size.width, size.height, app);
     Ok(crate::app::history_ui::rendered_transcript_row_count(app, size.width) < minimum_rows)
 }
@@ -1288,214 +1164,6 @@ pub async fn run_resume(mut options: TuiOptions) -> Result<()> {
     run_tui(options).await
 }
 
-fn queue_last_response_copy(
-    terminal: &mut Tui,
-    app: &mut App,
-    frames: crate::tui::FrameRequester,
-) -> Option<(u64, PendingCopyContext)> {
-    let response = app.projection.final_answer();
-    let response = crate::markdown_render::followup_labels(&response);
-    if response.is_empty() {
-        app.projection.set_status("no agent response to copy");
-        return None;
-    }
-    queue_copy(
-        terminal,
-        app,
-        response.into_owned(),
-        PendingCopyContext::LastResponse,
-        frames,
-    )
-}
-
-fn queue_copy(
-    terminal: &mut Tui,
-    app: &mut App,
-    text: String,
-    context: PendingCopyContext,
-    frames: crate::tui::FrameRequester,
-) -> Option<(u64, PendingCopyContext)> {
-    let publish_primary = matches!(
-        &context,
-        PendingCopyContext::TranscriptSelection {
-            target: crate::app::TranscriptSelectionTarget::MainTranscript
-                | crate::app::TranscriptSelectionTarget::MainPager,
-            follow: false,
-            ..
-        }
-    );
-    match terminal
-        .clipboard_copy
-        .request_copy_with_primary(text, frames, publish_primary)
-    {
-        Ok(Some(id)) => {
-            app.projection.set_status("copying…");
-            Some((id, context))
-        }
-        Ok(None) => {
-            app.projection.set_status("copy already in progress");
-            None
-        }
-        Err(error) => {
-            app.projection.set_status(format!("copy failed: {error}"));
-            None
-        }
-    }
-}
-
-fn apply_copy_completion(
-    app: &mut App,
-    context: PendingCopyContext,
-    completion: crate::clipboard_copy::worker::CopyCompletion,
-    apply_feedback: bool,
-) {
-    let status = completion
-        .clipboard
-        .map(|outcome| outcome.store(&mut app.chat_widget.clipboard_lease));
-    let surface_active = match &context {
-        PendingCopyContext::TranscriptSelection { target, .. } => match target {
-            crate::app::TranscriptSelectionTarget::MainTranscript => {
-                app.chat_widget.transcript_selection.is_active()
-            }
-            crate::app::TranscriptSelectionTarget::MainPager => app
-                .chat_widget
-                .pager_overlay
-                .as_ref()
-                .is_some_and(crate::pager_overlay::PagerOverlay::has_transcript_selection),
-            crate::app::TranscriptSelectionTarget::ResumePicker => {
-                app.chat_widget.resume_picker.is_some()
-            }
-        },
-        _ => true,
-    };
-    if apply_feedback && surface_active {
-        if let Some(primary) = completion.primary {
-            let _ =
-                primary.map(|outcome| outcome.store(&mut app.chat_widget.primary_clipboard_lease));
-        }
-    }
-    if !apply_feedback || !surface_active {
-        return;
-    }
-    match context {
-        PendingCopyContext::LastResponse => match status {
-            Ok(crate::clipboard_copy::CopyStatus::Confirmed) => {
-                app.projection.set_status("copied last response");
-            }
-            Ok(crate::clipboard_copy::CopyStatus::Unconfirmed) => {
-                app.projection.set_status("copy unconfirmed");
-            }
-            Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-        },
-        PendingCopyContext::ComposerSelection { clear_selection } => match status {
-            Ok(crate::clipboard_copy::CopyStatus::Confirmed) => {
-                if clear_selection {
-                    app.chat_widget.bottom_pane.clear_mouse_selection();
-                }
-                app.projection.set_status("copy confirmed");
-            }
-            Ok(crate::clipboard_copy::CopyStatus::Unconfirmed) => {
-                app.projection.set_status("copy unconfirmed");
-            }
-            Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-        },
-        PendingCopyContext::TranscriptSelection {
-            text,
-            follow,
-            target,
-        } => {
-            let characters = text.chars().count();
-            match target {
-                crate::app::TranscriptSelectionTarget::MainTranscript => {
-                    app.chat_widget
-                        .transcript_composer_gap
-                        .show_copy_feedback(&status, characters);
-                    if matches!(status, Ok(crate::clipboard_copy::CopyStatus::Confirmed)) {
-                        app.finish_main_transcript_selection(follow);
-                    }
-                }
-                crate::app::TranscriptSelectionTarget::MainPager => {
-                    if let Some(pager) = app.chat_widget.pager_overlay.as_mut() {
-                        pager.apply_transcript_copy_result(follow, characters, &status);
-                    }
-                }
-                crate::app::TranscriptSelectionTarget::ResumePicker => {
-                    if let Some(picker) = app.chat_widget.resume_picker_mut() {
-                        picker.apply_transcript_copy_result(follow, characters, &status);
-                    }
-                }
-            }
-            match status {
-                Ok(crate::clipboard_copy::CopyStatus::Confirmed) => {
-                    app.projection
-                        .set_status(format!("copy confirmed: {characters}"));
-                }
-                Ok(crate::clipboard_copy::CopyStatus::Unconfirmed) => {
-                    app.projection.set_status("copy unconfirmed");
-                }
-                Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-            }
-        }
-        PendingCopyContext::ExportClipboard => match status {
-            Ok(crate::clipboard_copy::CopyStatus::Confirmed) => app
-                .projection
-                .set_status("exported conversation to clipboard"),
-            Ok(crate::clipboard_copy::CopyStatus::Unconfirmed) => {
-                app.projection.set_status("copy unconfirmed");
-            }
-            Err(error) => app.projection.set_status(format!("export failed: {error}")),
-        },
-    }
-}
-
-#[cfg(test)]
-fn copy_last_response_with(
-    app: &mut App,
-    copy: impl FnOnce(&str) -> Result<crate::clipboard_copy::CopyOutcome, String>,
-) {
-    let response = app.projection.final_answer();
-    let response = crate::markdown_render::followup_labels(&response);
-    if response.is_empty() {
-        app.projection.set_status("no agent response to copy");
-        return;
-    }
-    match copy(response.as_ref()) {
-        Ok(outcome) => match outcome.store(&mut app.chat_widget.clipboard_lease) {
-            crate::clipboard_copy::CopyStatus::Confirmed => {
-                app.projection.set_status("copied last response");
-            }
-            crate::clipboard_copy::CopyStatus::Unconfirmed => {
-                app.projection.set_status("copy unconfirmed");
-            }
-        },
-        Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-    }
-}
-
-#[cfg(test)]
-fn copy_composer_selection_with(
-    app: &mut App,
-    text: &str,
-    clear_selection: bool,
-    copy: impl FnOnce(&str) -> Result<crate::clipboard_copy::CopyOutcome, String>,
-) {
-    match copy(text) {
-        Ok(outcome) => match outcome.store(&mut app.chat_widget.clipboard_lease) {
-            crate::clipboard_copy::CopyStatus::Confirmed => {
-                if clear_selection {
-                    app.chat_widget.bottom_pane.clear_mouse_selection();
-                }
-                app.projection
-                    .set_status(format!("copy confirmed: {}", text.chars().count()));
-            }
-            crate::clipboard_copy::CopyStatus::Unconfirmed => {
-                app.projection.set_status("copy unconfirmed");
-            }
-        },
-        Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-    }
-}
-
 pub(crate) fn open_link(destination: &str) -> Result<(), String> {
     open_link_with(destination, |destination| {
         webbrowser::open(destination).map_err(|error| error.to_string())
@@ -1509,63 +1177,6 @@ fn open_link_with(
     let destination = crate::terminal_hyperlinks::web_destination(destination)
         .ok_or_else(|| "link destination must be a valid HTTP(S) URL".to_string())?;
     open(&destination)
-}
-
-#[cfg(test)]
-fn copy_transcript_selection_with(
-    app: &mut App,
-    text: &str,
-    follow: bool,
-    target: crate::app::TranscriptSelectionTarget,
-    copy: impl FnOnce(&str) -> Result<crate::clipboard_copy::CopyOutcome, String>,
-) {
-    let characters = text.chars().count();
-    let result = copy(text).map(|outcome| outcome.store(&mut app.chat_widget.clipboard_lease));
-    // Codex keeps the X11 PRIMARY selection available while the user keeps a transcript
-    // selection active. It is independent from CLIPBOARD, so retain a second lease instead of
-    // replacing the normal copy lease. Unsupported/remote terminals fail closed and keep the
-    // regular copy result authoritative.
-    if !follow
-        && matches!(
-            target,
-            crate::app::TranscriptSelectionTarget::MainTranscript
-                | crate::app::TranscriptSelectionTarget::MainPager
-        )
-    {
-        if let Ok(outcome) = crate::clipboard_copy::copy_to_primary(text) {
-            let _ = outcome.store(&mut app.chat_widget.primary_clipboard_lease);
-        }
-    }
-    match target {
-        crate::app::TranscriptSelectionTarget::MainTranscript => {
-            app.chat_widget
-                .transcript_composer_gap
-                .show_copy_feedback(&result, characters);
-            if matches!(result, Ok(crate::clipboard_copy::CopyStatus::Confirmed)) {
-                app.finish_main_transcript_selection(follow);
-            }
-        }
-        crate::app::TranscriptSelectionTarget::MainPager => {
-            if let Some(pager) = app.chat_widget.pager_overlay.as_mut() {
-                pager.apply_transcript_copy_result(follow, characters, &result);
-            }
-        }
-        crate::app::TranscriptSelectionTarget::ResumePicker => {
-            if let Some(picker) = app.chat_widget.resume_picker_mut() {
-                picker.apply_transcript_copy_result(follow, characters, &result);
-            }
-        }
-    }
-    match result {
-        Ok(crate::clipboard_copy::CopyStatus::Confirmed) => {
-            app.projection
-                .set_status(format!("copy confirmed: {characters}"));
-        }
-        Ok(crate::clipboard_copy::CopyStatus::Unconfirmed) => {
-            app.projection.set_status("copy unconfirmed");
-        }
-        Err(error) => app.projection.set_status(format!("copy failed: {error}")),
-    }
 }
 
 async fn prepare_export_transcript(
@@ -1648,10 +1259,6 @@ mod pty_tests;
 mod tests {
     use super::*;
     use crate::projection::{EntryKind, EntryStatus};
-    use app_server_protocol::protocol::v2::AgentMessageDeltaNotification;
-    use crossterm::event::{Event, MouseButton, MouseEvent, MouseEventKind};
-    use ratatui::backend::TestBackend;
-    use ratatui::Terminal;
     use std::cell::RefCell;
     use std::ffi::OsString;
 
@@ -1666,71 +1273,6 @@ mod tests {
             activity_group: None,
             activity_detail: None,
         }
-    }
-
-    fn app_with_transcript_selection() -> App {
-        let mut pager = crate::pager_overlay::PagerOverlay::transcript(crate::locale::Locale::EnUs);
-        let lines = vec![crate::terminal_hyperlinks::HyperlinkLine::from(
-            "alpha beta",
-        )];
-        let mut terminal = Terminal::new(TestBackend::new(40, 8)).expect("terminal");
-        terminal
-            .draw(|frame| {
-                pager.render(frame, frame.area(), crate::locale::Locale::EnUs, &lines);
-            })
-            .expect("draw");
-        for (kind, column) in [
-            (MouseEventKind::Down(MouseButton::Left), 0),
-            (MouseEventKind::Drag(MouseButton::Left), 5),
-            (MouseEventKind::Up(MouseButton::Left), 5),
-        ] {
-            assert_eq!(
-                pager.handle_event(&Event::Mouse(MouseEvent {
-                    kind,
-                    column,
-                    row: 1,
-                    modifiers: crossterm::event::KeyModifiers::NONE,
-                })),
-                crate::pager_overlay::PagerAction::Consumed
-            );
-        }
-        assert!(pager.has_transcript_selection());
-        let mut app = App::default();
-        app.chat_widget.set_pager_overlay(pager);
-        app
-    }
-
-    fn app_with_main_transcript_selection() -> App {
-        let app = App::default();
-        let lines = vec![crate::terminal_hyperlinks::HyperlinkLine::from(
-            "alpha beta",
-        )];
-        app.chat_widget.transcript_selection.update_layout(
-            ratatui::layout::Rect::new(0, 0, 40, 3),
-            0,
-            &lines,
-        );
-        assert_eq!(
-            app.chat_widget
-                .transcript_selection
-                .handle_event(&Event::Key(crossterm::event::KeyEvent::new(
-                    crossterm::event::KeyCode::Char(' '),
-                    crossterm::event::KeyModifiers::CONTROL,
-                ),)),
-            Some(crate::transcript_view::TranscriptSelectionAction::Consumed)
-        );
-        for _ in 0..5 {
-            app.chat_widget
-                .transcript_selection
-                .handle_event(&Event::Key(crossterm::event::KeyEvent::new(
-                    crossterm::event::KeyCode::Right,
-                    crossterm::event::KeyModifiers::NONE,
-                )));
-        }
-        app.chat_widget
-            .transcript_selection
-            .note_resume_distance_from_bottom(4);
-        app
     }
 
     #[test]
@@ -1828,209 +1370,6 @@ mod tests {
                 OsString::from("external"),
             ]
         );
-    }
-
-    #[test]
-    fn copy_uses_last_canonical_agent_markdown_and_reports_outcome() {
-        let mut app = App::default();
-        app.projection.apply(ServerNotification::AgentMessageDelta(
-            AgentMessageDeltaNotification {
-                thread_id: "thread-1".to_string(),
-                turn_id: "turn-1".to_string(),
-                item_id: "message-1".to_string(),
-                delta: "**answer** with `code` :codex-followup[continue]{prompt=\"private\"}"
-                    .to_string(),
-            },
-        ));
-        let copied = RefCell::new(String::new());
-
-        copy_last_response_with(&mut app, |text| {
-            copied.replace(text.to_string());
-            Ok(crate::clipboard_copy::CopyOutcome::Copied(Some(
-                crate::clipboard_copy::ClipboardLease::test(),
-            )))
-        });
-
-        assert_eq!(copied.into_inner(), "**answer** with `code` continue");
-        assert_eq!(app.projection.status(), "copied last response");
-        assert!(app.chat_widget.clipboard_lease.is_some());
-
-        let mut empty = App::default();
-        copy_last_response_with(&mut empty, |_| panic!("clipboard must not be called"));
-        assert_eq!(empty.projection.status(), "no agent response to copy");
-    }
-
-    #[test]
-    fn composer_copy_clears_selection_only_after_confirmation() {
-        use crossterm::event::{
-            KeyCode, KeyEvent, KeyModifiers, MouseButton, MouseEvent, MouseEventKind,
-        };
-        use ratatui::buffer::Buffer;
-        use ratatui::layout::Rect;
-
-        let mut app = App::default();
-        app.chat_widget.bottom_pane.insert_str("hello world");
-        let area = Rect::new(0, 0, 20, 1);
-        let mut buffer = Buffer::empty(area);
-        app.chat_widget
-            .bottom_pane
-            .render_composer_textarea(area, &mut buffer);
-        for (kind, column) in [
-            (MouseEventKind::Down(MouseButton::Left), 1),
-            (MouseEventKind::Drag(MouseButton::Left), 5),
-            (MouseEventKind::Up(MouseButton::Left), 5),
-        ] {
-            assert!(app.chat_widget.bottom_pane.handle_mouse(MouseEvent {
-                kind,
-                column,
-                row: 0,
-                modifiers: KeyModifiers::NONE,
-            }));
-        }
-
-        copy_composer_selection_with(&mut app, "ello", true, |_| {
-            Ok(crate::clipboard_copy::CopyOutcome::Requested)
-        });
-        assert_eq!(app.projection.status(), "copy unconfirmed");
-        assert!(app
-            .chat_widget
-            .bottom_pane
-            .copy_selection_request(&TuiEvent::Key(KeyEvent::new(
-                KeyCode::Char('c'),
-                KeyModifiers::CONTROL | KeyModifiers::SHIFT,
-            )))
-            .is_some());
-
-        copy_composer_selection_with(&mut app, "ello", true, |_| {
-            Ok(crate::clipboard_copy::CopyOutcome::Copied(Some(
-                crate::clipboard_copy::ClipboardLease::test(),
-            )))
-        });
-
-        assert!(app.chat_widget.clipboard_lease.is_some());
-        assert_eq!(app.projection.status(), "copy confirmed: 4");
-        assert!(app
-            .chat_widget
-            .bottom_pane
-            .copy_selection_request(&TuiEvent::Key(KeyEvent::new(
-                KeyCode::Char('c'),
-                KeyModifiers::CONTROL | KeyModifiers::SHIFT,
-            )))
-            .is_none());
-    }
-
-    #[test]
-    fn transcript_copy_clears_selection_only_after_success() {
-        let mut app = app_with_transcript_selection();
-        let copied = RefCell::new(String::new());
-        copy_transcript_selection_with(
-            &mut app,
-            "alpha",
-            false,
-            crate::app::TranscriptSelectionTarget::MainPager,
-            |text| {
-                copied.replace(text.to_string());
-                Ok(crate::clipboard_copy::CopyOutcome::Copied(Some(
-                    crate::clipboard_copy::ClipboardLease::test(),
-                )))
-            },
-        );
-
-        assert_eq!(copied.into_inner(), "alpha");
-        assert!(app.chat_widget.clipboard_lease.is_some());
-        assert_eq!(app.projection.status(), "copy confirmed: 5");
-        assert!(!app
-            .chat_widget
-            .pager_overlay
-            .as_ref()
-            .expect("pager")
-            .has_transcript_selection());
-
-        let mut failed = app_with_transcript_selection();
-        copy_transcript_selection_with(
-            &mut failed,
-            "alpha",
-            true,
-            crate::app::TranscriptSelectionTarget::MainPager,
-            |_| Err("offline".to_string()),
-        );
-        assert_eq!(failed.projection.status(), "copy failed: offline");
-        assert!(failed
-            .chat_widget
-            .pager_overlay
-            .as_ref()
-            .expect("pager")
-            .has_transcript_selection());
-
-        let mut unconfirmed = app_with_transcript_selection();
-        copy_transcript_selection_with(
-            &mut unconfirmed,
-            "alpha",
-            true,
-            crate::app::TranscriptSelectionTarget::MainPager,
-            |_| Ok(crate::clipboard_copy::CopyOutcome::Requested),
-        );
-        assert_eq!(unconfirmed.projection.status(), "copy unconfirmed");
-        let pager = unconfirmed
-            .chat_widget
-            .pager_overlay
-            .as_ref()
-            .expect("pager");
-        assert!(pager.has_transcript_selection());
-    }
-
-    #[test]
-    fn main_transcript_copy_preserves_reading_position_unless_enter_follows() {
-        let mut confirmed = app_with_main_transcript_selection();
-        copy_transcript_selection_with(
-            &mut confirmed,
-            "alpha",
-            false,
-            crate::app::TranscriptSelectionTarget::MainTranscript,
-            |_| {
-                Ok(crate::clipboard_copy::CopyOutcome::Copied(Some(
-                    crate::clipboard_copy::ClipboardLease::test(),
-                )))
-            },
-        );
-        assert!(!confirmed.chat_widget.transcript_selection.is_active());
-        assert_eq!(confirmed.chat_widget.transcript_scroll, 4);
-
-        let mut failed = app_with_main_transcript_selection();
-        copy_transcript_selection_with(
-            &mut failed,
-            "alpha",
-            false,
-            crate::app::TranscriptSelectionTarget::MainTranscript,
-            |_| Err("offline".to_string()),
-        );
-        assert!(failed.chat_widget.transcript_selection.is_active());
-
-        let mut unconfirmed = app_with_main_transcript_selection();
-        copy_transcript_selection_with(
-            &mut unconfirmed,
-            "alpha",
-            true,
-            crate::app::TranscriptSelectionTarget::MainTranscript,
-            |_| Ok(crate::clipboard_copy::CopyOutcome::Requested),
-        );
-        assert!(unconfirmed.chat_widget.transcript_selection.is_active());
-
-        let mut follow = app_with_main_transcript_selection();
-        follow.chat_widget.transcript_scroll = 9;
-        copy_transcript_selection_with(
-            &mut follow,
-            "alpha",
-            true,
-            crate::app::TranscriptSelectionTarget::MainTranscript,
-            |_| {
-                Ok(crate::clipboard_copy::CopyOutcome::Copied(Some(
-                    crate::clipboard_copy::ClipboardLease::test(),
-                )))
-            },
-        );
-        assert!(!follow.chat_widget.transcript_selection.is_active());
-        assert_eq!(follow.chat_widget.transcript_scroll, 0);
     }
 
     #[test]

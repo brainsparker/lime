@@ -10,9 +10,9 @@ use std::io::Write;
 use crate::render::line_utils::line_to_static;
 use crate::terminal_hyperlinks::decorate_spans;
 use crate::terminal_hyperlinks::plain_hyperlink_lines;
-use crate::terminal_hyperlinks::remap_wrapped_line;
+use crate::terminal_hyperlinks::remap_source_wrapped_line;
 use crate::terminal_hyperlinks::HyperlinkLine;
-use crate::wrapping::adaptive_wrap_line;
+use crate::wrapping::adaptive_wrap_line_with_source;
 use crate::wrapping::line_contains_url_like;
 use crate::wrapping::line_has_mixed_url_and_non_url_tokens;
 use crate::wrapping::RtOptions;
@@ -287,16 +287,13 @@ pub(crate) fn wrap_history_hyperlink_lines(
             {
                 vec![line.clone()]
             }
-            HistoryLineWrapPolicy::PreWrap => remap_wrapped_line(
+            HistoryLineWrapPolicy::PreWrap => remap_source_wrapped_line(
                 line,
-                adaptive_wrap_line(
+                adaptive_wrap_line_with_source(
                     &line.line,
                     RtOptions::new(wrap_width)
                         .subsequent_indent(leading_whitespace_prefix(&line.line)),
-                )
-                .into_iter()
-                .map(|line| line_to_static(&line))
-                .collect(),
+                ),
             ),
         };
         wrapped_rows += line_wrapped
@@ -377,6 +374,7 @@ fn write_history_line<W: Write>(
     let merged_line = HyperlinkLine {
         line: Line::from(merged_spans),
         hyperlinks: line.hyperlinks.clone(),
+        source: line.source.clone(),
     };
     let decorated = decorate_spans(&merged_line);
     write_spans(writer, decorated.iter())

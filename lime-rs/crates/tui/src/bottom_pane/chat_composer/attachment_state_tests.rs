@@ -154,7 +154,7 @@ fn ordinary_placeholder_text_does_not_keep_a_deleted_attachment_alive_offline() 
     let mut composer = ChatComposer::default();
     composer.insert("literal [Image #1] ");
     composer.attach_image("one.png".into());
-    composer.handle_disconnected_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+    composer.handle_restricted_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
     assert_eq!(composer.text(), "literal [Image #1] ");
     assert!(composer.local_image_paths().is_empty());
     assert!(composer.textarea().text_elements().is_empty());

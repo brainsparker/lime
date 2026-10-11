@@ -124,10 +124,7 @@ impl ChatComposer {
         if let Some(result) = self.handle_paste_burst_text_key(key, now) {
             return result;
         }
-        if key.code == KeyCode::Tab
-            && key.modifiers.is_empty()
-            && self.handle_paste_burst_tab(key, now)
-        {
+        if key.code == KeyCode::Tab && key.modifiers.is_empty() && self.handle_paste_tab(key, now) {
             return InputResult::Changed;
         }
         if key.code == KeyCode::Enter

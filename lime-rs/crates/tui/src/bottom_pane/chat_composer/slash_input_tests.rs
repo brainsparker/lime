@@ -98,11 +98,10 @@ fn completion_preserves_atomic_images_skill_and_paste_through_vim_undo_redo() {
             );
         }
         if vim_enabled {
-            composer.handle_disconnected_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
-            composer.handle_disconnected_key(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
+            composer.handle_key_event(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+            composer.handle_key_event(KeyEvent::new(KeyCode::Char('u'), KeyModifiers::NONE));
             assert_eq!(composer.snapshot_draft(), before);
-            composer
-                .handle_disconnected_key(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
+            composer.handle_key_event(KeyEvent::new(KeyCode::Char('r'), KeyModifiers::CONTROL));
             assert_eq!(composer.snapshot_draft(), after);
         }
         let InputResult::Submitted {

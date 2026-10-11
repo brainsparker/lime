@@ -1,4 +1,7 @@
 use super::*;
+use agent_protocol::{CollabAgentOperation, ItemStatus, SessionId, ThreadId, ThreadItemPayload};
+use tool_runtime::tool_lifecycle::{ToolLifecycleEvent, ToolLifecyclePhase};
+use tool_runtime::tool_result_projection::NormalizedToolOutput;
 
 fn lifecycle_context(sequence: u64) -> ToolItemLifecycleContext {
     ToolItemLifecycleContext {

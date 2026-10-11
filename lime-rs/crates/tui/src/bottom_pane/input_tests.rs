@@ -53,7 +53,7 @@ fn mcp_text_field_uses_active_view_burst_clock_and_keeps_main_draft() {
         Some(crate::tui::TARGET_FRAME_INTERVAL)
     );
     let idle = now + Duration::from_secs(1);
-    assert!(pane.pre_draw_tick(idle).is_none());
+    assert!(pane.flush_paste_burst_if_due(idle));
     assert!(!pane.is_in_paste_burst());
     assert_eq!(pane.next_frame_delay(idle), None);
     let Some(ChatWidgetAction::Respond(AppServerResponse::McpElicitation { id, response })) = pane
@@ -84,7 +84,7 @@ fn main_paste_timer_keeps_running_behind_an_interaction_without_editing_notes() 
         pane.next_frame_delay(now).is_some(),
         "hidden composer must still flush"
     );
-    assert!(pane.pre_draw_tick(now + Duration::from_secs(1)).is_none());
+    assert!(pane.flush_paste_burst_if_due(now + Duration::from_secs(1)));
     assert_eq!(pane.composer_text(), "r");
     assert_eq!(pane.next_frame_delay(now + Duration::from_secs(1)), None);
 
@@ -123,7 +123,7 @@ fn active_notes_idle_tick_draws_held_typing_without_touching_the_main_draft() {
         pane.next_frame_delay(now),
         Some(crate::tui::TARGET_FRAME_INTERVAL)
     );
-    assert!(pane.pre_draw_tick(now + Duration::from_secs(1)).is_none());
+    assert!(pane.flush_paste_burst_if_due(now + Duration::from_secs(1)));
     assert_eq!(pane.next_frame_delay(now + Duration::from_secs(1)), None);
     let Some(ChatWidgetAction::Respond(AppServerResponse::UserInput { response, .. })) = pane
         .handle_event(Event::Key(KeyEvent::new(
@@ -182,7 +182,7 @@ fn disconnect_clears_interactions_but_preserves_main_pending_typing_and_images()
     pane.enqueue(question()).unwrap();
     pane.clear_interactions();
     assert!(!pane.is_active());
-    pane.pre_draw_tick(now + Duration::from_secs(1));
+    assert!(pane.flush_paste_burst_if_due(now + Duration::from_secs(1)));
     assert!(pane.composer_text().contains('x'));
     assert_eq!(
         pane.composer_local_images()[0].path,

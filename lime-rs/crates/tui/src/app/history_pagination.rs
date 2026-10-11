@@ -25,6 +25,19 @@ pub(crate) enum OlderHistoryLoadStart {
 }
 
 impl App {
+    pub(crate) fn history_load_mode(&self) -> OlderHistoryLoadMode {
+        self.chat_widget.pager_overlay.as_ref().map_or_else(
+            || {
+                if self.transcript_view.selection.is_active() {
+                    OlderHistoryLoadMode::OnePage
+                } else {
+                    OlderHistoryLoadMode::All
+                }
+            },
+            PagerOverlay::history_load_mode,
+        )
+    }
+
     /// Start one older-page request without holding the TUI event loop on App Server IO.
     ///
     /// The request handle is the only transport state moved into the task. Cursor ownership and
@@ -95,6 +108,19 @@ impl App {
         turns: &[Turn],
         prepend_replay: bool,
     ) {
+        let main_width = self.transcript_view.history_layout_width();
+        let pager_width = self
+            .chat_widget
+            .pager_overlay
+            .as_ref()
+            .and_then(PagerOverlay::snapshot_history_width);
+        let existing = (main_width.is_some() || pager_width.is_some()).then(|| {
+            self.projection
+                .entries()
+                .iter()
+                .map(|entry| entry.id.clone())
+                .collect::<HashSet<_>>()
+        });
         self.chat_widget
             .bottom_pane
             .record_replayed_history_page(&items, turns, prepend_replay);
@@ -110,6 +136,38 @@ impl App {
             self.projection.active_turn_id(),
             std::time::Instant::now(),
         );
+        if let Some(existing) = existing {
+            let inserted = self
+                .projection
+                .entries()
+                .iter()
+                .filter(|entry| !existing.contains(&entry.id))
+                .cloned()
+                .collect::<Vec<_>>();
+            if let Some(width) = pager_width {
+                let content = super::history_ui::render_transcript_entries_content(
+                    &inserted,
+                    width,
+                    self.chat_widget.locale,
+                    &self.cwd,
+                );
+                if let Some(pager) = self.chat_widget.pager_overlay.as_ref() {
+                    pager.prepend_snapshot_history(content, self.chat_widget.locale);
+                }
+            }
+            if let Some(width) = main_width {
+                let current = super::history_ui::render_main_transcript_content(self, width, false);
+                self.transcript_view
+                    .hold_live_reading(&current.lines, &current.prompt_header);
+                let content = super::history_ui::render_main_transcript_entries_content(
+                    self, &inserted, width, false,
+                );
+                self.transcript_view
+                    .prepend_snapshot_history(content.lines, content.prompt_header);
+                self.transcript_view
+                    .replace_unseen_groups(&current.lines, &current.prompt_header);
+            }
+        }
     }
 
     pub(crate) fn handle_older_history_page_loaded(
@@ -173,6 +231,14 @@ fn transcript_history_surface_is_current(
 ) -> bool {
     !transcript_overlay || older_history_available
 }
+
+#[cfg(test)]
+#[path = "history_copy_tests.rs"]
+mod copy_tests;
+
+#[cfg(test)]
+#[path = "history_reading_tests.rs"]
+mod reading_tests;
 
 #[cfg(test)]
 mod tests {

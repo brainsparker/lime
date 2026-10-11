@@ -69,6 +69,18 @@ async fn automatic_reconnect_restores_draft_and_routes_new_notifications() -> Re
 
     terminal.write_typed_input(b"!")?;
     terminal.wait_for_screen("preserved-draft!", RECONNECT_TIMEOUT)?;
+    let offline_paste = format!("{}RECONNECT_PASTE_TAIL界🙂", "界🙂".repeat(501));
+    let paste_label = format!("[Pasted Content {} chars]", offline_paste.chars().count());
+    terminal.write_input(format!("\x1b[200~{offline_paste}\x1b[201~").as_bytes())?;
+    terminal.wait_for_screen(&paste_label, RECONNECT_TIMEOUT)?;
+    terminal.write_input(b"\x7f")?;
+    terminal.wait_for_screen("RECONNECT_PASTE_TAIL界", RECONNECT_TIMEOUT)?;
+    ensure!(
+        !terminal.screen_contains(&paste_label)
+            && !terminal.screen_contains("RECONNECT_PASTE_TAIL界🙂"),
+        "offline Backspace did not edit exactly one grapheme; screen:\n{}",
+        terminal.screen_contents()
+    );
     restore_ready_rx
         .await
         .map_err(|_| anyhow::anyhow!("TUI did not open a reconnect transport"))?;
@@ -82,10 +94,14 @@ async fn automatic_reconnect_restores_draft_and_routes_new_notifications() -> Re
     terminal.wait_for_screen("PTY_RESUMED_DELTA_STATUS", RECONNECT_TIMEOUT)?;
     terminal.wait_for_screen("fresh-notification-after-reconnect", RECONNECT_TIMEOUT)?;
     ensure!(
-        terminal.screen_contains("preserved-draft!"),
-        "draft was lost after recovery; screen:\n{}",
+        terminal.screen_contains("RECONNECT_PASTE_TAIL界"),
+        "edited long paste was lost after recovery; screen:\n{}",
         terminal.screen_contents()
     );
+    terminal.write_input(&[1])?;
+    terminal.wait_for_screen("preserved-draft!", RECONNECT_TIMEOUT)?;
+    terminal.write_input(&[5])?;
+    terminal.wait_for_screen("RECONNECT_PASTE_TAIL界", RECONNECT_TIMEOUT)?;
     terminal.write_input(&[21])?;
     terminal.write_input(&[20])?;
     terminal.wait_for_screen("PTY_RESUMED_BODY_DELTA", RECONNECT_TIMEOUT)?;
@@ -153,6 +169,7 @@ async fn automatic_reconnect_restores_draft_and_routes_new_notifications() -> Re
         "reconnect fixture did not observe the final client close"
     );
     println!("TUI_REASONING_RESUME_OK thread={THREAD_ID} turn={TURN_ID} snapshot-status=ok no-started=ok detail=ok raw=hidden terminal=restored transport=websocket-fixture");
+    println!("TUI_RESTRICTED_PASTE_OK framing=bracketed edit=single-grapheme draft=resumed turns=none terminal=restored transport=websocket-fixture");
     Ok(())
 }
 

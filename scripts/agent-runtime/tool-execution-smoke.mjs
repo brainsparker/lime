@@ -153,9 +153,7 @@ const BATCH_TARGET_TOOLS = {
   ],
   [ROLLOUT_BUDGET_GATE_B_BATCH_ID]: [],
   [TOOL_ORCHESTRATOR_SANDBOX_RETRY_GATE_B_BATCH_ID]: ["apply_patch"],
-  [TOOL_ORCHESTRATOR_MANAGED_NETWORK_RETRY_GATE_B_BATCH_ID]: [
-    "exec_command",
-  ],
+  [TOOL_ORCHESTRATOR_MANAGED_NETWORK_RETRY_GATE_B_BATCH_ID]: ["exec_command"],
   "plan-worktree-tools": PLAN_WORKTREE_TOOLS,
   "ask-tools": ASK_TOOLS,
   "creation-task-tools": CREATION_TASK_TOOLS,
@@ -615,7 +613,7 @@ function buildBackgroundTaskFixtureResponses() {
       toolCall("write_stdin", "call-tool-exec-background-poll", {
         session_id: extractExecSessionIdFromContext(context),
         chars: "",
-        "yield_time_ms": 2_000,
+        yield_time_ms: 2_000,
       }),
     (context) =>
       toolCall("write_stdin", "call-tool-exec-background-stop", {
@@ -735,11 +733,7 @@ function buildToolOrchestratorSandboxRetryFixtureResponses() {
     "*** End Patch",
   ].join("\n");
   return [
-    toolCall(
-      "apply_patch",
-      TOOL_ORCHESTRATOR_SANDBOX_RETRY_CALL_ID,
-      { patch },
-    ),
+    toolCall("apply_patch", TOOL_ORCHESTRATOR_SANDBOX_RETRY_CALL_ID, { patch }),
     {
       type: "text",
       content: TOOL_ORCHESTRATOR_SANDBOX_RETRY_FINAL_TEXT,
@@ -808,7 +802,9 @@ async function buildAgentControlResidencyFixtureResponse(context) {
     : [];
   const currentUserText = String(userMessages.at(-1)?.content || "");
   const calledTools = requestToolCallNamesFromFixtureContext(context);
-  const spawnCount = calledTools.filter((name) => name === "spawn_agent").length;
+  const spawnCount = calledTools.filter(
+    (name) => name === "spawn_agent",
+  ).length;
   const waitCount = calledTools.filter((name) => name === "wait_agent").length;
   const followupCount = calledTools.filter(
     (name) => name === "followup_task",
@@ -830,14 +826,17 @@ async function buildAgentControlResidencyFixtureResponse(context) {
     await new Promise((resolve) => setTimeout(resolve, 750));
     return toolCall("spawn_agent", `call-agent-residency-spawn-${index}`, {
       task_name: `residency_child_${index}`,
-      message:
-        `Reply with AGENT_RUNTIME_RESIDENCY_CHILD_${index}_INITIAL_DONE and do not call tools.`,
+      message: `Reply with AGENT_RUNTIME_RESIDENCY_CHILD_${index}_INITIAL_DONE and do not call tools.`,
     });
   }
   if (spawnCount === 3 && waitCount < 3) {
-    return toolCall("wait_agent", `call-agent-residency-wait-${waitCount + 1}`, {
-      timeout_ms: AGENT_CONTROL_WAIT_TIMEOUT_MS,
-    });
+    return toolCall(
+      "wait_agent",
+      `call-agent-residency-wait-${waitCount + 1}`,
+      {
+        timeout_ms: AGENT_CONTROL_WAIT_TIMEOUT_MS,
+      },
+    );
   }
   if (spawnCount === 3 && waitCount === 3) {
     return toolCall("spawn_agent", "call-agent-residency-spawn-4", {
@@ -1372,7 +1371,7 @@ function buildBatchScenario(batchId, fixtureFiles) {
             toolOutputText.includes('"session_id"'),
           writeStdinUsedRuntimeSessionId:
             toolOutputText.includes("LIME_BACKGROUND_TASK_TICK") ||
-            readModelText.includes('"terminal_interaction"'),
+            readModelText.includes('"terminalInteractions"'),
           writeStdinInterruptedRuntimeSession:
             readModelText.includes("(interrupt)"),
           readModelMentionsToolExecution:
@@ -1511,22 +1510,23 @@ function buildBatchScenario(batchId, fixtureFiles) {
         ).length;
         const childCount = new Set(
           spawnCalls
-            .map((call) =>
-              (toolOutput(call).match(/capacity_child_[1-4]/g) || [])[0],
+            .map(
+              (call) =>
+                (toolOutput(call).match(/capacity_child_[1-4]/g) || [])[0],
             )
             .filter(Boolean),
         ).size;
         return {
-          providerReturnedFourParallelSpawnCalls:
-            providerRequests.some(
-              (request) =>
-                request.responseKind === "tool_calls" &&
-                request.responseToolName === null,
-            ),
+          providerReturnedFourParallelSpawnCalls: providerRequests.some(
+            (request) =>
+              request.responseKind === "tool_calls" &&
+              request.responseToolName === null,
+          ),
           rootCreatedThreeChildren: childCount === 3,
           fourthChildRejectedByRuntimeCapacity: rejectedCallCount === 1,
-          runtimeReturnedCapacityErrorInCanonicalToolOutput:
-            output.includes("agent_limit_reached"),
+          runtimeReturnedCapacityErrorInCanonicalToolOutput: output.includes(
+            "agent_limit_reached",
+          ),
           capacityGateFinalTextVisibleInRuntime: providerRequests.some(
             (request) => request.responseKind === "text",
           ),
@@ -1556,7 +1556,9 @@ function buildBatchScenario(batchId, fixtureFiles) {
         const followupCalls = calls.filter(
           (call) => toolName(call) === "followup_task",
         );
-        const allSpawnOutput = spawnCalls.map((call) => toolOutput(call)).join("\n");
+        const allSpawnOutput = spawnCalls
+          .map((call) => toolOutput(call))
+          .join("\n");
         const childNames = new Set(
           [...allSpawnOutput.matchAll(/residency_child_[1-4]/g)].map(
             (match) => match[0],
@@ -1564,7 +1566,8 @@ function buildBatchScenario(batchId, fixtureFiles) {
         );
         return {
           providerReturnedResidencySequence:
-            providerRequests.filter((request) => request.responseKind).length >= 10,
+            providerRequests.filter((request) => request.responseKind).length >=
+            10,
           rootCreatedFourDistinctChildren:
             spawnCalls.length === 4 && childNames.size === 4,
           allChildrenReachedTerminalWait:
@@ -1605,9 +1608,11 @@ function buildBatchScenario(batchId, fixtureFiles) {
           providerReturnedBudgetFixtureResponse: providerRequests.some(
             (request) => request.responseKind === "text",
           ),
-          runtimeTurnReachedTerminalState: ["completed", "failed", "canceled"].includes(
-            String(latestTurn?.status || "").toLowerCase(),
-          ),
+          runtimeTurnReachedTerminalState: [
+            "completed",
+            "failed",
+            "canceled",
+          ].includes(String(latestTurn?.status || "").toLowerCase()),
           budgetAccountingProjectionPresent:
             errorText.includes("usage_limit_exceeded") ||
             errorText.includes("rollout budget") ||
@@ -1699,7 +1704,8 @@ function buildBatchScenario(batchId, fixtureFiles) {
               pattern: "127.0.0.1",
               riskLevel: "high",
               reasonCode: "managed_network_gate_b",
-              reason: "Gate B localhost endpoint requires managed-network approval",
+              reason:
+                "Gate B localhost endpoint requires managed-network approval",
             },
           ],
         };

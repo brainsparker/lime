@@ -202,8 +202,7 @@ async fn run_session_picker_with_action(
     };
     let mut input = terminal.event_stream();
     let frame_requester = terminal.frame_requester();
-    let mut _clipboard_lease = None;
-    let mut pending_copy: Option<(u64, bool, usize)> = None;
+    let mut pending_copy: Option<(u64, bool)> = None;
     let selected = loop {
         if let Some(thread_id) = picker.selected_thread_id().map(ToOwned::to_owned) {
             spawn_preview_load(request_handle.clone(), &load_tx, &mut picker, thread_id);
@@ -251,6 +250,7 @@ async fn run_session_picker_with_action(
             }
             event = input.next() => {
                 let Some(event) = event else { break None; };
+                terminal.screen_size_for_event(&event)?;
                 let event = match event {
                     TuiEvent::Key(key) => Event::Key(key),
                     TuiEvent::Paste(text) => Event::Paste(text),
@@ -259,19 +259,17 @@ async fn run_session_picker_with_action(
                     TuiEvent::FocusGained => Event::FocusGained,
                     TuiEvent::FocusLost => Event::FocusLost,
                     TuiEvent::Draw => {
-                        if let Some((id, result)) = terminal.clipboard_copy.poll() {
+                        if let Some((id, crate::clipboard_copy::worker::Completion::Copy(result))) = terminal.clipboard.poll() {
                             if pending_copy.as_ref().is_some_and(|pending| pending.0 == id) {
-                                let (_, follow, characters) = pending_copy
+                                let (_, follow) = pending_copy
                                     .take()
                                     .expect("pending picker copy exists after completion");
-                                let result = result
-                                    .clipboard
-                                    .map(|outcome| outcome.store(&mut _clipboard_lease));
                                 if let Some(pager) = picker.transcript_pager.as_mut() {
-                                    pager.overlay.apply_transcript_copy_result(
+                                    pager.overlay.finish_transcript_copy(
+                                        id,
                                         follow,
-                                        characters,
                                         &result,
+                                        true,
                                     );
                                 }
                                 if let Err(error) = result {
@@ -279,6 +277,7 @@ async fn run_session_picker_with_action(
                                 }
                             }
                         }
+                        terminal.clipboard.advance(frame_requester.clone());
                         if picker.tick_transcript_selection()
                             || picker.transcript_search_needs_frame()
                         {
@@ -305,32 +304,34 @@ async fn run_session_picker_with_action(
                             .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL),
                         PagerAction::ContinueTranscriptSelection => frame_requester
                             .schedule_frame_in(crate::tui::TARGET_FRAME_INTERVAL),
-                        PagerAction::CopyTranscriptSelection { text, follow } => {
+                        PagerAction::CopyTranscriptSelection { text, format, follow } => {
                             let characters = text.chars().count();
                             match terminal
-                                .clipboard_copy
-                                .request_copy(text, frame_requester.clone())
+                                .clipboard
+                                .copy(text, format, frame_requester.clone())
                             {
-                                Ok(Some(id)) => {
-                                    pending_copy = Some((id, follow, characters));
+                                Ok(crate::clipboard_copy::CopyStatus::Pending(id)) => {
+                                    pager.overlay.defer_transcript_copy(id, characters);
+                                    pending_copy = Some((id, follow));
                                 }
-                                Ok(None) => {
-                                    let result = Err("copy already in progress".to_string());
-                                    pager.overlay.apply_transcript_copy_result(
-                                        follow,
+                                Ok(status) => {
+                                    let result = Ok(status);
+                                    pager.overlay.show_transcript_copy_feedback(
                                         characters,
                                         &result,
                                     );
                                 }
                                 Err(error) => {
                                     let result = Err(error);
-                                    pager.overlay.apply_transcript_copy_result(
-                                        follow,
+                                    pager.overlay.show_transcript_copy_feedback(
                                         characters,
                                         &result,
                                     );
                                 }
                             }
+                        }
+                        PagerAction::PublishPrimarySelection => {
+                            pager.overlay.publish_primary(&mut terminal.clipboard, frame_requester.clone());
                         }
                         PagerAction::OpenLink(destination) => {
                             if let Err(error) = crate::runtime::open_link(&destination) {

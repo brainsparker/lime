@@ -146,15 +146,39 @@ resume、last按cwd选择/all跨cwd、cold Thread/Turn身份、单PROMPT/pipe追
 临时目录，避免并行构建覆盖共享target造成产物串用；显式指定的安装包launcher/sidecar
 路径保持原包上下文。`LIME_KEEP_CLI_GATE_B_TMP=1`或`LIME_KEEP_TUI_GATE_B_TMP=1`保留
 受控场景目录用于失败诊断，默认清理；这些仅为test fixture行为。
+
+`scripts/app-server/command-invocation-fixture.mjs` 使用显式 `APP_SERVER_BIN` 启动真实
+stdio App Server 的 runtime backend，从 public provider CRUD 配置隔离的 localhost
+Provider。原生 `exec_command` 实际执行 OS shell，覆盖含空格相对 cwd、短命令、PTY
+empty poll/stdin 续接和执行准备失败；验证单次开始、原 Item/process 身份及 live/read/page/
+restart cold 投影。证据目录保留实际请求和通知；不调用正式 Provider，不注入 canonical
+Command seed，也不替代 GUI/TUI 产品 Gate。当前 shell 场景只在 Unix 运行。
 安装态门禁可用`LIME_CLI_GATE_B_PROFILE_DIR`选择已验收的冻结binary目录，payload采用
 独立复制而非共享target的硬链接，随后仍经真实npm launcher与sibling App Server执行。
 
 `npm run smoke:tui-gate-b` 使用 `portable-pty` 启动真实 `lime tui` 与真实 App Server stdio 进程，在可见 ready 状态后输入 prompt，等待 canonical `turn.completed` 投影出的完成文本，再通过 Ctrl-C 退出；`complete` 场景还通过 Ctrl-G 启动继承前台 PTY 的 external editor，验证草稿回写、标准 DSR 恢复与 alternate screen 重新进入；`complete`/`images` 共用阻塞editor，按原始OSC握手在编辑期间用VT观察alternate screen和草稿可见，释放stdin后确认editor主动退出主屏与TUI重新进入，强制消费`TUI_EDITOR_KEEP_SCREEN_OK`证据；独立 `focus-palette` 场景验证启动期 OSC 10/11 查询只执行一次、FocusGained 后立即输入和延迟输入均不丢失，并恢复 alternate screen；`reconnect` 场景通过真实 PTY 启动 `lime tui --remote`，让 loopback App Server JSON-RPC WebSocket 断线并恢复，验证草稿保留、`thread/resume` 路由、恢复后的通知和终端恢复。该测试不调用正式 Provider，也不使用生产 mock backend。
 
+`reconnect` 同时强制消费 `TUI_RESTRICTED_PASTE_OK`：断线时 bracketed 长 Unicode 粘贴
+先折叠显示，Backspace 物化正文并只删最后一个 grapheme，同线程恢复保留编辑结果，零
+`turn/start` 且终端恢复。该场景的 loopback WebSocket 是 public JSON-RPC transport fixture，
+不冒充真实 App Server 后端；`complete`/`user-input` 另走真实 stdio App Server 主链。
+
+geometry回归覆盖同一ScreenSizePolicy的缓存/settled重采样、固定帧尺寸与SizeMonitor的
+采样代次、pause/observe/drop竞态；current render守卫约束主runtime和独立resume picker
+都消费事件尺寸。真实PTY仍以既有focus/resize/editor恢复场景验收，单元竞态测试不冒充
+真实tmux或Windows平台证据。resize Gate归 `scripts/app-server/terminal-resize-gate-b.mjs`，
+直接PTY测试以pty命名；Unix在tmux可用时另起私有socket、禁用用户配置，fixture launcher
+仅对子进程屏蔽SIGWINCH，强制消费 `TUI_TMUX_RESIZE_OK` 与 `TUI_TMUX_EDITOR_OK`。
+前者覆盖无键盘输入的高/宽重排和锚点恢复，后者覆盖editor持有stdin时缩放、归还首键、
+Unicode草稿与同一App Server精确单次提交，均检查alternate screen及原tty模式恢复。
+`LIME_TMUX_BIN`可指定tmux路径；缺失/非Unix汇报tmux-resize=not-run，不提升平台验收。
+
 `user-input` 场景还验证长 Unicode 备注的原子占位符、显式提交与 App Server 收到的完整
 canonical 答案，命令/文件/技能文本保持原意。npm 安装态 Gate 同时执行 `complete,user-input`，
 其中两题往返验证已接受长备注的回访修改、另一题draft/cursor恢复与exactly-once响应；
 不能仅用主输入完成态证明嵌入式备注可用。
+同一场景还消费`TUI_NOTES_IME_TAB_OK`，验证短IME前缀后的raw Tab保留正文与notes焦点，
+取消只回到选项且没有额外response；长raw atomic与完整canonical答案断言继续独立保留。
 
 `scripts/app-server/tui-external-editor.test.mjs` 守住Codex同名editor入口、解析先于终端交接、
 Unix shlex/Windows winsplit与PATH/PATHEXT接线，以及旧optional draft/parser入口禁止回流。

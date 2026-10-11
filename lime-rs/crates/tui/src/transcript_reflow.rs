@@ -1,11 +1,7 @@
-//! Tracks when the canonical TUI transcript should be rebuilt after resize.
-//!
-//! This state machine is intentionally renderer agnostic. The App owns the
-//! projection; this module only records observed/rebuilt widths and ensures a
-//! resize during streaming receives one final source-backed repaint.
+//! Anchors the rendered canonical transcript across content growth and width changes.
 
 use std::cell::{Cell, RefCell};
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use ratatui::layout::Rect;
 
@@ -13,113 +9,9 @@ use crate::terminal_hyperlinks::{wrapped_line_starts, HyperlinkLine, HyperlinkPa
 
 pub(crate) const TRANSCRIPT_REFLOW_DEBOUNCE: Duration = Duration::from_millis(75);
 
-#[derive(Debug, Default)]
-pub(crate) struct TranscriptReflowState {
-    last_observed_width: Option<u16>,
-    last_reflow_width: Option<u16>,
-    pending_reflow_width: Option<u16>,
-    pending_until: Option<Instant>,
-    visible_history_rows: Option<u16>,
-    ran_during_stream: bool,
-    resize_requested_during_stream: bool,
-}
-
-impl TranscriptReflowState {
-    pub(crate) fn clear(&mut self) {
-        *self = Self::default();
-    }
-
-    pub(crate) fn set_visible_history_rows(&mut self, rows: u16) {
-        self.visible_history_rows = Some(rows.max(1));
-    }
-
-    pub(crate) fn visible_history_rows(&self) -> Option<u16> {
-        self.visible_history_rows
-    }
-
-    pub(crate) fn note_width(&mut self, width: u16) -> TranscriptWidthChange {
-        let previous_width = self.last_observed_width.replace(width);
-        if previous_width.is_none() {
-            self.last_reflow_width = Some(width);
-        }
-        TranscriptWidthChange {
-            changed: previous_width.is_some_and(|previous| previous != width),
-            initialized: previous_width.is_none(),
-        }
-    }
-
-    pub(crate) fn reflow_needed_for_width(&self, width: u16) -> bool {
-        self.last_reflow_width != Some(width) && self.pending_reflow_width != Some(width)
-    }
-
-    pub(crate) fn schedule_debounced(&mut self, target_width: Option<u16>) -> bool {
-        if let Some(target_width) = target_width {
-            self.pending_reflow_width = Some(target_width);
-        }
-        self.pending_until = Some(Instant::now() + TRANSCRIPT_REFLOW_DEBOUNCE);
-        false
-    }
-
-    pub(crate) fn schedule_immediate(&mut self) {
-        self.pending_reflow_width = None;
-        self.pending_until = Some(Instant::now());
-    }
-
-    #[cfg(test)]
-    pub(crate) fn set_due_for_test(&mut self) {
-        self.pending_until = Some(Instant::now() - Duration::from_millis(1));
-    }
-
-    pub(crate) fn pending_is_due(&self, now: Instant) -> bool {
-        self.pending_until.is_some_and(|deadline| now >= deadline)
-    }
-
-    pub(crate) fn pending_until(&self) -> Option<Instant> {
-        self.pending_until
-    }
-
-    pub(crate) fn has_pending_reflow(&self) -> bool {
-        self.pending_until.is_some()
-    }
-
-    pub(crate) fn clear_pending_reflow(&mut self) {
-        self.pending_until = None;
-        self.pending_reflow_width = None;
-    }
-
-    pub(crate) fn mark_reflowed_width(&mut self, width: u16) -> bool {
-        self.last_reflow_width.replace(width) != Some(width)
-    }
-
-    pub(crate) fn mark_ran_during_stream(&mut self) {
-        self.ran_during_stream = true;
-    }
-
-    pub(crate) fn mark_resize_requested_during_stream(&mut self) {
-        self.resize_requested_during_stream = true;
-    }
-
-    pub(crate) fn take_stream_finish_reflow_needed(&mut self) -> bool {
-        let needed = self.ran_during_stream || self.resize_requested_during_stream;
-        self.ran_during_stream = false;
-        self.resize_requested_during_stream = false;
-        needed
-    }
-
-    pub(crate) fn clear_stream_flags(&mut self) {
-        self.ran_during_stream = false;
-        self.resize_requested_during_stream = false;
-    }
-}
-
-pub(crate) struct TranscriptWidthChange {
-    pub(crate) changed: bool,
-    pub(crate) initialized: bool,
-}
-
 /// Keeps the main transcript viewport anchored while canonical content is replaced or grows.
 ///
-/// `App::transcript_scroll` remains the user-facing distance-from-bottom input contract. This
+/// `App::transcript_view.scroll` remains the distance-from-bottom input contract. This
 /// state records the last rendered canonical lines and resolves that relative request into an
 /// absolute wrapped-row offset when a stream delta or resize changes the rendered height.
 #[derive(Debug)]
@@ -148,6 +40,10 @@ impl Default for TranscriptViewport {
 }
 
 impl TranscriptViewport {
+    pub(crate) fn requested_distance_from_bottom(&self) -> Option<usize> {
+        self.previous_requested_scroll.get()
+    }
+
     pub(crate) fn clear(&self) {
         *self.previous_lines.borrow_mut() = None;
         self.previous_width.set(0);
@@ -224,7 +120,7 @@ impl TranscriptViewport {
         u16::try_from(offset).unwrap_or(u16::MAX)
     }
 
-    /// Observe canonical output while a local selection keeps painting a frozen source snapshot.
+    /// Observe canonical output while a selection or reader paints a retained revision.
     ///
     /// The returned offset follows the same logical canonical row across append, prepend and
     /// width reflow. It is used only to resume reading after the selection ends; the selection
@@ -234,6 +130,7 @@ impl TranscriptViewport {
         lines: &[HyperlinkLine],
         area: Rect,
         fallback_offset: usize,
+        reading_source: Option<&[HyperlinkLine]>,
     ) -> u16 {
         if area.width == 0 || area.height == 0 {
             return 0;
@@ -243,9 +140,10 @@ impl TranscriptViewport {
         let suppress_activity = self.suppress_next_activity.replace(false);
         let total_height = HyperlinkParagraph::new(lines).line_count(area.width);
         let max_scroll = total_height.saturating_sub(usize::from(area.height));
-        let offset = previous
-            .as_ref()
-            .and_then(|previous| {
+        let offset = if let Some(source) = reading_source {
+            remap_transcript_offset(source, area.width, fallback_offset, lines, area.width)
+        } else {
+            previous.as_ref().and_then(|previous| {
                 let old_width = self.previous_width.get();
                 (old_width > 0).then(|| {
                     remap_transcript_offset(
@@ -257,8 +155,9 @@ impl TranscriptViewport {
                     )
                 })?
             })
-            .unwrap_or(fallback_offset)
-            .min(max_scroll);
+        }
+        .unwrap_or(fallback_offset)
+        .min(max_scroll);
         let reading_away_from_tail = offset.saturating_add(usize::from(area.height)) < total_height;
         self.commit_resolution(
             lines,
@@ -454,38 +353,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn first_width_sets_baseline_without_reflow() {
-        let mut state = TranscriptReflowState::default();
-        let change = state.note_width(80);
-        assert!(change.initialized);
-        assert!(!change.changed);
-        assert!(!state.reflow_needed_for_width(80));
-    }
-
-    #[test]
-    fn changed_width_is_debounced_and_due_is_observable() {
-        let mut state = TranscriptReflowState::default();
-        state.note_width(80);
-        let change = state.note_width(100);
-        assert!(change.changed);
-        state.schedule_debounced(Some(100));
-        assert!(state.has_pending_reflow());
-        state.set_due_for_test();
-        assert!(state.pending_is_due(Instant::now()));
-        state.clear_pending_reflow();
-        assert!(state.reflow_needed_for_width(100));
-    }
-
-    #[test]
-    fn stream_reflow_request_is_drained_once() {
-        let mut state = TranscriptReflowState::default();
-        state.mark_ran_during_stream();
-        state.mark_resize_requested_during_stream();
-        assert!(state.take_stream_finish_reflow_needed());
-        assert!(!state.take_stream_finish_reflow_needed());
-    }
-
-    #[test]
     fn viewport_preserves_manual_anchor_when_stream_tail_grows() {
         let viewport = TranscriptViewport::default();
         let area = Rect::new(0, 0, 18, 3);
@@ -599,7 +466,7 @@ mod tests {
 
         let mut appended = initial.clone();
         appended.push(HyperlinkLine::from("five"));
-        assert_eq!(viewport.resolve_frozen_anchor(&appended, area, 2), 2);
+        assert_eq!(viewport.resolve_frozen_anchor(&appended, area, 2, None), 2);
         assert!(!viewport.tail_visible());
         assert!(viewport.unseen_activity());
 
@@ -608,7 +475,7 @@ mod tests {
         let mut prepended = vec![HyperlinkLine::from("zero")];
         prepended.extend(initial);
         assert_eq!(
-            prepended_viewport.resolve_frozen_anchor(&prepended, area, 1),
+            prepended_viewport.resolve_frozen_anchor(&prepended, area, 1, None),
             2
         );
         assert!(!prepended_viewport.unseen_activity());

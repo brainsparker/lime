@@ -107,7 +107,7 @@ impl App {
                     .entries()
                     .iter()
                     .any(|entry| entry.kind == crate::projection::EntryKind::User))
-            && self.chat_widget.transcript_scroll == 0
+            && self.transcript_view.scroll == 0
             && pane.can_backtrack();
         if !eligible {
             if self.backtrack.primed {
@@ -132,7 +132,7 @@ impl App {
             self.backtrack.base_id = self.thread_id.clone();
             self.backtrack.origin = Some(BrowsingOrigin {
                 pager_bookmark: None,
-                main_scroll: self.chat_widget.transcript_scroll,
+                main_scroll: self.transcript_view.scroll,
             });
             self.chat_widget.bottom_pane.show_esc_backtrack_hint(true);
         }
@@ -141,7 +141,7 @@ impl App {
 
     fn open_backtrack_preview(&mut self) {
         if self.chat_widget.pager_overlay.is_none() {
-            self.chat_widget.open_transcript_pager();
+            self.open_transcript_pager();
         }
         self.backtrack.overlay_preview_active = true;
         self.backtrack.load_needed = true;
@@ -185,7 +185,7 @@ impl App {
                     .pager_overlay
                     .as_ref()
                     .map(|pager| pager.bookmark()),
-                main_scroll: self.chat_widget.transcript_scroll,
+                main_scroll: self.transcript_view.scroll,
             });
             self.open_backtrack_preview();
             return Some(AppAction::None);
@@ -250,7 +250,7 @@ impl App {
         let origin = self.backtrack.origin.take();
         self.reset_backtrack_state();
         if let Some(origin) = origin {
-            self.chat_widget.transcript_scroll = origin.main_scroll;
+            self.transcript_view.scroll = origin.main_scroll;
             if let Some(bookmark) = origin.pager_bookmark {
                 if let Some(pager) = self.chat_widget.pager_overlay.as_ref() {
                     pager.restore_bookmark(bookmark);

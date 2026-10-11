@@ -108,7 +108,15 @@ fn disclosure_controls_are_excluded_from_copy_and_search_source() {
         mouse(MouseEventKind::Drag(MouseButton::Left), 5, 3),
         mouse(MouseEventKind::Up(MouseButton::Left), 5, 3),
     ] {
-        assert_eq!(overlay.handle_event(&event), PagerAction::Consumed);
+        assert_eq!(
+            overlay.handle_event(&event),
+            if matches!(event, Event::Mouse(mouse) if mouse.kind == MouseEventKind::Up(MouseButton::Left))
+            {
+                PagerAction::PublishPrimarySelection
+            } else {
+                PagerAction::Consumed
+            }
+        );
     }
     assert_eq!(
         overlay.handle_event(&Event::Key(KeyEvent::new(
@@ -117,6 +125,7 @@ fn disclosure_controls_are_excluded_from_copy_and_search_source() {
         ))),
         PagerAction::CopyTranscriptSelection {
             text: "tool\nafter".to_string(),
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             follow: false,
         }
     );

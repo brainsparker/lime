@@ -615,6 +615,7 @@ impl PickerState {
                 PagerAction::Consumed | PagerAction::LoadOlderHistory => {}
                 action @ PagerAction::ScheduleFrame => return Some(action),
                 action @ (PagerAction::CopyTranscriptSelection { .. }
+                | PagerAction::PublishPrimarySelection
                 | PagerAction::OpenLink(_)
                 | PagerAction::ContinueTranscriptSelection) => return Some(action),
             }
@@ -622,17 +623,39 @@ impl PickerState {
         None
     }
 
-    pub(crate) fn apply_transcript_copy_result(
-        &mut self,
-        follow: bool,
-        characters: usize,
-        result: &Result<crate::clipboard_copy::CopyStatus, String>,
-    ) {
+    pub(crate) fn defer_transcript_copy(&mut self, id: u64, characters: usize) {
         if let Some(pager) = self.transcript_pager.as_mut() {
-            pager
-                .overlay
-                .apply_transcript_copy_result(follow, characters, result);
+            pager.overlay.defer_transcript_copy(id, characters);
         }
+    }
+
+    pub(crate) fn publish_primary(
+        &self,
+        clipboard: &mut crate::clipboard_copy::worker::ClipboardWorker,
+        frames: crate::tui::FrameRequester,
+    ) {
+        if let Some(pager) = self.transcript_pager.as_ref() {
+            pager.overlay.publish_primary(clipboard, frames);
+        }
+    }
+
+    pub(crate) fn cancel_primary(&self) {
+        if let Some(pager) = self.transcript_pager.as_ref() {
+            pager.overlay.cancel_primary();
+        }
+    }
+
+    pub(crate) fn finish_transcript_copy(
+        &mut self,
+        id: u64,
+        follow: bool,
+        result: &Result<crate::clipboard_copy::CopyStatus, String>,
+        current: bool,
+    ) -> Option<bool> {
+        self.transcript_pager
+            .as_mut()?
+            .overlay
+            .finish_transcript_copy(id, follow, result, current)
     }
 }
 

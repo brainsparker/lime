@@ -4,8 +4,6 @@
 //! surfaces from most specific to least specific while leaving input ownership in `BottomPane`
 //! and canonical turn state in `ConversationProjection`.
 
-use std::time::Instant;
-
 use crossterm::event::{Event, KeyCode, KeyEventKind, KeyModifiers};
 
 use super::agent_picker::AgentPickerAction;
@@ -16,16 +14,84 @@ use crate::pager_overlay::PagerAction;
 use crate::transcript_view::{SearchAction, TranscriptSelectionAction};
 use crate::tui::TuiEvent;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FullscreenSurface {
+    Pager,
+    ResumePicker,
+    AgentsOverview,
+}
+
 fn normalize_paste(text: String) -> String {
     text.replace("\r\n", "\n").replace('\r', "\n")
 }
 
 impl App {
+    pub(crate) fn transcript_search_needs_frame(&self) -> bool {
+        self.transcript_view.search.needs_frame()
+            || self
+                .transcript_view
+                .search
+                .history_request_pending(self.chat_widget.scrollback_has_older_history())
+            || self
+                .chat_widget
+                .pager_overlay
+                .as_ref()
+                .is_some_and(crate::pager_overlay::PagerOverlay::search_needs_frame)
+            || self
+                .chat_widget
+                .resume_picker
+                .as_ref()
+                .is_some_and(crate::resume_picker::PickerState::transcript_search_needs_frame)
+    }
+
+    /// Rendering, cursor and completion routing use the same input ownership priority.
+    pub(crate) fn fullscreen_surface(&self) -> Option<FullscreenSurface> {
+        if self.chat_widget.pager_overlay.is_some() {
+            return Some(FullscreenSurface::Pager);
+        }
+        if self.chat_widget.export_picker.is_some()
+            || self.chat_widget.copy_picker.is_some()
+            || self.chat_widget.bottom_pane.is_active()
+            || self.chat_widget.terminal_title_setup.is_some()
+            || self.chat_widget.status_line_setup.is_some()
+            || self.has_queued_startup_protected_request()
+        {
+            return None;
+        }
+        if self.chat_widget.resume_picker.is_some() {
+            Some(FullscreenSurface::ResumePicker)
+        } else if self.chat_widget.agents_overview.is_some() {
+            Some(FullscreenSurface::AgentsOverview)
+        } else {
+            None
+        }
+    }
+
+    pub(super) fn composer_owns_clipboard(&self) -> bool {
+        self.main_clipboard_surface_is_current()
+            && !self.chat_widget.bottom_pane.is_active()
+            && !self.transcript_view.search.is_active()
+            && !self.transcript_view.selection.is_active()
+            && !self.has_queued_startup_protected_request()
+    }
+
+    pub(super) fn main_clipboard_surface_is_current(&self) -> bool {
+        self.chat_widget.pager_overlay.is_none()
+            && self.chat_widget.status_line_setup.is_none()
+            && self.chat_widget.terminal_title_setup.is_none()
+            && self.chat_widget.export_picker.is_none()
+            && self.chat_widget.copy_picker.is_none()
+            && self.chat_widget.resume_picker.is_none()
+            && self.chat_widget.agents_overview.is_none()
+            && self.chat_widget.model_picker.is_none()
+            && self.chat_widget.agent_picker.is_none()
+    }
+
     #[cfg(test)]
     pub(crate) fn handle_tui_event(&mut self, event: TuiEvent, connected: bool) -> AppAction {
         let was_disabled = self.chat_widget.bottom_pane.paste_burst_is_disabled();
         self.chat_widget.bottom_pane.set_paste_burst_disabled(true);
-        let action = self.handle_tui_event_impl(event, connected);
+        let action = self.handle_tui_event_impl(event, connected, std::time::Instant::now());
         self.chat_widget
             .bottom_pane
             .set_paste_burst_disabled(was_disabled);
@@ -36,11 +102,17 @@ impl App {
         &mut self,
         event: TuiEvent,
         connected: bool,
+        input_at: std::time::Instant,
     ) -> AppAction {
-        self.handle_tui_event_impl(event, connected)
+        self.handle_tui_event_impl(event, connected, input_at)
     }
 
-    fn handle_tui_event_impl(&mut self, event: TuiEvent, connected: bool) -> AppAction {
+    fn handle_tui_event_impl(
+        &mut self,
+        event: TuiEvent,
+        connected: bool,
+        input_at: std::time::Instant,
+    ) -> AppAction {
         if self.backtrack.primed
             && !self.backtrack.overlay_preview_active
             && matches!(
@@ -59,7 +131,7 @@ impl App {
             self.chat_widget.reset_global_key_chord();
         }
         if matches!(&event, TuiEvent::FocusLost | TuiEvent::Resume) {
-            self.chat_widget.end_interaction_drag();
+            self.end_interaction_drag();
         }
 
         if !connected {
@@ -74,7 +146,7 @@ impl App {
                     AppAction::Quit
                 }
                 TuiEvent::Key(key) => {
-                    self.chat_widget.bottom_pane.handle_disconnected_key(key);
+                    self.chat_widget.bottom_pane.handle_restricted_key(key);
                     self.chat_widget.bottom_pane.clear_completion_popup();
                     AppAction::None
                 }
@@ -99,6 +171,8 @@ impl App {
                 if key.kind == KeyEventKind::Press
                     && self.chat_widget.status_line_setup.is_none()
                     && self.chat_widget.terminal_title_setup.is_none()
+                    && self.chat_widget.copy_picker.is_none()
+                    && self.chat_widget.pager_overlay.as_ref().is_none_or(|pager| !pager.is_copy_mode())
                     && key.modifiers == KeyModifiers::ALT
                     && matches!(key.code, KeyCode::Char(value) if value.eq_ignore_ascii_case(&'r'))
         ) {
@@ -106,26 +180,9 @@ impl App {
             return AppAction::None;
         }
 
-        let composer_owns_copy = self.chat_widget.pager_overlay.is_none()
-            && self.chat_widget.status_line_setup.is_none()
-            && self.chat_widget.terminal_title_setup.is_none()
-            && self.chat_widget.export_picker.is_none()
-            && !self.chat_widget.bottom_pane.is_active()
-            && self.chat_widget.resume_picker.is_none()
-            && self.chat_widget.agents_overview.is_none()
-            && self.chat_widget.model_picker.is_none()
-            && self.chat_widget.agent_picker.is_none()
-            && !self.chat_widget.transcript_search.is_active()
-            && !self.chat_widget.transcript_selection.is_active()
-            && !self.has_queued_startup_protected_request();
-        if composer_owns_copy {
-            if let Some((text, clear_selection)) =
-                self.chat_widget.bottom_pane.copy_selection_request(&event)
-            {
-                return AppAction::CopyComposerSelection {
-                    text,
-                    clear_selection,
-                };
+        if self.composer_owns_clipboard() {
+            if let Some(text) = self.chat_widget.bottom_pane.copy_selection_request(&event) {
+                return AppAction::CopyComposerSelection { text };
             }
             if let Some(source) = self.chat_widget.bottom_pane.clipboard_paste_request(&event) {
                 if crate::clipboard_paste::right_click_paste_allowed(
@@ -144,11 +201,10 @@ impl App {
             TuiEvent::Resize(size) => Event::Resize(size.width, size.height),
             TuiEvent::FocusGained => Event::FocusGained,
             TuiEvent::FocusLost => Event::FocusLost,
-            TuiEvent::Draw => return self.pre_draw_tick(Instant::now()),
-            TuiEvent::Resume => return AppAction::None,
+            TuiEvent::Draw | TuiEvent::Resume => return AppAction::None,
         };
 
-        if self.chat_widget.pager_overlay.is_some() {
+        if self.fullscreen_surface() == Some(FullscreenSurface::Pager) {
             if let Some(action) = self.handle_backtrack_overlay_event(&event) {
                 return action;
             }
@@ -161,14 +217,20 @@ impl App {
                 Some(PagerAction::ScheduleFrame) => {
                     AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
                 }
-                Some(PagerAction::CopyTranscriptSelection { text, follow }) => {
-                    AppAction::CopyTranscriptSelection {
-                        text,
-                        follow,
-                        target: TranscriptSelectionTarget::MainPager,
-                    }
-                }
+                Some(PagerAction::CopyTranscriptSelection {
+                    text,
+                    format,
+                    follow,
+                }) => AppAction::CopyTranscriptSelection {
+                    text,
+                    format,
+                    follow,
+                    target: TranscriptSelectionTarget::MainPager,
+                },
                 Some(PagerAction::OpenLink(destination)) => AppAction::OpenLink(destination),
+                Some(PagerAction::PublishPrimarySelection) => AppAction::PublishPrimarySelection {
+                    target: TranscriptSelectionTarget::MainPager,
+                },
                 Some(PagerAction::ContinueTranscriptSelection) => {
                     AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
                 }
@@ -190,6 +252,18 @@ impl App {
         }
 
         if !self.chat_widget.bottom_pane.is_active() {
+            if let Some(action) = self.chat_widget.handle_copy_picker_event(&event) {
+                return match action {
+                    crate::chatwidget::copy_picker::CopyPickerAction::Copy { text, label } => {
+                        AppAction::CopySelection {
+                            text,
+                            label,
+                            format: crate::clipboard_copy::CopyFormat::PlainText,
+                        }
+                    }
+                    _ => AppAction::None,
+                };
+            }
             if let Some(action) = self.handle_terminal_title_setup_event(&event) {
                 return action;
             }
@@ -204,7 +278,7 @@ impl App {
                     return AppAction::None;
                 }
             }
-            if let Some(action) = self.chat_widget.route_modal_transcript_wheel(&event) {
+            if let Some(action) = self.transcript_view.route_modal_wheel(&event) {
                 return match action {
                     TranscriptSelectionAction::Scroll { rows } => AppAction::ScrollRows(rows),
                     _ => AppAction::None,
@@ -213,7 +287,7 @@ impl App {
             let action = self
                 .chat_widget
                 .bottom_pane
-                .handle_event(event)
+                .handle_event_at(event, input_at)
                 .map(|action| self.map_chat_widget_action(action))
                 .unwrap_or(AppAction::None);
             if matches!(action, AppAction::Respond(_)) && !self.chat_widget.bottom_pane.is_active()
@@ -235,55 +309,69 @@ impl App {
             Event::Key(_) | Event::Paste(_)
         ));
 
-        if let Some(action) = self.chat_widget.handle_resume_picker_event(&event) {
-            return match action {
-                crate::chatwidget::ResumePickerEvent::Transcript(action) => match action {
-                    Some(PagerAction::CopyTranscriptSelection { text, follow }) => {
-                        AppAction::CopyTranscriptSelection {
+        if self.fullscreen_surface() == Some(FullscreenSurface::ResumePicker) {
+            if let Some(action) = self.chat_widget.handle_resume_picker_event(&event) {
+                return match action {
+                    crate::chatwidget::ResumePickerEvent::Transcript(action) => match action {
+                        Some(PagerAction::CopyTranscriptSelection {
                             text,
+                            format,
+                            follow,
+                        }) => AppAction::CopyTranscriptSelection {
+                            text,
+                            format,
                             follow,
                             target: TranscriptSelectionTarget::ResumePicker,
+                        },
+                        Some(PagerAction::OpenLink(destination)) => {
+                            AppAction::OpenLink(destination)
+                        }
+                        Some(PagerAction::PublishPrimarySelection) => {
+                            AppAction::PublishPrimarySelection {
+                                target: TranscriptSelectionTarget::ResumePicker,
+                            }
+                        }
+                        Some(PagerAction::ContinueTranscriptSelection) => {
+                            AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
+                        }
+                        Some(PagerAction::ScheduleFrame) => {
+                            AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
+                        }
+                        _ => AppAction::None,
+                    },
+                    crate::chatwidget::ResumePickerEvent::Picker(action) => {
+                        if action == crate::resume_picker::PickerAction::Cancel {
+                            AppAction::None
+                        } else {
+                            AppAction::ResumePicker(action)
                         }
                     }
-                    Some(PagerAction::OpenLink(destination)) => AppAction::OpenLink(destination),
-                    Some(PagerAction::ContinueTranscriptSelection) => {
-                        AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
-                    }
-                    Some(PagerAction::ScheduleFrame) => {
-                        AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
-                    }
-                    _ => AppAction::None,
-                },
-                crate::chatwidget::ResumePickerEvent::Picker(action) => {
-                    if action == crate::resume_picker::PickerAction::Cancel {
-                        AppAction::None
-                    } else {
-                        AppAction::ResumePicker(action)
-                    }
-                }
-            };
+                };
+            }
         }
 
-        if let Some(event) = self.chat_widget.handle_agents_overview_event(&event) {
-            return match event.action {
-                AgentsOverviewAction::Select => event
-                    .selected_thread_id
-                    .map(AppAction::SwitchThread)
-                    .unwrap_or(AppAction::None),
-                AgentsOverviewAction::Cancel => AppAction::None,
-                AgentsOverviewAction::LoadMore => AppAction::LoadMoreAgentsOverview,
-                AgentsOverviewAction::Dispatch { prompt, cwd } => {
-                    AppAction::DispatchAgentsOverviewTask { prompt, cwd }
-                }
-                AgentsOverviewAction::Rename { thread_id, name } => {
-                    AppAction::RenameAgentsOverviewThread { thread_id, name }
-                }
-                AgentsOverviewAction::Stop { thread_id } => {
-                    AppAction::StopAgentsOverviewThread { thread_id }
-                }
-                AgentsOverviewAction::OpenResumePicker => AppAction::OpenResumePicker,
-                AgentsOverviewAction::None => AppAction::None,
-            };
+        if self.fullscreen_surface() == Some(FullscreenSurface::AgentsOverview) {
+            if let Some(event) = self.chat_widget.handle_agents_overview_event(&event) {
+                return match event.action {
+                    AgentsOverviewAction::Select => event
+                        .selected_thread_id
+                        .map(AppAction::SwitchThread)
+                        .unwrap_or(AppAction::None),
+                    AgentsOverviewAction::Cancel => AppAction::None,
+                    AgentsOverviewAction::LoadMore => AppAction::LoadMoreAgentsOverview,
+                    AgentsOverviewAction::Dispatch { prompt, cwd } => {
+                        AppAction::DispatchAgentsOverviewTask { prompt, cwd }
+                    }
+                    AgentsOverviewAction::Rename { thread_id, name } => {
+                        AppAction::RenameAgentsOverviewThread { thread_id, name }
+                    }
+                    AgentsOverviewAction::Stop { thread_id } => {
+                        AppAction::StopAgentsOverviewThread { thread_id }
+                    }
+                    AgentsOverviewAction::OpenResumePicker => AppAction::OpenResumePicker,
+                    AgentsOverviewAction::None => AppAction::None,
+                };
+            }
         }
 
         if let Some(action) = self.chat_widget.handle_model_picker_event(&event) {
@@ -304,7 +392,7 @@ impl App {
             };
         }
 
-        let main_selection_wants_event = self.chat_widget.transcript_selection.is_active()
+        let main_selection_wants_event = self.transcript_view.selection.is_active()
             || matches!(event, Event::Mouse(_))
             || matches!(
                 event,
@@ -317,41 +405,57 @@ impl App {
             && !self.chat_widget.bottom_pane.popup_active()
             && !self.chat_widget.bottom_pane.history_search_active()
         {
-            let had_selection = self.chat_widget.transcript_selection.is_active();
-            if let Some(action) = self.chat_widget.handle_main_transcript_selection(&event) {
+            let had_selection = self.transcript_view.selection.is_active();
+            if let Some(action) = self.transcript_view.handle_selection_event(&event) {
                 let app_action = match action {
                     TranscriptSelectionAction::Consumed => AppAction::None,
-                    TranscriptSelectionAction::Copy { text, follow } => {
-                        AppAction::CopyTranscriptSelection {
-                            text,
-                            follow,
+                    TranscriptSelectionAction::PublishPrimary => {
+                        AppAction::PublishPrimarySelection {
                             target: TranscriptSelectionTarget::MainTranscript,
                         }
                     }
+                    TranscriptSelectionAction::Copy {
+                        text,
+                        format,
+                        follow,
+                    } => AppAction::CopyTranscriptSelection {
+                        text,
+                        format,
+                        follow,
+                        target: TranscriptSelectionTarget::MainTranscript,
+                    },
                     TranscriptSelectionAction::OpenLink(destination) => {
                         AppAction::OpenLink(destination)
                     }
                     TranscriptSelectionAction::Scroll { rows } => {
-                        if !self.chat_widget.scroll_main_selection(rows) {
+                        if !self.transcript_view.scroll_selection(rows) {
                             return AppAction::ScrollRows(rows);
+                        }
+                        if rows < 0
+                            && self.transcript_view.selection.is_at_top()
+                            && self.chat_widget.scrollback_has_older_history()
+                        {
+                            return AppAction::LoadOlderHistory;
                         }
                         AppAction::None
                     }
                     TranscriptSelectionAction::RevealRow(row) => {
-                        self.chat_widget.reveal_main_selection_row(row);
+                        self.transcript_view.reveal_selection_row(row);
                         AppAction::None
                     }
                 };
                 return app_action;
             }
             if had_selection && matches!(event, Event::Key(_) | Event::Paste(_)) {
-                self.chat_widget
-                    .finish_main_transcript_selection_if_active();
+                self.transcript_view.finish_selection_if_active();
             }
         }
 
-        if self.chat_widget.transcript_search.is_active() {
-            return match self.chat_widget.handle_transcript_search_event(&event) {
+        if self.transcript_view.search.is_active() {
+            return match self
+                .transcript_view
+                .handle_search_event(&event, self.chat_widget.scrollback_has_older_history())
+            {
                 Some(SearchAction::Consumed) => AppAction::None,
                 Some(SearchAction::ScheduleFrame) => {
                     AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
@@ -362,12 +466,16 @@ impl App {
         }
 
         if let Event::Mouse(mouse) = event {
-            if let Some(_action) = self.chat_widget.handle_transcript_follow_mouse(mouse) {
+            if let Some(_action) = self.transcript_view.handle_follow_mouse(mouse) {
                 return AppAction::None;
             }
         }
 
-        if let Some(action) = self.chat_widget.bottom_pane.handle_event(event.clone()) {
+        if let Some(action) = self
+            .chat_widget
+            .bottom_pane
+            .handle_event_at(event.clone(), input_at)
+        {
             return self.map_chat_widget_action(action);
         }
 
@@ -385,7 +493,7 @@ impl App {
                 }
                 KeymapMatch::Completed(GlobalKeymapAction::FindTranscript) => {
                     self.chat_widget.dismiss_shortcut_overlay();
-                    self.chat_widget.begin_transcript_search();
+                    self.transcript_view.begin_search();
                     return AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL);
                 }
                 KeymapMatch::Pending | KeymapMatch::Cancelled => return AppAction::None,
@@ -394,7 +502,7 @@ impl App {
         }
 
         match event {
-            Event::Key(key) => self.handle_key_event(key),
+            Event::Key(key) => self.handle_key_event_at(key, std::time::Instant::now(), input_at),
             Event::Paste(text) => {
                 self.chat_widget.bottom_pane.handle_paste(&text);
                 AppAction::None

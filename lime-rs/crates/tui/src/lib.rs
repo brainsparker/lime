@@ -6,6 +6,7 @@ mod app_server_session;
 mod bottom_pane;
 mod chatwidget;
 mod clipboard_copy;
+mod clipboard_html;
 mod clipboard_paste;
 mod collaboration_modes;
 #[allow(dead_code)]
@@ -29,6 +30,7 @@ mod live_wrap;
 mod local_settings;
 mod locale;
 mod markdown;
+mod markdown_copy;
 mod markdown_render;
 mod mention_codec;
 mod model_catalog;

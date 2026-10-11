@@ -88,7 +88,7 @@ fn active_bottom_pane_receives_input_before_the_chat_composer() {
 #[test]
 fn modal_transcript_wheel_scrolls_only_inside_the_visible_transcript() {
     let mut app = App::default();
-    app.chat_widget.transcript_selection.update_layout(
+    app.transcript_view.selection.update_layout(
         Rect::new(0, 0, 40, 5),
         5,
         &(0..20)
@@ -153,7 +153,7 @@ fn modal_transcript_wheel_scrolls_only_inside_the_visible_transcript() {
 #[test]
 fn modal_transcript_wheel_remains_available_during_request_user_input() {
     let mut app = App::default();
-    app.chat_widget.transcript_selection.update_layout(
+    app.transcript_view.selection.update_layout(
         Rect::new(0, 0, 40, 5),
         5,
         &(0..20)
@@ -368,7 +368,7 @@ fn global_keymap_chord_does_not_cross_non_keyboard_boundaries() {
             ),
             AppAction::None
         );
-        assert!(!app.chat_widget.transcript_search.is_active());
+        assert!(!app.transcript_view.search.is_active());
     }
 }
 
@@ -1236,7 +1236,7 @@ fn copy_shortcut_and_slash_command_do_not_become_turn_input() {
             &mut app,
             Event::Key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE,))
         ),
-        AppAction::CopyLastResponse
+        AppAction::SelectTranscriptCopy
     );
     assert!(app.chat_widget.bottom_pane.composer_is_empty());
 }
@@ -1446,11 +1446,11 @@ fn transcript_overlay_requests_older_history_only_when_session_has_more_pages() 
 fn switching_threads_resets_the_main_transcript_to_the_tail() {
     let mut app = App::default();
     app.set_thread_id("thread-1".to_string());
-    app.chat_widget.transcript_scroll = 12;
+    app.transcript_view.scroll = 12;
 
     app.set_thread_id("thread-2".to_string());
 
-    assert_eq!(app.chat_widget.transcript_scroll, 0);
+    assert_eq!(app.transcript_view.scroll, 0);
 }
 
 #[test]
@@ -1834,7 +1834,6 @@ fn composer_mouse_selection_precedes_shortcuts_and_requests_copy() {
         ),
         AppAction::CopyComposerSelection {
             text: "ello".to_string(),
-            clear_selection: true,
         }
     );
     assert_eq!(
@@ -1847,7 +1846,6 @@ fn composer_mouse_selection_precedes_shortcuts_and_requests_copy() {
         ),
         AppAction::CopyComposerSelection {
             text: "ello".to_string(),
-            clear_selection: false,
         }
     );
 }
@@ -1857,11 +1855,11 @@ fn composer_mouse_paste_requests_clipboard_surface_without_selection() {
     for (button, source) in [
         (
             MouseButton::Right,
-            crate::clipboard_paste::ClipboardTextSource::Clipboard,
+            crate::clipboard_copy::worker::PasteSource::Clipboard,
         ),
         (
             MouseButton::Middle,
-            crate::clipboard_paste::ClipboardTextSource::Primary,
+            crate::clipboard_copy::worker::PasteSource::Primary,
         ),
     ] {
         let mut app = App::default();
@@ -1933,7 +1931,13 @@ fn transcript_pager_routes_mouse_selection_copy_to_runtime_action() {
                     modifiers: KeyModifiers::NONE,
                 }),
             ),
-            AppAction::None
+            if kind == MouseEventKind::Up(MouseButton::Left) {
+                AppAction::PublishPrimarySelection {
+                    target: TranscriptSelectionTarget::MainPager,
+                }
+            } else {
+                AppAction::None
+            }
         );
     }
     assert_eq!(
@@ -1942,6 +1946,7 @@ fn transcript_pager_routes_mouse_selection_copy_to_runtime_action() {
             Event::Key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL,)),
         ),
         AppAction::CopyTranscriptSelection {
+            format: crate::clipboard_copy::CopyFormat::PlainText,
             text: "alpha".to_string(),
             follow: false,
             target: TranscriptSelectionTarget::MainPager,
@@ -2063,7 +2068,7 @@ fn transcript_edge_drag_routes_frame_continuation_and_focus_loss_stops_it() {
         AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
     );
     assert_eq!(
-        app.handle_tui_event(TuiEvent::Draw, true),
+        app.pre_draw_tick(Instant::now()),
         AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
     );
     assert_eq!(
@@ -2075,7 +2080,7 @@ fn transcript_edge_drag_routes_frame_continuation_and_focus_loss_stops_it() {
         .pager_overlay
         .as_ref()
         .is_some_and(PagerOverlay::has_transcript_selection));
-    assert_eq!(app.handle_tui_event(TuiEvent::Draw, true), AppAction::None);
+    assert_eq!(app.pre_draw_tick(Instant::now()), AppAction::None);
 
     for kind in [
         MouseEventKind::Down(MouseButton::Left),
@@ -2105,7 +2110,7 @@ fn transcript_edge_drag_routes_frame_continuation_and_focus_loss_stops_it() {
         app.handle_tui_event(TuiEvent::Resume, true),
         AppAction::None
     );
-    assert_eq!(app.handle_tui_event(TuiEvent::Draw, true), AppAction::None);
+    assert_eq!(app.pre_draw_tick(Instant::now()), AppAction::None);
 }
 
 #[test]

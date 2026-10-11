@@ -1,13 +1,14 @@
 use std::cell::{Cell, RefCell};
-use std::collections::{HashSet, VecDeque};
-use std::ops::Range;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Instant;
 
-use ratatui::buffer::{Buffer, CellWidth};
-use ratatui::layout::{Alignment, Position, Rect};
-use ratatui::style::{Color, Modifier, Style};
-use unicode_segmentation::UnicodeSegmentation;
+#[cfg(test)]
+use super::text::wrap_visual_rows;
+use super::text::TextLayout;
+use ratatui::buffer::Buffer;
+use ratatui::layout::{Position, Rect};
+use ratatui::style::{Modifier, Style};
 
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crate::text_selection::SelectionUnit;
@@ -20,6 +21,8 @@ pub(super) struct Anchor {
 
 #[derive(Clone, Debug)]
 pub(super) struct Selection {
+    pub(super) pending_copy: Option<super::clipboard::PendingCopy>,
+    pub(super) primary_scope: Option<Arc<()>>,
     pub(super) snapshot: Arc<Vec<HyperlinkLine>>,
     pub(super) excluded_lines: Arc<HashSet<usize>>,
     pub(super) start: Anchor,
@@ -35,166 +38,13 @@ pub(super) struct Selection {
     pub(super) preferred_column: Option<u16>,
 }
 
-#[derive(Clone, Debug)]
-pub(super) struct GraphemeCell {
-    pub(super) source: Range<usize>,
-    pub(super) width: u16,
-    pub(super) whitespace: bool,
-    pub(super) destination: Option<String>,
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct VisualRow {
-    pub(super) line: usize,
-    pub(super) cells: Vec<GraphemeCell>,
-    pub(super) source_cursor: usize,
-    pub(super) first_column: u16,
-}
-
-#[derive(Clone, Debug)]
-pub(super) struct TranscriptLayout {
-    pub(super) area: Rect,
-    pub(super) scroll: usize,
-    pub(super) lines: Arc<Vec<HyperlinkLine>>,
-    pub(super) excluded_lines: Arc<HashSet<usize>>,
-    pub(super) texts: Vec<String>,
-    pub(super) rows: Vec<VisualRow>,
-}
-
-impl TranscriptLayout {
-    fn new(
-        area: Rect,
-        scroll: usize,
-        lines: Arc<Vec<HyperlinkLine>>,
-        excluded_lines: Arc<HashSet<usize>>,
-    ) -> Self {
-        let texts = lines.iter().map(line_text).collect::<Vec<_>>();
-        let rows = if area.width == 0 {
-            Vec::new()
-        } else {
-            texts
-                .iter()
-                .enumerate()
-                .zip(lines.iter())
-                .flat_map(|((line_index, text), line)| {
-                    wrap_visual_rows(line_index, text, area.width, line)
-                })
-                .collect()
-        };
-        let scroll = scroll.min(rows.len().saturating_sub(usize::from(area.height)));
-        Self {
-            area,
-            scroll,
-            lines,
-            excluded_lines,
-            texts,
-            rows,
-        }
-    }
-
-    pub(super) fn hit_test(&self, column: u16, row: u16) -> Option<Anchor> {
-        if !self.area.contains(Position::new(column, row)) {
-            return None;
-        }
-        let visual_row = self
-            .scroll
-            .saturating_add(usize::from(row.saturating_sub(self.area.y)));
-        let row = self.rows.get(visual_row)?;
-        Some(Anchor {
-            line: row.line,
-            offset: row.offset_at_column(column.saturating_sub(self.area.x)),
-        })
-    }
-
-    pub(super) fn is_selectable_line(&self, line: usize) -> bool {
-        !self.excluded_lines.contains(&line)
-    }
-
-    pub(super) fn link_at(&self, column: u16, row: u16) -> Option<String> {
-        if !self.area.contains(Position::new(column, row)) {
-            return None;
-        }
-        let visual_row = self
-            .scroll
-            .saturating_add(usize::from(row.saturating_sub(self.area.y)));
-        self.rows
-            .get(visual_row)?
-            .link_at(column.saturating_sub(self.area.x))
-    }
-
-    pub(super) fn row_for_anchor(&self, anchor: Anchor) -> Option<usize> {
-        self.rows
-            .iter()
-            .enumerate()
-            .filter(|(_, row)| row.line == anchor.line && row.start_offset() <= anchor.offset)
-            .map(|(index, _)| index)
-            .next_back()
-    }
-}
-
-impl VisualRow {
-    pub(super) fn start_offset(&self) -> usize {
-        self.cells
-            .first()
-            .map_or(self.source_cursor, |cell| cell.source.start)
-    }
-
-    pub(super) fn end_offset(&self) -> usize {
-        self.cells
-            .last()
-            .map_or(self.source_cursor, |cell| cell.source.end)
-    }
-
-    pub(super) fn offset_at_column(&self, column: u16) -> usize {
-        if column <= self.first_column {
-            return self.start_offset();
-        }
-        let mut current = self.first_column;
-        for cell in &self.cells {
-            current = current.saturating_add(cell.width);
-            if column < current {
-                return cell.source.start;
-            }
-        }
-        self.end_offset()
-    }
-
-    pub(super) fn column_for_offset(&self, offset: usize) -> u16 {
-        let mut column = self.first_column;
-        for cell in &self.cells {
-            if offset <= cell.source.start {
-                break;
-            }
-            column = column.saturating_add(cell.width);
-            if offset < cell.source.end {
-                break;
-            }
-        }
-        column
-    }
-
-    fn link_at(&self, column: u16) -> Option<String> {
-        if column < self.first_column {
-            return None;
-        }
-        let mut current = self.first_column;
-        for cell in &self.cells {
-            let end = current.saturating_add(cell.width);
-            if column < end {
-                return cell.destination.clone();
-            }
-            current = end;
-        }
-        None
-    }
-}
-
 #[derive(Debug, Default)]
 pub(crate) struct TranscriptSelection {
     pub(super) selection: RefCell<Option<Selection>>,
-    pub(super) layout: RefCell<Option<TranscriptLayout>>,
+    pub(super) layout: RefCell<Option<TextLayout>>,
     pub(super) last_click: RefCell<Option<(Instant, u16, u16, u8)>>,
     pub(super) resume_distance_from_bottom: Cell<Option<usize>>,
+    pub(super) copy_mode: RefCell<Option<super::copy_mode::CopyMode>>,
 }
 
 impl TranscriptSelection {
@@ -227,6 +77,12 @@ impl TranscriptSelection {
         lines: &[HyperlinkLine],
         excluded_lines: &HashSet<usize>,
     ) {
+        let resized = self.layout_size_changed(area);
+        if resized {
+            if let Some(mode) = self.copy_mode.borrow().as_ref() {
+                mode.reveal.set(true);
+            }
+        }
         let (lines, excluded_lines) = self.selection.borrow().as_ref().map_or_else(
             || (Arc::new(lines.to_vec()), Arc::new(excluded_lines.clone())),
             |selection| {
@@ -236,12 +92,8 @@ impl TranscriptSelection {
                 )
             },
         );
-        self.layout.replace(Some(TranscriptLayout::new(
-            area,
-            scroll,
-            lines,
-            excluded_lines,
-        )));
+        self.layout
+            .replace(Some(TextLayout::new(area, scroll, lines, excluded_lines)));
         let pointer = self
             .selection
             .borrow()
@@ -255,16 +107,23 @@ impl TranscriptSelection {
 
     pub(crate) fn clear(&self) {
         self.selection.replace(None);
+        self.copy_mode.replace(None);
     }
 
     pub(crate) fn reset(&self) {
-        self.selection.replace(None);
+        self.clear();
         self.layout.replace(None);
         self.last_click.replace(None);
         self.resume_distance_from_bottom.set(None);
     }
 
     /// Keep the selected source and its top logical row stable across terminal reflow.
+    pub(crate) fn layout_size_changed(&self, area: Rect) -> bool {
+        self.layout.borrow().as_ref().is_some_and(|layout| {
+            layout.area.width != area.width || layout.area.height != area.height
+        })
+    }
+
     pub(crate) fn frozen_scroll(&self, area: Rect, fallback: usize) -> usize {
         let selection = self.selection.borrow();
         let Some(selection) = selection.as_ref() else {
@@ -274,7 +133,7 @@ impl TranscriptSelection {
         let Some(previous) = previous_layout.as_ref() else {
             return fallback;
         };
-        let next = TranscriptLayout::new(
+        let next = TextLayout::new(
             area,
             /*scroll*/ 0,
             Arc::clone(&selection.snapshot),
@@ -319,6 +178,13 @@ impl TranscriptSelection {
         changed
     }
 
+    pub(crate) fn is_at_top(&self) -> bool {
+        self.layout
+            .borrow()
+            .as_ref()
+            .is_some_and(|layout| layout.scroll == 0)
+    }
+
     pub(crate) fn reveal_row(&self, row: usize) -> bool {
         let mut layout = self.layout.borrow_mut();
         let Some(layout) = layout.as_mut() else {
@@ -346,6 +212,7 @@ impl TranscriptSelection {
 
     /// End pointer ownership without discarding a non-empty transcript selection.
     pub(crate) fn end_drag(&self) {
+        self.cancel_primary();
         let mut selection = self.selection.borrow_mut();
         let Some(active) = selection.as_mut() else {
             return;
@@ -398,6 +265,14 @@ impl TranscriptSelection {
                 continue;
             }
             if !layout.is_selectable_line(row.line) {
+                continue;
+            }
+            if self.copy_mode.borrow().is_some() && (start.line..=end.line).contains(&row.line) {
+                let screen_y = layout.area.y + (row_index - layout.scroll) as u16;
+                for column in layout.area.x..layout.area.right() {
+                    buffer[(column, screen_y)]
+                        .set_style(Style::default().add_modifier(Modifier::REVERSED));
+                }
                 continue;
             }
             let begin = if row.line == start.line {
@@ -462,6 +337,7 @@ impl TranscriptSelection {
             return;
         };
         let range = selection.unit.range(text, anchor.offset);
+        selection.primary_scope = None;
         let backwards = anchor < selection.origin.0;
         selection.start = if backwards {
             selection.origin.1
@@ -479,56 +355,32 @@ impl TranscriptSelection {
     }
 
     pub(super) fn selected_text(&self) -> Option<String> {
+        self.copy_selected_text().map(|(text, _)| text)
+    }
+
+    pub(crate) fn copy_selected_text(&self) -> Option<(String, crate::clipboard_copy::CopyFormat)> {
+        if let Some(mode) = self.copy_mode.borrow().as_ref() {
+            let target = mode.targets.get(mode.cursor)?;
+            return Some((target.text.to_string(), target.kind.format()));
+        }
         let selection = self.selection.borrow();
         let selection = selection.as_ref()?;
         let (start, end) = ordered(selection.start, selection.end);
         if start == end {
             return None;
         }
-        let quote_only = selection
-            .snapshot
-            .get(start.line..=end.line)
-            .into_iter()
-            .flatten()
-            .enumerate()
-            .filter(|(offset, _)| !selection.excluded_lines.contains(&(start.line + offset)))
-            .filter(|(_, line)| !line_text(line).is_empty())
-            .all(|(_, line)| blockquote_prefix_len(line) > 0);
-        let mut text = String::new();
-        let mut included = false;
-        for line_index in start.line..=end.line {
-            if selection.excluded_lines.contains(&line_index) {
-                continue;
-            }
-            if included {
-                text.push('\n');
-            }
-            let line = selection.snapshot.get(line_index).map(line_text)?;
-            let begin = if line_index == start.line {
-                start.offset
-            } else {
-                0
-            };
-            let finish = if line_index == end.line {
-                end.offset
-            } else {
-                line.len()
-            };
-            let prefix_len = if quote_only {
-                selection
-                    .snapshot
-                    .get(line_index)
-                    .map_or(0, blockquote_prefix_len)
-            } else {
-                0
-            };
-            if finish > prefix_len {
-                text.push_str(line.get(begin.max(prefix_len)..finish)?);
-            }
-            included = true;
-        }
-        text.retain(|character| !character.is_control() || matches!(character, '\n' | '\t'));
-        (!text.is_empty()).then_some(text)
+        let (lines, plain) =
+            super::text::copy_lines(&selection.snapshot, &selection.excluded_lines, start, end)?;
+        let (serialized, format) = crate::markdown_copy::selection(&lines, &plain);
+        let (text, format) = if format == crate::clipboard_copy::CopyFormat::Markdown {
+            (
+                crate::markdown_copy::literal_selection(&lines, &plain),
+                crate::clipboard_copy::CopyFormat::MarkdownSelection(serialized.into()),
+            )
+        } else {
+            (serialized, format)
+        };
+        (!text.is_empty()).then_some((text, format))
     }
 
     #[cfg(test)]
@@ -545,169 +397,12 @@ fn ordered(start: Anchor, end: Anchor) -> (Anchor, Anchor) {
     }
 }
 
-fn line_text(line: &HyperlinkLine) -> String {
+pub(super) fn line_text(line: &HyperlinkLine) -> String {
     line.line
         .spans
         .iter()
         .map(|span| span.content.as_ref())
         .collect()
-}
-
-/// Return the rendered Markdown blockquote prefix length, excluding literal `>` text.
-///
-/// Lime's Markdown renderer marks only its synthetic quote prefix green. Requiring that style
-/// keeps escaped or ordinary literal `>` content intact while still handling nested quotes.
-fn blockquote_prefix_len(line: &HyperlinkLine) -> usize {
-    let Some(first) = line.line.spans.first() else {
-        return 0;
-    };
-    if first.style.fg != Some(Color::Green) {
-        return 0;
-    }
-    let line = line_text(line);
-    let mut offset = 0;
-    while line
-        .get(offset..)
-        .is_some_and(|rest| rest.starts_with("> "))
-    {
-        offset += 2;
-    }
-    offset
-}
-
-fn wrap_visual_rows(
-    line: usize,
-    text: &str,
-    width: u16,
-    hyperlink_line: &HyperlinkLine,
-) -> Vec<VisualRow> {
-    let mut source_column = 0usize;
-    let cells = text
-        .grapheme_indices(true)
-        .map(|(start, grapheme)| {
-            let width = if grapheme.chars().any(char::is_control) {
-                0
-            } else {
-                grapheme.cell_width()
-            };
-            let destination = hyperlink_line.destination_at_column(source_column);
-            source_column = source_column.saturating_add(usize::from(width));
-            GraphemeCell {
-                source: start..start + grapheme.len(),
-                width,
-                whitespace: grapheme == "\u{200b}"
-                    || (grapheme.chars().all(char::is_whitespace) && grapheme != "\u{00a0}"),
-                destination,
-            }
-        })
-        .collect::<Vec<_>>();
-    let mut rows = word_wrap_cells(cells, width);
-    if rows.is_empty() {
-        rows.push(Vec::new());
-    }
-    let mut cursor = 0usize;
-    rows.into_iter()
-        .map(|cells| {
-            let source_cursor = cells.first().map_or(cursor, |cell| cell.source.start);
-            if let Some(last) = cells.last() {
-                cursor = last.source.end;
-            }
-            let row_width = cells
-                .iter()
-                .fold(0u16, |total, cell| total.saturating_add(cell.width));
-            let remaining = width.saturating_sub(row_width);
-            let first_column = match hyperlink_line.line.alignment.unwrap_or(Alignment::Left) {
-                Alignment::Left => 0,
-                Alignment::Center => remaining / 2,
-                Alignment::Right => remaining,
-            };
-            VisualRow {
-                line,
-                cells,
-                source_cursor,
-                first_column,
-            }
-        })
-        .collect()
-}
-
-/// Mirrors ratatui's `WordWrapper` with `trim = false`, while retaining source offsets.
-fn word_wrap_cells(cells: Vec<GraphemeCell>, width: u16) -> Vec<Vec<GraphemeCell>> {
-    if width == 0 {
-        return Vec::new();
-    }
-    let mut rows = Vec::new();
-    let mut pending_line = Vec::new();
-    let mut pending_word = Vec::new();
-    let mut pending_whitespace = VecDeque::<GraphemeCell>::new();
-    let mut line_width = 0u16;
-    let mut word_width = 0u16;
-    let mut whitespace_width = 0u16;
-    let mut non_whitespace_previous = false;
-
-    for cell in cells {
-        if cell.width > width {
-            continue;
-        }
-        let is_whitespace = cell.whitespace;
-        let word_found = non_whitespace_previous && is_whitespace;
-        let untrimmed_overflow = pending_line.is_empty()
-            && word_width
-                .saturating_add(whitespace_width)
-                .saturating_add(cell.width)
-                > width;
-        if word_found || untrimmed_overflow {
-            pending_line.extend(pending_whitespace.drain(..));
-            line_width = line_width.saturating_add(whitespace_width);
-            pending_line.append(&mut pending_word);
-            line_width = line_width.saturating_add(word_width);
-            whitespace_width = 0;
-            word_width = 0;
-        }
-
-        let line_full = line_width >= width;
-        let pending_word_overflow = cell.width > 0
-            && line_width
-                .saturating_add(whitespace_width)
-                .saturating_add(word_width)
-                >= width;
-        if line_full || pending_word_overflow {
-            let mut remaining = width.saturating_sub(line_width);
-            rows.push(std::mem::take(&mut pending_line));
-            line_width = 0;
-            while let Some(space) = pending_whitespace.front() {
-                if space.width > remaining {
-                    break;
-                }
-                whitespace_width = whitespace_width.saturating_sub(space.width);
-                remaining = remaining.saturating_sub(space.width);
-                pending_whitespace.pop_front();
-            }
-            if is_whitespace && pending_whitespace.is_empty() {
-                non_whitespace_previous = false;
-                continue;
-            }
-        }
-
-        if is_whitespace {
-            whitespace_width = whitespace_width.saturating_add(cell.width);
-            pending_whitespace.push_back(cell);
-        } else {
-            word_width = word_width.saturating_add(cell.width);
-            pending_word.push(cell);
-        }
-        non_whitespace_previous = !is_whitespace;
-    }
-
-    pending_line.extend(pending_whitespace);
-    pending_line.append(&mut pending_word);
-    if !pending_line.is_empty() {
-        rows.push(pending_line);
-    }
-    if rows.is_empty() {
-        rows.push(Vec::new());
-    }
-    rows
 }
 
 #[cfg(test)]

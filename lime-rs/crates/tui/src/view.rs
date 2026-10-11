@@ -3,23 +3,19 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Clear, Paragraph};
 use ratatui::Frame;
 
-use crate::app::App;
+use crate::app::{App, FullscreenSurface};
 use crate::bottom_pane;
 use crate::bottom_pane::pending_input_preview;
 use crate::line_truncation::truncate_line_with_ellipsis_if_overflow;
 use crate::model_picker;
 use crate::status_indicator_widget;
-use crate::terminal_hyperlinks::HyperlinkParagraph;
 use std::time::Instant;
 
 /// The visible input surface owns the cursor shape; hidden composer state cannot override it.
 pub(crate) fn cursor_style(app: &App) -> crossterm::cursor::SetCursorStyle {
     use crossterm::cursor::SetCursorStyle;
     let widget = &app.chat_widget;
-    if widget.resume_picker.is_some()
-        || widget.pager_overlay.is_some()
-        || widget.agents_overview.is_some()
-    {
+    if app.fullscreen_surface().is_some() {
         return SetCursorStyle::DefaultUserShape;
     }
     if let Some(picker) = &widget.export_picker {
@@ -27,10 +23,11 @@ pub(crate) fn cursor_style(app: &App) -> crossterm::cursor::SetCursorStyle {
     }
     if !widget.bottom_pane.is_active()
         && (widget.model_picker.is_some()
+            || widget.copy_picker.is_some()
             || widget.status_line_setup.is_some()
             || widget.terminal_title_setup.is_some()
             || widget.agent_picker.is_some()
-            || widget.transcript_search.is_active())
+            || app.transcript_view.search.is_active())
     {
         return SetCursorStyle::DefaultUserShape;
     }
@@ -39,14 +36,25 @@ pub(crate) fn cursor_style(app: &App) -> crossterm::cursor::SetCursorStyle {
 
 pub(crate) fn render(frame: &mut Frame<'_>, app: &App) {
     let area = frame.area();
-    if let Some(picker) = app.chat_widget.resume_picker.as_ref() {
-        app.chat_widget.transcript_follow_control.clear();
+    let fullscreen = app.fullscreen_surface();
+    if let Some(picker) = app
+        .chat_widget
+        .resume_picker
+        .as_ref()
+        .filter(|_| fullscreen == Some(FullscreenSurface::ResumePicker))
+    {
+        app.transcript_view.follow_control.clear();
         frame.render_widget(Clear, area);
         crate::resume_picker::render_with_locale(frame, picker, app.chat_widget.locale);
         return;
     }
-    if let Some(pager) = app.chat_widget.pager_overlay.as_ref() {
-        app.chat_widget.transcript_follow_control.clear();
+    if let Some(pager) = app
+        .chat_widget
+        .pager_overlay
+        .as_ref()
+        .filter(|_| fullscreen == Some(FullscreenSurface::Pager))
+    {
+        app.transcript_view.follow_control.clear();
         if pager.is_transcript() {
             let transcript =
                 crate::app::history_ui::render_transcript_pager_content(app, area.width);
@@ -56,9 +64,14 @@ pub(crate) fn render(frame: &mut Frame<'_>, app: &App) {
         }
         return;
     }
-    if let Some(overview) = app.chat_widget.agents_overview.as_ref() {
+    if let Some(overview) = app
+        .chat_widget
+        .agents_overview
+        .as_ref()
+        .filter(|_| fullscreen == Some(FullscreenSurface::AgentsOverview))
+    {
         // A fullscreen surface must not start or schedule effects hidden underneath it.
-        app.chat_widget.transcript_follow_control.clear();
+        app.transcript_view.follow_control.clear();
         let notice = transient_status(app).map(|status| app.chat_widget.locale.status(&status));
         crate::app::agents_overview_view::render(
             frame,
@@ -72,12 +85,13 @@ pub(crate) fn render(frame: &mut Frame<'_>, app: &App) {
     let active_elapsed = app.active_turn_elapsed(Instant::now());
     let chunks = screen_chunks(area, app, active_elapsed);
     let picker_active = app.chat_widget.model_picker.is_some()
+        || app.chat_widget.copy_picker.is_some()
         || app.chat_widget.status_line_setup.is_some()
         || app.chat_widget.terminal_title_setup.is_some()
         || app.chat_widget.agent_picker.is_some()
         || app.chat_widget.export_picker.is_some();
 
-    render_transcript(frame, chunks.transcript, app);
+    app.render_owned_transcript(frame, chunks.transcript);
     if !app.chat_widget.bottom_pane.is_active() {
         if let Some(elapsed) = active_elapsed {
             let inline_status = active_status_message(app);
@@ -115,7 +129,9 @@ pub(crate) fn render(frame: &mut Frame<'_>, app: &App) {
             app.chat_widget.locale,
         );
     } else {
-        if let Some(picker) = app.chat_widget.terminal_title_setup.as_ref() {
+        if let Some(picker) = app.chat_widget.copy_picker.as_ref() {
+            picker.render(frame, chunks.input, app.chat_widget.locale);
+        } else if let Some(picker) = app.chat_widget.terminal_title_setup.as_ref() {
             picker.render(
                 frame,
                 chunks.input,
@@ -148,40 +164,41 @@ pub(crate) fn render(frame: &mut Frame<'_>, app: &App) {
     let follow_area = (!app.chat_widget.bottom_pane.is_active()
         && !app.chat_widget.bottom_pane.popup_active()
         && app.chat_widget.model_picker.is_none()
+        && app.chat_widget.copy_picker.is_none()
         && app.chat_widget.agents_overview.is_none()
         && app.chat_widget.export_picker.is_none()
         && app.chat_widget.status_line_setup.is_none()
         && app.chat_widget.terminal_title_setup.is_none()
         && app.chat_widget.agent_picker.is_none())
     .then(|| Rect::new(chunks.input.x, chunks.input.y, chunks.input.width, 1));
-    if app.chat_widget.transcript_footer.render_search_query(
+    if app.transcript_view.footer.render_search_query(
         frame,
         follow_area,
         app.chat_widget.locale,
-        &app.chat_widget.transcript_search,
-    ) || app.chat_widget.transcript_composer_gap.render(
-        frame,
-        follow_area,
-        app.chat_widget.locale,
-    ) {
-        app.chat_widget.transcript_follow_control.clear();
+        &app.transcript_view.search,
+    ) || app
+        .transcript_view
+        .composer_gap
+        .render(frame, follow_area, app.chat_widget.locale)
+    {
+        app.transcript_view.follow_control.clear();
     } else {
-        app.chat_widget.transcript_follow_control.render(
+        app.transcript_view.follow_control.render(
             frame,
             follow_area,
             app.chat_widget.locale,
-            app.chat_widget.transcript_viewport.tail_visible(),
-            app.chat_widget.transcript_viewport.unseen_activity(),
+            app.transcript_view.viewport.tail_visible(),
+            app.transcript_view.viewport.unseen_activity(),
         );
     }
     if app.chat_widget.bottom_pane.is_active()
         || (!picker_active
-            && !app.chat_widget.transcript_footer.render_status(
+            && !app.transcript_view.footer.render_status(
                 frame,
                 chunks.footer,
                 app.chat_widget.locale,
-                &app.chat_widget.transcript_search,
-                app.chat_widget.transcript_selection.is_active(),
+                &app.transcript_view.search,
+                app.transcript_view.selection.is_active(),
             ))
     {
         let mut footer_props = app.chat_widget.footer_props(
@@ -236,6 +253,7 @@ fn screen_chunks(
     active_elapsed: Option<std::time::Duration>,
 ) -> ScreenChunks {
     let picker_active = app.chat_widget.model_picker.is_some()
+        || app.chat_widget.copy_picker.is_some()
         || app.chat_widget.status_line_setup.is_some()
         || app.chat_widget.terminal_title_setup.is_some()
         || app.chat_widget.agent_picker.is_some()
@@ -280,6 +298,10 @@ fn screen_chunks(
             app.chat_widget.locale,
             area.width,
         )
+    } else if let Some(picker) = app.chat_widget.copy_picker.as_ref() {
+        picker
+            .desired_height(app.chat_widget.locale, area.width)
+            .min(area.height.saturating_sub(1))
     } else if let Some(picker) = app.chat_widget.terminal_title_setup.as_ref() {
         picker
             .desired_height(app.chat_widget.locale, area.width)
@@ -402,130 +424,6 @@ pub(crate) fn transcript_page_size(width: u16, height: u16, app: &App) -> usize 
     )
     .transcript;
     usize::from(transcript.height.saturating_sub(1).max(1))
-}
-
-fn render_transcript(frame: &mut Frame<'_>, area: Rect, app: &App) {
-    let current = crate::app::history_ui::render_main_transcript_content(app, area.width, false);
-    let current_lines = &current.lines;
-    let snapshot = app.chat_widget.transcript_selection.snapshot_lines();
-    app.chat_widget.transcript_search.prepare(
-        current_lines,
-        area.width,
-        &std::collections::HashSet::new(),
-        snapshot.is_some(),
-    );
-    let search_lines =
-        (app.chat_widget.transcript_search.is_active() && snapshot.is_none()).then(|| {
-            app.chat_widget
-                .transcript_search
-                .highlighted_lines(current_lines)
-        });
-    let lines = snapshot
-        .as_ref()
-        .map(|lines| lines.as_slice())
-        .or(search_lines.as_deref())
-        .unwrap_or(current_lines);
-    let prompt_source = app
-        .chat_widget
-        .transcript_prompt_header
-        .source(&current.prompt_header, snapshot.is_some());
-    let initial_scroll = snapshot.as_ref().map_or_else(
-        || {
-            if app.chat_widget.transcript_search.is_active() {
-                return app.chat_widget.transcript_search.resolve_main_scroll(
-                    current_lines,
-                    area.width,
-                    area.height,
-                );
-            }
-            usize::from(app.chat_widget.transcript_viewport.preview(
-                current_lines,
-                area,
-                app.chat_widget.transcript_scroll,
-            ))
-        },
-        |_| app.chat_widget.transcript_selection.frozen_scroll(area, 0),
-    );
-    let reserved_body = Rect::new(
-        area.x,
-        area.y.saturating_add(1),
-        area.width,
-        area.height.saturating_sub(1),
-    );
-    let reserved_scroll = snapshot.as_ref().map_or_else(
-        || {
-            if app.chat_widget.transcript_search.is_active() {
-                return app.chat_widget.transcript_search.resolve_main_scroll(
-                    current_lines,
-                    reserved_body.width,
-                    reserved_body.height,
-                );
-            }
-            usize::from(app.chat_widget.transcript_viewport.preview(
-                current_lines,
-                reserved_body,
-                app.chat_widget.transcript_scroll,
-            ))
-        },
-        |_| {
-            app.chat_widget
-                .transcript_selection
-                .frozen_scroll(reserved_body, initial_scroll)
-        },
-    );
-    let header = app.chat_widget.transcript_prompt_header.layout(
-        &prompt_source,
-        lines,
-        area,
-        initial_scroll,
-        reserved_scroll,
-    );
-    if let Some(line) = header.line {
-        frame.render_widget(
-            Paragraph::new(line),
-            Rect::new(area.x, area.y, area.width, /*height*/ 1),
-        );
-    }
-    let body = header.body;
-    let frozen_scroll = header.scroll;
-    let current_height = HyperlinkParagraph::new(current_lines).line_count(area.width);
-    let current_max_scroll = current_height.saturating_sub(usize::from(body.height));
-    let scroll = if snapshot.is_some() {
-        let canonical_scroll = app.chat_widget.transcript_viewport.resolve_frozen_anchor(
-            current_lines,
-            body,
-            frozen_scroll,
-        );
-        app.chat_widget
-            .transcript_selection
-            .note_resume_distance_from_bottom(
-                current_max_scroll.saturating_sub(usize::from(canonical_scroll)),
-            );
-        frozen_scroll
-    } else if app.chat_widget.transcript_search.is_active() {
-        app.chat_widget.transcript_search.resolve_main_scroll(
-            current_lines,
-            body.width,
-            body.height,
-        )
-    } else {
-        usize::from(app.chat_widget.transcript_viewport.resolve(
-            current_lines,
-            body,
-            app.chat_widget.transcript_scroll,
-        ))
-    };
-    let paragraph = HyperlinkParagraph::new(lines);
-    frame.render_widget(
-        paragraph.scroll(u16::try_from(scroll).unwrap_or(u16::MAX)),
-        body,
-    );
-    app.chat_widget
-        .transcript_selection
-        .update_layout(body, scroll, lines);
-    app.chat_widget
-        .transcript_selection
-        .render_highlight(frame.buffer_mut());
 }
 
 #[cfg(test)]

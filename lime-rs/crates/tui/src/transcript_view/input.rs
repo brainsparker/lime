@@ -10,16 +10,117 @@ use ratatui::layout::Position;
 use unicode_segmentation::UnicodeSegmentation;
 
 use super::selection::{Anchor, Selection};
-use super::TranscriptSelection;
+use super::{SearchAction, TranscriptFollowAction, TranscriptSelection, TranscriptView};
 use crate::text_selection::{click_count, is_copy_key, SelectionUnit};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum TranscriptSelectionAction {
     Consumed,
-    Copy { text: String, follow: bool },
+    Copy {
+        text: String,
+        format: crate::clipboard_copy::CopyFormat,
+        follow: bool,
+    },
+    PublishPrimary,
     OpenLink(String),
-    Scroll { rows: isize },
+    Scroll {
+        rows: isize,
+    },
     RevealRow(usize),
+}
+
+impl TranscriptView {
+    pub(crate) fn begin_search(&mut self) {
+        self.search.begin(self.scroll, /*restore_on_close*/ true);
+        self.follow_control.clear();
+    }
+
+    pub(crate) fn route_modal_wheel(&mut self, event: &Event) -> Option<TranscriptSelectionAction> {
+        let Event::Mouse(mouse) = event else {
+            return None;
+        };
+        if !matches!(
+            mouse.kind,
+            crossterm::event::MouseEventKind::ScrollUp
+                | crossterm::event::MouseEventKind::ScrollDown
+        ) {
+            return None;
+        }
+
+        match self.selection.handle_event(event) {
+            Some(TranscriptSelectionAction::Scroll { rows }) => {
+                if self.selection.is_active() {
+                    self.selection.scroll_rows(rows);
+                    Some(TranscriptSelectionAction::Consumed)
+                } else {
+                    Some(TranscriptSelectionAction::Scroll { rows })
+                }
+            }
+            Some(action) => Some(action),
+            None => None,
+        }
+    }
+
+    pub(crate) fn handle_selection_event(
+        &mut self,
+        event: &Event,
+    ) -> Option<TranscriptSelectionAction> {
+        let had_selection = self.selection.is_active();
+        let resume_empty =
+            had_selection && self.selection.selected_text().is_none() && self.scroll == 0;
+        let action = self.selection.handle_event(event)?;
+        if had_selection && !self.selection.is_active() {
+            self.finish_selection(resume_empty);
+        }
+        Some(action)
+    }
+
+    pub(crate) fn finish_selection_if_active(&mut self) {
+        if self.selection.is_active() {
+            self.finish_selection(false);
+        }
+    }
+
+    pub(crate) fn scroll_selection(&mut self, rows: isize) -> bool {
+        if !self.selection.is_active() {
+            return false;
+        }
+        self.selection.scroll_rows(rows);
+        true
+    }
+
+    pub(crate) fn reveal_selection_row(&mut self, row: usize) {
+        self.selection.reveal_row(row);
+    }
+
+    pub(crate) fn handle_search_event(
+        &mut self,
+        event: &Event,
+        older_history_available: bool,
+    ) -> Option<SearchAction> {
+        if !self.search.is_active() {
+            return None;
+        }
+        let action = self.search.handle_event(event, older_history_available);
+        if let SearchAction::Closed {
+            restore_scroll: Some(scroll),
+        } = action
+        {
+            self.scroll = scroll;
+        }
+        Some(action)
+    }
+
+    pub(crate) fn handle_follow_mouse(
+        &mut self,
+        mouse: MouseEvent,
+    ) -> Option<TranscriptFollowAction> {
+        let action = self.follow_control.handle_mouse(mouse)?;
+        if action == TranscriptFollowAction::ReturnToLatest {
+            self.scroll_bottom();
+        }
+        Some(action)
+    }
 }
 
 impl TranscriptSelection {
@@ -36,6 +137,9 @@ impl TranscriptSelection {
     }
 
     fn handle_key(&self, key: KeyEvent) -> Option<TranscriptSelectionAction> {
+        if let Some(action) = self.handle_copy_mode_key(key) {
+            return Some(action);
+        }
         if key.kind == KeyEventKind::Release {
             return None;
         }
@@ -44,9 +148,10 @@ impl TranscriptSelection {
                 || (key.code == KeyCode::Enter && key.modifiers == KeyModifiers::NONE)
             {
                 return self
-                    .selected_text()
-                    .map(|text| TranscriptSelectionAction::Copy {
+                    .copy_selected_text()
+                    .map(|(text, format)| TranscriptSelectionAction::Copy {
                         text,
+                        format,
                         follow: key.code == KeyCode::Enter,
                     })
                     .or(Some(TranscriptSelectionAction::Consumed));
@@ -122,9 +227,10 @@ impl TranscriptSelection {
 
         match mouse.kind {
             MouseEventKind::Down(MouseButton::Right) if inside => self
-                .selected_text()
-                .map(|text| TranscriptSelectionAction::Copy {
+                .copy_selected_text()
+                .map(|(text, format)| TranscriptSelectionAction::Copy {
                     text,
+                    format,
                     follow: false,
                 })
                 .or(Some(TranscriptSelectionAction::Consumed)),
@@ -139,6 +245,7 @@ impl TranscriptSelection {
     }
 
     fn pointer_down(&self, mouse: MouseEvent) -> Option<TranscriptSelectionAction> {
+        self.copy_mode.replace(None);
         if mouse
             .modifiers
             .intersects(KeyModifiers::CONTROL | KeyModifiers::SUPER)
@@ -176,6 +283,8 @@ impl TranscriptSelection {
             .then(|| layout.link_at(mouse.column, mouse.row))
             .flatten();
         self.selection.replace(Some(Selection {
+            pending_copy: None,
+            primary_scope: None,
             snapshot: Arc::clone(&layout.lines),
             excluded_lines: Arc::clone(&layout.excluded_lines),
             start,
@@ -231,7 +340,11 @@ impl TranscriptSelection {
             *selection = None;
         }
         link.map(TranscriptSelectionAction::OpenLink)
-            .or(Some(TranscriptSelectionAction::Consumed))
+            .or(Some(if selection.is_some() {
+                TranscriptSelectionAction::PublishPrimary
+            } else {
+                TranscriptSelectionAction::Consumed
+            }))
     }
 
     fn begin_keyboard_selection(&self) -> Option<()> {
@@ -249,6 +362,8 @@ impl TranscriptSelection {
             offset: row.offset_at_column(0),
         };
         self.selection.replace(Some(Selection {
+            pending_copy: None,
+            primary_scope: None,
             snapshot: Arc::clone(&layout.lines),
             excluded_lines: Arc::clone(&layout.excluded_lines),
             start: anchor,
@@ -288,6 +403,7 @@ impl TranscriptSelection {
             move_horizontal(layout, end, code)
         }?;
         selection.end = next;
+        selection.primary_scope = None;
         selection.dragging = false;
         selection.moved = true;
         selection.pointer = None;
@@ -298,7 +414,7 @@ impl TranscriptSelection {
 }
 
 fn move_horizontal(
-    layout: &super::selection::TranscriptLayout,
+    layout: &super::text::TextLayout,
     anchor: Anchor,
     code: KeyCode,
 ) -> Option<Anchor> {
@@ -343,7 +459,7 @@ fn move_horizontal(
 }
 
 fn move_vertical(
-    layout: &super::selection::TranscriptLayout,
+    layout: &super::text::TextLayout,
     anchor: Anchor,
     code: KeyCode,
     preferred_column: u16,

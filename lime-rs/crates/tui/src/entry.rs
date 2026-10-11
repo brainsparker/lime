@@ -152,6 +152,18 @@ pub(crate) fn hyperlink_lines_with_locale(
             &detail,
         ))
     }));
+    if entry.kind == EntryKind::User {
+        for (index, line) in lines.iter_mut().enumerate() {
+            let prefix_bytes = if index == 0 { prefix.len() } else { 2 };
+            let visible = line.line.to_string();
+            let mut source = crate::terminal_hyperlinks::LogicalLineSource::new(
+                visible[prefix_bytes..].to_owned(),
+            );
+            source.prefix_bytes = prefix_bytes;
+            source.copy_as_prose = true;
+            line.source = Some(source);
+        }
+    }
     lines
 }
 

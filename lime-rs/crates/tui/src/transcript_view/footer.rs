@@ -20,6 +20,46 @@ use super::{SearchBoundary, SearchHistoryState, TranscriptSearch};
 pub(crate) struct TranscriptFooter;
 
 impl TranscriptFooter {
+    pub(crate) fn render_copy_mode(
+        &self,
+        frame: &mut Frame<'_>,
+        area: Rect,
+        locale: Locale,
+        kind: super::CopyTargetKind,
+        feedback: Option<&str>,
+    ) {
+        let width = usize::from(area.width);
+        let navigation = crate::footer_hint::first_fitting_line(
+            [
+                locale.transcript_copy_mode_navigation(),
+                "↑/↓/j/k · g/G · enter · esc",
+                "↑/↓ · enter · esc",
+                "enter · esc",
+                "esc",
+            ]
+            .into_iter()
+            .map(navigation_line),
+            width,
+        );
+        let mut lines = Vec::new();
+        if area.height >= 2 {
+            let title = feedback
+                .map(str::to_owned)
+                .unwrap_or_else(|| locale.transcript_copy_mode_title(kind));
+            let style = if feedback.is_some() {
+                crate::style::muted_style()
+            } else {
+                Style::default().add_modifier(ratatui::style::Modifier::BOLD)
+            };
+            lines.push(truncate_line_with_ellipsis_if_overflow(
+                Line::styled(title, style),
+                width,
+            ));
+        }
+        lines.push(navigation);
+        frame.render_widget(Paragraph::new(lines), area);
+    }
+
     pub(crate) fn render_search_query(
         &self,
         frame: &mut Frame<'_>,
@@ -94,6 +134,26 @@ impl TranscriptFooter {
         );
         true
     }
+}
+
+/// Localized actions are dim; complete shortcuts retain the shared contrast-aware style.
+pub(super) fn navigation_line(navigation: &str) -> Line<'static> {
+    let mut spans = Vec::new();
+    for (index, hint) in navigation.split(" · ").enumerate() {
+        if index > 0 {
+            spans.push(Span::styled(" · ", crate::style::muted_style()));
+        }
+        if let Some((key, action)) = hint.split_once(' ') {
+            spans.extend(crate::key_hint::key_label_spans(key));
+            spans.push(Span::styled(
+                format!(" {action}"),
+                crate::style::muted_style(),
+            ));
+        } else {
+            spans.extend(crate::key_hint::key_label_spans(hint));
+        }
+    }
+    Line::from(spans)
 }
 
 pub(crate) fn search_status(search: &TranscriptSearch, locale: Locale) -> String {

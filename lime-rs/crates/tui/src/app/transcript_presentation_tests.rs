@@ -52,7 +52,7 @@ fn terminal_text(terminal: &Terminal<TestBackend>) -> String {
 fn detailed_bookmark_survives_close_without_moving_compact_position() {
     let mut app = App::default();
     app.set_thread_id("thread-1".to_string());
-    app.chat_widget.transcript_scroll = 12;
+    app.transcript_view.scroll = 12;
     let transcript = lines(30);
 
     assert_eq!(toggle_transcript(&mut app), AppAction::None);
@@ -69,7 +69,7 @@ fn detailed_bookmark_survives_close_without_moving_compact_position() {
             .transcript_scroll_position(),
         0
     );
-    assert_eq!(app.chat_widget.transcript_scroll, 12);
+    assert_eq!(app.transcript_view.scroll, 12);
 
     assert_eq!(toggle_transcript(&mut app), AppAction::None);
     assert!(app.chat_widget.pager_overlay.is_none());
@@ -77,7 +77,7 @@ fn detailed_bookmark_survives_close_without_moving_compact_position() {
         .chat_widget
         .transcript_presentation
         .has_detailed_bookmark());
-    assert_eq!(app.chat_widget.transcript_scroll, 12);
+    assert_eq!(app.transcript_view.scroll, 12);
 
     assert_eq!(toggle_transcript(&mut app), AppAction::None);
     let terminal = draw_lines(&app, &transcript);
@@ -90,7 +90,7 @@ fn detailed_bookmark_survives_close_without_moving_compact_position() {
         0
     );
     assert!(terminal_text(&terminal).contains("line 00"));
-    assert_eq!(app.chat_widget.transcript_scroll, 12);
+    assert_eq!(app.transcript_view.scroll, 12);
 }
 
 #[test]
@@ -115,7 +115,13 @@ fn closing_detailed_transcript_clears_search_and_selection() {
                 }),
                 true,
             ),
-            AppAction::None
+            if kind == MouseEventKind::Up(MouseButton::Left) {
+                AppAction::PublishPrimarySelection {
+                    target: super::TranscriptSelectionTarget::MainPager,
+                }
+            } else {
+                AppAction::None
+            }
         );
     }
     assert!(app
@@ -219,19 +225,4 @@ fn switching_threads_discards_the_detailed_bookmark() {
             .transcript_scroll_position()
             > 0
     );
-}
-
-#[test]
-fn transcript_surface_drops_primary_lease_when_selection_surface_closes() {
-    let mut app = App {
-        chat_widget: crate::chatwidget::ChatWidget {
-            primary_clipboard_lease: Some(crate::clipboard_copy::ClipboardLease::test()),
-            ..Default::default()
-        },
-        ..App::default()
-    };
-
-    app.dismiss_pager_overlay();
-
-    assert!(app.chat_widget.primary_clipboard_lease.is_none());
 }

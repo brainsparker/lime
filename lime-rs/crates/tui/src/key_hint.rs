@@ -2,6 +2,14 @@
 
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+/// Emphasize each complete shortcut uniformly, including separators within the label.
+pub(crate) fn key_label_spans(label: &str) -> Vec<ratatui::text::Span<'static>> {
+    vec![ratatui::text::Span::styled(
+        label.to_owned(),
+        crate::style::key_hint_style(),
+    )]
+}
+
 #[cfg(windows)]
 #[inline]
 pub(crate) fn is_altgr(modifiers: KeyModifiers) -> bool {

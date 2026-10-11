@@ -6,6 +6,7 @@ pub(crate) mod agents_overview_view;
 pub(crate) mod app_server_event_targets;
 mod app_server_events;
 pub(crate) mod app_server_requests;
+mod clipboard;
 pub(crate) mod event_dispatch;
 pub(crate) mod history_pagination;
 pub(crate) mod history_replacement;
@@ -14,9 +15,11 @@ mod input;
 mod input_flow;
 pub(crate) mod input_submission;
 mod interaction;
+pub(crate) use interaction::FullscreenSurface;
 mod interrupts;
 pub(crate) mod mcp_login;
 pub(crate) mod message_history;
+mod owned_transcript;
 mod pending_interactive_replay;
 mod reasoning_shortcuts;
 pub(crate) mod reconnect;
@@ -49,12 +52,12 @@ use std::time::{Duration, Instant};
 use self::agent_navigation::AgentNavigationDirection;
 use crate::bottom_pane::AppServerResponse;
 use crate::chatwidget::ChatWidget;
-use crate::clipboard_paste::ClipboardTextSource;
+use crate::clipboard_copy::worker::PasteSource;
 use crate::locale::Locale;
 use crate::model_picker::ModelSelection;
 use crate::pager_overlay::PagerOverlay;
 use crate::projection::ConversationProjection;
-use crate::resume_picker::{PickerAction, PickerState};
+use crate::resume_picker::PickerAction;
 use crate::slash_command::SlashCommand;
 use crate::status::StatusFacts;
 
@@ -82,13 +85,22 @@ pub(crate) enum AppAction {
     PreviousPermissions,
     NextPermissions,
     CopyLastResponse,
+    SelectTranscriptCopy,
+    CopySelection {
+        text: String,
+        label: String,
+        format: crate::clipboard_copy::CopyFormat,
+    },
     CopyComposerSelection {
         text: String,
-        clear_selection: bool,
     },
     CopyTranscriptSelection {
         text: String,
+        format: crate::clipboard_copy::CopyFormat,
         follow: bool,
+        target: TranscriptSelectionTarget,
+    },
+    PublishPrimarySelection {
         target: TranscriptSelectionTarget,
     },
     OpenLink(String),
@@ -97,7 +109,7 @@ pub(crate) enum AppAction {
         path: Option<PathBuf>,
     },
     PasteImage,
-    PasteClipboardText(ClipboardTextSource),
+    PasteClipboardText(PasteSource),
     EditQueuedSubmission(QueuedSubmission),
     ScrollUp,
     ScrollDown,
@@ -146,7 +158,9 @@ pub(crate) struct App {
     pub(crate) backtrack: crate::app_backtrack::BacktrackState,
     pub(crate) history_replacement: history_replacement::HistoryReplacementState,
     pub(crate) chat_widget: ChatWidget,
+    pub(crate) transcript_view: crate::transcript_view::TranscriptView,
     pub(crate) projection: ConversationProjection,
+    pending_clipboard_copy: Option<clipboard::PendingCopy>,
     pending_mcp_login_start: Option<mcp_login::PendingMcpLoginStart>,
     active_mcp_login_ids: HashMap<String, mcp_login::ActiveMcpLogin>,
     mcp_login_generation: u64,
@@ -178,6 +192,9 @@ impl App {
 
     fn toggle_raw_output_mode(&mut self) {
         self.finish_main_transcript_selection(false);
+        self.transcript_view.release_live_reading();
+        self.transcript_view.viewport.suppress_next_activity();
+        self.transcript_view.prompt_header.clear();
         self.chat_widget.toggle_history_render_mode();
         self.projection.set_status(
             self.chat_widget
@@ -251,6 +268,7 @@ impl App {
                 .bottom_pane
                 .set_history_thread_id(&thread_id);
             self.reset_transcript_presentation();
+            self.transcript_view.reset();
             self.chat_widget
                 .reset_thread_surface(self.projection.active_turn_id(), Instant::now());
         }
@@ -288,7 +306,7 @@ impl App {
         self.thread_history_mode = thread.history_mode.clone();
         self.reset_backtrack_state();
         self.history_replacement.reset();
-        self.chat_widget.reset_for_hydrated_thread();
+        self.reset_for_hydrated_thread();
         self.chat_widget
             .set_status_thread_name(thread.id.clone(), thread.name.clone());
         self.chat_widget.agent_navigation.upsert(
@@ -359,13 +377,13 @@ impl App {
                 .as_ref()
                 .is_some_and(PagerOverlay::tick_transcript_selection)
         } else {
-            self.chat_widget.transcript_selection.tick_edge_scroll()
+            self.transcript_view.selection.tick_edge_scroll()
         };
         if selection_scrolled {
             AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
         } else if self
-            .chat_widget
-            .transcript_search
+            .transcript_view
+            .search
             .take_history_request(self.chat_widget.scrollback_has_older_history)
             || self
                 .chat_widget
@@ -374,20 +392,9 @@ impl App {
                 .is_some_and(PagerOverlay::take_search_history_request)
         {
             AppAction::LoadOlderHistory
-        } else if self.chat_widget.transcript_search.needs_frame()
-            || self
-                .chat_widget
-                .pager_overlay
-                .as_ref()
-                .is_some_and(PagerOverlay::search_needs_frame)
-            || self
-                .chat_widget
-                .resume_picker
-                .as_ref()
-                .is_some_and(PickerState::transcript_search_needs_frame)
-        {
+        } else if self.transcript_search_needs_frame() {
             AppAction::ScheduleFrameIn(crate::tui::TARGET_FRAME_INTERVAL)
-        } else if let Some(delay) = self.chat_widget.transcript_composer_gap.tick(now) {
+        } else if let Some(delay) = self.transcript_view.composer_gap.tick(now) {
             AppAction::ScheduleFrameIn(delay)
         } else {
             AppAction::None
@@ -395,28 +402,37 @@ impl App {
     }
 
     pub(crate) fn scroll_up(&mut self, amount: usize) {
-        self.chat_widget.scroll_up(amount);
+        if self.scroll_owned_transcript(-isize::try_from(amount).unwrap_or(isize::MAX)) {
+            return;
+        }
+        self.transcript_view.scroll_up(amount);
     }
 
     pub(crate) fn scroll_down(&mut self, amount: usize) {
-        self.chat_widget.scroll_down(amount);
+        if self.scroll_owned_transcript(isize::try_from(amount).unwrap_or(isize::MAX)) {
+            return;
+        }
+        self.transcript_view.scroll_down(amount);
     }
 
     pub(crate) fn scroll_top(&mut self) {
-        self.chat_widget.scroll_top();
+        self.transcript_view.scroll_top();
     }
 
     pub(crate) fn scroll_bottom(&mut self) {
-        self.chat_widget.scroll_bottom();
+        self.transcript_view.scroll_bottom();
     }
 
     pub(crate) fn finish_main_transcript_selection(&mut self, follow: bool) {
-        self.chat_widget.finish_transcript_selection(follow);
+        self.transcript_view.finish_selection(follow);
     }
 
     fn run_local_command(&mut self) -> Option<AppAction> {
         let text = self.chat_widget.bottom_pane.composer_text().trim();
         let command = self.chat_widget.bottom_pane.command_from_prompt(text)?;
+        if command != SlashCommand::Copy {
+            self.chat_widget.last_status_copy_targets = None;
+        }
         let action = match command {
             SlashCommand::Raw => {
                 self.toggle_raw_output_mode();
@@ -440,7 +456,7 @@ impl App {
                 self.chat_widget.show_terminal_title_setup();
                 AppAction::None
             }
-            SlashCommand::Copy => AppAction::CopyLastResponse,
+            SlashCommand::Copy => AppAction::SelectTranscriptCopy,
             SlashCommand::Export => {
                 let path = text
                     .strip_prefix("/export")
@@ -499,12 +515,17 @@ impl App {
         let cwd = self.cwd.to_string_lossy();
         let status = self.status_value();
         let thread_id = self.thread_id.clone();
+        let thread_name = thread_id
+            .as_deref()
+            .and_then(|id| self.chat_widget.thread_names.get(id))
+            .cloned();
         let model = self.chat_widget.model.clone();
         let provider = self.chat_widget.model_provider.clone();
         let effort = self.chat_widget.reasoning_effort.clone();
         let permissions = self.chat_widget.permissions.clone();
         self.chat_widget.open_status_pager(StatusFacts {
             thread_id: thread_id.as_deref(),
+            thread_name: thread_name.as_deref(),
             model: model.as_deref(),
             provider: provider.as_deref(),
             effort: effort.as_deref(),

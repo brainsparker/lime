@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::future::Future;
+use std::path::PathBuf;
 use std::pin::Pin;
 
 pub type ToolLifecycleEmissionFuture<'a> = Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
@@ -105,6 +106,17 @@ pub struct ToolOutputDeltaEvent {
     pub metadata: HashMap<String, Value>,
 }
 
+/// Execution facts from the same prepared request that starts the process.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommandStartEvent {
+    pub turn_id: String,
+    pub call_id: String,
+    pub command: String,
+    pub argv: Vec<String>,
+    pub cwd: PathBuf,
+    pub process_id: String,
+}
+
 impl ToolLifecycleEvent {
     pub fn started(call: &ToolCall) -> Self {
         Self::from_call(call, ToolLifecyclePhase::Started, None)
@@ -135,6 +147,13 @@ impl ToolLifecycleEvent {
 /// Host capability that publishes canonical tool lifecycle events.
 pub trait ToolLifecycleEmitter: Send + Sync {
     fn emit<'a>(&'a self, event: ToolLifecycleEvent) -> ToolLifecycleEmissionFuture<'a>;
+
+    fn emit_command_start<'a>(
+        &'a self,
+        _event: CommandStartEvent,
+    ) -> ToolLifecycleEmissionFuture<'a> {
+        Box::pin(async {})
+    }
 
     fn emit_code_cell_trace<'a>(
         &'a self,

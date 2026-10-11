@@ -7,29 +7,30 @@
 use crossterm::event::{MouseButton, MouseEventKind};
 
 use super::App;
-use crate::clipboard_paste::{
-    normalize_clipboard_text, right_click_paste_allowed, ClipboardTextSource,
-};
+use crate::clipboard_copy::worker::PasteSource;
+use crate::clipboard_paste::{normalize_clipboard_text, right_click_paste_allowed};
 use crate::tui::TuiEvent;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub(crate) struct PendingPaste {
     id: u64,
     thread: Option<String>,
     draft: (String, usize),
-    source: ClipboardTextSource,
+    source: PasteSource,
+    _scope: Arc<()>,
 }
 
 impl PendingPaste {
-    pub(crate) fn source(&self) -> ClipboardTextSource {
+    pub(crate) fn source(&self) -> PasteSource {
         self.source
     }
 }
 
-fn keep_pending(event: &TuiEvent, source: ClipboardTextSource) -> bool {
+fn keep_pending(event: &TuiEvent, source: PasteSource) -> bool {
     let button = match source {
-        ClipboardTextSource::Clipboard => MouseButton::Right,
-        ClipboardTextSource::Primary => MouseButton::Middle,
+        PasteSource::Clipboard => MouseButton::Right,
+        PasteSource::Primary => MouseButton::Middle,
     };
     match event {
         TuiEvent::Draw | TuiEvent::Resize(_) | TuiEvent::FocusGained => true,
@@ -45,11 +46,12 @@ fn keep_pending(event: &TuiEvent, source: ClipboardTextSource) -> bool {
 impl App {
     fn clipboard_paste_target(
         &self,
-        source: ClipboardTextSource,
+        source: PasteSource,
     ) -> Option<(Option<String>, (String, usize))> {
         if !right_click_paste_allowed(self.chat_widget.right_click_paste, source)
             || self.chat_widget.pager_overlay.is_some()
             || self.chat_widget.export_picker.is_some()
+            || self.chat_widget.copy_picker.is_some()
             || self.chat_widget.status_line_setup.is_some()
             || self.chat_widget.terminal_title_setup.is_some()
             || self.chat_widget.bottom_pane.is_active()
@@ -57,8 +59,8 @@ impl App {
             || self.chat_widget.agents_overview.is_some()
             || self.chat_widget.model_picker.is_some()
             || self.chat_widget.agent_picker.is_some()
-            || self.chat_widget.transcript_search.is_active()
-            || self.chat_widget.transcript_selection.is_active()
+            || self.transcript_view.search.is_active()
+            || self.transcript_view.selection.is_active()
             || self.chat_widget.bottom_pane.history_search_active()
             || self.chat_widget.bottom_pane.vim_search_active()
             || self.chat_widget.bottom_pane.popup_active()
@@ -69,7 +71,12 @@ impl App {
         Some((self.thread_id.clone(), target))
     }
 
-    pub(crate) fn begin_clipboard_paste(&mut self, id: u64, source: ClipboardTextSource) -> bool {
+    pub(crate) fn begin_clipboard_paste(
+        &mut self,
+        id: u64,
+        source: PasteSource,
+        scope: Arc<()>,
+    ) -> bool {
         let Some((thread, draft)) = self.clipboard_paste_target(source) else {
             return false;
         };
@@ -78,19 +85,32 @@ impl App {
             thread,
             draft,
             source,
+            _scope: scope,
         });
         true
     }
 
     /// Invalidate before dispatching input or polling a completion.
-    pub(crate) fn invalidate_clipboard_paste(&mut self, event: &TuiEvent) -> Option<u64> {
-        let source = self.chat_widget.pending_clipboard_source()?;
+    pub(crate) fn invalidate_clipboard_paste(&mut self, event: &TuiEvent) {
+        let Some(source) = self.chat_widget.pending_clipboard_source() else {
+            return;
+        };
         if keep_pending(event, source) {
-            return None;
+            return;
         }
-        self.chat_widget
-            .take_pending_clipboard_paste()
-            .map(|pending| pending.id)
+        self.chat_widget.clear_pending_clipboard_paste();
+    }
+
+    /// Validate before idle advance so a queued read cannot target an obsolete draft.
+    pub(crate) fn validate_clipboard_paste(&mut self) {
+        let Some(pending) = self.chat_widget.pending_clipboard_paste() else {
+            return;
+        };
+        if self.clipboard_paste_target(pending.source).as_ref()
+            != Some(&(pending.thread.clone(), pending.draft.clone()))
+        {
+            self.chat_widget.clear_pending_clipboard_paste();
+        }
     }
 
     /// Apply only a completion that still belongs to the same thread and exact composer draft.
@@ -114,11 +134,9 @@ impl App {
                     .handle_paste(&normalize_clipboard_text(text));
             }
             Ok(_) => {}
-            Err(error) => self.projection.set_status(
-                self.chat_widget
-                    .locale
-                    .status(&format!("clipboard paste failed: {error}")),
-            ),
+            Err(error) => self
+                .projection
+                .set_status(self.chat_widget.locale.clipboard_paste_failure(&error)),
         }
     }
 }
@@ -136,11 +154,11 @@ mod tests {
             row: 1,
             modifiers: KeyModifiers::NONE,
         });
-        assert!(keep_pending(&right_release, ClipboardTextSource::Clipboard));
-        assert!(!keep_pending(&right_release, ClipboardTextSource::Primary));
+        assert!(keep_pending(&right_release, PasteSource::Clipboard));
+        assert!(!keep_pending(&right_release, PasteSource::Primary));
         assert!(!keep_pending(
             &TuiEvent::Key(KeyEvent::new(KeyCode::Char('x'), KeyModifiers::NONE)),
-            ClipboardTextSource::Clipboard
+            PasteSource::Clipboard
         ));
     }
 
@@ -152,7 +170,7 @@ mod tests {
             row: 1,
             modifiers: KeyModifiers::CONTROL,
         });
-        assert!(!keep_pending(&event, ClipboardTextSource::Clipboard));
+        assert!(!keep_pending(&event, PasteSource::Clipboard));
     }
 
     #[test]
@@ -165,7 +183,8 @@ mod tests {
             id: 7,
             thread: None,
             draft: ("before".to_string(), "before".len()),
-            source: ClipboardTextSource::Clipboard,
+            source: PasteSource::Clipboard,
+            _scope: Arc::new(()),
         });
         app.chat_widget
             .bottom_pane
@@ -186,11 +205,56 @@ mod tests {
             id: 8,
             thread: Some("thread-a".to_string()),
             draft: ("draft".to_string(), "draft".len()),
-            source: ClipboardTextSource::Clipboard,
+            source: PasteSource::Clipboard,
+            _scope: Arc::new(()),
         });
         app.set_thread_id("thread-b".to_string());
         app.finish_clipboard_paste(8, Ok("stale".to_string()));
         assert_eq!(app.chat_widget.bottom_pane.composer_text(), "draft");
         assert!(app.chat_widget.pending_clipboard_paste().is_none());
+    }
+
+    #[test]
+    fn input_and_idle_target_validation_drop_read_scope_before_late_delivery() {
+        for cause in ["input", "draft", "thread", "overlay"] {
+            let mut app = App::default();
+            app.chat_widget
+                .bottom_pane
+                .set_composer_text("draft".into());
+            let scope = Arc::new(());
+            let owner = Arc::downgrade(&scope);
+            app.chat_widget.set_pending_clipboard_paste(PendingPaste {
+                id: 9,
+                thread: None,
+                draft: ("draft".into(), 5),
+                source: PasteSource::Clipboard,
+                _scope: scope,
+            });
+            match cause {
+                "input" => app.invalidate_clipboard_paste(&TuiEvent::Key(KeyEvent::new(
+                    KeyCode::Char('x'),
+                    KeyModifiers::NONE,
+                ))),
+                "draft" => app
+                    .chat_widget
+                    .bottom_pane
+                    .set_composer_text("new draft".into()),
+                "thread" => app.set_thread_id("new thread".into()),
+                "overlay" => app.open_transcript_pager(),
+                _ => unreachable!(),
+            }
+            app.validate_clipboard_paste();
+            assert_eq!(
+                owner.strong_count(),
+                0,
+                "{cause} must cancel the pending read scope"
+            );
+            app.finish_clipboard_paste(9, Ok("stale text".into()));
+            assert!(!app
+                .chat_widget
+                .bottom_pane
+                .composer_text()
+                .contains("stale text"));
+        }
     }
 }

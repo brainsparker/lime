@@ -81,7 +81,7 @@ impl App {
         }
         // Never leave removed turns visible while a fresh page is loading or has failed.
         self.projection = crate::projection::ConversationProjection::default();
-        self.chat_widget.reset_for_hydrated_thread();
+        self.reset_for_hydrated_thread();
         self.chat_widget.bottom_pane.clear_interactions();
         self.chat_widget.replace_queued_submissions(Vec::new());
         self.chat_widget.set_scrollback_has_older_history(false);

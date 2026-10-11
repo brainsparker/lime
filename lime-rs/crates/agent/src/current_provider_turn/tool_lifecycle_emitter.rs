@@ -3,7 +3,8 @@ use super::{
     CurrentTurnHostEvent,
 };
 use crate::protocol::{
-    canonical_tool_item_event, AgentEvent, CanonicalSubAgentActivity, ToolItemLifecycleContext,
+    apply_command_start, canonical_command_start_item, canonical_tool_item_event, AgentEvent,
+    CanonicalSubAgentActivity, ToolItemLifecycleContext,
 };
 use agent_protocol::{
     DynamicToolCallContentItem, ItemId, SessionId, ThreadId, ThreadItem, ThreadItemPayload,
@@ -13,9 +14,13 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tokio::sync::mpsc::UnboundedSender;
 use tool_runtime::tool_lifecycle::{
-    CodeCellTraceEvent, ToolLifecycleEmissionFuture, ToolLifecycleEmitter, ToolLifecycleEvent,
-    ToolLifecyclePhase, ToolOutputDeltaEvent,
+    CodeCellTraceEvent, CommandStartEvent, ToolLifecycleEmissionFuture, ToolLifecycleEmitter,
+    ToolLifecycleEvent, ToolLifecyclePhase, ToolOutputDeltaEvent,
 };
+
+#[cfg(test)]
+#[path = "tool_lifecycle_emitter/command_tests.rs"]
+mod command_tests;
 
 pub(super) struct CurrentTurnToolLifecycleEmitter {
     event_sender: UnboundedSender<CurrentTurnHostEvent>,
@@ -28,10 +33,11 @@ pub(super) struct CurrentTurnToolLifecycleEmitter {
     dynamic_tool_routes: DynamicToolRoutes,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 struct ToolItemLifecycleState {
     ordinal: u64,
     created_at_ms: i64,
+    command_start: Option<CommandStartEvent>,
 }
 
 impl CurrentTurnToolLifecycleEmitter {
@@ -79,9 +85,10 @@ impl CurrentTurnToolLifecycleEmitter {
         if lifecycle_completed && event.output.is_none() {
             return Vec::new();
         }
-        if event.tool_name == tool_runtime::unified_exec::WRITE_STDIN_TOOL_NAME
+        if tool_runtime::unified_exec::is_unified_exec_tool_name(&event.tool_name)
             && matches!(event.phase, ToolLifecyclePhase::Started)
         {
+            // Only the prepared invocation starts a command; dispatch is not execution.
             return Vec::new();
         }
 
@@ -97,35 +104,62 @@ impl CurrentTurnToolLifecycleEmitter {
             .and_then(serde_json::Value::as_str)
             .unwrap_or(&event.call_id);
         let key = format!("{}\0{}", event.turn_id, lifecycle_call_id);
-        let state = {
+        let (state, needs_preparation_start) = {
             let mut items = self
                 .items
                 .lock()
                 .expect("tool item lifecycle mutex poisoned");
-            let state = items.get(&key).copied().unwrap_or_else(|| {
-                let state = ToolItemLifecycleState {
+            let needs_start = !items.contains_key(&key)
+                && lifecycle_completed
+                && event.tool_name == tool_runtime::unified_exec::EXEC_COMMAND_TOOL_NAME;
+            let state = items
+                .entry(key.clone())
+                .or_insert_with(|| ToolItemLifecycleState {
                     ordinal: self.next_ordinal.fetch_add(1, Ordering::Relaxed) + 1,
                     created_at_ms: now,
-                };
-                items.insert(key.clone(), state);
-                state
-            });
-            state
+                    command_start: None,
+                });
+            (state.clone(), needs_start)
         };
-        let event_count = if subagent_activity.is_some() { 2 } else { 1 };
+        let event_count =
+            1 + u64::from(subagent_activity.is_some()) + u64::from(needs_preparation_start);
         let first_sequence = self.next_sequence.fetch_add(event_count, Ordering::Relaxed) + 1;
         let mut projected = Vec::with_capacity(event_count as usize);
+        if needs_preparation_start {
+            // A rejected invocation still needs a lifecycle, with no claimed process facts.
+            let mut pending = event.clone();
+            pending.phase = ToolLifecyclePhase::Started;
+            pending.output = None;
+            if let Some(start) = canonical_tool_item_event(
+                pending,
+                ToolItemLifecycleContext {
+                    session_id: self.session_id.clone(),
+                    thread_id: self.thread_id.clone(),
+                    sequence: first_sequence,
+                    ordinal: state.ordinal,
+                    created_at_ms: state.created_at_ms,
+                    updated_at_ms: now,
+                },
+            ) {
+                projected.push(start);
+            }
+        }
+        let tool_sequence = first_sequence + u64::from(needs_preparation_start);
         if let Some(event) = canonical_tool_item_event(
             event,
             ToolItemLifecycleContext {
                 session_id: self.session_id.clone(),
                 thread_id: self.thread_id.clone(),
-                sequence: first_sequence,
+                sequence: tool_sequence,
                 ordinal: state.ordinal,
                 created_at_ms: state.created_at_ms,
                 updated_at_ms: now,
             },
         ) {
+            let event = match state.command_start.as_ref() {
+                Some(start) => apply_command_start(event, start),
+                None => event,
+            };
             if matches!(&event, AgentEvent::ItemCompleted { .. }) {
                 self.items
                     .lock()
@@ -143,7 +177,7 @@ impl CurrentTurnToolLifecycleEmitter {
             projected.push(activity.into_event(ToolItemLifecycleContext {
                 session_id: self.session_id.clone(),
                 thread_id: self.thread_id.clone(),
-                sequence: first_sequence + 1,
+                sequence: tool_sequence + 1,
                 ordinal: self.next_ordinal.fetch_add(1, Ordering::Relaxed) + 1,
                 created_at_ms: now,
                 updated_at_ms: now,
@@ -263,6 +297,49 @@ fn project_mcp_tool_item(
 }
 
 impl ToolLifecycleEmitter for CurrentTurnToolLifecycleEmitter {
+    fn emit_command_start<'a>(
+        &'a self,
+        start: CommandStartEvent,
+    ) -> ToolLifecycleEmissionFuture<'a> {
+        Box::pin(async move {
+            let now = chrono::Utc::now().timestamp_millis();
+            let key = format!("{}\0{}", start.turn_id, start.call_id);
+            let (state, already_started) = {
+                let mut items = self
+                    .items
+                    .lock()
+                    .expect("tool item lifecycle mutex poisoned");
+                let already_started = items.contains_key(&key);
+                let state = items.entry(key).or_insert_with(|| ToolItemLifecycleState {
+                    ordinal: self.next_ordinal.fetch_add(1, Ordering::Relaxed) + 1,
+                    created_at_ms: now,
+                    command_start: None,
+                });
+                state.command_start = Some(start.clone());
+                (state.clone(), already_started)
+            };
+            let item = canonical_command_start_item(
+                &start,
+                ToolItemLifecycleContext {
+                    session_id: self.session_id.clone(),
+                    thread_id: self.thread_id.clone(),
+                    sequence: self.next_sequence.fetch_add(1, Ordering::Relaxed) + 1,
+                    ordinal: state.ordinal,
+                    created_at_ms: state.created_at_ms,
+                    updated_at_ms: now,
+                },
+            );
+            let event = if already_started {
+                AgentEvent::ItemUpdated { item }
+            } else {
+                AgentEvent::ItemStarted { item }
+            };
+            let _ = self
+                .event_sender
+                .send(CurrentTurnHostEvent::ToolLifecycle(event));
+        })
+    }
+
     fn emit<'a>(&'a self, event: ToolLifecycleEvent) -> ToolLifecycleEmissionFuture<'a> {
         Box::pin(async move {
             for trace_event in code_cell_trace_events_for_lifecycle(&event) {

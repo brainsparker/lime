@@ -8,5 +8,7 @@ mod reconnect;
 #[cfg(unix)]
 mod resize_reflow;
 mod status_indicator;
+#[cfg(unix)]
+mod tmux_resize;
 mod vt100_history;
 mod vt100_live_commit;

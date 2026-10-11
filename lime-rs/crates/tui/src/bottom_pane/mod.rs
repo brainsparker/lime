@@ -365,7 +365,6 @@ impl BottomPane {
     }
 
     pub(crate) fn pre_draw_tick(&mut self, now: Instant) -> Option<AppServerResponse> {
-        self.flush_paste_burst_if_due(now);
         let response = self.queue.front_mut()?.pre_draw_tick(now)?;
         self.queue.pop_front();
         Some(response)

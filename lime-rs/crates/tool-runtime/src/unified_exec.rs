@@ -1,28 +1,37 @@
 use crate::execution_orchestrator::RuntimeToolExecutionAttempt;
-use crate::execution_process::live::{
-    LiveExecutionOutputQuery, LiveExecutionRequest, RuntimeLiveExecutionGateway,
-};
-use crate::execution_process::{
-    BoundedProcessOutput, ExecutionOutputDelta, ExecutionProcessStatus, TRAILING_OUTPUT_GRACE,
-};
-use crate::tool_definition::RuntimeToolDefinition;
+use crate::execution_process::live::{LiveExecutionRequest, RuntimeLiveExecutionGateway};
 use crate::tool_executor::{
     RuntimeToolExecutionError, RuntimeToolExecutionResult, RuntimeToolPolicyErrorKind,
     RuntimeToolTurnContext,
 };
-use crate::tool_io::{
-    estimate_tool_io_tokens, format_tool_output_for_model, ToolOutputTruncationPolicy,
-};
-use crate::tool_lifecycle::{ToolLifecycleEmitter, ToolOutputDeltaEvent};
+use crate::tool_lifecycle::ToolLifecycleEmitter;
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicI32, Ordering};
-use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
-use uuid::Uuid;
+
+mod collect;
+mod definitions;
+mod invocation;
+mod output;
+mod session;
+mod shell;
+
+use collect::collect_process_output;
+pub use definitions::{
+    exec_command_tool_definition, unified_exec_tool_definitions, write_stdin_tool_definition,
+};
+use invocation::Invocation;
+use output::{project_output, terminal_interaction_summary};
+pub use session::forget_process_session;
+use session::{
+    find_session, next_session_id, register_session, remove_session, session_facts,
+    UnifiedExecSession,
+};
+use shell::{build_shell_command, resolve_working_directory};
 
 pub const EXEC_COMMAND_TOOL_NAME: &str = "exec_command";
 pub const WRITE_STDIN_TOOL_NAME: &str = "write_stdin";
@@ -91,153 +100,6 @@ struct WriteStdinInput {
     max_output_tokens: Option<usize>,
 }
 
-#[derive(Debug)]
-struct UnifiedExecSession {
-    thread_id: String,
-    turn_id: String,
-    process_id: String,
-    call_id: String,
-    command: String,
-    cwd: String,
-    after_sequence: Option<u64>,
-    empty_poll_count: u64,
-}
-
-#[derive(Default)]
-struct UnifiedExecSessionRegistry {
-    sessions: HashMap<i32, UnifiedExecSessionRegistration>,
-}
-
-struct UnifiedExecSessionRegistration {
-    process_id: String,
-    session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
-}
-
-#[derive(Debug)]
-struct UnifiedExecCallOutput {
-    session_id: Option<i32>,
-    call_id: String,
-    command: String,
-    cwd: String,
-    output: String,
-    process: crate::execution_process::ExecutionProcessSnapshot,
-    exit_code: Option<i32>,
-    observation: UnifiedExecObservationKind,
-    empty_poll_count: u64,
-    wall_time: Duration,
-    max_output_tokens: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum UnifiedExecObservationKind {
-    Output,
-    Waiting,
-    Terminal,
-}
-
-impl UnifiedExecObservationKind {
-    fn label(self) -> &'static str {
-        match self {
-            Self::Output => "output",
-            Self::Waiting => "waiting",
-            Self::Terminal => "terminal",
-        }
-    }
-}
-
-pub fn unified_exec_tool_definitions() -> Vec<RuntimeToolDefinition> {
-    vec![
-        exec_command_tool_definition(),
-        write_stdin_tool_definition(),
-    ]
-}
-
-pub fn exec_command_tool_definition() -> RuntimeToolDefinition {
-    RuntimeToolDefinition::new(
-        EXEC_COMMAND_TOOL_NAME,
-        "Runs a command, returning output or a session ID for ongoing interaction.",
-        json!({
-            "type": "object",
-            "properties": {
-                "cmd": {
-                    "type": "string",
-                    "description": "Shell command to execute."
-                },
-                "workdir": {
-                    "type": "string",
-                    "description": "Working directory for the command. Defaults to the turn cwd."
-                },
-                "shell": {
-                    "type": "string",
-                    "description": "Shell binary to launch. Defaults to the user's default shell."
-                },
-                "login": {
-                    "type": "boolean",
-                    "description": "True runs the shell with login semantics; false disables them. Defaults to true."
-                },
-                "tty": {
-                    "type": "boolean",
-                    "description": "True requests a PTY; false or omitted uses plain pipes."
-                },
-                "yield_time_ms": {
-                    "type": "number",
-                    "description": "Wait before yielding output. Defaults to 10000 ms; effective range is 250-30000 ms."
-                },
-                "max_output_tokens": {
-                    "type": "number",
-                    "description": "Output token budget. Defaults to 10000 tokens; larger requests may be capped by policy."
-                },
-                "sandbox_permissions": {
-                    "type": "string",
-                    "enum": ["use_default", "require_escalated"],
-                    "description": "Per-command sandbox override. Defaults to use_default."
-                },
-                "justification": {
-                    "type": "string",
-                    "description": "User-facing approval question for require_escalated; omit otherwise."
-                },
-                "prefix_rule": {
-                    "type": "array",
-                    "items": { "type": "string" },
-                    "description": "Reusable approval prefix for cmd, only with require_escalated."
-                }
-            },
-            "required": ["cmd"],
-            "additionalProperties": false
-        }),
-    )
-}
-
-pub fn write_stdin_tool_definition() -> RuntimeToolDefinition {
-    RuntimeToolDefinition::new(
-        WRITE_STDIN_TOOL_NAME,
-        "Writes characters to an existing exec session and returns recent output.",
-        json!({
-            "type": "object",
-            "properties": {
-                "session_id": {
-                    "type": "number",
-                    "description": "Identifier of the running exec session."
-                },
-                "chars": {
-                    "type": "string",
-                    "description": "Bytes to write to stdin. Defaults to empty, which polls without writing."
-                },
-                "yield_time_ms": {
-                    "type": "number",
-                    "description": "Wait before yielding output. Non-empty writes default to 250 ms; empty polls default to 5000 ms."
-                },
-                "max_output_tokens": {
-                    "type": "number",
-                    "description": "Output token budget. Defaults to 10000 tokens; larger requests may be capped by policy."
-                }
-            },
-            "required": ["session_id"],
-            "additionalProperties": false
-        }),
-    )
-}
-
 pub fn is_unified_exec_tool_name(tool_name: &str) -> bool {
     matches!(
         tool_name.trim(),
@@ -277,14 +139,17 @@ async fn execute_command(
     let session_id = next_session_id();
     let process_id = format!("unified-exec-{session_id}");
     let shell_command = build_shell_command(&command, input.shell.as_deref(), input.login);
-    let cwd_text = cwd.to_string_lossy().to_string();
     let session = Arc::new(tokio::sync::Mutex::new(UnifiedExecSession {
         thread_id: request.thread_id.to_string(),
         turn_id: request.turn_id.clone(),
         process_id: process_id.clone(),
         call_id: call_id.clone(),
-        command: command.clone(),
-        cwd: cwd_text.clone(),
+        invocation: Invocation {
+            command: command.clone(),
+            argv: shell_command.clone(),
+            cwd: cwd.clone(),
+            terminal_interactions: Vec::new(),
+        },
         after_sequence: None,
         empty_poll_count: 0,
     }));
@@ -333,6 +198,16 @@ async fn execute_command(
         return Err(error);
     }
 
+    if let Some(sink) = request.output_sink.as_ref() {
+        let facts = session_facts(&session).await;
+        sink.emit_command_start(facts.invocation.start_event(
+            &facts.turn_id,
+            &facts.call_id,
+            &facts.process_id,
+        ))
+        .await;
+    }
+
     let output = collect_process_output(
         gateway,
         session_id,
@@ -359,7 +234,7 @@ async fn write_stdin(
     let session_identity = session_facts(&session).await;
     let process_id = session_identity.process_id.clone();
     {
-        let session = session.lock().await;
+        let mut session = session.lock().await;
         if session.thread_id != request.thread_id {
             return Err(unified_exec_error(format!(
                 "unified exec session {} does not belong to thread {}",
@@ -367,8 +242,10 @@ async fn write_stdin(
             )));
         }
         gateway.write_stdin(&session.process_id, input.chars.as_bytes())?;
+        session
+            .invocation
+            .record_interaction(&process_id, terminal_interaction_summary(&input.chars));
     }
-    let stdin_summary = terminal_interaction_summary(&input.chars);
     let output = collect_process_output(
         gateway,
         input.session_id,
@@ -380,366 +257,7 @@ async fn write_stdin(
         request.cancel_token,
     )
     .await?;
-    let mut result = project_output(output);
-    result.metadata.insert(
-        "terminal_interaction".to_string(),
-        json!({"stdin": stdin_summary, "process_id": process_id}),
-    );
-    Ok(result)
-}
-
-fn terminal_interaction_summary(chars: &str) -> String {
-    if chars.is_empty() {
-        return "(poll)".to_string();
-    }
-    if chars == "\u{3}" {
-        return "(interrupt)".to_string();
-    }
-    format!("sent {} chars", chars.chars().count())
-}
-
-async fn collect_process_output(
-    gateway: Arc<dyn RuntimeLiveExecutionGateway>,
-    session_id: i32,
-    session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
-    turn_id: String,
-    output_sink: Option<Arc<dyn ToolLifecycleEmitter>>,
-    yield_time: Duration,
-    max_output_tokens: usize,
-    cancel_token: Option<CancellationToken>,
-) -> Result<UnifiedExecCallOutput, RuntimeToolExecutionError> {
-    let started_at = Instant::now();
-    let deadline = started_at + yield_time;
-    let mut output = BoundedProcessOutput::default();
-
-    loop {
-        let (process_id, after_sequence) = {
-            let session = session.lock().await;
-            (session.process_id.clone(), session.after_sequence)
-        };
-        let drained = gateway.drain_output(LiveExecutionOutputQuery {
-            process_id: Some(process_id.clone()),
-            after_sequence,
-            limit: Some(OUTPUT_DRAIN_LIMIT),
-            max_bytes: Some(OUTPUT_DRAIN_MAX_BYTES),
-        })?;
-        for delta in &drained.deltas {
-            append_observed_output(&mut output, delta);
-        }
-        if let Some(next_sequence) = drained.next_sequence {
-            session.lock().await.after_sequence = Some(next_sequence);
-        }
-
-        let cancelled = cancel_token
-            .as_ref()
-            .is_some_and(CancellationToken::is_cancelled);
-        if cancelled {
-            let _ = gateway.terminate(&process_id);
-        }
-
-        let snapshot = gateway.status(&process_id)?;
-        let call_id = session_facts(&session).await.call_id;
-        emit_output_deltas(
-            output_sink.as_ref(),
-            &turn_id,
-            &call_id,
-            &drained.deltas,
-            snapshot.status,
-        )
-        .await;
-        if process_status_is_terminal(snapshot.status) {
-            tokio::time::sleep(TRAILING_OUTPUT_GRACE).await;
-            let final_drain = gateway.drain_output(LiveExecutionOutputQuery {
-                process_id: Some(snapshot.process_id.clone()),
-                after_sequence: session.lock().await.after_sequence,
-                limit: Some(OUTPUT_DRAIN_LIMIT),
-                max_bytes: Some(OUTPUT_DRAIN_MAX_BYTES),
-            })?;
-            for delta in &final_drain.deltas {
-                append_observed_output(&mut output, delta);
-            }
-            emit_output_deltas(
-                output_sink.as_ref(),
-                &turn_id,
-                &call_id,
-                &final_drain.deltas,
-                snapshot.status,
-            )
-            .await;
-            let facts = session_facts(&session).await;
-            remove_session(session_id);
-            if cancelled {
-                return Err(RuntimeToolExecutionError::new(
-                    "Tool execution cancelled",
-                    Some(RuntimeToolPolicyErrorKind::Canceled(
-                        "unified_exec_cancelled".to_string(),
-                    )),
-                ));
-            }
-            if snapshot.status == ExecutionProcessStatus::Failed {
-                let message = snapshot
-                    .failure
-                    .clone()
-                    .unwrap_or_else(|| "execution process failed".to_string());
-                return Err(RuntimeToolExecutionError::new(
-                    message,
-                    Some(RuntimeToolPolicyErrorKind::ExecutionFailed(
-                        "execution_process_failed".to_string(),
-                    )),
-                ));
-            }
-            let exit_code = snapshot.exit_code;
-            return Ok(UnifiedExecCallOutput {
-                session_id: None,
-                call_id: facts.call_id,
-                command: facts.command,
-                cwd: facts.cwd,
-                output: output.snapshot().text,
-                process: snapshot,
-                exit_code,
-                observation: UnifiedExecObservationKind::Terminal,
-                empty_poll_count: 0,
-                wall_time: started_at.elapsed(),
-                max_output_tokens,
-            });
-        }
-
-        if Instant::now() >= deadline {
-            let mut facts = session.lock().await;
-            let observation = if output.is_empty() {
-                facts.empty_poll_count = facts.empty_poll_count.saturating_add(1);
-                UnifiedExecObservationKind::Waiting
-            } else {
-                facts.empty_poll_count = 0;
-                UnifiedExecObservationKind::Output
-            };
-            return Ok(UnifiedExecCallOutput {
-                session_id: Some(session_id),
-                call_id: facts.call_id.clone(),
-                command: facts.command.clone(),
-                cwd: facts.cwd.clone(),
-                output: output.snapshot().text,
-                process: snapshot,
-                exit_code: None,
-                observation,
-                empty_poll_count: facts.empty_poll_count,
-                wall_time: started_at.elapsed(),
-                max_output_tokens,
-            });
-        }
-        tokio::time::sleep(PROCESS_POLL_INTERVAL).await;
-    }
-}
-
-fn append_observed_output(output: &mut BoundedProcessOutput, delta: &ExecutionOutputDelta) {
-    if delta.raw_bytes.is_empty() {
-        output.push(delta.delta.as_bytes());
-    } else {
-        output.push(&delta.raw_bytes);
-    }
-}
-
-async fn emit_output_deltas(
-    output_sink: Option<&Arc<dyn ToolLifecycleEmitter>>,
-    turn_id: &str,
-    call_id: &str,
-    deltas: &[ExecutionOutputDelta],
-    process_status: ExecutionProcessStatus,
-) {
-    let Some(output_sink) = output_sink else {
-        return;
-    };
-    for delta in deltas {
-        if delta.delta.is_empty() {
-            continue;
-        }
-        let mut metadata = delta.metadata();
-        metadata.insert(
-            "executionProcessStatus".to_string(),
-            json!(process_status.label()),
-        );
-        metadata.insert(
-            "stdinWritable".to_string(),
-            json!(!process_status.is_terminal()),
-        );
-        metadata.insert(
-            "stdin_writable".to_string(),
-            json!(!process_status.is_terminal()),
-        );
-        metadata.insert("executionSurface".to_string(), json!("unified_exec"));
-        metadata.insert("execution_surface".to_string(), json!("unified_exec"));
-        output_sink
-            .emit_output_delta(ToolOutputDeltaEvent {
-                turn_id: turn_id.to_string(),
-                call_id: call_id.to_string(),
-                tool_name: EXEC_COMMAND_TOOL_NAME.to_string(),
-                delta: delta.delta.clone(),
-                output_kind: Some(delta.kind.label().to_string()),
-                metadata,
-            })
-            .await;
-    }
-}
-
-async fn session_facts(session: &tokio::sync::Mutex<UnifiedExecSession>) -> UnifiedExecSession {
-    let session = session.lock().await;
-    UnifiedExecSession {
-        thread_id: session.thread_id.clone(),
-        turn_id: session.turn_id.clone(),
-        process_id: session.process_id.clone(),
-        call_id: session.call_id.clone(),
-        command: session.command.clone(),
-        cwd: session.cwd.clone(),
-        after_sequence: session.after_sequence,
-        empty_poll_count: session.empty_poll_count,
-    }
-}
-
-fn project_output(output: UnifiedExecCallOutput) -> RuntimeToolExecutionResult {
-    let original_token_count = estimate_tool_io_tokens(&output.output);
-    let visible_output = format_tool_output_for_model(
-        &output.output,
-        ToolOutputTruncationPolicy::Tokens(output.max_output_tokens),
-    );
-    let mut structured = json!({
-        "chunk_id": Uuid::new_v4().to_string(),
-        "wall_time_seconds": output.wall_time.as_secs_f64(),
-        "original_token_count": original_token_count,
-        "output": visible_output,
-        "observation": {
-            "kind": output.observation.label(),
-            "empty_poll_count": output.empty_poll_count,
-            "process_active": output.session_id.is_some(),
-        },
-    });
-    if let Some(session_id) = output.session_id {
-        structured["session_id"] = json!(session_id);
-    }
-    if let Some(exit_code) = output.exit_code {
-        structured["exit_code"] = json!(exit_code);
-    }
-    structured["process_id"] = json!(output.process.process_id.clone());
-    structured["process_status"] = json!(output.process.status.label());
-    let success = output.exit_code.map(|code| code == 0).unwrap_or(true);
-    let serialized = serde_json::to_string(&structured).unwrap_or_else(|_| "{}".to_string());
-    let mut metadata = output.process.metadata();
-    metadata.extend([
-        ("exec_command_call_id".to_string(), json!(output.call_id)),
-        ("command".to_string(), json!(output.command)),
-        ("cwd".to_string(), json!(output.cwd)),
-        ("session_id".to_string(), json!(output.session_id)),
-        ("exit_code".to_string(), json!(output.exit_code)),
-        (
-            "wall_time_seconds".to_string(),
-            json!(output.wall_time.as_secs_f64()),
-        ),
-        (
-            "original_token_count".to_string(),
-            json!(original_token_count),
-        ),
-        ("command_output".to_string(), json!(visible_output)),
-        (
-            "unified_exec_observation".to_string(),
-            json!(output.observation.label()),
-        ),
-        (
-            "unified_exec_empty_poll_count".to_string(),
-            json!(output.empty_poll_count),
-        ),
-        ("execution_surface".to_string(), json!("unified_exec")),
-        ("executionSurface".to_string(), json!("unified_exec")),
-    ]);
-    RuntimeToolExecutionResult::new(
-        success,
-        serialized,
-        (!success).then_some(output.output),
-        metadata,
-    )
-    .with_structured_content(structured)
-}
-
-fn build_shell_command(command: &str, shell: Option<&str>, login: bool) -> Vec<String> {
-    #[cfg(target_os = "windows")]
-    {
-        let shell = shell
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .unwrap_or("powershell.exe");
-        if shell.to_ascii_lowercase().contains("powershell")
-            || shell.to_ascii_lowercase().contains("pwsh")
-        {
-            let mut shell_command = vec![shell.to_string()];
-            if !login {
-                shell_command.push("-NoProfile".to_string());
-            }
-            shell_command.extend([
-                "-NonInteractive".to_string(),
-                "-Command".to_string(),
-                command.to_string(),
-            ]);
-            return shell_command;
-        }
-        return vec![
-            shell.to_string(),
-            "/D".to_string(),
-            "/S".to_string(),
-            "/C".to_string(),
-            command.to_string(),
-        ];
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        let shell = shell
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToOwned::to_owned)
-            .or_else(|| {
-                std::env::var("SHELL")
-                    .ok()
-                    .filter(|value| !value.trim().is_empty())
-            })
-            .unwrap_or_else(|| "sh".to_string());
-        vec![
-            shell,
-            if login { "-lc" } else { "-c" }.to_string(),
-            command.to_string(),
-        ]
-    }
-}
-
-fn resolve_working_directory(
-    turn_cwd: &Path,
-    requested: Option<&str>,
-    environment_id: &str,
-) -> Result<PathBuf, RuntimeToolExecutionError> {
-    let requested = requested.map(str::trim).filter(|value| !value.is_empty());
-    let candidate = match requested {
-        Some(value) if Path::new(value).is_absolute() => PathBuf::from(value),
-        Some(value) => turn_cwd.join(value),
-        None => turn_cwd.to_path_buf(),
-    };
-    if environment_id != "local" {
-        if candidate.as_os_str().is_empty() {
-            return Err(unified_exec_error(
-                "exec_command remote workdir must not be empty".to_string(),
-            ));
-        }
-        return Ok(candidate);
-    }
-    let canonical = std::fs::canonicalize(&candidate).map_err(|error| {
-        unified_exec_error(format!(
-            "exec_command workdir '{}' is unavailable: {error}",
-            candidate.display()
-        ))
-    })?;
-    if !canonical.is_dir() {
-        return Err(unified_exec_error(format!(
-            "exec_command workdir '{}' is not a directory",
-            canonical.display()
-        )));
-    }
-    Ok(canonical)
+    Ok(project_output(output))
 }
 
 fn effective_sandbox_policy(
@@ -787,16 +305,6 @@ fn validate_exec_approval_fields(
     Ok(())
 }
 
-fn process_status_is_terminal(status: ExecutionProcessStatus) -> bool {
-    matches!(
-        status,
-        ExecutionProcessStatus::Exited
-            | ExecutionProcessStatus::Interrupted
-            | ExecutionProcessStatus::Terminated
-            | ExecutionProcessStatus::Failed
-    )
-}
-
 fn default_login() -> bool {
     true
 }
@@ -841,60 +349,6 @@ fn require_non_empty(
         )));
     }
     Ok(value.to_string())
-}
-
-fn session_registry() -> &'static Mutex<UnifiedExecSessionRegistry> {
-    static REGISTRY: OnceLock<Mutex<UnifiedExecSessionRegistry>> = OnceLock::new();
-    REGISTRY.get_or_init(|| Mutex::new(UnifiedExecSessionRegistry::default()))
-}
-
-fn next_session_id() -> i32 {
-    static NEXT_SESSION_ID: AtomicI32 = AtomicI32::new(1_000);
-    NEXT_SESSION_ID.fetch_add(1, Ordering::Relaxed)
-}
-
-fn register_session(
-    session_id: i32,
-    process_id: String,
-    session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
-) -> Result<(), RuntimeToolExecutionError> {
-    let mut registry = session_registry()
-        .lock()
-        .map_err(|_| unified_exec_error("unified exec session registry is unavailable"))?;
-    registry.sessions.insert(
-        session_id,
-        UnifiedExecSessionRegistration {
-            process_id,
-            session,
-        },
-    );
-    Ok(())
-}
-
-fn find_session(
-    session_id: i32,
-) -> Result<Arc<tokio::sync::Mutex<UnifiedExecSession>>, RuntimeToolExecutionError> {
-    session_registry()
-        .lock()
-        .map_err(|_| unified_exec_error("unified exec session registry is unavailable"))?
-        .sessions
-        .get(&session_id)
-        .map(|registration| Arc::clone(&registration.session))
-        .ok_or_else(|| unified_exec_error(format!("unified exec session not found: {session_id}")))
-}
-
-fn remove_session(session_id: i32) {
-    if let Ok(mut registry) = session_registry().lock() {
-        registry.sessions.remove(&session_id);
-    }
-}
-
-pub fn forget_process_session(process_id: &str) {
-    if let Ok(mut registry) = session_registry().lock() {
-        registry
-            .sessions
-            .retain(|_, registration| registration.process_id != process_id);
-    }
 }
 
 fn unified_exec_error(message: impl Into<String>) -> RuntimeToolExecutionError {

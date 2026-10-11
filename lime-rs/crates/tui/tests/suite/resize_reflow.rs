@@ -1,9 +1,7 @@
 //! Drives Codex-shaped resize/reflow scenarios through Lime's real PTY host.
 //!
-//! Codex uses tmux and a locally built binary for these cases. Lime has no tmux
-//! dependency in its current product path, so the equivalent evidence uses the
-//! portable-pty master to deliver real window-size changes to the same TUI
-//! process and checks the VT100 projection after each resize.
+//! These cases use portable-pty for signaled window-size changes. Actual tmux
+//! and lost-SIGWINCH recovery are exercised separately in `tmux_resize`.
 
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -16,7 +14,7 @@ const DRAFT: &str = "resize reflow draft sentinel";
 const DRAFT_INPUT_TAIL: &str = "resize input tail 7391";
 
 #[test]
-fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Result<()> {
+fn pty_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Result<()> {
     if !gate_enabled() {
         return Ok(());
     }
@@ -34,7 +32,7 @@ fn tmux_split_preserves_fresh_session_composer_row_after_resize_reflow() -> Resu
 }
 
 #[test]
-fn tmux_repeated_resizes_do_not_push_composer_down() -> Result<()> {
+fn pty_repeated_resizes_do_not_push_composer_down() -> Result<()> {
     if !gate_enabled() {
         return Ok(());
     }
@@ -55,7 +53,7 @@ fn tmux_repeated_resizes_do_not_push_composer_down() -> Result<()> {
 }
 
 #[test]
-fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
+fn pty_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
     if !gate_enabled() {
         return Ok(());
     }
@@ -78,7 +76,7 @@ fn tmux_width_resize_restore_keeps_visible_content_anchored() -> Result<()> {
 }
 
 #[test]
-fn tmux_scrolled_composer_resize_preserves_visible_draft_text() -> Result<()> {
+fn pty_scrolled_composer_resize_preserves_visible_draft_text() -> Result<()> {
     if !gate_enabled() {
         return Ok(());
     }

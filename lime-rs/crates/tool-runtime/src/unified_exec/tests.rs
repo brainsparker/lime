@@ -1,13 +1,19 @@
 use super::*;
 use crate::execution_process::{
     live::{LiveExecutionOutputBatch, LiveExecutionOutputQuery, LiveExecutionRequest},
-    ExecutionOutputDelta, ExecutionOutputKind, ExecutionProcessSnapshot,
+    ExecutionOutputDelta, ExecutionOutputKind, ExecutionProcessSnapshot, ExecutionProcessStatus,
 };
 use crate::tool_executor::{RuntimeToolExecutionError, RuntimeToolPolicyErrorKind};
 use crate::tool_lifecycle::{
-    ToolLifecycleEmissionFuture, ToolLifecycleEmitter, ToolLifecycleEvent, ToolOutputDeltaEvent,
+    CommandStartEvent, ToolLifecycleEmissionFuture, ToolLifecycleEmitter, ToolLifecycleEvent,
+    ToolOutputDeltaEvent,
 };
 use async_trait::async_trait;
+use serde_json::json;
+use std::sync::Mutex;
+
+#[path = "tests/invocation.rs"]
+mod invocation;
 
 #[cfg(target_os = "windows")]
 #[test]
@@ -264,6 +270,7 @@ fn request<'a>(
 #[derive(Default)]
 struct RecordingOutputSink {
     events: Mutex<Vec<ToolOutputDeltaEvent>>,
+    command_starts: Mutex<Vec<CommandStartEvent>>,
 }
 
 impl RecordingOutputSink {
@@ -275,6 +282,13 @@ impl RecordingOutputSink {
 impl ToolLifecycleEmitter for RecordingOutputSink {
     fn emit<'a>(&'a self, _event: ToolLifecycleEvent) -> ToolLifecycleEmissionFuture<'a> {
         Box::pin(async {})
+    }
+
+    fn emit_command_start<'a>(
+        &'a self,
+        event: CommandStartEvent,
+    ) -> ToolLifecycleEmissionFuture<'a> {
+        Box::pin(async move { self.command_starts.lock().unwrap().push(event) })
     }
 
     fn emit_output_delta<'a>(
@@ -489,11 +503,11 @@ async fn write_stdin_resumes_and_completes_original_exec_command() {
         Some(&json!("call-long"))
     );
     assert_eq!(
-        completed.metadata.get("terminal_interaction"),
-        Some(&json!({
-            "process_id": format!("unified-exec-{}", session_id),
+        completed.metadata.get("terminalInteractions"),
+        Some(&json!([{
+            "processId": format!("unified-exec-{}", session_id),
             "stdin": "sent 9 chars",
-        }))
+        }]))
     );
     let events = output_sink.events();
     assert_eq!(events.len(), 2);

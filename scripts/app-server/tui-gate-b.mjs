@@ -24,6 +24,7 @@ import {
 import { writeTerminalExternalBackend } from "./terminal-gate-fixture.mjs";
 import { runRawReasoningGateB } from "./reasoning-gate-b.mjs";
 import { runMcpElicitationFixture } from "./mcp-elicitation-gate-b.mjs";
+import { runTerminalResizeGateB } from "./terminal-resize-gate-b.mjs";
 
 const execFileAsync = promisify(execFile);
 const __filename = fileURLToPath(import.meta.url);
@@ -59,6 +60,20 @@ const queuePrompt = "queued follow-up for editing";
 const completedText = "TUI_GATE_B_COMPLETED";
 const reasoningText = "TUI_GATE_B_REASONING_DETAIL";
 const rawText = "TUI_GATE_B_RAW_SOURCE";
+const copyModeCompletedText = [
+  "```rust",
+  'let PTY_COPY_CODE = "中文😀";',
+  "```",
+  "",
+  "> **PTY_COPY_QUOTE**",
+  "",
+  "```md",
+  "| Name | Value |",
+  "| --- | --- |",
+  "| **PTY_COPY_TABLE** | exact |",
+  "```",
+  completedText,
+].join("\n");
 const scrollableCompletedText = [
   ...Array.from(
     { length: 40 },
@@ -221,7 +236,11 @@ async function main() {
       }
       const backendOptions = {
         completedText:
-          scenario === "complete" ? scrollableCompletedText : completedText,
+          scenario === "complete"
+            ? scrollableCompletedText
+            : scenario === "copy-mode"
+              ? copyModeCompletedText
+              : completedText,
         command: "printf tui-gate-b",
         reasoningText,
         ...(scenario === "complete"
@@ -303,6 +322,7 @@ async function main() {
           "TUI_NOTES_REVISIT_OK accepted=rich cursor=restored revision=exact followup=preserved response=once",
           "TUI_NOTES_UNANSWERED_OK edited=uncommitted confirm=explicit return=first draft=rich cursor=restored response=once",
           "TUI_NOTES_IME_ORDER_OK ascii-prefix=preserved unicode=immediate cancel=explicit",
+          "TUI_NOTES_IME_TAB_OK prefix=immediate tab=literal draft=preserved cancel=explicit response=none",
           "TUI_NOTES_BURST_OK framing=raw enter-tab=draft idle=atomic cancel=explicit response=none",
         ]) {
           if (
@@ -320,6 +340,19 @@ async function main() {
           throw new Error(`${scenario} PTY evidence missing: ${marker}`);
         }
         console.log(marker);
+      }
+      if (scenario === "copy-mode") {
+        for (const marker of [
+          "TUI_COPY_MODE_OK whole=source blocks=code,quote,table user=literal resize=frozen cancel=restored turns=once",
+          "TUI_STATUS_COPY_OK source=canonical-snapshot fields=model,directory,session navigation=shared resize=preserved cancel=restored turns=none",
+        ]) {
+          if (
+            !`${ptyEvidence.stdout}\n${ptyEvidence.stderr}`.includes(marker)
+          ) {
+            throw new Error(`copy-mode PTY evidence missing: ${marker}`);
+          }
+          console.log(marker);
+        }
       }
       if (scenario === "complete") {
         const ptyOutput = `${ptyEvidence.stdout}\n${ptyEvidence.stderr}`;
@@ -609,49 +642,22 @@ async function main() {
         "reconnect PTY fixture did not prove resumed reasoning status and detail",
       );
     console.log(reconnectMarker);
+    const restrictedPasteMarker =
+      "TUI_RESTRICTED_PASTE_OK framing=bracketed edit=single-grapheme draft=resumed turns=none terminal=restored transport=websocket-fixture";
+    if (!reconnectEvidence.stdout.includes(restrictedPasteMarker)) {
+      throw new Error(
+        "reconnect PTY fixture did not prove restricted paste editing",
+      );
+    }
+    console.log(restrictedPasteMarker);
 
-    const resizeScenarioDir = path.join(tempDir, "resize-reflow");
-    await mkdir(resizeScenarioDir, { recursive: true });
-    const resizeBackendPath = path.join(tempDir, "resize-reflow-backend.mjs");
-    const resizeLedgerPath = path.join(tempDir, "resize-reflow.jsonl");
-    await writeTerminalExternalBackend(resizeBackendPath, {
+    const tmuxResizeEvidence = await runTerminalResizeGateB({
+      repoRoot: rootDir,
+      tempDir,
+      cliBinaryPath,
+      appServerBinaryPath,
       completedText,
-      command: "printf tui-resize-reflow",
-      scenario: "resize-reflow",
     });
-    await execFileAsync(
-      process.env.CARGO || "cargo",
-      [
-        "test",
-        "--manifest-path",
-        path.join(rootDir, "lime-rs", "Cargo.toml"),
-        "-p",
-        "tui",
-        "--test",
-        "all",
-        "suite::resize_reflow::",
-        "--",
-        "--nocapture",
-        "--test-threads=1",
-      ],
-      {
-        cwd: rootDir,
-        encoding: "utf8",
-        env: {
-          ...process.env,
-          LIME_TEST_TUI_GATE_B: "1",
-          LIME_TEST_CLI_BIN: cliBinaryPath,
-          LIME_TEST_APP_SERVER_BIN: appServerBinaryPath,
-          LIME_TEST_TERMINAL_BACKEND: resizeBackendPath,
-          LIME_TEST_TERMINAL_LEDGER: resizeLedgerPath,
-          LIME_TEST_TERMINAL_CWD: resizeScenarioDir,
-          LIME_TEST_NODE_BIN: process.execPath,
-        },
-        maxBuffer: 2 * 1024 * 1024,
-        timeout: 120_000,
-        windowsHide: true,
-      },
-    );
 
     const ledger = await readJsonLines(ledgerPath);
     const turnStarts = scenarios.map((scenario) => {
@@ -687,6 +693,8 @@ async function main() {
       images:
         "turn.started,message.delta,item.started,item.completed,item.started,item.completed,turn.completed",
       skills:
+        "turn.started,message.delta,item.started,item.completed,item.started,item.completed,turn.completed",
+      "copy-mode":
         "turn.started,message.delta,item.started,item.completed,item.started,item.completed,turn.completed",
     };
     for (const [index, scenario] of scenarios.entries()) {
@@ -888,6 +896,7 @@ async function main() {
           : null,
         scenarios.includes("complete") ? "sticky-prompt=ok" : null,
         scenarios.includes("complete") ? "main-find=ok" : null,
+        scenarios.includes("copy-mode") ? "copy-mode=ok" : null,
         scenarios.includes("complete") ? "history-search=ok" : null,
         scenarios.includes("complete") ? "persistent-history=ok" : null,
         scenarios.includes("complete")
@@ -916,6 +925,7 @@ async function main() {
           : null,
         "focus-palette=ok",
         "resize-reflow=ok",
+        tmuxResizeEvidence,
         "reconnect=ok",
         "terminal=restored",
       ]

@@ -100,8 +100,29 @@ pub(crate) fn render_main_transcript_content(
         "session-header",
         header.display_hyperlink_lines_for_mode(content_width, mode),
     );
+    let body = render_main_transcript_entries_content(
+        app,
+        app.projection.entries(),
+        viewport_width,
+        separate_entries,
+    );
+    if !body.lines.is_empty() {
+        content.push_other("body-gap", vec![HyperlinkLine::default()]);
+        content.append(body);
+    }
+    content
+}
+
+/// Compose an accepted canonical page using the same compact/raw main-screen presentation.
+pub(crate) fn render_main_transcript_entries_content(
+    app: &App,
+    entries: &[TranscriptEntry],
+    viewport_width: u16,
+    separate_entries: bool,
+) -> MainTranscriptContent {
+    let content_width = viewport_width.saturating_sub(2).max(1);
+    let mode = app.chat_widget.history_render_mode;
     let mut body = MainTranscriptContent::default();
-    let entries = app.projection.entries();
     if mode == HistoryRenderMode::Raw {
         for entry in entries {
             let mut group = MainTranscriptContent::default();
@@ -128,11 +149,7 @@ pub(crate) fn render_main_transcript_content(
             }
             body.append(group);
         }
-        if !body.lines.is_empty() {
-            content.push_other("body-gap", vec![HyperlinkLine::default()]);
-            content.append(body);
-        }
-        return content;
+        return body;
     }
     let mut index = 0;
     while index < entries.len() {
@@ -148,7 +165,11 @@ pub(crate) fn render_main_transcript_content(
         if let Some(compact) =
             activity_group_compact_lines(group, app.chat_widget.locale, content_width)
         {
-            rendered.push_other(format!("activity:{}", group[0].id), compact);
+            let start = rendered.lines.len();
+            rendered.lines.extend(compact);
+            rendered
+                .prompt_header
+                .record_activity(group, start..rendered.lines.len());
         } else {
             let mut rendered_entries = 0;
             for entry in group {
@@ -192,11 +213,7 @@ pub(crate) fn render_main_transcript_content(
         body.append(rendered);
         index = end;
     }
-    if !body.lines.is_empty() {
-        content.push_other("body-gap", vec![HyperlinkLine::default()]);
-        content.append(body);
-    }
-    content
+    body
 }
 
 /// Build the structured full-screen transcript presentation consumed by the pager.
@@ -415,7 +432,17 @@ fn push_transcript_entry(
             Some(disclosure),
         );
     } else {
-        content.push_keyed_lines(format!("entry:{}", entry.id), expanded);
+        let key = format!("entry:{}", entry.id);
+        if matches!(entry.kind, EntryKind::User | EntryKind::Assistant) {
+            let text = if entry.kind == EntryKind::User {
+                crate::history_cell::sanitize_user_text(entry.text.as_str().into()).into_owned()
+            } else {
+                crate::markdown_render::followup_labels(&entry.text).into_owned()
+            };
+            content.push_copyable_lines(key, expanded, text, entry.kind == EntryKind::User);
+        } else {
+            content.push_keyed_lines(key, expanded);
+        }
     }
 }
 

@@ -106,6 +106,44 @@ fn cursor_and_focus_navigation_preserve_acceptance_but_content_changes_revoke_it
 }
 
 #[test]
+fn fast_tab_after_an_ime_prefix_stays_in_notes_and_preserves_the_complete_answer() {
+    let mut request = request(true);
+    let now = Instant::now();
+    request.handle_key_event_at(key(KeyCode::Tab), now);
+    for (index, ch) in "界🙂".chars().enumerate() {
+        request.handle_key_event_at(
+            key(KeyCode::Char(ch)),
+            now + Duration::from_millis(index as u64 + 1),
+        );
+    }
+    request.handle_key_event_at(key(KeyCode::Tab), now + Duration::from_millis(3));
+    assert!(
+        request.editing(),
+        "a raw paste Tab must not discard the IME prefix and focus options"
+    );
+    request.handle_key_event_at(key(KeyCode::Char('x')), now + Duration::from_millis(4));
+    request.flush_paste_burst_if_due(now + Duration::from_secs(1));
+    assert_eq!(request.composer.current_text_with_pending(), "界🙂\tx");
+    assert!(!request.answers[0].answer_committed);
+    assert!(request
+        .handle_key_event_at(key(KeyCode::Enter), now + Duration::from_secs(2))
+        .is_none());
+    request.handle_paste("follow-up");
+    let Some(AppServerResponse::UserInput { response, .. }) =
+        request.handle_key_event_at(key(KeyCode::Enter), now + Duration::from_secs(3))
+    else {
+        panic!("explicit acceptance must preserve the IME prefix, literal Tab and follow-up");
+    };
+    assert_eq!(
+        serde_json::to_value(response).unwrap(),
+        serde_json::json!({"answers": {
+            "q0": {"answers": ["Fast", "user_note: 界🙂\tx"]},
+            "q1": {"answers": ["user_note: follow-up"]}
+        }})
+    );
+}
+
+#[test]
 fn editing_an_accepted_note_then_skipping_it_never_submits_the_old_answer() {
     let mut request = request(false);
     request.handle_paste("old answer");

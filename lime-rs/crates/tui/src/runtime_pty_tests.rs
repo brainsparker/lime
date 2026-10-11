@@ -18,6 +18,8 @@ mod backtrack;
 mod composer;
 #[path = "runtime_pty_tests/config.rs"]
 mod config;
+#[path = "runtime_pty_tests/copy_mode.rs"]
+mod copy_mode;
 #[path = "runtime_pty_tests/cursor_style.rs"]
 mod cursor_style;
 #[path = "runtime_pty_tests/diff_display.rs"]
@@ -1087,6 +1089,16 @@ fn real_pty_restores_terminal_after_visible_turn_completion() {
                 &mut output,
                 &prompt,
                 &completed_text,
+            );
+        }
+        if scenario == "copy-mode" {
+            copy_mode::exercise(
+                master.as_ref(),
+                &mut writer,
+                &output_rx,
+                &mut output,
+                &ledger_path,
+                &prompt,
             );
         }
         if scenario == "queue-edit" {

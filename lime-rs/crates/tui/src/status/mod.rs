@@ -19,6 +19,7 @@ use self::format::FieldFormatter;
 
 pub(crate) struct StatusFacts<'a> {
     pub(crate) thread_id: Option<&'a str>,
+    pub(crate) thread_name: Option<&'a str>,
     pub(crate) model: Option<&'a str>,
     pub(crate) provider: Option<&'a str>,
     pub(crate) effort: Option<&'a str>,
@@ -31,6 +32,7 @@ pub(crate) struct StatusFacts<'a> {
 #[derive(Clone, Debug)]
 pub(crate) struct StatusSnapshot {
     thread_id: Option<String>,
+    thread_name: Option<String>,
     model: Option<String>,
     provider: Option<String>,
     effort: Option<String>,
@@ -44,6 +46,7 @@ impl StatusSnapshot {
     pub(crate) fn from_facts(facts: StatusFacts<'_>) -> Self {
         Self {
             thread_id: facts.thread_id.map(str::to_owned),
+            thread_name: facts.thread_name.map(str::to_owned),
             model: facts.model.map(str::to_owned),
             provider: facts.provider.map(str::to_owned),
             effort: facts.effort.map(str::to_owned),
@@ -76,6 +79,9 @@ impl StatusSnapshot {
             (locale.cwd_label(), self.cwd.clone()),
             (locale.state_label(), status),
         ];
+        if let Some(name) = self.thread_name.as_deref().filter(|name| !name.is_empty()) {
+            fields.insert(1, (locale.thread_name_label(), name.to_owned()));
+        }
         if let Some(usage) = &self.token_usage {
             for item in [
                 StatusLineItem::UsedTokens,
@@ -150,6 +156,31 @@ impl StatusSnapshot {
             .map(|(label, value)| formatter.line(label, value))
             .collect()
     }
+
+    pub(crate) fn copy_text(&self, locale: Locale) -> String {
+        self.lines(locale, u16::MAX)
+            .iter()
+            .map(|line| line.to_string().trim_end().to_owned())
+            .collect::<Vec<_>>()
+            .join("\n")
+            .trim()
+            .to_owned()
+    }
+
+    pub(crate) fn copy_fields(&self, locale: Locale) -> Vec<(&'static str, String)> {
+        [
+            (locale.copy_model_label(), self.model.as_deref()),
+            (locale.copy_directory_label(), Some(self.cwd.as_str())),
+            (locale.thread_name_label(), self.thread_name.as_deref()),
+            (locale.copy_session_id_label(), self.thread_id.as_deref()),
+        ]
+        .into_iter()
+        .filter_map(|(label, text)| {
+            text.filter(|text| !text.is_empty())
+                .map(|text| (label, text.to_owned()))
+        })
+        .collect()
+    }
 }
 
 #[cfg(test)]
@@ -160,6 +191,7 @@ mod tests {
     fn snapshot() -> StatusSnapshot {
         StatusSnapshot {
             thread_id: Some("00000000-0000-0000-0000-000000000123".to_string()),
+            thread_name: None,
             model: Some("fixture-model".to_string()),
             provider: Some("fixture-provider".to_string()),
             effort: Some("high".to_string()),
@@ -199,6 +231,7 @@ mod tests {
     fn status_uses_ready_when_projection_has_no_state() {
         let snapshot = StatusSnapshot {
             thread_id: None,
+            thread_name: None,
             model: None,
             provider: None,
             effort: None,

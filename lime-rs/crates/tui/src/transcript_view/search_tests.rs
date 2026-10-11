@@ -226,7 +226,7 @@ fn draw_until_search_idle(app: &App, terminal: &mut Terminal<TestBackend>) {
         terminal
             .draw(|frame| crate::view::render(frame, app))
             .expect("search draw");
-        if !app.chat_widget.transcript_search.needs_frame() {
+        if !app.transcript_view.search.needs_frame() {
             return;
         }
     }
@@ -260,7 +260,7 @@ fn app_with_searchable_transcript() -> App {
 fn main_find_owns_query_footer_highlight_and_restores_compact_position() {
     let mut app = app_with_searchable_transcript();
     app.scroll_up(5);
-    let saved_scroll = app.chat_widget.transcript_scroll;
+    let saved_scroll = app.transcript_view.scroll;
     let mut terminal = Terminal::new(TestBackend::new(64, 12)).expect("terminal");
     terminal
         .draw(|frame| crate::view::render(frame, &app))
@@ -290,8 +290,8 @@ fn main_find_owns_query_footer_highlight_and_restores_compact_position() {
     assert!(app.chat_widget.bottom_pane.composer_is_empty());
 
     assert_eq!(dispatch(&mut app, key(KeyCode::Esc)), AppAction::None);
-    assert!(!app.chat_widget.transcript_search.is_active());
-    assert_eq!(app.chat_widget.transcript_scroll, saved_scroll);
+    assert!(!app.transcript_view.search.is_active());
+    assert_eq!(app.transcript_view.scroll, saved_scroll);
 }
 
 #[test]
@@ -313,7 +313,7 @@ fn main_find_pauses_for_selection_and_reuses_older_history_action() {
         app.pre_draw_tick(std::time::Instant::now()),
         AppAction::LoadOlderHistory
     );
-    app.chat_widget.transcript_search.begin_history_load();
+    app.transcript_view.search.begin_history_load();
     assert_eq!(
         dispatch(
             &mut app,
@@ -322,7 +322,7 @@ fn main_find_pauses_for_selection_and_reuses_older_history_action() {
         AppAction::None
     );
 
-    app.chat_widget.transcript_search.complete_history_load();
+    app.transcript_view.search.complete_history_load();
     dispatch(&mut app, key(KeyCode::Esc));
     dispatch(
         &mut app,
@@ -334,7 +334,7 @@ fn main_find_pauses_for_selection_and_reuses_older_history_action() {
         &mut app,
         Event::Key(KeyEvent::new(KeyCode::Char(' '), KeyModifiers::CONTROL)),
     );
-    assert!(app.chat_widget.transcript_selection.is_active());
+    assert!(app.transcript_view.selection.is_active());
     terminal
         .draw(|frame| crate::view::render(frame, &app))
         .expect("selection draw");
@@ -355,6 +355,6 @@ fn ctrl_f_remains_an_editor_key_instead_of_opening_main_find() {
     );
     dispatch(&mut app, key(KeyCode::Char('x')));
 
-    assert!(!app.chat_widget.transcript_search.is_active());
+    assert!(!app.transcript_view.search.is_active());
     assert_eq!(app.chat_widget.bottom_pane.composer_text(), "axb");
 }

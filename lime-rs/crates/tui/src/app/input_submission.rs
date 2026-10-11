@@ -168,6 +168,7 @@ impl App {
                 text,
                 text_elements,
             } => {
+                self.chat_widget.last_status_copy_targets = None;
                 self.chat_widget.bottom_pane.clear_completion_popup();
                 AppAction::Submit {
                     text,
@@ -178,6 +179,7 @@ impl App {
                 text,
                 text_elements,
             } => {
+                self.chat_widget.last_status_copy_targets = None;
                 self.chat_widget.bottom_pane.clear_completion_popup();
                 AppAction::Queue {
                     text,

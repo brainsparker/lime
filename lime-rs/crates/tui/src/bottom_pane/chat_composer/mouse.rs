@@ -3,7 +3,7 @@
 use crossterm::event::{MouseButton, MouseEvent, MouseEventKind};
 
 use super::ChatComposer;
-use crate::clipboard_paste::ClipboardTextSource;
+use crate::clipboard_copy::worker::PasteSource;
 use crate::tui::TuiEvent;
 
 impl ChatComposer {
@@ -11,11 +11,24 @@ impl ChatComposer {
         self.draft.textarea.end_mouse_drag();
     }
 
-    pub(crate) fn clear_mouse_selection(&mut self) {
-        self.draft.textarea.clear_mouse_selection();
+    pub(in crate::bottom_pane) fn defer_copy(&mut self, id: u64) {
+        self.draft.textarea.defer_copy(id);
     }
 
-    pub(crate) fn copy_selection_request(&mut self, event: &TuiEvent) -> Option<(String, bool)> {
+    pub(in crate::bottom_pane) fn finish_copy(
+        &mut self,
+        id: u64,
+        result: &Result<crate::clipboard_copy::CopyStatus, String>,
+        current: bool,
+    ) -> Option<usize> {
+        let current = current
+            && self.draft.input_enabled
+            && self.history_search.is_none()
+            && !self.vim_search_active();
+        self.draft.textarea.finish_copy(id, result, current)
+    }
+
+    pub(crate) fn copy_selection_request(&mut self, event: &TuiEvent) -> Option<String> {
         let mouse_copy = matches!(
             event,
             TuiEvent::Mouse(mouse)
@@ -25,6 +38,7 @@ impl ChatComposer {
         let keyboard_copy =
             matches!(event, TuiEvent::Key(key) if crate::text_selection::is_copy_key(*key));
         if (!mouse_copy && !keyboard_copy)
+            || !self.draft.input_enabled
             || self.history_search.is_some()
             || self.vim_search_active()
         {
@@ -32,7 +46,7 @@ impl ChatComposer {
         }
         let text = self.draft.textarea.selected_text()?.to_string();
         self.end_mouse_drag();
-        Some((text, mouse_copy))
+        Some(text)
     }
 
     /// Return the clipboard surface requested by a right-/middle-click in the textarea.
@@ -40,7 +54,7 @@ impl ChatComposer {
     /// Right-click copy is checked by the app before this method, so an existing selection keeps
     /// its copy-first semantics.  Popup/search and Vim modes remain owner-exclusive, matching
     /// Codex's rule that a mouse paste cannot steal an active editor surface.
-    pub(crate) fn clipboard_paste_request(&self, event: &TuiEvent) -> Option<ClipboardTextSource> {
+    pub(crate) fn clipboard_paste_request(&self, event: &TuiEvent) -> Option<PasteSource> {
         if self.history_search.is_some()
             || self.vim_search_active()
             || self.completion_popup_active()
@@ -57,9 +71,9 @@ impl ChatComposer {
             MouseEventKind::Down(MouseButton::Right)
                 if self.draft.textarea.selected_text().is_none() =>
             {
-                Some(ClipboardTextSource::Clipboard)
+                Some(PasteSource::Clipboard)
             }
-            MouseEventKind::Down(MouseButton::Middle) => Some(ClipboardTextSource::Primary),
+            MouseEventKind::Down(MouseButton::Middle) => Some(PasteSource::Primary),
             _ => None,
         }
     }

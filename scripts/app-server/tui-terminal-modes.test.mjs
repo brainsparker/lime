@@ -72,10 +72,10 @@ it("reasserts record input before polling and after the blocking reader starts",
   expect(body).not.toContain("set_input_record_mode()");
 });
 
-it("restores terminal modes when size discovery fails after terminal construction", () => {
+it("restores terminal modes when initial backend size discovery fails", () => {
   const size = section(
     source("tui.rs"),
-    "let size = match terminal.size()",
+    "let size = match backend.size()",
     "\n        };\n",
   );
   expect(size).toContain("cleanup_failed_enter(&mut output)");

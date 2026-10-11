@@ -23,6 +23,7 @@ pub(crate) fn visible(app: &App) -> bool {
         .shortcut_overlay_visible()
         && !app.chat_widget.bottom_pane.is_active()
         && app.chat_widget.model_picker.is_none()
+        && app.chat_widget.copy_picker.is_none()
         && app.chat_widget.agent_picker.is_none()
         && app.chat_widget.agents_overview.is_none()
         && app.chat_widget.resume_picker.is_none()
@@ -30,8 +31,8 @@ pub(crate) fn visible(app: &App) -> bool {
         && app.chat_widget.status_line_setup.is_none()
         && app.chat_widget.terminal_title_setup.is_none()
         && app.chat_widget.pager_overlay.is_none()
-        && !app.chat_widget.transcript_search.is_active()
-        && !app.chat_widget.transcript_selection.is_active()
+        && !app.transcript_view.search.is_active()
+        && !app.transcript_view.selection.is_active()
 }
 
 pub(crate) fn agents_hint(app: &App) -> Option<String> {

@@ -156,7 +156,6 @@ impl RequestUserInputOverlay {
     }
 
     pub(super) fn pre_draw_tick(&mut self, now: Instant) -> Option<AppServerResponse> {
-        self.flush_paste_burst_if_due(now);
         if !matches!(
             self.auto_resolution_timing_at(now),
             AutoResolutionTiming::Due

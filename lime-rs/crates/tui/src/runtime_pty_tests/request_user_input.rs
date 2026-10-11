@@ -86,6 +86,37 @@ pub(super) fn exercise_notes_and_selection(
         |screen| screen.contains("› 2. Safe") && !screen.contains("a界🙂"),
     );
     eprintln!("TUI_NOTES_IME_ORDER_OK ascii-prefix=preserved unicode=immediate cancel=explicit");
+    writer
+        .write_all("\t界🙂\tIME_TAB_TAIL".as_bytes())
+        .expect("paste a short IME prefix and literal Tab into notes");
+    writer.flush().unwrap();
+    wait_for_screen(
+        output_rx,
+        output,
+        "short IME prefix and raw Tab retain notes focus and the complete draft",
+        |screen| {
+            screen.contains("界🙂")
+                && screen.contains("IME_TAB_TAIL")
+                && screen.contains("Question 1/2")
+        },
+    );
+    let ledger = std::fs::read_to_string(ledger_path).expect("IME Tab notes ledger");
+    assert!(
+        !ledger
+            .lines()
+            .filter_map(|line| serde_json::from_str::<serde_json::Value>(line).ok())
+            .any(|entry| entry["scenario"] == "user-input" && entry["kind"] == "actionRespond"),
+        "IME Tab editing must not resolve the question"
+    );
+    writer.write_all(b"\x1b").unwrap();
+    writer.flush().unwrap();
+    wait_for_screen(
+        output_rx,
+        output,
+        "IME Tab notes cancellation keeps the selected option without answering",
+        |screen| screen.contains("› 2. Safe") && !screen.contains("IME_TAB_TAIL"),
+    );
+    eprintln!("TUI_NOTES_IME_TAB_OK prefix=immediate tab=literal draft=preserved cancel=explicit response=none");
     let burst = format!(
         "/model\t@parser\n{}\nPTY_NOTES_BURST_TAIL",
         "界🙂".repeat(501)

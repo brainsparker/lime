@@ -23,13 +23,15 @@ const MIN_HEADER_WIDTH: u16 = 16;
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PromptHeaderSource {
-    cells: Vec<PromptCell>,
+    pub(super) cells: Vec<PromptCell>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct PromptCell {
-    key: String,
-    lines: Range<usize>,
+pub(super) struct PromptCell {
+    pub(super) key: String,
+    pub(super) lines: Range<usize>,
+    pub(super) identities: Vec<String>,
+    pub(super) mutable: bool,
     prompt: Option<String>,
 }
 
@@ -60,8 +62,52 @@ pub(crate) struct TranscriptPromptHeader {
 }
 
 impl PromptHeaderSource {
+    /// Insert accepted page cells behind the retained header without replacing existing revisions.
+    pub(super) fn prepend_snapshot_history(
+        &mut self,
+        lines: &mut Vec<HyperlinkLine>,
+        older: Self,
+        older_lines: &[HyperlinkLine],
+    ) -> Option<Range<usize>> {
+        let mut keys = self
+            .cells
+            .iter()
+            .map(|cell| cell.key.clone())
+            .collect::<std::collections::HashSet<_>>();
+        let boundary = self
+            .cells
+            .iter()
+            .take_while(|cell| matches!(cell.key.as_str(), "session-header" | "body-gap"))
+            .count();
+        let start = boundary
+            .checked_sub(1)
+            .and_then(|index| self.cells.get(index))
+            .map_or(0, |cell| cell.lines.end);
+        let mut added = Vec::new();
+        let mut cells = Vec::new();
+        for mut cell in older.cells {
+            if !keys.insert(cell.key.clone()) {
+                continue;
+            }
+            let offset = start + added.len();
+            added.extend_from_slice(older_lines.get(cell.lines.clone())?);
+            cell.lines = offset..start + added.len();
+            cells.push(cell);
+        }
+        if added.is_empty() {
+            return None;
+        }
+        let inserted = start..start + added.len();
+        for cell in &mut self.cells[boundary..] {
+            cell.lines = cell.lines.start + added.len()..cell.lines.end + added.len();
+        }
+        self.cells.splice(boundary..boundary, cells);
+        lines.splice(inserted.start..inserted.start, added);
+        Some(inserted)
+    }
+
     pub(crate) fn record_other(&mut self, key: impl Into<String>, lines: Range<usize>) {
-        self.record(key.into(), lines, None);
+        self.record(key.into(), lines, None, Vec::new(), false);
     }
 
     pub(crate) fn record_entry(
@@ -73,7 +119,30 @@ impl PromptHeaderSource {
         let prompt = (entry.kind == EntryKind::User)
             .then(|| prompt_text(entry, locale))
             .flatten();
-        self.record(format!("entry:{}", entry.id), lines, prompt);
+        self.record(
+            format!("entry:{}", entry.id),
+            lines,
+            prompt,
+            vec![entry.id.clone()],
+            entry.streaming,
+        );
+    }
+
+    pub(crate) fn record_activity(&mut self, entries: &[TranscriptEntry], lines: Range<usize>) {
+        let Some(first) = entries.first() else {
+            return;
+        };
+        self.record(
+            format!("activity:{}", first.id),
+            lines,
+            None,
+            entries.iter().map(|entry| entry.id.clone()).collect(),
+            entries.iter().any(|entry| entry.streaming),
+        );
+    }
+
+    pub(super) fn cell_at_line(&self, line: usize) -> Option<&PromptCell> {
+        self.cells.iter().find(|cell| cell.lines.contains(&line))
     }
 
     pub(crate) fn append_shifted(&mut self, mut other: Self, offset: usize) {
@@ -128,15 +197,36 @@ impl PromptHeaderSource {
         })
     }
 
-    fn record(&mut self, key: String, lines: Range<usize>, prompt: Option<String>) {
+    fn record(
+        &mut self,
+        key: String,
+        lines: Range<usize>,
+        prompt: Option<String>,
+        identities: Vec<String>,
+        mutable: bool,
+    ) {
         if lines.is_empty() {
             return;
         }
-        self.cells.push(PromptCell { key, lines, prompt });
+        self.cells.push(PromptCell {
+            key,
+            lines,
+            prompt,
+            identities,
+            mutable,
+        });
     }
 }
 
 impl TranscriptPromptHeader {
+    pub(super) fn snapshot_source(&self) -> Option<PromptHeaderSource> {
+        self.last_source.borrow().clone()
+    }
+
+    pub(super) fn replace_snapshot_source(&self, source: PromptHeaderSource) {
+        self.last_source.replace(Some(source));
+    }
+
     /// Keep entry metadata paired with the frozen selection source until selection ends.
     pub(crate) fn source(
         &self,

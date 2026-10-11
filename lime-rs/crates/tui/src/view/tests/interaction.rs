@@ -1,5 +1,84 @@
 use super::*;
 
+fn empty_resume_picker(app: &mut App) {
+    app.chat_widget.set_locale(Locale::EnUs);
+    app.chat_widget
+        .set_resume_picker(crate::resume_picker::PickerState::new(
+            Vec::new(),
+            crate::resume_picker::SessionPickerAction::Resume,
+            crate::resume_picker::SessionStatus::Active,
+            None,
+            true,
+        ));
+}
+
+#[test]
+fn fullscreen_render_and_keyboard_choose_the_same_pager_above_resume() {
+    let mut app = App::default();
+    empty_resume_picker(&mut app);
+    app.chat_widget
+        .set_pager_overlay(crate::pager_overlay::PagerOverlay::new(
+            "PAGER_OWNER".into(),
+            vec![ratatui::text::Line::raw("DETAILS_FOR_CURRENT_KEYBOARD")],
+        ));
+    let mut terminal = Terminal::new(TestBackend::new(60, 16)).unwrap();
+    terminal.draw(|frame| render(frame, &app)).unwrap();
+    assert!(buffer_text(&terminal).contains("PAGER_OWNER"));
+    dispatch_connected_input(
+        &mut app,
+        Event::Key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE)),
+    );
+    assert!(app.chat_widget.pager_overlay.is_none());
+    assert!(app.chat_widget.resume_picker.is_some());
+    terminal.draw(|frame| render(frame, &app)).unwrap();
+    assert!(!buffer_text(&terminal).contains("PAGER_OWNER"));
+}
+
+#[test]
+fn protected_request_remains_visible_while_a_resume_picker_is_retained() {
+    let mut app = App::default();
+    empty_resume_picker(&mut app);
+    app.chat_widget.bottom_pane.insert_str("preserved draft");
+    app.chat_widget
+        .bottom_pane
+        .enqueue(ServerRequest::ItemCommandExecutionRequestApproval {
+            id: RequestId::Integer(107),
+            params: CommandExecutionRequestApprovalParams {
+                thread_id: "thread-1".into(),
+                turn_id: "turn-1".into(),
+                item_id: "item-1".into(),
+                started_at_ms: 1,
+                approval_id: None,
+                network_approval_context: None,
+                command: Some("VISIBLE_APPROVAL_OWNER".into()),
+                cwd: Some("/workspace".into()),
+                reason: None,
+                available_decisions: None,
+            },
+        })
+        .unwrap();
+    let mut terminal = Terminal::new(TestBackend::new(60, 16)).unwrap();
+    terminal.draw(|frame| render(frame, &app)).unwrap();
+    let text = buffer_text(&terminal);
+    assert!(text.contains("Approve command?"));
+    assert!(text.contains("VISIBLE_APPROVAL_OWNER"));
+    assert!(!text.contains("preserved draft"));
+    assert!(matches!(
+        dispatch_connected_input(
+            &mut app,
+            Event::Key(KeyEvent::new(KeyCode::Char('y'), KeyModifiers::NONE))
+        ),
+        crate::app::AppAction::Respond(_)
+    ));
+    assert_eq!(
+        app.chat_widget.bottom_pane.composer_text(),
+        "preserved draft"
+    );
+    assert!(app.chat_widget.resume_picker.is_some());
+    terminal.draw(|frame| render(frame, &app)).unwrap();
+    assert!(!buffer_text(&terminal).contains("VISIBLE_APPROVAL_OWNER"));
+}
+
 #[test]
 fn approval_fullscreen_details_close_without_deciding_or_losing_draft_and_selection() {
     let mut app = App::default();

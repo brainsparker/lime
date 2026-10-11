@@ -43,7 +43,7 @@ fn collects_option_and_freeform_questions_before_responding() {
     assert_eq!(request.handle_key_event(key(KeyCode::Enter)), None);
     let now = Instant::now();
     request.handle_key_event_at(key(KeyCode::Char('好')), now);
-    request.pre_draw_tick(now + Duration::from_secs(1));
+    request.flush_paste_burst_if_due(now + Duration::from_secs(1));
     let response = request.handle_key_event_at(key(KeyCode::Enter), now + Duration::from_secs(1));
 
     let Some(AppServerResponse::UserInput { response, .. }) = response else {

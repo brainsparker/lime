@@ -24,6 +24,9 @@ const HISTORY_RACE_CURSOR: &str = "history-race-cursor";
 const HISTORY_SEARCH_QUERY: &str = "older-history";
 const HISTORY_SEARCH_RACE_QUERY: &str = "current-history";
 
+mod command_actions;
+mod reading;
+
 struct ResumeFixture {
     cli_bin: PathBuf,
     app_server_bin: PathBuf,
@@ -346,6 +349,7 @@ async fn transcript_history_completion_is_ignored_after_thread_switch() -> Resul
     terminal.wait_for_screen_compact_contains("race-target", TRANSCRIPT_TIMEOUT)?;
     terminal.write_input(b"\r")?;
     terminal.wait_for_screen_compact_contains("race-target-history", TRANSCRIPT_TIMEOUT)?;
+    terminal.wait_for_screen_without("Resume a previous session", TRANSCRIPT_TIMEOUT)?;
     wait_for_atomic_flag(&mut terminal, &stale_released, TRANSCRIPT_TIMEOUT)?;
     terminal.wait_for_screen_compact_contains("Ask Lime to do anything", TRANSCRIPT_TIMEOUT)?;
     ensure!(
@@ -429,6 +433,7 @@ async fn transcript_search_completion_is_ignored_after_thread_switch() -> Result
     terminal.wait_for_screen_compact_contains("race-target", TRANSCRIPT_TIMEOUT)?;
     terminal.write_input(b"\r")?;
     terminal.wait_for_screen_compact_contains("race-target-history", TRANSCRIPT_TIMEOUT)?;
+    terminal.wait_for_screen_without("Resume a previous session", TRANSCRIPT_TIMEOUT)?;
     wait_for_atomic_flag(&mut terminal, &stale_released, TRANSCRIPT_TIMEOUT)?;
     ensure!(
         !terminal.screen_contains(HISTORY_SEARCH_RACE_QUERY),
@@ -676,3 +681,9 @@ fn wait_for_atomic_flag(
 #[path = "history_pagination/fixtures.rs"]
 mod fixtures;
 use fixtures::*;
+
+#[path = "history_pagination/copy_mode.rs"]
+mod copy_mode;
+
+#[path = "history_pagination/selection.rs"]
+mod selection;

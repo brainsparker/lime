@@ -216,6 +216,7 @@ impl App {
         if let ServerNotificationThreadTarget::Thread(thread_id) = &target {
             self.observe_thread_input_notification(thread_id, &notification);
             if self.thread_id.as_deref() == Some(thread_id.as_str()) {
+                self.chat_widget.observe_copy_source(&notification);
                 if matches!(notification, ServerNotification::ThreadReverted(_)) {
                     return;
                 }

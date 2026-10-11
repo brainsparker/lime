@@ -5,6 +5,9 @@ use std::collections::HashMap;
 
 use super::{McpToolCallError, McpToolCallResult};
 
+mod command;
+pub use command::{CommandAction, CommandExecutionSource, CommandExecutionStatus};
+
 /// Codex v2 assistant message delivery mode.
 ///
 /// The current upstream contract only exposes `async`; keeping this as a
@@ -305,54 +308,6 @@ pub struct MemoryCitationEntry {
     pub line_start: u32,
     pub line_end: u32,
     pub note: String,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[serde(
-    tag = "type",
-    rename_all = "camelCase",
-    rename_all_fields = "camelCase"
-)]
-pub enum CommandAction {
-    Read {
-        command: String,
-        name: String,
-        path: String,
-    },
-    ListFiles {
-        command: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<String>,
-    },
-    Search {
-        command: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        query: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<String>,
-    },
-    Unknown {
-        command: String,
-    },
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum CommandExecutionSource {
-    #[default]
-    Agent,
-    UserShell,
-    UnifiedExecStartup,
-    UnifiedExecInteraction,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub enum CommandExecutionStatus {
-    InProgress,
-    Completed,
-    Failed,
-    Declined,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
