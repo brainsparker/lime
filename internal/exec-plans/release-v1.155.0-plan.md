@@ -71,3 +71,23 @@
 - 提交总范围 240 文件。release metadata：`package.json`、`packages/cli/package.json`、`lime-rs/Cargo.toml`、`lime-rs/Cargo.lock`、双语 release notes、本文；candidate changes为固定清单剩余路径，并完整保留 Cargo 的已有 parser 依赖变化。无被无故排除的起始 candidate。
 - 用户的完整发布/no-confirm授权已明确，本轮将使用独立索引与固定源码执行正常 hook 的 release commit，再连续 tag/main/tag push与远端身份复核。tag不覆盖已有引用。
 - 本地准备与门禁完成；GitHub 多平台构建/签名/公证、updater R2和npm平台包发布尚未完成。暂不把工作流触发视为完整发布。
+
+## 已提交、tag 与远端状态
+
+- 正常 pre-commit 最终 239 项通过、0失败；release commit `c551051c7d5da6d3f7493a44705af82ac7176f0c`，tree `264d460b6beb6516e52dab8062d974667dfa30c8`，240 文件/35764 insertions/10519 deletions；验证辅助 node_modules symlink 与 buildinfo 不在候选暂存清单。
+- `v1.155.0`、origin/main、远端 tag 全部指向上述 commit；main 与 tag 独立推送均成功，没有覆盖/删除 tag，也没有绕过 hook。
+- Release run https://github.com/limecloud/lime/actions/runs/38186042684；Quality run https://github.com/limecloud/lime/actions/runs/38186023407；发布 draft 已由 workflow 创建，targetCommitish 精确匹配发布 SHA，目前构建进行中。
+- 冻结后并行变更保留在主工作树，包含 architecture/quality/原TUI计划、Vitest/local-ci/vite 改进、buildinfo与 Markdown旧模块删除；均未自动追加到 v1.155.0。
+- 分类更正：本版实际删除 clipboard_paste/worker；两个 Markdown旧文件在冻结时与基线相同，不属于本版删除，它们后续的删除保留为并行改动。实际继续演进 owner已经迁移，未新增 compat或恢复旧入口。
+- 此后本文的远端进度记录尚未提交，最终发布完成后单独提交证据，不移动已发布 tag。
+
+## CI 暂存路径问题与发布前修正
+
+- Quality Frontend Full 在 `shares semantic copy origins...` 的旧模块不存在守卫失败，日志 `quality-frontend-full.log`。初始受测候选 tree `fd45c33393df27b55dbd8ee8e6518b93c1003a50` 已删除 `markdown/local_links.rs` 与 `markdown/table.rs`，本地 42 项 inventory 通过。
+- 发布暂存修复 node_modules symlink 时，使用 `git diff --cached --name-only` 的新路径清单重建索引。该输出遗漏两次 rename 的源路径，基线旧 blob 被错误保留到 `c551051c7`。对比初始候选与提交，产品差异精确为这两个被加回的、已脱离构建图的文件；这是本轮发布暂存问题，不是后续并行删除。前文「冻结时与基线相同」的分类解释更正作废。
+- GitHub v1.155.0 仍为 draft、资产数量0；停止本轮旧 Release run 38186042684，防止错误候选产物发布。Quality 原失败保留。
+- 用户完整发布/no-confirm授权覆盖本轮必要修正。固定源码/正常 hook 保持；将从已验原候选完整 tree 重建索引，只追加本文，再正常提交修正并 push main。仅移动本轮刚创建且未发布的 tag，使用明确旧 SHA 的 force-with-lease防止覆盖他人引用；不删除已有外部发布、不 force main。
+- 修正不改变已受测 current Rust/GUI/CLI/TUI 源码、版本、协议或依赖；只让 commit精确符合受测候选的旧模块删除。补跑 inventory/legacy guard、完整 tree 与逐文件身份复核；不通过放宽守卫掩盖漏发。
+
+- 修正前对初始 tree 的全部 8964 个 blob 核对固定源码，只有本文追加记录和生成 buildinfo 的允许变化；current 产品实现无漂移。复验 TUI inventory 42/42、legacy report 零边界违规/分类漂移均通过。
+- 修正索引直接 `read-tree` 初始已验完整 tree，避免再次从 rename 新路径清单重建；仅更新本文。最终 diff 相对首个发布 commit 必须精确为两项删除与本文。
