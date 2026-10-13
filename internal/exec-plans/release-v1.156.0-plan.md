@@ -1,6 +1,8 @@
 # v1.156.0 发布执行计划
 
-状态：active。目标：完成 v1.156.0 的提交、tag、main/tag 推送、多平台发布及结果复核。
+状态：completed。发布完成度：100%。目标：完成 v1.156.0 的提交、tag、main/tag 推送、多平台发布及结果复核。
+
+最终发布源码：`b7e5ee724ff6f116a9cbf4aaa96d0da4568efdd9`，tree `740cf2194501644e77ecccd661af85cb21c26def`；本地与远端 `v1.156.0` 均指向该提交。正式下载入口：[Lime v1.156.0](https://github.com/limecloud/lime/releases/tag/v1.156.0)。以下过程记录中的阶段状态仅代表当时进度，最终结果见文末。
 
 ## 授权与写集
 
@@ -121,3 +123,33 @@
 - 为防止已发现的队列回归进入正式产物，已取消本轮Release run38330677045；当时GitHub Release仍draft、assets=[]、publishedAt=null。v1.156.0没有正式发布或更新feed，本轮在修复验证后更新草稿的tag/source并重新构建同一版本。不会保留或复用旧源码安装包。
 
 - 修复后 `verify:app-version`、完整typecheck、Cargo fmt全绿；私有V8编译缓存仍引用已清理的共享gn_out路径，标准 `cargo clean -p v8`只作用于本轮private target后重新构建。全量CI以新main提交重新启动，最终tag将在本地新二进制交互复验后更新。
+
+## 最终候选与重新发布
+
+- 修复提交 `b7e5ee724ff6f116a9cbf4aaa96d0da4568efdd9` 已经正常 pre-commit 并推送 main；最终受测 tree 为 `740cf2194501644e77ecccd661af85cb21c26def`，固定候选逐路径与提交核对一致（排除本地 tsbuildinfo 缓存）。
+- 最终 locked CLI/App Server/code-mode-host 构建 exit0；实读 CLI `lime 1.156.0`。新 App Server SHA256 为 `7ce83ad3de8417f332b8345f8bf633f2d0ff4784c933b9796d8887c4fd6cd72c`；CLI 和 code-mode-host hash 与前轮相同，全部按最终 tree 冻结到 `reviewed-binaries.json`。
+- 新二进制 stdio 七条路径 exit0；后台 Command Electron streaming/reload Gate B exit0，证据确认新 App Server hash、原 identity、真实进程及 mockFallbackCount=0。最终完整 current Electron 回归 exit0（296.76 秒），22 个真实桌面场景通过。
+- GUI smoke 第一次复跑复用了前轮 run ID，launcher 读到了旧 summary；该轮日志保存为 `gui-smoke-reused-id.*`，不计入最终交互证据。改用包含最终 commit 的唯一 run ID 后，正式 `npm run verify:gui-smoke` 重新执行 exit0（78.24 秒），新时间戳、24/24 断言、3 尺寸布局和真实 current bridge 均通过。
+- 更新 tag 前核对 Release 仍 draft、assets=[]、publishedAt=null、原 Release run 已 cancelled，远端 main 为修复提交、tag 为旧提交。通过 exact expected-old `update-ref` 和 `--force-with-lease=refs/tags/v1.156.0:36b34a0785ec66798dc79a59b2d0ec73cac3ebc1` 将草稿 tag 更新为最终修复提交；远端复核一致，不复用旧源码安装包。
+- 新 Release run [38334407624](https://github.com/limecloud/lime/actions/runs/38334407624) 的 head/tag 为 `b7e5ee724`，Prepare GitHub release 已通过，三平台构建运行中。
+- 最终 Quality run [38333328639](https://github.com/limecloud/lime/actions/runs/38333328639) 的全量前端 121/121 批次、GUI Smoke、Integrity、Windows Shell Runtime 已通过；Rust Full 继续运行。Windows 原生 timeout fixture、受限执行安全矩阵、App Server 合同与 Agent Plugin MCP parity 已通过，不用本机 macOS 结果替代 Windows 结果。
+- 最终 Quality 已 completed/success：全量前端、Rust Full、Windows Shell Runtime、GUI Smoke、Integrity 和 Quality results 全绿。架构确认是 PR 专属门禁，在本次 push 事件按工作流正常 skipped；没有伪造 PR evidence。
+- 上一版实际 updater origin 来自已发布的 macOS RELEASES.json，为公开 R2 origin；三平台 feed 均可读取、当前为 1.155.0。后续从实际 origin 复核 1.156.0，不以未使用的默认 URL 代替发布配置。
+- 状态仍 active：须继续复核签名/公证、GitHub 14 项资产、R2 三平台 updater feed，以及 CLI npm 四平台包和 root 包发布。
+- 新 Release 的 macOS arm64 与 Windows x64 build 已 completed/success。下载并读取远端 Gate B summary：macOS `candidateSha=b7e5ee724`、Developer ID/Gatekeeper/staple 全部 passed；Windows installed Squirrel、desktop resources、CodeMode 和 native host 的安装 identity/资源根/版本/commit/runId 一致，全部 passed。macOS x64 继续构建，GitHub Release 尚未正式发布。
+- macOS x64 build 和 packaged Gate B 已 completed/success；下载的 summary 再次确认最终 candidateSha、Developer ID、Gatekeeper 与 staple 全 passed。三平台 build 全绿，GitHub Release 在 `2026-10-13T02:27:54Z` 正式发布（draft=false、targetCommitish=b7e5ee724），9 项桌面安装包/更新 metadata 均 uploaded、size>0。
+- 正式发布的两份 macOS RELEASES.json 均 `currentRelease=1.156.0` 且指向实际 R2 origin；Windows RELEASES 为 `7C61BBBDBD6CCA24E35129463F34F3D5AB43794D lime-1.156.0-full.nupkg 360715586`。R2 上传及四平台 CLI npm runtime 构建仍进行中，不能在此处标记完整发布完成。
+- R2 publish job 已 completed/success；从实际公开 R2 origin 读取 darwin-arm64、darwin-x64 和 win32-x64 三份 feed，全部实读为 1.156.0，逐字节与 GitHub Release 的最终 feed 资产一致。上传 owner 还逐对象通过 S3 head-object 核对 ContentLength、SHA256 metadata、ContentType、CacheControl；桌面安装包及 updater 已完整发布，四平台 CLI npm 继续构建。
+
+## 最终发布结果与证据边界
+
+- [最终 Quality](https://github.com/limecloud/lime/actions/runs/38333328639) 和 [最终 Release](https://github.com/limecloud/lime/actions/runs/38334407624) 均 completed/success、headSha 为最终发布提交。Release 的 11 个任务全部 success，包含三平台 Forge 安装包、签名/公证与 packaged Gate B、R2、四平台 CLI 包和 npm trusted publishing。
+- GitHub Release 已正式发布、非 prerelease，14 项资产名称/数量完全匹配预期，均 uploaded 且 size>0：两套 macOS DMG/ZIP/feed、Windows Setup/nupkg/feed，以及 root + 四平台 CLI npm tarball。tag 的远端 commit 身份一致，无旧源码产物混入。
+- R2 共 18 个 stable/versioned 对象通过上传后 hash/长度/类型/cache 检查；三平台公开 feed 均 1.156.0，SHA256 与 GitHub metadata 一致。macOS feed 目标 ZIP 和 Windows nupkg 均为本轮最终产物。
+- npm registry 实读 `@limecloud/lime@1.156.0`、latest=1.156.0，optionalDependencies 精确指向四平台包。平台包按既有打包合同使用 `1.156.0-darwin-arm64`、`1.156.0-darwin-x64`、`1.156.0-win32-x64`、`1.156.0-linux-x64`，各自同名平台 dist-tag 均正确。
+- 首次临时 registry 审计错误地将平台包查询为无后缀版本，产生 404/断言失败；依据 `build_npm_package.py` 的唯一版本合同修正审计，没有修改已发布包。Windows 版本首次 encoded 查询仍返回 404，随后直接 scoped version 路径和 fresh 查询均读取到已发布版本；最终统一 scoped 路径后完整审计全部通过。失败审计 JSON 保留，不作通过证据。
+- 从实际 npm registry 下载 root 与 darwin-arm64 tarball，SHA512 integrity 全部通过，SHA256 与 GitHub Release asset digest 一致；隔离目录按实际 npm package 布局安装后，运行 root launcher 返回 exit0、`lime 1.156.0`。本机只验证 darwin-arm64 launcher，不冒称运行其它 OS 的 CLI 二进制。
+- 本轮版本事实源为 root package、CLI package、Cargo workspace/lock；双语 `RELEASE_NOTES.md` / `RELEASE_NOTES.en.md` 为 1.156.0 单页。当前 owner 和 Product Surface -> App Server -> RuntimeCore 主链保持一致；compat/deprecated 无新增；重复 helper/旧权限匹配删除项见本轮产品计划，未恢复已退役 runtime。
+- 工程原则：transport shutdown 复用既有 turn 分类（KISS/DRY），只修正排队输入持久化回归与旧断言；权限 fixture 沿原 literal 合同，不放宽审批；未新增并行 runtime、兼容包装或额外业务 owner（YAGNI/SOLID）。
+- 验证限制：live provider 明确关闭；CLI human 双 TTY 分支因本轮外层 stdin 非 TTY 未运行。没有新增 Codex Desktop 像素对齐声明。Homebrew 旧 URL workflow 未执行，文档站无本轮 docs 写集，不声明这些额外交付已完成。
+- 发布结果、失败修正和实际边界全部落入本文；忽略目录 `.lime/release/v1.156.0/` 保留固定源码/索引/hash、local/remote logs、Gate B summary、公开 registry/feed metadata、最终 `published-audit.json`（ok=true）和 `published-cli-smoke.json`（ok=true）。发布 evidence 仅做文档提交推送，不再移动已正式发布的 tag。
