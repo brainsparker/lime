@@ -92,7 +92,9 @@ describe("AppSidebar search", () => {
       await Promise.resolve();
     });
 
-    expect(dialog?.textContent).toContain("没有匹配的对话标题");
+    expect(dialog?.textContent).toContain("没有匹配的对话");
+    expect(dialog?.textContent).not.toContain("写一篇AI Agent的公众号");
+    expect(dialog?.textContent).not.toContain("啊啊啊啊啊");
   });
 
   it("搜索弹窗应支持查看更多对话并展示后续结果", async () => {

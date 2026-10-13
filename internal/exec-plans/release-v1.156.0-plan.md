@@ -102,3 +102,11 @@
 - 发布metadata为root/CLI package、Cargo workspace/lock及双语单页release notes；其它产品/文档/测试全部来自固定候选。本次共316个路径。
 - 固定后主工作树额外变化为 `internal/exec-plans/codex-global-alignment-2026-10-12.md`、`scripts/app-server/command-status-fixture.mjs`；候选保留二者已验版本，后续变化保留为提交后的工作树diff。分析产物与tsbuildinfo继续排除。
 - 本地必要门禁全部通过，继续正常pre-commit、release commit、tag与推送，之后收取多平台远端结果；尚未把workflow触发视为发布完成。
+
+## 远端发布与全量前端修正
+
+- release commit `36b34a0785ec66798dc79a59b2d0ec73cac3ebc1`，tree `ae83d9d4cca6a56380dbed29e3909e2f50b665cf`；main与v1.156.0已推送且远端逐一核对一致。Release run [38330677045](https://github.com/limecloud/lime/actions/runs/38330677045)，原Quality run [38330672768](https://github.com/limecloud/lime/actions/runs/38330672768)。
+- 固定checkout未生成Husky `_` wrappers，第一次常规commit没有触发wrapper；随后显式使用同一pre-commit owner入口 `ai-code-verify.ts --files` 检查完整适用路径315项，exit0。未使用no-verify或禁用验证配置。
+- 远端Integrity、Bridge/Contracts、全量lint/typecheck/budget通过。Frontend Full在25/121批次发现唯一旧断言：侧栏搜索empty label仍为“没有匹配的对话标题”，实际正文搜索已统一“没有匹配的对话”，与五语言事实源及新dialog测试一致。
+- 窄写集只修正 `AppSidebar.search.test.tsx` 的旧文案断言并新增原结果均清空的断言，11项搜索回归与定向lint通过。此修正不改变发布业务源码；保留已推送tag身份，通过后续main Quality确认全量结果，不重打tag。
+- 本地从第25批续跑余下全量测试；桌面多平台打包仍在原release source上运行。
