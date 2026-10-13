@@ -110,3 +110,14 @@
 - 远端Integrity、Bridge/Contracts、全量lint/typecheck/budget通过。Frontend Full在25/121批次发现唯一旧断言：侧栏搜索empty label仍为“没有匹配的对话标题”，实际正文搜索已统一“没有匹配的对话”，与五语言事实源及新dialog测试一致。
 - 窄写集只修正 `AppSidebar.search.test.tsx` 的旧文案断言并新增原结果均清空的断言，11项搜索回归与定向lint通过。此修正不改变发布业务源码；保留已推送tag身份，通过后续main Quality确认全量结果，不重打tag。
 - 本地从第25批续跑余下全量测试；桌面多平台打包仍在原release source上运行。
+
+## CI 反馈修复与草稿重新构建
+
+- 原Rust Full发现 transport shutdown把Queued也视为active并取消，导致多模态冷恢复队列为空。修复只复用既有 `agent_turn_blocks_queue_resume` 分类，取消Accepted/Running/WaitingAction，Queued仍持久化；不新增owner或协议。公开JSON-RPC队列5项及shutdown5项全部通过，新增断言保证源backend只执行首轮、恢复后完整保留两条排队输入及顺序。
+- 原Windows runtime安全/原生shell阶段通过，timeout fixture使用动态.NET静态调用被新literal权限检查正确拒绝。仅将fixture改成允许的 `Start-Sleep -Seconds 1`，保留20ms timeout与canonical exit code断言；最终Windows原生CI继续复核。
+- 完整前端续跑还发现旧process-group测试要求隐藏Command output，与本版running/completed output可见合同冲突；同步行为断言并分别检查两条命令自己的输出。27项定向回归通过，余下测试已续跑至121/121。
+- 首次本地全量续跑错误继承release Git变量，临时仓库夹具短暂改写本地ref/config，未推送、未改用户工作树；保存fixture commit/config/index证据后用exact expected-old ref恢复main `a85efcea4`、原author与root。第二个启动过早的续跑进程也已单独停止并恢复；所有全量测试子进程现在清除GIT_DIR/GIT_WORK_TREE/GIT_INDEX_FILE，不触碰共享仓库。
+- 并行工作清理了共享Rust target，使private clone缓存中的绝对native library路径失效；失败链接日志保留，后续只为本轮子进程设置private LIBRARY_PATH/DYLD_LIBRARY_PATH，未恢复共享target。队列/关闭回归最终exit0。
+- 为防止已发现的队列回归进入正式产物，已取消本轮Release run38330677045；当时GitHub Release仍draft、assets=[]、publishedAt=null。v1.156.0没有正式发布或更新feed，本轮在修复验证后更新草稿的tag/source并重新构建同一版本。不会保留或复用旧源码安装包。
+
+- 修复后 `verify:app-version`、完整typecheck、Cargo fmt全绿；私有V8编译缓存仍引用已清理的共享gn_out路径，标准 `cargo clean -p v8`只作用于本轮private target后重新构建。全量CI以新main提交重新启动，最终tag将在本地新二进制交互复验后更新。

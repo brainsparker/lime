@@ -444,7 +444,7 @@ describe("StreamingRenderer process groups", () => {
     expect(container.textContent).not.toContain("Fetching data issues");
   });
 
-  it("消息仍在输出时，普通运行工具逐条显示但隐藏实时原始输出", () => {
+  it("消息仍在输出时，命令逐条显示并保留运行中与完成输出", () => {
     const { container } = renderHarness({
       content: "",
       contentParts: [
@@ -461,7 +461,7 @@ describe("StreamingRenderer process groups", () => {
             status: "running",
             result: {
               success: true,
-              output: "raw html payload should stay hidden while grouped",
+              output: "scrape command running output",
             },
             startTime: new Date("2026-06-02T09:00:00.000Z"),
           },
@@ -475,7 +475,7 @@ describe("StreamingRenderer process groups", () => {
             status: "completed",
             result: {
               success: true,
-              output: "another raw payload should stay hidden while grouped",
+              output: "normalize command completed output",
             },
             startTime: new Date("2026-06-02T09:00:02.000Z"),
             endTime: new Date("2026-06-02T09:00:03.000Z"),
@@ -500,8 +500,11 @@ describe("StreamingRenderer process groups", () => {
     expect(container.textContent).toContain("python scrape.py");
     expect(container.textContent).toContain("python normalize.py");
     expect(container.textContent).toContain("国际新闻简报");
-    expect(container.textContent).not.toContain("raw html payload");
-    expect(container.textContent).not.toContain("another raw payload");
+    const commandSteps = container.querySelectorAll(
+      '[data-testid="inline-tool-process-step"]',
+    );
+    expect(commandSteps[0]?.textContent).toContain("scrape command running output");
+    expect(commandSteps[1]?.textContent).toContain("normalize command completed output");
   });
 
   it("尾部 Skill 仍在运行时应显示工具过程且隐藏协议 payload", () => {

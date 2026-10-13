@@ -490,6 +490,8 @@ async fn thread_queue_public_jsonrpc_restores_multimodal_input_after_cold_restar
         .await;
     client.shutdown().await;
 
+    assert_eq!(backend.start_count.load(Ordering::SeqCst), 1);
+
     let restarted_runtime = RuntimeCore::default()
         .with_event_log_writer(event_log_writer)
         .with_projection_store(projection_store)
@@ -507,6 +509,7 @@ async fn thread_queue_public_jsonrpc_restores_multimodal_input_after_cold_restar
             json!({"threadId": thread_id, "limit": 100}),
         )
         .await;
+    assert_eq!(listed["result"]["data"].as_array().map(Vec::len), Some(2));
     assert_eq!(listed["result"]["data"][0]["id"], second_id);
     assert_eq!(listed["result"]["data"][1]["id"], first_id);
     assert_eq!(

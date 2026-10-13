@@ -405,7 +405,7 @@ async fn windows_timeout_returns_canonical_exit_code() {
         std::time::Duration::from_secs(5),
         CommandExecServer::default().exec(
             ConnectionId(9),
-            windows_exec_params("[System.Threading.Thread]::Sleep(10000)"),
+            windows_exec_params("Start-Sleep -Seconds 1"),
             None,
         ),
     )

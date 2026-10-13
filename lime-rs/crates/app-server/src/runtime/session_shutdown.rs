@@ -1,4 +1,4 @@
-use super::status::agent_turn_is_active;
+use super::status::{agent_turn_blocks_queue_resume, agent_turn_is_active};
 use super::thread_read::ThreadUnloadResult;
 use super::{RuntimeCore, RuntimeCoreError, RuntimeCoreState, RuntimeHostContext};
 use agent_runtime::session_loop::RuntimeSessionHandle;
@@ -132,7 +132,8 @@ impl RuntimeCore {
                     stored
                         .turns
                         .iter()
-                        .filter(|turn| agent_turn_is_active(turn.status))
+                        // Queued submissions stay durable for the next cold resume.
+                        .filter(|turn| agent_turn_blocks_queue_resume(turn.status))
                         .cloned()
                         .collect::<Vec<_>>()
                 })

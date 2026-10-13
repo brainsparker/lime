@@ -13,6 +13,7 @@ Simplified Chinese release notes are the primary version; this English companion
 
 - Preserve background command output and completion across Renderer reload, conversation resume, and continuation from another turn, retaining command identity and the input draft.
 - Correct CLI interruption and shutdown by cancelling the original turn and draining command output before releasing subscriptions and the App Server connection, preserving the interrupt exit code and durable terminal state.
+- Preserve pending input and queue order when the connection closes so multimodal tasks remain available after a cold restart.
 - Avoid false dangerous-command matches in Bash/POSIX and PowerShell strings, comments, and file names; inspect literal invocations and paths for the actual shell, and route dynamic syntax through the existing approval flow.
 - Clean terminal control sequences from command text and make running command output visible.
 
