@@ -78,6 +78,7 @@ import {
   resolveToolResultStructuredContent,
 } from "../utils/toolResultDetailText";
 import { ToolCallDisplayResultPanel } from "./ToolCallDisplayResultPanel";
+import { stripTerminalControlSequences } from "../utils/terminalOutputText";
 import {
   ToolCallSkillContentButton,
   ToolCallSkillContentPanel,
@@ -160,7 +161,6 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   const isRunning = toolCall.status === "running";
   const isCompleted = toolCall.status === "completed";
   const isFailed = toolCall.status === "failed";
-  const hasResult = !isRunning && toolCall.result;
   const resultImages = useMemo(
     () =>
       normalizeToolResultImages(
@@ -283,12 +283,13 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
     toolCall.name,
   ]);
   const isResultFailure = useMemo(() => {
+    if (isRunning) return false;
     if (!toolCall.result) return isFailed;
     return !isToolResultSuccessful({
       success: toolCall.result.success,
       metadata: resultMetadata,
     });
-  }, [isFailed, resultMetadata, toolCall.result]);
+  }, [isFailed, isRunning, resultMetadata, toolCall.result]);
   const resolveSiteProjectTargetDisplay = useCallback(
     (params: { source?: string; projectId?: string }): string => {
       if (params.source === "context_project") {
@@ -357,6 +358,13 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
       toolCall.result?.error,
       toolCall.result?.output,
     ],
+  );
+  const hasResult = Boolean(
+    toolCall.result &&
+    (!isRunning ||
+      (commandSummary &&
+        (commandOutputStreams.length > 0 ||
+          stripTerminalControlSequences(rawResultText).trim()))),
   );
   const diffReviewSummary = useMemo(
     () =>
@@ -514,12 +522,16 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
     if (isToolSearch && processNarrative.postSource === "tool_search") {
       return processNarrative.summary;
     }
-    return buildGroupedChildLineFromInfo(toolCall);
+    const line = buildGroupedChildLineFromInfo(toolCall);
+    return toolDisplay.family === "command"
+      ? stripTerminalControlSequences(line)
+      : line;
   }, [
     isToolSearch,
     processNarrative.postSource,
     processNarrative.summary,
     toolCall,
+    toolDisplay.family,
   ]);
   const shouldShowRawSearchResultToggle =
     hasSearchResults && resultText !== emptyOutputLabel;
@@ -587,6 +599,7 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
   useEffect(() => {
     if (
       isMessageStreaming &&
+      !hasUserToggledExpandedRef.current &&
       !isToolSearch &&
       (isRunning || hasResult || hasResultImages || hasSearchResults)
     ) {
@@ -776,6 +789,7 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
                 onClick={handleToggleExpanded}
                 className="rounded-md p-1 transition-colors hover:bg-slate-100"
                 title={resultToggleTitle}
+                aria-expanded={isExpanded}
               >
                 <ChevronRight
                   className={cn(
@@ -841,6 +855,7 @@ export const ToolCallDisplay: React.FC<ToolCallDisplayProps> = ({
                 onClick={handleToggleExpanded}
                 className="rounded-md p-1 transition-colors hover:bg-slate-100"
                 title={resultToggleTitle}
+                aria-expanded={isExpanded}
               >
                 <ChevronRight
                   className={cn(

@@ -281,6 +281,12 @@ fn materialized_item_metadata(
         preserve_file_event_markers(&mut metadata, source);
     }
     if matches!(family, ItemFamily::Command) {
+        if event.event_type == "command.output" {
+            metadata.insert(
+                "output_is_delta".to_string(),
+                Value::Bool(source.get("delta").is_some_and(Value::is_string)),
+            );
+        }
         if let Some(command_id) = map_string(source, &["commandId", "command_id"]) {
             metadata.insert("source_call_id".to_string(), Value::String(command_id));
         }

@@ -266,6 +266,13 @@ export type AppServerThreadBackgroundTerminalsTerminateParams =
   protocol.ThreadBackgroundTerminalsTerminateParams;
 export type AppServerThreadBackgroundTerminalsTerminateResponse =
   protocol.ThreadBackgroundTerminalsTerminateResponse;
+export type AppServerThreadBackgroundTerminalsCleanParams =
+  protocol.ThreadBackgroundTerminalsCleanParams;
+export type AppServerThreadBackgroundTerminalsCleanResponse =
+  protocol.ThreadBackgroundTerminalsCleanResponse;
+export type AppServerThreadSearchParams = protocol.ThreadSearchParams;
+export type AppServerThreadSearchResponse = protocol.ThreadSearchResponse;
+export type AppServerThreadSearchResult = protocol.ThreadSearchResult;
 export type AppServerThreadArchiveParams = protocol.ThreadArchiveParams;
 export type AppServerThreadArchiveResponse = protocol.ThreadArchiveResponse;
 export type AppServerThreadUnarchiveParams = protocol.ThreadUnarchiveParams;

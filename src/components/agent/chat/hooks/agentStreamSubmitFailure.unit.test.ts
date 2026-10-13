@@ -4,10 +4,8 @@ import { changeLimeLocale } from "@/i18n/createI18n";
 import { resolveSoulInteractionCopy } from "@/lib/soul/interactionCopy";
 import type { Message, MessageImage } from "../types";
 import type { WorkspacePathMissingState } from "./agentChatShared";
-import type {
-  ActiveStreamState,
-  StreamRequestState,
-} from "./agentStreamSubmissionLifecycle";
+import type { ActiveStreamState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import { handleAgentStreamSubmitFailure } from "./agentStreamSubmitFailure";
 
 vi.mock("sonner", () => ({

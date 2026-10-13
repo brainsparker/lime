@@ -5,7 +5,9 @@ import {
   Search,
   X,
 } from "lucide-react";
+import styled from "styled-components";
 import type { AgentSessionInfo } from "@/lib/api/agentRuntime/sessionTypes";
+import type { SidebarSearchSession } from "./sidebarThreadSearch";
 import { Modal } from "@/components/Modal";
 import {
   SidebarSearchBody,
@@ -38,6 +40,7 @@ export interface AppSidebarSearchDialogCopy {
   selectProjectFirstLabel: string;
   emptyMatchesLabel: string;
   emptyRecentLabel: string;
+  contentSearchErrorLabel: string;
   loadingMoreLabel: string;
   moreMatchesLabel: string;
   moreRecentLabel: string;
@@ -50,7 +53,8 @@ interface AppSidebarSearchDialogProps {
     current: HTMLInputElement | null;
   };
   copy: AppSidebarSearchDialogCopy;
-  sessions: AgentSessionInfo[];
+  sessions: SidebarSearchSession[];
+  contentSearchError?: boolean;
   currentProjectId?: string | null;
   currentSessionId?: string | null;
   hasQuery: boolean;
@@ -72,6 +76,7 @@ export function AppSidebarSearchDialog({
   inputRef,
   copy,
   sessions,
+  contentSearchError = false,
   currentProjectId,
   currentSessionId,
   hasQuery,
@@ -139,6 +144,15 @@ export function AppSidebarSearchDialog({
             {hasQuery ? copy.matchesLabel : copy.recentLabel}
           </SidebarSearchSectionLabel>
 
+          {contentSearchError ? (
+            <SidebarSearchNotice
+              role="status"
+              data-testid="app-sidebar-search-error"
+            >
+              {copy.contentSearchErrorLabel}
+            </SidebarSearchNotice>
+          ) : null}
+
           {loading ? (
             <SidebarSearchEmptyState role="status">
               {copy.loadingLabel}
@@ -160,9 +174,18 @@ export function AppSidebarSearchDialog({
                     onClick={() => onResultClick(session)}
                   >
                     <MessageSquare />
-                    <SidebarSearchResultTitle>
-                      {title}
-                    </SidebarSearchResultTitle>
+                    <SidebarSearchResultCopy>
+                      <SidebarSearchResultTitle>
+                        {title}
+                      </SidebarSearchResultTitle>
+                      {session.searchSnippet ? (
+                        <SidebarSearchResultSnippet
+                          data-testid="app-sidebar-search-snippet"
+                        >
+                          {session.searchSnippet}
+                        </SidebarSearchResultSnippet>
+                      ) : null}
+                    </SidebarSearchResultCopy>
                     <SidebarSearchResultMeta>
                       {formatSessionMeta(session)}
                     </SidebarSearchResultMeta>
@@ -172,10 +195,10 @@ export function AppSidebarSearchDialog({
             </SidebarSearchResultList>
           ) : (
             <SidebarSearchEmptyState role="status">
-              {!currentProjectId
-                ? copy.selectProjectFirstLabel
-                : hasQuery
-                  ? copy.emptyMatchesLabel
+              {hasQuery
+                ? copy.emptyMatchesLabel
+                : !currentProjectId
+                  ? copy.selectProjectFirstLabel
                   : copy.emptyRecentLabel}
             </SidebarSearchEmptyState>
           )}
@@ -200,3 +223,31 @@ export function AppSidebarSearchDialog({
     </Modal>
   );
 }
+
+const SidebarSearchResultCopy = styled.span`
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+
+  ${SidebarSearchResultTitle} {
+    flex: none;
+  }
+`;
+
+const SidebarSearchResultSnippet = styled.span`
+  overflow: hidden;
+  color: var(--lime-text-soft, #9aa89a);
+  font-size: 13px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const SidebarSearchNotice = styled.p`
+  margin: 0;
+  color: var(--lime-text-muted, #6b826b);
+  font-size: 13px;
+  font-weight: 650;
+`;

@@ -3365,8 +3365,62 @@ canonical开始条件，不通过放宽sequence/tool lifecycle gate掩盖接线�
 unified_exec按definitions/shell/session/collect/output/invocation拆分；Agent protocol按
 DTO/tool_lifecycle/tests拆分；coding_events按canonical/metadata/policy/tests拆分，相关
 主文件均不越800行。不新增method/schema/wire shape、第二后端、GUI/TUI parser或compat。
-责任root，2026-10-12；已确认依赖方向与唯一事实源，真实public transport/产品Gate
-及最终local证据仍在验证，不以owner回归替代实际OS执行或跨平台验收。
+责任root，2026-10-12；已确认依赖方向与唯一事实源，真实OS/public stdio、CLI/TUI/
+history及Electron/GUI Gate已通过。最终local已通过；当前1.155.0共享Rust2813与TUI1879
+回归通过，shared strict旧告警与跨平台范围仍开放。无binary override的resolver真实stdio
+与Electron历史Gate也已通过，现场进程路径与SHA记录在执行计划；冻结1.154.0功能包、
+1.155.0资源与实际resolver产物分别登记provenance，不冒充新版packaged/release验收。
+
+第128架构图确认（root，2026-10-12；实施架构已确认，验收范围见下方记录）：
+session-owned unified_exec::async_watcher -> 原Invocation/interaction lock ->
+Agent CommandEventPublisher -> scoped EventAppender/EventHub -> canonical原Thread/
+Turn/Item/process -> shared verifier -> GUI route/binding与TUI projection/commands。
+模型Turn完成与session Command退出独立；原process supervisor是唯一执行owner，
+watcher只观察与发布，callback不捕获RuntimeCore或ExecutionProcessServer。
+只有已登记后台Command允许原Turn terminal后的同scope输出/interaction/completion。
+模型、普通工具、新Command及process漂移继续拒绝；真实尾部输出先于单次完成。
+GUI保留原订阅，Command退出仅更新原Item，不重启sending；TUI普通Item仍随Turn
+settle。GUI Turn/diagnostic投影移入conversationProjection/turns与diagnostics，旧Turn
+迟到terminal不覆盖下一Turn状态。没有新method/schema、compat或第二runtime。
+GUI冷恢复通过同Thread canonical thread_items识别后台Command，沿既有read model
+刷新持续跟随实际命令终态；projection/commandActivity为live保留监听与cold活动
+判定的唯一owner，不重开模型Turn或sending。完整恢复流式绑定与进程重启策略仍待验收。
+实际stdio/PTY与同一App Server下GUI冷恢复已验收；完整恢复流式绑定与服务重启时
+仍运行Command的恢复尚未验收，详见第128执行计划。
+
+第128身份校验收口（root，2026-10-12；行为回归与新冻结产物验收通过）：Rust既有verifier的
+command_scope_matches同时服务运行期与terminal continuation。已登记原Command的
+process/Item/Turn/Thread/session保持一致；拒绝foreign output/interaction/completion时
+不消耗原active Command。运行期raw stream保留原可省略process metadata合同，terminal
+continuation仍要求已登记原process。删除ItemUpdated内重复scope判断，不新增状态机、
+协议字段、method或owner。24项verifier回归、完整App Server与最新冻结98e08cab的
+真实stdio/PTY/Desktop验收均通过，未将旧冻结产物作为新guard通过证据。
+
+第128冷恢复投影收口（root，2026-10-12；真实Desktop两轮复验通过）：canonical thread detail
+同时向items与thread_read.thread_items输出同一投影，getSession与getSessionReadModel不再
+分头补Command信息；后者删除重复补items。恢复后的GUI sync仍依据同一Command活动
+判定刷新原read model，不设置sending或重开Turn。字段/环境/Plan投影拆到canonicalReadFields、
+threadEnvironments、threadPlan，直接迁移环境消费者并删除原模块出口；没有新runtime、
+method或wire字段。Renderer reload后的接线缺口已用parser->Hook行为回归定位和修复；
+同一冻结App Server的Desktop live/reload两轮均证明实际tail/完成/draft可见，原PID和
+Thread/Turn/Item/process保持一致，不以read model polling证据冒充恢复流式订阅。
+
+第128当前产品范围确认（root，2026-10-12）：App Server 1810全量、最新冻结98e08cab的
+三组actual OS stdio、实际TUI PTY与Desktop live/Renderer reload后台Command均通过；
+Desktop保持相同App Server PID、原Thread/Turn/Item/process，尾输出/完成/draft可见且
+无mock fallback或额外provider调用。冷恢复缺失items已在唯一canonical投影修复，原
+read model client的重复补齐为dead/deleted。完整冷恢复流式绑定、服务重启时仍运行
+Command、observer EOF/观察失败及退出drain signal、CLI单轮结束清理和Windows/packaged/
+live范围继续开放，不以本批真实Unix GUI/TUI证据宣称全方位Codex对齐。
+
+第128基础门禁确认（root，2026-10-12）：verify:local最终通过，前端120批/11478 passed/
+1既有skipped，受影响Rust9 crate/4998 passed/0 failed，contracts与真实Electron shell
+smoke通过。类型DTO守卫直接迁到turnEventBindingTypes并禁止重复Options定义回流，
+未为旧binding恢复无用import。已实现的Unix主链达到本地门禁；本批退出条件3/4满足，
+条件2中的observer错误终态和实际取消/CLI退出清理仍开放，状态partial。
+恢复订阅的下一步必须同时接通canonical快照、原App Server route与共享sequence gate；
+目前resumeThread只委托typed调用，快照没有初始化Command scope，不能只放宽目标
+判断或绕过缺少started的校验。继续使用同一投影和runtime，不新增method/schema。
 
 Thread 内的 Codex `exec_command` 不再把 `Command` Item 当成只在终态读取的 batch outcome。`tool-runtime::unified_exec`
 从同一个 `RuntimeLiveExecutionGateway` 读取 `ExecutionProcessSnapshot`，把 `processId`、`executionProcessStatus`、

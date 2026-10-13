@@ -31,7 +31,7 @@ import type {
 } from "./agentChatShared";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import type { AgentAccessMode } from "./agentChatStorage";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import type { ActionRequired, Message, MessageImage } from "../types";
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
 import { runAgentStreamSubmitLifecycle } from "./agentStreamSubmitLifecycleController";

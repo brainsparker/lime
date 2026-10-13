@@ -16,11 +16,13 @@ use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{anyhow, bail, Context, Result};
-use app_server_client::{AppServerEvent, ClientSession};
+use app_server_client::{AppServerEvent, ClientSession, RequestHandle};
 use app_server_protocol::protocol::v2::{
     ConfigReadParams, ConfigReadResponse, ReviewStartParams, ReviewStartResponse, ReviewTarget,
-    ThreadSettingsUpdateParams, ThreadSettingsUpdateResponse, TurnStartParams, TurnStartResponse,
-    TurnStatus, UserInput, METHOD_CONFIG_READ, METHOD_REVIEW_START, METHOD_THREAD_SETTINGS_UPDATE,
+    ThreadSettingsUpdateParams, ThreadSettingsUpdateResponse, ThreadUnsubscribeParams,
+    ThreadUnsubscribeResponse, TurnInterruptParams, TurnInterruptResponse, TurnStartParams,
+    TurnStartResponse, TurnStatus, UserInput, METHOD_CONFIG_READ, METHOD_REVIEW_START,
+    METHOD_THREAD_SETTINGS_UPDATE, METHOD_THREAD_UNSUBSCRIBE, METHOD_TURN_INTERRUPT,
     METHOD_TURN_START,
 };
 
@@ -183,6 +185,7 @@ async fn execute(
                 if human_output {
                     eprintln!("{}: {thread_id}", locale.label(Label::SessionId));
                 }
+                request_shutdown(&handle, &thread_id).await?;
                 return Ok(None);
             }
             InitialOperation::UserTurn {
@@ -222,21 +225,39 @@ async fn execute(
         };
         let mut processor = if human_output {
             EventProcessor::new(
-                thread_id,
-                turn_id,
+                thread_id.clone(),
+                turn_id.clone(),
                 EventProcessorWithHumanOutput::create_with_ansi(with_ansi, reasoning, locale),
             )
         } else {
-            let mut processor = EventProcessor::new_json(thread_id, turn_id);
+            let mut processor = EventProcessor::new_json(thread_id.clone(), turn_id.clone());
             processor.start_turn(&mut io::stdout())?;
             processor
         };
         processor.set_last_message_file(last_message_file);
+        let interrupt = tokio::signal::ctrl_c();
+        tokio::pin!(interrupt);
+        let mut interrupt_requested = false;
         loop {
-            let event = session
-                .next_event()
-                .await
-                .ok_or_else(|| anyhow!("App Server disconnected before turn completion"))?;
+            let event = tokio::select! {
+                signal = &mut interrupt, if !interrupt_requested => {
+                    signal.context("failed to listen for keyboard interrupt")?;
+                    let _: TurnInterruptResponse = handle
+                        .request(
+                            METHOD_TURN_INTERRUPT,
+                            TurnInterruptParams {
+                                thread_id: thread_id.clone(),
+                                turn_id: turn_id.clone(),
+                            },
+                        )
+                        .await
+                        .context("failed to interrupt App Server turn")?;
+                    interrupt_requested = true;
+                    continue;
+                }
+                event = session.next_event() => event
+                    .ok_or_else(|| anyhow!("App Server disconnected before turn completion"))?,
+            };
             match event {
                 AppServerEvent::ServerNotification(notification) => {
                     let result = if human_output {
@@ -245,6 +266,7 @@ async fn execute(
                         processor.process(*notification, &mut io::stdout())?
                     };
                     if let Some(result) = result {
+                        request_shutdown(&handle, &thread_id).await?;
                         return Ok(Some(result));
                     }
                 }
@@ -265,6 +287,19 @@ async fn execute(
         }
         Err(error) => Err(error),
     }
+}
+
+async fn request_shutdown(handle: &RequestHandle, thread_id: &str) -> Result<()> {
+    let _: ThreadUnsubscribeResponse = handle
+        .request(
+            METHOD_THREAD_UNSUBSCRIBE,
+            ThreadUnsubscribeParams {
+                thread_id: thread_id.to_owned(),
+            },
+        )
+        .await
+        .context("failed to unsubscribe App Server thread during shutdown")?;
+    Ok(())
 }
 
 fn validate_model_route(connection: &ConnectionArgs) -> Result<()> {

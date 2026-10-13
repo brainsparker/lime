@@ -8,8 +8,6 @@ const desktopHostAliasPatterns = [
   ["^@/lib/desktop-host/core$", "core.ts"],
   ["^@/lib/desktop-host/event$", "event.ts"],
   ["^@/lib/desktop-host/window$", "window.ts"],
-  ["^@/lib/desktop-host/window$", "window.ts"],
-  ["^@/lib/desktop-host/window$", "window.ts"],
   ["^@/lib/desktop-host/plugin-dialog$", "plugin-dialog.ts"],
   ["^@/lib/desktop-host/plugin-shell$", "plugin-shell.ts"],
   ["^@/lib/desktop-host/plugin-deep-link$", "plugin-deep-link.ts"],
@@ -17,6 +15,10 @@ const desktopHostAliasPatterns = [
 ];
 
 const workspaceAliasSpecs = [
+  [
+    "@limecloud/app-server-client/browser",
+    "packages/app-server-client/src/browser.ts",
+  ],
   ["@limecloud/app-server-client", "packages/app-server-client/src/browser.ts"],
   [
     "@limecloud/agent-runtime-client/sessionGateway",
@@ -84,7 +86,7 @@ export function createVitestSmokeConfig(rootDir) {
       `  test: {\n` +
       `    globals: true,\n` +
       `    environment: "jsdom",\n` +
-      `    exclude: ["**/node_modules/**", "**/dist/**", "**/lime-rs/target/**"],\n` +
+      `    exclude: ["**/.lime/**", "**/node_modules/**", "**/dist/**", "**/lime-rs/target/**"],\n` +
       `  },\n` +
       `});\n`,
   );

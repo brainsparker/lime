@@ -30,6 +30,7 @@ use super::projection_rebuild::{projected_tables_are_empty, rebuild_projected_th
 use super::{ProjectionStore, StoredSession};
 
 mod agent_graph;
+mod event_batch;
 mod goal;
 mod goal_accounting;
 mod goal_fork;
@@ -227,43 +228,6 @@ impl ProjectionStore {
             thread: canonical_thread_from_stored_session(stored),
         })
         .map_err(|error| error.to_string())
-    }
-
-    pub(super) fn apply_canonical_events(
-        &self,
-        stored: &StoredSession,
-        events: &[AgentEvent],
-    ) -> Result<(), String> {
-        if events.is_empty() {
-            return Ok(());
-        }
-        let thread_id = ThreadId::new(stored.session.thread_id.clone());
-        let conn = self
-            .open_thread_store()
-            .map_err(|error| error.to_string())?;
-        if read_thread_row(&conn, &thread_id)
-            .map_err(|error| error.to_string())?
-            .is_none()
-        {
-            self.create_empty_canonical_thread(stored)?;
-        }
-        let changes = super::thread_item_projection::materialize_events(
-            events,
-            &stored.session.session_id,
-            &stored.session.thread_id,
-        )
-        .map_err(|error| error.to_string())?;
-        if changes.sequence == 0 {
-            return Ok(());
-        }
-        self.apply_history_sync(ApplyThreadHistoryParams {
-            session_id: agent_protocol::SessionId::new(stored.session.session_id.clone()),
-            thread_id,
-            changes,
-        })
-        .map_err(|error| error.to_string())?;
-        self.apply_goal_accounting_events_sync(stored, events)
-            .map_err(|error| error.to_string())
     }
 
     pub(super) fn repair_canonical_history(

@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
 } from "react";
 import type { ActiveStreamState } from "./agentStreamSubmissionLifecycle";
-import { rememberLocallyStartedAgentStreamBinding } from "./agentStreamResumeBinding";
+import { rememberLocallyStartedAgentStreamBinding } from "./streamBindingRecords";
 
 interface UseAgentStreamControllerOptions {
   currentAssistantMsgIdRef: MutableRefObject<string | null>;

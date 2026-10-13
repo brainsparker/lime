@@ -142,6 +142,7 @@ impl RuntimeCore {
             .state
             .lock()
             .expect("runtime core state mutex poisoned");
+        state.ensure_session_accepts_input(&session_id)?;
         match state.sessions.entry(session_id) {
             std::collections::hash_map::Entry::Vacant(entry) => {
                 entry.insert(stored);

@@ -140,6 +140,7 @@ pub(super) fn project_output(output: UnifiedExecCallOutput) -> RuntimeToolExecut
     metadata.extend(output.invocation.metadata());
     metadata.extend([
         ("exec_command_call_id".to_string(), json!(output.call_id)),
+        ("command_lifecycle_owned".to_string(), json!(true)),
         ("session_id".to_string(), json!(output.session_id)),
         ("exit_code".to_string(), json!(output.exit_code)),
         (

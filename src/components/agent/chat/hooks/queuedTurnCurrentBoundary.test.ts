@@ -16,6 +16,11 @@ const RETIRED_SNAPSHOT_CONSUMER_PATHS = [
   "src/components/agent/chat/hooks/agentStreamRuntimeHandlerTypes.ts",
   "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
   "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
+  "src/components/agent/chat/hooks/streamResumeTarget.ts",
+  "src/components/agent/chat/hooks/streamResumeProjection.ts",
+  "src/components/agent/chat/hooks/streamBindingRecords.ts",
+  "src/components/agent/chat/hooks/useCommandResume.ts",
+  "src/components/agent/chat/hooks/commandResume.ts",
   "src/components/agent/chat/hooks/agentStreamTurnEventBinding.ts",
   "src/components/agent/chat/hooks/useAgentStream.ts",
 ];

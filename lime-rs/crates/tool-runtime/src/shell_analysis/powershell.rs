@@ -5,8 +5,8 @@ use std::sync::OnceLock;
 use crate::path_guard::{resolve_static_path_candidate, PathMutationCandidate, PathMutationKind};
 
 use super::common::{
-    detect_high_risk_git_command, is_mutating_git_subcommand, normalize_shell_word, split_segments,
-    tokenize_words,
+    detect_high_risk_git_invocation, is_mutating_git_subcommand, normalize_shell_word,
+    split_segments, tokenize_words,
 };
 
 pub(super) fn is_command_concurrency_safe(command: &str) -> bool {
@@ -58,112 +58,88 @@ pub(super) fn missing_read_targets(command: &str, cwd: &Path) -> Vec<PathBuf> {
     missing_paths
 }
 
-pub(super) fn collect_path_candidates(command: &str) -> Vec<PathMutationCandidate> {
-    let mut candidates = powershell_write_redirection_re()
-        .captures_iter(command)
-        .filter_map(|captures| captures.name("target"))
-        .map(|target| PathMutationCandidate::new(target.as_str(), PathMutationKind::Write))
-        .collect::<Vec<_>>();
-
-    for segment in split_powershell_segments(command) {
-        let raw_words = tokenize_powershell_words(segment);
-        if raw_words.is_empty() {
-            continue;
-        }
-        let words = normalize_powershell_words(&raw_words);
-        let Some(command_name) = words.first().map(String::as_str) else {
-            continue;
-        };
-        match command_name {
-            "set-content" | "add-content" | "clear-content" | "remove-item" | "copy-item"
-            | "move-item" | "rename-item" | "new-item" | "out-file" | "tee-object"
-            | "export-csv" | "export-clixml" | "invoke-webrequest" | "invoke-restmethod" => {
-                let kind = if command_name == "remove-item" {
-                    PathMutationKind::Remove
-                } else {
-                    PathMutationKind::Write
-                };
-                for target in extract_powershell_write_targets(&raw_words, command_name) {
-                    candidates.push(PathMutationCandidate::new(target, kind));
-                }
-            }
-            _ => {}
-        }
+pub(super) fn collect_invocation_path_candidates(words: &[String]) -> Vec<PathMutationCandidate> {
+    let Some(head) = words.first() else {
+        return Vec::new();
+    };
+    let lower = head.to_ascii_lowercase();
+    let name = resolve_powershell_alias(&lower);
+    if !matches!(
+        name,
+        "set-content"
+            | "add-content"
+            | "clear-content"
+            | "remove-item"
+            | "copy-item"
+            | "move-item"
+            | "rename-item"
+            | "new-item"
+            | "out-file"
+            | "tee-object"
+            | "export-csv"
+            | "export-clixml"
+            | "invoke-webrequest"
+            | "invoke-restmethod"
+    ) {
+        return Vec::new();
     }
-    candidates
-}
-
-pub(super) fn detect_high_risk_reason(command: &str) -> Option<String> {
-    if powershell_symlink_re().is_match(command) {
-        return Some(
-            "Blocked: creating symbolic links or junctions is not allowed in PowerShell tool."
-                .to_string(),
-        );
-    }
-    detect_high_risk_git_command(
-        command,
-        split_powershell_segments,
-        extract_powershell_command_words,
-    )
-}
-
-pub(super) fn detect_mutating_warning(command: &str) -> Option<String> {
-    if has_powershell_write_redirection(command) {
-        return Some("Command writes to files via PowerShell redirection".to_string());
-    }
-
-    for segment in split_powershell_segments(command) {
-        let words = extract_powershell_command_words(segment);
-        let Some(command_name) = words.first().map(String::as_str) else {
-            continue;
-        };
-        if matches!(command_name, "invoke-webrequest" | "invoke-restmethod")
-            && words
-                .iter()
-                .any(|word| matches!(word.as_str(), "-outfile" | "-literalpath" | "-path"))
-        {
-            return Some(format!(
-                "Command may persist downloaded content via `{command_name}`"
-            ));
-        }
-        if is_mutating_powershell_cmdlet(command_name) {
-            return Some(format!(
-                "Command may modify files or project state via `{command_name}`"
-            ));
-        }
-        if command_name == "git" {
-            let subcommand = words.get(1).map(String::as_str).unwrap_or_default();
-            if is_mutating_git_subcommand(subcommand) {
-                return Some(format!(
-                    "Command modifies repository state via `git {subcommand}`"
-                ));
-            }
-        }
-    }
-
-    None
-}
-
-pub(super) fn detect_blocked_sleep_pattern(command: &str) -> Option<String> {
-    let trimmed = command.trim();
-    let first = trimmed.split([';', '|', '&', '\r', '\n']).next()?.trim();
-    let captures = powershell_sleep_re().captures(first)?;
-    let secs = captures.get(1)?.as_str().parse::<u64>().ok()?;
-    if secs < 2 {
-        return None;
-    }
-
-    let rest = trimmed
-        .get(first.len()..)
-        .unwrap_or("")
-        .trim_start_matches(|ch: char| ch.is_whitespace() || ch == ';' || ch == '|' || ch == '&')
-        .trim();
-
-    if rest.is_empty() {
-        Some(format!("standalone Start-Sleep {secs}"))
+    let kind = if name == "remove-item" {
+        PathMutationKind::Remove
     } else {
-        Some(format!("Start-Sleep {secs} followed by: {rest}"))
+        PathMutationKind::Write
+    };
+    extract_powershell_write_targets(words, name)
+        .into_iter()
+        .map(|target| PathMutationCandidate::new(target, kind))
+        .collect()
+}
+
+pub(super) fn detect_high_risk_invocation_reason(words: &[String]) -> Option<String> {
+    let head = words.first()?.to_ascii_lowercase();
+    if resolve_powershell_alias(&head) == "new-item" {
+        for pair in words[1..].windows(2) {
+            let flag = pair[0].to_ascii_lowercase();
+            if ["-itemtype", "-type"]
+                .iter()
+                .any(|full| flag.len() >= 3 && full.starts_with(&flag))
+                && matches!(
+                    pair[1].to_ascii_lowercase().as_str(),
+                    "symboliclink" | "junction" | "hardlink"
+                )
+            {
+                return Some("Blocked: creating symbolic links or junctions is not allowed in PowerShell tool.".into());
+            }
+        }
     }
+    detect_high_risk_git_invocation(words)
+}
+
+pub(super) fn detect_mutating_invocation_warning(words: &[String]) -> Option<String> {
+    let head = words.first()?.to_ascii_lowercase();
+    let name = resolve_powershell_alias(&head);
+    if matches!(name, "invoke-webrequest" | "invoke-restmethod")
+        && words
+            .iter()
+            .any(|word| word.eq_ignore_ascii_case("-outfile"))
+    {
+        return Some(format!(
+            "Command may persist downloaded content via `{name}`"
+        ));
+    }
+    if is_mutating_powershell_cmdlet(name) {
+        return Some(format!(
+            "Command may modify files or project state via `{name}`"
+        ));
+    }
+    if name == "git" {
+        let subcommand = words.get(1)?.as_str();
+        if is_mutating_git_subcommand(subcommand) {
+            return Some(format!(
+                "Command modifies repository state via `git {subcommand}`"
+            ));
+        }
+    }
+    None
 }
 
 fn collect_read_path_candidates(command: &str) -> Vec<String> {
@@ -217,13 +193,14 @@ fn extract_powershell_command_words(segment: &str) -> Vec<String> {
 
 fn resolve_powershell_alias(word: &str) -> &str {
     match word {
-        "rm" | "del" | "erase" | "ri" => "remove-item",
+        "rm" | "del" | "erase" | "ri" | "rd" | "rmdir" => "remove-item",
         "mv" | "move" | "mi" => "move-item",
         "cp" | "copy" | "cpi" => "copy-item",
         "ren" | "rni" => "rename-item",
         "ni" | "mkdir" | "md" => "new-item",
         "sc" => "set-content",
         "ac" => "add-content",
+        "clc" => "clear-content",
         "tee" => "tee-object",
         "iwr" => "invoke-webrequest",
         "irm" => "invoke-restmethod",
@@ -422,32 +399,5 @@ fn powershell_write_redirection_re() -> &'static Regex {
         "#,
         )
         .expect("valid powershell write redirection regex")
-    })
-}
-
-fn powershell_symlink_re() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(
-            r#"(?ix)
-            \b(?:new-item|ni|cmd\s*/c\s+mklink)\b
-            [^\n;|&]*
-            (?:
-                (?:-itemtype|-type|-it(?:emtype)?|-ty(?:pe)?)\s*(?::|=|\s)\s*
-                ['"]?(symboliclink|junction|hardlink)
-                |
-                \s/(?:d|j)\b
-            )
-        "#,
-        )
-        .expect("valid powershell symlink regex")
-    })
-}
-
-fn powershell_sleep_re() -> &'static Regex {
-    static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| {
-        Regex::new(r"(?i)^(?:start-sleep|sleep)(?:\s+-s(?:econds)?)?\s+(\d+)\s*$")
-            .expect("valid PowerShell sleep regex")
     })
 }

@@ -3,6 +3,8 @@ import {
   createRuntimeSequenceVerifier,
   type AgentRuntimeExecutionEvent,
   type RuntimeSequenceViolation,
+  type RuntimeCommandStreamScope,
+  type RuntimeCommandSnapshot,
 } from "@limecloud/agent-ui-contracts";
 
 export type AgentRuntimeSequenceVerifierMode =
@@ -12,6 +14,12 @@ export type AgentRuntimeSequenceVerifierMode =
 
 export interface AgentRuntimeSequenceVerifierLike {
   push(event: AgentRuntimeExecutionEvent): RuntimeSequenceViolation[];
+  checkCommandStream?(
+    scope: RuntimeCommandStreamScope,
+  ): RuntimeSequenceViolation[];
+  restoreCommands?(
+    snapshot: RuntimeCommandSnapshot,
+  ): RuntimeSequenceViolation[];
   getViolations(): RuntimeSequenceViolation[];
   finalize?(): RuntimeSequenceViolation[];
 }
@@ -131,9 +139,71 @@ export class AgentRuntimeEventSequenceGate {
         : (options.verifier ?? createRuntimeSequenceVerifier());
   }
 
+  restoreCommands(
+    thread: Pick<CanonicalThread, "id" | "turns">,
+  ): RuntimeSequenceViolation[] {
+    if (!this.#verifier) return [];
+    if (!this.#verifier.restoreCommands)
+      throw new TypeError(
+        "Sequence verifier cannot restore canonical Command scopes",
+      );
+    const snapshot: RuntimeCommandSnapshot = {
+      threadId: requireEntityId(thread, "Thread"),
+      turns: (thread.turns ?? []).map((turn) => ({
+        turnId: requireEntityId(turn, "Turn"),
+        terminal: turnStatus(turn.status) !== "running",
+        commands: (turn.items ?? []).flatMap((entity) => {
+          const item = requireEntity(entity, "ThreadItem");
+          if (
+            recordField(item, "type") !== "commandExecution" ||
+            recordField(item, "source") !== "unifiedExecStartup"
+          )
+            return [];
+          const processId = optionalStringField(item, "processId");
+          if (!processId) return [];
+          return [
+            {
+              commandId: requireEntityId(item, "Command"),
+              processId,
+              active:
+                itemExecutionStatus(
+                  entity,
+                  "commandExecution",
+                  "item/started",
+                ) === "running",
+            },
+          ];
+        }),
+      })),
+    };
+    return this.#verifier.restoreCommands(snapshot);
+  }
+
   verify(
     notification: AgentRuntimeLifecycleNotification,
   ): AgentRuntimeSequenceVerificationResult {
+    if (
+      this.#verifier &&
+      (notification.method === "item/commandExecution/outputDelta" ||
+        notification.method === "item/commandExecution/terminalInteraction")
+    ) {
+      const { threadId, turnId, itemId } = notification.params;
+      const violations =
+        this.#verifier.checkCommandStream?.({
+          eventId: notification.method,
+          threadId,
+          turnId,
+          commandId: itemId,
+          ...(notification.method ===
+          "item/commandExecution/terminalInteraction"
+            ? { processId: notification.params.processId }
+            : {}),
+        }) ?? [];
+      return {
+        accepted: this.#mode !== "fail-closed" || violations.length === 0,
+        violations,
+      };
+    }
     if (
       !this.#verifier ||
       isItemStreamingNotification(notification) ||

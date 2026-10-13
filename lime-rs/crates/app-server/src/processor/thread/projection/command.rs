@@ -3,6 +3,9 @@
 use super::*;
 use tool_runtime::parse_command::parse_command;
 
+#[cfg(test)]
+mod tests;
+
 pub(super) fn project_command_source(metadata: &Value) -> v2::CommandExecutionSource {
     match metadata_string(
         metadata,
@@ -42,17 +45,47 @@ pub(super) fn project_terminal_interactions(
         .collect()
 }
 
-pub(super) fn project_command_status(status: canonical::ItemStatus) -> v2::CommandExecutionStatus {
+pub(super) fn project_command_status(
+    status: canonical::ItemStatus,
+    metadata: &Value,
+) -> v2::CommandExecutionStatus {
     match status {
         canonical::ItemStatus::Pending | canonical::ItemStatus::InProgress => {
             v2::CommandExecutionStatus::InProgress
         }
         canonical::ItemStatus::Completed => v2::CommandExecutionStatus::Completed,
-        canonical::ItemStatus::Failed => v2::CommandExecutionStatus::Failed,
-        canonical::ItemStatus::Interrupted | canonical::ItemStatus::Cancelled => {
+        canonical::ItemStatus::Cancelled if command_cancelled_before_start(metadata) => {
             v2::CommandExecutionStatus::Declined
         }
+        canonical::ItemStatus::Failed
+            if metadata
+                .get(tool_runtime::tool_result_projection::TOOL_OUTCOME_METADATA_KEY)
+                .and_then(Value::as_str)
+                == Some(tool_runtime::tool_result_projection::TOOL_OUTCOME_REJECTED) =>
+        {
+            v2::CommandExecutionStatus::Declined
+        }
+        canonical::ItemStatus::Failed
+        | canonical::ItemStatus::Interrupted
+        | canonical::ItemStatus::Cancelled => v2::CommandExecutionStatus::Failed,
     }
+}
+
+fn command_cancelled_before_start(metadata: &Value) -> bool {
+    // Empty argv is an explicit preparation fact; executed Commands retain prepared argv/process identity.
+    metadata
+        .get(tool_runtime::tool_result_projection::TOOL_OUTCOME_METADATA_KEY)
+        .and_then(Value::as_str)
+        == Some(tool_runtime::tool_result_projection::TOOL_OUTCOME_ABORTED)
+        && metadata
+            .get("commandExecutionSource")
+            .and_then(Value::as_str)
+            == Some("unifiedExecStartup")
+        && metadata
+            .get("commandArgv")
+            .and_then(Value::as_array)
+            .is_some_and(Vec::is_empty)
+        && metadata.get("processId").is_none_or(Value::is_null)
 }
 
 pub(super) fn project_command_actions(

@@ -1,0 +1,7 @@
+OpenAI Codex
+Copyright 2025 OpenAI
+
+PowerShell literal command lowering is derived from codex-rs/shell-command/src/command_safety/powershell_tree_sitter.rs
+at revision a9b0815167c27ab13719dd12d13b63e02b70d221.
+Licensed under Apache License 2.0 (see LICENSE).
+Modified for tool-runtime permission-owner integration; no PowerShell AST oracle is included.

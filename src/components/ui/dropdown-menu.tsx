@@ -159,12 +159,14 @@ interface DropdownMenuItemProps {
   className?: string;
   children: React.ReactNode;
   onClick?: () => void;
+  "data-testid"?: string;
 }
 
 const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
   className,
   children,
   onClick,
+  "data-testid": testId,
 }) => {
   const context = useContext(DropdownMenuContext);
   if (!context)
@@ -182,6 +184,7 @@ const DropdownMenuItem: React.FC<DropdownMenuItemProps> = ({
     <div
       role="menuitem"
       tabIndex={0}
+      data-testid={testId}
       className={cn(
         "relative flex cursor-pointer select-none items-center gap-2 rounded-sm px-3 py-2 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground",
         className,

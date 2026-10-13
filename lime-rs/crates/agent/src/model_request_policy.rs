@@ -543,13 +543,15 @@ fn native_tool_policy_from_value(value: &Value) -> ModelNativeToolPolicySnapshot
             "disabled",
             "shell_command",
         ],
-    );
-    let preferred_shell_surface = enum_field(
-        value,
-        &["preferred_shell_surface", "preferredShellSurface"],
-        &["shell_command", "unified_exec"],
     )
-    .or_else(|| preferred_shell_surface(shell_type.as_deref()).map(str::to_string));
+    .map(|shell_type| match shell_type.as_str() {
+        "default" | "local" | "shell_command" => "unified_exec".to_string(),
+        _ => shell_type,
+    });
+    let preferred_shell_surface = shell_type
+        .as_deref()
+        .filter(|shell_type| *shell_type == "unified_exec")
+        .map(str::to_string);
     let apply_patch_tool_type = enum_field(
         value,
         &["apply_patch_tool_type", "applyPatchToolType"],
@@ -557,8 +559,8 @@ fn native_tool_policy_from_value(value: &Value) -> ModelNativeToolPolicySnapshot
     );
     ModelNativeToolPolicySnapshot {
         shell_type,
-        shell_tool_enabled: bool_field(value, &["shell_tool_enabled", "shellToolEnabled"])
-            .unwrap_or(preferred_shell_surface.is_some()),
+        shell_tool_enabled: preferred_shell_surface.is_some()
+            && bool_field(value, &["shell_tool_enabled", "shellToolEnabled"]).unwrap_or(true),
         preferred_shell_surface,
         apply_patch_tool_enabled: bool_field(
             value,
@@ -570,14 +572,6 @@ fn native_tool_policy_from_value(value: &Value) -> ModelNativeToolPolicySnapshot
             value,
             &["experimental_supported_tools", "experimentalSupportedTools"],
         ),
-    }
-}
-
-fn preferred_shell_surface(shell_type: Option<&str>) -> Option<&'static str> {
-    match shell_type {
-        Some("default" | "local" | "shell_command") => Some("shell_command"),
-        Some("unified_exec") => Some("unified_exec"),
-        _ => None,
     }
 }
 

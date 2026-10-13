@@ -31,6 +31,7 @@ describe("vitest smoke runner current aliases", () => {
       expect(content).toContain("plugin-shell.ts");
       expect(content).toContain("plugin-deep-link.ts");
       expect(content).toContain("packages/app-server-client/src/browser.ts");
+      expect(content).toContain("@limecloud/app-server-client/browser");
       expect(content).toContain(
         "packages/agent-runtime-client/src/sessionGateway.ts",
       );
@@ -39,6 +40,7 @@ describe("vitest smoke runner current aliases", () => {
         "packages/agent-runtime-projection/src/index.ts",
       );
       expect(content).toContain("packages/agent-runtime-ui/src/index.ts");
+      expect(content).toContain("**/.lime/**");
       expect(content).not.toContain(["src/lib/", "ta", "uri-mock"].join(""));
       expect(path.basename(path.dirname(config.configPath))).toMatch(
         /^vitest-smoke-/,

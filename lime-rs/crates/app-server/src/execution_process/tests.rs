@@ -911,6 +911,31 @@ async fn execution_process_server_rejects_dangerous_shell_command() {
     assert!(matches!(error, ExecutionProcessError::Policy(_)));
 }
 
+#[test]
+fn command_execution_checks_the_selected_shell() {
+    for argv in [
+        vec![
+            "/opt/pwsh/pwsh",
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "Restart-Computer",
+        ],
+        vec![
+            "C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+            "-Command",
+            "Clear-Disk",
+        ],
+        vec!["/bin/sh", "-lc", "reboot"],
+    ] {
+        let command = argv.iter().map(|word| word.to_string()).collect::<Vec<_>>();
+        assert!(
+            decide_command_execution(&command, &current_directory(), None).is_err(),
+            "{argv:?} must be denied before process launch"
+        );
+    }
+}
+
 #[tokio::test]
 async fn execution_process_server_uses_current_unsandboxed_fallback_when_backend_is_disabled() {
     let response = ExecutionProcessServer::default()

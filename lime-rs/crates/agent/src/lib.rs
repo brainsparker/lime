@@ -50,6 +50,7 @@ pub mod turn_input_envelope;
 pub mod turn_state;
 mod write_artifact_events;
 
+pub use current_provider_turn::CommandEventPublisher;
 pub use direct_text_generation::{
     run_direct_text_generation_with_db, DirectTextGenerationRequest, DirectTextGenerationResult,
 };

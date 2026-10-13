@@ -72,7 +72,6 @@ describe("agentStreamFlowControl current runtime boundary", () => {
       [
         "setQueuedTurns(",
         new Set([
-          "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
           "src/components/agent/chat/hooks/agentStreamSubmissionLifecycle.ts",
           "src/components/agent/chat/hooks/useAgentSession.ts",
         ]),

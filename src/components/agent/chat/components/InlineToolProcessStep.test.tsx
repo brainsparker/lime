@@ -408,7 +408,7 @@ describe("InlineToolProcessStep", () => {
     ).toBeNull();
   });
 
-  it("工具详情遇到伪标签输出时应先转义再渲染", () => {
+  it("命令详情的伪标签输出应作为原文展示，不创建 HTML 元素", () => {
     const { container } = renderTool({
       id: "tool-bash-ink-tags-1",
       name: "Bash",
@@ -429,10 +429,12 @@ describe("InlineToolProcessStep", () => {
       toggle?.click();
     });
 
-    expect(container.textContent).toContain(
-      "&lt;text&gt;正在整理&lt;/text&gt;",
-    );
-    expect(container.textContent).toContain("&lt;spinner /&gt;");
+    expect(
+      container.querySelector(
+        '[data-testid="inline-tool-process-command-output"]',
+      )?.textContent,
+    ).toBe("<text>正在整理</text>\n<spinner />");
+    expect(container.querySelector("text, spinner")).toBeNull();
   });
 
   it("文件工具应暴露稳定打开入口并携带原始文件路径", () => {

@@ -1,3 +1,16 @@
+import { canonicalTurnPlanItems } from "./threadPlan";
+import {
+  canonicalTimestamp,
+  isRecord,
+  omitUndefined,
+  readField,
+  readOptionalBooleanField,
+  readOptionalNumberField,
+  readOptionalObjectField,
+  readOptionalStringField,
+  readStringField,
+} from "./canonicalReadFields";
+import { readCanonicalThreadEnvironmentSelections } from "./threadEnvironments";
 import type { AppServerAgentSessionOverview } from "./appServerSessionClient";
 import type { AppServerAgentEvent } from "../appServer";
 import type {
@@ -8,7 +21,6 @@ import type {
 import type { AgentSessionExecutionRuntime } from "../agentExecutionRuntime";
 import type {
   AgentRuntimeProfileStatus,
-  AgentRuntimeThreadEnvironment,
   AgentSessionDetail,
 } from "./sessionTypes";
 import { readCanonicalThreadItem } from "./appServerCanonicalItemReader";
@@ -251,6 +263,7 @@ export function readCanonicalThreadDetail(
     items,
     thread_read: {
       thread_id: threadId,
+      thread_items: items,
       can_accept_direct_input: readOptionalBooleanField(
         thread,
         "canAcceptDirectInput",
@@ -276,230 +289,6 @@ export function readCanonicalThreadDetail(
     section_entered_at:
       sectionEnteredAt === undefined ? undefined : sectionEnteredAt * 1_000,
   };
-}
-
-/**
- * Project the persisted Thread environment selection once at the canonical
- * read-model boundary. Components should not inspect business-object metadata
- * directly because that bypasses Thread identity and lifecycle ownership.
- */
-export function readCanonicalThreadEnvironmentSelections(
-  metadata?: Record<string, unknown>,
-): AgentRuntimeThreadEnvironment[] {
-  if (!metadata) {
-    return [];
-  }
-
-  const persistedSelections = Array.isArray(metadata.environments)
-    ? metadata.environments
-    : [];
-  const worldStateSelections = environmentWorldStateSelections(
-    metadata.environmentWorldState,
-  );
-  const worldStateById = new Map<string, Record<string, unknown>>();
-  for (const selection of worldStateSelections) {
-    if (!isRecord(selection)) {
-      continue;
-    }
-    const environmentId = readStringField(
-      selection,
-      "environmentId",
-      "environment_id",
-    ).trim();
-    if (environmentId) {
-      worldStateById.set(environmentId, selection);
-    }
-  }
-  const rawSelections =
-    persistedSelections.length > 0
-      ? persistedSelections.map((selection) => {
-          if (!isRecord(selection)) {
-            return selection;
-          }
-          const environmentId = readStringField(
-            selection,
-            "environmentId",
-            "environment_id",
-          ).trim();
-          const worldState = worldStateById.get(environmentId);
-          return worldState ? { ...selection, ...worldState } : selection;
-        })
-      : worldStateSelections;
-  const selections: AgentRuntimeThreadEnvironment[] = [];
-  const seen = new Set<string>();
-  for (const value of rawSelections) {
-    if (!isRecord(value)) {
-      continue;
-    }
-    const environmentId = readStringField(
-      value,
-      "environmentId",
-      "environment_id",
-    ).trim();
-    if (!environmentId || seen.has(environmentId)) {
-      continue;
-    }
-    const status = canonicalEnvironmentStatus(
-      readOptionalStringField(value, "status"),
-    );
-    const cwd = readOptionalStringField(value, "cwd")?.trim();
-    const roots = readStringArrayField(
-      value,
-      "runtimeWorkspaceRoots",
-      "runtime_workspace_roots",
-    );
-    const shell = readOptionalStringField(value, "shell")?.trim();
-    const error = readOptionalStringField(value, "error")?.trim();
-    const primary = readOptionalBooleanField(value, "primary");
-    selections.push({
-      environment_id: environmentId,
-      ...(cwd ? { cwd } : {}),
-      ...(roots.length > 0 ? { runtime_workspace_roots: roots } : {}),
-      ...(primary === undefined ? {} : { primary }),
-      ...(status ? { status } : {}),
-      ...(shell ? { shell } : {}),
-      ...(error ? { error } : {}),
-    });
-    seen.add(environmentId);
-  }
-  return selections.sort((left, right) =>
-    left.environment_id.localeCompare(right.environment_id),
-  );
-}
-
-function environmentWorldStateSelections(value: unknown): unknown[] {
-  if (Array.isArray(value)) {
-    return value;
-  }
-  if (!isRecord(value)) {
-    return [];
-  }
-  const environments = value.environments;
-  if (Array.isArray(environments)) {
-    return environments;
-  }
-  if (!isRecord(environments)) {
-    return [];
-  }
-  return Object.entries(environments).map(([environmentId, selection]) =>
-    isRecord(selection) ? { environmentId, ...selection } : { environmentId },
-  );
-}
-
-function canonicalEnvironmentStatus(
-  value: string | undefined,
-): AgentRuntimeThreadEnvironment["status"] {
-  switch (value?.trim().toLowerCase()) {
-    case "ready":
-    case "connected":
-      return "connected";
-    case "pending":
-      return "pending";
-    case "disconnected":
-    case "unknown":
-      return "disconnected";
-    default:
-      return undefined;
-  }
-}
-
-function canonicalTurnPlanItems(turns: unknown[]): Array<{
-  content: string;
-  status: "pending" | "in_progress" | "completed";
-}> {
-  let latest: Array<{
-    content: string;
-    status: "pending" | "in_progress" | "completed";
-  }> | null = null;
-  for (const turn of turns) {
-    if (!isRecord(turn) || !Array.isArray(turn.items)) {
-      continue;
-    }
-    for (const item of turn.items) {
-      const snapshot = canonicalTurnPlanSnapshot(item);
-      if (snapshot !== null) {
-        latest = snapshot;
-      }
-    }
-  }
-  return latest ?? [];
-}
-
-function canonicalTurnPlanSnapshot(value: unknown): Array<{
-  content: string;
-  status: "pending" | "in_progress" | "completed";
-}> | null {
-  if (
-    !isRecord(value) ||
-    readStringField(value, "type") !== "dynamicToolCall"
-  ) {
-    return null;
-  }
-  const tool = readStringField(value, "tool")
-    .replace(/[\s_-]+/gu, "")
-    .toLowerCase();
-  if (
-    (tool !== "updateplan" && tool !== "updateplantool") ||
-    readStringField(value, "status") !== "completed" ||
-    value.success === false
-  ) {
-    return null;
-  }
-  const plan = canonicalUpdatePlanArgument(readField(value, "arguments"));
-  if (!plan) {
-    return null;
-  }
-  const snapshot: Array<{
-    content: string;
-    status: "pending" | "in_progress" | "completed";
-  }> = [];
-  for (const candidate of plan) {
-    if (!isRecord(candidate)) {
-      return null;
-    }
-    const content = readStringField(candidate, "step").trim();
-    const status = readStringField(candidate, "status");
-    if (
-      !content ||
-      (status !== "pending" &&
-        status !== "in_progress" &&
-        status !== "completed")
-    ) {
-      return null;
-    }
-    snapshot.push({ content, status });
-  }
-  return snapshot;
-}
-
-function canonicalUpdatePlanArgument(value: unknown): unknown[] | null {
-  if (isRecord(value)) {
-    return Array.isArray(value.plan) ? value.plan : null;
-  }
-  if (!Array.isArray(value)) {
-    return null;
-  }
-
-  const planArguments = value.filter(
-    (candidate) =>
-      isRecord(candidate) && readStringField(candidate, "name") === "plan",
-  );
-  if (planArguments.length !== 1) {
-    return null;
-  }
-  const planValue = (planArguments[0] as Record<string, unknown>).value;
-  if (Array.isArray(planValue)) {
-    return planValue;
-  }
-  if (typeof planValue !== "string") {
-    return null;
-  }
-  try {
-    const parsed = JSON.parse(planValue) as unknown;
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
 }
 
 function canonicalThreadItems(
@@ -676,8 +465,12 @@ function canonicalThreadMessageCount(
   metadata: Record<string, unknown> | undefined,
 ): number {
   const metadataCount =
-    readNumberField(metadata ?? {}, "messagesCount", "messages_count") ??
-    readNumberField(metadata ?? {}, "messageCount", "message_count");
+    readOptionalNumberField(
+      metadata ?? {},
+      "messagesCount",
+      "messages_count",
+    ) ??
+    readOptionalNumberField(metadata ?? {}, "messageCount", "message_count");
   if (metadataCount !== undefined) {
     return metadataCount;
   }
@@ -785,7 +578,7 @@ function canonicalThreadTime(
   value: Record<string, unknown>,
   field: string,
 ): number | undefined {
-  const seconds = readNumberField(value, field);
+  const seconds = readOptionalNumberField(value, field);
   return seconds === undefined ? undefined : seconds * 1_000;
 }
 
@@ -942,57 +735,6 @@ function metadataRecordArray(
   return value;
 }
 
-function canonicalTimestamp(value: number): string {
-  const timestamp = new Date(value);
-  return Number.isNaN(timestamp.getTime())
-    ? new Date(0).toISOString()
-    : timestamp.toISOString();
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function readField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): unknown {
-  if (Object.prototype.hasOwnProperty.call(record, camelKey)) {
-    return record[camelKey];
-  }
-  return snakeKey ? record[snakeKey] : undefined;
-}
-
-function readStringField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): string {
-  const value = readField(record, camelKey, snakeKey);
-  return typeof value === "string" ? value : "";
-}
-
-function readOptionalStringField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): string | undefined {
-  const value = readField(record, camelKey, snakeKey);
-  return typeof value === "string" ? value : undefined;
-}
-
-function readOptionalNumberField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): number | undefined {
-  const value = readField(record, camelKey, snakeKey);
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
 function readSection(
   thread: Record<string, unknown>,
 ): { id: string; name: string } | undefined {
@@ -1003,55 +745,6 @@ function readSection(
   const id = readStringField(value, "id").trim();
   const name = readStringField(value, "name").trim();
   return id && name ? { id, name } : undefined;
-}
-
-function readNumberField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): number | undefined {
-  const value = readField(record, camelKey, snakeKey);
-  return typeof value === "number" && Number.isFinite(value)
-    ? value
-    : undefined;
-}
-
-function readOptionalBooleanField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): boolean | undefined {
-  const value = readField(record, camelKey, snakeKey);
-  return typeof value === "boolean" ? value : undefined;
-}
-
-function readStringArrayField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): string[] {
-  const value = readField(record, camelKey, snakeKey);
-  return Array.isArray(value)
-    ? value.filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
-    : [];
-}
-
-function readOptionalObjectField(
-  record: Record<string, unknown>,
-  camelKey: string,
-  snakeKey?: string,
-): Record<string, unknown> | undefined {
-  const value = readField(record, camelKey, snakeKey);
-  return isRecord(value) ? value : undefined;
-}
-
-function omitUndefined<T extends Record<string, unknown>>(value: T): T {
-  return Object.fromEntries(
-    Object.entries(value).filter(([, entry]) => entry !== undefined),
-  ) as T;
 }
 
 function executionStrategyFromProtocol(value: unknown): "react" | undefined {

@@ -3,52 +3,42 @@ use crate::tool_executor::RuntimeToolExecutionError;
 use std::path::{Path, PathBuf};
 
 pub(super) fn build_shell_command(command: &str, shell: Option<&str>, login: bool) -> Vec<String> {
+    let shell = shell
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .unwrap_or_else(default_shell);
+    match crate::shell::shell_kind(&shell) {
+        Some(crate::shell::ShellKind::PowerShell) => {
+            let mut argv = vec![shell];
+            if !login {
+                argv.push("-NoProfile".into());
+            }
+            argv.extend(["-NonInteractive".into(), "-Command".into(), command.into()]);
+            argv
+        }
+        Some(crate::shell::ShellKind::Cmd) => {
+            vec![shell, "/D".into(), "/S".into(), "/C".into(), command.into()]
+        }
+        _ => vec![
+            shell,
+            if login { "-lc" } else { "-c" }.into(),
+            command.into(),
+        ],
+    }
+}
+
+fn default_shell() -> String {
     #[cfg(target_os = "windows")]
     {
-        let shell = shell
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .unwrap_or("powershell.exe");
-        if shell.to_ascii_lowercase().contains("powershell")
-            || shell.to_ascii_lowercase().contains("pwsh")
-        {
-            let mut shell_command = vec![shell.to_string()];
-            if !login {
-                shell_command.push("-NoProfile".to_string());
-            }
-            shell_command.extend([
-                "-NonInteractive".to_string(),
-                "-Command".to_string(),
-                command.to_string(),
-            ]);
-            return shell_command;
-        }
-        return vec![
-            shell.to_string(),
-            "/D".to_string(),
-            "/S".to_string(),
-            "/C".to_string(),
-            command.to_string(),
-        ];
+        "powershell.exe".into()
     }
-
     #[cfg(not(target_os = "windows"))]
     {
-        let shell = shell
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(ToOwned::to_owned)
-            .or_else(|| {
-                std::env::var("SHELL")
-                    .ok()
-                    .filter(|value| !value.trim().is_empty())
-            })
-            .unwrap_or_else(|| "sh".to_string());
-        vec![
-            shell,
-            if login { "-lc" } else { "-c" }.to_string(),
-            command.to_string(),
-        ]
+        std::env::var("SHELL")
+            .ok()
+            .filter(|value| !value.trim().is_empty())
+            .unwrap_or_else(|| "sh".into())
     }
 }
 

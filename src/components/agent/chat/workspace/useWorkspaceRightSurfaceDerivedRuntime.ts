@@ -1,4 +1,5 @@
 import type { WorkspaceFilesSurfaceTarget } from "./WorkspaceFilesSurface";
+import { isWorkspaceFilesSurfaceAvailable } from "./workspaceFiles";
 import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
 import { selectWorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
 import type { WorkspaceRightSurfaceBrowserIntent } from "./workspaceRightSurfaceBrowserIntent";
@@ -12,6 +13,8 @@ interface UseWorkspaceRightSurfaceDerivedRuntimeParams {
   pendingFileTarget: WorkspaceFilesSurfaceTarget | null;
   pendingPluginSurfaces: WorkspacePluginSurfaceDescriptor[];
   preferredServiceSkillResultFileTarget: WorkspaceFilesSurfaceTarget | null;
+  projectRootPath?: string | null;
+  threadItems?: readonly { type: string; paths?: readonly string[] }[];
 }
 
 interface UseWorkspaceRightSurfaceDerivedRuntimeResult {
@@ -33,6 +36,8 @@ export function useWorkspaceRightSurfaceDerivedRuntime({
   pendingFileTarget,
   pendingPluginSurfaces,
   preferredServiceSkillResultFileTarget,
+  projectRootPath,
+  threadItems,
 }: UseWorkspaceRightSurfaceDerivedRuntimeParams): UseWorkspaceRightSurfaceDerivedRuntimeResult {
   const browserRightSurfaceAvailable = true;
   const browserRightSurfaceIntent =
@@ -51,9 +56,11 @@ export function useWorkspaceRightSurfaceDerivedRuntime({
     pluginSurfaceRightSurfaces.length > 0;
   const filesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null =
     activeFilesRightSurfaceTarget ?? liveFilesRightSurfaceTarget;
-  const filesRightSurfaceAvailable = Boolean(
-    filesRightSurfaceTarget?.relativePath,
-  );
+  const filesRightSurfaceAvailable = isWorkspaceFilesSurfaceAvailable({
+    targetRelativePath: filesRightSurfaceTarget?.relativePath,
+    threadItems,
+    projectRootPath,
+  });
   return {
     browserRightSurfaceAvailable,
     browserRightSurfaceIntent,

@@ -3,8 +3,8 @@ import { describe, expect, it } from "vitest";
 import {
   readCanonicalThreadDetail,
   readCanonicalThreadListResponse,
-  readCanonicalThreadEnvironmentSelections,
 } from "./appServerCanonicalThreadProjection";
+import { readCanonicalThreadEnvironmentSelections } from "./threadEnvironments";
 
 const CREATED_AT_SECONDS = 1_780_704_000;
 

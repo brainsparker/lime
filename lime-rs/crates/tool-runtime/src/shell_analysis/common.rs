@@ -91,14 +91,6 @@ pub(super) fn normalize_shell_word(word: &str) -> String {
         .to_ascii_lowercase()
 }
 
-pub(super) fn normalized_tool_name(tool_name: &str) -> String {
-    tool_name
-        .chars()
-        .filter(|character| character.is_ascii_alphanumeric())
-        .map(|character| character.to_ascii_lowercase())
-        .collect()
-}
-
 pub(super) fn command_references_wsl_drive_mount(command: &str) -> bool {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
@@ -115,30 +107,35 @@ pub(super) fn detect_high_risk_git_command(
 ) -> Option<String> {
     for segment in split(command) {
         let words = extract_words(segment);
-        if words.first().map(String::as_str) != Some("git") {
-            continue;
+        if let Some(reason) = detect_high_risk_git_invocation(&words) {
+            return Some(reason);
         }
-        match words.get(1).map(String::as_str).unwrap_or_default() {
-            "reset" if words.iter().any(|word| word == "--hard") => {
-                return Some(
-                    "Blocked: `git reset --hard` is a destructive repository operation."
-                        .to_string(),
-                );
-            }
-            "clean" if is_forced_git_clean(&words) => {
-                return Some(
-                    "Blocked: forced `git clean` may permanently remove untracked files."
-                        .to_string(),
-                );
-            }
-            "push" if words.iter().any(|word| word == "--force" || word == "-f") => {
-                return Some(
-                    "Blocked: force-pushing git history requires explicit manual confirmation."
-                        .to_string(),
-                );
-            }
-            _ => {}
+    }
+    None
+}
+
+pub(super) fn detect_high_risk_git_invocation(words: &[String]) -> Option<String> {
+    if words.first().map(String::as_str) != Some("git") {
+        return None;
+    }
+    match words.get(1).map(String::as_str).unwrap_or_default() {
+        "reset" if words.iter().any(|word| word == "--hard") => {
+            return Some(
+                "Blocked: `git reset --hard` is a destructive repository operation.".to_string(),
+            );
         }
+        "clean" if is_forced_git_clean(words) => {
+            return Some(
+                "Blocked: forced `git clean` may permanently remove untracked files.".to_string(),
+            );
+        }
+        "push" if words.iter().any(|word| word == "--force" || word == "-f") => {
+            return Some(
+                "Blocked: force-pushing git history requires explicit manual confirmation."
+                    .to_string(),
+            );
+        }
+        _ => {}
     }
     None
 }

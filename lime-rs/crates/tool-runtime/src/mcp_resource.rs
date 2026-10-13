@@ -111,20 +111,12 @@ impl RuntimeToolExecutor for RuntimeMcpResourceExecutor {
                     if server.is_none()
                         && !orchestrator_feature_enabled(request.turn_context, "mcp")
                     {
-                        response.resources = response
-                            .resources
-                            .into_iter()
-                            .filter(|value| {
-                                resource_server(value) != Some(lime_skills::APPS_MCP_SERVER_NAME)
-                            })
-                            .collect();
-                        response.resource_templates = response
-                            .resource_templates
-                            .into_iter()
-                            .filter(|value| {
-                                resource_server(value) != Some(lime_skills::APPS_MCP_SERVER_NAME)
-                            })
-                            .collect();
+                        response.resources.retain(|value| {
+                            resource_server(value) != Some(lime_skills::APPS_MCP_SERVER_NAME)
+                        });
+                        response.resource_templates.retain(|value| {
+                            resource_server(value) != Some(lime_skills::APPS_MCP_SERVER_NAME)
+                        });
                     }
                     Ok(list_mcp_resources_result(server, response))
                 }

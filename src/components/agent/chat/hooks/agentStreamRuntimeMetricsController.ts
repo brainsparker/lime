@@ -1,3 +1,63 @@
+import type { AgentEvent } from "@/lib/api/agentProtocol";
+import type { AgentUiPerformanceTraceMetadata } from "./agentStreamPerformanceMetrics";
+
+function parseEventTimestampMs(timestamp: string | undefined): number | null {
+  if (!timestamp) {
+    return null;
+  }
+  const parsed = Date.parse(timestamp);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function buildAgentEventPerformanceTrace(params: {
+  activeSessionId: string;
+  event: AgentEvent;
+  eventReceivedAt: number;
+  previousTrace?: AgentUiPerformanceTraceMetadata | null;
+  resolvedWorkspaceId: string;
+}): AgentUiPerformanceTraceMetadata | null {
+  const previousTrace = params.previousTrace ?? null;
+  if (!previousTrace && !params.event.trace_id && !params.event.run_id) {
+    return null;
+  }
+
+  return {
+    ...previousTrace,
+    requestId: params.event.request_id ?? previousTrace?.requestId ?? null,
+    runId: params.event.run_id ?? previousTrace?.runId ?? null,
+    sessionId:
+      params.event.session_id ??
+      previousTrace?.sessionId ??
+      params.activeSessionId,
+    traceId: params.event.trace_id ?? previousTrace?.traceId ?? null,
+    turnId: params.event.turn_id ?? previousTrace?.turnId ?? null,
+    workspaceId: previousTrace?.workspaceId ?? params.resolvedWorkspaceId,
+    serverEventEmittedAt:
+      normalizeOptionalMetricTime(params.event.server_event_emitted_at) ??
+      parseEventTimestampMs(params.event.timestamp) ??
+      previousTrace?.serverEventEmittedAt ??
+      null,
+    serverEventId:
+      params.event.event_id ?? previousTrace?.serverEventId ?? null,
+    serverEventSequence:
+      normalizeOptionalMetricTime(params.event.sequence) ??
+      previousTrace?.serverEventSequence ??
+      null,
+    serverEventType:
+      params.event.type ?? previousTrace?.serverEventType ?? null,
+    rendererEventReceivedAt:
+      normalizeOptionalMetricTime(params.event.renderer_event_received_at) ??
+      params.eventReceivedAt,
+    providerWaitMs:
+      params.event.type === "provider_trace" &&
+      params.event.stage === "first_text_delta_received"
+        ? (normalizeOptionalMetricTime(params.event.elapsed_ms) ??
+          previousTrace?.providerWaitMs ??
+          null)
+        : (previousTrace?.providerWaitMs ?? null),
+  };
+}
+
 export interface AgentStreamFirstRuntimeStatusMetricContextParams {
   activeSessionId: string;
   eventName: string;

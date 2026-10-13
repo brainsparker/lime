@@ -5,7 +5,7 @@ import {
   type ActivityLog,
 } from "@/lib/workspace/workbenchRuntime";
 import { mapProviderName } from "./agentChatCoreUtils";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import {
   recordAgentStreamPerformanceMetric,
   type AgentUiPerformanceTraceMetadata,

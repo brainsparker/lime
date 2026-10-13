@@ -46,6 +46,7 @@ import { SkillsWorkspacePageView } from "./SkillsWorkspacePageView";
 import { useSkillsWorkspaceProject } from "./useSkillsWorkspaceProject";
 import { useSkillsWorkspaceDetailContent } from "./useSkillsWorkspaceDetailContent";
 import { useSkillsWorkspaceLocalSkillActions } from "./useSkillsWorkspaceLocalSkillActions";
+import { useProtocolSkillEnabled } from "./useProtocolSkillEnabled";
 import { SkillScaffoldDialog } from "./SkillScaffoldDialog";
 import { SkillPackageInstallDialog } from "./SkillPackageInstallDialog";
 import {
@@ -173,6 +174,11 @@ export function SkillsWorkspacePage({
     t,
     uninstallLocalSkill,
   });
+  const {
+    onProtocolSkillEnabledChange,
+    protocolSkillEnabledPendingKey,
+    protocolSkillEnabledStates,
+  } = useProtocolSkillEnabled();
 
   const installedLocalSkills = useMemo(
     () => buildInstalledLocalSkills(localSkills, optimisticInstalledSkill),
@@ -918,7 +924,10 @@ export function SkillsWorkspacePage({
         onRevealLocalSkill={(skill) => void handleRevealLocalSkill(skill)}
         onSearchQueryChange={setSearchQuery}
         onSelectLocalSkillPackage={() => void handleSelectLocalSkillPackage()}
+        onProtocolSkillEnabledChange={onProtocolSkillEnabledChange}
         onSkillAutoLoadChange={handleSkillAutoLoadChange}
+        protocolSkillEnabledPendingKey={protocolSkillEnabledPendingKey}
+        protocolSkillEnabledStates={protocolSkillEnabledStates}
         onUninstallLocalSkill={(skill) => void handleUninstallLocalSkill(skill)}
       />
 

@@ -42,6 +42,7 @@ import {
   MessageViewport,
 } from "./WorkspaceStyles";
 import { ThreadWorkspaceHeader } from "./ThreadWorkspaceHeader";
+
 import type { ThreadWorkspaceHeaderViewModel } from "./threadWorkspaceHeaderViewModel";
 import { ThreadQueueStatus } from "../components/ThreadQueueStatus";
 import { ThreadProjectSelector } from "../components/ThreadProjectSelector";
@@ -576,6 +577,8 @@ export function WorkspaceConversationScene({
         isCanvasOpen={layoutMode !== "chat"}
         onToggleCanvas={onToggleCanvas}
         onOpenSettings={onOpenSettings}
+        summaryOpen={Boolean(rightSurfaceActivityOpen)}
+        onToggleSummary={onToggleRightSurfaceActivity}
         actions={
           <>
             <ThreadProjectSelector
@@ -652,6 +655,7 @@ export function WorkspaceConversationScene({
       heightPx={effectiveShellPanelHeightPx}
       maximized={shellPanelMaximized}
       projectRootPath={projectRootPath}
+      threadId={currentThreadId}
       onClose={() => {
         setLocalShellPanelOpen(false);
       }}

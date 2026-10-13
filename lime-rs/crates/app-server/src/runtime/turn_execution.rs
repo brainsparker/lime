@@ -30,6 +30,8 @@ use tokio::sync::{mpsc, oneshot, Notify};
 use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
+mod cancellation;
+
 #[derive(Default)]
 pub(in crate::runtime) struct CollectingRuntimeEventSink {
     events: Vec<RuntimeEvent>,
@@ -940,10 +942,8 @@ impl RuntimeCore {
         )
         .map_err(RuntimeCoreError::Backend)?;
         let session_loop = self
-            .session_loops
-            .get_or_create(&session.session_id, &session.thread_id)
-            .await
-            .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
+            .session_loop_for_input(&session.session_id, &session.thread_id)
+            .await?;
         let active_turn_id = session_loop
             .steer_for_turn_id_with_metadata(
                 Some(expected_turn_id),
@@ -1161,6 +1161,7 @@ impl RuntimeCore {
                 .state
                 .lock()
                 .expect("runtime core state mutex poisoned");
+            state.ensure_session_accepts_input(&params.session_id)?;
             let stored = state
                 .sessions
                 .get_mut(&params.session_id)
@@ -1292,6 +1293,7 @@ impl RuntimeCore {
                 .state
                 .lock()
                 .expect("runtime core state mutex poisoned");
+            state.ensure_session_accepts_input(&params.session_id)?;
             let stored = state
                 .sessions
                 .get_mut(&params.session_id)
@@ -1384,6 +1386,12 @@ impl RuntimeCore {
             queue_if_busy: params.queue_if_busy,
             skip_pre_submit_resume: params.skip_pre_submit_resume,
             agent_control_gateway: None,
+            command_publisher: Some(crate::runtime_backend::command_events::publisher(
+                self.event_appender(),
+                self.event_hub.clone(),
+                session.session_id.clone(),
+                turn.turn_id.clone(),
+            )),
             rollout_budget_reminder_source: Some(super::rollout_budget::sampling_reminder_source(
                 super::rollout_budget::SamplingReminderSourceOptions {
                     state: self.state.clone(),
@@ -2105,11 +2113,7 @@ impl RuntimeCore {
             .with_mailbox_loader(mailbox_loader)
             .with_abort(|_context| Box::pin(async {})),
         );
-        let session = self
-            .session_loops
-            .get_or_create(&session_id, &thread_id)
-            .await
-            .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
+        let session = self.session_loop_for_input(&session_id, &thread_id).await?;
         let submission = match session
             .submit_user_input_with_metadata(
                 task,
@@ -2360,7 +2364,7 @@ impl RuntimeCore {
                     .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
             }
         }
-        let events = if interrupted_by_session_loop {
+        if interrupted_by_session_loop {
             driver_completion
                 .ok_or_else(|| {
                     RuntimeCoreError::Backend(
@@ -2369,25 +2373,12 @@ impl RuntimeCore {
                 })?
                 .wait()
                 .await;
-            // The driver has already appended and published turn.canceled after draining
-            // provider/tool events; returning it here would publish the same event twice.
-            pre_cancel_events
-        } else {
-            let mut events = pre_cancel_events;
-            events.extend(self.append_runtime_events(
-                &session.session_id,
-                &session.thread_id,
-                Some(&turn_snapshot.turn_id),
-                vec![RuntimeEvent::new(
-                    "turn.canceled",
-                    json!({
-                        "source": "turn/interrupt",
-                        "backend": "runtime_core",
-                    }),
-                )],
-            )?);
-            events
-        };
+        }
+        let mut events = pre_cancel_events;
+        events.extend(
+            self.finish_turn_interrupt(&session, &turn_snapshot, host)
+                .await?,
+        );
         if let Some(event_log_writer) = self.event_log_writer.as_deref() {
             let workflow_audit_records = event_log_writer
                 .read_session_workflow_audit_events(&session.session_id)
@@ -2404,23 +2395,6 @@ impl RuntimeCore {
             )?;
         }
 
-        if agent_turn_is_active(turn_snapshot.status) {
-            let backend = self.backend.clone();
-            let backend_turn_snapshot = turn_snapshot.clone();
-            tokio::spawn(async move {
-                let mut sink = CollectingRuntimeEventSink::default();
-                let _ = backend
-                    .cancel_turn(
-                        CancelExecutionRequest {
-                            host,
-                            session,
-                            turn: backend_turn_snapshot,
-                        },
-                        &mut sink,
-                    )
-                    .await;
-            });
-        }
         Ok(RuntimeCoreOutput {
             response: AgentSessionTurnCancelResponse {},
             events,

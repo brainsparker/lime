@@ -109,7 +109,7 @@ async fn execution_facts_survive_failure_completion_without_result_metadata() {
         agent_control_state_facts: Vec::new(),
     };
     emitter
-        .emit(ToolLifecycleEvent::completed(
+        .emit_command_result(ToolLifecycleEvent::completed(
             &call(emitter.clone()),
             failed,
         ))
@@ -124,6 +124,55 @@ async fn execution_facts_survive_failure_completion_without_result_metadata() {
     assert_eq!(completed.created_at_ms, item.created_at_ms);
     assert_eq!(completed.status, ItemStatus::Failed);
     assert!(events.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn owned_command_publisher_outlives_the_turn_channel_and_ignores_dispatch_completion() {
+    let (sender, receiver) = tokio::sync::mpsc::unbounded_channel();
+    drop(receiver);
+    let published = Arc::new(Mutex::new(Vec::new()));
+    let captured = published.clone();
+    let mut emitter = CurrentTurnToolLifecycleEmitter::new(sender, "session-1", "thread-1");
+    emitter.command_publisher = Some(super::super::CommandEventPublisher::new(move |event| {
+        captured.lock().unwrap().push(event.clone());
+        Ok(())
+    }));
+    let emitter = Arc::new(emitter);
+    emitter.emit_command_start(prepared_start()).await;
+    let output = NormalizedToolOutput {
+        success: true,
+        text: "done".to_owned(),
+        structured_content: None,
+        error: None,
+        duration_ms: 1,
+        truncation: None,
+        sidecar_reference: None,
+        metadata: HashMap::from([
+            ("command_output".to_owned(), json!("original\nfinished\n")),
+            ("exit_code".to_owned(), json!(0)),
+            ("command_lifecycle_owned".to_owned(), json!(true)),
+        ]),
+        agent_control_projection_facts: Vec::new(),
+        agent_control_state_facts: Vec::new(),
+    };
+    let event = ToolLifecycleEvent::completed(&call(emitter.clone()), output);
+    emitter.emit_command_result(event.clone()).await;
+    emitter.emit(event).await;
+    let published = published.lock().unwrap();
+    assert_eq!(published.len(), 2);
+    let AgentEvent::ItemStarted { item: start } = &published[0] else {
+        panic!("actual start");
+    };
+    let AgentEvent::ItemCompleted { item: end } = &published[1] else {
+        panic!("actual exit");
+    };
+    assert_invocation(start);
+    assert_invocation(end);
+    assert_eq!(start.created_at_ms, end.created_at_ms);
+    assert_eq!(start.ordinal, end.ordinal);
+    assert!(
+        matches!(&end.payload, ThreadItemPayload::Command { output: Some(output), .. } if output == "original\nfinished\n")
+    );
 }
 
 #[tokio::test]

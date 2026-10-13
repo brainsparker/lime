@@ -82,6 +82,7 @@ fn event_count(core: &RuntimeCore, session_id: &str) -> usize {
         .len()
 }
 
+mod background;
 mod checkpoint_api;
 mod lifecycle;
 mod output_snapshots;

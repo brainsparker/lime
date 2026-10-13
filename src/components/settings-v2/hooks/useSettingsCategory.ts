@@ -16,6 +16,7 @@ import {
   Brain,
   Image,
   Plug,
+  Puzzle,
   Search,
   ShieldCheck,
   Variable,
@@ -117,6 +118,11 @@ export function useSettingsCategory(): CategoryGroup[] {
           key: SettingsTabs.Providers,
           label: t("settings.tab.providers"),
           icon: Brain,
+        },
+        {
+          key: SettingsTabs.Skills,
+          label: t("settings.tab.skills"),
+          icon: Puzzle,
         },
         {
           key: SettingsTabs.MediaServices,

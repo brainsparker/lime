@@ -34,6 +34,8 @@ use tool_runtime::tool_lifecycle::{ToolLifecycleEmitter, ToolLifecycleEvent, Too
 
 #[cfg(test)]
 mod agent_control_tests;
+mod command_publisher;
+pub use command_publisher::CommandEventPublisher;
 mod dynamic_tool_bridge;
 mod environment;
 mod hook_step_snapshot;
@@ -64,6 +66,7 @@ pub(crate) async fn stream_current_provider_turn<F>(
     pending_input: Option<RuntimeSessionInputHandle>,
     policy: &RequestToolPolicy,
     agent_control_gateway: Option<tool_runtime::agent_control::AgentControlGatewayHandle>,
+    command_publisher: Option<CommandEventPublisher>,
     mut on_event: F,
 ) -> Result<StreamReplyExecution, ReplyAttemptError>
 where
@@ -127,13 +130,15 @@ where
         session_config.tool_mode,
         session_config.supports_custom_tools,
     );
-    let lifecycle_emitter = Arc::new(CurrentTurnToolLifecycleEmitter::with_tool_routes(
+    let mut lifecycle_emitter = CurrentTurnToolLifecycleEmitter::with_tool_routes(
         host_event_sender.clone(),
         session_id,
         thread_id,
         mcp_tool_routes,
         dynamic_tool_routes,
-    ));
+    );
+    lifecycle_emitter.command_publisher = command_publisher.clone();
+    let lifecycle_emitter = Arc::new(lifecycle_emitter);
     let hook_snapshot_source = hook_step_snapshot::current_hook_step_snapshot_source(
         session_config.turn_context.clone(),
         working_directory.clone(),
@@ -181,6 +186,12 @@ where
             error
         }
     })?;
+    if let Some(error) = command_publisher
+        .as_ref()
+        .and_then(CommandEventPublisher::error)
+    {
+        return Err(ReplyAttemptError::new(error, true));
+    }
 
     if !execution.cancelled {
         web_search_tracker

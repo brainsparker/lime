@@ -4,6 +4,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { AgentThreadFileCheckpointDialog } from "../components/AgentThreadFileCheckpointDialog";
 import { AgentRuntimeStrip } from "../components/AgentRuntimeStrip";
 import { CodeReviewSummaryPanel } from "../components/CodeReviewSummaryPanel";
+import { resolveLatestReviewBoundary } from "../components/CodeReviewSummaryPanelViewModel";
 import {
   CodeWorkbenchGuide,
   type CodeWorkbenchGuideTarget,
@@ -127,6 +128,26 @@ function renderCodeWorkbenchGuide({
   );
 }
 
+function shouldShowHarnessReview({
+  harnessState,
+  fileCheckpointSummary,
+  threadItems,
+}: {
+  harnessState: HarnessPanelBaseProps["harnessState"];
+  fileCheckpointSummary:
+    | NonNullable<
+        HarnessPanelBaseProps["threadRead"]
+      >["file_checkpoint_summary"]
+    | null
+    | undefined;
+  threadItems: HarnessPanelBaseProps["threadItems"];
+}): boolean {
+  return (
+    hasRuntimeWorkbenchSignals({ harnessState, fileCheckpointSummary }) ||
+    Boolean(resolveLatestReviewBoundary(threadItems))
+  );
+}
+
 function hasRuntimeWorkbenchSignals({
   harnessState,
   fileCheckpointSummary,
@@ -149,7 +170,6 @@ function hasRuntimeWorkbenchSignals({
 
 function renderCodeReviewSummaryPanel({
   panelBaseProps,
-  hasRuntimeWorkbenchSignals,
   fileCheckpointSummary,
   fileChangeReviewSummary,
   onOpenFileCheckpoints,
@@ -157,7 +177,6 @@ function renderCodeReviewSummaryPanel({
   onStartReview,
 }: {
   panelBaseProps: HarnessPanelBaseProps;
-  hasRuntimeWorkbenchSignals: boolean;
   fileCheckpointSummary:
     | NonNullable<
         HarnessPanelBaseProps["threadRead"]
@@ -168,7 +187,13 @@ function renderCodeReviewSummaryPanel({
   onSubmitCodeFixPrompt?: (prompt: string) => void | Promise<void>;
   onStartReview?: () => Promise<unknown>;
 }) {
-  if (!hasRuntimeWorkbenchSignals) {
+  if (
+    !shouldShowHarnessReview({
+      harnessState: panelBaseProps.harnessState,
+      fileCheckpointSummary,
+      threadItems: panelBaseProps.threadItems,
+    })
+  ) {
     return null;
   }
 
@@ -209,13 +234,16 @@ function useGeneralWorkbenchHarnessSurface({
   const fileCheckpointSummary =
     panelBaseProps.threadRead?.file_checkpoint_summary || null;
   const latestFileCheckpoint = fileCheckpointSummary?.latest_checkpoint || null;
-  const shouldShowRuntimeWorkbench = hasRuntimeWorkbenchSignals({
+  const hasWorkbenchSignals = hasRuntimeWorkbenchSignals({
     harnessState: panelBaseProps.harnessState,
     fileCheckpointSummary,
   });
+  const shouldShowRuntimeWorkbench =
+    hasWorkbenchSignals ||
+    Boolean(resolveLatestReviewBoundary(panelBaseProps.threadItems));
   const codeWorkbenchGuide = renderCodeWorkbenchGuide({
     panelBaseProps,
-    hasRuntimeWorkbenchSignals: shouldShowRuntimeWorkbench,
+    hasRuntimeWorkbenchSignals: hasWorkbenchSignals,
     hasFileCheckpoints: (fileCheckpointSummary?.count ?? 0) > 0,
   });
   const openFileCheckpoints = diagnosticSessionId
@@ -232,7 +260,6 @@ function useGeneralWorkbenchHarnessSurface({
             {codeWorkbenchGuide}
             {renderCodeReviewSummaryPanel({
               panelBaseProps,
-              hasRuntimeWorkbenchSignals: shouldShowRuntimeWorkbench,
               fileCheckpointSummary,
               fileChangeReviewSummary,
               onOpenFileCheckpoints: openFileCheckpoints,
@@ -359,13 +386,13 @@ export function GeneralWorkbenchDialogSection({
   const fileCheckpointSummary =
     panelBaseProps.threadRead?.file_checkpoint_summary || null;
   const latestFileCheckpoint = fileCheckpointSummary?.latest_checkpoint || null;
-  const shouldShowRuntimeWorkbench = hasRuntimeWorkbenchSignals({
+  const hasWorkbenchSignals = hasRuntimeWorkbenchSignals({
     harnessState: panelBaseProps.harnessState,
     fileCheckpointSummary,
   });
   const codeWorkbenchGuide = renderCodeWorkbenchGuide({
     panelBaseProps,
-    hasRuntimeWorkbenchSignals: shouldShowRuntimeWorkbench,
+    hasRuntimeWorkbenchSignals: hasWorkbenchSignals,
     hasFileCheckpoints: (fileCheckpointSummary?.count ?? 0) > 0,
   });
   const openFileCheckpoints = diagnosticSessionId
@@ -397,7 +424,6 @@ export function GeneralWorkbenchDialogSection({
                 {codeWorkbenchGuide}
                 {renderCodeReviewSummaryPanel({
                   panelBaseProps,
-                  hasRuntimeWorkbenchSignals: shouldShowRuntimeWorkbench,
                   fileCheckpointSummary,
                   fileChangeReviewSummary,
                   onOpenFileCheckpoints: openFileCheckpoints,

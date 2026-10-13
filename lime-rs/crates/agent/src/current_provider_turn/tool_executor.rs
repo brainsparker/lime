@@ -292,6 +292,13 @@ mod sequential_exec_tests {
 
     #[async_trait]
     impl RuntimeLiveExecutionGateway for SequentialExecGateway {
+        async fn wait_for_exit(
+            &self,
+            process_id: &str,
+        ) -> Result<ExecutionProcessSnapshot, RuntimeToolExecutionError> {
+            self.status(process_id)
+        }
+
         async fn start_process(
             &self,
             _thread_id: &str,

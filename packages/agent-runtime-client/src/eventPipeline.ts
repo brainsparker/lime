@@ -21,13 +21,19 @@ export type AgentRuntimeEventMiddlewareResult =
 export interface AgentRuntimeEventMiddleware {
   transform(
     context: AgentRuntimeEventPipelineContext,
-  ): AgentRuntimeEventMiddlewareResult | Promise<AgentRuntimeEventMiddlewareResult>;
-  flush?(): AgentRuntimeEventMiddlewareResult | Promise<AgentRuntimeEventMiddlewareResult>;
+  ):
+    | AgentRuntimeEventMiddlewareResult
+    | Promise<AgentRuntimeEventMiddlewareResult>;
+  flush?():
+    | AgentRuntimeEventMiddlewareResult
+    | Promise<AgentRuntimeEventMiddlewareResult>;
 }
 
 export type AgentRuntimeEventMiddlewareFunction = (
   context: AgentRuntimeEventPipelineContext,
-) => AgentRuntimeEventMiddlewareResult | Promise<AgentRuntimeEventMiddlewareResult>;
+) =>
+  | AgentRuntimeEventMiddlewareResult
+  | Promise<AgentRuntimeEventMiddlewareResult>;
 
 export type AgentRuntimeEventPipelineMiddleware =
   | AgentRuntimeEventMiddleware
@@ -83,6 +89,12 @@ export class AgentRuntimeEventPipeline {
     notification: AgentRuntimeLifecycleNotification,
   ): AgentRuntimeEventPipelineResult {
     return this.#processFromSync(0, [notification]);
+  }
+
+  restoreCommands(
+    thread: Parameters<AgentRuntimeEventSequenceGate["restoreCommands"]>[0],
+  ) {
+    return this.#sequenceGate.restoreCommands(thread);
   }
 
   async flush(): Promise<AgentRuntimeEventPipelineResult> {
@@ -248,9 +260,10 @@ function runMiddlewareSync(
   middleware: AgentRuntimeEventPipelineMiddleware,
   context: AgentRuntimeEventPipelineContext,
 ): AgentRuntimeEventMiddlewareResult {
-  const result = typeof middleware === "function"
-    ? middleware(context)
-    : middleware.transform(context);
+  const result =
+    typeof middleware === "function"
+      ? middleware(context)
+      : middleware.transform(context);
   if (isPromiseLike(result)) {
     throw new Error(
       "AgentRuntimeEventPipeline.processSync cannot run async middleware.",

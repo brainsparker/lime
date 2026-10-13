@@ -227,7 +227,7 @@ where
     for source in sources {
         for alias in skill_name_gate_aliases(&source.skill_name)
             .into_iter()
-            .chain(skill_name_gate_aliases(&source.directory).into_iter())
+            .chain(skill_name_gate_aliases(&source.directory))
         {
             allowed.insert(alias.clone());
             skill_sources.insert(alias, source.clone());

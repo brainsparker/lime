@@ -10,6 +10,10 @@ import {
   Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import {
+  matchProtocolSkillEnabledState,
+  type ProtocolSkillEnabledState,
+} from "@/lib/api/skillConfig";
 import type { Skill } from "@/lib/api/skills";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +32,44 @@ import {
   type SkillAutoLoadPreferences,
 } from "./skillAutoLoadPreferences";
 import { SkillTileSvg } from "./SkillsWorkspacePageVisuals";
+
+function ProtocolEnabledControl({
+  onChange,
+  pending,
+  skill,
+  state,
+}: {
+  onChange: (skill: Skill, enabled: boolean) => void;
+  pending: boolean;
+  skill: Skill;
+  state: ProtocolSkillEnabledState;
+}) {
+  const { t } = useTranslation("agent");
+
+  return (
+    <div className="flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5">
+      <div className="hidden min-w-[72px] sm:block">
+        <div className="text-[11px] font-semibold leading-4 text-slate-700">
+          {t("skills.workspace.configEnabled.label")}
+        </div>
+        <div className="text-[10px] leading-3 text-slate-400">
+          {state.enabled
+            ? t("skills.workspace.configEnabled.on")
+            : t("skills.workspace.configEnabled.off")}
+        </div>
+      </div>
+      <Switch
+        checked={state.enabled}
+        disabled={pending}
+        onCheckedChange={(nextEnabled) => onChange(skill, nextEnabled)}
+        aria-label={t("skills.workspace.configEnabled.aria", {
+          name: skill.name,
+        })}
+        data-testid="skills-protocol-enabled-switch"
+      />
+    </div>
+  );
+}
 
 function AutoLoadControl({
   onChange,
@@ -207,8 +249,11 @@ export function LocalSkillRow({
   installedSkillPresentationCopy,
   onAutoLoadChange,
   onDetailOpen,
+  onProtocolSkillEnabledChange,
   onSelect,
   preferences,
+  protocolSkillEnabledPendingKey,
+  protocolSkillEnabledStates = [],
   skill,
   actionMenu,
 }: {
@@ -216,12 +261,19 @@ export function LocalSkillRow({
   installedSkillPresentationCopy: InstalledSkillPresentationCopy;
   onAutoLoadChange: (skill: Skill, enabled: boolean) => void;
   onDetailOpen: (directory: string) => void;
+  onProtocolSkillEnabledChange?: (skill: Skill, enabled: boolean) => void;
   onSelect?: (skill: Skill) => void;
   preferences: SkillAutoLoadPreferences;
+  protocolSkillEnabledPendingKey?: string | null;
+  protocolSkillEnabledStates?: readonly ProtocolSkillEnabledState[];
   skill: Skill;
   actionMenu?: ReactNode;
 }) {
   const { t } = useTranslation("agent");
+  const protocolSkillEnabled = matchProtocolSkillEnabledState(
+    skill,
+    protocolSkillEnabledStates,
+  );
 
   return (
     <div
@@ -246,6 +298,14 @@ export function LocalSkillRow({
         </p>
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+        {protocolSkillEnabled && onProtocolSkillEnabledChange ? (
+          <ProtocolEnabledControl
+            skill={skill}
+            state={protocolSkillEnabled}
+            pending={protocolSkillEnabledPendingKey === skill.key}
+            onChange={onProtocolSkillEnabledChange}
+          />
+        ) : null}
         <AutoLoadControl
           skill={skill}
           preferences={preferences}

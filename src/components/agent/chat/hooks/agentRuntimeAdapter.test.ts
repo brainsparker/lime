@@ -407,6 +407,13 @@ describe("defaultAgentRuntimeAdapter", () => {
         notifications: [],
       }),
     };
+    const snapshot = await client.resumeThread.getMockImplementation()!();
+    client.resumeThread.mockImplementation(
+      async (_request, consumeSnapshot) => {
+        consumeSnapshot(snapshot.result);
+        return snapshot;
+      },
+    );
     const adapter = createAgentRuntimeAdapter({ client });
     const consumeReplay = vi.fn();
 
@@ -414,9 +421,10 @@ describe("defaultAgentRuntimeAdapter", () => {
       adapter.resumeThread("thread-resume", consumeReplay),
     ).resolves.toBe(true);
 
-    expect(client.resumeThread).toHaveBeenCalledWith({
-      threadId: "thread-resume",
-    });
+    expect(client.resumeThread).toHaveBeenCalledWith(
+      { threadId: "thread-resume" },
+      expect.any(Function),
+    );
     expect(consumeReplay).toHaveBeenCalledTimes(1);
     expect(consumeReplay.mock.calls[0]?.[0].getProjection()).toMatchObject({
       thread_id: "thread-resume",

@@ -26,6 +26,7 @@ impl ConversationProjection {
         self.completion_boundaries.clear();
         self.active_turn_id = None;
         self.closed_turn_ids.clear();
+        self.commands.clear();
         self.status = "ready".to_string();
         self.reasoning_status = None;
         self.resumed_reasoning = None;
@@ -54,9 +55,10 @@ impl ConversationProjection {
                 if user_message_id(item).is_some_and(|id| hidden_user_messages.contains(id)) {
                     continue;
                 }
+                self.observe_command(&turn.id, item);
                 if let Some(entry) = project_item_with_scope(
                     item,
-                    false,
+                    super::commands::session_command_is_running(item),
                     WebSearchLifecycle::Historical,
                     Some(&turn.id),
                     self.show_raw_agent_reasoning,

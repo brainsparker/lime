@@ -54,7 +54,7 @@ impl SkillRuntimeContractMetadata {
 
 #[derive(Debug, Clone)]
 pub struct SkillRuntimeContractPreflightError {
-    pub metadata: SkillRuntimeContractMetadata,
+    pub metadata: Box<SkillRuntimeContractMetadata>,
     pub skill_name: String,
     pub suffix: String,
     pub message: String,
@@ -420,7 +420,7 @@ fn build_runtime_preflight_error(
     message: String,
 ) -> SkillRuntimeContractPreflightError {
     SkillRuntimeContractPreflightError {
-        metadata,
+        metadata: Box::new(metadata),
         skill_name: skill_name.to_string(),
         suffix: suffix.to_string(),
         message,

@@ -9,10 +9,8 @@ import {
 } from "../utils/agentRuntimeStatus";
 import { resolveAgentRuntimeSubmitErrorMessage } from "../utils/agentRuntimeErrorPresentation";
 import { isWorkspacePathErrorMessage } from "./agentChatCoreUtils";
-import type {
-  ActiveStreamState,
-  StreamRequestState,
-} from "./agentStreamSubmissionLifecycle";
+import type { ActiveStreamState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import type { WorkspacePathMissingState } from "./agentChatShared";
 import type { SoulInteractionCopy } from "@/lib/soul/interactionCopy";
 

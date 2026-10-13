@@ -11341,8 +11341,7 @@ tokio、固定Windows系统位置与隔离命令fixture验证预算、UTF-8、�
 既有回归、locale clipboard独立模块及App错误消费者、结构守卫/inventory/架构/本计划。
 不改协议、provider、GUI业务或native图片读取，不提交/建分支。退出条件：1)唯一
 平台owner与消费者直迁，无旧入口/第二source；2)empty/Unicode字符限制/原deadline/
-WSL命令预算和回收正确，五语言稳定；3)定向/全TUI/Clippy/fmt/build/local/治理通过；
-4)冻结CLI原四场景Gate通过。0/4，整体partial/active，真实Linux/WSL/Windows仍单独验。
+WSL命令预算和回收正确，五语言稳定；3)定向/全TUI/Clippy/fmt/build/local/治理通过；4)冻结CLI原四场景Gate通过。0/4，整体partial/active，真实Linux/WSL/Windows仍单独验。
 
 ### 第114实现与定向/结构验证
 
@@ -11456,8 +11455,7 @@ table fence按Codex语义保守展开；既有markdown根超过1000行，新增�
 根re-export、CopyFormat/native写入/worker及消费者、既有测试迁移、结构守卫/inventory/
 architecture/本计划。无新协议、GUI业务或第二后端。退出条件：1)格式贯通current复制
 链且不误解析visible text；2)HTML/链接/图片/表格fence合同与回退成立；3)异步格式与
-原ticket/PRIMARY/read/lease不回退，全TUI/依赖消费者/Clippy/fmt/build/local/治理通过；
-4)冻结CLI原四场景Gate通过。0/4，整体partial/active；平台native实机另验。
+原ticket/PRIMARY/read/lease不回退，全TUI/依赖消费者/Clippy/fmt/build/local/治理通过；4)冻结CLI原四场景Gate通过。0/4，整体partial/active；平台native实机另验。
 
 ### 第116实现与定向/结构验证
 
@@ -11521,10 +11519,7 @@ WSL/Windows、GUI/Electron、live provider、full与历史未证明时序仍开�
 窄写集：markdown_render领域与markdown委托、markdown_copy及table、terminal_hyperlinks/
 source与source wrapping、wrapping来源合同、transcript_view/text/selection/clipboard与
 既有surface action/copy消费者、定向测试、结构守卫/inventory/architecture/本计划。
-退出条件：1)有真实consumer的CopyLine/LogicalLineSource/MarkdownSelection贯通；
-2)部分样式/链接/引用/代码/列表/表格、宽度重排、冻结选区与literal文字稳定；
-3)旧颜色反推/无来源copy入口删除，全TUI/严格检查/local/治理通过；
-4)冻结CLI原四场景Gate通过。0/4，整体partial/active。
+退出条件：1)有真实consumer的CopyLine/LogicalLineSource/MarkdownSelection贯通；2)部分样式/链接/引用/代码/列表/表格、宽度重排、冻结选区与literal文字稳定；3)旧颜色反推/无来源copy入口删除，全TUI/严格检查/local/治理通过；4)冻结CLI原四场景Gate通过。0/4，整体partial/active。
 
 ### 第117实现与定向/结构验证
 
@@ -11590,8 +11585,7 @@ Code block/Blockquote导航，Ctrl+O继续直接复制最近回复。renderer接
 transcript_view/copy_mode/text/selection/input、transcript content/disclosure、pager接线、
 App slash/runtime dispatch与history_ui投影、locale/回归、结构守卫/inventory/架构/本计划。
 退出条件：1)真实/copy入口与既有clipboard完成链贯通；2)块身份、原payload、用户消息、
-导航/resize/冻结/退出与五语言稳定；3)定向/全TUI/严格检查/local/治理通过；
-4)新冻结CLI真实stdio/PTY含/copy场景通过。0/4；整体partial/active。
+导航/resize/冻结/退出与五语言稳定；3)定向/全TUI/严格检查/local/治理通过；4)新冻结CLI真实stdio/PTY含/copy场景通过。0/4；整体partial/active。
 current唯一owner为transcript_view/copy_mode，复用selection与session clipboard worker；
 旧/copy直接复制映射替换，不新增compat/deprecated或第二业务后端。root架构图已确认。
 真实PTY写集补入runtime_pty_tests/copy_mode与根module/call（根只增加接线）、既有
@@ -11664,8 +11658,7 @@ current为copy_mode、SourceBlock与真实block range消费者；dead/deleted为
 同形，窄屏逐级选择完整可执行提示，优先保留enter/esc。复用transcript_view/footer与
 既有first_fitting_line，不建新overlay或后端。窄写集：locale/clipboard、key_hint、
 transcript_view/footer与回归、pager/render、App/copy mode回归、既有copy-mode PTY观察、
-结构守卫/inventory/architecture/本计划。退出条件：1)两行footer真实消费者/五语言；
-2)宽度/高度/反馈/取消回归；3)全TUI/严格检查/local/治理；4)新冻结原四场景与copy-mode
+结构守卫/inventory/architecture/本计划。退出条件：1)两行footer真实消费者/五语言；2)宽度/高度/反馈/取消回归；3)全TUI/严格检查/local/治理；4)新冻结原四场景与copy-mode
 真实Gate。4/4（100%，仅本批macOS切片），整体partial/active；旧combined hint直接删除，无compat/deprecated。
 
 ### 第119实现与验收
@@ -11783,9 +11776,7 @@ mutations::prepend_snapshot_history，不把当前live projection重建成新的
 render及独立测试、app/history_pagination/history_ui、runtime既有分页dispatch/完成接线、
 既有真实历史/复制PTY fixture与领域runner、结构守卫/inventory/architecture/本计划。
 责任root；保留此前连续脏树，不提交/推送/建分支。新业务不能堆进runtime.rs或1002行
-tui-gate-b聚合脚本；真实新场景必须落既有领域runner。退出条件：1)边界加载/冻结页吸收；
-2)选择/原payload/重试/重复页/线程归属稳定回归；3)crate/严格检查/local/治理；
-4)新冻结CLI真实stdio/PTY。当前0/4，整体partial/active；无新增compat/deprecated。
+tui-gate-b聚合脚本；真实新场景必须落既有领域runner。退出条件：1)边界加载/冻结页吸收；2)选择/原payload/重试/重复页/线程归属稳定回归；3)crate/严格检查/local/治理；4)新冻结CLI真实stdio/PTY。当前0/4，整体partial/active；无新增compat/deprecated。
 
 实现后代码条件1/2已通过：旧边界回归稳定红灯（Consumed而非LoadOlderHistory），
 日志/tmp/lime-tui-stage121-history-red.log；修复后Up/PageUp一页、Home全部、in-flight
@@ -11948,8 +11939,7 @@ compat。canonical projection、App Server、runtime和GUI共享底层不变。
 字段/方法、view绘制迁移及rg确认的TUI消费/回归文件（字段/方法迁移为机械改名）；对应
 结构守卫/inventory/architecture/本计划。责任root，沿用连续脏树，不覆盖未知改动，不
 提交/建分支。退出条件：1)App唯一主阅读状态owner/旧字段与入口零引用；2)渲染/选区/
-搜索/草稿/线程切换与清空行为真实消费新owner，稳定回归；3)TUI/严格检查/local/治理；
-4)新冻结CLI历史领域/原五场景真实stdio/PTY。当前0/4，整体partial/active；本次不将
+搜索/草稿/线程切换与清空行为真实消费新owner，稳定回归；3)TUI/严格检查/local/治理；4)新冻结CLI历史领域/原五场景真实stdio/PTY。当前0/4，整体partial/active；本次不将
 owner迁移单独等同于全部owned-screen UI完成，继续保留layout/pagination等明确未对齐项。
 
 App-owned迁移已完成实际生产消费：八个旧ChatWidget字段删除，输入/复制票据/resize/
@@ -11997,8 +11987,7 @@ mutations/prompt_header/clipboard/input及pager/App clipboard调用接线；App 
 runtime的OnePage选择；现有历史PTY/fixture与结构守卫、inventory/architecture/本计划。
 连续脏树只增量修改，Codex/GUI/protocol/runtime业务owner只读，无新依赖/协议/后端。
 退出条件：1)真实生产输入到边界请求单页、原冻结文字和metadata/锚点/票据保持；2)只吸收
-canonical新页差集，重复页幂等、hidden过滤/live tail/replacement隔离与resize/Esc回归；
-3)定向/完整TUI/strict/local/治理；4)新冻结CLI真实主阅读mouse分页与原历史/五场景Gate。
+canonical新页差集，重复页幂等、hidden过滤/live tail/replacement隔离与resize/Esc回归；3)定向/完整TUI/strict/local/治理；4)新冻结CLI真实主阅读mouse分页与原历史/五场景Gate。
 责任root，2026-10-12。当前0/4，整体partial/active，不把该切片当全部held reading完成。
 
 旧实现稳定红灯2项：已接受旧页不进入主选区、PageUp到顶部不发起加载；首轮测试误用
@@ -12060,8 +12049,7 @@ render与scroll接线、history_ui/history_pagination及独立回归，现有真
 结构守卫/inventory/architecture/本计划。保留连续脏树；Codex只读，GUI/shared protocol/
 runtime业务owner不变；不提交/建分支/启动子Agent。所有保留数据仅为surface presentation，
 不复制业务store、分页游标或runtime。责任root，2026-10-12。
-退出条件：1)普通reader在page group join/mutable cell中保留当前可见revision和锚点；
-2)按canonical cell身份导航释放、选区结束移交、resize/分页/return-latest正确；3)稳定
+退出条件：1)普通reader在page group join/mutable cell中保留当前可见revision和锚点；2)按canonical cell身份导航释放、选区结束移交、resize/分页/return-latest正确；3)稳定
 红灯到绿灯、定向/全TUI/strict/治理/local；4)冻结CLI真实PTY历史和原五场景证据。
 启动0/4，整体partial/active；分组pins/未显示group更新必须按当前真实消费者实现。
 
@@ -12155,6 +12143,7 @@ parser 改写为等价 filter/nested condition，继续使用工作区 Rust 2021
 保留已有连续任务脏树，不提交、不建分支、不覆盖其它写集。
 
 退出条件：
+
 1. canonical command live/cold/page 回归先红后绿，所有 surface 共用一处动作投影。
 2. Codex parser 回归与相关 crate、strict Clippy/fmt、contracts/version 门禁通过。
 3. 新完整 App Server/CLI 冻结产物通过真实 stdio commandActions/TUI 探索分组证据，
@@ -12420,3 +12409,545 @@ tui-history-pagination-lVeZ91；Paginated Thread01a12d3e-b260-77d3-bb21-33501586
 同一live/read/page actions，再由真实PTY验证两组Explored、read合并/search+listFiles/
 Unknown/userShell独立/resize。未注入typed actions，未冒充真实执行示例shell；actual OS
 执行另由invocation runtime fixture证明。后续Agent current fixture/Desktop/local验收。
+
+桌面fixture freshness构建期间观察到并行版本更新：package.json、packages/cli/package.json、
+workspace version与Cargo.lock已由外部工作从1.154.0改为1.155.0，并伴随release notes更新。
+本进程不修改/提交这些文件，已避让；本阶段execution源码没有变化。terminal/current
+fixture显式APP_SERVER_BIN仍绑定上述冻结1.154.0功能产物，freshness则准备当前1.155.0
+GUI resources；两种binary provenance分别记录，不把旧freeze宣称为1.155.0发布产物。
+最终verify:app-version与local将复核当前工作树；不执行release、commit、push或分支操作。
+
+Agent current fixture聚合exit0（stage127-agent-current-fixture.log），覆盖真实Electron首页/
+Coding Workbench/图片意图/停止继续/审批四分支/rich draft restore/同Turn active steer/
+Plan hydrate/Skills三入口/MCP structured content/媒体卡片/Expert入口和覆盖/typed retry
+成功失败/Article Editor。liveProviderUsed=false，生产mock fallback为0；现场PID52064
+证实sidecar路径为tui-stage127-final3-0jAuOo/binaries/app-server。freshness的1.155.0 GUI
+resources App Server SHA256=95551895efe7d98a35077735f63c3480c80f375fe5ce4b951fea4569eedc1312，
+code-mode host=56468c74a81d8f02d223756c8be38a4756898f15b27d65bd3a38eeed0ded9563；
+该资源SHA不替代实际fixture sidecar SHA79904054。当前1.155.0的版本一致性复核已执行，
+GUI smoke与最终local继续进行；Electron external fixture不冒充live OS-shell GUI验收。
+
+正式GUI smoke exit0（stage127-gui-smoke.log），run_id=tui-stage127-gui-smoke，
+shell-01-electron-smoke summary=result pass；真实Electron/preload/IPC/current App Server
+initialize、Workbench reload、3种responsive viewport、Memory settings与mock fallback=0
+通过。初始化日志明确version=1.154.0，仍是显式冻结sidecar；resources与工作树1.155.0
+版本一致性也exit0（stage127-version-current.log）。该混合provenance仅为当前功能回归，
+不是1.155.0 packaged/release证据。最终verify:local正在当前1.155.0工作树运行。
+
+local因并行package/version改动选择frontend门禁：1.155.0版本一致性、五语言资源、
+未引用key、全局src lint与renderer/node typecheck均通过。调用前不存在
+.lime/test/vitest-smart-last-run.json，因此标准npm test新建120批状态；当前逐批运行，
+若失败只从记录的batch继续，不从第一批重跑。Rust changed-scope将在frontend后执行。
+架构图由root复核：actual invocation唯一producer、typed canonical lifecycle唯一owner、
+mirror仅补output/test/脱敏interaction、GUI/TUI共用App Server read model，没有新wire/
+backend/parser/compat。未提交PR，本计划的责任确认不替代未来PR描述中的图确认。
+
+local frontend实际发现并行release candidate副本混入Vitest执行（例如第9批同一noVideo
+过滤器跑了current与.lime/release/v1.155.0/candidate两份），collector既有
+isVitestRunnableTestFile已排除产物，但Vite/smoke config仍会被substring filter命中。
+对本进程已确认PGID89087发送SIGINT，local exit130，原stage127-verify-local.log及
+14项passed/15项待续跑状态保留，不记green。窄写集扩到vite.config.ts、vitest-smoke
+runner及其既有测试：两种配置明确排除**/.lime/**；真正runtime/read model不修改。
+复核中误把Vitest --json的可选输出文件当成filter参数，覆盖原clean noVideo测试；已用
+apply_patch恢复原38行并git diff --exit-code证明无残留。原generated-tests-red文件为空/
+参数失败，不算行为红灯；真实旧重复证据保留于上述local log。正确顺序的Vitest list
+现在仅发现current一份（stage127-generated-tests-green.json）。
+
+同test-only smoke owner修正app-server-client/browser显式alias优先于根包，并移除两条
+重复window alias。此前未收集的GUI reducer现10/10通过；helper/runner/current reader/
+thread projection合计89 passed（stage127-quality-harness-green.log），定向eslint通过。
+为标准local能遵守既有续跑合同，local-ci读取同一Vitest状态并委托原--resume；未完成
+不丢已过批次，完成态不缓存新源码，损坏状态显式失败。main添加标准entrypoint guard供
+纯决策回归导入，业务任务与验证顺序不变。新增scripts/lib/local-ci.unit.test.mjs，未新增
+根目录入口/产品方法/后端；三个质量owner回归33/33通过（stage127-local-resume-green.log），
+含6项continuation决策；定向eslint与help通过。新source test未在旧120批索引里，已单独
+执行，不伪称被resume收集。下一步标准local从15续跑并执行后续Rust门禁。
+
+local第二次从15续跑至第37批失败（stage127-verify-local-resumed.log，36/120批已通过，
+6 failed/87 passed）。根因是Electron dev sidecar resolver/build虽然接收env，四个sibling
+binary path却各自回到process.env，受当前CARGO_TARGET_DIR影响；两个纯fallback测试也
+未隔离环境。窄修scripts/lib/electron-dev-sidecar.mjs及其既有test：resolver、同步build、
+异步build分别按传入env解析一次target directory，再显式传给同组路径；fallback回归注入
+env与不可用metadata runner。Windows成组重建与同步/异步prepare回归使用自定义target，
+不修改全局环境。18/18定向回归通过（stage127-sidecar-env-green.log），eslint/diff check
+通过。标准local将从37续跑，保留失败日志，不覆盖、不重跑前36批。此前显式APP_SERVER_BIN
+产品证据绕过该resolver，不能单独证明本次dev路径修复；后续补不覆盖binary的真实GUI验证。
+
+第128下一刀准备（当前仅test-only，production仍冻结）：Codex
+core/unified_exec/async_watcher.rs以session-owned watcher保存原TurnContext/call/argv/cwd，
+在进程退出且输出drain完成后发布一次真实终态。Lime输出delta已保存原Turn，但canonical
+completion取本次ToolLifecycleEvent.turn_id，CurrentTurnToolLifecycleEmitter的channel又
+随provider Turn结束，event store与sequence verifier目前均拒绝terminal Turn追加执行。
+不能只修一个metadata字段，也不能伪完成进程或无限保持活动Turn。窄写集先限定既有
+scripts/app-server/command-invocation-fixture.mjs，增加--background真实OS/PTy两Turn场景：
+先启动read answer并正常结束模型回合，下一Turn用实际provider返回的session_id写入；
+断言原Item/Turn/process/cwd、输出保留、一次start/completion及live/read/page/restart一致。
+普通7-request场景保留，测试不直接seed typed command或放宽断言。真实红灯在第127
+local/GUI串行验证之后执行；production owner变更与架构退出条件届时按红灯再登记。
+
+标准verify:local第三次exit0（stage127-verify-local-resumed2.log）。既有120批状态全部
+passed，索引1600个current测试文件；新local-ci.unit回归不在旧索引，已由前述33项定向
+验证单独覆盖。版本1.155.0/i18n五语言100%/unused/global src lint/renderer与node
+typecheck/contracts及其协议生成、command、modality、scripts、release/CLI/Desktop
+守卫和docs boundary全部通过。并行提交改变了smart改动集，该次local实际只选择
+frontend与bridge，不含Rust，不能冒充最新Rust全量。后续串行复核第127五个相关lib
+owner；shared strict既有告警仍open，正式GUI原证据与本次resolver证据分别登记。
+
+第127当前工作树收尾复核：agent-protocol43、agent-runtime211、App Server1803、
+Agent273、tool-runtime483合计2813 passed（stage127-rust-five-final-current.log）；
+TUI1879 passed（stage127-tui-final-current.log），合计4692，不沿用此前不同scope数字。
+无APP_SERVER_BIN override的resolver真实stdio握手exit0（stage127-sidecar-resolver-
+provenance2.log），实际target App Server版本1.155.0，SHA256
+95551895efe7d98a35077735f63c3480c80f375fe5ce4b951fea4569eedc1312。此前误用自定义
+App Server不支持的--version探针失败日志保留，不算行为回归或绿灯。
+resolver真实Electron历史Gate B exit0（stage127-sidecar-resolver-electron.log），
+.lime/qc/gui-evidence/tui-stage127-sidecar-resolver/sidecar-resolver-summary.json为ok=true；
+现场PID92078/parent92067证明Electron启动同一target/debug/app-server，实际文件SHA与
+stdio握手一致，不以resources SHA替代进程证据。真实preload/IPC、archive/unarchive/
+read/items/turns/resume、重启与240Turn/720Item历史GUI通过，backend=unavailable，
+未调用live Provider，未用生产mock。stage128修改后的默认OS invocation场景仍exit0
+（stage128-invocation-default-recheck.log），7请求/4命令完整live/read/page/cold一致。
+第127分类：invocation/canonical lifecycle/resolver/质量owner为current，fixture为test-only，
+旧重复mirror生命周期、单值interaction producer与旧模块路径为dead/deleted，新增compat/
+deprecated为0。架构由root确认。退出条件1/3/4满足；条件2的shared strict旧告警未收完，
+当前3/4（75%），该比例仅表示第127批退出条件，不表示完整Codex对齐或跨平台交付。
+
+### 第128批：session-owned后台Command生命周期（2026-10-12，active）
+
+真实红灯stage128-background-stdio-red.log与command-invocation-ipou1x/failure.json：
+actual PTY Command已经started/output，provider两次请求和最终回答已完成，却没有
+turn/completed；sequence verifier将运行中的session Command当成必须随Turn关闭的工具。
+后续emitter/channel与terminal append限制同样需收口。Codex async_watcher为参考，
+不改变现有App Server JSON-RPC shape，不延长模型Turn或合成进程完成。
+
+窄写集：tool-runtime/unified_exec的session-owned观察/完成与原invocation；Agent
+current_provider_turn的owned Command publisher和通用lifecycle去重；App Server
+runtime/event_store scoped append、sequence verifier与runtime backend owned mapper；
+对应专用测试及既有真实OS fixture、architecture/本计划。所有产品仍消费同一canonical
+Thread/Turn/Item。owned callback只捕获EventAppender/EventHub，不持有RuntimeCore或
+ExecutionProcessServer；原进程supervisor继续唯一执行owner。后台事件必须匹配已开始
+的同一Thread/Turn/Item/process，不泛化terminal append例外，不允许新Command/工具/
+assistant事件穿透。普通dispatch/preparation失败路径保留严校验。
+
+退出条件：1)原Turn正常完成而Command保持inProgress，后续Turn真实stdin完成原Item，
+以及无需再次poll的自主退出单次终态；2)严格拒绝scope/process漂移、重复终态和无关
+terminal append，取消/失败/尾部output顺序与冷恢复稳定；3)相关Rust/协议/GUI-TUI
+消费者和真实stdio/PTY证据；4)架构责任确认、classification与实际验证范围回填。
+大文件退出约束：event_store先拆独立appender职责；tool_lifecycle_emitter拆tests。
+turn_execution.rs既有3123行只机械接入owned capability字段，不新增业务分支；完整
+turn-driver拆分留在原owner迁移主线，下一次触碰业务前必须拆分。runtime_backend.rs
+同样只机械传递capability，owned转换进入现有领域子目录，不堆叠root逻辑。
+责任root，初始0/4；当前验收结论见本批末尾。仅Unix场景，
+Windows与packaged/live保持未验证，不计为整体对齐比例。
+
+第128消费者收口（2026-10-12，current）：Rust与共享TS sequence verifier仅保留
+unifiedExecStartup且有真实processId的原Command scope；禁止process/Item漂移、
+terminal后新工具/模型事件和已完成命令重开。TUI projection/commands恢复原Turn
+后台命令，普通Item仍随Turn settle，旧Turn迟到terminal不清除下一Turn状态。
+GUI API route保留原后台订阅并隔离新Turn；Turn binding在模型terminal清watchdog，
+保留原Command投影，真实最后Command退出才释放，不重新设置sending。
+terminalInteraction补回现有parser；没有新增wire shape或生产mock。
+
+追加窄写集：TUI projection/commands/history/streaming与专用PTY测试；共享
+agent-ui-contracts sequenceVerifier；GUI eventSequenceGate、appServerEventStreamRouting、
+commandContinuation与聊天Turn binding；conversationProjection/turns和diagnostics。
+GUI reducer从936拆到769行；重复StreamRequestState已删除，统一runtime handler
+types，监听参数与性能trace移回独立owner。以上旧重复入口为dead/deleted，未新增
+compat/deprecated。projection.rs约805行，下一次新增业务前继续拆主root职责。
+
+已有验证：tool-runtime unified exec 14 passed（stage128-unified-green-recheck.log），
+Agent 274 passed（stage128-agent-green.log），App Server初次1806 passed
+（stage128-app-server-green.log）；共享contracts 32 passed、runtime-client24 passed。
+GUI原消费者38 passed与typecheck exit0。新增真实handler接线证明模型terminal后
+监听继续消费Command输出/完成，watchdog不回流sending；旧Turn状态覆盖3项红转绿。
+后者与原reducer/replay合计17 passed（stage128-gui-binding-status-green.log），
+失败证据stage128-gui-binding-status-red.log保留。
+
+最新App Server全量1804 passed / 3 failed（stage128-rust-consumers-final.log）：
+2项历史导入性能超时、1项stdio流式output line timeout。保持原断言，正在逐项
+低并发复核，未降级为通过；该次因App Server失败未运行后续TUI。既有OS fixture
+增加--autonomous及--autonomous --tui：模型Turn结束才释放真实shell进程，禁止
+第二次poll/模型调用，证明单次Command终态、tail output先于completion以及同一
+Thread live/read/page/cold投影。当前尚未实跑新模式，不能充当Gate B evidence。
+
+本批未关闭缺口：GUI恢复completed Turn里的inProgress Command实时监听；服务
+重启时尚未结束Command的恢复策略；Desktop真实后台Command Gate B；shared strict
+旧告警、Windows、packaged/live。以上继续开放，不以定向绿灯宣称全方位完成。
+
+追加sequence接线收口：agent-runtime-client此前直接放行所有Command stream；现在
+direct output/interaction调用共享verifier.checkCommandStream，只读同一activeCommand/
+backgroundProcess登记，记录违反scope的diagnostic，不合成sequence或事件ID。
+共享contracts33 passed（stage128-shared-stream-green.log）；runtime-client全量25 passed
+（stage128-runtime-client-all-final.log）。新接线测试按dispatchEvent既有合同断言
+false拒绝，最初误用rejects的失败日志保留，不将错误的异常预期当作行为红灯。
+typecheck最终exit0（stage128-typecheck-final.log），test:contracts最终exit0
+（stage128-contracts-final.log），format/diff检查通过。
+
+历史导入低并发复核1 passed / 1 failed（stage128-import-recheck.log）：1200条Command
+单Turn提交已通过，40 Turn后台导入仍超过60秒，不增大预算也不改成功对象断言。
+对应代码仍只读；stdio output line timeout尚需定向复核。当前构建session50040正在
+生成新的1.155.0 CLI/App Server/code-mode-host冻结验收包，未覆盖第127旧包。
+PTY专项新增native termios前后精确比较，须实跑后才纳入终端恢复证据。
+
+最终共享verifier34 passed（stage128-shared-stream-final.log）：新增运行中Turn的
+Command output/interaction/completion process漂移拒绝，并证明拒绝后原process仍能
+正常完成，和Rust scope守卫一致。共享变更后的GUI gate/route/binding15 passed
+（stage128-gui-shared-gate-final.log）。reducer清除拆分后的2项unused type import，
+ESLint复核exit0（stage128-eslint-extra-recheck.log），root现767行。
+
+后续对齐范围保持显式partial：Codex watcher消费process exit/output-drained signal，
+当前Lime仍经共享gateway观察status/drain，不在GUI/TUI创建第二process owner；
+EOF/观察失败终态与bounded notification budget继续对照current supervisor收口。
+CLI一次执行结束时session-owned Command清理尚无本批真实专用证据。GUI冷恢复缺口
+已定位到threadReadActivity和agentStreamResumeBinding仅识别active Turn；不能把
+保留live订阅或普通历史Gate B当成后台命令冷恢复已对齐。
+
+第128产物与实际红灯（2026-10-12）：当前1.155.0 CLI/App Server/code-mode-host
+构建exit0（stage128-build-final.log），冻结到tui-stage128-final-fNkEya/binaries，
+四个ONNX/sherpa动态库与三个兄弟binary成组保留。SHA256：CLI
+cc1c31ec064432101c823a74c7b601c91da43e88176fa2261f50f382e18d6f42；App Server
+98ebee6987652da738eac0aadc150d9eda3251ef39ea4c5a4ddeb50455a10faf；code-mode-host
+973ef9628b1bb63163a5fcc90adb4c413c2ba0cb3888aee3e0bd8ac7b20f2394。
+默认actual OS stdio exit0（stage128-default-final.log），Thread
+01a12de5-683a-7470-9f02-39c78c64640b，live/read/page/cold相等。后台两Turn模式
+失败（stage128-background-final.log，command-invocation-h8lBMD/failure.json）：
+write_stdin的实际provider结果明确execution_after_turn_terminal，Command仍inProgress。
+自主模式同样未收到Command terminal（stage128-autonomous-final.log）。根因为Rust
+command scope只识别commandId/toolCallId，实际raw ToolOutputDelta使用tool_id；
+先前只测command.output mirror的回归未覆盖生产raw接线。新增raw output与process/
+call漂移回归，保留原真实fixture断言；产品门槛仍未通过，不更新0/4状态。
+
+已完成11个内部StreamRequestState消费者机械迁移到唯一runtime handler types owner，
+删除SubmissionLifecycle的type re-export；没有兼容出口。格式与diff检查通过，迁移
+后的typecheck须在后续本地门禁复核，不把迁移前的绿灯扩大为本次新增类型验证。
+
+GUI冷恢复窄修：threadReadActivity以同Thread的canonical thread_items识别有真实
+process_id的in_progress/unifiedExecStartup Command；useAgentRuntimeSyncEffects在
+完成模型Turn后继续既有read model刷新，实际Command完成后停止，不设置sending、
+不伪造running Turn。共享判定迁入projection/commandActivity，live监听与cold polling
+同源，删除hooks/commandContinuation的重复活动判定出口，无compat包装。
+新增Hook生命周期回归红转绿（stage128-cold-command-poll-behavior-red.log ->
+stage128-cold-command-poll-green.log，51 passed），含完成回合刷新/真实退出停刷与
+跨Thread/无process/普通Item拒绝。最初helper调用遗漏rootDir的参数错误日志保留，
+不算行为红灯。共享判定迁移后的接线与typecheck仍待最终复核；此项只证明冷恢复
+read model跟随，完整恢复流式route/binding及服务重启时仍运行进程策略继续开放。
+
+共享活动判定迁移后定向GUI回归55 passed（stage128-cold-command-shared-final.log），
+包含live后台输出接线与冷恢复timer生命周期；定向ESLint与diff check exit0。
+Rust修复仅补充既有raw ToolOutputDelta的tool_id/toolId scope别名，原process/Item/
+Turn校验不变。专用red回归的Cargo因默认同时编译lib与test且超过12分钟，已确认
+本进程PGID44531后SIGINT终止（exit130）；未进入测试，不算行为红灯。真正红灯
+仍为已冻结产物的background/autonomous actual OS fixture。切到--lib --jobs 1编译
+当前green回归，避免重复生产目标编译与并行Cargo。
+
+raw scope修复后Rust序列校验21 passed（stage128-raw-stream-green.log），App Server
+owned appender真实接线1 passed（stage128-owned-raw-appender-green.log），含原Turn
+terminal后的raw output与mirror output、单次Command完成和process漂移拒绝。
+迁移及cold polling后的完整renderer/node typecheck exit0
+（stage128-cold-typecheck-final.log）。当前开始重新构建修复后的生产二进制；前述
+tui-stage128-final-fNkEya只作为失败/默认场景证据，后台产品验收必须改用新的冻结包。
+
+Desktop专用Gate B准备：新增test-only
+scripts/agent-runtime/command-continuation-electron-gate-b.mjs，复用既有Electron隔离环境/
+启动/IPC transport与tool-execution provider/current v2合同，不改生产入口。
+窄写集只含该fixture和本计划。真实GUI发送两轮actual exec_command：第一轮证明
+model completed后draft可编辑、自主输出/终态仍可见；第二轮仅reload Renderer，要求
+同一App Server PID和同一Thread/Turn/Item/process继续跟随actual命令终态，draft保持。
+不再次poll/write_stdin/provider，不seed typed Item，不调用live Provider；测试只在
+隔离的default workspace写release文件。记录真实preload/IPC/current turn/start、
+进程路径/父PID/SHA、可见状态、控制台与mock fallback；本文件尚未实跑，不能计为
+Gate B通过。current fixture聚合和GUI smoke之后串行运行，失败即修/复测，不拉预算。
+
+修复后的生产构建exit0（stage128-build-raw-fixed.log），新的冻结包为
+tui-stage128-final-dAyFJC/binaries，四个动态库与兄弟binary完整。CLI与code-mode-host
+SHA仍分别cc1c31ec/973ef962，App Server SHA256更新为
+cb3ad47b5274970eace3513aa7e798690cd7966880552f57e137db8c5de65320。
+默认actual OS stdio重新验收exit0（stage128-default-fixed.log），Thread
+01a12e0e-3c7d-78a2-bc1c-b5f2f70986e1，live/read/page/cold相等；继续串行后台与
+自主退出场景。新增Desktop fixture的syntax/ESLint/diff check已通过，尚未运行。
+
+第128续验（2026-10-12）：修复raw output scope后的跨Turn actual stdin场景exit0
+（stage128-background-fixed.log），原Turn/Item/process/cwd及单次终态稳定。
+自主退出actual stdio exit0（stage128-autonomous-final.log），Thread
+01a12e13-e57a-7b32-ba0e-36d846bb483a；无额外工具或provider调用，tail output先于
+Command completion，live/read/page/cold一致。此前autonomous-fixed失败来自fixture
+错误要求空terminalInteractions=[]；protocol/v2/item.rs已有Vec::is_empty省略合同，
+现精确断言字段不存在且terminalInteraction notification为0，不修改生产schema。
+TUI全量1882 passed（stage128-tui-final.log）；该全量默认跳过需专用环境的PTY场景，
+不算实际PTY证据。第一次专用PTY失败（stage128-autonomous-tui-final.log）：实际
+Command已completed，但fixture只打开transcript，未通过F4/Enter展开output disclosure。
+现补真实展开和Ctrl-T关闭，并收缩Cargo到--lib --jobs 1，正在复跑，不延长120秒预算。
+
+追加审计缺口：Rust sequence verifier目前对原process漂移的校验主要位于terminal
+continuation和ItemUpdated登记；运行中Turn的raw output/interaction/completion仍需
+对应行为回归和统一拒绝路径。共享TS已覆盖这组检查，不得据既有测试宣称两端全部
+pre-terminal守卫一致；保持退出条件2开放，后续修复仍落现有verifier owner。
+
+PTY复跑范围：final2耗尽120秒于Rust编译，未进入测试；随后独立--no-run编译exit0
+（stage128-pty-prepare-final.log）。final3的实际PTY交互exit0，keyboard/alternate/
+termios/cursor/title恢复通过，但fixture整体exit1：测试看到tail delta即关闭TUI，
+冷读取Command仍inProgress。保持冷读completed断言，补可见[completed]与返回composer
+草稿保留后才退出；再次独立编译准备。以上均不提升为完整TUI Gate B通过。
+脚本治理exit0（stage128-scripts-final.log），两个fixture的Prettier/ESLint通过。
+
+最终专用TUI Gate B exit0（stage128-autonomous-tui-final4.log），独立编译准备为
+stage128-pty-prepare-final2.log。Thread 01a12e1c-0171-7453-a146-942f42acaeb2，actual
+runtime/provider仅2请求；真实PTY输入与draft、F4/Enter展开、尾输出/[completed]可见、
+Ctrl-T返回后draft保留、alternate/termios/cursor/title恢复全部通过；关闭后同canonical
+Thread冷读取Turn completed/唯一Command completed/exitCode0/真实tail output一致。
+未延长fixture或终端等待预算，未合成事件或终态；仅Unix本机证据。
+
+低并发复核原App Server失败项：stdio流式测试1 passed（stage128-stdio-final.log）；
+历史导入performance模块2 passed（stage128-import-performance-final.log，串行71.22秒），
+保持1200 Command、40 Turn、30/60秒预算与完整成功对象断言。这是原失败项的定向
+复核，不改写先前全量1804 passed/3 failed报告为全量通过。
+current fixture聚合正在重新构建最新Renderer/Host/resources，尚未完成Electron场景。
+追加窄写集为既有Rust sequence verifier tests：运行中Command的foreign process
+output/interaction/raw output和foreign process/Item/Turn/Thread/session completion拒绝，
+要求拒绝后原Command仍可完成；新回归尚未执行，不提前声明红转绿。
+
+current fixture聚合最终exit0（stage128-current-fixture-final.log），173定向测试通过，
+61按显式filter跳过；22个真实Electron场景全部通过，含输入/停止继续/审批/历史/Plan/
+Skills/MCP/media/typed error/Article Editor。最新Renderer、main、preload与资源构建通过，
+runtime场景继续使用已审查冻结App Server cb3ad47b；本聚合不证明新增后台Command
+Desktop专项，不冒充live provider或Windows证据。正在执行新增pre-terminal scope回归，
+后续若改Rust production verifier将重新构建/冻结并复跑actual OS/TUI/Desktop专项。
+
+pre-terminal真实行为红灯（stage128-running-scope-red.log）：新3项回归1 passed/2 failed，
+合法原process与可省略metadata通过，foreign output/completion被错误接受。该轮App Server
+test binary编译17m52s，测试执行0.04秒；耗时不计作行为失败或延长产品等待预算。
+production窄写集追加既有agent_ui_sequence_verifier.rs：已登记Command在运行中检查
+原process/Item/Turn/Thread/session scope；失败立即返回且不消耗原active Command。
+command_scope_matches复用为运行期与terminal continuation唯一身份判断，删除ItemUpdated
+内重复scope分支；运行期仍保留process metadata可省略合同，终态后owned raw stream继续
+要求原process。完整verifier回归正在编译，未提前声明绿灯或更新冻结产物。
+
+完整verifier最终24 passed（stage128-running-scope-green.log），编译8m41s、实际回归
+0.01秒；运行期foreign output/interaction/raw output与process/Item/Turn/Thread/session
+completion各变体拒绝后原Command仍可完成，合法原流与optional process合同保持。
+terminal continuation、重复生命周期、取消和普通工具配对既有21项同样通过。正在用同一
+最新test binary串行执行App Server全量，随后构建production并重新冻结真实Gate产物。
+
+第128全量续验：最新App Server串行1809 passed / 1 failed，70.29秒
+（stage128-app-server-final-current.log）；原stdio/performance均通过。唯一失败为
+orchestrator_skill_enters_turn_snapshot_once_without_local_body_read，单独复核同样失败。
+只读诊断复用已编译skills owner（stage128-skill-budget-diagnostic.log）：默认8个roots
+加载149个skills，remote rank148，3919字符prompt未渲染目标；空roots则仅1个remote，
+404字符prompt精确包含目标。根因为测试依赖真实user/app目录，保持4000预算与原断言。
+窄写集追加runtime_backend/agent_skills_context及专用tests：root从1068行拆出测试，
+生产继续默认resolver，测试显式注入workspace/plugin roots；snapshot去重/config与
+prompt渲染复用原owner，不改权限、wire或Skill正文读取。相关及全量复核进行中。
+
+Skills隔离定向14 passed（stage128-skills-isolated-green.log，编译2m28s、测试0.04秒）；
+原14项测试名称与数量全部保留，remote断言加强为唯一snapshot entry且空local roots。
+root/tests现581/574行，测试只用显式temp workspace/plugin roots。最新契约exit0
+（stage128-contracts-current-final.log），legacy-report exit0且零引用/分类漂移/边界违规
+均0（stage128-legacy-current.log）；fixture syntax/format/diff检查通过。
+
+最新App Server全量串行1810 passed / 0 failed，58.68秒
+（stage128-app-server-isolated-final.log）。原stdio、performance、Skills与24项scope
+回归同一test binary全部通过。正在构建含最新生产guard的CLI/App Server完整冻结包，
+前述cb3ad47b产物仍只作历史证据，不作为本次新guard的产品验收结果。
+
+最新production构建exit0，1m24s（stage128-build-owned-scope-final.log）；新冻结包
+tui-stage128-final-htthc6/binaries，CLI SHA256仍cc1c31ec064432101c823a74c7b601c91da43e88176fa2261f50f382e18d6f42，
+App Server SHA256为98e08cab00476a49aa5d87e49b4a06983e6f3aba520f0d849ccc9f50edf1e546，
+code-mode-host SHA256仍973ef9628b1bb63163a5fcc90adb4c413c2ba0cb3888aee3e0bd8ac7b20f2394。
+四个ONNX/sherpa动态库与兄弟binary完整成组；后续actual stdio/PTY/Desktop均使用此包。
+
+新guard冻结包真实OS stdio三组exit0：默认
+stage128-default-scope-final.log（Thread 01a12e6b-62b9-7c81-86e6-31bb0f08ae22）；
+跨Turn stdin stage128-background-scope-final.log
+（Thread 01a12e6b-b6c4-7713-913e-ecacc8b54d19）；自主退出
+stage128-autonomous-scope-final.log（Thread 01a12e6c-0f21-7b73-a47a-158f96514e91）。
+actual shell/runtime与原Thread/Turn/Item/process持续一致，live/read/page/cold相等；
+自主退出仍仅2个provider请求、无额外poll/write_stdin或interaction。PTY独立预编译中。
+
+新包实际TUI Gate B exit0（stage128-autonomous-tui-scope-final.log）：预编译36.30秒
+（stage128-pty-prepare-scope-final.log），产品测试3.64秒，Thread
+01a12e6d-53fc-7882-888a-b724cda682cd。真实keyboard、F4/Enter展开、tail/[completed]
+可见、draft保留、alternate/termios/cursor/title恢复通过，关闭后canonical冷读取一致，
+provider仅2请求。此证据使用新App Server 98e08cab与CLI cc1c31ec，不沿用旧产物通过。
+正在串行执行verify:gui-smoke，随后Desktop后台Command专项。
+
+verify:gui-smoke最终exit0（stage128-gui-smoke-scope-final.log），真实Electron/preload/
+App Server握手、Claw shell、Renderer reload、3种viewport与memory settings通过。
+结构证据standalone-shell-01-20261012044741-9067/shell-01-electron-smoke/summary.json。
+Renderer/Host/assets重新构建通过；Desktop后台Command专项正在使用冻结98e08cab运行，
+其结果独立记录，不以壳smoke通过代替业务后台Command的可见性与恢复验收。
+
+Desktop实际红灯（stage128-desktop-command-scope-final.log）：live场景输出/完成/draft
+通过，但仅reload Renderer后的第二Command未显示尾部输出、仍running，120秒超时。
+evidence .lime/qc/gui-evidence/command-continuation/stage128-scope-final.json及failure.png；
+原App Server PID10034保持不变，Thread 01a12e70-949e-77b0-b68e-3d3767c81128，第二
+Item item_desktop-background-2/process unified-exec-1001，console/page errors均0。
+已定位消费入口差异：getSession detail的thread_read缺少items，getSessionReadModel才
+补thread_items；先前Hook回归人工补items，漏掉真实parser接线。新增parser->Hook回归，
+原120秒与可见尾部/完成断言保留；projection root1059行须先拆字段/环境投影，再收回
+唯一canonical detail边界，并删除read model client的重复补items路径。验收继续开放。
+
+parser->Hook行为红灯1 failed（stage128-cold-detail-wiring-behavior-red.log）：实际
+canonical detail进入Hook后刷新调用为0；最初测试语法错误日志不算行为红灯。
+canonical detail的thread_read现在携带同一items；read model client删除重复补items。
+projection按canonicalReadFields/threadEnvironments/threadPlan拆到752/88/133/100行；
+环境消费者直接迁到唯一owner，无旧re-export或兼容包装。六组回归57 passed
+（stage128-cold-detail-wiring-green.log），含真实parser->Hook刷新、Command终态停刷和
+环境/Plan/普通detail/read model；定向ESLint exit0，完整typecheck进行中。
+Desktop fixture保持原可见断言，只把canonical完成读取移到UI等待前并记录失败身份/
+status/process/tail布尔诊断，不注入前端状态、不增加tool poll/provider或预算。
+
+失败现场的关闭后实际stdio冷读（stage128-desktop-failure-cold-audit.log）确认第二
+Command早已completed/exitCode0，同一process且COMMAND_TAIL_2在持久化输出内；没有
+执行模型或工具，支持缺口位于GUI恢复消费链。新投影完整typecheck exit0
+（stage128-cold-detail-typecheck.log），verify:gui-smoke再次exit0
+（stage128-gui-smoke-cold-detail-final.log），新壳证据
+standalone-shell-01-20261012045940-29505/shell-01-electron-smoke/summary.json。
+最新完整Agent current fixture运行中，随后重新运行相同Desktop两轮专项。
+
+最新完整current fixture exit0（stage128-current-fixture-cold-detail-final.log）：173项
+定向回归通过、61按显式filter跳过，22个真实Electron场景全部通过；最新Renderer与
+98e08cab冻结App Server共同运行，零live Provider/生产mock fallback。包含输入富草稿
+恢复、停止继续、审批、历史/Plan、Skills/MCP/media、typed error和Article Editor。
+同一Desktop后台Command两轮专项正在复跑，不将聚合通过当成该专项通过。
+
+Desktop后台Command两轮Gate B最终exit0（stage128-desktop-command-cold-detail-final.log），
+evidence .lime/qc/gui-evidence/command-continuation/stage128-cold-detail-final.json与png。
+Thread 01a12e80-cc8e-7962-990c-0bfd0e5520da；live/reload两轮各使用原Turn/Item与
+unified-exec-1000/1001，均completed、实际tail可见、draft保留。Renderer reload前后
+App Server PID40761与Electron parent40751一致，二进制SHA98e08cab。真实preload/IPC/
+turn/start通过，mock fallback0、console/page errors0；每轮provider2请求，无额外
+tool poll/write_stdin或生产mock。已查看成功截图，两轮输出和composer draft确实可见。
+服务重启时仍运行Command与完整恢复流式绑定仍不在此证据范围；当前只证明同一
+App Server下cold read model跟随。最新contracts/legacy与verify:local运行中。
+
+既有OS stdio fixture追加--autonomous-failure：模型Turn完成后才释放实际shell，先产生
+真实tail，再exit7。仍要求原process、单次failed Item、无extra provider/tool/interaction、
+live/read/page/cold完整相等，原成功路径明确exit0。只扩展test-only场景，不改生产owner
+或TUI失败场景；专项尚未运行，不提前把非零退出标为已验收。local新一轮120批已开始。
+
+首次actual autonomous failure exit0（stage128-autonomous-failure-final.log）：真实
+shell exit7投影failed，tail先于单次Command completion，原process与冷读一致。追加
+严格断言Command失败也不得改变模型Turn completed，正在复验该最终断言并复核成功
+退出路径，不改生产状态机或等待预算。
+
+最终失败状态断言复验exit0（stage128-autonomous-failure-preserved-final.log），Thread
+01a12e89-c6f4-71d1-9d88-1d2e13a5bec8：原模型Turn保持completed，实际Command failed/
+exitCode7，真实尾输出先于单次完成，provider仍2请求，live/read/page/cold一致。
+同一fixture成功自主退出重新exit0（stage128-autonomous-fixture-final.log），Thread
+01a12e8a-69dc-7890-bf6a-c787910f60f5，原Turn completed与Command completed/exitCode0
+正确分离。format/ESLint已整理，正在复核同一成功fixture的实际PTY；无新生产修改。
+
+最终成功fixture实际PTY再次exit0（stage128-autonomous-tui-fixture-final.log），产品
+测试7.92秒、Cargo warm准备3.06秒；Thread 01a12e8b-2563-7ac1-a5ad-d02c2b9dc5ec。
+keyboard/alternate/termios/cursor/title、tail/[completed]可见、draft与canonical冷读均通过。
+最新contracts与legacy exit0（stage128-contracts-cold-detail-final.log、
+stage128-legacy-cold-detail-final.log），零引用/分类漂移/边界违规均0。local的全项目
+lint/i18n/typecheck通过，新一轮前端120批仍进行中，未把旧完成态当作测试缓存。
+
+下一刀只读定位：agentStreamResumeBinding::resolveAgentStreamResumeBindingTarget仍要求
+hasActiveThreadReadActivity/active_turn_id；其binder默认setIsSending并恢复assistant/Turn
+壳，不能直接用于completed Turn的后台Command。后续必须先拆781行resume owner的
+目标解析/绑定职责，再由同一canonical items恢复原Command scope和同一App Server
+route，禁止借恢复Command重开模型Turn或复制状态机。参考Codex async_watcher仍明确
+消费exit token与output_drained_notify；当前Lime status/drain观察差异保持partial。
+本轮只读记录该下一刀，没有在进行中的全量门禁内追加生产修改。
+
+第128门禁续跑（2026-10-12）：沿用session4838与
+stage128-local-cold-detail-final.log，新的前端120批正在继续，前34批通过，未失败。
+本轮写集仅本计划与验收后的architecture记录；其余current代码保持冻结，避让未知
+release-v1.155.0-plan.md改动。git diff --check exit0；不重复启动Cargo或产品Gate。
+
+下一刀接线审计补充（只读，未实现）：createThreadClient::resumeThread目前只委托
+typed App Server，未登记AppServerAgentSessionEventDrainRouter route；现有binding测试
+注入listenToTurnEvents/resumeThread，因此不能证明恢复通知真实抵达GUI。
+eventSequenceGate的Command scope只从已接受的item/started登记，恢复快照未初始化
+scope；直接接受缺少开始的output会绕过原fail-closed合同，不能作为修法。
+后续先拆resume binding的local records/target/projection职责，再由同一canonical
+Thread/Turn/Item/process快照恢复route与sequence校验，沿原projection消费后续输出。
+必须补parser/client/router/binding真实接线、foreign scope拒绝、snapshot与并发通知
+竞态、最后Command终态回收和新Turn互不覆盖回归；Desktop验收要直接证明通知消费，
+不能仅靠read model polling通过。禁止用恢复Command重开模型Turn或创建assistant壳。
+
+local首次续跑在前端第68/120批失败（前67批通过），sessionTypesCurrentBoundary仍
+要求已拆出的agentStreamTurnEventBinding直接导入sessionTypes。实际DTO引用已归
+turnEventBindingTypes。窄写集仅该边界测试与本计划：消费者守卫直接迁到新类型owner，
+保留禁止聚合入口断言，追加旧binding必须委托且不得恢复重复Options定义的守卫。
+定向2 passed（stage128-session-types-boundary-green.log），原local失败日志保留；
+生产代码/冻结产物未变化，verify:local将沿既有状态从第68批resume，不从第1批重跑。
+
+第二次local已从68续跑并通过到99，第100批因executionStrategyCurrentBoundary同样
+保留旧binding消费者映射失败（stage128-local-cold-detail-resume.log）。实际类型已归
+turnEventBindingTypes，直接迁移该守卫路径，不恢复无用import或放宽聚合入口禁令。
+已一次复核全部7组引用旧binding/projection路径的结构守卫，21 passed
+（stage128-type-owner-guards-green.log）；两处修改的ESLint/Prettier均exit0。
+production仍冻结，下一轮local从100续跑；不把任何失败轮次改写为全量通过。
+
+第三次local从100续跑后，前端120/120批全部passed，状态完成于2026-10-12
+05:53:29 UTC，无failed/running/pending批次；契约、CLI边界、docs boundary同轮通过。
+Rust changed scope为agent-runtime/app-server/cli/lime-agent/lime-mcp/lime-scheduler/
+lime-server/tool-runtime/tui共9 crate，正在--lib与jobs1/test-threads1运行。
+最终local日志为stage128-local-cold-detail-resume-final.log；原67批及68->99批沿
+runner状态复用，原两次guard失败保留。尚未取得Rust与最后GUI smoke结果，不标完成。
+
+最新local的Rust changed scope全绿：9 crate/4998 passed/0 failed/0 ignored，分别为
+agent-runtime211、app-server1810、cli8、lime-agent274、lime-mcp174、lime-scheduler36、
+lime-server119、tool-runtime484、tui1882。编译5m40s，App Server实际69.78秒。
+默认TUI lib中需专用环境的PTY仍不能按passed计作真实交互；actual PTY证据继续引用
+stage128-autonomous-tui-fixture-final.log。前端三个local日志按runner批次合并为
+1605文件/11478 passed/1 skipped（既有i18n 1ms性能项），没有把两次失败批次重复计数。
+最后verify:gui-smoke正在新建Renderer/Host产物；production/source与冻结98e08cab未变。
+
+第128最终基础门禁（root，2026-10-12）：verify:local最终exit0，日志
+/tmp/lime-tui-stage128-local-cold-detail-resume-final.log。前端120/120批、11478 passed/
+1既有skipped；Rust9 crate/4998 passed/0 failed；lint/typecheck/五语言/i18n unused/
+版本一致性/contracts/CLI与docs边界均通过。最后真实Electron smoke exit0，evidence为
+.lime/qc/project-gates/standalone-shell-01-20261012060248-60284/
+shell-01-electron-smoke/summary.json，result=pass。该壳证据仅证明真实启动、preload/IPC、
+App Server握手、工作台reload、3尺寸layout与Memory设置，不冒充Thread/Turn/Item
+业务证据；后台Command业务继续引用本批Desktop两轮专项、actual stdio与真实PTY。
+最新冻结CLI/App Server/code-mode-host三个SHA再次核对一致，未使用旧cb3ad47b包。
+
+分类：current=原Invocation/owned publisher/scoped Appender、共享sequence gate、
+GUI/TUI Command投影、唯一canonical detail与拆出的字段/环境/Plan owner；
+test-only=Skills隔离roots、actual shell/stdio/PTY/Electron夹具、迁移后的类型边界守卫；
+dead/deleted=重复read model items补齐、旧环境出口、重复number reader与binding Options
+定义；新增compat/deprecated=0。直接迁移消费者，没有为旧入口补包装或无用import。
+责任root确认架构依赖方向及实际范围已写回architecture 33.2，未知release计划未改，
+没有提交、推送、分支、外部消息或live Provider调用。
+
+本批退出条件1/3/4满足；条件2的身份拒绝、重复终态、正常tail与冷读路径已验收，
+但observer EOF/status/drain错误的可见失败终态、实际取消与CLI回合退出清理尚未闭合。
+因此按完整退出条件计3/4（75%），状态partial/active；这只是第128批比例，不能解释为
+整体Codex完成度。已实现的Unix current闭环通过本地交付门禁，不标整批完全对齐。
+GUI完整恢复流式route/sequence scope、服务重启时仍运行Command、output-drained/exit
+signal与bounded notification budget、Windows/packaged/live、shared strict旧告警继续开放。
+下一刀按上面的接线审计先拆781行resume owner，再恢复同canonical Command订阅；
+必须证明通知消费与竞态/foreign scope/终态回收，不用新Turn或polling冒充恢复流式能力。
+
+### 第129批：canonical 快照恢复与后台 Command 流式接线（active）
+
+主目标仍是 GUI/TUI 共用 current App Server 与 Thread/Turn/Item 主链，持续全面对齐
+Codex。当前阶段收敛 renderer reload 的恢复职责；下一刀先拆恢复与 checkpoint owner，
+再从同一 canonical 快照恢复路由和共享序列校验，不制造 item/started 通知。
+
+窄写集：chat hooks 的恢复 records/target/projection/binding 与直接消费者、
+agentRuntime 的 threadClient/checkpoint/router/sequence gate、共享 TS verifier/pipeline，
+对应回归、真实 Desktop fixture、本计划和 architecture。Rust production、Codex 源码
+与未知 release-v1.155.0-plan.md 改动只读；不提交、不建分支、不启动子 Agent。
+
+职责图（拟实现，验收后由 root 确认）：canonical thread/resume snapshot -> 现有
+sequence verifier + route scope -> 通知管线 -> 同一 conversation reducer -> GUI；
+completed Turn 的后台 Command listener 与新 Turn stream 独立，不重开模型回合。
+
+退出条件：
+1. 781 行 resume owner 与 1131 行 threadClient 按职责拆分，消费者直接迁移，
+   无旧 re-export、重复校验 owner 或新增兼容层。
+2. 快照恢复原 Thread/Turn/Item/process，拒绝 foreign scope 和迟到终态；
+   覆盖 snapshot/notification 竞态、新 Turn 并存与最后 Command 终态回收。
+3. 真实 client/router/binding 接线回归通过；Desktop reload 明确证明通知消费，
+   原输出/终态/草稿可见，不能仅靠 read model polling 验收。
+4. 风险匹配的定向验证、typecheck、contracts、GUI current fixture 与 GUI smoke
+   通过；架构、分类和证据回写。未完成项保留 active，不把阶段比例当整体完成度。
+
+验证策略：先机械拆分并跑受影响回归；行为修改前补稳定失败用例。没有 Rust
+production 修改时复用第128冻结包，不无理由重跑 Cargo/stdio/PTY。保留所有失败日志。

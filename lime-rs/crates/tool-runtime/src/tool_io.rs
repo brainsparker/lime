@@ -438,6 +438,13 @@ fn truncate_middle_tokens(output: &str, limit: usize, original_tokens: usize) ->
     format!("{prefix}…{omitted} tokens truncated…{suffix}")
 }
 
+pub(crate) fn truncate_chars(text: &str, max_chars: usize) -> (String, bool) {
+    match text.char_indices().nth(max_chars) {
+        Some((end, _)) => (text[..end].to_string(), true),
+        None => (text.to_string(), false),
+    }
+}
+
 fn char_boundaries(output: &str) -> Vec<usize> {
     let mut boundaries = output
         .char_indices()
@@ -461,7 +468,7 @@ fn take_prefix_by_token_budget(output: &str, budget: usize) -> String {
     let mut low = 0usize;
     let mut high = boundaries.len().saturating_sub(1);
     while low < high {
-        let mid = (low + high + 1) / 2;
+        let mid = (low + high).div_ceil(2);
         if estimate_tool_io_tokens(&output[..boundaries[mid]]) <= budget {
             low = mid;
         } else {

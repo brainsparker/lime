@@ -41,6 +41,7 @@ Desktop Host / CLI-TUI Host
 | legacy/dead surface 删除                           | `npm run governance:legacy-report` + 相关负向回流守卫                          |
 
 默认本地入口是 `npm run verify:local`。需要完整本地门禁时使用 `npm run verify:local:full`。前端全量测试中断后使用 `npm run test:resume`，不要从第一批无差别重跑。
+`verify:local` 进入前端测试前同样读取既有 Vitest 状态；存在失败、中断、运行中或未完成批次时委托 `npm test -- --resume`。完成态不能作为新源码的测试缓存，无未完成批次时仍运行新一轮；损坏状态显式失败。标准和 smoke Vitest 配置都排除 `.lime` 生成产物，发布候选副本不参与源码测试发现。
 
 ## 证据等级
 

@@ -5,7 +5,7 @@ import { buildHydratedAgentSessionSnapshot } from "./agentSessionState";
 import {
   hasLocallyInterruptedAgentStreamBinding,
   rememberLocallyInterruptedAgentStreamBinding,
-} from "./agentStreamResumeBinding";
+} from "./streamBindingRecords";
 
 function createMessage(overrides: Partial<Message> = {}): Message {
   return {

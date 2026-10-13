@@ -34,6 +34,8 @@ use tool_runtime::sandbox::{
 use tool_runtime::shell::{is_shell_tool_name, shell_command_text_from_argv};
 use tool_runtime::shell_permission::{check_shell_command_permission, ShellPermissionDecision};
 
+mod terminal;
+
 const DEFAULT_DRAIN_LIMIT: usize = 128;
 const MAX_DRAIN_LIMIT: usize = 1024;
 const OUTPUT_EVENT_CAP: usize = 4096;
@@ -253,7 +255,6 @@ impl ExecutionProcessServer {
         }
         let canonical_tool_name = canonical_shell_tool_name(&request.tool_name)
             .ok_or(ExecutionProcessError::UnsupportedTool)?;
-        let command_text = shell_command_text_from_argv(&request.command);
         let sandbox = match request.attempt.as_ref() {
             Some(attempt) => {
                 validate_orchestrated_attempt_identity(attempt, &request.tool_id)?;
@@ -262,17 +263,12 @@ impl ExecutionProcessServer {
                         "cancellation was requested before process start".to_string(),
                     ));
                 }
-                validate_orchestrated_shell_command(
-                    canonical_tool_name,
-                    &command_text,
-                    &working_directory,
-                    attempt,
-                )?;
+                validate_orchestrated_shell_command(&request.command, &working_directory, attempt)?;
                 orchestrated_sandbox(attempt, request.runtime_metadata.as_ref())?
             }
             None => legacy_execution_sandbox(
                 canonical_tool_name,
-                &command_text,
+                &request.command,
                 &working_directory,
                 request.approval_policy.as_deref(),
                 request.sandbox_policy.as_deref(),
@@ -796,12 +792,11 @@ fn validate_orchestrated_attempt_identity(
 }
 
 fn validate_orchestrated_shell_command(
-    tool_name: &str,
-    command_text: &str,
+    command: &[String],
     working_directory: &Path,
     attempt: &RuntimeToolExecutionAttempt,
 ) -> Result<(), ExecutionProcessError> {
-    match check_shell_command_permission(tool_name, command_text, working_directory) {
+    match check_shell_command_permission(command, working_directory) {
         ShellPermissionDecision::Allow => Ok(()),
         ShellPermissionDecision::Deny(reason) => Err(ExecutionProcessError::Policy(reason)),
         ShellPermissionDecision::RequiresConfirmation(_)
@@ -870,12 +865,13 @@ fn orchestrated_sandbox(
 
 fn legacy_execution_sandbox(
     tool_name: &str,
-    command_text: &str,
+    command: &[String],
     working_directory: &Path,
     approval_policy: Option<&str>,
     sandbox_policy: Option<&str>,
     runtime_metadata: Option<&serde_json::Value>,
 ) -> Result<Option<LocalExecutionSandbox>, ExecutionProcessError> {
+    let command_text = shell_command_text_from_argv(command);
     let decision = decide_tool_execution(
         ToolExecutionDecisionInput {
             tool_name,
@@ -909,8 +905,7 @@ fn legacy_execution_sandbox(
         }
     }
     validate_shell_execution_process_command(
-        tool_name,
-        command_text,
+        command,
         working_directory,
         approval_policy,
         sandbox_policy,
@@ -985,13 +980,7 @@ pub(crate) fn decide_command_execution(
     if !decision.allowed() {
         return Err(format!("{}: {}", decision.reason_code, decision.reason));
     }
-    validate_shell_execution_process_command(
-        tool_runtime::unified_exec::EXEC_COMMAND_TOOL_NAME,
-        &command_text,
-        working_directory,
-        None,
-        sandbox_policy,
-    )?;
+    validate_shell_execution_process_command(command, working_directory, None, sandbox_policy)?;
     Ok((
         decision.workspace_sandbox_backend_enforced(),
         decision.sandbox_backend(),
@@ -1046,13 +1035,12 @@ fn app_server_tool_names_match(left: &str, right: &str) -> bool {
 }
 
 fn validate_shell_execution_process_command(
-    tool_name: &str,
-    command_text: &str,
+    command: &[String],
     working_directory: &Path,
     approval_policy: Option<&str>,
     sandbox_policy: Option<&str>,
 ) -> Result<(), String> {
-    match check_shell_command_permission(tool_name, command_text, working_directory) {
+    match check_shell_command_permission(command, working_directory) {
         ShellPermissionDecision::Allow => Ok(()),
         ShellPermissionDecision::Deny(reason) => Err(reason),
         ShellPermissionDecision::RequiresConfirmation(_)

@@ -15,7 +15,7 @@ import { buildModelToolCallPolicy } from "@/lib/model/modelToolCallPolicy";
 import { buildModelTruncationPolicy } from "@/lib/model/modelTruncationPolicy";
 import type { ActionRequired, Message } from "../types";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import { executeAgentStreamSubmit } from "./agentStreamSubmitExecution";
 import { MODEL_SELECTION_REQUIRED_ERROR_MESSAGE } from "../utils/agentRuntimeErrorPresentation";
 

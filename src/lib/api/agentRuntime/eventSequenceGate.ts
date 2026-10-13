@@ -21,10 +21,13 @@ type GateResult =
   | { kind: "blocked"; codes: string[] };
 
 const gates = new Map<string, AgentRuntimeEventPipeline>();
-const directItemStates = new Map<
-  string,
-  Map<string, { completed: boolean; type: string }>
->();
+interface DirectItemState {
+  completed: boolean;
+  type: string;
+  turnId: string;
+  sessionOwned: boolean;
+}
+const directItemStates = new Map<string, Map<string, DirectItemState>>();
 const DIRECT_ITEM_STREAM_GUARDS = new Map<
   string,
   { codePrefix: string; expectedItemType: string }
@@ -52,6 +55,45 @@ const DIRECT_ITEM_STREAM_GUARDS = new Map<
 type SequenceGateNotification = Parameters<
   AgentRuntimeEventPipeline["processSync"]
 >[0];
+
+export type CommandSequenceSnapshot = Parameters<
+  AgentRuntimeEventPipeline["restoreCommands"]
+>[0];
+
+export function restoreAgentRuntimeCommandSequenceGate(
+  eventName: string,
+  thread: CommandSequenceSnapshot,
+): void {
+  const gate = gateFor("shared", eventName, thread.id, "fail-closed");
+  if (gate.restoreCommands(thread).length) throw gate.sequenceViolationError();
+  const states = directItemStateFor(
+    "shared",
+    eventName,
+    thread.id,
+    "fail-closed",
+  );
+  for (const turn of thread.turns ?? []) {
+    for (const entity of turn.items ?? []) {
+      const item = normalizeRecord(entity);
+      if (
+        item?.type !== "commandExecution" ||
+        item.source !== "unifiedExecStartup" ||
+        !readString(item, "processId")
+      )
+        continue;
+      const id = readString(item, "id");
+      if (!id) continue;
+      const key = `${turn.id}\u0000${id}`;
+      const current = states.get(key);
+      states.set(key, {
+        completed: current?.completed === true || item.status !== "inProgress",
+        type: "commandExecution",
+        turnId: turn.id,
+        sessionOwned: true,
+      });
+    }
+  }
+}
 
 export function resetAgentRuntimeEventSequenceGatesForTests(): void {
   gates.clear();
@@ -145,6 +187,7 @@ function processNotification(
           eventName,
           notification,
           directRoute.threadId,
+          directRoute.turnId,
           directRoute.itemId,
           guard,
           mode,
@@ -217,7 +260,14 @@ function processDirectLifecycleNotification(
         notification,
       );
     } else if (notification.method === "turn/completed") {
-      directItemStates.delete(gateKey(gateScope, eventName, threadId, mode));
+      const params = normalizeRecord(notification.params);
+      const turn = normalizeRecord(params?.turn);
+      const turnId = turn ? readString(turn, "id") : undefined;
+      const states = directItemStateFor(gateScope, eventName, threadId, mode);
+      for (const [id, state] of states) {
+        if (state.turnId === turnId && (!state.sessionOwned || state.completed))
+          states.delete(id);
+      }
     }
     return {
       kind: "accepted",
@@ -238,6 +288,7 @@ function processDirectItemStreamingNotification(
   eventName: string,
   notification: AppServerJsonRpcNotification,
   threadId: string,
+  turnId: string | undefined,
   itemId: string | undefined,
   guard: { codePrefix: string; expectedItemType: string },
   mode: AgentRuntimeSequenceVerifierMode,
@@ -250,7 +301,7 @@ function processDirectItemStreamingNotification(
     };
   }
   const state = directItemStateFor(gateScope, eventName, threadId, mode).get(
-    itemId,
+    `${turnId}\u0000${itemId}`,
   );
   if (!state) {
     return {
@@ -264,6 +315,9 @@ function processDirectItemStreamingNotification(
       codes: [`${guard.codePrefix}_item_type_mismatch`],
     };
   }
+  if (state.turnId !== turnId) {
+    return { kind: "blocked", codes: [`${guard.codePrefix}_turn_mismatch`] };
+  }
   if (state.completed) {
     return {
       kind: "blocked",
@@ -274,7 +328,7 @@ function processDirectItemStreamingNotification(
 }
 
 function observeDirectItemLifecycle(
-  states: Map<string, { completed: boolean; type: string }>,
+  states: Map<string, DirectItemState>,
   notification: AppServerJsonRpcNotification,
 ): void {
   if (
@@ -287,12 +341,19 @@ function observeDirectItemLifecycle(
   const item = normalizeRecord(params?.item);
   const itemId = item ? readString(item, "id") : undefined;
   const itemType = item ? readString(item, "type") : undefined;
-  if (!itemId || !itemType) {
+  const turnId = params ? readString(params, "turnId") : undefined;
+  if (!itemId || !itemType || !turnId) {
     return;
   }
-  states.set(itemId, {
+  states.set(`${turnId}\u0000${itemId}`, {
     completed: notification.method === "item/completed",
     type: itemType,
+    turnId,
+    sessionOwned:
+      itemType === "commandExecution" &&
+      item?.source === "unifiedExecStartup" &&
+      Boolean(readString(item, "processId")) &&
+      item.status === "inProgress",
   });
 }
 
@@ -301,7 +362,7 @@ function directItemStateFor(
   eventName: string,
   sessionId: string,
   mode: AgentRuntimeSequenceVerifierMode,
-): Map<string, { completed: boolean; type: string }> {
+): Map<string, DirectItemState> {
   const key = gateKey(gateScope, eventName, sessionId, mode);
   let states = directItemStates.get(key);
   if (!states) {

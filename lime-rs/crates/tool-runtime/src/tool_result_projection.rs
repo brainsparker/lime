@@ -8,6 +8,7 @@ use std::collections::HashMap;
 pub const TOOL_HANDLER_EXECUTED_METADATA_KEY: &str = "handler_executed";
 pub const TOOL_OUTCOME_METADATA_KEY: &str = "tool_outcome";
 pub const TOOL_OUTCOME_ABORTED: &str = "aborted";
+pub const TOOL_OUTCOME_REJECTED: &str = "rejected";
 
 /// Canonical terminal output emitted for every tool execution outcome.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -63,6 +64,15 @@ impl NormalizedToolOutput {
                     TOOL_HANDLER_EXECUTED_METADATA_KEY.to_string(),
                     Value::Bool(error.handler_executed()),
                 )]);
+                if error.kind()
+                    == crate::tool_executor::RuntimeToolExecutionFailureKind::PermissionDenied
+                    && !error.handler_executed()
+                {
+                    metadata.insert(
+                        TOOL_OUTCOME_METADATA_KEY.to_string(),
+                        Value::String(TOOL_OUTCOME_REJECTED.to_string()),
+                    );
+                }
                 if let Some(reason_code) = error.reason_code() {
                     metadata.insert(
                         "reasonCode".to_string(),
@@ -220,6 +230,10 @@ pub fn runtime_tool_result_surface_updated(result: &CallToolResult) -> bool {
         .and_then(Value::as_bool)
         .unwrap_or(false)
 }
+
+#[cfg(test)]
+#[path = "tool_result_projection/outcome_tests.rs"]
+mod outcome_tests;
 
 #[cfg(test)]
 mod tests {

@@ -1,5 +1,6 @@
 import { act } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { readCanonicalThreadDetail } from "@/lib/api/agentRuntime/appServerCanonicalThreadProjection";
 import {
   cleanupRuntimeSyncEffectsTestHarness,
   createThreadTurn,
@@ -14,6 +15,151 @@ describe("useAgentRuntimeSyncEffects terminal read model", () => {
 
   afterEach(() => {
     cleanupRuntimeSyncEffectsTestHarness();
+  });
+
+  it("真实 thread/read detail 冷恢复后台命令后持续刷新并在实际终态停止", async () => {
+    const detailFor = (status: "inProgress" | "completed") =>
+      readCanonicalThreadDetail({
+        thread: {
+          id: "thread-1",
+          sessionId: "session-1",
+          createdAt: 1780704000,
+          updatedAt: 1780704002,
+          status: { type: "idle" },
+          turns: [
+            {
+              id: "turn-1",
+              status: "completed",
+              items: [
+                {
+                  id: "item-background",
+                  type: "commandExecution",
+                  command: "printf ready; read answer",
+                  cwd: "/tmp/workspace",
+                  status,
+                  source: "unifiedExecStartup",
+                  processId: "process-background",
+                  aggregatedOutput:
+                    status === "completed" ? "ready\ntail" : "ready",
+                  ...(status === "completed" ? { exitCode: 0 } : {}),
+                },
+              ],
+            },
+          ],
+        },
+      });
+    const running = detailFor("inProgress");
+    expect(running).not.toBeNull();
+    const refreshSessionDetail = vi.fn(async () => true);
+    const settleActiveRuntimeStream = vi.fn();
+    const harness = await mountHook({
+      threadRead: running!.thread_read,
+      threadReadStatus: "idle",
+      threadTurns: running!.turns,
+      refreshSessionDetail,
+      settleActiveRuntimeStream,
+    });
+
+    try {
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+        await Promise.resolve();
+      });
+      expect(refreshSessionDetail).toHaveBeenCalledExactlyOnceWith(
+        "session-1",
+        {
+          source: "runtimeSync.recoveredPoll",
+          detailMergeMode: "runtime_sync",
+        },
+      );
+      expect(running!.thread_read?.thread_items).toEqual(running!.items);
+      expect(running!.thread_read?.thread_items?.[0]).toMatchObject({
+        id: "item-background",
+        thread_id: "thread-1",
+        turn_id: "turn-1",
+        status: "in_progress",
+        process_id: "process-background",
+      });
+      expect(settleActiveRuntimeStream).not.toHaveBeenCalled();
+
+      const completed = detailFor("completed");
+      await harness.render({
+        threadRead: completed!.thread_read,
+        threadTurns: completed!.turns,
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+        await Promise.resolve();
+      });
+      expect(refreshSessionDetail).toHaveBeenCalledTimes(1);
+      expect(completed!.thread_read?.thread_items?.[0]).toMatchObject({
+        id: "item-background",
+        status: "completed",
+        process_id: "process-background",
+        aggregated_output: "ready\ntail",
+        exit_code: 0,
+      });
+      expect(settleActiveRuntimeStream).not.toHaveBeenCalled();
+    } finally {
+      harness.unmount();
+    }
+  });
+
+  it("冷恢复终态回合中的后台命令仍刷新，实际命令完成后停止", async () => {
+    const refreshSessionDetail = vi.fn(async () => true);
+    const settleActiveRuntimeStream = vi.fn();
+    const command = {
+      id: "item-background",
+      type: "command_execution",
+      thread_id: "thread-1",
+      turn_id: "turn-1",
+      status: "in_progress",
+      source: "unifiedExecStartup",
+      process_id: "process-background",
+    };
+    const threadRead = {
+      thread_id: "thread-1",
+      status: "completed",
+      turns: [{ turn_id: "turn-1", status: "completed" }],
+      thread_items: [command],
+    };
+    const harness = await mountHook({
+      threadRead,
+      threadReadStatus: "completed",
+      threadTurns: [createThreadTurn()],
+      refreshSessionDetail,
+      settleActiveRuntimeStream,
+    });
+
+    try {
+      await act(async () => {
+        vi.advanceTimersByTime(1500);
+        await Promise.resolve();
+      });
+      expect(refreshSessionDetail).toHaveBeenCalledExactlyOnceWith(
+        "session-1",
+        {
+          source: "runtimeSync.recoveredPoll",
+          detailMergeMode: "runtime_sync",
+        },
+      );
+      expect(settleActiveRuntimeStream).not.toHaveBeenCalled();
+
+      await harness.render({
+        threadRead: {
+          ...threadRead,
+          thread_items: [{ ...command, status: "completed" }],
+        },
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(3000);
+        await Promise.resolve();
+      });
+      expect(refreshSessionDetail).toHaveBeenCalledTimes(1);
+      expect(settleActiveRuntimeStream).not.toHaveBeenCalled();
+    } finally {
+      harness.unmount();
+    }
   });
 
   it("旧终态 timeline 不应误收起当前本地 running turn", async () => {

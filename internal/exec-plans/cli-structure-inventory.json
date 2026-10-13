@@ -2,12 +2,12 @@
   "schemaVersion": 1,
   "source": {
     "codexRoot": "/Users/coso/Documents/dev/rust/codex",
-    "codexRsCliCommit": "4aaee872e31abefe0d32e91faab23b09b6968824"
+    "codexRsCliCommit": "a9b0815167c27ab13719dd12d13b63e02b70d221"
   },
   "trees": {
     "codex-rs/cli": {
       "root": "/Users/coso/Documents/dev/rust/codex/codex-rs/cli",
-      "fileCount": 128,
+      "fileCount": 129,
       "files": [
         "BUILD.bazel",
         "Cargo.toml",
@@ -84,6 +84,7 @@
         "src/mcp_login_tests.rs",
         "src/migrate_rollouts.rs",
         "src/plugin_cmd.rs",
+        "src/plugin_cmd_tests.rs",
         "src/queue_cmd.rs",
         "src/remote_control_cmd.rs",
         "src/sandbox_setup.rs",
@@ -138,7 +139,7 @@
         "tests/update.rs",
         "tests/worktree.rs"
       ],
-      "symbolCount": 1032,
+      "symbolCount": 1052,
       "symbols": [
         {
           "path": "build.rs",
@@ -3527,6 +3528,51 @@
         },
         {
           "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_loader_allows_listed_https_destination_to_connect",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_loader_denies_unlisted_destination_before_connect",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_loader_rejects_malformed_managed_policy",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_mcp_add_denies_initial_oauth_discovery_before_connect",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_mcp_add_discovers_when_policy_is_disabled",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "application_network_mcp_login_denies_even_an_allowed_mcp_server",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "config_with_application_network",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "http_add_args",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
+          "name": "isolated_test_home",
+          "kind": "function"
+        },
+        {
+          "path": "src/mcp_cmd_tests.rs",
           "name": "oauth_client_secret_is_redacted_in_parsed_command_debug",
           "kind": "function"
         },
@@ -3772,6 +3818,11 @@
         },
         {
           "path": "src/plugin_cmd.rs",
+          "name": "render_plugin_list",
+          "kind": "function"
+        },
+        {
+          "path": "src/plugin_cmd.rs",
           "name": "resolve_remote_plugin",
           "kind": "function"
         },
@@ -3788,6 +3839,31 @@
         {
           "path": "src/plugin_cmd.rs",
           "name": "run_plugin_remove",
+          "kind": "function"
+        },
+        {
+          "path": "src/plugin_cmd.rs",
+          "name": "write_plugin_list",
+          "kind": "function"
+        },
+        {
+          "path": "src/plugin_cmd_tests.rs",
+          "name": "FailingWriter",
+          "kind": "type"
+        },
+        {
+          "path": "src/plugin_cmd_tests.rs",
+          "name": "Failure",
+          "kind": "type"
+        },
+        {
+          "path": "src/plugin_cmd_tests.rs",
+          "name": "plugin_list_preserves_other_output_errors",
+          "kind": "function"
+        },
+        {
+          "path": "src/plugin_cmd_tests.rs",
+          "name": "plugin_list_treats_broken_pipe_as_success",
           "kind": "function"
         },
         {
@@ -4192,6 +4268,11 @@
         },
         {
           "path": "tests/daemon_startup.rs",
+          "name": "agents_can_offer_restart_for_managed_daemon",
+          "kind": "function"
+        },
+        {
+          "path": "tests/daemon_startup.rs",
           "name": "auto_daemon_start_attaches_to_shared_server",
           "kind": "function"
         },
@@ -4218,6 +4299,11 @@
         {
           "path": "tests/daemon_startup.rs",
           "name": "daemon_startup",
+          "kind": "function"
+        },
+        {
+          "path": "tests/daemon_startup.rs",
+          "name": "discovered_managed_daemon_can_restart_with_auto_start_disabled",
           "kind": "function"
         },
         {
@@ -4257,7 +4343,7 @@
         },
         {
           "path": "tests/daemon_telemetry.rs",
-          "name": "foreground_update_respects_consent_and_reports_unconfirmed",
+          "name": "foreground_update_honors_metrics_exporter_and_reports_unconfirmed",
           "kind": "function"
         },
         {
@@ -4882,6 +4968,11 @@
         },
         {
           "path": "tests/plugin_cli.rs",
+          "name": "assert_plugin_list_succeeds_when_stdout_closes_early",
+          "kind": "function"
+        },
+        {
+          "path": "tests/plugin_cli.rs",
           "name": "codex_command",
           "kind": "function"
         },
@@ -5032,12 +5123,22 @@
         },
         {
           "path": "tests/plugin_cli.rs",
+          "name": "plugin_list_json_succeeds_when_stdout_closes_early",
+          "kind": "function"
+        },
+        {
+          "path": "tests/plugin_cli.rs",
           "name": "plugin_list_prints_plugins_in_a_table",
           "kind": "function"
         },
         {
           "path": "tests/plugin_cli.rs",
           "name": "plugin_list_shows_installed_version_when_plugin_is_installed",
+          "kind": "function"
+        },
+        {
+          "path": "tests/plugin_cli.rs",
+          "name": "plugin_list_succeeds_when_stdout_closes_early",
           "kind": "function"
         },
         {
@@ -5301,7 +5402,7 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "e03aec71281897f17f88be09ef21945ff5dff07cda7f8a9c65e70d224495a3fe"
+      "treeSha256": "8912aed51b33f3587b996d74120f86a870238e975659dcbb90485d5258bc4b66"
     },
     "codex-rs/exec": {
       "root": "/Users/coso/Documents/dev/rust/codex/codex-rs/exec",
@@ -5347,7 +5448,7 @@
         "tests/suite/server_error_exit.rs",
         "tests/suite/worktree.rs"
       ],
-      "symbolCount": 312,
+      "symbolCount": 313,
       "symbols": [
         {
           "path": "src/cli.rs",
@@ -6426,6 +6527,11 @@
         },
         {
           "path": "tests/suite/apply_patch.rs",
+          "name": "nested_apply_patch_alias_works_with_restricted_reads",
+          "kind": "function"
+        },
+        {
+          "path": "tests/suite/apply_patch.rs",
           "name": "shutdown_flushes_completed_turn_and_file_diff",
           "kind": "function"
         },
@@ -6910,7 +7016,7 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "3eb92ba7aa9b05970a920943dafb65abc5defd8beb0ee0b380212e9f9f000b41"
+      "treeSha256": "c28af6da0bbd8a1d95c4683764e9d28ed24dbf359fdfb6888b561637dedc3b9f"
     },
     "codex-rs/execpolicy": {
       "root": "/Users/coso/Documents/dev/rust/codex/codex-rs/execpolicy",
@@ -7587,7 +7693,7 @@
         "src/wsl_paths.rs",
         "tests/execpolicy.rs"
       ],
-      "symbolCount": 318,
+      "symbolCount": 319,
       "symbols": [
         {
           "path": "src/debug_sandbox.rs",
@@ -7678,6 +7784,11 @@
           "path": "src/exec.rs",
           "name": "InitialOperation",
           "kind": "type"
+        },
+        {
+          "path": "src/exec.rs",
+          "name": "request_shutdown",
+          "kind": "function"
         },
         {
           "path": "src/exec.rs",
@@ -9180,7 +9291,7 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "3f79c68beabc9e39c6560b93752511843ceb2d90e0c0814ef23326da4139f2da"
+      "treeSha256": "7aaa333b2a35fb09137088e54159ccf81ae0235eb3b74a04a6bcb7da5f0a3be6"
     },
     "lime-rs/crates/cli/src/exec": {
       "root": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/lime-rs/crates/cli/src/exec",
@@ -10658,7 +10769,7 @@
           "kind": "symbol"
         }
       ],
-      "treeSha256": "ac43237e3a94cc1967a76d7b0ef09c33b6c33a68b2231c1fbc6615c15e6201f4"
+      "treeSha256": "2d2fac930822aeb53763e66afa5471619a988b39da7571b2afa4e5aa1e0926a3"
     }
   },
   "comparisons": {
@@ -10731,6 +10842,7 @@
       "src/mcp_login.rs",
       "src/mcp_login_tests.rs",
       "src/migrate_rollouts.rs",
+      "src/plugin_cmd_tests.rs",
       "src/remote_control_cmd.rs",
       "src/sandbox_uninstall.rs",
       "src/snapshots/codex__doctor__tests__doctor_dumb_non_interactive_human.snap",
@@ -10949,6 +11061,7 @@
       "mcp_tool_call_result_preserves_meta_in_jsonl_event",
       "model_reroute_surfaces_as_error_item",
       "mount_exec_responses",
+      "nested_apply_patch_alias_works_with_restricted_reads",
       "parse_latest_turn_context_cwd",
       "parses_config_isolation_flags",
       "permission_profile",
@@ -11221,6 +11334,8 @@
       "ExecServerCommand",
       "ExecServerRemoteTransport",
       "ExecServerSubcommand",
+      "FailingWriter",
+      "Failure",
       "FeatureToggles",
       "Fixture",
       "ForegroundStartupResult",
@@ -11335,6 +11450,7 @@
       "add_streamable_http_without_manual_token",
       "add_with_env_preserves_key_order_and_values",
       "agents_accept_interactive_configuration_overrides",
+      "agents_can_offer_restart_for_managed_daemon",
       "agents_reject_inputs_that_cannot_be_applied",
       "amber",
       "an_unavailable_reader_is_not_reported_as_clean",
@@ -11344,12 +11460,19 @@
       "app_server_subcommand_name",
       "app_server_summary",
       "append_desktop_update",
+      "application_network_loader_allows_listed_https_destination_to_connect",
+      "application_network_loader_denies_unlisted_destination_before_connect",
+      "application_network_loader_rejects_malformed_managed_policy",
+      "application_network_mcp_add_denies_initial_oauth_discovery_before_connect",
+      "application_network_mcp_add_discovers_when_policy_is_disabled",
+      "application_network_mcp_login_denies_even_an_allowed_mcp_server",
       "application_running",
       "archived_from_rollout_path",
       "assert_configured_marketplace_snapshot_failure",
       "assert_marketplace_failure",
       "assert_metric_point",
       "assert_no_browser_exchanges_pasted_callback_and_saves_credentials",
+      "assert_plugin_list_succeeds_when_stdout_closes_early",
       "attach_issue_metadata",
       "attributes_home_relative_subtree_paths_to_their_config_layer",
       "attributes_paths_inherited_through_managed_profiles_to_their_config_layer",
@@ -11403,6 +11526,7 @@
       "config_overrides_from_interactive",
       "config_toml_details",
       "config_uses_permission_profiles",
+      "config_with_application_network",
       "configure_http_oauth_server",
       "configured_local_marketplace",
       "configured_marketplace_snapshot_issues",
@@ -11455,6 +11579,7 @@
       "dim",
       "disable_feature_in_config",
       "discover_desktop_logs",
+      "discovered_managed_daemon_can_restart_with_auto_start_disabled",
       "disk_capacity_is_reported_without_loaded_configuration",
       "disk_capacity_thresholds_produce_complete_diagnostics",
       "disk_measurement_errors_produce_complete_warning_diagnostics",
@@ -11538,7 +11663,7 @@
       "fixture",
       "foreground_app_server_exited_before_ready",
       "foreground_stop_signal",
-      "foreground_update_respects_consent_and_reports_unconfirmed",
+      "foreground_update_honors_metrics_exporter_and_reports_unconfirmed",
       "format_bytes",
       "format_capacity",
       "format_count",
@@ -11566,6 +11691,7 @@
       "highlight_actions",
       "highlight_plain_text",
       "home_shortened_path",
+      "http_add_args",
       "http_get_json",
       "http_get_probe_status_with_timeout",
       "http_get_probe_url_with_timeout",
@@ -11612,6 +11738,7 @@
       "is_safe_presence_value",
       "is_supported_exec_server_remote_auth",
       "is_truncated",
+      "isolated_test_home",
       "issue_expected_for_label",
       "issue_remedies",
       "issue_summary",
@@ -11768,8 +11895,12 @@
       "plugin_list_json_includes_configured_git_marketplace_source",
       "plugin_list_json_prints_available_plugins_when_requested",
       "plugin_list_json_prints_installed_plugins",
+      "plugin_list_json_succeeds_when_stdout_closes_early",
+      "plugin_list_preserves_other_output_errors",
       "plugin_list_prints_plugins_in_a_table",
       "plugin_list_shows_installed_version_when_plugin_is_installed",
+      "plugin_list_succeeds_when_stdout_closes_early",
+      "plugin_list_treats_broken_pipe_as_success",
       "plugin_remove_json_prints_remove_outcome",
       "plugin_remove_works_after_marketplace_is_removed",
       "prepend_config_flags",
@@ -11887,6 +12018,7 @@
       "remote_start_rejects_writable_root_overrides_before_connecting",
       "remove_installed_plugin_config",
       "render_human_report",
+      "render_plugin_list",
       "reports_malformed_setup_failure_reports",
       "reports_missing_linux_sandbox_helper",
       "reports_refresh_failure_after_setup_completed",
@@ -12080,6 +12212,7 @@
       "write_marketplace_source_with_explicit_empty_products",
       "write_marketplace_source_with_manifest",
       "write_note_row",
+      "write_plugin_list",
       "write_plugins_enabled_config",
       "yes_no"
     ],
@@ -12242,6 +12375,7 @@
       "reply",
       "report_json_result",
       "request",
+      "request_shutdown",
       "request_thread_value",
       "request_value",
       "resolve_app_server_bin",

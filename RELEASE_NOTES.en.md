@@ -1,37 +1,39 @@
-## Lime v1.155.0
+## Lime v1.156.0
 
 Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
 
 ### Features
 
-- Add semantic TUI copying for answers, code blocks, and displayed source blocks, a status copy picker, Markdown/HTML formats, and narrow-screen key hints.
-- Let history reading and copy mode absorb paginated content while preserving reading position, mouse selection, and group snapshots, with navigation back to the latest content.
-- Project read, search, and directory-list actions for commands through the shared App Server, consistently across live notifications, resume, and pagination.
+- Keep background commands streaming and completing after the model turn ends, with running output, terminal interactions, and final status in GUI and TUI; resumed conversations continue receiving notifications for the original command.
+- Search conversation content from the sidebar, merge it with title matches, and load additional results; retain title matches with a clear message if content search is unavailable.
+- Enable or disable skills through the shared protocol and access Skills from Settings.
+- Show conversation patches and workspace Git changes in the Files panel, with refresh and file-opening actions.
 
 ### Fixes
 
-- Preserve continuous ASCII/IME input, Tab after short IME prefixes, and disconnected drafts; process input bursts before drawing to reduce scheduling-induced text splits.
-- Correct layout and first-key handling after terminal resizing and external editor handoff; reflow automatically when tmux omits size notifications.
-- Keep asynchronous copy, image paste, and completion feedback tied to their original context so late results cannot affect a new thread, selection, or draft; a shared worker retains native clipboard ownership.
-- Preserve actual command argv, working directory, and process identity across polling and stdin continuation, with exactly one start/completion for preparation failures, silent commands, and trailing output.
-- Preserve complete terminal interaction snapshots across completion, live/read/page projection, and cold recovery after process restart.
+- Preserve background command output and completion across Renderer reload, conversation resume, and continuation from another turn, retaining command identity and the input draft.
+- Correct CLI interruption and shutdown by cancelling the original turn and draining command output before releasing subscriptions and the App Server connection, preserving the interrupt exit code and durable terminal state.
+- Avoid false dangerous-command matches in Bash/POSIX and PowerShell strings, comments, and file names; inspect literal invocations and paths for the actual shell, and route dynamic syntax through the existing approval flow.
+- Clean terminal control sequences from command text and make running command output visible.
 
 ### Improvements and Refactoring
 
-- Consolidate terminal geometry, input timing, draw gating, clipboard scheduling, and history snapshot owners by replacing duplicate paths.
-- Consolidate command parsing, execution sessions, and canonical projection, and split large modules while retaining the shared GUI/CLI/TUI App Server and RuntimeCore.
+- Consolidate background execution, cancellation, output draining, and Command lifecycle across live notifications, reads, pagination, and cold recovery using one canonical projection.
+- Split large execution, recovery, projection, and event persistence modules while retaining the shared GUI/CLI/TUI App Server, RuntimeCore, permission, and tool owners.
+- Consolidate native shell tool configuration around shared unified execution and remove duplicate tool surfaces and unused helpers.
 
 ### Tests and Quality
 
-- Extend actual command execution, CLI stdio, TUI PTY, history pagination, clipboard, and tmux resize regressions for canonical identities, exactly-once completion, and terminal restoration.
-- Validate a fixed release candidate with isolated build artifacts, and record platform evidence by its actual scope; macOS results do not substitute for Windows/Linux native clipboard or live-provider checks.
+- Add unit, protocol, and real stdio/PTY/Electron regressions for background output, resumed notification consumption, cross-turn stdin, cancellation, and transport shutdown.
+- Extend shell literal parsing, conversation search, skill toggles, and five-language UI coverage, and improve local test resumption and generated-artifact exclusions.
+- Validate fixed release source and build identities, recording evidence for the platforms and interaction paths actually exercised.
 
 ### Documentation
 
-- Update architecture, command boundaries, TUI inventories, and execution plans with current owners, removed paths, and remaining acceptance scope.
+- Update architecture, command boundaries, quality workflows, TUI/CLI inventories, and global alignment execution plans.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.155.0`.
+- Align the desktop app, CLI npm package, and Rust workspace at `1.156.0`.
 
-**Full Changelog**: `v1.154.0` -> `v1.155.0`
+**Full Changelog**: `v1.155.0` -> `v1.156.0`

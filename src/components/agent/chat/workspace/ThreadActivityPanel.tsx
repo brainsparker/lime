@@ -1,10 +1,15 @@
-import { Activity, Bot, PlugZap, Sparkles } from "lucide-react";
+import { Activity, Bot, CircleAlert, FileDiff, FoldVertical, PlugZap, ShieldAlert, Sparkles, TriangleAlert } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { AgentThreadItem } from "@/lib/api/agentProtocol";
+import type {
+  AgentThreadHookItem,
+  AgentThreadHookPromptItem,
+  AgentThreadItem,
+} from "@/lib/api/agentProtocol";
 import type { AgentRuntimeToolInventory } from "@/lib/api/agentRuntime/toolInventoryTypes";
+import { resolveTimelineContextCompactionParts } from "../components/timeline-utils/timelineCopy";
 import {
   summarizeCanonicalChildThreads,
   type CanonicalChildThreadSummary,
@@ -35,6 +40,61 @@ export function ThreadActivityPanel({
   const subagentItems = threadItems.filter(
     (item) => item.type === "subagent_activity",
   );
+  const changeItems = threadItems.flatMap((item) => {
+    if (item.type === "command_execution") {
+      const label = item.command.trim();
+      return label ? [{ id: item.id, label }] : [];
+    }
+    if (item.type === "patch") {
+      const label = item.paths?.[0]?.trim() || item.summary?.[0]?.trim() || "";
+      return label ? [{ id: item.id, label }] : [];
+    }
+    return [];
+  });
+  const warningItems = threadItems.flatMap((item) => {
+    if (item.type !== "warning") {
+      return [];
+    }
+    const message = item.message.trim();
+    return message
+      ? [{ id: item.id, message, code: item.code?.trim() || "" }]
+      : [];
+  });
+  const errorItems = threadItems.flatMap((item) => {
+    if (item.type !== "error") {
+      return [];
+    }
+    const message = item.message.trim();
+    return message ? [{ id: item.id, message }] : [];
+  });
+  const hookItems = threadItems.flatMap((item) => {
+    if (item.type === "hook") {
+      return [hookActivityFact(item, t)];
+    }
+    if (item.type === "hook_prompt") {
+      const fact = hookPromptActivityFact(item, t);
+      return fact ? [fact] : [];
+    }
+    return [];
+  });
+  const compactionItems = threadItems.flatMap((item) => {
+    if (item.type !== "context_compaction") {
+      return [];
+    }
+    const stage = item.stage.trim();
+    const trigger = item.trigger?.trim() || "";
+    const detail = item.detail?.trim() || "";
+    if (!stage && !trigger && !detail) {
+      return [];
+    }
+    const parts = resolveTimelineContextCompactionParts({
+      ...item,
+      stage,
+      trigger: trigger || undefined,
+      detail: detail || undefined,
+    });
+    return [{ id: item.id, ...parts }];
+  });
   const mcpServers = compactList(toolInventory?.mcp_servers ?? []);
   const mcpToolCount = toolInventory?.counts.mcp_tool_visible_total ?? 0;
   const skillTools = compactList(
@@ -43,6 +103,11 @@ export function ThreadActivityPanel({
       .map((tool) => tool.name),
   );
   const hasAnyActivity =
+    changeItems.length > 0 ||
+    warningItems.length > 0 ||
+    errorItems.length > 0 ||
+    hookItems.length > 0 ||
+    compactionItems.length > 0 ||
     canonicalChildren.length > 0 ||
     subagentItems.length > 0 ||
     mcpServers.length > 0 ||
@@ -77,6 +142,117 @@ export function ThreadActivityPanel({
         </div>
       ) : (
         <div className="space-y-4 pt-4">
+          {changeItems.length > 0 ? (
+            <ActivitySection
+              icon={<FileDiff className="h-4 w-4" aria-hidden="true" />}
+              title={t("agentChat.activityPanel.changes")}
+              count={changeItems.length}
+            >
+              <div className="space-y-2">
+                {changeItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="truncate rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-3 py-2 text-sm text-[color:var(--lime-text-strong)]"
+                    data-testid="thread-activity-change"
+                  >
+                    {item.label}
+                  </div>
+                ))}
+              </div>
+            </ActivitySection>
+          ) : null}
+          {warningItems.length > 0 ? (
+            <ActivitySection
+              icon={<TriangleAlert className="h-4 w-4" aria-hidden="true" />}
+              title={t("agentChat.activityPanel.warnings")}
+              count={warningItems.length}
+            >
+              <div className="space-y-2">
+                {warningItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-3 py-2 text-sm text-[color:var(--lime-text-strong)]"
+                    data-testid="thread-activity-warning"
+                  >
+                    {item.code ? (
+                      <span className="mr-2 font-mono text-xs text-[color:var(--lime-text-muted)]">
+                        {item.code}
+                      </span>
+                    ) : null}
+                    {item.message}
+                  </div>
+                ))}
+              </div>
+            </ActivitySection>
+          ) : null}
+          {errorItems.length > 0 ? (
+            <ActivitySection
+              icon={<CircleAlert className="h-4 w-4" aria-hidden="true" />}
+              title={t("agentChat.activityPanel.errors")}
+              count={errorItems.length}
+            >
+              <div className="space-y-2">
+                {errorItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-3 py-2 text-sm text-[color:var(--lime-text-strong)]"
+                    data-testid="thread-activity-error"
+                  >
+                    {item.message}
+                  </div>
+                ))}
+              </div>
+            </ActivitySection>
+          ) : null}
+          {hookItems.length > 0 ? (
+            <ActivitySection
+              icon={<ShieldAlert className="h-4 w-4" aria-hidden="true" />}
+              title={t("agentChat.activityPanel.hooks")}
+              count={hookItems.length}
+            >
+              <div className="space-y-2">
+                {hookItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-3 py-2 text-sm text-[color:var(--lime-text-strong)]"
+                    data-testid="thread-activity-hook"
+                  >
+                    <div className="truncate">{item.title}</div>
+                    {item.detail ? (
+                      <p className="mt-1 line-clamp-2 text-xs text-[color:var(--lime-text-muted)]">
+                        {item.detail}
+                      </p>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            </ActivitySection>
+          ) : null}
+          {compactionItems.length > 0 ? (
+            <ActivitySection
+              icon={<FoldVertical className="h-4 w-4" aria-hidden="true" />}
+              title={t("agentChat.activityPanel.compactions")}
+              count={compactionItems.length}
+            >
+              <div className="space-y-2">
+                {compactionItems.map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-3 py-2 text-sm text-[color:var(--lime-text-strong)]"
+                    data-testid="thread-activity-compaction"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="truncate">{item.title}</span>
+                      <Badge variant="outline">{item.triggerLabel}</Badge>
+                    </div>
+                    <p className="mt-1 line-clamp-2 text-xs text-[color:var(--lime-text-muted)]">
+                      {item.detail}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </ActivitySection>
+          ) : null}
           {canonicalChildren.length > 0 || subagentItems.length > 0 ? (
             <ActivitySection
               icon={<Bot className="h-4 w-4" aria-hidden="true" />}
@@ -91,7 +267,7 @@ export function ThreadActivityPanel({
                     data-testid="thread-activity-subagent"
                   >
                     <span className="min-w-0 flex-1 truncate text-sm text-[color:var(--lime-text-strong)]">
-                      {child.name}
+                      {child.taskSummary?.trim() || child.name}
                     </span>
                     <Badge variant={child.status === "errored" ? "destructive" : "secondary"}>
                       {t(`agentChat.activityPanel.status.${child.status}` as never, {
@@ -167,6 +343,53 @@ export function ThreadActivityPanel({
       )}
     </section>
   );
+}
+
+function hookActivityFact(
+  item: AgentThreadHookItem,
+  t: (key: string) => string,
+): {
+  id: string;
+  title: string;
+  detail: string;
+} {
+  const title =
+    item.status === "in_progress"
+      ? t("agentChat.threadTimeline.hook.running")
+      : item.status === "failed"
+        ? t("agentChat.threadTimeline.hook.failed")
+        : t("agentChat.threadTimeline.hook.completed");
+  const detail =
+    item.status_message?.trim() ||
+    item.output?.trim() ||
+    item.entries
+      ?.map((entry) => entry.text.trim())
+      .filter(Boolean)
+      .join("\n") ||
+    "";
+  return { id: item.id, title, detail };
+}
+
+function hookPromptActivityFact(
+  item: AgentThreadHookPromptItem,
+  t: (key: string) => string,
+): {
+  id: string;
+  title: string;
+  detail: string;
+} | null {
+  const detail = item.fragments
+    .map((fragment) => fragment.text.trim())
+    .filter(Boolean)
+    .join("\n");
+  if (!detail) {
+    return null;
+  }
+  return {
+    id: item.id,
+    title: t("agentChat.threadTimeline.hookPrompt.title"),
+    detail,
+  };
 }
 
 function ActivitySection({

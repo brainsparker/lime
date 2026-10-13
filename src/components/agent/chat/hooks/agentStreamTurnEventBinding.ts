@@ -1,20 +1,5 @@
-import type { Dispatch, MutableRefObject, SetStateAction } from "react";
-import {
-  parseAgentEvent,
-  type AgentEvent,
-  type AgentThreadItem,
-  type AgentThreadTurn,
-} from "@/lib/api/agentProtocol";
-import type {
-  AgentExecutionStrategy,
-  AgentSessionExecutionRuntime,
-} from "@/lib/api/agentExecutionRuntime";
-import type {
-  AgentTodoItem,
-  AutoContinueRequestPayload,
-} from "@/lib/api/agentRuntime/sessionTypes";
+import { parseAgentEvent, type AgentEvent } from "@/lib/api/agentProtocol";
 import { logAgentDebug } from "@/lib/agentDebug";
-import type { ActionRequired, Message } from "../types";
 import { handleTurnStreamEvent } from "./agentStreamRuntimeHandler";
 import {
   AGENT_STREAM_FIRST_EVENT_TIMEOUT_MESSAGE,
@@ -36,86 +21,24 @@ import {
   shouldScheduleAgentStreamInactivityWatchdog,
 } from "./agentStreamListenerReadinessController";
 import { startAgentStreamRequest } from "./agentStreamRequestStartController";
-import { buildAgentStreamProviderTraceMetricContext } from "./agentStreamRuntimeMetricsController";
+import {
+  buildAgentEventPerformanceTrace,
+  buildAgentStreamProviderTraceMetricContext,
+} from "./agentStreamRuntimeMetricsController";
 import {
   rememberAgentStreamUnknownEventWarning,
   resolveAgentStreamUnknownEventPlan,
 } from "./agentStreamUnknownEventController";
-import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
-import {
-  recordAgentStreamPerformanceMetric,
-  type AgentUiPerformanceTraceMetadata,
-} from "./agentStreamPerformanceMetrics";
-import type { SoulInteractionCopy } from "@/lib/soul/interactionCopy";
+import { recordAgentStreamPerformanceMetric } from "./agentStreamPerformanceMetrics";
 import { isAgentMessageFinalAnswerPhase } from "../utils/agentMessagePhase";
+import { projectCommandContinuation } from "./commandContinuation";
+import { hasRunningSessionCommand } from "../projection/commandActivity";
+import { upsertThreadItemState } from "./agentThreadState";
 
-type MessageParts = NonNullable<Message["contentParts"]>;
 const STREAM_FIRST_EVENT_TIMEOUT_MS = 12_000;
 const STREAM_INACTIVITY_TIMEOUT_MS = 120_000; // 2 分钟，兼容推理模型长时间思考
 const STREAM_DEFERRED_RECOVERY_POLL_MS = 5_000;
 const STREAM_DEFERRED_RECOVERY_MAX_DURATION_MS = 120_000;
-
-function normalizeEventNumber(value: unknown): number | null {
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function parseEventTimestampMs(timestamp: string | undefined): number | null {
-  if (!timestamp) {
-    return null;
-  }
-  const parsed = Date.parse(timestamp);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function buildAgentEventPerformanceTrace(params: {
-  activeSessionId: string;
-  event: AgentEvent;
-  eventReceivedAt: number;
-  previousTrace?: AgentUiPerformanceTraceMetadata | null;
-  resolvedWorkspaceId: string;
-}): AgentUiPerformanceTraceMetadata | null {
-  const previousTrace = params.previousTrace ?? null;
-  if (!previousTrace && !params.event.trace_id && !params.event.run_id) {
-    return null;
-  }
-
-  return {
-    ...previousTrace,
-    requestId: params.event.request_id ?? previousTrace?.requestId ?? null,
-    runId: params.event.run_id ?? previousTrace?.runId ?? null,
-    sessionId:
-      params.event.session_id ??
-      previousTrace?.sessionId ??
-      params.activeSessionId,
-    traceId: params.event.trace_id ?? previousTrace?.traceId ?? null,
-    turnId: params.event.turn_id ?? previousTrace?.turnId ?? null,
-    workspaceId: previousTrace?.workspaceId ?? params.resolvedWorkspaceId,
-    serverEventEmittedAt:
-      normalizeEventNumber(params.event.server_event_emitted_at) ??
-      parseEventTimestampMs(params.event.timestamp) ??
-      previousTrace?.serverEventEmittedAt ??
-      null,
-    serverEventId:
-      params.event.event_id ?? previousTrace?.serverEventId ?? null,
-    serverEventSequence:
-      normalizeEventNumber(params.event.sequence) ??
-      previousTrace?.serverEventSequence ??
-      null,
-    serverEventType:
-      params.event.type ?? previousTrace?.serverEventType ?? null,
-    rendererEventReceivedAt:
-      normalizeEventNumber(params.event.renderer_event_received_at) ??
-      params.eventReceivedAt,
-    providerWaitMs:
-      params.event.type === "provider_trace" &&
-      params.event.stage === "first_text_delta_received"
-        ? (normalizeEventNumber(params.event.elapsed_ms) ??
-          previousTrace?.providerWaitMs ??
-          null)
-        : (previousTrace?.providerWaitMs ?? null),
-  };
-}
 
 function isFinalAgentMessageSnapshotEvent(event: AgentEvent): boolean {
   return (
@@ -128,77 +51,7 @@ function isFinalAgentMessageSnapshotEvent(event: AgentEvent): boolean {
   );
 }
 
-interface StreamObserver {
-  onTextDelta?: (delta: string, accumulated: string) => void;
-  onComplete?: (content: string) => void;
-  onError?: (message: string) => void;
-}
-
-interface RegisterAgentStreamTurnEventBindingOptions {
-  runtime: AgentRuntimeAdapter;
-  eventName: string;
-  requestState: StreamRequestState;
-  attemptSilentTurnRecovery?: (
-    sessionId: string,
-    requestStartedAt: number,
-    promptText: string,
-    options?: { requireTerminal?: boolean; turnId?: string | null },
-  ) => Promise<boolean>;
-  skipUserMessage: boolean;
-  effectiveProviderType: string;
-  effectiveModel: string;
-  effectiveExecutionStrategy: AgentExecutionStrategy;
-  systemPrompt?: string;
-  content: string;
-  webSearch?: boolean;
-  autoContinue?: AutoContinueRequestPayload;
-  activeSessionId: string;
-  resolvedWorkspaceId: string;
-  assistantMsgId: string;
-  pendingTurnKey: string;
-  pendingItemKey: string;
-  effectiveWaitingRuntimeStatus: NonNullable<Message["runtimeStatus"]>;
-  preserveAssistantContent?: string | null;
-  assistantFallbackContent?: string | null;
-  warnedKeysRef: MutableRefObject<Set<string>>;
-  actionLoggedKeys: Set<string>;
-  toolLogIdByToolId: Map<string, string>;
-  toolStartedAtByToolId: Map<string, number>;
-  toolNameByToolId: Map<string, string>;
-  observer?: StreamObserver;
-  onWriteFile?: (
-    content: string,
-    fileName: string,
-    context?: import("../types").WriteArtifactContext,
-  ) => void;
-  callbacks: {
-    activateStream: (
-      activeSessionId: string,
-      effectiveWaitingRuntimeStatus: NonNullable<Message["runtimeStatus"]>,
-    ) => void;
-    isStreamActivated: () => boolean;
-    clearOptimisticItem: () => void;
-    clearOptimisticTurn: () => void;
-    disposeListener: () => void;
-    clearActiveStreamIfMatch: (eventName: string) => boolean;
-  };
-  appendThinkingToParts: (
-    parts: MessageParts,
-    textDelta: string,
-  ) => MessageParts;
-  setMessages: Dispatch<SetStateAction<Message[]>>;
-  setPendingActions: Dispatch<SetStateAction<ActionRequired[]>>;
-  getThreadItems?: () => readonly AgentThreadItem[];
-  setThreadItems: Dispatch<SetStateAction<AgentThreadItem[]>>;
-  setTodoItems?: Dispatch<SetStateAction<AgentTodoItem[]>>;
-  setThreadTurns: Dispatch<SetStateAction<AgentThreadTurn[]>>;
-  setCurrentTurnId: Dispatch<SetStateAction<string | null>>;
-  setExecutionRuntime: Dispatch<
-    SetStateAction<AgentSessionExecutionRuntime | null>
-  >;
-  setIsSending: Dispatch<SetStateAction<boolean>>;
-  soulCopy?: SoulInteractionCopy;
-}
+import type { RegisterAgentStreamTurnEventBindingOptions } from "./turnEventBindingTypes";
 
 export async function registerAgentStreamTurnEventBinding(
   options: RegisterAgentStreamTurnEventBindingOptions,
@@ -494,16 +347,24 @@ export async function registerAgentStreamTurnEventBinding(
     }
   };
   const disposeListenerWithWatchdogs = () => {
-    disposed = true;
     clearFirstEventWatchdog();
     clearInactivityWatchdog();
     clearDeferredRecoveryPoll();
+    if (
+      hasRunningSessionCommand(
+        requestState.conversationProjectionOwner?.reducer.getProjection()
+          .items ??
+          getThreadItems?.() ??
+          [],
+      )
+    )
+      return;
+    disposed = true;
     callbacks.disposeListener();
   };
   const finalizeSilentTurnRecovery = () => {
     firstEventReceived = true;
-    const activeStreamCleared =
-      callbacks.clearActiveStreamIfMatch(eventName);
+    const activeStreamCleared = callbacks.clearActiveStreamIfMatch(eventName);
     disposeListenerWithWatchdogs();
     if (activeStreamCleared) {
       setIsSending(false);
@@ -680,8 +541,28 @@ export async function registerAgentStreamTurnEventBinding(
   const unlisten = await runtime.listenToTurnEvents(
     eventName,
     (event: { payload: unknown }) => {
+      if (disposed) return;
       const eventReceivedAt = Date.now();
       const data = parseAgentEvent(event.payload);
+      if (data) {
+        const continuation = projectCommandContinuation({
+          event: data,
+          items: getThreadItems?.() ?? [],
+          host: requestState,
+          threadId: activeSessionId,
+          currentTurnId: requestState.currentTurnId,
+          requestFinished: requestState.requestFinished,
+        });
+        if (continuation.handled) {
+          if (continuation.item) {
+            const item = continuation.item;
+            setThreadItems((previous) => upsertThreadItemState(previous, item));
+          }
+          if (requestState.requestFinished) disposeListenerWithWatchdogs();
+          return;
+        }
+      }
+      if (requestState.requestFinished) return;
       const eventType = extractAgentStreamRuntimeEventType(event.payload);
       const schemaVersion = extractAgentStreamRuntimeEventSchemaVersion(
         event.payload,

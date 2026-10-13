@@ -15,7 +15,9 @@ use std::sync::Mutex;
 #[path = "tests/invocation.rs"]
 mod invocation;
 
-#[cfg(target_os = "windows")]
+#[path = "tests/cancellation.rs"]
+mod cancellation;
+
 #[test]
 fn powershell_login_flag_controls_profile_loading() {
     assert_eq!(
@@ -39,6 +41,13 @@ struct FixtureGateway {
     state: Arc<Mutex<HashMap<String, FixtureProcess>>>,
     starts: Arc<Mutex<Vec<LiveExecutionRequest>>>,
     grants: Arc<Mutex<Vec<Option<app_server_protocol::protocol::v2::GrantedPermissionProfile>>>>,
+    exit_barrier: Option<Arc<FixtureExitBarrier>>,
+}
+
+#[derive(Default)]
+struct FixtureExitBarrier {
+    started: tokio::sync::Notify,
+    release: tokio::sync::Notify,
 }
 
 #[derive(Clone)]
@@ -49,6 +58,17 @@ struct FixtureProcess {
 
 #[async_trait]
 impl RuntimeLiveExecutionGateway for FixtureGateway {
+    async fn wait_for_exit(
+        &self,
+        process_id: &str,
+    ) -> Result<ExecutionProcessSnapshot, RuntimeToolExecutionError> {
+        if let Some(barrier) = &self.exit_barrier {
+            barrier.started.notify_one();
+            barrier.release.notified().await;
+        }
+        self.status(process_id)
+    }
+
     async fn start_process(
         &self,
         _thread_id: &str,
@@ -271,6 +291,8 @@ fn request<'a>(
 struct RecordingOutputSink {
     events: Mutex<Vec<ToolOutputDeltaEvent>>,
     command_starts: Mutex<Vec<CommandStartEvent>>,
+    command_results: Mutex<Vec<ToolLifecycleEvent>>,
+    changed: tokio::sync::Notify,
 }
 
 impl RecordingOutputSink {
@@ -282,6 +304,16 @@ impl RecordingOutputSink {
 impl ToolLifecycleEmitter for RecordingOutputSink {
     fn emit<'a>(&'a self, _event: ToolLifecycleEvent) -> ToolLifecycleEmissionFuture<'a> {
         Box::pin(async {})
+    }
+
+    fn emit_command_result<'a>(
+        &'a self,
+        event: ToolLifecycleEvent,
+    ) -> ToolLifecycleEmissionFuture<'a> {
+        Box::pin(async move {
+            self.command_results.lock().unwrap().push(event);
+            self.changed.notify_waiters();
+        })
     }
 
     fn emit_command_start<'a>(

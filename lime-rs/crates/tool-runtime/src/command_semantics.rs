@@ -137,7 +137,7 @@ fn heuristically_extract_powershell_base_command(command: &str) -> String {
             let trimmed = segment.trim();
             (!trimmed.is_empty()).then_some(trimmed)
         })
-        .last()
+        .next_back()
         .unwrap_or(command.trim());
 
     extract_base_command(

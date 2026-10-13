@@ -18,6 +18,7 @@ import {
   APP_SERVER_METHOD_THREAD_UNARCHIVE,
   APP_SERVER_METHOD_ARTIFACT_READ,
   APP_SERVER_METHOD_CAPABILITY_LIST,
+  APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN,
   APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_LIST,
   APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_TERMINATE,
   APP_SERVER_METHOD_FS_READ_DIRECTORY,
@@ -1042,6 +1043,14 @@ describe("App Server API", () => {
             result: { terminated: true },
           }),
         ],
+      })
+      .mockResolvedValueOnce({
+        lines: [
+          line({
+            id: 12,
+            result: {},
+          }),
+        ],
       });
 
     const client = new AppServerClient({ initialRequestId: 10 });
@@ -1067,6 +1076,13 @@ describe("App Server API", () => {
     ).resolves.toEqual(
       expect.objectContaining({
         result: { terminated: true },
+      }),
+    );
+    await expect(
+      client.cleanThreadBackgroundTerminals({ threadId: "thread-1" }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        result: {},
       }),
     );
 
@@ -1099,6 +1115,21 @@ describe("App Server API", () => {
               id: 11,
               method: APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_TERMINATE,
               params: { threadId: "thread-1", processId: "7" },
+            }),
+          ],
+        },
+      },
+    );
+    expect(safeInvoke).toHaveBeenNthCalledWith(
+      3,
+      "app_server_handle_json_lines",
+      {
+        request: {
+          lines: [
+            line({
+              id: 12,
+              method: APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN,
+              params: { threadId: "thread-1" },
             }),
           ],
         },

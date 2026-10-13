@@ -712,6 +712,65 @@ describe("WorkspaceConversationScene", () => {
     ).toBeNull();
   });
 
+  it("标题栏应显示并隐藏同一 Thread 的既有活动摘要", () => {
+    const onToggleRightSurfaceActivity = vi.fn();
+    const container = renderScene({
+      navbarVisible: true,
+      navbarContextVariant: "task-center",
+      threadHeader: {
+        sessionId: "thread-1",
+        title: "当前 Thread",
+        status: "running",
+        workingDirectory: "/workspace/lime",
+      },
+      onToggleRightSurfaceActivity,
+      messageListProps: {
+        messages: [],
+        threadItems: [
+          {
+            id: "cmd-1",
+            type: "command_execution",
+            command: "npm test",
+            cwd: "/workspace/lime",
+          },
+        ],
+        canonicalChildren: [
+          {
+            name: "reviewer",
+            parentThreadId: "thread-1",
+            sessionId: null,
+            status: "running",
+            taskSummary: "检查补丁",
+            threadId: "child-1",
+            updatedAtMs: 1,
+          },
+        ],
+      },
+    });
+
+    expect(
+      container.querySelector('[data-testid="thread-workspace-summary"]'),
+    ).toBeNull();
+    expect(
+      container
+        .querySelector('[data-testid="thread-workspace-summary-toggle"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
+
+    act(() => {
+      (
+        container.querySelector(
+          '[data-testid="thread-workspace-summary-toggle"]',
+        ) as HTMLButtonElement
+      ).click();
+    });
+
+    expect(onToggleRightSurfaceActivity).toHaveBeenCalledTimes(1);
+    expect(
+      container.querySelector('[data-testid="thread-workspace-summary"]'),
+    ).toBeNull();
+  });
+
   it("非任务中心的 active Thread 也应显示稳定页头并保留必要导航动作", () => {
     const onBackHome = vi.fn();
     const onToggleCanvas = vi.fn();

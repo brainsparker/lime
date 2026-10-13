@@ -144,6 +144,22 @@ describe("ToolCallDisplayViewModel", () => {
     ]);
   });
 
+  it("分流终端输出清理展示序列，metadata 与 JSON 原文保持不变", () => {
+    const metadata = {
+      stdout: "\u001b[?1h\u001b=ready",
+      stderr: "\u001b[31mfailed\u001b[0m",
+    };
+    const output = JSON.stringify(metadata);
+    for (const params of [{ output }, { metadata }]) {
+      expect(resolveCommandOutputStreams(params)).toEqual([
+        { key: "stdout", content: "ready", tone: "neutral" },
+        { key: "stderr", content: "failed", tone: "error" },
+      ]);
+    }
+    expect(metadata.stdout).toBe("\u001b[?1h\u001b=ready");
+    expect(JSON.parse(output)).toEqual(metadata);
+  });
+
   it("导入 provenance 不应改变普通命令摘要、输出和分组语义", () => {
     const toolCall = baseToolCall({
       name: "exec_command",

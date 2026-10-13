@@ -65,6 +65,8 @@ internal/exec-plans/*
 !internal/exec-plans/tui-cli-surfaces-plan.md
 !internal/exec-plans/codex-lime-tui-cli-difference-report.md
 !internal/exec-plans/tui-cli-codex-sync-next-plan.md
+!internal/exec-plans/codex-global-alignment-2026-10-12.md
+!internal/exec-plans/shell-permission-alignment-2026-10-12.md
 !internal/exec-plans/cli-codex-test-inventory.json
 !internal/exec-plans/cli-structure-inventory.json
 !internal/exec-plans/tui-structure-inventory.json

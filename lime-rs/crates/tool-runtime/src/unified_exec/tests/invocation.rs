@@ -100,4 +100,66 @@ async fn polls_and_write_stdin_keep_original_invocation_and_publish_one_executio
         .events()
         .iter()
         .all(|event| event.turn_id == "turn-1" && event.call_id == "call-original"));
+    let results = sink.command_results.lock().unwrap();
+    assert!(results
+        .iter()
+        .all(|event| event.turn_id == "turn-1" && event.call_id == "call-original"));
+    let terminal = results
+        .iter()
+        .filter(|event| event.output.as_ref().unwrap().metadata["session_id"].is_null())
+        .collect::<Vec<_>>();
+    assert_eq!(terminal.len(), 1);
+    assert_eq!(
+        terminal[0].output.as_ref().unwrap().metadata["command_output"],
+        json!("started\nfinished\n")
+    );
+}
+
+#[tokio::test]
+async fn background_exit_publishes_original_command_without_another_tool_call() {
+    let params = json!({"cmd": "long-running", "yield_time_ms": 250});
+    let gateway = Arc::new(FixtureGateway::default());
+    let sink = Arc::new(RecordingOutputSink::default());
+    let mut start = request(EXEC_COMMAND_TOOL_NAME, &params, "call-autonomous");
+    start.output_sink = Some(sink.clone());
+    let running = execute_runtime_unified_exec_tool(gateway.clone(), start)
+        .await
+        .unwrap();
+    let process_id = running.metadata["processId"].as_str().unwrap();
+    let session_id = running.structured_content.as_ref().unwrap()["session_id"]
+        .as_i64()
+        .unwrap() as i32;
+    gateway.write_stdin(process_id, b"finish\n").unwrap();
+    tokio::time::timeout(Duration::from_secs(2), async {
+        loop {
+            let changed = sink.changed.notified();
+            tokio::pin!(changed);
+            changed.as_mut().enable();
+            if sink
+                .command_results
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|event| event.output.as_ref().unwrap().metadata["session_id"].is_null())
+            {
+                break;
+            }
+            changed.await;
+        }
+    })
+    .await
+    .expect("watcher must observe the actual process exit");
+    let results = sink.command_results.lock().unwrap();
+    let terminals = results
+        .iter()
+        .filter(|event| event.output.as_ref().unwrap().metadata["session_id"].is_null())
+        .collect::<Vec<_>>();
+    assert_eq!(terminals.len(), 1);
+    assert_eq!(terminals[0].turn_id, "turn-1");
+    assert_eq!(terminals[0].call_id, "call-autonomous");
+    assert_eq!(
+        terminals[0].output.as_ref().unwrap().metadata["command_output"],
+        json!("started\nfinished\n")
+    );
+    assert!(find_session(session_id).is_err());
 }

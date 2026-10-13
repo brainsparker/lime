@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
@@ -43,6 +43,8 @@ interface ThreadWorkspaceHeaderProps {
   onToggleCanvas?: () => void;
   onOpenSettings?: () => void;
   actions?: ReactNode;
+  summaryOpen?: boolean;
+  onToggleSummary?: () => void;
 }
 
 const statusMeta: Record<
@@ -111,6 +113,8 @@ export function ThreadWorkspaceHeader({
   onToggleCanvas,
   onOpenSettings,
   actions,
+  summaryOpen = false,
+  onToggleSummary,
 }: ThreadWorkspaceHeaderProps) {
   const { t } = useTranslation("agent");
   const { t: tNavigation } = useTranslation("navigation");
@@ -126,6 +130,12 @@ export function ThreadWorkspaceHeader({
       )
     : null;
   const StatusIcon = currentStatus?.Icon;
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title);
+  const titleInputRef = useRef<HTMLInputElement>(null);
+  const renamePrompt = String(
+    tNavigation("navigation.sidebar.conversations.rename.prompt"),
+  );
   const hasNavigationActions = Boolean(
     onBackHome ||
     onBackToResources ||
@@ -133,23 +143,47 @@ export function ThreadWorkspaceHeader({
     (showCanvasToggle && onToggleCanvas) ||
     onOpenSettings,
   );
-  const handleRename = () => {
-    if (!onRename || typeof window === "undefined") {
+  useEffect(() => {
+    if (!editingTitle) {
+      setTitleDraft(title);
+    }
+  }, [editingTitle, title]);
+
+  useEffect(() => {
+    if (!editingTitle) {
       return;
     }
-    const nextTitle = window.prompt(
-      String(tNavigation("sidebar.conversations.rename.prompt")),
-      title,
-    );
-    if (nextTitle?.trim()) {
-      void onRename(nextTitle);
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [editingTitle]);
+
+  const startRename = () => {
+    if (!onRename) {
+      return;
     }
+    setTitleDraft(title);
+    setEditingTitle(true);
+  };
+
+  const commitRename = () => {
+    const nextTitle = titleDraft.trim();
+    setEditingTitle(false);
+    if (!onRename || !nextTitle || nextTitle === title) {
+      return;
+    }
+    void onRename(nextTitle);
+  };
+
+  const cancelRename = () => {
+    setTitleDraft(title);
+    setEditingTitle(false);
   };
 
   return (
     <header
-      className="flex h-[52px] min-w-0 items-center gap-3 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-4"
+      className="relative flex h-[46px] min-w-0 items-center gap-2 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-3"
       data-testid="thread-workspace-header"
+      data-header-placement="titlebar"
       data-session-id={sessionId}
       data-status={status ?? undefined}
       data-can-accept-direct-input={
@@ -236,13 +270,45 @@ export function ThreadWorkspaceHeader({
         </div>
       ) : null}
       <div className="flex min-w-0 flex-1 items-center gap-2.5">
-        <h1
-          className="min-w-0 truncate text-[14px] font-semibold leading-5 text-[color:var(--lime-text-strong)]"
-          data-testid="thread-workspace-header-title"
-          title={title}
-        >
-          {title}
-        </h1>
+        {editingTitle ? (
+          <input
+            ref={titleInputRef}
+            className="h-7 min-w-[8ch] max-w-[320px] flex-1 rounded-md border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-2 text-[13px] font-medium text-[color:var(--lime-text-strong)] outline-none"
+            data-testid="thread-workspace-header-title-input"
+            aria-label={renamePrompt}
+            value={titleDraft}
+            onChange={(event) => setTitleDraft(event.target.value)}
+            onBlur={commitRename}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                commitRename();
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                cancelRename();
+              }
+            }}
+          />
+        ) : (
+          <h1
+            className="min-w-0 max-w-[320px] truncate text-[13px] font-medium leading-5 text-[color:var(--lime-text-strong)]"
+            data-testid="thread-workspace-header-title"
+            title={title}
+          >
+            {onRename ? (
+              <button
+                type="button"
+                className="max-w-full truncate rounded-md px-1 text-left hover:bg-[color:var(--lime-chrome-tab-hover)]"
+                onClick={startRename}
+              >
+                {title}
+              </button>
+            ) : (
+              title
+            )}
+          </h1>
+        )}
         {currentStatus && StatusIcon && statusLabel ? (
           <span
             className={cn(
@@ -275,12 +341,24 @@ export function ThreadWorkspaceHeader({
           </span>
         ) : null}
       </div>
-      {actions || onRename || onArchive || onFork ? (
+      {actions || onRename || onArchive || onFork || onToggleSummary ? (
         <div
           className="flex min-w-0 max-w-[min(48%,calc(100vw-8rem))] shrink-0 items-center justify-end gap-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           data-testid="thread-workspace-header-actions"
           data-header-action-overflow="scroll"
         >
+          {onToggleSummary ? (
+            <button
+              type="button"
+              className="inline-flex h-7 shrink-0 items-center rounded-[10px] px-2 text-[12px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
+              aria-expanded={summaryOpen}
+              aria-label={String(t("agentChat.activityPanel.title"))}
+              data-testid="thread-workspace-summary-toggle"
+              onClick={onToggleSummary}
+            >
+              {String(t("agentChat.activityPanel.title"))}
+            </button>
+          ) : null}
           {actions}
           {onRename || onArchive || onFork ? (
             <DropdownMenu>
@@ -289,12 +367,12 @@ export function ThreadWorkspaceHeader({
                   type="button"
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
                   aria-label={String(
-                    tNavigation("sidebar.conversations.openActionMenu", {
+                    tNavigation("navigation.sidebar.conversations.openActionMenu", {
                       title,
                     }),
                   )}
                   title={String(
-                    tNavigation("sidebar.conversations.moreActions"),
+                    tNavigation("navigation.sidebar.conversations.moreActions"),
                   )}
                   data-testid="thread-workspace-header-action-menu"
                 >
@@ -303,13 +381,16 @@ export function ThreadWorkspaceHeader({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-36 p-1">
                 {onRename ? (
-                  <DropdownMenuItem onClick={handleRename}>
+                  <DropdownMenuItem onClick={startRename}>
                     <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    {String(tNavigation("sidebar.conversations.menu.rename"))}
+                    {String(
+                      tNavigation("navigation.sidebar.conversations.menu.rename"),
+                    )}
                   </DropdownMenuItem>
                 ) : null}
                 {onFork ? (
                   <DropdownMenuItem
+                    data-testid="thread-workspace-header-fork"
                     onClick={() => {
                       void onFork();
                     }}
@@ -322,12 +403,17 @@ export function ThreadWorkspaceHeader({
                 ) : null}
                 {onArchive ? (
                   <DropdownMenuItem
+                    data-testid="thread-workspace-header-archive"
                     onClick={() => {
                       void onArchive();
                     }}
                   >
                     <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                    {String(tNavigation("sidebar.conversations.menu.archive"))}
+                    {String(
+                      tNavigation(
+                        "navigation.sidebar.conversations.menu.archive",
+                      ),
+                    )}
                   </DropdownMenuItem>
                 ) : null}
               </DropdownMenuContent>

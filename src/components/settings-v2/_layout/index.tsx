@@ -61,6 +61,11 @@ const MediaServicesSettings = lazy(() =>
     default: module.MediaServicesSettings,
   })),
 );
+const SkillsSettings = lazy(() =>
+  import("../agent/skills").then((module) => ({
+    default: module.ExtensionsSettings,
+  })),
+);
 const StatsSettings = lazy(() =>
   import("../account/stats").then((module) => ({
     default: module.StatsSettings,
@@ -244,6 +249,7 @@ const ACTIVE_SETTINGS_TABS = new Set<SettingsTabs>([
   SettingsTabs.Memory,
   SettingsTabs.ArchivedConversations,
   SettingsTabs.Providers,
+  SettingsTabs.Skills,
   SettingsTabs.MediaServices,
   SettingsTabs.McpServer,
   SettingsTabs.WebSearch,
@@ -282,6 +288,8 @@ function preloadSettingsTab(tab: SettingsTabs): Promise<unknown> | null {
       return import("../general/archived-conversations");
     case SettingsTabs.Providers:
       return import("../agent/providers");
+    case SettingsTabs.Skills:
+      return import("../agent/skills");
     case SettingsTabs.MediaServices:
       return import("../agent/media-services");
     case SettingsTabs.McpServer:
@@ -376,6 +384,12 @@ function renderSettingsContent(
           initialFocus={initialProviderFocus}
         />,
         t("settings.layout.loading.providers"),
+      );
+
+    case SettingsTabs.Skills:
+      return withSettingsContentFallback(
+        <SkillsSettings />,
+        t("settings.layout.loading.skills"),
       );
 
     case SettingsTabs.MediaServices:

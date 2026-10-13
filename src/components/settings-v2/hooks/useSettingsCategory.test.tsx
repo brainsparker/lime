@@ -56,6 +56,24 @@ afterEach(async () => {
 });
 
 describe("useSettingsCategory", () => {
+  it("智能体导航应包含技能设置", () => {
+    let groups: CategoryGroup[] = [];
+
+    renderHookProbe((nextGroups) => {
+      groups = nextGroups;
+    });
+
+    const agentGroup = groups.find(
+      (group) => group.key === SettingsGroupKey.Agent,
+    );
+    const skillsItem = agentGroup?.items.find(
+      (item) => item.key === SettingsTabs.Skills,
+    );
+
+    expect(skillsItem?.label).toBe("Skills");
+    expect(skillsItem?.label).not.toContain("settings.tab.skills");
+  });
+
   it("系统导航应只保留开发者与实验功能合并入口", () => {
     let groups: CategoryGroup[] = [];
 

@@ -223,7 +223,18 @@ pub(in crate::runtime) fn merge_item_snapshot(
     if previous.status.is_terminal() && !next.status.is_terminal() {
         next.status = previous.status;
     }
-    next.payload = merge_payload(previous.payload, next.payload, source_event_type.as_deref());
+    let command_output_delta = source_event_type.as_deref() == Some("command.output")
+        && next
+            .metadata
+            .get("output_is_delta")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true);
+    next.payload = merge_payload(
+        previous.payload,
+        next.payload,
+        source_event_type.as_deref(),
+        command_output_delta,
+    );
     if matches!(
         next.payload,
         agent_protocol::ThreadItemPayload::Command { .. }
@@ -260,6 +271,7 @@ fn merge_payload(
     previous: agent_protocol::ThreadItemPayload,
     next: agent_protocol::ThreadItemPayload,
     source_event_type: Option<&str>,
+    command_output_delta: bool,
 ) -> agent_protocol::ThreadItemPayload {
     use agent_protocol::ThreadItemPayload;
 
@@ -526,7 +538,18 @@ fn merge_payload(
         ) => ThreadItemPayload::Command {
             command: prefer_string(previous_command, command, "command"),
             cwd: cwd.or(previous_cwd),
-            output: output.or(previous_output),
+            output: if command_output_delta {
+                // Output events carry raw deltas; lifecycle events carry complete snapshots.
+                match (previous_output, output) {
+                    (Some(mut text), Some(delta)) => {
+                        text.push_str(&delta);
+                        Some(text)
+                    }
+                    (previous, next) => next.or(previous),
+                }
+            } else {
+                output.or(previous_output)
+            },
             exit_code: exit_code.or(previous_exit_code),
         },
         (_, next) => next,

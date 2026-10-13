@@ -64,6 +64,8 @@ import { useAppSidebarConversationActions } from "@/components/app-sidebar/useAp
 import { useAppSidebarConversationImport } from "@/components/app-sidebar/useAppSidebarConversationImport";
 import { useAppSidebarProjectActions } from "@/components/app-sidebar/useAppSidebarProjectActions";
 import { useAppSidebarSessions } from "@/components/app-sidebar/useAppSidebarSessions";
+import { useSidebarThreadSearch } from "@/components/app-sidebar/useSidebarThreadSearch";
+import { mergeSidebarThreadSearchSessions } from "@/components/app-sidebar/sidebarThreadSearch";
 import type { SidebarOpenedProjectSummary } from "@/components/app-sidebar/sidebarConversationGroups";
 import {
   APP_SIDEBAR_COLLAPSED_STORAGE_KEY,
@@ -743,6 +745,24 @@ export function AppSidebar({
     activeAgentStreaming,
     conversationUntitledLabel,
   });
+  const threadSearch = useSidebarThreadSearch(
+    sidebarSearchQuery,
+    sidebarSearchOpen,
+  );
+  const sidebarSearchSessions = useMemo(
+    () =>
+      sidebarSearchHasQuery
+        ? mergeSidebarThreadSearchSessions({
+            titleMatches: sidebarSearchResultSessions,
+            protocolHits: threadSearch.hits,
+          })
+        : sidebarSearchResultSessions,
+    [
+      sidebarSearchHasQuery,
+      sidebarSearchResultSessions,
+      threadSearch.hits,
+    ],
+  );
 
   const isActive = (item: SidebarNavItem): boolean => {
     if (!item.page) {
@@ -935,7 +955,7 @@ export function AppSidebar({
   const searchTaskLabel = t("navigation.sidebar.search.label", "搜索任务");
   const searchConversationTitleLabel = t(
     "navigation.sidebar.search.inputLabel",
-    "搜索对话标题",
+    "搜索对话",
   );
   const closeSearchDialogLabel = t(
     "navigation.sidebar.search.close",
@@ -963,7 +983,11 @@ export function AppSidebar({
   );
   const searchEmptyMatchesLabel = t(
     "navigation.sidebar.search.emptyMatches",
-    "没有匹配的对话标题",
+    "没有匹配的对话",
+  );
+  const searchContentErrorLabel = t(
+    "navigation.sidebar.search.contentError",
+    "内容搜索暂时不可用，已保留标题匹配",
   );
   const searchEmptyRecentLabel = t(
     "navigation.sidebar.search.emptyRecent",
@@ -1398,24 +1422,45 @@ export function AppSidebar({
           selectProjectFirstLabel: searchSelectProjectFirstLabel,
           emptyMatchesLabel: searchEmptyMatchesLabel,
           emptyRecentLabel: searchEmptyRecentLabel,
+          contentSearchErrorLabel: searchContentErrorLabel,
           loadingMoreLabel: searchLoadingMoreLabel,
           moreMatchesLabel: searchMoreMatchesLabel,
           moreRecentLabel: searchMoreRecentLabel,
         }}
-        sessions={sidebarSearchResultSessions}
+        sessions={sidebarSearchSessions}
+        contentSearchError={threadSearch.error}
         currentProjectId={currentProjectId}
         currentSessionId={currentSessionId}
         hasQuery={sidebarSearchHasQuery}
-        hasMoreResults={sidebarSearchHasMoreResults}
-        loading={shouldShowSessionLoadingState}
-        loadingMore={recentSessionsLoading}
+        hasMoreResults={
+          sidebarSearchHasMoreResults ||
+          (sidebarSearchHasQuery && threadSearch.hasMore)
+        }
+        loading={
+          shouldShowSessionLoadingState ||
+          (sidebarSearchHasQuery &&
+            threadSearch.loading &&
+            sidebarSearchSessions.length === 0)
+        }
+        loadingMore={
+          recentSessionsLoading ||
+          (sidebarSearchHasQuery &&
+            threadSearch.loading &&
+            threadSearch.hits.length > 0)
+        }
         resolveSessionTitle={resolveLocalizedSessionTitle}
         formatSessionMeta={formatLocalizedSessionMeta}
         onClose={closeSidebarSearchDialog}
         onQueryChange={setSidebarSearchQuery}
         onCreateConversation={conversationActions.createConversationFromSearch}
         onResultClick={conversationActions.navigateToConversationFromSearch}
-        onShowMore={showMoreRecentSessions}
+        onShowMore={() => {
+          if (sidebarSearchHasQuery && threadSearch.hasMore) {
+            threadSearch.loadMore();
+            return;
+          }
+          showMoreRecentSessions();
+        }}
       />
       <AppSidebarInviteDialog
         isOpen={inviteDialogOpen}

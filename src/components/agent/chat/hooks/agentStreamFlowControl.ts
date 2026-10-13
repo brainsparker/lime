@@ -14,7 +14,7 @@ import {
   removeThreadTurnState,
   upsertThreadItemState,
 } from "./agentThreadState";
-import { rememberLocallyInterruptedAgentStreamBinding } from "./agentStreamResumeBinding";
+import { rememberLocallyInterruptedAgentStreamBinding } from "./streamBindingRecords";
 import {
   clearAgentStreamTextOverlay,
   getAgentStreamTextOverlay,

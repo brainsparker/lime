@@ -102,6 +102,13 @@ pub trait ExecutionBackend: Send + Sync {
         sink: &mut dyn RuntimeEventSink,
     ) -> Result<(), RuntimeCoreError>;
 
+    /// Drain owned local resources before the canonical Turn terminal is published.
+    async fn drain_turn(&self, _request: &CancelExecutionRequest) -> Result<(), RuntimeCoreError> {
+        Ok(())
+    }
+
+    /// Release every session-owned process, including Commands from completed Turns.
+    /// The caller retains the canonical event target until this drain has completed.
     async fn close_session(
         &self,
         _session_id: &str,

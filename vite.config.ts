@@ -143,6 +143,7 @@ export default defineConfig(({ command, mode }) => {
       environment: "jsdom",
       setupFiles: ["./scripts/setup-vitest-network-guard.ts"],
       exclude: [
+        "**/.lime/**",
         "**/node_modules/**",
         "**/tmp/lime-pnpm-frozen-node_modules/**",
         "**/dist/**",

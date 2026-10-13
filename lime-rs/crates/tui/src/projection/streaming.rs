@@ -12,7 +12,9 @@ impl ConversationProjection {
         kind: EntryKind,
         delta: String,
     ) {
-        if self.closed_turn_ids.contains(&turn_id) {
+        if (kind == EntryKind::Command && !self.command_delta_allowed(&turn_id, &id))
+            || (kind != EntryKind::Command && self.closed_turn_ids.contains(&turn_id))
+        {
             return;
         }
         if let Some(entry) = self.entries.iter_mut().find(|entry| entry.id == id) {

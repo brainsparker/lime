@@ -40,8 +40,9 @@ const CONSUMER_PATHS = [
   "src/components/agent/chat/workspace/useSessionRuntimeProjectionDeferral.ts",
   "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
   "src/components/agent/chat/hooks/agentChatShared.ts",
-  "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
-  "src/components/agent/chat/hooks/agentStreamTurnEventBinding.ts",
+  "src/components/agent/chat/hooks/streamResumeTarget.ts",
+  "src/components/agent/chat/hooks/useCommandResume.ts",
+  "src/components/agent/chat/hooks/turnEventBindingTypes.ts",
   "src/components/agent/chat/hooks/useAgentStream.ts",
 ];
 
@@ -55,5 +56,21 @@ describe("session types current owner boundary", () => {
       );
       expect(source, relativePath).not.toContain('"@/lib/api/agentRuntime"');
     }
+  });
+
+  it("turn binding 从独立类型 owner 读取选项，不恢复重复 DTO 或聚合入口", () => {
+    const source = readFileSync(
+      join(
+        cwd(),
+        "src/components/agent/chat/hooks/agentStreamTurnEventBinding.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain('from "./turnEventBindingTypes"');
+    expect(source).not.toContain('"@/lib/api/agentRuntime"');
+    expect(source).not.toMatch(
+      /(?:interface|type)\s+RegisterAgentStreamTurnEventBindingOptions\b/,
+    );
   });
 });

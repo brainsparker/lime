@@ -3,9 +3,11 @@ pub fn process_id_for_tool(tool_id: &str) -> String {
 }
 
 pub fn shell_command_text_from_argv(command: &[String]) -> String {
+    if let Some(script) = shell_script_from_argv(command) {
+        return script.to_owned();
+    }
     command
         .iter()
-        .skip_while(|part| shell_wrapper_part(part))
         .map(String::as_str)
         .collect::<Vec<_>>()
         .join(" ")
@@ -15,26 +17,49 @@ pub fn is_shell_tool_name(tool_name: &str) -> bool {
     normalized_tool_name(tool_name) == "execcommand"
 }
 
-fn shell_wrapper_part(part: &str) -> bool {
-    matches!(
-        part,
-        "sh" | "bash"
-            | "zsh"
-            | "cmd"
-            | "cmd.exe"
-            | "powershell"
-            | "powershell.exe"
-            | "pwsh"
-            | "pwsh.exe"
-            | "-c"
-            | "/C"
-            | "/c"
-            | "/D"
-            | "/S"
-            | "-NoProfile"
-            | "-NonInteractive"
-            | "-Command"
-    )
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ShellKind {
+    Posix,
+    PowerShell,
+    Cmd,
+}
+
+pub(crate) fn shell_kind(executable: &str) -> Option<ShellKind> {
+    let basename = executable.rsplit(['/', '\\']).next()?.to_ascii_lowercase();
+    match basename.strip_suffix(".exe").unwrap_or(&basename) {
+        "sh" | "bash" | "zsh" | "dash" | "ksh" => Some(ShellKind::Posix),
+        "powershell" | "pwsh" => Some(ShellKind::PowerShell),
+        "cmd" => Some(ShellKind::Cmd),
+        _ => None,
+    }
+}
+
+pub(crate) fn shell_script_from_argv(command: &[String]) -> Option<&str> {
+    let kind = shell_kind(command.first()?)?;
+    for (index, flag) in command.iter().enumerate().skip(1) {
+        let lower = flag.to_ascii_lowercase();
+        let script_flag = match kind {
+            ShellKind::Posix => matches!(flag.as_str(), "-c" | "-lc" | "-cl"),
+            ShellKind::PowerShell => matches!(lower.as_str(), "-command" | "-c"),
+            ShellKind::Cmd => lower == "/c",
+        };
+        if script_flag {
+            return command.get(index + 1).map(String::as_str);
+        }
+        let startup_flag = match kind {
+            ShellKind::Posix => {
+                matches!(flag.as_str(), "-l" | "--login" | "--noprofile" | "--norc")
+            }
+            ShellKind::PowerShell => {
+                matches!(lower.as_str(), "-noprofile" | "-noninteractive" | "-nologo")
+            }
+            ShellKind::Cmd => matches!(lower.as_str(), "/d" | "/s"),
+        };
+        if !startup_flag {
+            return None;
+        }
+    }
+    None
 }
 
 fn normalized_tool_name(tool_name: &str) -> String {
@@ -72,5 +97,37 @@ mod tests {
         assert!(is_shell_tool_name("exec_command"));
         assert!(!is_shell_tool_name("Bash"));
         assert!(!is_shell_tool_name("PowerShell"));
+    }
+
+    #[test]
+    fn shell_text_preserves_script_boundaries_and_absolute_paths() {
+        for (argv, script) in [
+            (
+                vec!["/bin/zsh", "-lc", "printf shutdown", "ignored argument"],
+                "printf shutdown",
+            ),
+            (
+                vec![
+                    "C:\\Program Files\\PowerShell\\7\\PWSH.EXE",
+                    "-noprofile",
+                    "-command",
+                    "Write-Output ok",
+                ],
+                "Write-Output ok",
+            ),
+            (vec!["sh", "-c", "sh"], "sh"),
+        ] {
+            let argv = argv.into_iter().map(String::from).collect::<Vec<_>>();
+            assert_eq!(shell_command_text_from_argv(&argv), script);
+        }
+        assert_eq!(
+            shell_script_from_argv(&[
+                "sh".into(),
+                "--rcfile".into(),
+                "-c".into(),
+                "ignored".into()
+            ]),
+            None
+        );
     }
 }

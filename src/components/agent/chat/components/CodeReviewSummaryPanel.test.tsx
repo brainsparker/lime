@@ -766,6 +766,35 @@ describe("CodeReviewSummaryPanel", () => {
     ).toBeNull();
   });
 
+  it("只有 review boundary 时仍渲染审阅面板", () => {
+    const { container } = renderPanel({
+      harnessState: createEmptyHarnessState(),
+      fileCheckpointSummary: null,
+      threadItems: [
+        {
+          id: "review-boundary-only",
+          thread_id: "thread-1",
+          turn_id: "turn-review",
+          sequence: 1,
+          status: "completed",
+          started_at: "2026-06-06T00:00:00.000Z",
+          updated_at: "2026-06-06T00:00:01.000Z",
+          type: "review_boundary",
+          boundary: "exited",
+          review: "发现 1 个建议",
+        },
+      ],
+    });
+
+    expect(
+      container.querySelector('[data-testid="code-review-summary-panel"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="code-review-summary-review-result"]')
+        ?.textContent,
+    ).toContain("发现 1 个建议");
+  });
+
   it("点击开始审查后应立即进入进行中状态", async () => {
     const onStartReview = vi.fn(() => new Promise(() => {}));
     const { container } = renderPanel({

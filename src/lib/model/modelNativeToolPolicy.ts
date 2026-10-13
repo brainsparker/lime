@@ -1,10 +1,4 @@
-export const MODEL_SHELL_TOOL_TYPES = [
-  "default",
-  "local",
-  "unified_exec",
-  "disabled",
-  "shell_command",
-] as const;
+export const MODEL_SHELL_TOOL_TYPES = ["unified_exec", "disabled"] as const;
 
 export type ModelShellToolType = (typeof MODEL_SHELL_TOOL_TYPES)[number];
 
@@ -13,10 +7,7 @@ export const MODEL_APPLY_PATCH_TOOL_TYPES = ["freeform"] as const;
 export type ModelApplyPatchToolType =
   (typeof MODEL_APPLY_PATCH_TOOL_TYPES)[number];
 
-export const MODEL_NATIVE_TOOL_SURFACES = [
-  "shell_command",
-  "unified_exec",
-] as const;
+export const MODEL_NATIVE_TOOL_SURFACES = ["unified_exec"] as const;
 
 export type ModelNativeToolSurface =
   (typeof MODEL_NATIVE_TOOL_SURFACES)[number];
@@ -65,8 +56,17 @@ function normalizeToken(value: unknown): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
-function normalizeModelShellToolType(value: unknown): ModelShellToolType | null {
+function normalizeModelShellToolType(
+  value: unknown,
+): ModelShellToolType | null {
   const normalized = normalizeToken(value);
+  if (
+    normalized === "default" ||
+    normalized === "local" ||
+    normalized === "shell_command"
+  ) {
+    return "unified_exec";
+  }
   if (!normalized || !MODEL_SHELL_TOOL_TYPE_SET.has(normalized)) {
     return null;
   }
@@ -81,22 +81,6 @@ function normalizeApplyPatchToolType(
     return null;
   }
   return normalized as ModelApplyPatchToolType;
-}
-
-function preferredShellSurface(
-  shellType: ModelShellToolType | null,
-): ModelNativeToolSurface | null {
-  if (shellType === "unified_exec") {
-    return "unified_exec";
-  }
-  if (
-    shellType === "default" ||
-    shellType === "local" ||
-    shellType === "shell_command"
-  ) {
-    return "shell_command";
-  }
-  return null;
 }
 
 function normalizeExperimentalTools(value: unknown): string[] {
@@ -130,7 +114,7 @@ export function buildModelNativeToolPolicy(
       "experimentalSupportedTools",
     ]),
   );
-  const shellSurface = preferredShellSurface(shellType);
+  const shellSurface = shellType === "unified_exec" ? shellType : null;
 
   return {
     shell_type: shellType,

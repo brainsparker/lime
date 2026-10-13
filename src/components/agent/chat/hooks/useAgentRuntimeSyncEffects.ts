@@ -7,7 +7,10 @@ import { hasDesktopHostEventListenerCapability } from "@/lib/desktop-runtime";
 import type { AgentThreadTurn } from "../types";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import type { AgentSessionDetailRefreshRequest } from "./agentSessionRefresh";
-import { hasRunningThreadReadActivity } from "../projection/threadReadActivity";
+import {
+  hasRunningCommandReadActivity,
+  hasRunningThreadReadActivity,
+} from "../projection/threadReadActivity";
 
 const APP_SERVER_BRIDGE_RUNTIME_POLL_MS = 1000;
 const APP_SERVER_RUNTIME_EVENT_BIND_GRACE_MS = 250;
@@ -270,6 +273,9 @@ function shouldPollRecoveredRuntimeWork(params: {
   queuedTurnCount: number;
   threadTurns: AgentThreadTurn[];
 }): boolean {
+  if (hasRunningCommandReadActivity(params.threadRead)) {
+    return true;
+  }
   if (params.queuedTurnCount > 0) {
     return true;
   }

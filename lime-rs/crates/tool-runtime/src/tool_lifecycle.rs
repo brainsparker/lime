@@ -148,6 +148,17 @@ impl ToolLifecycleEvent {
 pub trait ToolLifecycleEmitter: Send + Sync {
     fn emit<'a>(&'a self, event: ToolLifecycleEvent) -> ToolLifecycleEmissionFuture<'a>;
 
+    fn emit_command_result<'a>(
+        &'a self,
+        event: ToolLifecycleEvent,
+    ) -> ToolLifecycleEmissionFuture<'a> {
+        self.emit(event)
+    }
+
+    fn command_error(&self) -> Option<String> {
+        None
+    }
+
     fn emit_command_start<'a>(
         &'a self,
         _event: CommandStartEvent,

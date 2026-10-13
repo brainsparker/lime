@@ -4,6 +4,7 @@ import type {
 } from "@/lib/api/agentProtocol";
 
 import { isUnifiedWebSearchToolName } from "../utils/searchResultPreview";
+import { stripTerminalControlSequences } from "../utils/terminalOutputText";
 import type { ToolCallArgumentValue } from "../utils/toolDisplayInfo";
 import {
   buildToolGroupHeadline as buildToolGroupHeadlineFromInfo,
@@ -169,7 +170,12 @@ export function buildRenderedToolResultContent(params: {
   resultPath?: string | null;
   emptyOutputLabel: string;
 }): string {
-  const { toolCall, content, filePath, resultPath, emptyOutputLabel } = params;
+  const { toolCall, filePath, resultPath, emptyOutputLabel } = params;
+  const content =
+    getToolDisplayInfoFromInfo(toolCall.name, toolCall.status).family ===
+    "command"
+      ? stripTerminalControlSequences(params.content)
+      : params.content;
   if (!content.trim() || content === emptyOutputLabel) {
     return `\`\`\`text\n${emptyOutputLabel}\n\`\`\``;
   }
@@ -665,10 +671,13 @@ export function resolveCommandOutputStreams(params: {
 
   const streams: CommandOutputStream[] = [];
   if (stdout) {
-    streams.push({ key: "stdout", content: stdout, tone: "neutral" });
+    const content = stripTerminalControlSequences(stdout);
+    if (content.trim())
+      streams.push({ key: "stdout", content, tone: "neutral" });
   }
   if (stderr) {
-    streams.push({ key: "stderr", content: stderr, tone: "error" });
+    const content = stripTerminalControlSequences(stderr);
+    if (content.trim()) streams.push({ key: "stderr", content, tone: "error" });
   }
 
   return streams;

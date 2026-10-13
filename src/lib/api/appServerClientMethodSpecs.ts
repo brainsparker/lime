@@ -137,6 +137,16 @@ export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
     params: "required",
   },
   {
+    name: "cleanThreadBackgroundTerminals",
+    method: constants.APP_SERVER_METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN,
+    params: "required",
+  },
+  {
+    name: "searchThreads",
+    method: constants.APP_SERVER_METHOD_THREAD_SEARCH,
+    params: "required",
+  },
+  {
     name: "listCapabilities",
     method: constants.APP_SERVER_METHOD_CAPABILITY_LIST,
     params: "optional-empty",

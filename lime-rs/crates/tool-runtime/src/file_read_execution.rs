@@ -172,9 +172,7 @@ impl TextOutputMode {
 pub async fn execute_runtime_file_read_tool(
     request: RuntimeFileReadRequest<'_>,
 ) -> Option<Result<CallToolResult, ErrorData>> {
-    if file_read_canonical_tool_name(request.tool_name).is_none() {
-        return None;
-    }
+    file_read_canonical_tool_name(request.tool_name)?;
     if request
         .cancel_token
         .as_ref()
@@ -395,7 +393,7 @@ fn read_text(
                 "[Text File: {}]\nFile type: {}\nLanguage: {}\nSize: {} bytes\nLines: {}\n\n{}",
                 path.display(),
                 category,
-                language.as_deref().unwrap_or("unknown"),
+                language.unwrap_or("unknown"),
                 metadata.len(),
                 line_count,
                 formatted

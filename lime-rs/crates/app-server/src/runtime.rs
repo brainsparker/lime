@@ -94,6 +94,7 @@ mod session_media_refs;
 mod session_operations;
 mod session_runtime_defaults;
 mod session_shell;
+mod session_shutdown;
 mod session_submission;
 pub(crate) mod session_title;
 pub(crate) mod sidecar_store;
@@ -312,6 +313,7 @@ pub struct ToolInventoryReadRequest {
 pub struct RuntimeCore {
     pub(in crate::runtime) state: Arc<Mutex<RuntimeCoreState>>,
     pub(in crate::runtime) session_loops: RuntimeSessionRegistry,
+    session_shutdown_changed: Arc<tokio::sync::Notify>,
     pub(in crate::runtime) turn_driver_completions: turn_execution::RuntimeTurnDriverCompletions,
     mailbox_trigger_flights: agent_mailbox_delivery::MailboxTriggerFlights,
     agent_execution_limiter: Arc<agent_execution::AgentExecutionLimiter>,
@@ -354,6 +356,8 @@ pub(in crate::runtime) struct RuntimeCoreState {
     pub(in crate::runtime) browser_workspaces:
         HashMap<String, right_surface::BrowserWorkspaceIdentityRecord>,
     pub(in crate::runtime) sessions: HashMap<String, StoredSession>,
+    closing_sessions: HashSet<String>,
+    shutting_down: bool,
     pub(in crate::runtime) thread_elicitation_counts: HashMap<String, i64>,
     pub(in crate::runtime) thread_goal_continuations: HashSet<String>,
     pub(in crate::runtime) import_jobs: HashMap<String, conversation_import::ImportJobRecord>,
@@ -410,6 +414,7 @@ impl RuntimeCore {
         Self {
             state: Arc::new(Mutex::new(RuntimeCoreState::default())),
             session_loops: RuntimeSessionRegistry::default(),
+            session_shutdown_changed: Arc::new(tokio::sync::Notify::new()),
             turn_driver_completions: turn_execution::RuntimeTurnDriverCompletions::default(),
             mailbox_trigger_flights: agent_mailbox_delivery::MailboxTriggerFlights::default(),
             agent_execution_limiter: Arc::new(agent_execution::AgentExecutionLimiter::new(3)),

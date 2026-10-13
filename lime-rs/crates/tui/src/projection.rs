@@ -11,12 +11,17 @@ use crate::history_filter::{
 
 use items::{format_patch, project_item, project_item_with_scope, WebSearchLifecycle};
 
+mod commands;
 mod history;
 mod items;
 mod plans;
 mod reasoning;
 mod streaming;
 mod token_usage;
+
+#[cfg(test)]
+#[path = "projection/commands_tests.rs"]
+mod commands_tests;
 
 pub(crate) use reasoning::ReasoningText;
 
@@ -148,6 +153,7 @@ pub(crate) struct ConversationProjection {
     /// Turn ids whose terminal notification or hydrated canonical record has already settled.
     /// Late stream notifications for these turns must not create new provisional entries.
     closed_turn_ids: HashSet<String>,
+    commands: HashMap<String, commands::CommandScope>,
     status: String,
     /// Latest usable reasoning summary while the active turn is still running.
     reasoning_status: Option<String>,
@@ -349,9 +355,16 @@ impl ConversationProjection {
             let filtered = filter_user_message_ids(&filter_review_mode_items(&items), hidden_ids);
             for item in filtered {
                 self.record_assistant_phase(&item);
+                let known = projected_item_id(&item)
+                    .is_some_and(|id| self.entries.iter().any(|entry| entry.id == id));
+                if !known {
+                    if let Some(turn_id) = activity_scope.as_deref() {
+                        self.observe_command(turn_id, &item);
+                    }
+                }
                 if let Some(entry) = project_item_with_scope(
                     &item,
-                    false,
+                    activity_scope.is_some() && commands::session_command_is_running(&item),
                     WebSearchLifecycle::Historical,
                     activity_scope.as_deref(),
                     self.show_raw_agent_reasoning,
@@ -396,6 +409,9 @@ impl ConversationProjection {
         }
         match notification {
             ServerNotification::TurnStarted(params) => {
+                if self.closed_turn_ids.contains(&params.turn.id) {
+                    return;
+                }
                 self.finish_resumed_reasoning();
                 self.token_usage
                     .begin_turn(&params.thread_id, &params.turn.id);
@@ -405,9 +421,15 @@ impl ConversationProjection {
                 self.status = "running".to_string();
             }
             ServerNotification::TurnCompleted(params) => {
-                self.finish_resumed_reasoning();
-                self.active_turn_id = None;
-                self.reasoning_status = None;
+                let ends_active = self
+                    .active_turn_id
+                    .as_deref()
+                    .is_none_or(|id| id == params.turn.id);
+                if ends_active {
+                    self.finish_resumed_reasoning();
+                    self.active_turn_id = None;
+                    self.reasoning_status = None;
+                }
                 self.active_hooks
                     .retain(|hook| hook.turn_id.as_deref() != Some(params.turn.id.as_str()));
                 // The terminal client may miss an item delta or item/completed
@@ -442,20 +464,27 @@ impl ConversationProjection {
                         );
                     }
                 }
-                self.settle_running_entries(params.turn.status);
+                if ends_active {
+                    self.settle_running_entries(params.turn.status);
+                }
                 if matches!(
                     params.turn.status,
                     TurnStatus::Completed | TurnStatus::Failed | TurnStatus::Interrupted
                 ) {
                     self.closed_turn_ids.insert(params.turn.id.clone());
                 }
-                self.status = turn_status(params.turn.status).to_string();
+                if ends_active {
+                    self.status = turn_status(params.turn.status).to_string();
+                }
             }
             ServerNotification::ItemStarted(params) => {
                 if self.closed_turn_ids.contains(&params.turn_id) {
                     return;
                 }
                 if self.should_hide_realtime_item(&params.item) {
+                    return;
+                }
+                if !self.observe_command(&params.turn_id, &params.item) {
                     return;
                 }
                 if let Some(entry) = project_item_with_scope(
@@ -472,6 +501,9 @@ impl ConversationProjection {
             }
             ServerNotification::ItemCompleted(params) => {
                 if self.should_hide_realtime_item(&params.item) {
+                    return;
+                }
+                if !self.observe_command(&params.turn_id, &params.item) {
                     return;
                 }
                 if let Some(entry) = project_item_with_scope(
@@ -676,9 +708,12 @@ impl ConversationProjection {
         let projected = filtered
             .iter()
             .filter_map(|item| {
+                if !self.observe_command(activity_scope, item) {
+                    return None;
+                }
                 project_item_with_scope(
                     item,
-                    false,
+                    commands::session_command_is_running(item),
                     web_search_lifecycle,
                     Some(activity_scope),
                     self.show_raw_agent_reasoning,
@@ -743,26 +778,6 @@ impl ConversationProjection {
                     self.assistant_phases.remove(id);
                 }
             }
-        }
-    }
-
-    fn settle_running_entries(&mut self, status: TurnStatus) {
-        let Some(entry_status) = (match status {
-            TurnStatus::Completed => Some(EntryStatus::Completed),
-            TurnStatus::Failed => Some(EntryStatus::Failed),
-            TurnStatus::Interrupted => Some(EntryStatus::Interrupted),
-            TurnStatus::InProgress => None,
-        }) else {
-            return;
-        };
-
-        for entry in &mut self.entries {
-            if entry.status == Some(EntryStatus::Running) {
-                entry.status = Some(entry_status);
-            }
-            // Assistant and reasoning entries intentionally have no running status, but they
-            // still carry a provisional stream flag. A terminal turn closes those tails too.
-            entry.streaming = false;
         }
     }
 }

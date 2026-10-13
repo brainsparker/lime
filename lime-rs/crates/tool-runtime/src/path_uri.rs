@@ -299,7 +299,7 @@ impl std::error::Error for PathUriError {}
 
 fn parse_absolute_native_path(path: &str, convention: PathConvention) -> Option<PathUri> {
     match convention {
-        PathConvention::Posix => path.starts_with('/').then(|| path).and_then(|path| {
+        PathConvention::Posix => path.starts_with('/').then_some(path).and_then(|path| {
             let mut url = Url::parse("file:///").ok()?;
             url.path_segments_mut()
                 .ok()?

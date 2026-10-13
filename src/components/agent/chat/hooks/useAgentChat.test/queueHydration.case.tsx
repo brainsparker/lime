@@ -48,9 +48,10 @@ describe("useAgentChat canonical queue status", () => {
       ).toMatchObject({
         status: "queued",
       });
-      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith({
-        threadId: "thread-queue",
-      });
+      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith(
+        { threadId: "thread-queue" },
+        undefined,
+      );
     } finally {
       harness.unmount();
     }
@@ -89,9 +90,10 @@ describe("useAgentChat canonical queue status", () => {
       });
       await flushEffects();
 
-      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith({
-        threadId: "thread-running-auto-resume",
-      });
+      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith(
+        { threadId: "thread-running-auto-resume" },
+        undefined,
+      );
       expect(mockSubmitAgentRuntimeTurn).not.toHaveBeenCalled();
       expect(harness.getValue().isSending).toBe(false);
       expect(harness.getValue().threadRead).toMatchObject({

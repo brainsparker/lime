@@ -2,6 +2,7 @@ mod action_response;
 mod agent_skills_context;
 mod agent_skills_telemetry;
 mod coding_events;
+pub(crate) mod command_events;
 mod event_mapper;
 mod execution_backend;
 mod image_command;
@@ -556,6 +557,7 @@ impl RuntimeBackend {
                             .as_deref(),
                     }),
                     agent_control_gateway: request.agent_control_gateway.clone(),
+                    command_publisher: request.command_publisher.clone(),
                     pending_input: pending_input.clone(),
                     cancellation_token: cancellation_token.clone(),
                 },

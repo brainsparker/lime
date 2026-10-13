@@ -989,7 +989,7 @@ mod tests {
 
         let normalized =
             crate::tool_result_projection::NormalizedToolOutput::from_execution_outcome(
-                crate::tool_executor::RuntimeToolExecutionOutcome::Result(result),
+                crate::tool_executor::RuntimeToolExecutionOutcome::Result(Box::new(result)),
                 1,
             );
         assert_eq!(normalized.agent_control_projection_facts, expected_activity);

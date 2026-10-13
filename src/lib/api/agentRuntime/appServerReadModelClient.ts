@@ -44,7 +44,6 @@ export function projectAppServerThreadReadResult(
   return {
     ...readModel,
     thread_id: detail.thread_id ?? readModel.thread_id,
-    thread_items: detail.items,
     updated_at: detail.updated_at ?? readModel.updated_at,
   };
 }

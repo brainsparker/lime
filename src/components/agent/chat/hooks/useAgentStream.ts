@@ -42,8 +42,8 @@ import {
 import {
   bindRecoveredAgentStreamThread,
   hasBlockingActiveAgentStreamBinding,
-  resolveAgentStreamResumeBindingTarget,
 } from "./agentStreamResumeBinding";
+import { resolveAgentStreamResumeBindingTarget } from "./streamResumeTarget";
 import { AgentStreamSubmitGate } from "./agentStreamSubmitGate";
 import {
   normalizeAgentStreamCompactionError,
@@ -52,6 +52,7 @@ import {
 import { stopActiveAgentStream } from "./agentStreamFlowControl";
 import { sendAgentStreamMessage } from "./agentStreamSend";
 import { useAgentStreamController } from "./useAgentStreamController";
+import { useCommandResume } from "./useCommandResume";
 
 function appendThinkingToParts(
   parts: NonNullable<Message["contentParts"]>,
@@ -328,6 +329,18 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       workingDir,
     ],
   );
+
+  useCommandResume({
+    enabled: Boolean(sessionId ?? sessionIdRef.current),
+    sessionId: sessionId ?? sessionIdRef.current,
+    threadRead,
+    turns: threadTurns,
+    activeStreamRef,
+    listenerMapRef,
+    runtime,
+    getItems: getThreadItems,
+    setItems: setThreadItems,
+  });
 
   const recoveredBindingTarget = useMemo(
     () =>

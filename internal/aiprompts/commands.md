@@ -541,6 +541,13 @@ canonical Item 独占 command 的开始/完成；`CodingEventMirror` 对 canonic
 增加输出、测试和安全 terminal interaction facts，不再重复 command.started/exited。
 所有产品继续消费既有 `item/started|completed` 与 read model，没有新增 GUI/TUI 解析器。
 
+模型Turn结束后，session-owned `unifiedExecStartup` Command可以继续inProgress。
+原Invocation观察实际进程输出和退出，经owned publisher与scoped Appender追加同一
+Thread/Turn/Item/process的canonical output/interaction/completion；不依赖再次poll，
+也不延长模型Turn。GUI保留原route/Turn binding，TUI保留原command projection；
+最后真实Command终态才回收订阅。sequence verifier禁止process漂移、普通工具穿透、
+terminal后新Item和已完成Command重开。模型完成不得在客户端合成进程退出。
+
 Codex exact 独立命令执行与 Desktop 交互终端只允许走 connection-scoped App Server JSON-RPC：
 
 `src/lib/api/commandExec.ts -> typed App Server client -> command/exec -> App Server CommandExecServer -> ExecutionProcessServer -> tool-runtime local process supervisor`

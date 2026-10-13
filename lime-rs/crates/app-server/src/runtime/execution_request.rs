@@ -19,6 +19,8 @@ pub struct ExecutionRequest {
     pub skip_pre_submit_resume: bool,
     /// Per-turn capability supplied by RuntimeCore for the current provider execution only.
     pub agent_control_gateway: Option<tool_runtime::agent_control::AgentControlGatewayHandle>,
+    /// Owned canonical command publisher; background execution keeps its original Turn scope.
+    pub command_publisher: Option<lime_agent::CommandEventPublisher>,
     /// RuntimeCore-owned sampling boundary for later reminders in the same turn.
     pub rollout_budget_reminder_source:
         Option<agent_runtime::session_config::RolloutBudgetReminderSourceHandle>,

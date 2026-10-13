@@ -111,6 +111,16 @@ vi.mock("@/hooks/useSkills", () => ({
   }),
 }));
 
+vi.mock("@/lib/api/appServerEventBus", () => ({
+  subscribeAppServerNotifications: () => () => undefined,
+}));
+
+vi.mock("@/lib/api/skillConfig", () => ({
+  listProtocolSkillEnabledStates: () => Promise.resolve([]),
+  matchProtocolSkillEnabledState: () => null,
+  writeProtocolSkillEnabled: vi.fn(),
+}));
+
 vi.mock("@/lib/api/skills", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api/skills")>();
   return {

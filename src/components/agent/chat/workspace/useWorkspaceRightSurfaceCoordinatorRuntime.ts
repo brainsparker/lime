@@ -168,6 +168,8 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     pendingFileTarget: pendingRuntime.pendingFileTarget,
     pendingPluginSurfaces: mergedIncomingPluginSurfaces,
     preferredServiceSkillResultFileTarget,
+    projectRootPath: canvasWorkbenchRootPath,
+    threadItems,
   });
   const rightSurfaceHarnessEnabled =
     !suppressHomeNavbarUtilityActions && showHarnessToggle;

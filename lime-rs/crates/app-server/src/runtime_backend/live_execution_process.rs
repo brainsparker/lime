@@ -43,6 +43,15 @@ impl RuntimeLiveExecutionGateway for ExecutionProcessServer {
             .map_err(runtime_execution_process_error)
     }
 
+    async fn wait_for_exit(
+        &self,
+        process_id: &str,
+    ) -> Result<ExecutionProcessSnapshot, RuntimeToolExecutionError> {
+        self.wait_for_exit(process_id)
+            .await
+            .map_err(runtime_execution_process_error)
+    }
+
     fn drain_output(
         &self,
         query: LiveExecutionOutputQuery,

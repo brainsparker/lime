@@ -13,7 +13,8 @@ import { isRuntimeTurnTerminalEventClass } from "./runtimeTerminal.js";
  * 2. 双模式：既支持一次性批量验证（fixture / conformance runner），也支持增量
  *    push/finalize（未来 runtime client 在分发 listener 前逐事件流式拦截）。
  * 3. 按 turn 维度维护状态机。turn 终态（turn.completed / turn.failed / turn.canceled）出现时，
- *    校验同 turn 的 tool / action / model 流是否已收口；终态后不得继续出现同 turn 执行流事件。
+ *    校验同 turn 的 tool / action / model 流是否已收口；已登记的 session Command
+ *    可在原 turn 下继续输出并完成，其它执行流不得穿透终态。
  *
  * verifier 不负责 schema 字段校验（那是 collectRuntimeEventValidationIssues 的职责），
  * 只负责跨事件的「序列合法性」。
@@ -29,6 +30,7 @@ export type RuntimeSequenceViolationCode =
   | "patch_started_already_active"
   | "patch_unclosed_at_turn_end"
   | "command_output_without_start"
+  | "command_process_scope_mismatch"
   | "command_exited_without_start"
   | "command_started_already_active"
   | "command_unclosed_at_turn_end"
@@ -53,13 +55,6 @@ export interface RuntimeSequenceViolation {
   message: string;
 }
 
-const ACTION_TERMINAL_CLASSES = new Set([
-  "action.resolved",
-  "action.cancelled",
-  "action.canceled",
-  "action.expired",
-]);
-
 /** turn 维度内仍然「活跃 / 未收口」的执行流。 */
 interface TurnState {
   /** 仍处于活跃状态的 toolCallId -> 起始事件 id。 */
@@ -68,8 +63,11 @@ interface TurnState {
   activePatches: Map<string, string>;
   /** 仍处于活跃状态的 commandId -> 起始事件 id。 */
   activeCommands: Map<string, string>;
+  /** canonical session Command 的 commandId -> 原 processId。 */
+  backgroundCommands: Map<string, string>;
   /** 仍处于活跃状态的 testRunId -> 起始事件 id。 */
   activeTests: Map<string, string>;
+  testCommands: Map<string, string>;
   /** 仍处于活跃状态的 actionId -> 起始事件 id。 */
   activeActions: Map<string, string>;
   /** 是否有未收口的 model 流（model.delta 后未见 model.completed/model.failed）。 */
@@ -87,7 +85,9 @@ function createTurnState(): TurnState {
     activeTools: new Map(),
     activePatches: new Map(),
     activeCommands: new Map(),
+    backgroundCommands: new Map(),
     activeTests: new Map(),
+    testCommands: new Map(),
     activeActions: new Map(),
     modelStreaming: false,
     terminal: false,
@@ -105,9 +105,36 @@ function createTurnState(): TurnState {
  * 用法（批量）：
  *   const violations = verifyRuntimeEventSequence(events);
  */
+export interface RuntimeCommandStreamScope {
+  eventId: string;
+  threadId: string;
+  turnId: string;
+  commandId: string;
+  processId?: string;
+}
+
+export interface RuntimeCommandSnapshot {
+  threadId: string;
+  turns: readonly {
+    turnId: string;
+    terminal: boolean;
+    commands: readonly {
+      commandId: string;
+      processId: string;
+      active: boolean;
+    }[];
+  }[];
+}
+
 export interface RuntimeSequenceVerifier {
   /** 推入一个事件，返回该事件「单独」触发的 violation（不含 finalize 阶段才能判定的项）。 */
   push(event: AgentRuntimeExecutionEvent): RuntimeSequenceViolation[];
+  /** 检查无序号的 direct Command notification，不合成事件或重开 Turn。 */
+  checkCommandStream(
+    scope: RuntimeCommandStreamScope,
+  ): RuntimeSequenceViolation[];
+  /** 从 canonical 快照恢复原 Command，终态与已退出身份只向前推进。 */
+  restoreCommands(snapshot: RuntimeCommandSnapshot): RuntimeSequenceViolation[];
   /** 结束流，返回截至目前累积的全部 violation。幂等。 */
   finalize(): RuntimeSequenceViolation[];
   /** 截至目前累积的全部 violation（不结束流）。 */
@@ -125,7 +152,7 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
   }
 
   function turnFor(event: AgentRuntimeExecutionEvent): TurnState {
-    const key = turnKey(event);
+    const key = `${event.threadId ?? "__default_thread__"}\u0000${turnKey(event)}`;
     let state = turns.get(key);
     if (!state) {
       state = createTurnState();
@@ -136,6 +163,106 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
 
   function record(violation: RuntimeSequenceViolation): void {
     violations.push(violation);
+  }
+
+  function restoreCommands(
+    snapshot: RuntimeCommandSnapshot,
+  ): RuntimeSequenceViolation[] {
+    const pending: RuntimeSequenceViolation[] = [];
+    const keys = new Set<string>();
+    if (!snapshot.threadId.trim())
+      throw new TypeError("Snapshot requires threadId");
+    for (const scope of snapshot.turns) {
+      const key = `${snapshot.threadId}\u0000${scope.turnId}`;
+      if (
+        !scope.turnId.trim() ||
+        keys.has(key) ||
+        typeof scope.terminal !== "boolean"
+      )
+        throw new TypeError("Snapshot requires unique Turn scopes");
+      keys.add(key);
+      const commands = new Set<string>();
+      for (const command of scope.commands) {
+        if (
+          !command.commandId.trim() ||
+          !command.processId.trim() ||
+          commands.has(command.commandId) ||
+          typeof command.active !== "boolean"
+        )
+          throw new TypeError(
+            "Snapshot requires unique Command/process scopes",
+          );
+        commands.add(command.commandId);
+        const state = turns.get(key);
+        const process = state?.backgroundCommands.get(command.commandId);
+        if (
+          (process && process !== command.processId) ||
+          (!process && state?.activeCommands.has(command.commandId))
+        ) {
+          pending.push({
+            code: "command_process_scope_mismatch",
+            eventId: "snapshot",
+            scopeId: command.commandId,
+            turnId: scope.turnId,
+            message: `Snapshot Command '${command.commandId}' does not match its original process.`,
+          });
+        }
+      }
+    }
+    if (pending.length) {
+      violations.push(...pending);
+      return pending;
+    }
+    for (const scope of snapshot.turns) {
+      const key = `${snapshot.threadId}\u0000${scope.turnId}`;
+      let state = turns.get(key);
+      if (!state) {
+        state = createTurnState();
+        turns.set(key, state);
+      }
+      state.terminal ||= scope.terminal;
+      for (const command of scope.commands) {
+        if (!state.backgroundCommands.has(command.commandId)) {
+          state.backgroundCommands.set(command.commandId, command.processId);
+          if (command.active)
+            state.activeCommands.set(command.commandId, "snapshot");
+        }
+        if (!command.active) state.activeCommands.delete(command.commandId);
+      }
+    }
+    return [];
+  }
+
+  function checkCommandStream(
+    scope: RuntimeCommandStreamScope,
+  ): RuntimeSequenceViolation[] {
+    const turn = turns.get(`${scope.threadId}\u0000${scope.turnId}`);
+    const process = turn?.backgroundCommands.get(scope.commandId);
+    let code: RuntimeSequenceViolationCode | undefined;
+    if (
+      turn?.terminal &&
+      (!turn.activeCommands.has(scope.commandId) || !process)
+    ) {
+      code = "execution_after_turn_terminal";
+    } else if (!turn?.activeCommands.has(scope.commandId)) {
+      code = "command_output_without_start";
+    } else if (
+      process &&
+      scope.processId !== undefined &&
+      process !== scope.processId
+    ) {
+      code = "command_process_scope_mismatch";
+    }
+    if (!code) return [];
+    const violation: RuntimeSequenceViolation = {
+      code,
+      eventId: scope.eventId,
+      scopeId: scope.commandId,
+      turnId: scope.turnId,
+      message: `Command stream for '${scope.commandId}' does not match its active Thread/Turn/process scope.`,
+    };
+    record(violation);
+    return [violation];
   }
 
   function push(event: AgentRuntimeExecutionEvent): RuntimeSequenceViolation[] {
@@ -158,8 +285,12 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
       typeof event.eventClass === "string" ? event.eventClass : "";
     const turn = turnFor(event);
 
-    // turn 终态后，不得继续出现同 turn 的执行流事件。
-    if (turn.terminal && isExecutionStreamClass(eventClass)) {
+    // 终态后的窄例外只归原 session Command，不重新打开模型 Turn。
+    if (
+      turn.terminal &&
+      isExecutionStreamClass(eventClass) &&
+      !isBackgroundContinuation(turn, event)
+    ) {
       record({
         code: "execution_after_turn_terminal",
         eventId: event.id,
@@ -219,19 +350,22 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
             });
           } else {
             turn.activeCommands.set(commandId, event.id);
+            const processId = canonicalCommandProcess(event, "inProgress");
+            if (processId) turn.backgroundCommands.set(commandId, processId);
           }
         }
         break;
       }
-      case "command.output": {
+      case "command.output":
+      case "command.interaction": {
         const commandId = eventScopeId(event, "commandId");
-        if (commandId && !turn.activeCommands.has(commandId)) {
-          record({
-            code: "command_output_without_start",
+        if (commandId) {
+          checkCommandStream({
             eventId: event.id,
-            scopeId: commandId,
-            turnId: event.turnId,
-            message: `command.output for '${commandId}' has no matching command.started.`,
+            threadId: event.threadId ?? "__default_thread__",
+            turnId: turnKey(event),
+            commandId,
+            processId: eventPayloadString(event, "processId"),
           });
         }
         break;
@@ -239,7 +373,16 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
       case "command.exited": {
         const commandId = eventScopeId(event, "commandId");
         if (commandId) {
-          if (turn.activeCommands.has(commandId)) {
+          const process = turn.backgroundCommands.get(commandId);
+          if (process && canonicalCommandProcess(event) !== process) {
+            record({
+              code: "command_process_scope_mismatch",
+              eventId: event.id,
+              scopeId: commandId,
+              turnId: event.turnId,
+              message: `command.exited for '${commandId}' does not match its original process.`,
+            });
+          } else if (turn.activeCommands.has(commandId)) {
             turn.activeCommands.delete(commandId);
           } else {
             record({
@@ -266,6 +409,8 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
             });
           } else {
             turn.activeTests.set(testRunId, event.id);
+            const commandId = eventPayloadString(event, "commandId");
+            if (commandId) turn.testCommands.set(testRunId, commandId);
           }
         }
         break;
@@ -402,6 +547,7 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
           });
         }
         for (const [commandId, startedId] of turn.activeCommands) {
+          if (turn.backgroundCommands.has(commandId)) continue;
           record({
             code: "command_unclosed_at_turn_end",
             eventId: event.id,
@@ -411,6 +557,10 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
           });
         }
         for (const [testRunId, startedId] of turn.activeTests) {
+          if (
+            turn.backgroundCommands.has(turn.testCommands.get(testRunId) ?? "")
+          )
+            continue;
           record({
             code: "test_unclosed_at_turn_end",
             eventId: event.id,
@@ -432,8 +582,13 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
         turn.terminalEventId = event.id;
         turn.activeTools.clear();
         turn.activePatches.clear();
-        turn.activeCommands.clear();
-        turn.activeTests.clear();
+        for (const id of turn.activeCommands.keys()) {
+          if (!turn.backgroundCommands.has(id)) turn.activeCommands.delete(id);
+        }
+        for (const id of turn.activeTests.keys()) {
+          if (!turn.backgroundCommands.has(turn.testCommands.get(id) ?? ""))
+            turn.activeTests.delete(id);
+        }
         turn.activeActions.clear();
         turn.modelStreaming = false;
         break;
@@ -453,7 +608,7 @@ export function createRuntimeSequenceVerifier(): RuntimeSequenceVerifier {
     return violations.slice();
   }
 
-  return { push, finalize, getViolations };
+  return { push, checkCommandStream, restoreCommands, finalize, getViolations };
 }
 
 function eventPayloadString(
@@ -462,6 +617,53 @@ function eventPayloadString(
 ): string | undefined {
   const value = event.payload?.[key];
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function canonicalCommandProcess(
+  event: AgentRuntimeExecutionEvent,
+  status?: string,
+): string | undefined {
+  const item = event.payload?.canonical;
+  if (!item || typeof item !== "object" || Array.isArray(item))
+    return undefined;
+  const command = item as Record<string, unknown>;
+  if (
+    command.type !== "commandExecution" ||
+    command.source !== "unifiedExecStartup" ||
+    command.id !== eventScopeId(event, "commandId") ||
+    (status && command.status !== status)
+  )
+    return undefined;
+  return typeof command.processId === "string" && command.processId.length > 0
+    ? command.processId
+    : undefined;
+}
+
+function isBackgroundContinuation(
+  turn: TurnState,
+  event: AgentRuntimeExecutionEvent,
+): boolean {
+  if (event.eventClass === "test.completed") {
+    const id = eventScopeId(event, "testRunId");
+    const commandId = id ? turn.testCommands.get(id) : undefined;
+    return Boolean(
+      id &&
+      turn.activeTests.has(id) &&
+      commandId &&
+      commandId === eventPayloadString(event, "commandId") &&
+      turn.backgroundCommands.has(commandId),
+    );
+  }
+  const id = eventScopeId(event, "commandId");
+  const process = id ? turn.backgroundCommands.get(id) : undefined;
+  if (!id || !process || !turn.activeCommands.has(id)) return false;
+  if (event.eventClass === "command.exited")
+    return canonicalCommandProcess(event) === process;
+  return (
+    (event.eventClass === "command.output" ||
+      event.eventClass === "command.interaction") &&
+    eventPayloadString(event, "processId") === process
+  );
 }
 
 function eventScopeId(

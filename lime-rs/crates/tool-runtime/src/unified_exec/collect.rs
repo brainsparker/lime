@@ -1,14 +1,10 @@
-use super::output::{
-    append_observed_output, emit_output_deltas, UnifiedExecCallOutput, UnifiedExecObservationKind,
-};
+use super::lifecycle::{observe_output, publish_snapshot};
+use super::output::{append_observed_output, UnifiedExecCallOutput, UnifiedExecObservationKind};
 use super::session::{remove_session, session_facts, UnifiedExecSession};
 use super::{OUTPUT_DRAIN_LIMIT, OUTPUT_DRAIN_MAX_BYTES, PROCESS_POLL_INTERVAL};
 use crate::execution_process::live::{LiveExecutionOutputQuery, RuntimeLiveExecutionGateway};
-use crate::execution_process::{
-    BoundedProcessOutput, ExecutionProcessStatus, TRAILING_OUTPUT_GRACE,
-};
+use crate::execution_process::{BoundedProcessOutput, ExecutionProcessStatus};
 use crate::tool_executor::{RuntimeToolExecutionError, RuntimeToolPolicyErrorKind};
-use crate::tool_lifecycle::ToolLifecycleEmitter;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio_util::sync::CancellationToken;
@@ -17,8 +13,6 @@ pub(super) async fn collect_process_output(
     gateway: Arc<dyn RuntimeLiveExecutionGateway>,
     session_id: i32,
     session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
-    turn_id: String,
-    output_sink: Option<Arc<dyn ToolLifecycleEmitter>>,
     yield_time: Duration,
     max_output_tokens: usize,
     cancel_token: Option<CancellationToken>,
@@ -53,18 +47,9 @@ pub(super) async fn collect_process_output(
         }
 
         let snapshot = gateway.status(&process_id)?;
-        let facts = session_facts(&session).await;
-        emit_output_deltas(
-            output_sink.as_ref(),
-            &turn_id,
-            &facts.call_id,
-            &facts.invocation,
-            &drained.deltas,
-            snapshot.status,
-        )
-        .await;
+        observe_output(gateway.as_ref(), &session, &snapshot).await?;
         if process_status_is_terminal(snapshot.status) {
-            tokio::time::sleep(TRAILING_OUTPUT_GRACE).await;
+            let snapshot = gateway.wait_for_exit(&process_id).await?;
             let final_drain = gateway.drain_output(LiveExecutionOutputQuery {
                 process_id: Some(snapshot.process_id.clone()),
                 after_sequence: session.lock().await.after_sequence,
@@ -74,15 +59,8 @@ pub(super) async fn collect_process_output(
             for delta in &final_drain.deltas {
                 append_observed_output(&mut output, delta);
             }
-            emit_output_deltas(
-                output_sink.as_ref(),
-                &turn_id,
-                &facts.call_id,
-                &facts.invocation,
-                &final_drain.deltas,
-                snapshot.status,
-            )
-            .await;
+            observe_output(gateway.as_ref(), &session, &snapshot).await?;
+            publish_snapshot(session_id, &session, snapshot.clone()).await?;
             let facts = session_facts(&session).await;
             remove_session(session_id);
             if cancelled {
@@ -121,6 +99,7 @@ pub(super) async fn collect_process_output(
         }
 
         if Instant::now() >= deadline {
+            publish_snapshot(session_id, &session, snapshot.clone()).await?;
             let mut facts = session.lock().await;
             let observation = if output.is_empty() {
                 facts.empty_poll_count = facts.empty_poll_count.saturating_add(1);

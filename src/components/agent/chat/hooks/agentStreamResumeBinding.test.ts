@@ -6,13 +6,13 @@ import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/session
 import { createConversationProjectionReducer } from "@/lib/api/agentRuntime/conversationProjection";
 import type { ActionRequired, Message } from "../types";
 import type { ActiveStreamState } from "./agentStreamSubmissionLifecycle";
+import { bindRecoveredAgentStreamThread } from "./agentStreamResumeBinding";
+import { mergeRecoveredAssistantProjectionText } from "./streamResumeProjection";
 import {
-  bindRecoveredAgentStreamThread,
-  mergeRecoveredAssistantProjectionText,
   rememberLocallyInterruptedAgentStreamBinding,
   rememberLocallyStartedAgentStreamBinding,
-  resolveAgentStreamResumeBindingTarget,
-} from "./agentStreamResumeBinding";
+} from "./streamBindingRecords";
+import { resolveAgentStreamResumeBindingTarget } from "./streamResumeTarget";
 
 function createStateSetter<T>(state: { current: T }) {
   return ((next: T | ((prev: T) => T)) => {

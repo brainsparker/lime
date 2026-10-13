@@ -48,7 +48,7 @@ fn tool_family_for_approval(tool_name: &str, metadata: &HashMap<String, Value>) 
 fn infer_tool_family(tool_name: &str) -> String {
     match tool_name.trim().to_ascii_lowercase().as_str() {
         "exec_command" => SHELL_TOOL_FAMILY.to_string(),
-        value if value.is_empty() => "unknown".to_string(),
+        "" => "unknown".to_string(),
         value => value.to_string(),
     }
 }

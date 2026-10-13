@@ -243,9 +243,10 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
         `agentSession/event/${sessionId}`,
         expect.any(Function),
       );
-      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith({
-        threadId,
-      });
+      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith(
+        { threadId },
+        undefined,
+      );
     } finally {
       harness.unmount();
     }

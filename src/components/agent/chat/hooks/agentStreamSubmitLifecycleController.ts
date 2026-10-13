@@ -1,5 +1,5 @@
 import { logAgentDebug } from "@/lib/agentDebug";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import {
   recordAgentStreamPerformanceMetric,
   type AgentUiPerformanceTraceMetadata,

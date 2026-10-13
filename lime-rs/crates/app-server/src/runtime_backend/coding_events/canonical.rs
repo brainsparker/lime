@@ -271,6 +271,13 @@ impl CodingEventMirror {
             events.extend(self.handle_command_output(item, command));
             return events;
         }
+        if self
+            .tools
+            .get(&command_id)
+            .is_some_and(|tool| tool.emitted_output)
+        {
+            return Vec::new();
+        }
         self.handle_command_output(item, command)
     }
 

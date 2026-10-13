@@ -2,13 +2,15 @@
   "schemaVersion": 1,
   "source": {
     "codexRoot": "/Users/coso/Documents/dev/rust/codex",
-    "codexTuiCommit": "4aaee872e31abefe0d32e91faab23b09b6968824"
+    "codexTuiCommit": "a9b0815167c27ab13719dd12d13b63e02b70d221"
   },
   "trees": {
     "codex-rs/tui/src": {
       "root": "/Users/coso/Documents/dev/rust/codex/codex-rs/tui/src",
-      "fileCount": 1084,
+      "fileCount": 1105,
       "files": [
+        "activation_key_guard.rs",
+        "activation_key_guard_tests.rs",
         "additional_dirs.rs",
         "analytics.rs",
         "analytics/account_layout_tests.rs",
@@ -113,6 +115,8 @@
         "app/clipboard.rs",
         "app/composer_hints.rs",
         "app/composer_hints_tests.rs",
+        "app/config_panel.rs",
+        "app/config_panel_tests.rs",
         "app/config_persistence.rs",
         "app/connector_mentions.rs",
         "app/connector_mentions_tests.rs",
@@ -127,6 +131,7 @@
         "app/experimental_features_tests.rs",
         "app/feedback_upload.rs",
         "app/file_change_approvals.rs",
+        "app/footer_selection.rs",
         "app/history_completion.rs",
         "app/history_completion_tests.rs",
         "app/history_pagination.rs",
@@ -363,6 +368,7 @@
         "bottom_pane/chat_composer_history/search_batch_tests.rs",
         "bottom_pane/command_popup.rs",
         "bottom_pane/composer_gap.rs",
+        "bottom_pane/config_panel.rs",
         "bottom_pane/custom_prompt_view.rs",
         "bottom_pane/custom_prompt_view/picker.rs",
         "bottom_pane/custom_prompt_view_tests.rs",
@@ -469,6 +475,7 @@
         "chatwidget/command_lifecycle.rs",
         "chatwidget/compaction.rs",
         "chatwidget/completion.rs",
+        "chatwidget/config_panel.rs",
         "chatwidget/connector_mentions.rs",
         "chatwidget/connectors.rs",
         "chatwidget/constructor.rs",
@@ -510,6 +517,7 @@
         "chatwidget/questions.rs",
         "chatwidget/rate_limits.rs",
         "chatwidget/realtime.rs",
+        "chatwidget/realtime/failure_metrics.rs",
         "chatwidget/realtime/recording_controls.rs",
         "chatwidget/realtime/recording_controls_tests.rs",
         "chatwidget/realtime/session_metrics_tests.rs",
@@ -602,6 +610,7 @@
         "chatwidget/tests/status_command_tests.rs",
         "chatwidget/tests/status_surface_previews.rs",
         "chatwidget/tests/subagent_activity_tests.rs",
+        "chatwidget/tests/terminal_program_status.rs",
         "chatwidget/tests/terminal_title.rs",
         "chatwidget/tests/tool_activity_tests.rs",
         "chatwidget/tests/usage.rs",
@@ -642,6 +651,11 @@
         "clock_format_tests.rs",
         "collaboration_modes.rs",
         "color.rs",
+        "config_panel/config_panel_tests.rs",
+        "config_panel/input.rs",
+        "config_panel/mod.rs",
+        "config_panel/render.rs",
+        "config_panel/toggle.rs",
         "config_update.rs",
         "config_update_tests.rs",
         "copy_input_guard.rs",
@@ -696,6 +710,7 @@
         "file_search.rs",
         "footer_hint.rs",
         "footer_hint_tests.rs",
+        "footer_selection_tests.rs",
         "get_git_diff.rs",
         "git_action_directives.rs",
         "goal_display.rs",
@@ -748,6 +763,7 @@
         "inline_visualization/viewer.rs",
         "inline_visualization_tests.rs",
         "insert_history.rs",
+        "iterm_session_status_tests.rs",
         "key_hint.rs",
         "key_hint_label_tests.rs",
         "keymap.rs",
@@ -756,6 +772,7 @@
         "keymap/chords_tests.rs",
         "keymap/conflict_tests.rs",
         "keymap/global_find_tests.rs",
+        "keymap/leader.rs",
         "keymap/vim_search.rs",
         "keymap/voice_tests.rs",
         "keymap_setup.rs",
@@ -864,6 +881,7 @@
         "render/model_themes.rs",
         "render/renderable.rs",
         "render/renderable_tests.rs",
+        "rendered_selection.rs",
         "resize_reflow_cap.rs",
         "resume_permissions.rs",
         "resume_permissions_tests.rs",
@@ -968,6 +986,7 @@
         "terminal_probe/windows_replay.rs",
         "terminal_probe/windows_replay_tests.rs",
         "terminal_probe/windows_tests.rs",
+        "terminal_program_status.rs",
         "terminal_title.rs",
         "terminal_visualization_instructions.rs",
         "test_backend.rs",
@@ -1052,6 +1071,8 @@
         "tui/keyboard_modes.rs",
         "tui/link_pointer.rs",
         "tui/link_pointer_tests.rs",
+        "tui/notification_preview.rs",
+        "tui/notification_preview_tests.rs",
         "tui/owned_screen_tests.rs",
         "tui/screen_size.rs",
         "tui/screen_size_tests.rs",
@@ -1094,8 +1115,38 @@
         "wrapping.rs",
         "wrapping_reuse_tests.rs"
       ],
-      "symbolCount": 15662,
+      "symbolCount": 15926,
       "symbols": [
+        {
+          "path": "activation_key_guard.rs",
+          "name": "ActivationKeyGuard",
+          "kind": "type"
+        },
+        {
+          "path": "activation_key_guard.rs",
+          "name": "consume",
+          "kind": "function"
+        },
+        {
+          "path": "activation_key_guard.rs",
+          "name": "consume_at",
+          "kind": "function"
+        },
+        {
+          "path": "activation_key_guard.rs",
+          "name": "is_active",
+          "kind": "function"
+        },
+        {
+          "path": "activation_key_guard.rs",
+          "name": "new_at",
+          "kind": "function"
+        },
+        {
+          "path": "activation_key_guard_tests.rs",
+          "name": "suppresses_activation_until_release_and_bounds_legacy_presses",
+          "kind": "function"
+        },
         {
           "path": "additional_dirs.rs",
           "name": "add_dir_warning_message",
@@ -3398,6 +3449,11 @@
         },
         {
           "path": "app/agent_center_tests.rs",
+          "name": "live_center_appends_arrivals_and_status_transitions",
+          "kind": "function"
+        },
+        {
+          "path": "app/agent_center_tests.rs",
           "name": "live_center_columns",
           "kind": "function"
         },
@@ -3409,6 +3465,11 @@
         {
           "path": "app/agent_center_tests.rs",
           "name": "live_center_hints_follow_configured_bindings",
+          "kind": "function"
+        },
+        {
+          "path": "app/agent_center_tests.rs",
+          "name": "live_center_keeps_status_order_across_progress_refreshes",
           "kind": "function"
         },
         {
@@ -3439,6 +3500,11 @@
         {
           "path": "app/agent_center_tests.rs",
           "name": "live_center_show_more_navigation_search_and_loading",
+          "kind": "function"
+        },
+        {
+          "path": "app/agent_center_tests.rs",
+          "name": "live_center_stable_order_preserves_filters_and_pins",
           "kind": "function"
         },
         {
@@ -4074,6 +4140,11 @@
         {
           "path": "app/agents_overview_errors.rs",
           "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "app/agents_overview_errors.rs",
+          "name": "show_agents_overview_error",
           "kind": "function"
         },
         {
@@ -5242,6 +5313,31 @@
           "kind": "function"
         },
         {
+          "path": "app/config_panel.rs",
+          "name": "save_config_preference",
+          "kind": "function"
+        },
+        {
+          "path": "app/config_panel.rs",
+          "name": "schedule_config_notification_test",
+          "kind": "function"
+        },
+        {
+          "path": "app/config_panel.rs",
+          "name": "send_config_notification_test",
+          "kind": "function"
+        },
+        {
+          "path": "app/config_panel_tests.rs",
+          "name": "config_toggle_save_uses_host_config_while_offline",
+          "kind": "function"
+        },
+        {
+          "path": "app/config_panel_tests.rs",
+          "name": "notification_test_delay_rejects_cancelled_and_rescheduled_timers",
+          "kind": "function"
+        },
+        {
           "path": "app/config_persistence.rs",
           "name": "adopt_inherited_server_selection",
           "kind": "function"
@@ -5428,7 +5524,7 @@
         },
         {
           "path": "app/config_persistence.rs",
-          "name": "refresh_in_memory_config_from_disk_updates_resize_reflow_config",
+          "name": "refresh_in_memory_config_from_disk_updates_live_widget_preferences",
           "kind": "function"
         },
         {
@@ -5623,6 +5719,11 @@
         },
         {
           "path": "app/daemon_menu.rs",
+          "name": "confirm_daemon_restart",
+          "kind": "function"
+        },
+        {
+          "path": "app/daemon_menu.rs",
           "name": "confirm_daemon_update",
           "kind": "function"
         },
@@ -5644,6 +5745,11 @@
         {
           "path": "app/daemon_menu.rs",
           "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "app/daemon_menu.rs",
+          "name": "verify_managed_daemon",
           "kind": "function"
         },
         {
@@ -5804,6 +5910,11 @@
         {
           "path": "app/file_change_approvals.rs",
           "name": "thread_file_change_changes",
+          "kind": "function"
+        },
+        {
+          "path": "app/footer_selection.rs",
+          "name": "handle_rendered_selection_event",
           "kind": "function"
         },
         {
@@ -6393,6 +6504,11 @@
         },
         {
           "path": "app/owned_transcript_input_tests.rs",
+          "name": "accepted_find_defers_paste_rendering_but_keeps_enter",
+          "kind": "function"
+        },
+        {
+          "path": "app/owned_transcript_input_tests.rs",
           "name": "complete_plan_turn",
           "kind": "function"
         },
@@ -6448,6 +6564,11 @@
         },
         {
           "path": "app/owned_transcript_input_tests.rs",
+          "name": "raw_multiline_paste_defers_rendering_and_submits_once",
+          "kind": "function"
+        },
+        {
+          "path": "app/owned_transcript_input_tests.rs",
           "name": "screen",
           "kind": "function"
         },
@@ -6494,6 +6615,11 @@
         {
           "path": "app/owned_transcript_tests.rs",
           "name": "find_refreshes_live_details_before_searching_the_first_query",
+          "kind": "function"
+        },
+        {
+          "path": "app/owned_transcript_tests.rs",
+          "name": "footer_selection_defers_warning_clicks_and_preserves_the_draft",
           "kind": "function"
         },
         {
@@ -7842,6 +7968,11 @@
           "kind": "function"
         },
         {
+          "path": "app/resume_config.rs",
+          "name": "resume_current_directory_availability",
+          "kind": "function"
+        },
+        {
           "path": "app/right_click_paste.rs",
           "name": "allows",
           "kind": "function"
@@ -7878,7 +8009,17 @@
         },
         {
           "path": "app/right_click_paste.rs",
+          "name": "start_clipboard_text_paste",
+          "kind": "function"
+        },
+        {
+          "path": "app/right_click_paste.rs",
           "name": "start_right_click_paste",
+          "kind": "function"
+        },
+        {
+          "path": "app/right_click_paste.rs",
+          "name": "status",
           "kind": "function"
         },
         {
@@ -8253,6 +8394,11 @@
         },
         {
           "path": "app/side.rs",
+          "name": "side_thread_for_parent",
+          "kind": "function"
+        },
+        {
+          "path": "app/side.rs",
           "name": "side_thread_to_discard_after_switch",
           "kind": "function"
         },
@@ -8279,6 +8425,11 @@
         {
           "path": "app/side.rs",
           "name": "toggle_side_conversation",
+          "kind": "function"
+        },
+        {
+          "path": "app/startup.rs",
+          "name": "discard_startup_modal_input",
           "kind": "function"
         },
         {
@@ -8993,6 +9144,11 @@
         },
         {
           "path": "app/tests.rs",
+          "name": "prompt_edit_reverts_earlier_and_first_visible_prompts_in_place_scenario",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests.rs",
           "name": "raw_lines",
           "kind": "function"
         },
@@ -9263,7 +9419,7 @@
         },
         {
           "path": "app/tests.rs",
-          "name": "side_discard_selection_keeps_current_side_thread",
+          "name": "side_discard_selection_only_closes_the_active_side",
           "kind": "function"
         },
         {
@@ -9469,6 +9625,11 @@
         {
           "path": "app/tests/agents_navigation_tests.rs",
           "name": "agents_navigation_requires_local_daemon",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/agents_navigation_tests.rs",
+          "name": "externally_archived_thread_keeps_advertised_agents_navigation",
           "kind": "function"
         },
         {
@@ -9838,6 +9999,11 @@
         },
         {
           "path": "app/tests/disconnect_tests.rs",
+          "name": "disconnected_config_panel_keeps_input",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/disconnect_tests.rs",
           "name": "lost_initial_thread_reply_keeps_startup_draft_offline",
           "kind": "function"
         },
@@ -10003,6 +10169,11 @@
         },
         {
           "path": "app/tests/key_chords.rs",
+          "name": "config_editor_chord_preserves_physical_completion_key_until_release",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/key_chords.rs",
           "name": "ctrl",
           "kind": "function"
         },
@@ -10074,6 +10245,11 @@
         {
           "path": "app/tests/key_chords.rs",
           "name": "press",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/key_chords.rs",
+          "name": "queued_config_handoff_observes_a_consumed_chord_prefix",
           "kind": "function"
         },
         {
@@ -11088,12 +11264,22 @@
         },
         {
           "path": "app/tests/session_lifecycle_requests.rs",
+          "name": "is_recording_client_disconnect",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/session_lifecycle_requests.rs",
           "name": "LegacyHistoryRequest",
           "kind": "type"
         },
         {
           "path": "app/tests/session_lifecycle_requests.rs",
           "name": "local_daemon_registers_approval_gated_mcp_tools_for_both_start_paths",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/session_lifecycle_requests.rs",
+          "name": "local_daemon_registers_approval_gated_mcp_tools_for_both_start_paths_scenario",
           "kind": "function"
         },
         {
@@ -11384,6 +11570,11 @@
         {
           "path": "app/tests/startup.rs",
           "name": "terminal_color_probe_waits_for_startup_sandbox_choice",
+          "kind": "function"
+        },
+        {
+          "path": "app/tests/startup.rs",
+          "name": "unattended_modals_survive_unfinished_terminal_input",
           "kind": "function"
         },
         {
@@ -12923,7 +13114,7 @@
         },
         {
           "path": "app/user_verification_errors.rs",
-          "name": "verification_error_message",
+          "name": "verification_failure",
           "kind": "function"
         },
         {
@@ -13029,6 +13220,11 @@
         {
           "path": "app/user_verification_tests.rs",
           "name": "user_verification_controller_cancels_for_an_older_binary",
+          "kind": "function"
+        },
+        {
+          "path": "app/user_verification_tests.rs",
+          "name": "user_verification_controller_preserves_typed_error_reasons_in_the_rpc_response",
           "kind": "function"
         },
         {
@@ -13598,6 +13794,11 @@
         },
         {
           "path": "app_command.rs",
+          "name": "UserVerificationFailure",
+          "kind": "type"
+        },
+        {
+          "path": "app_command.rs",
           "name": "UserVerificationResponse",
           "kind": "type"
         },
@@ -13709,6 +13910,11 @@
         {
           "path": "app_event.rs",
           "name": "RateLimitRefreshOrigin",
+          "kind": "type"
+        },
+        {
+          "path": "app_event.rs",
+          "name": "RealtimeWebrtcStartupFailure",
           "kind": "type"
         },
         {
@@ -16513,6 +16719,11 @@
         },
         {
           "path": "bottom_pane/async_questions/state_tests.rs",
+          "name": "multiline_question_preserves_line_breaks_and_link_destinations",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/async_questions/state_tests.rs",
           "name": "named_choices_share_selection_while_other_keeps_its_inline_cursor",
           "kind": "function"
         },
@@ -16598,6 +16809,11 @@
         },
         {
           "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
           "name": "active_tab_id",
           "kind": "function"
         },
@@ -16623,6 +16839,11 @@
         },
         {
           "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "config_editor_opened",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
           "name": "dismiss_after_child_accept",
           "kind": "function"
         },
@@ -16643,7 +16864,22 @@
         },
         {
           "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "handle_key_event_with_activation_key",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "handle_key_release",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
           "name": "handle_paste",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "interrupt_config_editor_transition",
           "kind": "function"
         },
         {
@@ -16673,6 +16909,11 @@
         },
         {
           "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "observe_key_event_while_covered",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
           "name": "on_ctrl_c",
           "kind": "function"
         },
@@ -16689,6 +16930,11 @@
         {
           "path": "bottom_pane/bottom_pane_view.rs",
           "name": "presentation",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "search_query",
           "kind": "function"
         },
         {
@@ -16714,6 +16960,11 @@
         {
           "path": "bottom_pane/bottom_pane_view.rs",
           "name": "try_consume_user_input_request",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/bottom_pane_view.rs",
+          "name": "update_config_panel",
           "kind": "function"
         },
         {
@@ -18933,6 +19184,11 @@
         },
         {
           "path": "bottom_pane/chat_composer/agents_navigation.rs",
+          "name": "handle_agents_navigation",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/agents_navigation.rs",
           "name": "set_agents_navigation_enabled",
           "kind": "function"
         },
@@ -19748,8 +20004,18 @@
         },
         {
           "path": "bottom_pane/chat_composer/mouse.rs",
-          "name": "can_paste_on_right_click",
+          "name": "clear_mouse_selection",
           "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/mouse.rs",
+          "name": "clipboard_paste_target",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/mouse.rs",
+          "name": "ClipboardPasteTarget",
+          "kind": "type"
         },
         {
           "path": "bottom_pane/chat_composer/mouse.rs",
@@ -19788,6 +20054,11 @@
         },
         {
           "path": "bottom_pane/chat_composer/mouse_tests.rs",
+          "name": "recovery_keeps_unselected_text_after_a_held_replace_key",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/mouse_tests.rs",
           "name": "right_click_copy_uses_the_refreshed_editor_bounds",
           "kind": "function"
         },
@@ -19799,6 +20070,11 @@
         {
           "path": "bottom_pane/chat_composer/paste_input.rs",
           "name": "apply_paste",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/paste_input.rs",
+          "name": "flush_pending_paste_burst",
           "kind": "function"
         },
         {
@@ -19935,6 +20211,11 @@
           "path": "bottom_pane/chat_composer/reconnect.rs",
           "name": "RestrictedInputMode",
           "kind": "type"
+        },
+        {
+          "path": "bottom_pane/chat_composer/reconnect_tests.rs",
+          "name": "disconnected_input_dispatches_local_config_command",
+          "kind": "function"
         },
         {
           "path": "bottom_pane/chat_composer/reconnect_tests.rs",
@@ -20174,6 +20455,11 @@
         {
           "path": "bottom_pane/chat_composer/snapshot_tests.rs",
           "name": "draft_and_voice_composer_snapshots",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/chat_composer/snapshot_tests.rs",
+          "name": "plugin_mention_uses_display_name_for_opaque_id",
           "kind": "function"
         },
         {
@@ -21414,6 +21700,26 @@
         {
           "path": "bottom_pane/composer_gap.rs",
           "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/config_panel.rs",
+          "name": "config_editor_opened",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/config_panel.rs",
+          "name": "interrupt_config_editor_transition",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/config_panel.rs",
+          "name": "observe_config_editor_transition_key_event",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/config_panel.rs",
+          "name": "update_config_panel",
           "kind": "function"
         },
         {
@@ -23193,6 +23499,11 @@
         },
         {
           "path": "bottom_pane/list_selection_view.rs",
+          "name": "accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
           "name": "active_footer_hint",
           "kind": "function"
         },
@@ -23269,6 +23580,16 @@
         {
           "path": "bottom_pane/list_selection_view.rs",
           "name": "completion",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "configured_list_binding_takes_precedence_over_search_toggle_key",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "cursor_pos",
           "kind": "function"
         },
         {
@@ -23448,6 +23769,11 @@
         },
         {
           "path": "bottom_pane/list_selection_view.rs",
+          "name": "on_demand_search_active",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
           "name": "OnCancelCallback",
           "kind": "type"
         },
@@ -23560,6 +23886,31 @@
           "path": "bottom_pane/list_selection_view.rs",
           "name": "result_area_height",
           "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "search_field_visible",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "search_query",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "search_query",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "searchable_list_honors_configured_printable_accept_alternative",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "SearchMode",
+          "kind": "type"
         },
         {
           "path": "bottom_pane/list_selection_view.rs",
@@ -23759,6 +24110,11 @@
         {
           "path": "bottom_pane/list_selection_view.rs",
           "name": "stacked_side_content_is_used_when_side_by_side_does_not_fit",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/list_selection_view.rs",
+          "name": "stop_on_demand_search",
           "kind": "function"
         },
         {
@@ -24853,6 +25209,11 @@
         },
         {
           "path": "bottom_pane/mentions_v2/search_catalog.rs",
+          "name": "generated_app_mentions_use_bounded_display_names",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mentions_v2/search_catalog.rs",
           "name": "optional_skill_description",
           "kind": "function"
         },
@@ -24939,6 +25300,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "active_view",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "active_view_accepts_input_when_disconnected",
           "kind": "function"
         },
         {
@@ -25038,11 +25404,6 @@
         },
         {
           "path": "bottom_pane/mod.rs",
-          "name": "can_paste_on_right_click",
-          "kind": "function"
-        },
-        {
-          "path": "bottom_pane/mod.rs",
           "name": "CancellationEvent",
           "kind": "type"
         },
@@ -25063,12 +25424,22 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "clear_composer_selection",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "clear_esc_backtrack_hint",
           "kind": "function"
         },
         {
           "path": "bottom_pane/mod.rs",
           "name": "clear_quit_shortcut_hint",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "clipboard_paste_target",
           "kind": "function"
         },
         {
@@ -25143,6 +25514,16 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "consume_view_transition_key",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "consume_view_transition_key_event",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "context_window_percent",
           "kind": "function"
         },
@@ -25164,6 +25545,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "CountingView",
+          "kind": "type"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "CoveredEvents",
           "kind": "type"
         },
         {
@@ -25205,6 +25591,11 @@
           "path": "bottom_pane/mod.rs",
           "name": "DelayedApprovalRequest",
           "kind": "type"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "desired_height",
+          "kind": "function"
         },
         {
           "path": "bottom_pane/mod.rs",
@@ -25398,6 +25789,16 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "handle_key_event_with_activation_key",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "handle_key_release",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "handle_paste",
           "kind": "function"
         },
@@ -25439,6 +25840,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "insert_str",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "interrupt_config_editor_transition",
           "kind": "function"
         },
         {
@@ -25509,6 +25915,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "no_modal_or_popup_active",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "observe_key_event_while_covered",
           "kind": "function"
         },
         {
@@ -25598,6 +26009,11 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "prepare_composer_clipboard_paste",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "prepare_composer_mouse",
           "kind": "function"
         },
@@ -25669,6 +26085,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "remote_images_render_above_composer_text",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "render",
           "kind": "function"
         },
         {
@@ -26148,6 +26569,11 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "suppress_current_view_key_until_release",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "sync_status_inline_message",
           "kind": "function"
         },
@@ -26213,7 +26639,17 @@
         },
         {
           "path": "bottom_pane/mod.rs",
+          "name": "TrackingView",
+          "kind": "type"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
           "name": "transcript_shortcut_hint",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "transition_events_reach_a_view_covered_by_a_modal",
           "kind": "function"
         },
         {
@@ -26244,6 +26680,11 @@
         {
           "path": "bottom_pane/mod.rs",
           "name": "view_id",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/mod.rs",
+          "name": "view_transition_key_guard_survives_an_intervening_modal",
           "kind": "function"
         },
         {
@@ -26589,6 +27030,11 @@
         {
           "path": "bottom_pane/paste_burst.rs",
           "name": "flush_if_due",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/paste_burst.rs",
+          "name": "flush_pending",
           "kind": "function"
         },
         {
@@ -28944,6 +29390,11 @@
         {
           "path": "bottom_pane/startup.rs",
           "name": "set_disable_paste_burst",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/status_line_setup.rs",
+          "name": "accepts_input_when_disconnected",
           "kind": "function"
         },
         {
@@ -31363,6 +31814,11 @@
         },
         {
           "path": "bottom_pane/title_setup.rs",
+          "name": "accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "bottom_pane/title_setup.rs",
           "name": "activity_is_canonical_and_accepts_spinner_legacy_id",
           "kind": "function"
         },
@@ -32633,6 +33089,11 @@
         },
         {
           "path": "chatwidget.rs",
+          "name": "refresh_terminal_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget.rs",
           "name": "remote_image_urls",
           "kind": "function"
         },
@@ -33054,6 +33515,46 @@
         {
           "path": "chatwidget/completion.rs",
           "name": "completion_cell",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "config_editor_open_failed",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "config_panel_status",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "interrupt_config_editor_transition",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "observe_config_editor_transition_key_event",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "open_config_editor",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "open_config_panel",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "refresh_config_panel",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/config_panel.rs",
+          "name": "report_config_save_error",
           "kind": "function"
         },
         {
@@ -33828,7 +34329,22 @@
         },
         {
           "path": "chatwidget/interaction.rs",
+          "name": "clear_composer_selection",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
+          "name": "clipboard_paste_target",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
           "name": "composer_text_with_pending",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
+          "name": "consume_view_transition_key_event",
           "kind": "function"
         },
         {
@@ -33863,6 +34379,11 @@
         },
         {
           "path": "chatwidget/interaction.rs",
+          "name": "handle_key_event_with_activation_key",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
           "name": "handle_paste",
           "kind": "function"
         },
@@ -33884,6 +34405,11 @@
         {
           "path": "chatwidget/interaction.rs",
           "name": "is_cancellable_work_active",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
+          "name": "is_in_paste_burst",
           "kind": "function"
         },
         {
@@ -33948,11 +34474,6 @@
         },
         {
           "path": "chatwidget/interaction.rs",
-          "name": "right_click_paste_target",
-          "kind": "function"
-        },
-        {
-          "path": "chatwidget/interaction.rs",
           "name": "selected_index_for_active_view",
           "kind": "function"
         },
@@ -34004,6 +34525,11 @@
         {
           "path": "chatwidget/interaction.rs",
           "name": "show_selection_view",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/interaction.rs",
+          "name": "take_key_chord_reset",
           "kind": "function"
         },
         {
@@ -34598,12 +35124,22 @@
         },
         {
           "path": "chatwidget/pets.rs",
+          "name": "ConfiguredPetLoadGeneration",
+          "kind": "type"
+        },
+        {
+          "path": "chatwidget/pets.rs",
           "name": "disable_ambient_pet_for_session",
           "kind": "function"
         },
         {
           "path": "chatwidget/pets.rs",
           "name": "fail_pet_picker_preview_render",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/pets.rs",
+          "name": "finish_configured_pet_load",
           "kind": "function"
         },
         {
@@ -34629,6 +35165,11 @@
         {
           "path": "chatwidget/pets.rs",
           "name": "load_ambient_pet",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/pets.rs",
+          "name": "next_configured_pet_load_generation",
           "kind": "function"
         },
         {
@@ -34699,6 +35240,11 @@
         {
           "path": "chatwidget/pets.rs",
           "name": "warn_if_pets_unsupported",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/pets_tests.rs",
+          "name": "configured_pet_loads_are_scoped_across_widget_replacements",
           "kind": "function"
         },
         {
@@ -35044,6 +35590,11 @@
         {
           "path": "chatwidget/plugin_catalog.rs",
           "name": "plugin_tab_id_matching_saved_id",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/plugin_catalog.rs",
+          "name": "plugin_toggle_key_available",
           "kind": "function"
         },
         {
@@ -35563,6 +36114,11 @@
         },
         {
           "path": "chatwidget/realtime.rs",
+          "name": "capture_realtime_session_duration",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime.rs",
           "name": "complete_realtime_delegated_agent_item",
           "kind": "function"
         },
@@ -35763,11 +36319,6 @@
         },
         {
           "path": "chatwidget/realtime.rs",
-          "name": "record_realtime_failure",
-          "kind": "function"
-        },
-        {
-          "path": "chatwidget/realtime.rs",
           "name": "remember_realtime_delegated_reasoning_turn",
           "kind": "function"
         },
@@ -35849,6 +36400,26 @@
         {
           "path": "chatwidget/realtime.rs",
           "name": "toggle_realtime_conversation",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime/failure_metrics.rs",
+          "name": "as_str",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime/failure_metrics.rs",
+          "name": "from",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime/failure_metrics.rs",
+          "name": "RealtimeFailureCause",
+          "kind": "type"
+        },
+        {
+          "path": "chatwidget/realtime/failure_metrics.rs",
+          "name": "record_realtime_failure",
           "kind": "function"
         },
         {
@@ -35974,6 +36545,11 @@
         {
           "path": "chatwidget/realtime/recording_controls_tests.rs",
           "name": "voice_terminal_title_tracks_capture_activity_and_user_settings",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime/session_metrics_tests.rs",
+          "name": "completed_voice_duration_uses_terminal_success_or_failure_outcome",
           "kind": "function"
         },
         {
@@ -36533,6 +37109,11 @@
         },
         {
           "path": "chatwidget/realtime_tests/lifecycle.rs",
+          "name": "voice_startup_failure_preserves_the_specific_error",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/realtime_tests/lifecycle.rs",
           "name": "voice_waits_for_peer_when_backend_starts_first",
           "kind": "function"
         },
@@ -36838,6 +37419,21 @@
         },
         {
           "path": "chatwidget/reconnect.rs",
+          "name": "active_view_accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/reconnect.rs",
+          "name": "active_view_is",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/reconnect.rs",
+          "name": "cancel_active_disconnected_view",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/reconnect.rs",
           "name": "handle_disconnected_view_key",
           "kind": "function"
         },
@@ -36864,6 +37460,11 @@
         {
           "path": "chatwidget/reconnect.rs",
           "name": "reconnect_failed",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/reconnect.rs",
+          "name": "record_realtime_disconnect_failure",
           "kind": "function"
         },
         {
@@ -37533,7 +38134,7 @@
         },
         {
           "path": "chatwidget/settings.rs",
-          "name": "daybreak_turn_eligible",
+          "name": "daybreak_feature_enabled",
           "kind": "function"
         },
         {
@@ -38288,6 +38889,11 @@
         },
         {
           "path": "chatwidget/status_surfaces.rs",
+          "name": "desired_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/status_surfaces.rs",
           "name": "find_codex_window",
           "kind": "function"
         },
@@ -38299,6 +38905,11 @@
         {
           "path": "chatwidget/status_surfaces.rs",
           "name": "five_hour_status_window",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/status_surfaces.rs",
+          "name": "iterm_session_detail",
           "kind": "function"
         },
         {
@@ -39424,6 +40035,11 @@
         {
           "path": "chatwidget/tests/composer_submission.rs",
           "name": "pending_steer_interrupt_uses_remapped_binding",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/tests/composer_submission.rs",
+          "name": "plugin_mention_does_not_suppress_same_name_skill",
           "kind": "function"
         },
         {
@@ -41978,6 +42594,11 @@
         },
         {
           "path": "chatwidget/tests/popups_and_settings.rs",
+          "name": "plugins_popup_hides_tab_toggle_hint_when_tab_is_configured",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/tests/popups_and_settings.rs",
           "name": "plugins_popup_installed_tab_filters_rows_and_clears_search",
           "kind": "function"
         },
@@ -42058,12 +42679,12 @@
         },
         {
           "path": "chatwidget/tests/popups_and_settings.rs",
-          "name": "plugins_popup_space_toggles_installed_plugin_from_list",
+          "name": "plugins_popup_space_with_active_search_does_not_toggle_installed_plugin",
           "kind": "function"
         },
         {
           "path": "chatwidget/tests/popups_and_settings.rs",
-          "name": "plugins_popup_space_with_active_search_does_not_toggle_installed_plugin",
+          "name": "plugins_popup_toggle_keys_preserve_search_and_selection",
           "kind": "function"
         },
         {
@@ -44782,6 +45403,16 @@
           "kind": "function"
         },
         {
+          "path": "chatwidget/tests/terminal_program_status.rs",
+          "name": "session_status_detail_uses_only_foreground_activity",
+          "kind": "function"
+        },
+        {
+          "path": "chatwidget/tests/terminal_program_status.rs",
+          "name": "session_status_follows_existing_lifecycle_state",
+          "kind": "function"
+        },
+        {
           "path": "chatwidget/tests/terminal_title.rs",
           "name": "daybreak_status_surfaces_follow_the_thread_preference",
           "kind": "function"
@@ -46633,6 +47264,11 @@
         },
         {
           "path": "clipboard_copy/routing_tests.rs",
+          "name": "herdr_forwards_to_osc52_even_when_native_copy_succeeds",
+          "kind": "function"
+        },
+        {
+          "path": "clipboard_copy/routing_tests.rs",
           "name": "local_tmux_environment",
           "kind": "function"
         },
@@ -46799,6 +47435,11 @@
         {
           "path": "clipboard_copy/worker.rs",
           "name": "timed_out",
+          "kind": "function"
+        },
+        {
+          "path": "clipboard_copy/worker.rs",
+          "name": "warm_text_reader",
           "kind": "function"
         },
         {
@@ -47038,12 +47679,17 @@
         },
         {
           "path": "clipboard_paste/text.rs",
-          "name": "read",
+          "name": "read_command",
           "kind": "function"
         },
         {
           "path": "clipboard_paste/text.rs",
-          "name": "read_command",
+          "name": "reader",
+          "kind": "function"
+        },
+        {
+          "path": "clipboard_paste/text.rs",
+          "name": "start_windows_reader",
           "kind": "function"
         },
         {
@@ -47212,6 +47858,386 @@
           "kind": "function"
         },
         {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "config_panel_renders_each_group_at_a_stable_height",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "config_panel_wraps_complete_save_error",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "copy_on_select_uses_editor_handoff_and_saves_choice",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "deselect_after_copy_requires_effective_copy_on_select",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "editor_handoff_blocks_input_until_acknowledged",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "filtered_selection_opens_the_matching_existing_editor",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "notification_controls_render_dependency_states_and_condition_picker",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "on_demand_search_preserves_printable_list_bindings",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "panel",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "refresh_preserves_search_and_updates_visible_state",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "resume_directory_disables_current_without_remote_cwd_override",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "search_matches_displayed_values",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "session_picker_layout_uses_editor_handoff_and_saves_choice",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/config_panel_tests.rs",
+          "name": "unavailable_right_click_paste_remains_editable",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "activate",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "config_editor_opened",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "handle_key_event",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "handle_key_event_with_activation_key",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "handle_key_release",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "handle_paste",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "interrupt_config_editor_transition",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "is_complete",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "keymap_contexts",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "observe_key_event_while_covered",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "observe_pending_handoff_key",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "on_ctrl_c",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "prefer_esc_to_handle_key_event",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "setting_index",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/input.rs",
+          "name": "update_config_panel",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "active_at",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigEditor",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigEditorActivation",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigEditorHandoff",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigPanel",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigPanelStatus",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigPanelUpdate",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigSection",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigSetting",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ConfigSettingValue",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "display_label",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "label",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "mark_activation_inactive",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "mark_activation_seen",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "mark_activation_seen_at",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "new",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "new",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "PickerState",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "ResumeCurrentAvailability",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "settings",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "title",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/mod.rs",
+          "name": "value",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "ConfigPanelHeader",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "copy_on_select",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "cursor_pos",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "desired_height",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "desired_height",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "header",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "hint",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "notification_condition",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "picker",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "resume_directory",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "right_click_paste",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/render.rs",
+          "name": "session_picker_layout",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "adopt",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "adopt",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "ConfigPreference",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "ConfigToggle",
+          "kind": "type"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "edit",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "edit",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "enabled",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "preserve_restart_required",
+          "kind": "function"
+        },
+        {
+          "path": "config_panel/toggle.rs",
+          "name": "requires_restart",
+          "kind": "function"
+        },
+        {
           "path": "config_update.rs",
           "name": "app_scoped_key_path",
           "kind": "function"
@@ -47344,11 +48370,6 @@
         {
           "path": "custom_terminal.rs",
           "name": "append_lines",
-          "kind": "function"
-        },
-        {
-          "path": "custom_terminal.rs",
-          "name": "autoresize",
           "kind": "function"
         },
         {
@@ -47684,16 +48705,6 @@
         {
           "path": "custom_terminal.rs",
           "name": "terminal_draw_moves_cursor_before_showing_it",
-          "kind": "function"
-        },
-        {
-          "path": "custom_terminal.rs",
-          "name": "try_draw",
-          "kind": "function"
-        },
-        {
-          "path": "custom_terminal.rs",
-          "name": "try_draw_with_size",
           "kind": "function"
         },
         {
@@ -50639,6 +51650,26 @@
         {
           "path": "footer_hint_tests.rs",
           "name": "wraps_whole_hints_using_display_width",
+          "kind": "function"
+        },
+        {
+          "path": "footer_selection_tests.rs",
+          "name": "mouse",
+          "kind": "function"
+        },
+        {
+          "path": "footer_selection_tests.rs",
+          "name": "release_copy_and_cross_surface_drags_use_only_visible_text",
+          "kind": "function"
+        },
+        {
+          "path": "footer_selection_tests.rs",
+          "name": "rendered_selection_preserves_unicode_links_and_the_selected_revision",
+          "kind": "function"
+        },
+        {
+          "path": "footer_selection_tests.rs",
+          "name": "stationary_clicks_are_deferred_but_dragging_back_does_not_activate",
           "kind": "function"
         },
         {
@@ -53718,6 +54749,11 @@
         },
         {
           "path": "history_cell/tests.rs",
+          "name": "legacy_zsh_migration_notice_snapshot",
+          "kind": "function"
+        },
+        {
+          "path": "history_cell/tests.rs",
           "name": "local_daemon_version_notice_snapshot",
           "kind": "function"
         },
@@ -55227,6 +56263,36 @@
           "kind": "function"
         },
         {
+          "path": "iterm_session_status_tests.rs",
+          "name": "cache_changes_only_after_a_successful_write",
+          "kind": "function"
+        },
+        {
+          "path": "iterm_session_status_tests.rs",
+          "name": "clear_empties_every_owned_field",
+          "kind": "function"
+        },
+        {
+          "path": "iterm_session_status_tests.rs",
+          "name": "detail_is_safe_bounded_osc_text",
+          "kind": "function"
+        },
+        {
+          "path": "iterm_session_status_tests.rs",
+          "name": "encodes_generic_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "iterm_session_status_tests.rs",
+          "name": "encodes_iterm_session_status_fields",
+          "kind": "function"
+        },
+        {
+          "path": "iterm_session_status_tests.rs",
+          "name": "selects_protocols_for_terminal_environment",
+          "kind": "function"
+        },
+        {
           "path": "key_hint.rs",
           "name": "c0_control_char_to_ctrl_char",
           "kind": "function"
@@ -55339,6 +56405,11 @@
         {
           "path": "key_hint.rs",
           "name": "is_pressed",
+          "kind": "function"
+        },
+        {
+          "path": "key_hint.rs",
+          "name": "is_same_physical_key",
           "kind": "function"
         },
         {
@@ -55699,6 +56770,11 @@
         {
           "path": "keymap.rs",
           "name": "from_config",
+          "kind": "function"
+        },
+        {
+          "path": "keymap.rs",
+          "name": "has_chord_prefix",
           "kind": "function"
         },
         {
@@ -56183,6 +57259,11 @@
         },
         {
           "path": "keymap/chords.rs",
+          "name": "is_leader",
+          "kind": "function"
+        },
+        {
+          "path": "keymap/chords.rs",
           "name": "is_pending",
           "kind": "function"
         },
@@ -56209,6 +57290,11 @@
         {
           "path": "keymap/chords.rs",
           "name": "normalize_chord_binding",
+          "kind": "function"
+        },
+        {
+          "path": "keymap/chords.rs",
+          "name": "overlaps",
           "kind": "function"
         },
         {
@@ -56449,6 +57535,11 @@
         {
           "path": "keymap/global_find_tests.rs",
           "name": "new_find_defaults_yield_to_existing_keys_and_prefixes_but_explicit_conflicts_fail",
+          "kind": "function"
+        },
+        {
+          "path": "keymap/leader.rs",
+          "name": "resolve",
           "kind": "function"
         },
         {
@@ -56958,6 +58049,11 @@
         },
         {
           "path": "keymap_setup/capture.rs",
+          "name": "accepts_input_when_disconnected",
+          "kind": "function"
+        },
+        {
+          "path": "keymap_setup/capture.rs",
           "name": "desired_height",
           "kind": "function"
         },
@@ -57044,6 +58140,11 @@
         {
           "path": "keymap_setup/capture_tests.rs",
           "name": "replacing_one_list_binding_with_chord_preserves_other_alternatives",
+          "kind": "function"
+        },
+        {
+          "path": "keymap_setup/debug.rs",
+          "name": "accepts_input_when_disconnected",
           "kind": "function"
         },
         {
@@ -57928,6 +59029,11 @@
         },
         {
           "path": "local_settings.rs",
+          "name": "custom_notification_filters",
+          "kind": "function"
+        },
+        {
+          "path": "local_settings.rs",
           "name": "for_tui",
           "kind": "function"
         },
@@ -58119,6 +59225,11 @@
         {
           "path": "managed_worktree_tools_tests.rs",
           "name": "creation_attaches_to_original_task_and_survives_service_restart",
+          "kind": "function"
+        },
+        {
+          "path": "managed_worktree_tools_tests.rs",
+          "name": "creation_attaches_to_original_task_and_survives_service_restart_scenario",
           "kind": "function"
         },
         {
@@ -62078,6 +63189,11 @@
         },
         {
           "path": "onboarding/bedrock.rs",
+          "name": "check_gov_cloud",
+          "kind": "function"
+        },
+        {
+          "path": "onboarding/bedrock.rs",
           "name": "confirm_input",
           "kind": "function"
         },
@@ -62098,12 +63214,22 @@
         },
         {
           "path": "onboarding/bedrock.rs",
+          "name": "guidance",
+          "kind": "function"
+        },
+        {
+          "path": "onboarding/bedrock.rs",
           "name": "handle_bedrock_key_event",
           "kind": "function"
         },
         {
           "path": "onboarding/bedrock.rs",
           "name": "handle_bedrock_paste",
+          "kind": "function"
+        },
+        {
+          "path": "onboarding/bedrock.rs",
+          "name": "handle_guidance_key_event",
           "kind": "function"
         },
         {
@@ -62144,11 +63270,6 @@
         {
           "path": "onboarding/bedrock.rs",
           "name": "start_bedrock_setup",
-          "kind": "function"
-        },
-        {
-          "path": "onboarding/bedrock.rs",
-          "name": "start_gov_cloud_check",
           "kind": "function"
         },
         {
@@ -62339,6 +63460,11 @@
         {
           "path": "onboarding/onboarding_screen.rs",
           "name": "restricted_acceptance_and_cancellation_do_not_persist_trust",
+          "kind": "function"
+        },
+        {
+          "path": "onboarding/onboarding_screen.rs",
+          "name": "run_gov_cloud_guidance",
           "kind": "function"
         },
         {
@@ -62874,6 +64000,11 @@
         {
           "path": "pager_overlay.rs",
           "name": "update_last_content_height",
+          "kind": "function"
+        },
+        {
+          "path": "pager_overlay.rs",
+          "name": "with_copy_on_select_clear_selection",
           "kind": "function"
         },
         {
@@ -65389,6 +66520,51 @@
         {
           "path": "render/renderable_tests.rs",
           "name": "with_height",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "clear",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "handle_event",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "handle_mouse",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "needs_refresh",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "RegionAction",
+          "kind": "type"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "register",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "render",
+          "kind": "function"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "RenderedSelection",
+          "kind": "type"
+        },
+        {
+          "path": "rendered_selection.rs",
+          "name": "surface_lines",
           "kind": "function"
         },
         {
@@ -68404,6 +69580,11 @@
         {
           "path": "startup_recovery.rs",
           "name": "take_unsent_text",
+          "kind": "function"
+        },
+        {
+          "path": "startup_recovery_tests.rs",
+          "name": "recovery_after_handoff_preserves_pending_vim_replace_key",
           "kind": "function"
         },
         {
@@ -71683,6 +72864,11 @@
         },
         {
           "path": "terminal_hyperlinks_tests.rs",
+          "name": "source_wrapping_clips_a_cursor_sentinel_at_the_input_boundary",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_hyperlinks_tests.rs",
           "name": "trims_long_runs_of_unmatched_closing_delimiters",
           "kind": "function"
         },
@@ -72342,6 +73528,121 @@
           "kind": "function"
         },
         {
+          "path": "terminal_program_status.rs",
+          "name": "clear_terminal_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "ClearTerminalProgramStatus",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "current_terminal_program_status_support",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "EmittedSessionStatus",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "execute_winapi",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "execute_winapi",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "invalidate",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "invalidate_terminal_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "is_ansi_code_supported",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "is_ansi_code_supported",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "iterm_indicator",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "iterm_label",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "ProgramStatus",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "protocol_state",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "sanitize_iterm_session_detail",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "SessionStatusState",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "set_terminal_program_status",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "SetTerminalProgramStatus",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "terminal_program_status_support",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "TerminalProgramStatusSupport",
+          "kind": "type"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "update",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "write_ansi",
+          "kind": "function"
+        },
+        {
+          "path": "terminal_program_status.rs",
+          "name": "write_ansi",
+          "kind": "function"
+        },
+        {
           "path": "terminal_title.rs",
           "name": "clear_terminal_title",
           "kind": "function"
@@ -72529,6 +73830,11 @@
         {
           "path": "test_backend.rs",
           "name": "write",
+          "kind": "function"
+        },
+        {
+          "path": "test_support.rs",
+          "name": "box_future",
           "kind": "function"
         },
         {
@@ -73658,6 +74964,11 @@
         },
         {
           "path": "transcript_view.rs",
+          "name": "clear_selection",
+          "kind": "function"
+        },
+        {
+          "path": "transcript_view.rs",
           "name": "default",
           "kind": "function"
         },
@@ -73733,6 +75044,11 @@
         },
         {
           "path": "transcript_view.rs",
+          "name": "publishes_primary",
+          "kind": "function"
+        },
+        {
+          "path": "transcript_view.rs",
           "name": "remaining_area",
           "kind": "function"
         },
@@ -73750,6 +75066,11 @@
           "path": "transcript_view.rs",
           "name": "scroll",
           "kind": "function"
+        },
+        {
+          "path": "transcript_view.rs",
+          "name": "SelectionCopy",
+          "kind": "type"
         },
         {
           "path": "transcript_view.rs",
@@ -74053,7 +75374,7 @@
         },
         {
           "path": "transcript_view/copy_on_select_tests.rs",
-          "name": "copy_on_select_waits_for_release_and_retains_selection",
+          "name": "copy_on_select_waits_for_release_and_confirmed_delivery",
           "kind": "function"
         },
         {
@@ -74424,6 +75745,11 @@
         {
           "path": "transcript_view/input.rs",
           "name": "pointer_down",
+          "kind": "function"
+        },
+        {
+          "path": "transcript_view/input.rs",
+          "name": "selection_copy",
           "kind": "function"
         },
         {
@@ -75353,7 +76679,7 @@
         },
         {
           "path": "transcript_view/selection.rs",
-          "name": "copy_selected_text",
+          "name": "copy_action",
           "kind": "function"
         },
         {
@@ -76533,6 +77859,11 @@
         },
         {
           "path": "tui.rs",
+          "name": "set_notification_condition",
+          "kind": "function"
+        },
+        {
+          "path": "tui.rs",
           "name": "set_notification_settings",
           "kind": "function"
         },
@@ -77534,6 +78865,16 @@
         {
           "path": "tui/link_pointer_tests.rs",
           "name": "write",
+          "kind": "function"
+        },
+        {
+          "path": "tui/notification_preview.rs",
+          "name": "notify_test",
+          "kind": "function"
+        },
+        {
+          "path": "tui/notification_preview_tests.rs",
+          "name": "notification_preview_preserves_disabled_backend_and_focus_policy",
           "kind": "function"
         },
         {
@@ -79407,11 +80748,11 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "4df8d58fbd47c9a06a6440489772d8b579781f54921d04c0e576fc7b07d2d3fd"
+      "treeSha256": "21ad713e460da8a33d7ef67436e32f1706acf6e893fdf401c32639fd5dd36b8e"
     },
     "lime-rs/crates/tui/src": {
       "root": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/lime-rs/crates/tui/src",
-      "fileCount": 509,
+      "fileCount": 512,
       "files": [
         "app.rs",
         "app/agent_center/hints.rs",
@@ -79758,6 +81099,8 @@
         "pager_overlay/search_tests.rs",
         "pager_overlay/tests.rs",
         "projection.rs",
+        "projection/commands.rs",
+        "projection/commands_tests.rs",
         "projection/history.rs",
         "projection/history_tests.rs",
         "projection/items.rs",
@@ -79801,6 +81144,7 @@
         "runtime_pty_tests/agent_picker.rs",
         "runtime_pty_tests/approval.rs",
         "runtime_pty_tests/backtrack.rs",
+        "runtime_pty_tests/command_continuation.rs",
         "runtime_pty_tests/composer.rs",
         "runtime_pty_tests/config.rs",
         "runtime_pty_tests/copy_mode.rs",
@@ -79923,7 +81267,7 @@
         "wrapping/tests.rs",
         "wrapping/url.rs"
       ],
-      "symbolCount": 6113,
+      "symbolCount": 6123,
       "symbols": [
         {
           "path": "app.rs",
@@ -101422,11 +102766,6 @@
         },
         {
           "path": "projection.rs",
-          "name": "settle_running_entries",
-          "kind": "function"
-        },
-        {
-          "path": "projection.rs",
           "name": "should_hide_realtime_item",
           "kind": "function"
         },
@@ -101463,6 +102802,56 @@
         {
           "path": "projection.rs",
           "name": "update_review_mode",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands.rs",
+          "name": "command_delta_allowed",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands.rs",
+          "name": "CommandScope",
+          "kind": "type"
+        },
+        {
+          "path": "projection/commands.rs",
+          "name": "observe_command",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands.rs",
+          "name": "session_command_is_running",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands.rs",
+          "name": "settle_running_entries",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands_tests.rs",
+          "name": "background_command_restores_from_canonical_history_and_paging",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands_tests.rs",
+          "name": "background_command_survives_turn_terminal_without_touching_next_turn",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands_tests.rs",
+          "name": "command",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands_tests.rs",
+          "name": "complete",
+          "kind": "function"
+        },
+        {
+          "path": "projection/commands_tests.rs",
+          "name": "output",
           "kind": "function"
         },
         {
@@ -104133,6 +105522,11 @@
         {
           "path": "runtime_pty_tests/backtrack.rs",
           "name": "exercise_previous_prompt",
+          "kind": "function"
+        },
+        {
+          "path": "runtime_pty_tests/command_continuation.rs",
+          "name": "real_pty_projects_session_command_exit_after_model_turn",
           "kind": "function"
         },
         {
@@ -110491,11 +111885,11 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "43942625610a55b5b584c5d684b46285eb23441eb784a20e253e20eabfa0221a"
+      "treeSha256": "2e0a10ffb65d463480098c525a0bdccb8d3b4f93baaa9ebf2e6632898764a4f1"
     },
     "codex-rs/tui/tests": {
       "root": "/Users/coso/Documents/dev/rust/codex/codex-rs/tui/tests",
-      "fileCount": 18,
+      "fileCount": 19,
       "files": [
         "all.rs",
         "fixtures/oss-story.jsonl",
@@ -110504,6 +111898,7 @@
         "suite/directory_trust.rs",
         "suite/external_editor_tests.rs",
         "suite/focus_palette.rs",
+        "suite/gov_cloud_guidance_tests.rs",
         "suite/mod.rs",
         "suite/provider_defaults.rs",
         "suite/reconnect.rs",
@@ -110516,7 +111911,7 @@
         "suite/worktree_stack.rs",
         "test_backend.rs"
       ],
-      "symbolCount": 66,
+      "symbolCount": 67,
       "symbols": [
         {
           "path": "manager_dependency_regression.rs",
@@ -110530,7 +111925,7 @@
         },
         {
           "path": "suite/daemon_compatibility.rs",
-          "name": "incompatible_daemon_falls_back_for_default_and_explicit_features",
+          "name": "incompatible_daemon_falls_back_for_explicit_features",
           "kind": "function"
         },
         {
@@ -110651,6 +112046,11 @@
         {
           "path": "suite/focus_palette.rs",
           "name": "write_test_config",
+          "kind": "function"
+        },
+        {
+          "path": "suite/gov_cloud_guidance_tests.rs",
+          "name": "gov_cloud_startup_persists_only_acknowledgment",
           "kind": "function"
         },
         {
@@ -110849,7 +112249,7 @@
           "kind": "function"
         }
       ],
-      "treeSha256": "ddaba500468d42eb21c70e2079372449a9d0fe164093f55ce05802323b5b8d5a"
+      "treeSha256": "309f559f945787fc38d801831350e07cd5beb99a32a0925d517eac91603dec5f"
     },
     "lime-rs/crates/tui/tests": {
       "root": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/lime-rs/crates/tui/tests",
@@ -111662,6 +113062,8 @@
   },
   "comparisons": {
     "filesMissingInLime": [
+      "activation_key_guard.rs",
+      "activation_key_guard_tests.rs",
       "additional_dirs.rs",
       "analytics.rs",
       "analytics/account_layout_tests.rs",
@@ -111747,6 +113149,8 @@
       "app/background_requests.rs",
       "app/composer_hints.rs",
       "app/composer_hints_tests.rs",
+      "app/config_panel.rs",
+      "app/config_panel_tests.rs",
       "app/config_persistence.rs",
       "app/connector_mentions.rs",
       "app/connector_mentions_tests.rs",
@@ -111760,6 +113164,7 @@
       "app/experimental_features_tests.rs",
       "app/feedback_upload.rs",
       "app/file_change_approvals.rs",
+      "app/footer_selection.rs",
       "app/history_pagination_tests.rs",
       "app/input_ownership_tests.rs",
       "app/link_hover.rs",
@@ -111943,6 +113348,7 @@
       "bottom_pane/chat_composer_enter_tests.rs",
       "bottom_pane/chat_composer_history/search_batch_tests.rs",
       "bottom_pane/composer_gap.rs",
+      "bottom_pane/config_panel.rs",
       "bottom_pane/empty_state_policy.rs",
       "bottom_pane/experimental_features_view.rs",
       "bottom_pane/experimental_features_view_tests.rs",
@@ -112004,6 +113410,7 @@
       "chatwidget/command_lifecycle.rs",
       "chatwidget/compaction.rs",
       "chatwidget/completion.rs",
+      "chatwidget/config_panel.rs",
       "chatwidget/connector_mentions.rs",
       "chatwidget/connectors.rs",
       "chatwidget/constructor.rs",
@@ -112043,6 +113450,7 @@
       "chatwidget/questions.rs",
       "chatwidget/rate_limits.rs",
       "chatwidget/realtime.rs",
+      "chatwidget/realtime/failure_metrics.rs",
       "chatwidget/realtime/recording_controls.rs",
       "chatwidget/realtime/recording_controls_tests.rs",
       "chatwidget/realtime/session_metrics_tests.rs",
@@ -112133,6 +113541,7 @@
       "chatwidget/tests/status_command_tests.rs",
       "chatwidget/tests/status_surface_previews.rs",
       "chatwidget/tests/subagent_activity_tests.rs",
+      "chatwidget/tests/terminal_program_status.rs",
       "chatwidget/tests/terminal_title.rs",
       "chatwidget/tests/tool_activity_tests.rs",
       "chatwidget/tests/usage.rs",
@@ -112161,6 +113570,11 @@
       "clock_format.rs",
       "clock_format_tests.rs",
       "color.rs",
+      "config_panel/config_panel_tests.rs",
+      "config_panel/input.rs",
+      "config_panel/mod.rs",
+      "config_panel/render.rs",
+      "config_panel/toggle.rs",
       "config_update.rs",
       "config_update_tests.rs",
       "copy_input_guard.rs",
@@ -112206,6 +113620,7 @@
       "external_agent_config_migration/source_tests.rs",
       "file_search.rs",
       "footer_hint_tests.rs",
+      "footer_selection_tests.rs",
       "get_git_diff.rs",
       "git_action_directives.rs",
       "goal_display.rs",
@@ -112241,12 +113656,14 @@
       "inline_visualization.rs",
       "inline_visualization/viewer.rs",
       "inline_visualization_tests.rs",
+      "iterm_session_status_tests.rs",
       "key_hint_label_tests.rs",
       "keymap/bindings.rs",
       "keymap/chords.rs",
       "keymap/chords_tests.rs",
       "keymap/conflict_tests.rs",
       "keymap/global_find_tests.rs",
+      "keymap/leader.rs",
       "keymap/vim_search.rs",
       "keymap/voice_tests.rs",
       "keymap_setup.rs",
@@ -112334,6 +113751,7 @@
       "public_widgets/mod.rs",
       "render/highlight_model_tests.rs",
       "render/model_themes.rs",
+      "rendered_selection.rs",
       "resize_reflow_cap.rs",
       "resume_permissions.rs",
       "resume_permissions_tests.rs",
@@ -112409,6 +113827,7 @@
       "terminal_hyperlinks_tests.rs",
       "terminal_probe/terminal_identity.rs",
       "terminal_probe/terminal_identity_tests.rs",
+      "terminal_program_status.rs",
       "terminal_visualization_instructions.rs",
       "test_support.rs",
       "theme_picker.rs",
@@ -112459,6 +113878,8 @@
       "tui/keyboard_modes.rs",
       "tui/link_pointer.rs",
       "tui/link_pointer_tests.rs",
+      "tui/notification_preview.rs",
+      "tui/notification_preview_tests.rs",
       "tui/owned_screen_tests.rs",
       "tui/scrollback.rs",
       "tui/scrollback_tests.rs",
@@ -112661,6 +114082,8 @@
       "pager_overlay/search_tests.rs",
       "pager_overlay/tests.rs",
       "projection.rs",
+      "projection/commands.rs",
+      "projection/commands_tests.rs",
       "projection/history.rs",
       "projection/history_tests.rs",
       "projection/items.rs",
@@ -112690,6 +114113,7 @@
       "runtime_pty_tests/agent_picker.rs",
       "runtime_pty_tests/approval.rs",
       "runtime_pty_tests/backtrack.rs",
+      "runtime_pty_tests/command_continuation.rs",
       "runtime_pty_tests/composer.rs",
       "runtime_pty_tests/config.rs",
       "runtime_pty_tests/copy_mode.rs",
@@ -112757,6 +114181,7 @@
       "Action",
       "ActionMenuOption",
       "ActionableBanner",
+      "ActivationKeyGuard",
       "ActiveCellLayoutCache",
       "ActiveCellLayoutCacheKey",
       "ActiveCellTranscriptKey",
@@ -112888,7 +114313,9 @@
       "Chats",
       "ChunkingDecision",
       "ChunkingMode",
+      "ClearTerminalProgramStatus",
       "Cli",
+      "ClipboardPasteTarget",
       "ClockFormat",
       "CodexOpTarget",
       "CollaborationModeIndicator",
@@ -112911,6 +114338,19 @@
       "ComposerRenderOptions",
       "ComposerState",
       "ComputerActivityCell",
+      "ConfigEditor",
+      "ConfigEditorActivation",
+      "ConfigEditorHandoff",
+      "ConfigPanel",
+      "ConfigPanelHeader",
+      "ConfigPanelStatus",
+      "ConfigPanelUpdate",
+      "ConfigPreference",
+      "ConfigSection",
+      "ConfigSetting",
+      "ConfigSettingValue",
+      "ConfigToggle",
+      "ConfiguredPetLoadGeneration",
       "ConfirmCallback",
       "ConnectorScopeGeneration",
       "ConnectorsCacheState",
@@ -112923,6 +114363,7 @@
       "CopyInputGuard",
       "CountingHistoryCell",
       "CountingView",
+      "CoveredEvents",
       "CreateArguments",
       "CreditsSnapshotDisplay",
       "Cursor",
@@ -112966,6 +114407,7 @@
       "EditorPaths",
       "EffectiveConfig",
       "ElicitationRequestKey",
+      "EmittedSessionStatus",
       "EmptyCatalogFallback",
       "EmptyStateAnimation",
       "EnableAlternateScroll",
@@ -113307,6 +114749,7 @@
       "PreviewRow",
       "PreviewValue",
       "PreviousLineState",
+      "ProgramStatus",
       "Progress",
       "ProjectTrustHost",
       "PromptScreenGuard",
@@ -113344,11 +114787,13 @@
       "RealtimeAgentItemOrigin",
       "RealtimeConversationPhase",
       "RealtimeConversationUiState",
+      "RealtimeFailureCause",
       "RealtimeOfferSdp",
       "RealtimeRequestBehavior",
       "RealtimeSpeechText",
       "RealtimeTranscriptRecord",
       "RealtimeTurnOrigin",
+      "RealtimeWebrtcStartupFailure",
       "ReasoningPreview",
       "ReasoningReplay",
       "RecapProgress",
@@ -113366,6 +114811,7 @@
       "ReducedMotionIndicator",
       "ReflowCellDisplay",
       "ReflowRenderResult",
+      "RegionAction",
       "ReleaseInfo",
       "RemoteConnectionStatus",
       "RemoteMarketplaceSection",
@@ -113374,6 +114820,7 @@
       "RenderLineKind",
       "RenderState",
       "RenderedHistoryTail",
+      "RenderedSelection",
       "RenderedTableLines",
       "ReplayKind",
       "ReplayedVoiceTextCounts",
@@ -113390,6 +114837,7 @@
       "RestrictedInputMode",
       "ResumableThread",
       "ResumeAction",
+      "ResumeCurrentAvailability",
       "ResumeCwdContext",
       "ResumeModelSettings",
       "ResumePermissions",
@@ -113425,6 +114873,7 @@
       "SelectedThreadUsage",
       "SelectionAction",
       "SelectionActionKind",
+      "SelectionCopy",
       "SelectionItem",
       "SelectionRowDisplay",
       "SelectionSecondaryAction",
@@ -113452,6 +114901,8 @@
       "SessionStartAction",
       "SessionStartConfig",
       "SessionStartOutcome",
+      "SessionStatusState",
+      "SetTerminalProgramStatus",
       "ShellEscapePolicy",
       "SideContentWidth",
       "SideParentStatus",
@@ -113536,6 +114987,7 @@
       "TaskMention",
       "TemporaryStructuredThreadOptions",
       "TerminalInitializationGuard",
+      "TerminalProgramStatusSupport",
       "TerminalRestoreGuard",
       "TerminalStderrGuard",
       "TerminalTitleStatusKind",
@@ -113585,6 +115037,7 @@
       "TooltipHistoryCell",
       "TopCli",
       "TopLevelBlockTracker",
+      "TrackingView",
       "TranscriptAreaRenderable",
       "TranscriptCells",
       "TranscriptExportDestination",
@@ -113636,6 +115089,7 @@
       "UserMessageSource",
       "UserVerificationAttempt",
       "UserVerificationDecision",
+      "UserVerificationFailure",
       "UserVerificationOption",
       "UserVerificationRequest",
       "UserVerificationRequests",
@@ -113702,12 +115156,14 @@
       "accept_answer",
       "accept_cancel_hint_line",
       "accept_realtime_speech",
+      "accepted_find_defers_paste_rendering_but_keeps_enter",
       "accepted_model_migration_persists_target_default_reasoning_effort",
       "accepted_permissions_survive_directory_change_before_notification",
       "accepted_question_answer_uses_existing_delivery_and_keeps_main_draft",
       "accepted_review_clears_questions_but_rejected_review_preserves_them",
       "accepted_voice_answer_with_only_an_old_caption_returns_to_history_on_close",
       "accepts",
+      "accepts_input_when_disconnected",
       "account_change_discards_thread_usage_deferred_while_overlay_is_open",
       "account_change_dismisses_reset_popup_beneath_overlay",
       "account_change_dismisses_the_previous_app_directory_snapshot",
@@ -113752,6 +115208,7 @@
       "activate_voice",
       "activate_voice_for_thread",
       "active_activity_ids",
+      "active_at",
       "active_binding_specs",
       "active_blob",
       "active_cell_display_hyperlink_lines",
@@ -113824,7 +115281,9 @@
       "active_turn_steer_race_detects_missing_active_turn",
       "active_turn_steer_race_extracts_actual_turn_id_from_mismatch",
       "active_view",
+      "active_view_accepts_input_when_disconnected",
       "active_view_id",
+      "active_view_is",
       "active_view_will_interrupt_turn_on_key_event",
       "activity_anchor_rgb",
       "activity_context_preserves_list_chords_and_its_remapped_focus_toggle",
@@ -113888,6 +115347,7 @@
       "adjacent_top_level_code_blocks_keep_blank_lines_and_boundaries",
       "adjust_pos_out_of_elements",
       "adjust_start_for_wrapped_selection_visibility",
+      "adopt",
       "adopt_inherited_server_selection",
       "adopt_server_permissions",
       "advance_past_completion_separator",
@@ -114389,7 +115849,6 @@
       "auto_review_mode",
       "automatic_thread_title_generates_without_a_provisional_name",
       "automatic_thread_title_respects_origin_metadata_after_switching",
-      "autoresize",
       "availability",
       "available_actions",
       "available_content_rows",
@@ -114574,6 +116033,7 @@
       "bounded_summary",
       "bounds_long_no_newline_output_and_preserves_utf8_head_and_tail",
       "bounds_the_entire_title_prompt_for_dense_unicode",
+      "box_future",
       "branch_diff_stats_prefers_remote_default_ref_over_stale_local_branch",
       "branch_diff_stats_to_default_branch",
       "breakable_unicode_space_hangs_before_following_text",
@@ -114670,6 +116130,7 @@
       "c0_ctrl_p_respects_remapped_list_move_down",
       "c0_ctrl_p_respects_unbound_list_move_up",
       "c0_line_feed_inserts_newline_through_insert_newline_keymap",
+      "cache_changes_only_after_a_successful_write",
       "cache_collab_receiver_threads_for_notification",
       "cache_project_root",
       "cache_rate_limit_snapshot",
@@ -114685,7 +116146,6 @@
       "can_change_working_directory",
       "can_fallback_from_include_turns_error",
       "can_launch_external_editor",
-      "can_paste_on_right_click",
       "can_retain_realtime_speech",
       "can_retry_safety_buffered_turn",
       "can_return_to_latest",
@@ -114696,6 +116156,7 @@
       "cancel_active_attempt",
       "cancel_active_attempt_notifies_device_code_login",
       "cancel_active_attempt_resets_browser_login_state",
+      "cancel_active_disconnected_view",
       "cancel_and_timeout",
       "cancel_auth_if_active",
       "cancel_beginning",
@@ -114744,6 +116205,7 @@
       "capture_completion_returns_to_selected_keymap_picker_row",
       "capture_composer_draft",
       "capture_lines_at_width",
+      "capture_realtime_session_duration",
       "capture_release_restores_pointer_even_after_moving_off_link",
       "capture_snapshot",
       "capture_thread_input_state",
@@ -114812,6 +116274,7 @@
       "check_dynamic_tool_requests",
       "check_for_update",
       "check_fork_dispatch",
+      "check_gov_cloud",
       "check_hidden_thread_does_not_refresh_shared_overview",
       "check_lmstudio_status",
       "check_ollama_status",
@@ -114849,10 +116312,12 @@
       "clear_command_resolves_for_dispatch",
       "clear_committed_mcp_inventory_loading",
       "clear_completion_returns_to_selected_keymap_picker_row",
+      "clear_composer_selection",
       "clear_config_value",
       "clear_context_compaction",
       "clear_current_draft",
       "clear_dismiss_after_child_accept",
+      "clear_empties_every_owned_field",
       "clear_esc_backtrack_hint",
       "clear_exec_approval_turn",
       "clear_for_ctrl_c_preserves_image_draft_state",
@@ -114868,6 +116333,7 @@
       "clear_managed_terminal_title",
       "clear_mcp_inventory_loading",
       "clear_misalignment_for_new_turn",
+      "clear_mouse_selection",
       "clear_notes_draft",
       "clear_only_ui_reset_allows_active_skill_warning_to_render_again",
       "clear_only_ui_reset_preserves_chat_session_state",
@@ -114899,6 +116365,7 @@
       "clear_sixel_area",
       "clear_stream_flags",
       "clear_terminal_for_resize_replay",
+      "clear_terminal_program_status",
       "clear_terminal_ui",
       "clear_thread_goal",
       "clear_thread_rename_block",
@@ -115144,6 +116611,7 @@
       "completed_user_caption_stays_visible_until_history_commit",
       "completed_user_transcript_keeps_the_old_assistant_turn_suppressed",
       "completed_voice_caption_survives_repeated_thread_replacement",
+      "completed_voice_duration_uses_terminal_success_or_failure_outcome",
       "completing_agent_and_plan_streams_preserves_reading_in_later_fragments",
       "completing_top_view_preserves_underlying_view",
       "completion",
@@ -115214,14 +116682,21 @@
       "config_cwd_for_app_server_target_errors_for_missing_embedded_cli_cwd",
       "config_cwd_for_app_server_target_omits_cwd_for_remote_exec_server",
       "config_cwd_for_app_server_target_omits_cwd_for_remote_sessions",
+      "config_editor_chord_preserves_physical_completion_key_until_release",
+      "config_editor_open_failed",
+      "config_editor_opened",
       "config_exclusion",
       "config_name",
       "config_overrides_forward_explicit_summary_verbosity_and_web_search",
+      "config_panel_renders_each_group_at_a_stable_height",
+      "config_panel_status",
+      "config_panel_wraps_complete_save_error",
       "config_path",
       "config_rebuild_changes_trust_defaults_with_cwd",
       "config_ref",
       "config_request_overrides_from_config",
       "config_source_label",
+      "config_toggle_save_uses_host_config_while_offline",
       "config_warning_during_turn_retains_transcript_details",
       "config_with_workspace_profile",
       "configure",
@@ -115256,12 +116731,14 @@
       "configured_legacy_vim_normal_bindings_prune_new_replace_default",
       "configured_legacy_vim_normal_bindings_prune_new_substitute_default",
       "configured_legacy_vim_operator_bindings_prune_new_text_object_defaults",
+      "configured_list_binding_takes_precedence_over_search_toggle_key",
       "configured_list_cancel_aborts_exec_approval",
       "configured_list_cancel_cancels_mcp_elicitation",
       "configured_main_surface_alias_is_used",
       "configured_main_surface_bindings_prune_reasoning_fallback_aliases",
       "configured_open_thread_shortcut_opens_source_thread",
       "configured_pet_load_is_deferred_until_after_construction",
+      "configured_pet_loads_are_scoped_across_widget_replacements",
       "configured_question_mark_keeps_its_action_and_hides_help_hint",
       "configured_resize_reflow_max_rows_overrides_auto_detection",
       "configured_resume_cwd_skips_prompt",
@@ -115282,6 +116759,7 @@
       "confirm_agents_overview_action",
       "confirm_backtrack_from_main",
       "confirm_binding",
+      "confirm_daemon_restart",
       "confirm_daemon_update",
       "confirm_directory_trust",
       "confirm_input",
@@ -115318,10 +116796,14 @@
       "consolidate_cells",
       "consolidation_walker_replaces_agent_message_cells",
       "constrain_server_service_tiers",
+      "consume",
+      "consume_at",
       "consume_external_agent_config_import_completion",
       "consume_rate_limit_reset_credit",
       "consume_rate_limit_reset_credit_request",
       "consume_response",
+      "consume_view_transition_key",
+      "consume_view_transition_key_event",
       "consumer_attribution",
       "consumer_chats_keep_missing_rows_and_only_offer_known_metrics",
       "consumer_chats_show_all_rows_and_collapse_details_before_closing",
@@ -115405,6 +116887,7 @@
       "converts_request_permissions_into_canonical_granted_permissions",
       "converts_request_permissions_into_granted_permissions",
       "copied_selection_keeps_its_revision_and_format_across_resize",
+      "copy_action",
       "copy_action_reports_when_no_agent_response_exists",
       "copy_completion_keeps_payload_count_and_follow_intent",
       "copy_export_picker_custom_keys_preserve_payloads_and_composer_draft",
@@ -115418,7 +116901,8 @@
       "copy_on_select_copies_word_and_line_on_release_without_dragging",
       "copy_on_select_preserves_link_activation_and_ignores_empty_drags",
       "copy_on_select_respects_terminal_defaults_and_config_overrides",
-      "copy_on_select_waits_for_release_and_retains_selection",
+      "copy_on_select_uses_editor_handoff_and_saves_choice",
+      "copy_on_select_waits_for_release_and_confirmed_delivery",
       "copy_picker_opening_preserves_terminal_scrollback_without_reflow",
       "copy_prefix",
       "copy_resize_keeps_whole_user_padding_inside_context",
@@ -115452,6 +116936,7 @@
       "create_initial_user_message",
       "created_branch_cwd",
       "creation_attaches_to_original_task_and_survives_service_restart",
+      "creation_attaches_to_original_task_and_survives_service_restart_scenario",
       "credential_entries_share_region_and_keep_aws_secrets_hidden",
       "credit_amount",
       "credit_groupings",
@@ -115547,6 +117032,7 @@
       "current_tail_display_lines",
       "current_tail_is_visible",
       "current_tail_lines",
+      "current_terminal_program_status_support",
       "current_text",
       "current_text_elements",
       "current_text_with_pending_expands_overlapping_placeholders",
@@ -115567,6 +117053,7 @@
       "custom_footer_height",
       "custom_model_display_name_in_pickers_preserves_selection_slug",
       "custom_model_display_name_in_status_line_and_fallback",
+      "custom_notification_filters",
       "custom_openai_base_url",
       "custom_permission_selection_uses_server_definition_and_preserves_state_on_rejection",
       "custom_pet_cache_id",
@@ -115643,9 +117130,9 @@
       "daybreak_account_eligible",
       "daybreak_command_description",
       "daybreak_command_persists_and_confirms_each_selection",
+      "daybreak_feature_enabled",
       "daybreak_refusal_offers_enable_for_the_next_turn",
       "daybreak_status_surfaces_follow_the_thread_preference",
-      "daybreak_turn_eligible",
       "deadline_timeout_io_error",
       "debug_binding_source",
       "debug_command_still_resolves_for_dispatch",
@@ -115788,11 +117275,13 @@
       "descendants",
       "description_col",
       "descriptor",
+      "deselect_after_copy_requires_effective_copy_on_select",
       "deselecting_billing_surfaces_cancels_polling_and_preserves_status_cache",
       "deserializes_existing_ide_context_shape",
       "desired_height_empty",
       "desired_height_keeps_spacers_and_preferred_options_visible",
       "desired_height_with_options",
+      "desired_program_status",
       "desktop_app_tips_render_at_narrow_width",
       "desktop_app_tooltip_uses_supported_platform_launcher",
       "desktop_async_answer_dismisses_only_its_question_and_preserves_the_other_draft",
@@ -115801,6 +117290,7 @@
       "desktop_thread_open_error_message",
       "desktop_thread_opened_history_snapshot",
       "detach_current_thread_for_navigation",
+      "detail_is_safe_bounded_osc_text",
       "detail_line",
       "detail_lines",
       "detail_source_value",
@@ -115878,6 +117368,7 @@
       "discard_side_thread_keeps_local_state_when_server_close_fails",
       "discard_side_thread_or_keep_visible",
       "discard_side_thread_removes_agent_navigation_entry",
+      "discard_startup_modal_input",
       "discard_thread_local_state",
       "discarded_thread_cancels_only_its_verification_attempts",
       "discarding_side_cancels_verification_and_ignores_late_proof",
@@ -115886,6 +117377,8 @@
       "disclosure_row",
       "disconnect_restores_initial_prompt_without_submitting_it",
       "disconnected_command_center_keeps_input_and_blocks_actions",
+      "disconnected_config_panel_keeps_input",
+      "disconnected_input_dispatches_local_config_command",
       "disconnected_questions_remain_editable_without_sending",
       "disconnected_sparkle_edits_are_tracked_between_renders",
       "disconnected_sparkle_input_routed_by_app_consumes_the_opportunity_without_drawing",
@@ -116033,6 +117526,7 @@
       "editor_directory_uses_next_protected_candidate_after_creation_error",
       "editor_directory_uses_protected_workspace_fallback_with_default_temporary_grants",
       "editor_handoff_balances_keyboard_stacks_if_editor_leaves_the_screen",
+      "editor_handoff_blocks_input_until_acknowledged",
       "editor_process_receives_buffer_in_isolated_codex_home",
       "editor_process_uses_protected_workspace_fallback_with_default_temporary_grants",
       "effective_approval_id",
@@ -116143,6 +117637,8 @@
       "encode_history_mentions_preserves_at_sigils",
       "encode_history_mentions_skips_embedded_at_substrings",
       "encode_rgba",
+      "encodes_generic_program_status",
+      "encodes_iterm_session_status_fields",
       "encodes_red_pixel_with_palette_and_pixel_data",
       "end_blockquote",
       "end_codeblock",
@@ -116450,6 +117946,7 @@
       "external_writer_view_quits_with_escape_ctrl_c_or_q",
       "external_writer_view_respects_remapped_left",
       "external_writer_view_shows_notice_instead_of_composer",
+      "externally_archived_thread_keeps_advertised_agents_navigation",
       "externally_canceled_search_operator_finishes_the_undo_transaction",
       "externally_mutable_active_cells_bypass_persistent_layout_cache",
       "extract_colon_location_suffix",
@@ -116647,6 +118144,7 @@
       "filtered_history",
       "filtered_items",
       "filtered_mentions_preserve_results_beyond_popup_height",
+      "filtered_selection_opens_the_matching_existing_editor",
       "filtering_long_skill_names_preserves_the_matching_row",
       "final_answer_completion_restores_status_indicator_for_pending_steer",
       "final_item_that_grows_after_completion_is_not_queued_without_recovery",
@@ -116701,6 +118199,7 @@
       "finish_agent_message_consolidation",
       "finish_agents_overview_usage",
       "finish_backend_banner_fallback",
+      "finish_configured_pet_load",
       "finish_dynamic_activity",
       "finish_hyperlink_lines",
       "finish_initial_history_replay_buffer",
@@ -116775,9 +118274,11 @@
       "flush_interrupt_activity",
       "flush_interrupt_queue",
       "flush_native_history",
+      "flush_pending",
       "flush_pending_events",
       "flush_pending_history_lines",
       "flush_pending_input",
+      "flush_pending_paste_burst",
       "flush_pending_paste_newline",
       "flush_realtime_transcript_history",
       "flush_run",
@@ -116832,6 +118333,7 @@
       "footer_part_width",
       "footer_parts_width",
       "footer_prioritizes_active_sort_timestamp",
+      "footer_selection_defers_warning_clicks_and_preserves_the_draft",
       "footer_snapshot",
       "footer_snapshots",
       "footer_status_line_truncates_to_keep_mode_indicator",
@@ -117006,6 +118508,7 @@
       "fuzzy_matched_emoji_graphemes_keep_description_alignment",
       "gated_response_chunks",
       "generate_thread_title",
+      "generated_app_mentions_use_bounded_display_names",
       "generated_recap_is_normalized_and_bounded",
       "generated_recap_is_returned_for_synchronous_insertion",
       "generic_exec_options_can_offer_allow_for_session",
@@ -117107,6 +118610,7 @@
       "guardian_timed_out_exec_renders_warning_and_timed_out_request",
       "guardian_warning_notifications_route_to_threads",
       "guardian_write_stdin_notification",
+      "guidance",
       "h_l_move_between_questions_in_options",
       "halfwidth_sound_marks_wrap_and_align_with_the_cursor",
       "handed_off",
@@ -117116,6 +118620,7 @@
       "handle_agent_reasoning_delta",
       "handle_agent_reasoning_final",
       "handle_agent_reasoning_started",
+      "handle_agents_navigation",
       "handle_ambient_pet_image_render_error",
       "handle_api_key_entry_key_event",
       "handle_api_key_entry_paste",
@@ -117161,6 +118666,7 @@
       "handle_file_change_request",
       "handle_follow_control_mouse",
       "handle_generated_recap",
+      "handle_guidance_key_event",
       "handle_history_entry_response",
       "handle_hook_completed",
       "handle_hook_started",
@@ -117173,11 +118679,13 @@
       "handle_item_completed_notification",
       "handle_item_started_notification",
       "handle_key_event_inner",
+      "handle_key_event_with_activation_key",
       "handle_key_event_with_file_popup",
       "handle_key_event_with_mentions_v2_popup",
       "handle_key_event_with_skill_popup",
       "handle_key_event_with_slash_popup",
       "handle_key_event_without_popup",
+      "handle_key_release",
       "handle_legacy_transcript_event",
       "handle_manage_skills_closed",
       "handle_mcp_inventory_result",
@@ -117215,6 +118723,7 @@
       "handle_quit",
       "handle_reasoning_shortcut",
       "handle_recap_started",
+      "handle_rendered_selection_event",
       "handle_request_permissions_now",
       "handle_request_user_input_now",
       "handle_request_user_input_sets_pending_notification",
@@ -117284,6 +118793,7 @@
       "has_blossom",
       "has_centered_view",
       "has_chatgpt_account",
+      "has_chord_prefix",
       "has_closing_fence",
       "has_codex_backend_auth",
       "has_complete_attribution",
@@ -117340,6 +118850,7 @@
       "height_shrink_schedules_resize_reflow",
       "help_lines",
       "help_shortcut_available",
+      "herdr_forwards_to_osc52_even_when_native_copy_succeeds",
       "hidden_and_clipped_frames_preserve_spin_budget_without_restarting",
       "hidden_banner_preserves_input_before_render_and_after_resize",
       "hidden_initial_entries_do_not_add_a_separator_but_visible_entries_do",
@@ -117643,6 +119154,7 @@
       "interleaved_transcripts_do_not_discard_the_interrupting_request",
       "interleaved_transcripts_keep_interrupted_speech_suppressed",
       "interrupt_after_inactive_steer",
+      "interrupt_config_editor_transition",
       "interrupt_disambiguates_same_sized_goal_pastes",
       "interrupt_discards_queued_requests_and_emits_interrupt",
       "interrupt_exec_marks_failed_snapshot",
@@ -117685,6 +119197,7 @@
       "invalid_reports_can_retry_without_recreating_the_session",
       "invalid_url_elicitation_is_declined",
       "invalid_value",
+      "invalidate",
       "invalidate_connector_scope",
       "invalidate_cursor_state",
       "invalidate_held_search",
@@ -117696,6 +119209,7 @@
       "invalidate_recovery",
       "invalidate_right_click_paste",
       "invalidate_security_setup",
+      "invalidate_terminal_program_status",
       "invalidate_viewport_repaints_default_style_spaces_over_stale_terminal_cells",
       "is_above_composer",
       "is_absolute_local_link_path",
@@ -117759,6 +119273,7 @@
       "is_inside_element",
       "is_iterm2_terminal",
       "is_kitty_protocol",
+      "is_leader",
       "is_loading_history",
       "is_markdown_fence_info_basic",
       "is_mention_name_char_char",
@@ -117783,12 +119298,14 @@
       "is_realtime_delegated_agent_item",
       "is_realtime_delegated_reasoning_item",
       "is_realtime_delegated_reasoning_turn",
+      "is_recording_client_disconnect",
       "is_replay",
       "is_response",
       "is_review",
       "is_running_visible",
       "is_safe_startup_editor_key",
       "is_safety_access_block_message",
+      "is_same_physical_key",
       "is_scrolled_to_bottom",
       "is_search_editing",
       "is_search_expanded",
@@ -117842,6 +119359,9 @@
       "item_to_cells",
       "items",
       "iter",
+      "iterm_indicator",
+      "iterm_label",
+      "iterm_session_detail",
       "join",
       "join_columns",
       "join_computer_groups",
@@ -118015,6 +119535,7 @@
       "legacy_turn_permissions_reject_non_cwd_write_roots",
       "legacy_turn_permissions_reject_restrictions_lost_by_projection",
       "legacy_usage_falls_back_to_surface_for_attribution_only_groupings",
+      "legacy_zsh_migration_notice_snapshot",
       "legend_line",
       "level",
       "levels_for_view",
@@ -118117,11 +119638,14 @@
       "live_app_server_user_message_omits_unsupported_media",
       "live_app_server_warning_notification_renders_message",
       "live_async_question_notifies_once_and_takes_priority_over_turn_completion",
+      "live_center_appends_arrivals_and_status_transitions",
       "live_center_fixed_shortcuts_yield_to_configured_actions",
       "live_center_hints_follow_configured_bindings",
+      "live_center_keeps_status_order_across_progress_refreshes",
       "live_center_navigation_and_complete_hints",
       "live_center_search_row_appears_only_while_editing",
       "live_center_show_more_navigation_search_and_loading",
+      "live_center_stable_order_preserves_filters_and_pins",
       "live_match_stays_displayed_after_commit_and_a_fresh_query_searches_current_content",
       "live_picker_frame_snapshots",
       "live_raw_lines",
@@ -118180,6 +119704,7 @@
       "local_copy_offers_html_only_for_markdown",
       "local_daemon_fork_dispatch_preserves_idle_source_and_children",
       "local_daemon_registers_approval_gated_mcp_tools_for_both_start_paths",
+      "local_daemon_registers_approval_gated_mcp_tools_for_both_start_paths_scenario",
       "local_daemon_version_notice_snapshot",
       "local_db_first_accepts_db_thread_id_without_rollout_validation",
       "local_db_first_falls_back_when_initial_db_page_is_empty",
@@ -118301,6 +119826,9 @@
       "manual_rename_cancels_running_thread_title",
       "mapped_shift_enter_renders_newlines_in_the_composer",
       "maps_install_context_to_update_action",
+      "mark_activation_inactive",
+      "mark_activation_seen",
+      "mark_activation_seen_at",
       "mark_agent_picker_thread_closed",
       "mark_available",
       "mark_budget_limited",
@@ -118596,6 +120124,7 @@
       "multiline_command_without_wrap_uses_branch_then_eight_spaces",
       "multiline_command_wraps_with_extra_indent_on_subsequent_lines",
       "multiline_file_link_label_after_styled_prefix_does_not_panic",
+      "multiline_question_preserves_line_breaks_and_link_destinations",
       "multiple_agent_messages_in_single_turn_emit_multiple_headers",
       "multiple_file_citations_render_without_interpreting_encoded_source",
       "mutable_history_formats_once_per_frame_and_refreshes_the_next_frame",
@@ -118629,6 +120158,7 @@
       "navigation_wraps_without_confirming",
       "near_start",
       "needs_history",
+      "needs_refresh",
       "needs_scrollback_reflow",
       "nested_at_query_does_not_count_as_complete_dismissed_token",
       "nested_blockquote_with_inline_and_fenced_code",
@@ -118656,6 +120186,7 @@
       "new_agents_defaults_preserve_existing_custom_bindings",
       "new_agents_overview_session",
       "new_agents_overview_worktree",
+      "new_at",
       "new_completed",
       "new_completed_hook_cell",
       "new_cyber_policy_error_event",
@@ -118731,6 +120262,7 @@
       "next_available_action",
       "next_batch",
       "next_check_deadline",
+      "next_configured_pet_load_generation",
       "next_copy_selection",
       "next_element_id",
       "next_goal_draft",
@@ -118861,10 +120393,15 @@
       "notice_shows_only_valid_future_reset_times",
       "notice_time",
       "notice_uses_existing_plan_and_window_thresholds",
+      "notification_condition",
+      "notification_controls_render_dependency_states_and_condition_picker",
       "notification_height",
       "notification_labels_match_codex_app_vocabulary",
+      "notification_preview_preserves_disabled_backend_and_focus_policy",
+      "notification_test_delay_rejects_cancelled_and_rescheduled_timers",
       "notify_mcp_status",
       "notify_mcp_status_error",
+      "notify_test",
       "now_ts",
       "nth_user_position",
       "null_device",
@@ -118880,6 +120417,9 @@
       "objective_file_reference",
       "objective_text_for_edit",
       "observe_backend_banner_view",
+      "observe_config_editor_transition_key_event",
+      "observe_key_event_while_covered",
+      "observe_pending_handoff_key",
       "obsolete_recap_result_does_not_clear_the_current_request",
       "offline_backtrack_keeps_the_preview_and_draft_without_reverting",
       "offline_delete_reveals_the_edited_row_without_moving_the_caret",
@@ -118929,6 +120469,8 @@
       "on_ctrl_c",
       "on_ctrl_d",
       "on_cyber_policy_error",
+      "on_demand_search_active",
+      "on_demand_search_preserves_printable_list_bindings",
       "on_deprecation_notice",
       "on_diff_complete",
       "on_dynamic_tool_item",
@@ -119050,6 +120592,8 @@
       "open_approvals_popup",
       "open_auto_review_denials_popup",
       "open_capture_action",
+      "open_config_editor",
+      "open_config_panel",
       "open_connectors_loading_popup",
       "open_connectors_popup",
       "open_daemon_menu",
@@ -119169,7 +120713,6 @@
       "out_of_range_legacy_rows_do_not_disable_attribution",
       "outcome",
       "outer_list_item_after_nested_code_block_keeps_blank_separator",
-      "output",
       "output_display_does_not_split_long_url_like_token_without_scheme",
       "output_ellipsis_line",
       "output_ellipsis_line_with_prefix",
@@ -119698,6 +121241,7 @@
       "plugin_mcp_summary",
       "plugin_mention_description",
       "plugin_mention_display_name",
+      "plugin_mention_does_not_suppress_same_name_skill",
       "plugin_mention_foreground_color",
       "plugin_mention_from_summary",
       "plugin_mention_item",
@@ -119705,6 +121249,7 @@
       "plugin_mention_name_falls_back_to_title_cased_plugin_name",
       "plugin_mention_name_uses_display_segments_when_they_match_plugin_name",
       "plugin_mention_popup_snapshot",
+      "plugin_mention_uses_display_name_for_opaque_id",
       "plugin_mentions_from_list_response",
       "plugin_mentions_use_plugin_list_summaries_and_gui_eligibility",
       "plugin_metadata_items",
@@ -119726,6 +121271,7 @@
       "plugin_status_label",
       "plugin_summary",
       "plugin_tab_id_matching_saved_id",
+      "plugin_toggle_key_available",
       "plugin_tool_suggestion_meta_without_install_url_is_parsed_into_request_payload",
       "plugin_uninstall_id",
       "plugin_uninstall_loading_popup_params",
@@ -119739,6 +121285,7 @@
       "plugins_popup_add_marketplace_tab_opens_prompt_and_submits_source",
       "plugins_popup_admin_disabled_available_plugin_has_view_only_hint",
       "plugins_popup_admin_disabled_installed_plugin_has_no_toggle_hint",
+      "plugins_popup_hides_tab_toggle_hint_when_tab_is_configured",
       "plugins_popup_hint_line",
       "plugins_popup_installed_tab_filters_rows_and_clears_search",
       "plugins_popup_keeps_loaded_marketplace_state_with_load_errors",
@@ -119759,8 +121306,8 @@
       "plugins_popup_search_no_matches_and_backspace_restores_results",
       "plugins_popup_snapshot_shows_all_marketplaces_and_sorts_installed_then_name",
       "plugins_popup_space_on_uninstalled_row_does_not_start_search",
-      "plugins_popup_space_toggles_installed_plugin_from_list",
       "plugins_popup_space_with_active_search_does_not_toggle_installed_plugin",
+      "plugins_popup_toggle_keys_preserve_search_and_selection",
       "plugins_popup_truncates_long_descriptions_in_list_rows",
       "plugins_popup_upgrades_user_configured_git_marketplace_from_marketplace_tab",
       "plugins_popup_uses_product_labels_for_remote_and_personal_tabs",
@@ -119833,6 +121380,7 @@
       "prepare_assistant_message",
       "prepare_background_exit_test",
       "prepare_background_voice_replay",
+      "prepare_composer_clipboard_paste",
       "prepare_composer_mouse",
       "prepare_composer_sparkle_key",
       "prepare_draw_size",
@@ -119876,6 +121424,7 @@
       "prerelease_clients_on_other_release_lines_and_local_clients_warn_for_mismatches",
       "prerelease_version_is_not_considered_newer",
       "preserve",
+      "preserve_restart_required",
       "preserve_side_content_bg_keeps_rendered_background_colors",
       "preserves_artifact_metadata_and_single_quoted_values",
       "preserves_balanced_parentheses_in_bare_web_urls",
@@ -119960,6 +121509,7 @@
       "projectless_permissions_survive_session_transitions_without_trust",
       "promoted_banner_uses_picker_hints_and_preserves_the_draft",
       "prompt_edit_reverts_earlier_and_first_visible_prompts_in_place",
+      "prompt_edit_reverts_earlier_and_first_visible_prompts_in_place_scenario",
       "prompt_edit_stops_streaming_without_submitting_queued_input",
       "prompt_edit_thread_history_line_snapshot",
       "prompt_header",
@@ -119981,6 +121531,7 @@
       "prose_preview_resumes_after_fenced_code",
       "prose_wraps_like_the_queued_input_preview",
       "protocol",
+      "protocol_state",
       "provider_picker_snapshots",
       "prune_untracked_picker_exclusions",
       "ps_output_chunk_leading_whitespace_snapshot",
@@ -119990,6 +121541,7 @@
       "ps_output_many_sessions_snapshot",
       "ps_output_multiline_long_command_snapshot",
       "ps_output_multiline_snapshot",
+      "publishes_primary",
       "pull_request_from_api_output",
       "pull_request_from_view_output",
       "pull_request_number_uses_link_style",
@@ -120091,6 +121643,7 @@
       "queued_bang_shell_waits_for_user_shell_completion_before_next_input",
       "queued_bare_rename_drains_next_input_after_name_update",
       "queued_command_drain_result",
+      "queued_config_handoff_observes_a_consumed_chord_prefix",
       "queued_connector_fetches_are_bound_to_their_original_account",
       "queued_empty_bang_shell_reports_help_when_dequeued_and_drains_next_input",
       "queued_fast_slash_applies_before_next_queued_message",
@@ -120203,6 +121756,7 @@
       "raw_lines_from_source_preserves_trailing_blank_but_not_trailing_newline",
       "raw_markdown_bypasses_the_rich_render_cache",
       "raw_mode_toggle_transcript_snapshot",
+      "raw_multiline_paste_defers_rendering_and_submits_once",
       "raw_output_mode_can_change_without_inserting_notice",
       "raw_output_mode_notice",
       "raw_output_status_line_value_only_shows_when_enabled",
@@ -120381,6 +121935,7 @@
       "record_items",
       "record_pending_slash_command_history",
       "record_popup",
+      "record_realtime_disconnect_failure",
       "record_realtime_failure",
       "record_replayed_user_message_history",
       "record_safety_buffering_turn",
@@ -120393,8 +121948,10 @@
       "recovered_draft",
       "recovered_question_answers_preserve_other_questions",
       "recovered_vim_escape_cancels_a_pending_key_chord_first",
+      "recovery_after_handoff_preserves_pending_vim_replace_key",
       "recovery_keeps_buffered_input_on_exit_or_queued_submission",
       "recovery_keeps_edits_and_pastes_after_chatwidget_handoff",
+      "recovery_keeps_unselected_text_after_a_held_replace_key",
       "recovery_message_names_checkout_and_safe_manual_action",
       "recovery_refresh_stops_after_submission_or_startup_completion",
       "recovery_snapshot",
@@ -120426,6 +121983,7 @@
       "refresh_agents_overview_usage",
       "refresh_backend_banner_visibility",
       "refresh_changed_agents_overview_threads",
+      "refresh_config_panel",
       "refresh_connector_directory_after_notification",
       "refresh_connector_mentions",
       "refresh_connectors",
@@ -120437,7 +121995,7 @@
       "refresh_in_memory_config_from_disk_best_effort_keeps_current_config_on_error",
       "refresh_in_memory_config_from_disk_keeps_cloud_requirements_for_thread_transitions",
       "refresh_in_memory_config_from_disk_loads_latest_apps_state",
-      "refresh_in_memory_config_from_disk_updates_resize_reflow_config",
+      "refresh_in_memory_config_from_disk_updates_live_widget_preferences",
       "refresh_in_memory_config_from_disk_uses_active_chat_widget_cwd",
       "refresh_link_hover",
       "refresh_mcp_startup_expected_servers_from_config",
@@ -120450,6 +122008,7 @@
       "refresh_plugin_mentions",
       "refresh_plugin_mentions_after_config_write",
       "refresh_plugins_popup_if_open",
+      "refresh_preserves_search_and_updates_visible_state",
       "refresh_preview",
       "refresh_rate_limits",
       "refresh_realtime_audio_meters",
@@ -120468,6 +122027,7 @@
       "refresh_status_line_if_workspace_headline_due",
       "refresh_status_line_workspace_headline",
       "refresh_status_surfaces",
+      "refresh_terminal_program_status",
       "refresh_terminal_title_from_selections",
       "refresh_thread_title_progress_for_time_tick",
       "refresh_thread_usage",
@@ -120486,6 +122046,7 @@
       "regaining_focus_cancels_scheduled_check",
       "regaining_focus_preserves_only_manual_in_flight_request",
       "regaining_focus_prevents_recap_generation",
+      "register",
       "register_background_thread",
       "regroup_cells",
       "regrouping_preserves_new_activity_that_has_not_yet_been_drawn",
@@ -120556,6 +122117,7 @@
       "relative_time_formats_zero_seconds_as_now",
       "relativize_to_home",
       "release",
+      "release_copy_and_cross_surface_drags_use_only_visible_text",
       "release_event_does_not_change_selection",
       "release_events_are_ignored_for_active_view",
       "release_input",
@@ -120838,6 +122400,7 @@
       "rendered_item_count",
       "rendered_line_text",
       "rendered_mermaid_copies_source",
+      "rendered_selection_preserves_unicode_links_and_the_selected_revision",
       "rendered_strip",
       "rendering_preferences_match_incremental_final_and_emitted_responses",
       "renders_basic_popup",
@@ -120997,6 +122560,7 @@
       "replayed_voice_texts_from_turns",
       "repo_search_order_from_output",
       "report",
+      "report_config_save_error",
       "report_controls_show_dates_and_update_time",
       "report_headlines_and_axes_compact_large_values",
       "report_requests",
@@ -121076,6 +122640,7 @@
       "requirements_stack",
       "requires_dispatch_validation",
       "requires_elevated",
+      "requires_restart",
       "rescheduling_check_cancels_the_earlier_timer",
       "reserve_label_width",
       "reserve_notice_already_shown",
@@ -121241,6 +122806,9 @@
       "resume_background_voice",
       "resume_begin",
       "resume_config_for_target",
+      "resume_current_directory_availability",
+      "resume_directory",
+      "resume_directory_disables_current_without_remote_cwd_override",
       "resume_end",
       "resume_failure_keeps_command_center_available",
       "resume_model_settings",
@@ -121338,6 +122906,7 @@
       "rgb_to_xyz",
       "right_aligned_x",
       "right_click_copy_uses_the_refreshed_editor_bounds",
+      "right_click_paste",
       "right_click_paste_target",
       "right_click_paste_uses_normal_input_and_discards_stale_reads",
       "right_click_requires_a_nonempty_selection_and_a_press_inside_the_transcript",
@@ -121387,6 +122956,7 @@
       "run_git_capture_stdout",
       "run_git_command",
       "run_git_setup",
+      "run_gov_cloud_guidance",
       "run_in_background_detaches_without_interrupting_main_or_side_threads",
       "run_lifecycle_modal",
       "run_main",
@@ -121464,6 +123034,7 @@
       "sandbox_mode_projects_cwd_write_for_remote_sessions",
       "sanitize_borrowed",
       "sanitize_directory",
+      "sanitize_iterm_session_detail",
       "sanitized_websocket_url",
       "sanitizer_borrows_clean_text_and_removes_control_sequences",
       "sanitizer_preallocates_owned_multi_fragment_text",
@@ -121472,6 +123043,7 @@
       "save",
       "save_api_key",
       "save_changes",
+      "save_config_preference",
       "save_current_draft",
       "save_experimental_features",
       "save_fullscreen_transcript",
@@ -121488,6 +123060,7 @@
       "scan_window",
       "scanning_yields_and_finds_a_match_crossing_a_chunk_boundary",
       "schedule_active_view_frame",
+      "schedule_config_notification_test",
       "schedule_debounced",
       "schedule_debounced_postpones_due_existing_reflow",
       "schedule_debounced_postpones_existing_reflow",
@@ -121524,19 +123097,23 @@
       "search_batch_read_failure_stops_after_bounded_retries",
       "search_batch_rejects_stale_thread_and_log_metadata",
       "search_fetches_persistent_history_until_match",
+      "search_field_visible",
       "search_footer",
       "search_is_case_insensitive_and_empty_query_finds_latest",
       "search_layout",
       "search_line",
+      "search_matches_displayed_values",
       "search_matches_local_history_and_stops_at_boundaries",
       "search_motions_compose_with_operators_and_repeat",
       "search_preserves_both_presentation_positions",
+      "search_query",
       "search_resumes_in_prepended_history_without_rescanning_the_newer_entry",
       "search_scans_a_page_inserted_after_the_retained_session_header",
       "search_skips_atomic_elements_and_partial_graphemes",
       "search_skips_duplicate_local_matches",
       "search_skips_duplicate_persistent_matches",
       "search_start_offset",
+      "searchable_list_honors_configured_printable_accept_alternative",
       "searchable_plain_j_updates_query_instead_of_navigating",
       "secondary_action_respects_search_disabled_rows_and_dismissal",
       "secondary_line",
@@ -121644,6 +123221,7 @@
       "selection_after_removal",
       "selection_at_bottom_restores_footer_without_resuming_following",
       "selection_copies_source_across_wraps_and_survives_prepend",
+      "selection_copy",
       "selection_copy_cancels_a_pending_find_editor_chord",
       "selection_covers_the_row_and_empty_filter_clears_previous_results",
       "selection_highlights_hard_breaks_within_and_between_entries",
@@ -121667,7 +123245,9 @@
       "selection_view_params",
       "selects_bel_method",
       "selects_osc9_method",
+      "selects_protocols_for_terminal_environment",
       "send_add_credits_nudge_email",
+      "send_config_notification_test",
       "send_decision",
       "send_failed_mcp_startup",
       "send_item",
@@ -121739,10 +123319,14 @@
       "session_model_selection_notifies_the_original_task_after_each_final_astra_choice",
       "session_model_selection_preserves_defaults_and_updates_active_thread",
       "session_only_astra_picker_shows_stars_only_on_an_untouched_task",
+      "session_picker_layout",
+      "session_picker_layout_uses_editor_handoff_and_saves_choice",
       "session_source_cli",
       "session_start_error",
       "session_start_error_surfaces_archived_guidance_without_rollout_path",
       "session_state_for_thread_read",
+      "session_status_detail_uses_only_foreground_activity",
+      "session_status_follows_existing_lifecycle_state",
       "session_target_display_label_falls_back_to_thread_id",
       "session_target_from_app_server_thread",
       "session_title_span",
@@ -121841,6 +123425,7 @@
       "set_model",
       "set_model_updates_active_collaboration_mask",
       "set_notification",
+      "set_notification_condition",
       "set_notification_settings",
       "set_overlay_input",
       "set_owned_screen",
@@ -121907,6 +123492,7 @@
       "set_syntax_theme",
       "set_task_mentions_enabled",
       "set_task_running",
+      "set_terminal_program_status",
       "set_test_initial_prompt",
       "set_text_clamps_cursor_to_char_boundary",
       "set_text_content_reattaches_images_without_placeholder_metadata",
@@ -121939,6 +123525,8 @@
       "set_windows_sandbox_mode",
       "set_workspace_cwd",
       "set_worktrees_enabled",
+      "setting_index",
+      "settings",
       "settings_confirmations_reveal_their_history_output",
       "settings_header",
       "settings_picker_save_failures_reveal_their_errors",
@@ -122044,6 +123632,7 @@
       "should_wrap_name_in_column",
       "show",
       "show_actionable_banner",
+      "show_agents_overview_error",
       "show_bottom_pane_view",
       "show_chatgpt_login_in_browser",
       "show_clipboard_flash",
@@ -122131,7 +123720,7 @@
       "side_defers_subagent_approval_overlay_until_side_exits",
       "side_developer_instructions",
       "side_developer_instructions_appends_existing_policy",
-      "side_discard_selection_keeps_current_side_thread",
+      "side_discard_selection_only_closes_the_active_side",
       "side_fork_config",
       "side_fork_config_inherits_parent_thread_runtime_settings",
       "side_fork_config_is_ephemeral_and_appends_developer_guardrails",
@@ -122152,6 +123741,7 @@
       "side_start_error_message",
       "side_start_error_message_explains_missing_first_prompt",
       "side_start_error_message_uses_generic_start_wording",
+      "side_thread_for_parent",
       "side_thread_snapshot_does_not_refresh_from_fork_history",
       "side_thread_snapshot_hides_forked_parent_transcript",
       "side_thread_snapshot_skips_session_header_preamble",
@@ -122377,6 +123967,7 @@
       "source_only_changes_refresh_the_preview_and_active_tail",
       "source_provenance_preserves_spaces_and_excludes_gutters",
       "source_targets_survive_quotes_lists_and_rendered_tables",
+      "source_wrapping_clips_a_cursor_sentinel_at_the_input_boundary",
       "space_appends_to_active_search_instead_of_toggling_selected_item",
       "space_appends_to_search_query",
       "space_does_not_toggle_managed_handler",
@@ -122473,6 +124064,7 @@
       "start_bedrock_setup",
       "start_blockquote",
       "start_chatgpt_login",
+      "start_clipboard_text_paste",
       "start_codeblock",
       "start_config_write_test_app_server",
       "start_configured_pet_load_if_needed",
@@ -122484,7 +124076,6 @@
       "start_fallback_thread",
       "start_fresh",
       "start_fresh_session",
-      "start_gov_cloud_check",
       "start_heading",
       "start_headless_chatgpt_login",
       "start_initial_load",
@@ -122525,6 +124116,7 @@
       "start_user_verification",
       "start_verification",
       "start_vim_find",
+      "start_windows_reader",
       "start_with_timeout",
       "started",
       "started_thread_from_fork_response",
@@ -122628,6 +124220,7 @@
       "static_overlay",
       "static_overlay_snapshot_basic",
       "static_overlay_wraps_long_lines",
+      "stationary_clicks_are_deferred_but_dragging_back_does_not_activate",
       "status_account_display",
       "status_account_display_from_auth_mode",
       "status_account_display_from_auth_mode_uses_remapped_plan_labels",
@@ -122812,6 +124405,7 @@
       "stop_command_is_canonical_name",
       "stop_command_resolves_for_dispatch",
       "stop_ineligible_sparkle",
+      "stop_on_demand_search",
       "stop_rate_limit_poller",
       "stop_realtime_conversation",
       "stop_visible_sparkle",
@@ -122965,14 +124559,17 @@
       "supports_sixel",
       "supports_string_or_array_bindings",
       "suppress_active_realtime_speaker",
+      "suppress_current_view_key_until_release",
       "suppress_locked",
       "suppress_placeholder",
       "suppress_quit_while_typing",
       "suppress_realtime_speaker",
       "suppressed_interrupted_turn_notice_skips_history_warning",
       "suppressed_submission_restores_pending_paste_payload",
+      "suppresses_activation_until_release_and_bounds_legacy_presses",
       "suppresses_printable_quit_key_during_api_key_entry",
       "suppresses_stderr_only_while_terminal_is_owned",
+      "surface_lines",
       "surface_pending_inactive_thread_interactive_requests",
       "suspend",
       "suspend_process",
@@ -123096,6 +124693,7 @@
       "take_draft",
       "take_history_cells",
       "take_history_insertion_prefix",
+      "take_key_chord_reset",
       "take_last_selected_index",
       "take_next_rate_limit_reset_request_id",
       "take_pending_drafts",
@@ -123168,6 +124766,7 @@
       "terminal_interaction",
       "terminal_output_disclosure_counts_only_revealable_lines",
       "terminal_output_disclosure_follows_live_history_and_keymap",
+      "terminal_program_status_support",
       "terminal_reflow_rebases_pending_status_update_to_new_width",
       "terminal_resize_reflow",
       "terminal_thread_read_error_detection_ignores_transient_failures",
@@ -123554,6 +125153,7 @@
       "transformed_content_copies_visible_text_without_active_html_or_images",
       "transient_zero_cost_preserves_fresh_credits_and_breakdowns",
       "transient_zero_credits_preserves_credits_only_estimates",
+      "transition_events_reach_a_view_covered_by_a_modal",
       "transition_frames_snapshot",
       "transparent_pixels_do_not_emit_palette_or_pixel_data",
       "trim_attribute_space",
@@ -123600,8 +125200,6 @@
       "try_consume_user_input_request",
       "try_dispatch_bare_slash_command",
       "try_dispatch_slash_command_with_args",
-      "try_draw",
-      "try_draw_with_size",
       "try_dump_windows_clipboard_image",
       "try_handle_shortcut",
       "try_resolve_app_server_request",
@@ -123683,6 +125281,7 @@
       "unanswered_confirmation_rows",
       "unanswered_question_count",
       "unarchives_by_sqlite_name",
+      "unattended_modals_survive_unfinished_terminal_input",
       "unavailable_artifact_has_explicit_fallback",
       "unavailable_chat_batches_bound_requests_during_an_outage",
       "unavailable_chat_titles_are_hidden_in_panel_and_overview",
@@ -123693,6 +125292,7 @@
       "unavailable_history_search_restores_idle_draft",
       "unavailable_or_invalid_content_reference_has_explicit_fallback",
       "unavailable_reasons_use_device_and_session_neutral_copy",
+      "unavailable_right_click_paste_remains_editable",
       "unavailable_send_keeps_answer_and_skip_remains_available",
       "unavailable_side_conversation_command_is_shown_only_when_searched",
       "unavailable_side_conversation_command_still_opens_popup",
@@ -123819,6 +125419,7 @@
       "update_command_display",
       "update_command_is_only_suggested_for_implicit_local_daemon",
       "update_computer_activity",
+      "update_config_panel",
       "update_connector_enabled",
       "update_diff_preserves_multiline_highlight_state_within_hunk",
       "update_due_hook_visibility",
@@ -123937,6 +125538,7 @@
       "user_turn_sends_standard_override_after_fast_is_turned_off",
       "user_verification_cancellation_invalidates_the_inflight_result",
       "user_verification_controller_cancels_for_an_older_binary",
+      "user_verification_controller_preserves_typed_error_reasons_in_the_rpc_response",
       "user_verification_controller_suppresses_a_late_proof_after_cancellation",
       "user_verification_controller_uses_the_local_binary_rpc_and_original_response",
       "user_verification_errors_use_typed_reasons_without_raw_provider_diagnostics",
@@ -123986,8 +125588,9 @@
       "validate_unix_peer_owner",
       "validate_unix_socket_path",
       "validate_unix_socket_path_rejects_unsafe_parent_directory",
-      "verification_error_message",
+      "verification_failure",
       "verification_request",
+      "verify_managed_daemon",
       "verify_windows_sandbox_mode_after_setup",
       "version_filepath",
       "version_info_with_dist",
@@ -123997,6 +125600,7 @@
       "view_id",
       "view_image_tool_call_adds_history_cell",
       "view_image_tool_call_preserves_foreign_path",
+      "view_transition_key_guard_survives_an_intervening_modal",
       "viewed_image_narrow_summary",
       "viewed_image_retains_original_path_in_details",
       "viewer_materializes_sandboxed_static_document",
@@ -124132,6 +125736,7 @@
       "voice_settings_uses_server_catalog",
       "voice_shortcut_cancels_startup_submission_before_app_dispatch",
       "voice_snapshot_directory_keeps_header_width_for_windows_paths",
+      "voice_startup_failure_preserves_the_specific_error",
       "voice_terminal_title_tracks_capture_activity_and_user_settings",
       "voice_toggle_chord_dispatches_in_overview_without_an_active_voice_session",
       "voice_toggle_default_yields_to_existing_shortcuts_and_chord_prefixes",
@@ -124166,6 +125771,7 @@
       "waiting_snapshot_and_duplicate_approval_suppression",
       "waiting_view",
       "wants_vim_history_key",
+      "warm_text_reader",
       "warn_if_pets_unsupported",
       "warn_invalid_status_line_items_once",
       "warn_invalid_terminal_title_items_once",
@@ -124266,6 +125872,7 @@
       "with_border_with_inner_width",
       "with_chat_widget_frame",
       "with_completed_at",
+      "with_copy_on_select_clear_selection",
       "with_copy_source",
       "with_disclosure_control",
       "with_disclosure_control_at",
@@ -124459,6 +126066,7 @@
       "ColumnKind",
       "ColumnMetrics",
       "CommandPopupAction",
+      "CommandScope",
       "Completion",
       "CompletionBoundary",
       "CompletionMetadata",
@@ -124809,6 +126417,8 @@
       "auto_resolution_countdown_covers_all_product_locales",
       "auto_resolution_countdown_text",
       "back",
+      "background_command_restores_from_canonical_history_and_paging",
+      "background_command_survives_turn_terminal_without_touching_next_turn",
       "background_edit_keeps_pending_lookup_and_cancelled_reply_only_fills_cache",
       "background_text_and_image_edits_preserve_query_preview_and_unique_traversal",
       "background_thread_notifications_do_not_mutate_the_current_projection",
@@ -124946,7 +126556,6 @@
       "client_message_id",
       "clipboard_paste_failure",
       "clipboard_paste_request",
-      "clipboard_paste_target",
       "clipboard_text_normalizes_terminal_newlines",
       "clipped_and_unnumbered_diff_rows_retain_fill_and_colored_signs",
       "clipped_attachments_never_starve_the_editable_baseline",
@@ -124988,6 +126597,7 @@
       "command_approval",
       "command_catalog_is_the_prompt_parser_fact_source",
       "command_decision_label",
+      "command_delta_allowed",
       "command_disclosure_counts_retained_output_lines_only",
       "command_entry_status",
       "command_filter",
@@ -125136,6 +126746,7 @@
       "copy_page_up_at_the_top_loads_one_page",
       "copy_picker_title",
       "copy_progress_and_delivery_messages_cover_every_product_locale",
+      "copy_selected_text",
       "copy_selection_request",
       "copy_session_id_label",
       "copy_shortcut_and_slash_command_do_not_become_turn_input",
@@ -126242,6 +127853,7 @@
       "notice_content_lines",
       "now",
       "numbered_image_label",
+      "observe_command",
       "observe_copy_source",
       "observe_item",
       "observe_notification",
@@ -126616,13 +128228,13 @@
       "read_output",
       "read_prompt_history",
       "readable",
-      "reader",
       "reading_cell",
       "reads_and_copies_share_one_busy_lifetime_and_request_sequence",
       "ready_batch_does_not_age_during_slow_consumption_or_draws",
       "ready_label",
       "real_pty_external_editor_uses_resumed_thread_cwd",
       "real_pty_mcp_form_uses_stdio_rich_drafts_and_restores_terminal",
+      "real_pty_projects_session_command_exit_after_model_turn",
       "real_pty_restores_terminal_after_visible_turn_completion",
       "real_pty_shared_raw_visibility_live_transcript_and_terminal_restore",
       "real_stdio_backtrack_retains_prefix_and_replays_live_refresh",
@@ -127022,6 +128634,7 @@
       "send_request",
       "server_requests_expose_their_thread_target",
       "server_resolution_clears_request_identity_and_category",
+      "session_command_is_running",
       "session_header_is_borderless_and_width_bounded",
       "session_header_labels_cover_all_product_locales",
       "session_linewise_register_survives_editor_replacement_and_thread_draft_recall",
@@ -127776,6 +129389,7 @@
       "fixtures/oss-story.jsonl",
       "suite/daemon_compatibility.rs",
       "suite/directory_trust.rs",
+      "suite/gov_cloud_guidance_tests.rs",
       "suite/provider_defaults.rs",
       "suite/screen_reader.rs",
       "suite/tui_mode_picker_tests.rs",

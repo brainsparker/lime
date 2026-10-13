@@ -212,6 +212,15 @@ describe("SettingsLayoutV2 Profile Tab", () => {
   });
 });
 
+describe("SettingsLayoutV2 Skills Tab", () => {
+  it("技能页应从设置导航进入现有高级技能入口", async () => {
+    const container = renderComponent(SettingsTabs.Skills);
+    await flushEffects();
+
+    expect(container.textContent).toContain("skills");
+  });
+});
+
 describe("SettingsLayoutV2 Experimental Tab", () => {
   it("旧的执行轨迹页入口应直接回退到首页", async () => {
     const container = renderComponent(SettingsTabs.ExecutionTracker);

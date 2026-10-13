@@ -14,6 +14,8 @@ mod agent_picker;
 mod approval;
 #[path = "runtime_pty_tests/backtrack.rs"]
 mod backtrack;
+#[path = "runtime_pty_tests/command_continuation.rs"]
+mod command_continuation;
 #[path = "runtime_pty_tests/composer.rs"]
 mod composer;
 #[path = "runtime_pty_tests/config.rs"]

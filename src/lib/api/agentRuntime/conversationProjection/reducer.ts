@@ -1,16 +1,9 @@
-import type {
-  AgentThreadItem,
-  AgentThreadTurn,
-  AgentThreadTurnStatus,
-} from "../../agentProtocol";
+import type { AgentThreadItem } from "../../agentProtocol";
 import type {
   ConversationProjection,
-  ConversationProjectionDiagnostic,
   ConversationProjectionEvent,
   ConversationProjectionReducer,
-  ConversationProjectionSource,
   ConversationProjectionState,
-  ConversationProjectionStatus,
   GuardianReviewProjection,
   ItemProjectionDelta,
   NoticeProjection,
@@ -18,11 +11,17 @@ import type {
   TurnProjection,
 } from "./contracts";
 import { buildUnknownItemProtocolDriftDiagnostic } from "./protocolDrift";
+import { addDiagnostic, appendDiagnostic } from "./diagnostics";
+import {
+  applyTurnDiffUpdate,
+  applyTurnModerationMetadata,
+  ensureTurnForItem,
+  upsertTurn,
+} from "./turns";
 import { mergeProjectionOutput, sanitizeProjectionItem } from "./sanitizer";
 
 const ITEM_KEY_SEPARATOR = "\u001f";
 const MAX_ORPHAN_DELTAS = 32;
-const MAX_DIAGNOSTICS = 200;
 const MAX_APPLIED_EVENT_IDS = 2_000;
 
 export function conversationItemKey(
@@ -110,12 +109,7 @@ export function reduceConversationProjection(
       return upsertTurn(next, event.turn, event.source, event.event_id);
     case "turn_completed":
       return clearStrictReview(
-        upsertTurn(
-          { ...next, status: statusFromTurn(event.turn.status) },
-          event.turn,
-          event.source,
-          event.event_id,
-        ),
+        upsertTurn(next, event.turn, event.source, event.event_id),
         event.turn.id,
       );
     case "turn_diff_updated":
@@ -537,106 +531,6 @@ function replaceReasoningPart(
   };
 }
 
-function upsertTurn(
-  state: ConversationProjectionState,
-  turn: AgentThreadTurn,
-  source: ConversationProjectionSource,
-  eventId?: string,
-): ConversationProjectionState {
-  if (state.thread_id && state.thread_id !== turn.thread_id) {
-    return addDiagnostic(state, {
-      code: "turn_mismatch",
-      source,
-      event_id: eventId,
-      thread_id: turn.thread_id,
-      turn_id: turn.id,
-      message: `Ignored turn ${turn.id} outside thread ${state.thread_id}.`,
-    });
-  }
-  const existing = state.turns[turn.id];
-  const itemIds = existing?.item_ids ?? [];
-  const projected: TurnProjection = {
-    ...turn,
-    ...(turn.unified_diff === undefined && existing?.unified_diff !== undefined
-      ? { unified_diff: existing.unified_diff }
-      : {}),
-    ...(turn.moderation_metadata === undefined &&
-    existing?.moderation_metadata !== undefined
-      ? { moderation_metadata: existing.moderation_metadata }
-      : {}),
-    item_ids: itemIds,
-  };
-  return {
-    ...state,
-    thread_id: state.thread_id ?? turn.thread_id,
-    status: statusFromTurn(turn.status),
-    turns: { ...state.turns, [turn.id]: projected },
-    turn_order: state.turn_order.includes(turn.id)
-      ? state.turn_order
-      : [...state.turn_order, turn.id],
-  };
-}
-
-function applyTurnDiffUpdate(
-  state: ConversationProjectionState,
-  event: Extract<ConversationProjectionEvent, { type: "turn_diff_updated" }>,
-): ConversationProjectionState {
-  const turn = state.turns[event.turn_id];
-  if (!turn || turn.thread_id !== event.thread_id) {
-    return addDiagnostic(state, {
-      code: "turn_mismatch",
-      source: event.source,
-      event_id: event.event_id,
-      thread_id: event.thread_id,
-      turn_id: event.turn_id,
-      message: `Ignored diff update for unknown turn ${event.turn_id}.`,
-    });
-  }
-  if (turn.unified_diff === event.unified_diff) {
-    return state;
-  }
-  return {
-    ...state,
-    turns: {
-      ...state.turns,
-      [event.turn_id]: { ...turn, unified_diff: event.unified_diff },
-    },
-  };
-}
-
-function applyTurnModerationMetadata(
-  state: ConversationProjectionState,
-  event: Extract<
-    ConversationProjectionEvent,
-    { type: "turn_moderation_metadata" }
-  >,
-): ConversationProjectionState {
-  const turn = state.turns[event.turn_id];
-  if (!turn || turn.thread_id !== event.thread_id) {
-    return addDiagnostic(state, {
-      code: "turn_mismatch",
-      source: event.source,
-      event_id: event.event_id,
-      thread_id: event.thread_id,
-      turn_id: event.turn_id,
-      message: `Ignored moderation metadata for unknown turn ${event.turn_id}.`,
-    });
-  }
-  if (turn.moderation_metadata === event.moderation_metadata) {
-    return state;
-  }
-  return {
-    ...state,
-    turns: {
-      ...state.turns,
-      [event.turn_id]: {
-        ...turn,
-        moderation_metadata: event.moderation_metadata,
-      },
-    },
-  };
-}
-
 function applyGuardianReviewStarted(
   state: ConversationProjectionState,
   event: Extract<
@@ -772,32 +666,6 @@ function guardianInteractionStatus(
   }
 }
 
-function ensureTurnForItem(
-  state: ConversationProjectionState,
-  item: AgentThreadItem,
-  source: ConversationProjectionSource,
-  eventId?: string,
-): ConversationProjectionState {
-  if (state.turns[item.turn_id]) {
-    return state;
-  }
-  return upsertTurn(
-    state,
-    {
-      id: item.turn_id,
-      thread_id: item.thread_id,
-      prompt_text: "",
-      status: item.status === "in_progress" ? "running" : "completed",
-      started_at: item.started_at,
-      completed_at: item.completed_at,
-      created_at: item.started_at,
-      updated_at: item.updated_at,
-    },
-    source,
-    eventId,
-  );
-}
-
 function resolvePendingInteraction(
   state: ConversationProjectionState,
   event: Extract<
@@ -835,23 +703,6 @@ function markEventApplied(
   };
 }
 
-function addDiagnostic(
-  state: ConversationProjectionState,
-  diagnostic: ConversationProjectionDiagnostic,
-): ConversationProjectionState {
-  return {
-    ...state,
-    diagnostics: appendDiagnostic(state.diagnostics, diagnostic),
-  };
-}
-
-function appendDiagnostic(
-  diagnostics: readonly ConversationProjectionDiagnostic[],
-  diagnostic: ConversationProjectionDiagnostic,
-): ConversationProjectionDiagnostic[] {
-  return [...diagnostics, diagnostic].slice(-MAX_DIAGNOSTICS);
-}
-
 function eventThreadIdOf(
   event: ConversationProjectionEvent,
 ): string | undefined {
@@ -876,26 +727,6 @@ function eventThreadIdOf(
     case "server_request_resolved":
     case "transport_disconnected":
       return event.thread_id;
-  }
-}
-
-function statusFromTurn(
-  status: AgentThreadTurnStatus,
-): ConversationProjectionStatus {
-  switch (status) {
-    case "running":
-      return "running";
-    case "failed":
-      return "failed";
-    case "interrupted":
-    case "cancelled":
-    case "canceled":
-    case "aborted":
-      return "interrupted";
-    case "completed":
-      return "completed";
-    default:
-      return "idle";
   }
 }
 

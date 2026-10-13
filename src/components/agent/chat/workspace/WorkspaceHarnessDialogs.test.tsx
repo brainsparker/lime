@@ -332,6 +332,36 @@ describe("WorkspaceHarnessDialogs", () => {
     expect(scrollIntoView).toHaveBeenCalled();
   });
 
+  it("只有 review boundary 时挂载审阅面板且不展示导轨", () => {
+    const container = renderSurface({
+      threadRead: {
+        thread_id: "session-surface",
+      },
+      threadItems: [
+        {
+          id: "review-boundary-only",
+          thread_id: "session-surface",
+          turn_id: "turn-review",
+          sequence: 1,
+          status: "completed",
+          started_at: "2026-06-06T00:00:00.000Z",
+          updated_at: "2026-06-06T00:00:01.000Z",
+          type: "review_boundary",
+          boundary: "exited",
+          review: "发现 1 个建议",
+        },
+      ],
+    });
+
+    expect(
+      container.querySelector('[data-testid="code-workbench-guide"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="code-review-summary-panel"]'),
+    ).not.toBeNull();
+    expect(container.textContent).toContain("发现 1 个建议");
+  });
+
   it("无运行时信号时不展示导轨", () => {
     renderDialog({
       executionRuntime: {

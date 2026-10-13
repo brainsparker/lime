@@ -69,6 +69,29 @@ mod tests {
     }
 
     #[test]
+    fn gate_denies_stale_shell_flags_for_disabled_and_unknown_models() {
+        for shell_type in ["disabled", "remote_shell"] {
+            let metadata = json!({
+                "harness": {
+                    "model_request_policy": {
+                        "native_tool_policy": {
+                            "shell_type": shell_type,
+                            "shell_tool_enabled": true,
+                            "preferred_shell_surface": "unified_exec",
+                            "apply_patch_tool_type": "freeform"
+                        }
+                    }
+                }
+            });
+            let gate = NativeToolPolicyGate::from_request_metadata(Some(&metadata));
+
+            assert!(!gate.allows_catalog_entry(tool_catalog_entry("exec_command").unwrap()));
+            assert!(!gate.allows_catalog_entry(tool_catalog_entry("write_stdin").unwrap()));
+            assert!(gate.allows_tool_name("apply_patch"));
+        }
+    }
+
+    #[test]
     fn gate_requires_freeform_apply_patch_type() {
         let metadata = json!({
             "harness": {

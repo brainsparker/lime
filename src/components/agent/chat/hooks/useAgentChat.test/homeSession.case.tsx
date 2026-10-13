@@ -120,9 +120,10 @@ describe("useAgentChat 首页新会话", () => {
           source: "switchTopic.direct",
         }),
       );
-      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith({
-        threadId,
-      });
+      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith(
+        { threadId },
+        undefined,
+      );
       expect(harness.getValue().sessionId).toBe(sessionId);
       expect(harness.getValue().currentTurnId).toBe(turnId);
       expect(harness.getValue().threadRead).toMatchObject({

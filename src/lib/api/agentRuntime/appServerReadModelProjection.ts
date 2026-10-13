@@ -10,7 +10,7 @@ import type {
   AgentRuntimeThreadReadModel,
   AgentRuntimeThreadTurnProfileView,
 } from "./sessionTypes";
-import { readCanonicalThreadEnvironmentSelections } from "./appServerCanonicalThreadProjection";
+import { readCanonicalThreadEnvironmentSelections } from "./threadEnvironments";
 
 export type AppServerAgentSessionReadProjectionInput =
   AppServerAgentSessionReadResponse & {

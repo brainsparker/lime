@@ -26,40 +26,32 @@ pub fn command_references_wsl_drive_mount(command: &str) -> bool {
     common::command_references_wsl_drive_mount(command)
 }
 
-pub fn detect_blocked_sleep_pattern(command: &str) -> Option<String> {
-    powershell::detect_blocked_sleep_pattern(command)
+pub(crate) fn collect_bash_invocation_path_candidates(
+    words: &[String],
+) -> Vec<PathMutationCandidate> {
+    bash::collect_invocation_path_candidates(words)
 }
 
-pub(crate) fn normalized_tool_name(tool_name: &str) -> String {
-    common::normalized_tool_name(tool_name)
-}
-
-pub(crate) fn collect_bash_path_candidates(command: &str) -> Vec<PathMutationCandidate> {
-    bash::collect_path_candidates(command)
-}
-
-pub(crate) fn collect_powershell_path_candidates(command: &str) -> Vec<PathMutationCandidate> {
-    powershell::collect_path_candidates(command)
-}
-
-pub(crate) fn has_dangerous_device_redirect(command: &str) -> bool {
-    bash::has_dangerous_device_redirect(command)
+pub(crate) fn collect_powershell_invocation_path_candidates(
+    words: &[String],
+) -> Vec<PathMutationCandidate> {
+    powershell::collect_invocation_path_candidates(words)
 }
 
 pub(crate) fn detect_high_risk_bash_reason(command: &str) -> Option<String> {
     bash::detect_high_risk_reason(command)
 }
 
-pub(crate) fn detect_high_risk_powershell_reason(command: &str) -> Option<String> {
-    powershell::detect_high_risk_reason(command)
+pub(crate) fn detect_high_risk_powershell_invocation_reason(words: &[String]) -> Option<String> {
+    powershell::detect_high_risk_invocation_reason(words)
 }
 
-pub(crate) fn detect_mutating_bash_warning(command: &str) -> Option<String> {
-    bash::detect_mutating_warning(command)
+pub(crate) fn detect_mutating_bash_invocation_warning(words: &[String]) -> Option<String> {
+    bash::detect_mutating_invocation_warning(words)
 }
 
-pub(crate) fn detect_mutating_powershell_warning(command: &str) -> Option<String> {
-    powershell::detect_mutating_warning(command)
+pub(crate) fn detect_mutating_powershell_invocation_warning(words: &[String]) -> Option<String> {
+    powershell::detect_mutating_invocation_warning(words)
 }
 
 #[cfg(test)]
@@ -131,25 +123,5 @@ mod tests {
             "Set-Content out.txt hi"
         ));
         assert!(!is_powershell_command_concurrency_safe("git checkout main"));
-    }
-
-    #[test]
-    fn blocked_sleep_pattern_reports_long_first_sleep() {
-        assert_eq!(
-            detect_blocked_sleep_pattern("Start-Sleep 5"),
-            Some("standalone Start-Sleep 5".to_string())
-        );
-        assert_eq!(
-            detect_blocked_sleep_pattern("sleep 4; Get-Process"),
-            Some("Start-Sleep 4 followed by: Get-Process".to_string())
-        );
-        assert_eq!(detect_blocked_sleep_pattern("Start-Sleep 1"), None);
-    }
-
-    #[test]
-    fn powershell_env_assign_segment_does_not_panic() {
-        let command = "$p = 'C:/Users/coso/.yansu-agent'; if (Test-Path $p) { Get-ChildItem $p }";
-        let candidates = collect_powershell_path_candidates(command);
-        assert!(candidates.is_empty());
     }
 }

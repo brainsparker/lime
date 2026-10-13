@@ -77,6 +77,7 @@ export const SETTINGS_GROUPS: Record<SettingsGroupKey, SettingsTabs[]> = {
   ],
   [SettingsGroupKey.Agent]: [
     SettingsTabs.Providers,
+    SettingsTabs.Skills,
     SettingsTabs.MediaServices,
   ],
   [SettingsGroupKey.System]: [

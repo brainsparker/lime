@@ -2,6 +2,7 @@ use crate::credential_bridge::{
     create_configured_reply_provider, ConfiguredReplyProvider, CredentialBridge,
 };
 use crate::protocol::AgentActionRequiredScope;
+mod execution;
 mod mcp_runtime;
 #[cfg(test)]
 mod mcp_runtime_tests;

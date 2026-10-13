@@ -12,7 +12,7 @@ import {
   buildFailedAgentRuntimeStatus,
   formatAgentRuntimeStatusSummary,
 } from "../utils/agentRuntimeStatus";
-import type { AgentUiPerformanceTraceMetadata } from "./agentStreamPerformanceMetrics";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 
 export interface ActiveStreamState {
   assistantMsgId: string;
@@ -22,41 +22,6 @@ export interface ActiveStreamState {
   pendingTurnKey?: string;
   pendingItemKey?: string;
   submittedDraft?: InterruptedInputDraftSnapshot | null;
-}
-
-export interface StreamRequestState {
-  accumulatedContent: string;
-  hasMeaningfulCompletionSignal?: boolean;
-  hasFinalAnswerRequiredProcessBoundary?: boolean;
-  hasAssistantTextAfterLatestFinalAnswerRequiredProcessBoundary?: boolean;
-  requestLogId: string | null;
-  requestStartedAt: number;
-  submissionDispatchedAt?: number | null;
-  submissionAcceptedAt?: number | null;
-  startTerminalRecoveryPoll?: () => void;
-  listenerBoundAt?: number | null;
-  firstEventReceivedAt?: number | null;
-  firstRuntimeStatusAt?: number | null;
-  firstThinkingDeltaAt?: number | null;
-  firstTextDeltaAt?: number | null;
-  firstTextPaintAt?: number | null;
-  firstTextPaintScheduled?: boolean;
-  firstTextRenderFlushAt?: number | null;
-  lastTextRenderFlushAt?: number | null;
-  textDeltaBufferedCount?: number;
-  textDeltaFlushCount?: number;
-  maxTextDeltaBacklogChars?: number;
-  requestFinished: boolean;
-  currentTurnId?: string | null;
-  pendingTextRenderTimerId?: ReturnType<typeof setTimeout> | null;
-  renderedContent?: string;
-  preservedAssistantContentInitialized?: boolean;
-  activeTextSegmentTurnId?: string | null;
-  activeTextSegmentSequence?: number | null;
-  latestAssistantTextEventSequence?: number | null;
-  maxProcessEventSequence?: number | null;
-  maxFinalAnswerRequiredProcessEventSequence?: number | null;
-  performanceTrace?: AgentUiPerformanceTraceMetadata | null;
 }
 
 function normalizeUserMessageContent(value: string | undefined): string {

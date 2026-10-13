@@ -58,6 +58,7 @@ import {
   resolveLimeTaskProtocolFailureDisplayText,
 } from "../utils/limeTaskProtocolNoise";
 import { MemoryToolEvidencePanel } from "./MemoryToolEvidencePanel";
+import { stripTerminalControlSequences } from "../utils/terminalOutputText";
 import {
   asRecord,
   buildSiteNoticeLines,
@@ -148,6 +149,7 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
     normalizedToolName === "limerunserviceskill";
   const shouldSuppressTransientResultText =
     (toolCall.status === "running" || isMessageStreaming) &&
+    toolDisplay.family !== "command" &&
     !isToolSearch &&
     !isUnifiedWebSearchToolName(toolCall.name) &&
     !isUnifiedWebFetchToolName(toolCall.name);
@@ -167,8 +169,9 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
   );
   const rawResultText = useMemo(() => {
     const rawText = toolCall.result?.error || toolCall.result?.output || "";
-    return extractLimeToolMetadataBlock(rawText).text.trim();
-  }, [toolCall.result?.error, toolCall.result?.output]);
+    const text = extractLimeToolMetadataBlock(rawText).text;
+    return toolDisplay.family === "command" ? text : text.trim();
+  }, [toolCall.result?.error, toolCall.result?.output, toolDisplay.family]);
   const structuredContentValue = useMemo(
     () => resolveToolResultStructuredContent(toolCall.result),
     [toolCall.result],
@@ -278,6 +281,9 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
       return "";
     }
 
+    if (toolDisplay.family === "command" && toolCall.status !== "failed")
+      return stripTerminalControlSequences(rawResultText);
+
     if (shouldPreferStructuredProtocolResult) {
       return structuredContentDetail || "";
     }
@@ -347,6 +353,7 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
     t,
     toolCall.name,
     toolCall.status,
+    toolDisplay.family,
   ]);
   const isRawDiagnosticDetail = useMemo(
     () =>
@@ -374,7 +381,11 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
       return null;
     }
 
-    return summarizeResultText(normalizeToolResultDetailText(rawResultText));
+    return summarizeResultText(
+      toolDisplay.family === "command"
+        ? stripTerminalControlSequences(rawResultText)
+        : normalizeToolResultDetailText(rawResultText),
+    );
   }, [
     isSkillLikeTool,
     rawResultText,
@@ -717,7 +728,9 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
               </div>
               {processSummary ? (
                 <div className="mt-1 text-xs leading-5 text-slate-600">
-                  {processSummary}
+                  {toolDisplay.family === "command"
+                    ? stripTerminalControlSequences(processSummary)
+                    : processSummary}
                 </div>
               ) : !expanded && structuredResultPreview ? (
                 <div className="mt-1 text-xs leading-5 text-slate-600">
@@ -945,7 +958,16 @@ export const InlineToolProcessStep: React.FC<InlineToolProcessStepProps> = ({
               searchResultItems.length === 0 &&
               resultText ? (
                 <div className="text-sm leading-6 text-slate-700">
-                  <MarkdownRenderer content={resultDetailMarkdown} />
+                  {toolDisplay.family === "command" ? (
+                    <pre
+                      data-testid="inline-tool-process-command-output"
+                      className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words font-mono text-[11px] leading-relaxed"
+                    >
+                      {stripTerminalControlSequences(resultText)}
+                    </pre>
+                  ) : (
+                    <MarkdownRenderer content={resultDetailMarkdown} />
+                  )}
                 </div>
               ) : null}
 

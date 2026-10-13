@@ -54,6 +54,7 @@ toml_edit.workspace = true
 tracing.workspace = true
 tree-sitter.workspace = true
 tree-sitter-bash.workspace = true
+tree-sitter-powershell.workspace = true
 url.workspace = true
 urlencoding.workspace = true
 uuid.workspace = true

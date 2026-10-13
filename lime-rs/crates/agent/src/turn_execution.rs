@@ -26,6 +26,7 @@ pub struct AgentTurnExecutionRequest<'a> {
     pub request_tool_policy: &'a RequestToolPolicy,
     pub provider_configuration: Option<AgentTurnProviderConfiguration<'a>>,
     pub agent_control_gateway: Option<AgentControlGatewayHandle>,
+    pub command_publisher: Option<crate::CommandEventPublisher>,
     pub pending_input: Option<RuntimeSessionInputHandle>,
     pub cancellation_token: Option<CancellationToken>,
 }
@@ -108,6 +109,7 @@ where
         request.pending_input,
         request.request_tool_policy,
         request.agent_control_gateway,
+        request.command_publisher,
         on_event,
     )
     .await;

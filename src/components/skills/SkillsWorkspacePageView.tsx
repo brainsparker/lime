@@ -8,6 +8,7 @@ import {
   Upload,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import type { ProtocolSkillEnabledState } from "@/lib/api/skillConfig";
 import type { Skill } from "@/lib/api/skills";
 import type { AgentRuntimeWorkspaceSkillBinding } from "@/lib/api/agentRuntime/toolInventoryTypes";
 import type { SkillScaffoldDraft } from "@/types/page";
@@ -109,7 +110,10 @@ interface SkillsWorkspacePageViewProps {
   onRevealLocalSkill: (skill: Skill) => void;
   onSearchQueryChange: (query: string) => void;
   onSelectLocalSkillPackage: () => void;
+  onProtocolSkillEnabledChange?: (skill: Skill, enabled: boolean) => void;
   onSkillAutoLoadChange: (skill: Skill, enabled: boolean) => void;
+  protocolSkillEnabledPendingKey?: string | null;
+  protocolSkillEnabledStates?: readonly ProtocolSkillEnabledState[];
   onUninstallLocalSkill: (skill: Skill) => void;
   resolveMarketplaceSkillActionState: (
     item: SkillStoreItem,
@@ -435,6 +439,15 @@ export function SkillsWorkspacePageView(props: SkillsWorkspacePageViewProps) {
                           props.installedSkillPresentationCopy
                         }
                         onAutoLoadChange={props.onSkillAutoLoadChange}
+                        onProtocolSkillEnabledChange={
+                          props.onProtocolSkillEnabledChange
+                        }
+                        protocolSkillEnabledPendingKey={
+                          props.protocolSkillEnabledPendingKey
+                        }
+                        protocolSkillEnabledStates={
+                          props.protocolSkillEnabledStates
+                        }
                         onDetailOpen={props.onInstalledSkillDetailOpen}
                       />
                     ))}
@@ -486,6 +499,15 @@ export function SkillsWorkspacePageView(props: SkillsWorkspacePageViewProps) {
                           props.installedSkillPresentationCopy
                         }
                         onAutoLoadChange={props.onSkillAutoLoadChange}
+                        onProtocolSkillEnabledChange={
+                          props.onProtocolSkillEnabledChange
+                        }
+                        protocolSkillEnabledPendingKey={
+                          props.protocolSkillEnabledPendingKey
+                        }
+                        protocolSkillEnabledStates={
+                          props.protocolSkillEnabledStates
+                        }
                         onDetailOpen={props.onInstalledSkillDetailOpen}
                         onSelect={props.onInstalledSkillSelect}
                         actionMenu={

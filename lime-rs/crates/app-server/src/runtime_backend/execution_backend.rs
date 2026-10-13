@@ -50,6 +50,7 @@ pub(super) async fn preflight_thread_settings_route(
         queue_if_busy: false,
         skip_pre_submit_resume: false,
         agent_control_gateway: None,
+        command_publisher: None,
         rollout_budget_reminder_source: None,
     };
     let route = backend.resolve_turn_route(&request).await?;
@@ -237,12 +238,26 @@ impl ExecutionBackend for RuntimeBackend {
         ))
     }
 
+    async fn drain_turn(&self, request: &CancelExecutionRequest) -> Result<(), RuntimeCoreError> {
+        self.agent_state
+            .cancel_session(&request.session.session_id)
+            .await;
+        self.agent_state
+            .cancel_turn_processes(&request.session.thread_id, &request.turn.turn_id)
+            .await
+            .map_err(|error| RuntimeCoreError::Backend(error.message().to_string()))
+    }
+
     async fn close_session(
         &self,
         session_id: &str,
         thread_id: &str,
     ) -> Result<(), RuntimeCoreError> {
         self.agent_state.cancel_session(session_id).await;
+        self.agent_state
+            .terminate_all_processes(thread_id)
+            .await
+            .map_err(|error| RuntimeCoreError::Backend(error.message().to_string()))?;
         self.agent_state.close_provider_session(session_id).await;
         self.agent_state
             .close_mcp_runtime(session_id, thread_id)

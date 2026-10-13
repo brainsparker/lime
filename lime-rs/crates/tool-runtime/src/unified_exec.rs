@@ -13,13 +13,17 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
+mod async_watcher;
+mod cancellation;
 mod collect;
 mod definitions;
 mod invocation;
+mod lifecycle;
 mod output;
 mod session;
 mod shell;
 
+pub use cancellation::{cancel_turn, terminate_all_processes};
 use collect::collect_process_output;
 pub use definitions::{
     exec_command_tool_definition, unified_exec_tool_definitions, write_stdin_tool_definition,
@@ -152,6 +156,11 @@ async fn execute_command(
         },
         after_sequence: None,
         empty_poll_count: 0,
+        streaming_sequence: None,
+        completed: false,
+        started_at: std::time::Instant::now(),
+        interaction_lock: Arc::new(tokio::sync::Mutex::new(())),
+        output_sink: request.output_sink.clone(),
     }));
     register_session(session_id, process_id.clone(), Arc::clone(&session))?;
 
@@ -208,17 +217,22 @@ async fn execute_command(
         .await;
     }
 
+    let interaction_lock = Arc::clone(&session.lock().await.interaction_lock);
+    let guard = interaction_lock.lock().await;
     let output = collect_process_output(
-        gateway,
+        gateway.clone(),
         session_id,
-        session,
-        request.turn_id,
-        request.output_sink,
+        session.clone(),
         clamped_exec_yield_time(input.yield_time_ms),
         clamped_output_tokens(input.max_output_tokens),
         request.cancel_token,
     )
     .await?;
+    let running = output.session_id.is_some();
+    drop(guard);
+    if running {
+        async_watcher::spawn_exit_watcher(gateway, session_id, session);
+    }
     Ok(project_output(output))
 }
 
@@ -232,9 +246,13 @@ async fn write_stdin(
         })?;
     let session = find_session(input.session_id)?;
     let session_identity = session_facts(&session).await;
+    let _interaction = session_identity.interaction_lock.lock().await;
     let process_id = session_identity.process_id.clone();
     {
         let mut session = session.lock().await;
+        if session.completed {
+            return Err(unified_exec_error("unified exec process already completed"));
+        }
         if session.thread_id != request.thread_id {
             return Err(unified_exec_error(format!(
                 "unified exec session {} does not belong to thread {}",
@@ -250,8 +268,6 @@ async fn write_stdin(
         gateway,
         input.session_id,
         session,
-        session_identity.turn_id,
-        request.output_sink,
         clamped_write_yield_time(input.yield_time_ms, input.chars.is_empty()),
         clamped_output_tokens(input.max_output_tokens),
         request.cancel_token,

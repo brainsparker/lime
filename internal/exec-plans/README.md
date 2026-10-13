@@ -35,6 +35,7 @@
 - Codex Desktop 选择性 Goose 参考执行计划：`internal/exec-plans/codex-desktop-selective-goose-reference-plan.md`
 - Desktop + CLI/TUI 多 Surface 执行计划：`internal/exec-plans/tui-cli-surfaces-plan.md`
 - TUI/CLI 继续同步 Codex 执行计划：`internal/exec-plans/tui-cli-codex-sync-next-plan.md`
+- GUI / TUI / CLI 全维度对齐与三端验收索引：[codex-global-alignment-2026-10-12.md](./codex-global-alignment-2026-10-12.md)；日期文件记录本轮专项证据，细分 owner 仍由关联计划负责。
 - Codex/Lime TUI/CLI 全量差异报告：`internal/exec-plans/codex-lime-tui-cli-difference-report.md`
 - Codex TUI snapshot 逐项分类账本：`internal/exec-plans/tui-codex-snapshot-inventory.json`
 - Codex `fs/changed` Renderer 消费链对齐计划：`internal/exec-plans/fs-changed-codex-alignment-plan.md`

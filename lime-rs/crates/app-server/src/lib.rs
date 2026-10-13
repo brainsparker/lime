@@ -270,6 +270,8 @@ pub enum AppServerError {
     ServerRequest(#[from] ServerRequestError),
     #[error("app-server thread listener failed: {0}")]
     ThreadListener(String),
+    #[error(transparent)]
+    Runtime(#[from] RuntimeCoreError),
     #[error(
         "app-server transport is disabled; select stdio://, unix://PATH, or ws://127.0.0.1:PORT"
     )]
@@ -1603,8 +1605,10 @@ async fn finish_json_lines(
     mcp_elicitation_shutdown.cancel();
     let _ = mcp_elicitation_pump.await;
     server.thread_states.clear_all_listeners().await;
+    let shutdown_result = server.processor.runtime().shutdown().await;
     server.clear_transport_writers().await;
-    transport_result
+    transport_result?;
+    shutdown_result.map_err(AppServerError::from)
 }
 
 fn response_thread_id(messages: &[JsonRpcMessage]) -> Option<String> {

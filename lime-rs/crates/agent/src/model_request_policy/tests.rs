@@ -227,7 +227,7 @@ fn model_request_policy_from_metadata_accepts_camel_case_aliases() {
             .native_tool_policy
             .as_ref()
             .and_then(|policy| policy.preferred_shell_surface.as_deref()),
-        Some("shell_command")
+        Some("unified_exec")
     );
     assert_eq!(
         policy
@@ -440,6 +440,71 @@ fn runtime_reply_policy_omits_none_summary_and_unsupported_verbosity() {
     assert_eq!(policy.text_verbosity(), None);
     assert_eq!(wire_shape.reasoning_summary, None);
     assert_eq!(wire_shape.text_verbosity, None);
+}
+
+#[test]
+fn native_shell_aliases_normalize_to_the_shared_unified_exec_surface() {
+    for shell_type in ["default", "local", "shell_command", "unified_exec"] {
+        let metadata = json!({
+            "model_request_policy": {
+                "native_tool_policy": {
+                    "shell_type": shell_type,
+                    "preferred_shell_surface": "shell_command",
+                    "apply_patch_tool_type": "freeform"
+                }
+            }
+        });
+        let policy = native_tool_policy_from_metadata(&metadata).expect("native policy");
+        assert_eq!(policy.shell_type.as_deref(), Some("unified_exec"));
+        assert_eq!(
+            policy.preferred_shell_surface.as_deref(),
+            Some("unified_exec")
+        );
+        assert!(policy.shell_tool_enabled);
+        assert!(native_tool_policy_disallowed_tool_names(Some(&policy)).is_empty());
+    }
+}
+
+#[test]
+fn stale_shell_metadata_cannot_enable_disabled_or_unknown_shell_types() {
+    for shell_type in ["disabled", "remote_shell"] {
+        let metadata = json!({
+            "model_request_policy": {
+                "native_tool_policy": {
+                    "shell_type": shell_type,
+                    "shell_tool_enabled": true,
+                    "preferred_shell_surface": "unified_exec",
+                    "apply_patch_tool_type": "freeform"
+                }
+            }
+        });
+        let policy = native_tool_policy_from_metadata(&metadata).expect("native policy");
+        assert_eq!(policy.preferred_shell_surface, None);
+        assert!(!policy.shell_tool_enabled);
+        assert_eq!(
+            native_tool_policy_disallowed_tool_names(Some(&policy)),
+            vec![MODEL_NATIVE_SHELL_TOOL_NAME, MODEL_NATIVE_STDIN_TOOL_NAME]
+        );
+    }
+}
+
+#[test]
+fn canonical_shell_policy_preserves_explicit_tool_opt_out() {
+    let metadata = json!({
+        "model_request_policy": {
+            "native_tool_policy": {
+                "shell_type": "unified_exec",
+                "shell_tool_enabled": false,
+                "apply_patch_tool_type": "freeform"
+            }
+        }
+    });
+    let policy = native_tool_policy_from_metadata(&metadata).expect("native policy");
+    assert!(!policy.shell_tool_enabled);
+    assert_eq!(
+        native_tool_policy_disallowed_tool_names(Some(&policy)),
+        vec![MODEL_NATIVE_SHELL_TOOL_NAME, MODEL_NATIVE_STDIN_TOOL_NAME]
+    );
 }
 
 #[test]

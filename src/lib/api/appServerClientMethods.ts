@@ -367,6 +367,16 @@ declare module "./appServerClient" {
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerThreadBackgroundTerminalsTerminateResponse>
     >;
+    cleanThreadBackgroundTerminals(
+      params: appServer.AppServerThreadBackgroundTerminalsCleanParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerThreadBackgroundTerminalsCleanResponse>
+    >;
+    searchThreads(
+      params: appServer.AppServerThreadSearchParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerThreadSearchResponse>
+    >;
     archiveThread(
       params: appServer.AppServerThreadArchiveParams,
     ): Promise<

@@ -58,6 +58,12 @@ pub trait RuntimeLiveExecutionGateway: Send + Sync {
         process_id: &str,
     ) -> Result<ExecutionProcessSnapshot, RuntimeToolExecutionError>;
 
+    /// Wait for supervisor completion, including the final output drain.
+    async fn wait_for_exit(
+        &self,
+        process_id: &str,
+    ) -> Result<ExecutionProcessSnapshot, RuntimeToolExecutionError>;
+
     fn drain_output(
         &self,
         query: LiveExecutionOutputQuery,

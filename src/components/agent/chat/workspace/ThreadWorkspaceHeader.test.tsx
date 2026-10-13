@@ -40,8 +40,10 @@ describe("ThreadWorkspaceHeader", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="thread-workspace-header"]'),
-    ).not.toBeNull();
+      container
+        .querySelector('[data-testid="thread-workspace-header"]')
+        ?.getAttribute("data-header-placement"),
+    ).toBe("titlebar");
     expect(
       container.querySelector('[data-testid="thread-workspace-header-title"]')
         ?.textContent,
@@ -76,14 +78,12 @@ describe("ThreadWorkspaceHeader", () => {
     act(() => root.unmount());
   });
 
-  it("应通过 Thread 操作菜单提交重命名", async () => {
+  it("应通过标题栏就地重命名提交给 workspace owner", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
     const onRename = vi.fn().mockResolvedValue(undefined);
-    const prompt = vi
-      .spyOn(window, "prompt")
-      .mockReturnValue("新的 Thread 名称");
+    const prompt = vi.spyOn(window, "prompt");
 
     act(() => {
       root.render(
@@ -91,11 +91,23 @@ describe("ThreadWorkspaceHeader", () => {
           sessionId="thread-1"
           title="旧 Thread 名称"
           status="done"
-          workingDirectory={null}
+          workingDirectory="/workspace/lime"
           onRename={onRename}
+          onFork={vi.fn()}
+          onArchive={vi.fn()}
         />,
       );
     });
+
+    expect(
+      container.querySelector('[data-testid="thread-workspace-header-status"]')
+        ?.textContent,
+    ).toContain("已完成");
+    expect(
+      container.querySelector(
+        '[data-testid="thread-workspace-header-directory"]',
+      )?.textContent,
+    ).toContain("/workspace/lime");
 
     act(() => {
       (
@@ -105,18 +117,73 @@ describe("ThreadWorkspaceHeader", () => {
       )?.click();
     });
     expect(container.querySelector('[role="menuitem"]')?.textContent).toContain(
-      "sidebar.conversations.menu.rename",
+      "重命名",
     );
+    expect(
+      container
+        .querySelector('[data-testid="thread-workspace-header-action-menu"]')
+        ?.getAttribute("title"),
+    ).toBe("更多操作");
+    expect(
+      document.body.querySelector(
+        '[data-testid="thread-workspace-header-fork"]',
+      )?.textContent,
+    ).toContain("分叉对话");
+    expect(
+      document.body.querySelector(
+        '[data-testid="thread-workspace-header-archive"]',
+      )?.textContent,
+    ).toContain("归档");
 
     await act(async () => {
       (container.querySelector('[role="menuitem"]') as HTMLElement)?.click();
     });
 
-    expect(prompt).toHaveBeenCalledWith(
-      "sidebar.conversations.rename.prompt",
-      "旧 Thread 名称",
-    );
+    const input = container.querySelector(
+      '[data-testid="thread-workspace-header-title-input"]',
+    ) as HTMLInputElement;
+    expect(input.value).toBe("旧 Thread 名称");
+    expect(input.getAttribute("aria-label")).toBe("重命名对话");
+    const valueSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      "value",
+    )?.set;
+    await act(async () => {
+      valueSetter?.call(input, "  新的 Thread 名称  ");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+
+    expect(prompt).not.toHaveBeenCalled();
     expect(onRename).toHaveBeenCalledWith("新的 Thread 名称");
+    expect(
+      container.querySelector('[data-testid="thread-workspace-header-status"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="thread-workspace-header-directory"]',
+      ),
+    ).not.toBeNull();
+
+    act(() => {
+      (
+        container.querySelector(
+          '[data-testid="thread-workspace-header-action-menu"]',
+        ) as HTMLButtonElement
+      )?.click();
+    });
+    expect(
+      document.body.querySelector(
+        '[data-testid="thread-workspace-header-fork"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      document.body.querySelector(
+        '[data-testid="thread-workspace-header-archive"]',
+      ),
+    ).not.toBeNull();
 
     prompt.mockRestore();
     act(() => root.unmount());
@@ -170,6 +237,45 @@ describe("ThreadWorkspaceHeader", () => {
       (archiveItems[1] as HTMLElement)?.click();
     });
     expect(onArchive).toHaveBeenCalledTimes(1);
+
+    act(() => root.unmount());
+  });
+
+  it("标题栏只切换既有右侧活动面，不再自建摘要层", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onToggleSummary = vi.fn();
+
+    act(() => {
+      root.render(
+        <ThreadWorkspaceHeader
+          sessionId="thread-1"
+          title="当前 Thread"
+          status="running"
+          workingDirectory="/workspace/lime"
+          summaryOpen={false}
+          onToggleSummary={onToggleSummary}
+        />,
+      );
+    });
+
+    const toggle = container.querySelector(
+      '[data-testid="thread-workspace-summary-toggle"]',
+    ) as HTMLButtonElement;
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    expect(
+      container.querySelector('[data-testid="thread-workspace-summary"]'),
+    ).toBeNull();
+
+    act(() => {
+      toggle.click();
+    });
+
+    expect(onToggleSummary).toHaveBeenCalledTimes(1);
+    expect(
+      container.querySelector('[data-testid="thread-workspace-summary"]'),
+    ).toBeNull();
 
     act(() => root.unmount());
   });

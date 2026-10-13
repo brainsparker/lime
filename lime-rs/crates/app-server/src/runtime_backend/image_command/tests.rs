@@ -928,6 +928,7 @@ fn request_with_metadata(metadata: Value) -> ExecutionRequest {
         queue_if_busy: false,
         skip_pre_submit_resume: false,
         agent_control_gateway: None,
+        command_publisher: None,
         rollout_budget_reminder_source: None,
     }
 }

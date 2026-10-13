@@ -124,13 +124,14 @@ export function CodeReviewSummaryPanel({
     checkpointCount,
     reviewSummary,
   });
-  const hasReviewSurface = hasCodeReviewSurface({
-    failedOutputCount,
-    fileChangeCount: fileChanges.length,
-    outputSignalCount: harnessState.outputSignals.length,
-    checkpointCount,
-    reviewSummary,
-  });
+  const hasReviewSurface =
+    hasCodeReviewSurface({
+      failedOutputCount,
+      fileChangeCount: fileChanges.length,
+      outputSignalCount: harnessState.outputSignals.length,
+      checkpointCount,
+      reviewSummary,
+    }) || Boolean(latestReviewBoundary);
   const codeFixPrompt = useMemo(() => {
     if (failedOutputCount === 0 || !outputSignalForDetail) {
       return null;

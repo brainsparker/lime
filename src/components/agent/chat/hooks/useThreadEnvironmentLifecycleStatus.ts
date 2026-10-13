@@ -5,7 +5,7 @@ import {
   type AppServerEventBusSubscription,
 } from "@/lib/api/appServerEventBus";
 import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/sessionTypes";
-import { readCanonicalThreadEnvironmentSelections } from "@/lib/api/agentRuntime/appServerCanonicalThreadProjection";
+import { readCanonicalThreadEnvironmentSelections } from "@/lib/api/agentRuntime/threadEnvironments";
 import {
   readEnvironmentRuntimeStatuses,
   type EnvironmentRuntimeConnectionState,

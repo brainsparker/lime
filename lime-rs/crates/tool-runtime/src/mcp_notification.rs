@@ -1,3 +1,4 @@
+use crate::tool_io::truncate_chars;
 use rmcp::model::ServerNotification;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -58,22 +59,6 @@ pub enum McpNotificationProjection {
         output_kind: Option<String>,
         metadata: Option<HashMap<String, Value>>,
     },
-}
-
-fn truncate_chars(text: &str, max_chars: usize) -> (String, bool) {
-    if max_chars == 0 {
-        return (String::new(), !text.is_empty());
-    }
-
-    let mut char_count = 0usize;
-    for (idx, _) in text.char_indices() {
-        if char_count == max_chars {
-            return (text[..idx].to_string(), true);
-        }
-        char_count += 1;
-    }
-
-    (text.to_string(), false)
 }
 
 fn truncate_notification_text(text: impl Into<String>) -> String {

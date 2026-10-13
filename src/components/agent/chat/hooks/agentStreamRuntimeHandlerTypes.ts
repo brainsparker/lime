@@ -41,6 +41,8 @@ export interface StreamRequestState extends AgentStreamReasoningTimelineState {
   requestLogId: string | null;
   requestStartedAt: number;
   submissionDispatchedAt?: number | null;
+  submissionAcceptedAt?: number | null;
+  startTerminalRecoveryPoll?: () => void;
   listenerBoundAt?: number | null;
   firstEventReceivedAt?: number | null;
   firstRuntimeStatusAt?: number | null;

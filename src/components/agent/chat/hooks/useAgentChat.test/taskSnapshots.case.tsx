@@ -280,9 +280,10 @@ describe("useAgentChat 任务快照", () => {
       await flushEffects();
       await flushEffects();
 
-      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith({
-        threadId: "thread-after-reload",
-      });
+      expect(mockResumeAgentRuntimeThread).toHaveBeenCalledWith(
+        { threadId: "thread-after-reload" },
+        undefined,
+      );
       expect(mockSubmitAgentRuntimeTurn).not.toHaveBeenCalled();
       expect(mockGetAgentRuntimeThreadRead).not.toHaveBeenCalled();
       expect(harness.getValue().threadRead).toMatchObject({

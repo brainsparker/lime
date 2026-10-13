@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import {
   buildAgentStreamRequestStartActivityLog,
   buildAgentStreamRequestStartMetricContext,

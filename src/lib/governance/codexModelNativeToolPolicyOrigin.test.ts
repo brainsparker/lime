@@ -2,19 +2,19 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { cwd, env } from "node:process";
 import { describe, expect, it } from "vitest";
+import {
+  buildModelNativeToolPolicy,
+  MODEL_SHELL_TOOL_TYPES,
+} from "../model/modelNativeToolPolicy";
 
 const REPO_ROOT = cwd();
 const LIME_NATIVE_TOOL_POLICY_SOURCE = "src/lib/model/modelNativeToolPolicy.ts";
 const DEFAULT_CODEX_OPENAI_MODELS_SOURCE =
   "/Users/coso/Documents/dev/rust/codex/codex-rs/protocol/src/openai_models.rs";
-const DEFAULT_CODEX_TOOL_CONFIG_SOURCE =
-  "/Users/coso/Documents/dev/rust/codex/codex-rs/tools/src/tool_config.rs";
 const DEFAULT_CODEX_SPEC_PLAN_SOURCE =
   "/Users/coso/Documents/dev/rust/codex/codex-rs/core/src/tools/spec_plan.rs";
 const CODEX_OPENAI_MODELS_SOURCE =
   env.CODEX_OPENAI_MODELS_SOURCE ?? DEFAULT_CODEX_OPENAI_MODELS_SOURCE;
-const CODEX_TOOL_CONFIG_SOURCE =
-  env.CODEX_TOOL_CONFIG_SOURCE ?? DEFAULT_CODEX_TOOL_CONFIG_SOURCE;
 const CODEX_SPEC_PLAN_SOURCE =
   env.CODEX_SPEC_PLAN_SOURCE ?? DEFAULT_CODEX_SPEC_PLAN_SOURCE;
 
@@ -116,15 +116,8 @@ describe("Codex model native tool policy origin", () => {
     ).toEqual(CODEX_NATIVE_TOOL_MODEL_INFO_FIELDS);
   });
 
-  it("shell_type 枚举和 default/local 映射沿用 Codex tool_config", () => {
-    const limeSource = readRepoFile(LIME_NATIVE_TOOL_POLICY_SOURCE);
-
-    expect(limeSource).toContain(
-      '"default",\n  "local",\n  "unified_exec",\n  "disabled",\n  "shell_command"',
-    );
-    expect(limeSource).toContain('shellType === "default"');
-    expect(limeSource).toContain('shellType === "local"');
-    expect(limeSource).toContain('return "shell_command"');
+  it("shell_type 取值来自 ModelInfo，工具注册由 Codex spec_plan 承接", () => {
+    expect(MODEL_SHELL_TOOL_TYPES).toEqual(["unified_exec", "disabled"]);
 
     const codexOpenaiModelsSource = readIfExists(CODEX_OPENAI_MODELS_SOURCE);
     if (codexOpenaiModelsSource) {
@@ -133,40 +126,40 @@ describe("Codex model native tool policy origin", () => {
         "pub enum ConfigShellToolType",
         "pub enum ApplyPatchToolType",
       );
-      expect(shellType).toContain("UnifiedExec");
-      expect(shellType).toContain("Disabled");
-      const hasLegacyVariants = ["Default", "Local", "ShellCommand"].every(
-        (variant) => shellType.includes(variant),
+      const canonicalTypes = [...shellType.matchAll(/^\s{4}(\w+),$/gmu)].map(
+        (match) => match[1].replace(/([a-z])([A-Z])/gu, "$1_$2").toLowerCase(),
       );
-      const hasCurrentAliases = [
-        'alias = "default"',
-        'alias = "local"',
-        'alias = "shell_command"',
-      ].every((alias) => shellType.includes(alias));
-      expect(hasLegacyVariants || hasCurrentAliases).toBe(true);
+      expect(MODEL_SHELL_TOOL_TYPES).toEqual(canonicalTypes);
+      const inputAliases = [...shellType.matchAll(/alias = "([^"]+)"/gu)].map(
+        (match) => match[1],
+      );
+      expect(inputAliases).toEqual(["default", "local", "shell_command"]);
+      for (const alias of inputAliases) {
+        expect(buildModelNativeToolPolicy({ shell_type: alias })).toMatchObject(
+          {
+            shell_type: "unified_exec",
+            preferred_shell_surface: "unified_exec",
+          },
+        );
+      }
     }
 
-    const codexToolConfigSource = readIfExists(CODEX_TOOL_CONFIG_SOURCE);
-    if (!codexToolConfigSource) {
+    const codexSpecPlanSource = readIfExists(CODEX_SPEC_PLAN_SOURCE);
+    if (!codexSpecPlanSource) {
       return;
     }
 
-    if (!codexToolConfigSource.includes("shell_type_for_model_and_features")) {
-      expect(codexToolConfigSource).toContain("UnifiedExecShellMode");
-      return;
-    }
-
-    const shellTypeForModel = sourceBetween(
-      codexToolConfigSource,
-      "pub fn shell_type_for_model_and_features",
-      "pub enum UnifiedExecShellMode",
+    const shellTools = sourceBetween(
+      codexSpecPlanSource,
+      "fn add_shell_tools(",
+      "fn add_mcp_resource_tools(",
     );
-    expect(shellTypeForModel).toContain(
-      "ConfigShellToolType::Default | ConfigShellToolType::Local",
+    expect(shellTools).toContain("ConfigShellToolType::Disabled");
+    expect(shellTools).toContain(
+      "registry.add(ExecCommandHandler::new(options));",
     );
-    expect(shellTypeForModel).toContain("ConfigShellToolType::ShellCommand");
-    expect(shellTypeForModel).toContain("ConfigShellToolType::Disabled");
-    expect(shellTypeForModel).toContain("ConfigShellToolType::UnifiedExec");
+    expect(shellTools).toContain("registry.add(WriteStdinHandler);");
+    expect(shellTools).not.toContain("ShellCommandHandler");
   });
 
   it("apply_patch_tool_type 与 experimental_supported_tools 沿用 Codex tool plan gate", () => {

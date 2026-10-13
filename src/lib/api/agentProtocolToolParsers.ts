@@ -54,9 +54,7 @@ function normalizeHookEntries(value: unknown):
         : undefined;
       return kind && text ? { kind, text } : null;
     })
-    .filter((entry): entry is { kind: string; text: string } =>
-      Boolean(entry),
-    );
+    .filter((entry): entry is { kind: string; text: string } => Boolean(entry));
   return entries.length > 0 ? entries : undefined;
 }
 
@@ -329,6 +327,14 @@ export function parseAgentToolEvent(
           typeof event.output_kind === "string" ? event.output_kind : undefined,
         metadata: normalizeRecord(event.metadata),
       };
+    case "terminal_interaction": {
+      const item_id = pickStringField(event, "item_id");
+      const process_id = pickStringField(event, "process_id");
+      const stdin = pickStringField(event, "stdin");
+      return item_id && process_id && stdin
+        ? { type: "terminal_interaction", item_id, process_id, stdin }
+        : null;
+    }
     case "tool_input_delta":
       return {
         type: "tool_input_delta",
@@ -409,7 +415,11 @@ export function parseAgentToolEvent(
           (event.requested_schema as Record<string, unknown> | undefined) ||
           (actionData.requested_schema as Record<string, unknown> | undefined),
         available_decisions:
-          pickStringArrayField(event, "availableDecisions", "available_decisions") ??
+          pickStringArrayField(
+            event,
+            "availableDecisions",
+            "available_decisions",
+          ) ??
           pickStringArrayField(
             actionData,
             "availableDecisions",

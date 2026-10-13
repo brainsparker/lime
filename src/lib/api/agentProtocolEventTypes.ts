@@ -273,6 +273,13 @@ export interface AgentEventToolOutputDelta {
   metadata?: Record<string, unknown>;
 }
 
+export interface AgentEventTerminalInteraction {
+  type: "terminal_interaction";
+  item_id: string;
+  process_id: string;
+  stdin: string;
+}
+
 export interface AgentEventToolInputDelta {
   type: "tool_input_delta";
   tool_id: string;
@@ -613,6 +620,7 @@ export type AgentEvent = (
   | AgentEventImageTaskPresentationGenerated
   | AgentEventToolProgress
   | AgentEventToolOutputDelta
+  | AgentEventTerminalInteraction
   | AgentEventToolInputDelta
   | AgentEventArtifactSnapshot
   | AgentEventActionRequired

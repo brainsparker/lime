@@ -204,6 +204,8 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
     isFloatingVariant &&
     toolMode === "attach-only" &&
     !hasInlineComposerContent;
+  const shouldKeepActionRow =
+    Boolean(plusMenu) || Boolean(leftExtra) || Boolean(trailingMeta);
   const shouldUseCompactFloatingComposer =
     shouldCollapseFloatingTools && !topExtra && !isTextareaExpanded;
   const containerClassName = [
@@ -231,7 +233,9 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
     .join(" ");
   const bottomBarClassName = [
     isFloatingVariant ? "floating-composer" : "",
-    shouldUseCompactFloatingComposer ? "floating-collapsed" : "",
+    shouldUseCompactFloatingComposer && !shouldKeepActionRow
+      ? "floating-collapsed"
+      : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -241,17 +245,15 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   ]
     .filter(Boolean)
     .join(" ");
-  const leftSectionClassName = shouldCollapseFloatingTools
-    ? "floating-collapsed"
-    : "";
+  const leftSectionClassName =
+    shouldCollapseFloatingTools && !shouldKeepActionRow
+      ? "floating-collapsed"
+      : "";
   const shouldRenderMetaBar =
-    !shouldUseCompactFloatingComposer &&
-    (Boolean(plusMenu) ||
-      Boolean(leftExtra) ||
-      Boolean(trailingMeta) ||
-      (showMetaTools &&
-        toolMode === "default" &&
-        !shouldCollapseFloatingTools));
+    shouldKeepActionRow ||
+    (showMetaTools &&
+      toolMode === "default" &&
+      !shouldCollapseFloatingTools);
   const handleRemoveImageMouseDown = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();

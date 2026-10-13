@@ -3,12 +3,14 @@ import { Maximize2, Minimize2, PanelBottom, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { agentText } from "./harnessPanelText";
 import { ProjectShellSurface } from "./ProjectShellSurface";
+import { ShellBackgroundTerminalList } from "./ShellBackgroundTerminalList";
 
 interface TaskCenterShellPanelProps {
   variant?: "bottom" | "surface";
   heightPx?: number;
   maximized?: boolean;
   projectRootPath?: string | null;
+  threadId?: string | null;
   onClose: () => void;
   onHeightChange?: (heightPx: number) => void;
   onToggleMaximize?: () => void;
@@ -26,6 +28,7 @@ export function TaskCenterShellPanel({
   heightPx = TASK_CENTER_SHELL_PANEL_DEFAULT_HEIGHT_PX,
   maximized = false,
   projectRootPath,
+  threadId,
   onClose,
   onHeightChange,
   onToggleMaximize,
@@ -97,6 +100,10 @@ export function TaskCenterShellPanel({
   );
 
   const canResizeBottomPanel = variant === "bottom";
+  const backgroundTerminalThreadId = threadId?.trim() || "";
+  const backgroundTerminals = backgroundTerminalThreadId ? (
+    <ShellBackgroundTerminalList threadId={backgroundTerminalThreadId} />
+  ) : null;
   const shellToolbarControls = (
     <>
       {canResizeBottomPanel ? (
@@ -158,6 +165,7 @@ export function TaskCenterShellPanel({
         className="relative flex h-full min-h-0 w-full flex-col overflow-hidden bg-white"
         data-testid="task-center-right-surface-shell-panel"
       >
+        {backgroundTerminals}
         <ProjectShellSurface
           projectRootPath={projectRootPath}
           onRequestResize={handleResize}
@@ -196,6 +204,7 @@ export function TaskCenterShellPanel({
         >
           <span className="h-0.5 w-14 rounded-full bg-current" />
         </button>
+        {backgroundTerminals}
         <ProjectShellSurface
           projectRootPath={projectRootPath}
           onRequestResize={handleResize}

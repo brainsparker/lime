@@ -10,8 +10,15 @@ struct TurnState {
     active_actions: HashMap<String, String>,
     active_patches: HashMap<String, String>,
     active_commands: HashMap<String, String>,
+    background_commands: HashMap<String, BackgroundCommand>,
     active_tests: HashMap<String, String>,
+    test_commands: HashMap<String, String>,
     terminal: bool,
+}
+
+struct BackgroundCommand {
+    item_id: String,
+    process_id: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -104,13 +111,48 @@ impl SequenceVerifier {
             .to_string();
         let turn = self.turns.entry(turn_key).or_default();
 
-        if turn.terminal && is_execution_stream_class(event_class) {
+        if turn.terminal
+            && is_execution_stream_class(event_class)
+            && !is_background_continuation(turn, event, event_class)
+        {
             violations.push(SequenceViolation {
                 code: "execution_after_turn_terminal",
                 event_id: event.event_id.clone(),
                 scope_id: event_scope_id(event),
             });
             return violations;
+        }
+
+        if !turn.terminal
+            && matches!(
+                event_class,
+                "item.updated"
+                    | "command.output"
+                    | "command.interaction"
+                    | "tool.output.delta"
+                    | "command.exited"
+            )
+            && !turn.background_commands.is_empty()
+        {
+            if let Some(command_id) = command_id(event) {
+                if let Some(command) = turn.background_commands.get(&command_id) {
+                    let active = turn.active_commands.contains_key(&command_id);
+                    if !active || !command_scope_matches(command, event, event_class, false) {
+                        violations.push(SequenceViolation {
+                            code: if active {
+                                "command_process_scope_mismatch"
+                            } else if event_class == "command.exited" {
+                                "command_exited_without_start"
+                            } else {
+                                "command_output_without_start"
+                            },
+                            event_id: event.event_id.clone(),
+                            scope_id: Some(command_id),
+                        });
+                        return violations;
+                    }
+                }
+            }
         }
 
         match event_class {
@@ -217,6 +259,40 @@ impl SequenceVerifier {
                     }
                 }
             }
+            "item.updated" => {
+                if let Some(item) = canonical_item(event) {
+                    if let Some(command_id) = canonical_command_id(event) {
+                        if turn.active_commands.contains_key(&command_id)
+                            && item.status == agent_protocol::ItemStatus::InProgress
+                            && item
+                                .metadata
+                                .get("executionSurface")
+                                .and_then(Value::as_str)
+                                == Some("unified_exec")
+                            && item
+                                .metadata
+                                .get("session_id")
+                                .is_some_and(Value::is_number)
+                            && item.metadata.get("exit_code").is_none_or(Value::is_null)
+                        {
+                            if let Some(process_id) = item
+                                .metadata
+                                .get("processId")
+                                .and_then(Value::as_str)
+                                .filter(|id| !id.is_empty())
+                            {
+                                turn.background_commands.insert(
+                                    command_id,
+                                    BackgroundCommand {
+                                        item_id: item.item_id.to_string(),
+                                        process_id: process_id.to_string(),
+                                    },
+                                );
+                            }
+                        }
+                    }
+                }
+            }
             "command.exited" => {
                 if let Some(command_id) = command_id(event) {
                     if turn.active_commands.remove(&command_id).is_none() {
@@ -238,7 +314,10 @@ impl SequenceVerifier {
                         });
                     } else {
                         turn.active_tests
-                            .insert(test_run_id, event.event_id.clone());
+                            .insert(test_run_id.clone(), event.event_id.clone());
+                        if let Some(command_id) = command_id(event) {
+                            turn.test_commands.insert(test_run_id, command_id);
+                        }
                     }
                 }
             }
@@ -285,6 +364,9 @@ impl SequenceVerifier {
                     }
                 }
                 for command_id in turn.active_commands.keys() {
+                    if turn.background_commands.contains_key(command_id) {
+                        continue;
+                    }
                     violations.push(SequenceViolation {
                         code: "command_unclosed_at_turn_end",
                         event_id: event.event_id.clone(),
@@ -292,6 +374,13 @@ impl SequenceVerifier {
                     });
                 }
                 for test_run_id in turn.active_tests.keys() {
+                    if turn
+                        .test_commands
+                        .get(test_run_id)
+                        .is_some_and(|id| turn.background_commands.contains_key(id))
+                    {
+                        continue;
+                    }
                     violations.push(SequenceViolation {
                         code: "test_unclosed_at_turn_end",
                         event_id: event.event_id.clone(),
@@ -302,13 +391,78 @@ impl SequenceVerifier {
                 turn.active_tools.clear();
                 turn.active_actions.clear();
                 turn.active_patches.clear();
-                turn.active_commands.clear();
-                turn.active_tests.clear();
+                turn.active_commands
+                    .retain(|id, _| turn.background_commands.contains_key(id));
+                turn.active_tests.retain(|id, _| {
+                    turn.test_commands
+                        .get(id)
+                        .is_some_and(|command| turn.background_commands.contains_key(command))
+                });
             }
             _ => {}
         }
 
         violations
+    }
+}
+
+fn is_background_continuation(turn: &TurnState, event: &AgentEvent, event_class: &str) -> bool {
+    if event_class == "test.completed" {
+        return test_run_id(event).is_some_and(|id| {
+            turn.active_tests.contains_key(&id)
+                && turn.test_commands.get(&id).is_some_and(|command| {
+                    command_id(event).as_ref() == Some(command)
+                        && turn.background_commands.contains_key(command)
+                })
+        });
+    }
+    let Some(command_id) = command_id(event) else {
+        return false;
+    };
+    let Some(command) = turn.background_commands.get(&command_id) else {
+        return false;
+    };
+    if !turn.active_commands.contains_key(&command_id) {
+        return false;
+    }
+    command_scope_matches(command, event, event_class, true)
+}
+
+fn command_scope_matches(
+    command: &BackgroundCommand,
+    event: &AgentEvent,
+    event_class: &str,
+    require_process: bool,
+) -> bool {
+    match event_class {
+        "item.updated" | "command.exited"
+            if event.event_type == "item.completed" || event.event_type == "item.updated" =>
+        {
+            canonical_item(event).is_some_and(|item| {
+                item.item_id.as_str() == command.item_id
+                    && item.turn_id.as_str() == event.turn_id.as_deref().unwrap_or_default()
+                    && item.session_id.as_str() == event.session_id
+                    && event
+                        .thread_id
+                        .as_deref()
+                        .is_none_or(|thread_id| item.thread_id.as_str() == thread_id)
+                    && item.metadata.get("processId").and_then(Value::as_str)
+                        == Some(command.process_id.as_str())
+            })
+        }
+        "command.output" | "command.interaction" | "tool.output.delta" => {
+            let process_id = event
+                .payload
+                .get("processId")
+                .or_else(|| event.payload.get("metadata")?.get("processId"))
+                .and_then(Value::as_str);
+            if require_process {
+                process_id == Some(command.process_id.as_str())
+            } else {
+                process_id.is_none_or(|process_id| process_id == command.process_id)
+            }
+        }
+        _ => false,
     }
 }
 
@@ -428,6 +582,8 @@ fn command_id(event: &AgentEvent) -> Option<String> {
                 "command_id",
                 "toolCallId",
                 "tool_call_id",
+                "toolId",
+                "tool_id",
                 "id",
             ],
         )

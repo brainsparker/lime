@@ -9,7 +9,7 @@ import type { AgentThreadItem, AgentThreadTurn } from "@/lib/api/agentProtocol";
 import { projectAppServerAgentEventPayload } from "@/lib/api/agentRuntime/appServerEventStream";
 import type { ActionRequired, Message } from "../types";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
-import type { StreamRequestState } from "./agentStreamSubmissionLifecycle";
+import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import { registerAgentStreamTurnEventBinding } from "./agentStreamTurnEventBinding";
 
 function noopDispatch<T>() {

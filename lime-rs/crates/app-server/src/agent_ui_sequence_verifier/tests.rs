@@ -394,3 +394,225 @@ fn canonical_command_rejects_output_after_completion_and_unclosed_turns() {
     let error = validate_agent_event_sequence(&[start], &terminal).expect_err("unclosed command");
     assert!(error.contains("command_unclosed_at_turn_end"), "{error}");
 }
+
+fn yielded_command(event_id: &str) -> AgentEvent {
+    let mut yielded = command_item(event_id, "item.started");
+    yielded.event_type = "item.updated".to_string();
+    yielded.payload["item"]["metadata"] = json!({
+        "exec_command_call_id": "exec-1", "executionSurface": "unified_exec",
+        "processId": "process-1", "session_id": 1000, "exit_code": null
+    });
+    yielded
+}
+
+#[test]
+fn yielded_command_outlives_its_turn_and_completes_once() {
+    let mut validator =
+        AgentEventSequenceValidator::from_events(&[], "sess_test", Some("turn_test"));
+    let mut end = command_item("background-end", "item.completed");
+    end.payload["item"]["metadata"]["processId"] = json!("process-1");
+    for candidate in [
+        command_item("background-start", "item.started"),
+        yielded_command("background-yield"),
+        event("background-turn-end", "turn.completed", json!({})),
+        event(
+            "background-raw-output",
+            "tool.output.delta",
+            json!({"tool_id": "exec-1", "delta": "done", "metadata": {"processId": "process-1"}}),
+        ),
+        event(
+            "background-output",
+            "command.output",
+            json!({"commandId": "exec-1", "processId": "process-1", "delta": "done"}),
+        ),
+        end,
+    ] {
+        validator
+            .validate_and_observe(&candidate)
+            .expect("session command retains its original scope");
+    }
+    let duplicate = command_item("duplicate-background-end", "item.completed");
+    assert!(validator
+        .validate_and_observe(&duplicate)
+        .unwrap_err()
+        .contains("execution_after_turn_terminal"));
+}
+
+#[test]
+fn background_turn_still_rejects_new_execution_and_other_processes() {
+    let existing = vec![
+        command_item("background-start", "item.started"),
+        yielded_command("background-yield"),
+        event("background-turn-end", "turn.completed", json!({})),
+    ];
+    for candidate in [
+        event("late-message", "message.delta", json!({"text": "late"})),
+        command_item("late-start", "item.started"),
+        event(
+            "other-command",
+            "command.output",
+            json!({"commandId": "other", "processId": "process-1"}),
+        ),
+        event(
+            "other-process",
+            "command.output",
+            json!({"commandId": "exec-1", "processId": "other"}),
+        ),
+        event(
+            "other-raw-command",
+            "tool.output.delta",
+            json!({"tool_id": "other", "metadata": {"processId": "process-1"}}),
+        ),
+        event(
+            "other-raw-process",
+            "tool.output.delta",
+            json!({"tool_id": "exec-1", "metadata": {"processId": "other"}}),
+        ),
+    ] {
+        assert!(validate_agent_event_sequence(&existing, &candidate)
+            .unwrap_err()
+            .contains("execution_after_turn_terminal"));
+    }
+}
+
+#[test]
+fn background_process_cannot_rebind_before_terminal_or_complete_another_commands_test() {
+    let mut existing = vec![
+        command_item("background-start", "item.started"),
+        yielded_command("background-yield"),
+    ];
+    let mut drift = yielded_command("drift");
+    drift.payload["item"]["metadata"]["processId"] = json!("other-process");
+    assert!(validate_agent_event_sequence(&existing, &drift)
+        .unwrap_err()
+        .contains("command_process_scope_mismatch"));
+    existing.push(event(
+        "test-start",
+        "test.started",
+        json!({"testRunId": "test-1", "commandId": "exec-1"}),
+    ));
+    existing.push(event("turn-end", "turn.completed", json!({})));
+    let wrong = event(
+        "wrong-test-command",
+        "test.completed",
+        json!({"testRunId": "test-1", "commandId": "other"}),
+    );
+    assert!(validate_agent_event_sequence(&existing, &wrong)
+        .unwrap_err()
+        .contains("execution_after_turn_terminal"));
+    let correct = event(
+        "test-complete",
+        "test.completed",
+        json!({"testRunId": "test-1", "commandId": "exec-1"}),
+    );
+    validate_agent_event_sequence(&existing, &correct)
+        .expect("original test remains pending after rejection");
+}
+
+#[test]
+fn running_command_rejects_foreign_process_streams_without_closing_original() {
+    for (event_type, payload) in [
+        (
+            "command.output",
+            json!({"commandId": "exec-1", "processId": "other-process"}),
+        ),
+        (
+            "command.interaction",
+            json!({"commandId": "exec-1", "processId": "other-process", "stdin": "x"}),
+        ),
+        (
+            "tool.output.delta",
+            json!({"tool_id": "exec-1", "metadata": {"processId": "other-process"}, "delta": "foreign"}),
+        ),
+    ] {
+        let mut validator = AgentEventSequenceValidator::from_events(
+            &[
+                command_item("command-start", "item.started"),
+                yielded_command("command-yield"),
+            ],
+            "sess_test",
+            Some("turn_test"),
+        );
+        let candidate = event("foreign-stream", event_type, payload);
+        let error = validator
+            .validate_and_observe(&candidate)
+            .expect_err("running Command must reject output from another process");
+        assert!(
+            error.contains("command_process_scope_mismatch"),
+            "{event_type}: {error}"
+        );
+        let mut completed = command_item("original-completed", "item.completed");
+        completed.payload["item"]["metadata"]["processId"] = json!("process-1");
+        validator
+            .validate_and_observe(&completed)
+            .expect("original Command remains active");
+    }
+}
+
+#[test]
+fn running_command_rejects_foreign_completion_without_consuming_original() {
+    for (field, value) in [
+        ("process", "other-process"),
+        ("item", "item_other"),
+        ("turn", "turn_other"),
+        ("thread", "thread_other"),
+        ("session", "session_other"),
+    ] {
+        let mut validator = AgentEventSequenceValidator::from_events(
+            &[
+                command_item("command-start", "item.started"),
+                yielded_command("command-yield"),
+            ],
+            "sess_test",
+            Some("turn_test"),
+        );
+        let mut candidate = command_item("foreign-completion", "item.completed");
+        candidate.payload["item"]["metadata"]["processId"] = json!("process-1");
+        match field {
+            "process" => candidate.payload["item"]["metadata"]["processId"] = json!(value),
+            "item" => candidate.payload["item"]["itemId"] = json!(value),
+            "turn" => candidate.payload["item"]["turnId"] = json!(value),
+            "thread" => candidate.payload["item"]["threadId"] = json!(value),
+            "session" => candidate.payload["item"]["sessionId"] = json!(value),
+            _ => unreachable!(),
+        }
+        let error = validator
+            .validate_and_observe(&candidate)
+            .expect_err("running Command completion must keep its original identity");
+        assert!(
+            error.contains("command_process_scope_mismatch"),
+            "{field}: {error}"
+        );
+        let mut completed = command_item("original-completed", "item.completed");
+        completed.payload["item"]["metadata"]["processId"] = json!("process-1");
+        validator
+            .validate_and_observe(&completed)
+            .expect("rejected completion cannot consume original Command");
+    }
+}
+
+#[test]
+fn running_command_accepts_original_streams_and_optional_process_metadata() {
+    let mut validator = AgentEventSequenceValidator::from_events(
+        &[
+            command_item("command-start", "item.started"),
+            yielded_command("command-yield"),
+        ],
+        "sess_test",
+        Some("turn_test"),
+    );
+    for (index, (event_type, payload)) in [
+        ("command.output", json!({"commandId": "exec-1", "processId": "process-1"})),
+        ("command.interaction", json!({"commandId": "exec-1", "processId": "process-1", "stdin": "x"})),
+        ("tool.output.delta", json!({"tool_id": "exec-1", "metadata": {"processId": "process-1"}, "delta": "original"})),
+        ("command.output", json!({"commandId": "exec-1", "delta": "original"})),
+    ].into_iter().enumerate() {
+        validator.validate_and_observe(&event(&format!("original-stream-{index}"), event_type, payload))
+            .expect("running Command keeps existing optional process metadata contract");
+    }
+    let mut completed = command_item("original-completed", "item.completed");
+    completed.payload["item"]["metadata"]["processId"] = json!("process-1");
+    validator
+        .validate_and_observe(&completed)
+        .expect("original Command completes once");
+}

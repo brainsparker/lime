@@ -317,6 +317,7 @@ impl RuntimeCore {
         if state.sessions.contains_key(&session_id) {
             return Err(RuntimeCoreError::SessionAlreadyExists(session_id));
         }
+        state.ensure_session_accepts_input(&session_id)?;
         if let Some(projection_store) = self.projection_store.as_deref() {
             projection_store
                 .create_empty_canonical_thread(&stored)
@@ -411,6 +412,10 @@ impl RuntimeCore {
         &self,
         session_id: &str,
     ) -> Result<(), RuntimeCoreError> {
+        self.state
+            .lock()
+            .expect("runtime core state mutex poisoned")
+            .ensure_session_accepts_input(session_id)?;
         if self.has_runtime_core_session(session_id) {
             return Ok(());
         }
@@ -423,8 +428,7 @@ impl RuntimeCore {
                 history_before_message_id: None,
             })
             .await?;
-        self.insert_hydrated_session(context.stored);
-        Ok(())
+        self.insert_hydrated_session(context.stored)
     }
 
     fn has_runtime_core_session(&self, session_id: &str) -> bool {
@@ -439,13 +443,15 @@ impl RuntimeCore {
         })
     }
 
-    fn insert_hydrated_session(&self, stored: StoredSession) {
+    fn insert_hydrated_session(&self, stored: StoredSession) -> Result<(), RuntimeCoreError> {
         let mut state = self
             .state
             .lock()
             .expect("runtime core state mutex poisoned");
         let session_id = stored.session.session_id.clone();
+        state.ensure_session_accepts_input(&session_id)?;
         state.sessions.entry(session_id).or_insert(stored);
+        Ok(())
     }
 
     pub(in crate::runtime) fn stored_turn(

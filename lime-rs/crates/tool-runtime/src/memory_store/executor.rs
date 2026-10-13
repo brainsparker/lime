@@ -115,12 +115,11 @@ impl RuntimeMemoryStoreExecutor {
                     .get("path")
                     .and_then(Value::as_str)
                     .unwrap_or_default(),
-                metadata
-                    .get("truncated")
-                    .and_then(Value::as_bool)
-                    .is_some_and(|value| value)
-                    .then_some(" More entries are available via nextCursor.")
-                    .unwrap_or("")
+                if metadata.get("truncated").and_then(Value::as_bool) == Some(true) {
+                    " More entries are available via nextCursor."
+                } else {
+                    ""
+                }
             ),
             None,
             metadata,
@@ -189,12 +188,11 @@ impl RuntimeMemoryStoreExecutor {
             true,
             format!(
                 "Found {hit_count} memory hits.{}",
-                metadata
-                    .get("truncated")
-                    .and_then(Value::as_bool)
-                    .is_some_and(|value| value)
-                    .then_some(" More hits are available via nextCursor.")
-                    .unwrap_or("")
+                if metadata.get("truncated").and_then(Value::as_bool) == Some(true) {
+                    " More hits are available via nextCursor."
+                } else {
+                    ""
+                }
             ),
             None,
             metadata,

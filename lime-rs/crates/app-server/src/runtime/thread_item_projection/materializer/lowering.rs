@@ -153,6 +153,14 @@ pub(super) fn item_family(event_type: &str, payload: &Value) -> Option<ItemFamil
     if normalized.starts_with("reasoning.") {
         return Some(ItemFamily::Reasoning);
     }
+    if normalized == "tool.output.delta"
+        && payload
+            .pointer("/metadata/executionSurface")
+            .and_then(Value::as_str)
+            == Some("unified_exec")
+    {
+        return Some(ItemFamily::Command);
+    }
     if matches!(normalized.as_str(), "tool.progress" | "tool.output.delta") {
         return Some(tool_family(payload_source(payload)));
     }
@@ -302,19 +310,31 @@ pub(super) fn typed_payload(
             command: map_string(payload, &["command", "cmd"])
                 .unwrap_or_else(|| "command".to_string()),
             cwd: map_string(payload, &["cwd", "workingDirectory", "working_dir"]),
-            output: map_string(
-                payload,
-                &[
-                    "output",
-                    "stdout",
-                    "stderr",
-                    "result",
-                    "outputPreview",
-                    "output_preview",
-                    "preview",
-                    "summary",
-                ],
-            ),
+            // The raw tool stream mirrors the same Command; command.output owns
+            // the delta append so each OS chunk is recorded exactly once.
+            output: if event_type == "tool.output.delta" {
+                None
+            } else {
+                payload
+                    .get("delta")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned)
+                    .or_else(|| {
+                        map_string(
+                            payload,
+                            &[
+                                "output",
+                                "stdout",
+                                "stderr",
+                                "result",
+                                "outputPreview",
+                                "output_preview",
+                                "preview",
+                                "summary",
+                            ],
+                        )
+                    })
+            },
             exit_code: map_i64(payload, &["exitCode", "exit_code"]).map(|value| value as i32),
         },
         ItemFamily::File => ThreadItemPayload::File {

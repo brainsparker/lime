@@ -50,7 +50,7 @@ import {
   messageHasInterruptedPlaceholder,
   stripInterruptedPlaceholderText,
 } from "./agentInterruptedMessageContent";
-import { consumeLocallyInterruptedAgentStreamBinding } from "./agentStreamResumeBinding";
+import { consumeLocallyInterruptedAgentStreamBinding } from "./streamBindingRecords";
 
 export interface AgentSessionSnapshot {
   sessionId: string | null;

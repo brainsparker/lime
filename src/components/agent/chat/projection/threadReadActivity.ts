@@ -1,3 +1,5 @@
+import { isRunningSessionCommand } from "./commandActivity";
+
 export const STALE_RUNNING_THREAD_READ_MS = 30 * 60 * 1000;
 
 export interface ThreadReadActivityOptions {
@@ -126,6 +128,27 @@ function isFreshRunningRecord(
   const nowMs = options.nowMs ?? Date.now();
   const staleRunningMs = options.staleRunningMs ?? STALE_RUNNING_THREAD_READ_MS;
   return nowMs - timestampMs <= staleRunningMs;
+}
+
+export function hasRunningCommandReadActivity(threadRead: unknown): boolean {
+  const record = readRecord(threadRead);
+  if (!record) {
+    return false;
+  }
+  const threadId = readString(record, ["thread_id", "threadId"]);
+  if (!threadId) {
+    return false;
+  }
+  return readArray(record, ["thread_items", "threadItems"]).some((value) => {
+    const item = readRecord(value);
+    return (
+      item !== null &&
+      isRunningSessionCommand(item) &&
+      readString(item, ["thread_id"]) === threadId &&
+      Boolean(readString(item, ["id"])) &&
+      Boolean(readString(item, ["turn_id"]))
+    );
+  });
 }
 
 export function hasRunningTurnRecordActivity(

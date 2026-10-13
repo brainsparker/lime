@@ -33,7 +33,7 @@ const CONSUMER_PATHS = [
   "src/components/agent/chat/utils/submitOpRuntimeCompaction.ts",
   "src/components/agent/chat/hooks/agentChatShared.ts",
   "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
-  "src/components/agent/chat/hooks/agentStreamTurnEventBinding.ts",
+  "src/components/agent/chat/hooks/turnEventBindingTypes.ts",
   "src/components/agent/chat/hooks/useAgentStream.ts",
   "src/components/agent/chat/utils/buildUserInputSubmitOp.ts",
 ];

@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicI32, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 
-#[derive(Debug)]
 pub(super) struct UnifiedExecSession {
     pub(super) thread_id: String,
     pub(super) turn_id: String,
@@ -14,6 +13,11 @@ pub(super) struct UnifiedExecSession {
     pub(super) invocation: Invocation,
     pub(super) after_sequence: Option<u64>,
     pub(super) empty_poll_count: u64,
+    pub(super) streaming_sequence: Option<u64>,
+    pub(super) completed: bool,
+    pub(super) started_at: std::time::Instant,
+    pub(super) interaction_lock: Arc<tokio::sync::Mutex<()>>,
+    pub(super) output_sink: Option<Arc<dyn crate::tool_lifecycle::ToolLifecycleEmitter>>,
 }
 
 #[derive(Default)]
@@ -38,6 +42,11 @@ pub(super) async fn session_facts(
         invocation: session.invocation.clone(),
         after_sequence: session.after_sequence,
         empty_poll_count: session.empty_poll_count,
+        streaming_sequence: session.streaming_sequence,
+        completed: session.completed,
+        started_at: session.started_at,
+        interaction_lock: Arc::clone(&session.interaction_lock),
+        output_sink: session.output_sink.clone(),
     }
 }
 
@@ -85,6 +94,43 @@ pub(super) fn remove_session(session_id: i32) {
     if let Ok(mut registry) = session_registry().lock() {
         registry.sessions.remove(&session_id);
     }
+}
+
+pub(super) async fn sessions_for_turn(
+    thread_id: &str,
+    turn_id: &str,
+) -> Vec<(i32, Arc<tokio::sync::Mutex<UnifiedExecSession>>)> {
+    sessions_for_scope(thread_id, Some(turn_id)).await
+}
+
+pub(super) async fn sessions_for_thread(
+    thread_id: &str,
+) -> Vec<(i32, Arc<tokio::sync::Mutex<UnifiedExecSession>>)> {
+    sessions_for_scope(thread_id, None).await
+}
+
+async fn sessions_for_scope(
+    thread_id: &str,
+    turn_id: Option<&str>,
+) -> Vec<(i32, Arc<tokio::sync::Mutex<UnifiedExecSession>>)> {
+    let sessions = session_registry()
+        .lock()
+        .expect("unified exec session registry mutex poisoned")
+        .sessions
+        .iter()
+        .map(|(id, registration)| (*id, Arc::clone(&registration.session)))
+        .collect::<Vec<_>>();
+    let mut owned = Vec::new();
+    for (id, session) in sessions {
+        let facts = session_facts(&session).await;
+        if facts.thread_id == thread_id
+            && turn_id.is_none_or(|turn_id| facts.turn_id == turn_id)
+            && !facts.completed
+        {
+            owned.push((id, session));
+        }
+    }
+    owned
 }
 
 pub fn forget_process_session(process_id: &str) {

@@ -452,20 +452,29 @@ export function createAgentRuntimeAdapter({
     },
     async resumeThread(threadId, consumeReplay) {
       const normalizedThreadId = threadId.trim();
-      const response = await client.resumeThread({
-        threadId: normalizedThreadId,
-      });
+      let replayConsumed = false;
+      const response = await client.resumeThread(
+        {
+          threadId: normalizedThreadId,
+        },
+        consumeReplay
+          ? (snapshot) => {
+              if (snapshot.thread.id !== normalizedThreadId)
+                throw new Error("Cannot resume a foreign Thread snapshot");
+              const replay = createThreadResumeConversationProjection(snapshot);
+              if (!replay)
+                throw new Error(
+                  "Cannot project canonical Thread resume snapshot",
+                );
+              consumeReplay(replay);
+              replayConsumed = true;
+            }
+          : undefined,
+      );
       if (response.result.thread.id !== normalizedThreadId) {
         return false;
       }
-      const replay = createThreadResumeConversationProjection(response.result);
-      if (!replay && consumeReplay) {
-        return false;
-      }
-      if (replay) {
-        consumeReplay?.(replay);
-      }
-      return true;
+      return !consumeReplay || replayConsumed;
     },
     async runUserShellCommand(threadId, command, eventName) {
       await client.runUserShellCommand({ threadId, command }, eventName);

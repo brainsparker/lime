@@ -240,7 +240,7 @@ fn resolved_patch_write_paths(
         .map_err(|error| runtime_apply_patch_permission_error(error.to_string()))?;
     let mut paths = Vec::new();
     for path in parsed.hunks.iter().flat_map(hunk_write_paths) {
-        let candidate = resolve_patch_path_for_permission(&workdir, &path)
+        let candidate = resolve_patch_path_for_permission(workdir, &path)
             .map_err(runtime_apply_patch_permission_error)?;
         paths.push(candidate);
     }

@@ -1,3 +1,4 @@
+use crate::tool_io::truncate_chars;
 use regex::Regex;
 use serde::Serialize;
 use serde_json::Value;
@@ -48,22 +49,6 @@ fn dedupe_preserve_order(items: Vec<String>) -> Vec<String> {
         }
     }
     deduped
-}
-
-fn truncate_chars(text: &str, max_chars: usize) -> (String, bool) {
-    if max_chars == 0 {
-        return (String::new(), !text.is_empty());
-    }
-
-    let mut char_count = 0usize;
-    for (idx, _) in text.char_indices() {
-        if char_count == max_chars {
-            return (text[..idx].to_string(), true);
-        }
-        char_count += 1;
-    }
-
-    (text.to_string(), false)
 }
 
 fn push_non_empty_limited(

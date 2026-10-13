@@ -1,9 +1,11 @@
 import path from "node:path";
+import { EventEmitter } from "node:events";
 import { describe, expect, it } from "vitest";
 
 import {
   appServerBinaryName,
   buildLocalAppServer,
+  buildLocalAppServerAsync,
   codeModeHostBinaryName,
   isUsableAppServerBinary,
   localAppServerBinaryPath,
@@ -65,7 +67,9 @@ describe("electron dev sidecar", () => {
   it("读取仓库 cargo target-dir 配置", () => {
     expect(
       resolveCargoTargetDirectory({
+        env: {},
         repoRoot: "/repo/lime",
+        runner: () => ({ status: 1 }),
         readConfigFile: () => '[build]\ntarget-dir = "lime-rs/target"\n',
       }),
     ).toBe(path.resolve("/repo/lime/lime-rs/target"));
@@ -74,7 +78,9 @@ describe("electron dev sidecar", () => {
   it("没有 cargo target-dir 配置时回退到 lime-rs/target", () => {
     expect(
       resolveCargoTargetDirectory({
+        env: {},
         repoRoot: "/repo/lime",
+        runner: () => ({ status: 1 }),
         readConfigFile: () => "[build]\n",
       }),
     ).toBe(path.resolve("/repo/lime/lime-rs/target"));
@@ -195,12 +201,13 @@ describe("electron dev sidecar", () => {
     const builds = [];
     const prepared = [];
     let built = false;
+    const env = { CARGO_TARGET_DIR: "sidecar-target" };
     const setupPath = path.resolve(
-      "/repo/lime/lime-rs/target/debug/windows-sandbox-setup.exe",
+      "/repo/lime/sidecar-target/debug/windows-sandbox-setup.exe",
     );
 
     resolveDevAppServerBinary({
-      env: {},
+      env,
       repoRoot: "/repo/lime",
       platform: "win32",
       exists(pathValue) {
@@ -214,7 +221,7 @@ describe("electron dev sidecar", () => {
     });
 
     expect(builds).toEqual([
-      { repoRoot: "/repo/lime", platform: "win32", env: {} },
+      { repoRoot: "/repo/lime", platform: "win32", env },
     ]);
     expect(prepared).toContainEqual([
       { binaryPath: setupPath, platform: "win32" },
@@ -222,7 +229,7 @@ describe("electron dev sidecar", () => {
     expect(prepared).toContainEqual([
       {
         binaryPath: path.resolve(
-          "/repo/lime/lime-rs/target/debug/windows-sandbox-runner.exe",
+          "/repo/lime/sidecar-target/debug/windows-sandbox-runner.exe",
         ),
         platform: "win32",
       },
@@ -311,11 +318,12 @@ describe("electron dev sidecar", () => {
   it("调用 cargo build 成组构建 app-server 与 code-mode host", () => {
     const calls = [];
     const prepared = [];
+    const env = { PATH: "/bin", CARGO_TARGET_DIR: "sidecar-target" };
     buildLocalAppServer({
       repoRoot: "/repo/lime",
       platform: "darwin",
       arch: "arm64",
-      env: { PATH: "/bin" },
+      env,
       runner(command, args, options) {
         calls.push({ command, args, options });
         return { status: 0 };
@@ -323,7 +331,7 @@ describe("electron dev sidecar", () => {
       prepareBinary: (...args) => prepared.push(args),
       resolveV8Env(options) {
         expect(options).toEqual({
-          env: { PATH: "/bin" },
+          env,
           repoRoot: "/repo/lime",
           platform: "darwin",
           arch: "arm64",
@@ -360,7 +368,7 @@ describe("electron dev sidecar", () => {
         options: {
           cwd: "/repo/lime",
           env: {
-            PATH: "/bin",
+            ...env,
             RUSTY_V8_ARCHIVE: "/cache/v8.a.gz",
             RUSTY_V8_SRC_BINDING_PATH: "/cache/src_binding.rs",
           },
@@ -373,7 +381,7 @@ describe("electron dev sidecar", () => {
       [
         {
           binaryPath: path.resolve(
-            "/repo/lime/lime-rs/target/debug/app-server",
+            "/repo/lime/sidecar-target/debug/app-server",
           ),
           platform: "darwin",
         },
@@ -381,12 +389,52 @@ describe("electron dev sidecar", () => {
       [
         {
           binaryPath: path.resolve(
-            "/repo/lime/lime-rs/target/debug/code-mode-host",
+            "/repo/lime/sidecar-target/debug/code-mode-host",
           ),
           platform: "darwin",
         },
       ],
     ]);
+  });
+
+  it("异步重建使用传入环境准备同一目录的 Windows sidecar", async () => {
+    const env = { PATH: "/bin", CARGO_TARGET_DIR: "sidecar-target" };
+    const calls = [];
+    const prepared = [];
+    await buildLocalAppServerAsync({
+      repoRoot: "/repo/lime",
+      platform: "win32",
+      env,
+      runner(command, args, options) {
+        calls.push({ command, args, options });
+        const child = new EventEmitter();
+        queueMicrotask(() => child.emit("exit", 0, null));
+        return child;
+      },
+      prepareBinary: (options) => prepared.push(options),
+      resolveV8Env: () => ({ RUSTY_V8_ARCHIVE: "/cache/v8.a.gz" }),
+    });
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]).toMatchObject({
+      command: "cargo.exe",
+      options: {
+        cwd: "/repo/lime",
+        env: { ...env, RUSTY_V8_ARCHIVE: "/cache/v8.a.gz" },
+        shell: false,
+      },
+    });
+    expect(prepared).toEqual(
+      [
+        "app-server.exe",
+        "code-mode-host.exe",
+        "windows-sandbox-setup.exe",
+        "windows-sandbox-runner.exe",
+      ].map((name) => ({
+        binaryPath: path.resolve("/repo/lime/sidecar-target/debug", name),
+        platform: "win32",
+      })),
+    );
   });
 
   it("cargo build 失败时抛出错误", () => {

@@ -13,29 +13,34 @@ describe("modelNativeToolPolicy", () => {
     });
   });
 
-  it("按 Codex shell_type 投影模型偏好的 shell surface", () => {
-    expect(buildModelNativeToolPolicy({ shell_type: "shell_command" })).toMatchObject({
-      shell_type: "shell_command",
-      shell_tool_enabled: true,
-      preferred_shell_surface: "shell_command",
-    });
-    expect(buildModelNativeToolPolicy({ shell_type: "default" })).toMatchObject({
-      shell_type: "default",
-      shell_tool_enabled: true,
-      preferred_shell_surface: "shell_command",
-    });
-    expect(buildModelNativeToolPolicy({ shell_type: "local" })).toMatchObject({
-      shell_type: "local",
-      shell_tool_enabled: true,
-      preferred_shell_surface: "shell_command",
-    });
-    expect(buildModelNativeToolPolicy({ shell_type: "unified_exec" })).toMatchObject({
-      shell_type: "unified_exec",
-      shell_tool_enabled: true,
-      preferred_shell_surface: "unified_exec",
-    });
-    expect(buildModelNativeToolPolicy({ shell_type: "disabled" })).toMatchObject({
+  it.each(["default", "local", "shell_command", "unified_exec"])(
+    "将 Codex shell_type=%s 归一为 shared unified_exec",
+    (shellType) => {
+      expect(
+        buildModelNativeToolPolicy({ shell_type: shellType }),
+      ).toMatchObject({
+        shell_type: "unified_exec",
+        shell_tool_enabled: true,
+        preferred_shell_surface: "unified_exec",
+      });
+    },
+  );
+
+  it("disabled 不投影可执行的 shell surface", () => {
+    expect(
+      buildModelNativeToolPolicy({ shell_type: "disabled" }),
+    ).toMatchObject({
       shell_type: "disabled",
+      shell_tool_enabled: false,
+      preferred_shell_surface: null,
+    });
+  });
+
+  it("未知 shell_type fail closed", () => {
+    expect(
+      buildModelNativeToolPolicy({ shell_type: "remote_shell" }),
+    ).toMatchObject({
+      shell_type: null,
       shell_tool_enabled: false,
       preferred_shell_surface: null,
     });

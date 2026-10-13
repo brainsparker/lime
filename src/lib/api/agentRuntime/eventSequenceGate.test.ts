@@ -272,6 +272,93 @@ describe("agent runtime event sequence gate", () => {
     ).toEqual([]);
   });
 
+  it("原 Turn 完成后保留 session Command，只接收原身份输出与真实退出", () => {
+    const threadId = "background-thread";
+    const turnId = "original-turn";
+    const item = {
+      id: "background-command",
+      type: "commandExecution",
+      command: "read answer",
+      cwd: "/workspace",
+      source: "unifiedExecStartup",
+      processId: "process",
+      status: "inProgress",
+    };
+    const eventName = "background-command";
+    const accept = (method: string, params: Record<string, unknown>) =>
+      projectAgentRuntimeSequenceGateNotifications(
+        eventName,
+        directNotification(method, params),
+      );
+    expect(
+      accept("item/started", { threadId, turnId, item, startedAtMs: 1000 }),
+    ).toHaveLength(1);
+    expect(
+      accept("turn/completed", {
+        threadId,
+        turn: {
+          id: turnId,
+          items: [item],
+          status: "completed",
+          startedAt: 1,
+          completedAt: 2,
+        },
+      }),
+    ).toHaveLength(1);
+    expect(
+      accept("turn/started", {
+        threadId,
+        turn: {
+          id: "next-turn",
+          items: [],
+          status: "inProgress",
+          startedAt: 3,
+        },
+      }),
+    ).toHaveLength(1);
+    const output = {
+      threadId,
+      turnId,
+      itemId: item.id,
+      delta: "still running\n",
+    };
+    expect(accept("item/commandExecution/outputDelta", output)).toHaveLength(1);
+    expect(
+      accept("item/commandExecution/outputDelta", {
+        ...output,
+        turnId: "next-turn",
+      }),
+    ).toEqual([]);
+    expect(
+      accept("item/commandExecution/outputDelta", {
+        ...output,
+        itemId: "unknown",
+      }),
+    ).toEqual([]);
+    expect(
+      accept("item/completed", {
+        threadId,
+        turnId,
+        item: { ...item, processId: "other", status: "completed" },
+        completedAtMs: 4000,
+      }),
+    ).toEqual([]);
+    expect(
+      accept("item/completed", {
+        threadId,
+        turnId,
+        item: {
+          ...item,
+          status: "completed",
+          aggregatedOutput: "still running\n",
+          exitCode: 0,
+        },
+        completedAtMs: 5000,
+      }),
+    ).toHaveLength(1);
+    expect(accept("item/commandExecution/outputDelta", output)).toEqual([]);
+  });
+
   it("只在 fileChange item started 与 completed 之间放行 patch update", () => {
     const threadId = "thread-file-change";
     const turnId = "turn-file-change";

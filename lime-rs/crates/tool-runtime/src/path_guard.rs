@@ -131,7 +131,7 @@ fn resolve_candidate_path(raw: &str, cwd: &Path, home_dir: Option<&Path>) -> Opt
     let cleaned = raw
         .trim()
         .trim_matches(|ch| matches!(ch, '"' | '\'' | '`'))
-        .trim_end_matches(|ch: char| matches!(ch, ',' | ';' | ')' | '('));
+        .trim_end_matches([',', ';', ')', '(']);
     if cleaned.is_empty() {
         return None;
     }

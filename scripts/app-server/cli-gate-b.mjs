@@ -22,6 +22,7 @@ import {
 import { writeTerminalExternalBackend } from "./terminal-gate-fixture.mjs";
 import { runExecReasoningGateB } from "./cli-reasoning-gate-b.mjs";
 import { runExecSessionGateB } from "./cli-exec-gate-b.mjs";
+import { runExecInterruptGateB } from "./cli-interrupt-gate-b.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -284,6 +285,14 @@ async function main() {
       );
     }
 
+    await runExecInterruptGateB({
+      cliBinaryPath,
+      appServerBinaryPath,
+      args,
+      tempDir,
+      runCliResult,
+      terminalEnvironment: await isolatedEnvironment(tempDir),
+    });
     await runExecReasoningGateB({
       cliBinaryPath,
       appServerBinaryPath,
@@ -305,6 +314,28 @@ async function main() {
       runCliResult,
       terminalEnvironment: await isolatedEnvironment(tempDir),
     });
+    if (process.platform !== "win32") {
+      for (const flags of [[], ["--active"], ["--cli"]]) {
+        const shutdown = await runCliResult(
+          process.execPath,
+          [path.join(__dirname, "command-shutdown-fixture.mjs"), ...flags],
+          tempDir,
+          {
+            timeoutMs: 60_000,
+            env: {
+              LIME_CLI_BIN: cliBinaryPath,
+              APP_SERVER_BIN: appServerBinaryPath,
+            },
+          },
+        );
+        assertEqual(
+          shutdown.code,
+          0,
+          `Command shutdown ${flags.join(" ")}: ${shutdown.stderr}`,
+        );
+        process.stdout.write(shutdown.stdout);
+      }
+    }
 
     console.log(
       [

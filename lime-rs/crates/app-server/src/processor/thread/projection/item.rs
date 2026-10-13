@@ -196,7 +196,7 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             cwd: cwd.unwrap_or_default(),
             process_id: metadata_string(&metadata, &["processId", "process_id"]),
             source: project_command_source(&metadata),
-            status: project_command_status(status),
+            status: project_command_status(status, &metadata),
             aggregated_output: output
                 .map(|value| bounded_safe_text(&value, MAX_DISPLAY_JSON_BYTES).0),
             exit_code,

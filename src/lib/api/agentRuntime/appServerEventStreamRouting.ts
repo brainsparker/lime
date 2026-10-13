@@ -8,7 +8,11 @@ import {
   type AppServerEventBus,
 } from "@/lib/api/appServerEventBus";
 import { publishProcessedAgentRuntimeEvent } from "../agentRuntimeEvents";
-import { projectAgentRuntimeSequenceGateNotifications } from "./eventSequenceGate";
+import {
+  projectAgentRuntimeSequenceGateNotifications,
+  restoreAgentRuntimeCommandSequenceGate,
+  type CommandSequenceSnapshot,
+} from "./eventSequenceGate";
 import { projectAppServerAgentEventPayload } from "./appServerEventStreamProjection";
 import { readAppServerAgentEvent } from "./appServerEventPayloadUtils";
 import {
@@ -16,6 +20,7 @@ import {
   recordAppServerNotificationDrift,
 } from "./appServerNotificationDrift";
 import { readAppServerV2NotificationRoute } from "./appServerV2Notification";
+import { CommandContinuation } from "./commandContinuation";
 
 export const APP_SERVER_EVENT_DRAIN_LIMIT = 50;
 export const APP_SERVER_EVENT_DRAIN_ACTIVE_INTERVAL_MS = 32;
@@ -38,6 +43,8 @@ export type AppServerAgentSessionEventRouteParams = {
 };
 
 type AppServerAgentSessionEventRoute = {
+  turnCompleted: boolean;
+  commands: CommandContinuation;
   drainNotificationKeys: Set<string>;
   eventName: string;
   expiresAt: number;
@@ -65,6 +72,7 @@ export class AppServerAgentSessionEventDrainRouter {
   readonly #eventBus: AppServerEventBusLike;
   readonly #routes = new Map<string, AppServerAgentSessionEventRoute>();
   #unsubscribeFromEventBus: (() => void) | null = null;
+  #nextRegistrationId = 1;
 
   constructor(
     appServerClient: AppServerEventDrainClient,
@@ -94,14 +102,20 @@ export class AppServerAgentSessionEventDrainRouter {
       seenEventIds: new Set(),
       expiresAt: Date.now() + APP_SERVER_EVENT_ROUTE_TTL_MS,
       hasPublishedEvent: false,
+      turnCompleted: false,
+      commands: new CommandContinuation(),
     } as Omit<AppServerAgentSessionEventRoute, "registrationKey">;
     const key = routeKey(route);
     const registeredRoute: AppServerAgentSessionEventRoute = {
       ...route,
-      registrationKey: key,
+      registrationKey: `${key}\u0000${this.#nextRegistrationId++}`,
     };
     this.#closedRouteKeys.delete(key);
-    this.#routes.set(key, registeredRoute);
+    for (const [existingKey, existing] of this.#routes) {
+      if (routeKey(existing) === key && !existing.turnCompleted)
+        this.#routes.delete(existingKey);
+    }
+    this.#routes.set(registeredRoute.registrationKey, registeredRoute);
     this.#ensureEventBusSubscription();
 
     return {
@@ -109,6 +123,48 @@ export class AppServerAgentSessionEventDrainRouter {
         this.routeNotifications(notifications, eventName, "response");
       },
     };
+  }
+
+  restoreCommands(params: {
+    eventName: string;
+    thread: CommandSequenceSnapshot;
+  }): void {
+    const { eventName, thread } = params;
+    restoreAgentRuntimeCommandSequenceGate(eventName, thread);
+    for (const turn of thread.turns ?? []) {
+      if (
+        turn.status === "inProgress" ||
+        this.#closedSessionTurnKeys.has(sessionTurnKey(thread.id, turn.id))
+      )
+        continue;
+      let route = [...this.#routes.values()].find(
+        (existing) =>
+          existing.eventName === eventName &&
+          existing.sessionId === thread.id &&
+          existing.turnId === turn.id,
+      );
+      if (!route) {
+        const commands = new CommandContinuation();
+        commands.restore(turn.items ?? []);
+        if (!commands.active) continue;
+        this.register({ eventName, sessionId: thread.id, turnId: turn.id });
+        route = [...this.#routes.values()].find(
+          (existing) =>
+            existing.eventName === eventName &&
+            existing.sessionId === thread.id &&
+            existing.turnId === turn.id,
+        );
+      }
+      if (!route) continue;
+      route.turnCompleted = true;
+      route.hasPublishedEvent = true;
+      route.commands.restore(turn.items ?? []);
+      if (!route.commands.active) {
+        this.#rememberClosedRoute(route, turn.id);
+        this.#routes.delete(route.registrationKey);
+      }
+    }
+    this.#stopEventBusSubscriptionIfIdle();
   }
 
   close(params: AppServerAgentSessionEventRouteParams): void {
@@ -200,7 +256,7 @@ export class AppServerAgentSessionEventDrainRouter {
       return;
     }
 
-    const matchedRoutes = this.#matchingRoutes(routable);
+    const matchedRoutes = this.#matchingRoutes(routable, notification);
     if (
       matchedRoutes.length === 0 &&
       fallbackEventName &&
@@ -232,10 +288,16 @@ export class AppServerAgentSessionEventDrainRouter {
         }
       }
       route.hasPublishedEvent = true;
-      publishAppServerAgentSessionNotifications(route.eventName, [
-        notification,
-      ]);
+      const accepted = publishAppServerAgentSessionNotificationsFromPipeline(
+        route.eventName,
+        [notification],
+      );
+      if (!accepted) continue;
+      route.commands.observe(notification);
       if (routable.terminal) {
+        route.turnCompleted = true;
+      }
+      if (route.turnCompleted && !route.commands.active) {
         this.#rememberClosedRoute(route, routable.turnId);
         this.#routes.delete(route.registrationKey);
       }
@@ -283,6 +345,7 @@ export class AppServerAgentSessionEventDrainRouter {
 
   #matchingRoutes(
     event: AppServerRoutableNotification,
+    notification: AppServerJsonRpcNotification,
   ): AppServerAgentSessionEventRoute[] {
     const routes: AppServerAgentSessionEventRoute[] = [];
     if (this.#isClosedSessionTurn(event)) {
@@ -292,6 +355,17 @@ export class AppServerAgentSessionEventDrainRouter {
       if (route.sessionId !== event.sessionId) {
         continue;
       }
+      if (
+        !route.turnId &&
+        [...this.#routes.values()].some(
+          (existing) =>
+            existing.turnCompleted &&
+            existing.sessionId === event.sessionId &&
+            existing.turnId === event.turnId,
+        )
+      )
+        continue;
+      if (route.turnCompleted && !route.commands.allows(notification)) continue;
       if (!route.turnId && event.turnId) {
         route.turnId = event.turnId;
       }
@@ -559,11 +633,11 @@ export function publishAppServerAgentSessionNotifications(
 export function publishAppServerAgentSessionNotificationsFromPipeline(
   eventName: string | undefined,
   notifications: AppServerJsonRpcNotification[] | undefined,
-): void {
+): boolean {
   if (!eventName || !notifications?.length) {
-    return;
+    return false;
   }
-
+  let accepted = false;
   for (const notification of notifications) {
     const processedNotifications = projectAgentRuntimeSequenceGateNotifications(
       eventName,
@@ -573,7 +647,9 @@ export function publishAppServerAgentSessionNotificationsFromPipeline(
       const payload = projectAppServerAgentEventPayload(processedNotification);
       if (payload) {
         publishProcessedAgentRuntimeEvent(eventName, payload);
+        accepted = true;
       }
     }
   }
+  return accepted;
 }

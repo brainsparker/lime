@@ -1,11 +1,15 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 
 import { withNativeSystemPath } from "./lib/native-executable-env.mjs";
 import { resolveRustyV8CargoEnv } from "./lib/rusty-v8-artifacts.mjs";
 import { planQualityTasks, resolveDiffBase } from "./quality-task-planner.mjs";
+import { findFirstResumableBatchIndex } from "./run-vitest-smart.mjs";
 
 const options = parseArgs(process.argv.slice(2));
 const rootDir = process.cwd();
@@ -101,6 +105,34 @@ function runCommand(command, args) {
   if (result.error) {
     throw result.error;
   }
+}
+
+export function frontendTestArgs(state) {
+  if (state == null) {
+    return ["test"];
+  }
+  if (
+    state.schema_version !== 1 ||
+    state.runner !== "vitest-smart" ||
+    !Array.isArray(state.batches)
+  ) {
+    throw new Error("[local-ci] Vitest 续跑状态无效，请检查状态文件。");
+  }
+  return findFirstResumableBatchIndex(state) >= 0
+    ? ["test", "--", "--resume"]
+    : ["test"];
+}
+
+function runFrontendTests() {
+  const stateFile = path.resolve(
+    rootDir,
+    process.env.LIME_VITEST_SMART_STATE ||
+      ".lime/test/vitest-smart-last-run.json",
+  );
+  const state = fs.existsSync(stateFile)
+    ? JSON.parse(fs.readFileSync(stateFile, "utf8"))
+    : null;
+  runCommand(npmCommand, frontendTestArgs(state));
 }
 
 function printSummary(changedFiles, tasks) {
@@ -209,7 +241,7 @@ function runSelectedTasks(changedFiles, tasks) {
       }
     }
     runCommand(npmCommand, ["run", "typecheck"]);
-    runCommand(npmCommand, ["test"]);
+    runFrontendTests();
   }
 
   if (tasks.bridge) {
@@ -307,4 +339,9 @@ function collectI18nHardcodedScanFiles(changedFiles) {
     });
 }
 
-main();
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main();
+}

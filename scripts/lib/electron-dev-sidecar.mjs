@@ -168,25 +168,27 @@ export function resolveDevAppServerBinary({
     return envBinary;
   }
 
+  const resolvedTargetDirectory =
+    targetDirectory || resolveCargoTargetDirectory({ env, repoRoot, platform });
   const binaryPath = localAppServerBinaryPath({
     repoRoot,
     platform,
-    ...(targetDirectory ? { targetDirectory } : {}),
+    targetDirectory: resolvedTargetDirectory,
   });
   const codeModeHostPath = localCodeModeHostBinaryPath({
     repoRoot,
     platform,
-    ...(targetDirectory ? { targetDirectory } : {}),
+    targetDirectory: resolvedTargetDirectory,
   });
   const windowsSandboxSetupPath = localWindowsSandboxSetupBinaryPath({
     repoRoot,
     platform,
-    ...(targetDirectory ? { targetDirectory } : {}),
+    targetDirectory: resolvedTargetDirectory,
   });
   const windowsSandboxRunnerPath = localWindowsSandboxRunnerBinaryPath({
     repoRoot,
     platform,
-    ...(targetDirectory ? { targetDirectory } : {}),
+    targetDirectory: resolvedTargetDirectory,
   });
   const hasUsableBinaries = () =>
     isUsableBinary(binaryPath, { exists }) &&
@@ -338,17 +340,31 @@ export function buildLocalAppServer({
   if (result.status !== 0) {
     throw new Error(`cargo build app-server failed with ${result.status}`);
   }
-  prepareBinary({
-    binaryPath: localAppServerBinaryPath({ repoRoot, platform }),
+  const targetDirectory = resolveCargoTargetDirectory({
+    env,
+    repoRoot,
     platform,
   });
   prepareBinary({
-    binaryPath: localCodeModeHostBinaryPath({ repoRoot, platform }),
+    binaryPath: localAppServerBinaryPath({
+      repoRoot,
+      platform,
+      targetDirectory,
+    }),
+    platform,
+  });
+  prepareBinary({
+    binaryPath: localCodeModeHostBinaryPath({
+      repoRoot,
+      platform,
+      targetDirectory,
+    }),
     platform,
   });
   const windowsSetupBinaryPath = localWindowsSandboxSetupBinaryPath({
     repoRoot,
     platform,
+    targetDirectory,
   });
   if (windowsSetupBinaryPath) {
     prepareBinary({ binaryPath: windowsSetupBinaryPath, platform });
@@ -356,6 +372,7 @@ export function buildLocalAppServer({
   const windowsRunnerBinaryPath = localWindowsSandboxRunnerBinaryPath({
     repoRoot,
     platform,
+    targetDirectory,
   });
   if (windowsRunnerBinaryPath) {
     prepareBinary({ binaryPath: windowsRunnerBinaryPath, platform });
@@ -387,17 +404,31 @@ export function buildLocalAppServerAsync({
     child.once("exit", (code, signal) => {
       if (code === 0) {
         try {
-          prepareBinary({
-            binaryPath: localAppServerBinaryPath({ repoRoot, platform }),
+          const targetDirectory = resolveCargoTargetDirectory({
+            env,
+            repoRoot,
             platform,
           });
           prepareBinary({
-            binaryPath: localCodeModeHostBinaryPath({ repoRoot, platform }),
+            binaryPath: localAppServerBinaryPath({
+              repoRoot,
+              platform,
+              targetDirectory,
+            }),
+            platform,
+          });
+          prepareBinary({
+            binaryPath: localCodeModeHostBinaryPath({
+              repoRoot,
+              platform,
+              targetDirectory,
+            }),
             platform,
           });
           const windowsSetupBinaryPath = localWindowsSandboxSetupBinaryPath({
             repoRoot,
             platform,
+            targetDirectory,
           });
           if (windowsSetupBinaryPath) {
             prepareBinary({ binaryPath: windowsSetupBinaryPath, platform });
@@ -405,6 +436,7 @@ export function buildLocalAppServerAsync({
           const windowsRunnerBinaryPath = localWindowsSandboxRunnerBinaryPath({
             repoRoot,
             platform,
+            targetDirectory,
           });
           if (windowsRunnerBinaryPath) {
             prepareBinary({ binaryPath: windowsRunnerBinaryPath, platform });

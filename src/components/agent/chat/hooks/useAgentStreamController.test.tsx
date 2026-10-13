@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRef } from "react";
-import { hasLocallyStartedAgentStreamBinding } from "./agentStreamResumeBinding";
+import { hasLocallyStartedAgentStreamBinding } from "./streamBindingRecords";
 import { useAgentStreamController } from "./useAgentStreamController";
 
 interface ControllerHarness {

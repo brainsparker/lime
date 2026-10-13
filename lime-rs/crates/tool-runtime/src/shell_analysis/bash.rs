@@ -71,112 +71,83 @@ pub(super) fn missing_read_targets(command: &str, cwd: &Path) -> Vec<PathBuf> {
     missing_paths
 }
 
-pub(super) fn collect_path_candidates(command: &str) -> Vec<PathMutationCandidate> {
-    let mut candidates = bash_write_redirection_re()
-        .captures_iter(command)
-        .filter_map(|captures| captures.name("target"))
-        .map(|target| PathMutationCandidate::new(target.as_str(), PathMutationKind::Write))
-        .collect::<Vec<_>>();
-
-    for segment in split_shell_segments(command) {
-        let raw_words = tokenize_bash_words(segment);
-        if raw_words.is_empty() {
-            continue;
+pub(super) fn collect_invocation_path_candidates(
+    raw_words: &[String],
+) -> Vec<PathMutationCandidate> {
+    let mut candidates = Vec::new();
+    let words = normalize_bash_command_words(raw_words);
+    let Some(command_name) = words.first().map(String::as_str) else {
+        return candidates;
+    };
+    match command_name {
+        "rm" | "rmdir" => {
+            for target in extract_rm_targets(raw_words) {
+                candidates.push(PathMutationCandidate::new(target, PathMutationKind::Remove));
+            }
         }
-        let words = normalize_bash_command_words(&raw_words);
-        let Some(command_name) = words.first().map(String::as_str) else {
-            continue;
-        };
-        match command_name {
-            "rm" | "rmdir" => {
-                for target in extract_rm_targets(&raw_words) {
-                    candidates.push(PathMutationCandidate::new(target, PathMutationKind::Remove));
-                }
+        "tee" => {
+            for target in extract_tee_targets(raw_words) {
+                candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
             }
-            "tee" => {
-                for target in extract_tee_targets(&raw_words) {
-                    candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
-                }
-            }
-            "dd" => {
-                for target in extract_dd_output_targets(&raw_words) {
-                    candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
-                }
-            }
-            "sed" if bash_sed_in_place_re().is_match(segment) => {
-                for target in extract_sed_in_place_targets(&raw_words) {
-                    candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
-                }
-            }
-            _ => {}
         }
+        "dd" => {
+            for target in extract_dd_output_targets(raw_words) {
+                candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
+            }
+        }
+        "sed" if sed_edits_in_place(raw_words) => {
+            for target in extract_sed_in_place_targets(raw_words) {
+                candidates.push(PathMutationCandidate::new(target, PathMutationKind::Write));
+            }
+        }
+        _ => {}
     }
     candidates
-}
-
-pub(super) fn has_dangerous_device_redirect(command: &str) -> bool {
-    for device in [
-        "/dev/sda",
-        "/dev/sdb",
-        "/dev/sdc",
-        "/dev/hda",
-        "/dev/hdb",
-        "/dev/nvme",
-        "/dev/mem",
-        "/dev/kmem",
-    ] {
-        if command.contains(&format!("> {device}"))
-            || command.contains(&format!(">{device}"))
-            || command.contains(&format!(">> {device}"))
-            || command.contains(&format!(">>{device}"))
-        {
-            return true;
-        }
-    }
-    false
 }
 
 pub(super) fn detect_high_risk_reason(command: &str) -> Option<String> {
     detect_high_risk_git_command(command, split_shell_segments, extract_bash_command_words)
 }
 
-pub(super) fn detect_mutating_warning(command: &str) -> Option<String> {
-    if has_bash_write_redirection(command) {
-        return Some("Command writes to files via shell redirection".to_string());
+pub(super) fn detect_mutating_invocation_warning(words: &[String]) -> Option<String> {
+    let command_name = words.first().map(String::as_str)?;
+    if command_name == "sed" && sed_edits_in_place(words) {
+        return Some("Command performs in-place edits via `sed -i`".to_string());
     }
-
-    for segment in split_shell_segments(command) {
-        let words = extract_bash_command_words(segment);
-        let Some(command_name) = words.first().map(String::as_str) else {
-            continue;
-        };
-        if command_name == "sed" && bash_sed_in_place_re().is_match(segment) {
-            return Some("Command performs in-place edits via `sed -i`".to_string());
-        }
-        if command_name == "tee" && tee_writes_to_file(&words) {
-            return Some("Command writes to files via `tee`".to_string());
-        }
-        if command_name == "dd"
-            && words
-                .iter()
-                .any(|word| word.to_ascii_lowercase().starts_with("of="))
-        {
-            return Some("Command writes to files via `dd of=...`".to_string());
-        }
-        if is_mutating_shell_command(command_name) {
-            return Some(format!("Command may modify files via `{command_name}`"));
-        }
-        if command_name == "git" {
-            let subcommand = words.get(1).map(String::as_str).unwrap_or_default();
-            if is_mutating_git_subcommand(subcommand) {
-                return Some(format!(
-                    "Command modifies repository state via `git {subcommand}`"
-                ));
-            }
+    if command_name == "tee" && tee_writes_to_file(words) {
+        return Some("Command writes to files via `tee`".to_string());
+    }
+    if command_name == "dd"
+        && words
+            .iter()
+            .any(|word| word.to_ascii_lowercase().starts_with("of="))
+    {
+        return Some("Command writes to files via `dd of=...`".to_string());
+    }
+    if is_mutating_shell_command(command_name) {
+        return Some(format!("Command may modify files via `{command_name}`"));
+    }
+    if command_name == "git" {
+        let subcommand = words.get(1).map(String::as_str).unwrap_or_default();
+        if is_mutating_git_subcommand(subcommand) {
+            return Some(format!(
+                "Command modifies repository state via `git {subcommand}`"
+            ));
         }
     }
-
     None
+}
+
+fn sed_edits_in_place(words: &[String]) -> bool {
+    words
+        .iter()
+        .skip(1)
+        .take_while(|word| word.as_str() != "--")
+        .any(|word| {
+            word == "--in-place"
+                || word.starts_with("--in-place=")
+                || (word.starts_with('-') && !word.starts_with("--") && word.contains('i'))
+        })
 }
 
 fn collect_read_path_candidates(command: &str) -> Vec<String> {

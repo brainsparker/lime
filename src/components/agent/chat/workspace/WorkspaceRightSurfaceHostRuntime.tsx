@@ -4,6 +4,7 @@ import { ExpertInfoPanel } from "../experts/ExpertInfoPanel";
 import { GeneralWorkbenchHarnessSurfaceSection } from "./WorkspaceHarnessDialogs";
 import { WorkspaceArticleEditorRightSurface } from "./WorkspaceArticleEditorRightSurface";
 import { WorkspaceFilesSurface } from "./WorkspaceFilesSurface";
+import { selectWorkspaceFileChangePaths } from "./workspaceFiles";
 import { WorkspacePluginSurface } from "./WorkspacePluginSurface";
 import { WorkspaceTraceTab } from "./WorkspaceTraceTab";
 import {
@@ -150,6 +151,10 @@ export function renderWorkspaceRightSurfaceHostRuntime({
           files: () => (
             <WorkspaceFilesSurface
               target={filesRightSurfaceTarget}
+              projectRootPath={canvasWorkbenchRootPath}
+              changedPaths={selectWorkspaceFileChangePaths(
+                activityPanelProps?.threadItems,
+              )}
               onOpenResultFile={
                 preferredServiceSkillResultFileTarget
                   ? onOpenServiceSkillResultFile
@@ -211,6 +216,7 @@ export function renderWorkspaceRightSurfaceHostRuntime({
       <TaskCenterShellPanel
         variant="surface"
         projectRootPath={canvasWorkbenchRootPath}
+        threadId={sceneThreadId}
         onClose={onCloseRightSurfaceShell}
       />
     ),

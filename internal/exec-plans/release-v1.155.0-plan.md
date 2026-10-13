@@ -91,3 +91,9 @@
 
 - 修正前对初始 tree 的全部 8964 个 blob 核对固定源码，只有本文追加记录和生成 buildinfo 的允许变化；current 产品实现无漂移。复验 TUI inventory 42/42、legacy report 零边界违规/分类漂移均通过。
 - 修正索引直接 `read-tree` 初始已验完整 tree，避免再次从 rename 新路径清单重建；仅更新本文。最终 diff 相对首个发布 commit 必须精确为两项删除与本文。
+
+- 修正 commit `78cf2598d46873711ba6a603169b1d63487c6a36` / tree `9bf4a7b3a6793b3b8c7236c5e37244cb78f8b6e5` 正常 hook 1/1通过；main正常快进推送，tag用旧 SHA lease更新成功，远端 main/tag精确相等。与初始已验完整 tree唯一差异是本文59行记录。
+- 原 Release 已 completed/cancelled（最后复核时 force-cancel API返回409「already completed」，没有新的取消副作用）；移 tag前 draft仍0 assets，没有错误候选发布。
+- 新 Release https://github.com/limecloud/lime/actions/runs/38187121377 已排队。修正 push 的 Quality https://github.com/limecloud/lime/actions/runs/38187045446 成功，但删除路径被变更选择器过滤后视为docs-only，完整测试跳过；因此已额外在 `v1.155.0` 显式触发 Quality full，不把docs-only绿灯作为修正后完整矩阵证据。
+
+- 修正 tag 的完整 Quality run：https://github.com/limecloud/lime/actions/runs/38187198628（workflow_dispatch，head SHA 78cf2598d）；新 Release 已通过 prepare，重新按修正引用构建。
