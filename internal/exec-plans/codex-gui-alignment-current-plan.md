@@ -15,7 +15,7 @@
 
 ## 当前阶段与写集
 
-当前阶段：审批、Files/diff、时间线、队列动作身份、Header、设置通知、ComposerUtilityBar、公共 pending Queue 与 Browser tab 恢复均已迁移并取得各自定向与真实 Gate B。结构化主 Composer 的既有切片已关闭。长 UserMessage 折叠已补 canonical 去重、原生复制权限、动态测量、scrollTop clamp 与手动阅读视口竞争的先红回归；前轮默认门禁126/126批及7个Rust crate3179/3179均通过。rich第五轮69/69、long-list第六轮/冷启动与live-tail65/65通过；resize/reflow页头64px/46px越界及consumer placement已修复，40项诊断/几何、57项页头回归、真实fixed-5三尺寸66/66及标准typecheck通过。新默认门禁85批发现复制反馈卸载泄漏；已修复，五文件69/69、lint/typecheck、默认127/127批及fresh复制Gate69/69通过。长UserMessage合同100%关闭，证据按renderer版本分别保存。基础link/code已迁入实际input-kit，22红/8绿后20文件224/224通过；dictation实际接线与新Electron门禁进行中，persistent draft和完整产品账本仍未完成。旧默认绿不覆盖本批新产品写集。
+当前阶段：审批、Files/diff、时间线、队列动作身份、Header、设置通知、ComposerUtilityBar、公共 pending Queue 与 Browser tab 恢复均已迁移并取得各自定向与真实 Gate B。结构化主 Composer 的既有切片已关闭。长 UserMessage 折叠已补 canonical 去重、原生复制权限、动态测量、scrollTop clamp 与手动阅读视口竞争的先红回归；前轮默认门禁126/126批及7个Rust crate3179/3179均通过。rich第五轮69/69、long-list第六轮/冷启动与live-tail65/65通过；resize/reflow页头64px/46px越界及consumer placement已修复，40项诊断/几何、57项页头回归、真实fixed-5三尺寸66/66及标准typecheck通过。新默认门禁85批发现复制反馈卸载泄漏；已修复，五文件69/69、lint/typecheck、默认127/127批及fresh复制Gate69/69通过。长UserMessage合同100%关闭，证据按renderer版本分别保存。基础link/code已迁入实际input-kit，22红/8绿后20文件224/224通过；dictation接线及单路径清理已实施，72项回归通过。本批新Electron和默认门禁正在关闭，persistent draft、Code NodeView和完整产品账本仍未完成。旧默认绿不覆盖本批新产品写集。
 
 规则写集：两个 skill、设计 skill UI metadata、skill 索引、`design-language.md`、`quality-workflow.md`、Verification Contract 的 current method 示例、`.gitignore` 精确白名单与本计划。设计 skill 原先被忽略，加入版本控制准入，避免规则仅保存在本机。
 
@@ -619,3 +619,14 @@
 - 同一ASAR的bootstrap/startup-requirements成员integrity匹配，REA新增Evidence `ev_6b726d05b1186a46c3e78398b4559cddd089b886382b8619d60fb2d509426d15`：2文件577112 bytes、parse failures0；semantic heap exhaustion导致graph incomplete。类/文件/算法结论来自完整原成员的普通AST，不能冒充REA semantic或运行证据。
 - 已追到Codex Home `.codex-global-state.json`、export D→class的身份、main500ms debounce、串行保存、主/备份文件、同目录临时文件rename及Windows三档重试。renderer250ms发布与main500ms保存分开，broadcast不能充当落盘确认。原始成员与AST只留本机分析目录，合同/摘要/限制写入 `composer-draft-persistence-audit.md`。
 - 实际退出/重启、强杀耐久、账户隔离与完整附件持久化仍unknown；Lime scoped persistent draft仍未实施。未扩展Host协议或调用者写集。
+
+### 本批门禁失败与 fixture 版本边界
+
+- 首轮 rich Gate exit1，失败阶段为 UserMessage aggregate oracle；marks/cancel/history、canonical四类input和总input恰1通过，两次原生clipboard全文1779 UTF16字符（4361 UTF8 bytes）匹配，console/page errors0。`renderedFullTextPresent=false`，不能以复制成功替代整个Gate成功。
+- 初次prepare期间两个fixture于08:49:41Z变化，旧11文件manifest未同步；当前源含独立`renderedTextParts`与rich调用接线。原冻结和失败证据保留，修改者/精确旧进程完整模块SHA不可从现有记录还原，不声称该失败对应当前完整fixture身份。54项产品源码仍逐项零漂移。
+- root新增独立真实MarkdownRenderer消费者回归：确认安全link href/title、code原始空白/正文反引号和全部ordered可见片段；同一rendered DOM拒绝raw Markdown全文显示假设。该harness替换syntax-highlighter与原生资源依赖，仅计组件/fixture证据。首次新增case因测试包围DOM缺失失败，修正测试装配后6文件189/189；不计业务先红。窄lint和格式通过。
+- 当前冻结为 `.lime/qc/composer-marks-dictation/product-fixture-source-freeze-rendered-body.json`（54产品/14fixture）；不覆写旧manifest。fresh进程rich Gate已启动，标准入口因源mtime判定重建Electron renderer；构建完成后重新记录实际Host/sidecar/renderer摘要。
+- 新`verify:local`在69/126批exit1：中断恢复拓扑guard把`inputbarDictationSession.cancel`的受控恢复算作非法writer。worker只认领guard及反例，不改生产dictation、不给voice伪造中断请求。保留两个UI消费者与request pass-through约束，更新扫描边界后定向验证并resume。旧127批绿不替代本次结果。
+- 首轮sidecar prepare出现`install_name_tool` rename竞态报错，既有helper允许missing-after-race或already-present-after-race后继续装配；具体分支未记录。当前桌面code-mode-host存在且具有`@executable_path` RPATH，但本富输入Gate不验证CodeMode运行能力。不修改未知Rust产物owner或绕过prepare。
+- fresh进程rich Gate exit0：73/73 assertions、UserMessage正文19项合同全true、两个显示状态全文1779字符原生copy、同一canonical Turn/Item/client和typed四类input、input总数恰1、marks取消恢复与历史键盘召回均通过，console/page errors0。新Electron smoke renderer271项和Host/sidecar实读摘要保存在`renderer-host-artifacts-rich-rendered-success.json`；raw与桌面App Server均为`df27ddb9…`，不混用旧`4d213628…`。54产品/14fixture逐项无漂移；截图已人工检查。HTML paste/IME仍为synthetic，code键与history/toggle为trusted真实按键，不宣称OS输入法或系统录音已验收。
+- 中断恢复guard已冻结：只改`AgentChatWorkspace.inputRestoreGuard.test.ts`，旧guard实际1failed/2passed；相关6文件66/66、UI消费者与透传5/5、lint/严格tsc/格式通过。按request类型/字段约束直接writer，保留原两个UI owner和pass-through清单，正向区分听写回滚、反例拒绝跨域直接恢复中断请求。guard SHA`8eef1609…`，manifest `.lime/qc/input-restore-guard/manifest.json`；dictation14项零漂移。root复核后重启`verify:local`，入口自动resume，不从第1批重跑。

@@ -33,9 +33,29 @@ const INPUT_RESTORE_REQUEST_PRODUCTION_FILES = new Set([
   "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
 ]);
 
+type ProductionAgentChatSource = { relativePath: string; source: string };
+
+function usesInterruptedInputRestoreRequest(source: string): boolean {
+  return (
+    source.includes("inputRestoreRequest") ||
+    source.includes("InterruptedInputRestoreRequest")
+  );
+}
+
+function directInterruptedDraftWriters(sources: ProductionAgentChatSource[]) {
+  // 中断恢复请求由共享 helper 消费；Controller 的其他草稿事务遵循各自领域 owner。
+  return sources
+    .filter(
+      ({ source }) =>
+        usesInterruptedInputRestoreRequest(source) &&
+        /\.restoreDraft\(/.test(source),
+    )
+    .map(({ relativePath }) => relativePath);
+}
+
 function readProductionAgentChatSources() {
   const root = join(process.cwd(), "src/components/agent/chat");
-  const files: Array<{ relativePath: string; source: string }> = [];
+  const files: ProductionAgentChatSource[] = [];
   const visit = (directory: string) => {
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
       const absolutePath = join(directory, entry.name);
@@ -86,27 +106,52 @@ describe("AgentChatWorkspace input restore boundary", () => {
     expect(handlerSource).not.toContain("setActiveCapability");
   });
 
-  it("两个 UI owner 委托同一恢复 helper，Controller 草稿不能绕过该 owner 写入", () => {
+  it("两个 UI owner 委托同一 helper，中断恢复请求不能绕过该 owner 写入", () => {
     const sources = readProductionAgentChatSources();
     const consumers = sources
       .filter(({ source }) => /\brestoreComposerDraft\(/.test(source))
       .map(({ relativePath }) => relativePath)
-      .filter((relativePath) => relativePath !== INPUT_RESTORE_CONTROLLER_OWNER);
+      .filter(
+        (relativePath) => relativePath !== INPUT_RESTORE_CONTROLLER_OWNER,
+      );
     expect(consumers.sort()).toEqual([...INPUT_RESTORE_UI_OWNER_FILES].sort());
 
-    const directWriters = sources
-      .filter(({ source }) => /\.restoreDraft\(/.test(source))
-      .map(({ relativePath }) => relativePath);
+    const directWriters = directInterruptedDraftWriters(sources);
     expect(directWriters).toEqual([INPUT_RESTORE_CONTROLLER_OWNER]);
+  });
+
+  it("听写 session 的取消回滚独立于中断恢复请求，不能伪装成该请求", () => {
+    const dictationSource = readProductionAgentChatSources().find(
+      ({ relativePath }) =>
+        relativePath ===
+        "src/components/agent/chat/components/Inputbar/hooks/inputbarDictationSession.ts",
+    );
+    expect(dictationSource).toBeDefined();
+    expect(dictationSource?.source).toMatch(/\.restoreDraft\(/);
+    expect(
+      usesInterruptedInputRestoreRequest(dictationSource?.source ?? ""),
+    ).toBe(false);
+    expect(directInterruptedDraftWriters([dictationSource!])).toEqual([]);
+  });
+
+  it.each([
+    "function restore(owner: ComposerController, request: InterruptedInputRestoreRequest) { owner.restoreDraft(request.draft); }",
+    "function restore(owner: ComposerController) { owner.restoreDraft(inputRestoreRequest.draft); }",
+  ])("其他领域直接写入中断请求草稿仍被识别为越界：%s", (source) => {
+    const relativePath =
+      "src/components/agent/chat/components/Inputbar/hooks/inputbarDictationSession.ts";
+    const directWriters = directInterruptedDraftWriters([
+      { relativePath: INPUT_RESTORE_CONTROLLER_OWNER, source },
+      { relativePath, source },
+    ]);
+    expect(
+      directWriters.filter((path) => path !== INPUT_RESTORE_CONTROLLER_OWNER),
+    ).toEqual([relativePath]);
   });
 
   it("inputRestoreRequest 只能停留在 source / pass-through / current UI owner 清单内", () => {
     const offenders = readProductionAgentChatSources()
-      .filter(
-        ({ source }) =>
-          source.includes("inputRestoreRequest") ||
-          source.includes("InterruptedInputRestoreRequest"),
-      )
+      .filter(({ source }) => usesInterruptedInputRestoreRequest(source))
       .map(({ relativePath }) => relativePath)
       .filter(
         (relativePath) =>

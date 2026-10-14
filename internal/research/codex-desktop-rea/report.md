@@ -2,7 +2,7 @@
 
 研究基线：2026-10-13；实施状态校准：2026-10-14。对照对象：本机 `/Applications/ChatGPT.app`，实际为 Codex Desktop `26.1007.30912` / build `20156`，Bundle ID `com.openai.codex`。下表记录当前差距，详细迁移和验证以 [对齐执行计划](../../exec-plans/codex-gui-alignment-current-plan.md) 为准。
 
-Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构化主输入和 Browser tab 恢复。基础 link/code 已实施并通过实际源码定向测试，真实桌面门禁待关闭；听写生命周期正在接线。持久富草稿、专业文件的排版与批注、原生应用操作，以及远端执行的产品入口仍有明确差距。
+Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构化主输入和 Browser tab 恢复。基础 link/code 已实施并通过实际源码与真实桌面富输入验证；听写生命周期和取消回滚已完成接线及组件回归。本批默认门禁仍在关闭。持久富草稿、完整 Code NodeView、专业文件的排版与批注、原生应用操作，以及远端执行的产品入口仍有明确差距。
 
 本报告依据真实安装包的静态代码、Lime 源码和官方功能文档。没有取得 Codex 实时截图与点击证据，因此不评价两者实际流畅度、成功率和模型质量，不给整体“对齐百分比”。Lime 后续真实 Electron 验证独立记录在执行计划，不反推参考应用的运行表现。
 
@@ -10,7 +10,7 @@ Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构�
 
 结构化EditorView、唯一Controller、typed submission和共享surface草稿已实施，历史atom提及抢方向键及receipt恢复route缺陷已修。rich Electron Gate68/68、新版22场景聚合和完整默认门禁均通过，既有Composer实施合同关闭；external backend绕过live provider/runtime prompt lowering，IME/paste为synthetic DOM事件，本地runtime场景使用provider fixture，不是live。长UserMessage两入口折叠、精确canonical去重、主窗口原生复制权限和虚拟列表动态测量已实施；真实macOS长列表与冷启动通过，全文9682字符复制一致，后继阅读锚点漂移0.203125px。权限owner回流守卫39/39通过。视口竞争修复后的rich第五轮69/69、long-list第六轮/冷启动及live-tail65/65通过；页头consumer placement与横向滚动已修复，resize-fixed5三尺寸66/66通过。新默认门禁发现并修复复制反馈卸载泄漏，生命周期10/10、消息回归69/69、默认127/127批及fresh复制Gate69/69通过，1705/9682字符全文复制一致。各场景按其renderer摘要分别记录；较早22/22聚合仍属修复前基线。见[主输入审计](./main-composer-audit.md)、[用户正文审计](./user-message-collapse-audit.md)及[保存补证](./composer-draft-persistence-audit.md)。测试、fixture、文档和dead回流守卫随owner迁移；全产品仍partial。
 
-本批link/code依据[迁移前marks/voice补证](./marks-voice-audit.md)实施到唯一input-kit：实际src先22红/8绿，迁移后20文件224/224通过；annotation事务拆分后5文件92/92通过，Controller由803行降为762行。Markdown submission与display UTF16、typed UTF8范围分离，安全link/code属性、原文草稿和编辑生命周期同步回归。听写hook与Core单路径接线72/72、fixture312/312、最终标准typecheck和renderer构建通过；新的Electron富输入Gate与默认门禁运行中，旧127批绿不能覆盖本批新源码。[样式补证](./composer-marks-css-audit.md)区分基础schema与完整NodeView/toolbar合同。完整rich PMU、主动链接导航/编辑、系统mic/ASR、persistent draft、专业文件、原生操作和remote分别保留unknown或待办。
+本批link/code依据[迁移前marks/voice补证](./marks-voice-audit.md)实施到唯一input-kit：实际src先22红/8绿，迁移后20文件224/224通过；annotation事务拆分后5文件92/92通过，Controller由803行降为762行。Markdown submission与display UTF16、typed UTF8范围分离，安全link/code属性、原文草稿和编辑生命周期同步回归。听写hook与Core单路径接线72/72、fixture312/312、最终标准typecheck和renderer构建通过。新增实际MarkdownRenderer与fixture回归6文件189/189，fresh Electron富输入Gate73/73、源码/fixture零漂移和console/page errors0；首轮fixture版本问题及默认69批中断恢复guard失败单独登记，默认正在resume，旧127批绿不覆盖本批源码。[样式补证](./composer-marks-css-audit.md)区分基础schema与完整NodeView/toolbar合同。完整rich PMU、主动链接导航/编辑、系统mic/ASR、persistent draft、专业文件、原生操作和remote分别保留unknown或待办。
 
 ## 1. 已完成安装
 

@@ -1,6 +1,6 @@
 # v1.157.0 发布执行计划
 
-状态：active。发布完成度：75%。目标：准备并发布 v1.157.0，复核 main/tag、GitHub Release、多平台资产、updater 与 CLI npm 结果。
+状态：active。发布完成度：80%。目标：准备并发布 v1.157.0，复核 main/tag、GitHub Release、多平台资产、updater 与 CLI npm 结果。
 
 ## 授权、范围与写集
 
@@ -75,3 +75,21 @@
 - 发布前版本复核、完整typecheck、contracts、受影响owner、current聚合、GUI smoke、测试分层与脚本治理均通过。准备正常提交完整556路径候选，继续远端发布及审计。
 
 - 正常pre-commit验证532文件、0失败；暂存diff检查发现两个新TS文件EOF多余空行，调度未因该检查失败阻止commit。提交仍未tag/推送；已精确删除两个EOF空行、补格式复核并正常hook更新未发布提交，不改产品行为。
+
+## 远端发布进行中
+
+- 最终提交 `73ccc7f484ae6dd4b823305cdfa74df2a7291240`、tree `05687b6f8628e3d4766957ec1e17719000d5d9e8`；正常hook通过，完整提交diff check通过。格式补丁已按TypeScript AST确认无语义变化，Prettier通过。
+- main/tag连续推送成功；`git ls-remote`实读main与 `v1.157.0`均为最终commit。工作树仅保留原排除的tsbuildinfo和外部分析文件。
+- [Quality 38540947776](https://github.com/limecloud/lime/actions/runs/38540947776)、[Release 38540964858](https://github.com/limecloud/lime/actions/runs/38540964858)已启动，headSha均匹配；待远端全量、签名/公证、installed/packaged Gate B、14资产、R2 updater与npm发布复核，不以触发CI视为完成。
+
+- tag推送后并行会话继续新增test-only路径 `AgentChatWorkspace.inputRestoreGuard.test.ts` 和 `claw-chat-current-fixture-composer-marks-renderer.test.mjs`，以及GUI执行记录；属于tag固定后的后续工作，保留工作树。远端release只验并发布 `73ccc7f48`，最终证据提交只认领本文，不移动tag或夹入后续未验产品/测试。
+- 远端Integrity与Bridge/Contracts已success；Frontend lint/typecheck/38项预算通过，Rust全量已进入cache收尾。GitHub draft实读source为最终commit、assets为空、publishedAt=null。by-tag REST在draft阶段返回404，改用 `gh release view`确认草稿，不把该读API差异判成发布失败。
+
+## CI全量护栏修正与草稿重新发布
+
+- 首轮Frontend Full在批次70/126仅一项失败：旧inputRestore guard把听写session取消回滚 `.restoreDraft`误判为中断恢复请求第二owner。当前产品的听写事务与InterruptedInputRestoreRequest不同，实际共享中断helper无重复；用户可见rich/听写回归已通过。
+- 用户授权必要修复与完整发布；取消Release 38540964858，取消时草稿 `assets=[]`、`publishedAt=null`、target为73ccc7f48。没有正式发布或更新feed，不沿用旧源码产物。
+- 并行已有针对该失败的测试修正：护栏只检查携带 `inputRestoreRequest` / `InterruptedInputRestoreRequest` 的直接writer，补听写独立事务与真实越界负向回归；纳入并复验。另新增marks fixture对实际MarkdownRenderer回归，纳入验证与候选，前述tag后留工作树说明被本次明确修复范围覆盖。只变test-only和文档，产品源码/协议/Rust不变。
+- 第一份草稿by-tag REST读404、gh run view等待整个run结束才可读logs；改用release GraphQL view和completed job logs REST，未伪造质量通过。所有失败和取消日志保留。
+
+- 精确fix回归39项与dictation draft纯逻辑10项通过；完整typecheck、ESLint、Prettier、38项预算通过。独立固定源码按 `--from-batch 70` 续跑到82/127无失败（运行中），后续全量Quality再次验证新source。准备正常提交测试修正和最新并行文档、推送main；旧tag仅在旧Release已取消、草稿未发布条件下按expected-old lease更新，重新生成所有产物。
