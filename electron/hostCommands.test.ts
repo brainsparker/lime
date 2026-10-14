@@ -1,3 +1,4 @@
+// @vitest-environment node
 /* global Buffer, process */
 import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { createServer } from "node:http";

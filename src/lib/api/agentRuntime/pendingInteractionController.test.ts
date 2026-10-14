@@ -6,6 +6,7 @@ import {
   METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
   METHOD_MCP_SERVER_ELICITATION_REQUEST,
   type CommandExecutionRequestApprovalParams,
+  type FileChangeRequestApprovalParams,
   type McpServerElicitationRequestParams,
   type PermissionsRequestApprovalParams,
   type ToolRequestUserInputParams,
@@ -52,6 +53,7 @@ function commandParams(): CommandExecutionRequestApprovalParams {
     approvalId: "approval-1",
     availableDecisions: ["accept", "decline"],
     command: "npm test",
+    cwd: "/workspace/lime",
     itemId: "item-command-1",
     reason: "允许执行测试？",
     startedAtMs: 1,
@@ -174,6 +176,7 @@ describe("PendingInteractionController", () => {
         request: {
           requestId: "approval-1",
           actionType: "tool_confirmation",
+          arguments: { command: "npm test", cwd: "/workspace/lime" },
         },
       },
     });
@@ -191,6 +194,47 @@ describe("PendingInteractionController", () => {
     expect(harness.controller.respond(submission)).toEqual({ accepted: true });
     expect(harness.controller.respond(submission)).toEqual({ accepted: false });
     await expect(response).resolves.toEqual({ decision: "accept" });
+    expect(harness.controller.getSnapshot()).toEqual([]);
+    harness.detach();
+  });
+
+  it("file approval 将真实 grantRoot 投影到卡片并通过原 request 回包", async () => {
+    const harness = createHarness();
+    const response = harness.dispatch(
+      METHOD_ITEM_FILE_CHANGE_REQUEST_APPROVAL,
+      {
+        itemId: "item-file-1",
+        threadId: "thread-1",
+        turnId: "turn-file-1",
+        startedAtMs: 1,
+        grantRoot: "/workspace/lime/src",
+        reason: "允许更新源文件？",
+      } satisfies FileChangeRequestApprovalParams,
+      "electron-action:file-token",
+    );
+    const [interaction] = harness.controller.getSnapshot();
+    expect(interaction).toMatchObject({
+      kind: "approval",
+      payload: {
+        request: {
+          requestId: "item-file-1",
+          toolName: "apply_patch",
+          arguments: { grantRoot: "/workspace/lime/src" },
+        },
+      },
+    });
+    expect(
+      harness.controller.respond({
+        interactionId: interaction.id,
+        kind: "approval",
+        response: {
+          requestId: "item-file-1",
+          actionType: "tool_confirmation",
+          decision: "decline",
+        },
+      }),
+    ).toEqual({ accepted: true });
+    await expect(response).resolves.toEqual({ decision: "decline" });
     expect(harness.controller.getSnapshot()).toEqual([]);
     harness.detach();
   });

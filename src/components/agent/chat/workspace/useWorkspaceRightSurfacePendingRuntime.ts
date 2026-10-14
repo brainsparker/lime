@@ -20,7 +20,7 @@ import {
   type WorkspaceRightSurfaceKind,
   type WorkspaceRightSurfaceIntent,
 } from "./right-surface";
-import type { WorkspaceFilesSurfaceTarget } from "./WorkspaceFilesSurface";
+import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import {
   buildWorkspacePluginSurfacesFromPendingRequests,
   type WorkspacePluginSurfaceDescriptor,
@@ -69,7 +69,7 @@ export interface UseWorkspaceRightSurfacePendingRuntimeOptions {
 export interface WorkspaceRightSurfacePendingRuntime {
   pendingRequests: WorkspaceRightSurfacePendingRequest[];
   pendingIntents: WorkspaceRightSurfaceIntent[];
-  pendingFileTarget: WorkspaceFilesSurfaceTarget | null;
+  pendingFileTarget: ReviewThreadSidePanelTarget | null;
   pendingPluginSurface: WorkspacePluginSurfaceDescriptor | null;
   pendingPluginSurfaces: WorkspacePluginSurfaceDescriptor[];
   pendingArticleWorkspace: WorkspaceArticleWorkspace | null;
@@ -447,7 +447,7 @@ export function applyWorkspaceRightSurfacePendingChanges(
 
 export function buildWorkspaceRightSurfacePendingFileTarget(
   pendingRequests: readonly WorkspaceRightSurfacePendingRequest[],
-): WorkspaceFilesSurfaceTarget | null {
+): ReviewThreadSidePanelTarget | null {
   for (const request of pendingRequests) {
     if (request.status !== "pending" || request.surfaceKind !== "files") {
       continue;

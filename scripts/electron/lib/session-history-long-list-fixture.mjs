@@ -1,4 +1,8 @@
 import { seedCanonicalHistoryThread } from "./session-history-canonical-thread-seed.mjs";
+import {
+  applyLongListUserMessageProbe,
+  createLongListUserMessageProbe,
+} from "./session-history-user-collapse-fixture.mjs";
 
 export const THREAD_READ_LONG_LIST_TURN_COUNT = 240;
 export const THREAD_READ_LONG_LIST_ITEM_COUNT =
@@ -46,6 +50,13 @@ export const THREAD_READ_LONG_LIST = {
     },
   ),
 };
+
+export const THREAD_READ_LONG_LIST_USER_COLLAPSE =
+  createLongListUserMessageProbe(THREAD_READ_LONG_LIST);
+applyLongListUserMessageProbe(
+  THREAD_READ_LONG_LIST,
+  THREAD_READ_LONG_LIST_USER_COLLAPSE,
+);
 
 export function seedThreadReadLongListCanonicalThread({
   runtimeEnv,

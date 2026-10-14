@@ -360,7 +360,7 @@ async function readGuiAndTrace(page) {
       '[data-testid="strict-review-status"]',
     );
     const inputbar = document.querySelector(
-      'textarea[name="agent-chat-message"]',
+      '[data-testid="composer-editor"][role="textbox"]',
     );
     const isVisible = (element) => {
       if (!(element instanceof HTMLElement)) return false;
@@ -517,7 +517,7 @@ async function run() {
     await waitForConversation(handle.page, options);
     await clickConversation(handle.page);
     await handle.page
-      .locator('textarea[name="agent-chat-message"]')
+      .locator('[data-testid="composer-editor"][role="textbox"]')
       .waitFor({ state: "visible", timeout: options.timeoutMs });
 
     const resumed = await appServerCallFromPage(handle.page, "thread/resume", {

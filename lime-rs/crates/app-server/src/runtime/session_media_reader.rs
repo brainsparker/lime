@@ -178,6 +178,9 @@ fn format_content_range(offset: u64, length: u64, total_bytes: u64) -> String {
 }
 
 #[cfg(test)]
+mod queue_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::runtime::sidecar_store::{SidecarBytesWriteRequest, SidecarStore};

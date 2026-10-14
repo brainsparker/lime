@@ -102,6 +102,7 @@ describe("electron/preload", () => {
     expect(exposeInMainWorld).toHaveBeenCalledWith("__LIME_ELECTRON__", true);
     expect(api.devBridgeFallback).toBe(false);
     expect(api.supportsCommand(ELECTRON_HOST_COMMANDS[0])).toBe(true);
+    expect(api.supportsCommand("browser_tab_list")).toBe(true);
     expect(api.supportsCommand("capability_draft_list_registered_skills")).toBe(
       false,
     );
@@ -203,10 +204,7 @@ describe("electron/preload", () => {
       "/tmp/draft.md",
       "Preview",
     );
-    expect(ipcInvoke).toHaveBeenCalledWith(
-      IPC_WINDOW_COMMAND_CHANNEL,
-      "show",
-    );
+    expect(ipcInvoke).toHaveBeenCalledWith(IPC_WINDOW_COMMAND_CHANNEL, "show");
     expect(ipcInvoke).toHaveBeenCalledWith(
       IPC_WINDOW_COMMAND_CHANNEL,
       "setTitle",
@@ -242,7 +240,11 @@ describe("electron/preload", () => {
     expect(ipcSend).toHaveBeenCalledWith("app:emit", "frontend:ready", {
       ok: true,
     });
-    expect(ipcSend).toHaveBeenCalledWith(IPC_EMIT_CHANNEL, "frontend:loaded", undefined);
+    expect(ipcSend).toHaveBeenCalledWith(
+      IPC_EMIT_CHANNEL,
+      "frontend:loaded",
+      undefined,
+    );
   });
 
   it("deep link 事件只向 renderer 传递数组 URL 列表", async () => {

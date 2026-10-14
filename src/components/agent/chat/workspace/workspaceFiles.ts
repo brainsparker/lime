@@ -1,5 +1,3 @@
-import { parseCanvasWorkbenchGitPatchToChangeItems } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanelViewModel";
-
 export function uniqueWorkspaceFilePaths(paths: readonly string[]): string[] {
   const unique: string[] = [];
   for (const path of paths) {
@@ -18,12 +16,6 @@ export function selectWorkspaceFileChangePaths(
     threadItems.flatMap((item) =>
       item.type === "patch" ? [...(item.paths ?? [])] : [],
     ),
-  );
-}
-
-export function selectGitPatchChangePaths(patch: string): string[] {
-  return uniqueWorkspaceFilePaths(
-    parseCanvasWorkbenchGitPatchToChangeItems(patch).map((item) => item.path),
   );
 }
 

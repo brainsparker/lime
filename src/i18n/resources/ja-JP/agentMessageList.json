@@ -1,4 +1,6 @@
 {
+  "agentChat.messageList.userMessage.showMore": "さらに表示",
+  "agentChat.messageList.userMessage.showLess": "折りたたむ",
   "agentChat.messageList.firstTokenStatus.cancelled.detail": "このリクエストは停止しました。",
   "agentChat.messageList.firstTokenStatus.cancelled.title": "キャンセル済み",
   "agentChat.messageList.firstTokenStatus.context.detail": "会話情報と利用可能な資料を整理しています。",
@@ -391,9 +393,6 @@
   "agentChat.messageList.history.persistedEntrySummary": "古いチャットを速く開くため、まず最新 {{loaded}} 件の会話記録を表示しています。さらに前の履歴も読み込めます。",
   "agentChat.messageList.history.loadingMore": "履歴をさらに読み込み中",
   "agentChat.messageList.history.loadMore": "履歴をさらに読み込む",
-  "agentChat.messageList.history.windowEntrySummaryRestored": "チャットを速く開くため、まず最新 {{loaded}} 件の会話記録を表示しています。さらに前の {{hidden}} 件は必要に応じて展開できます。",
-  "agentChat.messageList.history.windowEntrySummaryDeferred": "チャットを速く開くため、まず最新 {{loaded}} 件の会話記録を表示しています。さらに前の {{hidden}} 件はアイドル時に続けて読み込まれます。",
-  "agentChat.messageList.history.expandEarlierEntries": "以前の記録を今すぐ展開",
   "agentChat.messageList.restoring.title": "生成セッションを復元しています...",
   "agentChat.messageList.restoring.description": "直近の生成セッションを同期しています。しばらくお待ちください。",
   "agentChat.messageList.taskCenterEmpty.badge": "チャット",

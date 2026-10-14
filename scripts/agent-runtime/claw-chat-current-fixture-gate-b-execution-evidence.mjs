@@ -46,8 +46,10 @@ export async function collectGateBGuiEvidence(page, expectedIdentity = null) {
         style.visibility !== "hidden"
       );
     };
-    const textarea = Array.from(
-      document.querySelectorAll('textarea[name="agent-chat-message"]'),
+    const editor = Array.from(
+      document.querySelectorAll(
+        '[data-testid="composer-editor"][role="textbox"]',
+      ),
     )
       .filter(isVisible)
       .at(-1);
@@ -163,7 +165,7 @@ export async function collectGateBGuiEvidence(page, expectedIdentity = null) {
     ].includes(turnStatus);
 
     return {
-      sessionId: textarea?.dataset.sessionId || null,
+      sessionId: editor?.dataset.sessionId || null,
       turnId,
       itemId: canonicalThreadItemIds.at(-1) || null,
       state: turnIsTerminal

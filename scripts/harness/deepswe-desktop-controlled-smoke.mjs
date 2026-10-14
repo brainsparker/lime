@@ -505,15 +505,21 @@ async function restoreThreadInGui(page, options, preferences) {
   });
   await waitForRendererReady(page, options);
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${preferences.sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${preferences.sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   await page.waitForFunction(
     (sessionId) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
       );
-      return textarea instanceof HTMLTextAreaElement && !textarea.disabled;
+      return (
+        editor instanceof HTMLElement &&
+        !(
+          editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
+        )
+      );
     },
     preferences.sessionId,
     { timeout: options.timeoutMs },
@@ -532,7 +538,7 @@ async function submitInstruction(page, input, instruction, options) {
 }
 
 async function waitForApprovalPrompt(page, options) {
-  const prompt = page.locator('[data-testid="inputbar-approval-prompt"]');
+  const prompt = page.locator('[data-testid="approval-card"]');
   await prompt.waitFor({ state: "visible", timeout: options.timeoutMs });
   const approvalButton = prompt.locator(
     'button[data-decision="allow_once"], button[data-decision="allow_for_session"]',
@@ -554,7 +560,7 @@ async function waitForApprovalPrompt(page, options) {
 
 async function clickApprovalDecision(page, options, decision) {
   const button = page.locator(
-    `[data-testid="inputbar-approval-prompt"] button[data-decision="${decision}"]`,
+    `[data-testid="approval-card"] button[data-decision="${decision}"]`,
   );
   await button.waitFor({ state: "visible", timeout: options.timeoutMs });
   await button.click({ timeout: options.timeoutMs });
@@ -756,7 +762,7 @@ async function readVisibleState(page, options, sessionId, fixture) {
   return {
     activeSessionId: await page
       .locator(
-        `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
       )
       .getAttribute("data-session-id"),
     terminalVisible: await finalText.isVisible(),
@@ -1424,7 +1430,8 @@ export async function runControlledTask({
       fixtureDefinition,
     );
     const diagnostics = await readInvokeDiagnostics(page);
-    const providerRequestCountAfterRestart = providerRequestCount(fixtureServer);
+    const providerRequestCountAfterRestart =
+      providerRequestCount(fixtureServer);
     const approvalMarkerPath = path.join(
       workspaceRoot,
       fixtureDefinition.recovery.approvalResumeFile,
@@ -1567,8 +1574,7 @@ export async function runControlledTask({
           turnId,
         },
         terminalVisible:
-          firstVisible.terminalVisible &&
-          coldRestartVisible.terminalVisible,
+          firstVisible.terminalVisible && coldRestartVisible.terminalVisible,
         toolLifecycleVisible:
           expectedVisibleTools.every((tool) => visibleToolNames.has(tool)) &&
           coldRestartVisible.diffGroups.some(

@@ -246,7 +246,7 @@ describe("appServerCanonicalThreadProjection", () => {
     expect(cleared?.todo_items).toEqual([]);
   });
 
-  it("queued turn 不应进入普通历史投影", () => {
+  it("public inProgress Turn 使用唯一执行状态投影", () => {
     const detail = readCanonicalThreadDetail({
       thread: {
         id: "thread-queue",
@@ -258,13 +258,6 @@ describe("appServerCanonicalThreadProjection", () => {
           {
             id: "turn-active",
             status: "inProgress",
-            queue: { state: "running" },
-            items: [],
-          },
-          {
-            id: "turn-queued",
-            status: "inProgress",
-            queue: { state: "queued", position: 0 },
             items: [],
           },
         ],
@@ -275,6 +268,24 @@ describe("appServerCanonicalThreadProjection", () => {
     expect(detail?.turns).toEqual([
       expect.objectContaining({ id: "turn-active", status: "running" }),
     ]);
+  });
+
+  it("idle public transcript 不从历史猜测 Queue 数量或 active Turn", () => {
+    const sessions = readCanonicalThreadListResponse({
+      data: [
+        {
+          id: "thread-idle-queue",
+          sessionId: "session-idle-queue",
+          status: { type: "idle" },
+          createdAt: CREATED_AT_SECONDS,
+          updatedAt: CREATED_AT_SECONDS,
+          turns: [],
+        },
+      ],
+    });
+    expect(sessions?.[0]).toMatchObject({ threadStatus: "idle" });
+    expect(sessions?.[0]).not.toHaveProperty("activeTurnId");
+    expect(sessions?.[0]).not.toHaveProperty("queuedTurnCount");
   });
 
   it("保留 App Server parent-owned direct-input policy", () => {

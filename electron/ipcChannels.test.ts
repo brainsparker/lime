@@ -128,6 +128,7 @@ describe("electron/ipcChannels", () => {
     expect(isElectronHostCommand("show_desktop_notification")).toBe(true);
     expect(isElectronHostCommand("embedded_browser_view_mount")).toBe(true);
     expect(isElectronHostCommand("browser_tab_mount")).toBe(true);
+    expect(isElectronHostCommand("browser_tab_list")).toBe(true);
     expect(isElectronHostCommand("browser_tab_set_bounds")).toBe(true);
     expect(isElectronHostCommand("browser_tab_navigate")).toBe(true);
     expect(isElectronHostCommand("browser_tab_reload")).toBe(true);

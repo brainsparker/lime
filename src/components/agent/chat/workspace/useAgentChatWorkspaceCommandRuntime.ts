@@ -89,6 +89,7 @@ export function useAgentChatWorkspaceCommandRuntime({
     scope: {
       ...agentChatRuntime,
       ...localDisplayRuntime,
+      resetComposerDraft: entryRuntime.resetComposerDraft,
       ...projectSelectionRuntime,
       accessMode,
       agentResponseLanguage,

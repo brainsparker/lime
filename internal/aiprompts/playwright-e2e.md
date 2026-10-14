@@ -49,7 +49,7 @@
 - 本节基于 Playwright 官方 best practices、Electron 官方 IPC / context isolation 文档和 JSON-RPC 2.0 规范收敛：
   - Playwright：使用 locator 和 web-first assertion，依赖 auto-wait / retry，不用固定 sleep 证明状态达成（官方文档：https://playwright.dev/docs/best-practices）
   - Electron：renderer 经 preload `contextBridge` 暴露的受控函数进入 `ipcRenderer.invoke`，main process 用 `ipcMain.handle` 承接；不要直接把原始 `ipcRenderer` 暴露给 renderer（官方文档：https://www.electronjs.org/docs/latest/tutorial/ipc）
-  - JSON-RPC2：App Server 请求必须以 `jsonrpc: "2.0"`、`method`、可选 `params` 和 `id` 表达；响应以同一个 `id` 返回 `result` 或 `error`，排障时记录 method / id / result / error（官方规范：https://www.jsonrpc.org/specification）
+  - App Server 请求遵循生成 schema 与 current client sender：`method`、可选 `params` 和请求 `id`；版本字段可以省略，显式版本只能为 `jsonrpc: "2.0"`。当前 schema manifest 的 `sendsJsonRpcVersionField=false`，不能由标准 JSON-RPC 文本强制 fixture 添加字段。响应关联同一个 `id` 的 `result` 或 `error`；排障记录 method / id / result / error（标准 JSON-RPC 规范：https://www.jsonrpc.org/specification）。
 - Companion 桌宠链路已在 Lime 主仓下线并归类为 `dead`；Playwright 续测不再验证 `companion_*` API、`companion-pet-status` 状态事件、桌宠设置回跳或主窗口唤起链路
 - 如未来重新设计独立桌面伴随能力，必须先定义新的 current 协议与 GUI 入口，再补对应 Playwright 覆盖；不得复用旧 `companion_*` 命令或本地 `companion/pet` 协议作为续测依据
 - 共享网关控制页已下线，托盘也不再展示网关状态或地址；共享网关 `/v1/routes` 与 selector HTTP 路由也已下线，不再对“启动/停止网关、复制网关地址、路由/curl 示例、selector 路由、托盘运行态文案”做 GUI 续测；server 验证只关注标准 `/v1/messages` 与 `/v1/chat/completions` 主链，如需看运行时状态，走开发者页或实验页的诊断面板
@@ -58,6 +58,14 @@
 - 项目排版模板与品牌人设扩展旧链路已下线，不再对相关弹窗、模板列表、默认模板、人设扩展表单做 GUI 续测；项目与工作台回归只围绕当前 `Claw` / `workspace` / 现役 `persona` 主链
 - 如果只是模块级代码修改、并不需要真实页面交互，优先跑最小单测或 `verify:local`
 - 项目资料 PRD v3 的产品闭环已有仓库级 Playwright 入口：`npm run knowledge:product-e2e`；需要和 GUI smoke 一起验收时使用 `npm run verify:gui-smoke -- --include-knowledge-product-e2e --reuse-running`
+
+## 剪贴板实测
+
+复制必须由真实用户动作触发，再从 Electron main 的原生 clipboard 读回核验完整正文；证据只保存长度、hash 与结果。测试 sentinel 和退出恢复由 main 写入，恢复后再核验，不用 renderer 无手势写入准备夹具。成功 toast 或零 console error 不能证明复制成功，产品可能已经捕获原生拒绝。
+
+主窗口权限由 `electron/mainWindowPermissions.ts` 同时处理 request/check。Electron 的写权限名为 `clipboard-sanitized-write`，浏览器 Permissions API 查询名为 `clipboard-write`；不能混用，也不能把 sanitized permission 类别当成只允许纯文本 payload 的校验。当前主窗口主 frame 写允许，clipboard 读、其他窗口与子 frame 写拒绝；媒体继续使用原白名单，embedded browser 使用独立 session。
+
+原生 Permissions API query 只能证明 check 状态，实际复制证明写调用和主进程读回。测试侧被动观察如增加 Promise reaction，必须说明其 rejection-handled 与微任务影响；保持原 receiver、全部参数、同步异常、Promise identity，并在退出恢复 descriptor。缺 hook、未恢复、正文截断或身份不匹配必须失败，不通过测试 fallback 或权限兜底绕过。
 
 ## 进入前的最低准备
 
@@ -136,7 +144,7 @@ npm run verify:gui-smoke -- --include-knowledge-product-e2e --reuse-running
    - `window.__LIME_ELECTRON__ === true`
    - `Boolean(window.electronAPI?.invoke) === true`
    - `document.querySelector('[data-testid="app-sidebar"], [data-testid="settings-top-header"]')` 可见
-4. 如果当前页在设置 layout，需要先点 `settings-home-button` 回到 Claw 首页，再找 `textarea[name="agent-chat-message"]`
+4. 如果当前页在设置 layout，需要先点 `settings-home-button` 回到 Claw 首页，再找唯一可见的 `[data-testid="composer-editor"][role="textbox"]`；会话输入还须核对 `data-session-id`，通过真实 EditorView 编辑，不使用 textarea value/selection API。
 
 最小脚本骨架：
 

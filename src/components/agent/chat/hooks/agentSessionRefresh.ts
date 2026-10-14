@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/sessionTypes";
-import type { AgentThreadItem } from "../types";
+import type { AgentThreadItem, AgentThreadTurn, Message } from "../types";
 import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
 import type { AgentAccessMode } from "./agentChatStorage";
 import { createSessionAccessModeFromExecutionRuntime } from "../utils/sessionExecutionRuntime";
@@ -18,11 +18,14 @@ export type AgentSessionReadModelTimelineMode = "merge" | "replace";
 
 export interface AgentSessionReadModelRefreshRequest {
   timelineMode?: AgentSessionReadModelTimelineMode;
+  expectedThreadId?: string;
+  isCurrent?: () => boolean;
 }
 
 export interface AgentSessionReadModelSnapshot {
   threadRead: AgentRuntimeThreadReadModel | null;
   timelineMode: AgentSessionReadModelTimelineMode;
+  preservedTurnIds?: ReadonlySet<string>;
 }
 
 export function createAgentSessionReadModelSnapshot(
@@ -35,13 +38,43 @@ export function createAgentSessionReadModelSnapshot(
   };
 }
 
+export function preserveActiveAgentSessionReadModel(
+  snapshot: AgentSessionReadModelSnapshot,
+  options: {
+    active: boolean;
+    activeTurnId: string | null;
+    messages: Message[];
+  },
+): AgentSessionReadModelSnapshot {
+  if (!options.active || snapshot.timelineMode !== "replace") return snapshot;
+  return {
+    ...snapshot,
+    preservedTurnIds: new Set([
+      ...(options.activeTurnId ? [options.activeTurnId] : []),
+      ...options.messages.flatMap((message) =>
+        message.runtimeTurnId?.startsWith("pending-turn:")
+          ? [message.runtimeTurnId]
+          : [],
+      ),
+    ]),
+  };
+}
+
 export function mergeAgentSessionReadModelThreadItems(
   currentItems: AgentThreadItem[],
   snapshot: AgentSessionReadModelSnapshot,
 ): AgentThreadItem[] {
   const incomingItems = snapshot.threadRead?.thread_items;
   if (snapshot.timelineMode === "replace") {
-    return Array.isArray(incomingItems) ? [...incomingItems] : [];
+    const preservedItems = currentItems.filter((item) =>
+      snapshot.preservedTurnIds?.has(item.turn_id),
+    );
+    const items = Array.isArray(incomingItems) ? [...incomingItems] : [];
+    const preservedItemIds = new Set(preservedItems.map((item) => item.id));
+    return [
+      ...items.filter((item) => !preservedItemIds.has(item.id)),
+      ...preservedItems,
+    ];
   }
   if (!Array.isArray(incomingItems) || incomingItems.length === 0) {
     return currentItems;
@@ -49,15 +82,34 @@ export function mergeAgentSessionReadModelThreadItems(
   return mergeRuntimeSyncThreadItems(currentItems, incomingItems);
 }
 
-export function filterAgentSessionReadModelTurns<T extends { id: string }>(
-  currentTurns: T[],
+export function reconcileAgentSessionReadModelTurns(
+  currentTurns: AgentThreadTurn[],
   snapshot: AgentSessionReadModelSnapshot,
-): T[] {
+): AgentThreadTurn[] {
   if (snapshot.timelineMode !== "replace") return currentTurns;
+  const canonicalTurns = snapshot.threadRead?.thread_turns;
+  if (Array.isArray(canonicalTurns)) {
+    const localById = new Map(currentTurns.map((turn) => [turn.id, turn]));
+    const next = canonicalTurns.map((turn) =>
+      snapshot.preservedTurnIds?.has(turn.id)
+        ? (localById.get(turn.id) ?? turn)
+        : turn,
+    );
+    const canonicalIds = new Set(next.map((turn) => turn.id));
+    return [
+      ...next,
+      ...currentTurns.filter(
+        (turn) =>
+          snapshot.preservedTurnIds?.has(turn.id) && !canonicalIds.has(turn.id),
+      ),
+    ];
+  }
   const turnIds = new Set(
     (snapshot.threadRead?.turns ?? []).map((turn) => turn.turn_id),
   );
-  return currentTurns.filter((turn) => turnIds.has(turn.id));
+  return currentTurns.filter(
+    (turn) => turnIds.has(turn.id) || snapshot.preservedTurnIds?.has(turn.id),
+  );
 }
 
 export function filterAgentSessionReadModelMessages<
@@ -69,6 +121,7 @@ export function filterAgentSessionReadModelMessages<
     ...(snapshot.threadRead?.thread_items ?? []).flatMap((item) =>
       item.turn_id ? [item.turn_id] : [],
     ),
+    ...(snapshot.preservedTurnIds ?? []),
   ]);
   return currentMessages.filter((message) => {
     const turnId = message.runtimeTurnId?.trim();
@@ -199,8 +252,15 @@ export async function refreshAgentSessionReadModelState(
   }
 
   try {
+    if (options.request?.isCurrent?.() === false) return false;
     const threadRead = await runtime.getSessionReadModel(resolvedSessionId);
-    if (sessionIdRef.current !== resolvedSessionId) {
+    if (
+      !threadRead ||
+      sessionIdRef.current !== resolvedSessionId ||
+      options.request?.isCurrent?.() === false ||
+      (options.request?.expectedThreadId &&
+        threadRead.thread_id !== options.request.expectedThreadId)
+    ) {
       return false;
     }
     applyReadModelSnapshot(
@@ -208,7 +268,7 @@ export async function refreshAgentSessionReadModelState(
     );
     return true;
   } catch (error) {
-    onWarn?.(error);
+    if (options.request?.isCurrent?.() !== false) onWarn?.(error);
     return false;
   }
 }

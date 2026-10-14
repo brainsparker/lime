@@ -744,7 +744,6 @@
   "skills.workspace.sidebar.recent.emptySr": "There is nothing to continue yet. Pick a result or Skill from the left first, and future work will return here automatically.",
   "skills.workspace.sidebar.recent.title": "Recent",
   "skills.workspace.sidebar.registered.title": "Registered Capabilities",
-  "skills.inputBadge.remove": "Remove @{{name}}",
   "skills.workspace.view.tabsLabel": "Skill pages",
   "agentChat.skillInstallPrompt.installedConfirmation": "Installed Skill: {{skill}}\n\nLime has reloaded Skills. You can @ mention this skill in the input box or use it from the Skills workspace.",
   "agentChat.skillInstallPrompt.alreadyInstalledConfirmation": "Skill already installed: {{skill}}\n\nThe install Prompt requires no overwrite, so Lime will keep the existing directory and use that Skill.",

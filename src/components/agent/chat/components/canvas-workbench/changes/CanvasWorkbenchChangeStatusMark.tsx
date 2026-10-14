@@ -4,21 +4,21 @@ import type { CanvasWorkbenchTranslation } from "./CanvasWorkbenchChangesTypes";
 
 function resolveStatusMarkClassName(meta: CanvasWorkbenchChangeDisplayMeta) {
   if (meta.kind === "added") {
-    return "bg-emerald-50 text-emerald-700 ring-emerald-200/70";
+    return "bg-[color:var(--lime-brand-soft)] text-[color:var(--lime-brand)] ring-[color:var(--lime-brand-muted)]";
   }
   if (meta.kind === "deleted") {
-    return "bg-rose-50 text-rose-700 ring-rose-200/70";
+    return "bg-[color:var(--lime-danger-soft)] text-[color:var(--lime-danger)] ring-[color:var(--lime-danger-border)]";
   }
   if (meta.kind === "renamed") {
-    return "bg-sky-50 text-sky-700 ring-sky-200/70";
+    return "bg-[color:var(--lime-info-soft)] text-[color:var(--lime-info)] ring-[color:var(--lime-info-border)]";
   }
   if (meta.kind === "copied") {
-    return "bg-cyan-50 text-cyan-700 ring-cyan-200/70";
+    return "bg-[color:var(--lime-info-soft)] text-[color:var(--lime-info)] ring-[color:var(--lime-info-border)]";
   }
   if (meta.kind === "modified") {
-    return "bg-amber-50 text-amber-700 ring-amber-200/70";
+    return "bg-[color:var(--lime-warning-soft)] text-[color:var(--lime-warning)] ring-[color:var(--lime-warning-border)]";
   }
-  return "bg-slate-50 text-slate-500 ring-slate-200/80";
+  return "bg-[color:var(--lime-surface-subtle)] text-[color:var(--lime-text-muted)] ring-[color:var(--lime-surface-border)]";
 }
 
 export function CanvasWorkbenchChangeStatusMark({

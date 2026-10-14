@@ -8,7 +8,8 @@ import {
 export const PLUGIN_PACKAGE_MCP_APP_RESOURCE_URI =
   "ui://mcp-elicitation-plugin/release-check.html";
 export const PLUGIN_PACKAGE_MCP_APP_TITLE = "Plugin package Release Check";
-export const PLUGIN_PACKAGE_MCP_APP_MARKER = "PLUGIN_PACKAGE_MCP_APP_GATE_B_READY";
+export const PLUGIN_PACKAGE_MCP_APP_MARKER =
+  "PLUGIN_PACKAGE_MCP_APP_GATE_B_READY";
 
 export function pluginPackageMcpAppHtml() {
   return `<!doctype html>
@@ -131,7 +132,9 @@ export function pluginPackageMcpAppLifecycleDelta(previous, current) {
   };
 }
 
-export async function installPluginPackageEmbeddedBrowserLifecycleCapture(page) {
+export async function installPluginPackageEmbeddedBrowserLifecycleCapture(
+  page,
+) {
   await page.evaluate(() => {
     const stateKey = "__LIME_PLUGIN_PACKAGE_EMBEDDED_BROWSER_LIFECYCLE__";
     const listenerKey = "__LIME_PLUGIN_PACKAGE_EMBEDDED_BROWSER_UNLISTEN__";
@@ -398,7 +401,9 @@ async function readMcpAppRendererDiagnostics(page, runtime) {
           viewId: element.getAttribute("data-view-id"),
         })),
         inputSessionIds: Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
+          document.querySelectorAll(
+            '[data-testid="composer-editor"][role="textbox"]',
+          ),
         ).map((element) => element.getAttribute("data-session-id")),
         itemId,
         itemPage:
@@ -480,7 +485,10 @@ async function readMcpAppWebContents(app) {
           }),
       );
     },
-    { marker: PLUGIN_PACKAGE_MCP_APP_MARKER, title: PLUGIN_PACKAGE_MCP_APP_TITLE },
+    {
+      marker: PLUGIN_PACKAGE_MCP_APP_MARKER,
+      title: PLUGIN_PACKAGE_MCP_APP_TITLE,
+    },
   );
 }
 

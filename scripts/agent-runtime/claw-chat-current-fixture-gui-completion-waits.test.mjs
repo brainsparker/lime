@@ -7,8 +7,8 @@ const BASE_CANCELED_SNAPSHOT = {
   hasPrompt: true,
   hasStoppedCopy: false,
   hasPartialText: false,
-  textareaVisible: true,
-  textareaDisabled: false,
+  editorVisible: true,
+  editorDisabled: false,
   stopButtonVisible: false,
   approvalRecordShape: {
     recordCount: 0,
@@ -44,8 +44,8 @@ const BASE_WEB_TOOLS_COMPLETED_SNAPSHOT = {
   markdownHeadingVisible: true,
   markdownStrongVisible: true,
   markdownTableVisible: true,
-  textareaVisible: true,
-  textareaDisabled: false,
+  editorVisible: true,
+  editorDisabled: false,
   stopButtonVisible: false,
 };
 

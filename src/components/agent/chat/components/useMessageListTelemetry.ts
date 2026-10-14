@@ -1,9 +1,7 @@
 import { useEffect, useRef } from "react";
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
 import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/sessionTypes";
-import {
-  buildHistoricalHydrationProjectionEvents,
-} from "../projection/historicalMessageHydrationProjection";
+import { buildHistoricalHydrationProjectionEvents } from "../projection/historicalMessageHydrationProjection";
 import { recordAgentUiProjectionEvents } from "../projection/conversationProjectionStore";
 import type { Message } from "../types";
 import type { MessageListRenderGroup } from "./MessageList.types";
@@ -12,6 +10,9 @@ import type { MessageListMeasuredComputation } from "./messageListPerformance";
 interface UseMessageListTelemetryOptions {
   canBuildHistoricalTimeline: boolean;
   hiddenHistoryCount: number;
+  virtualOffscreenCount: number;
+  mountedEntryCount: number;
+  indexedThreadItemsCount: number;
   historicalContentPartsDeferredCount: number;
   historicalContentPartsDeferredMeasurement: MessageListMeasuredComputation<number>;
   historicalMarkdownDeferredCount: number;
@@ -45,6 +46,9 @@ interface UseMessageListTelemetryOptions {
 export function useMessageListTelemetry({
   canBuildHistoricalTimeline,
   hiddenHistoryCount,
+  virtualOffscreenCount,
+  mountedEntryCount,
+  indexedThreadItemsCount,
   historicalContentPartsDeferredCount,
   historicalContentPartsDeferredMeasurement,
   historicalMarkdownDeferredCount,
@@ -82,6 +86,7 @@ export function useMessageListTelemetry({
     historicalContentPartsDeferredMeasurement.durationMs;
 
   useEffect(() => {
+    if (mountedEntryCount === 0 && visibleMessagesCount > 0) return;
     if (!sessionId) {
       restoredSessionMetricRef.current = null;
       return;
@@ -113,11 +118,16 @@ export function useMessageListTelemetry({
     }
     const shouldFinishRestoredFollowUp =
       shouldRecordRestoredFollowUp &&
-      renderedMessages.length >= visibleMessagesCount;
+      isHistoricalTimelineReady &&
+      historicalContentPartsDeferredCount === 0 &&
+      historicalMarkdownDeferredCount === 0;
 
     const metricContext = {
       canBuildHistoricalTimeline,
       hiddenHistoryCount,
+      virtualOffscreenCount,
+      mountedEntryCount,
+      indexedThreadItemsCount,
       isHistoricalTimelineReady,
       isRestoredHistoryWindow,
       isRestoringSession,
@@ -206,6 +216,9 @@ export function useMessageListTelemetry({
   }, [
     canBuildHistoricalTimeline,
     hiddenHistoryCount,
+    virtualOffscreenCount,
+    mountedEntryCount,
+    indexedThreadItemsCount,
     historicalContentPartsDeferredCount,
     historicalContentPartsDeferredMeasurement.durationMs,
     historicalMarkdownDeferredCount,

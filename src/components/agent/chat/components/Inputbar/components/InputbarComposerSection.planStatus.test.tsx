@@ -3,6 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
+import { ComposerController, ComposerEditor, type ComposerEditorHandle } from "@/components/input-kit";
+import "@/components/input-kit/composerEditor.testUtils";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import type { MessageImage } from "../../../types";
 import { InputbarComposerSection } from "./InputbarComposerSection";
@@ -35,6 +37,8 @@ const visionNoticeMockState = vi.hoisted(() => ({
 
 vi.mock("./InputbarCore", () => ({
   InputbarCore: (props: {
+    controller: ComposerController;
+    editorRef?: React.RefObject<ComposerEditorHandle>;
     disabled?: boolean;
     leftExtra?: React.ReactNode;
     onSend?: () => void;
@@ -42,6 +46,7 @@ vi.mock("./InputbarCore", () => ({
     trailingMeta?: React.ReactNode;
   }) => (
     <div data-testid="inputbar-core" data-disabled={String(props.disabled)}>
+      <ComposerEditor controller={props.controller} editorRef={props.editorRef} disabled={props.disabled} />
       <button
         type="button"
         data-testid="mock-send"
@@ -177,7 +182,7 @@ function renderComposerSection(
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  const textareaRef = React.createRef<HTMLTextAreaElement>();
+  const editorRef = React.createRef<ComposerEditorHandle>();
   const defaultProps: React.ComponentProps<typeof InputbarComposerSection> = {
     renderWorkflowGeneratingPanel: false,
     workflowGate: null,
@@ -190,9 +195,10 @@ function renderComposerSection(
     workflowProgressLabel: "",
     workflowSummaryLabel: "",
     inputAdapter: createInputAdapter(),
+    composerController: new ComposerController({ text: props?.input ?? "先给我计划" }),
     characters: [],
     skillSelection: defaultSkillSelection,
-    textareaRef,
+    editorRef,
     input: "先给我计划",
     onSelectInputCapability: vi.fn(),
     onSend: vi.fn(),
@@ -207,7 +213,6 @@ function renderComposerSection(
     reasoningEffort: "medium",
     setReasoningEffort: vi.fn(),
     showModelControls: true,
-    queuedTurns: [],
     inputCompletionEnabled: true,
     copy: composerCopy,
     inputbarCopy,

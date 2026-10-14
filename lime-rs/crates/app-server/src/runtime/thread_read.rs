@@ -1,7 +1,7 @@
 use super::session_lifecycle::stored_session_hidden_from_user_recents;
 use super::status::{agent_turn_blocks_queue_resume, agent_turn_is_active};
 use super::{ProjectionStore, RuntimeCore, RuntimeCoreError};
-use agent_protocol::{PageCursor, SortDirection, TurnItemsView};
+use agent_protocol::{PageCursor, TurnQueueState};
 use app_server_protocol::protocol::v2::{
     ThreadLoadedListParams, ThreadLoadedListResponse, ThreadMetadataGitInfoUpdateParams,
     ThreadMetadataUpdateParams, ThreadSearchOccurrence, ThreadSearchOccurrencesParams,
@@ -17,14 +17,16 @@ use app_server_protocol::{
 };
 use thread_store::{
     ArchiveThreadParams, CreateThreadSectionParams as StoreCreateThreadSectionParams,
-    DeleteThreadSectionParams as StoreDeleteThreadSectionParams, ListItemsParams,
-    ListThreadSectionsParams as StoreListThreadSectionsParams, ListThreadsParams, ListTurnsParams,
+    DeleteThreadSectionParams as StoreDeleteThreadSectionParams,
+    ListThreadSectionsParams as StoreListThreadSectionsParams, ListThreadsParams,
     MoveThreadToSectionParams as StoreMoveThreadToSectionParams, PageRequest, ReadThreadParams,
     RenameThreadSectionParams as StoreRenameThreadSectionParams,
     SearchThreadOccurrencesParams as StoreSearchThreadOccurrencesParams, StoreCursor,
     StoredThreadSection, ThreadMetadataPatch, ThreadStore, ThreadStoreErrorKind,
     UpdateThreadMetadataParams,
 };
+
+mod history_visibility;
 
 const DEFAULT_PAGE_LIMIT: u32 = 100;
 const THREAD_SEARCH_OCCURRENCES_DEFAULT_LIMIT: usize = 50;
@@ -53,7 +55,7 @@ fn normalize_thread_runtime_snapshot(
     execution: &ThreadExecutionState,
 ) {
     for turn in &mut thread.turns {
-        if turn.status != agent_protocol::TurnStatus::InProgress {
+        if turn.status != agent_protocol::TurnStatus::InProgress || is_queued_turn(turn) {
             continue;
         }
         if turn_is_orphaned(turn.turn_id.as_str(), execution) {
@@ -63,10 +65,9 @@ fn normalize_thread_runtime_snapshot(
 
     let terminal_projection_pending = execution.loaded
         && execution.active_turn_id.is_none()
-        && thread
-            .turns
-            .iter()
-            .any(|turn| turn.status == agent_protocol::TurnStatus::InProgress);
+        && thread.turns.iter().any(|turn| {
+            turn.status == agent_protocol::TurnStatus::InProgress && !is_queued_turn(turn)
+        });
     thread.status = if execution.active_turn_id.is_some() || terminal_projection_pending {
         let active_flags = match &thread.status {
             agent_protocol::ThreadStatus::Active { active_flags } => active_flags.clone(),
@@ -88,11 +89,16 @@ fn normalize_turn_runtime_snapshots(
 ) {
     for turn in turns {
         if turn.status == agent_protocol::TurnStatus::InProgress
+            && !is_queued_turn(turn)
             && turn_is_orphaned(turn.turn_id.as_str(), execution)
         {
             turn.status = agent_protocol::TurnStatus::Interrupted;
         }
     }
+}
+
+fn is_queued_turn(turn: &agent_protocol::Turn) -> bool {
+    matches!(turn.queue, TurnQueueState::Queued { .. })
 }
 
 fn turn_is_orphaned(turn_id: &str, execution: &ThreadExecutionState) -> bool {
@@ -446,6 +452,7 @@ impl RuntimeCore {
             .thread_execution_state(thread.thread_id.as_str())
             .await?;
         normalize_thread_runtime_snapshot(&mut thread, &execution);
+        thread.turns.retain(|turn| !is_queued_turn(turn));
         Ok(ThreadReadResponse { thread })
     }
 
@@ -490,6 +497,7 @@ impl RuntimeCore {
                 .thread_execution_state(thread.thread_id.as_str())
                 .await?;
             normalize_thread_runtime_snapshot(thread, &execution);
+            thread.turns.retain(|turn| !is_queued_turn(turn));
         }
         Ok(ThreadListResponse {
             data,
@@ -592,88 +600,6 @@ impl RuntimeCore {
             .await
             .map_err(store_error)?;
         Ok(ThreadSectionMoveResponse {})
-    }
-
-    pub async fn list_thread_turns(
-        &self,
-        params: ThreadTurnsListParams,
-    ) -> Result<ThreadTurnsListResponse, RuntimeCoreError> {
-        let thread_id = params.thread_id.clone();
-        let store = self.canonical_thread_store()?;
-        let mut page = store
-            .list_turns(ListTurnsParams {
-                thread_id: params.thread_id,
-                include_archived: true,
-                page: store_page(params.page)?,
-                items_view: params.items_view,
-            })
-            .await
-            .map_err(store_error)?;
-        let execution = self.thread_execution_state(thread_id.as_str()).await?;
-        normalize_turn_runtime_snapshots(&mut page.data, &execution);
-        Ok(ThreadTurnsListResponse {
-            data: page.data,
-            next_cursor: page.next_cursor.map(StoreCursor::into_string),
-            backwards_cursor: page.backwards_cursor.map(StoreCursor::into_string),
-        })
-    }
-
-    pub async fn list_thread_items(
-        &self,
-        params: ThreadItemsListParams,
-    ) -> Result<ThreadItemsListResponse, RuntimeCoreError> {
-        let store = self.canonical_thread_store()?;
-        let page = store
-            .list_items(ListItemsParams {
-                thread_id: params.thread_id,
-                turn_id: params.turn_id,
-                include_archived: true,
-                page: store_page(params.page)?,
-            })
-            .await
-            .map_err(store_error)?;
-        Ok(ThreadItemsListResponse {
-            data: page.data,
-            next_cursor: page.next_cursor.map(StoreCursor::into_string),
-            backwards_cursor: page.backwards_cursor.map(StoreCursor::into_string),
-        })
-    }
-
-    pub(crate) async fn paginated_resume_backwards_cursors(
-        &self,
-        thread_id: agent_protocol::ThreadId,
-    ) -> Result<(Option<String>, Option<String>), RuntimeCoreError> {
-        let store = self.canonical_thread_store()?;
-        let turns_page = store
-            .list_turns(ListTurnsParams {
-                thread_id: thread_id.clone(),
-                include_archived: true,
-                page: PageRequest {
-                    cursor: None,
-                    limit: 1,
-                    sort_direction: SortDirection::Desc,
-                },
-                items_view: TurnItemsView::NotLoaded,
-            })
-            .await
-            .map_err(store_error)?;
-        let items_page = store
-            .list_items(ListItemsParams {
-                thread_id,
-                turn_id: None,
-                include_archived: true,
-                page: PageRequest {
-                    cursor: None,
-                    limit: 1,
-                    sort_direction: SortDirection::Desc,
-                },
-            })
-            .await
-            .map_err(store_error)?;
-        Ok((
-            turns_page.backwards_cursor.map(StoreCursor::into_string),
-            items_page.backwards_cursor.map(StoreCursor::into_string),
-        ))
     }
 
     pub async fn search_thread_occurrences(

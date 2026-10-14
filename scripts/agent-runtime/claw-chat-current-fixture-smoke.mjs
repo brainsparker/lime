@@ -1320,6 +1320,13 @@ async function run() {
       summary,
       appServerRequests,
       runtimeEnv,
+      readClipboardText: () =>
+        app.evaluate(({ clipboard }) => clipboard.readText()),
+      writeClipboardText: (text) =>
+        app.evaluate(
+          ({ clipboard }, value) => clipboard.writeText(value),
+          text,
+        ),
       readTextProviderRequests: textProviderFixtureServer
         ? () => textProviderFixtureServer.requests()
         : null,

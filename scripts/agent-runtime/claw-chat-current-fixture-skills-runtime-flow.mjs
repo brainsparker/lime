@@ -123,16 +123,15 @@ export async function runSkillsRuntimeScenario({
     readModelExplicitSkillsRuntimeCompleted.summary;
 
   logStage("export-explicit-skills-runtime-evidence-pack");
-  const readModelExplicitSkillsRuntime =
-    await readSkillsRuntimeThread(
-      page,
-      appServerRequests,
-      SKILLS_RUNTIME_EXPLICIT_SCENARIO,
-      options.sessionId,
-      readModelExplicitSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
-      readModelExplicitSkillsRuntimeCompleted.messages,
-      options.threadId,
-    );
+  const readModelExplicitSkillsRuntime = await readSkillsRuntimeThread(
+    page,
+    appServerRequests,
+    SKILLS_RUNTIME_EXPLICIT_SCENARIO,
+    options.sessionId,
+    readModelExplicitSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
+    readModelExplicitSkillsRuntimeCompleted.messages,
+    options.threadId,
+  );
   result.readModelExplicitSkillsRuntime =
     readModelExplicitSkillsRuntime.summary;
 
@@ -192,16 +191,15 @@ export async function runSkillsRuntimeScenario({
     readModelManualEnableSkillsRuntimeCompleted.summary;
 
   logStage("export-manual-enable-skills-runtime-evidence-pack");
-  const readModelManualEnableSkillsRuntime =
-    await readSkillsRuntimeThread(
-      page,
-      appServerRequests,
-      SKILLS_RUNTIME_MANUAL_ENABLE_SCENARIO,
-      manualEnableSkillsRuntimeSessionId,
-      readModelManualEnableSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
-      readModelManualEnableSkillsRuntimeCompleted.messages,
-      manualEnableSkillsRuntimeThreadId,
-    );
+  const readModelManualEnableSkillsRuntime = await readSkillsRuntimeThread(
+    page,
+    appServerRequests,
+    SKILLS_RUNTIME_MANUAL_ENABLE_SCENARIO,
+    manualEnableSkillsRuntimeSessionId,
+    readModelManualEnableSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
+    readModelManualEnableSkillsRuntimeCompleted.messages,
+    manualEnableSkillsRuntimeThreadId,
+  );
   result.readModelManualEnableSkillsRuntime =
     readModelManualEnableSkillsRuntime.summary;
 
@@ -330,8 +328,7 @@ async function runPlazaOrPanelExpertSkillsRuntimeScenario({
     readModelExpertSkillsRuntimeCompleted.messages,
     expertPlazaSkillsRuntimeThreadId,
   );
-  result.readModelExpertSkillsRuntime =
-    readModelExpertSkillsRuntime.summary;
+  result.readModelExpertSkillsRuntime = readModelExpertSkillsRuntime.summary;
 
   logStage("wait-gui-expert-plaza-skills-runtime-completed");
   result.guiExpertSkillsRuntimeCompleted = sanitizeJson(
@@ -387,9 +384,9 @@ async function runExpertPanelSkillsRuntimeFollowup({
   const expertPanelReadySnapshot =
     result.guiExpertPanelSkillsRuntimeSessionReady ?? {};
   const expertPanelInputMatchesSession =
-    expertPanelReadySnapshot.textareaVisible === true &&
-    expertPanelReadySnapshot.textareaDisabled === false &&
-    expertPanelReadySnapshot.textareaSessionId ===
+    expertPanelReadySnapshot.editorVisible === true &&
+    expertPanelReadySnapshot.editorDisabled === false &&
+    expertPanelReadySnapshot.editorSessionId ===
       expertPlazaSkillsRuntimeSessionId;
   const expertPanelFallbackInputReady =
     expertPanelReadySnapshot.fallbackTextareaVisible === true &&
@@ -416,8 +413,8 @@ async function runExpertPanelSkillsRuntimeFollowup({
         ? "expert panel session input already ready"
         : "expert panel current page input ready without session marker",
       sessionId: expertPlazaSkillsRuntimeSessionId,
-      textareaSessionId:
-        expertPanelReadySnapshot.textareaSessionId ??
+      editorSessionId:
+        expertPanelReadySnapshot.editorSessionId ??
         expertPanelReadySnapshot.fallbackTextareaSessionId ??
         null,
     });
@@ -471,16 +468,15 @@ async function runExpertPanelSkillsRuntimeFollowup({
     readModelExpertPanelSkillsRuntimeCompleted.summary;
 
   logStage("export-expert-panel-skills-runtime-evidence-pack");
-  const readModelExpertPanelSkillsRuntime =
-    await readSkillsRuntimeThread(
-      page,
-      appServerRequests,
-      EXPERT_PANEL_SKILLS_RUNTIME_SCENARIO,
-      expertPanelSkillsRuntimeSessionId,
-      readModelExpertPanelSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
-      readModelExpertPanelSkillsRuntimeCompleted.messages,
-      expertPanelSkillsRuntimeThreadId,
-    );
+  const readModelExpertPanelSkillsRuntime = await readSkillsRuntimeThread(
+    page,
+    appServerRequests,
+    EXPERT_PANEL_SKILLS_RUNTIME_SCENARIO,
+    expertPanelSkillsRuntimeSessionId,
+    readModelExpertPanelSkillsRuntimeCompleted.summary?.scenarioTurnIds?.[0],
+    readModelExpertPanelSkillsRuntimeCompleted.messages,
+    expertPanelSkillsRuntimeThreadId,
+  );
   result.readModelExpertPanelSkillsRuntime =
     readModelExpertPanelSkillsRuntime.summary;
 

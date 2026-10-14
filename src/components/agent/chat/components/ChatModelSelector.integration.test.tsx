@@ -21,6 +21,7 @@ const {
   mockGetDefaultProvider,
   mockEmitProviderDataChanged,
   mockWechatChannelSetRuntimeModel,
+  mockGetModelRegistry,
 } = vi.hoisted(() => ({
   mockGetRuntimeProviderSelection: vi.fn(),
   mockCreateAgentRuntimeSession: vi.fn(),
@@ -43,6 +44,7 @@ const {
   mockGetDefaultProvider: vi.fn(),
   mockEmitProviderDataChanged: vi.fn(),
   mockWechatChannelSetRuntimeModel: vi.fn(async () => undefined),
+  mockGetModelRegistry: vi.fn(),
 }));
 
 vi.mock("@/lib/api/agentRuntime/agentClient", async () => {
@@ -128,6 +130,19 @@ vi.mock("@/hooks/useProviderModels", () => ({
   loadProviderModels: mockLoadProviderModels,
   useProviderModels: mockUseProviderModels,
 }));
+
+vi.mock("@/lib/api/modelRegistry", async () => {
+  const actual = await vi.importActual<
+    typeof import("@/lib/api/modelRegistry")
+  >("@/lib/api/modelRegistry");
+  return {
+    ...actual,
+    modelRegistryApi: {
+      ...actual.modelRegistryApi,
+      getModelRegistry: mockGetModelRegistry,
+    },
+  };
+});
 
 vi.mock("@/lib/api/apiKeyProvider", () => ({
   apiKeyProviderApi: {
@@ -240,6 +255,9 @@ function createProviderModelsFixture(providerKey?: string | null) {
 }
 
 function createRuntimeAdapterFixture(): AgentRuntimeAdapter {
+  const settingsListeners = new Set<
+    Parameters<NonNullable<AgentRuntimeAdapter["listenToThreadSettings"]>>[0]
+  >();
   const unsupported = async () => {
     throw new Error("当前测试未覆盖该 runtime adapter 方法");
   };
@@ -278,6 +296,25 @@ function createRuntimeAdapterFixture(): AgentRuntimeAdapter {
         modelProvider: providerType,
         model,
       });
+      for (const handler of settingsListeners) {
+        handler({
+          threadId: sessionId,
+          sessionIds: [sessionId],
+          threadSettings: {
+            modelProvider: providerType,
+            model,
+            cwd: "/fixture",
+            approvalPolicy: "on-request",
+            approvalsReviewer: "user",
+            sandboxPolicy: {},
+            collaborationMode: { mode: "default", settings: { model } },
+          },
+        });
+      }
+    },
+    listenToThreadSettings: (handler) => {
+      settingsListeners.add(handler);
+      return () => settingsListeners.delete(handler);
     },
     updateSessionMetadata: async (sessionId, patch) => {
       await mockUpdateAgentRuntimeThreadSettings({
@@ -406,6 +443,10 @@ beforeEach(async () => {
   mockEmitProviderDataChanged.mockImplementation(() => {});
   mockWechatChannelSetRuntimeModel.mockResolvedValue(undefined);
   const configuredProviders = createConfiguredProviderFixtures();
+  mockGetModelRegistry.mockResolvedValue([
+    ...createProviderModelsFixture("gemini"),
+    ...createProviderModelsFixture("deepseek"),
+  ]);
 
   const createdAt = Math.floor(Date.now() / 1000);
   mockListAgentRuntimeSessions.mockResolvedValue([
@@ -540,18 +581,22 @@ describe("ChatModelSelector + useAgentChat 集成", () => {
         localStorage.getItem(`agent_topic_model_pref_${workspaceId}_topic-a`) ||
           "null",
       ),
-    ).toEqual({
+    ).toMatchObject({
       providerType: "gemini",
       model: "gemini-2.5-pro",
+      threadId: "topic-a",
+      threadSettings: { modelProvider: "gemini", model: "gemini-2.5-pro" },
     });
     expect(
       JSON.parse(
         localStorage.getItem(`agent_topic_model_pref_${workspaceId}_topic-b`) ||
           "null",
       ),
-    ).toEqual({
+    ).toMatchObject({
       providerType: "deepseek",
       model: "deepseek-chat",
+      threadId: "topic-b",
+      threadSettings: { modelProvider: "deepseek", model: "deepseek-chat" },
     });
   });
 

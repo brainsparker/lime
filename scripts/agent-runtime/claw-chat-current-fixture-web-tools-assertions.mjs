@@ -8,7 +8,7 @@ export function buildWebToolsRenderingScenarioAssertions({
     webToolsRenderingPromptReachedBackend:
       webToolsRenderingTurnStart?.inputText === WEB_TOOLS_RENDERING_PROMPT,
     guiWebToolsRenderingInputSubmitted:
-      summary.webToolsRenderingInputSend?.afterFill?.promptVisibleInTextarea ===
+      summary.webToolsRenderingInputSend?.afterFill?.promptVisibleInEditor ===
         true && summary.webToolsRenderingInputSend?.clicked?.clicked === true,
     guiWebToolsLiveRunningStateCaptured:
       summary.guiWebToolsRenderingInProgress

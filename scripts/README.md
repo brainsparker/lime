@@ -306,7 +306,13 @@ npm run smoke:orchestrator-skills-gate-b
 
 `npm run smoke:model-provider-capabilities-electron-gate-b` 在隔离配置中固定 official OpenAI Responses route，从真实 Electron 首页打开 ModelSelector，断言 provider capability panel 显示 `namespaceTools=false`、`imageGeneration=true`、`webSearch=true`，并要求 trace 命中 `electron-ipc -> app_server_handle_json_lines -> modelProvider/capabilities/read`。证据默认写入 `.lime/qc/gui-evidence/model-provider-capabilities-electron-gate-b/`，只记录 capability 布尔、method、transport 和错误计数；不调用模型、不访问网络、不保存 Provider 配置、路径或凭证。
 
-`npm run smoke:thread-queue-electron-gate-b` 在隔离 userData 和 unavailable backend 中经真实 preload 创建 canonical Thread、添加一条 durable Queue submission，再从真实 Electron 侧栏打开同一 Thread，断言 marker 在 canonical 时间线中唯一可见、`thread-queue-status` 只显示标题/数量且不重复正文、旧 `thread-queue-items` 节点不存在。setup 阶段由 preload 调用结果证明 `thread/start|thread/queue/add`，GUI 阶段由 safeInvoke trace 证明 `thread/read|thread/queue/list`；四段均绑定同一 Thread，mock/error 为 0。证据默认写入 `.lime/qc/gui-evidence/thread-queue-electron-gate-b/`，不启动 Turn、不调用模型，也不保存 Thread/Queue identity 或本机路径。
+`npm run smoke:thread-queue-electron-gate-b` 在隔离 userData 和 external 阻塞 backend 中经真实 preload 创建 canonical Thread，启动并中断唯一基线回合以暂停自动 drain，再添加三条 durable Queue submission（含多 text block 和图片），再从真实 Electron 侧栏打开同一 Thread。默认折叠的 `QueuedMessageList` 显示计数；显式展开后可读取/编辑 preview。Gate 经 GUI 保存富输入、重排和删除，关联 `thread/queue/update|reorder|delete` 的真实 safeInvoke IPC 请求、submission identity 和 canonical list，保留完整 typed input/client identity。尚未消费的 Queue 必须从 public `thread/read` 和 Turn/Item 分页排除，历史与分页仅包含已中断基线回合并且 EOF，header/Composer 保持 idle；不能把内部 durable User Item 当作已执行 transcript。首图缩略同时核对 seed bytes 哈希和完整非文本输入，要求真实同线程 `media/read` IPC 及浏览器 `image.decode`/自然尺寸成功。旧 `thread-queue-items` 和旧组件不得恢复。所有请求绑定同一 Thread，mock/error 为 0。证据默认写入 `.lime/qc/gui-evidence/thread-queue-electron-gate-b/`，记录实际 sidecar SHA；不 admission 待处理队列、不证明 active-turn Steer、live Provider或跨卸载暂停持久化，不保存 Thread/Queue identity 或队列正文。
+
+`node scripts/electron/lib/composer-utility-gate-b.mjs` 在隔离 app data、两个真实 Project 和临时 Git 仓库中验证首页 `ComposerUtilityBar` 的项目选择、分支搜索/创建/切换及页面重载恢复。成功证据来自 GUI 动作、`electron-ipc -> app_server_handle_json_lines -> projectGit/status|branch/create|branch/checkout`、同一 root 的真实 Git readback 和可见状态；setup 写入的本地项目选择不计 GUI 完成。证据默认写入 `.lime/qc/gui-evidence/composer-utility-electron-gate-b/`，仅保存 stage、method、root 匹配布尔、分支、错误计数和 binary SHA。Git 基线仅在临时仓库生成，不提交或切换源码仓库；不启动 Turn、调用模型或证明 staged worktree/cloud/remote/environment。支持 `--evidence-dir`、`--prefix`、`--timeout-ms`、`--interval-ms` 与 `--keep-temp`。
+
+`smoke:code-artifact-workbench-electron-fixture -- --scenario gui-coding-input` 在现有四文件 diff 验证之后运行 Right Surface lifecycle。独立 helper 复用相同 canonical Thread，以 current `workspaceRightSurface/request` 打开本机临时 HTTP 页面，经真实 GUI 新建并选择第二个 Browser tab，再选择 Browser → Files → Browser；核对完整 tab 集合、selected、session/tab/webContents identity、真实 native URL 与 preload mount/list IPC。关闭 primary 后再次切换必须保持第二个 tab 且不复活 primary，随后分别关闭 Browser 和 Files。合同不证明跨线程或 Electron 重启持久化；实际通过状态以本轮 summary 为准。summary 的 `rightSurfaceLifecycle` 不保存原始 identity 或 URL；不使用 mock fallback。
+
+`node scripts/electron/lib/thread-settings-gate-b.mjs` 验证真实 Electron GUI 模型选择和同线程 out-of-band cwd 设置更新。它旁路观察原 IPC handler 返回的生产 drain 通知，保持原响应和消费者，并关联 canonical `thread/resume|read`、可见模型/目录、无新 Turn、无 transcript 通知及零 fallback/error；不额外 drain 或注入 consumer。当前 stdio 的 ACK 与异步通知分离，不能要求 RPC response 包含通知。隔离 provider 使用 unavailable backend，证据写入 `.lime/qc/gui-evidence/thread-settings-electron-gate-b/`，记录实际 App Server binary SHA；不证明 active/future Turn 执行、live Provider、Windows 或 packaged。IPC 诊断面不可用时 fail closed。
 
 `npm run smoke:thread-revert-electron-gate-b` 在隔离 userData 和 workspace 中创建 paginated canonical Thread，并由本地 external backend 完成两个 Turn；随后从第二轮用户消息的真实 GUI 入口确认恢复历史。Gate B 要求同一 Thread 上的第一轮保留、第二轮移除、Thread header 不变、工作区文件内容不变，并证明 GUI action 经 `electron-ipc -> app_server_handle_json_lines -> thread/revert -> thread/read` 刷新 canonical read model，同时观察到 `app_server_drain_events`，mock/invoke/console/page error 为 0。证据默认写入 `.lime/qc/gui-evidence/thread-revert-electron-gate-b/`，包含确认态与成功态截图；不调用正式模型，也不保存 Thread/Turn identity 或本机路径。
 
@@ -335,6 +341,16 @@ npm run smoke:orchestrator-skills-gate-b
 `npm run smoke:settings-appearance-electron-fixture -- --run-id <run-id>` 同时验证 Appearance 的两个 current owner：主题模式写入 renderer localStorage，推荐行为写入 App Server `config/read|config/batchWrite`。fixture 在隔离用户目录中修改两者、冷重启读回、恢复两者并再次冷重启确认；结构化 evidence 不记录外观原值或完整 config。
 
 `npm run smoke:settings-developer-electron-fixture -- --run-id <run-id>` 从 Developer GUI 点击“复制纯 JSON”，真实采集 `config/read`、`log/list`、`log/persistedTail`、`diagnostics/server/read`、`diagnostics/logStorage/read`、`diagnostics/windowsStartup/read`、`modelProvider/list` 与 `mcpServerStatus/list`。fixture 只用显式 test-only renderer sink 替代最终系统剪贴板写入，不替换任何诊断采集或 bridge；JSON evidence 仅记录写入次数、文本长度、payload shape 布尔与 current method/command，不记录剪贴板正文、日志、配置、路径、Provider/MCP 数据或凭证，也不声称系统剪贴板交付已验证。
+
+主输入 fixture 统一使用 `[data-testid="composer-editor"][role="textbox"]`，要求同 session 唯一可见 EditorView。`scripts/lib/composer-editor-dom.mjs` 只读真实 DOM 的 paragraph/br/atom 与 token identity；输入用 Playwright contenteditable.fill、键盘和 Clipboard/Drop，不操作私有 React/ProseMirror API。普通设置 textarea 保留，不允许主输入 fallback、首元素匹配或测试 textarea adapter。
+
+rich-input/Steer oracle 同时检查完整 typed input、UTF8 textElements、同 Thread/Turn/client identity 的唯一 canonical User Item。内联图片 lower 为 sidecar URI 后，按预期 PNG SHA256 校验并经同 Thread `media/read` 回读完整字节；预览 DOM 不能代替媒体入库证据。Steer 必须命中 current `turn/steer`，不能用 queue mutation 或同文字符串冒充同一输入。
+
+`smoke:claw-chat-current-fixture -- --scenario inputbar-rich-restore` 还验证 Composer IME 编辑边界：
+真实 Electron 内合成 compositionstart/isComposing/Process/keyCode229，跨渲染帧后确认无提交请求、草稿不变及
+同线程 canonical 空历史，再用真实发送按钮提交文字/图片/路径/Skill，经 backend ledger 和 read model 验证取消与完整恢复。
+`claw-chat-current-fixture-composer-ime` 的缺失/错线程/非法trace/意外提交负向 oracle 阻止空证据通过。
+该场景不证明操作系统候选窗口或 Codex 实时 GUI，附件迟到读取由两个 hook 的 deferred FileReader 回归单独覆盖。
 
 `npm run smoke:scheduled-tasks-electron-fixture -- --timeout-ms 180000` 从真实 Electron 一级导航创建已安排任务并立即运行，要求命中 `scheduledTask/list|create|read|run/list|run/start`、RuntimeCore provider、canonical Thread/Turn/read model 与运行历史。fixture 使用隔离 userData 和 localhost OpenAI-compatible provider，不调用正式模型；旧 `automationJob/*`、`automationSchedule/*`、`automationScheduler/*`、legacy Desktop 命令与生产 mock fallback 命中必须为零。
 

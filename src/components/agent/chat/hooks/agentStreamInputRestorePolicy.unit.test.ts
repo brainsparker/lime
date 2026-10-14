@@ -20,7 +20,9 @@ describe("agentStream input restore policy", () => {
         text: "继续生成提纲",
         images: [image],
         pathReferences: [pathReference],
-        textElements: [{ type: "text", text: "继续生成提纲" }],
+        textElements: [
+          { byteRange: { start: 12, end: 18 }, placeholder: "提纲" },
+        ],
         inputCapabilityRoute: {
           kind: "installed_skill",
           skillKey: "draft",
@@ -42,7 +44,9 @@ describe("agentStream input restore policy", () => {
         text: "继续生成提纲",
         images: [image],
         pathReferences: [pathReference],
-        textElements: [{ type: "text", text: "继续生成提纲" }],
+        textElements: [
+          { byteRange: { start: 12, end: 18 }, placeholder: "提纲" },
+        ],
         inputCapabilityRoute: {
           kind: "installed_skill",
           skillKey: "draft",

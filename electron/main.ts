@@ -24,6 +24,7 @@ import {
   isEmbeddedBrowserCommand,
 } from "./embeddedBrowserHost";
 import { ElectronBrowserTabHost, isBrowserTabCommand } from "./browserTabHost";
+import { resolveBrowserTabOwnerWindow } from "./browserTabSnapshot";
 import { ElectronDevHttpBridge } from "./devHttpBridge";
 import { ElectronHostCommands } from "./hostCommands";
 import { ElectronSecureCredentialStore } from "./secureCredentialStore";
@@ -37,7 +38,7 @@ import {
   isNavigationAbortError,
   isWindowLifecycleLoadAbort,
 } from "./mainWindowLoadErrors";
-import { installMainWindowMediaPermissionHandler } from "./mainWindowMediaPermissions";
+import { installMainWindowPermissionHandlers } from "./mainWindowPermissions";
 import { ElectronUpdateHost } from "./updateHost";
 import { createElectronSmokeRunner } from "./smokeChecks";
 import { resolveWindowsSquirrelStartupPlan } from "./windowsSquirrelStartup";
@@ -1150,7 +1151,12 @@ async function handleHostInvoke(
   }
   if (isBrowserTabCommand(command)) {
     return await browserTabHost.invoke(
-      event ? currentWindow(event) : null,
+      event
+        ? resolveBrowserTabOwnerWindow(
+            BrowserWindow.fromWebContents(event.sender),
+            event.sender.id,
+          )
+        : null,
       command,
       args,
     );
@@ -1505,7 +1511,7 @@ if (isWindowsSquirrelStartup) {
   app.whenReady().then(() => {
     configureApplicationIdentity();
     registerLocalAssetProtocol();
-    installMainWindowMediaPermissionHandler({
+    installMainWindowPermissionHandlers({
       session: session.defaultSession,
       getMainWindow: () => mainWindow,
     });

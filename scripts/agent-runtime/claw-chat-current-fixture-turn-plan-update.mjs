@@ -210,8 +210,8 @@ export function buildTurnPlanUpdateScenarioAssertions(context) {
       hydratedReadModel.planItemCount === 0 &&
       hydratedReadModel.includesExpectedArguments === true,
     turnPlanUpdateInputReadyAfterCompletion:
-      hydrated?.textareaVisible === true &&
-      hydrated?.textareaDisabled === false &&
+      hydrated?.editorVisible === true &&
+      hydrated?.editorDisabled === false &&
       hydrated?.stopButtonVisible === false,
     turnPlanUpdateUserAndAssistantVisible:
       summary.guiTurnPlanUpdateCompleted?.hasPrompt === true &&
@@ -402,8 +402,10 @@ async function waitForTurnPlanChecklist(page, options) {
             ),
           ),
         );
-        const textarea = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
+        const editor = Array.from(
+          document.querySelectorAll(
+            '[data-testid="composer-editor"][role="textbox"]',
+          ),
         ).find(visible);
         const stopButtons = Array.from(
           document.querySelectorAll(
@@ -430,9 +432,12 @@ async function waitForTurnPlanChecklist(page, options) {
               '[data-testid="tool-call-row"][data-tool-name="update_plan"]',
             ),
           ).filter(visible).length,
-          textareaVisible: Boolean(textarea),
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorVisible: Boolean(editor),
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           stopButtonVisible: stopButtons.length > 0,
         };
       },

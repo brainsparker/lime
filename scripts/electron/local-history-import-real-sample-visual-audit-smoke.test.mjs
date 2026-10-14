@@ -234,8 +234,8 @@ describe("local history import real sample visual audit smoke guard", () => {
     );
     expect(content).toContain('{ label: "compact", width: 1100, height: 820 }');
     expect(content).toContain('{ label: "narrow", width: 820, height: 900 }');
-    expect(content).toContain("openSnapshot?.textareaVisible");
-    expect(content).toContain("openSnapshot?.textareaSessionId");
+    expect(content).toContain("openSnapshot?.editorVisible");
+    expect(content).toContain("openSnapshot?.editorSessionId");
     expect(content).toContain("openSnapshot?.messageListSessionId");
     expect(sessionOpenHelper).toContain("planDecisionHandled");
     expect(sessionOpenHelper).toContain("plan-composer-decision-ignore");
@@ -290,7 +290,7 @@ describe("local history import real sample visual audit smoke guard", () => {
     expect(sessionOpenHelper).toContain(
       '[data-testid="app-sidebar-conversation-open"]',
     );
-    expect(helper).toContain('textarea[name="agent-chat-message"]');
+    expect(helper).toContain('[data-testid="composer-editor"][role="textbox"]');
     expect(helper).toContain('[data-testid="message-list-column"]');
     expect(helper).toContain("snapshot.messageContentTextLength > 0");
     expect(helper).toContain("audit.messageContentTextLength > 0");

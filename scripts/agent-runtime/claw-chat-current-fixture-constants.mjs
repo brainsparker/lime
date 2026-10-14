@@ -621,6 +621,7 @@ export const INPUTBAR_RICH_RESTORE_ASSERTION_KEYS = [
   "inputbarRichRestoreSkillRestored",
   "inputbarRichRestoreNoVisibleAssistantOutput",
   "inputbarRichRestoreReadModelCanceled",
+  "inputbarRichRestoreUserMessageCollapse",
 ];
 export const RIGHT_SURFACE_VISUAL_MATRIX_ASSERTION_KEYS = [
   "rightSurfaceVisualMatrixRequestedThroughAppServer",

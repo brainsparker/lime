@@ -190,12 +190,6 @@ describe("appServerSessionClient", () => {
               {
                 id: "turn-running",
                 status: "inProgress",
-                queue: { state: "running" },
-              },
-              {
-                id: "turn-queued",
-                status: "inProgress",
-                queue: { state: "queued", position: 0 },
               },
             ],
           }),
@@ -226,7 +220,6 @@ describe("appServerSessionClient", () => {
         thread_status: "running",
         latest_turn_status: "running",
         active_turn_id: "turn-running",
-        queued_turn_count: 1,
       }),
     ]);
 
@@ -476,12 +469,6 @@ describe("appServerSessionClient", () => {
                   phase: "final_answer",
                 },
               ],
-            },
-            {
-              id: "turn-queued",
-              status: "inProgress",
-              queue: { state: "queued", position: 0 },
-              startedAt: 1780704002,
             },
           ],
         }),

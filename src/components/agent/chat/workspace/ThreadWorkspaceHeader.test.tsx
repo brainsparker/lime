@@ -279,4 +279,137 @@ describe("ThreadWorkspaceHeader", () => {
 
     act(() => root.unmount());
   });
+
+  it("编辑中切换会话取消旧草稿，旧输入事件不能重命名新会话", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const renameA = vi.fn().mockResolvedValue(undefined);
+    const renameB = vi.fn().mockResolvedValue(undefined);
+    const render = (
+      sessionId: string,
+      title: string,
+      onRename: typeof renameA,
+    ) => {
+      act(() =>
+        root.render(
+          <ThreadWorkspaceHeader
+            sessionId={sessionId}
+            title={title}
+            status="done"
+            workingDirectory={null}
+            onRename={onRename}
+          />,
+        ),
+      );
+    };
+    const startEditing = () => {
+      act(() =>
+        (
+          container.querySelector(
+            '[data-testid="thread-workspace-header-title"] button',
+          ) as HTMLButtonElement
+        ).click(),
+      );
+      return container.querySelector<HTMLInputElement>(
+        '[data-testid="thread-workspace-header-title-input"]',
+      )!;
+    };
+    const changeText = (input: HTMLInputElement, text: string) => {
+      act(() => {
+        Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(input, text);
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+    };
+
+    render("thread-A", "A 标题", renameA);
+    const oldInput = startEditing();
+    changeText(oldInput, "A 未提交草稿");
+    render("thread-B", "B 标题", renameB);
+    expect(container.querySelector("input")).toBeNull();
+    expect(
+      container.querySelector('[data-testid="thread-workspace-header-title"]')!
+        .textContent,
+    ).toBe("B 标题");
+    expect(renameA).not.toHaveBeenCalled();
+    expect(renameB).not.toHaveBeenCalled();
+
+    const newInput = startEditing();
+    expect(newInput.value).toBe("B 标题");
+    changeText(newInput, "B 新草稿");
+    act(() => {
+      oldInput.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+      oldInput.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+    });
+    expect(renameA).not.toHaveBeenCalled();
+    expect(renameB).not.toHaveBeenCalled();
+    expect(newInput.value).toBe("B 新草稿");
+    act(() =>
+      newInput.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      ),
+    );
+    expect(renameB).toHaveBeenCalledExactlyOnceWith("B 新草稿");
+    expect(renameA).not.toHaveBeenCalled();
+    act(() => root.unmount());
+  });
+
+  it("取消后 blur 不提交，后续 Enter 与 blur 只提交当前编辑一次", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const onRename = vi.fn().mockResolvedValue(undefined);
+    act(() =>
+      root.render(
+        <ThreadWorkspaceHeader
+          sessionId="thread-1"
+          title="当前标题"
+          status="done"
+          workingDirectory={null}
+          onRename={onRename}
+        />,
+      ),
+    );
+    const startEditing = () => {
+      act(() =>
+        (
+          container.querySelector(
+            '[data-testid="thread-workspace-header-title"] button',
+          ) as HTMLButtonElement
+        ).click(),
+      );
+      const input = container.querySelector<HTMLInputElement>("input")!;
+      act(() => {
+        Object.getOwnPropertyDescriptor(
+          window.HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(input, "新标题");
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      return input;
+    };
+    const canceled = startEditing();
+    act(() => {
+      canceled.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      );
+      canceled.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(onRename).not.toHaveBeenCalled();
+
+    const current = startEditing();
+    act(() => {
+      current.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      current.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
+    });
+    expect(onRename).toHaveBeenCalledExactlyOnceWith("新标题");
+    act(() => root.unmount());
+  });
 });

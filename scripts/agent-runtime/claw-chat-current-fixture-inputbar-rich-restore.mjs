@@ -1,3 +1,7 @@
+import {
+  composerEditorSelector,
+  withComposerEditorDom,
+} from "../lib/composer-editor-dom.mjs";
 import { Buffer } from "node:buffer";
 import {
   APP_SERVER_METHOD_SESSION_READ,
@@ -23,6 +27,27 @@ import {
   readModelLatestTurnStatus,
 } from "./claw-chat-current-fixture-read-model-core.mjs";
 import { ensureUserVisibleCapabilityReportSkill } from "./claw-chat-current-fixture-skills-workspace.mjs";
+import { isExpectedSkillIdentity } from "./claw-chat-current-fixture-skill-identity.mjs";
+import { verifyComposerImeEditingOnly } from "./claw-chat-current-fixture-composer-ime.mjs";
+import { attachComposerImage } from "./claw-chat-current-fixture-composer-image-upload.mjs";
+import {
+  richInputImageUrl,
+  summarizeRichInputSubmission,
+} from "./claw-chat-current-fixture-rich-input-evidence.mjs";
+import { appServerCallFromPage } from "../electron/mcp-config-fixture-smoke.mjs";
+import { runRichUserMessageCollapseGate } from "./claw-chat-current-fixture-user-message-collapse.mjs";
+import { withInvokeTraceCollector } from "../lib/invoke-trace-collector.mjs";
+import {
+  prepareHistoryPaste,
+  captureComposerHistoryDraft,
+  verifyComposerHistoryRecall,
+} from "./claw-chat-current-fixture-composer-history.mjs";
+import {
+  composerMarksFixture,
+  prepareComposerMarksDraft,
+  readComposerMarksSnapshot,
+  summarizeComposerMarksCancel,
+} from "./claw-chat-current-fixture-composer-marks.mjs";
 import {
   assert,
   sanitizeJson,
@@ -32,6 +57,7 @@ import {
 const PATH_REFERENCE_DRAG_MIME = "application/x-lime-path-reference";
 const RICH_RESTORE_IMAGE_BASE64 =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+const RICH_HISTORY_PASTE_TEXT = "历史粘贴验证😀\n".repeat(180);
 const DEFER_BUTTON_LABELS = [
   "稍后处理",
   "稍後處理",
@@ -95,190 +121,210 @@ export async function waitForRichRestoreSnapshot(
 async function evaluateRichRestoreSnapshot(page) {
   return await evaluatePageSnapshot(
     page,
-    ({
-      deferButtonLabels,
-      forbiddenAssistantText,
-      pathName,
-      prompt,
-      sessionId,
-      skillName,
-    }) => {
-      const normalizeMentionText = (value) =>
-        String(value || "")
-          .trim()
-          .toLocaleLowerCase()
-          .replace(/[\s_-]+/g, "");
-      const expectedSkillName = normalizeMentionText(skillName);
-      const textareaCandidates = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).filter((node) => node instanceof HTMLTextAreaElement);
-      const textarea =
-        textareaCandidates.find(
-          (node) => node.dataset.sessionId === sessionId,
-        ) ??
-        textareaCandidates[0] ??
-        null;
-      const container = textarea?.closest(
-        '[data-testid="inputbar-core-container"]',
-      );
-      const rect = textarea?.getBoundingClientRect();
-      const style = textarea ? window.getComputedStyle(textarea) : null;
-      const textareaVisible = Boolean(
-        textarea &&
-        rect &&
-        rect.width > 16 &&
-        rect.height > 16 &&
-        style?.visibility !== "hidden" &&
-        style?.display !== "none",
-      );
-      const buttons = Array.from(document.querySelectorAll("button")).map(
-        (button) => ({
+    withComposerEditorDom(
+      ({
+        deferButtonLabels,
+        forbiddenAssistantText,
+        pathName,
+        prompt,
+        sessionId,
+        skillName,
+      }) => {
+        const normalizeMentionText = (value) =>
+          String(value || "")
+            .trim()
+            .toLocaleLowerCase()
+            .replace(/[\s_-]+/g, "");
+        const expectedSkillName = normalizeMentionText(skillName);
+        const editorCandidates = findVisibleComposerEditorsDom(sessionId);
+        const editor =
+          editorCandidates.length === 1 ? editorCandidates[0] : null;
+        const container = editor?.closest(
+          '[data-testid="inputbar-core-container"]',
+        );
+        const rect = editor?.getBoundingClientRect();
+        const style = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
+          rect &&
+          rect.width > 16 &&
+          rect.height > 16 &&
+          style?.visibility !== "hidden" &&
+          style?.display !== "none",
+        );
+        const buttons = Array.from(document.querySelectorAll("button")).map(
+          (button) => ({
+            title: button.getAttribute("title") || "",
+            text: button.textContent || "",
+            aria: button.getAttribute("aria-label") || "",
+            disabled: button.disabled,
+          }),
+        );
+        const inputbarButtons = Array.from(
+          container?.querySelectorAll("button") || [],
+        ).map((button) => ({
           title: button.getAttribute("title") || "",
           text: button.textContent || "",
           aria: button.getAttribute("aria-label") || "",
           disabled: button.disabled,
-        }),
-      );
-      const inputbarButtons = Array.from(
-        container?.querySelectorAll("button") || [],
-      ).map((button) => ({
-        title: button.getAttribute("title") || "",
-        text: button.textContent || "",
-        aria: button.getAttribute("aria-label") || "",
-        disabled: button.disabled,
-      }));
-      const stopButtonVisible = buttons.some((button) => {
-        const labelText = [button.title, button.text, button.aria].join("\n");
-        return (
-          !button.disabled &&
-          (labelText.includes("停止") ||
-            labelText.includes("终止") ||
-            /\bStop\b/i.test(labelText))
-        );
-      });
-      const deferButton =
-        inputbarButtons.find((button) => {
+        }));
+        const stopButtonVisible = buttons.some((button) => {
           const labelText = [button.title, button.text, button.aria].join("\n");
-          return deferButtonLabels.some((label) => labelText.includes(label));
-        }) ?? null;
-      const sendButton = container?.querySelector('[data-testid="send-btn"]');
-      const visionWarning = (container || document).querySelector(
-        '[data-testid="inputbar-vision-warning"]',
-      );
-      const anyVisionWarning = document.querySelector(
-        '[data-testid="inputbar-vision-warning"]',
-      );
-      const bodyText = document.body?.innerText || "";
-      const mainText = document.querySelector("main")?.innerText || bodyText;
-      const pathChips = Array.from(
-        (container || document).querySelectorAll(
-          '[data-testid="inputbar-path-reference-chip"]',
-        ),
-      ).map((node) => node.textContent || node.getAttribute("title") || "");
-      const skillBadges = Array.from(
-        (container || document).querySelectorAll(
-          '[data-testid="input-skill-badge"]',
-        ),
-      ).map((node) => node.textContent || node.getAttribute("title") || "");
-      const imagePreviewCount = Array.from(
-        (container || document).querySelectorAll("img"),
-      ).filter((node) =>
-        typeof node.getAttribute("src") === "string"
-          ? node.getAttribute("src")?.startsWith("data:image/")
-          : false,
-      ).length;
-      const turnGroups = Array.from(
-        document.querySelectorAll('[data-testid="message-turn-group"]'),
-      );
-      const promptTurnGroups = turnGroups.filter((group) =>
-        (group.textContent || "").includes(prompt),
-      );
-      const promptTurnGroup = promptTurnGroups.at(-1) ?? null;
-      const assistantTexts = Array.from(
-        (promptTurnGroup || document).querySelectorAll(
-          '[data-message-role="assistant"]',
-        ),
-      ).map((node) => node.textContent || "");
-      const forbiddenAssistantFragments = [
-        forbiddenAssistantText,
-        "今日国际新闻简要整理",
-        "全球市场继续关注能源",
-      ];
-      const forbiddenAssistantHits = forbiddenAssistantFragments.filter(
-        (fragment) =>
-          fragment &&
-          (mainText.includes(fragment) ||
-            assistantTexts.some((text) => text.includes(fragment))),
-      );
-      return {
-        url: window.location.href,
-        textareaSessionId:
-          textarea instanceof HTMLTextAreaElement
-            ? textarea.dataset.sessionId || null
+          return (
+            !button.disabled &&
+            (labelText.includes("停止") ||
+              labelText.includes("终止") ||
+              /\bStop\b/i.test(labelText))
+          );
+        });
+        const deferButton =
+          inputbarButtons.find((button) => {
+            const labelText = [button.title, button.text, button.aria].join(
+              "\n",
+            );
+            return deferButtonLabels.some((label) => labelText.includes(label));
+          }) ?? null;
+        const sendButton = container?.querySelector('[data-testid="send-btn"]');
+        const visionWarning = (container || document).querySelector(
+          '[data-testid="inputbar-vision-warning"]',
+        );
+        const anyVisionWarning = document.querySelector(
+          '[data-testid="inputbar-vision-warning"]',
+        );
+        const bodyText = document.body?.innerText || "";
+        const mainText = document.querySelector("main")?.innerText || bodyText;
+        const pathChips = Array.from(
+          container?.querySelectorAll(
+            '[data-testid="inputbar-path-reference-chip"]',
+          ) ?? [],
+        ).map((node) => node.textContent || node.getAttribute("title") || "");
+        const skillTokenNodes = Array.from(
+          editor?.querySelectorAll(
+            '[data-composer-token="skill"][contenteditable="false"]',
+          ) ?? [],
+        );
+        const skillTokens = skillTokenNodes.map(
+          (node) => node.textContent || "",
+        );
+        const skillTokenData = skillTokenNodes.map((node) => ({
+          id: node.getAttribute("data-composer-id") || "",
+          name: node.getAttribute("data-composer-name") || "",
+          path: node.getAttribute("data-composer-path") || "",
+          label: node.textContent || "",
+          editable: node.getAttribute("contenteditable"),
+        }));
+        const imagePreviewCount = Array.from(
+          container?.querySelectorAll("img") ?? [],
+        ).filter((node) =>
+          typeof node.getAttribute("src") === "string"
+            ? node.getAttribute("src")?.startsWith("data:image/")
+            : false,
+        ).length;
+        const turnGroups = Array.from(
+          document.querySelectorAll('[data-testid="message-turn-group"]'),
+        );
+        const promptTurnGroups = turnGroups.filter((group) =>
+          (group.textContent || "").includes(prompt),
+        );
+        const promptTurnGroup = promptTurnGroups.at(-1) ?? null;
+        const assistantTexts = Array.from(
+          (promptTurnGroup || document).querySelectorAll(
+            '[data-message-role="assistant"]',
+          ),
+        ).map((node) => node.textContent || "");
+        const forbiddenAssistantFragments = [
+          forbiddenAssistantText,
+          "今日国际新闻简要整理",
+          "全球市场继续关注能源",
+        ];
+        const forbiddenAssistantHits = forbiddenAssistantFragments.filter(
+          (fragment) =>
+            fragment &&
+            (mainText.includes(fragment) ||
+              assistantTexts.some((text) => text.includes(fragment))),
+        );
+        return {
+          url: window.location.href,
+          editorCount: editorCandidates.length,
+          editorSessionId:
+            editor instanceof HTMLElement
+              ? editor.dataset.sessionId || null
+              : null,
+          editorVisible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
+          promptVisibleInEditor:
+            editor instanceof HTMLElement &&
+            readComposerEditorTextDom(editor).startsWith(prompt),
+          hasInputbarCore: Boolean(container),
+          hasPrompt: bodyText.includes(prompt),
+          promptTurnGroupCount: promptTurnGroups.length,
+          promptTurnGroupVisible: promptTurnGroups.length > 0,
+          pathChipCount: pathChips.length,
+          pathChipTexts: pathChips,
+          pathRestored: pathChips.some((text) => text.includes(pathName)),
+          imagePreviewCount,
+          imageRestored: imagePreviewCount > 0,
+          skillTokenCount: skillTokens.length,
+          skillTokenTexts: skillTokens,
+          skillTokenData,
+          skillRestored: skillTokens.some((text) =>
+            normalizeMentionText(text).includes(expectedSkillName),
+          ),
+          stopButtonVisible,
+          sendButtonExists: Boolean(sendButton),
+          sendButtonDisabled:
+            sendButton instanceof HTMLButtonElement
+              ? sendButton.disabled
+              : null,
+          sendButtonLabel:
+            sendButton instanceof HTMLElement
+              ? sendButton.getAttribute("aria-label") ||
+                sendButton.getAttribute("title") ||
+                sendButton.textContent ||
+                "send"
+              : null,
+          deferButtonExists: Boolean(deferButton),
+          deferButtonDisabled: deferButton ? deferButton.disabled : null,
+          deferButtonLabel: deferButton
+            ? [deferButton.title, deferButton.text, deferButton.aria]
+                .filter(Boolean)
+                .join(" ")
             : null,
-        textareaVisible,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-        textareaValue:
-          textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-        hasInputbarCore: Boolean(container),
-        hasPrompt: bodyText.includes(prompt),
-        promptTurnGroupCount: promptTurnGroups.length,
-        promptTurnGroupVisible: promptTurnGroups.length > 0,
-        pathChipCount: pathChips.length,
-        pathChipTexts: pathChips,
-        pathRestored: pathChips.some((text) => text.includes(pathName)),
-        imagePreviewCount,
-        imageRestored: imagePreviewCount > 0,
-        skillBadgeCount: skillBadges.length,
-        skillBadgeTexts: skillBadges,
-        skillRestored: skillBadges.some((text) =>
-          normalizeMentionText(text).includes(expectedSkillName),
-        ),
-        stopButtonVisible,
-        sendButtonExists: Boolean(sendButton),
-        sendButtonDisabled:
-          sendButton instanceof HTMLButtonElement ? sendButton.disabled : null,
-        sendButtonLabel:
-          sendButton instanceof HTMLElement
-            ? sendButton.getAttribute("aria-label") ||
-              sendButton.getAttribute("title") ||
-              sendButton.textContent ||
-              "send"
-            : null,
-        deferButtonExists: Boolean(deferButton),
-        deferButtonDisabled: deferButton ? deferButton.disabled : null,
-        deferButtonLabel: deferButton
-          ? [deferButton.title, deferButton.text, deferButton.aria]
-              .filter(Boolean)
-              .join(" ")
-          : null,
-        inputbarButtonLabels: inputbarButtons.map((button) =>
-          [button.title, button.text, button.aria].filter(Boolean).join(" "),
-        ),
-        visionWarningText:
-          visionWarning instanceof HTMLElement
-            ? visionWarning.textContent || ""
-            : "",
-        visionWarningPolicy:
-          visionWarning instanceof HTMLElement
-            ? visionWarning.dataset.policy || null
-            : null,
-        anyVisionWarningText:
-          anyVisionWarning instanceof HTMLElement
-            ? anyVisionWarning.textContent || ""
-            : "",
-        anyVisionWarningPolicy:
-          anyVisionWarning instanceof HTMLElement
-            ? anyVisionWarning.dataset.policy || null
-            : null,
-        assistantTexts,
-        forbiddenAssistantHits,
-        noVisibleAssistantOutput: forbiddenAssistantHits.length === 0,
-        bodyText,
-        mainText,
-      };
-    },
+          inputbarButtonLabels: inputbarButtons.map((button) =>
+            [button.title, button.text, button.aria].filter(Boolean).join(" "),
+          ),
+          visionWarningText:
+            visionWarning instanceof HTMLElement
+              ? visionWarning.textContent || ""
+              : "",
+          visionWarningPolicy:
+            visionWarning instanceof HTMLElement
+              ? visionWarning.dataset.policy || null
+              : null,
+          anyVisionWarningText:
+            anyVisionWarning instanceof HTMLElement
+              ? anyVisionWarning.textContent || ""
+              : "",
+          anyVisionWarningPolicy:
+            anyVisionWarning instanceof HTMLElement
+              ? anyVisionWarning.dataset.policy || null
+              : null,
+          assistantTexts,
+          forbiddenAssistantHits,
+          noVisibleAssistantOutput: forbiddenAssistantHits.length === 0,
+          bodyText,
+          mainText,
+        };
+      },
+    ),
     {
       deferButtonLabels: DEFER_BUTTON_LABELS,
       forbiddenAssistantText: INPUTBAR_RICH_RESTORE_FORBIDDEN_ASSISTANT_TEXT,
@@ -291,49 +337,48 @@ async function evaluateRichRestoreSnapshot(page) {
 }
 
 async function fillRichRestorePrompt(page, options) {
-  const textarea = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${richRestoreSessionId}"]`,
+  const editor = page.locator(
+    `${composerEditorSelector(richRestoreSessionId)}:visible`,
   );
-  await textarea.fill(INPUTBAR_RICH_RESTORE_PROMPT);
+  await editor.fill(INPUTBAR_RICH_RESTORE_PROMPT);
   return await waitForRichRestoreSnapshot(
     page,
     options,
-    (snapshot) => snapshot.textareaValue === INPUTBAR_RICH_RESTORE_PROMPT,
+    (snapshot) =>
+      String(snapshot.editorText || "").startsWith(
+        INPUTBAR_RICH_RESTORE_PROMPT,
+      ),
     "Inputbar 未填入 rich restore prompt",
   );
 }
 
 async function attachFixtureImage(page, options) {
-  const fileInput = page
-    .locator('input[type="file"][accept="image/*"]')
-    .first();
-  await fileInput.setInputFiles({
-    name: "rich-restore-fixture.png",
-    mimeType: "image/png",
-    buffer: Buffer.from(RICH_RESTORE_IMAGE_BASE64, "base64"),
+  const upload = await attachComposerImage(page, {
+    sessionId: richRestoreSessionId,
+    imageButtonName: "添加图片",
+    timeoutMs: Math.min(options.timeoutMs, 15_000),
+    image: {
+      name: "rich-restore-fixture.png",
+      mimeType: "image/png",
+      buffer: Buffer.from(RICH_RESTORE_IMAGE_BASE64, "base64"),
+    },
   });
-  return await waitForRichRestoreSnapshot(
+  const snapshot = await waitForRichRestoreSnapshot(
     page,
     options,
     (snapshot) => snapshot.imageRestored === true,
     "Inputbar 未显示 rich restore 图片预览",
   );
+  return { ...snapshot, upload };
 }
 
 async function dropPathReference(page, options) {
   const dropped = await page.evaluate(
-    ({ mime, pathName, pathValue, sessionId }) => {
-      const textarea =
-        Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
-        ).find(
-          (node) =>
-            node instanceof HTMLTextAreaElement &&
-            node.dataset.sessionId === sessionId,
-        ) ?? document.querySelector('textarea[name="agent-chat-message"]');
+    withComposerEditorDom(({ mime, pathName, pathValue, sessionId }) => {
+      const editors = findVisibleComposerEditorsDom(sessionId);
+      const editor = editors.length === 1 ? editors[0] : null;
       const target =
-        textarea?.closest('[data-testid="inputbar-core-container"]') ??
-        textarea;
+        editor?.closest('[data-testid="inputbar-core-container"]') ?? editor;
       if (!(target instanceof HTMLElement)) {
         return { dropped: false, reason: "missing-inputbar-target" };
       }
@@ -366,7 +411,7 @@ async function dropPathReference(page, options) {
       });
       target.dispatchEvent(dropEvent);
       return { dropped: true, defaultPrevented: dropEvent.defaultPrevented };
-    },
+    }),
     {
       mime: PATH_REFERENCE_DRAG_MIME,
       pathName: INPUTBAR_RICH_RESTORE_PATH_NAME,
@@ -393,7 +438,9 @@ async function clickRichRestoreSendButton(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaValue === INPUTBAR_RICH_RESTORE_PROMPT &&
+      String(snapshot.editorText || "").startsWith(
+        INPUTBAR_RICH_RESTORE_PROMPT,
+      ) &&
       snapshot.imageRestored === true &&
       snapshot.pathRestored === true &&
       snapshot.skillRestored === true &&
@@ -402,17 +449,16 @@ async function clickRichRestoreSendButton(page, options) {
     "Inputbar rich restore 发送按钮未就绪",
   );
   const sendLocator = page
-    .locator(
-      `textarea[name="agent-chat-message"][data-session-id="${richRestoreSessionId}"]`,
-    )
+    .locator(`${composerEditorSelector(richRestoreSessionId)}:visible`)
     .locator(
       'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="send-btn"]',
     );
   await sendLocator.click();
   return sanitizeJson({
     afterFill: {
-      promptVisibleInTextarea:
-        beforeClick.textareaValue === INPUTBAR_RICH_RESTORE_PROMPT,
+      promptVisibleInEditor: String(beforeClick.editorText || "").startsWith(
+        INPUTBAR_RICH_RESTORE_PROMPT,
+      ),
       sendButtonExists: beforeClick.sendButtonExists,
       sendButtonDisabled: beforeClick.sendButtonDisabled,
       visionWarningPolicy: beforeClick.visionWarningPolicy,
@@ -425,11 +471,13 @@ async function clickRichRestoreSendButton(page, options) {
   });
 }
 
-async function selectCapabilityReportSkill(page, options) {
-  const textarea = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${richRestoreSessionId}"]`,
+async function selectCapabilityReportSkill(page, options, skillIdentity) {
+  const editor = page.locator(
+    `${composerEditorSelector(richRestoreSessionId)}:visible`,
   );
-  await textarea.fill("/capability-report");
+  await editor.focus();
+  await editor.press("ControlOrMeta+End");
+  await page.keyboard.insertText(" /capability-report");
   let lastSelectionResult = null;
   const selected = await waitForRichRestoreSnapshot(
     page,
@@ -508,7 +556,7 @@ async function selectCapabilityReportSkill(page, options) {
           targetHeading: selected.heading,
           candidateCount: items.length,
         };
-      }, INPUTBAR_RICH_RESTORE_SKILL_NAME);
+      }, skillIdentity.name);
       lastSelectionResult = sanitizeJson(result);
       return result?.clicked === true;
     },
@@ -527,8 +575,11 @@ async function selectCapabilityReportSkill(page, options) {
     options,
     (snapshot) =>
       snapshot.skillRestored === true &&
-      !String(snapshot.textareaValue || "").includes("capability-report"),
-    "Inputbar 未显示 Capability Report skill badge",
+      snapshot.skillTokenCount === 1 &&
+      isExpectedSkillIdentity(snapshot.skillTokenData[0], skillIdentity) &&
+      snapshot.skillTokenData[0].id === skillIdentity.key &&
+      snapshot.skillTokenData[0].label === `/${skillIdentity.key}`,
+    "Inputbar 未显示 Capability Report inline skill token",
   );
 }
 
@@ -537,7 +588,7 @@ export async function prepareRichDraft(
   options,
   runtimeEnv,
   summary,
-  { submitAction = "send" } = {},
+  { submitAction = "send", marks = false } = {},
 ) {
   richRestoreSessionId = summary?.sessionId?.trim() || SESSION_ID;
   const skill = ensureUserVisibleCapabilityReportSkill(runtimeEnv);
@@ -546,10 +597,29 @@ export async function prepareRichDraft(
     expectedSessionId: richRestoreSessionId,
   });
   recordRichRestoreStep(summary, "input-ready", inputReady);
-  const skillBadge = await selectCapabilityReportSkill(page, options);
-  recordRichRestoreStep(summary, "skill-selected", skillBadge);
   const prompt = await fillRichRestorePrompt(page, options);
   recordRichRestoreStep(summary, "prompt-filled", prompt);
+  const marksEvidence = marks
+    ? await prepareComposerMarksDraft({
+        page,
+        options,
+        sessionId: richRestoreSessionId,
+        threadId: summary.threadId,
+        prompt: INPUTBAR_RICH_RESTORE_PROMPT,
+      })
+    : null;
+  const pasteToken = await prepareHistoryPaste(
+    page,
+    richRestoreSessionId,
+    RICH_HISTORY_PASTE_TEXT,
+  );
+  recordRichRestoreStep(summary, "large-paste-prepared", pasteToken);
+  const skillToken = await selectCapabilityReportSkill(
+    page,
+    options,
+    skill.skillIdentity,
+  );
+  recordRichRestoreStep(summary, "skill-selected", skillToken);
   const image = await attachFixtureImage(page, options);
   recordRichRestoreStep(summary, "image-attached", image);
   const pathReference = await dropPathReference(page, options);
@@ -560,7 +630,9 @@ export async function prepareRichDraft(
       page,
       options,
       (snapshot) =>
-        snapshot.textareaValue === INPUTBAR_RICH_RESTORE_PROMPT &&
+        String(snapshot.editorText || "").startsWith(
+          INPUTBAR_RICH_RESTORE_PROMPT,
+        ) &&
         snapshot.imageRestored === true &&
         snapshot.pathRestored === true &&
         snapshot.skillRestored === true &&
@@ -586,7 +658,9 @@ export async function prepareRichDraft(
     prompt,
     image,
     pathReference,
-    skillBadge,
+    skillToken,
+    pasteToken,
+    ...(marksEvidence ? { marks: marksEvidence } : {}),
     prepared,
   });
 }
@@ -596,6 +670,7 @@ async function waitForInputbarRichRestoreReadModelCanceled(
   options,
   requestLog,
   threadId,
+  submissionExpectation,
 ) {
   const startedAt = Date.now();
   let lastRead = null;
@@ -623,11 +698,17 @@ async function waitForInputbarRichRestoreReadModelCanceled(
         serialized.includes("今日国际新闻简要整理"),
       detailItemCount: collectReadModelItems(read.result).length,
       latestTurnStatus,
+      richInputSubmission: summarizeRichInputSubmission({
+        ...submissionExpectation,
+        canonical: read.result,
+        threadId,
+      }),
     });
     if (
       lastSummary.includesPrompt === true &&
       lastSummary.includesCanceled === true &&
-      lastSummary.forbiddenAssistantOutput === false
+      lastSummary.forbiddenAssistantOutput === false &&
+      lastSummary.richInputSubmission.ok === true
     ) {
       return lastSummary;
     }
@@ -643,12 +724,31 @@ async function waitForInputbarRichRestoreReadModelCanceled(
   );
 }
 
-export async function runInputbarRichRestoreScenario({
+export async function runInputbarRichRestoreScenario(args) {
+  const result = await withInvokeTraceCollector(
+    args.page,
+    (traceCollector) =>
+      runObservedInputbarRichRestoreScenario({ ...args, traceCollector }),
+    (proof) => {
+      args.summary.inputbarRichRestoreTraceCollector = proof;
+    },
+  );
+  return {
+    ...result,
+    inputbarRichRestoreTraceCollector:
+      args.summary.inputbarRichRestoreTraceCollector,
+  };
+}
+
+async function runObservedInputbarRichRestoreScenario({
   page,
   options,
   summary,
   appServerRequests,
   runtimeEnv,
+  readClipboardText,
+  writeClipboardText,
+  traceCollector,
 }) {
   richRestoreSessionId = summary?.sessionId?.trim() || SESSION_ID;
   summary.inputbarRichRestoreDraftPrepared = await prepareRichDraft(
@@ -656,9 +756,35 @@ export async function runInputbarRichRestoreScenario({
     options,
     runtimeEnv,
     summary,
+    { marks: true },
   );
   summary.inputbarRichRestoreSkill =
     summary.inputbarRichRestoreDraftPrepared.skill;
+  const skillIdentity = summary.inputbarRichRestoreSkill.skillIdentity;
+  const historyPrepared = await captureComposerHistoryDraft(
+    page,
+    richRestoreSessionId,
+    skillIdentity,
+    options,
+  );
+  const pasteToken = summary.inputbarRichRestoreDraftPrepared.pasteToken;
+  const expectedSubmission = composerMarksFixture({
+    prompt: INPUTBAR_RICH_RESTORE_PROMPT,
+    skillIdentity,
+    pasteText: RICH_HISTORY_PASTE_TEXT,
+  });
+  assert(
+    historyPrepared.text === expectedSubmission.displayText,
+    "marks draft 显示文本与独立样本不一致",
+  );
+
+  summary.inputbarRichRestoreImeBoundary = await verifyComposerImeEditingOnly({
+    page,
+    appServerRequests,
+    threadId: summary.threadId,
+    sessionId: richRestoreSessionId,
+    prompt: INPUTBAR_RICH_RESTORE_PROMPT,
+  });
 
   summary.inputbarRichRestoreInputSend = await clickRichRestoreSendButton(
     page,
@@ -674,6 +800,24 @@ export async function runInputbarRichRestoreScenario({
   const threadId = summary?.threadId;
   summary.inputbarRichRestoreBackendTurnStart =
     summarizeBackendTurnStart(backendTurnStart);
+  summary.inputbarRichRestoreHistoryBoundary =
+    await verifyComposerHistoryRecall({
+      page,
+      options,
+      prepared: historyPrepared,
+      threadId,
+      sessionId: richRestoreSessionId,
+      skillIdentity,
+      expectedSubmission,
+      backendText: backendTurnStart.entry.inputText,
+      imageDataUrl: `data:image/png;base64,${RICH_RESTORE_IMAGE_BASE64}`,
+      pathReference: {
+        id: `file:${INPUTBAR_RICH_RESTORE_PATH}`,
+        path: INPUTBAR_RICH_RESTORE_PATH,
+        name: INPUTBAR_RICH_RESTORE_PATH_NAME,
+        isDir: "false",
+      },
+    });
 
   summary.inputbarRichRestoreStopClick = sanitizeJson(
     await waitForStopButtonVisibleAndClick(page, options),
@@ -697,15 +841,27 @@ export async function runInputbarRichRestoreScenario({
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible === true &&
-      snapshot.textareaDisabled === false &&
-      snapshot.textareaValue === INPUTBAR_RICH_RESTORE_PROMPT &&
+      snapshot.editorVisible === true &&
+      snapshot.editorDisabled === false &&
+      String(snapshot.editorText || "").startsWith(
+        INPUTBAR_RICH_RESTORE_PROMPT,
+      ) &&
       snapshot.imageRestored === true &&
       snapshot.pathRestored === true &&
       snapshot.skillRestored === true &&
       snapshot.stopButtonVisible === false &&
       snapshot.noVisibleAssistantOutput === true,
     "Inputbar rich restore 取消后未恢复完整草稿",
+  );
+  summary.inputbarRichRestoreMarksCanceled = summarizeComposerMarksCancel({
+    prepared: historyPrepared,
+    restored: await readComposerMarksSnapshot(page, richRestoreSessionId),
+    expectedSubmission,
+    sessionId: richRestoreSessionId,
+  });
+  assert(
+    summary.inputbarRichRestoreMarksCanceled.ok,
+    `marks cancel 恢复语义失败: ${JSON.stringify(summary.inputbarRichRestoreMarksCanceled)}`,
   );
 
   summary.inputbarRichRestoreReadModelCanceled =
@@ -714,7 +870,44 @@ export async function runInputbarRichRestoreScenario({
       options,
       appServerRequests,
       threadId,
+      {
+        traceRaw: await page.evaluate(() =>
+          localStorage.getItem("lime_invoke_trace_buffer_v1"),
+        ),
+        prompt: INPUTBAR_RICH_RESTORE_PROMPT,
+        expectedSubmission,
+        turnId: backendTurnStart.entry.turnId,
+        editorText:
+          summary.inputbarRichRestoreDraftPrepared.prepared.editorText,
+        skillToken:
+          summary.inputbarRichRestoreDraftPrepared.prepared.skillTokenData[0],
+        skillIdentity,
+        imageBase64: RICH_RESTORE_IMAGE_BASE64,
+        pathReference: {
+          name: INPUTBAR_RICH_RESTORE_PATH_NAME,
+          path: INPUTBAR_RICH_RESTORE_PATH,
+        },
+        pasteToken,
+        pasteText: RICH_HISTORY_PASTE_TEXT,
+        mediaRead: await appServerCallFromPage(page, "media/read", {
+          threadId,
+          uri: richInputImageUrl(RICH_RESTORE_IMAGE_BASE64),
+        }),
+      },
     );
+
+  summary.inputbarRichRestoreUserMessageCollapse =
+    await runRichUserMessageCollapseGate({
+      page,
+      options,
+      summary,
+      readClipboardText,
+      writeClipboardText,
+      traceCollector,
+      expectedText: expectedSubmission.text,
+      renderedTextParts: expectedSubmission.renderedTextParts,
+      headText: INPUTBAR_RICH_RESTORE_PROMPT,
+    });
 
   return sanitizeJson({
     inputbarRichRestoreSkill: summary.inputbarRichRestoreSkill,
@@ -725,7 +918,12 @@ export async function runInputbarRichRestoreScenario({
     inputbarRichRestoreStopClick: summary.inputbarRichRestoreStopClick,
     inputbarRichRestoreBackendCancel: summary.inputbarRichRestoreBackendCancel,
     inputbarRichRestoreGuiCanceled: summary.inputbarRichRestoreGuiCanceled,
+    inputbarRichRestoreMarksCanceled: summary.inputbarRichRestoreMarksCanceled,
     inputbarRichRestoreReadModelCanceled:
       summary.inputbarRichRestoreReadModelCanceled,
+    inputbarRichRestoreHistoryBoundary:
+      summary.inputbarRichRestoreHistoryBoundary,
+    inputbarRichRestoreUserMessageCollapse:
+      summary.inputbarRichRestoreUserMessageCollapse,
   });
 }

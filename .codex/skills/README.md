@@ -6,8 +6,8 @@
 ## 当前仓库级 skills
 
 - `lime-governance`：治理收口、事实源识别、compat / deprecated 收口
-- `lime-design-language`：GUI 设计语言、页面宽度、表面与排版收口
-- `lime-quality-workflow`：GUI 产品工程质量、最低校验路径、交付判断
+- `lime-design-language`：基于 Codex Desktop 证据对齐 GUI 结构、交互与命名，保留主题、多模型和首页 Banner
+- `lime-quality-workflow`：按 current owner 选择定向验证，区分 Desktop / CLI / TUI 证据，迁移过期测试与护栏
 - `lime-command-boundary`：Electron IPC、App Server JSON-RPC、legacy adapter、前端网关、mock 同步
 - `lime-playwright-e2e`：GUI 续测、Playwright MCP、bridge / mock 缺口分类
 - `lime-product-e2e-loop`：产品化 E2E 闭环、真实用户路径、最小修复与复测记录

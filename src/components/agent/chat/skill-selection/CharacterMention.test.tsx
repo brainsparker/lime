@@ -1,3 +1,5 @@
+import { typeMention } from "./CharacterMention.testFixtures";
+import { setComposerSelection } from "./CharacterMention.testFixtures";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { InputCapabilitySelection } from "./inputCapabilitySelection";
@@ -6,7 +8,7 @@ import {
   findButtonContaining,
   getButtonsContaining,
   getMentionPopoverContent,
-  getTextarea,
+  getComposerEditor,
   renderHarness,
   typeAtAndWait,
   typeMentionAndWait,
@@ -19,7 +21,7 @@ describe("CharacterMention mention basics", () => {
       characters: [createCharacter("测试角色")],
       syncValue: false,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -31,7 +33,7 @@ describe("CharacterMention mention basics", () => {
       characters: [createCharacter("测试角色")],
       inputCompletionEnabled: false,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -44,7 +46,7 @@ describe("CharacterMention mention basics", () => {
       characters: [],
       skills: [],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -83,7 +85,7 @@ describe("CharacterMention mention basics", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -117,7 +119,7 @@ describe("CharacterMention mention basics", () => {
     });
 
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -133,7 +135,7 @@ describe("CharacterMention mention basics", () => {
 
   it("@ 面板打开后新增内建命令 recent usage 时，应即时刷新最近调用分组", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -179,7 +181,7 @@ describe("CharacterMention mention basics", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -231,7 +233,7 @@ describe("CharacterMention mention basics", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@搜");
 
@@ -293,7 +295,7 @@ describe("CharacterMention mention basics", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@搜");
 
@@ -334,7 +336,7 @@ describe("CharacterMention mention basics", () => {
     });
 
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await act(async () => {
       await import("./CharacterMentionPanel");
@@ -342,8 +344,8 @@ describe("CharacterMention mention basics", () => {
 
     act(() => {
       textarea.focus();
-      textarea.value = "@搜";
-      textarea.setSelectionRange(2, 2);
+      typeMention(textarea, "@搜");
+      setComposerSelection(textarea, 2, 2);
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
 

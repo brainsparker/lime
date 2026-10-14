@@ -1,3 +1,4 @@
+import type { ComposerController } from "@/components/input-kit";
 import type { Character } from "@/lib/api/projectMemory";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
 import type { AgentI18nResource } from "@/i18n/agentResources";
@@ -11,7 +12,7 @@ import type { AgentTaskRuntimeCardModel } from "../utils/agentTaskRuntime";
 import type { RuntimeToolAvailability } from "../utils/runtimeToolAvailability";
 import type { MessagePathReference } from "../types";
 import type { InputbarSendHandler } from "./Inputbar/inputbarSendPayload";
-import type { InputbarOpenedProject } from "./Inputbar/components/InputbarProjectContextBar";
+import type { ComposerProject } from "./Inputbar/components/composerUtilityBarTypes";
 import type { EmptyStateProjectConversationGroupModel } from "./EmptyStateViewModel";
 import type { InputbarPluginCapability } from "./Inputbar/pluginInputCapability";
 import type {
@@ -24,6 +25,7 @@ import type { HomeRecoverySession } from "../home/homeSurfaceTypes";
 export type AgentI18nKey = keyof AgentI18nResource;
 
 export interface EmptyStateProps extends SkillSelectionSourceProps {
+  composerController?: ComposerController;
   input: string;
   setInput: (value: string) => void;
   onSend: InputbarSendHandler;
@@ -86,7 +88,7 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   /** 当前项目 ID */
   projectId?: string | null;
   /** 已打开项目列表 */
-  openedProjects?: InputbarOpenedProject[];
+  openedProjects?: ComposerProject[];
   /** 切换当前项目上下文 */
   onProjectContextChange?: (projectId: string | null) => void;
   /** 当前会话 ID */

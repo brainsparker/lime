@@ -12,6 +12,7 @@ use thread_store::{
     ApplyThreadHistoryParams, ArchiveThreadParams, CreateThreadParams, ThreadStore,
 };
 
+mod history_visibility;
 mod shutdown;
 
 #[tokio::test]

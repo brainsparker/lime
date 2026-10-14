@@ -128,7 +128,10 @@ describe("Codex model responses policy origin", () => {
       "add_responses_lite_header(&mut headers, use_responses_lite)",
     );
     expect(codexClientSource).toMatch(
-      /build_responses_options\(\s*responses_metadata,\s*compression,\s*model_info\.use_responses_lite,\s*\)/u,
+      /build_responses_options\(\s*turn_state,\s*responses_metadata,\s*compression,\s*model_info\.use_responses_lite,\s*\)\s*\.await/u,
+    );
+    expect(codexClientSource).toMatch(
+      /async fn build_responses_options\(\s*&self,\s*turn_state: &Arc<OnceLock<String>>,\s*responses_metadata: &CodexResponsesMetadata,\s*compression: Compression,\s*use_responses_lite: bool,/u,
     );
     expect(codexClientSource).toMatch(
       /fn add_responses_lite_header\(headers: &mut ApiHeaderMap, use_responses_lite: bool\)\s*\{\s*if use_responses_lite\s*\{\s*headers\.insert\(\s*X_OPENAI_INTERNAL_CODEX_RESPONSES_LITE_HEADER,/u,

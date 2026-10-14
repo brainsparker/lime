@@ -260,35 +260,35 @@ describe("MessageList imported history", () => {
     expect(streamingTexts).toEqual(["好的，我继续处理。"]);
   });
 
-  it("大历史会话应先展示最近消息，并允许用户立即展开更早内容", () => {
-    const messages = createConversationMessages(90);
-    const container = render(messages);
-
-    const historyWindow = container.querySelector(
-      '[data-testid="message-list-history-window"]',
-    );
-    const expandButton = container.querySelector(
-      '[data-testid="message-list-expand-history"]',
-    ) as HTMLButtonElement | null;
-
-    expect(historyWindow).not.toBeNull();
-    expect(container.textContent).toContain("To open the chat faster");
-    expect(container.textContent).toContain(
-      "latest 36 conversation entries are shown first",
-    );
-    expect(container.textContent).toContain("9 earlier entries");
-    expect(container.textContent).toContain("消息 90");
-    expect(container.textContent).not.toContain("消息 1Saturday");
-    expect(expandButton).not.toBeNull();
-
-    act(() => {
-      expandButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
+  it("大历史可以滚回更早内容，同时卸载尾部 React turn", () => {
+    const container = render(createConversationMessages(90));
+    const scroll = container.querySelector<HTMLElement>(
+      "[data-testid=message-list-scroll-container]",
+    )!;
     expect(
-      container.querySelector('[data-testid="message-list-history-window"]'),
+      container.querySelector("[data-testid=message-list-expand-history]"),
     ).toBeNull();
+    expect(container.textContent).toContain("消息 90");
+    Object.defineProperty(scroll, "scrollHeight", {
+      configurable: true,
+      value: 15000,
+    });
+    Object.defineProperty(scroll, "clientHeight", {
+      configurable: true,
+      value: 800,
+    });
+    act(() => {
+      scroll.dispatchEvent(
+        new WheelEvent("wheel", { deltaY: -100, bubbles: true }),
+      );
+      scroll.scrollTop = 0;
+      scroll.dispatchEvent(new Event("scroll"));
+    });
     expect(container.textContent).toContain("消息 1Saturday");
+    expect(container.textContent).not.toContain("消息 90");
+    expect(
+      container.querySelectorAll("[data-testid=message-turn-group]").length,
+    ).toBeLessThanOrEqual(8);
   });
 
   it("user peer 包络正文应直接渲染为专门协作卡片", () => {

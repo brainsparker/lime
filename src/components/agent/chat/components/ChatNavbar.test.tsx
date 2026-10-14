@@ -276,25 +276,25 @@ describe("ChatNavbar", () => {
       container.querySelector('[data-testid="task-center-workspace-bar"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-project-context-bar"]'),
+      container.querySelector('[data-testid="composer-utility-bar"]'),
     ).not.toBeNull();
     expect(
       container.querySelector(
-        '[data-testid="inputbar-project-context-project-trigger"]',
+        '[data-testid="composer-utility-project-trigger"]',
       )?.textContent,
     ).toContain("project-1");
     expect(mockProjectSelector).not.toHaveBeenCalled();
     expect(
       document.body.querySelector(
-        '[data-testid="inputbar-project-context-menu"]',
+        '[data-testid="composer-utility-menu"]',
       ),
     ).toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-project-context-mode"]'),
+      container.querySelector('[data-testid="composer-utility-mode"]'),
     ).toBeNull();
     expect(
       container.querySelector(
-        '[data-testid="inputbar-project-context-branch"]',
+        '[data-testid="composer-utility-branch"]',
       ),
     ).toBeNull();
     const menuTrigger = container.querySelector(
@@ -315,12 +315,12 @@ describe("ChatNavbar", () => {
     expect(onBackToProjectManagement).not.toHaveBeenCalled();
     expect(
       document.body.querySelector(
-        '[data-testid="inputbar-project-context-menu"]',
+        '[data-testid="composer-utility-menu"]',
       ),
     ).not.toBeNull();
     expect(
       document.body.querySelector(
-        '[data-testid="inputbar-project-context-add-project"]',
+        '[data-testid="composer-utility-add-project"]',
       ),
     ).not.toBeNull();
   });
@@ -354,7 +354,7 @@ describe("ChatNavbar", () => {
     });
 
     const addProjectButton = document.body.querySelector(
-      '[data-testid="inputbar-project-context-add-project"]',
+      '[data-testid="composer-utility-add-project"]',
     ) as HTMLButtonElement | null;
     expect(addProjectButton).not.toBeNull();
 
@@ -366,24 +366,24 @@ describe("ChatNavbar", () => {
     });
 
     const addProjectSubmenu = document.body.querySelector(
-      '[data-testid="inputbar-project-context-add-submenu"]',
+      '[data-testid="composer-utility-add-submenu"]',
     ) as HTMLDivElement | null;
     expect(addProjectSubmenu).not.toBeNull();
     expect(addProjectSubmenu?.classList.contains("left-full")).toBe(true);
     expect(addProjectSubmenu?.classList.contains("pl-2")).toBe(true);
     expect(
       addProjectSubmenu?.querySelector(
-        '[data-testid="inputbar-project-context-add-submenu-panel"]',
+        '[data-testid="composer-utility-add-submenu-panel"]',
       ),
     ).not.toBeNull();
     expect(
       addProjectSubmenu?.querySelector(
-        '[data-testid="inputbar-project-context-create-blank"]',
+        '[data-testid="composer-utility-create-blank"]',
       ),
     ).not.toBeNull();
 
     const useExistingButton = addProjectSubmenu?.querySelector(
-      '[data-testid="inputbar-project-context-use-existing"]',
+      '[data-testid="composer-utility-use-existing"]',
     ) as HTMLButtonElement | null;
     expect(useExistingButton).not.toBeNull();
 
@@ -422,7 +422,9 @@ describe("ChatNavbar", () => {
     });
 
     const projectShells = Array.from(
-      container.querySelectorAll("div[data-project-id]"),
+      container.querySelectorAll(
+        '[data-testid="task-center-workspace-shell"], [data-testid="task-center-opened-project-tab"]',
+      ),
     ) as HTMLElement[];
     const openedProjectTabs = Array.from(
       container.querySelectorAll(

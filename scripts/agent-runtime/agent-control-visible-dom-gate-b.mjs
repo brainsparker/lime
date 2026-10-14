@@ -237,8 +237,8 @@ export function buildAgentControlVisibleDomAssertions({ evidence, snapshot }) {
       parentOwnedDom.activeSessionId === canonicalChildThread.sessionId &&
       parentOwnedDom.childThreadId === parentOwnedChild.childThreadId,
     visibleDomParentOwnedComposerDisabled:
-      parentOwnedDom.textareaVisible === true &&
-      parentOwnedDom.textareaDisabled === true &&
+      parentOwnedDom.editorVisible === true &&
+      parentOwnedDom.editorDisabled === true &&
       PARENT_OWNED_PLACEHOLDERS.includes(parentOwnedDom.placeholder) &&
       parentOwnedControls.sendUnavailable === true &&
       parentOwnedControls.accessModeDisabled === true &&
@@ -325,7 +325,11 @@ export function buildAgentControlResidencyVisibleDomAssertions({ snapshot }) {
     const threadId = String(row?.threadId || "").trim();
     if (!threadId) continue;
     const kinds = activityByThread.get(threadId) || new Set();
-    kinds.add(String(row?.activityKind || "").trim().toLowerCase());
+    kinds.add(
+      String(row?.activityKind || "")
+        .trim()
+        .toLowerCase(),
+    );
     activityByThread.set(threadId, kinds);
   }
   const appServerCalls = Array.isArray(snapshot?.appServerCalls)

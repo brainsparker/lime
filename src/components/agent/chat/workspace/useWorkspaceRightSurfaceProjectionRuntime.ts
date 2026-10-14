@@ -8,6 +8,7 @@ import {
   type WorkspaceRightSurfaceState,
 } from "./right-surface";
 import {
+  buildWorkspaceRightSurfaceRuntimeAvailableSurfaces,
   buildWorkspaceRightSurfaceRuntimeLaunchers,
   buildWorkspaceRightSurfaceRuntimePendingIntents,
   hasWorkspaceRightSurfaceRuntimePendingSignals,
@@ -22,6 +23,7 @@ interface UseWorkspaceRightSurfaceProjectionRuntimeParams {
   harnessPendingCount: number;
   hasExpertInfoPanel: boolean;
   manualRightSurface: WorkspaceRightSurfaceKind | null;
+  openedRightSurfaces: readonly WorkspaceRightSurfaceKind[];
   preferredServiceSkillResultFileTargetRelativePath?: string | null;
   sceneLayoutMode: LayoutMode;
   shellAvailable: boolean;
@@ -32,58 +34,10 @@ interface UseWorkspaceRightSurfaceProjectionRuntimeParams {
 }
 
 interface UseWorkspaceRightSurfaceProjectionRuntimeResult {
+  availableSurfaces: ReadonlySet<WorkspaceRightSurfaceKind>;
   rightSurfaceLaunchers: WorkspaceRightSurfaceLauncherProjection[];
   rightSurfacePendingIntents: WorkspaceRightSurfaceIntent[];
   rightSurfaceState: WorkspaceRightSurfaceState;
-}
-
-function resolveWorkspaceRightSurfaceOpenSurfaces({
-  appSurfaceAvailable,
-  filesAvailable,
-  hasExpertInfoPanel,
-  manualRightSurface,
-  sceneLayoutMode,
-  shellAvailable,
-  harnessAvailable,
-  traceAvailable,
-  activityAvailable,
-}: {
-  appSurfaceAvailable: boolean;
-  filesAvailable: boolean;
-  hasExpertInfoPanel: boolean;
-  manualRightSurface: WorkspaceRightSurfaceKind | null;
-  sceneLayoutMode: LayoutMode;
-  shellAvailable: boolean;
-  harnessAvailable: boolean;
-  traceAvailable: boolean;
-  activityAvailable: boolean;
-}): WorkspaceRightSurfaceKind[] {
-  const next: WorkspaceRightSurfaceKind[] = [];
-  const add = (kind: WorkspaceRightSurfaceKind, enabled: boolean) => {
-    if (enabled && !next.includes(kind)) {
-      next.push(kind);
-    }
-  };
-
-  add("workbench", sceneLayoutMode !== "chat");
-  add("appSurface", appSurfaceAvailable);
-  add("expertInfo", hasExpertInfoPanel);
-  add("files", filesAvailable);
-  add("shell", shellAvailable);
-  add("harness", harnessAvailable);
-  add("trace", traceAvailable);
-  add("activity", activityAvailable);
-  add("articleWorkspace", manualRightSurface === "articleWorkspace");
-  add("files", manualRightSurface === "files");
-  add("shell", manualRightSurface === "shell");
-  add("harness", manualRightSurface === "harness");
-  add("trace", manualRightSurface === "trace");
-  add("activity", manualRightSurface === "activity");
-  add("activity", manualRightSurface === "activity");
-  add("appSurface", manualRightSurface === "appSurface");
-  add("expertInfo", manualRightSurface === "expertInfo");
-  add("browser", manualRightSurface === "browser");
-  return next;
 }
 
 export function useWorkspaceRightSurfaceProjectionRuntime({
@@ -95,6 +49,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   harnessPendingCount,
   hasExpertInfoPanel,
   manualRightSurface,
+  openedRightSurfaces,
   preferredServiceSkillResultFileTargetRelativePath,
   sceneLayoutMode,
   shellAvailable,
@@ -104,35 +59,39 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   activityAvailable,
 }: UseWorkspaceRightSurfaceProjectionRuntimeParams): UseWorkspaceRightSurfaceProjectionRuntimeResult {
   const effectiveActivityAvailable = activityAvailable === true;
-  const harnessAvailable =
-    !suppressHomeNavbarUtilityActions && showHarnessToggle;
-  const effectiveTraceAvailable =
-    !suppressHomeNavbarUtilityActions && traceAvailable;
-  const openSurfaces = useMemo(
+  const availableSurfaces = useMemo(
     () =>
-      resolveWorkspaceRightSurfaceOpenSurfaces({
+      buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
         appSurfaceAvailable,
+        articleWorkspaceAvailable,
         filesAvailable,
         hasExpertInfoPanel,
-        manualRightSurface,
-        sceneLayoutMode,
         shellAvailable,
-        harnessAvailable,
-        traceAvailable: effectiveTraceAvailable,
+        showHarnessToggle,
+        suppressHomeNavbarUtilityActions,
+        traceAvailable,
         activityAvailable: effectiveActivityAvailable,
       }),
     [
       appSurfaceAvailable,
-      effectiveTraceAvailable,
-      filesAvailable,
-      harnessAvailable,
-      hasExpertInfoPanel,
-      manualRightSurface,
-      sceneLayoutMode,
-      shellAvailable,
+      articleWorkspaceAvailable,
       effectiveActivityAvailable,
+      filesAvailable,
+      hasExpertInfoPanel,
+      shellAvailable,
+      showHarnessToggle,
+      suppressHomeNavbarUtilityActions,
+      traceAvailable,
     ],
   );
+  const openSurfaces = useMemo(
+    () => openedRightSurfaces.filter((kind) => availableSurfaces.has(kind)),
+    [availableSurfaces, openedRightSurfaces],
+  );
+  const selectedSurface =
+    manualRightSurface && !availableSurfaces.has(manualRightSurface)
+      ? (openSurfaces.at(-1) ?? null)
+      : manualRightSurface;
   const rightSurfaceState = useMemo(
     () =>
       resolveWorkspaceRightSurfaceState({
@@ -140,13 +99,13 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
         hasExpertInfo: hasExpertInfoPanel,
         expertInfoVisible,
         openSurfaces,
-        requestedSurface: manualRightSurface ?? undefined,
-        source: manualRightSurface ? "user" : undefined,
+        requestedSurface: selectedSurface ?? undefined,
+        source: selectedSurface ? "user" : undefined,
       }),
     [
       expertInfoVisible,
       hasExpertInfoPanel,
-      manualRightSurface,
+      selectedSurface,
       openSurfaces,
       sceneLayoutMode,
     ],
@@ -203,6 +162,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   );
 
   return {
+    availableSurfaces,
     rightSurfaceLaunchers,
     rightSurfacePendingIntents,
     rightSurfaceState,

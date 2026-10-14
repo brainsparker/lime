@@ -208,6 +208,7 @@ pub(super) fn project_thread_turns_list_response(
         data: response
             .data
             .into_iter()
+            .filter(|turn| !matches!(turn.queue, canonical::TurnQueueState::Queued { .. }))
             .map(project_turn)
             .collect::<Result<Vec<_>, _>>()?,
         next_cursor: response.next_cursor,
@@ -262,6 +263,11 @@ where
 }
 
 fn project_turn(turn: canonical::Turn) -> Result<v2::Turn, JsonRpcError> {
+    if matches!(turn.queue, canonical::TurnQueueState::Queued { .. }) {
+        return Err(invalid_params(
+            "queued submissions are not execution history turns",
+        ));
+    }
     Ok(v2::Turn {
         id: turn.turn_id.as_str().to_string(),
         items: turn

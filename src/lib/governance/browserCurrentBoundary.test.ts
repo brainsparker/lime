@@ -13,10 +13,14 @@ describe("Browser current owner boundary", () => {
   it("current Browser surface 不得恢复旧 MCP、Canvas 或 BrowserSessionRef owner", () => {
     const currentPaths = [
       "electron/browserTabHost.ts",
+      "electron/browserTabSnapshot.ts",
+      "electron/browserTabSelection.ts",
       "electron/appServerDynamicToolHost.ts",
       "src/lib/api/browserTab.ts",
       "src/components/agent/chat/utils/generalAgentPrompt.ts",
       "src/components/agent/chat/workspace/right-surface/browser/BrowserWorkspace.tsx",
+      "src/components/agent/chat/workspace/right-surface/browser/browserTabHydration.ts",
+      "src/components/agent/chat/workspace/right-surface/browser/useBrowserWorkspaceHydration.ts",
       "src/components/agent/chat/workspace/right-surface/browser/RightSurfaceBrowserPanel.tsx",
     ];
     const forbidden = [

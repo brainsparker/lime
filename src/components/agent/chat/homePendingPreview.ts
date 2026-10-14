@@ -20,6 +20,8 @@ export interface TaskCenterDraftSendRequest {
   sessionReady?: boolean;
   source: "task-center-empty-state" | "empty-state";
   triggerSource?: string | null;
+  /** 将内存中的实际发送结果返回给原始 Composer receipt。 */
+  onDispatchSettled?: (accepted: boolean) => void;
 }
 
 export function buildHomePendingPreviewMessages(

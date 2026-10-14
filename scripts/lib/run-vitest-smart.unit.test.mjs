@@ -1,6 +1,8 @@
 import fs from "node:fs";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -15,7 +17,244 @@ import {
   updateRunState,
 } from "../run-vitest-smart.mjs";
 
+function withResumeFixture({ batches, files, allowLive = false }, check) {
+  const directory = fs.realpathSync(
+    fs.mkdtempSync(path.join(os.tmpdir(), "lime-vitest-resume-")),
+  );
+  const scriptsDirectory = path.join(directory, "scripts");
+  const stateFile = path.join(directory, "state.json");
+  const callsFile = path.join(directory, "calls.jsonl");
+  const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
+  const timestamp = "2026-10-13T22:00:00.000Z";
+  try {
+    fs.mkdirSync(path.join(scriptsDirectory, "lib"), { recursive: true });
+    for (const relative of [
+      "../run-vitest-smart.mjs",
+      "live-provider-smoke-gate.mjs",
+      "vitest-test-file-filter.mjs",
+    ]) {
+      fs.copyFileSync(
+        path.resolve(sourceDirectory, relative),
+        path.join(
+          scriptsDirectory,
+          relative.startsWith("../")
+            ? path.basename(relative)
+            : `lib/${relative}`,
+        ),
+      );
+    }
+    fs.mkdirSync(path.join(directory, "node_modules/vitest"), {
+      recursive: true,
+    });
+    fs.writeFileSync(
+      path.join(directory, "node_modules/vitest/vitest.mjs"),
+      `
+import fs from "node:fs";
+import path from "node:path";
+if (process.argv[2] === "list") {
+  console.log(JSON.stringify(JSON.parse(fs.readFileSync("files.json", "utf8")).map((file) => path.resolve(file))));
+} else {
+  const files = process.argv.slice(2).filter((arg) => /\\.(test|spec)\\.[cm]?[jt]sx?$/.test(arg));
+  fs.appendFileSync("calls.jsonl", JSON.stringify(files.map((file) => path.relative(process.cwd(), file))) + "\\n");
+}
+`,
+    );
+    for (const file of files) {
+      const destination = path.join(directory, file);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.writeFileSync(destination, 'import { it } from "vitest";\n');
+    }
+    fs.writeFileSync(path.join(directory, "files.json"), JSON.stringify(files));
+    const failedBatch = batches.findIndex((batch) => batch.status === "failed");
+    const state = {
+      schema_version: 1,
+      runner: "vitest-smart",
+      repo_root: directory,
+      batch_size: 2,
+      include_live_provider_tests: false,
+      skipped_live_provider_test_count: 0,
+      status: failedBatch >= 0 ? "failed" : "passed",
+      started_at: timestamp,
+      updated_at: timestamp,
+      completed_at: timestamp,
+      failed_batch: failedBatch >= 0 ? failedBatch + 1 : null,
+      batches: batches.map((batch, index) => ({
+        index: index + 1,
+        started_at: batch.status === "pending" ? null : timestamp,
+        completed_at: batch.status === "pending" ? null : timestamp,
+        exit_status:
+          batch.status === "passed" ? 0 : batch.status === "failed" ? 1 : null,
+        ...batch,
+      })),
+    };
+    fs.writeFileSync(stateFile, `${JSON.stringify(state, null, 2)}\n`);
+    check({
+      state,
+      stateText: () => fs.readFileSync(stateFile, "utf8"),
+      savedState: () => JSON.parse(fs.readFileSync(stateFile, "utf8")),
+      calls: () =>
+        fs.existsSync(callsFile)
+          ? fs
+              .readFileSync(callsFile, "utf8")
+              .trim()
+              .split("\n")
+              .filter(Boolean)
+              .map((line) => JSON.parse(line))
+          : [],
+      run: () =>
+        spawnSync(
+          process.execPath,
+          [path.join(scriptsDirectory, "run-vitest-smart.mjs"), "--resume"],
+          {
+            cwd: directory,
+            encoding: "utf8",
+            env: {
+              ...process.env,
+              LIME_VITEST_SMART_STATE: stateFile,
+              LIME_VITEST_BATCH_SIZE: "2",
+              LIME_ALLOW_LIVE_PROVIDER_SMOKE: allowLive ? "1" : "",
+              LIME_REAL_API_TEST: "",
+            },
+          },
+        ),
+    });
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
 describe("run-vitest-smart", () => {
+  it("resume 保留已通过批次，从原失败处继续并执行追加的新测试", () => {
+    const files = [
+      "src/passed.test.ts",
+      "src/failed.test.ts",
+      "src/later-passed.test.ts",
+      "src/pending.test.ts",
+      "src/new.test.ts",
+    ];
+    withResumeFixture(
+      {
+        files,
+        batches: [
+          { status: "passed", files: [files[0]] },
+          { status: "failed", files: [files[1]] },
+          { status: "passed", files: [files[2]] },
+          { status: "pending", files: [files[3]] },
+        ],
+      },
+      ({ run, calls, savedState, state }) => {
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([[files[1]], [files[3]], [files[4]]]);
+        const saved = savedState();
+        expect(saved.batches[0]).toEqual(state.batches[0]);
+        expect(saved.batches[2]).toEqual(state.batches[2]);
+        expect(saved.batches.map((batch) => batch.files)).toEqual([
+          ...state.batches.map((batch) => batch.files),
+          [files[4]],
+        ]);
+        expect(saved).toMatchObject({
+          status: "passed",
+          failed_batch: null,
+          started_at: state.started_at,
+        });
+      },
+    );
+  });
+
+  it("resume 追加的新测试复用独立串行批次与普通分批规则", () => {
+    const files = [
+      "src/passed.test.ts",
+      "src/new-a.test.ts",
+      "scripts/lib/harness-eval-history-window.test.ts",
+      "src/new-b.test.ts",
+    ];
+    withResumeFixture(
+      { files, batches: [{ status: "passed", files: [files[0]] }] },
+      ({ run, calls, savedState }) => {
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([[files[2]], [files[1], files[3]]]);
+        expect(savedState().batches.map((batch) => batch.index)).toEqual([
+          1, 2, 3,
+        ]);
+      },
+    );
+  });
+
+  it("resume 没有新增测试且全部通过时不重跑或改写状态", () => {
+    const files = ["src/passed.test.ts"];
+    withResumeFixture(
+      { files, batches: [{ status: "passed", files }] },
+      ({ run, calls, stateText }) => {
+        const original = stateText();
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([]);
+        expect(stateText()).toBe(original);
+      },
+    );
+  });
+
+  it("resume 没有新增测试时保持原批次文件和失败续跑位置", () => {
+    const files = ["src/passed.test.ts", "src/failed.test.ts"];
+    withResumeFixture(
+      {
+        files,
+        batches: files.map((file, index) => ({
+          status: index === 0 ? "passed" : "failed",
+          files: [file],
+        })),
+      },
+      ({ run, calls, savedState, state }) => {
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([[files[1]]]);
+        expect(savedState().batches.map((batch) => batch.files)).toEqual(
+          state.batches.map((batch) => batch.files),
+        );
+        expect(savedState().batches[0]).toEqual(state.batches[0]);
+      },
+    );
+  });
+
+  it("resume 全部旧批次通过后仍执行新增测试，重复续跑不会再次追加", () => {
+    const files = ["src/passed.test.ts", "src/new.test.ts"];
+    withResumeFixture(
+      { files, batches: [{ status: "passed", files: [files[0]] }] },
+      ({ run, calls, savedState, stateText, state }) => {
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([[files[1]]]);
+        expect(savedState().batches[0]).toEqual(state.batches[0]);
+        const completed = stateText();
+        expect(run().status).toBe(0);
+        expect(calls()).toEqual([[files[1]]]);
+        expect(stateText()).toBe(completed);
+      },
+    );
+  });
+
+  it.each([false, true])(
+    "resume 发现新测试继续遵守 live Provider 过滤（allowLive=%s）",
+    (allowLive) => {
+      const files = [
+        "src/passed.test.ts",
+        "src/new.test.ts",
+        "src/provider.live.test.ts",
+      ];
+      withResumeFixture(
+        {
+          files,
+          allowLive,
+          batches: [{ status: "passed", files: [files[0]] }],
+        },
+        ({ run, calls, savedState }) => {
+          expect(run().status).toBe(0);
+          expect(calls()).toEqual([allowLive ? files.slice(1) : [files[1]]]);
+          expect(savedState().skipped_live_provider_test_count).toBe(
+            allowLive ? 0 : 1,
+          );
+        },
+      );
+    },
+  );
+
   it("应解析可恢复批次参数并过滤重复 --run", () => {
     const parsed = parseSmartArgs([
       "--run",

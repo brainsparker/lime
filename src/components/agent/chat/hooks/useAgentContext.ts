@@ -6,7 +6,6 @@ import {
   type MutableRefObject,
 } from "react";
 import { toast } from "sonner";
-import { getLimeI18n } from "@/i18n/createI18n";
 import { updateProject } from "@/lib/api/project";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
@@ -41,6 +40,9 @@ import {
 } from "../utils/topicProjectResolution";
 import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
 import { normalizeChatSessionModelPreference } from "../utils/sessionExecutionRuntime";
+import { useAgentModelSettingsSync } from "./useAgentModelSettingsSync";
+import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
+import { normalizeModelReasoningEffort } from "@/lib/model/modelReasoningPolicy";
 
 interface UseAgentContextOptions {
   workspaceId: string;
@@ -52,6 +54,7 @@ interface UseAgentContextOptions {
   >;
   sendMessageRef: MutableRefObject<SendMessageFn | null>;
   runtime: {
+    listenToThreadSettings?: AgentRuntimeAdapter["listenToThreadSettings"];
     setSessionExecutionStrategy: (
       sessionId: string,
       executionStrategy: AgentExecutionStrategy,
@@ -67,20 +70,6 @@ interface UseAgentContextOptions {
       reasoningEffort?: string,
     ) => Promise<void>;
   };
-}
-
-interface PendingModelSelection extends SessionModelPreference {
-  reasoningEffort: ModelReasoningEffortLevel | "";
-}
-
-function modelSettingsUpdateErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return String(
-    getLimeI18n().t("agentChat.modelSettings.updateFailed", {
-      ns: "agent",
-      message,
-    }),
-  );
 }
 
 export function useAgentContext(options: UseAgentContextOptions) {
@@ -135,13 +124,6 @@ export function useAgentContext(options: UseAgentContextOptions) {
   const scopedModelPrefKeyRef = useRef<string>(
     getAgentPreferenceKeys(workspaceId).modelKey,
   );
-  const pendingSessionProviderSelectionSyncRef = useRef(
-    new Map<string, PendingModelSelection>(),
-  );
-  const activeSessionProviderSelectionSyncRef = useRef(new Set<string>());
-  const sessionProviderSelectionSyncPromiseRef = useRef(
-    new Map<string, Promise<void>>(),
-  );
   const syncedSessionProviderSelectionRef = useRef(
     new Map<string, SessionModelPreference>(),
   );
@@ -168,6 +150,10 @@ export function useAgentContext(options: UseAgentContextOptions) {
       savePersisted(
         getSessionModelPreferenceKey(workspaceId, targetSessionId),
         {
+          ...loadPersisted<SessionModelPreference | null>(
+            getSessionModelPreferenceKey(workspaceId, targetSessionId),
+            null,
+          ),
           providerType: targetProviderType,
           model: targetModel,
         },
@@ -290,150 +276,6 @@ export function useAgentContext(options: UseAgentContextOptions) {
     [],
   );
 
-  const scheduleSessionProviderSelectionSync = useCallback(
-    (
-      targetSessionId: string,
-      targetProviderType: string,
-      targetModel: string,
-      targetReasoningEffort: ModelReasoningEffortLevel | "",
-    ) => {
-      const cancelPendingSessionMetadataSync =
-        pendingSessionMetadataSyncCancelRef?.current;
-      if (cancelPendingSessionMetadataSync) {
-        cancelPendingSessionMetadataSync();
-        pendingSessionMetadataSyncCancelRef.current = null;
-      }
-      const syncSelection = runtime.setSessionProviderSelection;
-      const trimmedSessionId = targetSessionId.trim();
-      if (!trimmedSessionId) {
-        return;
-      }
-
-      const pending = pendingSessionProviderSelectionSyncRef.current;
-      pending.set(trimmedSessionId, {
-        providerType: targetProviderType,
-        model: targetModel,
-        reasoningEffort: targetReasoningEffort,
-      });
-      const active = activeSessionProviderSelectionSyncRef.current;
-      if (
-        active.has(trimmedSessionId) ||
-        sessionProviderSelectionSyncPromiseRef.current.has(trimmedSessionId)
-      ) {
-        return;
-      }
-
-      let resolveSync: (() => void) | undefined;
-      const syncPromise = new Promise<void>((resolve) => {
-        resolveSync = resolve;
-      });
-      sessionProviderSelectionSyncPromiseRef.current.set(
-        trimmedSessionId,
-        syncPromise,
-      );
-
-      queueMicrotask(() => {
-        if (active.has(trimmedSessionId)) {
-          return;
-        }
-        active.add(trimmedSessionId);
-
-        void (async () => {
-          try {
-            while (true) {
-              const latestPreference = pending.get(trimmedSessionId);
-              if (!latestPreference) {
-                return;
-              }
-              pending.delete(trimmedSessionId);
-
-              try {
-                await syncSelection(
-                  trimmedSessionId,
-                  latestPreference.providerType,
-                  latestPreference.model,
-                  latestPreference.reasoningEffort,
-                );
-              } catch (error) {
-                if (!pending.has(trimmedSessionId)) {
-                  console.warn(
-                    "[AgentChat] 更新 thread model settings 失败:",
-                    error,
-                  );
-                  toast.error(modelSettingsUpdateErrorMessage(error));
-                }
-                continue;
-              }
-
-              persistSessionModelPreference(
-                trimmedSessionId,
-                latestPreference.providerType,
-                latestPreference.model,
-              );
-              if (sessionIdRef.current?.trim() === trimmedSessionId) {
-                providerTypeRef.current = latestPreference.providerType;
-                modelRef.current = latestPreference.model;
-                reasoningEffortRef.current = latestPreference.reasoningEffort;
-                setProviderTypeState(latestPreference.providerType);
-                setModelState(latestPreference.model);
-                setReasoningEffortState(latestPreference.reasoningEffort);
-                savePersisted(
-                  scopedProviderPrefKeyRef.current,
-                  latestPreference.providerType,
-                );
-                savePersisted(
-                  scopedModelPrefKeyRef.current,
-                  latestPreference.model,
-                );
-              }
-              markSessionModelPreferenceSynced(
-                trimmedSessionId,
-                latestPreference.providerType,
-                latestPreference.model,
-              );
-              if (pending.has(trimmedSessionId)) {
-                continue;
-              }
-            }
-          } finally {
-            active.delete(trimmedSessionId);
-            if (
-              sessionProviderSelectionSyncPromiseRef.current.get(
-                trimmedSessionId,
-              ) === syncPromise
-            ) {
-              sessionProviderSelectionSyncPromiseRef.current.delete(
-                trimmedSessionId,
-              );
-            }
-            resolveSync?.();
-          }
-        })();
-      });
-    },
-    [
-      markSessionModelPreferenceSynced,
-      pendingSessionMetadataSyncCancelRef,
-      persistSessionModelPreference,
-      runtime.setSessionProviderSelection,
-      sessionIdRef,
-    ],
-  );
-
-  const waitForSessionProviderSelectionSync = useCallback(
-    (targetSessionId: string): Promise<void> => {
-      const trimmedSessionId = targetSessionId.trim();
-      if (!trimmedSessionId) {
-        return Promise.resolve();
-      }
-      return (
-        sessionProviderSelectionSyncPromiseRef.current.get(trimmedSessionId) ||
-        Promise.resolve()
-      );
-    },
-    [],
-  );
-
   const filterSessionsByWorkspace = useCallback(
     <T extends { id: string; workspace_id?: string | null }>(
       sessions: T[],
@@ -480,10 +322,12 @@ export function useAgentContext(options: UseAgentContextOptions) {
       };
       providerTypeRef.current = resolvedPreference.providerType;
       modelRef.current = resolvedPreference.model;
-      reasoningEffortRef.current = "";
+      const effectiveEffort =
+        normalizeModelReasoningEffort(preference.threadSettings?.effort) ?? "";
+      reasoningEffortRef.current = effectiveEffort;
       setProviderTypeState(resolvedPreference.providerType);
       setModelState(resolvedPreference.model);
-      setReasoningEffortState("");
+      setReasoningEffortState(effectiveEffort);
       savePersisted(
         scopedProviderPrefKeyRef.current,
         resolvedPreference.providerType,
@@ -542,6 +386,48 @@ export function useAgentContext(options: UseAgentContextOptions) {
     [],
   );
 
+  const {
+    pendingSessionProviderSelectionSyncRef,
+    scheduleSessionProviderSelectionSync,
+    waitForSessionProviderSelectionSync,
+  } = useAgentModelSettingsSync({
+    workspaceId,
+    runtime,
+    pendingSessionMetadataSyncCancelRef,
+    onCanonical: ({
+      threadId,
+      sessionIds,
+      threadSettings,
+      workspaceId: notificationWorkspaceId,
+    }) => {
+      if (notificationWorkspaceId && notificationWorkspaceId !== workspaceId)
+        return;
+      const preference: SessionModelPreference = {
+        providerType: threadSettings.modelProvider,
+        model: threadSettings.model,
+        threadId,
+        threadSettings,
+      };
+      for (const targetSessionId of sessionIds) {
+        savePersisted(
+          getSessionModelPreferenceKey(workspaceId, targetSessionId),
+          preference,
+        );
+        markSessionModelPreferenceSynced(
+          targetSessionId,
+          preference.providerType,
+          preference.model,
+        );
+      }
+      const activeSessionId = sessionIdRef.current?.trim();
+      if (activeSessionId && sessionIds.includes(activeSessionId)) {
+        applySessionModelPreference(activeSessionId, preference, {
+          markSynced: true,
+        });
+      }
+    },
+  });
+
   const setProviderType = useCallback(
     (nextProviderType: string) => {
       const currentSessionId = sessionIdRef.current;
@@ -565,7 +451,11 @@ export function useAgentContext(options: UseAgentContextOptions) {
       setReasoningEffortState("");
       savePersisted(scopedProviderPrefKeyRef.current, nextProviderType);
     },
-    [scheduleSessionProviderSelectionSync, sessionIdRef],
+    [
+      pendingSessionProviderSelectionSyncRef,
+      scheduleSessionProviderSelectionSync,
+      sessionIdRef,
+    ],
   );
 
   const setModel = useCallback(
@@ -591,7 +481,11 @@ export function useAgentContext(options: UseAgentContextOptions) {
       setReasoningEffortState("");
       savePersisted(scopedModelPrefKeyRef.current, nextModel);
     },
-    [scheduleSessionProviderSelectionSync, sessionIdRef],
+    [
+      pendingSessionProviderSelectionSyncRef,
+      scheduleSessionProviderSelectionSync,
+      sessionIdRef,
+    ],
   );
 
   const setReasoningEffort = useCallback(
@@ -613,7 +507,11 @@ export function useAgentContext(options: UseAgentContextOptions) {
       reasoningEffortRef.current = nextReasoningEffort;
       setReasoningEffortState(nextReasoningEffort);
     },
-    [scheduleSessionProviderSelectionSync, sessionIdRef],
+    [
+      pendingSessionProviderSelectionSyncRef,
+      scheduleSessionProviderSelectionSync,
+      sessionIdRef,
+    ],
   );
 
   const scheduleSessionExecutionStrategySync = useCallback(
@@ -756,7 +654,7 @@ export function useAgentContext(options: UseAgentContextOptions) {
       resolvePersistedExecutionStrategy(resolvedWorkspaceId),
     );
     setAccessModeState(resolvePersistedAccessMode(resolvedWorkspaceId));
-  }, [workspaceId]);
+  }, [pendingSessionProviderSelectionSyncRef, workspaceId]);
 
   useEffect(() => {
     savePersisted(scopedProviderPrefKeyRef.current, providerType);

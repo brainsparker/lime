@@ -25,6 +25,12 @@ import {
   runThreadReadLongListDomOracle,
 } from "./lib/session-history-long-list-oracle.mjs";
 import {
+  runSessionHistoryUserCollapseColdRestartPhase,
+  runSessionHistoryUserCollapsePhase,
+} from "./lib/session-history-user-collapse-runtime.mjs";
+import { extractLongListCollapseFailure } from "./lib/session-history-user-collapse-geometry.mjs";
+import { runMainWindowClipboardPermissionQueryGate } from "./lib/main-window-permissions-fixture.mjs";
+import {
   assertThreadReadPageIsomorphicDomOracle,
   assertThreadReadPageIsomorphicReadModel,
   runThreadReadPageIsomorphicDomOracle,
@@ -400,7 +406,9 @@ async function launchElectronFixture({
     }
   });
   const page = await app.firstWindow({ timeout: options.timeoutMs });
-  page.on("pageerror", (error) => pageErrors.push(sanitizeText(error.message)));
+  page.on("pageerror", (error) =>
+    pageErrors.push(sanitizeText(error.stack || error.message)),
+  );
   page.setDefaultTimeout(options.timeoutMs);
   await page.setViewportSize({ width: 1440, height: 1000 });
   const rendererSnapshot = await waitForRendererReady(page, options);
@@ -534,6 +542,8 @@ async function run() {
     threadReadLongListSeed: null,
     threadReadLongListSummary: null,
     threadReadLongListColdRestartSummary: null,
+    userMessageCollapseLongListSummary: null,
+    userMessageCollapseLongListColdRestartSummary: null,
     consoleErrors: [],
     pageErrors: [],
     screenshot: null,
@@ -697,6 +707,8 @@ async function run() {
     logStage("run-electron-thread-read-long-list");
     await handle.page.reload({ waitUntil: "domcontentloaded" });
     await waitForRendererReady(handle.page, options);
+    summary.mainWindowClipboardPermissionQuery =
+      await runMainWindowClipboardPermissionQueryGate(handle.page);
     await clearInvokeBuffers(handle.page);
     await setSidebarWorkspace(handle.page, THREAD_READ_LONG_LIST.workspaceId);
     await handle.page.evaluate(() => window.__LIME_AGENTUI_PERF__?.clear?.());
@@ -708,10 +720,17 @@ async function run() {
     summary.threadReadLongListSummary = sanitizeJson(
       assertThreadReadLongListDomOracle(longListDomResult),
     );
+    const userCollapseResult = await runSessionHistoryUserCollapsePhase(
+      handle,
+      options,
+    );
+    summary.userMessageCollapseLongListSummary =
+      sanitizeJson(userCollapseResult);
     await handle.page.screenshot({
       path: longListScreenshotPath,
       fullPage: false,
     });
+    const longListOldProcess = handle.app.process();
     await clearInvokeBuffers(handle.page);
     await closeElectronFixture(handle);
     handle = null;
@@ -732,6 +751,14 @@ async function run() {
     );
     summary.threadReadLongListColdRestartSummary = sanitizeJson(
       assertThreadReadLongListColdRestartOracle(longListColdRestartResult),
+    );
+    summary.userMessageCollapseLongListColdRestartSummary = sanitizeJson(
+      await runSessionHistoryUserCollapseColdRestartPhase(
+        handle,
+        options,
+        userCollapseResult,
+        longListOldProcess,
+      ),
     );
     await handle.page.screenshot({
       path: longListColdRestartScreenshotPath,
@@ -765,6 +792,10 @@ async function run() {
     );
   } catch (error) {
     summary.error = error instanceof Error ? error.message : String(error);
+    const collapseFailure = extractLongListCollapseFailure(error);
+    if (collapseFailure) {
+      summary.userMessageCollapseFailure = sanitizeJson(collapseFailure);
+    }
     summary.consoleErrors = consoleErrors;
     summary.pageErrors = pageErrors;
     if (Object.keys(rawEvidence).length > 0) {

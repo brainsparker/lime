@@ -360,9 +360,64 @@ describe("workspaceConversationSceneViewModel", () => {
         expect.objectContaining({
           path: "src/source.ts",
           displayName: "source.ts -> destination.ts",
+          destinationPath: "src/destination.ts",
         }),
       ]),
     );
+  });
+
+  it("空变更仍保留 canonical thread identity 和既有文件动作", () => {
+    const codingView = projectCodingWorkbenchViewFromEvents({
+      executionEvents: [],
+      codingReadModel: { thread_id: "thread-empty" },
+    });
+    const onOpenFile = vi.fn();
+    expect(
+      buildCanvasWorkbenchChangeViewFromCodingProjection({
+        codingView,
+        reviewThreadId: "thread-empty",
+        onOpenFile,
+      }),
+    ).toMatchObject({ reviewThreadId: "thread-empty", items: [], onOpenFile });
+  });
+
+  it("完整 patch 不受 preview 截断影响，保留 hunk 行号和删除语义", () => {
+    const diff = [
+      "@@ -40,2 +40,2 @@",
+      " context",
+      "-old",
+      `+${"x".repeat(400)}`,
+    ].join("\n");
+    const codingView = projectCodingWorkbenchViewFromEvents({
+      executionEvents: [],
+      codingReadModel: {
+        thread_id: "thread-1",
+        thread_items: [
+          {
+            id: "patch",
+            type: "fileChange",
+            status: "completed",
+            changes: [{ path: "src/app.ts", kind: { type: "update" }, diff }],
+          },
+        ],
+      },
+    });
+    const view = buildCanvasWorkbenchChangeViewFromCodingProjection({
+      codingView,
+      reviewThreadId: "thread-1",
+    });
+    expect(codingView.changes[0].preview!.length).toBeLessThan(diff.length);
+    expect(view?.items[0].diffLines).toMatchObject([
+      {
+        type: "context",
+        value: "context",
+        oldLineNumber: 40,
+        newLineNumber: 40,
+      },
+      { type: "remove", value: "old", oldLineNumber: 41 },
+      { type: "add", value: "x".repeat(400), newLineNumber: 41 },
+    ]);
+    expect(view?.items[0].currentContent).toBeUndefined();
   });
 
   it("应从 current thread read model 合并 coding command/test/action 状态", () => {

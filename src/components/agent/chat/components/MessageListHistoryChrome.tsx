@@ -53,52 +53,6 @@ export function PersistedHistoryWindow({
   );
 }
 
-interface HistoryWindowProps {
-  hiddenHistoryCount: number;
-  isRestoredHistoryWindow: boolean;
-  renderedEntriesCount: number;
-  onExpandAllHistory: () => void;
-}
-
-export function HistoryWindow({
-  hiddenHistoryCount,
-  isRestoredHistoryWindow,
-  renderedEntriesCount,
-  onExpandAllHistory,
-}: HistoryWindowProps) {
-  const { t } = useTranslation("agent");
-
-  return (
-    <div
-      data-testid="message-list-history-window"
-      data-hidden-history-count={hiddenHistoryCount}
-      data-rendered-entries-count={renderedEntriesCount}
-      data-restored-history-window={isRestoredHistoryWindow ? "true" : "false"}
-      className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200/80 bg-slate-50/80 px-4 py-3 text-sm text-slate-600"
-    >
-      <div className="min-w-0 flex-1">
-        {t(
-          isRestoredHistoryWindow
-            ? "agentChat.messageList.history.windowEntrySummaryRestored"
-            : "agentChat.messageList.history.windowEntrySummaryDeferred",
-          {
-            loaded: formatContentLength(renderedEntriesCount),
-            hidden: formatContentLength(hiddenHistoryCount),
-          },
-        )}
-      </div>
-      <button
-        type="button"
-        data-testid="message-list-expand-history"
-        className="shrink-0 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100"
-        onClick={onExpandAllHistory}
-      >
-        {t("agentChat.messageList.history.expandEarlierEntries")}
-      </button>
-    </div>
-  );
-}
-
 export function RestoringSessionEmptyState() {
   const { t } = useTranslation("agent");
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readComposerEditorText } from "../lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -405,11 +406,7 @@ rl.on("line", (line) => {
 }
 
 function preparePluginPackage(fixture) {
-  const skillDir = path.join(
-    fixture.root,
-    "skills",
-    PLUGIN_PACKAGE_SKILL_ID,
-  );
+  const skillDir = path.join(fixture.root, "skills", PLUGIN_PACKAGE_SKILL_ID);
   fs.mkdirSync(skillDir, { recursive: true });
   fs.writeFileSync(
     path.join(skillDir, "SKILL.md"),
@@ -420,8 +417,7 @@ function preparePluginPackage(fixture) {
     path.join(fixture.root, "plugin.json"),
     `${JSON.stringify(
       {
-        $schema:
-          "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
         name: PLUGIN_PACKAGE_ID,
         version: "1.0.0",
         description: "Agent Plugins standard package Gate B fixture",
@@ -434,8 +430,7 @@ function preparePluginPackage(fixture) {
     path.join(fixture.root, "mcp.json"),
     `${JSON.stringify(
       {
-        $schema:
-          "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
         mcpServers: {
           [PLUGIN_PACKAGE_SERVER_ID]: {
             type: "stdio",
@@ -627,7 +622,8 @@ async function openPluginPackageAppCenter(
             .map((element) => element.getAttribute("data-testid"))
             .filter(Boolean)
             .slice(-80),
-          mainText: document.querySelector("main")?.textContent?.slice(0, 240) ?? "",
+          mainText:
+            document.querySelector("main")?.textContent?.slice(0, 240) ?? "",
         }))
         .catch(() => null);
       if (attempt === 3) {
@@ -709,9 +705,7 @@ async function installPluginPackageFromAppCenter({
     `plugin/read 标准 mcp.json capability 数量异常: ${summary?.mcpServersCount}`,
   );
   assert(
-    read.result?.plugin?.skills?.some(
-      (skill) => skill?.id === plugin.skillId,
-    ),
+    read.result?.plugin?.skills?.some((skill) => skill?.id === plugin.skillId),
     "plugin/read 未投影标准 skills/<name>/SKILL.md",
   );
   assert(
@@ -748,8 +742,12 @@ async function setPluginPackageEnabledFromAppCenter(
   await page
     .locator(`[data-testid="plugin-catalog-actions-${pluginId}"]`)
     .waitFor({ state: "visible", timeout: options.timeoutMs });
-  await page.locator(`[data-testid="plugin-catalog-actions-${pluginId}"]`).click();
-  await page.locator(`[data-testid="plugin-catalog-toggle-${pluginId}"]`).click();
+  await page
+    .locator(`[data-testid="plugin-catalog-actions-${pluginId}"]`)
+    .click();
+  await page
+    .locator(`[data-testid="plugin-catalog-toggle-${pluginId}"]`)
+    .click();
   await observeAppServerMethodFromTrace(
     page,
     "plugin/enabled/set",
@@ -948,10 +946,14 @@ async function uninstallPluginPackageFromAppCenter({
     state: "hidden",
     timeout: options.timeoutMs,
   });
-  const actions = page.locator(`[data-testid="plugin-catalog-actions-${pluginId}"]`);
+  const actions = page.locator(
+    `[data-testid="plugin-catalog-actions-${pluginId}"]`,
+  );
   await actions.waitFor({ state: "visible", timeout: options.timeoutMs });
   await actions.click();
-  await page.locator(`[data-testid="plugin-catalog-uninstall-${pluginId}"]`).click();
+  await page
+    .locator(`[data-testid="plugin-catalog-uninstall-${pluginId}"]`)
+    .click();
   const confirmation = page.locator(
     '[data-testid="plugin-catalog-uninstall-confirm"]',
   );
@@ -1085,7 +1087,7 @@ async function openRuntimeThreadInGui(page, sessionId, options) {
     timeout: options.timeoutMs,
   });
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   assert(
@@ -1226,7 +1228,7 @@ async function switchRuntimeThreadInGuiViaSidebar(
     await readRendererSessionSwitchSuccessCount(page, sourceSessionId);
   await sourceButton.click();
   const sourceInput = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sourceSessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sourceSessionId}"]`,
   );
   await sourceInput.waitFor({ state: "visible", timeout: options.timeoutMs });
   const sourceHydration = await waitForRendererHistoryHydrationAfterClick(
@@ -1250,7 +1252,7 @@ async function switchRuntimeThreadInGuiViaSidebar(
     await readRendererSessionSwitchSuccessCount(page, targetSessionId);
   await targetButton.click();
   const targetInput = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${targetSessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${targetSessionId}"]`,
   );
   await targetInput.waitFor({ state: "visible", timeout: options.timeoutMs });
   await page.waitForFunction(
@@ -1296,7 +1298,7 @@ async function selectRuntimeRouteInRenderer(
     "Renderer 模型选择缺少 provider/model route",
   );
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   const modelSelector = input.locator(
     'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="model-selector"]',
@@ -1338,10 +1340,10 @@ async function selectRuntimeRouteInRenderer(
 
   const selectionHandle = await page.waitForFunction(
     ({ expectedModel, expectedProvider, activeSessionId }) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${activeSessionId}"]`,
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${activeSessionId}"]`,
       );
-      const container = textarea?.closest(
+      const container = editor?.closest(
         '[data-testid="inputbar-core-container"]',
       );
       const trigger = container?.querySelector(
@@ -1434,7 +1436,7 @@ async function startPluginPackageTurnFromGui({
     route: runtime.route,
   });
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${runtime.sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${runtime.sessionId}"]`,
   );
   await input.fill(
     `Use $${PLUGIN_PACKAGE_SKILL_ID} to run the release check through the available MCP tool.`,
@@ -1455,14 +1457,18 @@ async function startPluginPackageTurnFromGui({
     .first();
   await pluginOption.waitFor({ state: "visible", timeout: options.timeoutMs });
   await pluginOption.click();
-  const badge = page.locator('[data-testid="inputbar-plugin-badge"]');
-  await badge.waitFor({ state: "visible", timeout: options.timeoutMs });
+  const token = input.locator(
+    '[data-composer-token="plugin"][contenteditable="false"]',
+  );
+  await token.waitFor({ state: "visible", timeout: options.timeoutMs });
   assert(
-    (await badge.textContent())?.includes(PLUGIN_PACKAGE_DISPLAY_NAME),
-    "Claw Plugin badge identity 不一致",
+    (await token.textContent())?.includes(PLUGIN_PACKAGE_DISPLAY_NAME),
+    "Claw Plugin inline token identity 不一致",
   );
   assert(
-    (await input.inputValue()).startsWith(`@${PLUGIN_PACKAGE_DISPLAY_NAME}`),
+    (await readComposerEditorText(input)).startsWith(
+      `@${PLUGIN_PACKAGE_DISPLAY_NAME}`,
+    ),
     "Claw composer 未写入 Plugin 显式触发前缀",
   );
   await page.screenshot({ path: screenshotPath, fullPage: true });
@@ -1645,9 +1651,8 @@ function providerRequestSummary(requests) {
       index,
       path: request.path,
       pluginSkillContextSeen:
-        serializedPrompt.includes(
-          `<name>${PLUGIN_PACKAGE_SKILL_ID}</name>`,
-        ) && serializedPrompt.includes(PLUGIN_PACKAGE_SKILL_BODY_MARKER),
+        serializedPrompt.includes(`<name>${PLUGIN_PACKAGE_SKILL_ID}</name>`) &&
+        serializedPrompt.includes(PLUGIN_PACKAGE_SKILL_BODY_MARKER),
       stream: request.body?.stream === true,
       toolNames: (request.body?.tools ?? [])
         .map((tool) => String(tool?.function?.name || tool?.name || "").trim())
@@ -1880,7 +1885,12 @@ function failureThreadSummary(result) {
   };
 }
 
-async function collectFailureDiagnostics({ page, runtime, fixture, ledgerPath }) {
+async function collectFailureDiagnostics({
+  page,
+  runtime,
+  fixture,
+  ledgerPath,
+}) {
   const diagnostics = {
     providerRequests: fixture ? providerRequestSummary(fixture.requests) : [],
     providerConnections: fixture?.connectionDiagnostics ?? [],
@@ -2095,7 +2105,9 @@ export async function run({ pluginPackage = false } = {}) {
     mcpAppCanonicalIdentityStable: false,
     mcpAppHtmlLoadCount: 0,
     mcpAppResourceReadCount: 0,
-    mcpAppResourceUri: pluginPackage ? PLUGIN_PACKAGE_MCP_APP_RESOURCE_URI : null,
+    mcpAppResourceUri: pluginPackage
+      ? PLUGIN_PACKAGE_MCP_APP_RESOURCE_URI
+      : null,
     mcpAppRestoredAfterReload: false,
     mcpAppRightSurfaceVisible: false,
     mcpAppToolCallCount: 0,
@@ -2134,7 +2146,9 @@ export async function run({ pluginPackage = false } = {}) {
 
   try {
     logStage("start-provider-fixture");
-    const serverName = pluginPackage ? pluginPackageServerName() : makeServerName();
+    const serverName = pluginPackage
+      ? pluginPackageServerName()
+      : makeServerName();
     const expectedToolName = toolName(serverName);
     fixture = await startOpenAiCompatibleFixtureServer({
       connectionDiagnostics: true,
@@ -2236,13 +2250,14 @@ export async function run({ pluginPackage = false } = {}) {
           { type: "text", content: DISABLED_BOUNDARY_FINAL_TEXT },
         ],
       });
-      const disabledBoundary = await verifyPluginPackageDisabledNewThreadBoundary({
-        page,
-        fixture: disabledBoundaryFixture,
-        plugin,
-        options,
-        observedMethods,
-      });
+      const disabledBoundary =
+        await verifyPluginPackageDisabledNewThreadBoundary({
+          page,
+          fixture: disabledBoundaryFixture,
+          plugin,
+          options,
+          observedMethods,
+        });
       summary.disabledBoundaryCompleted = true;
       summary.disabledNewSessionId = disabledBoundary.sessionId;
       summary.disabledNewThreadId = disabledBoundary.threadId;
@@ -2509,9 +2524,7 @@ export async function run({ pluginPackage = false } = {}) {
         restoredSurface.viewId === firstSurface.viewId;
       raw.mcpAppRestoredRead = sanitizeJson(restoredRead);
       raw.mcpAppRestoredSurface = sanitizeJson(restoredSurface);
-      raw.mcpAppRestoredLifecycleDelta = sanitizeJson(
-        restoredLifecycleDelta,
-      );
+      raw.mcpAppRestoredLifecycleDelta = sanitizeJson(restoredLifecycleDelta);
       await page.screenshot({ path: screenshotPath, fullPage: true });
 
       const preColdRestoreLedger = readJsonLines(mcpFixture.ledgerPath);

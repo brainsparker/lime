@@ -1,269 +1,53 @@
+
+import type { CharacterMentionProps } from "./CharacterMention.types";
+import { replaceComposerText, resolveComposerTrigger, mergeTriggerSelectionText, type TriggerMode, type ActiveTrigger, type PendingCuratedTaskLaunch } from "./composerMentionSelection";
+import { useCharacterMentionSelection } from "./useCharacterMentionSelection";
 /**
  * 角色与技能引用组件
  *
  * 在输入框中检测 @ 或 / 符号，显示角色、技能与命令列表供选择
  */
 
-import React, {
-  Suspense,
-  useEffect,
-  useState,
-  useMemo,
-  useRef,
-  useCallback,
-} from "react";
+import React, { Suspense, useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
-import type { Character } from "@/lib/api/projectMemory";
-import type { Skill } from "@/lib/api/skills";
-import {
-  listServiceSkills,
-  type ServiceSkillItem,
-} from "@/lib/api/serviceSkills";
+
+
+
 import { filterMentionableServiceSkills } from "@/components/agent/chat/service-skills/entryAdapter";
-import {
-  getServiceSkillActionLabel,
-  getServiceSkillRunnerDescription,
-  getServiceSkillRunnerLabel,
-  getServiceSkillRunnerTone,
-} from "@/components/agent/chat/service-skills/skillPresentation";
-import { matchesRuntimeSceneCommandToServiceSkill } from "@/components/agent/chat/service-skills/runtimeSceneBinding";
-import type {
-  ServiceSkillGroup,
-  ServiceSkillHomeItem,
-} from "@/components/agent/chat/service-skills/types";
-import { toast } from "sonner";
-import { filterSlashCommands, type SlashCommandDefinition } from "../commands";
-import {
-  filterBuiltinCommands,
-  filterRuntimeSceneSlashCommands,
-  type BuiltinInputCommand,
-  type RuntimeSceneSlashCommand,
-} from "./builtinCommands";
-import type {
-  InputCapabilityActivationOptions,
-  SelectInputCapabilityHandler,
-} from "./inputCapabilitySelection";
-import {
-  LazyCharacterMentionPanel,
-  preloadCharacterMentionPanel,
-} from "./characterMentionPanelLoader";
-import {
-  isCompleteInputbarPluginTriggerQuery,
-  type InputbarPluginSelectionOptions,
-  type InputbarPluginCapability,
-  type InputbarPluginSkillCapability,
-} from "../components/Inputbar/pluginInputCapability";
-import type { InputCapabilityDescriptor } from "./inputCapabilitySections";
-import {
-  recordSlashEntryUsage,
-  subscribeSlashEntryUsageChanged,
-} from "./slashEntryUsage";
+
+
+
+
+import { filterSlashCommands } from "../commands";
+import { filterBuiltinCommands, filterRuntimeSceneSlashCommands } from "./builtinCommands";
+
+import { LazyCharacterMentionPanel, preloadCharacterMentionPanel } from "./characterMentionPanelLoader";
+import { isCompleteInputbarPluginTriggerQuery } from "../components/Inputbar/pluginInputCapability";
+
+import { subscribeSlashEntryUsageChanged } from "./slashEntryUsage";
 import { subscribeMentionEntryUsageChanged } from "./mentionEntryUsage";
 import { partitionMentionableSkills } from "./skillQuery";
 import { useRuntimeInputCapabilityCatalog } from "./runtimeInputCapabilityCatalog";
 import { useIdleModulePreload } from "./useIdleModulePreload";
-import {
-  buildCuratedTaskLaunchPrompt,
-  recordCuratedTaskTemplateUsage,
-  subscribeCuratedTaskTemplateUsageChanged,
-  type CuratedTaskInputValues,
-  type CuratedTaskTemplateItem,
-} from "../utils/curatedTaskTemplates";
+import { buildCuratedTaskLaunchPrompt, recordCuratedTaskTemplateUsage, subscribeCuratedTaskTemplateUsageChanged, type CuratedTaskInputValues, type CuratedTaskTemplateItem } from "../utils/curatedTaskTemplates";
 import { subscribeCuratedTaskRecommendationSignalsChanged } from "../utils/curatedTaskRecommendationSignals";
 import { CuratedTaskLauncherDialog } from "../components/CuratedTaskLauncherDialog";
-import {
-  extractCuratedTaskReferenceMemoryIds,
-  mergeCuratedTaskReferenceEntries,
-  normalizeCuratedTaskReferenceMemoryIds,
-} from "../utils/curatedTaskReferenceSelection";
-import type {
-  CuratedTaskReferenceEntry,
-  CuratedTaskReferenceSelection,
-} from "../utils/curatedTaskReferenceSelection";
-import type { ProjectFileSearchResult } from "@/lib/api/fuzzyFileSearch";
-import { replaceProjectFileMentionToken } from "./projectFileMention";
+import { extractCuratedTaskReferenceMemoryIds, mergeCuratedTaskReferenceEntries, normalizeCuratedTaskReferenceMemoryIds } from "../utils/curatedTaskReferenceSelection";
+import type { CuratedTaskReferenceSelection } from "../utils/curatedTaskReferenceSelection";
+
+
 import { useProjectFileMentionSearch } from "./useProjectFileMentionSearch";
-
-interface CharacterMentionProps {
-  /** 角色列表 */
-  characters: Character[];
-  /** 技能列表 */
-  skills?: Skill[];
-  /** 技能目录项列表 */
-  serviceSkills?: ServiceSkillHomeItem[];
-  /** 技能目录分组 */
-  serviceSkillGroups?: ServiceSkillGroup[];
-  /** 输入框 ref */
-  inputRef: React.RefObject<HTMLTextAreaElement>;
-  /** 当前输入值 */
-  value: string;
-  /** 输入值变更回调 */
-  onChange: (value: string) => void;
-  /** 选择角色回调 */
-  onSelectCharacter?: (character: Character) => void;
-  /** 统一选择输入能力回调 */
-  onSelectInputCapability?: SelectInputCapabilityHandler;
-  /** 选择结果模板回调 */
-  onSelectCuratedTask?: (
-    task: CuratedTaskTemplateItem,
-    options?: {
-      launchInputValues?: CuratedTaskInputValues;
-      referenceMemoryIds?: string[];
-      referenceEntries?: CuratedTaskReferenceEntry[];
-      launcherPrefillHint?: string;
-    },
-  ) => void;
-  /** 选择 Plugin 插件回调 */
-  onSelectPlugin?: (
-    plugin: InputbarPluginCapability,
-    skill?: InputbarPluginSkillCapability,
-    options?: InputbarPluginSelectionOptions,
-  ) => void;
-  /** Plugin 插件候选 */
-  pluginSuggestions?: readonly InputbarPluginCapability[];
-  /** 需要加载技能候选时触发 */
-  onSkillSuggestionsNeeded?: () => void;
-  /** 需要加载 Plugin 插件候选时触发 */
-  onPluginSuggestionsNeeded?: () => void;
-  projectId?: string | null;
-  sessionId?: string | null;
-  /** 当前默认带入的灵感引用 */
-  defaultCuratedTaskReferenceMemoryIds?: string[];
-  /** 当前默认带入的灵感引用对象 */
-  defaultCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
-  /** 跳转到设置页安装技能 */
-  onNavigateToSettings?: () => void;
-  /** 是否启用输入自动补全与联想面板 */
-  inputCompletionEnabled?: boolean;
-}
-
-type TriggerMode = "mention" | "slash";
-
-interface ActiveTrigger {
-  mode: TriggerMode;
-  triggerIndex: number;
-  query: string;
-}
-
-interface PendingCuratedTaskLaunch {
-  task: CuratedTaskTemplateItem;
-  leadingText: string;
-  trailingText: string;
-  restoreCursorPos: number;
-  initialInputValues?: CuratedTaskInputValues;
-  initialReferenceMemoryIds?: string[];
-  initialReferenceEntries?: CuratedTaskReferenceEntry[];
-  launcherPrefillHint?: string;
-}
-
-function resolveMentionTrigger(textBeforeCursor: string): ActiveTrigger | null {
-  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
-  if (lastAtIndex === -1) {
-    return null;
-  }
-
-  const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-  if (textAfterAt.includes(" ") || textAfterAt.includes("\n")) {
-    return null;
-  }
-
-  return {
-    mode: "mention",
-    triggerIndex: lastAtIndex,
-    query: textAfterAt,
-  };
-}
-
-function resolveSlashTrigger(textBeforeCursor: string): ActiveTrigger | null {
-  const slashMatch = textBeforeCursor.match(/(?:^|[\s\n])(\/[^\s\n/]*)$/);
-  if (!slashMatch) {
-    return null;
-  }
-
-  const slashToken = slashMatch[1];
-  const triggerIndex = textBeforeCursor.length - slashToken.length;
-  return {
-    mode: "slash",
-    triggerIndex,
-    query: slashToken.slice(1),
-  };
-}
-
-function resolveActiveTrigger(
-  value: string,
-  cursorPos: number,
-): ActiveTrigger | null {
-  const textBeforeCursor = value.slice(0, cursorPos);
-  const mentionTrigger = resolveMentionTrigger(textBeforeCursor);
-  const slashTrigger = resolveSlashTrigger(textBeforeCursor);
-
-  if (!mentionTrigger) {
-    return slashTrigger;
-  }
-  if (!slashTrigger) {
-    return mentionTrigger;
-  }
-
-  return mentionTrigger.triggerIndex > slashTrigger.triggerIndex
-    ? mentionTrigger
-    : slashTrigger;
-}
-
-function normalizeReplayText(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function mergeTriggerSelectionText(params: {
-  leadingText: string;
-  insertedText: string;
-  trailingText: string;
-}): { value: string; cursorPos: number } {
-  const normalizedInsertedText = params.insertedText.trim();
-  if (!normalizedInsertedText) {
-    return {
-      value: `${params.leadingText}${params.trailingText}`,
-      cursorPos: params.leadingText.length,
-    };
-  }
-
-  const needsLeadingSpace =
-    params.leadingText.length > 0 && !/[\s\n]$/.test(params.leadingText);
-  const needsTrailingSpace =
-    params.trailingText.length > 0 && !/^[\s\n]/.test(params.trailingText);
-  const mergedInsertedText = `${needsLeadingSpace ? " " : ""}${normalizedInsertedText}${
-    needsTrailingSpace ? " " : ""
-  }`;
-
-  return {
-    value: `${params.leadingText}${mergedInsertedText}${params.trailingText}`,
-    cursorPos: params.leadingText.length + mergedInsertedText.length,
-  };
-}
-
-function toServiceSkillHomeItem(skill: ServiceSkillItem): ServiceSkillHomeItem {
-  return {
-    ...skill,
-    badge: "",
-    recentUsedAt: null,
-    isRecent: false,
-    runnerLabel: getServiceSkillRunnerLabel(skill),
-    runnerTone: getServiceSkillRunnerTone(skill),
-    runnerDescription: getServiceSkillRunnerDescription(skill),
-    actionLabel: getServiceSkillActionLabel(skill),
-    automationStatus: null,
-  };
-}
 
 export function CharacterMention({
   characters,
   skills = [],
   serviceSkills = [],
   serviceSkillGroups = [],
-  inputRef,
+  editorRef,
+  controller,
   value,
-  onChange,
+  onChange: notifyChange,
   onSelectCharacter,
   onSelectInputCapability,
   onSelectCuratedTask,
@@ -278,6 +62,10 @@ export function CharacterMention({
   onNavigateToSettings,
   inputCompletionEnabled = true,
 }: CharacterMentionProps) {
+  const onChange = useCallback((next: string) => {
+    replaceComposerText(controller, next);
+    notifyChange(controller.getDocument().text);
+  }, [controller, notifyChange]);
   const { t } = useTranslation("agent");
   const [showMentions, setShowMentions] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
@@ -362,14 +150,14 @@ export function CharacterMention({
       return;
     }
 
-    const textarea = inputRef.current;
-    if (!textarea) {
+    const editor = editorRef.current;
+    if (!editor) {
       setShowMentions(false);
       return;
     }
 
-    const cursorPos = textarea.selectionStart ?? textarea.value.length;
-    const activeTrigger = resolveActiveTrigger(textarea.value, cursorPos);
+    const cursorPos = editor.getSelection().start;
+    const activeTrigger = resolveComposerTrigger(controller.getEditorState().doc, cursorPos);
     if (!activeTrigger) {
       activeTriggerRef.current = null;
       setShowMentions(false);
@@ -394,7 +182,8 @@ export function CharacterMention({
     setTriggerMode(activeTrigger.mode);
     setShowMentions(true);
 
-    const rect = textarea.getBoundingClientRect();
+    const rect = editor.getBoundingClientRect();
+    if (!rect) return;
     const viewportWidth =
       window.innerWidth || document.documentElement.clientWidth || 1280;
     const viewportHeight =
@@ -419,7 +208,7 @@ export function CharacterMention({
         120,
       ),
     });
-  }, [inputCompletionEnabled, inputRef, pluginSuggestions]);
+  }, [controller, inputCompletionEnabled, editorRef, pluginSuggestions]);
 
   useEffect(() => {
     if (!inputCompletionEnabled) {
@@ -427,22 +216,23 @@ export function CharacterMention({
       return;
     }
 
-    const textarea = inputRef.current;
-    if (!textarea) return;
-    textarea.addEventListener("input", updateMentionState);
-    textarea.addEventListener("click", updateMentionState);
-    textarea.addEventListener("keyup", updateMentionState);
+    const editor = editorRef.current;
+    if (!editor) return;
+    editor.getElement()?.addEventListener("input", updateMentionState);
+    editor.getElement()?.addEventListener("click", updateMentionState);
+    editor.getElement()?.addEventListener("keyup", updateMentionState);
 
     return () => {
-      textarea.removeEventListener("input", updateMentionState);
-      textarea.removeEventListener("click", updateMentionState);
-      textarea.removeEventListener("keyup", updateMentionState);
+      editor.getElement()?.removeEventListener("input", updateMentionState);
+      editor.getElement()?.removeEventListener("click", updateMentionState);
+      editor.getElement()?.removeEventListener("keyup", updateMentionState);
     };
-  }, [inputCompletionEnabled, inputRef, updateMentionState]);
+  }, [inputCompletionEnabled, editorRef, updateMentionState]);
 
   useEffect(() => {
     updateMentionState();
   }, [updateMentionState, value]);
+  useEffect(() => controller.subscribe(updateMentionState), [controller, updateMentionState]);
 
   useEffect(() => {
     if (!showMentions) {
@@ -473,7 +263,7 @@ export function CharacterMention({
       }
       if (
         panelRef.current?.contains(target) ||
-        inputRef.current?.contains(target)
+        editorRef.current?.contains(target)
       ) {
         return;
       }
@@ -484,7 +274,7 @@ export function CharacterMention({
     return () => {
       document.removeEventListener("mousedown", handlePointerDown);
     };
-  }, [inputRef, showMentions]);
+  }, [editorRef, showMentions]);
 
   useEffect(() => {
     return subscribeCuratedTaskTemplateUsageChanged(() => {
@@ -510,624 +300,7 @@ export function CharacterMention({
     });
   }, []);
 
-  const handleSelectCharacter = (character: Character) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "mention") {
-      return;
-    }
-
-    const newValue =
-      currentValue.slice(0, activeTrigger.triggerIndex) +
-      `@${character.name} ` +
-      textAfterCursor;
-
-    onChange(newValue);
-    setShowMentions(false);
-    onSelectCharacter?.(character);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos =
-        activeTrigger.triggerIndex + character.name.length + 2;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectProjectFile = (file: ProjectFileSearchResult) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const activeTrigger =
-      activeTriggerRef.current?.mode === "mention"
-        ? activeTriggerRef.current
-        : resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "mention") {
-      return;
-    }
-
-    const selection = replaceProjectFileMentionToken({
-      value: currentValue,
-      tokenStart: activeTrigger.triggerIndex,
-      tokenEnd: activeTrigger.triggerIndex + activeTrigger.query.length + 1,
-      path: file.path,
-    });
-    onChange(selection.value);
-    setShowMentions(false);
-
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(selection.cursorPos, selection.cursorPos);
-    }, 0);
-  };
-
-  const handleSelectInstalledSkill = (
-    skill: Skill,
-    options?: InputCapabilityActivationOptions,
-  ) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger) {
-      return;
-    }
-
-    if (activeTrigger.mode === "slash") {
-      const replayText = normalizeReplayText(options?.replayText);
-      if (onSelectInputCapability) {
-        const leadingText = currentValue.slice(0, activeTrigger.triggerIndex);
-        const nextSelection = replayText
-          ? mergeTriggerSelectionText({
-              leadingText,
-              insertedText: replayText,
-              trailingText: textAfterCursor,
-            })
-          : {
-              value: `${leadingText}${textAfterCursor}`,
-              cursorPos: Math.max(0, activeTrigger.triggerIndex),
-            };
-        const normalizedValue =
-          nextSelection.value.trimEnd() === "" ? "" : nextSelection.value;
-
-        onChange(normalizedValue);
-        setShowMentions(false);
-        onSelectInputCapability(
-          {
-            kind: "installed_skill",
-            skill,
-          },
-          replayText ? { replayText } : undefined,
-        );
-
-        setTimeout(() => {
-          textarea.focus();
-          const newCursorPos = Math.min(
-            nextSelection.cursorPos,
-            normalizedValue.length,
-          );
-          textarea.setSelectionRange(newCursorPos, newCursorPos);
-        }, 0);
-        return;
-      }
-
-      const nextSelection = replayText
-        ? mergeTriggerSelectionText({
-            leadingText: currentValue.slice(0, activeTrigger.triggerIndex),
-            insertedText: `/${skill.key} ${replayText}`,
-            trailingText: textAfterCursor,
-          })
-        : {
-            value:
-              currentValue.slice(0, activeTrigger.triggerIndex) +
-              `/${skill.key} ` +
-              textAfterCursor,
-            cursorPos: activeTrigger.triggerIndex + skill.key.length + 2,
-          };
-      onChange(nextSelection.value);
-      setShowMentions(false);
-      recordSlashEntryUsage({
-        kind: "skill",
-        entryId: skill.key,
-        replayText: replayText || undefined,
-      });
-
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = nextSelection.cursorPos;
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-      return;
-    }
-
-    if (onSelectInputCapability) {
-      const newValue =
-        currentValue.slice(0, activeTrigger.triggerIndex) + textAfterCursor;
-      onChange(newValue.trimEnd() === "" ? "" : newValue);
-      setShowMentions(false);
-      onSelectInputCapability({
-        kind: "installed_skill",
-        skill,
-      });
-
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = Math.max(0, activeTrigger.triggerIndex);
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-      return;
-    }
-
-    const newValue =
-      currentValue.slice(0, activeTrigger.triggerIndex) +
-      `/${skill.key} ` +
-      textAfterCursor;
-    onChange(newValue);
-    setShowMentions(false);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = activeTrigger.triggerIndex + skill.key.length + 2;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectAvailableSkill = (skill: Skill) => {
-    setShowMentions(false);
-
-    toast.info(`技能「${skill.name}」尚未安装`, {
-      action: onNavigateToSettings
-        ? {
-            label: "去技能中心",
-            onClick: onNavigateToSettings,
-          }
-        : undefined,
-    });
-  };
-
-  const handleSelectBuiltinCommand = (
-    command: BuiltinInputCommand,
-    options?: InputCapabilityActivationOptions,
-  ) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "mention") {
-      return;
-    }
-
-    const leadingText = currentValue.slice(0, activeTrigger.triggerIndex);
-    const replayText = normalizeReplayText(options?.replayText);
-
-    if (onSelectInputCapability) {
-      const nextSelection = replayText
-        ? mergeTriggerSelectionText({
-            leadingText,
-            insertedText: replayText,
-            trailingText: textAfterCursor,
-          })
-        : {
-            value: `${leadingText}${textAfterCursor}`,
-            cursorPos: Math.max(0, activeTrigger.triggerIndex),
-          };
-      const normalizedValue =
-        nextSelection.value.trimEnd() === "" ? "" : nextSelection.value;
-
-      onChange(normalizedValue);
-      setShowMentions(false);
-      onSelectInputCapability(
-        {
-          kind: "builtin_command",
-          command,
-        },
-        replayText ? { replayText } : undefined,
-      );
-
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = Math.min(
-          nextSelection.cursorPos,
-          normalizedValue.length,
-        );
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-      return;
-    }
-
-    const nextSelection = replayText
-      ? mergeTriggerSelectionText({
-          leadingText,
-          insertedText: `${command.commandPrefix} ${replayText}`,
-          trailingText: textAfterCursor,
-        })
-      : {
-          value: `${leadingText}${command.commandPrefix} ${textAfterCursor}`,
-          cursorPos:
-            activeTrigger.triggerIndex + command.commandPrefix.length + 1,
-        };
-
-    onChange(nextSelection.value);
-    setShowMentions(false);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = nextSelection.cursorPos;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectServiceSkill = (skill: ServiceSkillHomeItem) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "mention") {
-      return;
-    }
-
-    if (onSelectInputCapability) {
-      const newValue =
-        currentValue.slice(0, activeTrigger.triggerIndex) + textAfterCursor;
-      onChange(newValue.trimEnd() === "" ? "" : newValue);
-      setShowMentions(false);
-      onSelectInputCapability({
-        kind: "service_skill",
-        skill,
-      });
-
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = Math.max(0, activeTrigger.triggerIndex);
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-      return;
-    }
-
-    const newValue =
-      currentValue.slice(0, activeTrigger.triggerIndex) +
-      `@${skill.title} ` +
-      textAfterCursor;
-    onChange(newValue);
-    setShowMentions(false);
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = activeTrigger.triggerIndex + skill.title.length + 2;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectPlugin = (
-    plugin: InputbarPluginCapability,
-    skill?: InputbarPluginSkillCapability,
-  ) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const fallbackCursorPos = textarea.selectionStart ?? currentValue.length;
-    const fallbackTrigger = resolveActiveTrigger(
-      currentValue,
-      fallbackCursorPos,
-    );
-    const activeTrigger =
-      activeTriggerRef.current?.mode === "mention"
-        ? activeTriggerRef.current
-        : fallbackTrigger;
-    if (!activeTrigger || activeTrigger.mode !== "mention") {
-      return;
-    }
-
-    const mentionEnd =
-      activeTrigger.triggerIndex + activeTrigger.query.length + 1;
-    const textAfterCursor = currentValue.slice(mentionEnd);
-    const nextSelection = mergeTriggerSelectionText({
-      leadingText: currentValue.slice(0, activeTrigger.triggerIndex),
-      insertedText: "",
-      trailingText: textAfterCursor,
-    });
-    const normalizedValue =
-      nextSelection.value.trimEnd() === "" ? "" : nextSelection.value;
-
-    onChange(normalizedValue);
-    setShowMentions(false);
-    onSelectPlugin?.(plugin, skill, {
-      inputOverride: normalizedValue,
-      preserveInputOverride: true,
-    });
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = Math.min(
-        nextSelection.cursorPos,
-        normalizedValue.length,
-      );
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectSlashCommand = (
-    command: SlashCommandDefinition,
-    options?: { replayText?: string },
-  ) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "slash") {
-      return;
-    }
-
-    const replayText = normalizeReplayText(options?.replayText);
-    const nextSelection = replayText
-      ? mergeTriggerSelectionText({
-          leadingText: currentValue.slice(0, activeTrigger.triggerIndex),
-          insertedText: `${command.commandPrefix} ${replayText}`,
-          trailingText: textAfterCursor,
-        })
-      : {
-          value:
-            currentValue.slice(0, activeTrigger.triggerIndex) +
-            `${command.commandPrefix} ` +
-            textAfterCursor,
-          cursorPos:
-            activeTrigger.triggerIndex + command.commandPrefix.length + 1,
-        };
-
-    onChange(nextSelection.value);
-    setShowMentions(false);
-    if (command.support === "supported") {
-      recordSlashEntryUsage({
-        kind: "command",
-        entryId: command.key,
-        replayText: replayText || undefined,
-      });
-    }
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = nextSelection.cursorPos;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectRuntimeSceneCommand = async (
-    command: RuntimeSceneSlashCommand,
-    options?: { replayText?: string },
-  ) => {
-    const replayText = normalizeReplayText(options?.replayText);
-
-    const matchedVisibleSkill = serviceSkills.find((skill) =>
-      matchesRuntimeSceneCommandToServiceSkill(skill, command),
-    );
-    const shouldResolveServiceSkill =
-      !replayText &&
-      onSelectInputCapability &&
-      (matchedVisibleSkill || command.linkedSkillId);
-
-    if (shouldResolveServiceSkill) {
-      const matchedSkill =
-        matchedVisibleSkill ||
-        (await (async () => {
-          try {
-            const runtimeSkills = await listServiceSkills();
-            const runtimeMatchedSkill = runtimeSkills.find((skill) =>
-              matchesRuntimeSceneCommandToServiceSkill(skill, command),
-            );
-            return runtimeMatchedSkill
-              ? toServiceSkillHomeItem(runtimeMatchedSkill)
-              : null;
-          } catch {
-            return null;
-          }
-        })());
-
-      if (
-        matchedSkill &&
-        matchedSkill.slotSchema.some((slot) => slot.required)
-      ) {
-        onSelectInputCapability({
-          kind: "service_skill",
-          skill: matchedSkill,
-        });
-        setShowMentions(false);
-        recordSlashEntryUsage({
-          kind: "scene",
-          entryId: command.key,
-        });
-        return;
-      }
-    }
-
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "slash") {
-      return;
-    }
-
-    if (onSelectInputCapability) {
-      const leadingText = currentValue.slice(0, activeTrigger.triggerIndex);
-      const nextSelection = replayText
-        ? mergeTriggerSelectionText({
-            leadingText,
-            insertedText: replayText,
-            trailingText: textAfterCursor,
-          })
-        : {
-            value: `${leadingText}${textAfterCursor}`,
-            cursorPos: Math.max(0, activeTrigger.triggerIndex),
-          };
-      const normalizedValue =
-        nextSelection.value.trimEnd() === "" ? "" : nextSelection.value;
-
-      onChange(normalizedValue);
-      setShowMentions(false);
-      onSelectInputCapability(
-        {
-          kind: "runtime_scene",
-          command,
-        },
-        replayText ? { replayText } : undefined,
-      );
-
-      setTimeout(() => {
-        textarea.focus();
-        const newCursorPos = Math.min(
-          nextSelection.cursorPos,
-          normalizedValue.length,
-        );
-        textarea.setSelectionRange(newCursorPos, newCursorPos);
-      }, 0);
-      return;
-    }
-
-    const nextSelection = replayText
-      ? mergeTriggerSelectionText({
-          leadingText: currentValue.slice(0, activeTrigger.triggerIndex),
-          insertedText: `${command.commandPrefix} ${replayText}`,
-          trailingText: textAfterCursor,
-        })
-      : {
-          value:
-            currentValue.slice(0, activeTrigger.triggerIndex) +
-            `${command.commandPrefix} ` +
-            textAfterCursor,
-          cursorPos:
-            activeTrigger.triggerIndex + command.commandPrefix.length + 1,
-        };
-
-    onChange(nextSelection.value);
-    setShowMentions(false);
-    recordSlashEntryUsage({
-      kind: "scene",
-      entryId: command.key,
-      replayText: replayText || undefined,
-    });
-
-    setTimeout(() => {
-      textarea.focus();
-      const newCursorPos = nextSelection.cursorPos;
-      textarea.setSelectionRange(newCursorPos, newCursorPos);
-    }, 0);
-  };
-
-  const handleSelectCuratedTask = (
-    task: CuratedTaskTemplateItem,
-    options?: {
-      launchInputValues?: CuratedTaskInputValues;
-      referenceMemoryIds?: string[];
-      referenceEntries?: CuratedTaskReferenceEntry[];
-      launcherPrefillHint?: string;
-    },
-  ) => {
-    const textarea = inputRef.current;
-    if (!textarea) return;
-
-    const currentValue = textarea.value || value;
-    const cursorPos = textarea.selectionStart ?? currentValue.length;
-    const textAfterCursor = currentValue.slice(cursorPos);
-    const activeTrigger = resolveActiveTrigger(currentValue, cursorPos);
-    if (!activeTrigger || activeTrigger.mode !== "slash") {
-      return;
-    }
-
-    const mergedReferenceEntries = mergeCuratedTaskReferenceEntries([
-      ...(options?.referenceEntries ?? []),
-      ...defaultCuratedTaskReferenceEntries,
-    ]);
-    const mergedReferenceMemoryIds =
-      normalizeCuratedTaskReferenceMemoryIds([
-        ...(options?.referenceMemoryIds ?? []),
-        ...(extractCuratedTaskReferenceMemoryIds(mergedReferenceEntries) ?? []),
-        ...defaultCuratedTaskReferenceMemoryIds,
-      ]) ?? [];
-
-    setShowMentions(false);
-    setPendingCuratedTaskLaunch({
-      task,
-      leadingText: currentValue.slice(0, activeTrigger.triggerIndex),
-      trailingText: textAfterCursor,
-      restoreCursorPos: cursorPos,
-      initialInputValues: options?.launchInputValues,
-      initialReferenceMemoryIds: mergedReferenceMemoryIds,
-      initialReferenceEntries: mergedReferenceEntries,
-      launcherPrefillHint: options?.launcherPrefillHint,
-    });
-  };
-
-  const handleSelectCapabilityDescriptor = (
-    item: InputCapabilityDescriptor,
-  ) => {
-    switch (item.kind) {
-      case "builtin_command":
-        handleSelectBuiltinCommand(item.command, {
-          replayText: item.replayText,
-        });
-        return;
-      case "service_skill":
-        handleSelectServiceSkill(item.skill);
-        return;
-      case "plugin":
-        handleSelectPlugin(item.plugin, item.skill);
-        return;
-      case "slash_command":
-        handleSelectSlashCommand(item.command, {
-          replayText: item.replayText,
-        });
-        return;
-      case "scene_command":
-        void handleSelectRuntimeSceneCommand(item.command, {
-          replayText: item.replayText,
-        });
-        return;
-      case "curated_task":
-        handleSelectCuratedTask(item.task, {
-          launchInputValues: item.launchInputValues,
-          referenceMemoryIds: item.referenceMemoryIds,
-          referenceEntries: item.referenceEntries,
-          launcherPrefillHint: item.launcherPrefillHint,
-        });
-        return;
-      case "character":
-        handleSelectCharacter(item.character);
-        return;
-      case "installed_skill":
-        handleSelectInstalledSkill(item.skill, {
-          replayText: item.replayText,
-        });
-        return;
-      case "available_skill":
-        handleSelectAvailableSkill(item.skill);
-        return;
-      default:
-        return;
-    }
-  };
+  const { handleSelectProjectFile, handleSelectCapabilityDescriptor } = useCharacterMentionSelection({ editorRef, controller, onChange, onSelectCharacter, onSelectInputCapability, onSelectPlugin, onNavigateToSettings, activeTriggerRef, serviceSkills, setShowMentions, setPendingCuratedTaskLaunch, defaultCuratedTaskReferenceEntries, defaultCuratedTaskReferenceMemoryIds });
 
   const handleCuratedTaskLauncherOpenChange = useCallback(
     (open: boolean) => {
@@ -1138,21 +311,21 @@ export function CharacterMention({
       const pendingLaunch = pendingCuratedTaskLaunch;
       setPendingCuratedTaskLaunch(null);
 
-      const textarea = inputRef.current;
-      if (!textarea || !pendingLaunch) {
+      const editor = editorRef.current;
+      if (!editor || !pendingLaunch) {
         return;
       }
 
       setTimeout(() => {
-        textarea.focus();
+        editor.focus();
         const nextCursorPos = Math.min(
           pendingLaunch.restoreCursorPos,
-          textarea.value.length,
+          controller.getDocument().text.length,
         );
-        textarea.setSelectionRange(nextCursorPos, nextCursorPos);
+        editor.setSelection({ start: nextCursorPos, end: nextCursorPos });
       }, 0);
     },
-    [inputRef, pendingCuratedTaskLaunch],
+    [controller, editorRef, pendingCuratedTaskLaunch],
   );
   const handleApplyCuratedTaskReviewSuggestion = useCallback(
     (
@@ -1193,8 +366,8 @@ export function CharacterMention({
       referenceSelection: CuratedTaskReferenceSelection,
     ) => {
       const pendingLaunch = pendingCuratedTaskLaunch;
-      const textarea = inputRef.current;
-      if (!pendingLaunch || !textarea) {
+      const editor = editorRef.current;
+      if (!pendingLaunch || !editor) {
         return;
       }
 
@@ -1240,15 +413,12 @@ export function CharacterMention({
       }
 
       setTimeout(() => {
-        textarea.focus();
-        textarea.setSelectionRange(
-          nextSelection.cursorPos,
-          nextSelection.cursorPos,
-        );
+        editor.focus();
+        editor.setSelection({ start: nextSelection.cursorPos, end: nextSelection.cursorPos });
       }, 0);
     },
     [
-      inputRef,
+      editorRef,
       onChange,
       onSelectCuratedTask,
       onSelectInputCapability,
@@ -1257,12 +427,12 @@ export function CharacterMention({
   );
 
   useEffect(() => {
-    const textarea = inputRef.current;
-    if (!textarea || !showMentions) return;
+    const editor = editorRef.current;
+    if (!editor || !showMentions) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const composing =
-        (e as KeyboardEvent & { isComposing?: boolean }).isComposing ||
+        editor.isComposing() || e.isComposing ||
         e.key === "Process" ||
         e.keyCode === 229;
       if (composing) {
@@ -1291,9 +461,9 @@ export function CharacterMention({
       }
     };
 
-    textarea.addEventListener("keydown", handleKeyDown);
-    return () => textarea.removeEventListener("keydown", handleKeyDown);
-  }, [showMentions, inputRef]);
+    editor.getElement()?.addEventListener("keydown", handleKeyDown, true);
+    return () => editor.getElement()?.removeEventListener("keydown", handleKeyDown, true);
+  }, [showMentions, editorRef]);
 
   if (!showMentions && !pendingCuratedTaskLaunch) return null;
 

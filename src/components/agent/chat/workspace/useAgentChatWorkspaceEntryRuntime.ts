@@ -134,6 +134,8 @@ export function useAgentChatWorkspaceEntryRuntime({
     activeTheme,
     artifactPreviewSize,
     creationMode,
+    composerController,
+    resetComposerDraft,
     effectiveEntryBannerMessage,
     entryBannerVisible,
     expertInfoPanelCollapsed,
@@ -164,7 +166,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     addPathReferences: handleAddPathReferences,
     removePathReference: handleRemovePathReference,
     clearPathReferences: handleClearPathReferences,
-  } = usePathReferences();
+  } = usePathReferences([], composerController);
   const fileManagerSidebar = useFileManagerSidebar({
     onCollapseTopicSidebar: handleCollapseTopicSidebarForFileManager,
   });
@@ -324,7 +326,6 @@ export function useAgentChatWorkspaceEntryRuntime({
 
   const { openedProjects, handleCloseOpenedProject } =
     useWorkspaceOpenedProjectsRuntime({
-      enabled: !shouldDeferWorkspaceAuxiliaryLoads,
       project,
       projectId,
       applyProjectSelection,
@@ -479,6 +480,8 @@ export function useAgentChatWorkspaceEntryRuntime({
     shouldBootstrapCanvasOnEntry,
     shouldKeepNewTaskHomeSessionRestoreDisabled,
     localDisplayRuntime,
+    composerController,
+    resetComposerDraft,
     activeTheme,
     artifactPreviewSize,
     creationMode,

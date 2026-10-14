@@ -1,3 +1,6 @@
+import { ComposerController } from "@/components/input-kit/ComposerController";
+import { insertComposerSkill } from "../skill-selection/composerCapabilityMention";
+import { getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -478,11 +481,22 @@ function expectEmptyStateSend(
   expect(actual).toBeTruthy();
   expect(actual?.images).toEqual(payload.images);
   expect(actual?.textOverride).toEqual(payload.textOverride);
-  expect(actual?.sendOptions).toEqual(payload.sendOptions);
+  expect(actual?.composerDraft?.editorDocument.type).toBe("doc");
+  if (actual?.composerSubmission?.text) expect(actual.composerSubmission.text).toBe(actual.textOverride);
+  else expect(actual?.composerSubmission?.textElements).toEqual([]);
+  expect(actual?.sendOptions?.inputRestoreDraft).toEqual({ ...actual?.composerDraft, images: actual?.composerDraft?.attachments });
+  if (payload.sendOptions && "asymmetricMatch" in payload.sendOptions) {
+    expect(actual?.sendOptions).toEqual(payload.sendOptions);
+  } else {
+    const { inputRestoreDraft: _actualRestore, ...actualOptions } = actual?.sendOptions ?? {};
+    const { inputRestoreDraft: expectedRestore, ...expectedOptions } = payload.sendOptions ?? {};
+    if (expectedRestore) expect(actual?.sendOptions?.inputRestoreDraft).toMatchObject(expectedRestore);
+    expect(actualOptions).toEqual(expectedOptions);
+  }
 }
 
 function updateFieldValue(
-  element: HTMLInputElement | HTMLTextAreaElement | null,
+  element: HTMLInputElement | HTMLTextAreaElement | HTMLElement | null,
   value: string,
 ) {
   expect(element).toBeTruthy();
@@ -490,6 +504,7 @@ function updateFieldValue(
     return;
   }
 
+  if (element.matches('[data-testid="composer-editor"]')) { setComposerEditorText(element, value); return; }
   const prototype =
     element instanceof HTMLTextAreaElement
       ? HTMLTextAreaElement.prototype
@@ -680,7 +695,7 @@ describe("EmptyState", () => {
       '[data-testid="inputbar-connected-composer"]',
     );
     const projectContextBar = primaryStack?.querySelector(
-      '[data-testid="inputbar-project-context-bar"]',
+      '[data-testid="composer-utility-bar"]',
     );
     expect(primaryStack).toBeTruthy();
     expect(inputbarCore).toBeTruthy();
@@ -713,7 +728,7 @@ describe("EmptyState", () => {
     expect(projectContextBar?.textContent).not.toContain("main");
     expect(
       projectContextBar?.querySelector(
-        '[data-testid="inputbar-project-context-branch"]',
+        '[data-testid="composer-utility-branch"]',
       ),
     ).toBeNull();
     expect(container.textContent).toContain("引导帮助");
@@ -780,22 +795,22 @@ describe("EmptyState", () => {
     await flushAsyncEffects(6);
     await waitForProjectContextSelector(
       container,
-      '[data-testid="inputbar-project-context-branch"]',
+      '[data-testid="composer-utility-branch"]',
     );
 
     const projectContextBar = container.querySelector(
-      '[data-testid="inputbar-project-context-bar"]',
+      '[data-testid="composer-utility-bar"]',
     );
 
     expect(projectContextBar).toBeTruthy();
     expect(
       projectContextBar?.querySelector(
-        '[data-testid="inputbar-project-context-mode-menu"]',
+        '[data-testid="composer-utility-mode-menu"]',
       ),
     ).toBeTruthy();
     expect(
       projectContextBar?.querySelector(
-        '[data-testid="inputbar-project-context-branch"]',
+        '[data-testid="composer-utility-branch"]',
       ),
     ).toBeTruthy();
     expect(projectContextBar?.textContent).toContain("启动模式");
@@ -854,7 +869,7 @@ describe("EmptyState", () => {
       "feature/demo",
     );
     expect(
-      container.querySelector('[data-testid="inputbar-project-context-bar"]')
+      container.querySelector('[data-testid="composer-utility-bar"]')
         ?.textContent,
     ).toContain("feature/demo");
   });
@@ -913,7 +928,7 @@ describe("EmptyState", () => {
       "feature/new",
     );
     expect(
-      container.querySelector('[data-testid="inputbar-project-context-bar"]')
+      container.querySelector('[data-testid="composer-utility-bar"]')
         ?.textContent,
     ).toContain("feature/new");
   });
@@ -1016,7 +1031,7 @@ describe("EmptyState", () => {
     expect(container.textContent).toContain(
       "How do I add and use project knowledge?",
     );
-    expect(container.querySelector("textarea")?.placeholder).toContain(
+    expect(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')?.getAttribute("data-placeholder")).toContain(
       "What would you like to learn?",
     );
   });
@@ -1158,10 +1173,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
-    const badge = container.querySelector('[data-testid="input-skill-badge"]');
+    const badge = container.querySelector('[data-composer-token="skill"]');
     expect(badge).toBeTruthy();
-    expect(badge?.textContent).toContain("@");
-    expect(badge?.textContent).toContain("写作助手");
+    expect(badge?.textContent).toContain("/local:writer");
+    expect(badge?.getAttribute("data-composer-name")).toBe("写作助手");
 
     const sendButton = container.querySelector(
       'button[aria-label="发送"]',
@@ -1173,14 +1188,14 @@ describe("EmptyState", () => {
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "整理最近发布计划",
+      textOverride: "整理最近发布计划 /local:writer",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "writer",
           skillName: "写作助手",
         },
-        displayContent: "整理最近发布计划",
+        displayContent: "整理最近发布计划 /local:writer",
       },
     });
   });
@@ -1212,6 +1227,9 @@ describe("EmptyState", () => {
       installed: true,
       sourceKind: "other",
     } as Skill;
+    const draftController = new ComposerController({ text: "继续生成提纲", attachments: [image], pathReferences: [pathReference], inputCapabilityRoute: capabilityRoute });
+    insertComposerSkill(draftController, skill);
+    const originalDraft = draftController.captureDraft();
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -1228,7 +1246,7 @@ describe("EmptyState", () => {
         requestId: "restore-empty-state-1",
         reason: "output_free_interrupted_turn",
         draft: {
-          text: "继续生成提纲",
+          ...originalDraft,
           images: [image],
           pathReferences: [pathReference],
           inputCapabilityRoute: capabilityRoute,
@@ -1267,9 +1285,9 @@ describe("EmptyState", () => {
     });
     await flushAsyncEffects();
 
-    expect(container.querySelector("textarea")?.value).toBe("继续生成提纲");
+    expect(getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]'))).toBe(originalDraft.text);
     expect(
-      container.querySelector('[data-testid="input-skill-badge"]'),
+      container.querySelector('[data-composer-token="skill"]'),
     ).toBeTruthy();
     expect(onInputRestoreRequestHandled).toHaveBeenCalledWith(
       "restore-empty-state-1",
@@ -1286,11 +1304,11 @@ describe("EmptyState", () => {
 
     expectEmptyStateSend(onSend, {
       images: [image],
-      textOverride: "继续生成提纲",
+      textOverride: originalDraft.text,
       sendOptions: expect.objectContaining({
         capabilityRoute,
         inputRestoreDraft: expect.objectContaining({
-          text: "继续生成提纲",
+          ...originalDraft,
           images: [image],
           pathReferences: [pathReference],
           inputCapabilityRoute: capabilityRoute,
@@ -1384,7 +1402,7 @@ describe("EmptyState", () => {
     expect(
       container.querySelector('[data-testid="home-starter-chips"]'),
     ).toBeNull();
-    expect(container.querySelector("textarea")?.placeholder).toContain(
+    expect(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')?.getAttribute("data-placeholder")).toContain(
       "想了解什么？试试",
     );
 
@@ -2447,14 +2465,14 @@ describe("EmptyState", () => {
       sendButton?.click();
     });
     expectEmptyStateSend(onSend, {
-      textOverride: "帮我设计封面",
+      textOverride: "帮我设计封面 /canvas-design",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "canvas-design",
           skillName: "canvas-design",
         },
-        displayContent: "帮我设计封面",
+        displayContent: "帮我设计封面 /canvas-design",
       },
     });
 
@@ -2462,7 +2480,7 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
     act(() => {
-      updateFieldValue(container.querySelector("textarea"), "帮我设计封面");
+      updateFieldValue(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]'), "帮我设计封面");
     });
     await act(async () => {
       await Promise.resolve();
@@ -2483,7 +2501,9 @@ describe("EmptyState", () => {
       textOverride: "帮我设计封面",
     });
     expect(secondPayload?.images).toBeUndefined();
-    expect(secondPayload?.sendOptions).toBeUndefined();
+    expect(secondPayload?.sendOptions?.capabilityRoute).toBeUndefined();
+    expect(secondPayload?.composerSubmission?.inputMentions).toEqual([]);
+    expect(secondPayload?.sendOptions?.inputRestoreDraft?.editorDocument.type).toBe("doc");
   });
 
   it("首页选择 builtin command 后发送应透传结构化 capability route", async () => {
@@ -3288,8 +3308,8 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
-    const textarea = container.querySelector("textarea");
-    expect(textarea?.getAttribute("placeholder")).toBe(
+    const textarea = container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]');
+    expect(textarea?.getAttribute("data-placeholder")).toBe(
       "先说这轮要做什么，目标、对象或限制都可以。",
     );
   });
@@ -3587,14 +3607,14 @@ describe("EmptyState", () => {
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "请输出一篇品牌故事",
+      textOverride: "请输出一篇品牌故事 /custom-writing-skill",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "custom-writing-skill",
           skillName: "custom-writing-skill",
         },
-        displayContent: "请输出一篇品牌故事",
+        displayContent: "请输出一篇品牌故事 /custom-writing-skill",
       },
     });
   });
@@ -3654,7 +3674,7 @@ describe("EmptyState", () => {
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "整理最近发布计划",
+      textOverride: "整理最近发布计划 /canvas-design",
     });
   });
 

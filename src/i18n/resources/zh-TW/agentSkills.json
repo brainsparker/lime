@@ -744,7 +744,6 @@
   "skills.workspace.sidebar.recent.emptySr": "目前還沒有可繼續項。先從左側拿一個結果或 Skill 開始，後續會自動回到這裡。",
   "skills.workspace.sidebar.recent.title": "最近",
   "skills.workspace.sidebar.registered.title": "已註冊能力",
-  "skills.inputBadge.remove": "移除 @{{name}}",
   "skills.workspace.view.tabsLabel": "技能分頁",
   "agentChat.skillInstallPrompt.installedConfirmation": "已安裝 Skill：{{skill}}\n\nLime 已重新載入 Skills。你可以在輸入框 @ 這個技能，或從 Skills 工作區使用。",
   "agentChat.skillInstallPrompt.alreadyInstalledConfirmation": "Skill 已安裝：{{skill}}\n\n依照安裝 Prompt 要求未重複覆蓋既有目錄，Lime 可直接使用該 Skill。",

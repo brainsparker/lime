@@ -33,6 +33,7 @@ import {
 import { ContentColumn, MessageBubble, MessageWrapper } from "../styles";
 import { AgentThreadTimeline } from "./AgentThreadTimeline";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { CollapsibleUserMessageContent } from "./CollapsibleUserMessageContent";
 import { MessageActionButtons } from "./MessageActionButtons";
 import { MessageImageAttachments } from "./MessageImageAttachments";
 import {
@@ -75,6 +76,7 @@ interface ConversationTurnTimelineProps {
   timelineFocusRequestKey: number;
   shouldDeferHistoricalTimelineDetails: boolean;
   handleCopy: (content: string, id: string) => void | Promise<void>;
+  onBeforeUserMessageToggle?: () => void;
   onA2UISubmit?: (formData: A2UIFormData, messageId: string) => void;
   onA2UIFormChange?: (formId: string, formData: A2UIFormData) => void;
   onWriteFile?: (
@@ -232,6 +234,7 @@ export function ConversationTurnTimeline({
   timelineFocusRequestKey,
   shouldDeferHistoricalTimelineDetails,
   handleCopy,
+  onBeforeUserMessageToggle,
   onA2UISubmit,
   onA2UIFormChange,
   onWriteFile,
@@ -583,11 +586,21 @@ export function ConversationTurnTimeline({
                       />
                     ))}
                     {content ? (
-                      <MarkdownRenderer
+                      <CollapsibleUserMessageContent
                         content={content}
-                        renderA2UIInline={renderA2UIInline}
-                        readOnlyA2UI={!isActiveOperationalTurn}
-                      />
+                        onBeforeToggle={onBeforeUserMessageToggle}
+                        revealRequestKey={
+                          focusedTimelineItemId === segment.item.id
+                            ? timelineFocusRequestKey
+                            : 0
+                        }
+                      >
+                        <MarkdownRenderer
+                          content={content}
+                          renderA2UIInline={renderA2UIInline}
+                          readOnlyA2UI={!isActiveOperationalTurn}
+                        />
+                      </CollapsibleUserMessageContent>
                     ) : null}
                     <MessageImageAttachments
                       images={userImages}

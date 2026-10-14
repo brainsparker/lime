@@ -19,7 +19,8 @@ import {
   resolveCuratedTaskTemplateLaunchPrefill,
 } from "../../utils/curatedTaskTemplates";
 import type { InputbarSendPayload } from "./inputbarSendPayload";
-import type { BaseComposerSendMetadata } from "@/components/input-kit";
+import { BaseComposer, ComposerController, ComposerEditor, type ComposerDraftSnapshot, type ComposerEditorHandle, type BaseComposerSendMetadata } from "@/components/input-kit";
+import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import type {
   InputbarPluginCapability,
   InputbarPluginSelectionOptions,
@@ -81,6 +82,9 @@ interface MockInputbarPlusMenuConfig {
 }
 
 interface MockInputbarCoreProps {
+  controller: ComposerController;
+  onHistoryRecall?: (draft: ComposerDraftSnapshot) => void;
+  editorRef?: React.RefObject<ComposerEditorHandle>;
   text?: string;
   setText?: (value: string) => void;
   disabled?: boolean;
@@ -131,6 +135,17 @@ function MockInputbarCoreView(props: MockInputbarCoreProps) {
 
   return (
     <div data-testid="inputbar-core">
+      <BaseComposer
+        controller={props.controller}
+        editorRef={props.editorRef}
+        text={props.text ?? ""}
+        setText={props.setText ?? (() => undefined)}
+        onSend={props.onSend ?? (() => undefined)}
+        disabled={props.disabled}
+        onHistoryRecall={props.onHistoryRecall}
+      >
+        {({ editorProps }) => <ComposerEditor {...editorProps} />}
+      </BaseComposer>
       <div data-testid="top-extra">{props.topExtra}</div>
       {props.showMetaTools ? (
         <>
@@ -300,10 +315,6 @@ vi.mock("../../skill-selection/CharacterMention", () => ({
     mockCharacterMention(props);
     return <div data-testid="character-mention-stub" />;
   },
-}));
-
-vi.mock("../../skill-selection/SkillBadge", () => ({
-  SkillBadge: () => <div data-testid="skill-badge" />,
 }));
 
 vi.mock("../../skill-selection/CuratedTaskBadge", () => ({
@@ -619,7 +630,8 @@ vi.mock("@/components/ui/select", () => ({
   ),
 }));
 
-vi.mock("@/components/input-kit", () => ({
+vi.mock("@/components/input-kit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/input-kit")>()),
   createAgentInputAdapter: (options: {
     text: string;
     setText: (value: string) => void;
@@ -832,8 +844,154 @@ function dispatchInputbarDrop(
   return event;
 }
 
+function createRichSkillRestoreDraft(skill: Skill, pathReference: {
+  id: string;
+  path: string;
+  name: string;
+  isDir: boolean;
+  source: "file_manager";
+}) {
+  const images = [{ data: "image-data", mediaType: "image/png" }];
+  const label = "/draft";
+  const inputCapabilityRoute = { kind: "installed_skill" as const, skillKey: "draft", skillName: skill.name };
+  const controller = new ComposerController({
+    text: `${label} 继续生成提纲`,
+    mentionBindings: [{
+      id: skill.key,
+      kind: "skill",
+      name: skill.name,
+      path: "draft/SKILL.md",
+      label,
+      from: 0,
+      to: label.length,
+    }],
+    attachments: images,
+    pathReferences: [pathReference],
+    inputCapabilityRoute,
+  });
+  return { ...controller.captureDraft(), images, inputCapabilityRoute };
+}
+
 describe("Inputbar", () => {
-  it("收到中断恢复请求时即使仍在 loading 也应回填文本、图片、路径和技能 chip", async () => {
+  it("重挂载收到相同恢复请求时保留后续编辑，新的请求仍可恢复", async () => {
+    const controller = new ComposerController();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    mountedRoots.push({ root, container });
+    function RestoreReplayHarness({ requestId }: { requestId: string }) {
+      const snapshot = React.useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+      const request = React.useMemo(() => ({ requestId, reason: "output_free_interrupted_turn" as const, draft: { text: "恢复正文" } }), [requestId]);
+      return <Inputbar composerController={controller} input={snapshot.document.text} setInput={(text) => controller.setText(text)} onSend={vi.fn()} isLoading={false} inputRestoreRequest={request} />;
+    }
+    await act(async () => { root.render(<RestoreReplayHarness requestId="restore-original" />); });
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR)!;
+    await act(async () => { await setComposerEditorText(editor, "恢复后的新输入"); });
+    const newDraft = controller.captureDraft();
+    const revision = controller.getSnapshot().revision;
+    await act(async () => { root.render(<RestoreReplayHarness key="remount" requestId="restore-original" />); });
+    expect(controller.captureDraft()).toEqual(newDraft);
+    expect(controller.getSnapshot().revision).toBe(revision);
+    await act(async () => { root.render(<RestoreReplayHarness key="remount" requestId="restore-next" />); });
+    expect(controller.getDocument().text).toBe("恢复正文");
+    expect(controller.getSnapshot().revision).toBeGreaterThan(revision);
+  });
+
+  it("入口预选在共享草稿中只消费一次，重新挂载不覆盖用户选择", async () => {
+    const initialSkill: Skill = { key: "local:initial", name: "入口技能", description: "初始能力", directory: "initial", installed: true, sourceKind: "other" };
+    const chosenSkill: Skill = { key: "local:chosen", name: "用户技能", description: "用户选择", directory: "chosen", installed: true, sourceKind: "other" };
+    const controller = new ComposerController({ text: "请保留我的选择" });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    mountedRoots.push({ root, container });
+    function InitializationHarness({ requestKey }: { requestKey: number }) {
+      const snapshot = React.useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+      return <Inputbar composerController={controller} input={snapshot.document.text} setInput={(text) => controller.setText(text)} onSend={vi.fn()} isLoading={false} skills={[initialSkill, chosenSkill]} initialInputCapability={{ requestKey, capabilityRoute: { kind: "installed_skill", skillKey: "initial", skillName: initialSkill.name } }} />;
+    }
+    await act(async () => { root.render(<InitializationHarness requestKey={1} />); });
+    await act(async () => { mockCharacterMention.mock.lastCall?.[0].onSelectInputCapability?.({ kind: "installed_skill", skill: chosenSkill }); });
+    const chosenDraft = controller.captureDraft();
+    const revision = controller.getSnapshot().revision;
+    expect(chosenDraft.inputCapabilityRoute).toMatchObject({ kind: "installed_skill", skillKey: "chosen" });
+    await act(async () => { root.render(<InitializationHarness key="next-surface" requestKey={1} />); });
+    expect(controller.captureDraft()).toEqual(chosenDraft);
+    expect(controller.getSnapshot().revision).toBe(revision);
+    await act(async () => { root.render(<InitializationHarness key="next-surface" requestKey={2} />); });
+    expect(controller.getDocument().inputCapabilityRoute).toMatchObject({ skillKey: "initial" });
+    await act(async () => {
+      controller.clear();
+      root.render(<InitializationHarness key="after-scope-reset" requestKey={2} />);
+    });
+    expect(controller.getDocument().text).toBe("");
+    expect(controller.getDocument().inputCapabilityRoute).toBeUndefined();
+    expect(container.querySelector('[data-composer-token="skill"]')).toBeNull();
+  });
+
+  it("共享草稿跨输入 surface 挂载保留 JSON、图片、路径与能力", async () => {
+    const skill: Skill = { key: "local:draft", name: "起草", description: "草稿能力", directory: "draft", installed: true, sourceKind: "other" };
+    const pathReference = { id: "file:/tmp/report.md", path: "/tmp/report.md", name: "report.md", isDir: false, source: "file_manager" as const };
+    const { images: _images, ...draft } = createRichSkillRestoreDraft(skill, pathReference);
+    const controller = new ComposerController(draft);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    mountedRoots.push({ root, container });
+    function SharedDraftHarness() {
+      const snapshot = React.useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+      const [paths, setPaths] = React.useState([pathReference]);
+      return <Inputbar composerController={controller} input={snapshot.document.text} setInput={(text) => controller.setText(text)} onSend={vi.fn()} isLoading={false} skills={[skill]} pathReferences={paths} onClearPathReferences={() => setPaths([])} onAddPathReferences={(references) => setPaths(references as typeof paths)} />;
+    }
+    for (const key of ["home-handoff", "chat-remount"]) {
+      await act(async () => { root.render(<SharedDraftHarness key={key} />); });
+      const props = mockInputbarCore.mock.lastCall?.[0];
+      expect(props?.controller).toBe(controller);
+      expect(controller.captureDraft()).toEqual(expect.objectContaining(draft));
+      expect(props?.pendingImages).toEqual(draft.attachments);
+      expect(props?.pathReferences).toEqual(draft.pathReferences);
+      expect(container.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("draft/SKILL.md");
+    }
+  });
+
+  it("真实历史按键同时恢复和离开完整富草稿的资源", async () => {
+    const skill: Skill = { key: "local:draft", name: "起草", description: "草稿能力", directory: "draft", installed: true, sourceKind: "other" };
+    const pathReference = { id: "file:/tmp/report.md", path: "/tmp/report.md", name: "report.md", isDir: false, source: "file_manager" as const };
+    const { images: _images, ...draft } = createRichSkillRestoreDraft(skill, pathReference);
+    const controller = new ComposerController(draft);
+    const receipt = controller.submit("start");
+    if (receipt.kind !== "accepted") throw new Error("rich draft was empty");
+    expect(controller.commit(receipt)).toBe(true);
+    const onSend = vi.fn();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    mountedRoots.push({ root, container });
+    function HistoryHarness() {
+      const snapshot = React.useSyncExternalStore(controller.subscribe, controller.getSnapshot);
+      const [paths, setPaths] = React.useState<(typeof pathReference)[]>([]);
+      return <Inputbar composerController={controller} input={snapshot.document.text} setInput={(text) => controller.setText(text)} onSend={onSend} isLoading={false} skills={[skill]} pathReferences={paths} onClearPathReferences={() => setPaths([])} onAddPathReferences={(references) => setPaths(references as typeof paths)} />;
+    }
+    await act(async () => { root.render(<HistoryHarness />); });
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR)!;
+    await act(async () => { editor.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true })); });
+    let props = mockInputbarCore.mock.lastCall?.[0];
+    expect(controller.captureDraft()).toEqual(expect.objectContaining(draft));
+    expect(props?.pendingImages).toEqual(draft.attachments);
+    expect(props?.pathReferences).toEqual(draft.pathReferences);
+    expect(editor.querySelector('[data-composer-token="skill"]')).not.toBeNull();
+    await act(async () => {
+      controller.setSelection(controller.getDocument().text.length);
+      editor.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true, cancelable: true }));
+    });
+    props = mockInputbarCore.mock.lastCall?.[0];
+    expect(controller.getDocument().text).toBe("");
+    expect(props?.pendingImages).toEqual([]);
+    expect(props?.pathReferences).toEqual([]);
+    expect(controller.getDocument().inputCapabilityRoute).toBeUndefined();
+    expect(onSend).not.toHaveBeenCalled();
+  });
+
+  it("收到完整中断草稿时即使仍在 loading 也应恢复文本、图片、路径和技能 atom", async () => {
     const onInputRestoreRequestHandled = vi.fn();
     const pathReference = {
       id: "file:/tmp/report.md",
@@ -865,21 +1023,7 @@ describe("Inputbar", () => {
       >({
         requestId: "restore-1",
         reason: "output_free_interrupted_turn",
-        draft: {
-          text: "继续生成提纲",
-          images: [
-            {
-              data: "image-data",
-              mediaType: "image/png",
-            },
-          ],
-          pathReferences: [pathReference],
-          inputCapabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "draft",
-            skillName: "起草",
-          },
-        },
+        draft: createRichSkillRestoreDraft(skill, pathReference),
       });
 
       return (
@@ -916,7 +1060,8 @@ describe("Inputbar", () => {
 
     const latestCoreProps =
       mockInputbarCore.mock.calls[mockInputbarCore.mock.calls.length - 1]?.[0];
-    expect(latestCoreProps?.text).toBe("继续生成提纲");
+    expect(latestCoreProps?.text).toBe("/draft 继续生成提纲");
+    expect(latestCoreProps?.controller.getDocument().editorDocument).toEqual(createRichSkillRestoreDraft(skill, pathReference).editorDocument);
     expect(latestCoreProps?.pathReferences).toEqual([pathReference]);
     expect(latestCoreProps?.pendingImages).toEqual([
       {
@@ -924,7 +1069,7 @@ describe("Inputbar", () => {
         mediaType: "image/png",
       },
     ]);
-    expect(container.querySelector('[data-testid="skill-badge"]')).toBeTruthy();
+    expect(container.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("draft/SKILL.md");
     expect(onInputRestoreRequestHandled).toHaveBeenCalledWith("restore-1");
   });
 
@@ -972,21 +1117,7 @@ describe("Inputbar", () => {
         setRestoreRequest({
           requestId: "restore-during-send",
           reason: "output_free_interrupted_turn",
-          draft: {
-            text: "继续生成提纲",
-            images: [
-              {
-                data: "image-data",
-                mediaType: "image/png",
-              },
-            ],
-            pathReferences: [pathReference],
-            inputCapabilityRoute: {
-              kind: "installed_skill",
-              skillKey: "draft",
-              skillName: "起草",
-            },
-          },
+          draft: createRichSkillRestoreDraft(skill, pathReference),
         });
 
       return (
@@ -1045,7 +1176,7 @@ describe("Inputbar", () => {
 
     let latestCoreProps =
       mockInputbarCore.mock.calls[mockInputbarCore.mock.calls.length - 1]?.[0];
-    expect(latestCoreProps?.text).toBe("继续生成提纲");
+    expect(latestCoreProps?.text).toBe("/draft 继续生成提纲");
     expect(latestCoreProps?.pathReferences).toEqual([pathReference]);
     expect(latestCoreProps?.pendingImages).toEqual([
       {
@@ -1053,7 +1184,7 @@ describe("Inputbar", () => {
         mediaType: "image/png",
       },
     ]);
-    expect(container.querySelector('[data-testid="skill-badge"]')).toBeTruthy();
+    expect(container.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("draft/SKILL.md");
 
     await act(async () => {
       resolveSend?.(true);
@@ -1063,7 +1194,8 @@ describe("Inputbar", () => {
 
     latestCoreProps =
       mockInputbarCore.mock.calls[mockInputbarCore.mock.calls.length - 1]?.[0];
-    expect(latestCoreProps?.text).toBe("继续生成提纲");
+    expect(latestCoreProps?.text).toBe("/draft 继续生成提纲");
+    expect(latestCoreProps?.controller.getDocument().editorDocument).toEqual(createRichSkillRestoreDraft(skill, pathReference).editorDocument);
     expect(latestCoreProps?.pathReferences).toEqual([pathReference]);
     expect(latestCoreProps?.pendingImages).toEqual([
       {
@@ -1071,7 +1203,7 @@ describe("Inputbar", () => {
         mediaType: "image/png",
       },
     ]);
-    expect(container.querySelector('[data-testid="skill-badge"]')).toBeTruthy();
+    expect(container.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("draft/SKILL.md");
     expect(onInputRestoreRequestHandled).toHaveBeenCalledWith(
       "restore-during-send",
     );
@@ -1386,14 +1518,15 @@ describe("Inputbar", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划",
+      textOverride: "整理最近发布计划 /writer",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "writer",
           skillName: "写作助手",
         },
-        displayContent: "整理最近发布计划",
+        displayContent: "整理最近发布计划 /writer",
+        inputMentions: [{ type: "skill", name: "写作助手", path: "writer/SKILL.md" }],
       },
     });
   });
@@ -1713,14 +1846,15 @@ describe("Inputbar", () => {
     });
 
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划",
+      textOverride: "整理最近发布计划 /local:writer",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "writer",
           skillName: "写作助手",
         },
-        displayContent: "整理最近发布计划",
+        displayContent: "整理最近发布计划 /local:writer",
+        inputMentions: [{ type: "skill", name: "写作助手", path: "writer/SKILL.md" }],
       },
     });
   });
@@ -1890,7 +2024,7 @@ describe("Inputbar", () => {
     expect(document.body.textContent).toContain("Plan mode");
   });
 
-  it("带着初始已安装技能进入时，应恢复 capability badge 并继续按 route 发送", async () => {
+  it("带着初始已安装技能进入时，应插入 inline atom 并按 typed route 发送", async () => {
     const onSend = vi.fn();
     const skill = {
       key: "writer",
@@ -1919,7 +2053,7 @@ describe("Inputbar", () => {
       await Promise.resolve();
     });
 
-    expect(document.querySelector('[data-testid="skill-badge"]')).toBeTruthy();
+    expect(document.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("writer/SKILL.md");
 
     const sendButton = document.querySelector(
       '[data-testid="send-btn"]',
@@ -1933,14 +2067,15 @@ describe("Inputbar", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划",
+      textOverride: "整理最近发布计划 /writer",
       sendOptions: {
         capabilityRoute: {
           kind: "installed_skill",
           skillKey: "writer",
           skillName: "写作助手",
         },
-        displayContent: "整理最近发布计划",
+        displayContent: "整理最近发布计划 /writer",
+        inputMentions: [{ type: "skill", name: "写作助手", path: "writer/SKILL.md" }],
       },
     });
   });
@@ -2190,7 +2325,8 @@ describe("Inputbar", () => {
       await Promise.resolve();
     });
 
-    expect(setInput).not.toHaveBeenCalled();
+    expect(setInput.mock.calls.every(([text]) => text === "")).toBe(true);
+    expect(getComposerEditorText(document.querySelector(COMPOSER_EDITOR_SELECTOR))).toBe("");
     expect(
       document.querySelector(
         '[data-testid="curated-task-dialog-field-theme_target"]',
@@ -3216,7 +3352,7 @@ describe("Inputbar", () => {
     ).toBeTruthy();
   });
 
-  it("加号菜单选择插件时应写回显式触发前缀并显示插件标记", async () => {
+  it("加号菜单选择插件时应插入 inline atom 并保留正文", async () => {
     const setInput = vi.fn();
     const { container, rerender } = renderInputbar({
       input: "整理今天的选题",
@@ -3265,7 +3401,7 @@ describe("Inputbar", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+      container.querySelector('[data-composer-token="plugin"]'),
     ).toBeTruthy();
   });
 
@@ -3301,7 +3437,7 @@ describe("Inputbar", () => {
     expect(setInput).toHaveBeenCalledWith("@写文章 写一篇关于登山的文章");
   });
 
-  it("mention 面板选择插件时应保留插件标记但不重复写回触发词", async () => {
+  it("mention 先消费触发词后选择插件，应插入一枚 atom 并防止重复选择", async () => {
     const setInput = vi.fn();
     const plugin: InputbarPluginCapability = {
       pluginId: "content-factory-app",
@@ -3309,8 +3445,8 @@ describe("Inputbar", () => {
       trigger: "@写文章",
       description: "生成文章草稿",
     };
-    const { container, rerender } = renderInputbar({
-      input: "@写文章",
+    const { container } = renderInputbar({
+      input: "",
       setInput,
       pluginSuggestions: [plugin],
     });
@@ -3330,23 +3466,18 @@ describe("Inputbar", () => {
       await Promise.resolve();
     });
 
-    expect(setInput).toHaveBeenCalledWith("");
-
-    rerender({
-      input: "",
-      setInput,
-      pluginSuggestions: [plugin],
-    });
-
     await act(async () => {
+      mentionProps?.onSelectPlugin?.(plugin, undefined, {
+        inputOverride: "",
+        preserveInputOverride: true,
+      });
       await Promise.resolve();
     });
-
-    expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
-        ?.textContent,
-    ).toContain("写文章");
-    expect(setInput).not.toHaveBeenCalledWith("@写文章");
+    expect(setInput).toHaveBeenCalledWith("@写文章");
+    expect(getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR))).toBe("@写文章");
+    expect(container.querySelectorAll('[data-composer-token="plugin"]')).toHaveLength(1);
+    expect(container.querySelector('[data-composer-token="plugin"]')?.getAttribute("contenteditable")).toBe("false");
+    expect(container.querySelector('[data-testid="inputbar-plugin-badge"]')).toBeNull();
   });
 
   it("加号菜单选择插件技能时应写回 @插件:技能 前缀", async () => {
@@ -3412,7 +3543,7 @@ describe("Inputbar", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("内容工厂:文章写作");
   });
@@ -3534,36 +3665,19 @@ describe("Inputbar", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+      container.querySelector('[data-composer-token="plugin"]'),
     ).toBeTruthy();
     setInput.mockClear();
 
-    rerender({
-      input: "@内容工厂:Ar",
-      setInput,
-      pluginSuggestions: [
-        {
-          pluginId: "content-workbench",
-          displayName: "内容工厂",
-          description: "整理内容生产资料",
-          skills: [
-            {
-              skillId: "article-writer",
-              title: "文章写作",
-              description: "生成文章草稿",
-            },
-          ],
-        },
-      ],
-    });
-
     await act(async () => {
+      setComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR), "@内容工厂:Ar");
       await Promise.resolve();
     });
 
-    expect(setInput).not.toHaveBeenCalled();
+    expect(getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR))).toBe("@内容工厂:Ar");
+    expect(setInput).not.toHaveBeenCalledWith("@内容工厂:文章写作 整理今天的选题");
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+      container.querySelector('[data-composer-token="plugin"]'),
     ).toBeNull();
   });
 
@@ -3636,6 +3750,7 @@ describe("Inputbar", () => {
     ) as HTMLButtonElement | null;
     expect(option).toBeTruthy();
     expect(option?.disabled).toBe(true);
+    setInput.mockClear();
 
     await act(async () => {
       option?.click();
@@ -5096,15 +5211,6 @@ describe("Inputbar", () => {
   it("对话页输入框底部不应再显示项目上下文条", async () => {
     const { container } = renderInputbar({
       projectId: "project-default",
-      openedProjects: [
-        {
-          id: "project-default",
-          name: "默认项目",
-          rootPath: "/workspace/default",
-        },
-      ],
-      projectContextModeLabel: "本地模式",
-      projectContextBranchLabel: "main",
     });
 
     await act(async () => {
@@ -5116,7 +5222,7 @@ describe("Inputbar", () => {
       container.querySelector('[data-testid="inputbar-context-bar-slot"]'),
     ).toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-project-context-bar"]'),
+      container.querySelector('[data-testid="composer-utility-bar"]'),
     ).toBeNull();
     expect(container.textContent).not.toContain("默认项目");
     expect(container.textContent).not.toContain("本地模式");

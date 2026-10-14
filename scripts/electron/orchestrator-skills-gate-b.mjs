@@ -256,15 +256,19 @@ export async function openRuntimeThreadInGui(page, runtime, options) {
     timeout: options.timeoutMs,
   });
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${runtime.sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${runtime.sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   await page.waitForFunction(
     (sessionId) => {
       const candidate = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
       );
-      return candidate instanceof HTMLTextAreaElement && !candidate.disabled;
+      return (
+        candidate instanceof HTMLElement &&
+        candidate.getAttribute("aria-disabled") !== "true" &&
+        candidate.getAttribute("contenteditable") === "true"
+      );
     },
     runtime.sessionId,
     { timeout: options.timeoutMs },

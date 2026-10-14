@@ -61,18 +61,18 @@ function typedErrorStatusSnapshotFromDom({ prompt, phase }) {
   const hasExpectedPhase = statusEntries.some(
     (entry) => entry.status === phase,
   );
-  const textarea = document.querySelector(
-    'textarea[name="agent-chat-message"]',
+  const editor = document.querySelector(
+    '[data-testid="composer-editor"][role="textbox"]',
   );
-  const textareaRect = textarea?.getBoundingClientRect();
-  const textareaStyle = textarea ? window.getComputedStyle(textarea) : null;
-  const textareaVisible = Boolean(
-    textarea &&
-    textareaRect &&
-    textareaRect.width > 16 &&
-    textareaRect.height > 16 &&
-    textareaStyle?.visibility !== "hidden" &&
-    textareaStyle?.display !== "none",
+  const editorRect = editor?.getBoundingClientRect();
+  const editorStyle = editor ? window.getComputedStyle(editor) : null;
+  const editorVisible = Boolean(
+    editor &&
+    editorRect &&
+    editorRect.width > 16 &&
+    editorRect.height > 16 &&
+    editorStyle?.visibility !== "hidden" &&
+    editorStyle?.display !== "none",
   );
   const stopButtonVisible = Array.from(
     document.querySelectorAll("button"),
@@ -96,9 +96,12 @@ function typedErrorStatusSnapshotFromDom({ prompt, phase }) {
     statusEntries,
     statusText,
     stopButtonVisible,
-    textareaVisible,
-    textareaDisabled:
-      textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+    editorVisible,
+    editorDisabled:
+      editor instanceof HTMLElement
+        ? editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
+        : null,
     bodyText: text,
     scopedText: group?.innerText || text,
   };
@@ -195,8 +198,7 @@ export function buildTypedErrorScenarioAssertions({
     typedErrorRetryGuiRetryingStatusVisible:
       retryGui.hasPrompt === true && retryGui.hasExpectedPhase === true,
     typedErrorRetryNoPrematureTerminal:
-      retryGui.stopButtonVisible === true &&
-      retryGui.textareaDisabled === false,
+      retryGui.stopButtonVisible === true && retryGui.editorDisabled === false,
     typedErrorRetrySuccessGuiCompleted: isTypedErrorRetrySuccessScenario
       ? terminalGui.hasPrompt === true &&
         terminalGui.bodyText?.includes(TYPED_ERROR_RETRY_SUCCESS_TEXT) ===
@@ -204,7 +206,7 @@ export function buildTypedErrorScenarioAssertions({
         terminalGui.bodyText?.includes(TYPED_ERROR_RETRY_SUCCESS_DONE_TEXT) ===
           true &&
         terminalGui.stopButtonVisible === false &&
-        terminalGui.textareaDisabled === false
+        terminalGui.editorDisabled === false
       : true,
     typedErrorRetrySuccessReadModelCompleted: isTypedErrorRetrySuccessScenario
       ? terminalRead.latestTurnStatus === "completed" &&
@@ -222,7 +224,7 @@ export function buildTypedErrorScenarioAssertions({
           TYPED_ERROR_RETRY_FAILURE_PARTIAL_TEXT,
         ) === true &&
         terminalGui.stopButtonVisible === false &&
-        terminalGui.textareaDisabled === false
+        terminalGui.editorDisabled === false
       : true,
     typedErrorRetryFailureReadModelFailed: isTypedErrorRetryFailureScenario
       ? terminalRead.latestTurnStatus === "failed" &&
@@ -234,7 +236,8 @@ export function buildTypedErrorScenarioAssertions({
       ? terminalBackend.eventType === "turn.failed" &&
         summary.typedErrorAwaitingTerminalBackend?.eventType ===
           "runtime.error" &&
-        summary.typedErrorAwaitingTerminalBackend?.expectedWillRetry === false &&
+        summary.typedErrorAwaitingTerminalBackend?.expectedWillRetry ===
+          false &&
         pendingRead.includesPrompt === true &&
         pendingRead.terminal === false
       : true,
@@ -333,10 +336,14 @@ export async function runTypedErrorScenario({
         phase: "failed",
       }),
     );
-    result.readModelTypedErrorPending =
-      await waitForReadModelTypedErrorPending(page, options, appServerRequests, {
+    result.readModelTypedErrorPending = await waitForReadModelTypedErrorPending(
+      page,
+      options,
+      appServerRequests,
+      {
         prompt,
-      });
+      },
+    );
     appendSignal(runtimeEnv.typedErrorSignalPath, "terminal-visible");
 
     logStage("wait-typed-error-failure-gui-completed");

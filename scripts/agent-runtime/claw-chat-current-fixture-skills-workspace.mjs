@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { canonicalSkillFilePath } from "./claw-chat-current-fixture-skill-identity.mjs";
 import { APP_SERVER_HANDLE_JSON_LINES_COMMAND } from "./claw-chat-current-fixture-constants.mjs";
 import {
   decodeJsonRpcLines,
@@ -255,13 +256,15 @@ export async function waitForExpertPanelSkillsRuntimeSessionReady(
       page,
       (sessionId) => {
         const text = document.body?.innerText || "";
-        const textareas = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
-        ).filter((node) => node instanceof HTMLTextAreaElement);
-        const textarea = textareas.find(
+        const editors = Array.from(
+          document.querySelectorAll(
+            '[data-testid="composer-editor"][role="textbox"]',
+          ),
+        ).filter((node) => node instanceof HTMLElement);
+        const editor = editors.find(
           (node) => !sessionId || node.dataset.sessionId === sessionId,
         );
-        const fallbackTextarea = textareas[0] ?? null;
+        const fallbackEditor = editors[0] ?? null;
         const isVisibleTextarea = (node) =>
           node instanceof HTMLElement
             ? node.offsetParent !== null
@@ -275,23 +278,27 @@ export async function waitForExpertPanelSkillsRuntimeSessionReady(
           hasExpertPanel:
             text.includes("专家信息") && text.includes("代码文学专家"),
           hasAddedSkill: text.includes("Capability Report"),
-          textareaSessionId:
-            textarea instanceof HTMLTextAreaElement
-              ? textarea.dataset.sessionId || null
+          editorSessionId:
+            editor instanceof HTMLElement
+              ? editor.dataset.sessionId || null
               : null,
-          textareaVisible: isVisibleTextarea(textarea),
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorVisible: isVisibleTextarea(editor),
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           fallbackTextareaSessionId:
-            fallbackTextarea instanceof HTMLTextAreaElement
-              ? fallbackTextarea.dataset.sessionId || null
+            fallbackEditor instanceof HTMLElement
+              ? fallbackEditor.dataset.sessionId || null
               : null,
-          fallbackTextareaVisible: isVisibleTextarea(fallbackTextarea),
+          fallbackTextareaVisible: isVisibleTextarea(fallbackEditor),
           fallbackTextareaDisabled:
-            fallbackTextarea instanceof HTMLTextAreaElement
-              ? fallbackTextarea.disabled
+            fallbackEditor instanceof HTMLElement
+              ? fallbackEditor.getAttribute("aria-disabled") === "true" ||
+                fallbackEditor.getAttribute("contenteditable") !== "true"
               : null,
-          textareaCount: textareas.length,
+          editorCount: editors.length,
           bodyText: text,
         };
       },
@@ -336,7 +343,7 @@ export function writeCapabilityReportSkillPackage(skillDirectory) {
       "",
     ].join("\n"),
   );
-  return { skillFilePath };
+  return { skillFilePath: canonicalSkillFilePath(skillFilePath) };
 }
 
 export function ensureManualEnableWorkspaceSkill(workspaceRoot) {
@@ -383,6 +390,12 @@ export function ensureUserVisibleCapabilityReportSkill(runtimeEnv) {
   return {
     skillDirectory,
     skillFilePath,
+    skillIdentity: {
+      name: path.basename(skillDirectory),
+      key: "user:capability-report",
+      displayName: "Capability Report",
+      path: skillFilePath,
+    },
   };
 }
 

@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -305,15 +306,21 @@ async function restoreThreadInGui(
   });
   await waitForRendererReady(page, options);
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   await page.waitForFunction(
     (activeSessionId) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${activeSessionId}"]`,
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${activeSessionId}"]`,
       );
-      return textarea instanceof HTMLTextAreaElement && !textarea.disabled;
+      return (
+        editor instanceof HTMLElement &&
+        !(
+          editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
+        )
+      );
     },
     sessionId,
     { timeout: options.timeoutMs },
@@ -325,19 +332,19 @@ async function restoreThreadInGui(
 async function submitTurnFromGui(page, input, options) {
   await input.fill(PROMPT);
   await page.waitForFunction(
-    ({ prompt, sessionId }) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    withComposerEditorDom(({ prompt, sessionId }) => {
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
       );
-      const core = textarea?.closest('[data-testid="inputbar-core-container"]');
+      const core = editor?.closest('[data-testid="inputbar-core-container"]');
       const send = core?.querySelector('[data-testid="send-btn"]');
       return (
-        textarea instanceof HTMLTextAreaElement &&
-        textarea.value === prompt &&
+        editor instanceof HTMLElement &&
+        readComposerEditorTextDom(editor) === prompt &&
         send instanceof HTMLButtonElement &&
         !send.disabled
       );
-    },
+    }),
     {
       prompt: PROMPT,
       sessionId: await input.getAttribute("data-session-id"),
@@ -477,7 +484,7 @@ async function readVisibleState(page, options, sessionId) {
   return {
     activeSessionId: await page
       .locator(
-        `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
       )
       .getAttribute("data-session-id"),
     finalAssistantTextVisible: await finalText.isVisible(),

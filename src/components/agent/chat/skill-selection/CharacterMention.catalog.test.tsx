@@ -1,3 +1,5 @@
+import { typeMention } from "./CharacterMention.testFixtures";
+import { setComposerSelection } from "./CharacterMention.testFixtures";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { InputCapabilitySelection } from "./inputCapabilitySelection";
@@ -7,7 +9,7 @@ import {
   findButtonContaining,
   getButtonsContaining,
   getMentionPopoverContent,
-  getTextarea,
+  getComposerEditor,
   renderHarness,
   typeAtAndWait,
   typeMentionAndWait,
@@ -39,7 +41,7 @@ describe("CharacterMention mention catalog", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -65,7 +67,7 @@ describe("CharacterMention mention catalog", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -93,7 +95,7 @@ describe("CharacterMention mention catalog", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await act(async () => {
       await import("./CharacterMentionPanel");
@@ -101,8 +103,8 @@ describe("CharacterMention mention catalog", () => {
 
     act(() => {
       textarea.focus();
-      textarea.value = "@git";
-      textarea.setSelectionRange(4, 4);
+      typeMention(textarea, "@git");
+      setComposerSelection(textarea, 4, 4);
       textarea.dispatchEvent(new Event("input", { bubbles: true }));
     });
 
@@ -149,7 +151,7 @@ describe("CharacterMention mention catalog", () => {
         },
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@摘要");
 
@@ -192,7 +194,7 @@ describe("CharacterMention mention catalog", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -228,7 +230,7 @@ describe("CharacterMention mention catalog", () => {
       onSelectPlugin,
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@内容");
 
@@ -244,9 +246,9 @@ describe("CharacterMention mention catalog", () => {
       pluginButton?.click();
     });
 
-    expect(onChangeSpy).toHaveBeenCalledWith("");
+    expect(onChangeSpy).toHaveBeenCalledWith("@内容工厂");
     expect(onSelectPlugin).toHaveBeenCalledWith(plugin, undefined, {
-      inputOverride: "",
+      inputOverride: "@内容工厂",
       preserveInputOverride: true,
     });
     expect(getMentionPopoverContent()).toBeNull();
@@ -262,7 +264,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       pluginSuggestions: [plugin],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -281,7 +283,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       pluginSuggestions: [plugin],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@写");
 
@@ -304,7 +306,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       pluginSuggestions,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@写");
 
@@ -324,7 +326,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       pluginSuggestions: [plugin],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@写文章");
 
@@ -348,7 +350,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       pluginSuggestions: [plugin],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@内容工厂:文章写作");
 
@@ -376,13 +378,9 @@ describe("CharacterMention mention catalog", () => {
       onSelectPlugin,
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@内容");
-
-    act(() => {
-      textarea.setSelectionRange(0, 0);
-    });
 
     const pluginButton = findButtonContaining("内容工厂");
     expect(pluginButton).toBeTruthy();
@@ -391,9 +389,9 @@ describe("CharacterMention mention catalog", () => {
       pluginButton?.click();
     });
 
-    expect(onChangeSpy).toHaveBeenCalledWith("");
+    expect(onChangeSpy).toHaveBeenCalledWith("@内容工厂");
     expect(onSelectPlugin).toHaveBeenCalledWith(plugin, undefined, {
-      inputOverride: "",
+      inputOverride: "@内容工厂",
       preserveInputOverride: true,
     });
     expect(getMentionPopoverContent()).toBeNull();
@@ -439,7 +437,7 @@ describe("CharacterMention mention catalog", () => {
     const container = renderHarness({
       serviceSkills: [recentSkill, regularSkill],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -467,7 +465,7 @@ describe("CharacterMention mention catalog", () => {
       onSelectInputCapability,
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -491,7 +489,7 @@ describe("CharacterMention mention catalog", () => {
       skills: [createSkill("技能A", "skill-a", true)],
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeAtAndWait(textarea);
 
@@ -502,6 +500,7 @@ describe("CharacterMention mention catalog", () => {
       skillButton?.click();
     });
 
-    expect(onChangeSpy).toHaveBeenCalledWith("/skill-a ");
+    expect(onChangeSpy).toHaveBeenCalledWith("/skill-a");
+    expect(textarea.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("skill-a-dir/SKILL.md");
   });
 });

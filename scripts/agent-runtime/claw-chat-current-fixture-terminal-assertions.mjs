@@ -39,12 +39,12 @@ export function buildTerminalScenarioAssertions({
           ?.includesAssistantDone === true,
       terminalStaleGuardSecondInputSubmitted:
         summary.terminalStaleGuardSecondInputSend?.afterFill
-          ?.promptVisibleInTextarea === true &&
+          ?.promptVisibleInEditor === true &&
         summary.terminalStaleGuardSecondInputSend?.clicked?.clicked === true,
       terminalStaleGuardSecondCompleted:
         summary.guiTerminalStaleGuardSecondCompleted?.hasPrompt === true &&
         summary.guiTerminalStaleGuardSecondCompleted?.hasDoneText === true &&
-        summary.guiTerminalStaleGuardSecondCompleted?.textareaDisabled ===
+        summary.guiTerminalStaleGuardSecondCompleted?.editorDisabled ===
           false &&
         summary.guiTerminalStaleGuardSecondCompleted?.stopButtonVisible ===
           false &&
@@ -57,15 +57,15 @@ export function buildTerminalScenarioAssertions({
           true &&
         summary.readModelTerminalStaleGuardSecondCompleted
           ?.includesAssistantDone === true &&
-        summary.readModelTerminalStaleGuardSecondCompleted
-          ?.latestTurnStatus === "completed",
+        summary.readModelTerminalStaleGuardSecondCompleted?.latestTurnStatus ===
+          "completed",
       terminalStaleGuardStaleTerminalIgnored:
         summary.terminalStaleGuardStaleTerminal?.staleEventType ===
           "turn.completed" &&
         summary.terminalStaleGuardStaleTerminal?.staleDoneText ===
           TERMINAL_STALE_GUARD_STALE_DONE_TEXT &&
-        summary.terminalStaleGuardStaleTerminal
-          ?.staleTurnDiffersFromCurrent === true &&
+        summary.terminalStaleGuardStaleTerminal?.staleTurnDiffersFromCurrent ===
+          true &&
         summary.guiTerminalStaleGuardSecondCompleted?.bodyText?.includes(
           TERMINAL_STALE_GUARD_DONE_TEXT,
         ) === true &&
@@ -85,7 +85,7 @@ export function buildTerminalScenarioAssertions({
         TERMINAL_CANCELED_AFTER_ANSWER_PROMPT,
       guiTerminalCanceledAfterAnswerInputSubmitted:
         summary.terminalCanceledAfterAnswerInputSend?.afterFill
-          ?.promptVisibleInTextarea === true &&
+          ?.promptVisibleInEditor === true &&
         summary.terminalCanceledAfterAnswerInputSend?.clicked?.clicked === true,
       guiTerminalCanceledAfterAnswerPartialVisibleBeforeStop:
         summary.terminalCanceledAfterAnswerStopClick?.beforeClick?.hasPrompt ===
@@ -113,9 +113,9 @@ export function buildTerminalScenarioAssertions({
           1 ===
         1,
       guiTerminalCanceledAfterAnswerInputReady:
-        summary.guiTerminalCanceledAfterAnswerCanceled?.textareaVisible ===
+        summary.guiTerminalCanceledAfterAnswerCanceled?.editorVisible ===
           true &&
-        summary.guiTerminalCanceledAfterAnswerCanceled?.textareaDisabled ===
+        summary.guiTerminalCanceledAfterAnswerCanceled?.editorDisabled ===
           false &&
         summary.guiTerminalCanceledAfterAnswerCanceled?.stopButtonVisible ===
           false,
@@ -144,7 +144,7 @@ export function buildTerminalScenarioAssertions({
         TERMINAL_FAILED_AFTER_ANSWER_PROMPT,
       guiTerminalFailedAfterAnswerInputSubmitted:
         summary.terminalFailedAfterAnswerInputSend?.afterFill
-          ?.promptVisibleInTextarea === true &&
+          ?.promptVisibleInEditor === true &&
         summary.terminalFailedAfterAnswerInputSend?.clicked?.clicked === true,
       guiTerminalFailedAfterAnswerPartialRetained:
         summary.guiTerminalFailedAfterAnswerCompleted?.hasPrompt === true &&
@@ -162,9 +162,8 @@ export function buildTerminalScenarioAssertions({
           ?.assistantScopeDedupeGuardHits ?? []
       ).every((hit) => hit.occurrences === 1),
       guiTerminalFailedAfterAnswerInputReady:
-        summary.guiTerminalFailedAfterAnswerCompleted?.textareaVisible ===
-          true &&
-        summary.guiTerminalFailedAfterAnswerCompleted?.textareaDisabled ===
+        summary.guiTerminalFailedAfterAnswerCompleted?.editorVisible === true &&
+        summary.guiTerminalFailedAfterAnswerCompleted?.editorDisabled ===
           false &&
         summary.guiTerminalFailedAfterAnswerCompleted?.stopButtonVisible ===
           false,
@@ -177,8 +176,7 @@ export function buildTerminalScenarioAssertions({
         summary.readModelTerminalFailedAfterAnswer?.latestTurnStatus ===
           "failed",
       backendTerminalFailedAfterAnswerRecorded:
-        summary.terminalFailedAfterAnswerBackend?.eventType ===
-          "turn.failed" &&
+        summary.terminalFailedAfterAnswerBackend?.eventType === "turn.failed" &&
         summary.terminalFailedAfterAnswerBackend?.partialText ===
           TERMINAL_FAILED_AFTER_ANSWER_PARTIAL_TEXT &&
         summary.terminalFailedAfterAnswerBackend?.failureText ===

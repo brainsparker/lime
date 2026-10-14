@@ -7,6 +7,7 @@ import type {
   CanvasWorkbenchChangeView,
 } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanelViewModel";
 import { extractFileNameFromPath } from "./workspacePath";
+import { parseCanvasWorkbenchPatchDiffLines } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanelViewModel";
 
 export function resolvePathLeaf(value?: string | null): string {
   const normalized = (value || "").trim().replace(/\\/g, "/");
@@ -146,6 +147,7 @@ export function buildCanvasWorkbenchChangeViewFromCodingProjection({
     (change): CanvasWorkbenchChangeItem => ({
       id: change.id,
       path: change.path,
+      destinationPath: change.destinationPath,
       displayName: change.destinationPath
         ? `${extractFileNameFromPath(change.path)} -> ${extractFileNameFromPath(
             change.destinationPath,
@@ -155,14 +157,17 @@ export function buildCanvasWorkbenchChangeViewFromCodingProjection({
       status: statusForCanvasChange(change.status),
       changeKind: change.changeKind,
       preview: change.preview,
-      currentContent: change.preview ?? null,
-      previousContent: null,
+      diffLines:
+        change.diff !== undefined
+          ? parseCanvasWorkbenchPatchDiffLines(change.diff)
+          : undefined,
       checkpointPath: change.checkpointRef || null,
       checkpointLabel: change.checkpointRef ? "snapshot" : null,
     }),
   );
   if (
     items.length === 0 &&
+    !reviewThreadId &&
     !(fileCheckpointSummary?.count ?? 0) &&
     turnDiff === undefined
   ) {

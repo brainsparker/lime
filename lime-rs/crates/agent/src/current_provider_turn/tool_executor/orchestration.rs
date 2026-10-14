@@ -25,7 +25,9 @@ use serde_json::{json, Value};
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
-use tool_runtime::execution_approval::{BROWSER_ACTION_CONTRACT_KEY, BROWSER_ACTION_TOOL_FAMILY};
+use tool_runtime::execution_approval::{
+    ExecutionApprovalResponse, BROWSER_ACTION_CONTRACT_KEY, BROWSER_ACTION_TOOL_FAMILY,
+};
 use tool_runtime::execution_orchestrator::{
     orchestrate_runtime_tool_execution, RuntimeToolApprovalFuture, RuntimeToolApprovalHandler,
     RuntimeToolApprovalKind, RuntimeToolApprovalPhase, RuntimeToolApprovalPolicy,
@@ -572,6 +574,7 @@ async fn wait_for_tool_approval(
                 "session_response_owner_missing".to_string(),
             )),
         )
+        .before_handler()
     })?;
     let (scope, tool_call_id) = action_scope(request, thread_id)?;
     let tool_name = request.tool_name.to_string();
@@ -621,30 +624,28 @@ async fn wait_for_tool_approval(
                     "tool_approval_wait_failed".to_string(),
                 )),
             )
+            .before_handler()
         })?;
 
-    if response.get("confirmed").and_then(Value::as_bool) == Some(true) {
-        if approval_key.is_some()
-            && response
-                .get("decision")
-                .and_then(Value::as_str)
-                .is_some_and(|decision| decision == "allow_for_session")
-        {
-            state
-                .record_shell_approval(
-                    request.context.session_id(),
-                    approval_key.expect("checked above").to_string(),
-                )
-                .await;
-        }
-        return Ok(());
+    let response: ExecutionApprovalResponse =
+        serde_json::from_value(response).map_err(|error| {
+            RuntimeToolExecutionError::new(
+                format!("工具审批响应解析失败: {error}"),
+                Some(RuntimeToolPolicyErrorKind::ExecutionFailed(
+                    "tool_approval_response_invalid".to_string(),
+                )),
+            )
+            .before_handler()
+        })?;
+    response.ensure_approved()?;
+    if let Some(approval_key) =
+        approval_key.filter(|_| response.decision.as_deref() == Some("allow_for_session"))
+    {
+        state
+            .record_shell_approval(request.context.session_id(), approval_key.to_string())
+            .await;
     }
-    Err(RuntimeToolExecutionError::new(
-        "用户拒绝工具执行",
-        Some(RuntimeToolPolicyErrorKind::PermissionDenied(
-            "tool_approval_declined".to_string(),
-        )),
-    ))
+    Ok(())
 }
 
 pub(in crate::current_provider_turn) async fn wait_for_browser_action_approval(

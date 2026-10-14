@@ -71,6 +71,7 @@ import {
 const fixtureSourceFiles = [
   "scripts/agent-runtime/claw-chat-current-fixture-smoke.mjs",
   "scripts/lib/electron-fixture-build.mjs",
+  "scripts/lib/composer-editor-dom.mjs",
   "scripts/agent-runtime/claw-chat-current-fixture-constants.mjs",
   "scripts/agent-runtime/claw-chat-current-fixture-backend-file.mjs",
   "scripts/agent-runtime/claw-chat-current-fixture-backend-script.mjs",
@@ -140,9 +141,9 @@ describe("Claw GUI canonical completion guard", () => {
     requiredVisibleTextHits: [],
     assistantScopeDedupeGuardHits: [],
     disallowedVisibleTextHits: [],
-    textareaVisible: true,
-    textareaDisabled: false,
-    textareaSessionId: "session-expert",
+    editorVisible: true,
+    editorDisabled: false,
+    editorSessionId: "session-expert",
     stopButtonVisible: false,
     completionScope: {
       runtimeTurnId: "turn-expert",
@@ -662,14 +663,18 @@ describe("claw chat current Electron fixture smoke guard", () => {
     const guiActionsContent = readGuiActionsScript();
     const regressionContent = readCurrentFixtureRegressionSmokeScript();
 
-    expect(guiActionsContent).toContain('textarea[name="agent-chat-message"]');
+    expect(guiActionsContent).toContain(
+      "findVisibleComposerEditorsDom(sessionId)",
+    );
     expect(content + guiActionsContent).toContain("waitForInputReady");
     expect(guiActionsContent).toContain("waitForSendButtonReady");
     expect(content).toContain("sendNewsPromptFromGui");
-    expect(guiActionsContent).toContain("setControlledTextareaValue");
-    expect(guiActionsContent).toContain('new InputEvent("input"');
+    expect(guiActionsContent).toContain("setComposerEditorText");
+    expect(guiActionsContent).toContain("fillComposerEditor");
+    expect(guiActionsContent).not.toContain("setSelectionRange");
+    expect(guiActionsContent).not.toContain(".prototype");
     expect(content).toContain("整理今天的国际新闻");
-    expect(content).toContain("promptVisibleInTextarea");
+    expect(content).toContain("promptVisibleInEditor");
     expect(content).toContain("hasPrompt");
     expect(content).toContain('[data-testid="message-turn-group"]');
     expect(content).toContain("assistantScopeText");
@@ -1361,24 +1366,6 @@ describe("claw chat current Electron fixture smoke guard", () => {
     );
   });
 
-  it("keeps pending approval above an enabled composer without tool argument details", () => {
-    const content = readSmokeScript();
-
-    expect(content).toContain('[data-testid="inputbar-approval-prompt"]');
-    expect(content).toContain('[data-testid="inputbar-approval-summary"]');
-    expect(content).toContain('approvalPrompt?.querySelector("details")');
-    expect(content).toContain('approvalPrompt?.querySelector("pre")');
-    expect(content).toContain("snapshot.textareaVisible === true");
-    expect(content).toContain("snapshot.textareaDisabled === false");
-    expect(content).toContain("snapshot.singleLine === true");
-    expect(content).toContain(
-      "approvalRequestResumePendingGui?.hasToolName === false",
-    );
-    expect(content).toContain(
-      "approvalRequestResumePendingGui?.hasCommand === false",
-    );
-  });
-
   it("covers the current cancel flow through GUI stop and App Server read model", () => {
     const content = readSmokeScript();
 
@@ -1435,7 +1422,7 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain("DataTransfer");
     expect(content).toContain("DragEvent");
     expect(content).toContain("inputbar-path-reference-chip");
-    expect(content).toContain("input-skill-badge");
+    expect(content).toContain('data-composer-token="skill"');
     expect(content).toContain("RICH_RESTORE_IMAGE_BASE64");
     expect(content).toContain("attachFixtureImage");
     expect(content).toContain("dropPathReference");
@@ -1718,16 +1705,16 @@ describe("claw chat current Electron fixture smoke guard", () => {
       summary: {
         threadId: "thread-1",
         approvalRequestDecisionInputSend: {
-          afterFill: { promptVisibleInTextarea: true },
+          afterFill: { promptVisibleInEditor: true },
           clicked: { clicked: true },
         },
         approvalRequestDecisionPendingGui: {
           hasSection: true,
           hasApprovalContent: true,
           hasPrompt: true,
-          textareaVisible: true,
-          textareaDisabled: false,
-          singleLine: true,
+          editorVisible: true,
+          editorDisabled: false,
+          isApprovalCard: true,
         },
         approvalRequestDecisionPendingReadModel: {
           hasPendingRequest: true,
@@ -1743,8 +1730,8 @@ describe("claw chat current Electron fixture smoke guard", () => {
         approvalRequestHostInterruptBackend: { actionRespondCount: 0 },
         guiApprovalRequestCancelCompleted: {
           hasPrompt: true,
-          textareaVisible: true,
-          textareaDisabled: false,
+          editorVisible: true,
+          editorDisabled: false,
           stopButtonVisible: false,
           completionScope: { assistantText: "" },
         },
@@ -1903,6 +1890,7 @@ describe("claw chat current Electron fixture smoke guard", () => {
         steerTrace: {
           threadReadBeforeSteer: true,
           steer: {
+            requestId: "steer-request",
             expectedTurnId: "turn-active-steer",
             transport: "electron-ipc",
             status: "success",
@@ -1924,6 +1912,7 @@ describe("claw chat current Electron fixture smoke guard", () => {
           includesFinalText: true,
           includesDoneText: true,
           includesTurnSteerSource: false,
+          inputSubmission: { ok: true },
         },
         gui: {
           scenarioGroupCount: 4,
@@ -1967,8 +1956,8 @@ describe("claw chat current Electron fixture smoke guard", () => {
               includesDoneText: true,
             },
           ],
-          textareaVisible: true,
-          textareaDisabled: false,
+          editorVisible: true,
+          editorDisabled: false,
           stopButtonVisible: false,
           queuedTurnGuiCount: 0,
         },

@@ -255,10 +255,13 @@ describe("MessageList image tasks", () => {
       intro &&
         preview &&
         completion &&
-        Boolean(intro.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING) &&
+        Boolean(
+          intro.compareDocumentPosition(preview) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+        ) &&
         Boolean(
           preview.compareDocumentPosition(completion) &
-            Node.DOCUMENT_POSITION_FOLLOWING,
+          Node.DOCUMENT_POSITION_FOLLOWING,
         ),
     ).toBe(true);
     expect(preview?.textContent).not.toContain("完成了");
@@ -456,29 +459,23 @@ describe("MessageList image tasks", () => {
     const commandTags = Array.from(
       container.querySelectorAll('[data-testid="message-user-command-tag"]'),
     ).map((node) => node.textContent);
-    const leadTexts = mockStreamingRenderer.mock.calls
-      .map((call) => call[0].content as string | undefined)
-      .filter((content): content is string => Boolean(content));
+    const leadTexts = Array.from(
+      container.querySelectorAll('[data-testid="streaming-renderer"]'),
+    ).map((element) => element.textContent);
 
     expect(commandTags).toEqual(["@配图", "@配图"]);
     expect(leadTexts).toEqual([
       "我先生成广州塔春天照片，保留春天的光线和城市视角。",
       "这次换成青柠极简插画，我会把画面压得更干净。",
     ]);
+    for (const [props] of mockStreamingRenderer.mock.calls) {
+      expect(props.thinkingContent).toBeUndefined();
+      expect(
+        props.contentParts?.map((part) => (part as { type?: string }).type),
+      ).toEqual(["text"]);
+    }
     expect(
-      mockStreamingRenderer.mock.calls.map((call) => call[0].thinkingContent),
-    ).toEqual([undefined, undefined]);
-    expect(
-      mockStreamingRenderer.mock.calls.map((call) =>
-        call[0].contentParts?.map(
-          (part) => (part as { type?: string }).type,
-        ),
-      ),
-    ).toEqual([["text"], ["text"]]);
-    expect(
-      mockStreamingRenderer.mock.calls.every(
-        (call) => !call[0].toolCalls,
-      ),
+      mockStreamingRenderer.mock.calls.every((call) => !call[0].toolCalls),
     ).toBe(true);
     expect(
       container.querySelector(

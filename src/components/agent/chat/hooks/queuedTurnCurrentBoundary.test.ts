@@ -44,12 +44,21 @@ const RETIRED_QUEUED_TURN_SNAPSHOT_PATHS = [
 const CURRENT_QUEUE_READER_PATHS = [
   "src/lib/api/agentRuntime/threadQueueClient.ts",
   "src/components/agent/chat/hooks/useAgentSessionThreadQueue.ts",
-  "src/components/agent/chat/components/ThreadQueueStatus.tsx",
+  "src/components/agent/chat/components/QueuedMessageList.tsx",
 ];
 const CURRENT_QUEUE_ACTION_PATH =
   "src/lib/api/agentRuntime/threadQueueActions.ts";
 
 describe("queued turn current owner boundary", () => {
+  it("队列列表直接迁移到单一 current owner，旧组件与正向测试保持删除", () => {
+    for (const relativePath of [
+      "src/components/agent/chat/components/ThreadQueueStatus.tsx",
+      "src/components/agent/chat/components/ThreadQueueStatus.test.tsx",
+    ]) {
+      expect(existsSync(join(cwd(), relativePath)), relativePath).toBe(false);
+    }
+  });
+
   it("已迁出的 Renderer/UI/send surface 不得重新读取 queued snapshot", () => {
     for (const relativePath of RETIRED_SNAPSHOT_CONSUMER_PATHS) {
       const source = readFileSync(join(cwd(), relativePath), "utf8");

@@ -3,6 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
+import { ComposerController, type ComposerEditorHandle } from "@/components/input-kit";
+import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import { createModelMetadata } from "@/components/input-kit/ModelSelector.testFixtures";
@@ -185,7 +187,8 @@ describe("InputbarComposerSection empty draft", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-    const textareaRef = React.createRef<HTMLTextAreaElement>();
+    const editorRef = React.createRef<ComposerEditorHandle>();
+    const composerController = new ComposerController();
 
     act(() => {
       root.render(
@@ -201,9 +204,10 @@ describe("InputbarComposerSection empty draft", () => {
           workflowProgressLabel=""
           workflowSummaryLabel=""
           inputAdapter={createInputAdapter()}
+          composerController={composerController}
           characters={[]}
           skillSelection={defaultSkillSelection}
-          textareaRef={textareaRef}
+          editorRef={editorRef}
           input=""
           onSelectInputCapability={vi.fn()}
           onSend={vi.fn()}
@@ -226,7 +230,8 @@ describe("InputbarComposerSection empty draft", () => {
     });
     mountedRoots.push({ root, container });
 
-    expect(container.querySelector("textarea")?.value).toBe("");
+    expect(getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR))).toBe("");
+    expect(editorRef.current?.getElement()).toBe(container.querySelector(COMPOSER_EDITOR_SELECTOR));
     expect(
       container.querySelector('[data-testid="inputbar-dictation-toggle"]'),
     ).not.toBeNull();

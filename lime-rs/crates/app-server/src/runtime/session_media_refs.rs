@@ -111,6 +111,13 @@ fn collect_media_sidecar_refs_from_value(value: &Value, refs: &mut Vec<KnownMedi
                     }
                 }
             }
+            if let Some(output_refs) = object.get("outputRefs").and_then(Value::as_array) {
+                for output_ref in output_refs {
+                    if let Some(known_ref) = known_media_sidecar_ref(output_ref, output_ref) {
+                        refs.push(known_ref);
+                    }
+                }
+            }
             for child in object.values() {
                 collect_media_sidecar_refs_from_value(child, refs);
             }

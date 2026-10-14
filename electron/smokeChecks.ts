@@ -672,7 +672,7 @@ async function readElectronSmokeLayoutViewport(
         { key: "workspaceShell", testId: "workspace-shell-scene", selector: '[data-testid="workspace-shell-scene"]', required: true },
         { key: "workspaceMainArea", testId: "workspace-main-area", selector: '[data-testid="workspace-main-area"]', required: true },
         { key: "inputbarCore", testId: "inputbar-core-container", selector: '[data-testid="inputbar-core-container"]', required: true },
-        { key: "composerInput", testId: "agent-chat-message", selector: 'textarea[name="agent-chat-message"]', required: true },
+        { key: "composerInput", testId: "composer-editor", selector: '[data-testid="composer-editor"][role="textbox"]', required: true },
         { key: "messageListColumn", testId: "message-list-column", selector: '[data-testid="message-list-column"]', required: false },
         { key: "emptyStateFirstScreen", testId: "empty-state-first-screen", selector: '[data-testid="empty-state-first-screen"]', required: false },
         { key: "threadHeader", testId: "thread-workspace-header", selector: '[data-testid="thread-workspace-header"]', required: false },
@@ -788,8 +788,8 @@ async function waitForElectronSmokeWorkbenchReady(
           const match = text.match(pattern);
           return match ? [match[0]] : [];
         });
-        const textareas = Array.from(document.querySelectorAll('textarea[name="agent-chat-message"]'));
-        const composer = textareas.find((item) => visible(item) && !item.disabled && item.getAttribute("aria-disabled") !== "true");
+        const editors = Array.from(document.querySelectorAll('[data-testid="composer-editor"][role="textbox"]'));
+        const composer = editors.find((item) => visible(item) && item.getAttribute("contenteditable") === "true" && item.getAttribute("aria-disabled") !== "true");
         const shellReady = Boolean(document.querySelector('[data-testid="workspace-shell-scene"]'));
         const inputbarReady = Boolean(document.querySelector('[data-testid="inputbar-core-container"]'));
         const invokeErrors = readJsonArray("lime_invoke_error_buffer_v1").filter(isCurrentRunEntry);

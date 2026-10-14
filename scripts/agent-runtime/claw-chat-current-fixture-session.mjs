@@ -529,17 +529,19 @@ export async function openSessionFromSidebar(
       const inputReady = await evaluatePageSnapshot(
         page,
         ({ title, sessionId }) => {
-          const textareas = Array.from(
-            document.querySelectorAll('textarea[name="agent-chat-message"]'),
-          ).filter((node) => node instanceof HTMLTextAreaElement);
-          const textarea =
-            textareas.find((node) => node.dataset.sessionId === sessionId) ??
-            textareas[0] ??
+          const editors = Array.from(
+            document.querySelectorAll(
+              '[data-testid="composer-editor"][role="textbox"]',
+            ),
+          ).filter((node) => node instanceof HTMLElement);
+          const editor =
+            editors.find((node) => node.dataset.sessionId === sessionId) ??
+            editors[0] ??
             null;
-          const rect = textarea?.getBoundingClientRect();
-          const style = textarea ? window.getComputedStyle(textarea) : null;
-          const textareaVisible = Boolean(
-            textarea &&
+          const rect = editor?.getBoundingClientRect();
+          const style = editor ? window.getComputedStyle(editor) : null;
+          const editorVisible = Boolean(
+            editor &&
             rect &&
             rect.width > 16 &&
             rect.height > 16 &&
@@ -557,13 +559,13 @@ export async function openSessionFromSidebar(
           const planDecisionText = planDecisionPanel?.textContent || "";
           return {
             url: window.location.href,
-            hasTextarea: Boolean(textarea),
-            textareaSessionId:
-              textarea instanceof HTMLTextAreaElement
-                ? textarea.dataset.sessionId || null
+            hasEditor: Boolean(editor),
+            editorSessionId:
+              editor instanceof HTMLElement
+                ? editor.dataset.sessionId || null
                 : null,
-            textareaCount: textareas.length,
-            textareaVisible,
+            editorCount: editors.length,
+            editorVisible,
             hasConversationMenu: Boolean(menu),
             hasSessionTitleInMain: mainText.includes(title),
             hasRecentConversationsShell: mainText.includes("最近对话"),
@@ -585,9 +587,10 @@ export async function openSessionFromSidebar(
               ) ||
               document.querySelector('[data-testid="toggle-harness"]'),
             ),
-            textareaDisabled:
-              textarea instanceof HTMLTextAreaElement
-                ? textarea.disabled
+            editorDisabled:
+              editor instanceof HTMLElement
+                ? editor.getAttribute("aria-disabled") === "true" ||
+                  editor.getAttribute("contenteditable") !== "true"
                 : null,
             hasPlanDecisionPanel: Boolean(planDecisionPanel),
             hasPlanDecisionTitle: planDecisionText.includes("实施此计划"),
@@ -619,11 +622,11 @@ export async function openSessionFromSidebar(
         !isTaskCenterHomeText(inputReady?.bodyText || "") &&
         (inputReady?.hasSessionTitleInMain || inputReady?.hasMessageList);
       const inputbarReady =
-        inputReady?.hasTextarea &&
+        inputReady?.hasEditor &&
         inputReady?.hasInputbarCore &&
-        inputReady?.textareaVisible &&
-        inputReady?.textareaDisabled === false &&
-        (!sessionId || inputReady?.textareaSessionId === sessionId);
+        inputReady?.editorVisible &&
+        inputReady?.editorDisabled === false &&
+        (!sessionId || inputReady?.editorSessionId === sessionId);
       const planDecisionReady =
         allowPlanDecision === true &&
         inputReady?.hasMessageList === true &&

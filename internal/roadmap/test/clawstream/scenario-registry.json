@@ -326,7 +326,7 @@
       ],
       "verificationCommands": [
         "npx vitest run \"internal/roadmap/test/clawstream/scenario-registry.test.mjs\"",
-        "npm run test:related -- \"src/components/agent/chat/workspace/right-surface\" \"src/components/agent/chat/projection/messageRenderWindowProjection.test.ts\" \"src/components/agent/chat/workspace/ArtifactWorkbenchShell.test.tsx\"",
+        "npm run test:related -- \"src/components/agent/chat/workspace/right-surface\" \"src/components/agent/chat/projection/threadVirtualizer.test.ts\" \"src/components/agent/chat/components/VirtualizedTurnList.test.tsx\" \"src/components/agent/chat/workspace/ArtifactWorkbenchShell.test.tsx\"",
         "npm run smoke:claw-chat-current-fixture -- --scenario right-surface-visual-matrix --timeout-ms 180000",
         "npm run verify:gui-smoke"
       ],

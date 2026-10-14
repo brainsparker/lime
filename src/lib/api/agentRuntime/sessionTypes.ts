@@ -16,6 +16,7 @@ import type {
   AgentSessionExecutionRuntimePermissionState,
 } from "../agentExecutionRuntime";
 import type { ModelCapabilities } from "@/lib/types/modelRegistry";
+import type { ThreadSettings } from "@limecloud/app-server-client";
 
 export interface AgentRuntimeGeneratedTitleResult {
   title: string;
@@ -312,6 +313,7 @@ export interface AgentRuntimeThreadDiagnostics {
 
 export interface AgentRuntimeThreadReadModel {
   thread_id: string;
+  thread_settings?: ThreadSettings;
   can_accept_direct_input?: boolean | null;
   session_business_object_ref_metadata?: Record<string, unknown> | null;
   /**
@@ -323,6 +325,8 @@ export interface AgentRuntimeThreadReadModel {
   profile_status?: AgentRuntimeProfileStatus;
   active_turn_id?: string;
   turns?: AgentRuntimeThreadTurnProfileView[];
+  /** Typed turns from the same canonical read, in server order. */
+  thread_turns?: AgentThreadTurn[];
   thread_items?: AgentThreadItem[];
   pending_requests?: AgentRuntimeRequestView[];
   last_outcome?: AgentRuntimeOutcomeView | null;

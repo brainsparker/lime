@@ -156,14 +156,18 @@ export async function runUserShellGateScenario({
   const shellItem = summarizeShellItem(finalItem ?? firstShellItem);
   const readModelStatus = readModelLatestTurnStatus(latestRead);
   const inputReady = await page.evaluate(() => {
-    const input = document.querySelector('textarea[name="agent-chat-message"]');
+    const input = document.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    );
     return {
-      visible: input instanceof HTMLTextAreaElement,
-      disabled: input instanceof HTMLTextAreaElement ? input.disabled : null,
-      sessionId:
-        input instanceof HTMLTextAreaElement
-          ? input.dataset.sessionId || null
+      visible: input instanceof HTMLElement,
+      disabled:
+        input instanceof HTMLElement
+          ? input.getAttribute("aria-disabled") === "true" ||
+            input.getAttribute("contenteditable") !== "true"
           : null,
+      sessionId:
+        input instanceof HTMLElement ? input.dataset.sessionId || null : null,
     };
   });
 

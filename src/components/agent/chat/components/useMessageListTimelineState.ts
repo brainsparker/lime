@@ -4,10 +4,6 @@ import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/session
 import type { CanonicalChildThreadSummary } from "../projection/canonicalChildThreadSummary";
 import { buildInputbarRuntimeStatusLineModel } from "../utils/inputbarRuntimeStatusLine";
 import {
-  filterConversationThreadItemsForRenderedTurns,
-  resolveConversationRenderedTurnIdSet,
-} from "../projection/threadTimelineWindowProjection";
-import {
   buildCurrentTurnTimelineProjection,
   buildMessageGroupsProjection,
   buildMessageRenderGroupsProjection,
@@ -35,7 +31,6 @@ interface UseMessageListTimelineStateOptions {
   canonicalChildren: CanonicalChildThreadSummary[];
   currentTurnId: string | null;
   focusedTimelineItemId: string | null;
-  hiddenHistoryCount: number;
   isRestoredHistoryWindow: boolean;
   isSending: boolean;
   pendingActions: readonly ActionRequired[];
@@ -52,7 +47,6 @@ export function useMessageListTimelineState({
   canonicalChildren,
   currentTurnId,
   focusedTimelineItemId,
-  hiddenHistoryCount,
   isRestoredHistoryWindow,
   isSending,
   pendingActions,
@@ -63,15 +57,8 @@ export function useMessageListTimelineState({
   threadRead,
   turns,
 }: UseMessageListTimelineStateOptions) {
-  // Turn 窗口由 useMessageListRenderWindow 选择；这里仅补充已选 entry 的展示投影。
+  // Canonical ownership is indexed independently of DOM materialization.
   const renderedTurns = useMemo(() => [...turns], [turns]);
-  const renderedTurnIdSet = useMemo(() => {
-    return resolveConversationRenderedTurnIdSet({
-      renderedTurns,
-      hiddenHistoryCount,
-      isRestoredHistoryWindow,
-    });
-  }, [hiddenHistoryCount, isRestoredHistoryWindow, renderedTurns]);
   const activeCurrentTurn = useMemo(() => {
     if (!currentTurnId) {
       return null;
@@ -95,9 +82,7 @@ export function useMessageListTimelineState({
   const hasLargeHistoricalThreadItems =
     threadItems.length >= MESSAGE_LIST_TIMELINE_DEFER_ITEM_THRESHOLD;
   const hasHistoricalWindow =
-    isRestoredHistoryWindow ||
-    hiddenHistoryCount > 0 ||
-    hasPersistedOlderHistory;
+    isRestoredHistoryWindow || hasPersistedOlderHistory;
   const shouldProtectHistoricalWindowDuringSending =
     isSending &&
     hasHistoricalWindow &&
@@ -115,9 +100,7 @@ export function useMessageListTimelineState({
             MESSAGE_LIST_TIMELINE_DEFER_MESSAGE_THRESHOLD)));
   const shouldDeferHistoricalTimelineDetails =
     !focusedTimelineItemId &&
-    (shouldDeferHistoricalTimeline ||
-      hiddenHistoryCount > 0 ||
-      hasPersistedOlderHistory);
+    (shouldDeferHistoricalTimeline || hasPersistedOlderHistory);
   const [isHistoricalTimelineReady, setIsHistoricalTimelineReady] = useState(
     () => !shouldDeferHistoricalTimeline,
   );
@@ -159,15 +142,8 @@ export function useMessageListTimelineState({
   // 首帧必须确定 canonical Item owner，历史细节延迟期间不能退回 Message 窗口。
   const shouldDeferThreadItemsScan = false;
   const renderedThreadItemsMeasurement = useMemo(
-    () =>
-      measureMessageListComputation(() =>
-        filterConversationThreadItemsForRenderedTurns({
-          threadItems,
-          renderedTurnIdSet,
-          shouldDeferThreadItemsScan,
-        }),
-      ),
-    [renderedTurnIdSet, shouldDeferThreadItemsScan, threadItems],
+    () => measureMessageListComputation(() => [...threadItems]),
+    [threadItems],
   );
   const renderedThreadItems = renderedThreadItemsMeasurement.value;
   const timelineByMessageIdMeasurement = useMemo(

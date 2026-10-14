@@ -3,8 +3,7 @@ import { TaskCenterShellPanel } from "../components/TaskCenterShellPanel";
 import { ExpertInfoPanel } from "../experts/ExpertInfoPanel";
 import { GeneralWorkbenchHarnessSurfaceSection } from "./WorkspaceHarnessDialogs";
 import { WorkspaceArticleEditorRightSurface } from "./WorkspaceArticleEditorRightSurface";
-import { WorkspaceFilesSurface } from "./WorkspaceFilesSurface";
-import { selectWorkspaceFileChangePaths } from "./workspaceFiles";
+import { ReviewThreadSidePanelTab } from "./ReviewThreadSidePanelTab";
 import { WorkspacePluginSurface } from "./WorkspacePluginSurface";
 import { WorkspaceTraceTab } from "./WorkspaceTraceTab";
 import {
@@ -24,7 +23,7 @@ type ArticleEditorRightSurfaceProps = ComponentProps<
 >;
 type BrowserPanelProps = ComponentProps<typeof RightSurfaceBrowserPanel>;
 type ExpertInfoPanelProps = ComponentProps<typeof ExpertInfoPanel>;
-type FilesSurfaceProps = ComponentProps<typeof WorkspaceFilesSurface>;
+type FilesSurfaceProps = ComponentProps<typeof ReviewThreadSidePanelTab>;
 type GeneralWorkbenchHarnessSurfaceProps = ComponentProps<
   typeof GeneralWorkbenchHarnessSurfaceSection
 >;
@@ -149,12 +148,9 @@ export function renderWorkspaceRightSurfaceHostRuntime({
     ...(filesRightSurfaceAvailable
       ? {
           files: () => (
-            <WorkspaceFilesSurface
+            <ReviewThreadSidePanelTab
               target={filesRightSurfaceTarget}
               projectRootPath={canvasWorkbenchRootPath}
-              changedPaths={selectWorkspaceFileChangePaths(
-                activityPanelProps?.threadItems,
-              )}
               onOpenResultFile={
                 preferredServiceSkillResultFileTarget
                   ? onOpenServiceSkillResultFile
@@ -204,9 +200,9 @@ export function renderWorkspaceRightSurfaceHostRuntime({
               sessionId={sceneSessionId}
               workspaceId={runtimeWorkspaceId}
             />
-        ),
-      }
-    : {}),
+          ),
+        }
+      : {}),
     ...(activityPanelProps
       ? {
           activity: () => <ThreadActivityPanel {...activityPanelProps} />,

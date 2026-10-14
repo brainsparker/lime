@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { withComposerEditorDom } from "./lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -268,15 +269,18 @@ function commandItemByText(page, text) {
   return page.locator("[cmdk-item]").filter({ hasText: text });
 }
 
-async function waitForTextareaValue(page, expectedValue, timeoutMs) {
+async function waitForComposerEditorText(page, expectedValue, timeoutMs) {
   await page.waitForFunction(
-    ({ selector, value }) => {
+    withComposerEditorDom(({ selector, value }) => {
       const inputs = Array.from(document.querySelectorAll(selector));
       const input = inputs.at(-1);
-      return input?.value === value;
-    },
+      return (
+        input instanceof HTMLElement &&
+        readComposerEditorTextDom(input) === value
+      );
+    }),
     {
-      selector: 'textarea[name="agent-chat-message"]',
+      selector: '[data-testid="composer-editor"][role="textbox"]',
       value: expectedValue,
     },
     { timeout: timeoutMs },
@@ -286,10 +290,17 @@ async function waitForTextareaValue(page, expectedValue, timeoutMs) {
 async function isComposerReady(page) {
   return page.evaluate(() => {
     const inputs = Array.from(
-      document.querySelectorAll('textarea[name="agent-chat-message"]'),
+      document.querySelectorAll(
+        '[data-testid="composer-editor"][role="textbox"]',
+      ),
     );
     const input = inputs.at(-1);
-    return Boolean(input && input.offsetParent !== null && !input.disabled);
+    return Boolean(
+      input &&
+      input.offsetParent !== null &&
+      input.getAttribute("aria-disabled") !== "true" &&
+      input.getAttribute("contenteditable") === "true",
+    );
   });
 }
 
@@ -371,10 +382,7 @@ function getAppServerMethodRequest(invoke, method) {
 
 function isCurrentImageRuntimeSubmit(invoke) {
   return Boolean(
-    getAppServerMethodRequest(
-      invoke,
-      APP_SERVER_METHOD_TURN_START,
-    ),
+    getAppServerMethodRequest(invoke, APP_SERVER_METHOD_TURN_START),
   );
 }
 
@@ -657,15 +665,23 @@ async function main() {
       .catch(() => undefined);
 
     logStage(options, "wait-composer");
-    const textarea = page.locator('textarea[name="agent-chat-message"]').last();
-    await textarea.waitFor({ state: "visible", timeout: options.timeoutMs });
+    const editor = page
+      .locator('[data-testid="composer-editor"][role="textbox"]')
+      .last();
+    await editor.waitFor({ state: "visible", timeout: options.timeoutMs });
     await page.waitForFunction(
       async () => {
         const inputs = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
+          document.querySelectorAll(
+            '[data-testid="composer-editor"][role="textbox"]',
+          ),
         );
         const input = inputs.at(-1);
-        return Boolean(input && !input.disabled);
+        return Boolean(
+          input &&
+          input.getAttribute("aria-disabled") !== "true" &&
+          input.getAttribute("contenteditable") === "true",
+        );
       },
       null,
       { timeout: options.timeoutMs },
@@ -701,8 +717,8 @@ async function main() {
     summary.workspaceReadySignal = workspaceReadySignal;
 
     logStage(options, "open-at-panel");
-    await textarea.click();
-    await textarea.fill("@");
+    await editor.click();
+    await editor.fill("@");
     await page
       .getByText("统一调用注册表", { exact: false })
       .waitFor({ state: "visible", timeout: options.timeoutMs });
@@ -739,7 +755,7 @@ async function main() {
     });
 
     logStage(options, "select-image-command");
-    await textarea.fill(IMAGE_COMMAND_PREFIX);
+    await editor.fill(IMAGE_COMMAND_PREFIX);
     const filteredImageCommandItem = commandItemByText(
       page,
       IMAGE_COMMAND_PREFIX,
@@ -755,8 +771,8 @@ async function main() {
       .filter({ hasText: IMAGE_COMMAND_LABEL })
       .first()
       .waitFor({ state: "visible", timeout: options.timeoutMs });
-    await textarea.fill(IMAGE_PROMPT);
-    await waitForTextareaValue(page, IMAGE_PROMPT, options.timeoutMs);
+    await editor.fill(IMAGE_PROMPT);
+    await waitForComposerEditorText(page, IMAGE_PROMPT, options.timeoutMs);
     summary.assertions.imageCommandSelected = true;
     summary.assertions.imagePromptFilled = true;
 

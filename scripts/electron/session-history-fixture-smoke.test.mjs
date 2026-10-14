@@ -14,6 +14,16 @@ const paths = {
     "scripts/electron/lib/session-history-thread-read-isomorphic-oracle.mjs",
   longListFixture: "scripts/electron/lib/session-history-long-list-fixture.mjs",
   longListOracle: "scripts/electron/lib/session-history-long-list-oracle.mjs",
+  userCollapseFixture:
+    "scripts/electron/lib/session-history-user-collapse-fixture.mjs",
+  userCollapseGeometry:
+    "scripts/electron/lib/session-history-user-collapse-geometry.mjs",
+  userCollapseGate:
+    "scripts/electron/lib/session-history-user-collapse-gate.mjs",
+  userCollapseRuntime:
+    "scripts/electron/lib/session-history-user-collapse-runtime.mjs",
+  userCollapseInput:
+    "scripts/electron/lib/session-history-user-collapse-input.mjs",
   archiveOracle:
     "scripts/electron/lib/session-history-thread-archive-oracle.mjs",
 };
@@ -186,5 +196,49 @@ describe("agent session history Electron fixture smoke guard", () => {
     expect(combined).not.toContain('APP_SERVER_BACKEND_MODE: "external"');
     expect(combined).not.toContain("APP_SERVER_BACKEND_COMMAND");
     expect(combined).not.toContain("--allow-live-provider");
+  });
+
+  it("shares exact clipboard and canonical proof while preserving real long-list input", () => {
+    const runtime = read(paths.userCollapseRuntime);
+    const smoke = read(paths.smoke);
+    const fixture = read(paths.longListFixture);
+    const gate = read(paths.userCollapseGate);
+    const geometry = read(paths.userCollapseGeometry);
+    expect(runtime).toContain("copyUserMessageFullText");
+    expect(runtime).toContain("summarizeUserMessageCanonicalPreservation");
+    expect(runtime).toContain("summarizeCollapseInputBoundary");
+    expect(runtime).toContain("captureContinuousTraceBoundary");
+    expect(runtime).toContain("captureInvokeTraceCollector");
+    expect(runtime).toContain("withInvokeTraceCollector");
+    expect(runtime).not.toContain("localStorage.getItem");
+    expect(runtime).toContain(
+      "handle.app.evaluate(({ clipboard }) => clipboard.readText())",
+    );
+    expect(runtime).toContain("writeClipboardText: (text)");
+    expect(runtime).toContain(
+      "({ clipboard }, value) => clipboard.writeText(value)",
+    );
+    expect(runtime).not.toContain("navigator.clipboard");
+    expect(runtime).toContain('appServerCallFromPage(page, "thread/read"');
+    expect(fixture).toContain("applyLongListUserMessageProbe");
+    expect(smoke).toContain("runSessionHistoryUserCollapsePhase");
+    expect(smoke).toContain("runSessionHistoryUserCollapseColdRestartPhase");
+    expect(smoke).toContain("extractLongListCollapseFailure(error)");
+    expect(smoke).toContain(
+      "summary.userMessageCollapseFailure = sanitizeJson(collapseFailure)",
+    );
+    expect(smoke).toContain("const longListOldProcess = handle.app.process()");
+    expect(gate).toContain('page.keyboard.press("Shift+Tab")');
+    expect(gate).toContain('page.keyboard.press("Tab")');
+    expect(gate).toContain('page.keyboard.press("Enter")');
+    expect(gate).toContain('page.keyboard.press("Space")');
+    expect(gate).toContain("page.mouse.wheel");
+    expect(geometry).toContain("assertSurvivingNeighborAnchor");
+    expect(geometry).toContain(
+      'removedInternalOffsetPreservation: "not asserted"',
+    );
+    expect(gate).not.toContain("scrollIntoView");
+    expect(gate).not.toContain("scrollTop =");
+    expect(gate).not.toContain("clipboard.writeText");
   });
 });

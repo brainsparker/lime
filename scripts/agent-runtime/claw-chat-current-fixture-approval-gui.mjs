@@ -7,6 +7,25 @@ import {
 import { evaluatePageSnapshot } from "./claw-chat-current-fixture-rpc.mjs";
 import { sanitizeJson, sleep } from "./claw-chat-current-fixture-utils.mjs";
 
+export function isGuiApprovalPendingSnapshotReady(snapshot) {
+  return Boolean(
+    snapshot?.hasSection &&
+    snapshot.hasCurrentInteractionLayer === true &&
+    snapshot.interactionKind === "approval" &&
+    snapshot.hasApprovalContent &&
+    snapshot.hasPrompt &&
+    snapshot.hasToolName === true &&
+    snapshot.hasCommand === true &&
+    snapshot.hasDetails === true &&
+    snapshot.hasPreformattedArguments === true &&
+    snapshot.isApprovalCard === true &&
+    snapshot.editorVisible === true &&
+    snapshot.editorDisabled === false &&
+    snapshot.approveButtonVisible &&
+    snapshot.approveButtonDisabled === false,
+  );
+}
+
 export async function waitForGuiApprovalPending(page, options) {
   const startedAt = Date.now();
   let lastSnapshot = null;
@@ -63,36 +82,38 @@ export async function waitForGuiApprovalPending(page, options) {
         };
         const bodyText = document.body?.innerText || "";
         const requestSection =
-          Array.from(document.querySelectorAll("[data-request-id]")).find(
+          Array.from(
+            document.querySelectorAll(
+              '[data-testid="approval-card"][data-request-id]',
+            ),
+          ).find(
             (element) => element.getAttribute("data-request-id") === requestId,
           ) ?? null;
         const approvalPrompt = document.querySelector(
-          '[data-testid="inputbar-approval-prompt"]',
+          '[data-testid="approval-card"]',
         );
         const interactionLayer = approvalPrompt?.closest(
           '[data-testid="pending-interaction-layer"]',
         );
-        const section = requestSection ?? approvalPrompt;
+        const section = approvalPrompt;
         const sectionText = section?.textContent || "";
         const searchRoot = section || document;
         const promptSummary = approvalPrompt?.querySelector(
-          '[data-testid="inputbar-approval-summary"]',
+          '[data-testid="approval-reason"]',
         );
         const promptRect = approvalPrompt?.getBoundingClientRect();
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const textareaRect = textarea?.getBoundingClientRect();
-        const textareaStyle = textarea
-          ? window.getComputedStyle(textarea)
-          : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          textareaRect &&
-          textareaRect.width > 16 &&
-          textareaRect.height > 16 &&
-          textareaStyle?.visibility !== "hidden" &&
-          textareaStyle?.display !== "none",
+        const editorRect = editor?.getBoundingClientRect();
+        const editorStyle = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
+          editorRect &&
+          editorRect.width > 16 &&
+          editorRect.height > 16 &&
+          editorStyle?.visibility !== "hidden" &&
+          editorStyle?.display !== "none",
         );
         const buttons = Array.from(searchRoot.querySelectorAll("button")).map(
           (button) => {
@@ -109,6 +130,7 @@ export async function waitForGuiApprovalPending(page, options) {
               decision,
               disabled: button.disabled,
               approve:
+                decision === "allow_once" ||
                 decision === "allow_for_session" ||
                 isDecisionLabel("allow_for_session", label),
               decline:
@@ -131,16 +153,29 @@ export async function waitForGuiApprovalPending(page, options) {
           hasRequestId: Boolean(requestSection),
           hasToolName: sectionText.includes(toolName),
           hasCommand: sectionText.includes(commandText),
-          hasDetails: Boolean(approvalPrompt?.querySelector("details")),
+          hasDetails: Boolean(
+            approvalPrompt?.querySelector(
+              '[data-testid="approval-command"], [data-testid="approval-details"]',
+            ),
+          ),
           hasPreformattedArguments: Boolean(
             approvalPrompt?.querySelector("pre"),
           ),
-          textareaVisible,
-          textareaDisabled: textarea?.disabled ?? null,
+          editorVisible,
+          editorDisabled:
+            (editor
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null) ?? null,
           promptHeight: promptRect?.height ?? null,
-          singleLine:
-            Boolean(promptRect) &&
-            (promptRect?.height ?? Number.POSITIVE_INFINITY) <= 48,
+          isApprovalCard:
+            approvalPrompt?.getAttribute("data-approval-surface") ===
+            "pending-request",
+          hasScopeMenu: Boolean(
+            approvalPrompt?.querySelector(
+              '[data-testid="approval-scope-trigger"]',
+            ),
+          ),
           approveButtonVisible: Boolean(approveButton),
           approveButtonDisabled: approveButton?.disabled ?? null,
           declineButtonVisible: buttons.some((button) => button.decline),
@@ -191,22 +226,7 @@ export async function waitForGuiApprovalPending(page, options) {
       continue;
     }
     lastSnapshot = snapshot;
-    if (
-      snapshot.hasSection &&
-      snapshot.hasCurrentInteractionLayer === true &&
-      snapshot.interactionKind === "approval" &&
-      snapshot.hasApprovalContent &&
-      snapshot.hasPrompt &&
-      snapshot.hasToolName === false &&
-      snapshot.hasCommand === false &&
-      snapshot.hasDetails === false &&
-      snapshot.hasPreformattedArguments === false &&
-      snapshot.textareaVisible === true &&
-      snapshot.textareaDisabled === false &&
-      snapshot.singleLine === true &&
-      snapshot.approveButtonVisible &&
-      snapshot.approveButtonDisabled === false
-    ) {
+    if (isGuiApprovalPendingSnapshotReady(snapshot)) {
       return sanitizeJson(snapshot);
     }
     await sleep(options.intervalMs);
@@ -275,22 +295,18 @@ export async function clickApprovalDecisionButton(
           return false;
         };
         const requestSection =
-          Array.from(document.querySelectorAll("[data-request-id]")).find(
+          Array.from(
+            document.querySelectorAll(
+              '[data-testid="approval-card"][data-request-id]',
+            ),
+          ).find(
             (element) => element.getAttribute("data-request-id") === requestId,
           ) ?? null;
         const currentInteractionLayer = requestSection?.closest(
           '[data-testid="pending-interaction-layer"][data-interaction-kind="approval"]',
         );
-        const section =
-          currentInteractionLayer ??
-          document
-            .querySelector(
-              '[data-testid="decision-panel-tool-confirmation-summary"]',
-            )
-            ?.closest("[data-request-id]") ??
-          document.querySelector('[data-harness-section="approvals"]') ??
-          document;
-        const buttons = Array.from(section.querySelectorAll("button"));
+        const section = currentInteractionLayer ?? requestSection;
+        const buttons = Array.from(section?.querySelectorAll("button") ?? []);
         const button = buttons.find((candidate) => {
           const label = [
             candidate.textContent || "",
@@ -304,12 +320,23 @@ export async function clickApprovalDecisionButton(
           );
         });
         if (!button) {
+          const scopeTrigger = section?.querySelector(
+            '[data-testid="approval-scope-trigger"]',
+          );
+          if (
+            decision === "allow_for_session" &&
+            scopeTrigger &&
+            !scopeTrigger.disabled &&
+            scopeTrigger.getAttribute("aria-expanded") !== "true"
+          ) {
+            scopeTrigger.click();
+          }
           return {
             clicked: false,
             decision,
             hasCurrentInteractionLayer: Boolean(currentInteractionLayer),
             buttonCount: buttons.length,
-            sectionText: section.textContent || "",
+            sectionText: section?.textContent || "",
           };
         }
         button.click();
@@ -370,25 +397,23 @@ export async function waitForGuiApprovalPromptAbsent(
       ({ requiredText, runtimePromptText }) => {
         const bodyText = document.body?.innerText || "";
         const approvalPrompt = document.querySelector(
-          '[data-testid="inputbar-approval-prompt"]',
+          '[data-testid="approval-card"]',
         );
         const approvalRecordCount = document.querySelectorAll(
           '[data-testid="timeline-approval-record"]',
         ).length;
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const textareaRect = textarea?.getBoundingClientRect();
-        const textareaStyle = textarea
-          ? window.getComputedStyle(textarea)
-          : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          textareaRect &&
-          textareaRect.width > 16 &&
-          textareaRect.height > 16 &&
-          textareaStyle?.visibility !== "hidden" &&
-          textareaStyle?.display !== "none",
+        const editorRect = editor?.getBoundingClientRect();
+        const editorStyle = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
+          editorRect &&
+          editorRect.width > 16 &&
+          editorRect.height > 16 &&
+          editorStyle?.visibility !== "hidden" &&
+          editorStyle?.display !== "none",
         );
         const buttons = Array.from(document.querySelectorAll("button"));
         const stopButtonVisible = buttons.some((button) => {
@@ -414,9 +439,12 @@ export async function waitForGuiApprovalPromptAbsent(
           hasRequiredText: requiredText
             ? bodyText.includes(requiredText)
             : true,
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorVisible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           stopButtonVisible,
         };
       },
@@ -428,8 +456,8 @@ export async function waitForGuiApprovalPromptAbsent(
       snapshot?.approvalPromptVisible === false &&
       snapshot?.includesRuntimePermissionPrompt === false &&
       snapshot?.includesRuntimeApprovalPrompt === false &&
-      snapshot?.textareaVisible === true &&
-      snapshot?.textareaDisabled === false &&
+      snapshot?.editorVisible === true &&
+      snapshot?.editorDisabled === false &&
       snapshot?.stopButtonVisible === false
     ) {
       return sanitizeJson(snapshot);

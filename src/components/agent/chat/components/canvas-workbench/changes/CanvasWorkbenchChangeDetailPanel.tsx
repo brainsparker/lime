@@ -57,10 +57,10 @@ export function CanvasWorkbenchChangeDetailPanel({
 
   return (
     <div className="group relative flex min-h-0 flex-col overflow-hidden">
-      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3">
+      <div className="flex h-9 shrink-0 items-center justify-between gap-2 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-3">
         <div className="flex min-w-0 items-center gap-2">
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-          <span className="truncate text-[13px] font-medium text-slate-700">
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
+          <span className="truncate text-[13px] font-medium text-[color:var(--lime-text-strong)]">
             {selectedChangeItem?.path ||
               translateWorkbench(
                 "agentChat.canvasWorkbench.coding.changes.detailTitle",
@@ -75,7 +75,7 @@ export function CanvasWorkbenchChangeDetailPanel({
             />
           ) : null}
           {selectedRangeLabel ? (
-            <span className="inline-flex h-5 items-center rounded-[6px] border border-slate-200 bg-slate-50 px-1.5 text-[10px] font-semibold text-slate-500">
+            <span className="inline-flex h-5 items-center rounded-[6px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-1.5 text-[10px] font-semibold text-[color:var(--lime-text-muted)]">
               {selectedRangeLabel}
             </span>
           ) : null}
@@ -84,7 +84,7 @@ export function CanvasWorkbenchChangeDetailPanel({
           </span>
           {latestCheckpointPath && selectedChangeItem ? (
             <span
-              className="max-w-40 truncate text-[11px] text-slate-500"
+              className="max-w-40 truncate text-[11px] text-[color:var(--lime-text-muted)]"
               title={selectedChangeItem.checkpointLabel || latestCheckpointPath}
               data-testid="canvas-workbench-changes-checkpoints"
             >
@@ -123,7 +123,7 @@ export function CanvasWorkbenchChangeDetailPanel({
           />
         ) : selectedChangeItem?.preview ? (
           <div className={cn(panelClassName, "h-full overflow-auto p-4")}>
-            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-slate-700">
+            <pre className="whitespace-pre-wrap break-words font-mono text-xs leading-6 text-[color:var(--lime-text-strong)]">
               {selectedChangeItem.preview}
             </pre>
           </div>

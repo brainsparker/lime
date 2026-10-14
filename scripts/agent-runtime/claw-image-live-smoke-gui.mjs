@@ -11,8 +11,8 @@ export function extractSessionAndTurn(inputSend) {
   const sessionId =
     normalizedString(turnStart?.sessionId) ||
     normalizedString(inputSend?.clicked?.sessionId) ||
-    normalizedString(inputSend?.sendReady?.textareaSessionId) ||
-    normalizedString(inputSend?.before?.textareaSessionId);
+    normalizedString(inputSend?.sendReady?.editorSessionId) ||
+    normalizedString(inputSend?.before?.editorSessionId);
   const turnId = normalizedString(turnStart?.id || turnStart?.turnId);
   return {
     sessionId,
@@ -94,8 +94,9 @@ export async function waitForLiveImagePendingPromptStable(
         return {
           url: window.location.href,
           promptOccurrenceCount: countNormalizedOccurrences(normalizedPrompt),
-          imagePromptOccurrenceCount:
-            countNormalizedOccurrences(normalizedImagePrompt),
+          imagePromptOccurrenceCount: countNormalizedOccurrences(
+            normalizedImagePrompt,
+          ),
           userMessageVisible: mainText.includes("@配图"),
           pendingTexts,
           mainText,
@@ -249,15 +250,15 @@ export async function waitForLiveImageGuiTerminal(page, options, prompt) {
               /\bStop\b/i.test(label))
           );
         });
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const textareaRect = textarea?.getBoundingClientRect();
-        const textareaVisible = Boolean(
-          textarea &&
-          textareaRect &&
-          textareaRect.width > 16 &&
-          textareaRect.height > 16,
+        const editorRect = editor?.getBoundingClientRect();
+        const editorVisible = Boolean(
+          editor &&
+          editorRect &&
+          editorRect.width > 16 &&
+          editorRect.height > 16,
         );
         const rightSurfaceHost = document.querySelector(
           '[data-testid="workspace-right-surface-host"]',
@@ -284,16 +285,20 @@ export async function waitForLiveImageGuiTerminal(page, options, prompt) {
           url: window.location.href,
           promptVisible,
           promptOccurrenceCount: countNormalizedOccurrences(normalizedPrompt),
-          imagePromptOccurrenceCount:
-            countNormalizedOccurrences(normalizedImagePrompt),
+          imagePromptOccurrenceCount: countNormalizedOccurrences(
+            normalizedImagePrompt,
+          ),
           userMessageVisible,
           reasoningVisible,
           hasNonCardAssistantText,
           tokenVisible,
           stopVisible,
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorVisible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           rightSurfaceVisible,
           imageCardCount: imageCards.length,
           imageCards,
@@ -330,8 +335,8 @@ export async function waitForLiveImageGuiTerminal(page, options, prompt) {
       snapshot.hasLoadedImage &&
       snapshot.tokenVisible &&
       snapshot.stopVisible === false &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       snapshot.rightSurfaceVisible === false &&
       snapshot.forbiddenVisibleMarkers.length === 0 &&
       snapshot.promptOccurrenceCount <= 1 &&

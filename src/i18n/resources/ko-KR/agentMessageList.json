@@ -1,4 +1,6 @@
 {
+  "agentChat.messageList.userMessage.showMore": "더 보기",
+  "agentChat.messageList.userMessage.showLess": "접기",
   "agentChat.messageList.firstTokenStatus.cancelled.detail": "이 요청은 중지되었습니다.",
   "agentChat.messageList.firstTokenStatus.cancelled.title": "취소됨",
   "agentChat.messageList.firstTokenStatus.context.detail": "대화 정보와 사용할 수 있는 자료를 정리하는 중입니다.",
@@ -391,9 +393,6 @@
   "agentChat.messageList.history.persistedEntrySummary": "이전 채팅을 더 빨리 열기 위해 최신 {{loaded}}개 대화 기록을 먼저 표시합니다. 더 이전 기록도 계속 불러올 수 있습니다.",
   "agentChat.messageList.history.loadingMore": "기록을 더 불러오는 중",
   "agentChat.messageList.history.loadMore": "기록 더 불러오기",
-  "agentChat.messageList.history.windowEntrySummaryRestored": "채팅을 더 빨리 열기 위해 최신 {{loaded}}개 대화 기록을 먼저 표시합니다. 더 이전 {{hidden}}개 기록은 필요할 때 펼칠 수 있습니다.",
-  "agentChat.messageList.history.windowEntrySummaryDeferred": "채팅을 더 빨리 열기 위해 최신 {{loaded}}개 대화 기록을 먼저 표시합니다. 더 이전 {{hidden}}개 기록은 유휴 시간에 계속 채워집니다.",
-  "agentChat.messageList.history.expandEarlierEntries": "이전 기록 지금 펼치기",
   "agentChat.messageList.restoring.title": "생성 세션 복원 중...",
   "agentChat.messageList.restoring.description": "최근 생성 세션을 동기화하는 중입니다. 잠시만 기다려 주세요.",
   "agentChat.messageList.taskCenterEmpty.badge": "채팅",

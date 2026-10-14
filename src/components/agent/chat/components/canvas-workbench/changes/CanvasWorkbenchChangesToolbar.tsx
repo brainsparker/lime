@@ -59,6 +59,7 @@ export interface CanvasWorkbenchChangesToolbarProps extends CanvasWorkbenchRevie
   onCopyGitApply?: () => void | Promise<void>;
   onToggleDiffVariant?: () => void;
   onToggleFilesPanel?: () => void;
+  onOpenFile?: () => void;
   reviewRunStatus?: "idle" | "starting" | "inProgress" | "completed" | "failed";
   reviewStatusLabelKey?: string | null;
   reviewStartDisabled?: boolean;
@@ -87,10 +88,8 @@ export function CanvasWorkbenchChangesToolbar({
   commitOptions = [],
   commitsLoading = false,
   selectedCommitSha = null,
-  autoExecuteEnabled,
   collapseDiffContext,
   loadFullFile,
-  richPreviewEnabled,
   textDiffEnabled,
   showWhitespace,
   diffVariant,
@@ -101,14 +100,13 @@ export function CanvasWorkbenchChangesToolbar({
   onSelectCommit,
   onRefreshChanges,
   onCopyGitApply,
-  onToggleAutoExecute,
   onToggleCollapseContext,
   onToggleLoadFullFile,
-  onToggleRichPreview,
   onToggleTextDiff,
   onToggleWhitespace,
   onToggleDiffVariant,
   onToggleFilesPanel,
+  onOpenFile,
   reviewRunStatus = "idle",
   reviewStatusLabelKey,
   reviewStartDisabled = true,
@@ -135,16 +133,16 @@ export function CanvasWorkbenchChangesToolbar({
   const isDiffViewToggleDisabled =
     diffViewToggleDisabled ?? (actionsDisabled || !onToggleDiffVariant);
   const toolbarButtonClassName =
-    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-transparent bg-white text-slate-500 transition-colors hover:border-slate-200 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300";
+    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-transparent bg-[color:var(--lime-surface)] text-[color:var(--lime-text-muted)] transition-colors hover:border-[color:var(--lime-surface-border)] hover:bg-[color:var(--lime-surface-subtle)] hover:text-[color:var(--lime-text-strong)] disabled:cursor-not-allowed disabled:text-[color:var(--lime-text-muted)]";
   const activeToolbarButtonClassName =
-    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-slate-200 bg-slate-50 text-slate-700 transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-900 disabled:cursor-not-allowed disabled:text-slate-300";
+    "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[7px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] text-[color:var(--lime-text-strong)] transition-colors hover:border-[color:var(--lime-surface-border-strong)] hover:bg-[color:var(--lime-surface)] hover:text-[color:var(--lime-text-strong)] disabled:cursor-not-allowed disabled:text-[color:var(--lime-text-muted)]";
   const reviewButtonLabelKey =
     reviewRunStatus === "completed" || reviewRunStatus === "failed"
       ? "agentChat.harness.codeReview.action.retry"
       : reviewStatusLabelKey || "agentChat.harness.codeReview.action.start";
 
   return (
-    <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 border-b border-slate-200 bg-white px-3 py-2">
+    <div className="grid min-h-0 grid-cols-[minmax(0,1fr)_auto] gap-x-2 gap-y-1 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-3 py-2">
       <div className="flex min-w-0 items-center gap-2">
         <div className="relative">
           <button
@@ -154,18 +152,18 @@ export function CanvasWorkbenchChangesToolbar({
             )}
             aria-haspopup="menu"
             aria-expanded={baseMenuOpen}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-slate-200 bg-slate-50 px-2.5 text-[13px] font-medium text-slate-900 transition-colors hover:border-slate-300 hover:bg-white disabled:opacity-70"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-2.5 text-[13px] font-medium text-[color:var(--lime-text-strong)] transition-colors hover:border-[color:var(--lime-surface-border-strong)] hover:bg-[color:var(--lime-surface)] disabled:opacity-70"
             disabled={isBaseSelectorDisabled}
             onClick={onToggleBaseMenu}
           >
             <span className="truncate">{selectedBaseLabel}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+            <ChevronDown className="h-3.5 w-3.5 text-[color:var(--lime-text-muted)]" />
           </button>
           {baseMenuOpen && !isBaseSelectorDisabled ? (
             <div
               role="menu"
               data-testid="canvas-workbench-changes-base-menu"
-              className="absolute left-0 top-[calc(100%+6px)] z-[80] w-[202px] rounded-[12px] border border-slate-200/90 bg-white p-1.5 shadow-xl shadow-slate-950/10"
+              className="absolute left-0 top-[calc(100%+6px)] z-[80] w-[202px] rounded-[12px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] p-1.5 shadow-xl shadow-[color:var(--lime-shadow-color)]"
             >
               {CANVAS_WORKBENCH_REVIEW_BASE_OPTIONS.map((option) => {
                 const active = option.key === selectedBase;
@@ -188,26 +186,26 @@ export function CanvasWorkbenchChangesToolbar({
                         }
                       }}
                       className={
-                        "flex h-8 w-full items-center justify-between gap-2 rounded-[7px] px-2 text-left text-[13px] font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-950"
+                        "flex h-8 w-full items-center justify-between gap-2 rounded-[7px] px-2 text-left text-[13px] font-medium text-[color:var(--lime-text-strong)] transition-colors hover:bg-[color:var(--lime-surface-subtle)] hover:text-[color:var(--lime-text-strong)]"
                       }
                     >
                       <span className="min-w-0 truncate">
                         {translateWorkbench(option.labelKey)}
                       </span>
                       {isCommit ? (
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
                       ) : active ? (
-                        <Check className="h-3.5 w-3.5 shrink-0 text-slate-600" />
+                        <Check className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text)]" />
                       ) : null}
                     </button>
                     {isCommit ? (
                       <div
                         role="menu"
                         data-testid="canvas-workbench-changes-base-commit-submenu"
-                        className="absolute left-[calc(100%+6px)] top-0 z-[90] max-h-[320px] w-[280px] overflow-y-auto rounded-[10px] border border-slate-200/90 bg-white p-1.5 shadow-xl shadow-slate-950/10"
+                        className="absolute left-[calc(100%+6px)] top-0 z-[90] max-h-[320px] w-[280px] overflow-y-auto rounded-[10px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] p-1.5 shadow-xl shadow-[color:var(--lime-shadow-color)]"
                       >
                         {commitsLoading ? (
-                          <div className="px-2 py-2 text-[13px] font-medium text-slate-400">
+                          <div className="px-2 py-2 text-[13px] font-medium text-[color:var(--lime-text-muted)]">
                             {translateWorkbench(
                               "agentChat.canvasWorkbench.coding.changes.base.loadingCommits",
                             )}
@@ -224,27 +222,27 @@ export function CanvasWorkbenchChangesToolbar({
                                 aria-checked={commitActive}
                                 data-testid={`canvas-workbench-changes-base-commit-option-${commit.shortSha}`}
                                 onClick={() => onSelectCommit?.(commit)}
-                                className="flex w-full items-start justify-between gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-slate-50"
+                                className="flex w-full items-start justify-between gap-2 rounded-[7px] px-2 py-1.5 text-left transition-colors hover:bg-[color:var(--lime-surface-subtle)]"
                               >
                                 <span className="min-w-0">
-                                  <span className="block truncate text-[13px] font-medium text-slate-800">
+                                  <span className="block truncate text-[13px] font-medium text-[color:var(--lime-text-strong)]">
                                     {commit.subject ||
                                       translateWorkbench(
                                         "agentChat.canvasWorkbench.coding.changes.base.untitledCommit",
                                       )}
                                   </span>
-                                  <span className="block truncate font-mono text-[11px] text-slate-400">
+                                  <span className="block truncate font-mono text-[11px] text-[color:var(--lime-text-muted)]">
                                     {commit.shortSha}
                                   </span>
                                 </span>
                                 {commitActive ? (
-                                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-slate-600" />
+                                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text)]" />
                                 ) : null}
                               </button>
                             );
                           })
                         ) : (
-                          <div className="px-2 py-2 text-[13px] font-medium text-slate-400">
+                          <div className="px-2 py-2 text-[13px] font-medium text-[color:var(--lime-text-muted)]">
                             {translateWorkbench(
                               "agentChat.canvasWorkbench.coding.changes.base.emptyCommits",
                             )}
@@ -266,7 +264,7 @@ export function CanvasWorkbenchChangesToolbar({
         </span>
         {checkpointCount ? (
           <span
-            className="inline-flex items-center gap-1.5 rounded-[7px] border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700"
+            className="inline-flex items-center gap-1.5 rounded-[7px] border border-[color:var(--lime-brand-muted)] bg-[color:var(--lime-brand-soft)] px-2 py-1 text-xs font-medium text-[color:var(--lime-brand)]"
             data-testid="canvas-workbench-changes-checkpoints"
           >
             <ListChecks className="h-3.5 w-3.5" />
@@ -284,7 +282,7 @@ export function CanvasWorkbenchChangesToolbar({
       gitSummary?.uncommittedFileCount !== undefined ||
       changeFileCount > 0 ? (
         <div
-          className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-slate-100 pt-1 font-mono text-[11px] text-slate-500"
+          className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 border-t border-[color:var(--lime-surface-border)] pt-1 font-mono text-[11px] text-[color:var(--lime-text-muted)]"
           data-testid="canvas-workbench-changes-summary"
         >
           {gitSummary?.currentRef ? (
@@ -292,7 +290,7 @@ export function CanvasWorkbenchChangesToolbar({
               className="inline-flex min-w-0 items-center gap-1"
               data-testid="canvas-workbench-changes-current-ref"
             >
-              <GitBranch className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <GitBranch className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
               <span
                 className="max-w-[min(32vw,280px)] truncate"
                 title={gitSummary.currentRef}
@@ -343,6 +341,19 @@ export function CanvasWorkbenchChangesToolbar({
       ) : null}
 
       <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          type="button"
+          disabled={!onOpenFile || reviewActionBusy}
+          onClick={onOpenFile}
+          data-testid="canvas-workbench-changes-open-file"
+          aria-label={translateWorkbench(
+            "agentChat.fileChangesSummary.openFile",
+          )}
+          title={translateWorkbench("agentChat.fileChangesSummary.openFile")}
+          className={toolbarButtonClassName}
+        >
+          <FolderOpen className="h-4 w-4" />
+        </button>
         {onStartReview ? (
           <button
             type="button"
@@ -351,7 +362,7 @@ export function CanvasWorkbenchChangesToolbar({
             title={translateWorkbench(reviewButtonLabelKey)}
             disabled={reviewStartDisabled}
             onClick={() => void onStartReview()}
-            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-sky-200 bg-sky-50 px-2.5 text-[12px] font-medium text-sky-700 transition-colors hover:border-sky-300 hover:bg-sky-100 disabled:cursor-not-allowed disabled:border-slate-200 disabled:bg-slate-50 disabled:text-slate-300"
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-[color:var(--lime-info-border)] bg-[color:var(--lime-info-soft)] px-2.5 text-[12px] font-medium text-[color:var(--lime-info)] transition-colors hover:border-[color:var(--lime-info)] hover:bg-[color:var(--lime-surface-subtle)] disabled:cursor-not-allowed disabled:border-[color:var(--lime-surface-border)] disabled:bg-[color:var(--lime-surface-subtle)] disabled:text-[color:var(--lime-text-muted)]"
           >
             {reviewRunStatus === "starting" ||
             reviewRunStatus === "inProgress" ? (
@@ -366,7 +377,7 @@ export function CanvasWorkbenchChangesToolbar({
         ) : null}
         {reviewStatusLabelKey && reviewRunStatus !== "idle" ? (
           <span
-            className="hidden rounded-full border border-slate-200 bg-slate-50 px-2 py-1 text-[11px] font-medium text-slate-600 xl:inline"
+            className="hidden rounded-full border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] px-2 py-1 text-[11px] font-medium text-[color:var(--lime-text)] xl:inline"
             data-testid="code-review-summary-review-status"
           >
             {translateWorkbench(reviewStatusLabelKey)}
@@ -393,20 +404,16 @@ export function CanvasWorkbenchChangesToolbar({
               reviewActionBusy={reviewActionBusy}
               copyGitApplyDisabled={copyGitApplyDisabled}
               loadFullFileDisabled={loadFullFileDisabled}
-              autoExecuteEnabled={autoExecuteEnabled}
               collapseDiffContext={collapseDiffContext}
               loadFullFile={loadFullFile}
-              richPreviewEnabled={richPreviewEnabled}
               textDiffEnabled={textDiffEnabled}
               showWhitespace={showWhitespace}
               onRefreshChanges={onRefreshChanges}
               onCopyGitApply={onCopyGitApply}
-              onToggleAutoExecute={onToggleAutoExecute}
               onToggleCollapseContext={onToggleCollapseContext}
               onToggleLoadFullFile={
                 loadFullFileDisabled ? undefined : onToggleLoadFullFile
               }
-              onToggleRichPreview={onToggleRichPreview}
               onToggleTextDiff={onToggleTextDiff}
               onToggleWhitespace={onToggleWhitespace}
               onRequestClose={onToggleReviewMenu}
@@ -460,7 +467,7 @@ export function CanvasWorkbenchChangesToolbar({
           )}
           disabled={copyGitApplyDisabled || reviewActionBusy || !onCopyGitApply}
           onClick={onCopyGitApply}
-          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-slate-200 bg-white px-2.5 text-[12px] font-medium text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:text-slate-300"
+          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[7px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-2.5 text-[12px] font-medium text-[color:var(--lime-text-strong)] transition-colors hover:border-[color:var(--lime-surface-border-strong)] hover:bg-[color:var(--lime-surface-subtle)] hover:text-[color:var(--lime-text-strong)] disabled:cursor-not-allowed disabled:text-[color:var(--lime-text-muted)]"
         >
           <GitCompareArrows className="h-3.5 w-3.5" />
           <span className="hidden lg:inline">
@@ -472,10 +479,10 @@ export function CanvasWorkbenchChangesToolbar({
       </div>
       {selectedBase === "branch" && branchCompareLabel ? (
         <div
-          className="col-span-2 flex min-w-0 items-center gap-1.5 pl-1 font-mono text-[12px] text-slate-500"
+          className="col-span-2 flex min-w-0 items-center gap-1.5 pl-1 font-mono text-[12px] text-[color:var(--lime-text-muted)]"
           data-testid="canvas-workbench-changes-branch-compare"
         >
-          <GitBranch className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+          <GitBranch className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
           <span className="min-w-0 truncate">{branchCompareLabel}</span>
         </div>
       ) : null}

@@ -245,18 +245,12 @@ vi.mock("react-i18next", () => ({
           "加载完整文件",
         "agentChat.canvasWorkbench.coding.changes.menu.unloadFullFile":
           "不加载完整文件",
-        "agentChat.canvasWorkbench.coding.changes.menu.enableRichPreview":
-          "启用富文本预览",
-        "agentChat.canvasWorkbench.coding.changes.menu.disableRichPreview":
-          "关闭富文本预览",
         "agentChat.canvasWorkbench.coding.changes.menu.enableTextDiff":
           "启用文字差异",
         "agentChat.canvasWorkbench.coding.changes.menu.disableTextDiff":
           "关闭文字差异",
         "agentChat.canvasWorkbench.coding.changes.menu.copyGitApply":
           "复制 git apply 命令",
-        "agentChat.canvasWorkbench.coding.changes.menu.enableAutoExecute":
-          "启用自动执行",
         "agentChat.canvasWorkbench.coding.changes.menu.collapseContext":
           "折叠全部差异",
         "agentChat.canvasWorkbench.coding.changes.menu.expandContext":

@@ -1,3 +1,4 @@
+import { getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -7,7 +8,6 @@ import {
   renderPanel,
   TEST_EN_COMPOSER_COPY,
   TEST_EN_INPUTBAR_CORE_COPY,
-  updateTextareaValue,
 } from "./EmptyStateComposerPanel.testFixtures";
 
 describe("EmptyStateComposerPanel", () => {
@@ -145,12 +145,11 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("写文章");
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement | null)
-        ?.value,
+      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
     ).toBe("@写文章 写一篇公众号文章");
   });
 
@@ -162,7 +161,7 @@ describe("EmptyStateComposerPanel", () => {
       description: "生成文章草稿",
     };
     const container = renderPanel({
-      input: "@写文章",
+      input: "",
       isGeneralTheme: true,
       pluginSuggestions: [plugin],
     });
@@ -179,13 +178,12 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("写文章");
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement | null)
-        ?.value,
-    ).toBe("");
+      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+    ).toBe("@写文章");
   });
 
   it("首页空态输入区选择插件时应写回显式触发前缀并显示插件标记", async () => {
@@ -214,12 +212,11 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("内容工厂");
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement | null)
-        ?.value,
+      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
     ).toBe("@内容工厂 整理今天的选题");
   });
 
@@ -249,24 +246,23 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+      container.querySelector('[data-composer-token="plugin"]'),
     ).toBeTruthy();
 
     const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
-    updateTextareaValue(textarea, "整理今天的选题");
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
+    act(() => setComposerEditorText(textarea, "整理今天的选题"));
 
     await act(async () => {
       await Promise.resolve();
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+      container.querySelector('[data-composer-token="plugin"]'),
     ).toBeNull();
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement | null)
-        ?.value,
+      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
     ).toBe("整理今天的选题");
   });
 
@@ -303,12 +299,11 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("内容工厂:文章写作");
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement | null)
-        ?.value,
+      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
     ).toBe("@内容工厂:文章写作 整理今天的选题");
   });
 
@@ -342,7 +337,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("content-workbench");
   });
@@ -498,7 +493,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     const trigger = container.querySelector(
-      '[data-testid="inputbar-project-context-project-trigger"]',
+      '[data-testid="composer-utility-project-trigger"]',
     ) as HTMLButtonElement | null;
 
     expect(trigger?.textContent).toContain("进入项目工作");
@@ -510,7 +505,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     const menu = document.body.querySelector(
-      '[data-testid="inputbar-project-context-menu"]',
+      '[data-testid="composer-utility-menu"]',
     );
     expect(menu?.textContent).toContain("添加新项目");
     expect(menu?.textContent).toContain("继续普通对话");

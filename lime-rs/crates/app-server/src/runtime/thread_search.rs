@@ -15,7 +15,19 @@ impl RuntimeCore {
             .ok_or_else(|| {
                 RuntimeCoreError::Backend("canonical thread store is unavailable".to_string())
             })?;
-        store.search_threads(params).await.map_err(search_error)
+        let mut page = store.search_threads(params).await.map_err(search_error)?;
+        for result in &mut page.data {
+            // Search snippets belong to the store; activity belongs to the same
+            // execution projection used by public thread/read and thread/list.
+            let read = self
+                .read_thread(app_server_protocol::ThreadReadParams {
+                    thread_id: result.thread.thread_id.clone(),
+                    turns_view: agent_protocol::ThreadTurnsView::Summary,
+                })
+                .await?;
+            result.thread.status = read.thread.status;
+        }
+        Ok(page)
     }
 }
 

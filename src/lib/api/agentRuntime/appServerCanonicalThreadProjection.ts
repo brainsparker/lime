@@ -95,21 +95,11 @@ function readCanonicalThreadOverview(
     "sectionEnteredAt",
     "section_entered_at",
   );
-  const latestTurn = turns.filter((turn) => !isQueuedTurn(turn)).at(-1);
-  const activeTurn = turns.find((turn) => {
-    if (!isRecord(turn)) {
-      return false;
-    }
-    const queue = isRecord(turn.queue)
-      ? readStringField(turn.queue, "state")
-      : "";
-    return (
-      (readStringField(turn, "status") === "inProgress" &&
-        queue !== "queued") ||
-      queue === "running"
-    );
-  });
-  const queuedTurnCount = turns.filter(isQueuedTurn).length;
+  const latestTurn = turns.at(-1);
+  const activeTurn = turns.find(
+    (turn) =>
+      isRecord(turn) && readStringField(turn, "status") === "inProgress",
+  );
 
   return omitUndefined({
     sessionId,
@@ -143,7 +133,6 @@ function readCanonicalThreadOverview(
     activeTurnId: isRecord(activeTurn)
       ? canonicalTurnId(activeTurn)
       : undefined,
-    queuedTurnCount,
     section,
     sectionEnteredAt:
       sectionEnteredAt === undefined ? undefined : sectionEnteredAt * 1_000,
@@ -205,9 +194,6 @@ export function readCanonicalThreadDetail(
   const rawTurns = Array.isArray(thread.turns) ? thread.turns : [];
   const turns: AgentThreadTurn[] = [];
   for (const turn of rawTurns) {
-    if (isQueuedTurn(turn)) {
-      continue;
-    }
     const projected = canonicalTurnToRuntimeTurn(turn, threadId, updatedAtMs);
     if (!projected) {
       return null;
@@ -264,6 +250,7 @@ export function readCanonicalThreadDetail(
     thread_read: {
       thread_id: threadId,
       thread_items: items,
+      thread_turns: turns,
       can_accept_direct_input: readOptionalBooleanField(
         thread,
         "canAcceptDirectInput",
@@ -306,9 +293,6 @@ function canonicalThreadItems(
     Date.now();
   const reducer = createConversationProjectionReducer({ threadId });
   for (const turn of turns) {
-    if (isQueuedTurn(turn)) {
-      continue;
-    }
     if (!isRecord(turn) || !Array.isArray(turn.items)) {
       return null;
     }
@@ -370,14 +354,6 @@ function canonicalThreadItems(
     }
   }
   return [...reducer.getProjection().items];
-}
-
-function isQueuedTurn(value: unknown): boolean {
-  return (
-    isRecord(value) &&
-    isRecord(value.queue) &&
-    readStringField(value.queue, "state") === "queued"
-  );
 }
 
 function userInputText(value: unknown): string {

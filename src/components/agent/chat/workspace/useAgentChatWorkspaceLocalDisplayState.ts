@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import { useComposerController } from "@/components/input-kit/useComposerController";
 import type { AgentInitialInputCapabilityParams } from "@/types/page";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import { logAgentDebug } from "@/lib/agentDebug";
@@ -25,7 +26,16 @@ export function useAgentChatWorkspaceLocalDisplayState({
   const [showSidebar, setShowSidebar] = useState(
     () => defaultTopicSidebarVisible,
   );
-  const [input, setInput] = useState("");
+  const { controller: composerController, snapshot: composerSnapshot } =
+    useComposerController();
+  const input = composerSnapshot.document.text;
+  const setInput = useCallback<Dispatch<SetStateAction<string>>>((value) => {
+    composerController.setText(typeof value === "function"
+      ? value(composerController.getDocument().text) : value);
+  }, [composerController]);
+  const resetComposerDraft = useCallback(() => {
+    composerController.clear();
+  }, [composerController]);
   const [inputRestoreRequest, setInputRestoreRequest] =
     useState<InterruptedInputRestoreRequest | null>(null);
   const [runtimeInitialInputCapability, setRuntimeInitialInputCapability] =
@@ -85,6 +95,7 @@ export function useAgentChatWorkspaceLocalDisplayState({
     artifactPreviewSize,
     canvasWorkbenchLayoutMode,
     creationMode,
+    composerController,
     effectiveEntryBannerMessage,
     entryBannerVisible,
     expertInfoPanelCollapsed,
@@ -96,6 +107,7 @@ export function useAgentChatWorkspaceLocalDisplayState({
     inputRestoreRequest,
     layoutMode,
     runtimeInitialInputCapability,
+    resetComposerDraft,
     selectedText,
     setActiveTheme,
     setArtifactPreviewSize,

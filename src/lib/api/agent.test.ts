@@ -495,7 +495,6 @@ describe("Agent API 治理护栏", () => {
           },
         },
         thread_status: "idle",
-        queued_turn_count: 0,
       },
     ]);
     expectAppServerRequest(1, "threadSection/list", {
@@ -547,7 +546,6 @@ describe("Agent API 治理护栏", () => {
         messages_count: 0,
         working_dir: "/tmp/workspace",
         thread_status: "idle",
-        queued_turn_count: 0,
       },
     ]);
 
@@ -609,7 +607,6 @@ describe("Agent API 治理护栏", () => {
           workspaceId: "workspace-1",
         },
         thread_status: "idle",
-        queued_turn_count: 0,
       },
     ]);
 
@@ -623,7 +620,7 @@ describe("Agent API 治理护栏", () => {
     });
   });
 
-  it("getAgentRuntimeSession 应返回现役 runtime 详情并排除 queued turn 历史", async () => {
+  it("getAgentRuntimeSession 应读取 canonical 详情，pending 队列由独立 owner 查询", async () => {
     mockAppServerResponse({
       thread: canonicalThread({
         id: "thread-runtime-2",
@@ -659,31 +656,13 @@ describe("Agent API 治理护栏", () => {
               },
             ],
           },
-          {
-            id: "queued-2",
-            status: "inProgress",
-            startedAt: 1710001510,
-            queue: { state: "queued", position: 1 },
-            items: [
-              {
-                id: "item-queued-user-2",
-                type: "userMessage",
-                content: [
-                  {
-                    type: "text",
-                    text: "线程读模型中的排队任务",
-                  },
-                ],
-              },
-            ],
-          },
         ],
       }),
     });
 
-    await expect(
-      getAgentRuntimeSession("session-runtime-2"),
-    ).resolves.toMatchObject({
+    const detail = await getAgentRuntimeSession("session-runtime-2");
+    expect(detail).not.toHaveProperty("queued_turn_count");
+    expect(detail).toMatchObject({
       id: "session-runtime-2",
       thread_id: "thread-runtime-2",
       name: "Runtime Detail",

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   listProjectGitCommits,
@@ -16,6 +16,7 @@ import {
   buildCanvasWorkbenchGitApplyPatch,
   parseCanvasWorkbenchGitPatchToChangeItems,
 } from "./CanvasWorkbenchChangesPanelViewModel";
+import { expandCanvasWorkbenchPatchDiffLines } from "./canvasWorkbenchPatch";
 import type {
   CanvasWorkbenchReviewBase,
   CanvasWorkbenchReviewCommitOption,
@@ -27,6 +28,7 @@ interface CanvasWorkbenchReviewStateInput {
   workspaceRoot?: string | null;
   loadFilePreview?: (path: string) => Promise<HarnessFilePreviewResult>;
   translateWorkbench: CanvasWorkbenchTranslation;
+  initialBase?: CanvasWorkbenchReviewBase;
 }
 
 function buildGitApplyCommand(patch: string): string {
@@ -59,11 +61,22 @@ export function useCanvasWorkbenchReviewState({
   workspaceRoot,
   loadFilePreview,
   translateWorkbench,
+  initialBase = "previousConversation",
 }: CanvasWorkbenchReviewStateInput) {
-  const [selectedBase, setSelectedBase] = useState<CanvasWorkbenchReviewBase>(
-    "previousConversation",
+  const [selectedBase, setSelectedBase] =
+    useState<CanvasWorkbenchReviewBase>(initialBase);
+  const [busyActions, setBusyActions] = useState({
+    diff: false,
+    file: false,
+    action: false,
+  });
+  const reviewActionBusy = Object.values(busyActions).some(Boolean);
+  const setActionBusy = useCallback(
+    (kind: keyof typeof busyActions, busy: boolean) => {
+      setBusyActions((current) => ({ ...current, [kind]: busy }));
+    },
+    [],
   );
-  const [reviewActionBusy, setReviewActionBusy] = useState(false);
   const [backendPatch, setBackendPatch] = useState<string | null>(null);
   const [backendChangeItems, setBackendChangeItems] = useState<
     CanvasWorkbenchChangeItem[]
@@ -93,6 +106,25 @@ export function useCanvasWorkbenchReviewState({
     Record<string, string>
   >({});
   const [loadFullFile, setLoadFullFile] = useState(false);
+  const [requestError, setRequestError] = useState<string | null>(null);
+  const retryRequestRef = useRef<(() => void | Promise<unknown>) | null>(null);
+  const autoLoadIdentityRef = useRef<string | null>(null);
+  const ownerIdentity = `${workspaceRoot?.trim() ?? ""}\u0000${changeView?.reviewThreadId ?? ""}`;
+  const ownerIdentityRef = useRef(ownerIdentity);
+  ownerIdentityRef.current = ownerIdentity;
+  const mountedRef = useRef(false);
+  const requestVersions = useRef({ diff: 0, commits: 0, file: 0, action: 0 });
+  const beginRequest = useCallback(
+    (kind: "diff" | "commits" | "file" | "action") => {
+      const identity = ownerIdentityRef.current;
+      const version = ++requestVersions.current[kind];
+      return () =>
+        mountedRef.current &&
+        identity === ownerIdentityRef.current &&
+        version === requestVersions.current[kind];
+    },
+    [],
+  );
 
   const selectedBaseUsesGit = selectedBase !== "previousConversation";
 
@@ -106,6 +138,41 @@ export function useCanvasWorkbenchReviewState({
     setGitUncommittedFileCount(0);
     setBranchCompareLabel(null);
   }, []);
+
+  useLayoutEffect(() => {
+    const versions = requestVersions.current;
+    mountedRef.current = true;
+    setSelectedBase(initialBase);
+    setSelectedCommitSha(null);
+    setCommitOptions([]);
+    setCommitsLoading(false);
+    setBusyActions({ diff: false, file: false, action: false });
+    setRequestError(null);
+    retryRequestRef.current = null;
+    autoLoadIdentityRef.current = null;
+    resetGitProjection();
+    return () => {
+      mountedRef.current = false;
+      for (const kind of Object.keys(versions) as Array<
+        keyof typeof versions
+      >) {
+        versions[kind] += 1;
+      }
+    };
+  }, [initialBase, ownerIdentity, resetGitProjection]);
+
+  useLayoutEffect(() => {
+    requestVersions.current.file += 1;
+    setFullFileContentById({});
+    setLoadFullFile(false);
+    setActionBusy("file", false);
+  }, [
+    ownerIdentity,
+    changeView?.items,
+    changeView?.currentTurnId,
+    changeView?.turnDiff,
+    setActionBusy,
+  ]);
 
   const applyGitDiffProjection = useCallback(
     (
@@ -152,9 +219,16 @@ export function useCanvasWorkbenchReviewState({
   const loadGitDiffBase = useCallback(
     async (base: CanvasWorkbenchReviewBase, commitSha?: string) => {
       if (base === "previousConversation") {
+        requestVersions.current.diff += 1;
+        requestVersions.current.file += 1;
         resetGitProjection();
         setSelectedBase(base);
         setSelectedCommitSha(null);
+        setActionBusy("diff", false);
+        setActionBusy("file", false);
+        setRequestError(null);
+        setFullFileContentById({});
+        setLoadFullFile(false);
         return true;
       }
       if (!workspaceRoot) {
@@ -166,12 +240,22 @@ export function useCanvasWorkbenchReviewState({
         return false;
       }
 
-      setReviewActionBusy(true);
+      const isCurrent = beginRequest("diff");
+      requestVersions.current.file += 1;
+      setSelectedBase(base);
+      setSelectedCommitSha(base === "commit" ? (commitSha ?? null) : null);
+      resetGitProjection();
+      setFullFileContentById({});
+      setLoadFullFile(false);
+      setRequestError(null);
+      setActionBusy("file", false);
+      setActionBusy("diff", true);
       try {
         const [diff, status] = await Promise.all([
           readProjectGitDiff(workspaceRoot, 3, base, commitSha),
           readProjectGitStatus(workspaceRoot),
         ]);
+        if (!isCurrent()) return false;
         applyGitDiffProjection(diff, status, base);
         setSelectedBase(base);
         if (base !== "commit") {
@@ -184,7 +268,16 @@ export function useCanvasWorkbenchReviewState({
         );
         return true;
       } catch (error) {
+        if (!isCurrent()) return false;
         resetGitProjection();
+        setRequestError(
+          error instanceof Error
+            ? error.message
+            : translateWorkbench(
+                "agentChat.canvasWorkbench.coding.changes.toast.refreshFailed",
+              ),
+        );
+        retryRequestRef.current = () => loadGitDiffBase(base, commitSha);
         toast.error(
           error instanceof Error
             ? error.message
@@ -194,11 +287,13 @@ export function useCanvasWorkbenchReviewState({
         );
         return false;
       } finally {
-        setReviewActionBusy(false);
+        if (isCurrent()) setActionBusy("diff", false);
       }
     },
     [
       applyGitDiffProjection,
+      beginRequest,
+      setActionBusy,
       resetGitProjection,
       translateWorkbench,
       workspaceRoot,
@@ -214,12 +309,15 @@ export function useCanvasWorkbenchReviewState({
       );
       return false;
     }
+    const isCurrent = beginRequest("commits");
     setCommitsLoading(true);
     try {
       const result = await listProjectGitCommits(workspaceRoot, 30);
+      if (!isCurrent()) return false;
       setCommitOptions(projectGitCommitsToReviewOptions(result.commits));
       return true;
     } catch (error) {
+      if (!isCurrent()) return false;
       setCommitOptions([]);
       toast.error(
         error instanceof Error
@@ -230,9 +328,20 @@ export function useCanvasWorkbenchReviewState({
       );
       return false;
     } finally {
-      setCommitsLoading(false);
+      if (isCurrent()) setCommitsLoading(false);
     }
-  }, [translateWorkbench, workspaceRoot]);
+  }, [beginRequest, translateWorkbench, workspaceRoot]);
+
+  useLayoutEffect(() => {
+    if (
+      initialBase === "previousConversation" ||
+      !workspaceRoot ||
+      autoLoadIdentityRef.current === ownerIdentity
+    )
+      return;
+    autoLoadIdentityRef.current = ownerIdentity;
+    void loadGitDiffBase(initialBase);
+  }, [initialBase, loadGitDiffBase, ownerIdentity, workspaceRoot]);
 
   const selectBase = useCallback(
     async (base: CanvasWorkbenchReviewBase) => {
@@ -280,12 +389,15 @@ export function useCanvasWorkbenchReviewState({
       return;
     }
 
-    setReviewActionBusy(true);
+    const isCurrent = beginRequest("diff");
+    setRequestError(null);
+    setActionBusy("diff", true);
     try {
       const [diff, status] = await Promise.all([
         readProjectGitDiff(workspaceRoot, 3),
         readProjectGitStatus(workspaceRoot),
       ]);
+      if (!isCurrent()) return;
       applyGitDiffProjection(diff, status, selectedBase);
       toast.success(
         translateWorkbench(
@@ -293,6 +405,15 @@ export function useCanvasWorkbenchReviewState({
         ),
       );
     } catch (error) {
+      if (!isCurrent()) return;
+      setRequestError(
+        error instanceof Error
+          ? error.message
+          : translateWorkbench(
+              "agentChat.canvasWorkbench.coding.changes.toast.refreshFailed",
+            ),
+      );
+      retryRequestRef.current = refreshChanges;
       toast.error(
         error instanceof Error
           ? error.message
@@ -301,10 +422,12 @@ export function useCanvasWorkbenchReviewState({
             ),
       );
     } finally {
-      setReviewActionBusy(false);
+      if (isCurrent()) setActionBusy("diff", false);
     }
   }, [
     loadGitDiffBase,
+    beginRequest,
+    setActionBusy,
     applyGitDiffProjection,
     loadGitCommits,
     selectedBase,
@@ -335,15 +458,18 @@ export function useCanvasWorkbenchReviewState({
       return;
     }
 
-    setReviewActionBusy(true);
+    const isCurrent = beginRequest("action");
+    setActionBusy("action", true);
     try {
       await navigator.clipboard.writeText(buildGitApplyCommand(patch));
+      if (!isCurrent()) return;
       toast.success(
         translateWorkbench(
           "agentChat.canvasWorkbench.coding.changes.toast.gitApplyCopied",
         ),
       );
     } catch (error) {
+      if (!isCurrent()) return;
       toast.error(
         error instanceof Error
           ? error.message
@@ -352,12 +478,22 @@ export function useCanvasWorkbenchReviewState({
             ),
       );
     } finally {
-      setReviewActionBusy(false);
+      if (isCurrent()) setActionBusy("action", false);
     }
-  }, [backendPatch, fallbackPatch, selectedBase, translateWorkbench]);
+  }, [
+    backendPatch,
+    beginRequest,
+    fallbackPatch,
+    selectedBase,
+    setActionBusy,
+    translateWorkbench,
+  ]);
 
   const toggleLoadFullFile = useCallback(
-    async (selectedChangeItem: CanvasWorkbenchChangeItem | undefined) => {
+    async (
+      selectedChangeItem: CanvasWorkbenchChangeItem | undefined,
+      isSelectionCurrent: () => boolean = () => true,
+    ) => {
       if (
         selectedChangeItem &&
         loadFullFile &&
@@ -381,7 +517,9 @@ export function useCanvasWorkbenchReviewState({
 
       const previewPath = resolveAbsoluteWorkspacePath(
         workspaceRoot,
-        selectedChangeItem.absolutePath || selectedChangeItem.path,
+        selectedChangeItem.destinationPath ||
+          selectedChangeItem.absolutePath ||
+          selectedChangeItem.path,
       );
       if (!previewPath) {
         toast.error(
@@ -393,10 +531,31 @@ export function useCanvasWorkbenchReviewState({
         return;
       }
 
-      setReviewActionBusy(true);
+      const isCurrentRequest = beginRequest("file");
+      const isCurrent = () => isCurrentRequest() && isSelectionCurrent();
+      setRequestError(null);
+      setActionBusy("file", true);
       try {
         const preview = await loadFilePreview(previewPath);
-        if (preview.error || preview.isBinary || preview.content == null) {
+        if (!isCurrent()) return;
+        if (
+          preview.error ||
+          preview.isBinary ||
+          preview.content == null ||
+          (selectedChangeItem.diffLines?.length &&
+            expandCanvasWorkbenchPatchDiffLines(
+              selectedChangeItem.diffLines,
+              preview.content,
+            ) === null)
+        ) {
+          setRequestError(
+            preview.error ||
+              translateWorkbench(
+                "agentChat.canvasWorkbench.coding.changes.toast.fullFileLoadFailed",
+              ),
+          );
+          retryRequestRef.current = () =>
+            toggleLoadFullFile(selectedChangeItem, isSelectionCurrent);
           toast.error(
             preview.error ||
               translateWorkbench(
@@ -412,6 +571,16 @@ export function useCanvasWorkbenchReviewState({
         }));
         setLoadFullFile(true);
       } catch (error) {
+        if (!isCurrent()) return;
+        setRequestError(
+          error instanceof Error
+            ? error.message
+            : translateWorkbench(
+                "agentChat.canvasWorkbench.coding.changes.toast.fullFileLoadFailed",
+              ),
+        );
+        retryRequestRef.current = () =>
+          toggleLoadFullFile(selectedChangeItem, isSelectionCurrent);
         toast.error(
           error instanceof Error
             ? error.message
@@ -421,17 +590,26 @@ export function useCanvasWorkbenchReviewState({
         );
         setLoadFullFile(false);
       } finally {
-        setReviewActionBusy(false);
+        if (isCurrentRequest()) setActionBusy("file", false);
       }
     },
     [
       fullFileContentById,
+      beginRequest,
+      setActionBusy,
       loadFilePreview,
       loadFullFile,
       translateWorkbench,
       workspaceRoot,
     ],
   );
+
+  const invalidateFileRequest = useCallback(() => {
+    requestVersions.current.file += 1;
+    setActionBusy("file", false);
+    setRequestError(null);
+    retryRequestRef.current = null;
+  }, [setActionBusy]);
 
   return {
     backendHasGitRepository,
@@ -448,9 +626,12 @@ export function useCanvasWorkbenchReviewState({
     fallbackPatch,
     fullFileContentById,
     loadFullFile,
+    invalidateFileRequest,
     openCommitMenu,
     refreshChanges,
     reviewActionBusy,
+    requestError,
+    retryRequest: () => retryRequestRef.current?.(),
     selectBase,
     selectCommit,
     selectedBase,

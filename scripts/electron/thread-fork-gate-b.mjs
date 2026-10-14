@@ -615,7 +615,7 @@ async function waitForForkOutcome(
           ?.getAttribute("data-session-id") || "";
       const composerSessionId =
         document
-          .querySelector('textarea[name="agent-chat-message"]')
+          .querySelector('[data-testid="composer-editor"][role="textbox"]')
           ?.getAttribute("data-session-id") || "";
       const toastState = Array.from(
         document.querySelectorAll("[data-sonner-toast]"),

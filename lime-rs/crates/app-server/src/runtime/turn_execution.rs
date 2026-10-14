@@ -2721,66 +2721,6 @@ impl RuntimeCore {
             .map_err(|error| RuntimeCoreError::Backend(error.to_string()))
     }
 
-    async fn dispatch_live_action_response(
-        &self,
-        request: &ActionRespondRequest,
-    ) -> Result<(), RuntimeCoreError> {
-        let turn_id = request.turn.as_ref().map(|turn| turn.turn_id.as_str());
-        let response = request
-            .user_data
-            .clone()
-            .or_else(|| {
-                request
-                    .response
-                    .as_ref()
-                    .map(|response| json!({ "answer": response }))
-            })
-            .unwrap_or_else(|| {
-                let mut response = json!({ "confirmed": request.confirmed });
-                if let Some(decision) = request.decision {
-                    if let Some(object) = response.as_object_mut() {
-                        object.insert("decision".to_string(), json!(decision.as_str()));
-                        object.insert("decisionScope".to_string(), json!(decision.scope()));
-                    }
-                }
-                response
-            });
-        let session = self
-            .session_loops
-            .get_or_create(&request.session.session_id, &request.session.thread_id)
-            .await
-            .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
-        let result = match request.action_type {
-            AgentSessionActionType::ToolConfirmation => {
-                session
-                    .approve(turn_id, &request.request_id, response)
-                    .await
-            }
-            AgentSessionActionType::AskUser => {
-                session
-                    .answer_user_input(turn_id, &request.request_id, response)
-                    .await
-            }
-            AgentSessionActionType::Elicitation => {
-                session
-                    .resolve_mcp_elicitation(turn_id, &request.request_id, response)
-                    .await
-            }
-        };
-        result.map_err(|error| {
-            tracing::warn!(
-                session_id = %request.session.session_id,
-                request_id = %request.request_id,
-                error = %error,
-                "failed to route action response to the active session task"
-            );
-            RuntimeCoreError::ActionResponse {
-                code: "action_response_not_pending".to_string(),
-                request_id: request.request_id.clone(),
-            }
-        })
-    }
-
     pub fn events_for_session(
         &self,
         session_id: &str,

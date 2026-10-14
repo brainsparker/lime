@@ -1,4 +1,70 @@
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
+import type { TextElement, UserInput } from "@limecloud/app-server-client";
+
+export type ComposerTextElement = TextElement;
+export type ComposerInputMention = Extract<
+  UserInput,
+  { type: "skill" | "mention" }
+>;
+
+export interface ComposerSelection {
+  /** UTF-16 offsets in the displayed text, independent of PM positions. */
+  start: number;
+  end: number;
+}
+
+export interface ComposerEditorDocument {
+  type: "doc";
+  content: readonly ComposerBlock[];
+}
+
+export type ComposerBlock = ComposerParagraph | ComposerCodeBlock;
+
+export interface ComposerCodeBlock {
+  type: "code_block";
+  attrs?: { autoDetectLanguage?: boolean; language?: string | null };
+  content?: readonly { type: "text"; text: string }[];
+}
+
+export interface ComposerLinkAttributes {
+  href: string | null;
+  title: string | null;
+  disabled: boolean;
+  isAutolink: boolean;
+  isGeneratedAutolink: boolean;
+  literalMarkdownOccurrenceId: number | null;
+  literalMarkdownSource: string | null;
+  sourceAppId: string | null;
+}
+
+export interface ComposerLinkMark {
+  type: "link";
+  attrs?: Partial<ComposerLinkAttributes>;
+}
+
+export interface ComposerParagraph {
+  type: "paragraph";
+  content?: readonly ComposerInline[];
+}
+
+export type ComposerInline =
+  | { type: "text"; text: string; marks?: readonly ComposerLinkMark[] }
+  | { type: "hard_break" }
+  | {
+      type: "mention";
+      attrs: {
+        id: string;
+        kind: "file" | "skill" | "plugin";
+        name: string;
+        path: string;
+        label: string;
+      };
+    }
+  | { type: "paste"; attrs: { id: string; placeholder: string; text: string } }
+  | {
+      type: "text_element";
+      attrs: { text: string; placeholder?: string | null };
+    };
 
 export interface ComposerAttachment {
   data: string;
@@ -22,10 +88,12 @@ export interface ComposerPathReference {
 
 export interface ComposerMentionBinding {
   id: string;
+  kind: "file" | "skill" | "plugin";
   name: string;
   path: string;
-  from?: number;
-  to?: number;
+  label: string;
+  from: number;
+  to: number;
 }
 
 export interface ComposerPendingPaste {
@@ -34,10 +102,11 @@ export interface ComposerPendingPaste {
 }
 
 export interface ComposerDocument {
+  editorDocument: ComposerEditorDocument;
   text: string;
   selectionStart: number;
   selectionEnd: number;
-  textElements: readonly unknown[];
+  textElements: readonly ComposerTextElement[];
   mentionBindings: readonly ComposerMentionBinding[];
   attachments: readonly ComposerAttachment[];
   pathReferences: readonly ComposerPathReference[];
@@ -65,6 +134,15 @@ export type ComposerSubmitTarget =
 
 export type ComposerDraftSnapshot = ComposerDocument;
 
+export interface ComposerSubmission {
+  text: string;
+  textElements: readonly ComposerTextElement[];
+  inputMentions: readonly ComposerInputMention[];
+  attachments: readonly ComposerAttachment[];
+  pathReferences: readonly ComposerPathReference[];
+  inputCapabilityRoute?: unknown;
+}
+
 export interface ComposerControllerSnapshot {
   document: ComposerDocument;
   revision: number;
@@ -77,6 +155,7 @@ export type ComposerSubmitResult =
       intent: ComposerIntent;
       target: ComposerSubmitTarget;
       draft: ComposerDraftSnapshot;
+      submission: ComposerSubmission;
       revision: number;
     }
   | {
@@ -84,6 +163,7 @@ export type ComposerSubmitResult =
       intent: ComposerIntent;
       target: ComposerSubmitTarget;
       draft: ComposerDraftSnapshot;
+      submission: ComposerSubmission;
       revision: number;
     };
 

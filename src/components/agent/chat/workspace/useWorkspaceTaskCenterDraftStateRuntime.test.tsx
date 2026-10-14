@@ -13,10 +13,12 @@ function Harness({
   agentEntry = "claw",
   messagesLength = 0,
   effectiveThreadItemCount = 0,
+  resetComposerDraft,
 }: {
   agentEntry?: "new-task" | "claw";
   messagesLength?: number;
   effectiveThreadItemCount?: number;
+  resetComposerDraft?: () => void;
 }) {
   runtime = useWorkspaceTaskCenterDraftStateRuntime({
     agentEntry,
@@ -27,6 +29,7 @@ function Harness({
     messagesLength,
     normalizedInitialSessionId: "session-history",
     sessionId: "session-history",
+    resetComposerDraft,
   });
   return null;
 }
@@ -64,6 +67,19 @@ describe("useWorkspaceTaskCenterDraftStateRuntime", () => {
 
   it("已有 Turn 元数据但可见历史为空时仍应 hydrate 当前会话", () => {
     expect(renderHarness().shouldHydrateEmptyMatchedInitialSession).toBe(true);
+  });
+
+  it("换会话重置共享草稿，匹配当前会话的 hydration 保留 revision", () => {
+    let resets = 0;
+    const resetComposerDraft = () => { resets += 1; };
+    const current = renderHarness({ resetComposerDraft });
+    act(() => current.handleBeforeTopicSwitch("session-history"));
+    expect(resets).toBe(0);
+    act(() => current.handleBeforeTopicSwitch("session-other"));
+    expect(resets).toBe(1);
+    current.taskCenterDraftSurfaceActiveRef.current = true;
+    act(() => current.handleBeforeTopicSwitch("session-history"));
+    expect(resets).toBe(2);
   });
 
   it("已有 Message 或 Item 内容时不应重复 hydrate 当前会话", () => {

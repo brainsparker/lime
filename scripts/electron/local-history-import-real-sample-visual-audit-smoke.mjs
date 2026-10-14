@@ -482,9 +482,9 @@ function sanitizeOpenSnapshot(snapshot) {
     url: snapshot.url,
     title: snapshot.title,
     bodyTextLength: snapshot.bodyTextLength,
-    textareaVisible: snapshot.textareaVisible,
-    textareaDisabled: snapshot.textareaDisabled,
-    textareaSessionId: snapshot.textareaSessionId,
+    editorVisible: snapshot.editorVisible,
+    editorDisabled: snapshot.editorDisabled,
+    editorSessionId: snapshot.editorSessionId,
     messageListSessionId: snapshot.messageListSessionId,
     planDecisionHandled: snapshot.planDecisionHandled === true,
     sidebarVisible: snapshot.sidebarVisible,
@@ -638,13 +638,10 @@ function assertVisualAudits(
     audits.length === VIEWPORTS.length * SCROLL_POSITIONS.length,
     "视觉审计截图数量不完整",
   );
-  assert(openSnapshot?.textareaVisible, "导入会话打开后输入框不可见");
+  assert(openSnapshot?.editorVisible, "导入会话打开后输入框不可见");
+  assert(openSnapshot?.editorDisabled === false, "导入会话打开后输入框不可用");
   assert(
-    openSnapshot?.textareaDisabled === false,
-    "导入会话打开后输入框不可用",
-  );
-  assert(
-    openSnapshot?.textareaSessionId === readSummary.sessionId,
+    openSnapshot?.editorSessionId === readSummary.sessionId,
     "导入会话打开后输入框 session 未绑定目标会话",
   );
   assert(

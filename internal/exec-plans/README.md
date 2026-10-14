@@ -30,7 +30,7 @@
 - Refactor v2 全项目 Gate A/B 验收计划：`internal/exec-plans/project-gate-a-b-acceptance-plan.md`
 - 当前发布执行计划：`internal/exec-plans/release-v1.148.0-plan.md`
 - 已结束版本的发布过程不保留在 active tree；结果以 Git tag、GitHub Release、Release Notes 与 Git history 为准。
-- Codex App GUI 对齐执行计划：`internal/exec-plans/codex-app-gui-alignment-plan.md`
+- Codex App GUI 历史基线及领域计划索引：`internal/exec-plans/codex-app-gui-alignment-plan.md`；GUI current 实施统一见下方全面对齐计划。
 - Codex Desktop 跨平台底层对比与对齐计划：`internal/exec-plans/codex-desktop-platform-parity-plan.md`
 - Codex Desktop 选择性 Goose 参考执行计划：`internal/exec-plans/codex-desktop-selective-goose-reference-plan.md`
 - Desktop + CLI/TUI 多 Surface 执行计划：`internal/exec-plans/tui-cli-surfaces-plan.md`
@@ -64,7 +64,7 @@
 - Right Surface 统一承载实施进度：`internal/exec-plans/right-surface-implementation-progress.md`
 - Soul Style 输出面收敛计划：`internal/exec-plans/soul-style-output-surface-convergence-plan.md`
 - Browser Runtime / Right Surface 骨架实施计划：`internal/exec-plans/browser-runtime-right-surface-plan.md`
-- Approval HITL Decision Model 执行计划：`internal/exec-plans/approval-hitl-decision-model-plan.md`
+- Codex GUI 全面对齐 current 计划（行为、结构/命名、清理、测试与护栏）：`internal/exec-plans/codex-gui-alignment-current-plan.md`
 - Agent Phase 6 Provider Reply Backend 执行计划：`internal/exec-plans/agent-phase6-provider-reply-backend-plan.md`
 - 云端套餐与支付边界收口计划：`internal/exec-plans/cloud-commerce-user-center-boundary.md`
 - Agent QC 运营级测试体系执行计划：`internal/exec-plans/agent-qc-ops-testing-plan.md`

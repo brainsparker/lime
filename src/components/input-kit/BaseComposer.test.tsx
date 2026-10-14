@@ -1,9 +1,14 @@
+import { ComposerEditor } from "./ComposerEditor";
+import { getComposerEditorText } from "./composerEditor.testUtils";
 import React, { useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { BaseComposer, type BaseComposerSendMetadata } from "./BaseComposer";
-import { ComposerController, LARGE_PASTE_CHAR_THRESHOLD } from "./ComposerController";
+import {
+  ComposerController,
+  LARGE_PASTE_CHAR_THRESHOLD,
+} from "./ComposerController";
 
 interface RenderResult {
   container: HTMLDivElement;
@@ -77,18 +82,14 @@ const Harness: React.FC<HarnessProps> = ({
       placeholder="输入内容"
     >
       {({
-        textareaRef,
-        textareaProps,
+        editorRef,
+        editorProps,
         onPrimaryAction,
         onPrimaryActionStart,
         isPrimaryDisabled,
       }) => (
         <div>
-          <textarea
-            data-testid="composer-textarea"
-            ref={textareaRef}
-            {...textareaProps}
-          />
+          <ComposerEditor {...editorProps} editorRef={editorRef} />
           <button
             data-testid="composer-primary"
             onPointerDown={onPrimaryActionStart}
@@ -130,14 +131,14 @@ const renderHarness = (props: Partial<HarnessProps> = {}): RenderResult => {
   return { container, root, onSend, onStop };
 };
 
-const getTextarea = (container: HTMLElement): HTMLTextAreaElement => {
-  const textarea = container.querySelector(
-    '[data-testid="composer-textarea"]',
-  ) as HTMLTextAreaElement | null;
-  if (!textarea) {
+const getEditor = (container: HTMLElement): HTMLElement => {
+  const editor = container.querySelector(
+    '[data-testid="composer-editor"]',
+  ) as HTMLElement | null;
+  if (!editor) {
     throw new Error("未找到输入框");
   }
-  return textarea;
+  return editor;
 };
 
 const getPrimaryButton = (container: HTMLElement): HTMLButtonElement => {
@@ -153,10 +154,10 @@ const getPrimaryButton = (container: HTMLElement): HTMLButtonElement => {
 describe("BaseComposer", () => {
   it("按 Enter 应发送消息", () => {
     const { container, onSend } = renderHarness({ initialText: "hello" });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
 
     act(() => {
-      textarea.dispatchEvent(
+      editor.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
       );
     });
@@ -184,10 +185,10 @@ describe("BaseComposer", () => {
       initialText: "hello",
       deferSendOnEnter: true,
     });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
 
     act(() => {
-      textarea.dispatchEvent(
+      editor.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
       );
     });
@@ -247,10 +248,10 @@ describe("BaseComposer", () => {
       initialText: "hello",
       isLoading: true,
     });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
 
     act(() => {
-      textarea.dispatchEvent(
+      editor.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
       );
     });
@@ -258,66 +259,132 @@ describe("BaseComposer", () => {
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("输入法合成阶段按 Enter 不应立即触发发送", () => {
-    const { container, onSend } = renderHarness({ initialText: "你好" });
-    const textarea = getTextarea(container);
-
-    const imeEnterEvent = new KeyboardEvent("keydown", {
+  it.each([
+    {
+      signal: "compositionstart",
       key: "Enter",
-      bubbles: true,
-    });
-    Object.defineProperty(imeEnterEvent, "isComposing", {
-      value: true,
-      configurable: true,
-    });
+      isComposing: false,
+      keyCode: 13,
+    },
+    {
+      signal: "native isComposing",
+      key: "Enter",
+      isComposing: true,
+      keyCode: 13,
+    },
+    { signal: "Process", key: "Process", isComposing: false, keyCode: 0 },
+    { signal: "keyCode229", key: "Enter", isComposing: false, keyCode: 229 },
+  ])(
+    "$signal 候选确认及合成结束不发送，下一次 Enter 才发送",
+    async ({ signal, key, isComposing, keyCode }) => {
+      const rafCallbacks: Array<(timestamp: number) => void> = [];
+      vi.stubGlobal(
+        "requestAnimationFrame",
+        (callback: (timestamp: number) => void) => {
+          rafCallbacks.push(callback);
+          return rafCallbacks.length;
+        },
+      );
+
+      const { container, onSend } = renderHarness({
+        initialText: "你好",
+        deferSendOnEnter: true,
+      });
+      const editor = getEditor(container);
+
+      const imeEnterEvent = new KeyboardEvent("keydown", {
+        key,
+        bubbles: true,
+        cancelable: true,
+        isComposing,
+        keyCode,
+      });
+
+      act(() => {
+        if (signal === "compositionstart") {
+          editor.dispatchEvent(
+            new CompositionEvent("compositionstart", { bubbles: true }),
+          );
+        }
+        editor.dispatchEvent(imeEnterEvent);
+        editor.dispatchEvent(
+          new CompositionEvent("compositionend", { bubbles: true }),
+        );
+        rafCallbacks.splice(0).forEach((callback) => callback(0));
+      });
+
+      expect(imeEnterEvent.defaultPrevented).toBe(false);
+      expect(getComposerEditorText(editor)).toBe("你好");
+      expect(onSend).not.toHaveBeenCalled();
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 30)); });
+
+      act(() => {
+        const nextEnter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+        Object.defineProperty(nextEnter, "timeStamp", { value: imeEnterEvent.timeStamp + 600 });
+        editor.dispatchEvent(nextEnter);
+        rafCallbacks.splice(0).forEach((callback) => callback(0));
+      });
+
+      expect(onSend).toHaveBeenCalledTimes(1);
+      expect(onSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          triggerSource: "enter",
+          triggeredAt: expect.any(Number),
+        }),
+      );
+    },
+  );
+
+  it("Safari 合成结束先于确认键时 keyCode229 不发送", () => {
+    const { container, onSend } = renderHarness({ initialText: "你好" });
+    const editor = getEditor(container);
 
     act(() => {
-      textarea.dispatchEvent(imeEnterEvent);
+      editor.dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
+      );
+      editor.dispatchEvent(
+        new CompositionEvent("compositionend", { bubbles: true }),
+      );
+      editor.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          keyCode: 229,
+          bubbles: true,
+        }),
+      );
     });
 
     expect(onSend).not.toHaveBeenCalled();
   });
 
-  it("输入法用 Enter 确认合成后应自动发送", () => {
-    vi.stubGlobal(
-      "requestAnimationFrame",
-      (callback: (timestamp: number) => void) => {
-        callback(0);
-        return 1;
-      },
-    );
-
+  it("合成期间显式点击发送按钮仍可提交", () => {
     const { container, onSend } = renderHarness({ initialText: "你好" });
-    const textarea = getTextarea(container);
-
-    const imeEnterEvent = new KeyboardEvent("keydown", {
-      key: "Enter",
-      bubbles: true,
-    });
-    Object.defineProperty(imeEnterEvent, "isComposing", {
-      value: true,
-      configurable: true,
-    });
-
     act(() => {
-      textarea.dispatchEvent(imeEnterEvent);
-    });
-
-    expect(onSend).not.toHaveBeenCalled();
-
-    act(() => {
-      textarea.dispatchEvent(
-        new CompositionEvent("compositionend", { bubbles: true }),
+      getEditor(container).dispatchEvent(
+        new CompositionEvent("compositionstart", { bubbles: true }),
       );
+      getPrimaryButton(container).click();
     });
-
     expect(onSend).toHaveBeenCalledTimes(1);
     expect(onSend).toHaveBeenCalledWith(
-      expect.objectContaining({
-        triggerSource: "ime",
-        triggeredAt: expect.any(Number),
-      }),
+      expect.objectContaining({ triggerSource: "button" }),
     );
+  });
+
+  it("Shift+Enter 保持换行编辑，不发送", () => {
+    const { container, onSend } = renderHarness({ initialText: "你好" });
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    act(() => {
+      getEditor(container).dispatchEvent(event);
+    });
+    expect(event.defaultPrevented).toBe(true);
+    expect(onSend).not.toHaveBeenCalled();
   });
 
   it("生成中点击主按钮应触发停止", () => {
@@ -351,10 +418,11 @@ describe("BaseComposer", () => {
 
   it("应为输入框提供稳定的 id 与 name，避免表单告警", () => {
     const { container } = renderHarness();
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
 
-    expect(textarea.getAttribute("id")).toBeTruthy();
-    expect(textarea.getAttribute("name")).toBe("agent-chat-message");
+    expect(editor.getAttribute("role")).toBe("textbox");
+    expect(editor.getAttribute("aria-multiline")).toBe("true");
+    expect(editor.getAttribute("aria-label")).toBe("输入内容");
   });
 
   it.each([
@@ -368,7 +436,7 @@ describe("BaseComposer", () => {
     });
     const controller = new ComposerController();
     const { container } = renderHarness({ controller });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
     const pastedText = "%PATH%\r\n$VAR `echo hi` ^&|<>";
     const pasteEvent = new Event("paste", {
       bubbles: true,
@@ -377,17 +445,17 @@ describe("BaseComposer", () => {
     Object.defineProperty(pasteEvent, "clipboardData", {
       configurable: true,
       value: {
-        getData: (format: string) => (format === "text" ? pastedText : ""),
+        getData: (format: string) => (format === "text/plain" ? pastedText : ""),
       },
     });
 
     act(() => {
-      textarea.dispatchEvent(pasteEvent);
+      editor.dispatchEvent(pasteEvent);
     });
 
     expect(pasteEvent.defaultPrevented).toBe(true);
-    expect(textarea.value).toBe("%PATH%\n$VAR `echo hi` ^&|<>");
-    expect(controller.getDocument().text).toBe(textarea.value);
+    expect(getComposerEditorText(editor)).toBe("%PATH%\n$VAR `echo hi` ^&|<>");
+    expect(controller.getDocument().text).toBe(getComposerEditorText(editor));
   });
 
   it("Windows DOM paste 的大文本使用占位符，提交 draft 时再展开", () => {
@@ -397,7 +465,7 @@ describe("BaseComposer", () => {
     });
     const controller = new ComposerController();
     const { container } = renderHarness({ controller });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
     const pastedText = "x".repeat(LARGE_PASTE_CHAR_THRESHOLD + 1);
     const pasteEvent = new Event("paste", {
       bubbles: true,
@@ -409,14 +477,16 @@ describe("BaseComposer", () => {
     });
 
     act(() => {
-      textarea.dispatchEvent(pasteEvent);
+      editor.dispatchEvent(pasteEvent);
     });
 
-    expect(textarea.value).toMatch(/^\[Pasted text 1:/);
-    const receipt = controller.submit("start");
-    expect(receipt.kind).toBe("accepted");
-    if (receipt.kind === "accepted") {
-      expect(receipt.draft.text).toBe(pastedText);
+    expect(getComposerEditorText(editor)).toMatch(/^\[Pasted text 1:/);
+    let receipt: ReturnType<ComposerController["submit"]>;
+    act(() => { receipt = controller.submit("start"); });
+    expect(receipt!.kind).toBe("accepted");
+    if (receipt!.kind === "accepted") {
+      expect(receipt!.draft.text).toMatch(/^\[Pasted text 1:/);
+      expect(receipt!.submission.text).toBe(pastedText);
     }
   });
 
@@ -426,7 +496,7 @@ describe("BaseComposer", () => {
       value: "Win32",
     });
     const { container, onSend } = renderHarness({ initialText: "" });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
     const altGrEvent = new KeyboardEvent("keydown", {
       altKey: true,
       bubbles: true,
@@ -436,7 +506,7 @@ describe("BaseComposer", () => {
     });
 
     act(() => {
-      textarea.dispatchEvent(altGrEvent);
+      editor.dispatchEvent(altGrEvent);
     });
 
     expect(altGrEvent.defaultPrevented).toBe(false);
@@ -463,20 +533,21 @@ describe("BaseComposer", () => {
     }
 
     const { container } = renderHarness({ controller });
-    const textarea = getTextarea(container);
+    const editor = getEditor(container);
     const up = new KeyboardEvent("keydown", {
       bubbles: true,
       cancelable: true,
       key: "ArrowUp",
     });
     act(() => {
-      textarea.dispatchEvent(up);
+      editor.dispatchEvent(up);
     });
     expect(up.defaultPrevented).toBe(true);
-    expect(textarea.value).toBe("第二条");
+    expect(getComposerEditorText(editor)).toBe("第二条");
 
     act(() => {
-      textarea.dispatchEvent(
+      controller.setSelection(controller.getDocument().text.length);
+      editor.dispatchEvent(
         new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
@@ -484,6 +555,6 @@ describe("BaseComposer", () => {
         }),
       );
     });
-    expect(textarea.value).toBe("");
+    expect(getComposerEditorText(editor)).toBe("");
   });
 });

@@ -872,7 +872,8 @@ strict Clippy最终仍exit101（121条/74文件，无本刀新增诊断），已
 冒充Codex Desktop一致。全局没有可信分母，不给虚构百分比。
 下一刀继续取消终态分类与目录/函数/代码风格逐职责映射；Clippy优先按既有owner
 拆分大型模块后关闭诊断，避免扩散到正在被其它写集持有的runtime热区。
-## Command 拒绝与运行后中断的终态分类（2026-10-13，active）
+
+## Command 拒绝与运行后中断的终态分类（2026-10-13，投影已验收 / 稳定性跟进 active）
 
 主目标仍为 CLI/TUI/GUI 共用 App Server、RuntimeCore 与 canonical Thread/Turn/Item。
 本刀对照 Codex core/tools/events.rs 与 app-server-protocol/v2/item.rs：保留四态合同，
@@ -881,7 +882,8 @@ Codex 对 ToolError::Rejected 的现存宽分类 TODO 不复制为文本猜测�
 
 窄写集：原干净 tool-runtime/tool_result_projection.rs、App Server
 processor/thread/projection/{command.rs,item.rs}、独立 command 投影测试与公共
-command_status_jsonrpc 集成目标；已有本任务 CLI interrupt 与 command shutdown
+command_status_jsonrpc 集成目标、新增 scripts/app-server/command-status-fixture.mjs；
+已有本任务 CLI interrupt 与 command shutdown
 夹具仅替换终态断言。起点备份 /tmp/lime-command-status-before-2026-10-13/。
 GUI、TUI、agent producer、其它 runtime/store、settings/i18n 与未知脏写集只读。
 无新增 enum、协议 method、schema、依赖或架构 owner，三端继续共享同一投影。
@@ -910,3 +912,211 @@ prepared argv/process identity。本刀只扩展共享投影：上述完整 prep
 允许 cancelled -> declined；实际 process、非空 argv、未知 cancellation 仍 failed。
 无 agent/runtime 热区补丁，不通过仅缺少 processId 或错误文本猜测。新增 public
 approval-cancel 与强负向 unit 回归，最后补丁后重建、冻结并重新验证。
+
+构建期间其它写集将仓库版本 1.155.0 -> 1.156.0；认领 9 个源码/fixture 摘要
+未漂移，7005 个 Rust/GUI/Electron 与 manifest 构建输入在新版本下未漂移。
+新版本一致性检查通过，未接管或撤销版本、依赖或其它 owner 写集。额外 App Server
+全量 unit 重编译与另一组 Rust 构建争用 16GB 机器的内存，738383ms 后仅主动
+SIGINT 本任务 compiler(pid=27697,parent cargo=22918)，结果 exit101；原始 log
+及未完成结果保留 validation-before-resource-adjustment.json，不算通过。
+最近完整 App Server unit1821 属 1.155.0、最后 preparation 取消补丁前的中间证据；
+最终定向 projection30/public5 已覆盖最后补丁，但前者在版本同步前运行，不能
+冒充 1.156.0 全量 unit。最终按新版本 shared build、public JSON-RPC、CLI exec
+定向、tool-runtime strict、冻结产物与真实产品 gate 收口；scope 不升级为全仓绿灯。
+
+续测恢复：首次 strict 因本机 V8 artifact cache 消失而失败，日志留存为
+validation-missing-v8-cache.json；通过仓库既有 resolver 恢复官方 150.4.0 artifact
+并核对 SHA，没有变更依赖或清理其它进程。最终 tool-runtime strict Clippy exit0。
+1.156.0 public JSON-RPC5、CLI exec54 与 shared build 已 exit0，Electron renderer /
+host / sidecar / native resources 正在按 current 构建图重建，产品 gate 尚未验收。
+
+交接后原 /tmp 的7005项 build-input manifest 已缺失；9个认领源码摘要仍可核对且
+无漂移。重新留存7373项 current Rust/GUI/Electron/package/public/plugin输入基线，
+记录 build-input-baseline.json 的时间与范围；它不能证明旧快照的连续性。为此追加
+共享二进制构建确认，再冻结新产物，并要求产品 gate 前后新基线及产物摘要无漂移。
+
+最终真实审批 decline/cancel 已 exit0：Command declined、无 process/exit、未创建
+执行副作用，单一 terminal notification 与 cold read 一致；cancel 的 Turn interrupted
+且不追加 provider sampling。stdio archive 隔离、active EOF、CLI正常退出三个
+shutdown 模式已 exit0，原 Command 现在 failed 并保留输出和进程身份。
+临时验收 runner 误传夹具明确禁止的 --cli --active 组合，exit1，失败日志留存
+product-results-invalid-invocation.json；修正 runner 的调用组合，没有放宽夹具。
+CLI活跃命令中断由完整 CLI Gate B 内的真实 SIGINT JSON/human 场景验收。
+
+完整 CLI Gate B 首次 direct artifact 运行在真实 Command 启动后 SIGINT 超时，
+exit1，日志保留 cli-gate-b-first-timeout-result.json / logs/cli-gate-b-first-timeout.log。
+没有改 timeout、生产状态机或错误分类。通过临时透明 stdio 记录代理诊断，原
+冻结 backend 的 JSON/human 中断均正常 exit130，Turn interrupted、Command failed、
+OS子进程已回收；turn/interrupt response 分别1009ms/725ms。诊断完整入口 exit0，
+wire、timing 与结果已归档，但代理运行不替代 direct Gate B，首次超时根因未证实。
+再次 direct 运行保留临时目录以便失败时读取 durable events；TUI/GUI仍待收取。
+
+### 本刀最终验证与范围
+
+证据入口：`.lime/qc/gui-evidence/command-status-2026-10-13/validation.json`。
+当前版本1.156.0。最终定向 public JSON-RPC5、CLI exec54、tool-runtime strict Clippy、
+shared build、输入基线确认后的 shared build 和 Electron fixture build 共6项 exit0；
+contracts、版本一致性、此前 fmt / Prettier / scripts / docs 守卫均已通过。
+旧 App Server1821、TUI1882等完整 unit 仍是中间版本证据，不作为新版本完整 unit。
+
+最终产品门禁8/8 exit0，门禁完成率100%，不是全局对齐百分比：
+
+- 真实 stdio 审批 decline/cancel；原 Command identity、无进程、无执行副作用、
+  单终态通知与 cold read 一致，cancel 的 Turn interrupted。
+- stdio archive隔离、active EOF、CLI正常退出三种 shutdown，真实进程退出、
+  Command failed、输出和原 identity 保留，provider请求数不因清理增加。
+- 完整 direct CLI Gate B，包括 JSON/human SIGINT exit130、原回复文件保留、
+  canonical interrupted / failed 与 OS进程退出。两类中断的 result/canonical JSON
+  已复制到本轮 `cli-interrupt-final/`，首次超时与代理诊断仍单独保留。
+- TUI Gate B，包括真实 PTY、alternate screen、键盘交互、tmux resize/editor、
+  replay / cold read 与 terminal restore；不能用它替代 CLI outer human TTY分支。
+- current fixture聚合，实际解析并归档22个真实 Electron受控场景摘要；其中审批等
+  场景是 external test backend，经真实 current bridge / RuntimeCore / read model。
+  这些场景不能代替 live provider 或所有 shared tool-runtime行为的原生GUI验收。
+- GUI smoke真实 Electron启动、preload/IPC、App Server JSON-RPC初始化1.156.0、
+  工作区/reload、设置路由与三种窗口尺寸。该 smoke没有 provider Turn，详细
+  claimBoundary 见 `gui-smoke-final/summary.json`，不宣称 Codex Desktop像素一致。
+
+9个认领源码/fixture摘要无漂移。7373项宽输入基线中，只有未知并行写集的
+`src/components/AppSidebar.search.test.tsx`变化：Vitest测试、无生产导入，且被
+既有 Electron fixture生产构建扫描明确排除。保留原/新SHA与test-only分类到
+`concurrent-test-inputs.json`，没有更新旧基线或覆盖该文件；生产输入无漂移。
+这是宽扫描包含测试产生的变化，不隐去为“所有输入无漂移”。
+
+冻结 CLI/App Server/code-mode-host与库继续独立记账。current fixture前772项
+artifact快照保留；GUI smoke按自身入口重建后869项快照另存，97项新增资产、
+`dist/index.html`变更，旧772项的其它摘要保持一致。两次构建图不强求字节相同，
+差异与owner记入 `artifact-graph-transition.json`。最终artifact无后续漂移只表示
+GUI smoke后快照到证据收取的一致性，不冒充两个构建期间的连续冻结。
+
+治理分类：新行为为 current shared tool-runtime / App Server projection；独立 Rust
+回归与stdio夹具为 test-only；本刀没有compat / deprecated迁移或dead目录操作。
+GUI多模型、多模态、主题、Banner/Hero继续按product-extension保留。函数与测试
+进入既有短领域模块，无新品牌前缀、协议enum/method、依赖或架构owner。
+
+全局保持active / partial，没有可信总分母，不虚构总体完成率。首次 direct CLI
+SIGINT超时的根因仍未证实，后续直接入口复测成功不等于已修复稳定性缺口。
+下一刀优先审批reverse-request真实失败 -> Failed的owner收口，并继续CLI超时
+取证及目录/函数/代码风格逐职责映射。当前全仓lint / App Server strict Clippy
+遗留未关闭，新版本App Server完整unit未取得；Windows、packaged、live provider、
+CLI outer human TTY与本机Codex Desktop真实视觉仍未验，不宣称release readiness。
+
+## 审批请求失败与用户拒绝分流（2026-10-13，complete / shared-backend）
+
+主目标仍为 GUI/CLI/TUI 共用 App Server -> RuntimeCore -> canonical
+Thread/Turn/Item；GUI 多模态、多模型、主题、Banner/Hero 继续由产品层持有。
+对照本地 Codex a9b0815167c27ab13719dd12d13b63e02b70d221 的
+bespoke_event_handling.rs：用户 decline 为 Command declined；client error、
+deserialize error、channel failure 同样阻止执行，但 completion 为 failed。
+REQUEST_CANCELLED 属于已发生的 Turn transition，不补发普通拒绝响应。
+
+认领写集：App Server approval_server_request.rs 及独立 tests.rs；runtime.rs
+仅注册模块，turn_execution.rs 仅移出 live action response 分发，新建
+runtime/action_response.rs；tool-runtime execution_approval.rs 仅注册类型模块，
+新增 execution_approval/response.rs；runtime_backend/action_response.rs 保留
+审批失败来源，契约守卫仅补迁出模块输入；agent 当前工具 orchestration.rs 仅消费
+类型化审批响应；既有 command-status-fixture.mjs 与本计划。
+起点备份 /tmp/lime-approval-failure-before-2026-10-13/manifest.json。
+避让未知 tsconfig.node.tsbuildinfo、local-conversation-page-a83a1af2c24b.js；
+GUI/TUI/CLI 源码、其它 runtime/store 与配置只读，不提交或创建分支。
+
+方案：复用现有 action/respond metadata 传递服务端审批请求失败事实；共享
+tool-runtime 内部响应类型明确区分 confirmed 与 requestFailed，失败优先且不
+允许缓存授权。公共 JSON-RPC method/审批枚举/schema/依赖/owner 不变；无文本
+猜测、无 mock fallback。审批测试从 936 行父模块移出；live response 分发从
+超大 turn_execution.rs 移出，原文件不增加业务分支。其余回合编排拆分不在本刀，
+退出条件为本刀职责独立后保持原行为与定向回归，剩余大模块治理继续 active。
+
+退出条件：真实 stdio invalid response、client rejection 显示 Command failed，
+无 processId/exitCode/文件副作用，provider 可继续；显式 decline/cancel 的已有
+语义不变；请求只 resolved 一次，item 只 completed 一次且 live/cold 一致；
+channel/client unavailable 与 REQUEST_CANCELLED 分流有定向 Rust 证据。
+先 red/green stdio 和定向 Rust，再 contracts、current fixture/GUI smoke；共享
+构建后冻结可执行文件、记录源码与产物 SHA。无 schema 变化不重新生成协议。
+Windows、packaged、live provider、本机 Codex Desktop 视觉按实际限制单独记账。
+
+### 实现与收尾验证
+
+共享审批 owner 已区分“用户拒绝”与“审批请求失败”：App Server 复用现有
+metadata 传递 `approvalRequestFailed`；RuntimeCore 仅使用已验证的 decision /
+confirmed 分发工具授权，userData 不能覆盖权限；tool-runtime 的内部
+`ExecutionApprovalResponse` 将请求失败映射为 before-handler ExecutionFailed，
+用户 decline 仍为 PermissionDenied。Agent 先校验类型化响应与授权，再缓存
+session 许可；runtime action.resolved 保留失败来源。没有新增公共协议枚举、
+method、schema、依赖或架构 owner，不改变 architecture.md 的主链。
+
+结构和风格按职责拆分：approval_server_request.rs 从936行降到630行，406行
+测试迁入同目录 tests.rs；live action response 分发进入151行
+runtime/action_response.rs；内部授权响应进入134行
+execution_approval/response.rs。旧失败 -> 普通拒绝 helper 已直接替换，没有
+compat 包装；契约守卫同步读取迁出模块。turn_execution.rs 仍3037行，超大模块
+退出条件是继续逐职责迁出且保持回归，本刀只移出响应分发，不追加编排业务。
+
+最终 App Server 审批12项、响应分发9项、tool-runtime审批7项、公共JSON-RPC6项、
+contracts、版本1.156.0、Electron typecheck、共享App Server/CLI构建均已通过。
+真实stdio五场景通过：decline / cancel / invalid-response / client-error /
+host-interrupt；用户拒绝为declined，请求失败为failed，全部无进程与文件执行
+副作用、resolved和completed各一次、live与cold一致。启动前公共Command没有
+aggregatedOutput，失败反馈从provider工具响应取证，不放宽为猜测输出。
+
+完整CLI Gate B最终exit0，覆盖native JSON/human SIGINT exit130、cold read、
+子进程回收、reasoning、五语言、颜色、resume/fork/review、图片、schema、stdin、
+输出文件与三种shutdown；shutdown JSON证据另存cli-shutdown/。首次入口出现
+transport closed，根因仍未证实；直接入口复测通过不能作为稳定性缺口已修复。
+outer human TTY因本任务outer stdin非TTY仍not-run。
+
+current fixture聚合exit0，22个真实Electron场景摘要已归档；审批等external test
+backend场景经真实current bridge/runtime/read model，不替代原生工具或live
+provider验收。直接真实GUI smoke与标准`npm run verify:gui-smoke`均exit0；
+标准入口重建renderer/client/host/App Server资源，真实Electron/preload/IPC、
+初始化1.156.0、reload、settings、三种窗口尺寸24/24断言通过，mock fallback与
+legacy命中为零。shell smoke没有provider Turn，也不证明Desktop像素一致。
+
+收尾环境问题单独记账：独立Code Mode Host初次构建StorageFull失败，早期产品
+fixture复用前轮1.156.0冻结Host，71个owner输入SHA一致；标准GUI入口随后成功
+重新构建并准备Host资源，但shell smoke未调用Code Mode工具。tool-runtime最终
+复测曾触发V8归档rustc ICE；只读检查确认target展开归档截断，官方缓存gzip的
+SHA和完整1816成员结构正确。持有Cargo artifact锁后精确备份、恢复这一份
+归档，最终7项复测exit0；没有清target、下载依赖或修改源码，截断起因未证实。
+原始失败、备份路径及恢复摘要均保留。
+
+TUI前两次未完成：一次构建期间StorageFull，另一次已通过键盘/editor/notes/IME
+场景后因等待标准GUI构建的Cargo锁超时。保持原夹具timeout、源码和断言，标准
+GUI完成后串行重新运行完整TUI Gate B，最终exit0：真实PTY/alternate screen、
+keyboard/editor/notes/IME、tmux resize、canonical/cold resume与terminal restore
+通过。reconnect等个别投影场景明确使用websocket fixture，不冒充stdio。
+本次保留受控TUI临时目录，并归档canonical/runtime JSONL、ledger与终端ANSI；
+索引为tui-final-summary.json。
+
+证据入口：`.lime/qc/gui-evidence/approval-failure-2026-10-13/validation.json`。
+本刀共享后端与已记录构建图的退出条件完成率100%；全局仍partial。11个认领
+源码/夹具与冻结CLI/App Server/Host及库SHA无漂移。GUI构建图1039 -> 1136项，
+97项新增、5项变更：index.html、重新编译的两项sidecar及其两个manifest；
+逐项原/新SHA记录在artifact-graph-transition.json。最终1136项产物摘要无漂移，
+不能将这写成两个构建图字节一致。
+
+收取最终证据时，7366项宽输入基线检测到另一GUI审批卡写集变化：旧
+InputbarApprovalPrompt源码与测试删除，PendingInteractionLayer、Workspace
+inputbar调用者、pending controller与五语言agentInputbar迁移；已观察12项
+变化（9项production、3项test-only），新增ApprovalCard、PendingRequestItemPanel、
+其测试与纯投影4项（3项production、1项test-only）。保留原基线和检测结果到
+concurrent-gui-inputs.json；只读核对它们归属并行GUI计划，不覆盖、不将production
+变化排除为测试文件。所有上述Electron/current fixture证据覆盖此前记录的GUI
+构建图，不能认证这些最新源码；它们的current fixture/Electron验收归
+`internal/exec-plans/codex-gui-alignment-current-plan.md`。当前工作树产品就绪仍false，
+共享后端证据有效，不重建尚在移动的并行GUI写集。
+
+治理分类：共享审批响应和分发为current，Rust回归/受控产品夹具为test-only；
+旧failed_approval_decision helper已删除替换，无compat或deprecated新路径。
+GUI多模态、多模型、主题、Banner/Hero为product-extension。避让写集新增上述
+GUI审批卡、调用者、controller与agentInputbar五语言，不接管其它执行计划。
+下一刀由当前进程继续3037行turn_execution逐职责拆分，并核对现有
+handle_command_approval_request同时处理Command/FileChange/UserInput的入口命名；
+GUI卡片结构/命名与最新真实交互证据由其已登记owner继续，CLI首次transport
+closed仍保留为需要取证的稳定性缺口。
+
+verify:local的lint/typecheck/i18n已通过；全量Vitest因并行前端写集进入121批，
+本任务第6批主动中断，exit130记录保留，不重跑无关全量，也不称全仓绿灯。
+上述检查早于收尾新增GUI审批卡写集，不作为最新GUI源码的全仓门禁结果。
+旧App Server strict Clippy、Windows、packaged、live provider与本机Codex Desktop
+真实视觉仍未关闭。全局active / partial，无可信总分母，不虚构全局完成百分比。

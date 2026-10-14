@@ -1,3 +1,7 @@
+import { restoreComposerDraft } from "../hooks/composerDraftRestore";
+import type { ComposerDraftSnapshot } from "@/components/input-kit";
+import { claimComposerCapabilityInitialization, useComposerCapabilitySelection } from "../skill-selection/useComposerCapabilitySelection";
+import { insertComposerSkill } from "../skill-selection/composerCapabilityMention";
 import React, {
   useCallback,
   useEffect,
@@ -37,13 +41,14 @@ import {
 } from "./EmptyStateLayout";
 import { buildSkillSelectionProps } from "../skill-selection/skillSelectionBindings";
 import { isGeneralResearchTheme } from "../utils/generalAgentPrompt";
-import { buildPathReferenceRequestMetadata } from "../utils/pathReferences";
+import type { MessagePathReference } from "../types";
+import { mergePathReferences, buildPathReferenceRequestMetadata } from "../utils/pathReferences";
 import { buildKnowledgeRequestMetadata } from "@/features/knowledge/agent/knowledgeMetadata";
 import {
   resolveInputCapabilityDispatch,
-  resolveInputCapabilitySendRoute,
   resolveInputCapabilitySelectionFromRoute,
   type InputCapabilitySelection,
+  type InputCapabilitySendRoute,
 } from "../skill-selection/inputCapabilitySelection";
 import { buildServiceSkillHomeCopy } from "../service-skills/homeCopy";
 import { HomeStartSurface } from "../home/HomeStartSurface";
@@ -74,6 +79,7 @@ import { useHomeSkinPresentation } from "./homeSkinPresentation";
 const CREATION_THEMES: string[] = [];
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
+  composerController: externalComposerController,
   input,
   setInput,
   onSend,
@@ -140,7 +146,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onToggleKnowledgeCompanionPack,
   onStartKnowledgeOrganize,
   onManageKnowledgePacks,
-  pathReferences = [],
+  pathReferences: initialPathReferences = [],
   onAddPathReferences,
   inputRestoreRequest = null,
   onInputRestoreRequestHandled,
@@ -155,14 +161,22 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     controller: composerController,
     snapshot: composerSnapshot,
     setText: setComposerControllerText,
-    setAttachments: setComposerControllerAttachments,
-    setPathReferences: setComposerControllerPathReferences,
   } = useComposerController({
+    controller: externalComposerController,
     initialDocument: {
       text: input,
-      pathReferences,
+      pathReferences: initialPathReferences,
     },
   });
+  const pathReferences = useMemo(() => [...composerSnapshot.document.pathReferences], [composerSnapshot.document.pathReferences]);
+  const handleAddPathReferences = useCallback((references: MessagePathReference[]) => {
+    composerController.setPathReferences(mergePathReferences([...composerController.getDocument().pathReferences], references));
+    onAddPathReferences?.(references);
+  }, [composerController, onAddPathReferences]);
+  const handleRemovePathReference = useCallback((id: string) => {
+    composerController.setPathReferences(composerController.getDocument().pathReferences.filter((reference) => reference.id !== id));
+    onRemovePathReference?.(id);
+  }, [composerController, onRemovePathReference]);
   const promptHistoryClientRef = useRef<AppServerClient | null>(null);
   if (!promptHistoryClientRef.current) {
     promptHistoryClientRef.current = new AppServerClient();
@@ -192,6 +206,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   useEffect(() => {
     setComposerControllerText(input);
   }, [input, setComposerControllerText]);
+  const emittedComposerTextRef = useRef(input);
+  useEffect(() => {
+    if (emittedComposerTextRef.current === composerSnapshot.document.text) return;
+    emittedComposerTextRef.current = composerSnapshot.document.text;
+    setInput(composerSnapshot.document.text);
+  }, [composerSnapshot.document.text, setInput]);
   const homeSkinPresentation = useHomeSkinPresentation();
   const translateAgentCopyKey = useCallback(
     (key: string, values?: Record<string, number | string>) =>
@@ -218,10 +238,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     () => buildInputbarCoreCopy(translateAgentCopyKey),
     [translateAgentCopyKey],
   );
-  const handledInitialInputCapabilitySignatureRef = useRef("");
   const inputRestoreEpochRef = useRef(0);
-  const [activeCapability, setActiveCapability] =
-    useState<InputCapabilitySelection | null>(null);
+  const [activeCapability, setActiveCapability] = useComposerCapabilitySelection(composerController, skills);
   const [knowledgeHubOpenRequestKey, setKnowledgeHubOpenRequestKey] =
     useState(0);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
@@ -263,7 +281,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       : null;
   const clearSelectedSkill = useCallback(() => {
     setActiveCapability(null);
-  }, []);
+  }, [setActiveCapability]);
   const initialInputCapabilitySignature = useMemo(() => {
     const route = initialInputCapability?.capabilityRoute;
     if (!route) {
@@ -277,25 +295,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   }, [initialInputCapability]);
 
   useEffect(() => {
-    if (!initialInputCapabilitySignature) {
-      handledInitialInputCapabilitySignatureRef.current = "";
-      return;
-    }
-
-    if (
-      handledInitialInputCapabilitySignatureRef.current ===
-      initialInputCapabilitySignature
-    ) {
-      return;
-    }
-
     const route = initialInputCapability?.capabilityRoute;
-    if (!route) {
+    if (!route || !claimComposerCapabilityInitialization(composerController, initialInputCapabilitySignature)) {
       return;
     }
 
-    handledInitialInputCapabilitySignatureRef.current =
-      initialInputCapabilitySignature;
     const resolvedCapability = resolveInputCapabilitySelectionFromRoute({
       route,
       skills,
@@ -309,16 +313,27 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       setComposerText(route.prompt);
     }
 
+    if (resolvedCapability.kind === "installed_skill") {
+      insertComposerSkill(composerController, resolvedCapability.skill);
+      setInput(composerController.getDocument().text);
+    }
     setActiveCapability(resolvedCapability);
   }, [
     initialInputCapability,
     initialInputCapabilitySignature,
+    composerController,
+    setInput,
     input,
     setComposerText,
+    setActiveCapability,
     skills,
   ]);
   const handleSelectInputCapability = useCallback(
     (capability: InputCapabilitySelection) => {
+      if (capability.kind === "installed_skill") {
+        insertComposerSkill(composerController, capability.skill);
+        setInput(composerController.getDocument().text);
+      }
       if (capability.kind === "service_skill") {
         setActiveCapability(null);
         onSelectServiceSkill?.(capability.skill);
@@ -344,10 +359,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       setActiveCapability(capability);
     },
     [
+      composerController,
+      setInput,
       knowledgePackSelection,
       onManageKnowledgePacks,
       onSelectServiceSkill,
       onStartKnowledgeOrganize,
+      setActiveCapability,
     ],
   );
   useEffect(() => {
@@ -365,6 +383,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     knowledgePackSelection,
     onManageKnowledgePacks,
     onStartKnowledgeOrganize,
+    setActiveCapability,
   ]);
   const skillSelection = buildSkillSelectionProps({
     skills,
@@ -438,55 +457,33 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     handlePaste,
     handleRemoveImage,
     pendingImages,
-    replacePendingImages,
   } = useEmptyStateAttachments({
     toastCopy: homeSurfaceCopy.toast,
-    onAddPathReferences,
+    onAddPathReferences: handleAddPathReferences,
+    controller: composerController,
   });
 
-  useEffect(() => {
-    setComposerControllerAttachments(pendingImages);
-  }, [pendingImages, setComposerControllerAttachments]);
-  useEffect(() => {
-    setComposerControllerPathReferences(pathReferences);
-  }, [pathReferences, setComposerControllerPathReferences]);
-  useEffect(() => {
-    composerController.setInputCapabilityRoute(
-      resolveInputCapabilitySendRoute(activeCapability),
-    );
-  }, [activeCapability, composerController]);
 
   useEffect(() => {
     if (!inputRestoreRequest || isComposerBusy) {
       return;
     }
 
+    if (!restoreComposerDraft(composerController, inputRestoreRequest)) return;
     inputRestoreEpochRef.current += 1;
-    const { draft, requestId } = inputRestoreRequest;
-    const restoredPathReferences = [...(draft.pathReferences ?? [])];
-    setComposerText(draft.text);
-    replacePendingImages([...(draft.images ?? [])]);
-    onClearPathReferences?.();
-    if (restoredPathReferences.length > 0) {
-      onAddPathReferences?.(restoredPathReferences);
-    }
-    setActiveCapability(
-      draft.inputCapabilityRoute
-        ? resolveInputCapabilitySelectionFromRoute({
-            route: draft.inputCapabilityRoute,
-            skills,
-          })
-        : null,
-    );
+    const { requestId } = inputRestoreRequest;
+    setInput(composerController.getDocument().text);
     onInputRestoreRequestHandled?.(requestId);
   }, [
     inputRestoreRequest,
+    composerController,
+    setInput,
     isComposerBusy,
     onAddPathReferences,
     onClearPathReferences,
     onInputRestoreRequestHandled,
-    replacePendingImages,
     setComposerText,
+    setActiveCapability,
     skills,
   ]);
 
@@ -546,6 +543,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     },
     triggerMetadata?: BaseComposerSendMetadata,
   ) => {
+    const currentDraft = composerController.getDocument();
+    const pendingImages = [...currentDraft.attachments];
+    const pathReferences = [...currentDraft.pathReferences];
+    const submissionCapability = currentDraft.inputCapabilityRoute
+      ? resolveInputCapabilitySelectionFromRoute({ route: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute, skills })
+      : null;
     const composerInputOverride =
       inputOverride === input
         ? composerController.getDocument().text
@@ -579,18 +582,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       return;
     }
     const imagesToSend = pendingImages.length > 0 ? pendingImages : undefined;
-    const capabilityDispatch = resolveInputCapabilityDispatch(
-      activeCapability,
-      composerInputOverride,
-    );
+    const capabilityDispatch = {
+      ...resolveInputCapabilityDispatch(submissionCapability, composerInputOverride),
+      capabilityRoute: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute | undefined,
+    };
     const submitTarget: ComposerSubmitTarget =
       triggerMetadata?.submitTarget ?? (isLoading ? "steer" : "start");
     setComposerControllerText(composerInputOverride);
-    setComposerControllerAttachments(pendingImages);
-    setComposerControllerPathReferences(pathReferences);
-    composerController.setInputCapabilityRoute(
-      capabilityDispatch.capabilityRoute,
-    );
     const composerReceipt = composerController.submit(submitTarget);
     if (composerReceipt.kind === "empty") {
       return;
@@ -627,19 +625,17 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const collaborationMode = inputbarModeState.planEnabled
       ? ("plan" as const)
       : undefined;
-    const effectiveInput = composerInputOverride.trim()
-      ? composerInputOverride
+    const effectiveInput = composerReceipt.submission.text.trim()
+      ? composerReceipt.submission.text
       : hasPathReferences
         ? homeSurfaceCopy.composerPathReferenceFallbackPrompt
         : composerInputOverride;
     const inputRestoreDraft = {
-      text: composerInputOverride.trim() ? composerInputOverride : "",
-      images: [...pendingImages],
-      pathReferences: [...pathReferences],
-      inputCapabilityRoute: capabilityDispatch.capabilityRoute,
+      ...composerReceipt.draft,
+      images: [...composerReceipt.draft.attachments],
+      inputCapabilityRoute: composerReceipt.draft.inputCapabilityRoute as InputCapabilitySendRoute | undefined,
     };
-    const shouldAttachInputRestoreDraft =
-      pendingImages.length > 0 || pathReferences.length > 0;
+    const shouldAttachInputRestoreDraft = true;
     const sendOptions =
       capabilityDispatch.capabilityRoute ||
       capabilityDispatch.displayContent ||
@@ -670,6 +666,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       composerIntent: composerReceipt.intent,
       composerTarget: composerReceipt.target,
       composerDraft: composerReceipt.draft,
+      composerSubmission: composerReceipt.submission,
       ...(triggerMetadata
         ? {
             triggeredAt: triggerMetadata.triggeredAt,
@@ -684,11 +681,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       if (!composerController.commit(composerReceipt)) {
         return;
       }
-      if (sessionId && composerReceipt.draft.text.trim()) {
+      if (sessionId && composerReceipt.submission.text.trim()) {
         void promptHistoryClientRef.current
           ?.appendPromptHistory({
             threadId: sessionId,
-            text: composerReceipt.draft.text,
+            text: composerReceipt.submission.text,
           })
           .catch(() => undefined);
       }
@@ -710,6 +707,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     }
     clearAcceptedSubmissionState();
     return sendResult;
+  };
+
+  const handleComposerHistoryRecall = (draft: ComposerDraftSnapshot) => {
+    setInput(draft.text);
   };
 
   const getPlaceholder = () => homeSurfaceCopy.composerPlaceholder;
@@ -847,6 +848,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       resetCuratedTaskLauncher,
       selectedText,
       setComposerText,
+      setActiveCapability,
       subagentEnabled,
     ],
   );
@@ -929,6 +931,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         input={composerSnapshot.document.text}
         setInput={setComposerText}
         controller={composerController}
+        onHistoryRecall={handleComposerHistoryRecall}
         placeholder={
           guideHelpActive
             ? homeSurfaceCopy.guideHelpPlaceholder
@@ -1024,7 +1027,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         onRemoveImage={handleRemoveImage}
         pathReferences={pathReferences}
         onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
-        onRemovePathReference={onRemovePathReference}
+        onRemovePathReference={handleRemovePathReference}
         fileManagerOpen={fileManagerOpen}
         onToggleFileManager={onToggleFileManager}
         guideHelpActive={guideHelpActive}

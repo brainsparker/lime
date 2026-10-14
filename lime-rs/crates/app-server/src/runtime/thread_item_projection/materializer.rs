@@ -162,11 +162,12 @@ impl<'a> Materializer<'a> {
         }
 
         let payload_turn_id = value_string(&event.payload, &["turnId", "turn_id"]);
-        let queue_added_turn_id = (event.event_type == "queue.added")
-            .then(|| queued_turn_id(event))
-            .flatten();
-        let turn_id = if event.event_type == "queue.added" {
-            queue_added_turn_id.as_deref()
+        let queue_input_turn_id =
+            matches!(event.event_type.as_str(), "queue.added" | "queue.updated")
+                .then(|| queued_turn_id(event))
+                .flatten();
+        let turn_id = if matches!(event.event_type.as_str(), "queue.added" | "queue.updated") {
+            queue_input_turn_id.as_deref()
         } else {
             event.turn_id.as_deref().or(payload_turn_id.as_deref())
         };
@@ -211,7 +212,13 @@ fn item_from_event(
 
     let event_type = event.event_type.as_str();
     let payload_turn_id = value_string(&event.payload, &["turnId", "turn_id"]);
-    let turn_id = event.turn_id.as_deref().or(payload_turn_id.as_deref())?;
+    let is_queue_input = matches!(event_type, "queue.added" | "queue.updated");
+    let queue_input_turn_id = is_queue_input.then(|| queued_turn_id(event)).flatten();
+    let turn_id = if is_queue_input {
+        queue_input_turn_id.as_deref()
+    } else {
+        event.turn_id.as_deref().or(payload_turn_id.as_deref())
+    }?;
     let session_id = non_empty(&event.session_id).unwrap_or(default_session_id);
     let payload_thread_id = value_string(&event.payload, &["threadId", "thread_id"]);
     let thread_id = event
@@ -225,7 +232,12 @@ fn item_from_event(
     let source = approval_source
         .as_ref()
         .unwrap_or_else(|| payload_source(&event.payload));
-    let raw_item_id = family.item_id(source, turn_id, &event.event_id)?;
+    let raw_item_id = if is_queue_input {
+        // Queue submission identities must not replace the existing UserMessage identity.
+        family.fallback_id(turn_id, &event.event_id)
+    } else {
+        family.item_id(source, turn_id, &event.event_id)?
+    };
     let preserves_imported_codex_plan_id = matches!(family, ItemFamily::Plan)
         && map_string(source, &["sourceClient", "source_client"]).as_deref() == Some("codex")
         && family.explicit_item_id(source).is_some();

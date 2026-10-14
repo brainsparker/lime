@@ -22,6 +22,7 @@ import {
   type AgentThreadTurn,
 } from "@/lib/api/agentProtocol";
 import type { ActionRequired, Message, MessageImage } from "../types";
+import { cloneInterruptedInputDraft } from "./agentStreamInputRestorePlan";
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
 import type { AgentAccessMode } from "./agentChatStorage";
 import type { SoulInteractionCopy } from "@/lib/soul/interactionCopy";
@@ -92,18 +93,6 @@ function appendThinkingToParts(
 
   nextParts.push({ type: "thinking", text: textDelta });
   return nextParts;
-}
-
-function cloneInterruptedInputDraft(
-  draft: InterruptedInputDraftSnapshot,
-): InterruptedInputDraftSnapshot {
-  return {
-    text: draft.text,
-    images: draft.images ? [...draft.images] : [],
-    pathReferences: draft.pathReferences ? [...draft.pathReferences] : [],
-    textElements: draft.textElements ? [...draft.textElements] : [],
-    inputCapabilityRoute: draft.inputCapabilityRoute,
-  };
 }
 
 interface UseAgentStreamOptions {
@@ -468,14 +457,20 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       options?: SendMessageOptions,
     ) => {
       submittedDraftFallbackRef.current = cloneInterruptedInputDraft(
-        options?.inputRestoreDraft ?? {
-          text: options?.displayContent ?? content,
-          images,
-          textElements: (options?.displayContent ?? content).trim()
-            ? [{ type: "text", text: options?.displayContent ?? content }]
-            : [],
-          inputCapabilityRoute: options?.capabilityRoute,
-        },
+        options?.composerDraft
+          ? {
+              ...options.composerDraft,
+              images: options.composerDraft.attachments,
+              inputCapabilityRoute:
+                options.inputRestoreDraft?.inputCapabilityRoute ??
+                options.capabilityRoute,
+            }
+          : (options?.inputRestoreDraft ?? {
+              text: options?.displayContent ?? content,
+              images,
+              textElements: [],
+              inputCapabilityRoute: options?.capabilityRoute,
+            }),
       );
       await sendAgentStreamMessage({
         content,

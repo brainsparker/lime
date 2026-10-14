@@ -30,6 +30,7 @@ interface UseWorkspaceResetRuntimeParams {
   resetProjectSelection: () => void;
   resetRestoredSessionState: () => void;
   resetGuideState: () => void;
+  resetComposerDraft?: () => void;
   hasHandledNewChatRequest: (requestKey: string) => boolean;
   markNewChatRequestHandled: (requestKey: string) => void;
   defaultTopicSidebarVisible: boolean;
@@ -61,6 +62,7 @@ export function useWorkspaceResetRuntime({
   resetProjectSelection,
   resetRestoredSessionState,
   resetGuideState,
+  resetComposerDraft,
   hasHandledNewChatRequest,
   markNewChatRequestHandled,
   defaultTopicSidebarVisible,
@@ -113,6 +115,7 @@ export function useWorkspaceResetRuntime({
   ]);
 
   const handleBackHome = useCallback(() => {
+    resetComposerDraft?.();
     clearMessages({
       showToast: false,
     });
@@ -128,6 +131,7 @@ export function useWorkspaceResetRuntime({
     clearMessages,
     clearPendingEntryA2UI,
     onNavigate,
+    resetComposerDraft,
     resetWorkbenchSurface,
     setActiveTheme,
     setCreationMode,
@@ -151,6 +155,7 @@ export function useWorkspaceResetRuntime({
       return;
     }
 
+    resetComposerDraft?.();
     clearMessages({
       showToast: false,
     });
@@ -185,6 +190,7 @@ export function useWorkspaceResetRuntime({
     newChatAt,
     normalizedInitialTheme,
     preserveSessionRestoreOnNewChat,
+    resetComposerDraft,
     resetGuideState,
     resetProjectSelection,
     resetRestoredSessionState,

@@ -1,3 +1,4 @@
+import { act } from "react";
 import { describe, expect, it } from "vitest";
 import {
   mockStreamingRenderer,
@@ -727,11 +728,29 @@ describe("MessageList reasoning persistence", () => {
     expect(mockAgentThreadTimeline).not.toHaveBeenCalled();
     expect(container.textContent).toContain("好");
     expect(container.textContent).toContain("Processed for 2s");
-    expect(mockStreamingRenderer).toHaveBeenCalledWith(
+    const answers = container.querySelectorAll<HTMLElement>(
+      '[data-testid="streaming-renderer"]',
+    );
+    expect(answers).toHaveLength(1);
+    expect(answers[0].textContent).toBe("好");
+    expect(answers[0].dataset.hasThinkingContent).toBe("no");
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="message-list-historical-timeline-preview:leading"]',
+        )
+        ?.click();
+    });
+    expect(mockAgentThreadTimeline).toHaveBeenCalledWith(
       expect.objectContaining({
-        content: "好",
-        thinkingContent: undefined,
-        contentParts: [expect.objectContaining({ type: "text", text: "好" })],
+        turn: expect.objectContaining({ id: "turn-fast-plain-answer" }),
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            id: "reasoning-fast-plain-answer",
+            type: "reasoning",
+            text: "我们被要求只回答一个字：好。直接回复即可。",
+          }),
+        ]),
       }),
     );
   });

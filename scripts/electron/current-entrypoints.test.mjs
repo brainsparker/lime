@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import legacySurfaceCatalog from "../../src/lib/governance/legacySurfaceCatalog.json" with { type: "json" };
+import { findPermissionOwnerViolations } from "./lib/permission-owner-guard.mjs";
 
 const bundledElectronRuntimePackages = new Set([
   "@limecloud/app-server-client",
@@ -101,8 +103,7 @@ function barePackageName(specifier) {
   return specifier.split("/")[0] ?? null;
 }
 
-function collectRuntimeBareImports(filePath) {
-  const content = readFile(filePath);
+function collectRuntimeBareImports(content) {
   const imports = new Set();
   const importFromPattern =
     /^\s*import\s+(?!type\b)[^;]*?\s+from\s+["']([^"']+)["']/gm;
@@ -188,17 +189,39 @@ function currentElectronEntrypointFiles() {
   ];
 }
 
-function electronProductionSourceFiles() {
-  return listFiles("electron", (filePath) => {
-    const normalized = filePath.replace(/\\/g, "/");
-    return (
-      /\.(?:mjs|js|ts)$/i.test(normalized) &&
-      !normalized.endsWith(".d.ts") &&
-      !normalized.endsWith(".test.ts") &&
-      !normalized.endsWith(".test.mjs") &&
-      !normalized.endsWith(".test.js")
+function isElectronProductionSourceFile(filePath) {
+  const normalized = filePath.replace(/\\/g, "/");
+  return (
+    /\.(?:mjs|js|ts)$/i.test(normalized) &&
+    !normalized.endsWith(".d.ts") &&
+    !/\.(?:test|testHarness)\.(?:ts|mjs|js)$/i.test(normalized)
+  );
+}
+
+function unpackagedRuntimeImports(filePath, content, runtimeDependencies) {
+  if (!isElectronProductionSourceFile(filePath)) return [];
+  return collectRuntimeBareImports(content).filter(
+    (packageName) =>
+      !runtimeDependencies.has(packageName) &&
+      !bundledElectronRuntimePackages.has(packageName),
+  );
+}
+
+function productionTestImports(filePath, content) {
+  if (!isElectronProductionSourceFile(filePath)) return [];
+  return [
+    ...content.matchAll(
+      /(?:from\s+|import\s*\(|require\s*\()(["'])([^"']+)\1/g,
+    ),
+  ]
+    .map((match) => match[2])
+    .filter((specifier) =>
+      /\.(?:test|testHarness)(?:\.(?:ts|mjs|js))?$/i.test(specifier),
     );
-  });
+}
+
+function electronProductionSourceFiles() {
+  return listFiles("electron", isElectronProductionSourceFile);
 }
 
 describe("Electron current package entrypoints", () => {
@@ -229,6 +252,16 @@ describe("Electron current package entrypoints", () => {
     for (const filePath of retiredRootDesktopHostFiles()) {
       expect(fs.existsSync(filePath), filePath).toBe(false);
     }
+  });
+
+  it("keeps one current main-window permission owner and forbids retired media owners", () => {
+    const retired = legacySurfaceCatalog.imports.find(
+      (entry) => entry.id === "retired-main-window-media-permissions",
+    );
+    expect(retired).toMatchObject({ classification: "dead", allowedPaths: [] });
+    expect(
+      findPermissionOwnerViolations(process.cwd(), retired.targets),
+    ).toEqual([]);
   });
 
   it("keeps retired host cleanup candidates out of current entrypoints", () => {
@@ -306,19 +339,63 @@ describe("Electron current package entrypoints", () => {
     const missing = [];
 
     for (const filePath of electronProductionSourceFiles()) {
-      for (const packageName of collectRuntimeBareImports(filePath)) {
-        if (
-          !runtimeDependencies.has(packageName) &&
-          !bundledElectronRuntimePackages.has(packageName)
-        ) {
-          missing.push(`${filePath}: ${packageName}`);
-        }
+      for (const packageName of unpackagedRuntimeImports(
+        filePath,
+        readFile(filePath),
+        runtimeDependencies,
+      )) {
+        missing.push(`${filePath}: ${packageName}`);
       }
     }
 
     expect(
       missing,
       "Forge package uses prune=true, so Electron production runtime imports must be root dependencies.",
+    ).toEqual([]);
+  });
+
+  it("test harness classification does not admit test dependencies in production sources", () => {
+    const runtimeDependencies = new Set(["electron"]);
+    const content = 'import { vi } from "vitest";';
+    expect(
+      unpackagedRuntimeImports(
+        "electron/browserTabHost.testHarness.ts",
+        content,
+        runtimeDependencies,
+      ),
+    ).toEqual([]);
+    expect(
+      unpackagedRuntimeImports(
+        "electron/browserTabHost.ts",
+        content,
+        runtimeDependencies,
+      ),
+    ).toEqual(["vitest"]);
+    expect(
+      unpackagedRuntimeImports(
+        "electron/browserTabHost.js",
+        'const test = require("vitest");',
+        runtimeDependencies,
+      ),
+    ).toEqual(["vitest"]);
+    expect(
+      productionTestImports(
+        "electron/main.ts",
+        'import { test } from "./browserTabHost.testHarness";',
+      ),
+    ).toEqual(["./browserTabHost.testHarness"]);
+    expect(
+      productionTestImports(
+        "electron/browserTabHost.test.ts",
+        'import { test } from "./browserTabHost.testHarness";',
+      ),
+    ).toEqual([]);
+    expect(
+      electronProductionSourceFiles().flatMap((filePath) =>
+        productionTestImports(filePath, readFile(filePath)).map(
+          (specifier) => `${filePath}: ${specifier}`,
+        ),
+      ),
     ).toEqual([]);
   });
 
@@ -356,7 +433,9 @@ describe("Electron current package entrypoints", () => {
     expect(smokeChecksContent).toContain(
       '[data-testid="inputbar-core-container"]',
     );
-    expect(smokeChecksContent).toContain('textarea[name="agent-chat-message"]');
+    expect(smokeChecksContent).toContain(
+      '[data-testid="composer-editor"][role="textbox"]',
+    );
     expect(smokeChecksContent).toContain("claw workbench shell ready");
     expect(smokeChecksContent).toContain("memory settings ready");
     expect(smokeChecksContent).toContain("reloadElectronSmokeRenderer");

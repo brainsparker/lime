@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -16,6 +17,15 @@ import {
   parseInvokeTraceRaw,
   parseJsonRpcRequestsFromInvokeTrace,
 } from "./lib/mcp-config-fixture-evidence.mjs";
+import {
+  QUEUED_MESSAGE_MUTATION_METHODS,
+  QUEUED_MESSAGE_RICH_INPUT,
+  runQueuedMessageMutationGate,
+} from "./lib/queued-message-mutation-gate-b.mjs";
+import {
+  preparePendingQueueBackend,
+  pauseQueueAfterInterruptedTurn,
+} from "./lib/pending-queue-fixture.mjs";
 import {
   appServerCallFromPage,
   closeElectronFixture,
@@ -55,12 +65,12 @@ function printHelp() {
 Thread Queue Electron Gate B
 
 用途:
-  通过真实 Electron 创建 canonical Thread 和 durable Queue submission，
-  再从 GUI 侧栏打开同一 Thread，验证队列 projection 用户可见。
+  通过真实 Electron 启动并中断基线 Turn，添加 durable Queue submission，
+  再从 GUI 侧栏打开同一 Thread，验证队列操作、公共历史排除与图片缩略。
 
 边界:
-  使用 unavailable backend；不启动 Turn、不调用模型，不使用 mock backend、
-  renderer fallback 或旧 queued snapshot。
+  使用 external 阻塞 backend；只执行基线 Turn，不调用模型，不 admission
+  pending Queue，不证明 active Steer 或跨卸载暂停持久化，mock fallback 为零。
 
 选项:
   --evidence-dir <path> --prefix <name> --timeout-ms <ms>
@@ -210,6 +220,7 @@ export function summarizeThreadQueueEvidence({
       queueItemsPresent: dom?.queueItemsPresent === true,
       queueStatusContainsMarker: dom?.queueStatusContainsMarker === true,
       timelineMarkerCount: Number(dom?.timelineMarkerCount ?? 0),
+      idle: dom?.idle === true,
     },
     errors: {
       invokeErrorCount: parseInvokeTraceRaw(errorRaw).length,
@@ -218,6 +229,7 @@ export function summarizeThreadQueueEvidence({
       .filter(
         (request) =>
           THREAD_QUEUE_REQUIRED_METHODS.includes(request.method) ||
+          QUEUED_MESSAGE_MUTATION_METHODS.includes(request.method) ||
           THREAD_QUEUE_OPEN_METHODS.includes(request.method),
       )
       .map(requestSummary),
@@ -250,14 +262,15 @@ export function assertThreadQueueEvidence(evidence) {
     evidence.gui.headerTitle.includes(THREAD_QUEUE_TITLE),
     `Thread header 标题不正确: ${evidence.gui.headerTitle}`,
   );
-  assert(evidence.gui.queueStatusVisible, "thread-queue-status 不可见");
+  assert(evidence.gui.queueStatusVisible, "queued-message-list 不可见");
   assert(
-    evidence.gui.timelineMarkerCount === 1,
-    `Queue marker 必须在 canonical 时间线中唯一可见，实际数量: ${evidence.gui.timelineMarkerCount}`,
+    evidence.gui.timelineMarkerCount === 0,
+    `尚未消费的 Queue 不得进入 canonical 时间线，实际数量: ${evidence.gui.timelineMarkerCount}`,
   );
+  assert(evidence.gui.idle, "尚未启动的 Queue 未显示 idle header/Composer");
   assert(
     !evidence.gui.queueStatusContainsMarker,
-    "thread-queue-status 不得重复 canonical submission 正文",
+    "折叠 queued-message-list 不得重复 submission 正文",
   );
   assert(
     !evidence.gui.queueItemsPresent,
@@ -331,7 +344,7 @@ async function readGuiAndTrace(page) {
         '[data-testid="thread-workspace-header-title"]',
       );
       const status = document.querySelector(
-        '[data-testid="thread-queue-status"]',
+        '[data-testid="queued-message-list"]',
       );
       const timelineUserMessages = Array.from(
         document.querySelectorAll(
@@ -370,6 +383,11 @@ async function readGuiAndTrace(page) {
                 count + markerOccurrences(message.textContent),
               0,
             ),
+          idle:
+            Boolean(document.querySelector('[data-testid="send-btn"]')) &&
+            document
+              .querySelector('[data-testid="thread-workspace-header"]')
+              ?.getAttribute("data-status") !== "running",
         },
         traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
         errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
@@ -400,6 +418,7 @@ async function run() {
     `${options.prefix}-failure.png`,
   );
   const runtimeEnv = createTempRuntimeEnv();
+  const backendStartedPath = preparePendingQueueBackend(runtimeEnv);
   const workspaceRoot = path.join(runtimeEnv.tempRoot, "workspace");
   fs.mkdirSync(workspaceRoot, { recursive: true });
   let handle = null;
@@ -410,8 +429,8 @@ async function run() {
     scenarioId: "CODEX-ALIGN-thread-queue",
     proofLevel: "Gate B controlled fixture",
     claimBoundary:
-      "Real Electron durable pending Thread Queue projection for one canonical Thread. It does not start a Turn or call a model.",
-    backendMode: "unavailable",
+      "Real Electron durable Queue update/reorder/delete after an interrupted baseline execution; pending excluded from idle public history/paging, independent Queue preview and decoded thumbnail through media/read. External fixture bypasses live Provider; no queued Turn admission or active Steer.",
+    backendMode: "external",
     ok: false,
     checkedAt: new Date().toISOString(),
     identity: null,
@@ -432,6 +451,13 @@ async function run() {
       repoRoot: process.cwd(),
       forceBuild: false,
     });
+    summary.appServerBinary = {
+      path: appServerBinary,
+      sha256: createHash("sha256")
+        .update(fs.readFileSync(appServerBinary))
+        .digest("hex"),
+      sourceEquivalence: "not established for the current dirty Rust tree",
+    };
     const appServerEnv = resolveElectronAppServerRuntimeEnv({
       env: { ...runtimeEnv.env, APP_SERVER_BIN: appServerBinary },
     });
@@ -443,6 +469,7 @@ async function run() {
       appServerEnv,
       consoleErrors,
       pageErrors,
+      backendMode: "external",
     });
     await handle.page.evaluate(() => {
       window.localStorage.removeItem("lime_invoke_error_buffer_v1");
@@ -457,12 +484,18 @@ async function run() {
       cwd: workspaceRoot,
       serviceName: THREAD_QUEUE_TITLE,
       historyMode: "legacy",
-      threadSource: "fixture",
+      threadSource: "appServer",
     });
     const threadId = started.result?.thread?.id;
     assert(
       typeof threadId === "string" && threadId,
       "thread/start 未返回 Thread ID",
+    );
+    console.log(`${LOG_PREFIX} stage=interrupt-execution-baseline`);
+    const baselineTurnId = await pauseQueueAfterInterruptedTurn(
+      handle.page,
+      threadId,
+      backendStartedPath,
     );
 
     console.log(`${LOG_PREFIX} stage=add-queue-submission`);
@@ -497,6 +530,45 @@ async function run() {
       },
     ];
 
+    const richClientId = "queue-gate-b-rich-client-message";
+    await handle.page.evaluate(async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+      if (image.naturalWidth !== 1 || image.naturalHeight !== 1) {
+        throw new Error("Queue seed PNG did not decode to the expected size");
+      }
+    }, QUEUED_MESSAGE_RICH_INPUT[1].url);
+    const rich = await appServerCallFromPage(handle.page, "thread/queue/add", {
+      threadId,
+      input: QUEUED_MESSAGE_RICH_INPUT,
+      clientUserMessageId: richClientId,
+    });
+    const sentinel = await appServerCallFromPage(
+      handle.page,
+      "thread/queue/add",
+      {
+        threadId,
+        input: [{ type: "text", text: "Queue delete sentinel" }],
+        clientUserMessageId: "queue-gate-b-delete-client-message",
+      },
+    );
+    const richId = rich.result?.queuedSubmission?.id;
+    const deleteId = sentinel.result?.queuedSubmission?.id;
+    assert(
+      typeof richId === "string" && typeof deleteId === "string",
+      "Queue mutation seed 未返回 identity",
+    );
+    for (const response of [rich, sentinel]) {
+      setupRequests.push({
+        command: response.appServerCommand,
+        method: response.method,
+        transport: "electron-ipc",
+        status: "success",
+        params: { threadId },
+      });
+    }
+
     console.log(`${LOG_PREFIX} stage=open-thread-from-sidebar`);
     await handle.page.reload({ waitUntil: "domcontentloaded" });
     await waitForPageCondition(
@@ -511,12 +583,37 @@ async function run() {
     await waitForConversation(handle.page, options);
     await clickConversation(handle.page);
     await handle.page
-      .locator('[data-testid="thread-queue-status"]')
+      .locator('[data-testid="queued-message-list"]')
       .waitFor({ state: "visible", timeout: options.timeoutMs });
     await handle.page
       .locator('[data-testid="message-list-column"] [data-message-role="user"]')
-      .filter({ hasText: THREAD_QUEUE_MARKER })
+      .filter({ hasText: "Queue fixture interrupted execution baseline" })
       .waitFor({ state: "visible", timeout: options.timeoutMs });
+
+    await waitForPageCondition(
+      handle.page,
+      options,
+      (id) => {
+        const traces = JSON.parse(
+          window.localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
+        );
+        return traces.some(
+          (entry) =>
+            entry.command === "app_server_handle_json_lines" &&
+            entry.transport === "electron-ipc" &&
+            entry.status === "success" &&
+            entry.args_preview?.request?.lines?.some((line) => {
+              const request = JSON.parse(line);
+              return (
+                request.method === "thread/queue/list" &&
+                request.params?.threadId === id
+              );
+            }),
+        );
+      },
+      "生产 GUI 未完成同一 Thread 的 current queue list",
+      threadId,
+    );
 
     const observed = await readGuiAndTrace(handle.page);
     const evidence = summarizeThreadQueueEvidence({
@@ -526,6 +623,26 @@ async function run() {
       setupRequests,
     });
     assertThreadQueueEvidence(evidence);
+
+    console.log(`${LOG_PREFIX} stage=mutate-queue-through-gui`);
+    summary.mutations = await runQueuedMessageMutationGate(handle.page, {
+      threadId,
+      baselineTurnId,
+      editedId: richId,
+      deletedId: deleteId,
+      initialIds: [queuedSubmission.id, richId, deleteId],
+      clientUserMessageId: richClientId,
+      onStage: (stage) => console.log(`${LOG_PREFIX} stage=${stage}`),
+      timeoutMs: options.timeoutMs,
+    });
+    const finalObserved = await readGuiAndTrace(handle.page);
+    const finalEvidence = summarizeThreadQueueEvidence({
+      ...finalObserved,
+      threadId,
+      queuedSubmissionId: queuedSubmission.id,
+      setupRequests,
+    });
+    assertThreadQueueEvidence(finalEvidence);
     assert(
       consoleErrors.length === 0,
       `观察到 console error: ${consoleErrors.join(" | ")}`,
@@ -541,17 +658,17 @@ async function run() {
       queueRequestsMatchThread: evidence.identity.queueRequestsMatchThread,
       canonicalThreadOpenHitCount:
         evidence.identity.canonicalThreadOpenHitCount,
-      queuedSubmissionVisible: evidence.gui.timelineMarkerCount === 1,
+      queuedSubmissionVisible: evidence.gui.queueStatusVisible,
     };
-    summary.bridge = evidence.bridge;
-    summary.gui = evidence.gui;
+    summary.bridge = finalEvidence.bridge;
+    summary.gui = finalEvidence.gui;
     summary.errors = {
       ...evidence.errors,
       consoleErrorCount: consoleErrors.length,
       pageErrorCount: pageErrors.length,
       mockFallbackHitCount: evidence.bridge.mockFallbackHitCount,
     };
-    summary.requests = evidence.requests.map(
+    summary.requests = finalEvidence.requests.map(
       ({ method, transport, status }) => ({
         method,
         transport,

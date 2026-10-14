@@ -592,7 +592,8 @@ describe("AgentThreadTimeline", () => {
 
     expect(block).not.toBeNull();
     expect(focusedEntry?.className).toContain("ring-2");
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(HTMLElement.prototype.scrollIntoView).not.toHaveBeenCalled();
+    // The parent virtual list materializes and scrolls the canonical turn.
   });
   it("应向时间线内的工具明细透传已保存站点内容打开回调", () => {
     const onOpenSavedSiteContent = vi.fn();

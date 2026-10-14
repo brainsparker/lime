@@ -407,6 +407,33 @@ test("projectCodingWorkbenchViewFromEvents consumes current read model artifacts
   assert.equal(view.ui.preferredTab, "changes");
 });
 
+test("current file changes retain full diff separately from short preview", () => {
+  const diff = ["@@ -40 +40 @@", "-old", `+${"x".repeat(400)}`].join("\n");
+  const view = projectCodingWorkbenchViewFromEvents({
+    executionEvents: [],
+    codingReadModel: {
+      thread_id: "thread-diff",
+      thread_items: [
+        {
+          id: "change",
+          type: "fileChange",
+          status: "completed",
+          changes: [
+            {
+              path: "src/source.ts",
+              kind: { type: "update", move_path: "src/destination.ts" },
+              diff,
+            },
+          ],
+        },
+      ],
+    },
+  });
+  assert.equal(view.changes[0].diff, diff);
+  assert.ok(view.changes[0].preview.length <= 320);
+  assert.equal(view.changes[0].destinationPath, "src/destination.ts");
+});
+
 test("projectAgentRuntimeReadModel marks action terminal events as resolved", () => {
   for (const eventClass of [
     "action.resolved",

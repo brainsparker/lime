@@ -1,3 +1,8 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
+import {
+  composerEditorSelector,
+  fillComposerEditor,
+} from "../lib/composer-editor-dom.mjs";
 export function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -61,74 +66,19 @@ function isTaskCenterHomeText(text) {
   );
 }
 
-function escapeCssAttributeValue(value) {
-  return String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
-}
-
-function buildInputSelector(expectedSessionId) {
-  const baseSelector = 'textarea[name="agent-chat-message"]';
-  if (!expectedSessionId) {
-    return baseSelector;
-  }
-  return `${baseSelector}[data-session-id="${escapeCssAttributeValue(
-    expectedSessionId,
-  )}"]`;
-}
-
 function describeExpectedSession(expectedSessionId) {
   return expectedSessionId ? ` session=${expectedSessionId}` : "";
 }
 
-async function setControlledTextareaValue(page, prompt, expectedSessionId) {
-  return await page.evaluate(
-    ({ expectedPrompt, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
-      if (!(input instanceof HTMLTextAreaElement)) {
-        return {
-          ok: false,
-          reason: "missing-textarea",
-          expectedSessionId: sessionId,
-          textareaSessionId: null,
-          value: null,
-        };
-      }
-
-      input.focus();
-      const valueSetter = Object.getOwnPropertyDescriptor(
-        HTMLTextAreaElement.prototype,
-        "value",
-      )?.set;
-      if (valueSetter) {
-        valueSetter.call(input, expectedPrompt);
-      } else {
-        input.value = expectedPrompt;
-      }
-      input.setSelectionRange(expectedPrompt.length, expectedPrompt.length);
-      input.dispatchEvent(
-        new InputEvent("input", {
-          bubbles: true,
-          inputType: "insertText",
-          data: expectedPrompt,
-        }),
-      );
-      input.dispatchEvent(new Event("change", { bubbles: true }));
-
-      return {
-        ok: input.value === expectedPrompt,
-        reason: input.value === expectedPrompt ? null : "value-mismatch",
-        expectedSessionId: sessionId,
-        textareaSessionId: input.dataset.sessionId || null,
-        value: input.value,
-      };
-    },
-    { expectedPrompt: prompt, sessionId: expectedSessionId },
-  );
+async function setComposerEditorText(page, prompt, expectedSessionId) {
+  const snapshot = await fillComposerEditor(page, prompt, expectedSessionId);
+  return {
+    ok: snapshot.text === prompt,
+    reason: snapshot.text === prompt ? null : "text-mismatch",
+    expectedSessionId,
+    editorSessionId: snapshot.sessionId,
+    text: snapshot.text,
+  };
 }
 
 export async function waitForInputReady(page, options, constraints = {}) {
@@ -140,39 +90,20 @@ export async function waitForInputReady(page, options, constraints = {}) {
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      (sessionId) => {
-        const candidates = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
-        ).filter(
-          (node) =>
-            node instanceof HTMLTextAreaElement &&
-            (!sessionId || node.dataset.sessionId === sessionId),
-        );
-        const textarea =
-          candidates.find((node) => {
-            const rect = node.getBoundingClientRect();
-            const style = window.getComputedStyle(node);
-            return Boolean(
-              rect &&
-              rect.width > 16 &&
-              rect.height > 16 &&
-              style.visibility !== "hidden" &&
-              style.display !== "none",
-            );
-          }) ??
-          candidates[0] ??
-          null;
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
+      withComposerEditorDom((sessionId) => {
+        const candidates = findVisibleComposerEditorsDom(sessionId);
+        const editor = candidates.length === 1 ? candidates[0] : null;
+        const rect = editor?.getBoundingClientRect();
+        const style = editor ? window.getComputedStyle(editor) : null;
         const visible = Boolean(
-          textarea &&
+          editor &&
           rect &&
           rect.width > 16 &&
           rect.height > 16 &&
           style?.visibility !== "hidden" &&
           style?.display !== "none",
         );
-        const container = textarea?.closest(
+        const container = editor?.closest(
           '[data-testid="inputbar-core-container"]',
         );
         const mainArea = document.querySelector(
@@ -184,17 +115,22 @@ export async function waitForInputReady(page, options, constraints = {}) {
         return {
           url: window.location.href,
           expectedSessionId: sessionId,
-          hasTextarea: Boolean(textarea),
-          textareaCount: candidates.length,
-          textareaSessionId:
-            textarea instanceof HTMLTextAreaElement
-              ? textarea.dataset.sessionId || null
+          hasEditor: Boolean(editor),
+          editorCount: candidates.length,
+          editorSessionId:
+            editor instanceof HTMLElement
+              ? editor.dataset.sessionId || null
               : null,
-          textareaVisible: visible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+          editorVisible: visible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
           hasInputbarCore: Boolean(container),
           sendButtonVisible: Boolean(
             container?.querySelector('[data-testid="send-btn"]'),
@@ -216,7 +152,7 @@ export async function waitForInputReady(page, options, constraints = {}) {
           bodyText: document.body?.innerText || "",
           mainText: document.querySelector("main")?.textContent || "",
         };
-      },
+      }),
       expectedSessionId,
     );
     if (!snapshot) {
@@ -225,12 +161,11 @@ export async function waitForInputReady(page, options, constraints = {}) {
     }
     lastSnapshot = snapshot;
     if (
-      snapshot.hasTextarea &&
+      snapshot.hasEditor &&
       snapshot.hasInputbarCore &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
-      (!expectedSessionId ||
-        snapshot.textareaSessionId === expectedSessionId) &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
+      (!expectedSessionId || snapshot.editorSessionId === expectedSessionId) &&
       !snapshot.mainText.includes("最近对话") &&
       !snapshot.mainText.includes("正在恢复生成会话") &&
       (allowTaskCenterHomeInput ||
@@ -248,25 +183,21 @@ export async function waitForInputReady(page, options, constraints = {}) {
   );
 }
 
-async function waitForControlledInputValue(
+async function waitForComposerEditorText(
   page,
   prompt,
   timeoutMs,
   expectedSessionId = null,
 ) {
   await page.waitForFunction(
-    ({ expectedPrompt, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ expectedPrompt, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       return (
-        input instanceof HTMLTextAreaElement && input.value === expectedPrompt
+        input instanceof HTMLElement &&
+        readComposerEditorTextDom(input) === expectedPrompt
       );
-    },
+    }),
     { expectedPrompt: prompt, sessionId: expectedSessionId },
     { timeout: Math.min(timeoutMs, 10_000) },
   );
@@ -289,30 +220,25 @@ async function waitForSendButtonReady(page, prompt, options, constraints = {}) {
   while (Date.now() - startedAt < Math.min(options.timeoutMs, 10_000)) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({ expectedPrompt, sendSelector, sessionId }) => {
-        const input = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
-        ).find(
-          (node) =>
-            node instanceof HTMLTextAreaElement &&
-            (!sessionId || node.dataset.sessionId === sessionId),
-        );
+      withComposerEditorDom(({ expectedPrompt, sendSelector, sessionId }) => {
+        const inputs = findVisibleComposerEditorsDom(sessionId);
+        const input = inputs.length === 1 ? inputs[0] : null;
         const container = input?.closest(
           '[data-testid="inputbar-core-container"]',
         );
-        const sendButton = sessionId
-          ? container?.querySelector('[data-testid="send-btn"]')
-          : document.querySelector(sendSelector);
+        const sendButton = container?.querySelector('[data-testid="send-btn"]');
         const inputValue =
-          input instanceof HTMLTextAreaElement ? input.value : null;
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input)
+            : null;
         return {
           expectedSessionId: sessionId,
-          textareaSessionId:
-            input instanceof HTMLTextAreaElement
+          editorSessionId:
+            input instanceof HTMLElement
               ? input.dataset.sessionId || null
               : null,
           inputValue,
-          promptVisibleInTextarea: inputValue === expectedPrompt,
+          promptVisibleInEditor: inputValue === expectedPrompt,
           sendButtonExists: Boolean(sendButton),
           sendButtonDisabled:
             sendButton instanceof HTMLButtonElement
@@ -326,7 +252,7 @@ async function waitForSendButtonReady(page, prompt, options, constraints = {}) {
                 "send"
               : null,
         };
-      },
+      }),
       {
         expectedPrompt: prompt,
         sendSelector: selector,
@@ -339,10 +265,10 @@ async function waitForSendButtonReady(page, prompt, options, constraints = {}) {
     }
     lastSnapshot = snapshot;
     if (
-      snapshot.promptVisibleInTextarea &&
+      snapshot.promptVisibleInEditor &&
       snapshot.sendButtonExists &&
       snapshot.sendButtonDisabled === false &&
-      (!expectedSessionId || snapshot.textareaSessionId === expectedSessionId)
+      (!expectedSessionId || snapshot.editorSessionId === expectedSessionId)
     ) {
       return snapshot;
     }
@@ -361,36 +287,27 @@ async function clickInputbarSendButton(page, options, constraints = {}) {
     '[data-testid="inputbar-core-container"] [data-testid="send-btn"]';
   const sendLocator = expectedSessionId
     ? page
-        .locator(buildInputSelector(expectedSessionId))
+        .locator(`${composerEditorSelector(expectedSessionId)}:visible`)
         .locator(
           'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="send-btn"]',
         )
-    : page.locator(selector).first();
+    : page.locator(`${selector}:visible`);
   await sendLocator.waitFor({
     state: "visible",
     timeout: Math.min(options.timeoutMs, 10_000),
   });
   const beforeClick = await page.evaluate(
-    ({ sendSelector, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ sendSelector, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       const container = input?.closest(
         '[data-testid="inputbar-core-container"]',
       );
-      const sendButton = sessionId
-        ? container?.querySelector('[data-testid="send-btn"]')
-        : document.querySelector(sendSelector);
+      const sendButton = container?.querySelector('[data-testid="send-btn"]');
       return {
         expectedSessionId: sessionId,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
-            : null,
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
         exists: Boolean(sendButton),
         disabled:
           sendButton instanceof HTMLButtonElement ? sendButton.disabled : null,
@@ -402,14 +319,13 @@ async function clickInputbarSendButton(page, options, constraints = {}) {
               "send"
             : null,
       };
-    },
+    }),
     { sendSelector: selector, sessionId: expectedSessionId },
   );
   assert(
     beforeClick.exists &&
       beforeClick.disabled === false &&
-      (!expectedSessionId ||
-        beforeClick.textareaSessionId === expectedSessionId),
+      (!expectedSessionId || beforeClick.editorSessionId === expectedSessionId),
     `输入栏发送按钮不可用: ${JSON.stringify(sanitizeJson(beforeClick))}`,
   );
   const clickedAt = new Date().toISOString();
@@ -420,45 +336,44 @@ async function clickInputbarSendButton(page, options, constraints = {}) {
     method: "inputbar-send-btn",
     disabledBeforeClick: beforeClick.disabled,
     label: beforeClick.label,
-    sessionId: beforeClick.textareaSessionId,
+    sessionId: beforeClick.editorSessionId,
   };
 }
 
 async function pressInputbarEnter(page, prompt, options, constraints = {}) {
   const expectedSessionId = constraints.expectedSessionId ?? null;
-  const inputLocator = expectedSessionId
-    ? page.locator(buildInputSelector(expectedSessionId))
-    : page.locator(buildInputSelector(null)).first();
+  const inputLocator = page.locator(
+    `${composerEditorSelector(expectedSessionId)}:visible`,
+  );
   await inputLocator.waitFor({
     state: "visible",
     timeout: Math.min(options.timeoutMs, 10_000),
   });
   const beforePress = await page.evaluate(
-    ({ expectedPrompt, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ expectedPrompt, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       return {
         expectedSessionId: sessionId,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
+        value:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input)
             : null,
-        value: input instanceof HTMLTextAreaElement ? input.value : null,
-        disabled: input instanceof HTMLTextAreaElement ? input.disabled : null,
+        disabled:
+          input instanceof HTMLElement
+            ? input.getAttribute("aria-disabled") === "true" ||
+              input.getAttribute("contenteditable") !== "true"
+            : null,
       };
-    },
+    }),
     { expectedPrompt: prompt, sessionId: expectedSessionId },
   );
   assert(
     beforePress.value === prompt &&
       beforePress.disabled === false &&
-      (!expectedSessionId ||
-        beforePress.textareaSessionId === expectedSessionId),
+      (!expectedSessionId || beforePress.editorSessionId === expectedSessionId),
     `输入栏 Enter 提交不可用: ${JSON.stringify(sanitizeJson(beforePress))}`,
   );
   const clickedAt = new Date().toISOString();
@@ -466,9 +381,9 @@ async function pressInputbarEnter(page, prompt, options, constraints = {}) {
   return {
     clicked: true,
     clickedAt,
-    method: "inputbar-textarea-enter",
+    method: "inputbar-editor-enter",
     triggerSource: "enter",
-    sessionId: beforePress.textareaSessionId,
+    sessionId: beforePress.editorSessionId,
   };
 }
 
@@ -480,7 +395,7 @@ async function sampleInputbarSubmitState(
 ) {
   return await evaluatePageSnapshot(
     page,
-    ({ expectedPrompt, sessionId, threadId }) => {
+    withComposerEditorDom(({ expectedPrompt, sessionId, threadId }) => {
       const parseJsonArray = (raw) => {
         try {
           const parsed = JSON.parse(raw || "[]");
@@ -561,14 +476,8 @@ async function sampleInputbarSubmitState(
           (!expectedPrompt ||
             String(entry.text || "").includes(expectedPrompt)),
       );
-      const inputs = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).filter(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
-      const input = inputs[0] ?? null;
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       const container = input?.closest(
         '[data-testid="inputbar-core-container"]',
       );
@@ -587,15 +496,18 @@ async function sampleInputbarSubmitState(
       return {
         url: window.location.href,
         expectedSessionId: sessionId,
-        textareaCount: inputs.length,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
+        editorCount: inputs.length,
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
+        editorText:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input)
             : null,
-        textareaValue:
-          input instanceof HTMLTextAreaElement ? input.value : null,
-        textareaDisabled:
-          input instanceof HTMLTextAreaElement ? input.disabled : null,
+        editorDisabled:
+          input instanceof HTMLElement
+            ? input.getAttribute("aria-disabled") === "true" ||
+              input.getAttribute("contenteditable") !== "true"
+            : null,
         sendButtonDisabled:
           sendButton instanceof HTMLButtonElement ? sendButton.disabled : null,
         promptInBody,
@@ -615,7 +527,7 @@ async function sampleInputbarSubmitState(
         appServerTurnStartTrace,
         matchingTurnStartTrace: matchingTurnStartTrace || null,
       };
-    },
+    }),
     {
       expectedPrompt: prompt,
       sessionId: expectedSessionId,
@@ -651,7 +563,7 @@ async function waitForInputbarSubmitEffect(
     lastSnapshot = snapshot;
     if (
       !firstSubmitEffectSnapshot &&
-      (snapshot.textareaValue !== prompt ||
+      (snapshot.editorText !== prompt ||
         snapshot.promptOccurrencesInBody > 1 ||
         snapshot.pendingTexts.length > 0)
     ) {
@@ -676,7 +588,7 @@ export async function sendPromptFromGui(
 ) {
   const expectedSessionId = constraints.expectedSessionId ?? null;
   const before = await waitForInputReady(page, options, constraints);
-  const appliedInput = await setControlledTextareaValue(
+  const appliedInput = await setComposerEditorText(
     page,
     prompt,
     expectedSessionId,
@@ -684,42 +596,38 @@ export async function sendPromptFromGui(
   assert(
     appliedInput.ok &&
       (!expectedSessionId ||
-        appliedInput.textareaSessionId === expectedSessionId),
+        appliedInput.editorSessionId === expectedSessionId),
     `输入框写入失败: ${JSON.stringify(sanitizeJson(appliedInput))}`,
   );
-  await waitForControlledInputValue(
+  await waitForComposerEditorText(
     page,
     prompt,
     options.timeoutMs,
     expectedSessionId,
   );
   const afterFill = await page.evaluate(
-    ({ expectedPrompt, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ expectedPrompt, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       return {
         expectedSessionId: sessionId,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
+        value:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input)
             : null,
-        value: input instanceof HTMLTextAreaElement ? input.value : null,
-        promptVisibleInTextarea:
-          input instanceof HTMLTextAreaElement
-            ? input.value === expectedPrompt
+        promptVisibleInEditor:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input) === expectedPrompt
             : false,
       };
-    },
+    }),
     { expectedPrompt: prompt, sessionId: expectedSessionId },
   );
   assert(
-    afterFill.promptVisibleInTextarea &&
-      (!expectedSessionId || afterFill.textareaSessionId === expectedSessionId),
+    afterFill.promptVisibleInEditor &&
+      (!expectedSessionId || afterFill.editorSessionId === expectedSessionId),
     `输入框未保留用户输入: ${JSON.stringify(sanitizeJson(afterFill))}`,
   );
   const afterFillStability =
@@ -730,9 +638,9 @@ export async function sendPromptFromGui(
   const submitWithEnter = constraints.submitWithEnter === true;
   const sendReady = submitWithEnter
     ? {
-        promptVisibleInTextarea: afterFill.promptVisibleInTextarea,
-        submitMethod: "inputbar-textarea-enter",
-        textareaSessionId: afterFill.textareaSessionId,
+        promptVisibleInEditor: afterFill.promptVisibleInEditor,
+        submitMethod: "inputbar-editor-enter",
+        editorSessionId: afterFill.editorSessionId,
       }
     : await waitForSendButtonReady(page, prompt, options, constraints);
   if (typeof constraints.beforeClick === "function") {
@@ -775,11 +683,11 @@ export async function setInputbarAccessMode(
   const expectedSessionId = constraints.expectedSessionId ?? null;
   const selectLocator = expectedSessionId
     ? page
-        .locator(buildInputSelector(expectedSessionId))
+        .locator(`${composerEditorSelector(expectedSessionId)}:visible`)
         .locator(
           'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="inputbar-access-mode-select"]',
         )
-    : page.locator('[data-testid="inputbar-access-mode-select"]').first();
+    : page.locator('[data-testid="inputbar-access-mode-select"]:visible');
 
   await waitForInputReady(page, options, constraints);
   await selectLocator.waitFor({
@@ -789,28 +697,19 @@ export async function setInputbarAccessMode(
 
   const before = await evaluatePageSnapshot(
     page,
-    ({ sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       const container = input?.closest(
         '[data-testid="inputbar-core-container"]',
       );
-      const select =
-        container?.querySelector(
-          '[data-testid="inputbar-access-mode-select"]',
-        ) ??
-        document.querySelector('[data-testid="inputbar-access-mode-select"]');
+      const select = container?.querySelector(
+        '[data-testid="inputbar-access-mode-select"]',
+      );
       return {
         expectedSessionId: sessionId,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
-            : null,
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
         selectExists: Boolean(select),
         value: select instanceof HTMLSelectElement ? select.value : null,
         options:
@@ -818,62 +717,46 @@ export async function setInputbarAccessMode(
             ? Array.from(select.options).map((option) => option.value)
             : [],
       };
-    },
+    }),
     { sessionId: expectedSessionId },
   );
 
   await selectLocator.selectOption(accessMode);
   await page.waitForFunction(
-    ({ expectedAccessMode, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ expectedAccessMode, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       const container = input?.closest(
         '[data-testid="inputbar-core-container"]',
       );
-      const select =
-        container?.querySelector(
-          '[data-testid="inputbar-access-mode-select"]',
-        ) ??
-        document.querySelector('[data-testid="inputbar-access-mode-select"]');
+      const select = container?.querySelector(
+        '[data-testid="inputbar-access-mode-select"]',
+      );
       return (
         select instanceof HTMLSelectElement &&
         select.value === expectedAccessMode
       );
-    },
+    }),
     { expectedAccessMode: accessMode, sessionId: expectedSessionId },
     { timeout: Math.min(options.timeoutMs, 10_000) },
   );
 
   const after = await evaluatePageSnapshot(
     page,
-    ({ expectedAccessMode, sessionId }) => {
-      const input = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).find(
-        (node) =>
-          node instanceof HTMLTextAreaElement &&
-          (!sessionId || node.dataset.sessionId === sessionId),
-      );
+    withComposerEditorDom(({ expectedAccessMode, sessionId }) => {
+      const inputs = findVisibleComposerEditorsDom(sessionId);
+      const input = inputs.length === 1 ? inputs[0] : null;
       const container = input?.closest(
         '[data-testid="inputbar-core-container"]',
       );
-      const select =
-        container?.querySelector(
-          '[data-testid="inputbar-access-mode-select"]',
-        ) ??
-        document.querySelector('[data-testid="inputbar-access-mode-select"]');
+      const select = container?.querySelector(
+        '[data-testid="inputbar-access-mode-select"]',
+      );
       return {
         expectedSessionId: sessionId,
         expectedAccessMode,
-        textareaSessionId:
-          input instanceof HTMLTextAreaElement
-            ? input.dataset.sessionId || null
-            : null,
+        editorSessionId:
+          input instanceof HTMLElement ? input.dataset.sessionId || null : null,
         selectExists: Boolean(select),
         value: select instanceof HTMLSelectElement ? select.value : null,
         matched:
@@ -881,7 +764,7 @@ export async function setInputbarAccessMode(
             ? select.value === expectedAccessMode
             : false,
       };
-    },
+    }),
     { expectedAccessMode: accessMode, sessionId: expectedSessionId },
   );
 

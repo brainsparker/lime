@@ -163,11 +163,13 @@ describe("MessageList direct canonical timeline", () => {
       container.querySelector('[data-thread-item-id="agent-final"]'),
     ).not.toBeNull();
 
-    const timelineCalls = mockAgentThreadTimeline.mock.calls.map(
-      ([props]) =>
+    const timelineCalls = new Map(
+      mockAgentThreadTimeline.mock.calls.map(([props]) => [
+        props.items?.map((entry) => entry.id).join(","),
         (props as { showInlineStatusHint?: boolean }).showInlineStatusHint,
+      ]),
     );
-    expect(timelineCalls).toEqual([true, false]);
+    expect([...timelineCalls.values()]).toEqual([true, false]);
   });
 
   it("已完成 canonical Turn 默认显示摘要，点击后按 Item identity 展开完整过程", () => {
@@ -481,7 +483,11 @@ describe("MessageList direct canonical timeline", () => {
               part.type === "media_reference",
           ),
       );
-    expect(mediaCalls).toHaveLength(3);
+    expect(
+      container.querySelectorAll(
+        '[data-testid="streaming-renderer"][data-has-open-media-reference="yes"]',
+      ),
+    ).toHaveLength(3);
     expect(mediaCalls.every((props) => props.onOpenMediaReference)).toBe(true);
 
     act(() => {
@@ -525,19 +531,14 @@ describe("MessageList direct canonical timeline", () => {
       ],
     });
 
-    const mediaReferenceCallCount = mockStreamingRenderer.mock.calls.filter(
-      ([props]) =>
-        props.contentParts?.some(
-          (part) =>
-            typeof part === "object" &&
-            part !== null &&
-            "type" in part &&
-            part.type === "media_reference",
-        ),
-    ).length;
-
     expect(mockStreamingRenderer).toHaveBeenCalled();
-    expect(mediaReferenceCallCount).toBe(1);
+    expect(
+      [
+        ...container.querySelectorAll<HTMLElement>(
+          '[data-testid="streaming-renderer"]',
+        ),
+      ].filter((element) => Number(element.dataset.contentParts) > 0),
+    ).toHaveLength(1);
     expect(
       container.querySelectorAll('[data-message-role="assistant"]'),
     ).toHaveLength(1);

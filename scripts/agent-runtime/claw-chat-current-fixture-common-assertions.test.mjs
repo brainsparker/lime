@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildCommonAssertions } from "./claw-chat-current-fixture-common-assertions.mjs";
+import { INPUTBAR_RICH_RESTORE_PROMPT } from "./claw-chat-current-fixture-constants.mjs";
 
 const SCENARIO_FLAGS = [
   "isCancelOnlyScenario",
@@ -83,6 +84,94 @@ function buildTraceSummary({
   };
 }
 
+describe("rich Composer restored readiness assertion", () => {
+  function context() {
+    const prepared = {
+      editorCount: 1,
+      editorSessionId: "rich-session",
+      editorVisible: true,
+      editorDisabled: false,
+      hasInputbarCore: true,
+      sendButtonExists: true,
+      sendButtonDisabled: false,
+      stopButtonVisible: false,
+      editorText: `${INPUTBAR_RICH_RESTORE_PROMPT} [Pasted text 1: 1620 characters] /user:capability-report`,
+      skillTokenData: [
+        {
+          id: "user:capability-report",
+          name: "capability-report",
+          path: "/fixture/.agents/skills/capability-report/SKILL.md",
+          label: "/user:capability-report",
+          editable: "false",
+        },
+      ],
+    };
+    return {
+      ...buildContext({
+        summary: {
+          sessionId: "rich-session",
+          inputbarRichRestoreDraftPrepared: { prepared },
+          inputbarRichRestoreGuiCanceled: structuredClone(prepared),
+        },
+      }),
+      isInputbarRichRestoreScenario: true,
+    };
+  }
+
+  it("accepts the exact prepared rich draft with a unique same-session ready editor", () => {
+    expect(buildCommonAssertions(context()).guiInputRemainsReady).toBe(true);
+  });
+
+  it.each([
+    "wrong-session",
+    "duplicate-editor",
+    "hidden-editor",
+    "disabled-editor",
+    "missing-core",
+    "missing-send",
+    "disabled-send",
+    "stop-active",
+    "plain-prompt",
+    "missing-paste",
+    "missing-skill",
+    "same-label-wrong-id",
+    "same-label-wrong-path",
+    "missing-token",
+    "missing-prepared",
+  ])("rejects %s restored evidence", (mode) => {
+    const input = context();
+    const restored = input.summary.inputbarRichRestoreGuiCanceled;
+    if (mode === "wrong-session") restored.editorSessionId = "foreign";
+    if (mode === "duplicate-editor") restored.editorCount = 2;
+    if (mode === "hidden-editor") restored.editorVisible = false;
+    if (mode === "disabled-editor") restored.editorDisabled = true;
+    if (mode === "missing-core") restored.hasInputbarCore = false;
+    if (mode === "missing-send") restored.sendButtonExists = false;
+    if (mode === "disabled-send") restored.sendButtonDisabled = true;
+    if (mode === "stop-active") restored.stopButtonVisible = true;
+    if (mode === "plain-prompt")
+      restored.editorText = INPUTBAR_RICH_RESTORE_PROMPT;
+    if (mode === "missing-paste")
+      restored.editorText = restored.editorText.replace(
+        "[Pasted text 1: 1620 characters] ",
+        "",
+      );
+    if (mode === "missing-skill")
+      restored.editorText = restored.editorText.replace(
+        " /user:capability-report",
+        "",
+      );
+    if (mode === "same-label-wrong-id")
+      restored.skillTokenData[0].id = "project:capability-report";
+    if (mode === "same-label-wrong-path")
+      restored.skillTokenData[0].path = "/foreign/SKILL.md";
+    if (mode === "missing-token") restored.skillTokenData = [];
+    if (mode === "missing-prepared")
+      delete input.summary.inputbarRichRestoreDraftPrepared;
+    expect(buildCommonAssertions(input).guiInputRemainsReady).toBe(false);
+  });
+});
+
 describe("claw chat current fixture common trace assertions", () => {
   it("requires provider first-text evidence for ordinary text streaming", () => {
     const assertions = buildCommonAssertions(
@@ -102,9 +191,9 @@ describe("claw chat current fixture common trace assertions", () => {
     expect(assertions.appServerTraceEvidenceHasMessageDeltaCheckpoint).toBe(
       true,
     );
-    expect(
-      assertions.appServerTraceEvidenceHasServerEmissionTimestamp,
-    ).toBe(true);
+    expect(assertions.appServerTraceEvidenceHasServerEmissionTimestamp).toBe(
+      true,
+    );
   });
 
   it("does not require provider first-text evidence for typed error retries", () => {
@@ -125,9 +214,9 @@ describe("claw chat current fixture common trace assertions", () => {
     expect(assertions.appServerTraceEvidenceHasMessageDeltaCheckpoint).toBe(
       true,
     );
-    expect(
-      assertions.appServerTraceEvidenceHasServerEmissionTimestamp,
-    ).toBe(true);
+    expect(assertions.appServerTraceEvidenceHasServerEmissionTimestamp).toBe(
+      true,
+    );
   });
 
   it("keeps non-provider trace evidence mandatory for typed error retries", () => {
@@ -157,9 +246,9 @@ describe("claw chat current fixture common trace assertions", () => {
     expect(assertions.appServerTraceEvidenceHasMessageDeltaCheckpoint).toBe(
       false,
     );
-    expect(
-      assertions.appServerTraceEvidenceHasServerEmissionTimestamp,
-    ).toBe(false);
+    expect(assertions.appServerTraceEvidenceHasServerEmissionTimestamp).toBe(
+      false,
+    );
     expect(assertions.appServerTraceEvidenceUsesCurrentMethods).toBe(false);
     expect(assertions.appServerTraceEvidenceHasW3cCarrier).toBe(false);
   });

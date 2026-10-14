@@ -28,11 +28,30 @@ const evidence = {
   status: "running",
 };
 try {
-  for (const decision of ["decline", "cancel"]) {
-    const scope = path.join(directory, decision);
+  for (const scenario of [
+    { name: "decline", result: { decision: "decline" }, status: "declined" },
+    { name: "cancel", result: { decision: "cancel" }, status: "declined" },
+    {
+      name: "invalid-response",
+      result: { decision: "invalid" },
+      status: "failed",
+    },
+    {
+      name: "client-error",
+      error: {
+        code: -32603,
+        message: "client cannot show approval; decline unavailable",
+      },
+      status: "failed",
+    },
+    { name: "host-interrupt", interrupt: true, status: "declined" },
+  ]) {
+    const scenarioName = scenario.name;
+    const interrupted = scenario.interrupt || scenarioName === "cancel";
+    const scope = path.join(directory, scenarioName);
     const workspace = path.join(scope, "work dir");
     await mkdir(workspace, { recursive: true });
-    const callId = `approval-${decision}`;
+    const callId = `approval-${scenarioName}`;
     const command = "printf EXECUTED > must-not-exist";
     const fixture = await startOpenAiCompatibleFixtureServer({
       model: "command-status-fixture",
@@ -91,10 +110,22 @@ try {
       connected.connection.setNotificationObserver((message) =>
         notifications.push(message),
       );
-      connected.connection.setServerRequestHandler((message) => {
+      connected.connection.setServerRequestHandler(async (message) => {
         assert.equal(message.method, "item/commandExecution/requestApproval");
         approvals.push(message);
-        connected.connection.respondServerRequest(message.id, { decision });
+        if (scenario.interrupt) {
+          await request(connected, "turn/interrupt", {
+            threadId: message.params.threadId,
+            turnId: message.params.turnId,
+          });
+        } else if (scenario.error) {
+          connected.connection.rejectServerRequest(message.id, scenario.error);
+        } else {
+          connected.connection.respondServerRequest(
+            message.id,
+            scenario.result,
+          );
+        }
         return true;
       });
       const provider = await provisionToolExecutionFixtureProvider({
@@ -107,7 +138,7 @@ try {
         "thread/start",
         buildToolExecutionThreadStartParams({
           provider,
-          title: `approval ${decision}`,
+          title: `approval ${scenarioName}`,
           workspaceRoot: workspace,
         }),
       );
@@ -119,7 +150,7 @@ try {
           provider,
           model: provider.modelPreference,
           threadId,
-          message: `approval ${decision}`,
+          message: `approval ${scenarioName}`,
           workspaceRoot: workspace,
           approvalPolicy: "unless-trusted",
         }),
@@ -147,30 +178,48 @@ try {
       }
       const turn = thread.turns.find((turn) => turn.id === turnId);
       const item = turn?.items.find((item) => item.id === `item_${callId}`);
-      evidence.activeScenario = { decision, thread, approvals, notifications };
+      evidence.activeScenario = {
+        scenarioName,
+        thread,
+        approvals,
+        notifications,
+      };
       assert.equal(
         approvals.length,
         1,
-        `${decision}: one actual approval request`,
+        `${scenarioName}: one actual approval request`,
       );
       assert.equal(approvals[0].params.threadId, threadId);
       assert.equal(approvals[0].params.turnId, turnId);
       assert.equal(item?.type, "commandExecution", JSON.stringify(thread));
       assert.equal(
         item.status,
-        "declined",
-        `${decision}: rejected before execution`,
+        scenario.status,
+        `${scenarioName}: typed response terminal classification`,
       );
       assert.equal(item.command, command);
+      if (scenario.status === "failed") {
+        assert.match(
+          JSON.stringify(fixture.requests[1]?.body),
+          /approval request failed/u,
+          `${scenarioName}: provider receives the approval failure`,
+        );
+      }
+      assert.equal(turn.status, interrupted ? "interrupted" : "completed");
+      assert.equal(
+        fixture.requests.length,
+        interrupted ? 1 : 2,
+        `${scenarioName}: provider continuation follows canonical Turn status`,
+      );
       assert.equal(
         item.processId ?? null,
         null,
-        `${decision}: no actual execution start`,
+        `${scenarioName}: no actual execution start`,
       );
       assert.equal(
         item.exitCode ?? null,
         null,
-        `${decision}: no invented exit code`,
+        `${scenarioName}: no invented exit code`,
       );
       await assert.rejects(access(path.join(workspace, "must-not-exist")), {
         code: "ENOENT",
@@ -183,10 +232,21 @@ try {
       assert.equal(
         completed.length,
         1,
-        `${decision}: one terminal notification`,
+        `${scenarioName}: one terminal notification`,
       );
       assert.deepEqual(completed[0].params.item, item);
       assert.equal(completed[0].params.turnId, turnId);
+      const resolved = notifications.filter(
+        (message) =>
+          message.method === "serverRequest/resolved" &&
+          message.params.requestId === approvals[0].id,
+      );
+      assert.equal(
+        resolved.length,
+        1,
+        `${scenarioName}: one resolved approval request`,
+      );
+      assert.equal(resolved[0].params.threadId, threadId);
       await connected.sidecar.close();
       connected = await connect();
       const cold = (
@@ -202,20 +262,22 @@ try {
         item,
       );
       evidence.scenarios.push({
-        decision,
+        scenarioName,
         threadId,
         turnId,
         item,
         turnStatus: turn.status,
         approvalRequest: approvals[0],
+        resolvedNotification: resolved[0],
         terminalNotification: completed[0],
         coldReadMatches: true,
         processNeverStarted: true,
         providerRequests: fixture.requests.length,
+        providerReceivedApprovalFailure: scenario.status === "failed",
       });
       delete evidence.activeScenario;
       console.log(
-        `COMMAND_APPROVAL_STATUS_OK decision=${decision} status=${item.status} process=none cold=ok backend=runtime`,
+        `COMMAND_APPROVAL_STATUS_OK scenarioName=${scenarioName} status=${item.status} process=none cold=ok backend=runtime`,
       );
     } finally {
       await connected?.sidecar.close();

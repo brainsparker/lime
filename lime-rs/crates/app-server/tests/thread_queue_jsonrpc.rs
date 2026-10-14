@@ -27,6 +27,11 @@ use tokio::time::{sleep, timeout, Duration};
 const INLINE_PNG_DATA_URL: &str =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/iZk9HQAAAABJRU5ErkJggg==";
 
+#[path = "thread_queue_jsonrpc/history_visibility.rs"]
+mod history_visibility;
+#[path = "thread_queue_jsonrpc/search_visibility.rs"]
+mod search_visibility;
+
 struct HoldFirstBackend {
     first_started: Arc<Notify>,
     release_first: Arc<Notify>,

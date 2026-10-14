@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { toast } from "sonner";
 import type { HomeSurfaceToastCopy } from "../home/homeSurfaceCopy";
 import type { MessageImage, MessagePathReference } from "../types";
@@ -10,34 +10,51 @@ import {
   readCustomPathReferencesFromDataTransfer,
   readSystemPathReferencesFromFiles,
 } from "../utils/pathReferences";
+import { useAttachmentGeneration } from "./useAttachmentGeneration";
+import { useComposerController } from "@/components/input-kit/useComposerController";
+import type { ComposerController } from "@/components/input-kit";
 
 interface UseEmptyStateAttachmentsInput {
+  controller?: ComposerController;
   toastCopy: HomeSurfaceToastCopy;
   onAddPathReferences?: (references: MessagePathReference[]) => void;
 }
 
 export function useEmptyStateAttachments({
+  controller,
   toastCopy,
   onAddPathReferences,
 }: UseEmptyStateAttachmentsInput) {
-  const [pendingImages, setPendingImages] = useState<MessageImage[]>([]);
+  const { controller: attachmentController, snapshot } = useComposerController({ controller });
+  const pendingImages = [...snapshot.document.attachments];
+  const { captureGeneration, isCurrentGeneration, invalidateGeneration, runAttachmentWrite } =
+    useAttachmentGeneration(attachmentController);
+  const setPendingImages = (images: MessageImage[]) => {
+    runAttachmentWrite(images, () => attachmentController.setAttachments(images));
+  };
 
   const readAndAppendImage = (
     file: File,
     mediaType: string | undefined,
     options?: { successToast?: string },
   ) => {
+    const generation = captureGeneration();
     void readImageAttachment(file, mediaType)
       .then((image) => {
-        setPendingImages((previous) => [...previous, image]);
-        if (options?.successToast) {
+        if (!isCurrentGeneration(generation)) {
+          return;
+        }
+        setPendingImages([...attachmentController.getSnapshot().document.attachments, image]);
+        if (options?.successToast && isCurrentGeneration(generation)) {
           toast.success(options.successToast);
         }
       })
       .catch(() => {
-        toast.error(
-          toastCopy.imageReadFailed(file.name || toastCopy.unnamedImage),
-        );
+        if (isCurrentGeneration(generation)) {
+          toast.error(
+            toastCopy.imageReadFailed(file.name || toastCopy.unnamedImage),
+          );
+        }
       });
   };
 
@@ -53,7 +70,7 @@ export function useEmptyStateAttachments({
     event.target.value = "";
   };
 
-  const handlePaste = (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+  const handlePaste = (event: ClipboardEvent) => {
     const imageFiles = getClipboardImageCandidates(event.clipboardData);
     if (imageFiles.length === 0) {
       return;
@@ -113,16 +130,18 @@ export function useEmptyStateAttachments({
   };
 
   const handleRemoveImage = (index: number) => {
-    setPendingImages((previous) =>
-      previous.filter((_, currentIndex) => currentIndex !== index),
+    setPendingImages(
+      attachmentController.getSnapshot().document.attachments.filter((_, currentIndex) => currentIndex !== index),
     );
   };
 
   const clearPendingImages = () => {
+    invalidateGeneration();
     setPendingImages([]);
   };
 
   const replacePendingImages = (images: MessageImage[]) => {
+    invalidateGeneration();
     setPendingImages(images);
   };
 

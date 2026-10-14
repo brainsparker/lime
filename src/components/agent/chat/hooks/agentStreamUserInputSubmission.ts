@@ -37,6 +37,7 @@ export async function submitAgentStreamUserInput(
     targetSessionId,
     submittedDraft,
     inputMentions,
+    composerSubmission,
     skipSessionRestore,
     skipSessionStartHooks,
     observer,
@@ -92,6 +93,7 @@ export async function submitAgentStreamUserInput(
       content,
       images,
       inputMentions,
+      composerSubmission,
       skipUserMessage,
       effectiveProviderType,
       effectiveModel,
@@ -163,5 +165,6 @@ export async function submitAgentStreamUserInput(
       markOptimisticFailure,
       soulCopy: env.soulCopy,
     });
+    throw error;
   }
 }

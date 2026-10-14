@@ -6,8 +6,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   mockEmptyStateCharacterMention,
   renderPanel,
-  updateTextareaValue,
+  updateComposerEditorValue,
 } from "./EmptyStateComposerPanel.testFixtures";
+import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 
 describe("EmptyStateComposerPanel", () => {
   it("不应重新接入 input restore request 子面板 fallback", () => {
@@ -30,9 +31,9 @@ describe("EmptyStateComposerPanel", () => {
       container.querySelector('[data-testid="home-input-tab-suggestion"]'),
     ).toBeNull();
 
-    const textarea = container.querySelector("textarea");
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
     await act(async () => {
-      textarea?.dispatchEvent(
+      editor?.dispatchEvent(
         new KeyboardEvent("keydown", {
           key: "Tab",
           bubbles: true,
@@ -43,16 +44,16 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      getComposerEditorText(editor),
     ).toBe("");
   }, 15_000);
 
   it("Shift+Tab 保持焦点切换，不填入起手建议", () => {
     const container = renderPanel();
 
-    const textarea = container.querySelector("textarea");
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
     act(() => {
-      textarea?.dispatchEvent(
+      editor?.dispatchEvent(
         new KeyboardEvent("keydown", {
           key: "Tab",
           shiftKey: true,
@@ -63,7 +64,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      getComposerEditorText(editor),
     ).toBe("");
   });
 
@@ -109,12 +110,12 @@ describe("EmptyStateComposerPanel", () => {
   it("应将 onPaste 绑定到输入框", () => {
     const onPaste = vi.fn();
     const container = renderPanel({ onPaste });
-    const textarea = container.querySelector("textarea");
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
 
-    expect(textarea).toBeTruthy();
+    expect(editor).toBeTruthy();
 
     act(() => {
-      textarea?.dispatchEvent(new Event("paste", { bubbles: true }));
+      editor?.dispatchEvent(new Event("paste", { bubbles: true }));
     });
 
     expect(onPaste).toHaveBeenCalledTimes(1);
@@ -123,9 +124,9 @@ describe("EmptyStateComposerPanel", () => {
   it("发送时应把本地草稿显式传给首页发送链", () => {
     const onSend = vi.fn();
     const container = renderPanel({ onSend });
-    const textarea = container.querySelector("textarea");
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
 
-    updateTextareaValue(textarea, "帮我快速开一个新对话");
+    updateComposerEditorValue(editor, "帮我快速开一个新对话");
 
     const sendButton = container.querySelector(
       'button[title="发送"]',
@@ -150,11 +151,11 @@ describe("EmptyStateComposerPanel", () => {
       }),
     );
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement).value,
+      getComposerEditorText(editor),
     ).toBe("");
   });
 
-  it("插件 chip 激活但输入未含触发词时发送应补齐插件触发词", async () => {
+  it("选择插件应在草稿插入 inline atom，并将显示文本发送", async () => {
     const onSend = vi.fn();
     const plugin = {
       pluginId: "content-factory-app",
@@ -178,12 +179,14 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="inputbar-plugin-badge"]')
+      container.querySelector('[data-composer-token="plugin"]')
         ?.textContent,
     ).toContain("写文章");
     expect(
-      (container.querySelector("textarea") as HTMLTextAreaElement).value,
-    ).toBe("帮我整理项目资料");
+      getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR)),
+    ).toBe("@写文章 帮我整理项目资料");
+    expect(container.querySelector('[data-composer-token="plugin"]')?.getAttribute("contenteditable")).toBe("false");
+    expect(container.querySelector('[data-testid="inputbar-plugin-badge"]')).toBeNull();
 
     const sendButton = container.querySelector(
       'button[title="发送"]',
@@ -216,14 +219,13 @@ describe("EmptyStateComposerPanel", () => {
       onSend,
     });
 
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
     const runningButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("正在输出"),
     ) as HTMLButtonElement | undefined;
 
-    expect(textarea?.disabled).toBe(true);
+    expect(editor?.getAttribute("aria-disabled")).toBe("true");
+    expect(editor?.getAttribute("contenteditable")).toBe("false");
     expect(runningButton).toBeTruthy();
     expect(runningButton?.disabled).toBe(true);
     expect(container.querySelector('button[title="发送"]')).toBeNull();

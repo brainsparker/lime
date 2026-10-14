@@ -1,9 +1,7 @@
 import {
   useCallback,
   useRef,
-  useState,
   type ChangeEvent,
-  type ClipboardEvent,
   type DragEvent,
   useMemo,
 } from "react";
@@ -16,22 +14,34 @@ import {
   readImageAttachment,
 } from "../../../utils/imageAttachments";
 import { buildInputbarImageAttachmentsCopy } from "./inputbarImageAttachmentsCopy";
+import { useAttachmentGeneration } from "../../useAttachmentGeneration";
+import { useComposerController } from "@/components/input-kit/useComposerController";
+import type { ComposerController } from "@/components/input-kit";
 
-export function useImageAttachments() {
+export function useImageAttachments({ controller }: { controller?: ComposerController } = {}) {
   const { t } = useTranslation("agent");
   const copy = useMemo(
     () =>
       buildInputbarImageAttachmentsCopy((key, values) => t(key, values ?? {})),
     [t],
   );
-  const [pendingImages, setPendingImages] = useState<MessageImage[]>([]);
-  const pendingImagesRef = useRef<MessageImage[]>([]);
+  const { controller: attachmentController, snapshot } = useComposerController({ controller });
+  const pendingImages = [...snapshot.document.attachments];
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { captureGeneration, isCurrentGeneration, invalidateGeneration, runAttachmentWrite } =
+    useAttachmentGeneration(attachmentController);
 
   const setPendingImagesSnapshot = useCallback((images: MessageImage[]) => {
-    pendingImagesRef.current = images;
-    setPendingImages(images);
-  }, []);
+    runAttachmentWrite(images, () => attachmentController.setAttachments(images));
+  }, [attachmentController, runAttachmentWrite]);
+
+  const replacePendingImages = useCallback(
+    (images: MessageImage[]) => {
+      invalidateGeneration();
+      setPendingImagesSnapshot(images);
+    },
+    [invalidateGeneration, setPendingImagesSnapshot],
+  );
 
   const appendImageFile = useCallback(
     async (
@@ -39,26 +49,34 @@ export function useImageAttachments() {
       successMessage?: string,
       preferredMediaType?: string,
     ) => {
+      const generation = captureGeneration();
       const fileName = file.name || copy.unnamedImage;
       try {
-        if (pendingImagesRef.current.length >= MAX_IMAGE_ATTACHMENTS_PER_TURN) {
+        if (attachmentController.getSnapshot().document.attachments.length >= MAX_IMAGE_ATTACHMENTS_PER_TURN) {
           toast.error(copy.imageReadFailed(fileName));
           return;
         }
 
         const image = await readImageAttachment(file, preferredMediaType);
-        if (pendingImagesRef.current.length >= MAX_IMAGE_ATTACHMENTS_PER_TURN) {
+        if (!isCurrentGeneration(generation)) {
+          return;
+        }
+        if (attachmentController.getSnapshot().document.attachments.length >= MAX_IMAGE_ATTACHMENTS_PER_TURN) {
           toast.error(copy.imageReadFailed(fileName));
           return;
         }
 
-        setPendingImagesSnapshot([...pendingImagesRef.current, image]);
-        toast.success(successMessage ?? copy.imageAdded(fileName));
+        setPendingImagesSnapshot([...attachmentController.getSnapshot().document.attachments, image]);
+        if (isCurrentGeneration(generation)) {
+          toast.success(successMessage ?? copy.imageAdded(fileName));
+        }
       } catch {
-        toast.error(copy.imageReadFailed(fileName));
+        if (isCurrentGeneration(generation)) {
+          toast.error(copy.imageReadFailed(fileName));
+        }
       }
     },
-    [copy, setPendingImagesSnapshot],
+    [attachmentController, captureGeneration, copy, isCurrentGeneration, setPendingImagesSnapshot],
   );
 
   const appendImageFiles = useCallback(
@@ -125,17 +143,17 @@ export function useImageAttachments() {
   const handleRemoveImage = useCallback(
     (index: number) => {
       setPendingImagesSnapshot(
-        pendingImagesRef.current.filter(
+        attachmentController.getSnapshot().document.attachments.filter(
           (_, currentIndex) => currentIndex !== index,
         ),
       );
     },
-    [setPendingImagesSnapshot],
+    [attachmentController, setPendingImagesSnapshot],
   );
 
   const clearPendingImages = useCallback(() => {
-    setPendingImagesSnapshot([]);
-  }, [setPendingImagesSnapshot]);
+    replacePendingImages([]);
+  }, [replacePendingImages]);
 
   const openFileDialog = useCallback(() => {
     fileInputRef.current?.click();
@@ -150,7 +168,7 @@ export function useImageAttachments() {
     handleDrop,
     handleRemoveImage,
     clearPendingImages,
-    replacePendingImages: setPendingImagesSnapshot,
+    replacePendingImages,
     openFileDialog,
   };
 }

@@ -71,7 +71,7 @@ describe("Plugin package current Electron fixture guard", () => {
     expect(gate).toContain('"plugin/enabled/set"');
     expect(gate).toContain('data-testid="inputbar-plus-plugins"');
     expect(gate).toContain('data-testid="inputbar-plugin-option"');
-    expect(gate).toContain('data-testid="inputbar-plugin-badge"');
+    expect(gate).toContain('data-composer-token="plugin"');
     expect(gate).toContain('data-testid="model-selector"');
     expect(gate).toContain('data-model-selector-popover="true"');
     expect(gate).toContain("selectRuntimeRouteInRenderer");

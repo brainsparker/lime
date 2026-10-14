@@ -18,6 +18,8 @@ import {
   invokeAppServerFromPage,
 } from "./claw-chat-current-fixture-rpc.mjs";
 import { clickAndAssertRightSurface } from "./claw-chat-current-fixture-right-surface-visual.mjs";
+import { formatResizeReflowFailure } from "./claw-chat-current-fixture-resize-reflow-diagnostics.mjs";
+import { readResizeReflowHeaderGeometry } from "./claw-chat-current-fixture-resize-reflow-geometry.mjs";
 import {
   assert,
   sanitizeJson,
@@ -146,9 +148,16 @@ async function requestResizeReflowFilesSurface({
 }
 
 async function evaluateResizeReflowSnapshot(page, label) {
+  const activeThreadHeader = await evaluatePageSnapshot(
+    page,
+    readResizeReflowHeaderGeometry,
+    { label },
+  );
+  if (!activeThreadHeader) return null;
   return await evaluatePageSnapshot(
     page,
     ({
+      activeThreadHeader,
       doneText,
       firstText,
       label,
@@ -203,11 +212,11 @@ async function evaluateResizeReflowSnapshot(page, label) {
         renderedTable,
         assistantScope,
       );
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
+      const editor = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
       );
       const inputbar =
-        textarea?.closest('[data-testid="inputbar-core-container"]') ??
+        editor?.closest('[data-testid="inputbar-core-container"]') ??
         document.querySelector('[data-testid="inputbar-core-container"]');
       const rightHost = document.querySelector(
         '[data-testid="workspace-right-surface-host"]',
@@ -217,37 +226,6 @@ async function evaluateResizeReflowSnapshot(page, label) {
       );
       const activePane = document.querySelector(
         '[data-testid="workspace-right-surface-active-pane"]',
-      );
-      const threadHeader = document.querySelector(
-        '[data-testid="thread-workspace-header"]',
-      );
-      const threadHeaderContext =
-        document.querySelector(
-          '[data-testid="thread-workspace-header-context"]',
-        ) || threadHeader?.firstElementChild;
-      const threadHeaderTitle = document.querySelector(
-        '[data-testid="thread-workspace-header-title"]',
-      );
-      const threadHeaderStatus = document.querySelector(
-        '[data-testid="thread-workspace-header-status"]',
-      );
-      const threadHeaderActions = document.querySelector(
-        '[data-testid="thread-workspace-header-actions"]',
-      );
-      const taskCenterUtilityToolbar = document.querySelector(
-        '[data-testid="task-center-utility-toolbar"]',
-      );
-      const taskCenterChromeShell = document.querySelector(
-        '[data-testid="task-center-chrome-shell"]',
-      );
-      const taskCenterTabStrip = document.querySelector(
-        '[data-testid="task-center-tab-strip"]',
-      );
-      const taskCenterWorkspaceBar = document.querySelector(
-        '[data-testid="task-center-workspace-bar"]',
-      );
-      const compactModeBar = document.querySelector(
-        '[data-testid="layout-compact-mode-bar"]',
       );
       const stopButtonVisible = Array.from(document.querySelectorAll("button"))
         .filter((button) => !button.disabled)
@@ -269,26 +247,10 @@ async function evaluateResizeReflowSnapshot(page, label) {
       };
       const messageList = visibleInfo(messageListScope);
       const inputbarInfo = visibleInfo(inputbar);
-      const textareaInfo = visibleInfo(textarea);
+      const editorInfo = visibleInfo(editor);
       const rightHostInfo = visibleInfo(rightHost);
       const filesRootInfo = visibleInfo(filesRoot);
       const activePaneInfo = visibleInfo(activePane);
-      const threadHeaderInfo = visibleInfo(threadHeader);
-      const threadHeaderContextInfo = visibleInfo(threadHeaderContext);
-      const threadHeaderTitleInfo = visibleInfo(threadHeaderTitle);
-      const threadHeaderStatusInfo = visibleInfo(threadHeaderStatus);
-      const threadHeaderActionsInfo = visibleInfo(threadHeaderActions);
-      const taskCenterUtilityToolbarInfo = visibleInfo(
-        taskCenterUtilityToolbar,
-      );
-      const taskCenterUtilityToolbarVisualRect = visualBounds(
-        taskCenterUtilityToolbar,
-      );
-      const taskCenterChromeShellInfo = visibleInfo(taskCenterChromeShell);
-      const taskCenterTabStripInfo = visibleInfo(taskCenterTabStrip);
-      const taskCenterWorkspaceBarInfo = visibleInfo(taskCenterWorkspaceBar);
-      const compactModeBarInfo = visibleInfo(compactModeBar);
-      const compactModeBarVisualRect = visualBounds(compactModeBar);
       const activeSurface = rightHost?.getAttribute("data-surface") ?? null;
       const tableInfo = visibleInfo(renderedTable);
       const tableOverflowHostInfo = visibleInfo(tableOverflowHost);
@@ -369,7 +331,7 @@ async function evaluateResizeReflowSnapshot(page, label) {
         noDocumentHorizontalOverflow;
       const inputbarAnchored =
         inputbarInfo.visible === true &&
-        textareaInfo.visible === true &&
+        editorInfo.visible === true &&
         inputbarInfo.rect != null &&
         inputbarInfo.rect.bottom <= viewport.height - 2 &&
         inputbarInfo.rect.top >= Math.round(viewport.height * 0.45);
@@ -379,56 +341,6 @@ async function evaluateResizeReflowSnapshot(page, label) {
           : rightHostInfo.visible === true && filesRootInfo.visible === true;
       const rightSurfaceStable =
         activeSurface === "files" && rightSurfaceExpectedVisibility;
-      const headerContextRect =
-        threadHeaderContextInfo.rect ??
-        unionRects(
-          threadHeaderTitleInfo.rect,
-          threadHeaderStatusInfo.visible ? threadHeaderStatusInfo.rect : null,
-        );
-      const headerActionsRect =
-        taskCenterUtilityToolbarVisualRect ?? threadHeaderActionsInfo.rect;
-      const noHeaderContextActionsOverlap = Boolean(
-        headerContextRect &&
-        headerActionsRect &&
-        !rectsOverlap(headerContextRect, headerActionsRect),
-      );
-      const headerChildrenContained = Boolean(
-        threadHeaderInfo.rect &&
-        headerContextRect &&
-        headerActionsRect &&
-        rectContains(threadHeaderInfo.rect, headerContextRect, 1) &&
-        rectContains(threadHeaderInfo.rect, headerActionsRect, 1),
-      );
-      const compactModeBarExpectedVisible = label === "compact";
-      const noHeaderCompactModeBarOverlap = Boolean(
-        threadHeaderInfo.rect &&
-        (!compactModeBarInfo.visible ||
-          (compactModeBarVisualRect &&
-            !rectsOverlap(threadHeaderInfo.rect, compactModeBarVisualRect))),
-      );
-      const compactModeBarPositionStable = compactModeBarExpectedVisible
-        ? Boolean(
-            compactModeBarInfo.visible &&
-            compactModeBarVisualRect &&
-            threadHeaderInfo.rect &&
-            compactModeBarVisualRect.top >= threadHeaderInfo.rect.bottom - 1 &&
-            compactModeBarVisualRect.left >= threadHeaderInfo.rect.left - 1 &&
-            compactModeBarVisualRect.right <= threadHeaderInfo.rect.right + 1,
-          )
-        : compactModeBarInfo.visible === false;
-      const activeThreadHeaderStable =
-        threadHeaderInfo.visible === true &&
-        threadHeaderTitleInfo.visible === true &&
-        threadHeaderContextInfo.visible === true &&
-        threadHeaderActionsInfo.visible === true &&
-        taskCenterUtilityToolbarInfo.visible === true &&
-        taskCenterChromeShellInfo.visible === false &&
-        taskCenterTabStripInfo.visible === false &&
-        taskCenterWorkspaceBarInfo.visible === false &&
-        noHeaderContextActionsOverlap &&
-        headerChildrenContained &&
-        noHeaderCompactModeBarOverlap &&
-        compactModeBarPositionStable;
 
       return {
         label,
@@ -451,8 +363,11 @@ async function evaluateResizeReflowSnapshot(page, label) {
           "已接收请求",
           "正在启动",
         ].some((fragment) => assistantText.includes(fragment)),
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+        editorDisabled:
+          editor instanceof HTMLElement
+            ? editor.getAttribute("aria-disabled") === "true" ||
+              editor.getAttribute("contenteditable") !== "true"
+            : null,
         stopButtonVisible,
         markerRect,
         tableTailRange,
@@ -460,7 +375,7 @@ async function evaluateResizeReflowSnapshot(page, label) {
         turnGroupRect,
         messageList,
         inputbar: inputbarInfo,
-        textarea: textareaInfo,
+        editor: editorInfo,
         rightSurface: {
           activeSurface,
           expectedVisibility: rightSurfaceExpectedVisibility,
@@ -468,30 +383,7 @@ async function evaluateResizeReflowSnapshot(page, label) {
           activePane: activePaneInfo,
           filesRoot: filesRootInfo,
         },
-        activeThreadHeader: {
-          stable: activeThreadHeaderStable,
-          header: threadHeaderInfo,
-          context: threadHeaderContextInfo,
-          title: threadHeaderTitleInfo,
-          status: threadHeaderStatusInfo,
-          actions: threadHeaderActionsInfo,
-          toolbar: {
-            ...taskCenterUtilityToolbarInfo,
-            visualRect: taskCenterUtilityToolbarVisualRect,
-          },
-          taskCenterChromeShell: taskCenterChromeShellInfo,
-          taskCenterTabStrip: taskCenterTabStripInfo,
-          taskCenterWorkspaceBar: taskCenterWorkspaceBarInfo,
-          compactModeBar: {
-            ...compactModeBarInfo,
-            visualRect: compactModeBarVisualRect,
-            expectedVisible: compactModeBarExpectedVisible,
-            positionStable: compactModeBarPositionStable,
-          },
-          noContextActionsOverlap: noHeaderContextActionsOverlap,
-          childrenContained: headerChildrenContained,
-          noCompactModeBarOverlap: noHeaderCompactModeBarOverlap,
-        },
+        activeThreadHeader,
         table: {
           rendered: tableInfo.visible,
           rect: tableInfo.rect,
@@ -508,7 +400,7 @@ async function evaluateResizeReflowSnapshot(page, label) {
           (scroll == null || scroll.nearBottom === true),
         inputbarAnchored,
         rightSurfaceStable,
-        activeThreadHeaderStable,
+        activeThreadHeaderStable: activeThreadHeader.stable,
         noTailInputOverlap,
         noTableTailInputOverlap,
         noDoneTextInputOverlap,
@@ -543,66 +435,6 @@ async function evaluateResizeReflowSnapshot(page, label) {
           ),
           rect: rect ? rectToJson(rect) : null,
         };
-      }
-
-      function visualBounds(node) {
-        if (!node) {
-          return null;
-        }
-        const visibleRects = [node, ...node.querySelectorAll("*")]
-          .map((element) => {
-            const style = window.getComputedStyle(element);
-            const rect = element.getBoundingClientRect();
-            return style.display !== "none" &&
-              style.visibility !== "hidden" &&
-              Number(style.opacity || "1") > 0 &&
-              rect.width > 0 &&
-              rect.height > 0
-              ? rectToJson(rect)
-              : null;
-          })
-          .filter(Boolean);
-        return visibleRects.reduce(
-          (bounds, rect) => unionRects(bounds, rect),
-          null,
-        );
-      }
-
-      function unionRects(left, right) {
-        if (!left) return right;
-        if (!right) return left;
-        const top = Math.min(left.top, right.top);
-        const leftEdge = Math.min(left.left, right.left);
-        const rightEdge = Math.max(left.right, right.right);
-        const bottom = Math.max(left.bottom, right.bottom);
-        return {
-          x: leftEdge,
-          y: top,
-          width: rightEdge - leftEdge,
-          height: bottom - top,
-          top,
-          left: leftEdge,
-          right: rightEdge,
-          bottom,
-        };
-      }
-
-      function rectsOverlap(left, right) {
-        return !(
-          left.right <= right.left ||
-          right.right <= left.left ||
-          left.bottom <= right.top ||
-          right.bottom <= left.top
-        );
-      }
-
-      function rectContains(outer, inner, tolerance = 0) {
-        return (
-          inner.left >= outer.left - tolerance &&
-          inner.top >= outer.top - tolerance &&
-          inner.right <= outer.right + tolerance &&
-          inner.bottom <= outer.bottom + tolerance
-        );
       }
 
       function scrollMetrics(node) {
@@ -681,6 +513,7 @@ async function evaluateResizeReflowSnapshot(page, label) {
       }
     },
     {
+      activeThreadHeader,
       doneText: LIVE_TAIL_COMMIT_DONE_TEXT,
       firstText: LIVE_TAIL_COMMIT_FIRST_TEXT,
       label,
@@ -708,7 +541,7 @@ function isResizeReflowSnapshotReady(snapshot, expectedViewport) {
     snapshot.tableTailOccurrenceCount === 1 &&
     snapshot.table?.overflowHandled === true &&
     snapshot.startupNoteVisible === false &&
-    snapshot.textareaDisabled === false &&
+    snapshot.editorDisabled === false &&
     snapshot.stopButtonVisible === false &&
     snapshot.messageAnchorStable === true &&
     snapshot.inputbarAnchored === true &&
@@ -732,11 +565,7 @@ async function waitForResizeReflowSnapshot(page, options, { label, viewport }) {
     await sleep(options.intervalMs);
   }
 
-  throw new Error(
-    `Electron resize/reflow snapshot 未稳定: ${label}; snapshot=${JSON.stringify(
-      sanitizeJson(lastSnapshot),
-    )}`,
-  );
+  throw new Error(formatResizeReflowFailure(label, lastSnapshot));
 }
 
 export async function runElectronResizeReflowScenario({

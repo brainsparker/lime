@@ -3,6 +3,7 @@ import { createRoot } from "react-dom/client";
 import { vi } from "vitest";
 import type { AgentRuntimeAppServerClient } from "@/lib/api/agentRuntime/threadClient";
 import type { AgentThreadTurn } from "../types";
+import type { AppServerEventBusSubscription } from "@/lib/api/appServerEventBus";
 import { useAgentRuntimeSyncEffects } from "./useAgentRuntimeSyncEffects";
 
 const runtimeSyncEffectMocks = vi.hoisted(() => ({
@@ -11,6 +12,9 @@ const runtimeSyncEffectMocks = vi.hoisted(() => ({
   mockHasDesktopHostEventListenerCapability: vi.fn(() => true),
   mockSafeInvoke: vi.fn(),
   mockSafeListen: vi.fn(async () => () => {}),
+  mockSubscribeAppServerNotifications: vi.fn(
+    (_subscription: AppServerEventBusSubscription) => () => {},
+  ),
 }));
 
 export const {
@@ -19,6 +23,7 @@ export const {
   mockHasDesktopHostEventListenerCapability,
   mockSafeInvoke,
   mockSafeListen,
+  mockSubscribeAppServerNotifications,
 } = runtimeSyncEffectMocks;
 
 vi.mock("@/lib/api/appServerBridgeAvailability", () => ({
@@ -36,6 +41,12 @@ vi.mock("@/lib/dev-bridge", () => ({
 vi.mock("@/lib/desktop-runtime", () => ({
   hasDesktopHostEventListenerCapability:
     runtimeSyncEffectMocks.mockHasDesktopHostEventListenerCapability,
+}));
+
+vi.mock("@/lib/api/appServerEventBus", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/appServerEventBus")>()),
+  subscribeAppServerNotifications:
+    runtimeSyncEffectMocks.mockSubscribeAppServerNotifications,
 }));
 
 type HookProps = Parameters<typeof useAgentRuntimeSyncEffects>[0];

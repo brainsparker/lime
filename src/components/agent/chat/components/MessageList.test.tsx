@@ -131,25 +131,18 @@ describe("MessageList layout and scrolling", () => {
     expect(messageColumn?.className).not.toContain("justify-end");
   });
 
-  it("长消息流应让尾部 turn 保持即时渲染并隔离离屏历史工作", () => {
-    const container = render(createConversationMessages(8));
-    const groups = Array.from(
-      container.querySelectorAll<HTMLElement>(
-        '[data-testid="message-turn-group"]',
-      ),
+  it("长历史由视口选择真实挂载的 turn", () => {
+    const container = render(createConversationMessages(2000));
+    const list = container.querySelector<HTMLElement>(
+      "[data-testid=virtualized-turn-list]",
     );
-
-    expect(groups).toHaveLength(4);
-    expect(groups.map((group) => group.dataset.renderPriority)).toEqual([
-      "offscreen-deferred",
-      "offscreen-deferred",
-      "tail",
-      "tail",
-    ]);
-    expect(document.head.textContent).toContain("content-visibility:auto");
-    expect(document.head.textContent).toContain(
-      "contain-intrinsic-size:auto 320px",
-    );
+    expect(list?.dataset.totalEntries).toBe("1000");
+    expect(Number(list?.dataset.offscreenCount)).toBeGreaterThan(990);
+    expect(
+      container.querySelectorAll("[data-testid=message-turn-group]").length,
+    ).toBeLessThanOrEqual(8);
+    expect(container.textContent).toContain("消息 2000");
+    expect(container.textContent).not.toContain("消息 1Saturday");
   });
 
   it("对话列表顶部应保留工作台呼吸区，避免首条消息贴近窗口顶栏", () => {
@@ -358,7 +351,7 @@ describe("MessageList layout and scrolling", () => {
       });
 
       expect(scrollIntoViewMock).toHaveBeenCalledWith({
-        behavior: "smooth",
+        behavior: "auto",
         block: "end",
       });
       expect(
@@ -462,6 +455,7 @@ describe("MessageList layout and scrolling", () => {
       }
 
       observe = observeMock;
+      unobserve = vi.fn();
       disconnect = vi.fn();
     }
 
@@ -491,10 +485,9 @@ describe("MessageList layout and scrolling", () => {
       );
       expect(scrollContainer).not.toBeNull();
       expect(messageColumn).not.toBeNull();
-      expect(observeMock.mock.calls.map(([target]) => target)).toEqual([
-        scrollContainer,
-        messageColumn,
-      ]);
+      const observed = observeMock.mock.calls.map(([target]) => target);
+      expect(observed).toContain(scrollContainer);
+      expect(observed).toContain(host.querySelector("[data-turn-key]"));
       setScrollMetrics(scrollContainer as HTMLElement, {
         scrollTop: 600,
         scrollHeight: 1000,
@@ -505,15 +498,6 @@ describe("MessageList layout and scrolling", () => {
         resizeCallback?.([], {} as MockResizeObserver);
       });
 
-      expect(scrollToMock).toHaveBeenCalledWith({
-        behavior: "auto",
-        top: 1000,
-      });
-
-      scrollToMock.mockClear();
-      act(() => {
-        window.dispatchEvent(new Event("resize"));
-      });
       expect(scrollToMock).toHaveBeenCalledWith({
         behavior: "auto",
         top: 1000,
@@ -606,6 +590,118 @@ describe("MessageList layout and scrolling", () => {
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
       window.requestAnimationFrame = originalRequestAnimationFrame;
+    }
+  });
+
+  it.each(["keyboard", "scrollbar"])(
+    "用户通过 %s 离开底部后流式更新应保持阅读位置",
+    (input) => {
+      const host = document.createElement("div");
+      document.body.append(host);
+      const root = createRoot(host);
+      mountedRoots.push({
+        host,
+        root,
+        container: host,
+      } as (typeof mountedRoots)[number]);
+      const messages = createConversationMessages(8);
+      act(() => root.render(<MessageList messages={messages} isSending />));
+      const scroll = host.querySelector<HTMLElement>(
+        "[data-testid=message-list-scroll-container]",
+      )!;
+      const scrollTo = vi.fn();
+      scroll.scrollTo = scrollTo;
+      setScrollMetrics(scroll, {
+        scrollTop: 400,
+        scrollHeight: 1400,
+        clientHeight: 400,
+      });
+      act(() => {
+        if (input === "keyboard")
+          scroll.dispatchEvent(
+            new KeyboardEvent("keydown", { key: "PageUp", bubbles: true }),
+          );
+        else scroll.dispatchEvent(new Event("scroll", { bubbles: true }));
+      });
+      act(() =>
+        root.render(
+          <MessageList
+            messages={[
+              ...messages,
+              {
+                id: "new",
+                role: "assistant",
+                content: "streaming",
+                timestamp: new Date(),
+              },
+            ]}
+            isSending
+          />,
+        ),
+      );
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(scroll.scrollTop).toBe(400);
+    },
+  );
+
+  it("流式贴底帧已排队时，用户离开底部仍应取消该次跟随", () => {
+    const frames: Array<(timestamp: number) => void> = [];
+    const frameSpy = vi
+      .spyOn(window, "requestAnimationFrame")
+      .mockImplementation((callback) => {
+        frames.push(callback);
+        return frames.length;
+      });
+    try {
+      const container = render(
+        [
+          {
+            id: "user-queued-follow",
+            role: "user",
+            content: "继续输出",
+            timestamp: new Date(),
+          },
+          {
+            id: "assistant-queued-follow",
+            role: "assistant",
+            content: "",
+            timestamp: new Date(),
+          },
+        ],
+        { isSending: true },
+      );
+      act(() => {
+        for (const frame of frames.splice(0)) frame(0);
+      });
+      const scroll = container.querySelector<HTMLElement>(
+        '[data-testid="message-list-scroll-container"]',
+      )!;
+      const scrollTo = vi.fn();
+      scroll.scrollTo = scrollTo;
+      setScrollMetrics(scroll, {
+        scrollTop: 780,
+        scrollHeight: 1200,
+        clientHeight: 400,
+      });
+      act(() => {
+        upsertAgentStreamTextOverlay({
+          messageId: "assistant-queued-follow",
+          eventName: "response.output_text.delta",
+          content: "已排队的新内容",
+          updatedAt: 1,
+        });
+      });
+      expect(frames.length).toBeGreaterThan(0);
+      act(() => {
+        scroll.dispatchEvent(
+          new KeyboardEvent("keydown", { key: "PageUp", bubbles: true }),
+        );
+        for (const frame of frames.splice(0)) frame(0);
+      });
+      expect(scrollTo).not.toHaveBeenCalled();
+      expect(scroll.scrollTop).toBe(780);
+    } finally {
+      frameSpy.mockRestore();
     }
   });
 

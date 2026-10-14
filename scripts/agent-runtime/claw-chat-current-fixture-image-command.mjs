@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import {
@@ -167,111 +168,124 @@ export async function waitForGuiImageCommandCompleted(
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({
-        prompt,
-        imagePrompt,
-        doneText,
-        createTaskToolName,
-        toolLabel,
-        presentationIntro,
-        presentationCaption,
-      }) => {
-        const text = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
-        );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          rect &&
-          rect.width > 16 &&
-          rect.height > 16 &&
-          style?.visibility !== "hidden" &&
-          style?.display !== "none",
-        );
-        const buttons = Array.from(document.querySelectorAll("button")).map(
-          (button) => ({
-            title: button.getAttribute("title") || "",
-            text: button.textContent || "",
-            aria: button.getAttribute("aria-label") || "",
-            disabled: button.disabled,
-          }),
-        );
-        const stopButtonVisible = buttons.some((button) => {
-          const label = [button.title, button.text, button.aria].join("\n");
-          return (
-            !button.disabled &&
-            (label.includes("停止") ||
-              label.includes("终止") ||
-              /\bStop\b/i.test(label))
+      withComposerEditorDom(
+        ({
+          prompt,
+          imagePrompt,
+          doneText,
+          createTaskToolName,
+          toolLabel,
+          presentationIntro,
+          presentationCaption,
+        }) => {
+          const text = document.body?.innerText || "";
+          const editor = document.querySelector(
+            '[data-testid="composer-editor"][role="textbox"]',
           );
-        });
-        const processGroups = Array.from(
-          document.querySelectorAll('[data-testid="streaming-process-group"]'),
-        ).map((group) => ({
-          text: group.textContent || "",
-          expanded:
-            group.querySelector("button")?.getAttribute("aria-expanded") || "",
-        }));
-        const inlineToolSteps = Array.from(
-          document.querySelectorAll('[data-testid="inline-tool-process-step"]'),
-        ).map((step) => ({
-          text: step.textContent || "",
-          grouped: step.getAttribute("data-grouped") || "",
-        }));
-        const combinedProcessText = [...processGroups, ...inlineToolSteps]
-          .map((entry) => entry.text)
-          .join("\n");
-        const bodyLower = text.toLowerCase();
-        const hasPrompt =
-          text.includes(prompt) ||
-          (text.includes("@配图") && text.includes(imagePrompt));
-        const hasVisibleImageTaskProcess =
-          text.includes("图片生成") ||
-          text.includes(toolLabel) ||
-          combinedProcessText.includes("图片生成") ||
-          combinedProcessText.includes(toolLabel);
-        const hasAssistantSummary =
-          text.includes(presentationIntro) || text.includes(presentationCaption);
-        const imageTaskCardVisible =
-          text.includes(".lime/tasks/image_generate") ||
-          text.includes("image_generate") ||
-          bodyLower.includes("pending_submit") ||
-          bodyLower.includes("图片任务") ||
-          hasVisibleImageTaskProcess;
+          const rect = editor?.getBoundingClientRect();
+          const style = editor ? window.getComputedStyle(editor) : null;
+          const editorVisible = Boolean(
+            editor &&
+            rect &&
+            rect.width > 16 &&
+            rect.height > 16 &&
+            style?.visibility !== "hidden" &&
+            style?.display !== "none",
+          );
+          const buttons = Array.from(document.querySelectorAll("button")).map(
+            (button) => ({
+              title: button.getAttribute("title") || "",
+              text: button.textContent || "",
+              aria: button.getAttribute("aria-label") || "",
+              disabled: button.disabled,
+            }),
+          );
+          const stopButtonVisible = buttons.some((button) => {
+            const label = [button.title, button.text, button.aria].join("\n");
+            return (
+              !button.disabled &&
+              (label.includes("停止") ||
+                label.includes("终止") ||
+                /\bStop\b/i.test(label))
+            );
+          });
+          const processGroups = Array.from(
+            document.querySelectorAll(
+              '[data-testid="streaming-process-group"]',
+            ),
+          ).map((group) => ({
+            text: group.textContent || "",
+            expanded:
+              group.querySelector("button")?.getAttribute("aria-expanded") ||
+              "",
+          }));
+          const inlineToolSteps = Array.from(
+            document.querySelectorAll(
+              '[data-testid="inline-tool-process-step"]',
+            ),
+          ).map((step) => ({
+            text: step.textContent || "",
+            grouped: step.getAttribute("data-grouped") || "",
+          }));
+          const combinedProcessText = [...processGroups, ...inlineToolSteps]
+            .map((entry) => entry.text)
+            .join("\n");
+          const bodyLower = text.toLowerCase();
+          const hasPrompt =
+            text.includes(prompt) ||
+            (text.includes("@配图") && text.includes(imagePrompt));
+          const hasVisibleImageTaskProcess =
+            text.includes("图片生成") ||
+            text.includes(toolLabel) ||
+            combinedProcessText.includes("图片生成") ||
+            combinedProcessText.includes(toolLabel);
+          const hasAssistantSummary =
+            text.includes(presentationIntro) ||
+            text.includes(presentationCaption);
+          const imageTaskCardVisible =
+            text.includes(".lime/tasks/image_generate") ||
+            text.includes("image_generate") ||
+            bodyLower.includes("pending_submit") ||
+            bodyLower.includes("图片任务") ||
+            hasVisibleImageTaskProcess;
 
-        return {
-          url: window.location.href,
-          hasPrompt,
-          hasAssistantSummary,
-          hasPresentationIntro: text.includes(presentationIntro),
-          hasPresentationCaption: text.includes(presentationCaption),
-          hasDoneText: text.includes(doneText),
-          hasWorkflowSource:
-            text.includes("image_command_workflow") ||
-            combinedProcessText.includes("image_command_workflow"),
-          hasCreateTaskTool:
-            text.includes(createTaskToolName) ||
-            combinedProcessText.includes(createTaskToolName) ||
+          return {
+            url: window.location.href,
+            hasPrompt,
+            hasAssistantSummary,
+            hasPresentationIntro: text.includes(presentationIntro),
+            hasPresentationCaption: text.includes(presentationCaption),
+            hasDoneText: text.includes(doneText),
+            hasWorkflowSource:
+              text.includes("image_command_workflow") ||
+              combinedProcessText.includes("image_command_workflow"),
+            hasCreateTaskTool:
+              text.includes(createTaskToolName) ||
+              combinedProcessText.includes(createTaskToolName) ||
+              hasVisibleImageTaskProcess,
             hasVisibleImageTaskProcess,
-          hasVisibleImageTaskProcess,
-          hasTaskArtifactPath: text.includes(".lime/tasks/image_generate"),
-          imageTaskCardVisible,
-          processGroupCount: processGroups.length,
-          inlineToolStepCount: inlineToolSteps.length,
-          processText: combinedProcessText,
-          templateTaskIdVisible: text.includes("{task_id}"),
-          draftImageVisible: text.includes("draft-image-"),
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-          stopButtonVisible,
-          bodyText: text,
-        };
-      },
+            hasTaskArtifactPath: text.includes(".lime/tasks/image_generate"),
+            imageTaskCardVisible,
+            processGroupCount: processGroups.length,
+            inlineToolStepCount: inlineToolSteps.length,
+            processText: combinedProcessText,
+            templateTaskIdVisible: text.includes("{task_id}"),
+            draftImageVisible: text.includes("draft-image-"),
+            editorVisible,
+            editorDisabled:
+              editor instanceof HTMLElement
+                ? editor.getAttribute("aria-disabled") === "true" ||
+                  editor.getAttribute("contenteditable") !== "true"
+                : null,
+            editorText:
+              editor instanceof HTMLElement
+                ? readComposerEditorTextDom(editor)
+                : null,
+            stopButtonVisible,
+            bodyText: text,
+          };
+        },
+      ),
       {
         prompt: scenarioConfig.inputPrompt,
         imagePrompt: scenarioConfig.imagePrompt,
@@ -294,8 +308,8 @@ export async function waitForGuiImageCommandCompleted(
       snapshot.imageTaskCardVisible &&
       snapshot.templateTaskIdVisible === false &&
       snapshot.draftImageVisible === false &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       return sanitizeJson(snapshot);
@@ -520,7 +534,7 @@ export function summarizeImageCommandCreateFailure(readModel) {
     typeof failedEvent.payload === "object" &&
     !Array.isArray(failedEvent.payload)
       ? failedEvent.payload
-      : failedEvent ?? {};
+      : (failedEvent ?? {});
   return sanitizeJson({
     reasonCode:
       optionalPayloadString(failurePayload, ["reasonCode", "reason_code"]) ??
@@ -775,8 +789,8 @@ export async function waitForGuiImageCommandTerminal(
         tokenLabel,
       }) => {
         const text = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
         const buttons = Array.from(document.querySelectorAll("button")).map(
           (button) => ({
@@ -865,15 +879,15 @@ export async function waitForGuiImageCommandTerminal(
         const completionNode = completionNodes[0] ?? null;
         const introBeforeCard = Boolean(
           introNode &&
-            cardNode &&
-            (introNode.compareDocumentPosition(cardNode) &
-              Node.DOCUMENT_POSITION_FOLLOWING),
+          cardNode &&
+          introNode.compareDocumentPosition(cardNode) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
         );
         const completionAfterCard = Boolean(
           cardNode &&
-            completionNode &&
-            (cardNode.compareDocumentPosition(completionNode) &
-              Node.DOCUMENT_POSITION_FOLLOWING),
+          completionNode &&
+          cardNode.compareDocumentPosition(completionNode) &
+            Node.DOCUMENT_POSITION_FOLLOWING,
         );
         const visiblePendingStatus =
           text.includes("pending_submit") ||
@@ -905,8 +919,7 @@ export async function waitForGuiImageCommandTerminal(
         ).map((element) => ({
           ...describeElement(element),
           messageId: element.getAttribute("data-message-id") || "",
-          runtimeTurnId:
-            element.getAttribute("data-runtime-turn-id") || "",
+          runtimeTurnId: element.getAttribute("data-runtime-turn-id") || "",
           hasImageCard: Boolean(element.querySelector(cardSelector)),
           hasTokenUsage: Boolean(
             element.querySelector('[data-testid="token-usage-display"]'),
@@ -942,8 +955,11 @@ export async function waitForGuiImageCommandTerminal(
           hasNaturalCompletionCaption,
           templateTaskIdVisible: text.includes("{task_id}"),
           draftImageVisible: text.includes("draft-image-"),
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           stopButtonVisible,
           cardCount: cards.length,
           mediaCount: mediaNodes.length,
@@ -1004,7 +1020,7 @@ export async function waitForGuiImageCommandTerminal(
       snapshot.visiblePendingStatus === false &&
       snapshot.templateTaskIdVisible === false &&
       snapshot.draftImageVisible === false &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       return sanitizeJson(snapshot);
@@ -1228,8 +1244,7 @@ export async function runImageCommandScenario({
     runtimeRequest: {
       metadata: {
         harness:
-          traceTurnStart?.runtimeRequest?.metadata?.harness ??
-          workflowHarness,
+          traceTurnStart?.runtimeRequest?.metadata?.harness ?? workflowHarness,
       },
     },
   };

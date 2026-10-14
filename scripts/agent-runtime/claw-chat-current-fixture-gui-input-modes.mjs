@@ -1,6 +1,10 @@
 import { waitForInputReady } from "./claw-chat-current-fixture-gui-actions.mjs";
 import { evaluatePageSnapshot } from "./claw-chat-current-fixture-rpc.mjs";
-import { assert, sanitizeJson, sleep } from "./claw-chat-current-fixture-utils.mjs";
+import {
+  assert,
+  sanitizeJson,
+  sleep,
+} from "./claw-chat-current-fixture-utils.mjs";
 
 export async function enableInputbarPlusModeFromGui(
   page,
@@ -8,7 +12,10 @@ export async function enableInputbarPlusModeFromGui(
   { label, menuTestId, statusTestId, statusText },
 ) {
   await waitForInputReady(page, options);
-  await page.locator('textarea[name="agent-chat-message"]').first().focus();
+  await page
+    .locator('[data-testid="composer-editor"][role="textbox"]')
+    .first()
+    .focus();
   const opened = await page.evaluate(() => {
     const directTrigger = document.querySelector(
       '[data-testid="inputbar-plus-trigger"]',
@@ -59,20 +66,28 @@ export async function enableInputbarPlusModeFromGui(
   let lastSnapshot = null;
   let clickedModeButton = false;
   while (Date.now() - startedAt < options.timeoutMs) {
-    const snapshot = await evaluatePageSnapshot(page, ({ menuTestId, statusTestId }) => {
-      const menu = document.querySelector('[data-testid="inputbar-plus-menu"]');
-      const modeButton = document.querySelector(`[data-testid="${menuTestId}"]`);
-      const statusChip = statusTestId
-        ? document.querySelector(`[data-testid="${statusTestId}"]`)
-        : null;
-      return {
-        menuVisible: Boolean(menu),
-        modeButtonVisible: Boolean(modeButton),
-        statusChipVisible: Boolean(statusChip),
-        statusText: statusChip?.textContent || "",
-        bodyText: document.body?.innerText || "",
-      };
-    }, { menuTestId, statusTestId });
+    const snapshot = await evaluatePageSnapshot(
+      page,
+      ({ menuTestId, statusTestId }) => {
+        const menu = document.querySelector(
+          '[data-testid="inputbar-plus-menu"]',
+        );
+        const modeButton = document.querySelector(
+          `[data-testid="${menuTestId}"]`,
+        );
+        const statusChip = statusTestId
+          ? document.querySelector(`[data-testid="${statusTestId}"]`)
+          : null;
+        return {
+          menuVisible: Boolean(menu),
+          modeButtonVisible: Boolean(modeButton),
+          statusChipVisible: Boolean(statusChip),
+          statusText: statusChip?.textContent || "",
+          bodyText: document.body?.innerText || "",
+        };
+      },
+      { menuTestId, statusTestId },
+    );
     lastSnapshot = snapshot;
     if (snapshot?.modeButtonVisible) {
       await page.locator(`[data-testid="${menuTestId}"]`).click();
@@ -92,16 +107,20 @@ export async function enableInputbarPlusModeFromGui(
     options.timeoutMs - (enabledStartedAt - startedAt),
   );
   while (Date.now() - enabledStartedAt < enabledTimeoutMs) {
-    const snapshot = await evaluatePageSnapshot(page, ({ statusTestId, statusText }) => {
-      const statusChip = statusTestId
-        ? document.querySelector(`[data-testid="${statusTestId}"]`)
-        : null;
-      return {
-        statusChipVisible: Boolean(statusChip),
-        statusText: statusChip?.textContent || "",
-        bodyText: document.body?.innerText || "",
-      };
-    }, { statusTestId, statusText });
+    const snapshot = await evaluatePageSnapshot(
+      page,
+      ({ statusTestId, statusText }) => {
+        const statusChip = statusTestId
+          ? document.querySelector(`[data-testid="${statusTestId}"]`)
+          : null;
+        return {
+          statusChipVisible: Boolean(statusChip),
+          statusText: statusChip?.textContent || "",
+          bodyText: document.body?.innerText || "",
+        };
+      },
+      { statusTestId, statusText },
+    );
     const hasExpectedText =
       !statusText ||
       snapshot?.statusText?.includes(statusText) ||

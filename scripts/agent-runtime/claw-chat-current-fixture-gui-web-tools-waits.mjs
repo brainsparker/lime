@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 import {
   PLAN_STEPS,
   WEB_TOOLS_FETCH_MARKDOWN,
@@ -33,13 +34,13 @@ function webToolsSnapshotFromDom({
   planSteps,
 }) {
   const text = document.body?.innerText || "";
-  const textarea = document.querySelector(
-    'textarea[name="agent-chat-message"]',
+  const editor = document.querySelector(
+    '[data-testid="composer-editor"][role="textbox"]',
   );
-  const rect = textarea?.getBoundingClientRect();
-  const style = textarea ? window.getComputedStyle(textarea) : null;
-  const textareaVisible = Boolean(
-    textarea &&
+  const rect = editor?.getBoundingClientRect();
+  const style = editor ? window.getComputedStyle(editor) : null;
+  const editorVisible = Boolean(
+    editor &&
     rect &&
     rect.width > 16 &&
     rect.height > 16 &&
@@ -316,11 +317,14 @@ function webToolsSnapshotFromDom({
       taskRailText.includes(step.step),
     ),
     planDecisionVisible,
-    textareaVisible,
-    textareaDisabled:
-      textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-    textareaValue:
-      textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+    editorVisible,
+    editorDisabled:
+      editor instanceof HTMLElement
+        ? editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
+        : null,
+    editorText:
+      editor instanceof HTMLElement ? readComposerEditorTextDom(editor) : null,
     stopButtonVisible,
     hasMessageList: Boolean(
       document.querySelector('[data-testid="message-list"]') ||
@@ -331,21 +335,25 @@ function webToolsSnapshotFromDom({
 }
 
 async function evaluateWebToolsSnapshot(page) {
-  return await evaluatePageSnapshot(page, webToolsSnapshotFromDom, {
-    prompt: WEB_TOOLS_RENDERING_PROMPT,
-    doneText: WEB_TOOLS_RENDERING_DONE_TEXT,
-    searchTitle: WEB_TOOLS_SEARCH_TITLE,
-    searchUrl: WEB_TOOLS_SEARCH_URL,
-    searchSourceLabel: WEB_TOOLS_SEARCH_SOURCE_LABEL,
-    midThinkingText: WEB_TOOLS_MID_THINKING_TEXT,
-    fetchMarkdown: WEB_TOOLS_FETCH_MARKDOWN,
-    completedTitle: WEB_PROCESS_COMPLETED_TITLE,
-    runningTitle: WEB_PROCESS_RUNNING_TITLE,
-    introText: WEB_TOOLS_INTRO_TEXT,
-    finalSummary: WEB_TOOLS_FINAL_SUMMARY,
-    markdownHeadingText: WEB_TOOLS_MARKDOWN_HEADING,
-    planSteps: PLAN_STEPS,
-  });
+  return await evaluatePageSnapshot(
+    page,
+    withComposerEditorDom(webToolsSnapshotFromDom),
+    {
+      prompt: WEB_TOOLS_RENDERING_PROMPT,
+      doneText: WEB_TOOLS_RENDERING_DONE_TEXT,
+      searchTitle: WEB_TOOLS_SEARCH_TITLE,
+      searchUrl: WEB_TOOLS_SEARCH_URL,
+      searchSourceLabel: WEB_TOOLS_SEARCH_SOURCE_LABEL,
+      midThinkingText: WEB_TOOLS_MID_THINKING_TEXT,
+      fetchMarkdown: WEB_TOOLS_FETCH_MARKDOWN,
+      completedTitle: WEB_PROCESS_COMPLETED_TITLE,
+      runningTitle: WEB_PROCESS_RUNNING_TITLE,
+      introText: WEB_TOOLS_INTRO_TEXT,
+      finalSummary: WEB_TOOLS_FINAL_SUMMARY,
+      markdownHeadingText: WEB_TOOLS_MARKDOWN_HEADING,
+      planSteps: PLAN_STEPS,
+    },
+  );
 }
 
 export async function waitForGuiWebToolsRenderingInProgress(page, options) {
@@ -446,8 +454,8 @@ export async function waitForGuiWebToolsRenderingCompleted(page, options) {
       snapshot.markdownHeadingVisible &&
       snapshot.markdownStrongVisible &&
       snapshot.markdownTableVisible &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       return sanitizeJson(snapshot);

@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 function readFile(filePath) {
@@ -24,12 +25,16 @@ function expectAppServerAgentRule(content, label) {
   expect(content, label).toMatch(
     /新增 AI Agent|新增 Agent 逻辑|新增的是 AI Agent|Agent runtime 的唯一产品链|能力缺口只能参考 Codex/,
   );
-  expect(content, label).toMatch(/agent_runtime_\*|已退役 runtime|Agent runtime/);
+  expect(content, label).toMatch(
+    /agent_runtime_\*|已退役 runtime|Agent runtime/,
+  );
   expect(content, label).toMatch(/兼容适配|兼容层|compat/);
 }
 
 function expectCurrentRustOwnerRule(content, label) {
-  expect(content, label).toMatch(/lime-rs\/crates\/\*\*|App Server|RuntimeCore/);
+  expect(content, label).toMatch(
+    /lime-rs\/crates\/\*\*|App Server|RuntimeCore/,
+  );
   expect(content, label).toMatch(/current|事实源|Owner|owner|职责/);
   expect(content, label).toMatch(/不得|禁止|只允许|不再|不能/);
 }
@@ -169,11 +174,10 @@ describe("Electron current repository rules guard", () => {
     }
   });
 
-  it("keeps command/governance/quality skills aligned with current rules", () => {
+  it("keeps boundary and governance skills explicit about their current rules", () => {
     const skillFiles = existingFiles([
       ".codex/skills/lime-command-boundary/SKILL.md",
       ".codex/skills/lime-governance/SKILL.md",
-      ".codex/skills/lime-quality-workflow/SKILL.md",
     ]);
 
     for (const filePath of skillFiles) {
@@ -184,6 +188,48 @@ describe("Electron current repository rules guard", () => {
       expect(content, filePath).toMatch(/Electron/);
       expect(content, filePath).toMatch(/App Server/);
     }
+  });
+
+  it("keeps GUI and quality skills linked to authoritative current rules", () => {
+    for (const filePath of [
+      ".codex/skills/lime-design-language/SKILL.md",
+      ".codex/skills/lime-quality-workflow/SKILL.md",
+    ]) {
+      const content = readFile(filePath);
+      const references = Array.from(
+        content.matchAll(/\]\(([^)]+\.md)\)/g),
+        (match) => path.normalize(path.join(path.dirname(filePath), match[1])),
+      );
+      for (const source of [
+        "internal/aiprompts/architecture.md",
+        "internal/aiprompts/commands.md",
+        "internal/aiprompts/quality-workflow.md",
+        "internal/aiprompts/design-language.md",
+      ]) {
+        expect(references, filePath).toContain(source);
+        expect(fs.existsSync(source), source).toBe(true);
+      }
+      expect(content, filePath).toContain("Thread/Turn/Item");
+      expect(content, filePath).toContain("App Server");
+      expect(content, filePath).toMatch(/测试.*护栏|护栏.*测试/);
+    }
+
+    const quality = readFile(".codex/skills/lime-quality-workflow/SKILL.md");
+    expect(quality).toContain(
+      "Product Surface -> App Server JSON-RPC -> RuntimeCore -> Thread/Turn/Item projection",
+    );
+    expect(quality).toContain("Desktop、CLI 和 TUI 共用协议");
+    expect(quality).toContain("生产 mock fallback 命中必须为零");
+    expect(quality).toContain("npm run test:contracts");
+    expect(quality).toContain("npm run verify:gui-smoke");
+    expect(quality).toContain("npm run verify:local");
+    expect(quality).toContain("npm run test:resume");
+    expect(quality).toContain("internal/aiprompts/governance.md");
+
+    const design = readFile(".codex/skills/lime-design-language/SKILL.md");
+    expect(design).toContain("主题、多模型支持、首页 Banner");
+    expect(design).toContain("reverse-engineer-anything");
+    expect(design).toContain("不能由 TUI 布局推断 GUI");
   });
 
   it("keeps testing rules on Electron current evidence", () => {

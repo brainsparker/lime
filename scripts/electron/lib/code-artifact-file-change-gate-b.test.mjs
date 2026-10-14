@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { JSDOM } from "jsdom";
 
 import {
   FILE_CHANGE_BATCH_FACTS,
@@ -47,6 +48,41 @@ function exactRead({
 }
 
 describe("code artifact FileChange Gate B helpers", () => {
+  it("opens the scoped action only on the matching approval card before submitting", async () => {
+    const dom = new JSDOM(
+      '<section data-testid="approval-card" data-request-id="' +
+        ITEM_ID +
+        '"><button data-testid="approval-scope-trigger" aria-expanded="false"></button></section>',
+    );
+    vi.stubGlobal("document", dom.window.document);
+    vi.stubGlobal("HTMLButtonElement", dom.window.HTMLButtonElement);
+    const submit = vi.fn();
+    const trigger = dom.window.document.querySelector("button");
+    trigger.addEventListener("click", () => {
+      trigger.setAttribute("aria-expanded", "true");
+      const action = dom.window.document.createElement("button");
+      action.dataset.decision = "allow_for_session";
+      action.addEventListener("click", submit);
+      trigger.parentElement.append(action);
+    });
+    const page = { evaluate: async (fn, arg) => fn(arg) };
+    try {
+      await expect(
+        clickFileChangeApprovalDecision(
+          page,
+          { timeoutMs: 500, intervalMs: 1 },
+          "allow_for_session",
+          { itemId: ITEM_ID },
+        ),
+      ).resolves.toMatchObject({ clicked: true, requestId: ITEM_ID });
+      expect(submit).toHaveBeenCalledTimes(1);
+      expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    } finally {
+      vi.unstubAllGlobals();
+      dom.window.close();
+    }
+  });
+
   it("defines one exact Add/Delete/Update/Move batch", () => {
     expect(FILE_CHANGE_BATCH_SCENARIO).toBe("file-change-batch");
     expect(FILE_CHANGE_BATCH_FACTS).toHaveLength(4);
@@ -165,7 +201,7 @@ describe("code artifact FileChange Gate B helpers", () => {
             identityMatched: true,
             summaryText: "Apply the exact batch?",
             promptMatched: true,
-            textareaVisible: false,
+            editorVisible: false,
             buttons: {
               decline: { visible: true, disabled: false },
               cancel: { visible: true, disabled: false },

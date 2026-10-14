@@ -58,7 +58,8 @@ export async function readCanonicalThreadHistoryWindow(
   const embeddedTurns = readEmbeddedTurns(thread);
   if (embeddedTurns) {
     const loadedItemCount = embeddedTurns.reduce(
-      (count, turn) => count + (Array.isArray(turn.items) ? turn.items.length : 0),
+      (count, turn) =>
+        count + (Array.isArray(turn.items) ? turn.items.length : 0),
       0,
     );
     return buildHistoryWindow({
@@ -155,8 +156,8 @@ function hasHistoryCursor(
 ): boolean {
   return Boolean(
     options &&
-      (Object.prototype.hasOwnProperty.call(options, "historyItemCursor") ||
-        Object.prototype.hasOwnProperty.call(options, "historyTurnCursor")),
+    (Object.prototype.hasOwnProperty.call(options, "historyItemCursor") ||
+      Object.prototype.hasOwnProperty.call(options, "historyTurnCursor")),
   );
 }
 
@@ -181,7 +182,11 @@ function shouldReadOwnerPage(
   options: AgentRuntimeGetSessionOptions | undefined,
   key: "historyItemCursor" | "historyTurnCursor",
 ): boolean {
-  return !options || !(key in options) || normalizeOpaqueCursor(options[key]) !== null;
+  return (
+    !options ||
+    !(key in options) ||
+    normalizeOpaqueCursor(options[key]) !== null
+  );
 }
 
 async function readItemPage(
@@ -329,14 +334,7 @@ function groupItemsByTurnId(
 }
 
 function isActiveTurn(turn: Record<string, unknown>): boolean {
-  const queueState = isRecord(turn.queue)
-    ? readStringField(turn.queue, "state")
-    : "";
-  return (
-    readStringField(turn, "status") === "inProgress" ||
-    queueState === "queued" ||
-    queueState === "running"
-  );
+  return readStringField(turn, "status") === "inProgress";
 }
 
 function shouldRetainTurnWithoutItems(turn: Record<string, unknown>): boolean {

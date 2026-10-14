@@ -489,27 +489,23 @@ export async function waitForFileChangeApprovalPending(
     const snapshot = await evaluatePageSnapshot(
       page,
       ({ requestIds, promptText }) => {
-        const prompt = document.querySelector(
-          '[data-testid="inputbar-approval-prompt"]',
-        );
+        const prompt = document.querySelector('[data-testid="approval-card"]');
         const summary = prompt?.querySelector(
-          '[data-testid="inputbar-approval-summary"]',
+          '[data-testid="approval-reason"]',
         );
         const requestId = prompt?.getAttribute("data-request-id") || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const textareaRect = textarea?.getBoundingClientRect();
-        const textareaStyle = textarea
-          ? window.getComputedStyle(textarea)
-          : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          textareaRect &&
-          textareaRect.width > 16 &&
-          textareaRect.height > 16 &&
-          textareaStyle?.visibility !== "hidden" &&
-          textareaStyle?.display !== "none",
+        const editorRect = editor?.getBoundingClientRect();
+        const editorStyle = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
+          editorRect &&
+          editorRect.width > 16 &&
+          editorRect.height > 16 &&
+          editorStyle?.visibility !== "hidden" &&
+          editorStyle?.display !== "none",
         );
         const buttonState = Object.fromEntries(
           ["allow_once", "allow_for_session", "decline", "cancel"].map(
@@ -537,7 +533,7 @@ export async function waitForFileChangeApprovalPending(
           identityMatched: requestIds.includes(requestId),
           summaryText,
           promptMatched: promptText ? summaryText.includes(promptText) : true,
-          textareaVisible,
+          editorVisible,
           buttons: buttonState,
         };
       },
@@ -552,7 +548,7 @@ export async function waitForFileChangeApprovalPending(
         snapshot.visible === true &&
         snapshot.identityMatched === true &&
         snapshot.promptMatched === true &&
-        snapshot.textareaVisible === false &&
+        snapshot.editorVisible === false &&
         snapshot.buttons?.decline?.visible === true &&
         snapshot.buttons.decline.disabled === false &&
         snapshot.buttons?.cancel?.visible === true &&
@@ -591,12 +587,31 @@ export async function clickFileChangeApprovalDecision(
     const snapshot = await evaluatePageSnapshot(
       page,
       ({ decision: targetDecision, requestIds }) => {
-        const prompt = document.querySelector(
-          '[data-testid="inputbar-approval-prompt"]',
-        );
+        const prompt = document.querySelector('[data-testid="approval-card"]');
         const requestId = prompt?.getAttribute("data-request-id") || "";
         if (!prompt || !requestIds.includes(requestId)) {
           return { clicked: false, requestId, identityMatched: false };
+        }
+        if (
+          targetDecision === "allow_for_session" &&
+          !prompt.querySelector(`button[data-decision="${targetDecision}"]`)
+        ) {
+          const trigger = prompt.querySelector(
+            '[data-testid="approval-scope-trigger"]',
+          );
+          if (
+            trigger instanceof HTMLButtonElement &&
+            !trigger.disabled &&
+            trigger.getAttribute("aria-expanded") !== "true"
+          ) {
+            trigger.click();
+            return {
+              clicked: false,
+              requestId,
+              identityMatched: true,
+              scopeMenuOpened: true,
+            };
+          }
         }
         const button = prompt.querySelector(
           `button[data-decision="${targetDecision}"]`,

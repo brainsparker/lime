@@ -44,8 +44,9 @@ import {
 import { ThreadWorkspaceHeader } from "./ThreadWorkspaceHeader";
 
 import type { ThreadWorkspaceHeaderViewModel } from "./threadWorkspaceHeaderViewModel";
-import { ThreadQueueStatus } from "../components/ThreadQueueStatus";
+import { QueuedMessageList } from "../components/QueuedMessageList";
 import { ThreadProjectSelector } from "../components/ThreadProjectSelector";
+import { ReviewThreadSidePanelProjectionContext } from "./ReviewThreadSidePanelProjection";
 
 type WorkspaceMainAreaProps = Omit<
   ComponentProps<typeof WorkspaceMainArea>,
@@ -456,7 +457,7 @@ export function WorkspaceConversationScene({
   const currentWorkspaceName =
     openedProjects?.find((project) => project.id === projectId)?.name ?? null;
   const queueStatusNode = (
-    <ThreadQueueStatus threadId={messageListProps.threadRead?.thread_id} />
+    <QueuedMessageList threadId={messageListProps.threadRead?.thread_id} />
   );
   const chatContent = renderWorkspaceChatContent({
     landingSurface,
@@ -516,12 +517,13 @@ export function WorkspaceConversationScene({
   const effectiveShellBottomInset = bottomShellPanelOpen
     ? `calc(${shellBottomInset} + ${effectiveShellPanelHeightPx}px)`
     : shellBottomInset;
+  const shouldRenderThreadHeader = Boolean(threadHeader && showChatLayout);
   const taskCenterUtilityToolbarNode = shouldUseTaskCenterUtilityToolbar ? (
     <TaskCenterUtilityToolbar
       projectRootPath={projectRootPath}
       onProjectChange={onProjectChange}
       taskRail={taskRail}
-      placement={layoutMode !== "chat" ? "workbench-header" : "task-strip"}
+      placement={shouldRenderThreadHeader ? "workbench-header" : "task-strip"}
       showCanvasToggle={!isThemeWorkbench}
       isCanvasOpen={layoutMode !== "chat"}
       onToggleCanvas={onToggleCanvas}
@@ -565,7 +567,6 @@ export function WorkspaceConversationScene({
       }}
     />
   ) : null;
-  const shouldRenderThreadHeader = Boolean(threadHeader && showChatLayout);
   const threadHeaderNode =
     shouldRenderThreadHeader && threadHeader ? (
       <ThreadWorkspaceHeader
@@ -699,7 +700,21 @@ export function WorkspaceConversationScene({
         forceCanvasMode={forceCanvasMode}
         chatContent={chatContent}
         canvasContent={canvasContent}
-        rightSurfaceContent={rightSurfaceContent}
+        rightSurfaceContent={
+          rightSurfaceContent ? (
+            <ReviewThreadSidePanelProjectionContext.Provider
+              value={{
+                changeView: canvasWorkbenchLayoutProps.changeView,
+                workspaceRoot: canvasWorkbenchLayoutProps.workspaceRoot,
+                loadFilePreview: canvasWorkbenchLayoutProps.loadFilePreview,
+              }}
+            >
+              {rightSurfaceContent}
+            </ReviewThreadSidePanelProjectionContext.Provider>
+          ) : (
+            rightSurfaceContent
+          )
+        }
         chatPanelWidth={chatPanelWidth}
         chatPanelMinWidth={chatPanelMinWidth}
         generalWorkbenchDialog={generalWorkbenchDialog}

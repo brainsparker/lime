@@ -1,3 +1,7 @@
+import type { ComposerDraftSnapshot } from "@/components/input-kit";
+import { insertComposerSkill, insertComposerPlugin } from "../skill-selection/composerCapabilityMention";
+import { ComposerController } from "@/components/input-kit";
+import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { FolderOpen, Lightbulb, X } from "lucide-react";
@@ -13,17 +17,13 @@ import { BuiltinCommandBadge } from "./Inputbar/components/BuiltinCommandBadge";
 import { InputbarAccessModeSelect } from "./Inputbar/components/InputbarAccessModeSelect";
 import { InputbarCore } from "./Inputbar/components/InputbarCore";
 import { InputbarModeStatusChip } from "./Inputbar/components/InputbarModeStatusChip";
-import { InputbarPluginBadge } from "./Inputbar/components/InputbarPluginBadge";
 import { InputbarPluginSelector } from "./Inputbar/components/InputbarPluginSelector";
-import {
-  InputbarProjectContextBar,
-  type InputbarOpenedProject,
-} from "./Inputbar/components/InputbarProjectContextBar";
+import { ComposerUtilityBar } from "./Inputbar/components/ComposerUtilityBar";
+import type { ComposerProject } from "./Inputbar/components/composerUtilityBarTypes";
 import { InputbarKnowledgeControl } from "./Inputbar/knowledge/InputbarKnowledgeControl";
 import { InputbarModelExtra } from "./Inputbar/components/InputbarModelExtra";
 import { RuntimeSceneBadge } from "./Inputbar/components/RuntimeSceneBadge";
 import { CuratedTaskBadge } from "../skill-selection/CuratedTaskBadge";
-import { SkillBadge } from "../skill-selection/SkillBadge";
 import { SkillSelector } from "../skill-selection/SkillSelector";
 import { CREATION_MODE_CONFIG } from "./constants";
 import type { CreationMode } from "./types";
@@ -53,10 +53,7 @@ import type {
   InputbarKnowledgePackSelection,
 } from "./Inputbar/types";
 import {
-  applyInputbarPluginSelection,
-  removeInputbarPluginSelection,
-  resolveInputbarPluginDisplayName,
-  resolveInputbarPluginSubmissionText,
+  normalizeInputbarPluginTrigger,
   type InputbarPluginCapability,
   type InputbarPluginSelection,
   type InputbarPluginSelectionOptions,
@@ -65,7 +62,6 @@ import {
 import type { InputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
 import type { BaseComposerSendMetadata } from "@/components/input-kit";
-import type { ComposerController } from "@/components/input-kit";
 import {
   HomeComposerAccent,
   HomeComposerDecorationFrame,
@@ -94,7 +90,7 @@ const ConnectedComposerShell = styled.div`
     box-shadow: none;
   }
 
-  textarea {
+  [data-testid="composer-editor"] {
     min-height: 88px;
     padding-top: 7px;
     font-size: 16px;
@@ -139,6 +135,7 @@ interface EmptyStateComposerPanelProps {
   input: string;
   setInput: (value: string) => void;
   controller?: ComposerController;
+  onHistoryRecall?: (draft: ComposerDraftSnapshot) => void;
   placeholder: string;
   onSend: (
     inputOverride?: string,
@@ -173,7 +170,7 @@ interface EmptyStateComposerPanelProps {
   onApplyCuratedTaskReviewSuggestion?: (task: CuratedTaskTemplateItem) => void;
   creationReplaySurface?: CreationReplaySurfaceModel | null;
   projectId?: string | null;
-  openedProjects?: InputbarOpenedProject[];
+  openedProjects?: ComposerProject[];
   onProjectContextChange?: (projectId: string | null) => void;
   projectContextModeLabel?: string;
   projectContextBranchLabel?: string;
@@ -205,7 +202,7 @@ interface EmptyStateComposerPanelProps {
   onSubagentEnabledChange?: (enabled: boolean) => void;
   pendingImages: MessageImage[];
   onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onPaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  onPaste?: (event: ClipboardEvent) => void;
   onDragOver?: (event: React.DragEvent) => void;
   onDrop?: (event: React.DragEvent) => void;
   onRemoveImage?: (index: number) => void;
@@ -281,6 +278,7 @@ export function EmptyStateComposerPanel({
   controller,
   placeholder,
   onSend,
+  onHistoryRecall,
   onStop,
   isLoading = false,
   disabled = false,
@@ -352,8 +350,9 @@ export function EmptyStateComposerPanel({
   const { composerDecorations } = useHomeSkinPresentation();
   const [activePluginSelection, setActivePluginSelection] =
     useState<InputbarPluginSelection | null>(null);
-  const pluginSelectionInputSyncedRef = useRef(false);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [fallbackController] = useState(() => controller ?? new ComposerController({ text: input }));
+  const resolvedController = controller ?? fallbackController;
+  const editorRef = useRef<ComposerEditorHandle>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
   const objectiveEnabled = objectiveEnabledProp ?? localObjectiveEnabled;
@@ -368,41 +367,15 @@ export function EmptyStateComposerPanel({
     activeCuratedTaskReferenceEntries,
     activeSkill,
   } = activeCapabilityState;
-  const clearActiveSkill = skillSelection.onClearSkill;
   const { mentionProps: mentionSkillProps, selectorProps: skillSelectorProps } =
     buildSkillSelectionBindings(skillSelection);
-  useEffect(() => {
-    if (!activePluginSelection) {
-      pluginSelectionInputSyncedRef.current = false;
-      return;
-    }
-
-    if (activePluginSelection.preserveInput) {
-      pluginSelectionInputSyncedRef.current = false;
-      return;
-    }
-
-    const inputText = input.trimStart();
-    const trigger = activePluginSelection.trigger.trim();
-    if (inputText === trigger || inputText.startsWith(`${trigger} `)) {
-      pluginSelectionInputSyncedRef.current = true;
-      return;
-    }
-
-    if (!pluginSelectionInputSyncedRef.current) {
-      return;
-    }
-
-    pluginSelectionInputSyncedRef.current = false;
-    setActivePluginSelection(null);
-  }, [activePluginSelection, input]);
+  useEffect(() => resolvedController.subscribe(() => {
+    const document = resolvedController.getDocument();
+    if (activePluginSelection && !document.mentionBindings.some((binding) => binding.kind === "plugin" && binding.id === activePluginSelection.plugin.pluginId)) setActivePluginSelection(null);
+  }), [activePluginSelection, resolvedController]);
 
   const handleSendDraft = (triggerMetadata?: BaseComposerSendMetadata) => {
-    const composerInput = controller?.getDocument().text ?? input;
-    const submittedInput = resolveInputbarPluginSubmissionText({
-      input: composerInput,
-      selection: activePluginSelection,
-    });
+    const submittedInput = resolvedController.getDocument().text;
     const result = onSend(
       submittedInput,
       {
@@ -446,7 +419,7 @@ export function EmptyStateComposerPanel({
   const handleSelectPlugin = (
     plugin: InputbarPluginCapability,
     skill?: InputbarPluginSkillCapability,
-    options?: InputbarPluginSelectionOptions,
+    _options?: InputbarPluginSelectionOptions,
   ) => {
     const blocked =
       plugin.disabled ||
@@ -456,35 +429,12 @@ export function EmptyStateComposerPanel({
     if (blocked) {
       return;
     }
-    const selection = applyInputbarPluginSelection({
-      input: options?.inputOverride ?? input,
-      plugin,
-      skill,
-      preserveInput: options?.preserveInputOverride === true,
-    });
-    pluginSelectionInputSyncedRef.current = false;
-    setInput(selection.text);
-    setActivePluginSelection(selection);
-    window.requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-      textareaRef.current?.setSelectionRange(
-        selection.text.length,
-        selection.text.length,
-      );
-    });
+    insertComposerPlugin(resolvedController, plugin, skill, { start: 0, end: 0 });
+    setInput(resolvedController.getDocument().text);
+    setActivePluginSelection({ plugin, skill, trigger: normalizeInputbarPluginTrigger(plugin, skill), text: resolvedController.getDocument().text, preserveInput: true });
+    editorRef.current?.focus();
   };
 
-  const handleClearPluginSelection = () => {
-    if (!activePluginSelection) {
-      return;
-    }
-    const nextInput = removeInputbarPluginSelection({
-      input,
-      selection: activePluginSelection,
-    });
-    setInput(nextInput);
-    setActivePluginSelection(null);
-  };
 
   const handleToolAction = (tool: string) => {
     switch (tool) {
@@ -524,16 +474,6 @@ export function EmptyStateComposerPanel({
           />
         ) : null}
 
-        {activePluginSelection ? (
-          <InputbarPluginBadge
-            selection={activePluginSelection}
-            removeLabel={copy.pluginChip.remove(
-              resolveInputbarPluginDisplayName(activePluginSelection.plugin),
-            )}
-            onClear={handleClearPluginSelection}
-          />
-        ) : null}
-
         {activeBuiltinCommand ? (
           <BuiltinCommandBadge
             command={activeBuiltinCommand}
@@ -545,15 +485,6 @@ export function EmptyStateComposerPanel({
           <RuntimeSceneBadge
             command={activeRuntimeScene}
             onClear={onClearInputCapability ?? (() => undefined)}
-          />
-        ) : null}
-
-        {activeSkill ? (
-          <SkillBadge
-            skill={activeSkill}
-            onClear={
-              onClearInputCapability || clearActiveSkill || (() => undefined)
-            }
           />
         ) : null}
 
@@ -601,7 +532,10 @@ export function EmptyStateComposerPanel({
     />
   ) : undefined;
   const plusMenuSkillsPanel = isGeneralTheme ? (
-    <SkillSelector {...skillSelectorProps} renderMode="inline" />
+    <SkillSelector {...skillSelectorProps} onSelectInputCapability={(capability, options) => {
+      if (capability.kind === "installed_skill") { insertComposerSkill(resolvedController, capability.skill); setInput(resolvedController.getDocument().text); }
+      skillSelectorProps.onSelectInputCapability(capability, options);
+    }} renderMode="inline" />
   ) : undefined;
   const plusMenuPluginsPanel = (
     <InputbarPluginSelector
@@ -751,7 +685,7 @@ export function EmptyStateComposerPanel({
       data-testid="inputbar-context-bar-slot"
       className="flex min-h-10 w-full items-center bg-[image:var(--lime-composer-context-surface,var(--lime-composer-surface))] px-4 py-1.5"
     >
-      <InputbarProjectContextBar
+      <ComposerUtilityBar
         projectId={projectId}
         openedProjects={openedProjects}
         onProjectChange={onProjectContextChange}
@@ -766,7 +700,8 @@ export function EmptyStateComposerPanel({
       <CharacterMention
         {...mentionSkillProps}
         characters={characters}
-        inputRef={textareaRef}
+        editorRef={editorRef}
+        controller={resolvedController}
         value={input}
         onChange={setInput}
         onSelectInputCapability={onSelectInputCapability}
@@ -801,11 +736,12 @@ export function EmptyStateComposerPanel({
         <ConnectedComposerShell data-testid="inputbar-connected-composer">
           <InputbarCore
             uiCopy={inputbarCopy}
-            controller={controller}
-            textareaRef={textareaRef}
+            controller={resolvedController}
+            editorRef={editorRef}
             text={input}
             setText={setInput}
             onSend={handleSendDraft}
+            onHistoryRecall={onHistoryRecall}
             onStop={onStop}
             isLoading={isLoading}
             disabled={disabled}
@@ -817,12 +753,7 @@ export function EmptyStateComposerPanel({
             }}
             pendingImages={pendingImages}
             onRemoveImage={onRemoveImage}
-            onPaste={
-              onPaste
-                ? (event) =>
-                    onPaste(event as React.ClipboardEvent<HTMLTextAreaElement>)
-                : undefined
-            }
+            onPaste={onPaste}
             onDragOver={onDragOver}
             onDrop={onDrop}
             placeholder={placeholder}
@@ -839,7 +770,7 @@ export function EmptyStateComposerPanel({
             onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
             onRemovePathReference={onRemovePathReference}
             showMetaTools={false}
-            showTextareaExpandButton={false}
+            showEditorExpandButton={false}
             plusMenu={plusMenu}
           />
           {projectContextBar}

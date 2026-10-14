@@ -779,7 +779,7 @@ async function run() {
     await waitForConversation(handle.page, options);
     await clickConversation(handle.page);
     await handle.page
-      .locator('textarea[name="agent-chat-message"]')
+      .locator('[data-testid="composer-editor"][role="textbox"]')
       .waitFor({ state: "visible", timeout: options.timeoutMs });
     await handle.page
       .getByText(THREAD_REVERT_SECOND_ASSISTANT_MARKER, { exact: true })

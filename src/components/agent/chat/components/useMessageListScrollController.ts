@@ -1,59 +1,7 @@
-import {
-  type RefObject,
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 const AUTO_SCROLL_BOTTOM_THRESHOLD_PX = 64;
-const RESIZE_FOLLOW_FRAME_COUNT = 4;
 const USER_SCROLL_IDLE_MS = 500;
-
-interface UseMessageListAutoScrollOptions {
-  isRestoringSession: boolean;
-  isSending: boolean;
-  renderedMessageCount: number;
-  scrollRef: RefObject<HTMLDivElement | null>;
-  shouldAutoScroll: boolean;
-}
-
-export function useMessageListAutoScroll({
-  isRestoringSession,
-  isSending,
-  renderedMessageCount,
-  scrollRef,
-  shouldAutoScroll,
-}: UseMessageListAutoScrollOptions) {
-  const previousVisibleMessageCountRef = useRef<number | null>(null);
-
-  useLayoutEffect(() => {
-    const previousVisibleMessageCount = previousVisibleMessageCountRef.current;
-    previousVisibleMessageCountRef.current = renderedMessageCount;
-
-    if (!shouldAutoScroll || !scrollRef.current) {
-      return;
-    }
-
-    const shouldAnimateScroll =
-      !isRestoringSession &&
-      previousVisibleMessageCount !== null &&
-      previousVisibleMessageCount > 0 &&
-      renderedMessageCount <= previousVisibleMessageCount + 1;
-
-    scrollRef.current.scrollIntoView({
-      behavior: shouldAnimateScroll ? "smooth" : "auto",
-      block: "end",
-    });
-  }, [
-    isRestoringSession,
-    isSending,
-    renderedMessageCount,
-    scrollRef,
-    shouldAutoScroll,
-  ]);
-}
 
 function isNearScrollBottom(container: HTMLDivElement): boolean {
   const { scrollTop, scrollHeight, clientHeight } = container;
@@ -68,6 +16,7 @@ export function useMessageListScrollController() {
   const [isUserScrolling, setIsUserScrolling] = useState(false);
   const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
   const shouldAutoScrollRef = useRef(true);
+  const programmaticTopRef = useRef<number | null>(null);
   const scrollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const setAutoScrollEnabled = useCallback((value: boolean) => {
@@ -96,9 +45,15 @@ export function useMessageListScrollController() {
 
     const handleScroll = () => {
       markUserScrolling();
-      if (isNearScrollBottom(container)) {
-        setAutoScrollEnabled(true);
+      if (
+        programmaticTopRef.current !== null &&
+        Math.abs(programmaticTopRef.current - container.scrollTop) < 1
+      ) {
+        programmaticTopRef.current = null;
+        return;
       }
+      programmaticTopRef.current = null;
+      setAutoScrollEnabled(isNearScrollBottom(container));
     };
 
     const handleWheel = (event: WheelEvent) => {
@@ -108,10 +63,40 @@ export function useMessageListScrollController() {
       }
     };
 
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.closest("input,textarea,[contenteditable=true]")) return;
+      if (
+        ["ArrowUp", "PageUp", "Home"].includes(event.key) ||
+        (event.key === " " && event.shiftKey)
+      ) {
+        markUserScrolling();
+        setAutoScrollEnabled(false);
+      }
+    };
+    let touchY: number | null = null;
+    const handleTouchStart = (event: TouchEvent) => {
+      touchY = event.touches[0]?.clientY ?? null;
+    };
+    const handleTouchMove = (event: TouchEvent) => {
+      const nextY = event.touches[0]?.clientY;
+      if (touchY !== null && nextY !== undefined && nextY > touchY)
+        setAutoScrollEnabled(false);
+      touchY = nextY ?? null;
+      markUserScrolling();
+    };
+    container.addEventListener("keydown", handleKeyDown);
+    container.addEventListener("touchstart", handleTouchStart, {
+      passive: true,
+    });
+    container.addEventListener("touchmove", handleTouchMove, { passive: true });
     container.addEventListener("scroll", handleScroll, { passive: true });
     container.addEventListener("wheel", handleWheel, { passive: true });
 
     return () => {
+      container.removeEventListener("keydown", handleKeyDown);
+      container.removeEventListener("touchstart", handleTouchStart);
+      container.removeEventListener("touchmove", handleTouchMove);
       container.removeEventListener("scroll", handleScroll);
       container.removeEventListener("wheel", handleWheel);
 
@@ -125,6 +110,10 @@ export function useMessageListScrollController() {
   const scrollToTail = useCallback((behavior: "auto" | "smooth") => {
     const container = containerRef.current;
     if (container && typeof container.scrollTo === "function") {
+      programmaticTopRef.current = Math.max(
+        0,
+        container.scrollHeight - container.clientHeight,
+      );
       container.scrollTo({
         behavior,
         top: container.scrollHeight,
@@ -138,61 +127,6 @@ export function useMessageListScrollController() {
     });
   }, []);
 
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    let animationFrame: number | null = null;
-    let followFramesRemaining = 0;
-    const runResizeFollow = () => {
-      animationFrame = null;
-      if (!shouldAutoScrollRef.current) {
-        followFramesRemaining = 0;
-        return;
-      }
-
-      scrollToTail("auto");
-      followFramesRemaining -= 1;
-      if (followFramesRemaining > 0) {
-        animationFrame = window.requestAnimationFrame(runResizeFollow);
-      }
-    };
-    const scheduleResizeFollow = () => {
-      if (!shouldAutoScrollRef.current) {
-        return;
-      }
-      if (animationFrame !== null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(animationFrame);
-        animationFrame = null;
-      }
-      followFramesRemaining = RESIZE_FOLLOW_FRAME_COUNT;
-      if (typeof window !== "undefined" && window.requestAnimationFrame) {
-        animationFrame = window.requestAnimationFrame(runResizeFollow);
-        return;
-      }
-      scrollToTail("auto");
-      followFramesRemaining = 0;
-    };
-
-    const resizeObserver = new ResizeObserver(scheduleResizeFollow);
-    resizeObserver.observe(container);
-    const messageColumn = container.firstElementChild;
-    if (messageColumn instanceof Element) {
-      resizeObserver.observe(messageColumn);
-    }
-    window.addEventListener("resize", scheduleResizeFollow);
-
-    return () => {
-      resizeObserver.disconnect();
-      window.removeEventListener("resize", scheduleResizeFollow);
-      if (animationFrame !== null && typeof window !== "undefined") {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
-  }, [scrollToTail]);
-
   const handleStreamingOverlayUpdate = useCallback(() => {
     if (!scrollRef.current) {
       return;
@@ -204,7 +138,9 @@ export function useMessageListScrollController() {
 
     setAutoScrollEnabled(true);
 
-    const run = () => scrollToTail("auto");
+    const run = () => {
+      if (shouldAutoScrollRef.current) scrollToTail("auto");
+    };
 
     if (typeof window !== "undefined" && window.requestAnimationFrame) {
       window.requestAnimationFrame(run);
@@ -214,8 +150,24 @@ export function useMessageListScrollController() {
     run();
   }, [scrollToTail, setAutoScrollEnabled]);
 
+  const setScrollTop = useCallback((top: number) => {
+    const container = containerRef.current;
+    if (!container) return;
+    container.scrollTop = Math.max(0, top);
+    programmaticTopRef.current = container.scrollTop;
+  }, []);
+  const isFollowingTail = useCallback(() => shouldAutoScrollRef.current, []);
+  const holdViewport = useCallback(
+    () => setAutoScrollEnabled(false),
+    [setAutoScrollEnabled],
+  );
+
   return {
     containerRef,
+    isFollowingTail,
+    holdViewport,
+    setScrollTop,
+    scrollToTail,
     handleStreamingOverlayUpdate,
     isUserScrolling,
     scrollRef,

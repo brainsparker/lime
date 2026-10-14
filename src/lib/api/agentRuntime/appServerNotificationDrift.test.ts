@@ -167,6 +167,24 @@ describe("App Server notification drift", () => {
     expect(projectAppServerNotificationDriftPayload(source)).toBeNull();
   });
 
+  it("routes canonical thread settings outside transcript and drift warnings", () => {
+    const source = notification("thread/settings/updated", {
+      threadId: "thread-settings",
+      threadSettings: {
+        model: "canonical-model",
+        modelProvider: "canonical-provider",
+        cwd: "/private/workspace",
+      },
+    });
+    const diagnostic = readAppServerNotificationDrift(source);
+    expect(diagnostic.disposition).toBe("known_projected");
+    expect(JSON.stringify(diagnostic)).not.toContain("/private/workspace");
+    expect(projectAppServerNotificationDriftPayload(source)).toBeNull();
+    expect(
+      projectAgentRuntimeSequenceGateNotifications("settings", source),
+    ).toEqual([source]);
+  });
+
   it("classifies fs/changed as projected outside the thread timeline", () => {
     const source = notification("fs/changed", {
       changedPaths: ["/workspace/README.md"],

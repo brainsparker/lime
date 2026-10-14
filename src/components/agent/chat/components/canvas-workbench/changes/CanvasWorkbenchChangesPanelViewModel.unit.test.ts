@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildCanvasWorkbenchChangeFileTree,
   buildCanvasWorkbenchChangeDiffLines,
+  canLoadCanvasWorkbenchChangeFullFile,
   buildCanvasWorkbenchGitApplyPatch,
   countCanvasWorkbenchDiffStats,
   countCanvasWorkbenchChangeItemsStats,
@@ -10,6 +11,7 @@ import {
   isPendingChangeItem,
   flattenCanvasWorkbenchChangeFileTree,
   parseCanvasWorkbenchGitPatchToChangeItems,
+  parseCanvasWorkbenchPatchDiffLines,
   resolveCanvasWorkbenchSelectedChangeItem,
   resolveChangeDisplayMeta,
   resolveChangeItemDisplayName,
@@ -117,10 +119,10 @@ describe("CanvasWorkbenchChangesPanelViewModel", () => {
         path: "src/app.ts",
         status: "completed",
       }),
-    ).toContain("emerald");
+    ).toContain("--lime-brand");
     expect(
       resolveChangeStatusClassName({ id: "a", path: "src/app.ts" }),
-    ).toContain("slate");
+    ).toContain("--lime-text-muted");
   });
 
   it("应构建可筛选的文件树并统计 diff 增删", () => {
@@ -372,5 +374,55 @@ describe("CanvasWorkbenchChangesPanelViewModel", () => {
     expect(items[1].diffLines).toEqual([
       { type: "add", value: "hello", oldLineNumber: null, newLineNumber: 1 },
     ]);
+  });
+
+  it("保留多 hunk 坐标，全文补齐上下文和删除行", () => {
+    const diffLines = parseCanvasWorkbenchPatchDiffLines(
+      "@@ -3 +3 @@\n-old\n+new\n@@ -7,2 +7 @@\n-removed\n same",
+    );
+    const item = { id: "patch", path: "file.ts", diffLines };
+    expect(canLoadCanvasWorkbenchChangeFullFile(item)).toBe(true);
+    expect(
+      buildCanvasWorkbenchChangeDiffLines(
+        item,
+        "one\ntwo\nnew\nfour\nfive\nsix\nsame\nlast",
+      ),
+    ).toEqual([
+      { type: "context", value: "one", oldLineNumber: 1, newLineNumber: 1 },
+      { type: "context", value: "two", oldLineNumber: 2, newLineNumber: 2 },
+      { type: "remove", value: "old", oldLineNumber: 3, newLineNumber: null },
+      { type: "add", value: "new", oldLineNumber: null, newLineNumber: 3 },
+      { type: "context", value: "four", oldLineNumber: 4, newLineNumber: 4 },
+      { type: "context", value: "five", oldLineNumber: 5, newLineNumber: 5 },
+      { type: "context", value: "six", oldLineNumber: 6, newLineNumber: 6 },
+      {
+        type: "remove",
+        value: "removed",
+        oldLineNumber: 7,
+        newLineNumber: null,
+      },
+      { type: "context", value: "same", oldLineNumber: 8, newLineNumber: 7 },
+      { type: "context", value: "last", oldLineNumber: 9, newLineNumber: 8 },
+    ]);
+  });
+
+  it("无 hunk 的 patch 不伪造行号，无法可靠展开时禁用全文", () => {
+    const diffLines = parseCanvasWorkbenchPatchDiffLines("-old\n+new");
+    expect(diffLines).toEqual([
+      {
+        type: "remove",
+        value: "old",
+        oldLineNumber: null,
+        newLineNumber: null,
+      },
+      { type: "add", value: "new", oldLineNumber: null, newLineNumber: null },
+    ]);
+    expect(
+      canLoadCanvasWorkbenchChangeFullFile({
+        id: "bare",
+        path: "file.ts",
+        diffLines,
+      }),
+    ).toBe(false);
   });
 });

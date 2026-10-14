@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import path from "node:path";
@@ -172,7 +173,7 @@ async function openSessionInRenderer(page, options, sessionId) {
   });
   await waitForRendererReady(page, options);
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   assert(
@@ -210,67 +211,68 @@ async function waitForGuiTerminalInteraction(
     });
     lastSnapshot = await page.evaluate(
       ({ finalText, rawStdinText, threadId }) => {
-      const bodyText = document.body?.innerText || "";
-      const rows = Array.from(
-        document.querySelectorAll('[data-testid="tool-call-row"]'),
-      ).map((row) => ({
-        text: row.textContent || "",
-        toolName: row.getAttribute("data-tool-name") || null,
-        status: row.getAttribute("data-tool-status") || null,
-      }));
-      const messageListFrame = document.querySelector(
-        '[data-testid="message-list-frame"]',
-      );
-      const turnStartTrace = (() => {
-        try {
-          const entries = JSON.parse(
-            window.localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
-          );
-          if (!Array.isArray(entries)) {
-            return null;
-          }
-          for (const entry of entries) {
-            if (entry?.command !== "app_server_handle_json_lines") {
-              continue;
+        const bodyText = document.body?.innerText || "";
+        const rows = Array.from(
+          document.querySelectorAll('[data-testid="tool-call-row"]'),
+        ).map((row) => ({
+          text: row.textContent || "",
+          toolName: row.getAttribute("data-tool-name") || null,
+          status: row.getAttribute("data-tool-status") || null,
+        }));
+        const messageListFrame = document.querySelector(
+          '[data-testid="message-list-frame"]',
+        );
+        const turnStartTrace = (() => {
+          try {
+            const entries = JSON.parse(
+              window.localStorage.getItem("lime_invoke_trace_buffer_v1") ||
+                "[]",
+            );
+            if (!Array.isArray(entries)) {
+              return null;
             }
-            const lines = entry?.args_preview?.request?.lines;
-            if (!Array.isArray(lines)) {
-              continue;
-            }
-            for (const line of lines) {
-              try {
-                const message = JSON.parse(String(line));
-                if (
-                  message?.method === "turn/start" &&
-                  message?.params?.threadId === threadId
-                ) {
-                  return {
-                    method: message.method,
-                    threadId: message.params.threadId,
-                    transport: entry.transport || null,
-                    status: entry.status || null,
-                  };
+            for (const entry of entries) {
+              if (entry?.command !== "app_server_handle_json_lines") {
+                continue;
+              }
+              const lines = entry?.args_preview?.request?.lines;
+              if (!Array.isArray(lines)) {
+                continue;
+              }
+              for (const line of lines) {
+                try {
+                  const message = JSON.parse(String(line));
+                  if (
+                    message?.method === "turn/start" &&
+                    message?.params?.threadId === threadId
+                  ) {
+                    return {
+                      method: message.method,
+                      threadId: message.params.threadId,
+                      transport: entry.transport || null,
+                      status: entry.status || null,
+                    };
+                  }
+                } catch {
+                  // Ignore unrelated malformed diagnostic lines.
                 }
-              } catch {
-                // Ignore unrelated malformed diagnostic lines.
               }
             }
+          } catch {
+            return null;
           }
-        } catch {
           return null;
-        }
-        return null;
-      })();
-      return {
-        url: window.location.href,
-        messageListSessionId:
-          messageListFrame?.getAttribute("data-session-id") || null,
-        commandRows: rows.filter((row) => row.toolName === "exec_command"),
-        hasSummary: bodyText.includes("sent 9 chars"),
-        hasRawStdin: bodyText.includes(rawStdinText),
-        hasFinalText: bodyText.includes(finalText),
-        turnStartTrace,
-      };
+        })();
+        return {
+          url: window.location.href,
+          messageListSessionId:
+            messageListFrame?.getAttribute("data-session-id") || null,
+          commandRows: rows.filter((row) => row.toolName === "exec_command"),
+          hasSummary: bodyText.includes("sent 9 chars"),
+          hasRawStdin: bodyText.includes(rawStdinText),
+          hasFinalText: bodyText.includes(finalText),
+          turnStartTrace,
+        };
       },
       {
         finalText,
@@ -318,7 +320,7 @@ async function selectRuntimeRouteInRenderer(
     "Renderer 模型选择缺少 provider/model route",
   );
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   const modelSelector = input.locator(
     'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="model-selector"]',
@@ -360,13 +362,15 @@ async function selectRuntimeRouteInRenderer(
 
   const selectionHandle = await page.waitForFunction(
     ({ expectedModel, expectedProvider, activeSessionId }) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${activeSessionId}"]`,
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][role="textbox"][data-session-id="${activeSessionId}"]`,
       );
-      const container = textarea?.closest(
+      const container = editor?.closest(
         '[data-testid="inputbar-core-container"]',
       );
-      const trigger = container?.querySelector('[data-testid="model-selector"]');
+      const trigger = container?.querySelector(
+        '[data-testid="model-selector"]',
+      );
       const text = trigger?.textContent?.trim() || "";
       const title = trigger?.getAttribute("title") || "";
       return text.includes(expectedModel) && title.includes(expectedProvider)
@@ -397,30 +401,34 @@ async function runNormalTurnInRenderer(
   { normalSessionId, normalThreadId, route, text },
 ) {
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${normalSessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${normalSessionId}"]`,
   );
   await input.fill(text);
   const sendButton = input.locator(
     'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="send-btn"]',
   );
   await page.waitForFunction(
-    ({ activeSessionId, expectedModel, expectedText }) => {
-      const textarea = document.querySelector(
-        `textarea[name="agent-chat-message"][data-session-id="${activeSessionId}"]`,
-      );
-      const container = textarea?.closest(
-        '[data-testid="inputbar-core-container"]',
-      );
-      const trigger = container?.querySelector('[data-testid="model-selector"]');
-      const button = container?.querySelector('[data-testid="send-btn"]');
-      return Boolean(
-        textarea instanceof HTMLTextAreaElement &&
-          textarea.value === expectedText &&
+    withComposerEditorDom(
+      ({ activeSessionId, expectedModel, expectedText }) => {
+        const editor = document.querySelector(
+          `[data-testid="composer-editor"][role="textbox"][data-session-id="${activeSessionId}"]`,
+        );
+        const container = editor?.closest(
+          '[data-testid="inputbar-core-container"]',
+        );
+        const trigger = container?.querySelector(
+          '[data-testid="model-selector"]',
+        );
+        const button = container?.querySelector('[data-testid="send-btn"]');
+        return Boolean(
+          editor instanceof HTMLElement &&
+          readComposerEditorTextDom(editor) === expectedText &&
           trigger?.textContent?.includes(expectedModel) &&
           button instanceof HTMLButtonElement &&
           !button.disabled,
-      );
-    },
+        );
+      },
+    ),
     {
       activeSessionId: normalSessionId,
       expectedModel: route.model,
@@ -526,15 +534,11 @@ async function run() {
     client = createPageAppServerClient(page);
 
     logStage("commit-import-zero-replay");
-    const initial = await initializeAndCommitImport(
-      client,
-      runtimeEnv,
-      {
-        ...options,
-        beforeCommit: () =>
-          createRepositoryProvider(client, providerFixture.provider),
-      },
-    );
+    const initial = await initializeAndCommitImport(client, runtimeEnv, {
+      ...options,
+      beforeCommit: () =>
+        createRepositoryProvider(client, providerFixture.provider),
+    });
     const route = initial.beforeCommitResult;
     summary.importedIdentity = sanitizeJson({
       jobSessionId: initial.sessionId,
@@ -584,19 +588,19 @@ async function run() {
         );
         return guiTerminalInteraction.live;
       },
-      onNormalTurnCompleted: async ({
-        normalSessionId,
-        normalThreadId,
-      }) => {
+      onNormalTurnCompleted: async ({ normalSessionId, normalThreadId }) => {
         logStage("reload-and-assert-terminal-interaction-recovery");
         await openSessionInRenderer(page, options, normalSessionId);
-        guiTerminalInteraction.reloaded =
-          await waitForGuiTerminalInteraction(page, options, {
+        guiTerminalInteraction.reloaded = await waitForGuiTerminalInteraction(
+          page,
+          options,
+          {
             sessionId: normalSessionId,
             threadId: normalThreadId,
             finalText: NORMAL_FINAL_TEXT,
             phase: "reloaded",
-          });
+          },
+        );
       },
     });
     writeJsonFile(
@@ -653,7 +657,9 @@ async function run() {
           return {
             bodyText: document.body?.innerText || "",
             processGroups: Array.from(
-              document.querySelectorAll('[data-testid="streaming-process-group"]'),
+              document.querySelectorAll(
+                '[data-testid="streaming-process-group"]',
+              ),
             ).map((group) => ({
               text: group.textContent || "",
               expanded:

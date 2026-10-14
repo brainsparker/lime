@@ -19,6 +19,7 @@ import {
 } from "./Inputbar/components/inputbarCoreCopy";
 import type { InputbarWorkflowCopyKey } from "./Inputbar/inputbarWorkflowCopy";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import { setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import type {
   InputbarPluginCapability,
   InputbarPluginSelectionOptions,
@@ -50,10 +51,6 @@ vi.mock("../skill-selection/CharacterMention", () => ({
     mockEmptyStateCharacterMention(props);
     return <div data-testid="empty-state-character-mention" />;
   },
-}));
-
-vi.mock("../skill-selection/SkillBadge", () => ({
-  SkillBadge: () => <div data-testid="empty-state-skill-badge" />,
 }));
 
 vi.mock("../skill-selection/CuratedTaskBadge", () => ({
@@ -351,19 +348,13 @@ export function openPlusMenuPanel(
 
 export const expandAdvancedControls = openPlusMenu;
 
-export function updateTextareaValue(
-  textarea: HTMLTextAreaElement | null,
+export function updateComposerEditorValue(
+  editor: HTMLElement | null,
   value: string,
 ) {
-  expect(textarea).toBeTruthy();
-
-  const valueSetter = Object.getOwnPropertyDescriptor(
-    HTMLTextAreaElement.prototype,
-    "value",
-  )?.set;
+  expect(editor).toBeTruthy();
 
   act(() => {
-    valueSetter?.call(textarea, value);
-    textarea?.dispatchEvent(new Event("input", { bubbles: true }));
+    setComposerEditorText(editor, value);
   });
 }

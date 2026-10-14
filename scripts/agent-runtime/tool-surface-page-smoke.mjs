@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { COMPOSER_EDITOR_DOM_SOURCE } from "../lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -317,18 +318,18 @@ function buildPageStorageReadyScript(appUrl) {
 
 function buildEnsureAgentHomeScript() {
   return `(() => {
-    const textarea = Array.from(
+    const editor = Array.from(
       document.querySelectorAll(
-        '[data-testid="inputbar-core-container"] textarea, textarea',
+        '[data-testid="composer-editor"][role="textbox"]',
       ),
     ).find(
       (candidate) =>
-        candidate instanceof HTMLTextAreaElement && !candidate.disabled,
+        candidate instanceof HTMLElement && candidate.getAttribute("aria-disabled") !== "true" && candidate.getAttribute("contenteditable") === "true",
     );
     const send = document.querySelector(
       'button[aria-label="发送"], button[title="发送"]',
     );
-    if (textarea && send) {
+    if (editor && send) {
       return {
         ok: true,
         navigated: false,
@@ -1739,6 +1740,7 @@ async function installCodeRuntimeDevBridgeFixture(page, options) {
 
 function buildComposerReadyScript() {
   return `(() => {
+    ${COMPOSER_EDITOR_DOM_SOURCE}
     const collectButtons = () =>
       Array.from(document.querySelectorAll("button")).map((button) => ({
         text: (button.textContent || "").trim(),
@@ -1746,105 +1748,39 @@ function buildComposerReadyScript() {
         title: button.getAttribute("title"),
         disabled: Boolean(button.disabled),
       }));
-    const textarea = Array.from(
+    const editor = Array.from(
       document.querySelectorAll(
-        '[data-testid="inputbar-core-container"] textarea, textarea',
+        '[data-testid="composer-editor"][role="textbox"]',
       ),
     ).find(
       (candidate) =>
-        candidate instanceof HTMLTextAreaElement && !candidate.disabled,
+        candidate instanceof HTMLElement && candidate.getAttribute("aria-disabled") !== "true" && candidate.getAttribute("contenteditable") === "true",
     );
     return {
-      ok: Boolean(textarea),
+      ok: Boolean(editor),
       buttons: collectButtons(),
-      textareas: Array.from(document.querySelectorAll("textarea")).map(
+      editors: Array.from(document.querySelectorAll("editor")).map(
         (candidate) => ({
-          disabled: Boolean(candidate.disabled),
-          placeholder: candidate.getAttribute("placeholder"),
-          value: candidate.value,
+          disabled: candidate.getAttribute("aria-disabled") === "true" || candidate.getAttribute("contenteditable") !== "true",
+          placeholder: candidate.getAttribute("data-placeholder"),
+          value: readComposerEditorTextDom(candidate),
         }),
       ),
     };
   })()`;
 }
 
-function buildFillPromptScript(prompt) {
-  return `(() => {
-    const collectButtons = () =>
-      Array.from(document.querySelectorAll("button")).map((button) => ({
-        text: (button.textContent || "").trim(),
-        aria: button.getAttribute("aria-label"),
-        disabled: Boolean(button.disabled),
-      }));
-    const resolveTextarea = () => {
-      const candidates = Array.from(
-        document.querySelectorAll(
-          '[data-testid="inputbar-core-container"] textarea, textarea',
-        ),
-      );
-      return (
-        candidates.find(
-          (candidate) =>
-            candidate instanceof HTMLTextAreaElement && !candidate.disabled,
-        ) || null
-      );
-    };
-    const textarea = resolveTextarea();
-    if (!textarea) {
-      return {
-        ok: false,
-        reason: "missing-input",
-        buttons: collectButtons(),
-      };
-    }
-    const setter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
-    if (!setter) {
-      return { ok: false, reason: "missing-native-textarea-setter" };
-    }
-
-    textarea.focus();
-    setter.call(textarea, ${JSON.stringify(prompt)});
-    textarea.dispatchEvent(new InputEvent("input", {
-      bubbles: true,
-      data: ${JSON.stringify(prompt)},
-      inputType: "insertText",
-    }));
-    textarea.dispatchEvent(new Event("change", { bubbles: true }));
-
-    const currentTextarea = resolveTextarea() || textarea;
-    const currentSend = Array.from(
-      document.querySelectorAll(
-        '[data-testid="inputbar-core-container"] button, button',
-      ),
-    ).find((button) => {
-      const text = (button.textContent || "").trim();
-      const aria = button.getAttribute("aria-label") || "";
-      const title = button.getAttribute("title") || "";
-      return (
-        aria === "发送" ||
-        title === "发送" ||
-        text.includes("稍后处理")
-      );
-    });
-    return {
-      ok: true,
-      value: currentTextarea?.value ?? "",
-      sendDisabled: Boolean(currentSend?.disabled),
-      buttons: collectButtons(),
-    };
-  })()`;
-}
-
 function buildSendReadyScript() {
   return `(() => {
-    const textarea =
+    ${COMPOSER_EDITOR_DOM_SOURCE}
+    const editor =
       Array.from(
         document.querySelectorAll(
-          '[data-testid="inputbar-core-container"] textarea, textarea',
+          '[data-testid="composer-editor"][role="textbox"]',
         ),
       ).find(
         (candidate) =>
-          candidate instanceof HTMLTextAreaElement && !candidate.disabled,
+          candidate instanceof HTMLElement && candidate.getAttribute("aria-disabled") !== "true" && candidate.getAttribute("contenteditable") === "true",
       ) || null;
     const send = Array.from(
       document.querySelectorAll(
@@ -1862,12 +1798,12 @@ function buildSendReadyScript() {
     });
     return {
       ok:
-        Boolean(textarea) &&
-        typeof textarea?.value === "string" &&
-        textarea.value.trim().length > 0 &&
+        Boolean(editor) &&
+        editor instanceof HTMLElement &&
+        readComposerEditorTextDom(editor).trim().length > 0 &&
         Boolean(send) &&
         send.disabled === false,
-      value: textarea?.value ?? "",
+      value: editor ? readComposerEditorTextDom(editor) : "",
       sendDisabled: Boolean(send?.disabled),
     };
   })()`;
@@ -2102,6 +2038,7 @@ function buildOpenSubmittedCodeSessionScript() {
 
 function buildRuntimeSmokeDiagnosticsScript() {
   return `(() => {
+    ${COMPOSER_EDITOR_DOM_SOURCE}
     const text = document.body ? document.body.innerText : "";
     return {
       url: window.location.href,
@@ -2116,11 +2053,11 @@ function buildRuntimeSmokeDiagnosticsScript() {
           disabled: Boolean(button.disabled),
           expanded: button.getAttribute("aria-expanded"),
         })),
-      textareas: Array.from(document.querySelectorAll("textarea")).map(
-        (textarea) => ({
-          disabled: Boolean(textarea.disabled),
-          placeholder: textarea.getAttribute("placeholder"),
-          value: textarea.value,
+      editors: Array.from(document.querySelectorAll("editor")).map(
+        (editor) => ({
+          disabled: editor.getAttribute("aria-disabled") === "true" || editor.getAttribute("contenteditable") !== "true",
+          placeholder: editor.getAttribute("data-placeholder"),
+          value: readComposerEditorTextDom(editor),
         }),
       ),
       dialogCount: document.querySelectorAll('[role="dialog"]').length,
@@ -2768,8 +2705,8 @@ async function main() {
     });
 
     logStage("fill-prompt");
-    const textareaLocator = page
-      .locator('[data-testid="inputbar-core-container"] textarea, textarea')
+    const editorLocator = page
+      .locator('[data-testid="composer-editor"][role="textbox"]')
       .first();
     await waitForCheck(options, "首页输入框出现", async () => {
       const value = await evaluateScript(page, buildComposerReadyScript());
@@ -2779,7 +2716,7 @@ async function main() {
       };
     });
 
-    await textareaLocator.fill(PROMPT_TEXT);
+    await editorLocator.fill(PROMPT_TEXT);
     const filled = await waitForCheck(options, "首页输入框可写入", async () => {
       const value = await evaluateScript(page, buildSendReadyScript());
       if (value?.value === PROMPT_TEXT) {
@@ -2788,14 +2725,7 @@ async function main() {
           value: { ok: true, value: value.value },
         };
       }
-      const fallbackValue = await evaluateScript(
-        page,
-        buildFillPromptScript(PROMPT_TEXT),
-      );
-      return {
-        ok: fallbackValue?.ok === true,
-        value: fallbackValue,
-      };
+      return { ok: false, value };
     });
     assert(
       filled?.ok === true,
@@ -2974,7 +2904,7 @@ async function main() {
         value,
       };
     });
-    await textareaLocator.fill(QUEUED_PROMPT_TEXT);
+    await editorLocator.fill(QUEUED_PROMPT_TEXT);
     const queuedFilled = await waitForCheck(
       options,
       "续写输入框可写入",
@@ -2986,14 +2916,7 @@ async function main() {
             value: { ok: true, value: value.value },
           };
         }
-        const fallbackValue = await evaluateScript(
-          page,
-          buildFillPromptScript(QUEUED_PROMPT_TEXT),
-        );
-        return {
-          ok: fallbackValue?.ok === true,
-          value: fallbackValue,
-        };
+        return { ok: false, value };
       },
     );
     assert(

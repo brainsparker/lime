@@ -11,6 +11,8 @@ use thread_store::{
     ThreadSearchSourceKind, ThreadStore,
 };
 
+mod queue_visibility;
+
 #[test]
 fn searches_conversation_content_with_stable_forward_and_reverse_cursors() {
     let temp = tempfile::tempdir().expect("tempdir");

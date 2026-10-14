@@ -539,6 +539,7 @@ const appServerRuntimeBackendFiles = [
 ];
 const appServerRuntimeBackendExecutionChainFiles = [
   "lime-rs/crates/app-server/src/runtime_backend.rs",
+  "lime-rs/crates/app-server/src/runtime/action_response.rs",
   "lime-rs/crates/app-server/src/runtime/turn_execution.rs",
   "lime-rs/crates/app-server/src/runtime_backend/action_response.rs",
   "lime-rs/crates/app-server/src/runtime_backend/event_mapper.rs",
@@ -3281,7 +3282,7 @@ const checks = [
       "app-sidebar-import-conversation-button",
       "app-sidebar-conversation-import-dialog",
       "app-sidebar-conversation-import-confirm",
-      'textarea[name="agent-chat-message"]',
+      '[data-testid="composer-editor"][role="textbox"]',
       "waitForImportPreview",
       "confirmImport",
       "waitForImportedSessionDetails",

@@ -2,12 +2,15 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
+  readFileSync,
   readdirSync,
   rmSync,
   statSync,
   writeFileSync,
 } from "node:fs";
 import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { JSDOM } from "jsdom";
 import {
   electronAppServerBinaryDestination,
   electronCodeModeHostBinaryDestination,
@@ -346,6 +349,25 @@ function inspectElectronFixtureBuildSegmentFreshness(rootDir, segment) {
 
   const oldestArtifact = findOldestRequiredArtifact(rootDir, requiredFiles);
   const newestSource = findNewestBuildInput(rootDir, segment);
+  if (segment.id === "renderer") {
+    const invalidRendererAssets = inspectRendererEntryAssets(
+      rootDir,
+      requiredFiles[0],
+    );
+    if (invalidRendererAssets.length > 0) {
+      return {
+        id: segment.id,
+        label: segment.label,
+        ready: false,
+        reason: "invalid-renderer-assets",
+        requiredFiles,
+        missingFiles: [],
+        invalidRendererAssets,
+        newestSource,
+        oldestArtifact,
+      };
+    }
+  }
   if (
     oldestArtifact &&
     newestSource &&
@@ -375,6 +397,93 @@ function inspectElectronFixtureBuildSegmentFreshness(rootDir, segment) {
   };
 }
 
+function inspectRendererEntryAssets(rootDir, entryPath) {
+  const entryRelativePath = path.relative(rootDir, entryPath);
+  let dom;
+  try {
+    // Parse only: default JSDOM options neither execute scripts nor load resources.
+    dom = new JSDOM(readFileSync(entryPath, "utf8"), {
+      url: pathToFileURL(entryPath).href,
+    });
+    const document = dom.window.document;
+    const modules = Array.from(document.querySelectorAll("script[src]")).filter(
+      (node) =>
+        !node.closest("noscript") &&
+        node.getAttribute("type")?.trim().toLowerCase() === "module",
+    );
+    const stylesheets = Array.from(
+      document.querySelectorAll("link[href]"),
+    ).filter(
+      (node) =>
+        !node.closest("noscript") &&
+        node
+          .getAttribute("rel")
+          ?.toLowerCase()
+          .split(/\s+/u)
+          .includes("stylesheet"),
+    );
+    const references = [
+      ...modules.map((node) => ({
+        kind: "module-script",
+        reference: node.getAttribute("src"),
+      })),
+      ...stylesheets.map((node) => ({
+        kind: "stylesheet",
+        reference: node.getAttribute("href"),
+      })),
+    ];
+    const invalid =
+      modules.length === 0
+        ? [
+            {
+              kind: "module-entry",
+              reason: "missing-module-entry",
+              relativePath: entryRelativePath,
+            },
+          ]
+        : [];
+    for (const { kind, reference } of references) {
+      const value = reference.trim();
+      if (!value) {
+        invalid.push({ kind, reason: "empty-reference" });
+        continue;
+      }
+      if (/^[\\/]|^[a-z]:[\\/]/iu.test(value)) {
+        invalid.push({ kind, reason: "root-absolute" });
+        continue;
+      }
+      try {
+        const url = new URL(value, document.baseURI);
+        if (url.protocol !== "file:") {
+          invalid.push({ kind, reason: "non-local-url" });
+          continue;
+        }
+        const filePath = fileURLToPath(url);
+        if (!statFile(filePath)?.isFile()) {
+          invalid.push({
+            kind,
+            reason: "missing-local-file",
+            relativePath: path.relative(rootDir, filePath),
+          });
+        }
+      } catch {
+        invalid.push({ kind, reason: "invalid-url" });
+      }
+    }
+    return invalid;
+  } catch {
+    return [
+      {
+        kind: "module-entry",
+        reason: "unreadable-entry",
+        relativePath: entryRelativePath,
+      },
+    ];
+  } finally {
+    dom?.window.close();
+  }
+}
+
 export function inspectElectronFixtureBuildFreshness({ rootDir }) {
   const segmentFreshness = electronFixtureBuildSegments({ rootDir }).map(
     (segment) => inspectElectronFixtureBuildSegmentFreshness(rootDir, segment),
@@ -384,6 +493,9 @@ export function inspectElectronFixtureBuildFreshness({ rootDir }) {
   );
   const missingFiles = segmentFreshness.flatMap((segment) =>
     segment.missingFiles.map((filePath) => filePath),
+  );
+  const invalidRendererAssets = segmentFreshness.flatMap(
+    (segment) => segment.invalidRendererAssets ?? [],
   );
   const staleSegments = segmentFreshness.filter((segment) => !segment.ready);
   const aggregateSegments =
@@ -399,15 +511,18 @@ export function inspectElectronFixtureBuildFreshness({ rootDir }) {
   const reason =
     missingFiles.length > 0
       ? "missing-artifacts"
-      : staleSegments.length > 0
-        ? "stale-source"
-        : "fresh-artifacts";
+      : invalidRendererAssets.length > 0
+        ? "invalid-renderer-assets"
+        : staleSegments.length > 0
+          ? "stale-source"
+          : "fresh-artifacts";
 
   return {
     ready: staleSegments.length === 0,
     reason,
     requiredFiles,
     missingFiles,
+    invalidRendererAssets,
     newestSource,
     oldestArtifact,
     segments: Object.fromEntries(

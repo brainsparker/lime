@@ -1,11 +1,13 @@
 import type { MessageImage, MessagePathReference } from "../types";
 import type { InputCapabilitySendRoute } from "../skill-selection/inputCapabilitySelection";
+import type { ComposerDraftSnapshot } from "@/components/input-kit/types";
 
-export interface InterruptedInputDraftSnapshot {
+export interface InterruptedInputDraftSnapshot extends Partial<
+  Omit<ComposerDraftSnapshot, "inputCapabilityRoute">
+> {
   text: string;
   images?: readonly MessageImage[];
   pathReferences?: readonly MessagePathReference[];
-  textElements?: readonly unknown[];
   inputCapabilityRoute?: InputCapabilitySendRoute;
 }
 

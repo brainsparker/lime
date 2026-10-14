@@ -108,7 +108,7 @@ const taskCenterIconOnlyButtonClassName =
   "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[12px] border border-transparent bg-transparent leading-none text-[color:var(--lime-chrome-muted)] shadow-none transition-[background-color,color] hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)] disabled:cursor-not-allowed disabled:opacity-50";
 
 const taskCenterToolGroupClassName =
-  "inline-flex max-w-full shrink-0 flex-wrap items-center gap-1 overflow-visible";
+  "inline-flex max-w-full shrink-0 items-center gap-1 overflow-visible";
 
 function VisualStudioCodeIcon({ className }: { className?: string }) {
   return (
@@ -252,6 +252,10 @@ export function TaskCenterUtilityToolbar({
   const shouldRenderHarnessToggle =
     showHarnessToggle || Boolean(onToggleHarnessPanel);
   const isWorkbenchHeaderPlacement = placement === "workbench-header";
+  const toolGroupClassName = cn(
+    taskCenterToolGroupClassName,
+    isWorkbenchHeaderPlacement ? "flex-nowrap" : "flex-wrap",
+  );
   const rightSurfaceLauncherByKind = React.useMemo(
     () =>
       new Map(
@@ -497,14 +501,16 @@ export function TaskCenterUtilityToolbar({
   return (
     <div
       className={cn(
-        "ml-auto flex min-w-0 shrink flex-wrap items-center justify-end gap-x-2 gap-y-1 overflow-visible",
-        isWorkbenchHeaderPlacement ? "min-h-8" : "min-h-9 pb-1",
+        "ml-auto flex min-w-0 items-center justify-end gap-x-2 gap-y-1 overflow-visible",
+        isWorkbenchHeaderPlacement
+          ? "min-h-8 shrink-0 flex-nowrap"
+          : "min-h-9 shrink flex-wrap pb-1",
       )}
       data-testid="task-center-utility-toolbar"
       data-placement={placement}
     >
       <div
-        className={taskCenterToolGroupClassName}
+        className={toolGroupClassName}
         data-testid="task-center-tool-group-app"
       >
         <Popover>
@@ -545,7 +551,7 @@ export function TaskCenterUtilityToolbar({
       </div>
 
       <div
-        className={taskCenterToolGroupClassName}
+        className={toolGroupClassName}
         data-testid="task-center-tool-group-environment"
       >
         <Popover
@@ -623,7 +629,7 @@ export function TaskCenterUtilityToolbar({
 
       {shouldRenderPanelToolGroup ? (
         <div
-          className={taskCenterToolGroupClassName}
+          className={toolGroupClassName}
           data-testid="task-center-tool-group-panels"
         >
           {shouldRenderHarnessToggle ? (

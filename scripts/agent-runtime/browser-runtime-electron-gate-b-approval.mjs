@@ -63,7 +63,7 @@ export async function waitForApprovalPrompt(
       );
       const layer = layers.at(-1) || null;
       const prompt = layer?.querySelector(
-        '[data-testid="inputbar-approval-prompt"]',
+        '[data-testid="approval-card"]',
       );
       const buttons = Array.from(layer?.querySelectorAll("button") || []).map(
         (button) => ({
@@ -76,7 +76,7 @@ export async function waitForApprovalPrompt(
         interactionId: layer?.getAttribute("data-interaction-id") || null,
         interactionKind: layer?.getAttribute("data-interaction-kind") || null,
         summary:
-          prompt?.querySelector('[data-testid="inputbar-approval-summary"]')
+          prompt?.querySelector('[data-testid="approval-reason"]')
             ?.textContent ||
           prompt?.textContent ||
           "",

@@ -1,5 +1,6 @@
 use agent_protocol::{
-    Thread, ThreadActiveFlag, ThreadItem, ThreadItemPayload, ThreadStatus, Turn, TurnStatus,
+    Thread, ThreadActiveFlag, ThreadItem, ThreadItemPayload, ThreadStatus, Turn, TurnQueueState,
+    TurnStatus,
 };
 use chrono::{DateTime, SecondsFormat, Utc};
 use rusqlite::{params, Connection};
@@ -110,7 +111,11 @@ fn rebuild_projected_turn(conn: &Connection, turn: &Turn, turn_index: usize) -> 
             turn.turn_id.as_str(),
             turn.session_id.as_str(),
             turn.thread_id.as_str(),
-            projected_turn_status(turn.status),
+            if matches!(turn.queue, TurnQueueState::Queued { .. }) {
+                "queued"
+            } else {
+                projected_turn_status(turn.status)
+            },
             started_at,
             completed_at,
             ordering,
@@ -311,6 +316,9 @@ fn timestamp(value: i64, field: &str) -> Result<String, String> {
 fn sqlite_u64(value: u64, field: &str) -> Result<i64, String> {
     i64::try_from(value).map_err(|_| format!("{field} exceeds SQLite range"))
 }
+
+#[cfg(test)]
+mod queue_tests;
 
 #[cfg(test)]
 mod tests {

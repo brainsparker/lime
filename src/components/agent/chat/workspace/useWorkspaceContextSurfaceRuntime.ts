@@ -34,6 +34,7 @@ interface UseWorkspaceContextSurfaceRuntimeParams {
   projectId?: string | null;
   projectMemory: ProjectMemory | null;
   providerType: string;
+  runtimeWorkspaceId?: string | null;
   sessionId?: string | null;
   threadItems: AgentThreadItem[];
   threadRead?: AgentRuntimeThreadReadModel | null;
@@ -60,6 +61,7 @@ export function useWorkspaceContextSurfaceRuntime({
   projectId,
   projectMemory,
   providerType,
+  runtimeWorkspaceId,
   sessionId,
   threadItems,
   threadRead,
@@ -94,7 +96,11 @@ export function useWorkspaceContextSurfaceRuntime({
     projectMemory,
     harnessState: harnessShellState,
   });
-  const rightSurfaceLocalState = useWorkspaceRightSurfaceLocalStateRuntime();
+  const rightSurfaceLocalState = useWorkspaceRightSurfaceLocalStateRuntime({
+    workspaceId: runtimeWorkspaceId ?? projectId ?? null,
+    sessionId: sessionId ?? null,
+    threadId: threadRead?.thread_id ?? null,
+  });
   const harnessRuntimeVisible = resolveHarnessRuntimeVisible({
     harnessPanelVisible: contextHarnessRuntime.harnessPanelVisible,
     rightSurfaceActive: rightSurfaceLocalState.manualRightSurface,

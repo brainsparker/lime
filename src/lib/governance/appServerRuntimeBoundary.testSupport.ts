@@ -212,6 +212,8 @@ export const ALLOWED_EXTERNAL_BACKEND_LAUNCH_FILES = new Set([
   "scripts/electron/strict-review-gate-b.test.mjs",
   "scripts/electron/thread-revert-gate-b.mjs",
   "scripts/electron/thread-revert-gate-b.test.mjs",
+  "scripts/electron/thread-queue-gate-b.mjs",
+  "scripts/electron/thread-queue-gate-b.test.mjs",
   "scripts/lib/electron-dev-sidecar.mjs",
   "scripts/lib/electron-dev-sidecar.test.mjs",
   "scripts/plugin/runtime-electron-fixture-smoke.mjs",

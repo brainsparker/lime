@@ -14,6 +14,9 @@ import { prepareAgentStreamSubmitDraft } from "./agentStreamSubmitDraft";
 import type { AgentStreamPreparedSendEnv } from "./agentStreamPreparedSendEnv";
 import type { InterruptedInputDraftSnapshot } from "./agentStreamInputRestoreTypes";
 import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
+import type { ComposerSubmission } from "@/components/input-kit/types";
+import { remapComposerSubmission } from "../utils/composerSubmission";
+import { cloneInterruptedInputDraft } from "./agentStreamInputRestorePlan";
 import { ensureAgentUiPerformanceTraceMetadata } from "./agentStreamPerformanceMetrics";
 import {
   buildModelCapabilitySendGateInput,
@@ -82,6 +85,7 @@ export interface PreparedAgentStreamUserInputSend {
   assistantMsg: Message;
   submittedDraft?: InterruptedInputDraftSnapshot | null;
   inputMentions?: AgentInputMention[];
+  composerSubmission?: ComposerSubmission;
 }
 
 function shouldProjectModelInputCapabilityGate(
@@ -270,7 +274,7 @@ export function prepareAgentStreamUserInputSend(
 ): PreparedAgentStreamUserInputSend {
   const {
     content,
-    images,
+    images: fallbackImages,
     webSearch,
     thinking,
     skipUserMessage,
@@ -281,6 +285,12 @@ export function prepareAgentStreamUserInputSend(
     options: sendOptions,
     env,
   } = options;
+  const composerSubmission = sendOptions?.composerSubmission
+    ? remapComposerSubmission(sendOptions.composerSubmission, content)
+    : undefined;
+  const images = composerSubmission
+    ? [...composerSubmission.attachments]
+    : fallbackImages;
 
   const effectiveExecutionStrategy = normalizeExecutionStrategy(
     executionStrategyOverride || env.executionStrategy,
@@ -356,18 +366,30 @@ export function prepareAgentStreamUserInputSend(
   const resolvedSystemPrompt =
     sendOptions?.systemPromptOverride?.trim() || systemPrompt;
   const displayContent = sendOptions?.displayContent;
-  const submittedDraft: InterruptedInputDraftSnapshot =
-    sendOptions?.inputRestoreDraft ?? {
-      text: displayContent ?? content,
-      images,
-      inputCapabilityRoute: capabilityRoute,
-    };
+  const submittedDraft = cloneInterruptedInputDraft(
+    sendOptions?.composerDraft
+      ? {
+          ...sendOptions.composerDraft,
+          images: sendOptions.composerDraft.attachments,
+          inputCapabilityRoute: sendOptions.composerDraft
+            .inputCapabilityRoute as InterruptedInputDraftSnapshot["inputCapabilityRoute"],
+        }
+      : (sendOptions?.inputRestoreDraft ?? {
+          text: displayContent ?? content,
+          images,
+          inputCapabilityRoute: capabilityRoute,
+        }),
+  );
   const requestMetadata = withInterruptedInputRestoreMetadata(
     baseRequestMetadataWithModelGate,
     submittedDraft,
   );
   const skillRequest = sendOptions?.skillRequest;
-  const inputMentions = (sendOptions?.inputMentions ?? []).map((mention) => ({
+  const inputMentions = (
+    composerSubmission?.inputMentions ??
+    sendOptions?.inputMentions ??
+    []
+  ).map((mention) => ({
     ...mention,
   }));
   const { assistantMsg, userMsg } = prepareAgentStreamSubmitDraft({
@@ -419,5 +441,6 @@ export function prepareAgentStreamUserInputSend(
     assistantMsg,
     submittedDraft,
     inputMentions,
+    composerSubmission,
   };
 }

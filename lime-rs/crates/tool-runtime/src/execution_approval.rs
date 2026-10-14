@@ -1,3 +1,9 @@
+mod response;
+
+pub use response::{
+    approval_request_failed, ExecutionApprovalResponse, APPROVAL_REQUEST_FAILED_METADATA_KEY,
+};
+
 use serde_json::{json, Value};
 use std::collections::HashMap;
 

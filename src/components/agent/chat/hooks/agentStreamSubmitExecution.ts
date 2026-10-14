@@ -47,6 +47,7 @@ import {
 import { resolveCollaborationModeMask } from "@/lib/api/collaborationModes";
 import { resolveAllowedPermissionProfile } from "@/lib/api/permissionProfiles";
 import { permissionProfileIdFromAccessMode } from "../utils/accessModeRuntime";
+import type { ComposerSubmission } from "@/components/input-kit/types";
 
 type MessageParts = NonNullable<Message["contentParts"]>;
 
@@ -78,6 +79,7 @@ interface ExecuteAgentStreamSubmitOptions {
   content: string;
   images: MessageImage[];
   inputMentions?: readonly AgentInputMention[];
+  composerSubmission?: ComposerSubmission;
   skipUserMessage: boolean;
   effectiveProviderType: string;
   effectiveModel: string;
@@ -221,6 +223,7 @@ export async function executeAgentStreamSubmit(
     content,
     images,
     inputMentions,
+    composerSubmission,
     skipUserMessage,
     effectiveProviderType,
     effectiveModel,
@@ -324,6 +327,7 @@ export async function executeAgentStreamSubmit(
         content,
         images,
         inputMentions,
+        composerSubmission,
         modelCapabilitySummary,
       }),
       ...(clientUserMessageId?.trim()
@@ -492,6 +496,7 @@ export async function executeAgentStreamSubmit(
         content,
         images,
         inputMentions,
+        composerSubmission,
         activeThreadId: resolvedThreadId,
         clientUserMessageId,
         eventName,

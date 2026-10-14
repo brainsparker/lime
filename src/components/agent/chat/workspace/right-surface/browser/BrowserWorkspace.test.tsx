@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   loadFailedHandler: null as
     | ((event: BrowserTabLoadFailedEvent) => void)
     | null,
+  list: vi.fn(),
   mount: vi.fn(),
   navigate: vi.fn(),
   openIdentity: vi.fn(),
@@ -82,6 +83,7 @@ vi.mock("@/lib/api/browserTab", () => ({
       }
     };
   }),
+  listBrowserTabs: mocks.list,
   mountBrowserTab: mocks.mount,
   navigateBrowserTab: mocks.navigate,
   reloadBrowserTab: vi.fn(),
@@ -98,40 +100,7 @@ vi.mock("@/lib/api/browserWorkspace", () => ({
 }));
 
 import { BrowserWorkspace } from "./BrowserWorkspace";
-
-function browserState(
-  overrides: Partial<BrowserTabState> = {},
-): BrowserTabState {
-  return {
-    activeTurnId: null,
-    browserSessionId: "browser-session-1",
-    canGoBack: false,
-    canGoForward: false,
-    controlOwner: "user",
-    find: {
-      activeMatchOrdinal: 0,
-      finalUpdate: true,
-      matches: 0,
-      text: "",
-    },
-    humanReason: null,
-    isLoading: false,
-    mark: null,
-    origin: "user",
-    ownerWebContentsId: 41,
-    pageRevision: 0,
-    selected: true,
-    tabId: "browser-session-1:user:primary",
-    threadId: "thread-1",
-    title: "Example",
-    url: "https://example.com/",
-    viewId: "browser:browser-session-1:user:primary",
-    webContentsId: 101,
-    windowId: 7,
-    zoomFactor: 1,
-    ...overrides,
-  };
-}
+import { browserState, deferred } from "./browserWorkspace.testFixtures";
 
 describe("BrowserWorkspace", () => {
   let container: HTMLDivElement;
@@ -157,6 +126,7 @@ describe("BrowserWorkspace", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     mocks.mount.mockReset();
+    mocks.list.mockReset().mockResolvedValue([]);
     mocks.navigate.mockReset();
     mocks.openIdentity.mockReset();
     mocks.createIdentity.mockReset();
@@ -205,6 +175,109 @@ describe("BrowserWorkspace", () => {
     });
     vi.unstubAllGlobals();
     container.remove();
+  });
+
+  it("restores two native tabs, selected view and URL after the Browser pane remounts", async () => {
+    const second = browserState({
+      tabId: "second",
+      viewId: "second-view",
+      webContentsId: 202,
+      url: "https://example.com/current",
+      title: "Second",
+    });
+    const tabs = [browserState({ selected: false }), second];
+    mocks.list.mockResolvedValue(tabs);
+    mocks.setBounds.mockImplementation(async ({ tabId }) =>
+      tabs.find((tab) => tab.tabId === tabId),
+    );
+    const render = async () =>
+      act(async () => {
+        root.render(
+          <BrowserWorkspace runtimeSessionId="session-1" threadId="thread-1" />,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    await render();
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2);
+    await act(async () => root.render(null));
+    expect(mocks.setBounds).toHaveBeenCalledWith(
+      expect.objectContaining({ tabId: "second", visible: false }),
+    );
+    await render();
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2);
+    const workspace = container.querySelector(
+      '[data-testid="browser-workspace"]',
+    );
+    expect(workspace?.getAttribute("data-browser-tab-id")).toBe("second");
+    expect(workspace?.getAttribute("data-browser-view-id")).toBe("second-view");
+    expect(workspace?.getAttribute("data-browser-web-contents-id")).toBe("202");
+    expect(
+      container.querySelector<HTMLInputElement>(
+        '[data-testid="browser-workspace-address"]',
+      )?.value,
+    ).toBe("https://example.com/current");
+    expect(mocks.mount).not.toHaveBeenCalled();
+  });
+
+  it("does not revive closed primary or bootstrap a nonempty unselected snapshot", async () => {
+    const second = browserState({
+      tabId: "second",
+      viewId: "second-view",
+      webContentsId: 202,
+      selected: false,
+    });
+    mocks.list.mockResolvedValue([second]);
+    await act(async () => {
+      root.render(
+        <BrowserWorkspace runtimeSessionId="session-1" threadId="thread-1" />,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(1);
+    expect(
+      container
+        .querySelector('[data-testid="browser-workspace"]')
+        ?.getAttribute("data-browser-tab-id"),
+    ).toBe("");
+    expect(mocks.mount).not.toHaveBeenCalled();
+    expect(mocks.setBounds).not.toHaveBeenCalled();
+  });
+
+  it("rejects late bounds success and failure after A→B→A", async () => {
+    const old = deferred<BrowserTabState>();
+    mocks.list.mockImplementation(async ({ threadId }) => [
+      browserState({ threadId }),
+    ]);
+    mocks.setBounds
+      .mockReturnValueOnce(old.promise)
+      .mockImplementation(async () => browserState());
+    const render = async (threadId: string) =>
+      act(async () => {
+        root.render(
+          <BrowserWorkspace runtimeSessionId="session-1" threadId={threadId} />,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+    await render("thread-1");
+    await render("thread-2");
+    await render("thread-1");
+    await act(async () =>
+      old.resolve(
+        browserState({
+          tabId: "old-response",
+          viewId: "old-view",
+          title: "Stale",
+        }),
+      ),
+    );
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(1);
+    expect(container.textContent).not.toContain("Stale");
+    const failed = deferred<BrowserTabState>();
+    mocks.setBounds.mockReturnValueOnce(failed.promise);
+    await render("thread-2");
+    await render("thread-1");
+    await act(async () => failed.reject(new Error("late bounds failure")));
+    expect(container.textContent).not.toContain("late bounds failure");
   });
 
   it("mounts a stable native tab identity and projects its WebContents id", async () => {

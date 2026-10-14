@@ -1,3 +1,7 @@
+import { ComposerEditor, type ComposerEditorHandle } from "@/components/input-kit/ComposerEditor";
+import { ComposerController } from "@/components/input-kit/ComposerController";
+import "@/components/input-kit/composerEditor.testUtils";
+import { useEffect } from "react";
 /* eslint-disable react-refresh/only-export-components */
 import React, { useRef, useState } from "react";
 import { act } from "react";
@@ -290,6 +294,8 @@ vi.mock("@/components/ui/dialog", () => ({
   ),
 }));
 
+const controllers = new WeakMap<HTMLElement, ComposerController>();
+
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
 beforeEach(async () => {
@@ -367,26 +373,24 @@ const Harness: React.FC<HarnessProps> = ({
   inputCompletionEnabled = true,
 }) => {
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const editorRef = useRef<ComposerEditorHandle>(null);
+  const [controller] = useState(() => new ComposerController());
+  useEffect(() => {
+    const editor = editorRef.current?.getElement();
+    if (editor) controllers.set(editor, controller);
+    return controller.subscribe(() => { if (syncValue) setValue(controller.getDocument().text); });
+  }, [controller, syncValue]);
 
   return (
     <div>
-      <textarea
-        ref={inputRef}
-        data-testid="mention-input"
-        defaultValue=""
-        onChange={(event) => {
-          if (syncValue) {
-            setValue(event.target.value);
-          }
-        }}
-      />
+      <ComposerEditor controller={controller} editorRef={editorRef} sendOnEnter={false} />
       <CharacterMention
         characters={characters}
         skills={skills}
         serviceSkills={serviceSkills}
         serviceSkillGroups={serviceSkillGroups}
-        inputRef={inputRef}
+        editorRef={editorRef}
+        controller={controller}
         value={value}
         onChange={(next) => {
           onChangeSpy?.(next);
@@ -423,10 +427,10 @@ export function renderHarness(props: HarnessProps = {}) {
   return container;
 }
 
-export function getTextarea(container: HTMLElement): HTMLTextAreaElement {
+export function getComposerEditor(container: HTMLElement): HTMLElement {
   const textarea = container.querySelector(
-    '[data-testid="mention-input"]',
-  ) as HTMLTextAreaElement | null;
+    '[data-testid="composer-editor"][role="textbox"]',
+  ) as HTMLElement | null;
   if (!textarea) {
     throw new Error("未找到输入框");
   }
@@ -451,34 +455,31 @@ export function getButtonsContaining(...texts: string[]): HTMLButtonElement[] {
   );
 }
 
-export function typeAt(textarea: HTMLTextAreaElement) {
+export function getComposerController(editor: HTMLElement): ComposerController {
+  const controller = controllers.get(editor);
+  if (!controller) throw new Error("Missing fixture controller");
+  return controller;
+}
+
+export function setComposerSelection(editor: HTMLElement, start: number, end = start): void {
+  const controller = getComposerController(editor);
+  controller.setSelection(start, end);
+}
+
+export function typeAt(editor: HTMLElement) { typeMention(editor, "@"); }
+
+export function typeMention(editor: HTMLElement, value: string) {
   act(() => {
-    textarea.focus();
-    textarea.value = "@";
-    textarea.setSelectionRange(1, 1);
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    editor.focus();
+    const controller = controllers.get(editor);
+    if (!controller) throw new Error("Missing fixture controller");
+    controller.setText(value, { start: value.length, end: value.length });
   });
 }
 
-export function typeMention(textarea: HTMLTextAreaElement, value: string) {
-  act(() => {
-    textarea.focus();
-    textarea.value = value;
-    textarea.setSelectionRange(value.length, value.length);
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
+export function typeSlash(editor: HTMLElement, value = "/") { typeMention(editor, value); }
 
-export function typeSlash(textarea: HTMLTextAreaElement, value = "/") {
-  act(() => {
-    textarea.focus();
-    textarea.value = value;
-    textarea.setSelectionRange(value.length, value.length);
-    textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
-
-export async function typeAtAndWait(textarea: HTMLTextAreaElement) {
+export async function typeAtAndWait(textarea: HTMLElement) {
   await act(async () => {
     await import("./CharacterMentionPanel");
   });
@@ -490,7 +491,7 @@ export async function typeAtAndWait(textarea: HTMLTextAreaElement) {
 }
 
 export async function typeMentionAndWait(
-  textarea: HTMLTextAreaElement,
+  textarea: HTMLElement,
   value: string,
 ) {
   await act(async () => {
@@ -504,7 +505,7 @@ export async function typeMentionAndWait(
 }
 
 export async function typeSlashAndWait(
-  textarea: HTMLTextAreaElement,
+  textarea: HTMLElement,
   value = "/",
 ) {
   await act(async () => {

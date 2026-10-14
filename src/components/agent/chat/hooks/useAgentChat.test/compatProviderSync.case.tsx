@@ -1,5 +1,6 @@
 import { act } from "react";
 import { describe, expect, it } from "vitest";
+import type { ThreadSettings } from "@limecloud/app-server-client";
 import {
   flushEffects,
   getSubmittedTurnStart,
@@ -9,6 +10,27 @@ import {
   mockUpdateAgentRuntimeThreadSettings,
   mountHook,
 } from "../useAgentChat.testUtils";
+
+function confirmedModelResponse(threadId: string, modelProvider: string, model: string) {
+  const threadSettings: ThreadSettings = {
+    modelProvider,
+    model,
+    effort: null,
+    serviceTier: null,
+    cwd: "/mock-workspace",
+    approvalPolicy: "never",
+    approvalsReviewer: "user",
+    sandboxPolicy: { type: "dangerFullAccess" },
+    collaborationMode: { mode: "default", settings: { model } },
+  };
+  return {
+    result: {},
+    notifications: [{
+      method: "thread/settings/updated",
+      params: { threadId, threadSettings },
+    }],
+  };
+}
 
 describe("useAgentChat 兼容接口 - provider sync", () => {
   it("已有 executionRuntime 且 provider/model 未变化时不应重复提交偏好", async () => {
@@ -74,6 +96,9 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
     const selectedProvider = "openai";
     const currentModel = "gpt-5.4-mini";
     const nextModel = "gpt-5.4";
+    mockUpdateAgentRuntimeThreadSettings.mockResolvedValue(
+      confirmedModelResponse("topic-runtime-model-switch-same-provider", selectedProvider, nextModel),
+    );
     localStorage.setItem(
       `agent_pref_provider_${workspaceId}`,
       JSON.stringify(selectedProvider),
@@ -167,11 +192,13 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
     });
     mockUpdateAgentRuntimeThreadSettings.mockImplementation((request) => {
       if (request?.modelProvider || request?.model) {
-        return new Promise<void>((resolve) => {
-          resolveProviderSync = resolve;
+        return new Promise<ReturnType<typeof confirmedModelResponse>>((resolve) => {
+          resolveProviderSync = () => resolve(confirmedModelResponse(
+            "topic-runtime-model-switch-pending-sync", selectedProvider, nextModel,
+          ));
         });
       }
-      return Promise.resolve();
+      return Promise.resolve({ result: {}, notifications: [] });
     });
 
     const harness = mountHook(workspaceId);
@@ -229,6 +256,9 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
   it("execution_runtime 缺失但 session provider/model 已迁移回写后，不应重复随 turn 提交", async () => {
     const workspaceId = "ws-runtime-model-shadow-reuse";
     const topicId = "topic-runtime-model-shadow-reuse";
+    mockUpdateAgentRuntimeThreadSettings.mockResolvedValue(
+      confirmedModelResponse(topicId, "gemini", "gemini-2.5-pro"),
+    );
     localStorage.setItem(
       `agent_topic_model_pref_${workspaceId}_${topicId}`,
       JSON.stringify({

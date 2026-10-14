@@ -4,6 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceConversationScene } from "./WorkspaceConversationScene";
 import type { WorkspaceRightSurfaceLauncherProjection } from "./right-surface";
+import { ComposerController, ComposerEditor } from "@/components/input-kit";
+import { getComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 
 const {
   mockChatNavbar,
@@ -51,6 +53,7 @@ vi.mock("../components/ThreadProjectSelector", () => ({
 
 vi.mock("../components/TaskCenterUtilityToolbar", () => ({
   TaskCenterUtilityToolbar: ({
+    placement,
     onToggleShellPanel,
     onToggleBrowserPanel,
     onToggleFilesPanel,
@@ -62,6 +65,7 @@ vi.mock("../components/TaskCenterUtilityToolbar", () => ({
     onToggleExpertInfoPanel,
     rightSurfaceLaunchers,
   }: {
+    placement?: "task-strip" | "workbench-header";
     onToggleShellPanel?: () => void;
     onToggleBrowserPanel?: () => void;
     onToggleFilesPanel?: () => void;
@@ -80,6 +84,7 @@ vi.mock("../components/TaskCenterUtilityToolbar", () => ({
     }>;
   }) => {
     const props = {
+      placement,
       onToggleShellPanel,
       onToggleBrowserPanel,
       onToggleFilesPanel,
@@ -659,6 +664,9 @@ describe("WorkspaceConversationScene", () => {
       '[data-testid="task-center-utility-toolbar-stub"]',
     );
     expect(toolbar).not.toBeNull();
+    expect(mockTaskCenterUtilityToolbar.mock.calls.at(-1)?.[0]?.placement).toBe(
+      "task-strip",
+    );
     expect(
       mockWorkspaceMainArea.mock.calls.at(-1)?.[0]
         ?.taskCenterUtilityToolbarNode,
@@ -680,37 +688,44 @@ describe("WorkspaceConversationScene", () => {
     );
   });
 
-  it("active Thread 应使用紧凑页头承接标题、状态、目录和统一工具栏", () => {
-    const container = renderScene({
-      navbarVisible: true,
-      navbarChrome: "workspace-compact",
-      navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
-      threadHeader: {
-        sessionId: "thread-1",
-        title: "对齐 Codex App GUI",
-        status: "running",
-        workingDirectory: "/workspace/lime",
-      },
-    });
+  it.each(["chat", "canvas"] as const)(
+    "active Thread 在 %s 布局使用页头工具栏",
+    (layoutMode) => {
+      const container = renderScene({
+        layoutMode,
+        navbarVisible: true,
+        navbarChrome: "workspace-compact",
+        navbarContextVariant: "task-center",
+        taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
+        threadHeader: {
+          sessionId: "thread-1",
+          title: "对齐 Codex App GUI",
+          status: "running",
+          workingDirectory: "/workspace/lime",
+        },
+      });
 
-    expect(
-      container.querySelector('[data-testid="thread-workspace-header"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-testid="thread-workspace-header-title"]')
-        ?.textContent,
-    ).toBe("对齐 Codex App GUI");
-    expect(
-      container.querySelector(
-        '[data-testid="thread-workspace-header-actions"] [data-testid="task-center-utility-toolbar-stub"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      mockWorkspaceMainArea.mock.calls.at(-1)?.[0]
-        ?.taskCenterUtilityToolbarNode,
-    ).toBeNull();
-  });
+      expect(
+        container.querySelector('[data-testid="thread-workspace-header"]'),
+      ).not.toBeNull();
+      expect(
+        container.querySelector('[data-testid="thread-workspace-header-title"]')
+          ?.textContent,
+      ).toBe("对齐 Codex App GUI");
+      expect(
+        container.querySelector(
+          '[data-testid="thread-workspace-header-actions"] [data-testid="task-center-utility-toolbar-stub"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        mockWorkspaceMainArea.mock.calls.at(-1)?.[0]
+          ?.taskCenterUtilityToolbarNode,
+      ).toBeNull();
+      expect(
+        mockTaskCenterUtilityToolbar.mock.calls.at(-1)?.[0]?.placement,
+      ).toBe("workbench-header");
+    },
+  );
 
   it("标题栏应显示并隐藏同一 Thread 的既有活动摘要", () => {
     const onToggleRightSurfaceActivity = vi.fn();
@@ -1126,9 +1141,9 @@ describe("WorkspaceConversationScene", () => {
       shouldHideGeneralWorkbenchInputForTheme: false,
       showFloatingInputOverlay: false,
       inputbarNode: (
-        <textarea
-          data-testid="workspace-inline-inputbar"
-          defaultValue="整理今天的国际新闻"
+        <ComposerEditor
+          testId="workspace-inline-inputbar"
+          controller={new ComposerController({ text: "整理今天的国际新闻" })}
         />
       ),
     });
@@ -1146,6 +1161,10 @@ describe("WorkspaceConversationScene", () => {
     expect(messageList).not.toBeNull();
     expect(inputSlot).not.toBeNull();
     expect(inputbar).not.toBeNull();
+    expect(inputbar?.getAttribute("role")).toBe("textbox");
+    expect(getComposerEditorText(inputbar as HTMLElement)).toBe(
+      "整理今天的国际新闻",
+    );
     expect(inputSlot?.parentElement?.contains(messageList)).toBe(true);
     expect(inputSlot?.parentElement?.lastElementChild).toBe(inputSlot);
     expect(

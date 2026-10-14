@@ -1,4 +1,9 @@
 import { APP_SERVER_METHOD_SESSION_READ } from "./claw-chat-current-fixture-constants.mjs";
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
+import {
+  isPublicQueueMutationMethod,
+  summarizeActiveSteerSubmission,
+} from "./claw-chat-current-fixture-active-steer-evidence.mjs";
 import { sendPromptFromGui } from "./claw-chat-current-fixture-gui-actions.mjs";
 import {
   collectReadModelItems,
@@ -44,12 +49,6 @@ export const ACTIVE_STEER_ASSERTION_KEYS = [
   "activeSteerNoPublicQueueMethod",
   "activeSteerNoQueuedTurnGui",
 ];
-
-const PUBLIC_QUEUE_METHODS = new Set([
-  "agentSession/queuedTurn/promote",
-  "agentSession/queuedTurn/remove",
-  "turn/queue/promote",
-]);
 
 function readInputText(input) {
   if (typeof input === "string") {
@@ -98,6 +97,8 @@ function flattenTraceRequests(traceEntries) {
       entryIndex,
       timestamp: entry?.timestamp ?? null,
       timestampMs: Date.parse(entry?.timestamp ?? ""),
+      command: entry?.command ?? null,
+      requestId: message?.id ?? null,
       transport: entry?.transport ?? null,
       status: entry?.status ?? null,
       method: message?.method ?? null,
@@ -148,50 +149,57 @@ async function waitForInitialActiveTurn({ page, options, appServerRequests }) {
   );
 }
 
-async function waitForActiveSteerFirstVisible(page, options) {
+async function waitForActiveSteerFirstVisible(page, options, sessionId) {
   const startedAt = Date.now();
   let lastSnapshot = null;
   while (Date.now() - startedAt < options.timeoutMs) {
-    const snapshot = await evaluatePageSnapshot(page, () => {
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
-      );
-      const inputbar = textarea?.closest(
-        '[data-testid="inputbar-core-container"]',
-      );
-      const sendButton = inputbar?.querySelector('[data-testid="send-btn"]');
-      const buttons = Array.from(document.querySelectorAll("button"));
-      const stopButtonVisible = buttons.some((button) => {
-        const label = [
-          button.getAttribute("title") || "",
-          button.getAttribute("aria-label") || "",
-          button.textContent || "",
-        ].join("\n");
-        return (
-          !button.disabled &&
-          (label.includes("停止") ||
-            label.includes("终止") ||
-            /\bStop\b/iu.test(label))
+    const snapshot = await evaluatePageSnapshot(
+      page,
+      withComposerEditorDom(({ sessionId }) => {
+        const editors = findVisibleComposerEditorsDom(sessionId);
+        const editor = editors.length === 1 ? editors[0] : null;
+        const inputbar = editor?.closest(
+          '[data-testid="inputbar-core-container"]',
         );
-      });
-      const bodyText = document.body?.innerText || "";
-      return {
-        hasInitialPrompt: bodyText.includes(
-          "验证 active turn steer：先保持当前回合运行",
-        ),
-        hasFirstText: bodyText.includes(
-          "ACTIVE_STEER_FIRST_VISIBLE: 当前回合仍在运行。",
-        ),
-        stopButtonVisible,
-        textareaVisible:
-          textarea instanceof HTMLTextAreaElement &&
-          textarea.getClientRects().length > 0,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-        sendButtonDisabled:
-          sendButton instanceof HTMLButtonElement ? sendButton.disabled : null,
-      };
-    });
+        const sendButton = inputbar?.querySelector('[data-testid="send-btn"]');
+        const buttons = Array.from(document.querySelectorAll("button"));
+        const stopButtonVisible = buttons.some((button) => {
+          const label = [
+            button.getAttribute("title") || "",
+            button.getAttribute("aria-label") || "",
+            button.textContent || "",
+          ].join("\n");
+          return (
+            !button.disabled &&
+            (label.includes("停止") ||
+              label.includes("终止") ||
+              /\bStop\b/iu.test(label))
+          );
+        });
+        const bodyText = document.body?.innerText || "";
+        return {
+          hasInitialPrompt: bodyText.includes(
+            "验证 active turn steer：先保持当前回合运行",
+          ),
+          hasFirstText: bodyText.includes(
+            "ACTIVE_STEER_FIRST_VISIBLE: 当前回合仍在运行。",
+          ),
+          stopButtonVisible,
+          editorVisible:
+            editor instanceof HTMLElement && editor.getClientRects().length > 0,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          sendButtonDisabled:
+            sendButton instanceof HTMLButtonElement
+              ? sendButton.disabled
+              : null,
+        };
+      }),
+      { sessionId },
+    );
     if (!snapshot) {
       await sleep(options.intervalMs);
       continue;
@@ -201,8 +209,8 @@ async function waitForActiveSteerFirstVisible(page, options) {
       snapshot.hasInitialPrompt &&
       snapshot.hasFirstText &&
       snapshot.stopButtonVisible &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false
     ) {
       return sanitizeJson(snapshot);
     }
@@ -240,6 +248,10 @@ async function waitForSteerTrace({
       ? requests.find(
           (request) =>
             request.entryIndex < steer.entryIndex &&
+            request.command === "app_server_handle_json_lines" &&
+            request.transport === "electron-ipc" &&
+            request.status === "success" &&
+            request.requestId != null &&
             request.method === "thread/read" &&
             request.params?.threadId === options.threadId,
         )
@@ -249,7 +261,7 @@ async function waitForSteerTrace({
     ).length;
     const publicQueueMethodHits = requests
       .map((request) => request.method)
-      .filter((method) => PUBLIC_QUEUE_METHODS.has(method));
+      .filter(isPublicQueueMutationMethod);
     lastEvidence = sanitizeJson({
       baselineTimestamp: new Date(baselineTimestampMs).toISOString(),
       traceCount: traceEntries.length,
@@ -258,10 +270,14 @@ async function waitForSteerTrace({
       publicQueueMethodHits,
       steer: steer
         ? {
+            command: steer.command,
+            requestId: steer.requestId,
             transport: steer.transport,
             status: steer.status,
             threadId: steer.params?.threadId ?? null,
             expectedTurnId: steer.params?.expectedTurnId ?? null,
+            clientUserMessageId: steer.params?.clientUserMessageId ?? null,
+            input: steer.params?.input ?? null,
             inputText: readInputText(steer.params?.input),
             inputIsTyped: Array.isArray(steer.params?.input),
           }
@@ -269,6 +285,8 @@ async function waitForSteerTrace({
     });
     if (
       precedingThreadRead &&
+      steer?.command === "app_server_handle_json_lines" &&
+      steer?.requestId != null &&
       steer?.transport === "electron-ipc" &&
       steer?.status === "success" &&
       steer?.params?.expectedTurnId === activeTurnId
@@ -317,10 +335,10 @@ async function waitForProviderSecondStep(readTextProviderRequests, options) {
   );
 }
 
-async function collectFinalGuiIdentity(page, activeTurnId) {
+async function collectFinalGuiIdentity(page, activeTurnId, sessionId) {
   return sanitizeJson(
     await page.evaluate(
-      ({ activeTurnId, markers }) => {
+      withComposerEditorDom(({ activeTurnId, markers, sessionId }) => {
         const groups = Array.from(
           document.querySelectorAll('[data-testid="message-turn-group"]'),
         );
@@ -344,9 +362,8 @@ async function collectFinalGuiIdentity(page, activeTurnId) {
             ].join(","),
           ),
         );
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
-        );
+        const editors = findVisibleComposerEditorsDom(sessionId);
+        const editor = editors.length === 1 ? editors[0] : null;
         const stopButtonVisible = Array.from(
           document.querySelectorAll("button"),
         ).some((button) => {
@@ -396,16 +413,19 @@ async function collectFinalGuiIdentity(page, activeTurnId) {
             includesDoneText: (group.innerText || "").includes(markers[4]),
           })),
           queuedTurnGuiCount: queuedTurnNodes.length,
-          textareaVisible:
-            textarea instanceof HTMLTextAreaElement &&
-            textarea.getClientRects().length > 0,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+          editorVisible:
+            editor instanceof HTMLElement && editor.getClientRects().length > 0,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
           stopButtonVisible,
         };
-      },
+      }),
       {
         activeTurnId,
+        sessionId,
         markers: [
           ACTIVE_STEER_INITIAL_PROMPT,
           ACTIVE_STEER_INPUT,
@@ -418,11 +438,20 @@ async function collectFinalGuiIdentity(page, activeTurnId) {
   );
 }
 
-async function waitForActiveSteerGuiCompleted(page, options, activeTurnId) {
+async function waitForActiveSteerGuiCompleted(
+  page,
+  options,
+  activeTurnId,
+  sessionId,
+) {
   const startedAt = Date.now();
   let lastSnapshot = null;
   while (Date.now() - startedAt < options.timeoutMs) {
-    const snapshot = await collectFinalGuiIdentity(page, activeTurnId);
+    const snapshot = await collectFinalGuiIdentity(
+      page,
+      activeTurnId,
+      sessionId,
+    );
     lastSnapshot = snapshot;
     if (
       snapshot?.scenarioRuntimeTurnIds?.length === 1 &&
@@ -433,8 +462,8 @@ async function waitForActiveSteerGuiCompleted(page, options, activeTurnId) {
       snapshot.includesFinalText === true &&
       snapshot.includesDoneText === true &&
       snapshot.hasCompletedGroup === true &&
-      snapshot.textareaVisible === true &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible === true &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       return {
@@ -443,8 +472,8 @@ async function waitForActiveSteerGuiCompleted(page, options, activeTurnId) {
           hasPrompt: true,
           hasAssistantSummary: true,
           hasDoneText: true,
-          textareaVisible: snapshot.textareaVisible,
-          textareaDisabled: snapshot.textareaDisabled,
+          editorVisible: snapshot.editorVisible,
+          editorDisabled: snapshot.editorDisabled,
           stopButtonVisible: snapshot.stopButtonVisible,
           completionScope: {
             foundTurnGroup: true,
@@ -461,7 +490,7 @@ async function waitForActiveSteerGuiCompleted(page, options, activeTurnId) {
   );
 }
 
-function summarizeFinalReadModel(readModel, activeTurnId) {
+function summarizeFinalReadModel(readModel, activeTurnId, steer, threadId) {
   const serialized = JSON.stringify(readModel ?? {});
   const turns = collectReadModelTurns(readModel);
   const items = collectReadModelItems(readModel);
@@ -499,6 +528,13 @@ function summarizeFinalReadModel(readModel, activeTurnId) {
     includesFinalText: serialized.includes(ACTIVE_STEER_FINAL_TEXT),
     includesDoneText: serialized.includes(ACTIVE_STEER_DONE_TEXT),
     includesTurnSteerSource: serialized.includes("turn/steer"),
+    inputSubmission: summarizeActiveSteerSubmission({
+      steer,
+      canonical: readModel,
+      threadId,
+      activeTurnId,
+      inputText: ACTIVE_STEER_INPUT,
+    }),
   });
 }
 
@@ -516,7 +552,7 @@ function summarizeScenarioTrace(traceEntries) {
   });
   const publicQueueMethodHits = requests
     .map((request) => request.method)
-    .filter((method) => PUBLIC_QUEUE_METHODS.has(method));
+    .filter(isPublicQueueMutationMethod);
   return sanitizeJson({
     scenarioTurnStartCount: scenarioTurnStarts.length,
     initialTurnStartCount: scenarioTurnStarts.filter((request) =>
@@ -548,7 +584,11 @@ export async function runActiveSteerScenario({
       expectedSessionId: summary.sessionId,
     }),
   );
-  const firstVisible = await waitForActiveSteerFirstVisible(page, options);
+  const firstVisible = await waitForActiveSteerFirstVisible(
+    page,
+    options,
+    summary.sessionId,
+  );
   const activeRead = await waitForInitialActiveTurn({
     page,
     options,
@@ -577,6 +617,7 @@ export async function runActiveSteerScenario({
     page,
     options,
     activeRead.turnId,
+    summary.sessionId,
   );
   const guiCompleted = guiCompletion.guiCompleted;
   const finalReadModel = await waitForSessionReadCompleted(
@@ -589,7 +630,12 @@ export async function runActiveSteerScenario({
       summaryText: ACTIVE_STEER_FINAL_TEXT,
     },
   );
-  const readModel = summarizeFinalReadModel(finalReadModel, activeRead.turnId);
+  const readModel = summarizeFinalReadModel(
+    finalReadModel,
+    activeRead.turnId,
+    steerTrace.steer,
+    options.threadId,
+  );
   const gui = guiCompletion.gui;
   const trace = sanitizeJson({
     ...initialTrace,
@@ -638,8 +684,9 @@ export function buildActiveSteerScenarioAssertions({ summary }) {
     activeSteerTypedInputReachedJsonRpc:
       steer.transport === "electron-ipc" &&
       steer.status === "success" &&
+      steer.requestId != null &&
       steer.inputIsTyped === true &&
-      steer.inputText?.includes(ACTIVE_STEER_INPUT) === true,
+      steer.inputText === ACTIVE_STEER_INPUT,
     activeSteerResponsePreservedTurnIdentity:
       summary.guiCompleted?.completionScope?.runtimeTurnId ===
         evidence.activeTurnId &&
@@ -656,7 +703,8 @@ export function buildActiveSteerScenarioAssertions({ summary }) {
       evidence.readModel?.includesSteerInput === true &&
       evidence.readModel?.includesFirstText === true &&
       evidence.readModel?.includesFinalText === true &&
-      evidence.readModel?.includesDoneText === true,
+      evidence.readModel?.includesDoneText === true &&
+      evidence.readModel?.inputSubmission?.ok === true,
     activeSteerSingleTurnInGui:
       evidence.gui?.scenarioRuntimeTurnIds?.length === 1 &&
       evidence.gui?.scenarioRuntimeTurnIds?.[0] === evidence.activeTurnId &&
@@ -665,8 +713,8 @@ export function buildActiveSteerScenarioAssertions({ summary }) {
       evidence.gui?.includesFirstText === true &&
       evidence.gui?.includesFinalText === true &&
       evidence.gui?.includesDoneText === true &&
-      evidence.gui?.textareaVisible === true &&
-      evidence.gui?.textareaDisabled === false &&
+      evidence.gui?.editorVisible === true &&
+      evidence.gui?.editorDisabled === false &&
       evidence.gui?.stopButtonVisible === false,
     activeSteerNoSecondTurnStart:
       evidence.trace?.scenarioTurnStartCount === 1 &&

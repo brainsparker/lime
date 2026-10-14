@@ -1,4 +1,7 @@
+import type { ComposerDraftSnapshot } from "@/components/input-kit";
+import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, { useCallback, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
   ActionButtonGroup,
   Container,
@@ -11,7 +14,7 @@ import {
   InputIconButton,
   MainRow,
   MetaSlot,
-  StyledTextarea,
+  StyledComposerEditor,
   BottomBar,
   LeftSection,
   TrailingSection,
@@ -49,8 +52,8 @@ import {
 import {
   BaseComposer,
   type BaseComposerSendMetadata,
+  ComposerController,
 } from "@/components/input-kit";
-import type { ComposerController } from "@/components/input-kit";
 import { isKnowledgeTextSourceCandidate } from "@/features/knowledge/import/knowledgeSourceSupport";
 import type { MessageImage, MessagePathReference } from "../../../types";
 import type { InputbarCoreCopy } from "./inputbarCoreCopy";
@@ -63,7 +66,7 @@ import { useInputbarDictation } from "../hooks/useInputbarDictation";
 const INTERACTIVE_TARGET_SELECTOR =
   "button, a, input, textarea, select, option, [role='button'], [contenteditable=''], [contenteditable='true'], [contenteditable='plaintext-only']";
 
-function shouldFocusComposerTextarea(target: EventTarget | null): boolean {
+function shouldFocusComposerEditor(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) {
     return true;
   }
@@ -91,6 +94,7 @@ function formatRecordingDuration(durationSecs: number): string {
 interface InputbarCoreProps {
   uiCopy: InputbarCoreCopy;
   controller?: ComposerController;
+  onHistoryRecall?: (draft: ComposerDraftSnapshot) => void;
   text: string;
   setText: (text: string) => void;
   onSend: (metadata?: BaseComposerSendMetadata) => void;
@@ -105,17 +109,18 @@ interface InputbarCoreProps {
   pathReferences?: MessagePathReference[];
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
-  onPaste?: (e: React.ClipboardEvent) => void;
+  onPaste?: (e: ClipboardEvent) => boolean | void;
+  onKeyDown?: (e: KeyboardEvent) => boolean | void;
   onDragOver?: (e: React.DragEvent) => void;
   onDrop?: (e: React.DragEvent) => void;
   isFullscreen?: boolean;
-  /** Textarea ref（用于 CharacterMention） */
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  /** EditorView handle（用于 CharacterMention） */
+  editorRef?: React.RefObject<ComposerEditorHandle>;
   /** 输入框底栏左侧扩展区域 */
   leftExtra?: React.ReactNode;
   /** 输入框底栏尾部元信息区域 */
   trailingMeta?: React.ReactNode;
-  /** 输入框内部顶部扩展区域（textarea 上方） */
+  /** 输入框内部顶部扩展区域（编辑器上方） */
   topExtra?: React.ReactNode;
   /** 输入框提示文案 */
   placeholder?: string;
@@ -131,20 +136,21 @@ interface InputbarCoreProps {
   deferSendOnEnter?: boolean;
   /** 首页首发按钮在 pointerdown 阶段预提交，避免 click 前后出现空首页帧。 */
   sendOnPointerDown?: boolean;
-  /** 当前输入所属会话，仅用于运行态可观测性与稳定回归定位。 */
+  /** 当前输入所属会话，用于隔离异步听写与编辑器运行态。 */
   sessionId?: string | null;
   activeTheme?: string;
   showMetaTools?: boolean;
-  showTextareaExpandButton?: boolean;
+  showEditorExpandButton?: boolean;
   plusMenu?: InputbarPlusMenuConfig;
 }
 
 export const InputbarCore: React.FC<InputbarCoreProps> = ({
   uiCopy,
-  controller,
+  controller: externalController,
   text,
   setText,
   onSend,
+  onHistoryRecall,
   onStop,
   isLoading = false,
   disabled = false,
@@ -156,10 +162,11 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onPaste,
+  onKeyDown,
   onDragOver,
   onDrop,
   isFullscreen = false,
-  textareaRef: externalTextareaRef,
+  editorRef: externalEditorRef,
   leftExtra,
   trailingMeta,
   topExtra,
@@ -173,25 +180,33 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   sessionId = null,
   activeTheme,
   showMetaTools = true,
-  showTextareaExpandButton = true,
+  showEditorExpandButton = true,
   plusMenu,
 }) => {
-  const [isTextareaExpanded, setIsTextareaExpanded] = useState(false);
+  const [fallbackController] = useState(
+    () => externalController ?? new ComposerController({ text }),
+  );
+  const controller = externalController ?? fallbackController;
+  const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const inputBarContainerRef = useRef<HTMLDivElement | null>(null);
-  const fallbackTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const resolvedTextareaRef = externalTextareaRef ?? fallbackTextareaRef;
+  const fallbackEditorRef = useRef<ComposerEditorHandle>(null);
+  const resolvedEditorRef = externalEditorRef ?? fallbackEditorRef;
   const {
     dictationEnabled,
     dictationState,
     liveTranscript,
     recordingStatus,
     isDictationBusy,
+    isDictationStarting,
     isDictationProcessing,
     handleDictationToggle,
+    handleDictationCancel,
+    discardDictationSession,
   } = useInputbarDictation({
-    text,
     setText,
-    textareaRef: resolvedTextareaRef,
+    editorRef: resolvedEditorRef,
+    controller,
+    sessionId,
     disabled: disabled || isLoading,
   });
   const composerDisabled = disabled || isDictationBusy;
@@ -207,7 +222,7 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   const shouldKeepActionRow =
     Boolean(plusMenu) || Boolean(leftExtra) || Boolean(trailingMeta);
   const shouldUseCompactFloatingComposer =
-    shouldCollapseFloatingTools && !topExtra && !isTextareaExpanded;
+    shouldCollapseFloatingTools && !topExtra && !isEditorExpanded;
   const containerClassName = [
     isFullscreen ? "flex-1 flex flex-col" : "",
     isFloatingVariant ? "floating-composer" : "",
@@ -223,11 +238,11 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   ]
     .filter(Boolean)
     .join(" ");
-  const textareaClassName = [
+  const editorClassName = [
     isFullscreen ? "flex-1 resize-none" : "",
     isFloatingVariant ? "floating-composer" : "",
     shouldUseCompactFloatingComposer ? "floating-collapsed" : "",
-    isTextareaExpanded ? "composer-expanded" : "",
+    isEditorExpanded ? "composer-expanded" : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -251,9 +266,7 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
       : "";
   const shouldRenderMetaBar =
     shouldKeepActionRow ||
-    (showMetaTools &&
-      toolMode === "default" &&
-      !shouldCollapseFloatingTools);
+    (showMetaTools && toolMode === "default" && !shouldCollapseFloatingTools);
   const handleRemoveImageMouseDown = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.preventDefault();
@@ -306,8 +319,8 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
     [onImportPathReferenceAsKnowledge],
   );
 
-  const handleToggleTextareaExpanded = useCallback(() => {
-    setIsTextareaExpanded((previous) => !previous);
+  const handleToggleEditorExpanded = useCallback(() => {
+    setIsEditorExpanded((previous) => !previous);
   }, []);
 
   return (
@@ -316,22 +329,23 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
       text={text}
       setText={setText}
       onSend={onSend}
+      onHistoryRecall={onHistoryRecall}
       onStop={onStop}
       isLoading={isLoading}
       disabled={composerDisabled}
       onPaste={onPaste}
+      onKeyDown={onKeyDown}
       isFullscreen={isFullscreen}
       fillHeightWhenFullscreen
       hasAdditionalContent={
         pendingImages.length > 0 || pathReferences.length > 0
       }
-      maxAutoHeight={isTextareaExpanded ? 360 : isFloatingVariant ? 240 : 120}
-      textareaRef={resolvedTextareaRef}
+      maxAutoHeight={isEditorExpanded ? 360 : isFloatingVariant ? 240 : 120}
+      editorRef={resolvedEditorRef}
       onEscape={() => onToolClick("fullscreen")}
       allowSendWhileLoading
       deferSendOnEnter={deferSendOnEnter}
       sendOnPointerDown={sendOnPointerDown}
-      rows={isTextareaExpanded ? 7 : isFloatingVariant ? 3 : 1}
       placeholder={
         placeholder ||
         (isFullscreen
@@ -340,8 +354,8 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
       }
     >
       {({
-        textareaProps,
-        textareaRef,
+        editorProps,
+        editorRef,
         isPrimaryDisabled,
         onPrimaryAction,
         onPrimaryActionStart,
@@ -355,13 +369,15 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
         const dictationButtonLabel =
           dictationState === "listening"
             ? uiCopy.dictation.stopRecording(recordingLabel)
-            : isDictationProcessing
-              ? uiCopy.dictation.transcribing
-              : uiCopy.dictation.start;
+            : isDictationStarting
+              ? uiCopy.dictation.starting
+              : isDictationProcessing
+                ? uiCopy.dictation.transcribing
+                : uiCopy.dictation.start;
         const dictationButtonClassName = [
           "is-dictation",
           dictationState === "listening" ? "is-recording" : "",
-          isDictationProcessing ? "is-processing" : "",
+          isDictationStarting || isDictationProcessing ? "is-processing" : "",
         ]
           .filter(Boolean)
           .join(" ");
@@ -371,11 +387,11 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
           if (!isFloatingVariant || toolMode !== "attach-only") {
             return;
           }
-          if (!shouldFocusComposerTextarea(event.target)) {
+          if (!shouldFocusComposerEditor(event.target)) {
             return;
           }
           window.requestAnimationFrame(() => {
-            textareaRef.current?.focus();
+            editorRef.current?.focus();
           });
         };
 
@@ -422,6 +438,9 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                     return (
                       <PathReferenceChip
                         key={reference.id}
+                        data-reference-id={reference.id}
+                        data-reference-path={reference.path}
+                        data-reference-is-dir={String(reference.isDir)}
                         title={reference.name}
                         data-testid="inputbar-path-reference-chip"
                       >
@@ -481,11 +500,16 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                   <ImagePlus size={14} />
                 </InputIconButton>
                 <InputColumn>
-                  <StyledTextarea
-                    ref={textareaRef}
-                    {...textareaProps}
-                    data-session-id={sessionId || undefined}
-                    className={textareaClassName}
+                  <StyledComposerEditor
+                    {...editorProps}
+                    onCompositionStateChange={(active) => {
+                      editorProps.onCompositionStateChange?.(active);
+                      if (active && discardDictationSession()) {
+                        toast.info(uiCopy.dictation.interruptedByComposition);
+                      }
+                    }}
+                    sessionId={sessionId ?? undefined}
+                    className={editorClassName}
                   />
                   {liveTranscript.trim() ? (
                     <DictationLiveTranscript
@@ -498,25 +522,25 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                   ) : null}
                 </InputColumn>
                 <ActionButtonGroup data-testid="inputbar-primary-actions">
-                  {showTextareaExpandButton ? (
+                  {showEditorExpandButton ? (
                     <InputIconButton
                       type="button"
-                      onClick={handleToggleTextareaExpanded}
+                      onClick={handleToggleEditorExpanded}
                       disabled={disabled}
                       data-testid="inputbar-expand-toggle"
-                      className={isTextareaExpanded ? "is-active" : ""}
+                      className={isEditorExpanded ? "is-active" : ""}
                       aria-label={
-                        isTextareaExpanded
-                          ? uiCopy.textarea.collapse
-                          : uiCopy.textarea.expand
+                        isEditorExpanded
+                          ? uiCopy.editor.collapse
+                          : uiCopy.editor.expand
                       }
                       title={
-                        isTextareaExpanded
-                          ? uiCopy.textarea.collapse
-                          : uiCopy.textarea.expand
+                        isEditorExpanded
+                          ? uiCopy.editor.collapse
+                          : uiCopy.editor.expand
                       }
                     >
-                      {isTextareaExpanded ? (
+                      {isEditorExpanded ? (
                         <ChevronDown size={14} />
                       ) : (
                         <ChevronUp size={14} />
@@ -551,11 +575,22 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                           <DictationRecordingWaveform aria-hidden />
                           <Mic size={14} aria-hidden />
                         </>
-                      ) : isDictationProcessing ? (
+                      ) : isDictationStarting || isDictationProcessing ? (
                         <Loader2 size={14} aria-hidden />
                       ) : (
                         <Mic size={14} aria-hidden />
                       )}
+                    </InputIconButton>
+                  ) : null}
+                  {isDictationBusy ? (
+                    <InputIconButton
+                      type="button"
+                      data-testid="inputbar-dictation-cancel"
+                      onClick={handleDictationCancel}
+                      aria-label={uiCopy.dictation.cancel}
+                      title={uiCopy.dictation.cancel}
+                    >
+                      <X size={14} aria-hidden />
                     </InputIconButton>
                   ) : null}
                   {isLoading ? (

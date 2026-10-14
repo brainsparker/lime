@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { normalizeCanvasWorkbenchPath } from "../../CanvasWorkbenchLayoutViewModel";
 import { collapseCanvasWorkbenchDiffContext } from "../../../utils/canvasWorkbenchDiff";
 import type { HarnessFilePreviewResult } from "../../HarnessStatusPanel";
 import { resolveLatestReviewBoundary } from "../../CodeReviewSummaryPanelViewModel";
@@ -6,12 +7,13 @@ import type { CanvasWorkbenchDiffLine } from "../../../utils/canvasWorkbenchDiff
 import type { CanvasWorkbenchResolvedSelection } from "../../CanvasWorkbenchLayoutViewModel";
 import {
   buildCanvasWorkbenchChangeFileTree,
-  buildCanvasWorkbenchChangeDiffLines,
+  canLoadCanvasWorkbenchChangeFullFile,
   countCanvasWorkbenchChangeItemsStats,
   countCanvasWorkbenchDiffStats,
   findChangeItemForSelection,
   flattenCanvasWorkbenchChangeFileTree,
   resolveCanvasWorkbenchSelectedChangeItem,
+  resolveChangeDisplayMeta,
   summarizeCanvasWorkbenchChanges,
 } from "./CanvasWorkbenchChangesPanelViewModel";
 import type {
@@ -25,7 +27,10 @@ import { CanvasWorkbenchEmptyDiffPanel } from "./CanvasWorkbenchEmptyDiffPanel";
 import { CanvasWorkbenchReviewSurface } from "./CanvasWorkbenchReviewSurface";
 import { useCanvasWorkbenchChangesFilesPanelResize } from "./useCanvasWorkbenchChangesFilesPanelResize";
 import { useCanvasWorkbenchReviewState } from "./useCanvasWorkbenchReviewState";
-import type { CanvasWorkbenchTranslation } from "./CanvasWorkbenchChangesTypes";
+import type {
+  CanvasWorkbenchReviewBase,
+  CanvasWorkbenchTranslation,
+} from "./CanvasWorkbenchChangesTypes";
 
 interface CanvasWorkbenchChangesPanelProps {
   changeView: CanvasWorkbenchChangeView | null | undefined;
@@ -38,6 +43,8 @@ interface CanvasWorkbenchChangesPanelProps {
   loadFilePreview?: (path: string) => Promise<HarnessFilePreviewResult>;
   filesPanelOpen?: boolean;
   onToggleFilesPanel?: () => void;
+  selectedPath?: string | null;
+  initialBase?: CanvasWorkbenchReviewBase;
 }
 
 export function CanvasWorkbenchChangesPanel({
@@ -51,15 +58,17 @@ export function CanvasWorkbenchChangesPanel({
   loadFilePreview,
   filesPanelOpen = true,
   onToggleFilesPanel,
+  selectedPath,
+  initialBase,
 }: CanvasWorkbenchChangesPanelProps) {
   const [selectedChangeId, setSelectedChangeId] = useState<string | null>(null);
+  const [selectionRequestKey, setSelectionRequestKey] = useState(0);
+  const requestedPathRef = useRef<string | null>(null);
   const [reviewMenuOpen, setReviewMenuOpen] = useState(false);
   const [baseMenuOpen, setBaseMenuOpen] = useState(false);
   const [collapseDiffContext, setCollapseDiffContext] = useState(false);
   const [showWhitespace, setShowWhitespace] = useState(false);
   const wordWrapEnabled = true;
-  const [autoExecuteEnabled, setAutoExecuteEnabled] = useState(false);
-  const [richPreviewEnabled, setRichPreviewEnabled] = useState(true);
   const [textDiffEnabled, setTextDiffEnabled] = useState(true);
   const [diffVariant, setDiffVariant] = useState<"inline" | "split">("inline");
   const [fileFilter, setFileFilter] = useState("");
@@ -88,9 +97,12 @@ export function CanvasWorkbenchChangesPanel({
     fallbackPatch,
     fullFileContentById,
     loadFullFile,
+    invalidateFileRequest,
     openCommitMenu,
     refreshChanges,
     reviewActionBusy,
+    requestError,
+    retryRequest,
     selectBase,
     selectCommit,
     selectedBase,
@@ -102,6 +114,7 @@ export function CanvasWorkbenchChangesPanel({
     workspaceRoot,
     loadFilePreview,
     translateWorkbench,
+    initialBase,
   });
   const changeItemCount = changeItems.length;
   const activeSelectionChangeItem = useMemo(
@@ -122,6 +135,25 @@ export function CanvasWorkbenchChangesPanel({
     selectedChangeItem,
   );
   selectedChangeItemRef.current = selectedChangeItem;
+  useLayoutEffect(() => {
+    invalidateFileRequest();
+  }, [invalidateFileRequest, selectedChangeItem?.id]);
+  useEffect(() => {
+    const path = normalizeCanvasWorkbenchPath(selectedPath ?? "");
+    if (!path) return;
+    const request = `${workspaceRoot ?? ""}:${changeView?.reviewThreadId ?? ""}:${path}`;
+    if (requestedPathRef.current === request) return;
+    const item = changeItems.find((item) =>
+      [item.path, item.absolutePath, item.destinationPath].some((candidate) => {
+        const normalized = normalizeCanvasWorkbenchPath(candidate ?? "");
+        return normalized === path || normalized.endsWith(`/${path}`);
+      }),
+    );
+    if (!item) return;
+    requestedPathRef.current = request;
+    setSelectedChangeId(item.id);
+    setSelectionRequestKey((key) => key + 1);
+  }, [changeItems, changeView?.reviewThreadId, selectedPath, workspaceRoot]);
   const selectedLoadedContent =
     loadFullFile && selectedChangeItem
       ? fullFileContentById[selectedChangeItem.id]
@@ -172,6 +204,30 @@ export function CanvasWorkbenchChangesPanel({
       setReviewStartState("failed");
     }
   };
+  const requestNotice = requestError ? (
+    <div
+      role="alert"
+      data-testid="canvas-workbench-changes-error"
+      className="flex items-center justify-between gap-2 border-b border-[color:var(--lime-surface-border)] px-3 py-2 text-xs text-destructive"
+    >
+      <span>{requestError}</span>
+      <button
+        type="button"
+        data-testid="canvas-workbench-changes-retry"
+        disabled={reviewActionBusy}
+        onClick={() => void retryRequest()}
+      >
+        {translateWorkbench("agentChat.harness.codeReview.action.retry")}
+      </button>
+    </div>
+  ) : reviewActionBusy ? (
+    <div
+      role="status"
+      className="px-3 py-2 text-xs text-[color:var(--lime-text-muted)]"
+    >
+      {translateWorkbench("agentChat.filesSurface.gitChangesLoading")}
+    </div>
+  ) : null;
 
   useEffect(() => {
     if (
@@ -247,12 +303,10 @@ export function CanvasWorkbenchChangesPanel({
     changeFileCount: props.changeFileCount,
     filesPanelOpen,
     reviewActionBusy,
-    autoExecuteEnabled,
     commitOptions,
     commitsLoading,
     selectedCommitSha,
     collapseDiffContext,
-    richPreviewEnabled,
     textDiffEnabled,
     showWhitespace,
     diffVariant,
@@ -262,13 +316,22 @@ export function CanvasWorkbenchChangesPanel({
     onOpenCommitMenu: openCommitMenu,
     onSelectCommit: handleSelectCommit,
     onRefreshChanges: refreshChanges,
-    onToggleAutoExecute: () => setAutoExecuteEnabled((enabled) => !enabled),
     onToggleCollapseContext: () =>
       setCollapseDiffContext((enabled) => !enabled),
-    onToggleRichPreview: () => setRichPreviewEnabled((enabled) => !enabled),
     onToggleTextDiff: () => setTextDiffEnabled((enabled) => !enabled),
     onToggleWhitespace: () => setShowWhitespace((enabled) => !enabled),
     onToggleFilesPanel: handleToggleFilesPanel,
+    onOpenFile:
+      selectedChangeItem &&
+      resolveChangeDisplayMeta(selectedChangeItem).kind !== "deleted" &&
+      changeView?.onOpenFile
+        ? () =>
+            void changeView.onOpenFile?.(
+              selectedChangeItem.destinationPath ||
+                selectedChangeItem.absolutePath ||
+                selectedChangeItem.path,
+            )
+        : undefined,
     ...props,
     reviewRunStatus,
     reviewStatusLabelKey,
@@ -292,20 +355,11 @@ export function CanvasWorkbenchChangesPanel({
       onPointerCancel={handleFilesPanelResizeEnd}
       onKeyDown={handleFilesPanelResizeKeyDown}
     >
-      <span className="mx-auto block h-full w-px bg-slate-200 transition-colors group-hover:bg-slate-300" />
+      <span className="mx-auto block h-full w-px bg-[color:var(--lime-surface-border)] transition-colors group-hover:bg-[color:var(--lime-surface-border-strong)]" />
     </div>
   ) : null;
 
   if (changeItemCount > 0) {
-    const selectedDiffLines = buildCanvasWorkbenchChangeDiffLines(
-      selectedChangeItem,
-      selectedLoadedContent,
-    );
-    const visibleDiffLines = collapseDiffContext
-      ? collapseCanvasWorkbenchDiffContext(selectedDiffLines)
-      : textDiffEnabled
-        ? selectedDiffLines
-        : selectedDiffLines.filter((line) => line.type !== "context");
     const filteredFileTree = buildCanvasWorkbenchChangeFileTree(
       changeItems,
       fileFilter,
@@ -313,34 +367,30 @@ export function CanvasWorkbenchChangesPanel({
     const filteredChangeItems =
       flattenCanvasWorkbenchChangeFileTree(filteredFileTree);
     const changeSummary = summarizeCanvasWorkbenchChanges(filteredChangeItems);
-    const selectedItemStats = selectedChangeItem
-      ? countCanvasWorkbenchChangeItemsStats([selectedChangeItem])
-      : { additions: 0, removals: 0 };
-    const diffStats = selectedBaseUsesGit
-      ? countCanvasWorkbenchChangeItemsStats(filteredChangeItems)
-      : selectedItemStats;
-    const latestCheckpointPath =
-      changeView?.latestCheckpointPath ||
-      selectedChangeItem?.checkpointPath ||
-      null;
+    const diffStats = countCanvasWorkbenchChangeItemsStats(filteredChangeItems);
     const handleSelectChangeItem = (item: CanvasWorkbenchChangeItem) => {
       setSelectedChangeId(item.id);
-      if (item.absolutePath || item.path) {
-        void changeView?.onOpenFile?.(item.absolutePath || item.path);
-      }
+      setSelectionRequestKey((key) => key + 1);
     };
     return (
       <CanvasWorkbenchReviewSurface
+        notice={requestNotice}
         toolbar={buildToolbarProps({
           diffStats,
           changeFileCount: changeSummary.fileCount,
           checkpointCount: changeView?.checkpointCount,
           copyGitApplyDisabled: !backendPatch?.trim() && !fallbackPatch.trim(),
-          loadFullFileDisabled: !loadFilePreview || !selectedChangeItem,
+          loadFullFileDisabled:
+            !loadFilePreview ||
+            !canLoadCanvasWorkbenchChangeFullFile(selectedChangeItem),
           loadFullFile: selectedLoadFullFile,
           onCopyGitApply: copyGitApply,
           onToggleLoadFullFile: () => {
-            void toggleLoadFullFile(selectedChangeItemRef.current);
+            const item = selectedChangeItemRef.current;
+            void toggleLoadFullFile(
+              item,
+              () => selectedChangeItemRef.current?.id === item?.id,
+            );
           },
           onToggleDiffVariant: handleToggleDiffVariant,
         })}
@@ -354,36 +404,21 @@ export function CanvasWorkbenchChangesPanel({
         onFileFilterChange={setFileFilter}
         onSelectChangeItem={handleSelectChangeItem}
         detail={
-          selectedBaseUsesGit ? (
-            <CanvasWorkbenchChangeDiffList
-              items={filteredChangeItems}
-              selectedChangeItem={selectedChangeItem}
-              fullFileContentById={fullFileContentById}
-              loadFullFile={loadFullFile}
-              collapseDiffContext={collapseDiffContext}
-              textDiffEnabled={textDiffEnabled}
-              panelClassName={panelClassName}
-              diffVariant={diffVariant}
-              showWhitespace={showWhitespace}
-              wordWrapEnabled={wordWrapEnabled}
-              translateWorkbench={translateWorkbench}
-              onSelectChangeItem={handleSelectChangeItem}
-            />
-          ) : (
-            <CanvasWorkbenchChangeDetailPanel
-              selectedChangeItem={selectedChangeItem}
-              selectedItemStats={selectedItemStats}
-              latestCheckpointPath={latestCheckpointPath}
-              visibleDiffLines={visibleDiffLines}
-              selectedDiffLines={selectedDiffLines}
-              panelClassName={panelClassName}
-              mutedPanelClassName={mutedPanelClassName}
-              diffVariant={diffVariant}
-              showWhitespace={showWhitespace}
-              wordWrapEnabled={wordWrapEnabled}
-              translateWorkbench={translateWorkbench}
-            />
-          )
+          <CanvasWorkbenchChangeDiffList
+            items={filteredChangeItems}
+            selectedChangeItem={selectedChangeItem}
+            selectionRequestKey={selectionRequestKey}
+            fullFileContentById={fullFileContentById}
+            loadFullFile={loadFullFile}
+            collapseDiffContext={collapseDiffContext}
+            textDiffEnabled={textDiffEnabled}
+            panelClassName={panelClassName}
+            diffVariant={diffVariant}
+            showWhitespace={showWhitespace}
+            wordWrapEnabled={wordWrapEnabled}
+            translateWorkbench={translateWorkbench}
+            onSelectChangeItem={handleSelectChangeItem}
+          />
         }
       />
     );
@@ -392,6 +427,7 @@ export function CanvasWorkbenchChangesPanel({
   if ((changeView || selectedBaseUsesGit) && changeItemCount === 0) {
     return (
       <CanvasWorkbenchReviewSurface
+        notice={requestNotice}
         toolbar={buildToolbarProps({
           diffStats: { additions: 0, removals: 0 },
           changeFileCount: 0,

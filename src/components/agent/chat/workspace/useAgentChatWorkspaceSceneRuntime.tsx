@@ -51,7 +51,7 @@ export function useAgentChatWorkspaceSceneRuntime({
   // prettier-ignore
   const {
     untitledTaskLabel, normalizedEntryTheme, shouldBootstrapCanvasOnEntry, activeTheme, artifactPreviewSize, creationMode, effectiveEntryBannerMessage, entryBannerVisible,
-    expertInfoPanelCollapsed, handleInputRestoreRequestHandled, input, inputbarObjectiveModeEnabled, inputRestoreRequest, layoutMode, selectedText, setActiveTheme,
+    expertInfoPanelCollapsed, handleInputRestoreRequestHandled, input, composerController, inputbarObjectiveModeEnabled, inputRestoreRequest, layoutMode, selectedText, setActiveTheme,
     setArtifactPreviewSize, setCanvasWorkbenchLayoutMode, setCreationMode, setExpertInfoPanelCollapsed, setInput, setInputbarObjectiveModeEnabled, setLayoutMode, pathReferences,
     handleAddPathReferences, handleRemovePathReference, handleClearPathReferences, fileManagerSidebar, activeSessionIdRef, setChatToolPreferences, handleInstallSkillPackageFromFileManager,
     handleOpenSkillsManageFromExpertPanel, projectId, markNewChatRequestHandled, taskCenterWorkspaceId, normalizedInitialSessionId, shouldUseBrowserWorkspaceHomeChrome, shouldDeferWorkspaceAuxiliaryLoads, project,
@@ -107,6 +107,7 @@ export function useAgentChatWorkspaceSceneRuntime({
     currentSessionTitle,
     handleStopSending,
     input,
+    composerController,
     setInput,
     currentGate,
     generalWorkbenchWorkflowSteps,
@@ -127,7 +128,6 @@ export function useAgentChatWorkspaceSceneRuntime({
     setReasoningEffort,
     sessionExecutionRuntime: executionRuntime,
     projectId: projectId ?? null,
-    openedProjects,
     projectRootPath: project?.rootPath || null,
     accessMode,
     setAccessMode,
@@ -467,6 +467,7 @@ export function useAgentChatWorkspaceSceneRuntime({
         handleSendFromEmptyState,
         initialInputCapability: effectiveInitialInputCapability,
         input,
+        composerController,
         inputbarScene,
         inputRestoreRequest,
         lockTheme: resolvedLockTheme,

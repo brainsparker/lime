@@ -77,7 +77,7 @@ async fn thread_search_reads_canonical_content_with_exact_filters_and_cursors() 
     );
     assert_eq!(
         first["result"]["data"][0]["thread"]["status"]["type"],
-        "idle"
+        "notLoaded"
     );
     let next_cursor = first["result"]["nextCursor"]
         .as_str()

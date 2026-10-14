@@ -431,6 +431,17 @@ export async function appServerCallFromPage(page, method, params = {}) {
         method,
         result: result.result,
         decoded,
+        ipcObservation: {
+          electron: window.__LIME_ELECTRON__ === true,
+          fallback: window.electronAPI.devBridgeFallback,
+          transport: "electron-ipc",
+          status: "success",
+          command,
+          method,
+          params,
+          requestId: id,
+          responseId: result.id,
+        },
         traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
         errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
       };

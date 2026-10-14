@@ -77,7 +77,7 @@ export async function openImportedSessionFromSidebar(
       snapshot.messageListSessionId === target.sessionId &&
       snapshot.messageContentTextLength > 0 &&
       snapshot.messageContentChildCount > 0 &&
-      (snapshot.textareaSessionId === target.sessionId ||
+      (snapshot.editorSessionId === target.sessionId ||
         snapshot.planDecisionVisible ||
         snapshot.approvalReplacementVisible),
     "会话页未进入目标 session",
@@ -103,9 +103,9 @@ export async function openImportedSessionFromSidebar(
     options,
     (snapshot) =>
       snapshot.messageListSessionId === target.sessionId &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
-      snapshot.textareaSessionId === target.sessionId &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
+      snapshot.editorSessionId === target.sessionId &&
       snapshot.messageContentTextLength > 0 &&
       snapshot.messageContentChildCount > 0,
     "目标会话未恢复普通输入框",

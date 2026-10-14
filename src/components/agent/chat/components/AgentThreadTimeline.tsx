@@ -172,10 +172,6 @@ function TimelineBlockCard({
     }
 
     setOpen(true);
-    focusedEntryRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "center",
-    });
   }, [focusRequestKey, renderPlan.hasFocusedItem]);
   const fileArtifactItems = block.items.filter(
     (item): item is Extract<AgentThreadItem, { type: "file_artifact" }> =>

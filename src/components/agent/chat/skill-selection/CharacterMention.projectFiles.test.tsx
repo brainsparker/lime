@@ -1,8 +1,9 @@
+import { setComposerSelection } from "./CharacterMention.testFixtures";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   findButtonContaining,
-  getTextarea,
+  getComposerEditor,
   mockGetProject,
   mockSearchProjectFiles,
   renderHarness,
@@ -35,11 +36,11 @@ describe("CharacterMention project files", () => {
       projectId: "project-1",
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "compare @brief with @other");
     act(() => {
-      textarea.setSelectionRange(14, 14);
+      setComposerSelection(textarea, 14, 14);
       textarea.dispatchEvent(new Event("keyup", { bubbles: true }));
     });
     await act(async () => {
@@ -75,7 +76,7 @@ describe("CharacterMention project files", () => {
   it("没有项目时不调用文件搜索", async () => {
     vi.useFakeTimers();
     const container = renderHarness({ projectId: null });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@app");
     await act(async () => {
@@ -108,7 +109,7 @@ describe("CharacterMention project files", () => {
           }),
       );
     const container = renderHarness({ projectId: "project-1" });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@app");
     await act(async () => {

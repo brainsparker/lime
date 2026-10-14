@@ -11,6 +11,7 @@ const MESSAGE_IMAGE_PREVIEW_MAX_BYTES = 32 * 1024 * 1024;
 interface MessageImageAttachmentsProps {
   images: Message["images"];
   threadId?: string | null;
+  thumbnail?: boolean;
   onOpenImage?: (
     image: NonNullable<Message["images"]>[number],
     index: number,
@@ -64,10 +65,12 @@ function MessageImageAttachment({
   index,
   onOpenImage,
   threadId,
+  thumbnail = false,
 }: {
   image: NonNullable<Message["images"]>[number];
   index: number;
   threadId?: string | null;
+  thumbnail?: boolean;
   onOpenImage?: MessageImageAttachmentsProps["onOpenImage"];
 }) {
   const { t } = useTranslation("agent");
@@ -126,15 +129,33 @@ function MessageImageAttachment({
     loadFailed || (!src && (!sidecarUri || !normalizedThreadId));
   const imageNode =
     isUnavailable || !src ? (
-      <ImageUnavailablePlaceholder
-        label={t("agentChat.messageImageAttachments.unavailable")}
-        testId={`message-image-attachment-unavailable-${index}`}
-        className="h-28 w-40 max-w-xs"
-      />
+      thumbnail ? (
+        <span
+          role="img"
+          aria-label={t("agentChat.messageImageAttachments.unavailable")}
+          className="inline-flex size-6 shrink-0 items-center justify-center rounded border border-border bg-muted/40"
+          data-testid={`message-image-attachment-unavailable-${index}`}
+        >
+          <span aria-hidden className="text-xs text-muted-foreground">
+            —
+          </span>
+        </span>
+      ) : (
+        <ImageUnavailablePlaceholder
+          label={t("agentChat.messageImageAttachments.unavailable")}
+          testId={`message-image-attachment-unavailable-${index}`}
+          className="h-28 w-40 max-w-xs"
+        />
+      )
     ) : (
       <img
         src={src}
-        className="max-h-64 max-w-xs rounded-lg border border-border object-contain"
+        className={
+          thumbnail
+            ? "size-6 shrink-0 rounded border border-border object-cover"
+            : "max-h-64 max-w-xs rounded-lg border border-border object-contain"
+        }
+        draggable={!thumbnail}
         alt={t("agentChat.messageImageAttachments.alt")}
         data-testid={`message-image-attachment-${index}`}
         onError={() => setLoadFailed(true)}
@@ -161,6 +182,7 @@ export function MessageImageAttachments({
   images,
   onOpenImage,
   threadId,
+  thumbnail,
 }: MessageImageAttachmentsProps) {
   if (!images?.length) {
     return null;
@@ -176,6 +198,7 @@ export function MessageImageAttachments({
             index={index}
             onOpenImage={onOpenImage}
             threadId={threadId}
+            thumbnail={thumbnail}
           />
         );
       })}

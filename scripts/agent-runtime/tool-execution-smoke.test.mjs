@@ -86,9 +86,7 @@ describe("agent runtime tool execution smoke guard", () => {
           model: "lime-fixture-chat",
           stream: true,
           messages: [{ role: "user", content: "capacity" }],
-          tools: [
-            { type: "function", function: { name: "spawn_agent" } },
-          ],
+          tools: [{ type: "function", function: { name: "spawn_agent" } }],
         }),
       });
       const body = await response.text();
@@ -302,56 +300,55 @@ describe("agent runtime tool execution smoke guard", () => {
   });
 
   it("requires typed approval, one visible identity, and Electron read-model proof", () => {
-    const assertions =
-      buildToolOrchestratorSandboxRetryVisibleDomAssertions({
-        evidence: {
-          assertions: {
-            sandboxRetryKeptOneCanonicalToolIdentity: true,
-            sandboxRetryApprovalResponded: true,
-            sandboxRetryCompletedCanonicalTool: true,
-            sandboxRetryWroteOutsideWorkspaceAfterApproval: true,
+    const assertions = buildToolOrchestratorSandboxRetryVisibleDomAssertions({
+      evidence: {
+        assertions: {
+          sandboxRetryKeptOneCanonicalToolIdentity: true,
+          sandboxRetryApprovalResponded: true,
+          sandboxRetryCompletedCanonicalTool: true,
+          sandboxRetryWroteOutsideWorkspaceAfterApproval: true,
+        },
+        runtime: {
+          policies: {
+            approvalPolicy: "on-request",
+            sandboxPolicy: "workspace-write",
           },
-          runtime: {
-            policies: {
-              approvalPolicy: "on-request",
-              sandboxPolicy: "workspace-write",
-            },
-            finalSnapshot: {
-              respondedRequests: [
-                {
-                  itemId: TOOL_ORCHESTRATOR_SANDBOX_RETRY_CALL_ID,
-                  method: "item/fileChange/requestApproval",
-                  outerRequestId: "app-server-request:boot:7",
-                },
-              ],
-            },
+          finalSnapshot: {
+            respondedRequests: [
+              {
+                itemId: TOOL_ORCHESTRATOR_SANDBOX_RETRY_CALL_ID,
+                method: "item/fileChange/requestApproval",
+                outerRequestId: "app-server-request:boot:7",
+              },
+            ],
           },
         },
-        snapshot: {
-          electron: true,
-          hasInvokeBridge: true,
-          supportsAppServer: true,
-          sessionId: "session-1",
-          activeSessionId: "session-1",
-          fileChangeGroups: [
-            {
-              fileRowCount: 1,
-              status: "completed",
-              visible: true,
-            },
-          ],
-          finalAssistantTextVisible: true,
-          appServerCalls: [
-            {
-              method: "thread/read",
-              transport: "electron-ipc",
-              status: "success",
-            },
-          ],
-          invokeErrorCount: 0,
-          consoleErrorCount: 0,
-        },
-      });
+      },
+      snapshot: {
+        electron: true,
+        hasInvokeBridge: true,
+        supportsAppServer: true,
+        sessionId: "session-1",
+        activeSessionId: "session-1",
+        fileChangeGroups: [
+          {
+            fileRowCount: 1,
+            status: "completed",
+            visible: true,
+          },
+        ],
+        finalAssistantTextVisible: true,
+        appServerCalls: [
+          {
+            method: "thread/read",
+            transport: "electron-ipc",
+            status: "success",
+          },
+        ],
+        invokeErrorCount: 0,
+        consoleErrorCount: 0,
+      },
+    });
 
     expect(Object.values(assertions).every(Boolean)).toBe(true);
   });
@@ -847,8 +844,8 @@ describe("agent runtime tool execution smoke guard", () => {
         dom: {
           activeSessionId: "session-child",
           childThreadId: "thread-child",
-          textareaVisible: true,
-          textareaDisabled: true,
+          editorVisible: true,
+          editorDisabled: true,
           placeholder: "此子线程由父线程管理，无法直接输入",
           controls: {
             sendButtonPresent: true,

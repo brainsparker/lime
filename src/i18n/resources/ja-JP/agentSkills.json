@@ -744,7 +744,6 @@
   "skills.workspace.sidebar.recent.emptySr": "まだ続行できる項目はありません。左側から結果または Skill を選ぶと、以後ここに自動で戻ります。",
   "skills.workspace.sidebar.recent.title": "最近",
   "skills.workspace.sidebar.registered.title": "登録済み能力",
-  "skills.inputBadge.remove": "@{{name}}を外す",
   "skills.workspace.view.tabsLabel": "スキルページ",
   "agentChat.skillInstallPrompt.installedConfirmation": "Skill をインストールしました: {{skill}}\n\nLime は Skills を再読み込みしました。入力欄でこの Skill を @ メンションするか、Skills ワークスペースから使用できます。",
   "agentChat.skillInstallPrompt.alreadyInstalledConfirmation": "Skill はすでにインストール済みです: {{skill}}\n\nインストール Prompt の要件に従って既存ディレクトリは上書きせず、Lime はその Skill をそのまま使用します。",

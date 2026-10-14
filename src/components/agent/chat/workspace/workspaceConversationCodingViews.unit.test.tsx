@@ -23,11 +23,13 @@ vi.mock("@limecloud/agent-runtime-projection", async (importOriginal) => {
   };
 });
 
-vi.mock("react-i18next", async () => {
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
   const agentZhCN = (await import("@/i18n/resources/zh-CN/agent.json"))
     .default as Record<string, string>;
 
   return {
+    ...actual,
     useTranslation: () => ({
       t: (key: string, options?: Record<string, unknown>) => {
         const template = agentZhCN[key] ?? key;
@@ -73,7 +75,24 @@ afterEach(() => {
 });
 
 describe("buildWorkspaceConversationCodingViews", () => {
-  it("默认无 coding read model 时不应构建工作台投影", () => {
+  it("空 thread 也向 Files 传递 canonical identity 和既有文件动作", () => {
+    const onOpenFile = vi.fn();
+    const views = buildWorkspaceConversationCodingViews({
+      t: t as never,
+      locale: "zh-CN",
+      turns: [],
+      threadRead: { thread_id: "thread-empty" },
+      pendingActions: [],
+      submittedActionsInFlight: [],
+      onOpenFile,
+    });
+    expect(views.changeView).toMatchObject({
+      reviewThreadId: "thread-empty",
+      items: [],
+      onOpenFile,
+    });
+  });
+  it("普通会话保留 Files identity 且不强制显示 runtime 工作台", () => {
     vi.mocked(projectCodingWorkbenchViewFromEvents).mockClear();
 
     const views = buildWorkspaceConversationCodingViews({
@@ -98,13 +117,16 @@ describe("buildWorkspaceConversationCodingViews", () => {
       isSending: false,
     });
 
-    expect(projectCodingWorkbenchViewFromEvents).not.toHaveBeenCalled();
+    expect(projectCodingWorkbenchViewFromEvents).toHaveBeenCalledOnce();
     expect(views.currentSessionTurn?.id).toBe("turn-plain");
     expect(views.counters.shouldUseRuntimeWorkbench).toBe(false);
     expect(views.sessionView).toBeNull();
     expect(views.outputView).toBeNull();
     expect(views.logView).toBeNull();
-    expect(views.changeView).toBeNull();
+    expect(views.changeView).toMatchObject({
+      reviewThreadId: "thread-plain",
+      items: [],
+    });
   });
 
   it("终止后台终端成功后应刷新 session read model", async () => {

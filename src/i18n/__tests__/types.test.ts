@@ -309,8 +309,8 @@ function assertI18nKeyTypes() {
     name: "brief.txt",
   });
   i18n.t("agentChat.inputbar.core.suggestion.acceptTitle", { ns: "agent" });
-  i18n.t("agentChat.inputbar.core.textarea.expand", { ns: "agent" });
-  i18n.t("agentChat.inputbar.core.textarea.collapse", { ns: "agent" });
+  i18n.t("agentChat.inputbar.core.editor.expand", { ns: "agent" });
+  i18n.t("agentChat.inputbar.core.editor.collapse", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.action.defer", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.action.stop", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.action.send", { ns: "agent" });

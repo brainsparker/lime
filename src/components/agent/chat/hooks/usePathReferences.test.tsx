@@ -1,6 +1,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ComposerController } from "@/components/input-kit/ComposerController";
 
 import type { MessagePathReference } from "../types";
 import {
@@ -28,14 +29,14 @@ describe("usePathReferences", () => {
   let root: Root;
   let latest: PathReferencesController;
 
-  function Harness({ initial }: { initial?: MessagePathReference[] }) {
-    latest = usePathReferences(initial);
+  function Harness({ initial, controller }: { initial?: MessagePathReference[]; controller?: ComposerController }) {
+    latest = usePathReferences(initial, controller);
     return null;
   }
 
-  function mount(initial?: MessagePathReference[]) {
+  function mount(initial?: MessagePathReference[], controller?: ComposerController) {
     act(() => {
-      root.render(<Harness initial={initial} />);
+      root.render(<Harness initial={initial} controller={controller} />);
     });
   }
 
@@ -103,5 +104,35 @@ describe("usePathReferences", () => {
     expect(latest.addPathReferences).toBe(add);
     expect(latest.removePathReference).toBe(remove);
     expect(latest.clearPathReferences).toBe(clear);
+  });
+
+  it("同batch新增路径立即推进共享revision，迟到receipt不能清新引用", () => {
+    const controller = new ComposerController({ text: "待发送草稿" });
+    mount(undefined, controller);
+    act(() => {
+      const receipt = controller.submit("start");
+      latest.addPathReferences([makeRef("new-path")]);
+      expect(controller.commit(receipt)).toBe(false);
+      expect(controller.getDocument().pathReferences).toEqual([makeRef("new-path")]);
+    });
+    expect(latest.pathReferences).toEqual([makeRef("new-path")]);
+  });
+
+  it("merge/remove/clear同步写唯一controller，scope reset立即清投影", () => {
+    const controller = new ComposerController({ pathReferences: [makeRef("a")] });
+    mount([makeRef("unused-local")], controller);
+    expect(latest.pathReferences).toEqual([makeRef("a")]);
+    act(() => {
+      latest.addPathReferences([makeRef("b")]);
+      latest.addPathReferences([makeRef("a", { name: "renamed" })]);
+      expect(controller.getDocument().pathReferences).toEqual([makeRef("a", { name: "renamed" }), makeRef("b")]);
+      latest.removePathReference("a");
+      expect(controller.getDocument().pathReferences).toEqual([makeRef("b")]);
+      latest.clearPathReferences();
+      expect(controller.getDocument().pathReferences).toEqual([]);
+      latest.addPathReferences([makeRef("c")]);
+      controller.clear();
+    });
+    expect(latest.pathReferences).toEqual([]);
   });
 });

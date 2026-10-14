@@ -1,4 +1,5 @@
 import { ChevronDown } from "lucide-react";
+import { useLayoutEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import {
   collapseCanvasWorkbenchDiffContext,
@@ -18,6 +19,7 @@ import type { CanvasWorkbenchTranslation } from "./CanvasWorkbenchChangesTypes";
 interface CanvasWorkbenchChangeDiffListProps {
   items: CanvasWorkbenchChangeItem[];
   selectedChangeItem?: CanvasWorkbenchChangeItem;
+  selectionRequestKey?: number;
   fullFileContentById?: Record<string, string>;
   loadFullFile?: boolean;
   collapseDiffContext: boolean;
@@ -53,6 +55,7 @@ function buildVisibleDiffLines(
 export function CanvasWorkbenchChangeDiffList({
   items,
   selectedChangeItem,
+  selectionRequestKey = 0,
   fullFileContentById,
   loadFullFile = false,
   collapseDiffContext,
@@ -64,9 +67,20 @@ export function CanvasWorkbenchChangeDiffList({
   translateWorkbench,
   onSelectChangeItem,
 }: CanvasWorkbenchChangeDiffListProps) {
+  const fileElements = useRef(new Map<string, HTMLElement>());
+  const selectedChangeId = selectedChangeItem?.id;
+  useLayoutEffect(() => {
+    if (!selectionRequestKey || !selectedChangeId) return;
+    fileElements.current
+      .get(selectedChangeId)
+      ?.scrollIntoView?.({ block: "start", inline: "nearest" });
+  }, [selectedChangeId, selectionRequestKey]);
   return (
-    <div className="h-full min-h-0 overflow-auto bg-white">
-      <div className="min-w-[760px]">
+    <div
+      className="h-full min-h-0 overflow-auto bg-[color:var(--lime-surface)]"
+      data-testid="canvas-workbench-change-diff-list"
+    >
+      <div className={diffVariant === "split" ? "min-w-[760px]" : "min-w-0"}>
         {items.map((item) => {
           const diffLines = buildCanvasWorkbenchChangeDiffLines(
             item,
@@ -88,26 +102,35 @@ export function CanvasWorkbenchChangeDiffList({
               key={item.id}
               data-testid="canvas-workbench-change-diff-file"
               data-change-id={item.id}
+              data-review-path={item.path}
+              data-selected={active}
+              ref={(element) => {
+                if (element) fileElements.current.set(item.id, element);
+                else fileElements.current.delete(item.id);
+              }}
               className={cn(
-                "border-b border-slate-200 bg-white",
-                active && "shadow-[inset_3px_0_0_#22c55e]",
+                "border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)]",
+                active && "shadow-[inset_3px_0_0_var(--lime-brand)]",
               )}
             >
               <button
                 type="button"
                 className={cn(
-                  "flex h-9 w-full items-center justify-between gap-2 border-b border-slate-200 px-3 text-left transition-colors hover:bg-slate-50",
-                  active ? "bg-emerald-50/60" : "bg-white",
+                  "flex h-9 w-full items-center justify-between gap-2 border-b border-[color:var(--lime-surface-border)] px-3 text-left transition-colors hover:bg-[color:var(--lime-surface-subtle)]",
+                  active
+                    ? "bg-[color:var(--lime-surface-subtle)]"
+                    : "bg-[color:var(--lime-surface)]",
                 )}
                 onClick={() => onSelectChangeItem?.(item)}
+                aria-pressed={active}
               >
                 <span className="flex min-w-0 items-center gap-2">
-                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
                   <CanvasWorkbenchChangeStatusMark
                     meta={meta}
                     translateWorkbench={translateWorkbench}
                   />
-                  <span className="truncate text-[13px] font-medium text-slate-700">
+                  <span className="truncate text-[13px] font-medium text-[color:var(--lime-text-strong)]">
                     {item.path}
                   </span>
                 </span>
@@ -118,7 +141,7 @@ export function CanvasWorkbenchChangeDiffList({
                 </span>
               </button>
               {diffLines.length > 0 ? (
-                <div className="max-h-[560px] min-h-[72px] overflow-hidden">
+                <div className="min-h-[72px]">
                   <CanvasWorkbenchDiffState
                     diffLines={visibleDiffLines}
                     panelClassName={panelClassName}
@@ -141,11 +164,11 @@ export function CanvasWorkbenchChangeDiffList({
                   />
                 </div>
               ) : item.preview ? (
-                <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-xs leading-6 text-slate-700">
+                <pre className="whitespace-pre-wrap break-words px-4 py-3 font-mono text-xs leading-6 text-[color:var(--lime-text-strong)]">
                   {item.preview}
                 </pre>
               ) : (
-                <div className="px-4 py-3 text-xs text-slate-500">
+                <div className="px-4 py-3 text-xs text-[color:var(--lime-text-muted)]">
                   {translateWorkbench(
                     "agentChat.canvasWorkbench.coding.changes.noDiff",
                   )}

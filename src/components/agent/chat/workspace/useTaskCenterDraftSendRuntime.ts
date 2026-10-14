@@ -16,7 +16,10 @@ import {
   type TaskCenterDraftSendRequest,
 } from "../homePendingPreview";
 import type { Message } from "../types";
-import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
+import {
+  getInputbarSendOptions,
+  type InputbarSendHandler,
+} from "../components/Inputbar/inputbarSendPayload";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
 import {
   createTaskCenterDraftSendRequestId,
@@ -216,7 +219,11 @@ export function useTaskCenterEmptyStateSendRuntime({
 
       const text = payload.textOverride ?? input;
       const images = payload.images ?? [];
-      const sendOptions = payload.sendOptions;
+      const sendOptions = getInputbarSendOptions(payload);
+      let settleSend!: (accepted: boolean) => void;
+      const completion = new Promise<boolean>((resolve) => {
+        settleSend = resolve;
+      });
       const normalizedText = text.trim();
       const activeDraftTabId = activeDraftTabIdRef.current;
       if (
@@ -275,9 +282,10 @@ export function useTaskCenterEmptyStateSendRuntime({
             : "dispatched",
           source: "task-center-empty-state",
           triggerSource,
+          onDispatchSettled: settleSend,
         };
         flushHomePendingPreview(() => {
-          setInput("");
+          if (!sendOptions?.composerDraft) setInput("");
           if (
             displayMessagesLength > 0 ||
             turnsLength > 0 ||
@@ -289,7 +297,7 @@ export function useTaskCenterEmptyStateSendRuntime({
           setHomePendingPreviewRequest(request);
         });
         if (request.materializeDraft) {
-          return;
+          return completion;
         }
 
         scheduleAfterCommit(() => {
@@ -307,15 +315,16 @@ export function useTaskCenterEmptyStateSendRuntime({
             source: "task-center-empty-state",
             workspaceId: taskCenterWorkspaceId ?? null,
           });
-          void handleSend(
-            images,
-            undefined,
-            undefined,
-            text,
-            undefined,
-            undefined,
-            tracedSendOptions,
-          ).then(
+          void (async () =>
+            handleSend(
+              images,
+              undefined,
+              undefined,
+              text,
+              undefined,
+              undefined,
+              tracedSendOptions,
+            ))().then(
             (result) => {
               recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
                 durationMs: Date.now() - submittedAt,
@@ -326,7 +335,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 workspaceId: taskCenterWorkspaceId ?? null,
               });
               if (result !== true) {
-                setInput(text);
+                if (!sendOptions?.composerDraft) setInput(text);
                 setHomePendingPreviewRequest((current) =>
                   current?.id === requestId ? null : current,
                 );
@@ -352,6 +361,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 current?.id === requestId ? null : current,
               );
               homeSendInFlightRef.current = false;
+              settleSend(result === true);
             },
             (error) => {
               recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
@@ -362,7 +372,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 source: "task-center-empty-state",
                 workspaceId: taskCenterWorkspaceId ?? null,
               });
-              setInput(text);
+              if (!sendOptions?.composerDraft) setInput(text);
               setTaskCenterDraftSendRequest((current) =>
                 current?.id === requestId ? null : current,
               );
@@ -370,10 +380,11 @@ export function useTaskCenterEmptyStateSendRuntime({
                 current?.id === requestId ? null : current,
               );
               homeSendInFlightRef.current = false;
+              settleSend(false);
             },
           );
         });
-        return;
+        return completion;
       }
 
       const shouldQueueHomeSend =
@@ -428,7 +439,7 @@ export function useTaskCenterEmptyStateSendRuntime({
             triggerSource,
           };
           flushHomePendingPreview(() => {
-            setInput("");
+            if (!sendOptions?.composerDraft) setInput("");
             setTaskCenterDraftSendRequest(previewRequest);
             setHomePendingPreviewRequest(previewRequest);
           });
@@ -445,15 +456,16 @@ export function useTaskCenterEmptyStateSendRuntime({
               source: "empty-state",
               workspaceId: taskCenterWorkspaceId ?? null,
             });
-            void handleSend(
-              images,
-              undefined,
-              undefined,
-              text,
-              undefined,
-              undefined,
-              tracedSendOptions,
-            ).then(
+            void (async () =>
+              handleSend(
+                images,
+                undefined,
+                undefined,
+                text,
+                undefined,
+                undefined,
+                tracedSendOptions,
+              ))().then(
               (result) => {
                 recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
                   durationMs: Date.now() - submittedAt,
@@ -474,7 +486,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                   },
                 );
                 if (result !== true) {
-                  setInput(text);
+                  if (!sendOptions?.composerDraft) setInput(text);
                   setHomePendingPreviewRequest((current) =>
                     current?.id === requestId ? null : current,
                   );
@@ -498,6 +510,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                   current?.id === requestId ? null : current,
                 );
                 homeSendInFlightRef.current = false;
+                settleSend(result === true);
               },
               (error) => {
                 recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
@@ -519,7 +532,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                   },
                   { level: "error" },
                 );
-                setInput(text);
+                if (!sendOptions?.composerDraft) setInput(text);
                 setTaskCenterDraftSendRequest((current) =>
                   current?.id === requestId ? null : current,
                 );
@@ -527,10 +540,11 @@ export function useTaskCenterEmptyStateSendRuntime({
                   current?.id === requestId ? null : current,
                 );
                 homeSendInFlightRef.current = false;
+                settleSend(false);
               },
             );
           });
-          return;
+          return completion;
         }
         const tracedSendOptions: HandleSendOptions = {
           ...(sendOptions || {}),
@@ -561,7 +575,7 @@ export function useTaskCenterEmptyStateSendRuntime({
           triggerSource,
         };
         flushHomePendingPreview(() => {
-          setInput("");
+          if (!sendOptions?.composerDraft) setInput("");
           setTaskCenterDraftSendRequest(previewRequest);
           setHomePendingPreviewRequest(previewRequest);
         });
@@ -573,15 +587,16 @@ export function useTaskCenterEmptyStateSendRuntime({
             source: "empty-state",
             workspaceId: taskCenterWorkspaceId ?? null,
           });
-          void handleSend(
-            images,
-            undefined,
-            undefined,
-            text,
-            undefined,
-            undefined,
-            tracedSendOptions,
-          ).then(
+          void (async () =>
+            handleSend(
+              images,
+              undefined,
+              undefined,
+              text,
+              undefined,
+              undefined,
+              tracedSendOptions,
+            ))().then(
             (result) => {
               recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
                 durationMs: Date.now() - submittedAt,
@@ -592,7 +607,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 workspaceId: taskCenterWorkspaceId ?? null,
               });
               if (result !== true) {
-                setInput(text);
+                if (!sendOptions?.composerDraft) setInput(text);
                 setHomePendingPreviewRequest((current) =>
                   current?.id === requestId ? null : current,
                 );
@@ -601,6 +616,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 current?.id === requestId ? null : current,
               );
               homeSendInFlightRef.current = false;
+              settleSend(result === true);
             },
             (error) => {
               recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
@@ -611,7 +627,7 @@ export function useTaskCenterEmptyStateSendRuntime({
                 source: "empty-state",
                 workspaceId: taskCenterWorkspaceId ?? null,
               });
-              setInput(text);
+              if (!sendOptions?.composerDraft) setInput(text);
               setTaskCenterDraftSendRequest((current) =>
                 current?.id === requestId ? null : current,
               );
@@ -619,10 +635,11 @@ export function useTaskCenterEmptyStateSendRuntime({
                 current?.id === requestId ? null : current,
               );
               homeSendInFlightRef.current = false;
+              settleSend(false);
             },
           );
         });
-        return;
+        return completion;
       }
 
       recordAgentUiPerformanceMetric("homeInput.submit", {
@@ -638,7 +655,7 @@ export function useTaskCenterEmptyStateSendRuntime({
         triggerSource,
         workspaceId: taskCenterWorkspaceId,
       });
-      void handleSend(
+      return handleSend(
         images,
         undefined,
         undefined,

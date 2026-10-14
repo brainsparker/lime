@@ -41,7 +41,9 @@ describe("codex import click-through Electron fixture smoke guard", () => {
     expect(content).toContain("app-sidebar-import-conversation-button");
     expect(content).toContain("app-sidebar-conversation-import-dialog");
     expect(content).toContain("app-sidebar-conversation-import-confirm");
-    expect(content).toContain('textarea[name="agent-chat-message"]');
+    expect(content).toContain(
+      '[data-testid="composer-editor"][role="textbox"]',
+    );
     expect(content).toContain("clickSidebarImport");
     expect(content).toContain("waitForImportPreview");
     expect(content).toContain("confirmImport");

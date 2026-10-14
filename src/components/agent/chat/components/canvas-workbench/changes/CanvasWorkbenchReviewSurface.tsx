@@ -13,6 +13,7 @@ import type { CanvasWorkbenchTranslation } from "./CanvasWorkbenchChangesTypes";
 export interface CanvasWorkbenchReviewSurfaceProps {
   toolbar: CanvasWorkbenchChangesToolbarProps;
   detail: ReactNode;
+  notice?: ReactNode;
   filesPanelOpen: boolean;
   filesPanelGridStyle: CSSProperties | undefined;
   filesPanelResizeHandle: ReactNode;
@@ -28,6 +29,7 @@ export interface CanvasWorkbenchReviewSurfaceProps {
 export function CanvasWorkbenchReviewSurface({
   toolbar,
   detail,
+  notice,
   filesPanelOpen,
   filesPanelGridStyle,
   filesPanelResizeHandle,
@@ -42,9 +44,10 @@ export function CanvasWorkbenchReviewSurface({
   return (
     <section
       data-testid="canvas-workbench-panel-changes"
-      className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] bg-white"
+      className={`grid h-full min-h-0 bg-[color:var(--lime-surface)] ${notice ? "grid-rows-[auto_auto_minmax(0,1fr)]" : "grid-rows-[auto_minmax(0,1fr)]"}`}
     >
       <CanvasWorkbenchChangesToolbar {...toolbar} />
+      {notice}
       <CanvasWorkbenchChangesContent
         filesPanelOpen={filesPanelOpen}
         filesPanelGridStyle={filesPanelGridStyle}

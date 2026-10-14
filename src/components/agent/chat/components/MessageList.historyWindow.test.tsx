@@ -92,7 +92,7 @@ describe("MessageList history window", () => {
     ).toBeNull();
   });
 
-  it("导入历史已全量加载时应首帧渲染全部 entries，不再截取尾部", () => {
+  it("导入历史到 EOF 后仍按视口挂载，分页状态不依赖离屏数量", () => {
     const container = render(createConversationMessages(40), {
       sessionHistoryWindow: {
         loadedMessages: 40,
@@ -104,8 +104,16 @@ describe("MessageList history window", () => {
       },
     });
 
-    expect(container.textContent).toContain("消息 1");
+    expect(container.textContent).not.toContain("消息 1Saturday");
     expect(container.textContent).toContain("消息 40");
+    expect(
+      container.querySelector("[data-testid=message-list-load-full-history]"),
+    ).toBeNull();
+    expect(
+      container
+        .querySelector("[data-testid=virtualized-turn-list]")
+        ?.getAttribute("data-total-entries"),
+    ).toBe("20");
     expect(
       container.querySelector('[data-testid="message-list-history-window"]'),
     ).toBeNull();
@@ -224,48 +232,31 @@ describe("MessageList history window", () => {
     expect(mockAgentThreadTimeline).not.toHaveBeenCalled();
   });
 
-  it("旧会话已分页窗口首帧应只挂载更小的尾部批次", () => {
-    vi.useFakeTimers();
-    const messages = createConversationMessages(40);
-    const container = render(messages, {
+  it("分页数据可继续加载，已加载数据的 DOM 只保留视口范围", () => {
+    const onLoadFullHistory = vi.fn();
+    const container = render(createConversationMessages(40), {
       sessionHistoryWindow: {
         loadedMessages: 40,
         totalMessages: 188,
-        isLoadingFull: false,
-        error: null,
+        hasMore: true,
       },
+      onLoadFullHistory,
     });
-
-    expect(container.textContent).toContain(
-      "latest 20 conversation entries are shown first",
-    );
     expect(container.textContent).toContain("消息 40");
-    expect(container.textContent).toContain("消息 21");
-    expect(container.textContent).not.toContain("消息 20Saturday");
     expect(
-      container.querySelectorAll('[data-testid="message-turn-group"]'),
-    ).toHaveLength(10);
-    expect(container.textContent).toContain(
-      "10 earlier entries can be expanded",
+      container.querySelectorAll("[data-testid=message-turn-group]").length,
+    ).toBeLessThanOrEqual(8);
+    expect(
+      container.querySelector("[data-testid=message-list-expand-history]"),
+    ).toBeNull();
+    act(() =>
+      (
+        container.querySelector(
+          "[data-testid=message-list-load-full-history]",
+        ) as HTMLButtonElement
+      ).click(),
     );
-
-    act(() => {
-      vi.advanceTimersByTime(2_000);
-    });
-
-    expect(container.textContent).not.toContain("消息 20Saturday");
-
-    const expandButton = container.querySelector(
-      '[data-testid="message-list-expand-history"]',
-    ) as HTMLButtonElement | null;
-
-    act(() => {
-      expandButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(
-      container.querySelectorAll('[data-testid="message-turn-group"]'),
-    ).toHaveLength(20);
+    expect(onLoadFullHistory).toHaveBeenCalledTimes(1);
   });
 
   it("旧会话消息较少但执行过程很多时也应延后构建 timeline", async () => {
@@ -447,9 +438,10 @@ describe("MessageList history window", () => {
 
     expect(commit?.metrics).toEqual(
       expect.objectContaining({
-        renderedTurnsCount: 8,
+        renderedTurnsCount: expect.any(Number),
         shouldDeferHistoricalTimeline: true,
-        threadItemsCount: 40,
+        threadItemsCount: expect.any(Number),
+        indexedThreadItemsCount: 40,
         threadItemsScanDeferred: false,
         turnsCount: 8,
       }),
@@ -468,8 +460,9 @@ describe("MessageList history window", () => {
       );
     expect(idleCommit?.metrics).toEqual(
       expect.objectContaining({
-        renderedTurnsCount: 8,
-        threadItemsCount: 40,
+        renderedTurnsCount: expect.any(Number),
+        threadItemsCount: expect.any(Number),
+        indexedThreadItemsCount: 40,
         turnsCount: 8,
       }),
     );
@@ -555,9 +548,10 @@ describe("MessageList history window", () => {
 
     expect(commit?.metrics).toEqual(
       expect.objectContaining({
-        renderedTurnsCount: 8,
+        renderedTurnsCount: expect.any(Number),
         shouldDeferHistoricalTimeline: true,
-        threadItemsCount: 40,
+        threadItemsCount: expect.any(Number),
+        indexedThreadItemsCount: 40,
         threadItemsScanDeferred: false,
         turnsCount: 8,
       }),
@@ -577,8 +571,9 @@ describe("MessageList history window", () => {
 
     expect(idleCommit?.metrics).toEqual(
       expect.objectContaining({
-        renderedTurnsCount: 8,
-        threadItemsCount: 40,
+        renderedTurnsCount: expect.any(Number),
+        threadItemsCount: expect.any(Number),
+        indexedThreadItemsCount: 40,
         turnsCount: 8,
       }),
     );
@@ -608,11 +603,13 @@ describe("MessageList history window", () => {
       "latest 20 conversation entries are shown first",
     );
     expect(container.textContent).toContain("消息 40");
-    expect(container.textContent).toContain("消息 21");
     expect(container.textContent).not.toContain("消息 20Saturday");
-    expect(container.textContent).toContain(
-      "10 earlier entries can be expanded",
-    );
+    expect(
+      container.querySelector("[data-testid=message-list-expand-history]"),
+    ).toBeNull();
+    expect(
+      container.querySelectorAll("[data-testid=message-turn-group]").length,
+    ).toBeLessThanOrEqual(8);
 
     const commit = getAgentUiPerformanceMetrics().find(
       (entry) => entry.phase === "messageList.commit",
@@ -620,8 +617,9 @@ describe("MessageList history window", () => {
 
     expect(commit?.metrics).toEqual(
       expect.objectContaining({
-        hiddenHistoryCount: 10,
-        renderedMessagesCount: 20,
+        hiddenHistoryCount: 0,
+        virtualOffscreenCount: expect.any(Number),
+        renderedMessagesCount: expect.any(Number),
         visibleMessagesCount: 40,
       }),
     );

@@ -20,7 +20,7 @@ import {
   buildFileNameTabTooltip,
   resolveFileNameTabLabel,
 } from "../utils/tabFileDisplay";
-import { InputbarProjectContextBar } from "./Inputbar/components/InputbarProjectContextBar";
+import { ComposerUtilityBar } from "./Inputbar/components/ComposerUtilityBar";
 import { buildInputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import { Navbar } from "../styles";
 import {
@@ -329,7 +329,7 @@ export const ChatNavbar: React.FC<ChatNavbarProps> = ({
                         boxShadow: `-5px 5px 0 5px ${TASK_CENTER_CHROME_ACTIVE_TAB}`,
                       }}
                     />
-                    <InputbarProjectContextBar
+                    <ComposerUtilityBar
                       projectId={project.id || projectId}
                       openedProjects={openedProjectPickerItems}
                       onProjectChange={onProjectChange}

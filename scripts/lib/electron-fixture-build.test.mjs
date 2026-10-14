@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   electronFixtureBuildReadyEnv,
   electronFixtureBuildRequiredFiles,
@@ -29,6 +29,16 @@ function writeRequiredFiles(rootDir, mtime) {
   for (const filePath of electronFixtureBuildRequiredFiles({ rootDir })) {
     writeFile(filePath, "fixture artifact", mtime);
   }
+  writeFile(
+    path.join(rootDir, "dist", "index.html"),
+    '<script type="module" src="./assets/entry.js"></script>',
+    mtime,
+  );
+  writeFile(
+    path.join(rootDir, "dist", "assets", "entry.js"),
+    "export {};",
+    mtime,
+  );
 }
 
 function createRecordingRunner() {
@@ -46,10 +56,232 @@ function createRecordingRunner() {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   while (tempRoots.length > 0) {
     const rootDir = tempRoots.pop();
     fs.rmSync(rootDir, { force: true, recursive: true });
   }
+});
+
+describe("Electron renderer entry assets", () => {
+  const artifactTime = new Date("2026-01-01T00:10:00.000Z");
+
+  function rendererFixture(html) {
+    const rootDir = createTempRoot();
+    writeRequiredFiles(rootDir, artifactTime);
+    writeFile(path.join(rootDir, "dist", "index.html"), html, artifactTime);
+    writeFile(
+      path.join(rootDir, "dist", "assets", "app.css"),
+      "body{}",
+      artifactTime,
+    );
+    writeFile(
+      path.join(rootDir, "src", "App.tsx"),
+      "export const app = true;",
+      new Date("2026-01-01T00:00:00.000Z"),
+    );
+    return rootDir;
+  }
+
+  it.each([
+    ['<script type="module" src="/assets/entry.js"></script>', "root-absolute"],
+    [
+      '<script type="module" src="./assets/entry.js"></script><link rel="stylesheet" href="/assets/app.css">',
+      "root-absolute",
+    ],
+    [
+      '<script type="module" src="./assets/missing.js"></script>',
+      "missing-local-file",
+    ],
+    [
+      '<script type="module" src="./assets/entry.js"></script><link href="./assets/missing.css" rel="stylesheet">',
+      "missing-local-file",
+    ],
+    [
+      '<script type="module" src="https://fixture.invalid/entry.js"></script>',
+      "non-local-url",
+    ],
+    ['<script type="module" src=""></script>', "empty-reference"],
+    [
+      '<script type="module" src="./assets/entry%ZZ.js"></script>',
+      "invalid-url",
+    ],
+    ["<html></html>", "missing-module-entry"],
+    ['<script src="./assets/entry.js"></script>', "missing-module-entry"],
+    [
+      '<!-- <script type="module" src="./assets/entry.js"></script> -->',
+      "missing-module-entry",
+    ],
+    [
+      '<script>const text = \'<script type="module" src="./assets/entry.js">\';</script>',
+      "missing-module-entry",
+    ],
+    [
+      '<script type="module">throw new Error("must not execute");</script>',
+      "missing-module-entry",
+    ],
+    [
+      '<body><noscript><script type="module" src="./assets/entry.js"></script></noscript></body>',
+      "missing-module-entry",
+    ],
+  ])("rejects fresh but unloadable entry assets: %s", (html, reason) => {
+    const rootDir = rendererFixture(html);
+    const freshness = inspectElectronFixtureBuildFreshness({ rootDir });
+
+    expect(freshness).toMatchObject({
+      ready: false,
+      reason: "invalid-renderer-assets",
+      staleSegments: ["renderer"],
+      segments: {
+        renderer: { ready: false, reason: "invalid-renderer-assets" },
+        host: { ready: true },
+        appServer: { ready: true },
+      },
+    });
+    expect(freshness.segments.renderer.invalidRendererAssets).toEqual(
+      expect.arrayContaining([expect.objectContaining({ reason })]),
+    );
+    expect(freshness.segments.renderer.oldestArtifact.mtimeMs).toBeGreaterThan(
+      freshness.segments.renderer.newestSource.mtimeMs,
+    );
+  });
+
+  it("resolves relative assets with real HTML attributes, entities and URL query/hash", () => {
+    const rootDir = rendererFixture(`
+      <!doctype html><html><head>
+      <SCRIPT crossorigin data-note="/assets/ignored" SRC='./assets/entry%20main.js?x=1&amp;y=2#module' TYPE="module"></SCRIPT>
+      <LINK HREF=./assets/app.css?version=1#style REL="alternate stylesheet">
+      <link rel="icon" href="/missing-icon.png">
+      <script src="/oem-non-module.js"></script>
+      <!-- <script type="module" src="/assets/fake.js"></script> -->
+      <script>const fake = '<link rel="stylesheet" href="/assets/fake.css">'; throw new Error('must not execute');</script>
+      </head></html>`);
+    writeFile(
+      path.join(rootDir, "dist", "assets", "entry main.js"),
+      "export {};",
+      artifactTime,
+    );
+
+    expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+      ready: true,
+      reason: "fresh-artifacts",
+      staleSegments: [],
+    });
+  });
+
+  it("resolves assets against the actual HTML baseURI", () => {
+    const rootDir = rendererFixture(
+      '<base href="./assets/"><script type="module" src="entry.js"></script><link rel="stylesheet" href="app.css">',
+    );
+    expect(inspectElectronFixtureBuildFreshness({ rootDir }).ready).toBe(true);
+    writeFile(
+      path.join(rootDir, "dist", "index.html"),
+      '<base href="./missing/"><script type="module" src="entry.js"></script>',
+      artifactTime,
+    );
+    expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+      ready: false,
+      staleSegments: ["renderer"],
+      segments: {
+        renderer: {
+          invalidRendererAssets: [
+            expect.objectContaining({ reason: "missing-local-file" }),
+          ],
+        },
+      },
+    });
+  });
+
+  it("only parses HTML and does not execute an inline script that removes the entry", () => {
+    const rootDir = rendererFixture(
+      '<script type="module" src="./assets/entry.js"></script><script>document.querySelector("script[type=module]").remove();</script>',
+    );
+    expect(inspectElectronFixtureBuildFreshness({ rootDir }).ready).toBe(true);
+  });
+
+  it("preserves independent Rust staleness alongside invalid renderer assets", () => {
+    const rootDir = rendererFixture(
+      '<script type="module" src="/assets/entry.js"></script>',
+    );
+    writeFile(
+      path.join(rootDir, "lime-rs", "crates", "agent-runtime", "src", "lib.rs"),
+      "pub fn changed() {}",
+      new Date("2026-01-01T00:20:00.000Z"),
+    );
+    expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+      ready: false,
+      staleSegments: ["renderer", "appServer"],
+      segments: {
+        host: { ready: true },
+        appServer: { reason: "stale-source" },
+      },
+    });
+  });
+
+  it("rejects a local directory referenced as the entry module", () => {
+    const rootDir = rendererFixture(
+      '<script type="module" src="./assets/"></script>',
+    );
+    expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+      ready: false,
+      staleSegments: ["renderer"],
+    });
+  });
+
+  it("rebuilds only renderer when fresh artifacts contain browser-root asset URLs", () => {
+    const rootDir = rendererFixture(
+      '<script type="module" src="/assets/entry.js"></script>',
+    );
+    const runner = createRecordingRunner();
+    const envKey = electronFixtureBuildReadyEnv();
+    const previousEnv = process.env[envKey];
+    delete process.env[envKey];
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    try {
+      const result = ensureElectronFixtureBuild({
+        rootDir,
+        logPrefix: "entry-assets-test",
+        runCommand: runner.runCommand,
+      });
+      expect(result).toMatchObject({
+        status: "rebuilt",
+        rebuiltSegments: ["renderer"],
+      });
+      expect(runner.calls.map(({ args }) => args)).toEqual([
+        ["run", "verify:app-version"],
+        ["run", "build:renderer:electron:smoke"],
+      ]);
+    } finally {
+      if (previousEnv === undefined) delete process.env[envKey];
+      else process.env[envKey] = previousEnv;
+    }
+  });
+
+  it("preserves explicit app URL and trusted build-ready overrides", () => {
+    const rootDir = rendererFixture(
+      '<script type="module" src="/assets/entry.js"></script>',
+    );
+    const runner = createRecordingRunner();
+    expect(
+      ensureElectronFixtureBuild({
+        rootDir,
+        appUrl: "http://fixture.invalid",
+        runCommand: runner.runCommand,
+      }),
+    ).toEqual({ status: "skipped", reason: "app-url" });
+    const envKey = electronFixtureBuildReadyEnv();
+    const previousEnv = process.env[envKey];
+    process.env[envKey] = "1";
+    try {
+      expect(
+        ensureElectronFixtureBuild({ rootDir, runCommand: runner.runCommand }),
+      ).toEqual({ status: "skipped", reason: envKey });
+      expect(runner.calls).toEqual([]);
+    } finally {
+      if (previousEnv === undefined) delete process.env[envKey];
+      else process.env[envKey] = previousEnv;
+    }
+  });
 });
 
 describe("electron fixture build freshness", () => {

@@ -60,7 +60,7 @@ describe("AgentChatPage 侧栏显示控制", () => {
     expect(container.querySelector('[data-testid="chat-navbar"]')).toBeNull();
     expect(
       container.querySelector(
-        '[data-testid="inputbar-project-context-project-trigger"]',
+        '[data-testid="composer-utility-project-trigger"]',
       ),
     ).toBeNull();
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();

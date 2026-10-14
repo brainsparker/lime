@@ -7,6 +7,7 @@ import type {
   ModeKind,
   RuntimeSearchMode,
   UserInput,
+  ThreadSettings,
 } from "@limecloud/app-server-client";
 import type {
   AgentRuntimeStatus,
@@ -31,6 +32,7 @@ import type {
 import type {
   ComposerDraftSnapshot,
   ComposerIntent,
+  ComposerSubmission,
   ComposerSubmitTarget,
 } from "@/components/input-kit";
 
@@ -122,7 +124,10 @@ export interface ThreadGoalInput {
   tokenBudget?: number | null;
 }
 
-export type AgentInputMention = Extract<UserInput, { type: "mention" }>;
+export type AgentInputMention = Extract<
+  UserInput,
+  { type: "skill" | "mention" }
+>;
 
 export interface SendMessageOptions {
   purpose?: Message["purpose"];
@@ -149,6 +154,7 @@ export interface SendMessageOptions {
   composerIntent?: ComposerIntent;
   composerTarget?: ComposerSubmitTarget;
   composerDraft?: ComposerDraftSnapshot;
+  composerSubmission?: ComposerSubmission;
 }
 
 export interface WorkspacePathMissingState {
@@ -170,6 +176,8 @@ export interface AgentPreferenceKeys {
 export interface SessionModelPreference {
   providerType: string;
   model: string;
+  threadId?: string;
+  threadSettings?: ThreadSettings;
 }
 
 export interface ClearMessagesOptions {

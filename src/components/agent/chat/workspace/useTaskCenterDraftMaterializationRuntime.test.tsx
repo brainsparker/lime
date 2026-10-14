@@ -55,6 +55,7 @@ interface ProbeProps {
   persistMaterializedSessionNavigation?: ReturnType<typeof vi.fn>;
   switchMaterializedSession?: ReturnType<typeof vi.fn>;
   upsertTaskCenterOpenTab: ReturnType<typeof vi.fn>;
+  resetComposerDraft?: () => void;
 }
 
 function Probe({
@@ -68,6 +69,7 @@ function Probe({
   persistMaterializedSessionNavigation = vi.fn(),
   switchMaterializedSession = vi.fn(),
   upsertTaskCenterOpenTab,
+  resetComposerDraft,
 }: ProbeProps) {
   const [draftTabs, setDraftTabs] = useState<TaskCenterDraftTab[]>([
     initialDraft,
@@ -100,6 +102,7 @@ function Probe({
     markTaskCenterLocalSessionOverride,
     resetLocalImageWorkbenchSessionScope: vi.fn(),
     resetTopicLocalState: vi.fn(),
+    resetComposerDraft,
     setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setInput,
@@ -180,6 +183,24 @@ describe("useTaskCenterDraftMaterializationRuntime", () => {
   it("输入预热延迟应保持在首发热路径预算内", () => {
     expect(TASK_CENTER_DRAFT_SESSION_WARMUP_DELAY_MS).toBeGreaterThan(0);
     expect(TASK_CENTER_DRAFT_SESSION_WARMUP_DELAY_MS).toBeLessThanOrEqual(50);
+  });
+
+  it("首页 materialization 延续共享 scope，新草稿入口重置 scope", async () => {
+    const resetComposerDraft = vi.fn();
+    let current!: Parameters<NonNullable<ProbeProps["onRuntime"]>>[0];
+    await act(async () => {
+      root.render(<Probe createFreshSession={vi.fn().mockResolvedValue("session-materialized")}
+        resetComposerDraft={resetComposerDraft} upsertTaskCenterOpenTab={vi.fn()}
+        onSnapshot={() => undefined} onRuntime={(value) => { current = value; }} />);
+    });
+    await act(async () => {
+      expect(await current.materializeTaskCenterDraftTab(initialDraft.id, { commit: false })).toBe("session-materialized");
+      current.commitMaterializedTaskCenterDraftTab(initialDraft.id, "session-materialized", {
+        embedHomeSession: false, hydrateSession: false, preserveInput: true, syncRoute: false });
+    });
+    expect(resetComposerDraft).not.toHaveBeenCalled();
+    act(() => { current.openTaskCenterDraftTab(); });
+    expect(resetComposerDraft).toHaveBeenCalledOnce();
   });
 
   it("输入预热只应创建底层会话，不应提交并移除草稿标签", async () => {

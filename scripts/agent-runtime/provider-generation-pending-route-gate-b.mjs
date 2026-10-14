@@ -532,7 +532,7 @@ async function restoreChildInGui(page, childSessionId, options) {
     timeout: options.timeoutMs,
   });
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${childSessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${childSessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: options.timeoutMs });
   const finalText = page.getByText(CHILD_DONE, { exact: false }).first();

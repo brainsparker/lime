@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { readComposerEditorText } from "../lib/composer-editor-dom.mjs";
 
 import { deepStrictEqual, equal, ok } from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -75,7 +76,7 @@ async function openThread(page, threadId) {
   }, threadId);
   await page.reload({ waitUntil: "domcontentloaded" });
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${threadId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${threadId}"]`,
   );
   await input.waitFor({ state: "visible" });
   return input;
@@ -312,7 +313,10 @@ async function run() {
       );
       await page.screenshot({ path: runningScreenshot, fullPage: true });
       await input.fill(`draft while command ${index} runs`);
-      equal(await input.inputValue(), `draft while command ${index} runs`);
+      equal(
+        await readComposerEditorText(input),
+        `draft while command ${index} runs`,
+      );
       ok(
         await page.getByTestId("send-btn").isEnabled(),
         "composer must remain usable",
@@ -425,7 +429,10 @@ async function run() {
           command(completed, id).aggregatedOutput.includes("Restart-Computer"),
         );
       }
-      equal(await input.inputValue(), `draft while command ${index} runs`);
+      equal(
+        await readComposerEditorText(input),
+        `draft while command ${index} runs`,
+      );
       summary.scenarios.push({
         kind: index === 1 ? "streaming" : "rendererReload",
         turnId,

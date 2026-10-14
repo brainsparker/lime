@@ -595,6 +595,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     ]);
 
   useAgentRuntimeSyncEffects({
+    workspaceId,
     runtime,
     sessionIdRef,
     sessionId: session.sessionId,

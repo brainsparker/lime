@@ -7,6 +7,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
+import type { ComposerController } from "@/components/input-kit/ComposerController";
 import type { Artifact } from "@/lib/artifact/types";
 import type { Character } from "@/lib/api/projectMemory";
 import type { ThemeType } from "@/lib/workspace/workbenchContract";
@@ -92,6 +93,7 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
     typeof EmptyState
   >["initialInputCapability"];
   input: ComponentProps<typeof EmptyState>["input"];
+  composerController?: ComposerController;
   inputbarScene: WorkspaceConversationLandingInputbarSceneRuntime;
   inputRestoreRequest?: InterruptedInputRestoreRequest | null;
   lockTheme: boolean;
@@ -284,6 +286,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   homeRecoverySession,
   initialInputCapability,
   input,
+  composerController,
   inputbarScene,
   inputRestoreRequest,
   lockTheme,
@@ -362,6 +365,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
     () =>
       buildWorkspaceEmptyStateProps({
         input,
+        composerController,
         setInput,
         onSendMessage: handleSendFromEmptyState,
         onStopSending,
@@ -478,6 +482,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       homeRecoverySession,
       initialInputCapability,
       input,
+      composerController,
       inputRestoreRequest,
       lockTheme,
       model,

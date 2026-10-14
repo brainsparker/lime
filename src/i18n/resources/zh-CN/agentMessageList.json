@@ -1,4 +1,6 @@
 {
+  "agentChat.messageList.userMessage.showMore": "显示更多",
+  "agentChat.messageList.userMessage.showLess": "收起",
   "agentChat.messageList.firstTokenStatus.cancelled.detail": "当前请求已停止。",
   "agentChat.messageList.firstTokenStatus.cancelled.title": "已取消",
   "agentChat.messageList.firstTokenStatus.context.detail": "正在整理会话信息和可用资料。",
@@ -391,9 +393,6 @@
   "agentChat.messageList.history.persistedEntrySummary": "为了更快打开旧对话，当前先展示最近 {{loaded}} 条对话记录，更早历史仍可继续加载。",
   "agentChat.messageList.history.loadingMore": "正在加载更多历史",
   "agentChat.messageList.history.loadMore": "加载更多历史",
-  "agentChat.messageList.history.windowEntrySummaryRestored": "为了更快打开对话，当前先展示最近 {{loaded}} 条对话记录，更早的 {{hidden}} 条记录可按需展开。",
-  "agentChat.messageList.history.windowEntrySummaryDeferred": "为了更快打开对话，当前先展示最近 {{loaded}} 条对话记录，更早的 {{hidden}} 条记录会在空闲时继续补齐。",
-  "agentChat.messageList.history.expandEarlierEntries": "立即展开更早记录",
   "agentChat.messageList.restoring.title": "正在恢复生成会话...",
   "agentChat.messageList.restoring.description": "正在同步最近一次生成会话，请稍候。",
   "agentChat.messageList.taskCenterEmpty.badge": "对话",

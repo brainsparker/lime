@@ -68,7 +68,8 @@ function visibleDom() {
     queueStatusText: "待处理 1",
     queueItemsPresent: false,
     queueStatusContainsMarker: false,
-    timelineMarkerCount: 1,
+    timelineMarkerCount: 0,
+    idle: true,
   };
 }
 
@@ -124,7 +125,7 @@ describe("Thread Queue Electron Gate B", () => {
     );
   });
 
-  it("fails closed when Queue status repeats canonical text or timeline is not unique", () => {
+  it("fails closed when pending Queue text leaks into collapsed status or transcript", () => {
     const repeatedInStatus = summarizeThreadQueueEvidence({
       traceRaw: traceRaw(),
       errorRaw: "[]",
@@ -137,7 +138,7 @@ describe("Thread Queue Electron Gate B", () => {
       queuedSubmissionId: "queued-1",
     });
     expect(() => assertThreadQueueEvidence(repeatedInStatus)).toThrow(
-      /不得重复 canonical submission 正文/,
+      /不得重复 submission 正文/,
     );
 
     const duplicatedTimeline = summarizeThreadQueueEvidence({
@@ -148,7 +149,7 @@ describe("Thread Queue Electron Gate B", () => {
       queuedSubmissionId: "queued-1",
     });
     expect(() => assertThreadQueueEvidence(duplicatedTimeline)).toThrow(
-      /canonical 时间线中唯一可见/,
+      /不得进入 canonical 时间线/,
     );
   });
 
@@ -177,15 +178,17 @@ describe("Thread Queue Electron Gate B", () => {
       "utf8",
     );
     const queueComponent = fs.readFileSync(
-      "src/components/agent/chat/components/ThreadQueueStatus.tsx",
+      "src/components/agent/chat/components/QueuedMessageList.tsx",
       "utf8",
     );
     for (const method of THREAD_QUEUE_REQUIRED_METHODS) {
       expect(content).toContain(method);
     }
     expect(content).toContain("ensureElectronFixtureBuild");
-    expect(content).toContain('backendMode: "unavailable"');
-    expect(content).toContain('data-testid="thread-queue-status"');
+    expect(content).toContain('backendMode: "external"');
+    expect(content).toContain("pauseQueueAfterInterruptedTurn");
+    expect(content).toContain('data-testid="queued-message-list"');
+    expect(content).toContain("runQueuedMessageMutationGate");
     expect(content).toContain('data-testid="thread-queue-items"');
     expect(queueComponent).not.toContain('data-testid="thread-queue-items"');
     expect(content).not.toContain('APP_SERVER_BACKEND_MODE: "mock"');

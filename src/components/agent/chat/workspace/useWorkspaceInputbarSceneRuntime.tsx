@@ -1,16 +1,18 @@
 import {
   useCallback,
   useMemo,
+  useRef,
   type Dispatch,
   type SetStateAction,
 } from "react";
+import type { ComposerController } from "@/components/input-kit/ComposerController";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type {
   AgentInitialInputCapabilityParams,
   AgentInitialKnowledgePackSelectionParams,
 } from "@/types/page";
-import { InputbarApprovalPrompt } from "../components/Inputbar/components/InputbarApprovalPrompt";
+import { PendingRequestItemPanel } from "../components/PendingRequestItemPanel";
 import { StrictReviewStatus } from "../components/StrictReviewStatus";
 import {
   PendingInteractionLayer,
@@ -26,7 +28,10 @@ import {
 } from "../utils/chatToolPreferences";
 import { deriveRuntimeToolAvailability } from "../utils/runtimeToolAvailability";
 import type { WorkspaceGeneralWorkbenchHarnessPanelBaseProps } from "./useWorkspaceGeneralWorkbenchHarnessSurfaceRuntime";
-import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
+import {
+  getInputbarSendOptions,
+  type InputbarSendHandler,
+} from "../components/Inputbar/inputbarSendPayload";
 import { buildTurnInput } from "../utils/buildUserInputSubmitOp";
 import { addThreadQueue } from "@/lib/api/agentRuntime/threadQueueActions";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
@@ -61,6 +66,7 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   currentSessionTitle: string | null | undefined;
   handleStopSending: InputbarParams["onStop"];
   input: InputbarParams["input"];
+  composerController?: ComposerController;
   setInput: InputbarParams["setInput"];
   currentGate: InputbarParams["workflowGate"];
   generalWorkbenchWorkflowSteps: InputbarParams["workflowSteps"];
@@ -78,7 +84,6 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   setReasoningEffort: InputbarParams["setReasoningEffort"];
   sessionExecutionRuntime: InputbarParams["executionRuntime"];
   projectId: string | null | undefined;
-  openedProjects: InputbarParams["openedProjects"];
   projectRootPath: string | null | undefined;
   accessMode: InputbarParams["accessMode"];
   setAccessMode: InputbarParams["setAccessMode"];
@@ -89,7 +94,6 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
     | "handleOpenExecutionPolicySettings"
     | "handleOpenRuntimeMemoryWorkbench"
     | "handleOpenKnowledgeManagement"
-    | "handleProjectChange"
   >;
   characters: InputbarParams["characters"];
   skills: InputbarParams["skills"];
@@ -151,6 +155,7 @@ export function useWorkspaceInputbarSceneRuntime({
   currentSessionTitle,
   handleStopSending,
   input,
+  composerController,
   setInput,
   currentGate,
   generalWorkbenchWorkflowSteps,
@@ -168,7 +173,6 @@ export function useWorkspaceInputbarSceneRuntime({
   setReasoningEffort,
   sessionExecutionRuntime,
   projectId,
-  openedProjects,
   projectRootPath,
   accessMode,
   setAccessMode,
@@ -266,63 +270,74 @@ export function useWorkspaceInputbarSceneRuntime({
     [generalWorkbenchHarnessPanelBaseProps.toolInventory],
   );
   const inputbarTargetSessionId = sessionId?.trim() || undefined;
+  const sendPendingRef = useRef(false);
   const handleInputbarSend = useCallback<InputbarSendHandler>(
-    (payload = {}) => {
-      if (directInputBlocked) {
+    async (payload = {}) => {
+      if (directInputBlocked || sendPendingRef.current) {
         return false;
       }
-      if (payload.composerTarget === "queue") {
-        const targetThreadId = threadId?.trim();
-        if (!targetThreadId) {
-          return false;
-        }
-        const draft = payload.composerDraft;
-        const pathText = (draft?.pathReferences ?? [])
-          .map((reference) => reference.path.trim())
-          .filter(Boolean)
-          .join("\n");
-        const content =
-          payload.textOverride?.trim() ||
-          draft?.text.trim() ||
-          (pathText ? `请查看这些文件或文件夹。\n${pathText}` : "");
-        if (!content && !(payload.images?.length ?? 0)) {
-          return false;
-        }
-        return addThreadQueue({
-          threadId: targetThreadId,
-          clientUserMessageId: crypto.randomUUID(),
-          input: buildTurnInput({
-            content,
-            images: payload.images ?? [],
-            inputMentions: payload.sendOptions?.inputMentions,
-          }),
-        }).then(
-          () => true,
-          () => {
+      sendPendingRef.current = true;
+      try {
+        const composerSendOptions = getInputbarSendOptions(payload);
+        if (composerSendOptions?.composerTarget === "queue") {
+          const targetThreadId = threadId?.trim();
+          if (!targetThreadId) {
+            return false;
+          }
+          const submission = composerSendOptions.composerSubmission;
+          const pathText = (submission?.pathReferences ?? [])
+            .map((reference) => reference.path.trim())
+            .filter(Boolean)
+            .join("\n");
+          const content =
+            payload.textOverride ||
+            submission?.text ||
+            (pathText ? `请查看这些文件或文件夹。\n${pathText}` : "");
+          if (
+            !content.trim() &&
+            !(submission?.attachments.length ?? payload.images?.length ?? 0)
+          ) {
+            return false;
+          }
+          try {
+            await addThreadQueue({
+              threadId: targetThreadId,
+              clientUserMessageId: crypto.randomUUID(),
+              input: buildTurnInput({
+                content,
+                images: payload.images ?? [],
+                inputMentions: composerSendOptions.inputMentions,
+                composerSubmission: submission,
+              }),
+            });
+            return true;
+          } catch {
             toast.error(String(t("agentChat.threadQueue.actionFailed")));
             return false;
-          },
+          }
+        }
+        const payloadTargetSessionId =
+          composerSendOptions?.targetSessionId?.trim() || undefined;
+        const sendOptions =
+          inputbarTargetSessionId || payloadTargetSessionId
+            ? {
+                ...(composerSendOptions || {}),
+                targetSessionId:
+                  payloadTargetSessionId ?? inputbarTargetSessionId,
+              }
+            : composerSendOptions;
+        return await handleSend(
+          payload.images,
+          undefined,
+          undefined,
+          payload.textOverride,
+          "react",
+          payload.autoContinuePayload,
+          sendOptions,
         );
+      } finally {
+        sendPendingRef.current = false;
       }
-      const payloadTargetSessionId =
-        payload.sendOptions?.targetSessionId?.trim() || undefined;
-      const sendOptions =
-        inputbarTargetSessionId || payloadTargetSessionId
-          ? {
-              ...(payload.sendOptions || {}),
-              targetSessionId:
-                payloadTargetSessionId ?? inputbarTargetSessionId,
-            }
-          : payload.sendOptions;
-      return handleSend(
-        payload.images,
-        undefined,
-        undefined,
-        payload.textOverride,
-        "react",
-        payload.autoContinuePayload,
-        sendOptions,
-      );
     },
     [directInputBlocked, handleSend, inputbarTargetSessionId, t, threadId],
   );
@@ -366,7 +381,8 @@ export function useWorkspaceInputbarSceneRuntime({
     "";
   const approvalAccessory =
     inputbarApprovalAction && !activePendingInteraction ? (
-      <InputbarApprovalPrompt
+      <PendingRequestItemPanel
+        key={inputbarApprovalAction.requestId}
         request={inputbarApprovalAction}
         onSubmit={
           generalWorkbenchHarnessPanelBaseProps.onRespondToAction as
@@ -382,12 +398,11 @@ export function useWorkspaceInputbarSceneRuntime({
     inputbarPresentation: {
       inputbar: {
         input,
+        composerController,
         setInput,
         contextVariant,
         variant: isThemeWorkbench ? "workspace" : "default",
         projectId,
-        openedProjects,
-        onProjectContextChange: navigationActions.handleProjectChange,
         sessionId,
         threadId,
         submitTarget,

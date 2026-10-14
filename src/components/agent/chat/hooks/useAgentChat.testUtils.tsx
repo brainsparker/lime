@@ -605,7 +605,7 @@ beforeEach(async () => {
   }));
   mockGenerateAgentRuntimeSessionTitle.mockResolvedValue("");
   mockSetAgentRuntimeThreadName.mockResolvedValue(undefined);
-  mockUpdateAgentRuntimeThreadSettings.mockResolvedValue(undefined);
+  mockUpdateAgentRuntimeThreadSettings.mockResolvedValue({ result: {}, notifications: [] });
   mockDeleteAgentRuntimeSession.mockResolvedValue(undefined);
   mockCompactAgentRuntimeSession.mockResolvedValue(undefined);
   mockInterruptAgentRuntimeTurn.mockResolvedValue(undefined);

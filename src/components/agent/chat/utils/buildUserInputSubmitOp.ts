@@ -23,6 +23,8 @@ import {
 } from "./accessModeRuntime";
 import { buildMessageImageDataUrl } from "./imageAttachments";
 import { buildSubmitOpRuntimeCompaction } from "./submitOpRuntimeCompaction";
+import type { ComposerSubmission } from "@/components/input-kit/types";
+import { remapComposerSubmission } from "./composerSubmission";
 
 export interface BuildUserInputSubmitOpOptions {
   content: string;
@@ -42,6 +44,7 @@ export interface BuildUserInputSubmitOpOptions {
   reasoningEffort?: string;
   modelCapabilitySummary?: ModelCapabilitySummary | null;
   inputMentions?: readonly AgentInputMention[];
+  composerSubmission?: ComposerSubmission;
 }
 
 export interface BuildTurnInputOptions {
@@ -49,6 +52,7 @@ export interface BuildTurnInputOptions {
   images: MessageImage[];
   modelCapabilitySummary?: ModelCapabilitySummary | null;
   inputMentions?: readonly AgentInputMention[];
+  composerSubmission?: ComposerSubmission;
 }
 
 function buildCollaborationMode(
@@ -79,10 +83,27 @@ export function buildTurnInput(
 ): AgentUserInputOp["turn"]["input"] {
   const {
     content,
-    images,
-    inputMentions = [],
+    images: fallbackImages,
+    inputMentions: fallbackMentions = [],
     modelCapabilitySummary,
   } = options;
+  const submission = options.composerSubmission
+    ? remapComposerSubmission(options.composerSubmission, content)
+    : undefined;
+  const images = submission?.attachments ?? fallbackImages;
+  const inputMentions = submission?.inputMentions ?? fallbackMentions;
+  const mentionedPaths = new Set(inputMentions.map((mention) => mention.path));
+  const pathMentions: AgentInputMention[] = [];
+  for (const reference of submission?.pathReferences ?? []) {
+    if (!mentionedPaths.has(reference.path)) {
+      pathMentions.push({
+        type: "mention",
+        name: reference.name,
+        path: reference.path,
+      });
+      mentionedPaths.add(reference.path);
+    }
+  }
   if (modelCapabilitySummary !== undefined) {
     assertModelInputCapabilityAllowed(
       modelCapabilitySummary,
@@ -95,12 +116,28 @@ export function buildTurnInput(
   }
 
   return [
-    { type: "text", text: content },
+    {
+      type: "text",
+      text: content,
+      ...(submission?.textElements.length
+        ? {
+            text_elements: submission.textElements.map((element) => ({
+              ...element,
+              byteRange: { ...element.byteRange },
+            })),
+          }
+        : {}),
+    },
     ...inputMentions.map((mention) => ({ ...mention })),
-    ...images.map((image) => ({
-      type: "image" as const,
-      url: buildMessageImageDataUrl(image),
-    })),
+    ...pathMentions,
+    ...images.map((image) =>
+      image.sourcePath
+        ? { type: "localImage" as const, path: image.sourcePath }
+        : {
+            type: "image" as const,
+            url: image.sourceUri || buildMessageImageDataUrl(image),
+          },
+    ),
   ];
 }
 
@@ -125,6 +162,7 @@ export function buildUserInputSubmitOp(
     reasoningEffort,
     modelCapabilitySummary,
     inputMentions,
+    composerSubmission,
   } = options;
 
   const turnModel = modelOverride?.trim() || effectiveModel.trim();
@@ -165,6 +203,7 @@ export function buildUserInputSubmitOp(
         content,
         images,
         inputMentions,
+        composerSubmission,
         modelCapabilitySummary,
       }),
       ...(collaborationMode ? { collaborationMode } : {}),

@@ -8,6 +8,9 @@ const INPUT_RESTORE_UI_OWNER_FILES = new Set([
   "src/components/agent/chat/components/Inputbar/hooks/useInputbarController.ts",
 ]);
 
+const INPUT_RESTORE_CONTROLLER_OWNER =
+  "src/components/agent/chat/hooks/composerDraftRestore.ts";
+
 const INPUT_RESTORE_REQUEST_PRODUCTION_FILES = new Set([
   "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
   "src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts",
@@ -19,6 +22,7 @@ const INPUT_RESTORE_REQUEST_PRODUCTION_FILES = new Set([
   "src/components/agent/chat/hooks/agentChatShared.ts",
   "src/components/agent/chat/hooks/agentStreamFlowControl.ts",
   "src/components/agent/chat/hooks/agentStreamInputRestoreTypes.ts",
+  INPUT_RESTORE_CONTROLLER_OWNER,
   "src/components/agent/chat/hooks/index.ts",
   "src/components/agent/chat/hooks/useAgentStream.ts",
   "src/components/agent/chat/workspace/WorkspaceConversationScene.tsx",
@@ -56,17 +60,6 @@ function readProductionAgentChatSources() {
   return files;
 }
 
-function expectInputRestoreUiWriteOwnedByCurrentOwner(pattern: string) {
-  const offenders = readProductionAgentChatSources()
-    .filter(
-      ({ relativePath }) => !INPUT_RESTORE_UI_OWNER_FILES.has(relativePath),
-    )
-    .filter(({ source }) => source.includes(pattern))
-    .map(({ relativePath }) => relativePath);
-
-  expect(offenders, pattern).toEqual([]);
-}
-
 describe("AgentChatWorkspace input restore boundary", () => {
   it("local-display owner 只转发恢复请求，不执行 text/path-only fallback", () => {
     const source = readFileSync(
@@ -93,17 +86,18 @@ describe("AgentChatWorkspace input restore boundary", () => {
     expect(handlerSource).not.toContain("setActiveCapability");
   });
 
-  it("中断输入恢复的 UI 写入只能由 EmptyState 与 Inputbar current owner 执行", () => {
-    expectInputRestoreUiWriteOwnedByCurrentOwner("setInput(draft.text)");
-    expectInputRestoreUiWriteOwnedByCurrentOwner(
-      "replacePendingImages([...(draft.images ?? [])])",
-    );
-    expectInputRestoreUiWriteOwnedByCurrentOwner(
-      "const restoredPathReferences = [...(draft.pathReferences ?? [])];",
-    );
-    expectInputRestoreUiWriteOwnedByCurrentOwner(
-      "route: draft.inputCapabilityRoute",
-    );
+  it("两个 UI owner 委托同一恢复 helper，Controller 草稿不能绕过该 owner 写入", () => {
+    const sources = readProductionAgentChatSources();
+    const consumers = sources
+      .filter(({ source }) => /\brestoreComposerDraft\(/.test(source))
+      .map(({ relativePath }) => relativePath)
+      .filter((relativePath) => relativePath !== INPUT_RESTORE_CONTROLLER_OWNER);
+    expect(consumers.sort()).toEqual([...INPUT_RESTORE_UI_OWNER_FILES].sort());
+
+    const directWriters = sources
+      .filter(({ source }) => /\.restoreDraft\(/.test(source))
+      .map(({ relativePath }) => relativePath);
+    expect(directWriters).toEqual([INPUT_RESTORE_CONTROLLER_OWNER]);
   });
 
   it("inputRestoreRequest 只能停留在 source / pass-through / current UI owner 清单内", () => {

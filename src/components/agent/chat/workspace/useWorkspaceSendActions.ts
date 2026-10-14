@@ -2832,8 +2832,10 @@ export function useWorkspaceSendActions({
         sourceTextLength: sourceText.trim().length,
       });
       const effectiveToolPreferences = plan.effectiveToolPreferences;
-      setInput("");
-      setMentionedCharacters([]);
+      if (!sendOptions?.composerDraft) {
+        setInput("");
+        setMentionedCharacters([]);
+      }
 
       try {
         let nextRequestMetadata = buildWorkspaceRequestMetadata({
@@ -2965,13 +2967,13 @@ export function useWorkspaceSendActions({
         finalizeAfterSendSuccess(sendBoundary);
         return true;
       } catch (error) {
-        rollbackAfterSendFailure(sendBoundary);
+        if (!sendOptions?.composerDraft) rollbackAfterSendFailure(sendBoundary);
         const errorMessage =
           error instanceof Error ? error.message : String(error);
         sendOptions?.observer?.onError?.(errorMessage);
         console.error("[AgentChat] 发送消息失败:", error);
         toast.error(resolveAgentRuntimeSubmitErrorMessage(errorMessage));
-        setInput(sourceText);
+        if (!sendOptions?.composerDraft) setInput(sourceText);
         return false;
       } finally {
         setSubmissionPreview((current) =>
@@ -3034,9 +3036,9 @@ export function useWorkspaceSendActions({
           return resolution.result;
         }
         if (resolution.kind === "local_confirmation") {
-          return executeLocalConfirmationPlan(resolution.plan);
+          return await executeLocalConfirmationPlan(resolution.plan);
         }
-        return executeSendPlan(resolution.plan);
+        return await executeSendPlan(resolution.plan);
       } finally {
         isPreparingSendRef.current = false;
         setIsPreparingSend(false);

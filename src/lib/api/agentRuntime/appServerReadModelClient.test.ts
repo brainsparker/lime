@@ -67,6 +67,13 @@ describe("appServerReadModelClient", () => {
       ],
     });
     expect(readModel.active_turn_id).toBe("turn-1");
+    expect(readModel.thread_turns).toEqual([
+      expect.objectContaining({
+        id: "turn-1",
+        thread_id: "thread-1",
+        status: "running",
+      }),
+    ]);
     expect(readModel.thread_items).toEqual([
       expect.objectContaining({
         id: "file-change-1",

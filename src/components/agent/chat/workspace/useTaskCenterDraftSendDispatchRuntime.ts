@@ -99,12 +99,15 @@ export function useTaskCenterDraftSendDispatchRuntime({
   const dispatchedRequestIdsRef = useRef<Set<string>>(new Set());
   const scheduledRequestIdsRef = useRef<Set<string>>(new Set());
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
       mountedRef.current = false;
-    },
-    [],
-  );
+      latestDispatchContextRef.current.taskCenterDraftSendRequest?.onDispatchSettled?.(
+        false,
+      );
+    };
+  }, []);
 
   useEffect(() => {
     latestDispatchContextRef.current = {
@@ -250,6 +253,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
         !mountedRef.current ||
         dispatchedRequestIdsRef.current.has(request.id)
       ) {
+        if (!mountedRef.current) request.onDispatchSettled?.(false);
         return;
       }
 
@@ -260,6 +264,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
         latestRequest.id !== request.id ||
         !isDraftSendDispatchRuntimeOwned(latestRequest)
       ) {
+        request.onDispatchSettled?.(false);
         return;
       }
       if (
@@ -310,6 +315,16 @@ export function useTaskCenterDraftSendDispatchRuntime({
             workspaceId: dispatchWorkspaceId ?? null,
           });
           clearRequest();
+          latestRequest.onDispatchSettled?.(false);
+          return;
+        }
+
+        if (
+          !mountedRef.current ||
+          latestDispatchContextRef.current.taskCenterDraftSendRequest?.id !==
+            latestRequest.id
+        ) {
+          latestRequest.onDispatchSettled?.(false);
           return;
         }
 
@@ -335,7 +350,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
           >[2] = {
             embedHomeSession: false,
             hydrateSession: false,
-            preserveInput: false,
+            preserveInput: Boolean(latestRequest.onDispatchSettled),
             syncRoute: false,
           };
           commitMaterializedDraftTab(
@@ -387,7 +402,8 @@ export function useTaskCenterDraftSendDispatchRuntime({
               workspaceId: dispatchWorkspaceId ?? null,
             });
             if (result !== true) {
-              restoreInput?.(latestRequest.text);
+              if (!latestRequest.onDispatchSettled)
+                restoreInput?.(latestRequest.text);
             }
             const latestCounts = messageCountsRef.current;
             const latestActiveSessionId =
@@ -399,6 +415,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
                   (latestRequest.materializeDraft &&
                     latestActiveSessionId !== dispatchSessionId)),
             });
+            latestRequest.onDispatchSettled?.(result === true);
           },
           (error) => {
             recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
@@ -409,8 +426,10 @@ export function useTaskCenterDraftSendDispatchRuntime({
               source: latestRequest.source,
               workspaceId: dispatchWorkspaceId ?? null,
             });
-            restoreInput?.(latestRequest.text);
+            if (!latestRequest.onDispatchSettled)
+              restoreInput?.(latestRequest.text);
             clearRequest();
+            latestRequest.onDispatchSettled?.(false);
           },
         );
       })().catch((error) => {
@@ -422,10 +441,14 @@ export function useTaskCenterDraftSendDispatchRuntime({
           source: latestRequest.source,
           workspaceId: dispatchWorkspaceId ?? null,
         });
-        if (!latestRequest.materializeDraft) {
+        if (
+          !latestRequest.onDispatchSettled &&
+          !latestRequest.materializeDraft
+        ) {
           restoreInput?.(latestRequest.text);
         }
         clearRequest();
+        latestRequest.onDispatchSettled?.(false);
       });
     });
   }, [

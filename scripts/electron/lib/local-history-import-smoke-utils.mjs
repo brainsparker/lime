@@ -338,8 +338,8 @@ export async function waitForUiSnapshot(
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(page, () => {
       const bodyText = document.body?.innerText || "";
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
+      const editor = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
       );
       const messageContent =
         document.querySelector('[data-testid="message-list-column"]') ||
@@ -353,12 +353,15 @@ export async function waitForUiSnapshot(
         title: document.title || "",
         bodyText,
         bodyTextLength: bodyText.length,
-        textareaVisible: textarea instanceof HTMLTextAreaElement,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-        textareaSessionId:
-          textarea instanceof HTMLTextAreaElement
-            ? textarea.getAttribute("data-session-id")
+        editorVisible: editor instanceof HTMLElement,
+        editorDisabled:
+          editor instanceof HTMLElement
+            ? editor.getAttribute("aria-disabled") === "true" ||
+              editor.getAttribute("contenteditable") !== "true"
+            : null,
+        editorSessionId:
+          editor instanceof HTMLElement
+            ? editor.getAttribute("data-session-id")
             : null,
         messageListSessionId:
           messageListFrame?.getAttribute("data-session-id") || null,
@@ -481,7 +484,7 @@ export async function inspectImportedConversationVisualState(page, params) {
     params.options,
     (snapshot) => {
       return (
-        snapshot.textareaSessionId === sessionId &&
+        snapshot.editorSessionId === sessionId &&
         snapshot.messageContentTextLength > 0 &&
         snapshot.messageContentChildCount > 0
       );
@@ -509,8 +512,8 @@ export async function inspectImportedConversationVisualState(page, params) {
       page,
       ({ expectedExcerptHtml, expectedMessages, sessionId }) => {
         const bodyText = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
         const messageList =
           document.querySelector('[data-testid="message-list"]') ||
@@ -545,10 +548,8 @@ export async function inspectImportedConversationVisualState(page, params) {
             "[data-source-provenance]",
           ].join(","),
         );
-        const textareaRect =
-          textarea instanceof HTMLElement
-            ? textarea.getBoundingClientRect()
-            : null;
+        const editorRect =
+          editor instanceof HTMLElement ? editor.getBoundingClientRect() : null;
         const messageRect =
           messageList instanceof HTMLElement
             ? messageList.getBoundingClientRect()
@@ -627,22 +628,25 @@ export async function inspectImportedConversationVisualState(page, params) {
         return {
           bodyText,
           bodyTextLength: bodyText.length,
-          textareaSessionId:
-            textarea instanceof HTMLTextAreaElement
-              ? textarea.getAttribute("data-session-id")
+          editorSessionId:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("data-session-id")
               : null,
           inputbarVisible:
-            textarea instanceof HTMLTextAreaElement &&
-            textareaRect !== null &&
-            textareaRect.width > 120 &&
-            textareaRect.height >= 24 &&
-            textareaRect.bottom > 0 &&
-            textareaRect.top < viewportHeight,
+            editor instanceof HTMLElement &&
+            editorRect !== null &&
+            editorRect.width > 120 &&
+            editorRect.height >= 24 &&
+            editorRect.bottom > 0 &&
+            editorRect.top < viewportHeight,
           inputbarDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : true,
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : true,
           inputbarOccludesMainContent:
-            Boolean(textareaRect && messageRect) &&
-            textareaRect.top < messageRect.top + 80,
+            Boolean(editorRect && messageRect) &&
+            editorRect.top < messageRect.top + 80,
           messageListVisible:
             messageRect !== null &&
             messageRect.width > 240 &&
@@ -704,8 +708,8 @@ export async function inspectImportedConversationVisualState(page, params) {
               messageContentText.includes("打开文件")) ||
             messageContentText.includes("文件变更"),
           targetSessionVisible:
-            textarea instanceof HTMLTextAreaElement &&
-            textarea.getAttribute("data-session-id") === sessionId &&
+            editor instanceof HTMLElement &&
+            editor.getAttribute("data-session-id") === sessionId &&
             messageContentTextLength > 0,
         };
       },

@@ -28,11 +28,9 @@ import {
   goBackBrowserTab,
   goForwardBrowserTab,
   isBrowserTabHostAvailable,
-  listenBrowserTabClosed,
   listenBrowserTabDownload,
   listenBrowserTabLoadFailed,
   listenBrowserTabPermissionRequest,
-  listenBrowserTabState,
   mountBrowserTab,
   navigateBrowserTab,
   reloadBrowserTab,
@@ -48,7 +46,6 @@ import {
 } from "@/lib/api/browserTab";
 import {
   createBrowserWorkspaceTabIdentity,
-  openBrowserWorkspaceIdentity,
   type BrowserWorkspaceOwner,
 } from "@/lib/api/browserWorkspace";
 import type { EmbeddedBrowserBounds } from "@/lib/api/embeddedBrowser";
@@ -70,6 +67,7 @@ import {
   BrowserWorkspacePermissionBanner,
   type BrowserWorkspaceError,
 } from "./BrowserWorkspaceStatus";
+import { useBrowserWorkspaceHydration } from "./useBrowserWorkspaceHydration";
 
 interface BrowserWorkspaceProps {
   active?: boolean;
@@ -107,12 +105,6 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
   const selectedRef = useRef<BrowserTabState | null>(null);
   const activeRef = useRef(active);
   const lastNavigationRef = useRef("");
-  const [owner, setOwner] = useState<BrowserWorkspaceOwner | null>(null);
-  const [identity, setIdentity] = useState<{
-    browserSessionId: string;
-    primaryTabId: string;
-  } | null>(null);
-  const [tabs, setTabs] = useState<BrowserTabState[]>([]);
   const [address, setAddress] = useState(
     resolveBrowserAddressValue(resolvedInitialUrl),
   );
@@ -125,6 +117,27 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
     useState<BrowserTabPermissionRequestEvent | null>(null);
   const [error, setError] = useState<BrowserWorkspaceError | null>(null);
   activeRef.current = active;
+  const reportHostError = useCallback(
+    (reason: unknown) => {
+      setError({
+        body: reason instanceof Error ? reason.message : String(reason),
+        source: "host",
+        title: translate("agentChat.browserWorkspace.loadFailedTitle"),
+      });
+    },
+    [translate],
+  );
+  const { owner, identity, tabs, acceptState, isCurrent } =
+    useBrowserWorkspaceHydration({
+      ensureOwner,
+      hostAvailable,
+      runtimeSessionId,
+      threadId,
+      initialUrl: resolvedInitialUrl,
+      viewportRef,
+      lastBoundsRef,
+      onError: reportHostError,
+    });
 
   const selected = tabs.find((tab) => tab.selected) ?? null;
   selectedRef.current = selected;
@@ -155,54 +168,26 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
     [identity, owner],
   );
 
-  const acceptState = useCallback(
-    (state: BrowserTabState) => {
-      if (
-        !identity ||
-        state.browserSessionId !== identity.browserSessionId ||
-        state.threadId !== owner?.threadId
-      ) {
-        return;
-      }
-      setTabs((current) => {
-        const normalized = state.selected
-          ? current.map((tab) =>
-              tab.tabId === state.tabId ? tab : { ...tab, selected: false },
-            )
-          : current;
-        const index = normalized.findIndex((tab) => tab.tabId === state.tabId);
-        if (index < 0) {
-          return [...normalized, state];
-        }
-        const next = [...normalized];
-        next[index] = state;
-        return next;
-      });
-      setError((current) => (current?.source === "host" ? null : current));
-    },
-    [identity, owner?.threadId],
-  );
-
   const run = useCallback(
     async (operation: () => Promise<BrowserTabState>) => {
+      if (!isCurrent()) return;
       try {
-        acceptState(await operation());
+        const state = await operation();
+        if (!isCurrent()) return;
+        acceptState(state);
+        setError((current) => (current?.source === "host" ? null : current));
       } catch (reason) {
-        setError({
-          body: reason instanceof Error ? reason.message : String(reason),
-          source: "host",
-          title: translate("agentChat.browserWorkspace.loadFailedTitle"),
-        });
+        if (isCurrent()) reportHostError(reason);
       }
     },
-    [acceptState, translate],
+    [acceptState, isCurrent, reportHostError],
   );
 
   const syncBounds = useCallback(
     async (force = false) => {
       const element = viewportRef.current;
       const tab = selectedRef.current;
-      if (!hostAvailable || !element || !tab) {
+      if (!isCurrent() || !hostAvailable || !element || !tab) {
         return;
       }
       const bounds = resolveElementBounds(element);
@@ -218,50 +203,8 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
         }),
       );
     },
-    [hostAvailable, run],
+    [hostAvailable, isCurrent, run],
   );
-
-  useEffect(() => {
-    let disposed = false;
-    if (!hostAvailable) {
-      return;
-    }
-    void (async () => {
-      const resolvedOwner =
-        runtimeSessionId?.trim() && threadId.trim()
-          ? {
-              runtimeSessionId: runtimeSessionId.trim(),
-              threadId: threadId.trim(),
-            }
-          : await ensureOwner?.();
-      if (!resolvedOwner?.runtimeSessionId || !resolvedOwner.threadId) {
-        throw new Error("Browser workspace requires a canonical conversation");
-      }
-      const next = await openBrowserWorkspaceIdentity(resolvedOwner);
-      return { next, owner: resolvedOwner };
-    })()
-      .then(({ next, owner: nextOwner }) => {
-        if (!disposed) {
-          setOwner(nextOwner);
-          setIdentity({
-            browserSessionId: next.browserSessionId,
-            primaryTabId: next.tabId,
-          });
-        }
-      })
-      .catch((reason) => {
-        if (!disposed) {
-          setError({
-            body: reason instanceof Error ? reason.message : String(reason),
-            source: "host",
-            title: translate("agentChat.browserWorkspace.loadFailedTitle"),
-          });
-        }
-      });
-    return () => {
-      disposed = true;
-    };
-  }, [ensureOwner, hostAvailable, runtimeSessionId, threadId, translate]);
 
   useEffect(() => {
     let disposed = false;
@@ -274,20 +217,6 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
         cleanup.push(stop);
       }
     };
-    void register(listenBrowserTabState(acceptState));
-    void register(
-      listenBrowserTabClosed((event) => {
-        if (
-          identity &&
-          event.browserSessionId === identity.browserSessionId &&
-          event.threadId === owner?.threadId
-        ) {
-          setTabs((current) =>
-            current.filter((tab) => tab.tabId !== event.tabId),
-          );
-        }
-      }),
-    );
     void register(
       listenBrowserTabLoadFailed((event) => {
         if (acceptsSelectedHostEvent(event)) {
@@ -319,13 +248,7 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
       disposed = true;
       cleanup.forEach((stop) => stop());
     };
-  }, [
-    acceptState,
-    acceptsSelectedHostEvent,
-    identity,
-    owner?.threadId,
-    translate,
-  ]);
+  }, [acceptsSelectedHostEvent, identity, owner?.threadId, translate]);
 
   useEffect(() => {
     setPermission((current) =>
@@ -336,39 +259,6 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
     );
     setError((current) => (current?.source === "load" ? null : current));
   }, [selected?.tabId]);
-
-  useEffect(() => {
-    if (!hostAvailable || !identity || !owner) {
-      return;
-    }
-    const frame = requestAnimationFrame(() => {
-      const element = viewportRef.current;
-      if (!element) {
-        return;
-      }
-      const bounds = resolveElementBounds(element);
-      lastBoundsRef.current = bounds;
-      void run(() =>
-        mountBrowserTab({
-          browserSessionId: identity.browserSessionId,
-          bounds,
-          selected: true,
-          tabId: identity.primaryTabId,
-          threadId: owner.threadId,
-          url: resolvedInitialUrl,
-          visible: active && bounds.width > 0 && bounds.height > 0,
-        }),
-      );
-    });
-    return () => {
-      cancelAnimationFrame(frame);
-      const tab = selectedRef.current;
-      const bounds = lastBoundsRef.current;
-      if (tab && bounds) {
-        void setBrowserTabBounds({ tabId: tab.tabId, bounds, visible: false });
-      }
-    };
-  }, [active, hostAvailable, identity, owner, resolvedInitialUrl, run]);
 
   useEffect(() => {
     const element = viewportRef.current;
@@ -398,7 +288,7 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
     if (selected?.tabId) {
       void syncBounds(true);
     }
-  }, [selected?.tabId, syncBounds]);
+  }, [active, selected?.tabId, syncBounds]);
 
   const openTab = useCallback(async () => {
     const element = viewportRef.current;
@@ -412,6 +302,7 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
         runtimeSessionId: owner.runtimeSessionId,
         threadId: owner.threadId,
       });
+      if (!isCurrent()) return;
       await run(() =>
         mountBrowserTab({
           browserSessionId: next.browserSessionId,
@@ -420,17 +311,13 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
           tabId: next.tabId,
           threadId: owner.threadId,
           url: DEFAULT_BROWSER_URL,
-          visible: active,
+          visible: false,
         }),
       );
     } catch (reason) {
-      setError({
-        body: reason instanceof Error ? reason.message : String(reason),
-        source: "host",
-        title: translate("agentChat.browserWorkspace.loadFailedTitle"),
-      });
+      if (isCurrent()) reportHostError(reason);
     }
-  }, [active, identity, owner, run, translate]);
+  }, [identity, isCurrent, owner, reportHostError, run]);
 
   const selectTab = useCallback(
     async (tabId: string) => {

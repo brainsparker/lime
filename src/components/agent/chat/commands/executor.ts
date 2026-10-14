@@ -1,3 +1,9 @@
+import i18n from "@/i18n/config";
+import {
+  cleanBackgroundTerminals,
+  listBackgroundTerminals,
+} from "@/lib/api/backgroundTerminals";
+import type { AppServerThreadBackgroundTerminal } from "@/lib/api/appServer";
 import {
   buildSlashCommandHelpMessage,
   buildSlashCommandModelMessage,
@@ -6,6 +12,52 @@ import {
   buildUnsupportedSlashCommandMessage,
 } from "./formatter";
 import type { ExecuteSlashCommandParams } from "./types";
+
+async function buildBackgroundTerminalListMessage(
+  sessionId: string | null,
+  listTerminals: (threadId: string) => Promise<AppServerThreadBackgroundTerminal[]>,
+): Promise<string> {
+  const threadId = sessionId?.trim() || "";
+  if (!threadId) {
+    return shellText("agentChat.navbar.shell.backgroundTerminalsMissingSession");
+  }
+  try {
+    const terminals = await listTerminals(threadId);
+    if (terminals.length === 0) {
+      return shellText("agentChat.navbar.shell.backgroundTerminalsEmpty");
+    }
+    return [
+      `${shellText("agentChat.navbar.shell.backgroundTerminals")}：`,
+      ...terminals.map((terminal) => {
+        const command = terminal.command.trim() || terminal.processId;
+        const cwd = terminal.cwd.trim();
+        return cwd ? `- ${command} (${cwd})` : `- ${command}`;
+      }),
+    ].join("\n");
+  } catch {
+    return shellText("agentChat.navbar.shell.backgroundTerminalsError");
+  }
+}
+
+async function buildBackgroundTerminalStopMessage(
+  sessionId: string | null,
+  cleanTerminals: (threadId: string) => Promise<unknown>,
+): Promise<string> {
+  const threadId = sessionId?.trim() || "";
+  if (!threadId) {
+    return shellText("agentChat.navbar.shell.backgroundTerminalsMissingSession");
+  }
+  try {
+    await cleanTerminals(threadId);
+    return shellText("agentChat.navbar.shell.backgroundTerminalsStoppingAll");
+  } catch {
+    return shellText("agentChat.navbar.shell.backgroundTerminalsStopError");
+  }
+}
+
+function shellText(key: string): string {
+  return i18n.t(key, { ns: "agent" });
+}
 
 function ensureSessionMutationAllowed(
   isSending: boolean,
@@ -36,6 +88,8 @@ export async function executeSlashCommand(
     notifyInfo,
     onOpenSubagents,
     onExecutedCommand,
+    listBackgroundTerminals: listTerminals = listBackgroundTerminals,
+    cleanBackgroundTerminals: cleanTerminals = cleanBackgroundTerminals,
   } = params;
 
   switch (command.definition.key) {
@@ -91,6 +145,24 @@ export async function executeSlashCommand(
       return true;
     case "subagents":
       onOpenSubagents?.();
+      onExecutedCommand?.(command);
+      return true;
+    case "ps":
+      appendAssistantMessage(
+        await buildBackgroundTerminalListMessage(
+          statusSnapshot.sessionId,
+          listTerminals,
+        ),
+      );
+      onExecutedCommand?.(command);
+      return true;
+    case "stop":
+      appendAssistantMessage(
+        await buildBackgroundTerminalStopMessage(
+          statusSnapshot.sessionId,
+          cleanTerminals,
+        ),
+      );
       onExecutedCommand?.(command);
       return true;
     case "review":

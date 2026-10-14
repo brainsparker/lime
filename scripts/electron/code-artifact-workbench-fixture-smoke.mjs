@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -9,6 +10,8 @@ import { _electron as electron } from "playwright";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { withElectronFixtureSystemPath } from "../lib/electron-fixture-runtime-env.mjs";
+import { collectReviewThreadSidePanelEvidence } from "./lib/review-thread-side-panel-gate-b.mjs";
+import { collectRightSurfaceLifecycleEvidence } from "./lib/right-surface-lifecycle-gate-b.mjs";
 import {
   FILE_CHANGE_BATCH_PROMPT_MARKER,
   FILE_CHANGE_BATCH_SCENARIO,
@@ -1109,9 +1112,15 @@ async function inspectHistoricalTimelineSummary(page, options) {
       continue;
     }
     lastSnapshot = snapshot;
-    if (/审查失败|Review failed|レビュー失敗|검토 실패|審查失敗/u.test(snapshot.statusText)) {
+    if (
+      /审查失败|Review failed|レビュー失敗|검토 실패|審查失敗/u.test(
+        snapshot.statusText,
+      )
+    ) {
       const diagnostics = await evaluatePageSnapshot(page, () => ({
-        invokeErrors: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
+        invokeErrors: window.localStorage.getItem(
+          "lime_invoke_error_buffer_v1",
+        ),
         trace: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
       }));
       throw new Error(
@@ -1337,16 +1346,16 @@ async function waitForInputReady(page, options) {
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({ sessionId }) => {
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+      withComposerEditorDom(({ sessionId }) => {
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
+        const rect = editor?.getBoundingClientRect();
+        const style = editor ? window.getComputedStyle(editor) : null;
         const bodyText = document.body?.innerText || "";
-        const textareaSessionId =
-          textarea instanceof HTMLTextAreaElement
-            ? textarea.getAttribute("data-session-id") || null
+        const editorSessionId =
+          editor instanceof HTMLElement
+            ? editor.getAttribute("data-session-id") || null
             : null;
         const activeConversation = document.querySelector(
           '[data-testid="app-sidebar-conversation-open"][aria-current="page"]',
@@ -1364,7 +1373,7 @@ async function waitForInputReady(page, options) {
           bodyText.includes("Restoring generation session") ||
           bodyText.includes("Syncing the latest generation session");
         const visible = Boolean(
-          textarea &&
+          editor &&
           rect &&
           rect.width > 16 &&
           rect.height > 16 &&
@@ -1373,22 +1382,27 @@ async function waitForInputReady(page, options) {
         );
         return {
           url: window.location.href,
-          sessionId: textareaSessionId,
-          sessionMatches: textareaSessionId === sessionId,
+          sessionId: editorSessionId,
+          sessionMatches: editorSessionId === sessionId,
           activeConversationMatches,
           restoring,
-          hasTextarea: Boolean(textarea),
-          textareaVisible: visible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+          hasEditor: Boolean(editor),
+          editorVisible: visible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
           hasInputbarCore: Boolean(
             document.querySelector('[data-testid="inputbar-core-container"]'),
           ),
           bodyText,
         };
-      },
+      }),
       { sessionId: SESSION_ID },
     );
     if (!snapshot) {
@@ -1398,9 +1412,9 @@ async function waitForInputReady(page, options) {
     lastSnapshot = snapshot;
     const hasWritableInput =
       !snapshot.restoring &&
-      snapshot.hasTextarea &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false;
+      snapshot.hasEditor &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false;
     if (
       hasWritableInput &&
       (snapshot.sessionMatches ||
@@ -1418,18 +1432,30 @@ async function waitForInputReady(page, options) {
 
 async function sendPromptFromGui(page, options, prompt) {
   const before = await waitForInputReady(page, options);
-  const textarea = page.locator('textarea[name="agent-chat-message"]').first();
-  await textarea.fill(prompt);
-  const afterFill = await page.evaluate((prompt) => {
-    const input = document.querySelector('textarea[name="agent-chat-message"]');
-    return {
-      value: input instanceof HTMLTextAreaElement ? input.value : null,
-      promptVisibleInTextarea:
-        input instanceof HTMLTextAreaElement ? input.value === prompt : false,
-    };
-  }, prompt);
+  const editor = page
+    .locator('[data-testid="composer-editor"][role="textbox"]')
+    .first();
+  await editor.fill(prompt);
+  const afterFill = await page.evaluate(
+    withComposerEditorDom((prompt) => {
+      const input = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
+      );
+      return {
+        value:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input)
+            : null,
+        promptVisibleInEditor:
+          input instanceof HTMLElement
+            ? readComposerEditorTextDom(input) === prompt
+            : false,
+      };
+    }),
+    prompt,
+  );
   assert(
-    afterFill.promptVisibleInTextarea,
+    afterFill.promptVisibleInEditor,
     `输入框未保留 coding 请求: ${JSON.stringify(sanitizeJson(afterFill))}`,
   );
 
@@ -2189,12 +2215,12 @@ async function waitForFixtureSessionOpenedFromSidebar(page, options) {
         const activeConversation = document.querySelector(
           '[data-testid="app-sidebar-conversation-open"][aria-current="page"]',
         );
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const textareaSessionId =
-          textarea instanceof HTMLTextAreaElement
-            ? textarea.getAttribute("data-session-id") || null
+        const editorSessionId =
+          editor instanceof HTMLElement
+            ? editor.getAttribute("data-session-id") || null
             : null;
         const restoring =
           text.includes("正在恢复生成会话") ||
@@ -2231,8 +2257,8 @@ async function waitForFixtureSessionOpenedFromSidebar(page, options) {
           activeConversationMatches:
             (activeConversation?.getAttribute("title") || "").includes(title) ||
             (activeConversation?.textContent || "").includes(title),
-          textareaSessionId,
-          sessionMatches: textareaSessionId === sessionId,
+          editorSessionId,
+          sessionMatches: editorSessionId === sessionId,
           restoring,
           hasEmptyState: Boolean(
             document.querySelector('[data-testid="empty-state"]'),
@@ -2573,7 +2599,12 @@ async function startReviewFromGui(page, options) {
       if (!(element instanceof HTMLElement)) return false;
       const style = window.getComputedStyle(element);
       const rect = element.getBoundingClientRect();
-      return style.display !== "none" && style.visibility !== "hidden" && rect.width > 0 && rect.height > 0;
+      return (
+        style.display !== "none" &&
+        style.visibility !== "hidden" &&
+        rect.width > 0 &&
+        rect.height > 0
+      );
     };
     const tab = Array.from(
       document.querySelectorAll('[data-canvas-tab-key="changes"]'),
@@ -2585,9 +2616,9 @@ async function startReviewFromGui(page, options) {
     return false;
   });
   assert(changesTabClicked, "未找到可见的 Canvas 变更标签");
-  const button = page.locator(
-    '[data-testid="code-review-summary-start-review"]',
-  ).first();
+  const button = page
+    .locator('[data-testid="code-review-summary-start-review"]')
+    .first();
   await button.waitFor({ state: "visible", timeout: options.timeoutMs });
   assert(
     await button.isEnabled(),
@@ -2656,8 +2687,7 @@ function readReviewBoundaries(readResult) {
 function hasReviewBoundaryProjection(value) {
   const types = readReviewBoundaries(value).map((item) => item.type);
   return (
-    types.includes("enteredReviewMode") &&
-    types.includes("exitedReviewMode")
+    types.includes("enteredReviewMode") && types.includes("exitedReviewMode")
   );
 }
 
@@ -2665,10 +2695,14 @@ async function waitForReviewTerminalReadModel(page, options) {
   const startedAt = Date.now();
   let lastRead = null;
   while (Date.now() - startedAt < options.timeoutMs) {
-    const response = await invokeAppServerFromPage(page, APP_SERVER_METHOD_THREAD_READ, {
-      threadId: THREAD_ID,
-      includeTurns: true,
-    });
+    const response = await invokeAppServerFromPage(
+      page,
+      APP_SERVER_METHOD_THREAD_READ,
+      {
+        threadId: THREAD_ID,
+        includeTurns: true,
+      },
+    );
     lastRead = response.result;
     if (
       hasReviewBoundaryProjection(lastRead) &&
@@ -3491,7 +3525,7 @@ async function run() {
       guiPromptSubmitted:
         options.scenario === "gui-coding-input"
           ? summary.guiCodingInput?.clicked?.clicked === true &&
-            summary.guiCodingInput?.afterFill?.promptVisibleInTextarea === true
+            summary.guiCodingInput?.afterFill?.promptVisibleInEditor === true
           : null,
     });
 
@@ -3691,6 +3725,49 @@ async function run() {
           outputPreview: CODING_COMMAND_SUCCESS_PREVIEW,
         }),
       );
+      logStage("review-files-from-right-surface");
+      summary.filesReview = await collectReviewThreadSidePanelEvidence(page, {
+        threadId: THREAD_ID,
+        timeoutMs: options.timeoutMs,
+        changes: [
+          {
+            path: CODING_ADDED_FILE_PATH,
+            lines: [{ type: "add", text: "export const added = true;" }],
+            openDisabled: false,
+          },
+          {
+            path: CODING_DELETED_FILE_PATH,
+            lines: [{ type: "remove", text: "export const deleted = true;" }],
+            openDisabled: true,
+          },
+          {
+            path: CODING_FILE_PATH,
+            lines: [
+              { type: "remove", text: "codingWorkbenchSmoke = false" },
+              { type: "add", text: "codingWorkbenchSmoke = true" },
+            ],
+            openDisabled: false,
+          },
+          {
+            path: CODING_MOVE_SOURCE_PATH,
+            lines: [
+              { type: "remove", text: "export const source = true;" },
+              { type: "add", text: "export const destination = true;" },
+            ],
+            openDisabled: false,
+          },
+        ],
+      });
+      logStage("right-surface-lifecycle");
+      summary.rightSurfaceLifecycle =
+        await collectRightSurfaceLifecycleEvidence(page, app, {
+          sessionId: SESSION_ID,
+          threadId: THREAD_ID,
+          workspaceId: workspace.workspaceId,
+          workspaceRoot: workspace.rootPath,
+          timeoutMs: options.timeoutMs,
+          onStage: (stage) => logStage(`right-surface-${stage}`),
+        });
     }
 
     const backendLedgerEvidence = persistBackendLedgerEvidence(
@@ -3915,6 +3992,15 @@ async function run() {
         summary.codingWorkbenchGuiEvidence?.changes?.panelVisible === true &&
         summary.codingWorkbenchGuiEvidence?.changes?.expectedTextsPresent ===
           true,
+      filesReviewLocatedDiffs:
+        options.scenario !== "gui-coding-input" ||
+        (summary.filesReview?.threadId === THREAD_ID &&
+          summary.filesReview?.selected?.length === 4 &&
+          summary.filesReview.selected.every(
+            (entry) => entry.selected && entry.visible,
+          ) &&
+          summary.filesReview.externalOpenBefore ===
+            summary.filesReview.externalOpenAfter),
       codingOutputsEvidencePresent:
         options.scenario === "direct-session"
           ? summary.sessionCreation?.codingProjectionPersisted === true &&

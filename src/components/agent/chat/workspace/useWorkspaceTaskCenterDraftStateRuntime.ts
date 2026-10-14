@@ -22,6 +22,7 @@ interface UseWorkspaceTaskCenterDraftStateRuntimeParams {
   messagesLength: number;
   normalizedInitialSessionId: string | null;
   sessionId?: string | null;
+  resetComposerDraft?: () => void;
 }
 
 interface WorkspaceTaskCenterDraftStateRuntime {
@@ -52,6 +53,7 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
   messagesLength,
   normalizedInitialSessionId,
   sessionId,
+  resetComposerDraft,
 }: UseWorkspaceTaskCenterDraftStateRuntimeParams): WorkspaceTaskCenterDraftStateRuntime {
   const [taskCenterDraftSendRequest, setTaskCenterDraftSendRequest] =
     useState<TaskCenterDraftSendRequest | null>(null);
@@ -74,20 +76,24 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
       return;
     }
 
+    resetComposerDraft?.();
     taskCenterDraftSurfaceActiveRef.current = false;
     setActiveTaskCenterDraftTabId(null);
     setTaskCenterDraftTabs((current) => (current.length > 0 ? [] : current));
-  }, [agentEntry]);
+  }, [agentEntry, resetComposerDraft]);
 
   const handleBeforeTopicSwitch = useCallback(
     (topicId: string) => {
+      if (topicId.trim() !== sessionId?.trim() || taskCenterDraftSurfaceActiveRef.current) {
+        resetComposerDraft?.();
+      }
       taskCenterDraftSurfaceActiveRef.current = false;
       setActiveTaskCenterDraftTabId(null);
       setTaskCenterDraftSendRequest(null);
       setHomePendingPreviewRequest(null);
       deferSessionRecentMetadataSyncForNavigation(topicId);
     },
-    [deferSessionRecentMetadataSyncForNavigation],
+    [deferSessionRecentMetadataSyncForNavigation, resetComposerDraft, sessionId],
   );
 
   const hasTaskCenterHomeHotpathPending = Boolean(

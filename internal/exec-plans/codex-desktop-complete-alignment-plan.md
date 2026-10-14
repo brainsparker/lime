@@ -1,5 +1,7 @@
 # Codex Desktop 完整对齐执行计划
 
+> 历史记录：本计划的任务比例、产品范围裁决、Queue 状态条布局与旧 Gate B 只代表 2026-08 的范围。2026-10-14 起，全面 GUI 复刻统一由 [current 对齐计划](./codex-gui-alignment-current-plan.md) 驱动；仅保留主题、多模型和首页 Banner。下方结论不得作为新实现、排除项或回流旧组件/测试的依据。
+
 > status: `stopped-with-known-gaps`（2026-08-27 按用户要求结束长时间续跑）
 > owner: root + 各领域 current owner
 > upstream: `/Users/coso/Documents/dev/rust/codex`（当前观测 HEAD：`99660ab3c7b861c916e467581fa9b8723504d66b`）

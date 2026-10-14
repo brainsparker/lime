@@ -22,6 +22,8 @@ use thread_store::{
 use super::canonical_rollout::RolloutStore;
 use super::{ProjectionStore, StorageRoots, StoredSession};
 
+mod queue;
+
 fn store() -> (tempfile::TempDir, ProjectionStore) {
     let temp = tempfile::tempdir().expect("tempdir");
     let store = ProjectionStore::initialize(temp.path().join("projection.sqlite"))

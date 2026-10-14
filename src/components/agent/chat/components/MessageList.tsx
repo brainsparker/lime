@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -15,7 +21,6 @@ import type {
   MessageListRenderGroup,
 } from "./MessageList.types";
 import {
-  HistoryWindow,
   PersistedHistoryWindow,
   RestoringSessionEmptyState,
   TaskCenterEmptyState,
@@ -23,11 +28,13 @@ import {
 import { MessageListStreamingOverlayItem } from "./MessageListStreamingOverlayItem";
 import { useMessageListHistoricalHydration } from "./useMessageListHistoricalHydration";
 import { useMessageListPromptCacheNotice } from "./useMessageListPromptCacheNotice";
-import { useMessageListRenderWindow } from "./useMessageListRenderWindow";
+import { useMessageListHistoryState } from "./useMessageListHistoryState";
+import { filterVisibleConversationMessages } from "../projection/conversationMessages";
 import {
-  useMessageListAutoScroll,
-  useMessageListScrollController,
-} from "./useMessageListScrollController";
+  VirtualizedTurnList,
+  type VirtualizedTurnListSnapshot,
+} from "./VirtualizedTurnList";
+import { useMessageListScrollController } from "./useMessageListScrollController";
 import { useMessageListTelemetry } from "./useMessageListTelemetry";
 import { useMessageListTimelineState } from "./useMessageListTimelineState";
 import { CONVERSATION_CONTENT_MAX_WIDTH } from "../styles/conversationLayoutTokens";
@@ -102,6 +109,18 @@ const MessageListInner: React.FC<MessageListProps> = ({
   const { t } = useTranslation("agent");
   const isTaskCenterEmptyState = emptyStateVariant === "task-center";
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const copyGenerationRef = useRef(0);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    setCopiedId(null);
+    return () => {
+      copyGenerationRef.current += 1;
+      if (copyTimeoutRef.current !== null) {
+        clearTimeout(copyTimeoutRef.current);
+        copyTimeoutRef.current = null;
+      }
+    };
+  }, [sessionId]);
   const [threadRevertTarget, setThreadRevertTarget] =
     useState<ThreadRevertTarget | null>(null);
   const [threadRevertStatus, setThreadRevertStatus] =
@@ -122,44 +141,41 @@ const MessageListInner: React.FC<MessageListProps> = ({
     [threadItems, threadRead?.thread_items],
   );
   const scrollController = useMessageListScrollController();
-  const renderWindow = useMessageListRenderWindow({
-    currentTurnId,
-    isSending,
+  const visibleMessages = useMemo(
+    () => filterVisibleConversationMessages(messages),
+    [messages],
+  );
+  const historyState = useMessageListHistoryState(
     isRestoringSession,
-    isUserScrolling: scrollController.isUserScrolling,
-    messages,
-    sessionHistoryWindow,
-    threadItems: effectiveThreadItems,
-    turns,
-  });
+    Boolean(sessionHistoryWindow && sessionHistoryWindow.hasMore !== false),
+  );
   const timelineState = useMessageListTimelineState({
     activePendingA2UISource,
     canonicalChildren,
     currentTurnId,
     focusedTimelineItemId,
-    hiddenHistoryCount: renderWindow.hiddenHistoryCount,
-    hasPersistedOlderHistory: renderWindow.hasPersistedOlderHistory,
-    isRestoredHistoryWindow: renderWindow.isRestoredHistoryWindow,
+    hasPersistedOlderHistory: historyState.hasPersistedOlderHistory,
+    isRestoredHistoryWindow: historyState.isRestoredHistoryWindow,
     isSending,
     pendingActions,
-    renderedMessages: renderWindow.renderedMessages,
+    renderedMessages: visibleMessages,
     submittedActionsInFlight,
-    threadItems: renderWindow.renderedThreadItems,
+    threadItems: effectiveThreadItems,
     threadRead,
-    turns: renderWindow.renderedTurns,
+    turns: turns,
   });
   const historicalHydration = useMessageListHistoricalHydration({
     activeCurrentTurnId: timelineState.activeCurrentTurnId,
     focusedTimelineItemId,
     isHistoricalTimelineReady: timelineState.isHistoricalTimelineReady,
-    isRestoredHistoryWindow: renderWindow.isRestoredHistoryWindow,
+    isRestoredHistoryWindow: historyState.isRestoredHistoryWindow,
     isSending,
-    renderedMessages: renderWindow.renderedMessages,
+    renderedMessages: visibleMessages,
   });
   const promptCacheNotice = useMessageListPromptCacheNotice({
     lastAssistantMessage: timelineState.lastAssistantMessage,
     providerType,
-    restoredPromptCacheNoticeReady: renderWindow.restoredPromptCacheNoticeReady,
+    restoredPromptCacheNoticeReady: historyState.restoredPromptCacheNoticeReady,
   });
   const activeThreadId = threadRead?.thread_id?.trim() || "";
 
@@ -168,23 +184,90 @@ const MessageListInner: React.FC<MessageListProps> = ({
     setThreadRevertStatus("idle");
   }, [activeThreadId, sessionId]);
 
-  useMessageListAutoScroll({
-    isRestoringSession,
-    isSending,
-    renderedMessageCount: timelineState.renderEntries.reduce(
-      (count, entry) =>
-        count +
-        (entry.kind === "canonical_turn"
-          ? entry.segments.length
-          : entry.group.messages.length),
-      trailingContent ? 1 : 0,
-    ),
-    scrollRef: scrollController.scrollRef,
-    shouldAutoScroll: scrollController.shouldAutoScroll,
-  });
+  const [mountedSnapshot, setMountedSnapshot] =
+    useState<VirtualizedTurnListSnapshot>({
+      mountedKeys: [],
+      startIndex: 0,
+      endIndex: 0,
+      offscreenCount: 0,
+    });
+  const handleRangeChange = useCallback(
+    (snapshot: VirtualizedTurnListSnapshot) => {
+      setMountedSnapshot((previous) =>
+        previous.mountedKeys.join("\u0000") ===
+          snapshot.mountedKeys.join("\u0000") &&
+        previous.offscreenCount === snapshot.offscreenCount
+          ? previous
+          : snapshot,
+      );
+    },
+    [],
+  );
+  const mountedKeys = new Set(mountedSnapshot.mountedKeys);
+  const mountedTurnIds = new Set<string>();
+  const mountedMessageIds = new Set<string>();
+  for (const entry of timelineState.renderEntries) {
+    if (!mountedKeys.has(entry.id)) continue;
+    if (entry.kind === "canonical_turn") {
+      mountedTurnIds.add(entry.turn.id);
+      for (const segment of entry.segments) {
+        if (segment.kind === "message") {
+          mountedMessageIds.add(segment.item.id);
+          if (segment.item.type === "user_message" && segment.item.client_id)
+            mountedMessageIds.add(segment.item.client_id);
+        }
+      }
+    } else {
+      for (const message of entry.group.messages) {
+        mountedMessageIds.add(message.id);
+        if (message.runtimeTurnId) mountedTurnIds.add(message.runtimeTurnId);
+      }
+    }
+  }
+  const mountedMessages = visibleMessages.filter(
+    (message) =>
+      mountedMessageIds.has(message.id) ||
+      Boolean(
+        message.runtimeTurnId && mountedTurnIds.has(message.runtimeTurnId),
+      ),
+  );
+  const focusedTurnId = focusedTimelineItemId
+    ? effectiveThreadItems.find((item) => item.id === focusedTimelineItemId)
+        ?.turn_id
+    : null;
+  const focusedEntryKey =
+    timelineState.renderEntries.find((entry) =>
+      entry.kind === "canonical_turn"
+        ? entry.turn.id === focusedTurnId
+        : entry.group.timeline?.turn.id === focusedTurnId,
+    )?.id ?? null;
+  const getFocusedElement = useCallback(
+    (row: HTMLElement) =>
+      [...row.querySelectorAll<HTMLElement>("[data-thread-item-id]")].find(
+        (element) => element.dataset.threadItemId === focusedTimelineItemId,
+      ) ?? null,
+    [focusedTimelineItemId],
+  );
+  const latestMessageId = visibleMessages.at(-1)?.id;
+  const retainedEntryKeys = timelineState.renderEntries
+    .filter(
+      (entry) =>
+        entry.id === focusedEntryKey ||
+        (entry.kind === "canonical_turn" && entry.isActive) ||
+        (entry.kind === "message_group" &&
+          entry.group.messages.some(
+            (message) =>
+              message.runtimeTurnId === currentTurnId ||
+              (isSending && message.id === latestMessageId),
+          )),
+    )
+    .map((entry) => entry.id);
   useMessageListTelemetry({
+    hiddenHistoryCount: 0,
+    virtualOffscreenCount: mountedSnapshot.offscreenCount,
+    mountedEntryCount: mountedSnapshot.mountedKeys.length,
+    indexedThreadItemsCount: timelineState.renderedThreadItems.length,
     canBuildHistoricalTimeline: timelineState.canBuildHistoricalTimeline,
-    hiddenHistoryCount: renderWindow.hiddenHistoryCount,
     historicalContentPartsDeferredCount:
       historicalHydration.historicalContentPartsDeferredCount,
     historicalContentPartsDeferredMeasurement:
@@ -198,16 +281,18 @@ const MessageListInner: React.FC<MessageListProps> = ({
     hydratedHistoricalMarkdownCount:
       historicalHydration.hydratedHistoricalMarkdownCount,
     isHistoricalTimelineReady: timelineState.isHistoricalTimelineReady,
-    isRestoredHistoryWindow: renderWindow.isRestoredHistoryWindow,
+    isRestoredHistoryWindow: historyState.isRestoredHistoryWindow,
     isRestoringSession,
     messageGroupsMeasurement: timelineState.messageGroupsMeasurement,
     messagesCount: messages.length,
-    persistedHiddenHistoryCount: Number(renderWindow.hasPersistedOlderHistory),
-    renderedMessages: renderWindow.renderedMessages,
-    renderedThreadItemsCount: timelineState.renderedThreadItems.length,
+    persistedHiddenHistoryCount: Number(historyState.hasPersistedOlderHistory),
+    renderedMessages: mountedMessages,
+    renderedThreadItemsCount: timelineState.renderedThreadItems.filter((item) =>
+      mountedTurnIds.has(item.turn_id),
+    ).length,
     renderedThreadItemsMeasurement:
       timelineState.renderedThreadItemsMeasurement,
-    renderedTurnsCount: timelineState.renderedTurns.length,
+    renderedTurnsCount: mountedTurnIds.size,
     renderGroups: timelineState.renderGroups,
     renderGroupsMeasurement: timelineState.renderGroupsMeasurement,
     sessionId,
@@ -219,7 +304,7 @@ const MessageListInner: React.FC<MessageListProps> = ({
     timelineByMessageIdMeasurement:
       timelineState.timelineByMessageIdMeasurement,
     turnsCount: turns.length,
-    visibleMessagesCount: renderWindow.visibleMessages.length,
+    visibleMessagesCount: visibleMessages.length,
   });
 
   const handleExpandLongHistoricalMessage = useCallback((messageId: string) => {
@@ -249,12 +334,21 @@ const MessageListInner: React.FC<MessageListProps> = ({
   );
   const handleCopy = useCallback(
     async (content: string, id: string) => {
+      const generation = ++copyGenerationRef.current;
       try {
         await navigator.clipboard.writeText(content);
+        if (generation !== copyGenerationRef.current) return;
+        if (copyTimeoutRef.current !== null) {
+          clearTimeout(copyTimeoutRef.current);
+        }
         setCopiedId(id);
         toast.success(t("agentChat.messageList.toast.copySuccess"));
-        setTimeout(() => setCopiedId(null), 2000);
+        copyTimeoutRef.current = setTimeout(() => {
+          copyTimeoutRef.current = null;
+          setCopiedId(null);
+        }, 2000);
       } catch {
+        if (generation !== copyGenerationRef.current) return;
         toast.error(t("agentChat.messageList.toast.copyFailed"));
       }
     },
@@ -328,7 +422,7 @@ const MessageListInner: React.FC<MessageListProps> = ({
         expandedLongHistoricalMessageIds={expandedLongHistoricalMessageIds}
         focusedTimelineItemId={focusedTimelineItemId}
         hasActiveInteractiveRuntime={timelineState.hasActiveInteractiveRuntime}
-        isRestoredHistoryWindow={renderWindow.isRestoredHistoryWindow}
+        isRestoredHistoryWindow={historyState.isRestoredHistoryWindow}
         isSending={isSending}
         lastAssistantMessageId={timelineState.lastAssistantMessageId}
         promoteActionRequestsToA2UI={promoteActionRequestsToA2UI}
@@ -347,6 +441,7 @@ const MessageListInner: React.FC<MessageListProps> = ({
         threadRead={threadRead}
         timelineFocusRequestKey={timelineFocusRequestKey}
         handleCopy={handleCopy}
+        onBeforeUserMessageToggle={scrollController.holdViewport}
         handleExpandHistoricalAssistantMessage={
           handleExpandHistoricalAssistantMessage
         }
@@ -408,8 +503,9 @@ const MessageListInner: React.FC<MessageListProps> = ({
       promptCacheNotice,
       providerType,
       renderA2UIInline,
-      renderWindow.isRestoredHistoryWindow,
+      historyState.isRestoredHistoryWindow,
       sessionId,
+      scrollController.holdViewport,
       shouldCollapseCodeBlock,
       threadRead,
       timelineFocusRequestKey,
@@ -433,6 +529,12 @@ const MessageListInner: React.FC<MessageListProps> = ({
           ref={scrollController.containerRef}
           $taskCenterSurface={isTaskCenterEmptyState}
           data-testid="message-list-scroll-container"
+          data-mounted-turns={mountedTurnIds.size}
+          data-mounted-items={
+            timelineState.renderedThreadItems.filter((item) =>
+              mountedTurnIds.has(item.turn_id),
+            ).length
+          }
         >
           <div
             data-testid="message-list-column"
@@ -450,21 +552,13 @@ const MessageListInner: React.FC<MessageListProps> = ({
                 {leadingContent}
               </div>
             ) : null}
-            {renderWindow.hasPersistedOlderHistory ? (
+            {historyState.hasPersistedOlderHistory ? (
               <PersistedHistoryWindow
-                loadedEntries={renderWindow.visibleEntries.length}
+                loadedEntries={timelineState.renderEntries.length}
                 hasMore
                 isLoadingFull={sessionHistoryWindow?.isLoadingFull === true}
                 error={sessionHistoryWindow?.error}
                 onLoadFullHistory={onLoadFullHistory}
-              />
-            ) : null}
-            {renderWindow.hiddenHistoryCount > 0 ? (
-              <HistoryWindow
-                hiddenHistoryCount={renderWindow.hiddenHistoryCount}
-                isRestoredHistoryWindow={renderWindow.isRestoredHistoryWindow}
-                renderedEntriesCount={renderWindow.renderedEntryCount}
-                onExpandAllHistory={renderWindow.handleExpandAllHistory}
               />
             ) : null}
             {timelineState.renderEntries.length === 0 &&
@@ -474,142 +568,143 @@ const MessageListInner: React.FC<MessageListProps> = ({
                 <TaskCenterEmptyState />
               ) : null)}
 
-            {timelineState.renderEntries.map((entry, groupIndex) => {
-              if (entry.kind === "canonical_turn") {
-                const lastAssistantItemId = entry.segments
-                  .filter(
-                    (segment) =>
-                      segment.kind === "message" &&
-                      segment.item.type === "agent_message",
-                  )
-                  .at(-1)?.id;
-                const lastAssistantMessageId =
-                  findLastMessage(
+            <VirtualizedTurnList
+              key={sessionId || activeThreadId || "conversation"}
+              entries={timelineState.renderEntries}
+              scrollContainerRef={scrollController.containerRef}
+              isFollowingTail={scrollController.isFollowingTail}
+              scrollToTail={scrollController.scrollToTail}
+              setScrollTop={scrollController.setScrollTop}
+              holdViewport={scrollController.holdViewport}
+              retainedKeys={retainedEntryKeys}
+              focusedKey={focusedEntryKey}
+              getFocusedElement={getFocusedElement}
+              focusRequestKey={timelineFocusRequestKey}
+              onRangeChange={handleRangeChange}
+              renderEntry={(entry, groupIndex) => {
+                if (entry.kind === "canonical_turn") {
+                  const lastAssistantItemId = entry.segments
+                    .filter(
+                      (segment) =>
+                        segment.kind === "message" &&
+                        segment.item.type === "agent_message",
+                    )
+                    .at(-1)?.id;
+                  const lastAssistantMessageId =
+                    findLastMessage(
+                      messages,
+                      (message) =>
+                        message.role === "assistant" &&
+                        message.runtimeTurnId?.trim() === entry.turn.id,
+                    )?.id ?? lastAssistantItemId;
+                  const lastUserMessageId = findLastMessage(
                     messages,
                     (message) =>
-                      message.role === "assistant" &&
+                      message.role === "user" &&
                       message.runtimeTurnId?.trim() === entry.turn.id,
-                  )?.id ?? lastAssistantItemId;
-                const lastUserMessageId = findLastMessage(
-                  messages,
-                  (message) =>
-                    message.role === "user" &&
-                    message.runtimeTurnId?.trim() === entry.turn.id,
-                )?.id;
+                  )?.id;
+                  return (
+                    <MessageTurnGroup
+                      key={entry.id}
+                      data-testid="message-turn-group"
+                      data-render-entry-kind="canonical_turn"
+                      data-group-index={groupIndex + 1}
+                      data-runtime-turn-id={entry.turn.id}
+                      data-runtime-turn-status={entry.turn.status}
+                      data-last-assistant-message-id={
+                        lastAssistantMessageId || ""
+                      }
+                      data-timeline-message-id={lastAssistantItemId || ""}
+                      data-render-priority="viewport"
+                      className="py-1"
+                    >
+                      <ConversationTurnTimeline
+                        entry={entry}
+                        sessionId={sessionId}
+                        userMessageId={lastUserMessageId}
+                        assistantMessageId={lastAssistantMessageId}
+                        threadRead={threadRead}
+                        pendingActions={pendingActions}
+                        submittedActionsInFlight={submittedActionsInFlight}
+                        assistantLabel={assistantLabel}
+                        copiedId={copiedId}
+                        compactLeadingSpacing={compactLeadingSpacing}
+                        isSending={isSending}
+                        renderA2UIInline={renderA2UIInline}
+                        a2uiFormDataMap={a2uiFormDataMap}
+                        collapseCodeBlocks={collapseCodeBlocks}
+                        shouldCollapseCodeBlock={shouldCollapseCodeBlock}
+                        focusedTimelineItemId={focusedTimelineItemId}
+                        timelineFocusRequestKey={timelineFocusRequestKey}
+                        shouldDeferHistoricalTimelineDetails={
+                          timelineState.shouldDeferHistoricalTimelineDetails
+                        }
+                        handleCopy={handleCopy}
+                        onBeforeUserMessageToggle={
+                          scrollController.holdViewport
+                        }
+                        onA2UISubmit={onA2UISubmit}
+                        onA2UIFormChange={onA2UIFormChange}
+                        onWriteFile={onWriteFile}
+                        onFileClick={onFileClick}
+                        onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
+                        onOpenUrlPreview={onOpenUrlPreview}
+                        onOpenSavedSiteContent={onOpenSavedSiteContent}
+                        onOpenMessagePreview={onOpenMessagePreview}
+                        onOpenSubagentSession={onOpenSubagentSession}
+                        onPermissionResponse={onPermissionResponse}
+                        onQuoteMessage={onQuoteMessage}
+                        onRequestThreadRevert={handleRequestThreadRevert}
+                        onSaveMessageAsSkill={onSaveMessageAsSkill}
+                        onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
+                        onCodeBlockClick={onCodeBlockClick}
+                      />
+                    </MessageTurnGroup>
+                  );
+                }
+
+                const group = entry.group;
+                const groupRuntimeTurnId =
+                  group.timeline?.turn?.id ||
+                  group.messages.find((message) => message.runtimeTurnId)
+                    ?.runtimeTurnId ||
+                  "";
+                const groupRuntimeTurnStatus =
+                  group.timeline?.turn?.status ||
+                  timelineState.renderedTurns.find(
+                    (turn) => turn.id === groupRuntimeTurnId,
+                  )?.status ||
+                  "";
                 return (
                   <MessageTurnGroup
                     key={entry.id}
-                    $deferOffscreenWork={
-                      groupIndex < timelineState.renderEntries.length - 2 &&
-                      entry.turn.status !== "running"
-                    }
                     data-testid="message-turn-group"
-                    data-render-entry-kind="canonical_turn"
+                    data-render-entry-kind="message_group"
                     data-group-index={groupIndex + 1}
-                    data-runtime-turn-id={entry.turn.id}
-                    data-runtime-turn-status={entry.turn.status}
-                    data-last-assistant-message-id={
-                      lastAssistantMessageId || ""
-                    }
-                    data-timeline-message-id={lastAssistantItemId || ""}
-                    data-render-priority={
-                      groupIndex < timelineState.renderEntries.length - 2
-                        ? "offscreen-deferred"
-                        : "tail"
-                    }
+                    data-runtime-turn-id={groupRuntimeTurnId}
+                    data-runtime-turn-status={groupRuntimeTurnStatus}
+                    data-last-assistant-message-id={group.lastAssistantId || ""}
+                    data-timeline-message-id={group.timelineMessageId || ""}
+                    data-render-priority="viewport"
                     className="py-1"
                   >
-                    <ConversationTurnTimeline
-                      entry={entry}
-                      sessionId={sessionId}
-                      userMessageId={lastUserMessageId}
-                      assistantMessageId={lastAssistantMessageId}
-                      threadRead={threadRead}
-                      pendingActions={pendingActions}
-                      submittedActionsInFlight={submittedActionsInFlight}
-                      assistantLabel={assistantLabel}
-                      copiedId={copiedId}
-                      compactLeadingSpacing={compactLeadingSpacing}
-                      isSending={isSending}
-                      renderA2UIInline={renderA2UIInline}
-                      a2uiFormDataMap={a2uiFormDataMap}
-                      collapseCodeBlocks={collapseCodeBlocks}
-                      shouldCollapseCodeBlock={shouldCollapseCodeBlock}
-                      focusedTimelineItemId={focusedTimelineItemId}
-                      timelineFocusRequestKey={timelineFocusRequestKey}
-                      shouldDeferHistoricalTimelineDetails={
-                        timelineState.shouldDeferHistoricalTimelineDetails
-                      }
-                      handleCopy={handleCopy}
-                      onA2UISubmit={onA2UISubmit}
-                      onA2UIFormChange={onA2UIFormChange}
-                      onWriteFile={onWriteFile}
-                      onFileClick={onFileClick}
-                      onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-                      onOpenUrlPreview={onOpenUrlPreview}
-                      onOpenSavedSiteContent={onOpenSavedSiteContent}
-                      onOpenMessagePreview={onOpenMessagePreview}
-                      onOpenSubagentSession={onOpenSubagentSession}
-                      onPermissionResponse={onPermissionResponse}
-                      onQuoteMessage={onQuoteMessage}
-                      onRequestThreadRevert={handleRequestThreadRevert}
-                      onSaveMessageAsSkill={onSaveMessageAsSkill}
-                      onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
-                      onCodeBlockClick={onCodeBlockClick}
-                    />
+                    <div className="space-y-1">
+                      {group.messages.map((msg, messageIndex) => (
+                        <MessageListStreamingOverlayItem
+                          key={msg.id ?? `${group.id}:${messageIndex}`}
+                          msg={msg}
+                          group={group}
+                          onOverlayUpdate={
+                            scrollController.handleStreamingOverlayUpdate
+                          }
+                          render={renderMessageItem}
+                        />
+                      ))}
+                    </div>
                   </MessageTurnGroup>
                 );
-              }
-
-              const group = entry.group;
-              const groupRuntimeTurnId =
-                group.timeline?.turn?.id ||
-                group.messages.find((message) => message.runtimeTurnId)
-                  ?.runtimeTurnId ||
-                "";
-              const groupRuntimeTurnStatus =
-                group.timeline?.turn?.status ||
-                timelineState.renderedTurns.find(
-                  (turn) => turn.id === groupRuntimeTurnId,
-                )?.status ||
-                "";
-              return (
-                <MessageTurnGroup
-                  key={entry.id}
-                  $deferOffscreenWork={
-                    groupIndex < timelineState.renderEntries.length - 2 &&
-                    groupRuntimeTurnStatus !== "running"
-                  }
-                  data-testid="message-turn-group"
-                  data-render-entry-kind="message_group"
-                  data-group-index={groupIndex + 1}
-                  data-runtime-turn-id={groupRuntimeTurnId}
-                  data-runtime-turn-status={groupRuntimeTurnStatus}
-                  data-last-assistant-message-id={group.lastAssistantId || ""}
-                  data-timeline-message-id={group.timelineMessageId || ""}
-                  data-render-priority={
-                    groupIndex < timelineState.renderEntries.length - 2
-                      ? "offscreen-deferred"
-                      : "tail"
-                  }
-                  className="py-1"
-                >
-                  <div className="space-y-1">
-                    {group.messages.map((msg, messageIndex) => (
-                      <MessageListStreamingOverlayItem
-                        key={msg.id ?? `${group.id}:${messageIndex}`}
-                        msg={msg}
-                        group={group}
-                        onOverlayUpdate={
-                          scrollController.handleStreamingOverlayUpdate
-                        }
-                        render={renderMessageItem}
-                      />
-                    ))}
-                  </div>
-                </MessageTurnGroup>
-              );
-            })}
+              }}
+            />
             {trailingContent ? (
               <section
                 data-testid="message-list-trailing-content"

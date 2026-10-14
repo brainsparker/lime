@@ -575,8 +575,10 @@ async function closeExpertSkillPickerAfterSelection(page, options) {
       dialogVisible: Boolean(
         document.querySelector('[data-testid="expert-skill-picker-dialog"]'),
       ),
-      textareaVisible: Boolean(
-        document.querySelector('textarea[name="agent-chat-message"]'),
+      editorVisible: Boolean(
+        document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
       ),
     }));
     lastSnapshot = snapshot;
@@ -584,7 +586,7 @@ async function closeExpertSkillPickerAfterSelection(page, options) {
       return sanitizeJson({
         ...closed,
         dialogVisible: false,
-        textareaVisible: snapshot.textareaVisible,
+        editorVisible: snapshot.editorVisible,
       });
     }
     await sleep(options.intervalMs);

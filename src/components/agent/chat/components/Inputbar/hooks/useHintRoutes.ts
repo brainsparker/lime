@@ -1,8 +1,8 @@
+import type { ComposerEditorHandle } from "@/components/input-kit";
 import {
   useCallback,
   useEffect,
   useState,
-  type KeyboardEvent as ReactKeyboardEvent,
   type RefObject,
 } from "react";
 import {
@@ -14,10 +14,10 @@ export type { HintRouteItem } from "@/lib/api/hintRoutes";
 
 interface UseHintRoutesParams {
   setInput: (value: string) => void;
-  textareaRef: RefObject<HTMLTextAreaElement>;
+  editorRef: RefObject<ComposerEditorHandle>;
 }
 
-export function useHintRoutes({ setInput, textareaRef }: UseHintRoutesParams) {
+export function useHintRoutes({ setInput, editorRef }: UseHintRoutesParams) {
   const [showHintPopup, setShowHintPopup] = useState(false);
   const [hintRoutes, setHintRoutes] = useState<HintRouteItem[]>([]);
   const [hintIndex, setHintIndex] = useState(0);
@@ -49,16 +49,14 @@ export function useHintRoutes({ setInput, textareaRef }: UseHintRoutesParams) {
     (hint: string) => {
       setInput(`[${hint}] `);
       setShowHintPopup(false);
-      textareaRef.current?.focus();
+      editorRef.current?.focus();
     },
-    [setInput, textareaRef],
+    [setInput, editorRef],
   );
 
   const handleHintKeyDown = useCallback(
-    (e: ReactKeyboardEvent) => {
-      const nativeEvent = e.nativeEvent as KeyboardEvent & {
-        isComposing?: boolean;
-      };
+    (e: KeyboardEvent) => {
+      const nativeEvent = e;
       if (
         nativeEvent.isComposing ||
         nativeEvent.key === "Process" ||

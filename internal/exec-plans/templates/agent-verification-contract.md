@@ -234,7 +234,7 @@ Supervisor 不判断：
 预算标签：budget:tight
 风险等级：P1
 影响模块：Agent runtime streaming completion
-Current 主链：agentSession/turn/start -> RuntimeCore event -> thread_read -> GUI projection
+Current 主链：thread/start 或 thread/resume -> turn/start -> RuntimeCore -> turn/completed -> thread/read -> canonical GUI projection
 Happy Path：stop 后同一 session 可继续提交下一轮，旧 terminal event 不误停新 stream
 Evidence Layers：deterministic-smoke=yes，runtime-transcript=yes，gui-trace=no，release-artifact=no
 必跑命令：test:contracts + smoke:agent-runtime-current-fixture

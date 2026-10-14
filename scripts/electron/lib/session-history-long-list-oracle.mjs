@@ -75,8 +75,8 @@ async function readLongListSnapshot(page) {
     const groups = Array.from(
       document.querySelectorAll('[data-testid="message-turn-group"]'),
     );
-    const historyWindow = document.querySelector(
-      '[data-testid="message-list-history-window"]',
+    const virtualList = document.querySelector(
+      '[data-testid="virtualized-turn-list"]',
     );
     const persistedWindow = document.querySelector(
       '[data-testid="message-list-persisted-history-window"]',
@@ -125,17 +125,24 @@ async function readLongListSnapshot(page) {
         groups[0]?.getAttribute("data-runtime-turn-id") || null,
       lastRenderedTurnId:
         groups.at(-1)?.getAttribute("data-runtime-turn-id") || null,
-      historyWindowVisible: Boolean(historyWindow),
+      virtualListVisible: Boolean(virtualList),
+      virtualTotalEntries: Number(
+        virtualList?.getAttribute("data-total-entries") || 0,
+      ),
+      virtualStartIndex: Number(
+        virtualList?.getAttribute("data-start-index") || 0,
+      ),
+      virtualEndIndex: Number(virtualList?.getAttribute("data-end-index") || 0),
+      offscreenCount: Number(
+        virtualList?.getAttribute("data-offscreen-count") || 0,
+      ),
       persistedWindowVisible: Boolean(persistedWindow),
       hiddenHistoryCount: Number(
-        historyWindow?.getAttribute("data-hidden-history-count") || 0,
+        frame?.getAttribute("data-hidden-history-count") || 0,
       ),
-      renderedEntriesCount: Number(
-        historyWindow?.getAttribute("data-rendered-entries-count") ||
-          groups.length,
-      ),
+      renderedEntriesCount: Number(groups.length),
       restoredHistoryWindow:
-        historyWindow?.getAttribute("data-restored-history-window") === "true",
+        frame?.getAttribute("data-restored-history-window") === "true",
       latestUserVisible: bodyText.includes(latestTurn.userText),
       latestAssistantHeadingVisible: bodyText.includes(
         `Long history terminal answer ${fixture.turns.length}`,
@@ -160,8 +167,131 @@ function hasStableBoundedPerformance(snapshot) {
     finiteNumber(performance?.messageListPaintCount) !== null &&
     finiteNumber(performance?.finalThreadItemsCount) !== null &&
     performance.finalThreadItemsCount <= MAX_INITIAL_THREAD_ITEMS &&
-    finiteNumber(performance?.hiddenHistoryCount) ===
-      snapshot.hiddenHistoryCount
+    snapshot.virtualListVisible &&
+    snapshot.offscreenCount > 0
+  );
+}
+
+async function verifyViewportWindowReplacement(page, options) {
+  const scrollContainer = page.locator(
+    '[data-testid="message-list-scroll-container"]',
+  );
+  const initial = await page.evaluate(() => {
+    const container = document.querySelector(
+      '[data-testid="message-list-scroll-container"]',
+    );
+    const keys = Array.from(
+      document.querySelectorAll('[data-testid="message-turn-group"]'),
+    ).map((node) => node.getAttribute("data-runtime-turn-id"));
+    return {
+      keys,
+      scrollTop: container.scrollTop,
+      scrollHeight: container.scrollHeight,
+      viewportHeight: container.clientHeight,
+    };
+  });
+  await scrollContainer.hover();
+  // A paginated page can be shorter than two viewport/overscan ranges.
+  // Visit its oldest loaded rows to require actual tail-row unmounting.
+  await page.mouse.wheel(0, -initial.scrollHeight);
+  await page.waitForFunction(
+    ({ keys, limit }) => {
+      const groups = Array.from(
+        document.querySelectorAll('[data-testid="message-turn-group"]'),
+      );
+      return (
+        groups.length > 0 &&
+        groups.length <= limit &&
+        groups.some(
+          (node) => !keys.includes(node.getAttribute("data-runtime-turn-id")),
+        ) &&
+        keys.some(
+          (key) =>
+            !groups.some(
+              (node) => node.getAttribute("data-runtime-turn-id") === key,
+            ),
+        )
+      );
+    },
+    { keys: initial.keys, limit: MAX_INITIAL_DOM_TURN_GROUPS },
+    { timeout: options.timeoutMs },
+  );
+  const middle = await page.evaluate(() => {
+    const container = document.querySelector(
+      '[data-testid="message-list-scroll-container"]',
+    );
+    const groups = Array.from(
+      document.querySelectorAll('[data-testid="message-turn-group"]'),
+    );
+    const keys = groups.map((node) =>
+      node.getAttribute("data-runtime-turn-id"),
+    );
+    const viewport = container.getBoundingClientRect();
+    const visible = groups.filter((node) => {
+      const rect = node.getBoundingClientRect();
+      return rect.bottom > viewport.top && rect.top < viewport.bottom;
+    });
+    const result = {
+      keys,
+      mountedCount: groups.length,
+      visibleCount: visible.length,
+      scrollTop: container.scrollTop,
+      scrollHeight: container.scrollHeight,
+    };
+    return result;
+  });
+  await page.mouse.wheel(0, middle.scrollHeight);
+  await page.waitForFunction(
+    (tailKey) =>
+      Array.from(
+        document.querySelectorAll('[data-testid="message-turn-group"]'),
+      ).some((node) => node.getAttribute("data-runtime-turn-id") === tailKey),
+    initial.keys.at(-1),
+    { timeout: options.timeoutMs },
+  );
+  const evidence = {
+    initialKeys: initial.keys,
+    middleKeys: middle.keys,
+    initialMountedCount: initial.keys.length,
+    middleMountedCount: middle.mountedCount,
+    middleVisibleCount: middle.visibleCount,
+    replacedWindow: middle.keys.some((key) => !initial.keys.includes(key)),
+    unmountedInitialRows: initial.keys.some(
+      (key) => !middle.keys.includes(key),
+    ),
+    hasFullScrollRange: initial.scrollHeight > initial.viewportHeight * 2,
+    scrollInput: "electron-mouse-wheel",
+    viewportPosition: "oldest-loaded-page",
+    restoredTail: true,
+  };
+  assertViewportWindowReplacement(evidence);
+  return evidence;
+}
+
+export function assertViewportWindowReplacement(evidence) {
+  assert(
+    evidence?.scrollInput === "electron-mouse-wheel",
+    "virtual list viewport was not exercised through Electron scroll input",
+  );
+  assert(
+    evidence?.initialMountedCount > 0 &&
+      evidence.initialMountedCount <= MAX_INITIAL_DOM_TURN_GROUPS,
+    "virtual list initial DOM budget exceeded",
+  );
+  assert(
+    evidence.middleMountedCount > 0 &&
+      evidence.middleMountedCount <= MAX_INITIAL_DOM_TURN_GROUPS,
+    "virtual list middle DOM budget exceeded",
+  );
+  assert(
+    evidence.middleVisibleCount > 0 && evidence.hasFullScrollRange,
+    "virtual list has no visible rows or full scroll geometry",
+  );
+  assert(
+    evidence.replacedWindow &&
+      evidence.unmountedInitialRows &&
+      evidence.restoredTail,
+    `virtual list did not replace offscreen rows and restore tail: ${JSON.stringify(evidence)}`,
   );
 }
 
@@ -179,7 +309,8 @@ export async function runThreadReadLongListDomOracle(page, options) {
       snapshot.longPreviewVisible &&
       hasStableBoundedPerformance(snapshot)
     ) {
-      return { click, snapshot };
+      const viewport = await verifyViewportWindowReplacement(page, options);
+      return { click, snapshot, viewport };
     }
     await sleep(options.intervalMs);
   }
@@ -205,7 +336,8 @@ export async function runThreadReadLongListColdRestartOracle(page, options) {
         snapshot.requestMethods.includes(method),
       )
     ) {
-      return { click, navigation: "sidebar", snapshot };
+      const viewport = await verifyViewportWindowReplacement(page, options);
+      return { click, navigation: "sidebar", snapshot, viewport };
     }
     await sleep(options.intervalMs);
   }
@@ -217,6 +349,7 @@ export async function runThreadReadLongListColdRestartOracle(page, options) {
 export function assertThreadReadLongListDomOracle(result) {
   const snapshot = result?.snapshot ?? {};
   const performance = snapshot.performanceSession ?? {};
+  assertViewportWindowReplacement(result?.viewport);
   assert(
     THREAD_READ_LONG_LIST.turns.length === THREAD_READ_LONG_LIST_TURN_COUNT,
     "long-list fixture Turn 数漂移",
@@ -240,12 +373,14 @@ export function assertThreadReadLongListDomOracle(result) {
     "long-list 首帧未保持 direct canonical Turn owner",
   );
   assert(
-    snapshot.historyWindowVisible || snapshot.persistedWindowVisible,
-    "long-list 首帧未展示历史窗口边界",
+    snapshot.virtualListVisible &&
+      snapshot.virtualEndIndex > snapshot.virtualStartIndex,
+    "long-list 首帧未建立 viewport Turn range",
   );
   assert(
-    snapshot.hiddenHistoryCount > 0 || snapshot.persistedWindowVisible,
-    "long-list 首帧没有隐藏或持久化的更早历史",
+    snapshot.offscreenCount > 0 &&
+      snapshot.virtualTotalEntries > snapshot.turnGroupCount,
+    "long-list 已加载历史没有真实离屏卸载",
   );
   assert(snapshot.latestUserVisible, "long-list 最新 UserMessage 不可见");
   assert(
@@ -304,11 +439,16 @@ export function assertThreadReadLongListDomOracle(result) {
     threadId: THREAD_READ_LONG_LIST.threadId,
     seededTurnCount: THREAD_READ_LONG_LIST_TURN_COUNT,
     seededItemCount: THREAD_READ_LONG_LIST_ITEM_COUNT,
+    viewport: result.viewport,
     dom: {
       turnGroupCount: snapshot.turnGroupCount,
       canonicalTurnGroupCount: snapshot.canonicalTurnGroupCount,
       residualMessageGroupCount: snapshot.residualMessageGroupCount,
       hiddenHistoryCount: snapshot.hiddenHistoryCount,
+      virtualTotalEntries: snapshot.virtualTotalEntries,
+      virtualStartIndex: snapshot.virtualStartIndex,
+      virtualEndIndex: snapshot.virtualEndIndex,
+      offscreenCount: snapshot.offscreenCount,
       renderedEntriesCount: snapshot.renderedEntriesCount,
       persistedWindowVisible: snapshot.persistedWindowVisible,
       longPreviewVisible: snapshot.longPreviewVisible,

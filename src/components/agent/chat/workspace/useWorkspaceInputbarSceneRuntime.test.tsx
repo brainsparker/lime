@@ -171,7 +171,6 @@ function createDefaultProps(overrides: HookPropsOverrides = {}): HookProps {
     sessionExecutionRuntime: null,
     projectId: "project-1",
     projectRootPath: "/tmp/project-1",
-    openedProjects: [],
     accessMode: "default" as any,
     setAccessMode: noop,
     activeTheme: "general",
@@ -180,7 +179,6 @@ function createDefaultProps(overrides: HookPropsOverrides = {}): HookProps {
       handleOpenExecutionPolicySettings: noop,
       handleOpenRuntimeMemoryWorkbench: noop,
       handleOpenKnowledgeManagement: noop,
-      handleProjectChange: noop,
     },
     characters: [],
     skills: [],
@@ -556,6 +554,130 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
     );
   });
 
+  it("queue 等待 canonical 接受期间拒绝重复派发，拒绝后允许重试", async () => {
+    let reject!: (error: Error) => void;
+    mockThreadQueueActions.addThreadQueue.mockImplementationOnce(() =>
+      new Promise((_resolve, rejectQueue) => { reject = rejectQueue; }));
+    renderHookNode(createDefaultProps({ threadId: "thread-queue-pending" }));
+    let pending!: ReturnType<NonNullable<ReturnType<typeof getLatestInputbarProps>["onSend"]>>;
+    await act(async () => {
+      pending = getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" });
+      await Promise.resolve();
+    });
+    expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledOnce();
+    expect(await getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" })).toBe(false);
+    expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledOnce();
+    await act(async () => { reject(new Error("queue rejected")); await pending; });
+    expect(await pending).toBe(false);
+    await act(async () => {
+      expect(await getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" })).toBe(true);
+    });
+    expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["start", "steer"] as const)(
+    "%s 应保留顶层 typed submission 和完整 draft",
+    async (target) => {
+      const handleSend = vi.fn().mockResolvedValue(true);
+      renderHookNode(
+        createDefaultProps({ sessionId: "session-structured", handleSend }),
+      );
+      const submission = {
+        text: "A😀@x",
+        textElements: [{ byteRange: { start: 5, end: 7 }, placeholder: "@x" }],
+        inputMentions: [
+          { type: "skill" as const, name: "x", path: "/skills/x" },
+        ],
+        attachments: [],
+        pathReferences: [],
+      };
+      await act(async () => {
+        await getLatestInputbarProps().onSend?.({
+          composerTarget: target,
+          composerIntent: target,
+          composerSubmission: submission,
+          textOverride: submission.text,
+        });
+      });
+      expect(handleSend.mock.calls[0][6]).toMatchObject({
+        composerTarget: target,
+        composerIntent: target,
+        composerSubmission: submission,
+        targetSessionId: "session-structured",
+      });
+    },
+  );
+
+  it("queue 投影应保留同一 submission 的 ranges、Skill、媒体和 client identity", async () => {
+    renderHookNode(createDefaultProps({ threadId: "thread-structured-queue" }));
+    const submission = {
+      text: "  A😀@x\n",
+      textElements: [{ byteRange: { start: 7, end: 9 }, placeholder: "@x" }],
+      inputMentions: [{ type: "skill" as const, name: "x", path: "/skills/x" }],
+      attachments: [
+        { data: "", mediaType: "image/png", sourceUri: "media://1" },
+      ],
+      pathReferences: [
+        {
+          id: "path-1",
+          path: "/tmp/report.md",
+          name: "report.md",
+          isDir: false,
+        },
+        {
+          id: "path-2",
+          path: "/tmp/report.md",
+          name: "report.md",
+          isDir: false,
+        },
+      ],
+    };
+    await act(async () => {
+      await getLatestInputbarProps().onSend?.({
+        composerTarget: "queue",
+        composerSubmission: submission,
+        textOverride: submission.text,
+      });
+    });
+    expect(
+      mockThreadQueueActions.addThreadQueue.mock.calls[0][0],
+    ).toMatchObject({
+      threadId: "thread-structured-queue",
+      clientUserMessageId: expect.any(String),
+      input: [
+        {
+          type: "text",
+          text: submission.text,
+          text_elements: submission.textElements,
+        },
+        ...submission.inputMentions,
+        { type: "mention", name: "report.md", path: "/tmp/report.md" },
+        { type: "image", url: "media://1" },
+      ],
+    });
+  });
+
+  it("queue 无法映射 ranges 时不调用 IPC，并返回可恢复的失败", async () => {
+    renderHookNode(createDefaultProps({ threadId: "thread-invalid-queue" }));
+    let result;
+    await act(async () => {
+      result = await getLatestInputbarProps().onSend?.({
+        composerTarget: "queue",
+        textOverride: "changed",
+        composerSubmission: {
+          text: "@x",
+          textElements: [{ byteRange: { start: 0, end: 2 } }],
+          inputMentions: [],
+          attachments: [],
+          pathReferences: [],
+        },
+      });
+    });
+    expect(result).toBe(false);
+    expect(mockThreadQueueActions.addThreadQueue).not.toHaveBeenCalled();
+    expect(toastMock.error).toHaveBeenCalled();
+  });
+
   it("Composer queue 写入失败时应保留草稿并显示可见错误", async () => {
     mockThreadQueueActions.addThreadQueue.mockRejectedValueOnce(
       new Error("queue unavailable"),
@@ -668,7 +790,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       container.querySelector('[data-testid="inputbar-approval-replacement"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-approval-prompt"]'),
+      container.querySelector('[data-testid="approval-card"]'),
     ).not.toBeNull();
     expect(
       container.querySelector('[data-testid="plan-composer-decision-panel"]'),
@@ -701,12 +823,12 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       container.querySelector('[data-testid="inputbar-approval-replacement"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-approval-prompt"]'),
+      container.querySelector('[data-testid="approval-card"]'),
     ).not.toBeNull();
     expect(container.querySelector('[data-testid="inputbar-mock"]')).toBeNull();
     expect(container.textContent).toContain("允许执行当前命令？");
-    expect(container.textContent).not.toContain("functions.exec_command");
-    expect(container.textContent).not.toContain("npm test -- --runInBand");
+    expect(container.textContent).toContain("functions.exec_command");
+    expect(container.textContent).toContain("npm test -- --runInBand");
 
     const allowButton = container.querySelector(
       'button[data-decision="allow_once"]',
@@ -792,9 +914,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       }),
     );
 
-    expect(
-      container.querySelector('[data-testid="inputbar-approval-prompt"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-testid="approval-card"]')).toBeNull();
     expect(
       container.querySelector('[data-testid="inputbar-mock"]'),
     ).not.toBeNull();
@@ -834,9 +954,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       }),
     );
 
-    expect(
-      container.querySelector('[data-testid="inputbar-approval-prompt"]'),
-    ).toBeNull();
+    expect(container.querySelector('[data-testid="approval-card"]')).toBeNull();
     expect(
       container.querySelector(
         '[data-testid="plan-decision-inputbar-replacement"]',
@@ -983,7 +1101,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       "此子线程由父线程管理，无法直接输入",
     );
 
-    expect(inputbarProps.onSend?.({ textOverride: "不得直接提交" })).toBe(
+    expect(await inputbarProps.onSend?.({ textOverride: "不得直接提交" })).toBe(
       false,
     );
     act(() => {

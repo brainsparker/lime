@@ -48,6 +48,8 @@ import { buildWebToolsRenderingScenarioAssertions } from "./claw-chat-current-fi
 import { buildSoulStyleScenarioAssertions } from "./claw-chat-current-fixture-soul-style.mjs";
 import { buildActiveSteerScenarioAssertions } from "./claw-chat-current-fixture-active-steer.mjs";
 import { buildUnknownItemScenarioAssertions } from "./claw-chat-current-fixture-unknown-item.mjs";
+import { buildUserMessageCollapseAssertions } from "./claw-chat-current-fixture-user-message-collapse-evidence.mjs";
+import { buildComposerMarksScenarioAssertions } from "./claw-chat-current-fixture-composer-marks.mjs";
 
 function readImageCommandTaskFromHarness(harness) {
   const launch =
@@ -156,8 +158,8 @@ function buildHomeHotpathScenarioAssertions({
     homeHotpathStartedFromEmptyState:
       hotpath.homeOpened?.after?.hasEmptyStateFirstScreen === true &&
       hotpath.homeOpened?.after?.hasConnectedComposer === true &&
-      hotpath.homeOpened?.after?.textareaVisible === true &&
-      hotpath.homeOpened?.after?.textareaDisabled === false,
+      hotpath.homeOpened?.after?.editorVisible === true &&
+      hotpath.homeOpened?.after?.editorDisabled === false,
     homeHotpathPromptReachedBackend:
       homeHotpathTurnStart?.inputText === expectedPrompt &&
       typeof hotpath.backendTurnStart?.sessionId === "string" &&
@@ -194,8 +196,8 @@ function buildHomeHotpathScenarioAssertions({
       hotpath.guiCompleted?.hasPrompt === true &&
       (hotpath.guiCompleted?.hasAssistantSummary === true ||
         hotpath.guiCompleted?.hasDoneText === true) &&
-      hotpath.guiCompleted?.textareaVisible === true &&
-      hotpath.guiCompleted?.textareaDisabled === false &&
+      hotpath.guiCompleted?.editorVisible === true &&
+      hotpath.guiCompleted?.editorDisabled === false &&
       hotpath.guiCompleted?.stopButtonVisible === false,
     homeHotpathReadModelCompleted:
       hotpath.readModelCompleted?.available === true &&
@@ -452,91 +454,91 @@ export function buildScenarioAssertions(context) {
                     (entry) => entry.kind !== "turnStart",
                   ),
                 }
-            : isRightSurfaceVisualMatrixScenario
-              ? {
-                  rightSurfaceVisualMatrixRequestedThroughAppServer:
-                    appServerRequestMethods.includes(
-                      APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
-                    ) &&
-                    appServerRequestMethods.includes(
-                      APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
-                    ) &&
-                    Boolean(
-                      rightSurfaceVisualMatrix.requests?.files?.requestId,
-                    ) &&
-                    Boolean(
-                      rightSurfaceVisualMatrix.requests?.objectCanvas
-                        ?.requestId,
-                    ) &&
-                    Boolean(
-                      rightSurfaceVisualMatrix.requests?.browser?.requestId,
-                    ) &&
-                    Boolean(
-                      rightSurfaceVisualMatrix.requests
-                        ?.appSurfaceContentFactory?.requestId,
-                    ) &&
-                    Boolean(
-                      rightSurfaceVisualMatrix.requests?.appSurfacePromptLab
-                        ?.requestId,
-                    ),
-                  rightSurfaceVisualMatrixFilesSurfaceVisible:
+              : isRightSurfaceVisualMatrixScenario
+                ? {
+                    rightSurfaceVisualMatrixRequestedThroughAppServer:
+                      appServerRequestMethods.includes(
+                        APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
+                      ) &&
+                      appServerRequestMethods.includes(
+                        APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
+                      ) &&
+                      Boolean(
+                        rightSurfaceVisualMatrix.requests?.files?.requestId,
+                      ) &&
+                      Boolean(
+                        rightSurfaceVisualMatrix.requests?.objectCanvas
+                          ?.requestId,
+                      ) &&
+                      Boolean(
+                        rightSurfaceVisualMatrix.requests?.browser?.requestId,
+                      ) &&
+                      Boolean(
+                        rightSurfaceVisualMatrix.requests
+                          ?.appSurfaceContentFactory?.requestId,
+                      ) &&
+                      Boolean(
+                        rightSurfaceVisualMatrix.requests?.appSurfacePromptLab
+                          ?.requestId,
+                      ),
+                    rightSurfaceVisualMatrixFilesSurfaceVisible:
                       rightSurfaceVisualCaptures.files?.stable
                         ?.activeSurface === "files" &&
-                    rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
-                      true,
-                  rightSurfaceVisualMatrixObjectCanvasSurfaceVisible:
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.activeSurface === "objectCanvas" &&
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.expectedActiveSurface === "objectCanvas" &&
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.rootVisible === true &&
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.visibleRootKinds?.[0] === "objectCanvas",
-                  rightSurfaceVisualMatrixExpertSurfaceVisible:
-                    rightSurfaceVisualCaptures.expertInfo?.stable
-                      ?.activeSurface === "expertInfo" &&
-                    rightSurfaceVisualCaptures.expertInfo?.stable
-                      ?.rootVisible === true,
-                  rightSurfaceVisualMatrixBrowserSurfaceVisible:
-                    rightSurfaceVisualCaptures.browser?.stable
-                      ?.activeSurface === "browser" &&
+                      rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
+                        true,
+                    rightSurfaceVisualMatrixObjectCanvasSurfaceVisible:
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.activeSurface === "objectCanvas" &&
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.expectedActiveSurface === "objectCanvas" &&
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.rootVisible === true &&
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.visibleRootKinds?.[0] === "objectCanvas",
+                    rightSurfaceVisualMatrixExpertSurfaceVisible:
+                      rightSurfaceVisualCaptures.expertInfo?.stable
+                        ?.activeSurface === "expertInfo" &&
+                      rightSurfaceVisualCaptures.expertInfo?.stable
+                        ?.rootVisible === true,
+                    rightSurfaceVisualMatrixBrowserSurfaceVisible:
+                      rightSurfaceVisualCaptures.browser?.stable
+                        ?.activeSurface === "browser" &&
                       rightSurfaceVisualCaptures.browser?.stable
                         ?.rootVisible === true &&
-                    typeof rightSurfaceVisualCaptures.browser?.screenshot ===
-                      "string" &&
-                    rightSurfaceVisualCaptures.browser.screenshot.endsWith(
-                      "-right-surface-browser.png",
-                    ) &&
-                    fs.existsSync(
-                      rightSurfaceVisualCaptures.browser.screenshot,
-                    ) &&
-                    rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                      ?.sessionId === "fixture-browser-session" &&
-                    rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                      ?.profileKey === "fixture-profile" &&
-                    rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                      ?.controlOwner === "shared",
-                  rightSurfaceVisualMatrixAppSurfaceVisible:
-                    rightSurfaceVisualCaptures.appSurface?.stable
-                      ?.activeSurface === "appSurface" &&
-                    rightSurfaceVisualCaptures.appSurface?.stable
+                      typeof rightSurfaceVisualCaptures.browser?.screenshot ===
+                        "string" &&
+                      rightSurfaceVisualCaptures.browser.screenshot.endsWith(
+                        "-right-surface-browser.png",
+                      ) &&
+                      fs.existsSync(
+                        rightSurfaceVisualCaptures.browser.screenshot,
+                      ) &&
+                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
+                        ?.sessionId === "fixture-browser-session" &&
+                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
+                        ?.profileKey === "fixture-profile" &&
+                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
+                        ?.controlOwner === "shared",
+                    rightSurfaceVisualMatrixAppSurfaceVisible:
+                      rightSurfaceVisualCaptures.appSurface?.stable
+                        ?.activeSurface === "appSurface" &&
+                      rightSurfaceVisualCaptures.appSurface?.stable
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.opened
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.stable
-                      ?.rootVisible === true,
-                  rightSurfaceVisualMatrixAppSurfaceMultiInstanceTabs:
-                    rightSurfaceVisualAppSurface.tabs?.visible === true &&
-                    rightSurfaceVisualAppSurface.tabCount >= 2 &&
-                    rightSurfaceVisualAppSurface.visibleFrameCount === 1 &&
-                    rightSurfaceVisualAppSurface.visibleViewportCount === 1 &&
-                    rightSurfaceVisualAppSurface.tabLabels?.includes(
-                      "内容工厂",
-                    ) === true &&
-                    rightSurfaceVisualAppSurface.tabLabels?.includes(
-                      "Prompt Lab",
-                    ) === true,
+                        ?.rootVisible === true,
+                    rightSurfaceVisualMatrixAppSurfaceMultiInstanceTabs:
+                      rightSurfaceVisualAppSurface.tabs?.visible === true &&
+                      rightSurfaceVisualAppSurface.tabCount >= 2 &&
+                      rightSurfaceVisualAppSurface.visibleFrameCount === 1 &&
+                      rightSurfaceVisualAppSurface.visibleViewportCount === 1 &&
+                      rightSurfaceVisualAppSurface.tabLabels?.includes(
+                        "内容工厂",
+                      ) === true &&
+                      rightSurfaceVisualAppSurface.tabLabels?.includes(
+                        "Prompt Lab",
+                      ) === true,
                     rightSurfaceVisualMatrixActivitySurfaceVisible:
                       rightSurfaceVisualCaptures.activity?.stable
                         ?.activeSurface === "activity" &&
@@ -544,958 +546,972 @@ export function buildScenarioAssertions(context) {
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.stable
                         ?.visibleRootKinds?.[0] === "activity",
-                  rightSurfaceVisualMatrixSurfacesMutuallyExclusive: [
-                    rightSurfaceVisualCaptures.files?.stable,
-                    rightSurfaceVisualCaptures.objectCanvas?.stable,
-                    rightSurfaceVisualCaptures.expertInfo?.stable,
-                    rightSurfaceVisualCaptures.browser?.stable,
-                    rightSurfaceVisualCaptures.appSurface?.stable,
+                    rightSurfaceVisualMatrixSurfacesMutuallyExclusive: [
+                      rightSurfaceVisualCaptures.files?.stable,
+                      rightSurfaceVisualCaptures.objectCanvas?.stable,
+                      rightSurfaceVisualCaptures.expertInfo?.stable,
+                      rightSurfaceVisualCaptures.browser?.stable,
+                      rightSurfaceVisualCaptures.appSurface?.stable,
                       rightSurfaceVisualCaptures.activity?.stable,
-                  ].every(
-                    (capture) =>
-                      Array.isArray(capture?.visibleRootKinds) &&
-                      capture.visibleRootKinds.length === 1 &&
-                      capture.visibleRootKinds[0] ===
-                        (capture.expectedSurface ?? capture.activeSurface),
-                  ),
-                  rightSurfaceVisualMatrixHostsFillRightSide: [
-                    rightSurfaceVisualCaptures.files?.stable,
-                    rightSurfaceVisualCaptures.objectCanvas?.stable,
-                    rightSurfaceVisualCaptures.expertInfo?.stable,
-                    rightSurfaceVisualCaptures.browser?.stable,
-                    rightSurfaceVisualCaptures.appSurface?.stable,
+                    ].every(
+                      (capture) =>
+                        Array.isArray(capture?.visibleRootKinds) &&
+                        capture.visibleRootKinds.length === 1 &&
+                        capture.visibleRootKinds[0] ===
+                          (capture.expectedSurface ?? capture.activeSurface),
+                    ),
+                    rightSurfaceVisualMatrixHostsFillRightSide: [
+                      rightSurfaceVisualCaptures.files?.stable,
+                      rightSurfaceVisualCaptures.objectCanvas?.stable,
+                      rightSurfaceVisualCaptures.expertInfo?.stable,
+                      rightSurfaceVisualCaptures.browser?.stable,
+                      rightSurfaceVisualCaptures.appSurface?.stable,
                       rightSurfaceVisualCaptures.activity?.stable,
-                  ].every(
-                    (capture) =>
+                    ].every(
+                      (capture) =>
                         (capture?.geometry?.hostFillsCanvasPanel === true ||
                           capture?.geometry?.rootFillsActivePane === true) &&
-                      capture?.geometry?.rootFillsSurfaceViewport === true,
-                  ),
-                  rightSurfaceVisualMatrixObjectCanvasRailVisible:
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.activeSurface === "objectCanvas" &&
-                    rightSurfaceVisualCaptures.objectCanvas?.stable?.geometry
-                      ?.rootFillsSurfaceViewport === true,
-                  rightSurfaceVisualMatrixPendingConsumeKeepsSurfaceOpen:
-                    rightSurfaceVisualCaptures.files?.opened?.rootVisible ===
-                      true &&
-                    rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
-                      true &&
-                    rightSurfaceVisualCaptures.objectCanvas?.opened
-                      ?.rootVisible === true &&
-                    rightSurfaceVisualCaptures.objectCanvas?.stable
-                      ?.rootVisible === true &&
+                        capture?.geometry?.rootFillsSurfaceViewport === true,
+                    ),
+                    rightSurfaceVisualMatrixObjectCanvasRailVisible:
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.activeSurface === "objectCanvas" &&
+                      rightSurfaceVisualCaptures.objectCanvas?.stable?.geometry
+                        ?.rootFillsSurfaceViewport === true,
+                    rightSurfaceVisualMatrixPendingConsumeKeepsSurfaceOpen:
+                      rightSurfaceVisualCaptures.files?.opened?.rootVisible ===
+                        true &&
+                      rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
+                        true &&
+                      rightSurfaceVisualCaptures.objectCanvas?.opened
+                        ?.rootVisible === true &&
+                      rightSurfaceVisualCaptures.objectCanvas?.stable
+                        ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.browser?.opened
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.browser?.stable
                         ?.rootVisible === true &&
-                    rightSurfaceVisualCaptures.appSurface?.opened
-                      ?.rootVisible === true &&
-                    rightSurfaceVisualCaptures.appSurface?.stable
+                      rightSurfaceVisualCaptures.appSurface?.opened
+                        ?.rootVisible === true &&
+                      rightSurfaceVisualCaptures.appSurface?.stable
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.opened
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.stable
-                      ?.rootVisible === true,
-                  rightSurfaceVisualMatrixDoesNotUseModelTurn:
+                        ?.rootVisible === true,
+                    rightSurfaceVisualMatrixDoesNotUseModelTurn:
                       backendLedger.every(
                         (entry) => entry.kind !== "turnStart",
                       ),
-                }
-              : isPlanScenario
-                ? {
-                    planModeEnabledInGui:
-                      summary.planModeEnabled?.statusChipVisible === true,
-                    planPromptReachedBackend:
-                      planTurnStart?.inputText === PLAN_PROMPT,
-                    planCollaborationModeReachedBackend:
-                      collaborationMode === "plan",
-                    planPresetCatalogRequested:
-                      planCollaborationModeGateB?.catalogRequestCount > 0,
-                    planPresetResolvedBeforeTurnStart:
-                      planCollaborationModeGateB?.catalogBeforeTurnStart ===
-                      true,
-                    planPresetAppliedOnDesktopWire:
-                      planCollaborationModeGateB?.wire?.collaborationMode
-                        ?.mode === "plan" &&
-                      planCollaborationModeGateB?.wire?.collaborationMode
-                        ?.settings?.reasoning_effort === "medium" &&
-                      planCollaborationModeGateB?.wire?.effort === "medium" &&
-                      planCollaborationModeGateB?.wire?.collaborationMode
+                  }
+                : isPlanScenario
+                  ? {
+                      planModeEnabledInGui:
+                        summary.planModeEnabled?.statusChipVisible === true,
+                      planPromptReachedBackend:
+                        planTurnStart?.inputText === PLAN_PROMPT,
+                      planCollaborationModeReachedBackend:
+                        collaborationMode === "plan",
+                      planPresetCatalogRequested:
+                        planCollaborationModeGateB?.catalogRequestCount > 0,
+                      planPresetResolvedBeforeTurnStart:
+                        planCollaborationModeGateB?.catalogBeforeTurnStart ===
+                        true,
+                      planPresetAppliedOnDesktopWire:
+                        planCollaborationModeGateB?.wire?.collaborationMode
+                          ?.mode === "plan" &&
+                        planCollaborationModeGateB?.wire?.collaborationMode
+                          ?.settings?.reasoning_effort === "medium" &&
+                        planCollaborationModeGateB?.wire?.effort === "medium" &&
+                        planCollaborationModeGateB?.wire?.collaborationMode
                           ?.settings?.model ===
                           planTurnStart?.modelPreference &&
-                      planCollaborationModeGateB?.wire?.collaborationMode
-                        ?.settings?.developer_instructions === null,
-                    planPresetReachedRuntime:
-                      planCollaborationModeGateB?.runtime?.collaborationMode
-                        ?.mode === "plan" &&
-                      planCollaborationModeGateB?.runtime?.collaborationMode
-                        ?.settings?.reasoning_effort === "medium" &&
-                      planCollaborationModeGateB?.runtime?.reasoningEffort ===
-                        "medium" &&
-                      planCollaborationModeGateB?.runtime?.modelPreference ===
-                        planTurnStart?.modelPreference &&
-                      planCollaborationModeGateB?.runtime?.collaborationMode
-                        ?.settings?.developer_instructions === null,
-                    planPresetWireRuntimeConsistent:
-                      planCollaborationModeGateB?.wireRuntimeConsistent ===
-                      true,
-                    guiPlanRailVisible:
-                      summary.guiPlanCompleted?.hasPlanSection === true &&
+                        planCollaborationModeGateB?.wire?.collaborationMode
+                          ?.settings?.developer_instructions === null,
+                      planPresetReachedRuntime:
+                        planCollaborationModeGateB?.runtime?.collaborationMode
+                          ?.mode === "plan" &&
+                        planCollaborationModeGateB?.runtime?.collaborationMode
+                          ?.settings?.reasoning_effort === "medium" &&
+                        planCollaborationModeGateB?.runtime?.reasoningEffort ===
+                          "medium" &&
+                        planCollaborationModeGateB?.runtime?.modelPreference ===
+                          planTurnStart?.modelPreference &&
+                        planCollaborationModeGateB?.runtime?.collaborationMode
+                          ?.settings?.developer_instructions === null,
+                      planPresetWireRuntimeConsistent:
+                        planCollaborationModeGateB?.wireRuntimeConsistent ===
+                        true,
+                      guiPlanRailVisible:
+                        summary.guiPlanCompleted?.hasPlanSection === true &&
                         summary.guiPlanCompleted?.planOwnerHasAllSteps ===
                           true &&
-                      Array.isArray(
-                        summary.guiPlanCompleted?.planOwnerKindsWithAllSteps,
-                      ) &&
-                      summary.guiPlanCompleted.planOwnerKindsWithAllSteps
-                        .length > 0,
-                    guiPlanStepsVisible:
+                        Array.isArray(
+                          summary.guiPlanCompleted?.planOwnerKindsWithAllSteps,
+                        ) &&
+                        summary.guiPlanCompleted.planOwnerKindsWithAllSteps
+                          .length > 0,
+                      guiPlanStepsVisible:
                         summary.guiPlanCompleted?.planOwnerHasAllSteps ===
                           true &&
-                      (summary.guiPlanCompleted?.planStepHits ?? []).every(
-                        (hit) =>
-                          hit.visible === true &&
-                          Array.isArray(hit.owners) &&
-                          hit.owners.length > 0,
-                      ),
-                    guiPlanDecisionDrawerVisible:
+                        (summary.guiPlanCompleted?.planStepHits ?? []).every(
+                          (hit) =>
+                            hit.visible === true &&
+                            Array.isArray(hit.owners) &&
+                            hit.owners.length > 0,
+                        ),
+                      guiPlanDecisionDrawerVisible:
                         summary.guiPlanCompleted?.planDecisionVisible ===
                           true &&
                         summary.guiPlanCompleted?.planDecisionHasTitle ===
-                        true &&
+                          true &&
                         summary.guiPlanCompleted
                           ?.planDecisionHasAcceptOption === true &&
-                      summary.guiPlanCompleted?.planDecisionHasAdjustInput ===
-                        true &&
-                      summary.guiPlanCompleted?.planDecisionRevisionBound ===
-                        true,
-                    guiPlanDidNotAutoImplement: !planImplementationTurnStart,
-                    readModelPlanCompleted:
+                        summary.guiPlanCompleted?.planDecisionHasAdjustInput ===
+                          true &&
+                        summary.guiPlanCompleted?.planDecisionRevisionBound ===
+                          true,
+                      guiPlanDidNotAutoImplement: !planImplementationTurnStart,
+                      readModelPlanCompleted:
                         summary.readModelPlanCompleted?.includesPrompt ===
                           true &&
-                      summary.readModelPlanCompleted
-                        ?.includesProposedPlanBlock === true &&
-                      summary.readModelPlanCompleted?.includesPlanItem ===
-                        true &&
-                      summary.readModelPlanCompleted?.includesAllPlanSteps ===
-                        true &&
-                      summary.readModelPlanCompleted?.latestTurnCompleted ===
-                        true,
-                    readModelPlanThreadItemRevisioned:
-                      summary.readModelPlanThreadItem
-                        ?.hasCompletedPlanThreadItem === true &&
+                        summary.readModelPlanCompleted
+                          ?.includesProposedPlanBlock === true &&
+                        summary.readModelPlanCompleted?.includesPlanItem ===
+                          true &&
+                        summary.readModelPlanCompleted?.includesAllPlanSteps ===
+                          true &&
+                        summary.readModelPlanCompleted?.latestTurnCompleted ===
+                          true,
+                      readModelPlanThreadItemRevisioned:
+                        summary.readModelPlanThreadItem
+                          ?.hasCompletedPlanThreadItem === true &&
                         summary.readModelPlanThreadItem?.hasRevisionId ===
                           true &&
-                      summary.readModelPlanThreadItem?.source ===
-                        "proposed_plan" &&
+                        summary.readModelPlanThreadItem?.source ===
+                          "proposed_plan" &&
                         summary.readModelPlanThreadItem
                           ?.includesAllPlanSteps === true,
-                    guiPlanHistoryHydrateCompleted:
-                      summary.guiPlanHistoryHydrateCompleted?.hasPrompt ===
-                        true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.planOwnerHasAllSteps === true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.planDecisionVisible === true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.planDecisionHasTitle === true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.planDecisionRevisionBound === true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.legacyUpdatePlanToolVisible === false,
-                    readModelPlanHistoryHydratePreserved:
-                      summary.readModelPlanHistoryHydrate
-                        ?.hasCompletedPlanThreadItem === true &&
-                      summary.readModelPlanHistoryHydrate?.hasRevisionId ===
-                        true &&
-                      summary.readModelPlanHistoryHydrate?.source ===
-                        "proposed_plan" &&
-                      summary.readModelPlanHistoryHydrate
-                        ?.includesAllPlanSteps === true,
-                    legacyUpdatePlanToolHidden:
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.legacyUpdatePlanToolVisible === false &&
-                      summary.readModelPlanThreadItem
-                        ?.legacyUpdatePlanToolItemCount === 0,
-                    proposedPlanVisible:
+                      guiPlanHistoryHydrateCompleted:
+                        summary.guiPlanHistoryHydrateCompleted?.hasPrompt ===
+                          true &&
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.planOwnerHasAllSteps === true &&
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.planDecisionVisible === true &&
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.planDecisionHasTitle === true &&
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.planDecisionRevisionBound === true &&
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.legacyUpdatePlanToolVisible === false,
+                      readModelPlanHistoryHydratePreserved:
+                        summary.readModelPlanHistoryHydrate
+                          ?.hasCompletedPlanThreadItem === true &&
+                        summary.readModelPlanHistoryHydrate?.hasRevisionId ===
+                          true &&
+                        summary.readModelPlanHistoryHydrate?.source ===
+                          "proposed_plan" &&
+                        summary.readModelPlanHistoryHydrate
+                          ?.includesAllPlanSteps === true,
+                      legacyUpdatePlanToolHidden:
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.legacyUpdatePlanToolVisible === false &&
+                        summary.readModelPlanThreadItem
+                          ?.legacyUpdatePlanToolItemCount === 0,
+                      proposedPlanVisible:
                         summary.guiPlanCompleted?.planOwnerHasAllSteps ===
                           true &&
-                      summary.guiPlanHistoryHydrateCompleted
-                        ?.planOwnerHasAllSteps === true,
-                  }
-                : isGoalScenario
-                  ? {
-                      goalModeEnabledInGui:
-                        summary.goalModeEnabled?.statusChipVisible === true &&
-                        summary.goalModeEnabled?.statusText?.includes(
-                          "追求目标",
-                        ) === true,
-                      goalPromptReachedBackend:
-                        goalTurnStart?.inputText === GOAL_PROMPT,
-                      goalObjectiveTextReachedBackend:
-                        goalObjectiveText === GOAL_PROMPT,
-                      guiGoalCompleted:
-                        summary.guiGoalCompleted?.hasPrompt === true &&
-                        (summary.guiGoalCompleted?.hasAssistantSummary ===
-                          true ||
-                          summary.guiGoalCompleted?.hasDoneText === true) &&
-                        summary.guiGoalCompleted?.textareaVisible === true &&
-                          summary.guiGoalCompleted?.textareaDisabled ===
-                            false &&
-                        summary.guiGoalCompleted?.stopButtonVisible === false,
-                      readModelGoalCompleted:
-                        summary.readModelGoalCompleted?.includesPrompt ===
-                          true &&
-                        (summary.readModelGoalCompleted
-                          ?.includesAssistantDone === true ||
-                          summary.readModelGoalCompleted
-                            ?.includesAssistantSummary === true),
+                        summary.guiPlanHistoryHydrateCompleted
+                          ?.planOwnerHasAllSteps === true,
                     }
-                  : isImageCommandScenario
+                  : isGoalScenario
                     ? {
-                        imageCommandPromptReachedBackend:
-                          imageCommandTurnStart?.inputText ===
-                          expectedImageIntentRoutedPrompt,
-                        imageCommandMetadataReachedBackend:
-                          imageCommandContractKey === "image_generation" &&
-                          imageCommandTurnStart?.providerPreference == null &&
-                          imageCommandTurnStart?.modelPreference == null,
-                        imageCommandLegacySkillLaunchNotSubmitted:
-                          imageCommandHarness?.image_skill_launch == null &&
-                          imageCommandHarness?.imageSkillLaunch == null,
-                        imageCommandUsedCurrentMediaTaskArtifactMethods:
-                          summary.imageCommandWorkflowUsed === true &&
-                          appServerRequestMethods.includes(
-                            APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_GET,
-                          ) &&
-                          appServerRequestMethods.includes(
-                            APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_LIST,
-                          ),
-                        imageCommandTaskArtifactWritten:
-                          summary.imageCommandTaskArtifact?.exists === true &&
-                          summary.imageCommandTaskArtifact
-                            ?.pathIncludesImageGenerate === true &&
-                          typeof summary.imageCommandTaskArtifact?.taskId ===
-                            "string" &&
-                          summary.imageCommandTaskArtifact.taskId.length > 0,
-                        imageCommandTaskArtifactReadable:
-                          summary.imageCommandTaskArtifact?.getReturned ===
+                        goalModeEnabledInGui:
+                          summary.goalModeEnabled?.statusChipVisible === true &&
+                          summary.goalModeEnabled?.statusText?.includes(
+                            "追求目标",
+                          ) === true,
+                        goalPromptReachedBackend:
+                          goalTurnStart?.inputText === GOAL_PROMPT,
+                        goalObjectiveTextReachedBackend:
+                          goalObjectiveText === GOAL_PROMPT,
+                        guiGoalCompleted:
+                          summary.guiGoalCompleted?.hasPrompt === true &&
+                          (summary.guiGoalCompleted?.hasAssistantSummary ===
+                            true ||
+                            summary.guiGoalCompleted?.hasDoneText === true) &&
+                          summary.guiGoalCompleted?.editorVisible === true &&
+                          summary.guiGoalCompleted?.editorDisabled === false &&
+                          summary.guiGoalCompleted?.stopButtonVisible === false,
+                        readModelGoalCompleted:
+                          summary.readModelGoalCompleted?.includesPrompt ===
                             true &&
-                          summary.imageCommandTaskArtifact?.listReturned ===
-                            true &&
+                          (summary.readModelGoalCompleted
+                            ?.includesAssistantDone === true ||
+                            summary.readModelGoalCompleted
+                              ?.includesAssistantSummary === true),
+                      }
+                    : isImageCommandScenario
+                      ? {
+                          imageCommandPromptReachedBackend:
+                            imageCommandTurnStart?.inputText ===
+                            expectedImageIntentRoutedPrompt,
+                          imageCommandMetadataReachedBackend:
+                            imageCommandContractKey === "image_generation" &&
+                            imageCommandTurnStart?.providerPreference == null &&
+                            imageCommandTurnStart?.modelPreference == null,
+                          imageCommandLegacySkillLaunchNotSubmitted:
+                            imageCommandHarness?.image_skill_launch == null &&
+                            imageCommandHarness?.imageSkillLaunch == null,
+                          imageCommandUsedCurrentMediaTaskArtifactMethods:
+                            summary.imageCommandWorkflowUsed === true &&
+                            appServerRequestMethods.includes(
+                              APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_GET,
+                            ) &&
+                            appServerRequestMethods.includes(
+                              APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_LIST,
+                            ),
+                          imageCommandTaskArtifactWritten:
+                            summary.imageCommandTaskArtifact?.exists === true &&
+                            summary.imageCommandTaskArtifact
+                              ?.pathIncludesImageGenerate === true &&
+                            typeof summary.imageCommandTaskArtifact?.taskId ===
+                              "string" &&
+                            summary.imageCommandTaskArtifact.taskId.length > 0,
+                          imageCommandTaskArtifactReadable:
+                            summary.imageCommandTaskArtifact?.getReturned ===
+                              true &&
+                            summary.imageCommandTaskArtifact?.listReturned ===
+                              true &&
                             summary.imageCommandTaskArtifact
                               ?.listContainsTask === true &&
-                          summary.imageCommandTaskArtifact
-                            ?.listContainsImageGenerate === true,
-                        imageCommandTaskArtifactTerminal:
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.status === "succeeded" &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.completeMethodUsed === "media_runtime_worker" &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.completeReturned === true &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.normalizedStatus === "succeeded" &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.resultImageCount === 1 &&
-                          summary.imageCommandTaskArtifactTerminal
-                            ?.fileNormalizedStatus === "succeeded" &&
-                          summary.imageCommandTaskArtifactTerminal
-                            ?.fileResultImageCount === 1 &&
-                          summary.imageCommandTaskArtifactAfterReload
-                            ?.fileNormalizedStatus === "succeeded" &&
-                          summary.imageCommandTaskArtifactAfterReload
-                            ?.listContainsTask === true,
-                        imageCommandTaskArtifactSameTaskUpdated:
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.sameTaskFileUpdated === true &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.taskId ===
-                            summary.imageCommandTaskArtifact?.taskId &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.taskPath ===
-                            summary.imageCommandTaskArtifact?.taskPath &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.currentAttemptStatus === "succeeded" &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.currentAttemptWorkerId ===
-                            "lime-image-api-worker" &&
-                          summary.imageCommandTaskArtifactTerminalPatch
-                            ?.currentAttemptHasResultSnapshot === true,
-                        imageCommandTaskAuditLogWritten:
-                          summary.imageCommandTaskAuditLog?.exists === true &&
-                          summary.imageCommandTaskAuditLog?.lineCount >= 6 &&
-                          summary.imageCommandTaskAuditLog
-                            ?.logsRefLooksLikeTaskLog === true,
-                        imageCommandTaskAuditLogEventSequence:
-                          summary.imageCommandTaskAuditLog
-                            ?.hasExpectedEventSequence === true &&
-                          summary.imageCommandTaskAuditLog?.events?.[0] ===
-                            "worker_loaded" &&
-                          summary.imageCommandTaskAuditLog?.events?.at(-1) ===
-                            "task_succeeded" &&
-                          summary.imageCommandTaskAuditLog
-                            ?.allEventTaskIdsMatch === true &&
+                            summary.imageCommandTaskArtifact
+                              ?.listContainsImageGenerate === true,
+                          imageCommandTaskArtifactTerminal:
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.status === "succeeded" &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.completeMethodUsed === "media_runtime_worker" &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.completeReturned === true &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.normalizedStatus === "succeeded" &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.resultImageCount === 1 &&
+                            summary.imageCommandTaskArtifactTerminal
+                              ?.fileNormalizedStatus === "succeeded" &&
+                            summary.imageCommandTaskArtifactTerminal
+                              ?.fileResultImageCount === 1 &&
+                            summary.imageCommandTaskArtifactAfterReload
+                              ?.fileNormalizedStatus === "succeeded" &&
+                            summary.imageCommandTaskArtifactAfterReload
+                              ?.listContainsTask === true,
+                          imageCommandTaskArtifactSameTaskUpdated:
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.sameTaskFileUpdated === true &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.taskId ===
+                              summary.imageCommandTaskArtifact?.taskId &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.taskPath ===
+                              summary.imageCommandTaskArtifact?.taskPath &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.currentAttemptStatus === "succeeded" &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.currentAttemptWorkerId ===
+                              "lime-image-api-worker" &&
+                            summary.imageCommandTaskArtifactTerminalPatch
+                              ?.currentAttemptHasResultSnapshot === true,
+                          imageCommandTaskAuditLogWritten:
+                            summary.imageCommandTaskAuditLog?.exists === true &&
+                            summary.imageCommandTaskAuditLog?.lineCount >= 6 &&
+                            summary.imageCommandTaskAuditLog
+                              ?.logsRefLooksLikeTaskLog === true,
+                          imageCommandTaskAuditLogEventSequence:
+                            summary.imageCommandTaskAuditLog
+                              ?.hasExpectedEventSequence === true &&
+                            summary.imageCommandTaskAuditLog?.events?.[0] ===
+                              "worker_loaded" &&
+                            summary.imageCommandTaskAuditLog?.events?.at(-1) ===
+                              "task_succeeded" &&
+                            summary.imageCommandTaskAuditLog
+                              ?.allEventTaskIdsMatch === true &&
                             summary.imageCommandTaskAuditLog?.parseError ==
                               null,
-                        imageCommandTaskAuditLogNoSensitiveTokens:
-                          summary.imageCommandTaskAuditLog
-                            ?.hasNoSensitiveTokenMarkers === true &&
-                          Array.isArray(
+                          imageCommandTaskAuditLogNoSensitiveTokens:
                             summary.imageCommandTaskAuditLog
-                              ?.forbiddenMarkerHits,
-                          ) &&
-                          summary.imageCommandTaskAuditLog.forbiddenMarkerHits
-                            .length === 0,
-                        imageCommandWorkflowAuditReadModelProjected:
-                          appServerRequestMethods.includes(
-                            APP_SERVER_METHOD_WORKFLOW_READ,
-                          ) &&
-                          summary.imageCommandWorkflowRead?.sessionId ===
-                            summary.sessionId &&
-                          summary.imageCommandWorkflowRead?.matchedRun
-                            ?.workflowKey === "image_command_workflow" &&
-                          summary.imageCommandWorkflowRead?.matchedRun
-                            ?.status === "completed" &&
-                          summary.imageCommandWorkflowRead?.matchedRun
-                            ?.stepCounts?.total === 5 &&
-                          summary.imageCommandWorkflowRead
-                            ?.activeWorkflowRunId === "",
-                        imageCommandWorkflowAuditStepsProjected:
+                              ?.hasNoSensitiveTokenMarkers === true &&
+                            Array.isArray(
+                              summary.imageCommandTaskAuditLog
+                                ?.forbiddenMarkerHits,
+                            ) &&
+                            summary.imageCommandTaskAuditLog.forbiddenMarkerHits
+                              .length === 0,
+                          imageCommandWorkflowAuditReadModelProjected:
+                            appServerRequestMethods.includes(
+                              APP_SERVER_METHOD_WORKFLOW_READ,
+                            ) &&
+                            summary.imageCommandWorkflowRead?.sessionId ===
+                              summary.sessionId &&
+                            summary.imageCommandWorkflowRead?.matchedRun
+                              ?.workflowKey === "image_command_workflow" &&
+                            summary.imageCommandWorkflowRead?.matchedRun
+                              ?.status === "completed" &&
+                            summary.imageCommandWorkflowRead?.matchedRun
+                              ?.stepCounts?.total === 5 &&
+                            summary.imageCommandWorkflowRead
+                              ?.activeWorkflowRunId === "",
+                          imageCommandWorkflowAuditStepsProjected:
                             summary.imageCommandWorkflowRead
                               ?.hasExpectedSteps === true &&
-                          summary.imageCommandWorkflowRead?.matchedStepIds?.includes(
-                            "intent",
-                          ) === true &&
-                          summary.imageCommandWorkflowRead?.matchedStepIds?.includes(
-                            "create_tasks",
-                          ) === true &&
-                          summary.imageCommandWorkflowRead?.completedStepIds?.includes(
-                            "intent",
-                          ) === true &&
-                          summary.imageCommandWorkflowRead?.completedStepIds?.includes(
-                            "create_tasks",
-                          ) === true &&
-                          summary.imageCommandWorkflowRead?.createTasksStep
-                            ?.status === "completed",
-                        imageCommandWorkflowAuditSummaryRedacted:
-                          summary.imageCommandWorkflowRead?.containsPrompt ===
-                            false &&
+                            summary.imageCommandWorkflowRead?.matchedStepIds?.includes(
+                              "intent",
+                            ) === true &&
+                            summary.imageCommandWorkflowRead?.matchedStepIds?.includes(
+                              "create_tasks",
+                            ) === true &&
+                            summary.imageCommandWorkflowRead?.completedStepIds?.includes(
+                              "intent",
+                            ) === true &&
+                            summary.imageCommandWorkflowRead?.completedStepIds?.includes(
+                              "create_tasks",
+                            ) === true &&
+                            summary.imageCommandWorkflowRead?.createTasksStep
+                              ?.status === "completed",
+                          imageCommandWorkflowAuditSummaryRedacted:
+                            summary.imageCommandWorkflowRead?.containsPrompt ===
+                              false &&
                             summary.imageCommandWorkflowRead
                               ?.containsTaskPath === false,
-                        imageCommandWorkerUsedFixtureProviderAndModel:
+                          imageCommandWorkerUsedFixtureProviderAndModel:
                             (summary.imageCommandTaskCreateRequest
                               ?.provider_id ??
-                            summary.imageCommandTaskCreateRequest
-                              ?.providerId) ===
-                            summary.imageFixtureProvider?.providerId &&
-                          (summary.imageCommandTaskCreateRequest?.model ??
-                            null) === IMAGE_FIXTURE_MODEL &&
-                          summary.imageProviderFixtureServer?.requests?.some(
-                            (request) =>
-                              request?.method === "GET" &&
-                              request?.url === "/v1/models" &&
-                              request?.authorization === "present",
-                          ) === true &&
-                          summary.imageProviderFixtureServer?.requests?.find(
-                            (request) =>
-                              request?.method === "POST" &&
-                              request?.url === "/v1/images/generations",
-                          )?.headerProviderId ===
-                            summary.imageFixtureProvider?.providerId &&
-                          summary.imageProviderFixtureServer?.requests?.find(
-                            (request) =>
-                              request?.method === "POST" &&
-                              request?.url === "/v1/images/generations",
-                          )?.model === IMAGE_FIXTURE_MODEL &&
-                          summary.imageProviderFixtureServer?.requests?.find(
-                            (request) =>
-                              request?.method === "POST" &&
-                              request?.url === "/v1/images/generations",
-                          )?.bodyIncludesModel === true,
-                        imageCommandWorkflowToolObserved:
-                          summary.readModelImageCommandCompleted
-                            ?.includesWorkflowSource === true ||
-                          pageText.includes("image_command_workflow") ||
-                          (summary.imageCommandTaskCreateRequest
-                            ?.runtimeContract?.executor_adapter_key ===
-                            "workflow:image_command" &&
-                            summary.imageCommandTaskCreateRequest
-                              ?.runtimeContract?.executor_binding_key ===
-                              "image_command"),
-                        imageCommandCreateTaskToolObserved:
-                          summary.readModelImageCommandCompleted
-                            ?.includesCreateTaskTool === true,
-                        guiImageCommandInputSubmitted:
-                          summary.imageCommandInputSend?.afterFill
-                            ?.promptVisibleInTextarea === true &&
-                          summary.imageCommandInputSend?.clicked?.clicked ===
-                            true,
-                        guiImageCommandToolProcessVisible:
-                          summary.guiImageCommandCompleted
-                            ?.hasVisibleImageTaskProcess === true,
-                        guiImageCommandTaskCardVisible:
-                          summary.guiImageCommandCompleted
-                            ?.imageTaskCardVisible === true,
-                        guiImageCommandTaskCardTerminal:
-                          summary.guiImageCommandTerminal?.cardCount === 1 &&
-                          summary.guiImageCommandTerminal?.mediaCount >= 1 &&
-                          summary.guiImageCommandTerminal
-                            ?.hasPresentationIntro === true &&
-                          summary.guiImageCommandTerminal
-                            ?.hasPresentationIntroInAssistantText === true &&
+                              summary.imageCommandTaskCreateRequest
+                                ?.providerId) ===
+                              summary.imageFixtureProvider?.providerId &&
+                            (summary.imageCommandTaskCreateRequest?.model ??
+                              null) === IMAGE_FIXTURE_MODEL &&
+                            summary.imageProviderFixtureServer?.requests?.some(
+                              (request) =>
+                                request?.method === "GET" &&
+                                request?.url === "/v1/models" &&
+                                request?.authorization === "present",
+                            ) === true &&
+                            summary.imageProviderFixtureServer?.requests?.find(
+                              (request) =>
+                                request?.method === "POST" &&
+                                request?.url === "/v1/images/generations",
+                            )?.headerProviderId ===
+                              summary.imageFixtureProvider?.providerId &&
+                            summary.imageProviderFixtureServer?.requests?.find(
+                              (request) =>
+                                request?.method === "POST" &&
+                                request?.url === "/v1/images/generations",
+                            )?.model === IMAGE_FIXTURE_MODEL &&
+                            summary.imageProviderFixtureServer?.requests?.find(
+                              (request) =>
+                                request?.method === "POST" &&
+                                request?.url === "/v1/images/generations",
+                            )?.bodyIncludesModel === true,
+                          imageCommandWorkflowToolObserved:
+                            summary.readModelImageCommandCompleted
+                              ?.includesWorkflowSource === true ||
+                            pageText.includes("image_command_workflow") ||
+                            (summary.imageCommandTaskCreateRequest
+                              ?.runtimeContract?.executor_adapter_key ===
+                              "workflow:image_command" &&
+                              summary.imageCommandTaskCreateRequest
+                                ?.runtimeContract?.executor_binding_key ===
+                                "image_command"),
+                          imageCommandCreateTaskToolObserved:
+                            summary.readModelImageCommandCompleted
+                              ?.includesCreateTaskTool === true,
+                          guiImageCommandInputSubmitted:
+                            summary.imageCommandInputSend?.afterFill
+                              ?.promptVisibleInEditor === true &&
+                            summary.imageCommandInputSend?.clicked?.clicked ===
+                              true,
+                          guiImageCommandToolProcessVisible:
+                            summary.guiImageCommandCompleted
+                              ?.hasVisibleImageTaskProcess === true,
+                          guiImageCommandTaskCardVisible:
+                            summary.guiImageCommandCompleted
+                              ?.imageTaskCardVisible === true,
+                          guiImageCommandTaskCardTerminal:
+                            summary.guiImageCommandTerminal?.cardCount === 1 &&
+                            summary.guiImageCommandTerminal?.mediaCount >= 1 &&
+                            summary.guiImageCommandTerminal
+                              ?.hasPresentationIntro === true &&
+                            summary.guiImageCommandTerminal
+                              ?.hasPresentationIntroInAssistantText === true &&
                             summary.guiImageCommandTerminal
                               ?.hasToolStripLabel === true &&
-                          summary.guiImageCommandTerminal
-                            ?.hasImageModelLabel === true &&
-                          summary.guiImageCommandTerminal?.hasTokenUsage ===
-                            true &&
-                          summary.guiImageCommandTerminal?.hasPreviewImage ===
-                            true &&
-                          summary.guiImageCommandTerminal
-                            ?.hasLoadedVisiblePreviewImage === true &&
-                          summary.guiImageCommandTerminal
-                            ?.hasPresentationCaptionAfterCard === true &&
-                          summary.guiImageCommandTerminal
-                            ?.cardHasPresentationCaption === false &&
-                          summary.guiImageCommandTerminal?.introBeforeCard ===
-                            true &&
-                          summary.guiImageCommandTerminal
-                            ?.completionAfterCard === true &&
-                          summary.guiImageCommandTerminal
-                            ?.visiblePendingStatus === false,
-                        guiImageCommandSingleTaskCard:
-                          summary.guiImageCommandTerminal?.cardCount === 1 &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.cardCount === 1,
-                        guiImageCommandRestoredAfterReload:
+                            summary.guiImageCommandTerminal
+                              ?.hasImageModelLabel === true &&
+                            summary.guiImageCommandTerminal?.hasTokenUsage ===
+                              true &&
+                            summary.guiImageCommandTerminal?.hasPreviewImage ===
+                              true &&
+                            summary.guiImageCommandTerminal
+                              ?.hasLoadedVisiblePreviewImage === true &&
+                            summary.guiImageCommandTerminal
+                              ?.hasPresentationCaptionAfterCard === true &&
+                            summary.guiImageCommandTerminal
+                              ?.cardHasPresentationCaption === false &&
+                            summary.guiImageCommandTerminal?.introBeforeCard ===
+                              true &&
+                            summary.guiImageCommandTerminal
+                              ?.completionAfterCard === true &&
+                            summary.guiImageCommandTerminal
+                              ?.visiblePendingStatus === false,
+                          guiImageCommandSingleTaskCard:
+                            summary.guiImageCommandTerminal?.cardCount === 1 &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.cardCount === 1,
+                          guiImageCommandRestoredAfterReload:
                             summary.guiImageCommandReload?.renderer
                               ?.electron === true &&
-                          summary.guiImageCommandReload?.session?.inputReady
-                            ?.hasMessageList === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.cardCount === 1 &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.mediaCount >= 1 &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasPresentationIntro === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasPresentationIntroInAssistantText === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasToolStripLabel === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasImageModelLabel === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasTokenUsage === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasPreviewImage === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasLoadedVisiblePreviewImage === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.hasPresentationCaptionAfterCard === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.cardHasPresentationCaption === false &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.introBeforeCard === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.completionAfterCard === true &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.visiblePendingStatus === false,
-                        guiImageCommandNoDraftCard:
-                          summary.guiImageCommandCompleted
-                            ?.draftImageVisible === false &&
+                            summary.guiImageCommandReload?.session?.inputReady
+                              ?.hasMessageList === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.cardCount === 1 &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.mediaCount >= 1 &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasPresentationIntro === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasPresentationIntroInAssistantText === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasToolStripLabel === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasImageModelLabel === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasTokenUsage === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasPreviewImage === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasLoadedVisiblePreviewImage === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.hasPresentationCaptionAfterCard === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.cardHasPresentationCaption === false &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.introBeforeCard === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.completionAfterCard === true &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.visiblePendingStatus === false,
+                          guiImageCommandNoDraftCard:
+                            summary.guiImageCommandCompleted
+                              ?.draftImageVisible === false &&
                             summary.guiImageCommandTerminal
                               ?.draftImageVisible === false &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.draftImageVisible === false &&
-                          summary.readModelImageCommandCompleted
-                            ?.includesDraftTask === false,
-                        guiImageCommandNoTemplateTaskId:
-                          summary.guiImageCommandCompleted
-                            ?.templateTaskIdVisible === false &&
-                          summary.guiImageCommandTerminal
-                            ?.templateTaskIdVisible === false &&
-                          summary.guiImageCommandRestoredAfterReload
-                            ?.templateTaskIdVisible === false &&
-                          summary.readModelImageCommandCompleted
-                            ?.includesTaskIdPlaceholder === false,
-                        readModelImageCommandCompleted:
-                          summary.readModelImageCommandCompleted
-                            ?.includesPrompt === true &&
-                          summary.readModelImageCommandCompleted
-                            ?.latestTurnStatus === "completed" &&
-                          summary.readModelImageCommandCompleted
-                            ?.includesCreateTaskTool === true,
-                        readModelImageCommandTaskPreviewObserved:
-                          summary.readModelImageCommandCompleted
-                            ?.createTaskOutputContainsTaskId === true &&
-                          summary.readModelImageCommandCompleted
-                            ?.createTaskOutputContainsTaskFile === true,
-                      }
-                    : isWebToolsRenderingScenario
-                      ? buildWebToolsRenderingScenarioAssertions({
-                          summary,
-                          webToolsRenderingTurnStart,
-                        })
-                      : isReasoningFirstVisibleScenario
-                        ? buildReasoningFirstVisibleScenarioAssertions({
-                            reasoningFirstVisibleTurnStart,
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.draftImageVisible === false &&
+                            summary.readModelImageCommandCompleted
+                              ?.includesDraftTask === false,
+                          guiImageCommandNoTemplateTaskId:
+                            summary.guiImageCommandCompleted
+                              ?.templateTaskIdVisible === false &&
+                            summary.guiImageCommandTerminal
+                              ?.templateTaskIdVisible === false &&
+                            summary.guiImageCommandRestoredAfterReload
+                              ?.templateTaskIdVisible === false &&
+                            summary.readModelImageCommandCompleted
+                              ?.includesTaskIdPlaceholder === false,
+                          readModelImageCommandCompleted:
+                            summary.readModelImageCommandCompleted
+                              ?.includesPrompt === true &&
+                            summary.readModelImageCommandCompleted
+                              ?.latestTurnStatus === "completed" &&
+                            summary.readModelImageCommandCompleted
+                              ?.includesCreateTaskTool === true,
+                          readModelImageCommandTaskPreviewObserved:
+                            summary.readModelImageCommandCompleted
+                              ?.createTaskOutputContainsTaskId === true &&
+                            summary.readModelImageCommandCompleted
+                              ?.createTaskOutputContainsTaskFile === true,
+                        }
+                      : isWebToolsRenderingScenario
+                        ? buildWebToolsRenderingScenarioAssertions({
                             summary,
+                            webToolsRenderingTurnStart,
                           })
-                        : isElectronResizeReflowScenario
-                          ? buildElectronResizeReflowScenarioAssertions({
-                              electronResizeReflowTurnStart,
+                        : isReasoningFirstVisibleScenario
+                          ? buildReasoningFirstVisibleScenarioAssertions({
+                              reasoningFirstVisibleTurnStart,
                               summary,
                             })
-                          : isLiveTailCommitScenario
-                            ? buildLiveTailCommitScenarioAssertions({
-                                liveTailCommitTurnStart,
+                          : isElectronResizeReflowScenario
+                            ? buildElectronResizeReflowScenarioAssertions({
+                                electronResizeReflowTurnStart,
                                 summary,
                               })
-                            : isApprovalRequestFullAccessScenario
-                              ? buildApprovalRequestFullAccessScenarioAssertions(
-                                  {
-                                    appServerRequestMethods,
-                                    approvalRequestFullAccessTurnStart,
-                                    pageText,
-                                    summary,
-                                  },
-                                )
-                              : isApprovalRequestHostInterruptScenario
-                                ? buildApprovalRequestHostInterruptScenarioAssertions(
+                            : isLiveTailCommitScenario
+                              ? buildLiveTailCommitScenarioAssertions({
+                                  liveTailCommitTurnStart,
+                                  summary,
+                                })
+                              : isApprovalRequestFullAccessScenario
+                                ? buildApprovalRequestFullAccessScenarioAssertions(
                                     {
                                       appServerRequestMethods,
-                                      approvalRequestResumeTurnStart,
+                                      approvalRequestFullAccessTurnStart,
+                                      pageText,
                                       summary,
                                     },
                                   )
-                                : isApprovalRequestResumeScenario
-                                  ? buildApprovalRequestResumeScenarioAssertions(
+                                : isApprovalRequestHostInterruptScenario
+                                  ? buildApprovalRequestHostInterruptScenarioAssertions(
                                       {
                                         appServerRequestMethods,
                                         approvalRequestResumeTurnStart,
-                                        backendLedger,
-                                        pageText,
                                         summary,
                                       },
                                     )
-                                  : isApprovalRequestDecisionScenario
-                                    ? buildApprovalRequestDecisionScenarioAssertions(
+                                  : isApprovalRequestResumeScenario
+                                    ? buildApprovalRequestResumeScenarioAssertions(
                                         {
                                           appServerRequestMethods,
                                           approvalRequestResumeTurnStart,
                                           backendLedger,
-                                          isApprovalRequestCancelScenario,
-                                          isApprovalRequestDeclineScenario,
                                           pageText,
                                           summary,
                                         },
                                       )
-                                    : isTypedErrorRetryScenario
-                                      ? buildTypedErrorScenarioAssertions({
-                                          isTypedErrorRetryFailureScenario,
-                                          isTypedErrorRetrySuccessScenario,
-                                          summary,
-                                          typedErrorTurnStart,
-                                        })
-                                      : isTerminalStaleGuardScenario ||
-                                          isTerminalCanceledAfterAnswerScenario ||
-                                          isTerminalFailedAfterAnswerScenario
-                                        ? buildTerminalScenarioAssertions({
-                                            isTerminalCanceledAfterAnswerScenario,
-                                            isTerminalFailedAfterAnswerScenario,
-                                            isTerminalStaleGuardScenario,
+                                    : isApprovalRequestDecisionScenario
+                                      ? buildApprovalRequestDecisionScenarioAssertions(
+                                          {
+                                            appServerRequestMethods,
+                                            approvalRequestResumeTurnStart,
+                                            backendLedger,
+                                            isApprovalRequestCancelScenario,
+                                            isApprovalRequestDeclineScenario,
+                                            pageText,
                                             summary,
-                                            terminalCanceledAfterAnswerTurnStart,
-                                            terminalFailedAfterAnswerTurnStart,
-                                            terminalStaleGuardFirstTurnStart,
-                                            terminalStaleGuardSecondTurnStart,
+                                          },
+                                        )
+                                      : isTypedErrorRetryScenario
+                                        ? buildTypedErrorScenarioAssertions({
+                                            isTypedErrorRetryFailureScenario,
+                                            isTypedErrorRetrySuccessScenario,
+                                            summary,
+                                            typedErrorTurnStart,
                                           })
-                                        : isMcpStructuredContentScenario
-                                          ? buildMcpStructuredContentScenarioAssertions(
-                                              {
-                                                mcpStructuredContentTurnStart,
-                                                summary,
-                                              },
-                                            )
-                                          : isMediaReferenceScenario
-                                            ? buildMediaReferenceScenarioAssertions(
+                                        : isTerminalStaleGuardScenario ||
+                                            isTerminalCanceledAfterAnswerScenario ||
+                                            isTerminalFailedAfterAnswerScenario
+                                          ? buildTerminalScenarioAssertions({
+                                              isTerminalCanceledAfterAnswerScenario,
+                                              isTerminalFailedAfterAnswerScenario,
+                                              isTerminalStaleGuardScenario,
+                                              summary,
+                                              terminalCanceledAfterAnswerTurnStart,
+                                              terminalFailedAfterAnswerTurnStart,
+                                              terminalStaleGuardFirstTurnStart,
+                                              terminalStaleGuardSecondTurnStart,
+                                            })
+                                          : isMcpStructuredContentScenario
+                                            ? buildMcpStructuredContentScenarioAssertions(
                                                 {
-                                                  mediaReferenceTurnStart,
-                                                  pageText,
+                                                  mcpStructuredContentTurnStart,
                                                   summary,
                                                 },
                                               )
-                                            : isSkillsRuntimeScenario
-                                              ? buildSkillsRuntimeScenarioAssertions(
+                                            : isMediaReferenceScenario
+                                              ? buildMediaReferenceScenarioAssertions(
                                                   {
-                                                    explicitSkillsRuntimeTurnStart,
-                                                    manualEnableRuntimeBinding,
-                                                    manualEnableRuntimeMetadata,
-                                                    manualEnableSkillsRuntimeTurnStart,
-                                                    skillsRuntimeTurnStart,
+                                                    mediaReferenceTurnStart,
+                                                    pageText,
                                                     summary,
-                                                    workspace,
                                                   },
                                                 )
-                                              : isAnyExpertSkillsRuntimeScenario
-                                                ? buildExpertSkillsRuntimeScenarioAssertions(
+                                              : isSkillsRuntimeScenario
+                                                ? buildSkillsRuntimeScenarioAssertions(
                                                     {
-                                                      expectedExpertHarnessSkillRef,
-                                                      expertHarnessMetadata,
-                                                      expertHarnessSkillRefs,
-                                                      expertPanelSkillsRuntimeTurnStart,
-                                                      expertRuntimeMetadata,
-                                                      expertSkillsRuntimeTurnStart,
-                                                      isExpertPanelSkillsRuntimeScenario,
-                                                      isExpertPlazaSkillsRuntimeScenario,
+                                                      explicitSkillsRuntimeTurnStart,
+                                                      manualEnableRuntimeBinding,
+                                                      manualEnableRuntimeMetadata,
+                                                      manualEnableSkillsRuntimeTurnStart,
+                                                      skillsRuntimeTurnStart,
                                                       summary,
+                                                      workspace,
                                                     },
                                                   )
-                                                : hasCancelPhase
-                                                  ? {
-                                                      usedCurrentTurnCancel:
-                                                        appServerRequestMethods.includes(
-                                                          APP_SERVER_METHOD_SESSION_TURN_CANCEL,
-                                                        ),
-                                                      externalFixtureCancelUsed:
-                                                        backendLedger.some(
-                                                          (entry) =>
-                                                            entry.kind ===
-                                                            "turnCancel",
-                                                        ),
-                                                      fixtureCancelReachedBackend:
-                                                        latestTurnCancel?.sessionId ===
-                                                          summary.sessionId &&
-                                                        typeof latestTurnCancel?.turnId ===
-                                                          "string" &&
-                                                        latestTurnCancel.turnId.trim()
-                                                          .length > 0,
-                                                      guiStopClicked:
-                                                        summary.stopClick
-                                                            ?.clicked
-                                                            ?.clicked === true,
-                                                      readModelCanceled:
-                                                        summary
-                                                          .readModelCanceled
-                                                          ?.includesPrompt ===
-                                                          true &&
-                                                        summary
-                                                          .readModelCanceled
-                                                          ?.hasInterruptedTurn ===
-                                                          true,
-                                                      ...(isCancelThenContinueScenario
-                                                        ? {
-                                                            continuePromptReachedBackend:
-                                                              continueTurnStart?.inputText ===
-                                                              CONTINUE_PROMPT,
-                                                            guiContinueInputSubmitted:
-                                                              summary
-                                                                .continueInputSend
-                                                                ?.afterFill
-                                                                ?.promptVisibleInTextarea ===
-                                                                true &&
-                                                              summary
-                                                                .continueInputSend
-                                                                ?.clicked
-                                                                ?.clicked ===
-                                                                true,
-                                                            guiContinueCompleted:
-                                                              summary
-                                                                .guiContinueCompleted
-                                                                ?.hasPrompt ===
-                                                                true &&
-                                                              (summary
-                                                                .guiContinueCompleted
-                                                                ?.hasAssistantSummary ===
-                                                                true ||
-                                                                summary
-                                                                  .guiContinueCompleted
-                                                                  ?.hasDoneText ===
-                                                                  true) &&
-                                                              summary
-                                                                .guiContinueCompleted
-                                                                ?.textareaVisible ===
-                                                                true &&
-                                                              summary
-                                                                .guiContinueCompleted
-                                                                ?.textareaDisabled ===
-                                                                false &&
-                                                              summary
-                                                                .guiContinueCompleted
-                                                                ?.stopButtonVisible ===
-                                                                false,
-                                                            readModelContinueCompleted:
-                                                              summary
-                                                                .readModelContinueCompleted
-                                                                ?.includesPrompt ===
-                                                                true &&
-                                                              (summary
-                                                                .readModelContinueCompleted
-                                                                ?.includesAssistantDone ===
-                                                                true ||
-                                                                summary
-                                                                  .readModelContinueCompleted
-                                                                  ?.includesAssistantSummary ===
-                                                                  true),
-                                                            backendRecordedCancelThenContinue:
-                                                              backendLedger.filter(
-                                                                (entry) =>
-                                                                  entry.kind ===
-                                                                  "turnStart",
-                                                              ).length >= 2 &&
-                                                              backendLedger.some(
-                                                                (entry) =>
-                                                                  entry.kind ===
-                                                                  "turnCancel",
-                                                              ),
-                                                          }
-                                                        : {}),
-                                                    }
-                                                  : isInputbarRichRestoreScenario
+                                                : isAnyExpertSkillsRuntimeScenario
+                                                  ? buildExpertSkillsRuntimeScenarioAssertions(
+                                                      {
+                                                        expectedExpertHarnessSkillRef,
+                                                        expertHarnessMetadata,
+                                                        expertHarnessSkillRefs,
+                                                        expertPanelSkillsRuntimeTurnStart,
+                                                        expertRuntimeMetadata,
+                                                        expertSkillsRuntimeTurnStart,
+                                                        isExpertPanelSkillsRuntimeScenario,
+                                                        isExpertPlazaSkillsRuntimeScenario,
+                                                        summary,
+                                                      },
+                                                    )
+                                                  : hasCancelPhase
                                                     ? {
-                                                        inputbarRichRestorePromptReachedBackend:
-                                                          String(
-                                                            inputbarRichRestoreTurnStart?.inputText ||
-                                                              "",
-                                                          ).includes(
-                                                            INPUTBAR_RICH_RESTORE_PROMPT,
-                                                          ),
-                                                        inputbarRichRestoreDraftPrepared:
-                                                          summary
-                                                            .inputbarRichRestoreDraftPrepared
-                                                            ?.prepared
-                                                            ?.imageRestored ===
-                                                            true &&
-                                                          summary
-                                                            .inputbarRichRestoreDraftPrepared
-                                                            ?.prepared
-                                                            ?.pathRestored ===
-                                                            true &&
-                                                          summary
-                                                            .inputbarRichRestoreDraftPrepared
-                                                            ?.prepared
-                                                            ?.skillRestored ===
-                                                            true,
-                                                        inputbarRichRestoreInputSubmitted:
-                                                          summary
-                                                            .inputbarRichRestoreInputSend
-                                                            ?.afterFill
-                                                            ?.promptVisibleInTextarea ===
-                                                            true &&
-                                                          summary
-                                                            .inputbarRichRestoreInputSend
-                                                            ?.clicked
-                                                              ?.clicked ===
-                                                              true,
-                                                        inputbarRichRestoreBackendInputSummaryReached:
-                                                          summary
-                                                            .inputbarRichRestoreBackendTurnStart
-                                                            ?.inputSummary
-                                                            ?.imageAttachmentCount >=
-                                                            1 &&
-                                                          summary
-                                                            .inputbarRichRestoreBackendTurnStart
-                                                            ?.inputSummary
-                                                            ?.fileReferenceCount >=
-                                                            1 &&
-                                                          summary.inputbarRichRestoreBackendTurnStart?.inputSummary?.fileReferenceNames?.includes(
-                                                            INPUTBAR_RICH_RESTORE_PATH_NAME,
-                                                          ) === true,
-                                                        inputbarRichRestoreUsedCurrentTurnCancel:
+                                                        usedCurrentTurnCancel:
                                                           appServerRequestMethods.includes(
                                                             APP_SERVER_METHOD_SESSION_TURN_CANCEL,
                                                           ),
-                                                        inputbarRichRestoreBackendCanceled:
+                                                        externalFixtureCancelUsed:
+                                                          backendLedger.some(
+                                                            (entry) =>
+                                                              entry.kind ===
+                                                              "turnCancel",
+                                                          ),
+                                                        fixtureCancelReachedBackend:
                                                           latestTurnCancel?.sessionId ===
-                                                            inputbarRichRestoreTurnStart?.sessionId &&
-                                                          latestTurnCancel?.turnId ===
-                                                            inputbarRichRestoreTurnStart?.turnId &&
+                                                            summary.sessionId &&
                                                           typeof latestTurnCancel?.turnId ===
                                                             "string" &&
                                                           latestTurnCancel.turnId.trim()
                                                             .length > 0,
-                                                        inputbarRichRestoreGuiCanceled:
+                                                        guiStopClicked:
+                                                          summary.stopClick
+                                                            ?.clicked
+                                                            ?.clicked === true,
+                                                        readModelCanceled:
                                                           summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.stopButtonVisible ===
-                                                            false &&
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.textareaDisabled ===
-                                                            false,
-                                                        inputbarRichRestoreTextRestored:
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.textareaValue ===
-                                                          INPUTBAR_RICH_RESTORE_PROMPT,
-                                                        inputbarRichRestoreImageRestored:
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.imageRestored ===
-                                                          true,
-                                                        inputbarRichRestorePathRestored:
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.pathRestored ===
-                                                          true,
-                                                        inputbarRichRestoreSkillRestored:
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.skillRestored ===
-                                                          true,
-                                                        inputbarRichRestoreNoVisibleAssistantOutput:
-                                                          summary
-                                                            .inputbarRichRestoreGuiCanceled
-                                                            ?.noVisibleAssistantOutput ===
-                                                          true,
-                                                        inputbarRichRestoreReadModelCanceled:
-                                                          summary
-                                                            .inputbarRichRestoreReadModelCanceled
+                                                            .readModelCanceled
                                                             ?.includesPrompt ===
                                                             true &&
                                                           summary
-                                                            .inputbarRichRestoreReadModelCanceled
-                                                            ?.includesCanceled ===
-                                                            true &&
-                                                          summary
-                                                            .inputbarRichRestoreReadModelCanceled
-                                                            ?.forbiddenAssistantOutput ===
-                                                            false,
+                                                            .readModelCanceled
+                                                            ?.hasInterruptedTurn ===
+                                                            true,
+                                                        ...(isCancelThenContinueScenario
+                                                          ? {
+                                                              continuePromptReachedBackend:
+                                                                continueTurnStart?.inputText ===
+                                                                CONTINUE_PROMPT,
+                                                              guiContinueInputSubmitted:
+                                                                summary
+                                                                  .continueInputSend
+                                                                  ?.afterFill
+                                                                  ?.promptVisibleInEditor ===
+                                                                  true &&
+                                                                summary
+                                                                  .continueInputSend
+                                                                  ?.clicked
+                                                                  ?.clicked ===
+                                                                  true,
+                                                              guiContinueCompleted:
+                                                                summary
+                                                                  .guiContinueCompleted
+                                                                  ?.hasPrompt ===
+                                                                  true &&
+                                                                (summary
+                                                                  .guiContinueCompleted
+                                                                  ?.hasAssistantSummary ===
+                                                                  true ||
+                                                                  summary
+                                                                    .guiContinueCompleted
+                                                                    ?.hasDoneText ===
+                                                                    true) &&
+                                                                summary
+                                                                  .guiContinueCompleted
+                                                                  ?.editorVisible ===
+                                                                  true &&
+                                                                summary
+                                                                  .guiContinueCompleted
+                                                                  ?.editorDisabled ===
+                                                                  false &&
+                                                                summary
+                                                                  .guiContinueCompleted
+                                                                  ?.stopButtonVisible ===
+                                                                  false,
+                                                              readModelContinueCompleted:
+                                                                summary
+                                                                  .readModelContinueCompleted
+                                                                  ?.includesPrompt ===
+                                                                  true &&
+                                                                (summary
+                                                                  .readModelContinueCompleted
+                                                                  ?.includesAssistantDone ===
+                                                                  true ||
+                                                                  summary
+                                                                    .readModelContinueCompleted
+                                                                    ?.includesAssistantSummary ===
+                                                                    true),
+                                                              backendRecordedCancelThenContinue:
+                                                                backendLedger.filter(
+                                                                  (entry) =>
+                                                                    entry.kind ===
+                                                                    "turnStart",
+                                                                ).length >= 2 &&
+                                                                backendLedger.some(
+                                                                  (entry) =>
+                                                                    entry.kind ===
+                                                                    "turnCancel",
+                                                                ),
+                                                            }
+                                                          : {}),
                                                       }
-                                                    : {
-                                                        noEpochFallbackTitle:
-                                                          summary.guiCompleted
-                                                            ?.hasEpochFallbackTitle ===
-                                                          false,
-                                                        readModelCompleted:
-                                                          summary
-                                                            .readModelCompleted
-                                                            ?.includesPrompt ===
-                                                            true &&
-                                                          (summary
-                                                            .readModelCompleted
-                                                            ?.includesAssistantDone ===
-                                                            true ||
+                                                    : isInputbarRichRestoreScenario
+                                                      ? {
+                                                          ...buildComposerMarksScenarioAssertions(
+                                                            summary,
+                                                          ),
+                                                          inputbarRichRestorePromptReachedBackend:
+                                                            String(
+                                                              inputbarRichRestoreTurnStart?.inputText ||
+                                                                "",
+                                                            ).includes(
+                                                              INPUTBAR_RICH_RESTORE_PROMPT,
+                                                            ),
+                                                          inputbarRichRestoreDraftPrepared:
+                                                            summary
+                                                              .inputbarRichRestoreDraftPrepared
+                                                              ?.prepared
+                                                              ?.imageRestored ===
+                                                              true &&
+                                                            summary
+                                                              .inputbarRichRestoreDraftPrepared
+                                                              ?.prepared
+                                                              ?.pathRestored ===
+                                                              true &&
+                                                            summary
+                                                              .inputbarRichRestoreDraftPrepared
+                                                              ?.prepared
+                                                              ?.skillRestored ===
+                                                              true,
+                                                          inputbarRichRestoreImeEditingOnly:
+                                                            summary
+                                                              .inputbarRichRestoreImeBoundary
+                                                              ?.ok === true,
+                                                          inputbarRichRestoreInputSubmitted:
+                                                            summary
+                                                              .inputbarRichRestoreInputSend
+                                                              ?.afterFill
+                                                              ?.promptVisibleInEditor ===
+                                                              true &&
+                                                            summary
+                                                              .inputbarRichRestoreInputSend
+                                                              ?.clicked
+                                                              ?.clicked ===
+                                                              true,
+                                                          inputbarRichRestoreBackendInputSummaryReached:
+                                                            summary
+                                                              .inputbarRichRestoreBackendTurnStart
+                                                              ?.inputSummary
+                                                              ?.imageAttachmentCount >=
+                                                              1 &&
+                                                            summary
+                                                              .inputbarRichRestoreBackendTurnStart
+                                                              ?.inputSummary
+                                                              ?.fileReferenceCount >=
+                                                              1 &&
+                                                            summary.inputbarRichRestoreBackendTurnStart?.inputSummary?.fileReferenceNames?.includes(
+                                                              INPUTBAR_RICH_RESTORE_PATH_NAME,
+                                                            ) === true,
+                                                          inputbarRichRestoreUsedCurrentTurnCancel:
+                                                            appServerRequestMethods.includes(
+                                                              APP_SERVER_METHOD_SESSION_TURN_CANCEL,
+                                                            ),
+                                                          inputbarRichRestoreBackendCanceled:
+                                                            latestTurnCancel?.sessionId ===
+                                                              inputbarRichRestoreTurnStart?.sessionId &&
+                                                            latestTurnCancel?.turnId ===
+                                                              inputbarRichRestoreTurnStart?.turnId &&
+                                                            typeof latestTurnCancel?.turnId ===
+                                                              "string" &&
+                                                            latestTurnCancel.turnId.trim()
+                                                              .length > 0,
+                                                          inputbarRichRestoreGuiCanceled:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.stopButtonVisible ===
+                                                              false &&
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.editorDisabled ===
+                                                              false,
+                                                          inputbarRichRestoreTextRestored:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.promptVisibleInEditor ===
+                                                            true,
+                                                          inputbarRichRestoreImageRestored:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.imageRestored ===
+                                                            true,
+                                                          inputbarRichRestorePathRestored:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.pathRestored ===
+                                                            true,
+                                                          inputbarRichRestoreSkillRestored:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.skillRestored ===
+                                                            true,
+                                                          inputbarRichRestoreNoVisibleAssistantOutput:
+                                                            summary
+                                                              .inputbarRichRestoreGuiCanceled
+                                                              ?.noVisibleAssistantOutput ===
+                                                            true,
+                                                          inputbarRichRestoreCanonicalRichInputPreserved:
+                                                            summary
+                                                              .inputbarRichRestoreReadModelCanceled
+                                                              ?.richInputSubmission
+                                                              ?.ok === true,
+                                                          ...buildUserMessageCollapseAssertions(
+                                                            summary,
+                                                          ),
+                                                          inputbarRichRestoreReadModelCanceled:
+                                                            summary
+                                                              .inputbarRichRestoreReadModelCanceled
+                                                              ?.includesPrompt ===
+                                                              true &&
+                                                            summary
+                                                              .inputbarRichRestoreReadModelCanceled
+                                                              ?.includesCanceled ===
+                                                              true &&
+                                                            summary
+                                                              .inputbarRichRestoreReadModelCanceled
+                                                              ?.forbiddenAssistantOutput ===
+                                                              false,
+                                                        }
+                                                      : {
+                                                          noEpochFallbackTitle:
+                                                            summary.guiCompleted
+                                                              ?.hasEpochFallbackTitle ===
+                                                            false,
+                                                          readModelCompleted:
                                                             summary
                                                               .readModelCompleted
-                                                              ?.includesAssistantSummary ===
-                                                              true),
-                                                        eventReadProbeObserved:
+                                                              ?.includesPrompt ===
+                                                              true &&
+                                                            (summary
+                                                              .readModelCompleted
+                                                              ?.includesAssistantDone ===
+                                                              true ||
+                                                              summary
+                                                                .readModelCompleted
+                                                                ?.includesAssistantSummary ===
+                                                                true),
+                                                          eventReadProbeObserved:
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.hasTextDelta ===
-                                                            true &&
+                                                              ?.events
+                                                              ?.hasTextDelta ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.hasToolStarted ===
-                                                            true &&
+                                                              ?.events
+                                                              ?.hasToolStarted ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.hasToolResult ===
-                                                            true &&
+                                                              ?.events
+                                                              ?.hasToolResult ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.hasTerminal ===
-                                                            true &&
+                                                              ?.events
+                                                              ?.hasTerminal ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.eventTurnIds
-                                                            ?.length === 1 &&
+                                                              ?.events
+                                                              ?.eventTurnIds
+                                                              ?.length === 1 &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.events
-                                                            ?.eventTurnIds?.[0] ===
+                                                              ?.events
+                                                              ?.eventTurnIds?.[0] ===
+                                                              summary
+                                                                .eventReadProbe
+                                                                ?.turnId,
+                                                          readModelEventReadAligned:
                                                             summary
                                                               .eventReadProbe
-                                                              ?.turnId,
-                                                        readModelEventReadAligned:
+                                                              ?.readModel
+                                                              ?.containsTurnId ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.containsTurnId ===
-                                                            true &&
+                                                              ?.readModel
+                                                              ?.containsReadText ===
+                                                              true,
+                                                          readModelToolCallAligned:
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.containsReadText ===
-                                                            true,
-                                                        readModelToolCallAligned:
+                                                              ?.readModel
+                                                              ?.containsToolCall ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.containsToolCall ===
-                                                            true &&
+                                                              ?.readModel
+                                                              ?.toolName ===
+                                                              EVENT_READ_PROBE_TOOL_NAME &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.toolName ===
-                                                            EVENT_READ_PROBE_TOOL_NAME &&
+                                                              ?.readModel
+                                                              ?.toolStatus ===
+                                                              "completed" &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.toolStatus ===
-                                                            "completed" &&
+                                                              ?.readModel
+                                                              ?.containsToolOutput ===
+                                                              true &&
                                                             summary
                                                               .eventReadProbe
-                                                            ?.readModel
-                                                            ?.containsToolOutput ===
-                                                            true &&
-                                                            summary
-                                                              .eventReadProbe
-                                                            ?.readModel
-                                                            ?.toolTurnId ===
-                                                            summary
-                                                              .eventReadProbe
-                                                              ?.turnId,
-                                                        guiNoPlanUiWithoutProposedPlan:
-                                                          summary.guiCompleted
-                                                            ?.planUiAbsentWithoutProposedPlan ===
-                                                            true &&
-                                                          summary.guiCompleted
-                                                            ?.planUiAbsence
-                                                            ?.planOwnerCount ===
-                                                            0 &&
-                                                          summary.guiCompleted
-                                                            ?.planUiAbsence
-                                                            ?.planDecisionVisible ===
-                                                            false &&
+                                                              ?.readModel
+                                                              ?.toolTurnId ===
+                                                              summary
+                                                                .eventReadProbe
+                                                                ?.turnId,
+                                                          guiNoPlanUiWithoutProposedPlan:
+                                                            summary.guiCompleted
+                                                              ?.planUiAbsentWithoutProposedPlan ===
+                                                              true &&
+                                                            summary.guiCompleted
+                                                              ?.planUiAbsence
+                                                              ?.planOwnerCount ===
+                                                              0 &&
+                                                            summary.guiCompleted
+                                                              ?.planUiAbsence
+                                                              ?.planDecisionVisible ===
+                                                              false &&
                                                             (summary
                                                               .guiCompleted
-                                                            ?.planUiAbsence
-                                                            ?.legacyUpdatePlanVisibleHits
-                                                            ?.length ?? 0) ===
-                                                            0,
-                                                        streamParserCompletedFullTextObserved:
-                                                          streamParserBoundaryBackendObserved(
-                                                            backendLedger,
-                                                          ),
-                                                        guiStreamParserNoDuplicateFinalText:
-                                                          summary.guiCompleted
-                                                            ?.assistantScopeSummaryOccurrences ===
-                                                            1 &&
-                                                          (
+                                                              ?.planUiAbsence
+                                                              ?.legacyUpdatePlanVisibleHits
+                                                              ?.length ?? 0) ===
+                                                              0,
+                                                          streamParserCompletedFullTextObserved:
+                                                            streamParserBoundaryBackendObserved(
+                                                              backendLedger,
+                                                            ),
+                                                          guiStreamParserNoDuplicateFinalText:
+                                                            summary.guiCompleted
+                                                              ?.assistantScopeSummaryOccurrences ===
+                                                              1 &&
+                                                            (
                                                               summary
                                                                 .guiCompleted
-                                                              ?.assistantScopeDedupeGuardHits ??
-                                                            []
-                                                          ).every(
-                                                            (hit) =>
-                                                              hit.occurrences ===
-                                                              1,
-                                                          ),
-                                                        readModelStreamParserNoDuplicateFinalText:
-                                                          summary
-                                                            .readModelCompleted
-                                                            ?.streamParserBoundary
-                                                            ?.noDuplicateFinalText ===
-                                                          true,
-                                                      };
+                                                                ?.assistantScopeDedupeGuardHits ??
+                                                              []
+                                                            ).every(
+                                                              (hit) =>
+                                                                hit.occurrences ===
+                                                                1,
+                                                            ),
+                                                          readModelStreamParserNoDuplicateFinalText:
+                                                            summary
+                                                              .readModelCompleted
+                                                              ?.streamParserBoundary
+                                                              ?.noDuplicateFinalText ===
+                                                            true,
+                                                        };
   const userShellGate = summary.userShellGate;
   const userShellAssertions = userShellGate
     ? {

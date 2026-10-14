@@ -57,14 +57,14 @@ export function buildSkillsRuntimeScenarioAssertions({
     skillsRuntimePromptReachedBackend:
       skillsRuntimeTurnStart?.inputText === SKILLS_RUNTIME_PROMPT,
     guiSkillsRuntimeInputSubmitted:
-      summary.skillsRuntimeInputSend?.afterFill?.promptVisibleInTextarea ===
+      summary.skillsRuntimeInputSend?.afterFill?.promptVisibleInEditor ===
         true && summary.skillsRuntimeInputSend?.clicked?.clicked === true,
     guiSkillsRuntimeCompleted:
       summary.guiSkillsRuntimeCompleted?.hasPrompt === true &&
       (summary.guiSkillsRuntimeCompleted?.hasAssistantSummary === true ||
         summary.guiSkillsRuntimeCompleted?.hasDoneText === true) &&
-      summary.guiSkillsRuntimeCompleted?.textareaVisible === true &&
-      summary.guiSkillsRuntimeCompleted?.textareaDisabled === false &&
+      summary.guiSkillsRuntimeCompleted?.editorVisible === true &&
+      summary.guiSkillsRuntimeCompleted?.editorDisabled === false &&
       summary.guiSkillsRuntimeCompleted?.stopButtonVisible === false,
     readModelSkillsRuntimeCompleted:
       summary.readModelSkillsRuntimeCompleted?.includesPrompt === true &&
@@ -91,22 +91,21 @@ export function buildSkillsRuntimeScenarioAssertions({
       summary.readModelSkillsRuntime?.invocationSkillName ===
         SKILLS_RUNTIME_SKILL_NAME,
     skillSearchBeforeSkillInvocation:
-      summary.readModelSkillsRuntime?.skillSearchBeforeSkillInvocation ===
-      true,
+      summary.readModelSkillsRuntime?.skillSearchBeforeSkillInvocation === true,
     explicitSkillsRuntimePromptReachedBackend:
       explicitSkillsRuntimeTurnStart?.inputText ===
       SKILLS_RUNTIME_EXPLICIT_PROMPT,
     guiExplicitSkillsRuntimeInputSubmitted:
       summary.explicitSkillsRuntimeInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.explicitSkillsRuntimeInputSend?.clicked?.clicked === true,
     guiExplicitSkillsRuntimeCompleted:
       summary.guiExplicitSkillsRuntimeCompleted?.hasPrompt === true &&
       (summary.guiExplicitSkillsRuntimeCompleted?.hasAssistantSummary ===
         true ||
         summary.guiExplicitSkillsRuntimeCompleted?.hasDoneText === true) &&
-      summary.guiExplicitSkillsRuntimeCompleted?.textareaVisible === true &&
-      summary.guiExplicitSkillsRuntimeCompleted?.textareaDisabled === false &&
+      summary.guiExplicitSkillsRuntimeCompleted?.editorVisible === true &&
+      summary.guiExplicitSkillsRuntimeCompleted?.editorDisabled === false &&
       summary.guiExplicitSkillsRuntimeCompleted?.stopButtonVisible === false,
     readModelExplicitSkillsRuntimeCompleted:
       summary.readModelExplicitSkillsRuntimeCompleted?.includesPrompt ===
@@ -130,8 +129,7 @@ export function buildSkillsRuntimeScenarioAssertions({
       skillRuntimeEvidence(summary.readModelExplicitSkillsRuntime)
         .skillGateObserved === true,
     readModelExplicitSkillSearchObserved:
-      summary.readModelExplicitSkillsRuntime?.hasSkillSearchSummary ===
-        true &&
+      summary.readModelExplicitSkillsRuntime?.hasSkillSearchSummary === true &&
       summary.readModelExplicitSkillsRuntime?.searchQuery ===
         SKILLS_RUNTIME_QUERY,
     readModelExplicitSkillInvocationObserved:
@@ -181,9 +179,8 @@ export function buildSkillsRuntimeScenarioAssertions({
       (summary.guiManualEnableSkillsRuntimeCompleted?.hasAssistantSummary ===
         true ||
         summary.guiManualEnableSkillsRuntimeCompleted?.hasDoneText === true) &&
-      summary.guiManualEnableSkillsRuntimeCompleted?.textareaVisible === true &&
-      summary.guiManualEnableSkillsRuntimeCompleted?.textareaDisabled ===
-        false &&
+      summary.guiManualEnableSkillsRuntimeCompleted?.editorVisible === true &&
+      summary.guiManualEnableSkillsRuntimeCompleted?.editorDisabled === false &&
       summary.guiManualEnableSkillsRuntimeCompleted?.stopButtonVisible ===
         false,
     readModelManualEnableSkillsRuntimeCompleted:
@@ -212,16 +209,17 @@ export function buildSkillsRuntimeScenarioAssertions({
     readModelManualEnableWorkspaceRuntimeEnableObserved:
       skillRuntimeEvidence(summary.readModelManualEnableSkillsRuntime)
         .skillGateWorkspaceRuntimeEnable === true &&
-      skillRuntimeEvidence(summary.readModelManualEnableSkillsRuntime)
-        .skillGateSourceAllowlist?.includes(SKILLS_RUNTIME_SKILL_NAME) === true,
+      skillRuntimeEvidence(
+        summary.readModelManualEnableSkillsRuntime,
+      ).skillGateSourceAllowlist?.includes(SKILLS_RUNTIME_SKILL_NAME) === true,
     readModelManualEnableSkillSearchObserved:
       summary.readModelManualEnableSkillsRuntime?.hasSkillSearchSummary ===
         true &&
       summary.readModelManualEnableSkillsRuntime?.searchQuery ===
         SKILLS_RUNTIME_QUERY,
     readModelManualEnableSkillInvocationObserved:
-      summary.readModelManualEnableSkillsRuntime
-        ?.hasSkillInvocationSummary === true &&
+      summary.readModelManualEnableSkillsRuntime?.hasSkillInvocationSummary ===
+        true &&
       summary.readModelManualEnableSkillsRuntime?.invocationSkillName ===
         SKILLS_RUNTIME_SKILL_NAME,
     manualEnableSkillSearchBeforeSkillInvocation:
@@ -312,8 +310,8 @@ export function buildExpertSkillsRuntimeScenarioAssertions({
             summary.readModelExpertSkillsRuntime?.searchQuery ===
               SKILLS_RUNTIME_QUERY,
           readModelExpertSkillInvocationObserved:
-            summary.readModelExpertSkillsRuntime
-              ?.hasSkillInvocationSummary === true &&
+            summary.readModelExpertSkillsRuntime?.hasSkillInvocationSummary ===
+              true &&
             summary.readModelExpertSkillsRuntime?.invocationSkillName ===
               SKILLS_RUNTIME_SKILL_NAME,
           expertSkillSearchBeforeSkillInvocation:
@@ -365,8 +363,9 @@ export function buildExpertSkillsRuntimeScenarioAssertions({
             expertPanelSkillsRuntimeTurnStart?.inputText ===
             EXPERT_SKILLS_RUNTIME_PANEL_PROMPT,
           expertPanelSkillRefsOverrideReachedBackend:
-            skillRuntimeEvidence(summary.readModelExpertPanelSkillsRuntime)
-              .expertDeclaredSkillRefs?.includes(
+            skillRuntimeEvidence(
+              summary.readModelExpertPanelSkillsRuntime,
+            ).expertDeclaredSkillRefs?.includes(
               EXPERT_PANEL_SKILLS_RUNTIME_UI_SKILL_REF,
             ) === true,
           expertPanelReadModelCompleted:
@@ -385,15 +384,15 @@ export function buildExpertSkillsRuntimeScenarioAssertions({
             skillRuntimeEvidence(summary.readModelExpertPanelSkillsRuntime)
               .skillGateMode === "selected_skills",
           expertPanelReadModelSkillSearchObserved:
-            summary.readModelExpertPanelSkillsRuntime
-              ?.hasSkillSearchSummary === true &&
+            summary.readModelExpertPanelSkillsRuntime?.hasSkillSearchSummary ===
+              true &&
             summary.readModelExpertPanelSkillsRuntime?.searchQuery ===
               SKILLS_RUNTIME_QUERY,
           expertPanelReadModelSkillInvocationObserved:
             summary.readModelExpertPanelSkillsRuntime
               ?.hasSkillInvocationSummary === true &&
-            summary.readModelExpertPanelSkillsRuntime
-              ?.invocationSkillName === SKILLS_RUNTIME_SKILL_NAME,
+            summary.readModelExpertPanelSkillsRuntime?.invocationSkillName ===
+              SKILLS_RUNTIME_SKILL_NAME,
           expertPanelSkillSearchBeforeSkillInvocation:
             summary.readModelExpertPanelSkillsRuntime
               ?.skillSearchBeforeSkillInvocation === true,

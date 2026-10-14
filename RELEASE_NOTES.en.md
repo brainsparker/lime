@@ -1,40 +1,41 @@
-## Lime v1.156.0
+## Lime v1.157.0
 
 Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
 
 ### Features
 
-- Keep background commands streaming and completing after the model turn ends, with running output, terminal interactions, and final status in GUI and TUI; resumed conversations continue receiving notifications for the original command.
-- Search conversation content from the sidebar, merge it with title matches, and load additional results; retain title matches with a clear message if content search is unavailable.
-- Enable or disable skills through the shared protocol and access Skills from Settings.
-- Show conversation patches and workspace Git changes in the Files panel, with refresh and file-opening actions.
+- Use one structured composer for skill, character, and capability mentions, preserving image, path, and rich input data through submission and restoration.
+- Support links and code blocks with Markdown submission and preserved reference ranges; add dictation cancellation and isolate late results after conversation switches or IME composition.
+- Preview, edit, delete, reorder, and start queued messages while idle; keep pending input separate from the public conversation history.
+- Show pending approvals in the conversation with actions and status tied to each request.
+- Reuse conversation changes and diff views in the Files panel, with file selection and navigation to the corresponding change.
 
 ### Fixes
 
-- Preserve background command output and completion across Renderer reload, conversation resume, and continuation from another turn, retaining command identity and the input draft.
-- Correct CLI interruption and shutdown by cancelling the original turn and draining command output before releasing subscriptions and the App Server connection, preserving the interrupt exit code and durable terminal state.
-- Preserve pending input and queue order when the connection closes so multimodal tasks remain available after a cold restart.
-- Avoid false dangerous-command matches in Bash/POSIX and PowerShell strings, comments, and file names; inspect literal invocations and paths for the actual shell, and route dynamic syntax through the existing approval flow.
-- Clean terminal control sequences from command text and make running command output visible.
+- Prevent late notifications and conversation switches from applying queue state, title edits, model settings, or working directories to the wrong conversation.
+- Correct browser tab and right panel state during restoration, closure, and switching.
+- Preserve scroll position when expanding, collapsing, or copying long user messages, and stop copy feedback updates after unmount.
+- Correct header toolbar overflow and message/composer placement in compact windows.
 
 ### Improvements and Refactoring
 
-- Consolidate background execution, cancellation, output draining, and Command lifecycle across live notifications, reads, pagination, and cold recovery using one canonical projection.
-- Split large execution, recovery, projection, and event persistence modules while retaining the shared GUI/CLI/TUI App Server, RuntimeCore, permission, and tool owners.
-- Consolidate native shell tool configuration around shared unified execution and remove duplicate tool surfaces and unused helpers.
+- Mount conversation Turns by viewport, retaining independent history pagination, dynamic height measurement, and reading position.
+- Consolidate project, branch, and run location controls, structured submission, and input restoration around existing owners.
+- Keep queue, approval, file, and settings behavior on the shared App Server and remove replaced components and duplicate projections.
+- Consolidate desktop media and clipboard permissions while preserving main window and browser tab boundaries.
 
 ### Tests and Quality
 
-- Add unit, protocol, and real stdio/PTY/Electron regressions for background output, resumed notification consumption, cross-turn stdin, cancellation, and transport shutdown.
-- Extend shell literal parsing, conversation search, skill toggles, and five-language UI coverage, and improve local test resumption and generated-artifact exclusions.
-- Validate fixed release source and build identities, recording evidence for the platforms and interaction paths actually exercised.
+- Extend regressions for queue history, search and cold recovery, approval responses, structured input, scrolling, copy lifecycle, and browser tab restoration.
+- Update real Electron current fixtures, interaction selectors, and build asset checks, separating source, artifact, and platform evidence.
+- Update UI text and regression coverage across five languages.
 
 ### Documentation
 
-- Update architecture, command boundaries, quality workflows, TUI/CLI inventories, and global alignment execution plans.
+- Update GUI design, architecture, quality workflows, Codex Desktop research evidence, and alignment execution records.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.156.0`.
+- Align the desktop app, CLI npm package, and Rust workspace at `1.157.0`.
 
-**Full Changelog**: `v1.155.0` -> `v1.156.0`
+**Full Changelog**: `v1.156.0` -> `v1.157.0`

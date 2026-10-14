@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 // Test-only Electron reasoning observations; canonical content remains separate from display.
 import {
   REASONING_FIRST_VISIBLE_CONTENT_TEXT,
@@ -261,13 +262,13 @@ function reasoningFirstVisibleSnapshotFromDom({
     text: node.textContent || "",
     open: node instanceof HTMLDetailsElement ? node.open : null,
   }));
-  const textarea = document.querySelector(
-    'textarea[name="agent-chat-message"]',
+  const editor = document.querySelector(
+    '[data-testid="composer-editor"][role="textbox"]',
   );
-  const rect = textarea?.getBoundingClientRect();
-  const style = textarea ? window.getComputedStyle(textarea) : null;
-  const textareaVisible = Boolean(
-    textarea &&
+  const rect = editor?.getBoundingClientRect();
+  const style = editor ? window.getComputedStyle(editor) : null;
+  const editorVisible = Boolean(
+    editor &&
     rect &&
     rect.width > 16 &&
     rect.height > 16 &&
@@ -337,11 +338,14 @@ function reasoningFirstVisibleSnapshotFromDom({
     processBlocks,
     scopedText,
     bodyText: text,
-    textareaVisible,
-    textareaDisabled:
-      textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-    textareaValue:
-      textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+    editorVisible,
+    editorDisabled:
+      editor instanceof HTMLElement
+        ? editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
+        : null,
+    editorText:
+      editor instanceof HTMLElement ? readComposerEditorTextDom(editor) : null,
     stopButtonVisible,
     hasMessageList: Boolean(
       document.querySelector('[data-testid="message-list"]') ||
@@ -353,7 +357,7 @@ function reasoningFirstVisibleSnapshotFromDom({
 async function evaluateReasoningFirstVisibleSnapshot(page) {
   return await evaluatePageSnapshot(
     page,
-    reasoningFirstVisibleSnapshotFromDom,
+    withComposerEditorDom(reasoningFirstVisibleSnapshotFromDom),
     {
       prompt: REASONING_FIRST_VISIBLE_PROMPT,
       reasoningContentText: REASONING_FIRST_VISIBLE_CONTENT_TEXT,
@@ -433,8 +437,8 @@ export async function waitForGuiReasoningFirstVisibleCompleted(
       snapshot.hasReasoningBeforeFinalAnswer &&
       (showRaw || snapshot.hasReasoningContentText === false) &&
       snapshot.startupNoteVisible === false &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       const promptTurnGroup = page

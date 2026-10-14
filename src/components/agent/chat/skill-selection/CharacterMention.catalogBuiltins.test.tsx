@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findButtonContaining,
-  getTextarea,
+  getComposerEditor,
   renderHarness,
   typeMentionAndWait,
 } from "./CharacterMention.testFixtures";
@@ -9,7 +9,7 @@ import {
 describe("CharacterMention mention built-in commands", () => {
   it("输入 @网 时应展示新的内建网页命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@网");
 
@@ -19,7 +19,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @P 时应展示新的内建 PPT 命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@P");
 
@@ -29,7 +29,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @表 时应展示新的内建表单命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@表");
 
@@ -39,7 +39,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @代 时应展示新的内建代码命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@代");
 
@@ -49,7 +49,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @发 时应展示新的内建发布命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@发");
 
@@ -59,7 +59,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @配 时应同时展示配图与配音命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@配");
 
@@ -71,7 +71,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入完整 @配图 时仍应展示配图命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@配图");
 
@@ -88,7 +88,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @海 时应展示新的海报命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@海");
 
@@ -98,7 +98,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @渠 时应展示新的渠道预览命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@渠");
 
@@ -108,7 +108,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @上 时应展示新的上传命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@上");
 
@@ -118,7 +118,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @合 时应展示新的发布合规命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@合");
 
@@ -128,7 +128,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @浏 时应展示新的内建浏览器命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@浏");
 
@@ -138,7 +138,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @竞 时应展示新的竞品命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@竞");
 
@@ -148,7 +148,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @抓 时应展示新的网页抓取命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@抓");
 
@@ -158,7 +158,7 @@ describe("CharacterMention mention built-in commands", () => {
 
   it("输入 @网页读 时应展示新的网页读取命令", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeMentionAndWait(textarea, "@网页读");
 

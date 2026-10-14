@@ -11,6 +11,7 @@ import type { InterruptedInputDraftSnapshot } from "./agentStreamInputRestoreTyp
 import type {
   ComposerDraftSnapshot,
   ComposerIntent,
+  ComposerSubmission,
   ComposerSubmitTarget,
 } from "@/components/input-kit";
 
@@ -47,4 +48,5 @@ export interface HandleSendOptions {
   composerIntent?: ComposerIntent;
   composerTarget?: ComposerSubmitTarget;
   composerDraft?: ComposerDraftSnapshot;
+  composerSubmission?: ComposerSubmission;
 }

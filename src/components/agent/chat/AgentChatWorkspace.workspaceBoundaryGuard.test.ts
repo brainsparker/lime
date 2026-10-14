@@ -26,8 +26,14 @@ describe("AgentChatWorkspace local display boundary", () => {
       "useAgentChatWorkspaceLocalDisplayState({",
     );
     expect(ownerSource.split("\n").length).toBeLessThan(180);
+    const retiredInputStore = /\[\s*input\s*,\s*setInput\s*\]\s*=\s*useState/;
+    expect(ownerSource).not.toMatch(retiredInputStore);
+    expect(workspaceSource).not.toMatch(retiredInputStore);
     for (const localDisplayStateOwner of [
-      "const [input, setInput] = useState",
+      "useComposerController();",
+      "const input = composerSnapshot.document.text;",
+      "composerController.setText(",
+      "composerController.clear();",
       "useState<InterruptedInputRestoreRequest | null>",
       "const [selectedText, setSelectedText] = useState",
       "const [entryBannerVisible, setEntryBannerVisible] = useState",

@@ -7,7 +7,7 @@ use serde_json::{Map, Value};
 pub(super) fn item_status(event_type: &str, payload: &Value) -> ItemStatus {
     if matches!(
         event_type,
-        "message.created" | "plan.final" | "artifact.snapshot"
+        "message.created" | "queue.added" | "queue.updated" | "plan.final" | "artifact.snapshot"
     ) {
         return ItemStatus::Completed;
     }

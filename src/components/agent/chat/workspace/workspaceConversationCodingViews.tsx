@@ -98,6 +98,8 @@ export function buildWorkspaceConversationCodingViews({
     turns.find((turn) => turn.id === currentTurnId) || turns.at(-1) || null;
   const hasCodingWorkbenchEvidence =
     Boolean(threadRead) ||
+    Boolean(currentSessionTurn?.thread_id) ||
+    threadItems.some((item) => item.type === "patch") ||
     pendingActions.length > 0 ||
     submittedActionsInFlight.length > 0;
   if (!hasCodingWorkbenchEvidence) {
@@ -238,19 +240,17 @@ export function buildWorkspaceConversationCodingViews({
           ),
         }
       : null;
-  const changeView = counters.shouldUseRuntimeWorkbench
-    ? buildCanvasWorkbenchChangeViewFromCodingProjection({
-        codingView,
-        fileCheckpointSummary,
-        onOpenFile,
-        threadItems,
-        reviewThreadId: threadRead?.thread_id,
-        currentTurnId,
-        turnDiff: currentSessionTurn?.unified_diff,
-        canInterrupt: Boolean(isSending),
-        onStartReview,
-      })
-    : null;
+  const changeView = buildCanvasWorkbenchChangeViewFromCodingProjection({
+    codingView,
+    fileCheckpointSummary,
+    onOpenFile,
+    threadItems,
+    reviewThreadId: threadRead?.thread_id ?? currentSessionTurn?.thread_id,
+    currentTurnId,
+    turnDiff: currentSessionTurn?.unified_diff,
+    canInterrupt: Boolean(isSending),
+    onStartReview,
+  });
 
   return {
     currentSessionTurn,

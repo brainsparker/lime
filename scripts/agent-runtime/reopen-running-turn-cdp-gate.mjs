@@ -1418,11 +1418,13 @@ async function sampleGuiHomeBackgroundRecoveryState(
       const messageTurnGroups = Array.from(
         document.querySelectorAll('[data-testid="message-turn-group"]'),
       );
-      const textareas = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
-      ).filter((node) => node instanceof HTMLTextAreaElement);
-      const textareaSessionIds = textareas.map(
-        (textarea) => textarea.dataset.sessionId || null,
+      const editors = Array.from(
+        document.querySelectorAll(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ).filter((node) => node instanceof HTMLElement);
+      const editorSessionIds = editors.map(
+        (editor) => editor.dataset.sessionId || null,
       );
       const runningSessionIds = new Set(
         recoveryCardSpecs.map((spec) => spec.sessionId),
@@ -1467,9 +1469,9 @@ async function sampleGuiHomeBackgroundRecoveryState(
       const mainPromptVisible = mainText.includes(prompt);
       const mainAssistantOutputVisible =
         mainText.includes("以下是今日国际新闻简要整理");
-      const activeSessionTextareaVisible = textareas.some(
-        (textarea) =>
-          runningSessionIds.has(textarea.dataset.sessionId) && isVisible(textarea),
+      const activeSessionTextareaVisible = editors.some(
+        (editor) =>
+          runningSessionIds.has(editor.dataset.sessionId) && isVisible(editor),
       );
       const runningPromptVisible = recoveryCardSpecs.some((spec) =>
         mainText.includes(spec.prompt),
@@ -1481,7 +1483,9 @@ async function sampleGuiHomeBackgroundRecoveryState(
       );
       const activeSessionMessageVisible =
         messageLists.some((list) => isVisible(list)) &&
-        (runningPromptVisible || mainAssistantOutputVisible || runningTurnVisible);
+        (runningPromptVisible ||
+          mainAssistantOutputVisible ||
+          runningTurnVisible);
       return {
         url: window.location.href,
         homeStartVisible: isVisible(homeStartSurface),
@@ -1499,8 +1503,8 @@ async function sampleGuiHomeBackgroundRecoveryState(
         mainAssistantOutputVisible,
         messageListCount: messageLists.length,
         messageTurnGroupCount: messageTurnGroups.length,
-        textareaCount: textareas.length,
-        textareaSessionIds,
+        editorCount: editors.length,
+        editorSessionIds,
         activeSessionTextareaVisible,
         activeSessionMessageVisible,
         activeDetailBoundToSession:
@@ -1834,8 +1838,8 @@ async function sampleGuiRunningState(page, turnId) {
             /\bStop\b/i.test(label))
         );
       });
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
+      const editor = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
       );
       return {
         url: window.location.href,
@@ -1859,12 +1863,15 @@ async function sampleGuiRunningState(page, turnId) {
         sidebarTitleFound: Boolean(sidebarRow),
         sidebarStatus,
         sidebarStatusText,
-        textareaSessionId:
-          textarea instanceof HTMLTextAreaElement
-            ? textarea.dataset.sessionId || null
+        editorSessionId:
+          editor instanceof HTMLElement
+            ? editor.dataset.sessionId || null
             : null,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+        editorDisabled:
+          editor instanceof HTMLElement
+            ? editor.getAttribute("aria-disabled") === "true" ||
+              editor.getAttribute("contenteditable") !== "true"
+            : null,
         scopedText,
       };
     },
@@ -1955,10 +1962,7 @@ async function waitForCanceledEventAfterReload(page, options, turnId) {
   let lastSummary = null;
   while (Date.now() - startedAt < options.timeoutMs) {
     const drained = await drainAppServerEventsFromPage(page, 100);
-    events = mergeRuntimeEvents(
-      events,
-      collectRuntimeEvents(drained.messages),
-    );
+    events = mergeRuntimeEvents(events, collectRuntimeEvents(drained.messages));
     lastSummary = summarizeRuntimeEvents(events, turnId);
     if (lastSummary.terminalTypes?.includes("turn.canceled")) {
       return {
@@ -2811,23 +2815,23 @@ async function run() {
                   ?.activeDetailBoundToSession === false &&
                 summary.homeBackgroundAfterReopen?.sidebarStatus === "running",
               runningSessionDetailOpenedAfterReopen:
-                summary.guiSessionOpenSourceAfterReopen ===
-                "home-recovery-card"
-                  ? summary.guiSessionOpenedAfterReopen?.click?.clicked === true &&
+                summary.guiSessionOpenSourceAfterReopen === "home-recovery-card"
+                  ? summary.guiSessionOpenedAfterReopen?.click?.clicked ===
+                      true &&
                     summary.guiSessionOpenedAfterReopen?.running
                       ?.sidebarStatus === "running" &&
                     summary.guiSessionOpenedAfterReopen?.running
                       ?.inputbarHasStopButton === true
                   : summary.guiSessionOpenedAfterReopen?.clicked?.clicked ===
-                        true &&
-                      summary.guiSessionOpenedAfterReopen?.readModel
-                        ?.sessionId === primaryIdentity.sessionId &&
-                      summary.guiSessionOpenedAfterReopen?.readModel?.threadId ===
-                        primaryIdentity.threadId &&
-                      summary.guiRunningAfterReopen?.sidebarStatus ===
-                        "running" &&
-                      summary.guiRunningAfterReopen?.inputbarHasStopButton ===
-                        true,
+                      true &&
+                    summary.guiSessionOpenedAfterReopen?.readModel
+                      ?.sessionId === primaryIdentity.sessionId &&
+                    summary.guiSessionOpenedAfterReopen?.readModel?.threadId ===
+                      primaryIdentity.threadId &&
+                    summary.guiRunningAfterReopen?.sidebarStatus ===
+                      "running" &&
+                    summary.guiRunningAfterReopen?.inputbarHasStopButton ===
+                      true,
             };
     const multiRunningAssertions = !options.multiRunningSessions
       ? {

@@ -1,3 +1,5 @@
+import type { ComposerUtilityBarCopy } from "./composerUtilityBarTypes";
+
 export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.dictation.recording"
   | "agentChat.inputbar.core.dictation.recordingLabel"
@@ -8,6 +10,9 @@ export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.dictation.transcribingTitle"
   | "agentChat.inputbar.core.dictation.stopRecording"
   | "agentChat.inputbar.core.dictation.start"
+  | "agentChat.inputbar.core.dictation.starting"
+  | "agentChat.inputbar.core.dictation.cancel"
+  | "agentChat.inputbar.core.dictation.interruptedByComposition"
   | "agentChat.inputbar.core.dictation.disabled"
   | "agentChat.inputbar.core.placeholder.fullscreen"
   | "agentChat.inputbar.core.placeholder.default"
@@ -54,10 +59,13 @@ export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.projectContext.branchCreated"
   | "agentChat.inputbar.core.projectContext.branchCreateFailed"
   | "agentChat.inputbar.core.projectContext.uncommittedFiles"
+  | "agentChat.inputbar.core.projectContext.gitStatusLoading"
+  | "agentChat.inputbar.core.projectContext.gitStatusFailed"
+  | "agentChat.inputbar.core.projectContext.retryGitStatus"
   | "agentChat.inputbar.core.suggestion.acceptTitle"
   | "agentChat.inputbar.core.suggestion.acceptKey"
-  | "agentChat.inputbar.core.textarea.expand"
-  | "agentChat.inputbar.core.textarea.collapse"
+  | "agentChat.inputbar.core.editor.expand"
+  | "agentChat.inputbar.core.editor.collapse"
   | "agentChat.inputbar.core.action.running"
   | "agentChat.inputbar.core.action.defer"
   | "agentChat.inputbar.core.action.queue"
@@ -82,6 +90,9 @@ export interface InputbarCoreCopy {
     transcribingTitle: string;
     stopRecording: (label: string) => string;
     start: string;
+    starting: string;
+    cancel: string;
+    interruptedByComposition: string;
     disabled: string;
   };
   placeholder: {
@@ -101,47 +112,12 @@ export interface InputbarCoreCopy {
     importAction: string;
     remove: (name: string) => string;
   };
-  projectContext: {
-    projectAria: string;
-    searchPlaceholder: string;
-    openedLabel: string;
-    currentBadge: string;
-    noProjectLabel: string;
-    noProjectDescription: string;
-    noOpenedProjects: string;
-    addNewProject: string;
-    createBlankProject: string;
-    useExistingFolder: string;
-    selectFolderDialogTitle: string;
-    newProjectNameFallback: string;
-    projectCreated: string;
-    projectOpened: string;
-    projectCreateFailed: string;
-    projectOpenFailed: string;
-    noProjectAction: string;
-    modeLabel: string;
-    localMode: string;
-    modeMenuTitle: string;
-    localProcessing: string;
-    newWorktree: string;
-    worktreeCreated: string;
-    worktreeCreateFailed: string;
-    branchLabel: string;
-    branchFallback: string;
-    branchSearchPlaceholder: string;
-    branchCreateAction: string;
-    branchCreateNamedAction: (branch: string) => string;
-    branchSwitched: string;
-    branchSwitchFailed: string;
-    branchCreated: string;
-    branchCreateFailed: string;
-    uncommittedFiles: (count: number) => string;
-  };
+  projectContext: ComposerUtilityBarCopy;
   suggestion: {
     acceptTitle: string;
     acceptKey: string;
   };
-  textarea: {
+  editor: {
     expand: string;
     collapse: string;
   };
@@ -182,6 +158,11 @@ export function buildInputbarCoreCopy(
           label,
         }),
       start: translate("agentChat.inputbar.core.dictation.start"),
+      starting: translate("agentChat.inputbar.core.dictation.starting"),
+      cancel: translate("agentChat.inputbar.core.dictation.cancel"),
+      interruptedByComposition: translate(
+        "agentChat.inputbar.core.dictation.interruptedByComposition",
+      ),
       disabled: translate("agentChat.inputbar.core.dictation.disabled"),
     },
     placeholder: {
@@ -307,14 +288,23 @@ export function buildInputbarCoreCopy(
         translate("agentChat.inputbar.core.projectContext.uncommittedFiles", {
           count,
         }),
+      gitStatusLoading: translate(
+        "agentChat.inputbar.core.projectContext.gitStatusLoading",
+      ),
+      gitStatusFailed: translate(
+        "agentChat.inputbar.core.projectContext.gitStatusFailed",
+      ),
+      retryGitStatus: translate(
+        "agentChat.inputbar.core.projectContext.retryGitStatus",
+      ),
     },
     suggestion: {
       acceptTitle: translate("agentChat.inputbar.core.suggestion.acceptTitle"),
       acceptKey: translate("agentChat.inputbar.core.suggestion.acceptKey"),
     },
-    textarea: {
-      expand: translate("agentChat.inputbar.core.textarea.expand"),
-      collapse: translate("agentChat.inputbar.core.textarea.collapse"),
+    editor: {
+      expand: translate("agentChat.inputbar.core.editor.expand"),
+      collapse: translate("agentChat.inputbar.core.editor.collapse"),
     },
     action: {
       running: translate("agentChat.inputbar.core.action.running"),

@@ -69,11 +69,7 @@ function classifyToken(value: string): DiffCodeTokenKind | null {
   if (value.startsWith("//") || value.startsWith("/*")) {
     return "comment";
   }
-  if (
-    value.startsWith("\"") ||
-    value.startsWith("'") ||
-    value.startsWith("`")
-  ) {
+  if (value.startsWith('"') || value.startsWith("'") || value.startsWith("`")) {
     return "string";
   }
   if (value.startsWith("<")) {
@@ -126,23 +122,23 @@ function tokenizeCodeLine(value: string): Array<string | DiffCodeToken> {
 function resolveTokenClassName(kind: DiffCodeTokenKind): string {
   switch (kind) {
     case "comment":
-      return "text-slate-400 italic";
+      return "text-[color:var(--lime-text-muted)] italic";
     case "keyword":
-      return "text-violet-700";
+      return "text-[color:var(--lime-brand)]";
     case "number":
-      return "text-sky-700";
+      return "text-[color:var(--lime-info)]";
     case "operator":
-      return "text-slate-500";
+      return "text-[color:var(--lime-text-muted)]";
     case "property":
-      return "text-orange-700";
+      return "text-[color:var(--lime-warning)]";
     case "selector":
-      return "text-amber-700";
+      return "text-[color:var(--lime-warning)]";
     case "string":
-      return "text-emerald-700";
+      return "text-[color:var(--lime-brand)]";
     case "tag":
-      return "text-rose-700";
+      return "text-[color:var(--lime-danger)]";
     case "type":
-      return "text-blue-700";
+      return "text-[color:var(--lime-info)]";
     default:
       return "";
   }

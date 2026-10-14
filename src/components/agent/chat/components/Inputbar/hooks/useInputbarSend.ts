@@ -2,17 +2,15 @@ import { useCallback } from "react";
 import type { MessageImage, MessagePathReference } from "../../../types";
 import type { InputbarKnowledgePackSelection } from "../types";
 import type { InputbarSendHandler } from "../inputbarSendPayload";
-import {
-  buildInputbarPluginMention,
-  resolveInputbarPluginSubmissionText,
-  type InputbarPluginSelection,
-} from "../pluginInputCapability";
 import { buildKnowledgeRequestMetadata } from "@/features/knowledge/agent/knowledgeMetadata";
 import { recordCuratedTaskTemplateUsage } from "../../../utils/curatedTaskTemplates";
 import { buildPathReferenceRequestMetadata } from "../../../utils/pathReferences";
 import {
   resolveInputCapabilityDispatch,
+  resolveInputCapabilitySelectionFromRoute,
+  resolveInputCapabilitySendRoute,
   type InputCapabilitySelection,
+  type InputCapabilitySendRoute,
 } from "../../../skill-selection/inputCapabilitySelection";
 import { buildInputbarToolPreferencesOverride } from "../utils/inputbarModeRequestMetadata";
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
@@ -28,7 +26,6 @@ interface UseInputbarSendParams {
   pendingImages: MessageImage[];
   pathReferences: MessagePathReference[];
   activeCapability: InputCapabilitySelection | null;
-  activePluginSelection?: InputbarPluginSelection | null;
   knowledgePackSelection?: InputbarKnowledgePackSelection | null;
   activeTools?: Record<string, boolean>;
   projectId?: string | null;
@@ -49,7 +46,6 @@ export function useInputbarSend({
   pendingImages,
   pathReferences,
   activeCapability,
-  activePluginSelection = null,
   knowledgePackSelection,
   activeTools = {},
   projectId,
@@ -67,6 +63,20 @@ export function useInputbarSend({
   return useCallback(
     async (triggerMetadata?: BaseComposerSendMetadata) => {
       const handlerEnteredAt = Date.now();
+      const composerDocument = composerController?.getDocument();
+      const submittedImages = composerDocument?.attachments ?? pendingImages;
+      const submittedReferences = composerDocument?.pathReferences ?? pathReferences;
+      const submittedRoute = composerDocument?.inputCapabilityRoute as
+        InputCapabilitySendRoute | undefined;
+      const submittedCapability = composerDocument
+        ? submittedRoute
+          ? activeCapability &&
+            JSON.stringify(resolveInputCapabilitySendRoute(activeCapability)) ===
+              JSON.stringify(submittedRoute)
+            ? activeCapability
+            : resolveInputCapabilitySelectionFromRoute({ route: submittedRoute })
+          : null
+        : activeCapability;
       const triggeredAt =
         typeof triggerMetadata?.triggeredAt === "number" &&
         Number.isFinite(triggerMetadata.triggeredAt)
@@ -76,9 +86,9 @@ export function useInputbarSend({
       recordAgentUiPerformanceMetric("inputbar.send.enter", {
         durationMs: Math.max(0, handlerEnteredAt - triggeredAt),
         hasTriggerMetadata: Boolean(triggerMetadata),
-        imageCount: pendingImages.length,
-        inputLength: input.trim().length,
-        pathReferenceCount: pathReferences.length,
+        imageCount: submittedImages.length,
+        inputLength: (composerDocument?.text ?? input).trim().length,
+        pathReferenceCount: submittedReferences.length,
         sessionId: sessionId ?? null,
         source: "inputbar",
         triggerSource,
@@ -89,24 +99,18 @@ export function useInputbarSend({
         triggerMetadata?.submitTarget ??
         submitTarget ??
         (isLoading ? "steer" : "start");
-      composerController?.setAttachments(pendingImages);
-      composerController?.setPathReferences(pathReferences);
       const composerReceipt = composerController?.submit(resolvedSubmitTarget);
       if (composerReceipt?.kind === "empty") {
         return;
       }
       const composerDraft = composerReceipt?.draft;
-      const submittedInput = resolveInputbarPluginSubmissionText({
-        input: composerDraft?.text ?? input,
-        selection: activePluginSelection,
-      });
-      const inputMentions = activePluginSelection
-        ? [buildInputbarPluginMention(activePluginSelection.plugin)]
-        : [];
+      const submittedInput = composerReceipt?.submission.text ?? input;
+      const composerSubmission = composerReceipt?.submission;
+      const inputMentions = composerSubmission?.inputMentions ?? [];
       if (
         !submittedInput.trim() &&
-        pendingImages.length === 0 &&
-        pathReferences.length === 0
+        submittedImages.length === 0 &&
+        submittedReferences.length === 0
       ) {
         return;
       }
@@ -117,10 +121,9 @@ export function useInputbarSend({
         Boolean(activeTools["subagent_mode"]);
       const canUsePlainTextFastPath =
         submittedInput.trim() &&
-        pendingImages.length === 0 &&
-        pathReferences.length === 0 &&
-        !activeCapability &&
-        !activePluginSelection &&
+        submittedImages.length === 0 &&
+        submittedReferences.length === 0 &&
+        !submittedCapability &&
         !knowledgePackSelection?.enabled &&
         !hasRuntimeMode &&
         resolvedSubmitTarget !== "queue";
@@ -142,6 +145,7 @@ export function useInputbarSend({
                 composerIntent: composerReceipt.intent,
                 composerTarget: composerReceipt.target,
                 composerDraft,
+                composerSubmission,
               }
             : {}),
           ...(triggerMetadata
@@ -178,12 +182,12 @@ export function useInputbarSend({
       }
 
       const capabilityDispatch = resolveInputCapabilityDispatch(
-        activeCapability,
+        submittedCapability,
         submittedInput,
       );
       const baseRequestMetadata = buildPathReferenceRequestMetadata(
         capabilityDispatch.requestMetadata,
-        pathReferences,
+        [...submittedReferences],
       );
       const knowledgeRequestMetadata =
         knowledgePackSelection?.enabled &&
@@ -213,19 +217,19 @@ export function useInputbarSend({
       const collaborationMode = inputbarModeState.planEnabled
         ? ("plan" as const)
         : undefined;
-      const hasPathReferences = pathReferences.length > 0;
+      const hasPathReferences = submittedReferences.length > 0;
       const textOverride = submittedInput.trim()
         ? submittedInput
         : hasPathReferences
           ? "请查看这些文件或文件夹。"
           : undefined;
       const inputRestoreDraft = {
+        ...composerDraft,
         text: submittedInput.trim() ? submittedInput : "",
-        images: [...pendingImages],
-        pathReferences: [...pathReferences],
-        textElements: submittedInput.trim()
-          ? [{ type: "text", text: submittedInput }]
-          : [],
+        ...(composerDraft ? { text: composerDraft.text } : {}),
+        images: [...submittedImages],
+        pathReferences: [...submittedReferences],
+        textElements: composerDraft?.textElements ?? [],
         inputCapabilityRoute: capabilityDispatch.capabilityRoute,
       };
       const sendOptions =
@@ -258,7 +262,7 @@ export function useInputbarSend({
 
       try {
         const result = await onSend({
-          images: pendingImages.length > 0 ? pendingImages : undefined,
+          images: submittedImages.length > 0 ? [...submittedImages] : undefined,
           textOverride,
           sendOptions,
           ...(composerReceipt?.kind === "accepted"
@@ -266,6 +270,7 @@ export function useInputbarSend({
                 composerIntent: composerReceipt.intent,
                 composerTarget: composerReceipt.target,
                 composerDraft,
+                composerSubmission,
               }
             : {}),
           ...(triggerMetadata
@@ -278,12 +283,12 @@ export function useInputbarSend({
         if (result === false) {
           return;
         }
-        if (activeCapability?.kind === "curated_task") {
+        if (submittedCapability?.kind === "curated_task") {
           recordCuratedTaskTemplateUsage({
-            templateId: activeCapability.task.id,
-            launchInputValues: activeCapability.launchInputValues,
-            referenceMemoryIds: activeCapability.referenceMemoryIds,
-            referenceEntries: activeCapability.referenceEntries,
+            templateId: submittedCapability.task.id,
+            launchInputValues: submittedCapability.launchInputValues,
+            referenceMemoryIds: submittedCapability.referenceMemoryIds,
+            referenceEntries: submittedCapability.referenceEntries,
           });
         }
         if (
@@ -312,7 +317,6 @@ export function useInputbarSend({
     },
     [
       activeCapability,
-      activePluginSelection,
       activeTools,
       clearActiveCapability,
       composerController,

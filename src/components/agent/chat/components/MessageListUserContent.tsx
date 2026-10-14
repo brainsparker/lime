@@ -1,11 +1,19 @@
 import React from "react";
 import type { Message } from "../types";
 import { parseLeadingUserCommandTag } from "./messageListUserContentState";
+import { CollapsibleUserMessageContent } from "./CollapsibleUserMessageContent";
 
-export const UserCommandMessageContent: React.FC<{
-  content: string;
-  route?: Message["inputCapabilityRoute"];
-}> = ({ content, route }) => {
+interface UserContentToggleProps {
+  onBeforeToggle?: () => void;
+  revealRequestKey?: number;
+}
+
+export const UserCommandMessageContent: React.FC<
+  {
+    content: string;
+    route?: Message["inputCapabilityRoute"];
+  } & UserContentToggleProps
+> = ({ content, route, onBeforeToggle, revealRequestKey }) => {
   const command = parseLeadingUserCommandTag(content, route);
   if (!command) {
     return null;
@@ -27,16 +35,24 @@ export const UserCommandMessageContent: React.FC<{
         {command.tag}
       </span>
       {command.body ? (
-        <span className="whitespace-pre-wrap">{command.body}</span>
+        <CollapsibleUserMessageContent
+          content={command.body}
+          onBeforeToggle={onBeforeToggle}
+          revealRequestKey={revealRequestKey}
+        >
+          <span className="whitespace-pre-wrap">{command.body}</span>
+        </CollapsibleUserMessageContent>
       ) : null}
     </div>
   );
 };
 
-export const UserInstalledSkillMessageContent: React.FC<{
-  content: string;
-  label: string;
-}> = ({ content, label }) => (
+export const UserInstalledSkillMessageContent: React.FC<
+  {
+    content: string;
+    label: string;
+  } & UserContentToggleProps
+> = ({ content, label, onBeforeToggle, revealRequestKey }) => (
   <div
     data-testid="message-user-skill-content"
     aria-label={`@ ${label} ${content}`.trim()}
@@ -50,7 +66,13 @@ export const UserInstalledSkillMessageContent: React.FC<{
       {label}
     </span>
     {content.trim() ? (
-      <span className="whitespace-pre-wrap">{content}</span>
+      <CollapsibleUserMessageContent
+        content={content}
+        onBeforeToggle={onBeforeToggle}
+        revealRequestKey={revealRequestKey}
+      >
+        <span className="whitespace-pre-wrap">{content}</span>
+      </CollapsibleUserMessageContent>
     ) : null}
   </div>
 );

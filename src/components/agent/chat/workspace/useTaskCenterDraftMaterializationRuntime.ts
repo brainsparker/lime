@@ -64,6 +64,7 @@ interface UseTaskCenterDraftMaterializationRuntimeParams {
   markTaskCenterLocalSessionOverride: (topicId: string) => void;
   resetLocalImageWorkbenchSessionScope: () => void;
   resetTopicLocalState: () => void;
+  resetComposerDraft?: () => void;
   setActiveTaskCenterDraftTabId: Dispatch<SetStateAction<string | null>>;
   setHomePendingPreviewRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
@@ -100,6 +101,7 @@ export function useTaskCenterDraftMaterializationRuntime({
   markTaskCenterLocalSessionOverride,
   resetLocalImageWorkbenchSessionScope,
   resetTopicLocalState,
+  resetComposerDraft,
   setActiveTaskCenterDraftTabId,
   setHomePendingPreviewRequest,
   setInput,
@@ -142,6 +144,7 @@ export function useTaskCenterDraftMaterializationRuntime({
     ) => {
       resetTopicLocalState();
       if (options?.preserveInput !== true) {
+        resetComposerDraft?.();
         setInput("");
       }
       setSelectedText("");
@@ -156,6 +159,7 @@ export function useTaskCenterDraftMaterializationRuntime({
       markTaskCenterEmbeddedHomeSession,
       markTaskCenterLocalSessionOverride,
       resetTopicLocalState,
+      resetComposerDraft,
       setInput,
       setMentionedCharacters,
       setSelectedText,
@@ -165,6 +169,7 @@ export function useTaskCenterDraftMaterializationRuntime({
 
   const openTaskCenterDraftTab = useCallback(
     (options?: { preservePendingSendRequest?: boolean }) => {
+      resetComposerDraft?.();
       const draftTab = buildTaskCenterDraftTab({
         id: createTaskCenterDraftTabId(),
       });
@@ -204,6 +209,7 @@ export function useTaskCenterDraftMaterializationRuntime({
     [
       clearMessages,
       resetLocalImageWorkbenchSessionScope,
+      resetComposerDraft,
       resetTopicLocalState,
       setActiveTaskCenterDraftTabId,
       setHomePendingPreviewRequest,

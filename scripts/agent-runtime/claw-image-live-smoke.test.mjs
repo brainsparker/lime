@@ -47,7 +47,9 @@ describe("claw image live smoke guard", () => {
     expect(content).toContain("sendPromptFromGui");
     expect(content).toContain("@配图");
     expect(content).toContain("allowTaskCenterHomeInput: true");
-    expect(content).toContain('textarea[name="agent-chat-message"]');
+    expect(content).toContain(
+      '[data-testid="composer-editor"][role="textbox"]',
+    );
     expect(content).not.toContain('APP_SERVER_BACKEND_MODE: "external"');
     expect(content).not.toContain('APP_SERVER_BACKEND_MODE: "mock"');
     expect(content).not.toContain("startImageProviderFixtureServer");

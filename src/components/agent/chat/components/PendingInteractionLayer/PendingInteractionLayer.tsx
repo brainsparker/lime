@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DecisionPanel } from "../DecisionPanel";
-import { InputbarApprovalPrompt } from "../Inputbar/components/InputbarApprovalPrompt";
+import { PendingRequestItemPanel } from "../PendingRequestItemPanel";
 import {
   McpServerElicitationForm,
   type McpServerElicitationFormSubmission,
@@ -54,7 +54,8 @@ export function PendingInteractionLayer({
       data-interaction-kind={interaction.kind}
     >
       {interaction.kind === "approval" ? (
-        <InputbarApprovalPrompt
+        <PendingRequestItemPanel
+          key={interaction.id}
           request={interaction.payload.request}
           onSubmit={async (response) => {
             await onRespond({

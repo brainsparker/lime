@@ -1,3 +1,6 @@
+import type { ComposerDraftSnapshot } from "@/components/input-kit";
+import { insertComposerSkill } from "../../../skill-selection/composerCapabilityMention";
+import type { ComposerEditorHandle } from "@/components/input-kit";
 import React from "react";
 import { FolderOpen } from "lucide-react";
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
@@ -67,11 +70,11 @@ interface InputbarComposerSectionProps {
   workflowProgressLabel: string;
   workflowSummaryLabel: string;
   inputAdapter: ChatInputAdapter;
-  composerController?: ComposerController;
+  composerController: ComposerController;
   characters: Character[];
   skillSelection: SkillSelectionProps;
   onSkillSuggestionsNeeded?: () => void;
-  textareaRef: React.RefObject<HTMLTextAreaElement>;
+  editorRef: React.RefObject<ComposerEditorHandle>;
   input: string;
   disabledPlaceholder?: string;
   onSelectCharacter?: (character: Character) => void;
@@ -108,7 +111,9 @@ interface InputbarComposerSectionProps {
   onRemovePathReference?: (id: string) => void;
   fileManagerOpen?: boolean;
   onToggleFileManager?: () => void;
-  onPaste: (event: React.ClipboardEvent) => void;
+  onPaste: (event: ClipboardEvent) => void;
+  onKeyDown?: (event: KeyboardEvent) => boolean | void;
+  onHistoryRecall?: (draft: ComposerDraftSnapshot) => void;
   isFullscreen: boolean;
   isWorkspaceVariant: boolean;
   activeTheme?: string;
@@ -151,7 +156,7 @@ export const InputbarComposerSection: React.FC<
   characters,
   skillSelection,
   onSkillSuggestionsNeeded,
-  textareaRef,
+  editorRef,
   input,
   disabledPlaceholder,
   onSelectCharacter,
@@ -175,6 +180,7 @@ export const InputbarComposerSection: React.FC<
   onStartKnowledgeOrganize,
   onManageKnowledgePacks,
   onSend,
+  onHistoryRecall,
   onToolClick,
   activeTools,
   pendingImages,
@@ -185,6 +191,7 @@ export const InputbarComposerSection: React.FC<
   fileManagerOpen = false,
   onToggleFileManager,
   onPaste,
+  onKeyDown,
   isFullscreen,
   isWorkspaceVariant,
   activeTheme,
@@ -310,7 +317,10 @@ export const InputbarComposerSection: React.FC<
       />
     ) : undefined;
   const plusMenuSkillsPanel = showSkillSelector ? (
-    <SkillSelector {...skillSelectorProps} renderMode="inline" />
+    <SkillSelector {...skillSelectorProps} onSelectInputCapability={(capability, options) => {
+      if (capability.kind === "installed_skill") { insertComposerSkill(composerController, capability.skill); inputAdapter.actions.setText(composerController.getDocument().text); }
+      skillSelectorProps.onSelectInputCapability(capability, options);
+    }} renderMode="inline" />
   ) : undefined;
   const plusMenuPluginsPanel = onSelectPlugin ? (
     <InputbarPluginSelector
@@ -480,7 +490,8 @@ export const InputbarComposerSection: React.FC<
       <CharacterMention
         {...mentionSkillProps}
         characters={characters}
-        inputRef={textareaRef}
+        editorRef={editorRef}
+        controller={composerController}
         value={input}
         onChange={inputAdapter.actions.setText}
         onSelectCharacter={onSelectCharacter}
@@ -508,10 +519,11 @@ export const InputbarComposerSection: React.FC<
       <InputbarCore
         uiCopy={inputbarCopy}
         controller={composerController}
-        textareaRef={textareaRef}
+        editorRef={editorRef}
         text={inputAdapter.state.text}
         setText={inputAdapter.actions.setText}
         onSend={onSend}
+        onHistoryRecall={onHistoryRecall}
         onStop={inputAdapter.actions.stop}
         isLoading={inputAdapter.state.isSending}
         disabled={inputbarDisabled}
@@ -524,6 +536,7 @@ export const InputbarComposerSection: React.FC<
         onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={onRemovePathReference}
         onPaste={onPaste}
+        onKeyDown={onKeyDown}
         isFullscreen={isFullscreen}
         placeholder={
           disabledPlaceholder ||

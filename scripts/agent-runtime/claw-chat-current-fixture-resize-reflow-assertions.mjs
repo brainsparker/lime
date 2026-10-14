@@ -22,14 +22,14 @@ export function buildElectronResizeReflowScenarioAssertions({
       electronResizeReflowTurnStart?.inputText === LIVE_TAIL_COMMIT_PROMPT,
     guiElectronResizeReflowInputSubmitted:
       summary.electronResizeReflowInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.electronResizeReflowInputSend?.clicked?.clicked === true,
     guiElectronResizeReflowCompleted:
       summary.guiElectronResizeReflowCompleted?.hasPrompt === true &&
       (summary.guiElectronResizeReflowCompleted?.hasAssistantSummary === true ||
         summary.guiElectronResizeReflowCompleted?.hasDoneText === true) &&
-      summary.guiElectronResizeReflowCompleted?.textareaVisible === true &&
-      summary.guiElectronResizeReflowCompleted?.textareaDisabled === false &&
+      summary.guiElectronResizeReflowCompleted?.editorVisible === true &&
+      summary.guiElectronResizeReflowCompleted?.editorDisabled === false &&
       summary.guiElectronResizeReflowCompleted?.stopButtonVisible === false,
     guiElectronResizeReflowFilesSurfaceOpened:
       Boolean(
@@ -78,7 +78,7 @@ export function buildElectronResizeReflowScenarioAssertions({
       snapshots.every(
         (snapshot) =>
           snapshot.inputbarAnchored === true &&
-          snapshot.textareaDisabled === false &&
+          snapshot.editorDisabled === false &&
           snapshot.stopButtonVisible === false,
       ),
     guiElectronResizeReflowActiveThreadHeaderStable:

@@ -1,4 +1,9 @@
-import type { AgentThreadItem, AgentThreadTurn, Message } from "../types";
+import type {
+  AgentThreadItem,
+  AgentThreadTurn,
+  Message,
+  MessageMediaReference,
+} from "../types";
 import type { MessageRenderGroupProjection } from "./messageTimelineRenderProjection";
 import {
   dedupeImportedUserMessageItems,
@@ -84,6 +89,7 @@ export function buildTurnTimelineRenderProjection(params: {
         groupOwners.set(owner.turn.id, owner);
       }
     }
+    bindUnanchoredGroupAssistants(group, groupOwners, messageOwners);
     const hasAnchoredOwner = groupOwners.size > 0;
     const isImportedHistoryGroup = [...groupOwners.values()].some((owner) =>
       owner.items.some((item) => isImportedHistoryMetadata(item.metadata)),
@@ -115,7 +121,7 @@ export function buildTurnTimelineRenderProjection(params: {
           emittedTurnIds.add(owner.turn.id);
         }
       }
-      if (!isMessageOwnedByCanonicalTurn(message, owners)) {
+      if (!isMessageOwnedByCanonicalTurn(message, ownersForMessage)) {
         const residualMessage = buildResidualMessage(
           message,
           ownersForMessage,
@@ -149,7 +155,22 @@ export function buildTurnTimelineRenderProjection(params: {
     emittedTurnIds.add(turn.id);
   }
 
-  return entries;
+  const canonicalEntries = entries
+    .filter(
+      (entry): entry is CanonicalTurnRenderEntry =>
+        entry.kind === "canonical_turn",
+    )
+    .sort(
+      (left, right) =>
+        (turnOrder.get(left.turn.id) ?? 0) -
+        (turnOrder.get(right.turn.id) ?? 0),
+    );
+  let canonicalIndex = 0;
+  return entries.map((entry) =>
+    entry.kind === "canonical_turn"
+      ? canonicalEntries[canonicalIndex++]
+      : entry,
+  );
 }
 
 function buildCanonicalTurnOwners(params: {
@@ -239,19 +260,41 @@ function resolveMessageOwners(
 
 function isMessageOwnedByCanonicalTurn(
   message: Message,
-  owners: ReadonlyMap<string, CanonicalTurnOwner>,
+  owners: readonly CanonicalTurnOwner[],
 ): boolean {
-  for (const owner of owners.values()) {
-    const matchingItem = owner.messageItems.find((item) =>
-      messageMatchesItem(message, item),
-    );
-    if (matchingItem) return !hasMessageOnlySurface(message);
-  }
+  return (
+    !hasMessageOnlySurface(message) &&
+    owners.some((owner) =>
+      owner.messageItems.some((item) => itemRole(item) === message.role),
+    )
+  );
+}
 
-  const turnId = message.runtimeTurnId?.trim();
-  const owner = turnId ? owners.get(turnId) : undefined;
-  if (!owner || hasMessageOnlySurface(message)) return false;
-  return owner.messageItems.some((item) => itemRole(item) === message.role);
+function bindUnanchoredGroupAssistants(
+  group: MessageRenderGroupProjection,
+  groupOwners: ReadonlyMap<string, CanonicalTurnOwner>,
+  messageOwners: Map<Message, CanonicalTurnOwner[]>,
+): void {
+  if (groupOwners.size !== 1) return;
+  const owner = [...groupOwners.values()][0];
+  if (group.timeline && group.timeline.turn.id !== owner.turn.id) return;
+  for (const message of group.assistantMessages) {
+    if (
+      message.runtimeTurnId?.trim() ||
+      messageOwners.get(message)?.length ||
+      !message.content.trim()
+    )
+      continue;
+    const matchingItems = owner.messageItems.filter(
+      (item) => item.type === "agent_message" && item.text === message.content,
+    );
+    const matchingMessages = group.assistantMessages.filter(
+      (candidate) => candidate.content === message.content,
+    );
+    if (matchingItems.length === 1 && matchingMessages.length === 1) {
+      messageOwners.set(message, [owner]);
+    }
+  }
 }
 
 function messageMatchesItem(
@@ -300,14 +343,25 @@ function buildResidualMessage(
       (part.type === "media_reference" &&
         !mediaReferenceKeys(part.reference).some((key) =>
           canonicalMediaKeys.has(key),
+        ) &&
+        !isCanonicalUserImageReference(
+          message,
+          part.reference,
+          canonicalOwners,
         )),
+  );
+  const canonicalUserOwnsMessage = isCanonicalUserMessageOwner(
+    message,
+    canonicalOwners,
   );
   const residualMessage: Message = {
     ...message,
     content: "",
-    images: isCanonicalUserMessageOwner(message, canonicalOwners)
+    images: canonicalUserOwnsMessage ? undefined : message.images,
+    // route 修饰用户正文；canonical Item 已接管时不能独立生成空气泡。
+    inputCapabilityRoute: canonicalUserOwnsMessage
       ? undefined
-      : message.images,
+      : message.inputCapabilityRoute,
     isThinking: undefined,
     thinkingContent: undefined,
     toolCalls: undefined,
@@ -392,6 +446,58 @@ function isCanonicalUserMessageOwner(
           item.type === "user_message" && messageMatchesItem(message, item),
       ),
     )
+  );
+}
+
+function isCanonicalUserImageReference(
+  message: Message,
+  reference: MessageMediaReference,
+  owners: readonly CanonicalTurnOwner[],
+): boolean {
+  if (
+    message.role !== "user" ||
+    reference.kind !== "image" ||
+    !/^(?:https?:|file:|asset:|blob:|data:image\/|\/\/)/i.test(reference.uri)
+  ) {
+    return false;
+  }
+
+  const imageFields = [
+    "kind",
+    "uri",
+    "mimeType",
+    "sourceUri",
+    "sourcePath",
+    "previewUrl",
+  ];
+  // 只接管裸直接图片；额外说明、读取职责和未知字段保留独立媒体语义。
+  if (
+    Object.entries(reference).some(
+      ([field, value]) => value !== undefined && !imageFields.includes(field),
+    )
+  ) {
+    return false;
+  }
+
+  return owners.some((owner) =>
+    owner.messageItems.some(
+      (item) =>
+        item.type === "user_message" &&
+        (message.id === item.id || message.id === item.client_id) &&
+        item.content_parts?.some(
+          (part) =>
+            part.type === "image" &&
+            reference.uri === part.uri &&
+            (reference.mimeType === undefined ||
+              reference.mimeType === part.mime_type) &&
+            (reference.sourceUri === undefined ||
+              reference.sourceUri === part.uri) &&
+            (reference.sourcePath === undefined ||
+              reference.sourcePath === part.source_path) &&
+            (reference.previewUrl === undefined ||
+              reference.previewUrl === part.uri),
+        ),
+    ),
   );
 }
 

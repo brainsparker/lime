@@ -52,6 +52,7 @@ interface UseTaskCenterTopicNavigationRuntimeParams {
   ) => void;
   resetLocalImageWorkbenchSessionScope: () => void;
   resetTopicLocalState: () => void;
+  resetComposerDraft?: () => void;
   sessionId?: string | null;
   setActiveTaskCenterDraftTabId: Dispatch<SetStateAction<string | null>>;
   setHomePendingPreviewRequest: Dispatch<
@@ -100,6 +101,7 @@ export function useTaskCenterTopicNavigationRuntime({
   replaceTaskCenterOpenTabs,
   resetLocalImageWorkbenchSessionScope,
   resetTopicLocalState,
+  resetComposerDraft,
   sessionId,
   setActiveTaskCenterDraftTabId,
   setHomePendingPreviewRequest,
@@ -261,6 +263,7 @@ export function useTaskCenterTopicNavigationRuntime({
         return;
       }
 
+      resetComposerDraft?.();
       taskCenterDraftSurfaceActiveRef.current = true;
       resetLocalImageWorkbenchSessionScope();
       clearMessages({ showToast: false });
@@ -279,6 +282,7 @@ export function useTaskCenterTopicNavigationRuntime({
     [
       clearMessages,
       resetLocalImageWorkbenchSessionScope,
+      resetComposerDraft,
       resetTopicLocalState,
       setActiveTaskCenterDraftTabId,
       setHomePendingPreviewRequest,
@@ -327,6 +331,7 @@ export function useTaskCenterTopicNavigationRuntime({
           return;
         }
         if (closePlan.action === "clearActiveDraft") {
+          resetComposerDraft?.();
           taskCenterDraftSurfaceActiveRef.current = false;
           setActiveTaskCenterDraftTabId(null);
           setInput("");
@@ -375,6 +380,7 @@ export function useTaskCenterTopicNavigationRuntime({
       sessionId,
       setActiveTaskCenterDraftTabId,
       setInput,
+      resetComposerDraft,
       setTaskCenterDetachedTopicId,
       setTaskCenterDraftTabs,
       setTaskCenterOpenTabMap,

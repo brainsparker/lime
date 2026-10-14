@@ -1,5 +1,7 @@
 # Codex App GUI 对齐执行计划
 
+> GUI 基线已迁出：2026-10-14 起，布局、Composer、目录/命名、测试与护栏统一由 [GUI current 计划](./codex-gui-alignment-current-plan.md) 驱动。下方旧 GUI 范围与阶段结论保留为历史证据，不构成第二份实施清单；尚在进行的 runtime / Windows 工作继续由对应领域计划负责。
+
 > status: active / D0-desktop-baseline-blocked -> D2-D3-complete -> D4-multi-agent-durable-complete -> D4-windows-enforcement-phase
 > owner: agent-ui + app-server
 > started: 2026-07-18
@@ -38,7 +40,7 @@ Codex App 只作为 GUI 信息架构和交互层级参考；后端 Thread/Turn/I
 ### 3.1 已有但未形成单一产品面
 
 - `TaskCenterUtilityToolbar.tsx` 已有打开位置、环境信息、Git 分支和 panel 入口。
-- `InputbarProjectContextBar.tsx` 已有项目、分支和 worktree 控制。
+- 项目、分支和 worktree 控制已直接迁到 `ComposerUtilityBar.tsx` 与 `useComposerUtilityActions.ts`；原 `InputbarProjectContextBar.tsx` 已删除。当前验证与未闭合语义以 [GUI current 计划](codex-gui-alignment-current-plan.md) 为准。
 - `CanvasWorkbenchLayout` 已有文件、结果、变更和 review surface。
 - canonical `thread/read`、Item materialization、审批、计划、SubAgent 和恢复投影已有 v2 evidence。
 

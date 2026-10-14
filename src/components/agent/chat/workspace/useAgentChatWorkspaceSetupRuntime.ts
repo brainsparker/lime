@@ -427,6 +427,7 @@ export function useAgentChatWorkspaceSetupRuntime({
     projectId,
     projectMemory,
     providerType,
+    runtimeWorkspaceId,
     sessionId,
     threadItems,
     threadRead,

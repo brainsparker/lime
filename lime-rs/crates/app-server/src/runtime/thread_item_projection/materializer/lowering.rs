@@ -92,7 +92,7 @@ impl ItemFamily {
         )
     }
 
-    fn fallback_id(self, turn_id: &str, event_id: &str) -> String {
+    pub(super) fn fallback_id(self, turn_id: &str, event_id: &str) -> String {
         match self {
             Self::UserMessage | Self::AgentMessage | Self::Reasoning | Self::ContextCompaction => {
                 format!("{}-{turn_id}", self.stable_name())
@@ -104,6 +104,9 @@ impl ItemFamily {
 
 pub(super) fn item_family(event_type: &str, payload: &Value) -> Option<ItemFamily> {
     let normalized = event_type.to_ascii_lowercase();
+    if matches!(normalized.as_str(), "queue.added" | "queue.updated") {
+        return Some(ItemFamily::UserMessage);
+    }
     if normalized.starts_with("item.") {
         let source = payload_source(payload);
         let upstream_type = map_string(source, &["kind", "type", "itemType", "item_type"])?;

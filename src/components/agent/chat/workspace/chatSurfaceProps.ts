@@ -1,4 +1,5 @@
 import type { ComponentProps } from "react";
+import type { ComposerController } from "@/components/input-kit/ComposerController";
 import { StepProgress } from "@/components/workspace/layout/StepProgress";
 import { ChatNavbar } from "../components/ChatNavbar";
 import { EmptyState } from "../components/EmptyState";
@@ -42,6 +43,7 @@ export function buildStepProgressProps({
 
 interface BuildWorkspaceEmptyStatePropsParams {
   input: ComponentProps<typeof EmptyState>["input"];
+  composerController?: ComposerController;
   setInput: ComponentProps<typeof EmptyState>["setInput"];
   onSendMessage: InputbarSendHandler;
   onStopSending?: ComponentProps<typeof EmptyState>["onStop"];
@@ -200,6 +202,7 @@ interface BuildWorkspaceEmptyStatePropsParams {
 
 export function buildWorkspaceEmptyStateProps({
   input,
+  composerController,
   setInput,
   onSendMessage,
   onStopSending,
@@ -286,6 +289,7 @@ export function buildWorkspaceEmptyStateProps({
 
   return {
     input,
+    composerController,
     setInput,
     onSend: handleEmptyStateSend,
     onStop: onStopSending,

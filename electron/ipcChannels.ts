@@ -20,6 +20,7 @@ export const ELECTRON_HOST_COMMANDS = [
   "sync_tray_model_shortcuts",
   "take_pending_skill_package_open_requests",
   "browser_tab_mount",
+  "browser_tab_list",
   "browser_tab_set_bounds",
   "browser_tab_navigate",
   "browser_tab_reload",

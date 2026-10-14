@@ -6,7 +6,7 @@ import {
   buildCatalogWithStoryVideoSceneEntry,
   createSkill,
   createStoryVideoSceneServiceSkill,
-  getTextarea,
+  getComposerEditor,
   mockListServiceSkills,
   renderHarness,
   typeAtAndWait,
@@ -21,7 +21,7 @@ describe("CharacterMention slash actions", () => {
     const container = renderHarness({
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/com");
 
@@ -46,7 +46,7 @@ describe("CharacterMention slash actions", () => {
     const container = renderHarness({
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/camp");
 
@@ -80,7 +80,7 @@ describe("CharacterMention slash actions", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/camp");
 
@@ -129,7 +129,7 @@ describe("CharacterMention slash actions", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -175,7 +175,7 @@ describe("CharacterMention slash actions", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/story");
 
@@ -205,7 +205,7 @@ describe("CharacterMention slash actions", () => {
       skills: [createSkill("技能A", "skill-a", true)],
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/ski");
 
@@ -218,7 +218,7 @@ describe("CharacterMention slash actions", () => {
       skillButton?.click();
     });
 
-    expect(onChangeSpy).toHaveBeenCalledWith("/skill-a ");
+    expect(onChangeSpy).toHaveBeenCalledWith("/skill-a");
   });
 
   it("提供 onSelectInputCapability 时，slash 面板选择已安装技能应走统一 capability 回调", async () => {
@@ -235,7 +235,7 @@ describe("CharacterMention slash actions", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/ski");
 
@@ -258,7 +258,7 @@ describe("CharacterMention slash actions", () => {
       }),
       undefined,
     );
-    expect(onChangeSpy).toHaveBeenCalledWith("");
+    expect(onChangeSpy).toHaveBeenCalledWith("/skill-a");
   });
 
   it("提供 onSelectInputCapability 时，最近使用的已安装技能应带 replayText 走统一 capability 回调", async () => {
@@ -284,7 +284,7 @@ describe("CharacterMention slash actions", () => {
       onChangeSpy,
       onSelectInputCapability,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -307,12 +307,12 @@ describe("CharacterMention slash actions", () => {
       }),
       { replayText: "整理最近发布计划" },
     );
-    expect(onChangeSpy).toHaveBeenLastCalledWith("整理最近发布计划");
+    expect(onChangeSpy).toHaveBeenLastCalledWith("/skill-a 整理最近发布计划");
   });
 
   it("提及面板应锚定在输入框正上方，并禁止自动翻转到下方", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
     vi.spyOn(textarea, "getBoundingClientRect").mockReturnValue({
       x: 120,
       y: 240,

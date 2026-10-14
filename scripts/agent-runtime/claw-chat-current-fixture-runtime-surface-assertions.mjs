@@ -27,7 +27,7 @@ export function buildReasoningFirstVisibleScenarioAssertions({
       REASONING_FIRST_VISIBLE_PROMPT,
     guiReasoningFirstVisibleInputSubmitted:
       summary.reasoningFirstVisibleInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.reasoningFirstVisibleInputSend?.clicked?.clicked === true,
     guiReasoningFirstVisibleBeforeAnswer:
       summary.guiReasoningFirstVisibleBeforeAnswer
@@ -63,7 +63,7 @@ export function buildReasoningFirstVisibleScenarioAssertions({
       summary.guiReasoningFirstVisibleCompleted
         ?.hasReasoningBeforeFinalAnswer === true &&
       summary.guiReasoningFirstVisibleCompleted?.startupNoteVisible === false &&
-      summary.guiReasoningFirstVisibleCompleted?.textareaDisabled === false &&
+      summary.guiReasoningFirstVisibleCompleted?.editorDisabled === false &&
       summary.guiReasoningFirstVisibleCompleted?.stopButtonVisible === false,
     readModelReasoningFirstVisibleCompleted:
       summary.readModelReasoningFirstVisibleCompleted?.includesPrompt ===
@@ -94,7 +94,7 @@ export function buildReasoningFirstVisibleScenarioAssertions({
       summary.guiReasoningHistoryRestored?.hasFinalText === true &&
       summary.guiReasoningHistoryRestored?.hasReasoningBeforeFinalAnswer ===
         true &&
-      summary.guiReasoningHistoryRestored?.textareaDisabled === false &&
+      summary.guiReasoningHistoryRestored?.editorDisabled === false &&
       summary.guiReasoningHistoryRestored?.stopButtonVisible === false,
     readModelReasoningHistoryPreserved: isReasoningHistoryPreserved(
       summary.readModelReasoningFirstVisibleCompleted,
@@ -129,7 +129,7 @@ export function buildLiveTailCommitScenarioAssertions({
     liveTailCommitPromptReachedBackend:
       liveTailCommitTurnStart?.inputText === LIVE_TAIL_COMMIT_PROMPT,
     guiLiveTailCommitInputSubmitted:
-      summary.liveTailCommitInputSend?.afterFill?.promptVisibleInTextarea ===
+      summary.liveTailCommitInputSend?.afterFill?.promptVisibleInEditor ===
         true && summary.liveTailCommitInputSend?.clicked?.clicked === true,
     guiLiveTailFirstVisibleBeforeCommit:
       summary.guiLiveTailFirstVisibleBeforeCommit?.hasPrompt === true &&
@@ -170,8 +170,8 @@ export function buildLiveTailCommitScenarioAssertions({
       summary.guiLiveTailCompleted?.hasPrompt === true &&
       (summary.guiLiveTailCompleted?.hasAssistantSummary === true ||
         summary.guiLiveTailCompleted?.hasDoneText === true) &&
-      summary.guiLiveTailCompleted?.textareaVisible === true &&
-      summary.guiLiveTailCompleted?.textareaDisabled === false &&
+      summary.guiLiveTailCompleted?.editorVisible === true &&
+      summary.guiLiveTailCompleted?.editorDisabled === false &&
       summary.guiLiveTailCompleted?.stopButtonVisible === false,
     readModelLiveTailCommitCompleted:
       summary.readModelLiveTailCommitCompleted?.includesPrompt === true &&
@@ -218,7 +218,7 @@ export function buildMcpStructuredContentScenarioAssertions({
       MCP_STRUCTURED_CONTENT_PROMPT,
     guiMcpStructuredContentInputSubmitted:
       summary.mcpStructuredContentInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.mcpStructuredContentInputSend?.clicked?.clicked === true,
     guiMcpStructuredContentVisible:
       summary.guiMcpStructuredContentCompleted?.hasPrompt === true &&
@@ -230,8 +230,8 @@ export function buildMcpStructuredContentScenarioAssertions({
             ?.hasToolName === true)) ||
         summary.guiMcpStructuredContentCompleted?.terminalDetailsCompacted ===
           true) &&
-      summary.guiMcpStructuredContentCompleted?.textareaVisible === true &&
-      summary.guiMcpStructuredContentCompleted?.textareaDisabled === false &&
+      summary.guiMcpStructuredContentCompleted?.editorVisible === true &&
+      summary.guiMcpStructuredContentCompleted?.editorDisabled === false &&
       summary.guiMcpStructuredContentCompleted?.stopButtonVisible === false,
     guiMcpStructuredContentEnvelopeHidden:
       summary.guiMcpStructuredContentCompleted?.envelopeVisible === false,
@@ -263,7 +263,7 @@ export function buildMediaReferenceScenarioAssertions({
     mediaReferencePromptReachedBackend:
       mediaReferenceTurnStart?.inputText === MEDIA_REFERENCE_PROMPT,
     guiMediaReferenceInputSubmitted:
-      summary.mediaReferenceInputSend?.afterFill?.promptVisibleInTextarea ===
+      summary.mediaReferenceInputSend?.afterFill?.promptVisibleInEditor ===
         true && summary.mediaReferenceInputSend?.clicked?.clicked === true,
     guiMediaReferenceCardVisible:
       summary.guiMediaReferenceCompleted?.hasPrompt === true &&

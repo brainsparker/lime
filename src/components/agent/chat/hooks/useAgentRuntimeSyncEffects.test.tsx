@@ -8,6 +8,7 @@ import {
   mockHasDesktopHostEventListenerCapability,
   mockHasDevBridgeEventListenerCapability,
   mockIsAppServerBridgeAvailable,
+  mockSubscribeAppServerNotifications,
   mountHook,
   runtimeSyncRefreshRequest,
   setupRuntimeSyncEffectsTestHarness,
@@ -24,6 +25,43 @@ describe("useAgentRuntimeSyncEffects", () => {
 
   afterEach(() => {
     cleanupRuntimeSyncEffectsTestHarness();
+  });
+
+  it("production sync 接线通过 Queue 通知读取完整 canonical timeline，不使用分页 detail", async () => {
+    const refreshSessionDetail = vi.fn(async () => true);
+    const refreshSessionReadModel = vi.fn(async () => true);
+    const harness = await mountHook({
+      workspaceId: "workspace-1",
+      threadRead: { thread_id: "thread-1" },
+      refreshSessionDetail,
+      refreshSessionReadModel,
+    });
+    try {
+      const subscription =
+        mockSubscribeAppServerNotifications.mock.calls.at(-1)![0];
+      await act(async () => {
+        subscription.onNotifications?.([
+          {
+            method: "thread/queue/changed",
+            params: { threadId: "thread-other" },
+          },
+        ]);
+      });
+      expect(refreshSessionReadModel).not.toHaveBeenCalled();
+      await act(async () => {
+        subscription.onNotifications?.([
+          { method: "thread/queue/changed", params: { threadId: "thread-1" } },
+        ]);
+      });
+      expect(refreshSessionReadModel).toHaveBeenCalledWith("session-1", {
+        timelineMode: "replace",
+        expectedThreadId: "thread-1",
+        isCurrent: expect.any(Function),
+      });
+      expect(refreshSessionDetail).not.toHaveBeenCalled();
+    } finally {
+      harness.unmount();
+    }
   });
 
   it("发送结束后应刷新当前会话详情", async () => {

@@ -130,16 +130,15 @@ export function buildApprovalRequestFullAccessScenarioAssertions({
         "danger-full-access",
     guiApprovalRequestFullAccessInputSubmitted:
       summary.approvalRequestFullAccessInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.approvalRequestFullAccessInputSend?.clicked?.clicked === true,
     guiApprovalRequestFullAccessCompleted:
       summary.guiApprovalRequestFullAccessCompleted?.hasPrompt === true &&
       (summary.guiApprovalRequestFullAccessCompleted?.hasAssistantSummary ===
         true ||
         summary.guiApprovalRequestFullAccessCompleted?.hasDoneText === true) &&
-      summary.guiApprovalRequestFullAccessCompleted?.textareaVisible === true &&
-      summary.guiApprovalRequestFullAccessCompleted?.textareaDisabled ===
-        false &&
+      summary.guiApprovalRequestFullAccessCompleted?.editorVisible === true &&
+      summary.guiApprovalRequestFullAccessCompleted?.editorDisabled === false &&
       summary.guiApprovalRequestFullAccessCompleted?.stopButtonVisible ===
         false &&
       pageText.includes(APPROVAL_REQUEST_FULL_ACCESS_RESULT_TEXT) &&
@@ -151,10 +150,8 @@ export function buildApprovalRequestFullAccessScenarioAssertions({
         ?.includesRuntimePermissionPrompt === false &&
       summary.guiApprovalRequestFullAccessNoApproval
         ?.includesRuntimeApprovalPrompt === false &&
-      summary.guiApprovalRequestFullAccessNoApproval?.textareaVisible ===
-        true &&
-      summary.guiApprovalRequestFullAccessNoApproval?.textareaDisabled ===
-        false,
+      summary.guiApprovalRequestFullAccessNoApproval?.editorVisible === true &&
+      summary.guiApprovalRequestFullAccessNoApproval?.editorDisabled === false,
     guiApprovalRequestFullAccessNoApprovalRecord:
       summary.guiApprovalRequestFullAccessCompleted?.approvalRecordShape
         ?.recordCount === 0 &&
@@ -201,24 +198,23 @@ export function buildApprovalRequestResumeScenarioAssertions({
       APPROVAL_REQUEST_RESUME_PROMPT,
     guiApprovalRequestResumeInputSubmitted:
       summary.approvalRequestResumeInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.approvalRequestResumeInputSend?.clicked?.clicked === true,
     guiApprovalRequestResumePendingVisible:
       summary.approvalRequestResumePendingGui?.hasSection === true &&
       summary.approvalRequestResumePendingGui?.hasCurrentInteractionLayer ===
         true &&
-      summary.approvalRequestResumePendingGui?.interactionKind ===
-        "approval" &&
+      summary.approvalRequestResumePendingGui?.interactionKind === "approval" &&
       summary.approvalRequestResumePendingGui?.hasApprovalContent === true &&
       summary.approvalRequestResumePendingGui?.hasPrompt === true &&
-      summary.approvalRequestResumePendingGui?.hasToolName === false &&
-      summary.approvalRequestResumePendingGui?.hasCommand === false &&
-      summary.approvalRequestResumePendingGui?.hasDetails === false &&
+      summary.approvalRequestResumePendingGui?.hasToolName === true &&
+      summary.approvalRequestResumePendingGui?.hasCommand === true &&
+      summary.approvalRequestResumePendingGui?.hasDetails === true &&
       summary.approvalRequestResumePendingGui?.hasPreformattedArguments ===
-        false &&
-      summary.approvalRequestResumePendingGui?.textareaVisible === true &&
-      summary.approvalRequestResumePendingGui?.textareaDisabled === false &&
-      summary.approvalRequestResumePendingGui?.singleLine === true &&
+        true &&
+      summary.approvalRequestResumePendingGui?.editorVisible === true &&
+      summary.approvalRequestResumePendingGui?.editorDisabled === false &&
+      summary.approvalRequestResumePendingGui?.isApprovalCard === true &&
       summary.approvalRequestResumePendingGui?.approveButtonVisible === true &&
       summary.approvalRequestResumePendingGui?.approveButtonDisabled === false,
     readModelApprovalRequestResumePending:
@@ -277,8 +273,8 @@ export function buildApprovalRequestResumeScenarioAssertions({
       (summary.guiApprovalRequestResumeCompleted?.hasAssistantSummary ===
         true ||
         summary.guiApprovalRequestResumeCompleted?.hasDoneText === true) &&
-      summary.guiApprovalRequestResumeCompleted?.textareaVisible === true &&
-      summary.guiApprovalRequestResumeCompleted?.textareaDisabled === false &&
+      summary.guiApprovalRequestResumeCompleted?.editorVisible === true &&
+      summary.guiApprovalRequestResumeCompleted?.editorDisabled === false &&
       summary.guiApprovalRequestResumeCompleted?.stopButtonVisible === false &&
       currentFailureStatusHidden(summary.guiApprovalRequestResumeCompleted),
     guiApprovalRequestResumeHistoricalDetailsHidden:
@@ -334,20 +330,20 @@ export function buildApprovalRequestDecisionScenarioAssertions({
       APPROVAL_REQUEST_RESUME_PROMPT,
     guiApprovalRequestDecisionInputSubmitted:
       summary.approvalRequestDecisionInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.approvalRequestDecisionInputSend?.clicked?.clicked === true,
     guiApprovalRequestDecisionPendingVisible:
       summary.approvalRequestDecisionPendingGui?.hasSection === true &&
       summary.approvalRequestDecisionPendingGui?.hasApprovalContent === true &&
       summary.approvalRequestDecisionPendingGui?.hasPrompt === true &&
-      summary.approvalRequestDecisionPendingGui?.hasToolName === false &&
-      summary.approvalRequestDecisionPendingGui?.hasCommand === false &&
-      summary.approvalRequestDecisionPendingGui?.hasDetails === false &&
+      summary.approvalRequestDecisionPendingGui?.hasToolName === true &&
+      summary.approvalRequestDecisionPendingGui?.hasCommand === true &&
+      summary.approvalRequestDecisionPendingGui?.hasDetails === true &&
       summary.approvalRequestDecisionPendingGui?.hasPreformattedArguments ===
-        false &&
-      summary.approvalRequestDecisionPendingGui?.textareaVisible === true &&
-      summary.approvalRequestDecisionPendingGui?.textareaDisabled === false &&
-      summary.approvalRequestDecisionPendingGui?.singleLine === true &&
+        true &&
+      summary.approvalRequestDecisionPendingGui?.editorVisible === true &&
+      summary.approvalRequestDecisionPendingGui?.editorDisabled === false &&
+      summary.approvalRequestDecisionPendingGui?.isApprovalCard === true &&
       (expectedDecision === "cancel"
         ? summary.approvalRequestDecisionPendingGui?.cancelButtonVisible ===
           true
@@ -408,9 +404,9 @@ export function buildApprovalRequestDecisionScenarioAssertions({
             summary.guiApprovalRequestDeclineCompleted?.hasPrompt === true &&
             summary.guiApprovalRequestDeclineCompleted?.hasAssistantSummary ===
               true &&
-            summary.guiApprovalRequestDeclineCompleted?.textareaVisible ===
+            summary.guiApprovalRequestDeclineCompleted?.editorVisible ===
               true &&
-            summary.guiApprovalRequestDeclineCompleted?.textareaDisabled ===
+            summary.guiApprovalRequestDeclineCompleted?.editorDisabled ===
               false &&
             summary.guiApprovalRequestDeclineCompleted?.stopButtonVisible ===
               false &&
@@ -452,9 +448,8 @@ export function buildApprovalRequestDecisionScenarioAssertions({
             !emitTypes.includes("turn.completed"),
           guiApprovalRequestCancelCompleted:
             summary.guiApprovalRequestCancelCompleted?.hasPrompt === true &&
-            summary.guiApprovalRequestCancelCompleted?.textareaVisible ===
-              true &&
-            summary.guiApprovalRequestCancelCompleted?.textareaDisabled ===
+            summary.guiApprovalRequestCancelCompleted?.editorVisible === true &&
+            summary.guiApprovalRequestCancelCompleted?.editorDisabled ===
               false &&
             summary.guiApprovalRequestCancelCompleted?.stopButtonVisible ===
               false &&
@@ -502,15 +497,15 @@ export function buildApprovalRequestHostInterruptScenarioAssertions({
       APPROVAL_REQUEST_RESUME_PROMPT,
     guiApprovalRequestHostInterruptInputSubmitted:
       summary.approvalRequestDecisionInputSend?.afterFill
-        ?.promptVisibleInTextarea === true &&
+        ?.promptVisibleInEditor === true &&
       summary.approvalRequestDecisionInputSend?.clicked?.clicked === true,
     guiApprovalRequestHostInterruptPendingVisible:
       pendingGui?.hasSection === true &&
       pendingGui?.hasApprovalContent === true &&
       pendingGui?.hasPrompt === true &&
-      pendingGui?.textareaVisible === true &&
-      pendingGui?.textareaDisabled === false &&
-      pendingGui?.singleLine === true,
+      pendingGui?.editorVisible === true &&
+      pendingGui?.editorDisabled === false &&
+      pendingGui?.isApprovalCard === true,
     readModelApprovalRequestHostInterruptPending:
       pendingReadModel?.hasPendingRequest === true &&
       pendingReadModel?.payloadActionType === "tool_confirmation" &&
@@ -539,8 +534,8 @@ export function buildApprovalRequestHostInterruptScenarioAssertions({
       readModelCanceled?.pendingRequestCount === 0,
     guiApprovalRequestHostInterruptCanceled:
       guiCanceled?.hasPrompt === true &&
-      guiCanceled?.textareaVisible === true &&
-      guiCanceled?.textareaDisabled === false &&
+      guiCanceled?.editorVisible === true &&
+      guiCanceled?.editorDisabled === false &&
       guiCanceled?.stopButtonVisible === false &&
       currentFailureStatusHidden(guiCanceled),
     readModelApprovalRequestHostInterruptCanceled:

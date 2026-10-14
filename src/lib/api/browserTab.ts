@@ -186,6 +186,7 @@ export interface BrowserTabClosedEvent {
 }
 
 const BROWSER_TAB_REQUIRED_COMMANDS = [
+  "browser_tab_list",
   "browser_tab_mount",
   "browser_tab_set_bounds",
   "browser_tab_navigate",
@@ -223,6 +224,58 @@ export async function mountBrowserTab(
   params: BrowserTabMountParams,
 ): Promise<BrowserTabState> {
   return await invokeBrowserTab("browser_tab_mount", params);
+}
+
+export async function listBrowserTabs(params: {
+  browserSessionId: string;
+  threadId: string;
+}): Promise<BrowserTabState[]> {
+  const result = await safeInvoke<unknown>("browser_tab_list", params);
+  assertBrowserTabSnapshot(result, params);
+  return result;
+}
+
+function assertBrowserTabSnapshot(
+  value: unknown,
+  scope: { browserSessionId: string; threadId: string },
+): asserts value is BrowserTabState[] {
+  if (!Array.isArray(value)) {
+    throw new Error("Browser tab snapshot must be an array");
+  }
+  const tabs = new Set<string>();
+  const views = new Set<string>();
+  const webContents = new Set<number>();
+  let owner: string | null = null;
+  let selectedCount = 0;
+  for (const state of value) {
+    assertBrowserTabState(state);
+    const currentOwner = `${state.windowId}/${state.ownerWebContentsId}`;
+    if (
+      state.browserSessionId !== scope.browserSessionId ||
+      state.threadId !== scope.threadId ||
+      !state.tabId.trim() ||
+      !state.viewId.trim() ||
+      ![state.windowId, state.ownerWebContentsId, state.webContentsId].every(
+        (id) => Number.isInteger(id) && id > 0,
+      ) ||
+      tabs.has(state.tabId) ||
+      views.has(state.viewId) ||
+      webContents.has(state.webContentsId) ||
+      (owner !== null && owner !== currentOwner)
+    ) {
+      throw new Error(
+        "Browser tab snapshot contains mixed or duplicate identities",
+      );
+    }
+    owner = currentOwner;
+    tabs.add(state.tabId);
+    views.add(state.viewId);
+    webContents.add(state.webContentsId);
+    selectedCount += state.selected ? 1 : 0;
+  }
+  if (selectedCount > 1) {
+    throw new Error("Browser tab snapshot contains multiple selected tabs");
+  }
 }
 
 export async function setBrowserTabBounds(params: {

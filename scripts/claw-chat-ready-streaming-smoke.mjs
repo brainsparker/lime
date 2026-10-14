@@ -1,4 +1,8 @@
 #!/usr/bin/env node
+import {
+  COMPOSER_EDITOR_DOM_SOURCE,
+  fillComposerEditor,
+} from "./lib/composer-editor-dom.mjs";
 
 import fs from "node:fs";
 import os from "node:os";
@@ -1310,6 +1314,7 @@ function isBenignConsoleError(item) {
 
 function composerDomHelperScript() {
   return `
+    ${COMPOSER_EDITOR_DOM_SOURCE}
     function isElementVisible(element) {
       if (!element || !(element instanceof HTMLElement)) {
         return false;
@@ -1327,66 +1332,20 @@ function composerDomHelperScript() {
     }
 
     function isComposerWritable(element) {
-      if (!element || !(element instanceof HTMLElement)) {
-        return false;
-      }
-      if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-        return !element.disabled && !element.readOnly;
-      }
-      return element.isContentEditable;
-    }
-
-    function readComposerValue(element) {
-      if (!element) {
-        return "";
-      }
-      if (element instanceof HTMLTextAreaElement || element instanceof HTMLInputElement) {
-        return element.value || "";
-      }
-      return element.textContent || "";
-    }
-
-    function scoreComposerCandidate(element) {
-      let score = 0;
-      if (element.matches('textarea[name="agent-chat-message"]')) score += 100;
-      if (element.closest('[data-testid="inputbar-core-container"]')) score += 80;
-      if (element.closest('[data-testid="inputbar-connected-composer"]')) score += 60;
-      if (element.matches("textarea")) score += 40;
-      if (element.matches("input")) score += 20;
-      if (element.matches('[contenteditable="true"], [contenteditable="plaintext-only"], [role="textbox"]')) score += 10;
-      if (isElementVisible(element)) score += 5;
-      if (isComposerWritable(element)) score += 5;
-      const rect = element.getBoundingClientRect();
-      score += Math.max(0, Math.min(1000, rect.bottom)) / 10000;
-      return score;
+      return element instanceof HTMLElement &&
+        element.matches('[data-testid="composer-editor"][role="textbox"]') &&
+        element.getAttribute("aria-disabled") !== "true" &&
+        element.getAttribute("contenteditable") === "true";
     }
 
     function findComposerCandidates() {
-      const selectors = [
-        '[data-testid="inputbar-core-container"] textarea',
-        '[data-testid="inputbar-connected-composer"] textarea',
-        'textarea[name="agent-chat-message"]',
-        '[data-testid="inputbar-core-container"] [contenteditable="true"]',
-        '[data-testid="inputbar-connected-composer"] [contenteditable="true"]',
-        '[data-testid="inputbar-core-container"] [contenteditable="plaintext-only"]',
-        '[data-testid="inputbar-connected-composer"] [contenteditable="plaintext-only"]',
-        '[data-testid="inputbar-core-container"] [role="textbox"]',
-        '[data-testid="inputbar-connected-composer"] [role="textbox"]',
-        'textarea',
-        'input[type="text"]',
-        '[contenteditable="true"]',
-        '[contenteditable="plaintext-only"]',
-        '[role="textbox"]',
-      ];
-      return Array.from(document.querySelectorAll(selectors.join(",")))
-        .filter((element) => element instanceof HTMLElement)
-        .map((element) => ({
-          element,
-          visible: isElementVisible(element),
-          writable: isComposerWritable(element),
-          score: scoreComposerCandidate(element),
-        }))
-        .sort((left, right) => left.score - right.score);
+      return Array.from(document.querySelectorAll(
+        '[data-testid="composer-editor"][role="textbox"]',
+      )).map((element) => ({
+        element,
+        visible: isElementVisible(element),
+        writable: isComposerWritable(element),
+      }));
     }
 
     function findComposerElement() {
@@ -1471,8 +1430,8 @@ function buildPageSnapshotScript(recoveryExpectedText, longTurnLineCount) {
     return {
       href: window.location.href,
       ready: Boolean(composer) && isComposerWritable(composer),
-      hasTextarea: Boolean(composer && composer.matches("textarea")),
-      textareaValue: composer ? readComposerValue(composer) : "",
+      hasEditor: Boolean(composer),
+      editorText: composer ? readComposerEditorTextDom(composer) : "",
       composerCandidateCount: composerCandidates.length,
       composerDebug: composerCandidates.slice(-5).map((candidate) => {
         const rect = candidate.element.getBoundingClientRect();
@@ -1480,10 +1439,9 @@ function buildPageSnapshotScript(recoveryExpectedText, longTurnLineCount) {
           tag: candidate.element.tagName.toLowerCase(),
           name: candidate.element.getAttribute("name"),
           testId: candidate.element.getAttribute("data-testid"),
-          placeholder: candidate.element.getAttribute("placeholder"),
+          placeholder: candidate.element.getAttribute("data-placeholder"),
           visible: candidate.visible,
           writable: candidate.writable,
-          score: candidate.score,
           rect: {
             x: Math.round(rect.x),
             y: Math.round(rect.y),
@@ -1531,60 +1489,10 @@ async function waitForComposerReady(page, timeoutMs = 60_000) {
   );
 }
 
-async function fillComposer(page, value) {
-  const result = await page.evaluate(
-    new Function(
-      "value",
-      `
-        ${composerDomHelperScript()}
-        const composer = findComposerElement();
-        if (!composer) {
-          return { ok: false, reason: "composer-not-found" };
-        }
-        if (!isComposerWritable(composer)) {
-          return { ok: false, reason: "composer-not-writable" };
-        }
-        composer.focus();
-        if (composer instanceof HTMLTextAreaElement || composer instanceof HTMLInputElement) {
-          const prototype = composer instanceof HTMLTextAreaElement
-            ? HTMLTextAreaElement.prototype
-            : HTMLInputElement.prototype;
-          const valueSetter = Object.getOwnPropertyDescriptor(prototype, "value")?.set;
-          if (valueSetter) {
-            valueSetter.call(composer, value);
-          } else {
-            composer.value = value;
-          }
-          composer.dispatchEvent(new InputEvent("input", {
-            bubbles: true,
-            inputType: "insertText",
-            data: value,
-          }));
-          composer.dispatchEvent(new Event("change", { bubbles: true }));
-          composer.setSelectionRange(value.length, value.length);
-        } else {
-          composer.textContent = value;
-          composer.dispatchEvent(new InputEvent("input", {
-            bubbles: true,
-            inputType: "insertText",
-            data: value,
-          }));
-          composer.dispatchEvent(new Event("change", { bubbles: true }));
-        }
-        return {
-          ok: true,
-          tag: composer.tagName.toLowerCase(),
-          value: readComposerValue(composer),
-        };
-      `,
-    ),
-    value,
-  );
-  assert(result?.ok, `输入框填充失败: ${result?.reason || "unknown"}`);
-  assert(
-    String(result.value || "").includes(String(value).slice(0, 12)),
-    "输入框填充后未读回目标内容",
-  );
+async function fillComposer(page, text) {
+  const result = await fillComposerEditor(page, text);
+  assert(!result.disabled && result.connected, "输入框填充后不可编辑");
+  assert(result.text === text, "输入框填充后未准确读回目标内容");
   return result;
 }
 
@@ -1631,8 +1539,8 @@ async function submitComposer(
 
   const snapshotAfterEnter = await readPageSnapshot(page);
   if (
-    snapshotAfterEnter?.textareaValue &&
-    snapshotAfterEnter.textareaValue.includes(String(value).slice(0, 12))
+    snapshotAfterEnter?.editorText &&
+    snapshotAfterEnter.editorText.includes(String(value).slice(0, 12))
   ) {
     await clickComposerSendButton(page, timeoutMs);
   } else {
@@ -2964,13 +2872,9 @@ async function main() {
       summary.interruptedTurnStatus === "completed";
     const longTurnCanBeInterrupted =
       Boolean(firstDelta?.stopVisible) &&
-      appServerMethodSeen(
-        invokes,
-        APP_SERVER_METHOD_TURN_INTERRUPT,
-        {
-          direction: "request",
-        },
-      ) &&
+      appServerMethodSeen(invokes, APP_SERVER_METHOD_TURN_INTERRUPT, {
+        direction: "request",
+      }) &&
       Boolean(summary.interruptHasTurnScope) &&
       isInterruptedTurnStatus(summary.interruptedTurnStatus);
     summary.assertions = {
@@ -2995,11 +2899,9 @@ async function main() {
       ),
       appServerTurnCancelSeen: longTurnFastCompleteAccepted
         ? false
-        : appServerMethodSeen(
-            invokes,
-            APP_SERVER_METHOD_TURN_INTERRUPT,
-            { direction: "request" },
-          ),
+        : appServerMethodSeen(invokes, APP_SERVER_METHOD_TURN_INTERRUPT, {
+            direction: "request",
+          }),
       appServerSessionReadSeen: appServerMethodSeen(
         invokes,
         APP_SERVER_METHOD_THREAD_READ,

@@ -18,6 +18,18 @@ function hasDraftPayload(draft: InterruptedInputDraftSnapshot): boolean {
   );
 }
 
+export function cloneInterruptedInputDraft(
+  draft: InterruptedInputDraftSnapshot,
+): InterruptedInputDraftSnapshot {
+  const cloned = structuredClone(draft);
+  return {
+    ...cloned,
+    images: cloned.images ?? cloned.attachments ?? [],
+    pathReferences: cloned.pathReferences ?? [],
+    textElements: cloned.textElements ?? [],
+  };
+}
+
 function normalizeInterruptedInputDraft(
   draft: InterruptedInputDraftSnapshot | null | undefined,
 ): InterruptedInputDraftSnapshot | null {
@@ -25,13 +37,7 @@ function normalizeInterruptedInputDraft(
     return null;
   }
 
-  return {
-    text: draft.text,
-    images: draft.images ? [...draft.images] : [],
-    pathReferences: draft.pathReferences ? [...draft.pathReferences] : [],
-    textElements: draft.textElements ? [...draft.textElements] : [],
-    inputCapabilityRoute: draft.inputCapabilityRoute,
-  };
+  return cloneInterruptedInputDraft(draft);
 }
 
 function messageHasVisibleText(message: Message | null | undefined): boolean {

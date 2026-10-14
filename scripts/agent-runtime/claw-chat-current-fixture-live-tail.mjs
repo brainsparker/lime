@@ -232,18 +232,18 @@ async function evaluateLiveTailSnapshot(page, expectedItemId) {
       );
       const occurrenceCount = (fragment) =>
         fragment ? assistantTranscriptText.split(fragment).length - 1 : 0;
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
+      const editor = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
       );
-      const textareaRect = textarea?.getBoundingClientRect();
-      const textareaStyle = textarea ? window.getComputedStyle(textarea) : null;
-      const textareaVisible = Boolean(
-        textarea &&
-        textareaRect &&
-        textareaRect.width > 16 &&
-        textareaRect.height > 16 &&
-        textareaStyle?.visibility !== "hidden" &&
-        textareaStyle?.display !== "none",
+      const editorRect = editor?.getBoundingClientRect();
+      const editorStyle = editor ? window.getComputedStyle(editor) : null;
+      const editorVisible = Boolean(
+        editor &&
+        editorRect &&
+        editorRect.width > 16 &&
+        editorRect.height > 16 &&
+        editorStyle?.visibility !== "hidden" &&
+        editorStyle?.display !== "none",
       );
       const buttons = Array.from(document.querySelectorAll("button")).map(
         (button) => ({
@@ -374,9 +374,12 @@ async function evaluateLiveTailSnapshot(page, expectedItemId) {
           firstTextIndex < doneTextIndex,
         renderedTableCount,
         markdownTableRendered: renderedTableCount > 0,
-        textareaVisible,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
+        editorVisible,
+        editorDisabled:
+          editor instanceof HTMLElement
+            ? editor.getAttribute("aria-disabled") === "true" ||
+              editor.getAttribute("contenteditable") !== "true"
+            : null,
         stopButtonVisible,
         runningStatusVisible,
         startupNoteVisible,
@@ -455,8 +458,8 @@ async function waitForGuiLiveTailVisualOracle(page, options, expectedItemId) {
       snapshot.firstTextBeforeOverflow === true &&
       snapshot.firstTextBeforeTableTail === true &&
       snapshot.firstTextBeforeDone === true &&
-      snapshot.textareaVisible === true &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible === true &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false &&
       snapshot.startupNoteVisible === false
     ) {

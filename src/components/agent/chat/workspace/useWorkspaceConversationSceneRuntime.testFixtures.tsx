@@ -4,11 +4,13 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, vi } from "vitest";
 import { useWorkspaceConversationSceneRuntime } from "./useWorkspaceConversationSceneRuntime";
 
-vi.mock("react-i18next", async () => {
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
   const { agentZhCNResource } = await import("@/i18n/agentResources");
   const agentZhCN = agentZhCNResource as Record<string, string>;
 
   return {
+    ...actual,
     useTranslation: () => ({
       i18n: {
         language: "zh-CN",

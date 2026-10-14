@@ -35,6 +35,12 @@ import { createThreadResumeConversationProjection } from "@/lib/api/agentRuntime
 import type { AgentAccessMode } from "./agentChatStorage";
 import type { ActionRequiredScope, ApprovalDecision } from "../types";
 import { permissionProfileIdFromAccessMode } from "../utils/accessModeRuntime";
+import { isThreadSettingsUpdatedNotification } from "@limecloud/app-server-client";
+import {
+  getDefaultAppServerEventBus,
+  type AppServerEventBus,
+} from "@/lib/api/appServerEventBus";
+import type { AgentThreadSettingsUpdate } from "@/lib/api/agentRuntime/threadSettingsNotifications";
 import {
   projectChatRuntimeQueueControl,
   type ChatRuntimeQueueControlProjection,
@@ -103,6 +109,9 @@ export interface AgentRuntimeAdapter {
     model: string,
     reasoningEffort?: string,
   ): Promise<void>;
+  listenToThreadSettings?(
+    handler: (update: AgentThreadSettingsUpdate) => void,
+  ): UnlistenFn;
   updateSessionMetadata?(
     sessionId: string,
     patch: AgentSessionMetadataPatch,
@@ -164,6 +173,10 @@ export interface AgentRuntimeAdapterDeps {
       >
     >;
   listenRuntimeEvent?: AgentRuntimeEventListener;
+  eventBus?: Pick<
+    AppServerEventBus,
+    "subscribe" | "publishThreadSettingsNotifications"
+  >;
 }
 
 function buildGetSessionRequestKey(
@@ -182,9 +195,11 @@ function buildGetSessionRequestKey(
 export function createAgentRuntimeAdapter({
   client = createAgentRuntimeClient(),
   listenRuntimeEvent = listenAgentRuntimeEvent,
+  eventBus,
 }: AgentRuntimeAdapterDeps = {}): AgentRuntimeAdapter {
   const getSessionInFlight = new Map<string, Promise<AgentSessionDetail>>();
   const sessionThreadIds = new Map<string, string>();
+  const threadWorkspaceIds = new Map<string, string>();
 
   function rememberSessionThreadId(
     requestedSessionId: string,
@@ -204,6 +219,8 @@ export function createAgentRuntimeAdapter({
     if (!threadId) {
       return null;
     }
+    if (detail.workspace_id?.trim())
+      threadWorkspaceIds.set(threadId, detail.workspace_id.trim());
     if (normalizedSessionId) {
       sessionThreadIds.set(normalizedSessionId, threadId);
     }
@@ -274,10 +291,13 @@ export function createAgentRuntimeAdapter({
     settings: Omit<AppServerThreadSettingsUpdateParams, "threadId">,
   ): Promise<void> {
     const threadId = await resolveSessionThreadId(sessionId);
-    await client.updateAgentRuntimeThreadSettings({
+    const response = await client.updateAgentRuntimeThreadSettings({
       threadId,
       ...settings,
     });
+    (
+      eventBus ?? getDefaultAppServerEventBus()
+    ).publishThreadSettingsNotifications(response.notifications ?? []);
   }
 
   function accessModeThreadSettings(
@@ -306,6 +326,63 @@ export function createAgentRuntimeAdapter({
   }
 
   return {
+    listenToThreadSettings(handler) {
+      let active = true;
+      let nextRevision = 0;
+      const revisions = new Map<string, number>();
+      const unsubscribe = (eventBus ?? getDefaultAppServerEventBus()).subscribe(
+        {
+          onNotifications(notifications) {
+            for (const notification of notifications) {
+              if (!isThreadSettingsUpdatedNotification(notification)) continue;
+              const { threadSettings } = notification.params;
+              const threadId = notification.params.threadId.trim();
+              if (
+                (threadSettings.effort !== undefined &&
+                  threadSettings.effort !== null &&
+                  typeof threadSettings.effort !== "string") ||
+                (threadSettings.serviceTier !== undefined &&
+                  threadSettings.serviceTier !== null &&
+                  typeof threadSettings.serviceTier !== "string")
+              )
+                continue;
+              const revision = ++nextRevision;
+              revisions.set(threadId, revision);
+              const publish = () => {
+                if (!active || revisions.get(threadId) !== revision) return;
+                revisions.delete(threadId);
+                const sessionIds = [...sessionThreadIds]
+                  .filter(([, id]) => id === threadId)
+                  .map(([id]) => id);
+                handler({
+                  threadId,
+                  threadSettings,
+                  sessionIds,
+                  workspaceId: threadWorkspaceIds.get(threadId),
+                });
+              };
+              if ([...sessionThreadIds.values()].includes(threadId)) {
+                publish();
+              } else {
+                void getSessionDetail(threadId).then(publish, (error) => {
+                  if (active && revisions.get(threadId) === revision) {
+                  revisions.delete(threadId);
+                    console.warn(
+                      "[AgentChat] 无法解析 thread settings 的会话归属:",
+                      error,
+                    );
+                  }
+                });
+              }
+            }
+          },
+        },
+      );
+      return () => {
+        active = false;
+        unsubscribe();
+      };
+    },
     async getRuntimeProviderSelection() {
       return client.getRuntimeProviderSelection();
     },

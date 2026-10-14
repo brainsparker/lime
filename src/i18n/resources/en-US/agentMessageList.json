@@ -1,4 +1,6 @@
 {
+  "agentChat.messageList.userMessage.showMore": "Show more",
+  "agentChat.messageList.userMessage.showLess": "Show less",
   "agentChat.messageList.firstTokenStatus.cancelled.detail": "This request has stopped.",
   "agentChat.messageList.firstTokenStatus.cancelled.title": "Cancelled",
   "agentChat.messageList.firstTokenStatus.context.detail": "Conversation details and available materials are being prepared.",
@@ -391,9 +393,6 @@
   "agentChat.messageList.history.persistedEntrySummary": "To open the old chat faster, the latest {{loaded}} conversation entries are shown first; earlier history is still available.",
   "agentChat.messageList.history.loadingMore": "Loading more history",
   "agentChat.messageList.history.loadMore": "Load more history",
-  "agentChat.messageList.history.windowEntrySummaryRestored": "To open the chat faster, the latest {{loaded}} conversation entries are shown first; {{hidden}} earlier entries can be expanded when needed.",
-  "agentChat.messageList.history.windowEntrySummaryDeferred": "To open the chat faster, the latest {{loaded}} conversation entries are shown first; {{hidden}} earlier entries will continue loading while idle.",
-  "agentChat.messageList.history.expandEarlierEntries": "Expand earlier entries now",
   "agentChat.messageList.restoring.title": "Restoring generation session...",
   "agentChat.messageList.restoring.description": "Syncing the latest generation session. Please wait.",
   "agentChat.messageList.taskCenterEmpty.badge": "Chat",

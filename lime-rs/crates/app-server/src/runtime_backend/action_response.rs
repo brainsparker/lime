@@ -6,6 +6,9 @@ use app_server_protocol::AgentSessionActionType;
 use lime_agent::AgentActionRequiredScope;
 use lime_agent::AgentRuntimeState;
 use serde_json::{json, Value};
+use tool_runtime::execution_approval::{
+    approval_request_failed, APPROVAL_REQUEST_FAILED_METADATA_KEY,
+};
 
 pub(super) enum ActionResponseOutcome {
     Resolved,
@@ -124,6 +127,9 @@ pub(super) fn action_resolved_event(request: &ActionRespondRequest) -> RuntimeEv
             object.insert("decision".to_string(), json!(decision.as_str()));
             object.insert("decisionScope".to_string(), json!(decision.scope()));
         }
+    }
+    if approval_request_failed(request.metadata.as_ref()) {
+        payload[APPROVAL_REQUEST_FAILED_METADATA_KEY] = json!(true);
     }
     RuntimeEvent::new("action.resolved", payload)
 }
@@ -275,6 +281,24 @@ mod tests {
         wrong_turn.turn_id = Some("wrong-turn".to_string());
         assert!(required_action_scope(&action_request(Some(wrong_turn))).is_err());
         assert!(required_action_scope(&action_request(Some(complete_scope()))).is_ok());
+    }
+
+    #[test]
+    fn action_resolution_retains_approval_failure_provenance() {
+        let mut request = action_request(Some(complete_scope()));
+        request.action_type = AgentSessionActionType::ToolConfirmation;
+        request.decision = Some(AgentSessionApprovalDecision::Decline);
+        request.confirmed = false;
+        request.metadata = Some(json!({ (APPROVAL_REQUEST_FAILED_METADATA_KEY): true }));
+        let event = action_resolved_event(&request);
+        assert_eq!(event.payload[APPROVAL_REQUEST_FAILED_METADATA_KEY], true);
+        assert_eq!(event.payload["confirmed"], false);
+        assert_eq!(event.payload["requestId"], request.request_id);
+        request.metadata = None;
+        assert!(action_resolved_event(&request)
+            .payload
+            .get(APPROVAL_REQUEST_FAILED_METADATA_KEY)
+            .is_none());
     }
 
     #[tokio::test]

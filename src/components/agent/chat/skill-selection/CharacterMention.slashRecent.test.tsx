@@ -5,7 +5,7 @@ import {
   buildCatalogWithStoryVideoSceneEntry,
   createSkill,
   createStoryVideoSceneServiceSkill,
-  getTextarea,
+  getComposerEditor,
   mockListServiceSkills,
   renderHarness,
   typeSlashAndWait,
@@ -39,7 +39,7 @@ describe("CharacterMention slash recent entries", () => {
     const container = renderHarness({
       skills: [createSkill("技能A", "skill-a", true)],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -105,7 +105,7 @@ describe("CharacterMention slash recent entries", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -140,7 +140,7 @@ describe("CharacterMention slash recent entries", () => {
         }),
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -175,7 +175,7 @@ describe("CharacterMention slash recent entries", () => {
     const container = renderHarness({
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -211,7 +211,7 @@ describe("CharacterMention slash recent entries", () => {
     const container = renderHarness({
       onChangeSpy,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -252,7 +252,7 @@ describe("CharacterMention slash recent entries", () => {
     });
 
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -300,7 +300,7 @@ describe("CharacterMention slash recent entries", () => {
     });
 
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/com");
 

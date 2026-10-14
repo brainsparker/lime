@@ -67,6 +67,7 @@ pub(super) fn project_thread(thread: canonical::Thread) -> Result<v2::Thread, Js
         turns: thread
             .turns
             .into_iter()
+            .filter(|turn| !matches!(turn.queue, canonical::TurnQueueState::Queued { .. }))
             .map(project_turn)
             .collect::<Result<Vec<_>, _>>()?,
     })

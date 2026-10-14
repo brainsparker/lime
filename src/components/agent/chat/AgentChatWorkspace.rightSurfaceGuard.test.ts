@@ -70,11 +70,18 @@ describe("AgentChatWorkspace right surface state boundary", () => {
       "useWorkspaceArtifactActionRuntime({",
     );
     expect(workspaceSource).not.toContain(
-      "useWorkspaceRightSurfaceLocalStateRuntime()",
+      "useWorkspaceRightSurfaceLocalStateRuntime({",
+    );
+    expect(contextSurfaceSource).toContain(
+      "workspaceId: runtimeWorkspaceId ?? projectId ?? null",
+    );
+    expect(contextSurfaceSource).toContain("sessionId: sessionId ?? null");
+    expect(contextSurfaceSource).toContain(
+      "threadId: threadRead?.thread_id ?? null",
     );
     expect(workspaceSource).not.toContain("useWorkspaceArtifactOpenRuntime({");
     expect(contextSurfaceSource).toContain(
-      "useWorkspaceRightSurfaceLocalStateRuntime()",
+      "useWorkspaceRightSurfaceLocalStateRuntime({",
     );
     expect(artifactInteractionRuntimeSource).toContain(
       "useWorkspaceArtifactActionRuntime(action)",
@@ -93,9 +100,13 @@ describe("AgentChatWorkspace right surface state boundary", () => {
       "const [activeFilesRightSurfaceTarget",
     );
     expect(workspaceSource).not.toContain("const [activeArticleWorkspace");
-    expect(ownerSource).toContain("const [manualRightSurface");
-    expect(ownerSource).toContain("const [activeFilesRightSurfaceTarget");
-    expect(ownerSource).toContain("const [activeArticleWorkspace");
+    expect(ownerSource).toContain(
+      "export function useWorkspaceRightSurfaceLocalStateRuntime",
+    );
+    expect(ownerSource).toContain("WorkspaceRightSurfaceOwner");
+    expect(ownerSource).toContain("manualRightSurface:");
+    expect(ownerSource).toContain("activeFilesRightSurfaceTarget:");
+    expect(ownerSource).toContain("activeArticleWorkspace:");
     expect(ownerSource).toContain("openArticleWorkspaceRightSurface");
   });
 

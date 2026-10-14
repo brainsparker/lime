@@ -8,6 +8,14 @@ import {
   buildCanvasWorkbenchDiff,
   type CanvasWorkbenchDiffLine,
 } from "../../../utils/canvasWorkbenchDiff";
+import {
+  expandCanvasWorkbenchPatchDiffLines,
+  hasCanvasWorkbenchPatchLineNumbers,
+} from "./canvasWorkbenchPatch";
+export {
+  parseCanvasWorkbenchGitPatchToChangeItems,
+  parseCanvasWorkbenchPatchDiffLines,
+} from "./canvasWorkbenchPatch";
 import type { AgentThreadItem } from "@/lib/api/agentProtocolCoreTypes";
 
 export type CanvasWorkbenchChangeKind =
@@ -22,6 +30,7 @@ export interface CanvasWorkbenchChangeItem {
   id: string;
   path: string;
   absolutePath?: string | null;
+  destinationPath?: string | null;
   displayName?: string;
   source?: string;
   status?: "in_progress" | "completed" | "failed";
@@ -134,6 +143,7 @@ export function findChangeItemForSelection(
       const itemCandidates = [
         item.path,
         item.absolutePath,
+        item.destinationPath,
         resolveChangeItemDisplayName(item),
       ]
         .map(normalizeChangeItemPathForMatch)
@@ -217,15 +227,15 @@ export function resolveChangeStatusClassName(
   item: CanvasWorkbenchChangeItem,
 ): string {
   if (item.status === "failed") {
-    return "border-rose-200 bg-rose-50 text-rose-700";
+    return "border-[color:var(--lime-danger-border)] bg-[color:var(--lime-danger-soft)] text-[color:var(--lime-danger)]";
   }
   if (item.status === "in_progress") {
-    return "border-sky-200 bg-sky-50 text-sky-700";
+    return "border-[color:var(--lime-info-border)] bg-[color:var(--lime-info-soft)] text-[color:var(--lime-info)]";
   }
   if (item.status === "completed") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    return "border-[color:var(--lime-brand-muted)] bg-[color:var(--lime-brand-soft)] text-[color:var(--lime-brand)]";
   }
-  return "border-slate-200 bg-slate-50 text-slate-600";
+  return "border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] text-[color:var(--lime-text-muted)]";
 }
 
 export function normalizeCanvasWorkbenchChangeKind(
@@ -303,7 +313,8 @@ export function resolveChangeDisplayMeta(
       kind,
       shortLabelKey: "agentChat.canvasWorkbench.coding.changes.kindShort.added",
       labelKey: "agentChat.canvasWorkbench.coding.changes.kind.added",
-      className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+      className:
+        "border-[color:var(--lime-brand-muted)] bg-[color:var(--lime-brand-soft)] text-[color:var(--lime-brand)]",
     };
   }
   if (kind === "deleted") {
@@ -312,7 +323,8 @@ export function resolveChangeDisplayMeta(
       shortLabelKey:
         "agentChat.canvasWorkbench.coding.changes.kindShort.deleted",
       labelKey: "agentChat.canvasWorkbench.coding.changes.kind.deleted",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
+      className:
+        "border-[color:var(--lime-danger-border)] bg-[color:var(--lime-danger-soft)] text-[color:var(--lime-danger)]",
     };
   }
   if (kind === "renamed") {
@@ -321,7 +333,8 @@ export function resolveChangeDisplayMeta(
       shortLabelKey:
         "agentChat.canvasWorkbench.coding.changes.kindShort.renamed",
       labelKey: "agentChat.canvasWorkbench.coding.changes.kind.renamed",
-      className: "border-sky-200 bg-sky-50 text-sky-700",
+      className:
+        "border-[color:var(--lime-info-border)] bg-[color:var(--lime-info-soft)] text-[color:var(--lime-info)]",
     };
   }
   if (kind === "copied") {
@@ -330,7 +343,8 @@ export function resolveChangeDisplayMeta(
       shortLabelKey:
         "agentChat.canvasWorkbench.coding.changes.kindShort.copied",
       labelKey: "agentChat.canvasWorkbench.coding.changes.kind.copied",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
+      className:
+        "border-[color:var(--lime-warning-border)] bg-[color:var(--lime-warning-soft)] text-[color:var(--lime-warning)]",
     };
   }
   if (kind === "modified") {
@@ -339,14 +353,16 @@ export function resolveChangeDisplayMeta(
       shortLabelKey:
         "agentChat.canvasWorkbench.coding.changes.kindShort.modified",
       labelKey: "agentChat.canvasWorkbench.coding.changes.kind.modified",
-      className: "border-slate-200 bg-slate-50 text-slate-700",
+      className:
+        "border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)] text-[color:var(--lime-text)]",
     };
   }
   return {
     kind,
     shortLabelKey: "agentChat.canvasWorkbench.coding.changes.kindShort.unknown",
     labelKey: "agentChat.canvasWorkbench.coding.changes.kind.unknown",
-    className: "border-slate-200 bg-white text-slate-500",
+    className:
+      "border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] text-[color:var(--lime-text-muted)]",
   };
 }
 
@@ -426,7 +442,10 @@ export function buildCanvasWorkbenchChangeDiffLines(
     return [];
   }
   if (item.diffLines?.length) {
-    return item.diffLines;
+    return loadedContent === undefined
+      ? item.diffLines
+      : (expandCanvasWorkbenchPatchDiffLines(item.diffLines, loadedContent) ??
+          item.diffLines);
   }
   const currentContent = loadedContent ?? item.currentContent;
   if (item.previousContent != null && currentContent != null) {
@@ -438,216 +457,26 @@ export function buildCanvasWorkbenchChangeDiffLines(
   if (item.previousContent != null && currentContent === null) {
     return buildCanvasWorkbenchDiff(item.previousContent, "");
   }
+  if (loadedContent !== undefined) {
+    return splitChangeContentLines(loadedContent).map((value, index) => ({
+      type: "context",
+      value,
+      oldLineNumber: null,
+      newLineNumber: index + 1,
+    }));
+  }
   return [];
 }
 
-export function parseCanvasWorkbenchGitPatchToChangeItems(
-  patch: string,
-): CanvasWorkbenchChangeItem[] {
-  const sections = splitGitPatchSections(patch);
-  return sections.flatMap((section, index) => {
-    const item = parseGitPatchSection(section, index);
-    return item ? [item] : [];
-  });
-}
-
-function splitGitPatchSections(patch: string): string[][] {
-  const sections: string[][] = [];
-  let current: string[] = [];
-
-  patch
-    .replace(/\r\n/g, "\n")
-    .split("\n")
-    .forEach((line) => {
-      if (line.startsWith("diff --git ")) {
-        if (current.length > 0) {
-          sections.push(current);
-        }
-        current = [line];
-        return;
-      }
-      if (current.length > 0) {
-        current.push(line);
-      }
-    });
-
-  if (current.length > 0) {
-    sections.push(current);
-  }
-  return sections;
-}
-
-function parseGitPatchSection(
-  lines: string[],
-  index: number,
-): CanvasWorkbenchChangeItem | null {
-  const diffHeader = lines.find((line) => line.startsWith("diff --git "));
-  if (!diffHeader) {
-    return null;
-  }
-
-  const oldPath = parseDiffHeaderPath(diffHeader, "a/");
-  const newPath = parseDiffHeaderPath(diffHeader, "b/");
-  const minusPath = lines
-    .find((line) => line.startsWith("--- "))
-    ?.slice(4)
-    .trim();
-  const plusPath = lines
-    .find((line) => line.startsWith("+++ "))
-    ?.slice(4)
-    .trim();
-  const path =
-    normalizeGitPatchPath(plusPath) ||
-    normalizeGitPatchPath(newPath) ||
-    normalizeGitPatchPath(minusPath) ||
-    normalizeGitPatchPath(oldPath);
-  if (!path) {
-    return null;
-  }
-
-  const diffLines = parseGitPatchDiffLines(lines);
-  const preview = diffLines.find((line) => line.type !== "context")?.value;
-  const changeKind = inferGitPatchChangeKind(lines);
-  const hunk = parseGitPatchHunk(lines);
-
-  return {
-    id: `git:${index}:${path}`,
-    path,
-    displayName: extractFileNameFromPath(path),
-    source: "git",
-    status: "completed",
-    changeKind,
-    preview,
-    diffLines,
-    hunkStartLine: hunk?.newStart ?? undefined,
-    hunkEndLine:
-      hunk && hunk.newLength > 0
-        ? hunk.newStart + hunk.newLength - 1
-        : (hunk?.newStart ?? undefined),
-    hunkHeader: hunk?.header,
-  };
-}
-
-interface ParsedGitPatchHunk {
-  header: string;
-  oldStart: number;
-  oldLength: number;
-  newStart: number;
-  newLength: number;
-}
-
-function parseGitPatchHunk(lines: string[]): ParsedGitPatchHunk | null {
-  const hunkLine = lines.find((line) => line.startsWith("@@"));
-  if (!hunkLine) {
-    return null;
-  }
-
-  const match = hunkLine.match(
-    /^@@ -(?<oldStart>\d+)(?:,(?<oldLength>\d+))? \+(?<newStart>\d+)(?:,(?<newLength>\d+))? @@/,
+export function canLoadCanvasWorkbenchChangeFullFile(
+  item: CanvasWorkbenchChangeItem | undefined,
+): boolean {
+  return Boolean(
+    item &&
+    inferCanvasWorkbenchChangeKind(item) !== "deleted" &&
+    (!item.diffLines?.length ||
+      hasCanvasWorkbenchPatchLineNumbers(item.diffLines)),
   );
-  if (!match?.groups) {
-    return null;
-  }
-
-  const oldStart = Number.parseInt(match.groups.oldStart || "0", 10);
-  const oldLength = Number.parseInt(match.groups.oldLength || "1", 10);
-  const newStart = Number.parseInt(match.groups.newStart || "0", 10);
-  const newLength = Number.parseInt(match.groups.newLength || "1", 10);
-
-  return {
-    header: hunkLine,
-    oldStart: Number.isFinite(oldStart) ? oldStart : 0,
-    oldLength: Number.isFinite(oldLength) ? oldLength : 0,
-    newStart: Number.isFinite(newStart) ? newStart : 0,
-    newLength: Number.isFinite(newLength) ? newLength : 0,
-  };
-}
-
-function parseDiffHeaderPath(header: string, prefix: "a/" | "b/"): string {
-  const marker = ` ${prefix}`;
-  const index = header.indexOf(marker);
-  if (index < 0) {
-    return "";
-  }
-  return header.slice(index + 1).split(/\s+/)[0] || "";
-}
-
-function normalizeGitPatchPath(value: string | null | undefined): string {
-  const trimmed = (value || "").trim();
-  if (!trimmed || trimmed === "/dev/null" || trimmed === "NUL") {
-    return "";
-  }
-  return normalizeCanvasWorkbenchPath(
-    trimmed.replace(/^"|"$/g, "").replace(/^[ab]\//, ""),
-  ).replace(/^\/+/, "");
-}
-
-function parseGitPatchDiffLines(lines: string[]): CanvasWorkbenchDiffLine[] {
-  const diffLines: CanvasWorkbenchDiffLine[] = [];
-  let inHunk = false;
-  let oldLineNumber = 0;
-  let newLineNumber = 0;
-
-  lines.forEach((line) => {
-    if (line.startsWith("@@")) {
-      inHunk = true;
-      const hunk = parseGitPatchHunk([line]);
-      oldLineNumber = hunk?.oldStart ?? 0;
-      newLineNumber = hunk?.newStart ?? 0;
-      return;
-    }
-    if (!inHunk || line.startsWith("\\ No newline")) {
-      return;
-    }
-    if (line.startsWith("+") && !line.startsWith("+++ ")) {
-      diffLines.push({
-        type: "add",
-        value: line.slice(1),
-        oldLineNumber: null,
-        newLineNumber,
-      });
-      newLineNumber += 1;
-      return;
-    }
-    if (line.startsWith("-") && !line.startsWith("--- ")) {
-      diffLines.push({
-        type: "remove",
-        value: line.slice(1),
-        oldLineNumber,
-        newLineNumber: null,
-      });
-      oldLineNumber += 1;
-      return;
-    }
-    if (line.startsWith(" ")) {
-      diffLines.push({
-        type: "context",
-        value: line.slice(1),
-        oldLineNumber,
-        newLineNumber,
-      });
-      oldLineNumber += 1;
-      newLineNumber += 1;
-    }
-  });
-
-  return diffLines;
-}
-
-function inferGitPatchChangeKind(lines: string[]): CanvasWorkbenchChangeKind {
-  if (lines.some((line) => line.startsWith("new file mode "))) {
-    return "added";
-  }
-  if (lines.some((line) => line.startsWith("deleted file mode "))) {
-    return "deleted";
-  }
-  if (lines.some((line) => line.startsWith("rename from "))) {
-    return "renamed";
-  }
-  if (lines.some((line) => line.startsWith("copy from "))) {
-    return "copied";
-  }
-  return "modified";
 }
 
 export function buildCanvasWorkbenchGitApplyPatch(

@@ -1,0 +1,7 @@
+interface:
+  display_name: "Lime UI 设计语言"
+  short_description: "依据 Codex Desktop 证据对齐界面与代码结构，保留 Lime 主题、多模型和首页 Banner"
+  default_prompt: "使用 $lime-design-language，依据 REA 安装包证据与公开源码对齐 GUI 结构、交互和命名，保留 Lime 主题、多模型与首页 Banner，同步清理旧实现并记录验证等级。"
+
+policy:
+  allow_implicit_invocation: true

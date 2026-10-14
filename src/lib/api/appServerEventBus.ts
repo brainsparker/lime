@@ -1,5 +1,9 @@
 import { AppServerClient } from "./appServerClient";
-import { METHOD_SERVER_REQUEST_RESOLVED } from "@limecloud/app-server-client";
+import {
+  METHOD_SERVER_REQUEST_RESOLVED,
+  isThreadSettingsUpdatedNotification,
+} from "@limecloud/app-server-client";
+import { ThreadSettingsNotificationMirrors } from "./agentRuntime/threadSettingsNotifications";
 import {
   isAppServerJsonRpcNotification,
   isAppServerJsonRpcRequest,
@@ -42,6 +46,7 @@ export class AppServerEventBus {
   readonly #resolvedServerRequestIds = new Set<string>();
   readonly #seenServerRequestIds = new Set<string>();
   readonly #subscriptions = new Map<number, AppServerEventBusSubscription>();
+  readonly #settingsMirrors = new ThreadSettingsNotificationMirrors();
   #connectionGeneration = 0;
   #draining = false;
   #nextSubscriptionId = 1;
@@ -87,6 +92,32 @@ export class AppServerEventBus {
     this.#pendingServerRequests.clear();
     this.#resolvedServerRequestIds.clear();
     this.#seenServerRequestIds.clear();
+    this.#settingsMirrors.reset();
+  }
+
+  publishThreadSettingsNotifications(
+    notifications: AppServerJsonRpcNotification[],
+  ): void {
+    this.#dispatchNotifications(
+      notifications.filter(isThreadSettingsUpdatedNotification),
+      "response",
+    );
+  }
+
+  #dispatchNotifications(
+    notifications: AppServerJsonRpcNotification[],
+    source: "response" | "drain",
+    subscriptions = this.#activeSubscriptions(),
+  ): void {
+    const delivered = notifications.filter((notification) =>
+      this.#settingsMirrors.accept(notification, source),
+    );
+    this.#recordResolvedServerRequests(delivered);
+    if (delivered.length > 0) {
+      for (const subscription of subscriptions) {
+        subscription.onNotifications?.(delivered);
+      }
+    }
   }
 
   async #drainLoop(): Promise<void> {
@@ -133,12 +164,11 @@ export class AppServerEventBus {
           const serverRequests = readServerRequests(drainedMessages);
           hasDrainedMessages =
             notifications.length > 0 || serverRequests.length > 0;
-          this.#recordResolvedServerRequests(notifications);
-          if (notifications.length > 0) {
-            for (const subscription of activeSubscriptions) {
-              subscription.onNotifications?.(notifications);
-            }
-          }
+          this.#dispatchNotifications(
+            notifications,
+            "drain",
+            activeSubscriptions,
+          );
           this.#queueServerRequests(serverRequests);
           this.#flushPendingServerRequests(activeSubscriptions);
         } catch (error) {

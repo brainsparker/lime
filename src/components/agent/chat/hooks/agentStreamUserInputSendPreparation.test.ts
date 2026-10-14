@@ -201,7 +201,9 @@ describe("agentStreamUserInputSendPreparation", () => {
               source: "file_manager",
             },
           ],
-          textElements: [{ type: "text", text: "请结合截图和文件继续审查" }],
+          textElements: [
+            { byteRange: { start: 9, end: 15 }, placeholder: "截图" },
+          ],
           inputCapabilityRoute: {
             kind: "installed_skill",
             skillKey: "code-review",
@@ -218,7 +220,7 @@ describe("agentStreamUserInputSendPreparation", () => {
           path: "/project/report.md",
         },
       ],
-      textElements: [{ type: "text", text: "请结合截图和文件继续审查" }],
+      textElements: [{ byteRange: { start: 9, end: 15 }, placeholder: "截图" }],
       inputCapabilityRoute: {
         kind: "installed_skill",
         skillKey: "code-review",
@@ -230,7 +232,9 @@ describe("agentStreamUserInputSendPreparation", () => {
           path: "/project/report.md",
         },
       ],
-      text_elements: [{ type: "text", text: "请结合截图和文件继续审查" }],
+      text_elements: [
+        { byteRange: { start: 9, end: 15 }, placeholder: "截图" },
+      ],
       input_capability_route: {
         kind: "installed_skill",
         skillKey: "code-review",

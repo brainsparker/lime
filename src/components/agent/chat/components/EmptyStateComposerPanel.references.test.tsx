@@ -204,12 +204,12 @@ describe("EmptyStateComposerPanel", () => {
 
   it("首页输入区应直接聚焦输入主路径，不再展示额外起始卡片", () => {
     const container = renderPanel();
-    const textarea = container.querySelector("textarea");
+    const editor = container.querySelector('[data-testid="composer-editor"][role="textbox"]');
 
     expect(
       container.querySelector('[data-testid="empty-state-kickoff-guide"]'),
     ).toBeNull();
-    expect(textarea).toBeTruthy();
+    expect(editor).toBeTruthy();
   });
 
   it("带入项目参考时，应继续在输入区顶部展示参考对象", () => {

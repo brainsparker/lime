@@ -1,4 +1,4 @@
-import type { WorkspaceFilesSurfaceTarget } from "./WorkspaceFilesSurface";
+import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import { isWorkspaceFilesSurfaceAvailable } from "./workspaceFiles";
 import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
 import { selectWorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
@@ -6,13 +6,13 @@ import type { WorkspaceRightSurfaceBrowserIntent } from "./workspaceRightSurface
 
 interface UseWorkspaceRightSurfaceDerivedRuntimeParams {
   activeBrowserRightSurfaceIntent: WorkspaceRightSurfaceBrowserIntent | null;
-  activeFilesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null;
+  activeFilesRightSurfaceTarget: ReviewThreadSidePanelTarget | null;
   activePluginSurfaceContainerId: string | null;
   activePluginSurfaces: WorkspacePluginSurfaceDescriptor[];
   pendingBrowserRightSurfaceIntent: WorkspaceRightSurfaceBrowserIntent | null;
-  pendingFileTarget: WorkspaceFilesSurfaceTarget | null;
+  pendingFileTarget: ReviewThreadSidePanelTarget | null;
   pendingPluginSurfaces: WorkspacePluginSurfaceDescriptor[];
-  preferredServiceSkillResultFileTarget: WorkspaceFilesSurfaceTarget | null;
+  preferredServiceSkillResultFileTarget: ReviewThreadSidePanelTarget | null;
   projectRootPath?: string | null;
   threadItems?: readonly { type: string; paths?: readonly string[] }[];
 }
@@ -21,7 +21,7 @@ interface UseWorkspaceRightSurfaceDerivedRuntimeResult {
   browserRightSurfaceAvailable: boolean;
   browserRightSurfaceIntent: WorkspaceRightSurfaceBrowserIntent | null;
   filesRightSurfaceAvailable: boolean;
-  filesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null;
+  filesRightSurfaceTarget: ReviewThreadSidePanelTarget | null;
   pluginSurfaceRightSurface: WorkspacePluginSurfaceDescriptor | null;
   pluginSurfaceRightSurfaceAvailable: boolean;
   pluginSurfaceRightSurfaces: WorkspacePluginSurfaceDescriptor[];
@@ -42,7 +42,7 @@ export function useWorkspaceRightSurfaceDerivedRuntime({
   const browserRightSurfaceAvailable = true;
   const browserRightSurfaceIntent =
     activeBrowserRightSurfaceIntent ?? pendingBrowserRightSurfaceIntent;
-  const liveFilesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null =
+  const liveFilesRightSurfaceTarget: ReviewThreadSidePanelTarget | null =
     preferredServiceSkillResultFileTarget ?? pendingFileTarget;
   const pluginSurfaceRightSurfaces =
     activePluginSurfaces.length > 0
@@ -54,7 +54,7 @@ export function useWorkspaceRightSurfaceDerivedRuntime({
   );
   const pluginSurfaceRightSurfaceAvailable =
     pluginSurfaceRightSurfaces.length > 0;
-  const filesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null =
+  const filesRightSurfaceTarget: ReviewThreadSidePanelTarget | null =
     activeFilesRightSurfaceTarget ?? liveFilesRightSurfaceTarget;
   const filesRightSurfaceAvailable = isWorkspaceFilesSurfaceAvailable({
     targetRelativePath: filesRightSurfaceTarget?.relativePath,

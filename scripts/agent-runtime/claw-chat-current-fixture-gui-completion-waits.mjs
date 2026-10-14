@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 import {
   ASSISTANT_DONE_TEXT,
   NEWS_PROMPT,
@@ -26,8 +27,8 @@ export function isGuiCanceledSnapshotReady(
 ) {
   if (
     !snapshot?.hasPrompt ||
-    snapshot.textareaVisible !== true ||
-    snapshot.textareaDisabled !== false ||
+    snapshot.editorVisible !== true ||
+    snapshot.editorDisabled !== false ||
     snapshot.stopButtonVisible !== false
   ) {
     return false;
@@ -58,8 +59,8 @@ export function isGuiChatCompletedSnapshotReady(
   const contentReady =
     snapshot?.hasPrompt &&
     hasExpectedAssistantContent &&
-    snapshot?.textareaVisible === true &&
-    snapshot?.textareaDisabled === false &&
+    snapshot?.editorVisible === true &&
+    snapshot?.editorDisabled === false &&
     snapshot?.stopButtonVisible === false &&
     scopedDedupeGuardHits.every((hit) => hit.occurrences <= 1) &&
     scopedDisallowedVisibleTextHits.every((hit) => hit.occurrences === 0);
@@ -77,7 +78,7 @@ export function isGuiChatCompletedSnapshotReady(
   return (
     expectedSessionId.length > 0 &&
     expectedTurnId.length > 0 &&
-    snapshot.textareaSessionId === expectedSessionId &&
+    snapshot.editorSessionId === expectedSessionId &&
     snapshot.completionScope?.runtimeTurnId === expectedTurnId &&
     snapshot.completionScope?.assistantRuntimeTurnId === expectedTurnId &&
     ["canceled", "cancelled", "completed", "failed", "interrupted"].includes(
@@ -109,311 +110,324 @@ export async function waitForGuiChatCompleted(
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({
-        prompt,
-        doneText,
-        summaryText,
-        requiredAssistantVisibleTexts,
-        dedupeGuardTexts,
-        disallowedVisibleTexts,
-      }) => {
-        const text = document.body?.innerText || "";
-        const mainText = document.querySelector("main")?.innerText || text;
-        const turnGroups = Array.from(
-          document.querySelectorAll('[data-testid="message-turn-group"]'),
-        );
-        const promptTurnGroups = turnGroups.filter((group) =>
-          (group.innerText || "").includes(prompt),
-        );
-        const messageListScope =
-          document.querySelector('[data-testid="message-list-column"]') ||
-          document;
-        const readTurnGroupSnapshot = (group) => {
-          const groupText = group?.innerText || mainText;
-          const assistantBubbles = Array.from(
-            (group || messageListScope).querySelectorAll(
-              '[data-message-role="assistant"]',
-            ),
-          );
-          const lastAssistantMessageId =
-            group?.getAttribute("data-last-assistant-message-id") || "";
-          const assistantScope =
-            assistantBubbles.find(
-              (bubble) =>
-                bubble.getAttribute("data-message-id") ===
-                lastAssistantMessageId,
-            ) ??
-            assistantBubbles[assistantBubbles.length - 1] ??
-            group;
-          const assistantScopeText = assistantScope?.innerText || groupText;
-          const assistantTurnText = assistantBubbles
-            .map((bubble) => bubble.innerText || "")
-            .join("\n");
-          const hasRequiredAssistantVisibleTexts =
-            requiredAssistantVisibleTexts.every((requiredText) =>
-              groupText.includes(requiredText),
-            );
-
-          return {
-            group,
-            groupText,
-            assistantScope,
-            assistantScopeText,
-            assistantTurnText,
-            hasExpectedAssistantContent:
-              requiredAssistantVisibleTexts.length > 0
-                ? assistantScopeText.includes(summaryText) &&
-                  hasRequiredAssistantVisibleTexts
-                : assistantScopeText.includes(summaryText) ||
-                  assistantScopeText.includes(doneText),
-          };
-        };
-        const scopedSnapshot =
-          [...promptTurnGroups]
-            .reverse()
-            .map(readTurnGroupSnapshot)
-            .find((candidate) => candidate.hasExpectedAssistantContent) ??
-          (promptTurnGroups.length > 0
-            ? readTurnGroupSnapshot(
-                promptTurnGroups[promptTurnGroups.length - 1],
-              )
-            : readTurnGroupSnapshot(null));
-        const scopedTurnGroup = scopedSnapshot.group;
-        const scopedText = scopedSnapshot.groupText;
-        const assistantScope = scopedSnapshot.assistantScope;
-        const assistantScopeText = scopedSnapshot.assistantScopeText;
-        const assistantTurnText = scopedSnapshot.assistantTurnText;
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
-        );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          rect &&
-          rect.width > 16 &&
-          rect.height > 16 &&
-          style?.visibility !== "hidden" &&
-          style?.display !== "none",
-        );
-        const buttons = Array.from(document.querySelectorAll("button")).map(
-          (button) => ({
-            title: button.getAttribute("title") || "",
-            text: button.textContent || "",
-            aria: button.getAttribute("aria-label") || "",
-            disabled: button.disabled,
-          }),
-        );
-        const stopButtonVisible = buttons.some((button) => {
-          const label = [button.title, button.text, button.aria].join("\n");
-          return (
-            !button.disabled &&
-            (label.includes("停止") ||
-              label.includes("终止") ||
-              /\bStop\b/i.test(label))
-          );
-        });
-        const approvalRecordRoot = scopedTurnGroup ?? messageListScope;
-        const compactTimelinePreviewCount = approvalRecordRoot.querySelectorAll(
-          '[data-testid="message-list-historical-timeline-preview:leading"]',
-        ).length;
-        const approvalRecords = Array.from(
-          approvalRecordRoot.querySelectorAll(
-            '[data-testid="timeline-approval-record"]',
-          ),
-        ).map((record) => ({
-          text: record.textContent || "",
-          lineBreaks: ((record.textContent || "").match(/\n/gu) || []).length,
-          innerTextLineBreaks: ((record.innerText || "").match(/\n/gu) || [])
-            .length,
-        }));
-        const approvalRecordText = approvalRecords
-          .map((record) => record.text)
-          .join("\n");
-        const readVisiblePlanOwner = ({ kind, selector, itemSelector }) => {
-          const root = document.querySelector(selector);
-          const ownerRect = root?.getBoundingClientRect();
-          const ownerStyle = root ? window.getComputedStyle(root) : null;
-          const visible = Boolean(
-            root &&
-            ownerRect &&
-            ownerRect.width > 16 &&
-            ownerRect.height > 8 &&
-            ownerStyle?.visibility !== "hidden" &&
-            ownerStyle?.display !== "none",
-          );
-          return {
-            kind,
-            visible,
-            text: root?.textContent || "",
-            itemCount: itemSelector
-              ? root?.querySelectorAll(itemSelector).length || 0
-              : 0,
-          };
-        };
-        const planOwners = [
-          readVisiblePlanOwner({
-            kind: "run-control-plan",
-            selector: '[data-testid="task-center-run-control-plan"]',
-            itemSelector: '[data-testid="task-center-run-control-plan-item"]',
-          }),
-          readVisiblePlanOwner({
-            kind: "task-rail-plan",
-            selector: '[data-testid="task-center-task-rail-plan"]',
-            itemSelector: '[data-testid="task-center-task-rail-plan-item"]',
-          }),
-          readVisiblePlanOwner({
-            kind: "message-plan-block",
-            selector: '[data-testid="agent-plan-block"]',
-            itemSelector: null,
-          }),
-        ].filter((owner) => owner.visible);
-        const planOwnerText = planOwners.map((owner) => owner.text).join("\n");
-        const planDecisionPanel = document.querySelector(
-          '[data-testid="plan-composer-decision-panel"]',
-        );
-        const planDecisionRect = planDecisionPanel?.getBoundingClientRect();
-        const planDecisionStyle = planDecisionPanel
-          ? window.getComputedStyle(planDecisionPanel)
-          : null;
-        const planDecisionVisible = Boolean(
-          planDecisionPanel &&
-          planDecisionRect &&
-          planDecisionRect.width > 320 &&
-          planDecisionRect.height > 48 &&
-          planDecisionStyle?.visibility !== "hidden" &&
-          planDecisionStyle?.display !== "none",
-        );
-        const legacyUpdatePlanVisibleHits = [
-          "UpdatePlanTool",
-          "update_plan",
-        ].filter((label) =>
-          [mainText, planOwnerText].some((textValue) =>
-            textValue.includes(label),
-          ),
-        );
-        const approvalLegacyFragments = [
+      withComposerEditorDom(
+        ({
           prompt,
-          "历史记录只读",
-          "歷史記錄只讀",
-          "History records are read-only",
-          "履歴記録は読み取り専用",
-          "히스토리 기록은 읽기 전용",
-          "请求",
-          "請求",
-          "Request",
-          "リクエスト",
-          "요청",
-          "范围",
-          "範圍",
-          "範囲",
-          "범위",
-          "Scope",
-          "ソース",
-          "来源",
-          "來源",
-          "Source",
-          "출처",
-        ];
-        return {
-          url: window.location.href,
-          hasPrompt: scopedText.includes(prompt),
-          hasAssistantSummary: assistantScopeText.includes(summaryText),
-          requiredVisibleTextHits: requiredAssistantVisibleTexts.map(
-            (requiredText) => ({
-              text: requiredText,
-              occurrences: scopedText.split(requiredText).length - 1,
+          doneText,
+          summaryText,
+          requiredAssistantVisibleTexts,
+          dedupeGuardTexts,
+          disallowedVisibleTexts,
+        }) => {
+          const text = document.body?.innerText || "";
+          const mainText = document.querySelector("main")?.innerText || text;
+          const turnGroups = Array.from(
+            document.querySelectorAll('[data-testid="message-turn-group"]'),
+          );
+          const promptTurnGroups = turnGroups.filter((group) =>
+            (group.innerText || "").includes(prompt),
+          );
+          const messageListScope =
+            document.querySelector('[data-testid="message-list-column"]') ||
+            document;
+          const readTurnGroupSnapshot = (group) => {
+            const groupText = group?.innerText || mainText;
+            const assistantBubbles = Array.from(
+              (group || messageListScope).querySelectorAll(
+                '[data-message-role="assistant"]',
+              ),
+            );
+            const lastAssistantMessageId =
+              group?.getAttribute("data-last-assistant-message-id") || "";
+            const assistantScope =
+              assistantBubbles.find(
+                (bubble) =>
+                  bubble.getAttribute("data-message-id") ===
+                  lastAssistantMessageId,
+              ) ??
+              assistantBubbles[assistantBubbles.length - 1] ??
+              group;
+            const assistantScopeText = assistantScope?.innerText || groupText;
+            const assistantTurnText = assistantBubbles
+              .map((bubble) => bubble.innerText || "")
+              .join("\n");
+            const hasRequiredAssistantVisibleTexts =
+              requiredAssistantVisibleTexts.every((requiredText) =>
+                groupText.includes(requiredText),
+              );
+
+            return {
+              group,
+              groupText,
+              assistantScope,
+              assistantScopeText,
+              assistantTurnText,
+              hasExpectedAssistantContent:
+                requiredAssistantVisibleTexts.length > 0
+                  ? assistantScopeText.includes(summaryText) &&
+                    hasRequiredAssistantVisibleTexts
+                  : assistantScopeText.includes(summaryText) ||
+                    assistantScopeText.includes(doneText),
+            };
+          };
+          const scopedSnapshot =
+            [...promptTurnGroups]
+              .reverse()
+              .map(readTurnGroupSnapshot)
+              .find((candidate) => candidate.hasExpectedAssistantContent) ??
+            (promptTurnGroups.length > 0
+              ? readTurnGroupSnapshot(
+                  promptTurnGroups[promptTurnGroups.length - 1],
+                )
+              : readTurnGroupSnapshot(null));
+          const scopedTurnGroup = scopedSnapshot.group;
+          const scopedText = scopedSnapshot.groupText;
+          const assistantScope = scopedSnapshot.assistantScope;
+          const assistantScopeText = scopedSnapshot.assistantScopeText;
+          const assistantTurnText = scopedSnapshot.assistantTurnText;
+          const editor = document.querySelector(
+            '[data-testid="composer-editor"][role="textbox"]',
+          );
+          const rect = editor?.getBoundingClientRect();
+          const style = editor ? window.getComputedStyle(editor) : null;
+          const editorVisible = Boolean(
+            editor &&
+            rect &&
+            rect.width > 16 &&
+            rect.height > 16 &&
+            style?.visibility !== "hidden" &&
+            style?.display !== "none",
+          );
+          const buttons = Array.from(document.querySelectorAll("button")).map(
+            (button) => ({
+              title: button.getAttribute("title") || "",
+              text: button.textContent || "",
+              aria: button.getAttribute("aria-label") || "",
+              disabled: button.disabled,
             }),
-          ),
-          summaryOccurrences: text.split(summaryText).length - 1,
-          mainSummaryOccurrences: mainText.split(summaryText).length - 1,
-          dedupeGuardHits: dedupeGuardTexts.map((guardText) => ({
-            text: guardText,
-            occurrences: mainText.split(guardText).length - 1,
-          })),
-          disallowedVisibleTextHits: disallowedVisibleTexts.map(
-            (guardText) => ({
+          );
+          const stopButtonVisible = buttons.some((button) => {
+            const label = [button.title, button.text, button.aria].join("\n");
+            return (
+              !button.disabled &&
+              (label.includes("停止") ||
+                label.includes("终止") ||
+                /\bStop\b/i.test(label))
+            );
+          });
+          const approvalRecordRoot = scopedTurnGroup ?? messageListScope;
+          const compactTimelinePreviewCount =
+            approvalRecordRoot.querySelectorAll(
+              '[data-testid="message-list-historical-timeline-preview:leading"]',
+            ).length;
+          const approvalRecords = Array.from(
+            approvalRecordRoot.querySelectorAll(
+              '[data-testid="timeline-approval-record"]',
+            ),
+          ).map((record) => ({
+            text: record.textContent || "",
+            lineBreaks: ((record.textContent || "").match(/\n/gu) || []).length,
+            innerTextLineBreaks: ((record.innerText || "").match(/\n/gu) || [])
+              .length,
+          }));
+          const approvalRecordText = approvalRecords
+            .map((record) => record.text)
+            .join("\n");
+          const readVisiblePlanOwner = ({ kind, selector, itemSelector }) => {
+            const root = document.querySelector(selector);
+            const ownerRect = root?.getBoundingClientRect();
+            const ownerStyle = root ? window.getComputedStyle(root) : null;
+            const visible = Boolean(
+              root &&
+              ownerRect &&
+              ownerRect.width > 16 &&
+              ownerRect.height > 8 &&
+              ownerStyle?.visibility !== "hidden" &&
+              ownerStyle?.display !== "none",
+            );
+            return {
+              kind,
+              visible,
+              text: root?.textContent || "",
+              itemCount: itemSelector
+                ? root?.querySelectorAll(itemSelector).length || 0
+                : 0,
+            };
+          };
+          const planOwners = [
+            readVisiblePlanOwner({
+              kind: "run-control-plan",
+              selector: '[data-testid="task-center-run-control-plan"]',
+              itemSelector: '[data-testid="task-center-run-control-plan-item"]',
+            }),
+            readVisiblePlanOwner({
+              kind: "task-rail-plan",
+              selector: '[data-testid="task-center-task-rail-plan"]',
+              itemSelector: '[data-testid="task-center-task-rail-plan-item"]',
+            }),
+            readVisiblePlanOwner({
+              kind: "message-plan-block",
+              selector: '[data-testid="agent-plan-block"]',
+              itemSelector: null,
+            }),
+          ].filter((owner) => owner.visible);
+          const planOwnerText = planOwners
+            .map((owner) => owner.text)
+            .join("\n");
+          const planDecisionPanel = document.querySelector(
+            '[data-testid="plan-composer-decision-panel"]',
+          );
+          const planDecisionRect = planDecisionPanel?.getBoundingClientRect();
+          const planDecisionStyle = planDecisionPanel
+            ? window.getComputedStyle(planDecisionPanel)
+            : null;
+          const planDecisionVisible = Boolean(
+            planDecisionPanel &&
+            planDecisionRect &&
+            planDecisionRect.width > 320 &&
+            planDecisionRect.height > 48 &&
+            planDecisionStyle?.visibility !== "hidden" &&
+            planDecisionStyle?.display !== "none",
+          );
+          const legacyUpdatePlanVisibleHits = [
+            "UpdatePlanTool",
+            "update_plan",
+          ].filter((label) =>
+            [mainText, planOwnerText].some((textValue) =>
+              textValue.includes(label),
+            ),
+          );
+          const approvalLegacyFragments = [
+            prompt,
+            "历史记录只读",
+            "歷史記錄只讀",
+            "History records are read-only",
+            "履歴記録は読み取り専用",
+            "히스토리 기록은 읽기 전용",
+            "请求",
+            "請求",
+            "Request",
+            "リクエスト",
+            "요청",
+            "范围",
+            "範圍",
+            "範囲",
+            "범위",
+            "Scope",
+            "ソース",
+            "来源",
+            "來源",
+            "Source",
+            "출처",
+          ];
+          return {
+            url: window.location.href,
+            hasPrompt: scopedText.includes(prompt),
+            hasAssistantSummary: assistantScopeText.includes(summaryText),
+            requiredVisibleTextHits: requiredAssistantVisibleTexts.map(
+              (requiredText) => ({
+                text: requiredText,
+                occurrences: scopedText.split(requiredText).length - 1,
+              }),
+            ),
+            summaryOccurrences: text.split(summaryText).length - 1,
+            mainSummaryOccurrences: mainText.split(summaryText).length - 1,
+            dedupeGuardHits: dedupeGuardTexts.map((guardText) => ({
               text: guardText,
-              occurrences: assistantTurnText.split(guardText).length - 1,
-            }),
-          ),
-          scopedSummaryOccurrences: scopedText.split(summaryText).length - 1,
-          assistantScopeSummaryOccurrences:
-            assistantScopeText.split(summaryText).length - 1,
-          scopedDedupeGuardHits: dedupeGuardTexts.map((guardText) => ({
-            text: guardText,
-            occurrences: scopedText.split(guardText).length - 1,
-          })),
-          assistantScopeDedupeGuardHits: dedupeGuardTexts.map((guardText) => ({
-            text: guardText,
-            occurrences: assistantTurnText.split(guardText).length - 1,
-          })),
-          completionScope: {
-            foundTurnGroup: Boolean(scopedTurnGroup),
-            runtimeTurnId:
-              scopedTurnGroup?.getAttribute("data-runtime-turn-id") || "",
-            runtimeTurnStatus:
-              scopedTurnGroup?.getAttribute("data-runtime-turn-status") || "",
-            lastAssistantMessageId:
-              scopedTurnGroup?.getAttribute("data-last-assistant-message-id") ||
-              "",
-            assistantMessageId:
-              assistantScope?.getAttribute("data-message-id") || "",
-            assistantRuntimeTurnId:
-              assistantScope?.getAttribute("data-runtime-turn-id") || "",
-            text: scopedText,
-            assistantText: assistantScopeText,
-          },
-          hasDoneText: assistantScopeText.includes(doneText),
-          hasEpochFallbackTitle: text.includes("任务 1970/1/1"),
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaSessionId:
-            textarea instanceof HTMLTextAreaElement
-              ? textarea.dataset.sessionId || null
-              : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-          stopButtonVisible,
-          hasMessageList: Boolean(
-            document.querySelector('[data-testid="message-list"]') ||
-            document.querySelector('[data-testid="message-list-frame"]'),
-          ),
-          approvalRecordShape: {
-            recordCount: approvalRecords.length,
-            maxLineBreaks: Math.max(
-              0,
-              ...approvalRecords.map((record) => record.lineBreaks),
-            ),
-            promptInRecord: approvalRecordText.includes(prompt),
-            legacyDetailFragmentHits: approvalLegacyFragments.filter(
-              (fragment) =>
-                typeof fragment === "string" &&
-                fragment.trim() &&
-                approvalRecordText.includes(fragment),
-            ),
-            texts: approvalRecords.map((record) => record.text),
-          },
-          compactTimelinePreviewCount,
-          planUiAbsentWithoutProposedPlan:
-            planOwners.length === 0 &&
-            planDecisionVisible === false &&
-            legacyUpdatePlanVisibleHits.length === 0,
-          planUiAbsence: {
-            planOwnerCount: planOwners.length,
-            planOwnerKinds: planOwners.map((owner) => owner.kind),
-            planOwnerItemCounts: planOwners.map((owner) => ({
-              kind: owner.kind,
-              itemCount: owner.itemCount,
+              occurrences: mainText.split(guardText).length - 1,
             })),
-            planDecisionVisible,
-            legacyUpdatePlanVisibleHits,
-          },
-          bodyText: text,
-          mainText,
-        };
-      },
+            disallowedVisibleTextHits: disallowedVisibleTexts.map(
+              (guardText) => ({
+                text: guardText,
+                occurrences: assistantTurnText.split(guardText).length - 1,
+              }),
+            ),
+            scopedSummaryOccurrences: scopedText.split(summaryText).length - 1,
+            assistantScopeSummaryOccurrences:
+              assistantScopeText.split(summaryText).length - 1,
+            scopedDedupeGuardHits: dedupeGuardTexts.map((guardText) => ({
+              text: guardText,
+              occurrences: scopedText.split(guardText).length - 1,
+            })),
+            assistantScopeDedupeGuardHits: dedupeGuardTexts.map(
+              (guardText) => ({
+                text: guardText,
+                occurrences: assistantTurnText.split(guardText).length - 1,
+              }),
+            ),
+            completionScope: {
+              foundTurnGroup: Boolean(scopedTurnGroup),
+              runtimeTurnId:
+                scopedTurnGroup?.getAttribute("data-runtime-turn-id") || "",
+              runtimeTurnStatus:
+                scopedTurnGroup?.getAttribute("data-runtime-turn-status") || "",
+              lastAssistantMessageId:
+                scopedTurnGroup?.getAttribute(
+                  "data-last-assistant-message-id",
+                ) || "",
+              assistantMessageId:
+                assistantScope?.getAttribute("data-message-id") || "",
+              assistantRuntimeTurnId:
+                assistantScope?.getAttribute("data-runtime-turn-id") || "",
+              text: scopedText,
+              assistantText: assistantScopeText,
+            },
+            hasDoneText: assistantScopeText.includes(doneText),
+            hasEpochFallbackTitle: text.includes("任务 1970/1/1"),
+            editorVisible,
+            editorDisabled:
+              editor instanceof HTMLElement
+                ? editor.getAttribute("aria-disabled") === "true" ||
+                  editor.getAttribute("contenteditable") !== "true"
+                : null,
+            editorSessionId:
+              editor instanceof HTMLElement
+                ? editor.dataset.sessionId || null
+                : null,
+            editorText:
+              editor instanceof HTMLElement
+                ? readComposerEditorTextDom(editor)
+                : null,
+            stopButtonVisible,
+            hasMessageList: Boolean(
+              document.querySelector('[data-testid="message-list"]') ||
+              document.querySelector('[data-testid="message-list-frame"]'),
+            ),
+            approvalRecordShape: {
+              recordCount: approvalRecords.length,
+              maxLineBreaks: Math.max(
+                0,
+                ...approvalRecords.map((record) => record.lineBreaks),
+              ),
+              promptInRecord: approvalRecordText.includes(prompt),
+              legacyDetailFragmentHits: approvalLegacyFragments.filter(
+                (fragment) =>
+                  typeof fragment === "string" &&
+                  fragment.trim() &&
+                  approvalRecordText.includes(fragment),
+              ),
+              texts: approvalRecords.map((record) => record.text),
+            },
+            compactTimelinePreviewCount,
+            planUiAbsentWithoutProposedPlan:
+              planOwners.length === 0 &&
+              planDecisionVisible === false &&
+              legacyUpdatePlanVisibleHits.length === 0,
+            planUiAbsence: {
+              planOwnerCount: planOwners.length,
+              planOwnerKinds: planOwners.map((owner) => owner.kind),
+              planOwnerItemCounts: planOwners.map((owner) => ({
+                kind: owner.kind,
+                itemCount: owner.itemCount,
+              })),
+              planDecisionVisible,
+              legacyUpdatePlanVisibleHits,
+            },
+            bodyText: text,
+            mainText,
+          };
+        },
+      ),
       {
         prompt,
         doneText,
@@ -467,15 +481,15 @@ export async function waitForGuiPlanCompleted(page, options) {
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({ prompt, doneText, planSteps }) => {
+      withComposerEditorDom(({ prompt, doneText, planSteps }) => {
         const text = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
-        const textareaVisible = Boolean(
-          textarea &&
+        const rect = editor?.getBoundingClientRect();
+        const style = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
           rect &&
           rect.width > 16 &&
           rect.height > 16 &&
@@ -606,11 +620,16 @@ export async function waitForGuiPlanCompleted(page, options) {
             .map((owner) => owner.revisionSource)
             .filter(Boolean),
           planOwners,
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+          editorVisible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
           stopButtonVisible,
           planDecisionVisible,
           planDecisionText,
@@ -632,7 +651,7 @@ export async function waitForGuiPlanCompleted(page, options) {
           bodyText: text,
           taskRailText: planOwnerText,
         };
-      },
+      }),
       { prompt: PLAN_PROMPT, doneText: PLAN_DONE_TEXT, planSteps: PLAN_STEPS },
     );
     if (!snapshot) {
@@ -648,7 +667,7 @@ export async function waitForGuiPlanCompleted(page, options) {
       snapshot.planDecisionHasAcceptOption &&
       snapshot.planDecisionHasAdjustInput &&
       snapshot.planDecisionRevisionBound &&
-      snapshot.textareaVisible === false &&
+      snapshot.editorVisible === false &&
       snapshot.stopButtonVisible === false
     ) {
       return sanitizeJson(snapshot);
@@ -824,15 +843,15 @@ export async function waitForGuiChatCanceled(
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({ prompt, partialText }) => {
+      withComposerEditorDom(({ prompt, partialText }) => {
         const text = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
         );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
-        const textareaVisible = Boolean(
-          textarea &&
+        const rect = editor?.getBoundingClientRect();
+        const style = editor ? window.getComputedStyle(editor) : null;
+        const editorVisible = Boolean(
+          editor &&
           rect &&
           rect.width > 16 &&
           rect.height > 16 &&
@@ -925,11 +944,16 @@ export async function waitForGuiChatCanceled(
             text.includes("本轮已中止") ||
             /\bStopped\b/i.test(text) ||
             /\bCanceled\b/i.test(text),
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+          editorVisible,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
           stopButtonVisible,
           approvalRecordShape: {
             recordCount: approvalRecords.length,
@@ -953,7 +977,7 @@ export async function waitForGuiChatCanceled(
           ).length,
           bodyText: text,
         };
-      },
+      }),
       { prompt, partialText },
     );
     if (!snapshot) {

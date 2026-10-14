@@ -1,4 +1,5 @@
 import styled from "styled-components";
+import { ComposerEditor } from "@/components/input-kit";
 
 // --- InputbarCore Styles ---
 
@@ -182,13 +183,12 @@ export const DictationLiveTranscript = styled.div`
   opacity: 0.86;
 `;
 
-export const StyledTextarea = styled.textarea`
+export const StyledComposerEditor = styled(ComposerEditor)`
   position: relative;
   z-index: 1;
   flex: 1;
   padding: 4px 0 0;
   border-radius: 0;
-  resize: none !important;
   overflow: auto;
   width: 100%;
   box-sizing: border-box;
@@ -219,9 +219,13 @@ export const StyledTextarea = styled.textarea`
     min-height: 210px;
   }
 
-  &::placeholder {
+  &[data-empty="true"]::before {
     color: hsl(var(--muted-foreground) / 0.78);
   }
+
+  p { margin: 0; }
+  &[data-empty="true"]::before { content: attr(data-placeholder); position: absolute; pointer-events: none; }
+  [data-composer-token] { border-radius: 4px; padding: 0 3px; background: hsl(var(--muted)); }
 
   &::-webkit-scrollbar {
     width: 3px;

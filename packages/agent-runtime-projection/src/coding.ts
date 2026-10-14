@@ -178,6 +178,7 @@ export interface FileChangeView {
   artifactRefs: string[];
   checkpointRef?: string;
   diffRef?: string;
+  diff?: string;
   preview?: string;
   sourceEventId: string;
 }
@@ -528,6 +529,7 @@ function executionEventsFromThreadItems(
           ? "renamed"
           : (valueString(kind?.type) ?? "modified"),
         preview: valueString(change?.diff, item.text, item.summary),
+        diff: valueString(change?.diff),
       },
     });
   });
@@ -754,6 +756,7 @@ function collectChanges(
         artifactRefs: event.artifactRefs ?? [],
         checkpointRef: payloadString(event, "checkpointRef", "checkpointId"),
         diffRef: payloadString(event, "diffRef"),
+        diff: payloadString(event, "diff"),
         preview: safePreview(payloadString(event, "preview", "summary")),
         sourceEventId: event.id,
       },

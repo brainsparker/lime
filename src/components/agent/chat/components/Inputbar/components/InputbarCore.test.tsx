@@ -212,9 +212,9 @@ describe("InputbarCore", () => {
       text: "可以发送",
       onSend,
     });
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
     const dictationButton = container.querySelector(
       '[data-testid="inputbar-dictation-toggle"]',
     ) as HTMLButtonElement | null;
@@ -228,10 +228,10 @@ describe("InputbarCore", () => {
 
     expect(mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
     expect(container.querySelector('[data-testid="send-btn"]')).toBeNull();
-    expect(textarea?.disabled).toBe(true);
+    expect(editor?.getAttribute("aria-disabled")).toBe("true");
 
     act(() => {
-      textarea?.dispatchEvent(
+      editor?.dispatchEvent(
         new KeyboardEvent("keydown", {
           key: "Enter",
           bubbles: true,
@@ -372,25 +372,25 @@ describe("InputbarCore", () => {
 
   it("主题工作台空输入时应保持单行紧凑态，聚焦后也不应放大", async () => {
     const container = await renderInputbarCore();
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
     const inputBar = container.querySelector(
       '[data-testid="inputbar-core-container"]',
     ) as HTMLDivElement | null;
-    expect(textarea).toBeTruthy();
+    expect(editor).toBeTruthy();
     expect(inputBar).toBeTruthy();
-    expect(textarea?.className).toContain("floating-collapsed");
+    expect(editor?.className).toContain("floating-collapsed");
     expect(
       container.querySelector('[data-testid="inputbar-tools"]'),
     ).toBeNull();
 
     act(() => {
       inputBar?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-      textarea?.focus();
+      editor?.focus();
     });
 
-    expect(textarea?.className).toContain("floating-collapsed");
+    expect(editor?.className).toContain("floating-collapsed");
     expect(
       container.querySelector('[data-testid="inputbar-tools"]'),
     ).toBeNull();
@@ -400,26 +400,26 @@ describe("InputbarCore", () => {
     const container = await renderInputbarCore({
       text: "继续补充当前分析",
     });
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
 
-    expect(textarea).toBeTruthy();
-    expect(textarea?.className).not.toContain("floating-collapsed");
+    expect(editor).toBeTruthy();
+    expect(editor?.className).not.toContain("floating-collapsed");
     expect(
       container.querySelector('button[aria-label="添加图片"]'),
     ).toBeTruthy();
   });
 
-  it("应在 textarea 上暴露当前会话标识，便于发送链路回归定位", async () => {
+  it("应在 editor 上暴露当前会话标识，便于发送链路回归定位", async () => {
     const container = await renderInputbarCore({
       sessionId: "session-inputbar-1",
     });
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
 
-    expect(textarea?.getAttribute("data-session-id")).toBe(
+    expect(editor?.getAttribute("data-session-id")).toBe(
       "session-inputbar-1",
     );
   });
@@ -691,14 +691,14 @@ describe("InputbarCore", () => {
       onDrop,
       onDragOver,
     });
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
-    expect(textarea).toBeTruthy();
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
+    expect(editor).toBeTruthy();
 
     await act(async () => {
-      textarea?.dispatchEvent(new Event("dragover", { bubbles: true }));
-      textarea?.dispatchEvent(new Event("drop", { bubbles: true }));
+      editor?.dispatchEvent(new Event("dragover", { bubbles: true }));
+      editor?.dispatchEvent(new Event("drop", { bubbles: true }));
       await Promise.resolve();
     });
 
@@ -711,14 +711,14 @@ describe("InputbarCore", () => {
       visualVariant: "default",
       toolMode: "default",
     });
-    const textarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
+    const editor = container.querySelector(
+      '[data-testid="composer-editor"][role="textbox"]',
+    ) as HTMLElement | null;
     const expandButton = container.querySelector(
       'button[aria-label="展开输入框"]',
     ) as HTMLButtonElement | null;
 
-    expect(textarea?.className).not.toContain("composer-expanded");
+    expect(editor?.className).not.toContain("composer-expanded");
     expect(expandButton).toBeTruthy();
 
     await act(async () => {
@@ -726,7 +726,7 @@ describe("InputbarCore", () => {
       await Promise.resolve();
     });
 
-    expect(textarea?.className).toContain("composer-expanded");
+    expect(editor?.className).toContain("composer-expanded");
     expect(
       container.querySelector('button[aria-label="收起输入框"]'),
     ).toBeTruthy();

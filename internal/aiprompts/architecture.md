@@ -1193,9 +1193,41 @@ outer JSON-RPC id 只负责 App Server 到客户端的响应关联，domain toke
 
 会话提交的唯一执行 owner 是 `agent-runtime::session_loop`：每个 session 只有一个串行 actor，FIFO task、regular/review/compact kind、replace/interrupt/shutdown、迟到 completion 防护和 steer/mailbox 分流均在此收口。所有 actor 命令先进入统一 operation envelope；envelope 使用 UUIDv7 identity，并携带可选 client user message identity 与 W3C trace carrier，首次启动和 FIFO promote 必须把同一份不可变 metadata 交给 task context。普通用户输入只通过 typed `UserInput` operation 进入该队列：active regular task 存在时原子 steer，否则启动或排队 candidate task，同一份输入必须成为新 task 的 initial input；App Server 只能消费 actor 返回的 `Submitted/Steered` receipt，不能把 read model 的预判当成调度事实。Review、Compact、ThreadSettings、SetMemoryMode、RefreshMcp、ReloadConfig 与 RunShell 使用各自的 typed task operation，并校验 operation 与 task kind 一致；Approval、UserInput、Permission、DynamicTool 与 MCP elicitation response 使用五类独立 response operation，禁止恢复通用 response operation。durable inter-agent append 成功后，App Server 只向已经存在的 recipient actor 提交 typed `InterAgentCommunication` envelope，保留 message/root/sender/recipient/source-turn identity、kind、result status 与 delivery mode；actor 只发布 durable activity，不复制 store payload，也不得为了通知创建空 actor。child terminal result 必须先完成 canonical Turn 与 durable result mailbox append，再由正常 append、durable replay、restart recovery 三条路径统一发布同一 typed activity；通知失败不能回滚 durable record，也不能创建空 actor。provider boundary 只能由 durable loader 把同一记录转换为 typed runtime input，禁止重新解析自由 JSON。steer 与 mailbox activity 通过 typed watch 发布；mailbox pending 使用单调 generation，loader 成功只确认调用前捕获的 generation，失败或并发新 append 必须继续保持 pending。sampling step snapshot 单调增加 step index；pending context rollover 只由下一次 snapshot 原子消费并推进一次 context epoch，显式推进 epoch 也必须清除 pending rollover，禁止在后续 step 重复滚动。RuntimeCore 只负责把 provider/tool 执行、canonical event 持久化和 durable mailbox loader 接到该 actor；QueueOnly mailbox 只有在 provider step 明确打开 mailbox boundary 后才 append + ack，不能由 AgentControl 或 GUI 另起活动回合旁路。AgentControl wait 必须先向既有 actor 注册 activity receiver，再读取 pending snapshot；steer、mailbox 和 queued admission 由 actor 的 typed watch 唤醒，不能通过固定间隔扫描 RuntimeCore turns。
 
-Composer 的唯一 Renderer 结构化输入 owner 是 `input-kit::ComposerController`。它持有 `ComposerDocument`（文本、光标/选择区、文本元素、mention、图片、路径引用和 pending paste）及可恢复 `ComposerDraftSnapshot`，通过 external-store subscription 提供给 Inputbar、首页和其他输入 surface；现有受控 text、图片和路径 hooks 只能作为 UI adapter 同步，不得发展成第二套 intent/queue owner。Controller 只产生 typed `ComposerIntent` / `ComposerSubmitResult`（`start`、`queue`、`steer`、`interrupt`、`command`、`edit`、`clear`），不保存 Thread/Turn/Queue 事实，也不依据本地 `isLoading` 猜测运行状态；workspace orchestrator 结合 canonical Thread/Turn read model 与 queueing preference 解析 `ComposerSubmitTarget`。`start`、`steer`、`interrupt` 进入 `turn/start|turn/steer|turn/interrupt`，`queue` 和 queued edit/delete/reorder/start 进入 Codex v2 `thread/queue/*` typed App Server 方法。Queue mutation 不直接改 Renderer queue 内容；`thread/queue/changed` 或 mutation 成功后的显式 refresh 只能触发 canonical queue 重读，Renderer 不得建立 queue snapshot、乐观删除或第二个 queue facade。Composer controller 当前统一 CRLF 和大粘贴 placeholder/提交前展开，并沿用 `BaseComposer` 的浏览器 IME 处理；Windows 非 bracketed paste burst 与 AltGr 原生 lowering 仍是平台 adapter 缺口。提交失败保留 draft，成功 receipt 仅在 revision 未变化时清理 pending state，避免旧异步回执覆盖新草稿。Architecture impact: major; owner/data flow and public action contract changed. Architecture diagram updated: this paragraph. Responsible developer confirmation: root, 2026-09-01.
+Composer 的唯一 Renderer 文档 owner 是 `input-kit::ComposerController`，持有 ProseMirror `EditorState` 与附件/路径/能力资源。`ComposerEditor` 只持有 `EditorView`，引用该 state 并把 Transaction 交回 Controller；`applyTransaction` 消费 appended transactions 后原子发布 revision/snapshot。严格 JSON schema 接收 doc/paragraph/code_block/text/hard_break/mention/paste/text_element 与 link mark；code_block 仅容纳无 mark 的 text，保留 language 与 autoDetectLanguage。link 保存 href/title/sourceAppId、literal source、flags 与有限数值 occurrence；普通链接仅接受 HTTP/HTTPS/mailto，能力提及协议由独立 owner 处理。文本、选择区、mention 与 pending paste 由同一文档派生，不建第二份 React/TipTap document store。主输入 DOM 为 `[data-testid="composer-editor"][role="textbox"]`，file/skill/plugin/paste/element 均为不可编辑 atom；普通表单 textarea 不受影响。提及检测与选择动作统一通过同一PM投影的atom-aware候选解析；不可编辑标签和跨atom的查询不能打开菜单或拦截历史方向键，可编辑正文中的新触发字符仍有效。
+
+```mermaid
+flowchart TD
+  Scope[Workspace local display scope] --> Controller[ComposerController: EditorState + resources]
+  Home[Home ComposerEditor] -->|Transaction| Controller
+  Chat[Conversation ComposerEditor] -->|Transaction| Controller
+  Controller -->|state / revision / snapshot| Home
+  Controller -->|state / revision / snapshot| Chat
+  Controller --> Receipt[Submit receipt: revision + draft + submission]
+  Receipt -->|draft: original JSON + selection + resources| Restore[Restore / local rich history]
+  Restore --> Controller
+  Receipt -->|submission: Markdown + expanded atoms + UTF8 elements + mentions + resources| Send[Workspace send owner: acceptance lock]
+  Send --> Gateway[Current gateway / preload / IPC]
+  Gateway --> RPC[App Server turn/start / turn/steer / thread/queue]
+  RPC --> Canonical[RuntimeCore / canonical Thread Turn Item]
+  RPC -->|accepted, same revision only| Commit[Commit / clear]
+  Commit --> Controller
+```
+
+Workspace 的 `useAgentChatWorkspaceLocalDisplayState` 持有同一个 Controller，原 `input` string store 被 snapshot 派生值替换；`setInput` 仅为 text adapter。首页 materialization 保留该 owner 与 revision，显式换会话/new-chat/back-home 使用 clear 重置完整草稿并推进 revision；clear/restore 即使内容相同也强制新生命周期，普通同值 text update 保持无更新。附件 adapter 直接消费 Controller resources，能力选择仅把 UI 候选详情映射到 Controller 的 canonical route，禁止新 surface 的空镜像覆盖原资源。路径侧栏的 `usePathReferences` 同步读写同一 Controller 并从 snapshot 派生，不保留 path useState 或 passive effect 镜像。资源恢复由原始 draft 一次更新；历史回放不再 clear/add 资源导致导航游标失效。
+
+`draft` 保留折叠 paste、原始 JSON、link/code 属性、UTF16 选择区、图片、路径和能力供恢复；`submission` 将链接与代码块序列化为 Markdown、展开 paste 并携带 typed TextElement/inputMentions，唯一决定发送内容。代码 fence 长度为正文最长连续反引号数加一且至少三个，正文空白原样保留。literal link 只有在完整安全链接的 label/href/title 均匹配时用于草稿重放；编辑清除旧 literal/occurrence/autolink 元数据。ProseMirror position、显示文本 UTF16 offset 与最终 Markdown 发送文本 UTF8 byteRange 分别映射，不混用。annotation 更新通过 PM Transaction 保留富文档与资源；HTML/Markdown paste 进入同一 Controller，code 中 Enter/ShiftEnter 插入文本换行。`composerDraft`/`composerSubmission` 显式贯通 start/steer/queue；无法映射的 textElements 在 IPC 前拒绝，不能猜 range 或退回纯文本。Controller 不拥有 Thread/Turn/Queue 事实；workspace 依据 canonical read model 解析 intent 并在真实接受结果结束前持有发送锁。失败保留完整 draft；成功只在 receipt revision 未变化时 commit，迟到结果不清新草稿。提交瞬间直接捕获当前 canonical 文档，不把旧 React 闭包的资源回灌；能力初始化与恢复请求按同 Controller identity 去重，跨 surface 重挂载不重放旧请求。
+
+Queue mutation 进入 Codex v2 `thread/queue/*`，`thread/queue/changed` 或显式 refresh 只触发 canonical queue 重读；Renderer 不建第二 queue facade、乐观删除或 runtime。现有 `@tiptap/pm` 提供 schema/state/view/history/keymap，不新增依赖或 public JSON-RPC 字段。Architecture impact: major; Renderer document/transaction and cross-surface draft owner converged. Architecture diagram updated: Composer flow above. Responsible developer confirmation: root, 2026-10-14; directory, ownership, transaction/submission/restoration flow and protocol boundary checked. Runtime verification remains tracked in the current execution plan.
 
 Composer 纯文本历史只允许沿 `Composer -> typed AppServerClient -> app_server_handle_json_lines -> App Server promptHistory/read|append -> RuntimeCore PromptHistoryStore` 流动；Electron 仅转发 JSON-RPC，Renderer 不得以 `localStorage`、SQLite 或旧 Desktop facade 建立第二事实源。`PromptHistoryStore` 使用受控数据根下的 append-only `prompt_history.jsonl`、文件锁和 4 MiB 保留上限，坏行跳过但保留 offset；macOS/Linux 的 `logId` 使用 inode，Windows 使用文件 creation time，用于分页 cursor 的快照一致性。读取返回 newest-first bounded pages，客户端在 Composer 内按 oldest-first 合并；异步读取完成时只合并服务端快照与本地新提交的边界重叠，不覆盖已产生的 draft/history。只追加成功提交的正文和 canonical Thread identity：公开 append 为 `{threadId,text}`，entry 返回 `threadId`，内部 JSONL 的 `session_id` 字段记录同一个 Thread ID。TUI 选定 Skill 元素可经 `mention_codec` 编码为 path link，再从同一 history owner 恢复；附件、普通路径引用与大粘贴 payload 仍为会话内 rich state，不把正文 codec 冒充完整附件持久化。`promptHistory/read|append` 是稳定 v2 方法，不要求 `initialize.capabilities.experimentalApi`。Architecture impact: major; persistent history owner and cross-platform identity semantics fixed. Responsible developer confirmation: root, 2026-09-01.
+
+Composer 输入生命周期由 `ComposerEditor` / keymap / `BaseComposer` 协作：compositionstart/end 只更新编辑状态，
+native composing/Process/229 不产生 submit，显式 Enter/button 走原 intent 主链；旧 IME 自动发送路径已删除。
+首页/会话附件 adapter 复用 `useAttachmentGeneration`，读取前捕获 generation，clear/replace/layout unmount cleanup
+同步失效，迟到 success/error 不改变新草稿或发旧 toast。该 helper 只持有生命周期 ref，不持有附件、Thread/Turn 或 intent。
+IME 与附件 generation 的边界沿用既有 owner；结构化编辑器及跨 surface 草稿归属见上图。基础 link/code 已实施，实际 Electron 提交/恢复门禁在当前计划跟踪；完整 rich PMU、主动链接导航/编辑、跨重启 rich draft 与系统 voice 继续独立验收。
+
+听写的唯一Renderer生命周期owner为 `InputbarDictationSessionOwner`，scope包含同Controller、sessionId与单调generation，starting同步占位后才请求麦克风。录音stream、sampler、timer与音频解码context随session释放；permission/live/final/polish/decode晚到结果先校验owner。明确cancel仅在仍持有最后provisional revision时恢复原始完整draft；compositionstart或结果应用时检测到composing则无回滚结束整个session，保留当前正文与资源。Core的compositionend不自动插入或发送；候选pending/手动flush/drop轨道已删除。已经发出的ASR/polish RPC通过结果隔离失效，当前API不声明网络请求可撤销。结束听写只更新草稿，用户显式发送仍走上图receipt/acceptance主链。
 
 World state 的 typed DTO owner 固定为 `agent-protocol::world_state::RuntimeWorldState`。当前链路为：
 
@@ -2047,7 +2079,24 @@ Renderer session id 不得预绑定为 canonical thread id。live reducer 只能
 
 cold read 对 `historyMode=paginated` 的 `thread/read` embedded turns 一律视为 partial view，使用 store-owned `thread/items/list` cursor 选取 message window，再扫描 `thread/turns/list` 到 EOF，恢复选中 Item 所属 Turn 以及所有 active/failed/interrupted 等无 Item Turn。Renderer 分页以 opaque canonical Item ID `oldest_item_id` 为稳定锚点；旧数字 `oldest_message_id` 仅作迁出兼容并让位于 Item ID。`has_more` 是继续分页的事实，未到 Item EOF 时 `messages_count` 未知且不生成 `start_index`；只有 EOF 后才暴露精确总数和绝对索引，GUI 不得把观察下界显示为总数。
 
-历史列表的首帧 DOM 必须继续受 Turn render window 约束，不能因为 canonical Item 已恢复就一次挂载全部历史。已完成的历史 assistant 纯文本复用唯一 `HistoricalAssistantMessagePreview`：正文超过 900 字先显示 compact preview，超过 24,000 字使用 2,000 字 long preview，用户显式展开后才挂载全文；streaming、A2UI 和含非文本 part 的 canonical Item 不得被错误折叠。受控 Electron Gate B 以 240 Turn / 720 Item SQLite fixture 证明首帧只挂载 10 个 canonical Turn、扫描 30 个 Item、residual Message 为 0、长正文尾部 marker 不进入 DOM；首次 MessageList paint 为 37ms、稳定 paint 为 200ms，long task、console error 与 page error 均为 0。该证据只证明受控历史恢复与 Renderer/Electron/App Server/read-model 链路，不代表 live Provider、真实用户历史或所有平台性能。
+历史 DOM 由单一 viewport Turn window 持有：`threadVirtualizer` 计算稳定 key、高度、offset 与 overscan range，`VirtualizedTurnList` 测量并只挂载可见范围。canonical 已加载数据与离屏 DOM 数量分开；后端 `has_more` 继续决定 Load More，不能用 Expand All 或 idle 渐进挂载恢复全量 DOM。流式尾随尊重用户滚轮、键盘、触摸和滚动条意图；用户阅读历史时按稳定 Turn anchor 补偿动态高度。目标 Item 导航先挂载所属 Turn，再定位子项。已完成历史正文暂复用 `HistoricalAssistantMessagePreview` 有界预览；该预览与后端分页都不替代 viewport 卸载。旧固定尾窗性能数字已退役；新 Gate B 必须证明已加载页内滚动替换 DOM、卸载旧行、完整滚动几何和返回尾部，实际加载规模与 seed 总数分别记录。
+
+Files 的 current renderer 为 `ReviewThreadSidePanelTab`，由统一 RightSurfaceHost 注册。WorkspaceConversationScene 通过只读 `ReviewThreadSidePanelProjectionContext` 传入同一次 coding projection 的 changeView、workspaceRoot 与 loadFilePreview；Context 不持有审批、文件或会话业务状态。Canvas 与 Files 共用既有 `CanvasWorkbenchChangesPanel` / ReviewState / diff owner。选择文件只更新选中项并定位同路径 diff，外部打开是显式动作；Git baseline 和完整文件异步请求必须绑定 thread/root/base/commit identity，迟到结果失效。
+
+```text
+App Server canonical Thread/Turn/Item + current read gateways
+  -> existing conversation projection
+     -> canonical entry index -> threadVirtualizer -> VirtualizedTurnList -> mounted Turn rows
+     -> one coding changeView
+        -> CanvasWorkbenchChangesPanel
+        -> read-only ReviewThreadSidePanelProjectionContext
+           -> RightSurfaceHost -> ReviewThreadSidePanelTab
+              -> same CanvasWorkbenchChangesPanel / ReviewState / diff owner
+PendingInteractionController -> PendingRequestItemPanel -> ApprovalCard
+  -> existing reverse-request response owner -> App Server approval authority
+```
+
+2026-10-14 Renderer 对齐：业务 owner 与协议不变；新增只读 projection 消费者并直接替换旧 DOM window。架构图责任开发者确认：root，2026-10-14；已复核 Scene 同次 coding projection、只读 Context、唯一 viewport DOM owner 与独立 canonical paging。当前切片与 Gate B 结果由 `internal/exec-plans/codex-gui-alignment-current-plan.md` 记录，不代表全面 GUI 或 release 验收。
 
 CommandExecution、Tool、WebSearch 与 Patch stdout/stderr 在 projection 边界限制为 256 KiB，超限保留尾部并带显式截断标记。unknown Item/notification 只向受控 diagnostics 记录 protocol revision、method、upstream type、Item identity 与脱敏字段名；raw 值、credential、metadata 和 provider payload 不进入 diagnostic。known-unprojected/unknown notification recorder 只提供 fail-visible 诊断，不能替代 V2-05 planned notification 的 producer、typed protocol、projection 或 Gate B。
 
@@ -2226,8 +2275,106 @@ Renderer submit gate 只把 canonical `thread/read` 当作 start/steer 的输入
 本地 `ActiveStreamState.turnId`、busy/queued flag 和 draft status 都不是调度事实；ID 冲突
 必须 fail closed，不能退回 start 或伪造 queue。steer 接受后不创建第二个 Turn、不绑定第二个
 事件 listener，并刷新同一 canonical read model 以投影用户输入与原 Turn identity。Renderer
-不暴露 queued user turn 的 promote/remove 写操作；durable pending-work 的排队、恢复与续跑只归
-RuntimeCore/session loop，GUI 只消费 canonical status、count 与 evidence。
+不得恢复旧 queued snapshot 的 promote/remove facade；durable pending-work 的执行、恢复与续跑只归
+RuntimeCore/session loop。`QueuedMessageList` 读取现有 scoped queue projection，经唯一 typed
+`threadQueueActions` 调用 current `thread/queue/update|reorder|delete|start`，再读回 canonical queue。
+默认折叠数量与显式展开的可读/编辑 preview 分开；局部 mutation 锁和草稿绑定 thread/request
+identity，不成为第二 queue store。`thread/queue/start` 当前仅在 idle 启动，不能冒充运行中
+`turn/steer`；active-turn Queue Steer 的原子消费合同尚待对齐。
+
+Queue/Header renderer 对齐图确认：root，2026-10-14。`QueuedMessageList` 直接替换旧组件，
+thread-scoped 草稿与同步 mutation 锁只管理 UI 操作；现有 queue/store 是唯一业务 owner。
+Header 编辑绑定开始编辑的 session/token/callback，切换会话取消旧编辑。
+
+Queue mutation、公共历史与队列呈现沿同一 canonical owner：
+
+```text
+thread/queue/{add,update,reorder,delete}
+  -> existing queue events -> thread_item_projection materializer
+  -> ThreadStore canonical Turn + completed UserMessage Item
+  -> thread/queue/changed -> AppServerEventBus
+       -> scoped queue list reader -> QueuedMessageList
+       -> useAgentThreadQueueSync -> existing session full thread/read
+            -> thread_read/history_visibility excludes pending Queue
+            -> same-read public thread_turns/thread_items -> timeline replacement
+```
+
+`queue.added|updated` 依据 payload 的 queued Turn identity 生成或更新稳定 User Item，
+完整 typed input/client identity 贯穿 edit、remove/add reorder 与冷恢复；不重新追加
+`message.created`。完整 `thread/read` 的 Turn 数组顺序是 authority，Renderer 不从 queue list
+修补历史，不将分页 detail 当完整替换。替换保护当前真实 stream 与未确认 optimistic input；
+scope 含 session/thread/workspace generation，A→B→A 迟到 read 不落地。连续 queue 通知串行并
+保留最后一次重读，读取失败保持原投影。内部 queue 属于 durable pending facts，admission
+之前不进入 public transcript；公共 v2 Turn 无 queue 字段，Renderer 不从私有字段猜状态。
+RuntimeCore read/list/resume 排除 queued，并从执行事实计算 idle/active；turn/item pagination
+补取可见条目与 lookahead EOF，cursor 仍由 store 解释，重复 cursor fail closed。
+队列首图由既有 MessageImageAttachments thumbnail → media/read verified sidecar owner 读取；
+不新增第二 media store 或任意 metadata 文件读取。架构图确认：root，2026-10-14；已复核唯一
+materializer、public visibility、同次 canonical DTO、通知订阅与最小 session 接线，未新增
+queue/history store。搜索snippet/occurrence在既有canonical search owner分页前排除pending，
+admission后恢复匹配；public搜索结果状态复用thread/read执行投影。opaque occurrence游标
+保留原ordinal校验，未合成游标或增加renderer过滤；root，2026-10-14复核同库/分库与
+JSONL回归。诊断export/rebuild/unload另立合同，不能由read/search通过推导完成。
+
+Right Surface 的同线程局部 open 集合与 selected 分开，select 保留其他标签，close 移除指定
+标签；唯一 local state owner 使用 workspace/session/thread 与单调 generation 拒绝 ABA 回调。
+
+```text
+current registry / resource availability -> one available set
+  -> projection(opened intersect available, selected)
+  -> RightSurfaceHost tabs -> select / close
+  -> same local display state owner -> generation-scoped setters
+Browser native resource remains owned by existing BrowserTabHost
+  -> sender-scoped browser_tab_list -> complete live tab snapshot
+  -> useBrowserWorkspaceHydration(epoch / events / close tombstones)
+  -> BrowserWorkspace(selected native tab / bounds)
+  -> only an empty snapshot permits hidden primary mount
+```
+
+availability 撤销时 prune；切换 thread/workspace 首次渲染即隔离旧集合。BrowserTabHost 是 live
+tabs / selected / URL / native view 的唯一事实源；App Server 仍分配 canonical session / thread。
+只读 snapshot 从实际 IPC sender 校验 window / ownerWebContents / browserSession / thread，身份
+不符拒绝。重挂载恢复完整 snapshot，合并查询期间的 select / close 事件，以 view tombstone 防止
+已关闭标签回流；非空不重建 primary。单调 epoch 隔离迟到 snapshot / mount / bounds，隐藏
+bootstrap 只能由当前 workspace 显示。此合同不提供跨 Electron 重启的 native process 持久化。
+架构图确认：root，2026-10-14；已复核 scoped 接线、选择/关闭、availability、snapshot 和 epoch
+owner，未增加 browser/artifact store、业务后端或 App Server 协议。真实证据只按实际执行范围
+记入当前计划。
+
+项目运行上下文的唯一 Renderer owner 是 `ComposerUtilityBar`，由首页完整上下文和导航栏
+project-only 入口复用。动作只归 `useComposerUtilityActions`，依赖既有 project/projectGit
+typed gateway，不进入 Composer document 或复制业务状态：
+
+```text
+home / navbar -> ComposerUtilityBar -> useComposerUtilityActions
+  -> existing project/projectGit gateway -> Electron preload/IPC
+  -> app_server_handle_json_lines -> current Project / ProjectGit owner
+  -> typed project/root/branch readback -> same keyed utility instance
+```
+
+实例 key 为 project ID + rootPath；一个同步 mutation 锁与 request identity 隔离迟到
+success/error/finally/navigation。Git read loading/error/retry 是局部显示状态，真实结果来自
+既有 status owner。未消费的 Inputbar context 透传已删除；旧组件不得恢复为包装层。
+现有立即创建 worktree 不冒充 staged composerMode，cloud/remote/environment 仍待合同。
+架构图确认：root，2026-10-14；已复核共享入口、gateway 与领域 owner，未新增业务后端。
+
+Thread 设置通知沿以下生产路径消费，不另建设置 store：
+
+```text
+GUI model/access selection -> agentRuntimeAdapter -> thread/settings/update
+  -> App Server effective ThreadSettings -> independent stdio notification
+  -> Electron Host app_server_drain_events -> AppServerEventBus
+       <- typed response.notifications (only when transport returns a mirror)
+  -> thread-scoped adapter -> existing per-session preference cache
+       -> useAgentModelSettingsSync -> useAgentContext / future submit
+       -> useAgentSessionThreadSettings -> existing threadRead cache / header cwd
+```
+
+ACK 仅结束提交，UI 与后续发送使用服务端 canonical 设置。response/drain 只消耗成对镜像，
+保留同来源合法 A→B→A；通知没有服务端 revision，不能推导跨重连全序。thread/workspace
+及订阅 generation 隔离迟到结果；设置通知不修改 active Turn/Item 或 transcript。
+架构图确认：root，2026-10-14；已复核现有 cache、read model 和 EventBus 接线及真实 Electron
+idle model/cwd Gate B。该证据不声明 active/future Turn 执行、live Provider、Windows 或 packaged 验收。
 
 前端不会持有或修补 Thread/Turn/Item 真相。输入发送后，用户消息、流式增量、终态、
 工具活动和历史恢复均从 App Server notification 与 canonical Thread read model 投影到 UI；

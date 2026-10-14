@@ -20,28 +20,49 @@ Desktop Host / CLI-TUI Host
 
 先跑最贴风险的定向测试，再按跨层影响扩大。全量检查不能替代真实 GUI 或跨层证据；跨层证据还必须说明是否实际经过目标进程边界。
 
-| 改动                                               | 最低验证                                                                       |
-| -------------------------------------------------- | ------------------------------------------------------------------------------ |
-| 纯 TypeScript selector/projection/parser           | `npm run test:related -- <paths...>`；必要时 lint/typecheck                    |
-| React 组件/hook                                    | related unit/component；用户可见变更补五语言与稳定 DOM 断言                    |
-| Rust crate                                         | `npm run test:rust:related -- <paths...>`；跨 crate 行为追加 integration layer |
-| App Server method/protocol/schema/generated client | `npm run test:contracts` + 公共 JSON-RPC 集成测试                              |
-| Agent loop/queue/turn/item/read model              | Rust related/integration + `npm run smoke:agent-runtime-current-fixture`       |
-| App Server Rust session/transport                  | `cargo test -p app-server-client` + 真实 stdio fixture                         |
-| TUI reducer/render/composer                        | `cargo test -p tui` + 稳定 TestBackend snapshot/结构断言                       |
-| CLI 参数/非交互 Agent 流程                         | `cargo test -p cli` + `lime exec` stdio fixture                                |
-| CLI npm launcher/平台包/发布顺序                   | `npm --prefix packages/cli test` + `smoke:cli-npm-gate-b` + release/CLI guard  |
-| tool/approval/sandbox/context                      | owner 集成测试 + current runtime fixture；命令边界追加 contracts               |
-| MCP/Skills/Multi-Agent                             | owner 集成测试 + `npm run smoke:mcp-current` 或对应 current fixture            |
-| Provider/lowering/multimodal                       | provider request capture + Rust related/integration + modality contracts       |
-| GUI 壳/Workspace/主路径                            | related tests + `npm run verify:gui-smoke` + 风险匹配的 Gate A                 |
-| Electron/preload/IPC/read model/恢复               | `npm run test:contracts` + 对应真实 Electron Gate B fixture                    |
-| 版本/Forge/workspace manifest                      | `npm run verify:app-version`；release 边界追加 Forge guard                     |
-| 脚本目录                                           | `npm run governance:scripts`                                                   |
-| legacy/dead surface 删除                           | `npm run governance:legacy-report` + 相关负向回流守卫                          |
+只读调查、skill 与纯规则文档更新先检查格式、链接、命令存在性与相关文档守卫；没有产品代码变化时不启动全量 Rust 或 Electron。若改变了执行脚本、public boundary 或实际门禁，再验证对应行为。`verify:tasks` 依据整个工作树规划；有并行脏改动时不把其结果当成本轮写集的验证要求。
+
+| 改动                                               | 最低验证                                                                                                                |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| skill / 纯规则文档                                 | skill 格式校验、引用/命令存在性、相关文档守卫；不冒充产品验证                                                           |
+| 纯 TypeScript selector/projection/parser           | `npm run test:related -- <paths...>`；必要时 lint/typecheck                                                             |
+| React 组件/hook                                    | related unit/component；用户可见变更补五语言与稳定 DOM 断言                                                             |
+| Rust crate                                         | `npm run test:rust:related -- <paths...>`；跨 crate 行为追加 integration layer                                          |
+| App Server method/protocol/schema/generated client | `npm run test:contracts` + 公共 JSON-RPC 集成测试                                                                       |
+| Agent loop/queue/turn/item/read model              | Rust related/integration + `npm run smoke:agent-runtime-current-fixture`                                                |
+| App Server Rust session/transport                  | `cargo test --manifest-path "lime-rs/Cargo.toml" -p app-server-client` + `npm run smoke:app-server-stdio`               |
+| TUI reducer/render/composer                        | `cargo test --manifest-path "lime-rs/Cargo.toml" -p tui` + 稳定 TestBackend 断言；交互变更补 `npm run smoke:tui-gate-b` |
+| CLI 参数/非交互 Agent 流程                         | `cargo test --manifest-path "lime-rs/Cargo.toml" -p cli` + `npm run smoke:cli-gate-b` 或受影响 CLI surface fixture      |
+| CLI npm launcher/平台包/发布顺序                   | `npm --prefix packages/cli test` + `smoke:cli-npm-gate-b` + release/CLI guard                                           |
+| tool/approval/sandbox/context                      | owner 集成测试 + current runtime fixture；命令边界追加 contracts                                                        |
+| MCP/Skills/Multi-Agent                             | owner 集成测试 + `npm run smoke:mcp-current` 或对应 current fixture                                                     |
+| Provider/lowering/multimodal                       | provider request capture + Rust related/integration + modality contracts                                                |
+| GUI 壳/Workspace/主路径                            | related tests + `npm run verify:gui-smoke` + 风险匹配的 Gate A                                                          |
+| Electron/preload/IPC/read model/恢复               | `npm run test:contracts` + 对应真实 Electron Gate B fixture                                                             |
+| 版本/Forge/workspace manifest                      | `npm run verify:app-version`；release 边界追加 Forge guard                                                              |
+| 脚本目录                                           | `npm run governance:scripts`                                                                                            |
+| legacy/dead surface 删除                           | `npm run governance:legacy-report` + 相关负向回流守卫                                                                   |
 
 默认本地入口是 `npm run verify:local`。需要完整本地门禁时使用 `npm run verify:local:full`。前端全量测试中断后使用 `npm run test:resume`，不要从第一批无差别重跑。
 `verify:local` 进入前端测试前同样读取既有 Vitest 状态；存在失败、中断、运行中或未完成批次时委托 `npm test -- --resume`。完成态不能作为新源码的测试缓存，无未完成批次时仍运行新一轮；损坏状态显式失败。标准和 smoke Vitest 配置都排除 `.lime` 生成产物，发布候选副本不参与源码测试发现。
+续跑复用当前测试发现与live过滤，新增文件追加pending批次，保留旧批次与失败起点并跳过已passed批次。它不按源码摘要失效旧通过结果；续跑期间改动已通过的测试或其owner时，另跑受影响定向回归并记录证据。
+
+Agent / GUI 主链实现前，在执行计划填写 [Agent Verification Contract](../exec-plans/templates/agent-verification-contract.md)。先定向验证，再运行受影响 current fixture、GUI smoke 与默认本地门禁；新改动、失败或未关闭风险才触发扩大或重跑。
+
+## Codex 对齐与旧资产迁移
+
+GUI 对齐范围及三项保留差异以 [design-language.md](design-language.md) 为准。公开 Rust 源码决定共享协议和 runtime 语义；Desktop 布局与模块结构由指定安装包的 REA Evidence 或已获准的运行观察证明。记录版本、摘要、Evidence ID 和覆盖限制，不能把压缩局部符号当成原始名称，不能把静态分析写成运行证据。
+
+每个切片的账本至少包含上游模块/可确认符号、Lime current owner、行为合同、调用者、删除项和验证。检查结构、函数、类型、类与命名迁移，以及主题、多模型和首页 Banner 是否继续走既有 owner；同名文件数和视觉相似度不证明全面对齐。
+
+直接替换时同步迁移或删除旧代码、文档、测试、snapshot、fixture、扫描规则与白名单：
+
+- 有效风险由 current owner 的行为测试继续覆盖，断言输入、输出、identity、状态转移与失败终态。
+- 过期组件形状、旧 DOM 布局、已删除命令的正向测试直接迁出，不为其恢复实现或加 alias。
+- 护栏守住唯一 owner、协议、权限、持久化与 production mock 边界；旧文件名和结构扫描只能作为相关回流守卫，不能锁死合法对齐。
+- 旧计划和原始分析可作为历史证据，但不保留与 current 事实源冲突的 active checklist 或导航。
+
+完成度分别报告规则/研究、行为、结构/命名、清理与产品验证，并写清分母；不得把某个切片 100% 当成整体 GUI 对齐 100%。
 
 ## 证据等级
 
@@ -60,6 +81,8 @@ Desktop Host / CLI-TUI Host
 
 `npm run test:e2e` 是 Vitest 的 e2e 分层入口，不等于 Electron Gate B。Gate A 不能替代 Gate B。
 
+`smoke:agent-runtime-current-fixture` 是混合聚合入口，包含定向测试与真实 Electron 子场景。只计实际成功执行且满足合同的场景；没有启动、提前失败或仅静态 guard 通过均不能写 Gate B。explicit external / unavailable backend 要记录绕过的执行层，不冒充 live provider 或完整 production backend 证据。
+
 ## 测试作者合同
 
 对齐 Codex 的测试标准：
@@ -74,6 +97,8 @@ Desktop Host / CLI-TUI Host
 8. 测试 helper 只承接环境与观察能力，不暴露第二套 production API；仅一个测试使用的 helper 留在测试文件内。
 9. 测试失败信息必须包含 scenario/identity/expected/actual，不能只报 timeout。
 10. 修复线上或 Gate 缺陷时，在最接近根因的 owner 层补回归；必要时再补一条跨层产品证据。
+
+完成回归必须区分 public JSON-RPC notification `turn/completed`、runtime event 与 Renderer `turn_completed`，并关联同一 Thread/Turn。请求使用 current `thread/*`、`turn/*`、`item/*` 与 server request 合同；历史私有 method 不作为新增测试入口，固定等待或测试侧合成 terminal 不算完成证据。
 
 ## 前端分层
 

@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 import {
   ASSISTANT_DONE_TEXT,
   NEWS_PROMPT,
@@ -69,22 +70,21 @@ function readHomeHotpathSnapshot(matchers = {}) {
     typeof matchers?.summaryText === "string" ? matchers.summaryText : "";
   const bodyText = document.body?.innerText || "";
   const mainText = document.querySelector("main")?.innerText || bodyText;
-  const textarea = document.querySelector(
-    'textarea[name="agent-chat-message"]',
-  );
-  const textareaRect = textarea?.getBoundingClientRect();
-  const textareaStyle = textarea ? window.getComputedStyle(textarea) : null;
+  const editors = findVisibleComposerEditorsDom();
+  const editor = editors.length === 1 ? editors[0] : null;
+  const editorRect = editor?.getBoundingClientRect();
+  const editorStyle = editor ? window.getComputedStyle(editor) : null;
   const mainArea = document.querySelector(
     '[data-testid="workspace-main-area"]',
   );
   const mainAreaRect = mainArea?.getBoundingClientRect();
-  const textareaVisible = Boolean(
-    textarea &&
-    textareaRect &&
-    textareaRect.width > 16 &&
-    textareaRect.height > 16 &&
-    textareaStyle?.visibility !== "hidden" &&
-    textareaStyle?.display !== "none",
+  const editorVisible = Boolean(
+    editor &&
+    editorRect &&
+    editorRect.width > 16 &&
+    editorRect.height > 16 &&
+    editorStyle?.visibility !== "hidden" &&
+    editorStyle?.display !== "none",
   );
   const assistantMessages = Array.from(
     document.querySelectorAll('[data-message-role="assistant"]'),
@@ -126,19 +126,21 @@ function readHomeHotpathSnapshot(matchers = {}) {
           height: Math.round(mainAreaRect.height * 100) / 100,
         }
       : null,
-    textareaVisible,
-    textareaDisabled:
-      textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-    textareaSessionId:
-      textarea instanceof HTMLTextAreaElement
-        ? textarea.dataset.sessionId || null
+    editorVisible,
+    editorCount: editors.length,
+    editorDisabled:
+      editor instanceof HTMLElement
+        ? editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true"
         : null,
-    textareaValue:
-      textarea instanceof HTMLTextAreaElement ? textarea.value : null,
+    editorSessionId:
+      editor instanceof HTMLElement ? editor.dataset.sessionId || null : null,
+    editorText:
+      editor instanceof HTMLElement ? readComposerEditorTextDom(editor) : null,
     promptInBody: prompt ? bodyText.includes(prompt) : false,
-    promptVisibleInTextarea:
-      textarea instanceof HTMLTextAreaElement && prompt
-        ? textarea.value === prompt
+    promptVisibleInEditor:
+      editor instanceof HTMLElement && prompt
+        ? readComposerEditorTextDom(editor) === prompt
         : false,
     doneInBody: doneText ? bodyText.includes(doneText) : false,
     summaryInBody: summaryText ? bodyText.includes(summaryText) : false,
@@ -173,7 +175,7 @@ async function waitForHomeHotpathReady(page, options, matchers) {
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      readHomeHotpathSnapshot,
+      withComposerEditorDom(readHomeHotpathSnapshot),
       matchers,
     );
     if (!snapshot) {
@@ -184,8 +186,8 @@ async function waitForHomeHotpathReady(page, options, matchers) {
     if (
       snapshot.hasEmptyStateFirstScreen &&
       snapshot.hasConnectedComposer &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       !snapshot.hasNoAvailableModelText
     ) {
       return snapshot;
@@ -207,7 +209,7 @@ async function openNewConversationHome(page, options, matchers) {
   });
   const before = await evaluatePageSnapshot(
     page,
-    readHomeHotpathSnapshot,
+    withComposerEditorDom(readHomeHotpathSnapshot),
     matchers,
   );
   await button.click();
@@ -217,7 +219,11 @@ async function openNewConversationHome(page, options, matchers) {
 
 async function sampleHomeHotpathProjection(page, matchers) {
   return sanitizeJson(
-    await evaluatePageSnapshot(page, readHomeHotpathSnapshot, matchers),
+    await evaluatePageSnapshot(
+      page,
+      withComposerEditorDom(readHomeHotpathSnapshot),
+      matchers,
+    ),
   );
 }
 
@@ -226,11 +232,11 @@ function summarizeHomeHotpathStabilitySample(snapshot, startedAt, index) {
     index,
     elapsedMs: Date.now() - startedAt,
     url: snapshot?.url ?? null,
-    textareaVisible: snapshot?.textareaVisible ?? null,
-    textareaDisabled: snapshot?.textareaDisabled ?? null,
-    textareaSessionId: snapshot?.textareaSessionId ?? null,
-    textareaValue: snapshot?.textareaValue ?? null,
-    promptVisibleInTextarea: snapshot?.promptVisibleInTextarea === true,
+    editorVisible: snapshot?.editorVisible ?? null,
+    editorDisabled: snapshot?.editorDisabled ?? null,
+    editorSessionId: snapshot?.editorSessionId ?? null,
+    editorText: snapshot?.editorText ?? null,
+    promptVisibleInEditor: snapshot?.promptVisibleInEditor === true,
     promptInBody: snapshot?.promptInBody === true,
     doneInBody: snapshot?.doneInBody === true,
     summaryInBody: snapshot?.summaryInBody === true,
@@ -266,7 +272,7 @@ function analyzeHomeHotpathStabilitySamples(samples) {
     observedTextareaSessionIds: Array.from(
       new Set(
         samples
-          .map((sample) => sample.textareaSessionId)
+          .map((sample) => sample.editorSessionId)
           .filter((value) => typeof value === "string" && value.trim()),
       ),
     ),
@@ -279,9 +285,9 @@ function analyzeHomeHotpathAfterFillStabilitySamples(samples) {
     (sample) =>
       sample.hasEmptyStateFirstScreen !== true ||
       sample.hasConnectedComposer !== true ||
-      sample.textareaVisible !== true ||
-      sample.textareaDisabled !== false ||
-      sample.promptVisibleInTextarea !== true ||
+      sample.editorVisible !== true ||
+      sample.editorDisabled !== false ||
+      sample.promptVisibleInEditor !== true ||
       sample.hasEmptyConversationText ||
       sample.hasNoAvailableModelText,
   );
@@ -311,7 +317,7 @@ function analyzeHomeHotpathPostCompletionStabilitySamples(samples) {
     observedTextareaSessionIds: Array.from(
       new Set(
         samples
-          .map((sample) => sample.textareaSessionId)
+          .map((sample) => sample.editorSessionId)
           .filter((value) => typeof value === "string" && value.trim()),
       ),
     ),
@@ -387,119 +393,126 @@ async function installHomeHotpathSubmitFrameSampler(
   durationMs,
 ) {
   await page.evaluate(
-    ({ doneKey, key, matchers: samplerMatchers, sampleDurationMs }) => {
-      const readSnapshot = () => {
-        const prompt =
-          typeof samplerMatchers?.prompt === "string"
-            ? samplerMatchers.prompt
-            : "";
-        const doneText =
-          typeof samplerMatchers?.doneText === "string"
-            ? samplerMatchers.doneText
-            : "";
-        const summaryText =
-          typeof samplerMatchers?.summaryText === "string"
-            ? samplerMatchers.summaryText
-            : "";
-        const bodyText = document.body?.innerText || "";
-        const mainText = document.querySelector("main")?.innerText || bodyText;
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
-        );
-        const mainArea = document.querySelector(
-          '[data-testid="workspace-main-area"]',
-        );
-        const mainAreaRect = mainArea?.getBoundingClientRect();
-        const assistantMessages = Array.from(
-          document.querySelectorAll('[data-message-role="assistant"]'),
-        );
-        const userMessages = Array.from(
-          document.querySelectorAll('[data-message-role="user"]'),
-        );
+    withComposerEditorDom(
+      ({ doneKey, key, matchers: samplerMatchers, sampleDurationMs }) => {
+        const readSnapshot = () => {
+          const prompt =
+            typeof samplerMatchers?.prompt === "string"
+              ? samplerMatchers.prompt
+              : "";
+          const doneText =
+            typeof samplerMatchers?.doneText === "string"
+              ? samplerMatchers.doneText
+              : "";
+          const summaryText =
+            typeof samplerMatchers?.summaryText === "string"
+              ? samplerMatchers.summaryText
+              : "";
+          const bodyText = document.body?.innerText || "";
+          const mainText =
+            document.querySelector("main")?.innerText || bodyText;
+          const editors = findVisibleComposerEditorsDom();
+          const editor = editors.length === 1 ? editors[0] : null;
+          const mainArea = document.querySelector(
+            '[data-testid="workspace-main-area"]',
+          );
+          const mainAreaRect = mainArea?.getBoundingClientRect();
+          const assistantMessages = Array.from(
+            document.querySelectorAll('[data-message-role="assistant"]'),
+          );
+          const userMessages = Array.from(
+            document.querySelectorAll('[data-message-role="user"]'),
+          );
 
-        return {
-          url: window.location.href,
-          hasEmptyStateFirstScreen: Boolean(
-            document.querySelector('[data-testid="empty-state-first-screen"]'),
-          ),
-          hasConnectedComposer: Boolean(
-            document.querySelector(
-              '[data-testid="inputbar-connected-composer"]',
+          return {
+            url: window.location.href,
+            hasEmptyStateFirstScreen: Boolean(
+              document.querySelector(
+                '[data-testid="empty-state-first-screen"]',
+              ),
             ),
-          ),
-          hasMessageTurnGroup: Boolean(
-            document.querySelector('[data-testid="message-turn-group"]'),
-          ),
-          hasMessageList: Boolean(
-            document.querySelector('[data-testid="message-list"]') ||
-            document.querySelector('[data-testid="message-list-frame"]'),
-          ),
-          imperativePendingShellCount: document.querySelectorAll(
-            "[data-home-hotpath-pending-shell]",
-          ).length,
-          mainAreaBounds: mainAreaRect
-            ? {
-                left: Math.round(mainAreaRect.left * 100) / 100,
-                top: Math.round(mainAreaRect.top * 100) / 100,
-                width: Math.round(mainAreaRect.width * 100) / 100,
-                height: Math.round(mainAreaRect.height * 100) / 100,
-              }
-            : null,
-          textareaSessionId:
-            textarea instanceof HTMLTextAreaElement
-              ? textarea.dataset.sessionId || null
+            hasConnectedComposer: Boolean(
+              document.querySelector(
+                '[data-testid="inputbar-connected-composer"]',
+              ),
+            ),
+            hasMessageTurnGroup: Boolean(
+              document.querySelector('[data-testid="message-turn-group"]'),
+            ),
+            hasMessageList: Boolean(
+              document.querySelector('[data-testid="message-list"]') ||
+              document.querySelector('[data-testid="message-list-frame"]'),
+            ),
+            imperativePendingShellCount: document.querySelectorAll(
+              "[data-home-hotpath-pending-shell]",
+            ).length,
+            mainAreaBounds: mainAreaRect
+              ? {
+                  left: Math.round(mainAreaRect.left * 100) / 100,
+                  top: Math.round(mainAreaRect.top * 100) / 100,
+                  width: Math.round(mainAreaRect.width * 100) / 100,
+                  height: Math.round(mainAreaRect.height * 100) / 100,
+                }
               : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-          promptInBody: prompt ? bodyText.includes(prompt) : false,
-          promptVisibleInTextarea:
-            textarea instanceof HTMLTextAreaElement && prompt
-              ? textarea.value === prompt
-              : false,
-          finalTextInBody:
-            (doneText ? bodyText.includes(doneText) : false) ||
-            (summaryText ? bodyText.includes(summaryText) : false),
-          assistantMessageCount: assistantMessages.length,
-          userMessageCount: userMessages.length,
-          hasEmptyConversationText:
-            bodyText.includes("当前对话还没有消息") ||
-            bodyText.includes("目前没有消息") ||
-            bodyText.includes("No messages yet"),
-          hasNoAvailableModelText:
-            bodyText.includes("没有可选模型") ||
-            bodyText.includes("沒有可選模型") ||
-            bodyText.includes("No available model"),
-          hasTaskCenterHomeText:
-            mainText.includes("青柠一下，灵感即来") ||
-            mainText.includes("你可以从这些任务开始") ||
-            mainText.includes("向下滑，看看 Lime 可以帮你做什么"),
+            editorSessionId:
+              editor instanceof HTMLElement
+                ? editor.dataset.sessionId || null
+                : null,
+            editorCount: editors.length,
+            editorText:
+              editor instanceof HTMLElement
+                ? readComposerEditorTextDom(editor)
+                : null,
+            promptInBody: prompt ? bodyText.includes(prompt) : false,
+            promptVisibleInEditor:
+              editor instanceof HTMLElement && prompt
+                ? readComposerEditorTextDom(editor) === prompt
+                : false,
+            finalTextInBody:
+              (doneText ? bodyText.includes(doneText) : false) ||
+              (summaryText ? bodyText.includes(summaryText) : false),
+            assistantMessageCount: assistantMessages.length,
+            userMessageCount: userMessages.length,
+            hasEmptyConversationText:
+              bodyText.includes("当前对话还没有消息") ||
+              bodyText.includes("目前没有消息") ||
+              bodyText.includes("No messages yet"),
+            hasNoAvailableModelText:
+              bodyText.includes("没有可选模型") ||
+              bodyText.includes("沒有可選模型") ||
+              bodyText.includes("No available model"),
+            hasTaskCenterHomeText:
+              mainText.includes("青柠一下，灵感即来") ||
+              mainText.includes("你可以从这些任务开始") ||
+              mainText.includes("向下滑，看看 Lime 可以帮你做什么"),
+          };
         };
-      };
 
-      const startSampler = () => {
-        const startedAt = performance.now();
+        const startSampler = () => {
+          const startedAt = performance.now();
+          window[key] = [];
+          window[doneKey] = false;
+          const sample = () => {
+            const snapshot = readSnapshot();
+            window[key].push({
+              ...snapshot,
+              elapsedMs: Math.round(performance.now() - startedAt),
+              index: window[key].length,
+            });
+            if (performance.now() - startedAt < sampleDurationMs) {
+              window.requestAnimationFrame(sample);
+              return;
+            }
+            window[doneKey] = true;
+          };
+          window.requestAnimationFrame(sample);
+        };
+
         window[key] = [];
         window[doneKey] = false;
-        const sample = () => {
-          const snapshot = readSnapshot();
-          window[key].push({
-            ...snapshot,
-            elapsedMs: Math.round(performance.now() - startedAt),
-            index: window[key].length,
-          });
-          if (performance.now() - startedAt < sampleDurationMs) {
-            window.requestAnimationFrame(sample);
-            return;
-          }
-          window[doneKey] = true;
-        };
-        window.requestAnimationFrame(sample);
-      };
-
-      window[key] = [];
-      window[doneKey] = false;
-      startSampler();
-    },
+        startSampler();
+      },
+    ),
     {
       doneKey: HOME_HOTPATH_SUBMIT_FRAME_DONE_KEY,
       key: HOME_HOTPATH_SUBMIT_FRAME_SAMPLES_KEY,
@@ -617,7 +630,7 @@ export function analyzeHomeHotpathSubmitToConversationSamples(
     observedTextareaSessionIds: Array.from(
       new Set(
         samples
-          .map((sample) => sample.textareaSessionId)
+          .map((sample) => sample.editorSessionId)
           .filter((value) => typeof value === "string" && value.trim()),
       ),
     ),
@@ -637,7 +650,7 @@ async function collectHomeHotpathFixedWindowSamples(
   while (Date.now() - startedAt < timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      readHomeHotpathSnapshot,
+      withComposerEditorDom(readHomeHotpathSnapshot),
       matchers,
     );
     if (snapshot) {
@@ -669,7 +682,7 @@ async function collectHomeHotpathStabilitySamples(
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      readHomeHotpathSnapshot,
+      withComposerEditorDom(readHomeHotpathSnapshot),
       matchers,
     );
     if (snapshot) {

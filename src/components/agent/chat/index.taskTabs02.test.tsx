@@ -372,7 +372,7 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     ).toBeNull();
     expect(
       mounted.container.querySelector(
-        '[data-testid="inputbar-project-context-project-trigger"]',
+        '[data-testid="composer-utility-project-trigger"]',
       ),
     ).toBeNull();
     expect(onNavigate).not.toHaveBeenCalled();

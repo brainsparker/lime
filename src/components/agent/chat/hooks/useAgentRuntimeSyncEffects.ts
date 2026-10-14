@@ -6,7 +6,11 @@ import { parseAgentEvent } from "@/lib/api/agentProtocol";
 import { hasDesktopHostEventListenerCapability } from "@/lib/desktop-runtime";
 import type { AgentThreadTurn } from "../types";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
-import type { AgentSessionDetailRefreshRequest } from "./agentSessionRefresh";
+import type {
+  AgentSessionDetailRefreshRequest,
+  AgentSessionReadModelRefreshRequest,
+} from "./agentSessionRefresh";
+import { useAgentThreadQueueSync } from "./useAgentThreadQueueSync";
 import {
   hasRunningCommandReadActivity,
   hasRunningThreadReadActivity,
@@ -398,6 +402,7 @@ function hasTerminalTurn(
 }
 
 interface UseAgentRuntimeSyncEffectsOptions {
+  workspaceId?: string;
   runtime: Pick<AgentRuntimeAdapter, "listenToTurnEvents">;
   sessionIdRef: MutableRefObject<string | null>;
   sessionId: string | null;
@@ -413,13 +418,25 @@ interface UseAgentRuntimeSyncEffectsOptions {
     targetSessionId?: string,
     request?: AgentSessionDetailRefreshRequest,
   ) => Promise<unknown>;
-  refreshSessionReadModel: (targetSessionId?: string) => Promise<unknown>;
+  refreshSessionReadModel: (
+    targetSessionId?: string,
+    request?: AgentSessionReadModelRefreshRequest,
+  ) => Promise<unknown>;
   settleActiveRuntimeStream?: (targetSessionId: string) => void;
 }
 
 export function useAgentRuntimeSyncEffects(
   options: UseAgentRuntimeSyncEffectsOptions,
 ) {
+  useAgentThreadQueueSync({
+    workspaceId: options.workspaceId,
+    sessionId: options.sessionId,
+    threadId: readString(readRecord(options.threadRead) ?? {}, ["thread_id"]),
+    refreshSessionReadModel: options.refreshSessionReadModel,
+    onWarn: (error) => {
+      console.warn("[AgentChat] Queue timeline refresh failed:", error);
+    },
+  });
   const {
     runtime,
     sessionIdRef,

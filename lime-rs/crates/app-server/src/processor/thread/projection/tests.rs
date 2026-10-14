@@ -2,6 +2,8 @@ use super::*;
 use serde_json::json;
 use std::collections::HashMap;
 
+mod queue;
+
 #[test]
 fn v2_read_params_choose_exact_turn_loading_mode() {
     let without_turns = lower_thread_read_params(&v2::ThreadReadParams {

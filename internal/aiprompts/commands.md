@@ -627,6 +627,15 @@ RuntimeCore / tool-runtime browser__* -> App Server item/tool/call -> AppServerD
 
 App Server 持有 Thread/Turn、动态工具生命周期、Browser read model 与 canonical identity；Electron 只持有 native view、window、`webContents.debugger`、下载和权限等宿主状态；Renderer 只消费 projection 并发送用户意图。Agent action 必须按 connection/thread/turn/session/tab/view/WebContents owner 精确路由，用户操作或 turn terminal 必须使旧控制权失效。
 
+`browser_tab_list` 是既有 native tab owner 的只读 snapshot，不是新的 App Server 业务方法。
+Host 从实际 IPC sender 派生 window / ownerWebContents，并校验 browserSession / thread；身份不符必须
+拒绝，不能返回空列表。返回完整 live tabs、selected、URL 和 native identity；Renderer 验证 scope、
+唯一 tab/view/WebContents 及至多一个 selected。BrowserWorkspace 重挂载先恢复完整 snapshot，非空时
+保留 Host selected 并恢复 bounds；只有真正空列表才隐藏挂载 canonical primary，再由当前 owner 显示。
+不能用 App Server 分配的 primary tab id 代替当前 native selected，或复活已关闭 primary。
+`useBrowserWorkspaceHydration` 是唯一恢复接线，使用单调 epoch、事件合并与 close tombstone 拒绝
+ABA、迟到 snapshot / event / mount；它只持有显示投影，不增加 tab store 或网页执行体。
+
 外部 Chrome/CDP `browserSession/*`、`BrowserRuntimeManager`、Settings Chrome relay、`BrowserSessionRef` adapter、Canvas Browser 和 `mcp__lime-browser__*` 正向工具均为 `dead / deleted / forbidden-to-restore`；只允许出现在负向回流守卫或不可变历史 evidence。Browser current command 变更必须同步 Electron Host/preload、Renderer typed gateway、App Server reverse-request/catalog、fixture、read model 与 `npm run test:contracts`。
 
 ## Review 主链

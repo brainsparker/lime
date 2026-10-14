@@ -5,7 +5,6 @@ import type { MessagePathReference } from "../../types";
 import type { Character } from "@/lib/api/projectMemory";
 import type { AgentSessionExecutionRuntime } from "@/lib/api/agentExecutionRuntime";
 import { InputbarComposerSection } from "./components/InputbarComposerSection";
-import type { InputbarOpenedProject } from "./components/InputbarProjectContextBar";
 import { HintRoutePopup } from "./components/HintRoutePopup";
 import { InputbarSurface } from "./components/InputbarSurface";
 import type { SkillSelectionSourceProps } from "../../skill-selection/skillSelectionBindings";
@@ -30,7 +29,7 @@ import type { InputbarSendHandler } from "./inputbarSendPayload";
 import type { InterruptedInputRestoreRequest } from "../../hooks/agentStreamInputRestoreTypes";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
 import type { ThreadGoal } from "@limecloud/app-server-client";
-import type { ComposerSubmitTarget } from "@/components/input-kit";
+import type { ComposerController, ComposerSubmitTarget } from "@/components/input-kit";
 
 const SecondaryControlsRow = styled.div`
   position: absolute;
@@ -53,6 +52,7 @@ const SecondaryControlsRow = styled.div`
 `;
 
 interface InputbarProps extends SkillSelectionSourceProps {
+  composerController?: ComposerController;
   input: string;
   setInput: (value: string) => void;
   onSend: InputbarSendHandler;
@@ -100,10 +100,6 @@ interface InputbarProps extends SkillSelectionSourceProps {
   onManageKnowledgePacks?: () => void;
   contextVariant?: "default" | "task-center";
   projectId?: string | null;
-  openedProjects?: InputbarOpenedProject[];
-  onProjectContextChange?: (projectId: string | null) => void;
-  projectContextModeLabel?: string;
-  projectContextBranchLabel?: string;
   sessionId?: string | null;
   threadId?: string | null;
   threadGoal?: ThreadGoal | null;
@@ -125,6 +121,7 @@ interface InputbarProps extends SkillSelectionSourceProps {
 }
 
 export const Inputbar: React.FC<InputbarProps> = ({
+  composerController: externalComposerController,
   input,
   setInput,
   onSend,
@@ -218,7 +215,9 @@ export const Inputbar: React.FC<InputbarProps> = ({
     executionRuntime,
   );
   const {
-    textareaRef,
+    editorRef,
+    handleComposerHistoryRecall,
+    pathReferences: composerPathReferences,
     composerController,
     isWorkspaceVariant,
     pendingImages,
@@ -257,6 +256,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
     handleSelectPlugin,
     knowledgeHubOpenRequestKey,
   } = useInputbarController({
+    composerController: externalComposerController,
     input,
     setInput,
     onSend,
@@ -304,7 +304,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
       isFullscreen={isFullscreen}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onKeyDown={handleHintKeyDown}
     >
       {showHintPopup ? (
         <HintRoutePopup
@@ -342,7 +341,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
         characters={characters}
         skillSelection={skillSelection}
         onSkillSuggestionsNeeded={onSkillSuggestionsNeeded}
-        textareaRef={textareaRef}
+        editorRef={editorRef}
         input={input}
         disabledPlaceholder={disabledPlaceholder}
         onSelectCharacter={onSelectCharacter}
@@ -378,12 +377,17 @@ export const Inputbar: React.FC<InputbarProps> = ({
         activeTools={activeTools}
         pendingImages={pendingImages}
         onRemoveImage={handleRemoveImage}
-        pathReferences={pathReferences}
+        pathReferences={composerPathReferences}
         onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
-        onRemovePathReference={onRemovePathReference}
+        onRemovePathReference={(id) => {
+          composerController.setPathReferences(composerController.getDocument().pathReferences.filter((reference) => reference.id !== id));
+          onRemovePathReference?.(id);
+        }}
         fileManagerOpen={fileManagerOpen}
         onToggleFileManager={onToggleFileManager}
         onPaste={handlePaste}
+        onKeyDown={handleHintKeyDown}
+        onHistoryRecall={handleComposerHistoryRecall}
         isFullscreen={isFullscreen}
         isWorkspaceVariant={isWorkspaceVariant}
         activeTheme={activeTheme}

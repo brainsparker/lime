@@ -250,6 +250,8 @@ export async function executeScenarioFlow({
   appServerRequests,
   runtimeEnv,
   readTextProviderRequests,
+  readClipboardText,
+  writeClipboardText,
 }) {
   const isImageIntentScenario =
     options.scenario === IMAGE_COMMAND_SCENARIO ||
@@ -412,6 +414,8 @@ export async function executeScenarioFlow({
         summary,
         appServerRequests,
         runtimeEnv,
+        readClipboardText,
+        writeClipboardText,
       }),
     );
   } else if (isHomeHotpathScenario) {

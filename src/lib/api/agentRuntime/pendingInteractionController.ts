@@ -564,9 +564,10 @@ function commandActionFromRequest(
   const requestId = params.approvalId || params.itemId;
   const command = params.command?.trim();
   const argumentsValue =
-    command || params.networkApprovalContext
+    command || params.cwd || params.networkApprovalContext
       ? normalizeActionArguments({
           ...(command ? { command } : {}),
+          ...(params.cwd ? { cwd: params.cwd } : {}),
           ...(params.networkApprovalContext
             ? { networkApprovalContext: params.networkApprovalContext }
             : {}),
@@ -601,6 +602,7 @@ function fileActionFromRequest(
     requestId: params.itemId,
     actionType: "tool_confirmation",
     toolName: "apply_patch",
+    ...(params.grantRoot ? { arguments: { grantRoot: params.grantRoot } } : {}),
     prompt: params.reason || undefined,
     scope: { threadId: params.threadId, turnId: params.turnId },
     availableDecisions: [

@@ -30,7 +30,7 @@ import { MessageUserBody } from "./MessageUserBody";
 import type { MessageListRenderGroup } from "./MessageList.types";
 import { resolveMessageListItemProjection } from "./messageListItemProjection";
 import type { SearchResultPreviewItem } from "../utils/searchResultPreview";
-import { canonicalAgentMessageItemId } from "../utils/contentPartTimeline";
+import { resolveCanonicalMessageItemId } from "./messageItemIdentity";
 import {
   ThreadRevertTrigger,
   type ThreadRevertTarget,
@@ -66,40 +66,6 @@ function timelineDebugSignature(
     .join("|");
 }
 
-function resolveCanonicalMessageItemId(
-  message: Message,
-  group: MessageListRenderGroup,
-  threadRead: AgentRuntimeThreadReadModel | null,
-): string | null {
-  if (message.role === "assistant") {
-    const fromContentParts = canonicalAgentMessageItemId(message.contentParts);
-    if (fromContentParts) {
-      return fromContentParts;
-    }
-  }
-
-  const turnId =
-    message.runtimeTurnId?.trim() || group.timeline?.turn?.id?.trim() || null;
-  const itemType =
-    message.role === "assistant"
-      ? "agent_message"
-      : message.role === "user"
-        ? "user_message"
-        : null;
-  if (!itemType) {
-    return null;
-  }
-  const candidates = [
-    ...(group.timeline?.items ?? []),
-    ...(threadRead?.thread_items ?? []),
-  ];
-  return (
-    candidates.find(
-      (item) => item.type === itemType && (!turnId || item.turn_id === turnId),
-    )?.id ?? null
-  );
-}
-
 export interface MessageListItemProps {
   msg: Message;
   group: MessageListRenderGroup;
@@ -132,6 +98,7 @@ export interface MessageListItemProps {
   threadRead: AgentRuntimeThreadReadModel | null;
   timelineFocusRequestKey: number;
   handleCopy: (content: string, id: string) => void | Promise<void>;
+  onBeforeUserMessageToggle?: () => void;
   handleExpandHistoricalAssistantMessage: (messageId: string) => void;
   handleExpandLongHistoricalMessage: (messageId: string) => void;
   onA2UIFormChange?: (formId: string, formData: A2UIFormData) => void;
@@ -201,6 +168,7 @@ export function MessageListItem({
   threadRead,
   timelineFocusRequestKey,
   handleCopy,
+  onBeforeUserMessageToggle,
   handleExpandHistoricalAssistantMessage,
   handleExpandLongHistoricalMessage,
   onA2UIFormChange,
@@ -223,6 +191,11 @@ export function MessageListItem({
   onWriteFile,
 }: MessageListItemProps) {
   const { i18n, t } = useTranslation("agent");
+  const canonicalMessageItemId = resolveCanonicalMessageItemId(
+    msg,
+    group,
+    threadRead,
+  );
   const projection = resolveMessageListItemProjection({
     activeCurrentTurnId,
     activePendingA2UISource,
@@ -473,9 +446,7 @@ export function MessageListItem({
             data-message-id={msg.id}
             data-message-role={msg.role}
             data-runtime-turn-id={msg.runtimeTurnId || ""}
-            data-thread-item-id={
-              resolveCanonicalMessageItemId(msg, group, threadRead) || undefined
-            }
+            data-thread-item-id={canonicalMessageItemId || undefined}
             data-message-content-part-types={contentPartDebugSignature(
               msg.contentParts,
             )}
@@ -569,8 +540,16 @@ export function MessageListItem({
                 isUserCommandMessage={isUserCommandMessage}
                 message={msg}
                 onA2UISubmit={onA2UISubmit}
+                onBeforeToggle={onBeforeUserMessageToggle}
                 rawRuntimePeerContent={rawRuntimePeerContent}
                 renderA2UIInline={renderA2UIInline}
+                revealRequestKey={
+                  focusedTimelineItemId &&
+                  (focusedTimelineItemId === msg.id ||
+                    focusedTimelineItemId === canonicalMessageItemId)
+                    ? timelineFocusRequestKey
+                    : 0
+                }
                 shouldRenderRuntimePeerCards={shouldRenderRuntimePeerCards}
               />
             )}

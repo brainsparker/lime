@@ -1,6 +1,78 @@
 {
   "imports": [
     {
+      "id": "retired-main-window-media-permissions",
+      "classification": "dead",
+      "description": "主窗口媒体与剪贴板权限统一归 mainWindowPermissions；禁止恢复旧媒体策略或第二个主窗口权限注册 owner，嵌入浏览器独立 session 策略保留",
+      "targets": [
+        "electron/mainWindowMediaPermissions.ts",
+        "electron/mainWindowMediaPermissions.test.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-composer-reference-sidecars",
+      "classification": "dead",
+      "description": "Skill 与 Plugin 引用只归 Composer 文档 atom；禁止恢复外部 badge 与纯文本提交拼接入口",
+      "targets": [
+        "src/components/agent/chat/components/Inputbar/components/InputbarPluginBadge.tsx",
+        "src/components/agent/chat/skill-selection/SkillBadge.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-inputbar-project-context-presentation",
+      "classification": "dead",
+      "description": "ComposerUtilityBar 是唯一 project/run-location/branch 呈现入口；旧项目上下文组件直接迁移，不恢复 alias 或双轨",
+      "targets": [
+        "src/components/agent/chat/components/Inputbar/components/InputbarProjectContextBar.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-thread-queue-status-presentation",
+      "classification": "dead",
+      "description": "QueuedMessageList 是唯一队列呈现入口；旧 ThreadQueueStatus 已直接迁移，不恢复包装或第二列表 owner",
+      "targets": [
+        "src/components/agent/chat/components/ThreadQueueStatus.tsx",
+        "src/components/agent/chat/components/ThreadQueueStatus.test.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-path-only-files-surface",
+      "classification": "dead",
+      "description": "Files 已直接消费 current review projection；禁止恢复路径列表与选择即外部打开的平行入口",
+      "targets": [
+        "src/components/agent/chat/workspace/WorkspaceFilesSurface.tsx",
+        "src/components/agent/chat/workspace/WorkspaceFilesSurface.test.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-tail-dom-render-window",
+      "classification": "dead",
+      "description": "viewport Turn 虚拟列表是唯一 DOM window owner；禁止恢复尾窗、idle 全量挂载与第二份 range 投影",
+      "targets": [
+        "src/components/agent/chat/components/useMessageListRenderWindow.ts",
+        "src/components/agent/chat/projection/messageRenderWindowProjection.ts",
+        "src/components/agent/chat/projection/messageRenderWindowProjection.test.ts",
+        "src/components/agent/chat/projection/threadTimelineWindowProjection.ts",
+        "src/components/agent/chat/projection/threadTimelineWindowProjection.test.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-compact-inputbar-approval",
+      "classification": "dead",
+      "description": "旧单行审批提示已由 PendingRequestItemPanel 承接；禁止恢复隐藏命令与授权范围的平行入口",
+      "targets": [
+        "src/components/agent/chat/components/Inputbar/components/InputbarApprovalPrompt.tsx",
+        "src/components/agent/chat/components/Inputbar/components/InputbarApprovalPrompt.test.tsx"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "retired-product-db-whole-migration-surface",
       "classification": "dead",
       "description": "已删除的 Product DB 整库复制、版本化 manifest 与专用 Electron fixture；current Product DB 只使用 AgentRoot，模型控制面导入由独立 owner 承接",
@@ -3007,6 +3079,29 @@
   ],
   "frontendText": [
     {
+      "id": "retired-primary-composer-textarea-adapter",
+      "classification": "dead",
+      "description": "主输入只由结构化 EditorView 和 Controller 驱动；禁止 textarea 适配器与 Plugin 纯文本替换回流",
+      "patterns": [
+        "textareaRef",
+        "textareaProps",
+        "StyledTextarea",
+        "<textarea",
+        "applyInputbarPluginSelection",
+        "resolveInputbarPluginSubmissionText",
+        "removeInputbarPluginSelection"
+      ],
+      "includePathPrefixes": [
+        "src/components/input-kit/",
+        "src/components/agent/chat/components/Inputbar/",
+        "src/components/agent/chat/components/EmptyState.tsx",
+        "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.tsx",
+        "src/components/agent/chat/skill-selection/useCharacterMentionSelection.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "frontend-retired-model-provider-key-telemetry-methods",
       "classification": "dead",
       "description": "Renderer 不得恢复读取明文 Provider key 或直接操纵 key usage/error telemetry 的已删除 App Server 方法",
@@ -3071,10 +3166,7 @@
       "id": "plugin-lab-retired-i18n-keys",
       "classification": "dead",
       "description": "旧 Plugin Lab 实验岛和 sidebar 入口已从产品链删除；五语言资源不得恢复 plugin.lab.* 或 pluginLab 文案",
-      "patterns": [
-        "plugin.lab.",
-        "navigation.sidebar.items.pluginLab"
-      ],
+      "patterns": ["plugin.lab.", "navigation.sidebar.items.pluginLab"],
       "includePathPrefixes": ["src/i18n/resources"],
       "allowedPaths": []
     },

@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../../lib/composer-editor-dom.mjs";
 import path from "node:path";
 import {
   APP_SERVER_HANDLE_JSON_LINES_COMMAND,
@@ -50,90 +51,100 @@ async function waitForUiSnapshot(page, options, predicate, failureLabel) {
   const startedAt = Date.now();
   let lastSnapshot = null;
   while (Date.now() - startedAt < options.timeoutMs) {
-    const snapshot = await evaluatePageSnapshot(page, () => {
-      const bodyText = document.body?.innerText || "";
-      const dialog = document.querySelector(
-        '[data-testid="app-sidebar-conversation-import-dialog"]',
-      );
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
-      );
-      const sendButton = Array.from(document.querySelectorAll("button")).find(
-        (button) => {
-          const label = [
-            button.getAttribute("aria-label") || "",
-            button.getAttribute("title") || "",
-            button.textContent || "",
-          ].join("\n");
-          return label.includes("发送") || /\bSend\b/i.test(label);
-        },
-      );
-      return {
-        url: window.location.href,
-        title: document.title || "",
-        bodyText,
-        dialogVisible: Boolean(dialog),
-        importButtonVisible: Boolean(
-          document.querySelector(
-            '[data-testid="app-sidebar-import-conversation-button"]',
+    const snapshot = await evaluatePageSnapshot(
+      page,
+      withComposerEditorDom(() => {
+        const bodyText = document.body?.innerText || "";
+        const dialog = document.querySelector(
+          '[data-testid="app-sidebar-conversation-import-dialog"]',
+        );
+        const editor = document.querySelector(
+          '[data-testid="composer-editor"][role="textbox"]',
+        );
+        const sendButton = Array.from(document.querySelectorAll("button")).find(
+          (button) => {
+            const label = [
+              button.getAttribute("aria-label") || "",
+              button.getAttribute("title") || "",
+              button.textContent || "",
+            ].join("\n");
+            return label.includes("发送") || /\bSend\b/i.test(label);
+          },
+        );
+        return {
+          url: window.location.href,
+          title: document.title || "",
+          bodyText,
+          dialogVisible: Boolean(dialog),
+          importButtonVisible: Boolean(
+            document.querySelector(
+              '[data-testid="app-sidebar-import-conversation-button"]',
+            ),
           ),
-        ),
-        importConfirmVisible: Boolean(
-          document.querySelector(
-            '[data-testid="app-sidebar-conversation-import-confirm"]',
+          importConfirmVisible: Boolean(
+            document.querySelector(
+              '[data-testid="app-sidebar-conversation-import-confirm"]',
+            ),
           ),
-        ),
-        importConfirmDisabled:
-          document.querySelector(
-            '[data-testid="app-sidebar-conversation-import-confirm"]',
-          ) instanceof HTMLButtonElement
-            ? document.querySelector(
-                '[data-testid="app-sidebar-conversation-import-confirm"]',
-              ).disabled
-            : null,
-        importProgressVisible: Boolean(
-          document.querySelector(
-            '[data-testid="app-sidebar-conversation-import-progress"]',
+          importConfirmDisabled:
+            document.querySelector(
+              '[data-testid="app-sidebar-conversation-import-confirm"]',
+            ) instanceof HTMLButtonElement
+              ? document.querySelector(
+                  '[data-testid="app-sidebar-conversation-import-confirm"]',
+                ).disabled
+              : null,
+          importProgressVisible: Boolean(
+            document.querySelector(
+              '[data-testid="app-sidebar-conversation-import-progress"]',
+            ),
           ),
-        ),
-        importCloseVisible: Boolean(
-          document.querySelector(
-            '[data-testid="app-sidebar-conversation-import-close"]',
+          importCloseVisible: Boolean(
+            document.querySelector(
+              '[data-testid="app-sidebar-conversation-import-close"]',
+            ),
           ),
-        ),
-        textareaVisible: textarea instanceof HTMLTextAreaElement,
-        textareaDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-        textareaValue:
-          textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-        sendButtonVisible: sendButton instanceof HTMLButtonElement,
-        sendButtonDisabled:
-          sendButton instanceof HTMLButtonElement ? sendButton.disabled : null,
-        operationalDetailRowCount: document.querySelectorAll(
-          '[data-testid="tool-call-row"]',
-        ).length,
-        operationalTimelineDetailsCount: Array.from(
-          document.querySelectorAll(
-            'details[data-testid^="agent-thread-block:"][data-testid$=":process"], details[data-testid^="agent-thread-block:"][data-testid$=":approval"]',
+          editorVisible: editor instanceof HTMLElement,
+          editorDisabled:
+            editor instanceof HTMLElement
+              ? editor.getAttribute("aria-disabled") === "true" ||
+                editor.getAttribute("contenteditable") !== "true"
+              : null,
+          editorText:
+            editor instanceof HTMLElement
+              ? readComposerEditorTextDom(editor)
+              : null,
+          sendButtonVisible: sendButton instanceof HTMLButtonElement,
+          sendButtonDisabled:
+            sendButton instanceof HTMLButtonElement
+              ? sendButton.disabled
+              : null,
+          operationalDetailRowCount: document.querySelectorAll(
+            '[data-testid="tool-call-row"]',
+          ).length,
+          operationalTimelineDetailsCount: Array.from(
+            document.querySelectorAll(
+              'details[data-testid^="agent-thread-block:"][data-testid$=":process"], details[data-testid^="agent-thread-block:"][data-testid$=":approval"]',
+            ),
+          ).filter((details) => details.open).length,
+          deferredHistoricalPreviewCount: document.querySelectorAll(
+            '[data-testid="message-list-historical-markdown-preview"], [data-testid="message-list-historical-assistant-preview"], [data-testid="message-list-long-history-preview"]',
+          ).length,
+          environmentTriggerVisible: Boolean(
+            document.querySelector(
+              '[data-testid="task-center-environment-trigger"]',
+            ),
           ),
-        ).filter((details) => details.open).length,
-        deferredHistoricalPreviewCount: document.querySelectorAll(
-          '[data-testid="message-list-historical-markdown-preview"], [data-testid="message-list-historical-assistant-preview"], [data-testid="message-list-long-history-preview"]',
-        ).length,
-        environmentTriggerVisible: Boolean(
-          document.querySelector(
-            '[data-testid="task-center-environment-trigger"]',
+          environmentPopoverVisible: Boolean(
+            document.querySelector(
+              '[data-testid="task-center-environment-popover"]',
+            ),
           ),
-        ),
-        environmentPopoverVisible: Boolean(
-          document.querySelector(
-            '[data-testid="task-center-environment-popover"]',
-          ),
-        ),
-        traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
-        errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
-      };
-    });
+          traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
+          errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
+        };
+      }),
+    );
     if (!snapshot) {
       await sleep(options.intervalMs);
       continue;
@@ -293,7 +304,7 @@ export async function confirmImport(page, options) {
     options,
     (snapshot) =>
       !snapshot.dialogVisible &&
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "确认导入后未进入可继续对话的会话页",
@@ -445,9 +456,7 @@ export async function inspectImportedHistoricalTimelineSummary(page, options) {
       processDetailsSnapshot.openExpandableProcessCount > 0
     ) {
       const openProcessDetailsSelector = `${processDetailsSelector}[open]`;
-      while (
-        (await page.locator(openProcessDetailsSelector).count()) > 0
-      ) {
+      while ((await page.locator(openProcessDetailsSelector).count()) > 0) {
         const openCount = await page
           .locator(openProcessDetailsSelector)
           .count();
@@ -458,7 +467,10 @@ export async function inspectImportedHistoricalTimelineSummary(page, options) {
         await page.waitForFunction(
           ({ detailsSelector, previousCount }) =>
             document.querySelectorAll(detailsSelector).length < previousCount,
-          { detailsSelector: openProcessDetailsSelector, previousCount: openCount },
+          {
+            detailsSelector: openProcessDetailsSelector,
+            previousCount: openCount,
+          },
           { timeout: options.timeoutMs },
         );
       }
@@ -591,7 +603,7 @@ export async function inspectEnvironmentPopoverImportBoundary(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查环境信息边界",
@@ -684,7 +696,7 @@ export async function inspectImportedHistoryBanner(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查本地历史摘要",
@@ -708,7 +720,7 @@ export async function inspectSidebarImportDiscoverability(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查侧栏会话入口",
@@ -749,7 +761,7 @@ export async function inspectImportedAttachmentPreview(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查导入图片附件",
@@ -1174,7 +1186,7 @@ export async function inspectImportedFilePreviewArtifacts(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(IMPORTED_USER_TEXT) &&
       snapshot.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查导入文件预览",
@@ -1236,8 +1248,8 @@ async function inspectImportedSessionVisualViewport(
   const isStableImportedVisualState = (current) => {
     const bodyText = current.bodyText || "";
     return (
-      current.textareaVisible &&
-      current.textareaDisabled === false &&
+      current.editorVisible &&
+      current.editorDisabled === false &&
       bodyText.includes(IMPORTED_USER_TEXT) &&
       bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT) &&
       bodyText.includes(CONTINUE_USER_TEXT) &&
@@ -1270,8 +1282,8 @@ async function inspectImportedSessionVisualViewport(
       continueAssistantText,
     }) => {
       const bodyText = document.body?.innerText || "";
-      const textarea = document.querySelector(
-        'textarea[name="agent-chat-message"]',
+      const editor = document.querySelector(
+        '[data-testid="composer-editor"][role="textbox"]',
       );
       const importedBanner = document.querySelector(
         '[data-testid="imported-source-banner"]',
@@ -1290,10 +1302,8 @@ async function inspectImportedSessionVisualViewport(
         document.querySelector('[data-testid="message-list-frame"]');
       const viewportWidth = window.innerWidth;
       const viewportHeight = window.innerHeight;
-      const textareaRect =
-        textarea instanceof HTMLElement
-          ? textarea.getBoundingClientRect()
-          : null;
+      const editorRect =
+        editor instanceof HTMLElement ? editor.getBoundingClientRect() : null;
       const messageRect =
         messageList instanceof HTMLElement
           ? messageList.getBoundingClientRect()
@@ -1489,17 +1499,20 @@ async function inspectImportedSessionVisualViewport(
         importedBannerVisible: Boolean(importedBanner),
         importedRunControlVisible: Boolean(importedRunControl),
         inputbarVisible:
-          textarea instanceof HTMLTextAreaElement &&
-          textareaRect !== null &&
-          textareaRect.width > 120 &&
-          textareaRect.height >= 24 &&
-          textareaRect.bottom > 0 &&
-          textareaRect.top < viewportHeight,
+          editor instanceof HTMLElement &&
+          editorRect !== null &&
+          editorRect.width > 120 &&
+          editorRect.height >= 24 &&
+          editorRect.bottom > 0 &&
+          editorRect.top < viewportHeight,
         inputbarDisabled:
-          textarea instanceof HTMLTextAreaElement ? textarea.disabled : true,
+          editor instanceof HTMLElement
+            ? editor.getAttribute("aria-disabled") === "true" ||
+              editor.getAttribute("contenteditable") !== "true"
+            : true,
         inputbarOccludesMainContent:
-          Boolean(textareaRect && messageRect) &&
-          textareaRect.top < messageRect.top + 80,
+          Boolean(editorRect && messageRect) &&
+          editorRect.top < messageRect.top + 80,
         messageListVisible:
           messageRect !== null &&
           messageRect.width > 240 &&
@@ -1647,7 +1660,7 @@ export async function inspectImportedMarkdownAndSearchRendering(page, options) {
     page,
     options,
     (current) =>
-      current.textareaVisible &&
+      current.editorVisible &&
       current.bodyText.includes(IMPORTED_USER_TEXT) &&
       current.bodyText.includes(IMPORTED_ASSISTANT_SUMMARY_TEXT),
     "导入会话页未稳定，无法检查 Markdown 与搜索渲染",
@@ -1795,7 +1808,7 @@ export async function waitForImportedSessionDetails(page, options) {
     (snapshot) => {
       const summary = summarizeImportedDetailsSnapshot(snapshot);
       return (
-        snapshot.textareaVisible &&
+        snapshot.editorVisible &&
         summary.hasImportedUserMessage &&
         summary.hasImportedAssistantMessage &&
         summary.hasPatchText &&
@@ -1811,17 +1824,18 @@ export async function sendFollowUpFromGui(page, options) {
   await waitForUiSnapshot(
     page,
     options,
-    (snapshot) =>
-      snapshot.textareaVisible && snapshot.textareaDisabled === false,
+    (snapshot) => snapshot.editorVisible && snapshot.editorDisabled === false,
     "续聊输入框未就绪",
   );
-  const textarea = page.locator('textarea[name="agent-chat-message"]').first();
-  await textarea.fill(CONTINUE_USER_TEXT);
+  const editor = page
+    .locator('[data-testid="composer-editor"][role="textbox"]')
+    .first();
+  await editor.fill(CONTINUE_USER_TEXT);
   await waitForUiSnapshot(
     page,
     options,
-    (snapshot) => snapshot.textareaValue === CONTINUE_USER_TEXT,
-    "续聊输入未进入 textarea",
+    (snapshot) => snapshot.editorText === CONTINUE_USER_TEXT,
+    "续聊输入未进入 editor",
   );
   const clicked = await page.evaluate(() => {
     const buttons = Array.from(document.querySelectorAll("button"));
@@ -1869,7 +1883,7 @@ export async function waitForContinuationVisible(page, options) {
     page,
     options,
     (snapshot) =>
-      snapshot.textareaVisible &&
+      snapshot.editorVisible &&
       snapshot.bodyText.includes(CONTINUE_USER_TEXT) &&
       snapshot.bodyText.includes(CONTINUE_ASSISTANT_TEXT),
     "续聊消息未在同一会话页完成",

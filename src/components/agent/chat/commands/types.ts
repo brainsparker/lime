@@ -1,4 +1,5 @@
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
+import type { AppServerThreadBackgroundTerminal } from "@/lib/api/appServer";
 
 export type SlashCommandSupport = "supported" | "unsupported";
 export type SlashCommandKind = "local_action" | "prompt_action" | "info";
@@ -47,4 +48,8 @@ export interface ExecuteSlashCommandParams {
   notifySuccess: (message: string) => void;
   onOpenSubagents?: () => void;
   onExecutedCommand?: (command: ParsedSlashCommand) => void;
+  listBackgroundTerminals?: (
+    threadId: string,
+  ) => Promise<AppServerThreadBackgroundTerminal[]>;
+  cleanBackgroundTerminals?: (threadId: string) => Promise<unknown>;
 }

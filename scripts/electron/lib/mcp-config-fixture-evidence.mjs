@@ -196,6 +196,20 @@ export function parseInvokeTraceRaw(raw) {
   }
 }
 
+export function isObservedPreloadAppServerResponse(observation, method) {
+  return (
+    observation?.electron === true &&
+    observation.fallback === false &&
+    observation.command === APP_SERVER_HANDLE_JSON_LINES_COMMAND &&
+    observation.transport === "electron-ipc" &&
+    observation.status === "success" &&
+    observation.method === method &&
+    typeof observation.requestId === "string" &&
+    observation.requestId.length > 0 &&
+    observation.responseId === observation.requestId
+  );
+}
+
 export function parseJsonRpcRequestsFromInvokeTrace(raw) {
   const requests = [];
   for (const entry of parseInvokeTraceRaw(raw)) {

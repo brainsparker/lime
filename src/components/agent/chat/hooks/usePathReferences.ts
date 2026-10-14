@@ -1,16 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo } from "react";
+import { useComposerController } from "@/components/input-kit/useComposerController";
+import type { ComposerController } from "@/components/input-kit/ComposerController";
 
 import type { MessagePathReference } from "../types";
 
 import { mergePathReferences } from "../utils/pathReferences";
 
 /**
- * 路径引用（@文件/目录）状态分层 hook。
- *
- * 把原先散落在 AgentChatWorkspace 组件体的 pathReferences 状态与
- * add/remove/clear 三个纯操作内聚到一处（R-32 状态分层）。
- * 合并/去重逻辑复用 utils/pathReferences 的 `mergePathReferences`，
- * 本 hook 只负责状态生命周期，不引入任何副作用。
+ * 路径引用直接读写草稿 owner；独立使用时创建本地 Controller。
+ * 操作同步推进草稿 revision，避免迟到发送结果清空新增引用。
  */
 export interface PathReferencesController {
   /** 当前路径引用列表。 */
@@ -25,26 +23,31 @@ export interface PathReferencesController {
 
 export function usePathReferences(
   initial: MessagePathReference[] = [],
+  controller?: ComposerController,
 ): PathReferencesController {
-  const [pathReferences, setPathReferences] =
-    useState<MessagePathReference[]>(initial);
+  const { controller: pathController, snapshot } = useComposerController({
+    controller,
+    initialDocument: { pathReferences: initial },
+  });
+  const pathReferences = useMemo(() => [...snapshot.document.pathReferences],
+    [snapshot.document.pathReferences]);
 
   const addPathReferences = useCallback(
     (references: MessagePathReference[]) => {
-      setPathReferences((current) => mergePathReferences(current, references));
+      pathController.setPathReferences(mergePathReferences(
+        [...pathController.getDocument().pathReferences], references));
     },
-    [],
+    [pathController],
   );
 
   const removePathReference = useCallback((id: string) => {
-    setPathReferences((current) =>
-      current.filter((reference) => reference.id !== id),
-    );
-  }, []);
+    pathController.setPathReferences(pathController.getDocument().pathReferences
+      .filter((reference) => reference.id !== id));
+  }, [pathController]);
 
   const clearPathReferences = useCallback(() => {
-    setPathReferences([]);
-  }, []);
+    pathController.setPathReferences([]);
+  }, [pathController]);
 
   return useMemo(
     () => ({

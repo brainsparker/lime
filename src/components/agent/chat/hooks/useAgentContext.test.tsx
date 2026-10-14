@@ -34,6 +34,19 @@ vi.mock("@/components/workspace/services/runtimeAgentsGuideService", () => ({
 }));
 
 import { useAgentContext } from "./useAgentContext";
+import type { AgentThreadSettingsUpdate } from "@/lib/api/agentRuntime/threadSettingsNotifications";
+import type { ThreadSettings } from "@limecloud/app-server-client";
+const settingsListeners = new Set<
+  (update: AgentThreadSettingsUpdate) => void
+>();
+const listenToThreadSettings = (
+  listener: (update: AgentThreadSettingsUpdate) => void,
+) => {
+  settingsListeners.add(listener);
+  return () => {
+    settingsListeners.delete(listener);
+  };
+};
 import { loadPersistedSessionWorkspaceId } from "./agentProjectStorage";
 
 interface HookHarness {
@@ -69,6 +82,7 @@ function mountHook(
       runtime: {
         setSessionExecutionStrategy: mockSetSessionExecutionStrategy,
         setSessionProviderSelection: mockSetSessionProviderSelection,
+        listenToThreadSettings,
       },
     });
     return null;
@@ -120,6 +134,7 @@ function mountRerenderableHook(
       runtime: {
         setSessionExecutionStrategy: mockSetSessionExecutionStrategy,
         setSessionProviderSelection: mockSetSessionProviderSelection,
+        listenToThreadSettings,
       },
     });
     return null;
@@ -170,7 +185,23 @@ describe("useAgentContext", () => {
     };
     mockNotifyProjectRuntimeAgentsGuide.mockReset();
     mockSetSessionExecutionStrategy.mockClear();
-    mockSetSessionProviderSelection.mockClear();
+    settingsListeners.clear();
+    mockSetSessionProviderSelection.mockReset();
+    mockSetSessionProviderSelection.mockImplementation(
+      async (sessionId, providerType, model, effort) => {
+        for (const listener of settingsListeners)
+          listener({
+            threadId: `thread-${sessionId}`,
+            sessionIds: [sessionId],
+            threadSettings: {
+              modelProvider: providerType,
+              model,
+              effort,
+              cwd: "/fixture",
+            } as ThreadSettings,
+          });
+      },
+    );
     mockTopicsUpdater.mockReset();
     mockToastError.mockReset();
     mockUpdateProject.mockReset();
@@ -249,7 +280,7 @@ describe("useAgentContext", () => {
     harness.unmount();
   });
 
-  it("当前会话切换 provider/model/effort 时应原子回写并在成功后提交 UI", async () => {
+  it("当前会话切换 provider/model/effort 时应原子回写并从 canonical 通知提交 UI", async () => {
     const harness = mountHook("workspace-1", "session-1");
 
     await act(async () => {
@@ -317,6 +348,16 @@ describe("useAgentContext", () => {
 
     await act(async () => {
       releaseSelectionSync?.();
+      for (const listener of settingsListeners)
+        listener({
+          threadId: "thread-session-target",
+          sessionIds: ["session-target"],
+          threadSettings: {
+            modelProvider: "provider-enabled",
+            model: "shared-model",
+            cwd: "/fixture",
+          } as ThreadSettings,
+        });
       await wait;
     });
 
@@ -346,9 +387,7 @@ describe("useAgentContext", () => {
     });
 
     expect(cancelPendingMetadataSync).toHaveBeenCalledTimes(1);
-    expect(
-      harness.pendingSessionMetadataSyncCancelRef.current,
-    ).toBeNull();
+    expect(harness.pendingSessionMetadataSyncCancelRef.current).toBeNull();
     harness.unmount();
   });
 

@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { AgentThreadItem } from "@/lib/api/agentProtocol";
-import type { WorkspaceFilesSurfaceTarget } from "./WorkspaceFilesSurface";
+import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import { useWorkspaceRightSurfaceActionRuntime } from "./useWorkspaceRightSurfaceActionRuntime";
 import type { WorkspaceRightSurfacePendingActions } from "./useWorkspaceRightSurfaceArtifactOpenRuntime";
@@ -37,7 +37,7 @@ interface UseWorkspaceRightSurfaceCoordinatorRuntimeParams {
   harnessPendingCount: number;
   hasExpertInfoPanel: boolean;
   localState: WorkspaceRightSurfaceLocalStateRuntime;
-  preferredServiceSkillResultFileTarget: WorkspaceFilesSurfaceTarget | null;
+  preferredServiceSkillResultFileTarget: ReviewThreadSidePanelTarget | null;
   runtimeWorkspaceId: string | null;
   sceneIsPreparingSend: boolean;
   sceneIsSending: boolean;
@@ -139,26 +139,6 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
       ),
     [canonicalPluginSurfaces, pendingRuntime.pendingPluginSurfaces],
   );
-  const {
-    setActivePluginSurfaceContainerId,
-    setActivePluginSurfaces,
-    setDismissedPluginSurfaceContainerIds,
-    setManualRightSurface,
-  } = localState;
-  useEffect(() => {
-    setActivePluginSurfaces([]);
-    setActivePluginSurfaceContainerId(null);
-    setDismissedPluginSurfaceContainerIds([]);
-    setManualRightSurface((current) =>
-      current === "appSurface" ? null : current,
-    );
-  }, [
-    effectiveSessionId,
-    setActivePluginSurfaceContainerId,
-    setActivePluginSurfaces,
-    setDismissedPluginSurfaceContainerIds,
-    setManualRightSurface,
-  ]);
   const derivedRuntime = useWorkspaceRightSurfaceDerivedRuntime({
     activeBrowserRightSurfaceIntent: localState.activeBrowserRightSurfaceIntent,
     activeFilesRightSurfaceTarget: localState.activeFilesRightSurfaceTarget,
@@ -176,7 +156,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
   const rightSurfaceTraceAvailable = !suppressHomeNavbarUtilityActions;
   const rightSurfaceTraceEnabled =
     rightSurfaceTraceAvailable && clawTraceEnabled;
-  const { rightSurfaceLaunchers, rightSurfaceState } =
+  const { availableSurfaces, rightSurfaceLaunchers, rightSurfaceState } =
     useWorkspaceRightSurfaceProjectionRuntime({
       appServerPendingIntents: pendingRuntime.pendingIntents,
       appSurfaceAvailable: derivedRuntime.pluginSurfaceRightSurfaceAvailable,
@@ -186,6 +166,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
       harnessPendingCount,
       hasExpertInfoPanel,
       manualRightSurface: localState.manualRightSurface,
+      openedRightSurfaces: localState.openedRightSurfaces,
       preferredServiceSkillResultFileTargetRelativePath:
         preferredServiceSkillResultFileTarget?.relativePath,
       sceneLayoutMode,
@@ -195,13 +176,29 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
       traceAvailable: rightSurfaceTraceAvailable,
       activityAvailable,
     });
+  const { pruneRightSurfaces, rememberRightSurface } = localState;
+  useEffect(() => {
+    pruneRightSurfaces(availableSurfaces);
+  }, [
+    availableSurfaces,
+    localState.manualRightSurface,
+    localState.openedRightSurfaces,
+    pruneRightSurfaces,
+  ]);
+  useEffect(() => {
+    if (rightSurfaceState.activeSurface) {
+      rememberRightSurface(rightSurfaceState.activeSurface);
+    }
+  }, [rememberRightSurface, rightSurfaceState.activeSurface]);
   const actionRuntime = useWorkspaceRightSurfaceActionRuntime({
     activeBrowserRightSurfaceIntent: localState.activeBrowserRightSurfaceIntent,
     activePluginSurfaceContainerId: localState.activePluginSurfaceContainerId,
     activePluginSurfaces: localState.activePluginSurfaces,
     articleEditorRightSurface,
     articleEditorRightSurfaceAvailable,
+    availableSurfaces,
     browserRightSurfaceAvailable: derivedRuntime.browserRightSurfaceAvailable,
+    closeRightSurface: localState.closeRightSurface,
     consumePendingRequestsForSurface:
       pendingRuntime.consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface:

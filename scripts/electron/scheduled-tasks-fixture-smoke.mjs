@@ -336,9 +336,7 @@ async function clearInvokeBuffers(page) {
 }
 
 async function createTaskFromGui(page, route) {
-  await page
-    .locator('[data-testid="app-sidebar-nav-scheduled-tasks"]')
-    .click();
+  await page.locator('[data-testid="app-sidebar-nav-scheduled-tasks"]').click();
   await page
     .getByText(TASK_TITLE, { exact: true })
     .waitFor({
@@ -446,7 +444,7 @@ async function openRunFromGui(page, run) {
   await openRun.click();
   await page
     .locator(
-      `textarea[name="agent-chat-message"][data-session-id="${run.sessionId}"]`,
+      `[data-testid="composer-editor"][role="textbox"][data-session-id="${run.sessionId}"]`,
     )
     .waitFor({ state: "visible" });
   await page.getByText(FINAL_TEXT, { exact: false }).last().waitFor({

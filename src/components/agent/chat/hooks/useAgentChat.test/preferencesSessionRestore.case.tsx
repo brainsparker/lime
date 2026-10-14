@@ -1,15 +1,46 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import type { ThreadSettings } from "@limecloud/app-server-client";
 import {
   flushEffects,
   mockGetAgentRuntimeSession,
   mockListAgentRuntimeSessions,
   mockResumeAgentRuntimeThread,
   mockSafeListen,
+  mockUpdateAgentRuntimeThreadSettings,
   mountHook,
   seedSession,
   seedSessionSnapshots,
 } from "../useAgentChat.testUtils";
+
+function installConfirmedTopicModelFixture(
+  selections: Record<string, { providerType: string; model: string }>,
+) {
+  mockUpdateAgentRuntimeThreadSettings.mockImplementation(async (request) => {
+    const selection = selections[request.threadId];
+    if (!selection || request.modelProvider !== selection.providerType || request.model !== selection.model) {
+      return { result: {}, notifications: [] };
+    }
+    const threadSettings: ThreadSettings = {
+      modelProvider: selection.providerType,
+      model: selection.model,
+      effort: null,
+      serviceTier: null,
+      cwd: "/mock-workspace",
+      approvalPolicy: "never",
+      approvalsReviewer: "user",
+      sandboxPolicy: { type: "dangerFullAccess" },
+      collaborationMode: { mode: "default", settings: { model: selection.model } },
+    };
+    return {
+      result: {},
+      notifications: [{
+        method: "thread/settings/updated",
+        params: { threadId: request.threadId, threadSettings },
+      }],
+    };
+  });
+}
 
 describe("useAgentChat 偏好持久化 - session restore", () => {
   it("恢复候选会话时应先由 runtime 确认工作区归属", async () => {
@@ -316,6 +347,10 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
   it("切换话题后应恢复各自模型选择", async () => {
     const workspaceId = "ws-topic-memory";
     const createdAt = Math.floor(Date.now() / 1000);
+    installConfirmedTopicModelFixture({
+      "topic-a": { providerType: "gemini", model: "gemini-2.5-pro" },
+      "topic-b": { providerType: "deepseek", model: "deepseek-chat" },
+    });
 
     mockListAgentRuntimeSessions.mockResolvedValue([
       {
@@ -380,9 +415,11 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
             `agent_topic_model_pref_${workspaceId}_topic-a`,
           ) || "null",
         ),
-      ).toEqual({
+      ).toMatchObject({
         providerType: "gemini",
         model: "gemini-2.5-pro",
+        threadId: "topic-a",
+        threadSettings: { modelProvider: "gemini", model: "gemini-2.5-pro" },
       });
       expect(
         JSON.parse(
@@ -390,9 +427,11 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
             `agent_topic_model_pref_${workspaceId}_topic-b`,
           ) || "null",
         ),
-      ).toEqual({
+      ).toMatchObject({
         providerType: "deepseek",
         model: "deepseek-chat",
+        threadId: "topic-b",
+        threadSettings: { modelProvider: "deepseek", model: "deepseek-chat" },
       });
     } finally {
       harness.unmount();
@@ -402,6 +441,10 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
   it("选择模型后立即切换话题也应保存当前话题选择", async () => {
     const workspaceId = "ws-topic-memory-immediate";
     const createdAt = Math.floor(Date.now() / 1000);
+    installConfirmedTopicModelFixture({
+      "topic-a": { providerType: "zhipu", model: "glm-4.7" },
+      "topic-b": { providerType: "gemini", model: "gemini-3-pro-preview" },
+    });
 
     mockListAgentRuntimeSessions.mockResolvedValue([
       {
@@ -459,9 +502,11 @@ describe("useAgentChat 偏好持久化 - session restore", () => {
             `agent_topic_model_pref_${workspaceId}_topic-a`,
           ) || "null",
         ),
-      ).toEqual({
+      ).toMatchObject({
         providerType: "zhipu",
         model: "glm-4.7",
+        threadId: "topic-a",
+        threadSettings: { modelProvider: "zhipu", model: "glm-4.7" },
       });
     } finally {
       harness.unmount();

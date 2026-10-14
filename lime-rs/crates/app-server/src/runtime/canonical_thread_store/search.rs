@@ -5,6 +5,7 @@ use std::ops::Range;
 
 use agent_protocol::{
     AgentInput, MessageContentPart, SortDirection, Thread, ThreadId, ThreadItem, ThreadItemPayload,
+    Turn, TurnQueueState,
 };
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine as _;
@@ -31,6 +32,7 @@ struct Candidate {
     item: ThreadItem,
     item_ordinal: i64,
     turn_ordinal: i64,
+    execution_visible: bool,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -226,16 +228,24 @@ fn first_thread_match_snippet(
 ) -> ThreadStoreResult<Option<String>> {
     let mut statement = conn
         .prepare(
-            "SELECT item_json FROM canonical_items
-             WHERE thread_id = ?1 ORDER BY ordinal ASC, item_id ASC",
+            "SELECT items.item_json, turns.turn_json FROM canonical_items AS items
+             JOIN canonical_turns AS turns
+               ON turns.thread_id = items.thread_id AND turns.turn_id = items.turn_id
+             WHERE items.thread_id = ?1 ORDER BY items.ordinal ASC, items.item_id ASC",
         )
         .map_err(|error| ThreadStoreError::new(error.to_string()))?;
     let items = statement
-        .query_map(params![thread_id.as_str()], |row| row.get::<_, String>(0))
+        .query_map(params![thread_id.as_str()], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })
         .map_err(|error| ThreadStoreError::new(error.to_string()))?;
     for item in items {
-        let item: ThreadItem =
-            decode_json(&item.map_err(|error| ThreadStoreError::new(error.to_string()))?)?;
+        let (item_json, turn_json) =
+            item.map_err(|error| ThreadStoreError::new(error.to_string()))?;
+        if !is_execution_history(&turn_json)? {
+            continue;
+        }
+        let item: ThreadItem = decode_json(&item_json)?;
         let Some(text) = thread_search_text(&item) else {
             continue;
         };
@@ -245,6 +255,11 @@ fn first_thread_match_snippet(
         return Ok(thread_search_snippet(&text, matched));
     }
     Ok(None)
+}
+
+fn is_execution_history(turn_json: &str) -> ThreadStoreResult<bool> {
+    let turn: Turn = decode_json(turn_json)?;
+    Ok(!matches!(turn.queue, TurnQueueState::Queued { .. }))
 }
 
 fn thread_search_text(item: &ThreadItem) -> Option<String> {
@@ -408,7 +423,7 @@ pub(super) fn search_thread_occurrences(
     )?;
     let mut statement = conn
         .prepare(
-            "SELECT items.item_json, items.ordinal, turns.ordinal
+            "SELECT items.item_json, items.ordinal, turns.ordinal, turns.turn_json
              FROM canonical_items AS items
              JOIN canonical_turns AS turns
                ON turns.thread_id = items.thread_id
@@ -423,16 +438,18 @@ pub(super) fn search_thread_occurrences(
                 row.get::<_, String>(0)?,
                 row.get::<_, i64>(1)?,
                 row.get::<_, i64>(2)?,
+                row.get::<_, String>(3)?,
             ))
         })
         .map_err(|error| ThreadStoreError::new(error.to_string()))?
         .map(|row| {
-            let (item_json, item_ordinal, turn_ordinal) =
+            let (item_json, item_ordinal, turn_ordinal, turn_json) =
                 row.map_err(|error| ThreadStoreError::new(error.to_string()))?;
             Ok(Candidate {
                 item: decode_json(&item_json)?,
                 item_ordinal,
                 turn_ordinal,
+                execution_visible: is_execution_history(&turn_json)?,
             })
         })
         .collect::<ThreadStoreResult<Vec<_>>>()?;
@@ -448,7 +465,7 @@ pub(super) fn search_thread_occurrences(
 
     let mut latest_final_ordinal = HashMap::new();
     for candidate in &candidates {
-        if is_final_agent_message(&candidate.item) {
+        if candidate.execution_visible && is_final_agent_message(&candidate.item) {
             latest_final_ordinal.insert(candidate.item.turn_id.clone(), candidate.item_ordinal);
         }
     }
@@ -456,6 +473,11 @@ pub(super) fn search_thread_occurrences(
     let matcher = LiteralMatcher::new(&params.search_term);
     let mut data = Vec::with_capacity(params.page_size);
     for candidate in candidates {
+        // Keep raw ordinals for validating opaque cursors, but exclude pending
+        // submissions before matching and filling the public occurrence page.
+        if !candidate.execution_visible {
+            continue;
+        }
         let start_occurrence_index = match cursor.as_ref() {
             Some(cursor) if candidate.item_ordinal < cursor.next_item_ordinal => continue,
             Some(cursor) if candidate.item_ordinal == cursor.next_item_ordinal => {

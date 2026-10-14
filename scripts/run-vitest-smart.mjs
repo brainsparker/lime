@@ -579,6 +579,41 @@ function runFullSuite(options) {
 
   if (options.resume) {
     state = readRunState();
+    const { files, skippedLiveTestCount } = collectTestFiles();
+    const knownFiles = new Set(
+      state.batches.flatMap((batch) => batch.files.map(normalizeTestPath)),
+    );
+    const newFiles = files.filter((file) => {
+      const normalized = normalizeTestPath(file);
+      if (knownFiles.has(normalized)) {
+        return false;
+      }
+      knownFiles.add(normalized);
+      return true;
+    });
+    if (newFiles.length > 0) {
+      const additions = createRunState({
+        batches: buildBatches(newFiles),
+        skippedLiveTestCount,
+      });
+      state = saveState({
+        ...state,
+        status: "running",
+        completed_at: null,
+        include_live_provider_tests: includeLiveProviderTests,
+        skipped_live_provider_test_count: skippedLiveTestCount,
+        batches: [
+          ...state.batches,
+          ...additions.batches.map((batch) => ({
+            ...batch,
+            index: state.batches.length + batch.index,
+          })),
+        ],
+      });
+      console.log(
+        `[vitest-smart] 发现 ${newFiles.length} 个新增测试，追加 ${additions.batches.length} 批；保留既有批次记录。`,
+      );
+    }
     batches = hydrateBatchesFromState(state);
     resumeStartIndex = findFirstResumableBatchIndex(state);
     if (resumeStartIndex < 0) {
@@ -607,7 +642,9 @@ function runFullSuite(options) {
     fromBatch: options.fromBatch,
     onlyBatch: options.onlyBatch,
     resumeStartIndex,
-  });
+  }).filter(
+    (index) => !options.resume || state.batches[index].status !== "passed",
+  );
 
   if (options.onlyBatch !== null || options.fromBatch !== null) {
     state = markSkippedBatches(state, selectedIndexes);

@@ -53,6 +53,11 @@ import {
 } from "./agentChatStorage";
 import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
+import {
+  applyCachedThreadSettingsToSnapshot,
+  canonicalThreadSettingsPreference,
+  useAgentSessionThreadSettings,
+} from "./useAgentSessionThreadSettings";
 import { isAuxiliaryAgentSessionId } from "@/lib/api/agentRuntime/sessionIdentity";
 import { filterConversationThreadItems } from "../utils/threadTimelineView";
 import { shouldResumeTaskSession } from "../utils/taskCenterTabs";
@@ -114,7 +119,9 @@ import {
 } from "./sessionPostFinalizePersistenceController";
 import {
   filterAgentSessionReadModelMessages,
-  filterAgentSessionReadModelTurns,
+  reconcileAgentSessionReadModelTurns,
+  preserveActiveAgentSessionReadModel,
+  type AgentSessionReadModelSnapshot,
   refreshAgentSessionDetailState,
   refreshAgentSessionReadModelState,
   hydrateFreshAgentSessionReadModel,
@@ -534,6 +541,8 @@ export function useAgentSession(options: UseAgentSessionOptions) {
   const threadTurnsRef = useRef<AgentThreadTurn[]>(threadTurns);
   const threadItemsRef = useRef<AgentThreadItem[]>(threadItems);
   const threadReadRef = useRef<AgentRuntimeThreadReadModel | null>(threadRead);
+  const currentTurnIdRef = useRef(currentTurnId);
+  currentTurnIdRef.current = currentTurnId;
   const canonicalThreadIdBySessionIdRef = useRef<Map<string, string>>(
     new Map(),
   );
@@ -544,6 +553,16 @@ export function useAgentSession(options: UseAgentSessionOptions) {
     executionRuntime,
   );
   const sessionWorkingDirRef = useRef<string | null>(sessionWorkingDir);
+  useAgentSessionThreadSettings({
+    runtime,
+    workspaceId,
+    sessionIdRef,
+    threadReadRef,
+    sessionWorkingDirRef,
+    setThreadRead,
+    setSessionWorkingDir,
+    setTopics,
+  });
   const appServerConfirmedSessionIdsRef = useRef<Set<string>>(new Set());
   const restoreCandidateSessionIdRef = useRef<string | null>(
     loadScopedSessionRestoreCandidate(),
@@ -724,6 +743,10 @@ export function useAgentSession(options: UseAgentSessionOptions) {
 
   const applySessionSnapshot = useCallback(
     (snapshot: AgentSessionSnapshot) => {
+      snapshot = applyCachedThreadSettingsToSnapshot(
+        snapshot,
+        loadSessionModelPreference,
+      );
       logAgentDebug("useAgentSession", "applySessionSnapshot", {
         sessionId: snapshot.sessionId,
         currentSessionId: sessionIdRef.current,
@@ -782,22 +805,26 @@ export function useAgentSession(options: UseAgentSessionOptions) {
       setExecutionRuntime(stableSnapshot.executionRuntime);
       setTodoItems(stableSnapshot.todoItems);
     },
-    [sessionIdRef],
+    [loadSessionModelPreference, sessionIdRef],
   );
 
   const applyReadModelSnapshot = useCallback(
-    (snapshot: {
-      threadRead: AgentRuntimeThreadReadModel | null;
-      timelineMode: "merge" | "replace";
-    }) => {
-      if (!snapshot.threadRead) {
-        return;
-      }
+    (snapshot: AgentSessionReadModelSnapshot) => {
+      snapshot = preserveActiveAgentSessionReadModel(snapshot, {
+        active: hasActiveStreamingTimeline({
+          currentAssistantMsgId: currentAssistantMsgIdRef.current,
+          currentStreamingEventName: currentStreamingEventNameRef.current,
+          currentStreamingSessionId: currentStreamingSessionIdRef.current,
+        }),
+        activeTurnId: currentTurnIdRef.current,
+        messages: messagesRef.current,
+      });
+      if (!snapshot.threadRead) return;
       const nextThreadItems = mergeAgentSessionReadModelThreadItems(
         threadItemsRef.current,
         snapshot,
       );
-      const nextThreadTurns = filterAgentSessionReadModelTurns(
+      const nextThreadTurns = reconcileAgentSessionReadModelTurns(
         threadTurnsRef.current,
         snapshot,
       );
@@ -818,11 +845,24 @@ export function useAgentSession(options: UseAgentSessionOptions) {
           (snapshot.threadRead.turns ?? []).map((turn) => turn.turn_id),
         );
         setCurrentTurnId((current) =>
-          current && remainingTurnIds.has(current)
+          current &&
+          (remainingTurnIds.has(current) ||
+            snapshot.preservedTurnIds?.has(current))
             ? current
             : (snapshot.threadRead?.turns?.at(-1)?.turn_id ?? null),
         );
       }
+      const preference = canonicalThreadSettingsPreference(
+        sessionIdRef.current
+          ? loadSessionModelPreference(sessionIdRef.current)
+          : null,
+        snapshot.threadRead.thread_id,
+      );
+      if (preference)
+        snapshot.threadRead = {
+          ...snapshot.threadRead,
+          thread_settings: preference.threadSettings,
+        };
       threadReadRef.current = snapshot.threadRead;
       const currentSessionId = sessionIdRef.current?.trim();
       const canonicalThreadId = snapshot.threadRead.thread_id?.trim();
@@ -834,7 +874,16 @@ export function useAgentSession(options: UseAgentSessionOptions) {
       }
       setThreadRead(snapshot.threadRead);
     },
-    [setMessagesState, setThreadItemsState, setThreadTurnsState, sessionIdRef],
+    [
+      currentAssistantMsgIdRef,
+      currentStreamingEventNameRef,
+      currentStreamingSessionIdRef,
+      loadSessionModelPreference,
+      setMessagesState,
+      setThreadItemsState,
+      setThreadTurnsState,
+      sessionIdRef,
+    ],
   );
   const getThreadIdForSubmit = useCallback(
     (targetSessionId?: string) => {
@@ -1757,7 +1806,8 @@ export function useAgentSession(options: UseAgentSessionOptions) {
         detailMessagesCount: detail.messages.length,
         detailTurnsCount: detail.turns?.length ?? 0,
         detailItemsCount: detail.items?.length ?? 0,
-        detailThreadReadItemsCount: detail.thread_read?.thread_items?.length ?? 0,
+        detailThreadReadItemsCount:
+          detail.thread_read?.thread_items?.length ?? 0,
         snapshotMessagesCount: snapshot.messages.length,
         snapshotThreadTurnsCount: snapshot.threadTurns.length,
         snapshotThreadItemsCount: snapshot.threadItems.length,
@@ -1981,6 +2031,10 @@ export function useAgentSession(options: UseAgentSessionOptions) {
       }
 
       const runtimePreference =
+        canonicalThreadSettingsPreference(
+          loadSessionModelPreference(topicId),
+          detail.thread_id ?? detail.thread_read?.thread_id,
+        ) ??
         createSessionModelPreferenceFromExecutionRuntime(
           detail.execution_runtime,
         );
@@ -3126,20 +3180,16 @@ export function useAgentSession(options: UseAgentSessionOptions) {
           resolvedSessionId,
           buildSessionDetailHydrationOptions({ source: "silentTurnRecovery" }),
         );
-        logAgentDebug(
-          "useAgentSession",
-          "silentTurnRecovery.detail.probe",
-          {
-            sessionId: resolvedSessionId,
-            currentSessionId: sessionIdRef.current,
-            requireTerminal: options?.requireTerminal === true,
-            requestedTurnId: options?.turnId ?? null,
-            detailTurnsCount: detail.turns?.length ?? 0,
-            detailItemsCount: detail.items?.length ?? 0,
-            latestTurnId: detail.turns?.at(-1)?.id ?? null,
-            latestTurnStatus: detail.turns?.at(-1)?.status ?? null,
-          },
-        );
+        logAgentDebug("useAgentSession", "silentTurnRecovery.detail.probe", {
+          sessionId: resolvedSessionId,
+          currentSessionId: sessionIdRef.current,
+          requireTerminal: options?.requireTerminal === true,
+          requestedTurnId: options?.turnId ?? null,
+          detailTurnsCount: detail.turns?.length ?? 0,
+          detailItemsCount: detail.items?.length ?? 0,
+          latestTurnId: detail.turns?.at(-1)?.id ?? null,
+          latestTurnStatus: detail.turns?.at(-1)?.status ?? null,
+        });
         if (
           !isCurrentSessionHydrationRequest({
             currentSessionId: sessionIdRef.current,

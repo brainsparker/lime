@@ -291,7 +291,7 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       )?.className,
     ).toContain("z-[80]");
     expect(container.textContent).toContain("刷新");
-    expect(container.textContent).toContain("启用自动执行");
+    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
     expect(
       container.querySelector(
         '[data-testid="canvas-workbench-changes-file-list"]',
@@ -953,10 +953,9 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ),
     ).toBeNull();
     expect(container.textContent).toContain("刷新");
-    expect(container.textContent).toContain("启用自动执行");
+    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(6);
     expect(container.textContent).toContain("折叠全部差异");
     expect(container.textContent).toContain("不加载完整文件");
-    expect(container.textContent).toContain("启用富文本预览");
     expect(container.textContent).toContain("启用文字差异");
     expect(container.textContent).toContain("隐藏空白字符");
     expect(container.textContent).toContain("复制 git apply 命令");
@@ -1222,6 +1221,14 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       (appChangeItem as HTMLButtonElement).click();
     });
     await flushEffects();
+    expect(openChangedFile).not.toHaveBeenCalled();
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="canvas-workbench-changes-open-file"]',
+        )
+        ?.click();
+    });
     expect(openChangedFile).toHaveBeenCalledWith("/workspace/src/App.tsx");
     expect(container.textContent).toContain("App.tsx");
     expect(container.textContent).toContain("src/App.tsx");
@@ -1325,7 +1332,11 @@ describe("CanvasWorkbenchLayout coding mode", () => {
     expect(changesPanel?.textContent).toContain(
       "export const codingWorkbenchSmoke = true;",
     );
-    expect(changesPanel?.textContent).not.toContain(
+    expect(
+      changesPanel?.querySelector(
+        '[data-testid="canvas-workbench-change-diff-file"][data-selected="true"]',
+      )?.textContent,
+    ).not.toContain(
       "export function greeting() { return 'Hello Lime Workbench'; }",
     );
   });

@@ -1,4 +1,4 @@
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -91,7 +91,7 @@ function renderChangeTreeNodes({
         <div key={node.id}>
           <button
             type="button"
-            className="flex h-7 w-full items-center gap-1 rounded-[6px] pr-2 text-left text-[13px] font-medium text-slate-600 transition-colors hover:bg-white hover:text-slate-950"
+            className="flex h-7 w-full items-center gap-1 rounded-[6px] pr-2 text-left text-[13px] font-medium text-[color:var(--lime-text)] transition-colors hover:bg-[color:var(--lime-surface)] hover:text-[color:var(--lime-text-strong)]"
             style={{ paddingLeft }}
             onClick={() => onToggleFolder(node.id)}
             data-testid="canvas-workbench-change-folder"
@@ -99,11 +99,11 @@ function renderChangeTreeNodes({
             title={node.path}
           >
             {collapsed ? (
-              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <ChevronRight className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
             ) : (
-              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
             )}
-            <FolderIcon className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            <FolderIcon className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
             <span className="min-w-0 flex-1 truncate">{node.name}</span>
             <CanvasWorkbenchChangeStatusMark
               meta={meta}
@@ -137,21 +137,24 @@ function renderChangeTreeNodes({
         className={cn(
           "group flex min-h-8 w-full items-start gap-1.5 rounded-[6px] py-1 pr-2 text-left text-[13px] transition-colors",
           active
-            ? "bg-emerald-50 text-slate-950 shadow-[inset_2px_0_0_#22c55e]"
-            : "text-slate-600 hover:bg-slate-50 hover:text-slate-950",
+            ? "bg-[color:var(--lime-brand-soft)] text-[color:var(--lime-text-strong)] shadow-[inset_2px_0_0_var(--lime-brand)]"
+            : "text-[color:var(--lime-text)] hover:bg-[color:var(--lime-surface-subtle)] hover:text-[color:var(--lime-text-strong)]",
         )}
         style={{ paddingLeft }}
         onClick={() => onSelectChangeItem?.(item)}
         disabled={!onSelectChangeItem}
         data-testid="canvas-workbench-change-item"
         data-change-id={item.id}
+        data-review-path={item.path}
+        aria-pressed={active}
         title={item.path}
       >
         {fileBadge ? (
           <span
             className={cn(
-              "mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-sky-50 px-0.5 font-mono text-[9px] font-bold leading-none text-sky-700",
-              active && "bg-white text-sky-700",
+              "mt-0.5 inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-[4px] bg-[color:var(--lime-info-soft)] px-0.5 font-mono text-[9px] font-bold leading-none text-[color:var(--lime-info)]",
+              active &&
+                "bg-[color:var(--lime-surface)] text-[color:var(--lime-info)]",
             )}
           >
             {fileBadge}
@@ -160,7 +163,9 @@ function renderChangeTreeNodes({
           <FileIcon
             className={cn(
               "mt-0.5 h-3.5 w-3.5 shrink-0",
-              active ? "text-slate-700" : "text-slate-400",
+              active
+                ? "text-[color:var(--lime-text-strong)]"
+                : "text-[color:var(--lime-text-muted)]",
             )}
           />
         )}
@@ -170,7 +175,9 @@ function renderChangeTreeNodes({
             <span
               className={cn(
                 "mt-0.5 block truncate font-mono text-[11px]",
-                active ? "text-emerald-700" : "text-slate-500",
+                active
+                  ? "text-[color:var(--lime-brand)]"
+                  : "text-[color:var(--lime-text-muted)]",
               )}
             >
               {item.preview}
@@ -208,6 +215,28 @@ export function CanvasWorkbenchChangesFileList({
   const [collapsedFolderIds, setCollapsedFolderIds] = useState<Set<string>>(
     () => new Set(),
   );
+  const selectedChangeId = selectedChangeItem?.id;
+  useEffect(() => {
+    if (!selectedChangeId) return;
+    const ancestors = new Set<string>();
+    const findSelected = (nodes: CanvasWorkbenchChangeTreeNode[]): boolean => {
+      let found = false;
+      for (const node of nodes) {
+        if (node.type === "file") {
+          found ||= node.item.id === selectedChangeId;
+        } else if (findSelected(node.children)) {
+          ancestors.add(node.id);
+          found = true;
+        }
+      }
+      return found;
+    };
+    findSelected(fileTree);
+    setCollapsedFolderIds((current) => {
+      if (![...ancestors].some((id) => current.has(id))) return current;
+      return new Set([...current].filter((id) => !ancestors.has(id)));
+    });
+  }, [fileTree, selectedChangeId]);
   const handleToggleFolder = (nodeId: string) => {
     setCollapsedFolderIds((current) => {
       const next = new Set(current);
@@ -222,12 +251,12 @@ export function CanvasWorkbenchChangesFileList({
 
   return (
     <aside
-      className="flex min-h-0 flex-col border-l border-slate-200 bg-slate-50"
+      className="flex min-h-0 flex-col border-l border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)]"
       data-testid="canvas-workbench-changes-file-list"
     >
       <div className="px-2 py-2">
-        <label className="flex h-8 items-center gap-2 rounded-[8px] border border-slate-200 bg-white px-2.5 text-xs text-slate-500 shadow-sm shadow-slate-950/5">
-          <Search className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+        <label className="flex h-8 items-center gap-2 rounded-[8px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-2.5 text-xs text-[color:var(--lime-text-muted)] shadow-sm">
+          <Search className="h-3.5 w-3.5 shrink-0 text-[color:var(--lime-text-muted)]" />
           <input
             value={fileFilter}
             disabled={filterDisabled}
@@ -235,7 +264,7 @@ export function CanvasWorkbenchChangesFileList({
             placeholder={translateWorkbench(
               "agentChat.canvasWorkbench.coding.changes.filterFiles",
             )}
-            className="min-w-0 flex-1 bg-transparent text-xs text-slate-800 outline-none placeholder:text-slate-400 disabled:cursor-not-allowed"
+            className="min-w-0 flex-1 bg-transparent text-xs text-[color:var(--lime-text-strong)] outline-none placeholder:text-[color:var(--lime-text-muted)] disabled:cursor-not-allowed"
             data-testid="canvas-workbench-changes-file-filter"
           />
         </label>
@@ -253,7 +282,7 @@ export function CanvasWorkbenchChangesFileList({
             })}
           </div>
         ) : (
-          <div className="px-2 py-3 text-xs text-slate-500">
+          <div className="px-2 py-3 text-xs text-[color:var(--lime-text-muted)]">
             {translateWorkbench(
               "agentChat.canvasWorkbench.coding.changes.filterEmpty",
             )}

@@ -512,7 +512,7 @@ async function readAgentControlDomState({
   timeoutMs,
 }) {
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: timeoutMs });
   const finalText = page.getByText(expectedFinalText, { exact: false });
@@ -535,7 +535,7 @@ async function readAgentControlDomState({
 
 async function readRolloutBudgetDomState({ page, sessionId, timeoutMs }) {
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: timeoutMs });
   const reply = await invokeAppServerJsonRpcRaw(page, "thread/read", {
@@ -633,22 +633,25 @@ async function collectParentOwnedChildGateB({
   try {
     await page.waitForFunction(
       ({ childSessionId, parentOwnedPlaceholders }) => {
-        const textarea = Array.from(
-          document.querySelectorAll('textarea[name="agent-chat-message"]'),
+        const editor = Array.from(
+          document.querySelectorAll(
+            '[data-testid="composer-editor"][role="textbox"]',
+          ),
         ).find((node) => {
           const rect = node.getBoundingClientRect();
           return (
             rect.width > 0 &&
             rect.height > 0 &&
-            node instanceof HTMLTextAreaElement &&
+            node instanceof HTMLElement &&
             node.dataset.sessionId === childSessionId
           );
         });
         return (
-          textarea instanceof HTMLTextAreaElement &&
-          textarea.disabled &&
+          editor instanceof HTMLElement &&
+          (editor.getAttribute("aria-disabled") === "true" ||
+            editor.getAttribute("contenteditable") !== "true") &&
           parentOwnedPlaceholders.includes(
-            textarea.getAttribute("placeholder") || "",
+            editor.getAttribute("data-placeholder") || "",
           )
         );
       },
@@ -671,15 +674,18 @@ async function collectParentOwnedChildGateB({
     };
     const navigationState = await page.evaluate(() => ({
       bodyText: (document.body.textContent || "").trim().slice(-1_000),
-      textareas: Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
+      editors: Array.from(
+        document.querySelectorAll(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
       ).map((node) => ({
         disabled:
-          node instanceof HTMLTextAreaElement ? node.disabled : undefined,
-        sessionId:
-          node instanceof HTMLTextAreaElement
-            ? node.dataset.sessionId
+          node instanceof HTMLElement
+            ? node.getAttribute("aria-disabled") === "true" ||
+              node.getAttribute("contenteditable") !== "true"
             : undefined,
+        sessionId:
+          node instanceof HTMLElement ? node.dataset.sessionId : undefined,
         visible: node.getBoundingClientRect().height > 0,
       })),
       toasts: Array.from(document.querySelectorAll("[data-sonner-toast]")).map(
@@ -706,18 +712,20 @@ async function collectParentOwnedChildGateB({
         const rect = node.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0;
       };
-      const textarea = Array.from(
-        document.querySelectorAll('textarea[name="agent-chat-message"]'),
+      const editor = Array.from(
+        document.querySelectorAll(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
       ).find(
         (node) =>
-          node instanceof HTMLTextAreaElement &&
+          node instanceof HTMLElement &&
           node.dataset.sessionId === childSessionId &&
           visible(node),
       );
-      if (!(textarea instanceof HTMLTextAreaElement)) {
-        throw new Error("parent-owned child textarea missing");
+      if (!(editor instanceof HTMLElement)) {
+        throw new Error("parent-owned child editor missing");
       }
-      const core = textarea.closest('[data-testid="inputbar-core-container"]');
+      const core = editor.closest('[data-testid="inputbar-core-container"]');
       const send = core?.querySelector('[data-testid="send-btn"]');
       const accessMode = Array.from(
         document.querySelectorAll(
@@ -731,11 +739,13 @@ async function collectParentOwnedChildGateB({
         document.querySelectorAll('[data-testid="inputbar-task-mode-status"]'),
       ).filter(visible);
       return {
-        activeSessionId: textarea.dataset.sessionId || null,
+        activeSessionId: editor.dataset.sessionId || null,
         childThreadId,
-        textareaVisible: textarea.getBoundingClientRect().height > 0,
-        textareaDisabled: textarea.disabled,
-        placeholder: textarea.getAttribute("placeholder") || "",
+        editorVisible: editor.getBoundingClientRect().height > 0,
+        editorDisabled:
+          editor.getAttribute("aria-disabled") === "true" ||
+          editor.getAttribute("contenteditable") !== "true",
+        placeholder: editor.getAttribute("data-placeholder") || "",
         controls: {
           sendButtonPresent: send instanceof HTMLButtonElement,
           sendDisabled:
@@ -767,17 +777,19 @@ async function collectParentOwnedChildGateB({
     childThreadId,
   );
   const uiAttempt = await page.evaluate(() => {
-    const textarea = Array.from(
-      document.querySelectorAll('textarea[name="agent-chat-message"]'),
+    const editor = Array.from(
+      document.querySelectorAll(
+        '[data-testid="composer-editor"][role="textbox"]',
+      ),
     ).find((node) => {
       const rect = node.getBoundingClientRect();
       return rect.width > 0 && rect.height > 0;
     });
-    const core = textarea?.closest('[data-testid="inputbar-core-container"]');
+    const core = editor?.closest('[data-testid="inputbar-core-container"]');
     const send = core?.querySelector('[data-testid="send-btn"]');
-    const dispatchedEnter = textarea instanceof HTMLTextAreaElement;
-    if (textarea instanceof HTMLTextAreaElement) {
-      textarea.dispatchEvent(
+    const dispatchedEnter = editor instanceof HTMLElement;
+    if (editor instanceof HTMLElement) {
+      editor.dispatchEvent(
         new KeyboardEvent("keydown", {
           bubbles: true,
           cancelable: true,
@@ -859,7 +871,7 @@ async function collectDeferredMcpVisibleDomGateB({
   }
 
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: timeoutMs });
   const finalText = page.getByText(DEFERRED_MCP_TOOL_SEARCH_FINAL_TEXT, {
@@ -916,13 +928,12 @@ async function collectToolOrchestratorSandboxRetryVisibleDomGateB({
     throw new Error("sandbox retry evidence 缺少 sessionId");
   }
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: timeoutMs });
-  const finalText = page.getByText(
-    TOOL_ORCHESTRATOR_SANDBOX_RETRY_FINAL_TEXT,
-    { exact: false },
-  );
+  const finalText = page.getByText(TOOL_ORCHESTRATOR_SANDBOX_RETRY_FINAL_TEXT, {
+    exact: false,
+  });
   await finalText.first().waitFor({ state: "visible", timeout: timeoutMs });
   await materializeHistoricalTimelines(page, timeoutMs);
 
@@ -954,11 +965,10 @@ async function collectToolOrchestratorSandboxRetryVisibleDomGateB({
     consoleErrors: consoleErrors.slice(0, 10),
     screenshotPath: path.relative(process.cwd(), screenshotPath),
   };
-  const assertions =
-    buildToolOrchestratorSandboxRetryVisibleDomAssertions({
-      evidence,
-      snapshot,
-    });
+  const assertions = buildToolOrchestratorSandboxRetryVisibleDomAssertions({
+    evidence,
+    snapshot,
+  });
   return { assertions, snapshot };
 }
 
@@ -975,7 +985,7 @@ async function collectToolOrchestratorManagedNetworkRetryVisibleDomGateB({
     throw new Error("managed-network retry evidence 缺少 sessionId");
   }
   const input = page.locator(
-    `textarea[name="agent-chat-message"][data-session-id="${sessionId}"]`,
+    `[data-testid="composer-editor"][role="textbox"][data-session-id="${sessionId}"]`,
   );
   await input.waitFor({ state: "visible", timeout: timeoutMs });
   const finalText = page.getByText(
@@ -1069,7 +1079,9 @@ async function collectAgentControlCapacityVisibleDomGateB({
     consoleErrors: consoleErrors.slice(0, 10),
     screenshotPath: path.relative(process.cwd(), screenshotPath),
   };
-  const assertions = buildAgentControlCapacityVisibleDomAssertions({ snapshot });
+  const assertions = buildAgentControlCapacityVisibleDomAssertions({
+    snapshot,
+  });
   return { assertions, snapshot };
 }
 
@@ -1125,7 +1137,9 @@ async function collectAgentControlResidencyVisibleDomGateB({
     consoleErrors: consoleErrors.slice(0, 10),
     screenshotPath: path.relative(process.cwd(), screenshotPath),
   };
-  const assertions = buildAgentControlResidencyVisibleDomAssertions({ snapshot });
+  const assertions = buildAgentControlResidencyVisibleDomAssertions({
+    snapshot,
+  });
   return { assertions, snapshot };
 }
 
@@ -1674,13 +1688,19 @@ async function main() {
         const restartParams = buildToolExecutionTurnStartParams({
           clientUserMessageId: `rollout-budget-restart-${Date.now()}`,
           message: "retry after rollout budget exhaustion",
-          model: String(evidence?.provider?.modelPreference || "lime-fixture-chat"),
+          model: String(
+            evidence?.provider?.modelPreference || "lime-fixture-chat",
+          ),
           threadId: sessionId,
           workspaceRoot: evidence?.workspace?.root,
         });
-        const configRead = await invokeAppServerJsonRpcRaw(page, "config/read", {
-          includeLayers: true,
-        });
+        const configRead = await invokeAppServerJsonRpcRaw(
+          page,
+          "config/read",
+          {
+            includeLayers: true,
+          },
+        );
         const configuredRolloutBudget =
           configRead?.result?.config?.agent?.rollout_budget ??
           configRead?.result?.config?.agent?.rolloutBudget ??
@@ -1749,17 +1769,8 @@ async function main() {
                 rendererSnapshot,
                 timeoutMs,
               })
-          : visibleDomGateBKind === "agent-capacity"
-            ? await collectAgentControlCapacityVisibleDomGateB({
-                consoleErrors,
-                evidence,
-                outputPath,
-                page,
-                rendererSnapshot,
-                timeoutMs,
-              })
-          : visibleDomGateBKind === "sandbox-retry"
-              ? await collectToolOrchestratorSandboxRetryVisibleDomGateB({
+            : visibleDomGateBKind === "agent-capacity"
+              ? await collectAgentControlCapacityVisibleDomGateB({
                   consoleErrors,
                   evidence,
                   outputPath,
@@ -1767,8 +1778,8 @@ async function main() {
                   rendererSnapshot,
                   timeoutMs,
                 })
-              : visibleDomGateBKind === "managed-network-retry"
-                ? await collectToolOrchestratorManagedNetworkRetryVisibleDomGateB({
+              : visibleDomGateBKind === "sandbox-retry"
+                ? await collectToolOrchestratorSandboxRetryVisibleDomGateB({
                     consoleErrors,
                     evidence,
                     outputPath,
@@ -1776,24 +1787,35 @@ async function main() {
                     rendererSnapshot,
                     timeoutMs,
                   })
-              : visibleDomGateBKind === "rollout-budget"
-                ? await collectRolloutBudgetVisibleDomGateB({
-                    coldRestart,
-                    consoleErrors,
-                    evidence,
-                    outputPath,
-                    page,
-                    rendererSnapshot,
-                    timeoutMs,
-                  })
-                : await collectDeferredMcpVisibleDomGateB({
-                  consoleErrors,
-                  evidence,
-                  outputPath,
-                  page,
-                  rendererSnapshot,
-                  timeoutMs,
-                });
+                : visibleDomGateBKind === "managed-network-retry"
+                  ? await collectToolOrchestratorManagedNetworkRetryVisibleDomGateB(
+                      {
+                        consoleErrors,
+                        evidence,
+                        outputPath,
+                        page,
+                        rendererSnapshot,
+                        timeoutMs,
+                      },
+                    )
+                  : visibleDomGateBKind === "rollout-budget"
+                    ? await collectRolloutBudgetVisibleDomGateB({
+                        coldRestart,
+                        consoleErrors,
+                        evidence,
+                        outputPath,
+                        page,
+                        rendererSnapshot,
+                        timeoutMs,
+                      })
+                    : await collectDeferredMcpVisibleDomGateB({
+                        consoleErrors,
+                        evidence,
+                        outputPath,
+                        page,
+                        rendererSnapshot,
+                        timeoutMs,
+                      });
       const failedAssertions = Object.entries(visibleDomGateB.assertions)
         .filter(([, passed]) => passed !== true)
         .map(([name]) => name);
@@ -1806,14 +1828,14 @@ async function main() {
           : visibleDomGateBKind === "agent-residency"
             ? "agentControlResidencyVisibleDomGateB"
             : visibleDomGateBKind === "agent-capacity"
-            ? "agentControlCapacityVisibleDomGateB"
-            : visibleDomGateBKind === "sandbox-retry"
-              ? "toolOrchestratorSandboxRetryVisibleDomGateB"
-              : visibleDomGateBKind === "managed-network-retry"
-                ? "toolOrchestratorManagedNetworkRetryVisibleDomGateB"
-                : visibleDomGateBKind === "rollout-budget"
-                  ? "rolloutBudgetVisibleDomGateB"
-                  : "visibleDomGateB"]: visibleDomGateB.snapshot,
+              ? "agentControlCapacityVisibleDomGateB"
+              : visibleDomGateBKind === "sandbox-retry"
+                ? "toolOrchestratorSandboxRetryVisibleDomGateB"
+                : visibleDomGateBKind === "managed-network-retry"
+                  ? "toolOrchestratorManagedNetworkRetryVisibleDomGateB"
+                  : visibleDomGateBKind === "rollout-budget"
+                    ? "rolloutBudgetVisibleDomGateB"
+                    : "visibleDomGateB"]: visibleDomGateB.snapshot,
       };
       evidence.assertions = {
         ...(evidence.assertions && typeof evidence.assertions === "object"

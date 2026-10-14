@@ -2,6 +2,8 @@
 
 状态：complete_with_windows_verification_pending
 
+2026-10-14 current owner 已直接迁为 [ComposerUtilityBar](../../src/components/agent/chat/components/Inputbar/components/ComposerUtilityBar.tsx)，指针命中桥与业务回归继续由该组件覆盖。下述旧名称是当时缺陷的历史证据，旧文件已删除，不得恢复。
+
 ## 目标
 
 修复首页与任务中心项目选择浮层中“新建空白项目 / 使用现有文件夹”无法通过真实鼠标点选的回归，并补稳定守卫，避免后续样式调整再次引入不可命中的空隙。
@@ -14,7 +16,7 @@
 
 ## 写集
 
-- `src/components/agent/chat/components/Inputbar/components/InputbarProjectContextBar.tsx`
+- current：`src/components/agent/chat/components/Inputbar/components/ComposerUtilityBar.tsx`；原写集为已删除的 `InputbarProjectContextBar.tsx`。
 - `src/components/agent/chat/components/ChatNavbar.test.tsx`
 - `internal/exec-plans/project-submenu-pointer-regression-2026-07-26.md`
 - `.gitignore`（把本计划加入 versioned artifact 白名单）

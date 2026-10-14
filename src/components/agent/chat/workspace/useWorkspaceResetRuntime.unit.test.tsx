@@ -20,6 +20,7 @@ function renderHook(props?: Partial<HookProps>) {
     resetProjectSelection: vi.fn(),
     resetRestoredSessionState: vi.fn(),
     resetGuideState: vi.fn(),
+    resetComposerDraft: vi.fn(),
     hasHandledNewChatRequest: vi.fn(() => false),
     markNewChatRequestHandled: vi.fn(),
     defaultTopicSidebarVisible: true,
@@ -98,6 +99,7 @@ describe("useWorkspaceResetRuntime", () => {
     expect(harness.props.clearMessages).not.toHaveBeenCalled();
     expect(harness.props.clearProjectSelectionRuntime).not.toHaveBeenCalled();
     expect(harness.props.resetRestoredSessionState).not.toHaveBeenCalled();
+    expect(harness.props.resetComposerDraft).not.toHaveBeenCalled();
   });
 
   it("没有恢复保护时仍应按新任务请求清空当前会话", async () => {
@@ -111,5 +113,6 @@ describe("useWorkspaceResetRuntime", () => {
     });
     expect(harness.props.clearProjectSelectionRuntime).toHaveBeenCalled();
     expect(harness.props.resetRestoredSessionState).toHaveBeenCalled();
+    expect(harness.props.resetComposerDraft).toHaveBeenCalledOnce();
   });
 });

@@ -1,3 +1,18 @@
+import type {
+  ComposerController,
+  ComposerEditorHandle,
+} from "@/components/input-kit";
+import { applyDictationTranscript } from "./composerDictationDraft";
+import {
+  InputbarDictationSessionOwner,
+  disposeDictationRecording,
+  stopDictationStream,
+  stopDictationRecording,
+  type ActiveRecording,
+  type DictationSession,
+  type InputbarDictationState,
+  type LiveAudioSampler,
+} from "./inputbarDictationSession";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { useTranslation } from "react-i18next";
@@ -11,44 +26,13 @@ import {
   type InputbarDictationCopy,
 } from "./inputbarDictationCopy";
 
-type InputbarDictationState = "idle" | "listening" | "transcribing";
-
 interface UseInputbarDictationArgs {
-  text: string;
   setText: (value: string) => void;
-  textareaRef: RefObject<HTMLTextAreaElement | null>;
+  editorRef: RefObject<ComposerEditorHandle>;
+  controller: ComposerController;
+  sessionId?: string | null;
   disabled: boolean;
-}
-
-interface ActiveRecording {
-  stream: MediaStream;
-  recorder: MediaRecorder;
-  chunks: Blob[];
-  startedAt: number;
-  mimeType: string;
-  finalizing: boolean;
-  livePreviewInFlight: boolean;
-  livePreviewSequence: number;
-  lastLivePreviewChunkCount: number;
-  liveTranscriptText: string;
-  liveSampleCursor: number;
-  sampler: LiveAudioSampler | null;
-  draft: DictationDraft;
-}
-
-interface LiveAudioSampler {
-  audioContext: AudioContext;
-  source: MediaStreamAudioSourceNode;
-  processor: ScriptProcessorNode;
-  sampleRate: number;
-  chunks: Float32Array[];
-  totalFrames: number;
-}
-
-interface DictationDraft {
-  baseText: string;
-  selectionStart: number;
-  selectionEnd: number;
+  isComposing?: () => boolean;
 }
 
 export interface InputbarRecordingStatus {
@@ -99,21 +83,6 @@ function hasRecordingSupport(): boolean {
     typeof globalThis.MediaRecorder === "function" &&
     getAudioContextConstructor(),
   );
-}
-
-function stopStream(stream: MediaStream): void {
-  for (const track of stream.getTracks()) {
-    track.stop();
-  }
-}
-
-function stopLiveAudioSampler(sampler: LiveAudioSampler | null): void {
-  if (!sampler) {
-    return;
-  }
-  sampler.processor.disconnect();
-  sampler.source.disconnect();
-  void sampler.audioContext.close().catch(() => undefined);
 }
 
 function describeError(error: unknown): string {
@@ -218,39 +187,14 @@ export function encodeMonoPcmFloat32ToWavBase64(
   return bytesToBase64(new Uint8Array(buffer));
 }
 
-function createDictationDraft(
-  currentText: string,
-  textarea: HTMLTextAreaElement | null,
-): DictationDraft {
-  const selectionStart = textarea?.selectionStart ?? currentText.length;
-  const selectionEnd = textarea?.selectionEnd ?? selectionStart;
-  return {
-    baseText: currentText,
-    selectionStart,
-    selectionEnd,
-  };
-}
-
-function replaceDraftTranscript(
-  draft: DictationDraft,
-  transcript: string,
-): { nextText: string; selectionStart: number } {
-  return insertTranscriptAtSelection(
-    draft.baseText,
-    transcript,
-    {
-      selectionStart: draft.selectionStart,
-      selectionEnd: draft.selectionEnd,
-    } as HTMLTextAreaElement,
-  );
-}
-
 function shouldJoinWithoutSpace(left: string, right: string): boolean {
   if (!left || !right || /\s$/.test(left) || /^\s/.test(right)) {
     return true;
   }
-  return /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]$/u.test(left) ||
-    /^[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(right);
+  return (
+    /[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]$/u.test(left) ||
+    /^[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]/u.test(right)
+  );
 }
 
 function appendTranscriptFragment(current: string, fragment: string): string {
@@ -358,7 +302,8 @@ function collectLiveAudioSegment(activeRecording: ActiveRecording): {
   const maxFrames = Math.floor(
     (sampler.sampleRate * LIVE_TRANSCRIPTION_MAX_SAMPLE_MS) / 1000,
   );
-  const availableFrames = sampler.totalFrames - activeRecording.liveSampleCursor;
+  const availableFrames =
+    sampler.totalFrames - activeRecording.liveSampleCursor;
   if (availableFrames < minFrames) {
     return null;
   }
@@ -378,298 +323,282 @@ function collectLiveAudioSegment(activeRecording: ActiveRecording): {
   };
 }
 
-function insertTranscriptAtSelection(
-  currentText: string,
-  transcript: string,
-  textarea: HTMLTextAreaElement | null,
-): { nextText: string; selectionStart: number } {
-  const cleanTranscript = transcript.trim();
-  const start = textarea?.selectionStart ?? currentText.length;
-  const end = textarea?.selectionEnd ?? start;
-  const before = currentText.slice(0, start);
-  const after = currentText.slice(end);
-  const leadingSpace =
-    before.trim().length > 0 && !/\s$/.test(before) ? " " : "";
-  const trailingSpace =
-    after.trim().length > 0 && !/^\s/.test(after) ? " " : "";
-  const inserted = `${leadingSpace}${cleanTranscript}${trailingSpace}`;
-  return {
-    nextText: `${before}${inserted}${after}`,
-    selectionStart: before.length + inserted.length,
-  };
-}
-
 export function useInputbarDictation({
-  text,
   setText,
-  textareaRef,
+  editorRef,
+  controller,
+  sessionId = null,
   disabled,
+  isComposing,
 }: UseInputbarDictationArgs) {
   const { t } = useTranslation("agent");
   const copy = useMemo(() => buildInputbarDictationCopy((key) => t(key)), [t]);
+  const [sessionOwner] = useState(() => new InputbarDictationSessionOwner());
   const [dictationState, setDictationState] =
     useState<InputbarDictationState>("idle");
   const [recordingDuration, setRecordingDuration] = useState(0);
   const [liveTranscript, setLiveTranscript] = useState("");
-  const activeRecordingRef = useRef<ActiveRecording | null>(null);
+  const controllerRef = useRef(controller);
+  controllerRef.current = controller;
+  const sessionIdRef = useRef(sessionId);
+  sessionIdRef.current = sessionId;
+  const compositionRef = useRef(isComposing);
+  compositionRef.current = isComposing;
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const livePreviewTimerRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
-  const textRef = useRef(text);
-
-  useEffect(() => {
-    textRef.current = text;
-  }, [text]);
 
   const clearRecordingTimer = useCallback(() => {
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    if (livePreviewTimerRef.current) {
-      clearInterval(livePreviewTimerRef.current);
-      livePreviewTimerRef.current = null;
-    }
+    if (timerRef.current) clearInterval(timerRef.current);
+    if (livePreviewTimerRef.current) clearInterval(livePreviewTimerRef.current);
+    timerRef.current = null;
+    livePreviewTimerRef.current = null;
   }, []);
 
-  const resetRecording = useCallback(() => {
+  const resetStatus = useCallback(() => {
     clearRecordingTimer();
-    const activeRecording = activeRecordingRef.current;
-    activeRecordingRef.current = null;
-    if (activeRecording) {
-      stopLiveAudioSampler(activeRecording.sampler);
-      stopStream(activeRecording.stream);
-    }
+    setDictationState("idle");
     setRecordingDuration(0);
     setLiveTranscript("");
   }, [clearRecordingTimer]);
 
-  useEffect(
-    () => () => {
-      resetRecording();
-    },
-    [resetRecording],
+  useEffect(() => {
+    resetStatus();
+    return () => {
+      sessionOwner.dispose();
+      clearRecordingTimer();
+    };
+  }, [controller, sessionId, sessionOwner, resetStatus, clearRecordingTimer]);
+
+  const ownsSession = useCallback(
+    (session: DictationSession) =>
+      sessionOwner.owns(session, controllerRef.current, sessionIdRef.current),
+    [sessionOwner],
   );
 
-  const stopActiveRecording = useCallback((): Promise<Blob> => {
-    const activeRecording = activeRecordingRef.current;
-    if (!activeRecording) {
-      return Promise.resolve(new Blob([], { type: WAV_MIME_TYPE }));
-    }
+  const finishSession = useCallback(
+    (session: DictationSession) => {
+      if (sessionOwner.finish(session)) resetStatus();
+    },
+    [resetStatus, sessionOwner],
+  );
 
-    const { recorder, chunks, mimeType } = activeRecording;
-    return new Promise<Blob>((resolve, reject) => {
-      const cleanup = () => {
-        recorder.removeEventListener("stop", handleStop);
-        recorder.removeEventListener("error", handleError);
-      };
-      const handleStop = () => {
-        cleanup();
-        resolve(new Blob(chunks, { type: recorder.mimeType || mimeType }));
-      };
-      const handleError = (event: Event) => {
-        cleanup();
-        reject(
-          event instanceof ErrorEvent
-            ? event.error || new Error(event.message)
-            : new Error(copy.recognitionFailed),
-        );
-      };
+  const composing = useCallback(
+    () =>
+      compositionRef.current?.() ?? editorRef.current?.isComposing() ?? false,
+    [editorRef],
+  );
 
-      recorder.addEventListener("stop", handleStop, { once: true });
-      recorder.addEventListener("error", handleError, { once: true });
-      try {
-        if (typeof recorder.requestData === "function") {
-          recorder.requestData();
-        }
-        if (recorder.state === "inactive") {
-          handleStop();
-          return;
-        }
-        recorder.stop();
-      } catch (error) {
-        cleanup();
-        reject(error);
+  const applyTranscript = useCallback(
+    (session: DictationSession, text: string, final: boolean): boolean => {
+      if (!ownsSession(session)) return false;
+      if (composing()) {
+        finishSession(session);
+        return false;
       }
-    });
-  }, [copy.recognitionFailed]);
+      if (!applyDictationTranscript(session.owner, session.draft, text))
+        return false;
+      session.applied = true;
+      setText(session.owner.getDocument().text);
+      if (final) editorRef.current?.focus();
+      return true;
+    },
+    [composing, editorRef, finishSession, ownsSession, setText],
+  );
+
+  const handleDictationCancel = useCallback(() => {
+    if (
+      controller !== controllerRef.current ||
+      sessionId !== sessionIdRef.current
+    )
+      return;
+    const previous = controller.getSnapshot();
+    if (!sessionOwner.cancel(controller, sessionId)) return;
+    resetStatus();
+    if (controller.getSnapshot() !== previous)
+      setText(controller.getDocument().text);
+  }, [controller, resetStatus, sessionId, sessionOwner, setText]);
+
+  const discardDictationSession = useCallback((): boolean => {
+    if (
+      controller !== controllerRef.current ||
+      sessionId !== sessionIdRef.current
+    )
+      return false;
+    if (!sessionOwner.discard(controller, sessionId)) return false;
+    resetStatus();
+    return true;
+  }, [controller, resetStatus, sessionId, sessionOwner]);
 
   const transcribeBlob = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob, session: DictationSession) => {
       const AudioContextCtor = getAudioContextConstructor();
-      if (!AudioContextCtor) {
-        throw new Error(copy.unavailable);
-      }
-
+      if (!AudioContextCtor) throw new Error(copy.unavailable);
       const audioContext = new AudioContextCtor();
+      session.decodingContexts.add(audioContext);
       try {
         const encodedAudio = await blob.arrayBuffer();
+        if (!ownsSession(session)) return null;
         const audioBuffer = await audioContext.decodeAudioData(
           encodedAudio.slice(0),
         );
+        if (!ownsSession(session)) return null;
         return transcribeVoiceInputAudio({
           audioBase64: encodeAudioBufferToMonoPcm16WavBase64(audioBuffer),
           mimeType: WAV_MIME_TYPE,
         });
       } finally {
-        await audioContext.close().catch(() => undefined);
+        if (session.decodingContexts.delete(audioContext)) {
+          await audioContext.close().catch(() => undefined);
+        }
       }
     },
-    [copy.unavailable],
+    [copy.unavailable, ownsSession],
   );
 
-  const applyLiveTranscript = useCallback(
-    (activeRecording: ActiveRecording, transcript: string) => {
-      const cleanTranscript = transcript.trim();
-      if (!cleanTranscript) {
-        return;
-      }
-      activeRecording.liveTranscriptText = cleanTranscript;
-      setLiveTranscript(cleanTranscript);
-      const textarea = textareaRef.current;
-      const { nextText, selectionStart } = replaceDraftTranscript(
-        activeRecording.draft,
-        cleanTranscript,
-      );
-      setText(nextText);
-      window.requestAnimationFrame(() => {
-        textarea?.setSelectionRange(selectionStart, selectionStart);
-      });
-    },
-    [setText, textareaRef],
-  );
-
-  const updateLiveTranscript = useCallback(async () => {
-    const activeRecording = activeRecordingRef.current;
-    if (
-      !activeRecording ||
-      activeRecording.finalizing ||
-      activeRecording.livePreviewInFlight
-    ) {
-      return;
-    }
-
-    const liveSegment = collectLiveAudioSegment(activeRecording);
-    if (
-      !liveSegment &&
-      (activeRecording.chunks.length === 0 ||
-        activeRecording.chunks.length ===
-          activeRecording.lastLivePreviewChunkCount)
-    ) {
-      return;
-    }
-
-    activeRecording.livePreviewInFlight = true;
-    activeRecording.lastLivePreviewChunkCount = activeRecording.chunks.length;
-    activeRecording.livePreviewSequence += 1;
-    const sequence = activeRecording.livePreviewSequence;
-
-    try {
-      const result = liveSegment
-        ? await transcribeVoiceInputAudio(liveSegment)
-        : await transcribeBlob(
-            new Blob(activeRecording.chunks, {
-              type: activeRecording.recorder.mimeType || activeRecording.mimeType,
-            }),
-          );
-      const previewText = liveSegment
-        ? appendTranscriptFragment(
-            activeRecording.liveTranscriptText,
-            result.text,
-          )
-        : result.text.trim();
+  const updateLiveTranscript = useCallback(
+    async (session: DictationSession) => {
+      const activeRecording = session.recording;
       if (
-        activeRecordingRef.current === activeRecording &&
-        !activeRecording.finalizing &&
-        activeRecording.livePreviewSequence === sequence
-      ) {
-        applyLiveTranscript(activeRecording, previewText);
-      }
-    } catch (error) {
-      console.warn("[voice-input] live transcription preview failed", error);
-    } finally {
-      if (activeRecordingRef.current === activeRecording) {
-        activeRecording.livePreviewInFlight = false;
-      }
-    }
-  }, [applyLiveTranscript, transcribeBlob]);
-
-  const polishTranscript = useCallback(async (transcript: string) => {
-    try {
-      const result = await polishVoiceInputText({ text: transcript });
-      return result.text.trim() || transcript;
-    } catch (error) {
-      console.warn("[voice-input] polish failed, using raw transcript", error);
-      return transcript;
-    }
-  }, []);
-
-  const finishRecording = useCallback(async () => {
-    const activeRecording = activeRecordingRef.current;
-    if (!activeRecording) {
-      return;
-    }
-
-    activeRecording.finalizing = true;
-    setDictationState("transcribing");
-    clearRecordingTimer();
-    const elapsedMs = performance.now() - activeRecording.startedAt;
-    try {
-      const blob = await stopActiveRecording();
-      stopLiveAudioSampler(activeRecording.sampler);
-      stopStream(activeRecording.stream);
-      activeRecordingRef.current = null;
-
-      if (elapsedMs < MIN_RECORDING_DURATION_MS || blob.size === 0) {
-        toast.error(copy.tooShort);
+        !ownsSession(session) ||
+        !activeRecording ||
+        activeRecording.finalizing ||
+        activeRecording.livePreviewInFlight
+      )
         return;
-      }
-
-      const result = await transcribeBlob(blob);
-      const rawTranscript = result.text.trim();
-      if (!rawTranscript) {
-        toast.error(copy.emptyTranscript);
+      const liveSegment = collectLiveAudioSegment(activeRecording);
+      if (
+        !liveSegment &&
+        (activeRecording.chunks.length === 0 ||
+          activeRecording.chunks.length ===
+            activeRecording.lastLivePreviewChunkCount)
+      )
         return;
+      activeRecording.livePreviewInFlight = true;
+      activeRecording.lastLivePreviewChunkCount = activeRecording.chunks.length;
+      const sequence = ++activeRecording.livePreviewSequence;
+      try {
+        const result = liveSegment
+          ? await transcribeVoiceInputAudio(liveSegment)
+          : await transcribeBlob(
+              new Blob(activeRecording.chunks, {
+                type:
+                  activeRecording.recorder.mimeType || activeRecording.mimeType,
+              }),
+              session,
+            );
+        if (
+          !result ||
+          !ownsSession(session) ||
+          activeRecording.finalizing ||
+          session.recording !== activeRecording ||
+          sequence !== activeRecording.livePreviewSequence
+        )
+          return;
+        const text = liveSegment
+          ? appendTranscriptFragment(
+              activeRecording.liveTranscriptText,
+              result.text,
+            )
+          : result.text.trim();
+        if (!text) return;
+        activeRecording.liveTranscriptText = text;
+        setLiveTranscript(text);
+        applyTranscript(session, text, false);
+      } catch (error) {
+        if (ownsSession(session))
+          console.warn(
+            "[voice-input] live transcription preview failed",
+            error,
+          );
+      } finally {
+        if (ownsSession(session) && session.recording === activeRecording)
+          activeRecording.livePreviewInFlight = false;
       }
-      setLiveTranscript(rawTranscript);
-      const transcript = await polishTranscript(rawTranscript);
+    },
+    [applyTranscript, ownsSession, transcribeBlob],
+  );
 
-      const textarea = textareaRef.current;
-      const { nextText, selectionStart } = replaceDraftTranscript(
-        activeRecording.draft,
-        transcript,
-      );
-      setText(nextText);
-      window.requestAnimationFrame(() => {
-        textarea?.focus();
-        textarea?.setSelectionRange(selectionStart, selectionStart);
-      });
-    } catch (error) {
-      toast.error(`${copy.recognitionFailed}: ${describeError(error)}`);
-    } finally {
-      resetRecording();
-      setDictationState("idle");
-    }
-  }, [
-    clearRecordingTimer,
-    copy.emptyTranscript,
-    copy.recognitionFailed,
-    copy.tooShort,
-    polishTranscript,
-    resetRecording,
-    setText,
-    stopActiveRecording,
-    textareaRef,
-    transcribeBlob,
-  ]);
+  const finishRecording = useCallback(
+    async (session: DictationSession) => {
+      const activeRecording = session.recording;
+      if (
+        !ownsSession(session) ||
+        session.phase !== "listening" ||
+        !activeRecording
+      )
+        return;
+      session.phase = "transcribing";
+      activeRecording.finalizing = true;
+      setDictationState("transcribing");
+      clearRecordingTimer();
+      const elapsedMs = performance.now() - activeRecording.startedAt;
+      try {
+        const blob = await stopDictationRecording(
+          session,
+          copy.recognitionFailed,
+        );
+        if (!ownsSession(session)) return;
+        disposeDictationRecording(session);
+        if (elapsedMs < MIN_RECORDING_DURATION_MS || blob.size === 0) {
+          toast.error(copy.tooShort);
+          return;
+        }
+        const result = await transcribeBlob(blob, session);
+        if (!result || !ownsSession(session)) return;
+        const rawTranscript = result.text.trim();
+        if (!rawTranscript) {
+          toast.error(copy.emptyTranscript);
+          return;
+        }
+        setLiveTranscript(rawTranscript);
+        let transcript = rawTranscript;
+        try {
+          const polished = await polishVoiceInputText({ text: rawTranscript });
+          transcript = polished.text.trim() || rawTranscript;
+        } catch (error) {
+          if (ownsSession(session))
+            console.warn(
+              "[voice-input] polish failed, using raw transcript",
+              error,
+            );
+        }
+        if (!ownsSession(session)) return;
+        applyTranscript(session, transcript, true);
+      } catch (error) {
+        if (ownsSession(session))
+          toast.error(`${copy.recognitionFailed}: ${describeError(error)}`);
+      } finally {
+        if (ownsSession(session)) finishSession(session);
+      }
+    },
+    [
+      applyTranscript,
+      clearRecordingTimer,
+      copy,
+      finishSession,
+      ownsSession,
+      transcribeBlob,
+    ],
+  );
 
   const startRecording = useCallback(async () => {
+    if (
+      controller !== controllerRef.current ||
+      sessionId !== sessionIdRef.current ||
+      composing()
+    )
+      return;
     if (!hasRecordingSupport()) {
       toast.error(copy.unavailable);
       return;
     }
-
+    const session = sessionOwner.start(controller, sessionId);
+    if (!session) return;
+    setDictationState("starting");
+    setRecordingDuration(0);
+    setLiveTranscript("");
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -679,11 +608,14 @@ export function useInputbarDictation({
           autoGainControl: true,
         },
       });
+      if (!ownsSession(session)) {
+        stopDictationStream(stream);
+        return;
+      }
       const mimeType = getPreferredRecorderMimeType();
       const recorder = mimeType
         ? new MediaRecorder(stream, { mimeType })
         : new MediaRecorder(stream);
-      const textarea = textareaRef.current;
       const activeRecording: ActiveRecording = {
         stream,
         recorder,
@@ -697,54 +629,70 @@ export function useInputbarDictation({
         liveTranscriptText: "",
         liveSampleCursor: 0,
         sampler: createLiveAudioSampler(stream),
-        draft: createDictationDraft(textRef.current, textarea),
-      };
-      recorder.addEventListener("dataavailable", (event) => {
-        if (event.data.size > 0) {
+        onData: (event) => {
+          if (!ownsSession(session) || event.data.size === 0) return;
           activeRecording.chunks.push(event.data);
-          void updateLiveTranscript();
-        }
-      });
-      activeRecordingRef.current = activeRecording;
+          void updateLiveTranscript(session);
+        },
+      };
+      session.recording = activeRecording;
+      recorder.addEventListener("dataavailable", activeRecording.onData);
       recorder.start(LIVE_TRANSCRIPTION_TIMESLICE_MS);
+      session.phase = "listening";
       setDictationState("listening");
-      setRecordingDuration(0);
-      setLiveTranscript("");
       timerRef.current = setInterval(() => {
-        setRecordingDuration(
-          Math.max(0, (performance.now() - activeRecording.startedAt) / 1000),
-        );
+        if (ownsSession(session))
+          setRecordingDuration(
+            Math.max(0, (performance.now() - activeRecording.startedAt) / 1000),
+          );
       }, 250);
       livePreviewTimerRef.current = setInterval(() => {
-        if (typeof recorder.requestData === "function" && recorder.state === "recording") {
-          recorder.requestData();
-        }
-        void updateLiveTranscript();
+        if (!ownsSession(session)) return;
+        if (recorder.state === "recording") recorder.requestData?.();
+        void updateLiveTranscript(session);
       }, LIVE_TRANSCRIPTION_INTERVAL_MS);
     } catch (error) {
-      if (stream) {
-        stopStream(stream);
-      }
-      resetRecording();
+      if (stream && !session.recording) stopDictationStream(stream);
+      if (!ownsSession(session)) return;
+      finishSession(session);
       toast.error(
         isPermissionDeniedError(error)
           ? getMicrophonePermissionMessage(copy)
           : `${copy.startFailed}: ${describeError(error)}`,
       );
-      setDictationState("idle");
     }
-  }, [copy, resetRecording, textareaRef, updateLiveTranscript]);
+  }, [
+    controller,
+    composing,
+    copy,
+    finishSession,
+    ownsSession,
+    sessionOwner,
+    sessionId,
+    updateLiveTranscript,
+  ]);
 
   const handleDictationToggle = useCallback(async () => {
-    if (disabled || dictationState === "transcribing") {
+    if (
+      disabled ||
+      controller !== controllerRef.current ||
+      sessionId !== sessionIdRef.current
+    )
       return;
-    }
-    if (dictationState === "listening") {
-      await finishRecording();
+    const session = sessionOwner.getCurrent();
+    if (session) {
+      if (session.phase === "listening") await finishRecording(session);
       return;
     }
     await startRecording();
-  }, [dictationState, disabled, finishRecording, startRecording]);
+  }, [
+    controller,
+    disabled,
+    finishRecording,
+    sessionId,
+    sessionOwner,
+    startRecording,
+  ]);
 
   const recordingStatus: InputbarRecordingStatus | null =
     dictationState === "idle"
@@ -754,7 +702,6 @@ export function useInputbarDictation({
           volume: 0,
           duration: recordingDuration,
         };
-
   return {
     dictationEnabled: true,
     voiceConfigLoaded: true,
@@ -762,8 +709,11 @@ export function useInputbarDictation({
     recordingStatus,
     liveTranscript,
     isDictating: dictationState === "listening",
+    isDictationStarting: dictationState === "starting",
     isDictationBusy: dictationState !== "idle",
     isDictationProcessing: dictationState === "transcribing",
     handleDictationToggle,
+    handleDictationCancel,
+    discardDictationSession,
   };
 }

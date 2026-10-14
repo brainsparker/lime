@@ -5,7 +5,7 @@ import {
   buildCatalogWithSceneEntry,
   createSkill,
   findLauncherConfirmButton,
-  getTextarea,
+  getComposerEditor,
   renderHarness,
   typeSlashAndWait,
   updateFieldValue,
@@ -26,7 +26,7 @@ describe("CharacterMention slash templates", () => {
     const container = renderHarness({
       skills: [createSkill("本地做法A", "local-skill-a", true)],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -62,7 +62,7 @@ describe("CharacterMention slash templates", () => {
     });
 
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/camp");
 
@@ -82,7 +82,7 @@ describe("CharacterMention slash templates", () => {
       onChangeSpy,
       syncValue: true,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/趋势");
 
@@ -161,7 +161,7 @@ describe("CharacterMention slash templates", () => {
         },
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/复盘");
 
@@ -195,7 +195,7 @@ describe("CharacterMention slash templates", () => {
         },
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/趋势");
 
@@ -221,7 +221,7 @@ describe("CharacterMention slash templates", () => {
     const container = renderHarness({
       syncValue: true,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/趋势");
 
@@ -266,7 +266,7 @@ describe("CharacterMention slash templates", () => {
       onSelectInputCapability,
       syncValue: true,
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/趋势");
 
@@ -341,7 +341,7 @@ describe("CharacterMention slash templates", () => {
         },
       ],
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/趋势");
 
@@ -394,7 +394,7 @@ describe("CharacterMention slash templates", () => {
     const container = renderHarness({
       projectId: "project-review-1",
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -441,7 +441,7 @@ describe("CharacterMention slash templates", () => {
     const container = renderHarness({
       projectId: "project-review-2",
     });
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea);
 
@@ -477,7 +477,7 @@ describe("CharacterMention slash templates", () => {
 
   it("搜索未接入的 slash 命令时，应单独显示暂未接入分组", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/qui");
 
@@ -488,7 +488,7 @@ describe("CharacterMention slash templates", () => {
 
   it("slash 搜索提示类命令时，应按提示命令分组展开", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/rev");
 
@@ -499,7 +499,7 @@ describe("CharacterMention slash templates", () => {
 
   it("slash 搜索状态类命令时，应按状态 / 帮助分组展开", async () => {
     const container = renderHarness();
-    const textarea = getTextarea(container);
+    const textarea = getComposerEditor(container);
 
     await typeSlashAndWait(textarea, "/help");
 

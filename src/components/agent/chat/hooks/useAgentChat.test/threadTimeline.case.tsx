@@ -74,7 +74,7 @@ describe("useAgentChat thread timeline", () => {
     }
   });
 
-  it("submitTurn 失败时应保留失败回合与失败消息，而不是清空当前过程", async () => {
+  it("submitTurn 失败时应拒绝接受并保留失败回合与失败消息", async () => {
     const consoleErrorSpy = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
@@ -89,9 +89,11 @@ describe("useAgentChat thread timeline", () => {
       await flushEffects();
 
       await act(async () => {
-        await harness
-          .getValue()
-          .sendMessage("帮我开始执行", [], false, false, false, "react");
+        await expect(
+          harness
+            .getValue()
+            .sendMessage("帮我开始执行", [], false, false, false, "react"),
+        ).rejects.toThrow("429 rate limit");
       });
 
       const assistantMessage = [...harness.getValue().messages]

@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { readBrowserTabSnapshot } from "./browserTabSnapshot";
+import { selectBrowserRoutes } from "./browserTabSelection";
 import process from "node:process";
 import { isDeepStrictEqual } from "node:util";
 import { statSync } from "node:fs";
@@ -30,6 +32,7 @@ type BrowserArtifactWriter = (
 ) => Promise<unknown>;
 
 export const BROWSER_TAB_COMMANDS = [
+  "browser_tab_list",
   "browser_tab_mount",
   "browser_tab_set_bounds",
   "browser_tab_navigate",
@@ -228,6 +231,13 @@ export class ElectronBrowserTabHost {
       throw new Error("Browser tab owner window is unavailable");
     }
     switch (command) {
+      case "browser_tab_list":
+        return readBrowserTabSnapshot(
+          window,
+          args,
+          this.#routesByTabId.values(),
+          (route) => this.#readState(route),
+        );
       case "browser_tab_mount":
         return await this.#mount(window, args);
       case "browser_tab_set_bounds":
@@ -804,7 +814,7 @@ export class ElectronBrowserTabHost {
       {
         ...mountArgs,
         viewId: route.viewId,
-        visible: route.selected,
+        visible: route.selected && args?.visible !== false,
       },
     );
     assertEmbeddedState(state);
@@ -854,17 +864,20 @@ export class ElectronBrowserTabHost {
     args?: HostArgs,
   ): Promise<BrowserTabState> {
     const selected = this.#routeForRenderer(window, args);
-    for (const route of this.#routesForThread(
-      selected.threadId,
-      selected.ownerWebContentsId,
+    for (const route of selectBrowserRoutes(
+      this.#routesForThread(selected.threadId, selected.ownerWebContentsId),
+      selected.tabId,
     )) {
-      route.selected = route.tabId === selected.tabId;
       const native = this.#nativeRoute(route);
       const bounds = readBounds(args) ?? native.view.getBounds();
       await this.#embeddedHost.invoke(
         native.window,
         "embedded_browser_view_set_bounds",
-        { viewId: route.viewId, bounds, visible: route.selected },
+        {
+          viewId: route.viewId,
+          bounds,
+          visible: route.selected && args?.visible !== false,
+        },
       );
       this.#emitState(route);
     }
@@ -916,11 +929,10 @@ export class ElectronBrowserTabHost {
       viewId: `browser_view_${randomUUID()}`,
       windowId: base.windowId,
     };
-    for (const item of this.#routesForThread(
-      call.threadId,
-      call.ownerWebContentsId,
+    for (const item of selectBrowserRoutes(
+      this.#routesForThread(call.threadId, call.ownerWebContentsId),
+      null,
     )) {
-      item.selected = false;
       const itemNative = this.#nativeRoute(item);
       await this.#embeddedHost.invoke(
         itemNative.window,

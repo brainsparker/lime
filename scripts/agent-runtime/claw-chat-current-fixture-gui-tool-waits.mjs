@@ -1,3 +1,4 @@
+import { withComposerEditorDom } from "../lib/composer-editor-dom.mjs";
 import {
   MCP_STRUCTURED_CONTENT_ANSWER,
   MCP_STRUCTURED_CONTENT_DONE_TEXT,
@@ -15,87 +16,94 @@ export async function waitForGuiMcpStructuredContentCompleted(page, options) {
   while (Date.now() - startedAt < options.timeoutMs) {
     const snapshot = await evaluatePageSnapshot(
       page,
-      ({ prompt, doneText, answer, referenceId, toolName }) => {
-        const text = document.body?.innerText || "";
-        const textarea = document.querySelector(
-          'textarea[name="agent-chat-message"]',
-        );
-        const rect = textarea?.getBoundingClientRect();
-        const style = textarea ? window.getComputedStyle(textarea) : null;
-        const textareaVisible = Boolean(
-          textarea &&
-          rect &&
-          rect.width > 16 &&
-          rect.height > 16 &&
-          style?.visibility !== "hidden" &&
-          style?.display !== "none",
-        );
-        const buttons = Array.from(document.querySelectorAll("button")).map(
-          (button) => ({
-            title: button.getAttribute("title") || "",
-            text: button.textContent || "",
-            aria: button.getAttribute("aria-label") || "",
-            disabled: button.disabled,
-          }),
-        );
-        const stopButtonVisible = buttons.some((button) => {
-          const label = [button.title, button.text, button.aria].join("\n");
-          return (
-            !button.disabled &&
-            (label.includes("停止") ||
-              label.includes("终止") ||
-              /\bStop\b/i.test(label))
+      withComposerEditorDom(
+        ({ prompt, doneText, answer, referenceId, toolName }) => {
+          const text = document.body?.innerText || "";
+          const editor = document.querySelector(
+            '[data-testid="composer-editor"][role="textbox"]',
           );
-        });
-        const forbiddenEnvelopeFragments = [
-          "request_metadata",
-          "mcp_tool_result_projection",
-          "diagnostics",
-          "raw_transport_payload",
-          "doc-hidden-envelope",
-          "control-plane envelope only",
-          '"request_metadata"',
-          '"diagnostics"',
-        ];
-        return {
-          url: window.location.href,
-          hasPrompt: text.includes(prompt),
-          hasAssistantSummary: text.includes(
-            "MCP structuredContent 展示验证完成",
-          ),
-          hasDoneText: text.includes(doneText),
-          hasStructuredAnswer: text.includes(answer),
-          hasReferenceId: text.includes(referenceId),
-          hasToolName: text.includes(toolName),
-          terminalDetailsCompacted:
-            !text.includes(answer) &&
-            !text.includes(toolName) &&
-            /\d+\s*步/.test(text) &&
-            text.includes("工具步骤"),
-          historicalTimelineCompacted: Boolean(
-            document.querySelector(
-              '[data-testid^="message-list-historical-timeline-preview:"]',
+          const rect = editor?.getBoundingClientRect();
+          const style = editor ? window.getComputedStyle(editor) : null;
+          const editorVisible = Boolean(
+            editor &&
+            rect &&
+            rect.width > 16 &&
+            rect.height > 16 &&
+            style?.visibility !== "hidden" &&
+            style?.display !== "none",
+          );
+          const buttons = Array.from(document.querySelectorAll("button")).map(
+            (button) => ({
+              title: button.getAttribute("title") || "",
+              text: button.textContent || "",
+              aria: button.getAttribute("aria-label") || "",
+              disabled: button.disabled,
+            }),
+          );
+          const stopButtonVisible = buttons.some((button) => {
+            const label = [button.title, button.text, button.aria].join("\n");
+            return (
+              !button.disabled &&
+              (label.includes("停止") ||
+                label.includes("终止") ||
+                /\bStop\b/i.test(label))
+            );
+          });
+          const forbiddenEnvelopeFragments = [
+            "request_metadata",
+            "mcp_tool_result_projection",
+            "diagnostics",
+            "raw_transport_payload",
+            "doc-hidden-envelope",
+            "control-plane envelope only",
+            '"request_metadata"',
+            '"diagnostics"',
+          ];
+          return {
+            url: window.location.href,
+            hasPrompt: text.includes(prompt),
+            hasAssistantSummary: text.includes(
+              "MCP structuredContent 展示验证完成",
             ),
-          ),
-          envelopeVisible: forbiddenEnvelopeFragments.some((value) =>
-            text.includes(value),
-          ),
-          forbiddenEnvelopeHits: forbiddenEnvelopeFragments.filter((value) =>
-            text.includes(value),
-          ),
-          textareaVisible,
-          textareaDisabled:
-            textarea instanceof HTMLTextAreaElement ? textarea.disabled : null,
-          textareaValue:
-            textarea instanceof HTMLTextAreaElement ? textarea.value : null,
-          stopButtonVisible,
-          hasMessageList: Boolean(
-            document.querySelector('[data-testid="message-list"]') ||
-            document.querySelector('[data-testid="message-list-frame"]'),
-          ),
-          bodyText: text,
-        };
-      },
+            hasDoneText: text.includes(doneText),
+            hasStructuredAnswer: text.includes(answer),
+            hasReferenceId: text.includes(referenceId),
+            hasToolName: text.includes(toolName),
+            terminalDetailsCompacted:
+              !text.includes(answer) &&
+              !text.includes(toolName) &&
+              /\d+\s*步/.test(text) &&
+              text.includes("工具步骤"),
+            historicalTimelineCompacted: Boolean(
+              document.querySelector(
+                '[data-testid^="message-list-historical-timeline-preview:"]',
+              ),
+            ),
+            envelopeVisible: forbiddenEnvelopeFragments.some((value) =>
+              text.includes(value),
+            ),
+            forbiddenEnvelopeHits: forbiddenEnvelopeFragments.filter((value) =>
+              text.includes(value),
+            ),
+            editorVisible,
+            editorDisabled:
+              editor instanceof HTMLElement
+                ? editor.getAttribute("aria-disabled") === "true" ||
+                  editor.getAttribute("contenteditable") !== "true"
+                : null,
+            editorText:
+              editor instanceof HTMLElement
+                ? readComposerEditorTextDom(editor)
+                : null,
+            stopButtonVisible,
+            hasMessageList: Boolean(
+              document.querySelector('[data-testid="message-list"]') ||
+              document.querySelector('[data-testid="message-list-frame"]'),
+            ),
+            bodyText: text,
+          };
+        },
+      ),
       {
         prompt: MCP_STRUCTURED_CONTENT_PROMPT,
         doneText: MCP_STRUCTURED_CONTENT_DONE_TEXT,
@@ -114,8 +122,8 @@ export async function waitForGuiMcpStructuredContentCompleted(page, options) {
       snapshot.hasPrompt &&
       (snapshot.hasAssistantSummary || snapshot.hasDoneText) &&
       snapshot.envelopeVisible === false &&
-      snapshot.textareaVisible &&
-      snapshot.textareaDisabled === false &&
+      snapshot.editorVisible &&
+      snapshot.editorDisabled === false &&
       snapshot.stopButtonVisible === false
     ) {
       const expandedSnapshot =
@@ -269,7 +277,9 @@ export async function expandAndInspectGuiMcpStructuredContentProcess(
           '[data-testid^="agent-thread-block:"]',
         );
         const canonicalToolText =
-          canonicalToolContainer?.textContent || canonicalToolRow?.textContent || "";
+          canonicalToolContainer?.textContent ||
+          canonicalToolRow?.textContent ||
+          "";
         const mcpProcessGroup = processGroups.find(
           (group) =>
             group.text.includes(answer) ||

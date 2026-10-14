@@ -5,7 +5,7 @@ import {
   type SetStateAction,
 } from "react";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
-import type { WorkspaceFilesSurfaceTarget } from "./WorkspaceFilesSurface";
+import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import {
   closeWorkspacePluginSurfaceDescriptor,
@@ -34,12 +34,14 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
   activePluginSurfaces: WorkspacePluginSurfaceDescriptor[];
   articleEditorRightSurface: WorkspaceArticleWorkspace | null;
   articleEditorRightSurfaceAvailable: boolean;
+  availableSurfaces: ReadonlySet<WorkspaceRightSurfaceKind>;
   browserRightSurfaceAvailable: boolean;
+  closeRightSurface: (kind: WorkspaceRightSurfaceKind) => void;
   consumePendingRequestsForSurface: ConsumePendingRequestsForSurface;
   dismissPendingRequestsForSurface: DismissPendingRequestsForSurface;
   expertInfoPanelCollapsed: boolean;
   filesRightSurfaceAvailable: boolean;
-  filesRightSurfaceTarget: WorkspaceFilesSurfaceTarget | null;
+  filesRightSurfaceTarget: ReviewThreadSidePanelTarget | null;
   handleToggleCanvas: () => void;
   manualRightSurface: WorkspaceRightSurfaceKind | null;
   pendingBrowserRightSurfaceIntent: WorkspaceRightSurfaceBrowserIntent | null;
@@ -60,7 +62,7 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
     SetStateAction<WorkspaceRightSurfaceBrowserIntent | null>
   >;
   setActiveFilesRightSurfaceTarget: Dispatch<
-    SetStateAction<WorkspaceFilesSurfaceTarget | null>
+    SetStateAction<ReviewThreadSidePanelTarget | null>
   >;
   setActivePluginSurfaceContainerId: Dispatch<SetStateAction<string | null>>;
   setActivePluginSurfaces: Dispatch<
@@ -103,7 +105,9 @@ export function useWorkspaceRightSurfaceActionRuntime({
   activePluginSurfaces,
   articleEditorRightSurface,
   articleEditorRightSurfaceAvailable,
+  availableSurfaces,
   browserRightSurfaceAvailable,
+  closeRightSurface,
   consumePendingRequestsForSurface,
   dismissPendingRequestsForSurface,
   expertInfoPanelCollapsed,
@@ -137,14 +141,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
   const closeCompetingRightSurfaces = useCallback(() => {
     setHarnessPanelVisible(false);
     setExpertInfoPanelCollapsed(true);
-    setActiveFilesRightSurfaceTarget(null);
-    setActiveArticleWorkspace(null);
-  }, [
-    setActiveArticleWorkspace,
-    setActiveFilesRightSurfaceTarget,
-    setExpertInfoPanelCollapsed,
-    setHarnessPanelVisible,
-  ]);
+  }, [setExpertInfoPanelCollapsed, setHarnessPanelVisible]);
 
   useEffect(() => {
     if (pendingPluginSurfaces.length === 0) {
@@ -239,7 +236,11 @@ export function useWorkspaceRightSurfaceActionRuntime({
     setActiveFilesRightSurfaceTarget(
       shouldOpenFiles ? filesRightSurfaceTarget : null,
     );
-    setManualRightSurface(shouldOpenFiles ? "files" : null);
+    if (shouldOpenFiles) {
+      setManualRightSurface("files");
+    } else {
+      closeRightSurface("files");
+    }
     if (shouldOpenFiles) {
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("files");
@@ -247,6 +248,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("files", "user_closed_surface");
     }
   }, [
+    closeRightSurface,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
@@ -259,9 +261,16 @@ export function useWorkspaceRightSurfaceActionRuntime({
   ]);
 
   const handleToggleRightSurfaceShell = useCallback(() => {
+    if (!availableSurfaces.has("shell")) {
+      return;
+    }
     const shouldOpenShell = manualRightSurface !== "shell";
     closeCompetingRightSurfaces();
-    setManualRightSurface(shouldOpenShell ? "shell" : null);
+    if (shouldOpenShell) {
+      setManualRightSurface("shell");
+    } else {
+      closeRightSurface("shell");
+    }
     if (shouldOpenShell) {
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("shell");
@@ -269,6 +278,8 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("shell", "user_closed_surface");
     }
   }, [
+    availableSurfaces,
+    closeRightSurface,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
@@ -278,9 +289,9 @@ export function useWorkspaceRightSurfaceActionRuntime({
   ]);
 
   const handleCloseRightSurfaceShell = useCallback(() => {
-    setManualRightSurface((current) => (current === "shell" ? null : current));
+    closeRightSurface("shell");
     void dismissPendingRequestsForSurface("shell", "user_closed_surface");
-  }, [dismissPendingRequestsForSurface, setManualRightSurface]);
+  }, [closeRightSurface, dismissPendingRequestsForSurface]);
 
   const handleToggleRightSurfaceBrowser = useCallback(() => {
     if (!browserRightSurfaceAvailable) {
@@ -288,7 +299,11 @@ export function useWorkspaceRightSurfaceActionRuntime({
     }
     const shouldOpenBrowser = manualRightSurface !== "browser";
     closeCompetingRightSurfaces();
-    setManualRightSurface(shouldOpenBrowser ? "browser" : null);
+    if (shouldOpenBrowser) {
+      setManualRightSurface("browser");
+    } else {
+      closeRightSurface("browser");
+    }
     if (shouldOpenBrowser) {
       if (pendingBrowserRightSurfaceIntent) {
         setActiveBrowserRightSurfaceIntent(pendingBrowserRightSurfaceIntent);
@@ -302,6 +317,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("browser", "user_closed_surface");
     }
   }, [
+    closeRightSurface,
     browserRightSurfaceAvailable,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
@@ -327,7 +343,11 @@ export function useWorkspaceRightSurfaceActionRuntime({
     }
     const shouldOpenHarness = manualRightSurface !== "harness";
     closeCompetingRightSurfaces();
-    setManualRightSurface(shouldOpenHarness ? "harness" : null);
+    if (shouldOpenHarness) {
+      setManualRightSurface("harness");
+    } else {
+      closeRightSurface("harness");
+    }
     if (shouldOpenHarness) {
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("harness");
@@ -335,6 +355,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("harness", "user_closed_surface");
     }
   }, [
+    closeRightSurface,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
@@ -350,7 +371,11 @@ export function useWorkspaceRightSurfaceActionRuntime({
     }
     const shouldOpenTrace = manualRightSurface !== "trace";
     closeCompetingRightSurfaces();
-    setManualRightSurface(shouldOpenTrace ? "trace" : null);
+    if (shouldOpenTrace) {
+      setManualRightSurface("trace");
+    } else {
+      closeRightSurface("trace");
+    }
     if (shouldOpenTrace) {
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("trace");
@@ -358,6 +383,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("trace", "user_closed_surface");
     }
   }, [
+    closeRightSurface,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
@@ -373,7 +399,11 @@ export function useWorkspaceRightSurfaceActionRuntime({
     }
     const shouldOpenActivity = manualRightSurface !== "activity";
     closeCompetingRightSurfaces();
-    setManualRightSurface(shouldOpenActivity ? "activity" : null);
+    if (shouldOpenActivity) {
+      setManualRightSurface("activity");
+    } else {
+      closeRightSurface("activity");
+    }
     if (shouldOpenActivity) {
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("activity");
@@ -381,6 +411,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
       void dismissPendingRequestsForSurface("activity", "user_closed_surface");
     }
   }, [
+    closeRightSurface,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
@@ -391,17 +422,20 @@ export function useWorkspaceRightSurfaceActionRuntime({
   ]);
 
   const handleToggleExpertInfoPanel = useCallback(() => {
+    if (!availableSurfaces.has("expertInfo")) {
+      return;
+    }
     setHarnessPanelVisible(false);
-    setManualRightSurface(null);
-    setActiveFilesRightSurfaceTarget(null);
-    setActiveArticleWorkspace(null);
-    const shouldOpenExpertInfo =
-      expertInfoPanelCollapsed || sceneLayoutMode !== "chat";
+    const shouldOpenExpertInfo = rightSurfaceActiveSurface
+      ? rightSurfaceActiveSurface !== "expertInfo"
+      : expertInfoPanelCollapsed || sceneLayoutMode !== "chat";
     if (shouldOpenExpertInfo) {
       setLayoutMode("chat");
+      setManualRightSurface("expertInfo");
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface("expertInfo");
     } else {
+      closeRightSurface("expertInfo");
       void dismissPendingRequestsForSurface(
         "expertInfo",
         "user_closed_surface",
@@ -409,13 +443,14 @@ export function useWorkspaceRightSurfaceActionRuntime({
     }
     setExpertInfoPanelCollapsed(!shouldOpenExpertInfo);
   }, [
+    availableSurfaces,
+    closeRightSurface,
     consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface,
     expertInfoPanelCollapsed,
     refreshRightSurfacePendingRequests,
+    rightSurfaceActiveSurface,
     sceneLayoutMode,
-    setActiveArticleWorkspace,
-    setActiveFilesRightSurfaceTarget,
     setExpertInfoPanelCollapsed,
     setHarnessPanelVisible,
     setLayoutMode,
@@ -423,51 +458,24 @@ export function useWorkspaceRightSurfaceActionRuntime({
   ]);
 
   useEffect(() => {
-    if (manualRightSurface === "harness" && !rightSurfaceHarnessEnabled) {
-      setManualRightSurface(null);
-    }
-    if (manualRightSurface === "trace" && !rightSurfaceTraceAvailable) {
-      setManualRightSurface(null);
-    }
-    if (manualRightSurface === "files" && !filesRightSurfaceAvailable) {
-      setManualRightSurface(null);
+    if (!filesRightSurfaceAvailable) {
       setActiveFilesRightSurfaceTarget(null);
     }
-    if (
-      manualRightSurface === "appSurface" &&
-      !pluginSurfaceRightSurfaceAvailable
-    ) {
-      setManualRightSurface(null);
-      setActivePluginSurfaces([]);
+    if (!pluginSurfaceRightSurfaceAvailable) {
+      setActivePluginSurfaces((current) => (current.length ? [] : current));
       setActivePluginSurfaceContainerId(null);
     }
-    if (
-      manualRightSurface === "articleWorkspace" &&
-      !articleEditorRightSurfaceAvailable
-    ) {
-      setManualRightSurface(null);
+    if (!articleEditorRightSurfaceAvailable) {
       setActiveArticleWorkspace(null);
-    }
-    if (manualRightSurface === "browser" && !browserRightSurfaceAvailable) {
-      setManualRightSurface(null);
-    }
-    if (manualRightSurface === "activity" && !rightSurfaceActivityAvailable) {
-      setManualRightSurface(null);
     }
   }, [
     articleEditorRightSurfaceAvailable,
-    browserRightSurfaceAvailable,
     filesRightSurfaceAvailable,
-    manualRightSurface,
     pluginSurfaceRightSurfaceAvailable,
-    rightSurfaceHarnessEnabled,
-    rightSurfaceTraceAvailable,
-    rightSurfaceActivityAvailable,
     setActiveArticleWorkspace,
     setActiveFilesRightSurfaceTarget,
     setActivePluginSurfaceContainerId,
     setActivePluginSurfaces,
-    setManualRightSurface,
   ]);
 
   const handleToggleCanvasFromRightSurface = useCallback(() => {
@@ -477,8 +485,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
         "user_switched_surface",
       );
       setManualRightSurface(null);
-      setActiveFilesRightSurfaceTarget(null);
-      setActiveArticleWorkspace(null);
       return;
     }
 
@@ -489,8 +495,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
         "user_switched_surface",
       );
     }
-    setActiveFilesRightSurfaceTarget(null);
-    setActiveArticleWorkspace(null);
     setManualRightSurface(null);
     handleToggleCanvas();
   }, [
@@ -498,23 +502,21 @@ export function useWorkspaceRightSurfaceActionRuntime({
     handleToggleCanvas,
     manualRightSurface,
     sceneLayoutMode,
-    setActiveArticleWorkspace,
-    setActiveFilesRightSurfaceTarget,
     setHarnessPanelVisible,
     setManualRightSurface,
   ]);
 
   const handleSelectRightSurfaceTab = useCallback(
     (kind: WorkspaceRightSurfaceKind) => {
-      if (kind === rightSurfaceActiveSurface) {
+      if (!availableSurfaces.has(kind) || kind === rightSurfaceActiveSurface) {
         return;
       }
 
       setHarnessPanelVisible(false);
       setExpertInfoPanelCollapsed(kind !== "expertInfo");
-      setActiveFilesRightSurfaceTarget(
-        kind === "files" ? filesRightSurfaceTarget : null,
-      );
+      if (kind === "files") {
+        setActiveFilesRightSurfaceTarget(filesRightSurfaceTarget);
+      }
       if (kind === "appSurface" && pluginSurfaceRightSurface) {
         setActivePluginSurfaces((current) =>
           mergeWorkspacePluginSurfaceDescriptors(current, [
@@ -525,11 +527,9 @@ export function useWorkspaceRightSurfaceActionRuntime({
           pluginSurfaceRightSurface.containerId,
         );
       }
-      setActiveArticleWorkspace(
-        kind === "articleWorkspace" && articleEditorRightSurface
-          ? articleEditorRightSurface
-          : null,
-      );
+      if (kind === "articleWorkspace" && articleEditorRightSurface) {
+        setActiveArticleWorkspace(articleEditorRightSurface);
+      }
       if (kind === "browser" && pendingBrowserRightSurfaceIntent) {
         setActiveBrowserRightSurfaceIntent(pendingBrowserRightSurfaceIntent);
         setRightSurfaceBrowserTitle(
@@ -542,6 +542,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
     },
     [
       articleEditorRightSurface,
+      availableSurfaces,
       consumePendingRequestsForSurface,
       filesRightSurfaceTarget,
       pendingBrowserRightSurfaceIntent,
@@ -589,8 +590,8 @@ export function useWorkspaceRightSurfaceActionRuntime({
           : [...current, surface.containerId],
       );
       setActivePluginSurfaceContainerId(result.activeContainerId);
-      if (result.surfaces.length === 0 && manualRightSurface === "appSurface") {
-        setManualRightSurface(null);
+      if (result.surfaces.length === 0) {
+        closeRightSurface("appSurface");
         void dismissPendingRequestsForSurface(
           "appSurface",
           "user_closed_surface",
@@ -599,13 +600,12 @@ export function useWorkspaceRightSurfaceActionRuntime({
     },
     [
       activePluginSurfaceContainerId,
+      closeRightSurface,
       dismissPendingRequestsForSurface,
-      manualRightSurface,
       pluginSurfaceRightSurfaces,
       setActivePluginSurfaceContainerId,
       setActivePluginSurfaces,
       setDismissedPluginSurfaceContainerIds,
-      setManualRightSurface,
     ],
   );
 

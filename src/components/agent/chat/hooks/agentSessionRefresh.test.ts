@@ -4,7 +4,7 @@ import type { AgentSessionDetail } from "@/lib/api/agentRuntime/sessionTypes";
 import {
   createAgentSessionReadModelSnapshot,
   filterAgentSessionReadModelMessages,
-  filterAgentSessionReadModelTurns,
+  reconcileAgentSessionReadModelTurns,
   hydrateFreshAgentSessionReadModel,
   mergeAgentSessionReadModelThreadItems,
   refreshAgentSessionDetailState,
@@ -69,8 +69,8 @@ describe("agentSessionRefresh", () => {
       ).map((item) => item.id),
     ).toEqual(["item-keep"]);
     expect(
-      filterAgentSessionReadModelTurns(
-        [{ id: "turn-keep" }, { id: "turn-remove" }],
+      reconcileAgentSessionReadModelTurns(
+        [{ id: "turn-keep" }, { id: "turn-remove" }] as never,
         snapshot,
       ),
     ).toEqual([{ id: "turn-keep" }]);
