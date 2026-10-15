@@ -307,6 +307,8 @@ ask<arg_key>question</arg_key><arg_key>arg_value>请提供您希望我研究的�
 
     renderPage({
       projectId: "project-action-required-priority",
+      // This request arrives in the live session, not restored history.
+      initialSessionId: undefined,
       theme: "general",
       lockTheme: true,
     });

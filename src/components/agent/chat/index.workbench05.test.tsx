@@ -9,10 +9,8 @@ import {
   sharedTriggerAIGuideMock,
 } from "./index.testFixtures";
 
-const {
-  mockLaunchBrowserSession,
-  mockUseAgentChatUnified,
-} = getIndexTestMocks();
+const { mockLaunchBrowserSession, mockUseAgentChatUnified } =
+  getIndexTestMocks();
 
 describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
   it("当前待处理任务不再暴露旧侧栏恢复入口", async () => {
@@ -76,6 +74,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     );
 
     const container = renderPage({
+      initialSessionId: "topic-a",
       onNavigate,
       projectId: "project-sidebar-resume",
       theme: "general",
@@ -83,7 +82,9 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     });
     await flushEffects(10);
 
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
     expect(sharedSwitchTopicMock).not.toHaveBeenCalled();
     expect(onNavigate).not.toHaveBeenCalled();

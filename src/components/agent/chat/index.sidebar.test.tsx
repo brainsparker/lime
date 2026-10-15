@@ -12,9 +12,7 @@ import {
   sharedTriggerAIGuideMock,
 } from "./index.testFixtures";
 
-const {
-  mockUseAgentChatUnified,
-} = getIndexTestMocks();
+const { mockUseAgentChatUnified } = getIndexTestMocks();
 
 describe("AgentChatPage 侧栏显示控制", () => {
   it("Claw 模式有消息时默认收起侧栏，且切换项目不应意外展开", async () => {
@@ -56,7 +54,9 @@ describe("AgentChatPage 侧栏显示控制", () => {
     await flushEffects();
 
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
     expect(container.querySelector('[data-testid="chat-navbar"]')).toBeNull();
     expect(
       container.querySelector(
@@ -74,7 +74,9 @@ describe("AgentChatPage 侧栏显示控制", () => {
     await flushEffects();
 
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
   });
 
   it("Claw 模式不再通过顶栏手动展开旧侧栏", async () => {
@@ -82,7 +84,9 @@ describe("AgentChatPage 侧栏显示控制", () => {
     await flushEffects();
 
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
   });
 
   it("重新进入新的 Claw 对话页时，旧侧栏入口仍不应恢复", async () => {
@@ -119,7 +123,9 @@ describe("AgentChatPage 侧栏显示控制", () => {
     await flushEffects();
 
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
     expect(
       consoleErrorSpy.mock.calls.some((call) =>
@@ -147,10 +153,12 @@ describe("AgentChatPage 侧栏显示控制", () => {
       container.querySelector('[data-testid="toggle-harness"]'),
     ).not.toBeNull();
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(container.querySelector('[data-testid="toggle-history"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-history"]'),
+    ).toBeNull();
   });
 
-  it("Claw 模式无激活任务时应展示任务选择空态", async () => {
+  it("Claw 模式无激活会话时应展示独立首页", async () => {
     mockUseAgentChatUnified.mockImplementation(
       ({ workspaceId }: { workspaceId: string }) => {
         observedWorkspaceIds.push(workspaceId);
@@ -195,10 +203,13 @@ describe("AgentChatPage 侧栏显示控制", () => {
     expect(
       container.querySelector('[data-testid="claw-empty-state"]'),
     ).toBeNull();
-    expect(container.querySelector('[data-testid="empty-state"]')).toBeNull();
     expect(
-      container.querySelector('[data-testid="message-list"]'),
+      container.querySelector('[data-testid="empty-state"]'),
     ).not.toBeNull();
-    expect(container.querySelector('[data-testid="inputbar"]')).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="home-start-surface"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('[data-testid="message-list"]')).toBeNull();
+    expect(container.querySelector('[data-testid="inputbar"]')).toBeNull();
   });
 });

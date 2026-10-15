@@ -81,3 +81,7 @@
 - 本地 continuation 的 unknown-item 场景 businessAssertionsPassed=true，但 normal Main exit 15秒超时，teardown fail，完整子场景仍判失败，未执行后续场景。继续精确复验退出，不把业务通过当完整 Gate B。
 
 - 收口补丁仅测试夹具与本计划，正常 hook 提交并推 main 触发下一轮 Quality；不重复已有生产源码 typecheck/build/Rust 结果。
+
+- 共享夹具16文件105项首轮102通过、3失败；无产品缺陷。补齐三个 current 测试：无激活会话展示独立 Home；当前 action_required 显式从 live 到达，避免把恢复历史提升为可提交表单；旧侧栏恢复负向测试使用其真实 topic-a route。保留消息内 A2UI、历史只读和禁止旧侧栏断言。三个文件13/13复验通过，与其余13文件形成105项完整覆盖。
+- 本地 unknown-item 精确重试完整通过：businessAssertions、Main 正常 exit0/no-signal、资源回收均通过，受控 external backend，production mock fallback=0。初轮teardown超时记录保留。所有本轮挂起Renderer已恢复并完成重建；继续使用同一产品产物验证home-hotpath/inputbar-rich-restore，不重建未变化的生产源码。
+- 测试补丁 `4cccf2ee57ff1c4ea22c55783290fe79786d7669` 已正常hook提交并推main；新Quality `38726992169`执行中。剩余三文件测试更新及本计划正常提交推main后以最终source复核。
