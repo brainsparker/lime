@@ -1,10 +1,16 @@
 import {
   useCallback,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
+import type {
+  TaskCenterDraftSendRequest,
+  TaskCenterSessionReadyOptions,
+} from "../homePendingPreview";
+import type { ComposerDraftNavigationCallbacks } from "./composerDraftNavigation";
+import type { ComposerDraftStatus } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
 import {
@@ -15,11 +21,6 @@ import {
   resolveWorkspaceSceneSessionProjection,
   type WorkspaceSceneSessionProjection,
 } from "./workspaceSceneSessionProjection";
-import {
-  clearActiveTaskCenterDraftTab,
-  removeTaskCenterDraftTab,
-} from "./taskCenterDraftTabs";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 import type { TaskCenterHomeSurfaceState } from "./agentChatWorkspaceHelpers";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 
@@ -31,21 +32,12 @@ interface UseWorkspaceTaskCenterSendRuntimeParams<
   TExecutionRuntime,
   TPendingAction,
   TSubmittedAction,
+> extends Pick<
+  ComposerDraftNavigationCallbacks,
+  "composerDraftCoordinator" | "getComposerDraftNavigationEpoch"
 > {
-  activeDraftTabIdRef: MutableRefObject<string | null>;
   activeSessionIdRef?: MutableRefObject<string | null>;
   agentEntry: string;
-  clearMessages: (options?: { showToast?: boolean }) => void;
-  commitMaterializedDraftTab: (
-    draftTabId: string,
-    newSessionId: string,
-    options?: {
-      embedHomeSession?: boolean;
-      hydrateSession?: boolean;
-      preserveInput?: boolean;
-      syncRoute?: boolean;
-    },
-  ) => void;
   currentSessionId?: string | null;
   currentTurnId: string | null;
   displayMessages: TMessage[];
@@ -62,18 +54,11 @@ interface UseWorkspaceTaskCenterSendRuntimeParams<
   layoutMode: LayoutMode;
   markNewChatRequestHandled: (requestKey: string) => void;
   markTaskCenterLocalSessionOverride: (topicId: string) => void;
-  materializedSessionIdsRef: MutableRefObject<Map<string, string>>;
-  materializeDraftTab: (
-    draftTabId: string,
-    options: { reason: "send"; commit: false },
-  ) => Promise<string | null>;
   messagesLength: number;
   newChatAt?: number;
   normalizedInitialSessionId?: string | null;
   planComposerPendingActions: TPendingAction[];
-  prewarmedDraftSessionIdsRef: MutableRefObject<Set<string>>;
   sendRef: MutableRefObject<WorkspaceHandleSend>;
-  setActiveDraftTabId: Dispatch<SetStateAction<string | null>>;
   setDetachedTopicId: Dispatch<SetStateAction<string | null>>;
   setHomePendingPreviewRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
@@ -82,13 +67,12 @@ interface UseWorkspaceTaskCenterSendRuntimeParams<
   setTaskCenterDraftSendRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
-  setTaskCenterDraftTabs: Dispatch<SetStateAction<TaskCenterDraftTab[]>>;
   setTransitionTopicId: Dispatch<SetStateAction<string | null>>;
   shouldRenderTaskCenterEmbeddedHome: boolean;
   shouldSuppressTaskCenterDraftContent: boolean;
   submittedActionsInFlight: TSubmittedAction[];
   taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
-  taskCenterDraftSurfaceActiveRef: MutableRefObject<boolean>;
+  taskCenterHomeSurfaceActiveRef: MutableRefObject<boolean>;
   taskCenterHomeSurfaceState: TaskCenterHomeSurfaceState;
   taskCenterWorkspaceId?: string | null;
   threadRead: TThreadRead | null;
@@ -143,6 +127,72 @@ export function shouldSwitchToReadyTaskCenterSession(params: {
     .includes(readySessionId);
 }
 
+/** 只允许发送时的编辑目标；同一绑定的已接受 promotion 可继续接管。 */
+export function isTaskCenterSendSourceCurrent(
+  options: TaskCenterSessionReadyOptions,
+  current: {
+    sessionId: string | null;
+    workspaceId: string | null;
+    navigationEpoch: number | null;
+    newChatAt: number | null;
+    composerDraftStatus?: Pick<
+      ComposerDraftStatus,
+      "generation" | "scope" | "identity"
+    >;
+  },
+  acceptedSessionId?: string,
+): boolean {
+  const source = options.sendSource;
+  const binding = options.composerDraftCapture?.binding;
+  const status = current.composerDraftStatus;
+  if (binding && !status) return false;
+  const promoted = Boolean(
+    binding &&
+    status &&
+    acceptedSessionId &&
+    status.generation === binding.generation &&
+    status.scope?.workspaceId === binding.scope.workspaceId &&
+    status.scope.kind === "local" &&
+    status.scope.id === acceptedSessionId,
+  );
+  if (binding && status) {
+    const matchesIdentity =
+      status.identity?.draftId === binding.identity.draftId &&
+      status.identity?.scopeVersion === binding.identity.scopeVersion;
+    if (!matchesIdentity && !(promoted && status.identity === null))
+      return false;
+  }
+  if (
+    binding &&
+    status &&
+    !promoted &&
+    (status.generation !== binding.generation ||
+      status.scope?.workspaceId !== binding.scope.workspaceId ||
+      status.scope?.kind !== binding.scope.kind ||
+      status.scope?.id !== binding.scope.id)
+  )
+    return false;
+  if (!source) return true;
+  if (
+    source.workspaceId !== current.workspaceId ||
+    source.newChatAt !== current.newChatAt
+  )
+    return false;
+  if (
+    source.navigationEpoch !== current.navigationEpoch &&
+    !(
+      promoted &&
+      source.navigationEpoch !== null &&
+      current.navigationEpoch === source.navigationEpoch + 1
+    )
+  )
+    return false;
+  return (
+    source.sessionId === current.sessionId ||
+    current.sessionId === acceptedSessionId
+  );
+}
+
 export function useWorkspaceTaskCenterSendRuntime<
   TMessage,
   TTurn,
@@ -152,11 +202,10 @@ export function useWorkspaceTaskCenterSendRuntime<
   TPendingAction,
   TSubmittedAction,
 >({
-  activeDraftTabIdRef,
   activeSessionIdRef,
   agentEntry,
-  clearMessages,
-  commitMaterializedDraftTab,
+  composerDraftCoordinator,
+  getComposerDraftNavigationEpoch,
   currentSessionId,
   currentTurnId,
   displayMessages,
@@ -173,26 +222,21 @@ export function useWorkspaceTaskCenterSendRuntime<
   layoutMode,
   markNewChatRequestHandled,
   markTaskCenterLocalSessionOverride,
-  materializedSessionIdsRef,
-  materializeDraftTab,
   messagesLength,
   newChatAt,
   normalizedInitialSessionId,
   planComposerPendingActions,
-  prewarmedDraftSessionIdsRef,
   sendRef,
-  setActiveDraftTabId,
   setDetachedTopicId,
   setHomePendingPreviewRequest,
   setInput,
   setTaskCenterDraftSendRequest,
-  setTaskCenterDraftTabs,
   setTransitionTopicId,
   shouldRenderTaskCenterEmbeddedHome,
   shouldSuppressTaskCenterDraftContent,
   submittedActionsInFlight,
   taskCenterDraftSendRequest,
-  taskCenterDraftSurfaceActiveRef,
+  taskCenterHomeSurfaceActiveRef,
   taskCenterHomeSurfaceState,
   taskCenterWorkspaceId,
   threadRead,
@@ -216,27 +260,54 @@ export function useWorkspaceTaskCenterSendRuntime<
   TPendingAction,
   TSubmittedAction
 > {
-  const handleNonMaterializedSessionReady = useCallback(
-    (
-      readySessionId: string,
-      options?: { sourceDraftTabId?: string | null },
-    ) => {
-      if (typeof newChatAt === "number") {
-        markNewChatRequestHandled(String(newChatAt));
+  const currentSendSourceRef = useRef({
+    currentSessionId,
+    taskCenterWorkspaceId,
+    newChatAt,
+  });
+  currentSendSourceRef.current = {
+    currentSessionId,
+    taskCenterWorkspaceId,
+    newChatAt,
+  };
+  const isSendSourceCurrent = useCallback(
+    (options: TaskCenterSessionReadyOptions, acceptedSessionId?: string) => {
+      const latest = currentSendSourceRef.current;
+      return isTaskCenterSendSourceCurrent(
+        options,
+        {
+          sessionId:
+            activeSessionIdRef?.current ?? latest.currentSessionId ?? null,
+          workspaceId: latest.taskCenterWorkspaceId ?? null,
+          navigationEpoch: getComposerDraftNavigationEpoch?.() ?? null,
+          newChatAt: latest.newChatAt ?? null,
+          composerDraftStatus: composerDraftCoordinator?.getSnapshot(),
+        },
+        acceptedSessionId,
+      );
+    },
+    [
+      activeSessionIdRef,
+      composerDraftCoordinator,
+      getComposerDraftNavigationEpoch,
+    ],
+  );
+  const handleSessionAccepted = useCallback(
+    (readySessionId: string, options?: TaskCenterSessionReadyOptions) => {
+      const acceptedSessionId = options?.acceptedResult?.receipt.sessionId;
+      if (acceptedSessionId && acceptedSessionId !== readySessionId) return;
+      if (options && !isSendSourceCurrent(options, acceptedSessionId)) return;
+      const sourceNewChatAt = options?.sendSource?.newChatAt ?? newChatAt;
+      if (typeof sourceNewChatAt === "number") {
+        markNewChatRequestHandled(String(sourceNewChatAt));
       }
-      taskCenterDraftSurfaceActiveRef.current = false;
-      const sourceDraftTabId = options?.sourceDraftTabId?.trim() || null;
-      if (sourceDraftTabId) {
-        setTaskCenterDraftTabs((current) =>
-          removeTaskCenterDraftTab(current, sourceDraftTabId),
-        );
-        setActiveDraftTabId((current) =>
-          clearActiveTaskCenterDraftTab(current, sourceDraftTabId),
-        );
-      }
+      taskCenterHomeSurfaceActiveRef.current = false;
       setTransitionTopicId(null);
       setDetachedTopicId(null);
-      upsertTaskCenterOpenTab(readySessionId, taskCenterWorkspaceId);
+      upsertTaskCenterOpenTab(
+        readySessionId,
+        options?.sendSource?.workspaceId ?? taskCenterWorkspaceId,
+      );
       markTaskCenterLocalSessionOverride(readySessionId);
       if (
         shouldSwitchToReadyTaskCenterSession({
@@ -253,16 +324,15 @@ export function useWorkspaceTaskCenterSendRuntime<
     },
     [
       currentSessionId,
+      isSendSourceCurrent,
       activeSessionIdRef,
       markNewChatRequestHandled,
       markTaskCenterLocalSessionOverride,
       newChatAt,
-      setActiveDraftTabId,
       setDetachedTopicId,
-      setTaskCenterDraftTabs,
       setTransitionTopicId,
       switchToReadySession,
-      taskCenterDraftSurfaceActiveRef,
+      taskCenterHomeSurfaceActiveRef,
       taskCenterWorkspaceId,
       upsertTaskCenterOpenTab,
     ],
@@ -273,22 +343,17 @@ export function useWorkspaceTaskCenterSendRuntime<
     input,
     setInput,
     activeSessionIdRef,
-    activeDraftTabIdRef: activeDraftTabIdRef,
-    clearMessages,
-    displayMessagesLength: displayMessages.length,
-    turnsLength: turns.length,
-    threadItemsLength: effectiveThreadItems.length,
+    getComposerDraftNavigationEpoch,
+    isSendSourceCurrent,
+    newChatAt,
     hasDisplayMessages,
     handleSend,
     sessionId: currentSessionId,
     taskCenterWorkspaceId,
-    setTaskCenterDraftTabs,
     setTaskCenterDraftSendRequest,
     taskCenterDraftSendRequest,
     setHomePendingPreviewRequest,
-    materializedSessionIdsRef,
-    prewarmedDraftSessionIdsRef,
-    onNonMaterializedSessionReady: handleNonMaterializedSessionReady,
+    onSessionAccepted: handleSessionAccepted,
   });
 
   useTaskCenterDraftSendDispatchRuntime({
@@ -296,13 +361,9 @@ export function useWorkspaceTaskCenterSendRuntime<
     setTaskCenterDraftSendRequest,
     setHomePendingPreviewRequest,
     messagesLength,
-    displayMessagesLength: displayMessages.length,
     currentSessionId,
-    materializedSessionIdsRef,
-    prewarmedDraftSessionIdsRef,
-    materializeDraftTab,
-    commitMaterializedDraftTab,
-    onNonMaterializedSessionReady: handleNonMaterializedSessionReady,
+    onSessionAccepted: handleSessionAccepted,
+    isSendSourceCurrent,
     restoreInput: setInput,
     sendRef,
     workspaceId: taskCenterWorkspaceId,

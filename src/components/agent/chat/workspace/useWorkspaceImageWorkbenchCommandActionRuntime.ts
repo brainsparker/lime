@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { generateAgentRuntimeTitleResult } from "@/lib/api/agentRuntime/agentClient";
 import type { MessageImage } from "../types";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import type { ParsedImageWorkbenchCommand } from "../utils/imageWorkbenchCommand";
 import type {
   ImageWorkbenchCommandActionParams,
@@ -36,7 +37,7 @@ interface UseWorkspaceImageWorkbenchCommandActionRuntimeParams {
   projectRootPath?: string | null;
   submitImageWorkbenchAgentCommand: (
     params: SubmitImageWorkbenchAgentCommandParams,
-  ) => Promise<boolean>;
+  ) => Promise<RuntimeSubmissionResult>;
 }
 
 interface ResolveImageWorkbenchCommandActionRequestParams {
@@ -207,18 +208,20 @@ export function useWorkspaceImageWorkbenchCommandActionRuntime({
   );
 
   const handleImageWorkbenchCommand = useCallback(
-    async (params: ImageWorkbenchCommandActionParams): Promise<boolean> => {
+    async (
+      params: ImageWorkbenchCommandActionParams,
+    ): Promise<RuntimeSubmissionResult> => {
       if (!projectId) {
         toast.error(
           t("agentChat.imageWorkbenchAction.toast.command.missingProject"),
         );
-        return false;
+        return { kind: "rejected" };
       }
       if (!projectRootPath?.trim()) {
         toast.error(
           t("agentChat.imageWorkbenchAction.toast.command.projectNotReady"),
         );
-        return false;
+        return { kind: "rejected" };
       }
 
       const effectivePrompt =
@@ -230,7 +233,7 @@ export function useWorkspaceImageWorkbenchCommandActionRuntime({
         toast.error(
           t("agentChat.imageWorkbenchAction.toast.command.missingPrompt"),
         );
-        return false;
+        return { kind: "rejected" };
       }
 
       await ensureImageWorkbenchProviderSelectionCommitted(
@@ -246,7 +249,7 @@ export function useWorkspaceImageWorkbenchCommandActionRuntime({
         resolveImageGenerationSelectionError();
       if (imageGenerationSelectionError) {
         toast.error(imageGenerationSelectionError);
-        return false;
+        return { kind: "rejected" };
       }
 
       const resolvedSessionKey = await resolveImageWorkbenchSessionKey({});
@@ -300,7 +303,7 @@ export function useWorkspaceImageWorkbenchCommandActionRuntime({
           : "at_image_command",
       });
       if (!skillRequest) {
-        return false;
+        return { kind: "rejected" };
       }
 
       return submitImageWorkbenchAgentCommand({

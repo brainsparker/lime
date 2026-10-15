@@ -11,7 +11,6 @@ import {
   isTaskCenterTopicSwitchPending,
   resolveTaskCenterPreviewTopicId,
 } from "../utils/taskCenterTabs";
-import { isTaskCenterDraftTabId } from "./agentChatWorkspaceHelpers";
 import {
   resolveTaskCenterHomeChromeState,
   type TaskCenterHomeChromeState,
@@ -28,7 +27,6 @@ interface UseTaskCenterHomeChromeRuntimeParams {
   renamePromptLabel: string;
   renameTopic: (topicId: string, title: string) => void | Promise<void>;
   draftSurfaceActive: boolean;
-  draftTabActive: boolean;
   shouldSuppressDraftContent: boolean;
   draftSendRequest: TaskCenterDraftSendRequest | null;
   normalizedInitialSessionId?: string | null;
@@ -67,7 +65,6 @@ export function useTaskCenterHomeChromeRuntime({
   renamePromptLabel,
   renameTopic,
   draftSurfaceActive,
-  draftTabActive,
   shouldSuppressDraftContent,
   draftSendRequest,
   normalizedInitialSessionId,
@@ -91,7 +88,7 @@ export function useTaskCenterHomeChromeRuntime({
 }: UseTaskCenterHomeChromeRuntimeParams): TaskCenterHomeChromeRuntime {
   const handleRenameTaskTopic = useCallback(
     async (topicId: string) => {
-      if (isTaskCenterDraftTabId(topicId) || typeof window === "undefined") {
+      if (typeof window === "undefined") {
         return;
       }
 
@@ -134,7 +131,6 @@ export function useTaskCenterHomeChromeRuntime({
   const homeChromeState = resolveTaskCenterHomeChromeState({
     agentEntry,
     draftSurfaceActive,
-    draftTabActive,
     shouldSuppressDraftContent,
     draftSendRequest,
     sessionSwitchPending: taskCenterSessionSwitchPending,

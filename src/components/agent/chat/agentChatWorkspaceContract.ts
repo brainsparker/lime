@@ -1,7 +1,7 @@
 import type { CreationMode } from "./components/types";
 import type { MessageImage } from "./types";
 import type { StepStatus } from "@/lib/workspace/workbenchContract";
-import type { Page, PageParams } from "@/types/page";
+import type { AgentLocation, Page, PageParams } from "@/types/page";
 import type {
   AgentInitialInputCapabilityParams,
   AgentInitialKnowledgePackSelectionParams,
@@ -58,10 +58,12 @@ export interface AgentChatWorkspaceProps {
   entryBannerMessage?: string;
   onInitialUserPromptConsumed?: () => void;
   newChatAt?: number;
+  newConversationRequest?: import("@/lib/workspace/navigation").NewConversationRequest;
+  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   expertAgentLaunch?: ExpertAgentLaunchParams;
   onRecommendationClick?: (shortLabel: string, fullPrompt: string) => void;
   onHasMessagesChange?: (hasMessages: boolean) => void;
-  onSessionChange?: (sessionId: string | null) => void;
+  onLocationChange?: (location: AgentLocation) => void;
   onAgentStreamingChange?: (isStreaming: boolean) => void;
   onBackgroundSessionRuntimeChange?: (
     snapshot: AgentBackgroundSessionRuntimeSnapshot | null,

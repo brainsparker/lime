@@ -128,10 +128,9 @@ function resolveRoutedSourceText(params: {
   }
 
   const trimmedSourceText = params.sourceText.trim();
-  const userVisibleText =
-    normalizeOptionalText(params.displayContent) ??
-    normalizeOptionalText(params.sourceText) ??
-    "";
+  const sourceBody = trimmedSourceText
+    ? params.sourceText
+    : (normalizeOptionalText(params.displayContent) ?? "");
 
   if (route.kind === "builtin_command") {
     if (
@@ -141,7 +140,7 @@ function resolveRoutedSourceText(params: {
       return params.sourceText;
     }
 
-    return `${route.commandPrefix}${userVisibleText ? ` ${userVisibleText}` : ""}`;
+    return `${route.commandPrefix}${sourceBody ? ` ${sourceBody}` : ""}`;
   }
 
   if (route.kind === "installed_skill") {
@@ -153,7 +152,7 @@ function resolveRoutedSourceText(params: {
       return params.sourceText;
     }
 
-    return `${skillPrefix}${userVisibleText ? ` ${userVisibleText}` : ""}`;
+    return `${skillPrefix}${sourceBody ? ` ${sourceBody}` : ""}`;
   }
 
   if (route.kind === "curated_task") {
@@ -167,7 +166,7 @@ function resolveRoutedSourceText(params: {
     return params.sourceText;
   }
 
-  return `${route.commandPrefix}${userVisibleText ? ` ${userVisibleText}` : ""}`;
+  return `${route.commandPrefix}${sourceBody ? ` ${sourceBody}` : ""}`;
 }
 
 function resolveCompletedSlashUsage(params: {

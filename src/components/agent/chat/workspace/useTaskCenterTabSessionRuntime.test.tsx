@@ -8,7 +8,6 @@ import {
   type TaskCenterLocalSessionOverride,
   type TaskCenterWorkspaceTabMap,
 } from "../utils/taskCenterTabs";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 import {
   useTaskCenterTabSessionRuntime,
   type TaskCenterTabSessionRuntimeState,
@@ -24,10 +23,8 @@ interface HarnessProps {
 }
 
 interface LatestState {
-  activeDraftTabId: string | null;
   draftSendRequest: TaskCenterDraftSendRequest | null;
   draftSurfaceActive: boolean;
-  draftTabs: TaskCenterDraftTab[];
   homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
   runtime: TaskCenterTabSessionRuntimeState;
 }
@@ -56,25 +53,13 @@ function createTopic(id: string, overrides?: Partial<Topic>): Topic {
   };
 }
 
-function createDraft(id: string): TaskCenterDraftTab {
-  const now = new Date("2026-06-18T00:00:00.000Z");
-  return {
-    id,
-    title: id,
-    createdAt: now,
-    updatedAt: now,
-    status: "draft",
-  };
-}
-
 function createDraftSendRequest(id: string): TaskCenterDraftSendRequest {
   return {
     id,
-    draftTabId: id,
+    sessionId: id,
     text: "生成任务",
     images: [],
     submittedAt: Date.now(),
-    materializeDraft: false,
     source: "empty-state",
   };
 }
@@ -87,10 +72,7 @@ function Harness({
   taskCenterWorkspaceId = "workspace-a",
   topics = [createTopic("topic-a")],
 }: HarnessProps) {
-  const taskCenterDraftSurfaceActiveRef = useRef(false);
-  const [activeDraftTabId, setActiveDraftTabId] = useState<string | null>(
-    "draft-a",
-  );
+  const taskCenterHomeSurfaceActiveRef = useRef(false);
   const [homePendingPreviewRequest, setHomePendingPreviewRequest] =
     useState<TaskCenterDraftSendRequest | null>(
       createDraftSendRequest("pending-a"),
@@ -99,9 +81,6 @@ function Harness({
     useState<TaskCenterDraftSendRequest | null>(
       createDraftSendRequest("send-a"),
     );
-  const [draftTabs, setDraftTabs] = useState<TaskCenterDraftTab[]>([
-    createDraft("draft-a"),
-  ]);
   const topicById = useMemo(
     () => new Map(topics.map((topic) => [topic.id, topic])),
     [topics],
@@ -111,21 +90,17 @@ function Harness({
     normalizedInitialSessionId,
     newChatAt,
     sessionId,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
     taskCenterWorkspaceId,
     topicById,
     topics,
-    setActiveTaskCenterDraftTabId: setActiveDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest: setDraftSendRequest,
-    setTaskCenterDraftTabs: setDraftTabs,
   });
 
   latest = {
-    activeDraftTabId,
     draftSendRequest,
-    draftSurfaceActive: taskCenterDraftSurfaceActiveRef.current,
-    draftTabs,
+    draftSurfaceActive: taskCenterHomeSurfaceActiveRef.current,
     homePendingPreviewRequest,
     runtime,
   };
@@ -255,18 +230,20 @@ describe("useTaskCenterTabSessionRuntime", () => {
     });
 
     expect(latest?.runtime.taskCenterOpenTabIds).toEqual([]);
-    expect(latest?.activeDraftTabId).toBeNull();
-    expect(latest?.draftTabs).toEqual([]);
     expect(latest?.draftSendRequest).toBeNull();
     expect(latest?.homePendingPreviewRequest).toBeNull();
-    expect(latest?.draftSurfaceActive).toBe(false);
+    expect(latest?.draftSurfaceActive).toBe(true);
     expect(latest?.runtime.taskCenterDetachedTopicId).toBeNull();
     expect(latest?.runtime.taskCenterTransitionTopicId).toBeNull();
   });
 
   it("可维护打开标签、嵌入 home 标记和本地 session override", () => {
     renderHarness({
-      topics: [createTopic("topic-a"), createTopic("topic-b"), createTopic("topic-c")],
+      topics: [
+        createTopic("topic-a"),
+        createTopic("topic-b"),
+        createTopic("topic-c"),
+      ],
     });
 
     act(() => {
@@ -279,9 +256,9 @@ describe("useTaskCenterTabSessionRuntime", () => {
       "topic-a",
       "topic-b",
     ]);
-    expect(latest?.runtime.taskCenterEmbeddedHomeSessionIds.has("topic-b")).toBe(
-      true,
-    );
+    expect(
+      latest?.runtime.taskCenterEmbeddedHomeSessionIds.has("topic-b"),
+    ).toBe(true);
     expect(latest?.runtime.taskCenterLocalSessionOverride).toEqual({
       sessionId: "topic-b",
       routeSessionId: "topic-a",
@@ -292,9 +269,9 @@ describe("useTaskCenterTabSessionRuntime", () => {
       latest?.runtime.replaceTaskCenterOpenTabs("topic-c", "workspace-a");
     });
 
-    expect(latest?.runtime.taskCenterEmbeddedHomeSessionIds.has("topic-b")).toBe(
-      false,
-    );
+    expect(
+      latest?.runtime.taskCenterEmbeddedHomeSessionIds.has("topic-b"),
+    ).toBe(false);
     expect(latest?.runtime.taskCenterOpenTabIds).toEqual(["topic-c"]);
   });
 
@@ -324,8 +301,6 @@ describe("useTaskCenterTabSessionRuntime", () => {
     });
 
     expect(state.runtime.isTaskCenterEntry).toBe(false);
-    expect(state.activeDraftTabId).toBeNull();
-    expect(state.draftTabs).toEqual([]);
     expect(state.draftSendRequest).toBeNull();
     expect(state.homePendingPreviewRequest).toBeNull();
     expect(state.draftSurfaceActive).toBe(false);

@@ -473,6 +473,14 @@ const agentRuntimeCommandSelectors = [
     "agent runtime 命令只允许集中放在 `src/lib/api/agentRuntime` 网关目录；旧 agent_/agent_ 命令已废弃，禁止在业务模块直接扩散。",
 }));
 
+const persistedAtomGatewayCommandSelectors = (
+  agentCommandCatalog.persistedAtomCommands ?? []
+).map((command) => ({
+  selector: `CallExpression[callee.name='safeInvoke'][arguments.0.value='${command}'], CallExpression[callee.name='invoke'][arguments.0.value='${command}']`,
+  message:
+    "桌面草稿持久化只允许通过 src/lib/api/persistedAtoms.ts 网关，禁止在业务层散落裸 invoke。",
+}));
+
 const projectGatewayCommandSelectors = [
   "workspace_create",
   "workspace_get_projects_root",
@@ -1028,6 +1036,7 @@ export default [
         "error",
         ...generalChatCompatCommandSelectors,
         ...agentRuntimeCommandSelectors,
+        ...persistedAtomGatewayCommandSelectors,
         ...projectGatewayCommandSelectors,
         ...materialGatewayCommandSelectors,
         ...templateGatewayCommandSelectors,
@@ -1139,6 +1148,7 @@ export default [
       "src/lib/api/serverTools.ts",
       "src/lib/api/voiceTools.ts",
       "src/lib/api/appServerTransport.ts",
+      "src/lib/api/persistedAtoms.ts",
     ],
     rules: {
       "no-restricted-syntax": "off",
@@ -1148,6 +1158,7 @@ export default [
     files: [
       "src/lib/desktop-host/core.test.ts",
       "src/lib/dev-bridge/safeInvoke.test.ts",
+      "src/lib/dev-bridge/safeInvoke.persistedAtom.contract.test.ts",
     ],
     rules: {
       "no-restricted-syntax": "off",

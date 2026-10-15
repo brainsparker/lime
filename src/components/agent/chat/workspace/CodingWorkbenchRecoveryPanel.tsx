@@ -2,6 +2,7 @@ import { AlertTriangle, ArrowRight, FileWarning, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import type {
   CodingWorkbenchRecoveryContext,
   CodingWorkbenchRecoverySignalKind,
@@ -26,7 +27,7 @@ interface CodingWorkbenchRecoveryPanelProps {
   onSubmitRecoveryPrompt?: (
     prompt: string,
     context?: CodingWorkbenchRecoveryContext,
-  ) => void | Promise<boolean> | boolean;
+  ) => Promise<RuntimeSubmissionResult>;
 }
 
 export function CodingWorkbenchRecoveryPanel({

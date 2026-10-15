@@ -57,7 +57,6 @@ function createFallbackRestoreParams(
     isAutoRestoringSession: false,
     isSessionHydrating: false,
     draftSurfaceActive: false,
-    draftTabActive: false,
     initialPendingServiceSkillLaunchSignature: null,
     initialDispatchKey: null,
     isBootstrapDispatchPending: false,
@@ -150,7 +149,7 @@ describe("taskCenterTabs", () => {
 
   it("standalone 会话应使用 legacy bucket 保存任务标签", () => {
     const currentMap = {
-      "__legacy__": ["topic-standalone-a"],
+      __legacy__: ["topic-standalone-a"],
       "workspace-a": ["topic-project"],
     };
 
@@ -159,13 +158,12 @@ describe("taskCenterTabs", () => {
     ]);
 
     expect(
-      updateTaskCenterTabIdsForWorkspace(
-        currentMap,
-        null,
-        (currentIds) => ["topic-standalone-b", ...currentIds],
-      ),
+      updateTaskCenterTabIdsForWorkspace(currentMap, null, (currentIds) => [
+        "topic-standalone-b",
+        ...currentIds,
+      ]),
     ).toEqual({
-      "__legacy__": ["topic-standalone-b", "topic-standalone-a"],
+      __legacy__: ["topic-standalone-b", "topic-standalone-a"],
       "workspace-a": ["topic-project"],
     });
   });
@@ -232,7 +230,7 @@ describe("taskCenterTabs", () => {
         normalizedInitialSessionId: "topic-imported",
       }),
     ).toEqual({
-      "__legacy__": ["topic-imported"],
+      __legacy__: ["topic-imported"],
       "workspace-a": ["topic-a"],
     });
   });
@@ -254,7 +252,6 @@ describe("taskCenterTabs", () => {
     ).toEqual({
       shouldSync: true,
       routeChanged: true,
-      shouldClearActiveDraft: true,
       shouldClearTransitionAndDetached: false,
       nextRouteSyncSessionId: "topic-selected",
     });
@@ -282,7 +279,6 @@ describe("taskCenterTabs", () => {
     ).toMatchObject({
       shouldSync: true,
       routeChanged: false,
-      shouldClearActiveDraft: true,
       shouldClearTransitionAndDetached: true,
     });
 
@@ -301,7 +297,7 @@ describe("taskCenterTabs", () => {
 
   it("standalone 路由同步应覆盖 legacy 标签桶", () => {
     const currentMap = {
-      "__legacy__": ["topic-old"],
+      __legacy__: ["topic-old"],
       "workspace-a": ["topic-project"],
     };
 
@@ -316,7 +312,6 @@ describe("taskCenterTabs", () => {
     ).toMatchObject({
       shouldSync: true,
       routeChanged: true,
-      shouldClearActiveDraft: true,
     });
 
     expect(
@@ -327,7 +322,7 @@ describe("taskCenterTabs", () => {
         shouldRespectLocalSession: false,
       }),
     ).toEqual({
-      "__legacy__": ["topic-imported"],
+      __legacy__: ["topic-imported"],
       "workspace-a": ["topic-project"],
     });
   });
@@ -344,7 +339,6 @@ describe("taskCenterTabs", () => {
     ).toMatchObject({
       shouldSync: true,
       routeChanged: true,
-      shouldClearActiveDraft: true,
     });
   });
 
@@ -459,7 +453,6 @@ describe("taskCenterTabs", () => {
         topicId: "topic-current",
         activeSessionId: "topic-current",
         messagesLength: 1,
-        activeDraftTabId: null,
         draftSurfaceActive: false,
         detachedTopicId: null,
         shouldResume: false,
@@ -471,7 +464,6 @@ describe("taskCenterTabs", () => {
         topicId: "topic-current",
         activeSessionId: "topic-current",
         messagesLength: 1,
-        activeDraftTabId: null,
         draftSurfaceActive: false,
         detachedTopicId: null,
         shouldResume: false,

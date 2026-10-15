@@ -12,7 +12,6 @@ export type {
 export function AgentChatPage(props: AgentChatWorkspaceProps) {
   const {
     onHasMessagesChange,
-    onSessionChange,
     onAgentStreamingChange,
     onWorkflowProgressChange,
   } = props;
@@ -37,12 +36,10 @@ export function AgentChatPage(props: AgentChatWorkspaceProps) {
     }
 
     onHasMessagesChange?.(false);
-    onSessionChange?.(null);
     onAgentStreamingChange?.(false);
     onWorkflowProgressChange?.(null);
   }, [
     onHasMessagesChange,
-    onSessionChange,
     onAgentStreamingChange,
     onWorkflowProgressChange,
     shouldForceClawWorkspace,

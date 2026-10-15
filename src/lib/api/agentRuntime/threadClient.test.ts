@@ -5,7 +5,11 @@ import {
   type AppServerJsonRpcNotification,
   type AppServerRequestResult,
 } from "@/lib/api/appServer";
-import type { TurnStartParams } from "@limecloud/app-server-client";
+import type {
+  Thread,
+  ThreadReadResponse,
+  TurnStartParams,
+} from "@limecloud/app-server-client";
 import { isAppServerBridgeAvailable } from "@/lib/api/appServerBridgeAvailability";
 import { resetDefaultAppServerEventBusForTests } from "@/lib/api/appServerEventBus";
 import {
@@ -142,7 +146,13 @@ function appServerClientMock(): AgentRuntimeAppServerClient {
       messages: [],
       notifications: [],
     }),
-    startTurn: vi.fn().mockResolvedValue({}),
+    startTurn: vi.fn().mockResolvedValue({
+      id: 1,
+      result: { turn: { id: "turn-1", status: "inProgress" } },
+      response: { id: 1, result: {} },
+      notifications: [],
+      messages: [],
+    }),
     steerTurn: vi.fn().mockResolvedValue({
       id: 3,
       result: { turnId: "turn-1" },
@@ -243,20 +253,16 @@ function standardRuntimeClientMock(): AgentRuntimeLifecycleClient {
       id: 1,
       result: {
         turn: {
-          turnId: "turn-1",
-          sessionId: "session-1",
-          threadId: "thread-1",
-          status: "accepted",
+          id: "turn-1",
+          status: "inProgress",
         },
       },
       response: {
         id: 1,
         result: {
           turn: {
-            turnId: "turn-1",
-            sessionId: "session-1",
-            threadId: "thread-1",
-            status: "accepted",
+            id: "turn-1",
+            status: "inProgress",
           },
         },
       },
@@ -402,19 +408,47 @@ const checkpointRestore: AgentRuntimeFileCheckpointRestoreResult = {
   restored_at: "2026-06-06T00:01:00.000Z",
 };
 
+function appServerResult<T>(result: T, id = 1): AppServerRequestResult<T> {
+  return {
+    id,
+    result,
+    response: { id, result },
+    messages: [],
+    notifications: [],
+    configWarnings: [],
+  };
+}
+
+function threadReadResult(
+  overrides: Partial<Thread>,
+  id = 3,
+): AppServerRequestResult<ThreadReadResponse> {
+  return appServerResult(
+    {
+      thread: {
+        id: "thread-1",
+        sessionId: "session-1",
+        cliVersion: "fixture",
+        cwd: "/tmp/workspace",
+        ephemeral: false,
+        modelProvider: "openai",
+        preview: "",
+        projectId: null,
+        source: "appServer",
+        createdAt: 0.1,
+        updatedAt: 0.2,
+        status: { type: "active", activeFlags: [] },
+        ...overrides,
+      },
+    },
+    id,
+  );
+}
+
 function malformedAppServerResult<T>(
   result: unknown,
 ): AppServerRequestResult<T> {
-  return {
-    id: 1,
-    result: result as T,
-    response: {
-      id: 1,
-      result: result as T,
-    },
-    messages: [],
-    notifications: [],
-  };
+  return appServerResult(result as T);
 }
 
 describe("agentRuntime threadClient", () => {
@@ -741,7 +775,8 @@ describe("agentRuntime threadClient", () => {
         metadata: { source: "chat" },
       }),
     });
-    const startTurnParams = appServerClient.startTurn.mock.calls[0]?.[0];
+    const startTurnParams = vi.mocked(appServerClient.startTurn).mock
+      .calls[0]?.[0];
     expect(startTurnParams).not.toHaveProperty("sessionId");
     expect(startTurnParams).not.toHaveProperty("runtimeOptions");
     expect(invokeCommand).not.toHaveBeenCalled();
@@ -765,7 +800,9 @@ describe("agentRuntime threadClient", () => {
           eventName: "agentSession/event/session-1",
         }),
       ),
-    ).resolves.toBeUndefined();
+    ).resolves.toMatchObject({
+      result: { turn: { id: "turn-1", status: "inProgress" } },
+    });
     await expect(
       client.interruptAgentRuntimeTurn({
         session_id: "session-1",
@@ -873,21 +910,9 @@ describe("agentRuntime threadClient", () => {
   it("canonical child Thread 导航应只读取身份并严格解析 sessionId", async () => {
     const appServerClient = appServerClientMock();
     const readThread = vi.mocked(appServerClient.readThread);
-    readThread.mockResolvedValueOnce({
-      id: 3,
-      result: {
-        thread: {
-          createdAt: 0.1,
-          id: "thread-child",
-          sessionId: "agent-child",
-          status: { type: "active", activeFlags: [] },
-          updatedAt: 0.2,
-        },
-      },
-      response: { id: 3, result: {} },
-      messages: [],
-      notifications: [],
-    });
+    readThread.mockResolvedValueOnce(
+      threadReadResult({ id: "thread-child", sessionId: "agent-child" }, 3),
+    );
     const client = createThreadClient({
       appServerClient,
       isAppServerTurnLifecycleAvailable: () => true,
@@ -901,40 +926,16 @@ describe("agentRuntime threadClient", () => {
       includeTurns: false,
     });
 
-    readThread.mockResolvedValueOnce({
-      id: 4,
-      result: {
-        thread: {
-          createdAt: 0.1,
-          id: "thread-other",
-          sessionId: "agent-other",
-          status: { type: "active", activeFlags: [] },
-          updatedAt: 0.2,
-        },
-      },
-      response: { id: 4, result: {} },
-      messages: [],
-      notifications: [],
-    });
+    readThread.mockResolvedValueOnce(
+      threadReadResult({ id: "thread-other", sessionId: "agent-other" }, 4),
+    );
     await expect(client.readThreadSessionId("thread-child")).rejects.toThrow(
       "mismatched threadId",
     );
 
-    readThread.mockResolvedValueOnce({
-      id: 5,
-      result: {
-        thread: {
-          createdAt: 0.1,
-          id: "thread-child",
-          sessionId: " ",
-          status: { type: "active", activeFlags: [] },
-          updatedAt: 0.2,
-        },
-      },
-      response: { id: 5, result: {} },
-      messages: [],
-      notifications: [],
-    });
+    readThread.mockResolvedValueOnce(
+      threadReadResult({ id: "thread-child", sessionId: " " }, 5),
+    );
     await expect(client.readThreadSessionId("thread-child")).rejects.toThrow(
       "empty sessionId",
     );
@@ -1064,23 +1065,20 @@ describe("agentRuntime threadClient", () => {
       id: 1,
       result: {
         turn: {
-          turnId: "turn-1",
-          sessionId: "session-1",
-          threadId: "thread-1",
-          status: "accepted",
+          id: "turn-1",
+          status: "inProgress",
         },
       },
       response: {
         id: 1,
         result: {
           turn: {
-            turnId: "turn-1",
-            sessionId: "session-1",
-            threadId: "thread-1",
-            status: "accepted",
+            id: "turn-1",
+            status: "inProgress",
           },
         },
       },
+      configWarnings: [],
       messages: [],
       notifications: [
         {
@@ -1133,23 +1131,20 @@ describe("agentRuntime threadClient", () => {
       id: 1,
       result: {
         turn: {
-          turnId: "turn-1",
-          sessionId: "session-1",
-          threadId: "thread-1",
-          status: "accepted",
+          id: "turn-1",
+          status: "inProgress",
         },
       },
       response: {
         id: 1,
         result: {
           turn: {
-            turnId: "turn-1",
-            sessionId: "session-1",
-            threadId: "thread-1",
-            status: "accepted",
+            id: "turn-1",
+            status: "inProgress",
           },
         },
       },
+      configWarnings: [],
       messages: [],
       notifications: [
         {
@@ -1224,7 +1219,9 @@ describe("agentRuntime threadClient", () => {
       .mockResolvedValueOnce([notification])
       .mockResolvedValue([]);
     vi.mocked(appServerClient.startTurn).mockResolvedValueOnce({
-      ...malformedAppServerResult({}),
+      ...malformedAppServerResult({
+        turn: { id: "turn-notification", status: "inProgress" },
+      }),
       notifications: [notification],
     });
     const client = createThreadClient({
@@ -1277,7 +1274,9 @@ describe("agentRuntime threadClient", () => {
       .mockResolvedValueOnce([notification])
       .mockResolvedValue([]);
     vi.mocked(appServerClient.startTurn).mockResolvedValueOnce({
-      ...malformedAppServerResult({}),
+      ...malformedAppServerResult({
+        turn: { id: "turn-notification", status: "inProgress" },
+      }),
       notifications: [],
     });
     const client = createThreadClient({
@@ -1312,7 +1311,9 @@ describe("agentRuntime threadClient", () => {
   it("App Server submit 应立即投递请求结果中的 direct v2 notification", async () => {
     const appServerClient = appServerClientMock();
     vi.mocked(appServerClient.startTurn).mockResolvedValueOnce({
-      ...malformedAppServerResult({}),
+      ...malformedAppServerResult({
+        turn: { id: "turn-notification", status: "inProgress" },
+      }),
       notifications: [
         {
           method: "item/agentMessage/delta",
@@ -1414,7 +1415,19 @@ describe("agentRuntime threadClient", () => {
           status: "inProgress",
         },
       },
-      response: { id: 8, result: {} },
+      response: {
+        id: 8,
+        result: {
+          reviewThreadId: "thread-review",
+          turn: {
+            id: "turn-review",
+            items: [],
+            itemsView: "notLoaded",
+            status: "inProgress",
+          },
+        },
+      },
+      configWarnings: [],
       messages: [],
       notifications: [
         {
@@ -1563,12 +1576,11 @@ describe("agentRuntime threadClient", () => {
       invokeCommand: invokeCommand as unknown as AgentRuntimeCommandInvoke,
       isAppServerTurnLifecycleAvailable: () => false,
     });
-    const request = {
-      message: "继续",
-      session_id: "session-1",
-      event_name: "event-1",
-      workspace_id: "workspace-1",
-    };
+    const request = turnStartParams({
+      text: "继续",
+      threadId: "session-1",
+      eventName: "event-1",
+    });
 
     await expect(client.submitAgentRuntimeTurn(request)).rejects.toThrow(
       "App Server turn lifecycle is unavailable; Agent Runtime requires the App Server current lifecycle channel.",
@@ -1661,26 +1673,13 @@ describe("agentRuntime threadClient", () => {
 
   it("App Server 可用时 thread read 应进入 thread/read 并投影 read model", async () => {
     const appServerClient = appServerClientMock();
-    vi.mocked(appServerClient.readThread).mockResolvedValueOnce({
-      id: 3,
-      result: {
-        thread: {
-          id: "thread-1",
-          sessionId: "session-1",
-          cwd: "/tmp/workspace",
-          createdAt: 0.1,
-          updatedAt: 0.3,
-          status: { type: "active", activeFlags: ["waitingOnUserInput"] },
-          turns: [{ id: "turn-1", status: "inProgress", items: [] }],
-        },
-      },
-      response: {
-        id: 3,
-        result: {},
-      },
-      messages: [],
-      notifications: [],
-    });
+    vi.mocked(appServerClient.readThread).mockResolvedValueOnce(
+      threadReadResult({
+        updatedAt: 0.3,
+        status: { type: "active", activeFlags: ["waitingOnUserInput"] },
+        turns: [{ id: "turn-1", status: "inProgress", items: [] }],
+      }),
+    );
     const invokeCommand = vi.fn().mockResolvedValue({});
     const client = createThreadClient({
       appServerClient,

@@ -16,7 +16,6 @@ export interface TaskCenterLocalSessionOverride {
 export interface TaskCenterRouteTabSyncIntent {
   shouldSync: boolean;
   routeChanged: boolean;
-  shouldClearActiveDraft: boolean;
   shouldClearTransitionAndDetached: boolean;
   nextRouteSyncSessionId: string | null;
 }
@@ -146,7 +145,6 @@ export function shouldSkipTaskCenterActiveTopicReopen(params: {
   topicId: string;
   activeSessionId?: string | null;
   messagesLength: number;
-  activeDraftTabId?: string | null;
   draftSurfaceActive: boolean;
   detachedTopicId?: string | null;
   shouldResume: boolean;
@@ -157,7 +155,6 @@ export function shouldSkipTaskCenterActiveTopicReopen(params: {
   return (
     params.topicId === (params.activeSessionId ?? null) &&
     params.messagesLength > 0 &&
-    (params.activeDraftTabId ?? null) === null &&
     params.draftSurfaceActive === false &&
     (params.detachedTopicId ?? null) === null &&
     params.shouldResume === false &&
@@ -466,7 +463,6 @@ export function resolveTaskCenterRouteTabSyncIntent(params: {
     return {
       shouldSync: false,
       routeChanged: false,
-      shouldClearActiveDraft: false,
       shouldClearTransitionAndDetached: false,
       nextRouteSyncSessionId: params.lastSyncedInitialSessionId ?? null,
     };
@@ -478,7 +474,6 @@ export function resolveTaskCenterRouteTabSyncIntent(params: {
   return {
     shouldSync: true,
     routeChanged,
-    shouldClearActiveDraft: routeChanged || params.shouldRespectLocalSession,
     shouldClearTransitionAndDetached: params.shouldRespectLocalSession,
     nextRouteSyncSessionId: initialSessionId,
   };
@@ -626,7 +621,6 @@ export function resolveTaskCenterFallbackRestorePlan(params: {
   isAutoRestoringSession: boolean;
   isSessionHydrating: boolean;
   draftSurfaceActive: boolean;
-  draftTabActive: boolean;
   initialPendingServiceSkillLaunchSignature?: string | null;
   initialDispatchKey?: string | null;
   isBootstrapDispatchPending: boolean;
@@ -663,10 +657,6 @@ export function resolveTaskCenterFallbackRestorePlan(params: {
 
   if (params.draftSurfaceActive) {
     return { action: "skip", reason: "draft-surface-active" };
-  }
-
-  if (params.draftTabActive) {
-    return { action: "skip", reason: "draft-tab-active" };
   }
 
   if (params.initialPendingServiceSkillLaunchSignature) {

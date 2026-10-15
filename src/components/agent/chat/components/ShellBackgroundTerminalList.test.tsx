@@ -2,6 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { changeLimeLocale } from "@/i18n/createI18n";
 import type { BackgroundTerminalsAppServerClient } from "@/lib/api/backgroundTerminals";
 import { ShellBackgroundTerminalList } from "./ShellBackgroundTerminalList";
 
@@ -18,12 +19,13 @@ function appServerResult<T>(result: T) {
 
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
-beforeEach(() => {
+beforeEach(async () => {
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
     }
   ).IS_REACT_ACT_ENVIRONMENT = true;
+  await changeLimeLocale("zh-CN");
 });
 
 function renderList(client: BackgroundTerminalsAppServerClient) {
@@ -46,7 +48,7 @@ async function flush() {
   });
 }
 
-afterEach(() => {
+afterEach(async () => {
   while (mountedRoots.length > 0) {
     const mounted = mountedRoots.pop();
     if (!mounted) {
@@ -57,6 +59,7 @@ afterEach(() => {
     });
     mounted.container.remove();
   }
+  await changeLimeLocale("en-US");
 });
 
 describe("ShellBackgroundTerminalList", () => {
@@ -90,9 +93,7 @@ describe("ShellBackgroundTerminalList", () => {
             nextCursor: null,
           }),
         )
-        .mockResolvedValueOnce(
-          appServerResult({ data: [], nextCursor: null }),
-        ),
+        .mockResolvedValueOnce(appServerResult({ data: [], nextCursor: null })),
       terminateThreadBackgroundTerminal: vi
         .fn()
         .mockResolvedValue(appServerResult({ terminated: true })),
@@ -121,13 +122,17 @@ describe("ShellBackgroundTerminalList", () => {
       processId: "7",
     });
     expect(
-      container.querySelector('[data-testid="shell-background-terminals-empty"]'),
+      container.querySelector(
+        '[data-testid="shell-background-terminals-empty"]',
+      ),
     ).not.toBeNull();
   });
 
   it("读取失败时显示错误", async () => {
     const client: BackgroundTerminalsAppServerClient = {
-      listThreadBackgroundTerminals: vi.fn().mockRejectedValue(new Error("down")),
+      listThreadBackgroundTerminals: vi
+        .fn()
+        .mockRejectedValue(new Error("down")),
       terminateThreadBackgroundTerminal: vi.fn(),
       cleanThreadBackgroundTerminals: vi.fn(),
     };
@@ -135,8 +140,9 @@ describe("ShellBackgroundTerminalList", () => {
     await flush();
 
     expect(
-      container.querySelector('[data-testid="shell-background-terminals-error"]')
-        ?.textContent,
+      container.querySelector(
+        '[data-testid="shell-background-terminals-error"]',
+      )?.textContent,
     ).toContain("无法读取后台终端");
     expect(
       container.querySelector(
@@ -198,7 +204,9 @@ describe("ShellBackgroundTerminalList", () => {
     });
     expect(client.terminateThreadBackgroundTerminal).not.toHaveBeenCalled();
     expect(
-      container.querySelector('[data-testid="shell-background-terminals-empty"]'),
+      container.querySelector(
+        '[data-testid="shell-background-terminals-empty"]',
+      ),
     ).not.toBeNull();
   });
 });

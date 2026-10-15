@@ -60,6 +60,7 @@ internal/exec-plans/*
 !internal/exec-plans/README.md
 !internal/exec-plans/rea-codex-desktop-analysis-plan.md
 !internal/exec-plans/codex-gui-alignment-current-plan.md
+!internal/exec-plans/codex-gui-alignment-history-20261015.md
 !internal/exec-plans/codex-desktop-selective-goose-reference-plan.md
 !internal/exec-plans/codex-desktop-selective-goose-reference-evidence.json
 !internal/exec-plans/tui-codex-snapshot-inventory.json
@@ -272,11 +273,17 @@ internal/research/**
 !internal/research/codex-desktop-rea/
 !internal/research/codex-desktop-rea/report.md
 !internal/research/codex-desktop-rea/evidence-index.json
+!internal/research/codex-desktop-rea/structure-alignment-ledger.md
 !internal/research/codex-desktop-rea/navigation-composer-audit.md
 !internal/research/codex-desktop-rea/queue-steer-audit.md
 !internal/research/codex-desktop-rea/main-composer-audit.md
 !internal/research/codex-desktop-rea/composer-draft-persistence-audit.md
+!internal/research/codex-desktop-rea/new-conversation-navigation-audit.md
+!internal/research/codex-desktop-rea/settings-navigation-audit.md
 !internal/research/codex-desktop-rea/marks-voice-audit.md
+!internal/research/codex-desktop-rea/composer-marks-css-audit.md
+!internal/research/codex-desktop-rea/composer-code-nodeview-audit.md
+!internal/research/codex-desktop-rea/composer-code-highlight-audit.md
 !internal/research/codex-desktop-rea/professional-files-audit.md
 !internal/research/codex-desktop-rea/user-message-collapse-audit.md
 !internal/research/agent/

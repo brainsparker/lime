@@ -1,3 +1,5 @@
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -163,7 +165,7 @@ describe("useWorkspaceImageWorkbenchSendCommandRuntime", () => {
 
   it("图片工作台动作应通过绑定的 handleSendRef 进入统一发送主线", async () => {
     const { render, getValue } = renderHook();
-    const handleSend = vi.fn().mockResolvedValue(true);
+    const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const images = [{ data: "base64-image", mediaType: "image/png" }];
     const requestContext = {
       kind: "image_task",
@@ -175,7 +177,7 @@ describe("useWorkspaceImageWorkbenchSendCommandRuntime", () => {
     await render();
 
     getValue().bindWorkspaceHandleSendRef({ current: handleSend });
-    let submitted = false;
+    let submitted: RuntimeSubmissionResult | undefined;
     await act(async () => {
       submitted = await getValue().submitImageWorkbenchAgentCommand({
         rawText: "@配图 生成 城市夜景主视觉",
@@ -185,7 +187,7 @@ describe("useWorkspaceImageWorkbenchSendCommandRuntime", () => {
       });
     });
 
-    expect(submitted).toBe(true);
+    expect(submitted).toMatchObject({ kind: "runtime-accepted" });
     expect(handleSend).toHaveBeenCalledWith(
       images,
       undefined,

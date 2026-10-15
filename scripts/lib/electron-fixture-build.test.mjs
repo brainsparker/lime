@@ -380,6 +380,30 @@ describe("electron fixture build freshness", () => {
     );
   });
 
+  it.each(["pnpm-lock.yaml", "pnpm-workspace.yaml"])(
+    "invalidates renderer and host when %s changes without a manifest edit",
+    (dependencyInput) => {
+      const rootDir = createTempRoot();
+      writeRequiredFiles(rootDir, new Date("2026-01-01T00:10:00.000Z"));
+      writeFile(
+        path.join(rootDir, dependencyInput),
+        "changed dependency input",
+        new Date("2026-01-01T00:20:00.000Z"),
+      );
+
+      expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+        ready: false,
+        reason: "stale-source",
+        staleSegments: ["renderer", "host"],
+        segments: {
+          renderer: { newestSource: { relativePath: dependencyInput } },
+          host: { newestSource: { relativePath: dependencyInput } },
+          appServer: { ready: true },
+        },
+      });
+    },
+  );
+
   it("does not mark renderer stale when only Rust app-server sources are newer", () => {
     const rootDir = createTempRoot();
     writeRequiredFiles(rootDir, new Date("2026-01-01T00:10:00.000Z"));

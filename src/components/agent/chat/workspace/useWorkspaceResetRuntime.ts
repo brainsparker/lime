@@ -13,9 +13,10 @@ import type {
 } from "@/lib/workspace/workbenchContract";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
 import type { TaskFile } from "../components/TaskFiles";
-import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import type { Character } from "@/lib/api/projectMemory";
 import type { Page, PageParams } from "@/types/page";
+import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
+import type { DraftScope } from "@/lib/api/persistedAtomTypes";
 
 type SetStringState = Dispatch<SetStateAction<string>>;
 
@@ -31,6 +32,10 @@ interface UseWorkspaceResetRuntimeParams {
   resetRestoredSessionState: () => void;
   resetGuideState: () => void;
   resetComposerDraft?: () => void;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  composerDraftEnabled?: boolean;
+  onComposerDraftScopeCommitted?: (scope: DraftScope) => void;
+  composerDraftHomeWorkspaceId?: string | null;
   hasHandledNewChatRequest: (requestKey: string) => boolean;
   markNewChatRequestHandled: (requestKey: string) => void;
   defaultTopicSidebarVisible: boolean;
@@ -40,6 +45,8 @@ interface UseWorkspaceResetRuntimeParams {
   externalProjectId?: string | null;
   preserveSessionRestoreOnNewChat?: boolean;
   onNavigate?: (page: Page, params?: PageParams) => void;
+  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
+  newConversationRequest?: import("@/lib/workspace/navigation").NewConversationRequest;
   autoCollapsedTopicSidebarRef: MutableRefObject<boolean>;
   processedMessageIdsRef: MutableRefObject<Set<string>>;
   setInput: SetStringState;
@@ -63,6 +70,10 @@ export function useWorkspaceResetRuntime({
   resetRestoredSessionState,
   resetGuideState,
   resetComposerDraft,
+  composerDraftCoordinator,
+  composerDraftEnabled = false,
+  onComposerDraftScopeCommitted,
+  composerDraftHomeWorkspaceId,
   hasHandledNewChatRequest,
   markNewChatRequestHandled,
   defaultTopicSidebarVisible,
@@ -71,7 +82,8 @@ export function useWorkspaceResetRuntime({
   newChatAt,
   externalProjectId,
   preserveSessionRestoreOnNewChat = false,
-  onNavigate,
+  onStartNewConversation,
+  newConversationRequest,
   autoCollapsedTopicSidebarRef,
   processedMessageIdsRef,
   setInput,
@@ -115,35 +127,17 @@ export function useWorkspaceResetRuntime({
   ]);
 
   const handleBackHome = useCallback(() => {
-    resetComposerDraft?.();
-    clearMessages({
-      showToast: false,
+    onStartNewConversation?.({
+      projectId: composerDraftHomeWorkspaceId ?? null,
+      freshDraft: false,
     });
-    setInput("");
-    setSelectedText("");
-    setShowSidebar(true);
-    resetWorkbenchSurface();
-    clearPendingEntryA2UI?.();
-    setActiveTheme("general");
-    setCreationMode("guided");
-    onNavigate?.("agent", buildHomeAgentParams());
-  }, [
-    clearMessages,
-    clearPendingEntryA2UI,
-    onNavigate,
-    resetComposerDraft,
-    resetWorkbenchSurface,
-    setActiveTheme,
-    setCreationMode,
-    setInput,
-    setSelectedText,
-    setShowSidebar,
-  ]);
+  }, [composerDraftHomeWorkspaceId, onStartNewConversation]);
 
   useEffect(() => {
     if (!newChatAt) {
       return;
     }
+    if (composerDraftEnabled && !composerDraftCoordinator) return;
 
     const requestKey = String(newChatAt);
     if (hasHandledNewChatRequest(requestKey)) {
@@ -155,11 +149,18 @@ export function useWorkspaceResetRuntime({
       return;
     }
 
-    resetComposerDraft?.();
+    if (composerDraftCoordinator && !newConversationRequest) {
+      composerDraftCoordinator.prepareNavigation();
+      onComposerDraftScopeCommitted?.({
+        workspaceId: composerDraftHomeWorkspaceId ?? null,
+        kind: "home",
+        id: "new-conversation",
+      });
+    } else if (!composerDraftCoordinator) resetComposerDraft?.();
     clearMessages({
       showToast: false,
     });
-    setInput("");
+    if (!composerDraftCoordinator) setInput("");
     setSelectedText("");
     autoCollapsedTopicSidebarRef.current = false;
     setShowSidebar(defaultTopicSidebarVisible);
@@ -188,9 +189,14 @@ export function useWorkspaceResetRuntime({
     initialCreationMode,
     markNewChatRequestHandled,
     newChatAt,
+    newConversationRequest,
     normalizedInitialTheme,
     preserveSessionRestoreOnNewChat,
     resetComposerDraft,
+    composerDraftCoordinator,
+    composerDraftEnabled,
+    composerDraftHomeWorkspaceId,
+    onComposerDraftScopeCommitted,
     resetGuideState,
     resetProjectSelection,
     resetRestoredSessionState,

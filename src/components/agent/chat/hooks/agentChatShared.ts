@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type {
   AgentSessionInfo,
@@ -99,7 +100,14 @@ export interface UseAgentChatOptions {
   soulCopy?: SoulInteractionCopy;
 }
 
+import type { RuntimeAcceptanceReceipt } from "@/lib/api/agentRuntime/runtimeAcceptance";
+import type {
+  RuntimeSubmissionAcceptance,
+  RuntimeSubmissionResult,
+} from "./agentSendResult";
+
 export interface SendMessageObserver {
+  onRuntimeAccepted?: (receipt: RuntimeSubmissionAcceptance) => void;
   onTextDelta?: (delta: string, accumulated: string) => void;
   onComplete?: (content: string) => void;
   onError?: (message: string) => void;
@@ -153,6 +161,7 @@ export interface SendMessageOptions {
   skipSessionStartHooks?: boolean;
   composerIntent?: ComposerIntent;
   composerTarget?: ComposerSubmitTarget;
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   composerDraft?: ComposerDraftSnapshot;
   composerSubmission?: ComposerSubmission;
 }
@@ -209,7 +218,11 @@ export type SendMessageFn = (
   modelOverride?: string,
   autoContinue?: AutoContinueRequestPayload,
   options?: SendMessageOptions,
-) => Promise<void>;
+) => Promise<RuntimeSubmissionResult>;
+
+export type RawSendMessageFn = (
+  ...args: Parameters<SendMessageFn>
+) => Promise<RuntimeAcceptanceReceipt>;
 
 export const getScopedStorageKey = (
   workspaceId: string | null | undefined,

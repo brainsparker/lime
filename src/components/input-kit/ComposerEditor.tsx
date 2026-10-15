@@ -3,11 +3,13 @@ import React, {
   useLayoutEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { EditorView } from "@tiptap/pm/view";
 import type { ComposerController } from "./ComposerController";
 import { handleComposerKeyDown, isComposerComposing } from "./composerKeymap";
 import type { ComposerSelection } from "./types";
+import { CodeBlockToolbars } from "./CodeBlockToolbar";
 
 export interface ComposerEditorHandle {
   getElement(): HTMLElement | null;
@@ -61,6 +63,7 @@ export function ComposerEditor(props: ComposerEditorProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const composingRef = useRef(false);
+  const [composing, setComposing] = useState(false);
   const propsRef = useRef(props);
   propsRef.current = props;
   const handle = useMemo<ComposerEditorHandle>(
@@ -101,10 +104,23 @@ export function ComposerEditor(props: ComposerEditorProps) {
     const updateComposition = (composing: boolean) => {
       if (composingRef.current === composing) return;
       composingRef.current = composing;
+      setComposing(composing);
       propsRef.current.onCompositionStateChange?.(composing);
     };
+    const nodeViews = controller.createNodeViews();
+    const createCodeBlock = nodeViews.code_block;
+    if (createCodeBlock) {
+      nodeViews.code_block = (node, currentView, getPos, ...decorations) =>
+        createCodeBlock(
+          node,
+          currentView,
+          () => (composingRef.current ? undefined : getPos()),
+          ...decorations,
+        );
+    }
     const view = new EditorView(container, {
       state: controller.getEditorState(),
+      nodeViews,
       editable: () => !propsRef.current.disabled,
       dispatchTransaction: (transaction) => {
         controller.applyTransaction(transaction);
@@ -210,10 +226,16 @@ export function ComposerEditor(props: ComposerEditorProps) {
   ]);
 
   return (
-    <div
-      ref={containerRef}
-      data-composer-editor-host="true"
-      style={{ display: "contents" }}
-    />
+    <>
+      <div
+        ref={containerRef}
+        data-composer-editor-host="true"
+        style={{ display: "contents" }}
+      />
+      <CodeBlockToolbars
+        registry={controller.codeBlockNodeViewRegistry}
+        disabled={props.disabled || composing}
+      />
+    </>
   );
 }

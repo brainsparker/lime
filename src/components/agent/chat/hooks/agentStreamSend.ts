@@ -69,7 +69,7 @@ export async function sendAgentStreamMessage(
     env,
   });
 
-  await dispatchPreparedAgentStreamSend({
+  return await dispatchPreparedAgentStreamSend({
     preparedSend,
     env,
   });

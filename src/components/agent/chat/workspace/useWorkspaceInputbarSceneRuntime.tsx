@@ -1,3 +1,9 @@
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftStatus as DraftStatus,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import { ComposerDraftStatus } from "./ComposerDraftStatus";
+import { submitWorkspaceQueue } from "./workspaceQueueSubmission";
 import {
   useCallback,
   useMemo,
@@ -67,6 +73,10 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   handleStopSending: InputbarParams["onStop"];
   input: InputbarParams["input"];
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: InputbarParams["onComposerDraftAccepted"];
+  composerDraftStatus?: DraftStatus | null;
+  composerDraftRestoring?: boolean;
   setInput: InputbarParams["setInput"];
   currentGate: InputbarParams["workflowGate"];
   generalWorkbenchWorkflowSteps: InputbarParams["workflowSteps"];
@@ -156,6 +166,10 @@ export function useWorkspaceInputbarSceneRuntime({
   handleStopSending,
   input,
   composerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
+  composerDraftStatus = null,
+  composerDraftRestoring = false,
   setInput,
   currentGate,
   generalWorkbenchWorkflowSteps,
@@ -273,16 +287,28 @@ export function useWorkspaceInputbarSceneRuntime({
   const sendPendingRef = useRef(false);
   const handleInputbarSend = useCallback<InputbarSendHandler>(
     async (payload = {}) => {
-      if (directInputBlocked || sendPendingRef.current) {
-        return false;
+      if (
+        directInputBlocked ||
+        composerDraftRestoring ||
+        sendPendingRef.current
+      ) {
+        return { kind: "rejected" };
       }
       sendPendingRef.current = true;
       try {
         const composerSendOptions = getInputbarSendOptions(payload);
         if (composerSendOptions?.composerTarget === "queue") {
           const targetThreadId = threadId?.trim();
+          const requestedSessionId =
+            composerSendOptions.targetSessionId?.trim();
+          if (
+            requestedSessionId &&
+            requestedSessionId !== inputbarTargetSessionId
+          ) {
+            return { kind: "unknown" };
+          }
           if (!targetThreadId) {
-            return false;
+            return { kind: "rejected" };
           }
           const submission = composerSendOptions.composerSubmission;
           const pathText = (submission?.pathReferences ?? [])
@@ -297,10 +323,13 @@ export function useWorkspaceInputbarSceneRuntime({
             !content.trim() &&
             !(submission?.attachments.length ?? payload.images?.length ?? 0)
           ) {
-            return false;
+            return { kind: "rejected" };
           }
           try {
-            await addThreadQueue({
+            return await submitWorkspaceQueue({
+              sessionId:
+                composerSendOptions.targetSessionId?.trim() ||
+                inputbarTargetSessionId,
               threadId: targetThreadId,
               clientUserMessageId: crypto.randomUUID(),
               input: buildTurnInput({
@@ -309,11 +338,14 @@ export function useWorkspaceInputbarSceneRuntime({
                 inputMentions: composerSendOptions.inputMentions,
                 composerSubmission: submission,
               }),
+              observer: composerSendOptions.observer,
+              addQueue: addThreadQueue,
+              onRejected: () =>
+                toast.error(String(t("agentChat.threadQueue.actionFailed"))),
             });
-            return true;
-          } catch {
+          } catch (error) {
             toast.error(String(t("agentChat.threadQueue.actionFailed")));
-            return false;
+            return { kind: "rejected", error };
           }
         }
         const payloadTargetSessionId =
@@ -339,7 +371,14 @@ export function useWorkspaceInputbarSceneRuntime({
         sendPendingRef.current = false;
       }
     },
-    [directInputBlocked, handleSend, inputbarTargetSessionId, t, threadId],
+    [
+      directInputBlocked,
+      composerDraftRestoring,
+      handleSend,
+      inputbarTargetSessionId,
+      t,
+      threadId,
+    ],
   );
   const handleInputbarToolStatesChange = useCallback(
     (nextToolStates: WorkspaceInputbarToolStates) => {
@@ -399,6 +438,8 @@ export function useWorkspaceInputbarSceneRuntime({
       inputbar: {
         input,
         composerController,
+        composerDraftCoordinator,
+        onComposerDraftAccepted,
         setInput,
         contextVariant,
         variant: isThemeWorkbench ? "workspace" : "default",
@@ -438,6 +479,7 @@ export function useWorkspaceInputbarSceneRuntime({
         disabled:
           directInputBlocked ||
           isSessionRestoring ||
+          composerDraftRestoring ||
           isPreparingSend ||
           (contextVariant !== "task-center" && !projectId && !sessionId),
         disabledPlaceholder: directInputBlocked
@@ -539,17 +581,25 @@ export function useWorkspaceInputbarSceneRuntime({
       <StrictReviewStatus status={strictReviewStatus} />
     ) : null;
   const composerStatusNode = pendingInteractionLayer ?? strictReviewStatusNode;
+  const draftStatusNode = composerDraftCoordinator ? (
+    <ComposerDraftStatus
+      status={composerDraftStatus}
+      restoring={composerDraftRestoring}
+    />
+  ) : null;
 
   return {
     ...presentationRuntime,
-    inputbarNode: composerStatusNode ? (
-      <div className="w-full min-w-0 space-y-2">
-        {composerStatusNode}
-        {presentationRuntime.inputbarNode}
-      </div>
-    ) : (
-      presentationRuntime.inputbarNode
-    ),
+    inputbarNode:
+      composerStatusNode || draftStatusNode ? (
+        <div className="w-full min-w-0 space-y-2">
+          {composerStatusNode}
+          {presentationRuntime.inputbarNode}
+          {draftStatusNode}
+        </div>
+      ) : (
+        presentationRuntime.inputbarNode
+      ),
     knowledgePackSelection: knowledgeRuntime.knowledgePackSelection,
     knowledgePackOptions: knowledgeRuntime.knowledgePackOptions,
     onToggleKnowledgePack: knowledgeRuntime.onToggleKnowledgePack,

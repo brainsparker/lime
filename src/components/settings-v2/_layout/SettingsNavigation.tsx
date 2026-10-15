@@ -110,7 +110,8 @@ interface SettingsNavigationProps {
   reserveWindowControls: boolean;
   onTabChange: (tab: SettingsTabs) => void;
   onTabPrefetch: (tab: SettingsTabs) => void;
-  onBackHome: () => void;
+  onBack: () => void;
+  onHome: () => void;
   onNavigate?: (page: Page, params?: PageParams) => void;
 }
 
@@ -119,7 +120,8 @@ export function SettingsNavigation({
   reserveWindowControls,
   onTabChange,
   onTabPrefetch,
-  onBackHome,
+  onBack,
+  onHome,
   onNavigate,
 }: SettingsNavigationProps) {
   const { t } = useTranslation(["navigation", "settings"]);
@@ -160,7 +162,7 @@ export function SettingsNavigation({
           ).map(localize)}
           settingsItem={settingsItem ? localize(settingsItem) : null}
           isActive={(item) => item.id === "settings"}
-          onHome={onBackHome}
+          onHome={onHome}
           onNavigate={(item) => {
             if (item.page && item.page !== "settings")
               onNavigate?.(item.page, item.params);
@@ -202,14 +204,14 @@ export function SettingsNavigation({
           >
             <BackButton
               type="button"
-              onClick={onBackHome}
-              aria-label={t("settings.layout.action.backHome", {
+              onClick={onBack}
+              aria-label={t("settings.layout.action.back", {
                 ns: "settings",
               })}
-              data-testid="settings-home-button"
+              data-testid="settings-back-button"
             >
               <ArrowLeft />
-              {t("settings.layout.action.backHome", { ns: "settings" })}
+              {t("settings.layout.action.back", { ns: "settings" })}
             </BackButton>
             <Title>{t("navigation.sidebar.items.settings")}</Title>
           </Header>

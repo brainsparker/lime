@@ -22,7 +22,7 @@ interface UseWorkspaceHomeRecoveryRuntimeParams {
   onOpenTaskTopic: (
     topicId: string,
     options?: OpenTaskTopicOptions,
-  ) => void | Promise<void>;
+  ) => void | Promise<unknown>;
   onResumeRecentSession: () => void;
   projectId?: string | null;
   recentSessionTopic: Topic | null;

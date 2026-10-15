@@ -1,3 +1,6 @@
+import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
+import type { ComposerDraftStatus as DraftStatus } from "@/components/input-kit/ComposerDraftCoordinator";
+import { ComposerDraftStatus } from "./ComposerDraftStatus";
 import {
   useCallback,
   useMemo,
@@ -24,6 +27,7 @@ import { buildWorkspaceEmptyStateProps } from "./chatSurfaceProps";
 import type { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 
 export interface WorkspaceConversationLandingSurfaceRuntime {
+  composerDraftStatusNode?: ReactNode;
   entryBannerVisible: boolean;
   entryBannerMessage?: string;
   onDismissEntryBanner: () => void;
@@ -94,6 +98,12 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   >["initialInputCapability"];
   input: ComponentProps<typeof EmptyState>["input"];
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  composerDraftStatus?: DraftStatus | null;
+  composerDraftRestoring?: boolean;
+  onComposerDraftAccepted?: ComponentProps<
+    typeof EmptyState
+  >["onComposerDraftAccepted"];
   inputbarScene: WorkspaceConversationLandingInputbarSceneRuntime;
   inputRestoreRequest?: InterruptedInputRestoreRequest | null;
   lockTheme: boolean;
@@ -130,6 +140,9 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
     typeof EmptyState
   >["onRecommendationClick"];
   onRefreshSkills?: ComponentProps<typeof EmptyState>["onRefreshSkills"];
+  onSkillSuggestionsNeeded?: ComponentProps<
+    typeof EmptyState
+  >["onSkillSuggestionsNeeded"];
   onRemovePathReference?: ComponentProps<
     typeof EmptyState
   >["onRemovePathReference"];
@@ -287,6 +300,10 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   initialInputCapability,
   input,
   composerController,
+  composerDraftCoordinator,
+  composerDraftStatus = null,
+  composerDraftRestoring = false,
+  onComposerDraftAccepted,
   inputbarScene,
   inputRestoreRequest,
   lockTheme,
@@ -305,6 +322,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   onProjectChange,
   onRecommendationClick,
   onRefreshSkills,
+  onSkillSuggestionsNeeded,
   onRemovePathReference,
   onResumeRecentSession,
   onSelectServiceSkill,
@@ -366,6 +384,8 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       buildWorkspaceEmptyStateProps({
         input,
         composerController,
+        composerDraftCoordinator,
+        onComposerDraftAccepted,
         setInput,
         onSendMessage: handleSendFromEmptyState,
         onStopSending,
@@ -405,6 +425,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onSelectServiceSkill,
         onNavigateToSettings,
         onRefreshSkills,
+        onSkillSuggestionsNeeded,
         onLaunchBrowserAssist,
         browserAssistLoading,
         recentSessionTitle: suppressRecentSessionRecovery
@@ -483,6 +504,8 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       initialInputCapability,
       input,
       composerController,
+      composerDraftCoordinator,
+      onComposerDraftAccepted,
       inputRestoreRequest,
       lockTheme,
       model,
@@ -501,6 +524,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       onProjectChange,
       onRecommendationClick,
       onRefreshSkills,
+      onSkillSuggestionsNeeded,
       onRemovePathReference,
       onResumeRecentSession,
       onSelectKnowledgePack,
@@ -546,6 +570,12 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
 
   return useMemo(
     () => ({
+      composerDraftStatusNode: composerDraftCoordinator ? (
+        <ComposerDraftStatus
+          status={composerDraftStatus}
+          restoring={composerDraftRestoring}
+        />
+      ) : undefined,
       entryBannerVisible,
       entryBannerMessage,
       onDismissEntryBanner,
@@ -554,6 +584,9 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       emptyStateProps,
     }),
     [
+      composerDraftCoordinator,
+      composerDraftStatus,
+      composerDraftRestoring,
       creationReplaySurface,
       emptyStateProps,
       entryBannerMessage,

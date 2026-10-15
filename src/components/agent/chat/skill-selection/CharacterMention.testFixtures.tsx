@@ -72,7 +72,8 @@ vi.mock("@/lib/api/fuzzyFileSearch", async (importOriginal) => {
   };
 });
 
-vi.mock("@/components/ui/popover", () => {
+vi.mock("@/components/ui/popover", async () => {
+  const React = await import("react");
   const Popover = ({
     open,
     children,
@@ -126,7 +127,8 @@ vi.mock("@/components/ui/popover", () => {
   return { Popover, PopoverTrigger, PopoverContent };
 });
 
-vi.mock("@/components/ui/command", () => {
+vi.mock("@/components/ui/command", async () => {
+  const React = await import("react");
   const Command = React.forwardRef<
     HTMLDivElement,
     React.HTMLAttributes<HTMLDivElement> & { shouldFilter?: boolean }

@@ -1,3 +1,8 @@
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftCapture,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
 import type { ComposerController } from "@/components/input-kit";
 import type { Character } from "@/lib/api/projectMemory";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
@@ -5,7 +10,7 @@ import type { AgentI18nResource } from "@/i18n/agentResources";
 import type { AgentInitialInputCapabilityParams } from "@/types/page";
 import type { SkillSelectionSourceProps } from "../skill-selection/skillSelectionBindings";
 import type { AgentAccessMode } from "../hooks/agentChatStorage";
-import type { InterruptedInputRestoreRequest } from "../hooks/agentStreamInputRestoreTypes";
+import type { ScopedComposerRestoreRequest } from "./composerSubmissionSettlement";
 import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
 import type { CuratedTaskReferenceEntry } from "../utils/curatedTaskReferenceSelection";
 import type { AgentTaskRuntimeCardModel } from "../utils/agentTaskRuntime";
@@ -26,6 +31,11 @@ export type AgentI18nKey = keyof AgentI18nResource;
 
 export interface EmptyStateProps extends SkillSelectionSourceProps {
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: (
+    capture: ComposerDraftCapture,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => Promise<void> | void;
   input: string;
   setInput: (value: string) => void;
   onSend: InputbarSendHandler;
@@ -134,7 +144,7 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   /** 输入框已添加的本地文件/文件夹引用 */
   pathReferences?: MessagePathReference[];
   onAddPathReferences?: (references: MessagePathReference[]) => void;
-  inputRestoreRequest?: InterruptedInputRestoreRequest | null;
+  inputRestoreRequest?: ScopedComposerRestoreRequest | null;
   onInputRestoreRequestHandled?: (requestId: string) => void;
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;

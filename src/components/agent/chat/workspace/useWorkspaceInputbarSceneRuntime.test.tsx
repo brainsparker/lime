@@ -1,3 +1,8 @@
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
+import { ComposerController } from "@/components/input-kit/ComposerController";
+import type { ComponentProps } from "react";
+import { Inputbar } from "../components/Inputbar";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -18,11 +23,11 @@ const mockStrictReviewRuntime = vi.hoisted(() => ({
   },
 }));
 const mockThreadQueueActions = vi.hoisted(() => ({
-  addThreadQueue: vi.fn().mockResolvedValue({
+  addThreadQueue: vi.fn(async (params) => ({
     id: "queued-1",
-    clientUserMessageId: "client-1",
-    input: [{ type: "text", text: "排队任务" }],
-  }),
+    clientUserMessageId: params.clientUserMessageId,
+    input: params.input,
+  })),
 }));
 const toastMock = vi.hoisted(() => ({
   error: vi.fn(),
@@ -105,7 +110,6 @@ function createDefaultHarnessPanelBaseProps(
     canInterrupt: false,
     onInterruptCurrentTurn: noop,
     onReplayPendingRequest: noop,
-    onObjectiveChanged: noop,
     onManageProviders: noop,
     onOpenExecutionPolicySettings: noop,
     diagnosticRuntimeContext: {
@@ -142,6 +146,10 @@ function createDefaultProps(overrides: HookPropsOverrides = {}): HookProps {
     setMentionedCharacters: noop,
     isThemeWorkbench: true,
     sessionId: "session-1",
+    threadId: null,
+    threadGoal: null,
+    threadGoalError: null,
+    threadGoalLoading: false,
     generalWorkbenchHarnessPanelBaseProps: createDefaultHarnessPanelBaseProps(
       noop,
       {
@@ -159,7 +167,7 @@ function createDefaultProps(overrides: HookPropsOverrides = {}): HookProps {
     generalWorkbenchWorkflowSteps: [],
     steps: [],
     workflowRunState: "idle",
-    handleSend: vi.fn().mockResolvedValue(true),
+    handleSend: vi.fn().mockResolvedValue(acceptedSubmission()),
     isPreparingSend: false,
     isSending: false,
     providerType: "openai",
@@ -259,68 +267,10 @@ function renderHookNode(props: HookProps): HTMLDivElement {
   return container;
 }
 
-function getLatestInputbarProps(): {
-  disabled?: boolean;
-  disabledPlaceholder?: string;
-  isLoading?: boolean;
-  inputRestoreRequest?: unknown;
-  onInputRestoreRequestHandled?: (requestId: string) => void;
-  onSend?: (payload?: {
-    images?: unknown[];
-    textOverride?: string;
-    composerTarget?: "start" | "queue" | "steer" | "interrupt" | "command";
-    composerIntent?: string;
-    composerDraft?: {
-      text: string;
-      selectionStart: number;
-      selectionEnd: number;
-      textElements: readonly unknown[];
-      mentionBindings: readonly unknown[];
-      attachments: readonly unknown[];
-      pathReferences: readonly unknown[];
-      pendingPastes: readonly unknown[];
-    };
-    sendOptions?: {
-      requestMetadata?: Record<string, unknown>;
-      targetSessionId?: string;
-      skipSessionRestore?: boolean;
-    };
-  }) => void | Promise<boolean> | boolean;
-  toolStates?: Record<string, boolean>;
-  onToolStatesChange?: (states: Record<string, boolean>) => void;
-} {
+function getLatestInputbarProps(): ComponentProps<typeof Inputbar> {
   const latestCall = mockInputbarRender.mock.calls.at(-1);
   expect(latestCall).toBeTruthy();
-  return latestCall?.[0] as {
-    disabled?: boolean;
-    disabledPlaceholder?: string;
-    isLoading?: boolean;
-    inputRestoreRequest?: unknown;
-    onInputRestoreRequestHandled?: (requestId: string) => void;
-    onSend?: (payload?: {
-      images?: unknown[];
-      textOverride?: string;
-      composerTarget?: "start" | "queue" | "steer" | "interrupt" | "command";
-      composerIntent?: string;
-      composerDraft?: {
-        text: string;
-        selectionStart: number;
-        selectionEnd: number;
-        textElements: readonly unknown[];
-        mentionBindings: readonly unknown[];
-        attachments: readonly unknown[];
-        pathReferences: readonly unknown[];
-        pendingPastes: readonly unknown[];
-      };
-      sendOptions?: {
-        requestMetadata?: Record<string, unknown>;
-        targetSessionId?: string;
-        skipSessionRestore?: boolean;
-      };
-    }) => void | Promise<boolean> | boolean;
-    toolStates?: Record<string, boolean>;
-    onToolStatesChange?: (states: Record<string, boolean>) => void;
-  };
+  return latestCall?.[0];
 }
 
 beforeEach(async () => {
@@ -349,6 +299,19 @@ afterEach(() => {
 });
 
 describe("useWorkspaceInputbarSceneRuntime", () => {
+  it("草稿恢复期间禁用 Composer 且直接发送回调不能越过恢复门禁", async () => {
+    const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
+    renderHookNode(
+      createDefaultProps({ composerDraftRestoring: true, handleSend }),
+    );
+    const props = getLatestInputbarProps();
+    expect(props.disabled).toBe(true);
+    expect(await props.onSend?.({ textOverride: "pending restore" })).toEqual({
+      kind: "rejected",
+    });
+    expect(handleSend).not.toHaveBeenCalled();
+    expect(mockThreadQueueActions.addThreadQueue).not.toHaveBeenCalled();
+  });
   it("strict review 状态应位于 Composer 上方且不替换 Inputbar", () => {
     mockStrictReviewRuntime.status = {
       startedAtMs: 1_783_814_400_100,
@@ -448,7 +411,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
   });
 
   it("Inputbar 发送应绑定当前会话，避免落到旧 active session", async () => {
-    const handleSend = vi.fn().mockResolvedValue(true);
+    const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHookNode(
       createDefaultProps({
         sessionId: "session-current-inputbar",
@@ -488,7 +451,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
   });
 
   it("Inputbar 显式 targetSessionId 应优先于当前会话", async () => {
-    const handleSend = vi.fn().mockResolvedValue(true);
+    const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHookNode(
       createDefaultProps({
         sessionId: "session-current-inputbar",
@@ -532,16 +495,9 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       await getLatestInputbarProps().onSend?.({
         composerTarget: "queue",
         composerIntent: "queue",
-        composerDraft: {
+        composerDraft: new ComposerController({
           text: "排队任务",
-          selectionStart: 4,
-          selectionEnd: 4,
-          textElements: [],
-          mentionBindings: [],
-          attachments: [],
-          pathReferences: [],
-          pendingPastes: [],
-        },
+        }).captureDraft(),
         textOverride: "排队任务",
       });
     });
@@ -554,23 +510,62 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
     );
   });
 
+  it("queue cannot pair another target session with the current canonical thread", async () => {
+    renderHookNode(
+      createDefaultProps({
+        sessionId: "current-session",
+        threadId: "current-thread",
+      }),
+    );
+    expect(
+      await getLatestInputbarProps().onSend({
+        composerTarget: "queue",
+        textOverride: "body",
+        sendOptions: { targetSessionId: "other-session" },
+      }),
+    ).toEqual({ kind: "unknown" });
+    expect(mockThreadQueueActions.addThreadQueue).not.toHaveBeenCalled();
+  });
+
   it("queue 等待 canonical 接受期间拒绝重复派发，拒绝后允许重试", async () => {
     let reject!: (error: Error) => void;
-    mockThreadQueueActions.addThreadQueue.mockImplementationOnce(() =>
-      new Promise((_resolve, rejectQueue) => { reject = rejectQueue; }));
+    mockThreadQueueActions.addThreadQueue.mockImplementationOnce(
+      () =>
+        new Promise((_resolve, rejectQueue) => {
+          reject = rejectQueue;
+        }),
+    );
     renderHookNode(createDefaultProps({ threadId: "thread-queue-pending" }));
-    let pending!: ReturnType<NonNullable<ReturnType<typeof getLatestInputbarProps>["onSend"]>>;
+    let pending!: ReturnType<
+      NonNullable<ReturnType<typeof getLatestInputbarProps>["onSend"]>
+    >;
     await act(async () => {
-      pending = getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" });
+      pending = getLatestInputbarProps().onSend?.({
+        composerTarget: "queue",
+        textOverride: "排队任务",
+      });
       await Promise.resolve();
     });
     expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledOnce();
-    expect(await getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" })).toBe(false);
+    expect(
+      await getLatestInputbarProps().onSend?.({
+        composerTarget: "queue",
+        textOverride: "排队任务",
+      }),
+    ).toMatchObject({ kind: "rejected" });
     expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledOnce();
-    await act(async () => { reject(new Error("queue rejected")); await pending; });
-    expect(await pending).toBe(false);
     await act(async () => {
-      expect(await getLatestInputbarProps().onSend?.({ composerTarget: "queue", textOverride: "排队任务" })).toBe(true);
+      reject(new Error("queue rejected"));
+      await pending;
+    });
+    expect(await pending).toMatchObject({ kind: "rejected" });
+    await act(async () => {
+      expect(
+        await getLatestInputbarProps().onSend?.({
+          composerTarget: "queue",
+          textOverride: "排队任务",
+        }),
+      ).toMatchObject({ kind: "queue-accepted" });
     });
     expect(mockThreadQueueActions.addThreadQueue).toHaveBeenCalledTimes(2);
   });
@@ -578,7 +573,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
   it.each(["start", "steer"] as const)(
     "%s 应保留顶层 typed submission 和完整 draft",
     async (target) => {
-      const handleSend = vi.fn().mockResolvedValue(true);
+      const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
       renderHookNode(
         createDefaultProps({ sessionId: "session-structured", handleSend }),
       );
@@ -673,7 +668,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
         },
       });
     });
-    expect(result).toBe(false);
+    expect(result).toMatchObject({ kind: "rejected" });
     expect(mockThreadQueueActions.addThreadQueue).not.toHaveBeenCalled();
     expect(toastMock.error).toHaveBeenCalled();
   });
@@ -689,26 +684,19 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       }),
     );
 
-    let result: boolean | void = true;
+    let result: RuntimeSubmissionResult | undefined;
     await act(async () => {
       result = await getLatestInputbarProps().onSend?.({
         composerTarget: "queue",
         composerIntent: "queue",
-        composerDraft: {
+        composerDraft: new ComposerController({
           text: "保留这份草稿",
-          selectionStart: 7,
-          selectionEnd: 7,
-          textElements: [],
-          mentionBindings: [],
-          attachments: [],
-          pathReferences: [],
-          pendingPastes: [],
-        },
+        }).captureDraft(),
         textOverride: "保留这份草稿",
       });
     });
 
-    expect(result).toBe(false);
+    expect(result).toMatchObject({ kind: "rejected" });
     expect(toastMock.error).toHaveBeenCalledWith("队列操作失败，请重试");
   });
 
@@ -1085,7 +1073,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
   });
 
   it("parent-owned thread 应保留草稿并拒绝发送与设置变更", async () => {
-    const handleSend = vi.fn().mockResolvedValue(true);
+    const handleSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const setChatToolPreferences = vi.fn();
     renderHookNode(
       createDefaultProps({
@@ -1101,9 +1089,9 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
       "此子线程由父线程管理，无法直接输入",
     );
 
-    expect(await inputbarProps.onSend?.({ textOverride: "不得直接提交" })).toBe(
-      false,
-    );
+    expect(
+      await inputbarProps.onSend?.({ textOverride: "不得直接提交" }),
+    ).toMatchObject({ kind: "rejected" });
     act(() => {
       inputbarProps.onToolStatesChange?.({ plan: true });
     });
@@ -1147,7 +1135,7 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
         text: "恢复这段输入",
         images: [],
         pathReferences: [],
-        inputCapabilityRoute: null,
+        inputCapabilityRoute: undefined,
       },
     };
 

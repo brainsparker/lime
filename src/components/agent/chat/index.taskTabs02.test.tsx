@@ -7,14 +7,12 @@ import {
   installMockAgentChatUnifiedState,
   mountPage,
 } from "./index.testFixtures";
-import { buildHomeAgentParams } from "@/lib/workspace/navigation";
+import { commitNewConversationRoute } from "./index.testFixtures";
 import { TASK_CENTER_OPEN_TAB_IDS_STORAGE_KEY } from "./utils/taskCenterTabs";
-import { requestTaskCenterDraftTask } from "./taskCenterDraftTaskEvents";
 
 describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, () => {
-  it("切到另一条旧会话后仍应继续在当前页新建本地草稿", async () => {
+  it("切换旧会话后公开 New 请求的 committed route 应回到稳定 Home", async () => {
     const onNavigate = vi.fn();
-    vi.mocked(buildHomeAgentParams).mockClear();
     const state: Record<string, unknown> = createMockAgentChatUnifiedState({
       sessionId: "topic-current",
       topics: [
@@ -43,9 +41,10 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     });
     await flushEffects();
 
-    expect(requestTaskCenterDraftTask({ source: "sidebar" })).toBe(true);
-    await flushEffects();
-    mounted.rerender();
+    commitNewConversationRoute(mounted, {
+      projectId: "workspace-test",
+      freshDraft: true,
+    });
     await flushEffects();
 
     expect(
@@ -64,14 +63,13 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     mounted.rerender({ initialSessionId: "topic-next" });
     await flushEffects();
 
-    expect(requestTaskCenterDraftTask({ source: "sidebar" })).toBe(true);
-    await flushEffects();
-    mounted.rerender();
+    commitNewConversationRoute(mounted, {
+      projectId: "workspace-test",
+      freshDraft: true,
+    });
     await flushEffects();
 
     expect(state.createFreshSession).not.toHaveBeenCalled();
-    expect(buildHomeAgentParams).not.toHaveBeenCalled();
-    expect(onNavigate).not.toHaveBeenCalled();
     expect(
       mounted.container.querySelector('[data-testid="empty-state"]'),
     ).not.toBeNull();
@@ -272,9 +270,8 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     expect(setMessages).not.toHaveBeenCalledWith([]);
   });
 
-  it("new-task 首页连续新建任务事件应保留在当前页", async () => {
+  it("new-task 首页连续 committed New 请求不应预建 canonical 会话", async () => {
     const onNavigate = vi.fn();
-    vi.mocked(buildHomeAgentParams).mockClear();
     const state: Record<string, unknown> = createMockAgentChatUnifiedState({
       sessionId: null,
       topics: [],
@@ -289,14 +286,16 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     });
     await flushEffects();
 
-    expect(requestTaskCenterDraftTask({ source: "sidebar" })).toBe(true);
-    await flushEffects();
-    mounted.rerender();
+    commitNewConversationRoute(mounted, {
+      projectId: "workspace-test",
+      freshDraft: true,
+    });
     await flushEffects();
 
-    expect(requestTaskCenterDraftTask({ source: "sidebar" })).toBe(true);
-    await flushEffects();
-    mounted.rerender();
+    commitNewConversationRoute(mounted, {
+      projectId: "workspace-test",
+      freshDraft: true,
+    });
     await flushEffects();
 
     expect(
@@ -311,8 +310,6 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
       mounted.container.querySelector('[data-testid="empty-state"]'),
     ).not.toBeNull();
     expect(state.createFreshSession).not.toHaveBeenCalled();
-    expect(buildHomeAgentParams).not.toHaveBeenCalled();
-    expect(onNavigate).not.toHaveBeenCalled();
   });
 
   it("new-task 首页收到 current route 历史会话时应立即切换会话", async () => {
@@ -377,5 +374,4 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     ).toBeNull();
     expect(onNavigate).not.toHaveBeenCalled();
   });
-
 });

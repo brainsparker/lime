@@ -9,6 +9,8 @@ import { _electron as electron, chromium } from "playwright";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { ensureElectronFixtureBuild } from "../lib/electron-fixture-build.mjs";
+import { captureMainProcessExit } from "../electron/lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "./claw-chat-current-fixture-teardown.mjs";
 import {
   APP_SERVER_METHOD_SESSION_LIST,
   APPROVAL_REQUEST_CANCEL_SCENARIO,
@@ -938,6 +940,7 @@ async function run() {
   };
 
   let app = null;
+  let mainExit = null;
   let cdpBrowser = null;
   let page = null;
   let imageProviderFixtureServer = null;
@@ -952,13 +955,32 @@ async function run() {
   const actionableConsoleErrors = [];
   const pageErrors = [];
   const agentDebugLogs = [];
+  const composerDiagnosticReads = [];
   const pageLifecycleEvents = [];
   const fixtureConfigSoulOverrides =
     createSoulStyleFixtureOverrides(soulStyleSelection);
   const collectConsoleMessage = (message) => {
     const text = sanitizeText(message.text());
     if (text.includes("[AgentDebug]")) {
-      agentDebugLogs.push({ type: message.type(), text });
+      const entry = { type: message.type(), text };
+      agentDebugLogs.push(entry);
+      if (text.startsWith("[AgentDebug] ComposerSubmission.")) {
+        // CDP's console text previews only a few object fields; retain this
+        // owner's numeric/boolean diagnostics before its handle is released.
+        composerDiagnosticReads.push(
+          message
+            .args()[1]
+            ?.jsonValue()
+            .then(
+              (context) => {
+                entry.context = sanitizeJson(context);
+              },
+              () => {
+                entry.contextUnavailable = true;
+              },
+            ),
+        );
+      }
     }
     if (message.type() === "error") {
       consoleErrors.push(text);
@@ -1044,6 +1066,7 @@ async function run() {
       timeout: options.timeoutMs,
     });
 
+    mainExit = captureMainProcessExit(app.process());
     app.on("console", collectConsoleMessage);
     app.on("close", () => {
       pageLifecycleEvents.push({
@@ -1501,6 +1524,7 @@ async function run() {
 
     summary.consoleErrors = consoleErrors;
     summary.actionableConsoleErrors = actionableConsoleErrors;
+    await Promise.allSettled(composerDiagnosticReads);
     summary.agentDebugLogs = agentDebugLogs.slice(-200);
     summary.agentStreamDebugLogs = agentDebugLogs
       .filter((entry) => entry.text.includes("[AgentDebug] AgentStream."))
@@ -1531,11 +1555,7 @@ async function run() {
     summary.commonAssertions = assertionReport.commonAssertions;
     summary.scenarioAssertions = assertionReport.scenarioAssertions;
     summary.notApplicableAssertions = assertionReport.notApplicableAssertions;
-    summary.ok = true;
-    summary.completedAt = new Date().toISOString();
-    writeJsonFile(summaryPath, summary);
-    console.log(LOG_PREFIX + " summary=" + summaryPath);
-    console.log(LOG_PREFIX + " pass session=" + summary.sessionId);
+    summary.businessAssertionsPassed = true;
   } catch (error) {
     try {
       if (page) {
@@ -1606,6 +1626,7 @@ async function run() {
         applySoulStyleProviderMarkerSummary(summary, textProviderRequests);
       }
     }
+    await Promise.allSettled(composerDiagnosticReads);
     summary.agentDebugLogs = agentDebugLogs.slice(-200);
     summary.agentStreamDebugLogs = agentDebugLogs
       .filter((entry) => entry.text.includes("[AgentDebug] AgentStream."))
@@ -1628,23 +1649,28 @@ async function run() {
     console.error(LOG_PREFIX + " failureSummary=" + summaryPath);
     process.exitCode = 1;
   } finally {
-    if (invokeTraceCollector) {
-      await invokeTraceCollector.stop().catch(() => undefined);
-    }
-    if (cdpBrowser) {
-      await cdpBrowser.close().catch(() => undefined);
-    }
-    if (app) {
-      await app.close().catch(() => undefined);
-    }
-    if (imageProviderFixtureServer) {
-      await imageProviderFixtureServer.close().catch(() => undefined);
-    }
-    if (textProviderFixtureServer) {
-      await textProviderFixtureServer.close().catch(() => undefined);
-    }
-    if (!options.keepTemp) {
-      cleanupTempRoot(runtimeEnv.tempRoot);
+    summary.teardown = await settleFixtureResources({
+      app,
+      mainExit,
+      cdpBrowser,
+      invokeTraceCollector,
+      imageProviderFixtureServer,
+      textProviderFixtureServer,
+      cleanupTemp: options.keepTemp
+        ? null
+        : () => cleanupTempRoot(runtimeEnv.tempRoot),
+    });
+    summary.pageLifecycleEvents = pageLifecycleEvents;
+    summary.ok =
+      summary.businessAssertionsPassed === true && summary.teardown.ok;
+    summary.completedAt = new Date().toISOString();
+    writeJsonFile(summaryPath, summary);
+    if (summary.ok) {
+      console.log(LOG_PREFIX + " summary=" + summaryPath);
+      console.log(LOG_PREFIX + " pass session=" + summary.sessionId);
+    } else {
+      console.error(LOG_PREFIX + " failureSummary=" + summaryPath);
+      process.exitCode = 1;
     }
   }
 }

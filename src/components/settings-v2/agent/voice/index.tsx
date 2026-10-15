@@ -64,7 +64,7 @@ import {
 import { MediaPreferenceSection } from "../shared/MediaPreferenceSection";
 import { updateMediaPreference } from "../shared/mediaPreferencePersistence";
 import { SettingModelSelectorField } from "../shared/SettingModelSelectorField";
-import { useAutoDismissMessage } from "./useAutoDismissMessage";
+import { useAutoDismissMessage } from "../shared/useAutoDismissMessage";
 
 const DEFAULT_MEDIA_PREFERENCE: MediaGenerationPreference = {
   allowFallback: true,

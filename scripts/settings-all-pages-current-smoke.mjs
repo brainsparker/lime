@@ -4,7 +4,9 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
+import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { SETTINGS_GATE_A_TABS } from "./lib/project-gate-settings-a-core.mjs";
 
 const DEFAULTS = {
   appUrl: "http://127.0.0.1:1420/",
@@ -22,25 +24,6 @@ const DEFAULTS = {
   prefix: "settings-current",
   headless: true,
 };
-
-const SETTINGS_TABS = [
-  "设置首页",
-  "个人资料",
-  "数据统计",
-  "外观",
-  "记忆",
-  "已归档对话",
-  "AI 服务商",
-  "服务模型",
-  "MCP 服务器",
-  "网络搜索",
-  "环境变量",
-  "执行策略",
-  "连接器",
-  "自动化设置",
-  "开发者与实验功能",
-  "关于",
-];
 
 const PROBLEM_PATTERNS = [
   /无法连接后端桥接/,
@@ -465,82 +448,19 @@ function clearInvokeBuffers() {
   }
 }
 
-async function clickByButtonText(page, label) {
-  const result = await page.evaluate((targetLabel) => {
-    const findVisibleButton = (scope) =>
-      [...scope.querySelectorAll("button")].find((candidate) => {
-        const rect = candidate.getBoundingClientRect();
-        if (
-          rect.width <= 0 ||
-          rect.height <= 0 ||
-          candidate.hasAttribute("disabled") ||
-          candidate.getAttribute("aria-disabled") === "true"
-        ) {
-          return false;
-        }
-        const text = candidate.textContent?.replace(/\s+/g, " ").trim();
-        const aria = candidate.getAttribute("aria-label");
-        return (
-          text === targetLabel ||
-          text === `${targetLabel}进入配置` ||
-          text?.startsWith(targetLabel) ||
-          text?.startsWith(`${targetLabel} `) ||
-          aria === targetLabel
-        );
-      });
-
-    const scopes = [
-      document.querySelector('[data-testid="settings-sidebar"]'),
-      document.querySelector('[data-testid="settings-floating-nav-panel"]'),
-      document.body,
-    ].filter(Boolean);
-    const button = scopes.map(findVisibleButton).find(Boolean);
-
-    if (!button) {
-      const visibleButtons = [...document.querySelectorAll("button")]
-        .map((candidate, index) => {
-          const rect = candidate.getBoundingClientRect();
-          return {
-            index,
-            visible: rect.width > 0 && rect.height > 0,
-            text: candidate.textContent?.replace(/\s+/g, " ").trim() ?? "",
-            aria: candidate.getAttribute("aria-label") ?? "",
-            testId: candidate.getAttribute("data-testid") ?? "",
-            disabled:
-              candidate.hasAttribute("disabled") ||
-              candidate.getAttribute("aria-disabled") === "true",
-          };
-        })
-        .filter((candidate) => candidate.visible && !candidate.disabled)
-        .slice(0, 40);
-
-      return {
-        clicked: false,
-        url: window.location.href,
-        title: document.title,
-        settingsSidebarMounted: Boolean(
-          document.querySelector('[data-testid="settings-sidebar"]'),
-        ),
-        visibleButtons,
-        bodyStart: document.body.innerText
-          ?.replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 500),
-      };
-    }
-
-    button.scrollIntoView({ block: "center", inline: "nearest" });
-    button.click();
-    return { clicked: true };
-  }, label);
-  assert(
-    result.clicked,
-    `未找到设置按钮: ${label}; ${formatDiagnostics(result)}`,
+async function clickSettingsSection(page, key) {
+  const button = page.getByTestId(`settings-sidebar-tab-${key}`);
+  assert((await button.count()) === 1, `设置章节入口必须唯一: ${key}`);
+  await button.click();
+  await page.waitForFunction(
+    (key) =>
+      document
+        .querySelector(`[data-testid="settings-sidebar-tab-${key}"]`)
+        ?.getAttribute("aria-current") === "page",
+    key,
+    { timeout: 12_000 },
   );
-  await page
-    .waitForLoadState("domcontentloaded", { timeout: 5_000 })
-    .catch(() => {});
-  await page.waitForTimeout(150);
+  return button.innerText();
 }
 
 async function ensureSettingsGroupsExpanded(page) {
@@ -635,6 +555,7 @@ async function snapshotSettingsPage(page, tabName, subTabName = null) {
         recentErrors: errors.slice(-10),
         traceErrorCount: errorTraces.length,
         recentTraceErrors: errorTraces.slice(-10),
+        traces,
         textStart: sanitizeTextInPage(text.slice(0, 400)),
       };
     },
@@ -749,7 +670,9 @@ async function enterSettings(page, options) {
 
   const opened = await page.evaluate(() => {
     const settings =
-      document.querySelector('[data-testid="app-sidebar-account-model-settings"]') ||
+      document.querySelector(
+        '[data-testid="app-sidebar-account-model-settings"]',
+      ) ||
       [...document.querySelectorAll("button")].find(
         (button) => button.textContent?.trim() === "模型设置",
       ) ||
@@ -782,14 +705,15 @@ async function enterSettings(page, options) {
   );
 }
 
-async function clickSettingsTabs(page, options) {
+export async function clickSettingsTabs(page, options) {
   const results = [];
   await page.evaluate(() => {
     localStorage.removeItem("lime_invoke_error_buffer_v1");
     localStorage.removeItem("lime_invoke_trace_buffer_v1");
   });
 
-  for (const tab of SETTINGS_TABS) {
+  for (const key of SETTINGS_GATE_A_TABS) {
+    const tab = key;
     let settingsMounted = await waitForSettingsMounted(page, 8_000);
     if (!settingsMounted) {
       logStage(`recover-settings:${tab}`);
@@ -804,7 +728,7 @@ async function clickSettingsTabs(page, options) {
     );
 
     logStage(`tab:${tab}`);
-    await clickByButtonText(page, tab);
+    await clickSettingsSection(page, key);
     const stillMounted = await waitForSettingsMounted(page, 12_000);
     assert(
       stillMounted,
@@ -812,7 +736,7 @@ async function clickSettingsTabs(page, options) {
         await collectPageDiagnostics(page),
       )}`,
     );
-    await page.waitForTimeout(tab === "AI 服务商" ? 1_800 : 1_300);
+    await page.waitForTimeout(key === "providers" ? 1_800 : 1_300);
 
     results.push(await snapshotSettingsPage(page, tab));
 
@@ -917,7 +841,7 @@ async function main() {
         invokeResponseErrors.length === 0,
       checkedAt: new Date().toISOString(),
       appUrl: options.appUrl,
-      tabs: SETTINGS_TABS,
+      tabs: SETTINGS_GATE_A_TABS,
       pages,
       failedPages,
       consoleErrors,
@@ -980,11 +904,16 @@ async function main() {
   );
 }
 
-main().catch((error) => {
-  console.error(
-    `[smoke:settings-current] failed: ${
-      error instanceof Error ? error.message : String(error)
-    }`,
-  );
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  main().catch((error) => {
+    console.error(
+      `[smoke:settings-current] failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+    process.exitCode = 1;
+  });
+}

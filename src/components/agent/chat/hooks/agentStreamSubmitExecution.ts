@@ -49,6 +49,14 @@ import { resolveAllowedPermissionProfile } from "@/lib/api/permissionProfiles";
 import { permissionProfileIdFromAccessMode } from "../utils/accessModeRuntime";
 import type { ComposerSubmission } from "@/components/input-kit/types";
 
+import {
+  createTurnStartAcceptance,
+  createTurnSteerAcceptance,
+  reportRuntimeAcceptancePostProcessingFailure,
+  runRuntimeAcceptanceEffect,
+  type RuntimeAcceptanceReceipt,
+} from "@/lib/api/agentRuntime/runtimeAcceptance";
+
 type MessageParts = NonNullable<Message["contentParts"]>;
 
 interface ExecuteAgentStreamSubmitOptions {
@@ -207,7 +215,7 @@ async function setAcceptedThreadGoal(
 
 export async function executeAgentStreamSubmit(
   options: ExecuteAgentStreamSubmitOptions,
-) {
+): Promise<RuntimeAcceptanceReceipt> {
   const {
     runtime,
     ensureSession,
@@ -312,6 +320,13 @@ export async function executeAgentStreamSubmit(
     executionRuntime?.session_id === resolvedActiveSessionId
       ? executionRuntime
       : null;
+  const acceptanceContext = {
+    sessionId: resolvedActiveSessionId,
+    threadId: resolvedThreadId,
+    ...(clientUserMessageId?.trim()
+      ? { clientUserMessageId: clientUserMessageId.trim() }
+      : {}),
+  };
   const turnControl = await runtime.getThreadTurnControl(resolvedThreadId);
   const expectedTurnId = turnControl.activeTurnId?.trim();
   if (expectedTurnId) {
@@ -345,25 +360,34 @@ export async function executeAgentStreamSubmit(
     callbacks.clearOptimisticItem();
     callbacks.clearOptimisticTurn();
     const response = await runtime.steerTurn(params);
-    if (response.turnId !== expectedTurnId) {
-      throw new Error(
-        `turn/steer returned mismatched turnId: expected ${expectedTurnId}, received ${response.turnId || "<empty>"}`,
-      );
-    }
-    await refreshSessionReadModel(resolvedActiveSessionId);
-    setMessages((previous) =>
-      previous.flatMap((message) => {
-        if (message.id === assistantMsgId) {
-          return [];
-        }
-        return [
-          message.id === clientUserMessageId
-            ? { ...message, runtimeTurnId: expectedTurnId }
-            : message,
-        ];
-      }),
+    const receipt = createTurnSteerAcceptance(
+      acceptanceContext,
+      expectedTurnId,
+      response,
     );
-    return;
+    runRuntimeAcceptanceEffect(receipt, "observer", () =>
+      observer?.onRuntimeAccepted?.(receipt),
+    );
+    try {
+      await refreshSessionReadModel(resolvedActiveSessionId);
+    } catch {
+      reportRuntimeAcceptancePostProcessingFailure("steer_read_model", receipt);
+    }
+    runRuntimeAcceptanceEffect(receipt, "steer_projection", () =>
+      setMessages((previous) =>
+        previous.flatMap((message) => {
+          if (message.id === assistantMsgId) {
+            return [];
+          }
+          return [
+            message.id === clientUserMessageId
+              ? { ...message, runtimeTurnId: expectedTurnId }
+              : message,
+          ];
+        }),
+      ),
+    );
+    return receipt;
   }
   callbacks.activateStream(
     resolvedActiveSessionId,
@@ -446,16 +470,17 @@ export async function executeAgentStreamSubmit(
 
   callbacks.registerListener(unlisten);
 
-  await runAgentStreamSubmitLifecycle({
+  const receipt = await runAgentStreamSubmitLifecycle({
     activeSessionId: resolvedActiveSessionId,
     effectiveModel,
     effectiveProviderType,
     eventName,
+    onRuntimeAccepted: observer?.onRuntimeAccepted,
     onSubmitAccepted: () => {
       requestState.startTerminalRecoveryPoll?.();
     },
     requestState,
-    submit: async () => {
+    submit: async (accept) => {
       const { modelCapabilitySummary, modelRequestPolicyMetadata } =
         await resolveSubmitModelPolicy({
           images,
@@ -513,8 +538,14 @@ export async function executeAgentStreamSubmit(
         modelCapabilitySummary,
       });
 
-      await runtime.submitOp(submitOp);
-      await setAcceptedThreadGoal(resolvedThreadId, threadGoal);
+      let accepted: RuntimeAcceptanceReceipt | undefined;
+      const response = await runtime.submitOp(submitOp, (response) => {
+        accepted = createTurnStartAcceptance(acceptanceContext, response);
+        accept(accepted);
+      });
+      return accepted ?? createTurnStartAcceptance(acceptanceContext, response);
     },
   });
+  await setAcceptedThreadGoal(resolvedThreadId, threadGoal);
+  return receipt;
 }

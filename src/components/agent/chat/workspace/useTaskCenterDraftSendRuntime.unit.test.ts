@@ -1,3 +1,5 @@
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import { createElement, useEffect, useRef, useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -5,7 +7,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 import {
   useTaskCenterHomePendingPreviewRuntime,
   useTaskCenterDraftSendDispatchRuntime,
@@ -22,8 +23,6 @@ vi.mock("@/lib/agentUiPerformanceMetrics", () => ({
 
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 type DraftSendRuntimeHandle = {
-  commitMaterializedDraftTab: ReturnType<typeof vi.fn>;
-  materializeDraftTab: ReturnType<typeof vi.fn>;
   restoreInput: ReturnType<typeof vi.fn>;
   send: ReturnType<typeof vi.fn>;
 };
@@ -36,11 +35,10 @@ function createDraftSendRequest(
 ): TaskCenterDraftSendRequest {
   return {
     id: "draft-send-test",
-    draftTabId: "task-draft-test",
+    sessionId: null,
     text: "真实 E2E 目标",
     images: [],
     submittedAt: Date.now(),
-    materializeDraft: false,
     source: "empty-state",
     ...overrides,
   };
@@ -51,24 +49,18 @@ function mountDraftSendRuntime({
   messagesLength = 0,
   currentSessionId,
   request = createDraftSendRequest(),
-  sendResult = true,
+  sendResult = acceptedSubmission(),
   onSnapshot,
-  onNonMaterializedSessionReady,
-  materializeDraftResult = null,
-  prewarmedMaterializedSessionId = null,
-  prewarmedDraftSession = false,
+  onSessionAccepted,
   rerenderAfterMount = false,
 }: {
   displayMessagesLength: number;
   messagesLength?: number;
   currentSessionId?: string | null;
   request?: TaskCenterDraftSendRequest | null;
-  sendResult?: boolean;
-  materializeDraftResult?: string | null;
-  prewarmedMaterializedSessionId?: string | null;
-  prewarmedDraftSession?: boolean;
+  sendResult?: RuntimeSubmissionResult;
   rerenderAfterMount?: boolean;
-  onNonMaterializedSessionReady?: (sessionId: string) => void;
+  onSessionAccepted?: (sessionId: string) => void;
   onSnapshot: (snapshot: {
     taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
     homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
@@ -78,8 +70,6 @@ function mountDraftSendRuntime({
   document.body.appendChild(container);
   const root = createRoot(container);
   const restoreInput = vi.fn();
-  const commitMaterializedDraftTab = vi.fn();
-  const materializeDraftTab = vi.fn(async () => materializeDraftResult);
   const send = vi.fn(async () => sendResult);
 
   function Harness() {
@@ -88,18 +78,6 @@ function mountDraftSendRuntime({
       useState<TaskCenterDraftSendRequest | null>(request);
     const [homePendingPreviewRequest, setHomePendingPreviewRequest] =
       useState<TaskCenterDraftSendRequest | null>(request);
-    const materializedSessionIdsRef = useRef(
-      new Map<string, string>(
-        request && prewarmedMaterializedSessionId
-          ? [[request.draftTabId, prewarmedMaterializedSessionId]]
-          : [],
-      ),
-    );
-    const prewarmedDraftSessionIdsRef = useRef(
-      new Set<string>(
-        request && prewarmedDraftSession ? [request.draftTabId] : [],
-      ),
-    );
     const sendRef = useRef(send);
 
     useEffect(() => {
@@ -115,11 +93,7 @@ function mountDraftSendRuntime({
       messagesLength,
       displayMessagesLength,
       currentSessionId,
-      materializedSessionIdsRef,
-      prewarmedDraftSessionIdsRef,
-      materializeDraftTab,
-      commitMaterializedDraftTab,
-      onNonMaterializedSessionReady,
+      onSessionAccepted,
       restoreInput,
       sendRef,
       workspaceId: rerenderAfterMount
@@ -143,8 +117,6 @@ function mountDraftSendRuntime({
   mountedRoots.push({ root, container });
 
   return {
-    commitMaterializedDraftTab,
-    materializeDraftTab,
     restoreInput,
     send,
   };
@@ -187,35 +159,29 @@ function mountHomePendingPreviewRuntime({
 function mountEmptyStateSendRuntime({
   activeSessionId = null,
   activeSessionIdAfterSend,
-  activeDraftTabId = null,
   agentEntry = "claw",
   displayMessagesLength = 0,
   turnsLength = 0,
   threadItemsLength = 0,
   hasDisplayMessages = false,
   input = "默认输入",
-  prewarmedDraftSession = false,
-  prewarmedMaterializedSessionId = null,
   sessionId = null,
-  sendResult = true,
+  sendResult = acceptedSubmission(),
   taskCenterDraftSendRequest = null,
-  onNonMaterializedSessionReady = vi.fn(),
+  onSessionAccepted = vi.fn(),
 }: {
   activeSessionId?: string | null;
   activeSessionIdAfterSend?: string | null;
-  activeDraftTabId?: string | null;
   agentEntry?: string;
   displayMessagesLength?: number;
   turnsLength?: number;
   threadItemsLength?: number;
   hasDisplayMessages?: boolean;
   input?: string;
-  prewarmedDraftSession?: boolean;
-  prewarmedMaterializedSessionId?: string | null;
   sessionId?: string | null;
-  sendResult?: boolean;
+  sendResult?: RuntimeSubmissionResult;
   taskCenterDraftSendRequest?: TaskCenterDraftSendRequest | null;
-  onNonMaterializedSessionReady?: ReturnType<typeof vi.fn>;
+  onSessionAccepted?: ReturnType<typeof vi.fn>;
 } = {}) {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -227,9 +193,10 @@ function mountEmptyStateSendRuntime({
     if (activeSessionIdAfterSend !== undefined) {
       activeSessionIdRef.current = activeSessionIdAfterSend;
     }
-    return sendResult;
+    return sendResult.kind === "runtime-accepted" && activeSessionIdAfterSend
+      ? acceptedSubmission(activeSessionIdAfterSend)
+      : sendResult;
   });
-  const setTaskCenterDraftTabs = vi.fn();
   const setTaskCenterDraftSendRequest = vi.fn();
   const setHomePendingPreviewRequest = vi.fn();
   let sendHandler: ReturnType<
@@ -237,25 +204,11 @@ function mountEmptyStateSendRuntime({
   > | null = null;
 
   function Harness() {
-    const activeDraftTabIdRef = useRef<string | null>(activeDraftTabId);
-    const materializedSessionIdsRef = useRef(
-      new Map<string, string>(
-        activeDraftTabId && prewarmedMaterializedSessionId
-          ? [[activeDraftTabId, prewarmedMaterializedSessionId]]
-          : [],
-      ),
-    );
-    const prewarmedDraftSessionIdsRef = useRef(
-      new Set<string>(
-        activeDraftTabId && prewarmedDraftSession ? [activeDraftTabId] : [],
-      ),
-    );
     sendHandler = useTaskCenterEmptyStateSendRuntime({
       agentEntry,
       input,
       setInput,
       activeSessionIdRef,
-      activeDraftTabIdRef,
       clearMessages,
       displayMessagesLength,
       turnsLength,
@@ -264,13 +217,10 @@ function mountEmptyStateSendRuntime({
       handleSend,
       sessionId,
       taskCenterWorkspaceId: "workspace-test",
-      setTaskCenterDraftTabs,
       setTaskCenterDraftSendRequest,
       taskCenterDraftSendRequest,
       setHomePendingPreviewRequest,
-      materializedSessionIdsRef,
-      prewarmedDraftSessionIdsRef,
-      onNonMaterializedSessionReady,
+      onSessionAccepted,
     });
     return null;
   }
@@ -283,11 +233,10 @@ function mountEmptyStateSendRuntime({
   return {
     clearMessages,
     handleSend,
-    onNonMaterializedSessionReady,
+    onSessionAccepted,
     setHomePendingPreviewRequest,
     setInput,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
     send: (payload?: Parameters<NonNullable<typeof sendHandler>>[0]) => {
       if (!sendHandler) {
         throw new Error("send handler 尚未初始化");
@@ -329,7 +278,7 @@ describe("useTaskCenterHomePendingPreviewRuntime", () => {
   it("真实会话未 ready 前即使存在临时消息投影也应保留 pending preview", () => {
     const snapshots: HomePendingPreviewSnapshot[] = [];
     const request = createDraftSendRequest({
-      draftTabId: "draft-send-pending-preview",
+      sessionId: null,
       sessionReady: false,
       text: "你好",
     });
@@ -352,7 +301,7 @@ describe("useTaskCenterHomePendingPreviewRuntime", () => {
   it("真实会话消息接管后应退出 pending preview", () => {
     const snapshots: HomePendingPreviewSnapshot[] = [];
     const request = createDraftSendRequest({
-      draftTabId: "sess-ready-with-message",
+      sessionId: "sess-ready-with-message",
       sessionReady: true,
       text: "你好",
     });
@@ -370,7 +319,7 @@ describe("useTaskCenterHomePendingPreviewRuntime", () => {
   it("真实会话 ready 但消息尚未投影时仍应保留 pending preview", () => {
     const snapshots: HomePendingPreviewSnapshot[] = [];
     const request = createDraftSendRequest({
-      draftTabId: "sess-ready-before-message",
+      sessionId: "sess-ready-before-message",
       sessionReady: true,
       text: "整理今天的国际新闻",
     });
@@ -391,13 +340,13 @@ describe("useTaskCenterHomePendingPreviewRuntime", () => {
 
 describe("useTaskCenterDraftSendDispatchRuntime", () => {
   it("仅临时展示投影出现时不应清理首页首发 pending preview", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const snapshots: Array<{
       taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
       homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
     }> = [];
     const request = createDraftSendRequest({
-      draftTabId: "sess_ready",
+      sessionId: "sess_ready",
     });
 
     await act(async () => {
@@ -405,7 +354,7 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
         displayMessagesLength: 1,
         messagesLength: 0,
         request,
-        onNonMaterializedSessionReady,
+        onSessionAccepted,
         onSnapshot: (snapshot) => {
           snapshots.push(snapshot);
         },
@@ -418,14 +367,14 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
     expect(latest?.taskCenterDraftSendRequest).toBeNull();
     expect(latest?.homePendingPreviewRequest).toMatchObject({
       id: request.id,
-      draftTabId: "sess_ready",
+      sessionId: "sess_ready",
       sessionReady: true,
     });
-    expect(onNonMaterializedSessionReady).toHaveBeenCalledWith("sess_ready");
+    expect(onSessionAccepted).toHaveBeenCalledWith("sess_ready", request);
   });
 
   it("真实会话已有消息时应清理 draft surface 请求", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const snapshots: Array<{
       taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
       homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
@@ -436,9 +385,9 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
         displayMessagesLength: 0,
         messagesLength: 1,
         request: createDraftSendRequest({
-          draftTabId: "sess_real_message",
+          sessionId: "sess_real_message",
         }),
-        onNonMaterializedSessionReady,
+        onSessionAccepted,
         onSnapshot: (snapshot) => {
           snapshots.push(snapshot);
         },
@@ -449,13 +398,14 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
     const latest = snapshots.at(-1);
     expect(latest?.taskCenterDraftSendRequest).toBeNull();
     expect(latest?.homePendingPreviewRequest).toBeNull();
-    expect(onNonMaterializedSessionReady).toHaveBeenCalledWith(
+    expect(onSessionAccepted).toHaveBeenCalledWith(
       "sess_real_message",
+      expect.objectContaining({ sessionId: "sess_real_message" }),
     );
   });
 
   it("临时 draft-send id 没有真实 session 时应等待后续真实 session", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const snapshots: Array<{
       taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
       homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
@@ -466,9 +416,9 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
         displayMessagesLength: 1,
         messagesLength: 0,
         request: createDraftSendRequest({
-          draftTabId: "draft-send-test",
+          sessionId: null,
         }),
-        onNonMaterializedSessionReady,
+        onSessionAccepted,
         onSnapshot: (snapshot) => {
           snapshots.push(snapshot);
         },
@@ -476,14 +426,12 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       await Promise.resolve();
     });
 
-    expect(onNonMaterializedSessionReady).not.toHaveBeenCalled();
-    expect(snapshots.at(-1)?.taskCenterDraftSendRequest?.draftTabId).toBe(
-      "draft-send-test",
-    );
+    expect(onSessionAccepted).not.toHaveBeenCalled();
+    expect(snapshots.at(-1)?.taskCenterDraftSendRequest?.sessionId).toBeNull();
   });
 
-  it("临时 draft-send id 有真实 session 时应标记真实会话 ready", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+  it("临时 draft-send id 不能借用当前活跃 session 推导接受身份", async () => {
+    const onSessionAccepted = vi.fn();
 
     await act(async () => {
       mountDraftSendRuntime({
@@ -491,29 +439,26 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
         messagesLength: 0,
         currentSessionId: "sess_ready_from_state",
         request: createDraftSendRequest({
-          draftTabId: "draft-send-test",
+          sessionId: null,
         }),
-        onNonMaterializedSessionReady,
+        onSessionAccepted,
         onSnapshot: () => {},
       });
       await Promise.resolve();
     });
 
-    expect(onNonMaterializedSessionReady).toHaveBeenCalledWith(
-      "sess_ready_from_state",
-    );
+    expect(onSessionAccepted).not.toHaveBeenCalled();
   });
 
   it("direct-dispatch 首发应由发起者完成 session 交接", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const snapshots: Array<{
       taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
       homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
     }> = [];
     const request = createDraftSendRequest({
-      draftTabId: "draft-send-live",
+      sessionId: null,
       dispatchState: "dispatched",
-      materializeDraft: false,
       source: "empty-state",
       text: "@配图 画一张深圳夏天的图",
     });
@@ -523,7 +468,7 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       messagesLength: 0,
       currentSessionId: "sess_live_ready",
       request,
-      onNonMaterializedSessionReady,
+      onSessionAccepted,
       onSnapshot: (snapshot) => {
         snapshots.push(snapshot);
       },
@@ -533,24 +478,23 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       const latest = snapshots.at(-1);
       expect(latest?.taskCenterDraftSendRequest).toMatchObject({
         id: request.id,
-        draftTabId: "draft-send-live",
+        sessionId: null,
         dispatchState: "dispatched",
       });
       expect(latest?.homePendingPreviewRequest).toMatchObject({
         id: request.id,
-        draftTabId: "draft-send-live",
+        sessionId: null,
         dispatchState: "dispatched",
       });
     });
-    expect(onNonMaterializedSessionReady).not.toHaveBeenCalled();
+    expect(onSessionAccepted).not.toHaveBeenCalled();
   });
 
   it("direct-dispatch 首条消息出现时也不得提前清理 pending owner", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const request = createDraftSendRequest({
-      draftTabId: "draft-send-live-message",
+      sessionId: null,
       dispatchState: "dispatched",
-      materializeDraft: false,
       source: "task-center-empty-state",
     });
     const snapshots: Array<{
@@ -563,7 +507,7 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       displayMessagesLength: 2,
       messagesLength: 2,
       request,
-      onNonMaterializedSessionReady,
+      onSessionAccepted,
       onSnapshot: (snapshot) => snapshots.push(snapshot),
     });
 
@@ -571,7 +515,7 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       expect(snapshots.at(-1)?.taskCenterDraftSendRequest).toEqual(request);
       expect(snapshots.at(-1)?.homePendingPreviewRequest).toEqual(request);
     });
-    expect(onNonMaterializedSessionReady).not.toHaveBeenCalled();
+    expect(onSessionAccepted).not.toHaveBeenCalled();
   });
 
   it("首页首发发送返回 false 时应清理 pending preview", async () => {
@@ -583,9 +527,9 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
     const runtime = mountDraftSendRuntime({
       displayMessagesLength: 0,
       messagesLength: 0,
-      sendResult: false,
+      sendResult: { kind: "rejected" },
       request: createDraftSendRequest({
-        draftTabId: "sess-image-no-project",
+        sessionId: "sess-image-no-project",
         text: "参考图生成一张小红书封面",
       }),
       onSnapshot: (snapshot) => {
@@ -604,357 +548,13 @@ describe("useTaskCenterDraftSendDispatchRuntime", () => {
       "参考图生成一张小红书封面",
     );
   });
-
-  it("materialized 草稿发送成功但真实消息未接管前应保留 pending preview", async () => {
-    const snapshots: Array<{
-      taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
-      homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
-    }> = [];
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-materialized",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "画一张深圳夏天的图",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-materialized",
-      messagesLength: 0,
-      request,
-      sendResult: true,
-      onSnapshot: (snapshot) => {
-        snapshots.push(snapshot);
-      },
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      const latest = snapshots.at(-1);
-      expect(latest?.taskCenterDraftSendRequest).toBeNull();
-      expect(latest?.homePendingPreviewRequest?.id).toBe(request.id);
-    });
-    expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-      request.draftTabId,
-      "session-materialized",
-      {
-        embedHomeSession: false,
-        hydrateSession: false,
-        preserveInput: false,
-        syncRoute: false,
-      },
-    );
-    expect(runtime.send).toHaveBeenCalledWith(
-      request.images,
-      undefined,
-      undefined,
-      request.text,
-      undefined,
-      undefined,
-      expect.objectContaining({
-        targetSessionId: "session-materialized",
-        requestMetadata: expect.objectContaining({
-          agentUiPerformanceTrace: expect.objectContaining({
-            sessionId: "session-materialized",
-          }),
-        }),
-      }),
-    );
-    expect(
-      runtime.commitMaterializedDraftTab.mock.invocationCallOrder[0],
-    ).toBeLessThan(runtime.send.mock.invocationCallOrder[0]);
-  });
-
-  it("materialized 草稿发送应等待 pending preview paint 后再启动 materialize", async () => {
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-defer-materialize",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "先展示用户消息再创建正式会话",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-defer-materialize",
-      messagesLength: 0,
-      request,
-      sendResult: true,
-      onSnapshot: () => {},
-    });
-
-    expect(runtime.materializeDraftTab).not.toHaveBeenCalled();
-    expect(runtime.send).not.toHaveBeenCalled();
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      expect(runtime.materializeDraftTab).toHaveBeenCalledTimes(1);
-      expect(runtime.send).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  it("materialized 草稿发送期间仅有临时展示投影时应继续保留 pending preview", async () => {
-    const snapshots: Array<{
-      taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
-      homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
-    }> = [];
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-materialized-preview-race",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "你好-cdp-race",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 1,
-      materializeDraftResult: "session-materialized-preview-race",
-      messagesLength: 0,
-      request,
-      sendResult: true,
-      onSnapshot: (snapshot) => {
-        snapshots.push(snapshot);
-      },
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      const latest = snapshots.at(-1);
-      expect(latest?.taskCenterDraftSendRequest).toBeNull();
-      expect(latest?.homePendingPreviewRequest?.id).toBe(request.id);
-    });
-    expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-      request.draftTabId,
-      "session-materialized-preview-race",
-      {
-        embedHomeSession: false,
-        hydrateSession: false,
-        preserveInput: false,
-        syncRoute: false,
-      },
-    );
-    expect(runtime.send).toHaveBeenCalledWith(
-      request.images,
-      undefined,
-      undefined,
-      request.text,
-      undefined,
-      undefined,
-      expect.objectContaining({
-        targetSessionId: "session-materialized-preview-race",
-      }),
-    );
-  });
-
-  it("materialized 草稿目标 session 接管前不应被旧消息计数清掉 pending preview", async () => {
-    const snapshots: Array<{
-      taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
-      homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
-    }> = [];
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-materialized-owner",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "你好-owner-stability",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      currentSessionId: "old-session",
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-materialized-owner",
-      messagesLength: 1,
-      request,
-      sendResult: true,
-      onSnapshot: (snapshot) => {
-        snapshots.push(snapshot);
-      },
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      const latest = snapshots.at(-1);
-      expect(latest?.taskCenterDraftSendRequest).toBeNull();
-      expect(latest?.homePendingPreviewRequest).toMatchObject({
-        id: request.id,
-        draftTabId: "session-materialized-owner",
-        sessionReady: true,
-      });
-    });
-    expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-      request.draftTabId,
-      "session-materialized-owner",
-      {
-        embedHomeSession: false,
-        hydrateSession: false,
-        preserveInput: false,
-        syncRoute: false,
-      },
-    );
-  });
-
-  it("materialized 草稿发送成功后不应同步路由或拉取空详情", async () => {
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-route-sync",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "从草稿进入正式会话",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 1,
-      materializeDraftResult: "session-route-sync",
-      messagesLength: 1,
-      request,
-      sendResult: true,
-      onSnapshot: () => {},
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-        request.draftTabId,
-        "session-route-sync",
-        {
-          embedHomeSession: false,
-          hydrateSession: false,
-          preserveInput: false,
-          syncRoute: false,
-        },
-      );
-    });
-    const commitOptions = runtime.commitMaterializedDraftTab.mock.calls[0]?.[2];
-    expect(commitOptions).toEqual(
-      expect.objectContaining({ hydrateSession: false }),
-    );
-    expect(commitOptions).toEqual(
-      expect.objectContaining({ syncRoute: false }),
-    );
-  });
-
-  it("materialized 草稿发送复用输入预热 session 时不应同步路由", async () => {
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-prewarmed-route",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "复用预热会话发送",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-prewarmed-route",
-      messagesLength: 0,
-      prewarmedDraftSession: true,
-      request,
-      sendResult: true,
-      onSnapshot: () => {},
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-        request.draftTabId,
-        "session-prewarmed-route",
-        {
-          embedHomeSession: false,
-          hydrateSession: false,
-          preserveInput: false,
-          syncRoute: false,
-        },
-      );
-    });
-  });
-
-  it("materialized 草稿发送命中已预热 session 时不应重新 materialize", async () => {
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-prewarmed-ready",
-      materializeDraft: true,
-      source: "task-center-empty-state",
-      text: "命中预热会话后立即发送",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-should-not-be-used",
-      messagesLength: 0,
-      prewarmedMaterializedSessionId: "session-prewarmed-ready",
-      request,
-      sendResult: true,
-      onSnapshot: () => {},
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      expect(runtime.send).toHaveBeenCalledTimes(1);
-    });
-    expect(runtime.materializeDraftTab).not.toHaveBeenCalled();
-    expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledWith(
-      request.draftTabId,
-      "session-prewarmed-ready",
-      {
-        embedHomeSession: false,
-        hydrateSession: false,
-        preserveInput: false,
-        syncRoute: false,
-      },
-    );
-    expect(runtime.send).toHaveBeenCalledWith(
-      request.images,
-      undefined,
-      undefined,
-      request.text,
-      undefined,
-      undefined,
-      expect.objectContaining({
-        targetSessionId: "session-prewarmed-ready",
-        requestMetadata: expect.objectContaining({
-          agentUiPerformanceTrace: expect.objectContaining({
-            sessionId: "session-prewarmed-ready",
-          }),
-        }),
-      }),
-    );
-  });
-
-  it("materialized 草稿请求在 re-render 下也只派发一次", async () => {
-    const request = createDraftSendRequest({
-      draftTabId: "task-draft-rerender",
-      materializeDraft: true,
-      source: "empty-state",
-      text: "@配图 画一张深圳夏天的图",
-    });
-
-    const runtime = mountDraftSendRuntime({
-      displayMessagesLength: 0,
-      materializeDraftResult: "session-rerender",
-      messagesLength: 0,
-      request,
-      rerenderAfterMount: true,
-      sendResult: true,
-      onSnapshot: () => {},
-    });
-
-    await flushAfterNextPaint();
-
-    await vi.waitFor(() => {
-      expect(runtime.send).toHaveBeenCalledTimes(1);
-    });
-    expect(runtime.materializeDraftTab).toHaveBeenCalledTimes(1);
-    expect(runtime.commitMaterializedDraftTab).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("useTaskCenterEmptyStateSendRuntime", () => {
-  it("已有首页首发 pending 请求时应拒绝重复发送", () => {
+  it("已有首页首发 pending 请求时应拒绝重复发送", async () => {
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: "draft-a",
       taskCenterDraftSendRequest: createDraftSendRequest({
-        draftTabId: "draft-a",
-        materializeDraft: true,
+        sessionId: "draft-a",
       }),
     });
 
@@ -965,18 +565,15 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
       });
     });
 
-    expect(result).toBe(false);
+    expect(await result).toMatchObject({ kind: "rejected" });
     expect(runtime.setInput).not.toHaveBeenCalled();
     expect(runtime.setTaskCenterDraftSendRequest).not.toHaveBeenCalled();
     expect(runtime.setHomePendingPreviewRequest).not.toHaveBeenCalled();
-    expect(runtime.setTaskCenterDraftTabs).not.toHaveBeenCalled();
     expect(runtime.handleSend).not.toHaveBeenCalled();
   });
 
   it("React 状态提交前的连续触发也应只创建一次首页首发请求", async () => {
-    const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: "draft-a",
-    });
+    const runtime = mountEmptyStateSendRuntime({});
 
     let secondResult: unknown;
     act(() => {
@@ -988,187 +585,16 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
       });
     });
 
-    expect(secondResult).toBe(false);
+    const secondCompletion = secondResult;
     expect(runtime.setTaskCenterDraftSendRequest).toHaveBeenCalledTimes(1);
     expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledTimes(1);
-    expect(runtime.setTaskCenterDraftTabs).not.toHaveBeenCalled();
+    expect(await secondCompletion).toMatchObject({ kind: "rejected" });
     await flushAfterNextPaint();
-    expect(runtime.setTaskCenterDraftTabs).toHaveBeenCalledTimes(1);
     expect(runtime.handleSend).toHaveBeenCalledTimes(1);
-  });
-
-  it("已有 draft tab 时应创建 direct draft send request 并清理旧会话内容", async () => {
-    const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: "draft-a",
-      displayMessagesLength: 1,
-      hasDisplayMessages: true,
-    });
-
-    act(() => {
-      runtime.send({
-        textOverride: "生成一版项目复盘",
-        sendOptions: { displayContent: "展示文本" },
-        triggeredAt: 1_780_000_010_000,
-        triggerSource: "button",
-      });
-    });
-
-    expect(runtime.setInput).toHaveBeenCalledWith("");
-    expect(runtime.setInput.mock.invocationCallOrder[0]).toBeLessThan(
-      runtime.setTaskCenterDraftSendRequest.mock.invocationCallOrder[0],
-    );
-    expect(runtime.clearMessages).toHaveBeenCalledWith({ showToast: false });
-    expect(runtime.setTaskCenterDraftSendRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draftTabId: expect.stringMatching(/^draft-send-/),
-        dispatchState: "dispatched",
-        materializeDraft: false,
-        source: "task-center-empty-state",
-        submittedAt: 1_780_000_010_000,
-        text: "生成一版项目复盘",
-        triggerSource: "button",
-      }),
-    );
-    expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draftTabId: expect.stringMatching(/^draft-send-/),
-        dispatchState: "dispatched",
-        materializeDraft: false,
-      }),
-    );
-
-    expect(runtime.setTaskCenterDraftTabs).not.toHaveBeenCalled();
-    await flushAfterNextPaint();
-    const updateTabs = runtime.setTaskCenterDraftTabs.mock.calls[0]?.[0] as
-      | ((tabs: TaskCenterDraftTab[]) => TaskCenterDraftTab[])
-      | undefined;
-    const now = new Date("2026-06-22T00:00:00.000Z");
-    expect(
-      updateTabs?.([
-        {
-          id: "draft-a",
-          title: "新对话",
-          createdAt: now,
-          updatedAt: now,
-          status: "draft",
-        },
-      ]),
-    ).toEqual([
-      expect.objectContaining({
-        id: "draft-a",
-        title: "生成一版项目复盘",
-        status: "running",
-      }),
-    ]);
-    expect(runtime.handleSend).toHaveBeenCalledWith(
-      [],
-      undefined,
-      undefined,
-      "生成一版项目复盘",
-      undefined,
-      undefined,
-      expect.objectContaining({
-        displayContent: "展示文本",
-        skipSessionRestore: true,
-        skipSessionStartHooks: true,
-        skipWorkspaceCommandRouting: true,
-        requestMetadata: expect.objectContaining({
-          agentUiPerformanceTrace: expect.objectContaining({
-            sessionId: null,
-            source: "task-center-empty-state",
-            workspaceId: "workspace-test",
-          }),
-        }),
-      }),
-    );
-    expect(recordAgentUiPerformanceMetric).toHaveBeenCalledWith(
-      "homeInput.submit",
-      expect.objectContaining({
-        hasDraftTab: true,
-        source: "task-center-empty-state",
-        triggerSource: "button",
-        workspaceId: "workspace-test",
-      }),
-    );
-  });
-
-  it("已有 draft tab 且输入预热会话未完成时应交给 materialized dispatch", async () => {
-    const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: "draft-a",
-      hasDisplayMessages: false,
-      prewarmedDraftSession: true,
-      sessionId: null,
-    });
-
-    act(() => {
-      runtime.send({ textOverride: "你好" });
-    });
-
-    expect(runtime.setTaskCenterDraftSendRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draftTabId: "draft-a",
-        materializeDraft: true,
-        source: "task-center-empty-state",
-        text: "你好",
-      }),
-    );
-    expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        draftTabId: "draft-a",
-        materializeDraft: true,
-        source: "task-center-empty-state",
-        text: "你好",
-      }),
-    );
-    expect(runtime.handleSend).not.toHaveBeenCalled();
-
-    await flushAfterNextPaint();
-
-    expect(runtime.handleSend).not.toHaveBeenCalled();
-    expect(runtime.setTaskCenterDraftTabs).not.toHaveBeenCalled();
-  });
-
-  it("已有 draft tab 首发成功后应把源 draft tab 绑定到真实 session", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
-    const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: "draft-a",
-      activeSessionIdAfterSend: "sess_ready_from_active_draft",
-      hasDisplayMessages: false,
-      onNonMaterializedSessionReady,
-      sessionId: null,
-    });
-
-    act(() => {
-      runtime.send({ textOverride: "你好" });
-    });
-    await flushAfterNextPaint();
-
-    expect(onNonMaterializedSessionReady).toHaveBeenCalledWith(
-      "sess_ready_from_active_draft",
-      { sourceDraftTabId: "draft-a" },
-    );
-    const bindHomePreview =
-      runtime.setHomePendingPreviewRequest.mock.calls.find(
-        ([arg]) => typeof arg === "function",
-      )?.[0] as
-        | ((
-            current: TaskCenterDraftSendRequest | null,
-          ) => TaskCenterDraftSendRequest | null)
-        | undefined;
-    const initialPreview =
-      runtime.setHomePendingPreviewRequest.mock.calls[0]?.[0];
-    expect(
-      bindHomePreview?.(initialPreview as TaskCenterDraftSendRequest),
-    ).toMatchObject({
-      draftTabId: "sess_ready_from_active_draft",
-      sessionReady: true,
-      text: "你好",
-    });
   });
 
   it("Task Center 首页无会话内容且没有 session 时应直接派发普通发送并保留 pending preview", async () => {
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: null,
       hasDisplayMessages: false,
       sessionId: null,
     });
@@ -1179,18 +605,16 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
 
     expect(runtime.setTaskCenterDraftSendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        draftTabId: expect.stringMatching(/^draft-send-/),
+        id: expect.stringMatching(/^draft-send-/),
         dispatchState: "dispatched",
-        materializeDraft: false,
         source: "empty-state",
         text: "继续拆分 workspace",
       }),
     );
     expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        draftTabId: expect.stringMatching(/^draft-send-/),
+        id: expect.stringMatching(/^draft-send-/),
         dispatchState: "dispatched",
-        materializeDraft: false,
         source: "empty-state",
         text: "继续拆分 workspace",
       }),
@@ -1199,7 +623,6 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
     expect(runtime.setInput.mock.invocationCallOrder[0]).toBeLessThan(
       runtime.setTaskCenterDraftSendRequest.mock.invocationCallOrder[0],
     );
-    expect(runtime.setTaskCenterDraftTabs).not.toHaveBeenCalled();
     expect(runtime.handleSend).not.toHaveBeenCalled();
 
     await flushAfterNextPaint();
@@ -1241,12 +664,11 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
         initialTrackingRequest as TaskCenterDraftSendRequest,
       ),
     ).toBeNull();
-    expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledTimes(1);
+    expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledTimes(2);
   });
 
   it("首页 direct dispatch 在同步 preview 提交后的 microtask 中启动，不等待下一帧", async () => {
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: null,
       hasDisplayMessages: false,
       sessionId: null,
     });
@@ -1264,12 +686,11 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
   });
 
   it("Task Center 首页首发成功后拿到真实 session 时应立即接管前台会话", async () => {
-    const onNonMaterializedSessionReady = vi.fn();
+    const onSessionAccepted = vi.fn();
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: null,
       activeSessionIdAfterSend: "sess_ready_after_direct_send",
       hasDisplayMessages: false,
-      onNonMaterializedSessionReady,
+      onSessionAccepted,
       sessionId: null,
     });
 
@@ -1278,8 +699,9 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
     });
     await flushAfterNextPaint();
 
-    expect(onNonMaterializedSessionReady).toHaveBeenCalledWith(
+    expect(onSessionAccepted).toHaveBeenCalledWith(
       "sess_ready_after_direct_send",
+      expect.objectContaining({}),
     );
     const bindHomePreview =
       runtime.setHomePendingPreviewRequest.mock.calls.find(
@@ -1294,7 +716,7 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
     expect(
       bindHomePreview?.(initialPreview as TaskCenterDraftSendRequest),
     ).toMatchObject({
-      draftTabId: "sess_ready_after_direct_send",
+      sessionId: "sess_ready_after_direct_send",
       sessionReady: true,
       text: "你好",
     });
@@ -1302,7 +724,6 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
 
   it("Task Center 首页已有 session 时应直接进入普通发送流并保留 pending preview", async () => {
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: null,
       hasDisplayMessages: false,
       sessionId: "sess_existing",
     });
@@ -1313,18 +734,16 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
 
     expect(runtime.setTaskCenterDraftSendRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        draftTabId: "sess_existing",
+        sessionId: "sess_existing",
         dispatchState: "dispatched",
-        materializeDraft: false,
         source: "empty-state",
         text: "继续拆分 workspace",
       }),
     );
     expect(runtime.setHomePendingPreviewRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        draftTabId: "sess_existing",
+        sessionId: "sess_existing",
         dispatchState: "dispatched",
-        materializeDraft: false,
         source: "empty-state",
         text: "继续拆分 workspace",
       }),
@@ -1360,7 +779,7 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
     expect(recordAgentUiPerformanceMetric).toHaveBeenCalledWith(
       "homeInput.sendDispatch.done",
       expect.objectContaining({
-        result: true,
+        result: "runtime-accepted",
         sessionId: "sess_existing",
         source: "empty-state",
         workspaceId: "workspace-test",
@@ -1384,10 +803,9 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
 
   it("Task Center 首页已有 session 普通发送派发失败时应恢复输入并清理 pending preview", async () => {
     const runtime = mountEmptyStateSendRuntime({
-      activeDraftTabId: null,
       hasDisplayMessages: false,
       input: "失败后保留文本",
-      sendResult: false,
+      sendResult: { kind: "rejected" },
       sessionId: "sess_existing",
     });
 
@@ -1453,14 +871,15 @@ describe("useTaskCenterEmptyStateSendRuntime", () => {
       "普通发送",
       undefined,
       undefined,
-      sendOptions,
+      expect.objectContaining(sendOptions),
     );
     expect(recordAgentUiPerformanceMetric).toHaveBeenCalledWith(
       "homeInput.submit",
       expect.objectContaining({
-        hasDraftTab: false,
+        inputLength: 4,
         sessionId: "session-a",
         source: "empty-state",
+        workspaceId: "workspace-test",
       }),
     );
   });

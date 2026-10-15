@@ -40,6 +40,7 @@ import { withInvokeTraceCollector } from "../lib/invoke-trace-collector.mjs";
 import {
   prepareHistoryPaste,
   captureComposerHistoryDraft,
+  clearComposerDraftForHistory,
   verifyComposerHistoryRecall,
 } from "./claw-chat-current-fixture-composer-history.mjs";
 import {
@@ -608,6 +609,12 @@ export async function prepareRichDraft(
         prompt: INPUTBAR_RICH_RESTORE_PROMPT,
       })
     : null;
+  if (marksEvidence)
+    recordRichRestoreStep(
+      summary,
+      "marks-language-picker",
+      marksEvidence.pickerBoundary,
+    );
   const pasteToken = await prepareHistoryPaste(
     page,
     richRestoreSessionId,
@@ -800,24 +807,6 @@ async function runObservedInputbarRichRestoreScenario({
   const threadId = summary?.threadId;
   summary.inputbarRichRestoreBackendTurnStart =
     summarizeBackendTurnStart(backendTurnStart);
-  summary.inputbarRichRestoreHistoryBoundary =
-    await verifyComposerHistoryRecall({
-      page,
-      options,
-      prepared: historyPrepared,
-      threadId,
-      sessionId: richRestoreSessionId,
-      skillIdentity,
-      expectedSubmission,
-      backendText: backendTurnStart.entry.inputText,
-      imageDataUrl: `data:image/png;base64,${RICH_RESTORE_IMAGE_BASE64}`,
-      pathReference: {
-        id: `file:${INPUTBAR_RICH_RESTORE_PATH}`,
-        path: INPUTBAR_RICH_RESTORE_PATH,
-        name: INPUTBAR_RICH_RESTORE_PATH_NAME,
-        isDir: "false",
-      },
-    });
 
   summary.inputbarRichRestoreStopClick = sanitizeJson(
     await waitForStopButtonVisibleAndClick(page, options),
@@ -895,6 +884,33 @@ async function runObservedInputbarRichRestoreScenario({
         }),
       },
     );
+
+  // History navigation is a new editing operation and invalidates old restore tokens.
+  // Verify Stop first, then independently recall history from a user-cleared draft.
+  summary.inputbarRichRestoreHistoryStart = await clearComposerDraftForHistory({
+    page,
+    options,
+    sessionId: richRestoreSessionId,
+  });
+  summary.inputbarRichRestoreHistoryBoundary =
+    await verifyComposerHistoryRecall({
+      page,
+      options,
+      traceCollector,
+      prepared: historyPrepared,
+      threadId,
+      sessionId: richRestoreSessionId,
+      skillIdentity,
+      expectedSubmission,
+      backendText: backendTurnStart.entry.inputText,
+      imageDataUrl: `data:image/png;base64,${RICH_RESTORE_IMAGE_BASE64}`,
+      pathReference: {
+        id: `file:${INPUTBAR_RICH_RESTORE_PATH}`,
+        path: INPUTBAR_RICH_RESTORE_PATH,
+        name: INPUTBAR_RICH_RESTORE_PATH_NAME,
+        isDir: "false",
+      },
+    });
 
   summary.inputbarRichRestoreUserMessageCollapse =
     await runRichUserMessageCollapseGate({

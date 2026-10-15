@@ -63,7 +63,6 @@ import {
   listenOpenVoiceModelSettingsRequest,
   persistVoiceModelSettingsFocusRequest,
 } from "./lib/voiceModelSettingsNavigation";
-import type { AgentPageParams } from "./types/page";
 
 const AppContainer = styled.div`
   display: flex;
@@ -153,22 +152,17 @@ function AppContent() {
     requestedPage,
     requestedPageParams,
     handleNavigate,
+    startNewConversation,
+    returnFromSettings,
+    reportAgentLocation,
+    agentLocation,
   } = useAppNavigation();
   const [agentHasMessages, setAgentHasMessages] = useState(false);
-  const [activeAgentSessionId, setActiveAgentSessionId] = useState<
-    string | null
-  >(null);
+  const activeAgentSessionId = agentLocation?.sessionId ?? null;
   const [activeAgentStreaming, setActiveAgentStreaming] = useState(false);
   const [backgroundAgentSessionRuntime, setBackgroundAgentSessionRuntime] =
     useState<AgentBackgroundSessionRuntimeSnapshot | null>(null);
   const activeAgentPage = requestedPage ?? currentPage;
-  const activeAgentPageParams = requestedPageParams ?? pageParams;
-  const activeAgentRouteSessionId =
-    activeAgentPage === "agent"
-      ? ((
-          activeAgentPageParams as AgentPageParams | undefined
-        )?.initialSessionId?.trim() ?? null)
-      : null;
 
   const [projectDialogOpen, setProjectDialogOpen] = useState(false);
   const [pendingRecommendation, setPendingRecommendation] = useState<{
@@ -415,13 +409,9 @@ function AppContent() {
   );
   useEffect(() => {
     if (activeAgentPage !== "agent") {
-      setActiveAgentSessionId(null);
       setActiveAgentStreaming(false);
-      return;
     }
-
-    setActiveAgentSessionId(activeAgentRouteSessionId);
-  }, [activeAgentPage, activeAgentRouteSessionId]);
+  }, [activeAgentPage]);
 
   const handleBackgroundSessionRuntimeChange = useCallback(
     (snapshot: AgentBackgroundSessionRuntimeSnapshot | null) => {
@@ -474,6 +464,7 @@ function AppContent() {
             requestedPage={requestedPage}
             requestedPageParams={requestedPageParams}
             onNavigate={handleNavigate}
+            onStartNewConversation={startNewConversation}
             onStartWindowDrag={handleWindowDragStart}
           />
         )}
@@ -494,8 +485,10 @@ function AppContent() {
               requestedPage={requestedPage}
               requestedPageParams={requestedPageParams}
               onNavigate={handleNavigate}
+              onStartNewConversation={startNewConversation}
               onAgentHasMessagesChange={setAgentHasMessages}
-              onAgentSessionChange={setActiveAgentSessionId}
+              onAgentLocationChange={reportAgentLocation}
+              onSettingsBack={returnFromSettings}
               onAgentStreamingChange={setActiveAgentStreaming}
               onBackgroundSessionRuntimeChange={
                 handleBackgroundSessionRuntimeChange

@@ -45,7 +45,7 @@ describe("marks fixture against the current Markdown renderer", () => {
     );
     expect(container.querySelector("a")?.getAttribute("title")).toBe("标题");
     expect(container.querySelector("code")?.textContent).toBe(
-      "  中😀\n````\n\n",
+      "  const value = '中😀';\n````\n\n",
     );
   });
 
@@ -88,6 +88,8 @@ describe("marks fixture against the current Markdown renderer", () => {
     expect(expected.text).toContain(
       '[中😀](https://example.invalid/marks "标题")',
     );
-    expect(expected.text).toContain("`````ts\n  中😀\n````\n\n\n`````");
+    expect(expected.text).toContain(
+      "`````typescript\n  const value = '中😀';\n````\n\n\n`````",
+    );
   });
 });

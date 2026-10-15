@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { MessageImage, MessagePathReference } from "../types";
 import type { InputCapabilitySendRoute } from "../skill-selection/inputCapabilitySelection";
 import type { ComposerDraftSnapshot } from "@/components/input-kit/types";
@@ -25,6 +26,7 @@ export interface InterruptedInputRestorePlan {
 }
 
 export interface InterruptedInputRestoreRequest {
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   requestId: string;
   reason: InterruptedInputRestoreReason;
   draft: InterruptedInputDraftSnapshot;

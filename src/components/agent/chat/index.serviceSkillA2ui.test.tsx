@@ -9,7 +9,7 @@ import {
   waitForElement,
   waitForPendingA2UIForm,
 } from "./index.testFixtures";
-import { requestTaskCenterDraftTask } from "./taskCenterDraftTaskEvents";
+import { commitNewConversationRoute } from "./index.testFixtures";
 
 describe("AgentChatPage 服务技能 A2UI", () => {
   it("页面参数带着 pending service skill 时，应在当前对话挂起服务技能 A2UI", async () => {
@@ -98,7 +98,7 @@ describe("AgentChatPage 服务技能 A2UI", () => {
       `pending A2UI 调用历史：${JSON.stringify(collectPendingA2UIFormIds())}`,
     ).toContain("service-skill-launch");
 
-    expect(requestTaskCenterDraftTask({ source: "sidebar" })).toBe(true);
+    expect(commitNewConversationRoute(mounted, {})).toBe(true);
     await flushEffects();
     mounted.rerender();
     await flushEffects();

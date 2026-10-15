@@ -5,18 +5,13 @@ import type {
   SetStateAction,
 } from "react";
 import type { Topic } from "../hooks/agentChatShared";
-import type { AgentChatWorkspaceProps } from "../agentChatWorkspaceContract";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
 import type { OpenedProjectSummary } from "../hooks/useOpenedProjectSummaries";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
-import type {
-  TaskCenterDraftTab,
-  TaskCenterHomeSurfaceState,
-} from "./agentChatWorkspaceHelpers";
+import type { TaskCenterHomeSurfaceState } from "./agentChatWorkspaceHelpers";
 import { useTaskCenterConversationNavigationRuntime } from "./useTaskCenterConversationNavigationRuntime";
 import { useTaskCenterFallbackRestoreRuntime } from "./useTaskCenterFallbackRestoreRuntime";
 import { useTaskCenterHomeChromeRuntime } from "./useTaskCenterHomeChromeRuntime";
-import { useTaskCenterNewTaskPageRuntime } from "./useTaskCenterNewTaskPageRuntime";
 import { useTaskCenterTabChrome } from "./useTaskCenterTabChrome";
 
 interface TaskCenterFallbackRestoreState {
@@ -31,17 +26,14 @@ interface OpenTaskTopicOptions {
 }
 
 interface UseTaskCenterChromeNavigationRuntimeParams {
-  activeDraftTabId: string | null;
   agentEntry: "new-task" | "claw";
-  applyProjectSelection: (projectId: string) => void;
+  activeTheme: string;
+  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   clearEmbeddedHomeSession: (sessionId: string) => void;
   detachedTopicId: string | null;
   draftSendRequest: TaskCenterDraftSendRequest | null;
   draftSurfaceActive: boolean;
-  draftTabActive: boolean;
-  draftTabs: TaskCenterDraftTab[];
   embeddedHomeSessionIds: ReadonlySet<string>;
-  externalProjectId?: string | null;
   fallbackRestoreRef: MutableRefObject<TaskCenterFallbackRestoreState | null>;
   hasDisplayMessages: boolean;
   hasLocalSessionOverride: boolean;
@@ -59,29 +51,24 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
   isSending: boolean;
   isSessionHydrating: boolean;
   isTaskCenterDraftSurfaceActive: boolean;
-  isTaskCenterDraftTabActive: boolean;
-  isThemeWorkbench: boolean;
   layoutMode: LayoutMode;
   messagesLength: number;
   newChatAt?: number;
   newConversationLabel: string;
   normalizedInitialSessionId?: string | null;
   onCloseTaskCenterTab: (topicId: string) => void;
-  onNavigate?: AgentChatWorkspaceProps["onNavigate"];
   onOpenTaskTopic: (
     topicId: string,
     options?: OpenTaskTopicOptions,
   ) => void | Promise<void>;
   onSwitchTaskTopic: (topicId: string) => void | Promise<void>;
   onToggleWorkbench: () => void;
-  openDraftTab: () => string;
   openTabIds: string[];
   openedProjects: OpenedProjectSummary[];
   projectId?: string | null;
   queuedTurnsLength: number;
   renamePromptLabel: string;
   renameTopic: (topicId: string, title: string) => void | Promise<void>;
-  resetProjectSelection: () => void;
   sessionId?: string | null;
   setHarnessPanelVisible: Dispatch<SetStateAction<boolean>>;
   shouldSuppressDraftContent: boolean;
@@ -121,18 +108,15 @@ interface TaskCenterChromeNavigationRuntime {
 }
 
 export function useTaskCenterChromeNavigationRuntime({
-  activeDraftTabId,
   agentEntry,
-  applyProjectSelection,
+  activeTheme,
+  onStartNewConversation,
   clearEmbeddedHomeSession,
   detachedTopicId,
   displayMessageCount,
   draftSendRequest,
   draftSurfaceActive,
-  draftTabActive,
-  draftTabs,
   embeddedHomeSessionIds,
-  externalProjectId,
   fallbackRestoreRef,
   hasDisplayMessages,
   hasLocalSessionOverride,
@@ -151,26 +135,21 @@ export function useTaskCenterChromeNavigationRuntime({
   isSending,
   isSessionHydrating,
   isTaskCenterDraftSurfaceActive,
-  isTaskCenterDraftTabActive,
-  isThemeWorkbench,
   layoutMode,
   messagesLength,
   newChatAt,
   newConversationLabel,
   normalizedInitialSessionId,
   onCloseTaskCenterTab,
-  onNavigate,
   onOpenTaskTopic,
   onSwitchTaskTopic,
   onToggleWorkbench,
-  openDraftTab,
   openTabIds,
   openedProjects,
   projectId,
   queuedTurnsLength,
   renamePromptLabel,
   renameTopic,
-  resetProjectSelection,
   sessionId,
   setHarnessPanelVisible,
   shouldSuppressDraftContent,
@@ -200,7 +179,6 @@ export function useTaskCenterChromeNavigationRuntime({
     renamePromptLabel,
     renameTopic,
     draftSurfaceActive: isTaskCenterDraftSurfaceActive,
-    draftTabActive: isTaskCenterDraftTabActive,
     shouldSuppressDraftContent,
     draftSendRequest,
     normalizedInitialSessionId,
@@ -237,15 +215,12 @@ export function useTaskCenterChromeNavigationRuntime({
     onOpenTaskTopic,
   });
 
-  const handleOpenTaskCenterNewTaskPage = useTaskCenterNewTaskPageRuntime({
-    agentEntry,
-    externalProjectId,
-    normalizedInitialSessionId,
-    onNavigate,
-    applyProjectSelection,
-    resetProjectSelection,
-    openTaskCenterDraftTab: openDraftTab,
-  });
+  const handleOpenTaskCenterNewTaskPage = () => {
+    onStartNewConversation?.({
+      projectId: taskCenterWorkspaceId ?? null,
+      freshDraft: true,
+    });
+  };
 
   const {
     shouldHideDetachedTaskCenterTabs,
@@ -255,6 +230,7 @@ export function useTaskCenterChromeNavigationRuntime({
     browserWorkspaceHomeTabsNode,
   } = useTaskCenterTabChrome({
     agentEntry,
+    activeTheme,
     sessionId,
     normalizedInitialSessionId,
     initialSessionName,
@@ -262,9 +238,6 @@ export function useTaskCenterChromeNavigationRuntime({
     openTabIds,
     topics,
     previewTopicId: taskCenterPreviewTopicId,
-    draftTabs,
-    activeDraftTabId,
-    isDraftTabActive: draftTabActive,
     hasLocalSessionOverride,
     topicById,
     untitledTaskLabel,
@@ -272,7 +245,6 @@ export function useTaskCenterChromeNavigationRuntime({
     newConversationLabel,
     newChatAt,
     homeMountedAt,
-    isThemeWorkbench,
     layoutMode,
     onSwitchTaskTopic,
     onRenameTaskTopic: handleRenameTaskTopic,
@@ -287,7 +259,6 @@ export function useTaskCenterChromeNavigationRuntime({
     isAutoRestoringSession,
     isSessionHydrating,
     draftSurfaceActive,
-    draftTabActive,
     initialPendingServiceSkillLaunchSignature,
     initialDispatchKey,
     isBootstrapDispatchPending,

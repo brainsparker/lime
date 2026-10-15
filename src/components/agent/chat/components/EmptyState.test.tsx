@@ -1,6 +1,19 @@
+import { safeInvoke, safeListen } from "@/lib/dev-bridge";
+import {
+  a,
+  b,
+  harness as coordinatorHarness,
+  deferred,
+} from "@/components/input-kit/ComposerDraftCoordinator.testFixtures";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
+import { getInputbarSendOptions } from "./Inputbar/inputbarSendPayload";
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
 import { ComposerController } from "@/components/input-kit/ComposerController";
 import { insertComposerSkill } from "../skill-selection/composerCapabilityMention";
-import { getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
+import {
+  getComposerEditorText,
+  setComposerEditorText,
+} from "@/components/input-kit/composerEditor.testUtils";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -11,7 +24,10 @@ import type { ProjectGitStatus } from "@/lib/api/projectGit";
 import type { Skill } from "@/lib/api/skills";
 import type { ServiceSkillHomeItem } from "../service-skills/types";
 import type { InputCapabilitySelection } from "../skill-selection/inputCapabilitySelection";
-import type { InputbarSendPayload } from "./Inputbar/inputbarSendPayload";
+import type {
+  InputbarSendHandler,
+  InputbarSendPayload,
+} from "./Inputbar/inputbarSendPayload";
 import { recordSlashEntryUsage } from "../skill-selection/slashEntryUsage";
 import {
   buildCuratedTaskLaunchPrompt,
@@ -122,6 +138,11 @@ const mockCharacterMention = vi.fn<
   }) => React.ReactNode
 >();
 
+vi.mock("@/lib/dev-bridge", () => ({
+  safeInvoke: vi.fn(),
+  safeListen: vi.fn(),
+}));
+vi.mock("@/lib/api/appServer", () => ({ AppServerClient: vi.fn() }));
 vi.mock("@/lib/api/appConfig", () => ({
   getConfig: mockGetConfig,
 }));
@@ -340,6 +361,18 @@ vi.mock("sonner", () => ({
 }));
 
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
+const coordinatorInstances: Awaited<ReturnType<typeof coordinatorHarness>>[] =
+  [];
+async function prepareCoordinator() {
+  const h = await coordinatorHarness({ safeInvoke, safeListen });
+  coordinatorInstances.push(h);
+  await h.coordinator.bindCommitted(a);
+  h.controller.setText("EmptyState persistent draft");
+  return h;
+}
+afterEach(async () => {
+  for (const h of coordinatorInstances.splice(0)) await h.close();
+});
 
 beforeEach(async () => {
   await changeLimeLocale("zh-CN");
@@ -430,7 +463,7 @@ function renderEmptyState(
   const defaultProps: React.ComponentProps<typeof EmptyState> = {
     input: "",
     setInput: vi.fn(),
-    onSend: vi.fn(),
+    onSend: vi.fn<InputbarSendHandler>(async () => acceptedSubmission()),
     providerType: "openai",
     setProviderType: vi.fn(),
     model: "gpt-4.1",
@@ -481,16 +514,25 @@ function expectEmptyStateSend(
   expect(actual).toBeTruthy();
   expect(actual?.images).toEqual(payload.images);
   expect(actual?.textOverride).toEqual(payload.textOverride);
-  expect(actual?.composerDraft?.editorDocument.type).toBe("doc");
-  if (actual?.composerSubmission?.text) expect(actual.composerSubmission.text).toBe(actual.textOverride);
+  expect(actual?.composerDraft?.editorDocument?.type).toBe("doc");
+  if (actual?.composerSubmission?.text)
+    expect(actual.composerSubmission.text).toBe(actual.textOverride);
   else expect(actual?.composerSubmission?.textElements).toEqual([]);
-  expect(actual?.sendOptions?.inputRestoreDraft).toEqual({ ...actual?.composerDraft, images: actual?.composerDraft?.attachments });
+  expect(actual?.sendOptions?.inputRestoreDraft).toEqual({
+    ...actual?.composerDraft,
+    images: actual?.composerDraft?.attachments,
+  });
   if (payload.sendOptions && "asymmetricMatch" in payload.sendOptions) {
     expect(actual?.sendOptions).toEqual(payload.sendOptions);
   } else {
-    const { inputRestoreDraft: _actualRestore, ...actualOptions } = actual?.sendOptions ?? {};
-    const { inputRestoreDraft: expectedRestore, ...expectedOptions } = payload.sendOptions ?? {};
-    if (expectedRestore) expect(actual?.sendOptions?.inputRestoreDraft).toMatchObject(expectedRestore);
+    const { inputRestoreDraft: _actualRestore, ...actualOptions } =
+      actual?.sendOptions ?? {};
+    const { inputRestoreDraft: expectedRestore, ...expectedOptions } =
+      payload.sendOptions ?? {};
+    if (expectedRestore)
+      expect(actual?.sendOptions?.inputRestoreDraft).toMatchObject(
+        expectedRestore,
+      );
     expect(actualOptions).toEqual(expectedOptions);
   }
 }
@@ -504,7 +546,10 @@ function updateFieldValue(
     return;
   }
 
-  if (element.matches('[data-testid="composer-editor"]')) { setComposerEditorText(element, value); return; }
+  if (element.matches('[data-testid="composer-editor"]')) {
+    setComposerEditorText(element, value);
+    return;
+  }
   const prototype =
     element instanceof HTMLTextAreaElement
       ? HTMLTextAreaElement.prototype
@@ -1031,9 +1076,13 @@ describe("EmptyState", () => {
     expect(container.textContent).toContain(
       "How do I add and use project knowledge?",
     );
-    expect(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')?.getAttribute("data-placeholder")).toContain(
-      "What would you like to learn?",
-    );
+    expect(
+      container
+        .querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        )
+        ?.getAttribute("data-placeholder"),
+    ).toContain("What would you like to learn?");
   });
 
   it("非通用首页快速启动面板应跟随 en-US 资源", async () => {
@@ -1058,7 +1107,7 @@ describe("EmptyState", () => {
 
   it("仅发送路径引用时应使用当前 locale 的兜底 prompt", async () => {
     await changeLimeLocale("en-US");
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       activeTheme: "general",
       input: "",
@@ -1109,7 +1158,7 @@ describe("EmptyState", () => {
 
   it("启用 pointerdown 发送时首页发送按钮不应在 click 重复发送", async () => {
     const nowSpy = vi.spyOn(Date, "now").mockReturnValue(1_780_000_200_000);
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       activeTheme: "general",
       input: "你好",
@@ -1144,7 +1193,7 @@ describe("EmptyState", () => {
   });
 
   it("从 Skills 页带回的技能应显示在首页输入框内的 @ 标签", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const skill = {
       key: "local:writer",
       name: "写作助手",
@@ -1201,7 +1250,7 @@ describe("EmptyState", () => {
   });
 
   it("首页中断恢复请求应由 EmptyState 完整恢复文本、图片、路径和技能 route", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const onInputRestoreRequestHandled = vi.fn();
     const pathReference = {
       id: "file:/tmp/report.md",
@@ -1227,7 +1276,12 @@ describe("EmptyState", () => {
       installed: true,
       sourceKind: "other",
     } as Skill;
-    const draftController = new ComposerController({ text: "继续生成提纲", attachments: [image], pathReferences: [pathReference], inputCapabilityRoute: capabilityRoute });
+    const draftController = new ComposerController({
+      text: "继续生成提纲",
+      attachments: [image],
+      pathReferences: [pathReference],
+      inputCapabilityRoute: capabilityRoute,
+    });
     insertComposerSkill(draftController, skill);
     const originalDraft = draftController.captureDraft();
     const container = document.createElement("div");
@@ -1285,7 +1339,13 @@ describe("EmptyState", () => {
     });
     await flushAsyncEffects();
 
-    expect(getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]'))).toBe(originalDraft.text);
+    expect(
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
+    ).toBe(originalDraft.text);
     expect(
       container.querySelector('[data-composer-token="skill"]'),
     ).toBeTruthy();
@@ -1402,9 +1462,13 @@ describe("EmptyState", () => {
     expect(
       container.querySelector('[data-testid="home-starter-chips"]'),
     ).toBeNull();
-    expect(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')?.getAttribute("data-placeholder")).toContain(
-      "想了解什么？试试",
-    );
+    expect(
+      container
+        .querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        )
+        ?.getAttribute("data-placeholder"),
+    ).toContain("想了解什么？试试");
 
     const closeGuide = container.querySelector(
       '[data-testid="home-guide-help-active-badge"] button',
@@ -1952,13 +2016,11 @@ describe("EmptyState", () => {
         detail: "正在执行工具批次",
         supportingLines: [],
         batchDescriptor: null,
-        queuedTurnCount: 0,
         pendingRequestCount: 0,
         subtaskStats: null,
       },
       onOpenMemoryWorkbench,
       onOpenChannels,
-      onOpenChromeRelay,
     });
 
     await act(async () => {
@@ -2309,7 +2371,7 @@ describe("EmptyState", () => {
       },
     ];
     const setInput = vi.fn<(value: string) => void>();
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
 
     const container = renderEmptyState({
       input: "@",
@@ -2417,7 +2479,7 @@ describe("EmptyState", () => {
   });
 
   it("首页安装技能选择应走统一 capability 回调，且发送后清除激活态", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const skill: Skill = {
       key: "canvas-design",
       name: "canvas-design",
@@ -2480,7 +2542,12 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
     act(() => {
-      updateFieldValue(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]'), "帮我设计封面");
+      updateFieldValue(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+        "帮我设计封面",
+      );
     });
     await act(async () => {
       await Promise.resolve();
@@ -2503,11 +2570,13 @@ describe("EmptyState", () => {
     expect(secondPayload?.images).toBeUndefined();
     expect(secondPayload?.sendOptions?.capabilityRoute).toBeUndefined();
     expect(secondPayload?.composerSubmission?.inputMentions).toEqual([]);
-    expect(secondPayload?.sendOptions?.inputRestoreDraft?.editorDocument.type).toBe("doc");
+    expect(
+      secondPayload?.sendOptions?.inputRestoreDraft?.editorDocument?.type,
+    ).toBe("doc");
   });
 
   it("首页选择 builtin command 后发送应透传结构化 capability route", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const command = {
       key: "image-compose",
       label: "配图",
@@ -2632,7 +2701,7 @@ describe("EmptyState", () => {
   });
 
   it("首页启用项目资料后发送应携带资料引用 metadata", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       input: "按项目资料写一版介绍",
       onSend,
@@ -2693,7 +2762,7 @@ describe("EmptyState", () => {
         platform_region: "X 与 TikTok 北美区",
       },
     });
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const setInput = vi.fn();
     const container = renderEmptyState({
       input: prompt,
@@ -2795,7 +2864,7 @@ describe("EmptyState", () => {
         },
       ],
     });
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const setInput = vi.fn();
     const container = renderEmptyState({
       input: promptWithReference,
@@ -2948,7 +3017,7 @@ describe("EmptyState", () => {
   });
 
   it("首页复盘模板启动时，应默认带入当前项目结果基线", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const setInput = vi.fn();
     const container = renderEmptyState({
       onSend,
@@ -3308,7 +3377,9 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
-    const textarea = container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]');
+    const textarea = container.querySelector<HTMLElement>(
+      '[data-testid="composer-editor"][role="textbox"]',
+    );
     expect(textarea?.getAttribute("data-placeholder")).toBe(
       "先说这轮要做什么，目标、对象或限制都可以。",
     );
@@ -3459,7 +3530,7 @@ describe("EmptyState", () => {
   });
 
   it("通用首页发送时不应自动注入任何历史默认 skill", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       input: "请输出一篇新品发布文案",
       activeTheme: "general",
@@ -3484,7 +3555,7 @@ describe("EmptyState", () => {
   });
 
   it("首页开启 plan 和 goal 后发送应绑定当前 thread goal", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       input: "请先规划再持续推进这个任务",
       activeTheme: "general",
@@ -3541,7 +3612,7 @@ describe("EmptyState", () => {
       chat_appearance: {},
     }));
 
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const container = renderEmptyState({
       input: "请输出一篇用户访谈纪要",
       activeTheme: "general",
@@ -3566,7 +3637,7 @@ describe("EmptyState", () => {
   });
 
   it("首页手动选择安装技能后发送时仍应优先使用 capability route", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const skill: Skill = {
       key: "custom-writing-skill",
       name: "custom-writing-skill",
@@ -3620,7 +3691,7 @@ describe("EmptyState", () => {
   });
 
   it("首页先选 capability 再切到服务技能入口时，不应继续残留旧 capability route", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
     const onSelectServiceSkill = vi.fn<(skill: ServiceSkillHomeItem) => void>();
     const installedSkill: Skill = {
       key: "canvas-design",
@@ -3791,5 +3862,224 @@ describe("EmptyState", () => {
       "workspace_error",
     );
     expect(onResumeRecentSession).not.toHaveBeenCalled();
+  });
+  it.each([
+    { kind: "unknown" as const },
+    { kind: "local-handled" as const },
+    { kind: "rejected" as const },
+  ])("preserves draft for %j", async (result) => {
+    const controller = new ComposerController({ text: "保留首页富草稿😀" });
+    const onSend = vi.fn<InputbarSendHandler>(async () => result);
+    const setInput = vi.fn();
+    const container = renderEmptyState({
+      input: controller.getDocument().text,
+      composerController: controller,
+      onSend,
+      setInput,
+      activeTheme: "general",
+    });
+    await flushAsyncEffects();
+    const before = controller.captureDraft();
+    const button = container.querySelector(
+      'button[aria-label="发送"]',
+    ) as HTMLButtonElement;
+    expect(button).toBeTruthy();
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+    expect(onSend).toHaveBeenCalledOnce();
+    expect(controller.captureDraft()).toEqual(before);
+    expect(setInput).not.toHaveBeenCalledWith("");
+  });
+  it("starts real consume from the early observer while final send completion is pending", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<RuntimeSubmissionResult>();
+    const commit = vi.spyOn(h.controller, "commit");
+    const setInput = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>((payload) => {
+      getInputbarSendOptions(payload!)?.observer?.onRuntimeAccepted?.(
+        acceptedSubmission().receipt,
+      );
+      return gate.promise;
+    });
+    const container = renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      setInput,
+      onSend,
+    });
+    await flushAsyncEffects();
+    await act(async () => {
+      (
+        container.querySelector(
+          'button[aria-label="发送"]',
+        ) as HTMLButtonElement
+      ).click();
+      await h.coordinator.idle();
+    });
+    expect(onSend).toHaveBeenCalledOnce();
+    expect(
+      onSend.mock.calls[0][0]?.composerDraftCapture?.receipt.submission.text,
+    ).toBe("EmptyState persistent draft");
+    expect(commit).toHaveBeenCalledOnce();
+    expect(setInput).toHaveBeenCalledWith("");
+    await act(async () => {
+      gate.resolve({ kind: "unknown" });
+      await Promise.resolve();
+    });
+    expect(commit).toHaveBeenCalledOnce();
+  });
+
+  it("settles old capture after navigating and unmounting without clearing the new document", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<RuntimeSubmissionResult>();
+    const setInput = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>(() => gate.promise);
+    const container = renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      setInput,
+      onSend,
+    });
+    await flushAsyncEffects();
+    await act(async () => {
+      (
+        container.querySelector(
+          'button[aria-label="发送"]',
+        ) as HTMLButtonElement
+      ).click();
+    });
+    await act(async () => {
+      await h.coordinator.bindCommitted(b);
+      h.controller.setText("new target draft");
+    });
+    const mounted = mountedRoots.pop()!;
+    act(() => mounted.root.unmount());
+    mounted.container.remove();
+    setInput.mockClear();
+    await act(async () => {
+      gate.resolve(acceptedSubmission());
+      await Promise.resolve();
+      await h.coordinator.idle();
+    });
+    expect(await h.read(a)).toBeNull();
+    expect(h.controller.getDocument().text).toBe("new target draft");
+    expect(setInput).not.toHaveBeenCalledWith("");
+  });
+
+  it("rejects persistent restore without the original capture token", async () => {
+    const h = await prepareCoordinator();
+    const handled = vi.fn();
+    renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      inputRestoreRequest: {
+        requestId: "old",
+        reason: "output_free_interrupted_turn",
+        draft: { text: "stale other scope" },
+      },
+      onInputRestoreRequestHandled: handled,
+    });
+    await flushAsyncEffects();
+    expect(h.controller.getDocument().text).toBe("EmptyState persistent draft");
+    expect(handled).toHaveBeenCalledWith("old");
+  });
+
+  it("restores the accepted draft with a matching original token after consume", async () => {
+    const h = await prepareCoordinator();
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
+    const container = renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      onSend,
+    });
+    await flushAsyncEffects();
+    await act(async () => {
+      (
+        container.querySelector(
+          'button[aria-label="发送"]',
+        ) as HTMLButtonElement
+      ).click();
+      await Promise.resolve();
+      await h.coordinator.idle();
+    });
+    const payload = onSend.mock.calls[0][0]!;
+    expect(h.controller.getDocument().text).toBe("");
+    const first = mountedRoots.pop()!;
+    act(() => first.root.unmount());
+    first.container.remove();
+    const handled = vi.fn();
+    renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: "",
+      inputRestoreRequest: {
+        requestId: "same",
+        reason: "output_free_interrupted_turn",
+        draft: payload.sendOptions!.inputRestoreDraft!,
+        composerRestoreToken: payload.composerRestoreToken,
+      },
+      onInputRestoreRequestHandled: handled,
+    });
+    await flushAsyncEffects();
+    expect(h.controller.getDocument().text).toBe("EmptyState persistent draft");
+    expect(handled).toHaveBeenCalledWith("same");
+  });
+  it("defers an early stop restore until the same token finishes consuming", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<unknown>();
+    h.intercept((command, args, execute) =>
+      command === "persisted_atom_update" &&
+      (args.mutation as { op: string }).op === "consume"
+        ? gate.promise.then(execute)
+        : execute(),
+    );
+    const onSend = vi.fn<InputbarSendHandler>(async () => acceptedSubmission());
+    const container = renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      onSend,
+    });
+    await flushAsyncEffects();
+    await act(async () => {
+      (
+        container.querySelector(
+          'button[aria-label="发送"]',
+        ) as HTMLButtonElement
+      ).click();
+      await Promise.resolve();
+    });
+    const payload = onSend.mock.calls[0][0]!;
+    const first = mountedRoots.pop()!;
+    act(() => first.root.unmount());
+    first.container.remove();
+    const handled = vi.fn();
+    renderEmptyState({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      input: h.controller.getDocument().text,
+      inputRestoreRequest: {
+        requestId: "early",
+        reason: "output_free_interrupted_turn",
+        draft: payload.sendOptions!.inputRestoreDraft!,
+        composerRestoreToken: payload.composerRestoreToken,
+      },
+      onInputRestoreRequestHandled: handled,
+    });
+    await flushAsyncEffects();
+    expect(handled).not.toHaveBeenCalled();
+    await act(async () => {
+      gate.resolve(null);
+      await h.coordinator.idle();
+    });
+    await flushAsyncEffects();
+    expect(handled).toHaveBeenCalledWith("early");
+    expect(h.controller.getDocument().text).toBe("EmptyState persistent draft");
   });
 });

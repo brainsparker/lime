@@ -265,7 +265,10 @@ function renderWorkspaceChatContent({
             </>
           </ChatContent>
         ) : (
-          <EmptyState {...landingSurface.emptyStateProps} />
+          <>
+            <EmptyState {...landingSurface.emptyStateProps} />
+            {landingSurface.composerDraftStatusNode}
+          </>
         )}
       </ChatContainerInner>
     </ChatContainer>

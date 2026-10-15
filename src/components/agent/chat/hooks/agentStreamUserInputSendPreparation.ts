@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { AutoContinueRequestPayload } from "@/lib/api/agentRuntime/sessionTypes";
 import type { ModeKind } from "@limecloud/app-server-client";
@@ -83,6 +84,7 @@ export interface PreparedAgentStreamUserInputSend {
   userMsgId: string | null;
   userMsg: Message | null;
   assistantMsg: Message;
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   submittedDraft?: InterruptedInputDraftSnapshot | null;
   inputMentions?: AgentInputMention[];
   composerSubmission?: ComposerSubmission;
@@ -440,6 +442,9 @@ export function prepareAgentStreamUserInputSend(
     userMsg,
     assistantMsg,
     submittedDraft,
+    ...(sendOptions?.composerRestoreToken
+      ? { composerRestoreToken: sendOptions.composerRestoreToken }
+      : {}),
     inputMentions,
     composerSubmission,
   };

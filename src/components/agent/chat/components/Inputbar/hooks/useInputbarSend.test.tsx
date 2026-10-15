@@ -1,3 +1,22 @@
+import { safeInvoke, safeListen } from "@/lib/dev-bridge";
+import {
+  a,
+  b,
+  local,
+  harness as coordinatorHarness,
+  deferred,
+} from "@/components/input-kit/ComposerDraftCoordinator.testFixtures";
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftCapture,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import type { AcceptedRuntimeSubmissionResult } from "../../../hooks/agentSendResult";
+import { getInputbarSendOptions } from "../inputbarSendPayload";
+import { acceptedSubmission } from "../../../hooks/agentSendResult.testFixtures";
+import {
+  fromQueueAcceptanceResponse,
+  type RuntimeSubmissionResult,
+} from "../../../hooks/agentSendResult";
 import React, { useEffect } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -5,10 +24,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Skill } from "@/lib/api/skills";
 import type { MessageImage, MessagePathReference } from "../../../types";
 import type { InputCapabilitySelection } from "../../../skill-selection/inputCapabilitySelection";
-import type {
-  InputbarSendHandler,
-  InputbarSendTriggerSource,
-} from "../inputbarSendPayload";
+import type { InputbarSendHandler } from "../inputbarSendPayload";
 import { useInputbarSend } from "./useInputbarSend";
 import { ComposerController } from "@/components/input-kit/ComposerController";
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
@@ -17,6 +33,11 @@ const { recordAgentUiPerformanceMetricMock } = vi.hoisted(() => ({
   recordAgentUiPerformanceMetricMock: vi.fn(),
 }));
 
+vi.mock("@/lib/dev-bridge", () => ({
+  safeInvoke: vi.fn(),
+  safeListen: vi.fn(),
+}));
+vi.mock("@/lib/api/appServer", () => ({ AppServerClient: vi.fn() }));
 vi.mock("@/lib/agentUiPerformanceMetrics", () => ({
   recordAgentUiPerformanceMetric: recordAgentUiPerformanceMetricMock,
 }));
@@ -37,18 +58,29 @@ interface HarnessProps {
   projectId?: string | null;
   sessionId?: string | null;
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: (
+    capture: ComposerDraftCapture,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => Promise<void> | void;
+  onComposerAccepted?: (
+    draft: ComposerDraftSnapshot | undefined,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => void;
   isLoading?: boolean;
   onComposerCommitted?: (text: string, draft?: ComposerDraftSnapshot) => void;
 }
 
 const mountedRoots: MountedHarness[] = [];
-let latestSend:
-  | ((metadata?: {
-      triggeredAt?: number;
-      triggerSource?: InputbarSendTriggerSource;
-      submitTarget?: "start" | "queue" | "steer" | "interrupt" | "command";
-    }) => Promise<void>)
-  | null = null;
+const coordinators: Awaited<ReturnType<typeof coordinatorHarness>>[] = [];
+async function prepareCoordinator() {
+  const h = await coordinatorHarness({ safeInvoke, safeListen });
+  coordinators.push(h);
+  await h.coordinator.bindCommitted(a);
+  h.controller.setText("captured from Inputbar");
+  return h;
+}
+let latestSend: ReturnType<typeof useInputbarSend> | null = null;
 let clearPathReferencesMock: ReturnType<typeof vi.fn>;
 let clearActiveCapabilityMock: ReturnType<typeof vi.fn>;
 let clearPendingImagesMock: ReturnType<typeof vi.fn>;
@@ -64,6 +96,9 @@ function Harness({
   projectId = null,
   sessionId = null,
   composerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
+  onComposerAccepted,
   isLoading = false,
   onComposerCommitted,
 }: HarnessProps) {
@@ -77,6 +112,9 @@ function Harness({
     projectId,
     sessionId,
     composerController,
+    composerDraftCoordinator,
+    onComposerDraftAccepted,
+    onComposerAccepted,
     isLoading,
     onComposerCommitted,
     onSend,
@@ -116,10 +154,9 @@ async function send() {
   });
 }
 
-async function sendWithMetadata(metadata: {
-  triggeredAt?: number;
-  triggerSource?: InputbarSendTriggerSource;
-}) {
+async function sendWithMetadata(
+  metadata: NonNullable<Parameters<ReturnType<typeof useInputbarSend>>[0]>,
+) {
   expect(latestSend).toBeTypeOf("function");
   await act(async () => {
     await latestSend?.(metadata);
@@ -158,7 +195,7 @@ function createInstalledSkillSelection(): InputCapabilitySelection {
 }
 
 describe("useInputbarSend", () => {
-  afterEach(() => {
+  afterEach(async () => {
     for (const { root, container } of mountedRoots.splice(0)) {
       act(() => {
         root.unmount();
@@ -166,6 +203,7 @@ describe("useInputbarSend", () => {
       container.remove();
     }
     latestSend = null;
+    for (const h of coordinators.splice(0)) await h.close();
     vi.clearAllMocks();
   });
 
@@ -176,7 +214,7 @@ describe("useInputbarSend", () => {
   });
 
   it("普通文本发送应显式下传当前输入文本", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHarness({
       input: "继续优化 Skill runtime",
       onSend,
@@ -185,6 +223,7 @@ describe("useInputbarSend", () => {
     await send();
 
     expect(onSend).toHaveBeenCalledWith({
+      onRuntimeAccepted: expect.any(Function),
       images: undefined,
       textOverride: "继续优化 Skill runtime",
       sendOptions: undefined,
@@ -193,7 +232,7 @@ describe("useInputbarSend", () => {
   });
 
   it("纯文本无附件和模式时应走最小发送快路径", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const triggeredAt = Date.now() - 12;
     renderHarness({
       activeTools: {
@@ -208,6 +247,7 @@ describe("useInputbarSend", () => {
     await sendWithMetadata({ triggeredAt, triggerSource: "button" });
 
     expect(onSend).toHaveBeenCalledWith({
+      onRuntimeAccepted: expect.any(Function),
       images: undefined,
       textOverride: "你好",
       sendOptions: undefined,
@@ -225,7 +265,7 @@ describe("useInputbarSend", () => {
   });
 
   it("Plugin 原子输入应只由 receipt.submission 提供文本、mentions 和范围", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const composerController = new ComposerController({
       text: " 帮我整理项目资料",
     });
@@ -264,7 +304,7 @@ describe("useInputbarSend", () => {
   });
 
   it("只有路径引用时仍应发送路径占位文本并保留 metadata", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const pathReferences = [createPathReference()];
     renderHarness({
       input: "   ",
@@ -279,6 +319,7 @@ describe("useInputbarSend", () => {
       pathReferences,
     );
     expect(onSend).toHaveBeenCalledWith({
+      onRuntimeAccepted: expect.any(Function),
       images: undefined,
       textOverride: "请查看这些文件或文件夹。",
       sendOptions: {
@@ -335,7 +376,7 @@ describe("useInputbarSend", () => {
   });
 
   it("富输入恢复草稿应使用发送瞬间的独立快照", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const image: MessageImage = {
       data: "image-data",
       mediaType: "image/png",
@@ -373,7 +414,7 @@ describe("useInputbarSend", () => {
   });
 
   it("同batch发送读取canonical资源和能力，旧React闭包不能回灌", async () => {
-    const onSend = vi.fn().mockResolvedValue(false);
+    const onSend = vi.fn().mockResolvedValue({ kind: "rejected" });
     const composerController = new ComposerController();
     const image: MessageImage = {
       data: "latest-image",
@@ -409,32 +450,36 @@ describe("useInputbarSend", () => {
       expect(composerController.captureDraft()).toEqual(draft);
     });
 
-    expect(onSend).toHaveBeenCalledWith(expect.objectContaining({
-      textOverride: "请用最新素材生成报告",
-      images: [image],
-      composerSubmission: expect.objectContaining({
-        attachments: [image],
-        pathReferences: [reference],
-        inputCapabilityRoute: route,
-      }),
-      sendOptions: expect.objectContaining({
-        capabilityRoute: route,
-        inputRestoreDraft: expect.objectContaining({
-          images: [image],
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        textOverride: "请用最新素材生成报告",
+        images: [image],
+        composerSubmission: expect.objectContaining({
+          attachments: [image],
           pathReferences: [reference],
           inputCapabilityRoute: route,
         }),
-        requestMetadata: expect.objectContaining({
-          path_references: [expect.objectContaining({ path: "/tmp/latest.md" })],
+        sendOptions: expect.objectContaining({
+          capabilityRoute: route,
+          inputRestoreDraft: expect.objectContaining({
+            images: [image],
+            pathReferences: [reference],
+            inputCapabilityRoute: route,
+          }),
+          requestMetadata: expect.objectContaining({
+            path_references: [
+              expect.objectContaining({ path: "/tmp/latest.md" }),
+            ],
+          }),
         }),
       }),
-    }));
+    );
     expect(clearPendingImagesMock).not.toHaveBeenCalled();
     expect(clearPathReferencesMock).not.toHaveBeenCalled();
   });
 
   it("旧空props不能拦截只有canonical图片和路径的发送", async () => {
-    const onSend = vi.fn().mockResolvedValue(false);
+    const onSend = vi.fn().mockResolvedValue({ kind: "rejected" });
     const composerController = new ComposerController();
     const image: MessageImage = { data: "image-data", mediaType: "image/png" };
     const reference = createPathReference();
@@ -446,18 +491,20 @@ describe("useInputbarSend", () => {
       await latestSend?.();
     });
 
-    expect(onSend).toHaveBeenCalledWith(expect.objectContaining({
-      images: [image],
-      textOverride: "请查看这些文件或文件夹。",
-      composerSubmission: expect.objectContaining({
-        attachments: [image],
-        pathReferences: [reference],
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        images: [image],
+        textOverride: "请查看这些文件或文件夹。",
+        composerSubmission: expect.objectContaining({
+          attachments: [image],
+          pathReferences: [reference],
+        }),
       }),
-    }));
+    );
   });
 
   it("canonical能力已清除时不能发送旧React能力", async () => {
-    const onSend = vi.fn().mockResolvedValue(false);
+    const onSend = vi.fn().mockResolvedValue({ kind: "rejected" });
     const composerController = new ComposerController({ text: "普通文本" });
     renderHarness({
       composerController,
@@ -468,10 +515,12 @@ describe("useInputbarSend", () => {
 
     await send();
 
-    expect(onSend).toHaveBeenCalledWith(expect.objectContaining({
-      textOverride: "普通文本",
-      sendOptions: undefined,
-    }));
+    expect(onSend).toHaveBeenCalledWith(
+      expect.objectContaining({
+        textOverride: "普通文本",
+        sendOptions: undefined,
+      }),
+    );
   });
 
   it("发送期间发生输入恢复时不应再清理刚恢复的富输入状态", async () => {
@@ -484,7 +533,7 @@ describe("useInputbarSend", () => {
     const pathReferences = [createPathReference()];
     const onSend = vi.fn(async () => {
       inputRestoreEpoch = 2;
-      return true;
+      return acceptedSubmission();
     });
 
     renderHarness({
@@ -505,7 +554,7 @@ describe("useInputbarSend", () => {
   });
 
   it("技能路由和 typed 计划模式不应因显式文本发送丢失", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHarness({
       activeCapability: createInstalledSkillSelection(),
       activeTools: {
@@ -520,6 +569,7 @@ describe("useInputbarSend", () => {
     await send();
 
     expect(onSend).toHaveBeenCalledWith({
+      onRuntimeAccepted: expect.any(Function),
       images: undefined,
       textOverride: "生成一份能力报告",
       sendOptions: {
@@ -551,7 +601,7 @@ describe("useInputbarSend", () => {
   });
 
   it("目标模式应通过 typed threadGoal 发送同一文本", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHarness({
       activeTools: {
         objective_mode: true,
@@ -575,7 +625,7 @@ describe("useInputbarSend", () => {
   });
 
   it("发送展开后的 paste 和 Skill，失败时保留折叠文档与选择区", async () => {
-    const onSend = vi.fn().mockResolvedValue(false);
+    const onSend = vi.fn().mockResolvedValue({ kind: "rejected" });
     const composerController = new ComposerController({ text: "A😀 " });
     composerController.setSelection(4);
     composerController.insertMention({
@@ -603,7 +653,19 @@ describe("useInputbarSend", () => {
   });
 
   it("active turn 的显式 queue target 应生成 queue intent 并在成功后提交草稿", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const queueResult = fromQueueAcceptanceResponse(
+      {
+        sessionId: "queue-session",
+        threadId: "queue-thread",
+        clientUserMessageId: "queue-client",
+      },
+      {
+        id: "queued-real",
+        clientUserMessageId: "queue-client",
+        input: [{ type: "text", text: "排队处理" }],
+      },
+    );
+    const onSend = vi.fn().mockResolvedValue(queueResult);
     const onComposerCommitted = vi.fn();
     const composerController = new ComposerController({ text: "排队处理" });
     renderHarness({
@@ -632,5 +694,190 @@ describe("useInputbarSend", () => {
       "",
       expect.objectContaining({ text: "排队处理" }),
     );
+  });
+  it.each([
+    { kind: "unknown" as const },
+    { kind: "local-handled" as const },
+    { kind: "rejected" as const },
+  ])("keeps document and resources for %j", async (result) => {
+    const controller = new ComposerController({ text: "未发送😀" });
+    controller.setAttachments([{ data: "image-data", mediaType: "image/png" }]);
+    const before = controller.captureDraft();
+    const onSend = vi.fn<InputbarSendHandler>(async () => result);
+    renderHarness({ composerController: controller, onSend });
+    await send();
+    expect(controller.captureDraft()).toEqual(before);
+    expect(clearPendingImagesMock).not.toHaveBeenCalled();
+    expect(clearActiveCapabilityMock).not.toHaveBeenCalled();
+  });
+  it("late confirmed queue cannot clear newer composer document", async () => {
+    let resolve!: (value: RuntimeSubmissionResult) => void;
+    const onSend = vi.fn<InputbarSendHandler>(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    const controller = new ComposerController({ text: "原队列" });
+    renderHarness({ composerController: controller, onSend, isLoading: true });
+    let pending!: ReturnType<NonNullable<typeof latestSend>>;
+    await act(async () => {
+      pending = latestSend!({
+        triggeredAt: Date.now(),
+        triggerSource: "button",
+        submitTarget: "queue",
+      });
+      await Promise.resolve();
+    });
+    controller.setText("新草稿");
+    await act(async () => {
+      resolve(
+        fromQueueAcceptanceResponse(
+          {
+            sessionId: "session-q",
+            threadId: "thread-q",
+            clientUserMessageId: "client-q",
+          },
+          {
+            id: "queued-q",
+            clientUserMessageId: "client-q",
+            input: [{ type: "text", text: "原队列" }],
+          },
+        ),
+      );
+      await pending;
+    });
+    expect(controller.getDocument().text).toBe("新草稿");
+    expect(clearPendingImagesMock).not.toHaveBeenCalled();
+  });
+  it("settles early observer acceptance with one capture while runtime completion is pending", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<RuntimeSubmissionResult>();
+    const submit = vi.spyOn(h.controller, "submit");
+    const commit = vi.spyOn(h.controller, "commit");
+    const onComposerAccepted = vi.fn();
+    const onSend = vi.fn<InputbarSendHandler>((payload) => {
+      getInputbarSendOptions(payload!)?.observer?.onRuntimeAccepted?.(
+        acceptedSubmission().receipt,
+      );
+      return gate.promise;
+    });
+    renderHarness({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      onSend,
+      onComposerAccepted,
+    });
+    let pending!: ReturnType<NonNullable<typeof latestSend>>;
+    await act(async () => {
+      pending = latestSend!();
+    });
+    await h.coordinator.idle();
+    expect(submit).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledOnce();
+    expect(clearPendingImagesMock).toHaveBeenCalledOnce();
+    expect(onComposerAccepted).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: "captured from Inputbar" }),
+      expect.objectContaining({ kind: "runtime-accepted" }),
+    );
+    expect(
+      onSend.mock.calls[0][0]?.composerDraftCapture?.receipt.submission.text,
+    ).toBe("captured from Inputbar");
+    await act(async () => {
+      gate.resolve({ kind: "unknown" });
+      await pending;
+    });
+    expect(commit).toHaveBeenCalledOnce();
+  });
+
+  it("consumes an in-flight old capture after navigation while preserving the new scope", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<RuntimeSubmissionResult>();
+    const onSend = vi.fn<InputbarSendHandler>(() => gate.promise);
+    renderHarness({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      onSend,
+    });
+    let pending!: ReturnType<NonNullable<typeof latestSend>>;
+    await act(async () => {
+      pending = latestSend!();
+    });
+    await act(async () => {
+      await h.coordinator.bindCommitted(b);
+      h.controller.setText("new scope");
+    });
+    await act(async () => {
+      gate.resolve(acceptedSubmission());
+      await pending;
+      await h.coordinator.idle();
+    });
+    expect(await h.read(a)).toBeNull();
+    expect(h.controller.getDocument().text).toBe("new scope");
+    expect(clearPendingImagesMock).not.toHaveBeenCalled();
+  });
+
+  it("continues persistence after Inputbar unmount and avoids UI postprocessing", async () => {
+    const h = await prepareCoordinator();
+    const gate = deferred<RuntimeSubmissionResult>();
+    const onSend = vi.fn<InputbarSendHandler>(() => gate.promise);
+    renderHarness({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      onSend,
+    });
+    let pending!: ReturnType<NonNullable<typeof latestSend>>;
+    await act(async () => {
+      pending = latestSend!();
+    });
+    const mounted = mountedRoots.pop()!;
+    act(() => mounted.root.unmount());
+    mounted.container.remove();
+    await act(async () => {
+      gate.resolve(acceptedSubmission());
+      await pending;
+      await h.coordinator.idle();
+    });
+    expect(await h.read(a)).toBeNull();
+    expect(clearPendingImagesMock).not.toHaveBeenCalled();
+  });
+
+  it("uses the root promotion callback before consume, once for the same captured binding", async () => {
+    const h = await prepareCoordinator();
+    let payloadCapture: ComposerDraftCapture | undefined;
+    const promote = vi.fn(
+      async (
+        capture: ComposerDraftCapture,
+        result: AcceptedRuntimeSubmissionResult,
+      ) => {
+        expect(capture).toBe(payloadCapture);
+        await h.coordinator.promote(capture.binding!, local, {
+          expectedTarget: null,
+          sessionId: result.receipt.sessionId,
+          threadId: result.receipt.threadId,
+        });
+      },
+    );
+    const actual = acceptedSubmission("s1");
+    const onSend = vi.fn<InputbarSendHandler>(async (payload) => {
+      payloadCapture = payload?.composerDraftCapture;
+      getInputbarSendOptions(payload!)?.observer?.onRuntimeAccepted?.(
+        actual.receipt,
+      );
+      return actual;
+    });
+    renderHarness({
+      composerController: h.controller,
+      composerDraftCoordinator: h.coordinator,
+      onComposerDraftAccepted: promote,
+      onSend,
+    });
+    await send();
+    await h.coordinator.idle();
+    expect(promote).toHaveBeenCalledOnce();
+    expect(h.mutations.map((x) => x.op)).toEqual(["put", "promote", "consume"]);
+    expect(await h.read(a)).toBeNull();
+    expect(await h.read(local)).toBeNull();
+    expect(clearPendingImagesMock).toHaveBeenCalledOnce();
   });
 });

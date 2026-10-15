@@ -206,6 +206,7 @@ export const ALLOWED_EXTERNAL_BACKEND_LAUNCH_FILES = new Set([
   "scripts/electron/codex-import-continuation-fixture-smoke.test.mjs",
   "scripts/electron/code-artifact-workbench-fixture-smoke.mjs",
   "scripts/electron/code-artifact-workbench-fixture-smoke.test.mjs",
+  "scripts/electron/lib/composer-draft-fixture-driver.mjs",
   "scripts/electron/local-history-import-real-sample-visual-audit-smoke.test.mjs",
   "scripts/electron/session-history-fixture-smoke.test.mjs",
   "scripts/electron/strict-review-gate-b.mjs",

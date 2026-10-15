@@ -1,0 +1,107 @@
+[data-composer-code-block="true"] {
+  min-width: 0;
+  max-width: 100%;
+  overflow: clip;
+  border: 1px solid hsl(var(--border));
+  border-radius: var(--radius, 0.5rem);
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+}
+
+[data-composer-code-block-toolbar="true"] {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 2rem;
+  background: hsl(var(--muted));
+  font-family: var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  user-select: none;
+}
+
+.composer-code-toolbar {
+  display: flex;
+  padding: 0.125rem 0.375rem;
+}
+.composer-code-language-trigger {
+  height: 1.75rem;
+  gap: 0.375rem;
+  padding: 0 0.375rem;
+  color: hsl(var(--muted-foreground));
+  font-size: 0.75rem;
+}
+.composer-code-language-trigger:hover {
+  background: hsl(var(--accent));
+}
+.composer-code-language-trigger:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+.composer-code-language-menu {
+  width: 15rem;
+  max-width: calc(100vw - 1rem);
+  padding: 0;
+}
+.composer-code-language-menu [cmdk-input] {
+  height: 2.25rem;
+}
+.composer-code-language-menu [cmdk-item] {
+  gap: 0.5rem;
+}
+
+[data-composer-code-block="true"] > pre {
+  margin: 0;
+  padding: 0.5rem 0.75rem 0.75rem;
+  max-width: 100%;
+  overflow-x: auto;
+  tab-size: 4;
+  font-family: var(
+    --font-mono,
+    ui-monospace,
+    SFMono-Regular,
+    Consolas,
+    monospace
+  );
+}
+[data-composer-code-block="true"] > pre > code {
+  display: block;
+  white-space: pre;
+  overflow-wrap: normal;
+  word-break: normal;
+  font: inherit;
+  background: transparent;
+  color: inherit;
+}
+
+/* PM token Decorations reuse the active Lime theme. */
+[data-composer-code-block="true"] .hljs-comment,
+[data-composer-code-block="true"] .hljs-quote {
+  color: var(--lime-text-muted, hsl(var(--muted-foreground)));
+  font-style: italic;
+}
+[data-composer-code-block="true"] .hljs-keyword,
+[data-composer-code-block="true"] .hljs-selector-tag,
+[data-composer-code-block="true"] .hljs-built_in {
+  color: var(--lime-brand-strong, hsl(var(--primary)));
+  font-weight: 600;
+}
+[data-composer-code-block="true"] .hljs-string,
+[data-composer-code-block="true"] .hljs-regexp,
+[data-composer-code-block="true"] .hljs-symbol,
+[data-composer-code-block="true"] .hljs-addition {
+  color: var(--lime-brand, hsl(var(--foreground)));
+}
+[data-composer-code-block="true"] .hljs-number,
+[data-composer-code-block="true"] .hljs-literal,
+[data-composer-code-block="true"] .hljs-type,
+[data-composer-code-block="true"] .hljs-title,
+[data-composer-code-block="true"] .hljs-attribute,
+[data-composer-code-block="true"] .hljs-attr {
+  color: var(--lime-info, hsl(var(--foreground)));
+}
+[data-composer-code-block="true"] .hljs-meta,
+[data-composer-code-block="true"] .hljs-deletion {
+  color: var(--lime-danger, hsl(var(--destructive)));
+}
+[data-composer-code-block="true"] .hljs-subst {
+  color: var(--lime-text, hsl(var(--foreground)));
+}

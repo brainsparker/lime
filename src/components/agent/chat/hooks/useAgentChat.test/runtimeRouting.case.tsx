@@ -48,6 +48,7 @@ describe("useAgentChat runtime routing", () => {
             },
           ],
         }),
+        expect.any(Function),
       );
       expect(mockSubmitAgentRuntimeTurn.mock.calls[0]?.[0]).not.toHaveProperty(
         "searchMode",

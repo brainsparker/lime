@@ -1,5 +1,16 @@
 import type { AgentPageParams } from "@/types/page";
 
+export interface NewConversationRequest {
+  readonly id: number;
+  readonly workspaceId: string | null;
+  readonly freshDraft: boolean;
+}
+
+export type StartNewConversation = (options: {
+  projectId: string | null;
+  freshDraft: boolean;
+}) => void;
+
 export function buildHomeAgentParams(
   overrides: Partial<AgentPageParams> = {},
 ): AgentPageParams {
@@ -9,7 +20,7 @@ export function buildHomeAgentParams(
     immersiveHome: overrides.immersiveHome ?? false,
     theme: "general",
     lockTheme: false,
-    newChatAt: Date.now(),
+    newChatAt: overrides.newChatAt ?? Date.now(),
   };
 }
 

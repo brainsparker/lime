@@ -6,6 +6,7 @@
 
 import { lazy, useCallback } from "react";
 import type {
+  AgentLocation,
   AgentPageParams,
   PluginsPageParams,
   ExpertsPageParams,
@@ -20,7 +21,7 @@ import type {
 import type { AgentBackgroundSessionRuntimeSnapshot } from "./agent/chat";
 import { ScheduledTasksPage } from "./scheduled-tasks/ScheduledTasksPage";
 import { ImConfigPage } from "./channels/ImConfigPage";
-import { SettingsPageV2 } from "./settings-v2";
+import { SettingsPage } from "./settings-v2";
 import { PluginWorkspaceTabs } from "@/features/plugin/ui/PluginWorkspaceTabs";
 
 const columnPageStyle = {
@@ -69,8 +70,10 @@ interface AppPageContentProps {
   requestedPage?: Page;
   requestedPageParams?: PageParams;
   onNavigate: (page: Page, params?: PageParams) => void;
+  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   onAgentHasMessagesChange: (hasMessages: boolean) => void;
-  onAgentSessionChange?: (sessionId: string | null) => void;
+  onAgentLocationChange?: (location: AgentLocation) => void;
+  onSettingsBack: () => void;
   onAgentStreamingChange?: (isStreaming: boolean) => void;
   onBackgroundSessionRuntimeChange?: (
     snapshot: AgentBackgroundSessionRuntimeSnapshot | null,
@@ -123,8 +126,10 @@ export function AppPageContent({
   requestedPage,
   requestedPageParams,
   onNavigate,
+  onStartNewConversation,
   onAgentHasMessagesChange,
-  onAgentSessionChange,
+  onAgentLocationChange,
+  onSettingsBack,
   onAgentStreamingChange,
   onBackgroundSessionRuntimeChange,
 }: AppPageContentProps) {
@@ -140,12 +145,14 @@ export function AppPageContent({
       ),
     );
   };
-  const handleAgentSessionChange = useCallback(
-    (sessionId: string | null) => {
-      const normalizedSessionId = sessionId?.trim();
-      onAgentSessionChange?.(normalizedSessionId || null);
+  const handleAgentLocationChange = useCallback(
+    (location: AgentLocation) => {
+      onAgentLocationChange?.({
+        sessionId: location.sessionId?.trim() || null,
+        workspaceId: location.workspaceId?.trim() || null,
+      });
     },
-    [onAgentSessionChange],
+    [onAgentLocationChange],
   );
 
   if (activePage === "scheduled-tasks") {
@@ -173,6 +180,16 @@ export function AppPageContent({
 
   if (activePage === "agent") {
     const agentPageParams = activePageParams as AgentPageParams;
+    const committedAgentParams =
+      currentPage === "agent" ? (pageParams as AgentPageParams) : null;
+    const committedHome =
+      committedAgentParams !== null &&
+      committedAgentParams.newChatAt === agentPageParams.newChatAt &&
+      committedAgentParams?.newConversationRequest?.id ===
+        agentPageParams.newConversationRequest?.id;
+    const committedRequest = committedHome
+      ? committedAgentParams.newConversationRequest
+      : undefined;
 
     return (
       <div style={columnPageStyle}>
@@ -217,10 +234,12 @@ export function AppPageContent({
             agentPageParams.agentEntry !== "new-task" &&
             !agentPageParams.immersiveHome
           }
-          newChatAt={agentPageParams.newChatAt}
+          newChatAt={committedHome ? agentPageParams.newChatAt : undefined}
+          newConversationRequest={committedRequest}
+          onStartNewConversation={onStartNewConversation}
           expertAgentLaunch={agentPageParams.expertAgentLaunch}
           onHasMessagesChange={onAgentHasMessagesChange}
-          onSessionChange={handleAgentSessionChange}
+          onLocationChange={handleAgentLocationChange}
           onAgentStreamingChange={onAgentStreamingChange}
           onBackgroundSessionRuntimeChange={onBackgroundSessionRuntimeChange}
         />
@@ -295,18 +314,10 @@ export function AppPageContent({
   if (activePage === "settings") {
     return (
       <div style={columnPageStyle}>
-        <SettingsPageV2
+        <SettingsPage
           onNavigate={onNavigate}
-          initialTab={(activePageParams as SettingsPageParams).tab}
-          initialProviderView={
-            (activePageParams as SettingsPageParams).providerView
-          }
-          initialProviderFocus={
-            (activePageParams as SettingsPageParams).providerFocus
-          }
-          initialExecutionPolicyFocus={
-            (activePageParams as SettingsPageParams).executionPolicyFocus
-          }
+          pageParams={activePageParams as SettingsPageParams}
+          onBack={onSettingsBack}
         />
       </div>
     );

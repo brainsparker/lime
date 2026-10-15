@@ -189,12 +189,18 @@ function currentElectronEntrypointFiles() {
   ];
 }
 
+function isElectronTestOnlyPath(filePath) {
+  return /\.(?:test|testHarness|test-support)(?:\.(?:ts|mjs|js))?$/i.test(
+    filePath,
+  );
+}
+
 function isElectronProductionSourceFile(filePath) {
   const normalized = filePath.replace(/\\/g, "/");
   return (
     /\.(?:mjs|js|ts)$/i.test(normalized) &&
     !normalized.endsWith(".d.ts") &&
-    !/\.(?:test|testHarness)\.(?:ts|mjs|js)$/i.test(normalized)
+    !isElectronTestOnlyPath(normalized)
   );
 }
 
@@ -211,13 +217,11 @@ function productionTestImports(filePath, content) {
   if (!isElectronProductionSourceFile(filePath)) return [];
   return [
     ...content.matchAll(
-      /(?:from\s+|import\s*\(|require\s*\()(["'])([^"']+)\1/g,
+      /\b(?:from\s+|import\s*(?:\(\s*)?|require\s*\(\s*)(["'])([^"']+)\1/g,
     ),
   ]
     .map((match) => match[2])
-    .filter((specifier) =>
-      /\.(?:test|testHarness)(?:\.(?:ts|mjs|js))?$/i.test(specifier),
-    );
+    .filter(isElectronTestOnlyPath);
 }
 
 function electronProductionSourceFiles() {
@@ -397,6 +401,98 @@ describe("Electron current package entrypoints", () => {
         ),
       ),
     ).toEqual([]);
+  });
+
+  it.each(["ts", "mjs", "js"])(
+    "classifies .test-support.%s as a test-only leaf without exempting production siblings",
+    (extension) => {
+      const runtimeDependencies = new Set(["electron"]);
+      const content = 'import { vi } from "vitest";';
+      for (const filePath of [
+        `electron/persistedAtomStore.test-support.${extension}`,
+        `electron\\persistedAtomStore.test-support.${extension}`,
+      ]) {
+        expect(
+          unpackagedRuntimeImports(filePath, content, runtimeDependencies),
+          filePath,
+        ).toEqual([]);
+        expect(
+          productionTestImports(
+            filePath,
+            'import { put } from "./persistedAtomStore.test-support";',
+          ),
+          filePath,
+        ).toEqual([]);
+      }
+      for (const filePath of [
+        `electron/persistedAtomStore.${extension}`,
+        `electron/test-supportOwner.${extension}`,
+        `electron/persistedAtomStore.test-supporting.${extension}`,
+      ]) {
+        expect(
+          unpackagedRuntimeImports(filePath, content, runtimeDependencies),
+          filePath,
+        ).toEqual(["vitest"]);
+      }
+    },
+  );
+
+  it.each([
+    [
+      "static import",
+      'import { put } from "./persistedAtomStore.test-support";',
+      "./persistedAtomStore.test-support",
+    ],
+    [
+      "type import",
+      'import type { Fixture } from "./persistedAtomStore.test-support.ts";',
+      "./persistedAtomStore.test-support.ts",
+    ],
+    [
+      "side-effect import",
+      'import "./persistedAtomStore.test-support.js";',
+      "./persistedAtomStore.test-support.js",
+    ],
+    [
+      "re-export",
+      'export { put } from "./persistedAtomStore.test-support.mjs";',
+      "./persistedAtomStore.test-support.mjs",
+    ],
+    [
+      "dynamic import",
+      'const support = await import( "./persistedAtomStore.test-support" );',
+      "./persistedAtomStore.test-support",
+    ],
+    [
+      "require",
+      'const support = require( "./persistedAtomStore.test-support.ts" );',
+      "./persistedAtomStore.test-support.ts",
+    ],
+  ])(
+    "rejects production %s of test-only support",
+    (_form, content, specifier) => {
+      expect(productionTestImports("electron/main.ts", content)).toEqual([
+        specifier,
+      ]);
+      expect(
+        productionTestImports("electron/persistedAtomStore.test.ts", content),
+      ).toEqual([]);
+      expect(
+        productionTestImports(
+          "electron/persistedAtomStore.test-support.ts",
+          content,
+        ),
+      ).toEqual([]);
+    },
+  );
+
+  it("does not mistake a production import for a test-only support leaf", () => {
+    const content = [
+      'import { PersistedAtomStore } from "./persistedAtomStore";',
+      'import { support } from "./test-supportOwner";',
+      'import "./persistedAtomStore.test-supporting";',
+    ].join("\n");
+    expect(productionTestImports("electron/main.ts", content)).toEqual([]);
   });
 
   it("legacy verify-gui-smoke script delegates to Electron smoke", () => {

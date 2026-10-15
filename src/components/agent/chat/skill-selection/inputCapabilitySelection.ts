@@ -1,4 +1,5 @@
 import type { Skill } from "@/lib/api/skills";
+import type { ComposerMentionBinding } from "@/components/input-kit";
 import type { ServiceSkillHomeItem } from "@/components/agent/chat/service-skills/types";
 import {
   findCuratedTaskTemplateById,
@@ -130,6 +131,20 @@ function matchesInstalledSkillRoute(
     (candidate) =>
       candidate === routeKey ||
       (!!routeKeyWithoutPrefix && candidate === routeKeyWithoutPrefix),
+  );
+}
+
+export function matchesInstalledSkillMention(
+  skill: Skill,
+  binding: ComposerMentionBinding,
+): boolean {
+  return (
+    binding.kind === "skill" &&
+    matchesInstalledSkillRoute(skill, {
+      kind: "installed_skill",
+      skillKey: binding.id,
+      skillName: binding.name,
+    })
   );
 }
 

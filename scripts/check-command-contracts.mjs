@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { collectPersistedAtomContractFailures } from "./lib/persisted-atom-contract.mjs";
 
 const repoRoot = process.cwd();
 
@@ -4597,7 +4598,10 @@ function main() {
   ).filter((sectionName) =>
     retiredMemoryRuntimeCatalogSections.has(sectionName),
   );
-  const productionBridgeGuardFailures = collectProductionBridgeGuardFailures();
+  const productionBridgeGuardFailures = [
+    ...collectProductionBridgeGuardFailures(),
+    ...collectPersistedAtomContractFailures(readSource),
+  ];
   const retiredFileBrowserFacadeSourceFailures =
     collectRetiredFileBrowserFacadeSourceFailures();
   const retiredAutomationFacadeSourceFailures =

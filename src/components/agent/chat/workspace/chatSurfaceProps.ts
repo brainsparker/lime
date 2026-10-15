@@ -1,3 +1,4 @@
+import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { ComponentProps } from "react";
 import type { ComposerController } from "@/components/input-kit/ComposerController";
 import { StepProgress } from "@/components/workspace/layout/StepProgress";
@@ -44,6 +45,10 @@ export function buildStepProgressProps({
 interface BuildWorkspaceEmptyStatePropsParams {
   input: ComponentProps<typeof EmptyState>["input"];
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: ComponentProps<
+    typeof EmptyState
+  >["onComposerDraftAccepted"];
   setInput: ComponentProps<typeof EmptyState>["setInput"];
   onSendMessage: InputbarSendHandler;
   onStopSending?: ComponentProps<typeof EmptyState>["onStop"];
@@ -99,6 +104,9 @@ interface BuildWorkspaceEmptyStatePropsParams {
     typeof EmptyState
   >["onNavigateToSettings"];
   onRefreshSkills?: ComponentProps<typeof EmptyState>["onRefreshSkills"];
+  onSkillSuggestionsNeeded?: ComponentProps<
+    typeof EmptyState
+  >["onSkillSuggestionsNeeded"];
   onLaunchBrowserAssist?: ComponentProps<
     typeof EmptyState
   >["onLaunchBrowserAssist"];
@@ -203,6 +211,8 @@ interface BuildWorkspaceEmptyStatePropsParams {
 export function buildWorkspaceEmptyStateProps({
   input,
   composerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
   setInput,
   onSendMessage,
   onStopSending,
@@ -239,6 +249,7 @@ export function buildWorkspaceEmptyStateProps({
   onSelectServiceSkill,
   onNavigateToSettings,
   onRefreshSkills,
+  onSkillSuggestionsNeeded,
   onLaunchBrowserAssist,
   browserAssistLoading,
   recentSessionTitle,
@@ -290,6 +301,8 @@ export function buildWorkspaceEmptyStateProps({
   return {
     input,
     composerController,
+    composerDraftCoordinator,
+    onComposerDraftAccepted,
     setInput,
     onSend: handleEmptyStateSend,
     onStop: onStopSending,
@@ -332,6 +345,7 @@ export function buildWorkspaceEmptyStateProps({
     onSelectServiceSkill,
     onNavigateToSettings,
     onRefreshSkills,
+    onSkillSuggestionsNeeded,
     onLaunchBrowserAssist,
     browserAssistLoading,
     recentSessionTitle,

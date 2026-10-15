@@ -1,3 +1,4 @@
+import { isRuntimeSubmissionAccepted } from "../hooks/agentSendResult";
 import {
   useCallback,
   useEffect,
@@ -179,7 +180,7 @@ export function useWorkspacePlanDecisionRuntime({
         submitPlan.sendOptions,
       );
 
-      if (!sendResult) {
+      if (!isRuntimeSubmissionAccepted(sendResult)) {
         return;
       }
 

@@ -1,3 +1,8 @@
+import {
+  isRuntimeSubmissionAccepted,
+  runRuntimeSubmissionEffect,
+  type RuntimeSubmissionResult,
+} from "../hooks/agentSendResult";
 import i18n from "@/i18n/config";
 import {
   cleanBackgroundTerminals,
@@ -15,11 +20,15 @@ import type { ExecuteSlashCommandParams } from "./types";
 
 async function buildBackgroundTerminalListMessage(
   sessionId: string | null,
-  listTerminals: (threadId: string) => Promise<AppServerThreadBackgroundTerminal[]>,
+  listTerminals: (
+    threadId: string,
+  ) => Promise<AppServerThreadBackgroundTerminal[]>,
 ): Promise<string> {
   const threadId = sessionId?.trim() || "";
   if (!threadId) {
-    return shellText("agentChat.navbar.shell.backgroundTerminalsMissingSession");
+    return shellText(
+      "agentChat.navbar.shell.backgroundTerminalsMissingSession",
+    );
   }
   try {
     const terminals = await listTerminals(threadId);
@@ -45,7 +54,9 @@ async function buildBackgroundTerminalStopMessage(
 ): Promise<string> {
   const threadId = sessionId?.trim() || "";
   if (!threadId) {
-    return shellText("agentChat.navbar.shell.backgroundTerminalsMissingSession");
+    return shellText(
+      "agentChat.navbar.shell.backgroundTerminalsMissingSession",
+    );
   }
   try {
     await cleanTerminals(threadId);
@@ -76,7 +87,7 @@ function ensureSessionMutationAllowed(
 
 export async function executeSlashCommand(
   params: ExecuteSlashCommandParams,
-): Promise<boolean> {
+): Promise<RuntimeSubmissionResult | null> {
   const {
     command,
     statusSnapshot,
@@ -96,7 +107,7 @@ export async function executeSlashCommand(
     case "compact":
       await compactSession();
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "clear":
       if (
         !ensureSessionMutationAllowed(
@@ -105,11 +116,11 @@ export async function executeSlashCommand(
           notifyInfo,
         )
       ) {
-        return true;
+        return { kind: "local-handled" };
       }
       clearMessages({ toastMessage: "已清空当前任务" });
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "new": {
       if (
         !ensureSessionMutationAllowed(
@@ -118,35 +129,35 @@ export async function executeSlashCommand(
           notifyInfo,
         )
       ) {
-        return true;
+        return { kind: "local-handled" };
       }
       const sessionName = command.userInput.trim() || undefined;
       await createFreshSession(sessionName);
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     }
     case "help":
       appendAssistantMessage(buildSlashCommandHelpMessage());
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "status":
       appendAssistantMessage(buildSlashCommandStatusMessage(statusSnapshot));
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "model":
       if (command.userInput.trim()) {
         notifyInfo(
           "当前暂不支持通过 /model 切换模型，请使用输入框右侧的模型选择器",
         );
-        return true;
+        return { kind: "local-handled" };
       }
       appendAssistantMessage(buildSlashCommandModelMessage(statusSnapshot));
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "subagents":
       onOpenSubagents?.();
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "ps":
       appendAssistantMessage(
         await buildBackgroundTerminalListMessage(
@@ -155,7 +166,7 @@ export async function executeSlashCommand(
         ),
       );
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "stop":
       appendAssistantMessage(
         await buildBackgroundTerminalStopMessage(
@@ -164,23 +175,27 @@ export async function executeSlashCommand(
         ),
       );
       onExecutedCommand?.(command);
-      return true;
+      return { kind: "local-handled" };
     case "review":
     case "diff":
     case "init": {
       const prompt = buildSlashCommandPrompt(command);
       if (prompt) {
-        await sendPrompt(prompt);
-        onExecutedCommand?.(command);
-        return true;
+        const result = await sendPrompt(prompt);
+        if (isRuntimeSubmissionAccepted(result)) {
+          runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+            onExecutedCommand?.(command),
+          );
+        }
+        return result;
       }
-      return false;
+      return null;
     }
     default:
       if (command.definition.support === "unsupported") {
         notifyInfo(buildUnsupportedSlashCommandMessage(command));
-        return true;
+        return { kind: "local-handled" };
       }
-      return false;
+      return null;
   }
 }

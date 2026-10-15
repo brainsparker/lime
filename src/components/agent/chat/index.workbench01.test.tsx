@@ -1,5 +1,6 @@
 import { act } from "react";
 import { describe, expect, it } from "vitest";
+import { acceptedSubmission } from "./hooks/agentSendResult.testFixtures";
 import {
   clickButton,
   createMockAgentChatUnifiedState,
@@ -161,7 +162,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
       </div>
     ));
     sharedSendMessageMock.mockImplementationOnce(
-      () => new Promise<void>(() => undefined),
+      () => new Promise<ReturnType<typeof acceptedSubmission>>(() => undefined),
     );
     installMockAgentChatUnifiedState(
       createMockAgentChatUnifiedState({
@@ -229,7 +230,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         </button>
       </div>
     ));
-    sharedSendMessageMock.mockResolvedValueOnce(undefined);
+    sharedSendMessageMock.mockResolvedValueOnce(acceptedSubmission());
     installMockAgentChatUnifiedState(
       createMockAgentChatUnifiedState({
         sessionId: null,

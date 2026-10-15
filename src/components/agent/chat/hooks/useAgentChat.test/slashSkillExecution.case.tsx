@@ -107,6 +107,7 @@ describe("useAgentChat slash skill 执行链路", () => {
           input: [{ type: "text", text: "你好" }],
           threadId: "session-detached-chat",
         }),
+        expect.any(Function),
       );
       expect(mockToast.error).not.toHaveBeenCalledWith(
         expect.stringContaining("项目"),
@@ -482,6 +483,7 @@ describe("useAgentChat slash skill 执行链路", () => {
           input: [{ type: "text", text: "继续发送，必须留在新会话" }],
           threadId: createdSessionId,
         }),
+        expect.any(Function),
       );
     } finally {
       harness.unmount();
@@ -543,14 +545,13 @@ describe("useAgentChat slash skill 执行链路", () => {
       expect(harness.getValue().sessionId).toBeNull();
 
       await act(async () => {
-        const newSessionId = await harness.getValue().createFreshSession(
-          "新对话",
-          {
+        const newSessionId = await harness
+          .getValue()
+          .createFreshSession("新对话", {
             activateSession: false,
             preserveCurrentSnapshot: false,
             skipSessionStartHooks: true,
-          },
-        );
+          });
         expect(newSessionId).toBe(createdSessionId);
       });
 
@@ -562,7 +563,9 @@ describe("useAgentChat slash skill 执行链路", () => {
         createdSessionId,
       );
       expect(
-        harness.getValue().topics.some((topic) => topic.id === createdSessionId),
+        harness
+          .getValue()
+          .topics.some((topic) => topic.id === createdSessionId),
       ).toBe(true);
       expect(
         sessionStorage.getItem(`agent_curr_sessionId_${workspaceId}`),

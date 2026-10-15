@@ -2,6 +2,7 @@
 import { act, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
+import { acceptedSubmission } from "./hooks/agentSendResult.testFixtures";
 import { agentEnUSResource, agentZhCNResource } from "@/i18n/agentResources";
 import type { WorkspaceRightSurfaceLauncherProjection } from "./workspace/right-surface/rightSurfaceToolbarProjection";
 import { resetInitialSessionNavigationDeduplicationForTests } from "./workspace/useWorkspaceInitialSessionNavigation";
@@ -1067,6 +1068,28 @@ export function mountPage(
   return harness;
 }
 
+let committedNewConversationId = 0;
+/** Test-only router boundary: deliver an accepted typed route to the real page consumer. */
+export function commitNewConversationRoute(
+  mounted: MountedHarness,
+  options: { projectId?: string | null; freshDraft?: boolean } = {},
+): true {
+  const id = ++committedNewConversationId;
+  const workspaceId = options.projectId ?? null;
+  mounted.rerender({
+    agentEntry: "new-task",
+    initialSessionId: undefined,
+    projectId: workspaceId ?? undefined,
+    newChatAt: id,
+    newConversationRequest: {
+      id,
+      workspaceId,
+      freshDraft: options.freshDraft ?? true,
+    },
+  });
+  return true;
+}
+
 export function renderPage(
   props: Partial<ComponentProps<typeof AgentChatPage>> = {},
 ): HTMLDivElement {
@@ -1650,7 +1673,7 @@ beforeEach(async () => {
   });
 
   sharedSwitchTopicMock = vi.fn(async () => undefined);
-  sharedSendMessageMock = vi.fn(async () => undefined);
+  sharedSendMessageMock = vi.fn(async () => acceptedSubmission());
   sharedTriggerAIGuideMock = vi.fn();
   installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
 }, 60_000);

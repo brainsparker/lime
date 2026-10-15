@@ -5,7 +5,6 @@ import {
   normalizeArtifactProtocolPath,
   resolveArtifactProtocolFilePath,
 } from "@/lib/artifact-protocol";
-import type { TaskCenterTabItem } from "../components/TaskCenterTabStrip";
 import type { Message, MessagePreviewTarget } from "../types";
 import { isHiddenInternalArtifactPath } from "../utils/internalArtifactVisibility";
 import { shouldAutoSelectGeneralArtifact } from "./generalArtifactAutoSelection";
@@ -22,21 +21,10 @@ export const SESSION_RECENT_METADATA_BACKGROUND_SYNC_IDLE_TIMEOUT_MS = 20_000;
 
 export const FILE_MANAGER_NAV_COLLAPSE_BREAKPOINT_PX = 1180;
 export const APP_SIDEBAR_COLLAPSE_EVENT = "lime:app-sidebar-collapse";
-export const TASK_CENTER_DRAFT_SESSION_WARMUP_DELAY_MS = 1;
 export const NOOP_SET_CHAT_MESSAGES: Dispatch<SetStateAction<Message[]>> = () =>
   undefined;
 
 const FILE_MANAGER_SIDEBAR_OPEN_STORAGE_KEY = "lime.file-manager.sidebar-open";
-const TASK_CENTER_DRAFT_TAB_PREFIX = "task-draft";
-
-export interface TaskCenterDraftTab {
-  id: string;
-  title: string;
-  createdAt: Date;
-  updatedAt: Date;
-  status: TaskCenterTabItem["status"];
-}
-
 interface ResolveTaskCenterHomeSurfaceStateParams {
   agentEntry: string;
   draftSurfaceActive: boolean;
@@ -141,14 +129,6 @@ export function saveFileManagerSidebarOpen(open: boolean): void {
   window.localStorage.setItem(FILE_MANAGER_SIDEBAR_OPEN_STORAGE_KEY, "false");
 }
 
-export function createTaskCenterDraftTabId(): string {
-  const random =
-    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-      ? crypto.randomUUID().slice(0, 8)
-      : Math.random().toString(36).slice(2, 10);
-  return `${TASK_CENTER_DRAFT_TAB_PREFIX}-${Date.now().toString(36)}-${random}`;
-}
-
 export function createLocalImageWorkbenchSessionKey(): string {
   const random =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -157,26 +137,12 @@ export function createLocalImageWorkbenchSessionKey(): string {
   return `__local_image_workbench__:${Date.now().toString(36)}:${random}`;
 }
 
-export function isTaskCenterDraftTabId(value: string): boolean {
-  return value.startsWith(`${TASK_CENTER_DRAFT_TAB_PREFIX}-`);
-}
-
 export function createTaskCenterDraftSendRequestId(): string {
   const random =
     typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
       ? crypto.randomUUID().slice(0, 8)
       : Math.random().toString(36).slice(2, 10);
   return `draft-send-${Date.now().toString(36)}-${random}`;
-}
-
-export function resolveTaskCenterDraftSendTitle(text: string): string {
-  const normalized = text.trim().replace(/\s+/g, " ");
-  if (!normalized) {
-    return "新对话";
-  }
-
-  const preview = Array.from(normalized).slice(0, 18).join("");
-  return normalized.length > preview.length ? `${preview}...` : preview;
 }
 
 export function isTaskCenterDraftSendPendingForLayout({
@@ -278,26 +244,17 @@ export function shouldAutoInitWorkspaceSessionFiles({
 export function shouldPauseTaskCenterInitialSessionNavigation({
   agentEntry,
   draftSurfaceActive,
-  activeDraftTabId,
-  draftTabCount,
   hasHomeHotpathPending,
 }: {
   agentEntry?: string | null;
   draftSurfaceActive: boolean;
-  activeDraftTabId?: string | null;
-  draftTabCount: number;
   hasHomeHotpathPending: boolean;
 }): boolean {
   if (agentEntry !== "claw" && agentEntry !== "new-task") {
     return false;
   }
 
-  return (
-    draftSurfaceActive ||
-    Boolean(activeDraftTabId) ||
-    draftTabCount > 0 ||
-    hasHomeHotpathPending
-  );
+  return draftSurfaceActive || hasHomeHotpathPending;
 }
 
 export function shouldSuppressTaskCenterDraftContentForLayout({
@@ -342,9 +299,7 @@ export function resolveTaskCenterHomeSurfaceState({
   const shouldBlockForSessionSwitch =
     sessionSwitchPending && !hasCurrentSessionActivity;
   const isSessionRestorePending =
-    isAutoRestoringSession ||
-    isSessionHydrating ||
-    shouldBlockForSessionSwitch;
+    isAutoRestoringSession || isSessionHydrating || shouldBlockForSessionSwitch;
   const shouldHideBackgroundSessionContent =
     isHomeSessionBackgroundRecovery && !hasInitialSessionRoute;
   const shouldKeepDraftHomeShell =

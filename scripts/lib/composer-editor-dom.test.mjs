@@ -26,9 +26,11 @@ function editor(html, attributes = {}) {
 
 describe("Composer fixture DOM projection", () => {
   it.each(["  中😀\n````\n\n", ""])(
-    "separates P/PRE/P without flattening code whitespace %j",
+    "separates P/NodeView/P without flattening code whitespace %j",
     (body) => {
-      const element = editor("<p>first</p><pre><code></code></pre><p>last</p>");
+      const element = editor(
+        '<p>first</p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto TypeScript</div><pre dir="ltr"><code class="hljs language-typescript"></code></pre></div><p>last</p>',
+      );
       try {
         element.querySelector("code").textContent = body;
         expect(readComposerEditorTextDom(element)).toBe(`first\n${body}\nlast`);
@@ -37,6 +39,15 @@ describe("Composer fixture DOM projection", () => {
       }
     },
   );
+  it("skips toolbar text while retaining nested syntax leaves and visible atoms", () => {
+    const element = editor(
+      '<p>lead <span data-composer-token="skill" contenteditable="false">/user:capability-report</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto TypeScript search</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">中😀</span>;\n````\n\n</code></pre></div><p><span data-composer-token="paste" contenteditable="false" data-payload="hidden">[Pasted text]</span> tail</p>',
+    );
+    expect(readComposerEditorTextDom(element)).toBe(
+      "lead /user:capability-report\n  const value = 中😀;\n````\n\n\n[Pasted text] tail",
+    );
+    element.remove();
+  });
   it("preserves whitespace and explicit hard breaks without the view trailing break", () => {
     const element = editor(
       '<p> lead <br>line<br><br class="ProseMirror-trailingBreak"></p>',

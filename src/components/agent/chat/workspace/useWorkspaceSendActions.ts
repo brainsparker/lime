@@ -1,3 +1,9 @@
+import {
+  submitWorkspaceMessage,
+  submitWorkspaceLocalConfirmation,
+  withWorkspaceSubmissionCleanup,
+} from "./workspaceSendSubmission";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
@@ -195,7 +201,7 @@ export type WorkspaceHandleSend = (
   sendExecutionStrategy?: CurrentExecutionStrategy,
   autoContinuePayload?: AutoContinueRequestPayload,
   sendOptions?: HandleSendOptions,
-) => Promise<boolean>;
+) => Promise<RuntimeSubmissionResult>;
 type SetStringState = (value: string) => void;
 type ParsedImageWorkbenchCommand = NonNullable<
   ReturnType<typeof parseImageWorkbenchCommand>
@@ -326,6 +332,7 @@ async function resolveImageCommandProjectContext(params: {
 }
 
 interface WorkspaceLocalConfirmationPlan {
+  preserveDraft: boolean;
   sourceText: string;
   images: MessageImage[];
   sendBoundary: GeneralWorkbenchSendBoundaryState;
@@ -336,7 +343,7 @@ interface WorkspaceLocalConfirmationPlan {
 type WorkspaceSendResolution =
   | {
       kind: "done";
-      result: boolean;
+      result: RuntimeSubmissionResult;
     }
   | {
       kind: "local_confirmation";
@@ -461,7 +468,7 @@ export function useWorkspaceSendActions({
         logAgentDebug("WorkspaceSend", "plan.empty", {
           durationMs: Date.now() - planStartedAt,
         });
-        return { kind: "done", result: false };
+        return { kind: "done", result: { kind: "rejected" } };
       }
       let effectiveImages = images || [];
       const sendBoundary = resolveSendBoundary({
@@ -792,6 +799,7 @@ export function useWorkspaceSendActions({
         return {
           kind: "local_confirmation",
           plan: {
+            preserveDraft: Boolean(sendOptions?.composerDraft),
             sourceText,
             images: effectiveImages,
             sendBoundary,
@@ -829,13 +837,13 @@ export function useWorkspaceSendActions({
         if (!imageCommandProjectContext.projectRootPath) {
           clearSubmissionPreview();
           toast.error("默认项目目录未就绪，暂时无法创建图片任务");
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         if (prepareImageWorkbenchSkillSend) {
           const prepared = await prepareImageWorkbenchSkillSend();
           if (!prepared) {
             clearSubmissionPreview();
-            return { kind: "done", result: false };
+            return { kind: "done", result: { kind: "rejected" } };
           }
         }
         const imageDispatchText =
@@ -851,7 +859,7 @@ export function useWorkspaceSendActions({
         });
         if (!skillRequest) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         effectiveImages =
           skillRequest.images.length > 0
@@ -909,13 +917,13 @@ export function useWorkspaceSendActions({
         if (!imageCommandProjectContext.projectRootPath) {
           clearSubmissionPreview();
           toast.error("默认项目目录未就绪，暂时无法创建图片任务");
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         if (prepareImageWorkbenchSkillSend) {
           const prepared = await prepareImageWorkbenchSkillSend();
           if (!prepared) {
             clearSubmissionPreview();
-            return { kind: "done", result: false };
+            return { kind: "done", result: { kind: "rejected" } };
           }
         }
         const skillRequest = resolveImageWorkbenchCommandRequest({
@@ -940,7 +948,7 @@ export function useWorkspaceSendActions({
         });
         if (!skillRequest) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         effectiveImages =
           skillRequest.images.length > 0
@@ -990,7 +998,7 @@ export function useWorkspaceSendActions({
         });
         if (!requestContext) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         pendingCommandSessionBinding = {
           kind: "request_context",
@@ -1036,7 +1044,7 @@ export function useWorkspaceSendActions({
         });
         if (!requestContext) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         pendingCommandSessionBinding = {
           kind: "request_context",
@@ -1233,7 +1241,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -1284,7 +1292,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -1334,7 +1342,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -1385,7 +1393,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -1436,7 +1444,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         effectiveWebSearch = false;
         sendOptions = {
@@ -1488,7 +1496,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -1542,7 +1550,7 @@ export function useWorkspaceSendActions({
           contentId,
         });
         if (!requestContext) {
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
         sendOptions = {
           ...(sendOptions || {}),
@@ -2464,7 +2472,7 @@ export function useWorkspaceSendActions({
         });
         if (!voiceSkillLaunch) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
 
         ensureSubmissionPreview();
@@ -2500,7 +2508,7 @@ export function useWorkspaceSendActions({
         });
         if (!growthSkillLaunch) {
           clearSubmissionPreview();
-          return { kind: "done", result: false };
+          return { kind: "done", result: { kind: "rejected" } };
         }
 
         ensureSubmissionPreview();
@@ -2570,11 +2578,11 @@ export function useWorkspaceSendActions({
             if (error.gateRequest && openRuntimeSceneGate) {
               await openRuntimeSceneGate(error.gateRequest);
               clearSubmissionPreview();
-              return { kind: "done", result: false };
+              return { kind: "done", result: { kind: "rejected" } };
             }
             toast.error(error.message);
             clearSubmissionPreview();
-            return { kind: "done", result: false };
+            return { kind: "done", result: { kind: "rejected" } };
           }
           throw error;
         }
@@ -2622,7 +2630,7 @@ export function useWorkspaceSendActions({
         sendOptions?.observer?.onError?.("请先选择项目后再开始对话");
         toast.error("请先选择项目后再开始对话");
         clearSubmissionPreview();
-        return { kind: "done", result: false };
+        return { kind: "done", result: { kind: "rejected" } };
       }
 
       const shouldPrimeSessionForInitialConversationSend =
@@ -2768,35 +2776,42 @@ export function useWorkspaceSendActions({
   );
 
   const executeLocalConfirmationPlan = useCallback(
-    async (plan: WorkspaceLocalConfirmationPlan): Promise<boolean> => {
+    async (
+      plan: WorkspaceLocalConfirmationPlan,
+    ): Promise<RuntimeSubmissionResult> => {
       const { sourceText, images, sendBoundary, submissionPreviewKey } = plan;
-      setInput("");
-      setMentionedCharacters([]);
-      setChatMessages((previous) => {
-        const timestamp = new Date();
-        return [
-          ...previous,
-          {
-            id: crypto.randomUUID(),
-            role: "user",
-            content: sourceText,
-            images: images.length > 0 ? images : undefined,
-            timestamp,
-          },
-          {
-            id: crypto.randomUUID(),
-            role: "assistant",
-            content: plan.confirmation,
-            timestamp: new Date(),
-          },
-        ];
+      return submitWorkspaceLocalConfirmation({
+        preserveDraft: plan.preserveDraft,
+        clearDraft: () => {
+          setInput("");
+          setMentionedCharacters([]);
+          finalizeAfterSendSuccess(sendBoundary);
+        },
+        publish: () => {
+          setChatMessages((previous) => {
+            const timestamp = new Date();
+            return [
+              ...previous,
+              {
+                id: crypto.randomUUID(),
+                role: "user",
+                content: sourceText,
+                images: images.length > 0 ? images : undefined,
+                timestamp,
+              },
+              {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: plan.confirmation,
+                timestamp: new Date(),
+              },
+            ];
+          });
+          setSubmissionPreview((current) =>
+            current?.key === submissionPreviewKey ? null : current,
+          );
+        },
       });
-
-      finalizeAfterSendSuccess(sendBoundary);
-      setSubmissionPreview((current) =>
-        current?.key === submissionPreviewKey ? null : current,
-      );
-      return true;
     },
     [
       finalizeAfterSendSuccess,
@@ -2807,7 +2822,7 @@ export function useWorkspaceSendActions({
   );
 
   const executeSendPlan = useCallback(
-    async (plan: WorkspaceSendPlan): Promise<boolean> => {
+    async (plan: WorkspaceSendPlan): Promise<RuntimeSubmissionResult> => {
       const {
         sourceText,
         dispatchText,
@@ -2837,149 +2852,174 @@ export function useWorkspaceSendActions({
         setMentionedCharacters([]);
       }
 
-      try {
-        let nextRequestMetadata = buildWorkspaceRequestMetadata({
-          workspaceRequestMetadataBase,
-          savedSoulArtifactVoiceGenerationBrief,
-          soulArtifactVoiceEnabledForTurn,
-          sendOptions: {
-            ...(sendOptions || {}),
-            toolPreferencesOverride: effectiveToolPreferences,
-          },
-          currentProviderType: providerType,
-          effectiveToolPreferences,
-          mappedTheme,
-          isThemeWorkbench,
-          currentGateKey,
-          themeWorkbenchActiveQueueTitle,
-          contentId,
-          browserRequirementMatch: browserRequirementForSend,
-          workspaceSkillBindings,
-          workspaceSkillRuntimeEnable,
-          agentResponseLanguage,
-        });
-        const shouldRefreshServiceModels =
-          Boolean(resolveServiceModelsBeforeSend) &&
-          shouldRefreshServiceModelsBeforeSend({
-            requestMetadata: nextRequestMetadata,
-            purpose: sendOptions?.purpose,
-          });
-        const serviceModelsForSend = shouldRefreshServiceModels
-          ? await resolveServiceModelsBeforeSend?.()
-          : null;
-        const effectiveServiceModels =
-          serviceModelsForSend?.serviceModels ?? serviceModels;
-        const effectiveAgentResponseLanguage =
-          serviceModelsForSend?.agentResponseLanguage ?? agentResponseLanguage;
-        if (shouldRefreshServiceModels) {
-          nextRequestMetadata = buildWorkspaceRequestMetadata({
-            workspaceRequestMetadataBase,
-            savedSoulArtifactVoiceGenerationBrief,
-            soulArtifactVoiceEnabledForTurn,
-            sendOptions: {
+      return withWorkspaceSubmissionCleanup(
+        async () => {
+          try {
+            let nextRequestMetadata = buildWorkspaceRequestMetadata({
+              workspaceRequestMetadataBase,
+              savedSoulArtifactVoiceGenerationBrief,
+              soulArtifactVoiceEnabledForTurn,
+              sendOptions: {
+                ...(sendOptions || {}),
+                toolPreferencesOverride: effectiveToolPreferences,
+              },
+              currentProviderType: providerType,
+              effectiveToolPreferences,
+              mappedTheme,
+              isThemeWorkbench,
+              currentGateKey,
+              themeWorkbenchActiveQueueTitle,
+              contentId,
+              browserRequirementMatch: browserRequirementForSend,
+              workspaceSkillBindings,
+              workspaceSkillRuntimeEnable,
+              agentResponseLanguage,
+            });
+            const shouldRefreshServiceModels =
+              Boolean(resolveServiceModelsBeforeSend) &&
+              shouldRefreshServiceModelsBeforeSend({
+                requestMetadata: nextRequestMetadata,
+                purpose: sendOptions?.purpose,
+              });
+            const serviceModelsForSend = shouldRefreshServiceModels
+              ? await resolveServiceModelsBeforeSend?.()
+              : null;
+            const effectiveServiceModels =
+              serviceModelsForSend?.serviceModels ?? serviceModels;
+            const effectiveAgentResponseLanguage =
+              serviceModelsForSend?.agentResponseLanguage ??
+              agentResponseLanguage;
+            if (shouldRefreshServiceModels) {
+              nextRequestMetadata = buildWorkspaceRequestMetadata({
+                workspaceRequestMetadataBase,
+                savedSoulArtifactVoiceGenerationBrief,
+                soulArtifactVoiceEnabledForTurn,
+                sendOptions: {
+                  ...(sendOptions || {}),
+                  toolPreferencesOverride: effectiveToolPreferences,
+                },
+                currentProviderType: providerType,
+                effectiveToolPreferences,
+                mappedTheme,
+                isThemeWorkbench,
+                currentGateKey,
+                themeWorkbenchActiveQueueTitle,
+                contentId,
+                browserRequirementMatch: browserRequirementForSend,
+                workspaceSkillBindings,
+                workspaceSkillRuntimeEnable,
+                agentResponseLanguage: effectiveAgentResponseLanguage,
+              });
+            }
+            const serviceModelSendOverrides = resolveServiceModelSendOverrides({
+              requestMetadata: nextRequestMetadata,
+              purpose: sendOptions?.purpose,
+              serviceModels: effectiveServiceModels,
+            });
+            const nextAssistantDraft =
+              sendOptions?.assistantDraft ??
+              buildImageWorkbenchAssistantDraft(nextRequestMetadata);
+            const nextSendOptions: HandleSendOptions = {
               ...(sendOptions || {}),
-              toolPreferencesOverride: effectiveToolPreferences,
-            },
-            currentProviderType: providerType,
-            effectiveToolPreferences,
-            mappedTheme,
-            isThemeWorkbench,
-            currentGateKey,
-            themeWorkbenchActiveQueueTitle,
-            contentId,
-            browserRequirementMatch: browserRequirementForSend,
-            workspaceSkillBindings,
-            workspaceSkillRuntimeEnable,
-            agentResponseLanguage: effectiveAgentResponseLanguage,
-          });
-        }
-        const serviceModelSendOverrides = resolveServiceModelSendOverrides({
-          requestMetadata: nextRequestMetadata,
-          purpose: sendOptions?.purpose,
-          serviceModels: effectiveServiceModels,
-        });
-        const nextAssistantDraft =
-          sendOptions?.assistantDraft ??
-          buildImageWorkbenchAssistantDraft(nextRequestMetadata);
-        const nextSendOptions: HandleSendOptions = {
-          ...(sendOptions || {}),
-          displayContent:
-            dispatchText !== sourceText
-              ? (sendOptions?.displayContent ?? sourceText)
-              : sendOptions?.displayContent,
-          requestMetadata: withConfiguredModelSlots(
-            nextRequestMetadata,
-            effectiveServiceModels,
+              displayContent:
+                dispatchText !== sourceText
+                  ? (sendOptions?.displayContent ?? sourceText)
+                  : sendOptions?.displayContent,
+              requestMetadata: withConfiguredModelSlots(
+                nextRequestMetadata,
+                effectiveServiceModels,
+              ),
+              ...(effectiveSearchMode
+                ? { searchMode: effectiveSearchMode }
+                : {}),
+              providerOverride:
+                sendOptions?.providerOverride ??
+                serviceModelSendOverrides.providerOverride,
+              modelOverride:
+                sendOptions?.modelOverride ??
+                serviceModelSendOverrides.modelOverride,
+              systemPromptOverride: sendOptions?.systemPromptOverride,
+              assistantDraft: nextAssistantDraft,
+            };
+
+            logAgentDebug("WorkspaceSend", "sendMessage.start", {
+              durationMs: Date.now() - executeStartedAt,
+              responsiveModelSlotConfigured: Boolean(
+                effectiveServiceModels?.responsive_chat?.enabled !== false &&
+                effectiveServiceModels?.responsive_chat?.preferredProviderId &&
+                effectiveServiceModels?.responsive_chat?.preferredModelId,
+              ),
+              modelOverride: nextSendOptions.modelOverride ?? null,
+              providerOverride: nextSendOptions.providerOverride ?? null,
+            });
+            return await submitWorkspaceMessage({
+              observer: sendOptions?.observer,
+              submit: (observer) =>
+                sendMessage(
+                  text,
+                  images,
+                  effectiveWebSearch,
+                  undefined,
+                  false,
+                  sendExecutionStrategy,
+                  undefined,
+                  autoContinuePayload,
+                  { ...nextSendOptions, observer },
+                ),
+              onAccepted: () => {
+                logAgentDebug("WorkspaceSend", "sendMessage.done", {
+                  durationMs: Date.now() - executeStartedAt,
+                });
+
+                if (completedMentionCommandUsage) {
+                  recordMentionEntryUsage({
+                    kind: "builtin_command",
+                    entryId: completedMentionCommandUsage.entryId,
+                    replayText: completedMentionCommandUsage.replayText,
+                    slotValues: completedMentionCommandUsage.slotValues,
+                  });
+                }
+
+                if (completedMentionUsage) {
+                  recordServiceSkillUsage(completedMentionUsage);
+                }
+
+                if (plan.completedSlashUsage) {
+                  recordSlashEntryUsage(plan.completedSlashUsage);
+                }
+
+                finalizeAfterSendSuccess(sendBoundary);
+              },
+              onRejected: (error) => {
+                if (!sendOptions?.composerDraft)
+                  rollbackAfterSendFailure(sendBoundary);
+                const errorMessage =
+                  error instanceof Error ? error.message : String(error);
+                sendOptions?.observer?.onError?.(errorMessage);
+                console.error("[AgentChat] 发送消息失败:", error);
+                toast.error(
+                  resolveAgentRuntimeSubmitErrorMessage(errorMessage),
+                );
+                if (!sendOptions?.composerDraft) setInput(sourceText);
+              },
+            });
+          } catch (error) {
+            if (!sendOptions?.composerDraft)
+              rollbackAfterSendFailure(sendBoundary);
+            const errorMessage =
+              error instanceof Error ? error.message : String(error);
+            sendOptions?.observer?.onError?.(errorMessage);
+            console.error("[AgentChat] 发送消息失败:", error);
+            toast.error(resolveAgentRuntimeSubmitErrorMessage(errorMessage));
+            if (!sendOptions?.composerDraft) setInput(sourceText);
+            return { kind: "rejected", error };
+          }
+        },
+        () =>
+          setSubmissionPreview((current) =>
+            current?.key === submissionPreviewKey ? null : current,
           ),
-          ...(effectiveSearchMode ? { searchMode: effectiveSearchMode } : {}),
-          providerOverride:
-            sendOptions?.providerOverride ??
-            serviceModelSendOverrides.providerOverride,
-          modelOverride:
-            sendOptions?.modelOverride ??
-            serviceModelSendOverrides.modelOverride,
-          systemPromptOverride: sendOptions?.systemPromptOverride,
-          assistantDraft: nextAssistantDraft,
-        };
-
-        logAgentDebug("WorkspaceSend", "sendMessage.start", {
-          durationMs: Date.now() - executeStartedAt,
-          responsiveModelSlotConfigured: Boolean(
-            effectiveServiceModels?.responsive_chat?.enabled !== false &&
-            effectiveServiceModels?.responsive_chat?.preferredProviderId &&
-            effectiveServiceModels?.responsive_chat?.preferredModelId,
-          ),
-          modelOverride: nextSendOptions.modelOverride ?? null,
-          providerOverride: nextSendOptions.providerOverride ?? null,
-        });
-        await sendMessage(
-          text,
-          images,
-          effectiveWebSearch,
-          undefined,
-          false,
-          sendExecutionStrategy,
-          undefined,
-          autoContinuePayload,
-          nextSendOptions,
-        );
-        logAgentDebug("WorkspaceSend", "sendMessage.done", {
-          durationMs: Date.now() - executeStartedAt,
-        });
-
-        if (completedMentionCommandUsage) {
-          recordMentionEntryUsage({
-            kind: "builtin_command",
-            entryId: completedMentionCommandUsage.entryId,
-            replayText: completedMentionCommandUsage.replayText,
-            slotValues: completedMentionCommandUsage.slotValues,
-          });
-        }
-
-        if (completedMentionUsage) {
-          recordServiceSkillUsage(completedMentionUsage);
-        }
-
-        if (plan.completedSlashUsage) {
-          recordSlashEntryUsage(plan.completedSlashUsage);
-        }
-
-        finalizeAfterSendSuccess(sendBoundary);
-        return true;
-      } catch (error) {
-        if (!sendOptions?.composerDraft) rollbackAfterSendFailure(sendBoundary);
-        const errorMessage =
-          error instanceof Error ? error.message : String(error);
-        sendOptions?.observer?.onError?.(errorMessage);
-        console.error("[AgentChat] 发送消息失败:", error);
-        toast.error(resolveAgentRuntimeSubmitErrorMessage(errorMessage));
-        if (!sendOptions?.composerDraft) setInput(sourceText);
-        return false;
-      } finally {
-        setSubmissionPreview((current) =>
-          current?.key === submissionPreviewKey ? null : current,
-        );
-      }
+      );
     },
     [
       agentResponseLanguage,
@@ -3016,33 +3056,36 @@ export function useWorkspaceSendActions({
       sendOptions,
     ) => {
       if (isPreparingSendRef.current) {
-        return false;
+        return { kind: "rejected" };
       }
 
       isPreparingSendRef.current = true;
       setIsPreparingSend(true);
 
-      try {
-        const resolution = await resolveSendExecutionPlan(
-          images,
-          webSearch,
-          thinking,
-          textOverride,
-          sendExecutionStrategy,
-          autoContinuePayload,
-          sendOptions,
-        );
-        if (resolution.kind === "done") {
-          return resolution.result;
-        }
-        if (resolution.kind === "local_confirmation") {
-          return await executeLocalConfirmationPlan(resolution.plan);
-        }
-        return await executeSendPlan(resolution.plan);
-      } finally {
-        isPreparingSendRef.current = false;
-        setIsPreparingSend(false);
-      }
+      return withWorkspaceSubmissionCleanup(
+        async () => {
+          const resolution = await resolveSendExecutionPlan(
+            images,
+            webSearch,
+            thinking,
+            textOverride,
+            sendExecutionStrategy,
+            autoContinuePayload,
+            sendOptions,
+          );
+          if (resolution.kind === "done") {
+            return resolution.result;
+          }
+          if (resolution.kind === "local_confirmation") {
+            return await executeLocalConfirmationPlan(resolution.plan);
+          }
+          return await executeSendPlan(resolution.plan);
+        },
+        () => {
+          isPreparingSendRef.current = false;
+          setIsPreparingSend(false);
+        },
+      );
     },
     [executeLocalConfirmationPlan, executeSendPlan, resolveSendExecutionPlan],
   );

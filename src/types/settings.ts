@@ -39,7 +39,6 @@ export enum SettingsTabs {
   WebSearch = "web-search",
   Environment = "environment",
   ExecutionPolicy = "execution-policy",
-  ExecutionTracker = "execution-tracker",
 
   Experimental = "experimental",
   Developer = "developer",
@@ -63,29 +62,3 @@ export interface SettingsTabInfo {
   group: SettingsGroupKey;
   experimental?: boolean;
 }
-
-/**
- * 分组到标签页的映射
- */
-export const SETTINGS_GROUPS: Record<SettingsGroupKey, SettingsTabs[]> = {
-  [SettingsGroupKey.Overview]: [SettingsTabs.Home],
-  [SettingsGroupKey.Account]: [SettingsTabs.Profile, SettingsTabs.Stats],
-  [SettingsGroupKey.General]: [
-    SettingsTabs.Appearance,
-    SettingsTabs.Memory,
-    SettingsTabs.ArchivedConversations,
-  ],
-  [SettingsGroupKey.Agent]: [
-    SettingsTabs.Providers,
-    SettingsTabs.Skills,
-    SettingsTabs.MediaServices,
-  ],
-  [SettingsGroupKey.System]: [
-    SettingsTabs.McpServer,
-    SettingsTabs.WebSearch,
-    SettingsTabs.Environment,
-    SettingsTabs.ExecutionPolicy,
-    SettingsTabs.Developer,
-    SettingsTabs.About,
-  ],
-};

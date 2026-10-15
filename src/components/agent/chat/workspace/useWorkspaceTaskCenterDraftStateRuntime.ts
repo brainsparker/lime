@@ -7,11 +7,9 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
+import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
-import {
-  shouldPauseTaskCenterInitialSessionNavigation,
-  type TaskCenterDraftTab,
-} from "./agentChatWorkspaceHelpers";
+import { shouldPauseTaskCenterInitialSessionNavigation } from "./agentChatWorkspaceHelpers";
 
 interface UseWorkspaceTaskCenterDraftStateRuntimeParams {
   agentEntry?: string;
@@ -23,25 +21,23 @@ interface UseWorkspaceTaskCenterDraftStateRuntimeParams {
   normalizedInitialSessionId: string | null;
   sessionId?: string | null;
   resetComposerDraft?: () => void;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
 }
 
 interface WorkspaceTaskCenterDraftStateRuntime {
-  activeTaskCenterDraftTabId: string | null;
   homePendingPreviewRequest: TaskCenterDraftSendRequest | null;
-  setActiveTaskCenterDraftTabId: Dispatch<SetStateAction<string | null>>;
   setHomePendingPreviewRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
   setTaskCenterDraftSendRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
-  setTaskCenterDraftTabs: Dispatch<SetStateAction<TaskCenterDraftTab[]>>;
   shouldHydrateEmptyMatchedInitialSession: boolean;
   shouldPauseInitialSessionNavigationForTaskCenterDraft: boolean;
   taskCenterDraftSendRequest: TaskCenterDraftSendRequest | null;
-  taskCenterDraftSurfaceActiveRef: MutableRefObject<boolean>;
-  taskCenterDraftTabs: TaskCenterDraftTab[];
+  taskCenterHomeSurfaceActiveRef: MutableRefObject<boolean>;
   handleBeforeTopicSwitch: (topicId: string) => void;
+  handleTopicSwitchCommitted: (topicId: string) => void;
 }
 
 export function useWorkspaceTaskCenterDraftStateRuntime({
@@ -54,18 +50,13 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
   normalizedInitialSessionId,
   sessionId,
   resetComposerDraft,
+  composerDraftCoordinator,
 }: UseWorkspaceTaskCenterDraftStateRuntimeParams): WorkspaceTaskCenterDraftStateRuntime {
   const [taskCenterDraftSendRequest, setTaskCenterDraftSendRequest] =
     useState<TaskCenterDraftSendRequest | null>(null);
   const [homePendingPreviewRequest, setHomePendingPreviewRequest] =
     useState<TaskCenterDraftSendRequest | null>(null);
-  const taskCenterDraftSurfaceActiveRef = useRef(false);
-  const [taskCenterDraftTabs, setTaskCenterDraftTabs] = useState<
-    TaskCenterDraftTab[]
-  >([]);
-  const [activeTaskCenterDraftTabId, setActiveTaskCenterDraftTabId] = useState<
-    string | null
-  >(null);
+  const taskCenterHomeSurfaceActiveRef = useRef(!normalizedInitialSessionId);
   const previousAgentEntryRef = useRef(agentEntry);
 
   useLayoutEffect(() => {
@@ -76,24 +67,33 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
       return;
     }
 
-    resetComposerDraft?.();
-    taskCenterDraftSurfaceActiveRef.current = false;
-    setActiveTaskCenterDraftTabId(null);
-    setTaskCenterDraftTabs((current) => (current.length > 0 ? [] : current));
-  }, [agentEntry, resetComposerDraft]);
+    composerDraftCoordinator?.prepareNavigation();
+    if (!composerDraftCoordinator) resetComposerDraft?.();
+    taskCenterHomeSurfaceActiveRef.current = false;
+  }, [agentEntry, composerDraftCoordinator, resetComposerDraft]);
 
   const handleBeforeTopicSwitch = useCallback(
     (topicId: string) => {
-      if (topicId.trim() !== sessionId?.trim() || taskCenterDraftSurfaceActiveRef.current) {
-        resetComposerDraft?.();
-      }
-      taskCenterDraftSurfaceActiveRef.current = false;
-      setActiveTaskCenterDraftTabId(null);
-      setTaskCenterDraftSendRequest(null);
-      setHomePendingPreviewRequest(null);
+      composerDraftCoordinator?.prepareNavigation();
       deferSessionRecentMetadataSyncForNavigation(topicId);
     },
-    [deferSessionRecentMetadataSyncForNavigation, resetComposerDraft, sessionId],
+    [composerDraftCoordinator, deferSessionRecentMetadataSyncForNavigation],
+  );
+
+  const handleTopicSwitchCommitted = useCallback(
+    (topicId: string) => {
+      if (
+        !composerDraftCoordinator &&
+        (topicId.trim() !== sessionId?.trim() ||
+          taskCenterHomeSurfaceActiveRef.current)
+      ) {
+        resetComposerDraft?.();
+      }
+      taskCenterHomeSurfaceActiveRef.current = topicId.trim() === "";
+      setTaskCenterDraftSendRequest(null);
+      setHomePendingPreviewRequest(null);
+    },
+    [composerDraftCoordinator, resetComposerDraft, sessionId],
   );
 
   const hasTaskCenterHomeHotpathPending = Boolean(
@@ -102,9 +102,7 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
   const shouldPauseInitialSessionNavigationForTaskCenterDraft =
     shouldPauseTaskCenterInitialSessionNavigation({
       agentEntry,
-      draftSurfaceActive: taskCenterDraftSurfaceActiveRef.current,
-      activeDraftTabId: activeTaskCenterDraftTabId,
-      draftTabCount: taskCenterDraftTabs.length,
+      draftSurfaceActive: taskCenterHomeSurfaceActiveRef.current,
       hasHomeHotpathPending: hasTaskCenterHomeHotpathPending,
     });
   const shouldHydrateEmptyMatchedInitialSession =
@@ -116,17 +114,14 @@ export function useWorkspaceTaskCenterDraftStateRuntime({
     (!hasInitialSessionTopic || (initialSessionMessagesCount ?? 0) > 0);
 
   return {
-    activeTaskCenterDraftTabId,
     handleBeforeTopicSwitch,
+    handleTopicSwitchCommitted,
     homePendingPreviewRequest,
-    setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
     shouldHydrateEmptyMatchedInitialSession,
     shouldPauseInitialSessionNavigationForTaskCenterDraft,
     taskCenterDraftSendRequest,
-    taskCenterDraftSurfaceActiveRef,
-    taskCenterDraftTabs,
+    taskCenterHomeSurfaceActiveRef,
   };
 }

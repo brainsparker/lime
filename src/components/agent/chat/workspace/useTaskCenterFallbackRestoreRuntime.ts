@@ -14,7 +14,6 @@ interface UseTaskCenterFallbackRestoreRuntimeParams {
   isAutoRestoringSession: boolean;
   isSessionHydrating: boolean;
   draftSurfaceActive: boolean;
-  draftTabActive: boolean;
   initialPendingServiceSkillLaunchSignature?: string | null;
   initialDispatchKey?: string | null;
   isBootstrapDispatchPending: boolean;
@@ -42,7 +41,6 @@ export function useTaskCenterFallbackRestoreRuntime({
   isAutoRestoringSession,
   isSessionHydrating,
   draftSurfaceActive,
-  draftTabActive,
   initialPendingServiceSkillLaunchSignature,
   initialDispatchKey,
   isBootstrapDispatchPending,
@@ -70,7 +68,6 @@ export function useTaskCenterFallbackRestoreRuntime({
       isAutoRestoringSession,
       isSessionHydrating,
       draftSurfaceActive,
-      draftTabActive,
       initialPendingServiceSkillLaunchSignature,
       initialDispatchKey,
       isBootstrapDispatchPending,
@@ -127,7 +124,6 @@ export function useTaskCenterFallbackRestoreRuntime({
     currentSessionIsKnownTopic,
     detachedTopicId,
     draftSurfaceActive,
-    draftTabActive,
     fallbackRestoreRef,
     hasDisplayMessages,
     initialDispatchKey,

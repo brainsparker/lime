@@ -1,3 +1,4 @@
+import { isRuntimeSubmissionAccepted } from "../hooks/agentSendResult";
 import {
   useCallback,
   useEffect,
@@ -604,7 +605,7 @@ export function useGeneralWorkbenchInitialAutoGuideRuntime({
               }
             : undefined,
         );
-        if (!started) {
+        if (!isRuntimeSubmissionAccepted(started)) {
           releaseInitialAutoSendClaim(claimKey);
           if (disposed) {
             return;
@@ -738,7 +739,7 @@ export function useGeneralWorkbenchInitialAutoGuideRuntime({
           skipSessionRestore: true,
         },
       );
-      if (!started) {
+      if (!isRuntimeSubmissionAccepted(started)) {
         releaseInitialAutoSendClaim(claimKey);
         if (disposed) {
           return;

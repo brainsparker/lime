@@ -1,0 +1,256 @@
+{
+  "schema": "reference-code-language-catalog-v1",
+  "languages": [
+    {
+      "label": "Arduino",
+      "value": "arduino"
+    },
+    {
+      "label": "Bash",
+      "value": "bash"
+    },
+    {
+      "label": "C",
+      "value": "c"
+    },
+    {
+      "label": "C++",
+      "value": "cpp"
+    },
+    {
+      "label": "C#",
+      "value": "csharp"
+    },
+    {
+      "label": "CSS",
+      "value": "css"
+    },
+    {
+      "label": "Diff",
+      "value": "diff"
+    },
+    {
+      "label": "Go",
+      "value": "go"
+    },
+    {
+      "label": "GraphQL",
+      "value": "graphql"
+    },
+    {
+      "label": "INI",
+      "value": "ini"
+    },
+    {
+      "label": "Java",
+      "value": "java"
+    },
+    {
+      "label": "JavaScript",
+      "value": "javascript"
+    },
+    {
+      "label": "JSON",
+      "value": "json"
+    },
+    {
+      "label": "Kotlin",
+      "value": "kotlin"
+    },
+    {
+      "label": "LaTeX",
+      "value": "latex"
+    },
+    {
+      "label": "Less",
+      "value": "less"
+    },
+    {
+      "label": "Lua",
+      "value": "lua"
+    },
+    {
+      "label": "Makefile",
+      "value": "makefile"
+    },
+    {
+      "label": "Markdown",
+      "value": "markdown"
+    },
+    {
+      "label": null,
+      "value": "math"
+    },
+    {
+      "label": "Mermaid",
+      "value": "mermaid"
+    },
+    {
+      "label": "Objective-C",
+      "value": "objectivec"
+    },
+    {
+      "label": "Perl",
+      "value": "perl"
+    },
+    {
+      "label": "PHP",
+      "value": "php"
+    },
+    {
+      "label": "PHP template",
+      "value": "php-template"
+    },
+    {
+      "label": null,
+      "value": "plaintext"
+    },
+    {
+      "label": "Python",
+      "value": "python"
+    },
+    {
+      "label": "Python REPL",
+      "value": "python-repl"
+    },
+    {
+      "label": "R",
+      "value": "r"
+    },
+    {
+      "label": "Ruby",
+      "value": "ruby"
+    },
+    {
+      "label": "Rust",
+      "value": "rust"
+    },
+    {
+      "label": "SCSS",
+      "value": "scss"
+    },
+    {
+      "label": "Shell",
+      "value": "shell"
+    },
+    {
+      "label": "SQL",
+      "value": "sql"
+    },
+    {
+      "label": "Swift",
+      "value": "swift"
+    },
+    {
+      "label": "TSRX",
+      "value": "tsrx"
+    },
+    {
+      "label": "TypeScript",
+      "value": "typescript"
+    },
+    {
+      "label": "Visual Basic .NET",
+      "value": "vbnet"
+    },
+    {
+      "label": "WebAssembly",
+      "value": "wasm"
+    },
+    {
+      "label": "XML",
+      "value": "xml"
+    },
+    {
+      "label": "YAML",
+      "value": "yaml"
+    }
+  ],
+  "aliases": {
+    "c#": "csharp",
+    "c++": "cpp",
+    "cs": "csharp",
+    "gql": "graphql",
+    "html": "xml",
+    "js": "javascript",
+    "jsx": "javascript",
+    "md": "markdown",
+    "objc": "objectivec",
+    "patch": "diff",
+    "py": "python",
+    "rb": "ruby",
+    "rs": "rust",
+    "sh": "bash",
+    "tex": "latex",
+    "text": "plaintext",
+    "ts": "typescript",
+    "tsx": "typescript",
+    "vb": "vbnet",
+    "yml": "yaml",
+    "zsh": "bash"
+  },
+  "registeredGrammars": [
+    "arduino",
+    "bash",
+    "c",
+    "cpp",
+    "csharp",
+    "css",
+    "diff",
+    "dockerfile",
+    "dos",
+    "go",
+    "graphql",
+    "ini",
+    "java",
+    "javascript",
+    "json",
+    "kotlin",
+    "less",
+    "lua",
+    "makefile",
+    "markdown",
+    "objectivec",
+    "perl",
+    "php",
+    "php-template",
+    "plaintext",
+    "powershell",
+    "python",
+    "python-repl",
+    "r",
+    "ruby",
+    "rust",
+    "scss",
+    "shell",
+    "sql",
+    "swift",
+    "tsrx",
+    "typescript",
+    "vbnet",
+    "wasm",
+    "xml",
+    "yaml",
+    "clojure",
+    "dart",
+    "haskell",
+    "latex",
+    "lisp",
+    "mathematica",
+    "matlab",
+    "nginx",
+    "ocaml",
+    "pgsql",
+    "scala",
+    "verilog"
+  ],
+  "parserAliases": {
+    "javascript": ["threejs"],
+    "lisp": ["commonlisp"],
+    "mathematica": ["wolfram"],
+    "typescript": ["recharts"],
+    "xml": ["vue"]
+  },
+  "targetExecuted": false,
+  "provenance": "New literal-only AST extraction from identity-checked shipped members; no historical manifest reconstructed."
+}

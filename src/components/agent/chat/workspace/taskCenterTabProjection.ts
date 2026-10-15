@@ -6,14 +6,10 @@ import {
 } from "../utils/runtimeAttachmentPlaceholder";
 import { isAssistantRuntimeErrorDisplayText } from "../utils/messageDisplaySanitizer";
 import { MAX_TASK_CENTER_OPEN_TABS } from "../utils/taskCenterTabs";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 
 export const TASK_CENTER_HOME_TAB_ID = "new-task-home";
 
 interface BuildTaskCenterTabItemsParams {
-  draftTabs: TaskCenterDraftTab[];
-  activeDraftTabId: string | null;
-  isDraftTabActive: boolean;
   sessionId?: string | null;
   initialSessionId?: string | null;
   initialSessionName?: string | null;
@@ -61,9 +57,6 @@ export function resolveTaskCenterTopicTitle(
 }
 
 export function buildTaskCenterTabItems({
-  draftTabs,
-  activeDraftTabId,
-  isDraftTabActive,
   sessionId,
   initialSessionId,
   initialSessionName,
@@ -73,15 +66,6 @@ export function buildTaskCenterTabItems({
   untitledTaskLabel,
   maxCount = MAX_TASK_CENTER_OPEN_TABS,
 }: BuildTaskCenterTabItemsParams): TaskCenterTabItem[] {
-  const draftItems = draftTabs.map((draft) => ({
-    id: draft.id,
-    title: draft.title,
-    status: draft.status,
-    updatedAt: draft.updatedAt,
-    isActive: draft.id === activeDraftTabId,
-    hasUnread: false,
-    renamable: false,
-  }));
   const topicItems = visibleTabIds
     .map((topicId) => topicById.get(topicId))
     .filter((topic): topic is Topic => Boolean(topic))
@@ -96,31 +80,13 @@ export function buildTaskCenterTabItems({
         ),
         status: topic.status ?? "done",
         updatedAt: resolveTopicUpdatedAt(topic),
-        isActive:
-          !isDraftTabActive && topic.id === (previewTopicId ?? sessionId),
+        isActive: topic.id === (previewTopicId ?? sessionId),
         hasUnread: Boolean(topic.hasUnread),
         renamable: true,
       };
     });
 
-  const orderedItems = [...topicItems, ...draftItems];
-  if (orderedItems.length <= maxCount) {
-    return orderedItems;
-  }
-
-  const visibleItems = orderedItems.slice(0, maxCount);
-  const activeDraftItem = draftItems.find((item) => item.isActive);
-  if (
-    activeDraftItem &&
-    !visibleItems.some((item) => item.id === activeDraftItem.id)
-  ) {
-    return [
-      ...visibleItems.slice(0, Math.max(0, maxCount - 1)),
-      activeDraftItem,
-    ];
-  }
-
-  return visibleItems;
+  return topicItems.slice(0, maxCount);
 }
 
 export function buildBrowserWorkspaceHomeTabItem({
@@ -146,7 +112,6 @@ export function shouldRenderTaskCenterTabStrip({
 }: ShouldRenderTaskCenterTabStripParams): boolean {
   return (
     agentEntry === "claw" ||
-    (agentEntry === "new-task" &&
-      (hasLocalSessionOverride || tabItemCount > 0))
+    (agentEntry === "new-task" && (hasLocalSessionOverride || tabItemCount > 0))
   );
 }

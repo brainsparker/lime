@@ -15,6 +15,7 @@ import type {
 import type { AutoContinueRequestPayload } from "@/lib/api/agentRuntime/sessionTypes";
 import { importDocument } from "@/lib/api/session-files";
 import type { HandleSendOptions } from "../hooks/handleSendTypes";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import type { TopicBranchStatus } from "../hooks/useTopicBranchBoard";
 import type { MessageImage } from "../types";
 import {
@@ -42,7 +43,7 @@ type WorkspaceSendHandler = (
   sendExecutionStrategy?: "react",
   autoContinuePayload?: AutoContinueRequestPayload,
   sendOptions?: HandleSendOptions,
-) => Promise<boolean>;
+) => Promise<RuntimeSubmissionResult>;
 
 interface RunImageWorkbenchCommandParams {
   rawText: string;

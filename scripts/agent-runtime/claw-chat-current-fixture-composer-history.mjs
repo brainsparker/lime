@@ -5,6 +5,11 @@ import {
   isExpectedSkillIdentity,
 } from "./claw-chat-current-fixture-skill-identity.mjs";
 import { composerEditorSelector } from "../lib/composer-editor-dom.mjs";
+import {
+  captureInvokeTraceCollector,
+  validateInvokeTraceCollectorCapture,
+  sameInvokeTraceCollectorProvenance,
+} from "../lib/invoke-trace-collector.mjs";
 import { appServerCallFromPage } from "../electron/mcp-config-fixture-smoke.mjs";
 import {
   isObservedPreloadAppServerResponse,
@@ -34,6 +39,22 @@ function readHistorySnapshotDom({ sessionId }) {
     if (node.nodeType === Node.TEXT_NODE)
       return { type: "text", text: node.nodeValue };
     if (!(node instanceof HTMLElement)) return null;
+    if (node.getAttribute("data-composer-code-block-toolbar") === "true")
+      return null;
+    if (node.matches('div[data-composer-code-block="true"]')) {
+      const code = node.querySelector(":scope > pre > code.hljs");
+      const languages = Array.from(code?.classList ?? []).filter((name) =>
+        name.startsWith("language-"),
+      );
+      return {
+        type: "code_block",
+        language:
+          languages.length === 1
+            ? languages[0].slice("language-".length)
+            : null,
+        content: [{ type: "text", text: code?.textContent ?? null }],
+      };
+    }
     if (node.matches("br.ProseMirror-trailingBreak")) return null;
     if (node.tagName === "BR") return { type: "hard_break" };
     const kind = node.getAttribute("data-composer-token");
@@ -543,9 +564,61 @@ export async function captureComposerHistoryDraft(
   return snapshot;
 }
 
+/** History runs after Stop recovery; clear only through actual public GUI actions. */
+export async function clearComposerDraftForHistory({
+  page,
+  options,
+  sessionId,
+}) {
+  const editor = page.locator(`${composerEditorSelector(sessionId)}:visible`);
+  const core = editor.locator(
+    'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]',
+  );
+  const image = core.locator('img[src^="data:image/"]');
+  const path = core.locator('[data-testid="inputbar-path-reference-chip"]');
+  assert(
+    (await image.count()) === 1 && (await path.count()) === 1,
+    "history 起点必须是完整 Stop 恢复的图片与路径",
+  );
+  await image.locator("..").getByRole("button").click();
+  await path.getByRole("button").last().click();
+  const trigger = core.locator('[data-testid="inputbar-plus-trigger"]');
+  await trigger.click();
+  await page.locator('[data-testid="inputbar-plus-skills"]:visible').click();
+  const panel = page.locator(
+    '[data-testid="inputbar-plus-panel-skills"]:visible',
+  );
+  await panel.locator('[data-testid="skill-selector-clear"]').click();
+  await trigger.click();
+  await panel.waitFor({
+    state: "hidden",
+    timeout: Math.min(options.timeoutMs, 10_000),
+  });
+  await editor.press("ControlOrMeta+A");
+  await editor.press("Backspace");
+  const cleared = await waitForSnapshot(
+    page,
+    sessionId,
+    options,
+    isEmptySnapshot,
+    "history 独立验收未通过公开 GUI 清空完整草稿",
+  );
+  return {
+    origin: "user_clear_after_verified_stop_restore",
+    sessionId,
+    actionSource:
+      "Electron/CDP public image/path remove, Skill clear and editor keyboard",
+    emptyText: cleared.text === "",
+    tokenCount: cleared.tokens.length,
+    imageCount: cleared.images.length,
+    pathCount: cleared.paths.length,
+  };
+}
+
 export async function verifyComposerHistoryRecall({
   page,
   options,
+  traceCollector,
   prepared,
   threadId,
   sessionId,
@@ -555,12 +628,33 @@ export async function verifyComposerHistoryRecall({
   imageDataUrl,
   pathReference,
 }) {
+  const captureTrace = async () => {
+    if (!traceCollector)
+      return {
+        raw: await page.evaluate(() =>
+          localStorage.getItem("lime_invoke_trace_buffer_v1"),
+        ),
+        provenance: null,
+      };
+    const observed = validateInvokeTraceCollectorCapture(
+      await captureInvokeTraceCollector(page, traceCollector),
+      traceCollector,
+    );
+    assert(
+      observed.complete,
+      "history invoke trace collector provenance 不完整",
+    );
+    return {
+      raw: JSON.stringify(observed.ledgerEntries),
+      provenance: observed.provenance,
+    };
+  };
   const cleared = await waitForSnapshot(
     page,
     sessionId,
     options,
     isEmptySnapshot,
-    "accepted submission 未清空完整 Composer draft",
+    "history 验收起点未清空完整 Composer draft",
   );
   cleared.capability = await observeHistorySkillCapability(
     page,
@@ -569,6 +663,8 @@ export async function verifyComposerHistoryRecall({
     false,
     options.timeoutMs,
   );
+  const beforeTrace = await captureTrace();
+  cleared.traceRaw = beforeTrace.raw;
   const beforeRead = await appServerCallFromPage(page, "thread/read", {
     threadId,
     includeTurns: true,
@@ -623,9 +719,16 @@ export async function verifyComposerHistoryRecall({
     includeTurns: true,
   });
   // Include all menu actions and the second read in the final transport boundary.
-  returned.traceRaw = await page.evaluate(() =>
-    localStorage.getItem("lime_invoke_trace_buffer_v1"),
-  );
+  const afterTrace = await captureTrace();
+  returned.traceRaw = afterTrace.raw;
+  if (traceCollector)
+    assert(
+      sameInvokeTraceCollectorProvenance(
+        beforeTrace.provenance,
+        afterTrace.provenance,
+      ),
+      "history invoke trace collector 必须连续且归属同一次观察",
+    );
   const keyboardEvents = await page.evaluate(
     takeComposerHistoryKeyboardEventsDom,
   );
@@ -652,6 +755,10 @@ export async function verifyComposerHistoryRecall({
   );
   return {
     ...evidence,
+    traceMode: traceCollector ? "continuous-storage-append" : "bounded-ring",
+    traceProvenance: traceCollector
+      ? { before: beforeTrace.provenance, after: afterTrace.provenance }
+      : null,
     cleared,
     recalled,
     returned,

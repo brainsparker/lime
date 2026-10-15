@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AgentThreadItem, AgentThreadTurn } from "@/lib/api/agentProtocol";
 import type { Message } from "../types";
@@ -21,6 +22,7 @@ export interface ActiveStreamState {
   turnId?: string;
   pendingTurnKey?: string;
   pendingItemKey?: string;
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   submittedDraft?: InterruptedInputDraftSnapshot | null;
 }
 
@@ -74,6 +76,7 @@ interface CreateSubmissionLifecycleOptions {
   userMsgId: string | null;
   userMsg?: Message | null;
   content: string;
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   submittedDraft?: InterruptedInputDraftSnapshot | null;
   listenerMapRef: MutableRefObject<Map<string, () => void>>;
   setActiveStream: (nextActive: ActiveStreamState | null) => void;
@@ -101,6 +104,7 @@ export function createAgentStreamSubmissionLifecycle(
     userMsg,
     content,
     submittedDraft,
+    composerRestoreToken,
     listenerMapRef,
     setActiveStream,
     setMessages,
@@ -242,6 +246,7 @@ export function createAgentStreamSubmissionLifecycle(
       pendingTurnKey,
       pendingItemKey,
       submittedDraft: submittedDraft ?? null,
+      ...(composerRestoreToken ? { composerRestoreToken } : {}),
     });
     setMessages((prev) => {
       const equivalentPendingUserMsg = findEquivalentPendingUserMessage(

@@ -147,6 +147,7 @@ function main() {
     "scripts/electron/session-history-fixture-smoke.test.mjs",
     "scripts/electron/code-artifact-workbench-fixture-smoke.test.mjs",
     "scripts/agent-runtime/claw-chat-current-fixture-smoke.test.mjs",
+    "scripts/agent-runtime/claw-chat-current-fixture-teardown.test.mjs",
     "scripts/agent-runtime/claw-chat-current-fixture-unknown-item.test.mjs",
     "scripts/agent-runtime/claw-chat-current-fixture-user-message-collapse.test.mjs",
     "scripts/agent-runtime/claw-chat-current-fixture-user-message-collapse-evidence.unit.test.mjs",

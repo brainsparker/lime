@@ -1,5 +1,6 @@
+import { runtimeReceipt } from "./agentSendResult.testFixtures";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { SendMessageFn } from "./agentChatShared";
+import type { RawSendMessageFn, SendMessageFn } from "./agentChatShared";
 import { createAgentChatSendMessage } from "./agentChatSendMessage";
 import { listSlashEntryUsage } from "../skill-selection/slashEntryUsage";
 
@@ -19,7 +20,9 @@ function createTestAgentChatSendMessage(
 
 describe("createAgentChatSendMessage", () => {
   it("普通消息应直接透传到 rawSendMessage", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
         sessionId: "session-1",
@@ -51,12 +54,18 @@ describe("createAgentChatSendMessage", () => {
       "react",
       "gpt-5.4",
       undefined,
-      undefined,
+      expect.objectContaining({
+        observer: expect.objectContaining({
+          onRuntimeAccepted: expect.any(Function),
+        }),
+      }),
     );
   });
 
   it("带图片普通消息不应在 rawSendMessage 前拉取模型能力摘要", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
         sessionId: "session-1",
@@ -86,11 +95,15 @@ describe("createAgentChatSendMessage", () => {
       "gpt-5.4",
     );
 
-    expect(rawSendMessage.mock.calls[0]?.[8]).toBeUndefined();
+    expect(rawSendMessage.mock.calls[0]?.[8]).not.toHaveProperty(
+      "modelCapabilitySummary",
+    );
   });
 
   it("显式传入模型能力摘要时应原样透传", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const sendOptions = {
       requestMetadata: { source: "test" },
       modelCapabilitySummary: null,
@@ -126,11 +139,13 @@ describe("createAgentChatSendMessage", () => {
       sendOptions,
     );
 
-    expect(rawSendMessage.mock.calls[0]?.[8]).toBe(sendOptions);
+    expect(rawSendMessage.mock.calls[0]?.[8]).toMatchObject(sendOptions);
   });
 
   it("发送选项中的 provider/model override 应直接透传", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
         sessionId: "session-1",
@@ -165,14 +180,16 @@ describe("createAgentChatSendMessage", () => {
       },
     );
 
-    expect(rawSendMessage.mock.calls[0]?.[8]).toEqual({
+    expect(rawSendMessage.mock.calls[0]?.[8]).toMatchObject({
       providerOverride: "translation-provider",
       modelOverride: "translation-model",
     });
   });
 
   it("命中本地 slash 命令时应跳过 rawSendMessage", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const appendAssistantMessage = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
@@ -214,7 +231,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("命中 prompt slash 命令时应转换 prompt 后透传", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
         sessionId: "session-review",
@@ -251,7 +270,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("命中 /subagents 时应打开 Subagents 面板并跳过 rawSendMessage", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const onOpenSubagents = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
@@ -286,7 +307,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("命中 /agent alias 时也应打开 Subagents 面板", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const onOpenSubagents = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
@@ -321,7 +344,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("skipUserMessage 为 true 时应绕过 slash 分流", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const appendAssistantMessage = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
@@ -354,13 +379,19 @@ describe("createAgentChatSendMessage", () => {
       undefined,
       undefined,
       undefined,
-      undefined,
+      expect.objectContaining({
+        observer: expect.objectContaining({
+          onRuntimeAccepted: expect.any(Function),
+        }),
+      }),
     );
     expect(appendAssistantMessage).not.toHaveBeenCalled();
   });
 
   it("!cmd 应提交用户 shell 命令并跳过模型发送", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const runUserShellCommand = vi.fn(async () => true);
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {
@@ -389,7 +420,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("空用户 shell 命令应显示提示且不发请求", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const runUserShellCommand = vi.fn(async () => true);
     const notifyInfo = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
@@ -421,7 +454,9 @@ describe("createAgentChatSendMessage", () => {
   });
 
   it("用户 shell 请求错误应通过可见错误通道呈现", async () => {
-    const rawSendMessage = vi.fn<SendMessageFn>(async () => undefined);
+    const rawSendMessage = vi.fn<RawSendMessageFn>(async () =>
+      runtimeReceipt(),
+    );
     const notifyError = vi.fn();
     const sendMessage = createTestAgentChatSendMessage({
       baseStatusSnapshot: {

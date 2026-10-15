@@ -101,6 +101,25 @@ export interface ComposerPendingPaste {
   text: string;
 }
 
+export interface ComposerDocumentInput {
+  editorDocument?: ComposerEditorDocument;
+  text?: string;
+  selectionStart?: number;
+  selectionEnd?: number;
+  textElements?: readonly ComposerTextElement[];
+  mentionBindings?: readonly ComposerMentionBinding[];
+  attachments?: readonly ComposerAttachment[];
+  pathReferences?: readonly ComposerPathReference[];
+  pendingPastes?: readonly ComposerPendingPaste[];
+  inputCapabilityRoute?: unknown;
+}
+
+export interface ComposerControllerOptions {
+  enableRichText?: boolean;
+  enableCodeBlocks?: boolean;
+  plainTextMode?: boolean;
+}
+
 export interface ComposerDocument {
   editorDocument: ComposerEditorDocument;
   text: string;

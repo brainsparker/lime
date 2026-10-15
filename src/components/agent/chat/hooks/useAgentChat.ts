@@ -552,7 +552,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
         runUserShellCommand,
         onOpenSubagents,
       });
-      await send(...args);
+      return await send(...args);
     },
     [
       appendLocalAssistantMessage,

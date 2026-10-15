@@ -21,9 +21,14 @@ import type {
   ThreadSetNameParams,
   TurnInterruptParams,
   TurnStartParams,
+  TurnStartResponse,
   TurnSteerParams,
   TurnSteerResponse,
 } from "@limecloud/app-server-client";
+import {
+  requireTurnStartResponse,
+  reportRuntimeAcceptancePostProcessingFailure,
+} from "./runtimeAcceptance";
 import { isAppServerBridgeAvailable } from "@/lib/api/appServerBridgeAvailability";
 import type { AgentRuntimeClient as StandardAgentRuntimeClient } from "@limecloud/agent-runtime-client";
 import {
@@ -133,7 +138,8 @@ export function createThreadClient(deps: AgentRuntimeThreadClientDeps = {}) {
 
   async function submitAgentRuntimeTurn(
     request: TurnStartParams,
-  ): Promise<void> {
+    onAccepted?: (response: AppServerRequestResult<TurnStartResponse>) => void,
+  ): Promise<AppServerRequestResult<TurnStartResponse>> {
     assertAppServerTurnLifecycleAvailable(isAppServerTurnLifecycleAvailable);
     const threadId = request.threadId.trim();
     if (!threadId) {
@@ -144,23 +150,43 @@ export function createThreadClient(deps: AgentRuntimeThreadClientDeps = {}) {
       eventName,
       sessionId: threadId,
     });
+    let result: AppServerRequestResult<TurnStartResponse>;
     try {
-      const result = await standardRuntimeClient.startTurn(params);
-      if (route) {
-        route.publish(result.notifications);
-      } else {
+      result = await standardRuntimeClient.startTurn(params);
+      requireTurnStartResponse(result?.result);
+    } catch (error) {
+      try {
+        publishAppServerRpcErrorNotifications(error, {
+          eventName,
+          sessionId: threadId,
+        });
+      } catch {
+        console.error(
+          "[AgentRuntime] turn/start rejection notification failed",
+        );
+      }
+      throw error;
+    }
+    try {
+      onAccepted?.(result);
+    } catch {
+      reportRuntimeAcceptancePostProcessingFailure("start_callback", {
+        threadId,
+      });
+    }
+    try {
+      if (route) route.publish(result.notifications);
+      else
         publishAppServerAgentSessionNotifications(
           eventName,
           result.notifications,
         );
-      }
-    } catch (error) {
-      publishAppServerRpcErrorNotifications(error, {
-        eventName,
-        sessionId: threadId,
+    } catch {
+      reportRuntimeAcceptancePostProcessingFailure("start_notifications", {
+        threadId,
       });
-      throw error;
     }
+    return result;
   }
 
   async function submitAgentRuntimeReview(

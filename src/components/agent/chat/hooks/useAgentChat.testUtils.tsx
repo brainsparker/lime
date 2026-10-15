@@ -1,7 +1,11 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, vi } from "vitest";
-import type { TurnStartParams } from "@limecloud/app-server-client";
+import type {
+  AppServerRequestResult,
+  TurnStartParams,
+  TurnStartResponse,
+} from "@limecloud/app-server-client";
 import { getDefaultPendingInteractionController } from "@/lib/api/agentRuntime/pendingInteractionController";
 import type { WriteArtifactContext } from "../types";
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
@@ -74,8 +78,9 @@ const {
       if (command !== "app_server_handle_json_lines") {
         return undefined;
       }
-      const request = (payload as { request?: { lines?: string[] } } | undefined)
-        ?.request;
+      const request = (
+        payload as { request?: { lines?: string[] } } | undefined
+      )?.request;
       const line = request?.lines?.[0];
       const message = line ? (JSON.parse(line) as { id?: number }) : {};
       return {
@@ -572,7 +577,27 @@ beforeEach(async () => {
   mockGetRuntimeProviderSelection.mockResolvedValue({
     provider_configured: false,
   });
-  mockSubmitAgentRuntimeTurn.mockResolvedValue(undefined);
+  mockSubmitAgentRuntimeTurn.mockImplementation(
+    async (
+      _request: TurnStartParams,
+      onAccepted?: (
+        response: AppServerRequestResult<TurnStartResponse>,
+      ) => void,
+    ) => {
+      const result: TurnStartResponse = {
+        turn: { id: "turn-start", status: "inProgress" },
+      };
+      const response: AppServerRequestResult<TurnStartResponse> = {
+        id: 1,
+        result,
+        response: { id: 1, result },
+        notifications: [],
+        messages: [],
+      };
+      onAccepted?.(response);
+      return response;
+    },
+  );
   mockCreateAgentRuntimeSession.mockResolvedValue("created-session");
   mockListAgentRuntimeSessions.mockResolvedValue([]);
   mockGetAgentRuntimeSession.mockImplementation(async (sessionId: string) => ({
@@ -605,7 +630,10 @@ beforeEach(async () => {
   }));
   mockGenerateAgentRuntimeSessionTitle.mockResolvedValue("");
   mockSetAgentRuntimeThreadName.mockResolvedValue(undefined);
-  mockUpdateAgentRuntimeThreadSettings.mockResolvedValue({ result: {}, notifications: [] });
+  mockUpdateAgentRuntimeThreadSettings.mockResolvedValue({
+    result: {},
+    notifications: [],
+  });
   mockDeleteAgentRuntimeSession.mockResolvedValue(undefined);
   mockCompactAgentRuntimeSession.mockResolvedValue(undefined);
   mockInterruptAgentRuntimeTurn.mockResolvedValue(undefined);

@@ -15,6 +15,7 @@ import {
 } from "@/lib/imageWorkbenchEvents";
 import { parseImageWorkbenchCommand } from "../utils/imageWorkbenchCommand";
 import type { MessageImage } from "../types";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import {
   buildImageWorkbenchCommandText,
   resolveCoverAspectRatio,
@@ -40,7 +41,7 @@ interface UseWorkspaceImageWorkbenchEventRuntimeParams {
     parsedCommand: NonNullable<ReturnType<typeof parseImageWorkbenchCommand>>;
     images: MessageImage[];
     applyTarget?: ImageWorkbenchApplyTarget | null;
-  }) => Promise<boolean>;
+  }) => Promise<RuntimeSubmissionResult>;
 }
 
 export function useWorkspaceImageWorkbenchEventRuntime({

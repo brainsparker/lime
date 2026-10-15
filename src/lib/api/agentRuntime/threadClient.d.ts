@@ -14,6 +14,7 @@ import type {
   ThreadResumeResponse,
   ThreadSetNameParams,
   TurnStartParams,
+  TurnStartResponse,
   TurnSteerParams,
   TurnSteerResponse,
 } from "@limecloud/app-server-client";
@@ -124,7 +125,10 @@ export declare function createThreadClient(
   submitAgentRuntimeReview: (
     request: AppServerReviewStartParams,
   ) => Promise<AppServerRequestResult<AppServerReviewStartResponse>>;
-  submitAgentRuntimeTurn: (request: TurnStartParams) => Promise<void>;
+  submitAgentRuntimeTurn: (
+    request: TurnStartParams,
+    onAccepted?: (response: AppServerRequestResult<TurnStartResponse>) => void,
+  ) => Promise<AppServerRequestResult<TurnStartResponse>>;
 };
 export declare function publishAppServerAgentSessionNotifications(
   eventName: string | undefined,

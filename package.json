@@ -5,7 +5,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "version": "1.157.0",
+  "version": "1.158.0",
   "description": "Open-source full-stack desktop AI agent for global users: coding, research, content, files, terminals, tools, multimodal work, and multi-agent workflows.",
   "keywords": [
     "ai",
@@ -363,9 +363,12 @@
     "dayjs": "^1.11.19",
     "fabric": "^5.5.2",
     "hast-util-to-html": "^9.0.5",
+    "highlight.js": "11.11.1",
     "i18next": "^25.7.3",
     "jotai": "^2.16.1",
+    "jsonc-parser": "3.3.1",
     "lodash-es": "^4.17.22",
+    "lowlight": "3.3.0",
     "lucide-react": "^0.460.0",
     "marked": "^17.0.1",
     "mermaid": "^11.12.2",

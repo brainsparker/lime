@@ -20,23 +20,30 @@ function runVitest(label, args) {
 }
 
 function main() {
-  runVitest("刷新恢复与后台队列自动续跑", [
+  const hydration = runVitest("刷新与切换的 canonical 队列水合", [
     "src/components/agent/chat/hooks/useAgentChat.test.tsx",
     "-t",
-    "页面刷新恢复到排队会话时应自动恢复后台执行|切换到 running thread_read 时只恢复线程|切换话题时应恢复后端返回的排队项",
+    "页面刷新恢复到排队会话时只水合运行态，不自动调用 legacy resume|切换到 running thread_read 时重新建立 canonical Thread 订阅|切换话题时应消费 session list 的 canonical queue count",
   ]);
+  if (hydration.executedTests !== 3) {
+    throw new Error("async-tabs 必须执行全部三项 canonical 队列水合测试");
+  }
 
-  runVitest("任务标题与 tab 运行态提示", [
-    "src/components/agent/chat/components/ChatSidebar.test.tsx",
+  const navigation = runVitest("侧栏任务状态与专用工作台标签", [
+    "src/components/AppSidebar.conversations.test.tsx",
     "src/components/agent/chat/components/TaskCenterTabStrip.test.tsx",
     "src/components/agent/chat/utils/taskCenterTabs.test.ts",
     "src/components/agent/chat/workspace/taskCenterTabProjection.test.ts",
+    "src/components/agent/chat/workspace/useTaskCenterTabChrome.test.tsx",
     "-t",
-    "当前运行中的任务标题旁应显示加载状态|任务中心侧栏应使用对话与归档分组标题|应渲染第二层会话 tabs 和加号入口|默认标签应纳入非当前运行中任务|应把草稿与可见任务投影为第二层标签",
+    "回到首页时应按后台未完成会话状态显示侧栏运行图标|回到首页时应按后台排队会话状态显示侧栏排队图标|后台状态不会覆盖已完成的侧栏会话终态|reconcile 当前任务应保留本地追平目标，并跳过 detached 预览|切换中的目标会话尚未成为当前会话时，应标记为待恢复态|应渲染第二层会话 tabs 和加号入口|应清理任务标签里的运行时错误标题|初始 Thread 标题|general home=|specialized workbench keeps canonical",
   ]);
+  if (navigation.executedTests !== 11) {
+    throw new Error("async-tabs 必须执行全部十一项侧栏与专用工作台测试");
+  }
 
   console.log(
-    `[${LOG_PREFIX}] async-tabs.summary: hydration_resume=covered; background_running_tabs=covered; title_loading=covered`,
+    `[${LOG_PREFIX}] async-tabs.summary: canonical_queue_hydration=covered; running_thread_subscription=covered; title_loading=covered; general_second_strip=absent; specialized_navigation=covered`,
   );
   console.log(`\n[${LOG_PREFIX}] 通过`);
 }

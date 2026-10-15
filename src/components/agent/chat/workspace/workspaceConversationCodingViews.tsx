@@ -21,6 +21,7 @@ import type {
 import { CodingWorkbenchLogPanel } from "./CodingWorkbenchLogPanel";
 import { CodingWorkbenchOutputPanel } from "./CodingWorkbenchOutputPanel";
 import type { CodingWorkbenchRecoveryContext } from "./codingWorkbenchRecovery";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import { buildCodingSessionOverviewActivities } from "./codingSessionOverviewProjection";
 import {
   buildCanvasWorkbenchChangeViewFromCodingProjection,
@@ -51,7 +52,7 @@ interface WorkspaceConversationCodingViewsParams {
   onSubmitRecoveryPrompt?: (
     prompt: string,
     context?: CodingWorkbenchRecoveryContext,
-  ) => void | Promise<boolean> | boolean;
+  ) => Promise<RuntimeSubmissionResult>;
 }
 
 interface WorkspaceConversationCodingViews {

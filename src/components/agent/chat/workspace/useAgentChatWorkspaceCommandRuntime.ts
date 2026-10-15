@@ -43,7 +43,7 @@ export function useAgentChatWorkspaceCommandRuntime({
   const {
     onNavigate: _onNavigate, projectId: externalProjectId, contentId, initialSessionId, initialAutoSendRequestMetadata, autoRunInitialPromptOnMount, agentEntry,
     theme: initialTheme, initialCreationMode, lockTheme, showChatPanel, hideTopBar, topBarChrome, onWorkflowProgressChange, initialUserPrompt,
-    initialUserImages, initialSessionName, initialInputCapability, initialProjectFileOpenTarget, onInitialUserPromptConsumed, newChatAt, onHasMessagesChange: _onHasMessagesChange,
+    initialUserImages, initialSessionName, initialInputCapability, initialProjectFileOpenTarget, onInitialUserPromptConsumed, newChatAt, newConversationRequest, onStartNewConversation, onHasMessagesChange: _onHasMessagesChange,
   } = props;
   const resolvedAutoRunInitialPromptOnMount =
     autoRunInitialPromptOnMount ?? false;
@@ -81,6 +81,7 @@ export function useAgentChatWorkspaceCommandRuntime({
     openRuntimeSceneGate, currentGate, documentEditorFocusedRef, themeWorkbenchActiveQueueItem, themeWorkbenchBackendRunState, themeWorkbenchRunState, handleViewContextDetail, harnessInventoryRuntime,
   } = setupRuntime;
   const commandWiring = useAgentChatWorkspaceCommandWiring({
+    composerDraftTitle: untitledTaskLabel,
     navigationProjectId: validatedRuntimeProjectId ?? undefined,
     trayActiveTheme: mappedTheme,
     consumePendingSkill,
@@ -152,6 +153,8 @@ export function useAgentChatWorkspaceCommandRuntime({
       messages,
       messagesLength: messages.length,
       newChatAt,
+      newConversationRequest,
+      onStartNewConversation,
       normalizedInitialSessionId,
       normalizedInitialTheme: normalizedEntryTheme,
       onInitialUserPromptConsumed,
@@ -206,12 +209,10 @@ export function useAgentChatWorkspaceCommandRuntime({
   });
   const {
     homePendingPreviewRequest,
-    setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
     taskCenterDraftSendRequest,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
   } = commandWiring.taskCenterDraftState;
   const {
     readSessionFile,
@@ -294,10 +295,8 @@ export function useAgentChatWorkspaceCommandRuntime({
     untitledTaskLabel,
   });
   const {
-    activeTaskCenterDraftTabIdRef,
     bootstrapPendingPreviewMessages,
     browserWorkspaceHomeTabsNode,
-    commitMaterializedTaskCenterDraftTab,
     effectiveShowChatPanel,
     handleCanvasSelectionTextChange,
     handleCloseCanvas,
@@ -311,7 +310,6 @@ export function useAgentChatWorkspaceCommandRuntime({
     hasMessages,
     homePendingPreviewMessages,
     isTaskCenterDraftSendPending,
-    materializeTaskCenterDraftTab,
     projectConversationGroups,
     recentSessionActionLabel,
     recentSessionTopic,
@@ -321,8 +319,6 @@ export function useAgentChatWorkspaceCommandRuntime({
     shouldRestoreImageTasksFromWorkspace,
     shouldSuppressTaskCenterDraftContent,
     suppressHomeNavbarUtilityActions,
-    taskCenterDraftMaterializedSessionIdsRef,
-    taskCenterDraftWarmupSessionIdsRef,
     taskCenterHomeSurfaceState,
     taskCenterTabsNode,
   } = shellInteractionRuntime;
@@ -605,14 +601,14 @@ export function useAgentChatWorkspaceCommandRuntime({
 
   // prettier-ignore
   return {
-    shellChromeRuntime, showGeneralWorkbenchLeftExpandButton, effectiveInitialInputCapability, generalWorkbenchHarnessPanelBaseProps, navigationActions, homePendingPreviewRequest, setActiveTaskCenterDraftTabId, setHomePendingPreviewRequest,
-    setTaskCenterDraftSendRequest, setTaskCenterDraftTabs, taskCenterDraftSendRequest, taskCenterDraftSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
+    ...commandWiring.composerDraft,
+    shellChromeRuntime, showGeneralWorkbenchLeftExpandButton, effectiveInitialInputCapability, generalWorkbenchHarnessPanelBaseProps, navigationActions, homePendingPreviewRequest, setHomePendingPreviewRequest,
+    setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleRecommendationClick, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,
     imageWorkbenchActionRuntime, handleContinueGeneralWorkbenchEntryPrompt, handleRestartGeneralWorkbenchEntryPrompt, handleDocumentAutoContinueRun, handleArtifactBlockRewriteRun, handleDocumentContentReviewRun, handleDocumentTextStylizeRun, handleAddImage,
-    handleImportDocument, activeTaskCenterDraftTabIdRef, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, commitMaterializedTaskCenterDraftTab, handleCanvasSelectionTextChange, handleCloseCanvas, handleOpenProjectConversation,
-    handleOpenTaskTopic, handleResumeRecentSession, handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, materializeTaskCenterDraftTab,
-    projectConversationGroups, recentSessionActionLabel, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRenderTaskCenterTabStrip, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
-    suppressHomeNavbarUtilityActions, taskCenterDraftMaterializedSessionIdsRef, taskCenterDraftWarmupSessionIdsRef, taskCenterHomeSurfaceState, taskCenterTabsNode, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
+    handleImportDocument, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, handleCanvasSelectionTextChange, handleCloseCanvas, handleOpenProjectConversation,
+    handleOpenTaskTopic, handleResumeRecentSession, handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, projectConversationGroups, recentSessionActionLabel, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRenderTaskCenterTabStrip, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
+    suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, taskCenterTabsNode, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
     handleHarnessLoadFilePreview, handleOpenArtifactFromTimeline, handleOpenMessagePreview, handleOpenSavedSiteContent, handleOpenServiceSkillResultFile, handleOpenUrlPreview, handleSaveArtifactDocument, handleWorkspaceArtifactClick,
     handleWorkspaceFileClick, openProjectFilePreviewInCanvas, openWorkspaceArtifactInWorkbench, preferredServiceSkillResultFileTarget, renderArtifactWorkbenchToolbarActions, shouldCollapseCodeBlockInChat, shouldCollapseCodeBlocks, handleWriteFile,
     handleJumpToTimelineItem, serviceSkillExecutionCard, generalWorkbenchActivityLogs,

@@ -1,4 +1,11 @@
-import { useCallback } from "react";
+import { runRuntimeSubmissionEffect } from "../../../hooks/agentSendResult";
+import { useCallback, useEffect, useRef } from "react";
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftCapture,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
+import { createComposerSubmissionSettlement } from "../../composerSubmissionSettlement";
 import type { MessageImage, MessagePathReference } from "../../../types";
 import type { InputbarKnowledgePackSelection } from "../types";
 import type { InputbarSendHandler } from "../inputbarSendPayload";
@@ -37,6 +44,15 @@ interface UseInputbarSendParams {
   clearActiveCapability: () => void;
   getInputRestoreEpoch?: () => number;
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: (
+    capture: ComposerDraftCapture,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => Promise<void> | void;
+  onComposerAccepted?: (
+    draft: ComposerDraftSnapshot | undefined,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => void;
   onComposerCommitted?: (text: string, draft?: ComposerDraftSnapshot) => void;
   submitTarget?: ComposerSubmitTarget;
 }
@@ -57,26 +73,129 @@ export function useInputbarSend({
   clearActiveCapability,
   getInputRestoreEpoch,
   composerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
+  onComposerAccepted,
   onComposerCommitted,
   submitTarget,
 }: UseInputbarSendParams) {
+  const mounted = useRef(true);
+  const surface = useRef({
+    composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
+  });
+  surface.current = {
+    composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   return useCallback(
     async (triggerMetadata?: BaseComposerSendMetadata) => {
       const handlerEnteredAt = Date.now();
-      const composerDocument = composerController?.getDocument();
-      const submittedImages = composerDocument?.attachments ?? pendingImages;
-      const submittedReferences = composerDocument?.pathReferences ?? pathReferences;
-      const submittedRoute = composerDocument?.inputCapabilityRoute as
-        InputCapabilitySendRoute | undefined;
-      const submittedCapability = composerDocument
+      const sendRestoreEpoch = getInputRestoreEpoch?.() ?? 0;
+      const resolvedSubmitTarget: ComposerSubmitTarget =
+        triggerMetadata?.submitTarget ??
+        submitTarget ??
+        (isLoading ? "steer" : "start");
+      const settlement = createComposerSubmissionSettlement({
+        controller: composerController,
+        coordinator: composerDraftCoordinator,
+        target: resolvedSubmitTarget,
+        onDraftAccepted: onComposerDraftAccepted,
+        scope: { projectId, sessionId },
+        canApplyUi: () =>
+          mounted.current &&
+          surface.current.composerController === composerController &&
+          surface.current.composerDraftCoordinator ===
+            composerDraftCoordinator &&
+          (!!composerDraftCoordinator ||
+            (surface.current.projectId === projectId &&
+              surface.current.sessionId === sessionId)) &&
+          (getInputRestoreEpoch?.() ?? sendRestoreEpoch) === sendRestoreEpoch,
+        onAccepted: (result, draft) => {
+          runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+            onComposerAccepted?.(draft, result),
+          );
+          if (submittedCapability?.kind === "curated_task") {
+            runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+              recordCuratedTaskTemplateUsage({
+                templateId: submittedCapability.task.id,
+                launchInputValues: submittedCapability.launchInputValues,
+                referenceMemoryIds: submittedCapability.referenceMemoryIds,
+                referenceEntries: submittedCapability.referenceEntries,
+              }),
+            );
+          }
+        },
+        onCommitted: (accepted) => {
+          // Controller has already been committed by its sole settlement owner.
+          runRuntimeSubmissionEffect(
+            accepted.receipt,
+            "accepted_submit",
+            clearPendingImages,
+          );
+          runRuntimeSubmissionEffect(accepted.receipt, "accepted_submit", () =>
+            clearPathReferences?.(),
+          );
+          runRuntimeSubmissionEffect(
+            accepted.receipt,
+            "accepted_submit",
+            clearActiveCapability,
+          );
+          if (composerReceipt?.kind === "accepted") {
+            runRuntimeSubmissionEffect(
+              accepted.receipt,
+              "accepted_submit",
+              () =>
+                onComposerCommitted?.(
+                  composerController?.getDocument().text ?? "",
+                  composerDraft,
+                ),
+            );
+          }
+        },
+      });
+      const composerReceipt = settlement.receipt;
+      if (composerReceipt?.kind === "empty") return;
+      const composerDraft = composerReceipt?.draft;
+      const submittedInput = composerReceipt?.submission.text ?? input;
+      const composerSubmission = composerReceipt?.submission;
+      const submittedImages = composerSubmission?.attachments ?? pendingImages;
+      const submittedReferences =
+        composerSubmission?.pathReferences ?? pathReferences;
+      const submittedRoute = composerDraft?.inputCapabilityRoute as
+        | InputCapabilitySendRoute
+        | undefined;
+      const submittedCapability = composerDraft
         ? submittedRoute
           ? activeCapability &&
-            JSON.stringify(resolveInputCapabilitySendRoute(activeCapability)) ===
-              JSON.stringify(submittedRoute)
+            JSON.stringify(
+              resolveInputCapabilitySendRoute(activeCapability),
+            ) === JSON.stringify(submittedRoute)
             ? activeCapability
-            : resolveInputCapabilitySelectionFromRoute({ route: submittedRoute })
+            : resolveInputCapabilitySelectionFromRoute({
+                route: submittedRoute,
+              })
           : null
         : activeCapability;
+      const captureMetadata = {
+        onRuntimeAccepted: settlement.onRuntimeAccepted,
+        ...(settlement.composerRestoreToken
+          ? { composerRestoreToken: settlement.composerRestoreToken }
+          : {}),
+        ...(settlement.composerDraftCapture
+          ? { composerDraftCapture: settlement.composerDraftCapture }
+          : {}),
+      };
       const triggeredAt =
         typeof triggerMetadata?.triggeredAt === "number" &&
         Number.isFinite(triggerMetadata.triggeredAt)
@@ -87,25 +206,13 @@ export function useInputbarSend({
         durationMs: Math.max(0, handlerEnteredAt - triggeredAt),
         hasTriggerMetadata: Boolean(triggerMetadata),
         imageCount: submittedImages.length,
-        inputLength: (composerDocument?.text ?? input).trim().length,
+        inputLength: submittedInput.trim().length,
         pathReferenceCount: submittedReferences.length,
         sessionId: sessionId ?? null,
         source: "inputbar",
         triggerSource,
         workspaceId: projectId ?? null,
       });
-      const sendRestoreEpoch = getInputRestoreEpoch?.() ?? 0;
-      const resolvedSubmitTarget: ComposerSubmitTarget =
-        triggerMetadata?.submitTarget ??
-        submitTarget ??
-        (isLoading ? "steer" : "start");
-      const composerReceipt = composerController?.submit(resolvedSubmitTarget);
-      if (composerReceipt?.kind === "empty") {
-        return;
-      }
-      const composerDraft = composerReceipt?.draft;
-      const submittedInput = composerReceipt?.submission.text ?? input;
-      const composerSubmission = composerReceipt?.submission;
       const inputMentions = composerSubmission?.inputMentions ?? [];
       if (
         !submittedInput.trim() &&
@@ -136,49 +243,31 @@ export function useInputbarSend({
           triggerSource,
           workspaceId: projectId ?? null,
         });
-        const result = await onSend({
-          images: undefined,
-          textOverride: submittedInput,
-          sendOptions: undefined,
-          ...(composerReceipt?.kind === "accepted"
-            ? {
-                composerIntent: composerReceipt.intent,
-                composerTarget: composerReceipt.target,
-                composerDraft,
-                composerSubmission,
-              }
-            : {}),
-          ...(triggerMetadata
-            ? {
-                triggeredAt,
-                triggerSource,
-              }
-            : {}),
-        });
-        if (result === false) {
-          return;
+        try {
+          const result = await onSend({
+            ...captureMetadata,
+            images: undefined,
+            textOverride: submittedInput,
+            sendOptions: undefined,
+            ...(composerReceipt?.kind === "accepted"
+              ? {
+                  composerIntent: composerReceipt.intent,
+                  composerTarget: composerReceipt.target,
+                  composerDraft,
+                  composerSubmission,
+                }
+              : {}),
+            ...(triggerMetadata
+              ? {
+                  triggeredAt,
+                  triggerSource,
+                }
+              : {}),
+          });
+          return settlement.finish(result);
+        } catch (error) {
+          return settlement.reject(error);
         }
-        if (
-          (getInputRestoreEpoch?.() ?? sendRestoreEpoch) !== sendRestoreEpoch
-        ) {
-          return;
-        }
-        if (
-          composerReceipt?.kind === "accepted" &&
-          !composerController?.commit(composerReceipt)
-        ) {
-          return;
-        }
-        clearPendingImages();
-        clearPathReferences?.();
-        clearActiveCapability();
-        if (composerReceipt?.kind === "accepted") {
-          onComposerCommitted?.(
-            composerController?.getDocument().text ?? "",
-            composerDraft,
-          );
-        }
-        return;
       }
 
       const capabilityDispatch = resolveInputCapabilityDispatch(
@@ -262,6 +351,7 @@ export function useInputbarSend({
 
       try {
         const result = await onSend({
+          ...captureMetadata,
           images: submittedImages.length > 0 ? [...submittedImages] : undefined,
           textOverride,
           sendOptions,
@@ -280,39 +370,10 @@ export function useInputbarSend({
               }
             : {}),
         });
-        if (result === false) {
-          return;
-        }
-        if (submittedCapability?.kind === "curated_task") {
-          recordCuratedTaskTemplateUsage({
-            templateId: submittedCapability.task.id,
-            launchInputValues: submittedCapability.launchInputValues,
-            referenceMemoryIds: submittedCapability.referenceMemoryIds,
-            referenceEntries: submittedCapability.referenceEntries,
-          });
-        }
-        if (
-          (getInputRestoreEpoch?.() ?? sendRestoreEpoch) !== sendRestoreEpoch
-        ) {
-          return;
-        }
-        if (
-          composerReceipt?.kind === "accepted" &&
-          !composerController?.commit(composerReceipt)
-        ) {
-          return;
-        }
-        clearPendingImages();
-        clearPathReferences?.();
-        clearActiveCapability();
-        if (composerReceipt?.kind === "accepted") {
-          onComposerCommitted?.(
-            composerController?.getDocument().text ?? "",
-            composerDraft,
-          );
-        }
-      } catch {
+        return settlement.finish(result);
+      } catch (error) {
         // 发送失败时保留图片与技能，交由上层 toast / 恢复逻辑处理。
+        return settlement.reject(error);
       }
     },
     [
@@ -320,12 +381,15 @@ export function useInputbarSend({
       activeTools,
       clearActiveCapability,
       composerController,
+      composerDraftCoordinator,
+      onComposerDraftAccepted,
       clearPendingImages,
       clearPathReferences,
       getInputRestoreEpoch,
       input,
       isLoading,
       knowledgePackSelection,
+      onComposerAccepted,
       onComposerCommitted,
       projectId,
       submitTarget,

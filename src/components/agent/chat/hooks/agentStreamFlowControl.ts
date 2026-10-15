@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { AgentThreadItem, AgentThreadTurn } from "@/lib/api/agentProtocol";
 import { logAgentDebug } from "@/lib/agentDebug";
@@ -50,6 +51,7 @@ interface StopAgentStreamOptions {
   getThreadItems?: () => readonly AgentThreadItem[];
   setActiveStream: (nextActive: ActiveStreamState | null) => void;
   submittedDraftFallback?: InterruptedInputDraftSnapshot | null;
+  composerRestoreTokenFallback?: ComposerSubmissionRestoreToken | null;
   onRestoreInterruptedInput?: (request: InterruptedInputRestoreRequest) => void;
   notify: AgentStreamFlowNotify;
   onInterruptError?: (error: unknown) => void;
@@ -210,12 +212,8 @@ function resolveInterruptedCanonicalText(options: {
   runtimeTurnId?: string;
   threadItems: readonly AgentThreadItem[];
 }): string {
-  const {
-    activeSessionId,
-    canonicalThreadId,
-    runtimeTurnId,
-    threadItems,
-  } = options;
+  const { activeSessionId, canonicalThreadId, runtimeTurnId, threadItems } =
+    options;
   if (!runtimeTurnId) {
     return "";
   }
@@ -263,7 +261,8 @@ function resolveInterruptedVisibleMessage(options: {
     if (
       message.role !== "assistant" ||
       message.runtimeTurnId !== runtimeTurnId ||
-      messageVisibleTextLength(message) <= messageVisibleTextLength(visibleMessage)
+      messageVisibleTextLength(message) <=
+        messageVisibleTextLength(visibleMessage)
     ) {
       continue;
     }
@@ -389,10 +388,8 @@ function ensureInterruptedAgentMessageItem(options: {
     return items;
   }
   const now = new Date().toISOString();
-  const sequence = items.reduce(
-    (max, item) => Math.max(max, item.sequence),
-    0,
-  ) + 1;
+  const sequence =
+    items.reduce((max, item) => Math.max(max, item.sequence), 0) + 1;
   return upsertThreadItemState(items, {
     id: activeMessageId,
     thread_id: threadId?.trim() || "",
@@ -465,6 +462,7 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
     getThreadItems,
     setActiveStream,
     submittedDraftFallback,
+    composerRestoreTokenFallback,
     onRestoreInterruptedInput,
     notify,
     onInterruptError,
@@ -483,6 +481,10 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
         ) ?? null)
       : null;
   const currentThreadItems = getThreadItems?.() ?? [];
+  const composerRestoreToken =
+    activeStream?.submittedDraft != null
+      ? activeStream.composerRestoreToken
+      : composerRestoreTokenFallback;
   const restorePlan = resolveInterruptedInputRestorePlan({
     submittedDraft: activeStream?.submittedDraft ?? submittedDraftFallback,
     assistantMessage,
@@ -536,6 +538,7 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
       requestId: crypto.randomUUID(),
       reason: restorePlan.reason,
       draft: restorePlan.draft,
+      ...(composerRestoreToken ? { composerRestoreToken } : {}),
     });
   };
   const runInterruptAndRefresh = async () => {
@@ -569,12 +572,9 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
     }
     let refreshedReadModelItems: AgentThreadItem[] = [];
     try {
-      const refreshedReadModel = await runtime.getSessionReadModel(
-        activeSessionId,
-      );
-      refreshedReadModelItems = Array.isArray(
-        refreshedReadModel?.thread_items,
-      )
+      const refreshedReadModel =
+        await runtime.getSessionReadModel(activeSessionId);
+      refreshedReadModelItems = Array.isArray(refreshedReadModel?.thread_items)
         ? refreshedReadModel.thread_items
         : [];
     } catch (error) {
@@ -582,10 +582,7 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
     }
     let replayedThreadItems: AgentThreadItem[] = [];
     const canonicalThreadId = threadId?.trim();
-    if (
-      canonicalThreadId &&
-      typeof runtime.resumeThread === "function"
-    ) {
+    if (canonicalThreadId && typeof runtime.resumeThread === "function") {
       try {
         await runtime.resumeThread(canonicalThreadId, (reducer) => {
           replayedThreadItems = [...reducer.getProjection().items];
@@ -608,16 +605,15 @@ export async function stopActiveAgentStream(options: StopAgentStreamOptions) {
     if (interruptedRuntimeTurnId && refreshedCanonicalText.trim()) {
       setThreadItems((prev) =>
         markInterruptedAgentMessageThreadItems(
-          [...refreshedReadModelItems, ...replayedThreadItems].reduce(
-            (items, item) => upsertThreadItemState(items, item),
-            prev,
-          ).map((item) =>
-            mergeInterruptedAgentMessageText(
-              item,
-              interruptedRuntimeTurnId,
-              refreshedCanonicalText,
+          [...refreshedReadModelItems, ...replayedThreadItems]
+            .reduce((items, item) => upsertThreadItemState(items, item), prev)
+            .map((item) =>
+              mergeInterruptedAgentMessageText(
+                item,
+                interruptedRuntimeTurnId,
+                refreshedCanonicalText,
+              ),
             ),
-          ),
           new Set([interruptedRuntimeTurnId]),
         ),
       );

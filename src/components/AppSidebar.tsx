@@ -30,11 +30,8 @@ import {
   PluginsPageParams,
   ScheduledTasksPageParams,
 } from "@/types/page";
-import {
-  getConfig,
-  subscribeAppConfigChanged,
-} from "@/lib/api/appConfig";
-import { buildHomeAgentParams } from "@/lib/workspace/navigation";
+import { getConfig, subscribeAppConfigChanged } from "@/lib/api/appConfig";
+import type { StartNewConversation } from "@/lib/workspace/navigation";
 import type { AgentSessionInfo } from "@/lib/api/agentRuntime/sessionTypes";
 import {
   DEFAULT_ENABLED_SIDEBAR_NAV_ITEM_IDS,
@@ -140,6 +137,7 @@ interface AppSidebarProps {
   requestedPage?: Page;
   requestedPageParams?: PageParams;
   onNavigate: (page: Page, params?: PageParams) => void;
+  onStartNewConversation?: StartNewConversation;
   onStartWindowDrag?: (event: ReactMouseEvent<HTMLElement>) => void;
 }
 
@@ -154,6 +152,7 @@ export function AppSidebar({
   requestedPage,
   requestedPageParams,
   onNavigate,
+  onStartNewConversation,
   onStartWindowDrag,
 }: AppSidebarProps) {
   const { t, i18n } = useTranslation("navigation");
@@ -295,10 +294,10 @@ export function AppSidebar({
   }, [conversationScopeProjectId, conversationScopeProjects, openedProjects]);
   const conversationProjectCwds = useMemo(
     () =>
-      conversationScopeProjects
+      conversationDisplayProjects
         .map((project) => project.rootPath?.trim())
         .filter((rootPath): rootPath is string => Boolean(rootPath)),
-    [conversationScopeProjects],
+    [conversationDisplayProjects],
   );
   const requireConversationProjectCwd =
     Boolean(activeAgentProjectId) && conversationProjectCwds.length > 0;
@@ -734,7 +733,7 @@ export function AppSidebar({
     visibleRecentSidebarSessions,
   } = useAppSidebarSessions({
     currentSessionId,
-    activeProjectIds: conversationScopeProjects.map((project) => project.id),
+    activeProjectIds: conversationDisplayProjects.map((project) => project.id),
     openedProjectCwds: conversationProjectCwds,
     requireOpenedProjectCwd: requireConversationProjectCwd,
     shouldShowConversationList,
@@ -757,11 +756,7 @@ export function AppSidebar({
             protocolHits: threadSearch.hits,
           })
         : sidebarSearchResultSessions,
-    [
-      sidebarSearchHasQuery,
-      sidebarSearchResultSessions,
-      threadSearch.hits,
-    ],
+    [sidebarSearchHasQuery, sidebarSearchResultSessions, threadSearch.hits],
   );
 
   const isActive = (item: SidebarNavItem): boolean => {
@@ -784,6 +779,7 @@ export function AppSidebar({
     projectScopedNavigationProjectId,
     requestedNavigationTargetRef,
     onNavigate,
+    onStartNewConversation,
     closeSidebarSearchDialog,
     deferConversationNavigation,
     beginSidebarSessionAction,
@@ -1196,9 +1192,7 @@ export function AppSidebar({
           onHome={() => handleNavigate(MAIN_SIDEBAR_NAV_ITEMS[0])}
           onNavigate={handleNavigate}
           onExpand={
-            collapsed && !isContextlessPage
-              ? toggleSidebarCollapsed
-              : undefined
+            collapsed && !isContextlessPage ? toggleSidebarCollapsed : undefined
           }
           searchSlot={
             <Tooltip>
@@ -1268,7 +1262,10 @@ export function AppSidebar({
                     <UserButton
                       $collapsed={collapsed}
                       onClick={() =>
-                        onNavigate("agent", buildHomeAgentParams())
+                        onStartNewConversation?.({
+                          projectId: null,
+                          freshDraft: false,
+                        })
                       }
                       aria-label={homeAriaLabel}
                       title={homeAriaLabel}
@@ -1405,7 +1402,6 @@ export function AppSidebar({
               </MenuScroll>
             </>
           )}
-
         </SidebarSurface>
       </Container>
       <AppSidebarSearchDialog

@@ -1,3 +1,4 @@
+import type { AgentLocation } from "@/types/page";
 import { useEffect, useMemo } from "react";
 import type {
   AgentRuntimeThreadReadModel,
@@ -29,7 +30,7 @@ interface UseWorkspaceContextSurfaceRuntimeParams {
   messages: Message[];
   model: string;
   onAgentStreamingChange?: (isStreaming: boolean) => void;
-  onSessionChange?: (sessionId: string | null) => void;
+  onLocationChange?: (location: AgentLocation) => void;
   pendingActions: ActionRequired[];
   projectId?: string | null;
   projectMemory: ProjectMemory | null;
@@ -56,7 +57,7 @@ export function useWorkspaceContextSurfaceRuntime({
   messages,
   model,
   onAgentStreamingChange,
-  onSessionChange,
+  onLocationChange,
   pendingActions,
   projectId,
   projectMemory,
@@ -74,8 +75,11 @@ export function useWorkspaceContextSurfaceRuntime({
   );
 
   useEffect(() => {
-    onSessionChange?.(sessionId ?? null);
-  }, [onSessionChange, sessionId]);
+    onLocationChange?.({
+      sessionId: sessionId ?? null,
+      workspaceId: runtimeWorkspaceId ?? projectId ?? null,
+    });
+  }, [onLocationChange, sessionId, runtimeWorkspaceId, projectId]);
 
   useEffect(() => {
     return () => {
@@ -119,8 +123,7 @@ export function useWorkspaceContextSurfaceRuntime({
     todoItems,
   });
   const inputbarIsSending =
-    isSending ||
-    hasActiveThreadReadActivity(threadRead);
+    isSending || hasActiveThreadReadActivity(threadRead);
 
   useEffect(() => {
     onAgentStreamingChange?.(inputbarIsSending);

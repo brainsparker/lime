@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type ComponentProps } from "react";
 import { useTranslation } from "react-i18next";
 import { Square, Terminal } from "lucide-react";
 import type { CodingWorkbenchView } from "@limecloud/agent-runtime-projection";
@@ -7,10 +7,7 @@ import type { ActionRequired, ConfirmResponse } from "../types";
 import { CodingWorkbenchActionPanel } from "./CodingWorkbenchActionPanel";
 import { CodingWorkbenchDiagnosticPanel } from "./CodingWorkbenchDiagnosticPanel";
 import { CodingWorkbenchRecoveryPanel } from "./CodingWorkbenchRecoveryPanel";
-import {
-  buildCodingWorkbenchRecoveryView,
-  type CodingWorkbenchRecoveryContext,
-} from "./codingWorkbenchRecovery";
+import { buildCodingWorkbenchRecoveryView } from "./codingWorkbenchRecovery";
 import { CodingStatusBadge } from "./codingWorkbenchStatus";
 import { statusLabelKey } from "./codingWorkbenchStatusModel";
 
@@ -20,16 +17,13 @@ interface CodingWorkbenchOutputPanelProps {
   submittedActionsInFlight?: readonly ActionRequired[];
   processControls?: CodingWorkbenchCommandProcessControls;
   onRespondToAction?: (response: ConfirmResponse) => void | Promise<void>;
-  onSubmitRecoveryPrompt?: (
-    prompt: string,
-    context?: CodingWorkbenchRecoveryContext,
-  ) => void | Promise<boolean> | boolean;
+  onSubmitRecoveryPrompt?: ComponentProps<
+    typeof CodingWorkbenchRecoveryPanel
+  >["onSubmitRecoveryPrompt"];
 }
 
 export interface CodingWorkbenchCommandProcessControls {
-  onTerminateBackgroundTerminal?: (
-    itemId: string,
-  ) => void | Promise<unknown>;
+  onTerminateBackgroundTerminal?: (itemId: string) => void | Promise<unknown>;
 }
 
 export function CodingWorkbenchOutputPanel({

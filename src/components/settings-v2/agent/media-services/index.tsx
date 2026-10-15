@@ -25,6 +25,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ImageGenSettings } from "../image-gen";
 import { SettingModelSelectorField } from "../shared/SettingModelSelectorField";
+import { useAutoDismissMessage } from "../shared/useAutoDismissMessage";
 import { VideoGenSettings } from "../video-gen";
 import { VoiceSettings } from "../voice";
 
@@ -220,10 +221,7 @@ function SettingRow({
 export function MediaServicesSettings() {
   const { t } = useTranslation("settings");
   const [config, setConfig] = useState<Config | null>(null);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const { message, showMessage } = useAutoDismissMessage();
   const [promptEditors, setPromptEditors] = useState<
     Partial<Record<ServiceModelKey, boolean>>
   >({});
@@ -267,11 +265,6 @@ export function MediaServicesSettings() {
       cancelled = true;
     };
   }, []);
-
-  const showMessage = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  };
 
   const persistConfig = async (updater: (current: Config) => Config) => {
     if (!configRef.current) {

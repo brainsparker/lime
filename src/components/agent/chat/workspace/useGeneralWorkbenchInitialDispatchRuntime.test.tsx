@@ -1,3 +1,4 @@
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
 import { useRef, useState } from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -60,7 +61,9 @@ function Harness({
   const [soulArtifactVoiceEnabledForTurn, setSoulArtifactVoiceEnabledForTurn] =
     useState(false);
   const triggerAIGuideRef = useRef(() => undefined);
-  const fallbackHandleSend = useRef(vi.fn(async () => true)).current;
+  const fallbackHandleSend = useRef(
+    vi.fn(async () => acceptedSubmission()),
+  ).current;
   const handleSend = handleSendOverride ?? fallbackHandleSend;
   const runtime = useGeneralWorkbenchInitialDispatchRuntime({
     activeTheme: "general",
@@ -272,7 +275,7 @@ describe("useGeneralWorkbenchInitialDispatchRuntime", () => {
   });
 
   it("detached 初始自动发送在多实例重挂时应只启动一次", async () => {
-    const handleSend = vi.fn(async () => true);
+    const handleSend = vi.fn(async () => acceptedSubmission());
     const onInitialUserPromptConsumed = vi.fn();
 
     renderDualHarness({

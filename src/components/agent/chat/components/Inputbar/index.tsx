@@ -1,3 +1,8 @@
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftCapture,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
 import React from "react";
 import styled from "styled-components";
 import { useTranslation } from "react-i18next";
@@ -26,10 +31,13 @@ import { buildInputbarComposerSectionCopy } from "./components/inputbarComposerS
 import { buildInputbarCoreCopy } from "./components/inputbarCoreCopy";
 import { buildInputbarWorkflowPanelCopy } from "./inputbarWorkflowCopy";
 import type { InputbarSendHandler } from "./inputbarSendPayload";
-import type { InterruptedInputRestoreRequest } from "../../hooks/agentStreamInputRestoreTypes";
+import type { ScopedComposerRestoreRequest } from "../composerSubmissionSettlement";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
 import type { ThreadGoal } from "@limecloud/app-server-client";
-import type { ComposerController, ComposerSubmitTarget } from "@/components/input-kit";
+import type {
+  ComposerController,
+  ComposerSubmitTarget,
+} from "@/components/input-kit";
 
 const SecondaryControlsRow = styled.div`
   position: absolute;
@@ -53,6 +61,11 @@ const SecondaryControlsRow = styled.div`
 
 interface InputbarProps extends SkillSelectionSourceProps {
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: (
+    capture: ComposerDraftCapture,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => Promise<void> | void;
   input: string;
   setInput: (value: string) => void;
   onSend: InputbarSendHandler;
@@ -107,7 +120,7 @@ interface InputbarProps extends SkillSelectionSourceProps {
   threadGoalLoading?: boolean;
   pathReferences?: MessagePathReference[];
   onAddPathReferences?: (references: MessagePathReference[]) => void;
-  inputRestoreRequest?: InterruptedInputRestoreRequest | null;
+  inputRestoreRequest?: ScopedComposerRestoreRequest | null;
   onInputRestoreRequestHandled?: (requestId: string) => void;
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
@@ -122,6 +135,8 @@ interface InputbarProps extends SkillSelectionSourceProps {
 
 export const Inputbar: React.FC<InputbarProps> = ({
   composerController: externalComposerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
   input,
   setInput,
   onSend,
@@ -257,6 +272,8 @@ export const Inputbar: React.FC<InputbarProps> = ({
     knowledgeHubOpenRequestKey,
   } = useInputbarController({
     composerController: externalComposerController,
+    composerDraftCoordinator,
+    onComposerDraftAccepted,
     input,
     setInput,
     onSend,
@@ -380,7 +397,11 @@ export const Inputbar: React.FC<InputbarProps> = ({
         pathReferences={composerPathReferences}
         onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={(id) => {
-          composerController.setPathReferences(composerController.getDocument().pathReferences.filter((reference) => reference.id !== id));
+          composerController.setPathReferences(
+            composerController
+              .getDocument()
+              .pathReferences.filter((reference) => reference.id !== id),
+          );
           onRemovePathReference?.(id);
         }}
         fileManagerOpen={fileManagerOpen}

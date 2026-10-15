@@ -241,7 +241,7 @@ describe("TaskCenterTabStrip", () => {
     ).toBeNull();
   });
 
-  it("点击加号应触发新建对话回调", () => {
+  it("点击加号应调用零参数的新建对话回调", () => {
     const onCreateTask = vi.fn();
     const { container } = renderTabStrip({ onCreateTask });
 
@@ -254,6 +254,7 @@ describe("TaskCenterTabStrip", () => {
     });
 
     expect(onCreateTask).toHaveBeenCalledTimes(1);
+    expect(onCreateTask).toHaveBeenCalledWith();
   });
 
   it("路径型会话标题应显示文件名并在 tooltip 保留完整路径", () => {

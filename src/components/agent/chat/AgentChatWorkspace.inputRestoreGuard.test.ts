@@ -17,6 +17,7 @@ const INPUT_RESTORE_REQUEST_PRODUCTION_FILES = new Set([
   "src/components/agent/chat/workspace/useAgentChatWorkspaceSceneRuntime.tsx",
   "src/components/agent/chat/components/EmptyState.tsx",
   "src/components/agent/chat/components/EmptyState.types.ts",
+  "src/components/agent/chat/components/composerSubmissionSettlement.ts",
   "src/components/agent/chat/components/Inputbar/hooks/useInputbarController.ts",
   "src/components/agent/chat/components/Inputbar/index.tsx",
   "src/components/agent/chat/hooks/agentChatShared.ts",
@@ -34,6 +35,12 @@ const INPUT_RESTORE_REQUEST_PRODUCTION_FILES = new Set([
 ]);
 
 type ProductionAgentChatSource = { relativePath: string; source: string };
+
+function isAgentChatTestSource(name: string): boolean {
+  return /\.(?:test|unit\.test|testFixtures|testHarness)\.(?:ts|tsx)$/.test(
+    name,
+  );
+}
 
 function usesInterruptedInputRestoreRequest(source: string): boolean {
   return (
@@ -66,10 +73,13 @@ function readProductionAgentChatSources() {
       if (!/\.(ts|tsx)$/.test(entry.name)) {
         continue;
       }
-      if (entry.name.includes(".test.") || entry.name.includes(".unit.test.")) {
+      if (isAgentChatTestSource(entry.name)) {
         continue;
       }
-      const relativePath = relative(process.cwd(), absolutePath);
+      const relativePath = relative(process.cwd(), absolutePath).replaceAll(
+        "\\",
+        "/",
+      );
       files.push({
         relativePath,
         source: readFileSync(absolutePath, "utf8"),
@@ -81,6 +91,17 @@ function readProductionAgentChatSources() {
 }
 
 describe("AgentChatWorkspace input restore boundary", () => {
+  it.each([
+    ["agentStreamRestoreToken.testFixtures.ts", true],
+    ["composerRestore.testHarness.tsx", true],
+    ["composerRestore.integration.test.tsx", true],
+    ["composerSubmissionSettlement.ts", false],
+    ["testFixturesOwner.ts", false],
+    ["composerRestore.testFixturesOwner.ts", false],
+  ])("测试叶分类不排除同名生产文件：%s", (name, expected) => {
+    expect(isAgentChatTestSource(name)).toBe(expected);
+  });
+
   it("local-display owner 只转发恢复请求，不执行 text/path-only fallback", () => {
     const source = readFileSync(
       join(

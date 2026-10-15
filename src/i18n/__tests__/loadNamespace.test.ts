@@ -933,7 +933,7 @@ describe("i18n namespace loader", () => {
         "settings.layout.sidebar.experimentalBadge",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.layout.action.backHome",
+        "settings.layout.action.back",
       );
       expect(resources[locale].settings).toHaveProperty(
         "settings.layout.loading.profile",
@@ -990,7 +990,7 @@ describe("i18n namespace loader", () => {
         "settings.profile.usage.tipTags",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.layout.placeholder.notFound",
+        "settings.layout.loading.skills",
       );
       expect(resources[locale].settings).toHaveProperty(
         "settings.layout.sidebar.floatingNav.openAria",

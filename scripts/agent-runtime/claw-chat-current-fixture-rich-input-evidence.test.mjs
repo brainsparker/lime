@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import process from "node:process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ensureUserVisibleCapabilityReportSkill } from "./claw-chat-current-fixture-skills-workspace.mjs";
 import {
@@ -9,6 +10,30 @@ import {
   summarizeRichInputSubmission,
 } from "./claw-chat-current-fixture-rich-input-evidence.mjs";
 import { composerMarksFixture } from "./claw-chat-current-fixture-composer-marks.mjs";
+import {
+  INPUTBAR_RICH_RESTORE_PATH,
+  INPUTBAR_RICH_RESTORE_PATH_NAME,
+} from "./claw-chat-current-fixture-constants.mjs";
+
+describe("rich input current file reference fixture", () => {
+  it("references a real readable file owned by the current fixture domain", () => {
+    expect(path.basename(INPUTBAR_RICH_RESTORE_PATH)).toBe(
+      INPUTBAR_RICH_RESTORE_PATH_NAME,
+    );
+    expect(path.relative(process.cwd(), INPUTBAR_RICH_RESTORE_PATH)).toBe(
+      path.join(
+        "scripts",
+        "agent-runtime",
+        "fixtures",
+        INPUTBAR_RICH_RESTORE_PATH_NAME,
+      ),
+    );
+    expect(fs.statSync(INPUTBAR_RICH_RESTORE_PATH).isFile()).toBe(true);
+    expect(fs.readFileSync(INPUTBAR_RICH_RESTORE_PATH, "utf8").trim()).not.toBe(
+      "",
+    );
+  });
+});
 
 let root;
 let skillIdentity;
@@ -205,6 +230,7 @@ describe("rich Composer submission evidence", () => {
     (mode) => {
       const input = marksFixture();
       const part = input.request.params.input[0];
+      const before = part.text;
       if (mode === "display")
         part.text = `/capability-report ${input.evidence.editorText}`;
       if (mode === "href")
@@ -215,9 +241,10 @@ describe("rich Composer submission evidence", () => {
       if (mode === "title") part.text = part.text.replace(' "标题"', "");
       if (mode === "fence") part.text = part.text.replaceAll("`````", "```");
       if (mode === "code-space")
-        part.text = part.text.replace("  中😀", "中😀");
+        part.text = part.text.replace("  const value", "const value");
       if (mode === "code-lf")
         part.text = part.text.replace("````\n\n\n`````", "````\n`````");
+      expect(part.text).not.toBe(before);
       input.evidence.canonical.thread.turns[0].items[0].content[0] =
         structuredClone(part);
       expect(summarize(input).ok).toBe(false);

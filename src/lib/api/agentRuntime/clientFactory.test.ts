@@ -5,6 +5,14 @@ import {
 } from "./clientFactory";
 import type { AgentRuntimeLifecycleClient } from "./threadClient";
 
+const acceptedTurnResult = {
+  id: 1,
+  result: { turn: { id: "turn-1", status: "inProgress" } },
+  response: { id: 1, result: {} },
+  messages: [],
+  notifications: [],
+};
+
 const appServerCheckpointSummary = {
   checkpointId: "checkpoint-1",
   turnId: "turn-1",
@@ -220,7 +228,7 @@ function appServerClientMock(): AgentRuntimeAppServerClient {
       messages: [],
       notifications: [],
     }),
-    startTurn: vi.fn().mockResolvedValue({}),
+    startTurn: vi.fn().mockResolvedValue(acceptedTurnResult),
     cancelTurn: vi.fn().mockResolvedValue({}),
     startThreadCompaction: vi.fn().mockResolvedValue({
       id: 1,
@@ -532,20 +540,7 @@ function appServerClientMock(): AgentRuntimeAppServerClient {
 
 function standardRuntimeClientMock(): AgentRuntimeLifecycleClient {
   return {
-    startTurn: vi.fn().mockResolvedValue({
-      id: 1,
-      result: {
-        turn: {
-          turnId: "turn-1",
-          sessionId: "session-1",
-          threadId: "thread-1",
-          status: "accepted",
-        },
-      },
-      response: { id: 1, result: {} },
-      messages: [],
-      notifications: [],
-    }),
+    startTurn: vi.fn().mockResolvedValue(acceptedTurnResult),
     cancelTurn: vi.fn().mockResolvedValue({
       id: 2,
       result: {},
@@ -755,11 +750,13 @@ describe("agentRuntime clientFactory", () => {
       isAppServerTurnLifecycleAvailable: () => true,
     });
 
-    await client.submitAgentRuntimeTurn({
-      threadId: "thread-1",
-      input: [{ type: "text", text: "继续" }],
-      additionalContext: { workspaceId: "workspace-1" },
-    });
+    await expect(
+      client.submitAgentRuntimeTurn({
+        threadId: "thread-1",
+        input: [{ type: "text", text: "继续" }],
+        additionalContext: { workspaceId: "workspace-1" },
+      }),
+    ).resolves.toBe(acceptedTurnResult);
 
     expect(appServerClient.startTurn).toHaveBeenCalledWith({
       threadId: "thread-1",
@@ -785,7 +782,7 @@ describe("agentRuntime clientFactory", () => {
         threadId: "thread-1",
         input: [{ type: "text", text: "继续" }],
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(acceptedTurnResult);
     await expect(
       client.getAgentRuntimeThreadRead("session-1"),
     ).resolves.toMatchObject({

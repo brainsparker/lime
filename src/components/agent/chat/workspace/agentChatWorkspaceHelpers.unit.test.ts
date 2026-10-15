@@ -229,8 +229,6 @@ describe("shouldPauseTaskCenterInitialSessionNavigation", () => {
       shouldPauseTaskCenterInitialSessionNavigation({
         agentEntry: "claw",
         draftSurfaceActive: false,
-        activeDraftTabId: null,
-        draftTabCount: 0,
         hasHomeHotpathPending: true,
       }),
     ).toBe(true);
@@ -241,8 +239,6 @@ describe("shouldPauseTaskCenterInitialSessionNavigation", () => {
       shouldPauseTaskCenterInitialSessionNavigation({
         agentEntry: "general",
         draftSurfaceActive: false,
-        activeDraftTabId: null,
-        draftTabCount: 0,
         hasHomeHotpathPending: true,
       }),
     ).toBe(false);

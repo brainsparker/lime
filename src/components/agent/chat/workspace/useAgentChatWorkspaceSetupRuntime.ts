@@ -54,7 +54,7 @@ export function useAgentChatWorkspaceSetupRuntime({
     initialPendingServiceSkillLaunch,
     newChatAt,
     expertAgentLaunch,
-    onSessionChange,
+    onLocationChange,
     onAgentStreamingChange,
   } = props;
 
@@ -422,7 +422,7 @@ export function useAgentChatWorkspaceSetupRuntime({
     messages,
     model,
     onAgentStreamingChange,
-    onSessionChange,
+    onLocationChange,
     pendingActions,
     projectId,
     projectMemory,

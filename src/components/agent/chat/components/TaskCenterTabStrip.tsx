@@ -269,7 +269,7 @@ export function TaskCenterTabStrip({
               data-testid="task-center-tab-create-button"
               aria-label={createConversationLabel}
               title={createConversationLabel}
-              onClick={onCreateTask}
+              onClick={() => onCreateTask()}
             >
               <Plus className="h-3.5 w-3.5" />
             </button>

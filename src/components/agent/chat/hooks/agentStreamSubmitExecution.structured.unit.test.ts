@@ -26,7 +26,9 @@ const submission: ComposerSubmission = {
 };
 
 function createOptions(activeTurnId: string | null) {
-  const submitOp = vi.fn().mockResolvedValue(undefined);
+  const submitOp = vi
+    .fn()
+    .mockResolvedValue({ turn: { id: "turn-start", status: "inProgress" } });
   const steerTurn = vi.fn().mockResolvedValue({ turnId: activeTurnId });
   const options: Parameters<typeof executeAgentStreamSubmit>[0] = {
     runtime: {

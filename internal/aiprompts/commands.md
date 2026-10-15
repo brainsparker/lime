@@ -48,6 +48,25 @@ Electron `safeStorage` 加密后落在统一 `AppDataRoot/credentials`，状态�
 query、Debug 或日志；safeStorage 不可用时必须 fail closed。该 owner 只是 Cloud
 transport foundation，不会启用默认远端 App Server，也不替代 App Server JSON-RPC。
 
+## Desktop persisted atom
+
+桌面未发送 UI 草稿只允许：
+
+```text
+Renderer -> src/lib/api/persistedAtoms.ts
+  -> current safeInvoke -> preload / persisted_atom_read|persisted_atom_update
+  -> Main delegate -> PersistedAtomHost -> PersistedAtomStore -> PersistedAtomFile
+  -> fixed AppDataRoot/host-state.json
+```
+
+read 为 `{key:"composer-drafts-v1",query}`，query 判别为 `{kind:"scope",scope}` 或 `{kind:"workspace-index",workspaceId}`；ready 结果分别为 `data:{queryKind:"scope",view}` 或 `data:{queryKind:"workspace-index",workspaceId,items}`，invalid/unavailable 为 data:null。update 为 `{key,mutation}`，仅支持 put/promote/consume/clear。read/update 结果与 `persisted-atom-update` notification 必须经过同一纯 JSON parser。notification 仅含 revision / persistence metadata，无草稿正文；Renderer emit/send 与 Main IPC handler 拒绝伪造该事件。旧 scope-only/top-level view 已直接删除。索引精确匹配 workspace（含null），只发现当前 live binding，返回 scope/identity/updatedAt/sessionId?/threadId?，不读正文、不改变 revision、不截断。选中后重新读scope并执行原CAS。
+
+`PersistedAtomStore` 为唯一 CAS/binding owner，`PersistedAtomFile` 为唯一原子保存/backup owner。typed gateway 之外禁止裸 invoke/listen；catalog、preload 白名单、实际 handler、ESLint restriction 与 command guard 同批同步。safeInvoke 与 HTTP 诊断由同一 `invokeDiagnostics` 承接，保存参数和任意原始错误正文不进入 trace/console。
+
+该能力属于 Desktop UI 保存，不能承接业务 session、canonical transcript、队列、App Server runtime 或 Provider 请求；不新增 JSON-RPC method、CLI/TUI 草稿后端或生产 mock。Host ready 仅证明加载完成，savedRevision 才证明该 revision 已落盘；发送和退出不增加持久 checkpoint 或等待握手。真实正常重启仅证明 Host/IPC/file 基础能力，GUI 富草稿恢复仍需另验。
+
+GUI send 的本地返回统一为 `RuntimeSubmissionResult`：`runtime-accepted` / `queue-accepted` / `local-handled` / `rejected` / `unknown`。start/steer 的接受从真实 response 捕获，queue 从真实 QueuedSubmission 投影；后处理失败不能撤销接受。composer capture、restore token 与导航 epoch 都是 renderer 本地能力，不增加 App Server wire 字段，也不以 void/boolean 或 dispatched 猜测接受。TaskCenter 请求保留原 capture，发送驱动的 materialization 禁止提前 promotion；接受后由唯一 React owner 使用 receipt 的 sessionId/threadId 先 promotion 再 consume。
+
 ## TUI/CLI 与 Cloud transport 边界
 
 TUI 推理显示只消费同一协议的 summary/summaryIndex；原始 content 默认隐藏。摘要

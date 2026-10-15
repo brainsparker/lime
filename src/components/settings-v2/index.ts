@@ -1,7 +1,4 @@
 /**
- * 设置页面 V2 导出
- *
- * 新版设置页面，采用统一侧边栏布局
+ * 设置页面公开入口
  */
-
-export { SettingsLayoutV2 as SettingsPageV2 } from "./_layout";
+export { SettingsPage } from "./_layout";

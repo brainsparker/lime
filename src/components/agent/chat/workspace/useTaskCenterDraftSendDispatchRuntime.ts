@@ -1,3 +1,5 @@
+import { isRuntimeSubmissionAccepted } from "../hooks/agentSendResult";
+import { createTaskCenterSubmissionSettlement } from "./taskCenterSubmissionSettlement";
 import {
   useEffect,
   useRef,
@@ -8,7 +10,10 @@ import {
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
 import { mergeAgentUiPerformanceTraceMetadata } from "../hooks/agentStreamPerformanceMetrics";
 import type { HandleSendOptions } from "../hooks/handleSendTypes";
-import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
+import type {
+  TaskCenterDraftSendRequest,
+  TaskCenterSessionReadyOptions,
+} from "../homePendingPreview";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
 import { scheduleAfterNextPaint } from "./agentChatWorkspaceHelpers";
 
@@ -23,48 +28,17 @@ interface UseTaskCenterDraftSendDispatchRuntimeParams {
   messagesLength: number;
   displayMessagesLength?: number;
   currentSessionId?: string | null;
-  materializedSessionIdsRef: MutableRefObject<Map<string, string>>;
-  prewarmedDraftSessionIdsRef?: MutableRefObject<Set<string>>;
-  materializeDraftTab: (
-    draftTabId: string,
-    options: { reason: "send"; commit: false },
-  ) => Promise<string | null>;
-  commitMaterializedDraftTab: (
-    draftTabId: string,
-    newSessionId: string,
-    options?: {
-      embedHomeSession?: boolean;
-      hydrateSession?: boolean;
-      preserveInput?: boolean;
-      syncRoute?: boolean;
-    },
-  ) => void;
-  onNonMaterializedSessionReady?: (
+  onSessionAccepted?: (
     sessionId: string,
-    options?: { sourceDraftTabId?: string | null },
+    options?: TaskCenterSessionReadyOptions,
   ) => void;
+  isSendSourceCurrent?: (
+    options: TaskCenterSessionReadyOptions,
+    acceptedSessionId?: string,
+  ) => boolean;
   restoreInput?: (value: string) => void;
   sendRef: MutableRefObject<WorkspaceHandleSend>;
   workspaceId?: string | null;
-}
-
-function isTemporaryDraftSendRequestId(value: string): boolean {
-  return value.startsWith("draft-send-");
-}
-
-function resolveNonMaterializedReadySessionId(
-  request: TaskCenterDraftSendRequest,
-  currentSessionId?: string | null,
-): string | null {
-  const activeSessionId = currentSessionId?.trim();
-  if (activeSessionId) {
-    return activeSessionId;
-  }
-
-  const requestSessionId = request.draftTabId.trim();
-  return requestSessionId && !isTemporaryDraftSendRequestId(requestSessionId)
-    ? requestSessionId
-    : null;
 }
 
 function isDraftSendDispatchRuntimeOwned(
@@ -80,11 +54,8 @@ export function useTaskCenterDraftSendDispatchRuntime({
   messagesLength,
   displayMessagesLength = messagesLength,
   currentSessionId,
-  materializedSessionIdsRef,
-  prewarmedDraftSessionIdsRef,
-  materializeDraftTab,
-  commitMaterializedDraftTab,
-  onNonMaterializedSessionReady,
+  onSessionAccepted,
+  isSendSourceCurrent,
   restoreInput,
   sendRef,
   workspaceId,
@@ -101,11 +72,18 @@ export function useTaskCenterDraftSendDispatchRuntime({
 
   useEffect(() => {
     mountedRef.current = true;
+    const dispatchedRequestIds = dispatchedRequestIdsRef.current;
     return () => {
       mountedRef.current = false;
-      latestDispatchContextRef.current.taskCenterDraftSendRequest?.onDispatchSettled?.(
-        false,
-      );
+      const request =
+        latestDispatchContextRef.current.taskCenterDraftSendRequest;
+      if (
+        request &&
+        isDraftSendDispatchRuntimeOwned(request) &&
+        !dispatchedRequestIds.has(request.id)
+      ) {
+        request.onDispatchSettled?.({ kind: "rejected" });
+      }
     };
   }, []);
 
@@ -133,32 +111,29 @@ export function useTaskCenterDraftSendDispatchRuntime({
   useEffect(() => {
     if (
       !taskCenterDraftSendRequest ||
-      !isDraftSendDispatchRuntimeOwned(taskCenterDraftSendRequest) ||
-      taskCenterDraftSendRequest.materializeDraft
+      !isDraftSendDispatchRuntimeOwned(taskCenterDraftSendRequest)
     ) {
       return;
     }
 
-    const readySessionId = resolveNonMaterializedReadySessionId(
-      taskCenterDraftSendRequest,
-      currentSessionId,
-    );
+    const readySessionId = taskCenterDraftSendRequest.sessionId;
     if (!readySessionId) {
       return;
     }
     if (
       taskCenterDraftSendRequest.sessionReady &&
-      taskCenterDraftSendRequest.draftTabId === readySessionId
+      taskCenterDraftSendRequest.sessionId === readySessionId
     ) {
       return;
     }
 
-    onNonMaterializedSessionReady?.(readySessionId);
+    if (isSendSourceCurrent?.(taskCenterDraftSendRequest) === false) return;
+    onSessionAccepted?.(readySessionId, taskCenterDraftSendRequest);
     setTaskCenterDraftSendRequest((current) =>
       current?.id === taskCenterDraftSendRequest.id
         ? {
             ...current,
-            draftTabId: readySessionId,
+            sessionId: readySessionId,
             sessionReady: true,
           }
         : current,
@@ -167,14 +142,15 @@ export function useTaskCenterDraftSendDispatchRuntime({
       current?.id === taskCenterDraftSendRequest.id
         ? {
             ...current,
-            draftTabId: readySessionId,
+            sessionId: readySessionId,
             sessionReady: true,
           }
         : current,
     );
   }, [
     currentSessionId,
-    onNonMaterializedSessionReady,
+    onSessionAccepted,
+    isSendSourceCurrent,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
     taskCenterDraftSendRequest,
@@ -184,8 +160,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
     if (
       messagesLength === 0 ||
       !taskCenterDraftSendRequest ||
-      !isDraftSendDispatchRuntimeOwned(taskCenterDraftSendRequest) ||
-      taskCenterDraftSendRequest.materializeDraft
+      !isDraftSendDispatchRuntimeOwned(taskCenterDraftSendRequest)
     ) {
       return;
     }
@@ -194,31 +169,33 @@ export function useTaskCenterDraftSendDispatchRuntime({
       if (
         !current ||
         !isDraftSendDispatchRuntimeOwned(current) ||
-        current.materializeDraft ||
         current.id !== taskCenterDraftSendRequest.id
       ) {
         return current;
       }
-      const readySessionId = resolveNonMaterializedReadySessionId(
-        current,
-        currentSessionId,
-      );
+      const readySessionId = current.sessionId;
       if (!readySessionId) {
         return current;
       }
-      if (!current.sessionReady || current.draftTabId !== readySessionId) {
-        onNonMaterializedSessionReady?.(readySessionId);
+      if (isSendSourceCurrent?.(current) === false) return current;
+      if (!current.sessionReady || current.sessionId !== readySessionId) {
+        onSessionAccepted?.(readySessionId, current);
       }
       return null;
     });
     setHomePendingPreviewRequest((current) =>
-      current && isDraftSendDispatchRuntimeOwned(current) ? null : current,
+      current?.id === taskCenterDraftSendRequest.id &&
+      isDraftSendDispatchRuntimeOwned(current) &&
+      isSendSourceCurrent?.(current) !== false
+        ? null
+        : current,
     );
   }, [
     displayMessagesLength,
     currentSessionId,
     messagesLength,
-    onNonMaterializedSessionReady,
+    onSessionAccepted,
+    isSendSourceCurrent,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
     taskCenterDraftSendRequest,
@@ -233,10 +210,7 @@ export function useTaskCenterDraftSendDispatchRuntime({
     }
 
     const request = taskCenterDraftSendRequest;
-    if (
-      !request.materializeDraft &&
-      !resolveNonMaterializedReadySessionId(request, currentSessionId)
-    ) {
+    if (!request.sessionId) {
       return;
     }
     if (
@@ -253,7 +227,8 @@ export function useTaskCenterDraftSendDispatchRuntime({
         !mountedRef.current ||
         dispatchedRequestIdsRef.current.has(request.id)
       ) {
-        if (!mountedRef.current) request.onDispatchSettled?.(false);
+        if (!mountedRef.current)
+          request.onDispatchSettled?.({ kind: "rejected" });
         return;
       }
 
@@ -264,16 +239,10 @@ export function useTaskCenterDraftSendDispatchRuntime({
         latestRequest.id !== request.id ||
         !isDraftSendDispatchRuntimeOwned(latestRequest)
       ) {
-        request.onDispatchSettled?.(false);
+        request.onDispatchSettled?.({ kind: "rejected" });
         return;
       }
-      if (
-        !latestRequest.materializeDraft &&
-        !resolveNonMaterializedReadySessionId(
-          latestRequest,
-          latestContext.currentSessionId,
-        )
-      ) {
+      if (!latestRequest.sessionId) {
         return;
       }
 
@@ -288,86 +257,39 @@ export function useTaskCenterDraftSendDispatchRuntime({
             current?.id === latestRequest.id ? null : current,
           );
         }
-        if (latestRequest.materializeDraft) {
-          materializedSessionIdsRef.current.delete(latestRequest.draftTabId);
-        }
       };
 
+      const settlement = createTaskCenterSubmissionSettlement(
+        latestRequest.sendOptions?.observer,
+        latestRequest.onDispatchSettled,
+      );
       void (async () => {
-        const readyMaterializedSessionId = latestRequest.materializeDraft
-          ? (materializedSessionIdsRef.current.get(latestRequest.draftTabId) ??
-            null)
-          : null;
-        const materializedSessionId = latestRequest.materializeDraft
-          ? (readyMaterializedSessionId ??
-            (await materializeDraftTab(latestRequest.draftTabId, {
-              reason: "send",
-              commit: false,
-            })))
-          : null;
-        if (latestRequest.materializeDraft && !materializedSessionId) {
-          recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-            durationMs: Date.now() - latestRequest.submittedAt,
-            error: "draft_materialize_failed",
-            requestId: latestRequest.id,
-            sessionId: latestRequest.draftTabId,
-            source: latestRequest.source,
-            workspaceId: dispatchWorkspaceId ?? null,
-          });
-          clearRequest();
-          latestRequest.onDispatchSettled?.(false);
-          return;
-        }
-
         if (
           !mountedRef.current ||
           latestDispatchContextRef.current.taskCenterDraftSendRequest?.id !==
             latestRequest.id
         ) {
-          latestRequest.onDispatchSettled?.(false);
+          settlement.settle({ kind: "rejected" });
           return;
         }
 
-        const dispatchSessionId =
-          materializedSessionId ?? latestRequest.draftTabId;
-        if (latestRequest.materializeDraft && materializedSessionId) {
-          const markMaterializedSessionReady = (
-            current: TaskCenterDraftSendRequest | null,
-          ) =>
-            current?.id === latestRequest.id
-              ? {
-                  ...current,
-                  draftTabId: materializedSessionId,
-                  sessionReady: true,
-                }
-              : current;
-          setTaskCenterDraftSendRequest(markMaterializedSessionReady);
-          setHomePendingPreviewRequest(markMaterializedSessionReady);
+        const dispatchSessionId = latestRequest.sessionId;
+        if (!dispatchSessionId) {
+          settlement.settle({ kind: "rejected" });
+          return;
         }
-        if (latestRequest.materializeDraft && materializedSessionId) {
-          const commitOptions: Parameters<
-            typeof commitMaterializedDraftTab
-          >[2] = {
-            embedHomeSession: false,
-            hydrateSession: false,
-            preserveInput: Boolean(latestRequest.onDispatchSettled),
-            syncRoute: false,
-          };
-          commitMaterializedDraftTab(
-            latestRequest.draftTabId,
-            materializedSessionId,
-            commitOptions,
-          );
-        }
-        recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
-          elapsedMs: Date.now() - latestRequest.submittedAt,
-          requestId: latestRequest.id,
-          sessionId: dispatchSessionId,
-          source: latestRequest.source,
-          workspaceId: dispatchWorkspaceId ?? null,
-        });
+        settlement.effect("accepted_metric", () =>
+          recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
+            elapsedMs: Date.now() - latestRequest.submittedAt,
+            requestId: latestRequest.id,
+            sessionId: dispatchSessionId,
+            source: latestRequest.source,
+            workspaceId: dispatchWorkspaceId ?? null,
+          }),
+        );
         const tracedSendOptions: HandleSendOptions = {
           ...(latestRequest.sendOptions || {}),
+          observer: settlement.observer,
           targetSessionId: dispatchSessionId,
           skipSessionRestore: true,
           skipSessionStartHooks: true,
@@ -391,18 +313,25 @@ export function useTaskCenterDraftSendDispatchRuntime({
           undefined,
           tracedSendOptions,
         );
-        void sendPromise.then(
-          (result) => {
-            recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
-              durationMs: Date.now() - latestRequest.submittedAt,
-              requestId: latestRequest.id,
-              result,
-              sessionId: dispatchSessionId,
-              source: latestRequest.source,
-              workspaceId: dispatchWorkspaceId ?? null,
-            });
-            if (result !== true) {
-              if (!latestRequest.onDispatchSettled)
+        await sendPromise.then(
+          (actualResult) => {
+            const result = settlement.settle(actualResult);
+            if (!mountedRef.current) return;
+            settlement.effect("accepted_metric", () =>
+              recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
+                durationMs: Date.now() - latestRequest.submittedAt,
+                requestId: latestRequest.id,
+                result: result.kind,
+                sessionId: dispatchSessionId,
+                source: latestRequest.source,
+                workspaceId: dispatchWorkspaceId ?? null,
+              }),
+            );
+            if (!isRuntimeSubmissionAccepted(result)) {
+              if (
+                !latestRequest.onDispatchSettled &&
+                isSendSourceCurrent?.(latestRequest) !== false
+              )
                 restoreInput?.(latestRequest.text);
             }
             const latestCounts = messageCountsRef.current;
@@ -410,53 +339,65 @@ export function useTaskCenterDraftSendDispatchRuntime({
               latestDispatchContextRef.current.currentSessionId?.trim() || null;
             clearRequest({
               keepHomePreview:
-                result === true &&
+                isRuntimeSubmissionAccepted(result) &&
+                isSendSourceCurrent?.(
+                  latestRequest,
+                  result.receipt.sessionId,
+                ) !== false &&
                 (latestCounts.messagesLength === 0 ||
-                  (latestRequest.materializeDraft &&
-                    latestActiveSessionId !== dispatchSessionId)),
+                  latestActiveSessionId !== dispatchSessionId),
             });
-            latestRequest.onDispatchSettled?.(result === true);
+            settlement.settle(result);
           },
           (error) => {
-            recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-              durationMs: Date.now() - latestRequest.submittedAt,
-              error: error instanceof Error ? error.message : String(error),
-              requestId: latestRequest.id,
-              sessionId: dispatchSessionId,
-              source: latestRequest.source,
-              workspaceId: dispatchWorkspaceId ?? null,
-            });
-            if (!latestRequest.onDispatchSettled)
+            const result = settlement.reject(error);
+            if (!mountedRef.current || isRuntimeSubmissionAccepted(result))
+              return;
+            settlement.effect("accepted_metric", () =>
+              recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
+                durationMs: Date.now() - latestRequest.submittedAt,
+                error: "request_rejected",
+                requestId: latestRequest.id,
+                sessionId: dispatchSessionId,
+                source: latestRequest.source,
+                workspaceId: dispatchWorkspaceId ?? null,
+              }),
+            );
+            if (
+              !latestRequest.onDispatchSettled &&
+              isSendSourceCurrent?.(latestRequest) !== false
+            )
               restoreInput?.(latestRequest.text);
             clearRequest();
-            latestRequest.onDispatchSettled?.(false);
+            settlement.settle({ kind: "rejected" });
           },
         );
       })().catch((error) => {
-        recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-          durationMs: Date.now() - latestRequest.submittedAt,
-          error: error instanceof Error ? error.message : String(error),
-          requestId: latestRequest.id,
-          sessionId: latestRequest.draftTabId,
-          source: latestRequest.source,
-          workspaceId: dispatchWorkspaceId ?? null,
-        });
+        const result = settlement.reject(error);
+        if (!mountedRef.current || isRuntimeSubmissionAccepted(result)) return;
+        settlement.effect("accepted_metric", () =>
+          recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
+            durationMs: Date.now() - latestRequest.submittedAt,
+            error: "request_rejected",
+            requestId: latestRequest.id,
+            sessionId: latestRequest.sessionId,
+            source: latestRequest.source,
+            workspaceId: dispatchWorkspaceId ?? null,
+          }),
+        );
         if (
           !latestRequest.onDispatchSettled &&
-          !latestRequest.materializeDraft
+          isSendSourceCurrent?.(latestRequest) !== false
         ) {
           restoreInput?.(latestRequest.text);
         }
         clearRequest();
-        latestRequest.onDispatchSettled?.(false);
+        settlement.settle({ kind: "rejected" });
       });
     });
   }, [
-    commitMaterializedDraftTab,
     currentSessionId,
-    materializeDraftTab,
-    materializedSessionIdsRef,
-    prewarmedDraftSessionIdsRef,
+    isSendSourceCurrent,
     messageCountsRef,
     restoreInput,
     sendRef,

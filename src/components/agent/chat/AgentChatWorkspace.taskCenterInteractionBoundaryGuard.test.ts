@@ -4,7 +4,7 @@ import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 describe("AgentChatWorkspace Task Center interaction runtime boundary", () => {
-  it("草稿物化、切题和 Chrome 接线必须由 interaction runtime 组合", () => {
+  it("canonical 切题和 Chrome 接线必须由 interaction runtime 组合", () => {
     const workspaceSource = [
       "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
       "src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts",
@@ -38,9 +38,11 @@ describe("AgentChatWorkspace Task Center interaction runtime boundary", () => {
     expect(shellInteractionOwnerSource).toContain(
       "useWorkspaceTaskCenterInteractionRuntime(",
     );
+    expect(ownerSource).not.toContain(
+      "useTaskCenterDraftMaterializationRuntime(",
+    );
     expect(ownerSource.split("\n").length).toBeLessThan(140);
     for (const retiredWorkspaceTaskCenterInteractionGlue of [
-      "useTaskCenterDraftMaterializationRuntime(",
       "useTaskCenterTopicNavigationRuntime(",
       "useTaskCenterChromeNavigationRuntime(",
     ]) {

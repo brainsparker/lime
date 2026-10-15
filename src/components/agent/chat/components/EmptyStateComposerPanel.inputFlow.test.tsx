@@ -3,14 +3,28 @@ import { join } from "node:path";
 import process from "node:process";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
 import {
   mockEmptyStateCharacterMention,
+  createSkillSelection,
   renderPanel,
   updateComposerEditorValue,
 } from "./EmptyStateComposerPanel.testFixtures";
-import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
+import {
+  COMPOSER_EDITOR_SELECTOR,
+  getComposerEditorText,
+} from "@/components/input-kit/composerEditor.testUtils";
 
 describe("EmptyStateComposerPanel", () => {
+  it("requests the shared lazy Skill catalog from the Home mention surface", () => {
+    const onSkillSuggestionsNeeded = vi.fn();
+    renderPanel({
+      skillSelection: createSkillSelection({ onSkillSuggestionsNeeded }),
+    });
+    const mention = mockEmptyStateCharacterMention.mock.calls.at(-1)?.[0];
+    act(() => mention?.onSkillSuggestionsNeeded?.());
+    expect(onSkillSuggestionsNeeded).toHaveBeenCalledOnce();
+  });
   it("不应重新接入 input restore request 子面板 fallback", () => {
     const source = readFileSync(
       join(
@@ -31,7 +45,9 @@ describe("EmptyStateComposerPanel", () => {
       container.querySelector('[data-testid="home-input-tab-suggestion"]'),
     ).toBeNull();
 
-    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
+    const editor = container.querySelector<HTMLElement>(
+      COMPOSER_EDITOR_SELECTOR,
+    );
     await act(async () => {
       editor?.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -43,15 +59,15 @@ describe("EmptyStateComposerPanel", () => {
       await Promise.resolve();
     });
 
-    expect(
-      getComposerEditorText(editor),
-    ).toBe("");
+    expect(getComposerEditorText(editor)).toBe("");
   }, 15_000);
 
   it("Shift+Tab 保持焦点切换，不填入起手建议", () => {
     const container = renderPanel();
 
-    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
+    const editor = container.querySelector<HTMLElement>(
+      COMPOSER_EDITOR_SELECTOR,
+    );
     act(() => {
       editor?.dispatchEvent(
         new KeyboardEvent("keydown", {
@@ -63,9 +79,7 @@ describe("EmptyStateComposerPanel", () => {
       );
     });
 
-    expect(
-      getComposerEditorText(editor),
-    ).toBe("");
+    expect(getComposerEditorText(editor)).toBe("");
   });
 
   it("引导帮助模式应展示可关闭的上下文 badge 并隐藏 Tab 起手建议", () => {
@@ -110,7 +124,9 @@ describe("EmptyStateComposerPanel", () => {
   it("应将 onPaste 绑定到输入框", () => {
     const onPaste = vi.fn();
     const container = renderPanel({ onPaste });
-    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
+    const editor = container.querySelector<HTMLElement>(
+      COMPOSER_EDITOR_SELECTOR,
+    );
 
     expect(editor).toBeTruthy();
 
@@ -121,10 +137,12 @@ describe("EmptyStateComposerPanel", () => {
     expect(onPaste).toHaveBeenCalledTimes(1);
   });
 
-  it("发送时应把本地草稿显式传给首页发送链", () => {
-    const onSend = vi.fn();
+  it("发送时应把本地草稿显式传给首页发送链", async () => {
+    const onSend = vi.fn(async () => acceptedSubmission());
     const container = renderPanel({ onSend });
-    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
+    const editor = container.querySelector<HTMLElement>(
+      COMPOSER_EDITOR_SELECTOR,
+    );
 
     updateComposerEditorValue(editor, "帮我快速开一个新对话");
 
@@ -134,7 +152,7 @@ describe("EmptyStateComposerPanel", () => {
 
     expect(sendButton?.disabled).toBe(false);
 
-    act(() => {
+    await act(async () => {
       sendButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
@@ -150,13 +168,11 @@ describe("EmptyStateComposerPanel", () => {
         triggeredAt: expect.any(Number),
       }),
     );
-    expect(
-      getComposerEditorText(editor),
-    ).toBe("");
+    expect(getComposerEditorText(editor)).toBe("");
   });
 
   it("选择插件应在草稿插入 inline atom，并将显示文本发送", async () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => acceptedSubmission());
     const plugin = {
       pluginId: "content-factory-app",
       displayName: "写文章",
@@ -179,20 +195,25 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("写文章");
     expect(
       getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR)),
     ).toBe("@写文章 帮我整理项目资料");
-    expect(container.querySelector('[data-composer-token="plugin"]')?.getAttribute("contenteditable")).toBe("false");
-    expect(container.querySelector('[data-testid="inputbar-plugin-badge"]')).toBeNull();
+    expect(
+      container
+        .querySelector('[data-composer-token="plugin"]')
+        ?.getAttribute("contenteditable"),
+    ).toBe("false");
+    expect(
+      container.querySelector('[data-testid="inputbar-plugin-badge"]'),
+    ).toBeNull();
 
     const sendButton = container.querySelector(
       'button[title="发送"]',
     ) as HTMLButtonElement | null;
 
-    act(() => {
+    await act(async () => {
       sendButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
@@ -211,7 +232,7 @@ describe("EmptyStateComposerPanel", () => {
   });
 
   it("发送准备中应禁用首页发送入口并展示忙碌态", () => {
-    const onSend = vi.fn();
+    const onSend = vi.fn(async () => acceptedSubmission());
     const container = renderPanel({
       input: "请帮我梳理首页首次发送链路",
       isLoading: true,
@@ -219,7 +240,9 @@ describe("EmptyStateComposerPanel", () => {
       onSend,
     });
 
-    const editor = container.querySelector<HTMLElement>(COMPOSER_EDITOR_SELECTOR);
+    const editor = container.querySelector<HTMLElement>(
+      COMPOSER_EDITOR_SELECTOR,
+    );
     const runningButton = Array.from(container.querySelectorAll("button")).find(
       (button) => button.textContent?.includes("正在输出"),
     ) as HTMLButtonElement | undefined;
@@ -286,5 +309,4 @@ describe("EmptyStateComposerPanel", () => {
 
     expect(onRemoveImage).toHaveBeenCalledWith(0);
   });
-
 });

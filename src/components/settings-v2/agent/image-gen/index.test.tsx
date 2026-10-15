@@ -372,11 +372,73 @@ afterEach(async () => {
     });
     target.container.remove();
   }
+  vi.useRealTimers();
   vi.clearAllMocks();
   await changeLimeLocale("zh-CN");
 });
 
 describe("ImageGenSettings", () => {
+  it("卸载后应取消保存消息的自动关闭", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const container = renderComponent();
+    await flushEffects(3);
+    await act(async () => {
+      findButton(container, "Restore defaults").click();
+      await flushEffects(2);
+    });
+    expect(container.textContent).toContain("Settings saved");
+    const target = mounted.pop()!;
+    act(() => target.root.unmount());
+    target.container.remove();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("新保存消息应保留自己的完整显示时间", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const container = renderComponent();
+    await flushEffects(3);
+    const select =
+      mockModelSelectorRender.mock.calls.at(-1)![0].setProviderAndModel;
+    await act(async () => {
+      select("agnes", "agnes-image-2.1-flash");
+      await flushEffects(3);
+    });
+    act(() => vi.advanceTimersByTime(2000));
+    await act(async () => {
+      select("agnes", "agnes-image-2.0-flash");
+      await flushEffects(3);
+    });
+    act(() => vi.advanceTimersByTime(1000));
+    expect(container.textContent).toContain("Settings saved");
+    act(() => vi.advanceTimersByTime(2000));
+    expect(container.textContent).not.toContain("Settings saved");
+  });
+
+  it("卸载后完成保存不应重新创建消息定时器", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    let resolveSave!: (config: Config) => void;
+    mockUpdateConfig.mockImplementationOnce(
+      () =>
+        new Promise<Config>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    const container = renderComponent();
+    await flushEffects(3);
+    await act(async () => {
+      findButton(container, "Restore defaults").click();
+      await flushEffects(2);
+    });
+    const target = mounted.pop()!;
+    act(() => target.root.unmount());
+    target.container.remove();
+    await act(async () => {
+      resolveSave(persistedConfig);
+      await flushEffects(3);
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("应加载简化后的图片服务模型设置，并保留 gpt-images-2 选择", async () => {
     const container = renderComponent();
     await flushEffects(3);

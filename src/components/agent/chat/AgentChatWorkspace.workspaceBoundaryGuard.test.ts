@@ -69,9 +69,7 @@ describe("AgentChatWorkspace home input navigation boundary", () => {
       ),
       "utf8",
     );
-    const handlerStart = ownerSource.indexOf(
-      "const handleNonMaterializedSessionReady",
-    );
+    const handlerStart = ownerSource.indexOf("const handleSessionAccepted");
     const handlerEnd = ownerSource.indexOf(
       "const handleSendFromEmptyState = useTaskCenterEmptyStateSendRuntime",
       handlerStart,
@@ -80,8 +78,11 @@ describe("AgentChatWorkspace home input navigation boundary", () => {
     expect(handlerEnd).toBeGreaterThan(handlerStart);
 
     const handlerSource = ownerSource.slice(handlerStart, handlerEnd);
+    expect(handlerSource).toMatch(
+      /upsertTaskCenterOpenTab\(\s*readySessionId,\s*options\?\.sendSource\?\.workspaceId \?\? taskCenterWorkspaceId,?\s*\)/,
+    );
     expect(handlerSource).toContain(
-      "upsertTaskCenterOpenTab(readySessionId, taskCenterWorkspaceId)",
+      "if (options && !isSendSourceCurrent(options, acceptedSessionId)) return",
     );
     expect(handlerSource).toContain(
       "markTaskCenterLocalSessionOverride(readySessionId)",
@@ -175,7 +176,7 @@ describe("AgentChatWorkspace task center draft state boundary", () => {
     expect(workspaceSource).not.toContain("const [taskCenterDraftSendRequest");
     expect(workspaceSource).not.toContain("const [homePendingPreviewRequest");
     expect(workspaceSource).not.toContain(
-      "const taskCenterDraftSurfaceActiveRef = useRef",
+      "const taskCenterHomeSurfaceActiveRef = useRef",
     );
     expect(workspaceSource).not.toContain("const [taskCenterDraftTabs");
     expect(workspaceSource).not.toContain("const [activeTaskCenterDraftTabId");
@@ -188,10 +189,10 @@ describe("AgentChatWorkspace task center draft state boundary", () => {
     expect(ownerSource).toContain("const [taskCenterDraftSendRequest");
     expect(ownerSource).toContain("const [homePendingPreviewRequest");
     expect(ownerSource).toContain(
-      "const taskCenterDraftSurfaceActiveRef = useRef",
+      "const taskCenterHomeSurfaceActiveRef = useRef",
     );
-    expect(ownerSource).toContain("const [taskCenterDraftTabs");
-    expect(ownerSource).toContain("const [activeTaskCenterDraftTabId");
+    expect(ownerSource).not.toContain("const [taskCenterDraftTabs");
+    expect(ownerSource).not.toContain("const [activeTaskCenterDraftTabId");
     expect(ownerSource).toContain(
       "shouldPauseTaskCenterInitialSessionNavigation({",
     );

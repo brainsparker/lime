@@ -1,4 +1,10 @@
 import { logAgentDebug } from "@/lib/agentDebug";
+import {
+  requireRuntimeAcceptanceReceipt,
+  reportRuntimeAcceptancePostProcessingFailure,
+  runRuntimeAcceptanceEffect,
+  type RuntimeAcceptanceReceipt,
+} from "@/lib/api/agentRuntime/runtimeAcceptance";
 import type { StreamRequestState } from "./agentStreamRuntimeHandlerTypes";
 import {
   recordAgentStreamPerformanceMetric,
@@ -16,7 +22,6 @@ type AgentStreamSubmitMetricRecorder = (
   trace: AgentUiPerformanceTraceMetadata | null | undefined,
   context: Record<string, unknown>,
 ) => unknown;
-
 type AgentStreamSubmitDebugLogger = typeof logAgentDebug;
 
 export interface AgentStreamSubmitLifecycleDeps {
@@ -31,20 +36,24 @@ export interface RunAgentStreamSubmitLifecycleOptions {
   effectiveProviderType: string;
   eventName: string;
   onSubmitAccepted?: () => void;
+  onRuntimeAccepted?: (receipt: RuntimeAcceptanceReceipt) => void;
   requestState: StreamRequestState;
-  submit: () => Promise<void>;
+  submit: (
+    accept: (receipt: RuntimeAcceptanceReceipt) => void,
+  ) => Promise<RuntimeAcceptanceReceipt>;
   deps?: AgentStreamSubmitLifecycleDeps;
 }
 
 export async function runAgentStreamSubmitLifecycle(
   options: RunAgentStreamSubmitLifecycleOptions,
-): Promise<void> {
+): Promise<RuntimeAcceptanceReceipt> {
   const {
     activeSessionId,
     effectiveModel,
     effectiveProviderType,
     eventName,
     onSubmitAccepted,
+    onRuntimeAccepted,
     requestState,
     submit,
     deps,
@@ -52,7 +61,6 @@ export async function runAgentStreamSubmitLifecycle(
   const now = deps?.now ?? Date.now;
   const recordMetric = deps?.recordMetric ?? recordAgentStreamPerformanceMetric;
   const logDebug = deps?.logDebug ?? logAgentDebug;
-
   requestState.submissionDispatchedAt = now();
   const submitDispatchedContext = buildAgentStreamSubmitDispatchedContext({
     activeSessionId,
@@ -72,14 +80,79 @@ export async function runAgentStreamSubmitLifecycle(
   );
   logDebug("AgentStream", "submitDispatched", submitDispatchedContext);
 
+  let accepted: RuntimeAcceptanceReceipt | undefined;
+  const accept = (receipt: RuntimeAcceptanceReceipt) => {
+    const validated = requireRuntimeAcceptanceReceipt(receipt);
+    if (accepted) {
+      if (
+        accepted.kind !== validated.kind ||
+        accepted.sessionId !== validated.sessionId ||
+        accepted.threadId !== validated.threadId ||
+        accepted.turnId !== validated.turnId ||
+        accepted.clientUserMessageId !== validated.clientUserMessageId
+      ) {
+        throw new Error(
+          "Runtime acceptance identity changed within one request",
+        );
+      }
+      return;
+    }
+    accepted = validated;
+    runRuntimeAcceptanceEffect(validated, "observer", () =>
+      onRuntimeAccepted?.(validated),
+    );
+    runRuntimeAcceptanceEffect(validated, "accepted_time", () => {
+      requestState.submissionAcceptedAt = now();
+    });
+  };
   try {
-    await submit();
-    requestState.submissionAcceptedAt = now();
-    const submitAcceptedContext = buildAgentStreamSubmitAcceptedContext({
+    accept(await submit(accept));
+  } catch (error) {
+    if (accepted) {
+      reportRuntimeAcceptancePostProcessingFailure("accepted_submit", accepted);
+    } else {
+      try {
+        const timing = {
+          now: now(),
+          requestStartedAt: requestState.requestStartedAt,
+          submissionDispatchedAt: requestState.submissionDispatchedAt,
+        };
+        recordMetric(
+          "agentStream.submitFailed",
+          requestState.performanceTrace,
+          buildAgentStreamSubmitFailedContext({
+            activeSessionId,
+            error,
+            eventName,
+            timing,
+          }),
+        );
+        logDebug(
+          "AgentStream",
+          "submitFailed",
+          buildAgentStreamSubmitFailedLogContext({
+            activeSessionId,
+            error,
+            eventName,
+            timing,
+          }),
+          { level: "error" },
+        );
+      } catch {
+        console.error("[AgentStream] submission rejection diagnostic failed");
+      }
+      throw error;
+    }
+  }
+  if (!accepted)
+    throw new Error("Runtime submission did not return acceptance");
+  const receipt = accepted;
+  runRuntimeAcceptanceEffect(receipt, "accepted_metric", () => {
+    const context = buildAgentStreamSubmitAcceptedContext({
       activeSessionId,
       eventName,
       timing: {
-        now: requestState.submissionAcceptedAt,
+        now: requestState.submissionAcceptedAt ?? Date.now(),
         requestStartedAt: requestState.requestStartedAt,
         submissionDispatchedAt: requestState.submissionDispatchedAt,
       },
@@ -87,37 +160,23 @@ export async function runAgentStreamSubmitLifecycle(
     recordMetric(
       "agentStream.submitAccepted",
       requestState.performanceTrace,
-      submitAcceptedContext,
+      context,
     );
-    logDebug("AgentStream", "submitAccepted", submitAcceptedContext);
-    onSubmitAccepted?.();
-  } catch (error) {
-    const failedTiming = {
-      now: now(),
-      requestStartedAt: requestState.requestStartedAt,
-      submissionDispatchedAt: requestState.submissionDispatchedAt,
-    };
-    recordMetric(
-      "agentStream.submitFailed",
-      requestState.performanceTrace,
-      buildAgentStreamSubmitFailedContext({
-        activeSessionId,
-        error,
-        eventName,
-        timing: failedTiming,
-      }),
-    );
-    logDebug(
-      "AgentStream",
-      "submitFailed",
-      buildAgentStreamSubmitFailedLogContext({
-        activeSessionId,
-        error,
-        eventName,
-        timing: failedTiming,
-      }),
-      { level: "error" },
-    );
-    throw error;
-  }
+  });
+  runRuntimeAcceptanceEffect(receipt, "accepted_log", () => {
+    const context = buildAgentStreamSubmitAcceptedContext({
+      activeSessionId,
+      eventName,
+      timing: {
+        now: requestState.submissionAcceptedAt ?? Date.now(),
+        requestStartedAt: requestState.requestStartedAt,
+        submissionDispatchedAt: requestState.submissionDispatchedAt,
+      },
+    });
+    logDebug("AgentStream", "submitAccepted", context);
+  });
+  runRuntimeAcceptanceEffect(receipt, "terminal_recovery_poll", () =>
+    onSubmitAccepted?.(),
+  );
+  return receipt;
 }

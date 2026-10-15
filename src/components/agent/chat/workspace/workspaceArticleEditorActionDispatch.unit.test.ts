@@ -1,4 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import { createRuntimeAcceptanceReceipt } from "@/lib/api/agentRuntime/runtimeAcceptance";
+import { fromRuntimeAcceptanceReceipt } from "../hooks/agentSendResult";
+const accepted = fromRuntimeAcceptanceReceipt(
+  createRuntimeAcceptanceReceipt(
+    { sessionId: "s", threadId: "t" },
+    "start",
+    "turn",
+  ),
+);
+
 import {
   buildWorkspaceArticleEditorActionSystemPrompt,
   submitWorkspaceArticleEditorActionIntent,
@@ -45,19 +55,22 @@ const intent: WorkspaceArticleWorkspaceActionIntent = {
 
 describe("workspaceArticleEditorActionDispatch", () => {
   it("应通过 Claw turn submit 发送 Article Editor action metadata", async () => {
-    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(async () => true);
+    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(
+      async () => accepted,
+    );
     const restoreInput = vi.fn();
 
     await expect(
       submitWorkspaceArticleEditorActionIntent({
         intent: {
           ...intent,
-          editedMarkdown: "# 本地编辑正文\n\n这是用户在 Article Editor 里改过的内容。",
+          editedMarkdown:
+            "# 本地编辑正文\n\n这是用户在 Article Editor 里改过的内容。",
         },
         restoreInput,
         submit,
       }),
-    ).resolves.toBe(true);
+    ).resolves.toBe(accepted);
 
     expect(submit).toHaveBeenCalledWith(
       "请重新生成「配图组」",
@@ -87,9 +100,7 @@ describe("workspaceArticleEditorActionDispatch", () => {
     expect(sendOptions?.systemPromptOverride).toContain(
       "content.image.generate",
     );
-    expect(sendOptions?.systemPromptOverride).toContain(
-      "workspace_patch",
-    );
+    expect(sendOptions?.systemPromptOverride).toContain("workspace_patch");
     expect(sendOptions?.systemPromptOverride).toContain(
       "imageGenerationSet/image-set-1",
     );
@@ -101,7 +112,8 @@ describe("workspaceArticleEditorActionDispatch", () => {
   it("应从 Article Editor action intent 生成 runtime 指令", () => {
     const systemPrompt = buildWorkspaceArticleEditorActionSystemPrompt({
       ...intent,
-      editedMarkdown: "# 本地编辑正文\n\n这是用户在 Article Editor 里改过的内容。",
+      editedMarkdown:
+        "# 本地编辑正文\n\n这是用户在 Article Editor 里改过的内容。",
     });
 
     expect(systemPrompt).toContain("Article Editor action");
@@ -119,9 +131,9 @@ describe("workspaceArticleEditorActionDispatch", () => {
   });
 
   it("发送失败时应把 prompt 恢复到 Claw 输入框", async () => {
-    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(
-      async () => false,
-    );
+    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(async () => ({
+      kind: "rejected",
+    }));
     const restoreInput = vi.fn();
 
     await expect(
@@ -130,13 +142,15 @@ describe("workspaceArticleEditorActionDispatch", () => {
         restoreInput,
         submit,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ kind: "rejected" });
 
     expect(restoreInput).toHaveBeenCalledWith("请重新生成「配图组」");
   });
 
   it("空 prompt 不应发送 action", async () => {
-    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(async () => true);
+    const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(
+      async () => accepted,
+    );
     const restoreInput = vi.fn();
 
     await expect(
@@ -148,9 +162,28 @@ describe("workspaceArticleEditorActionDispatch", () => {
         restoreInput,
         submit,
       }),
-    ).resolves.toBe(false);
+    ).resolves.toEqual({ kind: "rejected" });
 
     expect(submit).not.toHaveBeenCalled();
     expect(restoreInput).not.toHaveBeenCalled();
   });
+
+  it.each(["rejected", "unknown", "local-handled"] as const)(
+    "%s object must preserve input rather than pass a truthiness check",
+    async (kind) => {
+      const result = { kind };
+      const restoreInput = vi.fn();
+      const submit = vi.fn<SubmitWorkspaceArticleEditorAction>(
+        async () => result,
+      );
+      expect(
+        await submitWorkspaceArticleEditorActionIntent({
+          intent,
+          submit,
+          restoreInput,
+        }),
+      ).toBe(result);
+      expect(restoreInput).toHaveBeenCalledWith(intent.prompt);
+    },
+  );
 });

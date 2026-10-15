@@ -258,7 +258,7 @@ async function run() {
     };
     writeJsonFile(summaryPath, summary);
 
-    await page.locator('[data-testid="settings-home-button"]').click();
+    await page.locator('[data-testid="app-sidebar-rail-home"]').click();
     const homeState = await readHomeState(page, options);
     const homeTrace = summarizeSettingsAboutTrace(homeState.traceRaw);
     await page.screenshot({ path: homeScreenshotPath, fullPage: true });

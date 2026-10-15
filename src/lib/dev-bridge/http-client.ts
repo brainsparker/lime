@@ -18,6 +18,11 @@ import {
   shouldBypassDevBridgeCooldown,
   shouldRetryDevBridgeReadCommand,
 } from "./commandPolicy";
+import {
+  invokeArgsPreview,
+  invokeConsoleError,
+  isPersistedAtomCommand,
+} from "./invokeDiagnostics";
 
 const BRIDGE_URL = "http://127.0.0.1:3030/invoke";
 const BRIDGE_HEALTH_URL = "http://127.0.0.1:3030/health";
@@ -717,7 +722,12 @@ export async function invokeViaHttp<T = unknown>(
   cmd: string,
   args?: unknown,
 ): Promise<T> {
-  console.log(`[DevBridge] HTTP 调用: ${cmd}`, args);
+  console.log(
+    `[DevBridge] HTTP 调用: ${cmd}`,
+    isPersistedAtomCommand(cmd)
+      ? invokeArgsPreview(cmd, args as Record<string, unknown> | undefined)
+      : args,
+  );
   const timeoutMs = resolveBridgeRequestTimeoutMs(cmd, args);
   const bypassCooldown = shouldBypassBridgeCooldown(cmd);
 
@@ -747,7 +757,10 @@ export async function invokeViaHttp<T = unknown>(
       if (!shouldRetryBridgeInvoke(cmd, message)) {
         throw error;
       }
-      console.debug(`[DevBridge] HTTP 读命令重试: ${cmd}`, error);
+      console.debug(
+        `[DevBridge] HTTP 读命令重试: ${cmd}`,
+        invokeConsoleError(cmd, error),
+      );
       await ensureBridgeReachable({
         bypassCooldown: true,
         forceProbe: true,
@@ -773,9 +786,15 @@ export async function invokeViaHttp<T = unknown>(
       markBridgeUnavailable();
     }
     if (isBridgeConnectionError(message)) {
-      console.debug(`[DevBridge] HTTP 暂不可用: ${cmd}`, e);
+      console.debug(
+        `[DevBridge] HTTP 暂不可用: ${cmd}`,
+        invokeConsoleError(cmd, e),
+      );
     } else {
-      console.error(`[DevBridge] HTTP 调用失败: ${cmd}`, e);
+      console.error(
+        `[DevBridge] HTTP 调用失败: ${cmd}`,
+        invokeConsoleError(cmd, e),
+      );
     }
     throw e;
   }

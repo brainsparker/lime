@@ -29,18 +29,19 @@ interface UseWorkspaceTaskCenterNavigationRuntimeParams {
   newChatAt: TabSessionParams["newChatAt"];
   normalizedInitialSessionId: TabSessionParams["normalizedInitialSessionId"];
   onBeforeTopicSwitch: TopicSwitchParams["onBeforeTopicSwitch"];
+  onAfterTopicSwitch?: TopicSwitchParams["onAfterTopicSwitch"];
+  composerDraftCoordinator?: TopicSwitchParams["composerDraftCoordinator"];
+  getComposerDraftNavigationEpoch?: TopicSwitchParams["getComposerDraftNavigationEpoch"];
   originalSwitchTopic: TopicSwitchParams["originalSwitchTopic"];
   projectId: TopicSwitchParams["projectId"];
   rememberProjectId: TopicSwitchParams["rememberProjectId"];
   resetTopicLocalState: TopicSwitchParams["resetTopicLocalState"];
-  setActiveTaskCenterDraftTabId: TabSessionParams["setActiveTaskCenterDraftTabId"];
   setHomePendingPreviewRequest: TabSessionParams["setHomePendingPreviewRequest"];
   setTaskCenterDraftSendRequest: TabSessionParams["setTaskCenterDraftSendRequest"];
-  setTaskCenterDraftTabs: TabSessionParams["setTaskCenterDraftTabs"];
   shouldHydrateEmptyMatchedInitialSession: boolean;
   shouldPauseInitialSessionNavigationForTaskCenterDraft: boolean;
   startTopicProjectResolution: TopicSwitchParams["startTopicProjectResolution"];
-  taskCenterDraftSurfaceActiveRef: TabSessionParams["taskCenterDraftSurfaceActiveRef"];
+  taskCenterHomeSurfaceActiveRef: TabSessionParams["taskCenterHomeSurfaceActiveRef"];
   taskCenterWorkspaceId: TabSessionParams["taskCenterWorkspaceId"];
   threadItemsLength: number;
   topicById: TabSessionParams["topicById"];
@@ -64,18 +65,19 @@ export function useWorkspaceTaskCenterNavigationRuntime({
   newChatAt,
   normalizedInitialSessionId,
   onBeforeTopicSwitch,
+  onAfterTopicSwitch,
+  composerDraftCoordinator,
+  getComposerDraftNavigationEpoch,
   originalSwitchTopic,
   projectId,
   rememberProjectId,
   resetTopicLocalState,
-  setActiveTaskCenterDraftTabId,
   setHomePendingPreviewRequest,
   setTaskCenterDraftSendRequest,
-  setTaskCenterDraftTabs,
   shouldHydrateEmptyMatchedInitialSession,
   shouldPauseInitialSessionNavigationForTaskCenterDraft,
   startTopicProjectResolution,
-  taskCenterDraftSurfaceActiveRef,
+  taskCenterHomeSurfaceActiveRef,
   taskCenterWorkspaceId,
   threadItemsLength,
   topicById,
@@ -87,6 +89,9 @@ export function useWorkspaceTaskCenterNavigationRuntime({
     externalProjectId,
     originalSwitchTopic,
     onBeforeTopicSwitch,
+    onAfterTopicSwitch,
+    composerDraftCoordinator,
+    getComposerDraftNavigationEpoch,
     startTopicProjectResolution,
     finishTopicProjectResolution,
     deferTopicSwitch,
@@ -128,14 +133,12 @@ export function useWorkspaceTaskCenterNavigationRuntime({
     normalizedInitialSessionId,
     newChatAt,
     sessionId: currentSessionId,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
     taskCenterWorkspaceId,
     topicById,
     topics,
-    setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
   });
 
   return {

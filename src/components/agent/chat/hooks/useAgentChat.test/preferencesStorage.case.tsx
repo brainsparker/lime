@@ -382,6 +382,7 @@ describe("useAgentChat 偏好持久化 - storage cleanup", () => {
           input: [{ type: "text", text: "继续处理这个任务" }],
           threadId: freshSessionId,
         }),
+        expect.any(Function),
       );
       expect(harness.getValue().sessionId).toBe(freshSessionId);
       expect(

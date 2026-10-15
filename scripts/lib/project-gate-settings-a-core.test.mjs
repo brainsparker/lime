@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { settingsSections } from "../../src/components/settings-v2/sections";
 
 import {
   SETTINGS_GATE_A_CRITICAL_TABS,
@@ -90,6 +91,11 @@ function build(overrides = {}) {
 }
 
 describe("project Gate SETTINGS-01 Gate A evidence", () => {
+  it("covers every current section without retired navigation targets", () => {
+    expect(SETTINGS_GATE_A_TABS).toEqual(
+      settingsSections.map((section) => section.key),
+    );
+  });
   it("fails closed when component-state evidence is missing", () => {
     const evidence = build({ stateObservations: [] });
 

@@ -1,5 +1,12 @@
+import {
+  isRuntimeSubmissionAccepted,
+  type RuntimeSubmissionResult,
+} from "../hooks/agentSendResult";
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
-import { insertComposerSkill, insertComposerPlugin } from "../skill-selection/composerCapabilityMention";
+import {
+  insertComposerSkill,
+  insertComposerPlugin,
+} from "../skill-selection/composerCapabilityMention";
 import { ComposerController } from "@/components/input-kit";
 import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, { useEffect, useRef, useState } from "react";
@@ -145,7 +152,7 @@ interface EmptyStateComposerPanelProps {
       subagentEnabled?: boolean;
     },
     triggerMetadata?: BaseComposerSendMetadata,
-  ) => void | boolean | Promise<boolean>;
+  ) => Promise<RuntimeSubmissionResult>;
   onStop?: () => void;
   sendOnPointerDown?: boolean;
   isLoading?: boolean;
@@ -350,7 +357,9 @@ export function EmptyStateComposerPanel({
   const { composerDecorations } = useHomeSkinPresentation();
   const [activePluginSelection, setActivePluginSelection] =
     useState<InputbarPluginSelection | null>(null);
-  const [fallbackController] = useState(() => controller ?? new ComposerController({ text: input }));
+  const [fallbackController] = useState(
+    () => controller ?? new ComposerController({ text: input }),
+  );
   const resolvedController = controller ?? fallbackController;
   const editorRef = useRef<ComposerEditorHandle>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -369,10 +378,22 @@ export function EmptyStateComposerPanel({
   } = activeCapabilityState;
   const { mentionProps: mentionSkillProps, selectorProps: skillSelectorProps } =
     buildSkillSelectionBindings(skillSelection);
-  useEffect(() => resolvedController.subscribe(() => {
-    const document = resolvedController.getDocument();
-    if (activePluginSelection && !document.mentionBindings.some((binding) => binding.kind === "plugin" && binding.id === activePluginSelection.plugin.pluginId)) setActivePluginSelection(null);
-  }), [activePluginSelection, resolvedController]);
+  useEffect(
+    () =>
+      resolvedController.subscribe(() => {
+        const document = resolvedController.getDocument();
+        if (
+          activePluginSelection &&
+          !document.mentionBindings.some(
+            (binding) =>
+              binding.kind === "plugin" &&
+              binding.id === activePluginSelection.plugin.pluginId,
+          )
+        )
+          setActivePluginSelection(null);
+      }),
+    [activePluginSelection, resolvedController],
+  );
 
   const handleSendDraft = (triggerMetadata?: BaseComposerSendMetadata) => {
     const submittedInput = resolvedController.getDocument().text;
@@ -385,18 +406,10 @@ export function EmptyStateComposerPanel({
       },
       triggerMetadata,
     );
-    if (result === false || controller) {
-      return;
-    }
-    if (result && typeof result === "object" && "then" in result) {
-      void result.then((accepted) => {
-        if (accepted !== false) {
-          setInput("");
-        }
-      });
-      return;
-    }
-    setInput("");
+    if (controller) return;
+    void result.then((accepted) => {
+      if (isRuntimeSubmissionAccepted(accepted)) setInput("");
+    });
   };
 
   const handleToggleSubagentMode = () => {
@@ -429,12 +442,20 @@ export function EmptyStateComposerPanel({
     if (blocked) {
       return;
     }
-    insertComposerPlugin(resolvedController, plugin, skill, { start: 0, end: 0 });
+    insertComposerPlugin(resolvedController, plugin, skill, {
+      start: 0,
+      end: 0,
+    });
     setInput(resolvedController.getDocument().text);
-    setActivePluginSelection({ plugin, skill, trigger: normalizeInputbarPluginTrigger(plugin, skill), text: resolvedController.getDocument().text, preserveInput: true });
+    setActivePluginSelection({
+      plugin,
+      skill,
+      trigger: normalizeInputbarPluginTrigger(plugin, skill),
+      text: resolvedController.getDocument().text,
+      preserveInput: true,
+    });
     editorRef.current?.focus();
   };
-
 
   const handleToolAction = (tool: string) => {
     switch (tool) {
@@ -532,10 +553,17 @@ export function EmptyStateComposerPanel({
     />
   ) : undefined;
   const plusMenuSkillsPanel = isGeneralTheme ? (
-    <SkillSelector {...skillSelectorProps} onSelectInputCapability={(capability, options) => {
-      if (capability.kind === "installed_skill") { insertComposerSkill(resolvedController, capability.skill); setInput(resolvedController.getDocument().text); }
-      skillSelectorProps.onSelectInputCapability(capability, options);
-    }} renderMode="inline" />
+    <SkillSelector
+      {...skillSelectorProps}
+      onSelectInputCapability={(capability, options) => {
+        if (capability.kind === "installed_skill") {
+          insertComposerSkill(resolvedController, capability.skill);
+          setInput(resolvedController.getDocument().text);
+        }
+        skillSelectorProps.onSelectInputCapability(capability, options);
+      }}
+      renderMode="inline"
+    />
   ) : undefined;
   const plusMenuPluginsPanel = (
     <InputbarPluginSelector

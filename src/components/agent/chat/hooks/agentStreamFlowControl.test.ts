@@ -1413,9 +1413,9 @@ describe("agentStreamFlowControl", () => {
       sourcePath: "/tmp/rich-restore-fixture.png",
     };
     const pathReference = {
-      id: "file:/tmp/clawstream-rich-restore-fixture.md",
-      path: "/tmp/clawstream-rich-restore-fixture.md",
-      name: "clawstream-rich-restore-fixture.md",
+      id: "file:/tmp/composer-reference.md",
+      path: "/tmp/composer-reference.md",
+      name: "composer-reference.md",
       isDir: false,
       source: "file_manager" as const,
     };

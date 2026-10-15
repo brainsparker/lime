@@ -3,15 +3,12 @@ import {
   isTaskCenterDraftSendPendingForLayout,
   resolveTaskCenterHomeSurfaceState,
   shouldSuppressTaskCenterDraftContentForLayout,
-  type TaskCenterDraftTab,
   type TaskCenterHomeSurfaceState,
 } from "./agentChatWorkspaceHelpers";
 
 interface ResolveTaskCenterDraftSurfaceStateParams {
   agentEntry: string;
   isTaskCenterEntry: boolean;
-  activeDraftTabId: string | null;
-  draftTabs: readonly TaskCenterDraftTab[];
   draftSurfaceActive: boolean;
   initialSessionId?: string | null;
   sessionId?: string | null;
@@ -27,8 +24,6 @@ interface ResolveTaskCenterDraftSurfaceStateParams {
 }
 
 export interface TaskCenterDraftSurfaceState {
-  activeTaskCenterDraftTab: TaskCenterDraftTab | null;
-  isTaskCenterDraftTabActive: boolean;
   isTaskCenterDraftSurfaceActive: boolean;
   isTaskCenterDraftSendInFlight: boolean;
   hasVisibleSessionActivityForDraftSurface: boolean;
@@ -55,15 +50,14 @@ export function shouldPrioritizeTaskCenterInitialSessionRoute({
   const normalizedSessionId = sessionId?.trim() || null;
   return Boolean(
     agentEntry === "claw" &&
-      normalizedInitialSessionId &&
-      normalizedInitialSessionId !== normalizedSessionId,
+    normalizedInitialSessionId &&
+    normalizedInitialSessionId !== normalizedSessionId,
   );
 }
 
 interface ResolveTaskCenterHomeChromeStateParams {
   agentEntry: string;
   draftSurfaceActive: boolean;
-  draftTabActive: boolean;
   shouldSuppressDraftContent: boolean;
   draftSendRequest: TaskCenterDraftSendRequest | null;
   sessionSwitchPending: boolean;
@@ -97,8 +91,6 @@ export interface TaskCenterHomeChromeState {
 export function resolveTaskCenterDraftSurfaceState({
   agentEntry,
   isTaskCenterEntry,
-  activeDraftTabId,
-  draftTabs,
   draftSurfaceActive,
   initialSessionId,
   sessionId,
@@ -112,49 +104,27 @@ export function resolveTaskCenterDraftSurfaceState({
   isSending,
   queuedTurnCount,
 }: ResolveTaskCenterDraftSurfaceStateParams): TaskCenterDraftSurfaceState {
-  const activeTaskCenterDraftTab = activeDraftTabId
-    ? (draftTabs.find((tab) => tab.id === activeDraftTabId) ?? null)
-    : null;
-  const hasExplicitLocalDraftTakeover = Boolean(
-    activeTaskCenterDraftTab &&
-      draftSurfaceActive &&
-      !(sessionId?.trim() || null),
-  );
   const shouldPrioritizeInitialSessionRoute =
-    !hasExplicitLocalDraftTakeover &&
     shouldPrioritizeTaskCenterInitialSessionRoute({
       agentEntry,
       initialSessionId,
       sessionId,
     });
-  const isTaskCenterDraftTabActive = Boolean(
+  const isTaskCenterDraftSurfaceActive =
     isTaskCenterEntry &&
-      activeTaskCenterDraftTab &&
-      !shouldPrioritizeInitialSessionRoute,
-  );
-  const isTaskCenterDraftSurfaceActive = Boolean(
-    isTaskCenterEntry &&
-      !shouldPrioritizeInitialSessionRoute &&
-      (activeTaskCenterDraftTab || draftSurfaceActive),
-  );
-  const isTaskCenterDraftSendInFlight = Boolean(
-    (agentEntry === "claw" || agentEntry === "new-task") &&
-    draftSendRequest?.materializeDraft &&
-    (activeTaskCenterDraftTab
-      ? draftSendRequest.draftTabId === activeTaskCenterDraftTab.id
-      : draftSurfaceActive),
-  );
+    draftSurfaceActive &&
+    !shouldPrioritizeInitialSessionRoute;
+  const isTaskCenterDraftSendInFlight = Boolean(draftSendRequest);
   const hasVisibleSessionActivityForDraftSurface =
     Boolean(draftSendRequest) ||
     hasHomePendingPreview ||
     isPreparingSend ||
     isSending ||
-    (!isTaskCenterDraftTabActive &&
-      (displayMessageCount > 0 ||
-        threadItemCount > 0 ||
-        hasLocalSessionOverride ||
-        hasPendingA2UIForm ||
-        queuedTurnCount > 0));
+    displayMessageCount > 0 ||
+    threadItemCount > 0 ||
+    hasLocalSessionOverride ||
+    hasPendingA2UIForm ||
+    queuedTurnCount > 0;
   const shouldSuppressTaskCenterDraftContent =
     shouldSuppressTaskCenterDraftContentForLayout({
       draftSurfaceActive: isTaskCenterDraftSurfaceActive,
@@ -163,8 +133,6 @@ export function resolveTaskCenterDraftSurfaceState({
     });
 
   return {
-    activeTaskCenterDraftTab,
-    isTaskCenterDraftTabActive,
     isTaskCenterDraftSurfaceActive,
     isTaskCenterDraftSendInFlight,
     hasVisibleSessionActivityForDraftSurface,
@@ -175,7 +143,6 @@ export function resolveTaskCenterDraftSurfaceState({
 export function resolveTaskCenterHomeChromeState({
   agentEntry,
   draftSurfaceActive,
-  draftTabActive,
   shouldSuppressDraftContent,
   draftSendRequest,
   sessionSwitchPending,
@@ -200,7 +167,6 @@ export function resolveTaskCenterHomeChromeState({
     hasLocalSessionOverride &&
     Boolean(sessionId) &&
     !draftSurfaceActive &&
-    !draftTabActive &&
     !shouldSuppressDraftContent;
   const isTaskCenterDraftSendPending = isTaskCenterDraftSendPendingForLayout({
     hasDraftSendRequest: Boolean(draftSendRequest),
@@ -215,7 +181,6 @@ export function resolveTaskCenterHomeChromeState({
     !isTaskCenterDraftSendPending;
   const hasCurrentSessionActivity =
     !shouldTreatCurrentSessionAsBackground &&
-    !draftTabActive &&
     (displayMessageCount > 0 ||
       threadItemCount > 0 ||
       Boolean(draftSendRequest) ||

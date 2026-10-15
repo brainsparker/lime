@@ -7,7 +7,6 @@ import {
   resolveTaskCenterVisibleTabIds,
   shouldHideTaskCenterTabsForDetachedSession,
 } from "../utils/taskCenterTabs";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 import {
   buildBrowserWorkspaceHomeTabItem,
   buildTaskCenterTabItems,
@@ -18,6 +17,7 @@ type AgentEntry = NonNullable<AgentChatWorkspaceProps["agentEntry"]>;
 
 interface UseTaskCenterTabChromeParams {
   agentEntry: AgentEntry;
+  activeTheme: string;
   sessionId?: string | null;
   normalizedInitialSessionId?: string | null;
   initialSessionName?: string | null;
@@ -25,9 +25,6 @@ interface UseTaskCenterTabChromeParams {
   openTabIds: string[];
   topics: Topic[];
   previewTopicId: string | null;
-  draftTabs: TaskCenterDraftTab[];
-  activeDraftTabId: string | null;
-  isDraftTabActive: boolean;
   hasLocalSessionOverride: boolean;
   topicById: ReadonlyMap<string, Topic>;
   untitledTaskLabel: string;
@@ -35,7 +32,6 @@ interface UseTaskCenterTabChromeParams {
   newConversationLabel: string;
   newChatAt?: number;
   homeMountedAt: number;
-  isThemeWorkbench: boolean;
   layoutMode: LayoutMode;
   onSwitchTaskTopic: (topicId: string) => void | Promise<void>;
   onRenameTaskTopic: (topicId: string) => void | Promise<void>;
@@ -46,6 +42,7 @@ interface UseTaskCenterTabChromeParams {
 
 export function useTaskCenterTabChrome({
   agentEntry,
+  activeTheme,
   sessionId,
   normalizedInitialSessionId,
   initialSessionName,
@@ -53,9 +50,6 @@ export function useTaskCenterTabChrome({
   openTabIds,
   topics,
   previewTopicId,
-  draftTabs,
-  activeDraftTabId,
-  isDraftTabActive,
   hasLocalSessionOverride,
   topicById,
   untitledTaskLabel,
@@ -63,7 +57,6 @@ export function useTaskCenterTabChrome({
   newConversationLabel,
   newChatAt,
   homeMountedAt,
-  isThemeWorkbench: _isThemeWorkbench,
   layoutMode,
   onSwitchTaskTopic,
   onRenameTaskTopic,
@@ -94,22 +87,19 @@ export function useTaskCenterTabChrome({
   );
   const tabItems = useMemo(
     () =>
-      buildTaskCenterTabItems({
-        draftTabs,
-        activeDraftTabId,
-        isDraftTabActive,
-        sessionId,
-        initialSessionId: normalizedInitialSessionId,
-        initialSessionName,
-        previewTopicId,
-        visibleTabIds,
-        topicById,
-        untitledTaskLabel,
-      }),
+      activeTheme === "general"
+        ? []
+        : buildTaskCenterTabItems({
+            sessionId,
+            initialSessionId: normalizedInitialSessionId,
+            initialSessionName,
+            previewTopicId,
+            visibleTabIds,
+            topicById,
+            untitledTaskLabel,
+          }),
     [
-      activeDraftTabId,
-      draftTabs,
-      isDraftTabActive,
+      activeTheme,
       initialSessionName,
       normalizedInitialSessionId,
       previewTopicId,
@@ -119,11 +109,13 @@ export function useTaskCenterTabChrome({
       visibleTabIds,
     ],
   );
-  const shouldRenderTabs = shouldRenderTaskCenterTabStrip({
-    agentEntry,
-    hasLocalSessionOverride,
-    tabItemCount: tabItems.length,
-  });
+  const shouldRenderTabs =
+    activeTheme !== "general" &&
+    shouldRenderTaskCenterTabStrip({
+      agentEntry,
+      hasLocalSessionOverride,
+      tabItemCount: tabItems.length,
+    });
   const taskCenterTabsNode = useMemo(() => {
     if (!shouldRenderTabs) {
       return null;
@@ -159,7 +151,7 @@ export function useTaskCenterTabChrome({
     tabItems,
   ]);
   const browserWorkspaceHomeTabsNode = useMemo(() => {
-    if (!shouldUseBrowserWorkspaceHomeChrome) {
+    if (activeTheme === "general" || !shouldUseBrowserWorkspaceHomeChrome) {
       return null;
     }
 
@@ -177,6 +169,7 @@ export function useTaskCenterTabChrome({
       />
     );
   }, [
+    activeTheme,
     homeMountedAt,
     newChatAt,
     newConversationLabel,

@@ -67,7 +67,9 @@ describe("agentStreamUserInputSubmission", () => {
         activeTurnId: null,
         queuedTurnIds: [],
       })),
-      submitOp: vi.fn(async () => {}),
+      submitOp: vi.fn(async () => ({
+        turn: { id: "turn-start", status: "inProgress" as const },
+      })),
     } as unknown as AgentRuntimeAdapter;
     const env: AgentStreamPreparedSendEnv = {
       runtime,
@@ -162,6 +164,7 @@ describe("agentStreamUserInputSubmission", () => {
           permissions: ":workspace",
         }),
       }),
+      expect.any(Function),
     );
     expect(activeStreamRefState.current?.sessionId).toBe("session-1");
     expect(threadTurns).toHaveLength(1);

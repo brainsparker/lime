@@ -1,3 +1,5 @@
+import { createRuntimeAcceptanceReceipt } from "@/lib/api/agentRuntime/runtimeAcceptance";
+import { fromRuntimeAcceptanceReceipt } from "../hooks/agentSendResult";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -192,7 +194,17 @@ export function renderCommandActionHook(
     imageWorkbenchSessionKey: "session-1",
     projectId: "project-1",
     projectRootPath: "/workspace/project-1",
-    submitImageWorkbenchAgentCommand: vi.fn().mockResolvedValue(true),
+    submitImageWorkbenchAgentCommand: vi
+      .fn()
+      .mockResolvedValue(
+        fromRuntimeAcceptanceReceipt(
+          createRuntimeAcceptanceReceipt(
+            { sessionId: "s", threadId: "t" },
+            "start",
+            "turn",
+          ),
+        ),
+      ),
   };
 
   function Probe(currentProps: CommandActionHookProps) {

@@ -32,7 +32,8 @@ const RENDERER_SOURCE_DIRS = [
 ];
 const RENDERER_SOURCE_FILES = [
   "index.html",
-  "package-lock.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "package.json",
   "tsconfig.json",
   "tsconfig.renderer.json",
@@ -47,7 +48,8 @@ const HOST_SOURCE_DIRS = [
   "assets/plugins",
 ];
 const HOST_SOURCE_FILES = [
-  "package-lock.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
   "package.json",
   "tsconfig.electron.json",
   "tsconfig.json",

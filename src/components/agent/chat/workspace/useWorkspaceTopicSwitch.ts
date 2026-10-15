@@ -1,4 +1,6 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
+import type { DraftScope } from "@/lib/api/persistedAtomTypes";
+import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
 import { toast } from "sonner";
 import { logAgentDebug } from "@/lib/agentDebug";
 import { getProject } from "@/lib/api/project";
@@ -19,13 +21,26 @@ interface TopicSwitchOptions {
   allowDetachedSession?: boolean;
 }
 
+/** Local hydration lifecycle; never forwarded to runtime session options. */
+export interface WorkspaceTopicSwitchLifecycle {
+  onHydrated: () => void;
+}
+
+interface ComposerDraftNavigationSource {
+  coordinator: ComposerDraftCoordinator | undefined;
+  sourceGeneration: number | undefined;
+  sourceScope: DraftScope | null;
+  navigationEpoch: number | undefined;
+}
+
 export type WorkspaceTopicSwitchResult =
   | "success"
   | "deferred"
   | "blocked"
   | "missing"
   | "busy"
-  | "error";
+  | "error"
+  | "superseded";
 
 interface UseWorkspaceTopicSwitchParams {
   projectId?: string;
@@ -35,6 +50,13 @@ interface UseWorkspaceTopicSwitchParams {
     options?: TopicSwitchOptions,
   ) => Promise<unknown>;
   onBeforeTopicSwitch?: (topicId: string) => void;
+  onAfterTopicSwitch?: (
+    topicId: string,
+    workspaceId: string | null,
+    capturedNavigationEpoch?: number,
+  ) => void;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  getComposerDraftNavigationEpoch?: () => number;
   startTopicProjectResolution: () => boolean;
   finishTopicProjectResolution: () => void;
   deferTopicSwitch: (
@@ -56,6 +78,9 @@ export function useWorkspaceTopicSwitch({
   externalProjectId,
   originalSwitchTopic,
   onBeforeTopicSwitch,
+  onAfterTopicSwitch,
+  composerDraftCoordinator,
+  getComposerDraftNavigationEpoch,
   startTopicProjectResolution,
   finishTopicProjectResolution,
   deferTopicSwitch,
@@ -65,12 +90,64 @@ export function useWorkspaceTopicSwitch({
   loadTopicBoundProjectId,
   resetTopicLocalState,
 }: UseWorkspaceTopicSwitchParams) {
+  const topicSwitchRequestVersionRef = useRef(0);
+  const currentDraftRuntimeRef = useRef({
+    composerDraftCoordinator,
+    getComposerDraftNavigationEpoch,
+  });
+  currentDraftRuntimeRef.current = {
+    composerDraftCoordinator,
+    getComposerDraftNavigationEpoch,
+  };
+  const deferredNavigationRef = useRef<
+    | (ComposerDraftNavigationSource & {
+        topicId: string;
+        requestVersion: number;
+        lifecycle?: WorkspaceTopicSwitchLifecycle;
+      })
+    | null
+  >(null);
+  const captureNavigationSource =
+    useCallback((): ComposerDraftNavigationSource => {
+      const runtime = currentDraftRuntimeRef.current;
+      const snapshot = runtime.composerDraftCoordinator?.getSnapshot();
+      return {
+        coordinator: runtime.composerDraftCoordinator,
+        sourceGeneration: snapshot?.generation,
+        sourceScope: snapshot?.scope ?? null,
+        navigationEpoch: runtime.getComposerDraftNavigationEpoch?.(),
+      };
+    }, []);
+  const isNavigationSourceCurrent = useCallback(
+    (source: ComposerDraftNavigationSource) => {
+      const current = captureNavigationSource();
+      return (
+        source.coordinator === current.coordinator &&
+        source.sourceGeneration === current.sourceGeneration &&
+        source.navigationEpoch === current.navigationEpoch &&
+        source.sourceScope?.workspaceId === current.sourceScope?.workspaceId &&
+        source.sourceScope?.kind === current.sourceScope?.kind &&
+        source.sourceScope?.id === current.sourceScope?.id
+      );
+    },
+    [captureNavigationSource],
+  );
   const runTopicSwitch = useCallback(
     async (
       topicId: string,
       options?: TopicSwitchOptions,
-      runOptions?: { skipBeforeSwitch?: boolean },
+      runOptions?: {
+        skipBeforeSwitch?: boolean;
+        requestVersion?: number;
+        source?: ComposerDraftNavigationSource;
+        lifecycle?: WorkspaceTopicSwitchLifecycle;
+      },
     ) => {
+      const requestVersion =
+        runOptions?.requestVersion ?? ++topicSwitchRequestVersionRef.current;
+      const source = runOptions?.source ?? captureNavigationSource();
+      if (!isNavigationSourceCurrent(source)) return "superseded" as const;
+      const committedWorkspaceId = normalizeProjectId(projectId);
       const forwardedOptions =
         options?.forceRefresh === true ||
         options?.resumeSessionStartHooks === true ||
@@ -93,14 +170,14 @@ export function useWorkspaceTopicSwitch({
         topicId,
       });
       if (runOptions?.skipBeforeSwitch !== true) {
+        composerDraftCoordinator?.prepareNavigation();
         onBeforeTopicSwitch?.(topicId);
       }
-      resetTopicLocalState();
       try {
         const hydrationResult = forwardedOptions
           ? await originalSwitchTopic(topicId, forwardedOptions)
           : await originalSwitchTopic(topicId);
-        if (hydrationResult === "error") {
+        if (hydrationResult !== undefined && hydrationResult !== "success") {
           logAgentDebug(
             "AgentChatPage",
             "runTopicSwitch.error",
@@ -113,7 +190,30 @@ export function useWorkspaceTopicSwitch({
             },
             { level: "error" },
           );
-          return "error" as const;
+          return hydrationResult === "blocked" ||
+            hydrationResult === "busy" ||
+            hydrationResult === "deferred" ||
+            hydrationResult === "missing" ||
+            hydrationResult === "superseded"
+            ? hydrationResult
+            : ("error" as const);
+        }
+        if (
+          requestVersion !== topicSwitchRequestVersionRef.current ||
+          !isNavigationSourceCurrent(source)
+        ) {
+          return "superseded" as const;
+        }
+        resetTopicLocalState();
+        runOptions?.lifecycle?.onHydrated();
+        if (source.navigationEpoch === undefined) {
+          onAfterTopicSwitch?.(topicId, committedWorkspaceId);
+        } else {
+          onAfterTopicSwitch?.(
+            topicId,
+            committedWorkspaceId,
+            source.navigationEpoch,
+          );
         }
         logAgentDebug("AgentChatPage", "runTopicSwitch.success", {
           allowDetachedSession: options?.allowDetachedSession === true,
@@ -138,11 +238,25 @@ export function useWorkspaceTopicSwitch({
         throw error;
       }
     },
-    [onBeforeTopicSwitch, originalSwitchTopic, projectId, resetTopicLocalState],
+    [
+      composerDraftCoordinator,
+      captureNavigationSource,
+      isNavigationSourceCurrent,
+      onAfterTopicSwitch,
+      onBeforeTopicSwitch,
+      originalSwitchTopic,
+      projectId,
+      resetTopicLocalState,
+    ],
   );
 
   const switchTopic = useCallback(
-    async (topicId: string, options?: TopicSwitchOptions) => {
+    async (
+      topicId: string,
+      options?: TopicSwitchOptions,
+      lifecycle?: WorkspaceTopicSwitchLifecycle,
+    ) => {
+      composerDraftCoordinator?.prepareNavigation();
       if (!startTopicProjectResolution()) {
         logAgentDebug(
           "AgentChatPage",
@@ -157,6 +271,8 @@ export function useWorkspaceTopicSwitch({
         return "busy" as const;
       }
 
+      const requestVersion = ++topicSwitchRequestVersionRef.current;
+      const source = captureNavigationSource();
       let resolutionActive = true;
       const finishResolutionIfNeeded = () => {
         if (!resolutionActive) {
@@ -195,6 +311,9 @@ export function useWorkspaceTopicSwitch({
           finishResolutionIfNeeded();
           return await runTopicSwitch(topicId, options, {
             skipBeforeSwitch: true,
+            requestVersion,
+            source,
+            lifecycle,
           });
         }
 
@@ -214,6 +333,9 @@ export function useWorkspaceTopicSwitch({
           finishResolutionIfNeeded();
           return await runTopicSwitch(topicId, options, {
             skipBeforeSwitch: true,
+            requestVersion,
+            source,
+            lifecycle,
           });
         }
 
@@ -228,6 +350,12 @@ export function useWorkspaceTopicSwitch({
               : null;
           },
         });
+        if (
+          requestVersion !== topicSwitchRequestVersionRef.current ||
+          !isNavigationSourceCurrent(source)
+        ) {
+          return "superseded" as const;
+        }
         logAgentDebug("AgentChatPage", "switchTopic.decision", {
           decisionStatus: decision.status,
           projectId: decision.status === "ok" ? decision.projectId : null,
@@ -245,6 +373,12 @@ export function useWorkspaceTopicSwitch({
 
         const targetProjectId = decision.projectId;
         if (currentProjectId !== targetProjectId) {
+          deferredNavigationRef.current = {
+            topicId,
+            requestVersion,
+            lifecycle,
+            ...source,
+          };
           deferTopicSwitch(topicId, targetProjectId, options);
           logAgentDebug("AgentChatPage", "switchTopic.deferUntilProjectReady", {
             allowDetachedSession: options?.allowDetachedSession === true,
@@ -260,6 +394,9 @@ export function useWorkspaceTopicSwitch({
         finishResolutionIfNeeded();
         return await runTopicSwitch(topicId, options, {
           skipBeforeSwitch: true,
+          requestVersion,
+          source,
+          lifecycle,
         });
       } catch (error) {
         console.error("[AgentChatPage] 解析任务项目失败:", error);
@@ -282,6 +419,9 @@ export function useWorkspaceTopicSwitch({
       }
     },
     [
+      composerDraftCoordinator,
+      captureNavigationSource,
+      isNavigationSourceCurrent,
       deferTopicSwitch,
       externalProjectId,
       finishTopicProjectResolution,
@@ -301,6 +441,16 @@ export function useWorkspaceTopicSwitch({
       return;
     }
 
+    const source = deferredNavigationRef.current;
+    deferredNavigationRef.current = null;
+    if (
+      source &&
+      (source.topicId !== pending.topicId ||
+        source.requestVersion !== topicSwitchRequestVersionRef.current ||
+        !isNavigationSourceCurrent(source))
+    ) {
+      return;
+    }
     const currentProjectId = normalizeProjectId(projectId);
     logAgentDebug("AgentChatPage", "switchTopic.resumePending", {
       allowDetachedSession: pending.allowDetachedSession === true,
@@ -309,11 +459,21 @@ export function useWorkspaceTopicSwitch({
       projectId: currentProjectId,
       topicId: pending.topicId,
     });
-    runTopicSwitch(pending.topicId, {
-      allowDetachedSession: pending.allowDetachedSession === true,
-      forceRefresh: pending.forceRefresh === true,
-      resumeSessionStartHooks: pending.resumeSessionStartHooks === true,
-    }).catch((error) => {
+    runTopicSwitch(
+      pending.topicId,
+      {
+        allowDetachedSession: pending.allowDetachedSession === true,
+        forceRefresh: pending.forceRefresh === true,
+        resumeSessionStartHooks: pending.resumeSessionStartHooks === true,
+      },
+      source
+        ? {
+            requestVersion: source.requestVersion,
+            source,
+            lifecycle: source.lifecycle,
+          }
+        : undefined,
+    ).catch((error) => {
       console.error("[AgentChatPage] 执行待切换任务失败:", error);
       logAgentDebug(
         "AgentChatPage",
@@ -330,7 +490,14 @@ export function useWorkspaceTopicSwitch({
       );
       toast.error("加载会话失败，请重试");
     });
-  }, [consumePendingTopicSwitch, projectId, runTopicSwitch]);
+  }, [
+    composerDraftCoordinator,
+    getComposerDraftNavigationEpoch,
+    isNavigationSourceCurrent,
+    consumePendingTopicSwitch,
+    projectId,
+    runTopicSwitch,
+  ]);
 
   return {
     runTopicSwitch,

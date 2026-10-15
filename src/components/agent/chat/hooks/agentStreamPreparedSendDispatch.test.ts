@@ -95,11 +95,19 @@ describe("agentStreamPreparedSendDispatch", () => {
   it("应通过 prepared submit gate 提交 user_input", async () => {
     const env = createEnv();
 
-    await dispatchPreparedAgentStreamSend({
+    const receipt = {
+      kind: "start" as const,
+      sessionId: "session-1",
+      threadId: "thread-1",
+      turnId: "turn-1",
+    };
+    vi.mocked(submitAgentStreamUserInput).mockResolvedValue(receipt);
+    const result = await dispatchPreparedAgentStreamSend({
       preparedSend,
       env,
     });
 
+    expect(result).toBe(receipt);
     expect(vi.mocked(env.runPreparedSubmit)).toHaveBeenCalledTimes(1);
     expect(submitAgentStreamUserInput).toHaveBeenCalledWith(
       expect.objectContaining({ preparedSend }),

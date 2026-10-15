@@ -1,5 +1,18 @@
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { createRuntimeAcceptanceReceipt } from "@/lib/api/agentRuntime/runtimeAcceptance";
+import {
+  fromRuntimeAcceptanceReceipt,
+  type RuntimeSubmissionResult,
+} from "../hooks/agentSendResult";
+const accepted = fromRuntimeAcceptanceReceipt(
+  createRuntimeAcceptanceReceipt(
+    { sessionId: "s", threadId: "t" },
+    "start",
+    "turn",
+  ),
+);
+
 import { createInitialSessionImageWorkbenchState } from "./imageWorkbenchHelpers";
 import {
   createParsedCommand,
@@ -10,7 +23,9 @@ import {
 
 describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
   it("图片 Provider 刷新后同一轮命令应使用最新 selection", async () => {
-    const submitImageWorkbenchAgentCommand = vi.fn().mockResolvedValue(true);
+    const submitImageWorkbenchAgentCommand = vi
+      .fn()
+      .mockResolvedValue(accepted);
     let resolveProvidersLoaded: (() => void) | null = null;
     const ensureImageWorkbenchProvidersLoaded = vi.fn(
       () =>
@@ -28,7 +43,7 @@ describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
 
     await render();
 
-    let handledPromise: Promise<boolean> | null = null;
+    let handledPromise: Promise<RuntimeSubmissionResult> | null = null;
     await act(async () => {
       handledPromise = getValue().handleImageWorkbenchCommand({
         rawText: "@配图 生成 城市夜景主视觉",
@@ -49,7 +64,7 @@ describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
       await handledPromise;
     });
 
-    expect(await handledPromise).toBe(true);
+    expect(await handledPromise).toBe(accepted);
     expect(ensureImageWorkbenchProvidersLoaded).toHaveBeenCalledTimes(1);
     expect(submitImageWorkbenchAgentCommand).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -65,14 +80,16 @@ describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
   });
 
   it("应通过 Agent 主链提交图片 skill launch，而不是前端直建 task", async () => {
-    const submitImageWorkbenchAgentCommand = vi.fn().mockResolvedValue(true);
+    const submitImageWorkbenchAgentCommand = vi
+      .fn()
+      .mockResolvedValue(accepted);
     const { render, getValue } = renderCommandActionHook({
       submitImageWorkbenchAgentCommand,
     });
 
     await render();
 
-    let handled = false;
+    let handled: RuntimeSubmissionResult = { kind: "unknown" };
     await act(async () => {
       handled = await getValue().handleImageWorkbenchCommand({
         rawText: "@配图 生成 城市夜景主视觉",
@@ -81,7 +98,7 @@ describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
       });
     });
 
-    expect(handled).toBe(true);
+    expect(handled).toBe(accepted);
     expect(submitImageWorkbenchAgentCommand).toHaveBeenCalledTimes(1);
     expect(submitImageWorkbenchAgentCommand).toHaveBeenCalledWith({
       rawText: "@配图 生成 城市夜景主视觉",
@@ -115,7 +132,9 @@ describe("useWorkspaceImageWorkbenchCommandActionRuntime", () => {
   });
 
   it("本地图片工作台 key 首次提交时应保留统一发送主线，延后由发送边界绑定真实会话", async () => {
-    const submitImageWorkbenchAgentCommand = vi.fn().mockResolvedValue(true);
+    const submitImageWorkbenchAgentCommand = vi
+      .fn()
+      .mockResolvedValue(accepted);
     const localImageWorkbenchSessionKey =
       "__local_image_workbench__:draft:image";
     const { render, getValue } = renderCommandActionHook({

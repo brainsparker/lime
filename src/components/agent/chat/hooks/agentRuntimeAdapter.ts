@@ -11,6 +11,7 @@ import {
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { AppServerThreadSettingsUpdateParams } from "@/lib/api/appServer";
 import type {
+  TurnStartResponse,
   TurnSteerParams,
   TurnSteerResponse,
 } from "@limecloud/app-server-client";
@@ -120,7 +121,10 @@ export interface AgentRuntimeAdapter {
     sessionId: string,
     previewText?: string,
   ): Promise<string>;
-  submitOp(op: AgentOp): Promise<void>;
+  submitOp(
+    op: AgentOp,
+    onAccepted?: (response: TurnStartResponse) => void,
+  ): Promise<TurnStartResponse>;
   steerTurn(params: TurnSteerParams): Promise<TurnSteerResponse>;
   compactSession(sessionId: string, eventName: string): Promise<void>;
   interruptTurn(
@@ -366,7 +370,7 @@ export function createAgentRuntimeAdapter({
               } else {
                 void getSessionDetail(threadId).then(publish, (error) => {
                   if (active && revisions.get(threadId) === revision) {
-                  revisions.delete(threadId);
+                    revisions.delete(threadId);
                     console.warn(
                       "[AgentChat] 无法解析 thread settings 的会话归属:",
                       error,
@@ -499,13 +503,15 @@ export function createAgentRuntimeAdapter({
     async generateSessionTitle(sessionId, previewText) {
       return client.generateAgentRuntimeSessionTitle(sessionId, previewText);
     },
-    async submitOp(op) {
+    async submitOp(op, onAccepted) {
       switch (op.type) {
-        case "user_input":
-          await client.submitAgentRuntimeTurn(
+        case "user_input": {
+          const response = await client.submitAgentRuntimeTurn(
             createAgentSessionTurnStartParamsFromUserInputOp(op),
+            onAccepted ? (response) => onAccepted(response.result) : undefined,
           );
-          return;
+          return response.result;
+        }
         default:
           throw new Error(`当前 runtime adapter 尚不支持 AgentOp: ${op.type}`);
       }

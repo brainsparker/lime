@@ -18,9 +18,8 @@ import type {
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
 import {
   buildClawAgentParams,
-  buildHomeAgentParams,
+  type StartNewConversation,
 } from "@/lib/workspace/navigation";
-import { requestTaskCenterDraftTask } from "@/components/agent/chat/taskCenterDraftTaskEvents";
 import { requestExplicitInitialSessionNavigation } from "@/components/agent/chat/workspace/useWorkspaceInitialSessionNavigation";
 import type { Page, PageParams } from "@/types/page";
 import type { SidebarOpenedProjectSummary } from "@/components/app-sidebar/sidebarConversationGroups";
@@ -38,6 +37,7 @@ interface UseAppSidebarConversationActionsParams {
   projectScopedNavigationProjectId: string | null;
   requestedNavigationTargetRef: MutableRefObject<SidebarNavigationTarget>;
   onNavigate: (page: Page, params?: PageParams) => void;
+  onStartNewConversation?: StartNewConversation;
   closeSidebarSearchDialog: () => void;
   deferConversationNavigation: () => void;
   beginSidebarSessionAction: (sessionId: string) => void;
@@ -112,10 +112,10 @@ export function useAppSidebarConversationActions({
   currentProjectId,
   currentSessionId,
   conversationDisplayProjects,
-  isAgentWorkspace,
   projectScopedNavigationProjectId,
   requestedNavigationTargetRef,
   onNavigate,
+  onStartNewConversation,
   closeSidebarSearchDialog,
   deferConversationNavigation,
   beginSidebarSessionAction,
@@ -133,39 +133,12 @@ export function useAppSidebarConversationActions({
   deleteConversationSuccessLabel,
   deleteConversationErrorLabel,
 }: UseAppSidebarConversationActionsParams) {
-  const tryOpenTaskCenterDraftFromSidebar = useCallback(
-    (projectId?: string | null) => {
-      return (
-        isAgentWorkspace &&
-        requestTaskCenterDraftTask({ source: "sidebar", projectId })
-      );
-    },
-    [isAgentWorkspace],
-  );
-
   const navigateToHome = useCallback(() => {
-    if (tryOpenTaskCenterDraftFromSidebar(currentProjectId)) {
-      return;
-    }
-
-    const targetParams = buildHomeAgentParams({
-      projectId: currentProjectId ?? undefined,
+    onStartNewConversation?.({
+      projectId: currentProjectId,
+      freshDraft: false,
     });
-    navigateIfNeeded({
-      target: {
-        page: "agent",
-        rawParams: targetParams,
-        paramsKey: serializeNavigationParams(targetParams),
-      },
-      requestedNavigationTargetRef,
-      onNavigate,
-    });
-  }, [
-    currentProjectId,
-    onNavigate,
-    requestedNavigationTargetRef,
-    tryOpenTaskCenterDraftFromSidebar,
-  ]);
+  }, [currentProjectId, onStartNewConversation]);
 
   const navigateToWorkbench = useCallback(
     (fallbackSessionId?: string | null) => {
@@ -227,32 +200,10 @@ export function useAppSidebarConversationActions({
   );
 
   const navigateToNewTask = useCallback(
-    (projectId?: string | null) => {
-      const normalizedProjectId = projectId?.trim() || null;
-      if (
-        isAgentWorkspace &&
-        requestTaskCenterDraftTask({
-          source: "sidebar",
-          projectId: normalizedProjectId,
-        })
-      ) {
-        return;
-      }
-
-      const targetParams = buildHomeAgentParams({
-        projectId: normalizedProjectId ?? undefined,
-      });
-      navigateIfNeeded({
-        target: {
-          page: "agent",
-          rawParams: targetParams,
-          paramsKey: serializeNavigationParams(targetParams),
-        },
-        requestedNavigationTargetRef,
-        onNavigate,
-      });
+    (projectId: string | null) => {
+      onStartNewConversation?.({ projectId, freshDraft: true });
     },
-    [isAgentWorkspace, onNavigate, requestedNavigationTargetRef],
+    [onStartNewConversation],
   );
 
   const navigateToProjectNewTask = useCallback(
@@ -482,7 +433,6 @@ export function useAppSidebarConversationActions({
     moveSessionToSection,
     toggleSessionArchive,
     toggleSessionPinned,
-    tryOpenTaskCenterDraftFromSidebar,
     renameConversation,
   };
 }

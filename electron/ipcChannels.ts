@@ -13,6 +13,8 @@ export const ELECTRON_HOST_COMMANDS = [
   "app_server_handle_json_lines",
   "app_server_drain_events",
   "app_server_host_diagnostics",
+  "persisted_atom_read",
+  "persisted_atom_update",
   "cloud_session_credential_set",
   "cloud_session_credential_status",
   "cloud_session_credential_delete",

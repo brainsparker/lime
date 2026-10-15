@@ -2,26 +2,29 @@ import { useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { Character } from "@/lib/api/projectMemory";
 import type { Topic } from "../hooks/agentChatShared";
-import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
 import type { TaskCenterWorkspaceTabMap } from "../utils/taskCenterTabs";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 import { useTaskCenterTopicNavigationRuntime } from "./useTaskCenterTopicNavigationRuntime";
 
 type Runtime = ReturnType<typeof useTaskCenterTopicNavigationRuntime>;
 
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
-function mountRuntime(overrides: {
-  clearTaskCenterEmbeddedHomeSession?: (topicId: string) => void;
-  setTaskCenterOpenTabMap?: Dispatch<SetStateAction<TaskCenterWorkspaceTabMap>>;
-  switchTopic?: (topicId: string, options?: unknown) => Promise<unknown>;
-  upsertTaskCenterOpenTab?: (
-    topicId: string,
-    workspaceIdOverride?: string | null,
-  ) => void;
-} = {}) {
+function mountRuntime(
+  overrides: {
+    getComposerDraftNavigationEpoch?: () => number;
+    onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
+    clearTaskCenterEmbeddedHomeSession?: (topicId: string) => void;
+    setTaskCenterOpenTabMap?: Dispatch<
+      SetStateAction<TaskCenterWorkspaceTabMap>
+    >;
+    switchTopic?: (topicId: string, options?: unknown) => Promise<unknown>;
+    upsertTaskCenterOpenTab?: (
+      topicId: string,
+      workspaceIdOverride?: string | null,
+    ) => void;
+  } = {},
+) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -49,20 +52,9 @@ function mountRuntime(overrides: {
 
   function Harness() {
     const activeSessionIdRef = useRef<string | null>("topic-current");
-    const activeTaskCenterDraftTabIdRef = useRef<string | null>(null);
-    const taskCenterDraftSurfaceActiveRef = useRef(true);
-    const taskCenterDraftTabsRef = useRef<TaskCenterDraftTab[]>([]);
+    const taskCenterHomeSurfaceActiveRef = useRef(true);
     const taskCenterOpenTabIdsRef = useRef(["topic-current"]);
-    const [, setActiveTaskCenterDraftTabId] = useState<string | null>(null);
-    const [, setHomePendingPreviewRequest] =
-      useState<TaskCenterDraftSendRequest | null>(null);
-    const [, setInput] = useState("");
-    const [, setMentionedCharacters] = useState<Character[]>([]);
-    const [, setSelectedText] = useState("");
     const [, setTaskCenterDetachedTopicId] = useState<string | null>(null);
-    const [, setTaskCenterDraftSendRequest] =
-      useState<TaskCenterDraftSendRequest | null>(null);
-    const [, setTaskCenterDraftTabs] = useState<TaskCenterDraftTab[]>([]);
     const [, setTaskCenterLocalSessionOverride] = useState<{
       sessionId: string;
       routeSessionId: string | null;
@@ -75,34 +67,25 @@ function mountRuntime(overrides: {
 
     runtimeRef.current = useTaskCenterTopicNavigationRuntime({
       activeSessionIdRef,
-      activeTaskCenterDraftTabIdRef,
+      onStartNewConversation: overrides.onStartNewConversation,
+      getComposerDraftNavigationEpoch:
+        overrides.getComposerDraftNavigationEpoch,
       agentEntry: "claw",
       clearEntryPendingA2UI: vi.fn(),
-      clearMessages: vi.fn(),
       clearTaskCenterEmbeddedHomeSession:
         overrides.clearTaskCenterEmbeddedHomeSession ?? vi.fn(),
       messagesLength: 0,
-      openTaskCenterDraftTab: vi.fn(() => "draft-1"),
       replaceTaskCenterOpenTabs: vi.fn(),
       resetLocalImageWorkbenchSessionScope: vi.fn(),
-      resetTopicLocalState: vi.fn(),
       sessionId: "topic-current",
-      setActiveTaskCenterDraftTabId,
-      setHomePendingPreviewRequest,
-      setInput,
-      setMentionedCharacters,
-      setSelectedText,
       setTaskCenterDetachedTopicId,
-      setTaskCenterDraftSendRequest,
-      setTaskCenterDraftTabs,
       setTaskCenterLocalSessionOverride,
       setTaskCenterOpenTabMap,
       setTaskCenterTransitionTopicId,
       switchTopic:
         overrides.switchTopic ?? vi.fn(async () => "success" as const),
       taskCenterDetachedTopicId: null,
-      taskCenterDraftSurfaceActiveRef,
-      taskCenterDraftTabsRef,
+      taskCenterHomeSurfaceActiveRef,
       taskCenterOpenTabIdsRef,
       taskCenterTransitionTopicId: null,
       taskCenterWorkspaceId: "workspace-test",
@@ -125,12 +108,14 @@ function mountRuntime(overrides: {
 }
 
 afterEach(() => {
+  vi.useRealTimers();
   mountedRoots.splice(0).forEach(({ root, container }) => {
     act(() => {
       root.unmount();
     });
     container.remove();
   });
+  vi.unstubAllGlobals();
 });
 
 describe("useTaskCenterTopicNavigationRuntime", () => {
@@ -150,7 +135,9 @@ describe("useTaskCenterTopicNavigationRuntime", () => {
     expect(clearTaskCenterEmbeddedHomeSession).toHaveBeenCalledWith(
       "topic-next",
     );
-    expect(switchTopic).toHaveBeenCalledWith("topic-next", undefined);
+    expect(switchTopic).toHaveBeenCalledWith("topic-next", undefined, {
+      onHydrated: expect.any(Function),
+    });
   });
 
   it("switchTopic 成功返回 undefined 时不应回滚已打开会话", async () => {
@@ -168,11 +155,176 @@ describe("useTaskCenterTopicNavigationRuntime", () => {
       await runtime.handleOpenTaskTopic("topic-next");
     });
 
-    expect(switchTopic).toHaveBeenCalledWith("topic-next", undefined);
+    expect(switchTopic).toHaveBeenCalledWith("topic-next", undefined, {
+      onHydrated: expect.any(Function),
+    });
     expect(upsertTaskCenterOpenTab).toHaveBeenCalledWith(
       "topic-next",
       "workspace-test",
     );
     expect(setTaskCenterOpenTabMap).not.toHaveBeenCalled();
+  });
+
+  it("迟到普通 switch 成功不能清理新 Home 的 presentation", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let epoch = 0;
+    let resolve!: (value: string) => void;
+    const clearTaskCenterEmbeddedHomeSession = vi.fn();
+    const upsertTaskCenterOpenTab = vi.fn();
+    const runtime = mountRuntime({
+      getComposerDraftNavigationEpoch: () => epoch,
+      clearTaskCenterEmbeddedHomeSession,
+      upsertTaskCenterOpenTab,
+      switchTopic: () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    });
+    let pending!: Promise<unknown>;
+    act(() => {
+      pending = runtime.handleOpenTaskTopic("topic-next");
+    });
+    epoch += 1;
+    await act(async () => {
+      resolve("success");
+      await pending;
+    });
+    expect(await pending).toBe("superseded");
+    expect(clearTaskCenterEmbeddedHomeSession).not.toHaveBeenCalled();
+    expect(upsertTaskCenterOpenTab).toHaveBeenCalledTimes(1);
+  });
+
+  it("迟到失败不能回滚后来提交的 Home", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let epoch = 0;
+    let reject!: (error: Error) => void;
+    const setTaskCenterOpenTabMap = vi.fn();
+    const runtime = mountRuntime({
+      getComposerDraftNavigationEpoch: () => epoch,
+      setTaskCenterOpenTabMap,
+      switchTopic: () =>
+        new Promise((_done, fail) => {
+          reject = fail;
+        }),
+    });
+    let pending!: Promise<unknown>;
+    act(() => {
+      pending = runtime.handleOpenTaskTopic("topic-next");
+    });
+    const observed = pending.catch((error: Error) => error.message);
+    epoch += 1;
+    await act(async () => {
+      reject(new Error("late failure"));
+      await observed;
+    });
+    expect(await observed).toBe("late failure");
+    expect(setTaskCenterOpenTabMap).not.toHaveBeenCalled();
+  });
+
+  it("busy 会话切换只在重试成功后提交 canonical presentation", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.useFakeTimers();
+    const switchTopic = vi
+      .fn()
+      .mockResolvedValueOnce("busy")
+      .mockResolvedValueOnce("success");
+    const clearTaskCenterEmbeddedHomeSession = vi.fn();
+    const setTaskCenterOpenTabMap = vi.fn();
+    const runtime = mountRuntime({
+      switchTopic,
+      clearTaskCenterEmbeddedHomeSession,
+      setTaskCenterOpenTabMap,
+    });
+    await act(async () => {
+      expect(await runtime.handleOpenTaskTopic("topic-next")).toBe("busy");
+    });
+    expect(clearTaskCenterEmbeddedHomeSession).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+    expect(switchTopic).toHaveBeenCalledTimes(2);
+    expect(clearTaskCenterEmbeddedHomeSession).toHaveBeenCalledExactlyOnceWith(
+      "topic-next",
+    );
+    expect(setTaskCenterOpenTabMap).not.toHaveBeenCalled();
+  });
+
+  it("新 Home 在 busy 定时器触发前提交时不会重开旧会话", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.useFakeTimers();
+    let epoch = 0;
+    const switchTopic = vi.fn(async () => "busy");
+    const clearTaskCenterEmbeddedHomeSession = vi.fn();
+    const runtime = mountRuntime({
+      switchTopic,
+      clearTaskCenterEmbeddedHomeSession,
+      getComposerDraftNavigationEpoch: () => epoch,
+    });
+    await act(async () => {
+      await runtime.handleOpenTaskTopic("topic-next");
+    });
+    epoch += 1;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(120);
+    });
+    expect(switchTopic).toHaveBeenCalledTimes(1);
+    expect(clearTaskCenterEmbeddedHomeSession).not.toHaveBeenCalled();
+  });
+
+  it.each(["success", "error", "rejection"])(
+    "busy 重试在途后新 Home 不能被迟到 %s 改写或回滚",
+    async (outcome) => {
+      vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+      vi.useFakeTimers();
+      let epoch = 0;
+      let finish!: () => void;
+      const switchTopic = vi
+        .fn()
+        .mockResolvedValueOnce("busy")
+        .mockImplementationOnce(
+          () =>
+            new Promise((resolve, reject) => {
+              finish = () =>
+                outcome === "rejection"
+                  ? reject(new Error("late retry"))
+                  : resolve(outcome);
+            }),
+        );
+      const clearTaskCenterEmbeddedHomeSession = vi.fn();
+      const setTaskCenterOpenTabMap = vi.fn();
+      const runtime = mountRuntime({
+        switchTopic,
+        clearTaskCenterEmbeddedHomeSession,
+        setTaskCenterOpenTabMap,
+        getComposerDraftNavigationEpoch: () => epoch,
+      });
+      await act(async () => {
+        await runtime.handleOpenTaskTopic("topic-next");
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(120);
+      });
+      expect(switchTopic).toHaveBeenCalledTimes(2);
+      epoch += 1;
+      await act(async () => {
+        finish();
+        await Promise.resolve();
+      });
+      expect(clearTaskCenterEmbeddedHomeSession).not.toHaveBeenCalled();
+      expect(setTaskCenterOpenTabMap).not.toHaveBeenCalled();
+    },
+  );
+
+  it("关闭最后的 canonical 会话只发公开 Home(false) intent", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const onStartNewConversation = vi.fn();
+    const runtime = mountRuntime({ onStartNewConversation });
+    await act(async () => {
+      await runtime.handleCloseTaskCenterTab("topic-current");
+    });
+    expect(onStartNewConversation).toHaveBeenCalledExactlyOnceWith({
+      projectId: "workspace-test",
+      freshDraft: false,
+    });
   });
 });

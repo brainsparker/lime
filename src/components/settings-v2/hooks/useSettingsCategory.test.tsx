@@ -127,3 +127,28 @@ describe("useSettingsCategory", () => {
     expect(generalKeys).toContain(SettingsTabs.ArchivedConversations);
   });
 });
+
+describe("current settings navigation translations", () => {
+  it.each(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"])(
+    "%s 下全部 current 章节应继续显示既有翻译",
+    async (locale) => {
+      await changeLimeLocale(locale);
+      let groups: CategoryGroup[] = [];
+      renderHookProbe((nextGroups) => {
+        groups = nextGroups;
+      });
+      const items = groups.flatMap((group) => group.items);
+      expect(groups).toHaveLength(5);
+      expect(items).toHaveLength(15);
+      expect(new Set(items.map((item) => item.key)).size).toBe(15);
+      for (const group of groups) {
+        expect(group.title.trim()).not.toBe("");
+        expect(group.title).not.toContain("settings.group.");
+        for (const item of group.items) {
+          expect(item.label.trim()).not.toBe("");
+          expect(item.label).not.toContain("settings.tab.");
+        }
+      }
+    },
+  );
+});

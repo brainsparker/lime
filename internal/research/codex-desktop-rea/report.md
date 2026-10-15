@@ -1,16 +1,24 @@
 # Lime 与 Codex Desktop 的差距：REA 对照与实施
 
-研究基线：2026-10-13；实施状态校准：2026-10-14。对照对象：本机 `/Applications/ChatGPT.app`，实际为 Codex Desktop `26.1007.30912` / build `20156`，Bundle ID `com.openai.codex`。下表记录当前差距，详细迁移和验证以 [对齐执行计划](../../exec-plans/codex-gui-alignment-current-plan.md) 为准。
+研究基线：2026-10-13；实施状态校准：2026-10-15。对照对象：本机 `/Applications/ChatGPT.app`，实际为 Codex Desktop `26.1007.30912` / build `20156`，Bundle ID `com.openai.codex`。下表记录当前差距，详细迁移和验证以 [对齐执行计划](../../exec-plans/codex-gui-alignment-current-plan.md) 为准。
 
-Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构化主输入和 Browser tab 恢复。基础 link/code 已实施并通过实际源码与真实桌面富输入验证；听写生命周期和取消回滚已完成接线及组件回归。本批默认门禁仍在关闭。持久富草稿、完整 Code NodeView、专业文件的排版与批注、原生应用操作，以及远端执行的产品入口仍有明确差距。
+Lime 已采用长历史虚拟列表、ApprovalCard、Files/diff、单一结构化 Composer/NodeView、持久草稿、typed acceptance、新建会话和单一 SettingsPage 章节 owner。packet21 的三入口首发、rich Stop、Home 冷恢复及三工作区两次正常冷恢复四项合同均通过；设置15章节/24首屏读取也有独立真实 Electron 证据。它们各自绑定原源码和产物，不能覆盖后续改动。
 
-本报告依据真实安装包的静态代码、Lime 源码和官方功能文档。没有取得 Codex 实时截图与点击证据，因此不评价两者实际流畅度、成功率和模型质量，不给整体“对齐百分比”。Lime 后续真实 Electron 验证独立记录在执行计划，不反推参考应用的运行表现。
+本轮修复了两项问题：Skills 工作台试用完成后 Composer 仍绑定 Home 而不可编辑；工具状态文案每次查询都重新合并整份 Agent 翻译资源。前者由既有 CommandWiring 将非 Composer 的真实 accepted 回执交回可见 topic commit，继续保留 epoch/ready/scope 与草稿消费 authority；后者直接复用 createI18n 已加载的五语言表，保留实时语言选择、插值与缺失键处理。两项均复用 current owner。
+
+验证分别绑定身份：packet22 的 Skills 三路径、四组定向31/34/3/294及22个真实 Electron 场景通过，前后7885源码/2198产物零漂移。随后删除五语言一个废弃设置键、迁移两个旧测试，42/42通过；稳定函数引用修正后61/61与零警告lint通过；文案资源回归先3过1红（12次重复合并），修复后6套件81/81，包含未改的历史窗口14/14及原5秒期限。默认第4轮已过严格全src lint、文案扫描、标准typecheck及89—111批，historyWindow原失败两例在89批147/147中通过；112批发现旧turn/start回执夹具，仅迁canonical id/inProgress及同thread identity，60/60定向与严格lint通过。续跑已通过至122批，123批另一旧boolean/void发送夹具迁为完整typed result，三suite24/24与严格lint过；125批旧reset测试缺root callback且混同Home/fresh语义，重复文件删除，风险收回现有导航与reset tests，16/16通过；127批另一个Inputbar布尔接受夹具阻断recent usage；同文件显式布尔发送全部迁typed，完整92+21共113/113通过。freeze30仅该测试增量。前端132/132批、contracts与legacy扫描均通过；新标准verify:gui-smoke wrapper exit0、24/24真实壳断言通过，7884源码/2303目录产物已固定。默认按组合步骤关闭，原wrapper失败保留；新产物current第5轮前两场通过，第3场短问候接受1978ms超过原1800ms预算而失败，完成态已达、7884源码/2303产物零漂移；原短问候场景隔离78/78通过、接受921ms；第6轮同场973ms，但第8场审批在业务pass后Main退出挂起（前7场进程完成），Node连接已关闭、pending BrowserContext.close，底层根因unknown。原挂起证据冻结并中断，不计完整通过。fixture改为既有15秒正常退出合同及全部资源释放后才打印pass，失败后回收不会修复结果；110项定向回归与原审批隔离66/66、Main34547正常code0/signalnull均通过。仅4项fixture输入变化，产品/2303产物不变，freeze31共7886源；第7轮完整聚合exit0、22/22通过，四组31/34/3/300；21个Claw正常Main退出回执、强制回收0，Coding保留既有子进程证据而不补造Main回执。后验7886源/2303产物及产物路径集零漂移。当前summary显式引用的ledger/截图共67份独立冻结；旧第4轮目录遗留的一张Skills失败截图不计本轮证据。最终格式、docs边界、脚本治理、62本地链接与diff检查均通过，本验证切片已关闭，整体GUI仍partial。续跑状态1761为历史登记路径，其中1756现存、5项已删除，不能写成1761当前测试文件均执行。初次构建缓存失败、窄lint曾带warning与原超时均保留在索引及收据中，不改写成单次全绿，也不将文案修复归因为所有旧超时。
+
+仍有明确缺口：设置 canonical 章节路由与返回、内容搜索和 dirty authority；专业文件的排版与批注；原生应用操作与远端执行产品入口；结构/命名的完整符号覆盖、OS输入与Windows验收。保留差异仅主题、多模型、首页Banner。整体状态为 partial，没有足够分母计算全GUI对齐百分比。下文带日期的实现记录为阶段证据；当前身份和待办以执行计划及索引最新条目为准。
+
+[结构与命名账本](structure-alignment-ledger.md)集中列出确认导出、方法属性、Lime current owner、删除项和待办；上游原类名/目录未恢复的项目明确保留 unknown。它是已取证范围的映射，完整符号覆盖仍待继续。
+
+参考应用未取得实时截图或点击证据。本报告以安装包REA、公开源码与已引用官方材料区分静态事实；Lime真实Electron验证独立记录，不反推参考应用的流畅度、成功率或模型质量。已完成的历史默认门禁只覆盖各自切片，不代表当前新产品修复已验收。
 
 2026-10-14 实施校准：`ComposerUtilityBar` 已直接替换旧项目上下文组件，343 项定向回归及真实项目/Git/冷重启 Gate 通过。公共 pending Queue 的历史/分页隔离完成 74 项 Rust/JSONL 回归，搜索排除完成 17 项回归；真实 pending Gate 已通过历史/分页/搜索排除、富输入 mutation 与首图 media 读回。Right Surface 的 73 项生命周期回归、Browser 完整 live tab 恢复的 82 项回归及双 tab/关闭 primary 不复活的真实 Gate 已通过。rollout 空库重建缺陷已修复，23 项回归通过。
 
-结构化EditorView、唯一Controller、typed submission和共享surface草稿已实施，历史atom提及抢方向键及receipt恢复route缺陷已修。rich Electron Gate68/68、新版22场景聚合和完整默认门禁均通过，既有Composer实施合同关闭；external backend绕过live provider/runtime prompt lowering，IME/paste为synthetic DOM事件，本地runtime场景使用provider fixture，不是live。长UserMessage两入口折叠、精确canonical去重、主窗口原生复制权限和虚拟列表动态测量已实施；真实macOS长列表与冷启动通过，全文9682字符复制一致，后继阅读锚点漂移0.203125px。权限owner回流守卫39/39通过。视口竞争修复后的rich第五轮69/69、long-list第六轮/冷启动及live-tail65/65通过；页头consumer placement与横向滚动已修复，resize-fixed5三尺寸66/66通过。新默认门禁发现并修复复制反馈卸载泄漏，生命周期10/10、消息回归69/69、默认127/127批及fresh复制Gate69/69通过，1705/9682字符全文复制一致。各场景按其renderer摘要分别记录；较早22/22聚合仍属修复前基线。见[主输入审计](./main-composer-audit.md)、[用户正文审计](./user-message-collapse-audit.md)及[保存补证](./composer-draft-persistence-audit.md)。测试、fixture、文档和dead回流守卫随owner迁移；全产品仍partial。
+结构化EditorView、唯一Controller、typed submission和共享surface草稿已实施，历史atom提及抢方向键及receipt恢复route缺陷已修。历史主输入切片的rich Electron Gate68/68、新版22场景聚合和该切片完整默认门禁均通过，既有Composer实施合同关闭；external backend绕过live provider/runtime prompt lowering，IME/paste为synthetic DOM事件，本地runtime场景使用provider fixture，不是live。长UserMessage两入口折叠、精确canonical去重、主窗口原生复制权限和虚拟列表动态测量已实施；真实macOS长列表与冷启动通过，全文9682字符复制一致，后继阅读锚点漂移0.203125px。权限owner回流守卫39/39通过。视口竞争修复后的rich第五轮69/69、long-list第六轮/冷启动及live-tail65/65通过；页头consumer placement与横向滚动已修复，resize-fixed5三尺寸66/66通过。新默认门禁发现并修复复制反馈卸载泄漏，生命周期10/10、消息回归69/69、默认127/127批及fresh复制Gate69/69通过，1705/9682字符全文复制一致。各场景按其renderer摘要分别记录；较早22/22聚合仍属修复前基线。见[主输入审计](./main-composer-audit.md)、[用户正文审计](./user-message-collapse-audit.md)及[保存补证](./composer-draft-persistence-audit.md)。测试、fixture、文档和dead回流守卫随owner迁移；全产品仍partial。
 
-本批link/code依据[迁移前marks/voice补证](./marks-voice-audit.md)实施到唯一input-kit：实际src先22红/8绿，迁移后20文件224/224通过；annotation事务拆分后5文件92/92通过，Controller由803行降为762行。Markdown submission与display UTF16、typed UTF8范围分离，安全link/code属性、原文草稿和编辑生命周期同步回归。听写hook与Core单路径接线72/72、fixture312/312、最终标准typecheck和renderer构建通过。新增实际MarkdownRenderer与fixture回归6文件189/189，fresh Electron富输入Gate73/73、源码/fixture零漂移和console/page errors0；首轮fixture版本问题及默认69批中断恢复guard失败单独登记，默认正在resume，旧127批绿不覆盖本批源码。[样式补证](./composer-marks-css-audit.md)区分基础schema与完整NodeView/toolbar合同。完整rich PMU、主动链接导航/编辑、系统mic/ASR、persistent draft、专业文件、原生操作和remote分别保留unknown或待办。
+本批link/code依据[迁移前marks/voice补证](./marks-voice-audit.md)实施到唯一input-kit：实际src先22红/8绿，迁移后20文件224/224通过；annotation事务拆分后5文件92/92通过，Controller由803行降为762行。Markdown submission与display UTF16、typed UTF8范围分离，安全link/code属性、原文草稿和编辑生命周期同步回归。听写hook与Core单路径接线72/72、fixture312/312、最终标准typecheck和renderer构建通过。新增实际MarkdownRenderer与fixture回归6文件189/189，fresh Electron富输入Gate73/73；新current聚合22个真实Electron子场景通过，54项产品、14项fixture及277项renderer/Host/sidecar逐项零漂移。首轮fixture版本问题及默认69批中断恢复guard失败单独登记。默认续跑94批出现同步render超时，未修改生产或扩大原5秒上限，显式Node24完整文件14/14通过；95批发现测试继承英文locale，只修测试语言隔离，原批16文件164/164通过，本批完整默认已exit0，真实标准Electron smoke通过。旧127批绿不覆盖随后NodeView源码，旧进程runtime未记录，不声称全部续跑批次都由Node24执行。[样式补证](./composer-marks-css-audit.md)区分基础schema与完整NodeView/toolbar合同。[Code NodeView补证](./composer-code-nodeview-audit.md)与[高亮/Auto补证](./composer-code-highlight-audit.md)已闭合静态合同，Controller下的registry、PM contentDOM、Portal语言选择与两个plugin已正式接线；新rich Gate74/74，实际Auto→Plain→TypeScript、正文高亮、单次发送、cancel/history与canonical富输入均通过。新current聚合22/22、前端127/127批与标准GUI smoke已通过；默认按续跑组合步骤关闭，未改写原wrapper失败。完整rich PMU、主动链接导航/编辑、系统mic/ASR、persistent draft的三首发与最新产物Stop产品Gate、专业文件、原生操作和remote分别保留unknown或待办。
 
 ## 1. 已完成安装
 
@@ -22,6 +30,7 @@ Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构�
 - `rea doctor --client codex --skill --json`：`healthy=true`，Node、Codex 注册、skill identity 三项通过。
 - 实际 MCP stdio 初始化和 `tools/list`：返回服务器 `rea/6.4.0`、170 个工具。
 - 本轮已通过 CLI 使用 Rea；当前 Agent 会话的 MCP 工具表不会因注册自动刷新，后续会话加载注册需要重启客户端。
+- 2026-10-14 晚间复核发现注册条目缺失，已重新按 scoped setup 备份并恢复，显式使用独立 Node24；当前非REA配置语义保持相同。doctor Node/注册/skill 三项healthy，真实stdio初始化与tools/list再次返回rea/6.4.0和170工具。本Agent工具表仍未刷新，继续使用已安装CLI。
 
 ## 2. 差距矩阵
 
@@ -93,6 +102,8 @@ Lime 已迁移长历史虚拟列表、审批详情、Files/diff 导航、结构�
 
 ## 4. Rea 证据与边界
 
+2026-10-14 用户为释放空间删除仓库 `.lime/`。该目录中后续 Composer focused audit 的本机 manifest、候选与产品截图现为缺失的历史原件；仓库 audit 文字和 Evidence ID 仍保留，不能将旧摘要用于恢复版身份或运行验收。用户级 REA 原始成员按实际存留情况复用；必要候选已迁至独立临时目录并重新验证，详见 current 执行计划。此清理不改变静态观察的证据等级，也不代表新候选已经产品验收。
+
 原始包：`/Applications/ChatGPT.app/Contents/Resources/app.asar`，567,757,587 字节。
 
 SHA-256：`75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af`。
@@ -145,3 +156,15 @@ ASAR 目录含 21,089 个文件、15,208 个 JavaScript/TypeScript 路径。选�
 完成度按本轮范围记录：安装 **100%**；上述有边界的静态对照 **100%**；实时交互对照 **0%**。不能据此宣称全产品能力已穷尽或 Lime 对齐完成。
 
 治理分类：研究阶段只增加本报告、精简证据和计划。后续实现复用 `current` 业务 owner，已替代的 compact approval、path-only Files 和旧尾窗进入 `dead / deleted / forbidden-to-restore`，不保留 compat 包装；删除清单、护栏与验证结果统一维护在 current 执行计划。已有 App Server/agent/tool-runtime/命令及未知未跟踪改动继续避让。
+
+[设置导航审计](./settings-navigation-audit.md) 已校准七 member 与20原字节锚点：下一刀先收敛单一章节 owner 并迁公开 SettingsPage 名称，再处理 canonical 路由、返回、内容目标搜索与 dirty authority。九源章节owner候选已正式采用，公开SettingsPage与调用者同步，重复名单和dead定义直接删除；正式六suite78/78及设置oracle10/10、lint/格式通过，真实Electron15key/24可见页面状态、157原生read、零console/page/trace error及Main22039正常退出已通过；路由/返回/search/dirty仍后置。
+
+[公开新建会话审计](./new-conversation-navigation-audit.md) 已确认 `startNewConversation` 导出与稳定 home/panel 身份职责；唯一 App navigation 动作、committed fresh CAS 及随机草稿/预热旧路径的直接替换已采用。Home 恢复、New chat 新空稿是明确的 Lime 决策，参考普通侧栏的运行时 fresh 行为仍 unknown。78项正式采用、9个旧文件删除；公开action/committed route/同一Coordinator fresh CAS已收敛，架构由root确认。正式最新逐文件46suite540/540、lint/格式通过；初轮两Stop夹具缺可见会话提交，迁移后原恢复断言通过，失败收据保留。标准typecheck/contracts/legacy/docs和新GUI烟测已通过；local16富草稿/两正常cold、Home6与15设置首屏分别通过；三首发、最新产物Stop和current/default门禁仍待关闭。
+
+2026-10-15 富输入 Stop 的消费后旧读取竞态已修复，严格恢复守卫保留。原rich第三轮Desktop Gate B（common34/34、scenario21/21）通过；后续Skills冷加载身份误判已在既有owner修复，定向40/40和新GUI烟测24/24通过。local16三工作区完整富稿、拒绝保稿、原选区Undo、accepted consume/new-edit、异workspace隔离及两次正常冷重启全部通过，Main34272/38556/40802均code0/signalnull；该证据属于packet13产物。随后Home漏传Skill按需目录回调已贯通，最新逐文件5suite140/140、标准typecheck/lint/新构建与壳烟测24/24通过，旧timeout记录保留。Home3/4正常退出期限失败、Home5 trace oracle误要求直接preload请求进入GUI safeInvoke记录；最小fixture迁移后Node62/62与collector69/69，packet16产物未变，Home6完整rich/资源/原选区/identity、两正常Main17922/18120、cold零写/无canonical会话回合及原文件bytes/revision均通过，后验零漂移。15设置导航/首屏read已通过；三首发Home创建thread后未发Turn而rejected；诊断确认能力路由覆盖canonical正文，已保留真实source并以五suite165/165回归；另有业务workspace覆盖可见草稿scope，root真实Wiring/Coordinator回归先2/2失败、修后2/2通过，严格ready/epoch守卫保持。两处产品修复已在packet19完成构建、标准typecheck/contracts/legacy与桌面壳验收；最新产物Stop和current/default门禁尚未关闭；无live-provider/Windows/强杀耐久或全GUI完成声明。
+
+最新packet19首发：Home完整canonical富输入/资源字节、promotion/consume/new-edit与Main96352正常退出通过；search-new富稿保存冲突，项目新建未达。已在真实Controller/Coordinator/Store复现queued discard前序put通知把旧probe恢复：纯行为红后，由既有Coordinator阻止discard在途旧read重绑，Store CAS/退休守卫保持。binding及相关非Stop套件通过；组合Stop有1项、隔离Stop有6项原5秒timeout，稳定性仍未关闭。新renderer、标准typecheck、freshness与壳smoke均exit0。packet20 first6的Home与search-new完整业务和正常退出通过；项目入口fixture补真实header hover，Node53/53/lint/格式通过。packet21 first7三入口canonical富输入/资源/consume/new-edit均过，但第三Main正常退出原15秒超时，随后normal teardown不改整轮fail；first8仅加被动退出计时与失败采样。原packet19与旧cold/settings结果分开保留，详见current计划与证据索引。
+
+packet21 新产物的四项真实合同均已通过：first8 三入口完整canonical富输入/资源字节/consume/new-edit与三次原15秒内正常退出；rich Stop原场景恢复/历史/marks且零console/page errors；Home7完整富稿/原选区/identity与cold零写、两正常Main；local17三工作区拒绝保稿/Undo/消费新稿/隔离与两正常cold、三Main正常退出。first8只加被动生命周期计时，旧退出超时根因仍unknown且失败保留。此4/4（100%）仅指四项合同，整体GUI仍partial；原Stop文件在原5秒期限单次20/20已通过，前次timeout仍保留；async-tabs已迁canonical筛选、current侧栏路径与完整计数，3+11通过；current聚合guard293/294、collector隔离68/69的原5秒超时保留。仅优化测试采集器重复工作后69/69、溢出用例1571ms，原断言/timeout与独立oracle不变；聚合第3轮及default续跑待关闭。
+
+本批四项产品收据：`.lime/qc/composer-persistence/queued-discard-product-final-receipt.json`，SHA `2cafe26c77fe9b0b58d530e3f78a3ae05a5b4b592645551fc73a870b275f17d2`。packet21验收前后7885source/2093artifact零漂移，只证明身份一致，不宣称所有模块执行。

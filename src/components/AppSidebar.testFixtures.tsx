@@ -1,5 +1,9 @@
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
+import {
+  buildHomeAgentParams,
+  type StartNewConversation,
+} from "@/lib/workspace/navigation";
 import { act as reactAct } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { vi } from "vitest";
@@ -7,7 +11,6 @@ import type { AgentPageParams, Page, PageParams } from "@/types/page";
 import { SettingsTabs as LimeSettingsTabs } from "@/types/settings";
 import { AppSidebar as AppSidebarComponent } from "./AppSidebar";
 import { changeLimeLocale as changeLimeLocaleImpl } from "@/i18n/createI18n";
-import { TASK_CENTER_CREATE_DRAFT_TASK_EVENT as TASK_CENTER_CREATE_DRAFT_TASK_EVENT_VALUE } from "@/components/agent/chat/taskCenterDraftTaskEvents";
 import { LIME_COLOR_SCHEME_STORAGE_KEY as LIME_COLOR_SCHEME_STORAGE_KEY_VALUE } from "@/lib/appearance/colorSchemes";
 import { LIME_THEME_STORAGE_KEY as LIME_THEME_STORAGE_KEY_VALUE } from "@/lib/appearance/themeMode";
 import {
@@ -25,13 +28,14 @@ import type { AgentBackgroundSessionRuntimeSnapshot } from "@/components/agent/c
 
 export const act = reactAct;
 export const AppSidebar = AppSidebarComponent;
+export const mockStartNewConversation = vi.fn<StartNewConversation>();
+let newConversationRequestId = 0;
+
 export const changeLimeLocale = changeLimeLocaleImpl;
 export const SettingsTabs = LimeSettingsTabs;
 export const LIME_COLOR_SCHEME_STORAGE_KEY =
   LIME_COLOR_SCHEME_STORAGE_KEY_VALUE;
 export const LIME_THEME_STORAGE_KEY = LIME_THEME_STORAGE_KEY_VALUE;
-export const TASK_CENTER_CREATE_DRAFT_TASK_EVENT =
-  TASK_CENTER_CREATE_DRAFT_TASK_EVENT_VALUE;
 export const getStoredOemCloudSessionState = getStoredOemCloudSessionStateImpl;
 export const setOemCloudBootstrapSnapshot = setOemCloudBootstrapSnapshotImpl;
 export const setStoredOemCloudSessionState = setStoredOemCloudSessionStateImpl;
@@ -393,6 +397,22 @@ export function mountSidebar(options?: {
         requestedPage={options?.requestedPage}
         requestedPageParams={options?.requestedPageParams}
         onNavigate={options?.onNavigate ?? vi.fn()}
+        onStartNewConversation={(request) => {
+          mockStartNewConversation(request);
+          const id = ++newConversationRequestId;
+          options?.onNavigate?.(
+            "agent",
+            buildHomeAgentParams({
+              projectId: request.projectId ?? undefined,
+              newChatAt: id,
+              newConversationRequest: {
+                id,
+                workspaceId: request.projectId,
+                freshDraft: request.freshDraft,
+              },
+            }),
+          );
+        }}
       />,
     );
   });

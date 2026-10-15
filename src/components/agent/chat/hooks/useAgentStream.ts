@@ -1,3 +1,4 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import {
   useCallback,
   useEffect,
@@ -231,6 +232,8 @@ export function useAgentStream(options: UseAgentStreamOptions) {
   const preparedSubmitGateRef = useRef(new AgentStreamSubmitGate());
   const submittedDraftFallbackRef =
     useRef<InterruptedInputDraftSnapshot | null>(null);
+  const composerRestoreTokenFallbackRef =
+    useRef<ComposerSubmissionRestoreToken | null>(null);
   const recoveredBindingAttemptKeyRef = useRef<string | null>(null);
   const getMessagesRef = useRef(getMessages);
   const getThreadItemsRef = useRef(getThreadItems);
@@ -472,7 +475,9 @@ export function useAgentStream(options: UseAgentStreamOptions) {
               inputCapabilityRoute: options?.capabilityRoute,
             }),
       );
-      await sendAgentStreamMessage({
+      composerRestoreTokenFallbackRef.current =
+        options?.composerRestoreToken ?? null;
+      return await sendAgentStreamMessage({
         content,
         images,
         webSearch,
@@ -506,6 +511,7 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       getThreadItems: () => getThreadItemsRef.current?.() ?? [],
       setActiveStream,
       submittedDraftFallback: submittedDraftFallbackRef.current,
+      composerRestoreTokenFallback: composerRestoreTokenFallbackRef.current,
       onRestoreInterruptedInput,
       notify: {
         info: (message) => toast.info(message),
@@ -516,6 +522,7 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       },
     });
     submittedDraftFallbackRef.current = null;
+    composerRestoreTokenFallbackRef.current = null;
   }, [
     refreshSessionReadModel,
     runtime,

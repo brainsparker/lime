@@ -69,16 +69,20 @@ describe("useWorkspaceTaskCenterDraftStateRuntime", () => {
     expect(renderHarness().shouldHydrateEmptyMatchedInitialSession).toBe(true);
   });
 
-  it("换会话重置共享草稿，匹配当前会话的 hydration 保留 revision", () => {
+  it("导航前保留草稿，实际提交后才清理 transient scope", () => {
     let resets = 0;
-    const resetComposerDraft = () => { resets += 1; };
+    const resetComposerDraft = () => {
+      resets += 1;
+    };
     const current = renderHarness({ resetComposerDraft });
-    act(() => current.handleBeforeTopicSwitch("session-history"));
-    expect(resets).toBe(0);
     act(() => current.handleBeforeTopicSwitch("session-other"));
+    expect(resets).toBe(0);
+    act(() => current.handleTopicSwitchCommitted("session-history"));
+    expect(resets).toBe(0);
+    act(() => current.handleTopicSwitchCommitted("session-other"));
     expect(resets).toBe(1);
-    current.taskCenterDraftSurfaceActiveRef.current = true;
-    act(() => current.handleBeforeTopicSwitch("session-history"));
+    current.taskCenterHomeSurfaceActiveRef.current = true;
+    act(() => current.handleTopicSwitchCommitted("session-history"));
     expect(resets).toBe(2);
   });
 
@@ -95,24 +99,10 @@ describe("useWorkspaceTaskCenterDraftStateRuntime", () => {
 
   it("从 new-task 进入 Claw 时应在绘制前清理旧草稿激活状态", () => {
     const newTaskRuntime = renderHarness({ agentEntry: "new-task" });
-    newTaskRuntime.taskCenterDraftSurfaceActiveRef.current = true;
-    act(() => {
-      newTaskRuntime.setActiveTaskCenterDraftTabId("draft-1");
-      newTaskRuntime.setTaskCenterDraftTabs([
-        {
-          id: "draft-1",
-          title: "新任务",
-          createdAt: new Date("2026-06-22T00:00:00.000Z"),
-          updatedAt: new Date("2026-06-22T00:00:00.000Z"),
-          status: "draft",
-        },
-      ]);
-    });
+    newTaskRuntime.taskCenterHomeSurfaceActiveRef.current = true;
 
     const clawRuntime = renderHarness({ agentEntry: "claw" });
 
-    expect(clawRuntime.taskCenterDraftSurfaceActiveRef.current).toBe(false);
-    expect(clawRuntime.activeTaskCenterDraftTabId).toBeNull();
-    expect(clawRuntime.taskCenterDraftTabs).toEqual([]);
+    expect(clawRuntime.taskCenterHomeSurfaceActiveRef.current).toBe(false);
   });
 });

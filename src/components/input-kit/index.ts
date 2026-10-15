@@ -5,13 +5,20 @@ export type {
 } from "./BaseComposer";
 export { ModelSelector } from "./ModelSelector";
 export type { ModelSelectorProps } from "./ModelSelector";
-export { ComposerController, LARGE_PASTE_CHAR_THRESHOLD } from "./ComposerController";
-export type { ComposerDocumentInput } from "./ComposerController";
+export {
+  ComposerController,
+  LARGE_PASTE_CHAR_THRESHOLD,
+} from "./ComposerController";
 export { ComposerEditor } from "./ComposerEditor";
-export type { ComposerEditorHandle, ComposerEditorProps } from "./ComposerEditor";
+export type {
+  ComposerEditorHandle,
+  ComposerEditorProps,
+} from "./ComposerEditor";
 export { useComposerController } from "./useComposerController";
 export type {
   ComposerControllerSnapshot,
+  ComposerControllerOptions,
+  ComposerDocumentInput,
   ComposerActions,
   ComposerAttachment,
   ComposerDocument,

@@ -1,4 +1,11 @@
 import { useTrayModelShortcuts } from "../hooks/useTrayModelShortcuts";
+import { useCallback, useMemo } from "react";
+import {
+  isRuntimeSubmissionAccepted,
+  runRuntimeSubmissionEffect,
+} from "../hooks/agentSendResult";
+import { useWorkspaceComposerDraftRuntime } from "./useWorkspaceComposerDraftRuntime";
+import { useWorkspaceComposerDraftNavigation } from "./useWorkspaceComposerDraftNavigation";
 import type { useAgentChatUnified } from "../hooks";
 import type { useWorkspaceProjectSelection } from "../hooks/useWorkspaceProjectSelection";
 import { useGeneralWorkbenchInitialDispatchRuntime } from "./useGeneralWorkbenchInitialDispatchRuntime";
@@ -52,13 +59,14 @@ export type AgentChatWorkspaceCommandScope = ReturnType<
     | "resetTopicLocalState"
     | "projectId"
     | "onBeforeTopicSwitch"
-    | "setActiveTaskCenterDraftTabId"
+    | "onAfterTopicSwitch"
+    | "composerDraftCoordinator"
+    | "getComposerDraftNavigationEpoch"
     | "setHomePendingPreviewRequest"
     | "setTaskCenterDraftSendRequest"
-    | "setTaskCenterDraftTabs"
     | "shouldHydrateEmptyMatchedInitialSession"
     | "shouldPauseInitialSessionNavigationForTaskCenterDraft"
-    | "taskCenterDraftSurfaceActiveRef"
+    | "taskCenterHomeSurfaceActiveRef"
   > &
   Omit<TrayShortcutParams, "activeTheme"> &
   CanvasMessageSyncParams &
@@ -89,6 +97,7 @@ interface UseAgentChatWorkspaceCommandWiringParams<
   consumePendingSkill: SendSurfaceParams["pendingSkill"]["consumePendingSkill"];
   pendingSkillKey: SendSurfaceParams["pendingSkill"]["key"];
   sceneGateResumeHandlerRef: SendSurfaceParams["sceneGateResumeHandlerRef"];
+  composerDraftTitle: string;
 }
 
 /** 只组合既有 command owners，不持有 runtime 或 read-model truth。 */
@@ -102,7 +111,47 @@ export function useAgentChatWorkspaceCommandWiring<
   pendingSkillKey,
   sceneGateResumeHandlerRef,
 }: UseAgentChatWorkspaceCommandWiringParams<Scope>) {
-  const taskCenterDraftState = useWorkspaceTaskCenterDraftStateRuntime(scope);
+  const workspaceId = scope.taskCenterWorkspaceId?.trim() || null;
+  const initialScope = useMemo(() => {
+    const currentSessionId = scope.sessionId?.trim();
+    if (
+      scope.normalizedInitialSessionId &&
+      scope.normalizedInitialSessionId !== currentSessionId
+    )
+      return null;
+    if (currentSessionId)
+      return { workspaceId, kind: "local" as const, id: currentSessionId };
+    if (scope.normalizedInitialSessionId) return null;
+    return { workspaceId, kind: "home" as const, id: "new-conversation" };
+  }, [workspaceId, scope.sessionId, scope.normalizedInitialSessionId]);
+  const composerDraftRuntime = useWorkspaceComposerDraftRuntime({
+    controller: scope.composerController,
+    initialScope,
+  });
+  const taskCenterDraftState = useWorkspaceTaskCenterDraftStateRuntime({
+    ...scope,
+    composerDraftCoordinator: composerDraftRuntime.composerDraftCoordinator,
+  });
+  const { handleTopicSwitchCommitted } = useWorkspaceComposerDraftNavigation({
+    newConversationRequest: scope.newConversationRequest,
+    composerDraftRuntime,
+    workspaceId,
+    projectSelectionSource: scope.projectSelectionSource,
+    normalizedInitialSessionId: scope.normalizedInitialSessionId,
+    sessionId: scope.sessionId,
+    onTopicSwitchCommitted: taskCenterDraftState.handleTopicSwitchCommitted,
+  });
+  const commitVisibleTopic = useCallback(
+    (
+      topicId: string,
+      _runtimeWorkspaceId: string | null,
+      capturedNavigationEpoch?: number,
+    ) => {
+      // 业务工作区可能仍在解析或使用默认值；草稿始终绑定当前可见工作区。
+      handleTopicSwitchCommitted(topicId, workspaceId, capturedNavigationEpoch);
+    },
+    [handleTopicSwitchCommitted, workspaceId],
+  );
   const persistence = useWorkspacePersistenceRuntime({
     ...scope,
     draftSendInFlight: Boolean(
@@ -118,6 +167,11 @@ export function useAgentChatWorkspaceCommandWiring<
   });
   const reset = useWorkspaceResetRuntime({
     ...scope,
+    composerDraftEnabled: true,
+    composerDraftCoordinator: composerDraftRuntime.composerDraftCoordinator,
+    onComposerDraftScopeCommitted:
+      composerDraftRuntime.commitComposerDraftScope,
+    composerDraftHomeWorkspaceId: workspaceId,
     resetGuideState: initialDispatch.resetGuideState,
     resetRestoredSessionState: sessionRestore.resetRestoredSessionState,
   });
@@ -125,20 +179,21 @@ export function useAgentChatWorkspaceCommandWiring<
     ...scope,
     projectId: navigationProjectId,
     onBeforeTopicSwitch: taskCenterDraftState.handleBeforeTopicSwitch,
+    onAfterTopicSwitch: commitVisibleTopic,
+    composerDraftCoordinator: composerDraftRuntime.composerDraftCoordinator,
+    getComposerDraftNavigationEpoch:
+      composerDraftRuntime.getComposerDraftNavigationEpoch,
     resetTopicLocalState: reset.resetTopicLocalState,
-    setActiveTaskCenterDraftTabId:
-      taskCenterDraftState.setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest:
       taskCenterDraftState.setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest:
       taskCenterDraftState.setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs: taskCenterDraftState.setTaskCenterDraftTabs,
     shouldHydrateEmptyMatchedInitialSession:
       taskCenterDraftState.shouldHydrateEmptyMatchedInitialSession,
     shouldPauseInitialSessionNavigationForTaskCenterDraft:
       taskCenterDraftState.shouldPauseInitialSessionNavigationForTaskCenterDraft,
-    taskCenterDraftSurfaceActiveRef:
-      taskCenterDraftState.taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef:
+      taskCenterDraftState.taskCenterHomeSurfaceActiveRef,
   });
 
   useTrayModelShortcuts({
@@ -147,6 +202,21 @@ export function useAgentChatWorkspaceCommandWiring<
   });
   useWorkspaceCanvasMessageSyncRuntime(scope);
 
+  const sendRuntimeMessage = scope.sendMessage;
+  const { getComposerDraftNavigationEpoch } = composerDraftRuntime;
+  const sendMessage = useCallback<typeof sendRuntimeMessage>(
+    async (...args) => {
+      const epoch = getComposerDraftNavigationEpoch();
+      const result = await sendRuntimeMessage(...args);
+      // 初始意图等程序化发送不经过 Composer settlement；仍提交真实可见会话。
+      if (!args[8]?.composerDraft && isRuntimeSubmissionAccepted(result))
+        runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+          commitVisibleTopic(result.receipt.sessionId, null, epoch),
+        );
+      return result;
+    },
+    [sendRuntimeMessage, getComposerDraftNavigationEpoch, commitVisibleTopic],
+  );
   const send = useWorkspaceSendSurfaceRuntime({
     imageWorkbench: scope,
     pendingSkill: {
@@ -157,6 +227,7 @@ export function useAgentChatWorkspaceCommandWiring<
     sceneGateResumeHandlerRef,
     sendActions: {
       ...scope,
+      sendMessage,
       bootstrapDispatchPreview: initialDispatch.bootstrapDispatchPreview,
       finalizeAfterSendSuccess: initialDispatch.finalizeAfterSendSuccess,
       resolveSendBoundary: initialDispatch.resolveSendBoundary,
@@ -182,6 +253,7 @@ export function useAgentChatWorkspaceCommandWiring<
 
   const compositionScope = {
     ...scope,
+    ...composerDraftRuntime,
     ...taskCenterDraftState,
     ...persistence,
     ...initialDispatch,
@@ -194,6 +266,7 @@ export function useAgentChatWorkspaceCommandWiring<
 
   return {
     compositionScope,
+    composerDraft: composerDraftRuntime,
     initialDispatch,
     persistence,
     reset,

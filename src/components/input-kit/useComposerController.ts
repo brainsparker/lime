@@ -1,10 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import {
-  ComposerController,
-  type ComposerDocumentInput,
-} from "./ComposerController";
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from "react";
+import { ComposerController } from "./ComposerController";
 import type {
   ComposerAttachment,
+  ComposerDocumentInput,
+  ComposerControllerOptions,
   ComposerMentionBinding,
   ComposerPathReference,
   ComposerSelection,
@@ -14,6 +19,7 @@ import type {
 
 export interface UseComposerControllerOptions {
   controller?: ComposerController;
+  controllerOptions?: ComposerControllerOptions;
   initialDocument?: ComposerDocumentInput;
   externalDocument?: ComposerDocumentInput;
   onDocumentChange?: (
@@ -24,13 +30,20 @@ export interface UseComposerControllerOptions {
 export function useComposerController({
   controller: externalController,
   initialDocument,
+  controllerOptions,
   externalDocument,
   onDocumentChange,
 }: UseComposerControllerOptions = {}) {
   const controllerRef = useRef<ComposerController | null>(null);
-  const controller = useMemo(() => externalController ??
-    (controllerRef.current ??= new ComposerController(initialDocument)),
-  [externalController, initialDocument]);
+  const controller = useMemo(
+    () =>
+      externalController ??
+      (controllerRef.current ??= new ComposerController(
+        initialDocument,
+        controllerOptions,
+      )),
+    [externalController, initialDocument, controllerOptions],
+  );
   const onDocumentChangeRef = useRef(onDocumentChange);
   onDocumentChangeRef.current = onDocumentChange;
   const snapshot = useSyncExternalStore(
@@ -39,9 +52,15 @@ export function useComposerController({
     controller.getSnapshot,
   );
 
-  useEffect(() => controller.subscribe(() => {
-    onDocumentChangeRef.current?.(controller.getDocument());
-  }), [controller]);
+  useEffect(() => {
+    let previous = controller.getSnapshot();
+    return controller.subscribe(() => {
+      const next = controller.getSnapshot();
+      if (next === previous) return;
+      previous = next;
+      onDocumentChangeRef.current?.(controller.getDocument());
+    });
+  }, [controller]);
   useEffect(() => {
     if (externalDocument) {
       controller.replaceDocument(externalDocument);
@@ -78,24 +97,39 @@ export function useComposerController({
     },
     [controller],
   );
-  const setTextElements = useCallback((elements: readonly ComposerTextElement[]) => {
-    controller.setTextElements(elements);
-  }, [controller]);
-  const replaceDocument = useCallback((document: ComposerDocumentInput) => {
-    controller.replaceDocument(document);
-  }, [controller]);
-  const restoreDraft = useCallback((document: ComposerDocumentInput) => {
-    controller.restoreDraft(document);
-  }, [controller]);
-  const replaceRange = useCallback((range: ComposerSelection, text: string) => {
-    controller.replaceRange(range, text);
-  }, [controller]);
-  const insertMention = useCallback((
-    binding: Omit<ComposerMentionBinding, "from" | "to">,
-    range?: ComposerSelection,
-  ) => {
-    controller.insertMention(binding, range);
-  }, [controller]);
+  const setTextElements = useCallback(
+    (elements: readonly ComposerTextElement[]) => {
+      controller.setTextElements(elements);
+    },
+    [controller],
+  );
+  const replaceDocument = useCallback(
+    (document: ComposerDocumentInput) => {
+      controller.replaceDocument(document);
+    },
+    [controller],
+  );
+  const restoreDraft = useCallback(
+    (document: ComposerDocumentInput) => {
+      controller.restoreDraft(document);
+    },
+    [controller],
+  );
+  const replaceRange = useCallback(
+    (range: ComposerSelection, text: string) => {
+      controller.replaceRange(range, text);
+    },
+    [controller],
+  );
+  const insertMention = useCallback(
+    (
+      binding: Omit<ComposerMentionBinding, "from" | "to">,
+      range?: ComposerSelection,
+    ) => {
+      controller.insertMention(binding, range);
+    },
+    [controller],
+  );
   const submit = useCallback(
     (target: ComposerSubmitTarget, allowEmpty = false) =>
       controller.submit(target, { allowEmpty }),

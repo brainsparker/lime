@@ -14,6 +14,7 @@ export interface SkillSelectionSourceProps {
   onNavigateToSettings?: () => void;
   onImportSkill?: () => void | Promise<void>;
   onRefreshSkills?: () => void | Promise<void>;
+  onSkillSuggestionsNeeded?: () => void;
 }
 
 export interface SkillSelectionControllerProps {
@@ -67,6 +68,7 @@ export function buildSkillSelectionBindings({
   onNavigateToSettings,
   onImportSkill,
   onRefreshSkills,
+  onSkillSuggestionsNeeded,
 }: SkillSelectionProps) {
   return {
     mentionProps: {
@@ -74,6 +76,7 @@ export function buildSkillSelectionBindings({
       serviceSkills,
       serviceSkillGroups,
       onNavigateToSettings,
+      onSkillSuggestionsNeeded,
     },
     selectorProps: {
       skills,

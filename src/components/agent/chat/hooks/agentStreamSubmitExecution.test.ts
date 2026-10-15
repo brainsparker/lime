@@ -118,7 +118,9 @@ describe("agentStreamSubmitExecution", () => {
   });
 
   it("provider/model 不完整时应在创建会话和 turn/start 前直接失败", async () => {
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-should-not-create");
     const runtime = {
       listenToTurnEvents: vi.fn(async () => vi.fn()),
@@ -198,7 +200,9 @@ describe("agentStreamSubmitExecution", () => {
       reasoning_effort: "medium",
     });
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-1");
     const registerListener = vi.fn();
     const activateStream = vi.fn();
@@ -303,9 +307,9 @@ describe("agentStreamSubmitExecution", () => {
           permissions: ":read-only",
         }),
       }),
+      expect.any(Function),
     );
-    const submittedOp = submitOp.mock
-      .calls[0]?.[0] as unknown as AgentUserInputOp;
+    const submittedOp = submitOp.mock.calls[0]?.[0] as AgentUserInputOp;
     for (const field of [
       "sessionId",
       "workspaceId",
@@ -341,7 +345,9 @@ describe("agentStreamSubmitExecution", () => {
   it("canonical thread 存在 active turn 时应提交 typed turn/steer", async () => {
     getModelRegistryMock.mockResolvedValueOnce([]);
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const refreshSessionReadModel = vi.fn(async () => true);
     const disposeListener = vi.fn();
     const activateStream = vi.fn();
@@ -439,7 +445,9 @@ describe("agentStreamSubmitExecution", () => {
 
   it("存在 targetSessionId 时应把 submit 绑定到指定会话", async () => {
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-materialized");
     const threadIdBySessionId = new Map<string, string>();
     const getThreadIdForSubmit = vi.fn((targetSessionId?: string) =>
@@ -555,6 +563,7 @@ describe("agentStreamSubmitExecution", () => {
           permissions: ":read-only",
         }),
       }),
+      expect.any(Function),
     );
     expect(activateStream).toHaveBeenCalledWith(
       "session-materialized",
@@ -562,9 +571,18 @@ describe("agentStreamSubmitExecution", () => {
       "thread-materialized",
     );
     const submittedOp = submitOp.mock.calls[0]?.[0] as AgentUserInputOp;
-    expect(
-      JSON.parse(submittedOp.turn.additionalContext?.metadata?.value ?? "null"),
-    ).toEqual({ harness: { content_id: "draft-content" } });
+    const metadata = submittedOp.turn.additionalContext?.metadata;
+    if (
+      !metadata ||
+      typeof metadata !== "object" ||
+      !("value" in metadata) ||
+      typeof metadata.value !== "string"
+    ) {
+      throw new Error("Expected application metadata string");
+    }
+    expect(JSON.parse(metadata.value)).toEqual({
+      harness: { content_id: "draft-content" },
+    });
   });
 
   it("图片输入不满足 selected model input_modalities 时不应调用 runtime submitOp", async () => {
@@ -576,7 +594,9 @@ describe("agentStreamSubmitExecution", () => {
     ]);
 
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-1");
     const registerListener = vi.fn();
     const activateStream = vi.fn();
@@ -692,7 +712,9 @@ describe("agentStreamSubmitExecution", () => {
     ]);
 
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-1");
     const registerListener = vi.fn();
     const activateStream = vi.fn();
@@ -777,8 +799,7 @@ describe("agentStreamSubmitExecution", () => {
 
     expect(submitOp).toHaveBeenCalledTimes(1);
     expect(getModelRegistryMock).toHaveBeenCalledWith({ forceRefresh: true });
-    const submittedOp = submitOp.mock
-      .calls[0]?.[0] as unknown as AgentUserInputOp;
+    const submittedOp = submitOp.mock.calls[0]?.[0] as AgentUserInputOp;
     expect(submittedOp).toMatchObject({
       type: "user_input",
       eventName: "event-image-allowed",
@@ -849,7 +870,9 @@ describe("agentStreamSubmitExecution", () => {
     ]);
 
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const runtime = {
       listenToTurnEvents: vi.fn(async () => unlisten),
       getThreadTurnControl: vi.fn(async (threadId: string) =>
@@ -942,8 +965,7 @@ describe("agentStreamSubmitExecution", () => {
     });
 
     expect(submitOp).toHaveBeenCalledTimes(1);
-    const submittedOp = submitOp.mock
-      .calls[0]?.[0] as unknown as AgentUserInputOp;
+    const submittedOp = submitOp.mock.calls[0]?.[0] as AgentUserInputOp;
     expect(submittedOp).toMatchObject({
       type: "user_input",
       eventName: "event-target-model",
@@ -967,7 +989,9 @@ describe("agentStreamSubmitExecution", () => {
   it("已接受用户 Turn 后 ThreadGoal 写入失败不应伪装成提交失败", async () => {
     const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const unlisten = vi.fn();
-    const submitOp = vi.fn(async () => {});
+    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+      turn: { id: "turn-start", status: "inProgress" as const },
+    }));
     const ensureSession = vi.fn(async () => "session-1");
     const registerListener = vi.fn();
     const activateStream = vi.fn();
@@ -1061,6 +1085,7 @@ describe("agentStreamSubmitExecution", () => {
           permissions: ":read-only",
         }),
       }),
+      expect.any(Function),
     );
     expect(activateStream).toHaveBeenCalled();
   });

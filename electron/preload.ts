@@ -1,3 +1,4 @@
+import { canBroadcastRendererEvent } from "./rendererEventPolicy";
 import { contextBridge, ipcRenderer } from "electron";
 import {
   ELECTRON_HOST_COMMANDS,
@@ -62,9 +63,13 @@ contextBridge.exposeInMainWorld("electronAPI", {
     };
   },
   emit: async (event: string, payload?: unknown) => {
+    if (!canBroadcastRendererEvent(event))
+      throw new Error("Renderer event is not allowed");
     ipcRenderer.send(IPC_EMIT_CHANNEL, event, payload);
   },
   send: (event: string, payload?: unknown) => {
+    if (!canBroadcastRendererEvent(event))
+      throw new Error("Renderer event is not allowed");
     ipcRenderer.send(IPC_EMIT_CHANNEL, event, payload);
   },
   convertFileSrc: (filePath: string, protocol = "file") => {
@@ -77,8 +82,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
     return `${protocol}://${encodeURIComponent(filePath)}`;
   },
   dialog: {
-    open: (options?: unknown) => ipcRenderer.invoke(IPC_DIALOG_OPEN_CHANNEL, options),
-    save: (options?: unknown) => ipcRenderer.invoke(IPC_DIALOG_SAVE_CHANNEL, options),
+    open: (options?: unknown) =>
+      ipcRenderer.invoke(IPC_DIALOG_OPEN_CHANNEL, options),
+    save: (options?: unknown) =>
+      ipcRenderer.invoke(IPC_DIALOG_SAVE_CHANNEL, options),
   },
   shell: {
     open: (target: string, openWith?: string) =>
@@ -154,6 +161,9 @@ function normalizeEvent(event: string, payload: unknown): unknown {
   return { event, payload };
 }
 
-function invokeWindow<T = void>(command: string, ...args: unknown[]): Promise<T> {
+function invokeWindow<T = void>(
+  command: string,
+  ...args: unknown[]
+): Promise<T> {
   return ipcRenderer.invoke(IPC_WINDOW_COMMAND_CHANNEL, command, ...args);
 }

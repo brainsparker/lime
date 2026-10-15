@@ -4,6 +4,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { EmptyStateComposerPanel } from "./EmptyStateComposerPanel";
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
 import {
   buildSkillSelectionProps,
   type SkillSelectionProps,
@@ -30,18 +31,21 @@ vi.mock("./ChatModelSelector", () => ({
   ChatModelSelector: () => <div data-testid="empty-state-model-selector" />,
 }));
 
-export const mockEmptyStateCharacterMention = vi.fn<
-  (props: {
-    onSelectPlugin?: (
-      plugin: InputbarPluginCapability,
-      skill?: InputbarPluginSkillCapability,
-      options?: InputbarPluginSelectionOptions,
-    ) => void;
-  }) => React.ReactNode
->();
+export const mockEmptyStateCharacterMention =
+  vi.fn<
+    (props: {
+      onSkillSuggestionsNeeded?: () => void;
+      onSelectPlugin?: (
+        plugin: InputbarPluginCapability,
+        skill?: InputbarPluginSkillCapability,
+        options?: InputbarPluginSelectionOptions,
+      ) => void;
+    }) => React.ReactNode
+  >();
 
 vi.mock("../skill-selection/CharacterMention", () => ({
   CharacterMention: (props: {
+    onSkillSuggestionsNeeded?: () => void;
     onSelectPlugin?: (
       plugin: InputbarPluginCapability,
       skill?: InputbarPluginSkillCapability,
@@ -208,7 +212,7 @@ export function renderPanel(
     input: "",
     setInput: vi.fn(),
     placeholder: "输入内容",
-    onSend: vi.fn(),
+    onSend: vi.fn(async () => acceptedSubmission()),
     activeTheme: "general",
     providerType: "openai",
     setProviderType: vi.fn(),
@@ -277,7 +281,7 @@ export function renderStatefulPanel(
         input={input}
         setInput={setInput}
         placeholder="输入内容"
-        onSend={vi.fn()}
+        onSend={vi.fn(async () => acceptedSubmission())}
         activeTheme="general"
         providerType="openai"
         setProviderType={vi.fn()}

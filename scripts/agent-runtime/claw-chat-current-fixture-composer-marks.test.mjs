@@ -10,12 +10,14 @@ import {
   takeComposerCodeKeyboardEventsDom,
   summarizeComposerCodeBoundary,
   summarizeComposerMarksCancel,
+  placeComposerCodeCaretAtEndDom,
+  buildComposerMarksScenarioAssertions,
 } from "./claw-chat-current-fixture-composer-marks.mjs";
 
 const PROMPT =
   "请结合这个截图、文件和 Capability Report 技能，先不要输出正文。";
 const PASTE = "历史粘贴验证😀\n".repeat(180);
-const BODY = "  中😀\n````";
+const BODY = "  const value = '中😀';\n````";
 const EXPECTED_MARKS = {
   links: [
     {
@@ -30,13 +32,14 @@ const EXPECTED_MARKS = {
   ],
   codeBlocks: [
     {
-      language: "ts",
+      language: "typescript",
       body: `${BODY}\n\n`,
       validStructure: true,
       hardBreakCount: 0,
+      keywordTokens: ["const"],
     },
   ],
-  blockTags: ["P", "P", "PRE", "P"],
+  blockTags: ["P", "P", "DIV", "P"],
 };
 
 function oracle() {
@@ -104,8 +107,17 @@ function editor() {
   node.setAttribute("data-session-id", "marks-session");
   node.setAttribute("contenteditable", "true");
   node.innerHTML =
-    '<p>prompt</p><p><span text-link-href="https://example.invalid/marks" text-link-title="标题" role="link" aria-disabled="false">中😀</span></p><pre data-composer-code-block=""><code data-language="ts"></code></pre><p>tail</p>';
-  node.querySelector("code").textContent = BODY + "\n\n";
+    '<p>prompt</p><p><span text-link-href="https://example.invalid/marks" text-link-title="标题" role="link" aria-disabled="false">中😀</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">TypeScript</div><pre dir="ltr"><code class="hljs language-typescript"></code></pre></div><p>tail</p>';
+  const code = node.querySelector("code");
+  code.append(document.createTextNode("  "));
+  const keyword = document.createElement("span");
+  keyword.className = "hljs-keyword";
+  keyword.textContent = "const";
+  code.append(keyword, document.createTextNode(" value = "));
+  const string = document.createElement("span");
+  string.className = "hljs-string";
+  string.textContent = "'中😀'";
+  code.append(string, document.createTextNode(";\n````\n\n"));
   document.body.append(node);
   vi.spyOn(node, "getClientRects").mockReturnValue([{}]);
   return node;
@@ -123,27 +135,29 @@ describe("independent marks Markdown/UTF8 fixture", () => {
     const expected = oracle();
     expect(expected.marks).toEqual(EXPECTED_MARKS);
     expect(expected.text).toContain(
-      '[中😀](https://example.invalid/marks "标题")\n`````ts\n  中😀\n````\n\n\n`````\n尾中😀 ',
+      "[中😀](https://example.invalid/marks \"标题\")\n`````typescript\n  const value = '中😀';\n````\n\n\n`````\n尾中😀 ",
     );
     const bytes = Buffer.from(expected.text, "utf8");
-    expect(bytes.length).toBe(4361);
+    expect(bytes.length).toBe(4386);
     expect(expected.textElements).toEqual([
       {
-        byteRange: { start: 197, end: 4337 },
+        byteRange: { start: 222, end: 4362 },
         placeholder: "[Pasted text 1: 1620 characters]",
       },
       {
-        byteRange: { start: 4338, end: 4361 },
+        byteRange: { start: 4363, end: 4386 },
         placeholder: "/user:capability-report",
       },
     ]);
     expect(
-      createHash("sha256").update(bytes.subarray(197, 4337)).digest("hex"),
+      createHash("sha256").update(bytes.subarray(222, 4362)).digest("hex"),
     ).toBe("efe7ffb00ece5294d1cd2b7cac4533861af4b728d7988212acc3a9551b98cb0a");
-    expect(bytes.subarray(4338, 4361).toString("utf8")).toBe(
+    expect(bytes.subarray(4363, 4386).toString("utf8")).toBe(
       "/user:capability-report",
     );
-    expect(expected.displayText).toContain("中😀\n  中😀\n````\n\n\n尾中😀");
+    expect(expected.displayText).toContain(
+      "中😀\n  const value = '中😀';\n````\n\n\n尾中😀",
+    );
     expect(expected.displayText).not.toContain("https://");
   });
 });
@@ -171,6 +185,10 @@ describe("actual rendered marks semantics", () => {
     "wrapper",
     "missing-link",
     "missing-code",
+    "old-dom",
+    "multiple-languages",
+    "fake-highlight",
+    "toolbar-body",
   ])("observes %s drift that plain text would hide", (mode) => {
     const node = editor();
     const link = node.querySelector("span");
@@ -182,7 +200,19 @@ describe("actual rendered marks semantics", () => {
     if (mode === "generated")
       link.setAttribute("data-rich-text-generated-autolink", "true");
     if (mode === "disabled") link.setAttribute("aria-disabled", "true");
-    if (mode === "language") code.setAttribute("data-language", "js");
+    if (mode === "language") code.className = "hljs language-javascript";
+    if (mode === "multiple-languages")
+      code.classList.add("language-javascript");
+    if (mode === "fake-highlight")
+      code.querySelector(".hljs-keyword").className = "hljs-string";
+    if (mode === "toolbar-body")
+      code.prepend(document.createTextNode("TypeScript"));
+    if (mode === "old-dom") {
+      const pre = code.parentElement;
+      pre.setAttribute("data-composer-code-block", "true");
+      code.setAttribute("data-language", "typescript");
+      pre.parentElement.replaceWith(pre);
+    }
     if (mode === "body") code.textContent = code.textContent.trim();
     if (mode === "hard_break") code.append(document.createElement("br"));
     if (mode === "wrapper") code.innerHTML = "<span>  中😀\n````\n\n</span>";
@@ -221,15 +251,28 @@ describe("actual rendered marks semantics", () => {
 });
 
 describe("passive code keyboard evidence", () => {
+  it("places caret at the final actual text leaf across nested highlight spans", () => {
+    const node = editor();
+    const code = node.querySelector("code");
+    const nested = document.createElement("span");
+    nested.className = "hljs-string";
+    nested.innerHTML = '<span class="hljs-subst"></span>';
+    nested.firstChild.textContent = code.lastChild.nodeValue;
+    code.lastChild.replaceWith(nested);
+    placeComposerCodeCaretAtEndDom(node);
+    expect(window.getSelection().anchorNode).toBe(nested.firstChild.firstChild);
+    expect(window.getSelection().anchorOffset).toBe(
+      nested.firstChild.textContent.length,
+    );
+    expect(readComposerMarksDom(node)).toEqual(EXPECTED_MARKS);
+  });
   it("observes consumed keys after the EditorView handler and keeps synthetic trust false", () => {
     const node = editor();
     node.focus();
-    const text = node.querySelector("code").firstChild;
-    const range = document.createRange();
-    range.setStart(text, text.length);
-    range.collapse(true);
-    window.getSelection().removeAllRanges();
-    window.getSelection().addRange(range);
+    placeComposerCodeCaretAtEndDom(node);
+    const text = node.querySelector("code").lastChild;
+    expect(window.getSelection().anchorNode).toBe(text);
+    expect(window.getSelection().anchorOffset).toBe(text.nodeValue.length);
     node.addEventListener("keydown", (event) => event.preventDefault());
     installComposerCodeKeyboardObserverDom(node);
     for (const shiftKey of [false, true])
@@ -379,4 +422,25 @@ describe("cancel restoration independent semantics", () => {
       expect(summarizeComposerMarksCancel(evidence).ok).toBe(false);
     },
   );
+});
+
+describe("rich fixture language Picker summary", () => {
+  it("cannot accept marks preparation without the editing-only Picker boundary", () => {
+    const summary = {
+      inputbarRichRestoreDraftPrepared: {
+        marks: { preparation: { ok: true }, codeBoundary: { ok: true } },
+      },
+    };
+    expect(
+      buildComposerMarksScenarioAssertions(summary)
+        .inputbarRichRestoreCodePickerEditingOnly,
+    ).toBe(false);
+    summary.inputbarRichRestoreDraftPrepared.marks.pickerBoundary = {
+      ok: true,
+    };
+    expect(
+      buildComposerMarksScenarioAssertions(summary)
+        .inputbarRichRestoreCodePickerEditingOnly,
+    ).toBe(true);
+  });
 });

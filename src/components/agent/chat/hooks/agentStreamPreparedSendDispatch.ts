@@ -12,7 +12,7 @@ export async function dispatchPreparedAgentStreamSend(
 ) {
   const { preparedSend, env } = options;
 
-  await env.runPreparedSubmit(() =>
+  return await env.runPreparedSubmit(() =>
     submitAgentStreamUserInput({
       preparedSend,
       env,

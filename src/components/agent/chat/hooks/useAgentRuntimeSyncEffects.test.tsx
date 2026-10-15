@@ -716,20 +716,16 @@ describe("useAgentRuntimeSyncEffects", () => {
       id: 1,
       result: {
         turn: {
-          turnId: "turn-1",
-          sessionId: "session-1",
-          threadId: "thread-1",
-          status: "accepted",
+          id: "turn-1",
+          status: "inProgress",
         },
       },
       response: {
         id: 1,
         result: {
           turn: {
-            turnId: "turn-1",
-            sessionId: "session-1",
-            threadId: "thread-1",
-            status: "accepted",
+            id: "turn-1",
+            status: "inProgress",
           },
         },
       },
@@ -763,6 +759,8 @@ describe("useAgentRuntimeSyncEffects", () => {
     };
     const harness = await mountHook({
       runtime,
+      sessionId: "thread-1",
+      sessionIdRef: { current: "thread-1" },
       currentTurnEventName: eventName,
       isSending: true,
       refreshSessionDetail,
@@ -812,7 +810,7 @@ describe("useAgentRuntimeSyncEffects", () => {
 
       expect(refreshSessionDetail).toHaveBeenCalledTimes(1);
       expect(refreshSessionDetail).toHaveBeenCalledWith(
-        "session-1",
+        "thread-1",
         terminalRefreshRequest("runtimeSync.event"),
       );
       expect(refreshSessionReadModel).not.toHaveBeenCalled();

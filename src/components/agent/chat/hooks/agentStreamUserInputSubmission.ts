@@ -36,6 +36,7 @@ export async function submitAgentStreamUserInput(
     assistantDraft,
     targetSessionId,
     submittedDraft,
+    composerRestoreToken,
     inputMentions,
     composerSubmission,
     skipSessionRestore,
@@ -51,6 +52,7 @@ export async function submitAgentStreamUserInput(
     userMsg,
     content,
     submittedDraft,
+    composerRestoreToken,
     listenerMapRef: env.listenerMapRef,
     setActiveStream: env.setActiveStream,
     setMessages: env.setMessages,
@@ -78,7 +80,7 @@ export async function submitAgentStreamUserInput(
   } = lifecycle;
 
   try {
-    await executeAgentStreamSubmit({
+    return await executeAgentStreamSubmit({
       runtime: env.runtime,
       ensureSession: env.ensureSession,
       attemptSilentTurnRecovery: env.attemptSilentTurnRecovery,

@@ -91,6 +91,20 @@
       "server_name": "rea",
       "server_version": "6.4.0",
       "tools_list_count": 170
+    },
+    "registrationRecovery": {
+      "date": "2026-10-14",
+      "reason": "Codex MCP stanza missing after external config cleanup",
+      "status": "healthy",
+      "explicitNode": "24.21.0",
+      "setupBackup": "/Users/coso/.codex/config.toml.rea.backup",
+      "node24Backup": "/Users/coso/.codex/config.toml.rea-node24-20261014-220306.backup",
+      "nonReaSettingsPreserved": true,
+      "mcpProbe": {
+        "server": "rea/6.4.0",
+        "tools": 170
+      },
+      "currentAgentTableRefreshed": false
     }
   },
   "artifact_selection": {
@@ -5825,5 +5839,1078 @@
       "Bare $skill/@name auto-detection, lower plain-text decoration branches, all escaped syntax, URL normalization and other surface behavior not exhausted.",
       "Clipboard attribute preservation across selection/HTML transforms, reinsertion, historical typed arrays and runtime skill identity are not proven."
     ]
+  },
+  "composer_code_nodeview_focused_analysis": {
+    "date": "2026-10-14",
+    "document": "internal/research/codex-desktop-rea/composer-code-nodeview-audit.md",
+    "localEvidenceDirectory": ".lime/qc/composer-code-nodeview-audit",
+    "localArtifactStatus": "historical-originals-missing; user removed .lime on 2026-10-14",
+    "manifestSha256": "4900789dbf397cb72fdc01dd727aa85e05de4456b9a4852f49380f987501bf41",
+    "originalUtf16Anchors": 86,
+    "artifacts": 23,
+    "reaEvidenceIds": [
+      "ev_bf209739980b2025edc530e2be3a7758959de28623928c7cb1af33d1ce38308f"
+    ],
+    "evidenceLevel": "shipped-artifact structural + original-member ordinary AST",
+    "reaSemantic": "unknown",
+    "runtimeValidation": "not-run",
+    "productStatus": "formal input-kit source applied; directed tests, fresh rich Electron Gate, current aggregate 22/22 and combined frontend/default GUI smoke passed for the recorded source lineage; later persistence source requires separate pending product gates",
+    "referenceIdentity": "target and ASAR identity unchanged"
+  },
+  "composer_code_highlight_focused_analysis": {
+    "date": "2026-10-14",
+    "document": "internal/research/codex-desktop-rea/composer-code-highlight-audit.md",
+    "localEvidenceDirectory": ".lime/qc/composer-code-highlight-audit",
+    "localArtifactStatus": "historical-originals-missing; user removed .lime on 2026-10-14",
+    "manifestSha256": "35c932d1fb359d22320772c90587c429fadceb5cf94fe1b8f52c5efd46580cd7",
+    "originalUtf16Anchors": 81,
+    "artifacts": 15,
+    "reaEvidenceIds": [
+      "ev_32f87b5f925c87d58fbcfc530fbc03bc33536ab477882f98e9e2a9a70bbb150f"
+    ],
+    "evidenceLevel": "shipped-artifact structural + original-member ordinary AST",
+    "reaSemantic": "unknown",
+    "runtimeValidation": "not-run",
+    "productStatus": "formal input-kit source applied; directed tests, fresh rich Electron Gate, current aggregate 22/22 and combined frontend/default GUI smoke passed for the recorded source lineage; later persistence source requires separate pending product gates",
+    "referenceIdentity": "target and ASAR identity unchanged"
+  },
+  "local_artifact_retention": {
+    "checked_date": "2026-10-14",
+    "event": "User removed repository .lime directory to reclaim disk space and authorized continuing.",
+    "deleted_root": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/.lime",
+    "status": "historical-originals-missing",
+    "affected": [
+      "Composer focused manifests",
+      "isolated candidates",
+      "renderer/Host freeze manifests",
+      "screenshots",
+      "test resume state"
+    ],
+    "remaining_logs": [
+      "/tmp/lime-composer-marks-dictation-current-fixture.log",
+      "/tmp/lime-composer-marks-dictation-verify-local-node24-locale-resume.log"
+    ],
+    "recovery_root": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-code-nodeview-recovery-oulq764w",
+    "recovery_policy": "Recover only required owned source from structured tool writes; take new baseline hashes and rerun checks. Historical hashes do not attest restored files."
+  },
+  "composer_code_formal_migration": {
+    "date": "2026-10-14",
+    "sourceManifest": ".lime/qc/composer-code-nodeview/formal-source-before-gate.json",
+    "sourceManifestSha256": "d954ae8af04b5779f7c8344222b1a5571ce4918d46f2b168600d51d94fc4eda7",
+    "sourcePaths": 45,
+    "dependencyLock": "pnpm-lock.yaml",
+    "exactDependencies": {
+      "lowlight": "3.3.0",
+      "highlight.js": "11.11.1",
+      "jsonc-parser": "3.3.1"
+    },
+    "fixtureTests": {
+      "files": 6,
+      "passed": 189
+    },
+    "toolbarAndActualEditorTests": {
+      "files": 4,
+      "passed": 41,
+      "realLocales": 5
+    },
+    "consumerTests": {
+      "files": 6,
+      "passed": 141
+    },
+    "buildFreshnessGuard": {
+      "red": 2,
+      "green": 30
+    },
+    "freshElectronGate": {
+      "status": "passed",
+      "scenario": "inputbar-rich-restore",
+      "assertions": 74,
+      "falseAssertions": 0,
+      "summary": ".lime/qc/composer-code-nodeview/rich-1/composer-code-nodeview-rich-1-summary.json",
+      "summarySha256": "4b2835ea164dd9d3a90850091e8b507fe9325edda9a89bbe69c50a0d5d3a45a8",
+      "receipt": ".lime/qc/composer-code-nodeview/rich-1-receipt.json",
+      "receiptSha256": "16dfd94468a396c3663763a5743d44b4ef0be82b68d299d8265ab5062cf2b106",
+      "artifactManifest": {
+        "path": ".lime/qc/composer-code-nodeview/renderer-host-artifacts-rich-1.json",
+        "files": 464,
+        "sha256": "f80031ae9984bd3e88395adf8840e362e9f8bc107159f5e2a1090d5509467c9f"
+      },
+      "controlledBackend": "external",
+      "liveProvider": false,
+      "systemIme": "not-run",
+      "windows": "not-run"
+    },
+    "defaultVerification": "passed combined prechecks + frontend resume 127/127 batches + standard GUI smoke; original verify:local wrappers remain exit1",
+    "referenceRuntime": "not-run",
+    "currentFixtureAggregate": {
+      "status": "passed",
+      "exitCode": 0,
+      "electronScenes": 22,
+      "assertions": 1476,
+      "receipt": ".lime/qc/composer-code-nodeview/current-aggregate-final-receipt.json",
+      "receiptSha256": "a678fc058cc0fa4cc9e2aa57c35ed7ebfe5693004afcca5339211c999d67e86b",
+      "artifactFilesVerified": 464,
+      "artifactDrift": 0,
+      "identitySource": "Each common gateBContract.identity.sources; dedicated coding-workbench accepted/recovery identity. Top-level initial session is not substituted.",
+      "limitations": "Controlled external/runtime fixture scenes only; dedicated coding summary has no common legacy/mock count fields. No reference runtime, live provider, Windows, OS IME or microphone verification."
+    },
+    "sourceLineage": {
+      "manifest": ".lime/qc/composer-code-nodeview/formal-source-before-resume-2.json",
+      "sha256": "f1a4c8cf4c9484519aae998881c5d0e21c65c07b350d5bf17414ba40afa5353d",
+      "files": 47,
+      "original45Drift": 0,
+      "additionalPaths": [
+        "scripts/agent-runtime/claw-chat-current-fixture-composer-marks-renderer.test.mjs",
+        "scripts/agent-runtime/claw-chat-current-fixture-rich-input-evidence.test.mjs"
+      ]
+    },
+    "latestSourceLineage": {
+      "manifest": ".lime/qc/composer-code-nodeview/formal-source-before-resume-4.json",
+      "sha256": "e6a7d7f65395ca778b995a6f1afc4c26fab1df1f77c36b7800b962e3f7660381",
+      "files": 54,
+      "deletedPaths": [
+        "src/components/settings-v2/agent/voice/useAutoDismissMessage.ts"
+      ],
+      "nodeView47SourceDrift": 0,
+      "exception": "Settings auto-dismiss lifecycle defect fixed in one shared owner; test-only hoisted React imports made local to mock factories."
+    },
+    "standardGuiSmoke": {
+      "status": "passed",
+      "command": "npm run verify:gui-smoke",
+      "exitCode": 0,
+      "runId": "standalone-nodeview-timer-20261014-2130",
+      "receipt": ".lime/qc/composer-code-nodeview/gui-smoke-timer-final-receipt.json",
+      "receiptSha256": "695cb593848ccba3d8085b04f5f54af6e6de0cb9a54fc343f9422e9c59a5e8a1",
+      "artifactFiles": 464,
+      "boundary": "Real Electron shell, reload, preload IPC, App Server, three sizes and memory settings; no provider turn or reference pixel parity. Independent build identity from earlier rich/current evidence."
+    },
+    "defaultCombinedReceipt": {
+      "path": ".lime/qc/composer-code-nodeview/default-combined-final-receipt.json",
+      "sha256": "7078735e6eeb6550608256d965113ed7271ef63c9fc092bdac63d73f19e8228b",
+      "frontendBatches": 127,
+      "frontendFiles": 1713,
+      "sourceFilesVerified": 54,
+      "artifactFilesVerified": 464,
+      "drift": 0
+    },
+    "sliceStatus": "implemented and verified; whole GUI alignment remains partial"
+  },
+  "composer_persistence_formal_migration": {
+    "date": "2026-10-14",
+    "status": "foundation and same-atom index formally verified; GUI owner/root scope navigation source adopted with directed regression; GUI cold restoration and three-send product gates pending",
+    "statusCheckedDate": "2026-10-15",
+    "sourceCount": 37,
+    "migrationManifestSha256": "c897066cd966bca4c817031b0909a06ec743dca75213a625ef780f3a6a9098a5",
+    "patchSha256": "d60359b76a609ebec3258dd4a82de1c76cfcb732a1f765b5874b0a8da4547f2c",
+    "overlays": [
+      "reference rename retry 100/200/400ms",
+      "driver self-owned test temp roots"
+    ],
+    "compatibilityPaths": 0,
+    "rootArchitectureConfirmation": "2026-10-14; Host UI persistence separated from App Server canonical facts",
+    "foundationReceipt": {
+      "path": ".lime/qc/composer-persistence/foundation-final-receipt.json",
+      "sha256": "ef8ed5e08e98557448897860736088a55da3b7afb32ca680715855836ac9f268",
+      "normalExitPids": [96100, 96356],
+      "savedRevision": 7,
+      "cases": 15,
+      "ipcCalls": 36,
+      "nativeMetadataEvents": 7,
+      "runtimeGate": false,
+      "guiDraftRestoration": false
+    },
+    "indexMigration": {
+      "sourcesChanged": 23,
+      "manifestSha256": "4488863763d3eb060862b375e2d72693d2153bd45abe2d0eb7eaa39702da29db",
+      "sourceManifest": ".lime/qc/composer-persistence/index-formal-sources.json",
+      "sourceManifestSha256": "919b5998951a343c6dba5b77ae6fa2a7249c93b61e9dd93aff17ecaa5ae873c6",
+      "sourceCount": 42,
+      "status": "formal directional/contracts/typecheck/lint/standard Electron smoke/public IPC restart passed",
+      "oldReadWire": "deleted, no compatibility branch"
+    },
+    "indexReceipt": {
+      "path": ".lime/qc/composer-persistence/index-final-receipt.json",
+      "sha256": "411ba2f4f4d59805b635780f9f2ba89ee177f8a8bd9e070766da21f3c48ef941",
+      "tests": {
+        "files": 20,
+        "passed": 439
+      },
+      "normalExitPids": [24613, 25004],
+      "cases": 21,
+      "savedRevision": 10,
+      "ipcInvocations": 46,
+      "nativeMetadataEvents": 10,
+      "workspaceIndexSnapshots": "current/other/null before and after restart equal at same revision",
+      "runtimeGate": false,
+      "guiDraftRestoration": false
+    }
+  },
+  "composer_gui_draft_formal_wiring": {
+    "date": "2026-10-14",
+    "status": "formal root navigation and TaskCenter send wiring verified with directed regressions and fresh desktop shell smoke; real rich draft cold restoration/current/default product gates in progress",
+    "statusCheckedDate": "2026-10-15",
+    "namingBoundary": "Coordinator/Runtime/Navigation/Index/Status are Lime owner names. Reference atom keys, member identities and bounded field/method anchors are confirmed; original developer symbols, full GUI semantic equivalence and reference runtime remain unknown.",
+    "referenceEvidenceId": "ev_6ac3324c94242434149d9b820ee6cecdc0165021adadac0bdca91254ab787c29",
+    "sendAdoption": ".lime/qc/composer-persistence/send-coordinator-formal-adoption.json",
+    "restoreAdoption": ".lime/qc/composer-persistence/restore-token-formal-adoption.json",
+    "navigationAdoption": ".lime/qc/composer-persistence/navigation-formal-adoption.json",
+    "formalTests": [
+      {
+        "path": ".lime/qc/composer-persistence/gui-owner-formal-tests.json",
+        "passed": 48,
+        "sha256": "f07f7420afbe8ee13bf5beaf5c485700213c5e5f36ad3d23230093d4da70598f"
+      },
+      {
+        "path": ".lime/qc/composer-persistence/gui-navigation-reset-formal-tests.json",
+        "passed": 45,
+        "sha256": "6a8874b5bfeb2f14b707ce1076219d47994eea4917532ec9f70fb58e137d87e4"
+      },
+      {
+        "path": ".lime/qc/composer-persistence/gui-send-flow-formal-tests.json",
+        "passed": 283,
+        "sha256": "5bc79acbeaa329ae34a8fd8a74ff0dfb2760f32daa4f654ac3f8f7a4242d9a69"
+      },
+      {
+        "path": ".lime/qc/composer-persistence/gui-consumer-page-first-tests.json",
+        "passed": 41,
+        "sha256": "3dcbaa05f2a7ebe1e9d6b2ab0b97a25ccdcc91cb0d923a2099597e6858ede865"
+      },
+      {
+        "path": ".lime/qc/composer-persistence/gui-owner-guard-formal-tests.json",
+        "passed": 15,
+        "sha256": "6e3dddd72a97141d1796bcd9ef36115014810de92fcdd8c7141162be62129b51"
+      },
+      {
+        "path": ".lime/qc/composer-persistence/gui-pending-lane-final-tests.json",
+        "passed": 9,
+        "sha256": "4f1aecfe90790e772eddc276d8b2ab334dd153ccabb7785ccc4bf13dd83650e8"
+      }
+    ],
+    "countsAreOverlapping": true,
+    "guiGate": "pending",
+    "defaultGate": "resume5 passed26–54, batch55 controlled fixture exact registration fixed; resume6 passed55–64, batch65 obsolete session alias prompt-history guard migrated to canonical accepted receipt; resume7 running",
+    "architectureConfirmedBy": "root",
+    "classification": {
+      "current": [
+        "Controller document",
+        "Workspace committed scope runtime",
+        "Workspace project/topic draft navigation",
+        "Same-atom workspace-index metadata discovery",
+        "Coordinator renderer save queue",
+        "PersistedAtomHost/Store/File",
+        "typed runtime acceptance",
+        "opaque UI restore token"
+      ],
+      "compat": [],
+      "deleted": [
+        "boolean acceptance guessing",
+        "navigation eager document clear",
+        "scope-only read contract"
+      ]
+    },
+    "directedAndShellReceipt": {
+      "path": ".lime/qc/composer-persistence/gui-directed-shell-receipt.json",
+      "sha256": "3bf8e272135c9257000714ec13c4c9e45191a78dea3a29ba41ced9d7b957231b"
+    },
+    "taskCenterSendRegression": {
+      "uniqueCases": 73,
+      "singleFullRun": false
+    },
+    "standardGuiSmoke": {
+      "status": "pass",
+      "runId": "standalone-composer-stop-tab-20261015-1",
+      "path": ".lime/qc/composer-persistence/gui-stop-tab-standard/summary.json",
+      "sha256": "2957baed7bdfebe069e4b5332cf5b695ed7b72b30e7e50f477b3558bf69dc82c",
+      "boundary": "real shell/preload/IPC/AppServer/reload/three sizes/settings; no rich restore, first-send or cold draft selection claim"
+    },
+    "realDraftGuiFailures": [
+      {
+        "runId": "composer-draft-local-20261015-1",
+        "normalExitPid": 99745,
+        "result": "fail",
+        "reason": "fixture contract investigation; not counted as Gate B"
+      },
+      {
+        "runId": "composer-draft-local-20261015-2",
+        "normalExitPid": 13174,
+        "result": "fail",
+        "reason": "catalog mention key incorrectly used for installed skill execution key"
+      },
+      {
+        "runId": "composer-draft-local-20261015-3",
+        "normalExitPid": 19701,
+        "result": "fail",
+        "reason": "sidebar fixture navigation; later exact-row investigation"
+      },
+      {
+        "runId": "composer-draft-local-20261015-4",
+        "normalExitPid": 29741,
+        "result": "fail",
+        "reason": "workspace/session name collision selected project header; exact native sidebar row migration"
+      },
+      {
+        "runId": "composer-draft-local-20261015-5",
+        "result": "preflight-fail",
+        "electronLaunched": false,
+        "reason": "freshness fail closed after typed page fixture update"
+      },
+      {
+        "runId": "composer-draft-local-20261015-6",
+        "result": "fail",
+        "normalExitPid": 75925,
+        "reason": "other opened project group visible but canonical conversations filtered to active project; actual product scope fix directed 71/71, fresh build/rerun pending"
+      }
+    ],
+    "fixtureContractCorrections": [
+      "opaque scopeVersion string; no ordering",
+      "scope read null after consume; real disk parsed tombstone for captured identity",
+      "installed execution key and mention catalog ID remain distinct"
+    ],
+    "currentRichGate": {
+      "status": "second lifecycle fix formally adopted with runtime red-green regression; fresh real GUI rerun pending",
+      "reason": "previous failure: Stop advanced Controller revision and invalidated strict restore token",
+      "path": ".lime/qc/composer-persistence/current-rich/claw-chat-current-fixture-summary.json",
+      "regression": "actual Inputbar/EmptyState receipt/revision red→green; both production Stop handlers now only invoke onStop",
+      "fix": "remove unused Controller interrupt submit from Inputbar and EmptyState; preserve strict identity/revision/scope restore guard",
+      "formalReceipt": {
+        "path": ".lime/qc/composer-persistence/stop-and-runtime-fixture-formal-receipt.json",
+        "sha256": "3b74ad732cedb736c294cb80164f8bf5270840a8c24818efe62451fcbb50f66f"
+      },
+      "latestFailure": {
+        "path": ".lime/qc/composer-persistence/current-rich-stop-fixed/composer-stop-fixed-20261015-1-summary.json",
+        "sha256": "d37836ba90db48c120d887cbe6f346b1a1ec3c07b12ccae31c12e3a1cccabca6",
+        "result": "fail",
+        "reason": "real GUI Stop still leaves rich document/path/image/skill empty; component fix alone did not close product gate",
+        "log": "/tmp/lime-composer-stop-fixed-current-rich.log"
+      },
+      "lifecycleFix": {
+        "owner": "ComposerDraftCoordinator.refresh",
+        "change": "replaceDocument({}) for unedited automatic empty projection; preserve revision/identity guards and manual restore semantics",
+        "formalAdoption": ".lime/qc/composer-persistence/stop-lifecycle-formal-adoption.json",
+        "formalAdoptionSha256": "c58a4834609e92272eaf0f395402f2c4d8c0f87402b7b156380db136430c3226",
+        "formalCombined": "269 passed; one collector test timeout; isolated original 5000ms limit 69/69 passed",
+        "fixtureOrdering": "validate real GUI Stop rich restore first; user-cleared independent history recall afterwards"
+      }
+    },
+    "tabCreationRegression": {
+      "status": "component callback formally fixed; general GUI strip is currently unreachable, so no public +tab route Gate claim",
+      "manifestSha256": "cea27458ee5a649a54d96e333c661a1f8bbff8087f88f17cde4ed7bd010146b0",
+      "directedCases": 11,
+      "beforeFix": "real DOM click supplied React SyntheticBaseEvent to a zero-argument task-creation callback",
+      "fix": "zero-argument callback invocation",
+      "desktopGateB": false,
+      "receipt": ".lime/qc/composer-persistence/tab-and-page-fixture-formal-receipt.json"
+    },
+    "coldDraftPublicNavigation": {
+      "status": "product-gap",
+      "publicSelectionAvailable": false,
+      "metadataDiscoveryAvailable": true,
+      "reason": "TaskCenterTabStrip is excluded by current ThreadHeader/utility toolbar; persisted draft has no sidebar selection consumer",
+      "rejectedFixtureRoute": "Home→hidden +tab",
+      "next": "REA same-artifact public draft restoration navigation; migrate current owner rather than expose retired tab UI",
+      "firstSendContract": "Home/search-new/project-new public UI; fail-closed same-atom index plus scope read identifies the logical rich draft; no cold selection or tab UI claim"
+    },
+    "sharedFixtureAdoption": {
+      "path": ".lime/qc/composer-persistence/shared-and-guard-formal-adoption.json",
+      "sources": 4,
+      "coldScenarioAdopted": false,
+      "boundary": "one shared launch/quit/parse/trace owner, default local three-generation lifecycle retained",
+      "sha256": "b101f15e17deb70beb229f635b62f132f94899cb42bf53d27acbdef82d8be08c"
+    },
+    "fullInputFreeze": {
+      "directory": ".lime/qc/composer-persistence/gui-stop-shared-full-freeze-1",
+      "sourceCount": 7877,
+      "artifactCount": 1148,
+      "preLaunchDrift": 0,
+      "boundary": "freshness-declared input directory superset including tests/resources and current fixtures, not loaded-module/execution proof",
+      "localPacket": ".lime/qc/composer-persistence/gui-verification-packet-stop-shared-full-1.json"
+    },
+    "sidebarOpenedProjectFix": {
+      "receipt": ".lime/qc/composer-persistence/sidebar-opened-project-and-backend-guard-receipt.json",
+      "sha256": "ff90091a044b307a68fb77cc2752dd64d3a8a1c9b09b9783f70d8711798eab0a",
+      "source": "AppSidebar uses displayed opened projects for both canonical cwd queries and filters",
+      "formalTests": 71,
+      "desktopGateB": false
+    },
+    "sidebarOpenedProjects": {
+      "owner": "AppSidebar",
+      "change": "display/query/filter all opened conversation projects",
+      "regression": "real second project session row red -> 71/71 combined",
+      "receipt": ".lime/qc/composer-persistence/sidebar-opened-project-and-backend-guard-receipt.json",
+      "guiRerun": "pending"
+    },
+    "newScenarioAdoption": {
+      "paths": [
+        "scripts/agent-runtime/claw-chat-current-fixture-first-send.mjs",
+        "scripts/electron/lib/composer-home-draft-fixture-scenario.mjs"
+      ],
+      "receipt": ".lime/qc/composer-persistence/first-send-home-cold-formal-adoption.json",
+      "pureTests": 84,
+      "formalLeaves": 7,
+      "realGui": "pending",
+      "claims": "three logical first-send routes and stable Home cold recovery separately; no top-tab or all-draft picker claim"
+    },
+    "formalHelperRegularFile": {
+      "path": "src/components/agent/chat/components/composerSubmissionSettlement.ts",
+      "sha256": "173a9c96682c405a3c319908d45ce5bce55e30d6d06ba64b0e3d49eed31fa772",
+      "receipt": ".lime/qc/composer-persistence/formal-helper-regular-file-receipt.json",
+      "change": "temporary source symlink replaced by identical ordinary source; candidate target untouched",
+      "freshBuild": "renderer-only build and standard GUI smoke exit0; rich Stop still fails"
+    },
+    "currentRealValidation": {
+      "date": "2026-10-15",
+      "richStop": {
+        "runId": "composer-stop-lifecycle-20261015-1",
+        "exitCode": 1,
+        "result": "runtime accepted, interrupt and canonical canceled; restore request received by Workspace but not applied, visible rich draft empty",
+        "tokenCompleteness": "unknown",
+        "summary": ".lime/qc/composer-persistence/current-rich-stop-lifecycle-1/composer-stop-lifecycle-20261015-1-summary.json"
+      },
+      "localDrafts": {
+        "run7": "second project navigation passed; picker preparation timed out",
+        "fixtureChange": "wait for one visible same-session editable Composer after hydration; original restore oracle retained",
+        "nodeEvidenceTests": "24/24",
+        "run8": "exit1 after three rich draft edits/saves and rejection checks; Undo then noncollapsed keyboard selection oracle failed; cold restart not reached",
+        "teardown": "run8 normal quit receipt failed; later ps confirmed PID75321 absent; no normal restart claim",
+        "run9": "exit1 after three rich preparations and selection passed; after trusted Undo literal code/language/link assertion failed, disk first scope only marker plus image/path",
+        "run9Teardown": "Main59037 public normal quit code0/signalnull; cold generations not reached",
+        "run9Identity": "freeze5 independent after check zero drift",
+        "nextDiagnosis": "Removed Undo-after marker repair and reselection; require deep equality of clean.draft and entry baseline.draft, including original selection. Node24/24/lint/format passed. No product change.",
+        "run10": "exit1 after original-rich JSON/DOM baseline passed, rejection preserved exact entry and trusted Undo restored exact original payload plus selection; subsequent fixture selection setup collapsed the restored selection",
+        "run10Teardown": "Main74494 public normal quit code0/signalnull; cold generations not reached",
+        "run10Identity": "freeze6 independent before/after zero drift, 7887 sources /1568 artifacts",
+        "run11": "exit1 at third workspace code picker trigger; screenshot empty editor, new Undo oracle and cold phase not reached; Main82377 normal code0/signalnull; freeze7 before/after zero drift",
+        "run11PacketSha256": "4fa24dfa20c8d849cac836d85c0d80fad086cc56200e4f96da40830512403c41"
+      },
+      "defaultGate": {
+        "batch": "87/131",
+        "resume13": "211 pass, references first-case 5s timeout",
+        "resume14": "211 pass, EmptyState slogan first-case 5s timeout",
+        "isolatedReferences": "9/9 original 5s",
+        "timeoutSkipOrResumeStateChanged": false
+      },
+      "freeze3": {
+        "packet": ".lime/qc/composer-persistence/gui-verification-packet-stop-sidebar-3.json",
+        "sha256": "6a530f8b5b0188a6bcfdb10bb68d4f3d1e825f12eadc252a3983da95c8f482fd",
+        "sources": 7885,
+        "artifacts": 1358,
+        "beforeLocal8Drift": 0,
+        "limitation": "identity only; retained old chunks possible; not proof every module executed",
+        "afterLocal8Drift": 0
+      },
+      "persistenceGate": "pending",
+      "homeColdAndFirstSend": "not-run",
+      "restoreDiagnostics": {
+        "source": "src/components/agent/chat/components/composerSubmissionSettlement.ts",
+        "sha256": "25590d1b75a6edac6b04bfb41b647481bb2acf1788dc5733741753546a208ed8",
+        "scope": "existing AgentDebug console-only numeric revisions, generations, owner/scope matches and rejection reason; no content; restore predicate unchanged",
+        "formalRelated": "47/47",
+        "lint": "exit0",
+        "rendererBuild": "exit0; predates retire read invalidation fix",
+        "richDiagnostic2": "exit1; token/controller/coordinator/revision/generation/scope match, but identity recreated after consume; binding_changed",
+        "freeze4": "7885 sources / 1463 artifacts, independent before/after rich2 hashes show zero drift"
+      },
+      "retireReadRace": {
+        "owner": "src/components/input-kit/ComposerDraftCoordinator.ts#retire",
+        "regression": "src/components/agent/chat/components/composerSubmissionSettlement.test.ts",
+        "red": "1 failed / 1 passed; refresh crossing consume could recreate an empty identity",
+        "fix": "retirement invalidates reads started before consumption; strict restore predicate retained",
+        "related": "5 files, 94/94 exit0",
+        "greenReceipt": ".lime/qc/composer-persistence/retire-read-race-green.json",
+        "typecheck": "standard npm run typecheck exit0",
+        "realGui": "original rich third run exit0; common34/34 and scenario21/21; actionable console/page errors0",
+        "runId": "composer-stop-retire-read-20261015-3",
+        "gateBReceipt": ".lime/qc/composer-persistence/retire-read-rich-final-receipt.json",
+        "packetSha256": "989a12818eb5ad891700089721657fd2baad2d038bab1056b94a4ba0420078f9",
+        "freeze5": "7887 source / 1568 artifact, independent before/after zero drift",
+        "limitation": "controlled backend Desktop Gate B; no live provider, cold restart, hidden paste source DOM recovery or Windows claim"
+      },
+      "stopSendChain": {
+        "formalAdoption": ".lime/qc/composer-persistence/stop-send-chain-formal-adoption.json",
+        "patchSha256": "dc572aaae57dddc43b50156c9a36f17049531bbdef18528151a6536b9f0eb7f4",
+        "candidate": "3/3, one real EditorView; strict TS/lint/format/apply-check exit0",
+        "formalTests": "3/3 exit0; four changed source/test leaves lint and format exit0",
+        "boundary": "controlled transport, not Electron Gate B or cross-consume stale-refresh coverage"
+      }
+    }
+  },
+  "composer_draft_public_navigation": {
+    "date": "2026-10-15",
+    "artifactSha256": "75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af",
+    "evidenceIds": [
+      "ev_8109ba0f2d675fb08989285ee7408e675b5a2d4953513f757c11e959c4934ab5",
+      "ev_5872c498b099311cff8f5d0c5d7ca8b99dae35efcceb3f42eeabd3eb526e9c47"
+    ],
+    "confirmedExport": "startNewConversation",
+    "currentIdentityKeys": ["home", "panel"],
+    "atoms": ["draft-thread-identities-v1", "client-thread-bindings-v1"],
+    "restorationGate": "primary window persistence owner",
+    "referenceRuntimeObserved": false,
+    "allDraftSidebarPicker": "unknown",
+    "semanticCoverage": "unknown; static package observation only",
+    "audit": "internal/research/codex-desktop-rea/new-conversation-navigation-audit.md",
+    "recoveryManifest": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-code-nodeview-recovery-oulq764w/rea-draft-public-navigation/manifest.json",
+    "recoveryManifestSha256": "90f5dbb3381e84a6a7a5caef05b1abf8908265515614f0d3d19af3800c4e3c6e",
+    "nextMigration": "new-renderer real GUI validation, then canonical settings route/back/search/dirty authority",
+    "formalMigration": "78 sources formally adopted; unique public action, stable home scope and committed fresh CAS; nine retired files deleted",
+    "productDecision": "Home freshDraft=false resumes stable current scope; explicit New chat freshDraft=true. Ordinary reference sidebar fresh runtime behavior unknown."
+  },
+  "settings_navigation_alignment": {
+    "checked_date": "2026-10-15",
+    "full_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "summary_evidence_id": "ev_6d2230454a838f113f4e61d100fb41d47ea6b241100765d84eb35674dcd71478",
+    "corpus_sha256": "2c618ae2c6acb241a854e3f71191626c857485ed664d43dc91a887d7f1730c35",
+    "candidate_manifest_sha256": "eebf60cd4d0846129c97051bbe92b8ab368ce015eef7714eca9f9a8b917ac3d1",
+    "report": "settings-navigation-audit.md",
+    "members": 7,
+    "original_byte_anchors": 20,
+    "parse_failures": 0,
+    "semantic_status": "unknown",
+    "source_dependencies_verified": 15,
+    "confirmed_exports": [
+      "SettingsPage",
+      "VisibleSettingsCommandMenuSectionItems",
+      "SettingsExternalSection"
+    ],
+    "current_gaps": [
+      "canonical PageParams selection",
+      "previous navigation context",
+      "row target search",
+      "dirty navigation authority"
+    ],
+    "source_candidate": "nine sources formally adopted; single sections owner and SettingsPage; directed78/78 and oracle10/10, real GUI pending",
+    "target_executed": false,
+    "gui_verified": false,
+    "limitation": "seven shipped members only; full registry/default page, search-documents contents and external dirty authority unknown"
+  },
+  "new_conversation_formal_migration": {
+    "date": "2026-10-15",
+    "receipt": ".lime/qc/new-conversation/formal-adoption.json",
+    "receiptSha256": "a82be2c8d2a9efcf5ae2bd410d896a2598b67802ce0796e9c7438c4e8a93005e",
+    "sources": 78,
+    "deletedFiles": 9,
+    "upstreamConfirmedName": "startNewConversation",
+    "candidateManifestSha256": "d581ea834c035ac3cbe5cd0c455c27ed219c3acc4418b5aef94503b7922d3a8b",
+    "candidateValidation": "latest per-file35suite438/438; strict3187files, no diagnostics or product source leak; causal red contains API/legacy errors",
+    "architectureConfirmation": "root, architecture4.3/4.5, 2026-10-15",
+    "formalCombined": "latest per-file46suite540/540; initial538pass/2fail retained; fixture visible projection migrated, Stop17/17 plus EditorView5/5",
+    "realGui": "existing-local slice pass; Home/first-send/settings/current/default not closed",
+    "freshSemantics": "Home=false/New=true Lime decision; ordinary upstream sidebar runtime remains unknown",
+    "wholeGui": "partial",
+    "formalValidationReceipt": ".lime/qc/new-conversation/formal-latest-directed-receipt.json",
+    "standardChecks": ".lime/qc/new-conversation/formal-standard-checks-receipt.json",
+    "guiShell": "codex-navigation-readiness-20261015-1, standard verify:gui-smoke exit0",
+    "verificationPacket": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-13.json",
+    "guiScope": "local16 existing local and Home6 stable null scope passed; first-send/settings/current/default pending",
+    "nativeEnvelopeMigration": ".lime/qc/composer-persistence/native-request-envelope-migration-receipt.json",
+    "normalCloseMigration": ".lime/qc/composer-persistence/normal-close-debugger-migration-receipt.json"
+  },
+  "composer_visible_readiness_formal_migration": {
+    "receipt": ".lime/qc/composer-persistence/visible-ready-formal-adoption.json",
+    "products": 2,
+    "typedFixture": 1,
+    "invariant": "single binding.ready fact + exact visible scope; strict restore guards retained",
+    "originalFormalRed": 5,
+    "newNavigationFormalRed": 5,
+    "combinedDomainGreen": 5,
+    "strictTestClosureFiles": 686,
+    "formalCombined": "latest per-file46suite540/540; initial538pass/2fail retained; fixture visible projection migrated, Stop17/17 plus EditorView5/5",
+    "realGui": "pending",
+    "local11Causation": "static window confirmed; actual timeline absent",
+    "formalValidationReceipt": ".lime/qc/new-conversation/formal-latest-directed-receipt.json",
+    "stopProjectionOracle": "Home/draft remains disabled after binding promotion until actual visible local session commits; strict restore unchanged"
+  },
+  "composer_home_null_oracle_migration": {
+    "receipt": ".lime/qc/composer-persistence/home-null-oracle-receipt.json",
+    "leaves": 3,
+    "nodePassed": 33,
+    "lintFormat": "passed",
+    "scope": "public Home explicit null is separate from App Server default workspace",
+    "realGate": "Home6 Desktop Gate B pass; receipt .lime/qc/composer-persistence/home-cold-final-receipt.json"
+  },
+  "composer_skill_catalog_hydration_fix": {
+    "date": "2026-10-15",
+    "owner": "src/components/agent/chat/skill-selection/inputCapabilitySelection.ts",
+    "rootCause": "Transient empty catalog produces fallback execution key; strict mention.id === Skill.key cleared namespaced persisted Skill route.",
+    "fix": "Inputbar delegates mention identity matching to existing installed Skill route matcher; no second normalization or authority.",
+    "receipt": ".lime/qc/composer-persistence/skill-catalog-hydration-directed-receipt.json",
+    "causalRed": "18pass/2behaviorfail",
+    "directedGreen": "four suites40/40; standard typecheck/lint/docs and new GUI smoke24/24 exit0",
+    "newProductGui": "local16 existing-local three workspaces/two normal cold restarts passed, Main34272/38556/40802 code0/signalnull; Home/first-send/settings pending",
+    "wholeGui": "partial"
+  },
+  "composer_plain_draft_summary_migration": {
+    "receipt": ".lime/qc/composer-persistence/plain-draft-summary-migration-receipt.json",
+    "scope": "test-only nullable optional route hash; full equality/rich route guard retained",
+    "productArtifactDrift": 0,
+    "green": "78/78",
+    "wholeGui": "partial"
+  },
+  "composer_local_persistence_gate": {
+    "run": "composer-navigation-readiness-local16",
+    "summary": ".lime/qc/composer-persistence/gui-navigation-readiness-evidence/composer-navigation-readiness-local16/composer-draft-gui-persistence.json",
+    "result": "pass",
+    "scope": "three existing canonical local conversations/two normal cold restarts/rejection Undo/accepted new-edit/foreign workspace isolation",
+    "mainPids": [34272, 38556, 40802],
+    "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-13.json",
+    "wholeGui": "partial",
+    "limitations": "controlled external backend, saved before normal quit; no live/Windows/abrupt pending exit"
+  },
+  "composer_home_skill_demand_fix": {
+    "scope": "Home lazy Skill catalog request to existing useWorkspaceSkillDirectoryRuntime",
+    "cause": "directory autoLoad=false; Home CharacterMention lacked onSkillSuggestionsNeeded while session composer has it",
+    "causalRed": "two suites18 total16pass/2behaviorfail",
+    "implementation": "shared SkillSelectionSourceProps/bindings -> EmptyState -> landing/chat props -> existing Scene callback",
+    "newAuthority": false,
+    "status": "latest per-file5suites140/140; standard typecheck/lint/renderer build and shell24/24 exit0; prior timeout logs retained",
+    "wholeGui": "partial",
+    "receipt": ".lime/qc/composer-persistence/home-skill-demand-final-directed-receipt.json"
+  },
+  "composer_home_trace_oracle_migration": {
+    "cause": "ensureDefaultWorkspace directly invokes preload, outside GUI safeInvoke diagnostic ledger; not a cache hit",
+    "scope": "require observed GUI thread/list and native atom behavior; scenario separately verifies direct-preload default workspace response and canonical inventory",
+    "red": "new GUI trace regression fails before oracle migration",
+    "green": "Node62/62; collector Vitest69/69; initial mixed-runner collection failure retained",
+    "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-16.json",
+    "artifactDrift": 0,
+    "realGate": "Home6 pass; Main17922/18120 normal code0/signalnull; full rich/resources/selection/identity and unchanged bytes/revision; cold zero atom mutation/no canonical Thread/Turn; post-freeze zero drift",
+    "wholeGui": "partial"
+  },
+  "composer_home_cold_gate": {
+    "result": "pass",
+    "receipt": ".lime/qc/composer-persistence/home-cold-final-receipt.json",
+    "run": "composer-navigation-home-cold-6",
+    "mainPids": [17922, 18120],
+    "sourceArtifactDrift": 0,
+    "wholeGui": "partial"
+  },
+  "settings_current_native_gate": {
+    "result": "pass",
+    "run": "settings-current-native-20261015-2",
+    "summary": ".lime/qc/settings-sections/settings-current-native-20261015-2/summary.json",
+    "sections": 15,
+    "visibleStates": 24,
+    "nativeReadCount": 157,
+    "mainPid": 22039,
+    "scope": "navigation/first-screen reads only; no write/canonical-route/back/search/dirty/live/Windows claim",
+    "wholeGui": "partial"
+  },
+  "composer_first_submission_current_gate": {
+    "result": "pass",
+    "runs": [
+      "composer-navigation-first-send-1",
+      "composer-navigation-first-send-2",
+      "composer-navigation-first-send-3",
+      "composer-navigation-first-send-4",
+      "composer-navigation-first-send-5",
+      "composer-navigation-first-send-6",
+      "composer-navigation-first-send-7",
+      "composer-navigation-first-send-8"
+    ],
+    "observation": "Early runs1-3: Home click Send creates one real thread with no turns; directDispatch result rejected; null-session Composer remains disabled/restoring; trace no turn/start or promote/consume",
+    "next": "Stop5s unit stability, current aggregate, async-tabs and default gates remain pending.",
+    "wholeGui": "partial",
+    "latestObservation": "Run8 with passive lifecycle diagnostic wrapper: all3 routes complete canonical rich input/order/resources/media bytes, promotion-before-consume, saved consumption, new edits and foreign old-turn settlement passed; Main99739/655/1318 normal code0/signalnull at12.282/1.026/12.636s within unchanged15s limit; console/page errors0. Prior lifecycle failures retained; their root cause unknown.",
+    "previousObservation": "first-send6 Home and search-new complete rich canonical input/resources/consume/new-edit passed, Main85420/85963 normal; project click missed required header hover, normal teardown86752. Fixture hover migrated. first-send7 all3 business assertions passed; Main93044/93526 normal, project Main94143 exceeded original15s before normal teardown; whole run remains fail.",
+    "latestPassedRun": "composer-navigation-first-send-8",
+    "summary": ".lime/qc/composer-persistence/gui-navigation-readiness-evidence/composer-navigation-first-send-8/composer-composer-first-submissions-gui.json"
+  },
+  "composer_rich_capability_body_fix": {
+    "cause": "Skill routing prefers displayContent over canonical Composer source; markdown/hidden paste rewritten, strict UTF8 atomic remap rejects before turn/start",
+    "sources": [
+      "src/components/agent/chat/workspace/inputCapabilityRouting.ts",
+      "src/components/agent/chat/workspace/inputCapabilityRouting.test.ts"
+    ],
+    "fix": "prefer exact canonical source body; display stays replay/empty-source fallback; no remap guard relaxation",
+    "causalRed": "2pass/1behaviorfail: Cannot map Composer text elements through this text transformation",
+    "status": "directed5suites165/165; final typecheck/lint/format/renderer+Host builds/contracts/legacy/shell all exit0; first-send4 Home rich acceptance assertions pass, lifecycle15s failed; whole Gate not passed",
+    "classification": "current sole capability routing; no new compat or authority",
+    "wholeGui": "partial"
+  },
+  "composer_topic_visible_workspace_fix": {
+    "cause": "topic hydration passes runtime/default workspace while root Composer binds visible taskCenterWorkspaceId; exact visible scope guard correctly keeps editor disabled when these differ",
+    "sources": [
+      "src/components/agent/chat/workspace/useAgentChatWorkspaceCommandWiring.ts",
+      "src/components/agent/chat/workspace/useAgentChatWorkspaceCommandWiring.navigation.integration.test.tsx"
+    ],
+    "fix": "composition callback commits current visible workspace to the existing draft navigation owner, retaining captured navigation epoch and exact ready guards",
+    "causalRed": "real wiring + Coordinator/Store integration:2/2 behavior failures; business unresolved vs visible project and business default vs visible null",
+    "green": "final root2/2; public navigation11/11; draft navigation7/7; original visible-ready5/5 isolated at unchanged5s after combined4/5 timeout",
+    "classification": "current root composition; no new authority, compat, or fallback",
+    "productGate": "first-send4 Home canonical full input/resources/consume/new-edit passed; generation1 normal quit exceeded15s, run failed; standard first-send5 and rich Stop pending",
+    "wholeGui": "partial"
+  },
+  "composer_current_fixes_verification": {
+    "receipt": ".lime/qc/composer-persistence/canonical-body-visible-workspace-directed-final-receipt.json",
+    "receiptSha256": "da7494bb49ef810cc278e908718f88df6588d085cf8f129f0450cceab37c1193",
+    "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-19.json",
+    "packetSha256": "5d23f655d2d1cb50290fdcf6d4119aa094a5db1c4bde3dcb3cbf813a19989075",
+    "freeze": {
+      "sources": 7885,
+      "artifacts": 1988,
+      "deltaFrom16": "three changed and one added owned source/test paths only",
+      "preGuiDrift": 0
+    },
+    "shellRun": "codex-canonical-body-visible-workspace-20261015-1",
+    "shellResult": "pass",
+    "classification": "current; new compat0; restored dead0",
+    "wholeGui": "partial"
+  },
+  "composer_queued_discard_notification_fix": {
+    "sources": [
+      "src/components/input-kit/ComposerDraftCoordinator.ts",
+      "src/components/input-kit/ComposerDraftCoordinator.binding.test.ts"
+    ],
+    "observation": "search-new save conflict after replacing an already-saved scope probe with rich input; native old home identity consumed(clear), visible input retained",
+    "causalRed": "real connect + preceding queued put + delayed clear: old probe restored into cleared Controller; single behavior regression failed in110ms, not a timeout",
+    "fix": "binding tracks current in-flight discard lane; refresh cannot rehydrate while discard pending; completion invalidates reads started in that interval, without changing Store CAS/retired identity rules",
+    "status": "binding15/15, Coordinator31/31, fresh7/7, navigation7/7, visible-ready5/5, send8/8 passed; combined93 total92pass/1original5s Home Stop timeout; isolated Stop20 total14pass/6original5s timeouts, no value/identity assertion failure; lint and test formatting pass; standard typecheck/new renderer20m10s/all-segment freshness/standard shell smoke exit0",
+    "classification": "current sole Coordinator; new compat0; new persistence authority0",
+    "limitation": "Run5 generation2 native timeline absent; real run6 and run7 search-new full rich save/acceptance/resources/consume/new-edit now passed. Original Stop timeouts and lifecycle failures remain retained.",
+    "wholeGui": "partial",
+    "logs": {
+      "red": "/tmp/lime-composer-queued-discard-red.log",
+      "combined": "/tmp/lime-composer-queued-discard-green.log",
+      "stopIsolated": "/tmp/lime-composer-queued-discard-stop-isolated.log",
+      "typecheck": "/tmp/lime-composer-queued-discard-typecheck.log",
+      "rendererBuild": "/tmp/lime-composer-queued-discard-renderer-build.log"
+    },
+    "stableStopGate": "Unchanged original file, latest single command20/20 in29.02s; tests8.98s, max case816ms; previous combined1 and isolated6 original5s timeout failures retained, cause not established.",
+    "receipt": ".lime/qc/composer-persistence/queued-discard-directed-final-receipt.json",
+    "receiptSha256": "8413931c85dffc5b5b0041061ceba0018ed37008e1ee84c82fb35957c0cce586"
+  },
+  "composer_project_new_hover_fixture_migration": {
+    "source": "scripts/agent-runtime/claw-chat-current-fixture-first-send.mjs",
+    "scope": "test-only real project-header hover before click and correct source phase after launch",
+    "existingNodeEvidenceTests": "53/53",
+    "lintFormat": "pass",
+    "productArtifactChanges": 0,
+    "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-21.json",
+    "packetSha256": "86b048bca1084a5338e2b675adac72aa6154685d7691fda53003d09c416ce491",
+    "freeze": {
+      "sources": 7885,
+      "artifacts": 2093,
+      "preGuiDrift": 0,
+      "deltaFrom20": "only first-send fixture"
+    },
+    "wholeGate": "first8 pass all3 routes, original15s normal quits; passive diagnostic only, previous failures retained",
+    "wholeGui": "partial",
+    "priorWholeGate": "first7 fail at third normal quit original15s; all3 business assertions passed"
+  },
+  "composer_current_product_scenarios": {
+    "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-21.json",
+    "packetSha256": "86b048bca1084a5338e2b675adac72aa6154685d7691fda53003d09c416ce491",
+    "firstSubmission": {
+      "result": "pass",
+      "run": "composer-navigation-first-send-8",
+      "normalMainPids": [99739, 655, 1318],
+      "passiveDiagnosticOnly": true
+    },
+    "richStop": {
+      "result": "pass",
+      "run": "composer-queued-discard-rich-stop-20261015-1",
+      "consolePageErrors": 0
+    },
+    "homeCold": {
+      "result": "pass",
+      "run": "composer-navigation-home-7",
+      "normalMainPids": [6249, 6729],
+      "coldMutationCount": 0
+    },
+    "existingLocalCold": {
+      "result": "pass",
+      "run": "composer-navigation-existing-local-17",
+      "normalMainPids": [7882, 10853, 11390],
+      "workspaces": 3,
+      "coldRestarts": 2
+    },
+    "postFreezeVerification": {
+      "sourceAndArtifactDrift": 0,
+      "sources": 7885,
+      "artifacts": 2093,
+      "summary": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-21/post-first8-stop-home7-local17.json"
+    },
+    "boundedGuiScenarios": "4/4 passed,100% only for these four contracts",
+    "notClosed": [
+      "current aggregate rerun after collector test-helper optimization",
+      "default verify:local resume"
+    ],
+    "wholeGui": "partial",
+    "limitations": "Controlled fixture, no live-provider/Windows/OS IME/mic/whole-GUI parity; previous normal-quit timeout cause unknown.",
+    "receipt": ".lime/qc/composer-persistence/queued-discard-product-final-receipt.json",
+    "receiptSha256": "2cafe26c77fe9b0b58d530e3f78a3ae05a5b4b592645551fc73a870b275f17d2",
+    "stopDirected": {
+      "result": "pass",
+      "tests": 20,
+      "originalTimeoutMs": 5000,
+      "log": "/tmp/lime-composer-queued-discard-stop-after-gui.log"
+    },
+    "asyncTabs": {
+      "result": "pass",
+      "executed": [3, 11],
+      "initial": "stale selectors,187 skipped/0 executed, fail retained",
+      "migration": "current canonical hydration/sidebar test paths and execution count guards",
+      "receipt": ".lime/qc/composer-persistence/async-tabs-canonical-migration-receipt.json",
+      "proof": "directed Vitest, not GUI"
+    }
+  },
+  "composer_current_fixture_aggregate_followup": {
+    "priorRun": {
+      "runId": "codex-composer-current-20261015-2",
+      "result": "fail",
+      "directedGroupsPassed": [31, 34, 3],
+      "guardGroup": {
+        "passed": 293,
+        "failed": 1
+      },
+      "electronScenariosStarted": 0,
+      "log": "/tmp/lime-composer-current-aggregate-final.log"
+    },
+    "collector": {
+      "receipt": ".lime/qc/composer-persistence/invoke-trace-collector-optimization-receipt.json",
+      "sha256": "ce65777eb5a90a7104fd117dc356467e949c4b3c17740f879e8c6accafda6dbc",
+      "result": "69/69 pass, original5000ms, no changed assertions",
+      "classification": "test-only helper, product source/artifacts unchanged"
+    },
+    "rerun": {
+      "runId": "codex-composer-current-20261015-3",
+      "result": "failed at15th Skills manual-enable, previous14Electron scenes passed; directed31/34/3/294 passed",
+      "log": "/tmp/lime-composer-current-aggregate-optimized.log",
+      "failureReceipt": ".lime/qc/composer-persistence/imperative-session-scope-repair-directed-receipt.json"
+    },
+    "wholeGui": "partial",
+    "finalRun": {
+      "runId": "codex-composer-current-20261015-4",
+      "result": "pass",
+      "exitCode": 0,
+      "directedGroupsPassed": [31, 34, 3, 294],
+      "electronScenesPassed": 22,
+      "manifest": {
+        "path": ".lime/qc/composer-persistence/current-aggregate-4-complete/manifest.json",
+        "sha256": "b8990f3979f4b386e4ec367f809f5cc4bb93855d0cf64c94170db8321fe5fbbf"
+      },
+      "identityAfter": "7885 sources/2198 artifacts; zero drift",
+      "limitation": "Individual controlled fixture contracts; not live-provider/Windows/whole-GUI parity"
+    }
+  },
+  "composer_imperative_session_scope_repair": {
+    "receipt": ".lime/qc/composer-persistence/imperative-session-scope-repair-directed-receipt.json",
+    "source": "current CommandWiring sendMessage -> canonical accepted -> existing visible topic commit",
+    "red": "home vs local assertion,1fail/2pass",
+    "directed": "final6suites61/61, includes Stop20 and visible-ready5",
+    "gui": "renderer/Host built; exact locked V8/Cargo cache restored via child environment using existing proxy; sidecar prepare and terminal standard smoke.mjs exit0; original standard wrapper failure retained",
+    "wholeGui": "partial",
+    "checks": "standard typecheck/format passed before stable capture; original narrow lint exited0 with1warning, superseded by stable capture61/61 and strict max-warnings0 pass; fresh full default in progress",
+    "sourceFreeze": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-22/sources.json",
+    "sourceFreezeSha256": "add364fa81833f26571459c1f2e5e4f95bf0157543ce95d6d0b05ca059fe654e",
+    "executedAggregateEvidence": ".lime/qc/composer-persistence/current-aggregate-3-executed/manifest.json",
+    "buildRecoveryReceipt": {
+      "path": ".lime/qc/composer-persistence/imperative-session-build-recovery-receipt.json",
+      "sha256": "4ccbef850613cbc5fda09f701cd44e6fd5a7720b007cc2a99795fad3f5f6cf5b"
+    },
+    "packet22": {
+      "path": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-22.json",
+      "sha256": "ccbea0f14e55a53799a67b0c084e5a5bfcfe3d15a7e3973765ba21de06a25368"
+    },
+    "pending": [
+      "default run4 from original batch89 after shared resource hot-path repair",
+      "final new build/full current22 including Skills",
+      "final source/artifact identity"
+    ],
+    "skillsProductReceipt": {
+      "path": ".lime/qc/composer-persistence/imperative-session-skills-product-receipt.json",
+      "sha256": "fe9e08b7ca85594dc81b33ede8d677c0a21c82ec07be7688364d7cecd61292ba"
+    },
+    "currentAggregate": {
+      "path": ".lime/qc/composer-persistence/current-aggregate-4-complete/manifest.json",
+      "sha256": "b8990f3979f4b386e4ec367f809f5cc4bb93855d0cf64c94170db8321fe5fbbf"
+    },
+    "strictLintCorrection": {
+      "path": ".lime/qc/composer-persistence/imperative-session-stable-dependencies-receipt.json",
+      "sha256": "2b142d976edfcbf64a3ebd05c200b1036effc260d2ded5abb538cad14c687657"
+    },
+    "sourceFreeze24": {
+      "path": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-24/sources.json",
+      "sha256": "ae72a4539cef476cecbb31d1040109a1f0616f48b559f7f17fab63096d86d633"
+    },
+    "sourceFreeze25": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-25/sources.json",
+    "formatOnlyReceipt": ".lime/qc/composer-persistence/imperative-session-dependencies-format-receipt.json"
+  },
+  "structure_alignment_ledger": {
+    "path": "internal/research/codex-desktop-rea/structure-alignment-ledger.md",
+    "sha256": "b7d687a9899d5eb0d10f6e5bf6298d99cfe4812bbf17fb640a20d395a99cf98a",
+    "scope": "Known shipped exports, observed method names, Lime current owners and remaining mappings; existing REA evidence reused",
+    "status": "partial",
+    "limitations": "Not a complete source symbol inventory or name equivalence proof; minified original names remain unknown"
+  },
+  "settings_dead_placeholder_cleanup": {
+    "path": ".lime/qc/composer-persistence/settings-dead-placeholder-cleanup-receipt.json",
+    "sha256": "8ec721eaebca721cf46def748669dba8b91f6a533f049eaf5a3a2fcbfc304084"
+  },
+  "agent_copy_bundled_resource_reuse": {
+    "receipt": {
+      "path": ".lime/qc/composer-persistence/agent-copy-resource-reuse-directed-receipt.json",
+      "sha256": "0d362424a9e58b97545f1708ce1f5bf92a61514419bb8c063411751e6fc760b4"
+    },
+    "source": "existing createI18n limeI18nResources; no per-key merge or new cache",
+    "red": "3pass/1fail,12 repeated namespace loads",
+    "green": "6suites81/81 including unchanged historyWindow14/14",
+    "checks": "strict lint passed; standard default run4 in progress from original batch89",
+    "scope": "Current Agent copy hot-path repair, not all-timeout root-cause claim",
+    "pending": ["default run4", "final build and full current aggregate"]
+  },
+  "runtime_sync_canonical_acceptance_fixture": {
+    "receipt": ".lime/qc/composer-persistence/runtime-sync-canonical-acceptance-fixture-receipt.json",
+    "receiptSha256": "0bae1633a301ef55123e9f47f28a92b4b460fb1f2cb1fe1d437ccedb8a3923db",
+    "status": "60/60 directed, strict lint; default112 passed",
+    "classification": "test-only current fixture; production guards unchanged",
+    "wholeGui": "partial"
+  },
+  "workspace_structured_typed_acceptance_fixture": {
+    "receipt": ".lime/qc/composer-persistence/workspace-structured-typed-acceptance-fixture-receipt.json",
+    "receiptSha256": "cbb4c3c88baadaba031a7130ba56ead19b4c10f51eb0e9646bb6af9a20f1e321",
+    "status": "24/24 directed, strict lint; default123 passed",
+    "classification": "test-only; boolean/void fixture deleted, no compat",
+    "wholeGui": "partial"
+  },
+  "home_navigation_current_test_consolidation": {
+    "receipt": ".lime/qc/composer-persistence/home-navigation-current-test-consolidation-receipt.json",
+    "receiptSha256": "f951ee2dd4dd4a7674af3b2c9b040af3b693dbb88eff872837b6f9b7f7ec0621",
+    "status": "16/16 directed, strict lint/format; default125 and132 passed",
+    "classification": "current coverage consolidated; dead duplicate test deleted",
+    "wholeGui": "partial"
+  },
+  "inputbar_typed_acceptance_fixture": {
+    "receipt": ".lime/qc/composer-persistence/inputbar-typed-acceptance-fixture-receipt.json",
+    "receiptSha256": "ebbe3e7ae0bc8bb14401d4914bafe00280332a0853f108974b4eec714a16b887",
+    "status": "113/113 directed, strict lint; default127 passed",
+    "classification": "test-only current fixture; explicit boolean results deleted",
+    "wholeGui": "partial"
+  },
+  "execution_plan_consolidation": {
+    "recordedAt": "2026-10-15T07:43:33.410041+00:00",
+    "currentPlan": "internal/exec-plans/codex-gui-alignment-current-plan.md",
+    "history": "internal/exec-plans/codex-gui-alignment-history-20261015.md",
+    "original": {
+      "copy": ".lime/qc/composer-persistence/default-combined-current-20261015/current-plan-before-consolidation.md",
+      "sha256": "a41d0cfdea7dc5c1a703ce5e5c9fb7aae8f7d26825067dfdaf8822de2dcb4211",
+      "bytes": 222752,
+      "lines": 799
+    },
+    "historyBoundary": "Same-directory historical snapshot preserves relative links; title/status explicitly archived, no active checklist authority. Raw original frozen separately. Current plan retains status, contracts, owners, cleanup, verification and pending work.",
+    "wholeGui": "partial",
+    "historySha256": "b831a3ca269839171d6eda12f8c4632b2cd11360eb0fde514cb8a8fa2ed9199e"
+  },
+  "settings_current_dirty_owner_preflight": {
+    "receipt": ".lime/qc/settings-sections/current-dirty-owner-preflight-20261015.json",
+    "sha256": "0ad87b8d9af9599523d0da30107c6e41edc0741f7cac32a46b5f494bdf8ef19c",
+    "status": "read-only source audit; product implementation pending",
+    "report": "internal/research/codex-desktop-rea/settings-navigation-audit.md",
+    "wholeGui": "partial"
+  },
+  "current_gui_verification_20261015": {
+    "sourceFreeze": {
+      "path": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-30/sources.json",
+      "sha256": "727cc715a2b6af374ec59d991f8ac436927df53465cf40be48203f4c3be038bd"
+    },
+    "artifactManifest": {
+      "path": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-30/artifacts.json",
+      "sha256": "66b35be4039008350a0d2c3d6d75703d9b787461040f29809325ca38b6cf2c9b"
+    },
+    "packet": {
+      "path": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-30.json",
+      "sha256": "f3c3ab312f246481046bb121a29a1c848deed4c68843990220eaa4672a9dfd41"
+    },
+    "defaultCombined": {
+      "path": ".lime/qc/composer-persistence/default-combined-current-20261015/final-receipt.json",
+      "sha256": "bfde376b9359ccef7a4ebea5c1a62148d1fc7706cd2a6326d761952807f73b29"
+    },
+    "frontend": "132/132 passed; state1761registered paths,1756existing/5retired; not all batches newly run this turn",
+    "shell": "standard verify:gui-smoke wrapper exit0,24/24",
+    "current22": {
+      "runId": "codex-composer-current-20261015-7",
+      "result": "pass",
+      "sourceFreeze": {
+        "path": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-31/sources.json",
+        "sha256": "c00e5bb6c36a166fd2fd822a6b61b81a5e012015d1301ff0af38eced9bba627c"
+      },
+      "artifactManifest": {
+        "path": ".lime/qc/composer-persistence/gui-navigation-readiness-freeze-31/artifacts.json",
+        "sha256": "66b35be4039008350a0d2c3d6d75703d9b787461040f29809325ca38b6cf2c9b"
+      },
+      "boundary": "fixture-only4path delta;production unchanged from packet30",
+      "exitCode": 0,
+      "sceneCount": 22,
+      "directedGroupsPassed": [31, 34, 3, 300],
+      "manifest": {
+        "path": ".lime/qc/composer-persistence/current-aggregate-7-complete/manifest.json",
+        "sha256": "69340c52a05833c450ad6f0d8667add345fa61d262b0aec3a6d8485674c9973c"
+      },
+      "sourceCount": 7886,
+      "artifactCount": 2303,
+      "postRunSourceDrift": 0,
+      "postRunArtifactDrift": 0,
+      "artifactPathSetDrift": 0,
+      "clawNormalMainExitReceipts": 21,
+      "forcedMainReaps": 0,
+      "evidenceFiles": 67,
+      "selection": "Current summary + explicitly referenced ledger/screenshot;not prefix leftovers. Prior aggregate4 has one retained old skills failure PNG,not current7 evidence.",
+      "codingBoundary": "No runId/backendMode/proofLevel/Main receipt invented;linked by exact new sessionId and summary path in completed aggregate log."
+    },
+    "wholeGui": "partial",
+    "failedCurrentRuns": [
+      {
+        "runId": "codex-composer-current-20261015-5",
+        "result": "failed at third home-hotpath-greeting:1978ms acceptance exceeds original1800ms budget; first2 passed,19not-run",
+        "manifest": {
+          "path": ".lime/qc/composer-persistence/current-aggregate-5-failed/manifest.json",
+          "sha256": "ac99c015de47f08b2cac1eca346a8cfd502dd5eb87d57ed260c2913fcff78adb"
+        },
+        "identity": "7884source/2303artifact zero drift",
+        "diagnostic": "isolated original scene78/78 exit0,acceptance921ms; aggregate6 same scene973ms. Original budget failure cause unknown.",
+        "isolatedReceipt": {
+          "path": ".lime/qc/composer-persistence/home-greeting-latency-isolated-1/receipt.json",
+          "sha256": "29af3c5a17804c721923efb1fab80ed5372ed4e65b1b5826f4cfb8450c15716e"
+        }
+      },
+      {
+        "runId": "codex-composer-current-20261015-6",
+        "result": "interrupted after Main teardown hang;7 scenes processes complete,8th business assertions printed pass before cleanup;not a full Gate pass",
+        "manifest": {
+          "path": ".lime/qc/composer-persistence/current-aggregate-6-hung/manifest.json",
+          "sha256": "c02dcd43584aca1ad4caacb12a24af5ae0eb3923bcc8c42f829d5be1f24c0fed"
+        },
+        "diagnosis": {
+          "path": ".lime/qc/composer-persistence/current-aggregate-6-hung/diagnosis-and-interruption.json",
+          "sha256": "5055fcb3ad8d43d34a5960e04efe6bd865d17113d05b2e63f80f4c05a3a48213"
+        },
+        "rootCause": "unknown;pending BrowserContext.close,nodeConnectionClosed=true,no Node pending calls,Main alive",
+        "cleanup": "task-owned aggregate/fixture/Main SIGTERM;never normal-exit evidence"
+      }
+    ],
+    "fixtureTeardown": {
+      "classification": "current test-only guard;no product change or new compatibility",
+      "directed": {
+        "path": ".lime/qc/composer-persistence/fixture-teardown-directed-2.json",
+        "sha256": "c05869e60a513d4dc9129d4b667211fa3740e634babd16b4028942bd354fc434"
+      },
+      "directedTestsPassed": 110,
+      "newBehaviorCases": 6,
+      "packet": {
+        "path": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-31.json",
+        "sha256": "8dcf4bddbb89e8b6d57f8502f6ec06e18718a14dfc00e8b317fa349fd660e57e"
+      },
+      "normalExitLimitMs": 15000,
+      "isolatedApproval": {
+        "path": ".lime/qc/composer-persistence/approval-normal-exit-isolated-1/receipt.json",
+        "sha256": "0884ff3ea85e01952ace237caf4a7d403ed8eec321a9eecf1d10ed1f4f33cb1e"
+      },
+      "semantics": "Business pass only after actual Main code0/signalnull and resource cleanup;forced reap follows failure only,does not repair outcome."
+    },
+    "validationSlice": "closed:current22,post-run hashes,freshness and final documentation checks passed;whole GUI partial",
+    "finalReceipt": {
+      "path": ".lime/qc/composer-persistence/fixture-teardown-final-20261015/receipt.json",
+      "sha256": "acb2e430f2c01a67b6b5edf59fed92b7c9279ec2dd2b82ef6e14c15c8b29c718"
+    }
   }
 }

@@ -254,7 +254,7 @@ export function useWorkspaceImageWorkbenchSendCommandRuntime({
     async (params: SubmitImageWorkbenchAgentCommandParams) => {
       const handleSend = workspaceHandleSendRef.current?.current;
       if (!handleSend) {
-        return false;
+        return { kind: "rejected" as const };
       }
 
       return await handleSend(

@@ -1,4 +1,6 @@
+import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type {
+  SendMessageObserver,
   AgentInputMention,
   AssistantDraftState,
   SlashSkillRequest,
@@ -15,10 +17,7 @@ import type {
   ComposerSubmitTarget,
 } from "@/components/input-kit";
 
-export interface HandleSendObserver {
-  onComplete?: (content: string) => void;
-  onError?: (message: string) => void;
-}
+export type HandleSendObserver = SendMessageObserver;
 
 export interface HandleSendOptions {
   skipThemeSkillPrefix?: boolean;
@@ -47,6 +46,7 @@ export interface HandleSendOptions {
   skipSessionStartHooks?: boolean;
   composerIntent?: ComposerIntent;
   composerTarget?: ComposerSubmitTarget;
+  composerRestoreToken?: ComposerSubmissionRestoreToken;
   composerDraft?: ComposerDraftSnapshot;
   composerSubmission?: ComposerSubmission;
 }

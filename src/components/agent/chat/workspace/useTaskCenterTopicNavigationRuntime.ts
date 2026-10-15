@@ -1,18 +1,13 @@
 import {
-  startTransition,
   useCallback,
+  useRef,
   type Dispatch,
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { Character } from "@/lib/api/projectMemory";
 import { scheduleMinimumDelayIdleTask } from "@/lib/utils/scheduleMinimumDelayIdleTask";
 import type { Topic } from "../hooks/agentChatShared";
 import { loadPersistedSessionWorkspaceId } from "../hooks/agentProjectStorage";
-import {
-  isTaskCenterDraftTabId,
-  type TaskCenterDraftTab,
-} from "./agentChatWorkspaceHelpers";
 import {
   clearTaskCenterLocalSessionOverrideForTopic,
   clearTaskCenterTransitionTopicForTopic,
@@ -25,9 +20,10 @@ import {
   updateTaskCenterTabIdsForWorkspace,
   type TaskCenterWorkspaceTabMap,
 } from "../utils/taskCenterTabs";
-import { resolveTaskCenterDraftClosePlan } from "./taskCenterDraftTabs";
 import { normalizeProjectId } from "../utils/topicProjectResolution";
-import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
+
+import type { ComposerDraftNavigationCallbacks } from "./composerDraftNavigation";
+import type { WorkspaceTopicSwitchLifecycle } from "./useWorkspaceTopicSwitch";
 
 type AgentEntry = "new-task" | "claw";
 
@@ -37,35 +33,20 @@ interface TaskCenterTopicSwitchOptions {
   allowDetachedSession?: boolean;
 }
 
-interface UseTaskCenterTopicNavigationRuntimeParams {
+interface UseTaskCenterTopicNavigationRuntimeParams extends ComposerDraftNavigationCallbacks {
   activeSessionIdRef: MutableRefObject<string | null>;
-  activeTaskCenterDraftTabIdRef: MutableRefObject<string | null>;
+  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   agentEntry: AgentEntry;
   clearEntryPendingA2UI: () => void;
-  clearMessages: (options?: { showToast?: boolean }) => void;
   clearTaskCenterEmbeddedHomeSession: (topicId: string) => void;
   messagesLength: number;
-  openTaskCenterDraftTab: () => string;
   replaceTaskCenterOpenTabs: (
     topicId: string,
     workspaceIdOverride?: string | null,
   ) => void;
   resetLocalImageWorkbenchSessionScope: () => void;
-  resetTopicLocalState: () => void;
-  resetComposerDraft?: () => void;
   sessionId?: string | null;
-  setActiveTaskCenterDraftTabId: Dispatch<SetStateAction<string | null>>;
-  setHomePendingPreviewRequest: Dispatch<
-    SetStateAction<TaskCenterDraftSendRequest | null>
-  >;
-  setInput: Dispatch<SetStateAction<string>>;
-  setMentionedCharacters: Dispatch<SetStateAction<Character[]>>;
-  setSelectedText: Dispatch<SetStateAction<string>>;
   setTaskCenterDetachedTopicId: Dispatch<SetStateAction<string | null>>;
-  setTaskCenterDraftSendRequest: Dispatch<
-    SetStateAction<TaskCenterDraftSendRequest | null>
-  >;
-  setTaskCenterDraftTabs: Dispatch<SetStateAction<TaskCenterDraftTab[]>>;
   setTaskCenterLocalSessionOverride: Dispatch<
     SetStateAction<{ sessionId: string; routeSessionId: string | null } | null>
   >;
@@ -74,10 +55,10 @@ interface UseTaskCenterTopicNavigationRuntimeParams {
   switchTopic: (
     topicId: string,
     options?: TaskCenterTopicSwitchOptions,
+    lifecycle?: WorkspaceTopicSwitchLifecycle,
   ) => Promise<unknown>;
   taskCenterDetachedTopicId: string | null;
-  taskCenterDraftSurfaceActiveRef: MutableRefObject<boolean>;
-  taskCenterDraftTabsRef: MutableRefObject<TaskCenterDraftTab[]>;
+  taskCenterHomeSurfaceActiveRef: MutableRefObject<boolean>;
   taskCenterOpenTabIdsRef: MutableRefObject<string[]>;
   taskCenterTransitionTopicId: string | null;
   taskCenterWorkspaceId?: string | null;
@@ -91,33 +72,23 @@ interface UseTaskCenterTopicNavigationRuntimeParams {
 
 export function useTaskCenterTopicNavigationRuntime({
   activeSessionIdRef,
-  activeTaskCenterDraftTabIdRef,
+  onStartNewConversation,
   agentEntry,
   clearEntryPendingA2UI,
-  clearMessages,
   clearTaskCenterEmbeddedHomeSession,
   messagesLength,
-  openTaskCenterDraftTab,
   replaceTaskCenterOpenTabs,
   resetLocalImageWorkbenchSessionScope,
-  resetTopicLocalState,
-  resetComposerDraft,
+  composerDraftCoordinator,
+  getComposerDraftNavigationEpoch,
   sessionId,
-  setActiveTaskCenterDraftTabId,
-  setHomePendingPreviewRequest,
-  setInput,
-  setMentionedCharacters,
-  setSelectedText,
   setTaskCenterDetachedTopicId,
-  setTaskCenterDraftSendRequest,
-  setTaskCenterDraftTabs,
   setTaskCenterLocalSessionOverride,
   setTaskCenterOpenTabMap,
   setTaskCenterTransitionTopicId,
   switchTopic,
   taskCenterDetachedTopicId,
-  taskCenterDraftSurfaceActiveRef,
-  taskCenterDraftTabsRef,
+  taskCenterHomeSurfaceActiveRef,
   taskCenterOpenTabIdsRef,
   taskCenterTransitionTopicId,
   taskCenterWorkspaceId,
@@ -125,6 +96,7 @@ export function useTaskCenterTopicNavigationRuntime({
   upsertTaskCenterOpenTab,
   markTaskCenterLocalSessionOverride,
 }: UseTaskCenterTopicNavigationRuntimeParams) {
+  const navigationVersionRef = useRef(0);
   const handleOpenTaskTopic = useCallback(
     async (
       topicId: string,
@@ -155,8 +127,7 @@ export function useTaskCenterTopicNavigationRuntime({
           topicId,
           activeSessionId: activeSessionIdRef.current,
           messagesLength,
-          activeDraftTabId: activeTaskCenterDraftTabIdRef.current,
-          draftSurfaceActive: taskCenterDraftSurfaceActiveRef.current,
+          draftSurfaceActive: taskCenterHomeSurfaceActiveRef.current,
           detachedTopicId: taskCenterDetachedTopicId,
           shouldResume,
           forceRefresh: options?.forceRefresh,
@@ -186,31 +157,52 @@ export function useTaskCenterTopicNavigationRuntime({
         return;
       }
 
-      taskCenterDraftSurfaceActiveRef.current = false;
-      clearTaskCenterEmbeddedHomeSession(topicId);
-      resetLocalImageWorkbenchSessionScope();
+      const navigationVersion = ++navigationVersionRef.current;
+      const sourceNavigationEpoch = getComposerDraftNavigationEpoch?.();
+      const isNavigationCurrent = () =>
+        navigationVersion === navigationVersionRef.current &&
+        sourceNavigationEpoch === getComposerDraftNavigationEpoch?.();
+      composerDraftCoordinator?.prepareNavigation();
+      let activationCommitted = false;
+      const commitTopicActivation = () => {
+        if (activationCommitted || !isNavigationCurrent()) return;
+        activationCommitted = true;
+        taskCenterHomeSurfaceActiveRef.current = false;
+        clearTaskCenterEmbeddedHomeSession(topicId);
+        resetLocalImageWorkbenchSessionScope();
+        clearEntryPendingA2UI();
+      };
+      const lifecycle = { onHydrated: commitTopicActivation };
       setTaskCenterTransitionTopicId(topicId);
       setTaskCenterDetachedTopicId(isDetachedTopic ? topicId : null);
-      setActiveTaskCenterDraftTabId(null);
-      clearEntryPendingA2UI();
       if (options?.replaceOpenTabs === true) {
         replaceTaskCenterOpenTabs(topicId, topicWorkspaceId);
       } else if (shouldMaintainTaskCenterTab) {
         upsertTaskCenterOpenTab(topicId, topicWorkspaceId);
       }
       markTaskCenterLocalSessionOverride(topicId);
-      const switchResult = await switchTopic(topicId, switchOptions);
+      let switchResult: unknown;
+      try {
+        switchResult = await switchTopic(topicId, switchOptions, lifecycle);
+      } catch (error) {
+        if (isNavigationCurrent()) rollbackPendingOpen();
+        throw error;
+      }
       if (switchResult === "busy") {
         scheduleMinimumDelayIdleTask(
           () => {
-            void switchTopic(topicId, switchOptions)
+            if (!isNavigationCurrent()) return;
+            void switchTopic(topicId, switchOptions, lifecycle)
               .then((retryResult) => {
+                if (!isNavigationCurrent()) return;
                 if (!isTaskCenterTopicSwitchSuccess(retryResult)) {
                   rollbackPendingOpen();
+                } else if (retryResult !== "deferred") {
+                  commitTopicActivation();
                 }
               })
               .catch(() => {
-                rollbackPendingOpen();
+                if (isNavigationCurrent()) rollbackPendingOpen();
               });
           },
           {
@@ -218,127 +210,55 @@ export function useTaskCenterTopicNavigationRuntime({
             idleTimeoutMs: 600,
           },
         );
-        return;
+        return switchResult;
       }
+      if (!isNavigationCurrent())
+        return activationCommitted &&
+          isTaskCenterTopicSwitchSuccess(switchResult)
+          ? switchResult
+          : "superseded";
       if (!isTaskCenterTopicSwitchSuccess(switchResult)) {
         rollbackPendingOpen();
-        return;
+        return switchResult;
+      }
+      if (switchResult !== "deferred") {
+        commitTopicActivation();
       }
       if (options?.replaceOpenTabs === true) {
         replaceTaskCenterOpenTabs(topicId, topicWorkspaceId);
       } else if (shouldMaintainTaskCenterTab) {
         upsertTaskCenterOpenTab(topicId, topicWorkspaceId);
       }
+      return switchResult;
     },
     [
       activeSessionIdRef,
-      activeTaskCenterDraftTabIdRef,
       agentEntry,
       clearEntryPendingA2UI,
+      composerDraftCoordinator,
+      getComposerDraftNavigationEpoch,
       clearTaskCenterEmbeddedHomeSession,
       markTaskCenterLocalSessionOverride,
       messagesLength,
       replaceTaskCenterOpenTabs,
       resetLocalImageWorkbenchSessionScope,
-      setActiveTaskCenterDraftTabId,
       setTaskCenterDetachedTopicId,
       setTaskCenterLocalSessionOverride,
       setTaskCenterOpenTabMap,
       setTaskCenterTransitionTopicId,
       switchTopic,
       taskCenterDetachedTopicId,
-      taskCenterDraftSurfaceActiveRef,
+      taskCenterHomeSurfaceActiveRef,
       taskCenterOpenTabIdsRef,
       topicById,
       upsertTaskCenterOpenTab,
     ],
   );
 
-  const handleSelectTaskCenterDraftTab = useCallback(
-    (draftTabId: string) => {
-      const draft = taskCenterDraftTabsRef.current.find(
-        (tab) => tab.id === draftTabId,
-      );
-      if (!draft) {
-        return;
-      }
-
-      resetComposerDraft?.();
-      taskCenterDraftSurfaceActiveRef.current = true;
-      resetLocalImageWorkbenchSessionScope();
-      clearMessages({ showToast: false });
-      startTransition(() => {
-        setTaskCenterTransitionTopicId(null);
-        setTaskCenterDetachedTopicId(null);
-        setActiveTaskCenterDraftTabId(draftTabId);
-        setTaskCenterDraftSendRequest(null);
-        setHomePendingPreviewRequest(null);
-        resetTopicLocalState();
-        setInput("");
-        setSelectedText("");
-        setMentionedCharacters([]);
-      });
-    },
-    [
-      clearMessages,
-      resetLocalImageWorkbenchSessionScope,
-      resetComposerDraft,
-      resetTopicLocalState,
-      setActiveTaskCenterDraftTabId,
-      setHomePendingPreviewRequest,
-      setInput,
-      setMentionedCharacters,
-      setSelectedText,
-      setTaskCenterDetachedTopicId,
-      setTaskCenterDraftSendRequest,
-      setTaskCenterTransitionTopicId,
-      taskCenterDraftSurfaceActiveRef,
-      taskCenterDraftTabsRef,
-    ],
-  );
-
-  const handleSwitchTaskTopic = useCallback(
-    async (topicId: string) => {
-      if (isTaskCenterDraftTabId(topicId)) {
-        handleSelectTaskCenterDraftTab(topicId);
-        return;
-      }
-
-      await handleOpenTaskTopic(topicId);
-    },
-    [handleOpenTaskTopic, handleSelectTaskCenterDraftTab],
-  );
+  const handleSwitchTaskTopic = handleOpenTaskTopic;
 
   const handleCloseTaskCenterTab = useCallback(
     async (topicId: string) => {
-      if (isTaskCenterDraftTabId(topicId)) {
-        const closePlan = resolveTaskCenterDraftClosePlan({
-          closingDraftTabId: topicId,
-          currentDraftTabs: taskCenterDraftTabsRef.current,
-          activeDraftTabId: activeTaskCenterDraftTabIdRef.current,
-          openTopicIds: taskCenterOpenTabIdsRef.current,
-        });
-        setTaskCenterDraftTabs(closePlan.remainingDraftTabs);
-        if (closePlan.action === "selectDraft") {
-          handleSelectTaskCenterDraftTab(closePlan.fallbackDraftTabId);
-          return;
-        }
-        if (closePlan.action === "switchTopic") {
-          taskCenterDraftSurfaceActiveRef.current = false;
-          setActiveTaskCenterDraftTabId(null);
-          setInput("");
-          await handleSwitchTaskTopic(closePlan.fallbackTopicId);
-          return;
-        }
-        if (closePlan.action === "clearActiveDraft") {
-          resetComposerDraft?.();
-          taskCenterDraftSurfaceActiveRef.current = false;
-          setActiveTaskCenterDraftTabId(null);
-          setInput("");
-        }
-        return;
-      }
-
       const closePlan = resolveTaskCenterTopicClosePlan({
         closingTopicId: topicId,
         currentOpenTabIds: taskCenterOpenTabIdsRef.current,
@@ -367,27 +287,22 @@ export function useTaskCenterTopicNavigationRuntime({
         if (closePlan.fallbackTopicId) {
           await handleSwitchTaskTopic(closePlan.fallbackTopicId);
         } else {
-          openTaskCenterDraftTab();
+          onStartNewConversation?.({
+            projectId: normalizeProjectId(taskCenterWorkspaceId),
+            freshDraft: false,
+          });
         }
       }
     },
     [
-      activeTaskCenterDraftTabIdRef,
       clearTaskCenterEmbeddedHomeSession,
-      handleSelectTaskCenterDraftTab,
       handleSwitchTaskTopic,
-      openTaskCenterDraftTab,
       sessionId,
-      setActiveTaskCenterDraftTabId,
-      setInput,
-      resetComposerDraft,
+      onStartNewConversation,
       setTaskCenterDetachedTopicId,
-      setTaskCenterDraftTabs,
       setTaskCenterOpenTabMap,
       setTaskCenterTransitionTopicId,
       taskCenterDetachedTopicId,
-      taskCenterDraftSurfaceActiveRef,
-      taskCenterDraftTabsRef,
       taskCenterOpenTabIdsRef,
       taskCenterTransitionTopicId,
       taskCenterWorkspaceId,
@@ -397,7 +312,6 @@ export function useTaskCenterTopicNavigationRuntime({
   return {
     handleCloseTaskCenterTab,
     handleOpenTaskTopic,
-    handleSelectTaskCenterDraftTab,
     handleSwitchTaskTopic,
   };
 }

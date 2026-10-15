@@ -24,7 +24,6 @@ const CONSUMER_PATHS = [
   "src/components/agent/chat/utils/sessionExecutionRuntime.ts",
   "src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx",
   "src/components/agent/chat/workspace/codingWorkbenchRecovery.ts",
-  "src/components/agent/chat/workspace/knowledge/useWorkspaceKnowledgeRuntime.ts",
   "src/components/agent/chat/workspace/imageCommandIntent.ts",
   "src/components/agent/chat/workspace/imageWorkbenchTaskActions.ts",
   "src/components/agent/chat/workspace/useWorkspaceCanvasWorkflowActions.ts",
@@ -56,6 +55,27 @@ describe("session types current owner boundary", () => {
       );
       expect(source, relativePath).not.toContain('"@/lib/api/agentRuntime"');
     }
+  });
+
+  it("知识 Workspace 发送委托共享合同，不重复声明 session DTO", () => {
+    const source = readFileSync(
+      join(
+        cwd(),
+        "src/components/agent/chat/workspace/knowledge/useWorkspaceKnowledgeRuntime.ts",
+      ),
+      "utf8",
+    );
+
+    expect(source).toContain(
+      'import type { WorkspaceHandleSend } from "../useWorkspaceSendActions"',
+    );
+    expect(source).toContain(
+      "type WorkspaceKnowledgeHandleSend = WorkspaceHandleSend",
+    );
+    expect(source).not.toContain('"@/lib/api/agentRuntime"');
+    expect(source).not.toMatch(
+      /(?:interface|type)\s+Session(?:Info|Message)\b/,
+    );
   });
 
   it("turn binding 从独立类型 owner 读取选项，不恢复重复 DTO 或聚合入口", () => {

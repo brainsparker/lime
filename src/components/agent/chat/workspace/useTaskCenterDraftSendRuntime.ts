@@ -1,4 +1,9 @@
 import {
+  isRuntimeSubmissionAccepted,
+  type AcceptedRuntimeSubmissionResult,
+} from "../hooks/agentSendResult";
+import { createTaskCenterSubmissionSettlement } from "./taskCenterSubmissionSettlement";
+import {
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -14,6 +19,7 @@ import { mergeAgentUiPerformanceTraceMetadata } from "../hooks/agentStreamPerfor
 import {
   buildHomePendingPreviewMessages,
   type TaskCenterDraftSendRequest,
+  type TaskCenterSessionReadyOptions,
 } from "../homePendingPreview";
 import type { Message } from "../types";
 import {
@@ -23,13 +29,10 @@ import {
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
 import {
   createTaskCenterDraftSendRequestId,
-  resolveTaskCenterDraftSendTitle,
   scheduleAfterCommit,
   scheduleAfterNextPaint,
-  type TaskCenterDraftTab,
 } from "./agentChatWorkspaceHelpers";
 import type { HandleSendOptions } from "../hooks/handleSendTypes";
-import { markTaskCenterDraftTabRunning } from "./taskCenterDraftTabs";
 import type { SoulInteractionCopy } from "@/lib/soul/interactionCopy";
 import { logAgentDebug } from "@/lib/agentDebug";
 
@@ -54,16 +57,16 @@ interface UseTaskCenterEmptyStateSendRuntimeParams {
   input: string;
   setInput: (value: string) => void;
   activeSessionIdRef?: MutableRefObject<string | null>;
-  activeDraftTabIdRef: MutableRefObject<string | null>;
-  clearMessages: (options?: { showToast?: boolean }) => void;
-  displayMessagesLength: number;
-  turnsLength: number;
-  threadItemsLength: number;
+  getComposerDraftNavigationEpoch?: () => number;
+  newChatAt?: number;
+  isSendSourceCurrent?: (
+    options: TaskCenterSessionReadyOptions,
+    acceptedSessionId?: string,
+  ) => boolean;
   hasDisplayMessages: boolean;
   handleSend: WorkspaceHandleSend;
   sessionId?: string | null;
   taskCenterWorkspaceId?: string | null;
-  setTaskCenterDraftTabs: Dispatch<SetStateAction<TaskCenterDraftTab[]>>;
   setTaskCenterDraftSendRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
@@ -71,11 +74,9 @@ interface UseTaskCenterEmptyStateSendRuntimeParams {
   setHomePendingPreviewRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
-  materializedSessionIdsRef?: MutableRefObject<Map<string, string>>;
-  prewarmedDraftSessionIdsRef?: MutableRefObject<Set<string>>;
-  onNonMaterializedSessionReady?: (
+  onSessionAccepted?: (
     sessionId: string,
-    options?: { sourceDraftTabId?: string | null },
+    options?: TaskCenterSessionReadyOptions,
   ) => void;
 }
 
@@ -125,7 +126,7 @@ export function useTaskCenterHomePendingPreviewRuntime({
     recordAgentUiPerformanceMetric("homeInput.pendingPreviewCommitted", {
       durationMs: Date.now() - request.submittedAt,
       requestId: request.id,
-      sessionId: request.draftTabId,
+      sessionId: request.sessionId,
       source: request.source,
       workspaceId: workspaceId ?? null,
     });
@@ -150,7 +151,7 @@ export function useTaskCenterHomePendingPreviewRuntime({
       recordAgentUiPerformanceMetric("homeInput.pendingPreviewPaint", {
         durationMs: Date.now() - request.submittedAt,
         requestId: request.id,
-        sessionId: request.draftTabId,
+        sessionId: request.sessionId,
         source: request.source,
         workspaceId: workspaceId ?? null,
       });
@@ -172,24 +173,26 @@ export function useTaskCenterEmptyStateSendRuntime({
   input,
   setInput,
   activeSessionIdRef,
-  activeDraftTabIdRef,
-  clearMessages,
-  displayMessagesLength,
-  turnsLength,
-  threadItemsLength,
+  getComposerDraftNavigationEpoch,
+  isSendSourceCurrent,
+  newChatAt,
   hasDisplayMessages,
   handleSend,
   sessionId,
   taskCenterWorkspaceId,
-  setTaskCenterDraftTabs,
   setTaskCenterDraftSendRequest,
   taskCenterDraftSendRequest,
   setHomePendingPreviewRequest,
-  materializedSessionIdsRef,
-  prewarmedDraftSessionIdsRef,
-  onNonMaterializedSessionReady,
+  onSessionAccepted,
 }: UseTaskCenterEmptyStateSendRuntimeParams): InputbarSendHandler {
   const homeSendInFlightRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!taskCenterDraftSendRequest) {
@@ -214,179 +217,64 @@ export function useTaskCenterEmptyStateSendRuntime({
           triggerSource,
           workspaceId: taskCenterWorkspaceId,
         });
-        return false;
+        return Promise.resolve({ kind: "rejected" });
       }
 
       const text = payload.textOverride ?? input;
       const images = payload.images ?? [];
-      const sendOptions = getInputbarSendOptions(payload);
-      let settleSend!: (accepted: boolean) => void;
-      const completion = new Promise<boolean>((resolve) => {
-        settleSend = resolve;
-      });
+      const originalSendOptions = getInputbarSendOptions(payload);
+      const settlement = createTaskCenterSubmissionSettlement(
+        originalSendOptions?.observer,
+      );
+      const sendOptions = {
+        ...originalSendOptions,
+        observer: settlement.observer,
+      };
+      const { completion } = settlement;
+      const settleSend = settlement.settle;
       const normalizedText = text.trim();
-      const activeDraftTabId = activeDraftTabIdRef.current;
-      if (
-        (agentEntry === "claw" || agentEntry === "new-task") &&
-        activeDraftTabId
-      ) {
-        homeSendInFlightRef.current = true;
-        const submittedAt = triggeredAt;
-        const requestId = createTaskCenterDraftSendRequestId();
-        const tracedSendOptions: HandleSendOptions = {
-          ...(sendOptions || {}),
-          skipWorkspaceCommandRouting: true,
-          skipSessionRestore: true,
-          skipSessionStartHooks: true,
-          requestMetadata: mergeAgentUiPerformanceTraceMetadata(
-            sendOptions?.requestMetadata,
-            {
-              requestId,
-              sessionId: null,
-              source: "task-center-empty-state",
-              submittedAt,
-              workspaceId: taskCenterWorkspaceId ?? null,
-            },
-          ),
-        };
-        const shouldUseMaterializedDraftDispatch =
-          materializedSessionIdsRef?.current.has(activeDraftTabId) ||
-          prewarmedDraftSessionIdsRef?.current.has(activeDraftTabId) ||
-          false;
-        recordAgentUiPerformanceMetric("homeInput.submit", {
-          hasDraftTab: true,
-          inputbarHandlerToHomeSubmitMs: Math.max(
-            0,
-            Date.now() - handlerEnteredAt,
-          ),
-          inputLength: normalizedText.length,
-          requestId,
-          sessionId: activeDraftTabId,
-          source: "task-center-empty-state",
-          triggerToHomeSubmitMs: Math.max(0, Date.now() - triggeredAt),
-          triggerSource,
-          workspaceId: taskCenterWorkspaceId,
-        });
-        const request: TaskCenterDraftSendRequest = {
-          id: requestId,
-          draftTabId: shouldUseMaterializedDraftDispatch
-            ? activeDraftTabId
-            : requestId,
-          text,
-          images,
-          sendOptions: tracedSendOptions,
-          submittedAt,
-          materializeDraft: shouldUseMaterializedDraftDispatch,
-          dispatchState: shouldUseMaterializedDraftDispatch
-            ? undefined
-            : "dispatched",
-          source: "task-center-empty-state",
-          triggerSource,
-          onDispatchSettled: settleSend,
-        };
-        flushHomePendingPreview(() => {
-          if (!sendOptions?.composerDraft) setInput("");
-          if (
-            displayMessagesLength > 0 ||
-            turnsLength > 0 ||
-            threadItemsLength > 0
-          ) {
-            clearMessages({ showToast: false });
-          }
-          setTaskCenterDraftSendRequest(request);
-          setHomePendingPreviewRequest(request);
-        });
-        if (request.materializeDraft) {
-          return completion;
+      const sendSource = {
+        sessionId: activeSessionIdRef?.current ?? sessionId ?? null,
+        workspaceId: taskCenterWorkspaceId ?? null,
+        navigationEpoch: getComposerDraftNavigationEpoch?.() ?? null,
+        newChatAt: newChatAt ?? null,
+      };
+      const sourceOptions: TaskCenterSessionReadyOptions = {
+        composerDraftCapture: payload.composerDraftCapture,
+        sendSource,
+      };
+      const restoreRejectedInput = () => {
+        if (
+          mountedRef.current &&
+          !sendOptions.composerDraft &&
+          isSendSourceCurrent?.(sourceOptions) !== false
+        )
+          setInput(text);
+      };
+      const handleAcceptedSessionReady = (
+        id: string,
+        result: AcceptedRuntimeSubmissionResult,
+      ) => {
+        const readySessionId = result.receipt.sessionId;
+        if (!mountedRef.current) return;
+        if (isSendSourceCurrent?.(sourceOptions, readySessionId) === false) {
+          setHomePendingPreviewRequest((current) =>
+            current?.id === id ? null : current,
+          );
+          return;
         }
-
-        scheduleAfterCommit(() => {
-          setTaskCenterDraftTabs((current) =>
-            markTaskCenterDraftTabRunning({
-              current,
-              draftTabId: activeDraftTabId,
-              title: resolveTaskCenterDraftSendTitle(text),
-            }),
-          );
-          recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
-            elapsedMs: Date.now() - submittedAt,
-            requestId,
-            sessionId: null,
-            source: "task-center-empty-state",
-            workspaceId: taskCenterWorkspaceId ?? null,
-          });
-          void (async () =>
-            handleSend(
-              images,
-              undefined,
-              undefined,
-              text,
-              undefined,
-              undefined,
-              tracedSendOptions,
-            ))().then(
-            (result) => {
-              recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
-                durationMs: Date.now() - submittedAt,
-                requestId,
-                result,
-                sessionId: null,
-                source: "task-center-empty-state",
-                workspaceId: taskCenterWorkspaceId ?? null,
-              });
-              if (result !== true) {
-                if (!sendOptions?.composerDraft) setInput(text);
-                setHomePendingPreviewRequest((current) =>
-                  current?.id === requestId ? null : current,
-                );
-              } else {
-                const readySessionId =
-                  activeSessionIdRef?.current?.trim() || null;
-                if (readySessionId) {
-                  onNonMaterializedSessionReady?.(readySessionId, {
-                    sourceDraftTabId: activeDraftTabId,
-                  });
-                  setHomePendingPreviewRequest((current) =>
-                    current?.id === requestId
-                      ? {
-                          ...current,
-                          draftTabId: readySessionId,
-                          sessionReady: true,
-                        }
-                      : current,
-                  );
-                }
-              }
-              setTaskCenterDraftSendRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
-              homeSendInFlightRef.current = false;
-              settleSend(result === true);
-            },
-            (error) => {
-              recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-                durationMs: Date.now() - submittedAt,
-                error: error instanceof Error ? error.message : String(error),
-                requestId,
-                sessionId: null,
-                source: "task-center-empty-state",
-                workspaceId: taskCenterWorkspaceId ?? null,
-              });
-              if (!sendOptions?.composerDraft) setInput(text);
-              setTaskCenterDraftSendRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
-              setHomePendingPreviewRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
-              homeSendInFlightRef.current = false;
-              settleSend(false);
-            },
-          );
-        });
-        return completion;
-      }
-
+        settlement.effect("accepted_submit", () =>
+          onSessionAccepted?.(readySessionId, {
+            ...sourceOptions,
+            acceptedResult: result,
+          }),
+        );
+        setHomePendingPreviewRequest((current) =>
+          current?.id === id
+            ? { ...current, sessionId: readySessionId, sessionReady: true }
+            : current,
+        );
+      };
       const shouldQueueHomeSend =
         !hasDisplayMessages &&
         (agentEntry === "claw" || agentEntry === "new-task");
@@ -395,20 +283,21 @@ export function useTaskCenterEmptyStateSendRuntime({
         const submittedAt = triggeredAt;
         const requestId = createTaskCenterDraftSendRequestId();
         const existingSessionId = sessionId?.trim() || null;
-        recordAgentUiPerformanceMetric("homeInput.submit", {
-          hasDraftTab: false,
-          inputbarHandlerToHomeSubmitMs: Math.max(
-            0,
-            Date.now() - handlerEnteredAt,
-          ),
-          inputLength: normalizedText.length,
-          requestId,
-          sessionId: existingSessionId,
-          source: "empty-state",
-          triggerToHomeSubmitMs: Math.max(0, Date.now() - triggeredAt),
-          triggerSource,
-          workspaceId: taskCenterWorkspaceId,
-        });
+        settlement.effect("accepted_metric", () =>
+          recordAgentUiPerformanceMetric("homeInput.submit", {
+            inputbarHandlerToHomeSubmitMs: Math.max(
+              0,
+              Date.now() - handlerEnteredAt,
+            ),
+            inputLength: normalizedText.length,
+            requestId,
+            sessionId: existingSessionId,
+            source: "empty-state",
+            triggerToHomeSubmitMs: Math.max(0, Date.now() - triggeredAt),
+            triggerSource,
+            workspaceId: taskCenterWorkspaceId,
+          }),
+        );
         if (!existingSessionId) {
           const tracedSendOptions: HandleSendOptions = {
             ...(sendOptions || {}),
@@ -428,12 +317,13 @@ export function useTaskCenterEmptyStateSendRuntime({
           };
           const previewRequest: TaskCenterDraftSendRequest = {
             id: requestId,
-            draftTabId: requestId,
+            sessionId: null,
             text,
             images,
             sendOptions: tracedSendOptions,
+            composerDraftCapture: payload.composerDraftCapture,
+            sendSource,
             submittedAt,
-            materializeDraft: false,
             dispatchState: "dispatched",
             source: "empty-state",
             triggerSource,
@@ -443,19 +333,23 @@ export function useTaskCenterEmptyStateSendRuntime({
             setTaskCenterDraftSendRequest(previewRequest);
             setHomePendingPreviewRequest(previewRequest);
           });
-          logAgentDebug("AgentChatPage", "homeInput.directDispatch.start", {
-            requestId,
-            source: "empty-state",
-            workspaceId: taskCenterWorkspaceId,
-          });
-          scheduleAfterCommit(() => {
-            recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
-              elapsedMs: Date.now() - submittedAt,
+          settlement.effect("accepted_log", () =>
+            logAgentDebug("AgentChatPage", "homeInput.directDispatch.start", {
               requestId,
-              sessionId: null,
               source: "empty-state",
-              workspaceId: taskCenterWorkspaceId ?? null,
-            });
+              workspaceId: taskCenterWorkspaceId,
+            }),
+          );
+          scheduleAfterCommit(() => {
+            settlement.effect("accepted_metric", () =>
+              recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
+                elapsedMs: Date.now() - submittedAt,
+                requestId,
+                sessionId: null,
+                source: "empty-state",
+                workspaceId: taskCenterWorkspaceId ?? null,
+              }),
+            );
             void (async () =>
               handleSend(
                 images,
@@ -465,84 +359,96 @@ export function useTaskCenterEmptyStateSendRuntime({
                 undefined,
                 undefined,
                 tracedSendOptions,
-              ))().then(
-              (result) => {
-                recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
-                  durationMs: Date.now() - submittedAt,
-                  requestId,
-                  result,
-                  sessionId: null,
-                  source: "empty-state",
-                  workspaceId: taskCenterWorkspaceId ?? null,
-                });
-                logAgentDebug(
-                  "AgentChatPage",
-                  "homeInput.directDispatch.done",
-                  {
-                    requestId,
-                    result,
-                    source: "empty-state",
-                    workspaceId: taskCenterWorkspaceId,
-                  },
-                );
-                if (result !== true) {
-                  if (!sendOptions?.composerDraft) setInput(text);
+              ))()
+              .then(
+                (actualResult) => {
+                  const result = settleSend(actualResult);
+                  settlement.effect("accepted_metric", () =>
+                    recordAgentUiPerformanceMetric(
+                      "homeInput.sendDispatch.done",
+                      {
+                        durationMs: Date.now() - submittedAt,
+                        requestId,
+                        result: result.kind,
+                        sessionId: null,
+                        source: "empty-state",
+                        workspaceId: taskCenterWorkspaceId ?? null,
+                      },
+                    ),
+                  );
+                  settlement.effect("accepted_log", () =>
+                    logAgentDebug(
+                      "AgentChatPage",
+                      "homeInput.directDispatch.done",
+                      {
+                        requestId,
+                        result: result.kind,
+                        source: "empty-state",
+                        workspaceId: taskCenterWorkspaceId,
+                      },
+                    ),
+                  );
+                  if (!isRuntimeSubmissionAccepted(result)) {
+                    restoreRejectedInput();
+                    setHomePendingPreviewRequest((current) =>
+                      current?.id === requestId ? null : current,
+                    );
+                  } else {
+                    handleAcceptedSessionReady(requestId, result);
+                  }
+                  setTaskCenterDraftSendRequest((current) =>
+                    current?.id === requestId ? null : current,
+                  );
+                  homeSendInFlightRef.current = false;
+                  settleSend(result);
+                },
+                (error) => {
+                  const result = settlement.reject(error);
+                  if (isRuntimeSubmissionAccepted(result)) {
+                    homeSendInFlightRef.current = false;
+                    return;
+                  }
+                  settlement.effect("accepted_metric", () =>
+                    recordAgentUiPerformanceMetric(
+                      "homeInput.sendDispatch.error",
+                      {
+                        durationMs: Date.now() - submittedAt,
+                        error: "request_rejected",
+                        requestId,
+                        sessionId: null,
+                        source: "empty-state",
+                        workspaceId: taskCenterWorkspaceId ?? null,
+                      },
+                    ),
+                  );
+                  settlement.effect("accepted_log", () =>
+                    logAgentDebug(
+                      "AgentChatPage",
+                      "homeInput.directDispatch.error",
+                      {
+                        error: "request_rejected",
+                        requestId,
+                        source: "empty-state",
+                        workspaceId: taskCenterWorkspaceId,
+                      },
+                      { level: "error" },
+                    ),
+                  );
+                  restoreRejectedInput();
+                  setTaskCenterDraftSendRequest((current) =>
+                    current?.id === requestId ? null : current,
+                  );
                   setHomePendingPreviewRequest((current) =>
                     current?.id === requestId ? null : current,
                   );
-                } else {
-                  const readySessionId =
-                    activeSessionIdRef?.current?.trim() || null;
-                  if (readySessionId) {
-                    onNonMaterializedSessionReady?.(readySessionId);
-                    setHomePendingPreviewRequest((current) =>
-                      current?.id === requestId
-                        ? {
-                            ...current,
-                            draftTabId: readySessionId,
-                            sessionReady: true,
-                          }
-                        : current,
-                    );
-                  }
-                }
-                setTaskCenterDraftSendRequest((current) =>
-                  current?.id === requestId ? null : current,
-                );
+                  homeSendInFlightRef.current = false;
+                  settleSend(result);
+                },
+              )
+              .catch((error) => {
                 homeSendInFlightRef.current = false;
-                settleSend(result === true);
-              },
-              (error) => {
-                recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-                  durationMs: Date.now() - submittedAt,
-                  error: error instanceof Error ? error.message : String(error),
-                  requestId,
-                  sessionId: null,
-                  source: "empty-state",
-                  workspaceId: taskCenterWorkspaceId ?? null,
-                });
-                logAgentDebug(
-                  "AgentChatPage",
-                  "homeInput.directDispatch.error",
-                  {
-                    error,
-                    requestId,
-                    source: "empty-state",
-                    workspaceId: taskCenterWorkspaceId,
-                  },
-                  { level: "error" },
-                );
-                if (!sendOptions?.composerDraft) setInput(text);
-                setTaskCenterDraftSendRequest((current) =>
-                  current?.id === requestId ? null : current,
-                );
-                setHomePendingPreviewRequest((current) =>
-                  current?.id === requestId ? null : current,
-                );
-                homeSendInFlightRef.current = false;
-                settleSend(false);
-              },
-            );
+                settlement.reject(error);
+              });
           });
           return completion;
         }
@@ -564,12 +470,13 @@ export function useTaskCenterEmptyStateSendRuntime({
         };
         const previewRequest: TaskCenterDraftSendRequest = {
           id: requestId,
-          draftTabId: existingSessionId,
+          sessionId: existingSessionId,
           text,
           images,
           sendOptions: tracedSendOptions,
+          composerDraftCapture: payload.composerDraftCapture,
+          sendSource,
           submittedAt,
-          materializeDraft: false,
           dispatchState: "dispatched",
           source: "empty-state",
           triggerSource,
@@ -580,13 +487,15 @@ export function useTaskCenterEmptyStateSendRuntime({
           setHomePendingPreviewRequest(previewRequest);
         });
         scheduleAfterCommit(() => {
-          recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
-            elapsedMs: Date.now() - submittedAt,
-            requestId,
-            sessionId: existingSessionId,
-            source: "empty-state",
-            workspaceId: taskCenterWorkspaceId ?? null,
-          });
+          settlement.effect("accepted_metric", () =>
+            recordAgentUiPerformanceMetric("homeInput.sendDispatch.start", {
+              elapsedMs: Date.now() - submittedAt,
+              requestId,
+              sessionId: existingSessionId,
+              source: "empty-state",
+              workspaceId: taskCenterWorkspaceId ?? null,
+            }),
+          );
           void (async () =>
             handleSend(
               images,
@@ -596,96 +505,115 @@ export function useTaskCenterEmptyStateSendRuntime({
               undefined,
               undefined,
               tracedSendOptions,
-            ))().then(
-            (result) => {
-              recordAgentUiPerformanceMetric("homeInput.sendDispatch.done", {
-                durationMs: Date.now() - submittedAt,
-                requestId,
-                result,
-                sessionId: existingSessionId,
-                source: "empty-state",
-                workspaceId: taskCenterWorkspaceId ?? null,
-              });
-              if (result !== true) {
-                if (!sendOptions?.composerDraft) setInput(text);
+            ))()
+            .then(
+              (actualResult) => {
+                const result = settleSend(actualResult);
+                settlement.effect("accepted_metric", () =>
+                  recordAgentUiPerformanceMetric(
+                    "homeInput.sendDispatch.done",
+                    {
+                      durationMs: Date.now() - submittedAt,
+                      requestId,
+                      result: result.kind,
+                      sessionId: existingSessionId,
+                      source: "empty-state",
+                      workspaceId: taskCenterWorkspaceId ?? null,
+                    },
+                  ),
+                );
+                if (!isRuntimeSubmissionAccepted(result)) {
+                  restoreRejectedInput();
+                  setHomePendingPreviewRequest((current) =>
+                    current?.id === requestId ? null : current,
+                  );
+                }
+                setTaskCenterDraftSendRequest((current) =>
+                  current?.id === requestId ? null : current,
+                );
+                homeSendInFlightRef.current = false;
+                settleSend(result);
+              },
+              (error) => {
+                const result = settlement.reject(error);
+                if (isRuntimeSubmissionAccepted(result)) {
+                  homeSendInFlightRef.current = false;
+                  return;
+                }
+                settlement.effect("accepted_metric", () =>
+                  recordAgentUiPerformanceMetric(
+                    "homeInput.sendDispatch.error",
+                    {
+                      durationMs: Date.now() - submittedAt,
+                      error: "request_rejected",
+                      requestId,
+                      sessionId: existingSessionId,
+                      source: "empty-state",
+                      workspaceId: taskCenterWorkspaceId ?? null,
+                    },
+                  ),
+                );
+                restoreRejectedInput();
+                setTaskCenterDraftSendRequest((current) =>
+                  current?.id === requestId ? null : current,
+                );
                 setHomePendingPreviewRequest((current) =>
                   current?.id === requestId ? null : current,
                 );
-              }
-              setTaskCenterDraftSendRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
+                homeSendInFlightRef.current = false;
+                settleSend(result);
+              },
+            )
+            .catch((error) => {
               homeSendInFlightRef.current = false;
-              settleSend(result === true);
-            },
-            (error) => {
-              recordAgentUiPerformanceMetric("homeInput.sendDispatch.error", {
-                durationMs: Date.now() - submittedAt,
-                error: error instanceof Error ? error.message : String(error),
-                requestId,
-                sessionId: existingSessionId,
-                source: "empty-state",
-                workspaceId: taskCenterWorkspaceId ?? null,
-              });
-              if (!sendOptions?.composerDraft) setInput(text);
-              setTaskCenterDraftSendRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
-              setHomePendingPreviewRequest((current) =>
-                current?.id === requestId ? null : current,
-              );
-              homeSendInFlightRef.current = false;
-              settleSend(false);
-            },
-          );
+              settlement.reject(error);
+            });
         });
         return completion;
       }
 
-      recordAgentUiPerformanceMetric("homeInput.submit", {
-        hasDraftTab: false,
-        inputbarHandlerToHomeSubmitMs: Math.max(
-          0,
-          Date.now() - handlerEnteredAt,
-        ),
-        inputLength: normalizedText.length,
-        sessionId: sessionId ?? null,
-        source: "empty-state",
-        triggerToHomeSubmitMs: Math.max(0, Date.now() - triggeredAt),
-        triggerSource,
-        workspaceId: taskCenterWorkspaceId,
-      });
-      return handleSend(
-        images,
-        undefined,
-        undefined,
-        text,
-        undefined,
-        undefined,
-        sendOptions,
+      settlement.effect("accepted_metric", () =>
+        recordAgentUiPerformanceMetric("homeInput.submit", {
+          inputbarHandlerToHomeSubmitMs: Math.max(
+            0,
+            Date.now() - handlerEnteredAt,
+          ),
+          inputLength: normalizedText.length,
+          sessionId: sessionId ?? null,
+          source: "empty-state",
+          triggerToHomeSubmitMs: Math.max(0, Date.now() - triggeredAt),
+          triggerSource,
+          workspaceId: taskCenterWorkspaceId,
+        }),
       );
+      void (async () =>
+        handleSend(
+          images,
+          undefined,
+          undefined,
+          text,
+          undefined,
+          undefined,
+          sendOptions,
+        ))().then(settlement.settle, settlement.reject);
+      return completion;
     },
     [
-      activeDraftTabIdRef,
       activeSessionIdRef,
+      getComposerDraftNavigationEpoch,
+      isSendSourceCurrent,
+      newChatAt,
       agentEntry,
-      clearMessages,
-      displayMessagesLength,
       handleSend,
       hasDisplayMessages,
       input,
-      materializedSessionIdsRef,
       sessionId,
-      onNonMaterializedSessionReady,
-      prewarmedDraftSessionIdsRef,
+      onSessionAccepted,
       setHomePendingPreviewRequest,
       setInput,
       setTaskCenterDraftSendRequest,
-      setTaskCenterDraftTabs,
       taskCenterDraftSendRequest,
       taskCenterWorkspaceId,
-      threadItemsLength,
-      turnsLength,
     ],
   );
 }

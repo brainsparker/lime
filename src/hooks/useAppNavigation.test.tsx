@@ -6,6 +6,7 @@ import {
   buildHomeAgentParams,
 } from "@/lib/workspace/navigation";
 import { useAppNavigation } from "./useAppNavigation";
+import { SettingsTabs } from "@/types/settings";
 
 const NAVIGATION_RESTORE_STORAGE_KEY = "lime.appNavigation.restore.v1";
 
@@ -321,5 +322,177 @@ describe("useAppNavigation", () => {
     });
     expect(latestNavigation?.navigationRequestId).toBe(2);
     expect(latestNavigation?.isNavigating).toBe(false);
+  });
+
+  it("首页首发后按实际可见会话和工作区返回，切章不覆盖来处或重放一次性输入", async () => {
+    await renderProbe();
+    const navigate = latestNavigation!.handleNavigate;
+    const back = latestNavigation!.returnFromSettings;
+    await act(async () => {
+      latestNavigation!.startNewConversation({
+        projectId: "old-workspace",
+        freshDraft: true,
+      });
+    });
+    await act(async () => {
+      latestNavigation!.reportAgentLocation({
+        sessionId: " materialized-thread ",
+        workspaceId: " actual-workspace ",
+      });
+    });
+    await act(async () => {
+      navigate("settings", { tab: SettingsTabs.Providers });
+    });
+    await act(async () => {
+      navigate("settings", { tab: SettingsTabs.Appearance });
+    });
+    await act(async () => {
+      back();
+    });
+    expect(latestNavigation!.pageParams).toEqual(
+      buildClawAgentParams({
+        initialSessionId: "materialized-thread",
+        projectId: "actual-workspace",
+        contentId: undefined,
+      }),
+    );
+    expect(latestNavigation!.handleNavigate).toBe(navigate);
+    expect(latestNavigation!.returnFromSettings).toBe(back);
+    const persisted = JSON.parse(
+      window.sessionStorage.getItem(NAVIGATION_RESTORE_STORAGE_KEY)!,
+    );
+    expect(persisted.params.initialSessionId).toBe("materialized-thread");
+    expect(persisted.params.newConversationRequest).toBeUndefined();
+  });
+
+  it("已有会话未发布位置时使用最小恢复参数，丢弃发送、附件、技能与新建意图", async () => {
+    await renderProbe();
+    await act(async () => {
+      latestNavigation!.handleNavigate(
+        "agent",
+        buildClawAgentParams({
+          projectId: "workspace",
+          initialSessionId: "thread",
+          contentId: "content",
+          initialUserPrompt: "must-not-replay",
+          initialUserImages: [{ data: "image", mediaType: "image/png" }],
+          initialSiteSkillLaunch: { adapterName: "must-not-run" },
+          newConversationRequest: {
+            id: 1,
+            workspaceId: "workspace",
+            freshDraft: true,
+          },
+        }),
+      );
+    });
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings");
+    });
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings", { tab: SettingsTabs.About });
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.pageParams).toEqual(
+      buildClawAgentParams({
+        initialSessionId: "thread",
+        projectId: "workspace",
+        contentId: "content",
+      }),
+    );
+  });
+
+  it("快速导航后的旧位置回调和设置期间的迟到回调不能夺取返回目标", async () => {
+    await renderProbe();
+    const stale = latestNavigation!.reportAgentLocation;
+    await act(async () => {
+      latestNavigation!.handleNavigate(
+        "agent",
+        buildClawAgentParams({
+          initialSessionId: "new-thread",
+          projectId: "new-workspace",
+        }),
+      );
+    });
+    await act(async () => {
+      latestNavigation!.reportAgentLocation({
+        sessionId: "new-thread",
+        workspaceId: "visible-workspace",
+      });
+      stale({ sessionId: "old-thread", workspaceId: "old-workspace" });
+    });
+    const departing = latestNavigation!.reportAgentLocation;
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings", {
+        tab: SettingsTabs.Memory,
+      });
+      departing({ sessionId: "late-thread", workspaceId: "late-workspace" });
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.pageParams).toMatchObject({
+      initialSessionId: "new-thread",
+      projectId: "visible-workspace",
+    });
+  });
+
+  it("同批未提交导航不替换实际来处，重复报告也不触发重渲染", async () => {
+    await renderProbe();
+    const location = {
+      sessionId: "visible-thread",
+      workspaceId: "visible-workspace",
+    };
+    await act(async () => {
+      latestNavigation!.reportAgentLocation(location);
+    });
+    const calls = readyCallCount;
+    await act(async () => {
+      latestNavigation!.reportAgentLocation({ ...location });
+    });
+    expect(readyCallCount).toBe(calls);
+    await act(async () => {
+      latestNavigation!.handleNavigate("plugins", { query: "not-yet-visible" });
+      latestNavigation!.handleNavigate("settings");
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.pageParams).toMatchObject({
+      initialSessionId: "visible-thread",
+      projectId: "visible-workspace",
+    });
+  });
+
+  it("无会话来处返回首页，下一次从其它页面进入设置更新来处", async () => {
+    await renderProbe();
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings", { tab: SettingsTabs.About });
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.pageParams).toMatchObject({
+      agentEntry: "new-task",
+    });
+    expect(latestNavigation!.pageParams).not.toHaveProperty("initialSessionId");
+    await act(async () => {
+      latestNavigation!.handleNavigate("plugins", {
+        query: "retained",
+        currentProjectId: "project",
+      });
+    });
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings");
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.currentPage).toBe("plugins");
+    expect(latestNavigation!.pageParams).toEqual({
+      query: "retained",
+      currentProjectId: "project",
+    });
   });
 });

@@ -1,93 +1,64 @@
+import { useCallback } from "react";
+import type { ComposerDraftNavigationCallbacks } from "./composerDraftNavigation";
 import { useTaskCenterChromeNavigationRuntime } from "./useTaskCenterChromeNavigationRuntime";
-import { useTaskCenterDraftMaterializationRuntime } from "./useTaskCenterDraftMaterializationRuntime";
 import { useTaskCenterTopicNavigationRuntime } from "./useTaskCenterTopicNavigationRuntime";
 
-type DraftMaterializationParams = Parameters<
-  typeof useTaskCenterDraftMaterializationRuntime
->[0];
 type TopicNavigationParams = Parameters<
   typeof useTaskCenterTopicNavigationRuntime
 >[0];
 type ChromeNavigationParams = Parameters<
   typeof useTaskCenterChromeNavigationRuntime
 >[0];
-
-interface UseWorkspaceTaskCenterInteractionRuntimeParams {
+interface UseWorkspaceTaskCenterInteractionRuntimeParams extends Pick<
+  ComposerDraftNavigationCallbacks,
+  "composerDraftCoordinator" | "getComposerDraftNavigationEpoch"
+> {
   chromeNavigation: Omit<
     ChromeNavigationParams,
-    | "activeDraftTabId"
-    | "draftSurfaceActive"
-    | "draftTabActive"
-    | "draftTabs"
-    | "isTaskCenterDraftSurfaceActive"
-    | "isTaskCenterDraftTabActive"
     | "onCloseTaskCenterTab"
     | "onOpenTaskTopic"
     | "onSwitchTaskTopic"
-    | "openDraftTab"
+    | "isTaskCenterDraftSurfaceActive"
   >;
-  draftMaterialization: Omit<
-    DraftMaterializationParams,
-    "persistMaterializedSessionNavigation" | "switchMaterializedSession"
-  >;
-  persistMaterializedSessionNavigation: NonNullable<
-    DraftMaterializationParams["persistMaterializedSessionNavigation"]
-  >;
-  taskCenterSurface: {
-    isTaskCenterDraftSurfaceActive: boolean;
-    isTaskCenterDraftTabActive: boolean;
-  };
+  taskCenterSurface: { isTaskCenterDraftSurfaceActive: boolean };
   topicNavigation: Omit<
     TopicNavigationParams,
-    | "activeTaskCenterDraftTabIdRef"
-    | "openTaskCenterDraftTab"
-    | "taskCenterDraftTabsRef"
-  >;
-  switchTopic: NonNullable<
-    DraftMaterializationParams["switchMaterializedSession"]
+    "composerDraftCoordinator" | "getComposerDraftNavigationEpoch"
   >;
 }
-
-/** Task Center 草稿物化、切题和 Chrome 共用同一组交互状态。 */
+/** Canonical 切题与 Chrome 共用同一导航 owner，不持有草稿文档。 */
 export function useWorkspaceTaskCenterInteractionRuntime({
   chromeNavigation,
-  draftMaterialization,
-  persistMaterializedSessionNavigation,
+  composerDraftCoordinator,
+  getComposerDraftNavigationEpoch,
   taskCenterSurface,
   topicNavigation,
-  switchTopic,
 }: UseWorkspaceTaskCenterInteractionRuntimeParams) {
-  const materializationRuntime = useTaskCenterDraftMaterializationRuntime({
-    ...draftMaterialization,
-    persistMaterializedSessionNavigation,
-    switchMaterializedSession: switchTopic,
-  });
   const topicNavigationRuntime = useTaskCenterTopicNavigationRuntime({
     ...topicNavigation,
-    activeTaskCenterDraftTabIdRef:
-      materializationRuntime.activeTaskCenterDraftTabIdRef,
-    openTaskCenterDraftTab: materializationRuntime.openTaskCenterDraftTab,
-    taskCenterDraftTabsRef: materializationRuntime.taskCenterDraftTabsRef,
+    composerDraftCoordinator,
+    getComposerDraftNavigationEpoch,
   });
+  const { handleOpenTaskTopic, handleSwitchTaskTopic } = topicNavigationRuntime;
+  const onOpenTaskTopic = useCallback(
+    async (...args: Parameters<typeof handleOpenTaskTopic>) => {
+      await handleOpenTaskTopic(...args);
+    },
+    [handleOpenTaskTopic],
+  );
+  const onSwitchTaskTopic = useCallback(
+    async (id: string) => {
+      await handleSwitchTaskTopic(id);
+    },
+    [handleSwitchTaskTopic],
+  );
   const chromeNavigationRuntime = useTaskCenterChromeNavigationRuntime({
     ...chromeNavigation,
-    activeDraftTabId: draftMaterialization.activeTaskCenterDraftTabId,
-    draftSurfaceActive:
-      draftMaterialization.taskCenterDraftSurfaceActiveRef.current,
-    draftTabActive: taskCenterSurface.isTaskCenterDraftTabActive,
-    draftTabs: draftMaterialization.taskCenterDraftTabs,
     isTaskCenterDraftSurfaceActive:
       taskCenterSurface.isTaskCenterDraftSurfaceActive,
-    isTaskCenterDraftTabActive: taskCenterSurface.isTaskCenterDraftTabActive,
     onCloseTaskCenterTab: topicNavigationRuntime.handleCloseTaskCenterTab,
-    onOpenTaskTopic: topicNavigationRuntime.handleOpenTaskTopic,
-    onSwitchTaskTopic: topicNavigationRuntime.handleSwitchTaskTopic,
-    openDraftTab: materializationRuntime.openTaskCenterDraftTab,
+    onOpenTaskTopic,
+    onSwitchTaskTopic,
   });
-
-  return {
-    ...materializationRuntime,
-    ...topicNavigationRuntime,
-    ...chromeNavigationRuntime,
-  };
+  return { ...topicNavigationRuntime, ...chromeNavigationRuntime };
 }

@@ -12,6 +12,8 @@ export function readComposerEditorTextDom(element) {
   const readNode = (node) => {
     if (node.nodeType === 3) return node.nodeValue || "";
     if (node.nodeType !== 1) return "";
+    if (node.getAttribute("data-composer-code-block-toolbar") === "true")
+      return "";
     if (node.tagName === "BR") {
       return node.classList.contains("ProseMirror-trailingBreak") ? "" : "\n";
     }

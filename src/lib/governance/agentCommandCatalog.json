@@ -17,6 +17,7 @@
     "open_browser_remote_debugging_page_cmd",
     "open_browser_connector_guide_window"
   ],
+  "persistedAtomCommands": ["persisted_atom_read", "persisted_atom_update"],
   "systemUtilityCommands": [
     "open_external_url",
     "show_desktop_notification",

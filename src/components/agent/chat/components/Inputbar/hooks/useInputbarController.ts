@@ -1,7 +1,21 @@
+import type {
+  ComposerDraftCoordinator,
+  ComposerDraftCapture,
+} from "@/components/input-kit/ComposerDraftCoordinator";
+import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
 import { restoreComposerDraft } from "../../../hooks/composerDraftRestore";
-import type { ComposerController, ComposerDraftSnapshot } from "@/components/input-kit";
-import { claimComposerCapabilityInitialization, useComposerCapabilitySelection } from "../../../skill-selection/useComposerCapabilitySelection";
-import { insertComposerSkill, insertComposerPlugin } from "../../../skill-selection/composerCapabilityMention";
+import type {
+  ComposerController,
+  ComposerDraftSnapshot,
+} from "@/components/input-kit";
+import {
+  claimComposerCapabilityInitialization,
+  useComposerCapabilitySelection,
+} from "../../../skill-selection/useComposerCapabilitySelection";
+import {
+  insertComposerSkill,
+  insertComposerPlugin,
+} from "../../../skill-selection/composerCapabilityMention";
 import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, {
   useCallback,
@@ -35,12 +49,17 @@ import { useWorkflowInputState } from "../../../utils/workflowInputState";
 import type { ServiceSkillHomeItem } from "@/components/agent/chat/service-skills/types";
 import type { MessagePathReference } from "../../../types";
 import {
+  matchesInstalledSkillMention,
   resolveInputCapabilitySelectionFromRoute,
   type InputCapabilitySelection,
 } from "../../../skill-selection/inputCapabilitySelection";
 import type { InputbarKnowledgePackSelection } from "../types";
 import type { InputbarSendHandler } from "../inputbarSendPayload";
-import type { InterruptedInputRestoreRequest } from "../../../hooks/agentStreamInputRestoreTypes";
+import {
+  canRestoreComposerSubmission,
+  useComposerSubmissionRestoreState,
+  type ScopedComposerRestoreRequest,
+} from "../../composerSubmissionSettlement";
 import type { AgentInitialInputCapabilityParams } from "@/types/page";
 import {
   buildCuratedTaskLaunchPrompt,
@@ -78,6 +97,11 @@ import {
 
 interface UseInputbarControllerParams {
   composerController?: ComposerController;
+  composerDraftCoordinator?: ComposerDraftCoordinator;
+  onComposerDraftAccepted?: (
+    capture: ComposerDraftCapture,
+    result: AcceptedRuntimeSubmissionResult,
+  ) => Promise<void> | void;
   input: string;
   setInput: (value: string) => void;
   onSend: InputbarSendHandler;
@@ -107,13 +131,15 @@ interface UseInputbarControllerParams {
   pathReferences?: MessagePathReference[];
   onAddPathReferences?: (references: MessagePathReference[]) => void;
   onClearPathReferences?: () => void;
-  inputRestoreRequest?: InterruptedInputRestoreRequest | null;
+  inputRestoreRequest?: ScopedComposerRestoreRequest | null;
   onInputRestoreRequestHandled?: (requestId: string) => void;
   submitTarget?: ComposerSubmitTarget;
 }
 
 export function useInputbarController({
   composerController: externalComposerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
   input,
   setInput,
   onSend,
@@ -172,6 +198,9 @@ export function useInputbarController({
     > | null>(null);
   const [curatedTaskEditorPrefillHint, setCuratedTaskEditorPrefillHint] =
     useState<string | null>(null);
+  const inputRestoreTokenState = useComposerSubmissionRestoreState(
+    inputRestoreRequest?.composerRestoreToken,
+  );
   const inputRestoreEpochRef = useRef(0);
   const {
     controller: composerController,
@@ -184,8 +213,12 @@ export function useInputbarController({
       pathReferences: initialPathReferences,
     },
   });
-  const pathReferences = useMemo(() => [...composerSnapshot.document.pathReferences], [composerSnapshot.document.pathReferences]);
-  const [activeCapability, setActiveCapability] = useComposerCapabilitySelection(composerController, skills);
+  const pathReferences = useMemo(
+    () => [...composerSnapshot.document.pathReferences],
+    [composerSnapshot.document.pathReferences],
+  );
+  const [activeCapability, setActiveCapability] =
+    useComposerCapabilitySelection(composerController, skills);
   const {
     pendingImages,
     fileInputRef,
@@ -197,9 +230,12 @@ export function useInputbarController({
     clearPendingImages,
     openFileDialog,
   } = useImageAttachments({ controller: composerController });
-  const handleComposerHistoryRecall = useCallback((draft: ComposerDraftSnapshot) => {
-    setInput(draft.text);
-  }, [setInput]);
+  const handleComposerHistoryRecall = useCallback(
+    (draft: ComposerDraftSnapshot) => {
+      setInput(draft.text);
+    },
+    [setInput],
+  );
 
   const promptHistoryClientRef = useRef<AppServerClient | null>(null);
   if (!promptHistoryClientRef.current) {
@@ -234,7 +270,8 @@ export function useInputbarController({
   }, [composerController, input, setComposerControllerText]);
   const emittedComposerTextRef = useRef(input);
   useEffect(() => {
-    if (emittedComposerTextRef.current === composerSnapshot.document.text) return;
+    if (emittedComposerTextRef.current === composerSnapshot.document.text)
+      return;
     emittedComposerTextRef.current = composerSnapshot.document.text;
     setInput(composerSnapshot.document.text);
   }, [composerSnapshot.document.text, setInput]);
@@ -246,7 +283,12 @@ export function useInputbarController({
       if (customReferences.length > 0) {
         event.preventDefault();
         event.stopPropagation();
-        composerController.setPathReferences(mergePathReferences([...composerController.getDocument().pathReferences], customReferences));
+        composerController.setPathReferences(
+          mergePathReferences(
+            [...composerController.getDocument().pathReferences],
+            customReferences,
+          ),
+        );
         onAddPathReferences?.(customReferences);
         return;
       }
@@ -259,7 +301,12 @@ export function useInputbarController({
       if (systemReferences.length > 0) {
         event.preventDefault();
         event.stopPropagation();
-        composerController.setPathReferences(mergePathReferences([...composerController.getDocument().pathReferences], systemReferences));
+        composerController.setPathReferences(
+          mergePathReferences(
+            [...composerController.getDocument().pathReferences],
+            systemReferences,
+          ),
+        );
         onAddPathReferences?.(systemReferences);
         return;
       }
@@ -278,7 +325,12 @@ export function useInputbarController({
 
       handleImageDrop(event);
     },
-    [composerController, copy.systemPathDropUnsupported, handleImageDrop, onAddPathReferences],
+    [
+      composerController,
+      copy.systemPathDropUnsupported,
+      handleImageDrop,
+      onAddPathReferences,
+    ],
   );
   const editorRef = useRef<ComposerEditorHandle>(null);
   const isWorkspaceVariant = variant === "workspace";
@@ -337,6 +389,18 @@ export function useInputbarController({
       return;
     }
 
+    if (inputRestoreTokenState === "pending") return;
+    if (
+      !canRestoreComposerSubmission({
+        controller: composerController,
+        coordinator: composerDraftCoordinator,
+        token: inputRestoreRequest.composerRestoreToken,
+        scope: { projectId, sessionId },
+      })
+    ) {
+      onInputRestoreRequestHandled?.(inputRestoreRequest.requestId);
+      return;
+    }
     if (!restoreComposerDraft(composerController, inputRestoreRequest)) return;
     inputRestoreEpochRef.current += 1;
     const restoreEpoch = inputRestoreEpochRef.current;
@@ -353,7 +417,11 @@ export function useInputbarController({
     onInputRestoreRequestHandled?.(requestId);
   }, [
     inputRestoreRequest,
+    inputRestoreTokenState,
     composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
     setInput,
     onAddPathReferences,
     onClearPathReferences,
@@ -365,7 +433,13 @@ export function useInputbarController({
 
   useEffect(() => {
     const route = initialInputCapability?.capabilityRoute;
-    if (!route || !claimComposerCapabilityInitialization(composerController, initialInputCapabilitySignature)) {
+    if (
+      !route ||
+      !claimComposerCapabilityInitialization(
+        composerController,
+        initialInputCapabilitySignature,
+      )
+    ) {
       return;
     }
 
@@ -447,23 +521,26 @@ export function useInputbarController({
     clearActiveCapability: () => setActiveCapability(null),
     getInputRestoreEpoch: () => inputRestoreEpochRef.current,
     composerController,
-    onComposerCommitted: (text, draft) => {
-      setInput(text);
-      if (sessionId && draft?.text.trim()) {
+    composerDraftCoordinator,
+    onComposerDraftAccepted,
+    onComposerAccepted: (draft, result) => {
+      if (draft?.text.trim()) {
         void promptHistoryClientRef.current
           ?.appendPromptHistory({
-            threadId: sessionId,
+            threadId: result.receipt.threadId,
             text: draft.text,
           })
           .catch(() => undefined);
       }
     },
+    onComposerCommitted: (text) => {
+      setInput(text);
+    },
     submitTarget,
   });
   const handleInterrupt = useCallback(() => {
-    composerController.submit("interrupt", { allowEmpty: true });
     onStop?.();
-  }, [composerController, onStop]);
+  }, [onStop]);
   const inputAdapter = useInputbarAdapter({
     input,
     setInput: handleSetInput,
@@ -500,10 +577,28 @@ export function useInputbarController({
   });
 
   useEffect(() => {
-    if (activePluginSelection && !composerSnapshot.document.mentionBindings.some((binding) => binding.kind === "plugin" && binding.id === activePluginSelection.plugin.pluginId)) setActivePluginSelection(null);
-    if (activeCapability?.kind === "installed_skill" && !composerSnapshot.document.mentionBindings.some((binding) => binding.kind === "skill" && binding.id === activeCapability.skill.key)) setActiveCapability(null);
-  }, [activeCapability, activePluginSelection, composerSnapshot.document.mentionBindings, setActiveCapability]);
-
+    if (
+      activePluginSelection &&
+      !composerSnapshot.document.mentionBindings.some(
+        (binding) =>
+          binding.kind === "plugin" &&
+          binding.id === activePluginSelection.plugin.pluginId,
+      )
+    )
+      setActivePluginSelection(null);
+    if (
+      activeCapability?.kind === "installed_skill" &&
+      !composerSnapshot.document.mentionBindings.some((binding) =>
+        matchesInstalledSkillMention(activeCapability.skill, binding),
+      )
+    )
+      setActiveCapability(null);
+  }, [
+    activeCapability,
+    activePluginSelection,
+    composerSnapshot.document.mentionBindings,
+    setActiveCapability,
+  ]);
 
   const topExtra =
     activeSkill ||
@@ -561,7 +656,7 @@ export function useInputbarController({
                     referenceEntries: nextReferenceEntries,
                   });
 
-                    setComposerText(
+                  setComposerText(
                     replaceCuratedTaskLaunchPromptInInput({
                       currentInput: input,
                       previousPrompt: activeCapability.task.prompt,
@@ -691,10 +786,18 @@ export function useInputbarController({
     if (blocked) {
       return;
     }
-    insertComposerPlugin(composerController, plugin, skill, { start: 0, end: 0 });
+    insertComposerPlugin(composerController, plugin, skill, {
+      start: 0,
+      end: 0,
+    });
     setInput(composerController.getDocument().text);
-    setActivePluginSelection({ plugin, skill, trigger: normalizeInputbarPluginTrigger(plugin, skill), text: composerController.getDocument().text, preserveInput: true });
-
+    setActivePluginSelection({
+      plugin,
+      skill,
+      trigger: normalizeInputbarPluginTrigger(plugin, skill),
+      text: composerController.getDocument().text,
+      preserveInput: true,
+    });
   };
   const handleSelectInputCapability = (
     capability: InputCapabilitySelection,

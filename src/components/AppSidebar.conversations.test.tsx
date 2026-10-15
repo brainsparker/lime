@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SidebarOpenedProjectSummary } from "@/components/app-sidebar/sidebarConversationGroups";
 import {
   AppSidebar,
-  TASK_CENTER_CREATE_DRAFT_TASK_EVENT,
+  mockStartNewConversation,
   act,
   buildMockConversationImportPreview,
   cleanupAppSidebarTest,
@@ -139,23 +139,14 @@ describe("AppSidebar conversations", () => {
   }
 
   function captureTaskCenterDraftRequests() {
-    const receivedDetails: unknown[] = [];
-    const listener = (event: Event) => {
-      receivedDetails.push(
-        event instanceof CustomEvent ? event.detail : undefined,
-      );
-      event.preventDefault();
-    };
-    window.addEventListener(TASK_CENTER_CREATE_DRAFT_TASK_EVENT, listener);
-
+    const first = mockStartNewConversation.mock.calls.length;
     return {
-      receivedDetails,
-      dispose: () => {
-        window.removeEventListener(
-          TASK_CENTER_CREATE_DRAFT_TASK_EVENT,
-          listener,
-        );
+      get receivedDetails() {
+        return mockStartNewConversation.mock.calls
+          .slice(first)
+          .map(([request]) => request);
       },
+      dispose() {},
     };
   }
 
@@ -2569,7 +2560,7 @@ describe("AppSidebar conversations", () => {
       });
 
       expect(taskCenterRequests.receivedDetails).toEqual([
-        { source: "sidebar", projectId: "project-1" },
+        { projectId: "project-1", freshDraft: false },
       ]);
     } finally {
       taskCenterRequests.dispose();
@@ -2599,14 +2590,14 @@ describe("AppSidebar conversations", () => {
       });
 
       expect(taskCenterRequests.receivedDetails).toEqual([
-        { source: "sidebar", projectId: null },
+        { projectId: null, freshDraft: true },
       ]);
     } finally {
       taskCenterRequests.dispose();
     }
   });
 
-  it("任务中心不可拦截时，对话加号 fallback 也不应继承当前项目 ID", async () => {
+  it("公开对话加号路由应保留 explicit null 项目", async () => {
     mockListAgentRuntimeSessions.mockImplementation(
       async (options?: { limit?: number; cwd?: string | string[] }) =>
         options?.cwd === "/repo/project-1"
@@ -2672,7 +2663,7 @@ describe("AppSidebar conversations", () => {
       });
 
       expect(taskCenterRequests.receivedDetails).toEqual([
-        { source: "sidebar", projectId: "project-1" },
+        { projectId: "project-1", freshDraft: true },
       ]);
     } finally {
       taskCenterRequests.dispose();

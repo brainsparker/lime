@@ -1,6 +1,7 @@
 import { useEffect, useMemo, type MutableRefObject } from "react";
 import { useWorkspaceImageWorkbenchRuntime } from "./useWorkspaceImageWorkbenchRuntime";
 import { useWorkspaceSendActions } from "./useWorkspaceSendActions";
+import { isRuntimeSubmissionAccepted } from "../hooks/agentSendResult";
 
 type ImageWorkbenchParams = Parameters<
   typeof useWorkspaceImageWorkbenchRuntime
@@ -53,17 +54,19 @@ export function useWorkspaceSendSurfaceRuntime({
 
   useEffect(() => {
     sceneGateResumeHandlerRef.current = async ({ rawText, requestMetadata }) =>
-      await handleSendRef.current(
-        [],
-        undefined,
-        undefined,
-        rawText,
-        undefined,
-        undefined,
-        {
-          requestMetadata,
-          skipSceneCommandRouting: true,
-        },
+      isRuntimeSubmissionAccepted(
+        await handleSendRef.current(
+          [],
+          undefined,
+          undefined,
+          rawText,
+          undefined,
+          undefined,
+          {
+            requestMetadata,
+            skipSceneCommandRouting: true,
+          },
+        ),
       );
   }, [handleSendRef, sceneGateResumeHandlerRef]);
 

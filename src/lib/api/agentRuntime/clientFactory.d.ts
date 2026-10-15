@@ -68,7 +68,16 @@ export declare function createAgentRuntimeClient({
   >;
   submitAgentRuntimeTurn: (
     request: import("@limecloud/app-server-client").TurnStartParams,
-  ) => Promise<void>;
+    onAccepted?: (
+      response: import("@limecloud/app-server-client").AppServerRequestResult<
+        import("@limecloud/app-server-client").TurnStartResponse
+      >,
+    ) => void,
+  ) => Promise<
+    import("@limecloud/app-server-client").AppServerRequestResult<
+      import("@limecloud/app-server-client").TurnStartResponse
+    >
+  >;
   submitAgentRuntimeReview: (
     request: import("../appServer").AppServerReviewStartParams,
   ) => Promise<

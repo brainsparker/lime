@@ -1,3 +1,6 @@
+import type { RuntimeSubmissionResult } from "./hooks/agentSendResult";
+import type { AcceptedRuntimeSubmissionResult } from "./hooks/agentSendResult";
+import type { ComposerDraftCapture } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { HandleSendOptions } from "./hooks/handleSendTypes";
 import type { Message, MessageImage } from "./types";
 import {
@@ -7,21 +10,35 @@ import {
 import type { SoulInteractionCopy } from "@/lib/soul/interactionCopy";
 import { resolveSoulInteractionCopy } from "@/lib/soul/interactionCopy";
 
+export interface TaskCenterSendSource {
+  sessionId: string | null;
+  workspaceId: string | null;
+  navigationEpoch: number | null;
+  newChatAt: number | null;
+}
+
+export interface TaskCenterSessionReadyOptions {
+  composerDraftCapture?: ComposerDraftCapture;
+  sendSource?: TaskCenterSendSource;
+  acceptedResult?: AcceptedRuntimeSubmissionResult;
+}
+
 export interface TaskCenterDraftSendRequest {
   id: string;
-  draftTabId: string;
+  sessionId: string | null;
   text: string;
   images: MessageImage[];
   sendExecutionStrategy?: "react";
   sendOptions?: HandleSendOptions;
+  composerDraftCapture?: ComposerDraftCapture;
+  sendSource?: TaskCenterSendSource;
   submittedAt: number;
-  materializeDraft: boolean;
   dispatchState?: "queued" | "dispatched";
   sessionReady?: boolean;
   source: "task-center-empty-state" | "empty-state";
   triggerSource?: string | null;
   /** 将内存中的实际发送结果返回给原始 Composer receipt。 */
-  onDispatchSettled?: (accepted: boolean) => void;
+  onDispatchSettled?: (result: RuntimeSubmissionResult) => void;
 }
 
 export function buildHomePendingPreviewMessages(

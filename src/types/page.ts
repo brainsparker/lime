@@ -13,6 +13,12 @@ import type { InputCapabilitySendRoute } from "@/components/agent/chat/skill-sel
 
 export type WorkspaceTheme = "general";
 
+/** 工作区发布的可见位置；仅用于导航，不持有会话业务状态。 */
+export interface AgentLocation {
+  sessionId: string | null;
+  workspaceId: string | null;
+}
+
 export type Page =
   | "agent"
   | "experts"
@@ -55,6 +61,7 @@ export interface AgentInitialKnowledgePackSelectionParams {
  * 用于从项目入口跳转到创作界面时传递项目上下文
  */
 export interface AgentPageParams {
+  newConversationRequest?: import("@/lib/workspace/navigation").NewConversationRequest;
   projectId?: string;
   contentId?: string;
   /** 进入 Agent 后优先恢复到指定会话 */

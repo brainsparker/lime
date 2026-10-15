@@ -148,14 +148,12 @@ export const PLAN_PROMPT = "先给我一个修复计划，不要直接改代码"
 export const GOAL_PROMPT = "本周完成 Goal E2E 修复";
 export const INPUTBAR_RICH_RESTORE_PROMPT =
   "请结合这个截图、文件和 Capability Report 技能，先不要输出正文。";
-export const INPUTBAR_RICH_RESTORE_PATH_NAME =
-  "clawstream-rich-restore-fixture.md";
+export const INPUTBAR_RICH_RESTORE_PATH_NAME = "composer-reference.md";
 export const INPUTBAR_RICH_RESTORE_PATH = path.join(
   process.cwd(),
-  "internal",
-  "roadmap",
-  "test",
-  "clawstream",
+  "scripts",
+  "agent-runtime",
+  "fixtures",
   INPUTBAR_RICH_RESTORE_PATH_NAME,
 );
 export const INPUTBAR_RICH_RESTORE_SKILL_NAME = "Capability Report";

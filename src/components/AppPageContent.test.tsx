@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+  AgentLocation,
   AgentPageParams,
   Page,
   PageParams,
@@ -53,7 +54,7 @@ vi.mock("./channels/ImConfigPage", () => ({
 }));
 
 vi.mock("./settings-v2", () => ({
-  SettingsPageV2: (props: Record<string, unknown>) => {
+  SettingsPage: (props: Record<string, unknown>) => {
     latestSettingsPageProps.value = props;
     return <div data-testid="settings-page" />;
   },
@@ -108,7 +109,7 @@ interface RenderContentOptions {
   requestedPage?: Page;
   requestedPageParams?: PageParams;
   onNavigate?: (page: Page, params?: PageParams) => void;
-  onAgentSessionChange?: (sessionId: string | null) => void;
+  onAgentLocationChange?: (location: AgentLocation) => void;
 }
 
 function renderContentWithNavigationState(options: RenderContentOptions) {
@@ -127,7 +128,8 @@ function renderContentWithNavigationState(options: RenderContentOptions) {
             requestedPageParams={nextOptions.requestedPageParams}
             onNavigate={nextOptions.onNavigate ?? vi.fn()}
             onAgentHasMessagesChange={vi.fn()}
-            onAgentSessionChange={nextOptions.onAgentSessionChange}
+            onSettingsBack={vi.fn()}
+            onAgentLocationChange={nextOptions.onAgentLocationChange}
           />
         </Suspense>,
       );
@@ -275,8 +277,8 @@ describe("AppPageContent", () => {
     });
   });
 
-  it("AgentChatPage 的 onSessionChange 应回调到上层 onAgentSessionChange", async () => {
-    const onAgentSessionChange = vi.fn();
+  it("AgentChatPage 的 onLocationChange 应回调到上层 onAgentLocationChange", async () => {
+    const onAgentLocationChange = vi.fn();
 
     renderContentWithNavigationState({
       currentPage: "agent",
@@ -285,20 +287,26 @@ describe("AppPageContent", () => {
         projectId: "project-1",
         initialSessionId: "session-route",
       } satisfies AgentPageParams,
-      onAgentSessionChange,
+      onAgentLocationChange,
     });
     await flushEffects();
 
-    const onSessionChange = latestAgentChatProps.value?.onSessionChange;
-    expect(typeof onSessionChange).toBe("function");
+    const onLocationChange = latestAgentChatProps.value?.onLocationChange;
+    expect(typeof onLocationChange).toBe("function");
 
     await act(async () => {
-      (onSessionChange as (sessionId: string | null) => void)(" session-live ");
+      (onLocationChange as (location: AgentLocation) => void)({
+        sessionId: " session-live ",
+        workspaceId: " workspace-live ",
+      });
       await Promise.resolve();
     });
 
-    expect(onAgentSessionChange).toHaveBeenCalledWith("session-live");
-    expect(onAgentSessionChange).toHaveBeenCalledTimes(1);
+    expect(onAgentLocationChange).toHaveBeenCalledWith({
+      sessionId: "session-live",
+      workspaceId: "workspace-live",
+    });
+    expect(onAgentLocationChange).toHaveBeenCalledTimes(1);
   });
 
   it("agent 页面应透传专家 Agent 身份，重复恢复同一专家不触发新 key", async () => {
@@ -865,14 +873,7 @@ describe("AppPageContent", () => {
     await flushEffects();
 
     expect(latestSettingsPageProps.value).toMatchObject({
-      initialTab: "execution-policy",
-      initialExecutionPolicyFocus: {
-        section: "network",
-        ruleId: "download-block",
-        target: "url",
-        value: "https://example.com/install.sh",
-        reasonCode: "request_download_url",
-      },
+      pageParams,
     });
   });
 
@@ -892,14 +893,7 @@ describe("AppPageContent", () => {
     await flushEffects();
 
     expect(latestSettingsPageProps.value).toMatchObject({
-      initialTab: "providers",
-      initialProviderView: "settings",
-      initialProviderFocus: {
-        providerId: "custom-coder",
-        modelId: "coder-large",
-        reasonCode: "missing_enabled_api_key",
-        recoveryAction: "add_enabled_api_key",
-      },
+      pageParams,
     });
   });
 

@@ -1,6 +1,6 @@
+import type { WorkspaceHandleSend } from "../useWorkspaceSendActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import type { AutoContinueRequestPayload } from "@/lib/api/agentRuntime/sessionTypes";
 import {
   listKnowledgePacks,
   type KnowledgePackSummary,
@@ -24,18 +24,9 @@ import type {
   InputbarKnowledgePackOption,
   InputbarKnowledgePackSelection,
 } from "../../components/Inputbar/types";
-import type { HandleSendOptions } from "../../hooks/handleSendTypes";
-import type { MessageImage, MessagePathReference } from "../../types";
+import type { MessagePathReference } from "../../types";
 
-type WorkspaceKnowledgeHandleSend = (
-  images?: MessageImage[],
-  webSearch?: boolean,
-  thinking?: boolean,
-  textOverride?: string,
-  executionStrategy?: "react",
-  autoContinuePayload?: AutoContinueRequestPayload,
-  sendOptions?: HandleSendOptions,
-) => void | Promise<boolean> | boolean;
+type WorkspaceKnowledgeHandleSend = WorkspaceHandleSend;
 
 function isReadyKnowledgePack(pack: KnowledgePackSummary): boolean {
   return pack.metadata.status === "ready";

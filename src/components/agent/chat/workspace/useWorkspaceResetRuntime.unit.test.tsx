@@ -44,9 +44,10 @@ function renderHook(props?: Partial<HookProps>) {
     setActiveTheme: vi.fn(),
     setCreationMode: vi.fn(),
   };
+  let runtime!: ReturnType<typeof useWorkspaceResetRuntime>;
 
   function Probe(currentProps: HookProps) {
-    useWorkspaceResetRuntime(currentProps);
+    runtime = useWorkspaceResetRuntime(currentProps);
     return null;
   }
 
@@ -62,6 +63,7 @@ function renderHook(props?: Partial<HookProps>) {
   return {
     render,
     props: defaultProps,
+    current: () => runtime,
   };
 }
 
@@ -88,6 +90,28 @@ afterEach(() => {
 });
 
 describe("useWorkspaceResetRuntime", () => {
+  it.each([null, "project-a"])(
+    "返回首页仅委托根导航并恢复 workspace %s 的草稿",
+    async (workspaceId) => {
+      const onStartNewConversation = vi.fn();
+      const harness = renderHook({
+        newChatAt: undefined,
+        composerDraftHomeWorkspaceId: workspaceId,
+        onStartNewConversation,
+      });
+      await harness.render();
+      act(() => harness.current().handleBackHome());
+      expect(onStartNewConversation).toHaveBeenCalledExactlyOnceWith({
+        projectId: workspaceId,
+        freshDraft: false,
+      });
+      expect(harness.props.clearMessages).not.toHaveBeenCalled();
+      expect(harness.props.resetComposerDraft).not.toHaveBeenCalled();
+      expect(harness.props.setInput).not.toHaveBeenCalled();
+      expect(harness.props.onNavigate).not.toHaveBeenCalled();
+    },
+  );
+
   it("刷新恢复运行中会话时不应把 newChatAt 当作新任务清空候选", async () => {
     const harness = renderHook({
       preserveSessionRestoreOnNewChat: true,
@@ -114,5 +138,16 @@ describe("useWorkspaceResetRuntime", () => {
     expect(harness.props.clearProjectSelectionRuntime).toHaveBeenCalled();
     expect(harness.props.resetRestoredSessionState).toHaveBeenCalled();
     expect(harness.props.resetComposerDraft).toHaveBeenCalledOnce();
+  });
+
+  it("持久化 owner 尚未建立时不把新任务标为已处理或清空正文", async () => {
+    const harness = renderHook({ composerDraftEnabled: true });
+    await harness.render();
+    act(() => harness.current().handleBackHome());
+    expect(harness.props.markNewChatRequestHandled).not.toHaveBeenCalled();
+    expect(harness.props.resetComposerDraft).not.toHaveBeenCalled();
+    expect(harness.props.setInput).not.toHaveBeenCalled();
+    expect(harness.props.clearMessages).not.toHaveBeenCalled();
+    expect(harness.props.onNavigate).not.toHaveBeenCalled();
   });
 });

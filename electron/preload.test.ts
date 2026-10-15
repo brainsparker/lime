@@ -95,6 +95,98 @@ describe("electron/preload", () => {
     exposedGlobals.clear();
   });
 
+  it("Host persistence commands cross the same invoke boundary", async () => {
+    const api = await loadPreloadApi();
+    expect(api.supportsCommand("persisted_atom_read")).toBe(true);
+    expect(api.supportsCommand("persisted_atom_update")).toBe(true);
+    const args = {
+      key: "composer-drafts-v1",
+      query: {
+        kind: "scope",
+        scope: { workspaceId: null, kind: "home", id: "new-conversation" },
+      },
+    };
+    const result = {
+      key: "composer-drafts-v1",
+      storeRevision: 0,
+      persistence: { state: "saved", savedRevision: 0 },
+      outcome: "ready",
+      data: {
+        queryKind: "scope",
+        view: { scope: args.query.scope, entry: null },
+      },
+    };
+    ipcInvoke.mockResolvedValueOnce({ ok: true, result });
+    await expect(api.invoke("persisted_atom_read", args)).resolves.toEqual(
+      result,
+    );
+    expect(ipcInvoke).toHaveBeenCalledWith(
+      IPC_INVOKE_CHANNEL,
+      "persisted_atom_read",
+      args,
+    );
+  });
+
+  it.each(["workspace", null])(
+    "workspace-index query and ready data cross the same public IPC",
+    async (workspaceId) => {
+      const api = await loadPreloadApi();
+      const args = {
+        key: "composer-drafts-v1",
+        query: { kind: "workspace-index", workspaceId },
+      };
+      const result = {
+        key: "composer-drafts-v1",
+        storeRevision: 0,
+        persistence: { state: "saved", savedRevision: 0 },
+        outcome: "ready",
+        data: { queryKind: "workspace-index", workspaceId, items: [] },
+      };
+      ipcInvoke.mockResolvedValueOnce({ ok: true, result });
+      await expect(api.invoke("persisted_atom_read", args)).resolves.toEqual(
+        result,
+      );
+      expect(ipcInvoke).toHaveBeenCalledExactlyOnceWith(
+        IPC_INVOKE_CHANNEL,
+        "persisted_atom_read",
+        args,
+      );
+    },
+  );
+
+  it("preload rejects renderer persistence notifications before sending IPC", async () => {
+    const api = await loadPreloadApi();
+    await expect(
+      api.emit("persisted-atom-update", { state: "saved" }),
+    ).rejects.toThrow("Renderer event is not allowed");
+    expect(() => api.send("persisted-atom-update", { state: "saved" })).toThrow(
+      "Renderer event is not allowed",
+    );
+    expect(ipcSend).not.toHaveBeenCalled();
+  });
+
+  it("real Main persistence notifications remain observable and removable", async () => {
+    const api = await loadPreloadApi();
+    const handler = vi.fn();
+    const stop = api.listen("persisted-atom-update", handler);
+    const listener = ipcOn.mock.calls[0][1];
+    const payload = {
+      key: "composer-drafts-v1",
+      storeRevision: 1,
+      persistence: { state: "saved", savedRevision: 1 },
+    };
+    listener({}, { event: "persisted-atom-update", payload });
+    expect(handler).toHaveBeenCalledExactlyOnceWith({
+      event: "persisted-atom-update",
+      payload,
+    });
+    stop();
+    expect(ipcRemoveListener).toHaveBeenCalledWith(
+      "evt:persisted-atom-update",
+      listener,
+    );
+  });
+
   it("暴露真实 Electron bridge 标记并用 host command 白名单判断支持命令", async () => {
     const api = await loadPreloadApi();
 

@@ -6,8 +6,6 @@
  */
 
 import {
-  useState,
-  lazy,
   Suspense,
   type ReactNode,
   useEffect,
@@ -19,93 +17,12 @@ import { useTranslation } from "react-i18next";
 import styled from "styled-components";
 import { SettingsNavigation } from "./SettingsNavigation";
 import { SettingsTabs } from "@/types/settings";
-import {
-  Page,
-  PageParams,
-  type ExecutionPolicyFocusContext,
-  type ProviderSettingsFocusContext,
-  type SettingsProviderView,
-} from "@/types/page";
+import { Page, PageParams, type SettingsPageParams } from "@/types/page";
 import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import { shouldReserveMacWindowControls } from "@/lib/windowControls";
+import { isSettingsSection, resolveSettingsSection } from "../sections";
 import { SettingsHomePage } from "../home";
-import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
 
-const AppearanceSettings = lazy(() =>
-  import("../general/appearance").then((module) => ({
-    default: module.AppearanceSettings,
-  })),
-);
-const MemorySettings = lazy(() =>
-  import("../general/memory").then((module) => ({
-    default: module.MemorySettings,
-  })),
-);
-const ArchivedConversationsSettings = lazy(() =>
-  import("../general/archived-conversations").then((module) => ({
-    default: module.ArchivedConversationsSettings,
-  })),
-);
-const DeveloperLabSettings = lazy(() =>
-  import("../system/developer-lab").then((module) => ({
-    default: module.DeveloperLabSettings,
-  })),
-);
-const AboutSection = lazy(() =>
-  import("../system/about").then((module) => ({
-    default: module.AboutSection,
-  })),
-);
-const MediaServicesSettings = lazy(() =>
-  import("../agent/media-services").then((module) => ({
-    default: module.MediaServicesSettings,
-  })),
-);
-const SkillsSettings = lazy(() =>
-  import("../agent/skills").then((module) => ({
-    default: module.ExtensionsSettings,
-  })),
-);
-const StatsSettings = lazy(() =>
-  import("../account/stats").then((module) => ({
-    default: module.StatsSettings,
-  })),
-);
-const ProfileSettings = lazy(() =>
-  import("../account/profile").then((module) => ({
-    default: module.ProfileSettings,
-  })),
-);
-const UserCenterSessionSettings = lazy(() =>
-  import("../account/user-center-session").then((module) => ({
-    default: module.UserCenterSessionSettings,
-  })),
-);
-const CloudProviderSettings = lazy(() =>
-  import("../agent/providers").then((module) => ({
-    default: module.CloudProviderSettings,
-  })),
-);
-const McpPanel = lazy(() =>
-  import("@/components/mcp").then((module) => ({
-    default: module.McpPanel,
-  })),
-);
-const EnvironmentSettings = lazy(() =>
-  import("../system/environment").then((module) => ({
-    default: module.EnvironmentSettings,
-  })),
-);
-const ExecutionPolicySettings = lazy(() =>
-  import("../system/execution-policy").then((module) => ({
-    default: module.ExecutionPolicySettings,
-  })),
-);
-const WebSearchSettings = lazy(() =>
-  import("../system/web-search").then((module) => ({
-    default: module.WebSearchSettings,
-  })),
-);
 const LayoutContainer = styled.div`
   display: flex;
   flex: 1;
@@ -192,21 +109,6 @@ const ContentAtmosphere = styled.div`
   }
 `;
 
-const PlaceholderPage = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: hsl(var(--muted-foreground));
-  text-align: center;
-
-  p {
-    margin-top: 8px;
-    font-size: 14px;
-  }
-`;
-
 const LoadingPanel = styled.div`
   border: 1px solid hsl(var(--border));
   border-radius: 20px;
@@ -241,266 +143,76 @@ function withSettingsContentFallback(
   );
 }
 
-const ACTIVE_SETTINGS_TABS = new Set<SettingsTabs>([
-  SettingsTabs.Home,
-  SettingsTabs.Profile,
-  SettingsTabs.Stats,
-  SettingsTabs.Appearance,
-  SettingsTabs.Memory,
-  SettingsTabs.ArchivedConversations,
-  SettingsTabs.Providers,
-  SettingsTabs.Skills,
-  SettingsTabs.MediaServices,
-  SettingsTabs.McpServer,
-  SettingsTabs.WebSearch,
-  SettingsTabs.Environment,
-  SettingsTabs.ExecutionPolicy,
-  SettingsTabs.Developer,
-  SettingsTabs.About,
-]);
-
-function resolveActiveSettingsTab(tab?: SettingsTabs): SettingsTabs {
-  const canonicalTab =
-    tab === SettingsTabs.Experimental ? SettingsTabs.Developer : tab;
-
-  if (!canonicalTab || !ACTIVE_SETTINGS_TABS.has(canonicalTab)) {
-    return SettingsTabs.Home;
-  }
-  return canonicalTab;
-}
-
-function preloadSettingsTab(tab: SettingsTabs): Promise<unknown> | null {
-  switch (resolveActiveSettingsTab(tab)) {
-    case SettingsTabs.Home:
-      return null;
-    case SettingsTabs.Profile:
-      return Promise.all([
-        import("../account/profile"),
-        import("../account/user-center-session"),
-      ]);
-    case SettingsTabs.Stats:
-      return import("../account/stats");
-    case SettingsTabs.Appearance:
-      return import("../general/appearance");
-    case SettingsTabs.Memory:
-      return import("../general/memory");
-    case SettingsTabs.ArchivedConversations:
-      return import("../general/archived-conversations");
-    case SettingsTabs.Providers:
-      return import("../agent/providers");
-    case SettingsTabs.Skills:
-      return import("../agent/skills");
-    case SettingsTabs.MediaServices:
-      return import("../agent/media-services");
-    case SettingsTabs.McpServer:
-      return import("@/components/mcp");
-    case SettingsTabs.WebSearch:
-      return import("../system/web-search");
-    case SettingsTabs.Environment:
-      return import("../system/environment");
-    case SettingsTabs.ExecutionPolicy:
-      return import("../system/execution-policy");
-    case SettingsTabs.Developer:
-      return Promise.all([
-        import("../system/developer-lab"),
-        import("../system/developer/preload").then((module) =>
-          module.preloadDeveloperDefaultSections(),
-        ),
-      ]);
-    case SettingsTabs.About:
-      return import("../system/about");
-    default:
-      return null;
-  }
-}
-
-/**
- * 渲染设置内容
- */
-
 function renderSettingsContent(
   tab: SettingsTabs,
   onTabChange: (tab: SettingsTabs) => void,
   t: TFunction<"settings", undefined>,
   onTabPrefetch?: (tab: SettingsTabs) => void,
   onNavigate?: (page: Page, params?: PageParams) => void,
-  initialProviderView?: SettingsProviderView,
-  initialProviderFocus?: ProviderSettingsFocusContext | null,
-  initialExecutionPolicyFocus?: ExecutionPolicyFocusContext | null,
-  activeDeveloperLabTab: "developer" | "experimental" = "developer",
+  params: SettingsPageParams = {},
 ): ReactNode {
-  const hasManagedAccountProfile = Boolean(resolveOemCloudRuntimeContext());
-
-  switch (tab) {
-    case SettingsTabs.Home:
-      return (
-        <SettingsHomePage
-          onTabChange={onTabChange}
-          onTabPrefetch={onTabPrefetch}
-          onNavigate={onNavigate}
-        />
-      );
-
-    // 账号组
-    case SettingsTabs.Profile:
-      return withSettingsContentFallback(
-        <>
-          <UserCenterSessionSettings />
-          {!hasManagedAccountProfile ? <ProfileSettings /> : null}
-        </>,
-        t("settings.layout.loading.profile"),
-      );
-
-    case SettingsTabs.Stats:
-      return withSettingsContentFallback(
-        <StatsSettings />,
-        t("settings.layout.loading.stats"),
-      );
-
-    // 通用组
-    case SettingsTabs.Appearance:
-      return withSettingsContentFallback(
-        <AppearanceSettings />,
-        t("settings.layout.loading.appearance"),
-      );
-
-    case SettingsTabs.Memory:
-      return withSettingsContentFallback(
-        <MemorySettings />,
-        t("settings.layout.loading.memory"),
-      );
-
-    case SettingsTabs.ArchivedConversations:
-      return withSettingsContentFallback(
-        <ArchivedConversationsSettings />,
-        t("settings.layout.loading.archivedConversations"),
-      );
-
-    // 智能体组
-    case SettingsTabs.Providers:
-      return withSettingsContentFallback(
-        <CloudProviderSettings
-          initialView={initialProviderView}
-          initialFocus={initialProviderFocus}
-        />,
-        t("settings.layout.loading.providers"),
-      );
-
-    case SettingsTabs.Skills:
-      return withSettingsContentFallback(
-        <SkillsSettings />,
-        t("settings.layout.loading.skills"),
-      );
-
-    case SettingsTabs.MediaServices:
-      return withSettingsContentFallback(
-        <MediaServicesSettings />,
-        t("settings.layout.loading.mediaServices"),
-      );
-
-    // 系统组
-    case SettingsTabs.McpServer:
-      return withSettingsContentFallback(
-        <McpPanel hideHeader />,
-        t("settings.layout.loading.mcpServer"),
-      );
-
-    case SettingsTabs.WebSearch:
-      return withSettingsContentFallback(
-        <WebSearchSettings />,
-        t("settings.layout.loading.webSearch"),
-      );
-
-    case SettingsTabs.Environment:
-      return withSettingsContentFallback(
-        <EnvironmentSettings />,
-        t("settings.layout.loading.environment"),
-      );
-
-    case SettingsTabs.ExecutionPolicy:
-      return withSettingsContentFallback(
-        <ExecutionPolicySettings focus={initialExecutionPolicyFocus ?? null} />,
-        t("settings.layout.loading.executionPolicy"),
-      );
-
-    case SettingsTabs.Developer:
-      return withSettingsContentFallback(
-        <DeveloperLabSettings initialTab={activeDeveloperLabTab} />,
-        t("settings.layout.loading.developerLab"),
-      );
-
-    case SettingsTabs.About:
-      return withSettingsContentFallback(
-        <AboutSection />,
-        t("settings.layout.loading.about"),
-      );
-
-    default:
-      return (
-        <PlaceholderPage>
-          <p>{t("settings.layout.placeholder.notFound")}</p>
-        </PlaceholderPage>
-      );
-  }
+  const section = resolveSettingsSection(tab);
+  const content = section.render({
+    renderHome: () => (
+      <SettingsHomePage
+        onTabChange={onTabChange}
+        onTabPrefetch={onTabPrefetch}
+        onNavigate={onNavigate}
+      />
+    ),
+    providerView:
+      tab === SettingsTabs.Providers
+        ? (params.providerView ??
+          (params.providerFocus ? "settings" : undefined))
+        : undefined,
+    providerFocus:
+      tab === SettingsTabs.Providers ? params.providerFocus : undefined,
+    executionPolicyFocus:
+      tab === SettingsTabs.ExecutionPolicy
+        ? params.executionPolicyFocus
+        : undefined,
+    developerLabTab:
+      params.tab === SettingsTabs.Experimental ? "experimental" : "developer",
+  });
+  return section.loadingKey
+    ? withSettingsContentFallback(content, t(section.loadingKey))
+    : content;
 }
 
 /**
  * 设置页面主组件
  */
-interface SettingsLayoutV2Props {
-  onNavigate?: (page: Page, params?: PageParams) => void;
-  initialTab?: SettingsTabs;
-  initialProviderView?: SettingsProviderView;
-  initialProviderFocus?: ProviderSettingsFocusContext | null;
-  initialExecutionPolicyFocus?: ExecutionPolicyFocusContext | null;
+interface SettingsPageProps {
+  onNavigate: (page: Page, params?: PageParams) => void;
+  onBack: () => void;
+  pageParams: SettingsPageParams;
 }
 
-const WIDE_CONTENT_TABS = ACTIVE_SETTINGS_TABS;
-type DeveloperLabInitialTab = "developer" | "experimental";
-
-function resolveDeveloperLabInitialTab(
-  tab?: SettingsTabs,
-): DeveloperLabInitialTab {
-  return tab === SettingsTabs.Experimental ? "experimental" : "developer";
-}
-
-export function SettingsLayoutV2({
+export function SettingsPage({
   onNavigate,
-  initialTab,
-  initialProviderView,
-  initialProviderFocus,
-  initialExecutionPolicyFocus,
-}: SettingsLayoutV2Props) {
+  onBack,
+  pageParams,
+}: SettingsPageProps) {
   const { t } = useTranslation("settings");
-  const [activeTab, setActiveTab] = useState<SettingsTabs>(
-    resolveActiveSettingsTab(initialTab),
-  );
-  const [activeProviderView, setActiveProviderView] = useState<
-    SettingsProviderView | undefined
-  >(initialProviderView);
-  const [activeDeveloperLabTab, setActiveDeveloperLabTab] =
-    useState<DeveloperLabInitialTab>(resolveDeveloperLabInitialTab(initialTab));
+  const activeTab = resolveSettingsSection(pageParams.tab).key;
   const contentContainerRef = useRef<HTMLElement | null>(null);
   const prefetchedTabsRef = useRef<Set<SettingsTabs>>(new Set());
   const reserveWindowControls = shouldReserveMacWindowControls();
 
-  const handleTabChange = useCallback((tab: SettingsTabs) => {
-    const nextTab = resolveActiveSettingsTab(tab);
-    setActiveTab(nextTab);
-    if (nextTab === SettingsTabs.Developer) {
-      setActiveDeveloperLabTab(resolveDeveloperLabInitialTab(tab));
-    }
-    if (nextTab !== SettingsTabs.Providers) {
-      setActiveProviderView(undefined);
-    }
-  }, []);
+  const handleTabChange = useCallback(
+    (tab: SettingsTabs) => {
+      if (tab === (pageParams.tab ?? SettingsTabs.Home)) return;
+      onNavigate("settings", { tab });
+    },
+    [onNavigate, pageParams.tab],
+  );
 
   const handleTabPrefetch = useCallback((tab: SettingsTabs) => {
     if (prefetchedTabsRef.current.has(tab)) {
       return;
     }
 
-    const preloadTask = preloadSettingsTab(tab);
+    const preloadTask = resolveSettingsSection(tab).preload();
     if (!preloadTask) {
       return;
     }
@@ -516,26 +228,6 @@ export function SettingsLayoutV2({
   }, [onNavigate]);
 
   useEffect(() => {
-    setActiveTab(resolveActiveSettingsTab(initialTab));
-    setActiveDeveloperLabTab(resolveDeveloperLabInitialTab(initialTab));
-  }, [initialTab]);
-
-  useEffect(() => {
-    if (!initialTab && !initialProviderView && !initialProviderFocus) {
-      return;
-    }
-
-    if ((initialTab ?? SettingsTabs.Providers) === SettingsTabs.Providers) {
-      setActiveProviderView(
-        initialProviderView ?? (initialProviderFocus ? "settings" : undefined),
-      );
-      return;
-    }
-
-    setActiveProviderView(undefined);
-  }, [initialProviderFocus, initialProviderView, initialTab]);
-
-  useEffect(() => {
     contentContainerRef.current?.scrollTo?.({ top: 0, behavior: "auto" });
   }, [activeTab]);
 
@@ -546,7 +238,8 @@ export function SettingsLayoutV2({
         reserveWindowControls={reserveWindowControls}
         onTabChange={handleTabChange}
         onTabPrefetch={handleTabPrefetch}
-        onBackHome={handleBackHome}
+        onBack={onBack}
+        onHome={handleBackHome}
         onNavigate={onNavigate}
       />
       <ContentContainer
@@ -554,17 +247,14 @@ export function SettingsLayoutV2({
         $reserveWindowControls={reserveWindowControls}
       >
         <ContentAtmosphere data-testid="settings-content-atmosphere" />
-        <ContentWrapper $wide={WIDE_CONTENT_TABS.has(activeTab)}>
+        <ContentWrapper $wide={isSettingsSection(activeTab)}>
           {renderSettingsContent(
             activeTab,
             handleTabChange,
             t,
             handleTabPrefetch,
             onNavigate,
-            activeProviderView,
-            initialProviderFocus,
-            initialExecutionPolicyFocus,
-            activeDeveloperLabTab,
+            pageParams,
           )}
         </ContentWrapper>
       </ContentContainer>

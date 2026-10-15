@@ -23,6 +23,13 @@ import {
   isElectronDevBridgeFallbackAvailable,
 } from "@/lib/electron-host";
 
+import {
+  invokeArgsPreview,
+  invokeDiagnosticError,
+  sanitizeText,
+  toErrorMessage,
+} from "./invokeDiagnostics";
+
 export interface InvokeErrorBufferEntry {
   timestamp: string;
   command: string;
@@ -45,68 +52,7 @@ const INVOKE_ERROR_BUFFER_KEY = "lime_invoke_error_buffer_v1";
 const INVOKE_ERROR_BUFFER_LIMIT = 120;
 const INVOKE_TRACE_BUFFER_KEY = "lime_invoke_trace_buffer_v1";
 const INVOKE_TRACE_BUFFER_LIMIT = 240;
-const INVOKE_ERROR_TEXT_LIMIT = 800;
 const USER_TIMING_PREFIX = "lime:safeInvoke";
-
-const SECRET_PATTERNS: Array<[RegExp, string]> = [
-  [/\bBearer\s+[A-Za-z0-9._-]+\b/gi, "Bearer ***"],
-  [/\bapi[_-]?key\s*[:=]\s*["']?[A-Za-z0-9._-]+["']?/gi, "api_key=***"],
-  [
-    /\baccess[_-]?token\s*[:=]\s*["']?[A-Za-z0-9._-]+["']?/gi,
-    "access_token=***",
-  ],
-  [
-    /\brefresh[_-]?token\s*[:=]\s*["']?[A-Za-z0-9._-]+["']?/gi,
-    "refresh_token=***",
-  ],
-  [/\btoken\s*[:=]\s*["']?[A-Za-z0-9._-]{10,}["']?/gi, "token=***"],
-  [/\bsk-[A-Za-z0-9]{12,}\b/g, "sk-***"],
-];
-
-function sanitizeText(input: string): string {
-  let sanitized = input;
-  for (const [pattern, replacement] of SECRET_PATTERNS) {
-    sanitized = sanitized.replace(pattern, replacement);
-  }
-  return sanitized;
-}
-
-function sanitizeValue(value: unknown, depth = 0): unknown {
-  if (depth > 4) {
-    return "[depth_limited]";
-  }
-  if (value === null || value === undefined) {
-    return value;
-  }
-  if (typeof value === "string") {
-    return sanitizeText(value);
-  }
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value;
-  }
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeValue(item, depth + 1));
-  }
-  if (typeof value === "object") {
-    const output: Record<string, unknown> = {};
-    for (const [key, nestedValue] of Object.entries(value)) {
-      output[key] = sanitizeValue(nestedValue, depth + 1);
-    }
-    return output;
-  }
-  return sanitizeText(String(value));
-}
-
-function toErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    const core = error.message || error.name || "Unknown error";
-    return sanitizeText(core).slice(0, INVOKE_ERROR_TEXT_LIMIT);
-  }
-  return sanitizeText(String(error || "Unknown error")).slice(
-    0,
-    INVOKE_ERROR_TEXT_LIMIT,
-  );
-}
 
 function supportsUserTiming(): boolean {
   return (
@@ -151,7 +97,10 @@ function normalizeDesktopHostListenError(event: string, error: unknown): Error {
 }
 
 function shouldFailClosedOnMissingNativeEventBridge(event: string): boolean {
-  return shouldDisallowMockEventFallbackInBrowser(event);
+  return (
+    event === "persisted-atom-update" ||
+    shouldDisallowMockEventFallbackInBrowser(event)
+  );
 }
 
 function electronUnsupportedCommandError(command: string): Error {
@@ -340,10 +289,8 @@ function recordInvokeError(
     timestamp: new Date().toISOString(),
     command: sanitizeText(command),
     transport,
-    error: toErrorMessage(error),
-    args_preview: args
-      ? (sanitizeValue(args) as Record<string, unknown>)
-      : undefined,
+    error: invokeDiagnosticError(command, error),
+    args_preview: invokeArgsPreview(command, args),
   };
   current.push(entry);
   writeInvokeErrorBuffer(current);
@@ -364,10 +311,8 @@ function recordInvokeTrace(
     transport,
     status,
     duration_ms: Math.max(0, Date.now() - startedAt),
-    error: error ? toErrorMessage(error) : undefined,
-    args_preview: args
-      ? (sanitizeValue(args) as Record<string, unknown>)
-      : undefined,
+    error: error ? invokeDiagnosticError(command, error) : undefined,
+    args_preview: invokeArgsPreview(command, args),
   };
   current.push(entry);
   writeInvokeTraceBuffer(current);

@@ -1128,6 +1128,92 @@ Responsible developer confirmation: root, 2026-09-01. Window orchestration owner
 2026-09-01. Native helper protocol/readiness owner/data flow updated: root, 2026-09-02.
 Apple Events authorization owner/data flow updated: root, 2026-09-01.
 
+### 4.3 Desktop persisted atom
+
+未发送的桌面 UI 草稿保存归 `PersistedAtomHost` / `PersistedAtomStore` / `PersistedAtomFile`，固定使用统一 `AppDataRoot/host-state.json`。它不保存 canonical transcript、Thread/Turn/Item、队列或 runtime 状态；业务持久化仍由 App Server 与 thread-store 承接。
+
+```mermaid
+flowchart LR
+  Gateway[Renderer typed persistedAtoms gateway] --> Bridge[Current safeInvoke / preload IPC]
+  Bridge --> Main[Main: lifecycle and delegation]
+  Main --> Host[PersistedAtomHost]
+  Host --> Store[PersistedAtomStore: synchronous CAS and bindings]
+  Store --> File[PersistedAtomFile: serialized IO and atomic rename]
+  File --> Disk[AppDataRoot / host-state.json and .bak]
+  Store --> Metadata[Revision and persistence metadata]
+  Metadata --> Host
+  Host --> Event[Main persisted-atom-update notification]
+  Event --> Gateway
+```
+
+`persisted_atom_read` / `persisted_atom_update` 只经 `src/lib/api/persistedAtoms.ts` 的唯一 typed gateway。types、JSON transport parser 与预算归 `src/lib/api/persistedAtomTypes.ts` / `persistedAtomProtocol.ts`；Main 不引入 PM/React。Host 方法名对齐可确认的 `sendPersistedAtomState`、`updatePersistedAtomState` 与 `broadcastPersistedAtomUpdate`，新增类名是 Lime 的领域命名，不冒充安装包原开发源码名称。
+
+唯一 atom 为 `composer-drafts-v1`。put/promote/consume/clear 在同一 Store 中执行 draftId + opaque scopeVersion CAS；promotion 不改变版本，consume/clear 保留无正文 tombstone，拒绝迟到 put。record/binding 预算各为10,000，单 draft128MiB、完整UTF8 JSON256MiB，整次拒绝保旧，不截断或自动驱逐。应用 revision 与 savedRevision 分开，500ms 合并进入串行落盘；主文件原子替换后再更新 backup，primary 成功而 backup 失败时可能是新 primary / 旧 backup。无效文件恢复失败保持 unavailable，不覆盖为空。
+
+`rendererEventPolicy` 是 Main handler 与 preload 的同一事件策略，禁止 Renderer 伪造 `persisted-atom-update`。current safeInvoke/HTTP 诊断复用 `invokeDiagnostics`，草稿命令只记录固定 key/op/error 分类，不回显正文、media、scope 或原始错误。原始 transport 错误仍向调用者传播；native notification 订阅失败显式失败。
+
+Main 只负责组装、命令委托与 dispose；不在大文件添加保存、CAS 或 schema 业务。退出 best effort，不建立 Quit 握手或发送 checkpoint。当前 read 使用唯一 query/data 判别合同：scope 查询或 workspace-index 查询。索引仅投影当前 live binding 的 identity/scope/updatedAt/sessionId?/threadId?，workspace 精确匹配（含null）、updatedAt降序与canonical scope codepoint升序，不返回正文或media，不推进revision，不截断10,000预算内结果。实际编辑目标按scope重读并继续同一CAS。旧scope-only/top-level view已删除，gateway/fixture/preload/tests/guard成套迁移。公开 IPC 的正常重启证据只证明原生边界；GUI 富草稿恢复与 acceptance 的验证在 current 执行计划独立记录。
+
+Architecture impact: major; Desktop UI persistence owner and IPC boundary added. Architecture diagram confirmation: root, 2026-10-14; Host/gateway/parser/file/event/diagnostic ownership and separation from the canonical App Server chain checked. Product verification remains recorded in the current execution plan.
+
+Renderer 未发正文的唯一 owner 是 `ComposerController`；`ComposerDraftCoordinator` 只协调 scope、250ms 发布队列、CAS 与接受后消费，codec 复用原 schema/selection/resources。唯一 React owner `useWorkspaceComposerDraftRuntime` 创建/解绑 coordinator，并在目标实际提交后调用 `bindCommitted`。公开编辑目标只有稳定 home/new-conversation 与 canonical local/session，workspace 精确匹配（含 null）；原生 metadata index 没有第二个 renderer 草稿发现或标签 owner。编辑门禁同时要求真实 binding ready 和可见目标与绑定 scope 完全一致；首次读取被替代、失败或模式不匹配不能靠 await/finally 开放旧正文。
+
+```mermaid
+flowchart LR
+  Surface[Home / Inputbar] --> Controller[ComposerController]
+  Controller --> Coordinator[ComposerDraftCoordinator]
+  Navigation[Committed Home / canonical session target] --> ReactOwner[useWorkspaceComposerDraftRuntime]
+  ReactOwner --> Coordinator
+  Coordinator --> Gateway[Typed persistedAtoms gateway]
+  Gateway --> Host[PersistedAtomHost / Store / File]
+  Surface --> Send[Existing send / queue owners]
+  Send --> AppServer[Canonical App Server JSON-RPC]
+  AppServer --> Receipt[RuntimeSubmissionResult and captured acceptance]
+  Receipt --> Promotion[Captured source promotion]
+  Promotion --> Coordinator
+```
+
+发送捕获原 receipt、draftId/version 与 scope，业务请求不等待保存。仅 `runtime-accepted` / `queue-accepted` 触发 promotion 后消费；`local-handled` / `rejected` / `unknown` 保留草稿。旧接受可消费旧存储，但可见 Controller 清理必须仍匹配 generation、scope 和 revision。导航前仅发布旧 scope；成功并匹配启动时 UI epoch 与真实 session/workspace 后提交新目标。同次 topic hydration 的私有 onHydrated 生命周期在 source-current 检查后、自身 scope 提交前更新 presentation，不用 epoch 加一豁免。opaque restore token 只在 renderer 进程内透传，不进入协议、日志、metric 或 transcript。
+
+责任 root 于 2026-10-15 确认上述更新：Desktop 保存仅管理 UI 草稿，App Server 仍唯一拥有 Thread/Turn/Item 与业务接受事实。随机草稿索引、预热与 materialized 首发路径已删除；binding.ready 是唯一就绪事实，不建立第二个 ready authority。正式组合回归、真实 Electron 富草稿冷恢复及默认门禁按 current 执行计划记录，基础 Host receipt 不能替代它们。
+
+程序化初始输入（含 Skills 工作台试用）没有 Composer 草稿 settlement；CommandWiring 在既有 sendMessage 收到真实 accepted 后，以捕获的 navigation epoch 提交同一可见 workspace 的 topic，仍由现有 navigation owner 等待真实 session 再绑定。该路径不 consume Home 草稿；Composer 自身发送继续走原 captured identity promotion/consume。非接受、迟到或不可见回执不能越过 ready/scope 门禁。此为既有4.3链路的接线修复，非新增 authority；root，2026-10-15确认。
+
+### 4.4 Desktop 设置章节
+
+`src/components/settings-v2/sections.tsx` 是 current 设置章节的唯一登记 owner，派生导航、可用性、预加载与内容渲染。公开入口直接导出已确认的 `SettingsPage`；category hook 只做翻译分组，layout 只组装容器和 Suspense。Home 保持同步入口，由 layout 注入 render factory，避免 Home/category/sections 循环依赖。业务页继续拥有各自的编辑与保存逻辑。
+
+```mermaid
+flowchart LR
+  Route[Existing PageParams] --> Page[SettingsPage]
+  Sections[settingsSections] --> Category[Translated navigation groups]
+  Sections --> Page
+  Category --> Navigation[SettingsNavigation]
+  Navigation --> Page
+  Page --> Business[Existing settings page owners]
+```
+
+`SettingsPageV2` / `SettingsLayoutV2`、重复章节名单及无消费者 `SETTINGS_GROUPS` / `ExecutionTracker` 已删除。既有 Experimental 只委托 Developer；providerView/focus 与 executionPolicyFocus 保真。内部章节的 canonical 路由、返回上下文、内容搜索与 dirty authority 尚待后续切片，不新增平行导航或业务 runtime。责任 root 于 2026-10-15 确认此图；正式回归和 GUI 状态见 current 执行计划。
+
+### 4.5 Desktop 公开新建会话
+
+`useAppNavigation.startNewConversation` 是唯一公开动作，typed intent 明确保留 null/project identity 与 Home 恢复或 New fresh 意图。AppPageContent 只在真实 route/request 提交后交付请求；requested preview 不能清稿。root draft runtime 提交稳定 Home scope 与单调 epoch，同一 Coordinator 在有效 hydration 后执行受保护的 identity CAS，只有 applied 才清空 Controller。冲突、不可用、再次导航或新编辑均保稿；fresh 请求不进入 reload restore，避免冷启动重放。
+
+```mermaid
+flowchart LR
+  Public[Home / Search New / Project New] --> Action[startNewConversation]
+  Action --> Route[Existing App navigation commit]
+  Route --> Root[Root draft runtime and exact scope]
+  Root --> Coordinator[ComposerDraftCoordinator]
+  Coordinator --> CAS[Existing persisted atom clear CAS]
+  CAS -->|applied and unchanged| Controller[Controller clear]
+  Controller --> Send[Existing typed first submission]
+  Send --> Receipt[App Server canonical acceptance]
+  Receipt --> Local[Canonical local scope and source consume]
+```
+
+cancelable 新建事件、随机 draftTabs/discovery、新页 owner、1ms 输入预热、materialized 首发和 general 第二层 strip 已直接删除；canonical session、Canvas、image workbench 与后台 queue 继续走既有 owner。Home `freshDraft=false`、New `true` 是 Lime 的明确决策；REA 确认公开导出名与静态职责，普通 Codex sidebar 的运行时 fresh 行为仍 unknown。责任 root 于 2026-10-15 确认此图，正式回归和真实 Gate 状态见 current 执行计划。
+
 ## 5. TypeScript Package 规范
 
 | Package                             | 职责                                                                             |
@@ -1202,6 +1288,14 @@ flowchart TD
   Chat[Conversation ComposerEditor] -->|Transaction| Controller
   Controller -->|state / revision / snapshot| Home
   Controller -->|state / revision / snapshot| Chat
+  Controller --> Registry[CodeBlockNodeViewRegistry]
+  Registry --> NodeView[CodeBlockNodeView: toolbar container + PM code contentDOM]
+  Registry --> Portal[React CodeBlockToolbar Portal]
+  Portal -->|language attrs Transaction| Controller
+  Controller --> Highlight[PM highlight plugin: DecorationSet]
+  Highlight --> NodeView
+  Controller --> Auto[PM Auto plugin: generation + document identity]
+  Auto -->|no-history attrs Transaction| Controller
   Controller --> Receipt[Submit receipt: revision + draft + submission]
   Receipt -->|draft: original JSON + selection + resources| Restore[Restore / local rich history]
   Restore --> Controller
@@ -1215,9 +1309,15 @@ flowchart TD
 
 Workspace 的 `useAgentChatWorkspaceLocalDisplayState` 持有同一个 Controller，原 `input` string store 被 snapshot 派生值替换；`setInput` 仅为 text adapter。首页 materialization 保留该 owner 与 revision，显式换会话/new-chat/back-home 使用 clear 重置完整草稿并推进 revision；clear/restore 即使内容相同也强制新生命周期，普通同值 text update 保持无更新。附件 adapter 直接消费 Controller resources，能力选择仅把 UI 候选详情映射到 Controller 的 canonical route，禁止新 surface 的空镜像覆盖原资源。路径侧栏的 `usePathReferences` 同步读写同一 Controller 并从 snapshot 派生，不保留 path useState 或 passive effect 镜像。资源恢复由原始 draft 一次更新；历史回放不再 clear/add 资源导致导航游标失效。
 
+真实接受沿 `turn/start|turn/steer response -> runtimeAcceptance -> raw send -> typed observer / RuntimeSubmissionResult -> surface settlement` 传播。`RuntimeAcceptanceReceipt` 的 session/thread 在异步前捕获，turn取真实响应；接受observer先于UI发布/统计/refresh结算，后处理失败不能撤销已接受事实。外层只接受 `runtime-accepted` 或真实 `queue-accepted`，`local-handled`、`rejected`、`unknown` 不消费草稿。queue receipt是实际QueuedSubmission与请求前canonical context，不伪造成turn/start或由boolean/void猜测接受。该类型合同属于Renderer既有send owner，未新增AppServer wire字段。Architecture diagram confirmation: root, 2026-10-14; acceptance receipt flow and canonical ownership checked.
+
 `draft` 保留折叠 paste、原始 JSON、link/code 属性、UTF16 选择区、图片、路径和能力供恢复；`submission` 将链接与代码块序列化为 Markdown、展开 paste 并携带 typed TextElement/inputMentions，唯一决定发送内容。代码 fence 长度为正文最长连续反引号数加一且至少三个，正文空白原样保留。literal link 只有在完整安全链接的 label/href/title 均匹配时用于草稿重放；编辑清除旧 literal/occurrence/autolink 元数据。ProseMirror position、显示文本 UTF16 offset 与最终 Markdown 发送文本 UTF8 byteRange 分别映射，不混用。annotation 更新通过 PM Transaction 保留富文档与资源；HTML/Markdown paste 进入同一 Controller，code 中 Enter/ShiftEnter 插入文本换行。`composerDraft`/`composerSubmission` 显式贯通 start/steer/queue；无法映射的 textElements 在 IPC 前拒绝，不能猜 range 或退回纯文本。Controller 不拥有 Thread/Turn/Queue 事实；workspace 依据 canonical read model 解析 intent 并在真实接受结果结束前持有发送锁。失败保留完整 draft；成功只在 receipt revision 未变化时 commit，迟到结果不清新草稿。提交瞬间直接捕获当前 canonical 文档，不把旧 React 闭包的资源回灌；能力初始化与恢复请求按同 Controller identity 去重，跨 surface 重挂载不重放旧请求。
 
-Queue mutation 进入 Codex v2 `thread/queue/*`，`thread/queue/changed` 或显式 refresh 只触发 canonical queue 重读；Renderer 不建第二 queue facade、乐观删除或 runtime。现有 `@tiptap/pm` 提供 schema/state/view/history/keymap，不新增依赖或 public JSON-RPC 字段。Architecture impact: major; Renderer document/transaction and cross-surface draft owner converged. Architecture diagram updated: Composer flow above. Responsible developer confirmation: root, 2026-10-14; directory, ownership, transaction/submission/restoration flow and protocol boundary checked. Runtime verification remains tracked in the current execution plan.
+Queue mutation 进入 Codex v2 `thread/queue/*`，`thread/queue/changed` 或显式 refresh 只触发 canonical queue 重读；Renderer 不建第二 queue facade、乐观删除或 runtime。现有 `@tiptap/pm` 提供 schema/state/view/history/keymap；代码块增加直接依赖 `lowlight 3.3.0`、`highlight.js 11.11.1`、`jsonc-parser 3.3.1`，不新增 public JSON-RPC 字段。Architecture impact: major; Renderer document/transaction and cross-surface draft owner converged. Architecture diagram updated: Composer flow above. Responsible developer confirmation: root, 2026-10-14; directory, ownership, transaction/submission/restoration flow and protocol boundary checked. Runtime verification remains tracked in the current execution plan.
+
+代码块的唯一视图工厂归 Controller 持有的 `CodeBlockNodeViewRegistry`；Editor 创建 NodeView，React 仅向不可编辑 toolbar container 建 Portal。正文和高亮 span 均由 PM contentDOM/Decoration 管理，不用 `innerHTML` 或第二份 React document 替换正文。`composerState` 只装配 EditorState/plugins 和投影资源，不持有另一个状态 store；文档输入/配置类型统一归 `types`，旧 Controller type export 已直接迁净。有效 rich/code/plain 配置决定 NodeView 与两个独立 plugin 的装配，外部注入 Controller 不被 hook 强加 defaults。
+
+高亮按位置和 `Node.eq` 缓存、映射移动块，顶层 HAST scope 转为 UTF16 inline Decoration。raw parser 的 53 grammar/5 alias 与 GUI 41 项目录/21 alias 分开，Auto subset 为 39 项。Auto 延迟150ms、按 Node identity缓存，并在异步结果前复核 generation/同 doc/未销毁；结果写 attrs但不进入 undo history。纯 Decoration/meta 更新 state/View，保留同一 draft snapshot/revision与receipt；真实 attrs/selection/正文改变才更新草稿。clear/restore 同值也创建 fresh plugins，旧 View 异步结果失效；View 卸载注销 entries，但不永久销毁可重挂载的 Controller registry。旧 schema `toDOM` 仅保留 serialization/clipboard 责任；主 GUI 及 fixture 已直接迁到 NodeView DOM，无 compat 视图。Architecture diagram confirmation: root, 2026-10-14; registry、插件、Portal、资源、receipt、生命周期与既有 App Server 边界逐项确认。正式产品验证在 current 计划独立记录。
 
 Composer 纯文本历史只允许沿 `Composer -> typed AppServerClient -> app_server_handle_json_lines -> App Server promptHistory/read|append -> RuntimeCore PromptHistoryStore` 流动；Electron 仅转发 JSON-RPC，Renderer 不得以 `localStorage`、SQLite 或旧 Desktop facade 建立第二事实源。`PromptHistoryStore` 使用受控数据根下的 append-only `prompt_history.jsonl`、文件锁和 4 MiB 保留上限，坏行跳过但保留 offset；macOS/Linux 的 `logId` 使用 inode，Windows 使用文件 creation time，用于分页 cursor 的快照一致性。读取返回 newest-first bounded pages，客户端在 Composer 内按 oldest-first 合并；异步读取完成时只合并服务端快照与本地新提交的边界重叠，不覆盖已产生的 draft/history。只追加成功提交的正文和 canonical Thread identity：公开 append 为 `{threadId,text}`，entry 返回 `threadId`，内部 JSONL 的 `session_id` 字段记录同一个 Thread ID。TUI 选定 Skill 元素可经 `mention_codec` 编码为 path link，再从同一 history owner 恢复；附件、普通路径引用与大粘贴 payload 仍为会话内 rich state，不把正文 codec 冒充完整附件持久化。`promptHistory/read|append` 是稳定 v2 方法，不要求 `initialize.capabilities.experimentalApi`。Architecture impact: major; persistent history owner and cross-platform identity semantics fixed. Responsible developer confirmation: root, 2026-09-01.
 

@@ -32,7 +32,14 @@ describe("sendAgentStreamMessage", () => {
       preparedSend as never,
     );
 
-    await sendAgentStreamMessage({
+    const receipt = {
+      kind: "start" as const,
+      sessionId: "session-existing",
+      threadId: "thread-1",
+      turnId: "turn-1",
+    };
+    vi.mocked(dispatchPreparedAgentStreamSend).mockResolvedValue(receipt);
+    const result = await sendAgentStreamMessage({
       content: "继续执行",
       images: [],
       webSearch: true,
@@ -43,6 +50,7 @@ describe("sendAgentStreamMessage", () => {
       env,
     });
 
+    expect(result).toBe(receipt);
     expect(prepareAgentStreamUserInputSend).toHaveBeenCalledWith(
       expect.objectContaining({
         content: "继续执行",

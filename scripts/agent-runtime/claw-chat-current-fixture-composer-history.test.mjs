@@ -305,7 +305,7 @@ describe("real keyboard Composer history evidence", () => {
     node.setAttribute("data-session-id", "history-session");
     node.setAttribute("contenteditable", "true");
     node.innerHTML =
-      '<p>first</p><p><span role="link" text-link-href="https://example.invalid/marks" text-link-title="标题" aria-disabled="false">中😀</span></p><pre data-composer-code-block=""><code data-language="ts">  中😀\n````\n\n</code></pre><p>tail</p>';
+      '<p>first</p><p><span role="link" text-link-href="https://example.invalid/marks" text-link-title="标题" aria-disabled="false">中😀</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">TypeScript</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = \'中😀\';\n````\n\n</code></pre></div><p>tail</p>';
     document.body.append(node);
     vi.spyOn(node, "getClientRects").mockReturnValue([{}]);
     try {
@@ -324,15 +324,18 @@ describe("real keyboard Composer history evidence", () => {
         isAutolink: false,
       });
       expect(prepared.marks.codeBlocks[0]).toEqual({
-        language: "ts",
-        body: "  中😀\n````\n\n",
+        language: "typescript",
+        body: "  const value = '中😀';\n````\n\n",
         validStructure: true,
         hardBreakCount: 0,
+        keywordTokens: ["const"],
       });
       node
         .querySelector("span")
         .setAttribute("text-link-href", "https://example.invalid/wrong");
-      node.querySelector("code").setAttribute("data-language", "js");
+      node.querySelector(
+        '[data-composer-code-block-toolbar="true"]',
+      ).textContent = "Language picker";
       const recalled = await readComposerHistorySnapshot(
         page,
         "history-session",

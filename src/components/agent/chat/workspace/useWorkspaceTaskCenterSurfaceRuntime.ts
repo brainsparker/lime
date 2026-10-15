@@ -1,6 +1,4 @@
-import { useCallback, useMemo } from "react";
-import { buildClawAgentParams } from "@/lib/workspace/navigation";
-import type { AgentChatWorkspaceProps } from "../agentChatWorkspaceContract";
+import { useMemo } from "react";
 import { buildInitialDispatchPreviewMessages } from "./workspaceSendHelpers";
 import { useTaskCenterHomePendingPreviewRuntime } from "./useTaskCenterDraftSendRuntime";
 import {
@@ -16,26 +14,18 @@ type HomePendingPreviewParams = Parameters<
 >[0];
 
 interface UseWorkspaceTaskCenterSurfaceRuntimeParams {
-  activeTheme: string;
   bootstrapDispatchPreview?:
     | Parameters<typeof buildInitialDispatchPreviewMessages>[0]
     | null;
   draftSurface: DraftSurfaceParams;
   homePendingPreview: HomePendingPreviewParams;
-  lockTheme: boolean;
-  onNavigate?: AgentChatWorkspaceProps["onNavigate"];
-  taskCenterWorkspaceId?: string | null;
 }
 
 /** Task Center 草稿 surface、首页 pending preview 与物化路由统一由此处派生。 */
 export function useWorkspaceTaskCenterSurfaceRuntime({
-  activeTheme,
   bootstrapDispatchPreview,
   draftSurface,
   homePendingPreview,
-  lockTheme,
-  onNavigate,
-  taskCenterWorkspaceId,
 }: UseWorkspaceTaskCenterSurfaceRuntimeParams) {
   const { homePendingPreviewMessages, isHomePendingPreviewActive } =
     useTaskCenterHomePendingPreviewRuntime(homePendingPreview);
@@ -54,27 +44,6 @@ export function useWorkspaceTaskCenterSurfaceRuntime({
     ...draftSurface,
     hasHomePendingPreview: hasPendingPreviewActivity,
   });
-  const persistTaskCenterMaterializedSessionNavigation = useCallback(
-    (sessionId: string) => {
-      const normalizedSessionId = sessionId.trim();
-      if (!onNavigate || !normalizedSessionId) {
-        return;
-      }
-
-      onNavigate(
-        "agent",
-        buildClawAgentParams({
-          ...(taskCenterWorkspaceId
-            ? { projectId: taskCenterWorkspaceId }
-            : {}),
-          initialSessionId: normalizedSessionId,
-          theme: activeTheme,
-          lockTheme,
-        }),
-      );
-    },
-    [activeTheme, lockTheme, onNavigate, taskCenterWorkspaceId],
-  );
   const isHomeSendStarting = Boolean(
     draftSurface.draftSendRequest ||
     homePendingPreview.homePendingPreviewRequest ||
@@ -90,6 +59,5 @@ export function useWorkspaceTaskCenterSurfaceRuntime({
     homePendingPreviewMessages,
     isHomePendingPreviewActive,
     isHomeSendStarting,
-    persistTaskCenterMaterializedSessionNavigation,
   };
 }

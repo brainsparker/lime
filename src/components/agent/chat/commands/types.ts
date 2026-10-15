@@ -1,3 +1,4 @@
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { AppServerThreadBackgroundTerminal } from "@/lib/api/appServer";
 
@@ -36,7 +37,7 @@ export interface SlashCommandStatusSnapshot {
 export interface ExecuteSlashCommandParams {
   command: ParsedSlashCommand;
   statusSnapshot: SlashCommandStatusSnapshot;
-  sendPrompt: (prompt: string) => Promise<void>;
+  sendPrompt: (prompt: string) => Promise<RuntimeSubmissionResult>;
   compactSession: () => Promise<void>;
   clearMessages: (options?: {
     showToast?: boolean;

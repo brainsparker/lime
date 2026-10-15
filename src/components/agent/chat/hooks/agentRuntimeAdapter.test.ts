@@ -309,7 +309,9 @@ describe("defaultAgentRuntimeAdapter", () => {
   it("submitOp 应只委托 typed turn/start", async () => {
     const client = {
       ...mockRuntimeClient,
-      submitAgentRuntimeTurn: vi.fn().mockResolvedValue(undefined),
+      submitAgentRuntimeTurn: vi.fn().mockResolvedValue({
+        result: { turn: { id: "turn-start", status: "inProgress" } },
+      }),
     };
     const adapter = createAgentRuntimeAdapter({ client });
 
@@ -325,19 +327,22 @@ describe("defaultAgentRuntimeAdapter", () => {
       },
     });
 
-    expect(client.submitAgentRuntimeTurn).toHaveBeenCalledWith({
-      threadId: "thread-9",
-      clientUserMessageId: "user-9",
-      input: [{ type: "text", text: "开始" }],
-      approvalPolicy: "on-request",
-      sandboxPolicy: "workspace-write",
-      additionalContext: {
-        rendererEventName: {
-          kind: "application",
-          value: "event-start",
+    expect(client.submitAgentRuntimeTurn).toHaveBeenCalledWith(
+      {
+        threadId: "thread-9",
+        clientUserMessageId: "user-9",
+        input: [{ type: "text", text: "开始" }],
+        approvalPolicy: "on-request",
+        sandboxPolicy: "workspace-write",
+        additionalContext: {
+          rendererEventName: {
+            kind: "application",
+            value: "event-start",
+          },
         },
       },
-    });
+      undefined,
+    );
     expect(client.steerAgentRuntimeTurn).not.toHaveBeenCalled();
   });
 

@@ -81,7 +81,6 @@ function Harness({
     renamePromptLabel: "重命名任务",
     renameTopic,
     draftSurfaceActive: false,
-    draftTabActive: false,
     shouldSuppressDraftContent: false,
     draftSendRequest,
     normalizedInitialSessionId: null,

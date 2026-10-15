@@ -1,3 +1,6 @@
+import { ComposerController } from "@/components/input-kit/ComposerController";
+import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
+import type { RuntimeSubmissionResult } from "../hooks/agentSendResult";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -91,7 +94,9 @@ interface HookHarness {
   unmount: () => void;
 }
 
-const mockSendMessage = vi.fn<HookProps["sendMessage"]>(async () => undefined);
+const mockSendMessage = vi.fn<HookProps["sendMessage"]>(async () =>
+  acceptedSubmission(),
+);
 const mockFinalizeAfterSendSuccess = vi.fn();
 const mockRollbackAfterSendFailure = vi.fn();
 const mockSetInput = vi.fn();
@@ -491,7 +496,7 @@ describe("useWorkspaceSendActions", () => {
             "react",
             autoContinue,
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -521,7 +526,7 @@ describe("useWorkspaceSendActions", () => {
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockUseGlobalMediaGenerationDefaults).not.toHaveBeenCalled();
@@ -544,7 +549,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "你好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -562,7 +567,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, text, "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -593,7 +598,7 @@ describe("useWorkspaceSendActions", () => {
     const harness = mountHook();
 
     try {
-      let result: boolean | "timeout" = "timeout";
+      let result: RuntimeSubmissionResult | "timeout" = "timeout";
       await act(async () => {
         result = await Promise.race([
           harness
@@ -605,7 +610,7 @@ describe("useWorkspaceSendActions", () => {
         ]);
       });
 
-      expect(result).toBe(true);
+      expect(result).toMatchObject({ kind: "runtime-accepted" });
       expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
     } finally {
@@ -630,7 +635,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "请只回复一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -658,7 +663,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "只回答一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -692,7 +697,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "只回答一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -737,7 +742,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "只回答一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(resolveServiceModelsBeforeSend).not.toHaveBeenCalled();
@@ -776,7 +781,7 @@ describe("useWorkspaceSendActions", () => {
               skipWorkspaceCommandRouting: true,
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -813,7 +818,7 @@ describe("useWorkspaceSendActions", () => {
           .handleSend([], false, false, "请改写这段文案", "react", undefined, {
             purpose: "style_rewrite",
           });
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(resolveServiceModelsBeforeSend).toHaveBeenCalledTimes(1);
@@ -841,7 +846,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, "只回答一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -880,7 +885,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, brief, "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSetChatMessages).not.toHaveBeenCalled();
@@ -945,7 +950,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, brief, "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -981,7 +986,7 @@ describe("useWorkspaceSendActions", () => {
     const brief =
       "参考图生成一张小红书封面，保留醒目的标题层级、清晰的主体构图和适合收藏转发的视觉冲击力";
     const deferredSession = createDeferred<string | null>();
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     mockEnsureSessionForCommandMetadata.mockImplementationOnce(
       async () => deferredSession.promise,
     );
@@ -1001,7 +1006,7 @@ describe("useWorkspaceSendActions", () => {
     mockSendMessage.mockImplementationOnce(async () => deferredSend.promise);
     const harness = mountHook();
 
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1038,7 +1043,7 @@ describe("useWorkspaceSendActions", () => {
       ).toBeUndefined();
 
       await act(async () => {
-        deferredSend.resolve();
+        deferredSend.resolve(acceptedSubmission());
         await sendPromise;
       });
 
@@ -1065,7 +1070,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, brief, "react");
-        expect(started).toBe(false);
+        expect(started).toMatchObject({ kind: "rejected" });
         await Promise.resolve();
       });
 
@@ -1088,7 +1093,7 @@ describe("useWorkspaceSendActions", () => {
         const started = await harness
           .getValue()
           .handleSend([], false, false, promptText, "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -1118,7 +1123,7 @@ DOWNLOAD_URL="https://limeai.run/skill-packages/viral-content-breakdown/latest/v
         const started = await harness
           .getValue()
           .handleSend([], false, false, prompt, "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "local-handled" });
       });
 
       expect(mockInstallSkillFromPromptInstruction).toHaveBeenCalledTimes(1);
@@ -1172,7 +1177,7 @@ DOWNLOAD_URL="https://limeai.run/skill-packages/viral-content-breakdown/latest/v
 Extract it into the Agent Skills directory.`,
           "react",
         );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "local-handled" });
       });
 
       const applyLocalMessages = mockSetChatMessages.mock.calls[0]?.[0] as
@@ -1195,7 +1200,7 @@ Extract it into the Agent Skills directory.`,
         const started = await harness
           .getValue()
           .handleSend([], false, false, "只回答一个字：好", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1233,7 +1238,7 @@ Extract it into the Agent Skills directory.`,
               skipSessionStartHooks: true,
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1298,7 +1303,7 @@ Extract it into the Agent Skills directory.`,
         const started = await harness
           .getValue()
           .handleSend([], false, false, "继续处理当前话题", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1371,7 +1376,7 @@ Extract it into the Agent Skills directory.`,
         const started = await harness
           .getValue()
           .handleSend([], false, false, "继续处理当前话题", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1421,7 +1426,7 @@ Extract it into the Agent Skills directory.`,
         const started = await harness
           .getValue()
           .handleSend([], false, false, "继续处理当前话题", "react");
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1470,7 +1475,7 @@ Extract it into the Agent Skills directory.`,
           .handleSend([], false, false, "请改写这段文案", "react", undefined, {
             purpose: "style_rewrite",
           });
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
@@ -1496,13 +1501,13 @@ Extract it into the Agent Skills directory.`,
   });
 
   it("发送准备阶段应立即暴露 submission preview，并在真实提交接管后清理", async () => {
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     mockSendMessage.mockImplementationOnce(async () => deferredSend.promise);
     const harness = mountHook({
       input: "帮我找一下今天的新闻",
     });
 
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1525,7 +1530,7 @@ Extract it into the Agent Skills directory.`,
       ]);
 
       await act(async () => {
-        deferredSend.resolve();
+        deferredSend.resolve(acceptedSubmission());
         await sendPromise;
       });
 
@@ -1537,7 +1542,7 @@ Extract it into the Agent Skills directory.`,
 
   it("普通 Claw 空上下文准备较慢时不应阻塞发送", async () => {
     const deferredContext = createDeferred<string>();
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     const prepareActiveContextPrompt = vi.fn(
       async () => deferredContext.promise,
     );
@@ -1551,7 +1556,7 @@ Extract it into the Agent Skills directory.`,
       },
     });
 
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1584,7 +1589,7 @@ Extract it into the Agent Skills directory.`,
       });
 
       await act(async () => {
-        deferredSend.resolve();
+        deferredSend.resolve(acceptedSubmission());
         await sendPromise;
       });
 
@@ -1597,7 +1602,7 @@ Extract it into the Agent Skills directory.`,
   it("主题工作台首轮发送等待上下文时应并行预热会话", async () => {
     const deferredContext = createDeferred<string>();
     const deferredSession = createDeferred<string | null>();
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     mockEnsureSessionForCommandMetadata.mockImplementationOnce(
       async () => deferredSession.promise,
     );
@@ -1612,7 +1617,7 @@ Extract it into the Agent Skills directory.`,
       },
     });
 
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1635,7 +1640,7 @@ Extract it into the Agent Skills directory.`,
 
       await act(async () => {
         deferredSession.resolve("session-prewarmed");
-        deferredSend.resolve();
+        deferredSend.resolve(acceptedSubmission());
         await sendPromise;
       });
     } finally {
@@ -1644,14 +1649,14 @@ Extract it into the Agent Skills directory.`,
   });
 
   it("发送准备阶段不应重复递交同一条首页消息", async () => {
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     mockSendMessage.mockImplementationOnce(async () => deferredSend.promise);
     const harness = mountHook({
       input: "帮我生成一版首页插图方案",
     });
 
-    let firstSendPromise: Promise<boolean> | null = null;
-    let secondSendPromise: Promise<boolean> | null = null;
+    let firstSendPromise: Promise<RuntimeSubmissionResult> | null = null;
+    let secondSendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1660,7 +1665,7 @@ Extract it into the Agent Skills directory.`,
         await Promise.resolve();
       });
 
-      expect(await secondSendPromise).toBe(false);
+      expect(await secondSendPromise).toMatchObject({ kind: "rejected" });
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
       expect(harness.getValue().displayMessages).toEqual([
         expect.objectContaining({
@@ -1677,8 +1682,10 @@ Extract it into the Agent Skills directory.`,
       ]);
 
       await act(async () => {
-        deferredSend.resolve();
-        expect(await firstSendPromise).toBe(true);
+        deferredSend.resolve(acceptedSubmission());
+        expect(await firstSendPromise).toMatchObject({
+          kind: "runtime-accepted",
+        });
       });
 
       expect(harness.getValue().isPreparingSend).toBe(false);
@@ -1696,7 +1703,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -1728,7 +1735,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -1794,7 +1801,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -1839,7 +1846,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(false);
+        expect(started).toMatchObject({ kind: "rejected" });
       });
 
       expect(mockPrepareImageWorkbenchSkillSend).toHaveBeenCalledTimes(1);
@@ -1870,7 +1877,7 @@ Extract it into the Agent Skills directory.`,
     const harness = mountHook({
       input: "@配图 生成 一张春日咖啡馆插画",
     });
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -1887,7 +1894,7 @@ Extract it into the Agent Skills directory.`,
         await sendPromise;
       });
 
-      expect(await sendPromise).toBe(true);
+      expect(await sendPromise).toMatchObject({ kind: "runtime-accepted" });
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
       expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
@@ -1943,7 +1950,7 @@ Extract it into the Agent Skills directory.`,
               displayContent: "@配图 生成 一张春日咖啡馆插画",
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2022,7 +2029,7 @@ Extract it into the Agent Skills directory.`,
               displayContent: "画一张广州夏天的图",
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2078,7 +2085,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       const sendOptions = mockSendMessage.mock.calls[0]?.[8];
@@ -2127,7 +2134,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       const sendOptions = mockSendMessage.mock.calls[0]?.[8];
@@ -2181,7 +2188,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockCreateImageGenerationTask).not.toHaveBeenCalled();
@@ -2265,7 +2272,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -2317,7 +2324,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2390,7 +2397,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -2440,7 +2447,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -2462,7 +2469,7 @@ Extract it into the Agent Skills directory.`,
 
   it("@配图 首次发送建会话较慢时，也应先展示 submission preview", async () => {
     const deferredSession = createDeferred<string | null>();
-    const deferredSend = createDeferred<void>();
+    const deferredSend = createDeferred<RuntimeSubmissionResult>();
     mockEnsureSessionForCommandMetadata.mockImplementationOnce(
       async () => deferredSession.promise,
     );
@@ -2482,7 +2489,7 @@ Extract it into the Agent Skills directory.`,
       input: "@配图 生成 一张春日咖啡馆插画",
     });
 
-    let sendPromise: Promise<boolean> | null = null;
+    let sendPromise: Promise<RuntimeSubmissionResult> | null = null;
 
     try {
       await act(async () => {
@@ -2529,7 +2536,7 @@ Extract it into the Agent Skills directory.`,
       });
 
       await act(async () => {
-        deferredSend.resolve();
+        deferredSend.resolve(acceptedSubmission());
         await sendPromise;
       });
 
@@ -2548,7 +2555,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -2598,7 +2605,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -2637,7 +2644,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2677,7 +2684,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2717,7 +2724,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2756,7 +2763,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).toHaveBeenCalledTimes(1);
@@ -2811,7 +2818,7 @@ Extract it into the Agent Skills directory.`,
               },
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -2841,7 +2848,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -2888,7 +2895,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -2917,7 +2924,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -2967,7 +2974,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -3011,7 +3018,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -3039,7 +3046,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -3087,7 +3094,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3133,7 +3140,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -3175,7 +3182,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -3210,7 +3217,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
@@ -3241,7 +3248,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -3320,7 +3327,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3389,7 +3396,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3436,7 +3443,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3481,7 +3488,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -3524,7 +3531,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -3573,7 +3580,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listServiceSkillUsage()).toEqual([
@@ -3635,7 +3642,7 @@ Extract it into the Agent Skills directory.`,
             undefined,
             "@搜索 GitHub 最近一周 openai agents sdk issue 讨论",
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listMentionEntryUsage()).toEqual([
@@ -3676,7 +3683,7 @@ Extract it into the Agent Skills directory.`,
               displayContent: "整理最近发布计划",
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3734,7 +3741,7 @@ Extract it into the Agent Skills directory.`,
               displayContent: "GitHub 最近一周 openai agents sdk issue 讨论",
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3807,7 +3814,7 @@ Extract it into the Agent Skills directory.`,
               displayContent: "帮我做一版新品活动启动方案",
             },
           );
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -3858,7 +3865,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -3914,7 +3921,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -3957,7 +3964,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listMentionEntryUsage()).toEqual([
@@ -3982,7 +3989,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4042,7 +4049,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -4098,7 +4105,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -4154,7 +4161,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -4208,7 +4215,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4269,7 +4276,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -4326,7 +4333,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -4384,7 +4391,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -4423,7 +4430,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4480,7 +4487,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listMentionEntryUsage()).toEqual([
@@ -4517,7 +4524,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -4560,7 +4567,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4616,7 +4623,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listMentionEntryUsage()).toEqual([
@@ -4647,7 +4654,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
@@ -4680,7 +4687,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe("@翻译 内容:hello world");
@@ -4721,7 +4728,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4795,7 +4802,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -4836,7 +4843,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -4895,7 +4902,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -4969,7 +4976,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5011,7 +5018,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -5077,7 +5084,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -5123,7 +5130,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listServiceSkillUsage()).toEqual([
@@ -5168,7 +5175,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(false);
+        expect(started).toMatchObject({ kind: "rejected" });
       });
 
       expect(toastErrorSpy).toHaveBeenCalledWith("发送失败: network down");
@@ -5189,7 +5196,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -5239,7 +5246,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -5267,7 +5274,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5312,7 +5319,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5356,7 +5363,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5402,7 +5409,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5446,7 +5453,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5489,7 +5496,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -5537,7 +5544,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockEnsureSessionForCommandMetadata).toHaveBeenCalledTimes(1);
@@ -5576,7 +5583,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5615,7 +5622,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
@@ -5665,7 +5672,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5719,7 +5726,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5761,7 +5768,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5811,7 +5818,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5869,7 +5876,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -5912,7 +5919,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -5975,7 +5982,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
@@ -6017,7 +6024,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6096,7 +6103,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6146,7 +6153,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6185,7 +6192,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6238,7 +6245,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6303,7 +6310,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6360,7 +6367,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6427,7 +6434,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6470,7 +6477,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6527,7 +6534,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6570,7 +6577,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6622,7 +6629,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6704,7 +6711,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6764,7 +6771,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6817,7 +6824,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -6905,7 +6912,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
@@ -6938,7 +6945,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7065,7 +7072,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(listServiceSkillUsage()).toEqual([
@@ -7094,7 +7101,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7134,7 +7141,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7168,7 +7175,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7210,7 +7217,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7268,7 +7275,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7344,7 +7351,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7423,7 +7430,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7493,7 +7500,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(false);
+        expect(started).toMatchObject({ kind: "rejected" });
       });
 
       expect(mockGetOrCreateDefaultProject).not.toHaveBeenCalled();
@@ -7546,7 +7553,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(false);
+        expect(started).toMatchObject({ kind: "rejected" });
       });
 
       expect(mockSendMessage).not.toHaveBeenCalled();
@@ -7603,7 +7610,7 @@ Extract it into the Agent Skills directory.`,
               },
             },
           });
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7648,7 +7655,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7678,7 +7685,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7711,7 +7718,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7738,7 +7745,7 @@ Extract it into the Agent Skills directory.`,
     try {
       await act(async () => {
         const started = await harness.getValue().handleSend();
-        expect(started).toBe(true);
+        expect(started).toMatchObject({ kind: "runtime-accepted" });
       });
 
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
@@ -7750,6 +7757,40 @@ Extract it into the Agent Skills directory.`,
         unknown
       >) || {}) as Record<string, unknown>;
       expect(harnessMetadata).not.toHaveProperty("access_mode");
+    } finally {
+      harness.unmount();
+    }
+  });
+  it("local skill install confirmation keeps the owned composer draft", async () => {
+    const harness = mountHook();
+    const controller = new ComposerController({
+      text: 'Download and install a skill.\nSKILL_NAME="viral-content-breakdown"\nDOWNLOAD_URL="https://limeai.run/skill-packages/viral-content-breakdown/latest/viral-content-breakdown.zip"\nExtract it into the Agent Skills directory.',
+    });
+    try {
+      const before = controller.captureDraft();
+      mockSetInput.mockClear();
+      mockSetMentionedCharacters.mockClear();
+      mockFinalizeAfterSendSuccess.mockClear();
+      let result!: RuntimeSubmissionResult;
+      await act(async () => {
+        result = await harness
+          .getValue()
+          .handleSend(
+            [],
+            false,
+            false,
+            controller.getDocument().text,
+            "react",
+            undefined,
+            { composerDraft: before },
+          );
+      });
+      expect(result).toEqual({ kind: "local-handled" });
+      expect(mockSendMessage).not.toHaveBeenCalled();
+      expect(mockFinalizeAfterSendSuccess).not.toHaveBeenCalled();
+      expect(mockSetInput).not.toHaveBeenCalledWith("");
+      expect(mockSetMentionedCharacters).not.toHaveBeenCalled();
+      expect(controller.captureDraft()).toEqual(before);
     } finally {
       harness.unmount();
     }

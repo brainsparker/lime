@@ -874,7 +874,7 @@ function assertI18nKeyTypes() {
     mimeType: "application/octet-stream",
   });
   i18n.t("settings.layout.sidebar.experimentalBadge", { ns: "settings" });
-  i18n.t("settings.layout.action.backHome", { ns: "settings" });
+  i18n.t("settings.layout.action.back", { ns: "settings" });
   i18n.t("settings.layout.loading.profile", { ns: "settings" });
   i18n.t("settings.profile.field.nickname.label", { ns: "settings" });
   i18n.t("settings.profile.field.tipAria", {
@@ -921,7 +921,7 @@ function assertI18nKeyTypes() {
     tag: "Programming",
   });
   i18n.t("settings.profile.usage.tipTags", { ns: "settings" });
-  i18n.t("settings.layout.placeholder.notFound", { ns: "settings" });
+  i18n.t("settings.layout.loading.skills", { ns: "settings" });
   i18n.t("settings.layout.sidebar.floatingNav.openAria", { ns: "settings" });
   i18n.t("settings.about.version.label", {
     ns: "settings",

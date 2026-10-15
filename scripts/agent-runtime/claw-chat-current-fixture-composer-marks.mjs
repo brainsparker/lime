@@ -10,6 +10,7 @@ import {
   parseJsonRpcRequestsFromInvokeTrace,
 } from "../electron/lib/mcp-config-fixture-evidence.mjs";
 import { assert } from "./claw-chat-current-fixture-utils.mjs";
+import { verifyComposerMarksCodePicker } from "./claw-chat-current-fixture-composer-code-picker.mjs";
 
 const INPUT_METHODS = new Set([
   "turn/start",
@@ -27,16 +28,22 @@ const LINK = {
   isAutolink: false,
   isGeneratedAutolink: false,
 };
-const CODE = "  中😀\n````";
+const CODE = "  const value = '中😀';\n````";
 const TAIL = "尾中😀";
 
 function expectedMarks(body) {
   return {
     links: [{ ...LINK }],
     codeBlocks: [
-      { language: "ts", body, validStructure: true, hardBreakCount: 0 },
+      {
+        language: "typescript",
+        body,
+        validStructure: true,
+        hardBreakCount: 0,
+        keywordTokens: ["const"],
+      },
     ],
-    blockTags: ["P", "P", "PRE", "P"],
+    blockTags: ["P", "P", "DIV", "P"],
   };
 }
 
@@ -58,7 +65,7 @@ export function composerMarksFixture({ prompt, skillIdentity, pasteText }) {
   const pasteLabel = `[Pasted text 1: ${pasteText.length} characters]`;
   const skillLabel = `/${skillIdentity.key}`;
   const displayPrefix = `${prompt}\n${LINK.label}\n${body}\n${TAIL} `;
-  const markdownPrefix = `/${skillIdentity.name} ${prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`ts\n${body}\n\`\`\`\`\`\n${TAIL} `;
+  const markdownPrefix = `/${skillIdentity.name} ${prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`typescript\n${body}\n\`\`\`\`\`\n${TAIL} `;
   const pasteStart = Buffer.byteLength(markdownPrefix, "utf8");
   const pasteEnd = pasteStart + Buffer.byteLength(pasteText, "utf8");
   return {
@@ -107,24 +114,51 @@ export function readComposerMarksDom(editor) {
         isGeneratedAutolink: flag(node, "data-rich-text-generated-autolink"),
       }),
     ),
-    codeBlocks: Array.from(editor.querySelectorAll("pre")).map((pre) => {
-      const code = pre.querySelector(":scope > code");
+    codeBlocks: Array.from(
+      editor.querySelectorAll('div[data-composer-code-block="true"]'),
+    ).map((block) => {
+      const toolbar = block.children[0];
+      const pre = block.children[1];
+      const code = pre?.querySelector(":scope > code");
+      const languages = Array.from(code?.classList ?? []).filter((name) =>
+        name.startsWith("language-"),
+      );
+      const validCodeNode = (node) =>
+        node.nodeType === 3 ||
+        (node instanceof HTMLElement &&
+          (node.matches("br.ProseMirror-trailingBreak") ||
+            (node.tagName === "SPAN" &&
+              node.classList.length > 0 &&
+              Array.from(node.classList).every((name) =>
+                name.startsWith("hljs-"),
+              ) &&
+              Array.from(node.childNodes).every(validCodeNode))));
       return {
-        language: code?.getAttribute("data-language") ?? null,
+        language:
+          languages.length === 1
+            ? languages[0].slice("language-".length)
+            : null,
         body: code?.textContent ?? null,
         validStructure:
-          pre.hasAttribute("data-composer-code-block") &&
+          block.children.length === 2 &&
+          toolbar?.tagName === "DIV" &&
+          toolbar.getAttribute("data-composer-code-block-toolbar") === "true" &&
+          toolbar.getAttribute("contenteditable") === "false" &&
+          pre?.tagName === "PRE" &&
+          pre.getAttribute("dir") === "ltr" &&
           pre.childNodes.length === 1 &&
           !!code &&
-          Array.from(code.childNodes).every(
-            (node) =>
-              node.nodeType === 3 ||
-              (node instanceof HTMLElement &&
-                node.matches("br.ProseMirror-trailingBreak")),
-          ),
+          code.classList.contains("hljs") &&
+          !code.hasAttribute("data-language") &&
+          Array.from(code.childNodes).every(validCodeNode),
         hardBreakCount: code
           ? code.querySelectorAll("br:not(.ProseMirror-trailingBreak)").length
           : null,
+        keywordTokens: code
+          ? Array.from(code.querySelectorAll("span.hljs-keyword")).map(
+              (node) => node.textContent,
+            )
+          : [],
       };
     }),
     blockTags: Array.from(editor.children).map((node) => node.tagName),
@@ -188,8 +222,9 @@ export function installComposerCodeKeyboardObserverDom(node) {
       sessionId: node.dataset.sessionId,
       defaultPrevented: event.defaultPrevented,
       insideCode:
-        !!element?.closest("pre[data-composer-code-block] > code") &&
-        node.contains(anchor),
+        !!element?.closest(
+          'div[data-composer-code-block="true"] > pre > code',
+        ) && node.contains(anchor),
     });
   };
   // Observe after EditorView's handler, before a later ancestor could consume it.
@@ -283,27 +318,46 @@ export function summarizeComposerCodeBoundary({
   };
 }
 
-export async function prepareComposerMarksDraft({
+export function placeComposerCodeCaretAtEndDom(node) {
+  const code = node.querySelector(
+    'div[data-composer-code-block="true"] > pre > code',
+  );
+  if (!code) throw new Error("code selection 缺少现代 NodeView contentDOM");
+  const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT);
+  let text = null;
+  while (walker.nextNode()) text = walker.currentNode;
+  if (!text) throw new Error("code selection 缺少实际 text leaf");
+  node.focus();
+  const range = document.createRange();
+  range.setStart(text, text.nodeValue.length);
+  range.collapse(true);
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
+/** Synthetic clipboard transport into the real EditorView; no model or Controller injection. */
+export async function pasteComposerMarksDraft({
   page,
-  options,
   sessionId,
-  threadId,
   prompt,
+  body = CODE,
 }) {
-  const beforeRead = await appServerCallFromPage(page, "thread/read", {
-    threadId,
-    includeTurns: true,
-  });
   const editor = page.locator(`${composerEditorSelector(sessionId)}:visible`);
   await editor.fill("");
   const pasteObservation = await editor.evaluate(
-    (node, { prompt }) => {
+    (node, { prompt, body }) => {
       const data = new DataTransfer();
       const paragraph = document.createElement("p");
       paragraph.textContent = prompt;
+      const code = document.createElement("pre");
+      const content = document.createElement("code");
+      content.className = "language-typescript";
+      content.textContent = body;
+      code.append(content);
       data.setData(
         "text/html",
-        `${paragraph.outerHTML}<p><a href="https://example.invalid/marks" title="标题">中😀</a></p><pre><code data-language="ts">  中😀\n\`\`\`\`</code></pre><p>尾中😀</p>`,
+        `${paragraph.outerHTML}<p><a href="https://example.invalid/marks" title="标题">中😀</a></p>${code.outerHTML}<p>尾中😀</p>`,
       );
       data.setData("text/plain", "PLAIN FALLBACK MUST NOT WIN");
       const event = new ClipboardEvent("paste", {
@@ -320,8 +374,36 @@ export async function prepareComposerMarksDraft({
           "synthetic DataTransfer/ClipboardEvent in real Electron; OS clipboard not covered",
       };
     },
-    { prompt },
+    { prompt, body },
   );
+  return pasteObservation;
+}
+
+export async function prepareComposerMarksDraft({
+  page,
+  options,
+  sessionId,
+  threadId,
+  prompt,
+}) {
+  const beforeRead = await appServerCallFromPage(page, "thread/read", {
+    threadId,
+    includeTurns: true,
+  });
+  const editor = page.locator(`${composerEditorSelector(sessionId)}:visible`);
+  const pasteObservation = await pasteComposerMarksDraft({
+    page,
+    sessionId,
+    prompt,
+  });
+  const pickerBoundary = await verifyComposerMarksCodePicker({
+    page,
+    options,
+    sessionId,
+    threadId,
+    body: CODE,
+    expectedText: `${prompt}\n中😀\n${CODE}\n尾中😀`,
+  });
   const initial = await readComposerMarksSnapshot(page, sessionId);
   const preparation = {
     ok:
@@ -337,28 +419,14 @@ export async function prepareComposerMarksDraft({
     preparation.ok,
     `Composer HTML marks preparation 失败: ${JSON.stringify(preparation)}`,
   );
-  await editor.evaluate((node) => {
-    const code = node.querySelector("pre[data-composer-code-block] > code");
-    const texts = Array.from(code?.childNodes ?? []).filter(
-      (child) => child.nodeType === 3,
-    );
-    if (!texts.length) throw new Error("code selection 缺少实际 text node");
-    const text = texts.at(-1);
-    node.focus();
-    const range = document.createRange();
-    range.setStart(text, text.nodeValue.length);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-  });
+  await editor.evaluate(placeComposerCodeCaretAtEndDom);
   await page.waitForFunction(
     ({ selector }) => {
       const editor = document.querySelector(selector);
       const selection = window.getSelection();
       const anchor = selection?.anchorNode;
       const code = anchor?.parentElement?.closest(
-        "pre[data-composer-code-block] > code",
+        'div[data-composer-code-block="true"] > pre > code',
       );
       return (
         !!code &&
@@ -431,7 +499,7 @@ export async function prepareComposerMarksDraft({
     { selector: composerEditorSelector(sessionId) },
     { timeout: Math.min(options.timeoutMs, 10_000) },
   );
-  return { preparation, codeBoundary };
+  return { preparation, pickerBoundary, codeBoundary };
 }
 
 export function summarizeComposerMarksCancel({
@@ -470,6 +538,9 @@ export function buildComposerMarksScenarioAssertions(summary) {
   return {
     inputbarRichRestoreMarksPrepared:
       summary.inputbarRichRestoreDraftPrepared?.marks?.preparation?.ok === true,
+    inputbarRichRestoreCodePickerEditingOnly:
+      summary.inputbarRichRestoreDraftPrepared?.marks?.pickerBoundary?.ok ===
+      true,
     inputbarRichRestoreCodeEditingOnly:
       summary.inputbarRichRestoreDraftPrepared?.marks?.codeBoundary?.ok ===
       true,

@@ -93,3 +93,25 @@
 - 第一份草稿by-tag REST读404、gh run view等待整个run结束才可读logs；改用release GraphQL view和completed job logs REST，未伪造质量通过。所有失败和取消日志保留。
 
 - 精确fix回归39项与dictation draft纯逻辑10项通过；完整typecheck、ESLint、Prettier、38项预算通过。独立固定源码按 `--from-batch 70` 续跑到82/127无失败（运行中），后续全量Quality再次验证新source。准备正常提交测试修正和最新并行文档、推送main；旧tag仅在旧Release已取消、草稿未发布条件下按expected-old lease更新，重新生成所有产物。
+
+- 修正commit `e61d6e87fbecd343d60e9d48c2b81a63caa7f11b`、tree `341719502027072321c09bb87ff850fed6cf414a`已正常hook（5文件/0失败）并推送main。final snapshot与独立index更新，产品源码和既有真实交互binary不变，test-only和最新文档变化已单独复验。
+- 旧Release最终completed/cancelled，所有publish job取消；再次确认draft=true、assets=[]、publishedAt=null。用exact expected-old update-ref及 `--force-with-lease=refs/tags/v1.157.0:73ccc7f484ae6dd4b823305cdfa74df2a7291240` 把未发布草稿tag更新到e61d6e87f，远端实读一致。
+- 新 [Quality 38543400684](https://github.com/limecloud/lime/actions/runs/38543400684) 与 [Release 38543774892](https://github.com/limecloud/lime/actions/runs/38543774892)的headSha均为修正commit；旧产物不会复用。最终审计以这两次run为准。
+
+- 固定源码 `npm test -- --from-batch 70` 最终exit0，70–127共58批passed，1–69是显式跳过而非本轮通过；新guard/renderer另以39项定向覆盖。状态JSON保留 `frontend-ci-fix-resume-state.json`。不把续跑状态写成127/127全量，最终完整覆盖等待新Quality。
+
+- 新Windows build已success；下载的installed packaged identity Gate B确认Lime.exe、App Server、CodeMode、desktop resource manifest和native host指向同一1.157.0/e61d6e87f/run38543774892安装，4类检查passed。Windows release日志实读无signing secrets，按现有合同产出unsigned Squirrel安装包，不声明Windows已签名。
+- 第一份Quality的Windows Shell Runtime已success，唯一failure为旧inputRestore guard；前后产品源码不变，5路径test/doc delta机器复核记录 `ci-fix-source-equivalence.json`。新Quality的Rust Full和GUI smoke均success，Frontend Full仍进行。新macOS arm64 build已success，Intel build等待完成。
+
+- macOS arm64 packaged Gate B下载实审通过：candidate SHA/version/run ID匹配新源码，8类native检查passed，Electron检查passed，Developer ID、Gatekeeper accepted及stapleValid均true。Windows安装4类identity检查passed。
+- 新Quality的完整Frontend Full已success，Rust Full、GUI Smoke和Integrity均success，Quality results汇总进行中。Architecture Confirmation为PR专用，在本次push正常skipped；测试/文档修正没有Rust/Bridge产品变化，Windows/Bridge owner验证复用首轮同产品source结果，不冒充新run执行。
+
+- 新Quality 38543400684最终completed/success，source为e61d6e87f；完整Frontend Full 126/126批通过（以远端日志为准，独立本地环境127批的分批数不替代远端）。Rust Full、GUI Smoke、Integrity及Quality results均success。发布工作流仍待Intel构建与全部资产/npm收口。
+
+## Intel 信任检查重试与最终发布审计
+
+- Release 38543774892 第1次尝试 completed/failure：macOS Intel 构建及资源检查通过，packaged Gate B 在 `xcrun stapler validate` 失败；前置 codesign 与 Gatekeeper 检查已执行。构建日志显示 ticket=stapled，但失败入口未输出 stapler stdout/stderr，暂不把原因归为 Apple 临时故障。失败日志保留，Intel 没有通过证据。
+- 失败后 GitHub Release 实读仍 draft=true、assets=[]、publishedAt=null，未对外发布该版本。按既有完整授权重跑同一源码的失败任务（attempt 2），保留所有签名、公证、Gatekeeper、staple 和 Gate B 门禁，不移动 tag。
+- 当前只认领本文和 `.lime/release/v1.157.0/` 忽略证据。tag 固定后的并行 GUI 研究、执行记录、ShellBackgroundTerminalList 测试及本地缓存保留，收尾证据提交不纳入这些后续改动。平台审计按实际产物所属 attempt 精确匹配 source/version/run identity，不把旧失败算通过。
+- 同一源码重跑的 Intel Gate B 已通过，Developer ID、Gatekeeper、stapleValid 均 true，8 项 native 检查与 Electron 检查 passed。三平台证据下载实审通过：Intel run ID 为 `release-38543774892-2-darwin-x64`，Apple Silicon 与 Windows 沿用第1次成功产物；source/version/各平台 run ID 精确匹配，原始失败证据保留。首次失败具体原因因缺少 stapler 输出仍未确认，不用后续成功倒推根因。
+- 11:04 UTC 左右检测到整个 `.lime/release/v1.157.0/` 忽略目录不在原路径，原因未确认；原本地日志/快照不能继续声称留存在该路径。固定源码临时副本仍存在，既有验证结论已记录于本文。后续审计改用独立临时目录 `lime-release-v1.157.0-audit-4w7u6u7s`，从 GitHub 重新下载三平台摘要和失败/成功日志，再以公开 Release/R2/npm 实读收口；不重跑已通过的重型本地构建，不修改并行写集。

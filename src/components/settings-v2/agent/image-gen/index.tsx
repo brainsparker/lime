@@ -34,6 +34,7 @@ import {
 } from "@/lib/imageGen/catalog";
 import { MediaPreferenceSection } from "../shared/MediaPreferenceSection";
 import { updateMediaPreference } from "../shared/mediaPreferencePersistence";
+import { useAutoDismissMessage } from "../shared/useAutoDismissMessage";
 
 const DEFAULT_MEDIA_PREFERENCE: MediaGenerationPreference = {
   allowFallback: true,
@@ -86,10 +87,7 @@ function buildImageModelMetadata(
 export function ImageGenSettings() {
   const { t } = useTranslation("settings");
   const [config, setConfig] = useState<Config | null>(null);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const { message, showMessage } = useAutoDismissMessage();
   const [globalImagePreference, setGlobalImagePreference] =
     useState<MediaGenerationPreference>(DEFAULT_MEDIA_PREFERENCE);
   const { providers, loading: providersLoading } = useConfiguredProviders();
@@ -211,11 +209,6 @@ export function ImageGenSettings() {
           id: globalImagePreference.preferredModelId,
         })
       : undefined;
-
-  const showMessage = (type: "success" | "error", text: string) => {
-    setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  };
 
   const savePreference = async (
     updater: (current: MediaGenerationPreference) => MediaGenerationPreference,

@@ -15,6 +15,7 @@ import {
 } from "@/lib/mediaGeneration";
 import { MediaPreferenceSection } from "../shared/MediaPreferenceSection";
 import { updateMediaPreference } from "../shared/mediaPreferencePersistence";
+import { useAutoDismissMessage } from "../shared/useAutoDismissMessage";
 
 const DEFAULT_PREFERENCE: MediaGenerationPreference = {
   allowFallback: true,
@@ -26,10 +27,7 @@ export function VideoGenSettings() {
   const [config, setConfig] = useState<Config | null>(null);
   const [videoPreference, setVideoPreference] =
     useState<MediaGenerationPreference>(DEFAULT_PREFERENCE);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
+  const { message, showMessage } = useAutoDismissMessage();
 
   useEffect(() => {
     void (async () => {
@@ -96,18 +94,10 @@ export function VideoGenSettings() {
         await updateMediaPreference("video", updater);
       setConfig(updatedConfig);
       setVideoPreference(nextPreference);
-      setMessage({
-        type: "success",
-        text: t("settings.mediaGeneration.message.saved"),
-      });
-      setTimeout(() => setMessage(null), 3000);
+      showMessage("success", t("settings.mediaGeneration.message.saved"));
     } catch (error) {
       console.error("保存视频服务配置失败:", error);
-      setMessage({
-        type: "error",
-        text: t("settings.mediaGeneration.message.saveFailed"),
-      });
-      setTimeout(() => setMessage(null), 3000);
+      showMessage("error", t("settings.mediaGeneration.message.saveFailed"));
     }
   };
 

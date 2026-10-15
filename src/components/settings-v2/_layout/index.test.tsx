@@ -1,9 +1,15 @@
-import { act } from "react";
+import { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { SettingsTabs } from "@/types/settings";
-import type { ProviderSettingsFocusContext } from "@/types/page";
+import type {
+  ExecutionPolicyFocusContext,
+  Page,
+  PageParams,
+  ProviderSettingsFocusContext,
+  SettingsPageParams,
+} from "@/types/page";
 
 const {
   mockSettingsSidebar,
@@ -90,8 +96,8 @@ vi.mock("../system/environment", () => ({
   EnvironmentSettings: () => <div>environment</div>,
 }));
 vi.mock("../system/execution-policy", () => ({
-  ExecutionPolicySettings: () => {
-    mockExecutionPolicySettings();
+  ExecutionPolicySettings: (props: unknown) => {
+    mockExecutionPolicySettings(props);
     return <div>execution-policy</div>;
   },
 }));
@@ -107,7 +113,7 @@ vi.mock("../home", () => ({
 vi.mock("@/lib/api/oemCloudRuntime", () => ({
   resolveOemCloudRuntimeContext: () => mockResolveOemCloudRuntimeContext(),
 }));
-import { SettingsLayoutV2 } from ".";
+import { SettingsPage } from "..";
 
 interface Mounted {
   container: HTMLDivElement;
@@ -118,23 +124,36 @@ const mounted: Mounted[] = [];
 
 function renderComponent(
   initialTab: SettingsTabs,
-  onNavigate?: (page: string) => void,
+  onNavigate?: (page: Page, params?: PageParams) => void,
   initialProviderView?: "settings" | "cloud",
   initialProviderFocus?: ProviderSettingsFocusContext | null,
+  initialExecutionPolicyFocus?: ExecutionPolicyFocusContext | null,
+  onBack = vi.fn(),
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
 
-  act(() => {
-    root.render(
-      <SettingsLayoutV2
-        initialTab={initialTab}
-        initialProviderView={initialProviderView}
-        initialProviderFocus={initialProviderFocus}
-        onNavigate={onNavigate as any}
-      />,
+  function ControlledSettings() {
+    const [pageParams, setPageParams] = useState<SettingsPageParams>({
+      tab: initialTab,
+      providerView: initialProviderView,
+      providerFocus: initialProviderFocus ?? undefined,
+      executionPolicyFocus: initialExecutionPolicyFocus ?? undefined,
+    });
+    return (
+      <SettingsPage
+        pageParams={pageParams}
+        onBack={onBack}
+        onNavigate={(page, params) => {
+          onNavigate?.(page, params);
+          if (page === "settings") setPageParams(params as SettingsPageParams);
+        }}
+      />
     );
+  }
+  act(() => {
+    root.render(<ControlledSettings />);
   });
 
   mounted.push({ container, root });
@@ -188,7 +207,7 @@ afterEach(async () => {
   await changeLimeLocale("zh-CN");
 });
 
-describe("SettingsLayoutV2 Profile Tab", () => {
+describe("SettingsPage Profile Tab", () => {
   it("OEM 运行时下只展示统一账户页，不再渲染本地资料编辑器，也不再注入壳层标题", async () => {
     const container = renderComponent(SettingsTabs.Profile);
     await flushEffects();
@@ -212,7 +231,7 @@ describe("SettingsLayoutV2 Profile Tab", () => {
   });
 });
 
-describe("SettingsLayoutV2 Skills Tab", () => {
+describe("SettingsPage Skills Tab", () => {
   it("技能页应从设置导航进入现有高级技能入口", async () => {
     const container = renderComponent(SettingsTabs.Skills);
     await flushEffects();
@@ -221,14 +240,16 @@ describe("SettingsLayoutV2 Skills Tab", () => {
   });
 });
 
-describe("SettingsLayoutV2 Experimental Tab", () => {
-  it("旧的执行轨迹页入口应直接回退到首页", async () => {
-    const container = renderComponent(SettingsTabs.ExecutionTracker);
+describe("SettingsPage Experimental Tab", () => {
+  it("未知设置页应回退到当前首页", async () => {
+    const container = renderComponent(
+      "unknown-settings-section" as SettingsTabs,
+    );
     await flushEffects();
     const text = container.textContent ?? "";
 
     expect(text).toContain("home");
-    expect(text).not.toContain("execution-tracker");
+    expect(text).not.toContain("unknown-settings-section");
   });
 
   it("旧实验功能直达入口应切到开发者与实验功能合并页", async () => {
@@ -251,22 +272,30 @@ describe("SettingsLayoutV2 Experimental Tab", () => {
   });
 });
 
-describe("SettingsLayoutV2 Developer Tab", () => {
-  it("设置页应在上下文侧栏保留标题、返回首页和全局导航", async () => {
+describe("SettingsPage Developer Tab", () => {
+  it("设置页应在上下文侧栏保留标题、返回和全局导航", async () => {
     vi.stubGlobal("navigator", {
       platform: "MacIntel",
       userAgent: "Mac OS X",
     });
 
     const onNavigate = vi.fn();
-    const container = renderComponent(SettingsTabs.Home, onNavigate);
+    const onBack = vi.fn();
+    const container = renderComponent(
+      SettingsTabs.Home,
+      onNavigate,
+      undefined,
+      undefined,
+      undefined,
+      onBack,
+    );
     await flushEffects();
 
     const header = container.querySelector(
       '[data-testid="settings-top-header"]',
     );
     const button = container.querySelector<HTMLButtonElement>(
-      '[data-testid="settings-home-button"]',
+      '[data-testid="settings-back-button"]',
     );
 
     expect(header).not.toBeNull();
@@ -275,8 +304,8 @@ describe("SettingsLayoutV2 Developer Tab", () => {
     expect(header?.classList.contains("lime-settings-theme-scope")).toBe(true);
     expect(header?.getAttribute("data-window-controls-reserved")).toBe("true");
     expect(button).not.toBeNull();
-    expect(button?.textContent ?? "").toContain("Back Home");
-    expect(button?.getAttribute("aria-label")).toBe("Back Home");
+    expect(button?.textContent ?? "").toContain("Back");
+    expect(button?.getAttribute("aria-label")).toBe("Back");
     const navigation = container.querySelector(
       '[data-testid="settings-navigation"]',
     );
@@ -296,8 +325,20 @@ describe("SettingsLayoutV2 Developer Tab", () => {
       await Promise.resolve();
     });
 
-    expect(onNavigate).toHaveBeenCalledTimes(1);
-    expect(onNavigate.mock.calls[0]?.[0]).toBe("agent");
+    expect(onBack).toHaveBeenCalledTimes(1);
+    expect(onNavigate).not.toHaveBeenCalled();
+    act(() => {
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="app-sidebar-rail-home"]',
+        )
+        ?.click();
+    });
+    expect(onNavigate).toHaveBeenCalledWith(
+      "agent",
+      expect.objectContaining({ agentEntry: "new-task" }),
+    );
+    expect(onBack).toHaveBeenCalledTimes(1);
   });
 
   it("设置页的全局图标栏应能够切回插件上下文", async () => {
@@ -392,7 +433,7 @@ describe("SettingsLayoutV2 Developer Tab", () => {
   });
 });
 
-describe("SettingsLayoutV2 Provider Focus", () => {
+describe("SettingsPage Provider Focus", () => {
   it("服务商设置页应透传 provider focus 给 Provider 设置组件", async () => {
     const providerFocus: ProviderSettingsFocusContext = {
       providerId: "custom-coder",
@@ -412,6 +453,142 @@ describe("SettingsLayoutV2 Provider Focus", () => {
     expect(mockCloudProviderSettings.mock.calls.at(-1)?.[0]).toMatchObject({
       initialView: "settings",
       initialFocus: providerFocus,
+    });
+  });
+});
+
+describe("SettingsPage current sections", () => {
+  it("切章回写canonical参数并清理旧focus，重新进入不重放；点击当前章节保留focus", async () => {
+    const onNavigate = vi.fn();
+    const focus = { providerId: "provider", requestKey: 42 };
+    const container = renderComponent(
+      SettingsTabs.Providers,
+      onNavigate,
+      "cloud",
+      focus,
+    );
+    await flushEffects();
+    const select = async (tab: SettingsTabs) => {
+      const props = mockSettingsSidebar.mock.calls.at(-1)![0] as {
+        onTabChange: (tab: SettingsTabs) => void;
+      };
+      await act(async () => {
+        props.onTabChange(tab);
+      });
+      await flushEffects();
+    };
+    await select(SettingsTabs.Providers);
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(mockCloudProviderSettings.mock.calls.at(-1)![0]).toMatchObject({
+      initialView: "cloud",
+      initialFocus: focus,
+    });
+    await select(SettingsTabs.Appearance);
+    expect(onNavigate).toHaveBeenLastCalledWith("settings", {
+      tab: SettingsTabs.Appearance,
+    });
+    expect(container.textContent).toContain("appearance");
+    await select(SettingsTabs.Providers);
+    expect(onNavigate).toHaveBeenLastCalledWith("settings", {
+      tab: SettingsTabs.Providers,
+    });
+    expect(mockCloudProviderSettings.mock.calls.at(-1)![0]).toMatchObject({
+      initialView: undefined,
+      initialFocus: undefined,
+    });
+    await select(SettingsTabs.ExecutionPolicy);
+    expect(mockExecutionPolicySettings.mock.calls.at(-1)![0]).toEqual({
+      focus: null,
+    });
+    await select(SettingsTabs.Experimental);
+    expect(onNavigate).toHaveBeenLastCalledWith("settings", {
+      tab: SettingsTabs.Experimental,
+    });
+    expect(mockSettingsSidebar.mock.calls.at(-1)![0]).toMatchObject({
+      activeTab: SettingsTabs.Developer,
+    });
+    expect(mockDeveloperLabSettings.mock.calls.at(-1)![0]).toEqual({
+      initialTab: "experimental",
+    });
+    await select(SettingsTabs.Developer);
+    expect(mockDeveloperLabSettings.mock.calls.at(-1)![0]).toEqual({
+      initialTab: "developer",
+    });
+  });
+
+  it.each([
+    ["zh-CN", "返回"],
+    ["zh-TW", "返回"],
+    ["en-US", "Back"],
+    ["ja-JP", "戻る"],
+    ["ko-KR", "뒤로"],
+  ])("%s页头提供可访问的返回动作", async (locale, label) => {
+    await changeLimeLocale(locale as Parameters<typeof changeLimeLocale>[0]);
+    const onBack = vi.fn();
+    const container = renderComponent(
+      SettingsTabs.Home,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      onBack,
+    );
+    await flushEffects();
+    const button = container.querySelector<HTMLButtonElement>(
+      '[data-testid="settings-back-button"]',
+    )!;
+    expect(button.textContent).toBe(label);
+    expect(button.getAttribute("aria-label")).toBe(label);
+    act(() => {
+      button.click();
+    });
+    expect(onBack).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    [SettingsTabs.Home, "home"],
+    [SettingsTabs.Profile, "USER_CENTER_SESSION"],
+    [SettingsTabs.Stats, "stats"],
+    [SettingsTabs.Appearance, "appearance"],
+    [SettingsTabs.Memory, "memory"],
+    [SettingsTabs.ArchivedConversations, "archived-conversations"],
+    [SettingsTabs.Providers, "providers"],
+    [SettingsTabs.Skills, "skills"],
+    [SettingsTabs.MediaServices, "media-services"],
+    [SettingsTabs.McpServer, "mcp"],
+    [SettingsTabs.WebSearch, "web-search"],
+    [SettingsTabs.Environment, "environment"],
+    [SettingsTabs.ExecutionPolicy, "execution-policy"],
+    [SettingsTabs.Developer, "developer-lab"],
+    [SettingsTabs.About, "about"],
+  ])("公开设置页应渲染 current %s 章节", async (tab, text) => {
+    const container = renderComponent(tab);
+    await flushEffects();
+    expect(container.textContent).toContain(text);
+    expect(mockSettingsSidebar.mock.calls.at(-1)?.[0]).toMatchObject({
+      activeTab: tab,
+    });
+  });
+
+  it("执行策略直达应保留完整 focus 上下文", async () => {
+    const focus: ExecutionPolicyFocusContext = {
+      section: "network",
+      target: "host",
+      value: "example.invalid",
+      ruleId: "policy-rule",
+      reasonCode: "blocked_network_target",
+      requestKey: 17,
+    };
+    renderComponent(
+      SettingsTabs.ExecutionPolicy,
+      undefined,
+      undefined,
+      undefined,
+      focus,
+    );
+    await flushEffects();
+    expect(mockExecutionPolicySettings.mock.calls.at(-1)?.[0]).toEqual({
+      focus,
     });
   });
 });

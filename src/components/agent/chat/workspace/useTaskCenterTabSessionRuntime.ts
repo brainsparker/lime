@@ -31,7 +31,6 @@ import {
 } from "../utils/taskCenterTabs";
 import type { AgentChatWorkspaceProps } from "../agentChatWorkspaceContract";
 import { normalizeProjectId } from "../utils/topicProjectResolution";
-import type { TaskCenterDraftTab } from "./agentChatWorkspaceHelpers";
 
 type AgentEntry = AgentChatWorkspaceProps["agentEntry"] | null;
 
@@ -47,18 +46,16 @@ interface UseTaskCenterTabSessionRuntimeParams {
   normalizedInitialSessionId?: string | null;
   newChatAt?: number;
   sessionId?: string | null;
-  taskCenterDraftSurfaceActiveRef: MutableRefObject<boolean>;
+  taskCenterHomeSurfaceActiveRef: MutableRefObject<boolean>;
   taskCenterWorkspaceId?: string | null;
   topicById: ReadonlyMap<string, Topic>;
   topics: Topic[];
-  setActiveTaskCenterDraftTabId: Dispatch<SetStateAction<string | null>>;
   setHomePendingPreviewRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
   setTaskCenterDraftSendRequest: Dispatch<
     SetStateAction<TaskCenterDraftSendRequest | null>
   >;
-  setTaskCenterDraftTabs: Dispatch<SetStateAction<TaskCenterDraftTab[]>>;
 }
 
 export interface TaskCenterTabSessionRuntimeState {
@@ -97,14 +94,12 @@ export function useTaskCenterTabSessionRuntime({
   normalizedInitialSessionId,
   newChatAt,
   sessionId,
-  taskCenterDraftSurfaceActiveRef,
+  taskCenterHomeSurfaceActiveRef,
   taskCenterWorkspaceId,
   topicById,
   topics,
-  setActiveTaskCenterDraftTabId,
   setHomePendingPreviewRequest,
   setTaskCenterDraftSendRequest,
-  setTaskCenterDraftTabs,
 }: UseTaskCenterTabSessionRuntimeParams): TaskCenterTabSessionRuntimeState {
   const shouldStartNewTaskHome =
     agentEntry === "new-task" &&
@@ -186,39 +181,31 @@ export function useTaskCenterTabSessionRuntime({
 
     taskCenterNewChatResetRef.current = requestKey;
     taskCenterFallbackRestoreRef.current = null;
-    taskCenterDraftSurfaceActiveRef.current = false;
+    taskCenterHomeSurfaceActiveRef.current = true;
     setTaskCenterDetachedTopicId(null);
     setTaskCenterTransitionTopicId(null);
     setTaskCenterEmbeddedHomeSessionIds((current) =>
       current.size > 0 ? new Set<string>() : current,
     );
     setTaskCenterLocalSessionOverride(null);
-    setActiveTaskCenterDraftTabId(null);
-    setTaskCenterDraftTabs((current) => (current.length > 0 ? [] : current));
     setTaskCenterDraftSendRequest(null);
     setHomePendingPreviewRequest(null);
     setTaskCenterOpenTabMap((currentMap) =>
-      updateTaskCenterTabIdsForWorkspace(
-        currentMap,
-        taskCenterWorkspaceId,
-        [],
-      ),
+      updateTaskCenterTabIdsForWorkspace(currentMap, taskCenterWorkspaceId, []),
     );
   }, [
     agentEntry,
     newChatAt,
     normalizedInitialSessionId,
-    setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
     taskCenterWorkspaceId,
   ]);
 
   useEffect(() => {
     if (!isTaskCenterEntry) {
-      taskCenterDraftSurfaceActiveRef.current = false;
+      taskCenterHomeSurfaceActiveRef.current = false;
       setTaskCenterTransitionTopicId(null);
       return;
     }
@@ -232,7 +219,7 @@ export function useTaskCenterTabSessionRuntime({
   }, [
     isTaskCenterEntry,
     sessionId,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
     taskCenterTransitionTopicId,
   ]);
 
@@ -242,9 +229,7 @@ export function useTaskCenterTabSessionRuntime({
       setTaskCenterEmbeddedHomeSessionIds((current) =>
         current.size > 0 ? new Set<string>() : current,
       );
-      setTaskCenterDraftTabs((current) => (current.length > 0 ? [] : current));
-      setActiveTaskCenterDraftTabId(null);
-      taskCenterDraftSurfaceActiveRef.current = false;
+      taskCenterHomeSurfaceActiveRef.current = false;
       if (agentEntry !== "new-task") {
         setTaskCenterDraftSendRequest(null);
         setHomePendingPreviewRequest(null);
@@ -273,11 +258,9 @@ export function useTaskCenterTabSessionRuntime({
     isTaskCenterEntry,
     normalizedInitialSessionId,
     sessionId,
-    setActiveTaskCenterDraftTabId,
     setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest,
-    setTaskCenterDraftTabs,
-    taskCenterDraftSurfaceActiveRef,
+    taskCenterHomeSurfaceActiveRef,
     topicById,
   ]);
 
@@ -294,9 +277,6 @@ export function useTaskCenterTabSessionRuntime({
     }
 
     taskCenterRouteTabSyncRef.current = syncIntent.nextRouteSyncSessionId;
-    if (syncIntent.shouldClearActiveDraft) {
-      setActiveTaskCenterDraftTabId(null);
-    }
     if (syncIntent.shouldClearTransitionAndDetached) {
       setTaskCenterTransitionTopicId(null);
       setTaskCenterDetachedTopicId(null);
@@ -312,7 +292,6 @@ export function useTaskCenterTabSessionRuntime({
   }, [
     agentEntry,
     normalizedInitialSessionId,
-    setActiveTaskCenterDraftTabId,
     shouldRespectTaskCenterLocalSession,
     taskCenterWorkspaceId,
   ]);

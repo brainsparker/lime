@@ -150,6 +150,14 @@ afterEach(() => {
 });
 
 describe("useWorkspaceConversationLandingSurfaceRuntime", () => {
+  it("routes Home skill suggestions to the existing directory owner", () => {
+    const onSkillSuggestionsNeeded = vi.fn();
+    const { getValue } = renderHook(
+      createDefaultProps({ onSkillSuggestionsNeeded }),
+    );
+    getValue().emptyStateProps.onSkillSuggestionsNeeded?.();
+    expect(onSkillSuggestionsNeeded).toHaveBeenCalledOnce();
+  });
   it("应集中产出入口 banner、leading card 与空态技能 props", () => {
     const onSelectServiceSkill = vi.fn();
     const serviceSkills = [

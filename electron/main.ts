@@ -4,7 +4,6 @@ import {
   IPC_DEEP_LINK_GET_URLS_CHANNEL,
   IPC_DIALOG_OPEN_CHANNEL,
   IPC_DIALOG_SAVE_CHANNEL,
-  IPC_EMIT_CHANNEL,
   IPC_GLOBAL_SHORTCUT_COMMAND_CHANNEL,
   IPC_INVOKE_CHANNEL,
   IPC_SHELL_OPEN_CHANNEL,
@@ -27,6 +26,8 @@ import { ElectronBrowserTabHost, isBrowserTabCommand } from "./browserTabHost";
 import { resolveBrowserTabOwnerWindow } from "./browserTabSnapshot";
 import { ElectronDevHttpBridge } from "./devHttpBridge";
 import { ElectronHostCommands } from "./hostCommands";
+import { PersistedAtomHost } from "./persistedAtomHost";
+import { registerRendererEventHandler } from "./rendererEventPolicy";
 import { ElectronSecureCredentialStore } from "./secureCredentialStore";
 import {
   buildMainWindowChromeOptions,
@@ -151,6 +152,10 @@ const hostCommands = new ElectronHostCommands(
     desktopStorageRoots.appDataRoot,
     safeStorage,
   ),
+);
+const persistedAtomHost = new PersistedAtomHost(
+  desktopStorageRoots.appDataRoot,
+  broadcast,
 );
 const updateHost = new ElectronUpdateHost(broadcast, {
   open: openUpdateNotificationWindow,
@@ -1064,9 +1069,7 @@ function registerIpcHandlers(): void {
     },
   );
 
-  ipcMain.on(IPC_EMIT_CHANNEL, (_event, event: string, payload?: unknown) => {
-    broadcast(event, payload);
-  });
+  registerRendererEventHandler(ipcMain, broadcast);
 
   ipcMain.handle(IPC_DIALOG_OPEN_CHANNEL, async (_event, options) => {
     const normalizedOptions = normalizeOpenDialogOptions(options);
@@ -1141,6 +1144,12 @@ async function handleHostInvoke(
         ? (request as { includeRecent?: boolean; limit?: number })
         : {},
     );
+  }
+  if (command === "persisted_atom_read") {
+    return persistedAtomHost.sendPersistedAtomState(args);
+  }
+  if (command === "persisted_atom_update") {
+    return persistedAtomHost.updatePersistedAtomState(args);
   }
   if (command === "sync_tray_model_shortcuts") {
     syncTrayModelShortcuts(args);
@@ -1543,6 +1552,7 @@ app.on("before-quit", () => {
   devHttpBridge?.stop();
   devHttpBridge = null;
   hostCommands.dispose();
+  persistedAtomHost.dispose();
   void appServerHost.stop();
 });
 

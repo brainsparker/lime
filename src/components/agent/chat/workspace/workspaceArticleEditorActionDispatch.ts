@@ -1,4 +1,8 @@
 import type { HandleSendOptions } from "../hooks/handleSendTypes";
+import {
+  isRuntimeSubmissionAccepted,
+  type RuntimeSubmissionResult,
+} from "../hooks/agentSendResult";
 import type { WorkspaceArticleWorkspaceActionIntent } from "./workspaceArticleWorkspaceModel";
 import { buildWorkspaceArticleWorkspaceActionRequestMetadata } from "./workspaceArticleWorkspaceActionRequestMetadata";
 import { resolveWorkspaceArticleWorkspaceActionOutputArtifactKind } from "./workspaceArticleWorkspaceActionOutputKind";
@@ -6,7 +10,7 @@ import { resolveWorkspaceArticleWorkspaceActionOutputArtifactKind } from "./work
 export type SubmitWorkspaceArticleEditorAction = (
   prompt: string,
   options: HandleSendOptions,
-) => Promise<boolean>;
+) => Promise<RuntimeSubmissionResult>;
 
 export interface SubmitWorkspaceArticleEditorActionIntentParams {
   intent: WorkspaceArticleWorkspaceActionIntent;
@@ -67,10 +71,10 @@ export async function submitWorkspaceArticleEditorActionIntent({
   intent,
   restoreInput,
   submit,
-}: SubmitWorkspaceArticleEditorActionIntentParams): Promise<boolean> {
+}: SubmitWorkspaceArticleEditorActionIntentParams): Promise<RuntimeSubmissionResult> {
   const normalizedPrompt = intent.prompt.trim();
   if (!normalizedPrompt) {
-    return false;
+    return { kind: "rejected" };
   }
 
   const sent = await submit(normalizedPrompt, {
@@ -82,7 +86,7 @@ export async function submitWorkspaceArticleEditorActionIntent({
     searchMode: "disabled",
     explicitToolPreferences: true,
   });
-  if (!sent) {
+  if (!isRuntimeSubmissionAccepted(sent)) {
     restoreInput?.(normalizedPrompt);
   }
   return sent;

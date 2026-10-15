@@ -1,6 +1,10 @@
 import i18n from "i18next";
-import { loadNamespaceResource } from "./loadNamespace";
-import { FALLBACK_LOCALE, normalizeLocale } from "./locales";
+import { limeI18nResources } from "./createI18n";
+import {
+  FALLBACK_LOCALE,
+  normalizeLocale,
+  type SupportedLocale,
+} from "./locales";
 
 function interpolateCopy(
   text: string,
@@ -13,7 +17,7 @@ function interpolateCopy(
   );
 }
 
-function resolveCurrentLocale(): string {
+function resolveCurrentLocale(): SupportedLocale {
   const documentLocale =
     typeof document !== "undefined" ? document.documentElement.lang : "";
   return normalizeLocale(
@@ -46,7 +50,7 @@ export function resolveAgentChatCopy(
 ): string {
   const fullKey = `agentChat.${key}`;
   const locale = resolveCurrentLocale();
-  const localeResource = loadNamespaceResource(locale, "agent");
+  const localeResource = limeI18nResources[locale].agent;
   const translated = localeResource[fullKey as keyof typeof localeResource];
   const text = normalizeTranslatedCopy(translated, fullKey) ?? defaultValue;
   return interpolateCopy(text, values);
@@ -58,11 +62,11 @@ export function resolveRequiredAgentChatCopy(
 ): string {
   const fullKey = `agentChat.${key}`;
   const locale = resolveCurrentLocale();
-  const localeResource = loadNamespaceResource(locale, "agent");
+  const localeResource = limeI18nResources[locale].agent;
   const sourceResource =
     locale === FALLBACK_LOCALE
       ? localeResource
-      : loadNamespaceResource(FALLBACK_LOCALE, "agent");
+      : limeI18nResources[FALLBACK_LOCALE].agent;
   const resourceFallback =
     localeResource[fullKey] ?? sourceResource[fullKey] ?? fullKey;
   const translated = localeResource[fullKey] ?? resourceFallback;

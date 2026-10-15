@@ -4,8 +4,6 @@ import {
   type Node as ProseMirrorNode,
 } from "@tiptap/pm/model";
 import { EditorState, type Transaction } from "@tiptap/pm/state";
-import { history } from "@tiptap/pm/history";
-import { createComposerEditingKeymap } from "./composerKeymap";
 import {
   composerDocumentFromJSON,
   composerDocumentFromText,
@@ -20,12 +18,11 @@ import {
 } from "./composerSerialization";
 import { composerLinkDefaults, normalizeComposerHref } from "./composerLinks";
 import { replaceComposerAnnotations } from "./composerAnnotations";
-import {
-  composerPositionToOffset,
-  composerTextSelection,
-} from "./composerPositions";
+import { composerTextSelection } from "./composerPositions";
 import type {
   ComposerAttachment,
+  ComposerDocumentInput,
+  ComposerControllerOptions,
   ComposerControllerSnapshot,
   ComposerDocument,
   ComposerDraftSnapshot,
@@ -35,7 +32,6 @@ import type {
   ComposerMentionBinding,
   ComposerPasteOptions,
   ComposerPathReference,
-  ComposerPendingPaste,
   ComposerSelection,
   ComposerSubmission,
   ComposerSubmitResult,
@@ -44,78 +40,19 @@ import type {
   ComposerLinkAttributes,
 } from "./types";
 
+import type { NodeViewConstructor } from "@tiptap/pm/view";
+import { CodeBlockNodeViewRegistry } from "./CodeBlockNodeViewRegistry";
+import {
+  clone,
+  stateFrom,
+  documentFrom,
+  resourcesFrom,
+  buildDocument,
+  type ComposerResources,
+} from "./composerState";
+
 export const LARGE_PASTE_CHAR_THRESHOLD = 1_000;
 const MAX_LOCAL_HISTORY_ENTRIES = 50;
-
-export interface ComposerDocumentInput {
-  editorDocument?: ComposerEditorDocument;
-  text?: string;
-  selectionStart?: number;
-  selectionEnd?: number;
-  textElements?: readonly ComposerTextElement[];
-  mentionBindings?: readonly ComposerMentionBinding[];
-  attachments?: readonly ComposerAttachment[];
-  pathReferences?: readonly ComposerPathReference[];
-  pendingPastes?: readonly ComposerPendingPaste[];
-  inputCapabilityRoute?: unknown;
-}
-
-interface ComposerResources {
-  attachments: readonly ComposerAttachment[];
-  pathReferences: readonly ComposerPathReference[];
-  inputCapabilityRoute?: unknown;
-}
-
-const clone = <T>(value: T): T => structuredClone(value);
-
-function resourcesFrom(input: ComposerDocumentInput): ComposerResources {
-  return clone({
-    attachments: [...(input.attachments ?? [])],
-    pathReferences: [...(input.pathReferences ?? [])],
-    ...(input.inputCapabilityRoute === undefined
-      ? {}
-      : { inputCapabilityRoute: input.inputCapabilityRoute }),
-  });
-}
-
-function stateFrom(input: ComposerDocumentInput): EditorState {
-  const doc = input.editorDocument
-    ? composerDocumentFromJSON(input.editorDocument)
-    : composerDocumentFromAnnotations(input);
-  // Validate programmatically supplied annotations as strictly as JSON restores.
-  composerDocumentFromJSON(doc.toJSON() as ComposerEditorDocument);
-  const text = projectComposerDocument(doc).text;
-  const start = input.selectionStart ?? text.length;
-  return EditorState.create({
-    doc,
-    selection: composerTextSelection(doc, {
-      start,
-      end: input.selectionEnd ?? start,
-    }),
-    plugins: [history(), ...createComposerEditingKeymap()],
-  });
-}
-
-function documentFrom(
-  state: EditorState,
-  resources: ComposerResources,
-): ComposerDocument {
-  const projection = projectComposerDocument(state.doc);
-  return {
-    editorDocument: state.doc.toJSON() as ComposerEditorDocument,
-    text: projection.text,
-    selectionStart: composerPositionToOffset(state.doc, state.selection.from),
-    selectionEnd: composerPositionToOffset(state.doc, state.selection.to),
-    textElements: projection.textElements,
-    mentionBindings: projection.mentionBindings,
-    pendingPastes: projection.pendingPastes,
-    ...clone(resources),
-  };
-}
-
-function buildDocument(input: ComposerDocumentInput = {}): ComposerDocument {
-  return documentFrom(stateFrom(input), resourcesFrom(input));
-}
 
 function documentsEqual(
   left: ComposerDocument,
@@ -150,6 +87,8 @@ function hasContent(draft: ComposerDocument): boolean {
 }
 
 export class ComposerController {
+  readonly codeBlockNodeViewRegistry = new CodeBlockNodeViewRegistry();
+  private readonly codeBlocksEnabled: boolean;
   private state: EditorState;
   private resources: ComposerResources;
   private revision = 0;
@@ -161,8 +100,15 @@ export class ComposerController {
   private snapshot: ComposerControllerSnapshot;
   private readonly listeners = new Set<() => void>();
 
-  constructor(initialDocument: ComposerDocumentInput = {}) {
-    this.state = stateFrom(initialDocument);
+  constructor(
+    initialDocument: ComposerDocumentInput = {},
+    options: ComposerControllerOptions = {},
+  ) {
+    this.codeBlocksEnabled =
+      options.enableRichText !== false &&
+      options.enableCodeBlocks !== false &&
+      options.plainTextMode !== true;
+    this.state = stateFrom(initialDocument, this.codeBlocksEnabled);
     this.resources = resourcesFrom(initialDocument);
     this.snapshot = this.createSnapshot();
   }
@@ -174,21 +120,37 @@ export class ComposerController {
     return () => this.listeners.delete(listener);
   };
 
+  createNodeViews(): Record<string, NodeViewConstructor> {
+    return this.codeBlocksEnabled
+      ? { code_block: this.codeBlockNodeViewRegistry.createNodeView }
+      : {};
+  }
+
   getEditorState(): EditorState {
     return this.state;
   }
 
   applyTransaction(transaction: Transaction): boolean {
-    const applied = this.state.applyTransaction(transaction);
+    const previous = this.state;
+    const applied = previous.applyTransaction(transaction);
     if (applied.transactions.length === 0) return false;
-    if (applied.transactions.some((item) => item.docChanged))
+    const documentChanged = !previous.doc.eq(applied.state.doc);
+    const selectionChanged = !previous.selection.eq(applied.state.selection);
+    if (documentChanged) {
       composerDocumentFromJSON(
         applied.state.doc.toJSON() as ComposerEditorDocument,
       );
-    if (applied.transactions.some((item) => item.docChanged))
-      this.resetHistoryNavigation();
+      // Automatic metadata is persisted, but is not a manual history edit.
+      if (
+        applied.transactions.some(
+          (item) => item.docChanged && item.getMeta("addToHistory") !== false,
+        )
+      )
+        this.resetHistoryNavigation();
+    }
     this.state = applied.state;
-    this.publish();
+    if (documentChanged || selectionChanged) this.publish();
+    else this.notify();
     return true;
   }
 
@@ -713,7 +675,7 @@ export class ComposerController {
     resetHistory: boolean,
     force = false,
   ): void {
-    const state = stateFrom(input);
+    const state = stateFrom(input, this.codeBlocksEnabled);
     const resources = resourcesFrom(input);
     if (
       !force &&
@@ -749,6 +711,10 @@ export class ComposerController {
   private publish(): void {
     this.revision += 1;
     this.snapshot = this.createSnapshot();
+    this.notify();
+  }
+
+  private notify(): void {
     for (const listener of this.listeners) listener();
   }
 

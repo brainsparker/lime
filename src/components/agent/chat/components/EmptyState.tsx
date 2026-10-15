@@ -1,6 +1,15 @@
+import {
+  canRestoreComposerSubmission,
+  useComposerSubmissionRestoreState,
+  createComposerSubmissionSettlement,
+} from "./composerSubmissionSettlement";
+import { runRuntimeSubmissionEffect } from "../hooks/agentSendResult";
 import { restoreComposerDraft } from "../hooks/composerDraftRestore";
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
-import { claimComposerCapabilityInitialization, useComposerCapabilitySelection } from "../skill-selection/useComposerCapabilitySelection";
+import {
+  claimComposerCapabilityInitialization,
+  useComposerCapabilitySelection,
+} from "../skill-selection/useComposerCapabilitySelection";
 import { insertComposerSkill } from "../skill-selection/composerCapabilityMention";
 import React, {
   useCallback,
@@ -42,7 +51,10 @@ import {
 import { buildSkillSelectionProps } from "../skill-selection/skillSelectionBindings";
 import { isGeneralResearchTheme } from "../utils/generalAgentPrompt";
 import type { MessagePathReference } from "../types";
-import { mergePathReferences, buildPathReferenceRequestMetadata } from "../utils/pathReferences";
+import {
+  mergePathReferences,
+  buildPathReferenceRequestMetadata,
+} from "../utils/pathReferences";
 import { buildKnowledgeRequestMetadata } from "@/features/knowledge/agent/knowledgeMetadata";
 import {
   resolveInputCapabilityDispatch,
@@ -80,6 +92,8 @@ const CREATION_THEMES: string[] = [];
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   composerController: externalComposerController,
+  composerDraftCoordinator,
+  onComposerDraftAccepted,
   input,
   setInput,
   onSend,
@@ -117,6 +131,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onNavigateToSettings,
   onImportSkill,
   onRefreshSkills,
+  onSkillSuggestionsNeeded,
   onLaunchBrowserAssist,
   recentSessionTitle = null,
   recentSessionSummary = null,
@@ -168,15 +183,52 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       pathReferences: initialPathReferences,
     },
   });
-  const pathReferences = useMemo(() => [...composerSnapshot.document.pathReferences], [composerSnapshot.document.pathReferences]);
-  const handleAddPathReferences = useCallback((references: MessagePathReference[]) => {
-    composerController.setPathReferences(mergePathReferences([...composerController.getDocument().pathReferences], references));
-    onAddPathReferences?.(references);
-  }, [composerController, onAddPathReferences]);
-  const handleRemovePathReference = useCallback((id: string) => {
-    composerController.setPathReferences(composerController.getDocument().pathReferences.filter((reference) => reference.id !== id));
-    onRemovePathReference?.(id);
-  }, [composerController, onRemovePathReference]);
+  const mounted = useRef(true);
+  const surface = useRef({
+    composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
+  });
+  surface.current = {
+    composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
+  };
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  const pathReferences = useMemo(
+    () => [...composerSnapshot.document.pathReferences],
+    [composerSnapshot.document.pathReferences],
+  );
+  const handleAddPathReferences = useCallback(
+    (references: MessagePathReference[]) => {
+      composerController.setPathReferences(
+        mergePathReferences(
+          [...composerController.getDocument().pathReferences],
+          references,
+        ),
+      );
+      onAddPathReferences?.(references);
+    },
+    [composerController, onAddPathReferences],
+  );
+  const handleRemovePathReference = useCallback(
+    (id: string) => {
+      composerController.setPathReferences(
+        composerController
+          .getDocument()
+          .pathReferences.filter((reference) => reference.id !== id),
+      );
+      onRemovePathReference?.(id);
+    },
+    [composerController, onRemovePathReference],
+  );
   const promptHistoryClientRef = useRef<AppServerClient | null>(null);
   if (!promptHistoryClientRef.current) {
     promptHistoryClientRef.current = new AppServerClient();
@@ -208,7 +260,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   }, [input, setComposerControllerText]);
   const emittedComposerTextRef = useRef(input);
   useEffect(() => {
-    if (emittedComposerTextRef.current === composerSnapshot.document.text) return;
+    if (emittedComposerTextRef.current === composerSnapshot.document.text)
+      return;
     emittedComposerTextRef.current = composerSnapshot.document.text;
     setInput(composerSnapshot.document.text);
   }, [composerSnapshot.document.text, setInput]);
@@ -238,8 +291,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     () => buildInputbarCoreCopy(translateAgentCopyKey),
     [translateAgentCopyKey],
   );
+  const inputRestoreTokenState = useComposerSubmissionRestoreState(
+    inputRestoreRequest?.composerRestoreToken,
+  );
   const inputRestoreEpochRef = useRef(0);
-  const [activeCapability, setActiveCapability] = useComposerCapabilitySelection(composerController, skills);
+  const [activeCapability, setActiveCapability] =
+    useComposerCapabilitySelection(composerController, skills);
   const [knowledgeHubOpenRequestKey, setKnowledgeHubOpenRequestKey] =
     useState(0);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
@@ -296,7 +353,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
 
   useEffect(() => {
     const route = initialInputCapability?.capabilityRoute;
-    if (!route || !claimComposerCapabilityInitialization(composerController, initialInputCapabilitySignature)) {
+    if (
+      !route ||
+      !claimComposerCapabilityInitialization(
+        composerController,
+        initialInputCapabilitySignature,
+      )
+    ) {
       return;
     }
 
@@ -396,6 +459,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     onNavigateToSettings,
     onImportSkill,
     onRefreshSkills,
+    onSkillSuggestionsNeeded,
   });
   const [curatedTaskTemplatesVersion, setCuratedTaskTemplatesVersion] =
     useState(0);
@@ -463,12 +527,23 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     controller: composerController,
   });
 
-
   useEffect(() => {
     if (!inputRestoreRequest || isComposerBusy) {
       return;
     }
 
+    if (inputRestoreTokenState === "pending") return;
+    if (
+      !canRestoreComposerSubmission({
+        controller: composerController,
+        coordinator: composerDraftCoordinator,
+        token: inputRestoreRequest.composerRestoreToken,
+        scope: { projectId, sessionId },
+      })
+    ) {
+      onInputRestoreRequestHandled?.(inputRestoreRequest.requestId);
+      return;
+    }
     if (!restoreComposerDraft(composerController, inputRestoreRequest)) return;
     inputRestoreEpochRef.current += 1;
     const { requestId } = inputRestoreRequest;
@@ -476,7 +551,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     onInputRestoreRequestHandled?.(requestId);
   }, [
     inputRestoreRequest,
+    inputRestoreTokenState,
     composerController,
+    composerDraftCoordinator,
+    projectId,
+    sessionId,
     setInput,
     isComposerBusy,
     onAddPathReferences,
@@ -534,7 +613,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       : normalized;
   }, [recommendationSelectedText]);
 
-  const handleSend = (
+  const handleSend = async (
     inputOverride = input,
     modeState?: {
       goalEnabled?: boolean;
@@ -547,7 +626,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const pendingImages = [...currentDraft.attachments];
     const pathReferences = [...currentDraft.pathReferences];
     const submissionCapability = currentDraft.inputCapabilityRoute
-      ? resolveInputCapabilitySelectionFromRoute({ route: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute, skills })
+      ? resolveInputCapabilitySelectionFromRoute({
+          route: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute,
+          skills,
+        })
       : null;
     const composerInputOverride =
       inputOverride === input
@@ -572,30 +654,82 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       workspaceId: projectId ?? null,
     });
     const sendRestoreEpoch = inputRestoreEpochRef.current;
-    const hasPathReferences = pathReferences.length > 0;
+    const hasPathReferences = currentDraft.pathReferences.length > 0;
     if (
       isComposerBusy ||
       (!composerInputOverride.trim() &&
-        pendingImages.length === 0 &&
+        currentDraft.attachments.length === 0 &&
         !hasPathReferences)
     ) {
-      return;
+      return { kind: "rejected" as const };
     }
-    const imagesToSend = pendingImages.length > 0 ? pendingImages : undefined;
     const capabilityDispatch = {
-      ...resolveInputCapabilityDispatch(submissionCapability, composerInputOverride),
-      capabilityRoute: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute | undefined,
+      ...resolveInputCapabilityDispatch(
+        submissionCapability,
+        composerInputOverride,
+      ),
+      capabilityRoute: currentDraft.inputCapabilityRoute as
+        | InputCapabilitySendRoute
+        | undefined,
     };
     const submitTarget: ComposerSubmitTarget =
       triggerMetadata?.submitTarget ?? (isLoading ? "steer" : "start");
     setComposerControllerText(composerInputOverride);
-    const composerReceipt = composerController.submit(submitTarget);
+    const settlement = createComposerSubmissionSettlement({
+      controller: composerController,
+      coordinator: composerDraftCoordinator,
+      target: submitTarget,
+      onDraftAccepted: onComposerDraftAccepted,
+      scope: { projectId, sessionId },
+      canApplyUi: () =>
+        mounted.current &&
+        surface.current.composerController === composerController &&
+        surface.current.composerDraftCoordinator === composerDraftCoordinator &&
+        (!!composerDraftCoordinator ||
+          (surface.current.projectId === projectId &&
+            surface.current.sessionId === sessionId)) &&
+        inputRestoreEpochRef.current === sendRestoreEpoch,
+      onAccepted: (result, draft) => {
+        if (draft?.text.trim()) {
+          runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () => {
+            void promptHistoryClientRef.current
+              ?.appendPromptHistory({
+                threadId: result.receipt.threadId,
+                text: draft.text,
+              })
+              .catch(() => undefined);
+          });
+        }
+      },
+      onCommitted: (result) => {
+        runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+          setComposerText(""),
+        );
+        runRuntimeSubmissionEffect(
+          result.receipt,
+          "accepted_submit",
+          clearPendingImages,
+        );
+        runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+          onClearPathReferences?.(),
+        );
+        runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
+          clearSelectedSkill?.(),
+        );
+      },
+    });
+    const composerReceipt = settlement.receipt;
+    if (!composerReceipt) return { kind: "rejected" as const };
     if (composerReceipt.kind === "empty") {
-      return;
+      return { kind: "rejected" as const };
     }
+    const imagesToSend =
+      composerReceipt.submission.attachments.length > 0
+        ? [...composerReceipt.submission.attachments]
+        : undefined;
     const baseRequestMetadata = buildPathReferenceRequestMetadata(
       capabilityDispatch.requestMetadata,
-      pathReferences,
+      [...composerReceipt.submission.pathReferences],
     );
     const knowledgeRequestMetadata =
       knowledgePackSelection?.enabled &&
@@ -617,7 +751,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     };
     const requestMetadata = knowledgeRequestMetadata;
     const threadGoal =
-      (modeState?.goalEnabled ?? objectiveEnabled) && composerInputOverride.trim()
+      (modeState?.goalEnabled ?? objectiveEnabled) &&
+      composerInputOverride.trim()
         ? { objective: composerInputOverride.trim() }
         : undefined;
     const toolPreferencesOverride =
@@ -633,7 +768,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const inputRestoreDraft = {
       ...composerReceipt.draft,
       images: [...composerReceipt.draft.attachments],
-      inputCapabilityRoute: composerReceipt.draft.inputCapabilityRoute as InputCapabilitySendRoute | undefined,
+      inputCapabilityRoute: composerReceipt.draft.inputCapabilityRoute as
+        | InputCapabilitySendRoute
+        | undefined,
     };
     const shouldAttachInputRestoreDraft = true;
     const sendOptions =
@@ -659,54 +796,29 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           }
         : undefined;
 
-    const sendResult = onSend({
-      images: imagesToSend,
-      textOverride: effectiveInput,
-      sendOptions,
-      composerIntent: composerReceipt.intent,
-      composerTarget: composerReceipt.target,
-      composerDraft: composerReceipt.draft,
-      composerSubmission: composerReceipt.submission,
-      ...(triggerMetadata
-        ? {
-            triggeredAt: triggerMetadata.triggeredAt,
-            triggerSource: triggerMetadata.triggerSource,
-          }
-        : {}),
-    });
-    const clearAcceptedSubmissionState = () => {
-      if (inputRestoreEpochRef.current !== sendRestoreEpoch) {
-        return;
-      }
-      if (!composerController.commit(composerReceipt)) {
-        return;
-      }
-      if (sessionId && composerReceipt.submission.text.trim()) {
-        void promptHistoryClientRef.current
-          ?.appendPromptHistory({
-            threadId: sessionId,
-            text: composerReceipt.submission.text,
-          })
-          .catch(() => undefined);
-      }
-      setComposerText("");
-      clearPendingImages();
-      onClearPathReferences?.();
-      clearSelectedSkill?.();
-    };
-    if (sendResult === false) {
-      return false;
-    }
-    if (sendResult && typeof sendResult === "object" && "then" in sendResult) {
-      return sendResult.then((accepted) => {
-        if (accepted !== false) {
-          clearAcceptedSubmissionState();
-        }
-        return accepted;
+    try {
+      const result = await onSend({
+        onRuntimeAccepted: settlement.onRuntimeAccepted,
+        composerRestoreToken: settlement.composerRestoreToken,
+        composerDraftCapture: settlement.composerDraftCapture,
+        images: imagesToSend,
+        textOverride: effectiveInput,
+        sendOptions,
+        composerIntent: composerReceipt.intent,
+        composerTarget: composerReceipt.target,
+        composerDraft: composerReceipt.draft,
+        composerSubmission: composerReceipt.submission,
+        ...(triggerMetadata
+          ? {
+              triggeredAt: triggerMetadata.triggeredAt,
+              triggerSource: triggerMetadata.triggerSource,
+            }
+          : {}),
       });
+      return settlement.finish(result);
+    } catch (error) {
+      return settlement.reject(error);
     }
-    clearAcceptedSubmissionState();
-    return sendResult;
   };
 
   const handleComposerHistoryRecall = (draft: ComposerDraftSnapshot) => {
@@ -921,9 +1033,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   });
 
   const handleStop = useCallback(() => {
-    composerController.submit("interrupt", { allowEmpty: true });
     onStop?.();
-  }, [composerController, onStop]);
+  }, [onStop]);
 
   const composerPanel = (
     <EmptyStateComposerFrame>

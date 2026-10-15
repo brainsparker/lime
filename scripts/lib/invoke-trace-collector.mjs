@@ -48,7 +48,7 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
   };
   const readRaw = () => Reflect.apply(getItem, storage, [key]);
   const seedEntries = parseRing(readRaw());
-  let knownRing = seedEntries;
+  let knownRingJson = JSON.stringify(seedEntries);
   const ledgerEntries = [];
   const observations = [];
   const invalidations = [];
@@ -61,8 +61,8 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
       sequence: observations.length + 1,
     });
   };
-  const hash = (value) => {
-    const bytes = new TextEncoder().encode(JSON.stringify(value));
+  const hash = (serialized) => {
+    const bytes = new TextEncoder().encode(serialized);
     return globalThis.crypto.subtle
       .digest("SHA-256", bytes)
       .then((buffer) =>
@@ -75,7 +75,8 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
         return null;
       });
   };
-  const seedDigestPromise = hash(seedEntries);
+  const seedDigestPromise = hash(knownRingJson);
+  let knownRingDigestPromise = seedDigestPromise;
   const observe = (operation, args, beforeRaw, afterRaw) => {
     const targetKey = operation === "clear" || args[0] === key;
     if (operation === "clear" || (operation === "removeItem" && targetKey)) {
@@ -94,20 +95,21 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
     try {
       const before = parseRing(beforeRaw);
       const after = parseRing(afterRaw);
-      if (JSON.stringify(before) !== JSON.stringify(knownRing)) {
+      if (JSON.stringify(before) !== knownRingJson) {
         invalidate("lost-observation-window", operation);
         return;
       }
       const appended = after.at(-1);
+      const afterJson = JSON.stringify(after);
       if (
         !appended ||
-        JSON.stringify(after) !==
-          JSON.stringify([...before, appended].slice(-limit))
+        afterJson !== JSON.stringify([...before, appended].slice(-limit))
       ) {
         invalidate("non-continuous-append", operation);
         return;
       }
       const sequence = observations.length + 1;
+      const afterDigestPromise = hash(afterJson);
       ledgerEntries.push(appended);
       observations.push({
         sequence,
@@ -115,11 +117,13 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
         nativeSucceeded: true,
         beforeCount: before.length,
         afterCount: after.length,
-        beforeDigestPromise: hash(before),
-        afterDigestPromise: hash(after),
-        entryDigestPromise: hash(appended),
+        // Reuse only after the native before-window matched the known bytes.
+        beforeDigestPromise: knownRingDigestPromise,
+        afterDigestPromise,
+        entryDigestPromise: hash(JSON.stringify(appended)),
       });
-      knownRing = after;
+      knownRingJson = afterJson;
+      knownRingDigestPromise = afterDigestPromise;
     } catch {
       invalidate("invalid-trace-write", operation);
     }
@@ -182,12 +186,13 @@ export function installInvokeTraceCollectorDom({ runId, startedAt }) {
       invalidate("native-read-invalid", "capture");
     }
     if (!intact) invalidate("collector-hook-lost", "capture");
-    if (JSON.stringify(currentEntries) !== JSON.stringify(knownRing))
+    const currentJson = JSON.stringify(currentEntries);
+    if (currentJson !== knownRingJson)
       invalidate("lost-observation-window", "capture");
     // Snapshot before the first await. Later appends belong to a later capture.
     const ledger = ledgerEntries.slice();
     const records = observations.slice();
-    const currentDigestPromise = hash(currentEntries);
+    const currentDigestPromise = hash(currentJson);
     const transitions = await Promise.all(
       records.map(async (record) => ({
         sequence: record.sequence,
@@ -313,25 +318,28 @@ export function validateInvokeTraceCollectorCapture(capture, handle) {
     )
       throw new Error("invalid collector provenance");
     let ring = capture.seedEntries;
+    let ringDigest = hash(ring);
     for (const [index, entry] of capture.ledgerEntries.entries()) {
       const record = capture.observations[index];
       const next = [...ring, entry].slice(-handle.traceLimit);
+      const nextDigest = hash(next);
       if (
         record?.sequence !== index + 1 ||
         record.operation !== "append" ||
         record.nativeSucceeded !== true ||
         record.beforeCount !== ring.length ||
         record.afterCount !== next.length ||
-        record.beforeDigest !== hash(ring) ||
-        record.afterDigest !== hash(next) ||
+        record.beforeDigest !== ringDigest ||
+        record.afterDigest !== nextDigest ||
         record.entryDigest !== hash(entry)
       )
         throw new Error("non-continuous collector provenance");
       ring = next;
+      ringDigest = nextDigest;
     }
     if (
       capture.currentRingCount !== ring.length ||
-      capture.currentRingDigest !== hash(ring)
+      capture.currentRingDigest !== ringDigest
     )
       throw new Error("collector final window mismatch");
     return {

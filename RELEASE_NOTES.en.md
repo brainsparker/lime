@@ -1,41 +1,36 @@
-## Lime v1.157.0
+## Lime v1.158.0
 
 Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
 
 ### Features
 
-- Use one structured composer for skill, character, and capability mentions, preserving image, path, and rich input data through submission and restoration.
-- Support links and code blocks with Markdown submission and preserved reference ranges; add dictation cancellation and isolate late results after conversation switches or IME composition.
-- Preview, edit, delete, reorder, and start queued messages while idle; keep pending input separate from the public conversation history.
-- Show pending approvals in the conversation with actions and status tied to each request.
-- Reuse conversation changes and diff views in the Files panel, with file selection and navigation to the corresponding change.
+- Persist composer drafts across restarts, keeping home, workspace, and conversation scopes isolated while restoring rich text and resource references.
+- Add code block language selection, search, automatic detection, and syntax highlighting while preserving structured editing and Markdown submission.
 
 ### Fixes
 
-- Prevent late notifications and conversation switches from applying queue state, title edits, model settings, or working directories to the wrong conversation.
-- Correct browser tab and right panel state during restoration, closure, and switching.
-- Preserve scroll position when expanding, collapsing, or copying long user messages, and stop copy feedback updates after unmount.
-- Correct header toolbar overflow and message/composer placement in compact windows.
+- Prevent incorrect draft bindings, stale content restoration, and accidental clearing of new edits during new conversation navigation, first sends, and conversation switches.
+- Settle input using runtime acceptance: preserve rejected drafts, restore interrupted input, and prevent late receipts from overwriting newer drafts.
+- Navigate skill trial submissions to the actual conversation and restore the editor to an editable state after sending.
 
 ### Improvements and Refactoring
 
-- Mount conversation Turns by viewport, retaining independent history pagination, dynamic height measurement, and reading position.
-- Consolidate project, branch, and run location controls, structured submission, and input restoration around existing owners.
-- Keep queue, approval, file, and settings behavior on the shared App Server and remove replaced components and duplicate projections.
-- Consolidate desktop media and clipboard permissions while preserving main window and browser tab boundaries.
+- Consolidate draft coordination, desktop persistence, and sidebar draft projections; remove replaced draft events, duplicate state, and navigation implementations.
+- Use one settings section definition for menus, loading, and categorization; return to the conversation that opened settings while keeping Home navigation separate, and share notification lifecycle handling across media settings.
+- Keep conversation history on the shared App Server and draft persistence on the existing Electron Host.
 
 ### Tests and Quality
 
-- Extend regressions for queue history, search and cold recovery, approval responses, structured input, scrolling, copy lifecycle, and browser tab restoration.
-- Update real Electron current fixtures, interaction selectors, and build asset checks, separating source, artifact, and platform evidence.
-- Update UI text and regression coverage across five languages.
+- Extend coverage for draft saving, cold recovery, first sends, stop restoration, navigation, and input acceptance.
+- Strengthen real Electron fixture teardown, build freshness, and resource byte verification.
+- Update code block and settings text and regressions across five languages.
 
 ### Documentation
 
-- Update GUI design, architecture, quality workflows, Codex Desktop research evidence, and alignment execution records.
+- Update GUI architecture, draft and code block research, settings navigation audits, and structural alignment records, distinguishing delivered behavior from remaining work.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.157.0`.
+- Align the desktop app, CLI npm package, and Rust workspace at `1.158.0`.
 
-**Full Changelog**: `v1.156.0` -> `v1.157.0`
+**Full Changelog**: `v1.157.0` -> `v1.158.0`

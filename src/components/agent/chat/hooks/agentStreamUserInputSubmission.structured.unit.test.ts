@@ -30,14 +30,12 @@ describe("structured submission acceptance", () => {
       const env: AgentStreamPreparedSendEnv = {
         runtime: {
           listenToTurnEvents: vi.fn().mockResolvedValue(vi.fn()),
-          getThreadTurnControl: vi
-            .fn()
-            .mockResolvedValue({
-              activeTurnId,
-              queuedTurnIds: [],
-              threadId: "thread-1",
-              updatedAtMs: 0,
-            }),
+          getThreadTurnControl: vi.fn().mockResolvedValue({
+            activeTurnId,
+            queuedTurnIds: [],
+            threadId: "thread-1",
+            updatedAtMs: 0,
+          }),
           submitOp,
           steerTurn,
         } as unknown as AgentRuntimeAdapter,

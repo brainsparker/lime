@@ -19,6 +19,8 @@ import {
   resolveCuratedTaskTemplateLaunchPrefill,
 } from "../../utils/curatedTaskTemplates";
 import type { InputbarSendPayload } from "./inputbarSendPayload";
+import type { RuntimeSubmissionResult } from "../../hooks/agentSendResult";
+import { acceptedSubmission } from "../../hooks/agentSendResult.testFixtures";
 import { BaseComposer, ComposerController, ComposerEditor, type ComposerDraftSnapshot, type ComposerEditorHandle, type BaseComposerSendMetadata } from "@/components/input-kit";
 import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
 import type {
@@ -1090,11 +1092,11 @@ describe("Inputbar", () => {
       installed: true,
       sourceKind: "other",
     };
-    let resolveSend: ((value: boolean) => void) | null = null;
+    let resolveSend: ((value: RuntimeSubmissionResult) => void) | null = null;
     let triggerRestore: (() => void) | null = null;
     const onSend = vi.fn(
       () =>
-        new Promise<boolean>((resolve) => {
+        new Promise<RuntimeSubmissionResult>((resolve) => {
           resolveSend = resolve;
         }),
     );
@@ -1187,7 +1189,7 @@ describe("Inputbar", () => {
     expect(container.querySelector('[data-composer-token="skill"]')?.getAttribute("data-composer-path")).toBe("draft/SKILL.md");
 
     await act(async () => {
-      resolveSend?.(true);
+      resolveSend?.(acceptedSubmission());
       await sendPromise;
       await Promise.resolve();
     });
@@ -2204,7 +2206,7 @@ describe("Inputbar", () => {
       inputValues: launchInputValues,
       referenceEntries,
     });
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
 
     renderInputbar({
       input: prompt,
@@ -2265,7 +2267,7 @@ describe("Inputbar", () => {
         theme_target: "AI 内容创作",
       },
     });
-    const onSend = vi.fn().mockResolvedValue(false);
+    const onSend = vi.fn().mockResolvedValue({ kind: "rejected" });
 
     renderInputbar({
       input: prompt,
@@ -3911,7 +3913,7 @@ describe("Inputbar", () => {
   });
 
   it("移除执行策略选择后普通发送不再提交 execution strategy", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const { container } = renderInputbar({
       input: "请联网检查这个依赖变更并修复编译错误",
       onSend,
@@ -3960,7 +3962,7 @@ describe("Inputbar", () => {
   });
 
   it("启用项目资料后发送应携带 knowledge_pack metadata", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const { container } = renderInputbar({
       input: "基于项目资料写一段介绍",
       onSend,
@@ -4002,7 +4004,7 @@ describe("Inputbar", () => {
   });
 
   it("启用运营资料后发送应携带隐式 persona 协同 pack", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const { container } = renderInputbar({
       input: "基于运营资料写一段社群预热文案",
       onSend,
@@ -4067,7 +4069,7 @@ describe("Inputbar", () => {
   });
 
   it("资料中枢应支持显式追加多份 data 协同资料", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const onToggleKnowledgeCompanionPack = vi.fn();
     const { container, rerender } = renderInputbar({
       input: "基于运营资料生成本周计划",
@@ -4456,7 +4458,7 @@ describe("Inputbar", () => {
   });
 
   it("可从输入区菜单切换具体项目资料并用选中资料发送", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
+    const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     const onSelectKnowledgePack = vi.fn();
     const onToggleKnowledgePack = vi.fn();
     const { container, rerender } = renderInputbar({

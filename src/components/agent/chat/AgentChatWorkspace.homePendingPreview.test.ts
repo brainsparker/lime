@@ -22,7 +22,7 @@ describe("buildHomePendingPreviewMessages", () => {
   it("首页首发等待态应保留 Skill route 与用户可见文本", () => {
     const request: TaskCenterDraftSendRequest = {
       id: "draft-send-1",
-      draftTabId: "session-1",
+      sessionId: "session-1",
       text: "帮我整理资料",
       images: [],
       sendExecutionStrategy: "react",
@@ -35,7 +35,6 @@ describe("buildHomePendingPreviewMessages", () => {
         },
       },
       submittedAt: 1_710_000_000_000,
-      materializeDraft: false,
       source: "empty-state",
     };
 
@@ -69,11 +68,10 @@ describe("buildHomePendingPreviewMessages", () => {
   it("首页首发等待态应保持 neutral 文案并携带 memory.soul metadata", () => {
     const request: TaskCenterDraftSendRequest = {
       id: "draft-send-soul",
-      draftTabId: "session-soul",
+      sessionId: "session-soul",
       text: "帮我整理资料",
       images: [],
       submittedAt: 1_710_000_000_000,
-      materializeDraft: false,
       source: "empty-state",
     };
 
