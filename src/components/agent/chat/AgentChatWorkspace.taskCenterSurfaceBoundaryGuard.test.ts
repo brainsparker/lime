@@ -4,7 +4,7 @@ import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 describe("AgentChatWorkspace Task Center surface runtime boundary", () => {
-  it("草稿 surface、pending preview 和物化路由必须由 Task Center surface runtime 提供", () => {
+  it("草稿 surface 和 pending preview 由 surface runtime 提供，会话导航不回流", () => {
     const workspaceSource = [
       "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
       "src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts",
@@ -50,7 +50,6 @@ describe("AgentChatWorkspace Task Center surface runtime boundary", () => {
       "resolveTaskCenterDraftSurfaceState(",
       "useTaskCenterHomePendingPreviewRuntime(",
       "buildInitialDispatchPreviewMessages(",
-      "buildClawAgentParams({",
     ]) {
       expect(workspaceSource).not.toContain(
         retiredWorkspaceTaskCenterSurfaceGlue,
@@ -59,6 +58,13 @@ describe("AgentChatWorkspace Task Center surface runtime boundary", () => {
         retiredWorkspaceTaskCenterSurfaceGlue,
       );
       expect(ownerSource).toContain(retiredWorkspaceTaskCenterSurfaceGlue);
+    }
+    for (const source of [
+      workspaceSource,
+      shellInteractionOwnerSource,
+      ownerSource,
+    ]) {
+      expect(source).not.toContain("buildClawAgentParams({");
     }
 
     expect(
