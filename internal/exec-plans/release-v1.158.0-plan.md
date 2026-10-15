@@ -1,6 +1,6 @@
 # v1.158.0 发布执行计划
 
-状态：active。发布完成度：40%。目标：完成 v1.158.0 候选验证、提交、tag/main 推送及远端发布审计。
+状态：active。发布完成度：55%。目标：完成 v1.158.0 候选验证、提交、tag/main 推送及远端发布审计。
 
 ## 授权与候选
 
@@ -67,3 +67,17 @@
 - 修复后完整 `npm run typecheck` exit0，Renderer与Node两部分均通过，日志`typecheck-frozen-fixed.log`。已向本轮Renderer PID27407发送SIGCONT恢复构建；不存在仍挂起的本轮编译任务。
 
 - 修复后Renderer构建exit0（7081 modules，耗时包含暂挂等待），App Server client与Electron Host typecheck/build及桌面资源构建通过；独立Cargo target正在编译v1.158.0 sidecar。
+
+## 提交与远端Quality
+
+- 本地版本、完整typecheck、contracts、锁文件及受影响静态回归收口后，先正常提交并推main，使Quality与余下桌面验证并行；tag待GUI收口后继续推送，不结束为准备态。
+- 首个独立worktree提交因缺少忽略的Husky包装脚本未执行hook；随后amend虽运行hook但暂存差异为空，均不作有效门禁，也均未推送。仅移动独立未发布detached HEAD回原父提交，完整候选索引/文件保留，用仓库现有Husky包装脚本重新正常commit；未使用no-verify或禁用配置。
+- 最终正常hook验证348文件、0失败。commit `a092825e86377d5b310b1ab0457703b4420a412b`，359个改动路径，完整提交diff检查通过；已push origin main。主工作区索引在确认无暂存改动后同步新tree，工作区文件及冻结后的并行修改保留。
+- 首次Quality列表读取发生在push完成前，只返回旧run，不能计为新候选CI证据；继续按新headSha复核。
+
+- Quality `38724501475` 对精确 commit 的 Integrity、Bridge & Contracts、GUI Smoke 成功；Frontend Full 的 install/lint/typecheck/layer budget 成功，全量在第4批 autoGuide01 停止。
+- 测试夹具缺少新增 persisted atom 响应，且会话内场景未提交 session route，落入 current Home 投影。最终窄写集仅 index.testFixtures.tsx：复用现有真实 Coordinator/Store harness、按 persisted command/event 分派测试桥接、退出时 flush/dispose；夹具默认提交既有会话 route，显式 Home/route 场景保留原输入，不修改生产代码或降低断言。autoGuide01 11/11 passed；共享消费者首两文件 workbench01/03 共20项通过，其余继续复验。
+- 标准 CI `npm run verify:gui-smoke -- --timeout-ms 1800000` exit0，真实 macOS Electron/IPC/App Server 1.158.0、reload、3视口、memory settings 通过，证据见 ci-gui-smoke.log。
+- 本地 continuation 的 unknown-item 场景 businessAssertionsPassed=true，但 normal Main exit 15秒超时，teardown fail，完整子场景仍判失败，未执行后续场景。继续精确复验退出，不把业务通过当完整 Gate B。
+
+- 收口补丁仅测试夹具与本计划，正常 hook 提交并推 main 触发下一轮 Quality；不重复已有生产源码 typecheck/build/Rust 结果。

@@ -2,6 +2,7 @@
 import { act, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
+import { harness as createDraftHarness } from "@/components/input-kit/ComposerDraftCoordinator.testFixtures";
 import { acceptedSubmission } from "./hooks/agentSendResult.testFixtures";
 import { agentEnUSResource, agentZhCNResource } from "@/i18n/agentResources";
 import type { WorkspaceRightSurfaceLauncherProjection } from "./workspace/right-surface/rightSurfaceToolbarProjection";
@@ -44,6 +45,8 @@ const {
   mockUseSessionFiles,
   mockUseTrayModelShortcuts,
   mockSafeListen,
+  mockPersistedAtomInvoke,
+  mockPersistedAtomListen,
   mockUseSessionRecentMetadataSyncRuntime,
   mockUseWorkspaceKnowledgeRuntime,
   mockUseGlobalMediaGenerationDefaults,
@@ -99,6 +102,8 @@ const {
   mockUseSessionFiles: vi.fn(),
   mockUseTrayModelShortcuts: vi.fn(),
   mockSafeListen: vi.fn(),
+  mockPersistedAtomInvoke: vi.fn(),
+  mockPersistedAtomListen: vi.fn(),
   mockUseSessionRecentMetadataSyncRuntime: vi.fn(),
   mockUseWorkspaceKnowledgeRuntime: vi.fn(),
   mockUseGlobalMediaGenerationDefaults: vi.fn(),
@@ -326,7 +331,14 @@ vi.mock("@/lib/dev-bridge", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/dev-bridge")>();
   return {
     ...actual,
-    safeListen: mockSafeListen,
+    safeInvoke: (...[command, args]: Parameters<typeof actual.safeInvoke>) =>
+      command === "persisted_atom_read" || command === "persisted_atom_update"
+        ? mockPersistedAtomInvoke(command, args)
+        : actual.safeInvoke(command, args),
+    safeListen: (...[event, handler]: Parameters<typeof actual.safeListen>) =>
+      event === "persisted-atom-update"
+        ? mockPersistedAtomListen(event, handler)
+        : mockSafeListen(event, handler),
   };
 });
 
@@ -1043,7 +1055,11 @@ export function mountPage(
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
-  let currentProps = initialProps;
+  // The default fixture is an existing conversation. Home scenarios explicitly
+  // select their entry, and route/navigation tests keep their supplied identity.
+  let currentProps = initialProps.agentEntry
+    ? initialProps
+    : { initialSessionId: "session-1", ...initialProps };
 
   const render = () => {
     root.render(<AgentChatPage {...currentProps} />);
@@ -1357,6 +1373,8 @@ export function mockBrowserAssistCompletedSession() {
   installMockAgentChatUnifiedState(state);
 }
 
+let draftHarness: Awaited<ReturnType<typeof createDraftHarness>> | undefined;
+
 beforeEach(async () => {
   (
     globalThis as typeof globalThis & {
@@ -1374,6 +1392,10 @@ beforeEach(async () => {
   );
 
   vi.clearAllMocks();
+  draftHarness = await createDraftHarness({
+    safeInvoke: mockPersistedAtomInvoke,
+    safeListen: mockPersistedAtomListen,
+  });
   const originalConsoleError = console.error.bind(console);
   vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
     const message = String(args[0] ?? "");
@@ -1678,7 +1700,7 @@ beforeEach(async () => {
   installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
 }, 60_000);
 
-afterEach(() => {
+afterEach(async () => {
   while (mountedRoots.length > 0) {
     const mounted = mountedRoots.pop();
     if (!mounted) {
@@ -1689,6 +1711,8 @@ afterEach(() => {
     });
     mounted.container.remove();
   }
+  await draftHarness?.close();
+  draftHarness = undefined;
   localStorage.clear();
   sessionStorage.clear();
   vi.restoreAllMocks();
