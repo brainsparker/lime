@@ -1,6 +1,29 @@
 # v1.158.0 发布执行计划
 
-状态：active。发布完成度：55%。目标：完成 v1.158.0 候选验证、提交、tag/main 推送及远端发布审计。
+状态：completed。发布完成度：100%。v1.158.0 候选验证、提交、tag/main 推送、三平台安装包、R2 更新源及五个 npm 包发布审计均已完成。
+
+## 最终发布结果
+
+- 发布源码：`3b91e604db5791d691bf7ae7b3eacf5604debc74`；远端标签 `v1.158.0` 精确指向该提交。后续仅补充本记录，不移动发布标签。
+- [GitHub Release](https://github.com/limecloud/lime/releases/tag/v1.158.0)：公开、稳定版、latest，14个资产齐全，全部uploaded且具有SHA-256。双语单页说明见根目录`RELEASE_NOTES.md`与`RELEASE_NOTES.en.md`。
+- [Quality 38729567888](https://github.com/limecloud/lime/actions/runs/38729567888)：整体success；全量前端130批、1757文件、13968项通过、1项显式跳过；Rust Full与GUI Smoke成功。相同产品源码首轮Windows Shell Runtime、Bridge & Contracts也成功。
+- [Release 38731331153](https://github.com/limecloud/lime/actions/runs/38731331153)：11个作业全部success。macOS arm64/x64与Windows x64构建、资源校验及packaged验收全部通过；两种macOS包的Developer ID、Gatekeeper及staple检查通过。
+- R2：18个channel/versioned对象经认证head-object核对大小、SHA-256、ContentType和CacheControl，全部通过；大小及SHA-256也全部匹配GitHub资产。实际R2公共地址的三份feed逐字节匹配GitHub并为1.158.0，两个ZIP、NUPKG与安装器公网HEAD均HTTP200且大小匹配。
+- npm：五包发布均带signed provenance；版本、对应dist-tag、tarball地址和SHA-512 integrity均已实读，主包四个平台optionalDependencies精确匹配下表。初次旧元数据/404记录保留，等待注册表更新后最终5/5通过，未重复发布或改写标签。
+
+| npm 包                         | 版本                   | dist-tag       |
+| ------------------------------ | ---------------------- | -------------- |
+| `@limecloud/lime`              | `1.158.0`              | `latest`       |
+| `@limecloud/lime-linux-x64`    | `1.158.0-linux-x64`    | `linux-x64`    |
+| `@limecloud/lime-darwin-x64`   | `1.158.0-darwin-x64`   | `darwin-x64`   |
+| `@limecloud/lime-darwin-arm64` | `1.158.0-darwin-arm64` | `darwin-arm64` |
+| `@limecloud/lime-win32-x64`    | `1.158.0-win32-x64`    | `win32-x64`    |
+
+已知限制：Windows签名secret未配置，安装包为unsigned；旧R2保留清理因wrangler缺少`r2 object list`按现有非阻断分支跳过。本机默认域名`updates.limecloud.com`连接超时，但发布清单实际使用的R2公共地址已完成实读。没有live provider、长期soak、系统IME/麦克风或整体GUI视觉对齐100%的声明。
+
+current主链继续由既有owner演进；新增compat/deprecated为零，已替代草稿事件和重复实现按deleted处理。原工作区冻结之后的并行改动完整保留，不夹入本次标签。
+
+详细命令与摘要位于忽略目录`.lime/release/v1.158.0/`，关键索引为`quality-final-state.json`、`release-final-state.json`、`github-final-audit.json`、`gate-b-receipts.json`、`packaged-evidence-receipts.json`、`r2-verified-objects.json`、`public-updater-final-audit.json`与`npm-final-audit.json`。以下保留按执行顺序记录的中间状态，不作为最终状态读取。
 
 ## 授权与候选
 
@@ -89,3 +112,23 @@
 - 最终测试补丁 `5d88ce350726c15d9a8bdb64a2517637e422df3c` 已正常hook提交推main，Quality `38727636026` 的 Integrity、lint、完整typecheck、GUI Smoke成功；Frontend Full 通过批次1–75，第76批旧surface guard仍正向要求已迁出的buildClawAgentParams，失败1/70，其余69通过。
 - 窄修复该guard：surface只拥有草稿/预览派生，禁止会话route构造回流；导航接受语义已有index及Gate B覆盖。产品实现无改动，不恢复旧owner。按原130批发现从76续跑，不从第一批无差别重跑；CI前75批与后段/定向结果按source lineage组合，原失败收据保留。
 - 本地三条Gate B完整通过并正常Main exit0/no-signal：unknown-item、home-hotpath、inputbar-rich-restore。使用真实Electron/preload/IPC/current App Server和同一session/read model；backendMode=external受控fixture，无live provider声明。摘要与SHA-256记录在gate-b-receipts.json。
+
+## 最终候选收口
+
+- 固定发布源码为 `3b91e604db5791d691bf7ae7b3eacf5604debc74`，main/origin/main 已同步。相对首个发布提交，后续仅测试/夹具和执行计划变化，产品源码不变。最终 Quality 为 `38729567888`；旧中间轮次 `38726992169`、`38727636026` 已请求取消重复 Rust 作业，不以 cancelled overall 作为成功。
+- 本机 `--from-batch 76` 已通过76–92批，93批 profile locale 数字格式测试超过原5秒时限而停止。核对逐文件清单发现平台排序差异，CI前75批与本机后段有47个缺口，不能按批号相加声称全量通过；真实清单保存在 `frontend-lineage-plan.json`。
+- 47文件精确补跑中 DesignCanvas 导出超过原5秒，随后远程图片提示断言失败，尚未认定根因。已对本轮 Vitest 父进程发送 SIGINT，exit130，保留日志；不改时限、不降断言、不继续叠加本机全量负载。由最终固定提交 CI 全量复核这些文件。
+- 最终候选 GUI Smoke、Integrity、Lint、完整 typecheck 已通过；Frontend Full 和 Rust Full 尚在运行，不提前标记全量成功。
+- 最终 Quality 的 Frontend Full 已完成成功；本地失败记录保留，以该固定提交的 CI 全量结果复核。Rust Full 仍在运行；同一产品源码在 `a092825e8` 的 Rust Full、Windows Shell Runtime、Bridge & Contracts 均已成功，后续差异仅5个测试/夹具与本文。
+- `v1.158.0` 标签已创建并正常推送，远端实读精确指向 `3b91e604db5791d691bf7ae7b3eacf5604debc74`。Release workflow `38731331153` 已启动并创建稳定版草稿；待三平台包、packaged Gate B、GitHub Release、R2 与 npm 审计收口。
+- 最终 Quality `38729567888` 整体 success，Rust Full 也已成功。Frontend Full 共130批、1757文件通过、13968项通过、1项显式跳过；DesignCanvas.project 3项和profile 7项全部通过。当前按变更选择跳过的Windows/Bridge由相同产品源码首轮成功结果承接，不描述为本轮重新执行。
+- Release 中 Windows-x64、macOS-arm64 已成功；下载的packaged摘要均精确匹配发布提交。arm64 Developer ID/Gatekeeper/staple全部通过，Windows Squirrel从N-1安装升级至候选并卸载清理21/21断言通过，CodeMode/native-host/资源清单身份全部通过。
+- Windows签名secret未配置，正式日志明确当前Squirrel产物为unsigned；不冒充Windows代码签名通过，不擅自新增凭证或变更生产配置。macOS x64仍在构建。
+- 三平台桌面构建与packaged Gate B最终均success；macOS x64同样通过Developer ID/Gatekeeper/staple。摘要及SHA-256保存在`packaged-evidence-receipts.json`。GitHub Release已公开、非prerelease、latest，9个桌面资产齐全；CLI/npm仍在构建。
+- R2发布success，18个对象（9个channel路径及9个versioned路径）逐一通过认证head-object校验；全部18条大小及SHA-256与GitHub资产一致，见`r2-verified-objects.json`。
+- 从发布清单发现实际下载域名为`https://pub-fa568bd8496349bcafe04091e2b02e1e.r2.dev`；实读三平台feed全部HTTP200、与GitHub字节一致且为1.158.0，两个ZIP、NUPKG和Windows安装器HEAD均HTTP200且大小匹配。首次安装器探针误用GitHub标准化名称，已按R2日志中的Forge含空格文件名修正；原审计收据保留，最终`public-updater-final-audit.json`全通过。
+- `updates.limecloud.com`本机仍连接超时，记录于`public-updater-edge-audit.json`；不以该默认域名失败推断已验证的实际R2下载地址失败，不修改DNS、代理或生产配置。
+- R2旧版本清理按现有workflow的非阻断分支跳过：wrangler 4.151.0不提供`r2 object list`。本次18对象上传/校验成功，未声称历史保留策略已执行；后续维护不并入已冻结发布源码。
+- Release `38731331153` 已整体success，11个作业全部成功。GitHub公开稳定版/latest、14个资产均uploaded、有SHA-256、版本及名称完整，发布正文与冻结源码RELEASE_NOTES.md一致，见`github-final-audit.json`。
+- npm发布日志五包均成功并带signed provenance；主包版本`1.158.0`，平台包遵循现有packager合同`1.158.0-<platform>`，使用同名platform dist-tag。最初审计把平台版本当作纯`1.158.0`，已按`compute_platform_package_version`修正；后续实读主包/macOS x64成功，其余三包暂时404，尚未标记注册表审计完成，不重复发布、不擅改标签。
+- 注册表后续依次实读Linux、macOS arm64、Windows成功，最终五包版本及对应dist-tag全部通过；主包optionalDependencies与四个平台精确版本一致。完整`npm-final-audit.json`为passed=true，发布收口完成。
