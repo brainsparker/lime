@@ -102,27 +102,29 @@ export function verifyMacOSReleaseTrust(
   helperBundlePath,
   { execFileSyncImpl = execFileSync, spawnSyncImpl = spawnSync } = {},
 ) {
-  execFileSyncImpl(
-    "codesign",
-    ["--verify", "--deep", "--strict", appBundlePath],
-    { stdio: "pipe" },
-  );
-  execFileSyncImpl("codesign", ["--verify", "--strict", helperBundlePath], {
-    stdio: "pipe",
-  });
+  const check = (command, args) => {
+    try {
+      execFileSyncImpl(command, args, { stdio: "pipe" });
+    } catch (error) {
+      error.message += `\nstdout:\n${String(error.stdout || "").trim()}\nstderr:\n${String(error.stderr || "").trim()}`;
+      throw error;
+    }
+  };
+  check("codesign", ["--verify", "--deep", "--strict", appBundlePath]);
+  check("codesign", ["--verify", "--strict", helperBundlePath]);
   const application = readCodeSignatureIdentity(appBundlePath, spawnSyncImpl);
   const helper = readCodeSignatureIdentity(helperBundlePath, spawnSyncImpl);
   if (application.teamIdentifier !== helper.teamIdentifier) {
     throw new Error("Application and native helper signing teams do not match");
   }
-  execFileSyncImpl(
-    "spctl",
-    ["--assess", "--type", "execute", "--verbose=4", appBundlePath],
-    { stdio: "pipe" },
-  );
-  execFileSyncImpl("xcrun", ["stapler", "validate", appBundlePath], {
-    stdio: "pipe",
-  });
+  check("spctl", [
+    "--assess",
+    "--type",
+    "execute",
+    "--verbose=4",
+    appBundlePath,
+  ]);
+  check("xcrun", ["stapler", "validate", appBundlePath]);
   return {
     status: "passed",
     developerId: true,

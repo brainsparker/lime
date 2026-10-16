@@ -110,4 +110,28 @@ describe("macOS release trust", () => {
       }),
     ).toThrow("signing teams do not match");
   });
+
+  it("preserves native stapler output and rejects the failed trust check", () => {
+    const failure = Object.assign(
+      new Error("Command failed: xcrun stapler validate"),
+      {
+        status: 68,
+        stdout: Buffer.from("The validate action failed! Error 68."),
+        stderr: Buffer.from("CloudKit lookup failed"),
+      },
+    );
+    const execFileSyncImpl = vi.fn((command) => {
+      if (command === "xcrun") throw failure;
+    });
+    expect(() =>
+      verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
+        execFileSyncImpl,
+        spawnSyncImpl: vi.fn(() => ({
+          status: 0,
+          stderr: `Authority=${APP_AUTHORITY}\nTeamIdentifier=TEAM123456\n`,
+        })),
+      }),
+    ).toThrow(/Error 68\.[\s\S]*CloudKit lookup failed/);
+    expect(failure.status).toBe(68);
+  });
 });

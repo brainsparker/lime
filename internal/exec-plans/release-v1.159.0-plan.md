@@ -96,3 +96,10 @@
 
 - 修复与全部67路径已正常hook提交`8fffa6b9d202c82d94fe45babafad6e4f2babf3e`，67项hook通过、manifest全部匹配，已push main并实读远端SHA。标签仍精确指向6fbb8c1b5，未覆盖。新Quality 38932033381执行中；Integrity、lint、typecheck已通过，其余按最终结果记录。
 - 发现共享后端三份当前计划/领域账本/审计文件被既有私有计划忽略规则排除，但已被本次README导航引用；按用户「全部递交」授权显式补交这三份必要事实源，不批量纳入其他忽略的历史计划或证据。142条本地链接有效。
+
+### 第二次发布尝试与诊断修复
+
+- attempt2的macOS x64 Forge package/make成功，codesign显示Notarization Ticket=stapled且严格签名校验成功；随后packaged Gate B在`xcrun stapler validate`非零退出。首个网络/staple故障已越过，但Release整体仍failure。此次native stdout被execFileSync的pipe吞掉且异常发生在summary写入前，artifact不存在，具体退出原因unknown；不得将它直接认定为原CloudKit错误或无效票据。原始日志`release-attempt-2-failed.log`与`macos-x64-attempt-2.log`已保留。
+- 已启动原标签attempt3，未移动tag。追加窄写集为macos-release-trust及回归、macos-native-host-gate-b、独立macos-gate-evidence及回归、本计划。信任检查保留原命令、签名/team/Gatekeeper/staple阻断语义；失败消息附native stdout/stderr，命令status/signal仍保留。Gate CLI在前置失败时也写failure.json并以同一异常退出，现有summary不伪造。既有入口已777行，将证据职责放既有lib领域，避免继续堆叠入口。
+- 诊断定向四suite57/57、strict lint及diff check均通过；不重复未变TS/Rust门禁。产品提交8fffa6b9d的Frontend Full、Windows Shell Runtime、GUI Smoke和Integrity已success，仅Rust Full仍运行。文档提交187d28305的Quality 38932652697已success（docs-only），不能代替前述全量结果。
+- 全部递交完成后另有新协议/session defaults切片进入原工作区，尚在并行实施；不把其未验证源码夹入本次诊断补丁，也不覆盖或回滚。本轮原67路径及三份必要事实源已全部递交，后续新增路径属于下一批。

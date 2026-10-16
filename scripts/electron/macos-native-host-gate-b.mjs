@@ -15,6 +15,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runMacOSNativeHostElectronGateB } from "./lib/macos-native-host-electron-gate-b.mjs";
+import { runMacOSGateWithEvidence } from "./lib/macos-gate-evidence.mjs";
 import {
   normalizeCandidateRunId,
   normalizeCandidateSha,
@@ -767,7 +768,10 @@ async function main() {
     );
     return;
   }
-  const result = await runMacOSNativeHostGateB(options);
+  const result = await runMacOSGateWithEvidence(
+    options,
+    runMacOSNativeHostGateB,
+  );
   console.log(`${LOG_PREFIX} result=passed summary=${result.summaryPath}`);
 }
 
