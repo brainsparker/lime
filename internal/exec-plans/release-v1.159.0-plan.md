@@ -93,3 +93,6 @@
 
 - 全部递交候选67路径（不含既有外部分析文件与tsbuildinfo缓存），暂存diff 6527增/3058删。App Server整库新结果1877 passed/0 failed/0 ignored，包含三项response/interrupt/resume竞态回归；日志`/tmp/lime-shared-backend-s02-resolution-tests.log`。CLI bin既有110项与shared-client/stdio/MCP fixtures按共享后端计划的源码lineage记录。
 - 并行current fixture原wrapper完整通过，368静态及22真实Electron场景；日志`/tmp/lime-shared-backend-s02-current-fixture-pinned.log`。其固定App Server SHA为44e73da58cd4d7d8011725ce3d036048f84c243d89251a86f2ea13ab5c8cc72e，早于最新response结算重构，不能冒充最终源码GUI证据；最终main的GUI/全量Quality待远端实读。
+
+- 修复与全部67路径已正常hook提交`8fffa6b9d202c82d94fe45babafad6e4f2babf3e`，67项hook通过、manifest全部匹配，已push main并实读远端SHA。标签仍精确指向6fbb8c1b5，未覆盖。新Quality 38932033381执行中；Integrity、lint、typecheck已通过，其余按最终结果记录。
+- 发现共享后端三份当前计划/领域账本/审计文件被既有私有计划忽略规则排除，但已被本次README导航引用；按用户「全部递交」授权显式补交这三份必要事实源，不批量纳入其他忽略的历史计划或证据。142条本地链接有效。

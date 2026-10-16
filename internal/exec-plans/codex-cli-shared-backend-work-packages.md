@@ -1,0 +1,106 @@
+# Codex 共享后端对齐工作包
+
+关联：[总计划](./codex-cli-shared-backend-alignment-plan.md)。基线、状态定义和写集约束沿用总计划；2026-10-16 源码盘点，实施与实际验证结果见总计划的当前验证快照。这里的条目是交付/证据工作包，存在跨领域关联，不代表互不重复的缺陷总数。
+
+证据等级分别记录 unit、App Server integration、current fixture、Gate A、Desktop/CLI/TUI Gate B、live、packaged 和 platform。fixture 的 backend 必须标 `runtime` / `external` / `unavailable`；不得跨级外推。
+
+## CLI / TUI（T01–T24）
+
+Codex 参照 owner：`codex-rs/cli`、`exec`、`tui`、`utils/cli`、`codex-cli`。Lime 只在现有 `cli`、`tui`、`app-server-client`、App Server 和 `packages/cli` 实施，不在终端端建业务状态库。
+
+| ID / 阶段 | 状态 | 源码证据与任务 / current owner | 退出条件与复用验证 |
+| --- | --- | --- | --- |
+| T01 / S11 | implemented / host gate pending P1 | 原 `cli_main` 只对部分命令合并 root connection；已迁为 [dispatch.rs](../../lime-rs/crates/cli/src/dispatch.rs) 统一继承、[connection.rs](../../lime-rs/crates/cli/src/connection.rs) 唯一归并规则。新产物编译、双 Host 读写目标、CLI Gate B 与 CLI bin 110 项 unit 已通过；共享 GUI 门禁待闭环 | 根/子参数均选同一 Host，子参数优先；两个隔离 App Server 证明读写只命中目标，复用 CLI surface Gate B |
+| T02 / S12 | known-gap | [main.rs](../../lime-rs/crates/cli/src/main.rs) `TuiCli` 缺根初始 prompt/image；参照 Codex `tui/src/cli.rs` / `utils/cli/src/shared_options.rs` | 真 PTY 启动文本+图片落入单一 canonical Turn，取消不重复提交；复用 images PTY |
+| T03 / S04,S14 | unverified scope | [thread DTO](../../lime-rs/crates/app-server-protocol/src/protocol/v2/thread.rs) 已声明 config/ephemeral/thread_source，CLI 缺 profile/strict/ignore 等入口；逐字段核 consumer | invocation override、ephemeral 不落 durable 数据，错误 fail-before-execute；不恢复已排除的 project/managed config，按当前全局 config owner 确定支持范围 |
+| T04 / S14 | known-gap surface | [exec/thread.rs](../../lime-rs/crates/cli/src/exec/thread.rs) 单 cwd；CLI 缺 add-dir/worktree 参数；后端 workspace 能力另核 | 额外根只扩大显式授权；受管 worktree 创建/恢复/清理经 workspace owner，GUI 见同一映射 |
+| T05 / S06,S12 | known-gap | [main.rs](../../lime-rs/crates/cli/src/main.rs) resume 缺 last/all/include-non-interactive，fork 固定 id 且不进交互；参照 Codex cli `ResumeCommand`/`ForkCommand` | id/name/last/picker 使用 server lifecycle；cwd/source 筛选和分页准确；fork 不覆盖源 Thread，复用 resume picker |
+| T06 / S12 | known-gap | [slash_command.rs](../../lime-rs/crates/tui/src/slash_command.rs) / [app.rs](../../lime-rs/crates/tui/src/app.rs) 缺 new/review/rename/archive/delete/fork/compact/cd/diff 会话操作入口 | 分组实现，全部调用 App Server；active Turn 冲突明确，切换后草稿/历史身份正确；slash + thread_input PTY |
+| T07 / S12 | known-gap | [runtime.rs](../../lime-rs/crates/tui/src/runtime.rs) 等连接/初始化完才 enter TUI；Codex `startup_draft` 在等待时泵终端事件 | 慢启动可输入/取消、粘贴不丢、失败恢复终端；可控启动屏障 + 真 PTY |
+| T08 / S12 | known-gap | [tui.rs](../../lime-rs/crates/tui/src/tui.rs) 固定 alternate screen，缺 no-alt-screen；参照 Codex tui CLI | 显式 terminal mode，inline 保留 scrollback，overlay/resize/editor 恢复，alternate 回归；vt100/PTY |
+| T09 / S12 | known-gap | [event_stream.rs](../../lime-rs/crates/tui/src/tui/event_stream.rs) 直接转发 Key，缺 Codex `job_control` suspend/resume | Unix 真 shell PTY Ctrl-Z → shell → fg，草稿/光标/raw mode 恢复；Windows 不伪造 POSIX 信号支持 |
+| T10 / S09,S11 | known-gap | [mcp_cmd.rs](../../lime-rs/crates/cli/src/mcp_cmd.rs) 与 [OAuth DTO](../../lime-rs/crates/app-server-protocol/src/protocol/v0/mcp.rs) 缺预注册 client/registration/resource/no-browser | 协议→OAuth owner→全部 consumers 同步；headless/CIMD/DCR/取消/重试真实 HTTP fixture，secret 不输出 |
+| T11 / S09 | product-excluded subset | [plugin_cmd.rs](../../lime-rs/crates/cli/src/plugin_cmd.rs) 本地安装已有，Codex marketplace 命令/名称安装未接；既有架构明确排除 Codex marketplace surface | 不机械恢复排除 API；当前 Lime catalog 安装/升级/失败清理保持单 owner。若扩产品范围，先更新决策再实现，禁止 CLI 私有缓存 |
+| T12 / S09,S12 | known-gap surface | [slash_command.rs](../../lime-rs/crates/tui/src/slash_command.rs) 无 skills/hooks/plugins 管理面，[skill_popup.rs](../../lime-rs/crates/tui/src/bottom_pane/skill_popup.rs) 已有补全 | 先 list/read，展示来源/状态/错误/依赖，再接已支持写操作；变更使 completion 更新 |
+| T13 / S11,S16 | aligned-needs-evidence | [exec_events.rs](../../lime-rs/crates/cli/src/exec/exec_events.rs) 顶层 JSONL/item family 已对齐 | 真 CLI JSONL golden 对 canonical cold read；flush/id/补快照/foreign Thread/usage，复用 JSONL tests + cli-gate-b |
+| T14 / S11,S16 | aligned-needs-evidence | [prompt.rs](../../lime-rs/crates/cli/src/exec/prompt.rs) stdin、UTF BOM、显式 resume prompt 合同已有 | 非法/空输入 fail-before-connect；图片顺序/fork-only 不读 stdin；npm launcher→native→App Server 管道证据 |
+| T15 / S11,S16 | aligned-needs-evidence | [exec CLI](../../lime-rs/crates/cli/src/exec/cli.rs) review，[event_processor.rs](../../lime-rs/crates/cli/src/exec/event_processor.rs) schema/final 文件已有 | target 互斥、schema 到 provider；仅成功 final 写文件，中断保旧文件，写失败非零；review/exec Gate B |
+| T16 / S11,S16 | known-difference / decision | [exec.rs](../../lime-rs/crates/cli/src/exec.rs) interrupted=130，Codex=1；保留合理 POSIX 130 合同，非盲目逐数复刻 | 单次 interrupt、子进程回收、不写 partial answer；npm 保信号。现有 SIGINT Gate B 跳过 Windows，需补 Windows console 证据 |
+| T17 / S12,S16 | aligned-needs-evidence | [chat_composer.rs](../../lime-rs/crates/tui/src/bottom_pane/chat_composer.rs) 编辑/图片/补全/历史已有 | CJK/emoji grapheme、大粘贴、placeholder、undo/Vim/search/modal 顺序；真实键盘提交保真 |
+| T18 / S12,S16 | aligned-needs-evidence | [render.rs](../../lime-rs/crates/tui/src/runtime/render.rs)、[live_wrap.rs](../../lime-rs/crates/tui/src/live_wrap.rs) 流式/宽度渲染已有 | resize 来回不漂移、不拆 Unicode/ANSI；markdown/code/table 最终一致，editor 返回首键不丢；开启真实 PTY gate，不能用 skipped cargo green |
+| T19 / S06,S12 | aligned-needs-evidence | [history.rs](../../lime-rs/crates/tui/src/app_server_session/history.rs) server cursor/history 已有 | 未加载页选择/复制/搜索锚点、失败重试、迟到页隔离、完整导出/backtrack 与 GUI 一致 |
+| T20 / S01,S03,S12 | unverified | [reconnect.rs](../../lime-rs/crates/tui/tests/suite/reconnect.rs) 已验草稿/metadata resume/补页，但专用远端 fixture 不证明双 Host 竞争 | 真共享 App Server，断线时另 Host 改设置/完成 Turn/结算审批/改 queue；重连不回写旧设置、不重复交互 |
+| T21 / S09,S16 | aligned-needs-evidence | [mcp_cmd.rs](../../lime-rs/crates/cli/src/mcp_cmd.rs)、[plugin_cmd.rs](../../lime-rs/crates/cli/src/plugin_cmd.rs) 核心 CRUD/lifecycle 已有 | stdio/HTTP MCP 调用与重启持久性；plugin 禁用/卸载跨 surface 一致，补 OAuth 和安装后实际 skill/tool 调用 |
+| T22 / S16 | aligned-needs-evidence | [lime.js](../../packages/cli/bin/lime.js)、[build_npm_package.py](../../packages/cli/scripts/build_npm_package.py) launcher/platform/sibling 已有 | 从 tarball 安装无仓库 fallback，sibling/runtime libs 齐全，exec+PTY+信号；macOS/Windows/Linux 分别保存 packaged 证据 |
+| T23 / S16 | known-gap P3 | [lime.js](../../packages/cli/bin/lime.js) 无 Linux ARM/musl、Windows ARM；关联 PKG-01 | 先冻结产品平台矩阵，再验证原生 runtime/tool/sandbox 构建+安装；不可只添 target 字符串 |
+| T24 / scope | product-excluded | Codex ChatGPT 登录/usage、Codex Cloud、Daybreak/Cyber、专属 API proxy 不直接移植 | Lime 用多 provider/model/readiness owner；通用认证/配额/remote/workspace 仍各自验收，不笼统排除所有 usage/app/remote-control 能力 |
+
+实施顺序：T01 → T03/T05 → T02/T06/T07 → T08/T09 → T10/T12；T13–T22 随对应实现闭环，T23 按发布矩阵。T11/T24 的服务绑定范围先按现有产品决策处理。
+
+## GUI / 恢复与证据（G01–G19）
+
+Codex 参照 owner：App Server v2、core/Thread history 与 TUI 的 notification/request 消费语义；Desktop 布局/视觉另依已存在的安装包 REA 证据。Lime current owner 为 typed gateway、event router、canonical reducer、Thread workspace 与 Electron bridge，不复制 TUI 本地状态。
+
+| ID / 阶段 | 状态 | 任务与当前证据边界 | 退出条件 |
+| --- | --- | --- | --- |
+| G01 / S04 | unverified | Rust schema→generated TS→client package→GUI method→IPC 消费者清单；[gateway](../../src/lib/api/agentRuntime) | method/字段/null/capability/unknown 的 producer-consumer 闭环，无重复 DTO；contract guard 可检测漂移 |
+| G02 / S06,S13 | aligned-needs-evidence | read/replay/live 有 canonical owner，需统一 oracle；[routing](../../src/lib/api/agentRuntime/appServerEventStreamRouting.ts) | 同 Thread/Turn/Item 三种获取方式事实一致，保留 paging/terminal 身份 |
+| G03 / S04,S13 | unverified | unknown item/protocol drift 的跨层保真 | 未知项不丢 id/scope，诊断安全可定位，不能伪造成已支持工具 |
+| G04 / S13 | aligned-needs-evidence | response/drain 镜像与 sequence gate 已有 | 重复/乱序/foreign scope/迟到终态不重复 item、不复活 Turn；不能靠 grace timer 合成 terminal |
+| G05 / S06,S13 | aligned-needs-evidence | command snapshot/event race 已有定向证据，不能外推全部 item | reasoning/fileChange/MCP/approval 逐类覆盖 hydrate-live 屏障、覆盖规则与最终 cold read |
+| G06 / S01,S13 | known-gap dependency | 跨连接 cancel/init 身份由 CON-01/02 修；GUI generation/reconnect 另验 | 旧连接迟到事件/response 不污染新 generation，不遗留 pending UI |
+| G07 / S02,S08 | aligned-needs-evidence | command/file/permissions 审批 surface 已有 | 一次 settle；resolved 广播清理多端；重复/迟到/拒绝/中断无悬挂，无额外执行 |
+| G08 / S09,S13,S15 | unverified cleanup | typed composer 已支持多 questions/完整 schema；旧 actionRequestGovernance 派生路径曾裁首题/首字段 | 实测 current/fallback 一致，迁消费者并删除过时裁剪；不得报告 current typed flow 不支持多题 |
+| G09 / S08,S16 | aligned-needs-evidence | [strict-review Gate B](../../scripts/electron/strict-review-gate-b.mjs) backend=external | 另补 runtime Guardian/strict review 决策→真实工具 admission→DOM，external 不算 runtime 执行证据 |
+| G10 / S05,S13 | aligned-needs-evidence | [thread queue Gate B](../../scripts/electron/thread-queue-gate-b.mjs) external 只证 durable queue CRUD/paging；不证 admission/steer | durable queue 恢复、queue/start admission、active steer 三份 oracle；不恢复 queueIfBusy/旧 PendingTurn |
+| G11 / S09 | aligned-needs-evidence | [skills Gate B](../../scripts/electron/orchestrator-skills-gate-b.mjs) runtime | catalog→选择→下一 turn prompt，含禁用/加载失败/热更新，多端同源 |
+| G12 / S09 | aligned-needs-evidence | MCP lifecycle/listChanged/OAuth 受控 runtime fixture | reconnect/listChanged/restart/认证错误跨 surface 一致；live OAuth 需单独证据 |
+| G13 / S09,S13 | aligned-needs-evidence | MCP progress/structured content/form/url/App UI/history 分散在 elicitation/eventstream fixtures | 逐项 schema/取消/历史只读/状态结束与 canonical item 对照，不以一个 MCP gate 代表全部 |
+| G14 / S10 | aligned-needs-evidence | 多 Agent managed runtime→DOM oracle 已有 | 六工具、parent authority、foreign event、容量、reload 与 family read 一致，失败不能冒充完成 |
+| G15 / S06 | aligned-needs-evidence | [session history fixture](../../scripts/electron/session-history-fixture-smoke.mjs) unavailable backend 只证存储+GUI | 补 resume/fork/revert 后真正继续执行 runtime；历史展示 green 不作恢复执行声明 |
+| G16 / S14 | aligned-needs-evidence | model/effort/permission/collaboration current settings 消费 | canonical notification 结算，多 GUI/CLI/TUI 交叉修改不回写 stale settings |
+| G17 / S03,S06,S13 | unverified | renderer reload/Host restart/sidecar crash/OS resume 是四个不同合同 | 分别验证 durable 恢复和失败终态，不外推活跃 OS command 跨进程 crash 继续 |
+| G18 / S16 | aligned-needs-evidence | 现有 Gate A/B/platform/packaged/live 证据分散 | 三端同 oracle+源码/产物 SHA+backend 分类+平台，真实 Electron/preload/JSONL/runtime/DOM 链可追溯 |
+| G19 / scope | product-excluded subset | Codex TUI 本地 scheduler/footer queue UI 不复刻到 GUI | current durable Thread Queue API 仍在范围；禁止旧 queueIfBusy/PendingTurn 回流 |
+
+首轮 GUI-01 的 route TTL 为独立 known-gap，仍在总计划；本表 G 项不重复把它计入缺陷数。当前 GUI/设置并行写集只读，实施前重新认领最小文件集。
+
+## Runtime / 协议
+
+Codex 参照 owner：`core/compact`、App Server `turn_processor`/`thread_lifecycle`/`skills_watcher`、v2 protocol 与工具执行 owner。Lime 按下表 current owner 实施；F01/F02/F06 连接问题不重复列入 R 项。
+
+| ID / 阶段 | 状态 | current owner / 源码证据与任务 | 退出条件 |
+| --- | --- | --- | --- |
+| R01 / S07 | known-gap P1 | [context_compaction.rs](../../lime-rs/crates/app-server/src/runtime/context_compaction.rs) `build_session_context_compaction` 摘录事件后截 12000 字符，Codex core/compact 真正请求模型摘要 | 接既有 model-provider/agent-runtime，保留 lineage/replacement/raw history；长任务 compact+restart 后关键事实/约束/工具状态有效；失败不覆盖旧窗口 |
+| R02 / S04,S05 | known-gap P1 | [processor/turn.rs](../../lime-rs/crates/app-server/src/processor/turn.rs) 未消费 DTO 已声明 approvalsReviewer | reviewer 对当前/后续 Turn 审批实际生效；不支持时明确拒绝，不能成功后丢弃 |
+| R03 / S04 | known-gap P1 | [v2/turn.rs](../../lime-rs/crates/app-server-protocol/src/protocol/v2/turn.rs) serviceTier 缺 double-option serde | omit=继承、null=清除、string=覆盖，wire→selection→durable→resume；复用同仓 Thread control helper |
+| R04 / S04 | known-gap / scope | [Turn DTO](../../lime-rs/crates/app-server-protocol/src/protocol/v2/turn.rs) 缺 Codex rootTurnId/toolOutput/responsesapiClientMetadataPatch/serviceTierForTurn，未知字段默认忽略 | 逐字段公布支持矩阵，通用字段贯通 owner；专属字段明确范围，不静默吞掉关键行为 |
+| R05 / S05 | known-gap P1 | [processor/turn.rs](../../lime-rs/crates/app-server/src/processor/turn.rs) steer 明确拒 metadata/additionalContext；基础 steer/identity 已有 | GUI/TUI 给活跃 Turn 补上下文/媒体仍在同一 Turn，provider 输入与历史一致，无新 Turn |
+| R06 / S06 | known-gap | [processor/thread.rs](../../lime-rs/crates/app-server/src/processor/thread.rs) resume 拒 model/provider/tier/cwd/roots/approval/reviewer/sandbox/permissions/config/instructions 等覆盖；分页限制 excludeTurns/initialTurnsPage | 覆盖在 canonical settings owner 生效，下一 Turn/重开一致；history/path 与 Codex 存储布局另裁决，非恢复私有 DB |
+| R07 / S06 | known-gap / scope | [runtime/thread_fork.rs](../../lime-rs/crates/app-server/src/runtime/thread_fork.rs) 明确拒 ephemeral/path；普通 fork 已有 | 若纳入 ephemeral，运行但无 durable 会话，结束不可恢复，媒体隔离；path 不恢复 Codex 专属存储 |
+| R08 / S09 | known-gap P1 | [skills_watcher.rs](../../lime-rs/crates/app-server/src/skills_watcher.rs) 固定 default roots；[agent_snapshot.rs](../../lime-rs/crates/skills/src/agent_snapshot.rs) extra/workspace roots 未注册 | 动态新增/改/删 SKILL，两个 surface 收变化、下一 Turn 用新 snapshot；Codex register_runtime_extra_roots/register_thread_config 为参照 |
+| R09 / S06 | aligned-needs-evidence | [thread_listener.rs](../../lime-rs/crates/app-server/src/thread_listener.rs) 已有 resume snapshot/notification barrier | 两真实 client 在 snapshot/response/delta 各点交错不漏/重/旧盖新，不暂停其他订阅，pending 交互顺序可重放 |
+| R10 / S05 | aligned-needs-evidence | [runtime/thread_queue.rs](../../lime-rs/crates/app-server/src/runtime/thread_queue.rs) CRUD/排序/媒体/EventLog 失败回滚已有 | busy→queue→重排→interrupt→restart→指定启动，item/queued Turn id 稳定，暂停不自动唤醒；remote image 按现有协议拒绝 |
+| R11 / S06 | aligned-needs-evidence | [thread_fork.rs](../../lime-rs/crates/app-server/src/runtime/thread_fork.rs) boundary/媒体复制/补偿已有 | 活跃快照/lastTurnId/beforeTurnId 窗口正确，identity 不串，复制失败无孤儿 sidecar/Thread，源不变 |
+| R12 / S06 | aligned-needs-evidence | [thread_revert.rs](../../lime-rs/crates/app-server/src/runtime/thread_revert.rs) canonical rollback+runtime close/resume 已有 | 边界/cursor/provider history/三端投影一致，restart 不复活；当前 paginated/active interrupt 限制不自动视为缺陷 |
+| R13 / S07 | aligned-needs-evidence | [context_auto_compaction.rs](../../lime-rs/crates/app-server/src/runtime/context_auto_compaction.rs) usage 驱动已实现，不压 active Turn | 真 usage/模型切换/restart/失败重试；阈值与 provider 输入一致，摘要质量依赖 R01 |
+| R14 / S06,S15 | aligned-needs-evidence | [recovery.rs](../../lime-rs/crates/app-server/src/runtime/event_store/recovery.rs)、[event_log.rs](../../lime-rs/crates/app-server/src/runtime/event_log.rs) durable tail replay/identity/尾修复已有 | EventLog 成功 projection 失败、各阶段 kill、无换行尾/坏尾/中段损坏；Item 仅一次，sequence 冲突/中损坏 fail closed |
+| R15 / S08 | aligned-needs-evidence | [async_watcher.rs](../../lime-rs/crates/tool-runtime/src/unified_exec/async_watcher.rs)、[execution_process.rs](../../lime-rs/crates/tool-runtime/src/execution_process.rs) exit/drain 已有 | stdout/stderr 尾/截断/cancel/background 跨 Turn/PTY/ConPTY，final snapshot 后才 terminal，无 ghost output；核销“无 drain”旧说法 |
+| R16 / S08 | aligned-needs-evidence | [apply_patch.rs](../../lime-rs/crates/tool-runtime/src/apply_patch.rs)、[patch.rs](../../lime-rs/crates/app-server/src/runtime_backend/coding_events/patch.rs) FileChange/checkpoint 链已有 | 批准/拒绝/cancel/部分失败/撤销/restart，磁盘/item/Turn diff/checkpoint 一致，拒绝无隐写 |
+| R17 / S08 | unverified | [sandbox.rs](../../lime-rs/crates/tool-runtime/src/sandbox.rs) seatbelt/bubblewrap/restricted token/strict fallback 已有 | 各平台真实 workspace 外写/网络/子进程/cancel/backend unavailable，不凭 enforced 字段宣称隔离有效 |
+| R18 / S08 | unverified | [agent request_permissions](../../lime-rs/crates/agent-runtime/src/request_permissions.rs)、[tool permissions](../../lime-rs/crates/tool-runtime/src/request_permissions.rs) 子集/strict review 已有 | Turn/Session grant 生命周期、child 不越权、deny/glob/特殊路径、真正 command sandbox 生效、撤销/restart 合同 |
+| R19 / S09 | aligned-needs-evidence | [step_snapshot.rs](../../lime-rs/crates/tool-runtime/src/mcp_connection/step_snapshot.rs)、[scope.rs](../../lime-rs/crates/tool-runtime/src/mcp_connection/scope.rs) generation/owner snapshot 已有 | 同名工具跨 workspace/Thread/环境隔离；采样中 reload 不把旧工具路由新连接，cancel/retry 不串调用 |
+| R20 / S09 | unverified | [runtime/mcp.rs](../../lime-rs/crates/app-server/src/runtime/mcp.rs)、[processor/mcp.rs](../../lime-rs/crates/app-server/src/processor/mcp.rs) façade 有完整方法，未追完 app_data_source | 真受控 stdio/HTTP start/stop/restart/auth/cancel/resource/listChanged/stream stop/断连清理；不以方法存在算运行证据 |
+| R21 / S09 | unverified + notification gap | [runtime/skills.rs](../../lime-rs/crates/app-server/src/runtime/skills.rs)、[agent_skills_context.rs](../../lime-rs/crates/app-server/src/runtime_backend/agent_skills_context.rs) discovery/snapshot 已有；config/write 未显式 skills/changed | project/user/app/extra/plugin/orchestrator 同名优先级/禁用/reload 两端一致；核实后补配置通知，区别 R08 文件 watch |
+| R22 / S10 | aligned-needs-evidence | [agent_control_gateway.rs](../../lime-rs/crates/app-server/src/runtime/agent_control_gateway.rs)、[spawn_runtime_options.rs](../../lime-rs/crates/app-server/src/runtime/agent_control_gateway/spawn_runtime_options.rs) durable tree/root limiter/精确路由已有 | 真并行 child 不同 model/effort/tier、容量释放、失败/取消不污染 sibling，不支持参数不降级 |
+| R23 / S10 | aligned-needs-evidence | [agent_mailbox_delivery.rs](../../lime-rs/crates/app-server/src/runtime/agent_mailbox_delivery.rs) canonical-before-ack/replay 已有 | append/materialization/ack 各阶段 crash，restart 恰好一次 Item，pending 不丢/recipient 不串，QueueOnly 等真实 Turn |
+| R24 / S06,S15 | aligned-needs-evidence | [conversation_import/codex.rs](../../lime-rs/crates/app-server/src/runtime/conversation_import/codex.rs) 一次性导入/路径约束/幂等已有 | dry-run 无写、重复幂等、路径逃逸拒绝、媒体/canonical/provider history 恢复；对 current Codex 新 item 映射对账，不建第二 DB |
+| R25 / S04,S14 | unverified | [capabilities.rs](../../lime-rs/crates/app-server/src/runtime/capabilities.rs)、[capability.rs](../../lime-rs/crates/app-server/src/capability.rs) descriptor 固定 supported；尚不能直接断言虚报 | 无凭证/平台不支持/backend unavailable/禁用时 catalog/manifest/实际调用一致，覆盖 R02–R07 支持范围 |
+
+正向基线：同实例已共用 RuntimeCore/session registry/actor/canonical read model；Thread 订阅、断连清理、idle unload 已有；`currentTime` 单订阅限制 Codex 同样存在；Codex `multiAgentMode` 也已废弃忽略。上述均不再开“缺功能”任务。
+
+## 迁移与清理约束
+
+每批记录迁移源、目标唯一 owner、消费者和旧入口删除、旧数据夹具、幂等重开/失败恢复、迁后清理、负向回流守卫。纯进程状态修复不创建无意义迁移。无兼容负担的内部函数直接替换，现有已发布数据只保留有退出条件的读取/迁移入口，不长期双写或保留第二 runtime。
+
+本表是源码盘点，不是完成证明；三端同实例并发和平台 Gate B 尚未整体完成。任务状态随实现证据更新，不能按表格行数计算产品完成度。
