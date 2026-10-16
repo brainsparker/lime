@@ -1,6 +1,28 @@
 # v1.159.0 发布执行计划
 
-状态：publishing。用户已明确回复「确认」，授权固定122路径候选的commit、tag、main/tag推送与GitHub/R2/npm端到端发布；冻结后并行变化保留下一版。发布准备100%；整体发布70%；release commit/tag/main已推送，Quality成功；Release因Apple CloudKit网络失败，修复与原作业重试中。
+状态：completed。发布完成度100%。固定122路径候选、commit/tag/main推送、三平台packaged门禁、GitHub 14资产、R2更新源及五个npm包发布审计均已完成。用户后续要求修复并全部递交，本轮修复及当时全部候选已正常hook提交并推送；后续并行开发切片保留本地，不进入原标签。
+
+## 最终交付结果
+
+- 发布标签`v1.159.0`始终保持`6fbb8c1b5deb5ae9b618150851e8c0395b61fb65`，未重打或force push。[GitHub Release](https://github.com/limecloud/lime/releases/tag/v1.159.0)公开、稳定版、latest，14资产齐全，全部uploaded且具备SHA-256；正文与标签内`RELEASE_NOTES.md`一致，英文说明见`RELEASE_NOTES.en.md`。
+- [Release 38924633266](https://github.com/limecloud/lime/actions/runs/38924633266) attempt3最终11作业全部success。macOS两架构Developer ID、Gatekeeper和staple均通过；Windows安装/自动升级/卸载21/21及安装身份门禁通过。
+- 修复已推`8fffa6b9d`、必要文档补交`187d28305`、早期失败诊断`a493f8e8e`。产品[Quality 38932033381](https://github.com/limecloud/lime/actions/runs/38932033381)和诊断[Quality 38934790344](https://github.com/limecloud/lime/actions/runs/38934790344)均整体success；前者包含Frontend Full、Rust Full、Windows Shell Runtime、GUI Smoke和Integrity，后者Frontend Full、Rust Full和GUI Smoke全部success。
+- R2的18个channel/versioned对象认证核验大小、SHA-256、ContentType及CacheControl通过，全部大小和SHA-256匹配GitHub资产。本次feed实际公共域名三平台清单逐字节一致、版本1.159.0；六个安装包公网HEAD全部HTTP200且大小一致。三份清单另经GitHub证明验签，限定发布workflow、原标签和精确候选SHA，通过3/3。
+- npm五包发布均带signed provenance，最终逐包实读版本、对应dist-tag、tarball、SHA-512 integrity及provenance元数据通过；主包四个optionalDependencies精确匹配下表。首次旧元数据/404证据保留，等待传播后最终5/5通过，未重复发布或改写dist-tag。
+
+| npm包                          | 版本                   | dist-tag       |
+| ------------------------------ | ---------------------- | -------------- |
+| `@limecloud/lime`              | `1.159.0`              | `latest`       |
+| `@limecloud/lime-linux-x64`    | `1.159.0-linux-x64`    | `linux-x64`    |
+| `@limecloud/lime-darwin-x64`   | `1.159.0-darwin-x64`   | `darwin-x64`   |
+| `@limecloud/lime-darwin-arm64` | `1.159.0-darwin-arm64` | `darwin-arm64` |
+| `@limecloud/lime-win32-x64`    | `1.159.0-win32-x64`    | `win32-x64`    |
+
+已知限制：Windows未配置签名secret，本次Squirrel产物为unsigned。旧R2保留清理因wrangler缺少`r2 object list`按既有非阻断分支跳过。未声明live provider、长期soak、系统输入设备或整体GUI视觉对齐完成。main公证恢复和诊断修复不在原标签内，本版实际通过来自原源码重试；本轮没有降低签名、公证或packaged门槛。
+
+current为Forge官方打包/签名/公证、内置autoUpdater和既有App Server业务主链；新增compat/deprecated为零，deleted为packager内公证接线及被替换的局部旧路径，未新增平行发布器。修复复用官方notarize且独立封装票据恢复/证据职责，遵循KISS、DRY、SOLID及YAGNI。
+
+最终证据目录`.lime/release/v1.159.0/ci-repair/`，关键索引为`release-final-state.json`、`quality-product-final.json`、`quality-diagnostics-final.json`、`github-final-audit.json`、`packaged-evidence-receipts.json`、`r2-verified-objects.json`、`public-updater-final-audit.json`、`updater-attestation-audit.json`及`npm-final-audit.json`；已独立备份。以下为执行过程记录，其中中间状态不替代以上最终结果。
 
 ## 当前可审阅结果
 
@@ -103,3 +125,20 @@
 - 已启动原标签attempt3，未移动tag。追加窄写集为macos-release-trust及回归、macos-native-host-gate-b、独立macos-gate-evidence及回归、本计划。信任检查保留原命令、签名/team/Gatekeeper/staple阻断语义；失败消息附native stdout/stderr，命令status/signal仍保留。Gate CLI在前置失败时也写failure.json并以同一异常退出，现有summary不伪造。既有入口已777行，将证据职责放既有lib领域，避免继续堆叠入口。
 - 诊断定向四suite57/57、strict lint及diff check均通过；不重复未变TS/Rust门禁。产品提交8fffa6b9d的Frontend Full、Windows Shell Runtime、GUI Smoke和Integrity已success，仅Rust Full仍运行。文档提交187d28305的Quality 38932652697已success（docs-only），不能代替前述全量结果。
 - 全部递交完成后另有新协议/session defaults切片进入原工作区，尚在并行实施；不把其未验证源码夹入本次诊断补丁，也不覆盖或回滚。本轮原67路径及三份必要事实源已全部递交，后续新增路径属于下一批。
+
+### 全量质量门禁与平台复核
+
+- 产品修复提交`8fffa6b9d202c82d94fe45babafad6e4f2babf3e`的[Quality 38932033381](https://github.com/limecloud/lime/actions/runs/38932033381)最终整体success：Frontend Full、Rust Full、Windows Shell Runtime、GUI Smoke及Integrity全部通过。这是已提交共享后端重构的远端完整质量结果，不使用docs-only作业替代。
+- 诊断补丁已正常hook提交并推送`a493f8e8ec3a7864ee8ec80c6fcc8a32beaefa31`；[Quality 38934790344](https://github.com/limecloud/lime/actions/runs/38934790344)仍运行，最终结果待实读。main已推修复不改变旧标签源码，原标签attempt3仍构建macOS x64。
+- 本次Windows发布原始日志实读确认未配置签名secret，Forge Squirrel产物为unsigned；证书准备按既有分支跳过。Windows安装身份及macOS arm64 packaged摘要均精确匹配原候选6fbb8c1b5，后者Developer ID、Gatekeeper及staple检查通过。不得将Windows安装验收通过写成代码签名通过。
+- 原标签attempt3的macOS x64构建、签名公证及packaged Gate B最终success；下载summary实读为passed，candidateSha精确6fbb8c1b5，Developer ID、Gatekeeper、staple均true，summary SHA-256为`138d142092a6f95def67c967c53d8463ca36149f24a28d2cff91524741ba8974`。无需移动已推标签；本轮持久恢复与诊断代码留在main，原标签此次通过来自原源码重试。
+- Windows Squirrel摘要实读21/21，覆盖1.158.0安装、候选feed自动下载/安装至1.159.0、已安装候选真实SHELL-01及卸载清理；精确候选SHA与runId均一致。桌面资产发布作业已success，R2及四平台CLI构建开始，完整发布结果尚未宣告完成。
+- GitHub桌面发布已公开、稳定版且为latest，9个桌面资产均uploaded、有SHA-256，正文与原标签`RELEASE_NOTES.md`逐字匹配。R2作业success，18个channel/versioned对象经认证head-object核对大小、SHA-256、ContentType和CacheControl；18条大小及SHA-256全部匹配GitHub资产，见`r2-verified-objects.json`。
+- 从本次feed发现实际公共域名`https://pub-fa568bd8496349bcafe04091e2b02e1e.r2.dev`。curl实读三平台feed均HTTP200、逐字节匹配GitHub且版本1.159.0；两个ZIP、两个DMG、NUPKG与Windows安装器公网HEAD全部HTTP200、大小匹配。完整`public-updater-final-audit.json`为passed=true。初次Python urllib探针403保留，curl复核9/9成功，不将该探针差异认定为生产更新源失败。
+- 旧R2保留清理因wrangler不支持`r2 object list`按既有非阻断分支跳过；本次18对象上传和认证校验全部成功，未宣称历史清理完成。CLI/npm仍在构建。
+- 诊断补丁Quality的Frontend Full与GUI Smoke均已success，仅Rust Full仍运行。监听器一次因GitHub API TLS handshake timeout退出；REST状态实读未发现失败，已重新连接监听，不将本地监听网络错误写成CI失败。
+- 诊断补丁`a493f8e8ec3a7864ee8ec80c6fcc8a32beaefa31`的[Quality 38934790344](https://github.com/limecloud/lime/actions/runs/38934790344)最终整体success：Frontend Full、Rust Full及GUI Smoke全部通过；Windows Shell Runtime按changed-area策略未重复运行，继承8fffa6b9d已通过的同源产品检查。本轮修复质量门禁收口，CLI/npm发布尚在进行。
+- 三平台更新清单另经`gh attestation verify`实际验签通过，限定repo、release.yml signer workflow、精确source digest 6fbb8c1b5、source ref refs/tags/v1.159.0并拒绝self-hosted runner；`updater-attestation-audit.json`为3/3 passed。此结果仅覆盖已下载并验签的三份清单，不扩充为全部安装包逐个验签声明。
+- [Release 38924633266](https://github.com/limecloud/lime/actions/runs/38924633266) attempt3最终整体success，11个作业全部成功，headSha精确6fbb8c1b5。四平台CLI构建/上传及五包npm发布全部success；发布日志五包均带signed provenance。
+- GitHub最终审计14资产名称、uploaded状态、非零大小和SHA-256全部通过，公开稳定版/latest及正文与原标签说明一致；`github-final-audit.json`为passed=true。npm主包1.159.0/latest、四项optionalDependencies及SHA-512/provenance实读通过，macOS arm64平台包亦通过；其余平台元数据仍旧版本/404，等待传播，不重复发布或改写dist-tag。
+- 注册表传播后依次实读Linux、Windows和macOS x64成功，最终五包版本、对应dist-tag、SHA-512/provenance全部通过，主包optionalDependencies精确一致；`npm-final-audit.json`最终passed=true。发布审计完整收口，仅提交本文最终事实记录，后续并行协议/审批/guardian实现保留下一批，未覆盖其源码或索引。
