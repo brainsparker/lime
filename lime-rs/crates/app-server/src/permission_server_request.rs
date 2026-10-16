@@ -20,7 +20,7 @@ impl AppServer {
             }
         };
         let response = match self
-            .wait_server_request::<_, PermissionsRequestApprovalResponse>(
+            .wait_thread_server_request::<_, PermissionsRequestApprovalResponse>(
                 METHOD_ITEM_PERMISSIONS_REQUEST_APPROVAL,
                 &request.params.thread_id,
                 request.params.clone(),

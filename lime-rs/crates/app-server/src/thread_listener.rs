@@ -1,4 +1,5 @@
 use crate::processor;
+use crate::server_request::{PendingServerRequest, ResolvedServerRequest, ServerRequestOwner};
 use crate::thread_state;
 use crate::{error_codes, AppServerEventBridge, JsonRpcError, RuntimeCoreError, RuntimeEvent};
 use app_server_protocol::protocol::v2::ServerNotification;
@@ -8,6 +9,58 @@ use std::sync::Arc;
 use tokio::sync::oneshot;
 
 impl AppServerEventBridge {
+    async fn resolve_thread_request(
+        &self,
+        thread_id: &agent_protocol::ThreadId,
+        resolution: ResolvedServerRequest,
+    ) -> Result<(), crate::ServerRequestError> {
+        if let Err(error) = self
+            .publish_notification(
+                thread_id,
+                resolution.notification(thread_id.as_str()),
+                resolution.origin_connection_id(),
+            )
+            .await
+        {
+            tracing::warn!(%thread_id, %error, "failed to publish server-request resolution in Thread order");
+        }
+        resolution.complete(true)
+    }
+
+    async fn dispatch_thread_request(
+        &self,
+        thread_id: &agent_protocol::ThreadId,
+        pending: PendingServerRequest,
+    ) -> PendingServerRequest {
+        let connection_ids = self
+            .thread_states
+            .subscribed_connection_ids(thread_id)
+            .await;
+        let message = JsonRpcMessage::Request(pending.request().clone());
+        for connection_id in connection_ids {
+            if !self
+                .server_requests
+                .claim_request_owner(pending.id(), ServerRequestOwner::Transport(connection_id))
+            {
+                continue;
+            }
+            if let Err(error) = self
+                .send_messages_to_connection(connection_id, std::slice::from_ref(&message))
+                .await
+            {
+                self.server_requests.remove_request_owner(
+                    pending.id(),
+                    ServerRequestOwner::Transport(connection_id),
+                );
+                self.thread_states
+                    .unsubscribe_connection(thread_id, connection_id)
+                    .await;
+                tracing::warn!(%thread_id, %connection_id, %error, "failed to deliver thread server request; retaining it for remaining or resumed owners");
+            }
+        }
+        pending
+    }
+
     pub async fn append_external_runtime_events(
         &self,
         session_id: &str,
@@ -348,10 +401,60 @@ async fn run_thread_listener(
                             .await;
                         let _ = completion_tx.send(result);
                     }
+                    thread_state::ThreadListenerCommand::BeginServerRequest {
+                        method,
+                        params,
+                        completion_tx,
+                    } => {
+                        let state = thread_state.lock().await;
+                        let resuming = state.has_pending_resume();
+                        if !resuming
+                            && bridge.thread_states.subscribed_connection_ids(&thread_id).await.is_empty()
+                        {
+                            let _ = completion_tx
+                                .send(Err(crate::ServerRequestError::ClientUnavailable));
+                            continue;
+                        }
+                        let pending = bridge.server_requests.register_for_owners(
+                            Vec::new(), method, Some(params),
+                        );
+                        if resuming {
+                            deferred_publishes.push(DeferredThreadPublish::ServerRequest {
+                                pending,
+                                completion_tx,
+                            });
+                        } else {
+                            let pending = bridge
+                                .dispatch_thread_request(&thread_id, pending)
+                                .await;
+                            let _ = completion_tx.send(Ok(pending));
+                        }
+                        drop(state);
+                    }
+                    thread_state::ThreadListenerCommand::ResolveServerRequest {
+                        owner,
+                        id,
+                        result,
+                        completion_tx,
+                    } => {
+                        match bridge.server_requests.take_response(owner, id, result) {
+                            Ok(resolution) => {
+                                if thread_state.lock().await.has_pending_resume() {
+                                    deferred_publishes.push(DeferredThreadPublish::Resolution {
+                                        resolution,
+                                        completion_tx,
+                                    });
+                                } else {
+                                    let _ = completion_tx.send(bridge.resolve_thread_request(&thread_id, resolution).await);
+                                }
+                            }
+                            Err(error) => { let _ = completion_tx.send(Err(error)); }
+                        }
+                    }
                     thread_state::ThreadListenerCommand::CompleteResume {
                         barrier,
                         connection_id,
-                        messages,
+                        mut messages,
                         subscribe,
                         completion_tx,
                     } => {
@@ -367,6 +470,17 @@ async fn run_thread_listener(
                                 subscribe,
                                 message_count = messages.len(),
                                 "completing thread resume"
+                            );
+                        }
+                        if subscribe {
+                            let owner = ServerRequestOwner::Transport(connection_id);
+                            bridge.server_requests
+                                .claim_owner_thread(owner, thread_id.as_str());
+                            messages.extend(
+                                bridge.server_requests
+                                    .snapshot_for_owner_thread(owner, thread_id.as_str())
+                                    .into_iter()
+                                    .map(JsonRpcMessage::Request),
                             );
                         }
                         let mut result = if subscribe {
@@ -459,6 +573,10 @@ fn message_method(message: &JsonRpcMessage) -> &str {
 }
 
 enum DeferredThreadPublish {
+    Resolution {
+        resolution: ResolvedServerRequest,
+        completion_tx: oneshot::Sender<Result<(), crate::ServerRequestError>>,
+    },
     RuntimeEvent {
         event: AgentEvent,
         completion_tx: Option<oneshot::Sender<Result<Vec<JsonRpcMessage>, String>>>,
@@ -467,6 +585,10 @@ enum DeferredThreadPublish {
         notification: JsonRpcNotification,
         origin_connection_id: Option<ConnectionId>,
         completion_tx: Option<oneshot::Sender<Result<(), String>>>,
+    },
+    ServerRequest {
+        pending: PendingServerRequest,
+        completion_tx: oneshot::Sender<Result<PendingServerRequest, crate::ServerRequestError>>,
     },
 }
 
@@ -477,6 +599,21 @@ async fn publish_deferred_thread_publish(
     publish: DeferredThreadPublish,
 ) -> Option<String> {
     match publish {
+        DeferredThreadPublish::Resolution {
+            resolution,
+            completion_tx,
+        } => {
+            let _ = completion_tx.send(bridge.resolve_thread_request(thread_id, resolution).await);
+            None
+        }
+        DeferredThreadPublish::ServerRequest {
+            pending,
+            completion_tx,
+        } => {
+            let pending = bridge.dispatch_thread_request(thread_id, pending).await;
+            let _ = completion_tx.send(Ok(pending));
+            None
+        }
         DeferredThreadPublish::RuntimeEvent {
             event,
             completion_tx,

@@ -22,7 +22,7 @@ REA full Evidence `ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b537
 | --------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `profile-settings-6d54d51340da.js`公开导出`ProfileSettings`，props包含today，feature flag/loading决定是否渲染；委托共享Profile模块            | `account/profile/index.tsx`已同名，但实现是本地配置行内编辑；同名不能证明同义                                          | 保留确认的公开名称，继续恢复共享内容/可见性owner；内部压缩名和core alias不命名成原源码函数 |
 | `use-visible-settings-sections`的profile为codex capability，visible还消费isProfileVisible、eligibility loading；appRoute可受eligibility移除   | current sections仅按OEM runtime决定本地资料表单；尚无等价Profile readiness投影                                         | 从已有真实能力/认证owner派生可见性，不能用flag字符串伪造可用，也不能复制账号后端           |
-| wrapper消费header/children/isEditPaneOpen/isProfileV2Enabled/isError/ref/scrollRef，单一`data-profile-scroll`滚动区，宽度分支max-w-3xl或732px | 已迁移薄 wrapper/共享内容/字段编辑；732px，复用设置壳唯一滚动owner                                                     | 布局切片已实现、验证中；完整编辑pane/公共身份仍gap                                         |
+| wrapper消费header/children/isEditPaneOpen/isProfileV2Enabled/isError/ref/scrollRef，单一`data-profile-scroll`滚动区，宽度分支max-w-3xl或732px | 已迁移薄 wrapper/共享内容/字段编辑；732px，复用设置壳唯一滚动owner                                                     | 本地字段布局合同已验收；完整编辑pane/公共身份仍gap                                         |
 | core可见displayName/bio表单、display_name/username资料投影、is_self、workspace_id、pins.items与编辑pane                                       | current displayName/bio显式映射本地nickname/bio；无消费者的avatar_url/email/tags已删；公共identity/pins/readiness仍gap | TS/Rust/consumer/fixture同步收缩；独立验证本地字段，不冒充公共身份                         |
 | `ProfilePage`公开导出，处理`/profile`、`/u/:username`、preview与visit identity；CME有独立公开导出                                             | Lime没有相应公开ProfilePage/CME事实源                                                                                  | 登记gap；不能因包内存在就默认向所有用户显示或伪造远端数据                                  |
 
@@ -187,10 +187,14 @@ Lime 原1015行Environment页面持有整份Config并在saveConfig后重读，�
 
 冷启动第2轮exit0、32/32，3次真实Electron/preload、76 IPC、3次GUI保存确认和4次写入请求；独立IO probe返回-32000且原因验证通过，GUI安全错误/保稿/Reload禁用/Save重试与冷读回分别成立。Main13301/13665/13996正常793/303/445ms退出，强制回收0，错误/mock0、freshness前后ready。安全错误截图人工复核，probe不冒充GUI响应捕获。收据`.lime/qc/settings-execution-policy/final-20261016-1/receipt.json`同时保留首轮主题缺口、旧cold失败与默认超时。New与诊断focus/建议仅组件证据；受控backend绕过production RuntimeBackend/provider，主题仅current skin/1440×1000与媒体模拟。工具执行、live、Windows/安装包/参考实时、全皮肤和完整GUI仍未验，整体partial。
 
-## Profile 当前内容切片（2026-10-16，验证中）
+## Profile 当前内容切片（2026-10-16，本地字段合同验收）
 
 已删除本地 Tag、完成度、头像、只读 email、用途/提示卡与旧三份 presentation；五语言退役键和正向断言一起删除。ProfileSettings → ProfileContent → ProfileLayout / ProfileFieldEditor，内部命名为 Lime 职责名；displayName 显式映射 nickname 配置。64/140、名称非空 trim、简介换行转空格/trim 和 IME 行为已有实际 DOM 回归。Settings 壳拥有滚动，页面不复制 data-profile-scroll 或嵌套滚动。保留 revision/加载与保存锁、安全失败保稿、在途新输入和既有导航保护。
 
-本轮调整为先落地充分确认的内容合同；远端 GET/PATCH、可见性与身份 gate 仍明确 partial。定向6suite63/63通过，默认、Rust和原生验证待结算；旧冻结收据只证明各自历史切片，不用于新源码的验收。新证据目录 `.lime/qc/settings-profile/content-alignment-20261016/`。
+恢复后重新执行的定向7suite67/67、Rust配置129/129（含实际编译的退役字段JSON/YAML回归）、完整contracts、typecheck和strict lint均通过。
 
-本地字段切片原生结算：导航 `settings-profile-content-native-20261016-1` exit0、9/9，四主题4/4另列，732px/嵌套滚动0/溢出0；1634 IPC、错误/mock0，Main39961正常退出。冷启动 `settings-profile-content-cold-20261016-1` exit0、32/32，98 IPC、错误/mock0，三次Main正常退出与完整配置恢复通过。七张截图人工复核。25声明源码/83原生源码/321产物后验无漂移；Rust实际编译配置129/129（新退役字段回归在内），默认门禁尚在运行。单独的账号session卡、远端公共身份/可见性仍partial。
+最终1.159.0标准GUI `standalone-shell-01-20261016160123-87137` 24/24；真实原生导航 `settings-profile-content-recovery-20261016-3` exit0，名称/简介×四路导航加保存/读回/重开/完整配置保持恢复共9/9（100%仅本地字段合同），四主题4/4另列。732px、嵌套滚动0、横向溢出0与DOM64/140检查通过；1627 IPC、console/page/trace/mock0，同一Thread/Turn/Item且turnStart=1，Main正常退出。冷启动 `settings-profile-content-recovery-cold-20261016-1` exit0、32/32，165 IPC、错误/mock0；双字段分别真实IO失败保稿/重试、两次冷读回、完整配置保持恢复和三次Main正常退出通过，独立RPC probe不冒充GUI响应。27声明源码/83原生源码/531目录产物和只读版本上下文后验无漂移，两份资源清单与实际sidecar SHA一致且均为1.159.0，freshness前后ready。7张最终截图人工复核，仅当前皮肤1440×1000；system为媒体模拟。新日志即时双份保存。
+
+删除前已观察到默认前置检查、全量前端自动续跑131/131批（1770文件）、workspace --lib39组7121通过/0失败/5项既有ignored，以及标准GUI24/24通过；三个verify:local wrapper的exit1分别来自原5秒CLI超时、旧Codex feature正向护栏和并行message.rs拆分后的扫描名单遗漏，后两处护栏已按current语义迁移。随后外部整体删除.lime，使本轮这些成功/失败日志、smart state、早期原生原件和清理记录丢失；该部分只能作为历史观察，不伪造原件、不声称新定向等于全量重跑或wrapper exit0。三份旧冻结Profile草稿、Profile数据追踪与Execution Policy收据由独立备份恢复，SHA未变。
+
+仅本地字段内容与安全持久化合同关闭；本地Config不是公共Profile服务。单独账号会话卡、远端GET/PATCH、eligibility/preview/is_self/can_edit、username/pins/upload仍gap；New仅组件证据，external/unavailable backend不证明live/provider/tool。参考运行、Windows、安装包和全GUI未验，整体partial且分母未完整枚举。 新收据 `.lime/qc/settings-profile/content-final-20261016-recovery-1/receipt.json`。

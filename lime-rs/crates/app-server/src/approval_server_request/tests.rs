@@ -1,5 +1,6 @@
 use super::*;
 use crate::JsonRpcMessage;
+use app_server_protocol::protocol::v2::{ServerNotification, ServerRequestResolvedNotification};
 use serde_json::json;
 
 fn event(payload: Value) -> AgentEvent {
@@ -294,7 +295,7 @@ async fn closed_response_channel_and_missing_client_are_request_failures() {
         .expect_err("closed channel");
     assert!(matches!(closed, WaitServerRequestError::Failed(_)));
     let unavailable = server
-        .wait_server_request::<_, CommandExecutionRequestApprovalResponse>(
+        .wait_thread_server_request::<_, CommandExecutionRequestApprovalResponse>(
             METHOD_ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL,
             "thread-1",
             json!({}),

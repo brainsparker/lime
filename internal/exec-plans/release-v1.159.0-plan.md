@@ -1,6 +1,6 @@
 # v1.159.0 发布执行计划
 
-状态：publishing。用户已明确回复「确认」，授权固定122路径候选的commit、tag、main/tag推送与GitHub/R2/npm端到端发布；冻结后并行变化保留下一版。发布准备100%；整体发布50%，正在进入Git与远端发布阶段。
+状态：publishing。用户已明确回复「确认」，授权固定122路径候选的commit、tag、main/tag推送与GitHub/R2/npm端到端发布；冻结后并行变化保留下一版。发布准备100%；整体发布70%；release commit/tag/main已推送，Quality成功；Release因Apple CloudKit网络失败，修复与原作业重试中。
 
 ## 当前可审阅结果
 
@@ -79,3 +79,17 @@
 - 用户明确回复「确认」；本轮继续执行固定122路径候选及全部GitHub/R2/npm发布，不再次请求同范围授权。远端main复核仍为d6dc866ea8f636dd4367eff86e84aa383a26016c，v1.159.0标签不存在。
 - 确认后发现原工作区`.lime/release/v1.159.0/`及其中历史日志已缺失，原因未知，本轮未执行删除。候选独立worktree与源码完整，两份关键产品文件SHA-256与冻结记录一致；从该worktree重建122路径显式manifest，未采用原工作区后续版本。
 - 独立worktree仍保存22份ok=true的Electron业务场景summary与标准GUI smoke原始summary，已复制备份并重建收据索引。历史typecheck/contracts/定向/Rust/CLI原始日志及首次退出失败原件无法恢复；上文结果仅作为当时工具执行记录，不伪造日志或为恢复日志重复重型验证。
+
+## 2026-10-17 CI 修复与全部递交
+
+- 用户明确要求修复 [Release 38924633266](https://github.com/limecloud/lime/actions/runs/38924633266) 并「递交所有」，授权全部当前产品/测试/文档改动与修复的正常commit/push；既有外部分析文件、tsbuildinfo缓存仍排除，不移动已推v1.159.0标签。
+- 已推发布源码`6fbb8c1b5deb5ae9b618150851e8c0395b61fb65`，122路径与manifest逐字节一致，正常pre-commit 120项通过。main/tag远端实读一致；原工作区索引及main无损同步，所有工作区字节保持。
+- [Quality 38924620058](https://github.com/limecloud/lime/actions/runs/38924620058) 整体success。Release的Windows与macOS arm64构建及packaged门禁success；macOS x64三次Forge package均在stapler失败，底层`api.apple-cloudkit.com`连接丢失（NSURLErrorDomain -1005），code68。无证据表明源码编译或公证拒绝。失败原日志保存在`.lime/release/v1.159.0/ci-repair/release-failed.log`。
+- 已请求原Release失败作业重试，保持原标签与源码；此重试不包含随后main的新产品改动，后者进入下一候选。
+- 窄修复写集：Forge、既有release guard/Forge测试、新macOS notarization helper及回归、package/pnpm lock和本计划。将官方`@electron/notarize@2.5.0`显式声明为既有精确版本依赖，由Forge postPackage在签名后、maker之前调用。仅已Accepted之后的CloudKit/staple68故障在同一签名bundle最多五次递增退避重试，永不重签或重新提交；每次最多60秒，最终stapler validate仍阻断，签名/凭证/拒绝/无效票据均fail closed。品牌修改仍在签名前。
+- current：Forge官方packager/makers与官方notarize；新增compat/deprecated为零；deleted为packager内无法复用已接受票据的公证调用接线，不恢复旧发布器。KISS/DRY复用官方签名公证；SOLID将票据恢复隔离；不新增账号、运行时或业务authority。
+- 当前工作区App Server/CLI共享请求重构仍有外部验证进程，本轮不覆盖其源码或停止进程；全部递交前读取最新测试收据与源码摘要，按实际结果记录。
+- 本轮完整`npm run typecheck`与`npm run test:contracts`均exit0；版本、脚本治理和严格lint通过。定向四suite68项通过，新增native stderr形状回归后notarization九项全部通过，合计69个独立用例。精确pnpm9.15.9在隔离manifest目录以offline/frozen-lockfile/ignore-scripts校验exit0，未触碰共享node_modules。日志均位于上述ci-repair目录。
+
+- 全部递交候选67路径（不含既有外部分析文件与tsbuildinfo缓存），暂存diff 6527增/3058删。App Server整库新结果1877 passed/0 failed/0 ignored，包含三项response/interrupt/resume竞态回归；日志`/tmp/lime-shared-backend-s02-resolution-tests.log`。CLI bin既有110项与shared-client/stdio/MCP fixtures按共享后端计划的源码lineage记录。
+- 并行current fixture原wrapper完整通过，368静态及22真实Electron场景；日志`/tmp/lime-shared-backend-s02-current-fixture-pinned.log`。其固定App Server SHA为44e73da58cd4d7d8011725ce3d036048f84c243d89251a86f2ea13ab5c8cc72e，早于最新response结算重构，不能冒充最终源码GUI证据；最终main的GUI/全量Quality待远端实读。

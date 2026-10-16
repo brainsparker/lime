@@ -19,6 +19,8 @@ const RETIRED_PATHS = [
 const CURRENT_PATHS = [
   "lime-rs/crates/cli/Cargo.toml",
   "lime-rs/crates/cli/src/main.rs",
+  "lime-rs/crates/cli/src/connection.rs",
+  "lime-rs/crates/cli/src/dispatch.rs",
   "lime-rs/crates/cli/src/exec.rs",
   "lime-rs/crates/cli/src/exec/event_processor.rs",
   "lime-rs/crates/cli/src/exec/cli.rs",
@@ -245,7 +247,12 @@ export function checkCliBoundary(repoRoot = process.cwd()) {
     }
   }
 
-  const rustCli = read(repoRoot, "lime-rs/crates/cli/src/main.rs");
+  const rustCli = [
+    "lime-rs/crates/cli/src/main.rs",
+    "lime-rs/crates/cli/src/connection.rs",
+  ]
+    .map((file) => read(repoRoot, file))
+    .join("\n");
   for (const required of [
     'long = "remote"',
     'long = "remote-auth-token-env"',

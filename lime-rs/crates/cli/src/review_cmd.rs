@@ -4,8 +4,8 @@ use std::process::ExitCode;
 
 use clap::Args;
 
+use crate::connection::ConnectionArgs;
 use crate::exec::cli::{Command, ExecCli, ReviewArgs};
-use crate::ConnectionArgs;
 
 #[derive(Debug, Args)]
 pub(crate) struct ReviewCommand {
@@ -13,17 +13,21 @@ pub(crate) struct ReviewCommand {
     args: ReviewArgs,
 }
 
+impl ReviewCommand {
+    pub(crate) fn connection_mut(&mut self) -> &mut ConnectionArgs {
+        &mut self.args.connection
+    }
+}
+
 pub(crate) async fn run_review_command(
     command: ReviewCommand,
-    root_connection: ConnectionArgs,
     root_locale: Option<String>,
 ) -> ExitCode {
-    let mut exec_cli = ExecCli {
+    let exec_cli = ExecCli {
         command: Some(Command::Review(command.args)),
         locale: root_locale,
         ..ExecCli::default()
     };
-    exec_cli.connection.inherit_from(&root_connection);
     crate::exec::run(exec_cli).await
 }
 

@@ -6,6 +6,7 @@ use app_server_protocol::{
     METHOD_USAGE_STATS_DAILY_TRENDS_LIST, METHOD_USAGE_STATS_MODEL_RANKING_LIST,
     METHOD_USAGE_STATS_READ,
 };
+use app_server_protocol::{ClientInfo, InitializeParams};
 use serde_json::json;
 
 #[tokio::test]

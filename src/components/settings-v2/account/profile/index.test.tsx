@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
-import type { ConfigUpdater } from "@/lib/api/appConfig";
+import type { ConfigUpdater, UserProfile } from "@/lib/api/appConfig";
 import { ProfileSettings } from ".";
 
 const api = vi.hoisted(() => ({ getConfig: vi.fn(), saveConfig: vi.fn() }));
@@ -161,4 +161,25 @@ it("allows clearing the bio", async () => {
       user_profile: expect.objectContaining({ bio: "" }),
     }),
   );
+});
+
+it("renders Rust nullable defaults and preserves an untouched null field when saving", async () => {
+  const user_profile: UserProfile = { nickname: null, bio: null };
+  api.getConfig.mockResolvedValue({ default_provider: "openai", user_profile });
+  await act(async () => root.render(<ProfileSettings key="nullable-config" />));
+  expect(container.textContent).toContain("Add a display name");
+  expect(container.textContent).toContain("Add a bio");
+  await click("Edit Display name");
+  expect(input().value).toBe("");
+  expect(
+    container.querySelector<HTMLButtonElement>(
+      '[aria-label="Save Display name"]',
+    )?.disabled,
+  ).toBe(true);
+  await edit("Grace");
+  await click("Save Display name");
+  expect(api.saveConfig).toHaveBeenCalledWith({
+    default_provider: "openai",
+    user_profile: { nickname: "Grace", bio: null },
+  });
 });

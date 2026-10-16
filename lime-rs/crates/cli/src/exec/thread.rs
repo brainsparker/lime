@@ -13,7 +13,7 @@ use app_server_protocol::protocol::v2::{
 use uuid::Uuid;
 
 use super::cli::{Command, ResumeArgs};
-use crate::{permission_settings, ConnectionArgs};
+use crate::connection::{permission_settings, ConnectionArgs};
 
 pub(super) async fn start_thread(
     handle: &RequestHandle,

@@ -8,7 +8,7 @@ use app_server_protocol::protocol::v2::{
 use clap::builder::NonEmptyStringValueParser;
 use clap::Args;
 
-use crate::ConnectionArgs;
+use crate::connection::ConnectionArgs;
 
 #[derive(Debug, Args)]
 pub(crate) struct QueueCommand {
@@ -40,6 +40,22 @@ struct QueueListArgs {
     json: bool,
     #[command(flatten)]
     connection: ConnectionArgs,
+}
+
+impl QueueCommand {
+    pub(crate) fn inherit_from(&mut self, root: &ConnectionArgs) {
+        self.connection.inherit_from(root);
+        if let Some(QueueSubcommand::List(args)) = &mut self.subcommand {
+            args.connection.inherit_from(&self.connection);
+        }
+    }
+
+    pub(crate) fn connection_mut(&mut self) -> &mut ConnectionArgs {
+        match &mut self.subcommand {
+            Some(QueueSubcommand::List(args)) => &mut args.connection,
+            None => &mut self.connection,
+        }
+    }
 }
 
 pub(crate) async fn run_queue_command(command: QueueCommand) -> ExitCode {

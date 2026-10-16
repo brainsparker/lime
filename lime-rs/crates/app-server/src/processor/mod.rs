@@ -3,6 +3,7 @@ mod app;
 mod artifact;
 mod automation;
 mod background_terminal;
+mod client_context;
 mod collaboration_mode;
 mod command_exec;
 mod config;
@@ -63,7 +64,6 @@ use crate::thread_state::ThreadStateManager;
 use crate::AppServerError;
 use crate::RuntimeCore;
 use crate::RuntimeCoreError;
-use crate::RuntimeHostContext;
 use app_server_protocol::error_codes;
 use app_server_protocol::AgentEvent;
 use app_server_protocol::AgentSessionActionRespondParams;
@@ -76,28 +76,19 @@ use app_server_protocol::AgentSessionReviewDecisionTemplateExportParams;
 use app_server_protocol::ArtifactReadParams;
 use app_server_protocol::CapabilityListParams;
 use app_server_protocol::ChannelProbeParams;
-use app_server_protocol::ClientInfo;
-use app_server_protocol::ClientNotification;
-use app_server_protocol::InitializeParams;
-use app_server_protocol::InitializeResponse;
 use app_server_protocol::JsonRpcError;
 use app_server_protocol::JsonRpcMessage;
 use app_server_protocol::JsonRpcNotification;
 use app_server_protocol::JsonRpcRequest;
-use app_server_protocol::PlatformInfo;
 use app_server_protocol::RequestId;
-use app_server_protocol::METHOD_CANCEL_REQUEST;
+use client_context::ClientContext;
 use config_warning::ConfigWarningProvider;
 use environment::EnvironmentRegistry;
 use mcp::McpEventStreamTask;
 pub(crate) use notifications::{ConnectionServerNotificationHook, ServerNotificationHook};
 // ProjectGit* 类型已移至 processor/project_git.rs
-use app_server_protocol::ServerCapabilities;
-use app_server_protocol::ServerInfo;
 use app_server_protocol::ServerNotification;
 use app_server_protocol::UsageStatsRangeParams;
-use app_server_protocol::PROTOCOL_VERSION;
-use app_server_protocol::SERVER_NAME;
 use app_server_transport::ConnectionId;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -115,7 +106,8 @@ pub(crate) use crate::fs::FsNotificationHook;
 pub(crate) use crate::process::ProcessNotificationHook;
 #[derive(Clone)]
 pub struct RequestProcessor {
-    state: Arc<Mutex<ProcessorState>>,
+    client_context: ClientContext,
+    connection_contexts: Arc<Mutex<HashMap<ConnectionId, ClientContext>>>,
     runtime: Arc<RuntimeCore>,
     thread_states: ThreadStateManager,
     process: ProcessServer,
@@ -132,14 +124,6 @@ pub struct RequestProcessor {
     environment_execution_lowering: bool,
     selected_environment_threads: Arc<Mutex<HashMap<String, HashSet<String>>>>,
     prompt_history: Arc<PromptHistoryStore>,
-}
-
-#[derive(Debug, Default)]
-struct ProcessorState {
-    initialize_accepted: bool,
-    initialized: bool,
-    client_info: Option<ClientInfo>,
-    canceled_request_ids: HashSet<RequestId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -197,7 +181,8 @@ impl RequestProcessor {
         });
         let execution_process_server = runtime.execution_process_server().unwrap_or_default();
         Self {
-            state: Arc::new(Mutex::new(ProcessorState::default())),
+            client_context: ClientContext::default(),
+            connection_contexts: Arc::new(Mutex::new(HashMap::new())),
             runtime: Arc::new(runtime),
             thread_states,
             process: ProcessServer::default(),
@@ -250,7 +235,11 @@ impl RequestProcessor {
         request: JsonRpcRequest,
     ) -> Result<Vec<JsonRpcMessage>, AppServerError> {
         let request_id = request.id.clone();
-        self.handle_request_with_context(
+        self.for_connection(
+            connection_id,
+            request.method == app_server_protocol::METHOD_INITIALIZE,
+        )
+        .handle_request_with_context(
             request,
             Some(ConnectionRequestId::new(connection_id, request_id)),
         )
@@ -305,41 +294,6 @@ impl RequestProcessor {
                     .instrument(span),
             )
             .await
-    }
-
-    pub fn handle_notification(&self, notification: JsonRpcNotification) {
-        if notification.method == METHOD_CANCEL_REQUEST {
-            if let Some(request_id) = read_cancel_request_id(notification.params.as_ref()) {
-                let mut state = self.state.lock().expect("app-server state mutex poisoned");
-                state.canceled_request_ids.insert(request_id);
-            }
-            return;
-        }
-
-        if ClientNotification::try_from(notification) != Ok(ClientNotification::Initialized) {
-            return;
-        }
-
-        let mut state = self.state.lock().expect("app-server state mutex poisoned");
-        if state.initialize_accepted {
-            state.initialized = true;
-        }
-    }
-
-    pub(super) fn is_request_canceled(&self, request_id: &RequestId) -> bool {
-        self.state
-            .lock()
-            .expect("app-server state mutex poisoned")
-            .canceled_request_ids
-            .contains(request_id)
-    }
-
-    fn clear_request_cancel_state(&self, request_id: &RequestId) {
-        self.state
-            .lock()
-            .expect("app-server state mutex poisoned")
-            .canceled_request_ids
-            .remove(request_id);
     }
 
     fn handle_capability_list(
@@ -554,100 +508,6 @@ impl RequestProcessor {
             .map_err(to_jsonrpc_error)?;
         dispatch_result_with_events(output.response, output.events)
     }
-
-    fn initialize(
-        &self,
-        params: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, JsonRpcError> {
-        self.initialize_inner(params, false)
-    }
-
-    fn initialize_transport(
-        &self,
-        params: Option<serde_json::Value>,
-    ) -> Result<serde_json::Value, JsonRpcError> {
-        self.initialize_inner(params, true)
-    }
-
-    fn initialize_inner(
-        &self,
-        params: Option<serde_json::Value>,
-        allow_existing_process_initialization: bool,
-    ) -> Result<serde_json::Value, JsonRpcError> {
-        reject_unsupported_initialize_capabilities(params.as_ref())?;
-        let params: InitializeParams = parse_params(params)?;
-        crate::agent_ui_event_schema::warm_validators().map_err(|error| {
-            JsonRpcError::new(
-                error_codes::RUNTIME_ERROR,
-                format!("failed to initialize Agent UI event schemas: {error}"),
-            )
-        })?;
-        let mut state = self.state.lock().expect("app-server state mutex poisoned");
-        if state.initialize_accepted && !allow_existing_process_initialization {
-            return Err(JsonRpcError::new(
-                error_codes::ALREADY_INITIALIZED,
-                "initialize has already been accepted",
-            ));
-        }
-
-        if !state.initialize_accepted {
-            state.initialize_accepted = true;
-            state.client_info = Some(params.client_info);
-        }
-
-        serialize_result(InitializeResponse {
-            server_info: ServerInfo {
-                name: SERVER_NAME.to_string(),
-                version: env!("CARGO_PKG_VERSION").to_string(),
-                protocol_version: PROTOCOL_VERSION.to_string(),
-            },
-            platform: PlatformInfo {
-                family: "desktop".to_string(),
-                os: std::env::consts::OS.to_string(),
-            },
-            capabilities: ServerCapabilities {
-                agent_session: true,
-                capability_discovery: true,
-                artifact: true,
-                workspace: false,
-            },
-        })
-    }
-
-    fn ensure_initialized(&self) -> Result<(), JsonRpcError> {
-        let initialized = self
-            .state
-            .lock()
-            .expect("app-server state mutex poisoned")
-            .initialized;
-        if !initialized {
-            return Err(JsonRpcError::new(
-                error_codes::NOT_INITIALIZED,
-                "initialize and initialized must complete before business methods",
-            ));
-        }
-        Ok(())
-    }
-
-    fn client_info(&self) -> Option<ClientInfo> {
-        self.state
-            .lock()
-            .expect("app-server state mutex poisoned")
-            .client_info
-            .clone()
-    }
-
-    pub(crate) fn runtime_host_context(&self) -> RuntimeHostContext {
-        RuntimeHostContext::from(self.client_info())
-    }
-}
-
-fn read_cancel_request_id(params: Option<&serde_json::Value>) -> Option<RequestId> {
-    match params?.get("id")? {
-        serde_json::Value::Number(value) => value.as_i64().map(RequestId::Integer),
-        serde_json::Value::String(value) => Some(RequestId::String(value.clone())),
-        _ => None,
-    }
 }
 
 pub(crate) fn project_event_notifications_jsonrpc(
@@ -671,38 +531,6 @@ where
             format!("invalid params: {error}"),
         )
     })
-}
-
-fn reject_unsupported_initialize_capabilities(
-    params: Option<&serde_json::Value>,
-) -> Result<(), JsonRpcError> {
-    let Some(capabilities) = params
-        .and_then(serde_json::Value::as_object)
-        .and_then(|params| params.get("capabilities"))
-        .and_then(serde_json::Value::as_object)
-    else {
-        return Ok(());
-    };
-
-    let Some(request_attestation) = capabilities.get("requestAttestation") else {
-        return Ok(());
-    };
-
-    let Some(request_attestation) = request_attestation.as_bool() else {
-        return Err(JsonRpcError::new(
-            error_codes::INVALID_PARAMS,
-            "capabilities.requestAttestation must be a boolean",
-        ));
-    };
-
-    if request_attestation {
-        return Err(JsonRpcError::new(
-            error_codes::INVALID_PARAMS,
-            "capabilities.requestAttestation is unsupported: Lime has no Codex Desktop Host attestation producer",
-        ));
-    }
-
-    Ok(())
 }
 
 fn serialize_result(value: impl Serialize) -> Result<serde_json::Value, JsonRpcError> {

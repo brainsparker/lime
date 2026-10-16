@@ -5,6 +5,7 @@ use app_server_protocol::{
     ClientCapabilities, JsonRpcMessage, RequestId, METHOD_INITIALIZE, METHOD_INITIALIZED,
     METHOD_PROJECT_GIT_STATUS,
 };
+use app_server_protocol::{ClientInfo, InitializeParams};
 use serde_json::json;
 
 #[tokio::test]

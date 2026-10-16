@@ -7,8 +7,9 @@ use app_server_client::RequestHandle;
 use app_server_protocol::protocol::v2::{
     CommandExecutionApprovalDecision, CommandExecutionRequestApprovalResponse,
     CurrentTimeReadResponse, FileChangeApprovalDecision, FileChangeRequestApprovalResponse,
-    GrantedPermissionProfile, PermissionGrantScope, PermissionsRequestApprovalResponse,
-    ServerRequest, ToolRequestUserInputResponse,
+    GrantedPermissionProfile, McpServerElicitationAction, McpServerElicitationRequestResponse,
+    PermissionGrantScope, PermissionsRequestApprovalResponse, ServerRequest,
+    ToolRequestUserInputResponse,
 };
 use app_server_protocol::{JsonRpcError, RequestId};
 use serde::Serialize;
@@ -70,6 +71,14 @@ fn response_for(request: ServerRequest) -> Result<ServerResponse> {
             id,
             ToolRequestUserInputResponse {
                 answers: Default::default(),
+            },
+        ),
+        ServerRequest::McpServerElicitationRequest { id, .. } => reply(
+            id,
+            McpServerElicitationRequestResponse {
+                action: McpServerElicitationAction::Cancel,
+                content: None,
+                meta: None,
             },
         ),
         request => Ok(ServerResponse::Reject {

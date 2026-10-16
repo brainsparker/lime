@@ -238,7 +238,7 @@ fn fork_requires_source_and_keeps_optional_prompt_and_child_overrides() {
     assert!(!fork.connection.approve_for_me);
     assert_eq!(
         fork.connection.sandbox_mode,
-        Some(crate::SandboxModeCliArg::ReadOnly)
+        Some(crate::connection::SandboxModeCliArg::ReadOnly)
     );
     assert_eq!(fork.prompt.as_deref(), Some("-"));
 }

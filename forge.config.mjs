@@ -6,6 +6,7 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 
 import { brandMacHelperApps } from "./scripts/electron/brand-mac-helper-apps.mjs";
+import { notarizeMacPackages } from "./scripts/electron/lib/macos-notarization.mjs";
 import { preparePackagedDesktopResources } from "./scripts/lib/electron-desktop-resources.mjs";
 
 const PRODUCT_NAME = "Lime";
@@ -243,6 +244,11 @@ export {
 
 export default {
   outDir: RELEASE_OUTPUT_DIR,
+  hooks: {
+    postPackage: async (_config, result) => {
+      await notarizeMacPackages(result, macNotarizeOptions());
+    },
+  },
   packagerConfig: {
     name: PRODUCT_NAME,
     executableName: PRODUCT_NAME,
@@ -273,7 +279,6 @@ export default {
       NSAppleEventsUsageDescription: "Lime 需要控制其他应用以输入识别的文本",
     },
     osxSign: macSignOptions(),
-    osxNotarize: macNotarizeOptions(),
     win32metadata: {
       CompanyName: "Lime",
       FileDescription: PRODUCT_NAME,

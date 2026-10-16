@@ -26,10 +26,8 @@ use app_server_protocol::protocol::v2::{
     METHOD_TURN_START,
 };
 
-use super::{
-    cli_initialize_params, permission_settings, resolve_remote_endpoint, thread_stdio_config,
-    ConnectionArgs,
-};
+use super::{cli_initialize_params, resolve_remote_endpoint, thread_stdio_config};
+use crate::connection::{permission_settings, ConnectionArgs};
 use cli::{Command, ExecCli};
 use event_processor::{EventProcessor, ExecResult};
 use event_processor_with_human_output::{

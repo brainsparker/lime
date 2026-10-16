@@ -7938,8 +7938,8 @@
   },
   "current_profile_content_alignment": {
     "date": "2026-10-16",
-    "status": "local fields/content implemented; native validation passed; default gate running",
-    "evidence_directory": ".lime/qc/settings-profile/content-alignment-20261016",
+    "status": "accepted local field/content and config persistence slice; whole Profile and GUI partial",
+    "evidence_directory": ".lime/qc/settings-profile/recovery-20261016",
     "reference_reused": [
       "ev_2b4e6d08d1d979e0dcd2e6defa733fa149bd45f5b4d48b4ba05fb4f7938526fa",
       "ev_87b1f8de96c9b10e16b7303b0c59c6cac67506416c13e29c22a9dde803e5bbef"
@@ -7962,7 +7962,7 @@
       "TS/Rust avatar_url/email/tags fields",
       "retired translations and positive tests/fixture selectors"
     ],
-    "directed": "6 suites63/63; typecheck/strict lint; compiled Rust config129/129 including retired-field JSON/YAML regression",
+    "directed": "fresh7suites67/67;compiledRustConfig129/129;contracts/typecheck/strictlint pass",
     "remaining": [
       "remote Profile query/mutation",
       "auth/capability eligibility",
@@ -7972,98 +7972,13 @@
       "Windows/packaged/full GUI",
       "separate account session card presentation"
     ],
-    "native_navigation": {
-      "summary": ".lime/qc/settings-sections/settings-profile-content-native-20261016-1/summary.json",
-      "sha256": "89fa5f045bb28c8c5404e8b8c519dd8189526c844f901ab6c6946571c516c998",
-      "ok": true,
-      "visibleContracts": {
-        "passed": 9,
-        "total": 9
-      },
-      "themeChecks": 4,
-      "sourceCount": 83,
-      "artifactCount": 321,
-      "traceIpc": 1634,
-      "traceErrors": 0,
-      "mockHits": 0,
-      "freshBefore": {
-        "ready": true,
-        "reason": "fresh-artifacts"
-      },
-      "freshAfter": {
-        "ready": true,
-        "reason": "fresh-artifacts"
-      },
-      "normal_main_exit": {
-        "pid": 39961,
-        "exited": true,
-        "exitCode": 0,
-        "signal": null,
-        "mode": "normal"
-      },
-      "forced_cleanup": false
-    },
-    "native_cold": {
-      "summary": ".lime/qc/project-gates/settings-profile-content-cold-20261016-1/settings-profile-persistence/settings-profile-fixture-summary.json",
-      "sha256": "bb999c47720bc7ade2e55cacb9892548bf400135019d35b858d47d176d6fa1a5",
-      "result": "pass",
-      "ipc": 98,
-      "errors": {
-        "consoleErrorCount": 0,
-        "pageErrorCount": 0,
-        "invokeErrorCount": 0,
-        "hostTraceErrorCount": 0,
-        "legacyCommandHitCount": 0,
-        "legacyCommands": [],
-        "mockFallbackHitCount": 0
-      },
-      "exits": [
-        {
-          "pid": 43762,
-          "exited": true,
-          "exitCode": 0,
-          "signal": null,
-          "mode": "normal",
-          "forcedCleanup": false
-        },
-        {
-          "pid": 44198,
-          "exited": true,
-          "exitCode": 0,
-          "signal": null,
-          "mode": "normal",
-          "forcedCleanup": false
-        },
-        {
-          "pid": 44464,
-          "exited": true,
-          "exitCode": 0,
-          "signal": null,
-          "mode": "normal",
-          "forcedCleanup": false
-        }
-      ],
-      "expectedFailure": {
-        "rpcErrorProof": {
-          "method": "config/batchWrite",
-          "errorCode": -32000,
-          "ioCauseVerified": true
-        },
-        "ioProbeIsGuiResponseCapture": false
-      },
-      "assertions": {
-        "total": 32,
-        "passed": 32,
-        "failed": []
-      }
-    },
-    "visual_review": "seven screenshots manually reviewed; current skin1440x1000; four themes include media-emulated system mode",
+    "visual_review": ".lime/qc/settings-profile/recovery-20261016/visual-review.json",
     "parallel_version_context": {
       "historical_native_version": "1.158.0",
       "final_candidate_version": "1.159.0",
       "ownership": "read-only parallel release/manifest changes",
       "passed_metadata_sensitive_recheck": "18 files202/202",
-      "final_native_recheck": "pending final default rebuild"
+      "final_native_recheck": "fresh1.159 recovered navigation/cold passed; no source/artifact/version drift"
     },
     "guard_cleanup": {
       "file": "src/lib/governance/codexModelNativeToolPolicyOrigin.test.ts",
@@ -8073,7 +7988,309 @@
       "last_touch_commit": "0c5720ea0fd2af84d7b6743a6686750fb8570ab7",
       "new_assertions": "model type gate and Multiple environment_id; freeform enabled, missing/null/unknown disabled; no runtime change",
       "directed": "2 suites14/14",
-      "declared_source_count": 26
+      "declared_source_count": 27
+    },
+    "unrecoverable_pre_deletion_native_metadata": {
+      "navigation": {
+        "summary": ".lime/qc/settings-sections/settings-profile-content-native-20261016-1/summary.json",
+        "sha256": "89fa5f045bb28c8c5404e8b8c519dd8189526c844f901ab6c6946571c516c998",
+        "ok": true,
+        "visibleContracts": {
+          "passed": 9,
+          "total": 9
+        },
+        "themeChecks": 4,
+        "sourceCount": 83,
+        "artifactCount": 321,
+        "traceIpc": 1634,
+        "traceErrors": 0,
+        "mockHits": 0,
+        "freshBefore": {
+          "ready": true,
+          "reason": "fresh-artifacts"
+        },
+        "freshAfter": {
+          "ready": true,
+          "reason": "fresh-artifacts"
+        },
+        "normal_main_exit": {
+          "pid": 39961,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal"
+        },
+        "forced_cleanup": false
+      },
+      "cold": {
+        "summary": ".lime/qc/project-gates/settings-profile-content-cold-20261016-1/settings-profile-persistence/settings-profile-fixture-summary.json",
+        "sha256": "bb999c47720bc7ade2e55cacb9892548bf400135019d35b858d47d176d6fa1a5",
+        "result": "pass",
+        "ipc": 98,
+        "errors": {
+          "consoleErrorCount": 0,
+          "pageErrorCount": 0,
+          "invokeErrorCount": 0,
+          "hostTraceErrorCount": 0,
+          "legacyCommandHitCount": 0,
+          "legacyCommands": [],
+          "mockFallbackHitCount": 0
+        },
+        "exits": [
+          {
+            "pid": 43762,
+            "exited": true,
+            "exitCode": 0,
+            "signal": null,
+            "mode": "normal",
+            "forcedCleanup": false
+          },
+          {
+            "pid": 44198,
+            "exited": true,
+            "exitCode": 0,
+            "signal": null,
+            "mode": "normal",
+            "forcedCleanup": false
+          },
+          {
+            "pid": 44464,
+            "exited": true,
+            "exitCode": 0,
+            "signal": null,
+            "mode": "normal",
+            "forcedCleanup": false
+          }
+        ],
+        "expectedFailure": {
+          "rpcErrorProof": {
+            "method": "config/batchWrite",
+            "errorCode": -32000,
+            "ioCauseVerified": true
+          },
+          "ioProbeIsGuiResponseCapture": false
+        },
+        "assertions": {
+          "total": 32,
+          "passed": 32,
+          "failed": []
+        }
+      },
+      "status": "metadata only; original1.158 run files deleted externally; not final acceptance evidence"
+    },
+    "candidate_version": "1.159.0",
+    "declared_source_count": 27,
+    "receipt": ".lime/qc/settings-profile/content-final-20261016-recovery-1/receipt.json",
+    "history": {
+      "frontend": "131/131 batches1770files passed; original state lost",
+      "frontendStateSha256": "4b948dcc7b553f97fb24ac931804499a55b0117714413ce9182638ca9167ca94",
+      "rust": "39suites7121passed0failed5ignored; exit0; original log lost",
+      "gui": "standalone-shell-01-20261016151944-92156 pass24/24; original summary lost",
+      "guiSha256": "7c56753df47540c477238c657c824f0aa5d73e69b54f269cb1e8dfea06c1cd96"
+    },
+    "history_originals": "unavailable after external whole.lime deletion; do not claim raw full frontend/workspace logs retained",
+    "fresh_results": {
+      "startedAt": "2026-10-16T15:30:13.506515+00:00",
+      "resumedAt": "2026-10-16T16:01:33.849842+00:00",
+      "scope": "fresh scoped verification after external evidence deletion; earlier full frontend/workspace results observed but raw logs lost",
+      "priorFailure": "results-attempt-1/2.json; missing parent then stale renderer/host; no product code change; final GUI after targeted segment rebuild",
+      "steps": [
+        {
+          "name": "targeted",
+          "command": [
+            "npx",
+            "vitest",
+            "run",
+            "src/components/settings-v2/account/profile/index.test.tsx",
+            "src/components/settings-v2/account/profile/profileDraft.integration.test.tsx",
+            "src/components/settings-v2/account/profile/unsavedNavigation.integration.test.tsx",
+            "scripts/electron/lib/settings-profile-fixture-evidence.test.mjs",
+            "src/i18n/__tests__/loadNamespace.test.ts",
+            "src/i18n/__tests__/types.test.ts",
+            "src/lib/governance/codexModelNativeToolPolicyOrigin.test.ts"
+          ],
+          "startedAt": "2026-10-16T15:30:13.506851+00:00",
+          "status": "passed",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T15:30:24.919526+00:00"
+        },
+        {
+          "name": "contracts",
+          "command": ["npm", "run", "test:contracts"],
+          "startedAt": "2026-10-16T15:30:24.921719+00:00",
+          "status": "passed",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T15:31:55.962770+00:00"
+        },
+        {
+          "name": "typecheck",
+          "command": ["npm", "run", "typecheck"],
+          "startedAt": "2026-10-16T15:31:55.963623+00:00",
+          "status": "passed",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T15:37:06.203165+00:00"
+        },
+        {
+          "name": "targeted-rebuild",
+          "command": [
+            "node",
+            "--input-type=module",
+            "-e",
+            "import {ensureElectronFixtureBuild,inspectElectronFixtureBuildFreshness} from \"./scripts/lib/electron-fixture-build.mjs\";ensureElectronFixtureBuild({rootDir:process.cwd(),logPrefix:\"profile-recovery\"});const r=inspectElectronFixtureBuildFreshness({rootDir:process.cwd()});if(!r.ready)throw new Error(r.reason);console.log(\"freshness ready after targeted build\")"
+          ],
+          "status": "passed",
+          "startedAt": "2026-10-16T15:57:40.710541+00:00",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T16:01:22.750656+00:00"
+        },
+        {
+          "name": "gui-final",
+          "command": ["node", "scripts/electron/smoke.mjs"],
+          "status": "passed",
+          "startedAt": "2026-10-16T16:01:22.754438+00:00",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T16:01:33.682837+00:00"
+        },
+        {
+          "name": "native-navigation-final",
+          "runId": "settings-profile-content-recovery-20261016-3",
+          "command": [
+            "node",
+            "scripts/electron/settings-navigation-fixture-smoke.mjs",
+            "settings-profile-content-recovery-20261016-3"
+          ],
+          "status": "passed",
+          "startedAt": "2026-10-16T16:01:33.850372+00:00",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T16:03:42.580891+00:00"
+        },
+        {
+          "name": "native-cold",
+          "runId": "settings-profile-content-recovery-cold-20261016-1",
+          "command": [
+            "node",
+            "scripts/electron/settings-profile-fixture-smoke.mjs",
+            "--run-id",
+            "settings-profile-content-recovery-cold-20261016-1"
+          ],
+          "status": "passed",
+          "startedAt": "2026-10-16T16:03:42.641078+00:00",
+          "exitCode": 0,
+          "completedAt": "2026-10-16T16:04:03.423433+00:00"
+        }
+      ],
+      "completedAt": "2026-10-16T16:04:03.431036+00:00"
+    },
+    "native_navigation": {
+      "summary": ".lime/qc/settings-sections/settings-profile-content-recovery-20261016-3/summary.json",
+      "sha256": "d615c3bbd369ce6bfab9b34cc1caaf851e8a00d9e0f11eda0de00fc11132be7f",
+      "visible_contracts": "9/9",
+      "themes": "4/4",
+      "ipc": 1627,
+      "teardown": {
+        "ok": true,
+        "steps": [
+          {
+            "phase": "invoke-trace",
+            "startedAt": "2026-10-16T16:03:36.369Z",
+            "completedAt": "2026-10-16T16:03:38.925Z",
+            "ok": true
+          },
+          {
+            "phase": "normal-main-exit",
+            "startedAt": "2026-10-16T16:03:38.925Z",
+            "completedAt": "2026-10-16T16:03:42.200Z",
+            "ok": true
+          },
+          {
+            "phase": "text-provider",
+            "startedAt": "2026-10-16T16:03:42.200Z",
+            "completedAt": "2026-10-16T16:03:42.205Z",
+            "ok": true
+          }
+        ],
+        "normalMainExit": {
+          "pid": 87660,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal"
+        },
+        "forcedCleanup": null
+      },
+      "source_count": 83,
+      "artifact_count": 531,
+      "drift": 0
+    },
+    "native_cold": {
+      "summary": ".lime/qc/project-gates/settings-profile-content-recovery-cold-20261016-1/settings-profile-persistence/settings-profile-fixture-summary.json",
+      "sha256": "a81bfa4a3c02ead44858cb978e9f8cac8754fee2b11c727ad2d8f78f625a794f",
+      "assertions": "32/32",
+      "ipc": 165,
+      "errors": {
+        "consoleErrorCount": 0,
+        "pageErrorCount": 0,
+        "invokeErrorCount": 0,
+        "hostTraceErrorCount": 0,
+        "legacyCommandHitCount": 0,
+        "legacyCommands": [],
+        "mockFallbackHitCount": 0
+      },
+      "normal_main_exits": [
+        {
+          "pid": 90397,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 90656,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 90935,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        }
+      ]
+    },
+    "standard_gui": {
+      "run_id": "standalone-shell-01-20261016160123-87137",
+      "sha256": "d9e59bd0bdc61c5ec6c996df8a6098e3a9cc75d778090c093a2628b27950ca76",
+      "assertions": "24/24"
+    },
+    "restored_old_receipts": [
+      {
+        "source": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-profile-evidence-ipr8i980/final-20261016-1",
+        "restored": ".lime/qc/settings-profile/final-20261016-1",
+        "receiptSha256": "f4d27e877aa2eb0a8b352a0d085a8a90ce4565909b510a773bcb079abe37c1ef"
+      },
+      {
+        "source": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-profile-content-trace-lmjr21mq/content-trace-20261016",
+        "restored": ".lime/qc/settings-profile/content-trace-20261016",
+        "receiptSha256": "d070963ff765b175695f4e1b11fe5f306ddbe2145dbfa72a1273bff2236d9538"
+      },
+      {
+        "source": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-execution-policy-evidence-wjbjk2y3/final-20261016-1",
+        "restored": ".lime/qc/settings-execution-policy/final-20261016-1",
+        "receiptSha256": "d5c77a393e37e93a685548f41867fe66996db3a04dc4d6310a7db2572a718526"
+      }
+    ],
+    "next": "existing auth/capability authority and typed public Profile contract; no invented API or local public identity fallback",
+    "stream_guard_cleanup": {
+      "file": "scripts/check-app-server-client-contract.mjs",
+      "change": "only add current message.rs to stream guard files; all snippets retained",
+      "contracts": "fresh pass",
+      "old_failure_original": "deleted externally"
     }
   }
 }

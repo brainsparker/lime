@@ -401,6 +401,7 @@
     "@electron-forge/maker-squirrel": "^7.11.2",
     "@electron-forge/maker-zip": "^7.11.2",
     "@electron/fuses": "^2.1.2",
+    "@electron/notarize": "2.5.0",
     "@eslint/js": "^9.15.0",
     "@fast-check/vitest": "^0.2.4",
     "@types/babel__standalone": "^7.1.9",

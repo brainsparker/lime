@@ -7,6 +7,7 @@ use app_server_protocol::{
     AgentSessionTurnStartParams, ClientCapabilities, JsonRpcMessage, RequestId,
     METHOD_ARTIFACT_READ, METHOD_INITIALIZE, METHOD_INITIALIZED,
 };
+use app_server_protocol::{ClientInfo, InitializeParams};
 use serde_json::json;
 use std::sync::Arc;
 

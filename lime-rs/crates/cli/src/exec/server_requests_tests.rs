@@ -43,17 +43,28 @@ fn typed_interactions_never_grant_consent_or_invent_user_answers() {
 }
 
 #[test]
-fn unsupported_mcp_request_is_rejected_with_same_id() {
-    let request = serde_json::from_value(json!({"method":"mcpServer/elicitation/request", "id":7,
-        "params":{"threadId":"thread", "serverName":"server", "mode":"form", "message":"input", "requestedSchema":{"type":"object"}}
-    })).unwrap();
-    let ServerResponse::Reject { id, error } = response_for(request).unwrap() else {
-        panic!("non-interactive client must reject elicitation")
-    };
-    assert_eq!(id, RequestId::Integer(7));
-    assert_eq!(
-        error.code,
-        app_server_protocol::error_codes::METHOD_NOT_FOUND
-    );
-    assert!(error.message.contains("mcpServer/elicitation/request"));
+fn mcp_elicitation_is_canceled_for_parent_and_attached_child_threads() {
+    for (thread, request_id) in [
+        ("parent-thread", RequestId::Integer(7)),
+        ("child-thread", RequestId::String("child-request".into())),
+    ] {
+        let request = serde_json::from_value(json!({
+            "method": "mcpServer/elicitation/request", "id": request_id,
+            "params": {
+                "threadId": thread, "serverName": "server", "mode": "form",
+                "message": "input", "requestedSchema": {"type": "object"},
+                "_meta": {"fixture": "request-only"}
+            }
+        }))
+        .unwrap();
+        let ServerResponse::Reply { id, result } = response_for(request).unwrap() else {
+            panic!("non-interactive client must cancel elicitation for {thread}")
+        };
+        assert_eq!(id, request_id);
+        assert_eq!(result, json!({"action": "cancel"}));
+        serde_json::from_value::<McpServerElicitationRequestResponse>(result)
+            .unwrap()
+            .validate()
+            .unwrap();
+    }
 }

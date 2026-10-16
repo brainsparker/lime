@@ -1,4 +1,4 @@
-// Test-only driver: forward product stdio unchanged and invoke the real thread-scoped MCP API.
+// Test-only stdio recorder; the default TUI driver also invokes the thread-scoped MCP API.
 import { spawn } from "node:child_process";
 import { appendFileSync } from "node:fs";
 import readline from "node:readline";
@@ -10,6 +10,7 @@ const child = spawn(
 );
 const toolRequestId = "mcp-pty-tool-call";
 const threadRequests = new Set();
+const passive = process.env.LIME_TEST_MCP_RELAY_MODE === "passive";
 let called = false;
 const record = (direction, message) =>
   appendFileSync(
@@ -25,7 +26,8 @@ const input = readline.createInterface({
 input.on("line", (line) => {
   const message = JSON.parse(line);
   record("client", message);
-  if (message.method === "thread/start") threadRequests.add(message.id);
+  if (!passive && message.method === "thread/start")
+    threadRequests.add(message.id);
   send(message);
 });
 input.on("close", () => child.stdin.end());
@@ -34,7 +36,7 @@ readline
   .on("line", (line) => {
     const message = JSON.parse(line);
     record("server", message);
-    if (message.id === toolRequestId) {
+    if (!passive && message.id === toolRequestId) {
       if (message.error)
         process.stderr.write(
           `MCP relay call failed: ${JSON.stringify(message.error)}\n`,
@@ -43,6 +45,7 @@ readline
     }
     process.stdout.write(`${line}\n`);
     if (
+      !passive &&
       !called &&
       threadRequests.has(message.id) &&
       message.result?.thread?.id

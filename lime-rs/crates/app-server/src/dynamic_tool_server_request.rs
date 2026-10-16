@@ -18,13 +18,19 @@ impl AppServer {
             }
         };
         let response = match self
-            .wait_server_request::<_, DynamicToolCallResponse>(
-                METHOD_ITEM_TOOL_CALL,
-                &request.params.thread_id,
-                request.params.clone(),
-            )
+            .begin_server_request(METHOD_ITEM_TOOL_CALL, request.params.clone())
             .await
         {
+            Ok(pending) => {
+                self.finish_server_request::<DynamicToolCallResponse>(
+                    &request.params.thread_id,
+                    pending,
+                )
+                .await
+            }
+            Err(error) => Err(WaitServerRequestError::Failed(error.to_string())),
+        };
+        let response = match response {
             Ok(response) => validate_response(response),
             Err(WaitServerRequestError::Transition) => return true,
             Err(WaitServerRequestError::Failed(error)) => {

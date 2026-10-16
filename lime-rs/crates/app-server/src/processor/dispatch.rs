@@ -55,7 +55,6 @@ impl RequestProcessor {
             (id, method.as_str().to_string(), params)
         };
         let method = method.as_str();
-        let is_transport_request = connection_request_id.is_some();
         let thread_resume_request_id =
             request_id_for_thread_resume(method, connection_request_id.as_ref());
         if self.is_request_canceled(&id) {
@@ -71,9 +70,6 @@ impl RequestProcessor {
                 request.await
             } else {
                 match method {
-            METHOD_INITIALIZE if is_transport_request => {
-                ready(self.handle_transport_initialize(params)).boxed()
-            }
             METHOD_INITIALIZE => ready(self.handle_initialize(params)).boxed(),
             METHOD_CAPABILITY_LIST => ready(self.handle_capability_list(params)).boxed(),
             METHOD_ARTIFACT_READ => ready(self.handle_artifact_read(params)).boxed(),

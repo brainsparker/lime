@@ -862,7 +862,8 @@ function assertForgeConfig(forgeConfigPath = DEFAULT_FORGE_CONFIG_PATH) {
     "APPLE_APP_SPECIFIC_PASSWORD",
     "APPLE_PASSWORD",
     "APPLE_TEAM_ID",
-    "osxNotarize: macNotarizeOptions()",
+    "postPackage: async",
+    "await notarizeMacPackages(result, macNotarizeOptions())",
     "afterCopyExtraResources",
     "brandMacHelperApps",
   ]) {

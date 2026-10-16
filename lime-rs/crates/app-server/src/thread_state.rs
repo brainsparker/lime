@@ -16,6 +16,19 @@ pub(crate) enum ThreadListenerCommand {
         origin_connection_id: Option<ConnectionId>,
         completion_tx: Option<oneshot::Sender<Result<(), String>>>,
     },
+    BeginServerRequest {
+        method: String,
+        params: serde_json::Value,
+        completion_tx: oneshot::Sender<
+            Result<crate::server_request::PendingServerRequest, crate::ServerRequestError>,
+        >,
+    },
+    ResolveServerRequest {
+        owner: crate::server_request::ServerRequestOwner,
+        id: RequestId,
+        result: crate::server_request::ServerRequestResult,
+        completion_tx: oneshot::Sender<Result<(), crate::ServerRequestError>>,
+    },
     SubscribeAndSend {
         connection_id: ConnectionId,
         messages: Vec<JsonRpcMessage>,

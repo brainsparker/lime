@@ -13,7 +13,9 @@ use app_server_protocol::protocol::v2::{
 use clap::{ArgAction, ArgGroup, Parser};
 
 #[cfg(windows)]
-use crate::{start_session, ConnectionArgs};
+use crate::connection::ConnectionArgs;
+#[cfg(windows)]
+use crate::start_session;
 
 #[derive(Debug, Parser)]
 #[command(group(

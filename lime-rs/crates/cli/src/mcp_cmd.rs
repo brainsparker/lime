@@ -18,7 +18,7 @@ use app_server_protocol::{
 use clap::Args;
 use serde_json::{json, Value};
 
-use crate::ConnectionArgs;
+use crate::connection::ConnectionArgs;
 
 #[derive(Debug, Args)]
 pub(crate) struct McpCli {
@@ -126,6 +126,18 @@ pub(crate) struct LogoutArgs {
 }
 
 impl McpCli {
+    pub(crate) fn connection_mut(&mut self) -> &mut ConnectionArgs {
+        match &mut self.subcommand {
+            McpSubcommand::List(args) => &mut args.connection,
+            McpSubcommand::Get(args) => &mut args.connection,
+            McpSubcommand::Add(args) => &mut args.connection,
+            McpSubcommand::Remove(args) => &mut args.connection,
+            McpSubcommand::Start(args) | McpSubcommand::Stop(args) => &mut args.connection,
+            McpSubcommand::Login(args) => &mut args.connection,
+            McpSubcommand::Logout(args) => &mut args.connection,
+        }
+    }
+
     pub(crate) async fn run(self) -> ExitCode {
         match run_inner(self).await {
             Ok(output) => {

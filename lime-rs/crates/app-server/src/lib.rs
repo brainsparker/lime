@@ -5,6 +5,10 @@ mod agent_ui_sequence_verifier;
 mod approval_server_request;
 mod automation_execution;
 mod capability;
+#[cfg(test)]
+mod client_context_tests;
+#[cfg(test)]
+mod client_context_transport_tests;
 mod command_exec;
 mod current_time;
 #[cfg(test)]
@@ -25,6 +29,7 @@ mod media_task;
 mod media_task_payload;
 mod media_task_worker;
 mod memory_store;
+mod message;
 mod model_route_assembly;
 mod model_route_execution;
 mod model_task_contract;
@@ -109,7 +114,9 @@ pub use app_server_protocol::METHOD_TURN_START;
 pub use app_server_protocol::METHOD_WORKFLOW_READ;
 use app_server_transport::acquire_app_server_startup_lock;
 use app_server_transport::app_server_startup_lock_path;
+#[cfg(test)]
 use app_server_transport::decode_message;
+#[cfg(test)]
 use app_server_transport::encode_message;
 use app_server_transport::start_control_socket_acceptor;
 use app_server_transport::start_stdio_connection;
@@ -302,6 +309,7 @@ pub struct AppServerEventBridge {
     pub(crate) runtime: RuntimeCore,
     runtime_events: RuntimeCoreEventAppender,
     thread_states: thread_state::ThreadStateManager,
+    server_requests: server_request::ServerRequestRouter,
     outbound_messages: broadcast::Sender<JsonRpcMessage>,
     transport_writers: TransportWriters,
     transport_disconnects: TransportDisconnects,
@@ -342,6 +350,7 @@ impl AppServer {
             runtime: runtime.clone(),
             runtime_events: runtime.event_appender(),
             thread_states: thread_states.clone(),
+            server_requests: server_requests.clone(),
             outbound_messages: outbound_messages.clone(),
             transport_writers: transport_writers.clone(),
             transport_disconnects: transport_disconnects.clone(),
@@ -566,6 +575,7 @@ impl AppServer {
             runtime: self.processor.runtime().clone(),
             runtime_events: self.processor.runtime().event_appender(),
             thread_states: self.thread_states.clone(),
+            server_requests: self.server_requests.clone(),
             outbound_messages: self.outbound_messages.clone(),
             transport_writers: self.transport_writers.clone(),
             transport_disconnects: self.transport_disconnects.clone(),
@@ -695,146 +705,6 @@ impl AppServer {
         self.processor.runtime()
     }
 
-    pub async fn handle_json_line(&self, line: &str) -> Result<Vec<String>, AppServerError> {
-        let message = decode_message(line)?;
-        self.handle_message(message)
-            .await?
-            .iter()
-            .map(|message| encode_message(message).map_err(AppServerError::from))
-            .collect()
-    }
-
-    pub async fn handle_message(
-        &self,
-        message: JsonRpcMessage,
-    ) -> Result<Vec<JsonRpcMessage>, AppServerError> {
-        self.ensure_runtime_event_pump();
-        match message {
-            JsonRpcMessage::Request(request) => self.processor.handle_request(request).await,
-            JsonRpcMessage::Notification(notification) => {
-                self.processor.handle_notification(notification);
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Response(_response) => {
-                #[cfg(test)]
-                self.resolve_test_server_request_response(_response.id, _response.result);
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Error(_response) => {
-                #[cfg(test)]
-                self.resolve_test_server_request_error(_response.id, _response.error);
-                Ok(Vec::new())
-            }
-        }
-    }
-
-    async fn handle_transport_message(
-        &self,
-        connection_id: ConnectionId,
-        message: JsonRpcMessage,
-    ) -> Result<Vec<JsonRpcMessage>, AppServerError> {
-        self.ensure_runtime_event_pump();
-        match message {
-            JsonRpcMessage::Request(request) => {
-                if !transport_experimental_api_enabled(
-                    &self.transport_experimental_api,
-                    connection_id,
-                ) {
-                    if let Some(reason) = experimental_api_field_reason(&request) {
-                        return Ok(vec![JsonRpcMessage::Error(
-                            app_server_protocol::JsonRpcErrorResponse {
-                                id: request.id.clone(),
-                                error: JsonRpcError::new(
-                                    error_codes::INVALID_REQUEST,
-                                    format!("{reason} requires experimentalApi capability"),
-                                ),
-                            },
-                        )]);
-                    }
-                    if is_experimental_api_method(&request.method) {
-                        return Ok(vec![JsonRpcMessage::Error(
-                            app_server_protocol::JsonRpcErrorResponse {
-                                id: request.id.clone(),
-                                error: JsonRpcError::new(
-                                    error_codes::INVALID_REQUEST,
-                                    experimental_api_required_message(&request.method),
-                                ),
-                            },
-                        )]);
-                    }
-                }
-                let initialize_capability =
-                    initialize_experimental_api(&JsonRpcMessage::Request(request.clone()));
-                let initialize_request = request.method == METHOD_INITIALIZE;
-                let responses = self
-                    .processor
-                    .handle_transport_request(connection_id, request)
-                    .await?;
-                if initialize_request
-                    && initialize_capability
-                    && responses
-                        .iter()
-                        .any(|response| matches!(response, JsonRpcMessage::Response(_)))
-                {
-                    self.transport_experimental_api
-                        .lock()
-                        .expect("app-server transport experimental capability mutex poisoned")
-                        .insert(connection_id);
-                }
-                Ok(responses)
-            }
-            JsonRpcMessage::Notification(notification) => {
-                self.processor.handle_notification(notification);
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Response(response) => {
-                self.resolve_transport_server_request_response(
-                    connection_id,
-                    response.id,
-                    response.result,
-                );
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Error(response) => {
-                self.resolve_transport_server_request_error(
-                    connection_id,
-                    response.id,
-                    response.error,
-                );
-                Ok(Vec::new())
-            }
-        }
-    }
-
-    pub async fn handle_message_streaming(
-        &self,
-        message: JsonRpcMessage,
-        event_callback: &mut (dyn FnMut(JsonRpcMessage) + Send),
-    ) -> Result<Vec<JsonRpcMessage>, AppServerError> {
-        self.ensure_runtime_event_pump();
-        match message {
-            JsonRpcMessage::Request(request) => {
-                self.processor
-                    .handle_request_streaming(request, event_callback)
-                    .await
-            }
-            JsonRpcMessage::Notification(notification) => {
-                self.processor.handle_notification(notification);
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Response(_response) => {
-                #[cfg(test)]
-                self.resolve_test_server_request_response(_response.id, _response.result);
-                Ok(Vec::new())
-            }
-            JsonRpcMessage::Error(_response) => {
-                #[cfg(test)]
-                self.resolve_test_server_request_error(_response.id, _response.error);
-                Ok(Vec::new())
-            }
-        }
-    }
-
     pub async fn append_external_runtime_events(
         &self,
         session_id: &str,
@@ -868,6 +738,7 @@ impl AppServer {
     }
 
     fn unregister_transport_writer(&self, connection_id: ConnectionId) {
+        self.processor.close_client_connection(connection_id);
         self.transport_writers
             .lock()
             .expect("app-server transport writer mutex poisoned")
@@ -891,6 +762,7 @@ impl AppServer {
     }
 
     async fn clear_transport_writers(&self) {
+        self.processor.clear_client_connections();
         let connection_ids = self
             .transport_writers
             .lock()
@@ -1093,35 +965,6 @@ impl AppServer {
         }
     }
 
-    fn resolve_transport_server_request_response(
-        &self,
-        connection_id: ConnectionId,
-        id: RequestId,
-        result: serde_json::Value,
-    ) {
-        let request_id = id.clone();
-        if let Err(error) =
-            self.server_requests
-                .resolve_transport_response(connection_id, id, result)
-        {
-            tracing::warn!(%request_id, %connection_id, %error, "dropping unmatched App Server transport response");
-        }
-    }
-
-    fn resolve_transport_server_request_error(
-        &self,
-        connection_id: ConnectionId,
-        id: RequestId,
-        response: JsonRpcError,
-    ) {
-        let request_id = id.clone();
-        if let Err(error) =
-            self.server_requests
-                .resolve_transport_error(connection_id, id, response)
-        {
-            tracing::warn!(%request_id, %connection_id, %error, "dropping unmatched App Server transport error");
-        }
-    }
 }
 
 pub fn spawn_media_task_worker_scheduler(
@@ -2046,8 +1889,6 @@ fn spawn_transport_request(
                     let bridge = server.event_bridge();
                     let mut goal_outbox_through_id = None;
                     if successful_resume {
-                        let owner = server_request::ServerRequestOwner::Transport(connection_id);
-                        server.server_requests.claim_owner_thread(owner, &thread_id);
                         if let Some(snapshot) = server
                             .processor
                             .runtime()
@@ -2081,13 +1922,6 @@ fn spawn_transport_request(
                                 );
                             }
                         }
-                        messages.extend(
-                            server
-                                .server_requests
-                                .snapshot_for_owner_thread(owner, &thread_id)
-                                .into_iter()
-                                .map(JsonRpcMessage::Request),
-                        );
                     }
                     let (completion_tx, completion_rx) = oneshot::channel();
                     let command = thread_state::ThreadListenerCommand::CompleteResume {
@@ -2170,7 +2004,7 @@ fn spawn_transport_request(
                             .runtime()
                             .maybe_start_thread_goal_for_thread_if_idle(
                                 thread_id,
-                                server.processor.runtime_host_context(),
+                                server.processor.connection_host_context(connection_id),
                             )
                             .await
                         {

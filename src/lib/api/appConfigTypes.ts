@@ -236,8 +236,8 @@ export interface ImageGenConfig {
 }
 
 export interface UserProfile {
-  nickname?: string;
-  bio?: string;
+  nickname?: string | null;
+  bio?: string | null;
 }
 
 export interface CrashReportingConfig {

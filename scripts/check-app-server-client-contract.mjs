@@ -3696,6 +3696,7 @@ const checks = [
     name: "App Server stdio streams direct v2 lifecycle before turn response",
     files: [
       "lime-rs/crates/app-server/src/lib.rs",
+      "lime-rs/crates/app-server/src/message.rs",
       "lime-rs/crates/app-server/src/processor/mod.rs",
       "lime-rs/crates/app-server/src/runtime.rs",
       "lime-rs/crates/app-server/src/runtime/turn_execution.rs",

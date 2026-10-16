@@ -8,6 +8,7 @@ use app_server_protocol::METHOD_INITIALIZE;
 use app_server_protocol::METHOD_INITIALIZED;
 use app_server_protocol::METHOD_THREAD_START;
 use app_server_protocol::METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_CHANGED;
+use app_server_protocol::{ClientInfo, InitializeParams};
 use serde_json::json;
 
 pub(super) struct ScopedCapabilitySource;

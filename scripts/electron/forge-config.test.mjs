@@ -114,6 +114,8 @@ describe("Electron Forge config", () => {
     expect(
       forgeConfig.packagerConfig.afterCopyExtraResources[0].length,
     ).toBeGreaterThanOrEqual(5);
+    expect(forgeConfig.packagerConfig.osxNotarize).toBeUndefined();
+    expect(forgeConfig.hooks.postPackage).toBeTypeOf("function");
   });
 
   it("builds updater feed URLs from explicit env or platform feed labels", () => {

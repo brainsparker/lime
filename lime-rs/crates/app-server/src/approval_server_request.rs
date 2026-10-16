@@ -1,17 +1,17 @@
-use crate::server_request::{PendingServerRequest, ServerRequestError, ServerRequestOwner};
+use crate::server_request::{PendingServerRequest, ServerRequestError};
 use crate::AppServer;
 use app_server_protocol::protocol::v2::{
     CommandExecutionApprovalDecision, CommandExecutionRequestApprovalParams,
     CommandExecutionRequestApprovalResponse, FileChangeApprovalDecision,
     FileChangeRequestApprovalParams, FileChangeRequestApprovalResponse, NetworkApprovalContext,
-    NetworkApprovalProtocol, ServerNotification, ServerRequestResolvedNotification,
-    ToolRequestUserInputOption, ToolRequestUserInputParams, ToolRequestUserInputQuestion,
-    ToolRequestUserInputResponse, METHOD_ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL,
-    METHOD_ITEM_FILE_CHANGE_REQUEST_APPROVAL, METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
+    NetworkApprovalProtocol, ToolRequestUserInputOption, ToolRequestUserInputParams,
+    ToolRequestUserInputQuestion, ToolRequestUserInputResponse,
+    METHOD_ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL, METHOD_ITEM_FILE_CHANGE_REQUEST_APPROVAL,
+    METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
 };
 use app_server_protocol::{
     error_codes, AgentEvent, AgentSessionActionRespondParams, AgentSessionActionScope,
-    AgentSessionActionType, AgentSessionApprovalDecision, RequestId,
+    AgentSessionActionType, AgentSessionApprovalDecision,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -31,7 +31,7 @@ impl AppServer {
             ActionServerRequest::Command(request) => {
                 let CommandApprovalRequest { params, identity } = request;
                 let response = self
-                    .wait_server_request::<_, CommandExecutionRequestApprovalResponse>(
+                    .wait_thread_server_request::<_, CommandExecutionRequestApprovalResponse>(
                         METHOD_ITEM_COMMAND_EXECUTION_REQUEST_APPROVAL,
                         &identity.thread_id,
                         params,
@@ -48,7 +48,7 @@ impl AppServer {
             ActionServerRequest::FileChange(request) => {
                 let FileChangeApprovalRequest { params, identity } = request;
                 let response = self
-                    .wait_server_request::<_, FileChangeRequestApprovalResponse>(
+                    .wait_thread_server_request::<_, FileChangeRequestApprovalResponse>(
                         METHOD_ITEM_FILE_CHANGE_REQUEST_APPROVAL,
                         &identity.thread_id,
                         params,
@@ -65,7 +65,7 @@ impl AppServer {
             ActionServerRequest::UserInput(request) => {
                 let UserInputRequest { params, identity } = request;
                 let response = self
-                    .wait_server_request::<_, ToolRequestUserInputResponse>(
+                    .wait_thread_server_request::<_, ToolRequestUserInputResponse>(
                         METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
                         &identity.thread_id,
                         params,
@@ -90,7 +90,7 @@ impl AppServer {
         }
     }
 
-    pub(crate) async fn wait_server_request<P, R>(
+    pub(crate) async fn wait_thread_server_request<P, R>(
         &self,
         method: &str,
         thread_id: &str,
@@ -101,13 +101,13 @@ impl AppServer {
         R: serde::de::DeserializeOwned,
     {
         let pending = self
-            .begin_server_request(method, params)
+            .begin_thread_server_request(thread_id, method, params)
             .await
             .map_err(|error| WaitServerRequestError::Failed(error.to_string()))?;
         self.finish_server_request(thread_id, pending).await
     }
 
-    async fn finish_server_request<R>(
+    pub(crate) async fn finish_server_request<R>(
         &self,
         thread_id: &str,
         mut pending: PendingServerRequest,
@@ -117,7 +117,7 @@ impl AppServer {
     {
         let request_id = pending.id().clone();
         let terminal = pending.wait_terminal().await;
-        if !terminal.resolved_before_transition {
+        if !terminal.resolved_in_listener {
             if let Err(error) = self
                 .publish_server_request_resolved(thread_id, request_id, terminal.owner)
                 .await
@@ -136,41 +136,6 @@ impl AppServer {
         };
         serde_json::from_value(value)
             .map_err(|error| WaitServerRequestError::Failed(error.to_string()))
-    }
-
-    async fn publish_server_request_resolved(
-        &self,
-        thread_id: &str,
-        request_id: RequestId,
-        owner: Option<ServerRequestOwner>,
-    ) -> Result<(), String> {
-        let Some(owner) = owner else {
-            return Ok(());
-        };
-        let origin_connection_id = match owner {
-            ServerRequestOwner::Transport(connection_id) => Some(connection_id),
-            #[cfg(test)]
-            ServerRequestOwner::Subscriber => None,
-        };
-        let notification =
-            ServerNotification::ServerRequestResolved(ServerRequestResolvedNotification {
-                thread_id: thread_id.to_string(),
-                request_id,
-            });
-        let (completion_tx, completion_rx) = tokio::sync::oneshot::channel();
-        self.event_bridge()
-            .send_thread_command(
-                agent_protocol::ThreadId::new(thread_id),
-                crate::thread_state::ThreadListenerCommand::PublishNotification {
-                    notification: notification.into(),
-                    origin_connection_id,
-                    completion_tx: Some(completion_tx),
-                },
-            )
-            .await?;
-        completion_rx.await.map_err(|error| {
-            format!("server-request resolved completion channel closed: {error}")
-        })?
     }
 
     async fn respond_to_runtime_action(

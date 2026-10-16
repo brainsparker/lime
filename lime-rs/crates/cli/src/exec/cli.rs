@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, FromArgMatches, ValueEnum};
 
-use crate::ConnectionArgs;
+use crate::connection::ConnectionArgs;
 
 #[derive(Debug, Default, Args)]
 pub(crate) struct ExecCli {
@@ -54,7 +54,7 @@ pub(crate) enum Command {
 #[derive(Debug, Default, Args)]
 pub(crate) struct ReviewArgs {
     #[command(flatten)]
-    pub(super) connection: ConnectionArgs,
+    pub(crate) connection: ConnectionArgs,
     /// Review staged, unstaged, and untracked changes.
     #[arg(long, conflicts_with_all = ["base", "commit", "prompt"])]
     pub(super) uncommitted: bool,

@@ -51,6 +51,26 @@ export async function snapshotTerminalGateBinaries({
   return paths;
 }
 
+export function terminalGateRuntimeEnvironment({
+  env = process.env,
+  appServerBinaryPath,
+  platform = process.platform,
+}) {
+  const libraryKey =
+    platform === "darwin"
+      ? "DYLD_LIBRARY_PATH"
+      : platform === "linux"
+        ? "LD_LIBRARY_PATH"
+        : null;
+  if (!libraryKey) return { ...env };
+  return {
+    ...env,
+    [libraryKey]: [path.dirname(appServerBinaryPath), env[libraryKey]]
+      .filter(Boolean)
+      .join(path.delimiter),
+  };
+}
+
 export function terminalGateBuildPackages(env = process.env) {
   const packages = [];
   if (!env.LIME_CLI_BIN?.trim()) {

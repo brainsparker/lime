@@ -345,7 +345,7 @@ Lime只读消费者复核：user_profile仅在Config/Rust类型、App Server配�
 
 下一刀实施边界：先从既有认证/能力owner建立Profile可见性和唯一数据入口，迁移共享content/Layout与displayName/bio字段合同，再删除本地Tag/完成度/email卡片及过期fixture/测试/文档；这些不是第四项特色。缺少的远端合同只记录gap，不新增假可用flag、mock fallback、本地配置冒充公共身份、空ProfilePage/CME或平行账号后端。涉及实际协议/schema/Rust字段迁移时先补Verification Contract并同步所有消费者。本阶段只有静态与source-only证据，产品尚未迁移，不重新宣称Gate B或整体完成度。
 
-## Profile 内容与字段结构切片（2026-10-16，实施中）
+## Profile 内容与字段结构切片（2026-10-16，本地字段合同验收，完整Profile partial）
 
 主目标：基于已冻结 REA 证据，先替换已确认的字段与 presentation，再补远端身份合同。调整上一阶段“先远端再布局”的顺序，是因为当前没有可消费的远端 Profile 合同；不能因此继续保留无上游对应的 Tag、完成度和用途卡片。公共身份、eligibility、preview、is_self/can_edit、username/pins/上传仍为 gap。
 
@@ -372,6 +372,26 @@ Verification Contract：负责人 Codex；budget:normal；P1。窄写集为 acco
 续跑第61批exit1：codexModelNativeToolPolicyOrigin旧正向断言锁定StableEnvironmentTools/advertise_environment_tools。指定公开参考spec_plan当前无这些条件，模型apply_patch_tool_type存在即注册ApplyPatchHandler，environment mode Multiple只控制environment_id。参考文件clean，最后涉及commit为0c5720ea0fd2af84d7b6743a6686750fb8570ab7；原文件SHA919bf85acf44810892f6d1adc6701253c92a71678cbf74c877d718d0aaf9db9f保存。Lime现有buildModelNativeToolPolicy已是模型类型门控，无生产实现差异。窄写集扩展一份干净护栏测试src/lib/governance/codexModelNativeToolPolicyOrigin.test.ts，迁移参考断言并补freeform启用、缺失/null/unknown拒绝行为，禁止旧feature gate回流；不改外部Codex或Lime工具/runtime。失败日志/60passed+1failed状态保留，声明写集增加为26。该项属于用户授权的过期测试/护栏清理，不增加产品owner或发布范围。
 
 配置合同最终校准：Rust Option默认经JSON返回null，既有normalizeConfig不转换user_profile，TS两保留字段现显式声明string|null。新增实际DOM回归验证空资料占位、空名称禁存、编辑名称时未编辑bio:null精确保留。仅类型与测试补齐，无运行逻辑变化；默认启动后的两份文件变化单独记录并重跑本轮六suite和全typecheck，不依赖已通过批次作为新摘要缓存。
+
+默认第三轮：前端自动续跑131/131批通过，原始passed state SHA `4b948dcc7b553f97fb24ac931804499a55b0117714413ce9182638ca9167ca94`已复制留证，未手改状态。wrapper随后在App Server client契约检查exit1：并行App Server重构将handle_message_streaming移入message.rs，原guard扫描列表未同步。只在原先干净的scripts/check-app-server-client-contract.mjs增加这一current源文件，原snippets全部保留；不修改并行lib.rs/message.rs/processor或client_context_tests。原护栏备份与contract-source-split-review.json保留，声明写集27份；新增护栏strict lint/format通过。最终不重复已通过全量前端，按默认剩余顺序独立执行contracts、test:rust:changed和verify:gui-smoke，并记录组合验收，不能宣称第三轮wrapper exit0。最终定向6suite64/64、nullable后的完整typecheck和strict lint均通过。
+
+剩余门禁进度：完整contracts已独立exit0。test:rust:changed受并行manifest变更扩大为workspace --lib，首轮在运行测试前因icrate/v8的rlib缺失链接失败，lime-mcp与tool-runtime均命中；V8元数据仍在，尚无证据确认缺失原因。保存原日志、缺失产物清单与remaining-results.json；已知失败后只向本任务cargo及其剩余编译子进程发送SIGINT，其他应用、终端和并行构建不动。首轮最终exit1，未伪造测试失败或通过。随后由Cargo重建缺失依赖，以子进程CARGO_BUILD_JOBS=2重试同一test:rust:changed，记录到remaining-results-final.json；未修改测试、期限、skip或共享目录。当前等待其他App Server验证持有的构建锁，最终1.159标准GUI和原生导航/冷启动仍未验收。
+
+后续调度：首次jobs2重试仍在等待锁时仅停止本任务等待进程，保存原记录后将同一Rust命令与GUI构建分别排队。renderer/host已构建；此前将sidecar当成独立release profile的判断不准确，实际开发sidecar与Rust测试共享debug锁，已在scheduling-correction.json明确纠正，不据此放宽freshness。当前结果读取remaining-results-parallel.json；导航/冷启动只在标准GUI通过后串行执行，最终收据仍要求全部结果。icrate/v8两个缺失rlib已观测恢复，大小与摘要单独留证，不声称是本轮产品代码修复。
+
+证据丢失与恢复：已观察到Rust workspace --lib exit0（39组7121通过、0失败、5项HEAD既有ignored）与标准GUI `standalone-shell-01-20261016151944-92156` exit0、24/24、错误/mock0，两份资源清单均为1.159.0。原生第2轮尚未形成目录，runner写结果时ENOSPC。只清理了持有Cargo锁时确认未使用的旧增量缓存及无硬链接旧codegen object，不删源码、rlib、可执行文件或证据。随后外部移除了整个`.lime/`，上述本轮成功/失败原始日志、smart state、source清单及脚本均丢失；这些计数和SHA现在只能列历史观察，不能伪造原件或在新收据宣称原始日志齐全。三份旧冻结Profile草稿、Profile数据追踪和Execution Policy收据由系统临时目录独立备份恢复且SHA不变。产品源码与dist仍在。
+
+恢复写集限于原有27份声明源码、现有对齐文档与新`.lime/qc/settings-profile/recovery-20261016/`；源码不为恢复而修改。恢复脚本将新日志同时写仓库和独立系统临时目录，先重新验证7suite定向（含工具护栏）、contracts、完整typecheck，再构建标准GUI并串行原生导航和冷启动；新原生runId使用recovery，不覆盖丢失的历史名。原始全量前端131批/1770文件与workspace7121通过属于已观察但原件丢失，最终交付必须明确这一限制，不把新定向当成重新执行全量。全GUI与公共Profile仍partial。
+
+恢复后最终验收：恢复后重新执行的定向7suite67/67、Rust配置129/129（含实际编译的退役字段JSON/YAML回归）、完整contracts、typecheck和strict lint均通过。
+
+最终1.159.0标准GUI `standalone-shell-01-20261016160123-87137` 24/24；真实原生导航 `settings-profile-content-recovery-20261016-3` exit0，名称/简介×四路导航加保存/读回/重开/完整配置保持恢复共9/9（100%仅本地字段合同），四主题4/4另列。732px、嵌套滚动0、横向溢出0与DOM64/140检查通过；1627 IPC、console/page/trace/mock0，同一Thread/Turn/Item且turnStart=1，Main正常退出。冷启动 `settings-profile-content-recovery-cold-20261016-1` exit0、32/32，165 IPC、错误/mock0；双字段分别真实IO失败保稿/重试、两次冷读回、完整配置保持恢复和三次Main正常退出通过，独立RPC probe不冒充GUI响应。27声明源码/83原生源码/531目录产物和只读版本上下文后验无漂移，两份资源清单与实际sidecar SHA一致且均为1.159.0，freshness前后ready。7张最终截图人工复核，仅当前皮肤1440×1000；system为媒体模拟。新日志即时双份保存。
+
+删除前已观察到默认前置检查、全量前端自动续跑131/131批（1770文件）、workspace --lib39组7121通过/0失败/5项既有ignored，以及标准GUI24/24通过；三个verify:local wrapper的exit1分别来自原5秒CLI超时、旧Codex feature正向护栏和并行message.rs拆分后的扫描名单遗漏，后两处护栏已按current语义迁移。随后外部整体删除.lime，使本轮这些成功/失败日志、smart state、早期原生原件和清理记录丢失；该部分只能作为历史观察，不伪造原件、不声称新定向等于全量重跑或wrapper exit0。三份旧冻结Profile草稿、Profile数据追踪与Execution Policy收据由独立备份恢复，SHA未变。
+
+current为ProfileSettings、ProfileContent、ProfileLayout、ProfileFieldEditor、useProfileDraft/profileConfig及既有Config/导航authority；compat/deprecated新增0。dead/deleted为Tag/完成度/头像/email/用途卡、旧三份presentation、无消费者TS/Rust配置字段和旧翻译/正向测试/fixture选择器。KISS/DRY复用已有配置和导航；SOLID分离展示、生命周期和纯字段映射；YAGNI删除无依据的附加功能，不预建账号API。
+
+仅本地字段内容与安全持久化合同关闭；本地Config不是公共Profile服务。单独账号会话卡、远端GET/PATCH、eligibility/preview/is_self/can_edit、username/pins/upload仍gap；New仅组件证据，external/unavailable backend不证明live/provider/tool。参考运行、Windows、安装包和全GUI未验，整体partial且分母未完整枚举。 新收据 `.lime/qc/settings-profile/content-final-20261016-recovery-1/receipt.json` 独立冻结恢复后的证据并备份重算，保留原始记录缺失声明；不追写旧冻结件。下一刀沿既有认证/能力owner继续公共Profile合同，不造API或本地身份fallback。
 
 ## 分类、完成度与未验证范围
 

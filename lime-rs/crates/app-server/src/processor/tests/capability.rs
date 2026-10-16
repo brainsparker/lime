@@ -6,6 +6,7 @@ use app_server_protocol::{
     ClientCapabilities, JsonRpcMessage, RequestId, METHOD_CAPABILITY_LIST, METHOD_INITIALIZE,
     METHOD_INITIALIZED, METHOD_THREAD_START,
 };
+use app_server_protocol::{ClientInfo, InitializeParams};
 use serde_json::json;
 use std::sync::Arc;
 

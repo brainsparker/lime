@@ -55,11 +55,13 @@ async fn current_time_round_trips_through_the_only_transport_client() {
     let request = next_request(&mut outbound).await;
     assert_eq!(request.method, METHOD_CURRENT_TIME_READ);
     assert_eq!(request.params, Some(json!({ "threadId": "thread-7" })));
-    server.resolve_transport_server_request_response(
-        connection_id,
-        request.id,
-        json!({ "currentTimeAt": 1_783_860_000_i64 }),
-    );
+    server
+        .resolve_transport_server_request_response(
+            connection_id,
+            request.id,
+            json!({ "currentTimeAt": 1_783_860_000_i64 }),
+        )
+        .await;
 
     assert_eq!(
         pending
@@ -103,11 +105,13 @@ async fn current_time_requires_exactly_one_thread_subscriber_without_leaking_wai
         async move { server.read_current_time("thread-one").await }
     });
     let request = next_request(&mut subscribed).await;
-    server.resolve_transport_server_request_response(
-        ConnectionId(3),
-        request.id,
-        json!({ "currentTimeAt": 1_783_860_000_i64 }),
-    );
+    server
+        .resolve_transport_server_request_response(
+            ConnectionId(3),
+            request.id,
+            json!({ "currentTimeAt": 1_783_860_000_i64 }),
+        )
+        .await;
     pending
         .await
         .expect("current-time task")
@@ -131,7 +135,9 @@ async fn current_time_rejects_non_integer_and_out_of_range_responses() {
             async move { server.read_current_time("thread-invalid").await }
         });
         let request = next_request(&mut outbound).await;
-        server.resolve_transport_server_request_response(connection_id, request.id, response);
+        server
+            .resolve_transport_server_request_response(connection_id, request.id, response)
+            .await;
 
         let error = pending
             .await
@@ -160,11 +166,13 @@ async fn current_time_propagates_json_rpc_errors() {
         async move { server.read_current_time("thread-rejected").await }
     });
     let request = next_request(&mut outbound).await;
-    server.resolve_transport_server_request_error(
-        connection_id,
-        request.id,
-        JsonRpcError::new(-32000, "host clock unavailable"),
-    );
+    server
+        .resolve_transport_server_request_error(
+            connection_id,
+            request.id,
+            JsonRpcError::new(-32000, "host clock unavailable"),
+        )
+        .await;
 
     assert!(matches!(
         pending.await.expect("current-time task"),

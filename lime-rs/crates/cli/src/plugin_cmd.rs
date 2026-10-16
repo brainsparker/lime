@@ -12,7 +12,7 @@ use app_server_protocol::protocol::v2::{
 };
 use clap::{Args, ValueEnum};
 
-use crate::ConnectionArgs;
+use crate::connection::ConnectionArgs;
 
 #[derive(Debug, Args)]
 pub(crate) struct PluginCli {
@@ -132,6 +132,18 @@ impl From<SearchScope> for PluginSearchScope {
 }
 
 impl PluginCli {
+    pub(crate) fn connection_mut(&mut self) -> &mut ConnectionArgs {
+        match &mut self.subcommand {
+            PluginSubcommand::Add(args) => &mut args.connection,
+            PluginSubcommand::List(args) => &mut args.connection,
+            PluginSubcommand::Read(args)
+            | PluginSubcommand::Enable(args)
+            | PluginSubcommand::Disable(args) => &mut args.connection,
+            PluginSubcommand::Search(args) => &mut args.connection,
+            PluginSubcommand::Remove(args) => &mut args.connection,
+        }
+    }
+
     pub(crate) async fn run(self) -> ExitCode {
         match run_inner(self).await {
             Ok(output) => {

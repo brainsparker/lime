@@ -12,6 +12,7 @@ use app_server_protocol::{
     METHOD_MCP_SERVER_STATUS_LIST, METHOD_MCP_SERVER_STOP, METHOD_MCP_SERVER_SYNC_ALL_TO_LIVE,
     METHOD_MCP_SERVER_UPDATE, METHOD_MCP_TOOL_LIST,
 };
+use app_server_protocol::{ClientInfo, InitializeParams};
 use async_trait::async_trait;
 use serde_json::json;
 

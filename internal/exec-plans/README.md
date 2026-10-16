@@ -28,12 +28,13 @@
 - 路线图主线：`internal/roadmap/`
 - Runtime 当前对齐入口：`internal/aiprompts/architecture.md` 与 `internal/exec-plans/codex-alignment-v1-coordination-plan.md`
 - Refactor v2 全项目 Gate A/B 验收计划：`internal/exec-plans/project-gate-a-b-acceptance-plan.md`
-- 当前发布执行计划：`internal/exec-plans/release-v1.158.0-plan.md`
+- 当前发布执行计划：`internal/exec-plans/release-v1.159.0-plan.md`
 - 已结束版本的发布过程不保留在 active tree；结果以 Git tag、GitHub Release、Release Notes 与 Git history 为准。
 - Codex App GUI 历史基线及领域计划索引：`internal/exec-plans/codex-app-gui-alignment-plan.md`；GUI current 实施统一见下方全面对齐计划。
 - Codex Desktop 跨平台底层对比与对齐计划：`internal/exec-plans/codex-desktop-platform-parity-plan.md`
 - Codex Desktop 选择性 Goose 参考执行计划：`internal/exec-plans/codex-desktop-selective-goose-reference-plan.md`
 - Desktop + CLI/TUI 多 Surface 执行计划：`internal/exec-plans/tui-cli-surfaces-plan.md`
+- Codex CLI / TUI / GUI 共享后端全面对齐：[实施计划](./codex-cli-shared-backend-alignment-plan.md)、[领域工作包](./codex-cli-shared-backend-work-packages.md)
 - TUI/CLI 继续同步 Codex 执行计划：`internal/exec-plans/tui-cli-codex-sync-next-plan.md`
 - GUI / TUI / CLI 全维度对齐与三端验收索引：[codex-global-alignment-2026-10-12.md](./codex-global-alignment-2026-10-12.md)；日期文件记录本轮专项证据，细分 owner 仍由关联计划负责。
 - Codex/Lime TUI/CLI 全量差异报告：`internal/exec-plans/codex-lime-tui-cli-difference-report.md`
