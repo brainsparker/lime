@@ -168,6 +168,20 @@ describe("Codex model native tool policy origin", () => {
     expect(limeSource).toContain('MODEL_APPLY_PATCH_TOOL_TYPES = ["freeform"]');
     expect(limeSource).toContain("apply_patch_tool_enabled");
     expect(limeSource).toContain("experimental_supported_tools");
+    expect(
+      buildModelNativeToolPolicy({ apply_patch_tool_type: "freeform" }),
+    ).toMatchObject({
+      apply_patch_tool_type: "freeform",
+      apply_patch_tool_enabled: true,
+    });
+    for (const apply_patch_tool_type of [undefined, null, "unknown"]) {
+      expect(
+        buildModelNativeToolPolicy({ apply_patch_tool_type }),
+      ).toMatchObject({
+        apply_patch_tool_type: null,
+        apply_patch_tool_enabled: false,
+      });
+    }
 
     const codexOpenaiModelsSource = readIfExists(CODEX_OPENAI_MODELS_SOURCE);
     if (codexOpenaiModelsSource) {
@@ -190,17 +204,16 @@ describe("Codex model native tool policy origin", () => {
       "fn add_collaboration_tools(",
     );
     expect(utilityToolSource).toContain(
-      "let stable_environment_tools = features.enabled(Feature::StableEnvironmentTools);",
-    );
-    expect(utilityToolSource).toMatch(
-      /let advertise_environment_tools =\s*stable_environment_tools \|\| environment_mode\.has_environment\(\);/u,
+      "if context.model_info.apply_patch_tool_type.is_some() {",
     );
     expect(utilityToolSource).toContain(
-      "if advertise_environment_tools && context.model_info.apply_patch_tool_type.is_some() {",
+      "let include_environment_id = matches!(environment_mode, ToolEnvironmentMode::Multiple);",
     );
     expect(utilityToolSource).toContain(
       "registry.add(ApplyPatchHandler::new(include_environment_id));",
     );
+    expect(utilityToolSource).not.toContain("StableEnvironmentTools");
+    expect(utilityToolSource).not.toContain("advertise_environment_tools");
     expect(codexSpecPlanSource).toContain(".experimental_supported_tools");
     expect(codexSpecPlanSource).toContain('tool == "test_sync_tool"');
     expect(codexSpecPlanSource).toContain("registry.add(TestSyncHandler);");

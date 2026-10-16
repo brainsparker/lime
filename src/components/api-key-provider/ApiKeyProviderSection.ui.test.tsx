@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ProviderWithKeysDisplay } from "@/lib/api/apiKeyProvider";
 import type { ProviderSettingsFocusContext } from "@/types/page";
+import type { ProviderSettingDraftState } from "./useProviderSettingDraft";
 
 const {
   mockUseApiKeyProvider,
@@ -102,6 +103,7 @@ vi.mock("./ProviderSetting", () => ({
       },
     ) => Promise<unknown>;
     onDeleteProvider?: (providerId: string) => Promise<boolean | void>;
+    onDraftStateChange?: (state: ProviderSettingDraftState) => void;
   }) => {
     if (props.provider && props.authStatus === "login_required") {
       return (
@@ -142,6 +144,26 @@ vi.mock("./ProviderSetting", () => ({
             }}
           >
             试跑
+          </button>
+        ) : null}
+        {props.provider ? (
+          <button
+            type="button"
+            data-testid="provider-setting-mark-dirty-stub"
+            onClick={() => {
+              props.onDraftStateChange?.({
+                dirty: true,
+                saving: false,
+                apiHostDraft: "https://draft.example.test/v1",
+                apiHostDirty: true,
+                savingApiHost: false,
+                apiKeyDraft: "",
+                apiKeyDirty: false,
+                savingApiKey: false,
+              });
+            }}
+          >
+            标记未保存
           </button>
         ) : null}
         {props.provider && props.onDeleteProvider ? (
@@ -377,6 +399,60 @@ describe("ApiKeyProviderSection 模型管理布局", () => {
     expect(container.textContent ?? "").toContain("导入 / 导出配置");
     expect(container.textContent ?? "").toContain("DeepSeek");
     expect(container.textContent ?? "").not.toContain("OpenAI");
+  });
+
+  it("切换 Provider 前应拦截未保存草稿，放弃后才切换", async () => {
+    const secondProvider = createProvider({
+      id: "custom-coder",
+      name: "Custom Coder",
+      sort_order: 2,
+      models: [{ id: "coder-small" }],
+    });
+    const hookState = createHookState({
+      providers: [createProvider(), secondProvider],
+      filteredProviders: [createProvider(), secondProvider],
+    });
+    const container = renderSection();
+    await flushEffects();
+
+    await clickByTestId("provider-setting-mark-dirty-stub");
+    await act(async () => {
+      maybeProviderItem(container, "custom-coder")?.click();
+      await Promise.resolve();
+    });
+
+    expect(hookState.selectProvider).not.toHaveBeenCalledWith("custom-coder");
+    const dialog = maybeByTestId<HTMLElement>(
+      document,
+      "settings-unsaved-changes-dialog",
+    );
+    expect(dialog).not.toBeNull();
+    expect(dialog?.querySelectorAll("button")).toHaveLength(2);
+
+    await act(async () => {
+      Array.from(dialog?.querySelectorAll("button") ?? [])
+        .at(0)
+        ?.click();
+      await Promise.resolve();
+    });
+    expect(hookState.selectProvider).not.toHaveBeenCalledWith("custom-coder");
+
+    await act(async () => {
+      maybeProviderItem(container, "custom-coder")?.click();
+      await Promise.resolve();
+    });
+    const discardDialog = maybeByTestId<HTMLElement>(
+      document,
+      "settings-unsaved-changes-dialog",
+    );
+    await act(async () => {
+      Array.from(discardDialog?.querySelectorAll("button") ?? [])
+        .at(1)
+        ?.click();
+      await Promise.resolve();
+    });
+
+    expect(hookState.selectProvider).toHaveBeenCalledWith("custom-coder");
   });
 
   it("initialFocus 命中 providerId 时应切换到目标服务商并透传焦点", async () => {

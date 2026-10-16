@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import type { ConfigUpdater } from "@/lib/api/appConfig";
 
 const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
@@ -14,6 +15,11 @@ const { mockOpenExternalUrlWithSystemBrowser } = vi.hoisted(() => ({
 vi.mock("@/lib/api/appConfig", () => ({
   getConfig: mockGetConfig,
   saveConfig: mockSaveConfig,
+  updateConfig: async (update: ConfigUpdater) => {
+    const config = update(await mockGetConfig());
+    await mockSaveConfig(config);
+    return config;
+  },
 }));
 vi.mock("@/lib/api/externalUrl", () => ({
   openExternalUrlWithSystemBrowser: mockOpenExternalUrlWithSystemBrowser,

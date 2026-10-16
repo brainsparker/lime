@@ -60,7 +60,7 @@ describe("AppSidebar navigation", () => {
     const rail = container.querySelector('[data-testid="app-sidebar-rail"]');
     expect(rail).not.toBeNull();
     expect(
-      rail?.querySelector('[data-testid="app-sidebar-rail-home"]'),
+      rail?.querySelector('[data-testid="app-sidebar-nav-home-general"]'),
     ).not.toBeNull();
     expect(
       rail?.querySelector('[data-testid="app-sidebar-rail-scheduled-tasks"]'),

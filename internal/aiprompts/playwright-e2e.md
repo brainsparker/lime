@@ -144,7 +144,7 @@ npm run verify:gui-smoke -- --include-knowledge-product-e2e --reuse-running
    - `window.__LIME_ELECTRON__ === true`
    - `Boolean(window.electronAPI?.invoke) === true`
    - `document.querySelector('[data-testid="app-sidebar"], [data-testid="settings-top-header"]')` 可见
-4. 如果当前页在设置 layout，需要先点 `settings-home-button` 回到 Claw 首页，再找唯一可见的 `[data-testid="composer-editor"][role="textbox"]`；会话输入还须核对 `data-session-id`，通过真实 EditorView 编辑，不使用 textarea value/selection API。
+4. 如果当前页在设置 layout，需要先点可见 rail `app-sidebar-nav-home-general` 回到 Claw 首页（页头 `settings-back-button` 返回进入设置前的来处，不能用于强制回首页），再找唯一可见的 `[data-testid="composer-editor"][role="textbox"]`；会话输入还须核对 `data-session-id`，通过真实 EditorView 编辑，不使用 textarea value/selection API。
 
 最小脚本骨架：
 
@@ -286,6 +286,13 @@ Runtime prompt 层的禁止证据：
 5. 点击 `整理笔记`，确认只触发显式整理入口，不自动把当前 turn 内容写入摘要
 6. 打开 `AI 个性`，确认 Soul 仍作为交互配置存在；打开 `高级`，确认 `SOUL.md` 导入 / 复制能力可用
 7. 全程不应出现旧 `灵感库` 页面、旧命中预演或旧 MemoryPage 导航
+8. 修改记忆开关后分别尝试切章、返回、rail Home 和一级导航，确认只有继续编辑/放弃两个动作；继续编辑或 Escape 保留输入，放弃不写配置。SOUL 未应用文本也需要保护，Cancel 应清空；Save 不代为应用文本。
+9. 保存期间禁止放弃；失败留稿，保存成功不覆盖在途的新编辑，取消 pending 后迟到结果不导航。真实配置保存/重读和返回同一会话使用 `scripts/electron/settings-navigation-fixture-smoke.mjs`；失败/在途/迟到回归由 Memory hook 与导航 integration 测试承担。此接入仅覆盖 Memory，不代表其他设置表单已受保护。
+10. 修正笔记独立保护：切章、返回、Home、根导航与新建须确认；继续编辑保留原文，放弃不调用 addNote。切换 AI 个性/高级后返回仍保留草稿，隐藏期间也应阻止离开；配置取消不能清稿。显式保存经 memoryStore/addNote 后由 memoryStore/read 重读完整 Markdown，只有提交版本可以清空；失败、重复提交、在途新编辑和卸载迟到由实际 Memory 页面 integration 回归。原生子场景为 `scripts/electron/lib/settings-note-navigation-scenario.mjs`；不把此结果推广到其他设置表单或维护操作。
+
+修正笔记原生验收（2026-10-15）：`settings-note-native-20261015-5` 整轮exit0、声明笔记合同6/6；同一Thread/Turn/Item且backend turnStart始终1，653原生IPC，console/page/trace/mock均0，Main正常退出。收据 `.lime/qc/settings-note/final-20261015-1/receipt.json` 保留前三轮失败。Home工作区必须经可见选择器真实选定，配置绑定不足以替代UI选择；fixture先正常滚动触发器，再打开/点击并记录几何与截图，保留workspace断言。较早菜单越界原因仍unknown，成功滚动不等于修复产品菜单。此为external backend证据，不证明production RuntimeBackend/provider、live或Windows。
+
+Web Search 复用同一导航fixture，子场景为`scripts/electron/lib/settings-web-search-navigation-scenario.mjs`：切章/返回/Home/根导航均须继续编辑保稿、放弃不写入；providers/mse/images局部页签共享同一草稿，Cancel只恢复本表单。经GUI修改engine和timeout、显式保存后以真实preload/App Server的config/read核对，未编辑配置必须保持；切章不再确认、重新打开读回，最后经GUI恢复原值。比较配置只在内存进行，证据不输出完整配置或凭证。失败、重复、在途、卸载迟到及五语言仍由实际页面integration覆盖；不代表live搜索/provider验证。本轮默认verify:local整轮exit0，原生`settings-web-search-native-20261016-1`首轮整轮exit0、Web Search 6/6，849 IPC、错误/mock均0；笔记Save按钮单行无裁切。收据`.lime/qc/settings-web-search/final-20261016-1/receipt.json`。完整主题/宽度、其他表单、内容搜索、Windows和参考实时效果仍未验。
 
 ### AI 服务商页拆分后验证
 

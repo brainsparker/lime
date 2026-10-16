@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import type { ConfigUpdater } from "@/lib/api/appConfig";
 
 const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
@@ -46,6 +47,11 @@ const {
 vi.mock("@/lib/api/appConfig", () => ({
   getConfig: mockGetConfig,
   saveConfig: mockSaveConfig,
+  updateConfig: async (update: ConfigUpdater) => {
+    const config = update(await mockGetConfig());
+    await mockSaveConfig(config);
+    return config;
+  },
 }));
 
 vi.mock("@/lib/api/project", () => ({
@@ -100,9 +106,12 @@ async function flushEffects(times = 3) {
 }
 
 function findButton(container: HTMLElement, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll("button")).find(
-    (element) => element.textContent?.includes(text),
+  const buttons = Array.from(container.querySelectorAll("button")).filter(
+    (element) => !element.closest("[hidden]"),
   );
+  const button =
+    buttons.find((element) => element.textContent?.trim() === text) ??
+    buttons.find((element) => element.textContent?.includes(text));
   if (!button) {
     throw new Error(`未找到按钮: ${text}`);
   }
@@ -583,7 +592,11 @@ describe("MemorySettings", () => {
         'input[type="file"][aria-label="Select style pack manifest JSON"]',
       ),
     ).toBeInstanceOf(HTMLInputElement);
-    expect(container.querySelector("textarea")).toBeNull();
+    expect(
+      Array.from(container.querySelectorAll("textarea")).filter(
+        (element) => !element.closest("[hidden]"),
+      ),
+    ).toHaveLength(0);
 
     await act(async () => {
       findButton(container, "Use template").click();

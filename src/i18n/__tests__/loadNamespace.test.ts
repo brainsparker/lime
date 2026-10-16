@@ -939,56 +939,60 @@ describe("i18n namespace loader", () => {
         "settings.layout.loading.profile",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.field.nickname.label",
+        "settings.profile.title",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.field.tipAria",
+        "settings.profile.loading",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.field.tipsHint",
+        "settings.profile.field.displayName.label",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.field.bio.label",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.field.limit",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.action.cancel",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.action.edit",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.action.retry",
       );
       expect(resources[locale].settings).toHaveProperty(
         "settings.profile.action.save",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.message.saved",
+        "settings.profile.field.cancelAria",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.field.editAria",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.field.saveAria",
+      );
+      expect(resources[locale].settings).toHaveProperty(
+        "settings.profile.message.loadFailed",
       );
       expect(resources[locale].settings).toHaveProperty(
         "settings.profile.message.saveFailed",
       );
       expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.message.fileTooLarge",
+        "settings.profile.message.saved",
       );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.message.avatarWip",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.message.uploadFailed",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.status.complete",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.suggestedTag.programming",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.hero.status",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.avatar.extraTags",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.basic.itemCount",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.tags.selectedCount",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.tags.removeAria",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.profile.usage.tipTags",
-      );
+      expect(
+        resources[locale].settings["settings.profile.message.saveFailed"],
+      ).not.toContain("{{error}}");
+      expect(
+        Object.keys(resources[locale].settings).filter((key) =>
+          /^settings\.profile\.(tags|hero|avatar|usage|basic|suggestedTag|status)\./.test(
+            key,
+          ),
+        ),
+      ).toEqual([]);
       expect(resources[locale].settings).toHaveProperty(
         "settings.layout.loading.skills",
       );

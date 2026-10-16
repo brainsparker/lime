@@ -143,6 +143,13 @@ function renderComponent(
     });
     return (
       <SettingsPage
+        navigationGuard={{
+          register: () => () => {},
+          pendingNavigation: false,
+          saving: false,
+          clearPendingNavigation: vi.fn(),
+          discardPendingNavigation: vi.fn(),
+        }}
         pageParams={pageParams}
         onBack={onBack}
         onNavigate={(page, params) => {
@@ -330,7 +337,7 @@ describe("SettingsPage Developer Tab", () => {
     act(() => {
       container
         .querySelector<HTMLButtonElement>(
-          '[data-testid="app-sidebar-rail-home"]',
+          '[data-testid="app-sidebar-nav-home-general"]',
         )
         ?.click();
     });

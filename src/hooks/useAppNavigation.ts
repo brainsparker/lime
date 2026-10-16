@@ -10,6 +10,11 @@ import type {
   Page,
   PageParams,
 } from "@/types/page";
+import type {
+  NavigationGuard,
+  NavigationGuardState,
+  RegisterNavigationGuard,
+} from "@/lib/navigationGuard";
 
 const NAVIGATION_RESTORE_STORAGE_KEY = "lime.appNavigation.restore.v1";
 
@@ -25,6 +30,7 @@ interface UseAppNavigationResult {
   returnFromSettings: () => void;
   agentLocation: AgentLocation | null;
   reportAgentLocation: (location: AgentLocation) => void;
+  navigationGuard: NavigationGuard;
 }
 
 interface NavigationTarget {
@@ -43,6 +49,7 @@ interface NavigationState {
   navigationRequestId: number;
   agentLocation: { requestId: number; value: AgentLocation } | null;
   settingsReturn: NavigationTarget | null;
+  pendingNavigation: NavigationTarget | null;
 }
 
 function normalizePageParams(params?: PageParams): PageParams {
@@ -248,7 +255,9 @@ function settingsReturnTarget(current: NavigationState): NavigationTarget {
     params:
       restorable ??
       buildHomeAgentParams({
-        projectId: location?.workspaceId ?? params.projectId,
+        projectId: location
+          ? (location.workspaceId ?? undefined)
+          : params.projectId,
       }),
   };
 }
@@ -257,6 +266,7 @@ function requestNavigation(
   current: NavigationState,
   page: Page,
   params?: PageParams,
+  blocked = false,
 ): NavigationState {
   const nextParams = normalizePageParams(params);
   const nextKey = serializePageParams(nextParams);
@@ -266,16 +276,21 @@ function requestNavigation(
   ) {
     return current;
   }
+  if (blocked) {
+    return { ...current, pendingNavigation: { page, params: nextParams } };
+  }
   return {
     ...current,
     requestedPage: page,
     requestedPageParams: nextParams,
     requestedPageParamsKey: nextKey,
     navigationRequestId: current.navigationRequestId + 1,
+    pendingNavigation: null,
     settingsReturn:
       page !== "settings"
-        ? null
-        : current.requestedPage === "settings"
+        ? current.settingsReturn
+        : current.requestedPage === "settings" ||
+            current.currentPage === "settings"
           ? current.settingsReturn
           : settingsReturnTarget(current),
   };
@@ -283,6 +298,20 @@ function requestNavigation(
 
 export function useAppNavigation(): UseAppNavigationResult {
   const lastNewConversationRequest = useRef(0);
+  const guards = useRef(new Map<symbol, NavigationGuardState>());
+  const [, refreshGuards] = useState(0);
+  const registerNavigationGuard = useCallback<RegisterNavigationGuard>(
+    (state) => {
+      const id = Symbol();
+      guards.current.set(id, state);
+      refreshGuards((revision) => revision + 1);
+      return () => {
+        guards.current.delete(id);
+        refreshGuards((revision) => revision + 1);
+      };
+    },
+    [],
+  );
   const [navigationState, setNavigationState] = useState<NavigationState>(
     () => {
       const restored = readRestoredNavigationState();
@@ -299,6 +328,7 @@ export function useAppNavigation(): UseAppNavigationResult {
           currentRequestId: 0,
           agentLocation: null,
           settingsReturn: null,
+          pendingNavigation: null,
         };
       }
 
@@ -315,15 +345,24 @@ export function useAppNavigation(): UseAppNavigationResult {
         currentRequestId: 0,
         agentLocation: null,
         settingsReturn: null,
+        pendingNavigation: null,
       };
     },
   );
 
   const handleNavigate = useCallback((page: Page, params?: PageParams) => {
-    setNavigationState((current) => requestNavigation(current, page, params));
+    const blocked = [...guards.current.values()].some(
+      (state) => state.dirty || state.saving,
+    );
+    setNavigationState((current) =>
+      requestNavigation(current, page, params, blocked),
+    );
   }, []);
 
   const returnFromSettings = useCallback(() => {
+    const blocked = [...guards.current.values()].some(
+      (state) => state.dirty || state.saving,
+    );
     setNavigationState((current) => {
       if (current.requestedPage !== "settings") return current;
       const target = current.settingsReturn;
@@ -331,6 +370,28 @@ export function useAppNavigation(): UseAppNavigationResult {
         current,
         target?.page ?? "agent",
         target?.params ?? buildHomeAgentParams(),
+        blocked,
+      );
+    });
+  }, []);
+
+  const clearPendingNavigation = useCallback(() => {
+    setNavigationState((current) =>
+      current.pendingNavigation
+        ? { ...current, pendingNavigation: null }
+        : current,
+    );
+  }, []);
+
+  const discardPendingNavigation = useCallback(() => {
+    if ([...guards.current.values()].some((state) => state.saving)) return;
+    setNavigationState((current) => {
+      const target = current.pendingNavigation;
+      if (!target) return current;
+      return requestNavigation(
+        { ...current, pendingNavigation: null },
+        target.page,
+        target.params,
       );
     });
   }, []);
@@ -393,6 +454,8 @@ export function useAppNavigation(): UseAppNavigationResult {
         currentPageParams: current.requestedPageParams,
         currentPageParamsKey: current.requestedPageParamsKey,
         currentRequestId: current.navigationRequestId,
+        settingsReturn:
+          current.requestedPage === "settings" ? current.settingsReturn : null,
       };
     });
   }, [
@@ -428,5 +491,12 @@ export function useAppNavigation(): UseAppNavigationResult {
       navigationState.agentLocation?.requestId === requestId
         ? navigationState.agentLocation.value
         : null,
+    navigationGuard: {
+      register: registerNavigationGuard,
+      pendingNavigation: navigationState.pendingNavigation !== null,
+      saving: [...guards.current.values()].some((state) => state.saving),
+      clearPendingNavigation,
+      discardPendingNavigation,
+    },
   };
 }

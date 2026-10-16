@@ -101,6 +101,92 @@ describe("useAppNavigation", () => {
     });
   });
 
+  it("未保存导航只提交最后目标，清理旧报告不影响另一个草稿", async () => {
+    await renderProbe();
+    let unregisterOld = () => {};
+    let unregisterCurrent = () => {};
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings", {
+        tab: SettingsTabs.Memory,
+      });
+      unregisterOld = latestNavigation!.navigationGuard.register({
+        dirty: true,
+        saving: false,
+      });
+      unregisterCurrent = latestNavigation!.navigationGuard.register({
+        dirty: true,
+        saving: false,
+      });
+    });
+    const requestId = latestNavigation!.navigationRequestId;
+    await act(async () => {
+      unregisterOld();
+      latestNavigation!.handleNavigate("settings", {
+        tab: SettingsTabs.Memory,
+      });
+    });
+    expect(latestNavigation!.navigationGuard.pendingNavigation).toBe(false);
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+      latestNavigation!.handleNavigate("resources");
+    });
+    expect(latestNavigation!.navigationRequestId).toBe(requestId);
+    expect(latestNavigation!.navigationGuard.pendingNavigation).toBe(true);
+    await act(async () =>
+      latestNavigation!.navigationGuard.discardPendingNavigation(),
+    );
+    expect(latestNavigation!.currentPage).toBe("resources");
+    expect(latestNavigation!.navigationRequestId).toBe(requestId + 1);
+    await act(async () => {
+      unregisterCurrent();
+      latestNavigation!.navigationGuard.discardPendingNavigation();
+    });
+    expect(latestNavigation!.navigationRequestId).toBe(requestId + 1);
+  });
+
+  it("取消 pending 返回后保留原会话来处，不重放首发 intent", async () => {
+    await renderProbe();
+    await act(async () =>
+      latestNavigation!.handleNavigate(
+        "agent",
+        buildClawAgentParams({
+          initialSessionId: "session-original",
+          projectId: "workspace-original",
+          initialUserPrompt: "one shot",
+        }),
+      ),
+    );
+    await act(async () =>
+      latestNavigation!.handleNavigate("settings", {
+        tab: SettingsTabs.Memory,
+      }),
+    );
+    let unregister = () => {};
+    await act(async () => {
+      unregister = latestNavigation!.navigationGuard.register({
+        dirty: true,
+        saving: false,
+      });
+    });
+    await act(async () => latestNavigation!.returnFromSettings());
+    await act(async () =>
+      latestNavigation!.navigationGuard.clearPendingNavigation(),
+    );
+    expect(latestNavigation!.currentPage).toBe("settings");
+    await act(async () => latestNavigation!.returnFromSettings());
+    await act(async () =>
+      latestNavigation!.navigationGuard.discardPendingNavigation(),
+    );
+    expect(latestNavigation!.pageParams).toMatchObject({
+      initialSessionId: "session-original",
+      projectId: "workspace-original",
+    });
+    expect(latestNavigation!.pageParams).not.toHaveProperty(
+      "initialUserPrompt",
+    );
+    await act(async () => unregister());
+  });
+
   it("agent 跳转应直接保留现役参数", async () => {
     await renderProbe();
 
@@ -494,5 +580,38 @@ describe("useAppNavigation", () => {
       query: "retained",
       currentProjectId: "project",
     });
+  });
+
+  it("设置尚未真正离开时的连续导航保留来处，首页实际空工作区不回退旧项目", async () => {
+    await renderProbe();
+    await act(async () => {
+      latestNavigation!.handleNavigate(
+        "agent",
+        buildHomeAgentParams({ projectId: "stale-project" }),
+      );
+    });
+    await act(async () => {
+      latestNavigation!.reportAgentLocation({
+        sessionId: null,
+        workspaceId: null,
+      });
+    });
+    await act(async () => {
+      latestNavigation!.handleNavigate("settings");
+    });
+    await act(async () => {
+      latestNavigation!.handleNavigate("plugins");
+      latestNavigation!.handleNavigate("settings", { tab: SettingsTabs.About });
+    });
+    await act(async () => {
+      latestNavigation!.returnFromSettings();
+    });
+    expect(latestNavigation!.currentPage).toBe("agent");
+    expect(latestNavigation!.pageParams).toMatchObject({
+      agentEntry: "new-task",
+    });
+    expect(
+      (latestNavigation!.pageParams as { projectId?: string }).projectId,
+    ).toBeUndefined();
   });
 });

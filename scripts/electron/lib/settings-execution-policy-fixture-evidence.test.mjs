@@ -26,34 +26,31 @@ function appServerEntry(method) {
 
 function traceRaw() {
   return JSON.stringify([
-    {
-      ...appServerEntry("config/read"),
-    },
-    {
-      ...appServerEntry("config/batchWrite"),
-    },
-    {
-      command: "app_server_handle_json_lines",
-      transport: "electron-ipc",
-      status: "error",
-      error: "EISDIR: illegal operation on a directory",
-    },
+    appServerEntry("config/read"),
+    appServerEntry("model/list"),
+    appServerEntry("config/batchWrite"),
+    appServerEntry("config/batchWrite"),
+    appServerEntry("config/batchWrite"),
     appServerEntry("config/batchWrite"),
   ]);
 }
-
 function errorRaw() {
-  return JSON.stringify([
-    {
-      command: "app_server_handle_json_lines",
-      transport: "electron-ipc",
-      error: "EISDIR: illegal operation on a directory",
-    },
-  ]);
+  return "[]";
 }
 
 function passingFacts() {
   return {
+    teardowns: [1, 2, 3].map((pid) => ({
+      ok: true,
+      forcedCleanup: null,
+      normalMainExit: { pid, mode: "normal", exitCode: 0, signal: null },
+    })),
+    saveAcknowledgements: 3,
+    ioRpcProof: {
+      method: "config/batchWrite",
+      errorCode: -32603,
+      ioCauseVerified: true,
+    },
     completedAt: "2026-07-17T00:03:00.000Z",
     electronLaunchCount: 3,
     preloadLaunchCount: 3,
@@ -83,6 +80,29 @@ function passingFacts() {
 }
 
 describe("Settings Execution Policy Gate B evidence", () => {
+  it.each(["missing", "signalled", "forced"])(
+    "rejects %s exit evidence despite successful form assertions",
+    (kind) => {
+      const summary = createSettingsExecutionPolicyEvidence({
+        candidateRunId: RUN_ID,
+        startedAt: "2026-07-17T00:00:00.000Z",
+        prefix: "settings-execution-policy-fixture",
+      });
+      const facts = passingFacts();
+      if (kind === "missing") facts.teardowns.pop();
+      if (kind === "signalled")
+        Object.assign(facts.teardowns[0].normalMainExit, {
+          exitCode: null,
+          signal: "SIGKILL",
+        });
+      if (kind === "forced")
+        Object.assign(facts.teardowns[0], { forcedCleanup: { exited: true } });
+      expect(() =>
+        applyPassingSettingsExecutionPolicyEvidence(summary, facts),
+      ).toThrow("threeNormalMainExits");
+      expect(summary.result).toBe("fail");
+    },
+  );
   it("uses the same project Gate run root", () => {
     const options = parseSettingsExecutionPolicyFixtureArgs(
       ["--run-id", RUN_ID],
@@ -110,26 +130,46 @@ describe("Settings Execution Policy Gate B evidence", () => {
     );
   });
 
-  it("classifies the expected Host save failure without hiding other errors", () => {
+  it("counts only config write requests and does not infer RPC success from IPC success", () => {
     expect(
       summarizeSettingsExecutionPolicyTrace({
         traceRaws: [traceRaw()],
         errorRaws: [errorRaw()],
       }),
     ).toMatchObject({
-      appServerIpcHitCount: 4,
-      methods: ["config/read", "config/batchWrite"],
+      appServerIpcHitCount: 6,
+      methods: ["config/read", "model/list", "config/batchWrite"],
       configMethods: ["config/read", "config/batchWrite"],
       missingConfigMethods: [],
-      successfulSaveCount: 3,
-      expectedSaveTraceErrorCount: 1,
-      expectedSaveInvokeErrorCount: 1,
+      saveRequestCount: 4,
       unexpectedHostTraceErrorCount: 0,
       unexpectedInvokeErrorCount: 0,
       legacyCommands: [],
       mockFallbackHitCount: 0,
     });
   });
+
+  it.each(["missing-ack", "missing-io-proof"])(
+    "rejects %s despite successful IPC",
+    (kind) => {
+      const summary = createSettingsExecutionPolicyEvidence({
+        candidateRunId: RUN_ID,
+        startedAt: "2026-07-17T00:00:00.000Z",
+        prefix: "settings-execution-policy-fixture",
+      });
+      const facts = passingFacts();
+      if (kind === "missing-ack") facts.saveAcknowledgements = 2;
+      else facts.ioRpcProof.ioCauseVerified = false;
+      expect(() =>
+        applyPassingSettingsExecutionPolicyEvidence(summary, facts),
+      ).toThrow(
+        kind === "missing-ack"
+          ? "threeAcknowledgedSaves"
+          : "expectedIoRpcError",
+      );
+      expect(summary.result).toBe("fail");
+    },
+  );
 
   it("completes only after persistence, expected error, recovery and restore", () => {
     const summary = createSettingsExecutionPolicyEvidence({
@@ -143,6 +183,8 @@ describe("Settings Execution Policy Gate B evidence", () => {
       scenarioId: "execution-policy-allow-deny-error",
       complete: true,
     });
+    expect(summary.save).toEqual({ acknowledgementCount: 3, requestCount: 4 });
+    expect(summary).not.toHaveProperty("host");
     expect(summary.expectedFailure).not.toHaveProperty("error");
   });
 

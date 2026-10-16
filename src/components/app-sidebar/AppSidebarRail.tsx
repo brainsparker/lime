@@ -137,15 +137,6 @@ export function AppSidebarRail({
           </TooltipTrigger>
           <TooltipContent side="right">{expandLabel}</TooltipContent>
         </Tooltip>
-        <RailButton
-          type="button"
-          $active={false}
-          aria-hidden="true"
-          tabIndex={-1}
-          onClick={onHome}
-          data-testid="app-sidebar-rail-home"
-          style={{ display: "none" }}
-        />
       </div>
       {collapsed && searchSlot ? (
         <RailSlot data-testid="app-sidebar-rail-search">

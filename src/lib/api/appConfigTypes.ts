@@ -236,11 +236,8 @@ export interface ImageGenConfig {
 }
 
 export interface UserProfile {
-  avatar_url?: string;
   nickname?: string;
   bio?: string;
-  email?: string;
-  tags?: string[];
 }
 
 export interface CrashReportingConfig {

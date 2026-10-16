@@ -156,6 +156,7 @@ function AppContent() {
     returnFromSettings,
     reportAgentLocation,
     agentLocation,
+    navigationGuard,
   } = useAppNavigation();
   const [agentHasMessages, setAgentHasMessages] = useState(false);
   const activeAgentSessionId = agentLocation?.sessionId ?? null;
@@ -489,6 +490,7 @@ function AppContent() {
               onAgentHasMessagesChange={setAgentHasMessages}
               onAgentLocationChange={reportAgentLocation}
               onSettingsBack={returnFromSettings}
+              navigationGuard={navigationGuard}
               onAgentStreamingChange={setActiveAgentStreaming}
               onBackgroundSessionRuntimeChange={
                 handleBackgroundSessionRuntimeChange

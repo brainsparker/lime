@@ -2883,21 +2883,12 @@ pub struct ImageGenConfig {
 /// 用户资料
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct UserProfile {
-    /// 用户头像 URL
-    #[serde(default)]
-    pub avatar_url: Option<String>,
-    /// 昵称
+    /// 显示名称（本地配置字段）
     #[serde(default)]
     pub nickname: Option<String>,
     /// 个人简介
     #[serde(default)]
     pub bio: Option<String>,
-    /// 邮箱
-    #[serde(default)]
-    pub email: Option<String>,
-    /// 偏好标签
-    #[serde(default)]
-    pub tags: Option<Vec<String>>,
 }
 
 #[cfg(test)]
@@ -2910,6 +2901,29 @@ mod unit_tests {
         ToolExecutionWarningPolicyConfig,
     };
     use super::*;
+
+    #[test]
+    fn profile_roundtrip_drops_retired_fields() {
+        let profile: crate::config::UserProfile = serde_json::from_value(serde_json::json!({
+            "nickname": "Ada",
+            "bio": "Builds tools",
+            "avatar_url": "retired-avatar",
+            "email": "retired@example.test",
+            "tags": ["retired-tag"]
+        }))
+        .unwrap();
+        assert_eq!(
+            serde_json::to_value(&profile).unwrap(),
+            serde_json::json!({"nickname": "Ada", "bio": "Builds tools"})
+        );
+        assert_eq!(
+            serde_yaml::from_str::<crate::config::UserProfile>(
+                &serde_yaml::to_string(&profile).unwrap()
+            )
+            .unwrap(),
+            profile
+        );
+    }
 
     #[test]
     fn test_config_default() {

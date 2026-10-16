@@ -106,9 +106,12 @@ export function useWorkspaceTaskCenterNavigationRuntime({
   });
   const { switchTopic } = topicSwitchRuntime;
   const resolveInitialSessionSwitch = useCallback(
-    (topicId: string) =>
-      resolveInitialTaskSessionSwitchOptions(topicById.get(topicId)),
-    [topicById],
+    (topicId: string) => ({
+      ...resolveInitialTaskSessionSwitchOptions(topicById.get(topicId)),
+      // 草稿 owner 挂载会改变导航身份，解析工作区前须先等它建立。
+      waitForResolution: !composerDraftCoordinator,
+    }),
+    [topicById, composerDraftCoordinator],
   );
   useWorkspaceInitialSessionNavigation({
     initialSessionId,

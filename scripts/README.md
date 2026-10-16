@@ -328,15 +328,29 @@ npm run smoke:orchestrator-skills-gate-b
 
 `npm run smoke:settings-archived-lifecycle-electron-fixture -- --run-id <run-id>` 复用 current session-history owner fixture，在隔离 userData 与 unavailable model backend 中从真实侧栏归档持久化对话、冷启动读回归档态、从 Settings 已归档对话页恢复，并再次冷启动读回恢复态。Settings adapter 只保留 `agentSession/list|read|update`、Electron/preload/IPC、生命周期布尔、独立 console/page/invoke/legacy/mock error 计数和归档/恢复截图，不保存对话正文、session/thread identity、数据库行、路径或 import payload。
 
-`npm run smoke:settings-about-electron-fixture -- --run-id <run-id>` 在同一真实 Electron 窗口验证 About 与返回首页两个独立 Settings 场景：About 要求构建时 `VITE_APP_VERSION`、Desktop Host `app.getVersion()` 和用户可见版本一致，同时观察 `check_for_updates`、`get_update_install_session` 与 current App Server IPC；返回首页要求点击 `settings-home-button` 后 `home-start-surface` 可见、Settings header 消失。证据分别写入 `settings-about-fixture-summary.json` 和 `settings-about-fixture-home-summary.json`，两者各自带独立 `settingsScenarioProof`，不得互相代替。
+设置导航回归：`node scripts/electron/settings-navigation-fixture-smoke.mjs <fresh-run-id>` 复用既有真实 Electron launcher、受控 external backend、current RPC 与正常退出 owner，要求产物 freshness 通过，不自行构建。验证 Home 首发与侧栏已有会话经设置切章返回同一会话/工作区、可见 rail Home，以及 public Electron open-url 技能表单进入后 New chat 清除；Memory 子场景由 `electron/lib/settings-unsaved-navigation-scenario.mjs` 运行章节/返回/Home/根导航的继续编辑和放弃、SOUL 未应用输入、真实 config 保存重读与原值恢复。canonical Turn/Item identity 不变，backend 仅发送一次，错误和 production mock 命中为零。摘要、截图、声明源码/目录产物/sidecar 摘要写入 `.lime/qc/settings-sections/<run-id>/`；业务、trace、15秒内正常Main退出或清理任一失败都不得打印pass。Host open-url 事件不证明 OS URL dispatcher，external backend 绕过生产 RuntimeBackend/provider 执行；保存失败/在途/迟到由组件回归证明，不覆盖声明之外的设置表单、live、参考实时效果、内容搜索或 Windows。
+
+修正笔记子场景由 `electron/lib/settings-note-navigation-scenario.mjs` 承接：四类离开动作的继续编辑/放弃不落盘，局部页签和配置取消保留输入，显式 addNote 只创建一份笔记并由 current memoryStore/read 核对完整 Markdown，干净离开后重新打开为空。同一导航 fixture 在笔记场景后继续核对原 Thread/Turn/Item，不能额外发送回合。输入版本、重复提交、失败与迟到边界由 MemoryNoteEditor.integration 回归；此文件不是生产 API 或另一持久化 owner。
+
+该笔记场景的第5轮原生整轮验收与标准verify:local已通过，独立收据 `.lime/qc/settings-note/final-20261015-1/receipt.json`。前三轮失败保留；Home前置必须先正常滚动工作区触发器并真实选择，记录菜单几何/截图后核对workspace，不可用配置绑定替代选择或省略断言。笔记列表路径使用既有store owner的`extensions/ad_hoc/notes`；不新增私有文件读写通道。受控external backend、未覆盖平台和失败边界以收据为准。
+
+Web Search 子场景由`electron/lib/settings-web-search-navigation-scenario.mjs`承接：四类离开动作的保稿/放弃、三个局部页签共享草稿、Cancel不写入、GUI显式保存engine/timeout、public config/read核对未编辑配置与重开读回，最后经GUI恢复原值。配置比较只留布尔结果，不打印完整配置或密钥。三个设置子场景之后仍核对原Thread/Turn/Item与单次turnStart；笔记场景另查Save按钮未折行。本轮默认verify:local整轮exit0、130/130批及标准GUI24/24；原生`settings-web-search-native-20261016-1`首轮整轮exit0，Web Search 6/6、849 IPC、错误/mock均0，Main正常358ms退出。独立收据`.lime/qc/settings-web-search/final-20261016-1/receipt.json`，不能沿用此结果宣称live搜索、完整设置或其他平台通过。
+
+Execution Policy子场景由`electron/lib/settings-execution-policy-navigation-scenario.mjs`承接，同一导航fixture中验证四路继续编辑/放弃、GUI命令/网络规则增改删、plan开关保存、完整canonical配置读回、重开和原值恢复。Rust省略默认tool_execution及其false/空字段，比较只按其已知默认值补齐，其余配置完整比较，值不写证据。light/dark/system媒体投影单列，当前规则控件文字对比度须达到4.5:1，控件与文档不得横向溢出；仅当前皮肤/窗口和enabled文字，不证明placeholder、disabled或hover。New、诊断focus/建议规则、失败/重复/在途/迟到和五语言归组件证据；不伪造设置页不存在的入口，不执行工具或live provider。原15秒正常退出、同一Thread/Turn/Item、单次turnStart、trace和freshness护栏保持。
+
+Profile子场景由`electron/lib/settings-profile-navigation-scenario.mjs`承接：名称与简介草稿分别验证章节/返回/Home/根导航四路保留与放弃，再由GUI保存名称和简介、公开RPC核对未编辑配置、重开并恢复。`settings-profile-fixture-driver.mjs`为两组fixture经公开config/read与config/batchWrite建立隔离非null基线，不用空字符串冒充默认null精确恢复。四主题投影独立于9项可见合同；仅当前皮肤/窗口，system为媒体模拟。原生New没有入口，保留组件证据。导航使用显式external backend，冷启动使用unavailable backend；配置/Host验收不能冒充provider或参考Profile内容等价。
+
+`npm run smoke:settings-about-electron-fixture -- --run-id <run-id>` 在同一真实 Electron 窗口验证 About 与返回首页两个独立 Settings 场景：About 要求构建时 `VITE_APP_VERSION`、Desktop Host `app.getVersion()` 和用户可见版本一致，同时观察 `check_for_updates`、`get_update_install_session` 与 current App Server IPC；返回首页要求点击 `app-sidebar-nav-home-general` 后 `home-start-surface` 可见、Settings header 消失。证据分别写入 `settings-about-fixture-summary.json` 和 `settings-about-fixture-home-summary.json`，两者各自带独立 `settingsScenarioProof`，不得互相代替。
 
 `npm run smoke:settings-stats-electron-fixture -- --run-id <run-id>` 验证 Stats 页只走 `usageStats/read`、`usageStats/modelRanking/list`、`usageStats/dailyTrends/list` 三个 App Server current method；隔离数据为空时允许合法零值/空排行/空趋势，但不允许 loading、读取错误、旧 `get_usage_stats*` facade 或 mock fallback。`npm run smoke:settings-environment-electron-fixture -- --run-id <run-id>` 验证 Settings GUI 经真实 App Server `config/read` 与 Host `get_environment_preview` 读取 current config 和最终合并预览；其 JSON evidence 只记录 method/command 与断言，不记录环境变量名或值。
 
 `npm run smoke:settings-media-services-electron-fixture -- --run-id <run-id>` 验证服务模型页经真实 `config/read`、`model/list`、`modelPreferences/list`、`modelSyncState/read` 与 `voice_models_list_catalog` 进入终态，并同时展示服务模型、图片、视频和语音四个 current 配置区域。隔离环境允许 Provider 清单为空，但配置控件必须可用，且证据不得记录 Provider 配置、模型 ID、凭证或本机路径；该场景不声称真实 Provider 生成请求成功。
 
+Environment 子场景由 `electron/lib/settings-environment-navigation-scenario.mjs` 承接：章节、返回、Home、根导航四路保稿/放弃均不写配置；显式保存超时通过真实 `config/batchWrite`，public `config/read` 核对未改字段与重开读回，最后经 GUI 恢复原值。设置壳卸载 AppSidebar，当前没有新建按钮或其搜索快捷键；New 的 canonical 导航保护只由实际表单组件集成覆盖，不伪造原生入口。浅色、深色与跟随系统的两种媒体模拟投影单列，不能冒充真实 OS 主题事件或全皮肤覆盖。只输出比较布尔，不记录完整 Environment 或凭证。复用同一 launcher/collector/Thread/Turn/Item 与15秒正常Main退出合同，不新增 backend/mock owner；最终运行结果由 current 对齐计划记录，首屏读取 fixture 的证据不代表保存验收。
+
 `npm run smoke:settings-web-search-electron-fixture -- --run-id <run-id>` 在隔离用户目录中经 Web Search GUI 切换搜索引擎路由并命中 App Server `config/read|config/batchWrite`，冷重启读回后恢复原值，再次冷重启确认恢复完成。结构化 JSON 只记录生命周期布尔与 current method/command，不记录搜索路由值、Provider 配置或任何搜索 Key；截图只包含页面正常可见的路由状态。
 
-`npm run smoke:settings-profile-electron-fixture -- --run-id <run-id>` 使用正式 window OEM runtime override 的 `enabled=false` 在隔离用户目录中进入 non-OEM local Profile，经 GUI 修改昵称并命中 App Server `config/read|config/batchWrite`，冷重启读回后恢复原值，再次冷重启确认恢复完成。该场景不声称默认 managed-account 登录面已完成资料持久化；结构化 evidence 不记录资料原值、fixture 标记值或完整 config。
+`npm run smoke:settings-profile-electron-fixture -- --run-id <run-id>` 使用正式 window OEM runtime override 的 `enabled=false` 在隔离用户目录中进入 non-OEM local Profile，经 GUI 修改名称与简介并命中 App Server `config/read|config/batchWrite`。两次冷重启分别读回提交值和恢复值，完整配置保持/恢复由真实RPC读回核验；配置路径IO失败时分别验证名称与简介安全错误、保稿和重试，并由独立同preload/IPC/App Server边界RPC probe核验IO原因，probe不冒充GUI响应捕获。三次Main必须在原15秒内code0/signalnull正常退出，强制回收不计通过，finally后写最终summary。该场景不证明managed-account登录、参考Profile内容等价、工具执行或live provider；结构化evidence不记录资料值或完整config。
 
 `npm run smoke:settings-appearance-electron-fixture -- --run-id <run-id>` 同时验证 Appearance 的两个 current owner：主题模式写入 renderer localStorage，推荐行为写入 App Server `config/read|config/batchWrite`。fixture 在隔离用户目录中修改两者、冷重启读回、恢复两者并再次冷重启确认；结构化 evidence 不记录外观原值或完整 config。
 
@@ -354,7 +368,7 @@ rich-input/Steer oracle 同时检查完整 typed input、UTF8 textElements、同
 
 `npm run smoke:scheduled-tasks-electron-fixture -- --timeout-ms 180000` 从真实 Electron 一级导航创建已安排任务并立即运行，要求命中 `scheduledTask/list|create|read|run/list|run/start`、RuntimeCore provider、canonical Thread/Turn/read model 与运行历史。fixture 使用隔离 userData 和 localhost OpenAI-compatible provider，不调用正式模型；旧 `automationJob/*`、`automationSchedule/*`、`automationScheduler/*`、legacy Desktop 命令与生产 mock fallback 命中必须为零。
 
-`npm run smoke:settings-execution-policy-electron-fixture -- --run-id <run-id>` 验证 Execution Policy Settings 的持久化策略输入和 App Server 错误恢复：从 GUI 保存严格工作区限制与 Bash warning-bypass 输入，冷重启读回；再在隔离 userData 中把临时 `config.yaml` 短暂替换成同名目录，要求真实 `config/batchWrite` 返回且页面展示 `EISDIR`，随即恢复文件、重新加载、恢复原策略并再次冷重启确认。expected save failure 单列计数，`errors.*` 只统计 unexpected errors；evidence 不保存配置值、规则、prompt、路径或错误正文。该 B-F claim 不证明 RuntimeCore 实际执行某条允许/拒绝工具，后者必须单列 B-R。
+`npm run smoke:settings-execution-policy-electron-fixture -- --run-id <run-id>` 验证 Execution Policy Settings 的持久化策略输入和 App Server 错误恢复：从 GUI 保存严格工作区限制与 Bash warning-bypass 输入，冷重启读回；再在隔离 userData 中把临时 `config.yaml` 短暂替换成同名目录，要求页面显示安全错误并保留草稿，dirty Reload 必须禁用。独立 probe 经同一 preload/IPC/App Server 边界核实 `config/batchWrite` 的 JSON-RPC IO 错误原因，仅记录 method、errorCode 与 ioCauseVerified，不冒充 GUI 响应捕获。恢复文件后用 Save 重试、恢复原策略并再次冷重启读回。成功 IPC 仅证明 transport；三次 GUI 保存确认、三次真实冷启动与原15秒内三次 Main 正常退出分别断言，forced cleanup 不计通过。freshness 前后检查，finally 清理后保存最终结果；所有意外 transport 错误拒绝。evidence 不保存配置值、规则、prompt、路径或错误正文。该 B-F claim 不证明 RuntimeCore 实际执行某条允许/拒绝工具，后者必须单列 B-R。
 
 `npm run smoke:mcp-context7-live-electron-fixture` 是真实 Electron + 远程 Context7 live fixture：复用设置页 GUI 创建 Context7 配置，经 `app_server_handle_json_lines` 启动 server、通过 `mcpTool/search` 找到 `resolve-library-id` / `query-docs`，再创建真实 Thread 并调用 `mcpServer/tool/call` 查询 “AI Agent 是什么”。该入口会访问远程 Context7；summary 只记录 host、工具名、header 名、env var 名、content 类型 / 数量和 `isError`，不记录 key、header value 或工具正文。
 
@@ -521,3 +535,5 @@ npm run heatmap:project
 完整流程见：
 
 - `internal/aiprompts/project-heatmap.md`
+
+Profile 原生夹具当前使用 displayName/bio 编辑（本地 nickname/bio 配置映射），经公开配置边界建立非 null 双字段基线，再做整份配置精确恢复。导航场景检查732px宽度、无嵌套滚动、64/140 DOM限制及四主题；冷启动证据护栏要求 displayNameFailureRetained/bioFailureRetained。旧标签选择器/Tag正向场景已删除。当前实现的本轮原生验证状态见 `internal/exec-plans/codex-gui-alignment-current-plan.md`，历史冻结结果不替代新源码验证。

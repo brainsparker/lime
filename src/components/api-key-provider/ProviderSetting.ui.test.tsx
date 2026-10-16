@@ -13,6 +13,7 @@ import {
   getApiModelSuggestionLabels,
   translate,
 } from "./ProviderSetting.uiTestFixtures";
+import { SettingsDraftContext } from "@/components/settings-v2/_layout/useSettingsDraft";
 
 const { mockFetchProviderModelsAuto } = vi.hoisted(() => ({
   mockFetchProviderModelsAuto: vi.fn(),
@@ -62,6 +63,41 @@ function renderSetting(
 
   act(() => {
     root.render(<ProviderSetting provider={provider} {...props} />);
+  });
+
+  mountedRoots.push({ container, root });
+  return container;
+}
+
+function rerenderSetting(
+  container: HTMLDivElement,
+  provider: ProviderWithKeysDisplay | null,
+  props: Partial<React.ComponentProps<typeof ProviderSetting>> = {},
+) {
+  const mounted = mountedRoots.find((entry) => entry.container === container);
+  if (!mounted) {
+    throw new Error("ProviderSetting root is not mounted");
+  }
+
+  act(() => {
+    mounted.root.render(<ProviderSetting provider={provider} {...props} />);
+  });
+}
+
+function renderSettingWithNavigationRegister(
+  provider: ProviderWithKeysDisplay,
+  register: React.ComponentProps<typeof SettingsDraftContext.Provider>["value"],
+) {
+  const container = document.createElement("div");
+  document.body.appendChild(container);
+  const root = createRoot(container);
+
+  act(() => {
+    root.render(
+      <SettingsDraftContext.Provider value={register}>
+        <ProviderSetting provider={provider} />
+      </SettingsDraftContext.Provider>,
+    );
   });
 
   mountedRoots.push({ container, root });
@@ -282,6 +318,135 @@ describe("ProviderSetting", () => {
       api_host: "https://token-plan-sgp.xiaomimimo.com/anthropic",
     });
     expect(container.textContent ?? "").toContain("API Host 已保存");
+  });
+
+  it("同一 Provider 刷新投影时应保留 Host、Key 和模型输入草稿", async () => {
+    const container = renderSetting(
+      createProvider({
+        api_host: "https://api.deepseek.com/v1",
+        models: [{ id: "deepseek-chat" }],
+      }),
+    );
+    await flushEffects();
+
+    const hostInput = byTestId<HTMLInputElement>(
+      container,
+      "provider-api-host-input",
+    );
+    const keyInput = byTestId<HTMLInputElement>(
+      container,
+      "provider-api-key-input",
+    );
+    const modelInput = byTestId<HTMLInputElement>(
+      container,
+      "model-draft-input",
+    );
+
+    await act(async () => {
+      changeInput(hostInput!, "https://proxy.example.test/v1");
+      changeInput(keyInput!, "sk-draft-key");
+      changeInput(modelInput!, "deepseek-reasoner");
+      await Promise.resolve();
+    });
+
+    rerenderSetting(
+      container,
+      createProvider({
+        api_host: "https://api.deepseek.com/refreshed",
+        models: [{ id: "deepseek-chat" }, { id: "deepseek-coder" }],
+      }),
+    );
+    await flushEffects();
+
+    expect(hostInput?.value).toBe("https://proxy.example.test/v1");
+    expect(keyInput?.value).toBe("sk-draft-key");
+    expect(modelInput?.value).toBe("deepseek-reasoner");
+  });
+
+  it("存在 Provider 草稿时应向设置根导航注册 dirty/saving 状态", async () => {
+    const unregister = vi.fn();
+    const register = vi.fn(() => unregister);
+    const container = renderSettingWithNavigationRegister(
+      createProvider(),
+      register,
+    );
+    await flushEffects();
+
+    await act(async () => {
+      changeInput(
+        byTestId<HTMLInputElement>(container, "provider-api-host-input")!,
+        "https://proxy.example.test/v1",
+      );
+      await Promise.resolve();
+    });
+
+    expect(register).toHaveBeenCalledWith({ dirty: true, saving: false });
+  });
+
+  it("Host 保存完成时不应清除保存期间产生的新编辑", async () => {
+    let resolveUpdate: (() => void) | undefined;
+    const onUpdate = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUpdate = resolve;
+        }),
+    );
+    const container = renderSetting(createProvider(), { onUpdate });
+    await flushEffects();
+
+    const input = byTestId<HTMLInputElement>(
+      container,
+      "provider-api-host-input",
+    );
+    const saveButton = byTestId<HTMLButtonElement>(
+      container,
+      "provider-api-host-save-button",
+    );
+
+    await act(async () => {
+      changeInput(input!, "https://proxy.example.test/v1");
+      saveButton?.click();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      changeInput(input!, "https://newer.example.test/v1");
+      resolveUpdate?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onUpdate).toHaveBeenCalledWith("deepseek", {
+      api_host: "https://proxy.example.test/v1",
+    });
+    expect(input?.value).toBe("https://newer.example.test/v1");
+    expect(container.textContent ?? "").toContain("未保存");
+  });
+
+  it("API Key 保存失败时应保留输入且允许继续编辑", async () => {
+    const onAddApiKey = vi.fn().mockRejectedValue("保存失败");
+    const container = renderSetting(createProvider(), { onAddApiKey });
+    await flushEffects();
+
+    const input = byTestId<HTMLInputElement>(
+      container,
+      "provider-api-key-input",
+    );
+    const saveButton = byTestId<HTMLButtonElement>(
+      container,
+      "provider-api-key-save-button",
+    );
+
+    await act(async () => {
+      changeInput(input!, "sk-preserved-key");
+      saveButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(input?.value).toBe("sk-preserved-key");
+    expect(container.textContent ?? "").toContain("保存失败");
+    expect(container.textContent ?? "").toContain("未保存");
   });
 
   it("测试连接前应先保存未保存的 API Host", async () => {

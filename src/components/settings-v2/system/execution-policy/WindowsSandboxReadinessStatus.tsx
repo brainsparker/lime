@@ -20,18 +20,19 @@ type ReadinessState = WindowsSandboxReadiness | "checking" | "error";
 type SetupState = "idle" | "starting" | "completed" | "failed";
 
 const STATUS_STYLES: Record<ReadinessState, string> = {
-  checking: "border-slate-200 bg-slate-100 text-slate-600",
-  ready: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  notConfigured: "border-slate-200 bg-slate-100 text-slate-600",
-  updateRequired: "border-amber-200 bg-amber-50 text-amber-800",
-  error: "border-rose-200 bg-rose-50 text-rose-700",
+  checking: "border-border bg-muted text-muted-foreground",
+  ready: "border-primary/20 bg-primary/10 text-primary",
+  notConfigured: "border-border bg-muted text-muted-foreground",
+  updateRequired:
+    "border-[color:var(--lime-warning-border)] bg-[color:var(--lime-warning-soft)] text-[color:var(--lime-warning)]",
+  error: "border-destructive/20 bg-destructive/10 text-foreground",
 };
 
 const SETUP_STYLES: Record<SetupState, string> = {
-  idle: "text-slate-500",
-  starting: "text-blue-700",
-  completed: "text-emerald-700",
-  failed: "text-rose-700",
+  idle: "text-muted-foreground",
+  starting: "text-primary",
+  completed: "text-primary",
+  failed: "text-foreground",
 };
 
 const STATUS_ICONS: Record<ReadinessState, typeof CheckCircle2> = {
@@ -109,13 +110,13 @@ export function WindowsSandboxReadinessStatus() {
 
   return (
     <div
-      className="mt-4 flex min-h-[76px] items-start justify-between gap-4 border-t border-slate-200 pt-4"
+      className="mt-4 flex min-h-[76px] items-start justify-between gap-4 border-t border-border pt-4"
       data-status={status}
       data-testid="windows-sandbox-readiness"
     >
       <div className="min-w-0 space-y-1">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-medium text-slate-800">
+          <span className="text-sm font-medium text-foreground">
             {t("settings.executionPolicy.windowsSandbox.title")}
           </span>
           <span
@@ -132,7 +133,7 @@ export function WindowsSandboxReadinessStatus() {
             {t(`settings.executionPolicy.windowsSandbox.status.${status}`)}
           </span>
         </div>
-        <p className="text-xs leading-5 text-slate-500">
+        <p className="text-xs leading-5 text-muted-foreground">
           {t(`settings.executionPolicy.windowsSandbox.detail.${status}`)}
         </p>
         {setupState !== "idle" && (
@@ -150,7 +151,7 @@ export function WindowsSandboxReadinessStatus() {
         )}
         {worldWritableWarning && (
           <div
-            className="mt-2 border-l-2 border-amber-400 pl-3 text-xs leading-5 text-amber-800"
+            className="mt-2 border-l-2 border-amber-400 pl-3 text-xs leading-5 text-[color:var(--lime-warning)]"
             data-testid="windows-sandbox-world-writable-warning"
           >
             <p className="font-medium">
@@ -179,7 +180,7 @@ export function WindowsSandboxReadinessStatus() {
       <div className="flex shrink-0 flex-col items-end gap-2">
         <button
           type="button"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-900 disabled:cursor-wait disabled:opacity-50"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-background text-muted-foreground transition hover:border-border hover:text-foreground disabled:cursor-wait disabled:opacity-50"
           aria-label={t(
             "settings.executionPolicy.windowsSandbox.action.refresh",
           )}
@@ -190,7 +191,7 @@ export function WindowsSandboxReadinessStatus() {
           <RefreshCw className="h-4 w-4" />
         </button>
         <div
-          className="inline-flex overflow-hidden rounded-md border border-slate-200 bg-white"
+          className="inline-flex overflow-hidden rounded-md border border-border bg-background"
           role="group"
           aria-label={t("settings.executionPolicy.windowsSandbox.action.setup")}
         >
@@ -198,7 +199,7 @@ export function WindowsSandboxReadinessStatus() {
             <button
               key={mode}
               type="button"
-              className="border-l border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 first:border-l-0 hover:bg-slate-50 hover:text-slate-900 disabled:cursor-wait disabled:opacity-50"
+              className="border-l border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground first:border-l-0 hover:bg-muted/40 hover:text-foreground disabled:cursor-wait disabled:opacity-50"
               disabled={status === "checking" || setupState === "starting"}
               onClick={() => void startSetup(mode)}
             >

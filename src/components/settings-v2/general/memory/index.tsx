@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import {
   AlertCircle,
@@ -10,16 +10,10 @@ import {
 import { useTranslation } from "react-i18next";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import { getConfig, saveConfig, type Config } from "@/lib/api/appConfig";
 import type {
-  MemoryAutoConfig,
-  MemoryConfig,
   MemoryEmbeddingConfig,
   MemoryEmbeddingProvider,
-  MemoryProfileConfig,
-  MemoryResolveConfig,
   MemorySoulConfig,
-  MemorySourcesConfig,
 } from "@/lib/api/memoryConfigTypes";
 import {
   buildSoulMarkdown,
@@ -31,6 +25,9 @@ import {
 } from "@/lib/soul/soulConfig";
 import type { SoulStyleProfileId } from "@/lib/soul/style-profiles";
 import { MemoryStoreStatusPanel } from "./MemoryStoreStatusPanel";
+import { normalizeEmbedding } from "./memoryConfig";
+import { useMemorySettingsDraft } from "./useMemorySettingsDraft";
+import { useSettingsDraft } from "../../_layout/useSettingsDraft";
 import { StyleProfileSection } from "./soul/StyleProfileSection";
 
 type EmbeddingProviderChoice =
@@ -166,83 +163,6 @@ function memoryT(
   return String(translate(key, values));
 }
 
-function normalizeProfile(profile?: MemoryProfileConfig): MemoryProfileConfig {
-  return {
-    current_status: profile?.current_status || undefined,
-    strengths: profile?.strengths || [],
-    explanation_style: profile?.explanation_style || [],
-    challenge_preference: profile?.challenge_preference || [],
-  };
-}
-
-function normalizeSources(sources?: MemorySourcesConfig): MemorySourcesConfig {
-  return {
-    managed_policy_path: sources?.managed_policy_path ?? undefined,
-    project_memory_paths: sources?.project_memory_paths?.filter(
-      (item) => item.trim().length > 0,
-    ).length
-      ? sources.project_memory_paths
-      : [".lime/AGENTS.md"],
-    project_rule_dirs: sources?.project_rule_dirs?.filter(
-      (item) => item.trim().length > 0,
-    ).length
-      ? sources.project_rule_dirs
-      : [".agents/rules"],
-    user_memory_path: sources?.user_memory_path ?? undefined,
-  };
-}
-
-function normalizeAuto(auto?: MemoryAutoConfig): MemoryAutoConfig {
-  return {
-    enabled: auto?.enabled ?? true,
-    entrypoint: auto?.entrypoint || "MEMORY.md",
-    max_loaded_lines: auto?.max_loaded_lines ?? 200,
-    root_dir: auto?.root_dir ?? undefined,
-  };
-}
-
-function normalizeResolve(resolve?: MemoryResolveConfig): MemoryResolveConfig {
-  return {
-    additional_dirs: resolve?.additional_dirs || [],
-    follow_imports: resolve?.follow_imports ?? true,
-    import_max_depth: resolve?.import_max_depth ?? 5,
-    load_additional_dirs_memory: resolve?.load_additional_dirs_memory ?? false,
-  };
-}
-
-function normalizeEmbedding(
-  embedding?: MemoryEmbeddingConfig,
-): MemoryEmbeddingConfig {
-  const provider = embedding?.provider ?? "auto";
-  const defaultModel =
-    provider === "local_onnx" || provider === "auto"
-      ? "all-MiniLM-L6-v2"
-      : provider === "provider" && embedding?.provider_id === "ollama"
-        ? "nomic-embed-text"
-        : "text-embedding-3-small";
-
-  return {
-    provider,
-    provider_id: embedding?.provider_id ?? undefined,
-    model: embedding?.model?.trim() || defaultModel,
-  };
-}
-
-function normalizeMemoryConfig(memory?: MemoryConfig): MemoryConfig {
-  return {
-    enabled: memory?.enabled ?? true,
-    max_entries: memory?.max_entries ?? 1000,
-    retention_days: memory?.retention_days ?? 30,
-    auto_cleanup: memory?.auto_cleanup ?? true,
-    profile: normalizeProfile(memory?.profile),
-    soul: normalizeSoulConfig(memory?.soul),
-    sources: normalizeSources(memory?.sources),
-    auto: normalizeAuto(memory?.auto),
-    resolve: normalizeResolve(memory?.resolve),
-    embedding: normalizeEmbedding(memory?.embedding),
-  };
-}
-
 function resolveProviderChoice(
   embedding?: MemoryEmbeddingConfig,
 ): EmbeddingProviderChoice {
@@ -328,15 +248,6 @@ function LoadingSkeleton() {
 
 export function MemorySettings() {
   const { t } = useTranslation("settings");
-  const [config, setConfig] = useState<Config | null>(null);
-  const [draft, setDraft] = useState<MemoryConfig>(() =>
-    normalizeMemoryConfig(),
-  );
-  const [snapshot, setSnapshot] = useState<MemoryConfig>(() =>
-    normalizeMemoryConfig(),
-  );
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const messageTimeoutRef = useRef<number | null>(null);
   const [soulImportText, setSoulImportText] = useState("");
@@ -364,39 +275,10 @@ export function MemorySettings() {
     [],
   );
 
-  useEffect(() => {
-    let disposed = false;
-
-    async function load() {
-      setLoading(true);
-      try {
-        const nextConfig = await getConfig();
-        if (disposed) {
-          return;
-        }
-        const nextMemory = normalizeMemoryConfig(nextConfig.memory);
-        setConfig(nextConfig);
-        setDraft(nextMemory);
-        setSnapshot(nextMemory);
-      } catch (error) {
-        console.error("加载记忆设置失败:", error);
-      } finally {
-        if (!disposed) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void load();
-    return () => {
-      disposed = true;
-    };
-  }, []);
-
-  const dirty = useMemo(
-    () => JSON.stringify(draft) !== JSON.stringify(snapshot),
-    [draft, snapshot],
-  );
+  const { draft, setDraft, dirty, loading, saving, save, reset } =
+    useMemorySettingsDraft(showMessage);
+  const hasUnsavedInput = dirty || soulImportText.length > 0;
+  useSettingsDraft({ dirty: hasUnsavedInput, saving });
   const providerChoice = resolveProviderChoice(draft.embedding);
   const activeProvider =
     PROVIDER_CHOICES.find((item) => item.value === providerChoice) ??
@@ -485,9 +367,7 @@ export function MemorySettings() {
         style_profile_id: styleProfileId,
       }),
     }));
-    showMessage(
-      memoryT(t, "settings.memory.soul.message.styleProfileUpdated"),
-    );
+    showMessage(memoryT(t, "settings.memory.soul.message.styleProfileUpdated"));
   };
 
   const handleSoulReset = () => {
@@ -544,6 +424,8 @@ export function MemorySettings() {
         }),
       };
     });
+    setSoulImportText("");
+    setSoulImportPreview(null);
     showMessage(memoryT(t, "settings.memory.soul.message.importApplied"));
   };
 
@@ -558,38 +440,14 @@ export function MemorySettings() {
       showMessage(memoryT(t, "settings.memory.soul.message.exportCopied"));
     } catch (error) {
       console.error("复制 SOUL.md 失败:", error);
-      showMessage(
-        memoryT(t, "settings.memory.soul.message.exportCopyFailed"),
-      );
+      showMessage(memoryT(t, "settings.memory.soul.message.exportCopyFailed"));
     }
   };
 
   const handleCancel = () => {
-    setDraft(snapshot);
-    showMessage(memoryT(t, "settings.memory.message.restored"));
-  };
-
-  const handleSave = async () => {
-    if (!config) {
-      return;
-    }
-    setSaving(true);
-    try {
-      const updatedConfig: Config = {
-        ...config,
-        memory: normalizeMemoryConfig(draft),
-      };
-      await saveConfig(updatedConfig);
-      setConfig(updatedConfig);
-      setSnapshot(updatedConfig.memory ?? normalizeMemoryConfig());
-      setDraft(updatedConfig.memory ?? normalizeMemoryConfig());
-      showMessage(memoryT(t, "settings.memory.message.saved"));
-    } catch (error) {
-      console.error("保存记忆设置失败:", error);
-      showMessage(memoryT(t, "settings.memory.message.saveFailed"));
-    } finally {
-      setSaving(false);
-    }
+    reset();
+    setSoulImportText("");
+    setSoulImportPreview(null);
   };
 
   if (loading) {
@@ -918,7 +776,10 @@ export function MemorySettings() {
             </div>
             <textarea
               value={soulImportText}
-              onChange={(event) => setSoulImportText(event.target.value)}
+              onChange={(event) => {
+                setSoulImportText(event.target.value);
+                setSoulImportPreview(null);
+              }}
               rows={5}
               data-testid="settings-memory-soul-import-textarea"
               placeholder={memoryT(
@@ -968,17 +829,17 @@ export function MemorySettings() {
         </section>
       ) : null}
 
-      {activeTab === "memory" ? (
+      <div hidden={activeTab !== "memory"}>
         <MemoryStoreStatusPanel
           vectorSearchEnabled={vectorSearchEnabled}
           memoryStatusDescriptionKey={memoryStatusDescriptionKey}
           showMessage={showMessage}
         />
-      ) : null}
+      </div>
 
       <div className="flex flex-col gap-3 rounded-md border border-slate-200/90 bg-white p-4 shadow-sm shadow-slate-950/5 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-xs leading-5 text-slate-500">
-          {dirty
+          {hasUnsavedInput
             ? memoryT(t, "settings.memory.toggle.unsavedHint")
             : memoryT(t, "settings.memory.toggle.syncedHint")}
         </p>
@@ -986,7 +847,7 @@ export function MemorySettings() {
           <button
             type="button"
             onClick={handleCancel}
-            disabled={!dirty || saving}
+            disabled={!hasUnsavedInput || saving}
             data-testid="settings-memory-cancel"
             className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-900 disabled:opacity-60"
           >
@@ -994,7 +855,7 @@ export function MemorySettings() {
           </button>
           <button
             type="button"
-            onClick={handleSave}
+            onClick={save}
             disabled={!dirty || saving}
             data-testid="settings-memory-save"
             className="rounded-md border border-slate-950 bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"

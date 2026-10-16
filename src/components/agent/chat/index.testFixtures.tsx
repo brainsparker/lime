@@ -1095,6 +1095,7 @@ export function commitNewConversationRoute(
   mounted.rerender({
     agentEntry: "new-task",
     initialSessionId: undefined,
+    initialPendingServiceSkillLaunch: undefined,
     projectId: workspaceId ?? undefined,
     newChatAt: id,
     newConversationRequest: {

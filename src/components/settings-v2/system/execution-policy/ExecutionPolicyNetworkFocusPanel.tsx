@@ -34,7 +34,7 @@ export function ExecutionPolicyNetworkFocusPanel({
         ref={(node) => {
           focusedNetworkRuleRef.current = node;
         }}
-        className="mb-3 rounded-[18px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900"
+        className="mb-3 rounded-[18px] border border-[color:var(--lime-warning-border)] bg-[color:var(--lime-warning-soft)] px-4 py-3 text-sm leading-6 text-[color:var(--lime-warning)]"
         data-testid="execution-policy-network-focus"
       >
         {t("settings.executionPolicy.focus.networkRule", {
@@ -61,7 +61,7 @@ export function ExecutionPolicyNetworkFocusPanel({
 
   return (
     <div
-      className="mb-3 rounded-[18px] border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-600"
+      className="mb-3 rounded-[18px] border border-border bg-muted/40 px-4 py-3 text-sm leading-6 text-muted-foreground"
       data-testid="execution-policy-network-focus-missing"
     >
       <div>
@@ -71,7 +71,7 @@ export function ExecutionPolicyNetworkFocusPanel({
       </div>
       {suggestion ? (
         <div
-          className="mt-3 flex flex-col gap-3 rounded-[16px] border border-sky-200 bg-white px-3 py-3 text-slate-700 sm:flex-row sm:items-center sm:justify-between"
+          className="mt-3 flex flex-col gap-3 rounded-[16px] border border-primary/20 bg-background px-3 py-3 text-foreground sm:flex-row sm:items-center sm:justify-between"
           data-testid="execution-policy-network-suggestion"
         >
           <div className="min-w-0 text-xs leading-5">
@@ -84,7 +84,7 @@ export function ExecutionPolicyNetworkFocusPanel({
           </div>
           <button
             type="button"
-            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex shrink-0 items-center gap-2 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium text-foreground transition hover:border-border hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             disabled={disabled}
             onClick={() => onAddSuggestedRule(suggestion.rule)}
           >

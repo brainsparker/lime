@@ -56,11 +56,19 @@ describe("AppPageContent committed New intent boundary", () => {
         root.render(
           <Suspense fallback={null}>
             <AppPageContent
+              navigationGuard={{
+                register: () => () => {},
+                pendingNavigation: false,
+                saving: false,
+                clearPendingNavigation: vi.fn(),
+                discardPendingNavigation: vi.fn(),
+              }}
               currentPage="agent"
               pageParams={committed}
               requestedPage="agent"
               requestedPageParams={requested}
               onNavigate={vi.fn()}
+              onSettingsBack={vi.fn()}
               onAgentHasMessagesChange={vi.fn()}
               onStartNewConversation={startNewConversation}
             />

@@ -1,6 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { act } from "react";
+import { describe, expect, it, vi } from "vitest";
+import * as skillCatalog from "@/lib/api/skillCatalog";
+import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import {
   collectPendingA2UIFormIds,
+  commitNewConversationRoute,
   createMockAgentChatUnifiedState,
   flushEffects,
   installMockAgentChatUnifiedState,
@@ -9,17 +13,15 @@ import {
   waitForElement,
   waitForPendingA2UIForm,
 } from "./index.testFixtures";
-import { commitNewConversationRoute } from "./index.testFixtures";
 
 describe("AgentChatPage 服务技能 A2UI", () => {
-  it("页面参数带着 pending service skill 时，应在当前对话挂起服务技能 A2UI", async () => {
-    installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
+  it("Skills 首页入口带着 pending service skill 时，应挂起服务技能 A2UI", async () => {
+    installMockAgentChatUnifiedState(
+      createMockAgentChatUnifiedState({ sessionId: null }),
+    );
 
     const container = renderPage({
-      projectId: "project-service-skill-a2ui",
-      contentId: "content-service-skill-a2ui",
-      theme: "general",
-      lockTheme: true,
+      ...buildHomeAgentParams({ projectId: "project-service-skill-a2ui" }),
       initialPendingServiceSkillLaunch: {
         skillId: "daily-trend-briefing",
         requestKey: 20260409,
@@ -72,13 +74,12 @@ describe("AgentChatPage 服务技能 A2UI", () => {
   });
 
   it("从挂起服务技能补参态新建任务时，应清掉旧补参表单", async () => {
-    installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
+    installMockAgentChatUnifiedState(
+      createMockAgentChatUnifiedState({ sessionId: null }),
+    );
 
     const mounted = mountPage({
-      projectId: "project-service-skill-a2ui",
-      contentId: "content-service-skill-a2ui",
-      theme: "general",
-      lockTheme: true,
+      ...buildHomeAgentParams({ projectId: "project-service-skill-a2ui" }),
       initialPendingServiceSkillLaunch: {
         skillId: "daily-trend-briefing",
         requestKey: 20260409,
@@ -111,5 +112,39 @@ describe("AgentChatPage 服务技能 A2UI", () => {
         '[data-testid="workspace-pending-a2ui-panel"]',
       ),
     ).toBeNull();
+  });
+
+  it("目录加载期间新建空任务，迟到目录不能重新挂起旧技能表单", async () => {
+    installMockAgentChatUnifiedState(
+      createMockAgentChatUnifiedState({ sessionId: null }),
+    );
+    const catalog = skillCatalog.getSeededSkillCatalog();
+    let resolveCatalog!: (value: skillCatalog.SkillCatalog) => void;
+    const loadCatalog = vi
+      .spyOn(skillCatalog, "getSkillCatalog")
+      .mockReturnValueOnce(
+        new Promise((resolve) => {
+          resolveCatalog = resolve;
+        }),
+      );
+    const mounted = mountPage({
+      ...buildHomeAgentParams({ projectId: "project-service-skill-a2ui" }),
+      initialPendingServiceSkillLaunch: {
+        skillId: "daily-trend-briefing",
+        requestKey: 20260410,
+      },
+    });
+    await flushEffects(1);
+    expect(loadCatalog).toHaveBeenCalledOnce();
+    expect(collectPendingA2UIFormIds()).toEqual([]);
+
+    commitNewConversationRoute(mounted, {});
+    await act(async () => resolveCatalog(catalog));
+    await flushEffects();
+
+    expect(collectPendingA2UIFormIds()).toEqual([]);
+    expect(
+      mounted.container.querySelector('[data-testid="empty-state"]'),
+    ).not.toBeNull();
   });
 });

@@ -118,7 +118,7 @@ const IGNORED_SOURCE_FILE_PATTERNS = [
   /(^|[/\\])__snapshots__([/\\]|$)/,
   /(^|[/\\])tests([/\\]|$)/,
   /\.spec\.[cm]?[jt]sx?$/,
-  /\.test\.[cm]?[jt]sx?$/,
+  /\.test(?:Fixtures)?\.[cm]?[jt]sx?$/,
   /_test\.rs$/,
 ];
 

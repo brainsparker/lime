@@ -22,6 +22,8 @@ import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import { shouldReserveMacWindowControls } from "@/lib/windowControls";
 import { isSettingsSection, resolveSettingsSection } from "../sections";
 import { SettingsHomePage } from "../home";
+import type { NavigationGuard } from "@/lib/navigationGuard";
+import { SettingsNavigationGuard } from "./SettingsNavigationGuard";
 
 const LayoutContainer = styled.div`
   display: flex;
@@ -186,12 +188,14 @@ interface SettingsPageProps {
   onNavigate: (page: Page, params?: PageParams) => void;
   onBack: () => void;
   pageParams: SettingsPageParams;
+  navigationGuard: NavigationGuard;
 }
 
 export function SettingsPage({
   onNavigate,
   onBack,
   pageParams,
+  navigationGuard,
 }: SettingsPageProps) {
   const { t } = useTranslation("settings");
   const activeTab = resolveSettingsSection(pageParams.tab).key;
@@ -232,32 +236,34 @@ export function SettingsPage({
   }, [activeTab]);
 
   return (
-    <LayoutContainer className="lime-settings-theme-scope">
-      <SettingsNavigation
-        activeTab={activeTab}
-        reserveWindowControls={reserveWindowControls}
-        onTabChange={handleTabChange}
-        onTabPrefetch={handleTabPrefetch}
-        onBack={onBack}
-        onHome={handleBackHome}
-        onNavigate={onNavigate}
-      />
-      <ContentContainer
-        ref={contentContainerRef}
-        $reserveWindowControls={reserveWindowControls}
-      >
-        <ContentAtmosphere data-testid="settings-content-atmosphere" />
-        <ContentWrapper $wide={isSettingsSection(activeTab)}>
-          {renderSettingsContent(
-            activeTab,
-            handleTabChange,
-            t,
-            handleTabPrefetch,
-            onNavigate,
-            pageParams,
-          )}
-        </ContentWrapper>
-      </ContentContainer>
-    </LayoutContainer>
+    <SettingsNavigationGuard navigationGuard={navigationGuard}>
+      <LayoutContainer className="lime-settings-theme-scope">
+        <SettingsNavigation
+          activeTab={activeTab}
+          reserveWindowControls={reserveWindowControls}
+          onTabChange={handleTabChange}
+          onTabPrefetch={handleTabPrefetch}
+          onBack={onBack}
+          onHome={handleBackHome}
+          onNavigate={onNavigate}
+        />
+        <ContentContainer
+          ref={contentContainerRef}
+          $reserveWindowControls={reserveWindowControls}
+        >
+          <ContentAtmosphere data-testid="settings-content-atmosphere" />
+          <ContentWrapper $wide={isSettingsSection(activeTab)}>
+            {renderSettingsContent(
+              activeTab,
+              handleTabChange,
+              t,
+              handleTabPrefetch,
+              onNavigate,
+              pageParams,
+            )}
+          </ContentWrapper>
+        </ContentContainer>
+      </LayoutContainer>
+    </SettingsNavigationGuard>
   );
 }

@@ -17,6 +17,7 @@ import type { Character } from "@/lib/api/projectMemory";
 import type { Page, PageParams } from "@/types/page";
 import type { ComposerDraftCoordinator } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { DraftScope } from "@/lib/api/persistedAtomTypes";
+import type { EntryPendingResetOptions } from "./useWorkspacePendingInputRuntime";
 
 type SetStringState = Dispatch<SetStateAction<string>>;
 
@@ -26,7 +27,7 @@ interface ClearMessagesOptions {
 
 interface UseWorkspaceResetRuntimeParams {
   clearMessages: (options?: ClearMessagesOptions) => void;
-  clearPendingEntryA2UI?: () => void;
+  clearPendingEntryA2UI?: (options?: EntryPendingResetOptions) => void;
   clearProjectSelectionRuntime: () => void;
   resetProjectSelection: () => void;
   resetRestoredSessionState: () => void;
@@ -165,7 +166,7 @@ export function useWorkspaceResetRuntime({
     autoCollapsedTopicSidebarRef.current = false;
     setShowSidebar(defaultTopicSidebarVisible);
     resetWorkbenchSurface();
-    clearPendingEntryA2UI?.();
+    clearPendingEntryA2UI?.({ preserveInitialServiceSkillLaunch: true });
     setMentionedCharacters([]);
     clearProjectSelectionRuntime();
     if (!externalProjectId) {

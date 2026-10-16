@@ -20,6 +20,10 @@ import { useWorkspaceA2UISubmitActions } from "./useWorkspaceA2UISubmitActions";
 import { useWorkspaceSceneGateRuntime } from "./useWorkspaceSceneGateRuntime";
 import type { ServiceSkillSelectionOptions } from "./workspaceServiceSkillEntryActionsViewModel";
 
+export interface EntryPendingResetOptions {
+  preserveInitialServiceSkillLaunch?: boolean;
+}
+
 interface UseWorkspacePendingInputRuntimeParams {
   activeTheme: string;
   applyProjectSelection?: (projectId?: string | null) => void;
@@ -144,20 +148,33 @@ export function useWorkspacePendingInputRuntime({
       pendingSceneGateSource ??
       pendingA2UISource);
   const hasPendingA2UIForm = Boolean(effectivePendingA2UIForm);
-  const clearEntryPendingA2UI = useCallback(() => {
-    if (initialPendingServiceSkillLaunchSignature) {
-      dismissedInitialPendingServiceSkillLaunchSignatureRef.current =
-        initialPendingServiceSkillLaunchSignature;
-    }
+  const clearEntryPendingA2UI = useCallback(
+    (options: EntryPendingResetOptions = {}) => {
+      const preserveInitialLaunch =
+        options.preserveInitialServiceSkillLaunch === true &&
+        Boolean(initialPendingServiceSkillLaunchSignature);
+      if (!preserveInitialLaunch && initialPendingServiceSkillLaunchSignature) {
+        dismissedInitialPendingServiceSkillLaunchSignatureRef.current =
+          initialPendingServiceSkillLaunchSignature;
+      }
 
-    clearPendingServiceSkillLaunch();
-    clearRuntimeSceneGate();
-  }, [
-    clearPendingServiceSkillLaunch,
-    clearRuntimeSceneGate,
-    dismissedInitialPendingServiceSkillLaunchSignatureRef,
-    initialPendingServiceSkillLaunchSignature,
-  ]);
+      if (
+        !preserveInitialLaunch ||
+        handledInitialPendingServiceSkillLaunchSignatureRef.current !==
+          initialPendingServiceSkillLaunchSignature
+      ) {
+        clearPendingServiceSkillLaunch();
+      }
+      clearRuntimeSceneGate();
+    },
+    [
+      clearPendingServiceSkillLaunch,
+      clearRuntimeSceneGate,
+      dismissedInitialPendingServiceSkillLaunchSignatureRef,
+      handledInitialPendingServiceSkillLaunchSignatureRef,
+      initialPendingServiceSkillLaunchSignature,
+    ],
+  );
   const { handleInputbarA2UISubmit } = useWorkspaceA2UISubmitActions({
     handlePermissionResponse,
     pendingPromotedA2UIActionRequest,

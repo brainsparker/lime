@@ -68,6 +68,11 @@ import {
 } from "./providerModelFetchHelpers";
 import type { ProviderSettingsFocusContext } from "@/types/page";
 import { formatProviderConnectionError } from "./providerConnectionError";
+import { useSettingsDraft } from "@/components/settings-v2/_layout/useSettingsDraft";
+import {
+  useProviderSettingDraft,
+  type ProviderSettingDraftState,
+} from "./useProviderSettingDraft";
 
 // ============================================================================
 // 类型定义
@@ -102,6 +107,8 @@ export interface ProviderSettingProps {
   loading?: boolean;
   /** 额外的 CSS 类名 */
   className?: string;
+  /** 向 Provider 列表投影当前编辑生命周期 */
+  onDraftStateChange?: (state: ProviderSettingDraftState) => void;
 }
 
 interface ProviderSettingBodyProps extends ProviderSettingProps {
@@ -382,6 +389,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
   onDeleteProvider,
   loading = false,
   className,
+  onDraftStateChange,
 }) => {
   const { t } = useTranslation("settings");
   const [modelList, setModelList] = useState<string[]>(
@@ -397,15 +405,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
   const [providerActionStatus, setProviderActionStatus] =
     useState<InlineStatus | null>(null);
   const [deletingProvider, setDeletingProvider] = useState(false);
-  const [apiKeyDraft, setApiKeyDraft] = useState("");
-  const [apiKeyDirty, setApiKeyDirty] = useState(false);
-  const [savingApiKey, setSavingApiKey] = useState(false);
   const [apiKeyStatus, setApiKeyStatus] = useState<InlineStatus | null>(null);
-  const [apiHostDraft, setApiHostDraft] = useState(() =>
-    normalizeProviderHostValue(provider.api_host),
-  );
-  const [apiHostDirty, setApiHostDirty] = useState(false);
-  const [savingApiHost, setSavingApiHost] = useState(false);
   const [apiHostStatus, setApiHostStatus] = useState<InlineStatus | null>(null);
   const [showApiKey, setShowApiKey] = useState(false);
   const [testingConnection, setTestingConnection] = useState(false);
@@ -419,27 +419,116 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
   const [imageCommandStatus, setImageCommandStatus] =
     useState<InlineStatus | null>(null);
   const [skillCatalogRevision, setSkillCatalogRevision] = useState(0);
+  const mountedRef = React.useRef(true);
+  const providerIdentityRef = React.useRef(provider.id);
+  providerIdentityRef.current = provider.id;
 
   useEffect(() => {
-    setModelList(providerModelIds(provider.models));
-    setModelDraft("");
-    setApiModelIds([]);
-    setApiModelQuery("");
-    setModelFetchStatus(null);
-    setProviderActionStatus(null);
-    setConnectionStatus(null);
-    setApiKeyDraft("");
-    setApiKeyDirty(false);
-    setSavingApiKey(false);
-    setApiKeyStatus(null);
-    setApiHostDraft(normalizeProviderHostValue(provider.api_host));
-    setApiHostDirty(false);
-    setSavingApiHost(false);
-    setApiHostStatus(null);
-    setShowApiKey(false);
-    setImageCommandDraft(null);
-    setImageCommandStatus(null);
-  }, [provider.id, provider.api_host, provider.models]);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  const {
+    apiHostDraft,
+    apiHostDirty,
+    savingApiHost,
+    apiKeyDraft,
+    apiKeyDirty,
+    savingApiKey,
+    setApiHostDraft,
+    setApiKeyDraft,
+    saveApiHost,
+    saveApiKey,
+    resetDrafts,
+  } = useProviderSettingDraft({
+    providerId: provider.id,
+    apiHost: provider.api_host,
+  });
+
+  const [savingModels, setSavingModels] = useState(false);
+  const modelListDirtyRef = React.useRef(false);
+  const modelListRevisionRef = React.useRef(0);
+  const modelListProviderIdRef = React.useRef(provider.id);
+
+  useEffect(() => {
+    if (modelListProviderIdRef.current !== provider.id) {
+      modelListProviderIdRef.current = provider.id;
+      modelListDirtyRef.current = false;
+      modelListRevisionRef.current += 1;
+      setModelList(providerModelIds(provider.models));
+      setModelDraft("");
+      setApiModelIds([]);
+      setApiModelQuery("");
+      setFetchingModels(false);
+      setTestingConnection(false);
+      setModelFetchStatus(null);
+      setProviderActionStatus(null);
+      setConnectionStatus(null);
+      setApiKeyStatus(null);
+      setApiHostStatus(null);
+      setShowApiKey(false);
+      setImageCommandDraft(null);
+      setImageCommandStatus(null);
+      resetDrafts();
+      return;
+    }
+
+    if (!modelListDirtyRef.current && !savingModels) {
+      setModelList(providerModelIds(provider.models));
+    }
+  }, [provider.id, provider.models, resetDrafts, savingModels]);
+
+  useEffect(() => {
+    onDraftStateChange?.({
+      dirty:
+        apiHostDirty ||
+        apiKeyDirty ||
+        modelDraft.trim().length > 0 ||
+        Boolean(imageCommandDraft),
+      saving: savingApiHost || savingApiKey || savingModels || fetchingModels,
+      apiHostDraft,
+      apiHostDirty,
+      savingApiHost,
+      apiKeyDraft,
+      apiKeyDirty,
+      savingApiKey,
+    });
+    return () => {
+      onDraftStateChange?.({
+        dirty: false,
+        saving: false,
+        apiHostDraft: "",
+        apiHostDirty: false,
+        savingApiHost: false,
+        apiKeyDraft: "",
+        apiKeyDirty: false,
+        savingApiKey: false,
+      });
+    };
+  }, [
+    apiHostDirty,
+    apiHostDraft,
+    apiKeyDirty,
+    apiKeyDraft,
+    fetchingModels,
+    imageCommandDraft,
+    modelDraft,
+    onDraftStateChange,
+    savingApiHost,
+    savingApiKey,
+    savingModels,
+  ]);
+
+  useSettingsDraft({
+    dirty:
+      apiHostDirty ||
+      apiKeyDirty ||
+      modelDraft.trim().length > 0 ||
+      Boolean(imageCommandDraft),
+    saving: savingApiHost || savingApiKey || savingModels || fetchingModels,
+  });
 
   useEffect(() => {
     return subscribeSkillCatalogChanged(() => {
@@ -552,6 +641,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     !loading &&
     !savingApiHost &&
     !savingApiKey &&
+    !savingModels &&
     !testingConnection &&
     !fetchingModels &&
     hasPendingApiKey;
@@ -559,6 +649,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     !loading &&
     !savingApiHost &&
     !savingApiKey &&
+    !savingModels &&
     !testingConnection &&
     !fetchingModels &&
     hasPendingApiHost &&
@@ -568,6 +659,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     !testingConnection &&
     !savingApiHost &&
     !savingApiKey &&
+    !savingModels &&
     modelList.length > 0 &&
     (!providerApiKeyRequired || hasApiKey || canUseDraftApiKey);
   const modelFetchUnsupportedMessage = useMemo(() => {
@@ -633,15 +725,15 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
       );
     }
 
-    await onUpdate(provider.id, { api_host: nextApiHost });
-    setApiHostDraft(nextApiHost);
-    setApiHostDirty(false);
+    return saveApiHost(async (providerId, value) => {
+      await onUpdate(providerId, { api_host: value });
+    });
   }, [
     apiHostDirty,
     apiHostDraft,
     normalizedProviderApiHost,
     onUpdate,
-    provider.id,
+    saveApiHost,
     t,
   ]);
 
@@ -658,17 +750,18 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
       return;
     }
 
-    setSavingApiHost(true);
     setApiHostStatus(null);
     setConnectionStatus(null);
     setModelFetchStatus(null);
 
     try {
-      await persistDraftApiHost();
-      setApiHostStatus({
-        tone: "success",
-        message: t("settings.providers.setting.feedback.apiHost.saved"),
-      });
+      const saved = await persistDraftApiHost();
+      if (saved) {
+        setApiHostStatus({
+          tone: "success",
+          message: t("settings.providers.setting.feedback.apiHost.saved"),
+        });
+      }
     } catch (error) {
       setApiHostStatus({
         tone: "error",
@@ -677,8 +770,6 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
           t("settings.providers.setting.feedback.apiHost.saveFailed"),
         ),
       });
-    } finally {
-      setSavingApiHost(false);
     }
   }, [apiHostDirty, apiHostDraft, persistDraftApiHost, t]);
 
@@ -694,12 +785,12 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
       );
     }
 
-    await onAddApiKey(provider.id, nextApiKey, undefined, {
-      replaceExisting: true,
+    return saveApiKey(async (providerId, value) => {
+      await onAddApiKey(providerId, value, undefined, {
+        replaceExisting: true,
+      });
     });
-    setApiKeyDraft("");
-    setApiKeyDirty(false);
-  }, [apiKeyDirty, apiKeyDraft, onAddApiKey, provider.id, t]);
+  }, [apiKeyDirty, apiKeyDraft, onAddApiKey, saveApiKey, t]);
 
   const handleSaveApiKey = useCallback(async () => {
     if (!apiKeyDirty) {
@@ -714,16 +805,17 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
       return;
     }
 
-    setSavingApiKey(true);
     setApiKeyStatus(null);
     setConnectionStatus(null);
 
     try {
-      await persistDraftApiKey();
-      setApiKeyStatus({
-        tone: "success",
-        message: t("settings.providers.setting.feedback.apiKey.saved"),
-      });
+      const saved = await persistDraftApiKey();
+      if (saved) {
+        setApiKeyStatus({
+          tone: "success",
+          message: t("settings.providers.setting.feedback.apiKey.saved"),
+        });
+      }
     } catch (error) {
       setApiKeyStatus({
         tone: "error",
@@ -732,24 +824,53 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
           t("settings.providers.setting.feedback.apiKey.saveFailed"),
         ),
       });
-    } finally {
-      setSavingApiKey(false);
     }
   }, [apiKeyDirty, apiKeyDraft, persistDraftApiKey, t]);
 
   const applyModels = useCallback(
     async (nextModels: string[]) => {
       const dedupedModels = dedupeModelIds(nextModels);
+      const previousModels = modelList;
+      const revision = ++modelListRevisionRef.current;
+      modelListDirtyRef.current = true;
       setModelList(dedupedModels);
       setConnectionStatus(null);
 
-      if (onUpdate) {
+      if (!onUpdate) {
+        modelListDirtyRef.current = false;
+        return;
+      }
+
+      setSavingModels(true);
+      try {
         await onUpdate(provider.id, {
           models: reconcileProviderModels(provider.models, dedupedModels),
         });
+        if (modelListRevisionRef.current === revision) {
+          modelListDirtyRef.current = false;
+        }
+      } catch (error) {
+        if (modelListRevisionRef.current === revision) {
+          modelListDirtyRef.current = false;
+          setModelList(previousModels);
+        }
+        setProviderActionStatus({
+          tone: "error",
+          message: formatActionError(
+            error,
+            t(
+              "settings.providers.setting.feedback.models.saveFailed",
+              "模型保存失败，请重试。",
+            ),
+          ),
+        });
+      } finally {
+        if (modelListRevisionRef.current === revision) {
+          setSavingModels(false);
+        }
       }
     },
-    [onUpdate, provider.id, provider.models],
+    [modelList, onUpdate, provider.id, provider.models, t],
   );
 
   const addModels = useCallback(
@@ -859,9 +980,18 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     setModelFetchStatus(null);
 
     try {
-      await persistDraftApiHost();
-      await persistDraftApiKey();
+      const hostSaved = await persistDraftApiHost();
+      if (apiHostDirty && !hostSaved) {
+        return;
+      }
+      const keySaved = await persistDraftApiKey();
+      if (apiKeyDirty && !keySaved) {
+        return;
+      }
       const result = await fetchProviderModelsAuto(provider.id);
+      if (!mountedRef.current || providerIdentityRef.current !== provider.id) {
+        return;
+      }
       const source = normalizeFetchProviderModelsSource(result);
       const fetchedModelIds = extractApiModelIds(result.models ?? []);
 
@@ -938,6 +1068,9 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
         }),
       });
     } catch (error) {
+      if (!mountedRef.current || providerIdentityRef.current !== provider.id) {
+        return;
+      }
       setModelFetchStatus({
         tone: "error",
         message: formatActionError(
@@ -946,7 +1079,9 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
         ),
       });
     } finally {
-      setFetchingModels(false);
+      if (mountedRef.current && providerIdentityRef.current === provider.id) {
+        setFetchingModels(false);
+      }
     }
   }, [
     canReadModelsFromApi,
@@ -955,6 +1090,8 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     modelList,
     modelAutoFetchCapability.supported,
     normalizedModelSet,
+    apiHostDirty,
+    apiKeyDirty,
     persistDraftApiHost,
     persistDraftApiKey,
     provider,
@@ -1022,8 +1159,14 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
     setConnectionStatus(null);
 
     try {
-      await persistDraftApiHost();
-      await persistDraftApiKey();
+      const hostSaved = await persistDraftApiHost();
+      if (apiHostDirty && !hostSaved) {
+        return;
+      }
+      const keySaved = await persistDraftApiKey();
+      if (apiKeyDirty && !keySaved) {
+        return;
+      }
       const testPrompt = t(
         "settings.providers.setting.feedback.connection.chatReadyPrompt",
         "请用一句话回复：连接测试通过。",
@@ -1050,6 +1193,10 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                 error: response.error,
                 models: response.models,
               }));
+
+      if (!mountedRef.current || providerIdentityRef.current !== provider.id) {
+        return;
+      }
 
       if (result.success) {
         setConnectionStatus({
@@ -1088,6 +1235,9 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
         });
       }
     } catch (error) {
+      if (!mountedRef.current || providerIdentityRef.current !== provider.id) {
+        return;
+      }
       setConnectionStatus({
         tone: "error",
         message: formatProviderConnectionError(error, {
@@ -1101,10 +1251,14 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
         }),
       });
     } finally {
-      setTestingConnection(false);
+      if (mountedRef.current && providerIdentityRef.current === provider.id) {
+        setTestingConnection(false);
+      }
     }
   }, [
     canUseDraftApiKey,
+    apiHostDirty,
+    apiKeyDirty,
     hasApiKey,
     modelList.length,
     onTestConnection,
@@ -1344,7 +1498,6 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                   type="url"
                   value={apiHostDraft}
                   onChange={(event) => {
-                    setApiHostDirty(true);
                     setApiHostDraft(event.target.value);
                     setApiHostStatus(null);
                     setConnectionStatus(null);
@@ -1360,8 +1513,6 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                   spellCheck={false}
                   disabled={
                     loading ||
-                    savingApiHost ||
-                    savingApiKey ||
                     testingConnection ||
                     fetchingModels
                   }
@@ -1448,11 +1599,9 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                     onFocus={() => {
                       if (!apiKeyDirty && apiKeyMask) {
                         setApiKeyDraft("");
-                        setApiKeyDirty(true);
                       }
                     }}
                     onChange={(event) => {
-                      setApiKeyDirty(true);
                       setApiKeyDraft(event.target.value);
                       setApiKeyStatus(null);
                       setConnectionStatus(null);
@@ -1474,7 +1623,6 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                     spellCheck={false}
                     disabled={
                       loading ||
-                      savingApiKey ||
                       testingConnection ||
                       fetchingModels
                     }
@@ -1562,7 +1710,12 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                   onClick={() => {
                     void handleFetchModelsFromApi();
                   }}
-                  disabled={loading || fetchingModels || !canReadModelsFromApi}
+                  disabled={
+                    loading ||
+                    fetchingModels ||
+                    savingModels ||
+                    !canReadModelsFromApi
+                  }
                   data-testid="fetch-models-button"
                 >
                   {fetchingModels ? (
@@ -1639,6 +1792,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                             onClick={() => {
                               void addModels([modelId]);
                             }}
+                            disabled={loading || savingModels}
                             className="max-w-full rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-700 transition hover:border-slate-300 hover:text-slate-900"
                             data-testid="api-model-suggestion"
                           >
@@ -1732,6 +1886,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                               onClick={() => {
                                 void handleSetMainModel(modelId);
                               }}
+                              disabled={loading || savingModels}
                               className="text-xs font-medium text-slate-500 hover:text-slate-900"
                             >
                               <Star className="mr-1 inline h-3 w-3" />
@@ -1746,6 +1901,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                             onClick={() => {
                               void handleRemoveModel(modelId);
                             }}
+                            disabled={loading || savingModels}
                             className="text-slate-400 hover:text-rose-600"
                             aria-label={t(
                               "settings.providers.setting.body.models.action.removeAria",
@@ -1869,7 +2025,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    disabled={loading}
+                    disabled={loading || savingModels}
                     data-testid="model-draft-input"
                   />
                   <Button
@@ -1879,7 +2035,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                     onClick={() => {
                       void handleAddModelDraft();
                     }}
-                    disabled={loading || !modelDraft.trim()}
+                    disabled={loading || savingModels || !modelDraft.trim()}
                     data-testid="model-draft-add-button"
                   >
                     <Plus className="mr-1 h-4 w-4" />

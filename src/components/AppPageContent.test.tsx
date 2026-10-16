@@ -12,6 +12,7 @@ import type {
 import { SettingsTabs } from "@/types/settings";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { AppPageContent } from "./AppPageContent";
+import type { NavigationGuard } from "@/lib/navigationGuard";
 
 const latestAgentChatProps = vi.hoisted(() => ({
   value: null as Record<string, unknown> | null,
@@ -110,6 +111,8 @@ interface RenderContentOptions {
   requestedPageParams?: PageParams;
   onNavigate?: (page: Page, params?: PageParams) => void;
   onAgentLocationChange?: (location: AgentLocation) => void;
+  onSettingsBack?: () => void;
+  navigationGuard?: NavigationGuard;
 }
 
 function renderContentWithNavigationState(options: RenderContentOptions) {
@@ -122,13 +125,22 @@ function renderContentWithNavigationState(options: RenderContentOptions) {
       root.render(
         <Suspense fallback={<div data-testid="page-loading" />}>
           <AppPageContent
+            navigationGuard={
+              nextOptions.navigationGuard ?? {
+                register: () => () => {},
+                pendingNavigation: false,
+                saving: false,
+                clearPendingNavigation: vi.fn(),
+                discardPendingNavigation: vi.fn(),
+              }
+            }
             currentPage={nextOptions.currentPage}
             pageParams={nextOptions.pageParams ?? {}}
             requestedPage={nextOptions.requestedPage}
             requestedPageParams={nextOptions.requestedPageParams}
             onNavigate={nextOptions.onNavigate ?? vi.fn()}
             onAgentHasMessagesChange={vi.fn()}
-            onSettingsBack={vi.fn()}
+            onSettingsBack={nextOptions.onSettingsBack ?? vi.fn()}
             onAgentLocationChange={nextOptions.onAgentLocationChange}
           />
         </Suspense>,
@@ -851,10 +863,25 @@ describe("AppPageContent", () => {
   });
 
   it("settings 页面应渲染设置页入口", async () => {
-    const { container } = renderContent("settings");
+    const onSettingsBack = vi.fn();
+    const navigationGuard: NavigationGuard = {
+      register: () => () => {},
+      pendingNavigation: true,
+      saving: true,
+      clearPendingNavigation: vi.fn(),
+      discardPendingNavigation: vi.fn(),
+    };
+    const { container } = renderContentWithNavigationState({
+      currentPage: "settings",
+      onSettingsBack,
+      navigationGuard,
+    });
     await flushEffects();
-
     expectTestId(container, "settings-page");
+    expect(latestSettingsPageProps.value?.onBack).toBe(onSettingsBack);
+    expect(latestSettingsPageProps.value?.navigationGuard).toBe(
+      navigationGuard,
+    );
   });
 
   it("settings 页面应透传 executionPolicyFocus 给设置页", async () => {

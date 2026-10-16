@@ -1,18 +1,21 @@
 #!/usr/bin/env node
 
 import fs from "node:fs";
+import assert from "node:assert/strict";
 import path from "node:path";
 import process from "node:process";
 
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { writeJsonFile } from "../mcp/lib/current-smoke-transport.mjs";
+import { invokeAppServerFromPage } from "../agent-runtime/claw-chat-current-fixture-rpc.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
+import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
 import {
-  closeElectronFixture,
   createTempRuntimeEnv,
   launchElectronFixture,
   openSettings,
-  readConfigFromPage,
   sanitizeText,
   waitForPageCondition,
 } from "./mcp-config-fixture-smoke.mjs";
@@ -33,11 +36,7 @@ const DEFAULTS = {
   keepTemp: false,
 };
 const SWITCH_LABELS = {
-  enabled: [
-    "启用工作区沙箱",
-    "啟用工作區沙箱",
-    "Enable workspace sandbox",
-  ],
+  enabled: ["启用工作区沙箱", "啟用工作區沙箱", "Enable workspace sandbox"],
   strict: [
     "启用严格工作区沙箱",
     "啟用嚴格工作區沙箱",
@@ -77,8 +76,7 @@ async function readPolicyState(
   options,
   {
     expected = null,
-    minimumSaveSuccessCount = 0,
-    minimumSaveErrorCount = 0,
+    minimumSaveRequestCount = 0,
     requireSuccessMessage = false,
     requireErrorMessage = false,
   } = {},
@@ -88,8 +86,7 @@ async function readPolicyState(
     options,
     ({
       expected,
-      minimumSaveSuccessCount,
-      minimumSaveErrorCount,
+      minimumSaveRequestCount,
       requireSuccessMessage,
       requireErrorMessage,
     }) => {
@@ -107,7 +104,8 @@ async function readPolicyState(
         if (
           entry?.command !== "app_server_handle_json_lines" ||
           entry?.transport !== "electron-ipc"
-        ) return [];
+        )
+          return [];
         return Array.isArray(entry?.args_preview?.request?.lines)
           ? entry.args_preview.request.lines.flatMap((line) => {
               try {
@@ -119,18 +117,12 @@ async function readPolicyState(
             })
           : [];
       });
-      const getConfigSuccess = appServerRequests.some(
+      const configReadObserved = appServerRequests.some(
         (request) => request.method === "config/read",
       );
-      const saveSuccessCount = appServerRequests.filter(
+      const saveRequestCount = appServerRequests.filter(
         (request) => request.method === "config/batchWrite",
       ).length;
-      const saveErrorEntries = entries.filter(
-        (entry) =>
-          entry?.command === "app_server_handle_json_lines" &&
-          entry?.transport === "electron-ipc" &&
-          entry?.status === "error",
-      );
       const state = {
         enabled:
           document
@@ -154,9 +146,9 @@ async function readPolicyState(
       const bodyText = document.body?.innerText ?? "";
       const controlsReady = Boolean(
         document.querySelector('[aria-label="启用工作区沙箱"]') &&
-          document.querySelector('[aria-label="启用严格工作区沙箱"]') &&
-          document.querySelector('[aria-label="启用沙箱回退提醒"]') &&
-          state.warningPolicy,
+        document.querySelector('[aria-label="启用严格工作区沙箱"]') &&
+        document.querySelector('[aria-label="启用沙箱回退提醒"]') &&
+        state.warningPolicy,
       );
       const expectedMatches =
         !expected ||
@@ -165,26 +157,29 @@ async function readPolicyState(
           state.notify === expected.notify &&
           state.warningPolicy === expected.warningPolicy);
       const successVisible = bodyText.includes("执行策略已保存");
-      const errorVisible =
-        /EISDIR|is a directory|illegal operation on a directory/i.test(bodyText);
+      const errorVisible = bodyText.includes("保存执行策略失败");
+      const backendErrorExposed =
+        /EISDIR|is a directory|illegal operation on a directory/i.test(
+          bodyText,
+        );
       const unexpectedErrorVisible =
         bodyText.includes("加载执行策略失败") ||
-        (bodyText.includes("保存执行策略失败") && !errorVisible);
+        backendErrorExposed ||
+        (errorVisible && !requireErrorMessage);
       const executionPolicyTabActive =
         document
           .querySelector(
             '[data-testid="settings-sidebar-tab-execution-policy"]',
           )
-          ?.getAttribute("data-active") === "true";
+          ?.getAttribute("aria-current") === "page";
       if (
         !executionPolicyTabActive ||
         !document.querySelector('[data-testid="execution-policy-settings"]') ||
         document.querySelectorAll(".animate-pulse").length > 0 ||
         !controlsReady ||
-        !getConfigSuccess ||
+        !configReadObserved ||
         !expectedMatches ||
-        saveSuccessCount < minimumSaveSuccessCount ||
-        saveErrorEntries.length < minimumSaveErrorCount ||
+        saveRequestCount < minimumSaveRequestCount ||
         (requireSuccessMessage && !successVisible) ||
         (requireErrorMessage && !errorVisible) ||
         unexpectedErrorVisible
@@ -198,11 +193,6 @@ async function readPolicyState(
         successVisible,
         errorVisible,
         unexpectedErrorVisible,
-        expectedSaveErrorCauseSeen: saveErrorEntries.some((entry) =>
-          /EISDIR|is a directory|illegal operation on a directory/i.test(
-            String(entry?.error ?? ""),
-          ),
-        ),
         loadingVisible: false,
         traceRaw,
         errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
@@ -211,8 +201,7 @@ async function readPolicyState(
     "Execution Policy Settings did not reach the expected lifecycle state",
     {
       expected,
-      minimumSaveSuccessCount,
-      minimumSaveErrorCount,
+      minimumSaveRequestCount,
       requireSuccessMessage,
       requireErrorMessage,
     },
@@ -231,9 +220,9 @@ async function warningPolicySelect(page) {
   const selects = page.locator("select");
   for (let index = 0; index < (await selects.count()); index += 1) {
     const select = selects.nth(index);
-    const values = await select.locator("option").evaluateAll((options) =>
-      options.map((option) => option.value),
-    );
+    const values = await select
+      .locator("option")
+      .evaluateAll((options) => options.map((option) => option.value));
     if (values.includes("shell_command_risk") && values.includes("none")) {
       return select;
     }
@@ -281,7 +270,9 @@ function createConfigPathCollision(runtimeEnv) {
     "config.yaml.execution-policy-backup",
   );
   if (!fs.existsSync(configPath) || fs.statSync(configPath).isDirectory()) {
-    throw new Error("Execution Policy config file was not ready for error proof");
+    throw new Error(
+      "Execution Policy config file was not ready for error proof",
+    );
   }
   fs.renameSync(configPath, backupPath);
   fs.mkdirSync(configPath);
@@ -338,14 +329,47 @@ async function run() {
   const traceRaws = [];
   const errorRaws = [];
   const rendererSnapshots = [];
-  try {
-    handle = await launchElectronFixture({
+  const teardowns = [];
+  let saveAcknowledgements = 0;
+  let ioRpcProof = null;
+  let mainExit = null;
+  const fresh = () => {
+    const state = inspectElectronFixtureBuildFreshness({
+      rootDir: process.cwd(),
+    });
+    assert.equal(state.ready, true, "current Electron build must be fresh");
+    return state;
+  };
+  const launch = async () => {
+    const next = await launchElectronFixture({
       options,
       runtimeEnv,
       appServerEnv,
       consoleErrors,
       pageErrors,
     });
+    mainExit = captureMainProcessExit(next.app.process());
+    return next;
+  };
+  const close = async () => {
+    const teardown = await settleFixtureResources({
+      app: handle?.app,
+      mainExit,
+    });
+    teardowns.push(teardown);
+    summary.teardowns = teardowns;
+    handle = null;
+    page = null;
+    mainExit = null;
+    assert.equal(
+      teardown.ok,
+      true,
+      "normal Main exit is required within 15 seconds",
+    );
+  };
+  try {
+    summary.buildBefore = fresh();
+    handle = await launch();
     rendererSnapshots.push(handle.rendererSnapshot);
     page = handle.page;
     await openExecutionPolicySettings(page, options);
@@ -360,23 +384,16 @@ async function run() {
     await clickAction(page, SAVE_LABELS);
     const changedState = await readPolicyState(page, options, {
       expected: changed,
-      minimumSaveSuccessCount: 1,
+      minimumSaveRequestCount: 1,
       requireSuccessMessage: true,
     });
+    saveAcknowledgements += 1;
     traceRaws.push(changedState.traceRaw);
     errorRaws.push(changedState.errorRaw);
     await page.screenshot({ path: changedScreenshotPath, fullPage: true });
-    await closeElectronFixture(handle);
-    handle = null;
-    page = null;
+    await close();
 
-    handle = await launchElectronFixture({
-      options,
-      runtimeEnv,
-      appServerEnv,
-      consoleErrors,
-      pageErrors,
-    });
+    handle = await launch();
     rendererSnapshots.push(handle.rendererSnapshot);
     page = handle.page;
     await openExecutionPolicySettings(page, options);
@@ -385,42 +402,97 @@ async function run() {
     });
     await page.screenshot({ path: restartScreenshotPath, fullPage: true });
 
-    collision = createConfigPathCollision(runtimeEnv);
+    const readResponse = await invokeAppServerFromPage(page, "config/read", {
+      includeLayers: true,
+    });
     const failedAttempt = { ...changed, notify: !changed.notify };
+    const probeAgent = structuredClone(readResponse.result.config.agent);
+    probeAgent.workspace_sandbox.notify_on_fallback = failedAttempt.notify;
+    collision = createConfigPathCollision(runtimeEnv);
+    ioRpcProof = await page.evaluate(
+      async ({ agent, version }) => {
+        const id = "execution-policy-io-proof";
+        const response = await window.electronAPI.invoke(
+          "app_server_handle_json_lines",
+          {
+            request: {
+              lines: [
+                JSON.stringify({
+                  jsonrpc: "2.0",
+                  id,
+                  method: "config/batchWrite",
+                  params: {
+                    edits: [
+                      {
+                        keyPath: "agent",
+                        value: agent,
+                        mergeStrategy: "replace",
+                      },
+                    ],
+                    expectedVersion: version,
+                    reloadUserConfig: true,
+                  },
+                }),
+              ],
+            },
+          },
+        );
+        const error = response.lines
+          .map((line) => JSON.parse(line))
+          .find((message) => message.id === id)?.error;
+        return {
+          method: "config/batchWrite",
+          errorCode: error?.code ?? null,
+          ioCauseVerified:
+            /EISDIR|is a directory|illegal operation on a directory/i.test(
+              String(error?.message ?? "") + JSON.stringify(error?.data ?? {}),
+            ),
+        };
+      },
+      { agent: probeAgent, version: readResponse.result.layers[0].version },
+    );
+    assert.equal(
+      ioRpcProof.ioCauseVerified,
+      true,
+      "same-boundary IO failure must be verified independently of successful IPC transport",
+    );
     await applyPolicyState(page, failedAttempt);
     await clickAction(page, SAVE_LABELS);
     const errorState = await readPolicyState(page, options, {
       expected: failedAttempt,
-      minimumSaveErrorCount: 1,
       requireErrorMessage: true,
+    });
+    await page.screenshot({
+      path: file("-expected-error.png"),
+      fullPage: true,
     });
     restoreConfigPathCollision(collision);
     collision = null;
-    await clickAction(page, RELOAD_LABELS);
+    assert.equal(
+      await (await actionButton(page, RELOAD_LABELS)).isDisabled(),
+      true,
+      "dirty failure cannot reload away the draft",
+    );
+    await clickAction(page, SAVE_LABELS);
     const recoveredState = await readPolicyState(page, options, {
-      expected: changed,
+      expected: failedAttempt,
+      minimumSaveRequestCount: 2,
+      requireSuccessMessage: true,
     });
+    saveAcknowledgements += 1;
     await applyPolicyState(page, original);
     await clickAction(page, SAVE_LABELS);
     const restoredSaveState = await readPolicyState(page, options, {
       expected: original,
-      minimumSaveSuccessCount: 1,
-      minimumSaveErrorCount: 1,
+      minimumSaveRequestCount: 1,
       requireSuccessMessage: true,
     });
+    saveAcknowledgements += 1;
     traceRaws.push(restoredSaveState.traceRaw);
     errorRaws.push(restoredSaveState.errorRaw);
-    await closeElectronFixture(handle);
-    handle = null;
-    page = null;
+    await close();
 
-    handle = await launchElectronFixture({
-      options,
-      runtimeEnv,
-      appServerEnv,
-      consoleErrors,
-      pageErrors,
-    });
+    handle = await launch();
     rendererSnapshots.push(handle.rendererSnapshot);
     page = handle.page;
     await openExecutionPolicySettings(page, options);
@@ -430,11 +502,16 @@ async function run() {
     traceRaws.push(finalState.traceRaw);
     errorRaws.push(finalState.errorRaw);
     await page.screenshot({ path: restoredScreenshotPath, fullPage: true });
+    await close();
+    summary.buildAfter = fresh();
     const trace = summarizeSettingsExecutionPolicyTrace({
       traceRaws,
       errorRaws,
     });
     applyPassingSettingsExecutionPolicyEvidence(summary, {
+      teardowns,
+      saveAcknowledgements,
+      ioRpcProof,
       completedAt: new Date().toISOString(),
       electronLaunchCount: rendererSnapshots.filter(
         (snapshot) => snapshot.electron,
@@ -461,13 +538,12 @@ async function run() {
         restartState.notify === changed.notify &&
         restartState.warningPolicy === changed.warningPolicy,
       expectedSaveFailureVisible:
-        errorState.errorVisible === true &&
-        errorState.expectedSaveErrorCauseSeen === true,
+        errorState.errorVisible === true && ioRpcProof.ioCauseVerified === true,
       expectedSaveFailureRecovered:
-        recoveredState.enabled === changed.enabled &&
-        recoveredState.strict === changed.strict &&
-        recoveredState.notify === changed.notify &&
-        recoveredState.warningPolicy === changed.warningPolicy &&
+        recoveredState.enabled === failedAttempt.enabled &&
+        recoveredState.strict === failedAttempt.strict &&
+        recoveredState.notify === failedAttempt.notify &&
+        recoveredState.warningPolicy === failedAttempt.warningPolicy &&
         recoveredState.errorVisible === false,
       restorationSaved:
         restoredSaveState.enabled === original.enabled &&
@@ -504,11 +580,12 @@ async function run() {
         method: "config/batchWrite",
         transport: "electron-ipc",
         cause: "isolated-config-path-is-directory",
-        traceErrorCount: trace.expectedSaveTraceErrorCount,
-        invokeErrorCount: trace.expectedSaveInvokeErrorCount,
+        traceErrorCount: trace.unexpectedHostTraceErrorCount,
+        invokeErrorCount: trace.unexpectedInvokeErrorCount,
+        ioRpcProof,
+        recovery: "save-retry-preserves-failed-draft",
       },
       appServerMethods: trace.methods,
-      hostCommands: trace.hostSuccessCommands,
     });
     writeJsonFile(summaryPath, summary);
     console.log(
@@ -521,12 +598,8 @@ async function run() {
     if (page) {
       const state = await page
         .evaluate(() => ({
-          traceRaw: window.localStorage.getItem(
-            "lime_invoke_trace_buffer_v1",
-          ),
-          errorRaw: window.localStorage.getItem(
-            "lime_invoke_error_buffer_v1",
-          ),
+          traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
+          errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
         }))
         .catch(() => ({ traceRaw: null, errorRaw: null }));
       summary.failureTrace = summarizeSettingsExecutionPolicyTrace({
@@ -542,10 +615,17 @@ async function run() {
     }
     throw error;
   } finally {
-    restoreConfigPathCollision(collision);
-    if (handle) await closeElectronFixture(handle);
-    if (!options.keepTemp) {
-      fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true });
+    try {
+      restoreConfigPathCollision(collision);
+      if (handle) await close();
+      if (!options.keepTemp)
+        fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true });
+    } catch (error) {
+      applyFailedSettingsExecutionPolicyEvidence(summary, error);
+      writeJsonFile(summaryPath, summary);
+      throw error;
+    } finally {
+      writeJsonFile(summaryPath, summary);
     }
   }
 }

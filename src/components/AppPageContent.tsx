@@ -23,6 +23,7 @@ import { ScheduledTasksPage } from "./scheduled-tasks/ScheduledTasksPage";
 import { ImConfigPage } from "./channels/ImConfigPage";
 import { SettingsPage } from "./settings-v2";
 import { PluginWorkspaceTabs } from "@/features/plugin/ui/PluginWorkspaceTabs";
+import type { NavigationGuard } from "@/lib/navigationGuard";
 
 const columnPageStyle = {
   flex: 1,
@@ -74,6 +75,7 @@ interface AppPageContentProps {
   onAgentHasMessagesChange: (hasMessages: boolean) => void;
   onAgentLocationChange?: (location: AgentLocation) => void;
   onSettingsBack: () => void;
+  navigationGuard: NavigationGuard;
   onAgentStreamingChange?: (isStreaming: boolean) => void;
   onBackgroundSessionRuntimeChange?: (
     snapshot: AgentBackgroundSessionRuntimeSnapshot | null,
@@ -130,6 +132,7 @@ export function AppPageContent({
   onAgentHasMessagesChange,
   onAgentLocationChange,
   onSettingsBack,
+  navigationGuard,
   onAgentStreamingChange,
   onBackgroundSessionRuntimeChange,
 }: AppPageContentProps) {
@@ -318,6 +321,7 @@ export function AppPageContent({
           onNavigate={onNavigate}
           pageParams={activePageParams as SettingsPageParams}
           onBack={onSettingsBack}
+          navigationGuard={navigationGuard}
         />
       </div>
     );

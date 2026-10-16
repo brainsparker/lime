@@ -1185,15 +1185,55 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  Route[Existing PageParams] --> Page[SettingsPage]
+  Location[Workspace surface session and workspace] --> Nav[useAppNavigation requestId guard]
+  Nav -->|canonical PageParams| Page[SettingsPage]
   Sections[settingsSections] --> Category[Translated navigation groups]
   Sections --> Page
   Category --> Navigation[SettingsNavigation]
-  Navigation --> Page
+  Navigation -->|section selection / back / Home| Nav
+  Nav -->|minimal return target| Content[AppPageContent]
+  Content --> Page
   Page --> Business[Existing settings page owners]
+  Business -->|dirty / saving projection| Guard[SettingsDraftContext]
+  Guard -->|register / cleanup| Nav
+  Nav -->|pending target / saving| Dialog[SettingsUnsavedChangesDialog]
+  Dialog -->|keep editing / discard| Nav
 ```
 
-`SettingsPageV2` / `SettingsLayoutV2`、重复章节名单及无消费者 `SETTINGS_GROUPS` / `ExecutionTracker` 已删除。既有 Experimental 只委托 Developer；providerView/focus 与 executionPolicyFocus 保真。内部章节的 canonical 路由、返回上下文、内容搜索与 dirty authority 尚待后续切片，不新增平行导航或业务 runtime。责任 root 于 2026-10-15 确认此图；正式回归和 GUI 状态见 current 执行计划。
+`SettingsPageV2` / `SettingsLayoutV2`、重复章节名单及无消费者 `SETTINGS_GROUPS` / `ExecutionTracker` 已删除。第二切片由既有 useAppNavigation 持有一个设置来处快照，SettingsPage 直接消费/回写 canonical 参数，删除 initial props 到局部章节/provider/developer 状态的复制。可见 session/workspace 沿原 surface 回调上报，由捕获的 requestId 拒绝迟到投影；它仅是导航显示位置，不是业务 read model。页头返回使用剔除首发、新建和技能启动 intent 的最小会话参数，rail Home 始终走已有首页动作。非 Agent 来处保留原页面参数。未实际离开的连续请求保留原来处，真正离开时清理快照；不建立第二 history。
+
+既有 Experimental 只委托 Developer；providerView/focus 与 executionPolicyFocus 由同一参数消费，切离章节时清理，点击当前章节不重放。仅供测试选择器使用的隐藏 Home 按钮删除，fixture 点击可见入口。内容搜索与未接入表单继续后置。责任 root 于 2026-10-15 确认目录归属、显示数据流与依赖方向；业务 runtime/protocol/持久化 owner 不变，正式回归和 GUI 状态见 current 执行计划。
+
+未保存保护继续使用 `useAppNavigation` 的唯一请求/提交状态：表单经 `useSettingsDraft -> SettingsDraftContext` 注册自身 dirty/saving 投影；pending target 不改变 canonical 参数、requestId、来处或恢复存储。所有设置与根导航动作均进入该入口。确认只提供继续编辑和放弃；关闭清除 pending，放弃提交最后一次目标且不隐式保存；saving 时拒绝放弃，取消后迟到保存不会发起导航。注册按独立 token 清理，不让旧表单的 cleanup 清除另一表单的报告。
+
+首批只有 Memory 接入。`general/memory/useMemorySettingsDraft.ts` 唯一拥有其加载、draft/snapshot、保存和取消；`memoryConfig.ts` 承接原纯规范化函数，删除页面内联副本。成功保存只确认已提交 snapshot，若用户在途编辑则保留新 draft；失败保留输入，卸载后结果不通知新表单。SOUL 未应用文本仍属页面局部输入，导航保护覆盖它；Apply 消费该输入，Cancel 清理它，Save 不代为应用。持久化继续调用既有 getConfig 与串行 updateConfig -> saveConfig，只合并 Memory 到最新配置，避免旧整份快照覆盖其他修改；不增加协议、后端 store 或 dirty 业务副本。参考外部 dirty registry 尚未恢复，当前实现不宣称是原始内部类型。架构影响为既有 renderer 导航的表单状态接线；图已同步，责任 root 于 2026-10-15 确认目录、数据流、依赖与验证边界。其他表单不因共享 gateway 自动获得保护。
+
+页内修正笔记由 `general/memory/MemoryNoteEditor.tsx` 独立拥有输入版本、保存锁和 dirty/saving 投影，仍向同一 SettingsDraftContext 注册；原 MemoryStoreStatusPanel 内联表单与保存逻辑删除。持久化只走既有 memoryStore/addNote；成功仅消费提交版本，失败与在途新编辑保留，卸载后不刷新/通知新 owner。配置保存/取消与笔记登记互不代替。Memory 的局部页签仅隐藏日常面板，保留唯一实例及其草稿，避免切页签绕过保护；真正离开设置仍由根导航决定。保存后的健康刷新在卸载后忽略结果；其他维护操作不因此宣称已取得在途/迟到验收。此为上图 Existing settings page owners 的职责拆分与生命周期修复，非重大架构；root 于 2026-10-15 确认 owner、依赖、数据流与验证边界，无新协议、runtime 或业务 authority。
+
+Web Search 的 `system/web-search/useWebSearchDraft.ts` 独立拥有原始输入、已保存投影、字段版本、加载和保存锁；页面仅组装四个页签与同一 `useSettingsDraft` 接线。`webSearchConfig.ts` 从 current Config 投影可编辑字段，并在既有串行 updateConfig 中仅合并实际改动字段；保留其他配置、未编辑的搜索/图片字段、内建引擎覆盖与其余自定义引擎，不再持有或回写加载时整份 Config。保存响应更新 baseline，逐字段版本只接纳本次提交后未再编辑的值；失败/卸载不消费新输入，语言切换只翻译当前显示，不能重载草稿。非法自定义模板留稿，初始加载失败禁用编辑/保存，reload只重试未成功的加载。原内联生命周期、重复 current-field useMemo 和定时成功消息清除路径删除；秘密显示状态只归各输入组件并在重新挂载时回到掩码。现有上图可直接表达此 owner，无新增依赖方向/协议/业务authority；root于2026-10-16确认非重大架构，正式验收进度见current计划。命名为职责名，不声称恢复了参考端未知表单符号。
+
+Environment 的 `system/environment/useEnvironmentSettingsDraft.ts` 持有可编辑投影、保存基线、字段revision、同步保存锁和预览请求版本；页面只接线既有useSettingsDraft与展示组件。`environmentConfig.ts` 以开关、原始超时文本和变量列表三个字段比较提交前基线，只在串行updateConfig中合并实际编辑字段到最新配置；变量列表作为同一原子字段，未改的shell开关、超时及其他配置保持current值。响应逐字段接纳，失败/在途新编辑/卸载迟到不能清稿，旧预览不得覆盖新结果；语言切换只翻译文案。预览仍走既有getEnvironmentPreview Host命令，默认遮罩敏感值，不在证据/错误文案写入配置内容。原整份Config本地副本与重载保存生命周期删除；展示与纯函数分工，不增加runtime、协议或配置authority。root于2026-10-16确认非重大架构，仍由上图Existing settings page owners表达；原始Environment表单符号未知，验收见current计划。
+
+返回会话时，既有 `useWorkspaceTaskCenterNavigationRuntime.resolveInitialSessionSwitch` 使用 `waitForResolution` 等待本次挂载的 Composer owner 建立，再捕获导航 source 并解析工作区；不等待尚需会话水合才能获得的草稿 scope ready。原 generation/scope/navigation epoch 和过期请求守卫继续生效，避免 owner 初始化取消恢复后留在不可编辑的空壳。该接线复用既有 owner，不新增 authority。
+
+初始服务技能请求继续由既有 handled/dismissed signature refs 管理。新建 route reset 清理旧 surface 时保留随本次路由传入的 initial launch；已匹配本次 signature 的表单也保留。普通 topic reset 仍取消旧请求，新空任务的 canonical 路由不携带旧启动参数，迟到目录不能复活旧表单。此为既有 reset / pending-input owner 的接线校正，不新增请求或业务 authority；root，2026-10-15确认。
+
+Execution Policy 的 `system/execution-policy/useExecutionPolicyDraft.ts` 仅持有七个可编辑字段、基线、字段版本和加载/保存锁；`executionPolicyConfig.ts` 在既有串行updateConfig内合并latest。沙箱三个开关独立，plan/bash策略各自独立，命令/网络列表分别作为原子字段；仅编辑bash时归一化latest工具覆盖，保留其他工具、未编辑规则及agent模型参数。页面经同一useSettingsDraft接导航，规则编辑/来源展示分离，错误只显示五语言消息；pristine保存及dirty/saving reload禁用。保存响应逐字段接受，失败、在途编辑、语言切换和卸载迟到不覆盖输入。原fullConfig/完整agent副本、内联保存/重载及固定浅色样式删除。仍由上图Existing settings page owners表达，未改变配置authority、协议、runtime或依赖方向；root于2026-10-16确认非重大架构。参考表单原始符号unknown，正式验收见current计划。
+
+ProfileSettings 是薄设置入口，委托 ProfileContent → ProfileLayout / ProfileFieldEditor；内部职责名不冒充上游原符号。ProfileLayout 最大732px，复用 Settings 壳的唯一滚动 owner。useProfileDraft 只持有 displayName/bio 草稿、revision、加载/保存锁与安全错误；profileConfig 显式映射 displayName→本地 nickname，归一化 bio 换行，保存 trim，名称非空与64/140限制由 DOM 和保存入口共同防守。所有写入复用既有串行 updateConfig，只合并提交字段到 latest；失败保稿、同 revision 成功才关闭编辑，dirty/saving 经 useSettingsDraft 进入现有导航 authority。Tag/完成度/用途/头像/email卡片、旧 ProfileFieldCard/ProfileSummary/profilePresentation 与无消费者的 TS/Rust avatar_url/email/tags 配置字段已删除，不保留双轨。主题仍走原 token/skin。
+
+```mermaid
+flowchart LR
+  Settings[ProfileSettings] --> Content[ProfileContent]
+  Content --> Layout[ProfileLayout / ProfileFieldEditor]
+  Content --> Draft[useProfileDraft]
+  Draft --> Config[profileConfig: displayName to nickname / bio]
+  Draft --> Navigation[useSettingsDraft / existing navigation]
+  Config --> Update[existing updateConfig / Desktop bridge]
+  Update --> Server[App Server config/read and config/batchWrite]
+```
+
+此链仅为本地配置资料编辑，不是远端公共身份接口。REA 已确认的公共 profile query/PATCH、eligibility、is_self/can_edit、preview、username/pins/上传仍为 gap；现有账号卡继续由独立 session owner 展示，不新建账号后端、假 flag 或本地公共 Profile fallback。非重大架构：既有 presentation 重组和未消费字段收缩，owner、协议方法、read model 与依赖方向不变；验证进度见 current 计划。
 
 ### 4.5 Desktop 公开新建会话
 

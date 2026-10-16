@@ -132,11 +132,21 @@ export function summarizeSettingsProfileTrace(traceRaws) {
     (entry) => entry.transport === "electron-ipc",
   );
   const commands = new Set(entries.map((entry) => entry?.command));
-  const configMethods = appServerMethods(appServerIpcEntries);
+  const configEntries = appServerIpcEntries.filter((entry) =>
+    appServerMethods([entry]).some((method) =>
+      PROFILE_REQUIRED_CONFIG_METHODS.includes(method),
+    ),
+  );
+  const configMethods = appServerMethods(configEntries).filter((method) =>
+    PROFILE_REQUIRED_CONFIG_METHODS.includes(method),
+  );
   return {
     appServerIpcHitCount: appServerIpcEntries.length,
-    methods: configMethods,
-    configIpcHitCount: appServerIpcEntries.length,
+    methods: appServerMethods(appServerIpcEntries),
+    configIpcHitCount: configEntries.length,
+    hostTraceErrorCount: appServerEntries.filter(
+      (entry) => entry.status === "error",
+    ).length,
     configMethods,
     missingConfigMethods: PROFILE_REQUIRED_CONFIG_METHODS.filter(
       (method) => !configMethods.includes(method),
@@ -161,7 +171,7 @@ export function createSettingsProfileEvidence({
     priority: "P0",
     proofLevel: "Gate B-F",
     claimBoundary:
-      "Real Electron non-OEM local Profile nickname save, cold-restart readback, restoration save, and restoration readback in an isolated user-data directory. The fixture uses the supported window OEM runtime override with enabled=false; it does not claim the default managed-account login surface. Structured evidence does not record profile values or full config.",
+      "Real Electron non-OEM local Profile nickname persistence, two cold-restart readbacks, displayName/bio safe error retention and retry, exact configuration restoration and three normal Main exits. A separate same-boundary JSON-RPC probe verifies config-path IO failure; it is not the GUI response capture. The supported OEM test override enabled=false does not prove managed-account login or upstream Profile content parity. Structured evidence excludes profile values/full config; no live provider or tool execution.",
     candidateRunId: validateName(candidateRunId, "run-id"),
     testOnly: true,
     startedAt,
@@ -227,11 +237,17 @@ export function applyPassingSettingsProfileEvidence(summary, facts) {
     restartReadback: facts.restartReadback === true,
     restorationSaveConfirmed: facts.restorationSaveConfirmed === true,
     restorationReadback: facts.restorationReadback === true,
+    displayNameFailureRetained: facts.displayNameFailureRetained === true,
+    bioFailureRetained: facts.bioFailureRetained === true,
+    saveRetriesAccepted: facts.saveRetriesAccepted === true,
+    fullConfigPreserved: facts.fullConfigPreserved === true,
   };
+  summary.normalMainExits = facts.normalMainExits ?? [];
   summary.errors = {
     consoleErrorCount: consoleErrors.length,
     pageErrorCount: pageErrors.length,
     invokeErrorCount: facts.invokeErrorCount,
+    hostTraceErrorCount: trace.hostTraceErrorCount,
     legacyCommandHitCount: trace.legacyCommands.length,
     legacyCommands: trace.legacyCommands,
     mockFallbackHitCount: trace.mockFallbackHitCount,
@@ -239,6 +255,18 @@ export function applyPassingSettingsProfileEvidence(summary, facts) {
   const checks = [
     ["threeRealElectronLaunches", summary.bridge.electron],
     ["threePreloadInvokeBridges", summary.bridge.preloadInvoke],
+    [
+      "threeNormalMainExits",
+      summary.normalMainExits.length === 3 &&
+        summary.normalMainExits.every(
+          (exit) =>
+            exit?.exited === true &&
+            exit.exitCode === 0 &&
+            exit.signal === null &&
+            exit.mode === "normal" &&
+            exit.forcedCleanup === false,
+        ),
+    ],
     ["appServerElectronIpc", summary.bridge.appServerIpcHitCount > 0],
     ["appServerCurrentMethod", summary.bridge.methods.length > 0],
     ["configElectronIpc", trace.configIpcHitCount > 0],
@@ -252,11 +280,25 @@ export function applyPassingSettingsProfileEvidence(summary, facts) {
     ["restartReadback", summary.lifecycle.restartReadback],
     ["restorationSaveConfirmed", summary.lifecycle.restorationSaveConfirmed],
     ["restorationReadback", summary.lifecycle.restorationReadback],
+    [
+      "displayNameFailureRetained",
+      summary.lifecycle.displayNameFailureRetained,
+    ],
+    ["bioFailureRetained", summary.lifecycle.bioFailureRetained],
+    ["saveRetriesAccepted", summary.lifecycle.saveRetriesAccepted],
+    ["fullConfigPreserved", summary.lifecycle.fullConfigPreserved],
+    [
+      "independentIoRpcProof",
+      facts.rpcErrorProof?.method === "config/batchWrite" &&
+        facts.rpcErrorProof.errorCode === -32000 &&
+        facts.rpcErrorProof.ioCauseVerified === true,
+    ],
     ["loadingCleared", facts.loadingVisible === false],
     ["readErrorHidden", facts.errorVisible === false],
     ["consoleErrorsZero", consoleErrors.length === 0],
     ["pageErrorsZero", pageErrors.length === 0],
     ["invokeErrorsZero", facts.invokeErrorCount === 0],
+    ["hostTraceErrorsZero", trace.hostTraceErrorCount === 0],
     ["legacyCommandsZero", trace.legacyCommands.length === 0],
     ["mockFallbackZero", trace.mockFallbackHitCount === 0],
     ["savedScreenshotWritten", facts.savedScreenshotWritten === true],

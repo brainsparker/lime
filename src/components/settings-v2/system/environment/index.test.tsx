@@ -2,19 +2,19 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import { SettingsDraftContext } from "../../_layout/useSettingsDraft";
 
-const { mockGetConfig, mockGetEnvironmentPreview, mockSaveConfig } = vi.hoisted(
-  () => ({
+const { mockGetConfig, mockGetEnvironmentPreview, mockUpdateConfig } =
+  vi.hoisted(() => ({
     mockGetConfig: vi.fn(),
     mockGetEnvironmentPreview: vi.fn(),
-    mockSaveConfig: vi.fn(),
-  }),
-);
+    mockUpdateConfig: vi.fn(),
+  }));
 
 vi.mock("@/lib/api/appConfig", () => ({
   getConfig: mockGetConfig,
   getEnvironmentPreview: mockGetEnvironmentPreview,
-  saveConfig: mockSaveConfig,
+  updateConfig: mockUpdateConfig,
 }));
 
 import { EnvironmentSettings } from ".";
@@ -26,13 +26,23 @@ interface Mounted {
 
 const mounted: Mounted[] = [];
 
-function renderComponent(): HTMLDivElement {
+function renderComponent(
+  register?: (state: { dirty: boolean; saving: boolean }) => () => void,
+): HTMLDivElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
 
   act(() => {
-    root.render(<EnvironmentSettings />);
+    root.render(
+      register ? (
+        <SettingsDraftContext.Provider value={register}>
+          <EnvironmentSettings />
+        </SettingsDraftContext.Provider>
+      ) : (
+        <EnvironmentSettings />
+      ),
+    );
   });
 
   mounted.push({ container, root });
@@ -172,7 +182,25 @@ beforeEach(async () => {
     ],
   });
 
-  mockSaveConfig.mockResolvedValue(undefined);
+  mockUpdateConfig.mockImplementation(
+    async (updater: (config: unknown) => unknown) =>
+      updater({
+        default_provider: "openai",
+        environment: {
+          shell_import: {
+            enabled: true,
+            timeout_ms: 1800,
+          },
+          variables: [
+            {
+              key: "OPENAI_BASE_URL",
+              value: "https://old.example.com",
+              enabled: true,
+            },
+          ],
+        },
+      }),
+  );
 });
 
 afterEach(async () => {
@@ -256,14 +284,28 @@ describe("EnvironmentSettings", () => {
     await clickButton(findButton(container, "Save and apply"));
     await waitForLoad();
 
-    expect(mockSaveConfig).toHaveBeenCalledTimes(1);
-    expect(mockSaveConfig).toHaveBeenCalledWith(
+    expect(mockUpdateConfig).toHaveBeenCalledTimes(1);
+    const updater = mockUpdateConfig.mock.calls[0]?.[0] as (
+      config: unknown,
+    ) => { environment?: unknown };
+    expect(
+      updater({
+        default_provider: "openai",
+        environment: {
+          shell_import: { enabled: true, timeout_ms: 1800 },
+          variables: [
+            {
+              key: "OPENAI_BASE_URL",
+              value: "https://old.example.com",
+              enabled: true,
+            },
+          ],
+        },
+      }),
+    ).toEqual(
       expect.objectContaining({
         environment: {
-          shell_import: {
-            enabled: true,
-            timeout_ms: 2200,
-          },
+          shell_import: { enabled: true, timeout_ms: 2200 },
           variables: [
             {
               key: "OPENAI_API_BASE",
@@ -310,5 +352,77 @@ describe("EnvironmentSettings", () => {
       "If the import times out, Lime falls back to explicit overrides only and does not block the runtime.",
     );
     await leaveTip(fieldTip);
+  });
+
+  it("存在环境草稿时应向设置根导航注册 dirty 状态", async () => {
+    const register = vi.fn(() => () => undefined);
+    const container = renderComponent(register);
+    await waitForLoad();
+
+    await setInputValue(
+      findInput(container, "environment-variable-value-0"),
+      "https://draft.example.com",
+    );
+
+    expect(register).toHaveBeenLastCalledWith({ dirty: true, saving: false });
+  });
+
+  it("保存失败时应保留环境草稿", async () => {
+    const container = renderComponent();
+    await waitForLoad();
+    await setInputValue(
+      findInput(container, "environment-variable-value-0"),
+      "https://draft.example.com",
+    );
+    mockUpdateConfig.mockRejectedValueOnce(new Error("fixture failure"));
+
+    await clickButton(findButton(container, "Save and apply"));
+
+    expect(findInput(container, "environment-variable-value-0").value).toBe(
+      "https://draft.example.com",
+    );
+    expect(container.textContent).toContain(
+      "Failed to save environment settings",
+    );
+  });
+
+  it("保存期间的新编辑不能被旧响应清除", async () => {
+    const container = renderComponent();
+    await waitForLoad();
+    await setInputValue(
+      findInput(container, "environment-variable-value-0"),
+      "https://first.example.com",
+    );
+
+    let resolveUpdate!: (config: unknown) => void;
+    mockUpdateConfig.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveUpdate = resolve;
+      }),
+    );
+    await clickButton(findButton(container, "Save and apply"));
+    await setInputValue(
+      findInput(container, "environment-variable-value-0"),
+      "https://second.example.com",
+    );
+
+    resolveUpdate({
+      default_provider: "openai",
+      environment: {
+        shell_import: { enabled: true, timeout_ms: 2200 },
+        variables: [
+          {
+            key: "OPENAI_BASE_URL",
+            value: "https://first.example.com",
+            enabled: true,
+          },
+        ],
+      },
+    });
+    await waitForLoad();
+
+    expect(findInput(container, "environment-variable-value-0").value).toBe(
+      "https://second.example.com",
+    );
   });
 });

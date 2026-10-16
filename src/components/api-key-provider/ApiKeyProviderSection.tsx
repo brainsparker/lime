@@ -35,6 +35,8 @@ import type {
 import { resolveProviderTestModel } from "./ApiKeyProviderSection.helpers";
 import { ModelAddPanel } from "./ModelAddPanel";
 import { ModelProviderList } from "./ModelProviderList";
+import { SettingsUnsavedChangesDialog } from "@/components/settings-v2/_layout/SettingsUnsavedChangesDialog";
+import type { ProviderSettingDraftState } from "./useProviderSettingDraft";
 import {
   buildApiKeyProviderSectionViewModel,
   planDeleteProviderConfig,
@@ -165,6 +167,20 @@ export const ApiKeyProviderSection = forwardRef<
     // 导入导出对话框状态
     const [showImportExportDialog, setShowImportExportDialog] = useState(false);
     const [showAddModelFlow, setShowAddModelFlow] = useState(false);
+    const [providerDraftState, setProviderDraftState] =
+      useState<ProviderSettingDraftState>({
+        dirty: false,
+        saving: false,
+        apiHostDraft: "",
+        apiHostDirty: false,
+        savingApiHost: false,
+        apiKeyDraft: "",
+        apiKeyDirty: false,
+        savingApiKey: false,
+      });
+    const [pendingProviderId, setPendingProviderId] = useState<string | null>(
+      null,
+    );
     const appliedFocusKeyRef = useRef<string | null>(null);
     const focusKey = useMemo(
       () => buildProviderFocusKey(initialFocus),
@@ -196,6 +212,28 @@ export const ApiKeyProviderSection = forwardRef<
       [exposeOemLoginPrompt, providers, selectedProvider],
     );
 
+    const requestProviderSelection = useCallback(
+      (providerId: string | null) => {
+        if (providerId === selectedProviderId && !showAddModelFlow) {
+          return;
+        }
+
+        if (providerDraftState.dirty || providerDraftState.saving) {
+          setPendingProviderId(providerId);
+          return;
+        }
+
+        selectProvider(providerId);
+      },
+      [
+        providerDraftState.dirty,
+        providerDraftState.saving,
+        selectProvider,
+        selectedProviderId,
+        showAddModelFlow,
+      ],
+    );
+
     useEffect(() => {
       if (hasUnresolvedInitialFocus) {
         return;
@@ -207,11 +245,11 @@ export const ApiKeyProviderSection = forwardRef<
         showAddModelFlow,
       });
       if (plan.type === "select") {
-        selectProvider(plan.providerId);
+        requestProviderSelection(plan.providerId);
       }
     }, [
       hasUnresolvedInitialFocus,
-      selectProvider,
+      requestProviderSelection,
       selectedProviderId,
       showAddModelFlow,
       viewModel.enabledModelItems,
@@ -228,13 +266,13 @@ export const ApiKeyProviderSection = forwardRef<
 
       appliedFocusKeyRef.current = focusKey;
       setShowAddModelFlow(false);
-      selectProvider(focusedProviderId);
+      requestProviderSelection(focusedProviderId);
     }, [
       focusKey,
       focusedProviderId,
       initialFocus,
       providers.length,
-      selectProvider,
+      requestProviderSelection,
     ]);
 
     const resolveCurrentTestModel = useCallback(() => {
@@ -342,18 +380,18 @@ export const ApiKeyProviderSection = forwardRef<
 
     const handleModelActivated = useCallback(
       (providerId: string) => {
-        selectProvider(providerId);
+        requestProviderSelection(providerId);
         setShowAddModelFlow(false);
       },
-      [selectProvider],
+      [requestProviderSelection],
     );
 
     const handleSelectEnabledModel = useCallback(
       (providerId: string) => {
         setShowAddModelFlow(false);
-        selectProvider(providerId);
+        requestProviderSelection(providerId);
       },
-      [selectProvider],
+      [requestProviderSelection],
     );
 
     return (
@@ -435,12 +473,14 @@ export const ApiKeyProviderSection = forwardRef<
                 />
               ) : (
                 <ProviderSetting
+                  key={selectedProvider?.id ?? "none"}
                   provider={selectedProvider}
                   focus={selectedProviderFocus}
                   onUpdate={handleUpdateProvider}
                   onAddApiKey={handleAddApiKey}
                   onTestConnection={handleTestConnection}
                   onDeleteProvider={handleDeleteProviderConfig}
+                  onDraftStateChange={setProviderDraftState}
                   authStatus={
                     viewModel.selectedProviderLoginRequired
                       ? "login_required"
@@ -454,6 +494,24 @@ export const ApiKeyProviderSection = forwardRef<
             </div>
           </>
         )}
+
+        <SettingsUnsavedChangesDialog
+          pendingNavigation={pendingProviderId !== null}
+          saving={
+            providerDraftState.saving
+          }
+          onClearPendingNavigation={() => setPendingProviderId(null)}
+          onDiscardChanges={() => {
+            if (
+              providerDraftState.saving
+            ) {
+              return;
+            }
+            const nextProviderId = pendingProviderId;
+            setPendingProviderId(null);
+            selectProvider(nextProviderId);
+          }}
+        />
 
         {/* 导入导出对话框 */}
         <ImportExportDialog

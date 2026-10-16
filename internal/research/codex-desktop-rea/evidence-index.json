@@ -1,5 +1,19 @@
 {
   "date": "2026-10-13",
+  "local_evidence_lifecycle": {
+    "checked_date": "2026-10-16",
+    "observed_at_local": "09:31 Asia/Shanghai",
+    "event": "The entire .lime/qc directory was externally removed during Environment validation.",
+    "historical_local_artifacts": "lost; historical results remain execution records, not currently retained proof",
+    "preserved": [
+      "product and fixture sources; 16 declared SHA-256 values unchanged",
+      "Vitest smart state: 79 passed, 1 failed, 51 pending",
+      "matching REA original members retained outside .lime/qc"
+    ],
+    "preserved_state_sha256": "3e161bf0db88e9732ab0c30ba1906768c9b5cbf82b6e94356f81273b5061fb23",
+    "recovery": ".lime/qc/settings-environment/recovery-20261016",
+    "historical_artifacts_reconstructed": false
+  },
   "composer_draft_persistence_focused_analysis": {
     "checked_date": "2026-10-14",
     "evidence_id": "ev_6ac3324c94242434149d9b820ee6cecdc0165021adadac0bdca91254ab787c29",
@@ -6911,6 +6925,1155 @@
     "finalReceipt": {
       "path": ".lime/qc/composer-persistence/fixture-teardown-final-20261015/receipt.json",
       "sha256": "acb2e430f2c01a67b6b5edf59fed92b7c9279ec2dd2b82ef6e14c15c8b29c718"
+    }
+  },
+  "settings_navigation_canonical_migration": {
+    "date": "2026-10-15",
+    "status": "verified-declared-navigation-contracts",
+    "owner": "useAppNavigation -> AppPageContent -> SettingsPage",
+    "locationProjection": "existing workspace surface onLocationChange; requestId guards stale callbacks",
+    "deleted": [
+      "SettingsPage initial/local chapter selection duplication",
+      "hidden rail Home selector button",
+      "settings.layout.action.backHome locale key"
+    ],
+    "fixture": "scripts/electron/settings-navigation-fixture-smoke.mjs",
+    "targetedResult": {
+      "suites": 8,
+      "tests": 108,
+      "affectedTestEnvironmentRerun": "1/1 passed without warnings; intermediate import failure retained",
+      "receipt": ".lime/qc/settings-sections/navigation-targeted-final-receipt-20261015.json",
+      "sha256": "9f72f1ef95f7f133790fa789c987df438dc6b82e1ffa7560eed90d25a9ca6d14"
+    },
+    "nativeResult": {
+      "runId": "settings-navigation-native-20261015-14",
+      "ok": true,
+      "businessContractsPassed": 4,
+      "businessContractCount": 4,
+      "sameCanonicalIdentity": true,
+      "backendTurnStarts": 1,
+      "nativeIpcEntries": 223,
+      "productionMockHits": 0,
+      "consolePageTraceErrors": 0,
+      "normalMainExit": {
+        "pid": 79440,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forcedCleanup": null,
+      "sourceCount": 35,
+      "directoryArtifactCount": 2828,
+      "freshnessBeforeAfterReady": true,
+      "summary": ".lime/qc/settings-sections/settings-navigation-native-20261015-14/summary.json",
+      "sha256": "9626c25423ba7780708816dc548d7c01695bc4f6fb41286440d5ffc6c8c6b67b",
+      "frozenManifest": ".lime/qc/settings-sections/navigation-final-20261015-1/native-evidence-manifest.json",
+      "backendMode": "external",
+      "limitations": [
+        "Bypasses production RuntimeBackend/provider execution; not live provider evidence.",
+        "Host open-url event is exercised; OS URL dispatcher is not.",
+        "Directory identity includes retained chunks; it does not claim every file loaded.",
+        "Old normal-exit timeout cause remains unknown."
+      ]
+    },
+    "wholeGui": "partial",
+    "recoveryFix": {
+      "owner": "useWorkspaceTaskCenterNavigationRuntime.resolveInitialSessionSwitch",
+      "behavior": "waitForResolution until the mounted Composer owner exists; preserve navigation source generation/scope/epoch guards",
+      "red": ".lime/qc/settings-sections/navigation-composer-recovery-red-2.log",
+      "green": ".lime/qc/settings-sections/navigation-composer-recovery-green.log",
+      "suites": 5,
+      "tests": 46,
+      "nativePending": false
+    },
+    "retainedNativeFailures": {
+      "rounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      "pathPattern": ".lime/qc/settings-sections/settings-navigation-native-20261015-N/summary.json",
+      "round5and6": "Home first send return passed; existing session return blocked in restoring shell; recovery target parameters correct in round6",
+      "oldExitTimeoutCause": "unknown",
+      "round8and9": "Business 3/3; normal Main exit timeout; sampler terminated without sample output. Inspector cause remains unknown.",
+      "round10": "Freshness precondition failed after protocol --check rewrote same-content source mtime; no Electron launch.",
+      "round11": "Business 3/3 and normal code0/no signal; final freshness failed during a product correction.",
+      "round12": "Business navigation 3/3 and normal Main code0/no signal; skill form visible but exact-label oracle omitted required suffix. Entire run failed.",
+      "round13": "Freshness precondition failed after controlled-fixture guard testSupport mtime changed; no Electron launch. Renderer rebuilt before round14."
+    },
+    "incomingServiceSkillFix": {
+      "owner": "useWorkspaceResetRuntime -> useWorkspacePendingInputRuntime",
+      "behavior": "new route reset preserves incoming launch; topic reset cancels it; empty canonical route drops old launch parameters",
+      "red": ".lime/qc/settings-sections/navigation-a2ui-current-entry-2.log",
+      "green": ".lime/qc/settings-sections/navigation-a2ui-route-reset-final.log",
+      "suites": 3,
+      "tests": 11,
+      "nativePending": false
+    },
+    "currentValidation": {
+      "strictLint": "passed affected source/fixture files",
+      "typecheck": "passed standard renderer and node",
+      "contracts": "passed standard test:contracts",
+      "frontend": {
+        "status": "passed",
+        "command": "npm run test:resume",
+        "exitCode": 0,
+        "passedBatches": 130,
+        "totalBatches": 130,
+        "registeredExistingFiles": 1759,
+        "snapshot": ".lime/qc/settings-sections/navigation-final-20261015-1/validation/vitest-smart-last-run.json",
+        "failedBatchesRetained": [11, 61],
+        "resumeCacheBoundary": "Original passed batches retained; affected changed owners also ran directed regressions."
+      },
+      "gui": "standard round4 wrapper exit0, 24/24; renderer rebuilt exit0 after final testSupport registration; native round14 full pass",
+      "controlledBackendGuard": {
+        "log": ".lime/qc/settings-sections/navigation-external-backend-guard.log",
+        "tests": 2,
+        "passed": 2,
+        "productionDefaultUnchanged": true
+      },
+      "documents": "Format, docs boundary, scripts governance, local links and diff checks recorded in combined receipt."
+    },
+    "combinedReceipt": ".lime/qc/settings-sections/navigation-final-20261015-1/receipt.json",
+    "completion": {
+      "declaredNativeContracts": {
+        "passed": 4,
+        "total": 4,
+        "percent": 100
+      },
+      "wholeGui": "partial; full denominator not enumerated"
+    }
+  },
+  "settings_memory_unsaved_alignment": {
+    "checked_date": "2026-10-15",
+    "status": "complete-for-declared-memory-config-and-soul-slice",
+    "reference_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "summary_evidence_id": "ev_6d2230454a838f113f4e61d100fb41d47ea6b241100765d84eb35674dcd71478",
+    "inspection_kind": "ordinary-source-anchor-review-of-retained-REA-members",
+    "target_executed": false,
+    "members": {
+      "settings-page-50e3fab957b6.js": "509c05cfd1d6e93488bcb7b7660f4fadd41a28d8a79aba7f93cc93ee0c170241",
+      "settings-unsaved-changes-dialog-e2bd19a649b6.js": "3d1843d161cdbc4e371088169719ff8bace1badbbb902cf9261b28fb7a849a4e"
+    },
+    "reference_contract": {
+      "navigation": "requestNavigation executes immediately when clean and retains a continuation when dirty",
+      "dialog_actions": ["Keep editing", "Discard changes"],
+      "discard": "clear pending before invoking captured continuation",
+      "external_dirty_registry": "unknown"
+    },
+    "current_owners": [
+      "useAppNavigation",
+      "SettingsNavigationGuard",
+      "useSettingsDraft",
+      "SettingsUnsavedChangesDialog",
+      "useMemorySettingsDraft",
+      "memoryConfig"
+    ],
+    "scope": "Memory configuration and unapplied SOUL input only; correction notes are covered by the later settings_note_unsaved_alignment entry, not by this frozen receipt. Other forms and search remain pending.",
+    "validation": {
+      "initial_red": ".lime/qc/settings-unsaved-red.log",
+      "config_preservation_red": ".lime/qc/settings-unsaved-config-preservation-red.log",
+      "targeted": {
+        "suites": 7,
+        "passed": 114,
+        "log": ".lime/qc/settings-unsaved-targeted-final-3.log"
+      },
+      "config_boundary": {
+        "suites": 2,
+        "passed": 21,
+        "log": ".lime/qc/settings-unsaved-config-boundary.log"
+      },
+      "declared_sources": ".lime/qc/settings-unsaved/declared-source-before-3.json",
+      "default": {
+        "frontend_batches": "130/130",
+        "registered_files": 1761,
+        "resume_exit": 0,
+        "original_wrapper_exit": 1,
+        "original_failure": "batch62 existing export scan exceeded unchanged 5s; isolated4/4 and standard resume passed",
+        "contracts_exit": 0,
+        "gui_wrapper_exit": 0,
+        "gui_assertions": "24/24"
+      },
+      "native": {
+        "round": 3,
+        "exit": 0,
+        "new_contracts": "6/6",
+        "existing_contracts": "4/4",
+        "electron_ipc": 440,
+        "errors": 0,
+        "mock_hits": 0,
+        "normal_main_exit_ms": 630,
+        "native_sources": 43,
+        "directory_artifacts": 2934,
+        "source_artifact_sidecar_drift": 0,
+        "binary_selection": "existing APP_SERVER_BIN using the sidecar from standard GUI build",
+        "sidecar_sha256": "d0780858f959f44a170ca11f803e20bfe9f5853d6d5b5a6c772ebd2621d0a2d0",
+        "summary": ".lime/qc/settings-unsaved/final-20261015-1/native/summary.json",
+        "receipt": ".lime/qc/settings-unsaved/final-20261015-1/receipt.json",
+        "prior_attempts": "round1 aborted before Electron at rustup metadata network; round2 fixture looked for conversation in scheduled task list; both retained"
+      },
+      "preview_red": ".lime/qc/settings-unsaved-import-preview-red.log"
+    },
+    "report": "settings-navigation-audit.md",
+    "limitations": [
+      "Static reference code does not prove reference runtime behavior",
+      "No recovered original registry/type names",
+      "No live provider, Windows, OS URL dispatch, full settings or content search claim"
+    ]
+  },
+  "settings_note_unsaved_alignment": {
+    "checked_date": "2026-10-15",
+    "status": "passed-with-documented-limits",
+    "reference_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "target_executed": false,
+    "reference_boundary": "Reuse the confirmed settings navigation/dialog contract; no recovered reference MemoryNoteEditor symbol or note-specific runtime behavior.",
+    "current_owners": [
+      "MemoryNoteEditor",
+      "MemoryStoreStatusPanel",
+      "useSettingsDraft",
+      "useAppNavigation",
+      "existing memoryStore/addNote and memoryStore/read"
+    ],
+    "scope": "Independent correction-note input; local-tab retention, navigation protection and version-aware save settlement.",
+    "validation": {
+      "initial_red": ".lime/qc/settings-note/red-1.log",
+      "local_tabs_red": ".lime/qc/settings-note/local-tabs-red.log",
+      "selector_migration_failure": ".lime/qc/settings-note/targeted-final-1.log",
+      "targeted": {
+        "suites": 9,
+        "passed": 126,
+        "new_note_cases": 20,
+        "log": ".lime/qc/settings-note/targeted-final-2.log"
+      },
+      "lint": ".lime/qc/settings-note/lint-final-2.log",
+      "declared_sources": ".lime/qc/settings-note/source-final.json",
+      "product_validation": "passed",
+      "default": {
+        "wrapper_exit_code": 0,
+        "log": ".lime/qc/settings-note/verify-local-1.log",
+        "frontend": {
+          "passed_batches": 130,
+          "total_batches": 130,
+          "registered_files": 1762,
+          "all_paths_exist": true,
+          "resume_used": false,
+          "state_sha256": "549def83ac0931088e706f6371edbb945ddc42107f1e99a371097e563fa6df98"
+        },
+        "contracts_exit_code": 0,
+        "standard_gui": {
+          "run_id": "standalone-shell-01-20261015153011-90852",
+          "wrapper_exit_code": 0,
+          "passed": 24,
+          "total": 24,
+          "errors_and_mock_hits": 0
+        },
+        "product_changed_after_default": false,
+        "fixture_changes_after_default": [
+          "scripts/electron/lib/settings-note-navigation-scenario.mjs",
+          "scripts/electron/settings-navigation-fixture-smoke.mjs"
+        ],
+        "fixture_final_lint": ".lime/qc/settings-note/fixture-lint-5.log"
+      },
+      "native": {
+        "proof_level": "Desktop Gate B",
+        "run_id": "settings-note-native-20261015-5",
+        "wrapper_exit_code": 0,
+        "summary": ".lime/qc/settings-sections/settings-note-native-20261015-5/summary.json",
+        "summary_sha256": "0f4060df21e91812c75d3a2d1aa063e071346fa13f4d01e2d09c7f6c50d4a7a6",
+        "note_contracts": {
+          "passed": 6,
+          "total": 6,
+          "percent": 100
+        },
+        "electron_ipc": 653,
+        "errors_and_mock_hits": 0,
+        "backend_turn_starts": 1,
+        "same_canonical_identity": true,
+        "main_exit": {
+          "pid": 22858,
+          "exit_code": 0,
+          "signal": null,
+          "duration_ms": 698,
+          "forced_cleanup": false
+        },
+        "declared_source_count": 46,
+        "artifact_count": 3039,
+        "source_artifact_sidecar_drift": [],
+        "freshness_before_after": "ready",
+        "backend_mode": "external",
+        "read_boundary": "GUI addNote is in the continuous native trace; exact persisted Markdown is asserted via the existing public RPC helper using real preload/IPC, not renderer mock.",
+        "failed_runs": [
+          {
+            "run_id": "settings-note-native-20261015-1",
+            "cause": "Fixture inventory used notes instead of current extensions/ad_hoc/notes; fixed in helper; normal Main exit."
+          },
+          {
+            "run_id": "settings-note-native-20261015-2",
+            "cause": "Workspace candidate outside viewport; original 120-second click timeout; normal Main exit. Underlying cause unknown."
+          },
+          {
+            "run_id": "settings-note-native-20261015-3",
+            "cause": "Incorrect pre-bound UI assumption; workspace=null assertion stopped send; normal Main exit."
+          }
+        ],
+        "picker_resolution": "Restored real selection, normal scrollIntoViewIfNeeded then ordinary click; geometry/screenshot recorded and workspace asserted. No product-menu change, forced click or timeout relaxation; earlier viewport root cause remains unknown.",
+        "prior_successful_run": {
+          "run_id": "settings-note-native-20261015-4",
+          "wrapper_exit_code": 0,
+          "summary_sha256": "2fbf49194173446a24dfb7c45d1ca8490e8409d851feafa5aee9865de0e8009c",
+          "reason_for_final_rerun": "Prettier line-wrapped the screenshot statement; final complete run binds exact formatted fixture bytes."
+        }
+      }
+    },
+    "classification": {
+      "current": [
+        "independent note component and dirty/saving registration",
+        "existing canonical store API"
+      ],
+      "compat_added": 0,
+      "deprecated_added": 0,
+      "dead_deleted": [
+        "inline note form/save handler",
+        "unconditional input consumption",
+        "unmounted note result/health-refresh notifications"
+      ]
+    },
+    "report": "settings-navigation-audit.md",
+    "limitations": [
+      "No reference note symbol or full dirty registry recovery",
+      "No full maintenance-action, other-form, window-close, content-search, live-provider or Windows claim",
+      "Earlier workspace-menu viewport failure remains unexplained; successful normal scrolling is not a product-menu fix.",
+      "Save-button text wraps at the observed width; this slice closes draft/save behavior, not full Memory-page visual equivalence."
+    ],
+    "receipt": ".lime/qc/settings-note/final-20261015-1/receipt.json",
+    "whole_gui_status": "partial"
+  },
+  "settings_web_search_draft_alignment": {
+    "checked_date": "2026-10-16",
+    "status": "passed-with-documented-limits",
+    "reference_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "target_executed": false,
+    "reference_boundary": "Reuse confirmed settings requestNavigation/pendingNavigation and Keep editing/Discard changes contract; reference Web Search module and original symbols remain unknown.",
+    "current_owners": [
+      "useWebSearchDraft",
+      "webSearchConfig",
+      "useSettingsDraft",
+      "useAppNavigation",
+      "existing serialized updateConfig"
+    ],
+    "scope": "Web Search single draft, local-tab retention, navigation protection and field-version-aware merge into latest config; MemoryNoteEditor Save layout only.",
+    "validation": {
+      "initial_red": ".lime/qc/settings-web-search/red-1.log",
+      "targeted": {
+        "suites": 5,
+        "passed": 80,
+        "web_search_integration": 24,
+        "config_merge": 5,
+        "log": ".lime/qc/settings-web-search/targeted-4.log"
+      },
+      "lint": ".lime/qc/settings-web-search/lint-3.log",
+      "typecheck": ".lime/qc/settings-web-search/typecheck-1.log",
+      "declared_sources": ".lime/qc/settings-web-search/source-final-2.json",
+      "default": {
+        "wrapperExitCode": 0,
+        "singleVerifyLocalWrapperPassed": true,
+        "log": "verify-local-1.log",
+        "prechecks": [
+          "version consistency",
+          "five-language structure/unused",
+          "whole-src zero-warning lint",
+          "25-source hardcoded-copy scan",
+          "renderer/node typecheck"
+        ],
+        "frontend": {
+          "passedBatches": 130,
+          "totalBatches": 130,
+          "registeredFiles": 1764,
+          "allPathsExist": true,
+          "newTestsRegistered": true,
+          "resumeUsed": false,
+          "stateSha256": "e598c23cd9212b423dc9b1c79aac9e759320451d5b7533eff088fdab198f6565",
+          "state": "frontend-final-state.json"
+        },
+        "contractsExitCode": 0,
+        "standardGui": {
+          "wrapperExitCode": 0,
+          "runId": "standalone-shell-01-20261015175218-53702",
+          "passed": 24,
+          "total": 24,
+          "summary": ".lime/qc/project-gates/standalone-shell-01-20261015175218-53702/shell-01-electron-smoke/summary.json",
+          "summarySha256": "e8471fdb3560596dc2eabbe4e6eb7ebc82df477b17f5a12d7ae079329fee84f5",
+          "errors": {
+            "consoleErrorCount": 0,
+            "rendererCrashCount": 0,
+            "rendererUnresponsiveCount": 0,
+            "preloadErrorCount": 0,
+            "rendererLoadErrorCount": 0,
+            "invokeErrorCount": 0,
+            "traceErrorCount": 0,
+            "pageErrorCount": 0,
+            "legacyCommandHitCount": 0,
+            "legacyCommands": [],
+            "mockFallbackHitCount": 0
+          }
+        },
+        "declaredSources": "source-final-2.json",
+        "productChangedDuringOrAfterDefault": false,
+        "fixtureScopeTextClarificationDuringDefault": [
+          {
+            "path": "scripts/electron/settings-navigation-fixture-smoke.mjs",
+            "before": "09bc2815006fba9da1b4780cc997b6b855954841a4b13f59720a04bed0339dd0",
+            "after": "1257fea1ef358732cf1030cd6ac948d16d07c549c23216a6b63364d8df6f4086"
+          }
+        ]
+      },
+      "native": {
+        "runId": "settings-web-search-native-20261016-1",
+        "wrapperExitCode": 0,
+        "proofLevel": "Desktop Gate B",
+        "backendMode": "external",
+        "summary": ".lime/qc/settings-sections/settings-web-search-native-20261016-1/summary.json",
+        "summarySha256": "bfb14dfc8ee496bfee84bac7c298c4a949e657069231c5342c544187b179e0d6",
+        "webSearchContracts": {
+          "passed": 6,
+          "total": 6,
+          "percent": 100
+        },
+        "electronIpc": 849,
+        "consoleErrors": 0,
+        "pageErrors": 0,
+        "traceErrors": 0,
+        "productionMockHits": 0,
+        "backendTurnStarts": 1,
+        "sameCanonicalIdentity": true,
+        "mainExit": {
+          "pid": 54930,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "durationMs": 358,
+          "forcedCleanup": false
+        },
+        "sourceCount": 57,
+        "artifactCount": 3145,
+        "sidecarSha256": "d0780858f959f44a170ca11f803e20bfe9f5853d6d5b5a6c772ebd2621d0a2d0",
+        "noteSaveButton": {
+          "width": 72,
+          "height": 32,
+          "lineHeight": 16,
+          "contentHeight": 16,
+          "clientWidth": 72,
+          "scrollWidth": 72,
+          "whiteSpace": "nowrap",
+          "flexShrink": "0"
+        },
+        "freshness": "ready-before-and-after",
+        "failedNativeRuns": 0,
+        "screenshotsReviewed": ["web-search-saved.png", "note-saved.png"],
+        "url": "file:///index.html?nativeStartup",
+        "finalVisibleState": "new conversation Home after settings and service-skill reset checks; Electron normally exited"
+      },
+      "product_validation": "passed",
+      "source_format": ".lime/qc/settings-web-search/source-format-final.log",
+      "fixture_lint": ".lime/qc/settings-web-search/fixture-lint-final.log",
+      "failed_test_fixture_attempts": [
+        ".lime/qc/settings-web-search/targeted-1.log",
+        ".lime/qc/settings-web-search/targeted-3.log"
+      ]
+    },
+    "classification": {
+      "current": [
+        "single Web Search draft owner and field merge",
+        "existing navigation/config authority"
+      ],
+      "compat_added": 0,
+      "deprecated_added": 0,
+      "dead_deleted": [
+        "inline loading/save lifecycle",
+        "stale full Config snapshot save",
+        "inline normalization/current-field copies",
+        "success-message timer"
+      ]
+    },
+    "report": "settings-navigation-audit.md",
+    "limitations": [
+      "No recovered reference Web Search original symbols or complete dirty registry",
+      "External backend bypasses production RuntimeBackend/provider execution; no live search/provider claim",
+      "Failure, duplicate/in-flight, late settlement, credentials and five-language proof is component-level",
+      "No full theme/window-width, other-settings-form, content-search, window-close, Windows or reference-runtime claim",
+      "Earlier workspace picker viewport failure root cause remains unknown; this slice does not claim its product fix",
+      "Directory artifact identity includes retained chunks, without claiming every file loaded"
+    ],
+    "whole_gui_status": "partial",
+    "receipt": ".lime/qc/settings-web-search/final-20261016-1/receipt.json",
+    "next": "ProviderSetting identity/projection refresh, field versions and provider-switch navigation protection; then remaining settings/content search."
+  },
+  "settings_environment_draft_alignment": {
+    "checked_date": "2026-10-16",
+    "status": "passed-scoped-with-documented-limits",
+    "reference_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "summary_evidence_id": "ev_6d2230454a838f113f4e61d100fb41d47ea6b241100765d84eb35674dcd71478",
+    "inspection_kind": "ordinary-source-anchor-review-of-matching-retained-REA-members",
+    "target_executed": false,
+    "members": {
+      "settings-page-50e3fab957b6.js": "509c05cfd1d6e93488bcb7b7660f4fadd41a28d8a79aba7f93cc93ee0c170241",
+      "settings-unsaved-changes-dialog-e2bd19a649b6.js": "3d1843d161cdbc4e371088169719ff8bace1badbbb902cf9261b28fb7a849a4e"
+    },
+    "current_owners": [
+      "useAppNavigation",
+      "useSettingsDraft",
+      "useEnvironmentSettingsDraft",
+      "environmentConfig",
+      "EnvironmentFields",
+      "EnvironmentPreviewPanel"
+    ],
+    "reference_unknowns": [
+      "Environment original form symbols",
+      "external dirty registry original type"
+    ],
+    "deleted_paths": [
+      "page-owned full Config snapshot",
+      "inline loading/save lifecycle",
+      "key-based variable input remount",
+      "save-response unconditional draft replacement"
+    ],
+    "verification": {
+      "targeted": "4 suites / 51 tests passed after evidence recovery",
+      "default": "combined recovered prechecks + frontend resume 131/131 batches / 1766 existing files + contracts + standard GUI 24/24; original wrappers exit1 and stopped wrapper143 remain recorded",
+      "frontend_state_sha256": "7763fb80182ae0e0d499a0341cd93f54c34fd8c257e85ce2834782ad644d75d7",
+      "native_run": "settings-environment-native-20261016-5",
+      "native_summary_sha256": "66302537bee3c066ee790eafddac53c5f0aa55c99d0355e0038c015b9f085fd3",
+      "native_contracts": {
+        "passed": 5,
+        "total": 5,
+        "scope": "four visible departure actions plus save/read/reopen/restore"
+      },
+      "component_only_navigation": "New; Settings unmounts AppSidebar including its search shortcut, so no native settings entry is available",
+      "theme_projections": {
+        "passed": 4,
+        "total": 4,
+        "scope": "current skin and 1440x1000 viewport; system via media emulation"
+      },
+      "native_ipc": 1058,
+      "native_console_page_trace_mock_errors": 0,
+      "backend_turn_starts": 1,
+      "main_exit": {
+        "pid": 40864,
+        "code": 0,
+        "signal": null,
+        "normal": true,
+        "duration_ms": 918,
+        "forced_cleanup": false
+      },
+      "source_count": 64,
+      "artifact_count": 3566,
+      "source_artifact_sidecar_drift": 0,
+      "build_freshness": "ready-before-and-after",
+      "sidecar_sha256": "d0780858f959f44a170ca11f803e20bfe9f5853d6d5b5a6c772ebd2621d0a2d0",
+      "preserved_failed_native_runs": [1, 2, 3, 4],
+      "failed_native_reasons": [
+        "nonexistent New sidebar button in settings",
+        "unmounted sidebar shortcut; normal Main exit timed out and required failed-resource reap",
+        "Rust default Environment omission misclassified by fixture equality",
+        "theme/language System button selector ambiguity"
+      ],
+      "product_changed_after_default": false,
+      "fixture_changes_after_default": "Only the Environment native child scenario: actual entry scope, Rust-default semantic comparison, exact accessible theme selector. Final lint/format and full native run passed.",
+      "canonical_environment_shape": {
+        "initial_present": false,
+        "saved_present": true,
+        "default_omission_normalized_for_untouched_fields": true
+      }
+    },
+    "completion": {
+      "visible_native_contracts_percent": 100,
+      "behavior": "scoped form lifecycle and field preservation passed",
+      "structure": "page/draft/pure configuration/presentation responsibilities migrated; original reference form symbols remain unknown",
+      "cleanup": "old full Config snapshot, inline save/reload and name-key remount deleted; compat/deprecated added 0",
+      "whole_gui": "partial; denominator not enumerated"
+    },
+    "receipt": ".lime/qc/settings-environment/final-20261016-3/receipt.json",
+    "limitations": [
+      "Earlier .lime/qc artifacts externally deleted; first79 batches survive in original runner state, not original logs.",
+      "External backend bypasses production RuntimeBackend/provider; no live Shell import.",
+      "New is component-only; failure, duplicate, in-flight, late settlement, focus and five-language evidence is component-level.",
+      "System theme uses media emulation; no full skin/width matrix or OS event evidence.",
+      "No reference runtime/pixel equality, Windows, packaged app, full settings content-search or complete symbol coverage.",
+      "Native run2 normal Main exit timeout root cause remains unknown; forced reap excluded from pass."
+    ],
+    "next": "Execution Policy subsequently completed in its own entry; current next slice is Profile."
+  },
+  "settings_execution_policy_draft_alignment": {
+    "checked_date": "2026-10-16",
+    "status": "adopted-scoped; combined default and two native fixtures passed",
+    "reference_evidence_id": "ev_4bf8bfc7ccb14fb058096dd32864ae7f9ab83a8f0ad9acb46cfd79b5379ab36c",
+    "summary_evidence_id": "ev_6d2230454a838f113f4e61d100fb41d47ea6b241100765d84eb35674dcd71478",
+    "target_executed": false,
+    "inspection_kind": "reuse of matching retained REA artifacts; original member digests rechecked",
+    "members": {
+      "settings-page-50e3fab957b6.js": "509c05cfd1d6e93488bcb7b7660f4fadd41a28d8a79aba7f93cc93ee0c170241",
+      "settings-unsaved-changes-dialog-e2bd19a649b6.js": "3d1843d161cdbc4e371088169719ff8bace1badbbb902cf9261b28fb7a849a4e"
+    },
+    "current_owners": [
+      "useAppNavigation",
+      "useSettingsDraft",
+      "useExecutionPolicyDraft",
+      "executionPolicyConfig",
+      "ExecutionPolicyFields",
+      "PolicySourceLayerPanel"
+    ],
+    "reference_unknowns": [
+      "Execution Policy original form symbols",
+      "external dirty registry original type"
+    ],
+    "classification": {
+      "current": "field draft/config merge/presentation plus existing navigation and config authority",
+      "compat_added": 0,
+      "deprecated_added": 0,
+      "dead_deleted": [
+        "fullConfig snapshot",
+        "full agent local copy",
+        "inline load/save/reload lifecycle",
+        "locale-triggered reload",
+        "fixed light palette",
+        "raw backend error UI fixture expectation",
+        "dirty Reload draft-discard expectation",
+        "IPC success inferred as config save success",
+        "swallowed Main exit failure and summary saved before final cleanup",
+        "empty unused Host command/statistics fields"
+      ]
+    },
+    "verification": {
+      "red": "18 tests: 16 failed, 2 passed",
+      "targeted": "5 suites / 51 passed",
+      "fixture_evidence_regression": "9/9 passed after final cleanup; strict lint and format exit0",
+      "default": {
+        "kind": "combined",
+        "original_wrapper_exit": 1,
+        "failure": {
+          "batch": 112,
+          "passed_before_failure": 111,
+          "reason": "one original5000ms EditorView Stop-restore timeout; root cause unknown",
+          "state_sha256": "baefb5f2e94ecb730f81241f8a746d11e09cd72355e1cdacff9327e875d2ab02"
+        },
+        "recheck": {
+          "passed": 3,
+          "total": 3,
+          "prior_timeout_case_ms": 1525,
+          "source_or_deadline_modified": false
+        },
+        "resume_exit": 0,
+        "passed_batches": 131,
+        "registered_files": 1768,
+        "all_paths_exist": true,
+        "state_sha256": "3a9fce61593bbfa06c3b50e0499fe3538a820e2cdb56e3e67128f07e33932a99",
+        "contracts_exit": 0,
+        "standard_gui": {
+          "run_id": "standalone-shell-01-20261016064019-92706",
+          "exit": 0,
+          "assertions": "24/24",
+          "summary_sha256": "1db217969afe77a5f7a70d99d04e81dff10b906a4ad804a73b65b142c93a8a97"
+        }
+      },
+      "native": {
+        "run_id": "settings-execution-policy-native-20261016-2",
+        "exit": 0,
+        "visible_contracts": "5/5; four navigation targets plus save/read/reopen/restore",
+        "themes": "4/4; current skin1440x1000; system media emulated",
+        "minimum_rule_control_contrast": [
+          11.108669666946227, 13.34656666466356, 11.108669666946227,
+          13.34656666466356
+        ],
+        "screenshots_reviewed": 4,
+        "ipc": 1291,
+        "errors_and_mock": 0,
+        "same_canonical_identity": true,
+        "backend_turn_starts": 1,
+        "main_exit": {
+          "pid": 589,
+          "code": 0,
+          "signal": null,
+          "ms": 1050,
+          "forced": false
+        },
+        "sources": 75,
+        "artifacts": 3777,
+        "freshness": "ready-before-and-after",
+        "drift": 0,
+        "summary_sha256": "53f22640268414c536e9bbc6fe6aecc7666c36d511ee1d96185955ef5870fa61"
+      },
+      "cold": {
+        "run_id": "settings-execution-policy-cold-20261016-2",
+        "exit": 0,
+        "assertions": "32/32",
+        "real_electron_launches": 3,
+        "ipc": 76,
+        "gui_save_acknowledgements": 3,
+        "write_requests": 4,
+        "io_probe": {
+          "method": "config/batchWrite",
+          "error_code": -32000,
+          "io_cause_verified": true,
+          "is_gui_response_capture": false
+        },
+        "safe_gui_failure_retained_and_retried": true,
+        "cold_readback_and_restoration": true,
+        "main_exit_pids": [13301, 13665, 13996],
+        "normal_exit_ms": [793, 303, 445],
+        "forced_cleanup": 0,
+        "errors_and_mock": 0,
+        "freshness": "ready-before-and-after",
+        "expected_error_screenshot_reviewed": true,
+        "summary_sha256": "b987eead63afa51647ed957806c65fbe4c20cc8929574dc756ffb226efc60da7"
+      }
+    },
+    "limitations": [
+      "New and diagnostic focus/suggestion are component-only in this fixture.",
+      "External backend bypasses production RuntimeBackend/provider; no shell/network tool execution or live provider.",
+      "Theme contrast covers enabled rule controls; no placeholder/disabled/hover, full skin or OS theme dispatch claim.",
+      "Original form symbols unknown; no reference runtime equality, Windows, packaged app or full GUI/content-search claim.",
+      "Original EditorView timeout and Cargo metadata discovery stall root causes remain unknown; evidence retained."
+    ],
+    "whole_gui_status": "partial; denominator not enumerated",
+    "receipt": ".lime/qc/settings-execution-policy/final-20261016-1/receipt.json",
+    "evidence_boundaries": {
+      "first_default_and_navigation": "passed before final theme fixes; historical only; not counted as final source verification",
+      "first_cold": "failed old transport-error predicate; retained",
+      "final_fixture_changes": "three test-only files after default launch; product14 source digests unchanged; direct9 tests and final native cold rerun passed",
+      "probe": "independent same preload/IPC/App Server boundary IO cause verification, separate from GUI safe failure/retention/retry",
+      "screenshots": "four theme projections and one safe error screenshot manually reviewed",
+      "directory_identity": "includes retained chunks; not every listed artifact claimed loaded"
+    },
+    "next": "Profile inline/Tag draft and save ownership; source/tests/old Electron fixture only read, implementation untouched."
+  },
+  "current_profile_draft_alignment": {
+    "status": "accepted scoped draft/persistence safety contract; Profile content/layout still partial",
+    "date": "2026-10-16",
+    "reference": {
+      "parent_evidence_id": "ev_16cc1294703da24c38a94863d74b8b09119ecb6e48111b4b59d619c37e7f7629",
+      "summary_evidence_id": "ev_be5bd1c682e080b7f579fde1d79814f1a100b24f4df16be6399bc8abf8a443c3",
+      "scope": "settings shell/dialog and seven Profile-related members; static only, original internal symbols and runtime eligibility unknown",
+      "corpus_sha256": "3c16e6e95d54543bb17d3e5513f1b92ddde57a738e46b27385802259975825fe",
+      "semantic_unknowns": 3122,
+      "execution": "not-run",
+      "profile_entries": {
+        "parent_evidence_id": "ev_8a9fee92c25f04892deb551fb8c4511164400434dc7c9835f02b20b43d6b882b",
+        "members": 4,
+        "bytes": 23610,
+        "semantic_unknowns": 1356,
+        "confirmed_exports": [
+          "ProfileSettings",
+          "ProfilePage",
+          "CmeProfileSettings",
+          "CmeAccountSettings"
+        ]
+      },
+      "profile_core": {
+        "parent_evidence_id": "ev_2b4e6d08d1d979e0dcd2e6defa733fa149bd45f5b4d48b4ba05fb4f7938526fa",
+        "members": 3,
+        "bytes": 302034,
+        "semantic_status": "partial/truncated:100000 node ceiling",
+        "semantic_unknowns": 15294,
+        "static_contracts": [
+          "codex capability with profile visibility/eligibility loading",
+          "ProfileSettings delegates shared core and Layout",
+          "displayName/bio and profile_details/username",
+          "ProfilePage route/preview/visit identity"
+        ]
+      }
+    },
+    "current_owner": [
+      "useProfileDraft",
+      "profileConfig",
+      "ProfileFieldCard",
+      "ProfileSummary",
+      "existing useSettingsDraft/useAppNavigation/appConfig.updateConfig"
+    ],
+    "validation_directory": ".lime/qc/settings-profile/validation-20261016",
+    "declared_source_manifest": ".lime/qc/settings-profile/validation-20261016/source-final-reviewed.json",
+    "directed": {
+      "product_navigation": 43,
+      "fixture_guard": 13,
+      "i18n_regression": 11,
+      "passed": true
+    },
+    "classification": {
+      "compat_added": 0,
+      "deprecated_added": 0,
+      "dead_deleted": [
+        "full Config snapshot and whole-profile replacement",
+        "preemptive inline/Tag clear",
+        "raw backend errors/message timer",
+        "unimplemented avatar upload and 8 keys/old positive translation assertions",
+        "old data-active selector and swallowed Main-exit errors",
+        "JSON-RPC raw-line comparison/unused commands collection",
+        "missing forcedCleanup assembly from actual teardown"
+      ]
+    },
+    "whole_gui_status": "partial; denominator not enumerated",
+    "next": "Profile content/layout/data entry and visibility mapping; local Tag/completion/email retention unproven, no additional product exceptions",
+    "receipt": ".lime/qc/settings-profile/final-20261016-1/receipt.json",
+    "default": {
+      "wrapper_exit_code": 0,
+      "frontend": {
+        "status": "passed",
+        "startedAt": "2026-10-16T07:40:30.216Z",
+        "completedAt": "2026-10-16T08:10:21.564Z",
+        "batches": 131,
+        "passedBatches": 131,
+        "registeredFiles": 1770,
+        "missing": [],
+        "requiredRegistered": [
+          "src/components/settings-v2/account/profile/index.test.tsx",
+          "src/components/settings-v2/account/profile/profileDraft.integration.test.tsx",
+          "src/components/settings-v2/account/profile/unsavedNavigation.integration.test.tsx",
+          "scripts/electron/lib/settings-profile-fixture-evidence.test.mjs",
+          "src/i18n/__tests__/loadNamespace.test.ts",
+          "src/i18n/__tests__/types.test.ts"
+        ],
+        "stateSha256": "70b568f07362eaa1cdff9b6ead12fd07b68328c5448b209eb7c4b3269a171716",
+        "stateManuallyModified": false
+      },
+      "contracts": "passed",
+      "standard_gui": {
+        "run_id": "standalone-shell-01-20261016081318-60155",
+        "passed": 24,
+        "total": 24,
+        "summary_sha256": "63d37adaa98fa91c826212b3df1408ae04404782665a69bd07c3e29fadfa1e43"
+      }
+    },
+    "native_navigation": {
+      "run_id": "settings-profile-native-20261016-1",
+      "wrapper_exit_code": 0,
+      "proof_level": "Desktop Gate B",
+      "backend_mode": "external",
+      "visible_contracts": {
+        "passed": 9,
+        "total": 9
+      },
+      "themes": [
+        {
+          "mode": "light",
+          "effective": "light",
+          "foreground": "rgb(101, 70, 82)",
+          "background": "rgb(255, 255, 255)",
+          "viewportOverflow": false,
+          "controlsOverflow": false
+        },
+        {
+          "mode": "dark",
+          "effective": "dark",
+          "foreground": "rgb(241, 220, 228)",
+          "background": "rgb(37, 24, 32)",
+          "viewportOverflow": false,
+          "controlsOverflow": false
+        },
+        {
+          "mode": "system",
+          "effective": "light",
+          "foreground": "rgb(101, 70, 82)",
+          "background": "rgb(255, 255, 255)",
+          "viewportOverflow": false,
+          "controlsOverflow": false
+        },
+        {
+          "mode": "system",
+          "effective": "dark",
+          "foreground": "rgb(241, 220, 228)",
+          "background": "rgb(37, 24, 32)",
+          "viewportOverflow": false,
+          "controlsOverflow": false
+        }
+      ],
+      "electron_ipc": 1635,
+      "errors": 0,
+      "production_mock_hits": 0,
+      "same_identity": true,
+      "backend_turn_starts": 1,
+      "normal_main_exit": {
+        "pid": 62813,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forced_cleanup": false,
+      "sources": 83,
+      "artifacts": 3883,
+      "freshness": "ready-before-and-after",
+      "drift": 0,
+      "summary_sha256": "0ed6f23843fd52bd512d7be5d78758223277e1c388c8c7ffe439f8c46e35a142"
+    },
+    "native_cold": {
+      "run_id": "settings-profile-cold-20261016-2",
+      "wrapper_exit_code": 0,
+      "proof_level": "Gate B-F",
+      "backend_mode": "unavailable",
+      "assertions": {
+        "total": 32,
+        "passed": 32,
+        "failed": [],
+        "details": {
+          "threeRealElectronLaunches": true,
+          "threePreloadInvokeBridges": true,
+          "threeNormalMainExits": true,
+          "appServerElectronIpc": true,
+          "appServerCurrentMethod": true,
+          "configElectronIpc": true,
+          "configCurrentReadWrite": true,
+          "isolatedUserData": true,
+          "localProfileMode": true,
+          "profileTabActive": true,
+          "profileEditorReady": true,
+          "profileChanged": true,
+          "saveConfirmed": true,
+          "restartReadback": true,
+          "restorationSaveConfirmed": true,
+          "restorationReadback": true,
+          "inlineFailureRetained": true,
+          "tagFailureRetained": true,
+          "saveRetriesAccepted": true,
+          "fullConfigPreserved": true,
+          "independentIoRpcProof": true,
+          "loadingCleared": true,
+          "readErrorHidden": true,
+          "consoleErrorsZero": true,
+          "pageErrorsZero": true,
+          "invokeErrorsZero": true,
+          "hostTraceErrorsZero": true,
+          "legacyCommandsZero": true,
+          "mockFallbackZero": true,
+          "savedScreenshotWritten": true,
+          "restartScreenshotWritten": true,
+          "restoredScreenshotWritten": true
+        }
+      },
+      "electron_ipc": 171,
+      "errors": {
+        "consoleErrorCount": 0,
+        "pageErrorCount": 0,
+        "invokeErrorCount": 0,
+        "hostTraceErrorCount": 0,
+        "legacyCommandHitCount": 0,
+        "legacyCommands": [],
+        "mockFallbackHitCount": 0
+      },
+      "normal_main_exits": [
+        {
+          "pid": 76338,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 76666,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 77107,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        }
+      ],
+      "expected_failure": {
+        "rpcErrorProof": {
+          "method": "config/batchWrite",
+          "errorCode": -32000,
+          "ioCauseVerified": true
+        },
+        "ioProbeIsGuiResponseCapture": false
+      },
+      "summary_sha256": "1c5fabaa7df05690f16bbd0a56e260fddc67760403ac4291b788d0d154ccbd1a",
+      "freshness": "ready-before-and-after"
+    },
+    "source_after_default_review": ".lime/qc/settings-profile/validation-20261016/after-default-review.json",
+    "historical_failure": "Cold1 exit1: missing forcedCleanup field in evidence assembly; actual three normal exits retained. Final derives field from real teardown; guard/timeout unchanged.",
+    "limitations": [
+      "New component-only; no native Settings entry",
+      "navigation external backend bypasses production RuntimeBackend/provider; cold unavailable backend validates config/Host only",
+      "non-OEM test override; no managed-account login or reference Profile parity",
+      "four themes current skin1440x1000/system media emulation only",
+      "no live/tool/Windows/packaged/full Profile/full GUI proof"
+    ]
+  },
+  "current_profile_content_trace": {
+    "status": "source-only data contract traced; implementation pending",
+    "date": "2026-10-16",
+    "evidence_directory": ".lime/qc/settings-profile/content-trace-20261016",
+    "core_source_module_view": "ev_e0a17e7831cc4351f87bf767347b9893a83db7de0859017b3f6dca92c54731fb",
+    "data_spans_parent": "ev_87b1f8de96c9b10e16b7303b0c59c6cac67506416c13e29c22a9dde803e5bbef",
+    "data_spans_summary": "ev_e09f112af7d7d85f70431cac1da59cb1f5254f29df570bb5fb6375e53fa47ad5",
+    "member": {
+      "path": "webview/assets/app-initial-6350d04672d0.js",
+      "bytes": 11440241,
+      "sha256": "604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f",
+      "package_integrity_verified": true
+    },
+    "subset": {
+      "exact_definitions": 5,
+      "bytes": 2340,
+      "ast_nodes": 756,
+      "parse_failures": 0,
+      "semantic_unknowns": 141,
+      "shared_dependencies": "unresolved"
+    },
+    "static_contracts": [
+      "account/user/username/personal-scoped page query; GET me or username page with AbortSignal and account header",
+      "V2 PATCH profiles/me maps displayName/bio to display_name/description; old flag branch wham/profiles/me",
+      "success updates is_self page cache and invalidates profile identity",
+      "core is_self/can_edit/preview and account readiness;64/140 limits"
+    ],
+    "lime_gap": "local Config profile is not remote identity; existing typed OEM session has no page/bio/pins mutation; no prompt/runtime consumer found within queried src/lime-rs/packages sources",
+    "execution": "not-run; no production HTTP",
+    "names": "Fyt/xyt and local compressed aliases are artifact-local only",
+    "next": "Local content/Layout/field slice implemented first; remote auth/capability identity and typed public Profile contract remain gaps",
+    "draft_receipt_unchanged": "f4d27e877aa2eb0a8b352a0d085a8a90ce4565909b510a773bcb079abe37c1ef"
+  },
+  "current_profile_content_alignment": {
+    "date": "2026-10-16",
+    "status": "local fields/content implemented; native validation passed; default gate running",
+    "evidence_directory": ".lime/qc/settings-profile/content-alignment-20261016",
+    "reference_reused": [
+      "ev_2b4e6d08d1d979e0dcd2e6defa733fa149bd45f5b4d48b4ba05fb4f7938526fa",
+      "ev_87b1f8de96c9b10e16b7303b0c59c6cac67506416c13e29c22a9dde803e5bbef"
+    ],
+    "current": [
+      "ProfileSettings",
+      "ProfileContent",
+      "ProfileLayout",
+      "ProfileFieldEditor",
+      "useProfileDraft",
+      "profileConfig"
+    ],
+    "naming": "ProfileSettings confirmed export; other names express Lime responsibilities, not recovered upstream symbols",
+    "mapping": "displayName/bio explicitly map to local nickname/bio; not remote public identity",
+    "deleted": [
+      "ProfileFieldCard",
+      "ProfileSummary",
+      "profilePresentation",
+      "Tag/completion/avatar/email/usage cards",
+      "TS/Rust avatar_url/email/tags fields",
+      "retired translations and positive tests/fixture selectors"
+    ],
+    "directed": "6 suites63/63; typecheck/strict lint; compiled Rust config129/129 including retired-field JSON/YAML regression",
+    "remaining": [
+      "remote Profile query/mutation",
+      "auth/capability eligibility",
+      "is_self/can_edit/preview",
+      "username/pins/upload",
+      "reference runtime",
+      "Windows/packaged/full GUI",
+      "separate account session card presentation"
+    ],
+    "native_navigation": {
+      "summary": ".lime/qc/settings-sections/settings-profile-content-native-20261016-1/summary.json",
+      "sha256": "89fa5f045bb28c8c5404e8b8c519dd8189526c844f901ab6c6946571c516c998",
+      "ok": true,
+      "visibleContracts": {
+        "passed": 9,
+        "total": 9
+      },
+      "themeChecks": 4,
+      "sourceCount": 83,
+      "artifactCount": 321,
+      "traceIpc": 1634,
+      "traceErrors": 0,
+      "mockHits": 0,
+      "freshBefore": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      },
+      "freshAfter": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      },
+      "normal_main_exit": {
+        "pid": 39961,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forced_cleanup": false
+    },
+    "native_cold": {
+      "summary": ".lime/qc/project-gates/settings-profile-content-cold-20261016-1/settings-profile-persistence/settings-profile-fixture-summary.json",
+      "sha256": "bb999c47720bc7ade2e55cacb9892548bf400135019d35b858d47d176d6fa1a5",
+      "result": "pass",
+      "ipc": 98,
+      "errors": {
+        "consoleErrorCount": 0,
+        "pageErrorCount": 0,
+        "invokeErrorCount": 0,
+        "hostTraceErrorCount": 0,
+        "legacyCommandHitCount": 0,
+        "legacyCommands": [],
+        "mockFallbackHitCount": 0
+      },
+      "exits": [
+        {
+          "pid": 43762,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 44198,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        },
+        {
+          "pid": 44464,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal",
+          "forcedCleanup": false
+        }
+      ],
+      "expectedFailure": {
+        "rpcErrorProof": {
+          "method": "config/batchWrite",
+          "errorCode": -32000,
+          "ioCauseVerified": true
+        },
+        "ioProbeIsGuiResponseCapture": false
+      },
+      "assertions": {
+        "total": 32,
+        "passed": 32,
+        "failed": []
+      }
+    },
+    "visual_review": "seven screenshots manually reviewed; current skin1440x1000; four themes include media-emulated system mode",
+    "parallel_version_context": {
+      "historical_native_version": "1.158.0",
+      "final_candidate_version": "1.159.0",
+      "ownership": "read-only parallel release/manifest changes",
+      "passed_metadata_sensitive_recheck": "18 files202/202",
+      "final_native_recheck": "pending final default rebuild"
+    },
+    "guard_cleanup": {
+      "file": "src/lib/governance/codexModelNativeToolPolicyOrigin.test.ts",
+      "reason": "old positive assertion pins retired StableEnvironmentTools/advertise_environment_tools gate; current Codex and Lime gate apply_patch by model type",
+      "reference_path": "/Users/coso/Documents/dev/rust/codex/codex-rs/core/src/tools/spec_plan.rs",
+      "reference_sha256": "919bf85acf44810892f6d1adc6701253c92a71678cbf74c877d718d0aaf9db9f",
+      "last_touch_commit": "0c5720ea0fd2af84d7b6743a6686750fb8570ab7",
+      "new_assertions": "model type gate and Multiple environment_id; freeform enabled, missing/null/unknown disabled; no runtime change",
+      "directed": "2 suites14/14",
+      "declared_source_count": 26
     }
   }
 }

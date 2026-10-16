@@ -285,6 +285,43 @@ describe("Electron renderer entry assets", () => {
 });
 
 describe("electron fixture build freshness", () => {
+  it.each([
+    ["src/index.testFixtures.tsx", "src/App.tsx", "renderer"],
+    ["electron/preload.testFixtures.ts", "electron/main.ts", "host"],
+  ])(
+    "ignores dedicated test fixtures %s while retaining product staleness",
+    (fixturePath, productPath, segment) => {
+      const rootDir = createTempRoot();
+      writeFile(
+        path.join(rootDir, productPath),
+        "export const product = true;",
+        new Date("2026-01-01T00:00:00.000Z"),
+      );
+      writeRequiredFiles(rootDir, new Date("2026-01-01T00:10:00.000Z"));
+      writeFile(
+        path.join(rootDir, fixturePath),
+        "export const fixture = true;",
+        new Date("2026-01-01T00:20:00.000Z"),
+      );
+
+      expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+        ready: true,
+        staleSegments: [],
+      });
+
+      writeFile(
+        path.join(rootDir, productPath),
+        "export const product = false;",
+        new Date("2026-01-01T00:30:00.000Z"),
+      );
+      expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+        ready: false,
+        reason: "stale-source",
+        staleSegments: [segment],
+      });
+    },
+  );
+
   it("serializes stale packaged fixture rebuilds behind a repository lock", () => {
     const content = fs.readFileSync(
       "scripts/lib/electron-fixture-build.mjs",

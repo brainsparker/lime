@@ -339,7 +339,7 @@ function buildEnsureAgentHomeScript() {
     }
 
     const settingsHomeButton = document.querySelector(
-      '[data-testid="app-sidebar-rail-home"]',
+      '[data-testid="app-sidebar-nav-home-general"]',
     );
     const fallbackHomeButton =
       settingsHomeButton ||

@@ -876,51 +876,30 @@ function assertI18nKeyTypes() {
   i18n.t("settings.layout.sidebar.experimentalBadge", { ns: "settings" });
   i18n.t("settings.layout.action.back", { ns: "settings" });
   i18n.t("settings.layout.loading.profile", { ns: "settings" });
-  i18n.t("settings.profile.field.nickname.label", { ns: "settings" });
-  i18n.t("settings.profile.field.tipAria", {
-    ns: "settings",
-    label: "Nickname",
-  });
-  i18n.t("settings.profile.field.tipsHint", { ns: "settings" });
+  i18n.t("settings.profile.title", { ns: "settings" });
+  i18n.t("settings.profile.loading", { ns: "settings" });
+  i18n.t("settings.profile.field.displayName.label", { ns: "settings" });
+  i18n.t("settings.profile.field.bio.label", { ns: "settings" });
+  i18n.t("settings.profile.field.limit", { ns: "settings", count: 64 });
+  i18n.t("settings.profile.action.cancel", { ns: "settings" });
+  i18n.t("settings.profile.action.edit", { ns: "settings" });
+  i18n.t("settings.profile.action.retry", { ns: "settings" });
   i18n.t("settings.profile.action.save", { ns: "settings" });
+  i18n.t("settings.profile.field.cancelAria", {
+    ns: "settings",
+    label: "Display name",
+  });
+  i18n.t("settings.profile.field.editAria", {
+    ns: "settings",
+    label: "Display name",
+  });
+  i18n.t("settings.profile.field.saveAria", {
+    ns: "settings",
+    label: "Display name",
+  });
+  i18n.t("settings.profile.message.loadFailed", { ns: "settings" });
+  i18n.t("settings.profile.message.saveFailed", { ns: "settings" });
   i18n.t("settings.profile.message.saved", { ns: "settings" });
-  i18n.t("settings.profile.message.saveFailed", {
-    ns: "settings",
-    error: "network",
-  });
-  i18n.t("settings.profile.message.fileTooLarge", {
-    ns: "settings",
-    size: "6",
-    max: "5",
-  });
-  i18n.t("settings.profile.message.avatarWip", { ns: "settings" });
-  i18n.t("settings.profile.message.uploadFailed", {
-    ns: "settings",
-    error: "network",
-  });
-  i18n.t("settings.profile.status.complete", { ns: "settings" });
-  i18n.t("settings.profile.suggestedTag.programming", { ns: "settings" });
-  i18n.t("settings.profile.hero.status", {
-    ns: "settings",
-    status: "Complete profile",
-  });
-  i18n.t("settings.profile.avatar.extraTags", {
-    ns: "settings",
-    countLabel: "2",
-  });
-  i18n.t("settings.profile.basic.itemCount", {
-    ns: "settings",
-    countLabel: "3",
-  });
-  i18n.t("settings.profile.tags.selectedCount", {
-    ns: "settings",
-    countLabel: "2",
-  });
-  i18n.t("settings.profile.tags.removeAria", {
-    ns: "settings",
-    tag: "Programming",
-  });
-  i18n.t("settings.profile.usage.tipTags", { ns: "settings" });
   i18n.t("settings.layout.loading.skills", { ns: "settings" });
   i18n.t("settings.layout.sidebar.floatingNav.openAria", { ns: "settings" });
   i18n.t("settings.about.version.label", {

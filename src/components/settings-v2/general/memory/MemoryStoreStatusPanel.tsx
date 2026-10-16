@@ -1,9 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
 import { Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
-  addMemoryStoreNote,
   consolidateMemoryStore,
   getMemoryStoreHealth,
   listMemoryStore,
@@ -18,6 +17,7 @@ import {
 import { getDefaultProject } from "@/lib/api/project";
 import { cn } from "@/lib/utils";
 import { RolloutCandidatesPanel } from "./RolloutCandidatesPanel";
+import { MemoryNoteEditor } from "./MemoryNoteEditor";
 import {
   isRolloutCandidateEntry,
   parseRolloutCandidateMarkdown,
@@ -75,8 +75,6 @@ export function MemoryStoreStatusPanel({
   const [consolidating, setConsolidating] = useState(false);
   const [rebuildingIndex, setRebuildingIndex] = useState(false);
   const [resetting, setResetting] = useState(false);
-  const [noteContent, setNoteContent] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
   const [reviewNotes, setReviewNotes] = useState<MemoryStoreReviewNote[]>([]);
   const [reviewLoading, setReviewLoading] = useState(false);
   const [resolvingReviewPath, setResolvingReviewPath] = useState<string | null>(
@@ -94,12 +92,21 @@ export function MemoryStoreStatusPanel({
     string | null
   >(null);
   const [rolloutConsolidating, setRolloutConsolidating] = useState(false);
+  const mounted = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
   const refreshHealth = useCallback(
     async (showSuccess = false) => {
+      if (!mounted.current) return;
       setHealthLoading(true);
       try {
         const response = await getMemoryStoreHealth({ scope: "global" });
+        if (!mounted.current) return;
         setHealth(response);
         if (showSuccess) {
           showMessage(
@@ -107,12 +114,13 @@ export function MemoryStoreStatusPanel({
           );
         }
       } catch (error) {
+        if (!mounted.current) return;
         console.error("加载记忆文件状态失败:", error);
         showMessage(
           memoryPanelT(t, "settings.memory.store.message.healthFailed"),
         );
       } finally {
-        setHealthLoading(false);
+        if (mounted.current) setHealthLoading(false);
       }
     },
     [showMessage, t],
@@ -313,30 +321,6 @@ export function MemoryStoreStatusPanel({
       );
     } finally {
       setRolloutConsolidating(false);
-    }
-  };
-
-  const handleAddNote = async () => {
-    const content = noteContent.trim();
-    if (!content) {
-      showMessage(memoryPanelT(t, "settings.memory.store.message.noteEmpty"));
-      return;
-    }
-    setSavingNote(true);
-    try {
-      await addMemoryStoreNote({
-        scope: "global",
-        title: memoryPanelT(t, "settings.memory.store.noteDefaultTitle"),
-        content,
-      });
-      setNoteContent("");
-      await refreshHealth(false);
-      showMessage(memoryPanelT(t, "settings.memory.store.message.noteSaved"));
-    } catch (error) {
-      console.error("保存记忆修正失败:", error);
-      showMessage(memoryPanelT(t, "settings.memory.store.message.noteFailed"));
-    } finally {
-      setSavingNote(false);
     }
   };
 
@@ -549,36 +533,10 @@ export function MemoryStoreStatusPanel({
         </p>
       </div>
 
-      <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-xs font-medium text-slate-500">
-              {memoryPanelT(t, "settings.memory.store.noteTitle")}
-            </p>
-            <p className="mt-1 text-sm text-slate-600">
-              {memoryPanelT(t, "settings.memory.store.noteDescription")}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={handleAddNote}
-            disabled={savingNote}
-            data-testid="settings-memory-note-save"
-            className="rounded-md bg-slate-950 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-          >
-            {savingNote
-              ? memoryPanelT(t, "settings.memory.store.noteSaving")
-              : memoryPanelT(t, "settings.memory.store.noteSave")}
-          </button>
-        </div>
-        <textarea
-          value={noteContent}
-          onChange={(event) => setNoteContent(event.target.value)}
-          data-testid="settings-memory-note-textarea"
-          placeholder={memoryPanelT(t, "settings.memory.store.notePlaceholder")}
-          className="mt-3 min-h-24 w-full resize-y rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-        />
-      </div>
+      <MemoryNoteEditor
+        showMessage={showMessage}
+        onSaved={() => void refreshHealth(false)}
+      />
 
       <RolloutCandidatesPanel
         t={t}

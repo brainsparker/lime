@@ -1,12 +1,10 @@
 import path from "node:path";
 
-export const EXECUTION_POLICY_SCENARIO_ID =
-  "execution-policy-allow-deny-error";
+export const EXECUTION_POLICY_SCENARIO_ID = "execution-policy-allow-deny-error";
 export const EXECUTION_POLICY_REQUIRED_CONFIG_METHODS = [
   "config/read",
   "config/batchWrite",
 ];
-export const EXECUTION_POLICY_REQUIRED_HOST_COMMANDS = [];
 
 const APP_SERVER_COMMAND = "app_server_handle_json_lines";
 const LEGACY_EXECUTION_POLICY_COMMANDS = [
@@ -15,7 +13,6 @@ const LEGACY_EXECUTION_POLICY_COMMANDS = [
   "update_execution_policy",
   "get_agent_execution_policy",
 ];
-const EXPECTED_SAVE_ERROR = /EISDIR|is a directory|illegal operation on a directory/i;
 const SAFE_NAME = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 
 function validateName(value, label) {
@@ -125,14 +122,6 @@ function appServerMethods(entries) {
   );
 }
 
-function isExpectedSaveError(entry) {
-  return (
-    entry?.command === APP_SERVER_COMMAND &&
-    entry?.transport === "electron-ipc" &&
-    EXPECTED_SAVE_ERROR.test(String(entry?.error ?? ""))
-  );
-}
-
 export function summarizeSettingsExecutionPolicyTrace({
   traceRaws,
   errorRaws,
@@ -149,35 +138,28 @@ export function summarizeSettingsExecutionPolicyTrace({
   const appServerIpcEntries = appServerEntries.filter(
     (entry) => entry.transport === "electron-ipc",
   );
-  const hostEntries = [];
-  const hostIpcEntries = [];
-  const configMethods = appServerMethods(appServerIpcEntries);
+  const configMethods = appServerMethods(appServerIpcEntries).filter((method) =>
+    EXECUTION_POLICY_REQUIRED_CONFIG_METHODS.includes(method),
+  );
   const commands = new Set(traceEntries.map((entry) => entry?.command));
-  const expectedTraceErrors = appServerEntries.filter(isExpectedSaveError);
-  const expectedInvokeErrors = errorEntries.filter(isExpectedSaveError);
   return {
     appServerIpcHitCount: appServerIpcEntries.length,
     methods: appServerMethods(appServerIpcEntries),
-    hostIpcHitCount: 0,
     configMethods,
     missingConfigMethods: EXECUTION_POLICY_REQUIRED_CONFIG_METHODS.filter(
       (method) => !configMethods.includes(method),
     ),
-    successfulSaveCount: appServerIpcEntries.filter(
-      (entry) => entry.status === "success" && configMethods.includes("config/batchWrite"),
+    saveRequestCount: appServerIpcEntries.filter((entry) =>
+      appServerMethods([entry]).includes("config/batchWrite"),
     ).length,
-    expectedSaveTraceErrorCount: expectedTraceErrors.length,
-    expectedSaveInvokeErrorCount: expectedInvokeErrors.length,
     unexpectedHostTraceErrorCount: appServerEntries.filter(
-      (entry) => entry.status === "error" && !isExpectedSaveError(entry),
+      (entry) => entry.status === "error",
     ).length,
-    unexpectedInvokeErrorCount: errorEntries.filter(
-      (entry) => !isExpectedSaveError(entry),
-    ).length,
+    unexpectedInvokeErrorCount: errorEntries.length,
     legacyCommands: LEGACY_EXECUTION_POLICY_COMMANDS.filter((command) =>
       commands.has(command),
     ),
-    mockFallbackHitCount: [...appServerEntries, ...hostEntries].filter(
+    mockFallbackHitCount: appServerEntries.filter(
       (entry) => entry.transport !== "electron-ipc",
     ).length,
   };
@@ -194,7 +176,7 @@ export function createSettingsExecutionPolicyEvidence({
     priority: "P0",
     proofLevel: "Gate B-F",
     claimBoundary:
-      "Real Electron Execution Policy Settings lifecycle for persisted allow/deny policy inputs and Host save-error recovery. It verifies strict workspace restriction and Bash warning-bypass inputs, cold-restart readback, a real isolated config-path EISDIR save failure, reload recovery, restoration, and final cold-restart readback. It does not claim RuntimeCore execution of an allowed or denied tool; that requires Gate B-R. Evidence stores no config values, rules, prompts, paths, error text, or secrets.",
+      "Real Electron Execution Policy Settings lifecycle for persisted allow/deny policy inputs and Host save-error recovery. It verifies strict workspace restriction and Bash warning-bypass inputs, cold-restart readback, a real isolated config-path EISDIR save failure with safe GUI error and a separate same-boundary JSON-RPC IO probe, safe error copy with failed-draft retention and Save retry, restoration, and final cold-restart readback. It does not claim RuntimeCore execution of an allowed or denied tool; that requires Gate B-R. Evidence stores no config values, rules, prompts, paths, error text, or secrets.",
     candidateRunId: validateName(candidateRunId, "run-id"),
     testOnly: true,
     startedAt,
@@ -241,6 +223,19 @@ export function createSettingsExecutionPolicyEvidence({
 
 export function applyPassingSettingsExecutionPolicyEvidence(summary, facts) {
   const { trace, consoleErrors, pageErrors } = facts;
+  summary.teardowns = facts.teardowns ?? [];
+  const normalMainExits =
+    summary.teardowns.length === 3 &&
+    new Set(summary.teardowns.map((result) => result.normalMainExit?.pid))
+      .size === 3 &&
+    summary.teardowns.every(
+      (result) =>
+        result.ok === true &&
+        result.forcedCleanup === null &&
+        result.normalMainExit?.mode === "normal" &&
+        result.normalMainExit.exitCode === 0 &&
+        result.normalMainExit.signal === null,
+    );
   summary.bridge = {
     electron: facts.electronLaunchCount === 3,
     preloadInvoke: facts.preloadLaunchCount === 3,
@@ -249,10 +244,9 @@ export function applyPassingSettingsExecutionPolicyEvidence(summary, facts) {
     appServerIpcHitCount: trace.appServerIpcHitCount,
     methods: trace.methods,
   };
-  summary.host = {
-    transport: trace.hostIpcHitCount > 0 ? "electron-ipc" : null,
-    commands: trace.hostSuccessCommands,
-    successfulSaveCount: trace.successfulSaveCount,
+  summary.save = {
+    acknowledgementCount: facts.saveAcknowledgements,
+    requestCount: trace.saveRequestCount,
   };
   summary.lifecycle = {
     isolatedUserData: facts.isolatedUserData === true,
@@ -269,8 +263,9 @@ export function applyPassingSettingsExecutionPolicyEvidence(summary, facts) {
     method: "config/batchWrite",
     transport: "electron-ipc",
     cause: "isolated-config-path-is-directory",
-    traceErrorCount: trace.expectedSaveTraceErrorCount,
-    invokeErrorCount: trace.expectedSaveInvokeErrorCount,
+    traceErrorCount: trace.unexpectedHostTraceErrorCount,
+    invokeErrorCount: trace.unexpectedInvokeErrorCount,
+    rpcErrorProof: facts.ioRpcProof,
     productErrorVisible: facts.expectedSaveFailureVisible === true,
   };
   summary.errors = {
@@ -285,11 +280,13 @@ export function applyPassingSettingsExecutionPolicyEvidence(summary, facts) {
   const checks = [
     ["threeRealElectronLaunches", summary.bridge.electron],
     ["threePreloadInvokeBridges", summary.bridge.preloadInvoke],
+    ["threeNormalMainExits", normalMainExits],
     ["appServerElectronIpc", summary.bridge.appServerIpcHitCount > 0],
     ["appServerCurrentMethod", summary.bridge.methods.length > 0],
     ["configElectronIpc", trace.appServerIpcHitCount > 0],
     ["configCurrentReadWrite", trace.missingConfigMethods.length === 0],
-    ["twoSuccessfulSaves", trace.successfulSaveCount >= 2],
+    ["threeAcknowledgedSaves", facts.saveAcknowledgements === 3],
+    ["saveRequestsObserved", trace.saveRequestCount >= 3],
     ["isolatedUserData", summary.lifecycle.isolatedUserData],
     ["executionPolicyTabActive", facts.executionPolicyTabActive === true],
     ["policyControlsReady", facts.policyControlsReady === true],
@@ -297,9 +294,17 @@ export function applyPassingSettingsExecutionPolicyEvidence(summary, facts) {
     ["strictRestrictionInput", summary.lifecycle.strictRestrictionInput],
     ["warningBypassInput", summary.lifecycle.warningBypassInput],
     ["restartReadback", summary.lifecycle.restartReadback],
-    ["expectedSaveTraceError", trace.expectedSaveTraceErrorCount === 1],
-    ["expectedSaveInvokeError", trace.expectedSaveInvokeErrorCount === 1],
-    ["expectedSaveFailureVisible", summary.lifecycle.expectedSaveFailureVisible],
+    [
+      "expectedIoRpcError",
+      facts.ioRpcProof?.method === "config/batchWrite" &&
+        Number.isInteger(facts.ioRpcProof?.errorCode) &&
+        facts.ioRpcProof.errorCode < 0 &&
+        facts.ioRpcProof.ioCauseVerified === true,
+    ],
+    [
+      "expectedSaveFailureVisible",
+      summary.lifecycle.expectedSaveFailureVisible,
+    ],
     [
       "expectedSaveFailureRecovered",
       summary.lifecycle.expectedSaveFailureRecovered,

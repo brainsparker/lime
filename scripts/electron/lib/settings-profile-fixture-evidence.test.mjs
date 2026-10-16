@@ -44,6 +44,23 @@ function passingFacts() {
     completedAt: "2026-07-17T00:03:00.000Z",
     electronLaunchCount: 3,
     preloadLaunchCount: 3,
+    normalMainExits: [1, 2, 3].map((pid) => ({
+      pid,
+      exited: true,
+      exitCode: 0,
+      signal: null,
+      mode: "normal",
+      forcedCleanup: false,
+    })),
+    displayNameFailureRetained: true,
+    bioFailureRetained: true,
+    saveRetriesAccepted: true,
+    fullConfigPreserved: true,
+    rpcErrorProof: {
+      method: "config/batchWrite",
+      errorCode: -32000,
+      ioCauseVerified: true,
+    },
     isolatedUserData: true,
     localProfileMode: true,
     profileTabActive: true,
@@ -128,7 +145,72 @@ describe("Settings Profile Gate B evidence", () => {
         trace: summarizeSettingsProfileTrace(traceRaw("renderer-mock")),
       }),
     ).toThrow(
-        /appServerElectronIpc.*appServerCurrentMethod.*configElectronIpc.*configCurrentReadWrite.*restorationReadback.*mockFallbackZero/,
+      /appServerElectronIpc.*appServerCurrentMethod.*configElectronIpc.*configCurrentReadWrite.*restorationReadback.*mockFallbackZero/,
+    );
+  });
+
+  it.each([
+    "normalMainExits",
+    "displayNameFailureRetained",
+    "bioFailureRetained",
+    "saveRetriesAccepted",
+    "fullConfigPreserved",
+    "rpcErrorProof",
+  ])("rejects incomplete %s evidence", (field) => {
+    const summary = createSettingsProfileEvidence({
+      candidateRunId: RUN_ID,
+      startedAt: "2026-10-16T00:00:00.000Z",
+      prefix: "settings-profile-fixture",
+    });
+    const facts = passingFacts();
+    delete facts[field];
+    expect(() => applyPassingSettingsProfileEvidence(summary, facts)).toThrow();
+    expect(summary.result).toBe("fail");
+  });
+
+  it("rejects a forced Main exit even with successful business assertions", () => {
+    const summary = createSettingsProfileEvidence({
+      candidateRunId: RUN_ID,
+      startedAt: "2026-10-16T00:00:00.000Z",
+      prefix: "settings-profile-fixture",
+    });
+    const facts = passingFacts();
+    facts.normalMainExits[2].forcedCleanup = true;
+    expect(() => applyPassingSettingsProfileEvidence(summary, facts)).toThrow(
+      /threeNormalMainExits/,
+    );
+  });
+
+  it("does not treat unrelated successful IPC as config traffic", () => {
+    const raw = JSON.stringify([
+      {
+        command: "app_server_handle_json_lines",
+        transport: "electron-ipc",
+        status: "success",
+        args_preview: {
+          request: { lines: [JSON.stringify({ method: "thread/read" })] },
+        },
+      },
+    ]);
+    expect(summarizeSettingsProfileTrace(raw)).toMatchObject({
+      appServerIpcHitCount: 1,
+      configIpcHitCount: 0,
+      missingConfigMethods: ["config/read", "config/batchWrite"],
+    });
+  });
+
+  it("transport errors are rejected even when read/write method names exist", () => {
+    const entries = JSON.parse(traceRaw());
+    entries[0].status = "error";
+    const facts = passingFacts();
+    facts.trace = summarizeSettingsProfileTrace(JSON.stringify(entries));
+    const summary = createSettingsProfileEvidence({
+      candidateRunId: RUN_ID,
+      startedAt: "2026-10-16T00:00:00.000Z",
+      prefix: "settings-profile-fixture",
+    });
+    expect(() => applyPassingSettingsProfileEvidence(summary, facts)).toThrow(
+      /hostTraceErrorsZero/,
     );
   });
 });

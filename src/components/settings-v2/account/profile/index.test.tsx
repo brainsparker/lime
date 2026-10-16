@@ -1,307 +1,164 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
-
-const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
-  mockGetConfig: vi.fn(),
-  mockSaveConfig: vi.fn(),
-}));
-
-vi.mock("@/lib/api/appConfig", () => ({
-  getConfig: mockGetConfig,
-  saveConfig: mockSaveConfig,
-}));
-
+import type { ConfigUpdater } from "@/lib/api/appConfig";
 import { ProfileSettings } from ".";
 
-interface Mounted {
-  container: HTMLDivElement;
-  root: Root;
-}
-
-const mounted: Mounted[] = [];
-
-function renderComponent(): HTMLDivElement {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-
-  act(() => {
-    root.render(<ProfileSettings />);
-  });
-
-  mounted.push({ container, root });
-  return container;
-}
-
-async function flushEffects() {
-  await act(async () => {
-    await Promise.resolve();
-  });
-}
-
-async function waitForLoad() {
-  await flushEffects();
-  await flushEffects();
-}
-
-function getBodyText() {
-  return document.body.textContent ?? "";
-}
-
-async function hoverTip(ariaLabel: string) {
-  const trigger = document.body.querySelector(
-    `button[aria-label='${ariaLabel}']`,
+const api = vi.hoisted(() => ({ getConfig: vi.fn(), saveConfig: vi.fn() }));
+vi.mock("@/lib/api/appConfig", () => ({
+  ...api,
+  updateConfig: async (update: ConfigUpdater) => {
+    const config = update(await api.getConfig());
+    await api.saveConfig(config);
+    return config;
+  },
+}));
+let root: Root;
+let container: HTMLDivElement;
+const click = async (label: string) => {
+  const button = container.querySelector<HTMLButtonElement>(
+    `[aria-label="${label}"]`,
   );
-  expect(trigger).toBeInstanceOf(HTMLButtonElement);
-
+  if (!button) throw new Error("Missing button: " + label);
+  await act(async () => button.click());
+};
+function input() {
+  const node = container.querySelector("input, textarea");
+  if (
+    !(node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement)
+  )
+    throw new Error("Missing editor");
+  return node;
+}
+async function edit(value: string) {
   await act(async () => {
-    trigger?.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
-    await flushEffects();
-  });
-
-  return trigger as HTMLButtonElement;
-}
-
-async function leaveTip(trigger: HTMLButtonElement | null) {
-  await act(async () => {
-    trigger?.dispatchEvent(new MouseEvent("mouseout", { bubbles: true }));
-    await flushEffects();
-  });
-}
-
-function findInput(container: HTMLElement, id: string): HTMLInputElement {
-  const element = container.querySelector<HTMLInputElement>(`#${id}`);
-  if (!element) {
-    throw new Error(`未找到输入框: ${id}`);
-  }
-  return element;
-}
-
-function findButtonByLabel(
-  container: HTMLElement,
-  label: string,
-): HTMLButtonElement {
-  const element = container.querySelector<HTMLButtonElement>(
-    `button[aria-label="${label}"]`,
-  );
-  if (!element) {
-    throw new Error(`未找到按钮: ${label}`);
-  }
-  return element;
-}
-
-function findButtonByText(
-  container: HTMLElement,
-  text: string,
-): HTMLButtonElement {
-  const element = Array.from(container.querySelectorAll("button")).find(
-    (button) => button.textContent?.includes(text),
-  );
-  if (!element) {
-    throw new Error(`未找到按钮文本: ${text}`);
-  }
-  return element as HTMLButtonElement;
-}
-
-async function setInputValue(input: HTMLInputElement, value: string) {
-  const nativeSetter = Object.getOwnPropertyDescriptor(
-    window.HTMLInputElement.prototype,
-    "value",
-  )?.set;
-  if (!nativeSetter) {
-    throw new Error("未找到 input value setter");
-  }
-
-  await act(async () => {
-    nativeSetter.call(input, value);
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    await flushEffects();
+    const node = input();
+    const prototype =
+      node instanceof HTMLInputElement
+        ? HTMLInputElement.prototype
+        : HTMLTextAreaElement.prototype;
+    Object.getOwnPropertyDescriptor(prototype, "value")!.set!.call(node, value);
+    node.dispatchEvent(new Event("input", { bubbles: true }));
   });
 }
-
-async function clickButton(button: HTMLButtonElement) {
-  await act(async () => {
-    button.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    await flushEffects();
-  });
-}
-
 beforeEach(async () => {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   await changeLimeLocale("en-US");
-  (
-    globalThis as typeof globalThis & {
-      IS_REACT_ACT_ENVIRONMENT?: boolean;
-    }
-  ).IS_REACT_ACT_ENVIRONMENT = true;
-
-  vi.clearAllMocks();
-
-  mockGetConfig.mockResolvedValue({
+  vi.resetAllMocks();
+  api.getConfig.mockResolvedValue({
     default_provider: "openai",
     user_profile: {
-      nickname: "张三",
-      bio: "专注 AI 产品与工程效率，喜欢把复杂流程做得更顺手。",
-      email: "zhangsan@example.com",
-      tags: ["编程", "设计"],
+      nickname: "Ada",
+      bio: "Builds useful tools.",
+      email: "retired@example.test",
+      tags: ["retired-tag"],
+      avatar_url: "retired-avatar",
     },
   });
-  mockSaveConfig.mockResolvedValue(undefined);
+  api.saveConfig.mockResolvedValue(undefined);
+  container = document.createElement("div");
+  document.body.appendChild(container);
+  root = createRoot(container);
+  await act(async () => root.render(<ProfileSettings />));
 });
-
 afterEach(async () => {
-  while (mounted.length > 0) {
-    const target = mounted.pop();
-    if (!target) {
-      break;
-    }
-    act(() => {
-      target.root.unmount();
-    });
-    target.container.remove();
-  }
-
-  vi.clearAllMocks();
+  await act(async () => root.unmount());
+  container.remove();
   await changeLimeLocale("zh-CN");
 });
 
-describe("ProfileSettings", () => {
-  it("应加载并渲染新的资料摘要与偏好区域", async () => {
-    const container = renderComponent();
-    await waitForLoad();
+it("renders only the current name and bio content without local summary or preference panels", () => {
+  expect(container.textContent).toContain("Ada");
+  expect(container.textContent).toContain("Builds useful tools.");
+  expect(container.textContent).not.toMatch(
+    /Completion|Status:|Preference Tags|Basic Profile|How Profile Is Used|Suggested Tags|retired/,
+  );
+  expect(container.querySelector("img, #profile-new-tag")).toBeNull();
+  expect(
+    [...container.querySelectorAll("button")].map((node) =>
+      node.getAttribute("aria-label"),
+    ),
+  ).toEqual(["Edit Display name", "Edit Bio"]);
+});
 
-    const text = container.textContent ?? "";
-    expect(text).toContain("Profile");
-    expect(text).toContain(
-      "Manage your nickname, bio, email, and preference tags.",
+it.each([
+  ["Display name", 64],
+  ["Bio", 140],
+] as const)(
+  "%s exposes the browser limit and blocks oversized programmatic submissions",
+  async (label, limit) => {
+    await click("Edit " + label);
+    expect(input().maxLength).toBe(limit);
+    await edit("x".repeat(limit + 1));
+    expect(
+      container.querySelector<HTMLButtonElement>(`[aria-label="Save ${label}"]`)
+        ?.disabled,
+    ).toBe(true);
+    await act(async () =>
+      input().dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      ),
     );
-    expect(text).toContain("张三");
-    expect(text).toContain("专注 AI 产品与工程效率");
-    expect(text).toContain("Status: Complete profile");
-    expect(text).toContain("Completion: 100%");
-    expect(text).toContain("Preference Tags");
-    expect(text).toContain("Basic Profile");
-    expect(text).toContain("3 items");
-    expect(text).toContain("Avatar format limits are in Tips");
-    expect(text).toContain("How Profile Is Used");
-    expect(text).toContain("Suggested Tags");
-    expect(text).toContain("Programming");
-    expect(text).toContain("编程");
-    expect(text).toContain("设计");
-    expect(text).not.toContain("个人资料");
-    expect(text).not.toContain("基础资料");
-  });
+    expect(api.saveConfig).not.toHaveBeenCalled();
+    await edit("x".repeat(limit));
+    await click("Save " + label);
+    expect(api.saveConfig).toHaveBeenCalledTimes(1);
+  },
+);
 
-  it("应按当前 locale 格式化资料统计数量", async () => {
-    mockGetConfig.mockResolvedValueOnce({
+it("requires a non-empty trimmed name and saves through the explicit nickname mapping", async () => {
+  await click("Edit Display name");
+  await edit("   ");
+  expect(
+    container.querySelector<HTMLButtonElement>(
+      '[aria-label="Save Display name"]',
+    )?.disabled,
+  ).toBe(true);
+  await click("Save Display name");
+  expect(api.saveConfig).not.toHaveBeenCalled();
+  await edit("  Grace  ");
+  await click("Save Display name");
+  expect(api.saveConfig).toHaveBeenCalledWith(
+    expect.objectContaining({
       default_provider: "openai",
-      user_profile: {
-        nickname: "Ada",
+      user_profile: expect.objectContaining({
+        nickname: "Grace",
         bio: "Builds useful tools.",
-        email: "ada@example.com",
-        tags: Array.from({ length: 1000 }, (_, index) => `tag-${index}`),
-      },
-    });
-
-    const container = renderComponent();
-    await waitForLoad();
-
-    const text = container.textContent ?? "";
-    expect(text).toContain("Tags: 1,000");
-    expect(text).not.toContain("Tags: 1000");
-  });
-
-  it("编辑昵称后应保存完整资料", async () => {
-    const container = renderComponent();
-    await waitForLoad();
-
-    await clickButton(findButtonByLabel(container, "Edit Nickname"));
-    await setInputValue(findInput(container, "profile-field-nickname"), "李四");
-    await clickButton(findButtonByLabel(container, "Save Nickname"));
-
-    expect(mockSaveConfig).toHaveBeenCalledTimes(1);
-    expect(mockSaveConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        default_provider: "openai",
-        user_profile: expect.objectContaining({
-          nickname: "李四",
-          bio: "专注 AI 产品与工程效率，喜欢把复杂流程做得更顺手。",
-          email: "zhangsan@example.com",
-          tags: ["编程", "设计"],
-        }),
       }),
-    );
+    }),
+  );
+});
+
+it("normalizes bio line separators and trims at save; Enter does not submit", async () => {
+  await click("Edit Bio");
+  await edit("  one\r\ntwo\rthree\nfour\u2028five\u2029six  ");
+  expect(input().value).toBe("  one two three four five six  ");
+  const key = new KeyboardEvent("keydown", {
+    key: "Enter",
+    bubbles: true,
+    cancelable: true,
   });
-
-  it("昵称输入框应支持连续输入与清空", async () => {
-    const container = renderComponent();
-    await waitForLoad();
-
-    await clickButton(findButtonByLabel(container, "Edit Nickname"));
-
-    await setInputValue(findInput(container, "profile-field-nickname"), "王五");
-    expect(findInput(container, "profile-field-nickname").value).toBe("王五");
-
-    await setInputValue(findInput(container, "profile-field-nickname"), "");
-    expect(findInput(container, "profile-field-nickname").value).toBe("");
-
-    await setInputValue(findInput(container, "profile-field-nickname"), "赵六");
-    expect(findInput(container, "profile-field-nickname").value).toBe("赵六");
-  });
-
-  it("保存空昵称时应清除旧值", async () => {
-    const container = renderComponent();
-    await waitForLoad();
-
-    await clickButton(findButtonByLabel(container, "Edit Nickname"));
-    await setInputValue(findInput(container, "profile-field-nickname"), "");
-    await clickButton(findButtonByLabel(container, "Save Nickname"));
-
-    expect(mockSaveConfig).toHaveBeenCalledTimes(1);
-    expect(mockSaveConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_profile: expect.objectContaining({
-          nickname: "",
-          bio: "专注 AI 产品与工程效率，喜欢把复杂流程做得更顺手。",
-          email: "zhangsan@example.com",
-          tags: ["编程", "设计"],
-        }),
+  await act(async () => input().dispatchEvent(key));
+  expect(key.defaultPrevented).toBe(true);
+  expect(api.saveConfig).not.toHaveBeenCalled();
+  await click("Save Bio");
+  expect(api.saveConfig).toHaveBeenCalledWith(
+    expect.objectContaining({
+      user_profile: expect.objectContaining({
+        bio: "one two three four five six",
       }),
-    );
-  });
+    }),
+  );
+});
 
-  it("添加自定义标签后应写回配置", async () => {
-    const container = renderComponent();
-    await waitForLoad();
-
-    await setInputValue(findInput(container, "profile-new-tag"), "效率工具");
-    await clickButton(findButtonByText(container, "Add Tag"));
-
-    expect(mockSaveConfig).toHaveBeenCalledTimes(1);
-    expect(mockSaveConfig).toHaveBeenCalledWith(
-      expect.objectContaining({
-        user_profile: expect.objectContaining({
-          tags: ["编程", "设计", "效率工具"],
-        }),
-      }),
-    );
-  });
-
-  it("应把字段说明和资料用途说明收进 tips", async () => {
-    renderComponent();
-    await waitForLoad();
-
-    const nicknameTip = await hoverTip("Nickname info");
-    expect(getBodyText()).toContain(
-      "Use the name you prefer so Lime can show it consistently.",
-    );
-    await leaveTip(nicknameTip);
-
-    const usageTip = await hoverTip("How profile is used info");
-    expect(getBodyText()).toContain(
-      "Tags are only used for preference inference. They do not replace system prompts or automatically expose data to external services.",
-    );
-    await leaveTip(usageTip);
-  });
+it("allows clearing the bio", async () => {
+  await click("Edit Bio");
+  await edit("");
+  await click("Save Bio");
+  expect(api.saveConfig).toHaveBeenCalledWith(
+    expect.objectContaining({
+      user_profile: expect.objectContaining({ bio: "" }),
+    }),
+  );
 });

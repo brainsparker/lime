@@ -2,6 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import type { ConfigUpdater } from "@/lib/api/appConfig";
 
 const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
@@ -16,6 +17,12 @@ vi.mock("@/lib/api/appConfig", async () => {
     ...actual,
     getConfig: mockGetConfig,
     saveConfig: mockSaveConfig,
+    updateConfig: async (update: ConfigUpdater) => {
+      const config = update(await mockGetConfig());
+      await mockSaveConfig(config);
+      mockGetConfig.mockResolvedValue(config);
+      return config;
+    },
   };
 });
 
@@ -408,4 +415,54 @@ describe("ExecutionPolicySettings", () => {
       }),
     );
   });
+
+  it.each(["shell", "network"] as const)(
+    "应增删改 %s 规则并只保存对应列表",
+    async (kind) => {
+      const container = renderComponent();
+      await waitForLoad();
+      await clickButton(
+        findButton(
+          container,
+          kind === "shell" ? "添加命令规则" : "添加网络规则",
+        ),
+      );
+      const field = findRuleInputByTestId(container, `${kind}-rule-1`, "");
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(
+          HTMLInputElement.prototype,
+          "value",
+        )!.set!.call(field, "new-rule");
+        field.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      const original = container.querySelector(
+        `[data-testid="${kind}-rule-0"]`,
+      )!;
+      await clickButton(findButton(original as HTMLElement, "删除"));
+      expect(
+        findRuleInputByTestId(container, `${kind}-rule-0`, "new-rule"),
+      ).toBeInstanceOf(HTMLInputElement);
+      await clickButton(findButton(container, "保存策略"));
+      const expected = createConfig();
+      const rule = {
+        rule_id: "new-rule",
+        match_type: "prefix",
+        pattern: "",
+        risk_level: "high",
+        reason_code: "",
+        reason: "",
+      };
+      const key = kind === "shell" ? "shell_command_rules" : "network_rules";
+      expect(mockSaveConfig).toHaveBeenCalledWith({
+        ...expected,
+        agent: {
+          ...expected.agent,
+          tool_execution: {
+            ...expected.agent.tool_execution,
+            [key]: [kind === "shell" ? rule : { ...rule, target: "host" }],
+          },
+        },
+      });
+    },
+  );
 });
