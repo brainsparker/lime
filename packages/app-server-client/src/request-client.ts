@@ -196,24 +196,24 @@ export interface AppServerClient {
   listInstalledApps(
     params?: protocol.AppsInstalledParams,
   ): protocol.JsonRpcRequest;
-  listPluginCatalog(
-    params?: protocol.PluginCatalogListParams,
+  addMarketplace(
+    params: protocol.MarketplaceAddParams,
   ): protocol.JsonRpcRequest;
+  removeMarketplace(
+    params: protocol.MarketplaceRemoveParams,
+  ): protocol.JsonRpcRequest;
+  upgradeMarketplace(
+    params: protocol.MarketplaceUpgradeParams,
+  ): protocol.JsonRpcRequest;
+  listPlugins(params?: protocol.PluginListParams): protocol.JsonRpcRequest;
   searchPlugins(params: protocol.PluginSearchParams): protocol.JsonRpcRequest;
-  setPluginCatalogEnabled(
-    params: protocol.PluginCatalogEnabledSetParams,
+  readPlugin(params: protocol.PluginReadParams): protocol.JsonRpcRequest;
+  installPlugin(params: protocol.PluginInstallParams): protocol.JsonRpcRequest;
+  uninstallPlugin(
+    params: protocol.PluginUninstallParams,
   ): protocol.JsonRpcRequest;
-  readPluginCatalog(
-    params: protocol.PluginCatalogReadParams,
-  ): protocol.JsonRpcRequest;
-  installPluginCatalog(
-    params: protocol.PluginCatalogInstallParams,
-  ): protocol.JsonRpcRequest;
-  uninstallPluginCatalog(
-    params: protocol.PluginCatalogUninstallParams,
-  ): protocol.JsonRpcRequest;
-  listInstalledPluginCatalog(
-    params?: protocol.PluginCatalogInstalledParams,
+  listInstalledPlugins(
+    params?: protocol.PluginInstalledParams,
   ): protocol.JsonRpcRequest;
   listSkills(params?: protocol.SkillsListParams): protocol.JsonRpcRequest;
   setSkillsExtraRoots(

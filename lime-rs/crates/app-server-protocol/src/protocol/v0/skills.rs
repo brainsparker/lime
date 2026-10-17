@@ -81,7 +81,7 @@ pub struct SkillLocator {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct SkillSummary {
+pub struct SkillDetailMetadata {
     pub skill_id: String,
     pub name: String,
     pub description: String,
@@ -107,7 +107,7 @@ pub struct SkillWorkflowStep {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SkillDetail {
-    pub metadata: SkillSummary,
+    pub metadata: SkillDetailMetadata,
     pub markdown_content: String,
     pub workflow_steps: Vec<SkillWorkflowStep>,
 }
@@ -384,8 +384,8 @@ mod tests {
     use super::*;
     use serde_json::json;
 
-    fn summary() -> SkillSummary {
-        SkillSummary {
+    fn summary() -> SkillDetailMetadata {
+        SkillDetailMetadata {
             skill_id: "project:writer".to_string(),
             name: "writer".to_string(),
             description: "Write clearly.".to_string(),

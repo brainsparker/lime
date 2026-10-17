@@ -152,7 +152,7 @@ fn real_pty_external_editor_uses_resumed_thread_cwd() {
         let mut session = AppServerSession::connect(storage.clone()).await.unwrap();
         let response = session
             .start_thread(
-                resumed_cwd.clone(),
+                Some(resumed_cwd.clone()),
                 Some("fixture-model".into()),
                 Some("fixture-provider".into()),
             )

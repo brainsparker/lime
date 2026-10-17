@@ -83,7 +83,9 @@ const BROWSER_TOOL_DEFINITIONS = Object.freeze([
         "Page revision returned by openTabs.",
       ),
       tabId: stringProperty("Tab id returned by openTabs."),
-      title: stringProperty("Title returned by openTabs.", { allowEmpty: true }),
+      title: stringProperty("Title returned by openTabs.", {
+        allowEmpty: true,
+      }),
       url: stringProperty("URL returned by openTabs."),
     },
     ["tabId", "title", "url", "pageRevision"],
@@ -155,19 +157,31 @@ const BROWSER_TOOL_DEFINITIONS = Object.freeze([
   tool(
     "openArtifact",
     "Open a completed Browser download by its controlled artifact ref.",
-    { artifactRef: stringProperty("Artifact ref returned by a completed download.") },
+    {
+      artifactRef: stringProperty(
+        "Artifact ref returned by a completed download.",
+      ),
+    },
     ["artifactRef"],
   ),
   tool(
     "revealArtifact",
     "Reveal a completed Browser download in the system file manager.",
-    { artifactRef: stringProperty("Artifact ref returned by a completed download.") },
+    {
+      artifactRef: stringProperty(
+        "Artifact ref returned by a completed download.",
+      ),
+    },
     ["artifactRef"],
   ),
   tool(
     "copyArtifactRef",
     "Copy a controlled artifact ref to the system clipboard.",
-    { artifactRef: stringProperty("Artifact ref returned by a completed download.") },
+    {
+      artifactRef: stringProperty(
+        "Artifact ref returned by a completed download.",
+      ),
+    },
     ["artifactRef"],
   ),
   tool(
@@ -185,7 +199,9 @@ const BROWSER_TOOL_DEFINITIONS = Object.freeze([
     "grantPermission",
     "Grant a pending Browser permission for this turn after explicit approval.",
     {
-      permission: stringProperty("Permission name from browser-tab-permission-request."),
+      permission: stringProperty(
+        "Permission name from browser-tab-permission-request.",
+      ),
       requestId: stringProperty("Permission request id."),
     },
     ["permission", "requestId"],
@@ -194,7 +210,9 @@ const BROWSER_TOOL_DEFINITIONS = Object.freeze([
     "uploadArtifact",
     "Upload a completed Browser artifact into the current file input after approval.",
     {
-      artifactRef: stringProperty("Artifact ref returned by a completed download."),
+      artifactRef: stringProperty(
+        "Artifact ref returned by a completed download.",
+      ),
       backendNodeId: integerProperty("File input backendNodeId from observe."),
       snapshotId: stringProperty("snapshotId from observe."),
       tabId: stringProperty("Claimed tab id; defaults to the selected tab."),
@@ -256,7 +274,10 @@ export class AppServerDynamicToolHost {
   }
 
   prepareClientRequest(message: JsonRpcRequest): JsonRpcRequest {
-    if (message.method !== THREAD_START_METHOD) {
+    if (
+      message.method !== THREAD_START_METHOD &&
+      message.method !== THREAD_RESUME_METHOD
+    ) {
       return message;
     }
     const params = asRecord(message.params) ?? {};
@@ -427,6 +448,7 @@ export class AppServerDynamicToolHost {
 
   connectionLost(reason?: string): void {
     this.#browserHost?.connectionLost(reason);
+    this.reset();
   }
 
   async #executeBrowserTool(

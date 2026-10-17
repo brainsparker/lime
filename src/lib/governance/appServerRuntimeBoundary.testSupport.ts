@@ -104,7 +104,9 @@ export const PROCESSOR_TESTS_MAIN =
 export const PROCESSOR_SPLIT_MODULES = [
   "lime-rs/crates/app-server/src/processor/dispatch.rs",
   "lime-rs/crates/app-server/src/processor/model.rs",
-  "lime-rs/crates/app-server/src/processor/thread_resume_context.rs",
+  "lime-rs/crates/app-server/src/processor/thread/lifecycle.rs",
+  "lime-rs/crates/app-server/src/processor/skill/dispatch.rs",
+  "lime-rs/crates/app-server/src/processor/skill/watcher.rs",
   "lime-rs/crates/app-server/src/processor/tests/artifact.rs",
   "lime-rs/crates/app-server/src/processor/tests/capability.rs",
   "lime-rs/crates/app-server/src/processor/tests/mcp.rs",

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "installAttemptId": {
+      "description": "Client-generated identifier used to correlate one installation attempt.",
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "marketplacePath": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pluginName": {
+      "type": "string"
+    },
+    "remoteMarketplaceName": {
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  },
+  "required": [
+    "pluginName"
+  ],
+  "title": "PluginInstallParams",
+  "type": "object"
+}

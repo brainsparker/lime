@@ -70,7 +70,7 @@
 - 云端套餐与支付边界收口计划：`internal/exec-plans/cloud-commerce-user-center-boundary.md`
 - Agent QC 运营级测试体系执行计划：`internal/exec-plans/agent-qc-ops-testing-plan.md`
 - Agent App v2 独立安装与 Runtime 底座拆分执行计划：`internal/exec-plans/agentapp-v2-standalone-runtime.md`
-- Plugin v3 标准化与旧实现清退计划：`internal/exec-plans/plugin-v3-standardization-and-retirement-plan.md`
+- Codex 插件重构与 LimeCore 联动：`internal/exec-plans/codex-plugin-reconstruction.md`
 - AI 图层化设计 current 路线图：`internal/roadmap/ai-layered-design/README.md`
 - 图片能力 feature-flag / extension-tool 执行计划：`internal/exec-plans/image-capability-feature-flag-extension-tool-plan.md`
 - 图片能力 feature-flag / extension-tool 进度：`internal/exec-plans/image-capability-feature-flag-extension-tool-progress.md`

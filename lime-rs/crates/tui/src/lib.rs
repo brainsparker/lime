@@ -74,4 +74,6 @@ mod wrapping;
 pub use insert_history::{insert_history_lines, HistoryLineWrapPolicy, HistoryTerminal};
 pub use live_wrap::RowBuilder;
 pub type Terminal<B> = ratatui::Terminal<B>;
-pub use runtime::{run_resume, run_tui, TuiOptions};
+pub use runtime::connection::TuiOptions;
+pub use runtime::resume::run_resume;
+pub use runtime::run_tui;

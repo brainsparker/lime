@@ -6,7 +6,7 @@ import type {
   ScheduledTask,
   ScheduledTaskRunSummary,
   ScheduledTaskNotificationSubscription,
-  ScheduledTaskSummary,
+  AutomationTaskSummary,
 } from "@/lib/api/scheduledTasks";
 import type { Page, PageParams, ScheduledTasksPageParams } from "@/types/page";
 import { ScheduledTasksPage } from "./ScheduledTasksPage";
@@ -103,7 +103,7 @@ function sampleTask(overrides: Partial<ScheduledTask> = {}): ScheduledTask {
   };
 }
 
-function sampleSummary(task: ScheduledTask): ScheduledTaskSummary {
+function sampleSummary(task: ScheduledTask): AutomationTaskSummary {
   return {
     id: task.id,
     title: task.title,

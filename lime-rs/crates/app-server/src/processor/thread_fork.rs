@@ -27,6 +27,7 @@ impl RequestProcessor {
         })?
         .thread;
         let thread_id = thread.id.clone();
+        self.watch_thread_skills(&thread).await;
         let metadata = thread.extra.clone().unwrap_or(Value::Null);
         let environments = super::turn_environment::persisted_environment_selections(&metadata)?;
         let environments = self.normalize_environment_selections(environments).await?;
@@ -60,7 +61,13 @@ impl RequestProcessor {
             runtime_workspace_roots: metadata_string_array(&metadata, "runtimeWorkspaceRoots"),
             instruction_sources: metadata_string_array(&metadata, "instructionSources"),
             approval_policy: metadata_value(&metadata, "approvalPolicy"),
-            approvals_reviewer: metadata_value(&metadata, "approvalsReviewer"),
+            approvals_reviewer: agent_protocol::ApprovalsReviewer::parse(
+                metadata.get("approvalsReviewer"),
+            )
+            .map_err(|error| {
+                JsonRpcError::new(app_server_protocol::error_codes::INVALID_REQUEST, error)
+            })?
+            .unwrap_or_default(),
             sandbox: metadata_value(&metadata, "sandbox"),
             active_permission_profile: metadata.get("activePermissionProfile").cloned(),
             reasoning_effort: metadata_optional_string(&metadata, "reasoningEffort"),

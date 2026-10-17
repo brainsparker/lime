@@ -1,5 +1,6 @@
 pub mod action_required;
 pub mod anthropic;
+pub mod approval;
 pub mod collaboration_mode;
 pub mod context_trace;
 pub mod hook;
@@ -16,6 +17,7 @@ pub mod thread;
 pub mod turn_context;
 pub mod world_state;
 
+pub use approval::ApprovalsReviewer;
 pub use collaboration_mode::{CollaborationMode, CollaborationModeSettings, ModeKind};
 pub use input::{AgentInput, AgentInputError, ByteRange, ImageDetail, TextElement};
 pub use multi_agent_mode::MultiAgentMode;

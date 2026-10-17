@@ -325,7 +325,14 @@ Use package workflow rules.
         config_name: "content-factory-app@test".to_string(),
         display_name: "Content Factory".to_string(),
         package_root: package.path().to_path_buf(),
-        skill_names: vec!["article-writing".to_string()],
+        skill_roots: vec![package.path().join("skills")],
+        skills: {
+            let mut skills = lime_skills::build_agent_skill_snapshot_from_roots([lime_skills::AgentSkillRoot {
+                path: package.path().join("skills"), scope: lime_skills::AgentSkillScope::App,
+            }]).skills;
+            for skill in &mut skills { skill.name = format!("content-factory-app:{}", skill.name); }
+            skills
+        },
         mcp_server_names: Vec::new(),
     };
 
@@ -344,7 +351,7 @@ Use package workflow rules.
         std::fs::canonicalize(skill_dir.join("SKILL.md")).expect("canonical skill path");
 
     assert!(snapshot.skills.iter().any(|skill| {
-        skill.name == "article-writing" && skill.skill_file_path == canonical_skill_path
+        skill.name == "content-factory-app:article-writing" && skill.skill_file_path == canonical_skill_path
     }));
     assert!(!prompt.contains("<selected_skill_instructions>"));
     assert!(!prompt.contains("# Package Article Writing"));

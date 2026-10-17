@@ -7,6 +7,28 @@ const IMPORTED_CONVERSATION_KIND: &str = "conversation.import";
 const DYNAMIC_TOOLS_METADATA_KEY: &str = "dynamicTools";
 
 impl RuntimeCore {
+    pub(crate) fn session_skill_roots(
+        &self,
+        session_id: &str,
+    ) -> Result<Vec<lime_skills::AgentSkillRoot>, RuntimeCoreError> {
+        let defaults = self.session_runtime_defaults(session_id)?;
+        let request = defaults.as_ref().and_then(RuntimeOptions::runtime_request);
+        let working_dir = request.and_then(|request| request.working_dir.as_deref());
+        let project_root = request.and_then(|request| {
+            request
+                .project_root
+                .as_deref()
+                .or(request.workspace_root.as_deref())
+        });
+        Ok(lime_skills::agent_skill_roots_for_workspace(
+            working_dir.map(std::path::Path::new),
+            project_root.map(std::path::Path::new),
+        )
+        .into_iter()
+        .filter(|root| root.scope == lime_skills::AgentSkillScope::Project)
+        .collect())
+    }
+
     pub(in crate::runtime) fn session_runtime_defaults(
         &self,
         session_id: &str,
@@ -77,12 +99,19 @@ fn default_runtime_options_for_session(
         .as_ref()
         .map(|mode| mode.settings.model.clone())
         .or(persisted_model_preference);
-    let working_dir = string_alias_from_sources(&sources, &["cwd", "workingDir", "working_dir"]);
-    let workspace_root = metadata
-        .and_then(|metadata| first_string(metadata, &["runtimeWorkspaceRoots"]))
-        .or_else(|| {
-            string_alias_from_sources(
-                &sources,
+    // Published import workspace copies are migrated at the durable store
+    // boundary. Runtime and watcher consume the same current Thread settings.
+    let working_dir =
+        metadata.and_then(|metadata| string_alias(metadata, &["workingDir", "cwd", "working_dir"]));
+    let workspace_root = metadata.and_then(|metadata| {
+        if metadata
+            .get("runtimeWorkspaceRoots")
+            .is_some_and(Value::is_array)
+        {
+            first_string(metadata, &["runtimeWorkspaceRoots"])
+        } else {
+            string_alias(
+                metadata,
                 &[
                     "workspaceRoot",
                     "workspace_root",
@@ -90,7 +119,8 @@ fn default_runtime_options_for_session(
                     "project_root",
                 ],
             )
-        });
+        }
+    });
     let imported_metadata = imported.then(|| {
         continuation_metadata(
             metadata.unwrap_or(&Value::Null),
@@ -102,10 +132,15 @@ fn default_runtime_options_for_session(
         .map(thread_settings_runtime_metadata)
         .filter(|value| value.as_object().is_some_and(|value| !value.is_empty()));
     let runtime_metadata = merge_json_objects(imported_metadata, settings_metadata);
+    let reviewer = agent_protocol::ApprovalsReviewer::parse(
+        metadata.and_then(|metadata| metadata.get("approvalsReviewer")),
+    )
+    .map_err(RuntimeCoreError::InvalidRequest)?;
     let request = RuntimeRequest {
         provider_preference,
         model_preference,
         collaboration_mode: collaboration_mode.clone(),
+        approvals_reviewer: reviewer,
         reasoning_effort: collaboration_mode
             .as_ref()
             .and_then(|mode| mode.settings.reasoning_effort.clone())
@@ -180,6 +215,11 @@ fn merge_runtime_requests(
         .and_then(Value::as_object)
         .and_then(|metadata| metadata.get(DYNAMIC_TOOLS_METADATA_KEY))
         .cloned();
+    let clears_service_tier = request
+        .metadata
+        .as_ref()
+        .and_then(|metadata| metadata.get("serviceTier"))
+        .is_some_and(Value::is_null);
     let mut metadata = merge_json_objects(defaults.metadata, request.metadata);
     match (
         metadata.as_mut().and_then(Value::as_object_mut),
@@ -200,9 +240,14 @@ fn merge_runtime_requests(
         model_preference: request.model_preference.or(defaults.model_preference),
         collaboration_mode: request.collaboration_mode.or(defaults.collaboration_mode),
         reasoning_effort: request.reasoning_effort.or(defaults.reasoning_effort),
-        service_tier: request.service_tier.or(defaults.service_tier),
+        service_tier: if clears_service_tier {
+            None
+        } else {
+            request.service_tier.or(defaults.service_tier)
+        },
         thinking_enabled: request.thinking_enabled.or(defaults.thinking_enabled),
         approval_policy: request.approval_policy.or(defaults.approval_policy),
+        approvals_reviewer: request.approvals_reviewer.or(defaults.approvals_reviewer),
         sandbox_policy: request.sandbox_policy.or(defaults.sandbox_policy),
         workspace_id: request.workspace_id.or(defaults.workspace_id),
         working_dir: request.working_dir.or(defaults.working_dir),
@@ -245,7 +290,6 @@ fn thread_settings_runtime_metadata(metadata: &Value) -> Value {
     compact_json(json!({
         DYNAMIC_TOOLS_METADATA_KEY: metadata.get(DYNAMIC_TOOLS_METADATA_KEY).cloned(),
         "serviceTier": metadata.get("serviceTier").cloned(),
-        "approvalsReviewer": metadata.get("approvalsReviewer").cloned(),
         "reasoningSummary": metadata
             .get("reasoningSummary")
             .or_else(|| metadata.get("summary"))
@@ -329,6 +373,39 @@ fn compact_json(value: Value) -> Value {
 mod tests {
     use super::*;
     use app_server_protocol::{AgentSessionStatus, BusinessObjectRef};
+
+    #[test]
+    fn explicit_null_tier_does_not_inherit_an_updated_default() {
+        let defaults = RuntimeOptions {
+            runtime_request: Some(RuntimeRequest {
+                service_tier: Some("priority".into()),
+                ..RuntimeRequest::default()
+            }),
+            ..RuntimeOptions::default()
+        };
+        let patch = RuntimeOptions {
+            runtime_request: Some(RuntimeRequest {
+                metadata: Some(json!({"serviceTier": null})),
+                ..RuntimeRequest::default()
+            }),
+            ..RuntimeOptions::default()
+        };
+        assert_eq!(
+            merge_with_request_options(defaults.clone(), None)
+                .runtime_request
+                .unwrap()
+                .service_tier
+                .as_deref(),
+            Some("priority")
+        );
+        assert_eq!(
+            merge_with_request_options(defaults, Some(patch))
+                .runtime_request
+                .unwrap()
+                .service_tier,
+            None
+        );
+    }
 
     fn session(kind: &str, metadata: Value) -> AgentSession {
         AgentSession {
@@ -474,8 +551,8 @@ mod tests {
             json!({
                 "providerName": "openai",
                 "modelName": "gpt-5.4",
+                "workingDir": "/imported",
                 "importedContinuation": {
-                    "cwd": "/imported",
                     "approvalPolicy": "never"
                 }
             }),

@@ -1,12 +1,19 @@
 use super::*;
 use tempfile::TempDir;
 
+fn isolated_store(root: PathBuf, config_path: PathBuf) -> PluginStore {
+    let mut store = PluginStore::new(root, config_path);
+    store.home = None;
+    store.bundled_marketplace = None;
+    store
+}
+
 fn fixture(root: &Path) {
     fs::create_dir_all(&root).unwrap();
     fs::create_dir_all(root.join("skills/example")).unwrap();
     fs::write(
         root.join("skills/example/SKILL.md"),
-        "---\nname: example\n---\n",
+        "---\nname: example\ndescription: Example skill\n---\n",
     )
     .unwrap();
     fs::write(
@@ -21,97 +28,169 @@ fn fixture(root: &Path) {
     .unwrap();
 }
 
-fn install_params(source: &Path) -> PluginCatalogInstallParams {
-    PluginCatalogInstallParams {
-        source_path: source.to_string_lossy().into_owned(),
-        marketplace_id: Some("test-marketplace".to_string()),
-        source: Some("repo".to_string()),
-        expected_digest: None,
+fn install_params(source: &Path) -> PluginInstallParams {
+    install_params_for_market(source, "test-marketplace")
+}
+
+fn install_params_for_market(source: &Path, market: &str) -> PluginInstallParams {
+    let manifest = read_manifest(source).unwrap();
+    let plugin_name = manifest_name(&manifest).unwrap();
+    let path = source
+        .parent()
+        .unwrap()
+        .join(".agents/plugins/marketplace.json");
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let mut value = fs::read(&path)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .filter(|value| value["name"] == market)
+        .unwrap_or_else(|| serde_json::json!({"name": market, "plugins": []}));
+    let entries = value["plugins"].as_array_mut().unwrap();
+    entries.retain(|entry| entry["name"] != plugin_name);
+    entries.push(serde_json::json!({
+        "name": plugin_name,
+        "source": {"source": "local", "path": format!("./{}", source.file_name().unwrap().to_string_lossy())}
+    }));
+    fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+    PluginInstallParams {
+        marketplace_path: Some(path),
+        remote_marketplace_name: None,
+        plugin_name,
+        install_attempt_id: None,
+    }
+}
+
+fn read_params(source: &Path) -> PluginReadParams {
+    let params = install_params(source);
+    PluginReadParams {
+        marketplace_path: params.marketplace_path,
+        remote_marketplace_name: None,
+        plugin_name: params.plugin_name,
     }
 }
 
 #[test]
-fn installs_standard_manifest_into_v3_store() {
+fn native_omitted_name_keeps_install_identity_after_cache_copy() {
+    let temp = TempDir::new().unwrap();
+    let source = temp.path().join("source-name");
+    fs::create_dir_all(source.join(".codex-plugin")).unwrap();
+    fs::create_dir_all(source.join("skills/write")).unwrap();
+    fs::write(
+        source.join(".codex-plugin/plugin.json"),
+        r#"{"skills":"./skills"}"#,
+    )
+    .unwrap();
+    fs::write(
+        source.join("skills/write/SKILL.md"),
+        "---\nname: write\ndescription: Write text\n---\nBody",
+    )
+    .unwrap();
+    let store = isolated_store(temp.path().join("plugins"), temp.path().join("config.yaml"));
+    install(&store, install_params(&source)).unwrap();
+    assert_eq!(
+        store.installed().unwrap()["source-name@test-marketplace"].version,
+        "local"
+    );
+    let cold = isolated_store(store.root.clone(), store.config_path.clone());
+    let detail = read(&cold, read_params(&source)).unwrap();
+    assert_eq!(detail.plugin.skills[0].name, "source-name:write");
+    let snapshot = enabled_plugin_turn_snapshots(&cold).unwrap();
+    assert_eq!(snapshot[0].id, "source-name");
+    assert_eq!(
+        snapshot[0].skills[0].skill_id,
+        "plugin:source-name@test-marketplace:write"
+    );
+    assert_eq!(
+        fs::read_to_string(source.join(".codex-plugin/plugin.json")).unwrap(),
+        r#"{"skills":"./skills"}"#
+    );
+}
+
+#[test]
+fn installs_standard_manifest_into_codex_cache() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     fixture(&source);
-    let data_root = temp.path().join("data");
+    let data_root = isolated_store(temp.path().join("plugins"), temp.path().join("config.yaml"));
     let response = install(&data_root, install_params(&source)).unwrap();
-    assert_eq!(response.plugin.id, "example-plugin");
-    assert_eq!(response.plugin.marketplace_id, "test-marketplace");
-    assert!(response.plugin.content_digest.starts_with("sha256:"));
-    let detail = read(
-        &data_root,
-        PluginCatalogReadParams {
-            plugin_id: "example-plugin".to_string(),
-        },
-    )
-    .unwrap();
+    assert_eq!(response.auth_policy, PluginAuthPolicy::OnUse);
+    assert!(response.apps_needing_auth.is_empty());
+    assert!(data_root
+        .installed()
+        .unwrap()
+        .contains_key("example-plugin@test-marketplace"));
+    let detail = read(&data_root, read_params(&source)).unwrap();
     assert_eq!(detail.plugin.skills.len(), 1);
     let snapshots = enabled_plugin_turn_snapshots(&data_root).unwrap();
     assert_eq!(snapshots.len(), 1);
     assert_eq!(snapshots[0].id, "example-plugin");
     assert_eq!(snapshots[0].config_name, "example-plugin@test-marketplace");
     assert_eq!(snapshots[0].display_name, "example-plugin");
-    assert_eq!(snapshots[0].skill_names, vec!["example"]);
     assert_eq!(
-        installed(&data_root, PluginCatalogInstalledParams {})
-            .unwrap()
+        snapshots[0]
+            .skills
+            .iter()
+            .map(|skill| skill.name.as_str())
+            .collect::<Vec<_>>(),
+        vec!["example-plugin:example"]
+    );
+    assert_eq!(
+        installed(
+            &data_root,
+            PluginInstalledParams {
+                cwds: Some(vec![temp.path().to_path_buf()]),
+                ..Default::default()
+            }
+        )
+        .unwrap()
+        .marketplaces[0]
             .plugins
             .len(),
         1
     );
-    let disabled = set_enabled(
-        &data_root,
-        app_server_protocol::protocol::v2::PluginCatalogEnabledSetParams {
-            plugin_id: "example-plugin".to_string(),
-            enabled: false,
-        },
-    )
-    .unwrap();
-    assert!(!disabled.plugin.enabled);
+    data_root
+        .set_enabled(
+            &PluginId::parse("example-plugin@test-marketplace").unwrap(),
+            false,
+        )
+        .unwrap();
+    assert!(!data_root.installed().unwrap()["example-plugin@test-marketplace"].enabled);
     assert!(enabled_plugin_turn_snapshots(&data_root)
         .unwrap()
         .is_empty());
-    assert!(
-        uninstall(
-            &data_root,
-            PluginCatalogUninstallParams {
-                plugin_id: "example-plugin".to_string()
-            }
-        )
-        .unwrap()
-        .uninstalled
-    );
+    uninstall(
+        &data_root,
+        PluginUninstallParams {
+            plugin_id: "example-plugin@test-marketplace".to_string(),
+        },
+    )
+    .unwrap();
+    assert!(data_root.installed().unwrap().is_empty());
 }
 
 #[test]
-fn repeated_install_is_idempotent_but_same_version_digest_conflict_fails() {
+fn repeated_install_atomically_replaces_same_version() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     fixture(&source);
-    let data_root = temp.path().join("data");
-    let first = install(&data_root, install_params(&source)).unwrap();
-    let second = install(&data_root, install_params(&source)).unwrap();
-    assert_eq!(first.plugin.content_digest, second.plugin.content_digest);
-
+    let data_root = isolated_store(temp.path().join("plugins"), temp.path().join("config.yaml"));
+    install(&data_root, install_params(&source)).unwrap();
+    let cache = data_root.installed().unwrap()["example-plugin@test-marketplace"]
+        .root
+        .clone();
+    let original = package_digest(&cache).unwrap();
+    install(&data_root, install_params(&source)).unwrap();
+    assert_eq!(original, package_digest(&cache).unwrap());
     fs::write(source.join("skills/example/SKILL.md"), "changed").unwrap();
-    let error = install(&data_root, install_params(&source)).unwrap_err();
-    assert!(error.contains("content digest 不同"));
+    install(&data_root, install_params(&source)).unwrap();
+    assert_ne!(original, package_digest(&cache).unwrap());
 }
 
 #[test]
-fn expected_digest_and_optional_version_are_valid() {
+fn optional_version_is_valid() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     fixture(&source);
-    let data_root = temp.path().join("data");
-    let mut params = install_params(&source);
-    params.expected_digest = Some("sha256:wrong".to_string());
-    assert!(install(&data_root, params)
-        .unwrap_err()
-        .contains("digest 不一致"));
-
     fs::write(
         source.join("plugin.json"),
         r#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"example-plugin","version":"1.2"}"#,
@@ -138,7 +217,7 @@ fn rejects_manifest_without_standard_schema_and_parent_paths() {
 }
 
 #[test]
-fn requires_root_standard_manifest_and_direct_child_skills() {
+fn native_manifest_is_discoverable_and_standard_skills_are_direct_children() {
     let temp = TempDir::new().unwrap();
     let root = temp.path().join("source");
     fs::create_dir_all(root.join(".codex-plugin")).unwrap();
@@ -147,14 +226,17 @@ fn requires_root_standard_manifest_and_direct_child_skills() {
         r#"{"name":"legacy","version":"1.0.0"}"#,
     )
     .unwrap();
-    assert!(discover_package_roots(&root).unwrap().is_empty());
+    assert_eq!(
+        manifest_name(&read_manifest(&root).unwrap()).unwrap(),
+        "legacy"
+    );
 
     fixture(&root);
     fs::create_dir_all(root.join("skills/group/nested")).unwrap();
     fs::write(root.join("skills/group/nested/SKILL.md"), "nested").unwrap();
-    let capabilities = skill_capabilities(&root).unwrap();
+    let capabilities = skill_capabilities(&root, &read_manifest(&root).unwrap()).unwrap();
     assert_eq!(capabilities.len(), 1);
-    assert_eq!(capabilities[0].id, "example");
+    assert_eq!(capabilities[0].name, "example-plugin:example");
 }
 
 #[test]
@@ -333,17 +415,25 @@ fn resolves_codex_marketplace_sources_from_marketplace_root() {
     .unwrap();
 
     let response = list(
-        &temp.path().join("data"),
-        PluginCatalogListParams {
-            marketplace_paths: vec![marketplace_path.to_string_lossy().into_owned()],
+        &isolated_store(temp.path().join("plugins"), temp.path().join("config.yaml")),
+        PluginListParams {
+            cwds: Some(vec![marketplace_root.clone()]),
             ..Default::default()
         },
     )
     .unwrap();
 
-    assert_eq!(response.plugins.len(), 1);
-    assert_eq!(response.plugins[0].id, "example-plugin");
-    assert_eq!(response.plugins[0].marketplace_id, "openai-bundled");
+    let marketplace = response
+        .marketplaces
+        .iter()
+        .find(|market| market.name == "openai-bundled")
+        .unwrap();
+    assert_eq!(marketplace.plugins.len(), 1);
+    assert_eq!(marketplace.plugins[0].id, "example-plugin@openai-bundled");
+    assert_eq!(
+        marketplace.path.as_deref(),
+        Some(fs::canonicalize(&marketplace_path).unwrap().as_path())
+    );
 }
 
 #[test]
@@ -366,149 +456,50 @@ fn rejects_marketplace_local_source_outside_marketplace_root() {
     )
     .unwrap();
 
-    let error = discover_package_roots(&marketplace_path).unwrap_err();
-    assert!(error.contains("local source 越界"), "{error}");
+    let error = load_marketplace(&marketplace_path).err().unwrap();
+    assert!(error.contains("local source 不合法"), "{error}");
 }
 
 #[test]
-fn loads_default_mcp_file_and_resolves_cwd_to_installed_package_root() {
+fn config_failure_restores_previous_install_and_uninstall_cache() {
     let temp = TempDir::new().unwrap();
     let source = temp.path().join("source");
     fixture(&source);
-    fs::create_dir_all(source.join("scripts")).unwrap();
-    fs::write(
-        source.join("mcp.json"),
-        r#"{
-          "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-          "mcpServers": {
-            "demo": {"type": "stdio", "command": "demo-mcp", "cwd": "./scripts"}
-          }
-        }"#,
-    )
-    .unwrap();
-    let data_root = temp.path().join("data");
-    install(&data_root, install_params(&source)).unwrap();
-
-    let specs = list_plugin_mcp_runtime_server_specs(&data_root).unwrap();
-    assert_eq!(specs.len(), 1);
-    assert_eq!(specs[0].name, "plugin__example-plugin__demo");
-    assert_eq!(specs[0].plugin_id.as_deref(), Some("example-plugin"));
-    assert!(data_root.join("data/example-plugin").is_dir());
+    let store = isolated_store(temp.path().join("plugins"), temp.path().join("config.yaml"));
+    install(&store, install_params(&source)).unwrap();
+    let id = PluginId::parse("example-plugin@test-marketplace").unwrap();
+    let original = package_digest(&store.installed().unwrap()[&id.key()].root).unwrap();
+    let original_config = fs::read(&store.config_path).unwrap();
+    let blocker = temp.path().join("not-a-directory");
+    fs::write(&blocker, "preserve").unwrap();
+    let broken = isolated_store(store.root.clone(), blocker.join("config.yaml"));
+    fs::write(source.join("skills/example/SKILL.md"), "changed").unwrap();
+    assert!(install(&broken, install_params(&source)).is_err());
     assert_eq!(
-        specs[0].config.sanitized_cwd(),
-        Some(fs::canonicalize(data_root.join("v3/packages/example-plugin/1.2.3/scripts")).unwrap())
+        package_digest(&store.installed().unwrap()[&id.key()].root).unwrap(),
+        original
     );
-    let snapshots = enabled_plugin_turn_snapshots(&data_root).unwrap();
+    assert!(uninstall(
+        &broken,
+        PluginUninstallParams {
+            plugin_id: id.key()
+        }
+    )
+    .is_err());
     assert_eq!(
-        snapshots[0].mcp_server_names,
-        vec!["plugin__example-plugin__demo"]
+        package_digest(&store.installed().unwrap()[&id.key()].root).unwrap(),
+        original
     );
-}
-
-#[test]
-fn does_not_create_plugin_data_for_http_only_servers() {
-    let temp = TempDir::new().unwrap();
-    let source = temp.path().join("source");
-    fixture(&source);
-    fs::write(
-        source.join("mcp.json"),
-        r#"{
-          "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-          "mcpServers": {
-            "remote": {"type": "streamable-http", "url": "https://example.com/mcp"}
-          }
-        }"#,
-    )
-    .unwrap();
-    let data_root = temp.path().join("data");
-    install(&data_root, install_params(&source)).unwrap();
-
-    let specs = list_plugin_mcp_runtime_server_specs(&data_root).unwrap();
-
-    assert_eq!(specs.len(), 1);
-    assert!(!data_root.join("data/example-plugin").exists());
-}
-
-#[test]
-fn ignores_manifest_mcp_declarations_and_reads_only_root_file() {
-    let temp = TempDir::new().unwrap();
-    let inline_source = temp.path().join("inline");
-    fixture(&inline_source);
-    fs::write(
-        inline_source.join("plugin.json"),
-        r#"{
-          "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-          "name": "inline-plugin",
-          "version": "1.0.0"
-        }"#,
-    )
-    .unwrap();
-
-    let file_source = temp.path().join("file");
-    fixture(&file_source);
-    fs::write(
-        file_source.join("plugin.json"),
-        r#"{
-          "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-          "name": "file-plugin",
-          "version": "1.0.0"
-        }"#,
-    )
-    .unwrap();
-    fs::create_dir_all(file_source.join("config")).unwrap();
-    fs::write(
-        file_source.join("mcp.json"),
-        r#"{"$schema":"https://agent-plugins.org/schemas/1.0.0/mcp.schema.json","mcpServers":{"file":{"type":"stdio","command":"file-mcp"}}}"#,
-    )
-    .unwrap();
-
-    let data_root = temp.path().join("data");
-    install(&data_root, install_params(&inline_source)).unwrap();
-    install(&data_root, install_params(&file_source)).unwrap();
-    let specs = list_plugin_mcp_runtime_server_specs(&data_root).unwrap();
-    assert_eq!(
-        specs
-            .iter()
-            .map(|spec| spec.name.as_str())
-            .collect::<Vec<_>>(),
-        vec!["plugin__file-plugin__file"]
-    );
-}
-
-#[test]
-fn disabled_plugin_and_invalid_mcp_siblings_are_fail_closed() {
-    let temp = TempDir::new().unwrap();
-    let source = temp.path().join("source");
-    fixture(&source);
-    fs::create_dir_all(temp.path().join("outside")).unwrap();
-    fs::write(
-        source.join("mcp.json"),
-        r#"{
-          "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
-          "mcpServers": {
-            "valid": {"type": "stdio", "command": "valid-mcp"},
-            "invalid": {"type": "streamable-http", "url": "ftp://not-supported"},
-            "escape": {"type": "stdio", "command": "escape-mcp", "cwd": "./../outside"}
-          }
-        }"#,
-    )
-    .unwrap();
-    let data_root = temp.path().join("data");
-    install(&data_root, install_params(&source)).unwrap();
-
-    let specs = list_plugin_mcp_runtime_server_specs(&data_root).unwrap();
-    assert_eq!(specs.len(), 1);
-    assert_eq!(specs[0].name, "plugin__example-plugin__valid");
-
-    set_enabled(
-        &data_root,
-        app_server_protocol::protocol::v2::PluginCatalogEnabledSetParams {
-            plugin_id: "example-plugin".to_string(),
-            enabled: false,
-        },
-    )
-    .unwrap();
-    assert!(list_plugin_mcp_runtime_server_specs(&data_root)
+    assert_eq!(fs::read(&store.config_path).unwrap(), original_config);
+    assert_eq!(fs::read_to_string(blocker).unwrap(), "preserve");
+    assert!(fs::read_dir(store.base_root(&id).parent().unwrap())
         .unwrap()
-        .is_empty());
+        .all(|entry| !entry
+            .unwrap()
+            .file_name()
+            .to_string_lossy()
+            .starts_with(".plugin-")));
 }
+
+mod catalog;
+mod components;

@@ -142,40 +142,50 @@ declare module "./appServerClient" {
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerFuzzyFileSearchResponse>
     >;
-    listPluginCatalog(
-      params?: appServer.AppServerPluginCatalogListParams,
+    addMarketplace(
+      params: appServer.AppServerMarketplaceAddParams,
     ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogListResponse>
+      appServer.AppServerRequestResult<appServer.AppServerMarketplaceAddResponse>
+    >;
+    removeMarketplace(
+      params: appServer.AppServerMarketplaceRemoveParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerMarketplaceRemoveResponse>
+    >;
+    upgradeMarketplace(
+      params: appServer.AppServerMarketplaceUpgradeParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerMarketplaceUpgradeResponse>
+    >;
+    listPlugins(
+      params?: appServer.AppServerPluginListParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginListResponse>
     >;
     searchPlugins(
       params: appServer.AppServerPluginSearchParams,
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerPluginSearchResponse>
     >;
-    setPluginCatalogEnabled(
-      params: appServer.AppServerPluginCatalogEnabledSetParams,
+    readPlugin(
+      params: appServer.AppServerPluginReadParams,
     ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogEnabledSetResponse>
+      appServer.AppServerRequestResult<appServer.AppServerPluginReadResponse>
     >;
-    readPluginCatalog(
-      params: appServer.AppServerPluginCatalogReadParams,
+    installPlugin(
+      params: appServer.AppServerPluginInstallParams,
     ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogReadResponse>
+      appServer.AppServerRequestResult<appServer.AppServerPluginInstallResponse>
     >;
-    installPluginCatalog(
-      params: appServer.AppServerPluginCatalogInstallParams,
+    uninstallPlugin(
+      params: appServer.AppServerPluginUninstallParams,
     ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogInstallResponse>
+      appServer.AppServerRequestResult<appServer.AppServerPluginUninstallResponse>
     >;
-    uninstallPluginCatalog(
-      params: appServer.AppServerPluginCatalogUninstallParams,
+    listInstalledPlugins(
+      params?: appServer.AppServerPluginInstalledParams,
     ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogUninstallResponse>
-    >;
-    listInstalledPluginCatalog(
-      params?: appServer.AppServerPluginCatalogInstalledParams,
-    ): Promise<
-      appServer.AppServerRequestResult<appServer.AppServerPluginCatalogListResponse>
+      appServer.AppServerRequestResult<appServer.AppServerPluginInstalledResponse>
     >;
     readFile(
       params: appServer.AppServerFsReadFileParams,

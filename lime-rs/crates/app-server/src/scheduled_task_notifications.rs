@@ -142,7 +142,7 @@ fn metadata_string(metadata: &Option<Value>, keys: &[&str]) -> Option<String> {
 mod tests {
     use super::*;
     use app_server_protocol::{
-        ScheduledTaskExecution, ScheduledTaskOverlapPolicy, ScheduledTaskSchedule,
+        AutomationTaskSchedule, ScheduledTaskExecution, ScheduledTaskOverlapPolicy,
         ScheduledTaskThreadMode,
     };
 
@@ -152,7 +152,7 @@ mod tests {
             title: "每日简报".to_string(),
             prompt: "整理进展".to_string(),
             enabled: true,
-            schedule: ScheduledTaskSchedule::Hourly {
+            schedule: AutomationTaskSchedule::Hourly {
                 interval_hours: 1,
                 days: None,
                 minute: 0,

@@ -5,7 +5,8 @@ use app_server::{AppServer, LocalAppDataSource, MockBackend, RuntimeCore};
 use app_server_protocol::error_codes;
 use app_server_protocol::protocol::v2::{
     METHOD_APP_INSTALLED, METHOD_APP_LIST, METHOD_APP_LIST_UPDATED, METHOD_APP_READ,
-    METHOD_PLUGIN_ENABLED_SET, METHOD_PLUGIN_INSTALL,
+    METHOD_CONFIG_BATCH_WRITE, METHOD_PLUGIN_INSTALL, METHOD_PLUGIN_INSTALLED,
+    METHOD_PLUGIN_UNINSTALL,
 };
 use app_server_protocol::{JsonRpcMessage, METHOD_INITIALIZE, METHOD_INITIALIZED};
 use lime_core::database::schema::create_tables;
@@ -112,8 +113,8 @@ async fn apps_exact_contract_uses_plugin_catalog_and_publishes_updates() {
     request_ok(
         &server,
         10,
-        METHOD_PLUGIN_ENABLED_SET,
-        json!({"pluginId": "alpha-plugin", "enabled": false}),
+        METHOD_CONFIG_BATCH_WRITE,
+        json!({"edits":[{"keyPath":"plugins.\"alpha-plugin@workspace-market\".enabled", "value":false, "mergeStrategy":"replace"}]}),
     )
     .await;
     let disabled_update = next_app_update(&mut outbound).await;
@@ -127,6 +128,63 @@ async fn apps_exact_contract_uses_plugin_catalog_and_publishes_updates() {
     assert_eq!(disabled_alpha["isAccessible"], false);
 }
 
+#[tokio::test]
+async fn plugin_uninstall_returns_empty_result_and_refreshes_apps_without_affecting_other_plugins()
+{
+    let temp = TempDir::new().expect("plugin uninstall temp dir");
+    let server = server(&temp).await;
+    initialize(&server).await;
+    install_plugin(&server, &temp, 2, "alpha-plugin", "alpha-app").await;
+    install_plugin(&server, &temp, 3, "beta-plugin", "beta-app").await;
+    let mut outbound = server.subscribe_outbound_messages();
+
+    let params = json!({"pluginId": "alpha-plugin@workspace-market"});
+    let response = request_ok(&server, 4, METHOD_PLUGIN_UNINSTALL, params.clone()).await;
+    assert_eq!(response["result"], json!({}));
+    let updated = next_app_update(&mut outbound).await;
+    let apps = updated["params"]["data"].as_array().expect("app update");
+    assert_eq!(apps.len(), 1);
+    assert_eq!(apps[0]["id"], "beta-app");
+
+    let installed = request_ok(
+        &server,
+        5,
+        METHOD_PLUGIN_INSTALLED,
+        json!({"cwds":[temp.path()]}),
+    )
+    .await;
+    let plugins = installed["result"]["marketplaces"][0]["plugins"]
+        .as_array()
+        .expect("installed plugins");
+    assert_eq!(plugins.len(), 1);
+    assert_eq!(plugins[0]["id"], "beta-plugin@workspace-market");
+
+    let repeated = request_ok(&server, 6, METHOD_PLUGIN_UNINSTALL, params).await;
+    assert_eq!(repeated["result"], json!({}));
+    let invalid = request_raw(
+        &server,
+        7,
+        METHOD_PLUGIN_UNINSTALL,
+        json!({"pluginId": "beta-plugin"}),
+    )
+    .await;
+    assert!(
+        invalid.get("error").is_some(),
+        "bare identity accepted: {invalid}"
+    );
+    let surviving = request_ok(
+        &server,
+        8,
+        METHOD_PLUGIN_INSTALLED,
+        json!({"cwds":[temp.path()]}),
+    )
+    .await;
+    assert_eq!(
+        surviving["result"]["marketplaces"][0]["plugins"],
+        installed["result"]["marketplaces"][0]["plugins"]
+    );
+}
+
 async fn server(temp: &TempDir) -> AppServer {
     let connection = Connection::open_in_memory().expect("apps product db");
     create_tables(&connection).expect("apps product schema");
@@ -136,8 +194,11 @@ async fn server(temp: &TempDir) -> AppServer {
         temp.path().join("agent-root"),
     )
     .await
-    .expect("apps app data source");
+    .expect("apps app data source")
+    .with_app_config_path(temp.path().join("config.yaml"))
+    .with_plugin_discovery_roots(None, None);
     let runtime = RuntimeCore::with_backend(Arc::new(MockBackend))
+        .with_app_config_path(temp.path().join("config.yaml"))
         .with_app_data_source(Arc::new(app_data_source));
     AppServer::with_runtime(runtime)
 }
@@ -181,14 +242,23 @@ async fn install_plugin(
         .expect("serialize plugin apps"),
     )
     .expect("write plugin apps");
+    let marketplace = temp.path().join(".agents/plugins/marketplace.json");
+    fs::create_dir_all(marketplace.parent().unwrap()).unwrap();
+    let mut value = fs::read(&marketplace)
+        .ok()
+        .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
+        .unwrap_or_else(|| json!({"name": "workspace-market", "plugins": []}));
+    value["plugins"].as_array_mut().unwrap().push(json!({
+        "name": plugin_id, "source": format!("./{plugin_id}")
+    }));
+    fs::write(&marketplace, serde_json::to_vec(&value).unwrap()).unwrap();
     request_ok(
         server,
         id,
         METHOD_PLUGIN_INSTALL,
         json!({
-            "sourcePath": source,
-            "marketplaceId": "workspace-market",
-            "source": "repo"
+            "marketplacePath": marketplace,
+            "pluginName": plugin_id
         }),
     )
     .await;

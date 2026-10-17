@@ -20,19 +20,29 @@ use std::sync::{Arc, Mutex};
 use tool_runtime::sandbox::SandboxBackendPlatform;
 
 mod model_defaults;
+mod settings;
+mod working_directory;
+#[cfg(test)]
+use settings::persisted_collaboration_mode;
+use settings::{
+    apply_thread_settings_patch, thread_settings_from_metadata, validate_thread_settings,
+};
 
 #[derive(Clone)]
 enum SessionMetadataMutation {
     ThreadSettings {
         params: ThreadSettingsUpdateParams,
         permission_profile: Option<ResolvedPermissionProfile>,
+        workspace_roots: Option<Vec<String>>,
     },
     MemoryMode(ThreadMemoryMode),
+    WorkingDirectory,
 }
 
 enum SessionMetadataMutationResult {
     ThreadSettings(ThreadSettings),
     MemoryMode,
+    WorkingDirectory,
 }
 
 impl RuntimeCore {
@@ -155,12 +165,18 @@ impl RuntimeCore {
 
     pub async fn update_thread_settings(
         &self,
-        mut params: ThreadSettingsUpdateParams,
+        params: ThreadSettingsUpdateParams,
     ) -> Result<ThreadSettings, RuntimeCoreError> {
-        validate_thread_settings(&params)?;
-        if let Some(profile_id) = params.permissions.as_deref() {
-            self.resolve_allowed_permission_profile(profile_id, params.cwd.as_deref())?;
-        }
+        self.update_thread_context(params, None).await
+    }
+
+    pub(crate) async fn update_thread_context(
+        &self,
+        mut params: ThreadSettingsUpdateParams,
+        workspace_roots: Option<Vec<String>>,
+    ) -> Result<ThreadSettings, RuntimeCoreError> {
+        validate_thread_settings(&params, workspace_roots.is_some())?;
+        let workspace_roots = Self::resolve_workspace_roots(workspace_roots.as_deref())?;
         let permission_profile = params
             .permissions
             .as_deref()
@@ -176,18 +192,20 @@ impl RuntimeCore {
                 SessionMetadataMutation::ThreadSettings {
                     params,
                     permission_profile,
+                    workspace_roots,
                 },
             )
             .await?;
         match result {
             SessionMetadataMutationResult::ThreadSettings(settings) => Ok(settings),
-            SessionMetadataMutationResult::MemoryMode => Err(RuntimeCoreError::Backend(
+            SessionMetadataMutationResult::MemoryMode
+            | SessionMetadataMutationResult::WorkingDirectory => Err(RuntimeCoreError::Backend(
                 "thread settings operation returned an invalid result".to_string(),
             )),
         }
     }
 
-    pub(in crate::runtime) fn loaded_thread_settings(
+    pub(crate) fn loaded_thread_settings(
         &self,
         thread_id: &str,
     ) -> Result<Option<(String, ThreadSettings, bool)>, RuntimeCoreError> {
@@ -240,7 +258,8 @@ impl RuntimeCore {
             .await?;
         match result {
             SessionMetadataMutationResult::MemoryMode => Ok(ThreadMemoryModeSetResponse {}),
-            SessionMetadataMutationResult::ThreadSettings(_) => Err(RuntimeCoreError::Backend(
+            SessionMetadataMutationResult::ThreadSettings(_)
+            | SessionMetadataMutationResult::WorkingDirectory => Err(RuntimeCoreError::Backend(
                 "memory mode operation returned an invalid result".to_string(),
             )),
         }
@@ -296,6 +315,7 @@ impl RuntimeCore {
                 if let SessionMetadataMutation::ThreadSettings {
                     params,
                     permission_profile,
+                    workspace_roots,
                 } = &mutation
                 {
                     if thread_settings_require_route_preflight(params) {
@@ -306,6 +326,7 @@ impl RuntimeCore {
                                 &thread_id,
                                 params.clone(),
                                 permission_profile.clone(),
+                                workspace_roots.clone(),
                             )?;
                         if let Err(error) = backend
                             .preflight_thread_settings(&candidate_session, &candidate_settings)
@@ -334,7 +355,8 @@ impl RuntimeCore {
             })
         });
         let operation = match mutation {
-            SessionMetadataMutation::ThreadSettings { .. } => {
+            SessionMetadataMutation::ThreadSettings { .. }
+            | SessionMetadataMutation::WorkingDirectory => {
                 RuntimeSessionOperation::ThreadSettings { handler }
             }
             SessionMetadataMutation::MemoryMode(_) => {
@@ -391,6 +413,7 @@ fn preview_thread_settings_mutation(
     thread_id: &str,
     params: ThreadSettingsUpdateParams,
     permission_profile: Option<ResolvedPermissionProfile>,
+    workspace_roots: Option<Vec<String>>,
 ) -> Result<(app_server_protocol::AgentSession, ThreadSettings), String> {
     let state = state
         .lock()
@@ -415,7 +438,7 @@ fn preview_thread_settings_mutation(
         .as_object()
         .cloned()
         .ok_or_else(|| "thread metadata must be a JSON object".to_string())?;
-    apply_thread_settings_patch(&mut metadata, params, permission_profile)?;
+    apply_thread_context_patch(&mut metadata, params, permission_profile, workspace_roots)?;
     let settings = thread_settings_from_metadata(&metadata)?;
     let reference = candidate_session
         .business_object_ref
@@ -472,8 +495,9 @@ fn apply_session_metadata_mutation(
         SessionMetadataMutation::ThreadSettings {
             params,
             permission_profile,
+            workspace_roots,
         } => {
-            apply_thread_settings_patch(&mut metadata, params, permission_profile)?;
+            apply_thread_context_patch(&mut metadata, params, permission_profile, workspace_roots)?;
             SessionMetadataMutationResult::ThreadSettings(thread_settings_from_metadata(&metadata)?)
         }
         SessionMetadataMutation::MemoryMode(mode) => {
@@ -482,6 +506,14 @@ fn apply_session_metadata_mutation(
                 Value::String(mode.as_str().to_string()),
             );
             SessionMetadataMutationResult::MemoryMode
+        }
+        SessionMetadataMutation::WorkingDirectory => {
+            if !RuntimeCore::normalize_thread_working_directory_metadata(&mut metadata)
+                .map_err(|error| error.to_string())?
+            {
+                return Ok(SessionMetadataMutationResult::WorkingDirectory);
+            }
+            SessionMetadataMutationResult::WorkingDirectory
         }
     };
     let reference = updated_session.business_object_ref.get_or_insert_with(|| {
@@ -501,244 +533,19 @@ fn apply_session_metadata_mutation(
     Ok(result)
 }
 
-fn validate_thread_settings(params: &ThreadSettingsUpdateParams) -> Result<(), RuntimeCoreError> {
-    normalized_identity(&params.thread_id, "thread/settings/update threadId")?;
-    if !params.has_updates() {
-        return Err(RuntimeCoreError::InvalidRequest(
-            "thread/settings/update requires at least one setting".to_string(),
-        ));
-    }
-    if params.sandbox_policy.is_some() && params.permissions.is_some() {
-        return Err(RuntimeCoreError::InvalidRequest(
-            "permissions cannot be combined with sandboxPolicy".to_string(),
-        ));
-    }
-    if let Some(cwd) = params.cwd.as_deref() {
-        let cwd = normalized_value(cwd, "cwd")?;
-        if !Path::new(cwd).is_absolute() {
-            return Err(RuntimeCoreError::InvalidRequest(
-                "thread/settings/update cwd must be absolute".to_string(),
-            ));
-        }
-    }
-    validate_optional_string(params.model.as_deref(), "model")?;
-    validate_optional_string(params.model_provider.as_deref(), "modelProvider")?;
-    if params.model_provider.is_some() && params.model.is_none() {
-        return Err(RuntimeCoreError::InvalidRequest(
-            "thread/settings/update modelProvider requires model".to_string(),
-        ));
-    }
-    validate_optional_string(params.effort.as_deref(), "effort")?;
-    if let Some(Some(service_tier)) = params.service_tier.as_ref() {
-        normalized_value(service_tier, "serviceTier")?;
-    }
-    for (name, value) in [
-        ("approvalPolicy", params.approval_policy.as_ref()),
-        ("approvalsReviewer", params.approvals_reviewer.as_ref()),
-        ("sandboxPolicy", params.sandbox_policy.as_ref()),
-        ("summary", params.summary.as_ref()),
-        ("personality", params.personality.as_ref()),
-        ("toolPreferences", params.tool_preferences.as_ref()),
-    ] {
-        if let Some(value) = value {
-            validate_setting_value(value, name)?;
-        }
-    }
-    if let Some(mode) = params.collaboration_mode.as_ref() {
-        normalized_value(&mode.settings.model, "collaborationMode.settings.model")?;
-        if params
-            .model
-            .as_ref()
-            .is_some_and(|model| model != &mode.settings.model)
-        {
-            return Err(RuntimeCoreError::InvalidRequest(
-                "thread/settings/update model must match collaborationMode.settings.model"
-                    .to_string(),
-            ));
-        }
-        validate_optional_string(
-            mode.settings.reasoning_effort.as_deref(),
-            "collaborationMode.settings.reasoning_effort",
-        )?;
-    }
-    Ok(())
-}
-
-fn apply_thread_settings_patch(
+fn apply_thread_context_patch(
     metadata: &mut Map<String, Value>,
     params: ThreadSettingsUpdateParams,
-    resolved_permission_profile: Option<ResolvedPermissionProfile>,
+    permission_profile: Option<ResolvedPermissionProfile>,
+    workspace_roots: Option<Vec<String>>,
 ) -> Result<(), String> {
-    let current_model = metadata_string(metadata, &["modelName", "model"]);
-    let current_provider = metadata_string(
-        metadata,
-        &["providerSelector", "providerName", "modelProvider"],
-    );
-    let target_model = params
-        .collaboration_mode
-        .as_ref()
-        .map(|mode| mode.settings.model.as_str())
-        .or(params.model.as_deref())
-        .or(current_model.as_deref());
-    let target_provider = params
-        .model_provider
-        .as_deref()
-        .or(current_provider.as_deref());
-    let model_identity_changed =
-        target_model != current_model.as_deref() || target_provider != current_provider.as_deref();
-    let model_update = params.model.clone();
-    let effort_update = params.effort.clone();
-    let collaboration_model_update = params.collaboration_mode.is_some();
-    let reset_effort_for_model =
-        model_identity_changed && effort_update.is_none() && !collaboration_model_update;
-    let reset_service_tier_for_model = model_identity_changed && params.service_tier.is_none();
-    let clears_permission_profile = params.sandbox_policy.is_some();
-    let permission_profile = params.permissions.clone();
-    insert_string(metadata, "workingDir", params.cwd);
-    insert_value(metadata, "approvalPolicy", params.approval_policy);
-    insert_value(metadata, "approvalsReviewer", params.approvals_reviewer);
-    insert_value(metadata, "sandboxPolicy", params.sandbox_policy);
-    if clears_permission_profile {
-        metadata.remove("permissions");
-        metadata.remove("activePermissionProfile");
-    }
-    if let Some(profile) = resolved_permission_profile {
-        apply_resolved_permission_profile_to_metadata(metadata, profile)?;
-    } else if let Some(profile_id) = permission_profile {
-        // Direct unit callers may omit policy resolution; preserve the builtin
-        // profile fallback while public request paths always pass a resolved
-        // profile from RuntimeCore.
-        apply_permission_profile_to_metadata(metadata, &profile_id)?;
-    }
-    insert_string(metadata, "modelName", params.model);
-    if let Some(model_provider) = params.model_provider {
+    apply_thread_settings_patch(metadata, params, permission_profile)?;
+    if let Some(roots) = workspace_roots {
         metadata.insert(
-            "providerSelector".to_string(),
-            Value::String(model_provider.clone()),
+            "runtimeWorkspaceRoots".to_string(),
+            serde_json::json!(roots),
         );
-        metadata.insert("providerName".to_string(), Value::String(model_provider));
     }
-    if model_identity_changed {
-        metadata.remove("agentControlRoute");
-    }
-    if let Some(service_tier) = params.service_tier {
-        match service_tier {
-            Some(service_tier) => {
-                metadata.insert("serviceTier".to_string(), Value::String(service_tier));
-            }
-            None => {
-                metadata.remove("serviceTier");
-                metadata.remove("service_tier");
-            }
-        }
-    } else if reset_service_tier_for_model {
-        metadata.remove("serviceTier");
-        metadata.remove("service_tier");
-    }
-    insert_string(metadata, "reasoningEffort", params.effort);
-    if reset_effort_for_model {
-        metadata.remove("reasoningEffort");
-        metadata.remove("effort");
-    }
-    insert_value(metadata, "reasoningSummary", params.summary);
-    if let Some(mode) = params.collaboration_mode {
-        metadata.insert(
-            "modelName".to_string(),
-            Value::String(mode.settings.model.clone()),
-        );
-        match mode.settings.reasoning_effort.as_ref() {
-            Some(effort) => {
-                metadata.insert("reasoningEffort".to_string(), Value::String(effort.clone()));
-            }
-            None => {
-                metadata.remove("reasoningEffort");
-                metadata.remove("effort");
-            }
-        }
-        persist_collaboration_mode(metadata, mode)?;
-    } else if model_update.is_some() || effort_update.is_some() {
-        let model = metadata_string(metadata, &["modelName", "model"])
-            .ok_or_else(|| "thread settings require a persisted model".to_string())?;
-        let effort = metadata_string(metadata, &["reasoningEffort", "effort"]);
-        let mut mode =
-            persisted_collaboration_mode(metadata)?.unwrap_or_else(|| CollaborationMode {
-                mode: ModeKind::Default,
-                settings: CollaborationModeSettings {
-                    model: model.clone(),
-                    reasoning_effort: effort.clone(),
-                    developer_instructions: None,
-                },
-            });
-        if let Some(model) = model_update {
-            mode.settings.model = model;
-        }
-        if reset_effort_for_model {
-            mode.settings.reasoning_effort = None;
-        } else if let Some(effort) = effort_update {
-            mode.settings.reasoning_effort = Some(effort);
-        }
-        persist_collaboration_mode(metadata, mode)?;
-    }
-    insert_value(metadata, "personality", params.personality);
-    insert_value(metadata, "toolPreferences", params.tool_preferences);
-    Ok(())
-}
-
-fn thread_settings_from_metadata(metadata: &Map<String, Value>) -> Result<ThreadSettings, String> {
-    let model = metadata_string(metadata, &["modelName", "model"])
-        .ok_or_else(|| "thread settings require a persisted model".to_string())?;
-    let model_provider = metadata_string(
-        metadata,
-        &["providerSelector", "providerName", "modelProvider"],
-    )
-    .ok_or_else(|| "thread settings require a persisted model provider".to_string())?;
-    let effort = metadata_string(metadata, &["reasoningEffort", "effort"]);
-    let collaboration_mode =
-        persisted_collaboration_mode(metadata)?.unwrap_or_else(|| CollaborationMode {
-            mode: ModeKind::Default,
-            settings: CollaborationModeSettings {
-                model: model.clone(),
-                reasoning_effort: effort.clone(),
-                developer_instructions: None,
-            },
-        });
-    Ok(ThreadSettings {
-        cwd: metadata_string(metadata, &["workingDir", "cwd"]).unwrap_or_default(),
-        approval_policy: metadata_value(metadata, &["approvalPolicy"]),
-        approvals_reviewer: metadata_value(metadata, &["approvalsReviewer"]),
-        sandbox_policy: metadata_value(metadata, &["sandboxPolicy", "sandbox"]),
-        active_permission_profile: metadata_alias(metadata, &["activePermissionProfile"]),
-        model,
-        model_provider,
-        service_tier: metadata_string(metadata, &["serviceTier"]),
-        effort,
-        summary: metadata_alias(metadata, &["reasoningSummary", "summary"]),
-        collaboration_mode,
-        personality: metadata_alias(metadata, &["personality"]),
-        tool_preferences: metadata_alias(metadata, &["toolPreferences"]),
-    })
-}
-
-fn persisted_collaboration_mode(
-    metadata: &Map<String, Value>,
-) -> Result<Option<CollaborationMode>, String> {
-    metadata
-        .get("collaborationMode")
-        .cloned()
-        .map(serde_json::from_value::<CollaborationMode>)
-        .transpose()
-        .map_err(|error| format!("invalid persisted collaborationMode: {error}"))
-}
-
-fn persist_collaboration_mode(
-    metadata: &mut Map<String, Value>,
-    mode: CollaborationMode,
-) -> Result<(), String> {
-    metadata.insert(
-        "collaborationMode".to_string(),
-        serde_json::to_value(mode)
-            .map_err(|error| format!("serialize collaboration mode: {error}"))?,
-    );
     Ok(())
 }
 
@@ -816,229 +623,5 @@ fn metadata_string(metadata: &Map<String, Value>, keys: &[&str]) -> Option<Strin
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use async_trait::async_trait;
-    use serde_json::json;
-
-    struct RejectingModelSwitchBackend;
-
-    #[async_trait]
-    impl crate::ExecutionBackend for RejectingModelSwitchBackend {
-        async fn preflight_thread_settings(
-            &self,
-            session: &app_server_protocol::AgentSession,
-            settings: &ThreadSettings,
-        ) -> Result<(), RuntimeCoreError> {
-            Err(RuntimeCoreError::RouteRejected {
-                session_id: session.session_id.clone(),
-                provider: Some(settings.model_provider.clone()),
-                model: Some(settings.model.clone()),
-                category: app_server_protocol::RouteFailureCategory::ModelUnavailable,
-                reason_code: "model_registry_metadata_missing".to_string(),
-            })
-        }
-
-        async fn start_turn(
-            &self,
-            _request: crate::ExecutionRequest,
-            _sink: &mut dyn crate::RuntimeEventSink,
-        ) -> Result<(), RuntimeCoreError> {
-            Ok(())
-        }
-
-        async fn cancel_turn(
-            &self,
-            _request: crate::CancelExecutionRequest,
-            _sink: &mut dyn crate::RuntimeEventSink,
-        ) -> Result<(), RuntimeCoreError> {
-            Ok(())
-        }
-
-        async fn respond_action(
-            &self,
-            _request: crate::ActionRespondRequest,
-            _sink: &mut dyn crate::RuntimeEventSink,
-        ) -> Result<(), RuntimeCoreError> {
-            Ok(())
-        }
-    }
-
-    #[tokio::test]
-    async fn rejected_route_settings_do_not_persist_candidate_settings() {
-        let temp = tempfile::TempDir::new().expect("thread settings temp dir");
-        let store = Arc::new(
-            crate::ProjectionStore::initialize(temp.path().join("projection.sqlite"))
-                .expect("thread settings projection store"),
-        );
-        let core = RuntimeCore::with_backend(Arc::new(RejectingModelSwitchBackend))
-            .with_projection_store(store);
-        core.start_session(app_server_protocol::AgentSessionStartParams {
-            session_id: Some("session-settings-preflight".to_string()),
-            thread_id: Some("thread-settings-preflight".to_string()),
-            app_id: "agent-chat".to_string(),
-            workspace_id: None,
-            business_object_ref: Some(app_server_protocol::BusinessObjectRef {
-                kind: "agent.thread".to_string(),
-                id: "thread-settings-preflight".to_string(),
-                title: None,
-                uri: None,
-                metadata: Some(json!({
-                    "providerSelector": "provider-a",
-                    "providerName": "provider-a",
-                    "modelName": "model-a"
-                })),
-            }),
-            locale: None,
-        })
-        .expect("start settings preflight session");
-
-        let tier_error = core
-            .update_thread_settings(ThreadSettingsUpdateParams {
-                thread_id: "thread-settings-preflight".to_string(),
-                service_tier: Some(Some("unsupported-tier".to_string())),
-                ..ThreadSettingsUpdateParams::default()
-            })
-            .await
-            .expect_err("service tier update must be preflighted");
-        assert!(matches!(
-            tier_error,
-            RuntimeCoreError::RouteRejected {
-                reason_code,
-                ..
-            } if reason_code == "model_registry_metadata_missing"
-        ));
-        {
-            let state = core
-                .state
-                .lock()
-                .expect("runtime state after tier rejection");
-            let metadata = state.sessions["session-settings-preflight"]
-                .session
-                .business_object_ref
-                .as_ref()
-                .and_then(|reference| reference.metadata.as_ref())
-                .expect("persisted metadata after tier rejection");
-            assert!(metadata.get("serviceTier").is_none());
-        }
-
-        let error = core
-            .update_thread_settings(ThreadSettingsUpdateParams {
-                thread_id: "thread-settings-preflight".to_string(),
-                model: Some("missing-model".to_string()),
-                model_provider: Some("provider-b".to_string()),
-                ..ThreadSettingsUpdateParams::default()
-            })
-            .await
-            .expect_err("model switch must be rejected");
-
-        assert!(matches!(
-            error,
-            RuntimeCoreError::RouteRejected {
-                reason_code,
-                ..
-            } if reason_code == "model_registry_metadata_missing"
-        ));
-        let state = core.state.lock().expect("runtime state");
-        let metadata = state.sessions["session-settings-preflight"]
-            .session
-            .business_object_ref
-            .as_ref()
-            .and_then(|reference| reference.metadata.as_ref())
-            .expect("persisted metadata");
-        assert_eq!(metadata["providerSelector"], "provider-a");
-        assert_eq!(metadata["providerName"], "provider-a");
-        assert_eq!(metadata["modelName"], "model-a");
-    }
-
-    #[test]
-    fn plain_model_and_effort_updates_refresh_the_active_collaboration_mode() {
-        let mut metadata = json!({
-            "modelName": "model-a",
-            "providerSelector": "provider-a",
-            "reasoningEffort": "low",
-            "collaborationMode": {
-                "mode": "plan",
-                "settings": {
-                    "model": "model-a",
-                    "reasoning_effort": "low",
-                    "developer_instructions": "Keep the existing plan instructions."
-                }
-            },
-            "agentControlRoute": {
-                "schemaVersion": 2,
-                "providerPreference": "provider-a",
-                "modelPreference": "model-a"
-            }
-        })
-        .as_object()
-        .expect("metadata object")
-        .clone();
-
-        apply_thread_settings_patch(
-            &mut metadata,
-            ThreadSettingsUpdateParams {
-                thread_id: "thread-1".to_string(),
-                model: Some("model-b".to_string()),
-                model_provider: Some("provider-b".to_string()),
-                effort: Some("high".to_string()),
-                ..ThreadSettingsUpdateParams::default()
-            },
-            None,
-        )
-        .expect("update metadata");
-
-        let mode = persisted_collaboration_mode(&metadata)
-            .expect("valid mode")
-            .expect("persisted mode");
-        assert_eq!(mode.mode, ModeKind::Plan);
-        assert_eq!(mode.settings.model, "model-b");
-        assert_eq!(mode.settings.reasoning_effort.as_deref(), Some("high"));
-        assert_eq!(metadata["providerSelector"], "provider-b");
-        assert_eq!(metadata["providerName"], "provider-b");
-        assert!(metadata.get("agentControlRoute").is_none());
-        assert_eq!(
-            mode.settings.developer_instructions.as_deref(),
-            Some("Keep the existing plan instructions.")
-        );
-    }
-
-    #[test]
-    fn model_only_update_clears_effort_owned_by_the_previous_model() {
-        let mut metadata = json!({
-            "modelName": "reasoning-model",
-            "providerSelector": "provider-a",
-            "reasoningEffort": "high",
-            "serviceTier": "priority",
-            "collaborationMode": {
-                "mode": "default",
-                "settings": {
-                    "model": "reasoning-model",
-                    "reasoning_effort": "high"
-                }
-            }
-        })
-        .as_object()
-        .expect("metadata object")
-        .clone();
-
-        apply_thread_settings_patch(
-            &mut metadata,
-            ThreadSettingsUpdateParams {
-                thread_id: "thread-1".to_string(),
-                model: Some("plain-model".to_string()),
-                model_provider: Some("provider-b".to_string()),
-                ..ThreadSettingsUpdateParams::default()
-            },
-            None,
-        )
-        .expect("update metadata");
-
-        let settings = thread_settings_from_metadata(&metadata).expect("thread settings");
-        assert_eq!(settings.model, "plain-model");
-        assert_eq!(settings.model_provider, "provider-b");
-        assert_eq!(settings.effort, None);
-        assert_eq!(settings.service_tier, None);
-        assert_eq!(settings.collaboration_mode.settings.reasoning_effort, None);
-    }
-}
+#[path = "session_operations/tests.rs"]
+mod tests;

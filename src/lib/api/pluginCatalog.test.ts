@@ -1,35 +1,43 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   PLUGIN_CATALOG_CHANGED_EVENT,
-  installPluginCatalog,
-  listInstalledPluginCatalog,
-  listPluginCatalog,
-  readPluginCatalog,
+  installPlugin,
+  listInstalledPlugins,
+  listPlugins,
+  readPlugin,
   searchPluginCatalog,
-  setPluginCatalogEnabled,
-  uninstallPluginCatalog,
+  setPluginEnabled,
+  uninstallPlugin,
   type PluginCatalogClient,
 } from "./pluginCatalog";
 
 function client(): PluginCatalogClient {
   return {
-    listPluginCatalog: vi
+    listPlugins: vi
       .fn()
-      .mockResolvedValue({ result: { plugins: [], generatedAt: "now" } }),
+      .mockResolvedValue({
+        result: {
+          marketplaces: [],
+          marketplaceLoadErrors: [],
+          featuredPluginIds: [],
+        },
+      }),
     searchPlugins: vi
       .fn()
       .mockResolvedValue({ result: { data: [], nextCursor: null } }),
-    setPluginCatalogEnabled: vi
+    request: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
+    readPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
+    installPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
+    uninstallPlugin: vi.fn().mockResolvedValue({ result: {} }),
+    listInstalledPlugins: vi
       .fn()
-      .mockResolvedValue({ result: { plugin: {} } }),
-    readPluginCatalog: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
-    installPluginCatalog: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
-    uninstallPluginCatalog: vi
-      .fn()
-      .mockResolvedValue({ result: { pluginId: "demo", uninstalled: true } }),
-    listInstalledPluginCatalog: vi
-      .fn()
-      .mockResolvedValue({ result: { plugins: [], generatedAt: "now" } }),
+      .mockResolvedValue({
+        result: {
+          marketplaces: [],
+          marketplaceLoadErrors: [],
+          featuredPluginIds: [],
+        },
+      }),
   };
 }
 
@@ -37,38 +45,49 @@ describe("Plugin catalog API", () => {
   it("只通过 typed App Server client 访问 catalog/install owner", async () => {
     const appServerClient = client();
 
-    await listPluginCatalog({ query: "demo" }, appServerClient);
+    await listPlugins({ cwds: ["/tmp/workspace"] }, appServerClient);
     await searchPluginCatalog({ searchTerm: "demo" }, appServerClient);
-    await readPluginCatalog({ pluginId: "demo" }, appServerClient);
-    await setPluginCatalogEnabled(
-      { pluginId: "demo", enabled: true },
+    await readPlugin(
+      { marketplacePath: "/tmp/marketplace.json", pluginName: "demo" },
       appServerClient,
     );
-    await installPluginCatalog(
-      { sourcePath: "/tmp/demo-plugin" },
+    await setPluginEnabled(
+      { pluginId: "demo@market", enabled: true },
       appServerClient,
     );
-    await listInstalledPluginCatalog({}, appServerClient);
-    await uninstallPluginCatalog({ pluginId: "demo" }, appServerClient);
+    await installPlugin(
+      { marketplacePath: "/tmp/marketplace.json", pluginName: "demo" },
+      appServerClient,
+    );
+    await listInstalledPlugins({}, appServerClient);
+    await uninstallPlugin({ pluginId: "demo" }, appServerClient);
 
-    expect(appServerClient.listPluginCatalog).toHaveBeenCalledWith({
-      query: "demo",
+    expect(appServerClient.listPlugins).toHaveBeenCalledWith({
+      cwds: ["/tmp/workspace"],
     });
     expect(appServerClient.searchPlugins).toHaveBeenCalledWith({
       searchTerm: "demo",
     });
-    expect(appServerClient.setPluginCatalogEnabled).toHaveBeenCalledWith({
-      pluginId: "demo",
-      enabled: true,
+    expect(appServerClient.request).toHaveBeenCalledWith("config/batchWrite", {
+      edits: [
+        {
+          keyPath: 'plugins."demo@market".enabled',
+          value: true,
+          mergeStrategy: "replace",
+        },
+      ],
+      reloadUserConfig: true,
     });
-    expect(appServerClient.readPluginCatalog).toHaveBeenCalledWith({
-      pluginId: "demo",
+    expect(appServerClient.readPlugin).toHaveBeenCalledWith({
+      marketplacePath: "/tmp/marketplace.json",
+      pluginName: "demo",
     });
-    expect(appServerClient.installPluginCatalog).toHaveBeenCalledWith({
-      sourcePath: "/tmp/demo-plugin",
+    expect(appServerClient.installPlugin).toHaveBeenCalledWith({
+      marketplacePath: "/tmp/marketplace.json",
+      pluginName: "demo",
     });
-    expect(appServerClient.listInstalledPluginCatalog).toHaveBeenCalledWith({});
-    expect(appServerClient.uninstallPluginCatalog).toHaveBeenCalledWith({
+    expect(appServerClient.listInstalledPlugins).toHaveBeenCalledWith({});
+    expect(appServerClient.uninstallPlugin).toHaveBeenCalledWith({
       pluginId: "demo",
     });
   });
@@ -79,19 +98,36 @@ describe("Plugin catalog API", () => {
     window.addEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
 
     try {
-      await installPluginCatalog(
-        { sourcePath: "/tmp/demo-plugin" },
+      await installPlugin(
+        { marketplacePath: "/tmp/marketplace.json", pluginName: "demo" },
         appServerClient,
       );
-      await setPluginCatalogEnabled(
-        { pluginId: "demo", enabled: false },
+      await setPluginEnabled(
+        { pluginId: "demo@market", enabled: false },
         appServerClient,
       );
-      await uninstallPluginCatalog({ pluginId: "demo" }, appServerClient);
+      await uninstallPlugin({ pluginId: "demo" }, appServerClient);
     } finally {
       window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
     }
 
     expect(listener).toHaveBeenCalledTimes(3);
+  });
+
+  it("卸载失败不发布已成功变更通知", async () => {
+    const appServerClient = client();
+    vi.mocked(appServerClient.uninstallPlugin).mockRejectedValue(
+      new Error("uninstall rejected"),
+    );
+    const listener = vi.fn();
+    window.addEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    try {
+      await expect(
+        uninstallPlugin({ pluginId: "demo@market" }, appServerClient),
+      ).rejects.toThrow("uninstall rejected");
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    }
   });
 });

@@ -10,7 +10,7 @@ const CREATED_AT_SECONDS = 1_753_132_800;
 function resumeResponse(): ThreadResumeResponse {
   return {
     approvalPolicy: null,
-    approvalsReviewer: null,
+    approvalsReviewer: "user",
     cwd: "/workspace",
     model: "gpt-5.4",
     modelProvider: "openai",
@@ -79,10 +79,12 @@ describe("thread resume ConversationProjection", () => {
       thread_id: "thread-resume-projection",
       status: "idle",
     });
-    expect(projection?.turns.map(({ id, status }) => ({ id, status }))).toEqual([
-      { id: "turn-older", status: "completed" },
-      { id: "turn-newer", status: "completed" },
-    ]);
+    expect(projection?.turns.map(({ id, status }) => ({ id, status }))).toEqual(
+      [
+        { id: "turn-older", status: "completed" },
+        { id: "turn-newer", status: "completed" },
+      ],
+    );
     expect(
       projection?.items.map(({ id, sequence, status, turn_id }) => ({
         id,

@@ -206,7 +206,21 @@ impl V2NotificationProjector {
         let Some(settings) = event.payload.get("threadSettings") else {
             return EventProjection::Reject(projection_error(event));
         };
-        let Ok(thread_settings) = serde_json::from_value(settings.clone()) else {
+        let mut settings = settings.clone();
+        // Published model reconciliation events used null for the default reviewer.
+        // Normalize durable input here; current public responses always carry the enum.
+        if let Some(settings) = settings.as_object_mut() {
+            if settings
+                .get("approvalsReviewer")
+                .is_none_or(serde_json::Value::is_null)
+            {
+                settings.insert(
+                    "approvalsReviewer".into(),
+                    serde_json::json!(v2::ApprovalsReviewer::User),
+                );
+            }
+        }
+        let Ok(thread_settings) = serde_json::from_value(settings) else {
             return EventProjection::Reject(projection_error(event));
         };
         EventProjection::Direct(vec![ServerNotification::ThreadSettingsUpdated(

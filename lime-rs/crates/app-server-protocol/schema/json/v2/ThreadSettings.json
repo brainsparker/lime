@@ -1,5 +1,14 @@
 {
   "$defs": {
+    "ApprovalsReviewer": {
+      "description": "Routes approval requests to the user or automatic review. The legacy guardian_subagent input is serialized as auto_review.",
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": "string"
+    },
     "CollaborationMode": {
       "description": "Collaboration mode for a session or turn.",
       "properties": {
@@ -53,7 +62,9 @@
   "properties": {
     "activePermissionProfile": true,
     "approvalPolicy": true,
-    "approvalsReviewer": true,
+    "approvalsReviewer": {
+      "$ref": "#/$defs/ApprovalsReviewer"
+    },
     "collaborationMode": {
       "$ref": "#/$defs/CollaborationMode"
     },

@@ -155,11 +155,17 @@ export interface ExecutionPolicyFocusContext {
   requestKey?: number;
 }
 
+export interface SettingsSearchFocusContext {
+  targetId: string;
+  requestKey?: number;
+}
+
 export interface SettingsPageParams {
   tab?: SettingsTabs;
   providerView?: SettingsProviderView;
   providerFocus?: ProviderSettingsFocusContext;
   executionPolicyFocus?: ExecutionPolicyFocusContext;
+  searchFocus?: SettingsSearchFocusContext;
 }
 
 export interface SkillScaffoldDraft extends Record<string, unknown> {

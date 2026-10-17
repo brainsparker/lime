@@ -11,7 +11,7 @@ use anyhow::{bail, Result};
 use app_server_protocol::protocol::v2::Thread;
 
 use crate::app_server_session::{AppServerSession, InitialHistoryPage, ThreadSettingsPatch};
-use crate::runtime::{connect_session, TuiOptions};
+use crate::runtime::connection::{connect_session, TuiOptions};
 
 const RECONNECT_DELAYS: [Duration; 4] = [
     Duration::ZERO,

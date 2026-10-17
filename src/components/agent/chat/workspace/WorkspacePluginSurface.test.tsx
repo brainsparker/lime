@@ -55,7 +55,7 @@ vi.mock("@/lib/api/mcp", () => ({
 }));
 
 const pluginCatalogMocks = vi.hoisted(() => ({
-  listInstalledPluginCatalog: vi.fn(),
+  listInstalledPlugins: vi.fn(),
 }));
 
 vi.mock("@/lib/api/pluginCatalog", () => pluginCatalogMocks);
@@ -115,9 +115,8 @@ beforeEach(() => {
   ).IS_REACT_ACT_ENVIRONMENT = true;
   vi.clearAllMocks();
   embeddedBrowserMocks.isEmbeddedBrowserHostAvailable.mockReturnValue(true);
-  pluginCatalogMocks.listInstalledPluginCatalog.mockResolvedValue({
-    generatedAt: "now",
-    plugins: [{ id: "demo-plugin", enabled: true, installed: true }],
+  pluginCatalogMocks.listInstalledPlugins.mockResolvedValue({
+    marketplaces: [{ name: "demo", plugins: [{ id: "demo-plugin", enabled: true, installed: true }] }],
   });
   mcpApiMocks.readResource.mockResolvedValue({
     uri: "ui://demo/report.html",
@@ -330,7 +329,7 @@ describe("WorkspacePluginSurface", () => {
       surface: appsSurface,
     });
 
-    expect(pluginCatalogMocks.listInstalledPluginCatalog).not.toHaveBeenCalled();
+    expect(pluginCatalogMocks.listInstalledPlugins).not.toHaveBeenCalled();
     expect(mcpApiMocks.readResource).toHaveBeenCalledWith(
       "codex_apps",
       "ui://calendar/event.html",
@@ -351,9 +350,8 @@ describe("WorkspacePluginSurface", () => {
   });
 
   it("Plugin 已卸载时应保留历史状态且不重启 MCP App", async () => {
-    pluginCatalogMocks.listInstalledPluginCatalog.mockResolvedValueOnce({
-      generatedAt: "now",
-      plugins: [],
+    pluginCatalogMocks.listInstalledPlugins.mockResolvedValueOnce({
+      marketplaces: [],
     });
     const mcpSurface: WorkspacePluginSurfaceDescriptor = {
       appId: "demo-plugin",

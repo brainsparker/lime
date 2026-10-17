@@ -1,158 +1,53 @@
-use std::ffi::OsString;
 use std::future::Future;
-use std::path::PathBuf;
 use std::pin::Pin;
 use std::time::Duration;
 
-use anyhow::{bail, Context, Result};
-use app_server_client::{AppServerEvent, RemoteTransportConfig, StdioTransportConfig};
+use anyhow::{Context, Result};
+use app_server_client::AppServerEvent;
 use futures::StreamExt;
 
 use crate::app::event_dispatch::{EventContext, EventDispatch};
 use crate::app::reconnect::{reconnect_session, ReconnectedSession};
-use crate::app::{App, AppAction};
+use crate::app::AppAction;
 use crate::app_server_session::AppServerSession;
-use crate::bottom_pane::FileSearchRequest;
 use crate::chatwidget::ExternalEditorState;
-use crate::locale::Locale;
-use crate::projection::TranscriptEntry;
 use crate::resume_picker::{
-    run_resume_picker_with_app_server, PickerAction, PickerLoadEvent, PickerState,
-    SessionPickerAction, SessionStatus,
+    PickerAction, PickerLoadEvent, PickerState, SessionPickerAction, SessionStatus,
 };
 use crate::settings::{parse_settings_command, SettingsCommand};
 use crate::tui::{Tui, TuiEvent};
 use crate::view;
 
+pub(crate) mod actions;
+pub(crate) mod connection;
+mod file_search;
+mod history;
 mod input_submission;
 mod render;
+pub(crate) mod resume;
+mod startup;
 
-#[derive(Debug, Clone)]
-pub struct TuiOptions {
-    pub app_server_bin: PathBuf,
-    pub app_server_args: Vec<OsString>,
-    pub remote: Option<RemoteTransportConfig>,
-    pub cwd: PathBuf,
-    pub model: Option<String>,
-    pub model_provider: Option<String>,
-    pub reasoning_effort: Option<String>,
-    pub permissions: Option<String>,
-    pub approval_policy: Option<String>,
-    pub approvals_reviewer: Option<String>,
-    pub sandbox_policy: Option<String>,
-    pub locale: Option<String>,
-    pub resume_thread: Option<String>,
-}
-
-#[derive(Debug)]
-struct FileSearchEvent {
-    generation: u64,
-    query: String,
-    files: Vec<app_server_protocol::protocol::v2::FuzzyFileSearchResult>,
-}
-
-const ACTIVE_TURN_FRAME_INTERVAL: Duration = Duration::from_millis(100);
-
-fn validate_model_route(options: &TuiOptions) -> Result<()> {
-    match (&options.model, &options.model_provider) {
-        (Some(model), Some(provider)) if model.trim().is_empty() || provider.trim().is_empty() => {
-            bail!("model and provider must not be empty")
-        }
-        (Some(_), None) | (None, Some(_)) => {
-            bail!("--model and --provider must be specified together")
-        }
-        _ => Ok(()),
-    }
-}
-
-fn spawn_file_search(
-    request_handle: app_server_client::RequestHandle,
-    cwd: PathBuf,
-    request: FileSearchRequest,
-    result_tx: tokio::sync::mpsc::UnboundedSender<FileSearchEvent>,
-) {
-    tokio::spawn(async move {
-        match AppServerSession::fuzzy_file_search_request(
-            request_handle,
-            cwd,
-            request.query.clone(),
-        )
-        .await
-        {
-            Ok(files) => {
-                let _ = result_tx.send(FileSearchEvent {
-                    generation: request.generation,
-                    query: request.query,
-                    files,
-                });
-            }
-            Err(error) => {
-                tracing::debug!("file search request failed: {error}");
-            }
-        }
-    });
-}
+use actions::{is_no_active_turn_error, open_link, prepare_export_transcript};
+use connection::TuiOptions;
+use file_search::{spawn_file_search, FileSearchEvent};
+use history::{
+    clear_history_page_error, complete_history_load, current_transcript_page_size,
+    fail_history_load, history_top_up_needed,
+};
 
 pub async fn run_tui(options: TuiOptions) -> Result<()> {
-    validate_model_route(&options)?;
-    let mut session = Some(connect_session(&options).await?);
-    let local_settings = match crate::local_settings::LocalSettings::read(
-        session
-            .as_ref()
-            .expect("session available while loading TUI settings"),
-    )
-    .await
-    {
-        Ok(settings) => settings,
-        Err(error) => {
-            let _ = session
-                .take()
-                .expect("session available after TUI settings failure")
-                .shutdown()
-                .await;
-            return Err(error);
-        }
-    };
-    let mut app = App::default();
     let (app_event_tx, mut app_event_rx) = tokio::sync::mpsc::unbounded_channel();
     let app_event_tx = crate::app_event_sender::AppEventSender::new(app_event_tx);
-    app.chat_widget
-        .bottom_pane
-        .set_app_event_tx(app_event_tx.clone());
+    let startup::InitializedApp {
+        mut app,
+        session,
+        settings,
+    } = startup::initialize_app(&options, &app_event_tx).await?;
+    let mut session = Some(session);
     let mut message_history = crate::app::message_history::MessageHistory::default();
-    app.set_right_click_paste(local_settings.tui.right_click_paste);
-    app.projection
-        .set_show_raw_agent_reasoning(local_settings.show_raw_agent_reasoning);
-    app.chat_widget.tui_config = local_settings.tui;
-    app.chat_widget.config_version = local_settings.config_version;
-    app.set_runtime_keymap(local_settings.keymap);
-    app.set_cwd(options.cwd.clone());
-    app.set_locale(Locale::resolve(options.locale.as_deref()));
-    app.chat_widget
-        .bottom_pane
-        .set_agents_navigation_enabled(options.remote.is_none());
-    app.begin_startup_input_boundary();
-    let setup_result = crate::app::startup::initialize_session(
-        &options,
-        session.as_mut().expect("session available during setup"),
-        &mut app,
-    )
-    .await;
-    let (approval_policy, mut approvals_reviewer, mut sandbox_policy) = match setup_result {
-        Ok(state) => (
-            state.approval_policy,
-            state.approvals_reviewer,
-            state.sandbox_policy,
-        ),
-        Err(error) => {
-            let _ = session
-                .take()
-                .expect("session available after setup failure")
-                .shutdown()
-                .await;
-            return Err(error);
-        }
-    };
+    let approval_policy = settings.approval_policy;
+    let mut approvals_reviewer = settings.approvals_reviewer;
+    let mut sandbox_policy = settings.sandbox_policy;
     let mut terminal = match Tui::enter().context("failed to initialize terminal") {
         Ok(terminal) => terminal,
         Err(error) => {
@@ -447,7 +342,7 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
                     let event = match event {
                         TuiEvent::Draw => {
                             if app.projection.active_turn_id().is_some() {
-                                frame_requester.schedule_frame_in(ACTIVE_TURN_FRAME_INTERVAL);
+                                frame_requester.schedule_frame_in(render::ACTIVE_TURN_FRAME_INTERVAL);
                             }
                             TuiEvent::Draw
                         }
@@ -1095,302 +990,10 @@ pub async fn run_tui(options: TuiOptions) -> Result<()> {
     shutdown_result
 }
 
-fn is_no_active_turn_error(error: &anyhow::Error) -> bool {
-    error.chain().any(|cause| {
-        let message = cause.to_string().to_ascii_lowercase();
-        message.contains("no active turn") || message.contains("turn_not_active")
-    })
-}
-
-fn clear_history_page_error(app: &mut App) {
-    if app.projection.status().starts_with("history page failed:") {
-        app.projection.set_status("ready");
-    }
-}
-
-fn complete_history_load(app: &mut App) {
-    clear_history_page_error(app);
-    if let Some(pager) = app.chat_widget.pager_overlay.as_ref() {
-        pager.complete_older_history_load();
-        pager.reset_transcript_anchor_at_top();
-    }
-    app.transcript_view.search.complete_history_load();
-}
-
-fn fail_history_load(app: &mut App, message: &str) {
-    if let Some(pager) = app.chat_widget.pager_overlay.as_ref() {
-        pager.fail_older_history_load();
-    }
-    app.transcript_view.search.fail_history_load();
-    app.projection.set_status(message);
-}
-
-fn current_transcript_page_size(terminal: &mut Tui, app: &App) -> Result<usize> {
-    let size = terminal.screen_size();
-    Ok(view::transcript_page_size(size.width, size.height, app))
-}
-
-fn history_top_up_needed(terminal: &mut Tui, app: &App) -> Result<bool> {
-    if app.chat_widget.resume_picker.is_some()
-        || app.chat_widget.pager_overlay.is_some()
-        || app.chat_widget.export_picker.is_some()
-        || app.chat_widget.status_line_setup.is_some()
-        || app.chat_widget.terminal_title_setup.is_some()
-        || app.chat_widget.model_picker.is_some()
-        || app.chat_widget.agent_picker.is_some()
-        || app.chat_widget.agents_overview.is_some()
-    {
-        return Ok(false);
-    }
-    if !app.chat_widget.scrollback_has_older_history() {
-        return Ok(false);
-    }
-    let size = terminal.screen_size();
-    let minimum_rows = view::transcript_page_size(size.width, size.height, app);
-    Ok(crate::app::history_ui::rendered_transcript_row_count(app, size.width) < minimum_rows)
-}
-
-/// Resume without an explicit id using the same canonical thread picker as Codex.
-/// The picker session is short-lived; the selected thread is then resumed by the
-/// normal TUI runtime so there is only one conversation owner.
-pub async fn run_resume(mut options: TuiOptions) -> Result<()> {
-    if options.resume_thread.is_none() {
-        let selected = run_resume_picker_with_app_server(&options).await?;
-        let Some(thread_id) = selected else {
-            return Ok(());
-        };
-        options.resume_thread = Some(thread_id);
-    }
-    run_tui(options).await
-}
-
-pub(crate) fn open_link(destination: &str) -> Result<(), String> {
-    open_link_with(destination, |destination| {
-        webbrowser::open(destination).map_err(|error| error.to_string())
-    })
-}
-
-fn open_link_with(
-    destination: &str,
-    open: impl FnOnce(&str) -> Result<(), String>,
-) -> Result<(), String> {
-    let destination = crate::terminal_hyperlinks::web_destination(destination)
-        .ok_or_else(|| "link destination must be a valid HTTP(S) URL".to_string())?;
-    open(&destination)
-}
-
-async fn prepare_export_transcript(
-    app: &mut App,
-    session: &AppServerSession,
-    path: Option<std::path::PathBuf>,
-) -> Option<String> {
-    let live_entries = app.projection.entries();
-    let entries = match session.thread_id() {
-        Ok(thread_id) => match crate::thread_transcript::load_session_transcript(
-            session.request_handle(),
-            thread_id.to_string(),
-            app.projection.show_raw_agent_reasoning(),
-        )
-        .await
-        {
-            Ok(entries) => merge_export_entries(entries, live_entries),
-            Err(_) => live_entries.to_vec(),
-        },
-        Err(_) => live_entries.to_vec(),
-    };
-    let markdown = match crate::app::transcript_export::render_markdown_transcript(&entries) {
-        Ok(markdown) => markdown,
-        Err(error) => {
-            app.projection.set_status(format!("export failed: {error}"));
-            return None;
-        }
-    };
-    match path {
-        Some(path) => {
-            match crate::app::transcript_export::write_transcript(&app.cwd, &path, &markdown) {
-                Ok(path) => app
-                    .projection
-                    .set_status(format!("exported conversation to {}", path.display())),
-                Err(error) => app.projection.set_status(format!("export failed: {error}")),
-            }
-            None
-        }
-        None => Some(markdown),
-    }
-}
-
-fn merge_export_entries(
-    mut persisted: Vec<TranscriptEntry>,
-    live: &[TranscriptEntry],
-) -> Vec<TranscriptEntry> {
-    for live_entry in live {
-        if let Some(persisted_entry) = persisted
-            .iter_mut()
-            .find(|persisted_entry| persisted_entry.id == live_entry.id)
-        {
-            *persisted_entry = live_entry.clone();
-        } else {
-            persisted.push(live_entry.clone());
-        }
-    }
-    persisted
-}
-
-pub(crate) async fn connect_session(options: &TuiOptions) -> Result<AppServerSession> {
-    if let Some(remote) = options.remote.clone() {
-        AppServerSession::connect_remote(remote).await
-    } else {
-        AppServerSession::connect(stdio_config(options)?).await
-    }
-}
-
-pub(crate) fn stdio_config(options: &TuiOptions) -> Result<StdioTransportConfig> {
-    validate_model_route(options)?;
-    let mut config = StdioTransportConfig::runtime(&options.app_server_bin);
-    config.args.extend(options.app_server_args.iter().cloned());
-    Ok(config)
-}
-
 #[cfg(test)]
 #[path = "runtime_pty_tests.rs"]
 mod pty_tests;
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::projection::{EntryKind, EntryStatus};
-    use std::cell::RefCell;
-    use std::ffi::OsString;
-
-    fn transcript_entry(id: &str, text: &str, status: Option<EntryStatus>) -> TranscriptEntry {
-        TranscriptEntry {
-            id: id.to_string(),
-            kind: EntryKind::Assistant,
-            text: text.to_string(),
-            streaming: status == Some(EntryStatus::Running),
-            status,
-            summary: Vec::new(),
-            activity_group: None,
-            activity_detail: None,
-        }
-    }
-
-    #[test]
-    fn export_merge_keeps_persisted_order_and_latest_live_entries() {
-        let persisted = vec![
-            transcript_entry("history", "older", Some(EntryStatus::Completed)),
-            transcript_entry("shared", "persisted", Some(EntryStatus::Completed)),
-        ];
-        let live = vec![
-            transcript_entry("shared", "streaming", Some(EntryStatus::Running)),
-            transcript_entry("live", "new", Some(EntryStatus::Running)),
-        ];
-
-        let merged = merge_export_entries(persisted, &live);
-
-        assert_eq!(
-            merged
-                .iter()
-                .map(|entry| entry.id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["history", "shared", "live"]
-        );
-        assert_eq!(merged[1].text, "streaming");
-        assert_eq!(merged[1].status, Some(EntryStatus::Running));
-        assert_eq!(merged[2], live[1]);
-    }
-
-    #[test]
-    fn model_route_requires_model_and_provider_together() {
-        let options = TuiOptions {
-            app_server_bin: PathBuf::from("app-server"),
-            app_server_args: Vec::new(),
-            remote: None,
-            cwd: PathBuf::from("."),
-            model: Some("gpt-test".to_string()),
-            model_provider: None,
-            reasoning_effort: None,
-            permissions: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            locale: None,
-            resume_thread: None,
-        };
-
-        assert_eq!(
-            validate_model_route(&options)
-                .expect_err("partial route must fail")
-                .to_string(),
-            "--model and --provider must be specified together"
-        );
-    }
-
-    #[test]
-    fn successful_history_retry_clears_only_the_history_page_error() {
-        let mut app = App::default();
-        app.projection
-            .set_status("history page failed: transport unavailable");
-
-        clear_history_page_error(&mut app);
-
-        assert_eq!(app.projection.status(), "ready");
-
-        app.projection.set_status("running");
-        clear_history_page_error(&mut app);
-        assert_eq!(app.projection.status(), "running");
-    }
-
-    #[test]
-    fn stdio_config_appends_host_arguments_after_the_current_runtime_default() {
-        let options = TuiOptions {
-            app_server_bin: PathBuf::from("custom-app-server"),
-            app_server_args: vec![OsString::from("--backend"), OsString::from("external")],
-            remote: None,
-            cwd: PathBuf::from("."),
-            model: Some("fixture-model".to_string()),
-            model_provider: Some("fixture-provider".to_string()),
-            reasoning_effort: None,
-            permissions: None,
-            approval_policy: None,
-            approvals_reviewer: None,
-            sandbox_policy: None,
-            locale: None,
-            resume_thread: None,
-        };
-
-        let config = stdio_config(&options).expect("stdio config");
-        assert_eq!(
-            config.args,
-            vec![
-                OsString::from("--stdio"),
-                OsString::from("--backend"),
-                OsString::from("runtime"),
-                OsString::from("--backend"),
-                OsString::from("external"),
-            ]
-        );
-    }
-
-    #[test]
-    fn transcript_link_opening_validates_destination_and_propagates_failure() {
-        let opened = RefCell::new(String::new());
-        open_link_with("https://example.com/docs", |destination| {
-            opened.replace(destination.to_string());
-            Ok(())
-        })
-        .expect("valid destination");
-        assert_eq!(opened.into_inner(), "https://example.com/docs");
-
-        assert_eq!(
-            open_link_with("file:///tmp/private", |_| panic!("must fail closed")),
-            Err("link destination must be a valid HTTP(S) URL".to_string())
-        );
-        assert_eq!(
-            open_link_with("https://example.com", |_| Err(
-                "browser unavailable".to_string()
-            )),
-            Err("browser unavailable".to_string())
-        );
-    }
-}
+#[path = "runtime/tests.rs"]
+mod tests;

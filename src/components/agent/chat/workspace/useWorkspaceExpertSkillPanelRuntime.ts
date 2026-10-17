@@ -117,7 +117,7 @@ export function useWorkspaceExpertSkillPanelRuntime({
   const [pluginSuggestionsEnabled, setPluginSuggestionsEnabled] =
     useState(false);
   const workspacePluginCatalogSuggestions =
-    useWorkspacePluginCatalogSuggestions({ enabled: pluginSuggestionsEnabled });
+    useWorkspacePluginCatalogSuggestions({ enabled: pluginSuggestionsEnabled, workspaceRoot });
   const refreshWorkspacePluginCatalogSuggestions =
     workspacePluginCatalogSuggestions.refresh;
   const handlePluginSuggestionsNeeded = useCallback(() => {

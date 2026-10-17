@@ -29,6 +29,7 @@ struct ServerRequestResolution {
     pub(crate) owner: Option<ServerRequestOwner>,
     pub(crate) result: ServerRequestResult,
     pub(crate) resolved_in_listener: bool,
+    pub(crate) turn_transition: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -99,6 +100,7 @@ pub(crate) struct PendingServerRequest {
 pub(crate) struct ServerRequestTerminal {
     pub(crate) owner: Option<ServerRequestOwner>,
     pub(crate) resolved_in_listener: bool,
+    pub(crate) turn_transition: bool,
     pub(crate) result: Result<Value, ServerRequestError>,
 }
 
@@ -242,6 +244,7 @@ impl ServerRequestRouter {
                 owner,
                 result: Err(error.clone()),
                 resolved_in_listener: false,
+                turn_transition: true,
             });
         }
         count
@@ -282,6 +285,7 @@ impl ServerRequestRouter {
                 owner,
                 result: Err(error.clone()),
                 resolved_in_listener: false,
+                turn_transition: false,
             });
         }
         count
@@ -319,6 +323,7 @@ impl ServerRequestRouter {
                 owner,
                 result: Err(error.clone()),
                 resolved_in_listener: true,
+                turn_transition: true,
             });
         }
         count
@@ -360,6 +365,7 @@ impl ServerRequestRouter {
                 owner,
                 result: Err(error.clone()),
                 resolved_in_listener: true,
+                turn_transition: true,
             });
         }
         count
@@ -410,7 +416,6 @@ impl ServerRequestRouter {
             .is_some_and(|route| route.add_owner(owner))
     }
 
-    #[cfg(test)]
     pub(crate) fn current_owner(&self, id: &RequestId) -> Option<ServerRequestOwner> {
         self.inner
             .pending
@@ -433,8 +438,10 @@ impl ServerRequestRouter {
         let mut requests = pending
             .values()
             .filter_map(|route| {
-                (route.has_owner(owner) && route.thread_id.as_deref() == Some(thread_id))
-                    .then_some((route.request_order, route.request.clone()))
+                (route.follows_thread_subscribers()
+                    && route.has_owner(owner)
+                    && route.thread_id.as_deref() == Some(thread_id))
+                .then_some((route.request_order, route.request.clone()))
             })
             .collect::<Vec<_>>();
         drop(pending);
@@ -556,6 +563,7 @@ impl PendingServerRequest {
             Ok(resolution) => ServerRequestTerminal {
                 owner: resolution.owner,
                 resolved_in_listener: resolution.resolved_in_listener,
+                turn_transition: resolution.turn_transition,
                 result: match resolution.result {
                     Ok(result) => Ok(result),
                     Err(error) => Err(ServerRequestError::ClientRejected {
@@ -567,6 +575,7 @@ impl PendingServerRequest {
             Err(_) => ServerRequestTerminal {
                 owner: None,
                 resolved_in_listener: false,
+                turn_transition: false,
                 result: Err(ServerRequestError::ResponseChannelClosed {
                     id: self.id.clone(),
                 }),

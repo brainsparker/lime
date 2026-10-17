@@ -28,7 +28,7 @@ fn thread_settings(
     app_server_protocol::protocol::v2::ThreadSettings {
         cwd: "/tmp/model-switch".to_string(),
         approval_policy: serde_json::Value::Null,
-        approvals_reviewer: serde_json::Value::Null,
+        approvals_reviewer: agent_protocol::ApprovalsReviewer::User,
         sandbox_policy: serde_json::Value::Null,
         active_permission_profile: None,
         model: model.to_string(),

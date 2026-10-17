@@ -355,6 +355,21 @@ export interface Config {
   /** Explicit raw reasoning visibility shared by GUI and TUI; defaults to false. */
   show_raw_agent_reasoning?: boolean;
   hide_agent_reasoning?: boolean;
+  marketplaces?: Record<
+    string,
+    {
+      source_type?: "git" | "local";
+      source?: string;
+      ref?: string;
+      sparse_paths?: string[];
+      last_updated?: string;
+      last_revision?: string;
+    }
+  >;
+  plugins?: { _default?: { enabled: boolean } } & Record<
+    string,
+    { enabled?: boolean }
+  >;
   tui?: TuiConfig;
   server: {
     host: string;

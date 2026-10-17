@@ -1,6 +1,6 @@
 # Codex Desktop 与 Lime GUI 全面对齐
 
-状态：active / partial。校准日期：2026-10-16。
+状态：active / partial。校准日期：2026-10-17。
 
 ## 目标与事实源
 
@@ -17,7 +17,7 @@
 
 ## 当前阶段与写集
 
-主目标仍为全面对齐。Environment 与 Execution Policy 草稿/保存切片均已通过下方组合验收；当前推进 Profile 行内编辑与 Tag 草稿。Memory、Web Search、ProviderSetting、Composer与设置导航的早期执行记录保留，但其本地QC产物在2026-10-16清理后丢失，不冒充当前保留证据。Environment与Execution Policy独立收据分别绑定当时源码、默认续跑与真实Electron身份，整体GUI仍partial。
+主目标仍为全面对齐。Profile 本地名称/简介与安全持久化合同已验收，Tag 及附加卡片已删除；本地资料与 OEM 认证入口的互斥挂载已完成本轮验收。公共 Profile 缺少真实查询/写入与能力合同，继续登记 gap；后续可独立推进的主链是设置内容搜索与精确定位。Environment 与 Execution Policy 草稿/保存切片的组合验收见下。Memory、Web Search、ProviderSetting、Composer与设置导航的早期执行记录保留，但其本地QC产物在2026-10-16清理后丢失，不冒充当前保留证据。已恢复的独立收据与新取得的验收证据分别绑定各自源码和运行身份，整体GUI仍partial。
 
 前一切片产品行为沿用已采用的 current owner：非 Composer accepted 回执进入既有可见 topic commit；Agent 文案复用 createI18n 五语言表。epoch、scope、binding.ready、revision、CAS、accepted 消费和新编辑保护保持有效。没有新增业务 runtime、read model、cache authority 或 compat。
 
@@ -392,6 +392,118 @@ Verification Contract：负责人 Codex；budget:normal；P1。窄写集为 acco
 current为ProfileSettings、ProfileContent、ProfileLayout、ProfileFieldEditor、useProfileDraft/profileConfig及既有Config/导航authority；compat/deprecated新增0。dead/deleted为Tag/完成度/头像/email/用途卡、旧三份presentation、无消费者TS/Rust配置字段和旧翻译/正向测试/fixture选择器。KISS/DRY复用已有配置和导航；SOLID分离展示、生命周期和纯字段映射；YAGNI删除无依据的附加功能，不预建账号API。
 
 仅本地字段内容与安全持久化合同关闭；本地Config不是公共Profile服务。单独账号会话卡、远端GET/PATCH、eligibility/preview/is_self/can_edit、username/pins/upload仍gap；New仅组件证据，external/unavailable backend不证明live/provider/tool。参考运行、Windows、安装包和全GUI未验，整体partial且分母未完整枚举。 新收据 `.lime/qc/settings-profile/content-final-20261016-recovery-1/receipt.json` 独立冻结恢复后的证据并备份重算，保留原始记录缺失声明；不追写旧冻结件。下一刀沿既有认证/能力owner继续公共Profile合同，不造API或本地身份fallback。
+
+## Profile 本地与认证入口隔离（2026-10-17，已验收）
+
+主目标：继续关闭 Profile 入口差距，移除本地资料页上无云服务可用时仍挂载的账户摘要和登录 owner。公共 Profile 的查询、写入与 eligibility 合同尚不存在；不为此复制参考服务地址、增加假能力标志或以本地资料降级公共身份。
+
+Verification Contract：负责人 Codex；budget:normal；P1。产品写集限 `sections.tsx`；回归限 `_layout/index.test.tsx`、`scripts/electron/lib/settings-profile-navigation-scenario.mjs`；文档限本计划、设置审计、结构账本与 evidence-index。协议、App Server、runtime、CLI、版本/发布及脏 architecture/commands 只读避让，不追写旧冻结证据。
+
+- 参考：复用 `ev_2b4e6d08d1d979e0dcd2e6defa733fa149bd45f5b4d48b4ba05fb4f7938526fa` 及 ProfileSettings 原成员；公开 wrapper 委托共享内容并受 loading/feature 控制。REA source-module view `ev_d842243733886bd9ced33ce5cf6ea8094fd0b7ada2ed54fa4f16aba9a8a10fdf` 确认 eligibility 源成员身份，parent semantic 仍 partial；不把 OEM runtime 判定写成上游 eligibility 等价。
+- current owner：唯一 settingsSections 按既有 `resolveOemCloudRuntimeContext` 选择本地 ProfileSettings 或 OEM UserCenterSessionSettings，预加载与渲染沿同一条件。后者继续委托现有认证 hook；前者继续使用 Config owner。无新增状态、类型、函数 alias、协议或第二账号后端；架构为既有章节 presentation 接线修正，非重大 owner 变更。
+- 用户结果：无 OEM 时只有本地名称/简介与一份页头，不出现不可用账户卡，也不挂载账户认证组件；有 OEM 时只走既有账户组件，不挂载本地资料编辑器。五语言分支回归、当前本地资料保存与离开保护继续有效。
+- 验证：先取得旧实现的未挂载断言红例，再定向 layout/Profile/导航/章节回归、lint/typecheck、标准 GUI 与真实原生导航。原生检查唯一 Profile 页头、账户页头/Google 登录入口缺席，并保留四主题、失败/草稿和 canonical identity 断言；不执行真实认证、生产请求或参考应用。
+- 退出条件：本地/OEM 互斥挂载、定向与原生回归通过；新源码/产物后验摘要、截图人工复核、文档与独立备份齐全。默认门禁依据实际工作树记录，不能把并行 P0 改动规划或历史收据算成本切片通过；公共 Profile/整体 GUI 仍 partial。
+
+证据目录 `.lime/qc/settings-profile/entry-20261017/`，即时双份日志与独立备份地址见 `context.json`。KISS/DRY 复用章节和 runtime 判定；YAGNI 删除不可用展示与不必要挂载；SOLID 保持认证和本地配置各自 owner。
+
+验证选择：`verify:tasks` 的当前工作树规划包含并行审批/协议/服务等级/队列等 P0 Rust 改动；依质量事实源，此规划不作为本轮窄写集要求。此次仅修改章节 presentation 接线，无新增命令、schema、配置或 Rust 逻辑；不重跑全量 `verify:local`、workspace 或冷启动保存状态机。定向 107/107、完整 typecheck、严格 lint、标准 `verify:gui-smoke` 与扩展原生导航分别记录，不宣称默认整轮/远端认证通过。下一刀转入设置内容搜索与定位，公共 Profile 缺口继续由真实认证/服务 owner 承接。
+
+定向7 suite107/107、完整typecheck、严格lint/format通过；更新构建后的标准GUI `standalone-shell-01-20261016182210-58995` 24/24，错误/mock均0。真实Electron `settings-profile-entry-20261017-2` 整轮exit0：本地/OEM入口2/2仅指组件分支合同，本地入口额外观察9次、唯一页头1、账户/登录/Google入口0；原本地导航9/9、主题4/4继续通过。1640 IPC，console/page/trace错误及production mock均0，同一Thread/Turn/Item且turnStart始终1，Main正常code0/signalnull退出、强制回收0；83份声明源码/741份目录产物和sidecar前后零漂移，freshness两端ready。5张新截图人工复核通过，仅当前皮肤1440×1000，system为媒体模拟。
+
+原生第1轮保留exit1：启动前Cargo metadata等待自行恢复，未中断进程或修改期限；场景完成后，最终freshness守卫因并行协议源码及生成产物变化拒绝验收。第2轮按标准入口更新构建，并通过已有APP_SERVER_BIN接口显式选择已校验manifest/SHA的sidecar；不放宽守卫、不改生产helper、不覆盖失败证据。
+
+独立冻结收据 `.lime/qc/settings-profile/entry-final-20261017-1/receipt.json` 绑定本轮源码、文档与双份证据；仅关闭入口隔离切片。无新增compat/deprecated，删除旧双展示/双预加载路径及过期正向断言，无物理文件删除。OEM真实认证与账户内容、公共Profile query/mutation/eligibility、参考运行、live、Windows、安装包及完整GUI仍partial。
+
+## 设置内容搜索补证（2026-10-17，静态审计已完成，实施待开始）
+
+沿相同安装包摘要选择性提取 `_virtual_settings-search-documents-ea4141d234e9.js`，525711 bytes、SHA `f63906f31750633a6fb252894dfa84247883f5a79a1e0dfd008bb56919283fca`，包内integrity已核。REA parent `ev_c1fe1285584791d68b3fd0c52bf430325bb5da1758aefd3090feb75ba337e4b2`，source-module view `ev_34efb5366f4d9b0617273007cb751bc8764c71383e46d983b157745ce735b1a0` 确认唯一公开导出 `settingsSearchDocuments`。单成员解析47288 AST、0 parse failure；semantic达到100000节点上限，partial/truncated、5 unknowns，未解析rolldown依赖，未执行bootstrap。
+
+纯AST字面量读取确认50个section key、5234条id/defaultMessage消息；此为包内索引覆盖，不代表50项当前可见设置。复用原settings-page证据：搜索合并本地化panel/terms/messageTextGroups，结果含section/path/scrollText并经既有导航gateway选择。内部压缩函数名不映射为原源码符号。Lime仍只有侧栏标题过滤，内容搜索、精确行定位、键盘选择及dirty路由接线尚未实施或验收。
+
+下一刀在既有settingsSections、SettingsSidebar、SettingsPage和canonical导航owner建立可翻译的内容文档与稳定目标，仅登记current可用页/字段；不复制隐藏章节、另建history/dirty authority或使用账户数据填索引。实施前收窄实际写集和Verification Contract，再同步迁移旧标题过滤测试/fixture，验证五语言、键盘/焦点、导航保稿与真实Electron。静态补证及双份摘要收据 `.lime/qc/settings-content-search/audit-20261017/audit-receipt.json`，不计产品完成度；公共Profile缺口继续开放。
+
+## 设置内容搜索首批目标（2026-10-17，已验收）
+
+Verification Contract：Codex，budget:normal，P1。复用上述REA文档/导航证据，公开导出名对齐`settingsSearchDocuments`；内部匹配函数、组件和焦点hook使用Lime职责名，不冒充上游压缩符号。当前15个章节标题仍从settingsSections投影；首批内容为本地Profile名称/简介2项、Environment shell导入开关/超时/变量覆盖3项、Execution Policy工作区/计划/命令/网络4项，共9项。完整设置内容覆盖仍partial。
+
+写集：新增settingsSearchDocuments/settingsSearch及unit、SettingsSearch组件与component test、useSettingsSearchTarget与integration、既有scripts/electron/lib内搜索场景；窄改SettingsSidebar/SettingsNavigation/SettingsPage、PageParams、上述3页定位属性、原生fixture接线及本计划/审计/账本/索引。现有文件修改前摘要与独立备份见`.lime/qc/settings-content-search/implementation-20261017/context.json`。并行Rust/App Server/协议/CLI/发布、脏architecture/commands及未知产物只读避让。
+
+Current链：翻译消息与current章节→纯搜索投影→唯一canonical导航与既有dirty gateway→lazy页面→稳定target滚动/焦点/高亮。searchFocus仅为Renderer定位请求，不含配置值、凭证或用户资料，不创建业务authority。既有Config写入和Thread/Turn/Item不变；RuntimeCore/tool/approval无新增操作。架构为既有presentation/导航内的细分职责，非重大；上图已有settings page/navigation足以表达，root于2026-10-17核对owner/依赖/边界。
+
+Happy path：五语言标签/说明可检索，多词必须属于同一目标；标题优先，内容结果携带章节与稳定target。键盘上下/Enter/Escape、IME确认、清空与无结果、窄屏入口均覆盖。只有已提交canonical目标可定位；懒加载完成后聚焦，旧请求在换页/卸载后失效；重复选择可重新定位。已有草稿时先显示原对话框，继续编辑不导航，放弃只提交最后目标且不写配置。OEM模式不索引本地Profile字段，无隐藏功能/用户值索引。
+
+验证：先定向pure/component/integration取得有效红例，再lint/typecheck/format；`verify:gui-smoke`及扩展真实Electron导航保留current IPC、同一identity、零production mock/错误、Main正常退出与前后摘要守卫。默认verify:local依据当前工作树规划，记录并行P0范围；无协议/config/Rust变更，不重跑workspace、冷启动或live。Deterministic与GUI trace必需，runtime transcript沿原导航fixture同一identity；release artifact/参考runtime/Windows不适用。退出条件为上述首批搜索合同、实际目标到达/草稿保护、主题/窄屏观察与双份冻结证据；不把9项当完整设置或全GUI完成。
+
+清理：删除原Sidebar内联标题过滤及对应重复搜索样式/事件路径；有效章节导航、prefetch、折叠和既有dirty护栏继续测试。current为单一搜索文档/纯selector/SettingsSearch与既有导航，compat/deprecated新增0。失败回写最近的selector、DOM或导航integration/原生场景，禁止加sleep、skip、mock fallback或放宽退出期限。
+
+集成红例补充：原对话框在放弃后无条件恢复搜索框焦点，覆盖已提交目标。写集增加SettingsUnsavedChangesDialog的关闭焦点策略；继续编辑仍恢复原焦点，确认放弃由目标页面接管。窄屏pending状态由既有navigationGuard透传，阻止对话框交互意外关闭搜索面板；不建立新dirty状态。已提交searchFocus的requestKey作为内容子树key，确保同页明确放弃后旧草稿卸载；仅canonical提交可触发。
+
+实现检查点：9项静态文档、NFKC/多词匹配、标题优先/同section最佳结果、可访问combobox键盘/IME与双视图共用查询已接线；canonical提交清查询/浮动面板，取消保持。稳定target+MutationObserver负责异步DOM，跨页/卸载清理。16suite198/198通过；旧无依赖红例失败与有效五语言5红、discard焦点红例均原样保留。严格lint初次类型/转义问题已修正，React18 RefObject类型修正后的完整typecheck与最终搜索3suite27/27、strict lint、脚本治理、Desktop参考边界和docs边界通过；标准GUI和原生场景继续验收。
+
+原生第1轮保留exit1：首目标焦点/定位已到达，但计算outline为3px而非2px。源码确认--ring在current全局token未定义，新outline声明失效，截图缺少搜索高亮；改为既有--lime-brand及primary fallback，不放宽夹具2px断言。首轮Main正常退出、console/page错误0。该视觉修正后重建并复验标准GUI与原生整轮。
+
+原生第2轮保留exit1：9项搜索、说明/重复、桌面与600px窄屏保稿/同页放弃、四主题场景均执行，但最终freshness因并行app-server/src/processor/dispatch.rs晚于sidecar而拒绝，不能列为整轮通过。按既有标准入口更新sidecar；不夹写并行文件、不放宽守卫。截图人工观察发现native search cancel与组件按钮重复，隐藏浏览器自带按钮、保留有名称的唯一清除入口；最终renderer和原生仍待重新核对。
+
+原生第3轮保留exit1：首轮视觉修正后的renderer与sidecar已更新，标准smoke24/24通过；原生启动前发现并行electron/appServerDynamicToolHost.ts晚于Host产物，守卫拒绝，未启动场景。按既有electron:build:host更新Host并继续，协议/工具Host只读避让。
+
+原生第4轮保留exit1：搜索场景再次执行，最终freshness因并行app-server/src/thread_state.rs更新拒绝。后续验证改用构建完成后立即独立复制的临时快照：APFS copy-on-write保留源码/产物原时间戳，不改守卫、不伪造freshness；独立workspace packages，稳定第三方node_modules store只读复用。快照须先通过原freshness检查，再运行同一标准smoke/完整导航fixture，前后核对源码/产物/sidecar；本轮产品源SHA另与原工作树核对。验收只绑定该快照，不声明最新并行runtime或混合原工作树全量通过。此为验证隔离，非新业务owner或compat。
+
+最终验收：定向16suite198/198、最终搜索3suite27/27、完整Renderer/Node typecheck与strict lint通过；脚本治理、Desktop参考边界、docs边界通过。两次完整verify:gui-smoke exit0；最后同一隔离快照标准smoke `standalone-shell-01-20261016200249-26100` 24/24、错误/mock0。没有产品业务修改后无理由重跑全量前端/Rust；默认verify:local未跑，task selector含并行P0协议/Rust任务，全仓file-size既有失败原件保留、不改基线。
+
+真实Electron第5轮 `settings-content-search-native-20261017-5` 整轮exit0，仅绑定记录的隔离源码/产物快照；本轮18份产品/测试/fixture源与原工作树后验SHA一致。9目标9/9（100%仅首批内容目标）、说明/重复选择、桌面保稿/同页明确放弃、600×900窄屏入口/保稿/目标接管与四主题4/4通过。1740 IPC，console/page/trace/production mock0，同一Thread/Turn/Item/workspace、turnStart始终1；Main26718正常code0/signalnull退出，强制回收0。91份声明源码/1161份产物和sidecar前后零漂移，freshness两端ready，8张截图人工复核；主题仅current skin/system媒体模拟，不覆盖OS系统主题事件。
+
+结构/命名：公开settingsSearchDocuments直接对齐；searchSettings/SettingsSearch/useSettingsSearchTarget为Lime职责名，原压缩内部符号unknown。current为单一文档/纯匹配/输入/定位与既有settingsSections/useAppNavigation/Config owner；compat/deprecated新增0。dead/deleted为原Sidebar内联标题过滤、重复搜索样式/事件和对话框放弃后抢回焦点的旧路径，无物理文件删除。本轮最多613行产品文件；KISS/DRY复用现有导航/翻译/草稿，SOLID分离职责，YAGNI不复制隐藏设置或另造业务后端。
+
+新独立冻结收据 `.lime/qc/settings-content-search/final-20261017-1/receipt.json` 保存本轮成功/失败原件、源码、审计、截图与后验检查；旧冻结件未追写。只关闭9项搜索切片，完整设置内容搜索、公共Profile/eligibility/认证、参考运行、production RuntimeBackend/provider/live、Windows/安装包/全皮肤及整体GUI仍partial；全产品分母未完整枚举，不提供伪完成百分比。下一刀沿同一索引/导航owner覆盖其余current设置内容与对应保稿场景，协议/Runtime并行热区继续避让。
+
+## 设置内容搜索第二批：联网搜索（2026-10-17，已验收）
+
+Verification Contract：Codex，budget:normal，P1。主目标仍为REA驱动的GUI、行为与结构对齐；本阶段沿首批唯一settingsSearchDocuments/searchSettings/canonical navigation扩展15项联网搜索字段。参考沿用首批REA包/摘要/Evidence，不重新推断压缩符号或复制隐藏章节。参考结果的path/scrollText职责由静态path和稳定target表达；属于Lime明确实现决策，不声称与参考内部算法相同。
+
+窄写集：settingsSearchDocuments/settingsSearch及unit、sections/SettingsPage内容接线、WebSearchSettings/WebSearchFields、搜索integration、既有Electron lib内联网搜索子场景及主导航fixture最小接线、本计划/审计/账本/索引。14份修改前摘要与备份见`.lime/qc/settings-content-search/web-search-20261017/context.json`。Rust/App Server/协议/CLI/Electron Host、脏architecture/commands和未知产物只读避让。新增文件仅上述既有领域内；无分支/提交。
+
+Current链：current静态翻译→searchSettings→原onNavigate/dirty guard→已提交searchFocus→索引白名单解析path→WebSearch局部页签默认值→现有lazy DOM定位hook。仅canonical提交才卸载被明确放弃的草稿并打开目标；不在输入/待确认阶段切页签，不另造history、配置或dirty authority。Provider值与密钥不进入索引或证据。Config保存、Electron IPC、App Server method、RuntimeCore、runtime events和Thread/Turn/Item owner未变；GUI场景沿原真实bridge/read model证明identity与零附加turn，不声称live provider行为。
+
+Happy path分母：search链3字段、providers4字段、mse6字段、images2字段，共15目标/4页签。五语言用现有label/hint；每章最佳结果规则可能存在翻译标签相等/包含，需要用实际可区分标签或说明组合验证，不能放松匹配合同。跨章/同章内部页签搜索、重复目标、隐藏目标异步挂载、继续编辑保稿、放弃不写、旧请求取消/卸载与非白名单输入必须覆盖。焦点只落非编辑字段外层，不能自动展开密钥或修改配置。
+
+Evidence：deterministic与gui-trace必需；runtime-transcript复用完整Electron导航fixture同一canonical identity/turnStart=1；release-artifact不适用，未触及交付边界。命令先有效红例→定向搜索/layout/sections/WebSearch回归→strict lint/typecheck/format/docs/diff/node语法→verify:gui-smoke→完整真实导航fixture含本批场景。优先使用通过原freshness守卫的一致独立COW快照，不touch时间、不改skip/timeout或mock fallback。默认verify:local先核对task selector，若仍包含并行P0则记录实际未跑边界；无协议/Rust变更不重复workspace/冷启动/live。Supervisor/LLM judge不需要。
+
+失败回写最近selector、实际页面integration或Electron子场景；退出条件为15/15目标、4/4内部页签和草稿保护验证、前后摘要零漂移/正常退出/截图复核/双份新冻结收据。新增current为原索引中的path与WebSearch定位接线，compat/deprecated新增0；直接替换WebSearch固定search默认入口，不保留双轨。架构影响非重大：既有presentation/导航owner内参数传递，无package/crate/协议/业务owner变化，原图仍适用；Codex于2026-10-17核对目录/依赖/边界，不写并行architecture热区。本批完成度只以这15项为分母，整体设置/公共Profile/全GUI仍partial。
+
+本批验证进展：有效红例22失败/1通过已保留；首次绿例15项仍落在lazy fallback，根因为新测试没有等待真实模块预取，并非产品目标失败；测试改为先await原section.preload，保留配置异步加载/取消场景。随后搜索33/33、扩大8suite133/133、strict lint通过。原工作树verify:gui-smoke已启动，正等待其它进程的renderer锁，不中断对方。隔离验收以首批已验收快照为基线，只覆盖本批声明源码；10份相关修改前SHA与基线全部相同，随后重建renderer/Host并保留既有匹配source/sidecar。此选择避开持续变化的并行Rust/协议热区与其未验收代码；只证明该明确组合，不声明最新后端工作树已通过。仍执行原freshness/摘要/正常退出守卫，不伪造时间或放宽合同。
+
+本批原生准备失败记录：首轮Host编译通过，标准资源复制因基线快照缺少lime-rs/icons失败；7份图标源SHA与基线已验收打包资源一致，补齐原文件/时间戳后复制通过。首次隔离标准smoke为23/24，layoutGeometryStable失败；原始summary分类product保持原样。人工截图出现无utility样式控件，进一步确认引用CSS仍含@tailwind指令，根因为本进程重建快照时遗漏原PostCSS/Tailwind配置，非搜索产品回归。补齐未修改的原配置/时间戳，记录输入SHA后按原renderer构建重跑；不改页面布局、期限或断言。原始截图/日志/CSS双份保留于web-search-20261017/failed-standard-1，后续实际结果另记。
+
+最终结算：定向8suite133/133、完整当前工作树Renderer/Node typecheck、strict lint、脚本治理/参考边界/docs边界与语法检查通过。修正快照准备输入后，同一隔离组合标准SHELL-01 `standalone-shell-01-20261017012129-19113` 24/24；原生 `settings-web-search-targets-native-20261017-1` 首轮整轮exit0，累计24目标24/24，本批15/15（100%仅该15字段）及4/4内部页签；说明/重复、隐藏页签保稿/明确放弃、保持密钥遮罩、四主题4/4、600×900窄屏通过。1683 IPC，console/page/trace/production mock均0；同一Thread/Turn/Item/workspace且turnStart始终1，Main20958正常code0/signalnull退出、强制回收0。91声明源/1376目录产物/sidecar前后零漂移，freshness两端ready。10份本批覆盖源码与原工作树后验SHA相同；另核对原图标与样式构建配置输入，11张最终截图人工复核（10张搜索+1张标准980px）。
+
+原工作树完整verify:gui-smoke保留exit1：等待并行Rust锁后v8绑定缓存缺失，尚未进入smoke场景；仓库既有rusty-v8-artifacts脚本已恢复并校验配套150.4.0缓存，退出0，无依赖/系统配置改动。本轮不重编并行Rust热区或重跑整个混合工作树，不能宣称该wrapper或默认verify:local通过。整轮通过仅绑定上述明确源码/产物组合；首轮快照资源缺失、标准23/24失败与原工作树构建失败均独立保留，不覆盖旧冻结件。没有新增产品业务修改，不重跑全量前端/workspace/冷启动/live。当前产品改动均远低于800行，超线的既有主fixture只改范围文字，未堆新业务或变更file-size基线。
+
+Current为单一静态索引/path解析、原settingsSections/SettingsPage/局部Tabs/定位hook与原dirty/config owner。compat/deprecated新增0；dead/deleted为固定search默认入口的旧路径，无物理文件删除。KISS/DRY复用既有消息、路由、草稿和字段id，SOLID将路径解析留在纯selector，YAGNI不另造导航/历史/业务authority。主题、多模型、首页Banner继续由原owner保留。
+
+新双份冻结收据`.lime/qc/settings-content-search/web-search-final-20261017-1/receipt.json`关闭本批15项，首批9项保留原收据。完整设置内容、公共Profile/eligibility/认证、参考运行、production RuntimeBackend/provider/live/search、OS主题事件、全皮肤、Windows/安装包与整体GUI仍partial；未完整枚举产品分母，不报伪整体百分比。下一刀由当前GUI写集继续Memory三页签与Appearance内容；两个页面分别871/993行，先收敛presentation再扩展目标，沿同一path/dirty owner，不触及并行runtime。最新工作树Rust/完整门禁由其owner在缓存恢复后重新验收。
+
+## 设置内容搜索第三批：Memory / Appearance（2026-10-17，已验收）
+
+Verification Contract：Codex，budget:normal，P1。继续REA确认的静态settingsSearchDocuments → 搜索结果section/path/定位 → canonical导航合同。复用匹配ASAR与首批Evidence；本批新增presentation名称是Lime职责名，参考内部原名仍unknown，不能将现有Soul内容等同于已复刻参考Memory。
+
+窄写集：MemorySettings及其新Soul/Advanced展示组件、AppearanceSettings及新Appearance展示组件；settingsSearchDocuments、settingsSections中的Memory searchPath接线、新memoryAppearanceTargets.integration测试；既有Electron搜索子场景和主fixture声明；本计划/审计/账本/索引。修改前备份与摘要见`.lime/qc/settings-content-search/memory-appearance-20261017/context.json`。其他Rust/协议/Host/CLI/架构热区与未知产物只读避让；不提交、不建分支。
+
+Current主链：现有翻译静态索引 → searchSettings → onNavigate/dirty guard → canonical searchFocus/requestKey → 现有sections白名单path → Memory初始局部页签 → lazy DOM定位。保留MemorySettings的SOUL导入文本/预览和useMemorySettingsDraft；MemoryStoreStatusPanel及笔记编辑器维持原挂载策略。Appearance配置/主题/皮肤/语言持久化仍由原owner执行，展示组件仅接收值与回调。配置网关/IPC/App Server/RuntimeCore/read model/runtime event不变。真实场景沿既有bridge/read model证明同一Thread/Turn/Item且turnStart=1，不新增业务authority。
+
+Happy path分母：Memory开关、文件记忆、交互口吻、个性模板、嵌入来源、SOUL导出/导入共7目标，memory/soul/advanced三页签；Appearance主题、皮肤、界面语言、回复语言、推荐选区共5目标。本批12，累计36。五语言复用现有标签/说明；索引不含用户值、笔记、导入文本、凭证。目标只聚焦非编辑外层。待确认搜索不切局部页签/不卸载草稿；继续编辑保留，明确放弃才重建，重复/异步加载/旧请求取消/伪造目标均覆盖。页面拆分保留原动作与API；不新增参考保留差异。
+
+Evidence Layers：deterministic及gui-trace必需；runtime-transcript使用完整真实Electron导航fixture；release-artifact不适用，未改交付边界。先有效红例→定向搜索/Memory/Appearance/草稿测试→strict lint/typecheck/format/docs/diff/node语法→标准GUI与原生本批场景。继续使用已验收基线的独立COW快照，只覆盖明确源码并标准重建Renderer/Host，保留相同基线sidecar；原freshness及前后摘要守卫不变。结果仅绑定该组合，不声明最新并行Rust或默认verify:local通过；无协议改动不运行重复workspace/live。Supervisor不需要。
+
+失败回写至最近selector/页面integration/原生搜索场景，不skip、不放宽断言或期限、不修改测试状态。退出条件：12/12目标、3/3页签、原草稿/保存动作、正常退出/零mock/前后摘要稳定/截图复核与双份新收据；旧冻结件不追写。架构影响非重大：原组件域内presentation提取，无package/crate/协议/owner/交付门禁变更。Codex于2026-10-17核对architecture目录/依赖/数据流，原图适用。Current为单一搜索/导航/草稿/配置owner；compat/deprecated新增0，直接替换过长内联展示。整体GUI仍partial。
+
+最终结算：有效红例19失败/1通过保留；首次绿例50通过/1失败是Provider标签匹配标题优先章节，测试改用原字段说明后通过，未更改算法/断言。最终定向8suite105/105、附加证据护栏2suite8/8、完整当前工作树Renderer/Node typecheck、strict lint、格式/脚本治理/参考/docs边界与语法检查通过。Node测试runner误用于Vitest文件的失败原件已保留，随后以真实Vitest入口8/8通过；只读freshness摘要打印将segments对象当数组的错误亦保留记录，原守卫ready JSON有效，不修改产品/守卫。JSON索引格式初次检查失败后按Prettier修正。两页原保存动作/导入/模板/主题/语言/推荐以及隐藏笔记生命周期均继续回归。
+
+独立快照标准SHELL-01 `settings-memory-appearance-standard-20261017-1` 24/24，原生`settings-memory-appearance-native-20261017-1`首轮整轮exit0。累计36/36，本批12/12（100%仅本批目标）、Memory三页签3/3，导入预览跨页签保留、待确认不切换、继续编辑保稿、明确放弃不写、重复打开、四主题4/4及600×900跨章节保稿/目标接管通过。1757真实IPC，console/page/trace/production mock均0，同一Thread/Turn/Item/workspace、turnStart始终1；Main30708正常code0/signalnull退出，强制回收0。95声明源/1481产物及sidecar前后零漂移，freshness两端ready。本批10份覆盖源码与原工作树后验SHA相同。8张搜索截图与2张标准截图人工复核；仅current skin与system媒体模拟。默认verify:local/完整verify:gui-smoke wrapper不重跑：task selector含并行Rust/协议/Host改动；同一已验收基线sidecar未改，不宣称最新混合后端、production RuntimeBackend/provider/live或Windows通过。
+
+结构/命名结算：Memory入口871→566行，拆出SoulSettingsPanel204/AdvancedMemorySettings200；Appearance入口993→418行，展示681行，复用单一LanguageOption。新内部名称均为Lime职责名，未恢复的参考压缩符号仍unknown。Current是原搜索/导航/草稿/笔记/配置与新presentation；compat/deprecated新增0。Dead/deleted为旧过长内联展示、重复ResponseLanguageOption与固定memory初始入口，无物理文件删除、同名alias或第二业务authority。KISS/DRY复用现有标签、导航和状态，SOLID分离展示，YAGNI不扩建配置/runtime。主题、多模型与首页Banner仍归原owner。
+
+新双份收据`.lime/qc/settings-content-search/memory-appearance-final-20261017-1/receipt.json`保存本批源码、测试、文档、成功与失败证据；旧冻结件不变。本批内容搜索/展示拆分关闭；整页Memory/Appearance布局/业务、完整设置内容、公共Profile/eligibility/认证、其他GUI/符号、参考运行、OS主题事件/全skin、production/live、最新并行后端及Windows/安装包仍partial。全产品分母未枚举，不给伪整体百分比。下一刀由当前GUI owner按REA current设置页内容逐章继续剩余静态目标与草稿保护；整页结构/符号未知项另取匹配证据，不以本次拆分消除gap。
 
 ## 分类、完成度与未验证范围
 

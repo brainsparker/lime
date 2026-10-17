@@ -30,6 +30,7 @@ function writeFiles(root, files) {
 function runCommand(cwd, command) {
   return spawnSync("sh", ["-c", command], {
     cwd,
+    env: { ...process.env, CARGO_TARGET_DIR: path.join(cwd, "target") },
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     timeout: 120_000,

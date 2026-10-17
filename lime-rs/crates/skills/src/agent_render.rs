@@ -43,7 +43,9 @@ pub fn render_available_agent_skills(
     snapshot: &AgentSkillSnapshot,
     options: AgentSkillRenderOptions,
 ) -> Option<String> {
-    if snapshot.skills.is_empty() || options.char_budget == 0 {
+    let enabled_skills = snapshot.skills.iter().filter(|skill| skill.enabled);
+    let available_count = enabled_skills.clone().count();
+    if available_count == 0 || options.char_budget == 0 {
         return None;
     }
 
@@ -55,7 +57,7 @@ pub fn render_available_agent_skills(
     }
 
     let mut rendered_count = 0usize;
-    for skill in &snapshot.skills {
+    for skill in enabled_skills {
         let line = render_skill_line(skill);
         if try_push_with_budget(&mut prompt, &line, options.char_budget) {
             rendered_count += 1;
@@ -81,7 +83,7 @@ pub fn render_available_agent_skills(
         return None;
     }
 
-    let omitted = snapshot.skills.len().saturating_sub(rendered_count);
+    let omitted = available_count.saturating_sub(rendered_count);
     if omitted > 0 {
         let notice = format!("- 另有 {omitted} 个 skill 因预算限制未列出。\n");
         let _ = try_push_with_budget(&mut prompt, &notice, options.char_budget);
@@ -284,6 +286,27 @@ mod tests {
             AgentSkillRenderOptions::default()
         )
         .is_none());
+    }
+
+    #[test]
+    fn disabled_skills_are_not_advertised_or_counted_as_omitted() {
+        let mut disabled = metadata("disabled", "Disabled", "DISABLED_SKILL_MARKER", None);
+        disabled.enabled = false;
+        let mut snapshot = AgentSkillSnapshot {
+            roots: Vec::new(),
+            skills: vec![disabled],
+        };
+        assert!(
+            render_available_agent_skills(&snapshot, AgentSkillRenderOptions::default()).is_none()
+        );
+        snapshot
+            .skills
+            .push(metadata("enabled", "Enabled", "ENABLED_SKILL_MARKER", None));
+        let prompt =
+            render_available_agent_skills(&snapshot, AgentSkillRenderOptions::default()).unwrap();
+        assert!(prompt.contains("ENABLED_SKILL_MARKER"));
+        assert!(!prompt.contains("DISABLED_SKILL_MARKER"));
+        assert!(!prompt.contains("另有"));
     }
 
     #[test]

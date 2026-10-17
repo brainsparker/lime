@@ -1,70 +1,12 @@
 {
   "$defs": {
-    "ScheduledTaskExecution": {
-      "properties": {
-        "approvalPolicy": true,
-        "cwd": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "modelId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "projectId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "reasoningEffort": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "requestMetadata": true,
-        "sandboxPolicy": true,
-        "sourceThreadId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "threadMode": {
-          "$ref": "#/$defs/ScheduledTaskThreadMode"
-        }
-      },
-      "required": [
-        "threadMode"
-      ],
-      "type": "object"
-    },
-    "ScheduledTaskNotificationPolicy": {
-      "enum": [
-        "all_runs",
-        "failures",
-        "none"
-      ],
-      "type": "string"
-    },
-    "ScheduledTaskOverlapPolicy": {
-      "enum": [
-        "skip_if_running"
-      ],
-      "type": "string"
-    },
-    "ScheduledTaskSchedule": {
+    "AutomationTaskSchedule": {
       "oneOf": [
         {
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": [
                 "array",
@@ -142,7 +84,7 @@
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": "array"
             },
@@ -167,14 +109,7 @@
         }
       ]
     },
-    "ScheduledTaskThreadMode": {
-      "enum": [
-        "continue_thread",
-        "new_thread"
-      ],
-      "type": "string"
-    },
-    "ScheduledTaskWeekday": {
+    "AutomationTaskWeekday": {
       "enum": [
         "FR",
         "MO",
@@ -183,6 +118,71 @@
         "TH",
         "TU",
         "WE"
+      ],
+      "type": "string"
+    },
+    "ScheduledTaskExecution": {
+      "properties": {
+        "approvalPolicy": true,
+        "cwd": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "modelId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "projectId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "reasoningEffort": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "requestMetadata": true,
+        "sandboxPolicy": true,
+        "sourceThreadId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "threadMode": {
+          "$ref": "#/$defs/ScheduledTaskThreadMode"
+        }
+      },
+      "required": [
+        "threadMode"
+      ],
+      "type": "object"
+    },
+    "ScheduledTaskNotificationPolicy": {
+      "enum": [
+        "all_runs",
+        "failures",
+        "none"
+      ],
+      "type": "string"
+    },
+    "ScheduledTaskOverlapPolicy": {
+      "enum": [
+        "skip_if_running"
+      ],
+      "type": "string"
+    },
+    "ScheduledTaskThreadMode": {
+      "enum": [
+        "continue_thread",
+        "new_thread"
       ],
       "type": "string"
     }
@@ -240,7 +240,7 @@
     "schedule": {
       "anyOf": [
         {
-          "$ref": "#/$defs/ScheduledTaskSchedule"
+          "$ref": "#/$defs/AutomationTaskSchedule"
         },
         {
           "type": "null"

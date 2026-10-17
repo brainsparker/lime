@@ -2,22 +2,66 @@
 
 use super::{dispatch_result, parse_params, to_jsonrpc_error, RequestProcessor, RpcDispatch};
 use app_server_protocol::protocol::v2::{
-    PluginCatalogEnabledSetParams, PluginCatalogInstallParams, PluginCatalogInstalledParams,
-    PluginCatalogListParams, PluginCatalogReadParams, PluginCatalogUninstallParams,
-    PluginSearchParams,
+    MarketplaceAddParams, MarketplaceRemoveParams, MarketplaceUpgradeParams,
+};
+use app_server_protocol::protocol::v2::{
+    PluginInstallParams, PluginInstalledParams, PluginListParams, PluginReadParams,
+    PluginSearchParams, PluginUninstallParams,
 };
 use app_server_protocol::JsonRpcError;
 
 impl RequestProcessor {
-    pub(super) async fn handle_plugin_catalog_list_v2_impl(
+    pub(super) async fn handle_marketplace_add_v2_impl(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
-        let params: PluginCatalogListParams = parse_params(params)?;
+        let params: MarketplaceAddParams = parse_params(params)?;
         let response = self
             .runtime
-            .list_plugin_catalog(params)
+            .add_marketplace(params)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        dispatch_result(response)
+    }
+
+    pub(super) async fn handle_marketplace_remove_v2_impl(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let params: MarketplaceRemoveParams = parse_params(params)?;
+        let response = self
+            .runtime
+            .remove_marketplace(params)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        dispatch_result(response)
+    }
+
+    pub(super) async fn handle_marketplace_upgrade_v2_impl(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let params: MarketplaceUpgradeParams = parse_params(params)?;
+        let response = self
+            .runtime
+            .upgrade_marketplace(params)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        dispatch_result(response)
+    }
+
+    pub(super) async fn handle_plugin_list_v2_impl(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let params: PluginListParams = parse_params(params)?;
+        let response = self
+            .runtime
+            .list_plugins(params)
             .await
             .map_err(to_jsonrpc_error)?;
         dispatch_result(response)
@@ -37,76 +81,63 @@ impl RequestProcessor {
         dispatch_result(response)
     }
 
-    pub(super) async fn handle_plugin_catalog_read_v2_impl(
+    pub(super) async fn handle_plugin_read_v2_impl(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
-        let params: PluginCatalogReadParams = parse_params(params)?;
+        let params: PluginReadParams = parse_params(params)?;
         let response = self
             .runtime
-            .read_plugin_catalog(params)
+            .read_plugin(params)
             .await
             .map_err(to_jsonrpc_error)?;
         dispatch_result(response)
     }
 
-    pub(super) async fn handle_plugin_catalog_install_v2_impl(
+    pub(super) async fn handle_plugin_install_v2_impl(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
-        let params: PluginCatalogInstallParams = parse_params(params)?;
+        let params: PluginInstallParams = parse_params(params)?;
         let response = self
             .runtime
-            .install_plugin_catalog(params)
+            .install_plugin(params)
             .await
             .map_err(to_jsonrpc_error)?;
+        self.refresh_plugin_skill_watch().await;
         self.publish_app_list_updated().await;
-        dispatch_result(response)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
-    pub(super) async fn handle_plugin_catalog_uninstall_v2_impl(
+    pub(super) async fn handle_plugin_uninstall_v2_impl(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
-        let params: PluginCatalogUninstallParams = parse_params(params)?;
+        let params: PluginUninstallParams = parse_params(params)?;
         let response = self
             .runtime
-            .uninstall_plugin_catalog(params)
+            .uninstall_plugin(params)
             .await
             .map_err(to_jsonrpc_error)?;
+        self.refresh_plugin_skill_watch().await;
         self.publish_app_list_updated().await;
-        dispatch_result(response)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
-    pub(super) async fn handle_plugin_catalog_installed_v2_impl(
+    pub(super) async fn handle_plugin_installed_v2_impl(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
-        let params: PluginCatalogInstalledParams = parse_params(params)?;
+        let params: PluginInstalledParams = parse_params(params)?;
         let response = self
             .runtime
-            .list_plugin_catalog_installed(params)
+            .list_installed_plugins(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_result(response)
-    }
-
-    pub(super) async fn handle_plugin_catalog_enabled_set_v2_impl(
-        &self,
-        params: Option<serde_json::Value>,
-    ) -> Result<RpcDispatch, JsonRpcError> {
-        self.ensure_initialized()?;
-        let params: PluginCatalogEnabledSetParams = parse_params(params)?;
-        let response = self
-            .runtime
-            .set_plugin_catalog_enabled(params)
-            .await
-            .map_err(to_jsonrpc_error)?;
-        self.publish_app_list_updated().await;
         dispatch_result(response)
     }
 }

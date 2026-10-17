@@ -232,6 +232,13 @@ fn runtime_extra_roots() -> &'static Mutex<Vec<PathBuf>> {
     ROOTS.get_or_init(|| Mutex::new(Vec::new()))
 }
 
+pub fn runtime_extra_skill_roots() -> Vec<PathBuf> {
+    runtime_extra_roots()
+        .lock()
+        .unwrap_or_else(|error| error.into_inner())
+        .clone()
+}
+
 pub fn set_runtime_extra_skill_roots(
     roots: impl IntoIterator<Item = PathBuf>,
 ) -> Result<(), String> {

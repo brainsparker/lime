@@ -59,17 +59,23 @@ pub(super) fn project_started(event: &AgentEvent) -> EventProjection {
         },
     )
     .into()];
-    // Every Guardian review currently enters through the strict-auto-review
-    // approval path; expose the exact Codex notification alongside the item
-    // review lifecycle without creating a second approval state machine.
-    notifications.push(
-        ServerNotification::StrictReviewRequired(v2::StrictReviewRequiredNotification {
-            thread_id,
-            turn_id,
-            started_at_ms,
-        })
-        .into(),
-    );
+    // Older persisted Guardian actions came only from strict permission grants.
+    // Ordinary automatic review now marks this explicitly as false.
+    if payload
+        .get("action")
+        .and_then(|action| action.get("strict"))
+        .and_then(Value::as_bool)
+        .unwrap_or(true)
+    {
+        notifications.push(
+            ServerNotification::StrictReviewRequired(v2::StrictReviewRequiredNotification {
+                thread_id,
+                turn_id,
+                started_at_ms,
+            })
+            .into(),
+        );
+    }
     EventProjection::Direct(notifications)
 }
 
@@ -240,6 +246,20 @@ mod tests {
             "source": "shell",
             "type": "command"
         })
+    }
+
+    #[test]
+    fn ordinary_automatic_review_does_not_project_a_strict_permission_grant() {
+        let mut action = action();
+        action["strict"] = json!(false);
+        let EventProjection::Direct(started) = project_started(&event(
+            "guardian.review.started",
+            json!({"action": action, "reviewId": "ordinary-review", "startedAtMs": 100}),
+        )) else {
+            panic!("ordinary review must project");
+        };
+        assert_eq!(started.len(), 1);
+        assert_eq!(started[0].method, "item/autoApprovalReview/started");
     }
 
     #[test]

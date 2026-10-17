@@ -38,17 +38,9 @@ async fn config_control_plane_uses_the_single_desktop_yaml_layer() {
         ),
     )
     .expect("write config");
-    let previous = std::env::var_os("LIME_CONFIG_PATH");
-    let _restore = scopeguard::guard(previous, |value| {
-        if let Some(value) = value {
-            std::env::set_var("LIME_CONFIG_PATH", value);
-        } else {
-            std::env::remove_var("LIME_CONFIG_PATH");
-        }
-    });
-    std::env::set_var("LIME_CONFIG_PATH", &config_path);
-
-    let server = AppServer::with_runtime(RuntimeCore::with_backend(Arc::new(MockBackend)));
+    let server = AppServer::with_runtime(
+        RuntimeCore::with_backend(Arc::new(MockBackend)).with_app_config_path(config_path.clone()),
+    );
     initialize(&server).await;
 
     let read = request(

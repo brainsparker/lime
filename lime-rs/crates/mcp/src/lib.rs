@@ -17,6 +17,7 @@ pub mod manager;
 pub mod naming;
 pub mod oauth;
 pub mod oauth_store;
+pub mod plugin_config;
 mod stdio_launcher;
 mod stdio_process;
 mod streamable_http;

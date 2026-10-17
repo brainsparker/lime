@@ -1,62 +1,35 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { TFunction } from "i18next";
-import {
-  AlertCircle,
-  Brain,
-  CheckCircle2,
-  ChevronDown,
-  FileText,
-} from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import type {
   MemoryEmbeddingConfig,
-  MemoryEmbeddingProvider,
   MemorySoulConfig,
 } from "@/lib/api/memoryConfigTypes";
 import {
   buildSoulMarkdown,
-  hasSoulContent,
   normalizeSoulConfig,
   parseSoulMarkdown,
   type SoulImportResult,
-  type SoulImportWarningCode,
 } from "@/lib/soul/soulConfig";
 import type { SoulStyleProfileId } from "@/lib/soul/style-profiles";
 import { MemoryStoreStatusPanel } from "./MemoryStoreStatusPanel";
 import { normalizeEmbedding } from "./memoryConfig";
 import { useMemorySettingsDraft } from "./useMemorySettingsDraft";
 import { useSettingsDraft } from "../../_layout/useSettingsDraft";
-import { StyleProfileSection } from "./soul/StyleProfileSection";
+import {
+  SoulSettingsPanel,
+  type SoulTemplateDefinition,
+} from "./soul/SoulSettingsPanel";
+import {
+  AdvancedMemorySettings,
+  type EmbeddingProviderChoice,
+  type ProviderChoiceDefinition,
+} from "./AdvancedMemorySettings";
 
-type EmbeddingProviderChoice =
-  | "auto"
-  | "local_onnx"
-  | "ollama"
-  | "openai_api"
-  | "disabled";
 type MemorySettingsTab = "memory" | "soul" | "advanced";
-type SoulTemplateId = "balanced" | "direct" | "creator";
-
-interface SoulTemplateDefinition {
-  id: SoulTemplateId;
-  titleKey: string;
-  descriptionKey: string;
-  summaryKey: string;
-  communicationKeys: string[];
-  avoidKeys: string[];
-}
-
-interface ProviderChoiceDefinition {
-  value: EmbeddingProviderChoice;
-  labelKey: string;
-  descriptionKey: string;
-  runtimeProvider: MemoryEmbeddingProvider;
-  providerId?: string;
-  model: string;
-}
-
 const PROVIDER_CHOICES: ProviderChoiceDefinition[] = [
   {
     value: "auto",
@@ -95,14 +68,6 @@ const PROVIDER_CHOICES: ProviderChoiceDefinition[] = [
     model: "all-MiniLM-L6-v2",
   },
 ];
-const SOUL_WARNING_KEYS: Record<SoulImportWarningCode, string> = {
-  empty: "settings.memory.soul.import.warning.empty",
-  local_path: "settings.memory.soul.import.warning.localPath",
-  project_rules: "settings.memory.soul.import.warning.projectRules",
-  secret_like: "settings.memory.soul.import.warning.secretLike",
-  too_long: "settings.memory.soul.import.warning.tooLong",
-};
-
 const SOUL_TEMPLATE_DEFINITIONS: SoulTemplateDefinition[] = [
   {
     id: "balanced",
@@ -246,14 +211,16 @@ function LoadingSkeleton() {
   );
 }
 
-export function MemorySettings() {
+export function MemorySettings({ initialTab }: { initialTab?: string } = {}) {
   const { t } = useTranslation("settings");
   const [message, setMessage] = useState<string | null>(null);
   const messageTimeoutRef = useRef<number | null>(null);
   const [soulImportText, setSoulImportText] = useState("");
   const [soulImportPreview, setSoulImportPreview] =
     useState<SoulImportResult | null>(null);
-  const [activeTab, setActiveTab] = useState<MemorySettingsTab>("memory");
+  const [activeTab, setActiveTab] = useState<MemorySettingsTab>(
+    initialTab === "soul" || initialTab === "advanced" ? initialTab : "memory",
+  );
 
   const showMessage = useCallback((nextMessage: string) => {
     if (messageTimeoutRef.current !== null) {
@@ -291,7 +258,6 @@ export function MemorySettings() {
     : "settings.memory.embedding.status.fullTextDescription";
   const soul = normalizeSoulConfig(draft.soul);
   const soulExportMarkdown = buildSoulMarkdown(soul);
-  const soulEnabledWithContent = soul.enabled && hasSoulContent(soul);
   const tabs: Array<{
     id: MemorySettingsTab;
     labelKey: string;
@@ -313,34 +279,6 @@ export function MemorySettings() {
       descriptionKey: "settings.memory.tabs.advanced.description",
     },
   ];
-  const soulPreviewItems = [
-    {
-      id: "summary",
-      labelKey: "settings.memory.soul.current.summary",
-      values: soul.summary ? [soul.summary] : [],
-    },
-    {
-      id: "communication",
-      labelKey: "settings.memory.soul.current.communication",
-      values: soul.communication_style ?? [],
-    },
-    {
-      id: "avoid",
-      labelKey: "settings.memory.soul.current.avoid",
-      values: soul.avoid ?? [],
-    },
-    {
-      id: "depth",
-      labelKey: "settings.memory.soul.current.depth",
-      values: soul.explanation_depth ? [soul.explanation_depth] : [],
-    },
-    {
-      id: "challenge",
-      labelKey: "settings.memory.soul.current.challenge",
-      values: soul.challenge_style ? [soul.challenge_style] : [],
-    },
-  ].filter((item) => item.values.length > 0);
-
   const handleProviderChange = (choice: EmbeddingProviderChoice) => {
     setDraft((previous) => ({
       ...previous,
@@ -482,7 +420,11 @@ export function MemorySettings() {
         </div>
       ) : null}
 
-      <section className="rounded-md border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-950/5">
+      <section
+        data-settings-search-target="memory-enabled"
+        tabIndex={-1}
+        className="rounded-md border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-950/5"
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="space-y-1.5">
             <h1 className="text-[24px] font-semibold text-slate-950">
@@ -549,287 +491,40 @@ export function MemorySettings() {
       </section>
 
       {activeTab === "soul" ? (
-        <section
-          className="rounded-md border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-950/5"
-          data-testid="settings-memory-soul-panel"
-        >
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-sky-200 bg-sky-50 text-sky-700">
-                <Brain className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-slate-950">
-                  {memoryT(t, "settings.memory.soul.title")}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-slate-500">
-                  {memoryT(t, "settings.memory.soul.description")}
-                </p>
-              </div>
-            </div>
-            <div
-              className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-600"
-              data-testid="settings-memory-soul-current-status"
-              data-state={soulEnabledWithContent ? "enabled" : "disabled"}
-            >
-              {soulEnabledWithContent
-                ? memoryT(t, "settings.memory.soul.current.enabled")
-                : memoryT(t, "settings.memory.soul.current.disabled")}
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-950">
-                  {soulEnabledWithContent
-                    ? (soul.name ??
-                      memoryT(t, "settings.memory.soul.current.title"))
-                    : memoryT(t, "settings.memory.soul.current.emptyTitle")}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {soulEnabledWithContent
-                    ? memoryT(t, "settings.memory.soul.current.description")
-                    : memoryT(
-                        t,
-                        "settings.memory.soul.current.emptyDescription",
-                      )}
-                </p>
-              </div>
-            </div>
-            {soulPreviewItems.length > 0 ? (
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {soulPreviewItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="rounded-md bg-white p-3 ring-1 ring-slate-200"
-                  >
-                    <p className="text-xs font-semibold text-slate-500">
-                      {memoryT(t, item.labelKey)}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.values.map((value) => (
-                        <span
-                          key={value}
-                          className="rounded-md bg-slate-100 px-2 py-1 text-xs leading-5 text-slate-700"
-                        >
-                          {value}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <StyleProfileSection
-            value={soul.style_profile_id}
-            onChange={handleSoulStyleProfileChange}
-            showMessage={showMessage}
-            t={t}
-          />
-
-          <div className="mt-5">
-            <p className="text-sm font-semibold text-slate-950">
-              {memoryT(t, "settings.memory.soul.template.title")}
-            </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              {memoryT(t, "settings.memory.soul.template.description")}
-            </p>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              {SOUL_TEMPLATE_DEFINITIONS.map((template) => {
-                return (
-                  <div
-                    key={template.id}
-                    className="flex min-h-[168px] flex-col justify-between rounded-md border border-slate-200 bg-white p-4"
-                  >
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">
-                        {memoryT(t, template.titleKey)}
-                      </p>
-                      <p className="mt-2 text-xs leading-5 text-slate-500">
-                        {memoryT(t, template.descriptionKey)}
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleSoulTemplateApply(template)}
-                      data-testid={`settings-memory-soul-template-${template.id}`}
-                      className="mt-4 rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800"
-                    >
-                      {memoryT(t, "settings.memory.soul.template.apply")}
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
-            <div>
-              <p className="text-xs font-semibold text-slate-700">
-                {memoryT(t, "settings.memory.soul.boundary.title")}
-              </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {memoryT(t, "settings.memory.soul.boundary.description")}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSoulReset}
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 transition hover:border-slate-300 hover:text-slate-950"
-            >
-              {memoryT(t, "settings.memory.soul.action.reset")}
-            </button>
-          </div>
-        </section>
+        <SoulSettingsPanel
+          soul={soul}
+          templates={SOUL_TEMPLATE_DEFINITIONS}
+          handleSoulTemplateApply={handleSoulTemplateApply}
+          handleSoulStyleProfileChange={handleSoulStyleProfileChange}
+          handleSoulReset={handleSoulReset}
+          showMessage={showMessage}
+        />
       ) : null}
 
       {activeTab === "advanced" ? (
-        <section
-          className="rounded-md border border-slate-200/90 bg-white p-5 shadow-sm shadow-slate-950/5"
-          data-testid="settings-memory-advanced-panel"
-        >
-          <label
-            className="text-sm font-semibold text-slate-950"
-            htmlFor="memory-embedding-provider"
-          >
-            {memoryT(t, "settings.memory.embedding.providerSelect.title")}
-          </label>
-          <p className="mt-1 text-sm leading-6 text-slate-500">
-            {memoryT(t, "settings.memory.embedding.providerSelect.description")}
-          </p>
-
-          <div className="relative mt-4">
-            <select
-              id="memory-embedding-provider"
-              value={providerChoice}
-              onChange={(event) =>
-                handleProviderChange(
-                  event.target.value as EmbeddingProviderChoice,
-                )
-              }
-              className="w-full appearance-none rounded-md border border-slate-200 bg-slate-50 px-4 py-3 pr-10 text-sm font-medium text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white"
-              aria-label={memoryT(
-                t,
-                "settings.memory.embedding.providerSelect.aria",
-              )}
-            >
-              {PROVIDER_CHOICES.map((item) => (
-                <option key={item.value} value={item.value}>
-                  {memoryT(t, item.labelKey)}
-                </option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-          </div>
-
-          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-900">
-              {memoryT(t, activeProvider.labelKey)}
-            </p>
-            <p className="mt-1 text-sm leading-6 text-slate-500">
-              {memoryT(t, activeProvider.descriptionKey)}
-            </p>
-          </div>
-
-          <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex min-w-0 items-start gap-3">
-                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-900">
-                    {memoryT(t, "settings.memory.soul.export.title")}
-                  </p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">
-                    {memoryT(t, "settings.memory.soul.export.description")}
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={handleSoulExportCopy}
-                disabled={!soulExportMarkdown}
-                data-testid="settings-memory-soul-copy-export"
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-950 disabled:opacity-60"
-              >
-                {memoryT(t, "settings.memory.soul.action.copyExport")}
-              </button>
-            </div>
-            <pre className="mt-3 max-h-[220px] overflow-auto whitespace-pre-wrap rounded-md bg-white p-3 text-xs leading-5 text-slate-600 ring-1 ring-slate-200">
-              {soulExportMarkdown ||
-                memoryT(t, "settings.memory.soul.export.empty")}
-            </pre>
-          </div>
-
-          <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-4">
-            <div className="flex items-start gap-3">
-              <FileText className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-slate-900">
-                  {memoryT(t, "settings.memory.soul.import.title")}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {memoryT(t, "settings.memory.soul.import.description")}
-                </p>
-              </div>
-            </div>
-            <textarea
-              value={soulImportText}
-              onChange={(event) => {
-                setSoulImportText(event.target.value);
-                setSoulImportPreview(null);
-              }}
-              rows={5}
-              data-testid="settings-memory-soul-import-textarea"
-              placeholder={memoryT(
-                t,
-                "settings.memory.soul.import.placeholder",
-              )}
-              className="mt-3 min-h-[128px] w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-slate-400"
-            />
-            {soulImportPreview ? (
-              <div className="mt-3 space-y-2 rounded-md border border-slate-200 bg-white p-3">
-                <p className="text-xs font-semibold text-slate-600">
-                  {memoryT(t, "settings.memory.soul.import.preview")}
-                </p>
-                {soulImportPreview.warnings.length > 0 ? (
-                  <ul className="space-y-1 text-xs leading-5 text-amber-700">
-                    {soulImportPreview.warnings.map((warning) => (
-                      <li key={warning}>
-                        {memoryT(t, SOUL_WARNING_KEYS[warning])}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-                <pre className="max-h-[160px] overflow-auto whitespace-pre-wrap rounded-md bg-slate-950 p-3 text-xs leading-5 text-slate-50">
-                  {soulImportPreview.preview ||
-                    memoryT(t, "settings.memory.soul.import.emptyPreview")}
-                </pre>
-              </div>
-            ) : null}
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={handleSoulImportPreview}
-                className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:text-slate-950"
-              >
-                {memoryT(t, "settings.memory.soul.action.previewImport")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSoulImportApply}
-                disabled={!soulImportPreview?.canImport}
-                className="rounded-md border border-slate-950 bg-slate-950 px-3 py-2 text-xs font-medium text-white transition hover:bg-slate-800 disabled:opacity-60"
-              >
-                {memoryT(t, "settings.memory.soul.action.applyImport")}
-              </button>
-            </div>
-          </div>
-        </section>
+        <AdvancedMemorySettings
+          providerChoice={providerChoice}
+          activeProvider={activeProvider}
+          providers={PROVIDER_CHOICES}
+          handleProviderChange={handleProviderChange}
+          soulExportMarkdown={soulExportMarkdown}
+          handleSoulExportCopy={handleSoulExportCopy}
+          soulImportText={soulImportText}
+          soulImportPreview={soulImportPreview}
+          onSoulImportTextChange={(value) => {
+            setSoulImportText(value);
+            setSoulImportPreview(null);
+          }}
+          handleSoulImportPreview={handleSoulImportPreview}
+          handleSoulImportApply={handleSoulImportApply}
+        />
       ) : null}
 
-      <div hidden={activeTab !== "memory"}>
+      <div
+        hidden={activeTab !== "memory"}
+        data-settings-search-target="memory-store"
+        tabIndex={-1}
+      >
         <MemoryStoreStatusPanel
           vectorSearchEnabled={vectorSearchEnabled}
           memoryStatusDescriptionKey={memoryStatusDescriptionKey}

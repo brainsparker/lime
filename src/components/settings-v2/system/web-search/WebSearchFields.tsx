@@ -67,7 +67,11 @@ export function FieldBlock({
   children,
 }: FieldBlockProps) {
   return (
-    <div className="space-y-2">
+    <div
+      className="space-y-2"
+      data-settings-search-target={htmlFor}
+      tabIndex={-1}
+    >
       <label
         htmlFor={htmlFor}
         className="flex items-center gap-2 text-sm font-medium text-foreground"

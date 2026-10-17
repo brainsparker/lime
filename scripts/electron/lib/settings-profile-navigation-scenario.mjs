@@ -43,6 +43,7 @@ export async function runSettingsProfileNavigationScenario({
         !document.querySelector('[data-testid="settings-page-loading"]'),
       "About committed",
     );
+  let localEntryVisits = 0;
   const open = async () => {
     await page.evaluate(() => {
       window.__LIME_OEM_CLOUD__ = { enabled: false };
@@ -53,6 +54,32 @@ export async function runSettingsProfileNavigationScenario({
     await page
       .getByRole("button", { name: "编辑显示名称", exact: true })
       .waitFor({ state: "visible" });
+    assert.equal(
+      await page
+        .getByRole("heading", { name: "个人资料", exact: true })
+        .count(),
+      1,
+      "local Profile has one heading",
+    );
+    assert.equal(
+      await page
+        .getByRole("heading", { name: "账户资料", exact: true })
+        .count(),
+      0,
+      "unavailable account card is not mounted in local Profile",
+    );
+    assert.equal(
+      await page.getByTestId("oem-cloud-session-panel").count(),
+      0,
+      "local Profile does not render a managed account session",
+    );
+    assert.equal(
+      await page.getByTestId("oem-cloud-login-panel").count(),
+      0,
+      "local Profile does not render account sign-in",
+    );
+    assert.equal(await page.getByTestId("oem-cloud-google-login").count(), 0);
+    localEntryVisits += 1;
   };
   const reopenSession = async () => {
     await page
@@ -264,6 +291,16 @@ export async function runSettingsProfileNavigationScenario({
   await page.getByTestId("settings-back-button").click();
   await waitForSession();
   return {
+    localEntry: {
+      checkedVisits: localEntryVisits,
+      onlyLocalProfile: true,
+      profileHeadingCount: 1,
+      unavailableAccountHeadingCount: 0,
+      managedAccountPanelCount: 0,
+      accountLoginPanelCount: 0,
+      googleLoginCount: 0,
+      oemAuthentication: "component evidence only; no real sign-in",
+    },
     isolatedProfileSeed:
       "public config/batchWrite; non-null nickname/bio baseline",
     observations,

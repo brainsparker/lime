@@ -62,7 +62,10 @@ fn approve_for_me_and_hidden_alias_lower_to_canonical_policy() {
         };
         let options = tui_options(args.connection.into_inner(), None, None).expect("lower policy");
         assert_eq!(options.approval_policy.as_deref(), Some("on-request"));
-        assert_eq!(options.approvals_reviewer.as_deref(), Some("auto_review"));
+        assert_eq!(
+            options.approvals_reviewer,
+            Some(agent_protocol::ApprovalsReviewer::AutoReview)
+        );
         assert_eq!(options.sandbox_policy.as_deref(), Some("workspace-write"));
     }
 }
@@ -232,7 +235,10 @@ fn child_approval_policy_overrides_only_root_approve_for_me_approval() {
     args.connection.inherit_from(&root);
     let options = tui_options(args.connection.clone(), None, None).expect("lower override");
     assert_eq!(options.approval_policy.as_deref(), Some("never"));
-    assert_eq!(options.approvals_reviewer.as_deref(), Some("auto_review"));
+    assert_eq!(
+        options.approvals_reviewer,
+        Some(agent_protocol::ApprovalsReviewer::AutoReview)
+    );
     assert_eq!(options.sandbox_policy.as_deref(), Some("workspace-write"));
 }
 
@@ -392,6 +398,34 @@ fn tui_options_lower_remote_url_without_local_process_settings() {
         Some("ws://127.0.0.1:4500/rpc")
     );
     assert!(options.remote.as_ref().unwrap().auth_token.is_none());
+    assert_eq!(options.cwd, Some(PathBuf::from("/tmp/worktree")));
+}
+
+#[test]
+fn remote_workspace_omits_local_defaults_and_keeps_explicit_server_paths() {
+    for cwd in [
+        None,
+        Some("/server/does-not-exist-locally"),
+        Some(r"C:\server\workspace"),
+    ] {
+        let connection = ConnectionArgs {
+            remote: InteractiveRemoteOptions {
+                remote: Some("ws://127.0.0.1:4500/rpc".into()),
+                ..Default::default()
+            },
+            cwd: cwd.map(PathBuf::from),
+            ..Default::default()
+        };
+        assert_eq!(connection.workspace_cwd().unwrap(), cwd.map(PathBuf::from));
+        assert_eq!(
+            tui_options(connection, None, None).unwrap().cwd,
+            cwd.map(PathBuf::from)
+        );
+    }
+    assert_eq!(
+        ConnectionArgs::default().workspace_cwd().unwrap(),
+        Some(std::env::current_dir().unwrap())
+    );
 }
 
 #[test]

@@ -42,6 +42,8 @@ mod pending_paste;
 mod reasoning;
 #[path = "runtime_pty_tests/reasoning_shortcuts.rs"]
 mod reasoning_shortcuts;
+#[path = "runtime_pty_tests/remote_workspace.rs"]
+mod remote_workspace;
 #[path = "runtime_pty_tests/request_user_input.rs"]
 mod request_user_input;
 #[path = "runtime_pty_tests/resume_picker.rs"]

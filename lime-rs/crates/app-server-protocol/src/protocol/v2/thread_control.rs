@@ -1,6 +1,6 @@
 use agent_protocol::CollaborationMode;
 use schemars::JsonSchema;
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -12,7 +12,7 @@ pub struct ThreadSettingsUpdateParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approvals_reviewer: Option<Value>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -23,7 +23,7 @@ pub struct ThreadSettingsUpdateParams {
     pub model_provider: Option<String>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub service_tier: Option<Option<String>>,
@@ -66,7 +66,7 @@ pub struct ThreadSettingsUpdateResponse {}
 pub struct ThreadSettings {
     pub cwd: String,
     pub approval_policy: Value,
-    pub approvals_reviewer: Value,
+    pub approvals_reviewer: agent_protocol::ApprovalsReviewer,
     pub sandbox_policy: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_permission_profile: Option<Value>,
@@ -157,13 +157,6 @@ pub struct ThreadApproveGuardianDeniedActionParams {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ThreadApproveGuardianDeniedActionResponse {}
-
-fn deserialize_double_option<'de, D>(deserializer: D) -> Result<Option<Option<String>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer).map(Some)
-}
 
 #[cfg(test)]
 mod tests {

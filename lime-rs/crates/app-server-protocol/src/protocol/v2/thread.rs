@@ -18,7 +18,11 @@ pub struct ThreadStartParams {
     pub model_provider: Option<String>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_provider_model_fallback: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub service_tier: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
@@ -27,7 +31,7 @@ pub struct ThreadStartParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approvals_reviewer: Option<Value>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -78,7 +82,7 @@ pub struct ThreadStartResponse {
     #[serde(default)]
     pub instruction_sources: Vec<String>,
     pub approval_policy: Value,
-    pub approvals_reviewer: Value,
+    pub approvals_reviewer: agent_protocol::ApprovalsReviewer,
     pub sandbox: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_permission_profile: Option<Value>,
@@ -102,7 +106,11 @@ pub struct ThreadForkParams {
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub service_tier: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
@@ -111,7 +119,7 @@ pub struct ThreadForkParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approvals_reviewer: Option<Value>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -146,7 +154,7 @@ pub struct ThreadForkResponse {
     #[serde(default)]
     pub instruction_sources: Vec<String>,
     pub approval_policy: Value,
-    pub approvals_reviewer: Value,
+    pub approvals_reviewer: agent_protocol::ApprovalsReviewer,
     pub sandbox: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_permission_profile: Option<Value>,
@@ -160,6 +168,10 @@ pub struct ThreadForkResponse {
 #[serde(rename_all = "camelCase")]
 pub struct ThreadResumeParams {
     pub thread_id: String,
+    /// Declares this connection as the host for the thread's frozen dynamic tools.
+    /// This cannot change their schemas or replace a live host.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dynamic_tools: Option<Vec<DynamicToolSpec>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub history: Option<Vec<Value>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -168,7 +180,11 @@ pub struct ThreadResumeParams {
     pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_provider: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub service_tier: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cwd: Option<String>,
@@ -177,7 +193,7 @@ pub struct ThreadResumeParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approvals_reviewer: Option<Value>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -210,7 +226,7 @@ pub struct ThreadResumeResponse {
     #[serde(default)]
     pub instruction_sources: Vec<String>,
     pub approval_policy: Value,
-    pub approvals_reviewer: Value,
+    pub approvals_reviewer: agent_protocol::ApprovalsReviewer,
     pub sandbox: Value,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_permission_profile: Option<Value>,
@@ -310,13 +326,13 @@ pub struct ThreadListParams {
     pub archived: Option<bool>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_string",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub section_id: Option<Option<String>>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_string",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub project_id: Option<Option<String>>,
@@ -533,19 +549,19 @@ pub struct ThreadMetadataUpdateParams {
 pub struct ThreadMetadataGitInfoUpdateParams {
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_string",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub sha: Option<Option<String>>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_string",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub branch: Option<Option<String>>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_string",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub origin_url: Option<Option<String>>,
@@ -774,7 +790,7 @@ pub struct ThreadGoalSetParams {
     pub status: Option<ThreadGoalStatus>,
     #[serde(
         default,
-        deserialize_with = "deserialize_double_option_i64",
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
         skip_serializing_if = "Option::is_none"
     )]
     pub token_budget: Option<Option<i64>>,
@@ -970,22 +986,6 @@ pub struct ThreadGoalClearedNotification {
 #[serde(rename_all = "camelCase")]
 pub struct ThreadQueueChangedNotification {
     pub thread_id: String,
-}
-
-fn deserialize_double_option_i64<'de, D>(deserializer: D) -> Result<Option<Option<i64>>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    Option::<i64>::deserialize(deserializer).map(Some)
-}
-
-fn deserialize_double_option_string<'de, D>(
-    deserializer: D,
-) -> Result<Option<Option<String>>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    Option::<String>::deserialize(deserializer).map(Some)
 }
 
 fn deserialize_nullable_string<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>

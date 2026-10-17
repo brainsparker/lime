@@ -27,7 +27,7 @@ Writing 的目标很简单：用户在 Claw 里发起“写一篇文章”，Lim
 
 | 结论                       | 口径                                                                                                                     |
 | -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| 采用 Agent Plugins portable 标准 | 包根只保留 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md`；Lime 私有运行时字段不进入包合同。 |
+| 采用 Agent Plugins portable 标准 | 支持标准包与 Codex 原生生态格式；包选择与资源规则以插件目标合同为准。 |
 | 写作不是宿主内置能力       | `@写文章`、workflow、subagents、Skills、CLI 和 hooks 都来自已安装包的 typed activation projection。                  |
 | 产物有独立框架             | 普通 assistant message 不承载整篇文章；过程态先在对话区回显，最终文章在独立 `ArtifactFrame` 内流式输出，右侧 Article Editor 负责编辑和深加工。 |
 | 旧 Profile 路径已删除      | Article Workspace 是右侧产物事实源，Article Editor 是唯一文章编辑界面；旧 Profile 路径不再保留。                         |
@@ -37,7 +37,7 @@ Writing 的目标很简单：用户在 Claw 里发起“写一篇文章”，Lim
 
 ## 3. 插件标准
 
-内容工厂是 [Plugin v3 标准](../plugin/v3/README.md) 的第一个样板闭环。包结构、字段、目录契约和 validator 规则以 [目标合同](../plugin/v3/01-target-contract.md) 为事实源。
+内容工厂是 [Codex 插件 标准](../plugin/README.md) 的第一个样板闭环。包结构、字段、目录契约和 validator 规则以 [目标合同](../plugin/codex-contract.md) 为事实源。
 
 Writing 路线图只描述写文章闭环；运行时 workflow、evidence、ArtifactFrame 和 Article Workspace 由 App Server 与 Thread/Turn/Item projection 承接。
 右侧 dock / tab / pane 的统一标准见 `../rightsurface/README.md`；Writing 只保留 articleDraft / Article Editor 相关子面说明。
@@ -56,9 +56,9 @@ Writing 路线图只描述写文章闭环；运行时 workflow、evidence、Arti
 | [`implementation-plan.md`](./implementation-plan.md)                                     | v1 历史实施记录，current 进度以 v2 执行计划为准。                                                           |
 | [`prototypes/article-artifacts-editor.html`](./prototypes/article-artifacts-editor.html) | 通用 `ArtifactFrame`、文章 renderer 和右侧 Article Editor 的静态交互原型。                                    |
 
-## 5. 与 Plugin v3 的关系
+## 5. 与 Codex 插件 的关系
 
-Writing 是 Plugin v3 内容工厂主线的第一个可用闭环。v3 的总边界如下：
+Writing 是 Codex 插件内容工厂主线的第一个可用闭环。插件的总边界如下：
 
 - 插件是分发和授权根对象。
 - Plugin 是插件内 UI 能力，不是宿主内置页面。

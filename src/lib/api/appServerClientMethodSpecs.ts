@@ -388,12 +388,22 @@ export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
     params: "required",
   },
   {
-    name: "setPluginCatalogEnabled",
-    method: constants.APP_SERVER_METHOD_PLUGIN_ENABLED_SET,
+    name: "addMarketplace",
+    method: constants.APP_SERVER_METHOD_MARKETPLACE_ADD,
     params: "required",
   },
   {
-    name: "listPluginCatalog",
+    name: "removeMarketplace",
+    method: constants.APP_SERVER_METHOD_MARKETPLACE_REMOVE,
+    params: "required",
+  },
+  {
+    name: "upgradeMarketplace",
+    method: constants.APP_SERVER_METHOD_MARKETPLACE_UPGRADE,
+    params: "required",
+  },
+  {
+    name: "listPlugins",
     method: constants.APP_SERVER_METHOD_PLUGIN_LIST,
     params: "optional-empty",
   },
@@ -403,22 +413,22 @@ export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
     params: "required",
   },
   {
-    name: "readPluginCatalog",
+    name: "readPlugin",
     method: constants.APP_SERVER_METHOD_PLUGIN_READ,
     params: "required",
   },
   {
-    name: "installPluginCatalog",
+    name: "installPlugin",
     method: constants.APP_SERVER_METHOD_PLUGIN_INSTALL,
     params: "required",
   },
   {
-    name: "uninstallPluginCatalog",
+    name: "uninstallPlugin",
     method: constants.APP_SERVER_METHOD_PLUGIN_UNINSTALL,
     params: "required",
   },
   {
-    name: "listInstalledPluginCatalog",
+    name: "listInstalledPlugins",
     method: constants.APP_SERVER_METHOD_PLUGIN_INSTALLED,
     params: "optional-empty",
   },

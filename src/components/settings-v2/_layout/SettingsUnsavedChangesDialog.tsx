@@ -17,6 +17,7 @@ export function SettingsUnsavedChangesDialog({
   const { t } = useTranslation("settings");
   const keepEditingRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  const restoreFocus = useRef(true);
 
   return (
     <Dialog.Root
@@ -32,6 +33,7 @@ export function SettingsUnsavedChangesDialog({
           data-testid="settings-unsaved-changes-dialog"
           className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-background p-6 text-foreground shadow-xl"
           onOpenAutoFocus={(event) => {
+            restoreFocus.current = true;
             previousFocus.current =
               document.activeElement as HTMLElement | null;
             event.preventDefault();
@@ -39,14 +41,17 @@ export function SettingsUnsavedChangesDialog({
           }}
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            if (previousFocus.current?.isConnected)
+            if (restoreFocus.current && previousFocus.current?.isConnected)
               previousFocus.current.focus();
           }}
         >
           <form
             onSubmit={(event) => {
               event.preventDefault();
-              if (!saving) onDiscardChanges();
+              if (!saving) {
+                restoreFocus.current = false;
+                onDiscardChanges();
+              }
             }}
           >
             <Dialog.Title className="text-lg font-semibold">

@@ -380,6 +380,8 @@ pub struct RuntimeRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workspace_id: Option<String>,

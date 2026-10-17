@@ -64,13 +64,13 @@ lime thread show <thread-id> --include-turns
 lime mcp list
 lime skills list
 lime plugin list
-lime plugin list --available --json --plugin-cwd ./workspace
-lime plugin add ./path/to/plugin --marketplace workspace --source repo
-lime plugin read <plugin-id> --json
-lime plugin search <term> --scope workspace --plugin-cwd ./workspace
-lime plugin enable <plugin-id>
-lime plugin disable <plugin-id>
-lime plugin remove <plugin-id>
+lime plugin list --available --json -C ./workspace
+lime plugin add <plugin-name>@<marketplace> -C ./workspace
+lime plugin read <plugin-name>@<marketplace> --json
+lime plugin search <term> --scope workspace -C ./workspace
+lime plugin enable <plugin-name>@<marketplace>
+lime plugin disable <plugin-name>@<marketplace>
+lime plugin remove <plugin-name>@<marketplace>
 ```
 
 `lime exec --json` 实时输出 Codex 形状的 JSONL 事件，每行一个事件：`thread.started`、`turn.started`、`item.started/updated/completed`、`turn.completed/failed` 与 `error`。成功终态包含最后一次服务端累计 token 用量；失败退出 1，中断退出 130 且不输出成功终态。Item 的 `item_0` 等编号仅用于本次输出，`thread.started.thread_id` 是可恢复的 canonical Thread ID。机器输出只包含推理摘要，忽略 human 显示开关，不输出推理原文。事件 schema 随根包分发；管理命令的 JSON 合同各自保持不变。`completion` 从同一命令树生成 bash、zsh、fish、PowerShell 和 elvish 脚本。
@@ -87,13 +87,17 @@ PROMPT 与 Codex 一致，是一个参数，多个单词请加引号。省略 PR
 顶层 `lime review` 复用同一目标、stdin 和审查执行，默认 human 输出；连接、权限与 locale
 继承 root 参数。需要 JSON 或最后消息文件时使用 `lime exec review`。
 
-Plugin 管理只通过 App Server JSON-RPC 的当前 Plugin v3 catalog。`plugin list` 默认发现用户目录、
-当前工作目录和已配置的本地 marketplace；`--plugin-cwd <DIR>` 显式发现指定目录下的
+插件管理通过与 Desktop 共用的 App Server JSON-RPC；正在按 Codex current 重构，合同与
+未完成项见 `internal/roadmap/plugin/codex-contract.md` 和
+`internal/exec-plans/codex-plugin-reconstruction.md`。当前 `plugin list` 发现用户目录、
+当前工作目录和已配置的本地 marketplace；`-C <DIR>` 显式发现指定目录下的
 `.agents/plugins/marketplace.json`。`--available` 仅允许和 `--json` 一起使用，用于表达需要同时
 查看未安装条目的意图；JSON 默认只保留已安装条目，`--available` 才保留 catalog 返回的全部
 installed/available 状态。
-Codex 的远程 marketplace、账号、缓存刷新和 marketplace add/remove/upgrade 不属于 Lime current，
-不会由 CLI 伪造或绕过 App Server。
+安装身份为 `name@marketplace`，启停走共享 `config/batchWrite`。旧 Plugin v3、独立 UI runtime、
+私有 token 和 Connector 交付链已删除。安装与详情通过市场定位加插件名称请求，安装返回授权策略与
+待授权 Apps；没有目录直装接口。四组公开合同的新产物验收，以及远程 marketplace、账号授权、
+缓存刷新和 marketplace add/remove/upgrade 仍由 P03/P04 跟踪；CLI 只能消费同一 App Server owner。
 
 权限选项同样适用于默认 `lime`、`lime tui` 和 `lime resume`。`--approve-for-me` 的隐藏 alias
 是 `--not-so-yolo`；危险绕过的 alias 是 `--yolo`。root 级权限参数会继承到 `exec`/`resume`，

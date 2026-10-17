@@ -116,7 +116,8 @@ impl ConfigManager {
             let _ = std::fs::copy(path, backup_path);
         }
         let yaml = Self::to_yaml(&normalized_config_for_persistence(&self.config))?;
-        std::fs::write(path, yaml).map_err(|e| ConfigError::WriteError(e.to_string()))
+        super::persistence::write_config(path, yaml.as_bytes())
+            .map_err(|e| ConfigError::WriteError(e.to_string()))
     }
 
     /// 重新加载配置
@@ -378,7 +379,8 @@ impl YamlService {
         }
 
         // 写入文件
-        std::fs::write(path, final_content).map_err(|e| ConfigError::WriteError(e.to_string()))
+        super::persistence::write_config(path, final_content.as_bytes())
+            .map_err(|e| ConfigError::WriteError(e.to_string()))
     }
 
     /// 合并原文件的注释到新 YAML 内容中
@@ -716,7 +718,7 @@ impl YamlService {
         }
 
         // 写入文件
-        std::fs::write(path, result_lines.join("\n"))
+        super::persistence::write_config(path, result_lines.join("\n").as_bytes())
             .map_err(|e| ConfigError::WriteError(e.to_string()))
     }
 }
@@ -811,7 +813,7 @@ fn save_config_yaml_to_path(
         let _ = std::fs::copy(&path, &backup_path);
     }
     let content = serde_yaml::to_string(&normalized)?;
-    std::fs::write(&path, content)?;
+    super::persistence::write_config(&path, content.as_bytes())?;
     Ok(())
 }
 

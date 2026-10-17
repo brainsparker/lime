@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   Check,
   ChevronDown,
   CircleAlert,
   ExternalLink,
-  FolderOpen,
   LoaderCircle,
   MoreHorizontal,
   PackageCheck,
@@ -19,41 +18,29 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import type {
-  AppServerPluginCatalogDetail,
-  AppServerPluginCatalogSummary,
+  AppServerPluginDetail,
+  AppServerPluginSummary,
+  AppServerPluginMarketplaceEntry,
 } from "@/lib/api/appServerTypes";
 import {
-  installPluginCatalog,
-  listPluginCatalog,
-  readPluginCatalog,
-  selectPluginCatalogSource,
-  setPluginCatalogEnabled,
-  uninstallPluginCatalog,
+  installPlugin,
+  listPlugins,
+  readPlugin,
+  setPluginEnabled,
+  uninstallPlugin,
 } from "@/lib/api/pluginCatalog";
 import type { PluginsPageParams } from "@/types/page";
-import { PluginCatalogDetailPanel } from "./PluginCatalogDetailPanel";
+import { getProject } from "@/lib/api/project";
+import { PluginDetailPanel } from "./PluginDetailPanel";
 import {
   filterPluginCatalog,
-  listPluginCatalogSources,
-  mergePluginCatalogSummary,
+  pluginCatalogEntries,
+  pluginDescription,
+  pluginDisplayName,
+  pluginLocation,
+  type PluginCatalogEntry,
   type PluginCatalogView,
 } from "./PluginCatalogPageViewModel";
-
-interface InstallCandidate {
-  sourcePath: string;
-  summary: AppServerPluginCatalogSummary;
-}
-
-function sourceLabel(source: string, t: (key: string) => string): string {
-  const key = `plugin.catalog.v2.source.${source}`;
-  const translated = t(key);
-  return translated === key ? source : translated;
-}
-
-function pathLeaf(path: string): string {
-  const segments = path.split(/[\\/]/).filter(Boolean);
-  return segments.at(-1) ?? path;
-}
 
 export function PluginCatalogPage({
   pageParams,
@@ -61,13 +48,21 @@ export function PluginCatalogPage({
   pageParams?: PluginsPageParams;
 }) {
   const { t } = useTranslation("agent");
-  const [plugins, setPlugins] = useState<AppServerPluginCatalogSummary[]>([]);
+  const [marketplaces, setMarketplaces] = useState<
+    AppServerPluginMarketplaceEntry[]
+  >([]);
+  const entries = useMemo(
+    () => pluginCatalogEntries(marketplaces),
+    [marketplaces],
+  );
+  const plugins = useMemo(
+    () => entries.map((entry) => entry.plugin),
+    [entries],
+  );
   const [selectedId, setSelectedId] = useState<string | null>(
     pageParams?.selectedPluginId ?? null,
   );
-  const [detail, setDetail] = useState<AppServerPluginCatalogDetail | null>(
-    null,
-  );
+  const [detail, setDetail] = useState<AppServerPluginDetail | null>(null);
   const [view, setView] = useState<PluginCatalogView>(
     pageParams?.statusFilter === "installed" ? "installed" : "all",
   );
@@ -77,14 +72,13 @@ export function PluginCatalogPage({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
-  const [installCandidates, setInstallCandidates] = useState<
-    InstallCandidate[]
-  >([]);
-  const [selectedInstallId, setSelectedInstallId] = useState<string | null>(
+  const [installTarget, setInstallTarget] = useState<PluginCatalogEntry | null>(
     null,
   );
   const [uninstallTarget, setUninstallTarget] =
-    useState<AppServerPluginCatalogSummary | null>(null);
+    useState<AppServerPluginSummary | null>(null);
+  const projectId = pageParams?.currentProjectId;
+  const refreshRequest = useRef<symbol | null>(null);
 
   // 侧栏在同一页面内切换目录、安装态和详情时同步路由参数。
   useEffect(() => {
@@ -95,30 +89,52 @@ export function PluginCatalogPage({
   }, [pageParams]);
 
   const refresh = useCallback(async () => {
+    const request = Symbol();
+    refreshRequest.current = request;
     setLoading(true);
     setError(null);
     try {
-      const response = await listPluginCatalog();
-      setPlugins(response.plugins);
+      const project = projectId ? await getProject(projectId) : null;
+      if (request !== refreshRequest.current) return;
+      const response = await listPlugins(
+        project?.rootPath ? { cwds: [project.rootPath] } : {},
+      );
+      if (request !== refreshRequest.current) return;
+      setMarketplaces(response.marketplaces);
+      const plugins = response.marketplaces.flatMap(
+        (marketplace) => marketplace.plugins,
+      );
+      if (response.marketplaceLoadErrors?.length) {
+        setError(
+          response.marketplaceLoadErrors
+            .map((error) => error.message)
+            .join("\n"),
+        );
+      }
       setSelectedId((current) => {
-        if (
-          current &&
-          response.plugins.some((plugin) => plugin.id === current)
-        ) {
+        if (current && plugins.some((plugin) => plugin.id === current)) {
           return current;
         }
-        return response.plugins[0]?.id ?? null;
+        return plugins[0]?.id ?? null;
       });
     } catch (cause) {
+      if (request !== refreshRequest.current) return;
       const message = cause instanceof Error ? cause.message : String(cause);
       setError(message);
     } finally {
-      setLoading(false);
+      if (request === refreshRequest.current) setLoading(false);
     }
-  }, []);
+  }, [projectId]);
 
   useEffect(() => {
+    setMarketplaces([]);
+    setInstallTarget(null);
+    setUninstallTarget(null);
+    setActionMenuId(null);
     void refresh();
+    return () => {
+      refreshRequest.current = null;
+    };
   }, [refresh]);
 
   useEffect(() => {
@@ -126,13 +142,14 @@ export function PluginCatalogPage({
       setDetail(null);
       return;
     }
-    const selected = plugins.find((plugin) => plugin.id === selectedId);
-    if (!selected?.installed) {
+    const selected = entries.find(({ plugin }) => plugin.id === selectedId);
+    if (!selected) {
       setDetail(null);
       return;
     }
     let cancelled = false;
-    void readPluginCatalog({ pluginId: selectedId })
+    setDetail(null);
+    void readPlugin(pluginLocation(selected))
       .then((response) => {
         if (!cancelled) {
           setDetail(response.plugin);
@@ -147,98 +164,68 @@ export function PluginCatalogPage({
     return () => {
       cancelled = true;
     };
-  }, [plugins, selectedId]);
+  }, [entries, selectedId]);
 
   const filteredPlugins = useMemo(
-    () => filterPluginCatalog(plugins, { query, source, view }),
-    [plugins, query, source, view],
+    () => filterPluginCatalog(entries, { query, source, view }),
+    [entries, query, source, view],
   );
-  const sources = useMemo(() => listPluginCatalogSources(plugins), [plugins]);
+  const sources = useMemo(
+    () =>
+      Array.from(
+        new Set(marketplaces.map((marketplace) => marketplace.name)),
+      ).sort(),
+    [marketplaces],
+  );
   const selectedSummary =
     plugins.find((plugin) => plugin.id === selectedId) ?? null;
-  const selectedInstallCandidate =
-    installCandidates.find(
-      (candidate) => candidate.summary.id === selectedInstallId,
-    ) ??
-    installCandidates[0] ??
-    null;
-
-  const handleInstallFromPath = useCallback(async () => {
-    try {
-      const sourcePath = await selectPluginCatalogSource({
-        title: t("plugin.catalog.v2.selectSource"),
-      });
-      if (!sourcePath) {
-        return;
-      }
-      const response = await listPluginCatalog({
-        marketplacePaths: [sourcePath],
-      });
-      const candidates = response.plugins.map((summary) => ({
-        summary,
-        sourcePath: summary.sourceUri,
-      }));
-      if (!candidates.length) {
-        throw new Error(t("plugin.catalog.v2.noManifest"));
-      }
-      setInstallCandidates(candidates);
-      setSelectedInstallId(candidates[0].summary.id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    }
-  }, [t]);
 
   const handleInstall = useCallback(async () => {
-    if (!selectedInstallCandidate) {
+    if (!installTarget) {
       return;
     }
-    const pluginId = selectedInstallCandidate.summary.id;
+    const pluginId = installTarget.plugin.id;
     setBusyId(pluginId);
     try {
-      const response = await installPluginCatalog({
-        sourcePath: selectedInstallCandidate.sourcePath,
-        marketplaceId: selectedInstallCandidate.summary.marketplaceId,
-        source: selectedInstallCandidate.summary.source,
-        expectedDigest: selectedInstallCandidate.summary.contentDigest,
+      const response = await installPlugin({
+        ...pluginLocation(installTarget),
+        installAttemptId: crypto.randomUUID(),
       });
-      setPlugins((current) =>
-        mergePluginCatalogSummary(current, response.plugin),
-      );
-      setSelectedId(response.plugin.id);
-      setInstallCandidates([]);
-      setSelectedInstallId(null);
+      await refresh();
+      setSelectedId(pluginId);
+      if (response.appsNeedingAuth.length) {
+        toast.info(
+          t("plugin.catalog.v2.appsNeedAuth", {
+            names: response.appsNeedingAuth.map((app) => app.name).join(", "),
+          }),
+        );
+      }
+      setInstallTarget(null);
       toast.success(t("plugin.catalog.v2.installSuccess"));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusyId(null);
     }
-  }, [selectedInstallCandidate, t]);
+  }, [installTarget, refresh, t]);
 
   const handleToggle = useCallback(
-    async (plugin: AppServerPluginCatalogSummary) => {
+    async (plugin: AppServerPluginSummary) => {
       setBusyId(plugin.id);
       setActionMenuId(null);
       try {
-        const response = await setPluginCatalogEnabled({
+        await setPluginEnabled({
           pluginId: plugin.id,
           enabled: !plugin.enabled,
         });
-        setPlugins((current) =>
-          mergePluginCatalogSummary(current, response.plugin),
-        );
-        if (detail?.summary.id === plugin.id) {
-          setDetail((current) =>
-            current ? { ...current, summary: response.plugin } : current,
-          );
-        }
+        await refresh();
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : String(cause));
       } finally {
         setBusyId(null);
       }
     },
-    [detail],
+    [refresh],
   );
 
   const handleUninstall = useCallback(async () => {
@@ -248,22 +235,18 @@ export function PluginCatalogPage({
     const pluginId = uninstallTarget.id;
     setBusyId(pluginId);
     try {
-      const response = await uninstallPluginCatalog({ pluginId });
-      if (response.uninstalled) {
-        setPlugins((current) =>
-          current.filter((plugin) => plugin.id !== pluginId),
-        );
-        setSelectedId((current) => (current === pluginId ? null : current));
-        setDetail(null);
-        toast.success(t("plugin.catalog.v2.uninstallSuccess"));
-      }
+      await uninstallPlugin({ pluginId });
+      await refresh();
+      setSelectedId((current) => (current === pluginId ? null : current));
+      setDetail(null);
+      toast.success(t("plugin.catalog.v2.uninstallSuccess"));
       setUninstallTarget(null);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
       setBusyId(null);
     }
-  }, [t, uninstallTarget]);
+  }, [refresh, t, uninstallTarget]);
 
   const clearError = () => setError(null);
 
@@ -283,16 +266,6 @@ export function PluginCatalogPage({
               {t("plugin.catalog.v2.description")}
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-full bg-[color:var(--lime-text-strong)] px-5 text-sm font-semibold text-[color:var(--lime-surface)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-            onClick={() => void handleInstallFromPath()}
-            disabled={Boolean(busyId)}
-            data-testid="plugin-catalog-install-local"
-          >
-            <FolderOpen size={16} />
-            {t("plugin.catalog.v2.installLocal")}
-          </button>
         </header>
 
         <section className="flex flex-col gap-3 border-b border-[color:var(--lime-surface-border)] pb-4 xl:flex-row xl:items-center xl:justify-between">
@@ -348,7 +321,9 @@ export function PluginCatalogPage({
                 <option value="all">{t("plugin.catalog.v2.source.all")}</option>
                 {sources.map((item) => (
                   <option key={item} value={item}>
-                    {sourceLabel(item, t)}
+                    {marketplaces.find(
+                      (marketplace) => marketplace.name === item,
+                    )?.interface?.displayName || item}
                   </option>
                 ))}
               </select>
@@ -425,7 +400,8 @@ export function PluginCatalogPage({
               className="grid min-w-0 grid-cols-1 content-start gap-3 md:grid-cols-2"
               data-testid="plugin-catalog-list"
             >
-              {filteredPlugins.map((plugin) => {
+              {filteredPlugins.map((entry) => {
+                const { plugin, marketplace } = entry;
                 const isSelected = selectedId === plugin.id;
                 const isBusy = busyId === plugin.id;
                 return (
@@ -446,7 +422,7 @@ export function PluginCatalogPage({
                         data-testid={`plugin-catalog-select-${plugin.id}`}
                       >
                         <h2 className="truncate text-base font-semibold text-[color:var(--lime-text-strong)]">
-                          {plugin.name}
+                          {pluginDisplayName(plugin)}
                         </h2>
                         <p className="mt-1 truncate text-xs text-[color:var(--lime-text-muted)]">
                           {plugin.id} ·{" "}
@@ -512,12 +488,12 @@ export function PluginCatalogPage({
                       ) : null}
                     </div>
                     <p className="mt-3 line-clamp-2 min-h-[40px] text-sm leading-5 text-[color:var(--lime-text-muted)]">
-                      {plugin.description ||
+                      {pluginDescription(plugin) ||
                         t("plugin.catalog.v2.descriptionFallback")}
                     </p>
                     <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[color:var(--lime-text-muted)]">
                       <span className="rounded-full bg-[color:var(--lime-surface-hover)] px-2.5 py-1 font-medium">
-                        {sourceLabel(plugin.source, t)}
+                        {marketplace.interface?.displayName || marketplace.name}
                       </span>
                       {plugin.installed ? (
                         <span
@@ -532,23 +508,6 @@ export function PluginCatalogPage({
                             : t("plugin.catalog.v2.status.disabled")}
                         </span>
                       ) : null}
-                    </div>
-                    <div className="mt-4 grid grid-cols-3 gap-2 border-t border-[color:var(--lime-surface-border)] pt-3 text-xs text-[color:var(--lime-text-muted)]">
-                      <span>
-                        {t("plugin.catalog.v2.metric.skills", {
-                          count: plugin.skillsCount,
-                        })}
-                      </span>
-                      <span>
-                        {t("plugin.catalog.v2.metric.mcp", {
-                          count: plugin.mcpServersCount,
-                        })}
-                      </span>
-                      <span>
-                        {t("plugin.catalog.v2.metric.hooks", {
-                          count: plugin.hooksCount,
-                        })}
-                      </span>
                     </div>
                     <div className="mt-4 flex items-center justify-between gap-3">
                       <span className="text-xs text-[color:var(--lime-text-muted)]">
@@ -571,11 +530,13 @@ export function PluginCatalogPage({
                           type="button"
                           className="inline-flex h-8 items-center gap-1 rounded-full bg-[color:var(--lime-text-strong)] px-3 text-xs font-semibold text-[color:var(--lime-surface)] hover:opacity-90"
                           onClick={() => {
-                            setInstallCandidates([
-                              { sourcePath: plugin.sourceUri, summary: plugin },
-                            ]);
-                            setSelectedInstallId(plugin.id);
+                            setInstallTarget(entry);
                           }}
+                          disabled={
+                            Boolean(busyId) ||
+                            plugin.installPolicy === "NOT_AVAILABLE" ||
+                            plugin.availability === "DISABLED_BY_ADMIN"
+                          }
                           data-testid={`plugin-catalog-install-${plugin.id}`}
                         >
                           {isBusy ? (
@@ -590,7 +551,7 @@ export function PluginCatalogPage({
               })}
             </section>
 
-            <PluginCatalogDetailPanel
+            <PluginDetailPanel
               summary={selectedSummary}
               detail={detail}
               t={t}
@@ -600,7 +561,7 @@ export function PluginCatalogPage({
         )}
       </div>
 
-      {installCandidates.length > 0 ? (
+      {installTarget ? (
         <div
           className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/25 px-4"
           role="presentation"
@@ -627,48 +588,23 @@ export function PluginCatalogPage({
               <button
                 type="button"
                 className="rounded-full p-1.5 text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-surface-hover)]"
-                onClick={() => setInstallCandidates([])}
+                onClick={() => setInstallTarget(null)}
                 aria-label={t("plugin.catalog.v2.close")}
               >
                 <X size={17} />
               </button>
             </div>
-            {installCandidates.length > 1 ? (
-              <label className="mt-5 block text-sm font-medium text-[color:var(--lime-text-strong)]">
-                {t("plugin.catalog.v2.review.choosePackage")}
-                <select
-                  value={selectedInstallId ?? ""}
-                  onChange={(event) =>
-                    setSelectedInstallId(event.currentTarget.value)
-                  }
-                  className="mt-2 h-10 w-full rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-3 text-sm outline-none"
-                  data-testid="plugin-catalog-install-package-select"
-                >
-                  {installCandidates.map((candidate) => (
-                    <option
-                      key={candidate.summary.id}
-                      value={candidate.summary.id}
-                    >
-                      {candidate.summary.name} ·{" "}
-                      {t("plugin.catalog.v2.version", {
-                        version: candidate.summary.version,
-                      })}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : null}
-            {selectedInstallCandidate ? (
+            {installTarget ? (
               <div className="mt-5 rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-soft)] p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <h3 className="truncate font-semibold text-[color:var(--lime-text-strong)]">
-                      {selectedInstallCandidate.summary.name}
+                      {pluginDisplayName(installTarget.plugin)}
                     </h3>
                     <p className="mt-1 text-xs text-[color:var(--lime-text-muted)]">
-                      {selectedInstallCandidate.summary.id} ·{" "}
+                      {installTarget.plugin.id} ·{" "}
                       {t("plugin.catalog.v2.version", {
-                        version: selectedInstallCandidate.summary.version,
+                        version: installTarget.plugin.version,
                       })}
                     </p>
                   </div>
@@ -678,29 +614,14 @@ export function PluginCatalogPage({
                   />
                 </div>
                 <p className="mt-3 text-sm leading-6 text-[color:var(--lime-text-muted)]">
-                  {selectedInstallCandidate.summary.description ||
+                  {pluginDescription(installTarget.plugin) ||
                     t("plugin.catalog.v2.descriptionFallback")}
                 </p>
-                <div className="mt-3 flex flex-wrap gap-2 text-xs text-[color:var(--lime-text-muted)]">
-                  <span>
-                    {t("plugin.catalog.v2.metric.skills", {
-                      count: selectedInstallCandidate.summary.skillsCount,
-                    })}
-                  </span>
-                  <span>
-                    {t("plugin.catalog.v2.metric.mcp", {
-                      count: selectedInstallCandidate.summary.mcpServersCount,
-                    })}
-                  </span>
-                  <span>
-                    {t("plugin.catalog.v2.metric.hooks", {
-                      count: selectedInstallCandidate.summary.hooksCount,
-                    })}
-                  </span>
-                </div>
                 <p className="mt-3 truncate text-xs text-[color:var(--lime-text-muted)]">
                   {t("plugin.catalog.v2.review.source", {
-                    name: pathLeaf(selectedInstallCandidate.sourcePath),
+                    name:
+                      installTarget.marketplace.interface?.displayName ||
+                      installTarget.marketplace.name,
                   })}
                 </p>
               </div>
@@ -709,7 +630,7 @@ export function PluginCatalogPage({
               <button
                 type="button"
                 className="h-9 rounded-full border border-[color:var(--lime-surface-border)] px-4 text-sm font-semibold text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-surface-hover)]"
-                onClick={() => setInstallCandidates([])}
+                onClick={() => setInstallTarget(null)}
               >
                 {t("plugin.catalog.v2.cancel")}
               </button>
@@ -717,7 +638,7 @@ export function PluginCatalogPage({
                 type="button"
                 className="inline-flex h-9 items-center gap-2 rounded-full bg-[color:var(--lime-text-strong)] px-5 text-sm font-semibold text-[color:var(--lime-surface)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => void handleInstall()}
-                disabled={!selectedInstallCandidate || Boolean(busyId)}
+                disabled={!installTarget || Boolean(busyId)}
                 data-testid="plugin-catalog-confirm-install"
               >
                 {busyId ? (
@@ -745,7 +666,7 @@ export function PluginCatalogPage({
           >
             <h2 className="text-lg font-semibold text-[color:var(--lime-text-strong)]">
               {t("plugin.catalog.v2.uninstallTitle", {
-                name: uninstallTarget.name,
+                name: pluginDisplayName(uninstallTarget),
               })}
             </h2>
             <p className="mt-2 text-sm leading-6 text-[color:var(--lime-text-muted)]">

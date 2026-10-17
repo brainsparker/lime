@@ -19,6 +19,8 @@ const {
   mockDeveloperLabSettings,
   mockArchivedConversationsSettings,
   mockExecutionPolicySettings,
+  mockProfileSettings,
+  mockUserCenterSessionSettings,
 } = vi.hoisted(() => ({
   mockSettingsSidebar: vi.fn(),
   mockPreloadDeveloperDefaultSections: vi.fn(),
@@ -27,6 +29,8 @@ const {
   mockDeveloperLabSettings: vi.fn(),
   mockArchivedConversationsSettings: vi.fn(),
   mockExecutionPolicySettings: vi.fn(),
+  mockProfileSettings: vi.fn(),
+  mockUserCenterSessionSettings: vi.fn(),
 }));
 
 const { mockResolveOemCloudRuntimeContext } = vi.hoisted(() => ({
@@ -78,10 +82,16 @@ vi.mock("../account/stats", () => ({
   StatsSettings: () => <div>stats</div>,
 }));
 vi.mock("../account/profile", () => ({
-  ProfileSettings: () => <div>PROFILE_SETTINGS</div>,
+  ProfileSettings: () => {
+    mockProfileSettings();
+    return <div>PROFILE_SETTINGS</div>;
+  },
 }));
 vi.mock("../account/user-center-session", () => ({
-  UserCenterSessionSettings: () => <div>USER_CENTER_SESSION</div>,
+  UserCenterSessionSettings: () => {
+    mockUserCenterSessionSettings();
+    return <div>USER_CENTER_SESSION</div>;
+  },
 }));
 vi.mock("../agent/providers", () => ({
   CloudProviderSettings: (props: unknown) => {
@@ -222,20 +232,27 @@ describe("SettingsPage Profile Tab", () => {
 
     expect(text).toContain("USER_CENTER_SESSION");
     expect(text).not.toContain("PROFILE_SETTINGS");
+    expect(mockUserCenterSessionSettings).toHaveBeenCalled();
+    expect(mockProfileSettings).not.toHaveBeenCalled();
     expect(text).not.toContain("账号与资料");
   });
 
-  it("非 OEM 运行时下仍保留本地资料编辑器，但不再显示重复页头", async () => {
-    mockResolveOemCloudRuntimeContext.mockReturnValue(null);
+  it.each(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"])(
+    "%s 非 OEM 资料页只挂载本地编辑器，不启动账户组件",
+    async (locale) => {
+      await changeLimeLocale(locale);
+      mockResolveOemCloudRuntimeContext.mockReturnValue(null);
 
-    const container = renderComponent(SettingsTabs.Profile);
-    await flushEffects();
-    const text = container.textContent ?? "";
+      const container = renderComponent(SettingsTabs.Profile);
+      await flushEffects();
+      const text = container.textContent ?? "";
 
-    expect(text).toContain("USER_CENTER_SESSION");
-    expect(text).toContain("PROFILE_SETTINGS");
-    expect(text).not.toContain("个人资料");
-  });
+      expect(text).not.toContain("USER_CENTER_SESSION");
+      expect(text).toContain("PROFILE_SETTINGS");
+      expect(mockProfileSettings).toHaveBeenCalled();
+      expect(mockUserCenterSessionSettings).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("SettingsPage Skills Tab", () => {

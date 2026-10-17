@@ -47,7 +47,7 @@ async fn real_stdio_queue_and_rejected_submission_preserve_typed_metadata() {
     .unwrap();
     let thread = session
         .start_thread(
-            cwd.into(),
+            Some(cwd.into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
         )

@@ -1,6 +1,7 @@
 //! v2 turn command handlers.
 
 mod input;
+mod settings;
 pub(super) use input::validate_v2_input_limit;
 
 use super::{
@@ -50,8 +51,28 @@ impl RequestProcessor {
             .await?;
         self.ensure_environment_execution_lowering(params.environments.as_deref())?;
         let session_id = self.resolve_loaded_v2_thread_session(&params.thread_id)?;
+        if let Some(cwd) = params.cwd.as_deref() {
+            params.cwd = Some(
+                crate::RuntimeCore::resolve_working_directory(Some(cwd))
+                    .map_err(to_jsonrpc_error)?,
+            );
+        }
+        params.runtime_workspace_roots =
+            crate::RuntimeCore::resolve_workspace_roots(params.runtime_workspace_roots.as_deref())
+                .map_err(to_jsonrpc_error)?;
+        let permission_cwd = match params.cwd.as_ref() {
+            Some(cwd) => Some(cwd.clone()),
+            None => self
+                .runtime
+                .loaded_thread_settings(&params.thread_id)
+                .map_err(to_jsonrpc_error)?
+                .map(|(_, settings, _)| settings.cwd),
+        };
+        let permission_cwd =
+            crate::RuntimeCore::resolve_working_directory(permission_cwd.as_deref())
+                .map_err(to_jsonrpc_error)?;
         if let Some(profile_id) = params.permissions.as_deref() {
-            self.resolve_allowed_permission_profile(profile_id, params.cwd.as_deref())?;
+            self.resolve_allowed_permission_profile(profile_id, Some(&permission_cwd))?;
         }
         self.record_environment_selections(&params.thread_id, params.environments.as_deref());
         self.append_environment_world_state(&session_id, params.environments.as_deref())
@@ -61,7 +82,7 @@ impl RequestProcessor {
             .await;
         let permission_policy = self
             .runtime
-            .current_permission_profile_policy(params.cwd.as_deref())
+            .current_permission_profile_policy(Some(&permission_cwd))
             .map_err(to_jsonrpc_error)?;
         let mut runtime_params =
             lower_turn_start_params_with_policy(&params, session_id, Some(&permission_policy))?;
@@ -76,6 +97,9 @@ impl RequestProcessor {
         }
         let host = self.runtime_host_context();
         let mut notifications: Vec<JsonRpcNotification> = Vec::new();
+        if let Some(notification) = self.apply_turn_settings(&params).await? {
+            notifications.push(notification);
+        }
         if let Some(thread_settings) = self
             .runtime
             .reconcile_thread_model_selection(&params.thread_id)
@@ -209,6 +233,7 @@ fn lower_runtime_options_with_policy(
     };
     let mut request = RuntimeRequest {
         collaboration_mode: params.collaboration_mode.clone(),
+        approvals_reviewer: params.approvals_reviewer,
         ..RuntimeRequest::default()
     };
     let mut metadata = Map::new();
@@ -326,6 +351,7 @@ fn lower_runtime_options_with_policy(
         );
     }
     if let Some(value) = params.service_tier.as_ref() {
+        request.service_tier = value.clone();
         metadata.insert(
             "serviceTier".to_string(),
             serde_json::to_value(value)

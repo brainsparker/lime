@@ -526,7 +526,6 @@ describe("commandPolicy", () => {
       "plugin/install",
       "plugin/uninstall",
       "plugin/installed",
-      "plugin/enabled/set",
     ]) {
       expect(
         resolveDevBridgeCommandTimeoutProfile("app_server_handle_json_lines", {

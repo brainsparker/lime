@@ -43,7 +43,7 @@ async fn real_stdio_raw_reasoning_uses_shared_config_live_resume_and_cold_histor
         assert_eq!(settings.show_raw_agent_reasoning, show_raw);
         let thread = session
             .start_thread(
-                cwd.path().into(),
+                Some(cwd.path().into()),
                 Some("fixture-model".into()),
                 Some("fixture-provider".into()),
             )
@@ -200,7 +200,7 @@ async fn real_stdio_running_reasoning_resumes_indexed_parts_without_started() {
         .unwrap();
     let thread = session
         .start_thread(
-            cwd.path().into(),
+            Some(cwd.path().into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
         )
@@ -327,7 +327,7 @@ async fn real_stdio_reasoning_snapshot_matches_notifications_and_cold_read() {
         .unwrap();
     let thread = session
         .start_thread(
-            cwd.path().into(),
+            Some(cwd.path().into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
         )

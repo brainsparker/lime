@@ -46,6 +46,18 @@ describe("desktop-host/core invoke", () => {
     clearElectronBridge();
   });
 
+  it("旧插件命令在默认测试 mock 中也必须显式失败", async () => {
+    for (const command of [
+      "plugin_list_installed",
+      "plugin_start_ui_runtime",
+      "plugin_launch_shell",
+      "plugin_runtime_start_task",
+    ]) {
+      await expect(invokeMockOnly(command)).rejects.toThrow("未注册命令");
+    }
+    expect(mocks.invokeViaHttp).not.toHaveBeenCalled();
+  });
+
   it("Electron host 可用时 production invoke 走 Desktop Host IPC", async () => {
     const electronInvoke = vi.fn().mockResolvedValueOnce("/real/electron/root");
     (window as any).electronAPI = {

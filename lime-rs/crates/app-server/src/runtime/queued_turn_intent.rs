@@ -50,6 +50,8 @@ struct QueuedRuntimeRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     approval_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     sandbox_policy: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     workspace_id: Option<String>,
@@ -214,6 +216,7 @@ impl QueuedRuntimeRequest {
                 "runtimeRequest.serviceTier",
             )?,
             thinking_enabled: request.thinking_enabled,
+            approvals_reviewer: request.approvals_reviewer,
             approval_policy: bounded_string(
                 request.approval_policy.as_deref(),
                 "runtimeRequest.approvalPolicy",
@@ -264,6 +267,7 @@ impl QueuedRuntimeRequest {
             service_tier: self.service_tier,
             thinking_enabled: self.thinking_enabled,
             approval_policy: self.approval_policy,
+            approvals_reviewer: self.approvals_reviewer,
             sandbox_policy: self.sandbox_policy,
             workspace_id: self.workspace_id,
             working_dir: self.working_dir,
@@ -423,6 +427,7 @@ mod tests {
                 reasoning_effort: Some("high".to_string()),
                 thinking_enabled: Some(true),
                 approval_policy: Some("on-request".to_string()),
+                approvals_reviewer: Some(agent_protocol::ApprovalsReviewer::AutoReview),
                 sandbox_policy: Some("workspace-write".to_string()),
                 workspace_id: Some("workspace-1".to_string()),
                 working_dir: Some("/workspace/project".to_string()),
@@ -483,6 +488,10 @@ mod tests {
         assert_eq!(request.model_preference.as_deref(), Some("model-1"));
         assert_eq!(request.reasoning_effort.as_deref(), Some("high"));
         assert_eq!(request.approval_policy.as_deref(), Some("on-request"));
+        assert_eq!(
+            request.approvals_reviewer,
+            Some(agent_protocol::ApprovalsReviewer::AutoReview)
+        );
         assert_eq!(request.system_prompt, None);
         let collaboration_mode = request
             .collaboration_mode
@@ -503,6 +512,45 @@ mod tests {
         assert_eq!(provider.base_url, None);
         assert_eq!(provider.tool_call_strategy, None);
         assert_eq!(provider.model_capabilities, None);
+    }
+
+    #[test]
+    fn hydrate_reads_published_snapshot_without_reviewer() {
+        let turns = vec![turn("queued-turn", AgentTurnStatus::Queued)];
+        let events = vec![queue_event(
+            Some("queued-turn"),
+            json!({
+                "schemaVersion": 2,
+                "runtimeOptions": {
+                    "runtimeRequest": {
+                        "approvalPolicy": "on-request",
+                        "modelPreference": "model-1"
+                    }
+                }
+            }),
+        )];
+
+        let mut hydrated =
+            runtime_options_from_events(&turns, &events).expect("hydrate old intent");
+        let options = hydrated.remove("queued-turn").expect("runtime options");
+        let request = options.runtime_request.as_ref().expect("runtime request");
+        assert_eq!(request.approvals_reviewer, None);
+        assert_eq!(request.approval_policy.as_deref(), Some("on-request"));
+        assert_eq!(request.model_preference.as_deref(), Some("model-1"));
+        let rewritten = snapshot_value(Some(&options)).expect("rewrite intent");
+        assert_eq!(rewritten, events[0].payload[QUEUED_TURN_INTENT_FIELD]);
+    }
+
+    #[test]
+    fn hydrate_rejects_invalid_reviewer_in_queued_snapshot() {
+        let mut snapshot = snapshot_value(Some(&runtime_options())).expect("snapshot");
+        snapshot["runtimeOptions"]["runtimeRequest"]["approvalsReviewer"] = json!("unknown");
+        let turns = vec![turn("queued-turn", AgentTurnStatus::Queued)];
+        let events = vec![queue_event(Some("queued-turn"), snapshot)];
+
+        let error = runtime_options_from_events(&turns, &events).expect_err("invalid reviewer");
+        assert!(error.contains("queued-turn"), "{error}");
+        assert!(error.contains("unknown"), "{error}");
     }
 
     #[test]

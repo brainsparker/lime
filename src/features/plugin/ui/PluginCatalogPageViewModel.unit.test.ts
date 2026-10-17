@@ -1,34 +1,28 @@
 import { describe, expect, it } from "vitest";
-import type { AppServerPluginCatalogSummary } from "@/lib/api/appServerTypes";
+import type { AppServerPluginSummary } from "@/lib/api/appServerTypes";
 import {
   detailCapabilityCount,
   filterPluginCatalog,
-  listPluginCatalogSources,
-  mergePluginCatalogSummary,
+  pluginCatalogEntries,
+  pluginLocation,
   projectPluginCatalogApps,
 } from "./PluginCatalogPageViewModel";
 
 function summary(
   id: string,
-  overrides: Partial<AppServerPluginCatalogSummary> = {},
-): AppServerPluginCatalogSummary {
+  overrides: Partial<AppServerPluginSummary> = {},
+): AppServerPluginSummary {
   return {
     authPolicy: "ON_USE",
-    availability: "installed",
-    description: `${id} description`,
+    availability: "AVAILABLE",
+
     enabled: true,
-    hooksCount: 1,
     id,
-    marketplaceId: "personal",
-    contentDigest: "sha256:test",
     installPolicy: "AVAILABLE",
     installed: true,
     localVersion: "1.0.0",
-    mcpServersCount: 1,
     name: id,
-    skillsCount: 1,
-    source: "local",
-    sourceUri: `/tmp/${id}`,
+    source: { type: "local", path: "/tmp/writer-plugin" },
     version: "1.0.0",
     ...overrides,
   };
@@ -40,56 +34,88 @@ describe("PluginCatalogPageViewModel", () => {
       summary("writer", { name: "Writing Tools" }),
       summary("browser", {
         installed: false,
-        source: "bundled",
+        source: { type: "local", path: "/plugins/browser" },
         name: "Browser Tools",
       }),
     ];
 
-    expect(
-      filterPluginCatalog(plugins, {
-        query: "writing",
-        source: "local",
-        view: "installed",
-      }).map((plugin) => plugin.id),
-    ).toEqual(["writer"]);
-    expect(listPluginCatalogSources(plugins)).toEqual(["bundled", "local"]);
-  });
-
-  it("以 plugin identity 合并状态并统计详情能力", () => {
-    const updated = summary("writer", { enabled: false });
-    expect(mergePluginCatalogSummary([summary("writer")], updated)).toEqual([
-      updated,
+    const entries = pluginCatalogEntries([
+      { name: "personal", path: "/tmp/personal.json", plugins: [plugins[0]] },
+      { name: "bundled", path: "/tmp/bundled.json", plugins: [plugins[1]] },
     ]);
     expect(
+      filterPluginCatalog(entries, {
+        query: "writing",
+        source: "personal",
+        view: "installed",
+      }).map(({ plugin }) => plugin.id),
+    ).toEqual(["writer"]);
+    expect(pluginLocation(entries[0])).toEqual({
+      pluginName: "Writing Tools",
+      marketplacePath: "/tmp/personal.json",
+    });
+    expect(
+      pluginLocation({
+        ...entries[0],
+        marketplace: {
+          ...entries[0].marketplace,
+          path: null,
+        },
+      }),
+    ).toEqual({
+      pluginName: "Writing Tools",
+      remoteMarketplaceName: "personal",
+    });
+  });
+
+  it("详情能力由 typed detail 统计", () => {
+    expect(
       detailCapabilityCount({
-        summary: updated,
-        skills: [
-          { id: "skill", name: "Skill", description: "", requiresAuth: false },
-        ],
-        mcpServers: [],
+        marketplaceName: "personal",
+        marketplacePath: "/tmp/personal.json",
+        summary: summary("writer"),
+        shareUrl: null,
+        description: null,
+        skills: [{ name: "skill", description: "", enabled: true }],
+        mcpServers: ["server"],
         apps: [
-          { id: "app", name: "App", description: "", requiresAuth: false },
+          {
+            id: "app",
+            name: "App",
+            description: null,
+            category: null,
+            installUrl: null,
+          },
         ],
-        hooks: [{ id: "turn", event: "turn" }],
-        uiResources: [],
+        hooks: [],
+        appTemplates: [],
+        scheduledTasks: null,
       }),
     ).toBe(3);
   });
 
   it("将 Apps catalog 与 installed snapshot 投影为 fail-closed readiness", () => {
     const capabilities = [
-      { id: "writer", name: "Writer", description: "", requiresAuth: false },
+      {
+        id: "writer",
+        name: "Writer",
+        description: null,
+        installUrl: null,
+        category: null,
+      },
       {
         id: "disabled",
         name: "Disabled",
-        description: "",
-        requiresAuth: false,
+        description: null,
+        installUrl: null,
+        category: null,
       },
       {
         id: "missing",
         name: "Missing",
-        description: "",
-        requiresAuth: false,
+        description: null,
+        installUrl: null,
+        category: null,
       },
     ];
     const catalog = capabilities.map((capability) => ({

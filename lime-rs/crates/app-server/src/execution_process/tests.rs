@@ -136,6 +136,7 @@ fn process_orchestration_input(
     network_denial_retry_allowed: bool,
 ) -> RuntimeToolOrchestrationInput {
     RuntimeToolOrchestrationInput {
+        approvals_reviewer: agent_protocol::ApprovalsReviewer::User,
         identity: RuntimeToolExecutionIdentity::new("orchestrated-call", "orchestrated-turn"),
         approval_policy: RuntimeToolApprovalPolicy::OnRequest,
         initial_approval,

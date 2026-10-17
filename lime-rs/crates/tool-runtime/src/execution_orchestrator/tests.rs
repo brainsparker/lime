@@ -51,6 +51,129 @@ struct ApplyPatchAttemptRunner {
     calls: Mutex<Vec<RuntimeToolExecutionAttempt>>,
 }
 
+#[tokio::test]
+async fn automatic_reviewer_is_preserved_for_network_retry_without_strict_grant() {
+    let approvals = RecordingApprovals::default();
+    let runner = SequenceRunner {
+        calls: Mutex::new(Vec::new()),
+        first_error: Some(RuntimeToolExecutionError::new(
+            "network denied",
+            Some(RuntimeToolPolicyErrorKind::ManagedNetworkDenied {
+                reason_code: "network_denied".into(),
+                host: Some("example.test".into()),
+            }),
+        )),
+    };
+    let mut input = input();
+    input.initial_approval =
+        RuntimeToolInitialApproval::Required(RuntimeToolApprovalKind::Guardian);
+    input.network_denial_retry_allowed = true;
+    input.approvals_reviewer = agent_protocol::ApprovalsReviewer::AutoReview;
+    assert!(!input.strict_guardian);
+    orchestrate_runtime_tool_execution(input, &approvals, &runner)
+        .await
+        .unwrap();
+    let requests = approvals.requests.lock().unwrap();
+    assert_eq!(requests.len(), 2);
+    assert_eq!(requests[1].kind, RuntimeToolApprovalKind::Guardian);
+    assert_eq!(requests[1].phase, RuntimeToolApprovalPhase::Escalation);
+    assert_eq!(requests[1].network_host.as_deref(), Some("example.test"));
+    assert_eq!(
+        requests[1]
+            .granted_permissions
+            .network
+            .as_ref()
+            .unwrap()
+            .enabled,
+        Some(true)
+    );
+}
+
+#[tokio::test]
+async fn automatic_reviewer_checks_sandbox_retry_when_first_attempt_needed_no_approval() {
+    let approvals = RecordingApprovals::default();
+    let runner = SequenceRunner {
+        calls: Mutex::new(Vec::new()),
+        first_error: Some(RuntimeToolExecutionError::new(
+            "sandbox denied",
+            Some(RuntimeToolPolicyErrorKind::SandboxDenied(
+                "sandbox_denied".into(),
+            )),
+        )),
+    };
+    let mut input = input();
+    input.approvals_reviewer = agent_protocol::ApprovalsReviewer::AutoReview;
+    orchestrate_runtime_tool_execution(input, &approvals, &runner)
+        .await
+        .unwrap();
+    let requests = approvals.requests.lock().unwrap();
+    assert_eq!(requests.len(), 1);
+    assert_eq!(requests[0].kind, RuntimeToolApprovalKind::Guardian);
+    assert_eq!(
+        requests[0].effective_sandbox_policy,
+        RuntimeToolSandboxPolicy::DangerFullAccess
+    );
+}
+
+#[tokio::test]
+async fn automatic_reviewer_does_not_review_an_action_without_an_approval_requirement() {
+    let approvals = RecordingApprovals::default();
+    let runner = SequenceRunner {
+        calls: Mutex::new(Vec::new()),
+        first_error: None,
+    };
+    let mut input = input();
+    input.approvals_reviewer = agent_protocol::ApprovalsReviewer::AutoReview;
+    orchestrate_runtime_tool_execution(input, &approvals, &runner)
+        .await
+        .unwrap();
+    assert!(approvals.requests.lock().unwrap().is_empty());
+    assert_eq!(runner.calls.lock().unwrap().len(), 1);
+}
+
+struct CancellationOwningApproval {
+    token: CancellationToken,
+    completed: Arc<std::sync::atomic::AtomicBool>,
+}
+
+impl RuntimeToolApprovalHandler for CancellationOwningApproval {
+    fn handles_cancellation(&self, _: &RuntimeToolApprovalRequest) -> bool {
+        true
+    }
+    fn approve<'a>(&'a self, _: RuntimeToolApprovalRequest) -> RuntimeToolApprovalFuture<'a> {
+        Box::pin(async move {
+            self.token.cancel();
+            tokio::task::yield_now().await;
+            self.completed
+                .store(true, std::sync::atomic::Ordering::SeqCst);
+            Err(cancelled_error())
+        })
+    }
+}
+
+#[tokio::test]
+async fn owned_reviewer_cancellation_finishes_settlement_before_returning() {
+    let completed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let token = CancellationToken::new();
+    let approvals = CancellationOwningApproval {
+        token: token.clone(),
+        completed: completed.clone(),
+    };
+    let runner = SequenceRunner {
+        calls: Mutex::new(Vec::new()),
+        first_error: None,
+    };
+    let mut input = input();
+    input.cancel_token = Some(token);
+    input.initial_approval =
+        RuntimeToolInitialApproval::Required(RuntimeToolApprovalKind::Guardian);
+    orchestrate_runtime_tool_execution(input, &approvals, &runner)
+        .await
+        .expect_err("cancelled reviewer");
+    assert!(completed.load(std::sync::atomic::Ordering::SeqCst));
+    assert!(runner.calls.lock().unwrap().is_empty());
+}
+
 impl RuntimeToolAttemptRunner for ApplyPatchAttemptRunner {
     fn run<'a>(&'a self, attempt: RuntimeToolExecutionAttempt) -> RuntimeToolAttemptFuture<'a> {
         Box::pin(async move {
@@ -77,6 +200,7 @@ impl RuntimeToolAttemptRunner for ApplyPatchAttemptRunner {
 
 fn input() -> RuntimeToolOrchestrationInput {
     RuntimeToolOrchestrationInput {
+        approvals_reviewer: agent_protocol::ApprovalsReviewer::User,
         identity: RuntimeToolExecutionIdentity::new("call-1", "turn-1"),
         approval_policy: RuntimeToolApprovalPolicy::UnlessTrusted,
         initial_approval: RuntimeToolInitialApproval::NotRequired,

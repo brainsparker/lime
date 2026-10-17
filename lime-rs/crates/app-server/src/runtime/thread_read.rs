@@ -375,12 +375,23 @@ impl RuntimeCore {
         &self,
         thread_id: agent_protocol::ThreadId,
     ) -> Result<RuntimeThreadResumeSnapshot, RuntimeCoreError> {
-        let response = self
+        let mut response = self
             .read_thread(ThreadReadParams {
                 thread_id,
                 turns_view: agent_protocol::ThreadTurnsView::NotLoaded,
             })
             .await?;
+        if self
+            .resolve_legacy_thread_working_directory(&response.thread)
+            .await?
+        {
+            response = self
+                .read_thread(ThreadReadParams {
+                    thread_id: response.thread.thread_id.clone(),
+                    turns_view: agent_protocol::ThreadTurnsView::NotLoaded,
+                })
+                .await?;
+        }
         let session_id = response.thread.session_id.clone();
         self.hydrate_thread_session(&response.thread).await?;
         let active_turn_id = self

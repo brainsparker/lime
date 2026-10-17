@@ -2,22 +2,26 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
-import type { AppServerPluginCatalogSummary } from "@/lib/api/appServerTypes";
+import type { AppServerPluginSummary } from "@/lib/api/appServerTypes";
 import { PluginCatalogPage } from "./PluginCatalogPage";
 
 const mocks = vi.hoisted(() => ({
   appsSubscription: null as null | {
     onUpdate: (apps: unknown[]) => void;
   },
-  installPluginCatalog: vi.fn(),
-  listPluginCatalog: vi.fn(),
+  getProject: vi.fn(),
+  installPlugin: vi.fn(),
+  listPlugins: vi.fn(),
   readAppsReadiness: vi.fn(),
-  readPluginCatalog: vi.fn(),
-  selectPluginCatalogSource: vi.fn(),
-  setPluginCatalogEnabled: vi.fn(),
+  readPlugin: vi.fn(),
+  setPluginEnabled: vi.fn(),
   subscribeAppsListUpdates: vi.fn(),
-  uninstallPluginCatalog: vi.fn(),
+  uninstallPlugin: vi.fn(),
   toastSuccess: vi.fn(),
+}));
+
+vi.mock("@/lib/api/project", () => ({
+  getProject: (...args: unknown[]) => mocks.getProject(...args),
 }));
 
 vi.mock("@/lib/api/apps", () => ({
@@ -29,43 +33,35 @@ vi.mock("@/lib/api/apps", () => ({
 vi.mock("sonner", () => ({
   toast: {
     success: (...args: unknown[]) => mocks.toastSuccess(...args),
+    info: vi.fn(),
   },
 }));
 
 vi.mock("@/lib/api/pluginCatalog", () => ({
-  installPluginCatalog: (...args: unknown[]) =>
-    mocks.installPluginCatalog(...args),
-  listPluginCatalog: (...args: unknown[]) => mocks.listPluginCatalog(...args),
-  readPluginCatalog: (...args: unknown[]) => mocks.readPluginCatalog(...args),
-  selectPluginCatalogSource: (...args: unknown[]) =>
-    mocks.selectPluginCatalogSource(...args),
-  setPluginCatalogEnabled: (...args: unknown[]) =>
-    mocks.setPluginCatalogEnabled(...args),
-  uninstallPluginCatalog: (...args: unknown[]) =>
-    mocks.uninstallPluginCatalog(...args),
+  installPlugin: (...args: unknown[]) => mocks.installPlugin(...args),
+  listPlugins: (...args: unknown[]) => mocks.listPlugins(...args),
+  readPlugin: (...args: unknown[]) => mocks.readPlugin(...args),
+  setPluginEnabled: (...args: unknown[]) => mocks.setPluginEnabled(...args),
+  uninstallPlugin: (...args: unknown[]) => mocks.uninstallPlugin(...args),
 }));
 
 function summary(
-  overrides: Partial<AppServerPluginCatalogSummary> = {},
-): AppServerPluginCatalogSummary {
+  overrides: Partial<AppServerPluginSummary> = {},
+): AppServerPluginSummary {
   return {
-    appsCount: 1,
     authPolicy: "ON_USE",
-    availability: "installed",
-    description: "Writing and research tools",
+    availability: "AVAILABLE",
+    interface: {
+      displayName: "Writer Plugin",
+      shortDescription: "Writing and research tools",
+    },
     enabled: true,
-    hooksCount: 1,
-    id: "writer-plugin",
-    marketplaceId: "personal",
-    contentDigest: "sha256:test",
+    id: "writer-plugin@personal",
     installPolicy: "AVAILABLE",
     installed: true,
     localVersion: "1.2.3",
-    mcpServersCount: 1,
-    name: "Writer Plugin",
-    skillsCount: 1,
-    source: "local",
-    sourceUri: "/tmp/writer-plugin",
+    name: "writer-plugin",
+    source: { type: "local", path: "/tmp/writer-plugin" },
     version: "1.2.3",
     ...overrides,
   };
@@ -111,19 +107,26 @@ describe("PluginCatalogPage", () => {
     await changeLimeLocale("zh-CN");
     vi.clearAllMocks();
     mocks.appsSubscription = null;
-    mocks.listPluginCatalog.mockResolvedValue({
-      generatedAt: "2026-08-04T00:00:00Z",
-      plugins: [summary()],
+    mocks.listPlugins.mockResolvedValue({
+      marketplaces: [
+        {
+          name: "personal",
+          path: "/tmp/marketplace.json",
+          plugins: [summary()],
+        },
+      ],
     });
-    mocks.readPluginCatalog.mockResolvedValue({
+    mocks.readPlugin.mockResolvedValue({
       plugin: {
         summary: summary(),
         skills: [
           {
-            id: "article-writing",
             name: "Article Writing",
             description: "",
-            requiresAuth: false,
+            shortDescription: null,
+            interface: null,
+            path: "/tmp/writer-plugin/skills/article-writing/SKILL.md",
+            enabled: true,
           },
         ],
         mcpServers: [],
@@ -132,16 +135,15 @@ describe("PluginCatalogPage", () => {
             id: "writer-app",
             name: "Writer App",
             description: "",
-            requiresAuth: false,
+            installUrl: null,
+            category: null,
           },
         ],
         hooks: [],
-        uiResources: [],
       },
     });
-    mocks.setPluginCatalogEnabled.mockResolvedValue({
-      plugin: summary({ enabled: false }),
-    });
+    mocks.setPluginEnabled.mockResolvedValue(undefined);
+    mocks.uninstallPlugin.mockResolvedValue({});
     mocks.readAppsReadiness.mockResolvedValue({
       apps: [
         {
@@ -192,11 +194,16 @@ describe("PluginCatalogPage", () => {
   });
 
   it("同页侧栏导航应同步安装筛选、搜索和选中的插件详情", async () => {
-    mocks.listPluginCatalog.mockResolvedValue({
-      generatedAt: "now",
-      plugins: [
-        summary(),
-        summary({ id: "browser", name: "Browser", installed: false }),
+    mocks.listPlugins.mockResolvedValue({
+      marketplaces: [
+        {
+          name: "personal",
+          path: "/tmp/marketplace.json",
+          plugins: [
+            summary(),
+            summary({ id: "browser", name: "Browser", installed: false }),
+          ],
+        },
       ],
     });
     const container = await renderPage();
@@ -206,7 +213,7 @@ describe("PluginCatalogPage", () => {
         <PluginCatalogPage
           pageParams={{
             statusFilter: "installed",
-            selectedPluginId: "writer-plugin",
+            selectedPluginId: "writer-plugin@personal",
             query: "Writer",
           }}
         />,
@@ -221,8 +228,9 @@ describe("PluginCatalogPage", () => {
     expect(
       container.querySelector('[data-testid="plugin-catalog-card-browser"]'),
     ).toBeNull();
-    expect(mocks.readPluginCatalog).toHaveBeenLastCalledWith({
-      pluginId: "writer-plugin",
+    expect(mocks.readPlugin).toHaveBeenLastCalledWith({
+      marketplacePath: "/tmp/marketplace.json",
+      pluginName: "writer-plugin",
     });
 
     await click(
@@ -252,18 +260,67 @@ describe("PluginCatalogPage", () => {
     ).not.toBeNull();
   });
 
+  it("项目切换后忽略旧市场请求，使用新项目的显式 cwd", async () => {
+    mocks.getProject.mockImplementation(async (id: string) => ({
+      rootPath: `/tmp/${id}`,
+    }));
+    let finishOldRequest!: (value: { marketplaces: unknown[] }) => void;
+    mocks.listPlugins.mockImplementation(({ cwds }: { cwds?: string[] }) => {
+      if (cwds?.[0] === "/tmp/old-project") {
+        return new Promise((resolve) => {
+          finishOldRequest = resolve;
+        });
+      }
+      return Promise.resolve({ marketplaces: [] });
+    });
+    const container = await renderPage();
+    const { root } = mounted.at(-1)!;
+    await act(async () => {
+      root.render(
+        <PluginCatalogPage pageParams={{ currentProjectId: "old-project" }} />,
+      );
+    });
+    await flush();
+    expect(mocks.listPlugins).toHaveBeenCalledWith({
+      cwds: ["/tmp/old-project"],
+    });
+    await act(async () => {
+      root.render(
+        <PluginCatalogPage pageParams={{ currentProjectId: "new-project" }} />,
+      );
+    });
+    await flush();
+    expect(mocks.listPlugins).toHaveBeenLastCalledWith({
+      cwds: ["/tmp/new-project"],
+    });
+    await act(async () => {
+      finishOldRequest({
+        marketplaces: [
+          { name: "personal", path: "/tmp/old.json", plugins: [summary()] },
+        ],
+      });
+    });
+    await flush();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-writer-plugin@personal"]',
+      ),
+    ).toBeNull();
+  });
+
   it("从 v2 catalog 展示安装状态并读取详情", async () => {
     const container = await renderPage();
 
     expect(container.textContent).toContain("插件中心");
     expect(
       container.querySelector(
-        '[data-testid="plugin-catalog-card-writer-plugin"]',
+        '[data-testid="plugin-catalog-card-writer-plugin@personal"]',
       ),
     ).not.toBeNull();
-    expect(mocks.listPluginCatalog).toHaveBeenCalledWith();
-    expect(mocks.readPluginCatalog).toHaveBeenCalledWith({
-      pluginId: "writer-plugin",
+    expect(mocks.listPlugins).toHaveBeenCalledWith({});
+    expect(mocks.readPlugin).toHaveBeenCalledWith({
+      marketplacePath: "/tmp/marketplace.json",
+      pluginName: "writer-plugin",
     });
     expect(container.textContent).toContain("Article Writing");
     expect(
@@ -277,16 +334,16 @@ describe("PluginCatalogPage", () => {
 
     await click(
       container.querySelector(
-        '[data-testid="plugin-catalog-actions-writer-plugin"]',
+        '[data-testid="plugin-catalog-actions-writer-plugin@personal"]',
       ),
     );
     await click(
       container.querySelector(
-        '[data-testid="plugin-catalog-toggle-writer-plugin"]',
+        '[data-testid="plugin-catalog-toggle-writer-plugin@personal"]',
       ),
     );
-    expect(mocks.setPluginCatalogEnabled).toHaveBeenCalledWith({
-      pluginId: "writer-plugin",
+    expect(mocks.setPluginEnabled).toHaveBeenCalledWith({
+      pluginId: "writer-plugin@personal",
       enabled: false,
     });
   });
@@ -321,43 +378,150 @@ describe("PluginCatalogPage", () => {
     expect(row?.textContent).toContain("已停用");
   });
 
-  it("通过原生目录选择和 App Server review 安装本地插件", async () => {
-    const available = summary({ installed: false, enabled: false });
-    mocks.listPluginCatalog.mockImplementation(
-      async (params?: { marketplacePaths?: string[] }) =>
-        params?.marketplacePaths
-          ? { generatedAt: "now", plugins: [available] }
-          : { generatedAt: "now", plugins: [] },
-    );
-    mocks.selectPluginCatalogSource.mockResolvedValue("/tmp/marketplace");
-    mocks.installPluginCatalog.mockResolvedValue({
-      plugin: summary(),
-    });
-
+  it("卸载空响应后刷新市场安装态、关闭确认并提示成功", async () => {
+    mocks.uninstallPlugin.mockResolvedValue({});
     const container = await renderPage();
+    mocks.listPlugins.mockResolvedValue({
+      marketplaces: [
+        {
+          name: "personal",
+          path: "/tmp/marketplace.json",
+          plugins: [summary({ installed: false, enabled: false })],
+        },
+      ],
+    });
     await click(
-      container.querySelector('[data-testid="plugin-catalog-install-local"]'),
+      container.querySelector(
+        '[data-testid="plugin-catalog-actions-writer-plugin@personal"]',
+      ),
     );
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-uninstall-writer-plugin@personal"]',
+      ),
+    );
+    const confirm = container.querySelector(
+      '[data-testid="plugin-catalog-uninstall-confirm"]',
+    );
+    await click(confirm?.querySelector("button:last-child") ?? null);
 
-    expect(mocks.listPluginCatalog).toHaveBeenLastCalledWith({
-      marketplacePaths: ["/tmp/marketplace"],
+    expect(mocks.uninstallPlugin).toHaveBeenCalledWith({
+      pluginId: "writer-plugin@personal",
     });
     expect(
-      document.body.querySelector(
-        '[data-testid="plugin-catalog-install-review"]',
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-writer-plugin@personal"]',
       ),
     ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-uninstall-confirm"]',
+      ),
+    ).toBeNull();
+    expect(mocks.toastSuccess).toHaveBeenCalledTimes(1);
+  });
 
+  it("卸载失败时保留卡片和确认状态，不提示成功", async () => {
+    mocks.uninstallPlugin.mockRejectedValue(new Error("uninstall rejected"));
+    const container = await renderPage();
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-actions-writer-plugin@personal"]',
+      ),
+    );
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-uninstall-writer-plugin@personal"]',
+      ),
+    );
+    const confirm = container.querySelector(
+      '[data-testid="plugin-catalog-uninstall-confirm"]',
+    );
+    await click(confirm?.querySelector("button:last-child") ?? null);
+
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-writer-plugin@personal"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-uninstall-confirm"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="plugin-catalog-error"]')
+        ?.textContent,
+    ).toContain("uninstall rejected");
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+  });
+
+  it("按市场定位安装并从服务端刷新，不依赖安装响应中的插件", async () => {
+    mocks.listPlugins
+      .mockResolvedValueOnce({
+        marketplaces: [
+          {
+            name: "personal",
+            path: "/tmp/marketplace.json",
+            plugins: [summary({ installed: false, enabled: false })],
+          },
+        ],
+      })
+      .mockResolvedValue({
+        marketplaces: [
+          {
+            name: "personal",
+            path: "/tmp/marketplace.json",
+            plugins: [summary()],
+          },
+        ],
+      });
+    mocks.installPlugin.mockResolvedValue({
+      authPolicy: "ON_USE",
+      appsNeedingAuth: [],
+    });
+    const container = await renderPage();
+    expect(
+      container.querySelector('[data-testid="plugin-catalog-install-local"]'),
+    ).toBeNull();
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-install-writer-plugin@personal"]',
+      ),
+    );
     await click(
       document.body.querySelector(
         '[data-testid="plugin-catalog-confirm-install"]',
       ),
     );
-    expect(mocks.installPluginCatalog).toHaveBeenCalledWith({
-      sourcePath: "/tmp/writer-plugin",
-      marketplaceId: "personal",
-      source: "local",
-      expectedDigest: "sha256:test",
+    expect(mocks.installPlugin).toHaveBeenCalledWith({
+      marketplacePath: "/tmp/marketplace.json",
+      pluginName: "writer-plugin",
+      installAttemptId: expect.any(String),
     });
+    expect(mocks.listPlugins).toHaveBeenCalledTimes(2);
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-actions-writer-plugin@personal"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it.each([
+    ["zh-CN", "管理市场中的插件，查看详情并安装到当前环境。"],
+    ["zh-TW", "管理市集中的外掛，檢視詳情並安裝到目前環境。"],
+    [
+      "en-US",
+      "Browse marketplace plugins, inspect their details, and install them.",
+    ],
+    ["ja-JP", "マーケットプレイスのプラグインを確認し、インストールします。"],
+    ["ko-KR", "마켓플레이스 플러그인의 세부 정보를 확인하고 설치합니다."],
+  ] as const)("%s 展示市场安装文案", async (locale, description) => {
+    await changeLimeLocale(locale);
+    const container = await renderPage();
+    expect(container.textContent).toContain(description);
+    expect(
+      container.querySelector('[data-testid="plugin-catalog-install-local"]'),
+    ).toBeNull();
   });
 });

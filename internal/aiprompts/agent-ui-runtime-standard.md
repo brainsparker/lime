@@ -172,7 +172,7 @@ src/index.ts            -> barrel exports only
 
 ## 宿主复用基线
 
-当前产品宿主是主 Agent Workspace；Plugin v3 是标准 Skills、MCP servers 与 Apps 能力包，
+当前产品宿主是主 Agent Workspace；Codex 插件 是标准 Skills、MCP servers 与 Apps 能力包，
 不是第二套 UI/runtime host。Plugin 激活后只能进入 App Server JSON-RPC、RuntimeCore 与同一
 Thread/Turn/Item projection，Renderer 不得恢复 Plugin 专属 client、task protocol、运行抽屉、
 projection store 或 Desktop facade。
@@ -234,7 +234,7 @@ Electron 只作为 Desktop Host bridge 和 sidecar lifecycle host。新增 runti
 19. `agent_runtime_*` 不得作为新增 current 能力证据。
 20. mock fallback 只能在测试夹具中显式使用。
 21. 文档与路线图不得引导新能力回到旧命令或旧 projection 事实源。
-22. Plugin v3 不得建立第二套 runtime/UI host；其 Skills、MCP 与 Apps 只能消费主 Agent projection 和 typed Right Surface。
+22. Codex 插件 不得建立第二套 runtime/UI host；其 Skills、MCP 与 Apps 只能消费主 Agent projection 和 typed Right Surface。
 23. `agent-runtime-ui` 的 `index.ts` 必须保持 barrel exports，React primitives 必须按 messages / processTimeline / executionGraph / runtimeFacts / projectionView 等职责拆分。
 25. `agent-ui-contracts` 的 `index.ts` 只能做 barrel exports，events / runtime / projection / messages / timeline / graph 必须按职责拆分。
 26. 标准 UI 不得恢复旧私有 tree 命名；过程结构以 message parts、process timeline、execution graph 和 runtime facts 为标准 surface。

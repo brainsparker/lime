@@ -1,21 +1,50 @@
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse,
+    MarketplaceRemoveParams, MarketplaceRemoveResponse,
+    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
+};
 use super::super::*;
 use app_server_protocol::protocol::v2::{
     AppsInstalledParams, AppsInstalledResponse, AppsListParams, AppsListResponse, AppsReadParams,
-    AppsReadResponse, PluginCatalogEnabledSetParams, PluginCatalogEnabledSetResponse,
-    PluginCatalogInstallParams, PluginCatalogInstallResponse, PluginCatalogInstalledParams,
-    PluginCatalogListParams, PluginCatalogListResponse, PluginCatalogReadParams,
-    PluginCatalogReadResponse, PluginCatalogUninstallParams, PluginCatalogUninstallResponse,
-    PluginSearchParams, PluginSearchResponse,
+    AppsReadResponse, PluginInstallParams, PluginInstallResponse, PluginInstalledParams,
+    PluginInstalledResponse, PluginListParams, PluginListResponse, PluginReadParams,
+    PluginReadResponse, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
+    PluginUninstallResponse,
 };
 use async_trait::async_trait;
 
+impl LocalAppDataSource {
+    /// Configure the host's home and bundled marketplace discovery roots.
+    pub fn with_plugin_discovery_roots(
+        mut self,
+        home: Option<std::path::PathBuf>,
+        bundled_marketplace: Option<std::path::PathBuf>,
+    ) -> Self {
+        self.plugin_store.home = home;
+        self.plugin_store.bundled_marketplace = bundled_marketplace;
+        self
+    }
+}
+
 #[async_trait]
 impl PluginDataSource for LocalAppDataSource {
-    async fn list_plugin_catalog(
+    async fn add_marketplace(&self, params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::marketplace::add(&self.plugin_store, params).await
+    }
+
+    async fn remove_marketplace(&self, params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::marketplace::remove(&self.plugin_store, params)
+    }
+
+    async fn upgrade_marketplace(&self, params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::marketplace::upgrade(&self.plugin_store, params).await
+    }
+
+    async fn list_plugins(
         &self,
-        params: PluginCatalogListParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::list(&self.plugin_data_root, params)
+        params: PluginListParams,
+    ) -> Result<PluginListResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::list(&self.plugin_store, params)
             .map_err(data_error)
     }
 
@@ -23,56 +52,54 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
         params: PluginSearchParams,
     ) -> Result<PluginSearchResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::search(&self.plugin_data_root, params)
+        crate::local_data_source::plugin_catalog::search(&self.plugin_store, params)
             .map_err(data_error)
     }
 
-    async fn read_plugin_catalog(
+    async fn read_plugin(
         &self,
-        params: PluginCatalogReadParams,
-    ) -> Result<PluginCatalogReadResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::read(&self.plugin_data_root, params)
+        params: PluginReadParams,
+    ) -> Result<PluginReadResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::read(&self.plugin_store, params)
             .map_err(data_error)
     }
 
-    async fn install_plugin_catalog(
+    async fn install_plugin(
         &self,
-        params: PluginCatalogInstallParams,
-    ) -> Result<PluginCatalogInstallResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::install(&self.plugin_data_root, params)
+        params: PluginInstallParams,
+    ) -> Result<PluginInstallResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::install(&self.plugin_store, params)
             .map_err(data_error)
     }
 
-    async fn uninstall_plugin_catalog(
+    async fn uninstall_plugin(
         &self,
-        params: PluginCatalogUninstallParams,
-    ) -> Result<PluginCatalogUninstallResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::uninstall(&self.plugin_data_root, params)
+        params: PluginUninstallParams,
+    ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::uninstall(&self.plugin_store, params)
             .map_err(data_error)
     }
 
-    async fn list_plugin_catalog_installed(
+    async fn list_installed_plugins(
         &self,
-        params: PluginCatalogInstalledParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::installed(&self.plugin_data_root, params)
+        params: PluginInstalledParams,
+    ) -> Result<PluginInstalledResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::installed(&self.plugin_store, params)
             .map_err(data_error)
     }
 
     async fn list_enabled_plugin_turn_snapshots(
         &self,
     ) -> Result<Vec<crate::runtime::PluginTurnSnapshot>, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::enabled_plugin_turn_snapshots(
-            &self.plugin_data_root,
-        )
-        .map_err(data_error)
+        crate::local_data_source::plugin_catalog::enabled_plugin_turn_snapshots(&self.plugin_store)
+            .map_err(data_error)
     }
 
     async fn list_apps(
         &self,
         params: AppsListParams,
     ) -> Result<AppsListResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::list_apps(&self.plugin_data_root, params)
+        crate::local_data_source::plugin_catalog::list_apps(&self.plugin_store, params)
             .map_err(data_error)
     }
 
@@ -80,7 +107,7 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
         params: AppsReadParams,
     ) -> Result<AppsReadResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::read_apps(&self.plugin_data_root, params)
+        crate::local_data_source::plugin_catalog::read_apps(&self.plugin_store, params)
             .map_err(data_error)
     }
 
@@ -88,15 +115,7 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
         params: AppsInstalledParams,
     ) -> Result<AppsInstalledResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::installed_apps(&self.plugin_data_root, params)
-            .map_err(data_error)
-    }
-
-    async fn set_plugin_catalog_enabled(
-        &self,
-        params: PluginCatalogEnabledSetParams,
-    ) -> Result<PluginCatalogEnabledSetResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::set_enabled(&self.plugin_data_root, params)
+        crate::local_data_source::plugin_catalog::installed_apps(&self.plugin_store, params)
             .map_err(data_error)
     }
 }

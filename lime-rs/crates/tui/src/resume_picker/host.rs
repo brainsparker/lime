@@ -185,7 +185,7 @@ async fn run_session_picker_with_action(
         Vec::new(),
         action,
         SessionStatus::Active,
-        Some(options.cwd.clone()),
+        options.cwd.clone(),
         false,
     );
     picker.set_model_provider_filter(options.model_provider.clone());
@@ -334,7 +334,7 @@ async fn run_session_picker_with_action(
                             pager.overlay.publish_primary(&mut terminal.clipboard, frame_requester.clone());
                         }
                         PagerAction::OpenLink(destination) => {
-                            if let Err(error) = crate::runtime::open_link(&destination) {
+                            if let Err(error) = crate::runtime::actions::open_link(&destination) {
                                 tracing::warn!(%error, "failed to open transcript link");
                             }
                         }

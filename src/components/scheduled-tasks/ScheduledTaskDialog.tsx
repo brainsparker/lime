@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   scheduledTasksApi,
-  type ScheduledTaskSchedule,
+  type AutomationTaskSchedule,
 } from "@/lib/api/scheduledTasks";
 import { ScheduledTaskEditor } from "./ScheduledTaskEditor";
 import {
@@ -45,7 +45,7 @@ export function ScheduledTaskDialog({
     setPreview([]);
   }, [initialForm, open]);
 
-  const handlePreview = async (schedule: ScheduledTaskSchedule) => {
+  const handlePreview = async (schedule: AutomationTaskSchedule) => {
     setPreviewLoading(true);
     try {
       const response = await scheduledTasksApi.previewSchedule(schedule);

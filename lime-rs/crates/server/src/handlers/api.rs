@@ -43,9 +43,6 @@ use lime_core::errors::GatewayErrorCode;
 use lime_core::models::anthropic::AnthropicMessagesRequest;
 use lime_core::models::openai::{ChatCompletionRequest, ContentPart, MessageContent};
 use lime_core::models::RuntimeProviderCredential;
-use lime_core::plugin_runtime_token::{
-    verify_plugin_runtime_token_for_scope, PLUGIN_RUNTIME_SCOPE_MODEL_GENERATION,
-};
 use lime_core::ProviderType;
 use lime_processor::RequestContext;
 use lime_server_utils::{
@@ -1954,20 +1951,6 @@ pub async fn verify_api_key(
     Ok(())
 }
 
-/// OpenAI 格式的模型生成端点认证，允许 Plugin 使用内容生成 scope。
-pub async fn verify_model_generation_api_key(
-    headers: &HeaderMap,
-    expected_key: &str,
-) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
-    let key = openai_api_key_from_headers(headers)?;
-
-    if !model_generation_access_key_matches(expected_key, key) {
-        return Err(openai_auth_error("Invalid API key"));
-    }
-
-    Ok(())
-}
-
 /// Anthropic 格式的 API key 验证
 pub async fn verify_api_key_anthropic(
     headers: &HeaderMap,
@@ -1980,30 +1963,6 @@ pub async fn verify_api_key_anthropic(
     }
 
     Ok(())
-}
-
-/// Anthropic 格式的模型生成端点认证，允许 Plugin 使用内容生成 scope。
-pub async fn verify_model_generation_api_key_anthropic(
-    headers: &HeaderMap,
-    expected_key: &str,
-) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
-    let key = anthropic_api_key_from_headers(headers)?;
-
-    if !model_generation_access_key_matches(expected_key, key) {
-        return Err(anthropic_auth_error("Invalid API key"));
-    }
-
-    Ok(())
-}
-
-fn model_generation_access_key_matches(expected_key: &str, key: &str) -> bool {
-    static_api_key_matches(expected_key, key)
-        || verify_plugin_runtime_token_for_scope(
-            expected_key,
-            key,
-            PLUGIN_RUNTIME_SCOPE_MODEL_GENERATION,
-        )
-        .is_ok()
 }
 
 fn static_api_key_matches(expected_key: &str, key: &str) -> bool {
@@ -2079,7 +2038,7 @@ pub async fn chat_completions(
     tracing::debug!("[CHAT_COMPLETIONS] 流式: {}", request.stream);
     tracing::debug!("[CHAT_COMPLETIONS] 消息数量: {}", request.messages.len());
 
-    if let Err(e) = verify_model_generation_api_key(&headers, &state.api_key).await {
+    if let Err(e) = verify_api_key(&headers, &state.api_key).await {
         tracing::debug!("[CHAT_COMPLETIONS] 认证失败!");
         state
             .logs
@@ -2490,7 +2449,7 @@ pub async fn anthropic_messages(
     Json(mut request): Json<AnthropicMessagesRequest>,
 ) -> Response {
     // 使用 Anthropic 格式的认证验证（优先检查 x-api-key）
-    if let Err(e) = verify_model_generation_api_key_anthropic(&headers, &state.api_key).await {
+    if let Err(e) = verify_api_key_anthropic(&headers, &state.api_key).await {
         state
             .logs
             .write()
@@ -3050,79 +3009,5 @@ fn convert_anthropic_response_to_openai(anthropic_resp: &serde_json::Value, mode
 }
 
 #[cfg(test)]
-mod auth_tests {
-    use super::*;
-    use axum::http::HeaderValue;
-    use lime_core::plugin_runtime_token::issue_plugin_runtime_token_with_nonce;
-
-    fn bearer_headers(token: &str) -> HeaderMap {
-        let mut headers = HeaderMap::new();
-        headers.insert(
-            "authorization",
-            HeaderValue::from_str(&format!("Bearer {token}")).unwrap(),
-        );
-        headers
-    }
-
-    #[tokio::test]
-    async fn verify_api_key_accepts_legacy_static_key() {
-        let headers = bearer_headers("server-secret");
-
-        verify_api_key(&headers, "server-secret").await.unwrap();
-        verify_api_key_anthropic(&headers, "server-secret")
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    async fn verify_api_key_rejects_plugin_scoped_token() {
-        let token = issue_plugin_runtime_token_with_nonce(
-            "server-secret",
-            "content-factory-app",
-            chrono::Utc::now().timestamp() + 60,
-            "nonce-1",
-        )
-        .unwrap();
-        let headers = bearer_headers(&token);
-
-        assert!(verify_api_key(&headers, "server-secret").await.is_err());
-        assert!(verify_api_key_anthropic(&headers, "server-secret")
-            .await
-            .is_err());
-    }
-
-    #[tokio::test]
-    async fn verify_model_generation_api_key_accepts_plugin_scoped_token() {
-        let token = issue_plugin_runtime_token_with_nonce(
-            "server-secret",
-            "content-factory-app",
-            chrono::Utc::now().timestamp() + 60,
-            "nonce-1",
-        )
-        .unwrap();
-        let headers = bearer_headers(&token);
-
-        verify_model_generation_api_key(&headers, "server-secret")
-            .await
-            .unwrap();
-        verify_model_generation_api_key_anthropic(&headers, "server-secret")
-            .await
-            .unwrap();
-    }
-
-    #[tokio::test]
-    async fn verify_model_generation_api_key_rejects_wrong_plugin_scoped_token_secret() {
-        let token = issue_plugin_runtime_token_with_nonce(
-            "other-secret",
-            "content-factory-app",
-            chrono::Utc::now().timestamp() + 60,
-            "nonce-1",
-        )
-        .unwrap();
-        let headers = bearer_headers(&token);
-
-        assert!(verify_model_generation_api_key(&headers, "server-secret")
-            .await
-            .is_err());
-    }
-}
+#[path = "api/auth_tests.rs"]
+mod auth_tests;

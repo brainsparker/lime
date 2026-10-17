@@ -21,7 +21,10 @@ const rootDir = path.resolve(
   "../..",
 );
 const cliName = process.platform === "win32" ? "lime.exe" : "lime";
-const cliPath = path.join(rootDir, "lime-rs", "target", "debug", cliName);
+const cliPath = path.resolve(
+  process.env.LIME_CLI_BIN ||
+    path.join(rootDir, "lime-rs", "target", "debug", cliName),
+);
 const appServerPath = path.resolve(
   process.env.APP_SERVER_BIN || localAppServerBinaryPath({ repoRoot: rootDir }),
 );
@@ -210,28 +213,28 @@ async function main() {
         plugins: [
           {
             name: "cli-surface-plugin",
-            source: { path: "plugin-source" },
+            source: { source: "local", path: "./plugin-source" },
           },
         ],
       }),
       "utf8",
     );
+    const pluginConnection = ["-C", tempDir, ...connection];
     const availableBeforeInstall = await runCli(
       [
         "plugin",
         "list",
         "--available",
         "--json",
-        "--plugin-cwd",
-        tempDir,
-        ...connection,
+        ...pluginConnection,
       ],
       tempDir,
     );
     const availablePayload = JSON.parse(availableBeforeInstall.stdout);
-    assertArray(availablePayload.plugins, "available plugin list plugins");
-    const availablePlugin = availablePayload.plugins.find(
-      (candidate) => candidate?.id === "cli-surface-plugin",
+    assertArray(availablePayload.marketplaces.flatMap((market) => market.plugins), "available plugin list plugins");
+    const availablePlugin = availablePayload.marketplaces.flatMap((market) => market.plugins).find(
+      (candidate) =>
+        candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
     );
     if (!availablePlugin || availablePlugin.installed !== false) {
       throw new Error(
@@ -239,18 +242,26 @@ async function main() {
       );
     }
     await runCli(
-      ["plugin", "add", pluginRoot, "--source", "repo", ...connection],
+      [
+        "plugin",
+        "add",
+        "cli-surface-plugin",
+        "--marketplace",
+        "cli-surface-marketplace",
+        ...pluginConnection,
+      ],
       tempDir,
     );
 
     const plugins = await runCli(
-      ["plugin", "list", "--json", ...connection],
+      ["plugin", "list", "--json", ...pluginConnection],
       tempDir,
     );
     const pluginPayload = JSON.parse(plugins.stdout);
-    assertArray(pluginPayload.plugins, "plugin list plugins");
-    const plugin = pluginPayload.plugins.find(
-      (candidate) => candidate.id === "cli-surface-plugin",
+    assertArray(pluginPayload.marketplaces.flatMap((market) => market.plugins), "plugin list plugins");
+    const plugin = pluginPayload.marketplaces.flatMap((market) => market.plugins).find(
+      (candidate) =>
+        candidate.id === "cli-surface-plugin@cli-surface-marketplace",
     );
     if (!plugin)
       throw new Error("plugin add did not expose the installed plugin");
@@ -260,17 +271,16 @@ async function main() {
         "list",
         "--available",
         "--json",
-        "--plugin-cwd",
-        tempDir,
-        ...connection,
+        ...pluginConnection,
       ],
       tempDir,
     );
     const repoPluginPayload = JSON.parse(repoPlugins.stdout);
-    assertArray(repoPluginPayload.plugins, "repo-local plugin list plugins");
+    assertArray(repoPluginPayload.marketplaces.flatMap((market) => market.plugins), "repo-local plugin list plugins");
     if (
-      !repoPluginPayload.plugins.some(
-        (candidate) => candidate?.id === "cli-surface-plugin",
+      !repoPluginPayload.marketplaces.flatMap((market) => market.plugins).some(
+        (candidate) =>
+          candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
       )
     ) {
       throw new Error(
@@ -278,11 +288,18 @@ async function main() {
       );
     }
     const pluginRead = await runCli(
-      ["plugin", "read", "cli-surface-plugin", "--json", ...connection],
+      [
+        "plugin",
+        "read",
+        "cli-surface-plugin@cli-surface-marketplace",
+        "--json",
+        ...pluginConnection,
+      ],
       tempDir,
     );
     if (
-      JSON.parse(pluginRead.stdout).plugin?.summary?.id !== "cli-surface-plugin"
+      JSON.parse(pluginRead.stdout).plugin?.summary?.id !==
+      "cli-surface-plugin@cli-surface-marketplace"
     ) {
       throw new Error(
         `plugin read returned an unexpected payload: ${pluginRead.stdout}`,
@@ -293,9 +310,7 @@ async function main() {
         "plugin",
         "search",
         "cli-surface",
-        "--plugin-cwd",
-        tempDir,
-        ...connection,
+        ...pluginConnection,
       ],
       tempDir,
     );
@@ -303,7 +318,8 @@ async function main() {
     assertArray(pluginSearchPayload.data, "plugin search data");
     if (
       !pluginSearchPayload.data.some(
-        (entry) => entry.plugin?.id === "cli-surface-plugin",
+        (entry) =>
+          entry.plugin?.id === "cli-surface-plugin@cli-surface-marketplace",
       )
     ) {
       throw new Error(
@@ -311,17 +327,56 @@ async function main() {
       );
     }
     await runCli(
-      ["plugin", "disable", "cli-surface-plugin", ...connection],
+      [
+        "plugin",
+        "disable",
+        "cli-surface-plugin@cli-surface-marketplace",
+        ...pluginConnection,
+      ],
       tempDir,
     );
     await runCli(
-      ["plugin", "enable", "cli-surface-plugin", ...connection],
+      [
+        "plugin",
+        "enable",
+        "cli-surface-plugin@cli-surface-marketplace",
+        ...pluginConnection,
+      ],
       tempDir,
     );
-    await runCli(
-      ["plugin", "remove", "cli-surface-plugin", ...connection],
+    const removed = await runCli(
+      [
+        "plugin",
+        "remove",
+        "cli-surface-plugin@cli-surface-marketplace",
+        "--json",
+        ...pluginConnection,
+      ],
       tempDir,
     );
+    if (JSON.stringify(JSON.parse(removed.stdout)) !== "{}") {
+      throw new Error(
+        `plugin remove must return an empty result: ${removed.stdout}`,
+      );
+    }
+    const repeatedRemove = await runCli(
+      [
+        "plugin",
+        "remove",
+        "cli-surface-plugin@cli-surface-marketplace",
+        ...pluginConnection,
+      ],
+      tempDir,
+    );
+    if (
+      !repeatedRemove.stdout.includes(
+        "Removed plugin `cli-surface-plugin@cli-surface-marketplace`.",
+      )
+    ) {
+      throw new Error(
+        `plugin remove did not preserve the requested identity: ${repeatedRemove.stdout}`,
+      );
+    }
 
     const memory = await runCli(
       ["debug", "clear-memories", ...connection],

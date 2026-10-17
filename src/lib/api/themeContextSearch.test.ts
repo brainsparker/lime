@@ -13,7 +13,7 @@ function appServerClientMock() {
     id: 1,
     result: {
       approvalPolicy: null,
-      approvalsReviewer: null,
+      approvalsReviewer: "user",
       cwd: "/tmp/workspace-1",
       model: "gpt-4.1-mini",
       modelProvider: "openai-compatible",

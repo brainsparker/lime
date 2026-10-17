@@ -53,10 +53,9 @@ describe("AppSidebar Plugins", () => {
 
   it("已安装目录应读取真实 catalog 投影并随变更刷新，点击直接打开插件详情", async () => {
     mockListInstalledPluginCatalog.mockResolvedValue({
-      plugins: [
+      marketplaces: [{ name: "personal", plugins: [
         { id: "remotion", name: "Remotion", installed: true, enabled: false },
-      ],
-      generatedAt: "now",
+      ] }],
     });
     const onNavigate = vi.fn();
     const container = mountSidebarContainer({
@@ -81,8 +80,7 @@ describe("AppSidebar Plugins", () => {
     });
 
     mockListInstalledPluginCatalog.mockResolvedValue({
-      plugins: [],
-      generatedAt: "updated",
+      marketplaces: [],
     });
     await act(async () => {
       window.dispatchEvent(new Event("lime:plugin-catalog-changed"));

@@ -24,6 +24,12 @@ import { isSettingsSection, resolveSettingsSection } from "../sections";
 import { SettingsHomePage } from "../home";
 import type { NavigationGuard } from "@/lib/navigationGuard";
 import { SettingsNavigationGuard } from "./SettingsNavigationGuard";
+import { useSettingsSearchTarget } from "./useSettingsSearchTarget";
+import {
+  getSettingsSearchDocument,
+  type SettingsSearchResult,
+} from "../settingsSearch";
+import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
 
 const LayoutContainer = styled.div`
   display: flex;
@@ -48,6 +54,12 @@ const ContentContainer = styled.main<{ $reserveWindowControls: boolean }>`
       rgba(244, 249, 247, 0.92) 100%
     )
   );
+
+  [data-settings-search-active="true"] {
+    outline: 2px solid var(--lime-brand, hsl(var(--primary)));
+    outline-offset: 4px;
+    border-radius: 8px;
+  }
 
   &::-webkit-scrollbar {
     width: 6px;
@@ -155,6 +167,11 @@ function renderSettingsContent(
 ): ReactNode {
   const section = resolveSettingsSection(tab);
   const content = section.render({
+    searchPath: getSettingsSearchDocument(
+      tab,
+      params.searchFocus?.targetId,
+      !resolveOemCloudRuntimeContext(),
+    )?.path,
     renderHome: () => (
       <SettingsHomePage
         onTabChange={onTabChange}
@@ -201,6 +218,7 @@ export function SettingsPage({
   const activeTab = resolveSettingsSection(pageParams.tab).key;
   const contentContainerRef = useRef<HTMLElement | null>(null);
   const prefetchedTabsRef = useRef<Set<SettingsTabs>>(new Set());
+  const searchRequestRef = useRef(pageParams.searchFocus?.requestKey ?? 0);
   const reserveWindowControls = shouldReserveMacWindowControls();
 
   const handleTabChange = useCallback(
@@ -209,6 +227,28 @@ export function SettingsPage({
       onNavigate("settings", { tab });
     },
     [onNavigate, pageParams.tab],
+  );
+
+  const handleSearchSelect = useCallback(
+    (result: SettingsSearchResult) => {
+      if (!result.targetId) {
+        handleTabChange(result.section);
+        return;
+      }
+      searchRequestRef.current =
+        Math.max(
+          searchRequestRef.current,
+          pageParams.searchFocus?.requestKey ?? 0,
+        ) + 1;
+      onNavigate("settings", {
+        tab: result.section,
+        searchFocus: {
+          targetId: result.targetId,
+          requestKey: searchRequestRef.current,
+        },
+      });
+    },
+    [handleTabChange, onNavigate, pageParams.searchFocus?.requestKey],
   );
 
   const handleTabPrefetch = useCallback((tab: SettingsTabs) => {
@@ -235,6 +275,13 @@ export function SettingsPage({
     contentContainerRef.current?.scrollTo?.({ top: 0, behavior: "auto" });
   }, [activeTab]);
 
+  useSettingsSearchTarget(
+    contentContainerRef,
+    activeTab,
+    pageParams.searchFocus,
+    !resolveOemCloudRuntimeContext(),
+  );
+
   return (
     <SettingsNavigationGuard navigationGuard={navigationGuard}>
       <LayoutContainer className="lime-settings-theme-scope">
@@ -243,6 +290,9 @@ export function SettingsPage({
           reserveWindowControls={reserveWindowControls}
           onTabChange={handleTabChange}
           onTabPrefetch={handleTabPrefetch}
+          onSearchSelect={handleSearchSelect}
+          searchRequestKey={pageParams.searchFocus?.requestKey}
+          navigationPending={navigationGuard.pendingNavigation}
           onBack={onBack}
           onHome={handleBackHome}
           onNavigate={onNavigate}
@@ -252,7 +302,10 @@ export function SettingsPage({
           $reserveWindowControls={reserveWindowControls}
         >
           <ContentAtmosphere data-testid="settings-content-atmosphere" />
-          <ContentWrapper $wide={isSettingsSection(activeTab)}>
+          <ContentWrapper
+            key={`${activeTab}:${pageParams.searchFocus?.requestKey ?? ""}`}
+            $wide={isSettingsSection(activeTab)}
+          >
             {renderSettingsContent(
               activeTab,
               handleTabChange,

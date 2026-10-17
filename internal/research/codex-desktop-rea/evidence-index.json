@@ -8292,5 +8292,700 @@
       "contracts": "fresh pass",
       "old_failure_original": "deleted externally"
     }
+  },
+  "current_profile_entry_alignment": {
+    "status": "accepted scoped entry isolation; remote Profile and whole GUI partial",
+    "started_at": "2026-10-16T17:52:32.676230+00:00",
+    "evidence_directory": ".lime/qc/settings-profile/entry-20261017",
+    "backup": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-profile-entry-4zt5oay4",
+    "owner": "settingsSections: existing OEM runtime chooses one existing Profile owner; no added auth/API owner",
+    "reference_parent": "ev_2b4e6d08d1d979e0dcd2e6defa733fa149bd45f5b4d48b4ba05fb4f7938526fa",
+    "eligibility_source_view": "ev_d842243733886bd9ced33ce5cf6ea8094fd0b7ada2ed54fa4f16aba9a8a10fdf",
+    "reference_limits": "static source-module identity; parent semantic partial; OEM runtime not equivalent to upstream eligibility",
+    "source_manifest": ".lime/qc/settings-profile/entry-20261017/source-manifest.json",
+    "red": "five locale entry cases fail before production change",
+    "targeted": "7 suites107/107",
+    "typecheck": "pass",
+    "cleanup": [
+      "non-OEM unavailable account card and auth component mounting",
+      "unconditional loading of both Profile modules",
+      "old dual-mount positive assertion"
+    ],
+    "classification": {
+      "current": [
+        "settingsSections",
+        "ProfileSettings",
+        "existing OEM UserCenterSessionSettings and auth hook"
+      ],
+      "compat_added": 0,
+      "deprecated_added": 0,
+      "deleted": "non-OEM dual presentation path; no physical file deletions in this slice"
+    },
+    "limitations": "OEM auth/account content, remote Profile query/mutation/eligibility, reference runtime, live, Windows and packaged app remain unverified; whole GUI partial",
+    "standard_gui": {
+      "run_id": "standalone-shell-01-20261016182210-58995",
+      "passed": 24,
+      "total": 24,
+      "errors": 0
+    },
+    "native": {
+      "run_id": "settings-profile-entry-20261017-2",
+      "local_entry": {
+        "checkedVisits": 9,
+        "onlyLocalProfile": true,
+        "profileHeadingCount": 1,
+        "unavailableAccountHeadingCount": 0,
+        "managedAccountPanelCount": 0,
+        "accountLoginPanelCount": 0,
+        "googleLoginCount": 0,
+        "oemAuthentication": "component evidence only; no real sign-in"
+      },
+      "local_navigation": "9/9",
+      "themes": "4/4; system media-emulated",
+      "ipc": 1640,
+      "source_count": 83,
+      "artifact_count": 741,
+      "summary_sha256": "14a25b3893c72d70ae4f9e961587f1d42ade6e0717037cfd3ed12235cee7f24c",
+      "errors": 0,
+      "production_mock_hits": 0,
+      "normal_exit": {
+        "pid": 74665,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forced_cleanup": null
+    },
+    "historical_attempt": "原生第1轮保留exit1：启动前Cargo metadata等待自行恢复，未中断进程或修改期限；场景完成后，最终freshness守卫因并行协议源码及生成产物变化拒绝验收。第2轮按标准入口更新构建，并通过已有APP_SERVER_BIN接口显式选择已校验manifest/SHA的sidecar；不放宽守卫、不改生产helper、不覆盖失败证据。",
+    "visual_review": ".lime/qc/settings-profile/entry-20261017/visual-review.json",
+    "receipt": ".lime/qc/settings-profile/entry-final-20261017-1/receipt.json",
+    "default_full": "not run; scoped presentation wiring and concurrent P0 changes; no full mixed-tree default pass claim",
+    "rust_and_cold": "not rerun; no Rust/config/save lifecycle modification",
+    "next": "settings content search and exact row location; remote Profile remains open"
+  },
+  "current_settings_content_search_audit": {
+    "status": "static document evidence accepted; first nine targets implemented; product validation tracked separately",
+    "parent_evidence_id": "ev_c1fe1285584791d68b3fd0c52bf430325bb5da1758aefd3090feb75ba337e4b2",
+    "source_module_view_id": "ev_34efb5366f4d9b0617273007cb751bc8764c71383e46d983b157745ce735b1a0",
+    "public_export": "settingsSearchDocuments",
+    "member": {
+      "path": "webview/assets/_virtual_settings-search-documents-ea4141d234e9.js",
+      "bytes": 525711,
+      "sha256": "f63906f31750633a6fb252894dfa84247883f5a79a1e0dfd008bb56919283fca",
+      "absoluteAsarOffset": 43236184,
+      "integrityVerified": true
+    },
+    "document_shape": {
+      "sections": 50,
+      "messageEntries": 5234,
+      "method": "inert Babel AST literal extraction; no eval/import of reference module",
+      "range": {
+        "start": 93,
+        "end": 524883
+      }
+    },
+    "coverage": {
+      "application": {
+        "status": "complete",
+        "truncated": false,
+        "omitted_count": 0,
+        "limits": []
+      },
+      "semantic": {
+        "status": "partial",
+        "truncated": true,
+        "omitted_nodes": null,
+        "omitted_relations": null,
+        "limits": [
+          {
+            "name": "semantic_graph_node_ceiling",
+            "value": 100000,
+            "unit": "items"
+          }
+        ],
+        "families": [
+          {
+            "family": "boundary",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "call-flow",
+            "status": "partial",
+            "retained_relations": 2,
+            "omitted_relations": null,
+            "unknown_count": 3
+          },
+          {
+            "family": "child-process",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "closure",
+            "status": "partial",
+            "retained_relations": 3,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "configuration",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "data-flow",
+            "status": "partial",
+            "retained_relations": 7990,
+            "omitted_relations": null,
+            "unknown_count": 2
+          },
+          {
+            "family": "event",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "object-flow",
+            "status": "partial",
+            "retained_relations": 12004,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "promise-ownership",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "request",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "resource-lifecycle",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          },
+          {
+            "family": "timer",
+            "status": "partial",
+            "retained_relations": 0,
+            "omitted_relations": null,
+            "unknown_count": 0
+          }
+        ]
+      },
+      "application_unknowns": 0,
+      "semantic_unknowns": 5
+    },
+    "limits": [
+      "Unresolved rolldown import; no bootstrap/execution",
+      "Semantic graph ceiling100000, partial/truncated, 5 unknowns",
+      "Shipped index contains host/auth/feature-specific messages; do not treat as visible functionality",
+      "Existing settings-page parsing Evidence reused offline; not retained in current session",
+      "Lime content search implementation, row focus/scroll and real GUI remain pending"
+    ],
+    "receipt": ".lime/qc/settings-content-search/audit-20261017/audit-receipt.json",
+    "backup": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-settings-search-audit-vrq5x_rw"
+  },
+  "current_settings_content_search": {
+    "status": "36 content targets accepted (9 first batch+15WebSearch+7Memory+5Appearance); full settings and GUI partial",
+    "scope": {
+      "currentSectionTitles": 15,
+      "contentTargets": 36,
+      "localProfile": 2,
+      "environment": 3,
+      "executionPolicy": 4,
+      "webSearch": 15,
+      "memory": 7,
+      "appearance": 5
+    },
+    "reference": "current_settings_content_search_audit",
+    "publicExport": "settingsSearchDocuments",
+    "owners": [
+      "settingsSearchDocuments",
+      "searchSettings",
+      "SettingsSearch",
+      "useSettingsSearchTarget",
+      "SettingsPage",
+      "useAppNavigation",
+      "getSettingsSearchDocument"
+    ],
+    "boundary": "Static translated messages only; OEM excludes local Profile; canonical navigation/dirty guard own commit; known targets only; no config/credentials/user values indexed.",
+    "lifecycle": "Multiple words must match one document/panel; titles first; one best result per section. Query/panel clear on canonical commit. Confirmed requestKey remounts content to discard same-page drafts. MutationObserver waits for asynchronous DOM and disconnects on route/unmount. Committed target resolves static path before lazy section mounts; WebSearch/Memory initial tabs share the existing canonical requestKey/dirty authority. Memory import text/preview and hidden note lifecycle remain in their original owners.",
+    "cleanup": "Sidebar inline filter/search UI replaced; dialog restores focus on keep only; duplicate Chromium clear button hidden; no new compat/deprecated; fixed WebSearch/Memory defaults replaced by committed path; overlong inline Memory/Appearance presentation and duplicate response-language option type replaced directly",
+    "directed": "this batch8suites105/105, evidence guards2suites8/8; complete current-worktree Renderer/Node typecheck, strict lint and relevant static boundaries passed",
+    "evidence": ".lime/qc/settings-content-search/memory-appearance-20261017",
+    "limitations": [
+      "full settings content coverage",
+      "remote Profile/eligibility/auth",
+      "reference runtime",
+      "production RuntimeBackend/provider/live",
+      "Windows/packaged/all skins",
+      "whole GUI and full symbol coverage"
+    ],
+    "guardrails": {
+      "scripts": "pass",
+      "desktopReferenceBoundary": "pass",
+      "docsBoundary": "pass",
+      "fileSize": "new product files maximum681 lines; previous repository-wide failures retained; no baseline modification",
+      "fullDefault": "not run; task selector includes concurrent P0 Rust/protocol work; no full mixed-tree pass claim",
+      "guiWrapper": "not rerun; isolated same standard renderer/Host build and smoke passed; no latest concurrent Rust/complete wrapper claim"
+    },
+    "receipt": ".lime/qc/settings-content-search/memory-appearance-final-20261017-1/receipt.json",
+    "standardGui": {
+      "runId": "settings-memory-appearance-standard-20261017-1",
+      "assertions": "24/24",
+      "exitCode": 0,
+      "boundary": "same isolated declared source/artifact candidate; standard renderer/Host build and original smoke.mjs; no latest concurrent Rust/full wrapper claim"
+    },
+    "native": {
+      "runId": "settings-memory-appearance-native-20261017-1",
+      "exitCode": 0,
+      "contentTargets": "36/36",
+      "additionalContentTargets": "12/12",
+      "memoryAppearance": {
+        "targets": 12,
+        "memoryTargets": 7,
+        "memoryTabs": 3,
+        "appearanceTargets": 5,
+        "localTabsRetainImportAndPreview": true,
+        "pendingSearchRetainsTabAndDraft": true,
+        "discardRemountsWithoutWrite": true,
+        "repeatReopensTab": true,
+        "memorySoul": {
+          "targetId": "memory-style",
+          "focused": true,
+          "top": 77,
+          "ownerTop": 0,
+          "ownerBottom": 1000,
+          "scrollTop": 392,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        },
+        "appearance": {
+          "targetId": "appearance-recommendation",
+          "focused": true,
+          "top": 846,
+          "ownerTop": 0,
+          "ownerBottom": 1000,
+          "scrollTop": 1310.5,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        },
+        "narrowAppearance": {
+          "targetId": "appearance-language",
+          "focused": true,
+          "top": 24,
+          "ownerTop": 0,
+          "ownerBottom": 900,
+          "scrollTop": 2664,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        }
+      },
+      "themes": "4/4; current skin/media-emulated system",
+      "narrow": "600x900; kept import draft and search; discard focuses Appearance language and closes floating navigation",
+      "ipc": 1757,
+      "errors": 0,
+      "productionMockHits": 0,
+      "sameCanonicalIdentity": {
+        "sessionId": "01a1478f-190e-7641-8610-9e52c98ab006",
+        "threadId": "01a1478f-190e-7641-8610-9e52c98ab006",
+        "turnId": "turn_cf9470bb14c5423099a93b7c46527735",
+        "itemIds": [
+          "user-turn_cf9470bb14c5423099a93b7c46527735",
+          "agent-message-final-turn_cf9470bb14c5423099a93b7c46527735"
+        ],
+        "workspaceId": "b1e39630-0aff-4332-83e4-bdae0a84f7af",
+        "projectId": null,
+        "cwd": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/claw-chat-current-fixture-mKJnWu/home/Library/Application Support/lime/projects/default",
+        "workspaceIdentitySource": "workspace/default/ensure id/root, thread/read cwd, visible directory and restored navigation projectId"
+      },
+      "backendTurnStarts": 1,
+      "normalMainExit": {
+        "pid": 30708,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forcedCleanup": null,
+      "sourceCount": 95,
+      "artifactCount": 1481,
+      "noDrift": true,
+      "buildBefore": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      },
+      "buildAfter": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      }
+    },
+    "validationSnapshot": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-memory-appearance-validation-pvynbbr5",
+    "originalProductSourcesMatchSnapshot": true,
+    "originalProductSourceCount": 10,
+    "visualReview": ".lime/qc/settings-content-search/memory-appearance-20261017/visual-review.json",
+    "failuresPreserved": [
+      "Previous first-batch failures retained with firstBatchReceipt",
+      "Host asset copy missing snapshot icons; original digests matched packaged artifacts and sources restored",
+      "Snapshot standard1 23/24: omitted PostCSS/Tailwind config left @tailwind unprocessed; original inputs restored and normal rebuild passed; assertions unchanged",
+      "Original-worktree wrapper V8 binding cache missing; verified cache restored; no latest mixed-tree pass claim"
+    ],
+    "next": "remaining current settings targets/dirty coverage; obtain focused REA evidence for full-page layout and unknown symbols",
+    "firstBatchReceipt": ".lime/qc/settings-content-search/final-20261017-1/receipt.json",
+    "secondBatchReceipt": ".lime/qc/settings-content-search/web-search-final-20261017-1/receipt.json"
+  },
+  "current_settings_content_search_web_search": {
+    "status": "15/15 additional targets and4/4 local tabs accepted; cumulative24/24; full GUI partial",
+    "reference": "current_settings_content_search_audit",
+    "scope": {
+      "additionalContentTargets": 15,
+      "cumulativeContentTargets": 24,
+      "tabs": {
+        "search": 3,
+        "providers": 4,
+        "mse": 6,
+        "images": 2
+      }
+    },
+    "owners": [
+      "settingsSearchDocuments",
+      "getSettingsSearchDocument",
+      "SettingsPage",
+      "settingsSections",
+      "WebSearchSettings",
+      "FieldBlock",
+      "useSettingsSearchTarget",
+      "useAppNavigation"
+    ],
+    "contract": "canonical searchFocus alone resolves static path; existing guard owns commit; requestKey remount discards only after confirmation; focus non-editable wrapper; credentials remain masked; no values indexed or persisted by search",
+    "directed": {
+      "suites": 8,
+      "tests": 133,
+      "typecheck": "complete current-worktree renderer/node passed",
+      "lint": "strict passed",
+      "docsBoundary": "passed",
+      "scriptGovernance": "passed",
+      "desktopReferenceBoundary": "passed"
+    },
+    "evidence": ".lime/qc/settings-content-search/web-search-20261017",
+    "snapshot": {
+      "path": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-web-search-validation-j_pft1bs",
+      "base": "previous accepted first9 snapshot with matching source and artifacts",
+      "overlay": "10 declared source/test/fixture files only; before hashes match base",
+      "boundary": "same newly rebuilt renderer/host and accepted unchanged backend; not latest concurrent Rust/protocol tree",
+      "sourceAndArtifactNoDrift": true,
+      "overlayCountMatchingRoot": 10,
+      "additionalBuildInputs": "7 original icons and unchanged PostCSS/Tailwind configs, recorded SHA and original mtimes"
+    },
+    "cleanup": "fixed search tab default replaced by committed static path; no new compat/deprecated/second navigation or draft owner",
+    "limitations": [
+      "full settings content coverage",
+      "remote Profile/eligibility/auth",
+      "reference runtime",
+      "production RuntimeBackend/provider/live/search",
+      "Windows/packaged/all skins",
+      "whole GUI and full symbol coverage"
+    ],
+    "standardGui": {
+      "runId": "standalone-shell-01-20261017012129-19113",
+      "assertions": "24/24",
+      "boundary": "same isolated source/artifact candidate after restoring omitted build inputs; original-worktree verify:gui-smoke failed in V8 cache before scenario"
+    },
+    "native": {
+      "runId": "settings-web-search-targets-native-20261017-1",
+      "exitCode": 0,
+      "contentTargets": "24/24",
+      "webSearch": {
+        "targets": 15,
+        "tabs": 4,
+        "hiddenTabKeepAndDiscard": true,
+        "repeatReopensTab": true,
+        "maskedCredentials": true,
+        "noConfigWrite": true
+      },
+      "themes": "4/4; media-emulated system",
+      "desktopDirty": {
+        "keptDraft": true,
+        "canonicalUnchangedUntilDiscard": true,
+        "sameSectionDiscard": true,
+        "noConfigWrite": true
+      },
+      "narrow": {
+        "viewport": {
+          "width": 600,
+          "height": 900
+        },
+        "targetId": "environment-overrides",
+        "focused": true,
+        "top": 24,
+        "ownerTop": 0,
+        "ownerBottom": 900,
+        "scrollTop": 1048,
+        "outlineColor": "rgb(217, 95, 135)",
+        "outlineWidth": "2px",
+        "viewportOverflow": false,
+        "webSearch": {
+          "targetId": "web-search-pixabay-key",
+          "focused": true,
+          "top": 56,
+          "ownerTop": 0,
+          "ownerBottom": 900,
+          "scrollTop": 584,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        },
+        "shortcutFocused": true,
+        "keptDraftAndSearch": true,
+        "panelClosedAfterCommit": true
+      },
+      "ipc": 1683,
+      "errors": 0,
+      "productionMockHits": 0,
+      "normalMainExit": {
+        "pid": 20958,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "sourceCount": 91,
+      "artifactCount": 1376,
+      "noDrift": true,
+      "buildBefore": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      },
+      "buildAfter": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      }
+    },
+    "receipt": ".lime/qc/settings-content-search/web-search-final-20261017-1/receipt.json",
+    "visualReview": ".lime/qc/settings-content-search/web-search-20261017/visual-review.json",
+    "validationFailures": [
+      "Host asset copy missing snapshot icons; original digests matched packaged artifacts and sources restored",
+      "Snapshot standard1 23/24: omitted PostCSS/Tailwind config left @tailwind unprocessed; original inputs restored and normal rebuild passed; assertions unchanged",
+      "Original-worktree wrapper V8 binding cache missing; verified cache restored; no latest mixed-tree pass claim"
+    ],
+    "wholeGuiStatus": "partial"
+  },
+  "current_settings_content_search_memory_appearance": {
+    "status": "12/12 additional targets,3/3 Memory tabs and presentation extraction accepted; cumulative36/36; full GUI partial",
+    "reference": "current_settings_content_search_audit",
+    "scope": {
+      "additionalContentTargets": 12,
+      "cumulativeContentTargets": 36,
+      "memoryTargets": 7,
+      "memoryTabs": 3,
+      "appearanceTargets": 5
+    },
+    "owners": [
+      "settingsSearchDocuments",
+      "SettingsPage",
+      "settingsSections",
+      "MemorySettings",
+      "SoulSettingsPanel",
+      "AdvancedMemorySettings",
+      "AppearanceSettings",
+      "AppearanceSettingsView",
+      "useSettingsSearchTarget",
+      "useAppNavigation"
+    ],
+    "naming": "settingsSearchDocuments confirmed public export; new presentation names are Lime responsibility names, upstream compressed symbols unknown",
+    "contract": "canonical searchFocus alone opens Memory path; pending navigation retains local tab/import draft/preview; explicit discard remounts original owner; non-editable targets; no user values indexed, no second authority",
+    "directed": {
+      "suites": 8,
+      "tests": 105,
+      "lint": "strict pass",
+      "typecheck": "complete current-worktree Renderer/Node pass",
+      "evidenceGuards": "2suites8/8",
+      "docsBoundary": "pass",
+      "format": "pass after JSON formatting",
+      "scriptsGovernance": "pass",
+      "desktopReferenceBoundary": "pass"
+    },
+    "evidence": ".lime/qc/settings-content-search/memory-appearance-20261017",
+    "snapshot": {
+      "baseline": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-web-search-validation-j_pft1bs",
+      "snapshot": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-memory-appearance-validation-pvynbbr5",
+      "sourceOverrides": [
+        {
+          "path": "src/components/settings-v2/general/memory/index.tsx",
+          "sha256": "766d82b2fc4b7a058fa8279ea55da5e56e1f1802e1a9d7232e8783017c62e0d2"
+        },
+        {
+          "path": "src/components/settings-v2/general/appearance/index.tsx",
+          "sha256": "9f18a3a10e1521d772041c68ff6307c7404148bb3a4034d30ec76c261a024646"
+        },
+        {
+          "path": "src/components/settings-v2/sections.tsx",
+          "sha256": "ffb37fb1f578a539e4b2ac0747cb2d95cf81f68836b53702b99893f74459924b"
+        },
+        {
+          "path": "src/components/settings-v2/settingsSearchDocuments.ts",
+          "sha256": "2d0c87be2ae2e9e205c4c0e9645b52eb59c914a938067e6608a0c95c8403b606"
+        },
+        {
+          "path": "scripts/electron/lib/settings-search-scenario.mjs",
+          "sha256": "184ceb171c584f97d0295ee0c3f6c0d8f050c961e70a2eb496954ffecafd73fc"
+        },
+        {
+          "path": "scripts/electron/settings-navigation-fixture-smoke.mjs",
+          "sha256": "1d11cd527242a8f032e4d7929866da12e55e9cedef619097a3000e32a9158541"
+        },
+        {
+          "path": "src/components/settings-v2/general/memory/AdvancedMemorySettings.tsx",
+          "sha256": "3f5d0ca9181856e2abc6131251b556e57b6d4206b24d61318317aa4e740eb11b"
+        },
+        {
+          "path": "src/components/settings-v2/general/memory/soul/SoulSettingsPanel.tsx",
+          "sha256": "edc35007dffd5591144f883aba81ef033c9aba0a0533883bd5f1830dbc039599"
+        },
+        {
+          "path": "src/components/settings-v2/general/appearance/AppearanceSettingsView.tsx",
+          "sha256": "bb715db55a6a054734b08f4e3b9db544ffffafebfef8ea52ccdf3452981de2e6"
+        },
+        {
+          "path": "src/components/settings-v2/_layout/memoryAppearanceTargets.integration.test.tsx",
+          "sha256": "592977aea5695526a44c6ec471c167187a6c4b1f268f09eacb2f07ccf4f7fbda"
+        }
+      ],
+      "workspaceLinks": [
+        "node_modules/@limecloud/agent-runtime-projection",
+        "node_modules/@limecloud/agent-runtime-ui",
+        "node_modules/@limecloud/agent-runtime-client",
+        "node_modules/@limecloud/agent-ui-contracts"
+      ],
+      "boundary": "accepted baseline Rust/protocol/Host plus current declared frontend/search source overrides, rebuilt Renderer/Host; no claim for concurrent working-tree Rust"
+    },
+    "cleanup": "old inline Memory/Soul/Advanced/Appearance presentation directly replaced, duplicate response language option type removed; no compatibility alias or physical file deletion",
+    "wholeGuiStatus": "partial",
+    "native": {
+      "runId": "settings-memory-appearance-native-20261017-1",
+      "exitCode": 0,
+      "contentTargets": "36/36",
+      "additionalContentTargets": "12/12",
+      "memoryAppearance": {
+        "targets": 12,
+        "memoryTargets": 7,
+        "memoryTabs": 3,
+        "appearanceTargets": 5,
+        "localTabsRetainImportAndPreview": true,
+        "pendingSearchRetainsTabAndDraft": true,
+        "discardRemountsWithoutWrite": true,
+        "repeatReopensTab": true,
+        "memorySoul": {
+          "targetId": "memory-style",
+          "focused": true,
+          "top": 77,
+          "ownerTop": 0,
+          "ownerBottom": 1000,
+          "scrollTop": 392,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        },
+        "appearance": {
+          "targetId": "appearance-recommendation",
+          "focused": true,
+          "top": 846,
+          "ownerTop": 0,
+          "ownerBottom": 1000,
+          "scrollTop": 1310.5,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        },
+        "narrowAppearance": {
+          "targetId": "appearance-language",
+          "focused": true,
+          "top": 24,
+          "ownerTop": 0,
+          "ownerBottom": 900,
+          "scrollTop": 2664,
+          "outlineColor": "rgb(217, 95, 135)",
+          "outlineWidth": "2px",
+          "viewportOverflow": false
+        }
+      },
+      "themes": "4/4; current skin/media-emulated system",
+      "narrow": "600x900; kept import draft and search; discard focuses Appearance language and closes floating navigation",
+      "ipc": 1757,
+      "errors": 0,
+      "productionMockHits": 0,
+      "sameCanonicalIdentity": {
+        "sessionId": "01a1478f-190e-7641-8610-9e52c98ab006",
+        "threadId": "01a1478f-190e-7641-8610-9e52c98ab006",
+        "turnId": "turn_cf9470bb14c5423099a93b7c46527735",
+        "itemIds": [
+          "user-turn_cf9470bb14c5423099a93b7c46527735",
+          "agent-message-final-turn_cf9470bb14c5423099a93b7c46527735"
+        ],
+        "workspaceId": "b1e39630-0aff-4332-83e4-bdae0a84f7af",
+        "projectId": null,
+        "cwd": "/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/claw-chat-current-fixture-mKJnWu/home/Library/Application Support/lime/projects/default",
+        "workspaceIdentitySource": "workspace/default/ensure id/root, thread/read cwd, visible directory and restored navigation projectId"
+      },
+      "backendTurnStarts": 1,
+      "normalMainExit": {
+        "pid": 30708,
+        "exited": true,
+        "exitCode": 0,
+        "signal": null,
+        "mode": "normal"
+      },
+      "forcedCleanup": null,
+      "sourceCount": 95,
+      "artifactCount": 1481,
+      "noDrift": true,
+      "buildBefore": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      },
+      "buildAfter": {
+        "ready": true,
+        "reason": "fresh-artifacts"
+      }
+    },
+    "standardGui": {
+      "runId": "settings-memory-appearance-standard-20261017-1",
+      "assertions": "24/24",
+      "exitCode": 0,
+      "boundary": "same isolated declared source/artifact candidate; standard renderer/Host build and original smoke.mjs; no latest concurrent Rust/full wrapper claim"
+    },
+    "visualReview": ".lime/qc/settings-content-search/memory-appearance-20261017/visual-review.json",
+    "receipt": ".lime/qc/settings-content-search/memory-appearance-final-20261017-1/receipt.json",
+    "sourceOverridesMatchRoot": true,
+    "sourceOverrideCount": 10,
+    "validationFailuresPreserved": [
+      "19red/1pass before implementation",
+      "first green50pass/1fail: ambiguous Provider label selected chapter; changed query to existing description, unchanged algorithm/assertions",
+      "Node test runner used on Vitest evidence tests; corrected actual Vitest8/8",
+      "read-only freshness reporting expression treated object as array; original ready guard JSON retained",
+      "initial JSON evidence-index formatting warning; normal Prettier correction"
+    ]
   }
 }

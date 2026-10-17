@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "enum": [
+    "NOT_CONFIGURED_FOR_WORKSPACE",
+    "NO_ACTIVE_WORKSPACE"
+  ],
+  "title": "AppTemplateUnavailableReason",
+  "type": "string"
+}

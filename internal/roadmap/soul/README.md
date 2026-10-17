@@ -174,7 +174,7 @@ Hermes 本地调研：
 1. 工具 lifecycle、协作执行、artifact/export、media/contentParts 和图片生成块已有 current metadata 骨架。
 2. 图片生成块由 App Server `runtime_backend/image_command/presentation_soul.rs` 写入 L0/L1/L2/L3 `styleLevels`、`generationBriefBoundary`、`soul_lifecycle` 和 Style Pack metadata；前端 `ImageGenerationSoulMetadata` 读取并透传到 chat preview / workbench / DOM `data-soul-*` evidence。
 3. Media/contentParts 的大型媒体 preview policy、page-window 读取、Workbench 分页、server-side cancellation、`refId/sourceUri/relativePath-only` owner normalization、artifact/cache media owner 和 direct live shell cancel/terminate 骨架已进入 current owner。`media/read` 只保留 canonical `threadId` + bounded range response；前端在每段 response 通过范围、MIME、totalBytes 与 digest 校验后累计 progress，并继续支持 pagination/object URL/metadata fallback。V2-05 已物理删除 MediaRead `stream`、chunk/completed transient notification、raw subscription、response envelope、streaming parser 与 live drain，contract guard 禁止恢复第二数据通道。
-4. Agent Plugin 的安装、激活、Skills、MCP 与 Apps 归 `internal/roadmap/plugin/v3/`；Soul 只消费标准 tool lifecycle facts，不拥有 Plugin 私有 inventory、runtime host 或专属五语文案。
+4. Agent Plugin 的安装、激活、Skills、MCP 与 Apps 归 `internal/roadmap/plugin/`；Soul 只消费标准 tool lifecycle facts，不拥有 Plugin 私有 inventory、runtime host 或专属五语文案。
 
 ## 4. OpenClaw / Hermes 借鉴结论
 
@@ -257,7 +257,7 @@ Lime 不照搬的点：
 
 1. Phase 4：自动 voice evidence 投影、诊断详情 UI 和完整 GUI / E2E 证据。
 2. Phase 2.5：真实 Claw 风格自然度仍需持续评测，重点是工具调用前后、正文段落转折、失败恢复和结尾建议都受 profile 影响，同时防固定口头禅、工具进度自然化、失败恢复不卖萌，以及拽酷风格不过度装腔。
-3. Refactor/v1 media 后续项：direct live shell process cancel/terminate 与 artifact/cache media owner 读取骨架已进入 current；后续补其它网络长 IO / live Provider owner 证据、Playwright 自然度验收和业务协作入口盘点。Plugin 标准化只由 `internal/roadmap/plugin/v3/` 继续推进。
+3. Refactor/v1 media 后续项：direct live shell process cancel/terminate 与 artifact/cache media owner 读取骨架已进入 current；后续补其它网络长 IO / live Provider owner 证据、Playwright 自然度验收和业务协作入口盘点。Plugin 标准化只由 `internal/roadmap/plugin/` 继续推进。
 4. Phase 6：品牌 / 项目声线包的 Knowledge / Memory evidence projection；export L3 copy service 仍需接入更完整的 creator / brand voice evidence、诊断详情 UI 与真实 GUI/E2E。
 5. Phase 7：session-scoped personality overlay。
 

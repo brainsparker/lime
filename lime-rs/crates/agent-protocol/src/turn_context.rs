@@ -16,6 +16,8 @@ pub struct TurnContextOverride {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub approvals_reviewer: Option<crate::ApprovalsReviewer>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sandbox_policy: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub collaboration_mode: Option<CollaborationMode>,

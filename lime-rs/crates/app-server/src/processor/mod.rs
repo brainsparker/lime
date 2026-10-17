@@ -44,7 +44,6 @@ mod thread;
 mod thread_fork;
 mod thread_goal;
 mod thread_queue;
-mod thread_resume_context;
 mod thread_sections;
 mod turn;
 mod turn_environment;
@@ -110,6 +109,8 @@ pub struct RequestProcessor {
     connection_contexts: Arc<Mutex<HashMap<ConnectionId, ClientContext>>>,
     runtime: Arc<RuntimeCore>,
     thread_states: ThreadStateManager,
+    skills_watcher: Option<Arc<crate::skills_watcher::SkillsWatcher>>,
+    plugin_skill_watch: Arc<tokio::sync::Mutex<Option<crate::skills_watcher::WatchRegistration>>>,
     process: ProcessServer,
     command_exec: CommandExecServer,
     fs: FsServer,
@@ -185,6 +186,8 @@ impl RequestProcessor {
             connection_contexts: Arc::new(Mutex::new(HashMap::new())),
             runtime: Arc::new(runtime),
             thread_states,
+            skills_watcher: None,
+            plugin_skill_watch: Arc::new(tokio::sync::Mutex::new(None)),
             process: ProcessServer::default(),
             command_exec: CommandExecServer::default()
                 .with_process_server(execution_process_server),

@@ -3,7 +3,7 @@
 更新时间：2026-07-05
 状态：Draft + ordinary Agent turn orchestration current-turn verified + Electron/CDP real desktop baseline verified + Electron/CDP Gate B product acceptance verified + App Server current-turn host tool evidence verified + live Provider current-turn verified + production preflight/readiness pipeline fail-closed verified + production signature cryptographic preflight verified + inline host command shortcode contract added
 
-> Plugin v3 对齐：portable 包只提供根 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md`。本文早期记录中的独立 package execution、旧运行时 YAML 与旧本地包检查方法仅是历史验证材料，不属于 current Plugin owner；当前激活合同由 App Server typed activation snapshot 派生，普通 Agent turn 负责执行。
+> Codex 插件 对齐：portable 包只提供根 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md`。本文早期记录中的独立 package execution、旧运行时 YAML 与旧本地包检查方法仅是历史验证材料，不属于 current Plugin owner；当前激活合同由 App Server typed activation snapshot 派生，普通 Agent turn 负责执行。
 
 ## 1. 结论
 

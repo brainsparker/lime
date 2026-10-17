@@ -30,14 +30,15 @@ const DEFAULTS = {
   keepTemp: false,
 };
 const LOG_PREFIX = "[smoke:apps-catalog-gate-b]";
-const PLUGIN_ID = "apps-catalog-gate-b-plugin";
+const PLUGIN_PACKAGE_NAME = "apps-catalog-gate-b-plugin";
+const PLUGIN_ID = `${PLUGIN_PACKAGE_NAME}@apps-catalog-gate-b`;
 const PLUGIN_NAME = "Apps Catalog Gate B";
 const APP_ID = "apps-catalog-gate-b-app";
 const REQUIRED_METHODS = [
   "plugin/list",
   "plugin/install",
   "plugin/read",
-  "plugin/enabled/set",
+  "config/batchWrite",
   "app/list",
   "app/read",
   "app/installed",
@@ -148,7 +149,7 @@ function preparePluginPackage(runtimeEnv) {
     `${JSON.stringify(
       {
         $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-        name: PLUGIN_ID,
+        name: PLUGIN_PACKAGE_NAME,
         version: "1.0.0",
         description: "Apps catalog Gate B fixture",
       },
@@ -182,7 +183,15 @@ function preparePluginPackage(runtimeEnv) {
       2,
     )}\n`,
   );
-  return { root };
+  const sourceRoot = path.join(runtimeEnv.home, "apps-catalog-plugin");
+  fs.cpSync(root, sourceRoot, { recursive: true });
+  const marketplacePath = path.join(runtimeEnv.home, ".agents/plugins/marketplace.json");
+  fs.mkdirSync(path.dirname(marketplacePath), { recursive: true });
+  fs.writeFileSync(marketplacePath, JSON.stringify({
+    name: "apps-catalog-gate-b",
+    plugins: [{ name: PLUGIN_PACKAGE_NAME, source: "./apps-catalog-plugin" }],
+  }));
+  return { root: sourceRoot, marketplacePath };
 }
 
 async function drainPendingNotifications(page) {
@@ -401,21 +410,19 @@ export async function run(argv = process.argv.slice(2)) {
     summary.bridge.preloadInvoke = handle.rendererSnapshot.hasInvokeBridge;
 
     const catalog = await appServerCallFromPage(page, "plugin/list", {
-      marketplacePaths: [plugin.root],
+
     });
     observedMethods.add(catalog.method);
-    const candidate = catalog.result?.plugins?.find(
+    const candidate = catalog.result?.marketplaces?.flatMap((market) => market.plugins).find(
       (entry) => entry?.id === PLUGIN_ID,
     );
-    assert(candidate?.appsCount === 1, "plugin/list 未返回 Apps fixture");
+    assert(candidate?.name === PLUGIN_PACKAGE_NAME, "plugin/list 未返回 Apps fixture");
     const installed = await appServerCallFromPage(page, "plugin/install", {
-      sourcePath: plugin.root,
-      marketplaceId: "apps-catalog-gate-b",
-      source: "repo",
-      expectedDigest: candidate.contentDigest,
+      marketplacePath: plugin.marketplacePath,
+      pluginName: PLUGIN_PACKAGE_NAME,
     });
     observedMethods.add(installed.method);
-    assert(installed.result?.plugin?.enabled === true, "Plugin 安装后未启用");
+    assert(installed.result?.authPolicy === "ON_USE" && installed.result?.appsNeedingAuth?.[0]?.id === APP_ID, "Plugin 安装授权投影错误");
     const installNotifications = await drainPendingNotifications(page);
     summary.installNotificationObserved =
       installNotifications.includes("app/list/updated");
@@ -424,7 +431,7 @@ export async function run(argv = process.argv.slice(2)) {
       "plugin/install 未发布 typed app/list/updated",
     );
 
-    await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
+    await page.locator('[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]').click();
     await page.locator('[data-testid="plugin-catalog-loading"]').waitFor({
       state: "hidden",
       timeout: options.timeoutMs,
@@ -455,7 +462,7 @@ export async function run(argv = process.argv.slice(2)) {
     const appInfo = appById(appsList.result);
     const appRuntime = installedAppById(appsInstalled.result);
     assert(
-      appInfo?.isEnabled === true && appInfo?.isAccessible === true,
+      appInfo?.isEnabled === true && appInfo?.isAccessible === false,
       "app/list 初始 enabled/accessibility 不正确",
     );
     assert(

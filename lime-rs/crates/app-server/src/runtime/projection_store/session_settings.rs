@@ -1,8 +1,29 @@
 use super::ProjectionStore;
 use app_server_protocol::AgentSession;
 use chrono::{DateTime, SecondsFormat, Utc};
-use rusqlite::{params, OptionalExtension, TransactionBehavior};
+use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use serde_json::Value;
+
+mod migration;
+mod restore;
+mod reviewer;
+mod workspace;
+
+fn is_imported(metadata: &Value) -> bool {
+    [
+        ["sourceClient", "source_client"],
+        ["sourceThreadId", "source_thread_id"],
+    ]
+    .iter()
+    .all(|keys| {
+        keys.iter().any(|key| {
+            metadata
+                .get(*key)
+                .and_then(Value::as_str)
+                .is_some_and(|value| !value.trim().is_empty())
+        })
+    })
+}
 
 impl ProjectionStore {
     pub(in crate::runtime) fn persist_session_metadata(
@@ -65,18 +86,14 @@ impl ProjectionStore {
         let expected_thread = thread.clone();
         thread.metadata = metadata.clone();
         thread.updated_at_ms = timestamp_millis(&session.updated_at)?;
-        if let (Some(store), Some(path)) = (self.rollout_store(), canonical.3.as_deref()) {
-            thread.updated_at_ms =
-                store.append_metadata(std::path::Path::new(path), &expected_thread, &thread)?;
-            session.updated_at = timestamp(thread.updated_at_ms)?;
-        }
-        let thread_json = serde_json::to_string(&thread)
-            .map_err(|error| format!("cannot encode canonical thread metadata: {error}"))?;
-        tx.execute(
-            "UPDATE canonical_threads SET thread_json = ?1, updated_at_ms = ?2 WHERE thread_id = ?3",
-            params![thread_json, thread.updated_at_ms, session.thread_id],
-        )
-        .map_err(|error| format!("cannot persist canonical thread metadata: {error}"))?;
+        self.persist_thread_metadata(
+            &tx,
+            &expected_thread,
+            &mut thread,
+            canonical.3.as_deref(),
+            false,
+        )?;
+        session.updated_at = timestamp(thread.updated_at_ms)?;
 
         let projected_thread_id = tx
             .query_row(
@@ -145,6 +162,34 @@ impl ProjectionStore {
 
         tx.commit()
             .map_err(|error| format!("cannot commit session metadata transaction: {error}"))
+    }
+
+    fn persist_thread_metadata(
+        &self,
+        tx: &Transaction<'_>,
+        expected: &agent_protocol::Thread,
+        next: &mut agent_protocol::Thread,
+        rollout_path: Option<&str>,
+        archived: bool,
+    ) -> Result<(), String> {
+        if let Some(store) = self.rollout_store() {
+            let path = rollout_path.ok_or_else(|| {
+                format!(
+                    "thread {} has no rollout_path; migration is required",
+                    next.thread_id
+                )
+            })?;
+            next.updated_at_ms =
+                store.append_metadata(std::path::Path::new(path), expected, next, archived)?;
+        }
+        let thread_json = serde_json::to_string(next)
+            .map_err(|error| format!("cannot encode canonical thread metadata: {error}"))?;
+        tx.execute(
+            "UPDATE canonical_threads SET thread_json = ?1, updated_at_ms = ?2 WHERE thread_id = ?3",
+            params![thread_json, next.updated_at_ms, next.thread_id.as_str()],
+        )
+        .map_err(|error| format!("cannot persist canonical thread metadata: {error}"))?;
+        Ok(())
     }
 }
 

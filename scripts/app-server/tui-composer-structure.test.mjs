@@ -253,7 +253,7 @@ describe("Codex structured mention owners", () => {
     expect(replacement).not.toMatch(
       /VecDeque|ConfigManager|std::fs|include_turns: true/,
     );
-    expect(source("app_server_session.rs")).toContain(
+    expect(source("app_server_session/thread.rs")).toContain(
       "ThreadHistoryMode::Paginated",
     );
     expect(

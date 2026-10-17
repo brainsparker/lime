@@ -19,6 +19,7 @@ impl RequestProcessor {
             .update_thread_settings(params)
             .await
             .map_err(to_jsonrpc_error)?;
+        self.refresh_thread_skill_watch(&thread_id).await;
         let notification: JsonRpcNotification =
             V2ServerNotification::ThreadSettingsUpdated(ThreadSettingsUpdatedNotification {
                 thread_id,

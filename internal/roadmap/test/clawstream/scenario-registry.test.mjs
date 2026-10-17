@@ -192,8 +192,8 @@ describe("clawstream scenario registry", () => {
     expect(priorityCounts).toMatchObject({ P0: 11, P1: 35, P2: 13 });
     expect(statusCounts["missing"] ?? 0).toBe(0);
     expect(statusCounts["covered-electron"]).toBe(23);
-    expect(statusCounts["partial"] ?? 0).toBe(0);
-    expect(statusCounts["partial+guard"]).toBe(36);
+    expect(statusCounts["partial"] ?? 0).toBe(1);
+    expect(statusCounts["partial+guard"]).toBe(35);
     expect(statusCounts["guard-needed"] ?? 0).toBe(0);
   });
 

@@ -12,6 +12,7 @@ pub struct AgentTurnContextConfigurationRequest {
     pub model: Option<String>,
     pub effort: Option<String>,
     pub approval_policy: Option<String>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     pub sandbox_policy: Option<String>,
     pub collaboration_mode: Option<CollaborationMode>,
     pub user_visible_input_text: Option<String>,
@@ -27,6 +28,7 @@ pub fn build_agent_turn_context(
         model: request.model,
         effort: request.effort,
         approval_policy: request.approval_policy,
+        approvals_reviewer: request.approvals_reviewer,
         sandbox_policy: request.sandbox_policy,
         collaboration_mode: request.collaboration_mode,
         user_visible_input_text: request.user_visible_input_text,
@@ -37,6 +39,7 @@ pub fn build_agent_turn_context(
         set_agent_turn_output_schema(&mut context, output_schema);
     }
     if context.approval_policy.is_none()
+        && context.approvals_reviewer.is_none()
         && context.sandbox_policy.is_none()
         && context.user_visible_input_text.is_none()
         && context.output_schema.is_none()

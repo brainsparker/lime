@@ -1,79 +1,12 @@
 {
   "$defs": {
-    "ScheduledTaskRunSummary": {
-      "properties": {
-        "error": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "finishedAt": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "id": {
-          "type": "string"
-        },
-        "scheduledFor": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "sessionId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "startedAt": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "status": {
-          "type": "string"
-        },
-        "summary": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "taskId": {
-          "type": "string"
-        },
-        "threadId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "turnId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "status",
-        "taskId"
-      ],
-      "type": "object"
-    },
-    "ScheduledTaskSchedule": {
+    "AutomationTaskSchedule": {
       "oneOf": [
         {
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": [
                 "array",
@@ -151,7 +84,7 @@
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": "array"
             },
@@ -176,7 +109,7 @@
         }
       ]
     },
-    "ScheduledTaskSummary": {
+    "AutomationTaskSummary": {
       "properties": {
         "attention": {
           "type": "boolean"
@@ -204,7 +137,7 @@
           ]
         },
         "schedule": {
-          "$ref": "#/$defs/ScheduledTaskSchedule"
+          "$ref": "#/$defs/AutomationTaskSchedule"
         },
         "title": {
           "type": "string"
@@ -219,7 +152,7 @@
       ],
       "type": "object"
     },
-    "ScheduledTaskWeekday": {
+    "AutomationTaskWeekday": {
       "enum": [
         "FR",
         "MO",
@@ -230,13 +163,80 @@
         "WE"
       ],
       "type": "string"
+    },
+    "ScheduledTaskRunSummary": {
+      "properties": {
+        "error": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "finishedAt": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "scheduledFor": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "sessionId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "startedAt": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "status": {
+          "type": "string"
+        },
+        "summary": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "taskId": {
+          "type": "string"
+        },
+        "threadId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "turnId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "status",
+        "taskId"
+      ],
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "items": {
       "items": {
-        "$ref": "#/$defs/ScheduledTaskSummary"
+        "$ref": "#/$defs/AutomationTaskSummary"
       },
       "type": "array"
     },

@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import type {
-  ScheduledTaskSchedule,
-  ScheduledTaskWeekday,
+  AutomationTaskSchedule,
+  AutomationTaskWeekday,
 } from "@/lib/api/scheduledTasks";
 import { cn } from "@/lib/utils";
 import { formatScheduledTaskTime } from "./scheduledTaskPresentation";
@@ -29,12 +29,12 @@ interface ScheduledTaskEditorProps {
   locale: string;
   t: TFunction<"workspace">;
   onChange: (form: ScheduledTaskFormState) => void;
-  onPreview: (schedule: ScheduledTaskSchedule) => void;
+  onPreview: (schedule: AutomationTaskSchedule) => void;
   onSave: () => void;
   onCancel: () => void;
 }
 
-const WEEKDAYS: ScheduledTaskWeekday[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+const WEEKDAYS: AutomationTaskWeekday[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
 
 export function ScheduledTaskEditor({
   mode,

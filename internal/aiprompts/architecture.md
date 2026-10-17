@@ -51,6 +51,55 @@ Future Cloud -> authenticated transport ----> LimeCore gateway
                                                 -> ThreadStore + Thread/Turn/Item projection
 ```
 
+远程 workspace 仍由这条主链拥有：CLI `ConnectionArgs::workspace_cwd` / TUI
+`runtime/connection` 只表达用户是否显式选择目录，远端缺省不发送本机路径；
+App Server `session_operations/working_directory` 负责服务端 cwd/roots 解析及已发布
+metadata 归一，复用原 session actor 与 durable metadata writer。start/resume/fork
+返回同一 canonical cwd，Turn 的权限计算消费实际 Thread/覆盖目录，不建立 workspace registry。
+`turn/start` 的 cwd/roots 覆盖经同一 session metadata actor 原子提交，影响当前及后续
+回合；roots-only 与空数组清除仍使用原持久化字段。写入失败时不先改内存或接纳 Turn，
+成功后替换 Thread Skills 注册。Surface 不持有临时 workspace 业务副本。
+TUI Host 初始化、连接、搜索、历史、动作与 resume 分别归
+`runtime/{startup,connection,file_search,history,actions,resume}`，主 runtime 只负责事件循环接线；
+Thread start/resume 的客户端接线归 `app_server_session/thread`。拆分直接迁移调用者，
+无旧 helper 包装或第二业务后端。Architecture impact: minor；责任 root，2026-10-17，
+确认目录解析、恢复写入与工具执行继续归 App Server/runtime，Surface 只消费其投影。
+
+Skills 文件监听仍由 App Server `skills_watcher` 唯一拥有。默认根、runtime extra
+roots 和 Thread project roots 共用同一 OS watcher；`registration` 只管理路径资源，
+不复制 catalog、配置或 snapshot。extra roots 替换立即释放旧注册；Thread 注册由
+`ThreadStateManager` 持有，在替换、卸载、删除或 shutdown 时释放，共享根保留到最后
+一个 owner 释放。Thread project roots 直接消费 `session_runtime_defaults` 的同一有效目录
+与项目根，包含 `runtimeWorkspaceRoots` 和导入会话优先级；settings 成功持久化后
+替换注册，删除 watcher 专用 metadata 解析与导出；
+已选择 remote environment 的目录不交给本机文件监听。文件变化立即失效既有 snapshot
+cache，typed `skills/changed` 经现有 event bridge 节流广播；成功的配置/目录变更经
+processor 的同一 catalog mutation 通道广播。App Server 初始化归 `initialization`，
+原内联测试迁到 `tests/{lifecycle,events,streaming,transport}`；无旧 helper 包装。
+Architecture impact: minor；责任 root，2026-10-17，确认资源注册不持有业务状态或
+新增持久化 owner，仍走原 App Server/runtime/Skills 主链；运行验收另见执行计划。
+
+导入会话的 mutable workspace 同样归 canonical Thread。`projection_store/session_settings`
+在初始化恢复 rollout 后一次迁移已发布的根别名与 imported continuation/settings 目录副本，
+复用原 metadata transaction/durable writer；reviewer 和 workspace 在同一 Thread 事务归一。
+`migration`、`restore`、`reviewer`、`workspace` 分别负责事务、事件重建投影和字段规则，
+不复制持久化实现。`runtimeWorkspaceRoots: []` 显式清除旧项目根；runtime defaults 和 watcher
+只读取当前根 workspace 字段。新 importer 不再写 nested workspace 运行副本；历史 Turn、
+来源 rollout 和 `codexMetadata` 保留。事件投影 repair 从 canonical settings 恢复目录/roots，
+避免旧 SessionStarted 事件复活来源目录。迁移不解析/改写来源机器的路径；resume 的服务端
+归一仍归原 settings actor。Architecture impact: minor；责任 root，2026-10-17 确认：
+Surface -> App Server -> RuntimeCore -> canonical Thread 的图与依赖方向保持不变；验收归 S09-F。
+
+Plugin Skills 的来源为既有 `PluginDataSource::list_enabled_plugin_turn_snapshots`。
+catalog、Turn snapshot 和文件监听共用 `PluginTurnSnapshot::skill_root`，不分别猜测包目录。
+processor 在 initialize 时恢复已安装插件监听，在成功的 install/enable/uninstall 后替换
+同一 process registration，并经 Skills catalog mutation hook 向所有连接广播；失败不广播。
+`WatchRegistration` 只持 OS 路径资源，Thread 与 process plugin 注册共用同一 watcher，
+不复制 plugin 状态或 Skill 配置。`local_data_source/plugin_catalog` 的包安装、库存、manifest、
+发现、Apps、runtime components、catalog metadata 和资源路径分别归对应子模块；根模块
+只聚合真实 owner，不保留旧实现包装。Architecture impact: minor；责任 root，2026-10-17
+确认主链和持久化 owner 不变。运行证据归 S09-E，namespace/同名身份单列 S09-G。
+
 `Product Surface`、`Host/Transport` 与业务 runtime 是三层边界。Desktop、TUI、CLI 可以拥有各自的窗口/终端生命周期、输入法、快捷键和展示投影，但不能拥有 provider loop、工具 registry、approval authority、Thread/Turn/Item 状态机或持久化副本。`app-server-protocol` 是跨 surface 合同，`app-server-client` 是 Rust surface 的连接/session owner；本地 stdio 是当前实现，未来 Cloud 通过同一 session facade 接入认证后的远端 transport。TUI 的 `resume` picker 与 Codex-shaped `Agents Overview` 只读取 App Server `thread/list`，选中后进入标准 `thread/resume`；Overview 的状态分组、子线程状态冒泡与刷新仅投影 canonical Thread/notification，不访问私有 daemon/state DB。Overview 的新任务、改名和停止操作分别 lowering 到现有 `thread/start` + `turn/start`、`thread/name/set` 与 `turn/interrupt`，不复制 Codex agents daemon；刷新请求使用单一 request identity，合并 pending 请求并重放刷新期间到达的最新 thread notification。TUI 在 `app/app_server_event_targets.rs` 复用 Codex 同名 `server_notification_thread_target`、`server_request_thread_id` 与 `ServerNotificationThreadTarget`：Thread-scoped notification 可以更新 Overview/导航，但只有当前 Thread 能写入当前 `ConversationProjection`；foreign Thread 的可交互 server request 进入对应 `ThreadEventStore` 的 bounded replay channel，`pending_interactive_replay` 只允许仍未解决的 request 在 `thread/resume` 后重放；Dynamic Tool 和不受支持的 MCP elicitation schema 没有 TUI consumer，立即 fail closed；受支持的 MCP form/approval 由 BottomPane 消费，buffer 满时也直接 reject，不得落入当前 Thread 的 BottomPane。连接中断只由 TUI `app/reconnect.rs` session owner 做 bounded reconnect，并以原 Thread id hydrate canonical history，composer draft 保持在 surface 内存中，旧 connection 的 pending approval 丢弃且不得跨连接回放。TUI 的 `app/app_server_events.rs` 只负责 transport event 分流和 notification dispatch；`app/app_server_requests.rs` 负责 reverse server request routing 与 reject/queue 语义；`app/thread_events.rs` 负责 canonical Thread/Turn/Item notification projection 和 agent liveness；`app/pending_interactive_replay.rs` 负责 Codex 对齐的 pending request identity；`chatwidget/settings.rs` 负责 ChatWidget 的 model/provider、effort、permission profile 与 collaboration mode surface projection；`app/event_dispatch.rs` 的 `App::handle_event` 负责 App Server-backed settings、协作模式、权限和 Agents Overview action。用户可见 locale 与 copy 同样由 ChatWidget 持有，App 只通过 `set_locale` 做 host 配置委托。TUI 的 effort/permission 快捷键只 lowering 到 `thread/settings/update`；`/model` picker 只消费 typed `model/list` 的可见 catalog，并在选择后 lowering 到同一 settings method，不复制 Codex 配置或 provider catalog。
 
 TUI 的终端输入与绘制调度 owner 对齐 Codex `tui`：`tui::EventBroker` 统一持有可暂停/恢复的 crossterm 输入源，`tui::TuiEventStream` 将 key、paste、resize、focus 和 draw 归一化后交给 runtime；`tui::FrameRequester` 与 `frame_rate_limiter` 合并异步重绘并限制频率。workspace 级 crossterm 固定使用 Codex 同源的 `openai-oss-forks/crossterm` revision `45fecb9508105988f42fe6ff0441783ed3717f92`，其 terminal readiness 和外部消费输入修复是 external editor 交接的唯一依赖事实源。`tui::Tui` 只负责 terminal mode 生命周期，并在外部编辑器或恢复流程中暂停 broker，确保 stdin 不被后台 reader 占用。该层不得承接 App Server 请求、Thread 状态或第二套业务事件总线。真实 TUI Gate B 使用 PTY 驱动键盘和 alternate screen，并按 Codex 测试依赖使用 `vt100::Parser` 还原关闭前的实际屏幕；不能用删除 ANSI 后的字节拼接冒充用户可见状态。
@@ -1568,8 +1617,8 @@ Codex 语义无副作用返回空对象。developer text 使用 Codex 的 exact-
 action，不得转成 session-wide approval、通用 permission cache 或旧 `agentSession/action/respond` waiter。
 活动回合交给既有 session actor 在下一 sampling boundary 消费；同时写入 canonical event，使 idle、finishing
 race、restart 与后续 Turn 都从同一 provider-history owner 恢复。该 provider-only event 不投影为用户可见
-Thread Item，也不引入 v0/compat/mock。Lime 当前尚未生产 Guardian assessment/review lifecycle；本 method
-完成的是 Codex 手工放行 continuation boundary，不代表 Guardian reviewer 产品闭环已经完成。
+Thread Item，也不引入 v0/compat/mock。Guardian assessment/review lifecycle 由第 38 节的 current owner 产生；
+本 method 只承接手工放行 continuation boundary，其验证不能替代 reviewer 运行与 GUI 交互验收。
 
 Codex v2 raw response item injection 使用独立的 provider-history current 链：
 
@@ -2248,73 +2297,56 @@ Architecture impact: major; this changes the Renderer live/read/resume Item stat
 
 ### 7.2 Plugin、Skills 与 MCP
 
-Plugin v3 的 portable contract 固定为 Agent Plugins v1.0.0：包根 `plugin.json` 是唯一
-manifest，包根 `skills/<skill>/SKILL.md` 与 `mcp.json` 是唯一组件位置。App Server plugin
-domain 唯一拥有 discovery、install、installed、enabled、activation 与 package identity；Skills
-与 MCP 分别由 `lime-skills`、`lime-mcp`、RuntimeCore 和 tool-runtime 注入当前 turn。Renderer
-只消费 typed projection，Electron 只提供 Host 能力和转发 `app_server_handle_json_lines`。
+插件按 [Codex 目标合同](../roadmap/plugin/codex-contract.md) 重构，进度归
+[执行计划](../exec-plans/codex-plugin-reconstruction.md)。标准根 `plugin.json` 与 Codex 支持的
+原生生态 manifest 由同一 loader 选择；标准包固定资源与原生声明 roots 分别解析，不能把
+`.codex-plugin/plugin.json` 限制为 overlay。App Server 插件领域唯一拥有 catalog、安装缓存、
+共享配置与组件快照，Skills、MCP、Hooks 继续归既有领域 owner，Electron 只转发 transport。
 
 ```text
-PluginCatalogPage
-  -> Renderer pluginCatalog gateway
-  -> typed AppServerClient
-  -> Electron preload / app_server_handle_json_lines
-  -> App Server Plugin processor
-  -> RuntimeCore PluginDataSource
-  -> plugin_catalog
-       catalog discovery
-       package validation + sha256 identity
-       staging + atomic installed record
-  -> <AgentRoot>/plugins/v3/{packages,installed,staging,marketplaces,data}
+CLI / TUI / Electron GUI
+  -> App Server JSON-RPC -> RuntimeCore PluginDataSource
+  -> plugin_catalog: manifest / discovery / PluginStore / install
+       plugins/cache/<marketplace>/<plugin>/<version>
+       shared config: plugins.<name@marketplace>.enabled
+       plugins/data/{agent-plugins/<identity hash>,<plugin>-<marketplace>}
+  -> immutable plugin component snapshot
+  -> Skills / MCP / Hooks -> RuntimeCore -> Thread / Turn / Item
+
+LimeCore package scan / release / marketplace / tenant policy
+  -> same manifest selection / effective identity / bundle contract
+  -> client App Server; Go gateway only transports tenant-owned Rust App Server
 ```
 
-标准 manifest 必须声明
-`https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`；`name` 必填，`version` 可选且
-不得被强制为 semver。未知顶层字段以及旧 `schemaVersion`、`contributions.runtime/workbench`
-只报告并忽略，且永不参与发现、安装或激活语义；`app.runtime.yaml`、绝对或父级资源路径、
-symlink 与超预算 package 必须 fail closed。安装 identity
-至少包含 `pluginId + marketplaceId + version + contentDigest`；同 identity 同 digest 幂等，同
-identity 不同 digest 拒绝。v3 不读取或转换旧 v2 installed/cache/data。
+已替换的存储不再读写旧安装 records；插件身份为 `name@marketplace`，同名不同市场独立。
+cache 选择版本并按共享配置决定启停，同版本重装原子替换；标准技能与原生声明的多 roots
+生成真实 metadata，技能显示使用 `plugin:skill`，内部 ID 保留完整插件身份。MCP 复用既有
+配置和执行 owner，保持 Codex server 名称，不再生成旧私有前缀。
 
-installed+enabled Plugin 由同一 store 生成 activation snapshot，冻结
-`pluginId + version + contentDigest + marketplaceId + packageSourceUri`。Skills 只扫描 `skills/`
-直接子目录并进入现有 skill snapshot；Claw 候选只从 typed `plugin/installed` 投影，Renderer
-不得构造 activation、扫描包目录或维护第二 registry。未知、禁用或 identity 漂移必须 fail
-closed，不能查询旧 renderer manifest/installed state 兜底。
+core/config 的唯一写盘入口使用同目录临时文件完整写入并同步后原子替换，保留配置文件
+符号链接及权限；安装和卸载在配置提交失败时恢复原 cache。配置锁由共享 config owner 提供，
+Skills、PluginStore 与 App Server config methods 不再各自维护独立锁。
 
-```text
-App Server Agent Plugins v3 installed store
-  -> enabled activation snapshot
-  -> RuntimeCore session config / Skill snapshot
+自建启停 method 已删除，启停走 `config/batchWrite`。公开 API 的 `sourcePath` 安装与旧 catalog DTO
+已直接替换为分市场 list/installed、唯一市场定位的 read/install 及授权结果；正式 schema/client
+已重新生成。新固定产物已通过本地 Skills、CLI 管理、正式 GUI smoke、Apps 与插件 Electron
+安装/启停/冷启/卸载闭环；完整嵌套合同与远端能力仍待验收，不能据此视为完全对齐。`plugin/uninstall` 使用 Codex 的
+`PluginUninstallParams` 和空 `PluginUninstallResponse`；CLI/GUI 只在请求成功后更新状态，
+不再依赖旧 bool 或旧 Catalog 卸载类型。CLI、TUI、GUI 共用生成 schema/client。
+Hooks、Apps、远程市场、share 与授权语义仍逐项补齐；旧产品范围裁决不再排除 Codex 插件能力。
+本批真实 App Server/CLI/Electron 证据归执行计划；Apps只证明本地catalog/通知和待接入状态，
+不证明hosted授权可调用。新批exec/PTY、Windows、live与两仓发布安装Turn仍未验证。
 
-Claw @ picker
-  -> Renderer pluginCatalog gateway -> plugin/installed
-  -> stable plugin://<pluginId> UserInput::Mention
-  -> Electron IPC / app_server_handle_json_lines
-  -> App Server mention selection
-  -> selected activation -> Turn metadata / runtime context
-```
+旧私有插件 worker/runtime、renderer registry、包 schema 和安装 records 为
+`dead / deleted / forbidden-to-restore`；不迁移旧数据，不恢复旧实现或另建兼容后端。
+原 UI runtime 专用模型代理 token 与 Connector delivery 脚本也已删除；模型代理统一使用
+既有 API key 校验，插件权限、连接器授权和市场发布在 current App Server/LimeCore owner 实现。
+未接入生产的独立 `pluginCapabilityRuntime` catalog 投影及其导出/测试已删除，不建立旁路事实源。
+GUI suggestion 直接消费 App Server 的完整插件 ID，不重复拼接 marketplace。
+MCP App 从 canonical MCP Tool Item/resource 进入 Right Surface。生产路径不能回退 mock。
 
-Plugin MCP 只读取包根 `mcp.json`，必须声明 Agent Plugins v1 MCP schema。parser 先按官方
-`stdio` / `streamable-http` contract 严格解析，再 lower 到内部 `McpServerConfig`；注入绝对
-`PLUGIN_ROOT` 与持久化 `PLUGIN_DATA`，校验 placeholder、command/cwd containment、保留环境
-变量、HTTP(S) URL 与 headers。文件级错误只禁用该 Plugin 的 MCP 组件，server 级错误只隔离
-该 server；健康 sibling 继续进入 `McpThreadRuntime -> McpClientManager -> tool-runtime`。
-
-Agent Plugins v1 没有 Lime 私有 worker、独立 UI runtime、renderer registry 或发布后台语义。
-`pluginLocalPackage/*`、`pluginPackage/*`、`pluginInstalled/*`、`pluginHostLifecycle/*`、
-`pluginShell/*`、`pluginUiRuntime/*`、Electron `plugin_runtime_*`、旧 `PluginManager` 与
-`manifest.json` loader 全部属于 `dead / deleted / forbidden-to-restore`。Plugin MCP App 只从
-canonical MCP Tool Item / resource 进入 Right Surface；非 MCP App/Hooks 能力只能按未来标准在
-current owner 新建，禁止恢复旧 worker 或私有 manifest。
-
-历史 v2 fixture 只能作为迁移 evidence，不是 v3 release evidence。v3 必须重新证明根标准包从
-`plugin/install` 进入 enabled activation、Skills/MCP、canonical Item 与 Right Surface，并覆盖
-Renderer reload/cold restore、卸载历史、macOS/Windows 和真实 Electron Gate B。
-
-Architecture impact: major; portable package、runtime owner、Electron 边界与旧实现删除状态均已
-改变。Architecture diagram updated: this section. Responsible developer confirmation: root,
-2026-08-08.
+Architecture impact: major; 插件包选择、缓存/配置、组件快照与云端扫描沿同一 owner 重构。
+Architecture diagram updated: this section. Responsible developer confirmation: root, 2026-10-17.
 
 MCP server 的执行环境身份只来自 `McpServerConfig.environment_id`，由 `lime-mcp::McpEnvironmentRegistry`
 在 transport 启动前解析。当前 MCP registry 只注册 `local`；未知显式身份必须 fail closed，禁止把
@@ -2552,7 +2584,7 @@ current owner 负责；它们不是 user-turn queue GUI 的兼容替身。
 - `scripts/harness/`：evidence/harness 验证。
 - `scripts/i18n/`：locale 边界检查。
 - `scripts/mcp/`：MCP smoke。
-- `scripts/plugin/`：plugin fixture。
+- 插件 fixture 归 `scripts/app-server/` 与 `scripts/electron/`；旧 `scripts/plugin/` 独立 Connector 交付链已删除，禁止恢复。
 - `scripts/smoke/`：跨域最小 smoke。
 - `scripts/lib/`：脚本共用实现。
 
@@ -3221,6 +3253,39 @@ the host-owned `desktop.appInfo` namespace; after the canonical Thread identity 
 host accepts only the exact namespace/tool/schema/arguments/call identity and returns app name, version, locale and
 platform. It never accepts paths, shell commands, URLs, arbitrary IPC or handler parameters.
 
+The App Server's existing ThreadStateManager owns the connection binding. A nonempty `thread/start.dynamicTools`
+declaration binds the initiating transport; `thread/resume.dynamicTools` explicitly offers host capabilities for the
+persisted frozen tools, without replacing their definitions. Every frozen namespace/tool/inputSchema must be supported;
+additional host tools and changed descriptions do not alter the thread catalog. A resume without a declaration only
+subscribes. A different live host is rejected, and disconnected ownership can only be rebound while the thread is idle.
+Lookup and pending-request registration share the Thread state lock, so disconnect cancellation cannot run before a
+request is registered. `item/tool/call` is sent only to this live owner and never uses global writer selection or Thread
+broadcast. Disconnect drops the binding and cancels its pending tool requests; Electron also revokes its local frozen
+bindings and approval phase state. No connection identifier is persisted, and cold resume must declare capabilities again.
+
+Dynamic-tool registration and first dispatch run through the same Thread listener as interactive requests. A pending
+resume defers execution dispatch until its response has entered the connection writer, allowing the Host to freeze its
+local binding first. Resume snapshots only replay subscriber-owned interaction prompts; they never replay
+`item/tool/call`. Resuming the same live Host cannot execute a pending tool again.
+
+Server-request settlement records runtime transition separately from the JSON-RPC error code. Only a real Turn
+interrupt/delete or server shutdown suppresses a domain response. A disconnected Host or a client-supplied cancellation
+error instead produces a failed tool/approval result and releases the runtime waiter; it cannot leave an active Turn
+waiting for a response that the router has already discarded.
+
+```text
+thread/start.dynamicTools / thread/resume.dynamicTools
+  -> frozen tool/schema validation
+  -> ThreadStateManager connection-owned host binding
+  -> Thread listener resume barrier -> ServerRequestRouter exact owner
+  -> one Host, no execution replay -> canonical DynamicToolCall
+```
+
+Architecture impact: minor completion of the established Host boundary. Responsible developer confirmation: root,
+2026-10-17; existing transport, runtime, tool and persistence owners retained. Codex's Thread-scoped outgoing sender is
+the upstream reference; this single-host restriction is required by Lime's Browser preflight/approvalToken contract,
+and is not attributed to an upstream dynamic-tool connection registry.
+
 DynamicTool definitions are trusted only from session metadata. Runtime snapshots flatten namespace routes (for example
 `desktop + appInfo -> desktop__appInfo`) and reject deferred loading, invalid schemas, reserved names and collisions with
 native/MCP/gateway tools. The executor registers the exact `DynamicTool` waiter before emitting
@@ -3437,8 +3502,8 @@ Thread/Turn/Item projection split above. Responsible developer confirmation: roo
 Apps/connectors 只有一个 catalog owner，并保持 Desktop 与 Codex TUI 的产品边界分离：
 
 ```text
-standard Agent Plugin root manifest
-  -> explicit Codex extension `apps: "./config.json"`
+Codex standard / native plugin manifest
+  -> resolved `apps: "./config.json"`
   -> independent `apps.{name}.{id,category?}` config
   -> App Server PluginDataSource / local plugin_catalog
   -> RuntimeCore app/list | app/read | app/installed
@@ -3446,16 +3511,16 @@ standard Agent Plugin root manifest
   -> Renderer typed Apps gateway
   -> Desktop Apps catalog/readiness projection
 
-successful plugin/install | plugin/uninstall | plugin/enabled/set
+successful plugin/install | plugin/uninstall | config/batchWrite (plugins.*)
   -> same Plugin catalog mutation owner
   -> app/list/updated { data: AppInfo[] }
   -> App Server notification event bus
   -> Renderer typed watcher -> fresh Apps read
 ```
 
-`app/list` never reads a portable top-level `apps` field. It follows Codex's explicit client extension adapter:
-`extensions.com.openai.apps`, with `.codex-plugin/plugin.json` only as the overlay fallback, must be a package-relative
-path to a separate Apps JSON document. Connector `id` is the catalog identity; inline Apps objects fail closed and an
+`app/list` reads the resolved Apps declaration from the shared manifest loader. For standard packages,
+`extensions.com.openai.apps`, with `.codex-plugin/plugin.json` as the standard overlay fallback, must be a package-relative
+path to a separate Apps JSON document. Native manifests resolve their own declaration through the same owner; remaining defaults/overlay details are tracked by P01. Connector `id` is the catalog identity; inline Apps objects fail closed and an
 invalid Apps component is isolated from Skills/MCP and package installation. `app/read` deduplicates ids while preserving
 first-request order and returns `missingAppIds`; the processor rejects more than 100 ids with `INVALID_PARAMS`. Optional
 `threadId` on list/installed is validated against the loaded canonical Thread and fails closed with `SESSION_NOT_FOUND`.
@@ -3477,7 +3542,7 @@ The Apps-specific Electron Gate B runner now uses isolated app data, a standard 
 extension path to an independent Apps JSON. Its prior 2026-08-07 artifact used the retired inline manifest shape and is
 historical only. The migrated runner passed on 2026-08-09 and proved the transport/UI flow across real Electron
 renderer/preload/IPC, `app_server_handle_json_lines`, `plugin/list -> plugin/install`, exact
-`app/list` / `app/read` / `app/installed`, GUI `plugin/enabled/set`, the subsequent fresh Apps read and the same visible
+`app/list` / `app/read` / `app/installed`, GUI 启停（历史自建 method，现改为 `config/batchWrite`）, the subsequent fresh Apps read and the same visible
 row changing from `enabled=true / callable=false / pending` to `disabled`. Console, page, invoke, trace, legacy command
 and production mock fallback counts were all zero. Evidence:
 `.lime/qc/project-gates/standalone-apps-catalog-20260809T054741397Z-147740/apps-catalog-gate-b/apps-catalog-gate-b-summary.json`.
@@ -3812,6 +3877,16 @@ raw v2 `enteredReviewMode`/`exitedReviewMode` 及 canonical `thread/read` 同一
 
 ## 36. Existing Current Method Classification Audit
 
+插件管理合同（2026-10-17，P03 执行中）：`plugin/list` 与 `plugin/installed` 以
+`PluginMarketplaceEntry` 分组，workspace 发现只接受调用方显式 `cwds`；
+`plugin/read` / `plugin/install` 以唯一 `marketplacePath` 或 `remoteMarketplaceName` 加 `pluginName` 定位。
+GUI、CLI 和 mention 直接消费同一 typed 协议；安装响应只有 `authPolicy` / `appsNeedingAuth`，
+消费者重新读取 canonical catalog。删除旧 Catalog DTO、目录直装与 capability/UI resource 通用 DTO，
+不新增 adapter 或迁移链。marketplace/store/config、Skills/MCP owners 不变。
+远端 materialization、Hooks、scheduled tasks 与 LimeCore 远端市场仍待实现和验证。
+架构图确认：root，2026-10-17；四组本地合同的新固定产物 stdio/CLI/GUI/插件 Electron
+验证已通过，证据归插件执行计划。完整嵌套语义、远端与两仓闭环继续逐项验收。
+
 本轮不新增平行实现，只修正产品范围矩阵中把 current owner 混入 planned 组的分类漂移。以下 13 个 exact method 已有
 同方向 generated manifest、真实 owner、typed client/projection 和可追踪证据：
 
@@ -3844,9 +3919,10 @@ apply_patch exact Turn delta
   -> Desktop Changes previous-conversation projection
 ```
 
-基础 Plugin catalog 五个方法已经由 Plugin v3 current owner 承接，并在真实 Electron fixture 中经过
-`app_server_handle_json_lines`；这不等于 Plugin share、`plugin/skill/read`、remote catalog watcher 或 hosted connector
-readiness 已完成。`currentTime/read` 仍只读取 Host 时钟；`item/permissions/requestApproval` 仍经 tool-runtime
+基础 Plugin catalog 的旧形状曾经过真实 Electron fixture；该历史证据不覆盖当前 Codex 插件重构。
+list/installed/read/install 的新本地合同已取得独立产物证据；完整公开协议、Plugin share、
+`plugin/skill/read`、remote catalog watcher 与 hosted connector readiness
+仍由插件执行计划逐项验收。`currentTime/read` 仍只读取 Host 时钟；`item/permissions/requestApproval` 仍经 tool-runtime
 permission parser、App Server exact waiter 和统一 PendingInteractionController 返回 scope-bound grant；`item/tool/call`
 仍只响应冻结的 Desktop dynamic-tool binding，不开放任意 Electron IPC。typed `warning` / `error` 继续由 durable
 runtime fact 和 canonical read model 承接，terminal interaction 只保留 bounded redacted summary。
@@ -3857,11 +3933,10 @@ runtime fact 和 canonical read model 承接，terminal interaction 只保留 bo
 空字符串是有效 net-zero 结果，不得回退到由 GUI items 拼装的第二份 patch。该链路不复制 Codex TUI，也不改变 provider owner；
 多模型、多模态 sampling 和媒体 lowering 继续归 Grok-aligned `model-provider`。
 
-矩阵中的 `plugin/share/*`、Codex `marketplace/*`、external-agent migration 与远端
-`environment/*`/`thread/environment/*` 均按 Desktop 产品范围裁决为
-`product-scope-excluded / forbidden-to-restore`；`plugin/skill/read` 的 Codex remote-plugin-only
-wire 同样 excluded。Lime current 只保留本地 Plugin v3 catalog、Skills catalog/`skill/read` 与
-独立 `skillMarketplace/install` owner；
+`plugin/share/*`、Codex `marketplace/*` 与 `plugin/skill/read` 纳入 Codex 插件对齐目标，
+当前实现与未完成项见插件执行计划；不得继续以旧范围排除裁决阻止实现。Skills catalog/`skill/read`
+与独立 `skillMarketplace/install` 保持各自领域 owner，不复制插件安装状态。
+external-agent migration 与远端执行环境按各自执行计划验收；
 `item/autoApprovalReview/*` 已由 Guardian current owner 承接；`turn/moderationMetadata` 由下一节 current
 主链接管。没有新增 `compat` 或
 `deprecated`；旧 Plugin 私有协议、Renderer 伪造 reverse request、raw diagnostic side-channel、未脱敏 terminal
@@ -3912,13 +3987,14 @@ Electron 无新增业务边界，以及 Grok-aligned 多模型/多模态 owner �
 
 ## 38. Guardian Auto Approval Review Projection
 
-严格自动审查只在当前工具决策已经判定为 `strictAutoReview` 的 shell/`exec_command` 路径触发真实 Guardian
-reviewer；它不是用户审批的重命名，也不复制 Codex TUI 的 detached review UI。reviewer 复用当前 session 的
+shell/`exec_command` 的审批在 reviewer=`auto_review` 时进入现有 Guardian；permission grant 的
+`strictAutoReview` 另行强制审查，并保留更严格策略。无审批需求的一般自动模式不增加审查采样；它不是用户审批的重命名，也不复制 Codex TUI 的 detached review UI。reviewer 复用当前 session 的
 `model-provider` 路由，以无工具结构化采样读取一次风险判断；provider 未就绪、取消、超时、非法 JSON 或不确定结果
 均 fail closed 为拒绝。
 
 ```text
-strictAutoReview tool decision
+approval-required shell + auto_review / strictAutoReview permission grant
+  -> tool-runtime reviewer selection (initial + sandbox/network retry)
   -> agent-runtime Guardian reviewer (same session model-provider, no tools)
   -> AgentEvent guardian_review_started/completed
   -> App Server durable event projector
@@ -3926,6 +4002,21 @@ strictAutoReview tool decision
   -> typed app-server client / Renderer sequence gate
   -> ConversationProjection pending_interactions
 ```
+
+App Server 的 settings actor 为 reviewer 的 durable owner；Turn 输入更新当前及后续设置，RuntimeRequest 和
+Turn context 使用同一 typed enum。普通自动模式不读取人工 session approval cache；不支持自动审查的非 shell 审批
+明确拒绝，不回退 user reviewer。Guardian 输入包含真实用户请求、审批阶段、有效 sandbox 和实际 grant；取消和超时覆盖
+建连及 stream 阶段。Guardian handler 自己结算取消，编排层不提前丢弃其完成事件。public v2 DTO、RuntimeRequest、
+CLI/TUI policy 使用同一 `agent-protocol::ApprovalsReviewer`；响应缺省为 `user`，读取别名 `guardian_subagent`
+只输出 `auto_review`。旧 settings 事件的 null/missing 只在 durable projection 输入边界规范化。
+`processor/thread/lifecycle` 承接 start/resume lowering，`runtime/thread_fork/settings` 承接 fork 设置转换；
+它们不新增 settings authority。存储初始化在 rollout rebuild 后由现有 `projection_store/session_settings`
+归一化已发布 metadata：在同一 Thread transaction 内选择 canonical 非 null、root snake、导入 continuation/settings
+的有效值，复用 metadata durable writer 同步 rollout 与投影，再删除旧 reviewer 副本。归档数据仍留在原归档
+rollout，不解除归档或改变排序时间；写入失败可重试，非法选中值保留旧数据并报告 Thread identity。投影修复从
+canonical Thread 恢复 reviewer，避免重放旧 event metadata 复活过期设置。新 importer 先校验再写，Thread 只写
+canonical reviewer，历史 RuntimeRequest 使用同一 enum，原始 `codexMetadata` 只保留来源信息；runtime defaults
+只消费 canonical 字段，不长期双读。
 
 started 以 `reviewId` 建立 `kind: guardian_review` 的 pending interaction，并携带目标 Item、action 和风险审查快照；
 completed 只接受 `agent` decision source 与 `approved|denied|timedOut|aborted` 终态，分别投影为
@@ -3943,6 +4034,18 @@ Architecture impact: major；本节新增 Guardian review 从工具决策、prov
 root, 2026-08-09。Confirmation content: 已核对 strictAutoReview producer 范围、session provider 复用、超时/取消/非法响应
 拒绝语义、App Server typed wire、Renderer pending 状态、Electron 无新增 IPC，以及 Grok-aligned 多模型/多模态 owner
 不变。
+
+Responsible developer confirmation: root, 2026-10-17。Confirmation content：已复核公开 typed reviewer、
+settings actor、初始化迁移与 EventLog repair 的数据方向；metadata append 仍由既有持久化 owner 承接，
+普通更新继续拒绝 archived，只有初始化格式迁移可写原归档 rollout。依赖图仍为 surface → App Server →
+runtime/settings owner → rollout + canonical/projection，未增加平行 authority。R02-C 的迁移验收继续由执行计划跟踪。
+
+rollout `schema_version=2` 的内容摘要先递归排序所有 JSON object，再计算 SHA-256，不能依赖 Cargo
+对 `serde_json/preserve_order` 的 feature 合并。旧 v1 仅在文件读取边界按已落盘原始 payload 字节严格校验，
+新 writer 只追加 v2；metadata 的前驱摘要沿用扫描得到的实际末尾摘要，允许在原日志上继续追加，无需删除或
+重写已发布历史。扫描、append tail guard 和归档迁移复用 `canonical_rollout/digest` 的同一算法；
+JSON-RPC/schema/Thread 数据形状不变。责任开发者 root，2026-10-17，minor：只调整既有日志 owner 的
+格式校验合同，不新增持久化 authority。损坏内容或错误前驱仍拒绝，不能以跳过摘要校验代替数据迁移。
 
 ## 39. Guardian Warning Circuit Breaker Projection
 

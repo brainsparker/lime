@@ -1,5 +1,14 @@
 {
   "$defs": {
+    "ApprovalsReviewer": {
+      "description": "Routes approval requests to the user or automatic review. The legacy guardian_subagent input is serialized as auto_review.",
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": "string"
+    },
     "ThreadSource": {
       "description": "Analytics source classification for a thread.\n\nCodex keeps feature values open-ended while preserving a typed wire shape;\nthe same representation avoids a public untyped string field in Lime.",
       "type": "string"
@@ -8,7 +17,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "approvalPolicy": true,
-    "approvalsReviewer": true,
+    "approvalsReviewer": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApprovalsReviewer"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "baseInstructions": {
       "type": [
         "null",

@@ -1,13 +1,17 @@
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse,
+    MarketplaceRemoveParams, MarketplaceRemoveResponse,
+    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
+};
 use super::unavailable;
 use super::NoopAppDataSource;
 use super::RuntimeCoreError;
 use app_server_protocol::protocol::v2::{
     AppsInstalledParams, AppsInstalledResponse, AppsListParams, AppsListResponse, AppsReadParams,
-    AppsReadResponse, PluginCatalogEnabledSetParams, PluginCatalogEnabledSetResponse,
-    PluginCatalogInstallParams, PluginCatalogInstallResponse, PluginCatalogInstalledParams,
-    PluginCatalogListParams, PluginCatalogListResponse, PluginCatalogReadParams,
-    PluginCatalogReadResponse, PluginCatalogUninstallParams, PluginCatalogUninstallResponse,
-    PluginSearchParams, PluginSearchResponse,
+    AppsReadResponse, PluginInstallParams, PluginInstallResponse, PluginInstalledParams,
+    PluginInstalledResponse, PluginListParams, PluginListResponse, PluginReadParams,
+    PluginReadResponse, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
+    PluginUninstallResponse,
 };
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -23,15 +27,44 @@ pub struct PluginTurnSnapshot {
     pub config_name: String,
     pub display_name: String,
     pub package_root: PathBuf,
-    pub skill_names: Vec<String>,
+    pub skill_roots: Vec<PathBuf>,
+    pub skills: Vec<lime_skills::AgentSkillMetadata>,
     pub mcp_server_names: Vec<String>,
+}
+
+impl PluginTurnSnapshot {
+    pub(crate) fn skill_roots(&self) -> impl Iterator<Item = lime_skills::AgentSkillRoot> + '_ {
+        self.skill_roots
+            .iter()
+            .map(|path| lime_skills::AgentSkillRoot {
+                path: path.clone(),
+                scope: lime_skills::AgentSkillScope::App,
+            })
+    }
+
+    pub(crate) fn append_skills(&self, snapshot: &mut lime_skills::AgentSkillSnapshot) {
+        snapshot.roots.extend(self.skill_roots());
+        snapshot.skills.extend(self.skills.iter().cloned());
+    }
 }
 #[async_trait]
 pub trait PluginDataSource: Send + Sync {
-    async fn list_plugin_catalog(
+    async fn add_marketplace(&self, _params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+        Err(unavailable("marketplace/add"))
+    }
+
+    async fn remove_marketplace(&self, _params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+        Err(unavailable("marketplace/remove"))
+    }
+
+    async fn upgrade_marketplace(&self, _params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+        Err(unavailable("marketplace/upgrade"))
+    }
+
+    async fn list_plugins(
         &self,
-        _params: PluginCatalogListParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
+        _params: PluginListParams,
+    ) -> Result<PluginListResponse, RuntimeCoreError> {
         Err(unavailable("plugin/list"))
     }
 
@@ -42,31 +75,31 @@ pub trait PluginDataSource: Send + Sync {
         Err(unavailable("plugin/search"))
     }
 
-    async fn read_plugin_catalog(
+    async fn read_plugin(
         &self,
-        _params: PluginCatalogReadParams,
-    ) -> Result<PluginCatalogReadResponse, RuntimeCoreError> {
+        _params: PluginReadParams,
+    ) -> Result<PluginReadResponse, RuntimeCoreError> {
         Err(unavailable("plugin/read"))
     }
 
-    async fn install_plugin_catalog(
+    async fn install_plugin(
         &self,
-        _params: PluginCatalogInstallParams,
-    ) -> Result<PluginCatalogInstallResponse, RuntimeCoreError> {
+        _params: PluginInstallParams,
+    ) -> Result<PluginInstallResponse, RuntimeCoreError> {
         Err(unavailable("plugin/install"))
     }
 
-    async fn uninstall_plugin_catalog(
+    async fn uninstall_plugin(
         &self,
-        _params: PluginCatalogUninstallParams,
-    ) -> Result<PluginCatalogUninstallResponse, RuntimeCoreError> {
+        _params: PluginUninstallParams,
+    ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
         Err(unavailable("plugin/uninstall"))
     }
 
-    async fn list_plugin_catalog_installed(
+    async fn list_installed_plugins(
         &self,
-        _params: PluginCatalogInstalledParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
+        _params: PluginInstalledParams,
+    ) -> Result<PluginInstalledResponse, RuntimeCoreError> {
         Err(unavailable("plugin/installed"))
     }
 
@@ -95,13 +128,6 @@ pub trait PluginDataSource: Send + Sync {
         _params: AppsInstalledParams,
     ) -> Result<AppsInstalledResponse, RuntimeCoreError> {
         Err(unavailable("app/installed"))
-    }
-
-    async fn set_plugin_catalog_enabled(
-        &self,
-        _params: PluginCatalogEnabledSetParams,
-    ) -> Result<PluginCatalogEnabledSetResponse, RuntimeCoreError> {
-        Err(unavailable("plugin/enabled/set"))
     }
 }
 

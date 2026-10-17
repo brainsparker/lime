@@ -15,6 +15,7 @@ import {
 } from "@/components/app-sidebar/AppSidebar.constants";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { SettingsSidebar } from "./SettingsSidebar";
+import type { SettingsSearchResult } from "../settingsSearch";
 import { AppSidebarAppearancePopover } from "@/components/app-sidebar/AppSidebarAppearancePopover";
 import {
   FooterAppearanceActionSlot,
@@ -108,6 +109,9 @@ const Title = styled.h2`
 interface SettingsNavigationProps {
   activeTab: SettingsTabs;
   reserveWindowControls: boolean;
+  onSearchSelect?: (result: SettingsSearchResult) => void;
+  searchRequestKey?: number;
+  navigationPending?: boolean;
   onTabChange: (tab: SettingsTabs) => void;
   onTabPrefetch: (tab: SettingsTabs) => void;
   onBack: () => void;
@@ -120,6 +124,9 @@ export function SettingsNavigation({
   reserveWindowControls,
   onTabChange,
   onTabPrefetch,
+  onSearchSelect,
+  searchRequestKey,
+  navigationPending,
   onBack,
   onHome,
   onNavigate,
@@ -219,6 +226,9 @@ export function SettingsNavigation({
             activeTab={activeTab}
             onTabChange={onTabChange}
             onTabPrefetch={onTabPrefetch}
+            onSearchSelect={onSearchSelect}
+            searchRequestKey={searchRequestKey}
+            navigationPending={navigationPending}
           />
         </Context>
       </Navigation>

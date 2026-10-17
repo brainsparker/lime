@@ -44,7 +44,7 @@ async fn real_stdio_thread_handoff_preserves_pending_input() {
     .unwrap();
     let root = session
         .start_thread(
-            cwd.into(),
+            Some(cwd.into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
         )
@@ -53,7 +53,7 @@ async fn real_stdio_thread_handoff_preserves_pending_input() {
         .thread;
     let child = session
         .start_thread_with_session_start_source(
-            cwd.into(),
+            Some(cwd.into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
             None,
@@ -92,11 +92,11 @@ async fn real_stdio_thread_handoff_preserves_pending_input() {
     paste(&mut app, "STDIO_RESTORED_界🙂");
     assert!(screen(&app).contains("STDIO_RESTORED_界🙂"));
     let input_before_failed_resume = app.chat_widget.bottom_pane.composer_draft();
-    let options = crate::runtime::TuiOptions {
+    let options = crate::runtime::connection::TuiOptions {
         app_server_bin: PathBuf::from(std::env::var_os("LIME_TEST_APP_SERVER_BIN").unwrap()),
         app_server_args: Vec::new(),
         remote: None,
-        cwd: cwd.into(),
+        cwd: Some(cwd.into()),
         model: Some("fixture-model".into()),
         model_provider: Some("fixture-provider".into()),
         reasoning_effort: None,

@@ -375,7 +375,7 @@ describe("defaultAgentRuntimeAdapter", () => {
       resumeThread: vi.fn().mockResolvedValue({
         result: {
           approvalPolicy: null,
-          approvalsReviewer: null,
+          approvalsReviewer: "user",
           cwd: "/workspace",
           model: "gpt-5.4",
           modelProvider: "openai",

@@ -231,15 +231,15 @@ pub(super) fn into_parts(
         ClientRequest::SkillsConfigWrite { id, params } => {
             parts(id, Method::SkillsConfigWrite, params)
         }
+        ClientRequest::MarketplaceAdd { id, params } => parts(id, Method::MarketplaceAdd, params),
+        ClientRequest::MarketplaceRemove { id, params } => parts(id, Method::MarketplaceRemove, params),
+        ClientRequest::MarketplaceUpgrade { id, params } => parts(id, Method::MarketplaceUpgrade, params),
         ClientRequest::PluginList { id, params } => parts(id, Method::PluginList, params),
         ClientRequest::PluginSearch { id, params } => parts(id, Method::PluginSearch, params),
         ClientRequest::PluginRead { id, params } => parts(id, Method::PluginRead, params),
         ClientRequest::PluginInstall { id, params } => parts(id, Method::PluginInstall, params),
         ClientRequest::PluginUninstall { id, params } => parts(id, Method::PluginUninstall, params),
         ClientRequest::PluginInstalled { id, params } => parts(id, Method::PluginInstalled, params),
-        ClientRequest::PluginEnabledSet { id, params } => {
-            parts(id, Method::PluginEnabledSet, params)
-        }
         ClientRequest::ThreadSettingsUpdate { id, params } => {
             parts(id, Method::ThreadSettingsUpdate, params)
         }
@@ -319,9 +319,9 @@ fn parts(
 mod tests {
     use super::*;
     use app_server_protocol::protocol::v2::{
-        METHOD_MEDIA_READ, METHOD_MEMORY_RESET, METHOD_PLUGIN_ENABLED_SET, METHOD_PLUGIN_INSTALL,
-        METHOD_PLUGIN_INSTALLED, METHOD_PLUGIN_LIST, METHOD_PLUGIN_READ, METHOD_PLUGIN_UNINSTALL,
-        METHOD_SKILLS_LIST, METHOD_THREAD_READ, METHOD_THREAD_RESUME, METHOD_TURN_INTERRUPT,
+        METHOD_MEDIA_READ, METHOD_MEMORY_RESET, METHOD_PLUGIN_INSTALL, METHOD_PLUGIN_INSTALLED,
+        METHOD_PLUGIN_LIST, METHOD_PLUGIN_READ, METHOD_PLUGIN_UNINSTALL, METHOD_SKILLS_LIST,
+        METHOD_THREAD_READ, METHOD_THREAD_RESUME, METHOD_TURN_INTERRUPT,
         METHOD_WINDOWS_SANDBOX_READINESS,
     };
     use app_server_protocol::RequestId;
@@ -494,17 +494,13 @@ mod tests {
     fn plugin_v2_methods_lower_through_typed_ingress() {
         for (method, params) in [
             (METHOD_PLUGIN_LIST, json!({})),
-            (METHOD_PLUGIN_READ, json!({ "pluginId": "demo" })),
+            (METHOD_PLUGIN_READ, json!({ "marketplacePath": "/tmp/marketplace.json", "pluginName": "demo" })),
             (
                 METHOD_PLUGIN_INSTALL,
-                json!({ "sourcePath": "/tmp/demo-plugin" }),
+                json!({ "marketplacePath": "/tmp/marketplace.json", "pluginName": "demo" }),
             ),
             (METHOD_PLUGIN_UNINSTALL, json!({ "pluginId": "demo" })),
             (METHOD_PLUGIN_INSTALLED, json!({})),
-            (
-                METHOD_PLUGIN_ENABLED_SET,
-                json!({ "pluginId": "demo", "enabled": true }),
-            ),
         ] {
             let request = decode(&request(method, params))
                 .expect("decode plugin request")

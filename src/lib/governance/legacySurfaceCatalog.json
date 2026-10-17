@@ -4931,7 +4931,14 @@
       "id": "frontend-retired-automation-page-route",
       "classification": "dead",
       "description": "已安排任务的 current GUI 入口只能使用 scheduled-tasks；不得恢复 Automation 页面参数、一级路由、Settings 重复页签或旧 i18n key",
-      "patterns": ["automation", "Automation"],
+      "patterns": [
+        "AutomationPage",
+        "AutomationWorkspace",
+        "AutomationSettings",
+        "SettingsTabs.Automation",
+        "automation."
+      ],
+      "regexPatterns": ["\\b(?:automation|automations|Automation)\\b"],
       "includePathPrefixes": [
         "src/types/page.ts",
         "src/types/settings.ts",

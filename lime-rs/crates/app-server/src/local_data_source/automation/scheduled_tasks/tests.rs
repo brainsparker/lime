@@ -20,7 +20,7 @@ fn create_request(
         task: ScheduledTaskCreateRequest {
             title: "每日简报".to_string(),
             prompt: "整理今天的重要进展".to_string(),
-            schedule: ScheduledTaskSchedule::Weekdays {
+            schedule: AutomationTaskSchedule::Weekdays {
                 time: "08:30".to_string(),
                 timezone: "Asia/Shanghai".to_string(),
             },
@@ -551,8 +551,8 @@ fn new_thread_storage_does_not_freeze_run_lineage() {
 #[test]
 fn schedule_preview_returns_five_occurrences() {
     let preview = preview_scheduled_task_schedule(ScheduledTaskSchedulePreviewParams {
-        schedule: ScheduledTaskSchedule::Weekly {
-            days: vec![ScheduledTaskWeekday::MO, ScheduledTaskWeekday::FR],
+        schedule: AutomationTaskSchedule::Weekly {
+            days: vec![AutomationTaskWeekday::MO, AutomationTaskWeekday::FR],
             time: "08:30".to_string(),
             timezone: "Asia/Shanghai".to_string(),
         },
@@ -563,12 +563,12 @@ fn schedule_preview_returns_five_occurrences() {
 
 #[test]
 fn hourly_schedule_keeps_optional_weekdays_and_rejects_empty_days() {
-    let schedule = lower_scheduled_schedule(&ScheduledTaskSchedule::Hourly {
+    let schedule = lower_scheduled_schedule(&AutomationTaskSchedule::Hourly {
         interval_hours: 2,
         days: Some(vec![
-            ScheduledTaskWeekday::FR,
-            ScheduledTaskWeekday::MO,
-            ScheduledTaskWeekday::FR,
+            AutomationTaskWeekday::FR,
+            AutomationTaskWeekday::MO,
+            AutomationTaskWeekday::FR,
         ]),
         minute: 15,
         timezone: "Asia/Shanghai".to_string(),
@@ -582,7 +582,7 @@ fn hourly_schedule_keeps_optional_weekdays_and_rejects_empty_days() {
         }
     );
 
-    let error = lower_scheduled_schedule(&ScheduledTaskSchedule::Hourly {
+    let error = lower_scheduled_schedule(&AutomationTaskSchedule::Hourly {
         interval_hours: 2,
         days: Some(Vec::new()),
         minute: 15,

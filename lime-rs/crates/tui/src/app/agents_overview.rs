@@ -261,7 +261,7 @@ impl super::App {
     ) -> Result<(String, String)> {
         let thread = app_server
             .start_thread_with_session_start_source(
-                cwd.unwrap_or_else(|| self.cwd.clone()),
+                Some(cwd.unwrap_or_else(|| self.cwd.clone())),
                 self.chat_widget.model.clone(),
                 self.chat_widget.model_provider.clone(),
                 None,

@@ -82,7 +82,7 @@ pub async fn start_websocket_acceptor(
     bind_address: SocketAddr,
     transport_event_tx: mpsc::Sender<TransportEvent>,
     shutdown_token: CancellationToken,
-) -> IoResult<JoinHandle<()>> {
+) -> IoResult<(SocketAddr, JoinHandle<()>)> {
     if !bind_address.ip().is_loopback() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::InvalidInput,
@@ -110,12 +110,15 @@ pub async fn start_websocket_acceptor(
         shutdown_token.cancelled().await;
     });
 
-    Ok(tokio::spawn(async move {
-        if let Err(err) = server.await {
-            error!(%err, "app-server websocket acceptor failed");
-        }
-        info!("app-server websocket acceptor stopped");
-    }))
+    Ok((
+        local_addr,
+        tokio::spawn(async move {
+            if let Err(err) = server.await {
+                error!(%err, "app-server websocket acceptor failed");
+            }
+            info!("app-server websocket acceptor stopped");
+        }),
+    ))
 }
 
 pub(crate) async fn run_websocket_connection<M, SinkError, StreamError>(
@@ -335,17 +338,14 @@ mod tests {
     async fn websocket_acceptor_forwards_messages_and_pings() {
         let (transport_event_tx, mut transport_event_rx) =
             mpsc::channel::<TransportEvent>(CHANNEL_CAPACITY);
-        let probe = TcpListener::bind(("127.0.0.1", 0))
-            .await
-            .expect("reserve websocket port");
-        let bind_address = probe.local_addr().expect("reserved address");
-        drop(probe);
-
         let shutdown_token = CancellationToken::new();
-        let accept_handle =
-            start_websocket_acceptor(bind_address, transport_event_tx, shutdown_token.clone())
-                .await
-                .expect("websocket acceptor should start");
+        let (bind_address, accept_handle) = start_websocket_acceptor(
+            "127.0.0.1:0".parse().unwrap(),
+            transport_event_tx,
+            shutdown_token.clone(),
+        )
+        .await
+        .expect("websocket acceptor should start");
         let (mut websocket, response) = connect_async(format!("ws://{bind_address}"))
             .await
             .expect("websocket client should connect");

@@ -44,6 +44,7 @@ import { runSettingsEnvironmentNavigationScenario } from "./lib/settings-environ
 import { runSettingsExecutionPolicyNavigationScenario } from "./lib/settings-execution-policy-navigation-scenario.mjs";
 import { runSettingsWebSearchNavigationScenario } from "./lib/settings-web-search-navigation-scenario.mjs";
 import { runSettingsProfileNavigationScenario } from "./lib/settings-profile-navigation-scenario.mjs";
+import { runSettingsSearchScenario } from "./lib/settings-search-scenario.mjs";
 import {
   installInvokeTraceCollector,
   captureInvokeTraceCollector,
@@ -52,6 +53,15 @@ import {
 } from "../lib/invoke-trace-collector.mjs";
 
 const sourcePaths = [
+  "scripts/electron/lib/settings-search-scenario.mjs",
+  "src/components/settings-v2/settingsSearchDocuments.ts",
+  "src/components/settings-v2/settingsSearch.ts",
+  "src/components/settings-v2/_layout/SettingsSearch.tsx",
+  "src/components/settings-v2/_layout/SettingsSidebar.tsx",
+  "src/components/settings-v2/_layout/useSettingsSearchTarget.ts",
+  "src/components/settings-v2/hooks/useSettingsCategory.ts",
+  "src/lib/api/oemCloudRuntime.ts",
+
   ...[
     "index.tsx",
     "ProfileFieldEditor.tsx",
@@ -78,6 +88,10 @@ const sourcePaths = [
   "src/components/settings-v2/_layout/SettingsUnsavedChangesDialog.tsx",
   "src/components/settings-v2/_layout/useSettingsDraft.ts",
   "src/components/settings-v2/general/memory/index.tsx",
+  "src/components/settings-v2/general/memory/AdvancedMemorySettings.tsx",
+  "src/components/settings-v2/general/memory/soul/SoulSettingsPanel.tsx",
+  "src/components/settings-v2/general/appearance/index.tsx",
+  "src/components/settings-v2/general/appearance/AppearanceSettingsView.tsx",
   "src/components/settings-v2/general/memory/memoryConfig.ts",
   "src/components/settings-v2/general/memory/useMemorySettingsDraft.ts",
   "src/components/settings-v2/general/memory/MemoryStoreStatusPanel.tsx",
@@ -242,7 +256,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
     startedAt: new Date().toISOString(),
     sourceSha256: fingerprints(),
     limitations: [
-      "Controlled external backend bypasses the production runtime backend and provider execution; only the declared Memory/Web Search/Environment/Execution Policy/Profile configuration and note scenarios are covered. Profile uses a non-OEM test override. No live search/provider/tool execution, auth, Windows, reference runtime, content search or full-settings claim.",
+      "Controlled external backend bypasses the production runtime backend and provider execution; only the declared Memory/Web Search/Environment/Execution Policy/Profile configuration and note scenarios are covered. Profile uses a non-OEM test override. Search covers only the declared 36 content targets/current section titles. No live search/provider/tool execution, auth, Windows, reference runtime or full-settings claim.",
       "Website launch uses the public Electron open-url event; OS URL dispatch is not exercised.",
     ],
     rounds: [],
@@ -640,6 +654,13 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       stage,
       waitForSession: () => surface(page, options, sessionId),
       waitForHome: () => surface(page, options, null),
+    });
+    summary.settingsSearch = await runSettingsSearchScenario({
+      page,
+      options,
+      evidenceDir,
+      stage,
+      waitForSession: () => surface(page, options, sessionId),
     });
     assert.equal(ledger().length, 1, "settings drafts never submit a Turn");
     const afterUnsaved = await read();

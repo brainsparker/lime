@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 use tokio_tungstenite::tungstenite::Message;
@@ -73,14 +73,12 @@ async fn client_context_websocket_clients_share_threads_but_isolate_cancellation
         ProjectionStore::initialize(temp.path().join("projection.sqlite")).unwrap(),
     ));
     let server = AppServer::with_runtime(runtime);
-    let probe = TcpListener::bind(("127.0.0.1", 0)).await.unwrap();
-    let address = probe.local_addr().unwrap();
-    drop(probe);
     let shutdown = CancellationToken::new();
     let (events_tx, events_rx) = mpsc::channel(64);
-    let acceptor = start_websocket_acceptor(address, events_tx, shutdown.clone())
-        .await
-        .unwrap();
+    let (address, acceptor) =
+        start_websocket_acceptor("127.0.0.1:0".parse().unwrap(), events_tx, shutdown.clone())
+            .await
+            .unwrap();
     let runner = tokio::spawn(run_transport_events(
         server,
         events_rx,

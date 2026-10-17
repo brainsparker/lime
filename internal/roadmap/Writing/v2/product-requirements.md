@@ -3,11 +3,11 @@
 更新时间：2026-07-05
 状态：Draft + ordinary Agent turn orchestration current-turn verified + Electron/CDP real desktop baseline verified + Electron/CDP Gate B product acceptance verified + live Provider current-turn verified + production preflight/readiness pipeline fail-closed verified + production signature cryptographic preflight verified + host tool evidence contract added + inline host command shortcode contract added
 
-> Plugin v3 对齐：portable 包只接受根 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md`。本文早期记录的独立 package execution、旧发布后台和签名预检仅作为历史证据；current Writing 合同由 App Server typed activation snapshot、普通 Agent turn、`artifact.snapshot` 和 JSONL audit 承接。
+> Codex 插件 对齐：portable 包只接受根 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md`。本文早期记录的独立 package execution、旧发布后台和签名预检仅作为历史证据；current Writing 合同由 App Server typed activation snapshot、普通 Agent turn、`artifact.snapshot` 和 JSONL audit 承接。
 
 ## 1. 背景
 
-Writing v1 已经把内容工厂写文章链路的产品形态收敛到 Lime Plugin Package；在 Plugin v3 中，用户通过 `@写文章` 激活由 App Server 派生的内容工厂能力，最终产出 `ArtifactFrame(articleArtifacts)`，并在右侧 Article Editor 中继续编辑文章。
+Writing v1 已经把内容工厂写文章链路的产品形态收敛到 Lime Plugin Package；在 Codex 插件 中，用户通过 `@写文章` 激活由 App Server 派生的内容工厂能力，最终产出 `ArtifactFrame(articleArtifacts)`，并在右侧 Article Editor 中继续编辑文章。
 
 截至 2026-07-05，Writing v2 已经有普通 Agent turn、Article Editor / Workspace UI、host tool evidence、真实 Electron/CDP baseline 与 product acceptance 证据；早期 package execution、`.lapp` 签名预检和发布后台证据已归档为历史材料，不再作为生产运行前提。最新后端修复已让普通 `@写文章` current-turn smoke 从 `artifact.snapshot=0` 恢复到 `artifactSnapshotCount=7`，最终 CDP acceptance 也已证明 `agentSession/read` 经 `electron-ipc` 进入真实桌面、历史会话可恢复、右侧不自动打开、raw JSON / workflow step 不进入普通聊天、点击文章产物后 Article Editor 正确打开。`src/features/plugin/testing/fixtures` 只能用于测试和审计证据，不能作为 production current 实现；真实产品完成不能依赖 mock、独立插件 runtime 或 fixture provider。
 
@@ -573,7 +573,7 @@ JSONL 约束：
 1. JSONL retention、压缩、脱敏和导出策略已有当前实现；后续开放点是 product 运维默认值、观测告警和审计工具入口。
 2. `workflow.artifact.delta` 与现有 `artifact.snapshot` 的兼容投影边界如何命名？
 3. 用户取消 workflow 时，已完成的 articleDraft 是否保留为草稿？
-4. workflow step 的最小字段是否需要补充到 Plugin v3 的 App Server activation projection 合同？portable `plugin.json` 不承载 workflow step。
+4. workflow step 的最小字段是否需要补充到 Codex 插件 的 App Server activation projection 合同？portable `plugin.json` 不承载 workflow step。
 
 ## 18. 2026-07-02 决策补充
 

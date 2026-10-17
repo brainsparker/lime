@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  Boxes,
-  PackageCheck,
-  Search,
-  Sparkles,
-  Users,
-} from "lucide-react";
+import { Boxes, PackageCheck, Search, Sparkles, Users } from "lucide-react";
 import styled from "styled-components";
 import { useTranslation } from "react-i18next";
 import type {
@@ -15,9 +9,10 @@ import type {
   SkillsPageParams,
   ExpertsPageParams,
 } from "@/types/page";
-import type { AppServerPluginCatalogSummary } from "@/lib/api/appServerTypes";
+import type { AppServerPluginSummary } from "@/lib/api/appServerTypes";
+import { getProject } from "@/lib/api/project";
 import {
-  listInstalledPluginCatalog,
+  listInstalledPlugins,
   PLUGIN_CATALOG_CHANGED_EVENT,
 } from "@/lib/api/pluginCatalog";
 import {
@@ -76,7 +71,7 @@ export function AppSidebarCustomization({
   onNavigate,
 }: AppSidebarCustomizationProps) {
   const { t } = useTranslation("navigation");
-  const [plugins, setPlugins] = useState<AppServerPluginCatalogSummary[]>([]);
+  const [plugins, setPlugins] = useState<AppServerPluginSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
   );
@@ -100,9 +95,18 @@ export function AppSidebarCustomization({
     const load = async () => {
       const request = ++sequence;
       try {
-        const result = await listInstalledPluginCatalog();
+        const project = scopedProjectId
+          ? await getProject(scopedProjectId)
+          : null;
+        const result = await listInstalledPlugins(
+          project?.rootPath ? { cwds: [project.rootPath] } : {},
+        );
         if (!disposed && request === sequence) {
-          setPlugins(result.plugins.filter((plugin) => plugin.installed));
+          setPlugins(
+            result.marketplaces
+              .flatMap((marketplace) => marketplace.plugins)
+              .filter((plugin) => plugin.installed),
+          );
           setStatus("ready");
         }
       } catch {
@@ -115,7 +119,7 @@ export function AppSidebarCustomization({
       disposed = true;
       window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, load);
     };
-  }, []);
+  }, [scopedProjectId]);
 
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();
@@ -252,7 +256,9 @@ export function AppSidebarCustomization({
                 data-testid="app-sidebar-installed-plugin"
               >
                 <Boxes />
-                <NavLabel>{plugin.name}</NavLabel>
+                <NavLabel>
+                  {plugin.interface?.displayName || plugin.name}
+                </NavLabel>
               </NavButton>
             ))}
           {status !== "ready" || plugins.length === 0 ? (

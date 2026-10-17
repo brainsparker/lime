@@ -7,12 +7,12 @@ use app_server_protocol::protocol::v2::{
     ConfigWriteResponse, MergeStrategy, WriteStatus,
 };
 use app_server_protocol::{error_codes, JsonRpcError};
-use lime_core::config::{load_config, save_config, Config, ConfigManager};
+use lime_core::config::{Config, ConfigManager};
 use serde_json::{json, Map, Value};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::MutexGuard;
 
 const CONFIG_ROOT_KEYS: &[&str] = &[
     "server",
@@ -36,6 +36,8 @@ const CONFIG_ROOT_KEYS: &[&str] = &[
     "models",
     "agent",
     "skills",
+    "plugins",
+    "marketplaces",
     "orchestrator",
     "experimental",
     "tool_calling",
@@ -59,10 +61,7 @@ const CONFIG_ROOT_KEYS: &[&str] = &[
 ];
 
 pub(super) fn config_lock() -> Result<MutexGuard<'static, ()>, JsonRpcError> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-        .lock()
-        .map_err(|_| config_runtime_error("config lock poisoned"))
+    Ok(lime_core::config::config_file_lock())
 }
 
 impl RequestProcessor {
@@ -80,7 +79,7 @@ impl RequestProcessor {
         }
 
         let _guard = config_lock()?;
-        let snapshot = read_snapshot()?;
+        let snapshot = read_snapshot(self.runtime.app_config_path())?;
         let metadata = snapshot.metadata();
         let mut origins = BTreeMap::new();
         collect_origins(&snapshot.config, "", &metadata, &mut origins);
@@ -106,7 +105,9 @@ impl RequestProcessor {
     ) -> Result<RpcDispatch, JsonRpcError> {
         self.ensure_initialized()?;
         let params: ConfigValueWriteParams = parse_params(params)?;
-        write_edits(
+        let plugins_changed = plugin_key_path(&params.key_path);
+        let response = write_edits(
+            self.runtime.app_config_path(),
             params.file_path,
             params.expected_version,
             vec![ConfigEdit {
@@ -114,8 +115,8 @@ impl RequestProcessor {
                 value: params.value,
                 merge_strategy: params.merge_strategy,
             }],
-        )
-        .and_then(dispatch_result)
+        )?;
+        self.dispatch_config_write(response, plugins_changed).await
     }
 
     pub(super) async fn handle_config_batch_write_impl(
@@ -126,8 +127,31 @@ impl RequestProcessor {
         let params: ConfigBatchWriteParams = parse_params(params)?;
         // Runtime consumers resolve config.yaml at each operation, so there is no
         // thread-local config cache to refresh when this flag is true.
-        write_edits(params.file_path, params.expected_version, params.edits)
-            .and_then(dispatch_result)
+        let plugins_changed = params
+            .edits
+            .iter()
+            .any(|edit| plugin_key_path(&edit.key_path));
+        let response = write_edits(
+            self.runtime.app_config_path(),
+            params.file_path,
+            params.expected_version,
+            params.edits,
+        )?;
+        self.dispatch_config_write(response, plugins_changed).await
+    }
+
+    async fn dispatch_config_write(
+        &self,
+        response: ConfigWriteResponse,
+        plugins_changed: bool,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        if !plugins_changed {
+            return dispatch_result(response);
+        }
+        self.runtime.invalidate_plugin_components().await;
+        self.refresh_plugin_skill_watch().await;
+        self.publish_app_list_updated().await;
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 }
 
@@ -149,15 +173,15 @@ impl ConfigSnapshot {
     }
 }
 
-fn read_snapshot() -> Result<ConfigSnapshot, JsonRpcError> {
-    let config = load_config().map_err(config_runtime_error)?;
-    snapshot_from_config(config)
+fn read_snapshot(path: &Path) -> Result<ConfigSnapshot, JsonRpcError> {
+    let manager = ConfigManager::load(path).map_err(config_runtime_error)?;
+    snapshot_from_config(manager.config().clone(), path)
 }
 
-fn snapshot_from_config(config: Config) -> Result<ConfigSnapshot, JsonRpcError> {
+fn snapshot_from_config(config: Config, path: &Path) -> Result<ConfigSnapshot, JsonRpcError> {
     let config = serde_json::to_value(config).map_err(config_runtime_error)?;
     let version = config_version(&config)?;
-    let file_path = ConfigManager::default_config_path();
+    let file_path = path.to_path_buf();
     Ok(ConfigSnapshot {
         config,
         version,
@@ -188,12 +212,13 @@ fn canonicalize_json(value: &Value) -> Value {
 }
 
 fn write_edits(
+    path: &Path,
     file_path: Option<String>,
     expected_version: Option<String>,
     edits: Vec<ConfigEdit>,
 ) -> Result<ConfigWriteResponse, JsonRpcError> {
     let _guard = config_lock()?;
-    let mut snapshot = read_snapshot()?;
+    let mut snapshot = read_snapshot(path)?;
     validate_write_path(file_path.as_deref(), &snapshot.file_path)?;
     if expected_version
         .as_deref()
@@ -229,8 +254,10 @@ fn write_edits(
             format!("Invalid configuration: {error}"),
         )
     })?;
-    save_config(&config).map_err(config_runtime_error)?;
-    let snapshot = snapshot_from_config(config)?;
+    ConfigManager::with_config(config.clone(), path.to_path_buf())
+        .save()
+        .map_err(config_runtime_error)?;
+    let snapshot = snapshot_from_config(config, path)?;
 
     Ok(ConfigWriteResponse {
         status: WriteStatus::Ok,
@@ -238,6 +265,11 @@ fn write_edits(
         file_path: snapshot.file_path.to_string_lossy().into_owned(),
         overridden_metadata: None,
     })
+}
+
+fn plugin_key_path(key_path: &str) -> bool {
+    parse_key_path(key_path)
+        .is_ok_and(|segments| segments.first().is_some_and(|key| key == "plugins"))
 }
 
 fn validate_write_path(provided: Option<&str>, current: &Path) -> Result<(), JsonRpcError> {

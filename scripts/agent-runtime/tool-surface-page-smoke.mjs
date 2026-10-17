@@ -1383,8 +1383,8 @@ async function installCodeRuntimeDevBridgeFixture(page, options) {
         });
       case "plugin/installed":
         return buildAppServerJsonRpcResult(message.id, {
-          plugins: [],
-          nextCursor: null,
+          marketplaces: [],
+          marketplaceLoadErrors: [],
         });
       case "scheduledTask/list":
         return buildAppServerJsonRpcResult(message.id, {

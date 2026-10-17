@@ -1,0 +1,35 @@
+{
+  "$defs": {
+    "HookEventName": {
+      "enum": [
+        "permissionRequest",
+        "postCompact",
+        "postToolUse",
+        "preCompact",
+        "preToolUse",
+        "sessionEnd",
+        "sessionStart",
+        "stop",
+        "subagentStart",
+        "subagentStop",
+        "userPromptSubmit"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "eventName": {
+      "$ref": "#/$defs/HookEventName"
+    },
+    "key": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventName",
+    "key"
+  ],
+  "title": "PluginHookSummary",
+  "type": "object"
+}

@@ -3,6 +3,7 @@ mod dispatch;
 mod exec;
 mod mcp_cmd;
 mod plugin_cmd;
+mod marketplace_cmd;
 mod queue_cmd;
 mod review_cmd;
 mod sandbox_setup;
@@ -460,13 +461,12 @@ fn tui_options(
 ) -> Result<TuiOptions> {
     let remote = resolve_remote_endpoint(&args)?;
     let permission_settings = permission_settings(&args)?;
+    let cwd = args.workspace_cwd()?;
     Ok(TuiOptions {
         app_server_bin: resolve_app_server_bin(args.app_server),
         app_server_args: args.app_server_args,
         remote,
-        cwd: args
-            .cwd
-            .unwrap_or_else(|| env::current_dir().unwrap_or_else(|_| PathBuf::from("."))),
+        cwd,
         model: args.model,
         model_provider: args.provider,
         reasoning_effort: args.effort,

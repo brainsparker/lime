@@ -23,6 +23,8 @@ use super::canonical_rollout::RolloutStore;
 use super::{ProjectionStore, StorageRoots, StoredSession};
 
 mod queue;
+mod reviewer;
+mod workspace;
 
 fn store() -> (tempfile::TempDir, ProjectionStore) {
     let temp = tempfile::tempdir().expect("tempdir");

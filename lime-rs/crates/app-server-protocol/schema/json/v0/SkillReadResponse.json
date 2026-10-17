@@ -16,7 +16,7 @@
           "type": "string"
         },
         "metadata": {
-          "$ref": "#/$defs/SkillSummary"
+          "$ref": "#/$defs/SkillDetailMetadata"
         },
         "workflowSteps": {
           "items": {
@@ -76,6 +76,64 @@
       "required": [
         "displayName",
         "executionMode"
+      ],
+      "type": "object"
+    },
+    "SkillDetailMetadata": {
+      "properties": {
+        "authority": {
+          "$ref": "#/$defs/SkillAuthority"
+        },
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/SkillDetailDependencies"
+        },
+        "description": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "interface": {
+          "$ref": "#/$defs/SkillDetailInterface"
+        },
+        "locator": {
+          "$ref": "#/$defs/SkillLocator"
+        },
+        "name": {
+          "type": "string"
+        },
+        "policy": {
+          "$ref": "#/$defs/SkillPolicy"
+        },
+        "scope": {
+          "$ref": "#/$defs/SkillDetailScope"
+        },
+        "skillId": {
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/SkillSource"
+        }
+      },
+      "required": [
+        "authority",
+        "capabilities",
+        "dependencies",
+        "description",
+        "enabled",
+        "interface",
+        "locator",
+        "name",
+        "policy",
+        "scope",
+        "skillId",
+        "source"
       ],
       "type": "object"
     },
@@ -148,64 +206,6 @@
         "user"
       ],
       "type": "string"
-    },
-    "SkillSummary": {
-      "properties": {
-        "authority": {
-          "$ref": "#/$defs/SkillAuthority"
-        },
-        "capabilities": {
-          "items": {
-            "type": "string"
-          },
-          "type": "array"
-        },
-        "dependencies": {
-          "$ref": "#/$defs/SkillDetailDependencies"
-        },
-        "description": {
-          "type": "string"
-        },
-        "enabled": {
-          "type": "boolean"
-        },
-        "interface": {
-          "$ref": "#/$defs/SkillDetailInterface"
-        },
-        "locator": {
-          "$ref": "#/$defs/SkillLocator"
-        },
-        "name": {
-          "type": "string"
-        },
-        "policy": {
-          "$ref": "#/$defs/SkillPolicy"
-        },
-        "scope": {
-          "$ref": "#/$defs/SkillDetailScope"
-        },
-        "skillId": {
-          "type": "string"
-        },
-        "source": {
-          "$ref": "#/$defs/SkillSource"
-        }
-      },
-      "required": [
-        "authority",
-        "capabilities",
-        "dependencies",
-        "description",
-        "enabled",
-        "interface",
-        "locator",
-        "name",
-        "policy",
-        "scope",
-        "skillId",
-        "source"
-      ],
-      "type": "object"
     },
     "SkillWorkflowStep": {
       "properties": {

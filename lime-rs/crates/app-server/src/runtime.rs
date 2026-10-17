@@ -459,6 +459,10 @@ impl RuntimeCore {
         self
     }
 
+    pub(crate) fn app_config_path(&self) -> &std::path::Path {
+        &self.app_config_path
+    }
+
     pub(crate) fn environment_registry_path(&self) -> PathBuf {
         self.app_config_path
             .parent()

@@ -6,21 +6,26 @@
 #![allow(unused_imports)]
 
 mod export;
+mod file_lock;
 mod hot_reload;
 mod import;
 mod path_utils;
+mod persistence;
+mod plugins;
 mod tool_execution;
 mod tui_keymap;
 mod types;
 mod yaml;
 
 pub use export::{ExportBundle, ExportOptions, ExportService, REDACTED_PLACEHOLDER};
+pub use file_lock::config_file_lock;
 pub use hot_reload::{
     ConfigChangeEvent as FileChangeEvent, ConfigChangeKind, FileWatcher, HotReloadManager,
     ReloadResult,
 };
 pub use import::{ImportOptions, ImportService, ValidationResult};
 pub use path_utils::{collapse_tilde, contains_tilde, expand_tilde};
+pub use plugins::{MarketplaceConfig, MarketplaceSourceType, PluginConfig, PluginsConfig, PluginsDefaultConfig};
 pub use tool_execution::{
     ToolExecutionCommandRiskLevelConfig, ToolExecutionCommandRuleConfig,
     ToolExecutionCommandRuleMatchTypeConfig, ToolExecutionNetworkRuleConfig,

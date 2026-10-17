@@ -19,7 +19,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { cn } from "@/lib/utils";
-import type { ScheduledTaskSummary } from "@/lib/api/scheduledTasks";
+import type { AutomationTaskSummary } from "@/lib/api/scheduledTasks";
 import {
   describeScheduledTaskSchedule,
   scheduledTaskPresentationCopy,
@@ -28,7 +28,7 @@ import {
 import type { ScheduledTaskFilter } from "./scheduledTaskViewModel";
 
 interface ScheduledTaskListProps {
-  tasks: ScheduledTaskSummary[];
+  tasks: AutomationTaskSummary[];
   selectedId: string | null;
   query: string;
   filter: ScheduledTaskFilter;

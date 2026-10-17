@@ -1,4 +1,4 @@
-use super::{mcp_step_snapshot::DynamicToolRoute, tool_executor::orchestration};
+use super::{mcp_step_snapshot::DynamicToolRoute, tool_executor::approval};
 use crate::protocol::AgentEvent;
 use crate::runtime_state::AgentRuntimeState;
 use agent_protocol::ThreadId;
@@ -67,7 +67,7 @@ pub(super) async fn call_dynamic_tool(
             ));
         }
         validate_approval(&approval)?;
-        orchestration::wait_for_browser_action_approval(
+        approval::wait_for_browser_action_approval(
             state,
             event_sender,
             request,

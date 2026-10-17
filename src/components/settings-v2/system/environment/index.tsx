@@ -239,7 +239,14 @@ export function EnvironmentSettings() {
               }
             >
               <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
-                <div className="rounded-[22px] border border-border bg-muted/60 p-4">
+                <div
+                  className="rounded-[22px] border border-border bg-muted/60 p-4"
+                  data-settings-search-target="environment-shell-enable"
+                  tabIndex={-1}
+                  aria-label={t(
+                    "settings.environment.shellImport.enable.label",
+                  )}
+                >
                   <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
@@ -269,7 +276,14 @@ export function EnvironmentSettings() {
                   </div>
                 </div>
 
-                <div className="rounded-[22px] border border-border bg-muted/60 p-4">
+                <div
+                  className="rounded-[22px] border border-border bg-muted/60 p-4"
+                  data-settings-search-target="environment-shell-timeout"
+                  tabIndex={-1}
+                  aria-label={t(
+                    "settings.environment.shellImport.timeout.label",
+                  )}
+                >
                   <FieldBlock
                     label={t("settings.environment.shellImport.timeout.label")}
                     htmlFor="environment-shell-import-timeout"
@@ -332,6 +346,7 @@ export function EnvironmentSettings() {
 
             <SurfacePanel
               icon={Variable}
+              searchTarget="environment-overrides"
               title={t("settings.environment.overrides.title")}
               description={t("settings.environment.overrides.description")}
               tipAriaLabel={t("settings.environment.overrides.tipAria")}

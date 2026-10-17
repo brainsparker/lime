@@ -102,7 +102,7 @@ impl ApprovalPolicyCliArg {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub(crate) struct PermissionSettings {
     pub(crate) approval_policy: Option<String>,
-    pub(crate) approvals_reviewer: Option<String>,
+    pub(crate) approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     pub(crate) sandbox_policy: Option<String>,
 }
 
@@ -123,7 +123,7 @@ pub(crate) fn permission_settings(args: &ConnectionArgs) -> Result<PermissionSet
                     .unwrap_or("on-request")
                     .to_string(),
             ),
-            approvals_reviewer: Some("auto_review".to_string()),
+            approvals_reviewer: Some(agent_protocol::ApprovalsReviewer::AutoReview),
             sandbox_policy: Some("workspace-write".to_string()),
         });
     }
@@ -155,6 +155,13 @@ pub(crate) fn permission_settings(args: &ConnectionArgs) -> Result<PermissionSet
 }
 
 impl ConnectionArgs {
+    pub(crate) fn workspace_cwd(&self) -> Result<Option<PathBuf>> {
+        if self.cwd.is_some() || self.remote.remote.is_some() {
+            return Ok(self.cwd.clone());
+        }
+        Ok(Some(std::env::current_dir()?))
+    }
+
     pub(crate) fn inherit_from(&mut self, root: &Self) {
         let child_sandbox_group_selected = self.sandbox_mode.is_some()
             || self.approve_for_me

@@ -1,0 +1,73 @@
+{
+  "$defs": {
+    "AppTemplateUnavailableReason": {
+      "enum": [
+        "NOT_CONFIGURED_FOR_WORKSPACE",
+        "NO_ACTIVE_WORKSPACE"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "canonicalConnectorId": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "category": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "description": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "logoUrl": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "logoUrlDark": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "materializedAppIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "name": {
+      "type": "string"
+    },
+    "reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AppTemplateUnavailableReason"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "templateId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "materializedAppIds",
+    "name",
+    "templateId"
+  ],
+  "title": "AppTemplateSummary",
+  "type": "object"
+}

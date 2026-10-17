@@ -150,6 +150,8 @@ pub struct RuntimeToolApprovalRequest {
     pub denial_kind: Option<RuntimeToolDenialKind>,
     pub reason: Option<String>,
     pub network_host: Option<String>,
+    pub effective_sandbox_policy: RuntimeToolSandboxPolicy,
+    pub granted_permissions: GrantedPermissionProfile,
 }
 
 #[derive(Debug, Clone)]
@@ -213,6 +215,7 @@ impl RuntimeToolExecutionAttempt {
 pub struct RuntimeToolOrchestrationInput {
     pub identity: RuntimeToolExecutionIdentity,
     pub approval_policy: RuntimeToolApprovalPolicy,
+    pub approvals_reviewer: agent_protocol::ApprovalsReviewer,
     pub initial_approval: RuntimeToolInitialApproval,
     pub initial_approval_reason: Option<String>,
     pub requested_sandbox_policy: RuntimeToolSandboxPolicy,
@@ -247,6 +250,10 @@ pub type RuntimeToolApprovalFuture<'a> =
     Pin<Box<dyn Future<Output = Result<(), RuntimeToolExecutionError>> + Send + 'a>>;
 
 pub trait RuntimeToolApprovalHandler: Send + Sync {
+    fn handles_cancellation(&self, _request: &RuntimeToolApprovalRequest) -> bool {
+        false
+    }
+
     fn approve<'a>(&'a self, request: RuntimeToolApprovalRequest) -> RuntimeToolApprovalFuture<'a>;
 }
 
@@ -279,6 +286,8 @@ pub async fn orchestrate_runtime_tool_execution(
                     denial_kind: None,
                     reason: input.initial_approval_reason.clone(),
                     network_host: None,
+                    effective_sandbox_policy: input.effective_sandbox_policy,
+                    granted_permissions: input.granted_permissions.clone(),
                 },
                 input.cancel_token.as_ref(),
             )
@@ -321,6 +330,8 @@ pub async fn orchestrate_runtime_tool_execution(
                     denial_kind: Some(retry.denial_kind),
                     reason: Some(first_error.message().to_string()),
                     network_host: retry.network_host.clone(),
+                    effective_sandbox_policy: retry.effective_sandbox_policy,
+                    granted_permissions: retry.granted_permissions.clone(),
                 },
                 input.cancel_token.as_ref(),
             )
@@ -398,7 +409,9 @@ fn retry_approval_kind(
     initial_attempt: &RuntimeToolExecutionAttempt,
     network_denial: bool,
 ) -> Option<RuntimeToolApprovalKind> {
-    if input.strict_guardian {
+    if input.strict_guardian
+        || input.approvals_reviewer == agent_protocol::ApprovalsReviewer::AutoReview
+    {
         return Some(RuntimeToolApprovalKind::Guardian);
     }
     if !network_denial && initial_attempt.approval_source == RuntimeToolApprovalSource::User {
@@ -414,6 +427,9 @@ async fn await_approval(
 ) -> Result<(), RuntimeToolExecutionError> {
     if cancel_token.is_some_and(CancellationToken::is_cancelled) {
         return Err(cancelled_error());
+    }
+    if approvals.handles_cancellation(&request) {
+        return approvals.approve(request).await;
     }
     match cancel_token.cloned() {
         Some(cancel_token) => {

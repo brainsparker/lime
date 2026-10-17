@@ -3,8 +3,8 @@ use serde_json::json;
 
 #[test]
 fn scheduled_task_schedule_uses_codex_weekday_wire_values() {
-    let schedule = ScheduledTaskSchedule::Weekly {
-        days: vec![ScheduledTaskWeekday::MO, ScheduledTaskWeekday::FR],
+    let schedule = AutomationTaskSchedule::Weekly {
+        days: vec![AutomationTaskWeekday::MO, AutomationTaskWeekday::FR],
         time: "08:30".to_string(),
         timezone: "Asia/Shanghai".to_string(),
     };

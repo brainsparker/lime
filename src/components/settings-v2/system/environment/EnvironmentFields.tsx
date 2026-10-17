@@ -8,6 +8,7 @@ interface SurfacePanelProps {
   description: string;
   tipAriaLabel: string;
   aside?: ReactNode;
+  searchTarget?: string;
   children: ReactNode;
 }
 
@@ -25,10 +26,16 @@ export function SurfacePanel({
   description,
   tipAriaLabel,
   aside,
+  searchTarget,
   children,
 }: SurfacePanelProps) {
   return (
-    <article className="rounded-[26px] border border-border bg-background p-5 shadow-sm ">
+    <article
+      className="rounded-[26px] border border-border bg-background p-5 shadow-sm "
+      data-settings-search-target={searchTarget}
+      tabIndex={searchTarget ? -1 : undefined}
+      aria-label={searchTarget ? title : undefined}
+    >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <div className="flex items-center gap-2 text-sm font-semibold text-foreground">

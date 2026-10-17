@@ -161,20 +161,15 @@ pub(super) fn build_agent_skill_snapshot_for_turn_with_plugins_and_orchestrator(
 }
 
 fn build_agent_skill_snapshot_from_turn_roots(
-    mut roots: Vec<AgentSkillRoot>,
+    roots: Vec<AgentSkillRoot>,
     metadata_values: &[&Value],
     plugin_snapshots: &[PluginTurnSnapshot],
     orchestrator_skills: &[AgentSkillMetadata],
 ) -> AgentSkillSnapshot {
-    roots.extend(
-        plugin_snapshots
-            .iter()
-            .map(|snapshot| lime_skills::AgentSkillRoot {
-                path: snapshot.package_root.join("skills"),
-                scope: lime_skills::AgentSkillScope::App,
-            }),
-    );
     let mut snapshot = build_agent_skill_snapshot_from_roots(roots);
+    for plugin in plugin_snapshots {
+        plugin.append_skills(&mut snapshot);
+    }
     for skill in orchestrator_skills {
         if snapshot.skills.iter().any(|existing| {
             existing.authority == skill.authority

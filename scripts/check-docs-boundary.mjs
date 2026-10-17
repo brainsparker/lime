@@ -65,19 +65,18 @@ const skippedExtensions = new Set([
   ".zip",
 ]);
 
-const pluginV3CurrentDocuments = [
+const pluginCurrentDocuments = [
   "internal/aiprompts/README.md",
   "internal/roadmap/Writing/v2/README.md",
   "internal/roadmap/Writing/v2/product-requirements.md",
   "internal/roadmap/Writing/v2/content-factory-plugin-reframe.md",
-  "internal/roadmap/plugin/v3/00-current-baseline.md",
-  "internal/roadmap/plugin/v3/01-target-contract.md",
-  "internal/roadmap/plugin/v3/03-execution-plan.md",
-  "internal/roadmap/plugin/v3/04-verification.md",
-  "internal/roadmap/plugin/v3/05-codex-parity-matrix.md",
+  "internal/roadmap/plugin/README.md",
+  "internal/roadmap/plugin/codex-contract.md",
 ];
 
 const retiredPluginContractPatterns = [
+  /internal\/roadmap\/plugin\/v3\//,
+  /plugins\/v3\//,
   /lime-plugin-package-v1\.md/,
   /lime\.plugin\.package\.v1/,
   /app\.runtime\.yaml/,
@@ -202,10 +201,14 @@ function shouldScanFile(relativePath) {
   return stat.size <= 2 * 1024 * 1024;
 }
 
-function checkPluginV3DocumentationBoundary(failures) {
-  for (const relativePath of pluginV3CurrentDocuments) {
+function checkPluginDocumentationBoundary(failures) {
+  if (fs.existsSync(path.join(repoRoot, "internal/roadmap/plugin/v3"))) {
+    failures.push("已删除的插件 v3 路线目录不得恢复");
+  }
+
+  for (const relativePath of pluginCurrentDocuments) {
     if (!isCurrentFile(relativePath)) {
-      failures.push(`Plugin v3 现役文档缺失: ${relativePath}`);
+      failures.push(`Codex 插件现役文档缺失: ${relativePath}`);
       continue;
     }
 
@@ -213,7 +216,7 @@ function checkPluginV3DocumentationBoundary(failures) {
     for (const pattern of retiredPluginContractPatterns) {
       if (pattern.test(source)) {
         failures.push(
-          `Plugin v3 现役文档回流旧合同 ${pattern}: ${relativePath}`,
+          `Codex 插件现役文档回流旧合同 ${pattern}: ${relativePath}`,
         );
       }
     }
@@ -223,7 +226,7 @@ function checkPluginV3DocumentationBoundary(failures) {
 function main() {
   const failures = [];
 
-  checkPluginV3DocumentationBoundary(failures);
+  checkPluginDocumentationBoundary(failures);
 
   for (const relativePath of requiredFiles) {
     if (!fileExists(relativePath)) {

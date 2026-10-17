@@ -31,6 +31,7 @@ use std::sync::Mutex;
 use tempfile::TempDir;
 
 const WORKSPACE_ID: &str = "workspace-current";
+mod plugins;
 const WORKSPACE_ROOT: &str = "/tmp/lime-current-workspace";
 fn setup_data_source() -> LocalAppDataSource {
     let app_data_root = std::env::temp_dir().join("app-server-local-data-source-test");
@@ -52,7 +53,7 @@ fn setup_data_source() -> LocalAppDataSource {
         db: Arc::new(Mutex::new(conn)),
         app_data_root,
         product_db_path: crate::runtime::product_db_path_for_agent_root(&agent_root),
-        plugin_data_root: agent_root.join("plugins"),
+        plugin_store: plugin_catalog::PluginStore::new(agent_root.join("plugins"), agent_root.join("config.yaml")),
         session_files_root: agent_root.join("artifacts").join("sessions"),
         connect_registry_cache_path: agent_root
             .join("cache")
@@ -101,6 +102,7 @@ async fn successful_skill_catalog_mutation_emits_typed_invalidation() {
         Some(&json!(SERVER_NAME))
     );
     app_server_notification(&server, METHOD_INITIALIZED, json!({})).await;
+    let mut outbound = server.subscribe_outbound_messages();
 
     let line = json!({
         "jsonrpc": "2.0",
@@ -114,9 +116,12 @@ async fn successful_skill_catalog_mutation_emits_typed_invalidation() {
         .await
         .expect("handle Skill catalog mutation");
 
-    assert_eq!(responses.len(), 2, "{responses:?}");
+    assert_eq!(responses.len(), 1, "{responses:?}");
     let response: Value = serde_json::from_str(&responses[0]).expect("decode response");
-    let notification = decode_message(&responses[1]).expect("decode notification");
+    let notification = tokio::time::timeout(std::time::Duration::from_secs(1), outbound.recv())
+        .await
+        .expect("catalog mutation broadcast deadline")
+        .expect("catalog mutation notification");
     assert_eq!(response["result"], json!({ "success": true }));
     assert_eq!(
         notification,

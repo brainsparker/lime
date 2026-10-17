@@ -1,5 +1,6 @@
 mod config;
 mod history;
+mod thread;
 
 pub(crate) use history::{
     thread_items_page_params, thread_items_page_with_handle, thread_turns_for_items_with_handle,
@@ -25,17 +26,15 @@ use app_server_protocol::protocol::v2::{
     QueuedSubmission, ServerRequest, SkillsListParams, SkillsListResponse, ThreadListParams,
     ThreadListResponse, ThreadQueueAddParams, ThreadQueueAddResponse, ThreadQueueDeleteParams,
     ThreadQueueDeleteResponse, ThreadQueueListParams, ThreadQueueListResponse, ThreadReadParams,
-    ThreadReadResponse, ThreadResumeParams, ThreadResumeResponse, ThreadSetNameParams,
-    ThreadSetNameResponse, ThreadSettingsUpdateParams, ThreadSettingsUpdateResponse,
-    ThreadStartParams, ThreadStartResponse, ThreadStartSource, ThreadUnarchiveParams,
-    ThreadUnarchiveResponse, TurnInterruptParams, TurnInterruptResponse, TurnStartParams,
-    TurnStartResponse, TurnSteerParams, TurnSteerResponse, UserInput,
-    METHOD_COLLABORATION_MODE_LIST, METHOD_FUZZY_FILE_SEARCH, METHOD_MCP_SERVER_STATUS_LIST,
-    METHOD_PERMISSION_PROFILE_LIST, METHOD_PROMPT_HISTORY_APPEND, METHOD_PROMPT_HISTORY_READ,
-    METHOD_SKILLS_LIST, METHOD_THREAD_ARCHIVE, METHOD_THREAD_QUEUE_ADD, METHOD_THREAD_QUEUE_DELETE,
-    METHOD_THREAD_QUEUE_LIST, METHOD_THREAD_READ, METHOD_THREAD_RESUME,
-    METHOD_THREAD_SETTINGS_UPDATE, METHOD_THREAD_START, METHOD_TURN_INTERRUPT, METHOD_TURN_START,
-    METHOD_TURN_STEER,
+    ThreadReadResponse, ThreadSetNameParams, ThreadSetNameResponse, ThreadSettingsUpdateParams,
+    ThreadSettingsUpdateResponse, ThreadUnarchiveParams, ThreadUnarchiveResponse,
+    TurnInterruptParams, TurnInterruptResponse, TurnStartParams, TurnStartResponse,
+    TurnSteerParams, TurnSteerResponse, UserInput, METHOD_COLLABORATION_MODE_LIST,
+    METHOD_FUZZY_FILE_SEARCH, METHOD_MCP_SERVER_STATUS_LIST, METHOD_PERMISSION_PROFILE_LIST,
+    METHOD_PROMPT_HISTORY_APPEND, METHOD_PROMPT_HISTORY_READ, METHOD_SKILLS_LIST,
+    METHOD_THREAD_ARCHIVE, METHOD_THREAD_QUEUE_ADD, METHOD_THREAD_QUEUE_DELETE,
+    METHOD_THREAD_QUEUE_LIST, METHOD_THREAD_READ, METHOD_THREAD_SETTINGS_UPDATE,
+    METHOD_TURN_INTERRUPT, METHOD_TURN_START, METHOD_TURN_STEER,
 };
 use app_server_protocol::{
     ClientCapabilities, ClientInfo, InitializeParams, JsonRpcError, RequestId,
@@ -60,7 +59,7 @@ pub(crate) struct ThreadSettingsPatch {
     pub(crate) effort: Option<String>,
     pub(crate) permissions: Option<String>,
     pub(crate) approval_policy: Option<String>,
-    pub(crate) approvals_reviewer: Option<String>,
+    pub(crate) approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     pub(crate) sandbox_policy: Option<String>,
 }
 
@@ -83,7 +82,7 @@ impl ThreadSettingsPatch {
     pub(crate) fn with_policy(
         mut self,
         approval_policy: Option<String>,
-        approvals_reviewer: Option<String>,
+        approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
         sandbox_policy: Option<String>,
     ) -> Self {
         self.approval_policy = approval_policy;
@@ -195,77 +194,6 @@ impl AppServerSession {
             active_permission_profile: None,
             history_pagination: HashMap::new(),
         })
-    }
-
-    pub(crate) async fn start_thread(
-        &mut self,
-        cwd: PathBuf,
-        model: Option<String>,
-        model_provider: Option<String>,
-    ) -> Result<ThreadStartResponse> {
-        let response = self
-            .start_thread_with_session_start_source(cwd, model, model_provider, None)
-            .await?;
-        let thread_id = response.thread.id.clone();
-        self.thread_id = Some(thread_id.clone());
-        self.active_permission_profile = response
-            .active_permission_profile
-            .as_ref()
-            .and_then(permission_profile_id);
-        Ok(response)
-    }
-
-    /// Start a thread without changing the interactive session target.
-    pub(crate) async fn start_thread_with_session_start_source(
-        &self,
-        cwd: PathBuf,
-        model: Option<String>,
-        model_provider: Option<String>,
-        session_start_source: Option<ThreadStartSource>,
-    ) -> Result<ThreadStartResponse> {
-        let cwd = cwd.to_string_lossy().into_owned();
-        self.request_handle
-            .request(
-                METHOD_THREAD_START,
-                ThreadStartParams {
-                    cwd: Some(cwd.clone()),
-                    runtime_workspace_roots: Some(vec![cwd]),
-                    model,
-                    model_provider,
-                    session_start_source,
-                    history_mode: Some(
-                        app_server_protocol::protocol::v2::ThreadHistoryMode::Paginated,
-                    ),
-                    experimental_raw_events: false,
-                    ..ThreadStartParams::default()
-                },
-            )
-            .await
-            .context("failed to start App Server thread")
-    }
-
-    pub(crate) async fn resume_thread(
-        &mut self,
-        thread_id: String,
-    ) -> Result<ThreadResumeResponse> {
-        let response: ThreadResumeResponse = self
-            .request_handle
-            .request(
-                METHOD_THREAD_RESUME,
-                ThreadResumeParams {
-                    thread_id: thread_id.clone(),
-                    exclude_turns: true,
-                    ..ThreadResumeParams::default()
-                },
-            )
-            .await
-            .context("failed to resume App Server thread")?;
-        self.thread_id = Some(response.thread.id.clone());
-        self.active_permission_profile = response
-            .active_permission_profile
-            .as_ref()
-            .and_then(permission_profile_id);
-        Ok(response)
     }
 
     pub(crate) fn active_permission_profile(&self) -> Option<&str> {
@@ -557,7 +485,7 @@ impl AppServerSession {
                     effort: settings.effort,
                     permissions: settings.permissions,
                     approval_policy: settings.approval_policy.map(Value::String),
-                    approvals_reviewer: settings.approvals_reviewer.map(Value::String),
+                    approvals_reviewer: settings.approvals_reviewer,
                     sandbox_policy: settings.sandbox_policy.map(Value::String),
                     ..ThreadSettingsUpdateParams::default()
                 },

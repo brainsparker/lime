@@ -18,7 +18,7 @@ describe("Apps catalog Gate B guard", () => {
     expect(content).toContain("[PLUGIN_NAME]: { id: APP_ID");
     expect(content).toContain('"plugin/list"');
     expect(content).toContain('"plugin/install"');
-    expect(content).toContain('"plugin/enabled/set"');
+    expect(content).toContain('"config/batchWrite"');
     expect(content).toContain('"app/list"');
     expect(content).toContain('"app/read"');
     expect(content).toContain('"app/installed"');

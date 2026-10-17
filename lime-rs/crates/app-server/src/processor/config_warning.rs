@@ -23,11 +23,12 @@ pub(super) fn default_config_warning_provider() -> ConfigWarningProvider {
 }
 
 impl RequestProcessor {
-    pub(super) fn handle_initialize(
+    pub(super) async fn handle_initialize(
         &self,
         params: Option<serde_json::Value>,
     ) -> Result<RpcDispatch, JsonRpcError> {
         let dispatch = RpcDispatch::single(self.initialize(params)?);
+        self.refresh_plugin_skill_watch().await;
         Ok(dispatch
             .with_notifications(self.config_warning_notifications(ConfigWarningScope::Initialize)))
     }

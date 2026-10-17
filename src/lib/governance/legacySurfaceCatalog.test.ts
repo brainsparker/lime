@@ -102,9 +102,22 @@ describe("legacySurfaceCatalog", () => {
 
     expect(monitor?.classification).toBe("dead");
     expect(monitor?.allowedPaths).toEqual([]);
-    expect(monitor?.patterns).toEqual(
-      expect.arrayContaining(["automation", "Automation"]),
-    );
+    const matches = (source: string) =>
+      monitor?.patterns.some((pattern) => source.includes(pattern)) ||
+      monitor?.regexPatterns?.some((pattern) =>
+        new RegExp(pattern, "m").test(source),
+      );
+    for (const retired of [
+      'type Page = "automation"',
+      'onNavigate("automations")',
+      "interface AutomationPageParams {}",
+      "AutomationWorkspaceTab",
+      "<AutomationSettings />",
+      "SettingsTabs.Automation",
+      't("automation.title")',
+    ])
+      expect(matches(retired)).toBe(true);
+    expect(matches("const tasks: AutomationTaskSummary[] = []")).toBe(false);
     expect(monitor?.includePathPrefixes).toEqual(
       expect.arrayContaining([
         "src/types/page.ts",
@@ -4454,13 +4467,15 @@ describe("legacySurfaceCatalog", () => {
 
   it("应记录 Plugin 应用中心 current App Server 方法目录", () => {
     expect(agentCommandCatalog.appServerPluginMethods).toEqual([
+      "marketplace/add",
+      "marketplace/remove",
+      "marketplace/upgrade",
       "plugin/list",
       "plugin/search",
       "plugin/read",
       "plugin/install",
       "plugin/uninstall",
       "plugin/installed",
-      "plugin/enabled/set",
     ]);
   });
 
@@ -4768,9 +4783,7 @@ describe("legacySurfaceCatalog", () => {
     expect(readmeSource).toContain(
       "Windows current-SHA restricted-token large-output evidence",
     );
-    expect(implementationSource).toContain(
-      "unelevated current-user runner",
-    );
+    expect(implementationSource).toContain("unelevated current-user runner");
     expect(implementationSource).toContain(
       "P8 residual 盘点结论：生产 `src / packages / electron` 主路径未发现 `agent_runtime_*` 直接命令调用",
     );

@@ -64,7 +64,7 @@ async fn real_stdio_mcp_form_preserves_rich_drafts_and_resolves_once() {
     let handle = session.request_handle();
     let thread = session
         .start_thread(
-            cwd.path().into(),
+            Some(cwd.path().into()),
             Some("form-model".into()),
             Some(provider_id),
         )

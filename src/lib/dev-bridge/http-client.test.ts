@@ -558,7 +558,7 @@ describe("http-client", () => {
     expect(settled).toBe(true);
   });
 
-  it("Plugin v3 App Server 请求使用 current 读取窗口", async () => {
+  it("插件 App Server 请求使用 current 读取窗口", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(electronHostHealthResponse())
@@ -572,7 +572,10 @@ describe("http-client", () => {
           JSON.stringify({
             id: "plugin-install",
             method: "plugin/install",
-            params: { sourcePath: "/tmp/plugin" },
+            params: {
+              marketplacePath: "/tmp/marketplace.json",
+              pluginName: "demo",
+            },
           }),
         ],
       },
@@ -686,7 +689,6 @@ describe("http-client", () => {
       "plugin/install",
       "plugin/uninstall",
       "plugin/installed",
-      "plugin/enabled/set",
     ]) {
       expect(
         resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {

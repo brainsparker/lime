@@ -5,7 +5,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "version": "1.159.0",
+  "version": "1.160.0",
   "description": "Open-source full-stack desktop AI agent for global users: coding, research, content, files, terminals, tools, multimodal work, and multi-agent workflows.",
   "keywords": [
     "ai",
@@ -304,10 +304,7 @@
     "agent-qc:project-gate-candidate": "node scripts/agent-qc/project-gate-candidate.mjs",
     "agent-qc:project-gate-coverage": "node scripts/agent-qc/project-gate-coverage.mjs",
     "agent-qc:project-gate-settings-a": "node scripts/agent-qc/project-gate-settings-a.mjs",
-    "agent-qc:project-gate-settings-b": "node scripts/agent-qc/project-gate-settings-b.mjs",
-    "plugin:connector-production-preflight": "node scripts/plugin/connector-production-preflight.mjs",
-    "plugin:connector-production-delivery-gate": "node scripts/plugin/connector-production-delivery-gate.mjs",
-    "plugin:connector-production-webhook-delivery": "node scripts/plugin/connector-production-webhook-delivery.mjs"
+    "agent-qc:project-gate-settings-b": "node scripts/agent-qc/project-gate-settings-b.mjs"
   },
   "dependencies": {
     "@babel/standalone": "^7.29.0",

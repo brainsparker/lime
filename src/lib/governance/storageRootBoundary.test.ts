@@ -480,23 +480,26 @@ describe("storage root boundary", () => {
     const pluginDataSourceImpl = readFileSync(PLUGIN_DATA_SOURCE_IMPL, "utf8");
     const pluginCatalog = readFileSync(PLUGIN_CATALOG, "utf8");
 
-    expect(localDataSource).toContain(
-      'let plugin_data_root = data_root.join("plugins");',
+    const pluginStore = readFileSync(
+      join(
+        REPO_ROOT,
+        "lime-rs/crates/app-server/src/local_data_source/plugin_catalog/store.rs",
+      ),
+      "utf8",
     );
-    expect(pluginDataSourceImpl).toContain(
-      "plugin_catalog::enabled_plugin_turn_snapshots(\n            &self.plugin_data_root,",
-    );
-    expect(pluginCatalog).toContain('const STORE_DIR: &str = "v3";');
-    expect(pluginCatalog).toContain(
-      'plugin_data_root.join("data").join(plugin_id)',
-    );
-    expect(pluginCatalog).toContain(
-      "plugin_data_root.join(STORE_DIR).join(PACKAGES_DIR)",
-    );
+    expect(localDataSource).toContain('data_root.join("plugins")');
+    expect(localDataSource).toContain("plugin_catalog::PluginStore::new(");
+    expect(pluginDataSourceImpl).toContain("&self.plugin_store");
+    expect(pluginStore).toContain('self.root.join("cache")');
+    expect(pluginStore).toContain('.join("data/agent-plugins")');
+    expect(pluginCatalog).not.toContain("mod inventory;");
+    expect(pluginCatalog).not.toContain('const STORE_DIR: &str = "v3";');
+    expect(pluginStore).not.toContain('join("v3")');
     for (const source of [
       localDataSource,
       pluginDataSourceImpl,
       pluginCatalog,
+      pluginStore,
     ]) {
       expect(source).not.toContain("lime_core::app_paths");
       expect(source).not.toContain("preferred_data_dir");

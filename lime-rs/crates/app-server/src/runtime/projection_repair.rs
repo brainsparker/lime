@@ -218,6 +218,27 @@ impl ProjectionRepair {
             }
         }
         if events.is_empty() {
+            if let Some(projection) = self.projection_store.read_session_projection(
+                session_id,
+                existing_projection_window.unwrap_or_default(),
+            )? {
+                let canonical = self
+                    .projection_store
+                    .read_thread_sync(ReadThreadParams {
+                        thread_id: ThreadId::new(projection.session.thread_id.clone()),
+                        include_archived: true,
+                        turns_view: ThreadTurnsView::Full,
+                    })
+                    .map_err(|error| error.to_string())?;
+                if projection.turns.is_empty()
+                    && projection.item_count == 0
+                    && canonical.is_some_and(|thread| {
+                        thread.session_id.as_str() == session_id && thread.turns.is_empty()
+                    })
+                {
+                    return Ok(Some((projection, events)));
+                }
+            }
             self.projection_store.repair_session(session_id, &[])?;
             return Ok(None);
         }

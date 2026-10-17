@@ -184,7 +184,10 @@ export async function waitForPluginPackageMcpAppSurface({
       latest.some(
         (entry) =>
           entry.title === PLUGIN_PACKAGE_MCP_APP_TITLE &&
-          entry.marker === PLUGIN_PACKAGE_MCP_APP_MARKER,
+          entry.marker === PLUGIN_PACKAGE_MCP_APP_MARKER &&
+          entry.nativeView?.visible === true &&
+          entry.nativeView.bounds.width > 0 &&
+          entry.nativeView.bounds.height > 0,
       )
     ) {
       if (
@@ -446,6 +449,20 @@ async function readMcpAppRendererDiagnostics(page, runtime) {
 async function readMcpAppWebContents(app) {
   return await app.evaluate(
     async ({ BrowserWindow, webContents }, { marker, title }) => {
+      const nativeViews = new Map(
+        BrowserWindow.getAllWindows().flatMap((window) =>
+          window.contentView.children
+            .filter((view) => view.webContents && !view.webContents.isDestroyed())
+            .map((view) => [
+              view.webContents.id,
+              {
+                bounds: view.getBounds(),
+                visible: view.getVisible(),
+                windowId: window.id,
+              },
+            ]),
+        ),
+      );
       const browserWindowWebContentsIds = new Set(
         BrowserWindow.getAllWindows().map((window) => window.webContents.id),
       );
@@ -477,6 +494,7 @@ async function readMcpAppWebContents(app) {
               isDestroyed: entry.isDestroyed(),
               isLoading: entry.isLoading(),
               marker: observedMarker === marker ? observedMarker : null,
+              nativeView: nativeViews.get(entry.id) ?? null,
               title: currentTitle.slice(0, 160) || null,
               titleMatches: currentTitle === title,
               type: entry.getType(),

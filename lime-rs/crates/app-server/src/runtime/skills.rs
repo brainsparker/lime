@@ -14,7 +14,6 @@ use lime_skills::{
 };
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, OnceLock};
 
 impl RuntimeCore {
     pub async fn list_skills(
@@ -32,11 +31,15 @@ impl RuntimeCore {
             params.cwds
         };
         let config = load_skill_config(&self.app_config_path)?;
+        let plugins = self
+            .app_data_source
+            .list_enabled_plugin_turn_snapshots()
+            .await?;
 
         Ok(SkillsListResponse {
             data: cwds
                 .into_iter()
-                .map(|cwd| list_skills_for_cwd(cwd, &config))
+                .map(|cwd| list_skills_for_cwd(cwd, &config, &plugins))
                 .collect(),
         })
     }
@@ -55,9 +58,7 @@ impl RuntimeCore {
         params: SkillsConfigWriteParams,
     ) -> Result<SkillsConfigWriteResponse, RuntimeCoreError> {
         let selector = SkillConfigSelector::from_params(&params)?;
-        let _guard = skill_config_lock()
-            .lock()
-            .unwrap_or_else(|error| error.into_inner());
+        let _guard = lime_core::config::config_file_lock();
         let mut manager = ConfigManager::load(&self.app_config_path).map_err(|error| {
             RuntimeCoreError::Backend(format!("failed to load skill settings: {error}"))
         })?;
@@ -250,7 +251,11 @@ impl RuntimeCore {
     }
 }
 
-fn list_skills_for_cwd(cwd: PathBuf, config: &[SkillConfig]) -> SkillsListEntry {
+fn list_skills_for_cwd(
+    cwd: PathBuf,
+    config: &[SkillConfig],
+    plugins: &[super::PluginTurnSnapshot],
+) -> SkillsListEntry {
     let roots = agent_skill_roots_for_workspace(Some(&cwd), Some(&cwd));
     let errors = roots
         .iter()
@@ -261,6 +266,9 @@ fn list_skills_for_cwd(cwd: PathBuf, config: &[SkillConfig]) -> SkillsListEntry 
         })
         .collect();
     let mut snapshot = build_agent_skill_snapshot_from_roots(roots);
+    for plugin in plugins {
+        plugin.append_skills(&mut snapshot);
+    }
     apply_agent_skill_config(&mut snapshot, config);
     let mut seen = HashSet::new();
     let skills = snapshot
@@ -277,15 +285,8 @@ fn list_skills_for_cwd(cwd: PathBuf, config: &[SkillConfig]) -> SkillsListEntry 
     }
 }
 
-fn skill_config_lock() -> &'static Mutex<()> {
-    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-    LOCK.get_or_init(|| Mutex::new(()))
-}
-
 fn load_skill_config(path: &Path) -> Result<Vec<SkillConfig>, RuntimeCoreError> {
-    let _guard = skill_config_lock()
-        .lock()
-        .unwrap_or_else(|error| error.into_inner());
+    let _guard = lime_core::config::config_file_lock();
     ConfigManager::load(path)
         .map(|manager| manager.config().skills.config.clone())
         .map_err(|error| {

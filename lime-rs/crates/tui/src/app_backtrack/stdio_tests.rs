@@ -48,7 +48,7 @@ async fn real_stdio_backtrack_retains_prefix_and_replays_live_refresh() {
     .unwrap();
     let thread = session
         .start_thread(
-            cwd.into(),
+            Some(cwd.into()),
             Some("fixture-model".into()),
             Some("fixture-provider".into()),
         )

@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "marketplacePath": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pluginName": {
+      "type": "string"
+    },
+    "remoteMarketplaceName": {
+      "type": [
+        "null",
+        "string"
+      ]
+    }
+  },
+  "required": [
+    "pluginName"
+  ],
+  "title": "PluginReadParams",
+  "type": "object"
+}

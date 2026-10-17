@@ -501,28 +501,21 @@ Agent Runtime smoke 与 Service Skill 入口 smoke 已迁到 `scripts/agent-runt
 
 ### Plugin 脚本
 
-Plugin consumer runtime、独立 UI runtime、standalone shell、content-factory 发布链和 package handoff 已归类为 `dead / deleted / forbidden-to-restore`。`scripts/plugin/` 当前只保留 connector production delivery 的 current 检查：
+原有 Plugin consumer runtime、独立 UI runtime、standalone shell、content-factory 发布链、package handoff 和 Connector production delivery 脚本均为 `dead / deleted / forbidden-to-restore`。`scripts/plugin/` 已删除，冻结基线不再允许该目录回流。
 
-```bash
-npm run plugin:connector-production-preflight
-npm run plugin:connector-production-delivery-gate
-npm run plugin:connector-production-webhook-delivery
-```
-
-Plugin v3 标准包真实 Electron 验证使用：
+Codex 插件重构的真实 Electron 验证入口：
 
 ```bash
 npm run smoke:plugin-package-electron-gate-b
 ```
 
-该 Gate B 从 App Center 安装只含根 `plugin.json`、根 `mcp.json` 和合法
-`skills/<name>/SKILL.md` 的本地标准包，经 Electron preload/IPC、
+该 fixture 以标准插件包为输入，经 Electron preload/IPC、
 `app_server_handle_json_lines`、App Server、RuntimeCore 和 GUI 完成启停、新 Thread
 隔离、canonical `plugin://<name>@<marketplace>` mention、Skill 正文注入、MCP tool、
 elicitation、Right Surface、reload/cold restore 与卸载后历史读取；生产 mock fallback、
 旧 worker 和旧 Plugin 命令命中必须为零。
 
-Plugin v3 标准包验证只允许围绕根 `plugin.json`、`skills/`、`mcp.json` 和 App Server current catalog 建立；不得恢复独立 worker、iframe host、standalone shell 或旧 package 发布 helper。新增 Plugin 脚本继续进入 `scripts/plugin/`，真实 Electron fixture 进入 `scripts/electron/`，共享实现进入 `scripts/lib/`。
+该入口的本轮执行结果以 `internal/exec-plans/codex-plugin-reconstruction.md` 为准；旧验证记录不能核销重构后的协议。插件遵循 Codex current loader 支持的标准根及原生 manifest 格式、组件声明和市场身份；当前仍待替换的公开 catalog DTO 见该计划 P03。不得恢复独立 worker、iframe host、standalone shell 或旧 package 发布 helper。App Server 插件 fixture 进入 `scripts/app-server/`，真实 Electron fixture 进入 `scripts/electron/`，共享实现进入 `scripts/lib/`。
 
 ### 项目热力图
 

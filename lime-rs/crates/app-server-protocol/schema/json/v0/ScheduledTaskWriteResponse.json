@@ -1,5 +1,126 @@
 {
   "$defs": {
+    "AutomationTaskSchedule": {
+      "oneOf": [
+        {
+          "properties": {
+            "days": {
+              "items": {
+                "$ref": "#/$defs/AutomationTaskWeekday"
+              },
+              "type": [
+                "array",
+                "null"
+              ]
+            },
+            "intervalHours": {
+              "format": "uint32",
+              "minimum": 0,
+              "type": "integer"
+            },
+            "minute": {
+              "format": "uint8",
+              "maximum": 255,
+              "minimum": 0,
+              "type": "integer"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "type": {
+              "const": "hourly",
+              "type": "string"
+            }
+          },
+          "required": [
+            "intervalHours",
+            "minute",
+            "timezone",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "time": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "type": {
+              "const": "daily",
+              "type": "string"
+            }
+          },
+          "required": [
+            "time",
+            "timezone",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "time": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "type": {
+              "const": "weekdays",
+              "type": "string"
+            }
+          },
+          "required": [
+            "time",
+            "timezone",
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "days": {
+              "items": {
+                "$ref": "#/$defs/AutomationTaskWeekday"
+              },
+              "type": "array"
+            },
+            "time": {
+              "type": "string"
+            },
+            "timezone": {
+              "type": "string"
+            },
+            "type": {
+              "const": "weekly",
+              "type": "string"
+            }
+          },
+          "required": [
+            "days",
+            "time",
+            "timezone",
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "AutomationTaskWeekday": {
+      "enum": [
+        "FR",
+        "MO",
+        "SA",
+        "SU",
+        "TH",
+        "TU",
+        "WE"
+      ],
+      "type": "string"
+    },
     "ScheduledTask": {
       "properties": {
         "createdAt": {
@@ -40,7 +161,7 @@
           "type": "string"
         },
         "schedule": {
-          "$ref": "#/$defs/ScheduledTaskSchedule"
+          "$ref": "#/$defs/AutomationTaskSchedule"
         },
         "title": {
           "type": "string"
@@ -188,131 +309,10 @@
       ],
       "type": "object"
     },
-    "ScheduledTaskSchedule": {
-      "oneOf": [
-        {
-          "properties": {
-            "days": {
-              "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
-              },
-              "type": [
-                "array",
-                "null"
-              ]
-            },
-            "intervalHours": {
-              "format": "uint32",
-              "minimum": 0,
-              "type": "integer"
-            },
-            "minute": {
-              "format": "uint8",
-              "maximum": 255,
-              "minimum": 0,
-              "type": "integer"
-            },
-            "timezone": {
-              "type": "string"
-            },
-            "type": {
-              "const": "hourly",
-              "type": "string"
-            }
-          },
-          "required": [
-            "intervalHours",
-            "minute",
-            "timezone",
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "properties": {
-            "time": {
-              "type": "string"
-            },
-            "timezone": {
-              "type": "string"
-            },
-            "type": {
-              "const": "daily",
-              "type": "string"
-            }
-          },
-          "required": [
-            "time",
-            "timezone",
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "properties": {
-            "time": {
-              "type": "string"
-            },
-            "timezone": {
-              "type": "string"
-            },
-            "type": {
-              "const": "weekdays",
-              "type": "string"
-            }
-          },
-          "required": [
-            "time",
-            "timezone",
-            "type"
-          ],
-          "type": "object"
-        },
-        {
-          "properties": {
-            "days": {
-              "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
-              },
-              "type": "array"
-            },
-            "time": {
-              "type": "string"
-            },
-            "timezone": {
-              "type": "string"
-            },
-            "type": {
-              "const": "weekly",
-              "type": "string"
-            }
-          },
-          "required": [
-            "days",
-            "time",
-            "timezone",
-            "type"
-          ],
-          "type": "object"
-        }
-      ]
-    },
     "ScheduledTaskThreadMode": {
       "enum": [
         "continue_thread",
         "new_thread"
-      ],
-      "type": "string"
-    },
-    "ScheduledTaskWeekday": {
-      "enum": [
-        "FR",
-        "MO",
-        "SA",
-        "SU",
-        "TH",
-        "TU",
-        "WE"
       ],
       "type": "string"
     }

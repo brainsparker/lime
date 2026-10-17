@@ -199,7 +199,12 @@ export function ExecutionPolicySettings({
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-6">
-          <section className="rounded-[26px] border border-border bg-background p-5 shadow-sm ">
+          <section
+            className="rounded-[26px] border border-border bg-background p-5 shadow-sm "
+            data-settings-search-target="execution-policy-workspace"
+            tabIndex={-1}
+            aria-label={t("settings.executionPolicy.workspace.title")}
+          >
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <ShieldCheck className="h-4 w-4 text-primary" />
               {t("settings.executionPolicy.workspace.title")}
@@ -246,7 +251,12 @@ export function ExecutionPolicySettings({
             </div>
           </section>
 
-          <section className="rounded-[26px] border border-border bg-background p-5 shadow-sm ">
+          <section
+            className="rounded-[26px] border border-border bg-background p-5 shadow-sm "
+            data-settings-search-target="execution-policy-plan"
+            tabIndex={-1}
+            aria-label={t("settings.executionPolicy.plan.title")}
+          >
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Workflow className="h-4 w-4 text-primary" />
               {t("settings.executionPolicy.plan.title")}
@@ -272,7 +282,12 @@ export function ExecutionPolicySettings({
             </div>
           </section>
 
-          <section className="rounded-[26px] border border-border bg-background p-5 shadow-sm ">
+          <section
+            className="rounded-[26px] border border-border bg-background p-5 shadow-sm "
+            data-settings-search-target="execution-policy-shell"
+            tabIndex={-1}
+            aria-label={t("settings.executionPolicy.shell.title")}
+          >
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div className="space-y-1">
                 <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
@@ -324,7 +339,12 @@ export function ExecutionPolicySettings({
             </div>
           </section>
 
-          <section className="rounded-[26px] border border-border bg-background p-5 shadow-sm ">
+          <section
+            className="rounded-[26px] border border-border bg-background p-5 shadow-sm "
+            data-settings-search-target="execution-policy-network"
+            tabIndex={-1}
+            aria-label={t("settings.executionPolicy.network.title")}
+          >
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <SlidersHorizontal className="h-4 w-4 text-primary" />
               {t("settings.executionPolicy.network.title")}

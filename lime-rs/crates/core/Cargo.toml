@@ -35,8 +35,6 @@ uuid.workspace = true
 indexmap.workspace = true
 parking_lot.workspace = true
 dirs.workspace = true
-sha2.workspace = true
-hmac.workspace = true
 url.workspace = true
 urlencoding.workspace = true
 bytes.workspace = true
@@ -44,16 +42,14 @@ futures.workspace = true
 dashmap.workspace = true
 notify.workspace = true
 rand.workspace = true
+tempfile.workspace = true
 
 # HTTP 服务器（middleware 模块需要）
 axum.workspace = true
 tower.workspace = true
-subtle.workspace = true
 
-# 压缩/归档（plugin installer 需要）
+# 日志归档
 flate2.workspace = true
-tar.workspace = true
-zip.workspace = true
 
 # 正则表达式（logger 脱敏需要）
 regex.workspace = true
@@ -69,4 +65,3 @@ if-addrs.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true
-tempfile.workspace = true

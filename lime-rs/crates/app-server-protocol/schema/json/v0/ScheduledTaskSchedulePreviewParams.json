@@ -1,12 +1,12 @@
 {
   "$defs": {
-    "ScheduledTaskSchedule": {
+    "AutomationTaskSchedule": {
       "oneOf": [
         {
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": [
                 "array",
@@ -84,7 +84,7 @@
           "properties": {
             "days": {
               "items": {
-                "$ref": "#/$defs/ScheduledTaskWeekday"
+                "$ref": "#/$defs/AutomationTaskWeekday"
               },
               "type": "array"
             },
@@ -109,7 +109,7 @@
         }
       ]
     },
-    "ScheduledTaskWeekday": {
+    "AutomationTaskWeekday": {
       "enum": [
         "FR",
         "MO",
@@ -125,7 +125,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "properties": {
     "schedule": {
-      "$ref": "#/$defs/ScheduledTaskSchedule"
+      "$ref": "#/$defs/AutomationTaskSchedule"
     }
   },
   "required": [

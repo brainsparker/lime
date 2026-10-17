@@ -3,7 +3,7 @@ import { CircleAlert, LoaderCircle } from "lucide-react";
 import type {
   AppServerAppInfo,
   AppServerInstalledApp,
-  AppServerPluginCatalogCapability,
+  AppServerAppSummary,
 } from "@/lib/api/appServerTypes";
 import { readAppsReadiness, subscribeAppsListUpdates } from "@/lib/api/apps";
 import { projectPluginCatalogApps } from "./PluginCatalogPageViewModel";
@@ -17,7 +17,7 @@ export function PluginCatalogAppsSection({
   capabilities,
   t,
 }: {
-  capabilities: AppServerPluginCatalogCapability[];
+  capabilities: AppServerAppSummary[];
   t: (key: string, options?: Record<string, unknown>) => string;
 }) {
   const [snapshot, setSnapshot] = useState<AppsSnapshot | null>(null);

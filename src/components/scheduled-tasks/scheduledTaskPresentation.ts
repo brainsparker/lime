@@ -2,8 +2,8 @@ import { formatDate, formatList } from "@/i18n/format";
 import type { TFunction } from "i18next";
 import type {
   ScheduledTaskRunSummary,
-  ScheduledTaskSchedule,
-  ScheduledTaskWeekday,
+  AutomationTaskSchedule,
+  AutomationTaskWeekday,
 } from "@/lib/api/scheduledTasks";
 
 export interface ScheduledTaskPresentationCopy {
@@ -11,7 +11,7 @@ export interface ScheduledTaskPresentationCopy {
   daily: (time: string) => string;
   weekdays: (time: string) => string;
   weekly: (days: string, time: string) => string;
-  weekday: Record<ScheduledTaskWeekday, string>;
+  weekday: Record<AutomationTaskWeekday, string>;
   status: Record<string, string>;
   never: string;
 }
@@ -58,7 +58,7 @@ export function scheduledTaskPresentationCopy(
 }
 
 export function describeScheduledTaskSchedule(
-  schedule: ScheduledTaskSchedule,
+  schedule: AutomationTaskSchedule,
   copy: ScheduledTaskPresentationCopy,
   locale?: string,
 ): string {

@@ -1,9 +1,10 @@
 import type {
   AppServerAppInfo,
   AppServerInstalledApp,
-  AppServerPluginCatalogCapability,
-  AppServerPluginCatalogDetail,
-  AppServerPluginCatalogSummary,
+  AppServerAppSummary,
+  AppServerPluginDetail,
+  AppServerPluginSummary,
+  AppServerPluginMarketplaceEntry,
 } from "@/lib/api/appServerTypes";
 
 export type PluginCatalogView = "all" | "installed";
@@ -24,48 +25,63 @@ export interface PluginCatalogAppReadinessItem {
   status: PluginCatalogAppReadinessStatus;
 }
 
+export interface PluginCatalogEntry {
+  marketplace: AppServerPluginMarketplaceEntry;
+  plugin: AppServerPluginSummary;
+}
+
+export function pluginCatalogEntries(
+  marketplaces: AppServerPluginMarketplaceEntry[],
+): PluginCatalogEntry[] {
+  return marketplaces.flatMap((marketplace) =>
+    marketplace.plugins.map((plugin) => ({ marketplace, plugin })),
+  );
+}
+
 export function filterPluginCatalog(
-  plugins: AppServerPluginCatalogSummary[],
+  entries: PluginCatalogEntry[],
   filters: PluginCatalogFilterState,
-): AppServerPluginCatalogSummary[] {
+): PluginCatalogEntry[] {
   const query = filters.query.trim().toLocaleLowerCase();
-  return plugins.filter((plugin) => {
-    if (filters.view === "installed" && !plugin.installed) {
+  return entries.filter(({ plugin, marketplace }) => {
+    if (filters.view === "installed" && !plugin.installed) return false;
+    if (filters.source !== "all" && marketplace.name !== filters.source)
       return false;
-    }
-    if (filters.source !== "all" && plugin.source !== filters.source) {
-      return false;
-    }
-    if (!query) {
-      return true;
-    }
-    return [plugin.id, plugin.name, plugin.description, plugin.source]
-      .join(" ")
-      .toLocaleLowerCase()
-      .includes(query);
+    return (
+      !query ||
+      [
+        plugin.id,
+        plugin.name,
+        marketplace.name,
+        plugin.interface?.displayName,
+        plugin.interface?.shortDescription,
+        ...(plugin.keywords ?? []),
+      ]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(query)
+    );
   });
 }
 
-export function listPluginCatalogSources(
-  plugins: AppServerPluginCatalogSummary[],
-): string[] {
-  return Array.from(
-    new Set(plugins.map((plugin) => plugin.source.trim()).filter(Boolean)),
-  ).sort((left, right) => left.localeCompare(right));
+export function pluginDisplayName(plugin: AppServerPluginSummary): string {
+  return plugin.interface?.displayName?.trim() || plugin.name;
 }
 
-export function mergePluginCatalogSummary(
-  plugins: AppServerPluginCatalogSummary[],
-  summary: AppServerPluginCatalogSummary,
-): AppServerPluginCatalogSummary[] {
-  const next = plugins.filter((plugin) => plugin.id !== summary.id);
-  next.push(summary);
-  return next.sort((left, right) => left.name.localeCompare(right.name));
+export function pluginDescription(plugin: AppServerPluginSummary): string {
+  return plugin.interface?.shortDescription?.trim() || "";
 }
 
-export function detailCapabilityCount(
-  detail: AppServerPluginCatalogDetail,
-): number {
+export function pluginLocation({ marketplace, plugin }: PluginCatalogEntry) {
+  return {
+    pluginName: plugin.name,
+    ...(marketplace.path
+      ? { marketplacePath: marketplace.path }
+      : { remoteMarketplaceName: marketplace.name }),
+  };
+}
+
+export function detailCapabilityCount(detail: AppServerPluginDetail): number {
   return (
     detail.skills.length +
     detail.mcpServers.length +
@@ -75,7 +91,7 @@ export function detailCapabilityCount(
 }
 
 export function projectPluginCatalogApps(
-  capabilities: AppServerPluginCatalogCapability[],
+  capabilities: AppServerAppSummary[],
   catalog: AppServerAppInfo[],
   installed: AppServerInstalledApp[],
 ): PluginCatalogAppReadinessItem[] {

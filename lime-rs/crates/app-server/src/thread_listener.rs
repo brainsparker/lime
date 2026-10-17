@@ -32,6 +32,21 @@ impl AppServerEventBridge {
         thread_id: &agent_protocol::ThreadId,
         pending: PendingServerRequest,
     ) -> PendingServerRequest {
+        if pending.request().method == app_server_protocol::protocol::v2::METHOD_ITEM_TOOL_CALL {
+            if let Some(ServerRequestOwner::Transport(connection_id)) =
+                self.server_requests.current_owner(pending.id())
+            {
+                let message = JsonRpcMessage::Request(pending.request().clone());
+                if let Err(error) = self
+                    .send_messages_to_connection(connection_id, &[message])
+                    .await
+                {
+                    pending.cancel_with_owner();
+                    tracing::warn!(%thread_id, %connection_id, %error, "failed to deliver dynamic tool request to its bound host");
+                }
+            }
+            return pending;
+        }
         let connection_ids = self
             .thread_states
             .subscribed_connection_ids(thread_id)
@@ -408,16 +423,25 @@ async fn run_thread_listener(
                     } => {
                         let state = thread_state.lock().await;
                         let resuming = state.has_pending_resume();
-                        if !resuming
+                        let host_request = method == app_server_protocol::protocol::v2::METHOD_ITEM_TOOL_CALL;
+                        if !host_request && !resuming
                             && bridge.thread_states.subscribed_connection_ids(&thread_id).await.is_empty()
                         {
                             let _ = completion_tx
                                 .send(Err(crate::ServerRequestError::ClientUnavailable));
                             continue;
                         }
-                        let pending = bridge.server_requests.register_for_owners(
-                            Vec::new(), method, Some(params),
-                        );
+                        let pending = if host_request {
+                            match bridge.register_dynamic_tool_request(params).await {
+                                Ok(pending) => pending,
+                                Err(error) => {
+                                    let _ = completion_tx.send(Err(error));
+                                    continue;
+                                }
+                            }
+                        } else {
+                            bridge.server_requests.register_for_owners(Vec::new(), method, Some(params))
+                        };
                         if resuming {
                             deferred_publishes.push(DeferredThreadPublish::ServerRequest {
                                 pending,

@@ -6,15 +6,18 @@ use agent_protocol::{Thread, ThreadHistoryChangeSet};
 use chrono::{DateTime, Datelike, Local, SecondsFormat, Timelike, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use sha2::{Digest, Sha256};
 
 mod append_guard;
 mod delete;
+mod digest;
 mod tail_repair;
 #[cfg(test)]
 mod tests;
 
-const ROLLOUT_SCHEMA_VERSION: u32 = 1;
+use digest::{
+    history_content_digest, metadata_content_digest,
+    CURRENT_SCHEMA_VERSION as ROLLOUT_SCHEMA_VERSION,
+};
 const SESSIONS_DIR_NAME: &str = "sessions";
 const ARCHIVED_SESSIONS_DIR_NAME: &str = "archived_sessions";
 const MAX_THREAD_ID_FILE_CHARS: usize = 128;
@@ -64,6 +67,7 @@ struct RolloutScan {
     created_at_ms: i64,
     rollout_path: String,
     initial_thread: Thread,
+    metadata_digest: String,
     history: Vec<RolloutHistoryRecord>,
 }
 
@@ -224,13 +228,24 @@ impl RolloutStore {
         relative_path: &Path,
         expected: &Thread,
         next: &Thread,
+        archived: bool,
     ) -> Result<i64, String> {
         validate_metadata_update(expected, next)?;
-        let path = self.resolve_active(relative_path)?;
+        let (path, active_path) = if archived {
+            (
+                self.resolve_archived(relative_path)?,
+                active_path_from_archived(relative_path)?,
+            )
+        } else {
+            (
+                self.resolve_active(relative_path)?,
+                relative_path.to_path_buf(),
+            )
+        };
         let scan = scan_rollout_repaired(&path)?;
         validate_scan_identity(
             &scan,
-            relative_path,
+            &active_path,
             expected.session_id.as_str(),
             expected.thread_id.as_str(),
             &path,
@@ -256,12 +271,7 @@ impl RolloutStore {
             ));
         }
 
-        let previous_content_digest = metadata_content_digest(
-            expected.session_id.as_str(),
-            expected.thread_id.as_str(),
-            expected.updated_at_ms,
-            &expected.metadata,
-        )?;
+        let previous_content_digest = scan.metadata_digest;
         let content_digest = metadata_content_digest(
             next.session_id.as_str(),
             next.thread_id.as_str(),
@@ -591,14 +601,16 @@ fn scan_rollout_reader(reader: impl BufRead, path: &Path) -> Result<RolloutScan,
             path.display()
         ));
     };
-    if schema_version != ROLLOUT_SCHEMA_VERSION {
+    if !digest::supported_schema_version(schema_version) {
         return Err(format!(
             "unsupported rollout schema version {schema_version}: {}",
             path.display()
         ));
     }
     let mut initial_thread = initial_thread;
-    let mut metadata_digest = metadata_content_digest(
+    let mut metadata_digest = digest::initial_metadata_digest(
+        schema_version,
+        first.as_bytes(),
         &session_id,
         &thread_id,
         initial_thread.updated_at_ms,
@@ -618,12 +630,19 @@ fn scan_rollout_reader(reader: impl BufRead, path: &Path) -> Result<RolloutScan,
                 content_digest,
                 changes,
             } => {
-                if schema_version != ROLLOUT_SCHEMA_VERSION
+                if !digest::supported_schema_version(schema_version)
                     || record_session_id != session_id
                     || record_thread_id != thread_id
                     || changes.sequence != sequence
                     || !is_sha256_hex(&fingerprint)
-                    || history_content_digest(&session_id, &thread_id, &changes)? != content_digest
+                    || !digest::history_digest_matches(
+                        schema_version,
+                        line.as_bytes(),
+                        &session_id,
+                        &thread_id,
+                        &changes,
+                        &content_digest,
+                    )?
                 {
                     return Err(format!(
                         "invalid rollout history record: {}",
@@ -654,13 +673,19 @@ fn scan_rollout_reader(reader: impl BufRead, path: &Path) -> Result<RolloutScan,
                 content_digest,
                 metadata,
             } => {
-                if schema_version != ROLLOUT_SCHEMA_VERSION
+                if !digest::supported_schema_version(schema_version)
                     || record_session_id != session_id
                     || record_thread_id != thread_id
                     || previous_content_digest != metadata_digest
                     || updated_at_ms < initial_thread.updated_at_ms
-                    || metadata_content_digest(&session_id, &thread_id, updated_at_ms, &metadata)?
-                        != content_digest
+                    || digest::metadata_digest_for_record(
+                        schema_version,
+                        line.as_bytes(),
+                        &session_id,
+                        &thread_id,
+                        updated_at_ms,
+                        &metadata,
+                    )? != content_digest
                 {
                     return Err(format!(
                         "invalid rollout metadata record: {}",
@@ -685,6 +710,7 @@ fn scan_rollout_reader(reader: impl BufRead, path: &Path) -> Result<RolloutScan,
         created_at_ms,
         rollout_path,
         initial_thread,
+        metadata_digest,
         history,
     })
 }
@@ -696,27 +722,6 @@ fn parse_record(line: &str, path: &Path) -> Result<RolloutRecord, String> {
             path.display()
         )
     })
-}
-
-fn history_content_digest(
-    session_id: &str,
-    thread_id: &str,
-    changes: &ThreadHistoryChangeSet,
-) -> Result<String, String> {
-    let bytes = serde_json::to_vec(&(session_id, thread_id, changes))
-        .map_err(|error| format!("failed to encode rollout history digest: {error}"))?;
-    Ok(hex::encode(Sha256::digest(bytes)))
-}
-
-fn metadata_content_digest(
-    session_id: &str,
-    thread_id: &str,
-    updated_at_ms: i64,
-    metadata: &Value,
-) -> Result<String, String> {
-    let bytes = serde_json::to_vec(&(session_id, thread_id, updated_at_ms, metadata))
-        .map_err(|error| format!("failed to encode rollout metadata digest: {error}"))?;
-    Ok(hex::encode(Sha256::digest(bytes)))
 }
 
 fn validate_metadata_update(expected: &Thread, next: &Thread) -> Result<(), String> {

@@ -24,7 +24,11 @@ function LoadingSkeleton() {
   );
 }
 
-export function WebSearchSettings() {
+export function WebSearchSettings({
+  initialTab = "search",
+}: {
+  initialTab?: string;
+}) {
   const { t } = useTranslation("settings");
   const {
     draft,
@@ -70,7 +74,7 @@ export function WebSearchSettings() {
       ) : null}
 
       <fieldset disabled={!ready} className="min-w-0">
-        <Tabs defaultValue="search" className="space-y-5">
+        <Tabs defaultValue={initialTab} className="space-y-5">
           <section className="rounded-[26px] border border-border bg-background px-5 py-4 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
               <div className="space-y-1.5">

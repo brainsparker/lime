@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "enum": [
+    "created-by-me-remote",
+    "local",
+    "shared-with-me",
+    "vertical",
+    "workspace-directory"
+  ],
+  "title": "PluginListMarketplaceKind",
+  "type": "string"
+}

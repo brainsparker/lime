@@ -376,7 +376,8 @@ mod tests {
             config_name: format!("{plugin_id}@test-marketplace"),
             display_name: plugin_id.to_string(),
             package_root: format!("/plugins/{plugin_id}").into(),
-            skill_names: Vec::new(),
+            skill_roots: Vec::new(),
+            skills: Vec::new(),
             mcp_server_names: Vec::new(),
         }
     }

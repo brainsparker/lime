@@ -119,7 +119,13 @@ async fn exact_mcp_tool_call_requires_an_existing_thread() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mcp_event_stream_uses_public_transport_and_cleans_up_on_stop() {
     let temp = TempDir::new().expect("MCP event stream temp");
-    let plugin_source = write_event_stream_plugin(&temp);
+    write_event_stream_plugin(&temp);
+    let marketplace = temp.path().join("marketplace.json");
+    std::fs::write(
+        &marketplace,
+        r#"{"name":"fixture","plugins":[{"name":"event-plugin","source":{"source":"local","path":"./event-plugin"}}]}"#,
+    )
+    .expect("MCP fixture marketplace");
     let app_data_db = Arc::new(std::sync::Mutex::new(
         rusqlite::Connection::open_in_memory().expect("MCP app data db"),
     ));
@@ -131,8 +137,11 @@ async fn mcp_event_stream_uses_public_transport_and_cleans_up_on_stop() {
         temp.path().join("app-data"),
     )
     .await
-    .expect("MCP app data source");
+    .expect("MCP app data source")
+    .with_app_config_path(temp.path().join("config.yaml"))
+    .with_plugin_discovery_roots(None, None);
     let runtime = support::runtime_core_with_chat_provider(&temp, "provider-test", "model-test")
+        .with_app_config_path(temp.path().join("config.yaml"))
         .with_app_data_source(Arc::new(app_data_source));
     let server = AppServer::with_runtime(runtime);
     let (mut input_client, input_server) = tokio::io::duplex(64 * 1024);
@@ -171,7 +180,7 @@ async fn mcp_event_stream_uses_public_transport_and_cleans_up_on_stop() {
             "jsonrpc": "2.0",
             "id": 2,
             "method": METHOD_PLUGIN_INSTALL,
-            "params": {"sourcePath": plugin_source, "marketplaceId": "fixture", "source": "local"}
+            "params": {"marketplacePath": marketplace, "pluginName": "event-plugin"}
         }),
     )
     .await;
@@ -204,7 +213,7 @@ async fn mcp_event_stream_uses_public_transport_and_cleans_up_on_stop() {
             "method": METHOD_MCP_SERVER_RESOURCE_READ,
             "params": {
                 "threadId": thread_id,
-                "server": "plugin__event-plugin__events",
+                "server": "events",
                 "uri": "ui://calendar/event",
                 "connectorId": "calendar"
             }
@@ -232,7 +241,7 @@ async fn mcp_event_stream_uses_public_transport_and_cleans_up_on_stop() {
             "method": METHOD_MCP_SERVER_EVENT_STREAM_START,
             "params": {
                 "threadId": thread_id,
-                "server": "plugin__event-plugin__events",
+                "server": "events",
                 "subscriptionId": "subscription-1",
                 "name": "issue.updated",
                 "arguments": {"project": "codex"},

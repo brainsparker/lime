@@ -28,11 +28,11 @@ import {
   type ScheduledTaskListResponse,
   type ScheduledTaskRunSummary,
   type ScheduledTaskRunUpdatedNotification,
-  type ScheduledTaskSchedule,
+  type AutomationTaskSchedule,
   type ScheduledTaskSchedulePreviewResponse as AppServerScheduledTaskSchedulePreviewResponse,
-  type ScheduledTaskSummary,
+  type AutomationTaskSummary,
   type ScheduledTaskUpdateRequest,
-  type ScheduledTaskWeekday,
+  type AutomationTaskWeekday,
   type JsonRpcMessage,
 } from "../../../packages/app-server-client/src/protocol";
 
@@ -58,10 +58,10 @@ export type {
   ScheduledTaskListResponse,
   ScheduledTaskRunSummary,
   ScheduledTaskRunUpdatedNotification,
-  ScheduledTaskSchedule,
-  ScheduledTaskSummary,
+  AutomationTaskSchedule,
+  AutomationTaskSummary,
   ScheduledTaskUpdateRequest,
-  ScheduledTaskWeekday,
+  AutomationTaskWeekday,
 };
 
 export interface ScheduledTaskNotificationSubscription {
@@ -219,7 +219,7 @@ export function createScheduledTasksApi(
     },
 
     async previewSchedule(
-      schedule: ScheduledTaskSchedule,
+      schedule: AutomationTaskSchedule,
     ): Promise<ScheduledTaskSchedulePreviewResponse> {
       const response = requireRecord(
         await requestScheduledTask<unknown>(
@@ -350,7 +350,7 @@ function requireTask(value: unknown, method: string): ScheduledTask {
 function requireTaskSummary(
   value: unknown,
   method: string,
-): ScheduledTaskSummary {
+): AutomationTaskSummary {
   const task = requireRecord(value, method);
   if (
     typeof task.id !== "string" ||
@@ -361,7 +361,7 @@ function requireTaskSummary(
   ) {
     throw new Error(`${method} returned an invalid task summary`);
   }
-  return task as unknown as ScheduledTaskSummary;
+  return task as unknown as AutomationTaskSummary;
 }
 
 function requireRun(value: unknown, method: string): ScheduledTaskRunSummary {
@@ -398,7 +398,7 @@ function requiredText(value: string, field: string): string {
   return normalized;
 }
 
-function isSchedule(value: unknown): value is ScheduledTaskSchedule {
+function isSchedule(value: unknown): value is AutomationTaskSchedule {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return false;
   }

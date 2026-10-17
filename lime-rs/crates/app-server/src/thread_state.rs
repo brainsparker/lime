@@ -6,6 +6,8 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, oneshot, Mutex, Notify};
 use tokio_util::sync::CancellationToken;
 
+mod dynamic_tools;
+
 pub(crate) enum ThreadListenerCommand {
     PublishRuntimeEvent {
         event: AgentEvent,
@@ -138,6 +140,8 @@ struct ThreadEntry {
     connection_ids: HashSet<ConnectionId>,
     unload_generation: u64,
     unloading: bool,
+    dynamic_tool_host: Option<dynamic_tools::DynamicToolHost>,
+    skill_watch: Option<crate::skills_watcher::WatchRegistration>,
 }
 
 #[derive(Default)]
@@ -155,6 +159,21 @@ pub(crate) struct ThreadStateManager {
 }
 
 impl ThreadStateManager {
+    pub(crate) async fn set_skill_watch(
+        &self,
+        thread_id: ThreadId,
+        registration: Option<crate::skills_watcher::WatchRegistration>,
+    ) {
+        let mut inner = self.inner.lock().await;
+        if inner.listeners_shutting_down {
+            return;
+        }
+        let entry = inner.threads.entry(thread_id).or_default();
+        if !entry.unloading {
+            entry.skill_watch = registration;
+        }
+    }
+
     pub(crate) fn new() -> Self {
         Self::default()
     }
@@ -277,6 +296,15 @@ impl ThreadStateManager {
     pub(crate) async fn disconnect_connection(&self, connection_id: ConnectionId) -> Vec<ThreadId> {
         let mut inner = self.inner.lock().await;
         inner.live_connections.remove(&connection_id);
+        for entry in inner.threads.values_mut() {
+            if entry
+                .dynamic_tool_host
+                .as_ref()
+                .is_some_and(|host| host.connection_id == connection_id)
+            {
+                entry.dynamic_tool_host = None;
+            }
+        }
         let thread_ids = inner
             .thread_ids_by_connection
             .remove(&connection_id)
@@ -414,8 +442,11 @@ impl ThreadStateManager {
             inner.listeners_shutting_down = true;
             inner
                 .threads
-                .values()
-                .map(|entry| entry.state.clone())
+                .values_mut()
+                .map(|entry| {
+                    entry.skill_watch = None;
+                    entry.state.clone()
+                })
                 .collect::<Vec<_>>()
         };
         for thread_state in thread_states {

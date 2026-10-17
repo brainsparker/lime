@@ -9,6 +9,8 @@ use serde_json::{json, Value};
 
 use super::{scan_rollout, RolloutStore};
 
+mod digest;
+
 fn thread(id: &str) -> Thread {
     Thread {
         session_id: SessionId::new(format!("session-{id}")),
@@ -140,7 +142,7 @@ fn append_history_finds_latest_history_before_trailing_metadata() {
     next.updated_at_ms += 1;
     next.metadata = json!({"blob": "x".repeat(100_000)});
     store
-        .append_metadata(&relative_path, &source, &next)
+        .append_metadata(&relative_path, &source, &next, false)
         .expect("append metadata");
 
     assert!(

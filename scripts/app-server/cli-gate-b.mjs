@@ -218,9 +218,14 @@ async function main() {
       "canonical approval policy",
     );
     assertEqual(
-      runtimeRequest?.metadata?.approvalsReviewer,
+      runtimeRequest?.approvalsReviewer,
       "auto_review",
       "canonical approvals reviewer",
+    );
+    assertEqual(
+      Object.hasOwn(runtimeRequest?.metadata ?? {}, "approvalsReviewer"),
+      false,
+      "reviewer has one typed runtime owner",
     );
     assertEqual(
       runtimeRequest?.sandboxPolicy,

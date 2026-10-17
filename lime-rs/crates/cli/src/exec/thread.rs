@@ -19,7 +19,7 @@ pub(super) async fn start_thread(
     handle: &RequestHandle,
     command: Option<&Command>,
     connection: &ConnectionArgs,
-    cwd: &Path,
+    cwd: Option<&Path>,
 ) -> Result<String> {
     match command {
         Some(Command::Fork(args)) => {
@@ -57,13 +57,13 @@ pub(super) async fn start_thread(
         }
         None | Some(Command::Review(_)) => {}
     }
-    let cwd = cwd.to_string_lossy().into_owned();
+    let cwd = cwd.map(|cwd| cwd.to_string_lossy().into_owned());
     let response: ThreadStartResponse = handle
         .request(
             METHOD_THREAD_START,
             ThreadStartParams {
-                cwd: Some(cwd.clone()),
-                runtime_workspace_roots: Some(vec![cwd]),
+                cwd: cwd.clone(),
+                runtime_workspace_roots: cwd.map(|cwd| vec![cwd]),
                 model: connection.model.clone(),
                 model_provider: connection.provider.clone(),
                 history_mode: Some(ThreadHistoryMode::Paginated),
@@ -78,18 +78,18 @@ pub(super) async fn start_thread(
 fn fork_params(
     thread_id: String,
     connection: &ConnectionArgs,
-    cwd: &Path,
+    cwd: Option<&Path>,
 ) -> Result<ThreadForkParams> {
     let policy = permission_settings(connection)?;
-    let cwd = cwd.to_string_lossy().into_owned();
+    let cwd = cwd.map(|cwd| cwd.to_string_lossy().into_owned());
     Ok(ThreadForkParams {
         thread_id,
         model: connection.model.clone(),
         model_provider: connection.provider.clone(),
-        cwd: Some(cwd.clone()),
-        runtime_workspace_roots: Some(vec![cwd]),
+        cwd: cwd.clone(),
+        runtime_workspace_roots: cwd.map(|cwd| vec![cwd]),
         approval_policy: policy.approval_policy.map(serde_json::Value::String),
-        approvals_reviewer: policy.approvals_reviewer.map(serde_json::Value::String),
+        approvals_reviewer: policy.approvals_reviewer,
         sandbox: policy.sandbox_policy.map(serde_json::Value::String),
         permissions: connection.permissions.clone(),
         exclude_turns: true,
@@ -101,7 +101,7 @@ fn fork_params(
 pub(super) async fn resolve_resume_thread_id(
     handle: &RequestHandle,
     args: &ResumeArgs,
-    cwd: &Path,
+    cwd: Option<&Path>,
     provider: Option<&str>,
 ) -> Result<Option<String>> {
     if !args.last {
@@ -132,13 +132,19 @@ pub(super) async fn resolve_resume_thread_id(
     }
 }
 
-fn resume_list_params(args: &ResumeArgs, cwd: &Path, provider: Option<&str>) -> ThreadListParams {
+fn resume_list_params(
+    args: &ResumeArgs,
+    cwd: Option<&Path>,
+    provider: Option<&str>,
+) -> ThreadListParams {
     ThreadListParams {
         limit: Some(100),
         sort_key: Some(ThreadSortKey::UpdatedAt),
         sort_direction: Some(SortDirection::Desc),
         archived: Some(false),
-        cwd: (!args.all).then(|| ThreadListCwdFilter::One(cwd.to_string_lossy().into_owned())),
+        cwd: cwd
+            .filter(|_| !args.all)
+            .map(|cwd| ThreadListCwdFilter::One(cwd.to_string_lossy().into_owned())),
         model_providers: args
             .last
             .then(|| provider.map(|provider| vec![provider.to_owned()]))

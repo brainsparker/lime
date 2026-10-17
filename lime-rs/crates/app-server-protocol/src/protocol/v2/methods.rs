@@ -82,13 +82,15 @@ pub const METHOD_HOOKS_LIST: &str = "hooks/list";
 pub const METHOD_SKILLS_LIST: &str = "skills/list";
 pub const METHOD_SKILLS_EXTRA_ROOTS_SET: &str = "skills/extraRoots/set";
 pub const METHOD_SKILLS_CONFIG_WRITE: &str = "skills/config/write";
+pub const METHOD_MARKETPLACE_ADD: &str = "marketplace/add";
+pub const METHOD_MARKETPLACE_REMOVE: &str = "marketplace/remove";
+pub const METHOD_MARKETPLACE_UPGRADE: &str = "marketplace/upgrade";
 pub const METHOD_PLUGIN_LIST: &str = "plugin/list";
 pub const METHOD_PLUGIN_SEARCH: &str = "plugin/search";
 pub const METHOD_PLUGIN_READ: &str = "plugin/read";
 pub const METHOD_PLUGIN_INSTALL: &str = "plugin/install";
 pub const METHOD_PLUGIN_UNINSTALL: &str = "plugin/uninstall";
 pub const METHOD_PLUGIN_INSTALLED: &str = "plugin/installed";
-pub const METHOD_PLUGIN_ENABLED_SET: &str = "plugin/enabled/set";
 pub const METHOD_MODEL_LIST_UPDATED: &str = "model/list/updated";
 pub const METHOD_APP_LIST_UPDATED: &str = "app/list/updated";
 pub const METHOD_SCHEDULED_TASK_CHANGED: &str = "scheduledTask/changed";
@@ -344,6 +346,12 @@ pub enum Method {
     SkillsExtraRootsSet,
     #[serde(rename = "skills/config/write")]
     SkillsConfigWrite,
+    #[serde(rename = "marketplace/add")]
+    MarketplaceAdd,
+    #[serde(rename = "marketplace/remove")]
+    MarketplaceRemove,
+    #[serde(rename = "marketplace/upgrade")]
+    MarketplaceUpgrade,
     #[serde(rename = "plugin/list")]
     PluginList,
     #[serde(rename = "plugin/search")]
@@ -356,8 +364,6 @@ pub enum Method {
     PluginUninstall,
     #[serde(rename = "plugin/installed")]
     PluginInstalled,
-    #[serde(rename = "plugin/enabled/set")]
-    PluginEnabledSet,
     #[serde(rename = "turn/start")]
     TurnStart,
     #[serde(rename = "turn/steer")]
@@ -489,13 +495,15 @@ impl Method {
             Self::SkillsList => METHOD_SKILLS_LIST,
             Self::SkillsExtraRootsSet => METHOD_SKILLS_EXTRA_ROOTS_SET,
             Self::SkillsConfigWrite => METHOD_SKILLS_CONFIG_WRITE,
+            Self::MarketplaceAdd => METHOD_MARKETPLACE_ADD,
+            Self::MarketplaceRemove => METHOD_MARKETPLACE_REMOVE,
+            Self::MarketplaceUpgrade => METHOD_MARKETPLACE_UPGRADE,
             Self::PluginList => METHOD_PLUGIN_LIST,
             Self::PluginSearch => METHOD_PLUGIN_SEARCH,
             Self::PluginRead => METHOD_PLUGIN_READ,
             Self::PluginInstall => METHOD_PLUGIN_INSTALL,
             Self::PluginUninstall => METHOD_PLUGIN_UNINSTALL,
             Self::PluginInstalled => METHOD_PLUGIN_INSTALLED,
-            Self::PluginEnabledSet => METHOD_PLUGIN_ENABLED_SET,
             Self::TurnStart => METHOD_TURN_START,
             Self::TurnSteer => METHOD_TURN_STEER,
             Self::TurnInterrupt => METHOD_TURN_INTERRUPT,
@@ -609,13 +617,15 @@ impl Method {
             METHOD_SKILLS_LIST => Some(Self::SkillsList),
             METHOD_SKILLS_EXTRA_ROOTS_SET => Some(Self::SkillsExtraRootsSet),
             METHOD_SKILLS_CONFIG_WRITE => Some(Self::SkillsConfigWrite),
+            METHOD_MARKETPLACE_ADD => Some(Self::MarketplaceAdd),
+            METHOD_MARKETPLACE_REMOVE => Some(Self::MarketplaceRemove),
+            METHOD_MARKETPLACE_UPGRADE => Some(Self::MarketplaceUpgrade),
             METHOD_PLUGIN_LIST => Some(Self::PluginList),
             METHOD_PLUGIN_SEARCH => Some(Self::PluginSearch),
             METHOD_PLUGIN_READ => Some(Self::PluginRead),
             METHOD_PLUGIN_INSTALL => Some(Self::PluginInstall),
             METHOD_PLUGIN_UNINSTALL => Some(Self::PluginUninstall),
             METHOD_PLUGIN_INSTALLED => Some(Self::PluginInstalled),
-            METHOD_PLUGIN_ENABLED_SET => Some(Self::PluginEnabledSet),
             METHOD_TURN_START => Some(Self::TurnStart),
             METHOD_TURN_STEER => Some(Self::TurnSteer),
             METHOD_TURN_INTERRUPT => Some(Self::TurnInterrupt),
@@ -723,13 +733,15 @@ pub const METHODS: &[&str] = &[
     METHOD_SKILLS_LIST,
     METHOD_SKILLS_EXTRA_ROOTS_SET,
     METHOD_SKILLS_CONFIG_WRITE,
+    METHOD_MARKETPLACE_ADD,
+    METHOD_MARKETPLACE_REMOVE,
+    METHOD_MARKETPLACE_UPGRADE,
     METHOD_PLUGIN_LIST,
     METHOD_PLUGIN_SEARCH,
     METHOD_PLUGIN_READ,
     METHOD_PLUGIN_INSTALL,
     METHOD_PLUGIN_UNINSTALL,
     METHOD_PLUGIN_INSTALLED,
-    METHOD_PLUGIN_ENABLED_SET,
     METHOD_TURN_START,
     METHOD_TURN_STEER,
     METHOD_TURN_INTERRUPT,

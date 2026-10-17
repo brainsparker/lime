@@ -25,7 +25,7 @@ use crate::pager_overlay::{PagerAction, PagerOverlay};
 #[cfg(test)]
 use crate::projection::EntryKind;
 use crate::projection::TranscriptEntry;
-use crate::runtime::{connect_session, TuiOptions};
+use crate::runtime::connection::{connect_session, TuiOptions};
 use crate::terminal_hyperlinks::HyperlinkLine;
 use crate::text_formatting::center_truncate_path;
 use crate::transcript_view::TranscriptContent;

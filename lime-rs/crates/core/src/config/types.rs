@@ -451,6 +451,11 @@ pub struct Config {
     /// Agent Skills 用户级启停配置
     #[serde(default, skip_serializing_if = "SkillsConfig::is_default")]
     pub skills: SkillsConfig,
+    /// 插件配置由所有 Surface 共用，安装状态从 cache 读取。
+    #[serde(default, skip_serializing_if = "super::PluginsConfig::is_empty")]
+    pub plugins: super::PluginsConfig,
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub marketplaces: std::collections::BTreeMap<String, super::MarketplaceConfig>,
     /// Orchestrator-owned Skills 与 Apps MCP 暴露开关。
     #[serde(default, skip_serializing_if = "OrchestratorConfig::is_default")]
     pub orchestrator: OrchestratorConfig,
@@ -2227,6 +2232,8 @@ impl Default for Config {
             models: ModelsConfig::default(),
             agent: NativeAgentConfig::default(),
             skills: SkillsConfig::default(),
+            plugins: super::PluginsConfig::default(),
+            marketplaces: std::collections::BTreeMap::new(),
             orchestrator: OrchestratorConfig::default(),
             experimental: ExperimentalFeatures::default(),
             tool_calling: ToolCallingConfig::default(),

@@ -141,13 +141,15 @@
     "modelProviderUiState/write"
   ],
   "appServerPluginMethods": [
+    "marketplace/add",
+    "marketplace/remove",
+    "marketplace/upgrade",
     "plugin/list",
     "plugin/search",
     "plugin/read",
     "plugin/install",
     "plugin/uninstall",
-    "plugin/installed",
-    "plugin/enabled/set"
+    "plugin/installed"
   ],
   "appServerSkillManagementMethods": [
     "skillManagement/list",

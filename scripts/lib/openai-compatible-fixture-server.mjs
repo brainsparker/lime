@@ -696,6 +696,12 @@ export async function startOpenAiCompatibleFixtureServer(options = {}) {
             input_modalities: ["text"],
             output_modalities: ["text"],
             runtime_features: modelRuntimeFeatures,
+            ...(options.modelServiceTiers
+              ? { service_tiers: options.modelServiceTiers }
+              : {}),
+            ...(options.modelDefaultServiceTier
+              ? { default_service_tier: options.modelDefaultServiceTier }
+              : {}),
             ...(modelToolMode ? { tool_mode: modelToolMode } : {}),
             capabilities: {
               tools: true,

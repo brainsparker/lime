@@ -21,7 +21,7 @@ import {
   type EmbeddedBrowserViewState,
 } from "@/lib/api/embeddedBrowser";
 import { mcpApi } from "@/lib/api/mcp";
-import { listInstalledPluginCatalog } from "@/lib/api/pluginCatalog";
+import { listInstalledPlugins } from "@/lib/api/pluginCatalog";
 import {
   selectWorkspacePluginSurfaceDescriptor,
   type WorkspacePluginSurfaceDescriptor,
@@ -202,11 +202,11 @@ function WorkspacePluginSurfaceFrame({
 
     let cancelled = false;
     setMcpAppPluginAvailability("checking");
-    void listInstalledPluginCatalog()
-      .then(({ plugins }) => {
+    void listInstalledPlugins()
+      .then(({ marketplaces }) => {
         if (!cancelled) {
           setMcpAppPluginAvailability(
-            plugins.some((plugin) => plugin.id === installedPluginId)
+            marketplaces.some((marketplace) => marketplace.plugins.some((plugin) => plugin.id === installedPluginId))
               ? "available"
               : "uninstalled",
           );

@@ -25,14 +25,18 @@ pub struct TurnStartParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approval_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub approvals_reviewer: Option<Value>,
+    pub approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sandbox_policy: Option<Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permissions: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(
+        default,
+        deserialize_with = "super::serde_helpers::deserialize_double_option",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub service_tier: Option<Option<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<String>,

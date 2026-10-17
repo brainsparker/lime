@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "UPPERCASE")]
-pub enum ScheduledTaskWeekday {
+pub enum AutomationTaskWeekday {
     MO,
     TU,
     WE,
@@ -36,12 +36,12 @@ pub enum ScheduledTaskOverlapPolicy {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "camelCase")]
-pub enum ScheduledTaskSchedule {
+pub enum AutomationTaskSchedule {
     Hourly {
         #[serde(rename = "intervalHours")]
         interval_hours: u32,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        days: Option<Vec<ScheduledTaskWeekday>>,
+        days: Option<Vec<AutomationTaskWeekday>>,
         minute: u8,
         timezone: String,
     },
@@ -54,7 +54,7 @@ pub enum ScheduledTaskSchedule {
         timezone: String,
     },
     Weekly {
-        days: Vec<ScheduledTaskWeekday>,
+        days: Vec<AutomationTaskWeekday>,
         time: String,
         timezone: String,
     },
@@ -87,7 +87,7 @@ pub struct ScheduledTaskExecution {
 pub struct ScheduledTaskCreateRequest {
     pub title: String,
     pub prompt: String,
-    pub schedule: ScheduledTaskSchedule,
+    pub schedule: AutomationTaskSchedule,
     pub execution: ScheduledTaskExecution,
     #[serde(default = "default_true")]
     pub enabled: bool,
@@ -105,7 +105,7 @@ pub struct ScheduledTaskUpdateRequest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub schedule: Option<ScheduledTaskSchedule>,
+    pub schedule: Option<AutomationTaskSchedule>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution: Option<ScheduledTaskExecution>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -125,7 +125,7 @@ pub struct ScheduledTask {
     pub title: String,
     pub prompt: String,
     pub enabled: bool,
-    pub schedule: ScheduledTaskSchedule,
+    pub schedule: AutomationTaskSchedule,
     pub execution: ScheduledTaskExecution,
     pub notification_policy: ScheduledTaskNotificationPolicy,
     pub overlap_policy: ScheduledTaskOverlapPolicy,
@@ -139,12 +139,12 @@ pub struct ScheduledTask {
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct ScheduledTaskSummary {
+pub struct AutomationTaskSummary {
     pub id: String,
     pub title: String,
     pub enabled: bool,
     pub attention: bool,
-    pub schedule: ScheduledTaskSchedule,
+    pub schedule: AutomationTaskSchedule,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_run_at: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -197,7 +197,7 @@ pub struct ScheduledTaskIdParams {
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduledTaskListResponse {
-    pub items: Vec<ScheduledTaskSummary>,
+    pub items: Vec<AutomationTaskSummary>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub next_cursor: Option<String>,
 }
@@ -264,7 +264,7 @@ pub struct ScheduledTaskRunListResponse {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ScheduledTaskSchedulePreviewParams {
-    pub schedule: ScheduledTaskSchedule,
+    pub schedule: AutomationTaskSchedule,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize, JsonSchema)]

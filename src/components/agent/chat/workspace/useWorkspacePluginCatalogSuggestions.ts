@@ -1,20 +1,24 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type {
-  AppServerPluginCatalogListResponse,
-  AppServerPluginCatalogSummary,
+  AppServerPluginInstalledResponse,
+  AppServerPluginInstalledParams,
+  AppServerPluginSummary,
 } from "@/lib/api/appServerTypes";
 import {
   PLUGIN_CATALOG_CHANGED_EVENT,
-  listInstalledPluginCatalog,
+  listInstalledPlugins,
 } from "@/lib/api/pluginCatalog";
 import type { InputbarPluginCapability } from "../components/Inputbar/pluginInputCapability";
 import { buildWorkspacePluginCatalogSuggestions } from "./workspacePluginCatalogSuggestions";
 
-const EMPTY_PLUGINS: readonly AppServerPluginCatalogSummary[] = [];
+const EMPTY_PLUGINS: readonly AppServerPluginSummary[] = [];
 
 export interface UseWorkspacePluginCatalogSuggestionsOptions {
   enabled?: boolean;
-  listInstalled?: () => Promise<AppServerPluginCatalogListResponse>;
+  workspaceRoot?: string | null;
+  listInstalled?: (
+    params?: AppServerPluginInstalledParams,
+  ) => Promise<AppServerPluginInstalledResponse>;
 }
 
 export interface UseWorkspacePluginCatalogSuggestionsResult {
@@ -26,10 +30,11 @@ export interface UseWorkspacePluginCatalogSuggestionsResult {
 
 export function useWorkspacePluginCatalogSuggestions({
   enabled = false,
-  listInstalled = listInstalledPluginCatalog,
+  workspaceRoot,
+  listInstalled = listInstalledPlugins,
 }: UseWorkspacePluginCatalogSuggestionsOptions): UseWorkspacePluginCatalogSuggestionsResult {
   const [plugins, setPlugins] =
-    useState<readonly AppServerPluginCatalogSummary[]>(EMPTY_PLUGINS);
+    useState<readonly AppServerPluginSummary[]>(EMPTY_PLUGINS);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -54,9 +59,13 @@ export function useWorkspacePluginCatalogSuggestions({
       const currentSequence = (loadSequence += 1);
       setLoading(true);
       try {
-        const result = await listInstalled();
+        const result = await listInstalled(
+          workspaceRoot ? { cwds: [workspaceRoot] } : {},
+        );
         if (!disposed && currentSequence === loadSequence) {
-          setPlugins(result.plugins);
+          setPlugins(
+            result.marketplaces.flatMap((marketplace) => marketplace.plugins),
+          );
           setError(null);
         }
       } catch (caught) {
@@ -83,7 +92,7 @@ export function useWorkspacePluginCatalogSuggestions({
         window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, load);
       }
     };
-  }, [enabled, listInstalled, refreshKey]);
+  }, [enabled, listInstalled, refreshKey, workspaceRoot]);
 
   const suggestions = useMemo(
     () => buildWorkspacePluginCatalogSuggestions(plugins),

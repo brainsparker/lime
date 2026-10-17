@@ -15,6 +15,7 @@ mod hook;
 mod item;
 mod mcp;
 mod media;
+mod marketplace;
 mod memory;
 mod methods;
 mod model;
@@ -35,6 +36,7 @@ mod turn;
 mod user_input;
 mod windows_sandbox;
 
+pub use agent_protocol::ApprovalsReviewer;
 pub use approval::*;
 pub use apps::*;
 pub use artifact::*;
@@ -52,6 +54,7 @@ pub use hook::*;
 pub use item::*;
 pub use mcp::*;
 pub use media::*;
+pub use marketplace::*;
 pub use memory::*;
 pub use methods::*;
 pub use model::*;
@@ -73,6 +76,12 @@ pub use windows_sandbox::*;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod approvals_reviewer_tests;
+
+#[cfg(test)]
+mod service_tier_tests;
 
 #[cfg(test)]
 mod apps_tests;

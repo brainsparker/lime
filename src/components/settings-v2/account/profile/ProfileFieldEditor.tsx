@@ -71,7 +71,12 @@ export function ProfileFieldEditor({
     },
   };
   return (
-    <div className="border-b border-border py-4 last:border-b-0">
+    <div
+      className="border-b border-border py-4 last:border-b-0"
+      data-settings-search-target={`profile-${field}`}
+      tabIndex={-1}
+      aria-label={label}
+    >
       <div className="mb-2 flex items-center justify-between gap-4">
         <label
           htmlFor={isEditing ? id : undefined}

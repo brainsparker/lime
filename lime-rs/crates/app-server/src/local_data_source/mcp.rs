@@ -39,7 +39,6 @@ use lime_mcp::McpServerConfig;
 use lime_services::mcp_service::McpService;
 use serde_json::Value;
 use std::collections::HashSet;
-use std::path::Path;
 
 pub(crate) fn list_mcp_servers(
     db: &DbConnection,
@@ -321,7 +320,7 @@ pub(crate) async fn list_mcp_tools(
 
 pub(crate) fn list_mcp_runtime_server_specs(
     db: &DbConnection,
-    plugin_data_root: &Path,
+    plugin_store: &super::plugin_catalog::PluginStore,
 ) -> Result<Vec<lime_mcp::McpRuntimeServerSpec>, RuntimeCoreError> {
     let mut specs = McpService::get_all(db)
         .map_err(data_error)?
@@ -340,7 +339,7 @@ pub(crate) fn list_mcp_runtime_server_specs(
         .iter()
         .map(|spec| spec.name.clone())
         .collect::<HashSet<_>>();
-    match super::plugin_catalog::list_plugin_mcp_runtime_server_specs(plugin_data_root) {
+    match super::plugin_catalog::list_plugin_mcp_runtime_server_specs(plugin_store) {
         Ok(plugin_specs) => {
             for spec in plugin_specs {
                 if !names.insert(spec.name.clone()) {

@@ -211,7 +211,7 @@ vi.mock("@/lib/api/appConfig", () => ({
 
 vi.mock("@/lib/api/pluginCatalog", () => ({
   PLUGIN_CATALOG_CHANGED_EVENT: "lime:plugin-catalog-changed",
-  listInstalledPluginCatalog: (...args: unknown[]) =>
+  listInstalledPlugins: (...args: unknown[]) =>
     mockListInstalledPluginCatalog(...args),
 }));
 
@@ -728,8 +728,7 @@ export async function resetAppSidebarTest() {
   document.documentElement.removeAttribute("style");
   mockGetConfig.mockResolvedValue({});
   mockListInstalledPluginCatalog.mockResolvedValue({
-    plugins: [],
-    generatedAt: "now",
+    marketplaces: [],
   });
   mockSaveConfig.mockResolvedValue(undefined);
   mockListAgentRuntimeSessions.mockResolvedValue([]);

@@ -29,7 +29,6 @@ export * from "./multiAgentVisualSnapshot.js";
 export * from "./multiAgentToolSchema.js";
 export * from "./normalization.js";
 export * from "./planApproval.js";
-export * from "./pluginCapabilityRuntime.js";
 export * from "./permissionEvents.js";
 export * from "./refs.js";
 export * from "./realtimeConversationItem.js";

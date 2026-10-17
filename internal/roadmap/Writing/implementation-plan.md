@@ -18,7 +18,7 @@
 - 已有内容工厂标准包、Skills、MCP 和基础 workflow，是当前实现输入；workflow/evidence 不属于 portable manifest。
 - 已有宿主 typed plugin contract、输入栏候选、activation metadata、ArtifactDocument / Article Workspace 基础路径，是当前实现输入。
 - 内容工厂样板包已收敛为 `plugin.json`、`mcp.json` 与 `skills/<skill>/SKILL.md`；App Server/runtime 负责生成 workflow、subagent、CLI、connector、hook 和 Article Workspace projection。
-- 插件包标准事实源已落到 `internal/roadmap/plugin/v3/README.md` 与 `01-target-contract.md`。
+- 插件包标准事实源已落到 `internal/roadmap/plugin/README.md` 与 `01-target-contract.md`。
 - 宿主本地安装链已收敛为只读取标准 `plugin.json`，旧入口归类为 dead。
 - LimeCore 服务端控制面本轮暂不修改；本轮只把宿主本地安装、插件投影和内容工厂写作主链收敛到标准 `plugin.json` / `mcp.json` / Skills。等 v3 package identity、manifest hash 和安装投影稳定后，再统一迁移云端 release / upload 校验。
 
@@ -28,11 +28,11 @@
 
 状态：完成骨架
 
-- [x] 在 `internal/roadmap/plugin/v3/` 建立 Agent Plugins v1.0.0 标准文档。
+- [x] 在 `internal/roadmap/plugin/` 建立 Agent Plugins v1.0.0 标准文档。
 - [x] 内容工厂外部包以 `plugin.json`、`mcp.json` 和 `skills/<skill>/SKILL.md` 作为唯一 portable 入口。
 - [x] workflow、subagents、CLI、connectors、hooks 和 resources 从 package manifest 移出，统一由 App Server/runtime projection 承接。
 - [x] 旧说明文档退出机器事实源。
-- [x] validator 按 v3 标准校验 `plugin.json`、`mcp.json`、direct-child Skills、路径安全和组件隔离。
+- [ ] validator 按 Codex 标准与原生 manifest 优先级、声明资源、路径约束和组件隔离重新验收；旧标准包验证不核销新合同。
 
 ### P1：内容工厂样板包
 
@@ -151,7 +151,7 @@
 
 服务端待办：
 
-- [ ] 平台 package upload 校验发布包中必须存在唯一根 `plugin.json`、根 `mcp.json`（如声明 MCP）和 `skills/`。
+- [ ] 平台 package upload 按 Codex manifest 优先级选择标准或原生格式，核对发布身份与选中原始 manifest 摘要。
 - [ ] release metadata / manifestSummary 从旧摘要迁到 Agent Plugins v1.0.0 摘要。
 - [ ] `content-factory-app` seeded catalog 指向 v1 package 版本和新 hash。
 - [ ] 未激活注册码时继续不下发 package URL / hash，避免本地绕过企业定制授权。

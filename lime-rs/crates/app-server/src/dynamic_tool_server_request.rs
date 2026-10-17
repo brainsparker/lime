@@ -18,7 +18,7 @@ impl AppServer {
             }
         };
         let response = match self
-            .begin_server_request(METHOD_ITEM_TOOL_CALL, request.params.clone())
+            .begin_dynamic_tool_request(request.params.clone())
             .await
         {
             Ok(pending) => {
@@ -53,6 +53,39 @@ impl AppServer {
             tracing::warn!(event_id = %event.event_id, %error, "typed dynamic tool response rejected by runtime");
         }
         true
+    }
+
+    async fn begin_dynamic_tool_request(
+        &self,
+        params: DynamicToolCallParams,
+    ) -> Result<crate::server_request::PendingServerRequest, crate::AppServerError> {
+        self.begin_thread_server_request(&params.thread_id, METHOD_ITEM_TOOL_CALL, &params)
+            .await
+    }
+}
+
+impl crate::AppServerEventBridge {
+    pub(crate) async fn register_dynamic_tool_request(
+        &self,
+        value: Value,
+    ) -> Result<crate::server_request::PendingServerRequest, crate::ServerRequestError> {
+        let params: DynamicToolCallParams = serde_json::from_value(value.clone())
+            .map_err(|_| crate::ServerRequestError::ClientUnavailable)?;
+        self.thread_states
+            .with_dynamic_tool_host(
+                &agent_protocol::ThreadId::new(&params.thread_id),
+                params.namespace.as_deref(),
+                &params.tool,
+                |connection_id| {
+                    self.server_requests.register_for_owner(
+                        crate::server_request::ServerRequestOwner::Transport(connection_id),
+                        METHOD_ITEM_TOOL_CALL,
+                        Some(value),
+                    )
+                },
+            )
+            .await
+            .ok_or(crate::ServerRequestError::ClientUnavailable)
     }
 }
 
@@ -188,6 +221,10 @@ fn required_optional_text(value: Option<&str>, field: &str) -> Result<String, St
         .transpose()?
         .ok_or_else(|| format!("dynamic_tool.requested has no {field}"))
 }
+
+#[cfg(test)]
+#[path = "dynamic_tool_server_request/host_tests.rs"]
+mod host_tests;
 
 #[cfg(test)]
 mod tests {

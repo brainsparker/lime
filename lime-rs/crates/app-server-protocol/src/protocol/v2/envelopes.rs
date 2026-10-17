@@ -32,19 +32,20 @@ use super::{
     ModelListUpdatedNotification, ModelProviderCapabilitiesReadParams, ModelReroutedNotification,
     ModelSafetyBufferingUpdatedNotification, ModelVerificationNotification,
     PermissionProfileListParams, PermissionsRequestApprovalParams, PlanDeltaNotification,
-    PluginCatalogEnabledSetParams, PluginCatalogInstallParams, PluginCatalogInstalledParams,
-    PluginCatalogListParams, PluginCatalogReadParams, PluginCatalogUninstallParams,
-    PluginSearchParams, PluginSearchResponse, ProcessExitedNotification, ProcessKillParams,
-    ProcessKillResponse, ProcessOutputDeltaNotification, ProcessResizePtyParams,
-    ProcessResizePtyResponse, ProcessSpawnParams, ProcessSpawnResponse, ProcessWriteStdinParams,
-    ProcessWriteStdinResponse, ProjectChangedNotification, ProjectCreateParams,
-    ProjectCreateResponse, ProjectDeleteParams, ProjectDeleteResponse, ProjectImportParams,
-    ProjectImportResponse, ProjectListParams, ProjectListResponse, ProjectMoveParams,
-    ProjectMoveResponse, ProjectReadParams, ProjectReadResponse, ProjectUpdateParams,
-    ProjectUpdateResponse, PromptHistoryAppendParams, PromptHistoryAppendResponse,
-    PromptHistoryReadParams, PromptHistoryReadResponse, ReasoningSummaryPartAddedNotification,
-    ReasoningSummaryTextDeltaNotification, ReasoningTextDeltaNotification, ReviewStartParams,
-    ReviewStartResponse, ScheduledTaskChangedNotification, ScheduledTaskRunUpdatedNotification,
+    MarketplaceAddParams, MarketplaceRemoveParams, MarketplaceUpgradeParams,
+    PluginInstallParams, PluginInstalledParams, PluginListParams,
+    PluginReadParams, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
+    ProcessExitedNotification, ProcessKillParams, ProcessKillResponse,
+    ProcessOutputDeltaNotification, ProcessResizePtyParams, ProcessResizePtyResponse,
+    ProcessSpawnParams, ProcessSpawnResponse, ProcessWriteStdinParams, ProcessWriteStdinResponse,
+    ProjectChangedNotification, ProjectCreateParams, ProjectCreateResponse, ProjectDeleteParams,
+    ProjectDeleteResponse, ProjectImportParams, ProjectImportResponse, ProjectListParams,
+    ProjectListResponse, ProjectMoveParams, ProjectMoveResponse, ProjectReadParams,
+    ProjectReadResponse, ProjectUpdateParams, ProjectUpdateResponse, PromptHistoryAppendParams,
+    PromptHistoryAppendResponse, PromptHistoryReadParams, PromptHistoryReadResponse,
+    ReasoningSummaryPartAddedNotification, ReasoningSummaryTextDeltaNotification,
+    ReasoningTextDeltaNotification, ReviewStartParams, ReviewStartResponse,
+    ScheduledTaskChangedNotification, ScheduledTaskRunUpdatedNotification,
     ServerRequestResolvedNotification, SkillsChangedNotification, SkillsConfigWriteParams,
     SkillsConfigWriteResponse, SkillsExtraRootsSetParams, SkillsExtraRootsSetResponse,
     SkillsListParams, SkillsListResponse, StrictReviewRequiredNotification,
@@ -526,10 +527,25 @@ pub enum ClientRequest {
         id: RequestId,
         params: SkillsConfigWriteParams,
     },
+    #[serde(rename = "marketplace/add")]
+    MarketplaceAdd {
+        id: RequestId,
+        params: MarketplaceAddParams,
+    },
+    #[serde(rename = "marketplace/remove")]
+    MarketplaceRemove {
+        id: RequestId,
+        params: MarketplaceRemoveParams,
+    },
+    #[serde(rename = "marketplace/upgrade")]
+    MarketplaceUpgrade {
+        id: RequestId,
+        params: MarketplaceUpgradeParams,
+    },
     #[serde(rename = "plugin/list")]
     PluginList {
         id: RequestId,
-        params: PluginCatalogListParams,
+        params: PluginListParams,
     },
     #[serde(rename = "plugin/search")]
     PluginSearch {
@@ -539,27 +555,22 @@ pub enum ClientRequest {
     #[serde(rename = "plugin/read")]
     PluginRead {
         id: RequestId,
-        params: PluginCatalogReadParams,
+        params: PluginReadParams,
     },
     #[serde(rename = "plugin/install")]
     PluginInstall {
         id: RequestId,
-        params: PluginCatalogInstallParams,
+        params: PluginInstallParams,
     },
     #[serde(rename = "plugin/uninstall")]
     PluginUninstall {
         id: RequestId,
-        params: PluginCatalogUninstallParams,
+        params: PluginUninstallParams,
     },
     #[serde(rename = "plugin/installed")]
     PluginInstalled {
         id: RequestId,
-        params: PluginCatalogInstalledParams,
-    },
-    #[serde(rename = "plugin/enabled/set")]
-    PluginEnabledSet {
-        id: RequestId,
-        params: PluginCatalogEnabledSetParams,
+        params: PluginInstalledParams,
     },
     #[serde(rename = "turn/start")]
     TurnStart {
@@ -753,13 +764,15 @@ impl ClientRequest {
             | Self::SkillsList { id, .. }
             | Self::SkillsExtraRootsSet { id, .. }
             | Self::SkillsConfigWrite { id, .. }
+            | Self::MarketplaceAdd { id, .. }
+            | Self::MarketplaceRemove { id, .. }
+            | Self::MarketplaceUpgrade { id, .. }
             | Self::PluginList { id, .. }
             | Self::PluginSearch { id, .. }
             | Self::PluginRead { id, .. }
             | Self::PluginInstall { id, .. }
             | Self::PluginUninstall { id, .. }
             | Self::PluginInstalled { id, .. }
-            | Self::PluginEnabledSet { id, .. }
             | Self::TurnStart { id, .. }
             | Self::TurnSteer { id, .. }
             | Self::TurnInterrupt { id, .. }
@@ -873,13 +886,15 @@ impl ClientRequest {
             Self::SkillsList { .. } => Method::SkillsList,
             Self::SkillsExtraRootsSet { .. } => Method::SkillsExtraRootsSet,
             Self::SkillsConfigWrite { .. } => Method::SkillsConfigWrite,
+            Self::MarketplaceAdd { .. } => Method::MarketplaceAdd,
+            Self::MarketplaceRemove { .. } => Method::MarketplaceRemove,
+            Self::MarketplaceUpgrade { .. } => Method::MarketplaceUpgrade,
             Self::PluginList { .. } => Method::PluginList,
             Self::PluginSearch { .. } => Method::PluginSearch,
             Self::PluginRead { .. } => Method::PluginRead,
             Self::PluginInstall { .. } => Method::PluginInstall,
             Self::PluginUninstall { .. } => Method::PluginUninstall,
             Self::PluginInstalled { .. } => Method::PluginInstalled,
-            Self::PluginEnabledSet { .. } => Method::PluginEnabledSet,
             Self::TurnStart { .. } => Method::TurnStart,
             Self::TurnSteer { .. } => Method::TurnSteer,
             Self::TurnInterrupt { .. } => Method::TurnInterrupt,

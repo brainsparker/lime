@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "alreadyAdded": {
+      "type": "boolean"
+    },
+    "installedRoot": {
+      "type": "string"
+    },
+    "marketplaceName": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "alreadyAdded",
+    "installedRoot",
+    "marketplaceName"
+  ],
+  "title": "MarketplaceAddResponse",
+  "type": "object"
+}

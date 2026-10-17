@@ -11,10 +11,8 @@ describe("Plugin package current Electron fixture guard", () => {
       "scripts/electron/plugin-package-electron-gate-b.mjs",
       "utf8",
     );
-    const gate = fs.readFileSync(
-      "scripts/electron/mcp-elicitation-gate-b.mjs",
-      "utf8",
-    );
+    const gate = ["scripts/electron/mcp-elicitation-gate-b.mjs", "scripts/electron/lib/plugin-package-fixture.mjs"]
+      .map((file) => fs.readFileSync(file, "utf8")).join("\n");
     const fixture = fs.readFileSync(
       "scripts/electron/mcp-config-fixture-smoke.mjs",
       "utf8",
@@ -60,15 +58,16 @@ describe("Plugin package current Electron fixture guard", () => {
     expect(gate).toContain("if (!pluginPackage)");
     expect(gate).toContain('"plugin/list"');
     expect(gate).toContain('data-testid="app-sidebar-nav-plugins"');
-    expect(gate).toContain('data-testid="plugin-catalog-install-local"');
+    expect(gate).toContain('data-testid="plugin-catalog-install-');
     expect(gate).toContain('data-testid="plugin-catalog-install-review"');
     expect(gate).toContain('data-testid="plugin-catalog-confirm-install"');
-    expect(gate).toContain("armControlledPluginSourceDialog");
+    expect(gate).not.toContain("armControlledPluginSourceDialog");
+    expect(gate).toContain("marketplacePath: plugin.marketplacePath");
     expect(gate).toContain("installPluginPackageFromAppCenter");
     expect(gate).toContain('"plugin/install"');
     expect(gate).toContain('"plugin/read"');
     expect(gate).toContain('"plugin/installed"');
-    expect(gate).toContain('"plugin/enabled/set"');
+    expect(gate).toContain('"config/batchWrite"');
     expect(gate).toContain('data-testid="inputbar-plus-plugins"');
     expect(gate).toContain('data-testid="inputbar-plugin-option"');
     expect(gate).toContain('data-composer-token="plugin"');
@@ -104,7 +103,7 @@ describe("Plugin package current Electron fixture guard", () => {
     expect(gate).toContain("summary.electronLaunchCount === 2");
     expect(gate).toContain("summary.coldRestoreCompleted");
     expect(gate).toContain("summary.coldRestoreIdentityStable");
-    expect(gate).toContain("summary.coldRestoreExplicitSurfaceOpen");
+    expect(gate).toContain("summary.coldRestoreSurfaceVisible");
     expect(gate).toContain("summary.coldRestoreCanonicalHydrationViaSidebar");
     expect(gate).toContain("summary.coldRestoreMcpProcessRestarted");
     expect(gate).toContain("summary.coldRestoreProviderNotReexecuted");
@@ -117,7 +116,7 @@ describe("Plugin package current Electron fixture guard", () => {
     expect(gate).toContain("repositoryCommit: readRepositoryCommit");
     expect(gate).toContain("summary.appVersion = electronRuntime.appVersion");
     expect(gate).toContain("summary.pluginMarketplaceId");
-    expect(gate).toContain("summary.pluginContentDigest");
+    expect(gate).not.toContain("summary.pluginContentDigest");
     expect(gate).toContain("verifyPluginPackageDisabledNewThreadBoundary");
     expect(gate).toContain("summary.disabledBoundaryCompleted");
     expect(gate).toContain(

@@ -29,6 +29,7 @@ export interface SettingsSectionContext {
   providerView?: SettingsProviderView;
   providerFocus?: ProviderSettingsFocusContext | null;
   executionPolicyFocus?: ExecutionPolicyFocusContext | null;
+  searchPath?: string;
   developerLabTab: "developer" | "experimental";
 }
 
@@ -145,13 +146,14 @@ export const settingsSections: readonly SettingsSection[] = [
     labelKey: "settings.tab.profile",
     icon: User,
     loadingKey: "settings.layout.loading.profile",
-    preload: () => Promise.all([loadProfile(), loadUserCenterSession()]),
-    render: () => (
-      <>
+    preload: () =>
+      resolveOemCloudRuntimeContext() ? loadUserCenterSession() : loadProfile(),
+    render: () =>
+      resolveOemCloudRuntimeContext() ? (
         <UserCenterSessionSettings />
-        {!resolveOemCloudRuntimeContext() ? <ProfileSettings /> : null}
-      </>
-    ),
+      ) : (
+        <ProfileSettings />
+      ),
   },
   {
     key: SettingsTabs.Stats,
@@ -178,7 +180,7 @@ export const settingsSections: readonly SettingsSection[] = [
     icon: Brain,
     loadingKey: "settings.layout.loading.memory",
     preload: loadMemory,
-    render: () => <MemorySettings />,
+    render: (context) => <MemorySettings initialTab={context.searchPath} />,
   },
   {
     key: SettingsTabs.ArchivedConversations,
@@ -237,7 +239,7 @@ export const settingsSections: readonly SettingsSection[] = [
     icon: Search,
     loadingKey: "settings.layout.loading.webSearch",
     preload: loadWebSearch,
-    render: () => <WebSearchSettings />,
+    render: (context) => <WebSearchSettings initialTab={context.searchPath} />,
   },
   {
     key: SettingsTabs.Environment,

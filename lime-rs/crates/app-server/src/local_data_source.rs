@@ -328,7 +328,7 @@ pub struct LocalAppDataSource {
     app_data_root: std::path::PathBuf,
     /// 实际打开的 Product DB 路径。诊断只报告它，不重新解析。
     product_db_path: std::path::PathBuf,
-    plugin_data_root: std::path::PathBuf,
+    plugin_store: plugin_catalog::PluginStore,
     session_files_root: std::path::PathBuf,
     connect_registry_cache_path: std::path::PathBuf,
     logs: std::sync::Arc<tokio::sync::RwLock<lime_core::logger::LogStore>>,
@@ -357,7 +357,10 @@ impl LocalAppDataSource {
         let app_data_root = app_data_root.into();
         let data_root = data_root.into();
         let product_db_path = crate::runtime::product_db_path_for_agent_root(&data_root);
-        let plugin_data_root = data_root.join("plugins");
+        let plugin_store = plugin_catalog::PluginStore::new(
+            data_root.join("plugins"),
+            lime_core::config::ConfigManager::default_config_path(),
+        );
         let session_files_root = SessionFileStorage::base_dir_for_agent_root(&data_root);
         let connect_registry_cache_path =
             connect::connect_registry_cache_path_for_agent_root(&data_root);
@@ -377,7 +380,7 @@ impl LocalAppDataSource {
             db,
             app_data_root,
             product_db_path,
-            plugin_data_root,
+            plugin_store,
             session_files_root,
             connect_registry_cache_path,
             logs,
@@ -396,6 +399,11 @@ impl LocalAppDataSource {
             memory_backend,
             sidecar_store: None,
         })
+    }
+
+    pub fn with_app_config_path(mut self, path: std::path::PathBuf) -> Self {
+        self.plugin_store.config_path = path;
+        self
     }
 
     pub fn with_sidecar_store(mut self, sidecar_store: Arc<crate::runtime::SidecarStore>) -> Self {

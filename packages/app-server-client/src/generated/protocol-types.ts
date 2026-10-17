@@ -166,6 +166,9 @@ export const METHOD_LOG_DIAGNOSTIC_HISTORY_CLEAR =
   "log/diagnosticHistory/clear";
 export const METHOD_LOG_LIST = "log/list";
 export const METHOD_LOG_PERSISTED_TAIL = "log/persistedTail";
+export const METHOD_MARKETPLACE_ADD = "marketplace/add";
+export const METHOD_MARKETPLACE_REMOVE = "marketplace/remove";
+export const METHOD_MARKETPLACE_UPGRADE = "marketplace/upgrade";
 export const METHOD_MCP_PROMPT_GET = "mcpPrompt/get";
 export const METHOD_MCP_PROMPT_LIST = "mcpPrompt/list";
 export const METHOD_MCP_RESOURCE_LIST = "mcpResource/list";
@@ -259,7 +262,6 @@ export const METHOD_MODEL_PROVIDER_UI_STATE_WRITE =
   "modelProviderUiState/write";
 export const METHOD_MODEL_SYNC_STATE_READ = "modelSyncState/read";
 export const METHOD_PERMISSION_PROFILE_LIST = "permissionProfile/list";
-export const METHOD_PLUGIN_ENABLED_SET = "plugin/enabled/set";
 export const METHOD_PLUGIN_INSTALL = "plugin/install";
 export const METHOD_PLUGIN_INSTALLED = "plugin/installed";
 export const METHOD_PLUGIN_LIST = "plugin/list";
@@ -981,6 +983,18 @@ export const GENERATED_APP_SERVER_METHODS = [
   },
   {
     kind: "request",
+    method: "marketplace/add",
+  },
+  {
+    kind: "request",
+    method: "marketplace/remove",
+  },
+  {
+    kind: "request",
+    method: "marketplace/upgrade",
+  },
+  {
+    kind: "request",
     method: "mcpPrompt/get",
   },
   {
@@ -1282,10 +1296,6 @@ export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
     method: "permissionProfile/list",
-  },
-  {
-    kind: "request",
-    method: "plugin/enabled/set",
   },
   {
     kind: "request",
@@ -4110,6 +4120,30 @@ export interface AppServerRequestSerializationScopeSpec {
   scope: AppServerRequestSerializationScope;
 }
 
+export interface AppSummary {
+  category?: null | string;
+  description?: null | string;
+  id: string;
+  installUrl?: null | string;
+  name: string;
+}
+
+export interface AppTemplateSummary {
+  canonicalConnectorId?: null | string;
+  category?: null | string;
+  description?: null | string;
+  logoUrl?: null | string;
+  logoUrlDark?: null | string;
+  materializedAppIds: string[];
+  name: string;
+  reason?: AppTemplateUnavailableReason | null;
+  templateId: string;
+}
+
+export type AppTemplateUnavailableReason =
+  | "NOT_CONFIGURED_FOR_WORKSPACE"
+  | "NO_ACTIVE_WORKSPACE";
+
 export interface AppToolSummary {
   description: string;
   disabledReason?: null | string;
@@ -4234,6 +4268,50 @@ export interface AuthMaterialRef {
 }
 
 export type AutoReviewDecisionSource = "agent";
+
+export type AutomationTaskSchedule =
+  | {
+      days?: AutomationTaskWeekday[] | null;
+      intervalHours: number;
+      minute: number;
+      timezone: string;
+      type: "hourly";
+    }
+  | {
+      time: string;
+      timezone: string;
+      type: "daily";
+    }
+  | {
+      time: string;
+      timezone: string;
+      type: "weekdays";
+    }
+  | {
+      days: AutomationTaskWeekday[];
+      time: string;
+      timezone: string;
+      type: "weekly";
+    };
+
+export interface AutomationTaskSummary {
+  attention: boolean;
+  enabled: boolean;
+  id: string;
+  lastRun?: ScheduledTaskRunSummary | null;
+  nextRunAt?: null | string;
+  schedule: AutomationTaskSchedule;
+  title: string;
+}
+
+export type AutomationTaskWeekday =
+  | "FR"
+  | "MO"
+  | "SA"
+  | "SU"
+  | "TH"
+  | "TU"
+  | "WE";
 
 export interface BusinessObjectRef {
   id: string;
@@ -4710,8 +4788,23 @@ export type ClientRequest =
     }
   | {
       id: number | string;
+      method: "marketplace/add";
+      params: MarketplaceAddParams;
+    }
+  | {
+      id: number | string;
+      method: "marketplace/remove";
+      params: MarketplaceRemoveParams;
+    }
+  | {
+      id: number | string;
+      method: "marketplace/upgrade";
+      params: MarketplaceUpgradeParams;
+    }
+  | {
+      id: number | string;
       method: "plugin/list";
-      params: PluginCatalogListParams;
+      params: PluginListParams;
     }
   | {
       id: number | string;
@@ -4721,27 +4814,22 @@ export type ClientRequest =
   | {
       id: number | string;
       method: "plugin/read";
-      params: PluginCatalogReadParams;
+      params: PluginReadParams;
     }
   | {
       id: number | string;
       method: "plugin/install";
-      params: PluginCatalogInstallParams;
+      params: PluginInstallParams;
     }
   | {
       id: number | string;
       method: "plugin/uninstall";
-      params: PluginCatalogUninstallParams;
+      params: PluginUninstallParams;
     }
   | {
       id: number | string;
       method: "plugin/installed";
-      params: PluginCatalogInstalledParams;
-    }
-  | {
-      id: number | string;
-      method: "plugin/enabled/set";
-      params: PluginCatalogEnabledSetParams;
+      params: PluginInstalledParams;
     }
   | {
       id: number | string;
@@ -6506,6 +6594,51 @@ export interface LogStorageDiagnosticsResponse {
   relatedLogFiles?: LogArtifactEntry[];
 }
 
+export interface MarketplaceAddParams {
+  refName?: null | string;
+  source: string;
+  sparsePaths?: string[] | null;
+}
+
+export interface MarketplaceAddResponse {
+  alreadyAdded: boolean;
+  installedRoot: string;
+  marketplaceName: string;
+}
+
+export interface MarketplaceInterface {
+  displayName?: null | string;
+}
+
+export interface MarketplaceLoadErrorInfo {
+  marketplacePath: string;
+  message: string;
+}
+
+export interface MarketplaceRemoveParams {
+  marketplaceName: string;
+}
+
+export interface MarketplaceRemoveResponse {
+  installedRoot?: null | string;
+  marketplaceName: string;
+}
+
+export interface MarketplaceUpgradeErrorInfo {
+  marketplaceName: string;
+  message: string;
+}
+
+export interface MarketplaceUpgradeParams {
+  marketplaceName?: null | string;
+}
+
+export interface MarketplaceUpgradeResponse {
+  errors: MarketplaceUpgradeErrorInfo[];
+  selectedMarketplaces: string[];
+  upgradedRoots: string[];
+}
+
 export type McpAuthStatus =
   | "bearerToken"
   | "notLoggedIn"
@@ -7322,6 +7455,9 @@ export type Method =
   | "fs/writeFile"
   | "fuzzyFileSearch"
   | "hooks/list"
+  | "marketplace/add"
+  | "marketplace/remove"
+  | "marketplace/upgrade"
   | "mcpServer/event/stream/start"
   | "mcpServer/event/stream/stop"
   | "mcpServer/resource/read"
@@ -7332,7 +7468,6 @@ export type Method =
   | "model/list"
   | "modelProvider/capabilities/read"
   | "permissionProfile/list"
-  | "plugin/enabled/set"
   | "plugin/install"
   | "plugin/installed"
   | "plugin/list"
@@ -7915,103 +8050,19 @@ export type PluginAuthPolicy = "ON_INSTALL" | "ON_USE";
 
 export type PluginAvailability = "AVAILABLE" | "DISABLED_BY_ADMIN";
 
-export interface PluginCatalogCapability {
-  description: string;
-  id: string;
-  name: string;
-  requiresAuth: boolean;
-}
-
-export interface PluginCatalogDetail {
-  apps: PluginCatalogCapability[];
-  hooks: PluginCatalogHook[];
-  mcpServers: PluginCatalogCapability[];
-  skills: PluginCatalogCapability[];
-  summary: PluginCatalogSummary;
-  uiResources: PluginCatalogUiResource[];
-}
-
-export interface PluginCatalogEnabledSetParams {
-  enabled: boolean;
-  pluginId: string;
-}
-
-export interface PluginCatalogEnabledSetResponse {
-  plugin: PluginCatalogSummary;
-}
-
-export interface PluginCatalogHook {
-  event: string;
-  id: string;
-}
-
-export interface PluginCatalogInstallParams {
-  expectedDigest?: null | string;
-  marketplaceId?: null | string;
-  source?: null | string;
-  sourcePath: string;
-}
-
-export interface PluginCatalogInstallResponse {
-  plugin: PluginCatalogSummary;
-}
-
-export type PluginCatalogInstalledParams = Record<string, unknown>;
-
-export interface PluginCatalogListParams {
-  marketplacePaths?: string[];
-  query?: null | string;
-  source?: null | string;
-}
-
-export interface PluginCatalogListResponse {
-  generatedAt: string;
-  plugins: PluginCatalogSummary[];
-}
-
-export interface PluginCatalogReadParams {
-  pluginId: string;
-}
-
-export interface PluginCatalogReadResponse {
-  plugin: PluginCatalogDetail;
-}
-
-export interface PluginCatalogSummary {
-  appsCount: number;
-  authPolicy: string;
-  availability: string;
-  contentDigest: string;
-  description: string;
-  disabledReason?: null | string;
-  enabled: boolean;
-  hooksCount: number;
-  id: string;
-  installPolicy: string;
-  installed: boolean;
-  localVersion?: null | string;
-  marketplaceId: string;
-  mcpServersCount: number;
-  name: string;
-  skillsCount: number;
-  source: string;
-  sourceUri: string;
-  version: string;
-}
-
-export interface PluginCatalogUiResource {
-  id: string;
-  kind: string;
-  resourceUri: string;
-}
-
-export interface PluginCatalogUninstallParams {
-  pluginId: string;
-}
-
-export interface PluginCatalogUninstallResponse {
-  pluginId: string;
-  uninstalled: boolean;
+export interface PluginDetail {
+  appTemplates: AppTemplateSummary[];
+  apps: AppSummary[];
+  description?: null | string;
+  hooks: PluginHookSummary[];
+  marketplaceName: string;
+  marketplacePath?: null | string;
+  mcpServers: string[];
+  onboardingSkill?: SkillSummary | null;
+  scheduledTasks?: ScheduledTaskSummary[] | null;
+  shareUrl?: null | string;
+  skills: SkillSummary[];
+  summary: PluginSummary;
 }
 
 export type PluginDisabledReason =
@@ -8019,6 +8070,18 @@ export type PluginDisabledReason =
   | "plan_not_eligible"
   | "required_app_unavailable"
   | "unknown";
+
+export interface PluginHookSummary {
+  eventName: HookEventName;
+  key: string;
+}
+
+export interface PluginInstallParams {
+  installAttemptId?: null | string;
+  marketplacePath?: null | string;
+  pluginName: string;
+  remoteMarketplaceName?: null | string;
+}
 
 export type PluginInstallPolicy =
   | "AVAILABLE"
@@ -8028,6 +8091,21 @@ export type PluginInstallPolicy =
 export type PluginInstallPolicySource =
   | "IMPLICIT_CANONICAL_APP"
   | "WORKSPACE_SETTING";
+
+export interface PluginInstallResponse {
+  appsNeedingAuth: AppSummary[];
+  authPolicy: PluginAuthPolicy;
+}
+
+export interface PluginInstalledParams {
+  cwds?: string[] | null;
+  installSuggestionPluginNames?: string[] | null;
+}
+
+export interface PluginInstalledResponse {
+  marketplaceLoadErrors?: MarketplaceLoadErrorInfo[];
+  marketplaces: PluginMarketplaceEntry[];
+}
 
 export interface PluginInterface {
   brandColor?: null | string;
@@ -8049,6 +8127,42 @@ export interface PluginInterface {
   shortDescription?: null | string;
   termsOfServiceUrl?: null | string;
   websiteUrl?: null | string;
+}
+
+export type PluginListMarketplaceKind =
+  | "created-by-me-remote"
+  | "local"
+  | "shared-with-me"
+  | "vertical"
+  | "workspace-directory";
+
+export interface PluginListParams {
+  cwds?: string[] | null;
+  forceRefetch?: boolean;
+  marketplaceKinds?: PluginListMarketplaceKind[] | null;
+}
+
+export interface PluginListResponse {
+  featuredPluginIds?: string[];
+  marketplaceLoadErrors?: MarketplaceLoadErrorInfo[];
+  marketplaces: PluginMarketplaceEntry[];
+}
+
+export interface PluginMarketplaceEntry {
+  interface?: MarketplaceInterface | null;
+  name: string;
+  path?: null | string;
+  plugins: PluginSummary[];
+}
+
+export interface PluginReadParams {
+  marketplacePath?: null | string;
+  pluginName: string;
+  remoteMarketplaceName?: null | string;
+}
+
+export interface PluginReadResponse {
+  plugin: PluginDetail;
 }
 
 export interface PluginSearchParams {
@@ -8139,6 +8253,12 @@ export interface PluginSummary {
   source: PluginSource;
   version?: null | string;
 }
+
+export interface PluginUninstallParams {
+  pluginId: string;
+}
+
+export type PluginUninstallResponse = Record<string, unknown>;
 
 export interface ProcessExitedNotification {
   exitCode: number;
@@ -8707,6 +8827,7 @@ export interface RuntimeProviderConfig {
 
 export interface RuntimeRequest {
   approvalPolicy?: null | string;
+  approvalsReviewer?: ApprovalsReviewer | null;
   autoContinue?: boolean | null;
   collaborationMode?: CollaborationMode | null;
   executionStrategy?: null | string;
@@ -8741,7 +8862,7 @@ export interface ScheduledTask {
   notificationPolicy: ScheduledTaskNotificationPolicy;
   overlapPolicy: ScheduledTaskOverlapPolicy;
   prompt: string;
-  schedule: ScheduledTaskSchedule;
+  schedule: AutomationTaskSchedule;
   title: string;
   updatedAt: string;
 }
@@ -8763,7 +8884,7 @@ export interface ScheduledTaskCreateRequest {
   notificationPolicy?: ScheduledTaskNotificationPolicy | null;
   overlapPolicy?: ScheduledTaskOverlapPolicy | null;
   prompt: string;
-  schedule: ScheduledTaskSchedule;
+  schedule: AutomationTaskSchedule;
   title: string;
 }
 
@@ -8800,7 +8921,7 @@ export interface ScheduledTaskListParams {
 }
 
 export interface ScheduledTaskListResponse {
-  items: ScheduledTaskSummary[];
+  items: AutomationTaskSummary[];
   nextCursor?: null | string;
 }
 
@@ -8855,29 +8976,24 @@ export type ScheduledTaskSchedule =
   | {
       days?: ScheduledTaskWeekday[] | null;
       intervalHours: number;
-      minute: number;
-      timezone: string;
       type: "hourly";
     }
   | {
       time: string;
-      timezone: string;
       type: "daily";
     }
   | {
       time: string;
-      timezone: string;
       type: "weekdays";
     }
   | {
       days: ScheduledTaskWeekday[];
       time: string;
-      timezone: string;
       type: "weekly";
     };
 
 export interface ScheduledTaskSchedulePreviewParams {
-  schedule: ScheduledTaskSchedule;
+  schedule: AutomationTaskSchedule;
 }
 
 export interface ScheduledTaskSchedulePreviewResponse {
@@ -8886,13 +9002,10 @@ export interface ScheduledTaskSchedulePreviewResponse {
 }
 
 export interface ScheduledTaskSummary {
-  attention: boolean;
-  enabled: boolean;
-  id: string;
-  lastRun?: ScheduledTaskRunSummary | null;
-  nextRunAt?: null | string;
+  key: string;
+  name: string;
+  prompt: string;
   schedule: ScheduledTaskSchedule;
-  title: string;
 }
 
 export type ScheduledTaskThreadMode = "continue_thread" | "new_thread";
@@ -8909,7 +9022,7 @@ export interface ScheduledTaskUpdateRequest {
   overlapPolicy?: ScheduledTaskOverlapPolicy | null;
   prompt?: null | string;
   revision?: null | string;
-  schedule?: ScheduledTaskSchedule | null;
+  schedule?: AutomationTaskSchedule | null;
   title?: null | string;
 }
 
@@ -9313,7 +9426,7 @@ export interface SkillDependencies {
 
 export interface SkillDetail {
   markdownContent: string;
-  metadata: SkillSummary;
+  metadata: SkillDetailMetadata;
   workflowSteps: SkillWorkflowStep[];
 }
 
@@ -9327,6 +9440,21 @@ export interface SkillDetailInterface {
   executionMode: string;
   model?: null | string;
   provider?: null | string;
+}
+
+export interface SkillDetailMetadata {
+  authority: SkillAuthority;
+  capabilities: string[];
+  dependencies: SkillDetailDependencies;
+  description: string;
+  enabled: boolean;
+  interface: SkillDetailInterface;
+  locator: SkillLocator;
+  name: string;
+  policy: SkillPolicy;
+  scope: SkillDetailScope;
+  skillId: string;
+  source: SkillSource;
 }
 
 export type SkillDetailScope = "app" | "other" | "project" | "user";
@@ -9574,18 +9702,12 @@ export type SkillScope = "admin" | "repo" | "system" | "user";
 export type SkillSource = "app" | "orchestrator" | "other" | "project" | "user";
 
 export interface SkillSummary {
-  authority: SkillAuthority;
-  capabilities: string[];
-  dependencies: SkillDetailDependencies;
   description: string;
   enabled: boolean;
-  interface: SkillDetailInterface;
-  locator: SkillLocator;
+  interface?: SkillInterface | null;
   name: string;
-  policy: SkillPolicy;
-  scope: SkillDetailScope;
-  skillId: string;
-  source: SkillSource;
+  path?: null | string;
+  shortDescription?: null | string;
 }
 
 export interface SkillToolDependency {
@@ -9867,7 +9989,7 @@ export interface ThreadDeletedNotification {
 
 export interface ThreadForkParams {
   approvalPolicy?: unknown;
-  approvalsReviewer?: unknown;
+  approvalsReviewer?: ApprovalsReviewer | null;
   baseInstructions?: null | string;
   beforeTurnId?: null | string;
   config?: null | Record<string, unknown>;
@@ -9891,7 +10013,7 @@ export interface ThreadForkParams {
 export interface ThreadForkResponse {
   activePermissionProfile?: unknown;
   approvalPolicy: unknown;
-  approvalsReviewer: unknown;
+  approvalsReviewer: ApprovalsReviewer;
   cwd: string;
   instructionSources?: string[];
   model: string;
@@ -10293,11 +10415,12 @@ export interface ThreadResumeInitialTurnsPageParams {
 
 export interface ThreadResumeParams {
   approvalPolicy?: unknown;
-  approvalsReviewer?: unknown;
+  approvalsReviewer?: ApprovalsReviewer | null;
   baseInstructions?: null | string;
   config?: null | Record<string, unknown>;
   cwd?: null | string;
   developerInstructions?: null | string;
+  dynamicTools?: DynamicToolSpec[] | null;
   excludeTurns?: boolean;
   history?: unknown[] | null;
   initialTurnsPage?: ThreadResumeInitialTurnsPageParams | null;
@@ -10315,7 +10438,7 @@ export interface ThreadResumeParams {
 export interface ThreadResumeResponse {
   activePermissionProfile?: unknown;
   approvalPolicy: unknown;
-  approvalsReviewer: unknown;
+  approvalsReviewer: ApprovalsReviewer;
   cwd: string;
   initialTurnsPage?: TurnsPage | null;
   instructionSources?: string[];
@@ -10448,7 +10571,7 @@ export type ThreadSetNameResponse = Record<string, unknown>;
 export interface ThreadSettings {
   activePermissionProfile?: unknown;
   approvalPolicy: unknown;
-  approvalsReviewer: unknown;
+  approvalsReviewer: ApprovalsReviewer;
   collaborationMode: CollaborationMode;
   cwd: string;
   effort?: null | string;
@@ -10463,7 +10586,7 @@ export interface ThreadSettings {
 
 export interface ThreadSettingsUpdateParams {
   approvalPolicy?: unknown;
-  approvalsReviewer?: unknown;
+  approvalsReviewer?: ApprovalsReviewer | null;
   collaborationMode?: CollaborationMode | null;
   cwd?: null | string;
   effort?: null | string;
@@ -10513,7 +10636,7 @@ export type ThreadSourceKind =
 export interface ThreadStartParams {
   allowProviderModelFallback?: boolean;
   approvalPolicy?: unknown;
-  approvalsReviewer?: unknown;
+  approvalsReviewer?: ApprovalsReviewer | null;
   baseInstructions?: null | string;
   config?: null | Record<string, unknown>;
   cwd?: null | string;
@@ -10541,7 +10664,7 @@ export interface ThreadStartParams {
 export interface ThreadStartResponse {
   activePermissionProfile?: unknown;
   approvalPolicy: unknown;
-  approvalsReviewer: unknown;
+  approvalsReviewer: ApprovalsReviewer;
   cwd: string;
   instructionSources?: string[];
   model: string;
@@ -10739,7 +10862,7 @@ export interface TurnPlanUpdatedNotification {
 export interface TurnStartParams {
   additionalContext?: null | Record<string, unknown>;
   approvalPolicy?: unknown;
-  approvalsReviewer?: unknown;
+  approvalsReviewer?: ApprovalsReviewer | null;
   clientUserMessageId?: null | string;
   collaborationMode?: CollaborationMode | null;
   cwd?: null | string;
@@ -11423,6 +11546,8 @@ export type AgentSessionApprovalDecision =
   | "decline";
 
 export type AgentSessionCwdFilter = string | string[];
+
+export type ApprovalsReviewer = "auto_review" | "guardian_subagent" | "user";
 
 export interface CollaborationMode {
   mode: ModeKind;

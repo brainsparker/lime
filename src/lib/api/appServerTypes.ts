@@ -148,35 +148,33 @@ export type AppServerSkillsExtraRootsSetResponse =
 export type AppServerSkillsConfigWriteParams = protocol.SkillsConfigWriteParams;
 export type AppServerSkillsConfigWriteResponse =
   protocol.SkillsConfigWriteResponse;
-export type AppServerPluginCatalogListParams = protocol.PluginCatalogListParams;
-export type AppServerPluginCatalogListResponse =
-  protocol.PluginCatalogListResponse;
-export type AppServerPluginCatalogSummary = protocol.PluginCatalogSummary;
+export type AppServerMarketplaceAddParams = protocol.MarketplaceAddParams;
+export type AppServerMarketplaceAddResponse = protocol.MarketplaceAddResponse;
+export type AppServerMarketplaceRemoveParams = protocol.MarketplaceRemoveParams;
+export type AppServerMarketplaceRemoveResponse =
+  protocol.MarketplaceRemoveResponse;
+export type AppServerMarketplaceUpgradeParams =
+  protocol.MarketplaceUpgradeParams;
+export type AppServerMarketplaceUpgradeResponse =
+  protocol.MarketplaceUpgradeResponse;
+export type AppServerPluginListParams = protocol.PluginListParams;
+export type AppServerPluginListResponse = protocol.PluginListResponse;
 export type AppServerPluginSearchParams = protocol.PluginSearchParams;
 export type AppServerPluginSearchResponse = protocol.PluginSearchResponse;
 export type AppServerPluginSearchResult = protocol.PluginSearchResult;
 export type AppServerPluginSummary = protocol.PluginSummary;
-export type AppServerPluginCatalogDetail = protocol.PluginCatalogDetail;
-export type AppServerPluginCatalogCapability = protocol.PluginCatalogCapability;
-export type AppServerPluginCatalogHook = protocol.PluginCatalogHook;
-export type AppServerPluginCatalogUiResource = protocol.PluginCatalogUiResource;
-export type AppServerPluginCatalogReadParams = protocol.PluginCatalogReadParams;
-export type AppServerPluginCatalogReadResponse =
-  protocol.PluginCatalogReadResponse;
-export type AppServerPluginCatalogInstallParams =
-  protocol.PluginCatalogInstallParams;
-export type AppServerPluginCatalogInstallResponse =
-  protocol.PluginCatalogInstallResponse;
-export type AppServerPluginCatalogUninstallParams =
-  protocol.PluginCatalogUninstallParams;
-export type AppServerPluginCatalogUninstallResponse =
-  protocol.PluginCatalogUninstallResponse;
-export type AppServerPluginCatalogInstalledParams =
-  protocol.PluginCatalogInstalledParams;
-export type AppServerPluginCatalogEnabledSetParams =
-  protocol.PluginCatalogEnabledSetParams;
-export type AppServerPluginCatalogEnabledSetResponse =
-  protocol.PluginCatalogEnabledSetResponse;
+export type AppServerPluginDetail = protocol.PluginDetail;
+export type AppServerPluginHookSummary = protocol.PluginHookSummary;
+export type AppServerPluginReadParams = protocol.PluginReadParams;
+export type AppServerPluginReadResponse = protocol.PluginReadResponse;
+export type AppServerPluginInstallParams = protocol.PluginInstallParams;
+export type AppServerPluginInstallResponse = protocol.PluginInstallResponse;
+export type AppServerPluginUninstallParams = protocol.PluginUninstallParams;
+export type AppServerPluginUninstallResponse = protocol.PluginUninstallResponse;
+export type AppServerPluginInstalledParams = protocol.PluginInstalledParams;
+export type AppServerPluginInstalledResponse = protocol.PluginInstalledResponse;
+export type AppServerPluginMarketplaceEntry = protocol.PluginMarketplaceEntry;
+export type AppServerAppSummary = protocol.AppSummary;
 export type AppServerAgentSessionToolInventoryReadParams =
   protocol.AgentSessionToolInventoryReadParams;
 export type AppServerAgentInput = protocol.AgentInput;

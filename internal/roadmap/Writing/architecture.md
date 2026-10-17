@@ -54,7 +54,7 @@ Writing 不再单独定义右侧 dock / tab / pane 机制，相关布局与 surf
 
 ## 4. 插件包事实源
 
-插件包标准见 [Plugin v3 总览](../plugin/v3/README.md) 与 [目标合同](../plugin/v3/01-target-contract.md)。
+插件包标准见 [Codex 插件 总览](../plugin/README.md) 与 [目标合同](../plugin/codex-contract.md)。
 内容工厂插件只提交标准目录：
 
 ```text

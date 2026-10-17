@@ -1,15 +1,47 @@
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse,
+    MarketplaceRemoveParams, MarketplaceRemoveResponse,
+    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
+};
 use super::RuntimeCore;
 use super::RuntimeCoreError;
 use app_server_protocol::protocol::v2::{
     AppsInstalledParams, AppsInstalledResponse, AppsListParams, AppsListResponse, AppsReadParams,
-    AppsReadResponse, PluginCatalogEnabledSetParams, PluginCatalogEnabledSetResponse,
-    PluginCatalogInstallParams, PluginCatalogInstallResponse, PluginCatalogInstalledParams,
-    PluginCatalogListParams, PluginCatalogListResponse, PluginCatalogReadParams,
-    PluginCatalogReadResponse, PluginCatalogUninstallParams, PluginCatalogUninstallResponse,
-    PluginSearchParams, PluginSearchResponse,
+    AppsReadResponse, PluginInstallParams, PluginInstallResponse, PluginInstalledParams,
+    PluginInstalledResponse, PluginListParams, PluginListResponse, PluginReadParams,
+    PluginReadResponse, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
+    PluginUninstallResponse,
 };
 
 impl RuntimeCore {
+    pub async fn add_marketplace(&self, params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+        self.app_data_source.add_marketplace(params).await
+    }
+
+    pub async fn remove_marketplace(&self, params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+        self.app_data_source.remove_marketplace(params).await
+    }
+
+    pub async fn upgrade_marketplace(&self, params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+        self.app_data_source.upgrade_marketplace(params).await
+    }
+
+    pub(crate) async fn invalidate_plugin_components(&self) {
+        self.backend.invalidate_mcp_runtimes().await;
+    }
+
+    pub(crate) async fn plugin_skill_roots(
+        &self,
+    ) -> Result<Vec<lime_skills::AgentSkillRoot>, RuntimeCoreError> {
+        Ok(self
+            .app_data_source
+            .list_enabled_plugin_turn_snapshots()
+            .await?
+            .iter()
+            .flat_map(super::PluginTurnSnapshot::skill_roots)
+            .collect())
+    }
+
     pub async fn list_apps(
         &self,
         params: AppsListParams,
@@ -47,11 +79,11 @@ impl RuntimeCore {
         Ok(())
     }
 
-    pub async fn list_plugin_catalog(
+    pub async fn list_plugins(
         &self,
-        params: PluginCatalogListParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
-        self.app_data_source.list_plugin_catalog(params).await
+        params: PluginListParams,
+    ) -> Result<PluginListResponse, RuntimeCoreError> {
+        self.app_data_source.list_plugins(params).await
     }
 
     pub async fn search_plugins(
@@ -61,47 +93,33 @@ impl RuntimeCore {
         self.app_data_source.search_plugins(params).await
     }
 
-    pub async fn read_plugin_catalog(
+    pub async fn read_plugin(
         &self,
-        params: PluginCatalogReadParams,
-    ) -> Result<PluginCatalogReadResponse, RuntimeCoreError> {
-        self.app_data_source.read_plugin_catalog(params).await
+        params: PluginReadParams,
+    ) -> Result<PluginReadResponse, RuntimeCoreError> {
+        self.app_data_source.read_plugin(params).await
     }
 
-    pub async fn install_plugin_catalog(
+    pub async fn install_plugin(
         &self,
-        params: PluginCatalogInstallParams,
-    ) -> Result<PluginCatalogInstallResponse, RuntimeCoreError> {
+        params: PluginInstallParams,
+    ) -> Result<PluginInstallResponse, RuntimeCoreError> {
         self.backend.invalidate_mcp_runtimes().await;
-        self.app_data_source.install_plugin_catalog(params).await
+        self.app_data_source.install_plugin(params).await
     }
 
-    pub async fn uninstall_plugin_catalog(
+    pub async fn uninstall_plugin(
         &self,
-        params: PluginCatalogUninstallParams,
-    ) -> Result<PluginCatalogUninstallResponse, RuntimeCoreError> {
+        params: PluginUninstallParams,
+    ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
         self.backend.invalidate_mcp_runtimes().await;
-        self.app_data_source.uninstall_plugin_catalog(params).await
+        self.app_data_source.uninstall_plugin(params).await
     }
 
-    pub async fn list_plugin_catalog_installed(
+    pub async fn list_installed_plugins(
         &self,
-        params: PluginCatalogInstalledParams,
-    ) -> Result<PluginCatalogListResponse, RuntimeCoreError> {
-        self.app_data_source
-            .list_plugin_catalog_installed(params)
-            .await
-    }
-
-    pub async fn set_plugin_catalog_enabled(
-        &self,
-        params: PluginCatalogEnabledSetParams,
-    ) -> Result<PluginCatalogEnabledSetResponse, RuntimeCoreError> {
-        let response = self
-            .app_data_source
-            .set_plugin_catalog_enabled(params)
-            .await?;
-        self.backend.invalidate_mcp_runtimes().await;
-        Ok(response)
+        params: PluginInstalledParams,
+    ) -> Result<PluginInstalledResponse, RuntimeCoreError> {
+        self.app_data_source.list_installed_plugins(params).await
     }
 }

@@ -149,12 +149,10 @@ async fn execute(
             .await
             .context("failed to read exec settings through App Server config/read")?;
         let reasoning = ReasoningPolicy::from_config(config.config)?;
-        let cwd = match connection.cwd.clone() {
-            Some(cwd) => cwd,
-            None => env::current_dir()?,
-        };
-        let thread_id = thread::start_thread(&handle, command.as_ref(), &connection, &cwd).await?;
-        let cwd = cwd.to_string_lossy().into_owned();
+        let cwd = connection.workspace_cwd()?;
+        let thread_id =
+            thread::start_thread(&handle, command.as_ref(), &connection, cwd.as_deref()).await?;
+        let cwd = cwd.map(|cwd| cwd.to_string_lossy().into_owned());
         if !human_output {
             emit(
                 &EventProcessorWithJsonOutput::thread_started_event(thread_id.clone()),
@@ -168,7 +166,7 @@ async fn execute(
             effort: connection.effort,
             permissions: connection.permissions,
             approval_policy: policy.approval_policy.map(serde_json::Value::String),
-            approvals_reviewer: policy.approvals_reviewer.map(serde_json::Value::String),
+            approvals_reviewer: policy.approvals_reviewer,
             sandbox_policy: policy.sandbox_policy.map(serde_json::Value::String),
             ..Default::default()
         };
@@ -195,8 +193,8 @@ async fn execute(
                         METHOD_TURN_START,
                         TurnStartParams {
                             thread_id: thread_id.clone(),
-                            cwd: Some(cwd.clone()),
-                            runtime_workspace_roots: Some(vec![cwd]),
+                            cwd: cwd.clone(),
+                            runtime_workspace_roots: cwd.map(|cwd| vec![cwd]),
                             input,
                             output_schema,
                             ..Default::default()

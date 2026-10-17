@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "status": "current",
   "owner": "internal/roadmap/test/clawstream/scenario-ledger.md",
-  "updatedAt": "2026-07-09",
+  "updatedAt": "2026-10-17",
   "layerDefinitions": {
     "event-item": "规范化 Runtime Event / Thread / Turn / Item 事件项",
     "projection-oracle": "Projection / ReadModel / ContentPart / render snapshot oracle",
@@ -678,9 +678,9 @@
       "id": "plugin-capability-runtime",
       "priority": "P1",
       "family": "Skills / Plugins / Capability Stack",
-      "status": "partial+guard",
+      "status": "partial",
       "requiredLayers": ["event-item", "projection-oracle", "gui-electron"],
-      "nextDetail": "已补 package-side Codex plugin capability runtime projection guard，覆盖 plugin list interface 资源绝对路径、remote skill read SKILL.md contents、plugin install 不写全局 MCP config、install 后 capability catalog generation/provenance/cache refresh、followup turn/start 看到 installed skill/MCP/app tools 且过滤 stale request_plugin_install；下一步补 App Server plugin read/list/install read model 与 Electron plugin/capability oracle。"
+      "nextDetail": "无生产消费者的 pluginCapabilityRuntime projection 及其正向测试已删除，不再作为覆盖证据。current App Server 的包/store/config、Skills/MCP owner 已有定向与真实 stdio 验证；按 internal/exec-plans/codex-plugin-reconstruction.md 替换 list/read/install/installed 旧 DTO，补资源边界、远端 Skill 读取和同一固定产物 Electron 安装到真实 Turn/冷启/卸载证据。未完成项不得由独立 projection 测试核销。"
     },
     {
       "id": "expert-skills-hint-only",

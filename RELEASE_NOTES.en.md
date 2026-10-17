@@ -1,35 +1,37 @@
-## Lime v1.159.0
+## Lime v1.160.0
 
 Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
 
 ### Features
 
-- Protect unsaved changes in memory, web search, environment, execution policy, profile, and provider settings, with options to keep editing or discard before leaving.
+- Search settings content and navigate to fields and inner tabs in web search, memory, appearance, and other sections while preserving unsaved changes protection.
+- Use shared marketplace and plugin identities across catalog, details, installation, and CLI commands; share configuration and installation state with Skills, MCP, and Apps.
+- Improve working directory, service tier, and approvals reviewer propagation and persistence when starting, resuming, and forking conversations.
 
 ### Fixes
 
-- Merge only edited fields when saving settings; preserve input after failures, edits made during saving, and language changes.
-- Restore the composer when returning from settings and retain initial skill forms during navigation resets.
-- Use shared navigation for settings sections, Back, and Home, restoring the actual conversation without replaying one-time launch intents.
+- Reset dynamic tool host state after connection loss and restore host ownership when resuming conversations.
+- Strengthen Skills root watching, plugin configuration persistence, and installation state consistency across entry points.
+- Recover macOS release packaging from temporary ticket stapling network failures after notarization acceptance, retaining signing and notarization diagnostics.
 
 ### Improvements and Refactoring
 
-- Separate settings draft lifecycles, configuration merging, and presentation while sharing navigation protection and safe error messages.
-- Focus local profile editing on display name and bio, with input limits and newline normalization; remove retired tags, completion, avatar, email presentation, and unused fields.
-- Reuse existing configuration and App Server boundaries, preserving ownership of conversations, runtime behavior, and persistence.
+- Continue sharing App Server protocols, runtime behavior, and conversation projections across CLI, TUI, and desktop; separate connection, history, resume, and working directory responsibilities.
+- Replace retired plugin protocols and direct directory installation entry points; remove old mocks and outdated documentation without parallel implementations.
+- Separate memory and appearance presentation components while reusing search, navigation, drafts, and configuration owners; update all five interface languages.
 
 ### Tests and Quality
 
-- Extend coverage for unsaved navigation, field merging, failed saves, edits during saving, conversation recovery, and five languages.
-- Strengthen real Electron settings navigation, persistence, cold reads, normal shutdown checks, build freshness, and evidence guards.
-- Add Rust profile serialization coverage to prevent retired fields from being written back.
+- Extend protocol and runtime coverage for plugin marketplaces, approvals, service tiers, remote working directories, dynamic tools, and Skills.
+- Add settings search, inner tab targeting, unsaved navigation, and five language coverage, and update real Electron scenarios.
+- Synchronize protocol schemas, generated clients, command catalogs, and retired entry point guards.
 
 ### Documentation
 
-- Update settings navigation, configuration drafts, profile architecture diagrams, research records, and validation evidence, distinguishing local profile editing from future public identity capabilities.
+- Update architecture diagrams, capability maps, and validation records for the shared backend, plugin reconstruction, and settings search; complete remote marketplace support and overall GUI alignment remain in progress.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.159.0`.
+- Align the desktop app, CLI npm package, and Rust workspace at `1.160.0`.
 
-**Full Changelog**: `v1.158.0` -> `v1.159.0`
+**Full Changelog**: `v1.159.0` -> `v1.160.0`

@@ -174,6 +174,7 @@ impl ProjectionStore {
         };
         store.ensure_canonical_thread_store()?;
         store.rebuild_canonical_rollouts_if_empty()?;
+        store.migrate_session_settings()?;
         Ok(store)
     }
 
@@ -253,6 +254,7 @@ impl ProjectionStore {
                 applied += 1;
             }
         }
+        self.restore_projected_settings(&tx, session_id)?;
         tx.commit()
             .map_err(|error| format!("无法提交 Projection DB 事务: {error}"))?;
         Ok(applied)

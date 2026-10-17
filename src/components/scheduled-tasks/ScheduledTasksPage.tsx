@@ -19,7 +19,7 @@ import {
   subscribeScheduledTaskNotifications,
   type ScheduledTask,
   type ScheduledTaskRunSummary,
-  type ScheduledTaskSummary,
+  type AutomationTaskSummary,
 } from "@/lib/api/scheduledTasks";
 import type { Page, PageParams, ScheduledTasksPageParams } from "@/types/page";
 import { ScheduledTaskDetails } from "./ScheduledTaskDetails";
@@ -49,7 +49,7 @@ export function ScheduledTasksPage({
   pageParams,
 }: ScheduledTasksPageProps) {
   const { t, i18n } = useTranslation("workspace");
-  const [tasks, setTasks] = useState<ScheduledTaskSummary[]>([]);
+  const [tasks, setTasks] = useState<AutomationTaskSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(
     pageParams?.selectedTaskId ?? null,
   );

@@ -1,7 +1,7 @@
 use app_server_protocol::{
-    SkillAuthority, SkillDetail, SkillDetailDependencies, SkillDetailInterface, SkillDetailScope,
-    SkillDetailToolDependency, SkillLocator, SkillPolicy, SkillReadParams, SkillReadResponse,
-    SkillSource, SkillSummary, SkillWorkflowStep,
+    SkillAuthority, SkillDetail, SkillDetailDependencies, SkillDetailInterface,
+    SkillDetailMetadata, SkillDetailScope, SkillDetailToolDependency, SkillLocator, SkillPolicy,
+    SkillReadParams, SkillReadResponse, SkillSource, SkillWorkflowStep,
 };
 use lime_skills::{
     build_agent_skill_snapshot, load_skill_from_file, AgentSkillAuthority, AgentSkillMetadata,
@@ -44,8 +44,8 @@ fn read_skill_from_snapshot(
     })
 }
 
-fn agent_skill_to_summary(skill: &AgentSkillMetadata) -> SkillSummary {
-    SkillSummary {
+fn agent_skill_to_summary(skill: &AgentSkillMetadata) -> SkillDetailMetadata {
+    SkillDetailMetadata {
         skill_id: skill.skill_id.clone(),
         name: skill.name.clone(),
         description: skill.description.clone(),

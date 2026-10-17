@@ -88,17 +88,37 @@ CLI surface 使用 Codex 风格命名：`lime`（无子命令）和 `lime tui` �
 
 CLI/TUI/`exec`/`resume` 共用 Codex 形状的权限输入：`--sandbox {read-only|workspace-write|danger-full-access}`、`--ask-for-approval {on-request|never}`、`--approve-for-me`（隐藏 alias `--not-so-yolo`）和 `--dangerously-bypass-approvals-and-sandbox`（alias `--yolo`）。这些参数只 lowering 到已有 `thread/settings/update` 的 `approvalPolicy`、`approvalsReviewer` 和 `sandboxPolicy`；`--approve-for-me` 固定为 `on-request` + `auto_review` + `workspace-write`，危险绕过固定为 `never` + `danger-full-access`。root 级参数继承到 `tui`、`exec` 和 `resume`，子命令显式权限组覆盖 root；显式 sandbox 与 `--permissions` profile、approve-for-me 与其它权限组互斥，冲突在连接 App Server 前 fail closed。
 
-Plugin CLI 只消费本地 Plugin v3 current catalog：`plugin/list`、`plugin/read`、`plugin/search`、
-`plugin/install`、`plugin/uninstall`、`plugin/installed` 和 `plugin/enabled/set`。`plugin list --plugin-cwd
+`approvalsReviewer` 经唯一 settings actor 持久化，Turn lowering 使用 typed RuntimeRequest/Turn context。
+`auto_review` 在 shell 需要审批时选择现有 Guardian（首次和 sandbox/network retry 均适用），不读取人工 session
+approval cache；普通自动模式不增加无审批动作的采样，也不触发 strict permission grant notification。
+`strictAutoReview` grant 仍强制走严格审查。无法自动审查的非 shell 审批明确拒绝，禁止退回人工审批。
+Guardian sampling 仍由 session model-provider 承接，取消/超时/非法响应 fail closed，并结算同一 review lifecycle。
+public v2 的 start/fork/resume/settings/turn 复用同一 reviewer enum，非法输入在 dispatch 前拒绝；响应和
+settings notification 返回实际 reviewer，缺省为 `user`。`guardian_subagent` 只作为读取别名，输出统一为
+`auto_review`；旧 settings 事件的 null/missing 在 durable event 投影边界转换为 `user`。
+旧 metadata/importer 的完整迁移另由共享后端计划 R02 跟踪。
 
-<DIR>` 将指定目录下的 `.agents/plugins/marketplace.json` 作为显式 discovery root；`--available` 必须
-和 `--json` 同用；JSON 默认只投影已安装条目，带 `--available` 才显示 catalog 返回的可安装条目，避免把可安装条目误当成已安装状态。当前本地 catalog 没有远程 marketplace cache 或
-force-refetch 语义，Codex 的远程 marketplace/账号管理与 `marketplace add/remove/upgrade` 继续
-保持 `product-scope-excluded / forbidden-to-restore`，不得由 CLI 直接读写配置或凭证。
+插件命令按 [Codex 插件合同](../roadmap/plugin/codex-contract.md) 重构，CLI/TUI/GUI 共用
+App Server 与 typed client。目标 list/installed 返回 marketplace 分组，read/install 通过市场与
+pluginName 定位，uninstall 使用完整 `name@marketplace`，启停走共享 `config/batchWrite`。
+旧 `sourcePath` 安装、扁平 catalog DTO、自建 `plugin/enabled/set` 仍是 P03 待删除项，不能
+作为新消费者合同；远程市场、账号与授权能力不再按旧产品范围排除。实现和验证以
+`internal/exec-plans/codex-plugin-reconstruction.md` 为准。
 
 `@limecloud/lime` 的 npm 根包只暴露 `bin/lime.js`。它按当前 host 解析 optional platform package，启动 `vendor/<target-triple>/bin/lime[.exe]`，继承 stdio，转发 `SIGINT`/`SIGTERM`/`SIGHUP` 并镜像原生进程的退出码或 signal。平台载荷必须把 `lime`、`app-server`、`code-mode-host`、Windows sandbox helpers 和动态运行库放在同一 `bin` 目录，使 Rust CLI 的 sibling lookup 继续命中唯一 App Server 产品链。禁止恢复 npm `postinstall` 网络下载、生产 `LIME_CLI_BINARY_PATH`、源码 target 搜索或 `cargo run` fallback；开发 staging 仅允许从根包本地 `vendor` 读取与平台包相同的目录合同。
 
 CLI/TUI 可使用 Codex 形状的 `--remote <URL>` 连接 WebSocket App Server；Bearer token 只从 `--remote-auth-token-env <ENV_VAR>` 指定的环境变量读取。未提供 remote endpoint、环境变量缺失或 token 为空时，连接在 initialize 前失败；token 不写入配置 Debug 或 URL，remote URL 中的 userinfo/fragment 也会被拒绝；不安全的公网 `ws://` token 连接由 `app-server-client` fail closed。
+
+目录选择由 CLI `ConnectionArgs::workspace_cwd` 唯一决定：本地缺省使用客户端当前目录；
+远端未传 `--cd` 时，start/Turn/fork 不发送客户端 cwd 或 roots，恢复列表不按客户端
+目录筛选。显式远端路径原样传输，不在客户端检查存在、canonicalize 或改写 Windows 路径。
+App Server 的 `session_operations/working_directory` 解析服务端缺省与相对 cwd/roots；
+start/fork 的响应和持久化使用同一绝对目录，Turn 的相对覆盖也在服务端解析。
+权限计算在省略 Turn cwd 时使用 canonical Thread cwd；TUI 从 start/resume/settings
+响应更新当前目录，搜索、编辑器和后续请求消费该投影，不保留启动时的本机目录。
+旧空值、相对 cwd/roots 与 root `cwd`/`working_dir` 别名在活动 Thread resume 时经已有
+metadata actor 幂等归一，写入失败保留原数据并允许重试；归档 resume 不迁移，
+fork 只归一新 target。已保存的绝对目录保持原值，不推测修正历史误传路径。
 
 TUI `/model` 的模型和推理强度选择只消费同一次 `model/list` 的 supported/default effort。
 模型、普通 effort 和 More reasoning 子层在确认前不写设置；Esc 逐层返回并保留模型搜索/高亮，
@@ -187,8 +207,8 @@ result serializer已删除且禁止恢复；schema由Rust合同生成并随npm�
 exec参数归同名`exec/cli.rs`，human输出归`exec/event_processor_with_human_output.rs`。
 同名Command/ResumeArgs/ForkArgs/ExecSharedCliOptions承接exec resume/fork；shared连接参数仍由
 ConnectionArgs唯一声明，root/exec/resume/fork逐层继承，显式子级权限组覆盖父级。
-resolve_resume_thread_id只消费typed thread/list，updated_at倒序、未归档、默认cwd筛选，
-all取消cwd筛选，UUID优先、名称精确匹配；找到后走thread/resume再turn/start。
+resolve_resume_thread_id只消费typed thread/list，updated_at倒序、未归档，本地或显式cwd时筛选，
+远端缺省或all取消cwd筛选，UUID优先、名称精确匹配；找到后走thread/resume再turn/start。
 last/name无匹配沿Codex语义新建，实际resume失败不fallback；不读取私有DB或rollout。
 exec/thread的start_thread统一start/resume/fork生命周期。fork查源始终跨cwd，UUID优先、
 名称精确匹配；缺源直接失败。thread/fork沿用canonical history/lineage与新Thread身份，
@@ -489,12 +509,12 @@ state；本地 Plugin 没有 hosted connector model-visible tool snapshot 时，
 把安装或启用状态冒充模型 readiness。`forceRefetch` / `forceRefresh` 在本地 registry 上只是 fresh read，不伪造
 hosted refresh。
 
-成功的 `plugin/install`、`plugin/uninstall`、`plugin/enabled/set` 与首页 `app/list` 读取经过现有 server
+成功的 `plugin/install`、`plugin/uninstall`、插件 `config/batchWrite` 与首页 `app/list` 读取经过现有 server
 notification hook 发布 typed `app/list/updated { data: AppInfo[] }`，Renderer 通过 App Server typed event bus 消费并
 重新读取 Apps。禁止新增第二 Apps catalog、`window` 自定义事件事实源、TUI Apps UI、compat wrapper 或生产 mock
 fallback。Apps 专用真实 Electron Gate B 已完成：App Center 经 typed `app/list/updated` 触发 fresh
-`app/list + app/installed` 读取，并从本地 Plugin 的 `pending` 投影切换到停用后的 `disabled`。仍未完成的证据只剩
-hosted connector model-visible tool snapshot 与真实 `callable=true` provider readiness；不得用本地 Plugin enabled
+`app/list + app/installed` 读取，并从本地 Plugin 的 `pending` 投影切换到停用后的 `disabled`。该 Gate B 属于旧插件替换前基线，新插件链需重新验收；未完成项还包括
+Codex 原生 Apps 默认资源与 overlay，以及 hosted connector model-visible tool snapshot 与真实 `callable=true` provider readiness；不得用本地 Plugin enabled
 状态替代。
 
 ## Collaboration Mode Catalog 主链
@@ -643,6 +663,16 @@ Browser 只有一个网页执行体：Right Surface 中用户可见的 Electron 
 Renderer Browser Workspace -> src/lib/api/browserTab.ts -> browser_tab_* Desktop Host command -> BrowserTabHost
 RuntimeCore / tool-runtime browser__* -> App Server item/tool/call -> AppServerDynamicToolHost -> BrowserTabHost
 ```
+
+动态工具执行权由 App Server 的 ThreadStateManager 持有：`thread/start.dynamicTools` 绑定发起连接，
+`thread/resume.dynamicTools` 显式声明可承接旧会话 frozen namespace/tool/inputSchema 的 Host 能力。
+声明只校验能力，不重写会话工具；允许新 Host catalog 是旧 frozen 集的超集，描述更新不改变执行合同。
+不携带声明的 resume 仅订阅，活跃 Host 不被替换；断连后仅 idle Thread 可重绑。
+`item/tool/call` 精确发给该连接，禁止全局 writer fallback、广播或把活跃 Turn 的审批 token 转交。
+首次派发经过既有 Thread listener 的 resume 屏障，响应先入 writer，再派发执行请求；
+恢复快照只重放交互表单，不能重放 `item/tool/call`，同一 Host resume 不得重复执行。
+Electron start/resume 注入自己的不可变 catalog，断连同时撤销本地 frozen binding 和阶段状态；
+公开 schema/generated client 和真实双 Host fixture 同步该合同，不增加 IPC method 或 renderer 执行入口。
 
 App Server 持有 Thread/Turn、动态工具生命周期、Browser read model 与 canonical identity；Electron 只持有 native view、window、`webContents.debugger`、下载和权限等宿主状态；Renderer 只消费 projection 并发送用户意图。Agent action 必须按 connection/thread/turn/session/tab/view/WebContents owner 精确路由，用户操作或 turn terminal 必须使旧控制权失效。
 

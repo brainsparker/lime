@@ -7,14 +7,14 @@ use super::startup_prompts;
 use super::App;
 use crate::app_server_session::{AppServerSession, ThreadSettingsPatch};
 use crate::resume_picker::SessionSelection;
-use crate::runtime::TuiOptions;
+use crate::runtime::connection::TuiOptions;
 use anyhow::Result;
 use app_server_protocol::protocol::v2::{PromptHistoryReadResponse, SkillsListResponse};
 
 #[derive(Debug)]
 pub(crate) struct StartupSessionState {
     pub(crate) approval_policy: Option<String>,
-    pub(crate) approvals_reviewer: Option<String>,
+    pub(crate) approvals_reviewer: Option<agent_protocol::ApprovalsReviewer>,
     pub(crate) sandbox_policy: Option<String>,
 }
 

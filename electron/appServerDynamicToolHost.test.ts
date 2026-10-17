@@ -39,46 +39,69 @@ function call(overrides: Record<string, unknown> = {}): JsonRpcMessage {
 }
 
 describe("AppServerDynamicToolHost", () => {
-  it("overrides untrusted thread dynamicTools with the immutable desktop registry", () => {
-    const host = new AppServerDynamicToolHost();
-    const prepared = host.prepareClientRequest({
-      id: "thread-start-1",
-      method: "thread/start",
-      params: {
-        dynamicTools: [
-          {
-            type: "function",
-            name: "forged",
-            description: "forged",
-            inputSchema: { type: "object" },
-          },
-        ],
-      },
-    } as JsonRpcRequest);
+  it.each(["thread/start", "thread/resume"])(
+    "overrides untrusted %s dynamicTools with the immutable desktop registry",
+    (method) => {
+      const host = new AppServerDynamicToolHost();
+      const prepared = host.prepareClientRequest({
+        id: "thread-start-1",
+        method,
+        params: {
+          dynamicTools: [
+            {
+              type: "function",
+              name: "forged",
+              description: "forged",
+              inputSchema: { type: "object" },
+            },
+          ],
+        },
+      } as JsonRpcRequest);
 
-    const dynamicTools = (
-      prepared.params as {
-        dynamicTools: Array<{
-          name: string;
-          tools: Array<{ name: string; inputSchema: unknown }>;
-        }>;
-      }
-    ).dynamicTools;
-    expect(dynamicTools.map(({ name }) => name)).toEqual([
-      "desktop",
-      "browser",
-    ]);
-    expect(dynamicTools[0]?.tools[0]).toMatchObject({
-      name: "appInfo",
-      inputSchema: {
-        type: "object",
-        additionalProperties: false,
-      },
-    });
-    expect(dynamicTools[1]?.tools.map(({ name }) => name)).toEqual(
-      expect.arrayContaining(["openTabs", "claimTab", "observe"]),
+      const dynamicTools = (
+        prepared.params as {
+          dynamicTools: Array<{
+            name: string;
+            tools: Array<{ name: string; inputSchema: unknown }>;
+          }>;
+        }
+      ).dynamicTools;
+      expect(dynamicTools.map(({ name }) => name)).toEqual([
+        "desktop",
+        "browser",
+      ]);
+      expect(dynamicTools[0]?.tools[0]).toMatchObject({
+        name: "appInfo",
+        inputSchema: {
+          type: "object",
+          additionalProperties: false,
+        },
+      });
+      expect(dynamicTools[1]?.tools.map(({ name }) => name)).toEqual(
+        expect.arrayContaining(["openTabs", "claimTab", "observe"]),
+      );
+      expect(JSON.stringify(prepared.params)).not.toContain("forged");
+    },
+  );
+
+  it("revokes frozen bindings and call state when the connection is lost", async () => {
+    const host = new AppServerDynamicToolHost();
+    const transport = connection();
+    host.observeClientResult("thread/start", { thread: { id: "thread-1" } });
+    expect(await host.tryHandle(transport, call())).toBe(true);
+    host.connectionLost("disconnected");
+    expect(
+      await host.tryHandle(transport, call({ callId: "after-disconnect" })),
+    ).toBe(true);
+    expect(transport.rejectServerRequest).toHaveBeenLastCalledWith(
+      "request-1",
+      expect.objectContaining({
+        message: expect.stringContaining("frozen host capability binding"),
+      }),
     );
-    expect(JSON.stringify(prepared.params)).not.toContain("forged");
+    host.observeClientResult("thread/resume", { thread: { id: "thread-1" } });
+    expect(await host.tryHandle(transport, call())).toBe(true);
+    expect(transport.respondServerRequest).toHaveBeenCalledTimes(2);
   });
 
   it("executes one exact bound call and keeps the request inside Electron", async () => {

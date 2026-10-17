@@ -2,7 +2,7 @@
 
 状态：本轮源码审计完成；产品对齐 partial。日期：2026-10-16。责任：root。
 
-后续实施以 [全面对齐计划](./codex-cli-shared-backend-alignment-plan.md) 和 [领域工作包](./codex-cli-shared-backend-work-packages.md) 为准。下方 F02/F06 记录修复前基线，现已进入连接隔离 S01；F07 已迁到 typed cancel。上述代码已修改、验证尚未闭环；不能把原始观察当作当前实现仍未修改，也不能提前将其标为 verified。
+后续实施以 [全面对齐计划](./codex-cli-shared-backend-alignment-plan.md) 和 [领域工作包](./codex-cli-shared-backend-work-packages.md) 为准。下方为修复前审计基线；截至 2026-10-17，F01 的 Thread 交互与动态工具单 Host 路由、F02/F06 的连接隔离均已有整库及真实进程证据，F07 普通 Thread 已迁为 typed cancel 并验证，子 Agent attach 证据仍待补齐。不能把原始观察当作当前实现仍有同一缺陷；其余差距按总计划逐项实施。
 
 目标：对照用户指定的 Codex 源码，核查 Lime CLI/TUI/GUI 是否共用 App Server、runtime、工具与持久化 owner；找出仍未对齐的行为与交付证据。
 
@@ -25,13 +25,13 @@
 
 ## 问题账本
 
-| 问题 | 当前状态 | 证据要求 |
-| --- | --- | --- |
-| CLI/TUI/GUI 是否复用同一业务后端 | answered：是 | 三端均进入 current App Server；见下方调用链 |
-| 同时打开三端能否共享运行中的 Thread/Turn/Item | answered：默认未接通，server 也有多连接缺陷 | F01、F02、F03、F06 |
-| resume、恢复、取消、后台 Command 是否等价 | partial | 已核销过时恢复/drain 缺口；F02、F04、F08 仍有差异，故障及实机矩阵未运行 |
-| 配置与数据目录是否跨端统一 | answered：共享解析合同和存储 owner，未证明并发进程等价 | config/read、StorageRoots、平台目录入口 |
-| 跨平台与打包证据是否足够 | answered：未齐 | launcher 缺目标平台；当前运行与三端并发证据不可由旧计划代替 |
+| 问题                                          | 当前状态                                               | 证据要求                                                                |
+| --------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------------------------------- |
+| CLI/TUI/GUI 是否复用同一业务后端              | answered：是                                           | 三端均进入 current App Server；见下方调用链                             |
+| 同时打开三端能否共享运行中的 Thread/Turn/Item | answered：默认未接通，server 也有多连接缺陷            | F01、F02、F03、F06                                                      |
+| resume、恢复、取消、后台 Command 是否等价     | partial                                                | 已核销过时恢复/drain 缺口；F02、F04、F08 仍有差异，故障及实机矩阵未运行 |
+| 配置与数据目录是否跨端统一                    | answered：共享解析合同和存储 owner，未证明并发进程等价 | config/read、StorageRoots、平台目录入口                                 |
+| 跨平台与打包证据是否足够                      | answered：未齐                                         | launcher 缺目标平台；当前运行与三端并发证据不可由旧计划代替             |
 
 ## 主结论与实际调用链
 
@@ -97,6 +97,12 @@ Codex 的 [ThreadScopedOutgoingMessageSender:172](/Users/coso/Documents/dev/rust
 
 ### F05 / P1：remote 模式把本机 cwd 发往服务器
 
+2026-10-17 状态：S03-A 已实施，默认本地门禁仍续跑。CLI/TUI remote 缺省省略本机 cwd，
+App Server 统一目录解析及旧空值/别名 metadata 迁移；固定产物完成 8 个 runtime Turn、
+8 次实际目录文件写入、3 项真实 PTY 和 daemon 冷重开，stdio、CLI Gate B、Electron
+current 聚合及 GUI shell 均通过。详见主计划 S03-A；尚无异平台或 Electron remote
+workspace 专项证据。以下“观察”保留首次审计快照，不代表修复后的 current 源码。
+
 观察：Lime [TUI options:712](../../lime-rs/crates/cli/src/main.rs:712) 和 [exec cwd:154](../../lime-rs/crates/cli/src/exec.rs:154) 在缺省 `--cd` 时使用本机 `current_dir`，随后强制写入 [thread/start:230](../../lime-rs/crates/tui/src/app_server_session.rs:230) / [turn/start:198](../../lime-rs/crates/cli/src/exec.rs:198) 的 cwd/workspace roots。Codex [remote workspace:917](/Users/coso/Documents/dev/rust/codex/codex-rs/tui/src/lib.rs:917) 会省略本机 cwd，并按远端工作区处理。
 
 影响推断：macOS 客户端连接 Linux/Windows 服务时可能发送不存在或含义不同的 `/Users/...` 路径。模糊文件搜索的本机 canonicalize 也需按 transport 检查。本轮未接真实异平台远端。
@@ -141,14 +147,14 @@ Codex 当前新增 experimental [ThreadReadState:2045](/Users/coso/Documents/dev
 
 ## 已对齐与旧结论核销
 
-| 旧说法 | 本轮 current 源码裁决 |
-| --- | --- |
-| 没有共享后端 / 需要另建 CLI runtime | 错。三端已共用 App Server、RuntimeCore、protocol、tool 与 canonical storage owner |
-| 没有 remote / 反向审批通道 | 错。ws/wss ClientSession、server requests、TUI thread routing 均存在；问题在多连接初始派发 |
-| TUI 没有重连和终端恢复 | 错。[reconnect:33](../../lime-rs/crates/tui/src/app/reconnect.rs:33)、terminal restore/panic hook 均已存在；本轮未重跑真实 PTY |
-| GUI resume 没有 route/sequence 恢复 | 过时。[threadClient:288](../../src/lib/api/agentRuntime/threadClient.ts:288)、[sequence gate:63](../../src/lib/api/agentRuntime/eventSequenceGate.ts:63)、[commandResume:108](../../src/components/agent/chat/hooks/commandResume.ts:108) 已接通快照、scope、监听与缓冲；最新 Desktop 证据仍需单独闭合 |
-| 后台 Command 仅看 status，不等输出 drain | 过时。[async_watcher:20](../../lime-rs/crates/tool-runtime/src/unified_exec/async_watcher.rs:20) 在 terminal 后 `wait_for_exit`，本地 [terminal:8](../../lime-rs/crates/app-server/src/execution_process/terminal.rs:8) 等待 final snapshot；观察错误、取消与平台故障仍需专项验证 |
-| Command Desktop fixture 仍绕过 runtime | 过时。[fixture:128](../../scripts/agent-runtime/command-continuation-electron-gate-b.mjs:128) 是 runtime backend + loopback provider fixture，并要求真实通知；不是 live provider |
+| 旧说法                                   | 本轮 current 源码裁决                                                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 没有共享后端 / 需要另建 CLI runtime      | 错。三端已共用 App Server、RuntimeCore、protocol、tool 与 canonical storage owner                                                                                                                                                                                                                      |
+| 没有 remote / 反向审批通道               | 错。ws/wss ClientSession、server requests、TUI thread routing 均存在；问题在多连接初始派发                                                                                                                                                                                                             |
+| TUI 没有重连和终端恢复                   | 错。[reconnect:33](../../lime-rs/crates/tui/src/app/reconnect.rs:33)、terminal restore/panic hook 均已存在；本轮未重跑真实 PTY                                                                                                                                                                         |
+| GUI resume 没有 route/sequence 恢复      | 过时。[threadClient:288](../../src/lib/api/agentRuntime/threadClient.ts:288)、[sequence gate:63](../../src/lib/api/agentRuntime/eventSequenceGate.ts:63)、[commandResume:108](../../src/components/agent/chat/hooks/commandResume.ts:108) 已接通快照、scope、监听与缓冲；最新 Desktop 证据仍需单独闭合 |
+| 后台 Command 仅看 status，不等输出 drain | 过时。[async_watcher:20](../../lime-rs/crates/tool-runtime/src/unified_exec/async_watcher.rs:20) 在 terminal 后 `wait_for_exit`，本地 [terminal:8](../../lime-rs/crates/app-server/src/execution_process/terminal.rs:8) 等待 final snapshot；观察错误、取消与平台故障仍需专项验证                      |
+| Command Desktop fixture 仍绕过 runtime   | 过时。[fixture:128](../../scripts/agent-runtime/command-continuation-electron-gate-b.mjs:128) 是 runtime backend + loopback provider fixture，并要求真实通知；不是 live provider                                                                                                                       |
 
 ## 下一刀与验收合同
 
@@ -183,19 +189,19 @@ npx vitest run \
 
 以下 SHA-256 用于识别本地工作树证据，不是发布产物摘要。
 
-| Lime 文件 | SHA-256 |
-| --- | --- |
-| `lime-rs/crates/app-server/src/lib.rs` | `b919414387277b717b4f86ae888aeb310c0e114ce9ff38a3116e51f68ebff58f` |
-| `lime-rs/crates/app-server/src/server_request.rs` | `bb7868580b11a22a4ff94d91c4f22f33ca206ba6c518c8833266adbea0f642e4` |
-| `lime-rs/crates/app-server/src/processor/mod.rs` | `309df52de96979bdb75d2f80460d3efb8f857dac6adcfd04e1e0dc911ab48452` |
-| `lime-rs/crates/app-server/src/processor/dispatch.rs` | `63eadd090cc44bc12d87fb1eafbddfc749074ec87a877c7aa8a3e1e4eafa704f` |
-| `electron/appServerHost.ts` | `afbd09e9c3782f61fd9d0e14db5b0771f4f39a98f3418541077a4068401ffdb4` |
-| `src/lib/api/agentRuntime/appServerEventStreamRouting.ts` | `0269120788dbb564824cb2382ac97dce074554f026d28e937d22ce81b64ac131` |
-| `src/lib/api/agentRuntime/threadClient.ts` | `dd66fa2ce283c5a80ce836001c93119ede2f0bc53c3ea3fba8c9cc210265f00f` |
-| `lime-rs/crates/cli/src/exec.rs` | `b72ce5d1998937e91d5629a02b2f66d28126c3400970ba7b2fd1559a88a86ce7` |
-| `lime-rs/crates/cli/src/exec/server_requests.rs` | `7fbb2fad3085f8a9d60272fa9d9db2edd41617e3b6470868af9b981e255887c2` |
+| Lime 文件                                                       | SHA-256                                                            |
+| --------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `lime-rs/crates/app-server/src/lib.rs`                          | `b919414387277b717b4f86ae888aeb310c0e114ce9ff38a3116e51f68ebff58f` |
+| `lime-rs/crates/app-server/src/server_request.rs`               | `bb7868580b11a22a4ff94d91c4f22f33ca206ba6c518c8833266adbea0f642e4` |
+| `lime-rs/crates/app-server/src/processor/mod.rs`                | `309df52de96979bdb75d2f80460d3efb8f857dac6adcfd04e1e0dc911ab48452` |
+| `lime-rs/crates/app-server/src/processor/dispatch.rs`           | `63eadd090cc44bc12d87fb1eafbddfc749074ec87a877c7aa8a3e1e4eafa704f` |
+| `electron/appServerHost.ts`                                     | `afbd09e9c3782f61fd9d0e14db5b0771f4f39a98f3418541077a4068401ffdb4` |
+| `src/lib/api/agentRuntime/appServerEventStreamRouting.ts`       | `0269120788dbb564824cb2382ac97dce074554f026d28e937d22ce81b64ac131` |
+| `src/lib/api/agentRuntime/threadClient.ts`                      | `dd66fa2ce283c5a80ce836001c93119ede2f0bc53c3ea3fba8c9cc210265f00f` |
+| `lime-rs/crates/cli/src/exec.rs`                                | `b72ce5d1998937e91d5629a02b2f66d28126c3400970ba7b2fd1559a88a86ce7` |
+| `lime-rs/crates/cli/src/exec/server_requests.rs`                | `7fbb2fad3085f8a9d60272fa9d9db2edd41617e3b6470868af9b981e255887c2` |
 | `lime-rs/crates/tool-runtime/src/unified_exec/async_watcher.rs` | `eb1d0e8acb4600904b5a26670084221d748c46e2c44ac660fa0545dfb34d02b6` |
-| `packages/cli/bin/lime.js` | `4f8f8a76087e6de9ce4e8a3f249e01c74fad86bf6aecb634a7c2b5157fa5e639` |
+| `packages/cli/bin/lime.js`                                      | `4f8f8a76087e6de9ce4e8a3f249e01c74fad86bf6aecb634a7c2b5157fa5e639` |
 
 ## 完成度与分类
 

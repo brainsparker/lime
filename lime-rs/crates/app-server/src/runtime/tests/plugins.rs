@@ -1,7 +1,5 @@
 use super::*;
-use app_server_protocol::protocol::v2::{
-    PluginCatalogUninstallParams, PluginCatalogUninstallResponse,
-};
+use app_server_protocol::protocol::v2::{PluginUninstallParams, PluginUninstallResponse};
 use async_trait::async_trait;
 use std::sync::Mutex as StdMutex;
 
@@ -58,18 +56,15 @@ impl VoiceAppDataSource for PluginLifecycleDataSource {}
 
 #[async_trait]
 impl PluginDataSource for PluginLifecycleDataSource {
-    async fn uninstall_plugin_catalog(
+    async fn uninstall_plugin(
         &self,
-        params: PluginCatalogUninstallParams,
-    ) -> Result<PluginCatalogUninstallResponse, RuntimeCoreError> {
+        _params: PluginUninstallParams,
+    ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
         self.events
             .lock()
             .expect("plugin lifecycle events mutex poisoned")
             .push("uninstall");
-        Ok(PluginCatalogUninstallResponse {
-            plugin_id: params.plugin_id,
-            uninstalled: true,
-        })
+        Ok(PluginUninstallResponse {})
     }
 }
 
@@ -95,14 +90,16 @@ async fn plugin_uninstall_invalidates_mcp_runtimes_before_removing_package() {
     }));
 
     let response = core
-        .uninstall_plugin_catalog(PluginCatalogUninstallParams {
-            plugin_id: "mcp-elicitation-plugin".to_string(),
+        .uninstall_plugin(PluginUninstallParams {
+            plugin_id: "mcp-elicitation-plugin@local".to_string(),
         })
         .await
         .expect("plugin uninstall");
 
-    assert!(response.uninstalled);
-    assert_eq!(response.plugin_id, "mcp-elicitation-plugin");
+    assert_eq!(
+        serde_json::to_value(response).unwrap(),
+        serde_json::json!({})
+    );
     assert_eq!(
         *events
             .lock()

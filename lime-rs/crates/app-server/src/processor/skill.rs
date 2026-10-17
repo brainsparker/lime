@@ -1,5 +1,8 @@
 //! skill domain handlers for the App Server processor.
 
+mod dispatch;
+mod watcher;
+
 use super::{dispatch_result, parse_params, to_jsonrpc_error, RequestProcessor, RpcDispatch};
 use app_server_protocol::protocol::v2::{
     ServerNotification as V2ServerNotification, SkillsChangedNotification, SkillsConfigWriteParams,
@@ -17,6 +20,14 @@ use app_server_protocol::{
 use serde::Serialize;
 
 impl RequestProcessor {
+    pub(crate) fn with_skills_watcher(
+        mut self,
+        watcher: Option<std::sync::Arc<crate::skills_watcher::SkillsWatcher>>,
+    ) -> Self {
+        self.skills_watcher = watcher;
+        self
+    }
+
     pub(super) async fn handle_skills_list_v2_impl(
         &self,
         params: Option<serde_json::Value>,
@@ -61,9 +72,10 @@ impl RequestProcessor {
                     }
                     other => to_jsonrpc_error(other),
                 })?;
-        let notification: app_server_protocol::JsonRpcNotification =
-            V2ServerNotification::SkillsChanged(SkillsChangedNotification {}).into();
-        dispatch_result(response).map(|dispatch| dispatch.with_notification(notification))
+        if let Some(watcher) = &self.skills_watcher {
+            watcher.register_runtime_extra_roots(lime_skills::runtime_extra_skill_roots());
+        }
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
     pub(super) async fn handle_skills_config_write_v2_impl(
@@ -82,7 +94,7 @@ impl RequestProcessor {
                     }
                     other => to_jsonrpc_error(other),
                 })?;
-        dispatch_result(response)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
     pub(super) async fn handle_skill_management_list_impl(
@@ -111,7 +123,8 @@ impl RequestProcessor {
             .install_management_skill(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_management_uninstall_impl(
@@ -126,7 +139,8 @@ impl RequestProcessor {
             .uninstall_management_skill(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_repository_list_impl(
@@ -152,7 +166,7 @@ impl RequestProcessor {
             .save_skill_repository(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, true)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
     pub(super) async fn handle_skill_repository_delete_impl(
@@ -166,7 +180,7 @@ impl RequestProcessor {
             .delete_skill_repository(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, true)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
     pub(super) async fn handle_skill_cache_refresh_impl(
@@ -178,7 +192,7 @@ impl RequestProcessor {
             .refresh_skill_cache()
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, true)
+        self.dispatch_skill_catalog_mutation(response, true).await
     }
 
     pub(super) async fn handle_skill_installed_directories_list_impl(
@@ -247,7 +261,8 @@ impl RequestProcessor {
             .create_skill_scaffold(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_local_import_impl(
@@ -262,7 +277,8 @@ impl RequestProcessor {
             .import_local_skill(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_local_rename_impl(
@@ -277,7 +293,8 @@ impl RequestProcessor {
             .rename_local_skill(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_remote_inspect_impl(
@@ -306,7 +323,8 @@ impl RequestProcessor {
             .install_local_skill_package(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_package_local_replace_impl(
@@ -321,7 +339,8 @@ impl RequestProcessor {
             .replace_local_skill_package(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_package_export_impl(
@@ -350,7 +369,8 @@ impl RequestProcessor {
             .install_marketplace_skill(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 
     pub(super) async fn handle_skill_download_install_impl(
@@ -365,22 +385,30 @@ impl RequestProcessor {
             .install_skill_from_download_url(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+        self.dispatch_skill_catalog_mutation(response, changes_lime_catalog)
+            .await
     }
 }
 
-fn dispatch_skill_catalog_mutation(
-    response: impl Serialize,
-    changes_lime_catalog: bool,
-) -> Result<RpcDispatch, JsonRpcError> {
-    let dispatch = dispatch_result(response)?;
-    if !changes_lime_catalog {
-        return Ok(dispatch);
+impl RequestProcessor {
+    pub(in crate::processor) async fn dispatch_skill_catalog_mutation(
+        &self,
+        response: impl Serialize,
+        changes_lime_catalog: bool,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        let dispatch = dispatch_result(response)?;
+        if !changes_lime_catalog {
+            return Ok(dispatch);
+        }
+        lime_skills::invalidate_agent_skill_snapshot_cache();
+        let notification = V2ServerNotification::SkillsChanged(SkillsChangedNotification {});
+        if self.server_notification_hook.is_some() {
+            self.publish_server_notification(notification).await;
+            Ok(dispatch)
+        } else {
+            Ok(dispatch.with_notification(notification.into()))
+        }
     }
-    lime_skills::invalidate_agent_skill_snapshot_cache();
-    Ok(dispatch.with_notification(
-        V2ServerNotification::SkillsChanged(SkillsChangedNotification {}).into(),
-    ))
 }
 
 fn is_lime_app(app: &str) -> bool {

@@ -1,144 +1,226 @@
+use super::{AppSummary, HookEventName, SkillInterface};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogListParams {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub query: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
+pub struct PluginListParams {
+    /// Optional working directories used to discover repo marketplaces. When omitted,
+    /// only home-scoped marketplaces and the official curated marketplace are considered.
+    pub cwds: Option<Vec<PathBuf>>,
+    /// Optional marketplace kind filter. When omitted, only local marketplaces are queried, plus
+    /// the default remote catalog when enabled by feature flag.
+    pub marketplace_kinds: Option<Vec<PluginListMarketplaceKind>>,
+    /// Whether the client requests a fresh remote plugin catalog fetch.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub force_refetch: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInstalledParams {
+    /// Optional working directories used to discover repo marketplaces.
+    pub cwds: Option<Vec<PathBuf>>,
+    /// Additional uninstalled plugin names that should be returned when present locally.
+    /// This is used by mention surfaces that intentionally expose install entrypoints.
+    pub install_suggestion_plugin_names: Option<Vec<String>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+pub enum PluginListMarketplaceKind {
+    #[serde(rename = "local")]
+    Local,
+    #[serde(rename = "vertical")]
+    Vertical,
+    #[serde(rename = "workspace-directory")]
+    WorkspaceDirectory,
+    #[serde(rename = "shared-with-me")]
+    SharedWithMe,
+    #[serde(rename = "created-by-me-remote")]
+    CreatedByMeRemote,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginListResponse {
+    pub marketplaces: Vec<PluginMarketplaceEntry>,
     #[serde(default)]
-    pub marketplace_paths: Vec<String>,
+    pub marketplace_load_errors: Vec<MarketplaceLoadErrorInfo>,
+    #[serde(default)]
+    pub featured_plugin_ids: Vec<String>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogListResponse {
-    pub plugins: Vec<PluginCatalogSummary>,
-    pub generated_at: String,
+pub struct PluginInstalledResponse {
+    pub marketplaces: Vec<PluginMarketplaceEntry>,
+    #[serde(default)]
+    pub marketplace_load_errors: Vec<MarketplaceLoadErrorInfo>,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogInstalledParams {}
+pub struct MarketplaceLoadErrorInfo {
+    pub marketplace_path: PathBuf,
+    pub message: String,
+}
 
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogEnabledSetParams {
-    pub plugin_id: String,
+pub struct PluginReadParams {
+    pub marketplace_path: Option<PathBuf>,
+    pub remote_marketplace_name: Option<String>,
+    pub plugin_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginReadResponse {
+    pub plugin: PluginDetail,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInstallParams {
+    pub marketplace_path: Option<PathBuf>,
+    pub remote_marketplace_name: Option<String>,
+    /// Client-generated identifier used to correlate one installation attempt.
+    pub install_attempt_id: Option<String>,
+    pub plugin_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInstallResponse {
+    pub auth_policy: PluginAuthPolicy,
+    pub apps_needing_auth: Vec<AppSummary>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginMarketplaceEntry {
+    pub name: String,
+    /// Local marketplace file path when the marketplace is backed by a local file.
+    /// Remote-only catalog marketplaces do not have a local path.
+    pub path: Option<PathBuf>,
+    pub interface: Option<MarketplaceInterface>,
+    pub plugins: Vec<PluginSummary>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MarketplaceInterface {
+    pub display_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginDetail {
+    pub marketplace_name: String,
+    pub marketplace_path: Option<PathBuf>,
+    pub summary: PluginSummary,
+    pub share_url: Option<String>,
+    pub description: Option<String>,
+    pub skills: Vec<SkillSummary>,
+    /// The declared onboarding skill, when the plugin and visible skill are enabled.
+    #[serde(default)]
+    pub onboarding_skill: Option<SkillSummary>,
+    pub hooks: Vec<PluginHookSummary>,
+    pub apps: Vec<AppSummary>,
+    pub app_templates: Vec<AppTemplateSummary>,
+    pub mcp_servers: Vec<String>,
+    pub scheduled_tasks: Option<Vec<ScheduledTaskSummary>>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ScheduledTaskSummary {
+    pub key: String,
+    pub name: String,
+    pub prompt: String,
+    pub schedule: ScheduledTaskSchedule,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum ScheduledTaskSchedule {
+    #[serde(rename_all = "camelCase")]
+    Hourly {
+        interval_hours: u32,
+        days: Option<Vec<ScheduledTaskWeekday>>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Daily { time: String },
+    #[serde(rename_all = "camelCase")]
+    Weekdays { time: String },
+    #[serde(rename_all = "camelCase")]
+    Weekly {
+        days: Vec<ScheduledTaskWeekday>,
+        time: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum ScheduledTaskWeekday {
+    Mo,
+    Tu,
+    We,
+    Th,
+    Fr,
+    Sa,
+    Su,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+pub enum AppTemplateUnavailableReason {
+    NotConfiguredForWorkspace,
+    NoActiveWorkspace,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct AppTemplateSummary {
+    pub template_id: String,
+    pub name: String,
+    pub description: Option<String>,
+    pub category: Option<String>,
+    pub canonical_connector_id: Option<String>,
+    pub logo_url: Option<String>,
+    pub logo_url_dark: Option<String>,
+    pub materialized_app_ids: Vec<String>,
+    pub reason: Option<AppTemplateUnavailableReason>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginHookSummary {
+    pub key: String,
+    pub event_name: HookEventName,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct SkillSummary {
+    pub name: String,
+    pub description: String,
+    pub short_description: Option<String>,
+    pub interface: Option<SkillInterface>,
+    pub path: Option<String>,
     pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogEnabledSetResponse {
-    pub plugin: PluginCatalogSummary,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogSummary {
-    pub id: String,
-    pub name: String,
-    pub version: String,
-    pub marketplace_id: String,
-    pub content_digest: String,
-    pub description: String,
-    pub source: String,
-    pub source_uri: String,
-    pub installed: bool,
-    pub enabled: bool,
-    pub install_policy: String,
-    pub auth_policy: String,
-    pub availability: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub disabled_reason: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub local_version: Option<String>,
-    pub skills_count: u32,
-    pub mcp_servers_count: u32,
-    pub apps_count: u32,
-    pub hooks_count: u32,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogReadParams {
+pub struct PluginUninstallParams {
     pub plugin_id: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct PluginCatalogReadResponse {
-    pub plugin: PluginCatalogDetail,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogDetail {
-    pub summary: PluginCatalogSummary,
-    pub skills: Vec<PluginCatalogCapability>,
-    pub mcp_servers: Vec<PluginCatalogCapability>,
-    pub apps: Vec<PluginCatalogCapability>,
-    pub hooks: Vec<PluginCatalogHook>,
-    pub ui_resources: Vec<PluginCatalogUiResource>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogCapability {
-    pub id: String,
-    pub name: String,
-    pub description: String,
-    pub requires_auth: bool,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogHook {
-    pub id: String,
-    pub event: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogUiResource {
-    pub id: String,
-    pub resource_uri: String,
-    pub kind: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogInstallParams {
-    pub source_path: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub marketplace_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub source: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub expected_digest: Option<String>,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogInstallResponse {
-    pub plugin: PluginCatalogSummary,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogUninstallParams {
-    pub plugin_id: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct PluginCatalogUninstallResponse {
-    pub plugin_id: String,
-    pub uninstalled: bool,
-}
+pub struct PluginUninstallResponse {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]

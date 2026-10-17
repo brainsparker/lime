@@ -5,15 +5,14 @@ use super::{
 use crate::automation_execution::next_run_for_automation_schedule;
 use crate::RuntimeCoreError;
 use app_server_protocol::{
-    ScheduledTask, ScheduledTaskCreateParams, ScheduledTaskCreateRequest,
-    ScheduledTaskDeleteResponse, ScheduledTaskEnabledSetParams, ScheduledTaskExecution,
-    ScheduledTaskIdParams, ScheduledTaskListParams, ScheduledTaskListResponse,
-    ScheduledTaskNotificationPolicy, ScheduledTaskOverlapPolicy, ScheduledTaskReadResponse,
-    ScheduledTaskRunListParams, ScheduledTaskRunListResponse, ScheduledTaskRunSummary,
-    ScheduledTaskSchedule, ScheduledTaskSchedulePreviewParams,
-    ScheduledTaskSchedulePreviewResponse, ScheduledTaskSummary, ScheduledTaskThreadMode,
-    ScheduledTaskUpdateParams, ScheduledTaskUpdateRequest, ScheduledTaskWeekday,
-    ScheduledTaskWriteResponse,
+    AutomationTaskSchedule, AutomationTaskSummary, AutomationTaskWeekday, ScheduledTask,
+    ScheduledTaskCreateParams, ScheduledTaskCreateRequest, ScheduledTaskDeleteResponse,
+    ScheduledTaskEnabledSetParams, ScheduledTaskExecution, ScheduledTaskIdParams,
+    ScheduledTaskListParams, ScheduledTaskListResponse, ScheduledTaskNotificationPolicy,
+    ScheduledTaskOverlapPolicy, ScheduledTaskReadResponse, ScheduledTaskRunListParams,
+    ScheduledTaskRunListResponse, ScheduledTaskRunSummary, ScheduledTaskSchedulePreviewParams,
+    ScheduledTaskSchedulePreviewResponse, ScheduledTaskThreadMode, ScheduledTaskUpdateParams,
+    ScheduledTaskUpdateRequest, ScheduledTaskWriteResponse,
 };
 use chrono::Utc;
 use lime_core::config::TaskSchedule;
@@ -372,10 +371,10 @@ fn execution_to_payload(
 }
 
 fn lower_scheduled_schedule(
-    schedule: &ScheduledTaskSchedule,
+    schedule: &AutomationTaskSchedule,
 ) -> Result<TaskSchedule, RuntimeCoreError> {
     match schedule {
-        ScheduledTaskSchedule::Hourly {
+        AutomationTaskSchedule::Hourly {
             interval_hours,
             days,
             minute,
@@ -410,13 +409,13 @@ fn lower_scheduled_schedule(
                 })
             }
         }
-        ScheduledTaskSchedule::Daily { time, timezone } => {
+        AutomationTaskSchedule::Daily { time, timezone } => {
             cron_schedule_for_days(time, "*", timezone)
         }
-        ScheduledTaskSchedule::Weekdays { time, timezone } => {
+        AutomationTaskSchedule::Weekdays { time, timezone } => {
             cron_schedule_for_days(time, "1-5", timezone)
         }
-        ScheduledTaskSchedule::Weekly {
+        AutomationTaskSchedule::Weekly {
             days,
             time,
             timezone,
@@ -427,7 +426,7 @@ fn lower_scheduled_schedule(
     }
 }
 
-fn normalized_weekdays(days: &[ScheduledTaskWeekday]) -> Result<String, RuntimeCoreError> {
+fn normalized_weekdays(days: &[AutomationTaskWeekday]) -> Result<String, RuntimeCoreError> {
     if days.is_empty() {
         return Err(RuntimeCoreError::Backend(
             "weekly schedule days 不能为空".to_string(),
@@ -465,15 +464,15 @@ fn cron_schedule_for_days(
     })
 }
 
-fn weekday_to_cron(day: &ScheduledTaskWeekday) -> &'static str {
+fn weekday_to_cron(day: &AutomationTaskWeekday) -> &'static str {
     match day {
-        ScheduledTaskWeekday::MO => "1",
-        ScheduledTaskWeekday::TU => "2",
-        ScheduledTaskWeekday::WE => "3",
-        ScheduledTaskWeekday::TH => "4",
-        ScheduledTaskWeekday::FR => "5",
-        ScheduledTaskWeekday::SA => "6",
-        ScheduledTaskWeekday::SU => "0",
+        AutomationTaskWeekday::MO => "1",
+        AutomationTaskWeekday::TU => "2",
+        AutomationTaskWeekday::WE => "3",
+        AutomationTaskWeekday::TH => "4",
+        AutomationTaskWeekday::FR => "5",
+        AutomationTaskWeekday::SA => "6",
+        AutomationTaskWeekday::SU => "0",
     }
 }
 
@@ -483,7 +482,7 @@ pub(crate) fn is_scheduled_task_job(job: &AutomationJob) -> bool {
             && payload
                 .get("scheduled_task_schedule")
                 .and_then(|value| {
-                    serde_json::from_value::<ScheduledTaskSchedule>(value.clone()).ok()
+                    serde_json::from_value::<AutomationTaskSchedule>(value.clone()).ok()
                 })
                 .is_some()
             && payload_enum::<ScheduledTaskThreadMode>(payload, "thread_mode").is_some()
@@ -586,13 +585,13 @@ fn scheduled_task_from_job(
 fn scheduled_task_summary_from_job(
     job: AutomationJob,
     last_run: Option<ScheduledTaskRunSummary>,
-) -> Result<ScheduledTaskSummary, RuntimeCoreError> {
+) -> Result<AutomationTaskSummary, RuntimeCoreError> {
     let task = scheduled_task_from_job(job, last_run)?;
     let attention = task
         .last_run_summary
         .as_ref()
         .is_some_and(|run| matches!(run.status.as_str(), "error" | "timeout" | "missed"));
-    Ok(ScheduledTaskSummary {
+    Ok(AutomationTaskSummary {
         id: task.id,
         title: task.title,
         enabled: task.enabled,

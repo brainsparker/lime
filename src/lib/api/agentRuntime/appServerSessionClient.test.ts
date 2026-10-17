@@ -42,7 +42,7 @@ function canonicalThreadStartResponse(): AppServerThreadStartResponse {
   const thread = canonicalThread();
   return {
     approvalPolicy: null,
-    approvalsReviewer: null,
+    approvalsReviewer: "user",
     cwd: thread.cwd,
     model: "gpt-5.4",
     modelProvider: thread.modelProvider,

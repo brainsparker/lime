@@ -104,6 +104,7 @@ pub(in crate::runtime_backend) fn turn_context_from_request(
         model: Some(selection.model.clone()),
         effort: selection.reasoning_effort.clone(),
         approval_policy: host_request.and_then(host_approval_policy),
+        approvals_reviewer: host_request.and_then(|request| request.approvals_reviewer),
         sandbox_policy: host_request.and_then(host_sandbox_policy),
         collaboration_mode: collaboration_mode_from_request(request, host_request),
         user_visible_input_text: (!request.input.agent_only)

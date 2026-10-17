@@ -29,6 +29,48 @@ fn maps_runtime_model_reconciliation_to_thread_settings_updated() {
         notifications[0].params.as_ref().expect("settings params")["threadSettings"]["model"],
         "model-b"
     );
+    assert_eq!(
+        notifications[0].params.as_ref().expect("settings params")["threadSettings"]
+            ["approvalsReviewer"],
+        "user"
+    );
+}
+
+#[test]
+fn historical_settings_events_normalize_reviewer_without_accepting_invalid_values() {
+    for (reviewer, expected) in [
+        (None, Some("user")),
+        (Some(serde_json::Value::Null), Some("user")),
+        (Some(json!("guardian_subagent")), Some("auto_review")),
+        (Some(json!("unknown")), None),
+    ] {
+        let mut settings = json!({
+            "cwd": "", "approvalPolicy": null, "sandboxPolicy": null,
+            "model": "model-b", "modelProvider": "provider-b",
+            "collaborationMode": {"mode":"default", "settings":{"model":"model-b"}}
+        });
+        if let Some(reviewer) = reviewer {
+            settings["approvalsReviewer"] = reviewer;
+        }
+        let mut projector = V2NotificationProjector::default();
+        let result = projector.project(event(
+            "thread.settings.updated",
+            json!({"threadSettings": settings}),
+        ));
+        if let Some(expected) = expected {
+            let notifications = result.expect("normalize historical reviewer");
+            assert_eq!(notifications.len(), 1);
+            assert_eq!(
+                notifications[0].params.as_ref().unwrap()["threadSettings"]["approvalsReviewer"],
+                expected
+            );
+        } else {
+            assert!(
+                result.is_err(),
+                "invalid persisted reviewer must fail closed"
+            );
+        }
+    }
 }
 
 #[test]

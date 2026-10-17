@@ -1,5 +1,6 @@
 use super::codex;
 use crate::runtime::timestamp;
+use agent_protocol::ApprovalsReviewer;
 use app_server_protocol::{
     ConversationImportFidelitySummary, ConversationImportSourceClient,
     ConversationImportSourceProvenance, ConversationImportSourceStatus, ImportedThreadSummary,
@@ -18,6 +19,7 @@ pub(super) struct ImportProvenance {
     pub(super) model_provider: Option<String>,
     pub(super) model: Option<String>,
     pub(super) reasoning_effort: Option<String>,
+    pub(super) approvals_reviewer: ApprovalsReviewer,
     pub(super) metadata: Option<Value>,
     pub(super) fidelity: ConversationImportFidelitySummary,
 }
@@ -28,8 +30,16 @@ impl ImportProvenance {
         source_root: &std::path::Path,
         source_path: &std::path::Path,
         fidelity: &ConversationImportFidelitySummary,
-    ) -> Self {
-        Self {
+    ) -> Result<Self, String> {
+        let approvals_reviewer = ApprovalsReviewer::parse(
+            thread
+                .metadata
+                .as_ref()
+                .and_then(|metadata| metadata.get("approvalsReviewer")),
+        )
+        .map_err(|error| format!("source thread {}: {error}", thread.source_thread_id))?
+        .unwrap_or_default();
+        Ok(Self {
             source_thread_id: thread.source_thread_id.clone(),
             source_root: codex::path_to_string(source_root),
             source_path: codex::path_to_string(source_path),
@@ -38,9 +48,10 @@ impl ImportProvenance {
             model_provider: thread.model_provider.clone(),
             model: metadata_string(thread.metadata.as_ref(), "model"),
             reasoning_effort: metadata_string(thread.metadata.as_ref(), "reasoningEffort"),
+            approvals_reviewer,
             metadata: thread.metadata.clone(),
             fidelity: fidelity.clone(),
-        }
+        })
     }
 
     pub(super) fn turn_runtime_options(
@@ -60,6 +71,7 @@ impl ImportProvenance {
                 model_preference: model,
                 reasoning_effort,
                 approval_policy,
+                approvals_reviewer: Some(self.approvals_reviewer),
                 sandbox_policy,
                 working_dir: cwd.clone(),
                 project_root: cwd,
@@ -84,7 +96,6 @@ impl ImportProvenance {
             "modelName": self.model,
             "reasoningEffort": self.reasoning_effort,
             "approvalPolicy": metadata_string(self.metadata.as_ref(), "approvalPolicy"),
-            "approvalsReviewer": metadata_string(self.metadata.as_ref(), "approvalsReviewer"),
             "sandboxPolicy": metadata_value(self.metadata.as_ref(), "sandboxPolicy"),
             "serviceTier": metadata_string(self.metadata.as_ref(), "serviceTier"),
             "threadSource": metadata_string(self.metadata.as_ref(), "threadSource"),
@@ -132,23 +143,33 @@ pub(super) fn import_session_metadata(
     source_path: &std::path::Path,
     thread: &ImportedThreadSummary,
     fidelity: &ConversationImportFidelitySummary,
+    approvals_reviewer: ApprovalsReviewer,
 ) -> Value {
     let model = metadata_string(thread.metadata.as_ref(), "model");
     let reasoning_effort = metadata_string(thread.metadata.as_ref(), "reasoningEffort");
-    let imported_thread_settings = imported_thread_settings(
+    let mut imported_thread_settings = imported_thread_settings(
         thread.cwd.clone(),
         thread.model_provider.clone(),
         model.clone(),
         reasoning_effort.clone(),
         thread.metadata.as_ref(),
     );
-    let imported_continuation = imported_continuation(
+    let mut imported_continuation = imported_continuation(
         thread.cwd.clone(),
         thread.model_provider.clone(),
         model.clone(),
         reasoning_effort.clone(),
         thread.metadata.as_ref(),
     );
+    // Only the current Thread owns mutable workspace settings. Historical
+    // turn metadata and codexMetadata keep the original import provenance.
+    imported_thread_settings
+        .as_object_mut()
+        .unwrap()
+        .remove("cwd");
+    let continuation = imported_continuation.as_object_mut().unwrap();
+    continuation.remove("cwd");
+    continuation.remove("workingDir");
     json!({
         "sourceClient": SOURCE_CLIENT_VALUE,
         "sourceThreadId": source_thread_id,
@@ -156,7 +177,6 @@ pub(super) fn import_session_metadata(
         "sourcePath": codex::path_to_string(source_path),
         "sourceStatus": ConversationImportSourceStatus::Ready,
         "statePath": codex::newest_state_db(source_root).map(|path| codex::path_to_string(&path)),
-        "cwd": thread.cwd,
         "workingDir": thread.cwd,
         "source": thread.source,
         "providerName": thread.model_provider,
@@ -165,7 +185,7 @@ pub(super) fn import_session_metadata(
         "model": model,
         "reasoningEffort": reasoning_effort,
         "approvalPolicy": metadata_string(thread.metadata.as_ref(), "approvalPolicy"),
-        "approvalsReviewer": metadata_string(thread.metadata.as_ref(), "approvalsReviewer"),
+        "approvalsReviewer": approvals_reviewer,
         "sandboxPolicy": metadata_value(thread.metadata.as_ref(), "sandboxPolicy"),
         "serviceTier": metadata_string(thread.metadata.as_ref(), "serviceTier"),
         "threadSource": metadata_string(thread.metadata.as_ref(), "threadSource"),
@@ -282,7 +302,6 @@ fn imported_thread_settings(
         "effort": reasoning_effort,
         "summary": metadata_value(metadata, "reasoningSummary"),
         "approvalPolicy": metadata_string(metadata, "approvalPolicy"),
-        "approvalsReviewer": metadata_string(metadata, "approvalsReviewer"),
         "sandboxPolicy": metadata_value(metadata, "sandboxPolicy"),
         "activePermissionProfile": metadata_value(metadata, "activePermissionProfile"),
         "serviceTier": metadata_string(metadata, "serviceTier"),
@@ -307,7 +326,6 @@ fn imported_continuation(
         "modelName": model,
         "reasoningEffort": reasoning_effort,
         "approvalPolicy": metadata_string(metadata, "approvalPolicy"),
-        "approvalsReviewer": metadata_string(metadata, "approvalsReviewer"),
         "sandboxPolicy": metadata_value(metadata, "sandboxPolicy"),
         "serviceTier": metadata_string(metadata, "serviceTier"),
         "threadSource": metadata_string(metadata, "threadSource"),

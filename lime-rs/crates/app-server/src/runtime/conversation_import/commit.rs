@@ -65,6 +65,13 @@ fn commit_codex_thread(
     }
     preview.thread.source_path = Some(codex::path_to_string(&source_path));
     preview.thread.import_status = ConversationImportThreadStatus::Imported;
+    let mut provenance = ImportProvenance::for_thread(
+        &preview.thread,
+        &source_root,
+        &source_path,
+        &preview.summary.fidelity,
+    )
+    .map_err(RuntimeCoreError::InvalidRequest)?;
 
     let turns = history_turns(&preview.timeline);
     if turns.is_empty() {
@@ -108,13 +115,8 @@ fn commit_codex_thread(
         }
     }
     preview.summary.fidelity.budget_dropped = 0;
+    provenance.fidelity = preview.summary.fidelity.clone();
 
-    let provenance = ImportProvenance::for_thread(
-        &preview.thread,
-        &source_root,
-        &source_path,
-        &preview.summary.fidelity,
-    );
     let prepared_turns = prepare_history_turns(turns)?;
     report_progress(import_progress(
         ConversationImportJobPhase::PersistingHistory,
@@ -140,6 +142,7 @@ fn commit_codex_thread(
                 &source_path,
                 &preview.thread,
                 &preview.summary.fidelity,
+                provenance.approvals_reviewer,
             )),
             locale: None,
         })?
@@ -835,6 +838,7 @@ fn import_business_object_ref(
     source_path: &std::path::Path,
     thread: &app_server_protocol::ImportedThreadSummary,
     fidelity: &app_server_protocol::ConversationImportFidelitySummary,
+    approvals_reviewer: agent_protocol::ApprovalsReviewer,
 ) -> BusinessObjectRef {
     let metadata = provenance::import_session_metadata(
         source_thread_id,
@@ -842,6 +846,7 @@ fn import_business_object_ref(
         source_path,
         thread,
         fidelity,
+        approvals_reviewer,
     );
     BusinessObjectRef {
         kind: import_status::IMPORTED_CONVERSATION_KIND.to_string(),

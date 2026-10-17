@@ -1,10 +1,10 @@
 import type {
   ScheduledTask,
   ScheduledTaskCreateRequest,
-  ScheduledTaskSchedule,
-  ScheduledTaskSummary,
+  AutomationTaskSchedule,
+  AutomationTaskSummary,
   ScheduledTaskUpdateRequest,
-  ScheduledTaskWeekday,
+  AutomationTaskWeekday,
 } from "@/lib/api/scheduledTasks";
 import {
   decodeModelRouteSelector,
@@ -17,9 +17,9 @@ export interface ScheduledTaskFormState {
   title: string;
   prompt: string;
   enabled: boolean;
-  scheduleType: ScheduledTaskSchedule["type"];
+  scheduleType: AutomationTaskSchedule["type"];
   intervalHours: number;
-  days: ScheduledTaskWeekday[];
+  days: AutomationTaskWeekday[];
   time: string;
   timezone: string;
   threadMode: "new_thread" | "continue_thread";
@@ -145,7 +145,7 @@ export function validateScheduledTaskForm(
 
 export function buildScheduledTaskSchedule(
   form: ScheduledTaskFormState,
-): ScheduledTaskSchedule {
+): AutomationTaskSchedule {
   const timezone = form.timezone.trim();
   switch (form.scheduleType) {
     case "hourly":
@@ -208,10 +208,10 @@ export function buildScheduledTaskUpdateRequest(
 }
 
 export function filterScheduledTasks(
-  tasks: ScheduledTaskSummary[],
+  tasks: AutomationTaskSummary[],
   query: string,
   filter: ScheduledTaskFilter,
-): ScheduledTaskSummary[] {
+): AutomationTaskSummary[] {
   const normalized = query.trim().toLocaleLowerCase();
   return tasks.filter((task) => {
     const matchesFilter =
@@ -225,16 +225,16 @@ export function filterScheduledTasks(
 }
 
 export function toggleScheduledTaskWeekday(
-  days: ScheduledTaskWeekday[],
-  day: ScheduledTaskWeekday,
-): ScheduledTaskWeekday[] {
+  days: AutomationTaskWeekday[],
+  day: AutomationTaskWeekday,
+): AutomationTaskWeekday[] {
   return days.includes(day)
     ? days.filter((candidate) => candidate !== day)
     : uniqueWeekdays([...days, day]);
 }
 
-function uniqueWeekdays(days: ScheduledTaskWeekday[]): ScheduledTaskWeekday[] {
-  const order: ScheduledTaskWeekday[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+function uniqueWeekdays(days: AutomationTaskWeekday[]): AutomationTaskWeekday[] {
+  const order: AutomationTaskWeekday[] = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
   const selected = new Set(days);
   return order.filter((day) => selected.has(day));
 }

@@ -1,4 +1,4 @@
-use crate::server_request::{PendingServerRequest, ServerRequestError};
+use crate::server_request::PendingServerRequest;
 use crate::AppServer;
 use app_server_protocol::protocol::v2::{
     CommandExecutionApprovalDecision, CommandExecutionRequestApprovalParams,
@@ -10,8 +10,8 @@ use app_server_protocol::protocol::v2::{
     METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
 };
 use app_server_protocol::{
-    error_codes, AgentEvent, AgentSessionActionRespondParams, AgentSessionActionScope,
-    AgentSessionActionType, AgentSessionApprovalDecision,
+    AgentEvent, AgentSessionActionRespondParams, AgentSessionActionScope, AgentSessionActionType,
+    AgentSessionApprovalDecision,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -125,13 +125,11 @@ impl AppServer {
                 tracing::warn!(%thread_id, %error, "failed to publish typed server-request terminal notification");
             }
         }
+        if terminal.turn_transition {
+            return Err(WaitServerRequestError::Transition);
+        }
         let value = match terminal.result {
             Ok(value) => value,
-            Err(ServerRequestError::ClientRejected { error, .. })
-                if error.code == error_codes::REQUEST_CANCELLED =>
-            {
-                return Err(WaitServerRequestError::Transition);
-            }
             Err(error) => return Err(WaitServerRequestError::Failed(error.to_string())),
         };
         serde_json::from_value(value)

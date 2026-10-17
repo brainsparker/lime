@@ -3,8 +3,7 @@ use std::io::{BufRead, BufReader, Read, Seek, SeekFrom};
 use std::path::Path;
 
 use super::{
-    active_storage_path, history_content_digest, is_sha256_hex, metadata_content_digest,
-    parse_record, LatestRolloutHistory, RolloutRecord, ROLLOUT_SCHEMA_VERSION,
+    active_storage_path, digest, is_sha256_hex, parse_record, LatestRolloutHistory, RolloutRecord,
     ROLLOUT_TAIL_READ_CHUNK_BYTES,
 };
 
@@ -107,7 +106,7 @@ fn validate_rollout_header_for_append(
             path.display()
         ));
     };
-    if schema_version != ROLLOUT_SCHEMA_VERSION {
+    if !digest::supported_schema_version(schema_version) {
         return Err(format!(
             "unsupported rollout schema version {schema_version}: {}",
             path.display()
@@ -146,12 +145,19 @@ fn validate_rollout_tail_record(
             content_digest,
             changes,
         } => {
-            if schema_version != ROLLOUT_SCHEMA_VERSION
+            if !digest::supported_schema_version(schema_version)
                 || record_session_id != session_id
                 || record_thread_id != thread_id
                 || changes.sequence != sequence
                 || !is_sha256_hex(&fingerprint)
-                || history_content_digest(session_id, thread_id, &changes)? != content_digest
+                || !digest::history_digest_matches(
+                    schema_version,
+                    line,
+                    session_id,
+                    thread_id,
+                    &changes,
+                    &content_digest,
+                )?
             {
                 return Err(format!(
                     "invalid rollout history record: {}",
@@ -172,12 +178,18 @@ fn validate_rollout_tail_record(
             content_digest,
             metadata,
         } => {
-            if schema_version != ROLLOUT_SCHEMA_VERSION
+            if !digest::supported_schema_version(schema_version)
                 || record_session_id != session_id
                 || record_thread_id != thread_id
                 || !is_sha256_hex(&previous_content_digest)
-                || metadata_content_digest(session_id, thread_id, updated_at_ms, &metadata)?
-                    != content_digest
+                || digest::metadata_digest_for_record(
+                    schema_version,
+                    line,
+                    session_id,
+                    thread_id,
+                    updated_at_ms,
+                    &metadata,
+                )? != content_digest
             {
                 return Err(format!(
                     "invalid rollout metadata record: {}",

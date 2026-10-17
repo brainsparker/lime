@@ -17,6 +17,7 @@ mod health;
 mod idempotency;
 mod path_resolution;
 mod performance;
+mod reviewer;
 mod runtime_events;
 mod security;
 

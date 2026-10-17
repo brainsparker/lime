@@ -20,7 +20,7 @@
 - [./prd.md](./prd.md)：背景、目标、收益、用户故事、范围、验收口径
 - [./architecture.md](./architecture.md)：分层、事实源、接口与 profile 映射
 - [./adjacent-protocols.md](./adjacent-protocols.md)：`agentcontext`、`agentevidence`、`agentpolicy`、`agentui` 的 owner 边界与连接合同
-- [../plugin/v3/README.md](../plugin/v3/README.md)：Agent Plugins v1 标准包、Plugin v3 current owner 与旧私有 runtime 删除边界
+- [../plugin/README.md](../plugin/README.md)：Codex 标准与原生格式、共享插件 owner 与旧私有 runtime 删除边界
 - [./agent-unfinished-session-recovery-plan.md](./agent-unfinished-session-recovery-plan.md)：未完成 Agent 会话自动检测、首页恢复与侧栏 / 输入框异步状态计划
 - [./diagrams.md](./diagrams.md)：架构图、流程图、时序图
 - [./implementation-plan.md](./implementation-plan.md)：分阶段落地计划、风险和测试策略
@@ -61,7 +61,7 @@ Lime 当前最大问题不是功能不足，而是功能已经很多，却缺少
    `type/status/taskKind/source/failureCategory/reasonCode` 等 profile 字段必须是稳定协议值，不能按语言环境变化；用户可见标题、说明、错误提示、按钮和空态只能在 AgentUI / GUI projection 层通过 key-based i18n 渲染。Runtime 可以携带 `message` 作为诊断事实，但不能把中文或英文展示文案当成状态机、测试断言或跨模块 join 条件。
 
 7. **Chat、Claw、Plugin、Automation 都只是 runtime surface。**
-   完整 AI 能力只能向 RuntimeCore、Skills、MCP、Tools 与 canonical Item 主链收敛。Plugin 只通过 Agent Plugins v1 标准包和 Plugin v3 activation 进入这些 current owner；旧 `lime.agent` / `lime.workflow` 私有 facade 与 `plugin_runtime_*` 不得恢复，详见 [../plugin/v3/README.md](../plugin/v3/README.md)。
+   完整 AI 能力只能向 RuntimeCore、Skills、MCP、Tools 与 canonical Item 主链收敛。Plugin 通过 Codex 支持的标准/原生包和组件快照 进入这些 current owner；旧 `lime.agent` / `lime.workflow` 私有 facade 与 `plugin_runtime_*` 不得恢复，详见 [../plugin/README.md](../plugin/README.md)。
 
 8. **能力复用必须回到 current catalog。**
    Chat、Plugin 与 Automation 只能消费 Skills、MCP、Tool Runtime 和 App Server 投影，不为单一 surface 复制工具实现、权限系统或私有 capability catalog。
@@ -147,7 +147,7 @@ Objective / User Input
 2. [./architecture.md](./architecture.md)
 3. [./diagrams.md](./diagrams.md)
 4. [./adjacent-protocols.md](./adjacent-protocols.md)
-5. [../plugin/v3/README.md](../plugin/v3/README.md)
+5. [../plugin/README.md](../plugin/README.md)
 6. [./implementation-plan.md](./implementation-plan.md)
 7. [./test-cases.md](./test-cases.md)
 8. `internal/aiprompts/harness-engine-governance.md`

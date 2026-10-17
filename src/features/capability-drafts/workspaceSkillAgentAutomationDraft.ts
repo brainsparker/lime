@@ -2,7 +2,7 @@ import type { ScheduledTaskFormState } from "@/components/scheduled-tasks/schedu
 import type { AgentRuntimeWorkspaceSkillBinding } from "@/lib/api/agentRuntime/toolInventoryTypes";
 import type {
   ScheduledTask,
-  ScheduledTaskSchedule,
+  AutomationTaskSchedule,
 } from "@/lib/api/scheduledTasks";
 
 const DEFAULT_CRON_TIMEZONE = "Asia/Shanghai";
@@ -235,7 +235,7 @@ function readNestedRecord(
 }
 
 function describeSchedule(
-  schedule: ScheduledTaskSchedule,
+  schedule: AutomationTaskSchedule,
   copy?: WorkspaceSkillManagedAutomationPresentationCopy,
 ): string {
   switch (schedule.type) {

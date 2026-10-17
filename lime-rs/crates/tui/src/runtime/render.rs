@@ -8,6 +8,9 @@ use crate::app::{App, AppAction};
 use crate::tui::{FrameRequester, Tui};
 use crate::view;
 
+pub(super) const ACTIVE_TURN_FRAME_INTERVAL: std::time::Duration =
+    std::time::Duration::from_millis(100);
+
 pub(super) fn prepare_draw(
     app: &mut App,
     connected: bool,

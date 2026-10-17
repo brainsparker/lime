@@ -1,5 +1,6 @@
 use super::*;
 use crate::JsonRpcMessage;
+use app_server_protocol::error_codes;
 use app_server_protocol::protocol::v2::{ServerNotification, ServerRequestResolvedNotification};
 use serde_json::json;
 
@@ -360,7 +361,7 @@ async fn typed_response_publishes_resolved_before_wait_completes() {
 }
 
 #[tokio::test]
-async fn transition_cancel_publishes_resolved_without_domain_response() {
+async fn client_cancel_error_publishes_resolved_and_preserves_runtime_failure() {
     let server = AppServer::new();
     let mut outbound = server.subscribe_outbound_messages();
     let pending = server.server_requests.register(
@@ -381,15 +382,15 @@ async fn transition_cancel_publishes_resolved_without_domain_response() {
             request_id.clone(),
             app_server_protocol::JsonRpcError::new(
                 error_codes::REQUEST_CANCELLED,
-                "turn interrupted",
+                "client canceled its prompt",
             ),
         )
         .expect("cancel typed approval request");
     let error = waiter
         .await
         .expect("approval waiter task")
-        .expect_err("transition cancellation must stay terminal");
-    assert_eq!(error, WaitServerRequestError::Transition);
+        .expect_err("a client error must not claim that the runtime turn has transitioned");
+    assert!(matches!(error, WaitServerRequestError::Failed(_)));
 
     let JsonRpcMessage::Notification(notification) = outbound
         .try_recv()

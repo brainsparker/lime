@@ -13,7 +13,7 @@ impl App {
         &mut self,
         session: &mut AppServerSession,
         thread_id: String,
-        options: &crate::runtime::TuiOptions,
+        options: &crate::runtime::connection::TuiOptions,
     ) -> anyhow::Result<()> {
         if self.thread_id.as_deref() == Some(thread_id.as_str()) {
             return Ok(());

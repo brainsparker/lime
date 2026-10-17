@@ -7,6 +7,15 @@
       ],
       "type": "string"
     },
+    "ApprovalsReviewer": {
+      "description": "Routes approval requests to the user or automatic review. The legacy guardian_subagent input is serialized as auto_review.",
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": "string"
+    },
     "ByteRange": {
       "properties": {
         "end": {
@@ -2263,7 +2272,9 @@
   "properties": {
     "activePermissionProfile": true,
     "approvalPolicy": true,
-    "approvalsReviewer": true,
+    "approvalsReviewer": {
+      "$ref": "#/$defs/ApprovalsReviewer"
+    },
     "cwd": {
       "type": "string"
     },

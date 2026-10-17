@@ -22,6 +22,15 @@
       ],
       "type": "string"
     },
+    "ApprovalsReviewer": {
+      "description": "Routes approval requests to the user or automatic review. The legacy guardian_subagent input is serialized as auto_review.",
+      "enum": [
+        "auto_review",
+        "guardian_subagent",
+        "user"
+      ],
+      "type": "string"
+    },
     "AppsInstalledParams": {
       "properties": {
         "forceRefresh": {
@@ -839,6 +848,54 @@
       },
       "type": "object"
     },
+    "MarketplaceAddParams": {
+      "properties": {
+        "refName": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "source": {
+          "type": "string"
+        },
+        "sparsePaths": {
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "source"
+      ],
+      "type": "object"
+    },
+    "MarketplaceRemoveParams": {
+      "properties": {
+        "marketplaceName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "marketplaceName"
+      ],
+      "type": "object"
+    },
+    "MarketplaceUpgradeParams": {
+      "properties": {
+        "marketplaceName": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "McpServerEventStreamStartParams": {
       "description": "Starts an experimental MCP server event subscription for a Thread.",
       "properties": {
@@ -1078,96 +1135,120 @@
       },
       "type": "object"
     },
-    "PluginCatalogEnabledSetParams": {
+    "PluginInstallParams": {
       "properties": {
-        "enabled": {
-          "type": "boolean"
+        "installAttemptId": {
+          "description": "Client-generated identifier used to correlate one installation attempt.",
+          "type": [
+            "null",
+            "string"
+          ]
         },
-        "pluginId": {
+        "marketplacePath": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "pluginName": {
           "type": "string"
+        },
+        "remoteMarketplaceName": {
+          "type": [
+            "null",
+            "string"
+          ]
         }
       },
       "required": [
-        "enabled",
-        "pluginId"
+        "pluginName"
       ],
       "type": "object"
     },
-    "PluginCatalogInstallParams": {
+    "PluginInstalledParams": {
       "properties": {
-        "expectedDigest": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "marketplaceId": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "source": {
-          "type": [
-            "null",
-            "string"
-          ]
-        },
-        "sourcePath": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "sourcePath"
-      ],
-      "type": "object"
-    },
-    "PluginCatalogInstalledParams": {
-      "type": "object"
-    },
-    "PluginCatalogListParams": {
-      "properties": {
-        "marketplacePaths": {
-          "default": [],
+        "cwds": {
+          "description": "Optional working directories used to discover repo marketplaces.",
           "items": {
             "type": "string"
           },
-          "type": "array"
-        },
-        "query": {
           "type": [
-            "null",
-            "string"
+            "array",
+            "null"
           ]
         },
-        "source": {
+        "installSuggestionPluginNames": {
+          "description": "Additional uninstalled plugin names that should be returned when present locally.\nThis is used by mention surfaces that intentionally expose install entrypoints.",
+          "items": {
+            "type": "string"
+          },
           "type": [
-            "null",
-            "string"
+            "array",
+            "null"
           ]
         }
       },
       "type": "object"
     },
-    "PluginCatalogReadParams": {
-      "properties": {
-        "pluginId": {
-          "type": "string"
-        }
-      },
-      "required": [
-        "pluginId"
+    "PluginListMarketplaceKind": {
+      "enum": [
+        "created-by-me-remote",
+        "local",
+        "shared-with-me",
+        "vertical",
+        "workspace-directory"
       ],
+      "type": "string"
+    },
+    "PluginListParams": {
+      "properties": {
+        "cwds": {
+          "description": "Optional working directories used to discover repo marketplaces. When omitted,\nonly home-scoped marketplaces and the official curated marketplace are considered.",
+          "items": {
+            "type": "string"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        },
+        "forceRefetch": {
+          "description": "Whether the client requests a fresh remote plugin catalog fetch.",
+          "type": "boolean"
+        },
+        "marketplaceKinds": {
+          "description": "Optional marketplace kind filter. When omitted, only local marketplaces are queried, plus\nthe default remote catalog when enabled by feature flag.",
+          "items": {
+            "$ref": "#/$defs/PluginListMarketplaceKind"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
       "type": "object"
     },
-    "PluginCatalogUninstallParams": {
+    "PluginReadParams": {
       "properties": {
-        "pluginId": {
+        "marketplacePath": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "pluginName": {
           "type": "string"
+        },
+        "remoteMarketplaceName": {
+          "type": [
+            "null",
+            "string"
+          ]
         }
       },
       "required": [
-        "pluginId"
+        "pluginName"
       ],
       "type": "object"
     },
@@ -1226,6 +1307,17 @@
         "workspace"
       ],
       "type": "string"
+    },
+    "PluginUninstallParams": {
+      "properties": {
+        "pluginId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "pluginId"
+      ],
+      "type": "object"
     },
     "ProcessKillParams": {
       "properties": {
@@ -1880,7 +1972,16 @@
     "ThreadForkParams": {
       "properties": {
         "approvalPolicy": true,
-        "approvalsReviewer": true,
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "baseInstructions": {
           "type": [
             "null",
@@ -2510,7 +2611,16 @@
     "ThreadResumeParams": {
       "properties": {
         "approvalPolicy": true,
-        "approvalsReviewer": true,
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "baseInstructions": {
           "type": [
             "null",
@@ -2534,6 +2644,16 @@
           "type": [
             "null",
             "string"
+          ]
+        },
+        "dynamicTools": {
+          "description": "Declares this connection as the host for the thread's frozen dynamic tools.\nThis cannot change their schemas or replace a live host.",
+          "items": {
+            "$ref": "#/$defs/DynamicToolSpec"
+          },
+          "type": [
+            "array",
+            "null"
           ]
         },
         "excludeTurns": {
@@ -2810,7 +2930,16 @@
     "ThreadSettingsUpdateParams": {
       "properties": {
         "approvalPolicy": true,
-        "approvalsReviewer": true,
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "collaborationMode": {
           "anyOf": [
             {
@@ -2919,7 +3048,16 @@
           "type": "boolean"
         },
         "approvalPolicy": true,
-        "approvalsReviewer": true,
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "baseInstructions": {
           "type": [
             "null",
@@ -3203,7 +3341,16 @@
           ]
         },
         "approvalPolicy": true,
-        "approvalsReviewer": true,
+        "approvalsReviewer": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalsReviewer"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "clientUserMessageId": {
           "type": [
             "null",
@@ -5118,11 +5265,71 @@
           "$ref": "#/$defs/RequestId"
         },
         "method": {
+          "const": "marketplace/add",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MarketplaceAddParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "marketplace/remove",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MarketplaceRemoveParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "marketplace/upgrade",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/MarketplaceUpgradeParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
           "const": "plugin/list",
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/PluginCatalogListParams"
+          "$ref": "#/$defs/PluginListParams"
         }
       },
       "required": [
@@ -5162,7 +5369,7 @@
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/PluginCatalogReadParams"
+          "$ref": "#/$defs/PluginReadParams"
         }
       },
       "required": [
@@ -5182,7 +5389,7 @@
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/PluginCatalogInstallParams"
+          "$ref": "#/$defs/PluginInstallParams"
         }
       },
       "required": [
@@ -5202,7 +5409,7 @@
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/PluginCatalogUninstallParams"
+          "$ref": "#/$defs/PluginUninstallParams"
         }
       },
       "required": [
@@ -5222,27 +5429,7 @@
           "type": "string"
         },
         "params": {
-          "$ref": "#/$defs/PluginCatalogInstalledParams"
-        }
-      },
-      "required": [
-        "id",
-        "method",
-        "params"
-      ],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "id": {
-          "$ref": "#/$defs/RequestId"
-        },
-        "method": {
-          "const": "plugin/enabled/set",
-          "type": "string"
-        },
-        "params": {
-          "$ref": "#/$defs/PluginCatalogEnabledSetParams"
+          "$ref": "#/$defs/PluginInstalledParams"
         }
       },
       "required": [
