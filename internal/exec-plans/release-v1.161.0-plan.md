@@ -95,3 +95,10 @@
 - 远端1ff0e34的Rust Full与Windows Shell Runtime已全量success。前端到76/137仅两个过期工作区字符串断言，已迁到executionScope优先和已删除首页恢复链的负向守卫；其余15文件130项通过。候选旧node_modules.shared依赖备份导致本机发现额外492个第三方测试，已只迁入候选.lime忽略目录，恢复与CI相同137批清单，不改产品、发现器或断言。按owned清单从76续跑；静态扫描一次5秒宿主超时保留，原期限重试76/132项通过。
 
 - 本机137批清单续跑到77批：14文件82项通过；两个演示文稿文件共3项遇5秒宿主超时，尚未算通过。后续补验启动前发现候选依赖再次缺失（tinyrainbow与Node类型），78批在pretest类型依赖检查即退出，未执行产品测试。已从候选HEAD仅恢复9个缺失受控配置文件，并按原锁文件修复独立候选依赖；不修改原工作区、不改变锁文件或全量CI测试期限。最终发布仍以新SHA完整Quality为硬门禁。
+
+- 7362a4720的Quality run39105120132：版本、Lint、完整renderer+node类型检查和真实GUI smoke通过；三尺寸几何全部通过（980×680 core bottom602），1280/980截图复核输入区完整、宽度居中，1536截图为启动过渡帧，仅声明该尺寸几何通过，不作为完整像素验收。Rust仍执行中。前端前96/137批通过，97批仅EmptyStateComposerPanel的Plan/Goal隐藏标识opacity断言失败，其余15文件205项通过；根因为jsdom22不支持@container，前一EmptyState文件生成的全局styled样式污染后续文件。窄修复测试fixture：每次挂载使用独立StyleSheetManager target并随root清理，保留原opacity=0和真实关闭事件断言，不改生产CSS、期限或全局测试配置。待同批复验及新SHA全量CI。
+- 本地续跑的表格样式、结构、主题和HTML边界测试出现宿主5秒/RPC超时，远端run39105120132已在原期限完整通过相应文件，故本机失败日志保留为资源限制，不作为业务失败或全量通过。新建状态的文件排序漂移已发现，后续只按固定持久清单或精确文件集合续跑，不混用不同清单的批次编号。
+
+- 样式隔离修复后首页与输入区两文件65项全部exit0（含原Plan/Goal opacity与独立关闭断言），fixture的Prettier/ESLint均exit0；原CI失败保留为前验，使用CI第97批精确16文件清单追加整批复验，避免重新收集后批次顺序漂移。
+
+- CI第97批精确16文件复验exit0：206项全部通过，保留所有原断言与原测试期限（home-style-isolation-batch97.log）。候选增加必要测试fixture路径，共942路径；发布前仍等待修复SHA的完整Quality，未创建v1.161.0 tag。

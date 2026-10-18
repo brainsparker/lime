@@ -2,6 +2,7 @@
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { StyleSheetManager } from "styled-components";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { EmptyStateComposerPanel } from "./EmptyStateComposerPanel";
 import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
@@ -163,7 +164,11 @@ export function createGithubSearchServiceSkill() {
   };
 }
 
-const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
+const mountedRoots: Array<{
+  root: Root;
+  container: HTMLDivElement;
+  styleTarget: HTMLDivElement;
+}> = [];
 
 beforeEach(async () => {
   (
@@ -182,6 +187,7 @@ afterEach(() => {
       mounted.root.unmount();
     });
     mounted.container.remove();
+    mounted.styleTarget.remove();
   }
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -206,6 +212,9 @@ export function renderPanel(
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
+  // 隔离其它页面的 container query，避免旧 jsdom 解析失败污染本夹具样式。
+  const styleTarget = document.createElement("div");
+  document.head.appendChild(styleTarget);
   const root = createRoot(container);
 
   const defaultProps: React.ComponentProps<typeof EmptyStateComposerPanel> = {
@@ -248,10 +257,14 @@ export function renderPanel(
   };
 
   act(() => {
-    root.render(<ControlledPanel />);
+    root.render(
+      <StyleSheetManager target={styleTarget}>
+        <ControlledPanel />
+      </StyleSheetManager>,
+    );
   });
 
-  mountedRoots.push({ root, container });
+  mountedRoots.push({ root, container, styleTarget });
   return container;
 }
 
@@ -261,6 +274,8 @@ export function renderStatefulPanel(
 ) {
   const container = document.createElement("div");
   document.body.appendChild(container);
+  const styleTarget = document.createElement("div");
+  document.head.appendChild(styleTarget);
   const root = createRoot(container);
   const initialInput = props?.input ?? "";
   const {
@@ -308,10 +323,14 @@ export function renderStatefulPanel(
   };
 
   act(() => {
-    root.render(<StatefulPanel />);
+    root.render(
+      <StyleSheetManager target={styleTarget}>
+        <StatefulPanel />
+      </StyleSheetManager>,
+    );
   });
 
-  mountedRoots.push({ root, container });
+  mountedRoots.push({ root, container, styleTarget });
   return container;
 }
 
