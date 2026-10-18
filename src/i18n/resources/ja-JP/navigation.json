@@ -271,5 +271,6 @@
   "navigation.sidebar.customization.installed": "インストール済み",
   "navigation.sidebar.customization.loading": "プラグインを読み込み中…",
   "navigation.sidebar.customization.error": "インストール済みプラグインを読み込めません",
-  "navigation.sidebar.customization.empty": "インストール済みプラグインはありません"
+  "navigation.sidebar.customization.empty": "インストール済みプラグインはありません",
+  "navigation.sidebar.landmark": "アプリナビゲーション"
 }

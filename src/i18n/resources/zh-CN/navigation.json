@@ -271,5 +271,6 @@
   "navigation.sidebar.customization.installed": "已安装",
   "navigation.sidebar.customization.loading": "正在加载插件…",
   "navigation.sidebar.customization.error": "暂时无法读取已安装插件",
-  "navigation.sidebar.customization.empty": "还没有已安装插件"
+  "navigation.sidebar.customization.empty": "还没有已安装插件",
+  "navigation.sidebar.landmark": "应用导航"
 }

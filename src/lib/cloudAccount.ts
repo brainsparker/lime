@@ -14,6 +14,7 @@ export interface CloudAccountView {
 
 let current: CloudAccountView | null = null;
 let revision = 0;
+let identityVersion = 0;
 let bootstrap: unknown = null;
 let unwatch: (() => void) | null = null;
 const listeners = new Set<(view: CloudAccountView | null) => void>();
@@ -31,12 +32,20 @@ export function cloudAccountIdentity(
     : null;
 }
 
+/** Identity lifetime, including a switch away and back to the same account. */
+export function cloudAccountIdentityVersion(): number {
+  return identityVersion;
+}
+
 function publish(view: CloudAccountView | null) {
   if (JSON.stringify(current) === JSON.stringify(view)) return;
   const identityChanged =
     cloudAccountIdentity(current) !== cloudAccountIdentity(view);
   current = view;
-  if (identityChanged) clearOemCloudBootstrapSnapshot();
+  if (identityChanged) {
+    identityVersion += 1;
+    clearOemCloudBootstrapSnapshot();
+  }
   for (const listener of listeners) listener(current);
 }
 

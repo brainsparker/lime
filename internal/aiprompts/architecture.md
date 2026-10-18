@@ -1057,13 +1057,18 @@ src/main.tsx
 
 ### 3.1.1 Desktop 导航与首页布局（2026-10-18）
 
-同包 REA 确认 App Shell 在 `app-initial`，原 `sidebar-*.js` 是 ScheduledSidebar，不能继续作为全局导航 owner。Lime 当前采用参考已证的 legacy 单侧栏分支；目标实例的实际 feature flag 模式仍 unknown。
+同包 REA 确认 App Shell 在 `app-initial`，原 `sidebar-*.js` 是 ScheduledSidebar，不能继续作为全局导航 owner。用户最新图一指定 feature navigation：Lime 当前采用已证 `rail-with-contextual-sidebar`，移除上一轮误选的 legacy 单侧栏。参考实例内部 feature flags 仍 unknown；用户指定的可见布局是实施目标。
 
 ```mermaid
 flowchart LR
+  App --> Shell["AppShell scope / HeaderAction registry"]
+  AppSidebar --> Shell
+  Shell --> SharedHeader["AppShellHeader / start · center · end"]
   App --> AppSidebar
+  AppSidebar --> Rail["AppNavigationRail / persistent destinations and footer"]
+  AppSidebar --> Contextual["contextual header / new chat / projects / recents or customization"]
   App --> PageContent
-  PageContent --> Home["EmptyStateLayout → Banner / Composer / HomeAmbientSuggestionsContent"]
+  PageContent --> Home["EmptyStateLayout → Banner / Composer"]
   PageContent --> Settings["SettingsPage → SettingsNavigation / content"]
   AppSidebar --> Width["useSidebarWidth / SidebarResizeHandle"]
   Settings --> Width
@@ -1072,7 +1077,9 @@ flowchart LR
   Gateway --> Server["App Server → canonical Thread/Turn/Item"]
 ```
 
-`sidebar-width` 仅存用户的显示偏好，默认340、CSS范围240..520并受主区空间约束；不存业务状态。设置用同一宽度owner，返回委托既有navigation guard，不再持有全局rail或独立窄窗口浮层。首页公开组件名 `HomeAmbientSuggestionsContent` 已核上游export，`HomeSuggestionList` 为按上游模块职责选择的本地名称；内部类型仍未全面同名，不能据压缩变量伪造原名。主题、多模型、Banner仍归既有owner。架构图由责任root确认；无业务后端/协议owner迁移。
+`sidebar-width` 仅存用户的显示偏好，默认340；Shell 包含52px图标栏，展开最小290、最大520，折叠只收起上下文列。PageSurface44px标题栏与52px上下文页头来自同包分支；图标控件36px及两侧8px形成固有宽度。设置范围240..520，两者都受主区空间约束；不存业务状态。设置用同一宽度owner，返回委托既有navigation guard，不再持有全局rail或独立窄窗口浮层。首页 Banner 由 EmptyStateHero presentation 持有；Composer 在 EmptyStateLayout 独立下部区域，单侧24px留白、最大48rem。删除旧13任务入口、Guide/Drawer/Manager及专用状态和Workspace接线；没有真实 ambient 投影时不渲染伪建议。后台会话只由 useWorkspaceBackgroundSessionRuntime 投影 canonical identity/status 给既有侧栏。主题、多模型、Banner仍归既有owner。架构图由责任root确认；无业务后端/协议owner迁移。
+
+共享页头的基础三槽采用同包已证 `HeaderAction` 的当前 scope、首次注册顺序、order 排序及实例身份清理。侧栏开关注册 left/order=1，由唯一窗口 renderer 呈现；不再自行 fixed 定位或复制一份折叠态按钮。AppShell/AppShellHeader 是本地 owner 名称；统一工作区其他槽、Header metadata 与 MainContentLayout 仍待后继接线，不能把基础三槽实现写成全壳等价。
 
 ### 3.2 Renderer 数据流
 
@@ -2525,8 +2532,31 @@ P04b13a Core技能正文沿当前目录授权与选中release进入同一verifie
 保留原始正文；账号fence拒绝迟到响应。GUI技能卡片优先走现役fs/readFile，本地path为空时才
 使用远端identity；不以skill.enabled或installed禁止授权预览。关闭/换号取消并丢弃旧正文，
 Markdown投影集中复用Skills owner，frontmatter/一级标题规则来自同版Desktop原字节REA。
-不引入renderer HTTP、假本地path、本地datasource空实现、第二缓存/registry或runtime。
+不引入renderer HTTP、假本地path、本地datasource空实现、第二业务缓存/registry或runtime。
 root确认该只读数据流，2026-10-18。公共RPC/GUI和真实进程结果见执行计划，未验不计完成。
+
+P04b13c的 `plugin/model/skillPreviewQueries` 是技能正文唯一Renderer查询owner，使用
+TanStack Query的五分钟staleTime、请求合并、取消、过期重取与inactive GC；仅缓存原始
+nullable正文，不保存凭据、安装/启停事实或格式化Markdown。PluginSkillsSection绑定
+同一cloudAccount identity代际并管理查询provider，Preview只呈现query状态及本地Retry。
+identityVersion由cloudAccount在身份变化时单调递增，同账号metadata刷新不失效；换号、
+注销、会话变化及A→B→A隔离旧query，订阅恢复时清除旧代际缓存，请求前后再检查代际。
+
+```mermaid
+flowchart LR
+  AccountView[Shared cloudAccount identity lifetime] --> Query[Plugin skill preview QueryClient]
+  Preview[PluginSkillPreview] --> Query
+  Query --> FileGateway[fs/readFile gateway]
+  Query --> SkillRPC[plugin/skill/read gateway]
+  SkillRPC --> Shared[Shared App Server / AccountManager / Core]
+```
+
+此为可丢弃的UI查询投影，业务和授权owner保持上述共享主链。Desktop REA已定位的账号
+清理回调只覆盖space，不能声称其清空全部plugin query；Lime代际fence为明确本地安全接线。
+沿qNc/Vq/Bq原字节证据关闭窗口聚焦自动重取，最多3次自动重试；有HTTP状态时只重试
+408/425/429/5xx，无numeric status沿同一上限，不从错误文字猜状态。账号代际错误立即终止。
+架构影响：重大（Renderer查询依赖/投影owner）。责任开发者确认：root，2026-10-18；
+已核对依赖、目录、数据流、协议边界及Gate B验证合同，结果归执行计划P04b13c。
 
 Core 包会话、内容 hash 与静态扫描事实已从进程 broker 收回现役 Repository/snapshot；原字节
 进入 `plugin.packageRootDir` 的私有不可变 hash 文件，只有已提交 verified 记录才能经原下载

@@ -2,7 +2,7 @@ import type { ComponentProps } from "react";
 import { WorkspaceShellScene } from "./WorkspaceShellScene";
 import { renderWorkspaceFileManagerSidebarRuntime } from "./WorkspaceFileManagerSidebarRuntime";
 import { useWorkspaceConversationCompositionRuntime } from "./useWorkspaceConversationCompositionRuntime";
-import { useWorkspaceHomeRecoveryRuntime } from "./useWorkspaceHomeRecoveryRuntime";
+import { useWorkspaceBackgroundSessionRuntime } from "./useWorkspaceBackgroundSessionRuntime";
 import { useWorkspaceRightSurfaceCompositionRuntime } from "./useWorkspaceRightSurfaceCompositionRuntime";
 import { useWorkspaceRightSurfaceExpertPanelRuntime } from "./useWorkspaceRightSurfaceExpertPanelRuntime";
 
@@ -12,7 +12,9 @@ type ExpertPanelParams = Parameters<
 type RightSurfaceParams = Parameters<
   typeof useWorkspaceRightSurfaceCompositionRuntime
 >[0];
-type HomeRecoveryParams = Parameters<typeof useWorkspaceHomeRecoveryRuntime>[0];
+type BackgroundSessionParams = Parameters<
+  typeof useWorkspaceBackgroundSessionRuntime
+>[0];
 type ConversationParams = Parameters<
   typeof useWorkspaceConversationCompositionRuntime
 >[0];
@@ -34,15 +36,12 @@ interface UseAgentChatWorkspaceSceneCompositionParams {
     >;
     host: Omit<RightSurfaceParams["host"], "expertInfoPanelProps">;
   };
-  homeRecovery: HomeRecoveryParams;
+  backgroundSession: BackgroundSessionParams;
   conversation: Omit<
     ConversationParams,
     "landing" | "messageList" | "scene"
   > & {
-    landing: Omit<
-      ConversationParams["landing"],
-      "homeRecoverySession" | "onResumeRecentSession"
-    >;
+    landing: ConversationParams["landing"];
     messageList: Omit<ConversationParams["messageList"], "projection"> & {
       projection: Omit<
         ConversationParams["messageList"]["projection"],
@@ -65,7 +64,7 @@ interface UseAgentChatWorkspaceSceneCompositionParams {
 export function useAgentChatWorkspaceSceneComposition({
   expertPanel,
   rightSurface,
-  homeRecovery,
+  backgroundSession,
   conversation,
   fileManager,
   shell,
@@ -95,15 +94,9 @@ export function useAgentChatWorkspaceSceneComposition({
       expertInfoPanelProps,
     },
   });
-  const { homeRecoverySession, handleResumeHomeRecoverySession } =
-    useWorkspaceHomeRecoveryRuntime(homeRecovery);
+  useWorkspaceBackgroundSessionRuntime(backgroundSession);
   const conversationSceneRuntime = useWorkspaceConversationCompositionRuntime({
     ...conversation,
-    landing: {
-      ...conversation.landing,
-      homeRecoverySession,
-      onResumeRecentSession: handleResumeHomeRecoverySession,
-    },
     messageList: {
       ...conversation.messageList,
       projection: {

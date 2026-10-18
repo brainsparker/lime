@@ -237,18 +237,8 @@ function assertI18nKeyTypes() {
     starter: "帮我审这份协议",
   });
   i18n.t("agentChat.home.composer.placeholder", { ns: "agent" });
-  i18n.t("agentChat.home.composer.autoLaunchExample", {
-    ns: "agent",
-    example: "open example.com",
-  });
   i18n.t("agentChat.home.composer.pathReferenceFallbackPrompt", {
     ns: "agent",
-  });
-  i18n.t("agentChat.home.composer.guideHelpDefaultLabel", { ns: "agent" });
-  i18n.t("agentChat.home.composer.guideHelpClose", { ns: "agent" });
-  i18n.t("agentChat.home.composer.guideHelpCloseWithLabel", {
-    ns: "agent",
-    label: "Lime guide help",
   });
   i18n.t("agentChat.home.composer.advancedSettings.label", { ns: "agent" });
   i18n.t("agentChat.home.composer.advancedSettings.expand", { ns: "agent" });
@@ -463,40 +453,6 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.home.curatedTask.reviewSuggestionPrefillHint", {
     ns: "agent",
   });
-  i18n.t("agentChat.home.quickActions.title", { ns: "agent" });
-  i18n.t("agentChat.home.quickActions.badge", {
-    ns: "agent",
-    icon: "✨",
-  });
-  i18n.t("agentChat.home.quickActions.preset.generateImage.prompt", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.home.quickActions.preset.researchMode.label", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.home.guideHelp.contextLabelWithStarter", {
-    ns: "agent",
-    label: "Guide help",
-  });
-  i18n.t("agentChat.home.starter.rowLabel", { ns: "agent" });
-  i18n.t("agentChat.home.starter.guideHelp.label", { ns: "agent" });
-  i18n.t("agentChat.home.starter.ppt.prompt", { ns: "agent" });
-  i18n.t("agentChat.home.guide.longTermPlan.title", { ns: "agent" });
-  i18n.t("agentChat.home.guideCards.label", { ns: "agent" });
-  i18n.t("agentChat.home.category.recent", { ns: "agent" });
-  i18n.t("agentChat.home.sceneManager.title.list", { ns: "agent" });
-  i18n.t("agentChat.home.sceneManager.action.addScene", { ns: "agent" });
-  i18n.t("agentChat.home.sceneManager.error.syncSignInRequired", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.home.sceneManager.row.moveUp", {
-    ns: "agent",
-    title: "趋势简报",
-  });
-  i18n.t("agentChat.home.sceneManager.field.sceneName.placeholder", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.home.sceneManager.action.done", { ns: "agent" });
   i18n.t("skills.skillCard.source.builtin", { ns: "agent" });
   i18n.t("skills.skillCard.action.install", { ns: "agent" });
   i18n.t("skills.skillCard.compliance.standard", { ns: "agent" });

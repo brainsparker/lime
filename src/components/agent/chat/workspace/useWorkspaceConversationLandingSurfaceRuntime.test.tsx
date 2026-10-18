@@ -184,37 +184,6 @@ describe("useWorkspaceConversationLandingSurfaceRuntime", () => {
     );
   });
 
-  it("Task Center 空态应隐藏最近会话恢复入口", () => {
-    const { getValue } = renderHook(
-      createDefaultProps({
-        recentSessionTitle: "品牌发布节奏整理",
-        recentSessionSummary: "上次整理到发布节奏",
-        recentSessionActionLabel: "继续",
-        homeRecoverySession: {
-          sessionId: "session-1",
-          title: "品牌发布节奏整理",
-          status: "running",
-        },
-        onResumeRecentSession: vi.fn(),
-        projectConversationGroups: [
-          {
-            label: "今天",
-            conversations: [],
-          },
-        ],
-        suppressRecentSessionRecovery: true,
-      }),
-    );
-
-    const emptyStateProps = getValue().emptyStateProps;
-    expect(emptyStateProps.recentSessionTitle).toBeUndefined();
-    expect(emptyStateProps.recentSessionSummary).toBeUndefined();
-    expect(emptyStateProps.recentSessionActionLabel).toBeUndefined();
-    expect(emptyStateProps.homeRecoverySession).toBeUndefined();
-    expect(emptyStateProps.onResumeRecentSession).toBeUndefined();
-    expect(emptyStateProps.projectConversationGroups).toBeUndefined();
-  });
-
   it("空态工具偏好变更应回写 chat tool preferences", () => {
     const setChatToolPreferences = vi.fn();
     const { getValue } = renderHook(

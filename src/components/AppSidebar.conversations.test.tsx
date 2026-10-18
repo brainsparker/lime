@@ -1,4 +1,5 @@
 import React from "react";
+import { AppShell, AppShellHeader } from "./app-shell/AppShell";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SidebarOpenedProjectSummary } from "@/components/app-sidebar/sidebarConversationGroups";
@@ -2036,16 +2037,19 @@ describe("AppSidebar conversations", () => {
 
     await act(async () => {
       mounted.root.render(
-        <AppSidebar
-          currentPage="agent"
-          currentPageParams={
-            {
-              agentEntry: "claw",
-              projectId: "project-2",
-            } as AgentPageParams
-          }
-          onNavigate={vi.fn()}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <AppSidebar
+            currentPage="agent"
+            currentPageParams={
+              {
+                agentEntry: "claw",
+                projectId: "project-2",
+              } as AgentPageParams
+            }
+            onNavigate={vi.fn()}
+          />
+        </AppShell>,
       );
       await Promise.resolve();
     });
@@ -2111,17 +2115,20 @@ describe("AppSidebar conversations", () => {
 
     act(() => {
       mounted.root.render(
-        <AppSidebar
-          currentPage="agent"
-          currentPageParams={
-            {
-              agentEntry: "claw",
-              projectId: "project-1",
-              initialSessionId: "session-current",
-            } as AgentPageParams
-          }
-          onNavigate={vi.fn()}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <AppSidebar
+            currentPage="agent"
+            currentPageParams={
+              {
+                agentEntry: "claw",
+                projectId: "project-1",
+                initialSessionId: "session-current",
+              } as AgentPageParams
+            }
+            onNavigate={vi.fn()}
+          />
+        </AppShell>,
       );
     });
     await flushEffects(2);
@@ -2181,19 +2188,22 @@ describe("AppSidebar conversations", () => {
 
     await act(async () => {
       mounted.root.render(
-        <AppSidebar
-          currentPage="agent"
-          currentPageParams={
-            {
-              agentEntry: "claw",
-              projectId: "project-1",
-              initialSessionId: "session-current",
-            } as AgentPageParams
-          }
-          activeAgentSessionId="session-current"
-          activeAgentStreaming={true}
-          onNavigate={vi.fn()}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <AppSidebar
+            currentPage="agent"
+            currentPageParams={
+              {
+                agentEntry: "claw",
+                projectId: "project-1",
+                initialSessionId: "session-current",
+              } as AgentPageParams
+            }
+            activeAgentSessionId="session-current"
+            activeAgentStreaming={true}
+            onNavigate={vi.fn()}
+          />
+        </AppShell>,
       );
       await Promise.resolve();
     });
@@ -2223,19 +2233,22 @@ describe("AppSidebar conversations", () => {
 
     await act(async () => {
       mounted.root.render(
-        <AppSidebar
-          currentPage="agent"
-          currentPageParams={
-            {
-              agentEntry: "claw",
-              projectId: "project-1",
-              initialSessionId: "session-current",
-            } as AgentPageParams
-          }
-          activeAgentSessionId="session-current"
-          activeAgentStreaming={false}
-          onNavigate={vi.fn()}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <AppSidebar
+            currentPage="agent"
+            currentPageParams={
+              {
+                agentEntry: "claw",
+                projectId: "project-1",
+                initialSessionId: "session-current",
+              } as AgentPageParams
+            }
+            activeAgentSessionId="session-current"
+            activeAgentStreaming={false}
+            onNavigate={vi.fn()}
+          />
+        </AppShell>,
       );
       await Promise.resolve();
     });

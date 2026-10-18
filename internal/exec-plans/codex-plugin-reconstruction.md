@@ -29,7 +29,7 @@ Core的creator/scope事实、GLOBAL/USER目录和vertical已由P04b11a补入同�
 本表不引入迁移、compat或第二套业务后端。完整CLI/TUI/runtime/GUI其它合理行为继续由各自
 现役执行计划持有，本插件阶段顺序不缩减原始全量目标。
 
-## P04b13 远端正文与 DTO（客户端接线验收中）
+## P04b13 远端正文与 DTO（共享正文专项已验，完整目标active）
 
 Codex app-server-protocol/v2/plugin.rs:269–280确认plugin/skill/read输入为
 remoteMarketplaceName、remotePluginId、skillName，输出contents可空；core-plugins/remote.rs:
@@ -43,8 +43,8 @@ app_templates及unavailable_app_templates alias，包含connector/materialized I
 3小时磁盘缓存属于参考实现细节；forceRefetch/prefer-cache的可观察行为、账号/scope隔离与
 撤权安全仍必须对齐，不为模仿该内部实现增加第二缓存owner。不得据此核销P04b13。
 
-已从Codex core-plugins/remote.rs:626–658与Lime plugin_remote/wire.rs:140–175核出三项
-三项原始差异（P04b13b已修，公共JSON回归验收中）：
+已从Codex core-plugins/remote.rs:626–658与Lime plugin_remote/wire.rs:140–175核出
+三项原始差异（P04b13b已修，公共JSON回归已通过）：
 
 | 输入字段 | Codex当前接受 | Lime原始差异（本轮已修） |
 | --- | --- | --- |
@@ -104,7 +104,7 @@ Core现役selectPluginPackageManifest与extractPluginPackageSkills已持有manif
 `lime-plugin-skill-desktop-fTi7vn/`；original与request分别冻结，不修改已分析字节。
 本补记不计实现完成、不修改方法完成计数。
 
-### P04b13a Core 技能正文（本地服务端切片100%，客户端待接线）
+### P04b13a Core 技能正文（本地服务端切片已验，客户端结果见P04b13b）
 
 root，2026-10-18。基于上节同一 REA 请求模块与 CLI 源码，先补 Core API 接入文档和
 Verification Contract，再实现认证 `GET client/ps/plugins/:pluginId/skills/:skillName`。
@@ -196,7 +196,7 @@ Pil剥离开头frontmatter，Iil先将CRLF转LF；Lil在存在expectedTitle或�
 的exact-ranges和exact-manifest.json。首次抽取在大小写不敏感文件系统中发生zil/Zil文件名
 冲突，已弃用original-ranges证据；现役十段使用数字前缀独立文件并逐字节核验，不改原函数。
 
-### P04b13b 下一刀与验证合同（实施中）
+### P04b13b 共享正文接线与验证合同（本地切片已验，完整目标active）
 
 P04b12d1分享专项已通过，普通壳门禁的独立首页布局失败见下；现在认领以下窄写集：
 protocol插件类型/Method/envelope/schema注册、processor插件入口与accountAuth调度、
@@ -240,6 +240,141 @@ HTTP/生命周期编排，不在原文件堆场景。协议/envelope/dispatch等
 结果待收。仍有明确差异：五分钟缓存尚未实现（当前每次打开重新授权读取）、included_files
 服务端规则未知、逐技能偏好投影未补齐；AccountManager既有路径边界拒绝编码slash/dot等，
 未为任意skillName放宽共享安全边界，需按实际包命名/跨仓路由继续核定，不能称完全等价。
+
+2026-10-18续验：复用REA parent `ev_2d2bafac2b1d100aeb5db911eff0b3c7c3821ffed039e7c0653c052fc1a9016c`
+的summary复核十段原字节，未重跑整包、未执行Codex。正式schema最终生成exit0，补齐
+Method的serde wire名后仅同步已审阅差异，正式TS生成、client package build、完整
+`npm run test:contracts`、窄Rustfmt与最终新增测试ESLint均exit0。前端本刀44项按分组
+通过，另有共享Markdown现有消费面31/31；不把它们写成单次全仓测试。生产源码与生成
+schema/TS摘要冻结于`/tmp/lime-plugin-skill-client-final-source-snapshot.json`，续验未漂移。
+公共Rust首轮整组exit101、48/49，五项skill_reads均通过；唯一失败是GLOBAL准备场景的
+stdio子进程initialize超过原45秒预算，同组另一个stdio场景通过。最终源码五项skill_reads、
+protocol crate及Electron仍在执行/准备。额外直接`target/debug/app-server --help`退出134，
+dyld明确报告`libsherpa-onnx-c-api.dylib`及缺少`LC_RPATH`；此裸产物现象不能直接作为
+Cargo测试中超时的已确认根因。后续使用正式准备流程的新产物复验stdio，不修改共享
+target中的二进制、不放宽业务断言；未将该整组记为通过。
+
+最终源码续验：protocol crate exit0、142/142（含生成fixture树与method/schema合同）；
+`remote_plugins_jsonrpc skill_reads::` exit0、5/5，覆盖原文/逐段编码/null/empty、账号fence、
+错误身份/404/500/坏类型恢复、三项wire输入和共享15秒超时。正式准备的新App Server与
+code-mode-host/运行库6项复制冻结在系统临时目录`lime-plugin-skill-current-runtime-UuakEc/`，
+清单`/tmp/lime-plugin-skill-current-runtime.json`；App Server SHA256
+`cf6e909073eacf6c7c5c4fa6447ecd84e5bdffa9115e17f06291ff36c7f2357e`。
+通过`LIME_TEST_APP_SERVER_BIN`指定该固定产物后，原失败的GLOBAL真实stdio场景exit0、1/1，
+未增加timeout或改断言。此为原失败项单独复验通过，不伪写成整组一次49/49，也不把动态库
+裸产物现象确认为首次timeout根因。新Electron场景因并行侧栏样式更新触发renderer新鲜度
+重建，仍待实际结果；不绕过guard、不修改侧栏写集。
+
+Electron续验先由新鲜度guard阻止旧renderer交互，保留失败目录；新产物启动后又由旧
+fixture把`/client/ps/plugins/workspace/created`错误当作详情ID而退出。实际HTTP路径保存在
+`/tmp/lime-plugin-skill-client-electron-path-diagnostic/unexpected-plugin-path.json`，归类为夹具
+缺少现役目录响应，不猜成正文RPC故障。按上节near-800退出条件，将HTTP issuer从主runner
+拆到`scripts/electron/lib/remote-plugin-catalog-issuer.mjs`，主runner降至约620行；技能场景
+helper仅保留GUI交互。补created/shared空集合的真实raw分页形状，与已有分享fixture和
+Core目录合同一致；未知HTTP请求仍断言失败，异步失败保存诊断并使最终场景失败，保证
+外层finally回收进程。此为测试夹具重构，未改变生产接口、目录投影或授权策略。
+
+新产物Electron最终专项exit0：
+`REMOTE_PLUGIN_EVIDENCE_DIR=/tmp/lime-plugin-skill-client-electron-verified node scripts/electron/remote-plugin-catalog-fixture-smoke.mjs`。
+主链为真实Electron/preload/IPC、`app_server_handle_json_lines`、共享App Server/AccountManager、
+受控Core形状HTTP及同一PluginStore；Turn backend为unavailable，modelTurn=false。
+未安装技能依次验证404错误、重试null、重开Markdown（去frontmatter/首H1）；关闭恢复同一
+卡片焦点。安装后的原始本地SKILL.md经`fs/readFile`展示“Research carefully.”，未增加远端
+请求；stdio peer通过同一`plugin/skill/read`读取远端原文。共4次认证skill GET（3次GUI、
+1次stdio），均includeDownloadUrls=false且非renderer发起；tar.gz仅下载1次且无账号header。
+目录、安装/侧栏、换号隔离、reload、冷启动、原账号已安装返回、共享卸载与注销清空均通过；
+issuerErrors/consoleErrors/pageErrors均0。remote/local两张预览截图已目检，未用成功toast
+代替RPC、store与内容断言。前轮安装已成功但重入使用旧sidebar locator超时，已按实际
+DOM更新为主导航/自定义导航两个现役入口，保留失败目录electron-current，不改产品UI或预算。
+
+App Server仍为上述`cf6e9090…`固定产物；整个dist/dist-electron共3851文件的前后汇总SHA256
+均为`839ea99b550cac3c252439a194d7a746cab60e6eb69f5a9c79bebfbf9ce6308b`。
+另从实际HTML入口递归解析静态/字面量动态import，182文件、660边、1处动态表达式未知；
+`/tmp/lime-plugin-skill-client-entry-graph-verified-{before,after}.json`逐字一致。
+实际入口`index-C1Oy1uiz.js` SHA256 `1c77981306b24fae6125e421eca673c532fff7360afec5a5c06f7ea799adea83`；
+实际可达`PluginCatalogPage-DLC5BxhS.js` SHA256 `ff6ac1d375fdd6eb1c78d44efa7f744123c88cdf5228ffe5654c16988550d479`。
+不从dist残留旧chunk挑选证据，未知动态import不冒称完整静态依赖图。源码/生成物摘要复核
+无漂移；HTTP重构三文件语法、ESLint no-undef/unused及scripts治理通过。完整GUI smoke另以
+`/tmp/lime-plugin-skill-client-gui-smoke-final`为证据目录执行中，结果未收，不提前写green。
+
+本切片复用Context和Markdown现役owner，移除技能只读span并拆HTTP测试职责，保持单一
+数据与授权来源；不新增registry、renderer HTTP、迁移、compat或deprecated。旧插件42项
+dead/deleted/forbidden-to-restore基线未恢复。共享正文专项通过不核销五分钟缓存、参考文件
+服务端规则、逐技能偏好、分享链接/邀请、真实Core同包Turn、exec/PTY及Windows/live/packaged。
+
+最终普通壳门禁：`LIME_ELECTRON_SMOKE_EVIDENCE_DIR=/tmp/lime-plugin-skill-client-gui-smoke-final npm run verify:gui-smoke`
+exit0、24/24，含完整renderer/host/sidecar构建、真实Electron/preload/IPC/App Server初始化、
+工作台/reload、设置、1536×960/1280×800/980×680布局；console/page/invoke/preload错误、
+legacy/mock命中均0。summary与三视口截图在上述独立目录；本轮未修改首页布局，前轮23/24
+的小窗口失败保留为历史，当前共享工作树结果已通过，不认领并行布局修复。此普通壳门禁是
+独立重建与场景，不冒称和正文专项的整目录摘要相同；App Server仍为同一`cf6e9090…`。
+最终1096项本轮源码/生成物摘要与6项冻结runtime摘要均无漂移；新构建入口引用证据另存
+`/tmp/lime-plugin-skill-client-entry-graph-gui-smoke.json`。本地正文读取与展示切片验收完成度
+100%（仅本节声明合同），P04b13完整能力与整体对齐仍active，方法基线计数不变。
+`verify:local`未全跑：无写集过滤且存在大量并行脏改动；只对上述实际定向与产品证据负责，
+不声称全仓green。下一刀先依据REA确认五分钟缓存的失效/账号边界和现役缓存owner，
+再补逐技能偏好；included_files服务端规则未知时继续定位，不用包目录猜生成策略。
+
+### P04b13c 预览查询缓存与账号代际（实施中，完整目标active）
+
+先核定Codex原件再实现。沿用ASAR `75e397e2…`、app-initial `604b5d2d…`
+及app-shared `607ad086…` 的冻结字节，新抽8段6761B，REA parent
+`ev_47dd2e4f647d31e2527bee6cf51513bac33543f82b6905a090dd3b66be2335c5`，
+summary `ev_e17269478e19d9a1b50c17d718a203d2d8503af7f9c65fa12cedb2d0bb18b1e9`。
+原字节、byte/UTF-16范围manifest与摘要存系统临时目录 `plugin-cache-desktop-ffc2Vc/`。
+8/8解析、静态语义unknown345；未执行Codex。yTn账号变化调用Zxn，Xxn注册的已定位
+回调只reset space查询；不能据此泛化为清空所有插件缓存。Iil/Hil既有证据明确五分钟
+staleTime、路径优先、host/market/plugin/skill键，hosted另带账号/user与请求前后fence。
+
+Lime当前无TanStack Query owner。此刀引入其现成查询生命周期，在plugin model层持有
+唯一、可丢弃的正文查询客户端，GUI仍调用fs/readFile或plugin/skill/read，不改共享Rust
+授权、持久化或HTTP边界。查询按现役账号identity及单调身份代际隔离；同账号metadata
+刷新不失效，A→B→A仍是新代际。账号通知/重读沿cloudAccount，不增加凭据或本地业务后端。
+用现成query的五分钟staleTime、取消、并发合并、过期重开重取，删除组件手写请求状态机；
+本地Retry沿既有明确设计，不声称Codex原生Jil有同按钮。不添加迁移/compat或旧插件入口。
+
+认领：package.json/pnpm-lock.yaml、src/lib/cloudAccount.ts及测试、plugin model新增
+skillPreviewQueries、PluginSkillPreview/PluginSkillsSection及相关测试、已有技能Electron
+helper和必要issuer诊断、此计划/architecture §7.2/plugin合同。避让其它未知脏写集。
+Verification Contract：root，P1/budget:normal。输入为同一插件技能/账号；首次读取真实
+gateway，五分钟内重开不再请求，null也缓存；过期重取，失败不伪造空正文，Retry重取；
+本地路径优先，换技能/换账号/注销/关闭取消与迟到隔离，包含A→B→A及会话变化。
+追加核定桌面全局默认：qNc经import/export映射构造new QueryClient(Fjn)，Vq设置
+refetchOnWindowFocus=false、retry=Bq；Bq上限3次重试，状态408/425/429/5xx可重试，
+无numeric status也可重试，其他HTTP状态终止。5段549B新REA parent
+`ev_960df40f0fb1653445f88918d79b522082450064c269a30ce1bdb1bbf6e4aee5`，
+summary `ev_67f4103836c0d385e44363c82eaf6a1d7b1f4338ad49bc02ee8f4a9d9ecd51d7`，
+5/5解析、semantic unknown25；default-query-ranges/manifest归同一临时证据根，未执行Codex。
+Lime按此关闭焦点重取并替换首次retry=false草案；本地账号变化错误额外立即终止，
+不把HTTP状态从错误文案猜回。当前RPC错误无numeric status时最多3次自动重试，然后
+显示失败；Electron错误场景据此预期4次失败GET，再手动retry/null和过期GET各1次。
+先account/model/DOM定向与严格TS，再contracts/版本及脚本门禁；真实Electron正文专项
+和literal verify:gui-smoke验证current bridge，受控Core HTTP与真实Core进程分账。
+无Rust业务改动时复用已冻结runtime，重建renderer并核验实际入口引用；不冒称本轮Rust
+重新编译或全仓verify:local通过。完成条件为上述合同及证据回写。
+
+逐技能下一刀已取得双来源：Desktop pQr/H2按installed.disabled_skill_names投影enabled，
+未安装默认true；CLI core-plugins/remote.rs 1468–1491同义。但1908注释明确远端禁用状态
+尚不投影到skills/list，本地skills.config仍是运行时启停来源。不得把远端偏好直接覆盖本地
+runtime，也不得以enabled控制正文授权。Core尚无已确认偏好编辑合同，不猜写入端点。
+
+架构影响：重大（新增renderer查询依赖/投影owner）；architecture §7.2已同步查询图，
+责任开发者确认：root，2026-10-18，核对依赖、目录、数据流及验证门禁；验收仍待收取。
+
+实施与中间验证：引入锁定的@tanstack/react-query/query-core 5.104.4，组件手写effect/attempt
+状态机删除，原始nullable正文、路径优先和Markdown owner保持原合同。root pnpm入口先因
+旧Corepack签名key失败，使用仓库指定pnpm9.15.9后暴露既有agent-runtime-client精确引用
+app-server-client@1.71.0在registry不可得（本地package为新版本）的工作区安装阻塞；未改
+该并行package。新增两包用隔离临时manifest通过pnpm安装，根lock只合并其真实integrity、
+snapshot与importer，自动逐项对比一致，再只拷贝两包到现有node_modules，不替换依赖树。
+此不是根工作区完整frozen install通过；干净全仓安装的既有版本引用阻塞仍需持有者处理。
+
+首次account/model15项通过；DOM首轮10/14因改用Query通知批处理后旧microtask等待不足
+而失败。只在测试中把notify调度接到microtask后，14/14通过；未改产品scheduler或放宽
+业务断言。定向严格TS、初轮/最终边界lint、版本及完整test:contracts均exit0。追加桌面
+默认核定后改变retry/focus，相关model/DOM/TS正在复验。最初Electron构建已启动，因这次
+新增REA事实导致源码变更，该构建轮仅保留过程记录，不作为最终源码验收；稳定后重建。
+未跑全仓verify:local，原因仍为大量并行改动且无窄写集入口。
 
 ## P04b12c 共享 App Server 分享主链（四RPC本地合同已验，完整目标active）
 
@@ -2179,7 +2314,7 @@ LimeCore 首刀：`control_plane_plugin_package_upload_service.go` 的扫描/man
 | plugin/installed | 已直接替换；公共合同及新产物本地产品验证通过 | cwds/installSuggestionPluginNames；市场分组与 load errors |
 | plugin/reconcile | P04b10共享owner与受控Desktop/stdio已验；完整Core/Turn待验 | bundle/enablement/removal diff、失败远端 ID 与 materialization 分类；不伪造 readiness |
 | plugin/read | 外层合同及新产物本地验证通过；嵌套语义仍 partial | marketplacePath/remoteMarketplaceName + pluginName；Codex PluginDetail、Skill/App/Hook summaries |
-| plugin/skill/read | P04b13a Core已验；P04b13b客户端接线验收中 | 远端插件 Skill 读取与同一包/授权边界 |
+| plugin/skill/read | P04b13a Core本地已验；P04b13b客户端公共JSON-RPC/受控Electron与stdio已验 | 远端插件 Skill 读取与同一包/授权边界；完整缓存/参考文件另验 |
 | plugin/share/save | P04b12b/c本地合同、P04b12d1受控Electron创建/同ID更新已验 | pluginPath、远端身份、discoverability 与 targets；shareUrl |
 | plugin/share/updateTargets | P04b12a/c本地合同、P04b12d1受控Electron权限草稿/服务端投影已验 | principals/discoverability，权限与租户过滤 |
 | plugin/share/list | P04b12c本地分页/冷映射、P04b12d1受控Electron目录消费已验 | 远端插件与可用本地 checkout 路径 |

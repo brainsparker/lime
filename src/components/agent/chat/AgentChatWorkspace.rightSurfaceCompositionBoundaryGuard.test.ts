@@ -42,7 +42,7 @@ describe("AgentChatWorkspace right surface composition boundary", () => {
       "useWorkspaceRightSurfaceExpertPanelRuntime(expertPanel)",
     );
     expect(sceneCompositionSource).toContain(
-      "useWorkspaceHomeRecoveryRuntime(homeRecovery)",
+      "useWorkspaceBackgroundSessionRuntime(backgroundSession)",
     );
     expect(sceneCompositionSource).toContain(
       "renderWorkspaceFileManagerSidebarRuntime(fileManager)",

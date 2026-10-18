@@ -271,5 +271,6 @@
   "navigation.sidebar.customization.installed": "Installed",
   "navigation.sidebar.customization.loading": "Loading plugins…",
   "navigation.sidebar.customization.error": "Unable to load installed plugins",
-  "navigation.sidebar.customization.empty": "No installed plugins yet"
+  "navigation.sidebar.customization.empty": "No installed plugins yet",
+  "navigation.sidebar.landmark": "App navigation"
 }

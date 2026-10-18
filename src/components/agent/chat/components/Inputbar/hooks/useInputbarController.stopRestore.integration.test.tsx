@@ -79,30 +79,12 @@ vi.mock("@/components/agent/chat/skill-selection/CuratedTaskBadge", () => ({
   CuratedTaskBadge: () => null,
 }));
 vi.mock("@/lib/api/appConfig", () => ({ getConfig: vi.fn(async () => ({})) }));
-vi.mock("@/components/agent/chat/components/useHomeSkillSurface", () => ({
-  useHomeSkillSurface: () => ({
-    guideCards: [],
-    serviceSkillItems: [],
-    skillItems: [],
-    skillSections: [],
-    starterChips: [],
-  }),
-}));
-vi.mock("@/components/agent/chat/home/HomeAmbientSuggestionsContent", () => ({
-  HomeAmbientSuggestionsContent: () => null,
-}));
-vi.mock("@/components/agent/chat/components/EmptyStateQuickActions", () => ({
-  EmptyStateQuickActions: () => null,
-}));
 vi.mock("@/components/agent/chat/components/EmptyStateLayout", () => ({
   EmptyStateComposerFrame: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
-  EmptyStatePrimaryStack: ({ children }: { children: React.ReactNode }) => (
-    <>{children}</>
-  ),
-  EmptyStateLayout: ({ prioritySlot }: { prioritySlot: React.ReactNode }) => (
-    <>{prioritySlot}</>
+  EmptyStateLayout: ({ composer }: { composer: React.ReactNode }) => (
+    <>{composer}</>
   ),
 }));
 vi.mock("@/components/agent/chat/components/EmptyStateComposerPanel", () => ({

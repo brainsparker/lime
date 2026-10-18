@@ -220,7 +220,7 @@ async function surface(page, options, sessionId) {
             ?.getAttribute("data-workspace-root") || null;
       const answerVisible = document.body.innerText.includes(answerText);
       const home = Boolean(
-        document.querySelector('[data-testid="home-ambient-suggestions"]'),
+        document.querySelector('[data-testid="home-composer-page"]'),
       );
       if (expected ? !workspaceRoot || !answerVisible : !home) return null;
       return {
@@ -789,7 +789,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
               visible: editor.getClientRects().length > 0,
             })),
             home: Boolean(
-              document.querySelector('[data-testid="home-ambient-suggestions"]'),
+              document.querySelector('[data-testid="home-composer-page"]'),
             ),
             settings: Boolean(
               document.querySelector('[data-testid="settings-navigation"]'),

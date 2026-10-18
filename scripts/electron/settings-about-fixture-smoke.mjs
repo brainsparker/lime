@@ -125,7 +125,7 @@ async function readHomeState(page, options) {
     options,
     () => {
       const homeStartVisible = Boolean(
-        document.querySelector('[data-testid="home-ambient-suggestions"]'),
+        document.querySelector('[data-testid="home-composer-page"]'),
       );
       const accountButtonVisible = Boolean(
         document.querySelector('[data-testid="app-sidebar-account-button"]'),

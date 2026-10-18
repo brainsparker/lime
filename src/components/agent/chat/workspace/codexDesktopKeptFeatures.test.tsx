@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it } from "vitest";
@@ -22,11 +22,33 @@ describe("Codex alignment kept product surfaces", () => {
     document.body.innerHTML = "";
   });
 
+  it("不恢复已退出的首页任务树、抽屉和专用状态 owner", () => {
+    const base = "src/components/agent/chat/";
+    const retired = [
+      "home/HomeAmbientSuggestionsContent.tsx",
+      "home/HomeSuggestionList.tsx",
+      "home/HomeGuideCards.tsx",
+      "home/HomeMoreSkillsDrawer.tsx",
+      "home/HomeSceneSkillManagerDialog.tsx",
+      "home/buildHomeSkillSurface.ts",
+      "home/homeSkillSurfaceAdapters.ts",
+      "home/homeSurfaceTypes.ts",
+      "components/useHomeSkillSurface.ts",
+      "components/useEmptyStateHomeActions.ts",
+      "components/EmptyStateQuickActions.tsx",
+      "workspace/useWorkspaceHomeRecoveryRuntime.ts",
+      "workspace/useTaskCenterConversationNavigationRuntime.ts",
+    ];
+    expect(retired.filter((file) => existsSync(base + file))).toEqual([]);
+  });
+
   it("首页和 Composer 仍引用 Banner、Hero、主题、多模态和多模型入口", () => {
     const layout = sourceOf(
       "src/components/agent/chat/components/EmptyStateLayout.tsx",
     );
-    const home = sourceOf("src/components/agent/chat/components/EmptyState.tsx");
+    const home = sourceOf(
+      "src/components/agent/chat/components/EmptyState.tsx",
+    );
     const scene = sourceOf(
       "src/components/agent/chat/workspace/WorkspaceConversationScene.tsx",
     );

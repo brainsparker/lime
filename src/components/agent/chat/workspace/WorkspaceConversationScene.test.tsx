@@ -405,7 +405,6 @@ function renderScene(props?: RenderSceneProps) {
       generalCanvasContent: "",
       resolvedCanvasState: null,
       selectedText: "",
-      onRecommendationClick: vi.fn(),
       characters: [],
       skills: [],
       serviceSkills: [],

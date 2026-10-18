@@ -1,53 +1,19 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { focusManager, notifyManager } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { accountFixture, seedCloudAccount } from "@/test/cloudAccountFixture";
 import { readCloudAccount } from "@/lib/cloudAccount";
 import type { AppServerPluginDetail } from "@/lib/api/appServerTypes";
 import { PluginSkillsSection } from "./PluginSkillsSection";
+import { skillPreviewDetail as detail } from "../model/skillPreviewTestFixtures";
+import { skillPreviewQueryClient } from "../model/skillPreviewQueries";
 
 const mocks = vi.hoisted(() => ({ read: vi.fn(), file: vi.fn() }));
 vi.mock("@/lib/api/pluginCatalog", () => ({ readPluginSkill: mocks.read }));
 vi.mock("@/lib/api/fileBrowser", () => ({ readFileBytes: mocks.file }));
-
-function detail(path: string | null = null): AppServerPluginDetail {
-  return {
-    marketplaceName: "workspace-directory",
-    marketplacePath: null,
-    summary: {
-      id: "research@workspace-directory",
-      remotePluginId: "opaque~1",
-      name: "research",
-      version: "1.0.0",
-      localVersion: null,
-      source: { type: "remote" },
-      installed: false,
-      enabled: false,
-      installPolicy: "AVAILABLE",
-      authPolicy: "ON_USE",
-    },
-    shareUrl: null,
-    description: "Research plugin",
-    onboardingSkill: null,
-    skills: [
-      {
-        name: "research",
-        description: "Research topics",
-        shortDescription: null,
-        interface: { displayName: "Researcher" },
-        path,
-        enabled: false,
-      },
-    ],
-    hooks: [],
-    apps: [],
-    appTemplates: [],
-    mcpServers: [],
-    scheduledTasks: null,
-  };
-}
 
 function Harness({ plugin }: { plugin: AppServerPluginDetail }) {
   const { t } = useTranslation("agent");
@@ -73,6 +39,7 @@ async function mount(plugin = detail()) {
     card.focus();
     card.click();
   });
+  await settle();
   return card;
 }
 function contents() {
@@ -85,6 +52,9 @@ function button(label: string) {
 }
 
 beforeEach(async () => {
+  // Flush query notifications with React's existing async act boundaries.
+  notifyManager.setScheduler(queueMicrotask);
+  skillPreviewQueryClient.clear();
   (
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -105,10 +75,86 @@ afterEach(async () => {
     root.unmount();
   });
   container.remove();
+  skillPreviewQueryClient.clear();
+  vi.useRealTimers();
+  notifyManager.setScheduler((callback) => setTimeout(callback, 0));
   vi.clearAllMocks();
 });
 
 describe("plugin skill preview", () => {
+  it("重开复用五分钟内正文，过期重开保留已有正文并读取新内容", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-18T00:00:00Z"));
+    mocks.read.mockResolvedValueOnce({ contents: "Cached body" });
+    const card = await mount();
+    expect(contents()?.textContent).toContain("Cached body");
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>("[aria-label=关闭]")!.click();
+    });
+    vi.setSystemTime(Date.now() + 299_999);
+    await act(async () => {
+      card.click();
+    });
+    expect(contents()?.textContent).toContain("Cached body");
+    expect(mocks.read).toHaveBeenCalledTimes(1);
+    vi.setSystemTime(Date.now() + 1);
+    await act(async () => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    expect(mocks.read).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      document.querySelector<HTMLButtonElement>("[aria-label=关闭]")!.click();
+    });
+    let resolve!: (result: { contents: string }) => void;
+    mocks.read.mockImplementationOnce(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    );
+    await act(async () => {
+      card.click();
+    });
+    expect(contents()?.textContent).toContain("Cached body");
+    expect(contents()?.querySelector("[role=status]")).toBeNull();
+    expect(mocks.read).toHaveBeenCalledTimes(2);
+    await act(async () => {
+      resolve({ contents: "Updated body" });
+    });
+    await settle();
+    expect(contents()?.textContent).toContain("Updated body");
+  });
+
+  it("A→B→A在同一批次也关闭预览，旧缓存不恢复", async () => {
+    mocks.read.mockResolvedValueOnce({ contents: "Private cached body" });
+    const card = await mount();
+    expect(contents()?.textContent).toContain("Private cached body");
+    await act(async () => {
+      await seedCloudAccount({
+        tenant: { id: "tenant" },
+        user: { id: "two" },
+        session: { id: "session-two" },
+      });
+      await seedCloudAccount({
+        tenant: { id: "tenant" },
+        user: { id: "one" },
+        session: { id: "session-one" },
+      });
+    });
+    expect(
+      document.querySelector("[data-testid=plugin-skill-preview]"),
+    ).toBeNull();
+    mocks.read.mockResolvedValueOnce({ contents: "New account lifetime" });
+    await act(async () => {
+      card.click();
+    });
+    await settle();
+    expect(contents()?.textContent).toContain("New account lifetime");
+    expect(document.body.textContent).not.toContain("Private cached body");
+    expect(mocks.read).toHaveBeenCalledTimes(2);
+  });
+
   it("未安装/未启用仍能读取远端授权正文，只在点击后读取，关闭恢复焦点", async () => {
     let resolve!: (result: { contents: string }) => void;
     mocks.read.mockImplementation(
@@ -152,8 +198,12 @@ describe("plugin skill preview", () => {
     expect(
       document.querySelector("[data-testid=plugin-skill-preview]"),
     ).toBeNull();
+    await act(async () => {
+      await vi.waitFor(() => expect(document.activeElement).toBe(card));
+    });
     expect(document.activeElement).toBe(card);
-    expect(signal.aborted).toBe(true);
+    // A settled query remains cached; closing only cancels a pending read.
+    expect(signal.aborted).toBe(false);
   });
 
   it.each([null, "", "---\nname: research\n---\n# Research\n"])(
@@ -167,7 +217,9 @@ describe("plugin skill preview", () => {
   );
 
   it("失败不伪造空正文，同技能可重试，优先本地path且本地失败不转远端", async () => {
-    mocks.file.mockRejectedValueOnce(new Error("private file error"));
+    mocks.file.mockRejectedValueOnce(
+      Object.assign(new Error("private file error"), { status: 403 }),
+    );
     mocks.file.mockResolvedValueOnce(
       new TextEncoder().encode("# Local\n\nLocal body"),
     );
@@ -186,7 +238,9 @@ describe("plugin skill preview", () => {
   });
 
   it("远端失败可重新读取，切换账号丢弃迟到正文", async () => {
-    mocks.read.mockRejectedValueOnce(new Error("HTTP 404"));
+    mocks.read.mockRejectedValueOnce(
+      Object.assign(new Error("HTTP 404"), { status: 404 }),
+    );
     let resolve!: (result: { contents: string }) => void;
     mocks.read.mockImplementationOnce(
       () =>
@@ -272,7 +326,9 @@ describe("plugin skill preview", () => {
     ["ko-KR", "스킬 내용을 불러올 수 없습니다.", "다시 시도"],
   ])("%s显示可操作的失败终态", async (locale, error, retry) => {
     await changeLimeLocale(locale as "zh-CN");
-    mocks.read.mockRejectedValue(new Error("HTTP 500"));
+    mocks.read.mockRejectedValue(
+      Object.assign(new Error("HTTP 403"), { status: 403 }),
+    );
     await mount();
     expect(document.querySelector("[role=alert]")?.textContent).toContain(
       error,

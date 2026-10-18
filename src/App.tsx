@@ -3,7 +3,7 @@
  *
  * 管理页面路由和全局状态
  * 支持静态页面和动态插件页面路由
- * 包含启动画面和全局图标侧边栏
+ * 包含启动画面、共享窗口页头和单侧栏
  *
  * _需求: 2.2, 3.2, 5.2_
  */
@@ -18,6 +18,7 @@ import { AppServerConfigWarningToastBridge } from "./components/AppServerConfigW
 import { ScheduledTaskNotificationBridge } from "./components/ScheduledTaskNotificationBridge";
 import { SplashScreen } from "./components/SplashScreen";
 import { AppSidebar } from "./components/AppSidebar";
+import { AppShell, AppShellHeader } from "./components/app-shell/AppShell";
 import { startupTracker } from "./lib/diagnostics/startupPerformance";
 import { preloadDefaultProject } from "./lib/api/project";
 import {
@@ -72,13 +73,15 @@ const AppContainer = styled.div`
   overflow: hidden;
 `;
 
-const MainContent = styled.main`
+const MainContent = styled.main<{ $pageSurface: boolean }>`
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
   min-width: 0;
+  margin: ${({ $pageSurface }) => ($pageSurface ? "44px 4px 4px 0" : "0")};
+  border-radius: ${({ $pageSurface }) => ($pageSurface ? "12px" : "0")};
   background: var(--lime-app-bg, hsl(var(--background)));
 `;
 
@@ -86,12 +89,12 @@ const WINDOW_DRAG_TOP_HEIGHT = 30;
 const WINDOW_DRAG_TOP_HANDLE_WIDTH = 360;
 const WINDOW_DRAG_EDGE_WIDTH = 8;
 const WINDOW_DRAG_DEFAULT_SAFE_LEFT = 160;
-const WINDOW_DRAG_MAC_SAFE_LEFT = 92;
+const WINDOW_DRAG_MAC_SAFE_LEFT = 136;
 
 const WindowDragLayer = styled.div`
   position: fixed;
   inset: 0;
-  z-index: 1000;
+  z-index: 1;
   pointer-events: none;
 `;
 
@@ -435,106 +438,110 @@ function AppContent() {
 
   return (
     <ComponentDebugProvider>
-      <AppContainer>
-        {hasDesktopHostRuntime ? (
-          <WindowDragLayer aria-hidden="true">
-            <WindowTopDragRegion
-              $reserveMacWindowControls={reserveMacWindowControls}
-              data-lime-window-drag-region
-              onMouseDown={handleWindowDragStart}
-            />
-            <WindowSideDragRegion
-              $side="left"
-              data-lime-window-drag-region
-              onMouseDown={handleWindowDragStart}
-            />
-            <WindowSideDragRegion
-              $side="right"
-              data-lime-window-drag-region
-              onMouseDown={handleWindowDragStart}
-            />
-          </WindowDragLayer>
-        ) : null}
-        {shouldShowAppSidebar && (
-          <AppSidebar
-            currentPage={currentPage}
-            currentPageParams={pageParams}
-            activeAgentSessionId={activeAgentSessionId}
-            activeAgentStreaming={activeAgentStreaming}
-            backgroundAgentSessionRuntime={backgroundAgentSessionRuntime}
-            requestedPage={requestedPage}
-            requestedPageParams={requestedPageParams}
-            onNavigate={handleNavigate}
-            onStartNewConversation={startNewConversation}
-            onStartWindowDrag={handleWindowDragStart}
-          />
-        )}
-        <MainContent
-          data-lime-window-drag-region
-          onMouseDown={(event) => {
-            void startWindowDragFromMouseEvent(event, {
-              allowDescendantTargets: false,
-              source: "main_content",
-            });
-          }}
-        >
-          <Suspense fallback={pageLoadingFallback}>
-            <AppPageContent
+      <AppShell>
+        <AppContainer>
+          <AppShellHeader reserveWindowControls={reserveMacWindowControls} />
+          {hasDesktopHostRuntime ? (
+            <WindowDragLayer aria-hidden="true">
+              <WindowTopDragRegion
+                $reserveMacWindowControls={reserveMacWindowControls}
+                data-lime-window-drag-region
+                onMouseDown={handleWindowDragStart}
+              />
+              <WindowSideDragRegion
+                $side="left"
+                data-lime-window-drag-region
+                onMouseDown={handleWindowDragStart}
+              />
+              <WindowSideDragRegion
+                $side="right"
+                data-lime-window-drag-region
+                onMouseDown={handleWindowDragStart}
+              />
+            </WindowDragLayer>
+          ) : null}
+          {shouldShowAppSidebar && (
+            <AppSidebar
               currentPage={currentPage}
-              pageParams={pageParams}
+              currentPageParams={pageParams}
+              activeAgentSessionId={activeAgentSessionId}
+              activeAgentStreaming={activeAgentStreaming}
+              backgroundAgentSessionRuntime={backgroundAgentSessionRuntime}
               requestedPage={requestedPage}
               requestedPageParams={requestedPageParams}
               onNavigate={handleNavigate}
               onStartNewConversation={startNewConversation}
-              onAgentHasMessagesChange={setAgentHasMessages}
-              onAgentLocationChange={reportAgentLocation}
-              onSettingsBack={returnFromSettings}
-              navigationGuard={navigationGuard}
-              onAgentStreamingChange={setActiveAgentStreaming}
-              onBackgroundSessionRuntimeChange={
-                handleBackgroundSessionRuntimeChange
-              }
+              onStartWindowDrag={handleWindowDragStart}
+            />
+          )}
+          <MainContent
+            $pageSurface={shouldShowAppSidebar}
+            data-lime-window-drag-region
+            onMouseDown={(event) => {
+              void startWindowDragFromMouseEvent(event, {
+                allowDescendantTargets: false,
+                source: "main_content",
+              });
+            }}
+          >
+            <Suspense fallback={pageLoadingFallback}>
+              <AppPageContent
+                currentPage={currentPage}
+                pageParams={pageParams}
+                requestedPage={requestedPage}
+                requestedPageParams={requestedPageParams}
+                onNavigate={handleNavigate}
+                onStartNewConversation={startNewConversation}
+                onAgentHasMessagesChange={setAgentHasMessages}
+                onAgentLocationChange={reportAgentLocation}
+                onSettingsBack={returnFromSettings}
+                navigationGuard={navigationGuard}
+                onAgentStreamingChange={setActiveAgentStreaming}
+                onBackgroundSessionRuntimeChange={
+                  handleBackgroundSessionRuntimeChange
+                }
+              />
+            </Suspense>
+          </MainContent>
+          <Suspense fallback={null}>
+            <RecentImageInsertFloating onNavigate={handleNavigate} />
+          </Suspense>
+
+          <Suspense fallback={null}>
+            <ConnectConfirmDialog
+              open={isDialogOpen}
+              relay={relayInfo}
+              relayId={connectPayload?.relay ?? ""}
+              apiKey={connectPayload?.key ?? ""}
+              keyName={connectPayload?.name}
+              isVerified={isVerified}
+              isSaving={isSaving}
+              error={error}
+              onConfirm={handleConfirm}
+              onCancel={handleCancel}
             />
           </Suspense>
-        </MainContent>
-        <Suspense fallback={null}>
-          <RecentImageInsertFloating onNavigate={handleNavigate} />
-        </Suspense>
 
-        <Suspense fallback={null}>
-          <ConnectConfirmDialog
-            open={isDialogOpen}
-            relay={relayInfo}
-            relayId={connectPayload?.relay ?? ""}
-            apiKey={connectPayload?.key ?? ""}
-            keyName={connectPayload?.name}
-            isVerified={isVerified}
-            isSaving={isSaving}
-            error={error}
-            onConfirm={handleConfirm}
-            onCancel={handleCancel}
-          />
-        </Suspense>
+          <Suspense fallback={null}>
+            <CreateProjectDialog
+              open={projectDialogOpen}
+              onOpenChange={(open) => {
+                setProjectDialogOpen(open);
+                if (!open) {
+                  setPendingRecommendation(null);
+                }
+              }}
+              onSubmit={handleCreateProjectFromRecommendation}
+              defaultType={pendingRecommendation?.projectType}
+              defaultName={pendingRecommendation?.projectName}
+            />
+          </Suspense>
 
-        <Suspense fallback={null}>
-          <CreateProjectDialog
-            open={projectDialogOpen}
-            onOpenChange={(open) => {
-              setProjectDialogOpen(open);
-              if (!open) {
-                setPendingRecommendation(null);
-              }
-            }}
-            onSubmit={handleCreateProjectFromRecommendation}
-            defaultType={pendingRecommendation?.projectType}
-            defaultName={pendingRecommendation?.projectName}
-          />
-        </Suspense>
-
-        <ComponentDebugOverlay />
-        <AppServerConfigWarningToastBridge />
-        <ScheduledTaskNotificationBridge />
-      </AppContainer>
+          <ComponentDebugOverlay />
+          <AppServerConfigWarningToastBridge />
+          <ScheduledTaskNotificationBridge />
+        </AppContainer>
+      </AppShell>
     </ComponentDebugProvider>
   );
 }

@@ -82,12 +82,7 @@ interface BuildWorkspaceEmptyStatePropsParams {
     ComponentProps<typeof EmptyState>["onThemeChange"]
   >;
   themeLocked: boolean;
-  hasCanvasContent: boolean;
-  hasContentId: boolean;
   selectedText: ComponentProps<typeof EmptyState>["selectedText"];
-  onRecommendationClick?: ComponentProps<
-    typeof EmptyState
-  >["onRecommendationClick"];
   characters: NonNullable<ComponentProps<typeof EmptyState>["characters"]>;
   skills: NonNullable<ComponentProps<typeof EmptyState>["skills"]>;
   serviceSkills: NonNullable<
@@ -111,25 +106,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
     typeof EmptyState
   >["onLaunchBrowserAssist"];
   browserAssistLoading: boolean;
-  recentSessionTitle?: ComponentProps<typeof EmptyState>["recentSessionTitle"];
-  recentSessionSummary?: ComponentProps<
-    typeof EmptyState
-  >["recentSessionSummary"];
-  recentSessionActionLabel?: ComponentProps<
-    typeof EmptyState
-  >["recentSessionActionLabel"];
-  homeRecoverySession?: ComponentProps<
-    typeof EmptyState
-  >["homeRecoverySession"];
-  onResumeRecentSession?: ComponentProps<
-    typeof EmptyState
-  >["onResumeRecentSession"];
-  projectConversationGroups?: ComponentProps<
-    typeof EmptyState
-  >["projectConversationGroups"];
-  onOpenProjectConversation?: ComponentProps<
-    typeof EmptyState
-  >["onOpenProjectConversation"];
   projectId: string | null;
   openedProjects?: ComponentProps<typeof EmptyState>["openedProjects"];
   sessionId?: string | null;
@@ -237,10 +213,7 @@ export function buildWorkspaceEmptyStateProps({
   activeTheme,
   onThemeChange,
   themeLocked,
-  hasCanvasContent,
-  hasContentId,
   selectedText,
-  onRecommendationClick,
   characters,
   skills,
   serviceSkills,
@@ -252,13 +225,6 @@ export function buildWorkspaceEmptyStateProps({
   onSkillSuggestionsNeeded,
   onLaunchBrowserAssist,
   browserAssistLoading,
-  recentSessionTitle,
-  recentSessionSummary,
-  recentSessionActionLabel,
-  homeRecoverySession,
-  onResumeRecentSession,
-  projectConversationGroups,
-  onOpenProjectConversation,
   projectId,
   openedProjects,
   onProjectChange,
@@ -333,10 +299,7 @@ export function buildWorkspaceEmptyStateProps({
       : (theme) => {
           onThemeChange?.(theme);
         },
-    hasCanvasContent,
-    hasContentId,
     selectedText,
-    onRecommendationClick,
     characters,
     skills,
     serviceSkills,
@@ -348,13 +311,6 @@ export function buildWorkspaceEmptyStateProps({
     onSkillSuggestionsNeeded,
     onLaunchBrowserAssist,
     browserAssistLoading,
-    recentSessionTitle,
-    recentSessionSummary,
-    recentSessionActionLabel,
-    homeRecoverySession,
-    onResumeRecentSession,
-    projectConversationGroups,
-    onOpenProjectConversation,
     projectId,
     openedProjects,
     onProjectContextChange: onProjectChange,

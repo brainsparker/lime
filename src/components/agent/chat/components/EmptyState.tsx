@@ -19,35 +19,23 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  buildRecommendationPrompt,
-  getContextualRecommendations,
-  isTeamRuntimeRecommendation,
-} from "../utils/contextualRecommendations";
+import { appendSelectedText } from "../utils/promptContext";
 import {
   buildCuratedTaskLaunchPrompt,
   buildCuratedTaskTemplateCopy,
   findCuratedTaskTemplateById,
-  listCuratedTaskTemplates,
   recordCuratedTaskTemplateUsage,
   replaceCuratedTaskLaunchPromptInInput,
-  subscribeCuratedTaskTemplateUsageChanged,
   type CuratedTaskInputValues,
   type CuratedTaskTemplateItem,
 } from "../utils/curatedTaskTemplates";
-import { subscribeCuratedTaskRecommendationSignalsChanged } from "../utils/curatedTaskRecommendationSignals";
 import type {
   CuratedTaskReferenceEntry,
   CuratedTaskReferenceSelection,
 } from "../utils/curatedTaskReferenceSelection";
 import { CuratedTaskLauncherDialog } from "./CuratedTaskLauncherDialog";
 import { EmptyStateComposerPanel } from "./EmptyStateComposerPanel";
-import { EmptyStateQuickActions } from "./EmptyStateQuickActions";
-import {
-  EmptyStateComposerFrame,
-  EmptyStatePrimaryStack,
-  EmptyStateLayout,
-} from "./EmptyStateLayout";
+import { EmptyStateComposerFrame, EmptyStateLayout } from "./EmptyStateLayout";
 import { buildSkillSelectionProps } from "../skill-selection/skillSelectionBindings";
 import { isGeneralResearchTheme } from "../utils/generalAgentPrompt";
 import type { MessagePathReference } from "../types";
@@ -62,20 +50,13 @@ import {
   type InputCapabilitySelection,
   type InputCapabilitySendRoute,
 } from "../skill-selection/inputCapabilitySelection";
-import { buildServiceSkillHomeCopy } from "../service-skills/homeCopy";
-import { HomeAmbientSuggestionsContent } from "../home/HomeAmbientSuggestionsContent";
 import { buildHomeSurfaceCopy } from "../home/homeSurfaceCopy";
 import { buildInputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import { buildInputbarToolPreferencesOverride } from "./Inputbar/utils/inputbarModeRequestMetadata";
-import {
-  buildEmptyStateQuickActionItems,
-  resolveEffectiveCuratedTaskReferences,
-} from "./EmptyStateViewModel";
+import { resolveEffectiveCuratedTaskReferences } from "./EmptyStateViewModel";
 import { useEmptyStateAttachments } from "./useEmptyStateAttachments";
 import { useEmptyStateRecommendationPreferences } from "./useEmptyStateRecommendationPreferences";
-import { useHomeSkillSurface } from "./useHomeSkillSurface";
 import { useCuratedTaskLauncherState } from "./useCuratedTaskLauncherState";
-import { useEmptyStateHomeActions } from "./useEmptyStateHomeActions";
 import type { AgentI18nKey, EmptyStateProps } from "./EmptyState.types";
 import {
   type BaseComposerSendMetadata,
@@ -103,7 +84,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onCreationModeChange,
   activeTheme = "general",
   onThemeChange,
-  onRecommendationClick,
   providerType,
   setProviderType,
   model,
@@ -119,8 +99,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onObjectiveEnabledChange: onObjectiveEnabledChangeProp,
   subagentEnabled = false,
   onSubagentEnabledChange,
-  hasCanvasContent = false,
-  hasContentId = false,
   selectedText = "",
   characters = [],
   skills,
@@ -133,13 +111,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onRefreshSkills,
   onSkillSuggestionsNeeded,
   onLaunchBrowserAssist,
-  recentSessionTitle = null,
-  recentSessionSummary = null,
-  recentSessionActionLabel,
-  homeRecoverySession = null,
-  onResumeRecentSession,
-  projectConversationGroups = [],
-  onOpenProjectConversation,
   projectId = null,
   openedProjects = [],
   onProjectContextChange,
@@ -273,10 +244,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   );
   const curatedTaskTemplateCopy = useMemo(
     () => buildCuratedTaskTemplateCopy(translateAgentCopyKey),
-    [translateAgentCopyKey],
-  );
-  const serviceSkillHomeCopy = useMemo(
-    () => buildServiceSkillHomeCopy(translateAgentCopyKey),
     [translateAgentCopyKey],
   );
   const skinCopy = useMemo(
@@ -461,12 +428,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     onRefreshSkills,
     onSkillSuggestionsNeeded,
   });
-  const [curatedTaskTemplatesVersion, setCuratedTaskTemplatesVersion] =
-    useState(0);
-  const [
-    curatedTaskRecommendationSignalsVersion,
-    setCuratedTaskRecommendationSignalsVersion,
-  ] = useState(0);
   const { appendSelectedTextToRecommendation } =
     useEmptyStateRecommendationPreferences();
   const {
@@ -485,18 +446,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     reviewSuggestionPrefillHint:
       homeSurfaceCopy.curatedTaskReviewSuggestionPrefillHint,
   });
-
-  useEffect(() => {
-    return subscribeCuratedTaskTemplateUsageChanged(() => {
-      setCuratedTaskTemplatesVersion((previous) => previous + 1);
-    });
-  }, []);
-
-  useEffect(() => {
-    return subscribeCuratedTaskRecommendationSignalsChanged(() => {
-      setCuratedTaskRecommendationSignalsVersion((previous) => previous + 1);
-    });
-  }, []);
 
   // 使用外部传入的 activeTheme，如果有 onThemeChange 则使用受控模式
   const handleThemeChange = useCallback(
@@ -565,53 +514,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     setActiveCapability,
     skills,
   ]);
-
-  const recommendationSelectedText = appendSelectedTextToRecommendation
-    ? selectedText
-    : "";
-
-  const currentRecommendations = useMemo(() => {
-    return getContextualRecommendations({
-      activeTheme,
-      input,
-      creationMode,
-      hasCanvasContent,
-      hasContentId,
-      selectedText: recommendationSelectedText,
-      subagentEnabled,
-    });
-  }, [
-    activeTheme,
-    input,
-    creationMode,
-    hasCanvasContent,
-    hasContentId,
-    recommendationSelectedText,
-    subagentEnabled,
-  ]);
-
-  const curatedTaskTemplates = useMemo(() => {
-    void curatedTaskTemplatesVersion;
-    void curatedTaskRecommendationSignalsVersion;
-    return listCuratedTaskTemplates(curatedTaskTemplateCopy);
-  }, [
-    curatedTaskRecommendationSignalsVersion,
-    curatedTaskTemplateCopy,
-    curatedTaskTemplatesVersion,
-  ]);
-
-  const selectedTextPreview = useMemo(() => {
-    const normalized = (recommendationSelectedText || "")
-      .trim()
-      .replace(/\s+/g, " ");
-    if (!normalized) {
-      return "";
-    }
-
-    return normalized.length > 56
-      ? `${normalized.slice(0, 56).trim()}…`
-      : normalized;
-  }, [recommendationSelectedText]);
 
   const handleSend = async (
     inputOverride = input,
@@ -825,38 +727,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     setInput(draft.text);
   };
 
-  const getPlaceholder = () => homeSurfaceCopy.composerPlaceholder;
-
-  const handleApplyRecommendation = useCallback(
-    (shortLabel: string, fullPrompt: string) => {
-      const looksLikeTeamRuntimePrompt =
-        activeTheme === "general" &&
-        isTeamRuntimeRecommendation(shortLabel, fullPrompt);
-      if (looksLikeTeamRuntimePrompt) {
-        onSubagentEnabledChange?.(true);
-      }
-
-      const promptWithSelection = buildRecommendationPrompt(
-        fullPrompt,
-        selectedText,
-        appendSelectedTextToRecommendation,
-      );
-      if (onRecommendationClick) {
-        onRecommendationClick(shortLabel, promptWithSelection);
-        return;
-      }
-      setComposerText(promptWithSelection);
-    },
-    [
-      activeTheme,
-      appendSelectedTextToRecommendation,
-      onRecommendationClick,
-      onSubagentEnabledChange,
-      selectedText,
-      setComposerText,
-    ],
-  );
-
   const handleCuratedTaskLauncherRequest = useCallback(
     (
       template: CuratedTaskTemplateItem,
@@ -901,7 +771,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         referenceMemoryIds: referenceSelection.referenceMemoryIds,
         referenceEntries: referenceSelection.referenceEntries,
       });
-      setCuratedTaskTemplatesVersion((previous) => previous + 1);
       resetCuratedTaskLauncher();
 
       if (template.shouldEnableTeamMode && !subagentEnabled) {
@@ -924,7 +793,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         inputValues,
         referenceEntries: referenceSelection.referenceEntries,
       });
-      const nextPrompt = buildRecommendationPrompt(
+      const nextPrompt = appendSelectedText(
         launchPrompt,
         selectedText,
         appendSelectedTextToRecommendation,
@@ -965,72 +834,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     ],
   );
 
-  const quickActionItems = useMemo(
-    () =>
-      buildEmptyStateQuickActionItems({
-        activeTheme,
-        recommendations: currentRecommendations,
-        resolveBadge: homeSurfaceCopy.quickActions.badge,
-      }),
-    [activeTheme, currentRecommendations, homeSurfaceCopy.quickActions],
-  );
-
-  const quickStartPresets = homeSurfaceCopy.quickActions.presets;
-
-  const {
-    guideCards: homeGuideCards,
-    serviceSkillItems: homeServiceSkillItems,
-    skillItems: homeSkillItems,
-    skillSections: homeSkillSections,
-    starterChips: homeStarterChips,
-  } = useHomeSkillSurface({
-    copy: homeSurfaceCopy,
-    curatedTasks: curatedTaskTemplates,
-    installedSkills: skillSelection.skills ?? [],
-    serviceSkillHomeCopy,
-    serviceSkills: serviceSkills ?? [],
-  });
-  const handleOpenKnowledgeHub = useCallback(
-    () => setKnowledgeHubOpenRequestKey((current) => current + 1),
-    [],
-  );
-  const {
-    guideHelpActive,
-    guideHelpLabel,
-    handleSelectHomeGuideCard,
-    handleSelectHomeSkillItem,
-    handleSelectHomeStarterChip,
-    homeSupplementalActions,
-    setGuideHelpActive,
-  } = useEmptyStateHomeActions({
-    curatedTaskTemplateCopy,
-    effectiveDefaultCuratedTaskReferenceEntries,
-    effectiveDefaultCuratedTaskReferenceMemoryIds,
-    guideHelpContextLabel: homeSurfaceCopy.guideHelpContextLabel,
-    guideHelpContextLabelWithStarter:
-      homeSurfaceCopy.guideHelpContextLabelWithStarter,
-    handleCuratedTaskLauncherRequest,
-    handleSelectInputCapability,
-    homeServiceSkillItems,
-    homeSkillItems,
-    homeStarterChips,
-    isGeneralTheme,
-    knowledgePackSelection,
-    onManageKnowledgePacks,
-    onOpenKnowledgeHub: handleOpenKnowledgeHub,
-    onResumeRecentSession,
-    onStartKnowledgeOrganize,
-    recentSessionActionLabel,
-    recentSessionDefaultActionLabel:
-      homeSurfaceCopy.chrome.recentSessionDefaultActionLabel,
-    recentSessionSummary,
-    recentSessionTitle,
-    serviceSkills,
-    setActiveCapability,
-    setInput: setComposerText,
-    skillSelectionSkills: skillSelection.skills,
-  });
-
   const handleStop = useCallback(() => {
     onStop?.();
   }, [onStop]);
@@ -1042,11 +845,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         setInput={setComposerText}
         controller={composerController}
         onHistoryRecall={handleComposerHistoryRecall}
-        placeholder={
-          guideHelpActive
-            ? homeSurfaceCopy.guideHelpPlaceholder
-            : getPlaceholder()
-        }
+        placeholder={homeSurfaceCopy.composerPlaceholder}
         onSend={handleSend}
         onStop={handleStop}
         sendOnPointerDown={sendOnPointerDown}
@@ -1140,62 +939,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         onRemovePathReference={handleRemovePathReference}
         fileManagerOpen={fileManagerOpen}
         onToggleFileManager={onToggleFileManager}
-        guideHelpActive={guideHelpActive}
-        guideHelpLabel={guideHelpLabel}
-        onClearGuideHelp={() => setGuideHelpActive(false)}
       />
     </EmptyStateComposerFrame>
   );
 
-  const defaultQuickActionsPanel = (
-    <EmptyStateQuickActions
-      title={homeSurfaceCopy.quickActions.title}
-      description={homeSurfaceCopy.quickActions.description}
-      selectedTextPreview={selectedTextPreview}
-      presets={quickStartPresets}
-      items={quickActionItems}
-      embedded
-      onPresetAction={(item) =>
-        handleApplyRecommendation(item.label, item.prompt)
-      }
-      onAction={(item) => handleApplyRecommendation(item.title, item.prompt)}
-    />
-  );
-
-  const homeStartSurfacePanel = (
-    <HomeAmbientSuggestionsContent
-      starterChips={homeStarterChips}
-      copy={homeSurfaceCopy.chrome}
-      guideCards={homeGuideCards}
-      guideOpen={guideHelpActive}
-      recoverySession={homeRecoverySession}
-      sections={homeSkillSections}
-      conversationGroups={projectConversationGroups}
-      supplementalActions={homeSupplementalActions}
-      onGuideOpenChange={setGuideHelpActive}
-      onSelectRecoverySession={onResumeRecentSession}
-      onSelectConversation={onOpenProjectConversation}
-      onSelectStarterChip={handleSelectHomeStarterChip}
-      onSelectGuideCard={handleSelectHomeGuideCard}
-      onSelectSkillItem={handleSelectHomeSkillItem}
-    />
-  );
-
-  const priorityPanel = isGeneralTheme ? (
-    <EmptyStatePrimaryStack>
-      {composerPanel}
-      {homeStartSurfacePanel}
-    </EmptyStatePrimaryStack>
-  ) : (
-    composerPanel
-  );
-
   return (
-    <EmptyStateLayout
-      heroCopy={homeSurfaceCopy.hero}
-      prioritySlot={priorityPanel}
-      supportingSlot={isGeneralTheme ? null : defaultQuickActionsPanel}
-    >
+    <EmptyStateLayout heroCopy={homeSurfaceCopy.hero} composer={composerPanel}>
       <CuratedTaskLauncherDialog
         open={Boolean(curatedTaskLauncherTask)}
         task={curatedTaskLauncherTask}

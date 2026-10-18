@@ -4022,7 +4022,7 @@
       "includePathPrefixes": [
         "src/components/agent/chat/components/EmptyState.tsx",
         "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
-        "src/components/agent/chat/utils/contextualRecommendations.ts"
+        "src/components/agent/chat/utils/promptContext.ts"
       ],
       "allowedPaths": []
     },

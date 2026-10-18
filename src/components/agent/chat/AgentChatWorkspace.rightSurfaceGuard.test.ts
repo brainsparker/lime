@@ -348,7 +348,7 @@ describe("AgentChatWorkspace right surface state boundary", () => {
       "useWorkspaceRightSurfaceCompositionRuntime({",
     );
     const compositionCallEnd = sceneCompositionSource.indexOf(
-      "const { homeRecoverySession",
+      "useWorkspaceBackgroundSessionRuntime",
       compositionCallStart,
     );
     expect(compositionCallStart).toBeGreaterThanOrEqual(0);

@@ -300,6 +300,13 @@ export function createElectronSmokeRunner(
         stage = "contract-assertions";
         const summary = await writeSummary(null);
         if (summary.result !== "pass") {
+          console.error(
+            "[electron-smoke] failed assertion evidence:",
+            JSON.stringify({
+              failed: summary.assertions.failed,
+              layout: layoutEvidence,
+            }),
+          );
           throw new Error(
             `electron smoke contract failed: ${summary.assertions.failed.join(", ")}`,
           );

@@ -271,5 +271,6 @@
   "navigation.sidebar.customization.installed": "已安裝",
   "navigation.sidebar.customization.loading": "正在載入外掛…",
   "navigation.sidebar.customization.error": "暫時無法讀取已安裝外掛",
-  "navigation.sidebar.customization.empty": "尚無已安裝外掛"
+  "navigation.sidebar.customization.empty": "尚無已安裝外掛",
+  "navigation.sidebar.landmark": "應用程式導覽"
 }

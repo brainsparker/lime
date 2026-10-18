@@ -1,35 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 
-export function respondPluginSkill({ request, response, url, index, state }) {
-  if (
-    !url.pathname.endsWith(
-      `/client/ps/plugins/opaque~${index}/skills/research-skill`,
-    )
-  )
-    return false;
-  assert.equal(request.method, "GET");
-  assert.equal(url.searchParams.get("includeDownloadUrls"), "false");
-  state.requests += 1;
-  const body =
-    state.mode === "empty"
-      ? null
-      : "---\r\nname: research-skill\r\n---\r\n# Skill title\r\n\r\n## Remote instructions\r\n**Verified skill body**\r\n";
-  response.statusCode = state.mode === "error" ? 404 : 200;
-  response.end(
-    JSON.stringify(
-      state.mode === "error"
-        ? { message: "private issuer error" }
-        : {
-            plugin_id: `opaque~${index}`,
-            name: "research-skill",
-            skill_md_contents: body,
-          },
-    ),
-  );
-  return true;
-}
-
 export async function exercisePluginSkillPreview({
   page,
   state,
@@ -65,6 +36,19 @@ export async function exercisePluginSkillPreview({
     state.mode = "ready";
     await card.click();
     await body
+      .getByText(/暂无可用指令|No instructions available yet/)
+      .waitFor();
+    assert.equal(
+      state.requests - requestsBefore,
+      5,
+      "successful null must stay cached on reopen",
+    );
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached" });
+    const beforeShift = await page.evaluate(() => Date.now());
+    await page.clock.setSystemTime(beforeShift + 5 * 60 * 1000 + 1);
+    await card.click();
+    await body
       .getByRole("heading", { name: "Remote instructions", exact: true })
       .waitFor();
     await body.getByText("Verified skill body", { exact: true }).waitFor();
@@ -75,9 +59,22 @@ export async function exercisePluginSkillPreview({
     );
     assert.equal(
       state.requests - requestsBefore,
-      3,
-      "failure, retry, and reopen must each read the current authorized body",
+      6,
+      "untyped RPC failure retries three times, manual retry and stale reopen each read once",
     );
+    await page.keyboard.press("Escape");
+    await dialog.waitFor({ state: "detached" });
+    await card.click();
+    await body.getByText("Verified skill body", { exact: true }).waitFor();
+    assert.equal(
+      state.requests - requestsBefore,
+      6,
+      "fresh Markdown must stay cached on reopen",
+    );
+    await page.clock.setSystemTime(Date.now());
+    checks.skillPreviewFiveMinuteCache = true;
+    checks.skillPreviewClock =
+      "renderer Date advanced 300001ms; timers were not triggered";
     checks.remoteSkillErrorRetryEmptyMarkdown = true;
   }
   await page.screenshot({

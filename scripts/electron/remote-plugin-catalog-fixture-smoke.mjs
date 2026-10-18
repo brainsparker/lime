@@ -1,14 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import http from "node:http";
 import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
-import nodeAssert from "node:assert/strict";
-import { remotePluginBundle } from "./lib/remote-plugin-bundle-fixture.mjs";
-import {
-  respondPluginSkill,
-  exercisePluginSkillPreview,
-} from "./lib/plugin-skill-preview-scenario.mjs";
+import { exercisePluginSkillPreview } from "./lib/plugin-skill-preview-scenario.mjs";
+import { createRemotePluginIssuer } from "./lib/remote-plugin-catalog-issuer.mjs";
 import {
   ensureElectronFixtureBuild,
   inspectElectronFixtureBuildFreshness,
@@ -61,6 +56,7 @@ const bundleRequests = [];
 const rendererRequests = [];
 const consoleErrors = [];
 const pageErrors = [];
+const issuerErrors = [];
 const methods = new Set();
 const pluginRpcObservations = [];
 const checks = {};
@@ -78,6 +74,7 @@ const summary = {
   rendererRequests,
   consoleErrors,
   pageErrors,
+  issuerErrors,
 };
 let handle;
 let peer;
@@ -143,199 +140,20 @@ const plugin = (index) => ({
 });
 const installedAccounts = new Set();
 const skillPreview = { requests: 0, mode: "ready" };
-const issuer = http.createServer(async (request, response) => {
-  const url = new URL(request.url, "http://fixture.test");
-  if (url.pathname.startsWith("/signed-bundle/")) {
-    const index = Number(url.pathname.split("/").at(-1));
-    const accountHeaders = Boolean(
-      request.headers.authorization || request.headers.cookie,
-    );
-    const renderer = Boolean(
-      request.headers.origin || request.headers["sec-fetch-mode"],
-    );
-    bundleRequests.push({ index, accountHeaders, renderer });
-    if (
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index > 1 ||
-      accountHeaders ||
-      renderer
-    ) {
-      response.writeHead(400).end();
-      return;
-    }
-    response.setHeader("Content-Type", "application/gzip");
-    response.end(
-      remotePluginBundle(
-        index,
-        remoteScope === "GLOBAL" ? "bundle-version" : "1.0.0",
-      ),
-    );
-    return;
-  }
-  if (!url.pathname.startsWith("/api/")) {
-    if (url.pathname === "/oem-runtime-config.js") {
-      response.setHeader("Content-Type", "application/javascript");
-      response.end(
-        `window.__LIME_OEM_CLOUD__ = ${JSON.stringify({ enabled: true, baseUrl, tenantId: tenant })};`,
-      );
-      return;
-    }
-    const root = path.resolve("dist");
-    const file = path.resolve(
-      root,
-      `.${url.pathname === "/" ? "/index.html" : url.pathname}`,
-    );
-    if (
-      !file.startsWith(`${root}${path.sep}`) ||
-      !fs.existsSync(file) ||
-      !fs.statSync(file).isFile()
-    ) {
-      response.writeHead(404).end();
-      return;
-    }
-    response.setHeader(
-      "Content-Type",
-      {
-        ".html": "text/html",
-        ".js": "application/javascript",
-        ".css": "text/css",
-        ".svg": "image/svg+xml",
-        ".json": "application/json",
-        ".png": "image/png",
-        ".woff2": "font/woff2",
-      }[path.extname(file)] || "application/octet-stream",
-    );
-    fs.createReadStream(file).pipe(response);
-    return;
-  }
-  response.setHeader("Content-Type", "application/json");
-  response.setHeader("Access-Control-Allow-Origin", "*");
-  const index = tokens.indexOf(
-    String(request.headers.authorization || "").replace(/^Bearer /, ""),
-  );
-  observations.push({
-    path: url.pathname,
-    query: url.search,
-    authenticated: index >= 0,
-    renderer: Boolean(
-      request.headers.origin || request.headers["sec-fetch-mode"],
-    ),
-  });
-  if (url.pathname.endsWith("/client/auth-catalog")) {
-    response.end(
-      JSON.stringify({
-        code: 200,
-        data: {
-          items: [],
-          authPolicy: { required: false, startupTrigger: "none" },
-        },
-      }),
-    );
-    return;
-  }
-  if (index < 0) {
-    response.writeHead(401).end(
-      JSON.stringify({
-        code: 401,
-        message: "fixture authentication required",
-      }),
-    );
-    return;
-  }
-  if (url.pathname.endsWith("/client/ps/plugins/installed")) {
-    nodeAssert.equal(request.method, "GET");
-    nodeAssert.equal(url.searchParams.get("includeDownloadUrls"), "true");
-    response.end(
-      JSON.stringify({
-        plugins: installedAccounts.has(index)
-          ? [{ ...plugin(index), enabled: true }]
-          : [],
-        pagination: { next_page_token: null },
-      }),
-    );
-    return;
-  }
-  if (url.pathname.endsWith("/client/ps/plugins/list")) {
-    response.end(
-      JSON.stringify({
-        plugins:
-          url.searchParams.get("scope") === remoteScope ? [plugin(index)] : [],
-        pagination: { next_page_token: null },
-      }),
-    );
-    return;
-  }
-  if (
-    url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/install`) ||
-    url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/uninstall`)
-  ) {
-    nodeAssert.equal(request.method, "POST", "remote mutations must use POST");
-    const installing = url.pathname.endsWith("/install");
-    nodeAssert.equal(
-      url.searchParams.get("includeAppsNeedingAuth"),
-      installing ? "true" : null,
-      "install must request the server's app authorization facts",
-    );
-    let body = "";
-    for await (const chunk of request) body += chunk.toString();
-    if (body) {
-      const payload = JSON.parse(body);
-      nodeAssert.deepEqual(Object.keys(payload), ["install_attempt_id"]);
-    }
-    if (installing) installedAccounts.add(index);
-    else installedAccounts.delete(index);
-    response.end(
-      JSON.stringify({ id: `opaque~${index}`, enabled: installing }),
-    );
-    return;
-  }
-  if (
-    respondPluginSkill({ request, response, url, index, state: skillPreview })
-  )
-    return;
-  if (url.pathname.includes("/client/ps/plugins/")) {
-    assert(
-      url.pathname.endsWith(`/opaque~${index}`),
-      "GUI must send the opaque service ID",
-    );
-    assert(
-      ["false", "true"].includes(url.searchParams.get("includeDownloadUrls")),
-      "detail must declare its download URL requirement",
-    );
-    response.end(JSON.stringify(plugin(index)));
-    return;
-  }
-  const data = url.pathname.endsWith("/client/session")
-    ? profile(index)
-    : url.pathname.endsWith("/client/bootstrap")
-      ? {
-          session: profile(index),
-          providerOffersSummary: [],
-          providerPreference: {
-            tenantId: tenant,
-            userId: `user-${index}`,
-            providerSource: "local",
-            providerKey: "fixture",
-            needsValidation: false,
-          },
-          sceneCatalog: [],
-          features: {},
-          gateway: { basePath: "/gateway-api" },
-        }
-      : url.pathname.endsWith("/client/cloud-activation")
-        ? {
-            gateway: { basePath: "/gateway-api" },
-            readiness: {
-              status: "ready",
-              title: "Fixture ready",
-              canInvoke: false,
-              blockers: [],
-              steps: [],
-            },
-          }
-        : { items: [] };
-  response.end(JSON.stringify({ code: 200, data }));
+const issuer = createRemotePluginIssuer({
+  rootDir: process.cwd(),
+  evidenceDir,
+  tokens,
+  tenant,
+  remoteScope,
+  getBaseUrl: () => baseUrl,
+  profile,
+  plugin,
+  installedAccounts,
+  skillPreview,
+  observations,
+  bundleRequests,
+  issuerErrors,
 });
 
 function artifactDigest() {
@@ -380,7 +198,11 @@ async function launch(appServerEnv) {
 
 async function visible(index, stage, installed = false) {
   const { page } = handle;
-  await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
+  await page
+    .locator(
+      '[data-testid="app-sidebar-nav-plugins"], [data-testid="app-sidebar-customization-plugins"]',
+    )
+    .click();
   await page
     .locator(
       `[data-testid="plugin-catalog-card-research-${index}@${marketplace}"]`,
@@ -767,6 +589,7 @@ try {
     consoleErrors.length === 0 && pageErrors.length === 0,
     "Electron errors",
   );
+  assert(issuerErrors.length === 0, "controlled issuer rejected a request");
   summary.artifactsAfter = artifactDigest();
   assert(
     JSON.stringify(summary.artifactsBefore) ===

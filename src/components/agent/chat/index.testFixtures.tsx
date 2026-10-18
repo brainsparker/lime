@@ -150,7 +150,7 @@ const {
       data-session-id={props?.sessionId ?? ""}
     >
       {props?.activeTheme === "general" ? (
-        <div data-testid="home-ambient-suggestions" />
+        <div data-testid="home-composer-page" />
       ) : null}
       {props?.input || ""}
     </div>
@@ -1592,7 +1592,7 @@ beforeEach(async () => {
       data-session-id={props?.sessionId ?? ""}
     >
       {props?.activeTheme === "general" ? (
-        <div data-testid="home-ambient-suggestions" />
+        <div data-testid="home-composer-page" />
       ) : null}
       {props?.input || ""}
     </div>

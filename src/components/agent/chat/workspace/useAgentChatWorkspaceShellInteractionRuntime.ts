@@ -13,7 +13,6 @@ import { useWorkspaceCanvasSurfaceRuntime } from "./useWorkspaceCanvasSurfaceRun
 import type { useWorkspaceContextSurfaceRuntime } from "./useWorkspaceContextSurfaceRuntime";
 import type { useWorkspaceGeneralWorkbenchRuntime } from "./useWorkspaceGeneralWorkbenchRuntime";
 import type { useWorkspaceImageWorkbenchSessionRuntime } from "./useWorkspaceImageWorkbenchSessionRuntime";
-import type { useWorkspaceOpenedProjectsRuntime } from "./useWorkspaceOpenedProjectsRuntime";
 import { useWorkspaceTaskCenterInteractionRuntime } from "./useWorkspaceTaskCenterInteractionRuntime";
 import { useWorkspaceTaskCenterSurfaceRuntime } from "./useWorkspaceTaskCenterSurfaceRuntime";
 
@@ -29,9 +28,6 @@ type ArtifactCanvasRuntime = ReturnType<
 type ImageWorkbenchSessionRuntime = ReturnType<
   typeof useWorkspaceImageWorkbenchSessionRuntime
 >;
-type OpenedProjectsRuntime = ReturnType<
-  typeof useWorkspaceOpenedProjectsRuntime
->;
 type GeneralWorkbenchRuntime = ReturnType<
   typeof useWorkspaceGeneralWorkbenchRuntime
 >;
@@ -46,7 +42,6 @@ interface UseAgentChatWorkspaceShellInteractionRuntimeParams {
   contextSurfaceRuntime: ContextSurfaceRuntime;
   artifactCanvasRuntime: ArtifactCanvasRuntime;
   imageWorkbenchSessionRuntime: ImageWorkbenchSessionRuntime;
-  openedProjects: OpenedProjectsRuntime["openedProjects"];
   documentEditorFocusedRef: GeneralWorkbenchRuntime["documentEditorFocusedRef"];
   soulInteractionCopy: ReturnType<typeof useSoulInteractionCopy>;
   activeSessionIdRef: MutableRefObject<string | null>;
@@ -79,7 +74,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
   contextSurfaceRuntime,
   artifactCanvasRuntime,
   imageWorkbenchSessionRuntime,
-  openedProjects,
   documentEditorFocusedRef,
   soulInteractionCopy,
   activeSessionIdRef,
@@ -126,7 +120,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
     messages,
     newChatAt,
     normalizedInitialSessionId,
-    projectId,
     queuedTurnCount,
     replaceTaskCenterOpenTabs,
     sessionId,
@@ -309,8 +302,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
         normalizedInitialSessionId,
         onToggleWorkbench: canvasSurfaceRuntime.handleToggleCanvas,
         openTabIds: taskCenterOpenTabIds,
-        openedProjects,
-        projectId,
         queuedTurnsLength: queuedTurnCount,
         renamePromptLabel,
         renameTopic,

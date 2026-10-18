@@ -61,7 +61,6 @@ export interface AgentChatWorkspaceProps {
   newConversationRequest?: import("@/lib/workspace/navigation").NewConversationRequest;
   onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   expertAgentLaunch?: ExpertAgentLaunchParams;
-  onRecommendationClick?: (shortLabel: string, fullPrompt: string) => void;
   onHasMessagesChange?: (hasMessages: boolean) => void;
   onLocationChange?: (location: AgentLocation) => void;
   onAgentStreamingChange?: (isStreaming: boolean) => void;

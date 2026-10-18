@@ -8,17 +8,19 @@ import {
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 520;
 
-function constrainWidth(width: number) {
+function constrainWidth(width: number, minimumWidth = MIN_WIDTH) {
   return Math.round(
-    Math.max(MIN_WIDTH, Math.min(width, MAX_WIDTH, window.innerWidth - 320)),
+    Math.max(minimumWidth, Math.min(width, MAX_WIDTH, window.innerWidth - 320)),
   );
 }
 
 export function SidebarResizeHandle({
   width,
   onWidthChange,
+  minimumWidth = MIN_WIDTH,
 }: {
   width: number;
+  minimumWidth?: number;
   onWidthChange: (width: number) => void;
 }) {
   const { t } = useTranslation("navigation");
@@ -26,7 +28,7 @@ export function SidebarResizeHandle({
   const currentWidth = useRef(width);
   currentWidth.current = width;
   const commit = (nextWidth: number) => {
-    const constrained = constrainWidth(nextWidth);
+    const constrained = constrainWidth(nextWidth, minimumWidth);
     onWidthChange(constrained);
     window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(constrained));
   };
@@ -48,12 +50,12 @@ export function SidebarResizeHandle({
       tabIndex={0}
       aria-label={String(t("navigation.sidebar.actions.resize"))}
       aria-orientation="vertical"
-      aria-valuemin={MIN_WIDTH}
+      aria-valuemin={minimumWidth}
       aria-valuemax={Math.max(
-        MIN_WIDTH,
+        minimumWidth,
         Math.min(MAX_WIDTH, window.innerWidth - 320),
       )}
-      aria-valuenow={constrainWidth(width)}
+      aria-valuenow={constrainWidth(width, minimumWidth)}
       data-testid="app-sidebar-resize"
       className="absolute inset-y-0 -right-1 z-40 w-2 cursor-col-resize touch-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
       onPointerDown={(event) => {
@@ -66,7 +68,7 @@ export function SidebarResizeHandle({
         if (drag.current?.pointerId !== event.pointerId) return;
         const left =
           event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
-        onWidthChange(constrainWidth(event.clientX - left));
+        onWidthChange(constrainWidth(event.clientX - left, minimumWidth));
       }}
       onPointerUp={(event) => finishDrag(event, false)}
       onPointerCancel={(event) => finishDrag(event, true)}
@@ -79,7 +81,7 @@ export function SidebarResizeHandle({
             : event.key === "ArrowRight"
               ? width + 8
               : event.key === "Home"
-                ? MIN_WIDTH
+                ? minimumWidth
                 : event.key === "End"
                   ? MAX_WIDTH
                   : null;

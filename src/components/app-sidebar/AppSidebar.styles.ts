@@ -6,8 +6,6 @@ export const Container = styled.aside<{
   $themeMode: "light" | "dark";
   $reserveWindowControls?: boolean;
 }>`
-  --sidebar-window-control-safe-top: ${({ $reserveWindowControls }) =>
-    $reserveWindowControls ? "46px" : "0px"};
   --sidebar-surface-top: ${({ $themeMode }) =>
     $themeMode === "dark"
       ? "#15202b"
@@ -71,21 +69,21 @@ export const Container = styled.aside<{
   display: flex;
   width: ${({ $collapsed }) =>
     $collapsed
-      ? "0px"
-      : `clamp(240px, var(--sidebar-preferred-width, ${APP_SIDEBAR_WIDTH}px), min(520px, calc(100vw - 320px)))`};
-  min-width: ${({ $collapsed }) => ($collapsed ? "0px" : "240px")};
+      ? "52px"
+      : `clamp(290px, var(--sidebar-preferred-width, ${APP_SIDEBAR_WIDTH}px), min(520px, calc(100vw - 320px)))`};
+  min-width: ${({ $collapsed }) => ($collapsed ? "52px" : "290px")};
   flex-shrink: 0;
-  height: 100vh;
+  height: calc(100vh - 48px);
+  margin-top: 44px;
   position: relative;
   isolation: isolate;
-  z-index: 30;
+  z-index: 20;
   background: var(--sidebar-surface);
   &[data-collapsed="true"] + main {
     --lime-thread-header-leading: ${({ $reserveWindowControls }) =>
       $reserveWindowControls ? "136px" : "48px"};
   }
-  border-right: ${({ $collapsed }) =>
-    $collapsed ? "none" : "1px solid var(--sidebar-border)"};
+  border-right: none;
   transition:
     width 180ms ease,
     min-width 180ms ease,
@@ -93,15 +91,13 @@ export const Container = styled.aside<{
 `;
 
 export const SidebarSurface = styled.div<{ $collapsed?: boolean }>`
-  width: 100%;
+  flex: 1;
+  width: 0;
   display: ${({ $collapsed }) => ($collapsed ? "none" : "flex")};
   min-width: 0;
   min-height: 0;
   flex-direction: column;
-  padding: ${({ $collapsed }) =>
-    $collapsed
-      ? "0"
-      : "calc(4px + var(--sidebar-window-control-safe-top)) 8px 8px"};
+  padding: ${({ $collapsed }) => ($collapsed ? "0" : "0 8px 8px")};
   overflow: hidden;
   background: var(--sidebar-surface);
 `;
@@ -117,7 +113,7 @@ export const HeaderTopRow = styled.div<{ $collapsed?: boolean }>`
   display: flex;
   align-items: center;
   gap: 2px;
-  min-height: 32px;
+  min-height: 52px;
   ${({ $collapsed }) =>
     $collapsed
       ? `
@@ -129,7 +125,7 @@ export const HeaderTopRow = styled.div<{ $collapsed?: boolean }>`
 export const UserButton = styled.button<{ $collapsed?: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 4px;
   width: ${({ $collapsed }) => ($collapsed ? "38px" : "100%")};
   min-width: 0;
   flex: ${({ $collapsed }) => ($collapsed ? "0 0 auto" : "1 1 auto")};
@@ -150,25 +146,9 @@ export const UserButton = styled.button<{ $collapsed?: boolean }>`
   }
 `;
 
-export const Avatar = styled.div`
-  width: 24px;
-  height: 24px;
-  border-radius: 7px;
-  overflow: visible;
-  flex-shrink: 0;
-
-  img {
-    width: 100%;
-    height: 100%;
-    display: block;
-    object-fit: contain;
-  }
-`;
-
 export const UserName = styled.div<{ $collapsed?: boolean }>`
-  flex: 1;
   font-size: 14px;
-  font-weight: 650;
+  font-weight: 600;
   text-align: left;
   white-space: nowrap;
   overflow: hidden;
@@ -563,7 +543,9 @@ export const NavButton = styled.button<{
   background: ${({ $active }) =>
     $active ? "var(--sidebar-active)" : "transparent"};
   color: ${({ $active }) =>
-    $active ? "var(--sidebar-active-foreground)" : "var(--sidebar-muted)"};
+    $active
+      ? "var(--sidebar-active-foreground)"
+      : "var(--sidebar-muted, var(--lime-text-muted, hsl(var(--muted-foreground))))"};
   cursor: pointer;
   transition:
     background-color 0.18s ease,
@@ -573,22 +555,6 @@ export const NavButton = styled.button<{
   justify-content: ${({ $collapsed }) =>
     $collapsed ? "center" : "flex-start"};
   box-shadow: none;
-
-  &::before {
-    content: "";
-    position: absolute;
-    left: ${({ $collapsed }) => ($collapsed ? "5px" : "4px")};
-    top: 50%;
-    width: 3px;
-    height: ${({ $active }) => ($active ? "18px" : "0")};
-    border-radius: 999px;
-    background: var(--sidebar-active-foreground);
-    opacity: ${({ $active }) => ($active ? 0.72 : 0)};
-    transform: translateY(-50%);
-    transition:
-      height 0.18s ease,
-      opacity 0.18s ease;
-  }
 
   &:hover {
     background: ${({ $active }) =>
@@ -645,7 +611,9 @@ export const IconActionButton = styled.button<{ $active?: boolean }>`
   background: ${({ $active }) =>
     $active ? "var(--sidebar-active)" : "transparent"};
   color: ${({ $active }) =>
-    $active ? "var(--sidebar-active-foreground)" : "var(--sidebar-muted)"};
+    $active
+      ? "var(--sidebar-active-foreground)"
+      : "var(--sidebar-muted, var(--lime-text-muted, hsl(var(--muted-foreground))))"};
   cursor: pointer;
   transition:
     background-color 0.18s ease,
@@ -682,7 +650,9 @@ export const HeaderInviteButton = styled.button<{
   background: ${({ $active }) =>
     $active ? "var(--sidebar-hover)" : "transparent"};
   color: ${({ $active }) =>
-    $active ? "var(--sidebar-foreground)" : "var(--sidebar-muted)"};
+    $active
+      ? "var(--sidebar-foreground)"
+      : "var(--sidebar-muted, var(--lime-text-muted, hsl(var(--muted-foreground))))"};
   opacity: ${({ $active }) => ($active ? 0.86 : 0.68)};
   cursor: pointer;
   flex: 0 0 auto;

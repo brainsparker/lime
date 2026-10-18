@@ -1379,12 +1379,12 @@ async function sampleGuiHomeBackgroundRecoveryState(
   turnId,
   runningSpecs = [],
 ) {
-  const recoveryCardSpecs =
+  const runningSessionSpecs =
     runningSpecs.length > 0
       ? runningSpecs
       : [{ ...buildRunningSessionSpec(), turnId }];
   return await page.evaluate(
-    ({ prompt, title, sessionId, turnId, recoveryCardSpecs }) => {
+    ({ prompt, title, sessionId, turnId, runningSessionSpecs }) => {
       const isVisible = (node) => {
         if (!(node instanceof HTMLElement)) {
           return false;
@@ -1400,15 +1400,8 @@ async function sampleGuiHomeBackgroundRecoveryState(
       };
       const main = document.querySelector("main") ?? document.body;
       const mainText = main?.innerText || "";
-      const homeStartSurface = document.querySelector(
-        '[data-testid="home-ambient-suggestions"]',
-      );
-      const homeRecoveryCard = document.querySelector(
-        '[data-testid="home-unfinished-session-card"]',
-      );
-      const homeRecoveryCardText = homeRecoveryCard?.textContent || "";
-      const homeRecoveryCardMatch = recoveryCardSpecs.find((spec) =>
-        homeRecoveryCardText.includes(spec.title),
+      const homeComposerPage = document.querySelector(
+        '[data-testid="home-composer-page"]',
       );
       const messageLists = Array.from(
         document.querySelectorAll(
@@ -1427,12 +1420,31 @@ async function sampleGuiHomeBackgroundRecoveryState(
         (editor) => editor.dataset.sessionId || null,
       );
       const runningSessionIds = new Set(
-        recoveryCardSpecs.map((spec) => spec.sessionId),
+        runningSessionSpecs.map((spec) => spec.sessionId),
       );
       const sidebarRows = Array.from(
         document.querySelectorAll(
           '[data-testid="app-sidebar-conversation-open"]',
         ),
+      );
+      const backgroundConversation =
+        sidebarRows.find((row) => {
+          const matchesIdentity = runningSessionSpecs.some(
+            (spec) => row.getAttribute("data-session-id") === spec.sessionId,
+          );
+          const status = row
+            .querySelector(
+              '[data-testid="app-sidebar-conversation-runtime-status"]',
+            )
+            ?.getAttribute("data-status");
+          return matchesIdentity && status === "running";
+        }) ?? null;
+      const backgroundConversationText =
+        backgroundConversation?.textContent || "";
+      const backgroundConversationMatch = runningSessionSpecs.find(
+        (spec) =>
+          backgroundConversation?.getAttribute("data-session-id") ===
+          spec.sessionId,
       );
       const matchingSidebarRows = sidebarRows.filter((row) => {
         const label = [
@@ -1473,11 +1485,11 @@ async function sampleGuiHomeBackgroundRecoveryState(
         (editor) =>
           runningSessionIds.has(editor.dataset.sessionId) && isVisible(editor),
       );
-      const runningPromptVisible = recoveryCardSpecs.some((spec) =>
+      const runningPromptVisible = runningSessionSpecs.some((spec) =>
         mainText.includes(spec.prompt),
       );
       const runningTurnVisible = messageTurnGroups.some((group) =>
-        recoveryCardSpecs.some((spec) =>
+        runningSessionSpecs.some((spec) =>
           (group.textContent || "").includes(spec.turnId),
         ),
       );
@@ -1488,17 +1500,25 @@ async function sampleGuiHomeBackgroundRecoveryState(
           runningTurnVisible);
       return {
         url: window.location.href,
-        homeStartVisible: isVisible(homeStartSurface),
-        hasHomeAmbientSuggestionsContent: Boolean(homeStartSurface),
-        homeRecoveryCardVisible: isVisible(homeRecoveryCard),
-        homeRecoveryCardStatus:
-          homeRecoveryCard?.getAttribute("data-status") || "",
-        homeRecoveryCardText,
-        homeRecoveryCardTitle: homeRecoveryCard?.getAttribute("title") || "",
-        homeRecoveryCardMatchesRunningSession: Boolean(homeRecoveryCardMatch),
-        homeRecoveryCardMatchedSessionId:
-          homeRecoveryCardMatch?.sessionId || null,
-        homeRecoveryCardMatchedTitle: homeRecoveryCardMatch?.title || null,
+        homeStartVisible: isVisible(homeComposerPage),
+        hasHomeComposerPage: Boolean(homeComposerPage),
+        backgroundConversationVisible: isVisible(backgroundConversation),
+        backgroundConversationStatus:
+          backgroundConversation
+            ?.querySelector(
+              '[data-testid="app-sidebar-conversation-runtime-status"]',
+            )
+            ?.getAttribute("data-status") || "",
+        backgroundConversationText,
+        backgroundConversationTitle:
+          backgroundConversation?.getAttribute("title") || "",
+        backgroundConversationMatchesRunningSession: Boolean(
+          backgroundConversationMatch,
+        ),
+        backgroundConversationMatchedSessionId:
+          backgroundConversationMatch?.sessionId || null,
+        backgroundConversationMatchedTitle:
+          backgroundConversationMatch?.title || null,
         mainPromptVisible,
         mainAssistantOutputVisible,
         messageListCount: messageLists.length,
@@ -1520,7 +1540,7 @@ async function sampleGuiHomeBackgroundRecoveryState(
       title: SESSION_TITLE,
       sessionId: primaryIdentity.sessionId,
       turnId,
-      recoveryCardSpecs: recoveryCardSpecs.map(
+      runningSessionSpecs: runningSessionSpecs.map(
         ({ sessionId, title, prompt, turnId: runningTurnId }) => ({
           sessionId,
           title,
@@ -1559,9 +1579,9 @@ async function waitForGuiHomeBackgroundRecovery(
     }
     if (
       lastSnapshot.homeStartVisible &&
-      lastSnapshot.homeRecoveryCardVisible &&
-      lastSnapshot.homeRecoveryCardStatus === "running" &&
-      lastSnapshot.homeRecoveryCardMatchesRunningSession &&
+      lastSnapshot.backgroundConversationVisible &&
+      lastSnapshot.backgroundConversationStatus === "running" &&
+      lastSnapshot.backgroundConversationMatchesRunningSession &&
       !lastSnapshot.activeDetailBoundToSession &&
       lastSnapshot.sidebarTitleFound &&
       lastSnapshot.sidebarStatus === "running"
@@ -1602,13 +1622,13 @@ async function waitForGuiHomeColdRestart(
       await sleep(options.intervalMs);
       continue;
     }
-    const fixtureRecoveryCardRunning =
-      lastSnapshot.homeRecoveryCardVisible &&
-      lastSnapshot.homeRecoveryCardMatchesRunningSession &&
-      lastSnapshot.homeRecoveryCardStatus === "running";
+    const fixtureConversationRunning =
+      lastSnapshot.backgroundConversationVisible &&
+      lastSnapshot.backgroundConversationMatchesRunningSession &&
+      lastSnapshot.backgroundConversationStatus === "running";
     if (
       lastSnapshot.homeStartVisible &&
-      !fixtureRecoveryCardRunning &&
+      !fixtureConversationRunning &&
       !lastSnapshot.activeDetailBoundToSession &&
       lastSnapshot.sidebarTitleFound &&
       lastSnapshot.sidebarStatus !== "running"
@@ -1624,55 +1644,6 @@ async function waitForGuiHomeColdRestart(
   );
 }
 
-async function openFixtureSessionFromHomeRecoveryCard(page, options, turnId) {
-  const startedAt = Date.now();
-  let lastSnapshot = null;
-  while (Date.now() - startedAt < options.timeoutMs) {
-    const click = await page
-      .evaluate(() => {
-        const card = document.querySelector(
-          '[data-testid="home-unfinished-session-card"]',
-        );
-        if (!(card instanceof HTMLElement)) {
-          return { clicked: false, reason: "card-not-found" };
-        }
-        if (card.getAttribute("data-status") !== "running") {
-          return {
-            clicked: false,
-            reason: "card-not-running",
-            status: card.getAttribute("data-status") || "",
-            text: card.textContent || "",
-          };
-        }
-        card.click();
-        return {
-          clicked: true,
-          status: card.getAttribute("data-status") || "",
-          title: card.getAttribute("title") || "",
-          text: card.textContent || "",
-        };
-      })
-      .catch((error) => ({
-        clicked: false,
-        reason: error instanceof Error ? error.message : String(error),
-      }));
-    lastSnapshot = sanitizeJson({ click });
-    if (click.clicked === true) {
-      const running = await waitForGuiRunningConsistency(
-        page,
-        options,
-        turnId,
-        "opened-from-home-recovery-card",
-      );
-      return sanitizeJson({ click, running });
-    }
-    await sleep(options.intervalMs);
-  }
-  throw new Error(
-    `首页恢复卡未能打开会话详情: ${JSON.stringify(sanitizeJson(lastSnapshot))}`,
-  );
-}
-
 async function navigateGuiToNewTaskHome(page, options, turnId) {
   const startedAt = Date.now();
   let clicked = false;
@@ -1683,7 +1654,7 @@ async function navigateGuiToNewTaskHome(page, options, turnId) {
         .evaluate(() => {
           const button = document.querySelector(
             [
-              '[data-testid="app-sidebar-home-button"]',
+              '[data-testid="app-sidebar-rail-home"]',
               '[aria-label="返回 Lime 首页"]',
               '[aria-label="Back to Lime home"]',
             ].join(","),
@@ -2415,17 +2386,9 @@ async function run() {
       });
       summary.homeBackgroundAfterReload = summary.homeBackgroundAfterReopen;
     }
-    const openPrimaryFromHomeRecoveryCard =
-      options.presentationMode === "background" &&
-      options.reopenMode !== "restart" &&
-      !options.multiRunningSessions;
-    summary.guiSessionOpenSourceAfterReopen = openPrimaryFromHomeRecoveryCard
-      ? "home-recovery-card"
-      : "sidebar-primary";
+    summary.guiSessionOpenSourceAfterReopen = "sidebar-primary";
     summary.guiSessionOpenedAfterReopen = sanitizeJson(
-      openPrimaryFromHomeRecoveryCard
-        ? await openFixtureSessionFromHomeRecoveryCard(page, options, turnId)
-        : await openFixtureSessionFromSidebar(page, options, requestLog),
+      await openFixtureSessionFromSidebar(page, options, requestLog),
     );
     summary.guiSessionOpenedAfterReload = summary.guiSessionOpenedAfterReopen;
 
@@ -2768,24 +2731,24 @@ async function run() {
           ? {
               homeBackgroundBeforeReopen:
                 summary.homeBackgroundBeforeReopen?.homeStartVisible === true &&
-                summary.homeBackgroundBeforeReopen?.homeRecoveryCardVisible ===
-                  true &&
-                summary.homeBackgroundBeforeReopen?.homeRecoveryCardStatus ===
-                  "running" &&
                 summary.homeBackgroundBeforeReopen
-                  ?.homeRecoveryCardMatchesRunningSession === true &&
+                  ?.backgroundConversationVisible === true &&
+                summary.homeBackgroundBeforeReopen
+                  ?.backgroundConversationStatus === "running" &&
+                summary.homeBackgroundBeforeReopen
+                  ?.backgroundConversationMatchesRunningSession === true &&
                 summary.homeBackgroundBeforeReopen
                   ?.activeDetailBoundToSession === false &&
                 summary.homeBackgroundBeforeReopen?.sidebarStatus === "running",
-              homeColdRestartHasNoRunningRecoveryCard:
+              homeColdRestartHasNoRunningConversation:
                 summary.homeBackgroundAfterReopen?.homeStartVisible === true &&
                 !(
-                  summary.homeBackgroundAfterReopen?.homeRecoveryCardVisible ===
-                    true &&
                   summary.homeBackgroundAfterReopen
-                    ?.homeRecoveryCardMatchesRunningSession === true &&
-                  summary.homeBackgroundAfterReopen?.homeRecoveryCardStatus ===
-                    "running"
+                    ?.backgroundConversationVisible === true &&
+                  summary.homeBackgroundAfterReopen
+                    ?.backgroundConversationMatchesRunningSession === true &&
+                  summary.homeBackgroundAfterReopen
+                    ?.backgroundConversationStatus === "running"
                 ) &&
                 summary.homeBackgroundAfterReopen
                   ?.activeDetailBoundToSession === false &&
@@ -2794,44 +2757,35 @@ async function run() {
           : {
               homeBackgroundBeforeReopen:
                 summary.homeBackgroundBeforeReopen?.homeStartVisible === true &&
-                summary.homeBackgroundBeforeReopen?.homeRecoveryCardVisible ===
-                  true &&
-                summary.homeBackgroundBeforeReopen?.homeRecoveryCardStatus ===
-                  "running" &&
                 summary.homeBackgroundBeforeReopen
-                  ?.homeRecoveryCardMatchesRunningSession === true &&
+                  ?.backgroundConversationVisible === true &&
+                summary.homeBackgroundBeforeReopen
+                  ?.backgroundConversationStatus === "running" &&
+                summary.homeBackgroundBeforeReopen
+                  ?.backgroundConversationMatchesRunningSession === true &&
                 summary.homeBackgroundBeforeReopen
                   ?.activeDetailBoundToSession === false &&
                 summary.homeBackgroundBeforeReopen?.sidebarStatus === "running",
               homeBackgroundAfterReopen:
                 summary.homeBackgroundAfterReopen?.homeStartVisible === true &&
-                summary.homeBackgroundAfterReopen?.homeRecoveryCardVisible ===
-                  true &&
-                summary.homeBackgroundAfterReopen?.homeRecoveryCardStatus ===
-                  "running" &&
                 summary.homeBackgroundAfterReopen
-                  ?.homeRecoveryCardMatchesRunningSession === true &&
+                  ?.backgroundConversationVisible === true &&
+                summary.homeBackgroundAfterReopen
+                  ?.backgroundConversationStatus === "running" &&
+                summary.homeBackgroundAfterReopen
+                  ?.backgroundConversationMatchesRunningSession === true &&
                 summary.homeBackgroundAfterReopen
                   ?.activeDetailBoundToSession === false &&
                 summary.homeBackgroundAfterReopen?.sidebarStatus === "running",
               runningSessionDetailOpenedAfterReopen:
-                summary.guiSessionOpenSourceAfterReopen === "home-recovery-card"
-                  ? summary.guiSessionOpenedAfterReopen?.click?.clicked ===
-                      true &&
-                    summary.guiSessionOpenedAfterReopen?.running
-                      ?.sidebarStatus === "running" &&
-                    summary.guiSessionOpenedAfterReopen?.running
-                      ?.inputbarHasStopButton === true
-                  : summary.guiSessionOpenedAfterReopen?.clicked?.clicked ===
-                      true &&
-                    summary.guiSessionOpenedAfterReopen?.readModel
-                      ?.sessionId === primaryIdentity.sessionId &&
-                    summary.guiSessionOpenedAfterReopen?.readModel?.threadId ===
-                      primaryIdentity.threadId &&
-                    summary.guiRunningAfterReopen?.sidebarStatus ===
-                      "running" &&
-                    summary.guiRunningAfterReopen?.inputbarHasStopButton ===
-                      true,
+                summary.guiSessionOpenedAfterReopen?.clicked?.clicked ===
+                  true &&
+                summary.guiSessionOpenedAfterReopen?.readModel?.sessionId ===
+                  primaryIdentity.sessionId &&
+                summary.guiSessionOpenedAfterReopen?.readModel?.threadId ===
+                  primaryIdentity.threadId &&
+                summary.guiRunningAfterReopen?.sidebarStatus === "running" &&
+                summary.guiRunningAfterReopen?.inputbarHasStopButton === true,
             };
     const multiRunningAssertions = !options.multiRunningSessions
       ? {
@@ -2863,18 +2817,18 @@ async function run() {
               summary.multiRunningSidebarBeforeReopen?.allRunning === true,
             multiRunningPrimaryAndSecondarySidebarAfterReopen:
               summary.multiRunningSidebarAfterReopen?.allRunning === true,
-            multiRunningHomeRecoveryCardMatchesRunningSession:
+            multiRunningBackgroundConversationMatchesRunningSession:
               summary.presentationMode !== "background" ||
               (summary.homeBackgroundAfterReopen
-                ?.homeRecoveryCardMatchesRunningSession === true &&
+                ?.backgroundConversationMatchesRunningSession === true &&
                 multiRunningSpecs.some(
                   (spec) =>
                     spec.sessionId ===
                       summary.homeBackgroundAfterReopen
-                        ?.homeRecoveryCardMatchedSessionId &&
+                        ?.backgroundConversationMatchedSessionId &&
                     spec.title ===
                       summary.homeBackgroundAfterReopen
-                        ?.homeRecoveryCardMatchedTitle,
+                        ?.backgroundConversationMatchedTitle,
                 ) &&
                 summary.homeBackgroundAfterReopen
                   ?.activeDetailBoundToSession === false),

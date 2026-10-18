@@ -69,11 +69,7 @@ import { parseWritingWorkbenchCommand } from "../utils/writingWorkbenchCommand";
 import { parseWebpageWorkbenchCommand } from "../utils/webpageWorkbenchCommand";
 import { resolvePlainInputIntentConfirmation } from "../utils/plainInputIntentConfirmation";
 import { detectBrowserTaskRequirement } from "../utils/browserTaskRequirement";
-import { isTeamRuntimeRecommendation } from "../utils/contextualRecommendations";
-import {
-  saveChatToolPreferences,
-  type ChatToolPreferences,
-} from "../utils/chatToolPreferences";
+import { type ChatToolPreferences } from "../utils/chatToolPreferences";
 import type { HandleSendOptions } from "../hooks/handleSendTypes";
 import { extractAgentUiPerformanceTraceMetadata } from "../hooks/agentStreamPerformanceMetrics";
 import type { SendMessageFn } from "../hooks/agentChatShared";
@@ -232,9 +228,7 @@ interface UseWorkspaceSendActionsParams {
   mentionedCharacters: Character[];
   setMentionedCharacters: Dispatch<SetStateAction<Character[]>>;
   chatToolPreferences: ChatToolPreferences;
-  setChatToolPreferences: Dispatch<SetStateAction<ChatToolPreferences>>;
   serviceSkills: ServiceSkillHomeItem[];
-  activeTheme: string;
   mappedTheme: ThemeType;
   isThemeWorkbench: boolean;
   contextWorkspace: ContextWorkspaceSummary;
@@ -380,9 +374,7 @@ export function useWorkspaceSendActions({
   mentionedCharacters,
   setMentionedCharacters,
   chatToolPreferences,
-  setChatToolPreferences,
   serviceSkills,
-  activeTheme,
   mappedTheme,
   isThemeWorkbench,
   contextWorkspace,
@@ -3173,50 +3165,6 @@ export function useWorkspaceSendActions({
     ],
   );
 
-  const handleRecommendationClick = useCallback(
-    (shortLabel: string, fullPrompt: string) => {
-      setInput(fullPrompt);
-
-      if (
-        activeTheme !== "general" ||
-        !isTeamRuntimeRecommendation(shortLabel, fullPrompt)
-      ) {
-        return;
-      }
-
-      const nextToolPreferences = chatToolPreferences.subagent
-        ? chatToolPreferences
-        : {
-            ...chatToolPreferences,
-            subagent: true,
-          };
-
-      if (!chatToolPreferences.subagent) {
-        setChatToolPreferences(nextToolPreferences);
-      }
-      saveChatToolPreferences(nextToolPreferences, activeTheme);
-      void handleSend(
-        [],
-        undefined,
-        undefined,
-        fullPrompt,
-        executionStrategy,
-        undefined,
-        {
-          toolPreferencesOverride: nextToolPreferences,
-        },
-      );
-    },
-    [
-      activeTheme,
-      chatToolPreferences,
-      executionStrategy,
-      handleSend,
-      setChatToolPreferences,
-      setInput,
-    ],
-  );
-
   const handleSendRef = useRef(handleSend);
 
   useEffect(() => {
@@ -3227,7 +3175,6 @@ export function useWorkspaceSendActions({
     composerMode: composerWorktree.composerMode,
     setComposerMode: composerWorktree.setComposerMode,
     handleSend,
-    handleRecommendationClick,
     handleSendRef,
     isPreparingSend,
     displayMessages,

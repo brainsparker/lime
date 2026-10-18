@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties } from "react";
 import { Sparkles } from "lucide-react";
 import styled, { keyframes } from "styled-components";
 import { HomeSkinDecorationIcon } from "./HomeComposerDecorations";
@@ -229,7 +229,7 @@ const HeroSection = styled.section`
   display: flex;
   width: 100%;
   min-width: 0;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   animation: ${heroReveal} 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
 
   @media (prefers-reduced-motion: reduce) {
@@ -238,6 +238,7 @@ const HeroSection = styled.section`
 `;
 
 const HeroContent = styled.div`
+  --home-hero-available-height: max(160px, calc(100cqh - 370px));
   position: relative;
   display: flex;
   width: 100%;
@@ -247,11 +248,15 @@ const HeroContent = styled.div`
 `;
 
 const ArtworkStage = styled.div`
+  container-type: inline-size;
   position: relative;
   isolation: isolate;
-  width: min(1180px, calc(100% - 48px));
+  width: min(1180px, 100%);
   margin: var(--home-hero-breakout-space, 0) auto 0;
-  min-height: var(--home-hero-stage-height, 310px);
+  min-height: min(
+    var(--home-hero-stage-height, 310px),
+    var(--home-hero-available-height)
+  );
   overflow: var(--home-hero-stage-overflow, hidden);
   z-index: var(--home-hero-stage-z-index, auto);
   border: 1px solid
@@ -268,17 +273,26 @@ const ArtworkStage = styled.div`
   );
 
   @media (min-width: 1280px) and (min-height: 900px) {
-    min-height: var(--home-hero-stage-height-wide, 340px);
+    min-height: min(
+      var(--home-hero-stage-height-wide, 340px),
+      var(--home-hero-available-height)
+    );
   }
 
   @media (max-width: 760px) {
     margin-top: var(--home-hero-breakout-space-mobile, 0);
-    min-height: var(--home-hero-stage-height-mobile, 270px);
+    min-height: min(
+      var(--home-hero-stage-height-mobile, 270px),
+      var(--home-hero-available-height)
+    );
     border-radius: 18px;
   }
 
   @media (max-height: 780px) {
-    min-height: var(--home-hero-stage-height-short, 250px);
+    min-height: min(
+      var(--home-hero-stage-height-short, 250px),
+      var(--home-hero-available-height)
+    );
   }
 `;
 
@@ -542,7 +556,10 @@ const LeadTextGroup = styled.div`
   position: relative;
   display: flex;
   width: min(var(--home-hero-content-width, 48%), 520px);
-  min-height: var(--home-hero-stage-height, 310px);
+  min-height: min(
+    var(--home-hero-stage-height, 310px),
+    var(--home-hero-available-height)
+  );
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
@@ -553,18 +570,27 @@ const LeadTextGroup = styled.div`
   z-index: 3;
 
   @media (min-width: 1280px) and (min-height: 900px) {
-    min-height: var(--home-hero-stage-height-wide, 340px);
+    min-height: min(
+      var(--home-hero-stage-height-wide, 340px),
+      var(--home-hero-available-height)
+    );
   }
 
   @media (max-width: 760px) {
     width: 58%;
-    min-height: var(--home-hero-stage-height-mobile, 270px);
+    min-height: min(
+      var(--home-hero-stage-height-mobile, 270px),
+      var(--home-hero-available-height)
+    );
     gap: 0.7rem;
     padding-left: 1.35rem;
   }
 
   @media (max-height: 780px) {
-    min-height: var(--home-hero-stage-height-short, 250px);
+    min-height: min(
+      var(--home-hero-stage-height-short, 250px),
+      var(--home-hero-available-height)
+    );
   }
 `;
 
@@ -597,7 +623,7 @@ const SloganText = styled.h1`
   max-width: var(--home-hero-title-max-width, 9ch);
   margin: 0;
   color: var(--home-hero-title-color, var(--lime-text-strong, #402530));
-  font-size: 46px;
+  font-size: clamp(24px, 6cqi, 46px);
   font-weight: 680;
   letter-spacing: 0;
   line-height: 1.1;
@@ -605,21 +631,13 @@ const SloganText = styled.h1`
     --home-hero-text-shadow,
     0 2px 18px rgba(255, 255, 255, 0.72)
   );
-
-  @media (max-width: 900px) {
-    font-size: 38px;
-  }
-
-  @media (max-width: 620px) {
-    font-size: 30px;
-  }
 `;
 
 const Description = styled.p`
   max-width: 30rem;
   margin: 0;
   color: var(--home-hero-description-color, var(--lime-text, #654652));
-  font-size: 15px;
+  font-size: clamp(12px, 2.8cqi, 15px);
   font-weight: 520;
   line-height: 1.7;
   text-shadow: var(
@@ -633,26 +651,6 @@ const Description = styled.p`
   }
 `;
 
-const PriorityShell = styled.div`
-  position: relative;
-  z-index: 50;
-  width: min(100%, var(--thread-content-max-width, 48rem));
-  box-sizing: border-box;
-  padding-inline: var(--lime-panel-padding, 24px);
-  margin: 0 auto;
-
-  @media (max-width: 760px) {
-    width: 100%;
-  }
-`;
-
-const SupportingShell = styled.div`
-  width: min(100%, var(--thread-content-max-width, 48rem));
-  box-sizing: border-box;
-  padding-inline: var(--lime-panel-padding, 24px);
-  margin: 0 auto;
-`;
-
 interface EmptyStateHeroProps {
   eyebrow: string;
   slogan: string;
@@ -660,8 +658,6 @@ interface EmptyStateHeroProps {
   skinBrandSubtitle?: string;
   skinTagline?: string;
   skinStatus?: string;
-  prioritySlot?: ReactNode;
-  supportingSlot?: ReactNode;
 }
 
 export function EmptyStateHero({
@@ -671,8 +667,6 @@ export function EmptyStateHero({
   skinBrandSubtitle,
   skinTagline,
   skinStatus,
-  prioritySlot,
-  supportingSlot,
 }: EmptyStateHeroProps) {
   const presentation = useHomeSkinPresentation();
   const isDarkArtwork = presentation.tone === "dark";
@@ -825,15 +819,6 @@ export function EmptyStateHero({
             <Description>{description}</Description>
           </LeadTextGroup>
         </ArtworkStage>
-
-        {prioritySlot ? (
-          <PriorityShell data-home-hero-layer="composer-above-foreground">
-            {prioritySlot}
-          </PriorityShell>
-        ) : null}
-        {supportingSlot ? (
-          <SupportingShell>{supportingSlot}</SupportingShell>
-        ) : null}
       </HeroContent>
     </HeroSection>
   );

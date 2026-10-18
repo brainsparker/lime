@@ -11,7 +11,7 @@ import { ComposerController } from "@/components/input-kit";
 import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
-import { FolderOpen, Lightbulb, X } from "lucide-react";
+import { FolderOpen } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -98,7 +98,7 @@ const ConnectedComposerShell = styled.div`
   }
 
   [data-testid="composer-editor"] {
-    min-height: 88px;
+    min-height: 136px;
     padding-top: 7px;
     font-size: 16px;
     line-height: 1.55;
@@ -218,65 +218,6 @@ interface EmptyStateComposerPanelProps {
   onRemovePathReference?: (id: string) => void;
   fileManagerOpen?: boolean;
   onToggleFileManager?: () => void;
-  guideHelpActive?: boolean;
-  guideHelpLabel?: string;
-  onClearGuideHelp?: () => void;
-}
-
-function GuideHelpBadge({
-  label,
-  closeLabel,
-  closeTitle,
-  onClear,
-}: {
-  label: string;
-  closeLabel: string;
-  closeTitle: string;
-  onClear: () => void;
-}) {
-  return (
-    <div
-      data-testid="home-guide-help-active-badge"
-      className="mx-1 mt-1 inline-flex w-fit max-w-full items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/90 px-2.5 py-1.5 text-xs font-semibold text-emerald-900 shadow-sm shadow-emerald-950/5"
-      title={label}
-    >
-      <Lightbulb className="h-3 w-3" strokeWidth={1.9} />
-      <span className="truncate">{label}</span>
-      <button
-        type="button"
-        onClick={onClear}
-        className="ml-0.5 text-emerald-800/70 hover:opacity-70"
-        aria-label={closeLabel}
-        title={closeTitle}
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </div>
-  );
-}
-
-function GuideHelpToolbarBadge({
-  label,
-  title,
-  onClear,
-}: {
-  label: string;
-  title: string;
-  onClear: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      data-testid="home-guide-help-toolbar-badge"
-      className="inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-full border border-emerald-200/80 bg-emerald-50/90 px-3 text-xs font-semibold text-emerald-900 shadow-sm shadow-emerald-950/5 transition hover:bg-white hover:text-emerald-950"
-      title={title}
-      onClick={onClear}
-    >
-      <Lightbulb className="h-3.5 w-3.5" strokeWidth={1.9} />
-      <span className="truncate">{label.replace(/^Lime\s+/, "")}</span>
-      <X className="h-3.5 w-3.5 opacity-70" aria-hidden />
-    </button>
-  );
 }
 
 export function EmptyStateComposerPanel({
@@ -350,9 +291,6 @@ export function EmptyStateComposerPanel({
   onRemovePathReference,
   fileManagerOpen = false,
   onToggleFileManager,
-  guideHelpActive = false,
-  guideHelpLabel,
-  onClearGuideHelp,
 }: EmptyStateComposerPanelProps) {
   const { composerDecorations } = useHomeSkinPresentation();
   const [activePluginSelection, setActivePluginSelection] =
@@ -476,9 +414,7 @@ export function EmptyStateComposerPanel({
     }
   };
 
-  const effectiveGuideHelpLabel = guideHelpLabel ?? copy.guideHelpDefaultLabel;
   const topExtra =
-    guideHelpActive ||
     activePluginSelection ||
     activeBuiltinCommand ||
     activeRuntimeScene ||
@@ -486,15 +422,6 @@ export function EmptyStateComposerPanel({
     activeSkill ||
     creationReplaySurface ? (
       <>
-        {guideHelpActive ? (
-          <GuideHelpBadge
-            label={effectiveGuideHelpLabel}
-            closeLabel={copy.guideHelpCloseWithLabel(effectiveGuideHelpLabel)}
-            closeTitle={copy.guideHelpClose}
-            onClear={onClearGuideHelp ?? (() => undefined)}
-          />
-        ) : null}
-
         {activeBuiltinCommand ? (
           <BuiltinCommandBadge
             command={activeBuiltinCommand}
@@ -635,14 +562,6 @@ export function EmptyStateComposerPanel({
           label={objectiveStatusLabel}
           testId="empty-state-objective-status"
           onRemove={() => handleToolAction("objective_mode")}
-        />
-      ) : null}
-
-      {guideHelpActive ? (
-        <GuideHelpToolbarBadge
-          label={effectiveGuideHelpLabel}
-          title={copy.guideHelpClose}
-          onClear={onClearGuideHelp ?? (() => undefined)}
         />
       ) : null}
 

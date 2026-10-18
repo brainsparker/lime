@@ -38,7 +38,7 @@ function renderLayout() {
     root?.render(
       <EmptyStateLayout
         heroCopy={heroCopy}
-        prioritySlot={<div data-testid="priority-slot">输入区</div>}
+        composer={<div data-testid="home-composer">输入区</div>}
       />,
     );
   });
@@ -55,17 +55,13 @@ describe("EmptyStateLayout", () => {
     const artwork = container.querySelector(
       '[data-testid="dream-blossom-home-artwork"]',
     );
-    const prioritySlot = container.querySelector(
-      '[data-testid="priority-slot"]',
-    );
+    const composer = container.querySelector('[data-testid="home-composer"]');
 
     expect(firstScreen).toBeTruthy();
     expect(artwork).toBeTruthy();
     expect(firstScreen?.textContent).toContain("青柠一下，灵感即来");
-    expect(firstScreen?.contains(prioritySlot)).toBe(true);
-    expect(
-      prioritySlot?.parentElement?.getAttribute("data-home-hero-layer"),
-    ).toBe("composer-above-foreground");
+    expect(firstScreen?.contains(composer)).toBe(true);
+    expect(artwork?.contains(composer)).toBe(false);
     expect(artwork?.querySelector("img")?.getAttribute("src")).toContain(
       "home-hero-v3.webp",
     );

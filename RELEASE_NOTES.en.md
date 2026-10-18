@@ -18,8 +18,9 @@ Simplified Chinese release notes are the primary version; this English companion
 
 ### Improvements and Refactoring
 
-- Unify home suggestions, sidebar and settings navigation, and improve worktree submission and execution scope handoff.
-- Add plugin skill content previews through the shared App Server contract.
+- Add a navigation rail that remains visible when collapsed, contextual sidebars, and a shared title bar; simplify the home page by removing old recommendation entries while retaining the Banner and separate composer.
+- Improve worktree submission, execution scope handoff, and background session recovery state synchronization.
+- Read plugin skill previews through the shared App Server contract, with query caching, request deduplication, and cache isolation when accounts change.
 - Reorder queued messages with drag and drop or keyboard controls using the existing queue protocol and conversation state.
 - Separate file format preview, editing, and annotation responsibilities while sharing file access, save, and conversation submission owners; remove replaced workspace preview paths.
 - Keep account credentials in App Server, remove duplicate renderer session token and logout paths, and update all five interface languages.

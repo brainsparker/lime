@@ -3218,7 +3218,7 @@ describe("legacySurfaceCatalog", () => {
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components/EmptyState.tsx",
       "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
-      "src/components/agent/chat/utils/contextualRecommendations.ts",
+      "src/components/agent/chat/utils/promptContext.ts",
     ]);
     expect(monitor?.patterns).toEqual(
       expect.arrayContaining([
@@ -4467,6 +4467,7 @@ describe("legacySurfaceCatalog", () => {
       "plugin/list",
       "plugin/search",
       "plugin/read",
+      "plugin/skill/read",
       "plugin/install",
       "plugin/uninstall",
       "plugin/installed",

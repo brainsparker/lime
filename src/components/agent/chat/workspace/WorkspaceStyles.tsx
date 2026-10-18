@@ -18,8 +18,7 @@ export const PageContainer = styled.div<{ $compact?: boolean }>`
   width: 100%;
   position: relative;
   min-height: 0;
-  gap: ${({ $compact }) => ($compact ? "8px" : "16px")};
-  padding: ${({ $compact }) => ($compact ? "4px 10px 10px" : "10px 16px 16px")};
+  gap: 0;
   box-sizing: border-box;
   overflow: hidden;
   isolation: isolate;
@@ -28,12 +27,6 @@ export const PageContainer = styled.div<{ $compact?: boolean }>`
   > * {
     position: relative;
     z-index: 1;
-  }
-
-  @media (max-width: 1440px) {
-    gap: ${({ $compact }) => ($compact ? "8px" : "12px")};
-    padding: ${({ $compact }) =>
-      $compact ? "4px 10px 10px" : "8px 12px 12px"};
   }
 `;
 

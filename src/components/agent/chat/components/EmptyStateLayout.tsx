@@ -18,7 +18,10 @@ const PageContainer = styled.div.attrs({
 const ContentWrapper = styled.div.attrs({
   className: EMPTY_STATE_CONTENT_WRAPPER_CLASSNAME,
 })`
-  padding: 24px 0 16px;
+  box-sizing: border-box;
+  min-height: 100%;
+  flex: 1 0 auto;
+  padding: 24px var(--lime-panel-padding, 24px) 16px;
 `;
 
 const ComposerFrame = styled.div`
@@ -26,12 +29,27 @@ const ComposerFrame = styled.div`
   min-width: 0;
 `;
 
-const PrimaryStackFrame = styled.div`
+const HeroRegion = styled.div`
   display: flex;
-  width: 100%;
   min-width: 0;
+  min-height: fit-content;
+  flex: 1 0 0;
+  align-items: center;
+  padding-bottom: clamp(24px, 6cqh, 96px);
+`;
+
+const ComposerRegion = styled.div`
+  position: relative;
+  z-index: 50;
+  display: flex;
+  width: min(100%, var(--thread-content-max-width, 48rem));
+  min-width: 0;
+  min-height: fit-content;
+  flex: 1 0 0;
   flex-direction: column;
-  gap: 24px;
+  justify-content: flex-end;
+  align-self: center;
+  padding: 6px 0 16px;
 `;
 
 export function EmptyStateComposerFrame({ children }: { children: ReactNode }) {
@@ -42,40 +60,31 @@ export function EmptyStateComposerFrame({ children }: { children: ReactNode }) {
   );
 }
 
-export function EmptyStatePrimaryStack({ children }: { children: ReactNode }) {
-  return (
-    <PrimaryStackFrame data-testid="empty-state-primary-stack">
-      {children}
-    </PrimaryStackFrame>
-  );
-}
-
 interface EmptyStateLayoutProps {
   heroCopy: HomeSurfaceHeroCopy;
-  prioritySlot: ReactNode;
-  supportingSlot?: ReactNode;
+  composer: ReactNode;
   children?: ReactNode;
 }
 
 export function EmptyStateLayout({
   heroCopy,
-  prioritySlot,
-  supportingSlot,
+  composer,
   children,
 }: EmptyStateLayoutProps) {
   return (
-    <PageContainer>
+    <PageContainer data-testid="home-composer-page">
       <ContentWrapper data-testid="empty-state-first-screen">
-        <EmptyStateHero
-          eyebrow={heroCopy.eyebrow}
-          slogan={heroCopy.slogan}
-          description={heroCopy.description}
-          skinBrandSubtitle={heroCopy.skinBrandSubtitle}
-          skinTagline={heroCopy.skinTagline}
-          skinStatus={heroCopy.skinStatus}
-          prioritySlot={prioritySlot}
-          supportingSlot={supportingSlot}
-        />
+        <HeroRegion>
+          <EmptyStateHero
+            eyebrow={heroCopy.eyebrow}
+            slogan={heroCopy.slogan}
+            description={heroCopy.description}
+            skinBrandSubtitle={heroCopy.skinBrandSubtitle}
+            skinTagline={heroCopy.skinTagline}
+            skinStatus={heroCopy.skinStatus}
+          />
+        </HeroRegion>
+        <ComposerRegion>{composer}</ComposerRegion>
       </ContentWrapper>
       {children}
     </PageContainer>

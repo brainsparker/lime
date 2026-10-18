@@ -246,6 +246,15 @@ jobs:
       - name: Run headless GUI smoke
         run: npm run verify:gui-smoke -- --timeout-ms 1800000
 
+      - name: Upload GUI smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-smoke-evidence
+          path: .lime/qc/project-gates
+          if-no-files-found: warn
+          retention-days: 7
+
   rust:
     name: Rust Quick
     runs-on: ubuntu-latest

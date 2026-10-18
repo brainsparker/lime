@@ -8,6 +8,7 @@ import {
   logoutCloudAccount,
   setOemCloudBootstrapSnapshot,
   getOemCloudBootstrapSnapshot,
+  cloudAccountIdentityVersion,
 } from "./cloudAccount";
 
 const session = {
@@ -18,6 +19,27 @@ const session = {
 };
 
 describe("shared cloud account projection", () => {
+  it("keeps the identity lifetime across metadata refreshes and advances it on A→B→A", async () => {
+    await seedCloudAccount(session);
+    const initial = cloudAccountIdentityVersion();
+    await readCloudAccount();
+    await seedCloudAccount({
+      ...session,
+      user: { ...session.user, displayName: "Updated profile" },
+    });
+    expect(cloudAccountIdentityVersion()).toBe(initial);
+    await seedCloudAccount({ ...session, user: { id: "other-user" } });
+    expect(cloudAccountIdentityVersion()).toBe(initial + 1);
+    await seedCloudAccount(session);
+    expect(cloudAccountIdentityVersion()).toBe(initial + 2);
+    await seedCloudAccount({ ...session, session: { id: "new-session" } });
+    expect(cloudAccountIdentityVersion()).toBe(initial + 3);
+    await seedCloudAccount(session, "https://another-issuer.test");
+    expect(cloudAccountIdentityVersion()).toBe(initial + 4);
+    await logoutCloudAccount();
+    expect(cloudAccountIdentityVersion()).toBe(initial + 5);
+  });
+
   it("restores only RPC metadata and ignores retired local credentials", async () => {
     localStorage.setItem("lime:oem-cloud-session:v1", JSON.stringify(session));
     await readCloudAccount();

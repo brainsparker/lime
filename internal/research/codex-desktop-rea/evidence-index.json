@@ -9774,7 +9774,7 @@
   },
   "current_shell_home_layout_20261018": {
     "status": "partial",
-    "mode": "legacy chosen from observed static branches; runtime flag unknown",
+    "mode": "rail-with-contextual-sidebar selected by current user screenshot; internal runtime flag unknown",
     "report": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/report.md",
     "sidebar": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/report.md",
     "settings": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/settings/report.md",
@@ -9784,7 +9784,10 @@
       "ev_b9bcd0a7a2fbb1dc35209e55fe9e1843a9889aa56327c574455ac8222dcbd0e9"
     ],
     "correction": "sidebar-a9ef58c0cd4b.js exports ScheduledSidebar, not main sidebar",
-    "verification": "239 directed tests passed; GUI and final local gates pending",
-    "sourceNames": "HomeAmbientSuggestionsContent confirmed export; HomeSuggestionList locally selected responsibility name; no minified name claim"
+    "verification": "Legacy 239 checks are historical. Rail directed 32 passed and standard GUI passed on prior snapshot. Current home cleanup validation in progress.",
+    "sourceNames": "Upstream HomeAmbientSuggestionsContent export confirmed, but Lime legacy task tree removed instead of retaining a false equivalent. AppNavigationRail and EmptyStateLayout are local responsibility names.",
+    "featureNavigation": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/feature-navigation/report.md",
+    "featureNavigationParent": "ev_ae91adc4fca524b34a183b550a9641a0be0794f621774d96b8c68457934fc090",
+    "home": "Banner + independent canonical Composer. No production ambient endpoint established; old 13-entry tree, guide/drawer/manager and dedicated state removed."
   }
 }

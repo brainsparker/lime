@@ -10,7 +10,6 @@ import {
   resetAppSidebarTest,
 } from "./AppSidebar.testFixtures";
 import type { AgentPageParams } from "./AppSidebar.testFixtures";
-import { LIME_BRAND_LOGO_SRC } from "@/lib/branding";
 
 describe("AppSidebar navigation", () => {
   beforeEach(resetAppSidebarTest);
@@ -52,23 +51,31 @@ describe("AppSidebar navigation", () => {
     );
   });
 
-  it("展开态只显示一份导航，并复用现有导航动作", async () => {
+  it("展开态分离图标导航和会话侧栏，复用唯一导航动作", async () => {
     const onNavigate = vi.fn();
     const container = mountSidebarContainer({ onNavigate });
     await flushEffects(2);
     expect(
       container.querySelector('[data-testid="app-sidebar-rail"]'),
-    ).toBeNull();
+    ).not.toBeNull();
     const buttons = container.querySelectorAll<HTMLButtonElement>(
       '[data-testid="app-sidebar-nav-scheduled-tasks"]',
     );
     expect(buttons).toHaveLength(1);
+    const settings = container.querySelector<HTMLButtonElement>(
+      '[data-testid="app-sidebar-nav-settings"]',
+    )!;
+    expect(settings).not.toBeNull();
+    expect(getComputedStyle(settings).display).not.toBe("none");
+    act(() => settings.click());
+    expect(onNavigate).toHaveBeenCalledWith("settings", { tab: "home" });
     act(() => buttons[0].click());
     expect(onNavigate).toHaveBeenCalledWith("scheduled-tasks", undefined);
   });
 
-  it("折叠后释放侧栏宽度，并从窗口页头重新展开", async () => {
-    const container = mountSidebarContainer();
+  it("折叠后保留图标导航，设置和首页仍可操作", async () => {
+    const onNavigate = vi.fn();
+    const container = mountSidebarContainer({ onNavigate });
     await flushEffects(2);
     act(() =>
       container
@@ -80,10 +87,15 @@ describe("AppSidebar navigation", () => {
       '[data-testid="app-sidebar"]',
     )!;
     expect(sidebar.dataset.collapsed).toBe("true");
-    expect(getComputedStyle(sidebar).width).toBe("0px");
+    expect(getComputedStyle(sidebar).width).toBe("52px");
     expect(
       container.querySelector('[data-testid="app-sidebar-rail"]'),
-    ).toBeNull();
+    ).not.toBeNull();
+    const settings = container.querySelector<HTMLButtonElement>(
+      '[data-testid="app-sidebar-nav-settings"]',
+    )!;
+    act(() => settings.click());
+    expect(onNavigate).toHaveBeenCalledWith("settings", { tab: "home" });
     act(() =>
       container
         .querySelector<HTMLButtonElement>('[data-testid="app-sidebar-expand"]')
@@ -175,7 +187,7 @@ describe("AppSidebar navigation", () => {
     ).not.toBeNull();
   });
 
-  it("默认应渲染一级主导航，并将设置与主题固定在 rail 底部", async () => {
+  it("图标栏承接主入口与设置，只有新聊天留在上下文侧栏", async () => {
     const container = mountSidebarContainer({
       currentPage: "settings",
     });
@@ -210,7 +222,15 @@ describe("AppSidebar navigation", () => {
       '[data-testid="app-sidebar-nav-settings"]',
     );
 
-    expect(mainNavButtons).toEqual(["新建任务", "已安排任务", "插件"]);
+    expect(mainNavButtons).toEqual(["新建任务"]);
+    const rail = container.querySelector('[data-testid="app-sidebar-rail"]')!;
+    expect(rail.contains(settingsRailButton)).toBe(true);
+    expect(
+      rail.querySelector('[data-testid="app-sidebar-nav-plugins"]'),
+    ).not.toBeNull();
+    expect(
+      rail.querySelector('[data-testid="app-sidebar-nav-home-general"]'),
+    ).toBeNull();
     expect(
       container.querySelector('[data-testid="app-sidebar-footer-nav"]'),
     ).toBeNull();
@@ -309,8 +329,6 @@ describe("AppSidebar navigation", () => {
     const homeButton = container.querySelector<HTMLButtonElement>(
       'button[aria-label="返回 Lime 首页"]',
     );
-    const homeLogo =
-      homeButton?.querySelector<HTMLImageElement>('img[alt="Lime"]');
     const mainNav = container.querySelector(
       '[data-testid="app-sidebar-main-nav"]',
     );
@@ -318,7 +336,8 @@ describe("AppSidebar navigation", () => {
     expect(sidebar?.getAttribute("data-window-controls-reserved")).toBe("true");
     expect(header).not.toBeNull();
     expect(homeButton).not.toBeNull();
-    expect(homeLogo?.getAttribute("src")).toBe(LIME_BRAND_LOGO_SRC);
+    expect(homeButton?.textContent).toContain("Lime");
+    expect(homeButton?.querySelector("img")).toBeNull();
     expect(header?.contains(homeButton)).toBe(true);
     expect(
       Boolean(

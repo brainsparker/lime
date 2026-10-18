@@ -48,6 +48,9 @@ Desktop 与 CLI/TUI 共享协议、runtime、持久化和工具 owner。Renderer
 
 ## GUI 结构与行为
 
+2026-10-18 用户最新截图指定 `rail-with-contextual-sidebar`。当前窗口骨架为持久窄图标导航＋可伸缩上下文列；折叠保留图标入口，新聊天/项目/最近会话在上下文列，设置在图标栏底部。插件/技能等使用同一 rail，切换 contextual 内容。不得回退到上一轮误选的 legacy 单侧栏或仅凭历史测试选择目标模式。可确认静态合同及限制见 [feature navigation 证据](../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/feature-navigation/report.md)。
+
+
 导航、会话页头、时间线、Composer、审批、队列、历史恢复、Files/diff、右侧面和设置以可确认的 Desktop 结构与行为为基线。尺寸与密度随窗口适配，不强制套固定宽度、卡片墙、统计摘要或“3 到 7 步”导轨。
 
 当前工作对象、运行状态、主动作和阻塞恢复必须清楚。状态由同一 canonical identity 投影，不能让时间线、页头、Composer 与右侧面各自猜测业务完成态。

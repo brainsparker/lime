@@ -34,6 +34,17 @@ Electron Host/current DevBridge 的等待窗口为 150 秒，下载本身仍为 
 
 ## 身份、缓存与配置
 
+正文预览由 `plugin/model/skillPreviewQueries` 持有唯一、可丢弃的Renderer query投影：
+五分钟staleTime，缓存原始nullable正文；过期重开重取，窗口聚焦不自动重取，最多3次
+自动retry。有numeric HTTP status时按Desktop Bq仅重试408/425/429/5xx；状态缺失时沿
+同一上限，不从文案猜HTTP状态。cloudAccount身份代际隔离换号、注销、会话变化与A→B→A，
+账号变化错误立即终止；本地path仍优先走共享fs/readFile，remote-only走plugin/skill/read。
+这不是安装/授权缓存，也不替代Core当前ACL。REA证据及本轮验收归执行计划P04b13c。
+
+远端详情的技能enabled目标按installed.disabled_skill_names投影，未安装默认true；
+Codex明确尚不把该远端偏好写入skills/list，本地skills.config仍为runtime启停来源。
+此详情差异仍待补齐，不能将其误做跨仓强制启停或新增未知的偏好写入接口。
+
 旧 Lime 客户端 install-state 上报链及 bootstrap 签名可信根合同已删除，禁止用其实现远端
 installed registry、renderer 安装或兼容回退。远端安装状态须按 Codex remote 合同在 current
 owner 实现；服务端 release 发布校验不等于客户端安装事实。
@@ -113,7 +124,9 @@ union（如 hourly.intervalHours），不改成外层 snake_case。非受控平�
 托管包损坏报错；外部非托管正文不可得返回显式null是本地设计，闭源服务端内部未知。
 客户端P04b13b已接线共享`plugin/skill/read`和GUI加载/重试/null/正文消费：本地path优先，
 远端双身份校验及账号fence，正式协议/typed client/gateway共用唯一owner。DOM/严格TS已验，
-Rust/完整contracts与新产物Electron验收中；五分钟缓存、included_files规则和逐技能偏好
+最终正文公共JSON-RPC5/5、protocol crate142/142、完整contracts及新产物受控Electron/stdio
+专项已验：未安装远端错误/重试/null/Markdown、本地路径优先、账号隔离与冷启共用store。
+普通壳`verify:gui-smoke`也已exit0、24/24；五分钟缓存、included_files规则和逐技能偏好
 仍未完成，不以Core测试或局部组件通过核销完整正文能力。
 
 旧私有包 schema、独立 worker/runtime、renderer registry、v3 installed records 与旧规则为 `dead / deleted / forbidden-to-restore`。历史资料从 Git history 追溯。完成验收必须覆盖两仓包发布/下载、安装、真实 Turn 和三端消费；unit、stdio、CLI、PTY、Electron 与 Windows 证据分别报告。
@@ -135,7 +148,7 @@ P04b10 installed对账：共享App Server新增Codex同名plugin/reconcile，完
 已沿同一typed gateway实现首次PRIVATE创建、现有权限保存、复制链接、同ID版本更新、
 checkout/编辑路径和撤销；P04b12d1真实Electron点击/五RPC及原生复制读回与恢复已通过，
 依赖为受控Core形状HTTP及unavailable Turn backend。人员/组目录搜索与新增邀请、
-组成员editor能力投影、非creator checkout冷重开定位、plugin/skill/read和真实Core同包Turn
+组成员editor能力投影、非creator checkout冷重开定位、完整正文缓存/参考文件和真实Core同包Turn
 仍planned。开发期缺少实现不作为excluded理由。
 
 分享链接解析另归P04b12d2：Desktop REA显示认证`GET /ps/plugin-shares/{share_key}`读取

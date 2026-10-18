@@ -549,7 +549,7 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
         data-session-id={props?.sessionId ?? ""}
       >
         {props?.activeTheme === "general" ? (
-          <div data-testid="home-ambient-suggestions" />
+          <div data-testid="home-composer-page" />
         ) : null}
         <button
           type="button"
@@ -612,7 +612,7 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
       mounted.container.querySelector('[data-testid="empty-state"]'),
     ).not.toBeNull();
     expect(
-      mounted.container.querySelector('[data-testid="home-ambient-suggestions"]'),
+      mounted.container.querySelector('[data-testid="home-composer-page"]'),
     ).not.toBeNull();
     const latestEmptyStateProps = mockEmptyState.mock.calls.at(-1)?.[0] as
       | MockEmptyStateProps

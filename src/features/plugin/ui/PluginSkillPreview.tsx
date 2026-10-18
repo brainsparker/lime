@@ -1,88 +1,45 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { AppServerPluginDetail } from "@/lib/api/appServerTypes";
-import { readPluginSkill } from "@/lib/api/pluginCatalog";
-import { readFileBytes } from "@/lib/api/fileBrowser";
-import { cloudAccountIdentity, getCloudAccount } from "@/lib/cloudAccount";
+import { skillPreviewQueryOptions } from "../model/skillPreviewQueries";
 import {
   projectSkillMarkdown,
   renderSkillMarkdown,
 } from "@/components/skills/skillMarkdownPreview";
 import type { PluginSkill } from "./PluginSkillsSection";
 
-type Contents =
-  | { status: "loading" }
-  | { status: "error" }
-  | { status: "ready"; contents: string | null };
-
 export function PluginSkillPreview({
   detail,
   skill,
   title,
   accountIdentity,
+  accountVersion,
   onClose,
 }: {
   detail: AppServerPluginDetail;
   skill: PluginSkill;
   title: string;
   accountIdentity: string | null;
+  accountVersion: number;
   onClose: () => void;
 }) {
   const { t } = useTranslation("agent");
-  const [state, setState] = useState<Contents>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
+  const { data, error, isFetching, refetch } = useQuery(
+    skillPreviewQueryOptions({
+      detail,
+      skill,
+      accountIdentity,
+      accountVersion,
+    }),
+  );
   const [opener] = useState(() =>
     document.activeElement instanceof HTMLElement
       ? document.activeElement
       : null,
   );
-  const remoteId = detail.summary.remotePluginId;
-  const remoteSource = detail.summary.source.type === "remote";
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ status: "loading" });
-    const read = async () => {
-      if (skill.path != null) {
-        return new TextDecoder("utf-8", { fatal: true }).decode(
-          await readFileBytes(skill.path),
-        );
-      }
-      if (!remoteSource || !remoteId || !accountIdentity)
-        throw new Error("missing skill location");
-      const response = await readPluginSkill(
-        {
-          remoteMarketplaceName: detail.marketplaceName,
-          remotePluginId: remoteId,
-          skillName: skill.name,
-        },
-        { signal: controller.signal },
-      );
-      return response.contents ?? null;
-    };
-    const current = () =>
-      !controller.signal.aborted &&
-      accountIdentity === cloudAccountIdentity(getCloudAccount());
-    void read().then(
-      (contents) => {
-        if (current()) setState({ status: "ready", contents });
-      },
-      () => {
-        if (current()) setState({ status: "error" });
-      },
-    );
-    return () => controller.abort();
-  }, [
-    accountIdentity,
-    attempt,
-    detail.marketplaceName,
-    remoteId,
-    remoteSource,
-    skill.name,
-    skill.path,
-  ]);
 
   return (
     <Dialog.Root
@@ -123,23 +80,23 @@ export function PluginSkillPreview({
             className="mt-4 min-h-0 overflow-auto"
             data-testid="plugin-skill-contents"
           >
-            {state.status === "loading" ? (
+            {isFetching && data === undefined ? (
               <p role="status">{t("plugin.skillPreview.loading")}</p>
-            ) : state.status === "error" ? (
+            ) : error ? (
               <div role="alert">
                 <p>{t("plugin.skillPreview.error")}</p>
                 <button
                   type="button"
                   className="mt-3 rounded-full border border-[color:var(--lime-surface-border)] px-4 py-2 text-sm hover:bg-[color:var(--lime-surface-hover)]"
-                  onClick={() => setAttempt((value) => value + 1)}
+                  onClick={() => void refetch()}
                 >
                   {t("plugin.skillPreview.retry")}
                 </button>
               </div>
-            ) : !projectSkillMarkdown(state.contents ?? "", title).trim() ? (
+            ) : !projectSkillMarkdown(data?.contents ?? "", title).trim() ? (
               <p>{t("plugin.skillPreview.empty")}</p>
             ) : (
-              renderSkillMarkdown(state.contents ?? "", title)
+              renderSkillMarkdown(data?.contents ?? "", title)
             )}
           </div>
         </Dialog.Content>

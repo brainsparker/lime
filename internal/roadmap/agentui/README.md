@@ -23,7 +23,6 @@ AgentUI 不是再做一个聊天页面，而是把 Lime 已有的 runtime、time
 | [lime-agentui-target-architecture.md](lime-agentui-target-architecture.md)                       | 目标 UI 架构图与五层模型，是后续 UI 改造的总图。                                                            |
 | [lime-agentui-code-map.md](lime-agentui-code-map.md)                                             | Lime 当前代码层级地图，标出前端、协议、后端、服务和测试入口。                                               |
 | [lime-agentui-event-flow.md](lime-agentui-event-flow.md)                                         | 关键流程图，包括发送消息、旧会话恢复、queue/steer、权限、artifact、evidence。                               |
-| [lime-agentui-sequence-diagrams.md](lime-agentui-sequence-diagrams.md)                           | 端到端时序图，适合实现和排查首字慢、恢复慢、流式错乱。                                                      |
 | [lime-agentui-backend-coordination.md](lime-agentui-backend-coordination.md)                     | 后端配合代码架构，定义 UI 需要后端继续补齐的投影、分页、指标与批量接口。                                    |
 | [lime-agentui-implementation-roadmap.md](lime-agentui-implementation-roadmap.md)                 | P0/P1/P2/P3 落地顺序、验收标准和验证命令。                                                                  |
 | [conversation-projection-architecture.md](conversation-projection-architecture.md)               | Warp 对齐的对话投影架构，声明 AgentUI 只做 UI projection，不新增 runtime fact source。                      |

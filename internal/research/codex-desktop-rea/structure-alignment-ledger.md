@@ -21,7 +21,9 @@
 
 ## 窗口与首页排版重定位（2026-10-18）
 
-实际主Shell为app-initial，sidebar-a9ef58c0cd4b.js是ScheduledSidebar，旧主侧栏映射作废。Lime采用已证legacy分支，目标运行flag仍unknown。公开export `HomeAmbientSuggestionsContent` 已直接迁入同名唯一组件，旧HomeStartSurface删除；HomeStarterChips迁为按参考模块职责命名的HomeSuggestionList，不声称内部压缩符号原名。AppSidebarRail删除，AppSidebar和SettingsNavigation共用useSidebarWidth/SidebarResizeHandle；参考HeaderAction registry尚待迁移。SettingsPage删除双栏/多余Title/窄浮层，内容区收敛48rem和独立46px toolbar。首页删除wheel强制翻屏/第二屏gallery，Banner保留。
+实际主Shell为app-initial，sidebar-a9ef58c0cd4b.js是ScheduledSidebar，旧主侧栏映射作废。用户最新截图指定 rail-with-contextual-sidebar，已直接替换上一轮误选的legacy。AppNavigationRail为本地职责名，采用已证36px控件/两侧8px；上下文可折叠，保留52px rail。AppSidebar和SettingsNavigation共用useSidebarWidth/SidebarResizeHandle。参考HeaderAction基础三槽scope/注册/排序/身份清理迁入app-shell/AppShell，侧栏开关left/order1经唯一renderer呈现，44px共享标题栏。Header metadata/MainContentLayout及统一工作区其他槽仍有缺口。
+
+首页只保留Banner presentation与统一Composer；删除伪装为ambient建议的旧13入口、HomeAmbientSuggestionsContent、HomeSuggestionList、Guide/Drawer/Manager、专用hooks与类型，以及旧恢复卡、项目会话目录和推荐callback接线。上游存在同名export不意味着Lime在缺数据端点时应留空壳。独立Composer布局最大48rem，仅一次panel留白；编辑区136px为用户要求放大的显示选择。useWorkspaceBackgroundSessionRuntime保留侧栏所需canonical状态，删除Home恢复专用状态/导航，不建第二后端。current ambient生产数据能力仍为gap。SettingsPage已删除双栏、多余Title和窄浮层。
 
 当前验证、精确原件和未完成的Home内容/内部命名/账户位置差距由[本轮报告](../../exec-plans/artifacts/codex-shell-layout-rea-20261018/report.md)持有；组件测试通过不冒充实际GUI或全结构对齐。
 

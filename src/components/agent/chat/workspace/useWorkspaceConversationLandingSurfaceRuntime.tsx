@@ -9,20 +9,16 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
 import type { ComposerController } from "@/components/input-kit/ComposerController";
-import type { Artifact } from "@/lib/artifact/types";
 import type { Character } from "@/lib/api/projectMemory";
 import type { ThemeType } from "@/lib/workspace/workbenchContract";
 import { EmptyState } from "../components/EmptyState";
 import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
 import type { CreationMode } from "../components/types";
 import type { InterruptedInputRestoreRequest } from "../hooks/agentStreamInputRestoreTypes";
-import type { HomeRecoverySession } from "../home/homeSurfaceTypes";
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
 import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
 import { buildAgentTaskRuntimeCardModel } from "../utils/agentTaskRuntime";
-import { isCanvasStateEmpty } from "./generalWorkbenchHelpers";
 import { buildWorkspaceEmptyStateProps } from "./chatSurfaceProps";
 import type { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 
@@ -70,10 +66,8 @@ type UseWorkspaceConversationLandingSessionRuntimeParams = Parameters<
 interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   accessMode: ComponentProps<typeof EmptyState>["accessMode"];
   activeTheme: string;
-  artifacts: Artifact[];
   browserAssistLoading: boolean;
   chatToolPreferences: ChatToolPreferences;
-  contentId?: string | null;
   creationMode: CreationMode;
   creationReplaySurface?: CreationReplaySurfaceModel | null;
   defaultCuratedTaskReferenceEntries?: ComponentProps<
@@ -90,9 +84,7 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   entryBannerMessage?: string;
   entryBannerVisible: boolean;
   fileManagerOpen?: ComponentProps<typeof EmptyState>["fileManagerOpen"];
-  generalCanvasContent?: string | null;
   handleSendFromEmptyState: InputbarSendHandler;
-  homeRecoverySession?: HomeRecoverySession | null;
   initialInputCapability?: ComponentProps<
     typeof EmptyState
   >["initialInputCapability"];
@@ -129,16 +121,10 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   onObjectiveEnabledChange?: ComponentProps<
     typeof EmptyState
   >["onObjectiveEnabledChange"];
-  onOpenProjectConversation?: ComponentProps<
-    typeof EmptyState
-  >["onOpenProjectConversation"];
   onPluginSuggestionsNeeded?: ComponentProps<
     typeof EmptyState
   >["onPluginSuggestionsNeeded"];
   onProjectChange?: ComponentProps<typeof EmptyState>["onProjectContextChange"];
-  onRecommendationClick?: ComponentProps<
-    typeof EmptyState
-  >["onRecommendationClick"];
   onRefreshSkills?: ComponentProps<typeof EmptyState>["onRefreshSkills"];
   onSkillSuggestionsNeeded?: ComponentProps<
     typeof EmptyState
@@ -146,9 +132,6 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   onRemovePathReference?: ComponentProps<
     typeof EmptyState
   >["onRemovePathReference"];
-  onResumeRecentSession?: ComponentProps<
-    typeof EmptyState
-  >["onResumeRecentSession"];
   onSelectServiceSkill?: ComponentProps<
     typeof EmptyState
   >["onSelectServiceSkill"];
@@ -166,20 +149,9 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
     typeof EmptyState
   >["pluginSuggestionsLoading"];
   projectCharacters: Character[];
-  projectConversationGroups?: ComponentProps<
-    typeof EmptyState
-  >["projectConversationGroups"];
   projectId: string | null;
   providerType: ComponentProps<typeof EmptyState>["providerType"];
   reasoningEffort?: ComponentProps<typeof EmptyState>["reasoningEffort"];
-  recentSessionActionLabel?: ComponentProps<
-    typeof EmptyState
-  >["recentSessionActionLabel"];
-  recentSessionSummary?: ComponentProps<
-    typeof EmptyState
-  >["recentSessionSummary"];
-  recentSessionTitle?: ComponentProps<typeof EmptyState>["recentSessionTitle"];
-  resolvedCanvasState: CanvasStateUnion | null;
   serviceSkillExecutionCard?: ReactNode;
   serviceSkillGroups: NonNullable<
     ComponentProps<typeof EmptyState>["serviceSkillGroups"]
@@ -199,7 +171,6 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   skills: NonNullable<ComponentProps<typeof EmptyState>["skills"]>;
   skillsLoading: boolean;
   selectedText: ComponentProps<typeof EmptyState>["selectedText"];
-  suppressRecentSessionRecovery?: boolean;
 }
 
 export function useWorkspaceConversationLandingSessionRuntime({
@@ -280,10 +251,8 @@ export function useWorkspaceConversationLandingSessionRuntime({
 export function useWorkspaceConversationLandingSurfaceRuntime({
   accessMode,
   activeTheme,
-  artifacts,
   browserAssistLoading,
   chatToolPreferences,
-  contentId,
   creationMode,
   creationReplaySurface,
   defaultCuratedTaskReferenceEntries,
@@ -294,9 +263,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   entryBannerMessage,
   entryBannerVisible,
   fileManagerOpen,
-  generalCanvasContent,
   handleSendFromEmptyState,
-  homeRecoverySession,
   initialInputCapability,
   input,
   composerController,
@@ -317,14 +284,11 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   onManageProviders,
   onNavigateToSettings,
   onObjectiveEnabledChange,
-  onOpenProjectConversation,
   onPluginSuggestionsNeeded,
   onProjectChange,
-  onRecommendationClick,
   onRefreshSkills,
   onSkillSuggestionsNeeded,
   onRemovePathReference,
-  onResumeRecentSession,
   onSelectServiceSkill,
   onStopSending,
   onToggleFileManager,
@@ -334,14 +298,9 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   pluginSuggestionsError,
   pluginSuggestionsLoading,
   projectCharacters,
-  projectConversationGroups,
   projectId,
   providerType,
   reasoningEffort,
-  recentSessionActionLabel,
-  recentSessionSummary,
-  recentSessionTitle,
-  resolvedCanvasState,
   serviceSkillExecutionCard,
   serviceSkillGroups,
   serviceSkills,
@@ -357,7 +316,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   skills,
   skillsLoading,
   selectedText,
-  suppressRecentSessionRecovery = false,
 }: UseWorkspaceConversationLandingSurfaceRuntimeParams): WorkspaceConversationLandingSurfaceRuntime {
   const {
     knowledgePackOptions,
@@ -410,13 +368,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         activeTheme: activeTheme as ThemeType,
         onThemeChange: setActiveTheme,
         themeLocked: lockTheme,
-        hasCanvasContent:
-          activeTheme === "general"
-            ? artifacts.length > 0 || Boolean(generalCanvasContent?.trim())
-            : !isCanvasStateEmpty(resolvedCanvasState),
-        hasContentId: Boolean(contentId),
         selectedText,
-        onRecommendationClick,
         characters: projectCharacters,
         skills,
         serviceSkills,
@@ -428,27 +380,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onSkillSuggestionsNeeded,
         onLaunchBrowserAssist,
         browserAssistLoading,
-        recentSessionTitle: suppressRecentSessionRecovery
-          ? undefined
-          : recentSessionTitle,
-        recentSessionSummary: suppressRecentSessionRecovery
-          ? undefined
-          : recentSessionSummary,
-        recentSessionActionLabel: suppressRecentSessionRecovery
-          ? undefined
-          : recentSessionActionLabel,
-        homeRecoverySession: suppressRecentSessionRecovery
-          ? undefined
-          : homeRecoverySession,
-        onResumeRecentSession: suppressRecentSessionRecovery
-          ? undefined
-          : onResumeRecentSession,
-        projectConversationGroups: suppressRecentSessionRecovery
-          ? undefined
-          : projectConversationGroups,
-        onOpenProjectConversation: suppressRecentSessionRecovery
-          ? undefined
-          : onOpenProjectConversation,
         projectId,
         openedProjects,
         onProjectChange,
@@ -485,10 +416,8 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
     [
       accessMode,
       activeTheme,
-      artifacts,
       browserAssistLoading,
       chatToolPreferences,
-      contentId,
       creationMode,
       creationReplaySurface,
       defaultCuratedTaskReferenceEntries,
@@ -497,10 +426,8 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       emptyStateIsLoading,
       emptyStateSendOnPointerDown,
       fileManagerOpen,
-      generalCanvasContent,
       handleSendFromEmptyState,
       handleToolPreferenceChange,
-      homeRecoverySession,
       initialInputCapability,
       input,
       composerController,
@@ -519,14 +446,11 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       onManageProviders,
       onNavigateToSettings,
       onObjectiveEnabledChange,
-      onOpenProjectConversation,
       onPluginSuggestionsNeeded,
       onProjectChange,
-      onRecommendationClick,
       onRefreshSkills,
       onSkillSuggestionsNeeded,
       onRemovePathReference,
-      onResumeRecentSession,
       onSelectKnowledgePack,
       onSelectServiceSkill,
       onStartKnowledgeOrganize,
@@ -540,14 +464,9 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       pluginSuggestionsError,
       pluginSuggestionsLoading,
       projectCharacters,
-      projectConversationGroups,
       projectId,
       providerType,
       reasoningEffort,
-      recentSessionActionLabel,
-      recentSessionSummary,
-      recentSessionTitle,
-      resolvedCanvasState,
       runtimeToolAvailability,
       serviceSkillGroups,
       serviceSkills,
@@ -562,7 +481,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       skills,
       skillsLoading,
       selectedText,
-      suppressRecentSessionRecovery,
       knowledgePackOptions,
       knowledgePackSelection,
     ],

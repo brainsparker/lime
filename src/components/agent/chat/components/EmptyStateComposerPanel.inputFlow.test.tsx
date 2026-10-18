@@ -82,45 +82,6 @@ describe("EmptyStateComposerPanel", () => {
     expect(getComposerEditorText(editor)).toBe("");
   });
 
-  it("引导帮助模式应展示可关闭的上下文 badge 并隐藏 Tab 起手建议", () => {
-    const onClearGuideHelp = vi.fn();
-    const container = renderPanel({
-      guideHelpActive: true,
-      guideHelpLabel: "Lime 引导帮助",
-      onClearGuideHelp,
-    });
-
-    expect(
-      container.querySelector('[data-testid="home-guide-help-active-badge"]')
-        ?.textContent,
-    ).toContain("Lime 引导帮助");
-    expect(
-      container.querySelector('[data-testid="home-guide-help-toolbar-badge"]')
-        ?.textContent,
-    ).toContain("引导帮助");
-    expect(
-      container.querySelector('[data-testid="home-input-tab-suggestion"]'),
-    ).toBeNull();
-
-    const closeButton = container.querySelector(
-      '[data-testid="home-guide-help-active-badge"] button',
-    ) as HTMLButtonElement | null;
-    act(() => {
-      closeButton?.click();
-    });
-
-    expect(onClearGuideHelp).toHaveBeenCalledTimes(1);
-
-    const toolbarCloseButton = container.querySelector(
-      '[data-testid="home-guide-help-toolbar-badge"]',
-    ) as HTMLButtonElement | null;
-    act(() => {
-      toolbarCloseButton?.click();
-    });
-
-    expect(onClearGuideHelp).toHaveBeenCalledTimes(2);
-  });
-
   it("应将 onPaste 绑定到输入框", () => {
     const onPaste = vi.fn();
     const container = renderPanel({ onPaste });

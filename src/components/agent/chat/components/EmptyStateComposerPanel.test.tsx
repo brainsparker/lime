@@ -1,4 +1,7 @@
-import { getComposerEditorText, setComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
+import {
+  getComposerEditorText,
+  setComposerEditorText,
+} from "@/components/input-kit/composerEditor.testUtils";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -145,11 +148,14 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("写文章");
     expect(
-      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
     ).toBe("@写文章 写一篇公众号文章");
   });
 
@@ -178,11 +184,14 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("写文章");
     expect(
-      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
     ).toBe("@写文章");
   });
 
@@ -212,11 +221,14 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("内容工厂");
     expect(
-      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
     ).toBe("@内容工厂 整理今天的选题");
   });
 
@@ -262,7 +274,11 @@ describe("EmptyStateComposerPanel", () => {
       container.querySelector('[data-composer-token="plugin"]'),
     ).toBeNull();
     expect(
-      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
     ).toBe("整理今天的选题");
   });
 
@@ -299,11 +315,14 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("内容工厂:文章写作");
     expect(
-      getComposerEditorText(container.querySelector<HTMLElement>('[data-testid="composer-editor"][role="textbox"]')),
+      getComposerEditorText(
+        container.querySelector<HTMLElement>(
+          '[data-testid="composer-editor"][role="textbox"]',
+        ),
+      ),
     ).toBe("@内容工厂:文章写作 整理今天的选题");
   });
 
@@ -337,8 +356,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(
-      container.querySelector('[data-composer-token="plugin"]')
-        ?.textContent,
+      container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("content-workbench");
   });
 
@@ -538,27 +556,9 @@ describe("EmptyStateComposerPanel", () => {
       copy: TEST_EN_COMPOSER_COPY,
       inputbarCopy: TEST_EN_INPUTBAR_CORE_COPY,
       isGeneralTheme: true,
-      guideHelpActive: true,
-      onClearGuideHelp: vi.fn(),
       onToggleFileManager: vi.fn(),
       showCreationModeSelector: true,
     });
-
-    const guideBadge = container.querySelector(
-      '[data-testid="home-guide-help-active-badge"]',
-    );
-    expect(guideBadge?.textContent).toContain("Lime guide help");
-
-    const guideCloseButton = guideBadge?.querySelector("button");
-    expect(guideCloseButton?.getAttribute("aria-label")).toBe(
-      "Close Lime guide help",
-    );
-    expect(guideCloseButton?.getAttribute("title")).toBe("Close guide help");
-    expect(
-      container
-        .querySelector('[data-testid="home-guide-help-toolbar-badge"]')
-        ?.getAttribute("title"),
-    ).toBe("Close guide help");
 
     const plusTrigger = container.querySelector(
       '[data-testid="inputbar-plus-trigger"]',

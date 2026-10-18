@@ -220,10 +220,10 @@ describe("AppSidebar Plugins", () => {
     expect(
       Array.from(
         container.querySelectorAll(
-          '[data-testid="app-sidebar-main-nav"] button',
+          '[data-testid="app-sidebar-rail"] [data-testid^="app-sidebar-nav-"]:not([data-testid="app-sidebar-nav-settings"])',
         ),
       ).map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["新建任务", "已安排任务", "插件"]);
+    ).toEqual(["已安排任务", "插件"]);
 
     act(() => {
       container
@@ -238,19 +238,17 @@ describe("AppSidebar Plugins", () => {
     const container = mountSidebarContainer();
     await flushEffects(2);
 
-    const mainNav = container.querySelector(
-      '[data-testid="app-sidebar-main-nav"]',
-    );
+    const mainNav = container.querySelector('[data-testid="app-sidebar-rail"]');
     expect(mainNav?.textContent).toContain("插件");
     expect(mainNav?.textContent).not.toContain("内容工厂");
     expect(mainNav?.textContent).not.toContain("发布应用");
     expect(
       Array.from(
         container.querySelectorAll(
-          '[data-testid="app-sidebar-main-nav"] button',
+          '[data-testid="app-sidebar-rail"] [data-testid^="app-sidebar-nav-"]:not([data-testid="app-sidebar-nav-settings"])',
         ),
       ).map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["新建任务", "已安排任务", "插件"]);
+    ).toEqual(["已安排任务", "插件"]);
   });
 
   it("Plugin 变更事件不应影响侧栏聚合入口", async () => {
@@ -266,10 +264,10 @@ describe("AppSidebar Plugins", () => {
     expect(
       Array.from(
         container.querySelectorAll(
-          '[data-testid="app-sidebar-main-nav"] button',
+          '[data-testid="app-sidebar-rail"] [data-testid^="app-sidebar-nav-"]:not([data-testid="app-sidebar-nav-settings"])',
         ),
       ).map((button) => button.getAttribute("aria-label")),
-    ).toEqual(["新建任务", "已安排任务", "插件"]);
+    ).toEqual(["已安排任务", "插件"]);
   });
 
   it("安装态读取失败不应影响静态 Plugins 聚合入口", async () => {

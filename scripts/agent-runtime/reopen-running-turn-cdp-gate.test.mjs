@@ -134,16 +134,19 @@ describe("reopen running turn CDP Gate", () => {
     expect(content).toContain("sampleGuiHomeBackgroundRecoveryState");
     expect(content).toContain("isTransientGuiSamplingError");
     expect(content).toContain("Execution context was destroyed");
-    expect(content).toContain("home-ambient-suggestions");
-    expect(content).toContain("home-unfinished-session-card");
-    expect(content).toContain("homeRecoveryCardVisible");
-    expect(content).toContain("homeRecoveryCardStatus ===");
-    expect(content).toContain("homeRecoveryCardMatchesRunningSession");
-    expect(content).toContain("homeRecoveryCardMatchedSessionId");
-    expect(content).toContain("homeRecoveryCardMatchedTitle");
-    expect(content).toContain("openFixtureSessionFromHomeRecoveryCard");
+    expect(content).toContain("home-composer-page");
+    expect(content).not.toContain("home-unfinished-session-card");
+    expect(content).toContain(
+      'row.getAttribute("data-session-id") === spec.sessionId',
+    );
+    expect(content).toContain("backgroundConversationVisible");
+    expect(content).toContain("backgroundConversationStatus ===");
+    expect(content).toContain("backgroundConversationMatchesRunningSession");
+    expect(content).toContain("backgroundConversationMatchedSessionId");
+    expect(content).toContain("backgroundConversationMatchedTitle");
+    expect(content).toContain("openFixtureSessionFromSidebar");
     expect(content).toContain("runningSessionDetailOpenedAfterReopen");
-    expect(content).toContain("app-sidebar-home-button");
+    expect(content).toContain("app-sidebar-rail-home");
     expect(content).toContain("homeBackgroundBeforeReopen");
     expect(content).toContain("homeBackgroundAfterReopen");
     expect(content).toContain("homeBackgroundAfterReload");
@@ -153,7 +156,7 @@ describe("reopen running turn CDP Gate", () => {
     expect(content).toContain("presentationModeKnown");
   });
 
-  it("binds the home recovery card to a real running session without stealing detail focus", () => {
+  it("binds the background sidebar conversation to a real running session without stealing detail focus", () => {
     const content = readGateScript();
 
     expect(content).toContain("--multi-running-sessions");
@@ -172,14 +175,14 @@ describe("reopen running turn CDP Gate", () => {
       "multiRunningPrimaryAndSecondarySidebarAfterReopen",
     );
     expect(content).toContain(
-      "multiRunningHomeRecoveryCardMatchesRunningSession",
+      "multiRunningBackgroundConversationMatchesRunningSession",
     );
     expect(content).toContain(
       "multiRunningPrimaryOpenedFromSidebarAfterReopen",
     );
     expect(content).toContain('"sidebar-primary"');
     expect(content).not.toContain("multiRunningHomeKeepsPrimaryRecoveryCard");
-    expect(content).not.toContain("homeRecoveryCardTitleFound");
+    expect(content).not.toContain("backgroundConversationTitleFound");
     expect(content).toContain(
       "multiRunningSecondaryStillRunningAfterPrimaryCancel",
     );

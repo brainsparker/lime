@@ -11,6 +11,7 @@ import { vi } from "vitest";
 import type { AgentPageParams, Page, PageParams } from "@/types/page";
 import { SettingsTabs as LimeSettingsTabs } from "@/types/settings";
 import { AppSidebar as AppSidebarComponent } from "./AppSidebar";
+import { AppShell, AppShellHeader } from "./app-shell/AppShell";
 import { changeLimeLocale as changeLimeLocaleImpl } from "@/i18n/createI18n";
 import { LIME_COLOR_SCHEME_STORAGE_KEY as LIME_COLOR_SCHEME_STORAGE_KEY_VALUE } from "@/lib/appearance/colorSchemes";
 import { LIME_THEME_STORAGE_KEY as LIME_THEME_STORAGE_KEY_VALUE } from "@/lib/appearance/themeMode";
@@ -384,32 +385,35 @@ export function mountSidebar(options?: {
 
   act(() => {
     root.render(
-      <AppSidebar
-        currentPage={options?.currentPage ?? "agent"}
-        currentPageParams={options?.currentPageParams}
-        activeAgentSessionId={options?.activeAgentSessionId}
-        activeAgentStreaming={options?.activeAgentStreaming}
-        backgroundAgentSessionRuntime={options?.backgroundAgentSessionRuntime}
-        requestedPage={options?.requestedPage}
-        requestedPageParams={options?.requestedPageParams}
-        onNavigate={options?.onNavigate ?? vi.fn()}
-        onStartNewConversation={(request) => {
-          mockStartNewConversation(request);
-          const id = ++newConversationRequestId;
-          options?.onNavigate?.(
-            "agent",
-            buildHomeAgentParams({
-              projectId: request.projectId ?? undefined,
-              newChatAt: id,
-              newConversationRequest: {
-                id,
-                workspaceId: request.projectId,
-                freshDraft: request.freshDraft,
-              },
-            }),
-          );
-        }}
-      />,
+      <AppShell>
+        <AppShellHeader />
+        <AppSidebar
+          currentPage={options?.currentPage ?? "agent"}
+          currentPageParams={options?.currentPageParams}
+          activeAgentSessionId={options?.activeAgentSessionId}
+          activeAgentStreaming={options?.activeAgentStreaming}
+          backgroundAgentSessionRuntime={options?.backgroundAgentSessionRuntime}
+          requestedPage={options?.requestedPage}
+          requestedPageParams={options?.requestedPageParams}
+          onNavigate={options?.onNavigate ?? vi.fn()}
+          onStartNewConversation={(request) => {
+            mockStartNewConversation(request);
+            const id = ++newConversationRequestId;
+            options?.onNavigate?.(
+              "agent",
+              buildHomeAgentParams({
+                projectId: request.projectId ?? undefined,
+                newChatAt: id,
+                newConversationRequest: {
+                  id,
+                  workspaceId: request.projectId,
+                  freshDraft: request.freshDraft,
+                },
+              }),
+            );
+          }}
+        />
+      </AppShell>,
     );
   });
 

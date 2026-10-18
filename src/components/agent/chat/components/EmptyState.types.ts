@@ -18,14 +18,12 @@ import type { RuntimeToolAvailability } from "../utils/runtimeToolAvailability";
 import type { MessagePathReference } from "../types";
 import type { InputbarSendHandler } from "./Inputbar/inputbarSendPayload";
 import type { ComposerProject } from "./Inputbar/components/composerUtilityBarTypes";
-import type { EmptyStateProjectConversationGroupModel } from "./EmptyStateViewModel";
 import type { InputbarPluginCapability } from "./Inputbar/pluginInputCapability";
 import type {
   InputbarKnowledgePackOption,
   InputbarKnowledgePackSelection,
 } from "./Inputbar/types";
 import type { CreationMode } from "./types";
-import type { HomeRecoverySession } from "../home/homeSurfaceTypes";
 
 export type AgentI18nKey = keyof AgentI18nResource;
 
@@ -52,8 +50,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   activeTheme?: string;
   /** 主题变更回调 */
   onThemeChange?: (theme: string) => void;
-  /** 推荐标签点击回调 */
-  onRecommendationClick?: (shortLabel: string, fullPrompt: string) => void;
   providerType: string;
   setProviderType: (type: string) => void;
   model: string;
@@ -69,8 +65,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   onObjectiveEnabledChange?: (enabled: boolean) => void;
   subagentEnabled?: boolean;
   onSubagentEnabledChange?: (enabled: boolean) => void;
-  hasCanvasContent?: boolean;
-  hasContentId?: boolean;
   selectedText?: string;
   /** 角色列表（用于 @ 引用） */
   characters?: Character[];
@@ -78,23 +72,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   onLaunchBrowserAssist?: () => void | Promise<void>;
   /** 浏览器协助启动中 */
   browserAssistLoading?: boolean;
-  /** 最近会话标题 */
-  recentSessionTitle?: string | null;
-  /** 最近会话摘要 */
-  recentSessionSummary?: string | null;
-  /** 最近会话恢复动作文案 */
-  recentSessionActionLabel?: string;
-  /** 首页未完成会话恢复卡 */
-  homeRecoverySession?: HomeRecoverySession | null;
-  /** 恢复最近一次会话上下文 */
-  onResumeRecentSession?: () => void;
-  /** 当前项目下可继续的会话列表 */
-  projectConversationGroups?: EmptyStateProjectConversationGroupModel[];
-  /** 打开项目下的会话 */
-  onOpenProjectConversation?: (
-    conversationId: string,
-    statusReason?: string,
-  ) => void;
   /** 当前项目 ID */
   projectId?: string | null;
   /** 已打开项目列表 */

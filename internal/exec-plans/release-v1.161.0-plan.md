@@ -5,7 +5,7 @@
 ## 目标、候选与写集
 
 - 用户要求发布 v1.161.0，包含当前工作区全部产品、测试和文档改动；基线为 main/origin/main `ece78016447ec973108e606e30993baa84933430`（v1.160.0）。远端目标 tag/Release 均不存在。
-- 冻结源码副本：`/var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/lime-release-v1.161.0-hnxezgpo`。独立 Git 数据、index、构建输出和 Cargo target；起初只读复用第三方依赖；发现断链后已按冻结 pnpm lock 在副本独立安装，workspace package 链接指向冻结副本，不创建 worktree 或开发分支，不终止用户进程。
+- 当前固定候选：`/Users/coso/Documents/dev/ai/aiclientproxy/lime-release-v1.161.0-candidate`（首次临时冻结目录与迁移记录见本计划及本地freeze收据）。独立 Git 数据、index、构建输出和 Cargo target；起初只读复用第三方依赖；发现断链后已按冻结 pnpm lock 在副本独立安装，workspace package 链接指向冻结副本，不创建 worktree 或开发分支，不终止用户进程。
 - 本轮直接写集：package.json、packages/cli/package.json、lime-rs/Cargo.toml、lime-rs/Cargo.lock、双语 RELEASE_NOTES、执行计划与 README 当前发布指针。业务代码只读纳入候选；失败后的必要修复另登记。
 - 排除沿用上版的 `local-conversation-page-a83a1af2c24b.js` 与 `tsconfig.node.tsbuildinfo`；冻结后的并行变化单独列出，不覆盖或无验证合入。
 - 用户说明旧 `.lime` 为主动清理。本版重新生成验证收据；历史计划的通过结果不作为本次候选通过证据。
@@ -77,3 +77,11 @@
 - 同一run前端全量至批41发现preferences中5项失败；其中项目会话插件入口由上述定位标识修复覆盖，其余4项仍查找旧全局导航按钮。按现有AppSidebarCustomization迁移到对应子页入口与当前激活语义，保留实际点击回到插件Tab的行为断言，不恢复旧侧栏实现。
 - 导航修复后本地全部侧栏9文件107项exit0（含新增首页/任务中心可见性与跳转回归）；完整`npm run typecheck`（renderer+node）exit0，4个变动TS文件定向ESLint exit0。无新增文案、协议或后端owner；等待修复提交SHA的远端全量门禁。
 - run39099827907的Rust Full在apps_jsonrpc两项失败：夹具仍用portable标准包声明Apps，而current合同与既有负向单测明确标准包仅保存Apps元数据、不启用组件。将该Apps公共JSON-RPC夹具改为native `.codex-plugin/plugin.json`，保留所有分页、安装/卸载、通知、禁用与不可访问断言；不修改生产行为。此项另补定向Rust验证，并以最终SHA远端全量为准。
+
+## 用户追加最新更新
+
+- 用户再次明确“还有最新的更新也要一起递交啊”。在87c70d0基础捕获109路径，包含持久图标rail/AppShell、首页旧推荐链删除、后台会话恢复、插件技能预览查询缓存、五语言与相关测试/文档；精确快照和逐文件哈希落在`.lime/release/v1.161.0/freeze-latest.json`。继续排除两个本地生成文件，冻结后的变动保留原工作区。
+- 前一轮39100767112已证明记忆设置恢复可点击；Frontend Full到批66因Plugin方法清单漏`plugin/skill/read`失败，225项定向治理回归补齐后通过。GUI已完成真实导航和记忆操作，但layoutGeometryStable失败，不能记作GUI通过；新候选需重新验证最新布局，并补失败几何数据日志及CI artifact保留，断言不降级。
+- 独立候选按新增依赖锁文件恢复环境，原工作区依赖不改；先定向验证最新侧栏/首页/插件与完整typecheck，再推送最终SHA运行Quality。不得用87c70d0之前结果代替最新写集。
+
+- 最新候选本地定向回归30文件568项全部exit0（单worker，原测试期限；`latest-tests.log`与`latest-test-results.json`）；版本一致性exit0。相对v1.160.0完整候选938路径（含删除），暂存清单/逐文件哈希审计无非预期漂移；本次相对87c70d0为114路径。完整`npm run typecheck`（renderer+node）exit0（`latest-typecheck.log`）；远端Quality/GUI及Release产物未完成，不记作发布成功。

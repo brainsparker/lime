@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import type {
   Dispatch,
   MutableRefObject,
@@ -6,10 +7,9 @@ import type {
 } from "react";
 import type { Topic } from "../hooks/agentChatShared";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
-import type { OpenedProjectSummary } from "../hooks/useOpenedProjectSummaries";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { TaskCenterHomeSurfaceState } from "./agentChatWorkspaceHelpers";
-import { useTaskCenterConversationNavigationRuntime } from "./useTaskCenterConversationNavigationRuntime";
+import { resolveRecentTopicCandidate } from "../hooks/agentChatShared";
 import { useTaskCenterFallbackRestoreRuntime } from "./useTaskCenterFallbackRestoreRuntime";
 import { useTaskCenterHomeChromeRuntime } from "./useTaskCenterHomeChromeRuntime";
 import { useTaskCenterTabChrome } from "./useTaskCenterTabChrome";
@@ -64,8 +64,6 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
   onSwitchTaskTopic: (topicId: string) => void | Promise<void>;
   onToggleWorkbench: () => void;
   openTabIds: string[];
-  openedProjects: OpenedProjectSummary[];
-  projectId?: string | null;
   queuedTurnsLength: number;
   renamePromptLabel: string;
   renameTopic: (topicId: string, title: string) => void | Promise<void>;
@@ -85,17 +83,8 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
 
 interface TaskCenterChromeNavigationRuntime {
   browserWorkspaceHomeTabsNode: ReactNode;
-  handleOpenProjectConversation: (
-    topicId: string,
-    statusReason?: string,
-  ) => void;
   handleOpenTaskCenterNewTaskPage: () => void;
-  handleResumeRecentSession: () => void;
   hasHomeConversationActivity: boolean;
-  projectConversationGroups: ReturnType<
-    typeof useTaskCenterConversationNavigationRuntime
-  >["projectConversationGroups"];
-  recentSessionActionLabel: string;
   recentSessionTopic: Topic | null;
   shouldHideDetachedTaskCenterTabs: boolean;
   isTaskCenterDraftSendPending: boolean;
@@ -145,8 +134,6 @@ export function useTaskCenterChromeNavigationRuntime({
   onSwitchTaskTopic,
   onToggleWorkbench,
   openTabIds,
-  openedProjects,
-  projectId,
   queuedTurnsLength,
   renamePromptLabel,
   renameTopic,
@@ -201,19 +188,10 @@ export function useTaskCenterChromeNavigationRuntime({
     clearEmbeddedHomeSession,
   });
 
-  const {
-    recentSessionTopic,
-    recentSessionActionLabel,
-    handleResumeRecentSession,
-    projectConversationGroups,
-    handleOpenProjectConversation,
-  } = useTaskCenterConversationNavigationRuntime({
-    topics,
-    sessionId,
-    projectId,
-    openedProjects,
-    onOpenTaskTopic,
-  });
+  const recentSessionTopic = useMemo(
+    () => resolveRecentTopicCandidate(topics, sessionId),
+    [sessionId, topics],
+  );
 
   const handleOpenTaskCenterNewTaskPage = () => {
     onStartNewConversation?.({
@@ -282,12 +260,8 @@ export function useTaskCenterChromeNavigationRuntime({
 
   return {
     browserWorkspaceHomeTabsNode,
-    handleOpenProjectConversation,
     handleOpenTaskCenterNewTaskPage,
-    handleResumeRecentSession,
     hasHomeConversationActivity,
-    projectConversationGroups,
-    recentSessionActionLabel,
     recentSessionTopic,
     shouldHideDetachedTaskCenterTabs,
     isTaskCenterDraftSendPending,
