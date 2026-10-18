@@ -218,10 +218,7 @@ async fn model_summary_lifecycle(wire: Wire) {
             .find(|turn| Some(turn["id"].as_str().unwrap()) == start.turn_id.as_deref())
             .unwrap();
         assert_ne!(turn["status"], "inProgress", "{turn}");
-        let item_id = format!(
-            "compaction-{}",
-            start.payload["compactionId"].as_str().unwrap()
-        );
+        let item_id = format!("compaction-{}", turn["id"].as_str().unwrap());
         assert_eq!(
             turn["items"]
                 .as_array()

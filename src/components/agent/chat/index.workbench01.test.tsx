@@ -38,7 +38,7 @@ const {
 } = getIndexTestMocks();
 
 describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
-  it("空白新建任务首页应去掉项目栏和会话标签，只保留右上工具区", async () => {
+  it("空白新建任务首页应去掉项目栏和会话标签，将工具区放入共享页头", async () => {
     const container = renderPage({
       agentEntry: "new-task",
       showChatPanel: false,
@@ -47,7 +47,11 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     });
     await flushEffects(10);
 
-    expect(container.querySelector('[data-testid="chat-navbar"]')).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="workspace-main-area"] [data-testid="chat-navbar"]',
+      ),
+    ).toBeNull();
     expect(
       container.querySelector('[data-testid="task-center-chrome-shell"]'),
     ).toBeNull();
@@ -65,7 +69,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     expect(container.textContent).not.toContain("新对话");
     expect(
       container.querySelector(
-        '[data-testid="task-center-home-top-toolbar-host"]',
+        '[data-testid="app-shell-header"] [data-app-shell-header-toolbar] [data-testid="task-center-utility-toolbar"]',
       ),
     ).not.toBeNull();
     expect(
@@ -107,7 +111,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     expect(draftTabs).toHaveLength(0);
     expect(
       mounted.container.querySelector(
-        '[data-testid="task-center-home-top-toolbar-host"]',
+        '[data-testid="app-shell-header"] [data-app-shell-header-toolbar] [data-testid="task-center-utility-toolbar"]',
       ),
     ).not.toBeNull();
   });

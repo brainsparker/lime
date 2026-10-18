@@ -2,6 +2,11 @@
 import { act, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, vi } from "vitest";
+import {
+  AppShell,
+  AppShellHeader,
+  UnifiedTabStrip,
+} from "@/components/app-shell/AppShell";
 import { harness as createDraftHarness } from "@/components/input-kit/ComposerDraftCoordinator.testFixtures";
 import { acceptedSubmission } from "./hooks/agentSendResult.testFixtures";
 import { agentEnUSResource, agentZhCNResource } from "@/i18n/agentResources";
@@ -436,14 +441,27 @@ vi.mock("@/lib/workspace/workbenchWorkflow", () => ({
 vi.mock("@/components/workspace/layout/LayoutTransition", () => ({
   LayoutTransition: ({
     mode,
+    mainToolbar,
+    sidePanelTabStrip,
     chatContent,
     canvasContent,
   }: {
     mode: string;
+    mainToolbar?: ReactNode;
+    sidePanelTabStrip?: ReactNode;
     chatContent: ReactNode;
     canvasContent: ReactNode;
   }) => (
     <div data-testid="layout-transition" data-mode={mode}>
+      <UnifiedTabStrip
+        mode="split"
+        isVisible={mode !== "chat"}
+        desktopPlacement="titlebar"
+        mainTabId="fixture-chat-tab"
+        mainTabPanelId="fixture-chat-panel"
+        mainToolbar={mainToolbar}
+        sidePanelTabStrip={sidePanelTabStrip}
+      />
       <div data-testid="layout-chat" hidden={mode === "canvas"}>
         {chatContent}
       </div>
@@ -1078,7 +1096,12 @@ export function mountPage(
     : { initialSessionId: "session-1", ...initialProps };
 
   const render = () => {
-    root.render(<AgentChatPage {...currentProps} />);
+    root.render(
+      <AppShell>
+        <AppShellHeader />
+        <AgentChatPage {...currentProps} />
+      </AppShell>,
+    );
   };
 
   act(() => {

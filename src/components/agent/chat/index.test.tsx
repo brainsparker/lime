@@ -374,10 +374,14 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
         '[data-testid^="task-center-tab-task-draft-"][data-active="true"]',
       ),
     ).toBeNull();
-    expect(container.querySelector('[data-testid="chat-navbar"]')).toBeNull();
     expect(
       container.querySelector(
-        '[data-testid="task-center-home-top-toolbar-host"]',
+        '[data-testid="workspace-main-area"] [data-testid="chat-navbar"]',
+      ),
+    ).toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="app-shell-header"] [data-app-shell-header-toolbar] [data-testid="task-center-utility-toolbar"]',
       ),
     ).not.toBeNull();
     expect(
@@ -455,7 +459,7 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
     ).toBeNull();
     expect(
       container.querySelector(
-        '[data-testid="task-center-home-top-toolbar-host"]',
+        '[data-testid="app-shell-header"] [data-app-shell-header-toolbar] [data-testid="task-center-utility-toolbar"]',
       ),
     ).not.toBeNull();
     expect(
@@ -497,7 +501,7 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
     expect(state.clearMessages).toHaveBeenCalledWith({ showToast: false });
     expect(
       container.querySelector(
-        '[data-testid="task-center-home-top-toolbar-host"]',
+        '[data-testid="app-shell-header"] [data-app-shell-header-toolbar] [data-testid="task-center-utility-toolbar"]',
       ),
     ).not.toBeNull();
     expect(

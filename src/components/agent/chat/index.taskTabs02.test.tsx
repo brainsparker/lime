@@ -353,7 +353,7 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     ).toBeNull();
   });
 
-  it("外部路由带项目时不再渲染顶部项目切换入口", async () => {
+  it("外部路由带项目时将项目上下文放入共享页头，正文不重复导航栏", async () => {
     const onNavigate = vi.fn();
     installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
 
@@ -365,7 +365,14 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     await flushEffects();
 
     expect(
-      mounted.container.querySelector('[data-testid="chat-navbar"]'),
+      mounted.container.querySelector(
+        '[data-testid="app-shell-header"] [data-testid="chat-navbar"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      mounted.container.querySelector(
+        '[data-testid="workspace-main-area"] [data-testid="chat-navbar"]',
+      ),
     ).toBeNull();
     expect(
       mounted.container.querySelector(

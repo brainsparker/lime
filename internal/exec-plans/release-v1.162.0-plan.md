@@ -1,6 +1,6 @@
 # v1.162.0 发布执行计划
 
-状态：active；用户再次要求发布，已从保全的 Git 对象与补丁恢复独立候选并核验内容，正在补齐后验。尚未提交、打标签或推送。
+状态：active；发布提交 `e74400284f534a8d0f7614eff9fbdbce5930e027` 已推送 main，完整 Quality 与本地 Rust/GUI 后验运行中；尚未创建或推送 v1.162.0 tag。
 
 ## 目标与候选范围
 
@@ -79,3 +79,14 @@
 - 恢复后的标准 `npm run verify:gui-smoke` 已启动，使用正常 renderer/Host/sidecar 构建，不跳过 freshness；Rust 9 owner 与公共 RPC 后验仍在执行。
 - 最新发布授权：用户明确目标为“完成发布,我去睡觉了,不要让我确认”。此指令优先于早先 AGENTS/skill 的重复确认流程；继续自动完成本次发布提交、main 推送、Quality、tag 推送、Release/npm/updater 验证，不再要求用户确认。冻结后产品增量继续保留在原工作区，按清单披露；不得覆盖已有远端 tag 或并行源码。
 - 为避免串行等待两套完整门禁，静态检查和候选预览完成后先提交/推送冻结候选到 main，让远端完整 Quality 与本地 Rust/GUI 后验并行。仅在该最终 SHA 的 Quality 与必要本地后验均成功后创建/推送 v1.162.0 tag；如后验发现问题，tag 前修复并重新验证相关范围，不覆盖已发布引用。
+- 已执行 `git commit -m "Release v1.162.0"` 与 `git push origin main`，均 exit0；真实 Husky 303 文件通过、0 失败、平均 97 分，未绕过 hook。提交为 `e74400284f534a8d0f7614eff9fbdbce5930e027`，提交 tree `ee4a4430e402c13b2fdfd4ad73c1b1ada10d5a2f` 与审阅 preview 完全一致。发布提交 316 路径；两个本地缓存/实验产物保持排除，原工作区源码、HEAD 和 index 尚未改写。
+- 远端 Quality：[39151743083](https://github.com/limecloud/lime/actions/runs/39151743083)，head SHA 为上述发布提交，当前 in_progress。GUI renderer/Host 已完成，sidecar 正常等待同一候选 Cargo 锁；Rust owner/公共 RPC 后验仍在编译。GitHub Release、npm 与 updater 尚未发布，不提前计为成功。
+
+- Quality 39151743083 的 Integrity、Bridge & Contracts 已成功；Frontend Full 在第 3/138 批发现 Agent chat 三处旧首页 toolbar host 断言。当前窄修复为 index.testFixtures.tsx、index.test.tsx、index.workbench01.test.tsx：共享夹具挂载真实 AppShell/AppShellHeader，并在 LayoutTransition 边界传递 mainToolbar 到 current UnifiedTabStrip；五处旧布局断言迁至共享页头实际工具区。会话清空、项目、草稿隔离断言全部保留，三文件定向 ESLint exit0，行为后验执行中。
+
+- 首轮 Quality 39151743083 已结束：Integrity、Bridge & Contracts、GUI Smoke、Windows Shell Runtime 成功；Frontend Full 和 Rust Full 失败。Frontend 已按 current 共享页头修复，完整批次续验目前前 12 批通过；Agent chat index 16 项已全过。首次直接两文件后验为 29/31，通过页头后又暴露两处过宽 navbar 缺席断言，现约束为正文内不重复 navbar，保留共享页头。
+- Rust Full 在 thread_compact_jsonrpc 的四协议生命周期断言失败，其余该 target 26 项通过。前次只为内部 compactionId 加前缀仍错误：current materializer 的 ContextCompaction fallback ID 使用 turnId，而 operation 另生成 compact_item 身份。已改为精确 compaction-{turnId}，继续断言恰好一项；关联 Turn、取消终态和失败摘要不替换断言未减少。仅测试修正，rustfmt 与 diff-check exit0，真实后验仍待完成。
+- 本地恢复副本无 full smart 状态，因远端完整前端门禁失败新建一次 138 批全量状态；后续统一使用 test:resume。不将基线 stderr 警告或仍运行的批次计为通过。为提前发现后部 CI 阻断，在定向静态检查和完整 typecheck 后推送本组测试修正，tag 仍等待最终 SHA 的 Quality 及必要本地后验。
+
+- 本组修正后的完整 npm run typecheck exit0（renderer + node）；五处首页 toolbar 断言和第 15 批 navbar 断言均已迁至 current shell。Agent chat index16、workbench01 15、taskTabs02 8 项全部通过；四个前端文件 ESLint 与 Prettier exit0。前端 smart 当前已通过前 17 批，后验仍继续。追加窄写集 index.taskTabs02.test.tsx，不引入生产 DOM 或兼容入口。
+- 提交前已审阅四个前端文件、一个 Rust 测试和本计划；tsconfig.node.tsbuildinfo 与本地 conversation dump 继续排除。本轮修复推送仅用于取得最终 SHA 的完整 Quality，尚未打 tag，公开发布完成度仍待后继产物验收。
