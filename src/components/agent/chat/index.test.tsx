@@ -22,6 +22,7 @@ import { createEmptyAgentSessionSnapshot } from "./hooks/agentSessionState";
 
 const {
   mockEmptyState,
+  mockEnsureProjectWorkspace,
   mockExpertInfoPanel,
   mockExecutionRunListGeneralWorkbenchHistory,
   mockGetProjectMemory,
@@ -75,6 +76,7 @@ describe("AgentChatPage 任务中心顶部工具区", () => {
     });
     await flushEffects();
 
+    expect(mockEnsureProjectWorkspace).not.toHaveBeenCalled();
     expect(container.querySelector('[data-testid="chat-navbar"]')).toBeNull();
     expect(
       container.querySelector('[data-testid="task-center-chrome-shell"]'),

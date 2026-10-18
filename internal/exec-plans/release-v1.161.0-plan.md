@@ -70,3 +70,5 @@
 - e2a8d7006的本地2978项测试、完整typecheck和远端Quality结果仅证明首轮候选；不冒充补充候选验证。因宿主资源限制，补充候选的完整typecheck、前端、Rust、Bridge、GUI和Windows均以新提交SHA的Quality为发布标签前门禁；本地补定向轻量测试。未创建或推送v1.161.0标签。
 
 - 完整候选相对v1.160.0为887路径；补充后的三组Node剪贴板/工作簿/富文本场景测试exit0，版本一致性exit0。候选临时目录发生9个未改动受控文件与依赖丢失，已移到`/Users/coso/Documents/dev/ai/aiclientproxy/lime-release-v1.161.0-candidate`并去除证据目录symlink；仅恢复缺失受控文件，固定pnpm9.15.9按原锁文件独立恢复依赖，无锁漂移。210项补充源码哈希核对无差异，计划末尾仅清除多余空行。
+
+- 补充候选7f0da44的Quality run39099269268完整typecheck/Lint/合同/Integrity通过，Frontend Full在批3因共享页面fixture缺少`ensureProjectWorkspace`导出导致index16项初始化失败。窄修复index.testFixtures.tsx：显式提供当前API mock，默认拒绝未配置worktree创建，并在既有页面测试断言普通会话不创建workspace；不改生产逻辑。index/sidebar/workbench三个文件38项定向复验exit0，后续以修复提交SHA重新执行完整Quality。

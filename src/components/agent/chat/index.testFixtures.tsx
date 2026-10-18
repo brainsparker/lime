@@ -63,6 +63,7 @@ const {
   mockGetContent,
   mockGetGeneralWorkbenchDocumentState,
   mockEnsureWorkspaceReady,
+  mockEnsureProjectWorkspace,
   mockUpdateContent,
   mockGetProjectMemory,
   mockToast,
@@ -120,6 +121,7 @@ const {
   mockGetContent: vi.fn(),
   mockGetGeneralWorkbenchDocumentState: vi.fn(),
   mockEnsureWorkspaceReady: vi.fn(),
+  mockEnsureProjectWorkspace: vi.fn(),
   mockUpdateContent: vi.fn(),
   mockGetProjectMemory: vi.fn(),
   mockToast: {
@@ -290,6 +292,7 @@ export function getIndexTestMocks() {
     mockGetContent,
     mockGetGeneralWorkbenchDocumentState,
     mockEnsureWorkspaceReady,
+    mockEnsureProjectWorkspace,
     mockUpdateContent,
     mockGetProjectMemory,
     mockToast,
@@ -914,6 +917,7 @@ vi.mock("@/lib/api/project", () => ({
   getContent: mockGetContent,
   getGeneralWorkbenchDocumentState: mockGetGeneralWorkbenchDocumentState,
   ensureWorkspaceReady: mockEnsureWorkspaceReady,
+  ensureProjectWorkspace: mockEnsureProjectWorkspace,
   updateContent: mockUpdateContent,
 }));
 
@@ -1439,6 +1443,9 @@ beforeEach(async () => {
   mockSubscribeAppConfigChanged.mockReturnValue(() => undefined);
   mockGetContent.mockResolvedValue(null);
   mockGetGeneralWorkbenchDocumentState.mockResolvedValue(null);
+  mockEnsureProjectWorkspace.mockRejectedValue(
+    new Error("Worktree setup is not configured in this page fixture"),
+  );
   mockEnsureWorkspaceReady.mockResolvedValue({
     workspaceId: "workspace-test",
     rootPath: "/tmp/workspace-test",
