@@ -10,6 +10,7 @@ Simplified Chinese release notes are the primary version; this English companion
 
 ### Fixes
 
+- Keep the home composer and its bottom controls visible in shorter windows.
 - Wait for App Server shutdown when quitting the desktop app.
 - Fix file revision hashing failures that could prevent professional file previews or annotations from initializing.
 - Improve state ownership, stale response handling, and file revision conflicts when switching workspaces, previewing files, and submitting annotations.

@@ -37,20 +37,14 @@ vi.mock("../sections", () => ({
 vi.mock("./SettingsNavigation", () => ({
   SettingsNavigation: ({
     onBack,
-    onHome,
     onTabChange,
-    onNavigate,
   }: {
     onBack: () => void;
-    onHome: () => void;
     onTabChange: (tab: SettingsTabs) => void;
-    onNavigate: (page: "resources") => void;
   }) => (
     <nav>
       <button onClick={() => onTabChange(SettingsTabs.About)}>Section</button>
       <button onClick={onBack}>Back</button>
-      <button onClick={onHome}>Home</button>
-      <button onClick={() => onNavigate("resources")}>Root</button>
     </nav>
   ),
 }));
@@ -65,6 +59,10 @@ function Harness() {
   );
   return (
     <>
+      <button onClick={() => navigation.handleNavigate("agent")}>Home</button>
+      <button onClick={() => navigation.handleNavigate("resources")}>
+        Root
+      </button>
       <button
         onClick={() => navigation.startNewConversation({ freshDraft: true })}
       >

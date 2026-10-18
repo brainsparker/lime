@@ -238,7 +238,10 @@ const HeroSection = styled.section`
 `;
 
 const HeroContent = styled.div`
-  --home-hero-available-height: max(160px, calc(100cqh - 370px));
+  --home-hero-available-height: max(
+    160px,
+    calc(100cqh - var(--home-hero-breakout-space, 0px))
+  );
   position: relative;
   display: flex;
   width: 100%;
@@ -592,6 +595,12 @@ const LeadTextGroup = styled.div`
       var(--home-hero-available-height)
     );
   }
+
+  @container (max-height: 280px) {
+    gap: 0.5rem;
+    padding-top: 48px;
+    padding-bottom: 16px;
+  }
 `;
 
 const Eyebrow = styled.span`
@@ -617,6 +626,10 @@ const Eyebrow = styled.span`
     width: 14px;
     height: 14px;
   }
+
+  @container (max-height: 280px) {
+    display: none;
+  }
 `;
 
 const SloganText = styled.h1`
@@ -631,6 +644,10 @@ const SloganText = styled.h1`
     --home-hero-text-shadow,
     0 2px 18px rgba(255, 255, 255, 0.72)
   );
+
+  @container (max-height: 280px) {
+    font-size: clamp(20px, 4.8cqi, 32px);
+  }
 `;
 
 const Description = styled.p`
@@ -648,6 +665,15 @@ const Description = styled.p`
   @media (max-width: 620px) {
     font-size: 13px;
     line-height: 1.55;
+  }
+
+  @container (max-height: 280px) {
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  @container (max-height: 200px) {
+    display: none;
   }
 `;
 

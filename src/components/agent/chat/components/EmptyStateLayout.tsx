@@ -19,8 +19,12 @@ const ContentWrapper = styled.div.attrs({
   className: EMPTY_STATE_CONTENT_WRAPPER_CLASSNAME,
 })`
   box-sizing: border-box;
+  display: grid;
+  grid-template-rows: minmax(160px, 1fr) auto;
+  gap: 24px;
+  height: 100%;
   min-height: 100%;
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   padding: 24px var(--lime-panel-padding, 24px) 16px;
 `;
 
@@ -30,12 +34,11 @@ const ComposerFrame = styled.div`
 `;
 
 const HeroRegion = styled.div`
+  container-type: size;
   display: flex;
   min-width: 0;
-  min-height: fit-content;
-  flex: 1 0 0;
+  min-height: 0;
   align-items: center;
-  padding-bottom: clamp(24px, 6cqh, 96px);
 `;
 
 const ComposerRegion = styled.div`
@@ -45,11 +48,11 @@ const ComposerRegion = styled.div`
   width: min(100%, var(--thread-content-max-width, 48rem));
   min-width: 0;
   min-height: fit-content;
-  flex: 1 0 0;
   flex-direction: column;
   justify-content: flex-end;
   align-self: center;
-  padding: 6px 0 16px;
+  justify-self: center;
+  padding: 0 0 16px;
 `;
 
 export function EmptyStateComposerFrame({ children }: { children: ReactNode }) {

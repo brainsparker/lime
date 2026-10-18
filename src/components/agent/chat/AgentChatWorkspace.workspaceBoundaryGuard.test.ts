@@ -79,7 +79,7 @@ describe("AgentChatWorkspace home input navigation boundary", () => {
 
     const handlerSource = ownerSource.slice(handlerStart, handlerEnd);
     expect(handlerSource).toMatch(
-      /upsertTaskCenterOpenTab\(\s*readySessionId,\s*options\?\.sendSource\?\.workspaceId \?\? taskCenterWorkspaceId,?\s*\)/,
+      /upsertTaskCenterOpenTab\(\s*readySessionId,\s*executionScope\?\.workspaceId\s*\?\?\s*options\?\.sendSource\?\.workspaceId\s*\?\?\s*taskCenterWorkspaceId,?\s*\)/,
     );
     expect(handlerSource).toContain(
       "if (options && !isSendSourceCurrent(options, acceptedSessionId)) return",
@@ -872,7 +872,8 @@ describe("AgentChatWorkspace conversation landing surface boundary", () => {
     expect(ownerSource).toContain("buildWorkspaceEmptyStateProps({");
     expect(ownerSource).toContain("buildAgentTaskRuntimeCardModel({");
     expect(ownerSource).toContain("...landingSurface.emptyStateProps");
-    expect(ownerSource).toContain("suppressRecentSessionRecovery");
+    expect(ownerSource).not.toContain("suppressRecentSessionRecovery");
+    expect(ownerSource).not.toContain("useWorkspaceHomeRecoveryRuntime");
   });
 });
 

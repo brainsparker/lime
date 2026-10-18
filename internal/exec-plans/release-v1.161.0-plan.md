@@ -87,3 +87,11 @@
 - 最新候选本地定向回归30文件568项全部exit0（单worker，原测试期限；`latest-tests.log`与`latest-test-results.json`）；版本一致性exit0。相对v1.160.0完整候选938路径（含删除），暂存清单/逐文件哈希审计无非预期漂移；本次相对87c70d0为114路径。完整`npm run typecheck`（renderer+node）exit0（`latest-typecheck.log`）；远端Quality/GUI及Release产物未完成，不记作发布成功。
 
 - 最新产品提交3290a2519通过正常预提交守卫（91通过/0失败，平均99分）。前轮39100767112的Rust Full已证明Apps两项、media八项与远程插件49项通过，随后skills_jsonrpc一项仍断言响应内联通知而失败。窄修复该测试：请求前订阅真实outbound，按skills/changed事件等待并断言空params，保留替换/清空/无效根目录及技能投影断言，不修改生产逻辑；与既有marketplace/apps公共JSON-RPC通知合同一致。定向Rust验证及最终SHA远端门禁仍需完成。
+
+- run39102645544的GUI几何证据明确：980×680时inputbar-core底部713.05，超出680窗口约33px；1536/1280其余必需节点通过、Composer高度差40px通过，不能降低withinViewport断言。窄写集EmptyStateLayout/EmptyStateHero，采用原工作区该owner的后续grid修正（两文件独立快照`freeze-layout-followup.json`），按剩余高度分配Hero、底部Composer并收紧短Hero排版；无API、文案、协议变动。此前临时四条CSS补丁未提交，已留差异并由current布局直接替换。独立候选本机标准GUI与定向复验进行中。
+
+- 本机prepared V8环境下skills_jsonrpc完整4项exit0；grid首页3文件49项和两生产文件ESLint exit0，工作区护栏/执行范围/后台恢复5文件51项exit0。设置未保存导航夹具将Home/Root移到真实全局navigation hook，SettingsNavigation mock只保留current Section/Back合同；14项全部exit0，保留失败保存、异步编辑、取消/丢弃和未应用SOUL保稿断言。
+- 本机标准`verify:gui-smoke` exit0（`standalone-shell-01-20261018063042-921`，真实Electron/App Server、reload、memory、原三尺寸均通过；980×680 core bottom=602，composer高度差40）。截图复核发现grid迁移后宽屏Composer需补justify-self:center，已窄补，待最终SHA远端三尺寸再次验证；不把该一行前的截图提升为最终像素布局证据。
+- 远端1ff0e34的Rust Full与Windows Shell Runtime已全量success。前端到76/137仅两个过期工作区字符串断言，已迁到executionScope优先和已删除首页恢复链的负向守卫；其余15文件130项通过。候选旧node_modules.shared依赖备份导致本机发现额外492个第三方测试，已只迁入候选.lime忽略目录，恢复与CI相同137批清单，不改产品、发现器或断言。按owned清单从76续跑；静态扫描一次5秒宿主超时保留，原期限重试76/132项通过。
+
+- 本机137批清单续跑到77批：14文件82项通过；两个演示文稿文件共3项遇5秒宿主超时，尚未算通过。后续补验启动前发现候选依赖再次缺失（tinyrainbow与Node类型），78批在pretest类型依赖检查即退出，未执行产品测试。已从候选HEAD仅恢复9个缺失受控配置文件，并按原锁文件修复独立候选依赖；不修改原工作区、不改变锁文件或全量CI测试期限。最终发布仍以新SHA完整Quality为硬门禁。
