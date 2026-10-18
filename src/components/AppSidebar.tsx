@@ -863,16 +863,11 @@ export function AppSidebar({
         key={item.id}
         $active={active}
         $collapsed={collapsed}
-        $hiddenInExpanded={item.id !== "home-general"}
         onClick={() => handleNavigate(item)}
         title={item.label}
         aria-label={item.label}
         aria-current={active ? "page" : undefined}
-        data-testid={
-          isClawTaskCenter && item.id !== "home-general"
-            ? undefined
-            : `app-sidebar-nav-${item.id}`
-        }
+        data-testid={`app-sidebar-nav-${item.id}`}
       >
         <item.icon />
         <NavLabel $collapsed={collapsed}>{displayLabel}</NavLabel>

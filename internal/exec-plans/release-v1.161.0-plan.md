@@ -1,6 +1,6 @@
 # v1.161.0 发布执行计划
 
-状态：active，候选已冻结；本地必要静态/前端门禁通过，准备提交 main 启动该 SHA 的远端 Quality；标签须等待远端质量与本地桌面冒烟结果。
+状态：active，候选已冻结并已推送main；正在修复远端门禁发现的问题。标签须等待最终候选SHA的Quality与真实GUI冒烟通过。
 
 ## 目标、候选与写集
 
@@ -72,3 +72,7 @@
 - 完整候选相对v1.160.0为887路径；补充后的三组Node剪贴板/工作簿/富文本场景测试exit0，版本一致性exit0。候选临时目录发生9个未改动受控文件与依赖丢失，已移到`/Users/coso/Documents/dev/ai/aiclientproxy/lime-release-v1.161.0-candidate`并去除证据目录symlink；仅恢复缺失受控文件，固定pnpm9.15.9按原锁文件独立恢复依赖，无锁漂移。210项补充源码哈希核对无差异，计划末尾仅清除多余空行。
 
 - 补充候选7f0da44的Quality run39099269268完整typecheck/Lint/合同/Integrity通过，Frontend Full在批3因共享页面fixture缺少`ensureProjectWorkspace`导出导致index16项初始化失败。窄修复index.testFixtures.tsx：显式提供当前API mock，默认拒绝未配置worktree创建，并在既有页面测试断言普通会话不创建workspace；不改生产逻辑。index/sidebar/workbench三个文件38项定向复验exit0，后续以修复提交SHA重新执行完整Quality。
+
+- 8939efe的Quality run39099827907真实GUI smoke在记忆设置导航处失败：设置/插件/已安排任务均被NavButton的展开态隐藏规则设为display:none，任务中心还移除了对应test ID。窄修复AppSidebar与现有样式owner，删除隐藏规则和条件定位标识；补首页/任务中心中三入口的可见性与实际跳转回归。仅恢复已有入口，不纳入原工作区冻结后的新rail布局；原并行工作文件不覆盖。此修复需定向测试、完整typecheck和新SHA的Quality/GUI门禁。
+- 同一run前端全量至批41发现preferences中5项失败；其中项目会话插件入口由上述定位标识修复覆盖，其余4项仍查找旧全局导航按钮。按现有AppSidebarCustomization迁移到对应子页入口与当前激活语义，保留实际点击回到插件Tab的行为断言，不恢复旧侧栏实现。
+- 导航修复后本地全部侧栏9文件107项exit0（含新增首页/任务中心可见性与跳转回归）；完整`npm run typecheck`（renderer+node）exit0，4个变动TS文件定向ESLint exit0。无新增文案、协议或后端owner；等待修复提交SHA的远端全量门禁。

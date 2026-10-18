@@ -550,7 +550,6 @@ export const MainNavList = styled.div`
 export const NavButton = styled.button<{
   $active?: boolean;
   $collapsed?: boolean;
-  $hiddenInExpanded?: boolean;
 }>`
   display: flex;
   align-items: center;
@@ -573,8 +572,6 @@ export const NavButton = styled.button<{
     box-shadow 0.18s ease;
   justify-content: ${({ $collapsed }) =>
     $collapsed ? "center" : "flex-start"};
-  display: ${({ $collapsed, $hiddenInExpanded }) =>
-    !$collapsed && $hiddenInExpanded ? "none" : "flex"};
   box-shadow: none;
 
   &::before {

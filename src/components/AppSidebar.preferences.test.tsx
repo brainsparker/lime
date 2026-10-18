@@ -50,13 +50,13 @@ describe("AppSidebar preferences", () => {
   });
 
   it.each(["plugins", "skills", "experts"] as const)(
-    "插件入口在 %s 子页面应保持激活",
+    "自定义侧栏在 %s 子页面应激活对应入口",
     async (currentPage) => {
       const container = mountSidebarContainer({ currentPage });
       await flushEffects();
 
       const button = container.querySelector<HTMLButtonElement>(
-        'button[aria-label="插件"]',
+        `[data-testid="app-sidebar-customization-${currentPage}"]`,
       );
 
       expect(button).not.toBeNull();
@@ -79,17 +79,17 @@ describe("AppSidebar preferences", () => {
     await flushEffects();
 
     const button = container.querySelector<HTMLButtonElement>(
-      'button[aria-label="插件"]',
+      '[data-testid="app-sidebar-customization-plugins"]',
     );
 
     expect(button).not.toBeNull();
-    expect(button?.getAttribute("aria-current")).toBe("page");
+    expect(button?.getAttribute("aria-current")).toBeNull();
 
     act(() => {
       button?.click();
     });
 
-    expect(onNavigate).toHaveBeenCalledWith("plugins", undefined);
+    expect(onNavigate).toHaveBeenCalledWith("plugins", {});
   });
 
   it("从项目会话进入插件工作台应保留当前项目作用域", async () => {
