@@ -63,6 +63,11 @@ lime thread list
 lime thread show <thread-id> --include-turns
 lime mcp list
 lime skills list
+lime plugin marketplace add ./marketplace --json
+lime plugin marketplace add owner/repo --ref main --sparse .agents --sparse plugins
+lime plugin marketplace list --json
+lime plugin marketplace upgrade
+lime plugin marketplace remove <marketplace>
 lime plugin list
 lime plugin list --available --json -C ./workspace
 lime plugin add <plugin-name>@<marketplace> -C ./workspace
@@ -96,8 +101,12 @@ PROMPT 与 Codex 一致，是一个参数，多个单词请加引号。省略 PR
 installed/available 状态。
 安装身份为 `name@marketplace`，启停走共享 `config/batchWrite`。旧 Plugin v3、独立 UI runtime、
 私有 token 和 Connector 交付链已删除。安装与详情通过市场定位加插件名称请求，安装返回授权策略与
-待授权 Apps；没有目录直装接口。四组公开合同的新产物验收，以及远程 marketplace、账号授权、
-缓存刷新和 marketplace add/remove/upgrade 仍由 P03/P04 跟踪；CLI 只能消费同一 App Server owner。
+待授权 Apps；没有目录直装接口。本地四组公开合同已通过新产物验收。市场来源通过
+`plugin marketplace add/list/upgrade/remove` 管理，共享 `marketplaces` 配置：本地市场引用源目录，
+Git市场暂存验证后激活快照；移除市场不删除源目录或卸载插件。相对来源路径遵循 `-C`，Git支持
+`owner/repo[@ref]`、HTTP(S)/SSH URL、`--ref` 与重复 `--sparse`。本地/Git公共接口和新产物CLI验收已通过；
+托管配置、升级后的完整组件刷新、Desktop市场管理入口、远程marketplace、账号授权与两仓发布闭环
+仍由P03/P04跟踪；CLI只消费同一App Server owner。
 
 权限选项同样适用于默认 `lime`、`lime tui` 和 `lime resume`。`--approve-for-me` 的隐藏 alias
 是 `--not-so-yolo`；危险绕过的 alias 是 `--yolo`。root 级权限参数会继承到 `exec`/`resume`，

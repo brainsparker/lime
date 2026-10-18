@@ -11,6 +11,24 @@ type AppServerClientRequestRunner = {
 
 declare module "./appServerClient" {
   interface AppServerClient {
+    requestCloud(
+      params: appServer.AppServerCloudRequestParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerCloudRequestResponse>
+    >;
+    loginAccount(
+      params: appServer.AppServerLoginAccountParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerLoginAccountResponse>
+    >;
+    readAccount(
+      params?: appServer.AppServerGetAccountParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerGetAccountResponse>
+    >;
+    logoutAccount(): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerLogoutAccountResponse>
+    >;
     startSession(
       params: appServer.AppServerThreadStartParams,
     ): Promise<
@@ -157,6 +175,31 @@ declare module "./appServerClient" {
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerMarketplaceUpgradeResponse>
     >;
+    savePluginShare(
+      params: appServer.AppServerPluginShareSaveParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginShareSaveResponse>
+    >;
+    listPluginShares(
+      params?: appServer.AppServerPluginShareListParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginShareListResponse>
+    >;
+    updatePluginShareTargets(
+      params: appServer.AppServerPluginShareUpdateTargetsParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginShareUpdateTargetsResponse>
+    >;
+    checkoutPluginShare(
+      params: appServer.AppServerPluginShareCheckoutParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginShareCheckoutResponse>
+    >;
+    deletePluginShare(
+      params: appServer.AppServerPluginShareDeleteParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginShareDeleteResponse>
+    >;
     listPlugins(
       params?: appServer.AppServerPluginListParams,
     ): Promise<
@@ -186,6 +229,11 @@ declare module "./appServerClient" {
       params?: appServer.AppServerPluginInstalledParams,
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerPluginInstalledResponse>
+    >;
+    reconcilePlugins(
+      params?: appServer.AppServerPluginReconcileParams,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginReconcileResponse>
     >;
     readFile(
       params: appServer.AppServerFsReadFileParams,
@@ -903,6 +951,13 @@ export function installAppServerClientMethods(prototype: object): void {
         params?: unknown,
         options?: appServer.AppServerRequestOptions,
       ) {
+        if (spec.params === "omitted") {
+          return this.request(
+            spec.method,
+            undefined,
+            params as appServer.AppServerRequestOptions | undefined,
+          );
+        }
         if (spec.params === "none") {
           return this.request(
             spec.method,

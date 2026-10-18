@@ -1,6 +1,7 @@
+import { accountFixture, seedCloudAccount } from "@/test/cloudAccountFixture";
+import { logoutCloudAccount } from "@/lib/cloudAccount";
 import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { setStoredOemCloudSessionState } from "@/lib/oemCloudSession";
 import { OEM_CLOUD_PAYMENT_RETURN_EVENT } from "@/lib/oemCloudPaymentReturn";
 import {
   controlPlaneMocks,
@@ -47,8 +48,8 @@ function createBootstrapPayload() {
   };
 }
 
-function restoreStoredSession() {
-  setStoredOemCloudSessionState({
+async function restoreStoredSession() {
+  await seedCloudAccount({
     token: "session-token-restore",
     tenant: {
       id: "tenant-0001",
@@ -65,13 +66,13 @@ function restoreStoredSession() {
 describe("useOemCloudAccess", () => {
   useOemCloudAccessTestLifecycle();
 
-  it("恢复本地会话时不应因重复 effect 触发而卡在初始化中", async () => {
+  it("恢复共享账号时不应因重复 effect 触发而卡在初始化中", async () => {
     const bootstrapPayload = createBootstrapPayload();
     const bootstrapDeferred = createDeferred<typeof bootstrapPayload>();
     controlPlaneMocks.getClientBootstrap.mockImplementation(
       () => bootstrapDeferred.promise,
     );
-    restoreStoredSession();
+    await restoreStoredSession();
 
     mountHookHarness();
     await flushEffects();
@@ -87,7 +88,70 @@ describe("useOemCloudAccess", () => {
 
     expect(latestState?.initializing).toBe(false);
     expect(latestState?.session?.session.id).toBe("session-001");
-    expect(latestState?.session?.token).toBe("session-token-restore");
+    expect(latestState?.session).not.toHaveProperty("token");
+  });
+
+  it("注销后旧 bootstrap 不得重新恢复账号", async () => {
+    const deferred =
+      createDeferred<ReturnType<typeof createBootstrapPayload>>();
+    controlPlaneMocks.getClientBootstrap.mockReturnValue(deferred.promise);
+    await restoreStoredSession();
+    mountHookHarness();
+    await flushEffects();
+    await act(async () => {
+      await logoutCloudAccount();
+    });
+    await act(async () => {
+      deferred.resolve(createBootstrapPayload());
+    });
+    await flushEffects();
+    expect(latestState?.session).toBeNull();
+    expect(latestState?.bootstrap).toBeNull();
+    expect(latestState?.initializing).toBe(false);
+  });
+
+  it("同租户换号后丢弃旧用户的异步投影", async () => {
+    const deferred =
+      createDeferred<ReturnType<typeof createBootstrapPayload>>();
+    const next = createBootstrapPayload();
+    next.session.user.id = "user-next";
+    next.session.session.id = "session-next";
+    next.session.session.userId = "user-next";
+    controlPlaneMocks.getClientBootstrap
+      .mockReturnValueOnce(deferred.promise)
+      .mockResolvedValue(next);
+    await restoreStoredSession();
+    mountHookHarness();
+    await flushEffects();
+    await act(async () => {
+      await seedCloudAccount(next.session);
+    });
+    await flushEffects();
+    await act(async () => {
+      deferred.resolve(createBootstrapPayload());
+    });
+    await flushEffects();
+    expect(latestState?.session?.user.id).toBe("user-next");
+    expect(latestState?.bootstrap?.session.session.id).toBe("session-next");
+  });
+
+  it("共享注销失败时保留真实登录状态并显示失败", async () => {
+    controlPlaneMocks.getClientBootstrap.mockResolvedValue(
+      createBootstrapPayload(),
+    );
+    await restoreStoredSession();
+    mountHookHarness();
+    await flushEffects();
+    accountFixture.logout.mockRejectedValueOnce(new Error("logout rejected"));
+    await act(async () => {
+      await latestState?.handleLogout();
+    });
+    expect(latestState?.session?.session.id).toBe("session-001");
+    expect(latestState?.errorMessage).toBe("logout rejected");
+    await act(async () => {
+      await latestState?.handleLogout();
+    });
+    expect(latestState?.session).toBeNull();
   });
 
   it("客户端不再创建购买订单，API Key 明文只临时保存", async () => {
@@ -111,7 +175,7 @@ describe("useOemCloudAccess", () => {
       token: accessToken,
       apiKey: "sk-lime-once",
     });
-    restoreStoredSession();
+    await restoreStoredSession();
 
     mountHookHarness();
     await flushEffects();
@@ -189,7 +253,7 @@ describe("useOemCloudAccess", () => {
     controlPlaneMocks.getClientBootstrap.mockResolvedValue(
       createBootstrapPayload(),
     );
-    restoreStoredSession();
+    await restoreStoredSession();
 
     mountHookHarness();
     await flushEffects();
@@ -260,7 +324,7 @@ describe("useOemCloudAccess", () => {
     });
     desktopAuthMocks.completeOemCloudDesktopOAuthLogin.mockImplementation(
       async () => {
-        setStoredOemCloudSessionState({
+        await seedCloudAccount({
           token: "desktop-session-token",
           tenant: {
             id: "tenant-0001",

@@ -15,8 +15,8 @@ import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
 import {
   getOemCloudBootstrapSnapshot,
   subscribeOemCloudBootstrapChanged,
-  subscribeOemCloudSessionChanged,
-} from "@/lib/oemCloudSession";
+  subscribeCloudAccount,
+} from "@/lib/cloudAccount";
 import {
   buildOemLimeHubApiHost,
   DEFAULT_OEM_LIME_HUB_CHAT_MODEL,
@@ -46,7 +46,7 @@ function buildSyncSignature(
     gatewayBaseUrl: runtime?.gatewayBaseUrl ?? null,
     hubProviderName: runtime?.hubProviderName ?? null,
     tenantId: runtime?.tenantId ?? null,
-    sessionToken: runtime?.sessionToken ?? null,
+    accountSessionId: runtime?.accountSessionId ?? null,
     models,
     localApiKeyReady,
   });
@@ -69,7 +69,7 @@ async function resolveSyncedCustomModels(
   runtime: NonNullable<ReturnType<typeof resolveOemCloudRuntimeContext>>,
   currentCustomModels: string[] = [],
 ): Promise<string[]> {
-  if (!runtime.sessionToken) {
+  if (!runtime.accountSessionId) {
     const preservedModels = normalizeCustomModels(currentCustomModels);
     return preservedModels.length > 0
       ? preservedModels
@@ -185,7 +185,7 @@ async function ensureLocalLimeHubApiKey(input: {
   copy: ManagedLimeHubProviderSyncCopy;
 }): Promise<boolean> {
   const { runtime, models, localApiKeyReady, apiKeys, copy } = input;
-  if (!runtime.sessionToken || models.length === 0) {
+  if (!runtime.accountSessionId || models.length === 0) {
     return localApiKeyReady;
   }
 
@@ -379,7 +379,7 @@ export function useOemLimeHubProviderSync() {
 
     void syncProviders();
 
-    const unsubscribeSession = subscribeOemCloudSessionChanged(() => {
+    const unsubscribeSession = subscribeCloudAccount(() => {
       void syncProviders();
     });
     const unsubscribeBootstrap = subscribeOemCloudBootstrapChanged(() => {

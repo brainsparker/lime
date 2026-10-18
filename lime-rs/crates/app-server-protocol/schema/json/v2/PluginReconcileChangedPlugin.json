@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Categories declared by either the previous or new package, before runtime policy filtering.",
+  "properties": {
+    "hasApps": {
+      "type": "boolean"
+    },
+    "hasHooks": {
+      "type": "boolean"
+    },
+    "hasMcps": {
+      "type": "boolean"
+    },
+    "hasSkills": {
+      "type": "boolean"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "hasApps",
+    "hasHooks",
+    "hasMcps",
+    "hasSkills",
+    "id"
+  ],
+  "title": "PluginReconcileChangedPlugin",
+  "type": "object"
+}

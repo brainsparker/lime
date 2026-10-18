@@ -20,9 +20,9 @@
       "clientNotification": 1
     },
     "byStatus": {
-      "implemented": 171,
-      "product-scope-excluded": 74,
-      "planned": 0
+      "implemented": 174,
+      "product-scope-excluded": 15,
+      "planned": 56
     }
   },
   "groups": [
@@ -57,16 +57,19 @@
       "methods": ["initialized"]
     },
     {
-      "id": "server-diagnostics-excluded",
+      "id": "server-diagnostics-planned",
       "direction": "clientRequest",
       "productArea": "codex-internal",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "forbidden-to-restore guard",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "app-server diagnostics",
       "counterpartRule": "none",
-      "rationale": "Codex server/diagnostics only exposes process-local, content-free diagnostics for upstream development and does not have a Lime Desktop consumer or user workflow.",
-      "evidence": ["internal/refactor/v1/README.md"],
-      "methods": ["server/diagnostics"]
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": ["server/diagnostics"],
+      "gap": "Implement bounded content-free diagnostics through the shared App Server. A missing Desktop consumer is an implementation gap, not a product exclusion."
     },
     {
       "id": "thread-current",
@@ -535,39 +538,41 @@
       "methods": ["config/batchWrite", "config/read", "config/value/write"]
     },
     {
-      "id": "config-requirements-excluded",
+      "id": "config-requirements-planned",
       "direction": "clientRequest",
       "productArea": "config",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "core config + App Server permissions",
       "counterpartRule": "none",
-      "rationale": "Codex configRequirements/read exposes MDM and requirements/config.toml policy layers, including browser/computer-use allowlists and persistent approval controls. Lime Desktop has no enterprise MDM, arbitrary OS Computer Use, or project requirements owner. Browser task-intent metadata and ElectronBrowserTabHost turn-scoped approval are current product owners, not substitutes for that policy method; introducing it would create an unconsumed second policy surface.",
       "evidence": [
         "lime-rs/crates/app-server/src/processor/config.rs",
         "electron/browserTabHost.ts",
         "src/components/agent/chat/utils/browserTaskRequirement.ts",
         "internal/aiprompts/commands.md",
-        "internal/aiprompts/architecture.md"
+        "internal/aiprompts/architecture.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
-      "methods": ["configRequirements/read"]
+      "methods": ["configRequirements/read"],
+      "gap": "Project the authoritative requirements and managed policy layers through the current config owner and enforce the same requirements at admission. Existing browser approvals do not substitute for this contract."
     },
     {
-      "id": "mcp-config-reload-excluded",
+      "id": "mcp-config-reload-planned",
       "direction": "clientRequest",
       "productArea": "mcp",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "core config + tool-runtime MCP + App Server",
       "counterpartRule": "none",
-      "rationale": "Codex reloads externally edited config.toml MCP entries. Lime Desktop owns MCP configuration through App Server list/create/update/delete and explicit start/stop lifecycle, so adding this method would create a second config fact source.",
       "evidence": [
         "lime-rs/crates/app-server/src/processor/mcp.rs",
         "src/lib/api/mcp.ts",
         "scripts/README.md",
-        "internal/refactor/v1/11-codex-method-product-scope-matrix.md"
+        "internal/refactor/v1/11-codex-method-product-scope-matrix.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
-      "methods": ["config/mcpServer/reload"]
+      "methods": ["config/mcpServer/reload"],
+      "gap": "Reload external edits to the same current MCP configuration, reconcile connections and invalidate shared read models. Reuse the existing owner rather than adding a second config store."
     },
     {
       "id": "environment-current",
@@ -607,25 +612,26 @@
       ]
     },
     {
-      "id": "external-agent-config-excluded",
+      "id": "external-agent-config-planned",
       "direction": "clientRequest",
       "productArea": "config-import",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "App Server import + thread-store",
       "counterpartRule": "none",
-      "rationale": "Codex externalAgentConfig methods migrate configuration and histories from other agent products. Lime has no import wizard, external-agent source adapter, migration persistence, or Desktop consumer; importing this TUI/cloud migration surface would add an unrelated configuration owner.",
       "evidence": [
         "internal/refactor/v1/08-third-audit-gap-register.md",
         "internal/aiprompts/architecture.md",
-        "src/lib/api/agentRuntime/appServerNotificationDrift.ts"
+        "src/lib/api/agentRuntime/appServerNotificationDrift.ts",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "externalAgentConfig/detect",
         "externalAgentConfig/import",
         "externalAgentConfig/import/readHistories",
         "externalAgentConfig/import/recordHistory"
-      ]
+      ],
+      "gap": "Implement source detection, config and history import with bounded validation and canonical Thread/Turn/Item persistence. This product import capability does not restore legacy plugin migration or a retired runtime."
     },
     {
       "id": "fs-current",
@@ -675,23 +681,24 @@
       "methods": ["fuzzyFileSearch"]
     },
     {
-      "id": "fuzzy-search-session-excluded",
+      "id": "fuzzy-search-session-planned",
       "direction": "clientRequest",
       "productArea": "filesystem-search",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "Desktop Composer one-shot fuzzy search boundary",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "App Server filesystem search",
       "counterpartRule": "none",
-      "rationale": "Codex marks the session requests experimental. Lime Desktop uses one-shot fuzzyFileSearch with request cancellation and stale-response rejection, so a second long-lived search session registry has no product consumer.",
       "evidence": [
         "internal/refactor/v1/08-third-audit-gap-register.md",
-        "src/lib/governance/codexMethodProductScopeBoundary.test.ts"
+        "src/lib/governance/codexMethodProductScopeBoundary.test.ts",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "fuzzyFileSearch/sessionStart",
         "fuzzyFileSearch/sessionStop",
         "fuzzyFileSearch/sessionUpdate"
-      ]
+      ],
+      "gap": "Add session lifecycle, cancellation and stale-result handling to the same current file search owner; retain the current one-shot request without creating a second filesystem service."
     },
     {
       "id": "hooks-current",
@@ -710,19 +717,20 @@
       "methods": ["hooks/list"]
     },
     {
-      "id": "marketplace-excluded",
+      "id": "marketplace-current",
       "direction": "clientRequest",
       "productArea": "plugins",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
-      "counterpartRule": "none",
-      "rationale": "Codex marketplace mutations manage remote Plugin marketplace repositories. Lime Desktop's marketplace is the Skills catalog and skillMarketplace/install flow; it is a different owner and wire. Mapping Codex marketplace mutations onto it would misrepresent Skill installation as Plugin marketplace management.",
+      "status": "implemented",
+      "priority": "P1",
+      "owner": "App Server Plugin catalog + local plugin_catalog marketplace",
+      "counterpartRule": "same-name",
       "evidence": [
         "lime-rs/crates/app-server/src/processor/plugin.rs",
-        "packages/app-server-client/src/request-client-methods.ts",
-        "src/lib/api/skills.ts",
-        "internal/aiprompts/architecture.md"
+        "lime-rs/crates/app-server/src/local_data_source/plugin_catalog/marketplace.rs",
+        "lime-rs/crates/app-server/tests/marketplace_jsonrpc.rs",
+        "src/lib/api/pluginCatalog.ts",
+        "src/lib/api/pluginCatalog.test.ts",
+        "internal/exec-plans/codex-plugin-reconstruction.md"
       ],
       "methods": [
         "marketplace/add",
@@ -843,18 +851,19 @@
       ]
     },
     {
-      "id": "plugins-share-excluded",
+      "id": "plugins-share-planned",
       "direction": "clientRequest",
       "productArea": "plugins",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "App Server Plugin owner + LimeCore authenticated plugin service",
       "counterpartRule": "none",
-      "rationale": "Codex plugin/share methods operate on a remote sharing service and target principals. Lime Desktop has only local Plugin v3 discovery/install/activation and no share service, principal model, checkout store, or GUI workflow; the generated PluginShareContext DTO is not a consumer.",
+      "gap": "Full plugin alignment includes authenticated share targets, discoverability, checkout/save/update/delete and GUI/CLI consumption. Implement in the shared App Server and LimeCore owners; the existing PluginShareContext DTO alone does not satisfy this contract.",
       "evidence": [
         "packages/app-server-client/src/generated/protocol-types.ts",
         "lime-rs/crates/app-server/src/processor/plugin.rs",
-        "internal/aiprompts/architecture.md"
+        "internal/aiprompts/architecture.md",
+        "internal/exec-plans/codex-plugin-reconstruction.md"
       ],
       "methods": [
         "plugin/share/checkout",
@@ -865,19 +874,20 @@
       ]
     },
     {
-      "id": "remote-plugin-skill-read-excluded",
+      "id": "remote-plugin-skill-read-planned",
       "direction": "clientRequest",
       "productArea": "plugins",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "App Server Plugin owner + LimeCore authenticated plugin service",
       "counterpartRule": "none",
-      "rationale": "Codex reads skill markdown from an uninstalled remote plugin service by remote marketplace and plugin ids. Lime Desktop reads installed local skill bodies through its Skills catalog and skill/read, so mapping that owner to this remote wire would be semantically incorrect.",
+      "gap": "Implement authorized skill markdown reads for an uninstalled remote plugin using opaque service IDs. Installed skill/read remains the local Skills owner and cannot substitute for this remote contract.",
       "evidence": [
         "lime-rs/crates/app-server/src/processor/skill.rs",
         "lime-rs/crates/app-server/src/local_data_source/skills/catalog.rs",
         "src/lib/api/skill-execution.ts",
-        "internal/refactor/v1/11-codex-method-product-scope-matrix.md"
+        "internal/refactor/v1/11-codex-method-product-scope-matrix.md",
+        "internal/exec-plans/codex-plugin-reconstruction.md"
       ],
       "methods": ["plugin/skill/read"]
     },
@@ -942,17 +952,17 @@
       "methods": ["skills/config/write", "skills/extraRoots/set", "skills/list"]
     },
     {
-      "id": "thread-realtime-excluded",
+      "id": "thread-realtime-planned",
       "direction": "clientRequest",
       "productArea": "realtime",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "model-provider + voice-core/media-runtime",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "App Server Thread/Turn + model-provider + voice-core/media-runtime",
       "counterpartRule": "none",
-      "rationale": "Lime Desktop has retired the unimplemented realtime voice GUI and does not expose Codex realtime WebRTC/session control. Audio, speech, and media capabilities remain in the Grok-aligned model-provider plus voice-core/media-runtime owners instead of a second Thread protocol.",
       "evidence": [
         "internal/aiprompts/architecture.md",
-        "internal/exec-plans/production-command-current-migration-plan.md"
+        "internal/exec-plans/production-command-current-migration-plan.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "thread/realtime/appendAudio",
@@ -961,7 +971,8 @@
         "thread/realtime/listVoices",
         "thread/realtime/start",
         "thread/realtime/stop"
-      ]
+      ],
+      "gap": "Reconstruct realtime audio/speech/text and voice selection in the shared Thread lifecycle, with explicit provider readiness, cancellation and failure handling. Retired voice GUI code must not be restored."
     },
     {
       "id": "windows-sandbox-readiness-current",
@@ -1142,22 +1153,23 @@
       "methods": ["error", "warning"]
     },
     {
-      "id": "external-agent-config-notification-excluded",
+      "id": "external-agent-config-notification-planned",
       "direction": "serverNotification",
       "productArea": "config-import",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "App Server import + thread-store",
       "counterpartRule": "none",
-      "rationale": "These notifications only report the excluded external-agent migration flow. Lime records method and field names as bounded drift diagnostics and has no import task UI or migration read model.",
       "evidence": [
         "src/lib/api/agentRuntime/appServerNotificationDrift.ts",
-        "internal/refactor/v1/08-third-audit-gap-register.md"
+        "internal/refactor/v1/08-third-audit-gap-register.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "externalAgentConfig/import/completed",
         "externalAgentConfig/import/progress"
-      ]
+      ],
+      "gap": "Emit typed progress and terminal import notifications from the same import transaction and consume them in GUI and CLI. Missing import UI is not an exclusion reason."
     },
     {
       "id": "fs-notification-current",
@@ -1180,22 +1192,23 @@
       "methods": ["fs/changed"]
     },
     {
-      "id": "fuzzy-search-session-notification-excluded",
+      "id": "fuzzy-search-session-notification-planned",
       "direction": "serverNotification",
       "productArea": "filesystem-search",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "Renderer notification drift diagnostics",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "App Server filesystem search",
       "counterpartRule": "none",
-      "rationale": "The experimental Codex session notifications belong to the excluded long-lived search flow. Lime keeps method-only drift diagnostics but does not project them into Composer state or pending interactions.",
       "evidence": [
         "src/lib/api/agentRuntime/appServerNotificationDrift.ts",
-        "src/lib/governance/renderProjectionCoverageBoundary.test.ts"
+        "src/lib/governance/renderProjectionCoverageBoundary.test.ts",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "fuzzyFileSearch/sessionCompleted",
         "fuzzyFileSearch/sessionUpdated"
-      ]
+      ],
+      "gap": "Implement sessionUpdated/sessionCompleted with the same search identity and cancellation semantics, plus GUI/CLI consumers and real transport evidence."
     },
     {
       "id": "hooks-notification-current",
@@ -1408,17 +1421,17 @@
       ]
     },
     {
-      "id": "realtime-notification-excluded",
+      "id": "realtime-notification-planned",
       "direction": "serverNotification",
       "productArea": "realtime",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "model-provider + voice-core/media-runtime",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "App Server Thread/Turn + model-provider + voice-core/media-runtime",
       "counterpartRule": "none",
-      "rationale": "Codex realtime notifications belong to the excluded realtime WebRTC/session surface. Lime Desktop must not project them into Thread/Turn/Item or restore the retired voice GUI; Grok-aligned audio and speech lifecycles use their domain owners.",
       "evidence": [
         "internal/aiprompts/architecture.md",
-        "internal/exec-plans/production-command-current-migration-plan.md"
+        "internal/exec-plans/production-command-current-migration-plan.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
       ],
       "methods": [
         "thread/realtime/closed",
@@ -1429,7 +1442,8 @@
         "thread/realtime/started",
         "thread/realtime/transcript/delta",
         "thread/realtime/transcript/done"
-      ]
+      ],
+      "gap": "Implement typed realtime audio, transcript, SDP, item and terminal notifications with the same identity and runtime; require real transport and product evidence."
     },
     {
       "id": "turn-moderation-metadata-notification-current",
@@ -1511,40 +1525,50 @@
       ]
     },
     {
-      "id": "codex-account-excluded",
+      "id": "shared-account-planned",
+      "direction": "clientRequest",
+      "productArea": "account",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "app-server account + RuntimeCore",
+      "counterpartRule": "none",
+      "gap": "Cloud external-session RPC foundation is implemented; upstream managed/device/API-key modes, complete auth lifecycle and GUI/CLI consumers are still pending. Cloud tokens are not ChatGPT tokens.",
+      "evidence": [
+        "lime-rs/crates/app-server/src/account/mod.rs",
+        "lime-rs/crates/app-server/tests/account_jsonrpc.rs",
+        "internal/exec-plans/codex-plugin-reconstruction.md"
+      ],
+      "methods": ["account/login/start", "account/logout", "account/read"]
+    },
+    {
+      "id": "upstream-billing-actions-excluded",
       "direction": "clientRequest",
       "productArea": "codex-account",
       "status": "product-scope-excluded",
       "priority": "none",
       "owner": "product-scope",
       "counterpartRule": "none",
-      "rationale": "Lime uses provider-neutral credentials and billing; Codex/ChatGPT account commerce is not part of the product chain.",
+      "rationale": "These methods consume OpenAI-managed reset credits or send an upstream billing email. They require that service authority and are not general account usage or provider readiness. LimeCore billing must not fabricate OpenAI credits or email results. Generic account controls and Bedrock setup remain planned.",
       "evidence": ["internal/refactor/v1/README.md"],
       "methods": [
-        "account/login/cancel",
-        "account/bedrock/discover",
-        "account/bedrock/setup",
-        "account/login/start",
-        "account/logout",
         "account/rateLimitResetCredit/consume",
-        "account/rateLimits/read",
-        "account/read",
-        "account/sendAddCreditsNudgeEmail",
-        "account/usage/read",
-        "account/workspaceMessages/read"
+        "account/sendAddCreditsNudgeEmail"
       ]
     },
     {
-      "id": "feedback-excluded",
+      "id": "feedback-planned",
       "direction": "clientRequest",
       "productArea": "codex-service",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "app-server diagnostics + feedback",
       "counterpartRule": "none",
-      "rationale": "Codex feedback upload targets an upstream service that Lime does not own.",
-      "evidence": ["internal/refactor/v1/README.md"],
-      "methods": ["feedback/upload"]
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": ["feedback/upload"],
+      "gap": "Implement explicit user-initiated feedback with bounded sanitized diagnostics, preview and failure states. This plan does not authorize sending feedback or messages during development."
     },
     {
       "id": "legacy-client-request-excluded",
@@ -1585,15 +1609,17 @@
       "methods": ["mock/experimentalMethod"]
     },
     {
-      "id": "remote-control-request-excluded",
+      "id": "remote-control-request-planned",
       "direction": "clientRequest",
       "productArea": "codex-remote-control",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "app-server-client authenticated transport + LimeCore runtime registry",
       "counterpartRule": "none",
-      "rationale": "Codex remote-control pairing and client administration are not part of Lime's desktop Agent product chain.",
-      "evidence": ["internal/refactor/v1/README.md"],
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
       "methods": [
         "remoteControl/client/list",
         "remoteControl/client/revoke",
@@ -1602,19 +1628,23 @@
         "remoteControl/pairing/start",
         "remoteControl/pairing/status",
         "remoteControl/status/read"
-      ]
+      ],
+      "gap": "Implement pairing, client list/revoke and enable/disable/status using tenant-scoped authentication and the same App Server runtime. No parallel Agent backend or fabricated remote state."
     },
     {
-      "id": "codex-account-server-request-excluded",
+      "id": "codex-account-server-request-planned",
       "direction": "serverRequest",
       "productArea": "codex-account",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "app-server AccountManager + model-provider + LimeCore auth",
       "counterpartRule": "none",
-      "rationale": "ChatGPT auth token refresh belongs to Codex account integration, not provider-neutral Lime credentials.",
-      "evidence": ["internal/refactor/v1/README.md"],
-      "methods": ["account/chatgptAuthTokens/refresh"]
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": ["account/chatgptAuthTokens/refresh"],
+      "gap": "Implement the complete managed token refresh lifecycle for the selected issuer, including cancellation and failure. LimeCore cloud tokens must not be presented as ChatGPT tokens."
     },
     {
       "id": "attestation-excluded",
@@ -1641,20 +1671,34 @@
       "methods": ["applyPatchApproval", "execCommandApproval"]
     },
     {
-      "id": "codex-account-notification-excluded",
+      "id": "shared-account-notification-planned",
+      "direction": "serverNotification",
+      "productArea": "account",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "app-server account + RuntimeCore",
+      "counterpartRule": "none",
+      "gap": "Cloud import/logout broadcasts metadata on the shared App Server; upstream auth modes and product consumers remain pending. Cross-process reads share the credential file; there is no cross-process notification watcher.",
+      "evidence": [
+        "lime-rs/crates/app-server/src/processor/account.rs",
+        "lime-rs/crates/app-server/tests/account_jsonrpc.rs"
+      ],
+      "methods": ["account/updated"]
+    },
+    {
+      "id": "codex-account-notification-planned",
       "direction": "serverNotification",
       "productArea": "codex-account",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "app-server AccountManager + model-provider + LimeCore auth",
       "counterpartRule": "none",
-      "rationale": "Codex account login and rate-limit events do not belong to Lime's provider-neutral account model.",
-      "evidence": ["internal/refactor/v1/README.md"],
-      "methods": [
-        "account/login/completed",
-        "account/rateLimits/updated",
-        "account/updated"
-      ]
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": ["account/login/completed", "account/rateLimits/updated"],
+      "gap": "Implement login completion and rate-limit notifications from authoritative account state across GUI and CLI/TUI, without exposing credentials or inventing provider usage."
     },
     {
       "id": "deprecated-notification-excluded",
@@ -1681,16 +1725,42 @@
       "methods": ["rawResponse/completed", "rawResponseItem/completed"]
     },
     {
-      "id": "remote-control-notification-excluded",
+      "id": "remote-control-notification-planned",
       "direction": "serverNotification",
       "productArea": "codex-remote-control",
-      "status": "product-scope-excluded",
-      "priority": "none",
-      "owner": "product-scope",
+      "status": "planned",
+      "priority": "P2",
+      "owner": "app-server-client authenticated transport + LimeCore runtime registry",
       "counterpartRule": "none",
-      "rationale": "Remote-control status is excluded with its request surface; no compatibility event is retained.",
-      "evidence": ["internal/refactor/v1/README.md"],
-      "methods": ["remoteControl/status/changed"]
+      "evidence": [
+        "internal/refactor/v1/README.md",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": ["remoteControl/status/changed"],
+      "gap": "Project authenticated remote-control status from the same pairing/transport owner; verify revocation and cross-tenant isolation through real product flows."
+    },
+    {
+      "id": "account-controls-planned",
+      "direction": "clientRequest",
+      "productArea": "account",
+      "status": "planned",
+      "priority": "P1",
+      "owner": "app-server AccountManager + model-provider + LimeCore auth",
+      "counterpartRule": "none",
+      "gap": "Implement login cancellation, AWS profile/environment discovery and Bedrock setup, authoritative usage/limits and workspace messages through their current owners. Bedrock setup is actual provider configuration, not an OpenAI-only service; missing consumers do not justify exclusion.",
+      "evidence": [
+        "lime-rs/crates/app-server/src/account/mod.rs",
+        "lime-rs/crates/app-server/tests/account_jsonrpc.rs",
+        "internal/exec-plans/codex-method-scope-reassessment.md"
+      ],
+      "methods": [
+        "account/login/cancel",
+        "account/bedrock/discover",
+        "account/bedrock/setup",
+        "account/rateLimits/read",
+        "account/usage/read",
+        "account/workspaceMessages/read"
+      ]
     }
   ]
 }

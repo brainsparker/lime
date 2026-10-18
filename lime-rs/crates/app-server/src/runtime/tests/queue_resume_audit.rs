@@ -153,12 +153,7 @@ async fn queued_turn_helper_does_not_forge_workflow_resume_audit() {
                     json!({
                         "workflowRunId": "turn_running:content-article",
                         "workflowKey": "content_article_workflow",
-                        "status": "running",
-                        "metadata": {
-                            "pluginWorkflow": {
-                                "status": "running"
-                            }
-                        }
+                        "status": "running"
                     }),
                 ),
                 RuntimeEvent::new(
@@ -166,12 +161,7 @@ async fn queued_turn_helper_does_not_forge_workflow_resume_audit() {
                     json!({
                         "workflowRunId": "turn_running:content-article",
                         "workflowKey": "content_article_workflow",
-                        "status": "completed",
-                        "metadata": {
-                            "pluginWorkflow": {
-                                "status": "completed"
-                            }
-                        }
+                        "status": "completed"
                     }),
                 ),
             ],
@@ -295,17 +285,16 @@ async fn pending_work_recovery_scans_in_memory_queued_turns() {
     );
 }
 
-#[tokio::test]
-async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_metadata() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let roots =
-        StorageRoots::initialize(temp.path(), temp.path().join("app-server")).expect("roots");
-    let event_log_writer = Arc::new(EventLogWriter::new(&roots.event_log_root).expect("writer"));
+async fn create_action_resume_audit_core(
+    session_id: &str,
+    thread_id: &str,
+    event_log_writer: Arc<EventLogWriter>,
+) -> RuntimeCore {
     let core = RuntimeCore::with_backend(Arc::new(RecordingBackend::default()))
-        .with_event_log_writer(event_log_writer.clone());
+        .with_event_log_writer(event_log_writer);
     core.start_session(AgentSessionStartParams {
-        session_id: Some("sess_action_resume_lifecycle".to_string()),
-        thread_id: Some("thread_action_resume_lifecycle".to_string()),
+        session_id: Some(session_id.to_string()),
+        thread_id: Some(thread_id.to_string()),
         app_id: "content-studio".to_string(),
         workspace_id: Some("workspace-current".to_string()),
         business_object_ref: None,
@@ -314,10 +303,10 @@ async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_meta
     .expect("session");
     core.start_turn(
         AgentSessionTurnStartParams {
-            session_id: "sess_action_resume_lifecycle".to_string(),
+            session_id: session_id.to_string(),
             turn_id: Some("turn_action".to_string()),
             input: AgentInput {
-                text: "waiting for plugin host response".to_string(),
+                text: "waiting for workflow review response".to_string(),
                 attachments: Vec::new(),
             },
             runtime_options: None,
@@ -329,7 +318,7 @@ async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_meta
     .await
     .expect("turn");
     core.append_external_runtime_events(
-        "sess_action_resume_lifecycle",
+        session_id,
         Some("turn_action"),
         vec![RuntimeEvent::new(
             "action.required",
@@ -342,6 +331,21 @@ async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_meta
         )],
     )
     .expect("append pending action");
+    core
+}
+
+#[tokio::test]
+async fn action_response_writes_workflow_resume_audit_with_current_binding() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let roots =
+        StorageRoots::initialize(temp.path(), temp.path().join("app-server")).expect("roots");
+    let event_log_writer = Arc::new(EventLogWriter::new(&roots.event_log_root).expect("writer"));
+    let core = create_action_resume_audit_core(
+        "sess_action_resume_lifecycle",
+        "thread_action_resume_lifecycle",
+        event_log_writer.clone(),
+    )
+    .await;
 
     core.respond_action(
         AgentSessionActionRespondParams {
@@ -359,10 +363,6 @@ async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_meta
                     "workflowRunId": "turn_action:content-article",
                     "workflowKey": "content_article_workflow",
                     "stepId": "draft"
-                },
-                "plugin_runtime": {
-                    "app_id": "content-factory-app",
-                    "task_id": "plugin-task-1"
                 }
             })),
             event_name: None,
@@ -423,6 +423,58 @@ async fn action_response_writes_workflow_resume_audit_with_worker_lifecycle_meta
         let serialized = record.event.payload.to_string();
         assert!(!serialized.contains("decision text"));
         assert!(!serialized.contains("private reviewer details"));
+    }
+}
+
+#[tokio::test]
+async fn action_response_does_not_resume_workflow_from_retired_plugin_or_worker_metadata() {
+    for retired in [
+        "pluginWorkflow",
+        "plugin_workflow",
+        "workerLifecycle",
+        "worker_lifecycle",
+    ] {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let roots =
+            StorageRoots::initialize(temp.path(), temp.path().join("app-server")).expect("roots");
+        let writer = Arc::new(EventLogWriter::new(&roots.event_log_root).expect("writer"));
+        let core =
+            create_action_resume_audit_core("session-retired", "thread-retired", writer.clone())
+                .await;
+        core.respond_action(
+            AgentSessionActionRespondParams {
+                session_id: "session-retired".to_string(),
+                request_id: "article-draft-review".to_string(),
+                action_type: AgentSessionActionType::AskUser,
+                decision: None,
+                confirmed: Some(true),
+                response: Some("review complete".to_string()),
+                user_data: None,
+                metadata: Some(json!({
+                    (retired): {
+                        "workflowRunId": "turn_action:content-article",
+                        "workflowKey": "content_article_workflow",
+                        "stepId": "draft"
+                    }
+                })),
+                event_name: None,
+                action_scope: Some(AgentSessionActionScope {
+                    session_id: Some("session-retired".to_string()),
+                    thread_id: Some("thread-retired".to_string()),
+                    turn_id: Some("turn_action".to_string()),
+                }),
+            },
+            RuntimeHostContext::default(),
+        )
+        .await
+        .expect("respond to current action");
+        assert!(
+            writer
+                .read_session_workflow_audit_events("session-retired")
+                .expect("workflow audit records")
+                .is_empty(),
+            "retired metadata must not resume a workflow: {retired}"
+        );
     }
 }
 

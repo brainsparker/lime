@@ -33,6 +33,10 @@ import { resolveHttpExternalHref } from "@/lib/markdown/externalLinks";
 import { hasDesktopHostInvokeCapability } from "@/lib/desktop-runtime";
 import type { Artifact } from "@/lib/artifact/types";
 import { resolveArtifactWritePhase } from "@/components/agent/chat/utils/messageArtifacts";
+import { readFileBytes } from "@/lib/api/fileBrowser";
+import { downloadBlob } from "@/lib/artifact/downloadBlob";
+import { generateFilename } from "@/lib/artifact/artifactFilename";
+import { usePublicFileAction } from "./usePublicFileAction";
 
 /** 视图模式类型 */
 type ViewMode = "source" | "preview";
@@ -219,22 +223,6 @@ interface ArtifactToolbarProps {
 }
 
 /**
- * 下载 Blob 文件的辅助函数
- * @param blob - 要下载的 Blob 对象
- * @param filename - 文件名
- */
-function downloadBlob(blob: Blob, filename: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}
-
-/**
  * HTML 转义函数
  * @param str - 要转义的字符串
  * @returns 转义后的字符串
@@ -278,7 +266,9 @@ function supportsLocalPreviewWindow(artifact: Artifact): boolean {
 }
 
 function shouldOpenWithSystemApp(artifact: Artifact): boolean {
-  return resolvePreviewArtifactRenderMode(artifact) === "system_open";
+  return ["system_open", "document_pages", "workbook", "presentation"].includes(
+    resolvePreviewArtifactRenderMode(artifact) ?? "",
+  );
 }
 
 function resolvePreviewArtifactExternalUrl(artifact: Artifact): string | null {
@@ -330,93 +320,6 @@ function resolveArtifactLocalPreviewWindowPath(
 }
 
 /**
- * 根据 Artifact 类型和元数据生成文件名
- * @param artifact - Artifact 对象
- * @returns 文件名
- */
-function generateFilename(artifact: Artifact): string {
-  // 如果元数据中有文件名，优先使用
-  if (artifact.meta.filename) {
-    return artifact.meta.filename;
-  }
-
-  // 获取文件扩展名
-  const ext = artifactRegistry.getFileExtension(artifact.type);
-
-  // 对于代码类型，根据语言选择扩展名
-  if (artifact.type === "code" && artifact.meta.language) {
-    const langExt = getLanguageExtension(artifact.meta.language);
-    return `${sanitizeFilename(artifact.title)}.${langExt}`;
-  }
-
-  return `${sanitizeFilename(artifact.title)}.${ext}`;
-}
-
-/**
- * 根据语言获取文件扩展名
- * @param language - 编程语言
- * @returns 文件扩展名
- */
-function getLanguageExtension(language: string): string {
-  const langExtMap: Record<string, string> = {
-    javascript: "js",
-    typescript: "ts",
-    python: "py",
-    rust: "rs",
-    go: "go",
-    java: "java",
-    cpp: "cpp",
-    c: "c",
-    csharp: "cs",
-    ruby: "rb",
-    php: "php",
-    swift: "swift",
-    kotlin: "kt",
-    scala: "scala",
-    html: "html",
-    css: "css",
-    scss: "scss",
-    less: "less",
-    json: "json",
-    yaml: "yaml",
-    yml: "yml",
-    xml: "xml",
-    markdown: "md",
-    sql: "sql",
-    shell: "sh",
-    bash: "sh",
-    powershell: "ps1",
-    dockerfile: "dockerfile",
-    tsx: "tsx",
-    jsx: "jsx",
-    vue: "vue",
-    svelte: "svelte",
-  };
-
-  const lower = language.toLowerCase();
-  // 使用 hasOwnProperty 检查，避免原型链上的属性污染
-  return Object.prototype.hasOwnProperty.call(langExtMap, lower)
-    ? langExtMap[lower]
-    : "txt";
-}
-
-/**
- * 清理文件名，移除非法字符
- * @param name - 原始文件名
- * @returns 清理后的文件名
- */
-function sanitizeFilename(name: string): string {
-  // 移除或替换非法字符
-  const sanitized = name
-    .replace(/[<>:"/\\|?*]/g, "_")
-    .replace(/\s+/g, "_")
-    .trim();
-
-  // 如果为空，使用默认名称
-  return sanitized || "artifact";
-}
-
-/**
  * Artifact 工具栏组件
  *
  * 功能特性：
@@ -455,6 +358,10 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
   }) => {
     const { t } = useTranslation("workspace");
     const [copied, setCopied] = useState(false);
+    const sourcePath = resolveArtifactLocalSourcePath(artifact);
+    const { run: runFileAction, busy: fileActionBusy } = usePublicFileAction(
+      JSON.stringify([artifact.id, sourcePath, artifact.updatedAt]),
+    );
 
     // 获取渲染器信息
     const entry = artifactRegistry.get(artifact.type);
@@ -495,11 +402,24 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
      * @requirements 13.2
      */
     const handleDownload = useCallback(() => {
-      const filename = generateFilename(artifact);
-      const mimeType = getMimeType(artifact.type);
-      const blob = new Blob([artifact.content], { type: mimeType });
-      downloadBlob(blob, filename);
-    }, [artifact]);
+      void runFileAction(sourcePath, async (isCurrent) => {
+        const filename = generateFilename(
+          artifact,
+          artifactRegistry,
+          sourcePath,
+        );
+        const mimeType =
+          readStringMeta(artifact.meta, "mimeType") ||
+          (sourcePath
+            ? "application/octet-stream"
+            : getMimeType(artifact.type));
+        const content = sourcePath
+          ? Uint8Array.from(await readFileBytes(sourcePath)).buffer
+          : artifact.content;
+        if (isCurrent())
+          downloadBlob(new Blob([content], { type: mimeType }), filename);
+      });
+    }, [artifact, sourcePath, runFileAction]);
 
     /**
      * 在新窗口中打开
@@ -513,9 +433,10 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
       }
 
       if (shouldOpenWithSystemApp(artifact)) {
-        const sourcePath = resolveArtifactLocalSourcePath(artifact);
         if (sourcePath) {
-          await openPathWithDefaultApp(sourcePath);
+          await runFileAction(sourcePath, () =>
+            openPathWithDefaultApp(sourcePath),
+          );
           return;
         }
       }
@@ -586,23 +507,23 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
         }
         win.document.close();
       }
-    }, [artifact, isCode, canPreview, isDocument]);
+    }, [artifact, isCode, canPreview, isDocument, sourcePath, runFileAction]);
 
     /**
      * 切换源码视图
      * @requirements 13.3
      */
     const handleToggleSource = useCallback(() => {
-      onToggleSource?.();
-    }, [onToggleSource]);
+      void runFileAction(sourcePath, () => onToggleSource?.());
+    }, [onToggleSource, runFileAction, sourcePath]);
 
     /**
      * 关闭面板
      * @requirements 13.5
      */
     const handleClose = useCallback(() => {
-      onClose?.();
-    }, [onClose]);
+      void runFileAction(sourcePath, () => onClose?.());
+    }, [onClose, runFileAction, sourcePath]);
 
     // 判断是否支持源码切换（非代码类型才需要切换）
     const supportsSourceToggle =
@@ -691,7 +612,12 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
             >
               <button
                 type="button"
-                onClick={() => onViewModeChange("source")}
+                disabled={fileActionBusy}
+                onClick={() =>
+                  void runFileAction(sourcePath, () =>
+                    onViewModeChange("source"),
+                  )
+                }
                 className={cn(
                   "inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all",
                   viewMode === "source"
@@ -708,7 +634,12 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
               </button>
               <button
                 type="button"
-                onClick={() => onViewModeChange("preview")}
+                disabled={fileActionBusy}
+                onClick={() =>
+                  void runFileAction(sourcePath, () =>
+                    onViewModeChange("preview"),
+                  )
+                }
                 className={cn(
                   "inline-flex items-center gap-1 px-2 py-1 rounded text-xs transition-all",
                   viewMode === "preview"
@@ -756,6 +687,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
           {/* 下载按钮 */}
           <ToolbarButton
             onClick={handleDownload}
+            disabled={fileActionBusy}
             title={t("workspace.artifactToolbar.action.download")}
             tone={tone}
           >
@@ -766,6 +698,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
           {supportsSourceToggle && (
             <ToolbarButton
               onClick={handleToggleSource}
+              disabled={fileActionBusy}
               title={
                 showSource
                   ? t("workspace.artifactToolbar.action.showPreview")
@@ -785,6 +718,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
           {/* 新窗口打开按钮 */}
           <ToolbarButton
             onClick={handleOpenInWindow}
+            disabled={fileActionBusy}
             title={t("workspace.artifactToolbar.action.openInWindow")}
             tone={tone}
           >
@@ -797,6 +731,7 @@ export const ArtifactToolbar: React.FC<ArtifactToolbarProps> = memo(
           {onClose && (
             <ToolbarButton
               onClick={handleClose}
+              disabled={fileActionBusy}
               title={t("workspace.artifactToolbar.action.close")}
               tone={tone}
             >

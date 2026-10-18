@@ -22,6 +22,7 @@ import {
   QUEUED_MESSAGE_RICH_INPUT,
   runQueuedMessageMutationGate,
 } from "./lib/queued-message-mutation-gate-b.mjs";
+import { runQueuedMessageReorderGate } from "./lib/queued-message-reorder-gate-b.mjs";
 import {
   preparePendingQueueBackend,
   pauseQueueAfterInterruptedTurn,
@@ -421,6 +422,14 @@ async function run() {
   const backendStartedPath = preparePendingQueueBackend(runtimeEnv);
   const workspaceRoot = path.join(runtimeEnv.tempRoot, "workspace");
   fs.mkdirSync(workspaceRoot, { recursive: true });
+  const skillPath = path.join(workspaceRoot, "queue-review", "SKILL.md");
+  const referencePath = path.join(workspaceRoot, "README.md");
+  fs.mkdirSync(path.dirname(skillPath), { recursive: true });
+  fs.writeFileSync(
+    skillPath,
+    "---\nname: queue-review\ndescription: Queue fixture review\n---\nReview the fixture.\n",
+  );
+  fs.writeFileSync(referencePath, "# Queue fixture reference\n");
   let handle = null;
   const consoleErrors = [];
   const pageErrors = [];
@@ -501,7 +510,16 @@ async function run() {
     console.log(`${LOG_PREFIX} stage=add-queue-submission`);
     const added = await appServerCallFromPage(handle.page, "thread/queue/add", {
       threadId,
-      input: [{ type: "text", text: THREAD_QUEUE_MARKER }],
+      input: [
+        {
+          type: "text",
+          text: THREAD_QUEUE_MARKER,
+          text_elements: [
+            { byteRange: { start: 0, end: 5 }, placeholder: "Queue" },
+          ],
+        },
+        { type: "skill", name: "queue-review", path: skillPath },
+      ],
       clientUserMessageId: "queue-gate-b-client-message",
     });
     const queuedSubmission = added.result?.queuedSubmission;
@@ -549,7 +567,10 @@ async function run() {
       "thread/queue/add",
       {
         threadId,
-        input: [{ type: "text", text: "Queue delete sentinel" }],
+        input: [
+          { type: "text", text: "Queue delete sentinel" },
+          { type: "mention", name: "README.md", path: referencePath },
+        ],
         clientUserMessageId: "queue-gate-b-delete-client-message",
       },
     );
@@ -624,6 +645,24 @@ async function run() {
     });
     assertThreadQueueEvidence(evidence);
 
+    summary.queueSetupTraceRaw = observed.traceRaw;
+    await handle.page.evaluate(() => {
+      window.localStorage.removeItem("lime_invoke_trace_buffer_v1");
+    });
+    console.log(`${LOG_PREFIX} stage=reorder-queue-through-native-input`);
+    summary.nativeReorder = await runQueuedMessageReorderGate(handle.page, {
+      threadId,
+      initialSubmissions: [
+        queuedSubmission,
+        rich.result.queuedSubmission,
+        sentinel.result.queuedSubmission,
+      ],
+      timeoutMs: options.timeoutMs,
+      onStage: (stage) => console.log(`${LOG_PREFIX} stage=${stage}`),
+    });
+    await handle.page.evaluate(() => {
+      window.localStorage.removeItem("lime_invoke_trace_buffer_v1");
+    });
     console.log(`${LOG_PREFIX} stage=mutate-queue-through-gui`);
     summary.mutations = await runQueuedMessageMutationGate(handle.page, {
       threadId,

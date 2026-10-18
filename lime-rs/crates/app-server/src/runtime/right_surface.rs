@@ -43,6 +43,11 @@ impl RuntimeCore {
             params.surface_kind,
             "surfaceKind is required for workspaceRightSurface/request",
         )?;
+        if surface_kind == "appSurface" {
+            return Err(RuntimeCoreError::InvalidRequest(
+                "MCP Apps must open from completed canonical MCP tool items".to_string(),
+            ));
+        }
         let origin = required_string(
             params.origin,
             "origin is required for workspaceRightSurface/request",

@@ -173,7 +173,7 @@ fn resolve_source(source: &str, connection: &ConnectionArgs) -> Result<String> {
         || source == ".."
         || ["./", "../", ".\\", "..\\"]
             .iter()
-            .any(|prefix| source.starts_with(prefix))
+            .any(|prefix| source.starts_with(*prefix))
     {
         let cwd = connection.cwd.clone().unwrap_or(std::env::current_dir()?);
         return Ok(std::fs::canonicalize(cwd.join(source))

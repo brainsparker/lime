@@ -5,10 +5,7 @@
  */
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  apiKeyProviderApi,
-  providerModelIds,
-} from "@/lib/api/apiKeyProvider";
+import { apiKeyProviderApi, providerModelIds } from "@/lib/api/apiKeyProvider";
 import type { ProviderWithKeysDisplay } from "@/lib/api/apiKeyProvider";
 import { useApiKeyProvider } from "./useApiKeyProvider";
 import { getRegistryIdFromType } from "@/lib/constants/providerMappings";
@@ -27,8 +24,8 @@ import {
 } from "@/lib/api/oemCloudRuntime";
 import {
   subscribeOemCloudBootstrapChanged,
-  subscribeOemCloudSessionChanged,
-} from "@/lib/oemCloudSession";
+  subscribeCloudAccount,
+} from "@/lib/cloudAccount";
 
 // ============================================================================
 // 类型定义
@@ -131,7 +128,7 @@ function isLimeHubProvider(provider: ProviderWithKeysDisplay): boolean {
 }
 
 function hasOemCloudLogin(runtime?: OemCloudRuntimeContext | null): boolean {
-  return Boolean(runtime?.sessionToken?.trim());
+  return Boolean(runtime?.accountSessionId?.trim());
 }
 
 function shouldExposeLimeHubLoginPrompt(
@@ -355,7 +352,7 @@ export function useConfiguredProviders(
     }
 
     const bumpRevision = () => setOemCloudRevision((revision) => revision + 1);
-    const unsubscribeSession = subscribeOemCloudSessionChanged(bumpRevision);
+    const unsubscribeSession = subscribeCloudAccount(bumpRevision);
     const unsubscribeBootstrap =
       subscribeOemCloudBootstrapChanged(bumpRevision);
 

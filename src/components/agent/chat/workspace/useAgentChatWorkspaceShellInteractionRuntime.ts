@@ -221,6 +221,11 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
 
   const canvasSurfaceRuntime = useWorkspaceCanvasSurfaceRuntime({
     layout: {
+      canvasScopeKey: JSON.stringify([
+        contentId,
+        sessionId,
+        taskCenterWorkspaceId,
+      ]),
       activeTheme,
       isThemeWorkbench: contextHarnessRuntime.isThemeWorkbench,
       hasPendingA2UIForm,

@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -9,6 +10,8 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { readFileBytes } from "@/lib/api/fileBrowser";
+import { downloadBlob } from "@/lib/artifact/downloadBlob";
 import type { Artifact } from "@/lib/artifact/types";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
 import type { TaskFile } from "./TaskFiles";
@@ -21,6 +24,8 @@ import {
 } from "./CanvasWorkbenchLayoutViewModel";
 import {
   CanvasWorkbenchShell,
+  isCanvasWorkbenchPreviewMode,
+  resolveCanvasWorkbenchPreviewModeState,
   type CanvasWorkbenchChangeView,
 } from "./canvas-workbench";
 import {
@@ -28,7 +33,6 @@ import {
   WORKBENCH_MUTED_PANEL_CLASSNAME,
   WORKBENCH_PANEL_CLASSNAME,
   WORKBENCH_SHELL_CLASSNAME,
-  downloadCanvasWorkbenchText,
   translateCanvasWorkbenchText,
   type CanvasWorkbenchDefaultPreview,
   type CanvasWorkbenchLayoutMode,
@@ -126,6 +130,7 @@ export interface CanvasWorkbenchLayoutProps {
   onOpenPath: (path: string) => Promise<void>;
   onRevealPath: (path: string) => Promise<void>;
   onClose?: () => void;
+  onBeforeLeaveChange?: (guard: (() => Promise<boolean>) | null) => void;
   onLayoutModeChange?: (mode: CanvasWorkbenchLayoutMode) => void;
   workbenchMode?: CanvasWorkbenchMode;
   workspaceView?: CanvasWorkbenchHeaderView | null;
@@ -172,6 +177,7 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   onOpenPath,
   onRevealPath,
   onClose,
+  onBeforeLeaveChange,
   onLayoutModeChange,
   workbenchMode = "default",
   workspaceView = null,
@@ -253,15 +259,23 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   const hasCustomOutputView = Boolean(outputView?.renderPanel);
   const shellRef = useRef<HTMLElement | null>(null);
   const [isStackedLayout, setIsStackedLayout] = useState(false);
+  const previewRequestIdentity = previewOpenRequest
+    ? JSON.stringify([
+        previewOpenRequest.requestKey,
+        previewOpenRequest.selectionKey,
+        previewOpenRequest.filePath,
+      ])
+    : null;
   const {
     activeTab,
-    setActiveTab,
+    applyActiveTab,
     activePreviewContext,
     documentContext,
     documentSelectionKey,
+    documentTransitionPending,
     previewModeState,
     projectFilesPreviewMode,
-    setProjectFilesPreviewMode,
+    applyProjectFilesPreviewMode,
     workspacePanelRootPath,
     workspacePanelDisplayPath,
     directoryCache,
@@ -269,7 +283,10 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     loadingDirectories,
     toggleDirectory,
     refreshDirectorySubtree,
-    openDocumentSelection,
+    fileAction,
+    publicFilePath: sourcePath,
+    resolveDocumentSelection,
+    applyDocumentSelection,
     handleSelectWorkspaceFile,
   } = useCanvasWorkbenchDocumentState({
     artifacts,
@@ -287,40 +304,38 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     hasCustomOutputView,
     isCodingWorkbench,
     changeView,
+    previewRequestIdentity,
   });
+  const { run: runFileAction, busy: fileActionBusy } = fileAction;
   const { openedToolTabs, openNewToolTab, closeToolTab, resolveToolTabKind } =
     useCanvasWorkbenchToolTabsState({
       activeTab,
-      setActiveTab,
+      setActiveTab: applyActiveTab,
     });
   const [changesFilesPanelOpen, setChangesFilesPanelOpen] = useState(false);
   const [previewOnlyFilePath, setPreviewOnlyFilePath] = useState<string | null>(
     null,
   );
-  const handledPreviewOpenRequestKeyRef = useRef<string | number | null>(null);
+  const handledPreviewOpenRequestRef = useRef<string | null>(null);
+  const previewOpenAttemptRef = useRef<{
+    identity: string;
+    launched: boolean;
+  } | null>(null);
   const hasAutoFocusedInitialDocumentTabRef = useRef(
     Boolean(documentSelectionKey),
   );
 
-  useEffect(() => {
-    if (hasAutoFocusedInitialDocumentTabRef.current) {
-      return;
-    }
-    if (!sessionView?.renderPanel || activeTab !== "outputs") {
-      return;
-    }
-    if (!documentSelectionKey) {
-      return;
-    }
-    hasAutoFocusedInitialDocumentTabRef.current = true;
-    setActiveTab(previewModeState.defaultMode);
-  }, [
-    activeTab,
-    documentSelectionKey,
-    previewModeState.defaultMode,
-    sessionView?.renderPanel,
-    setActiveTab,
-  ]);
+  const beforeLeaveActionRef = useRef(() =>
+    runFileAction(sourcePath, () => {}),
+  );
+  useLayoutEffect(() => {
+    beforeLeaveActionRef.current = () => runFileAction(sourcePath, () => {});
+  }, [runFileAction, sourcePath]);
+  useLayoutEffect(() => {
+    if (!onBeforeLeaveChange) return;
+    onBeforeLeaveChange(() => beforeLeaveActionRef.current());
+    return () => onBeforeLeaveChange(null);
+  }, [onBeforeLeaveChange]);
 
   useEffect(() => {
     const node = shellRef.current;
@@ -460,65 +475,97 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   );
 
   useEffect(() => {
-    if (!hasReviewSurface) {
+    if (previewOpenRequest && previewRequestIdentity) {
+      const identity = JSON.stringify([workspaceRoot, previewRequestIdentity]);
+      if (previewOpenAttemptRef.current?.identity !== identity) {
+        previewOpenAttemptRef.current = { identity, launched: false };
+      }
+      if (
+        fileActionBusy ||
+        handledPreviewOpenRequestRef.current === identity ||
+        previewOpenAttemptRef.current.launched
+      ) {
+        return;
+      }
+      const selectionKey =
+        previewOpenRequest.selectionKey?.trim() ||
+        defaultPreview?.selectionKey ||
+        documentSelectionKey;
+      const target = selectionKey
+        ? resolveDocumentSelection(selectionKey)
+        : documentContext;
+      if (selectionKey && target?.selectionKey !== selectionKey) return;
+      if (target?.target.kind === "loading") return;
+      previewOpenAttemptRef.current.launched = true;
+      void runFileAction(sourcePath, () => {
+        const nextContext = selectionKey
+          ? applyDocumentSelection(selectionKey)
+          : target;
+        if (selectionKey && !nextContext) {
+          previewOpenAttemptRef.current!.launched = false;
+          return;
+        }
+        applyActiveTab(
+          resolveCanvasWorkbenchPreviewModeState(nextContext).defaultMode,
+        );
+        setPreviewOnlyFilePath(previewOpenRequest.filePath?.trim() || null);
+        handledPreviewOpenRequestRef.current = identity;
+        onPreviewOpenRequestHandled?.(previewOpenRequest.requestKey);
+      });
       return;
     }
-    if (isPreviewOnlyFileOpen) {
+    previewOpenAttemptRef.current = null;
+    if (
+      fileActionBusy ||
+      documentTransitionPending ||
+      (isCanvasWorkbenchPreviewMode(activeTab) &&
+        !previewModeState.modes[activeTab].enabled)
+    )
       return;
-    }
-    if (hasAutoFocusedCodingReviewRef.current) {
-      return;
-    }
-    if (changeItemCount <= 0 && documentDiffLines.length <= 0) {
-      return;
-    }
-    hasAutoFocusedCodingReviewRef.current = true;
-    setActiveTab("changes");
-  }, [
-    changeItemCount,
-    documentDiffLines.length,
-    hasReviewSurface,
-    isPreviewOnlyFileOpen,
-    setActiveTab,
-  ]);
-
-  useEffect(() => {
-    if (!previewOpenRequest) {
+    if (
+      !hasAutoFocusedInitialDocumentTabRef.current &&
+      sessionView?.renderPanel &&
+      activeTab === "outputs" &&
+      documentSelectionKey &&
+      documentContext?.selectionKey === documentSelectionKey
+    ) {
+      hasAutoFocusedInitialDocumentTabRef.current = true;
+      void runFileAction(sourcePath, () =>
+        applyActiveTab(previewModeState.defaultMode),
+      );
       return;
     }
     if (
-      handledPreviewOpenRequestKeyRef.current === previewOpenRequest.requestKey
+      hasReviewSurface &&
+      !isPreviewOnlyFileOpen &&
+      !hasAutoFocusedCodingReviewRef.current &&
+      (changeItemCount > 0 || documentDiffLines.length > 0)
     ) {
-      return;
+      hasAutoFocusedCodingReviewRef.current = true;
+      void runFileAction(sourcePath, () => applyActiveTab("changes"));
     }
-    const selectionKey = previewOpenRequest.selectionKey?.trim();
-    if (selectionKey) {
-      if (documentSelectionKey !== selectionKey) {
-        setPreviewOnlyFilePath(previewOpenRequest.filePath?.trim() || null);
-        openDocumentSelection(selectionKey);
-        return;
-      }
-      if (documentContext?.selectionKey !== selectionKey) {
-        return;
-      }
-      setActiveTab(previewModeState.defaultMode);
-      setPreviewOnlyFilePath(previewOpenRequest.filePath?.trim() || null);
-      handledPreviewOpenRequestKeyRef.current = previewOpenRequest.requestKey;
-      onPreviewOpenRequestHandled?.(previewOpenRequest.requestKey);
-      return;
-    }
-    setPreviewOnlyFilePath(previewOpenRequest.filePath?.trim() || null);
-    setActiveTab(previewModeState.defaultMode);
-    handledPreviewOpenRequestKeyRef.current = previewOpenRequest.requestKey;
-    onPreviewOpenRequestHandled?.(previewOpenRequest.requestKey);
   }, [
-    onPreviewOpenRequestHandled,
-    openDocumentSelection,
-    documentContext?.selectionKey,
+    activeTab,
+    applyActiveTab,
+    applyDocumentSelection,
+    changeItemCount,
+    defaultPreview?.selectionKey,
+    documentContext,
+    documentDiffLines.length,
     documentSelectionKey,
-    previewModeState.defaultMode,
+    documentTransitionPending,
+    fileActionBusy,
+    hasReviewSurface,
+    isPreviewOnlyFileOpen,
+    onPreviewOpenRequestHandled,
+    previewModeState,
     previewOpenRequest,
-    setActiveTab,
+    previewRequestIdentity,
+    resolveDocumentSelection,
+    runFileAction,
+    sessionView?.renderPanel,
+    sourcePath,
+    workspaceRoot,
   ]);
 
   const { primaryTabs: basePrimaryTabs, newTabActions } = useMemo(
@@ -584,14 +631,63 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   }, [activeSelectionPath, translateWorkbench]);
 
   const handleDownload = useCallback(() => {
-    if (!activeContent.trim()) {
+    if (!sourcePath && !activeContent.trim()) {
       return;
     }
     const filename = extractFileNameFromPath(
       activeSelectionPath || activePreviewContext?.title || "canvas.md",
     );
-    downloadCanvasWorkbenchText(filename, activeContent);
-  }, [activeContent, activePreviewContext?.title, activeSelectionPath]);
+    void runFileAction(sourcePath, async (isCurrent) => {
+      const content = sourcePath
+        ? Uint8Array.from(await readFileBytes(sourcePath)).buffer
+        : activeContent;
+      if (isCurrent())
+        downloadBlob(
+          new Blob([content], {
+            type: sourcePath
+              ? "application/octet-stream"
+              : "text/plain;charset=utf-8",
+          }),
+          filename,
+        );
+    });
+  }, [
+    activeContent,
+    activePreviewContext?.title,
+    activeSelectionPath,
+    sourcePath,
+    runFileAction,
+  ]);
+
+  const handleSelectTab = useCallback(
+    (tab: CanvasWorkbenchTab) => {
+      if (tab === activeTab) return;
+      void runFileAction(sourcePath, () => applyActiveTab(tab));
+    },
+    [activeTab, applyActiveTab, runFileAction, sourcePath],
+  );
+  const handleNewToolTab = useCallback(
+    (tab: CanvasWorkbenchNewToolTab) => {
+      void runFileAction(sourcePath, () => openNewToolTab(tab));
+    },
+    [openNewToolTab, runFileAction, sourcePath],
+  );
+  const handleCloseToolTab = useCallback(
+    (tab: CanvasWorkbenchTab) => {
+      void runFileAction(tab === activeTab ? sourcePath : null, () =>
+        closeToolTab(tab),
+      );
+    },
+    [activeTab, closeToolTab, runFileAction, sourcePath],
+  );
+  const handleClose = useCallback(() => {
+    // 外层注册后统一在外层 await guard，避免同一锁被嵌套获取。
+    if (onBeforeLeaveChange) {
+      onClose?.();
+      return;
+    }
+    void runFileAction(sourcePath, () => onClose?.());
+  }, [onBeforeLeaveChange, onClose, runFileAction, sourcePath]);
 
   const activeToolTabKind = resolveToolTabKind(activeTab);
   const topActiveTab: CanvasWorkbenchTab =
@@ -619,19 +715,21 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
         (activeToolTabKind !== "project-files" || Boolean(activePreviewContext))
       }
       translateWorkbench={translateWorkbench}
-      onSelectTab={setActiveTab}
-      onNewToolTab={openNewToolTab}
-      onCloseTab={closeToolTab}
-      onClose={onClose}
+      onSelectTab={handleSelectTab}
+      onNewToolTab={handleNewToolTab}
+      onCloseTab={handleCloseToolTab}
+      onClose={onClose ? handleClose : undefined}
       closeWorkbenchLabel={closeWorkbenchLabel}
       headerActionsVisible={headerActionsVisible}
       activeSelectionPath={activeSelectionPath}
       activeContent={activeContent}
+      downloadEnabled={Boolean(sourcePath || activeContent.trim())}
+      fileActionBusy={fileActionBusy}
       onCopyPath={() => {
         void handleCopyPath();
       }}
       onOpenPath={(path) => {
-        void onOpenPath(path);
+        void runFileAction(sourcePath, () => onOpenPath(sourcePath || path));
       }}
       onRevealPath={(path) => {
         void onRevealPath(path);
@@ -668,8 +766,13 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       onRefreshDirectory={(path) => {
         void refreshDirectorySubtree(path);
       }}
-      onSelectPreviewMode={setActiveTab}
-      onSelectProjectFilesPreviewMode={setProjectFilesPreviewMode}
+      onSelectPreviewMode={handleSelectTab}
+      onSelectProjectFilesPreviewMode={(mode) => {
+        if (mode === projectFilesPreviewMode) return;
+        void runFileAction(sourcePath, () =>
+          applyProjectFilesPreviewMode(mode),
+        );
+      }}
       onToggleChangesFilesPanel={() =>
         setChangesFilesPanelOpen((open) => !open)
       }

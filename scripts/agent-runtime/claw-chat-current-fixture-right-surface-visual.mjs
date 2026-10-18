@@ -14,9 +14,7 @@ import {
 const RIGHT_SURFACE_ROOTS = {
   appSurface: "workspace-plugin-surface",
   browser: "right-surface-browser-panel",
-  expertInfo: "expert-info-panel",
   files: "workspace-files-surface",
-  objectCanvas: "workspace-object-canvas-surface",
   articleWorkspace: "workspace-article-editor-surface",
   activity: "thread-activity-panel",
 };
@@ -48,91 +46,18 @@ export async function runRightSurfaceVisualMatrix({
         title: "Right Surface roadmap",
       },
     }),
-    objectCanvas: await requestRightSurfacePending(page, appServerRequests, {
-      workspace,
-      sessionId,
-      surfaceKind: "objectCanvas",
-      candidateId: "right-surface-visual-browser-session",
-      metadata: {
-        candidateId: "right-surface-visual-browser-session",
-        title: "Right Surface visual browser session",
-        url: "https://example.com/right-surface-object-canvas",
-        sessionId: "fixture-browser-session",
-        profileKey: "fixture-profile",
-        targetId: "fixture-target",
-        lifecycleState: "ready",
-        controlMode: "inspect",
-        transportKind: "cdp",
-      },
-    }),
     browser: await requestRightSurfacePending(page, appServerRequests, {
       workspace,
       sessionId,
       surfaceKind: "browser",
       candidateId: "right-surface-visual-browser",
       metadata: {
-        browserSessionId: "fixture-browser-session",
-        profileKey: "fixture-profile",
-        targetId: "fixture-target",
-        launchUrl: "https://example.com/right-surface-browser",
-        title: "Right Surface visual browser",
-        adapterKind: "cdp",
-        lifecycleState: "ready",
-        controlMode: "inspect",
+        browser: {
+          launchUrl: "https://example.com/right-surface-browser",
+          title: "Right Surface visual browser",
+        },
       },
     }),
-    appSurfaceContentFactory: await requestRightSurfacePending(
-      page,
-      appServerRequests,
-      {
-        workspace,
-        sessionId,
-        surfaceKind: "appSurface",
-        candidateId: "plugin-shell-content-factory-app-main",
-        metadata: {
-          appId: "content-factory-app",
-          title: "内容工厂",
-          surface: {
-            entryUrl:
-              "https://example.com/lime-plugins/content-factory/right-surface",
-            containerId: "plugin-shell-content-factory-app-main",
-            activeStrategy: "webContentsView",
-            supportedStrategies: ["controlledBrowserWindow", "webContentsView"],
-            embedding: {
-              rightSurfaceDock: true,
-              iframe: false,
-              browserView: false,
-            },
-          },
-        },
-      },
-    ),
-    appSurfacePromptLab: await requestRightSurfacePending(
-      page,
-      appServerRequests,
-      {
-        workspace,
-        sessionId,
-        surfaceKind: "appSurface",
-        candidateId: "plugin-shell-prompt-lab-app",
-        metadata: {
-          appId: "prompt-lab-app",
-          title: "Prompt Lab",
-          surface: {
-            entryUrl:
-              "https://example.com/lime-plugins/prompt-lab/right-surface",
-            containerId: "plugin-shell-prompt-lab-app",
-            activeStrategy: "webContentsView",
-            supportedStrategies: ["controlledBrowserWindow", "webContentsView"],
-            embedding: {
-              rightSurfaceDock: true,
-              iframe: false,
-              browserView: false,
-            },
-          },
-        },
-      },
-    ),
   };
 
   const pendingBeforeClicks = await listRightSurfacePending(
@@ -145,42 +70,34 @@ export async function runRightSurfaceVisualMatrix({
   );
   const toolbarBeforeClicks = await captureRightSurfaceToolbarDiagnostics(page);
 
-  let captures;
+  const captures = {};
   try {
-    captures = {
-      files: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "files",
-        toggleTestId: "task-center-files-toggle",
-        rootTestId: RIGHT_SURFACE_ROOTS.files,
-      }),
-      objectCanvas: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "objectCanvas",
-        toggleTestId: "task-center-object-canvas-toggle",
-        rootTestId: RIGHT_SURFACE_ROOTS.objectCanvas,
-      }),
-      expertInfo: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "expertInfo",
-        toggleTestId: "task-center-expert-info-toggle",
-        rootTestId: RIGHT_SURFACE_ROOTS.expertInfo,
-      }),
-      browser: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "browser",
-        toggleTestId: "task-center-browser-toggle",
-        rootTestId: RIGHT_SURFACE_ROOTS.browser,
-        screenshotName: "right-surface-browser",
-      }),
-      appSurface: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "appSurface",
-        toggleTestId: "workspace-right-surface-tab-appSurface",
-        rootTestId: RIGHT_SURFACE_ROOTS.appSurface,
-      }),
-      activity: await clickAndAssertRightSurface(page, options, {
-        surfaceKind: "activity",
-        toggleTestId: "task-center-activity-toggle",
-        rootTestId: RIGHT_SURFACE_ROOTS.activity,
-        requireCanvasPanelFill: false,
-      }),
-    };
+    captures.files = await clickAndAssertRightSurface(page, options, {
+      surfaceKind: "files",
+      toggleTestId: "task-center-files-toggle",
+      rootTestId: RIGHT_SURFACE_ROOTS.files,
+    });
+    captures.browser = await clickAndAssertRightSurface(page, options, {
+      surfaceKind: "browser",
+      toggleTestId: "task-center-browser-toggle",
+      rootTestId: RIGHT_SURFACE_ROOTS.browser,
+      screenshotName: "right-surface-browser",
+    });
+    captures.browser.nativeTabs = await page.evaluate(
+      async (scope) => {
+        return await window.electronAPI.invoke("browser_tab_list", scope);
+      },
+      {
+        browserSessionId: captures.browser.stable.browserSurface.sessionId,
+        threadId: captures.browser.stable.browserSurface.threadId,
+      },
+    );
+    captures.activity = await clickAndAssertRightSurface(page, options, {
+      surfaceKind: "activity",
+      toggleTestId: "task-center-activity-toggle",
+      rootTestId: RIGHT_SURFACE_ROOTS.activity,
+      requireCanvasPanelFill: false,
+    });
   } catch (error) {
     const toolbarAfterFailure = await captureRightSurfaceToolbarDiagnostics(
       page,
@@ -201,7 +118,7 @@ export async function runRightSurfaceVisualMatrix({
       sessionId,
       error: message,
       ...diagnostic,
-      captures: {},
+      captures,
     });
   }
 
@@ -301,9 +218,7 @@ async function captureRightSurfaceToolbarDiagnostics(page) {
     const toggleByKind = {
       appSurface: "workspace-right-surface-tab-appSurface",
       browser: "task-center-browser-toggle",
-      expertInfo: "task-center-expert-info-toggle",
       files: "task-center-files-toggle",
-      objectCanvas: "task-center-object-canvas-toggle",
       shell: "task-center-shell-toggle",
       trace: "task-center-trace-toggle",
       workbench: "task-center-workbench-toggle",
@@ -450,6 +365,7 @@ async function captureRightSurfaceScreenshot(page, options, screenshotName) {
     options.evidenceDir,
     `${options.prefix}-${screenshotName}.png`,
   );
+  await page.bringToFront();
   await page.screenshot({
     path: screenshotPath,
     fullPage: false,
@@ -721,8 +637,6 @@ async function captureRightSurfaceSnapshot(
         },
         browserSurface: browserPanel
           ? {
-              adapterKind:
-                browserPanel.getAttribute("data-browser-adapter-kind") ?? "",
               controlMode:
                 browserPanel.getAttribute("data-browser-control-mode") ?? "",
               controlOwner:
@@ -731,10 +645,14 @@ async function captureRightSurfaceSnapshot(
                 browserPanel.getAttribute("data-browser-human-takeover") ?? "",
               lifecycleState:
                 browserPanel.getAttribute("data-browser-lifecycle-state") ?? "",
-              profileKey:
-                browserPanel.getAttribute("data-browser-profile-key") ?? "",
               sessionId:
                 browserPanel.getAttribute("data-browser-session-id") ?? "",
+              tabId: browserPanel.getAttribute("data-browser-tab-id") ?? "",
+              threadId:
+                browserPanel.getAttribute("data-browser-thread-id") ?? "",
+              webContentsId: Number(
+                browserPanel.getAttribute("data-browser-web-contents-id"),
+              ),
               hasControlOverlay: Boolean(
                 document.querySelector(
                   '[data-testid="right-surface-browser-control-overlay"]',
@@ -847,14 +765,7 @@ function summarizeRightSurfaceRequest(invocation) {
 function summarizeRightSurfaceRequests(requests) {
   return {
     files: summarizeRightSurfaceRequest(requests.files),
-    objectCanvas: summarizeRightSurfaceRequest(requests.objectCanvas),
     browser: summarizeRightSurfaceRequest(requests.browser),
-    appSurfaceContentFactory: summarizeRightSurfaceRequest(
-      requests.appSurfaceContentFactory,
-    ),
-    appSurfacePromptLab: summarizeRightSurfaceRequest(
-      requests.appSurfacePromptLab,
-    ),
   };
 }
 

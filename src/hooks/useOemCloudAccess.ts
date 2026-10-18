@@ -1,3 +1,4 @@
+import { useCloudAccountSync } from "./useCloudAccountSync";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { clearSkillCatalogCache } from "@/lib/api/skillCatalog";
@@ -40,7 +41,6 @@ import {
   getClientProviderOffer,
   listClientProviderOfferModels,
   loginClientByPassword,
-  logoutClient,
   revokeClientAccessToken,
   rotateClientAccessToken,
   sendClientAuthEmailCode,
@@ -48,10 +48,7 @@ import {
   verifyClientAuthEmailCode,
 } from "@/lib/api/oemCloudControlPlane";
 import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
-import {
-  OEM_CLOUD_OAUTH_COMPLETED_EVENT,
-  type OemCloudDesktopOAuthCompletedDetail,
-} from "@/lib/oemCloudDesktopAuth";
+
 import {
   buildOemCloudUserCenterUrl,
   createExternalBrowserOpenTarget,
@@ -65,14 +62,15 @@ import {
   type OemCloudPaymentReturnDetail,
 } from "@/lib/oemCloudPaymentReturn";
 import {
-  applyStoredOemCloudSessionToWindow,
   clearOemCloudBootstrapSnapshot,
-  clearStoredOemCloudSessionState,
-  getOemCloudBootstrapSnapshot,
-  getStoredOemCloudSessionState,
+  getCloudAccount,
+  importCloudAccount,
+  logoutCloudAccount,
   setOemCloudBootstrapSnapshot,
-  setStoredOemCloudSessionState,
-} from "@/lib/oemCloudSession";
+  updateCloudSessionView,
+  cloudAccountIdentity,
+  CloudAccountChangedError,
+} from "@/lib/cloudAccount";
 import { syncServiceSkillCatalogFromBootstrapPayload } from "@/lib/serviceSkillCatalogBootstrap";
 import { syncSkillCatalogFromBootstrapPayload } from "@/lib/skillCatalogBootstrap";
 import { resolveOemLimeHubProviderName } from "@/lib/oemLimeHubProvider";
@@ -80,6 +78,7 @@ import { resolveOemLimeHubProviderName } from "@/lib/oemLimeHubProvider";
 type OemCloudLoginMode = "password" | "email_code";
 
 function buildErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof CloudAccountChangedError) return fallback;
   if (error instanceof Error && error.message.trim()) {
     return error.message.trim();
   }
@@ -470,9 +469,6 @@ export function useOemCloudAccess() {
     }),
     [t],
   );
-  const restoreTargetKey = runtime
-    ? `${runtime.baseUrl}::${runtime.tenantId}`
-    : "__runtime_unavailable__";
   const [loginMode, setLoginMode] = useState<OemCloudLoginMode>("password");
   const [passwordForm, setPasswordForm] = useState<ClientPasswordLoginPayload>({
     identifier: "",
@@ -585,7 +581,6 @@ export function useOemCloudAccess() {
 
   const clearCloudState = useCallback(
     (message?: string) => {
-      clearStoredOemCloudSessionState();
       clearOemCloudBootstrapSnapshot();
       clearSkillCatalogCache();
       clearServiceSkillCatalogCache();
@@ -607,45 +602,25 @@ export function useOemCloudAccess() {
   );
 
   const applyBootstrap = useCallback(
-    (
-      nextBootstrap: OemCloudBootstrapResponse,
-      fallbackToken?: string,
-      extraOffers?: OemCloudProviderOfferSummary[],
-      extraPreference?: OemCloudProviderPreference,
-    ) => {
-      const nextSession: OemCloudCurrentSession = {
-        ...nextBootstrap.session,
-        token: nextBootstrap.session.token ?? fallbackToken ?? session?.token,
-      };
-
-      setStoredOemCloudSessionState(nextSession);
-      setOemCloudBootstrapSnapshot({
-        ...nextBootstrap,
-        session: nextSession,
-      });
-      syncSkillCatalogFromBootstrapPayload({
-        ...nextBootstrap,
-        session: nextSession,
-      });
-      syncServiceSkillCatalogFromBootstrapPayload({
-        ...nextBootstrap,
-        session: nextSession,
-      });
-
-      setSession(nextSession);
-      setBootstrap({
-        ...nextBootstrap,
-        session: nextSession,
-      });
-      setOffers(extraOffers ?? nextBootstrap.providerOffersSummary);
-      setPreference(extraPreference ?? nextBootstrap.providerPreference);
+    (nextBootstrap: OemCloudBootstrapResponse) => {
+      updateCloudSessionView(nextBootstrap.session);
+      const metadata = getCloudAccount()!.session;
+      const projected = { ...nextBootstrap, session: metadata };
+      setOemCloudBootstrapSnapshot(projected);
+      syncSkillCatalogFromBootstrapPayload(projected);
+      syncServiceSkillCatalogFromBootstrapPayload(projected);
+      setSession(metadata);
+      setBootstrap(projected);
+      setOffers(projected.providerOffersSummary);
+      setPreference(projected.providerPreference);
       setErrorMessage(null);
     },
-    [session?.token],
+    [],
   );
 
   const loadCommerceState = useCallback(
     async (tenantId: string) => {
+      const accountIdentity = cloudAccountIdentity(getCloudAccount());
       setLoadingCommerce(true);
       const currentSnapshot: OemCloudCommerceSnapshot = {
         cloudActivation,
@@ -667,6 +642,9 @@ export function useOemCloudAccess() {
 
       try {
         const activation = await getClientCloudActivation(tenantId);
+        if (accountIdentity !== cloudAccountIdentity(getCloudAccount())) {
+          throw new CloudAccountChangedError();
+        }
         const snapshot: OemCloudCommerceSnapshot = {
           cloudActivation: activation,
           cloudReadiness: activation.readiness,
@@ -705,6 +683,11 @@ export function useOemCloudAccess() {
         setCommerceErrorMessage(null);
         return snapshot;
       } catch (error) {
+        if (
+          error instanceof CloudAccountChangedError ||
+          accountIdentity !== cloudAccountIdentity(getCloudAccount())
+        )
+          return buildEmptyCommerceSnapshot();
         const message = buildErrorMessage(
           error,
           cloudCopy.session.syncActivationFailedFallback,
@@ -738,22 +721,24 @@ export function useOemCloudAccess() {
   );
 
   const refreshAuthenticatedState = useCallback(
-    async (tenantIdOverride?: string, fallbackToken?: string) => {
+    async (tenantIdOverride?: string) => {
       const targetTenantId =
-        tenantIdOverride ?? session?.tenant.id ?? runtime?.tenantId;
-      if (!runtime || !targetTenantId) {
+        tenantIdOverride ?? getCloudAccount()?.account.tenantId;
+      if (!getCloudAccount() || !targetTenantId) {
         return null;
       }
 
+      const identity = cloudAccountIdentity(getCloudAccount());
       const nextBootstrap = await getClientBootstrap(targetTenantId);
-      applyBootstrap(nextBootstrap, fallbackToken);
+      if (identity !== cloudAccountIdentity(getCloudAccount()))
+        throw new CloudAccountChangedError();
+      applyBootstrap(nextBootstrap);
       await loadCommerceState(targetTenantId);
       return nextBootstrap;
     },
-    [applyBootstrap, loadCommerceState, runtime, session?.tenant.id],
+    [applyBootstrap, loadCommerceState],
   );
 
-  const runtimeRef = useRef(runtime);
   const sessionRef = useRef(session);
   const clearCloudStateRef = useRef(clearCloudState);
   const refreshAuthenticatedStateRef = useRef(refreshAuthenticatedState);
@@ -765,10 +750,6 @@ export function useOemCloudAccess() {
     runId: 0,
     timer: null,
   });
-
-  useEffect(() => {
-    runtimeRef.current = runtime;
-  }, [runtime]);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -803,149 +784,22 @@ export function useOemCloudAccess() {
     };
   }, [cancelPaymentWatcher]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    async function restoreSession() {
-      const currentRuntime = runtimeRef.current;
-      if (!currentRuntime) {
-        setInitializing(false);
-        return;
-      }
-
-      setInitializing(true);
-      const stored = applyStoredOemCloudSessionToWindow();
-      if (!stored) {
-        setInitializing(false);
-        return;
-      }
-
-      try {
-        await refreshAuthenticatedStateRef.current(
-          stored.session.tenant.id,
-          stored.token,
-        );
-      } catch (error) {
-        if (cancelled) {
-          return;
-        }
-
-        if (isAuthExpired(error)) {
-          clearCloudStateRef.current(
-            cloudCopyRef.current.session.expiredRelogin,
-          );
-        } else {
-          setErrorMessage(
-            buildErrorMessage(
-              error,
-              cloudCopyRef.current.session.restoreFailedFallback,
-            ),
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setInitializing(false);
-        }
-      }
-    }
-
-    void restoreSession();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [restoreTargetKey]);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return () => undefined;
-    }
-
-    let cancelled = false;
-
-    const handleOauthCompleted = (event: Event) => {
-      if (cancelled) {
-        return;
-      }
-
-      const detail =
-        event instanceof CustomEvent
-          ? (event.detail as OemCloudDesktopOAuthCompletedDetail)
-          : null;
-      const storedState = getStoredOemCloudSessionState();
-      if (!storedState) {
-        return;
-      }
-
-      const snapshot =
-        getOemCloudBootstrapSnapshot<OemCloudBootstrapResponse>();
-
-      setInitializing(false);
-      setSession(storedState.session as OemCloudCurrentSession);
-      setCodeDelivery(null);
-      setSelectedOffer(null);
-      setSelectedModels([]);
-      setErrorMessage(null);
-
-      if (snapshot) {
-        applyBootstrap(snapshot, storedState.token);
-        void loadCommerceState(storedState.session.tenant.id);
-        setInfoMessage(
-          detail?.provider === "google"
-            ? authCopy.googleSynced
-            : authCopy.cloudSynced,
-        );
-        return;
-      }
-
-      void refreshAuthenticatedState(
-        storedState.session.tenant.id,
-        storedState.token,
-      )
-        .then(() => {
-          if (!cancelled) {
-            setInfoMessage(
-              detail?.provider === "google"
-                ? authCopy.googleSynced
-                : authCopy.cloudSynced,
-            );
-          }
-        })
-        .catch((error) => {
-          if (cancelled) {
-            return;
-          }
-
-          if (isAuthExpired(error)) {
-            clearCloudState(cloudCopy.session.invalidRelogin);
-            return;
-          }
-          setErrorMessage(
-            buildErrorMessage(error, authCopy.syncFailedFallback),
-          );
-        });
-    };
-
-    window.addEventListener(
-      OEM_CLOUD_OAUTH_COMPLETED_EVENT,
-      handleOauthCompleted,
-    );
-
-    return () => {
-      cancelled = true;
-      window.removeEventListener(
-        OEM_CLOUD_OAUTH_COMPLETED_EVENT,
-        handleOauthCompleted,
-      );
-    };
-  }, [
+  useCloudAccountSync({
+    setSession,
+    setInitializing,
+    clearView: clearCloudState,
     applyBootstrap,
-    authCopy,
-    clearCloudState,
-    cloudCopy,
-    loadCommerceState,
-    refreshAuthenticatedState,
-  ]);
+    refresh: refreshAuthenticatedState,
+    loadCommerce: loadCommerceState,
+    onError: (error) =>
+      setErrorMessage(
+        buildErrorMessage(error, cloudCopy.session.restoreFailedFallback),
+      ),
+    onOAuthCompleted: () => {
+      setCodeDelivery(null);
+      setInfoMessage(authCopy.googleSynced);
+    },
+  });
 
   const handleRefresh = useCallback(async () => {
     if (!runtime || !session?.tenant.id) {
@@ -954,7 +808,7 @@ export function useOemCloudAccess() {
 
     setRefreshing(true);
     try {
-      await refreshAuthenticatedState(session.tenant.id, session.token);
+      await refreshAuthenticatedState(session.tenant.id);
       setInfoMessage(cloudCopy.session.refreshSuccess);
       setSelectedOffer(null);
       setSelectedModels([]);
@@ -989,7 +843,6 @@ export function useOemCloudAccess() {
       cancelPaymentWatcher(false);
 
       const tenantId = session.tenant.id;
-      const fallbackToken = session.token;
       const runId = paymentWatchRef.current.runId + 1;
       paymentWatchRef.current.runId = runId;
       paymentWatchRef.current.timer = null;
@@ -1034,7 +887,7 @@ export function useOemCloudAccess() {
             resolveOrderTitle(target.kind, order, paymentCopy) || target.title;
 
           if (isPaidPaymentStatus(status)) {
-            await refreshAuthenticatedState(tenantId, fallbackToken);
+            await refreshAuthenticatedState(tenantId);
             if (paymentWatchRef.current.runId !== runId) {
               return;
             }
@@ -1057,7 +910,7 @@ export function useOemCloudAccess() {
           }
 
           if (isTerminalUnpaidPaymentStatus(status)) {
-            await refreshAuthenticatedState(tenantId, fallbackToken);
+            await refreshAuthenticatedState(tenantId);
             if (paymentWatchRef.current.runId !== runId) {
               return;
             }
@@ -1073,7 +926,7 @@ export function useOemCloudAccess() {
           }
 
           if (attempt >= PAYMENT_STATUS_WATCH_MAX_ATTEMPTS) {
-            await refreshAuthenticatedState(tenantId, fallbackToken);
+            await refreshAuthenticatedState(tenantId);
             if (paymentWatchRef.current.runId !== runId) {
               return;
             }
@@ -1125,8 +978,11 @@ export function useOemCloudAccess() {
       paymentCopy,
       refreshAuthenticatedState,
       session?.tenant.id,
-      session?.token,
     ],
+  );
+  useEffect(
+    () => () => cancelPaymentWatcher(),
+    [cancelPaymentWatcher, session?.session.id],
   );
   const startPaymentStatusWatcherRef = useRef(startPaymentStatusWatcher);
 
@@ -1156,10 +1012,7 @@ export function useOemCloudAccess() {
       setErrorMessage(null);
 
       try {
-        await refreshAuthenticatedStateRef.current(
-          currentSession.tenant.id,
-          currentSession.token,
-        );
+        await refreshAuthenticatedStateRef.current(currentSession.tenant.id);
         if (cancelled) {
           return;
         }
@@ -1293,9 +1146,13 @@ export function useOemCloudAccess() {
         displayName: emailCodeForm.displayName?.trim() || undefined,
         username: emailCodeForm.username?.trim() || undefined,
       });
-      setStoredOemCloudSessionState(nextSession);
-      setSession(nextSession);
-      await refreshAuthenticatedState(nextSession.tenant.id, nextSession.token);
+      if (!nextSession.token) throw new Error(authCopy.syncFailedFallback);
+      await importCloudAccount({
+        baseUrl: runtime.baseUrl,
+        tenantId: nextSession.tenant.id,
+        accessToken: nextSession.token,
+      });
+      await refreshAuthenticatedState(nextSession.tenant.id);
       setInfoMessage(cloudCopy.emailCode.loginSuccess);
       setCodeDelivery(null);
       setEmailCodeForm({
@@ -1313,6 +1170,7 @@ export function useOemCloudAccess() {
     }
   }, [
     authCopy.unavailable,
+    authCopy.syncFailedFallback,
     cloudCopy,
     emailCodeForm,
     refreshAuthenticatedState,
@@ -1338,9 +1196,13 @@ export function useOemCloudAccess() {
         identifier: passwordForm.identifier.trim(),
         password: passwordForm.password,
       });
-      setStoredOemCloudSessionState(nextSession);
-      setSession(nextSession);
-      await refreshAuthenticatedState(nextSession.tenant.id, nextSession.token);
+      if (!nextSession.token) throw new Error(authCopy.syncFailedFallback);
+      await importCloudAccount({
+        baseUrl: runtime.baseUrl,
+        tenantId: nextSession.tenant.id,
+        accessToken: nextSession.token,
+      });
+      await refreshAuthenticatedState(nextSession.tenant.id);
       setInfoMessage(cloudCopy.password.loginSuccess);
       setPasswordForm((current) => ({
         ...current,
@@ -1355,6 +1217,7 @@ export function useOemCloudAccess() {
     }
   }, [
     authCopy.unavailable,
+    authCopy.syncFailedFallback,
     cloudCopy,
     passwordForm,
     refreshAuthenticatedState,
@@ -1362,25 +1225,19 @@ export function useOemCloudAccess() {
   ]);
 
   const handleLogout = useCallback(async () => {
-    if (!session?.tenant.id) {
-      clearCloudState(cloudCopy.session.localCleared);
-      return;
-    }
-
     setLoggingOut(true);
     setErrorMessage(null);
     try {
-      await logoutClient(session.tenant.id);
+      await logoutCloudAccount();
       clearCloudState(cloudCopy.session.logoutSuccess);
     } catch (error) {
-      clearCloudState(cloudCopy.session.logoutFallback);
       setErrorMessage(
         buildErrorMessage(error, cloudCopy.session.logoutFailedFallback),
       );
     } finally {
       setLoggingOut(false);
     }
-  }, [clearCloudState, cloudCopy, session?.tenant.id]);
+  }, [clearCloudState, cloudCopy]);
 
   const handleGoogleLogin = useCallback(async () => {
     if (!runtime) {
@@ -1401,7 +1258,7 @@ export function useOemCloudAccess() {
         browserTarget,
         copy: authCopy,
       });
-      const storedSession = getStoredOemCloudSessionState();
+      const storedSession = getCloudAccount();
       const storedTenantId = storedSession?.session.tenant.id?.trim();
       const storedTenantSlug = storedSession?.session.tenant.slug?.trim();
       const runtimeTenantId = runtime.tenantId.trim();
@@ -1479,7 +1336,7 @@ export function useOemCloudAccess() {
           },
         );
         setPreference(nextPreference);
-        await refreshAuthenticatedState(session.tenant.id, session.token);
+        await refreshAuthenticatedState(session.tenant.id);
         setInfoMessage(cloudCopy.provider.setDefaultSuccess(offer.displayName));
       } catch (error) {
         if (isAuthExpired(error)) {

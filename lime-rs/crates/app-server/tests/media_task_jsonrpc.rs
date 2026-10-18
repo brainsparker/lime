@@ -1285,11 +1285,17 @@ async fn request_allowing_notifications(
         )
         .await
         .expect("handle JSON-RPC request");
-    let response = lines
+    let mut responses = lines
         .iter()
         .map(|line| serde_json::from_str::<Value>(line).expect("decode JSON-RPC message"))
-        .find(|message| message.get("id") == Some(&json!(id)))
+        .filter(|message| message.get("id") == Some(&json!(id)));
+    let response = responses
+        .next()
         .unwrap_or_else(|| panic!("{method} should include response id {id}"));
+    assert!(
+        responses.next().is_none(),
+        "{method} should include exactly one response with id {id}"
+    );
     if let Some(error) = response.get("error") {
         panic!("{method} failed: {error}");
     }
@@ -1303,7 +1309,7 @@ async fn request_turn_with_notifications(
     thread_id: &str,
     params: Value,
 ) -> Vec<Value> {
-    let response = request(server, id, METHOD_TURN_START, params).await;
+    let response = request_allowing_notifications(server, id, METHOD_TURN_START, params).await;
     let turn_id = response
         .pointer("/result/turn/id")
         .and_then(Value::as_str)

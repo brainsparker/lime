@@ -34,18 +34,22 @@ const STANDARD_MANIFEST_FIELDS: &[&str] = &[
 ];
 const MAX_MANIFEST_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_PACKAGE_FILES: usize = 10_000;
-const MAX_PACKAGE_BYTES: u64 = 256 * 1024 * 1024;
+const MAX_PACKAGE_BYTES: u64 = 512 * 1024 * 1024;
 
 mod apps;
+mod bundle;
 mod catalog;
 mod components;
 mod discovery;
+pub(crate) mod hooks;
 mod install;
 pub(crate) mod marketplace;
 mod store;
 pub(crate) use store::PluginStore;
 use store::{Installation, PluginId};
 mod manifest;
+pub(crate) mod remote;
+pub(crate) mod share;
 mod resources;
 
 use apps::app_capabilities;
@@ -56,7 +60,9 @@ use components::build_capability_detail;
 use components::skill_capabilities;
 pub(crate) use components::{enabled_plugin_turn_snapshots, list_plugin_mcp_runtime_server_specs};
 use discovery::{implicit_marketplace_paths, load_marketplace, resolve_plugin};
-pub(crate) use install::{install, uninstall};
+pub(crate) use install::install;
+#[cfg(test)]
+use install::uninstall;
 use manifest::{interface_string, manifest_name, manifest_string, manifest_version};
 use resources::{
     canonical_package_root, copy_package_tree, package_digest, resource_path, validate_plugin_id,

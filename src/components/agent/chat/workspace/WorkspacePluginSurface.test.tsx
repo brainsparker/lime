@@ -19,25 +19,17 @@ const embeddedBrowserMocks = vi.hoisted(() => ({
     isLoading: false,
   })),
   mountEmbeddedBrowserView: vi.fn(async () => ({
-    viewId: "plugin-surface-plugin-shell-content-factory-app-standalone",
-    url: "http://127.0.0.1:4199/dashboard",
-    title: "内容工厂",
-    canGoBack: false,
-    canGoForward: false,
-    isLoading: false,
-  })),
-  navigateEmbeddedBrowserView: vi.fn(async () => ({
-    viewId: "plugin-surface-plugin-shell-content-factory-app-standalone",
-    url: "http://127.0.0.1:4199/dashboard",
-    title: "内容工厂",
+    viewId: "plugin-surface-mcp-app-item-report",
+    url: "about:blank",
+    title: "MCP App",
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
   })),
   setEmbeddedBrowserViewBounds: vi.fn(async () => ({
-    viewId: "plugin-surface-plugin-shell-content-factory-app-standalone",
-    url: "http://127.0.0.1:4199/dashboard",
-    title: "内容工厂",
+    viewId: "plugin-surface-mcp-app-item-report",
+    url: "about:blank",
+    title: "MCP App",
     canGoBack: false,
     canGoForward: false,
     isLoading: false,
@@ -88,23 +80,25 @@ vi.mock("react-i18next", () => ({
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
 const surface: WorkspacePluginSurfaceDescriptor = {
-  appId: "content-factory-app",
-  title: "内容工厂",
-  entryUrl: "http://127.0.0.1:4199/dashboard",
-  containerId: "plugin-shell-content-factory-app-standalone",
-  activeStrategy: "controlledBrowserWindow",
-  supportedStrategies: ["controlledBrowserWindow", "webContentsView"],
-  sourceRequestId: "right_surface_plugin_1",
+  appId: "demo-plugin",
+  title: "Report",
+  containerId: "mcp-app-item-report",
+  mcpApp: {
+    resourceUri: "ui://demo/report.html",
+    serverName: "plugin__demo__server",
+    toolItemId: "item-report",
+  },
 };
 
-const promptLabSurface: WorkspacePluginSurfaceDescriptor = {
-  appId: "prompt-lab-app",
-  title: "提示词实验室",
-  entryUrl: "http://127.0.0.1:4201/",
-  containerId: "plugin-shell-prompt-lab-app",
-  activeStrategy: "webContentsView",
-  supportedStrategies: ["webContentsView"],
-  sourceRequestId: "right_surface_plugin_2",
+const calendarSurface: WorkspacePluginSurfaceDescriptor = {
+  appId: "demo-plugin",
+  title: "Calendar",
+  containerId: "mcp-app-item-calendar",
+  mcpApp: {
+    resourceUri: "ui://demo/report.html",
+    serverName: "plugin__demo__server",
+    toolItemId: "item-calendar",
+  },
 };
 
 beforeEach(() => {
@@ -116,7 +110,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   embeddedBrowserMocks.isEmbeddedBrowserHostAvailable.mockReturnValue(true);
   pluginCatalogMocks.listInstalledPlugins.mockResolvedValue({
-    marketplaces: [{ name: "demo", plugins: [{ id: "demo-plugin", enabled: true, installed: true }] }],
+    marketplaces: [
+      {
+        name: "demo",
+        plugins: [{ id: "demo-plugin", enabled: true, installed: true }],
+      },
+    ],
   });
   mcpApiMocks.readResource.mockResolvedValue({
     uri: "ui://demo/report.html",
@@ -156,17 +155,54 @@ async function renderSurface(
 }
 
 describe("WorkspacePluginSurface", () => {
-  it("应通过 embedded browser host 挂载 Plugin entry URL", async () => {
+  it("旧 URL descriptor 不应触发原生视图或 MCP 资源读取", async () => {
+    const retired = {
+      appId: "retired-plugin",
+      title: "Retired",
+      containerId: "retired-shell",
+      entryUrl: "https://example.com/retired-plugin",
+    } as unknown as WorkspacePluginSurfaceDescriptor;
+    const container = await renderSurface({ surface: retired });
+
+    expect(
+      container.querySelector('[data-testid="workspace-plugin-surface-frame"]'),
+    ).toBeNull();
+    expect(
+      embeddedBrowserMocks.mountEmbeddedBrowserView,
+    ).not.toHaveBeenCalled();
+    expect(mcpApiMocks.readResource).not.toHaveBeenCalled();
+    expect(
+      embeddedBrowserMocks.loadEmbeddedBrowserViewHtml,
+    ).not.toHaveBeenCalled();
+  });
+
+  it("应挂载空白原生视图并受控加载 MCP App 资源", async () => {
     const container = await renderSurface();
 
     expect(
       container.querySelector('[data-testid="workspace-plugin-surface"]'),
     ).not.toBeNull();
-    expect(container.textContent).toContain("内容工厂");
+    expect(container.textContent).toContain("Report");
     expect(embeddedBrowserMocks.mountEmbeddedBrowserView).toHaveBeenCalledWith(
       expect.objectContaining({
-        viewId: "plugin-surface-plugin-shell-content-factory-app-standalone",
-        url: "http://127.0.0.1:4199/dashboard",
+        viewId: "plugin-surface-mcp-app-item-report",
+      }),
+    );
+
+    expect(
+      embeddedBrowserMocks.mountEmbeddedBrowserView.mock.calls[0]?.[0],
+    ).not.toHaveProperty("url");
+    expect(mcpApiMocks.readResource).toHaveBeenCalledWith(
+      "plugin__demo__server",
+      "ui://demo/report.html",
+      undefined,
+    );
+    expect(
+      embeddedBrowserMocks.loadEmbeddedBrowserViewHtml,
+    ).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "mcpApp",
+        sourceUri: "ui://demo/report.html",
       }),
     );
 
@@ -178,7 +214,7 @@ describe("WorkspacePluginSurface", () => {
     expect(
       embeddedBrowserMocks.destroyEmbeddedBrowserView,
     ).toHaveBeenCalledWith(
-      "plugin-surface-plugin-shell-content-factory-app-standalone",
+      "plugin-surface-mcp-app-item-report",
       embeddedBrowserMocks.mountEmbeddedBrowserView.mock.calls[0]?.[0].leaseId,
     );
   });
@@ -228,7 +264,7 @@ describe("WorkspacePluginSurface", () => {
     expect(
       embeddedBrowserMocks.destroyEmbeddedBrowserView,
     ).toHaveBeenCalledWith(
-      "plugin-surface-plugin-shell-content-factory-app-standalone",
+      "plugin-surface-mcp-app-item-report",
       mountLeases[0],
     );
 
@@ -253,7 +289,7 @@ describe("WorkspacePluginSurface", () => {
     expect(
       embeddedBrowserMocks.destroyEmbeddedBrowserView,
     ).toHaveBeenCalledWith(
-      "plugin-surface-plugin-shell-content-factory-app-standalone",
+      "plugin-surface-mcp-app-item-report",
       mountLeases[1],
     );
   });
@@ -263,8 +299,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "demo-plugin",
       title: "demo-plugin",
       containerId: "mcp-app-item-1",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         connectorId: "connector-demo",
         resourceUri: "ui://demo/report.html",
@@ -298,10 +332,8 @@ describe("WorkspacePluginSurface", () => {
       }),
     );
     expect(
-      embeddedBrowserMocks.navigateEmbeddedBrowserView,
-    ).not.toHaveBeenCalledWith(
-      expect.objectContaining({ url: "ui://demo/report.html" }),
-    );
+      embeddedBrowserMocks.mountEmbeddedBrowserView.mock.calls[0]?.[0],
+    ).not.toHaveProperty("url");
   });
 
   it("codex_apps 资源不依赖本地 Plugin catalog", async () => {
@@ -309,8 +341,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "calendar",
       title: "Calendar",
       containerId: "mcp-app-item-app-calendar",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         connectorId: "calendar",
         resourceUri: "ui://calendar/event.html",
@@ -357,8 +387,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "demo-plugin",
       title: "demo-plugin",
       containerId: "mcp-app-item-uninstalled",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         resourceUri: "ui://demo/report.html",
         serverName: "plugin__demo__server",
@@ -413,8 +441,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "demo-plugin",
       title: "demo-plugin",
       containerId: "mcp-app-item-async",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         resourceUri: "ui://demo/report.html",
         serverName: "plugin__demo__server",
@@ -474,8 +500,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "demo-plugin",
       title: "demo-plugin",
       containerId: "mcp-app-item-1",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         resourceUri: "ui://demo/report.html",
         serverName: "plugin__demo__server",
@@ -524,8 +548,6 @@ describe("WorkspacePluginSurface", () => {
       appId: "demo-plugin",
       title: "demo-plugin",
       containerId: "mcp-app-item-pending",
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         resourceUri: "ui://demo/report.html",
         serverName: "plugin__demo__server",
@@ -570,8 +592,8 @@ describe("WorkspacePluginSurface", () => {
     const onSelectSurface = vi.fn();
     const onCloseSurface = vi.fn();
     const container = await renderSurface({
-      activeContainerId: promptLabSurface.containerId,
-      surfaces: [surface, promptLabSurface],
+      activeContainerId: calendarSurface.containerId,
+      surfaces: [surface, calendarSurface],
       onSelectSurface,
       onCloseSurface,
     });
@@ -579,12 +601,11 @@ describe("WorkspacePluginSurface", () => {
     expect(
       container.querySelector('[data-testid="workspace-plugin-surface-tabs"]'),
     ).not.toBeNull();
-    expect(container.textContent).toContain("内容工厂");
-    expect(container.textContent).toContain("提示词实验室");
+    expect(container.textContent).toContain("Report");
+    expect(container.textContent).toContain("Calendar");
     expect(embeddedBrowserMocks.mountEmbeddedBrowserView).toHaveBeenCalledWith(
       expect.objectContaining({
-        viewId: "plugin-surface-plugin-shell-prompt-lab-app",
-        url: "http://127.0.0.1:4201/",
+        viewId: "plugin-surface-mcp-app-item-calendar",
       }),
     );
 
@@ -600,11 +621,11 @@ describe("WorkspacePluginSurface", () => {
     act(() => {
       container
         .querySelector<HTMLButtonElement>(
-          `[data-testid="workspace-plugin-surface-close-${promptLabSurface.containerId}"]`,
+          `[data-testid="workspace-plugin-surface-close-${calendarSurface.containerId}"]`,
         )
         ?.click();
     });
-    expect(onCloseSurface).toHaveBeenCalledWith(promptLabSurface);
+    expect(onCloseSurface).toHaveBeenCalledWith(calendarSurface);
   });
 
   it("切换 Plugin 实例时应保留已有 WebContentsView，不销毁重建", async () => {
@@ -616,8 +637,8 @@ describe("WorkspacePluginSurface", () => {
     await act(async () => {
       root.render(
         <WorkspacePluginSurface
-          activeContainerId={promptLabSurface.containerId}
-          surfaces={[surface, promptLabSurface]}
+          activeContainerId={calendarSurface.containerId}
+          surfaces={[surface, calendarSurface]}
         />,
       );
       await Promise.resolve();
@@ -634,7 +655,7 @@ describe("WorkspacePluginSurface", () => {
       root.render(
         <WorkspacePluginSurface
           activeContainerId={surface.containerId}
-          surfaces={[surface, promptLabSurface]}
+          surfaces={[surface, calendarSurface]}
         />,
       );
       await Promise.resolve();
@@ -651,7 +672,7 @@ describe("WorkspacePluginSurface", () => {
       embeddedBrowserMocks.setEmbeddedBrowserViewBounds,
     ).toHaveBeenCalledWith(
       expect.objectContaining({
-        viewId: "plugin-surface-plugin-shell-prompt-lab-app",
+        viewId: "plugin-surface-mcp-app-item-calendar",
         visible: false,
       }),
     );

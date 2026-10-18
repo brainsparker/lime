@@ -32,7 +32,7 @@ import type {
   OemCloudBootstrapResponse,
   OemCloudFeatureFlags,
 } from "@/lib/api/oemCloudControlPlane";
-import { getOemCloudBootstrapSnapshot } from "@/lib/oemCloudSession";
+import { getOemCloudBootstrapSnapshot } from "@/lib/cloudAccount";
 
 const OEM_CLOUD_FEATURE_FLAG_KEYS = [
   "oauthLoginEnabled",

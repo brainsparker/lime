@@ -25,7 +25,9 @@ pub use hot_reload::{
 };
 pub use import::{ImportOptions, ImportService, ValidationResult};
 pub use path_utils::{collapse_tilde, contains_tilde, expand_tilde};
-pub use plugins::{MarketplaceConfig, MarketplaceSourceType, PluginConfig, PluginsConfig, PluginsDefaultConfig};
+pub use plugins::{
+    MarketplaceConfig, MarketplaceSourceType, PluginConfig, PluginsConfig, PluginsDefaultConfig,
+};
 pub use tool_execution::{
     ToolExecutionCommandRiskLevelConfig, ToolExecutionCommandRuleConfig,
     ToolExecutionCommandRuleMatchTypeConfig, ToolExecutionNetworkRuleConfig,

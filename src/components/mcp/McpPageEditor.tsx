@@ -144,7 +144,10 @@ export function McpPageEditor({
 
   return (
     <>
-      <div className="p-4 border-b space-y-3">
+      <fieldset
+        disabled={saving}
+        className="m-0 min-w-0 border-0 p-4 border-b space-y-3"
+      >
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">
             {isCreating
@@ -245,9 +248,12 @@ export function McpPageEditor({
             </label>
           ))}
         </div>
-      </div>
+      </fieldset>
 
-      <div className="flex-1 p-4 flex flex-col min-h-0 gap-3">
+      <fieldset
+        disabled={saving}
+        className="m-0 min-w-0 border-0 flex-1 p-4 flex flex-col min-h-0 gap-3"
+      >
         {!configError && configSummary && (
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs text-slate-600">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -456,7 +462,7 @@ export function McpPageEditor({
         {configError && (
           <p className="text-xs text-destructive">{configError}</p>
         )}
-      </div>
+      </fieldset>
 
       <div className="p-3 border-t flex justify-end gap-2">
         <button

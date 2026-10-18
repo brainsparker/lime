@@ -129,22 +129,26 @@ pub(super) fn app_catalog(store: &PluginStore) -> Result<Vec<AppInfo>, String> {
 
 pub(super) fn app_capabilities(
     package_root: &Path,
-    value: Option<&Value>,
+    manifest: &Value,
 ) -> Result<Vec<AppSummary>, String> {
-    let Some(declared_path) = value.and_then(Value::as_str) else {
+    if manifest::is_standard_manifest(manifest) {
         return Ok(Vec::new());
-    };
-    let relative_path = declared_path
-        .strip_prefix("./")
-        .filter(|path| !path.is_empty())
-        .ok_or_else(|| "Codex Plugin Apps 路径必须以 `./` 开头。".to_string())?;
-    if relative_path
-        .split(['/', '\\'])
-        .any(|component| component == "..")
-    {
-        return Err("Codex Plugin Apps 路径不得包含 `..`。".to_string());
     }
-    let path = resource_path(package_root, relative_path)?;
+    declared_app_capabilities(package_root, manifest)
+}
+
+pub(super) fn declared_app_capabilities(
+    package_root: &Path,
+    manifest: &Value,
+) -> Result<Vec<AppSummary>, String> {
+    let path = manifest_path(package_root, manifest.get("apps"));
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let relative = path
+        .strip_prefix(package_root)
+        .map_err(|_| "Codex Plugin Apps 路径越界。".to_string())?;
+    let path = resource_path(package_root, &relative.to_string_lossy())?;
     let content = fs::read_to_string(&path).map_err(io_error("读取 Codex Plugin Apps 配置失败"))?;
     let value: Value = serde_json::from_str(&content)
         .map_err(|error| format!("解析 Codex Plugin Apps 配置失败: {error}"))?;
@@ -181,4 +185,22 @@ pub(super) fn app_capabilities(
     }
     capabilities.sort_by(|left, right| left.id.cmp(&right.id));
     Ok(capabilities)
+}
+
+pub(super) fn manifest_path(package_root: &Path, value: Option<&Value>) -> PathBuf {
+    let relative = value
+        .and_then(Value::as_str)
+        .and_then(|path| path.strip_prefix("./"))
+        .filter(|path| {
+            !path.is_empty()
+                && !path.contains(['\\', ':'])
+                && !path.split('/').any(|component| component == "..")
+                && !Path::new(path)
+                    .components()
+                    .any(|component| matches!(component, Component::RootDir | Component::Prefix(_)))
+        });
+    if value.and_then(Value::as_str).is_some() && relative.is_none() {
+        tracing::warn!("忽略非法 Plugin Apps 路径，使用默认 .app.json");
+    }
+    package_root.join(relative.unwrap_or(".app.json"))
 }

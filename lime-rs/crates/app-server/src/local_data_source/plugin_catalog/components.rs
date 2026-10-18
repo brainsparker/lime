@@ -101,7 +101,7 @@ fn parse_mcp_server_descriptors(
 ) -> Result<Vec<PluginMcpServerDescriptor>, String> {
     let standard = manifest::is_standard_manifest(&manifest);
     let plugin_id = id.key();
-    let data_root = store.data_root(id, standard);
+    let data_root = store.data_root(id, standard)?;
     let fallback = Value::String("./.mcp.json".to_string());
     let declaration = manifest
         .get("mcpServers")
@@ -171,7 +171,6 @@ pub(super) struct CapabilityDetail {
     pub(super) skills: Vec<SkillSummary>,
     pub(super) mcp_servers: Vec<String>,
     pub(super) apps: Vec<AppSummary>,
-    pub(super) hooks: Vec<PluginHookSummary>,
 }
 
 pub(super) fn build_capability_detail(
@@ -183,7 +182,7 @@ pub(super) fn build_capability_detail(
         tracing::warn!(%error, "禁用包含非法配置的 Plugin MCP 组件");
         Vec::new()
     });
-    let apps = match app_capabilities(package_root, manifest.get("apps")) {
+    let apps = match app_capabilities(package_root, manifest) {
         Ok(apps) => apps,
         Err(error) => {
             tracing::warn!(
@@ -198,7 +197,6 @@ pub(super) fn build_capability_detail(
         skills,
         mcp_servers,
         apps,
-        hooks: Vec::new(),
     })
 }
 

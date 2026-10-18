@@ -26,6 +26,7 @@ pub struct AppServerMethodSpec {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum AppServerRequestSerializationScope {
+    AccountAuth,
     Thread,
     McpOauth,
     McpResourceSubscription,
@@ -1932,6 +1933,42 @@ pub const APP_SERVER_METHODS: &[AppServerMethodSpec] = &[
 ];
 
 pub const APP_SERVER_REQUEST_SERIALIZATION_SCOPES: &[AppServerRequestSerializationScopeSpec] = &[
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SHARE_SAVE,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SHARE_LIST,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SHARE_UPDATE_TARGETS,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SHARE_CHECKOUT,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SHARE_DELETE,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_CLOUD_REQUEST,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_ACCOUNT_LOGIN_START,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_ACCOUNT_READ,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_ACCOUNT_LOGOUT,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
     AppServerRequestSerializationScopeSpec {
         method: METHOD_THREAD_READ,
         scope: AppServerRequestSerializationScope::Thread,

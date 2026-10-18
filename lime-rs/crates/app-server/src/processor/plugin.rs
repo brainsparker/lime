@@ -11,6 +11,25 @@ use app_server_protocol::protocol::v2::{
 use app_server_protocol::JsonRpcError;
 
 impl RequestProcessor {
+    pub(super) async fn handle_plugin_reconcile_v2_impl(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let response = self
+            .runtime
+            .reconcile_plugins(parse_params(params)?)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        let changed = !response.changed_plugins.is_empty();
+        if changed {
+            self.refresh_plugin_skill_watch().await;
+            self.publish_app_list_updated().await;
+        }
+        self.dispatch_skill_catalog_mutation(response, changed)
+            .await
+    }
+
     pub(super) async fn handle_marketplace_add_v2_impl(
         &self,
         params: Option<serde_json::Value>,
@@ -50,7 +69,13 @@ impl RequestProcessor {
             .upgrade_marketplace(params)
             .await
             .map_err(to_jsonrpc_error)?;
-        dispatch_result(response)
+        let changed = !response.upgraded_roots.is_empty();
+        if changed {
+            self.refresh_plugin_skill_watch().await;
+            self.publish_app_list_updated().await;
+        }
+        self.dispatch_skill_catalog_mutation(response, changed)
+            .await
     }
 
     pub(super) async fn handle_plugin_list_v2_impl(

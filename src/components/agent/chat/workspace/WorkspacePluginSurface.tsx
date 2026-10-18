@@ -15,7 +15,6 @@ import {
   listenEmbeddedBrowserViewState,
   loadEmbeddedBrowserViewHtml,
   mountEmbeddedBrowserView,
-  navigateEmbeddedBrowserView,
   setEmbeddedBrowserViewBounds,
   type EmbeddedBrowserBounds,
   type EmbeddedBrowserViewState,
@@ -48,7 +47,6 @@ type PluginSurfaceTranslation = (
 type McpAppPluginAvailability =
   | "available"
   | "checking"
-  | "not-applicable"
   | "uninstalled"
   | "unknown";
 
@@ -171,21 +169,16 @@ function WorkspacePluginSurfaceFrame({
   const lastVisibleRef = useRef<boolean | null>(null);
   const loadedMcpAppIdentityRef = useRef<string | null>(null);
   const translationRef = useRef(dynamicT);
-  const latestEntryUrlRef = useRef(surface.entryUrl);
   activeRef.current = active;
   translationRef.current = dynamicT;
-  latestEntryUrlRef.current = surface.entryUrl;
   const [state, setState] = useState<EmbeddedBrowserViewState | null>(null);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
   const hostAvailable = isEmbeddedBrowserHostAvailable();
   const [mcpAppPluginAvailability, setMcpAppPluginAvailability] =
-    useState<McpAppPluginAvailability>(
-      surface.mcpApp ? "checking" : "not-applicable",
-    );
+    useState<McpAppPluginAvailability>("checking");
   const runtimeOwnerSessionId = runtimeOwner?.sessionId;
   const runtimeOwnerThreadId = runtimeOwner?.threadId;
-  const hasMcpApp = Boolean(surface.mcpApp);
   const installedPluginId =
     surface.mcpApp?.serverName === "codex_apps" ? null : surface.appId;
   const mcpAppPluginUninstalled = mcpAppPluginAvailability === "uninstalled";
@@ -195,8 +188,8 @@ function WorkspacePluginSurfaceFrame({
     !mcpAppPluginUninstalled;
 
   useEffect(() => {
-    if (!hasMcpApp || !installedPluginId) {
-      setMcpAppPluginAvailability("not-applicable");
+    if (!installedPluginId) {
+      setMcpAppPluginAvailability("available");
       return;
     }
 
@@ -206,7 +199,11 @@ function WorkspacePluginSurfaceFrame({
       .then(({ marketplaces }) => {
         if (!cancelled) {
           setMcpAppPluginAvailability(
-            marketplaces.some((marketplace) => marketplace.plugins.some((plugin) => plugin.id === installedPluginId))
+            marketplaces.some((marketplace) =>
+              marketplace.plugins.some(
+                (plugin) => plugin.id === installedPluginId,
+              ),
+            )
               ? "available"
               : "uninstalled",
           );
@@ -221,7 +218,6 @@ function WorkspacePluginSurfaceFrame({
       cancelled = true;
     };
   }, [
-    hasMcpApp,
     installedPluginId,
     surface.mcpApp?.resourceUri,
     surface.mcpApp?.serverName,
@@ -285,7 +281,6 @@ function WorkspacePluginSurfaceFrame({
     void mountEmbeddedBrowserView({
       viewId,
       leaseId,
-      ...(latestEntryUrlRef.current ? { url: latestEntryUrlRef.current } : {}),
       bounds,
       visible,
     })
@@ -317,29 +312,6 @@ function WorkspacePluginSurfaceFrame({
     }
     void syncBounds(true);
   }, [active, hostAvailable, syncBounds]);
-
-  useEffect(() => {
-    if (
-      !hostAvailable ||
-      !mountedRef.current ||
-      !surface.entryUrl ||
-      state?.url === surface.entryUrl
-    ) {
-      return;
-    }
-
-    void navigateEmbeddedBrowserView({
-      viewId,
-      url: surface.entryUrl,
-    })
-      .then((nextState) => {
-        setState(nextState);
-        setErrorText(null);
-      })
-      .catch((error) => {
-        setErrorText(error instanceof Error ? error.message : String(error));
-      });
-  }, [hostAvailable, state?.url, surface.entryUrl, viewId]);
 
   useEffect(() => {
     const serverName = surface.mcpApp?.serverName;
@@ -562,6 +534,7 @@ function normalizeWorkspacePluginSurfaces(
   const next: WorkspacePluginSurfaceDescriptor[] = [];
   for (const surface of surfaces) {
     if (
+      !surface.mcpApp ||
       surface.containerId.trim().length === 0 ||
       next.some((item) => item.containerId === surface.containerId)
     ) {

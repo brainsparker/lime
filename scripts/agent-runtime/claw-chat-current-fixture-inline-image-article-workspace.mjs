@@ -1,18 +1,17 @@
-import fs from "node:fs";
 import {
   APP_SERVER_METHOD_ARTIFACT_WRITE,
-  APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_IMAGE_COMPLETE,
+  APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_GET,
   APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_IMAGE_CREATE,
   APP_SERVER_METHOD_SESSION_READ,
   CONTENT_FACTORY_ARTICLE_WORKSPACE_SESSION_TITLE,
-  CONTENT_FACTORY_INLINE_IMAGE_FILE_PATH,
   CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
   CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
-  CONTENT_FACTORY_INLINE_IMAGE_URL,
-  FIXTURE_MODEL,
-  FIXTURE_PROVIDER,
 } from "./claw-chat-current-fixture-constants.mjs";
-import { runContentFactoryArticleWorkspaceScenario } from "./claw-chat-current-fixture-content-factory-article-workspace.mjs";
+import { IMAGE_PROVIDER_FIXTURE_DATA_URL } from "./claw-chat-current-fixture-backend-file.mjs";
+import {
+  clickContentFactoryArticleArtifactFrame,
+  runContentFactoryArticleWorkspaceScenario,
+} from "./claw-chat-current-fixture-content-factory-article-workspace.mjs";
 import {
   evaluatePageSnapshot,
   invokeAppServerFromPage,
@@ -50,6 +49,11 @@ export async function runContentFactoryInlineImageArticleWorkspaceScenario({
   summary,
   appServerRequests,
 }) {
+  const imageProvider = summary.imageFixtureProvider;
+  assert(
+    imageProvider?.providerId && imageProvider?.modelId,
+    "inline image fixture 缺少已配置的图片 Provider/model",
+  );
   const base = await runContentFactoryArticleWorkspaceScenario({
     page,
     options,
@@ -60,7 +64,10 @@ export async function runContentFactoryInlineImageArticleWorkspaceScenario({
   const identity = base.contentFactoryArticleWorkspaceSessionCreation?.identity;
   assert(identity?.sessionId, "inline image fixture 缺少 canonical sessionId");
   assert(identity?.threadId, "inline image fixture 缺少 canonical threadId");
-  assert(identity?.workerTaskId, "inline image fixture 缺少 worker taskId");
+  assert(
+    identity?.sourceTaskId,
+    "inline image fixture 缺少 artifact sourceTaskId",
+  );
 
   const objectRef = await waitForArticleDraftObjectRef(
     page,
@@ -80,6 +87,7 @@ export async function runContentFactoryInlineImageArticleWorkspaceScenario({
     workspace,
     requestLog: appServerRequests,
     identity,
+    imageProvider,
   });
   summary.contentFactoryInlineImageTaskCreated =
     summarizeMediaTaskArtifact(created);
@@ -88,14 +96,15 @@ export async function runContentFactoryInlineImageArticleWorkspaceScenario({
     workspace,
     created,
     identity,
+    imageProvider,
   });
   summary.contentFactoryInlineImageTaskSubmittedEvent = submittedEvent;
-  const completed = await completeInlineImageTask({
+  const completed = await waitForInlineImageTaskCompleted({
     page,
+    options,
     workspace,
     requestLog: appServerRequests,
     created,
-    identity,
   });
   summary.contentFactoryInlineImageTaskCompleted =
     summarizeMediaTaskArtifact(completed);
@@ -105,6 +114,7 @@ export async function runContentFactoryInlineImageArticleWorkspaceScenario({
     workspace,
     requestLog: appServerRequests,
     identity,
+    artifactRef: editedDraftUpdate.artifactRef,
   });
   summary.contentFactoryInlineImageReload = restored;
   const readModel = await waitForInlineImageReadModelReplacement(
@@ -150,11 +160,11 @@ async function waitForArticleDraftObjectRef(
     );
     const objectRef = findArticleDraftObjectRef(
       read.result,
-      identity.workerTaskId,
+      identity.sourceTaskId,
     );
     lastSummary = summarizeArticleWorkspaceRead(
       read.result,
-      identity.workerTaskId,
+      identity.sourceTaskId,
     );
     if (objectRef) {
       return objectRef;
@@ -168,7 +178,7 @@ async function waitForArticleDraftObjectRef(
   );
 }
 
-function findArticleDraftObjectRef(result, workerTaskId) {
+export function findArticleDraftObjectRef(result, expectedSourceTaskId) {
   const objects = readArticleWorkspaceObjects(result);
   const articleObjects = objects
     .map((object) => ({
@@ -176,11 +186,11 @@ function findArticleDraftObjectRef(result, workerTaskId) {
       sourceTaskId: readArticleObjectSourceTaskId(object),
     }))
     .filter(({ ref }) => ref?.kind === "articleDraft");
-  const selected =
-    articleObjects.find(
-      ({ ref, sourceTaskId }) =>
-        ref.sourceTaskId === workerTaskId || sourceTaskId === workerTaskId,
-    ) ?? articleObjects[0];
+  const selected = articleObjects.find(
+    ({ ref, sourceTaskId }) =>
+      ref.sourceTaskId === expectedSourceTaskId ||
+      sourceTaskId === expectedSourceTaskId,
+  );
   return selected?.ref ?? null;
 }
 
@@ -265,7 +275,7 @@ function readArticleObjectSourceTaskId(object) {
   );
 }
 
-function summarizeArticleWorkspaceRead(result, workerTaskId) {
+function summarizeArticleWorkspaceRead(result, expectedSourceTaskId) {
   const objects = readArticleWorkspaceObjects(result);
   return sanitizeJson({
     hasArticleWorkspace: objects.length > 0,
@@ -277,7 +287,7 @@ function summarizeArticleWorkspaceRead(result, workerTaskId) {
         sourceTaskId: readArticleObjectSourceTaskId(object),
       }))
       .filter(({ ref }) => ref?.kind === "articleDraft"),
-    expectedWorkerTaskId: workerTaskId,
+    expectedSourceTaskId,
   });
 }
 
@@ -346,6 +356,7 @@ async function writeInlinePendingEditedDraft({
     sessionId: identity.sessionId,
     threadId: response.result?.threadId ?? identity.threadId,
     eventId: response.result?.eventId ?? null,
+    artifactRef,
     objectKey,
     marker: CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
     hasPendingImage: INLINE_PENDING_MARKDOWN.includes("pending-image-task://"),
@@ -358,6 +369,7 @@ async function createInlineImageTask({
   workspace,
   requestLog,
   identity,
+  imageProvider,
 }) {
   return await invokeAppServerFromPage(
     page,
@@ -367,11 +379,17 @@ async function createInlineImageTask({
       prompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
       title: "Inline 配图恢复任务",
       count: 1,
-      providerId: FIXTURE_PROVIDER,
-      model: FIXTURE_MODEL,
+      providerId: imageProvider.providerId,
+      model: imageProvider.modelId,
       executorMode: "images_api",
       usage: "document-inline",
       slotId: CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
+      storyboardSlots: [
+        {
+          slotId: CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
+          prompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
+        },
+      ],
       anchorSectionTitle: INLINE_SECTION_TITLE,
       anchorText: INLINE_ANCHOR_TEXT,
       sessionId: identity.sessionId,
@@ -392,6 +410,7 @@ async function emitInlineTaskSubmittedEvent({
   workspace,
   created,
   identity,
+  imageProvider,
 }) {
   const result = created?.result ?? {};
   const payload = {
@@ -405,8 +424,8 @@ async function emitInlineTaskSubmittedEvent({
     prompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
     size: "1024x1024",
     mode: "generate",
-    provider_id: FIXTURE_PROVIDER,
-    model: FIXTURE_MODEL,
+    provider_id: imageProvider.providerId,
+    model: imageProvider.modelId,
     count: 1,
     session_id: identity.sessionId,
     project_id: workspace.workspaceId,
@@ -444,43 +463,47 @@ async function emitInlineTaskSubmittedEvent({
   });
 }
 
-async function completeInlineImageTask({
+async function waitForInlineImageTaskCompleted({
   page,
+  options,
   workspace,
   requestLog,
   created,
-  identity,
 }) {
   const taskRef =
     readString(created.result?.artifact_path, created.result?.artifactPath) ||
     readString(created.result?.task_id, created.result?.taskId);
   assert(taskRef, "inline image fixture 创建任务后缺少 taskRef");
-  assert(
-    fs.existsSync(CONTENT_FACTORY_INLINE_IMAGE_FILE_PATH),
-    `inline image fixture 文件不存在: ${CONTENT_FACTORY_INLINE_IMAGE_FILE_PATH}`,
-  );
-  return await invokeAppServerFromPage(
-    page,
-    APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_IMAGE_COMPLETE,
-    {
-      projectRootPath: workspace.rootPath,
-      taskRef,
-      providerId: FIXTURE_PROVIDER,
-      model: FIXTURE_MODEL,
-      executorMode: "images_api",
-      responseId: "inline-image-fixture-response",
-      images: [
-        {
-          url: CONTENT_FACTORY_INLINE_IMAGE_URL,
-          prompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
-          revisedPrompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
-          slotId: CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
-          slotIndex: 1,
-          slotPrompt: CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT,
-        },
-      ],
-    },
-    requestLog,
+  const startedAt = Date.now();
+  let lastSummary = null;
+  while (Date.now() - startedAt < options.timeoutMs) {
+    const invocation = await invokeAppServerFromPage(
+      page,
+      APP_SERVER_METHOD_MEDIA_TASK_ARTIFACT_GET,
+      { projectRootPath: workspace.rootPath, taskRef },
+      requestLog,
+    );
+    lastSummary = summarizeMediaTaskArtifact(invocation);
+    if (lastSummary.normalizedStatus === "succeeded") {
+      assert(
+        lastSummary.taskId ===
+          readString(created.result?.task_id, created.result?.taskId) &&
+          lastSummary.firstImageUrl === IMAGE_PROVIDER_FIXTURE_DATA_URL &&
+          lastSummary.firstImageSlotId === CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID,
+        `inline image fixture 完成结果不匹配: ${JSON.stringify(lastSummary)}`,
+      );
+      return invocation;
+    }
+    assert(
+      !["failed", "cancelled", "canceled"].includes(
+        lastSummary.normalizedStatus,
+      ),
+      `inline image fixture 任务失败: ${JSON.stringify(lastSummary)}`,
+    );
+    await sleep(options.intervalMs);
+  }
+  throw new Error(
+    `inline image fixture 未完成: ${JSON.stringify(lastSummary)}`,
   );
 }
 
@@ -490,6 +513,7 @@ async function reloadAndOpenInlineArticleWorkspace({
   workspace,
   requestLog,
   identity,
+  artifactRef,
 }) {
   const reload = await reloadRendererDocument(page, options);
   const renderer = await waitForRendererReady(page, options);
@@ -510,9 +534,15 @@ async function reloadAndOpenInlineArticleWorkspace({
   );
   const opened = await openSessionFromSidebar(page, options, requestLog, {
     sessionId: identity.sessionId,
+    threadId: identity.threadId,
     title: CONTENT_FACTORY_ARTICLE_WORKSPACE_SESSION_TITLE,
   });
-  return sanitizeJson({ reload, renderer, visible, opened });
+  const artifactFrame = await clickContentFactoryArticleArtifactFrame(
+    page,
+    options,
+    artifactRef,
+  );
+  return sanitizeJson({ reload, renderer, visible, opened, artifactFrame });
 }
 
 async function waitForInlineImageReadModelReplacement(
@@ -577,7 +607,7 @@ function summarizeInlineImageReadModel(result) {
   );
   const resolvedTargetStrings = targetStrings.filter(
     (value) =>
-      value.includes(CONTENT_FACTORY_INLINE_IMAGE_URL) &&
+      value.includes(IMAGE_PROVIDER_FIXTURE_DATA_URL) &&
       !value.includes("pending-image-task://"),
   );
   const matchingStrings = (
@@ -586,7 +616,7 @@ function summarizeInlineImageReadModel(result) {
     (value) =>
       value.includes("Inline 配图恢复验证") ||
       value.includes(INLINE_ANCHOR_TEXT) ||
-      value.includes(CONTENT_FACTORY_INLINE_IMAGE_URL) ||
+      value.includes(IMAGE_PROVIDER_FIXTURE_DATA_URL) ||
       value.includes("pending-image-task://") ||
       value.includes(CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID),
   );
@@ -617,14 +647,25 @@ async function waitForInlineImageReplacement(page, options) {
       page,
       (expected) => {
         const expectedImageUrl = expected.imageUrl;
-        const text = document.body?.innerText || "";
+        const editor = document.querySelector(
+          '[data-testid="workspace-article-editor-surface"]',
+        );
+        const canvas = editor?.querySelector(
+          '[data-testid="workspace-article-editor-canvas"]',
+        );
+        const canvasRect = canvas?.getBoundingClientRect();
+        const canvasVisible = Boolean(
+          canvasRect && canvasRect.width > 8 && canvasRect.height > 8,
+        );
+        const text = canvas?.innerText || "";
         const editableText =
           Array.from(
-            document.querySelectorAll("textarea, [contenteditable='true']"),
+            canvas?.querySelectorAll("textarea, [contenteditable='true']") ??
+              [],
           )
             .map((element) => element.value || element.textContent || "")
             .join("\n") || text;
-        const images = Array.from(document.querySelectorAll("img")).map(
+        const images = Array.from(canvas?.querySelectorAll("img") ?? []).map(
           (image) => ({
             src: image.getAttribute("src") || "",
             resolvedSrc: image.src || "",
@@ -635,7 +676,7 @@ async function waitForInlineImageReplacement(page, options) {
           }),
         );
         const imageDiagnosticSources = Array.from(
-          document.querySelectorAll("[data-markdown-image-src]"),
+          canvas?.querySelectorAll("[data-markdown-image-src]") ?? [],
         ).map(
           (element) => element.getAttribute("data-markdown-image-src") || "",
         );
@@ -647,7 +688,7 @@ async function waitForInlineImageReplacement(page, options) {
             image.naturalWidth > 0,
         );
         const matchingImageContexts = Array.from(
-          document.querySelectorAll("img"),
+          canvas?.querySelectorAll("img") ?? [],
         )
           .filter(
             (image) =>
@@ -658,7 +699,11 @@ async function waitForInlineImageReplacement(page, options) {
           )
           .map((image) => {
             let node = image.parentElement;
-            for (let depth = 0; node && depth < 8; depth += 1) {
+            for (
+              let depth = 0;
+              node && canvas.contains(node) && depth < 8;
+              depth += 1
+            ) {
               const contextText = node.innerText || "";
               if (
                 contextText.includes(expected.anchorText) ||
@@ -682,9 +727,9 @@ async function waitForInlineImageReplacement(page, options) {
             context.text.includes(expected.sectionTitle),
         );
         const expectedUnavailablePlaceholders = Array.from(
-          document.querySelectorAll(
+          canvas?.querySelectorAll(
             '[data-testid="markdown-image-unavailable"]',
-          ),
+          ) ?? [],
         ).filter((element) => {
           const source =
             element
@@ -694,8 +739,8 @@ async function waitForInlineImageReplacement(page, options) {
         });
         return {
           url: window.location.href,
-          hasArticleWorkspace:
-            text.includes("Article") || text.includes("文章"),
+          hasArticleWorkspace: Boolean(editor),
+          canvasVisible,
           hasSlotMarker:
             editableText.includes("article-inline-image-slot-e2e") ||
             text.includes("article-inline-image-slot-e2e"),
@@ -725,7 +770,7 @@ async function waitForInlineImageReplacement(page, options) {
         };
       },
       {
-        imageUrl: CONTENT_FACTORY_INLINE_IMAGE_URL,
+        imageUrl: IMAGE_PROVIDER_FIXTURE_DATA_URL,
         anchorText: INLINE_ANCHOR_TEXT,
         sectionTitle: INLINE_SECTION_TITLE,
       },
@@ -736,6 +781,7 @@ async function waitForInlineImageReplacement(page, options) {
     }
     lastSnapshot = snapshot;
     if (
+      snapshot.canvasVisible &&
       snapshot.hasRenderedImage &&
       snapshot.hasRenderedImageNearAnchor &&
       !snapshot.hasUnavailablePlaceholderForExpected &&
@@ -773,6 +819,7 @@ function summarizeMediaTaskArtifact(invocation) {
     payloadSlotId: readString(payload.slot_id, payload.slotId),
     relationshipSlotId: readString(relationships.slot_id, relationships.slotId),
     firstImageUrl: readString(images[0]?.url),
+    firstImageSlotId: readString(images[0]?.slot_id, images[0]?.slotId),
   });
 }
 

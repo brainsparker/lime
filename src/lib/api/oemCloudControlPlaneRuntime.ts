@@ -1,3 +1,10 @@
+import {
+  cloudAccountIdentity,
+  CloudAccountChangedError,
+  getCloudAccount,
+  readCloudAccount,
+} from "../cloudAccount";
+import { requestCloud } from "./cloud";
 import { resolveOemCloudRuntimeContext } from "./oemCloudRuntime";
 import type {
   ModelAliasSource,
@@ -12,12 +19,6 @@ import type {
   OemCloudPartnerHubConfigMode,
   OemCloudPartnerHubModelsSource,
 } from "./oemCloudControlPlaneTypes";
-
-interface OemCloudEnvelope<T> {
-  code?: number;
-  message?: string;
-  data?: T;
-}
 
 export class OemCloudControlPlaneError extends Error {
   status: number;
@@ -286,56 +287,60 @@ export async function requestControlPlane<T>(
     auth?: boolean;
   },
 ): Promise<T> {
-  const runtime = ensureRuntime();
   const method = options?.method ?? "GET";
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-  };
-
-  if (options?.payload !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-
+  let status: number;
+  let payload: unknown;
   if (options?.auth) {
-    const token = normalizeText(runtime.sessionToken);
-    if (!token) {
-      throw new OemCloudControlPlaneError(
-        "缺少品牌云端 Session Token，请先完成登录。",
-      );
+    const identity = cloudAccountIdentity(getCloudAccount());
+    const response = await requestCloud({
+      path,
+      method,
+      body: options.payload,
+    });
+    const view = await readCloudAccount();
+    if (
+      !view ||
+      identity !== cloudAccountIdentity(view) ||
+      cloudAccountIdentity({ account: response.account }) !== identity
+    ) {
+      throw new CloudAccountChangedError();
     }
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  const response = await fetch(`${runtime.controlPlaneBaseUrl}${path}`, {
-    method,
-    headers,
-    body:
-      options?.payload === undefined
-        ? undefined
-        : JSON.stringify(options.payload),
-  });
-
-  let payload: OemCloudEnvelope<T> | unknown = null;
-  try {
-    payload = (await response.json()) as OemCloudEnvelope<T>;
-  } catch {
-    payload = null;
+    status = response.status;
+    payload = response.body;
+  } else {
+    const runtime = ensureRuntime();
+    const response = await fetch(`${runtime.controlPlaneBaseUrl}${path}`, {
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(options?.payload === undefined
+          ? {}
+          : { "Content-Type": "application/json" }),
+      },
+      body:
+        options?.payload === undefined
+          ? undefined
+          : JSON.stringify(options.payload),
+    });
+    status = response.status;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
   }
 
   const { data, message, code } = unwrapEnvelope<T>(payload);
-  if (!response.ok) {
-    throw new OemCloudControlPlaneError(
-      message || `请求失败 (${response.status})`,
-      {
-        status: response.status,
-        code,
-      },
-    );
+  if (status < 200 || status >= 300) {
+    throw new OemCloudControlPlaneError(message || `请求失败 (${status})`, {
+      status,
+      code,
+    });
   }
 
   if (data === undefined) {
     throw new OemCloudControlPlaneError(message || "服务端返回格式非法", {
-      status: response.status,
+      status,
       code,
     });
   }

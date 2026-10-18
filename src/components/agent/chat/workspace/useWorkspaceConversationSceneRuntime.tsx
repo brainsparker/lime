@@ -299,6 +299,7 @@ interface UseWorkspaceConversationSceneRuntimeParams {
   canvasWorkbenchRootPath?: string | null;
   handleHarnessLoadFilePreview: ConversationScenePresentationParams["canvasWorkbenchLayout"]["loadFilePreview"];
   setCanvasWorkbenchLayoutMode: ConversationScenePresentationParams["canvasWorkbenchLayout"]["onLayoutModeChange"];
+  onBeforeCanvasLeaveChange?: (guard: (() => Promise<boolean>) | null) => void;
   workspacePathMissing: WorkspacePathMissingState | boolean | null;
   workspaceHealthError: boolean;
 }
@@ -358,6 +359,7 @@ export function useWorkspaceConversationSceneRuntime({
   canvasWorkbenchRootPath,
   handleHarnessLoadFilePreview,
   setCanvasWorkbenchLayoutMode,
+  onBeforeCanvasLeaveChange,
   workspacePathMissing,
   workspaceHealthError,
 }: UseWorkspaceConversationSceneRuntimeParams) {
@@ -727,6 +729,7 @@ export function useWorkspaceConversationSceneRuntime({
       onOpenPath: canvasScene.handleOpenCanvasWorkbenchPath,
       onRevealPath: canvasScene.handleRevealCanvasWorkbenchPath,
       onClose: canvasScene.handleCloseCanvasWorkbench,
+      onBeforeLeaveChange: onBeforeCanvasLeaveChange,
       workbenchMode: shouldUseCodingWorkbenchChrome ? "coding" : "default",
       workspaceView,
       sessionView: codingWorkbenchViews.sessionView,

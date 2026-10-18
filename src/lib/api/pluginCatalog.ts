@@ -6,10 +6,18 @@ import {
 import { invalidateAppConfigCache } from "./appConfig";
 import { AppServerClient } from "@/lib/api/appServer";
 import type {
+  AppServerMarketplaceAddParams,
+  AppServerMarketplaceAddResponse,
+  AppServerMarketplaceRemoveParams,
+  AppServerMarketplaceRemoveResponse,
+  AppServerMarketplaceUpgradeParams,
+  AppServerMarketplaceUpgradeResponse,
   AppServerPluginInstallParams,
   AppServerPluginInstallResponse,
   AppServerPluginInstalledParams,
   AppServerPluginInstalledResponse,
+  AppServerPluginReconcileParams,
+  AppServerPluginReconcileResponse,
   AppServerPluginListParams,
   AppServerPluginListResponse,
   AppServerPluginReadParams,
@@ -33,7 +41,17 @@ export type PluginCatalogClient = Pick<
 
 export const PLUGIN_CATALOG_CHANGED_EVENT = "lime:plugin-catalog-changed";
 
-function emitPluginCatalogChanged(): void {
+export async function reconcilePlugins(
+  params: AppServerPluginReconcileParams = {},
+  client: Pick<AppServerClient, "reconcilePlugins"> = new AppServerClient(),
+): Promise<AppServerPluginReconcileResponse> {
+  const response = (await client.reconcilePlugins(params)).result;
+  invalidateAppConfigCache();
+  emitPluginCatalogChanged();
+  return response;
+}
+
+export function emitPluginCatalogChanged(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(PLUGIN_CATALOG_CHANGED_EVENT));
   }
@@ -109,9 +127,9 @@ export type MarketplaceClient = Pick<
 >;
 
 export async function addMarketplace(
-  params: import("@/lib/api/appServerTypes").AppServerMarketplaceAddParams,
+  params: AppServerMarketplaceAddParams,
   client: MarketplaceClient = new AppServerClient(),
-): Promise<import("@/lib/api/appServerTypes").AppServerMarketplaceAddResponse> {
+): Promise<AppServerMarketplaceAddResponse> {
   const result = (await client.addMarketplace(params)).result;
   invalidateAppConfigCache();
   emitPluginCatalogChanged();
@@ -119,11 +137,9 @@ export async function addMarketplace(
 }
 
 export async function removeMarketplace(
-  params: import("@/lib/api/appServerTypes").AppServerMarketplaceRemoveParams,
+  params: AppServerMarketplaceRemoveParams,
   client: MarketplaceClient = new AppServerClient(),
-): Promise<
-  import("@/lib/api/appServerTypes").AppServerMarketplaceRemoveResponse
-> {
+): Promise<AppServerMarketplaceRemoveResponse> {
   const result = (await client.removeMarketplace(params)).result;
   invalidateAppConfigCache();
   emitPluginCatalogChanged();
@@ -131,11 +147,9 @@ export async function removeMarketplace(
 }
 
 export async function upgradeMarketplace(
-  params: import("@/lib/api/appServerTypes").AppServerMarketplaceUpgradeParams,
+  params: AppServerMarketplaceUpgradeParams,
   client: MarketplaceClient = new AppServerClient(),
-): Promise<
-  import("@/lib/api/appServerTypes").AppServerMarketplaceUpgradeResponse
-> {
+): Promise<AppServerMarketplaceUpgradeResponse> {
   const result = (await client.upgradeMarketplace(params)).result;
   invalidateAppConfigCache();
   emitPluginCatalogChanged();

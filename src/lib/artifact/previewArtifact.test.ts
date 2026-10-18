@@ -61,7 +61,7 @@ describe("previewArtifact", () => {
     });
   });
 
-  it("应把 DOCX 文本抽取结果投影为 document_text", () => {
+  it("DOCX 有文本抽取结果时仍使用原文件版式预览", () => {
     const projection = createPreviewArtifactFromFile({
       filePath: "/tmp/谢晶_个人IP知识库v1.0_深澜智能.docx",
       content: "这是 DOCX 抽取文本",
@@ -76,65 +76,140 @@ describe("previewArtifact", () => {
       content: "这是 DOCX 抽取文本",
       meta: expect.objectContaining({
         contentKind: "document",
-        renderMode: "document_text",
+        renderMode: "document_pages",
       }),
     });
   });
 
-  it("应把无文本抽取的 PDF / Excel / PPT 文档投影为系统打开 preview artifact", () => {
-    const examples = [
-      {
-        filePath: "/tmp/research.pdf",
-        mimeType: "application/pdf",
-        filename: "research.pdf",
-      },
-      {
-        filePath: "/tmp/budget.xlsx",
-        mimeType:
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        filename: "budget.xlsx",
-      },
-      {
-        filePath: "/tmp/deck.pptx",
-        mimeType:
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename: "deck.pptx",
-      },
-    ];
-
-    for (const example of examples) {
+  it.each(["/tmp/research.pdf", "C:\\reports\\研究.PDF"])(
+    "PDF %s 不依赖文本抽取即可进入真实页面预览",
+    (filePath) => {
       const projection = createPreviewArtifactFromFile({
-        filePath: example.filePath,
+        filePath,
         isBinary: true,
-        mimeType: example.mimeType,
+        mimeType: "application/pdf",
         now: 100,
       });
-
       expect(projection).toMatchObject({
         contentKind: "document",
-        renderMode: "system_open",
-        artifactType: "document",
+        renderMode: "document_pages",
         artifact: {
-          title: example.filename,
-          content: expect.stringContaining("暂不支持在工作台内嵌预览"),
-          meta: expect.objectContaining({
-            previewArtifact: true,
-            isSourceBacked: true,
-            source: "file",
-            sourceRef: example.filePath,
-            contentKind: "document",
-            renderMode: "system_open",
-            mimeType: example.mimeType,
-            capabilities: expect.objectContaining({
-              preview: false,
-              systemOpen: true,
-              reveal: true,
-            }),
-          }),
+          content: "",
+          meta: {
+            sourcePath: filePath,
+            previewUrl: `asset://${filePath}`,
+            capabilities: { preview: true, edit: false, save: false },
+          },
         },
       });
-    }
+    },
+  );
+
+  it("PDF 文本抽取结果只能作为正文，不能选择 Markdown 渲染器", () => {
+    const projection = createPreviewArtifactFromFile({
+      filePath: "/tmp/research.pdf",
+      content: "# This is extracted PDF text",
+    });
+    expect(projection.contentKind).toBe("document");
+    expect(projection.renderMode).toBe("document_pages");
+    expect(projection.artifact.content).toBe("# This is extracted PDF text");
   });
+
+  it.each(["xlsx", "csv", "tsv"])(
+    "%s 原字节工作表不被抽取文本替代",
+    (extension) => {
+      const projection = createPreviewArtifactFromFile({
+        filePath: `C:\\reports\\budget.${extension}`,
+        content: "# Extracted text",
+        isBinary: extension === "xlsx",
+      });
+      expect(projection).toMatchObject({
+        contentKind: "workbook",
+        renderMode: "workbook",
+      });
+      expect(projection.artifact.meta.capabilities).toMatchObject({
+        preview: true,
+        edit: false,
+        save: false,
+      });
+    },
+  );
+
+  it.each(["", "# 历史抽取文本"])(
+    "未支持的 PPT 文档使用系统打开，正文=%j",
+    (content) => {
+      const examples = [
+        {
+          filePath: "/tmp/deck.ppt",
+          mimeType: "application/vnd.ms-powerpoint",
+          filename: "deck.ppt",
+        },
+      ];
+
+      for (const example of examples) {
+        const projection = createPreviewArtifactFromFile({
+          filePath: example.filePath,
+          content,
+          isBinary: true,
+          mimeType: example.mimeType,
+          now: 100,
+        });
+
+        expect(projection).toMatchObject({
+          contentKind: "document",
+          renderMode: "system_open",
+          artifactType: "document",
+          artifact: {
+            title: example.filename,
+            meta: expect.objectContaining({
+              previewArtifact: true,
+              isSourceBacked: true,
+              source: "file",
+              sourceRef: example.filePath,
+              contentKind: "document",
+              renderMode: "system_open",
+              mimeType: example.mimeType,
+              capabilities: expect.objectContaining({
+                preview: false,
+                systemOpen: true,
+                reveal: true,
+              }),
+            }),
+          },
+        });
+      }
+    },
+  );
+
+  it.each(["", "# 历史抽取文本"])(
+    "PPTX 原字节使用只读幻灯片分发，正文=%j",
+    (content) => {
+      const projection = createPreviewArtifactFromFile({
+        filePath: "/tmp/deck.pptx",
+        content,
+        isBinary: true,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      });
+      expect(projection).toMatchObject({
+        contentKind: "presentation",
+        renderMode: "presentation",
+        artifactType: "document",
+        artifact: {
+          meta: {
+            filePath: "/tmp/deck.pptx",
+            sourceRef: "/tmp/deck.pptx",
+            capabilities: {
+              preview: true,
+              edit: false,
+              save: false,
+              systemOpen: true,
+            },
+          },
+        },
+      });
+    },
+  );
 
   it("应把本地图片投影为可渲染文件 URL", () => {
     const projection = createPreviewArtifactFromFile({

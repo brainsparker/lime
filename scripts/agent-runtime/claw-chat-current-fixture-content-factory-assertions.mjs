@@ -17,8 +17,6 @@ export function buildContentFactoryArticleWorkspaceScenarioAssertions({
   const artifactRead = summary.contentFactoryArticleWorkspaceArtifactRead ?? {};
   const identity =
     summary.contentFactoryArticleWorkspaceSessionCreation?.identity ?? {};
-  const storyboardRendererContract =
-    readModel.storyboardArtifact?.rendererContract ?? {};
   return {
     contentFactoryArticleWorkspaceArtifactWritePersisted:
       appServerRequestMethods.includes(APP_SERVER_METHOD_ARTIFACT_WRITE) &&
@@ -205,16 +203,14 @@ export function buildContentFactoryArticleWorkspaceScenarioAssertions({
         ?.hasEditedTitle === true &&
       readModel.editedDraft?.markdownIncludesEditedDraftMarker === true &&
       readModel.editedDraft?.objectRef?.kind === "articleDraft" &&
-      readModel.workerArticleObject?.markdownIncludesEditedDraftMarker ===
-        true,
+      readModel.workerArticleObject?.markdownIncludesEditedDraftMarker === true,
     contentFactoryArticleWorkspaceWorkspacePatchEvidenceProjected:
       readModel.workerDogfoodEvidence?.taskId === identity.sourceTaskId &&
       readModel.workerDogfoodEvidence?.taskKind ===
         "content.article.generate" &&
       readModel.workerDogfoodEvidence?.status === "completed" &&
       readModel.workerDogfoodEvidence?.source === "workspace_patch" &&
-      readModel.workerDogfoodEvidence?.artifactKind ===
-        "workspace_patch" &&
+      readModel.workerDogfoodEvidence?.artifactKind === "workspace_patch" &&
       readModel.workerArticleObject?.sourceTaskId === identity.sourceTaskId &&
       readModel.workerArticleObject?.markdownIncludesResearch === true &&
       readModel.workerArticleObject?.markdownIncludesDraft === true &&
@@ -251,21 +247,18 @@ export function buildContentFactoryArticleWorkspaceScenarioAssertions({
             "artifact-image-regenerate-workspace-patch" &&
           artifact.kind === "workspace_patch",
       ) === true,
-    contentFactoryArticleWorkspaceStoryboardRendererContractPreserved:
+    contentFactoryArticleWorkspaceStoryboardContentPreserved:
       summary.contentFactoryArticleWorkspaceStoryboardObjectSelection
         ?.objectKind === "videoStoryboard" &&
       (summary.contentFactoryArticleWorkspaceStoryboardObjectSelection
         ?.selected === true ||
         summary.contentFactoryArticleWorkspaceStoryboardObjectSelection
           ?.candidatePresent === true) &&
-      storyboardRendererContract.pluginId === "content-factory-app" &&
-      storyboardRendererContract.rendererKind === "app_declared" &&
-      storyboardRendererContract.executionMode === "host_placeholder" &&
-      storyboardRendererContract.reasonCode ===
-        "app_declared_renderer_placeholder_only" &&
-      storyboardRendererContract.entry === "./renderer/storyboard.tsx" &&
-      storyboardRendererContract.allowedOutputArtifactKinds?.includes(
-        "workspace_patch",
+      readModel.storyboardArtifact?.scenes?.some(
+        (scene) =>
+          scene.id === "shot-1" &&
+          scene.title === "厨房开场" &&
+          scene.description === "镜头推近产品",
       ) === true,
     contentFactoryArticleWorkspaceDoesNotUseModelTurn: backendLedger.every(
       (entry) => entry.kind !== "turnStart",

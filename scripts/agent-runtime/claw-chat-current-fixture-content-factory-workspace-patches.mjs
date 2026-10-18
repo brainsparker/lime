@@ -180,23 +180,6 @@ export function buildWorkspacePatch(workspace, identity) {
           artifactIds: [
             CONTENT_FACTORY_ARTICLE_WORKSPACE_STORYBOARD_ARTIFACT_ID,
           ],
-          rendererContract: {
-            pluginId: CONTENT_FACTORY_APP_ID,
-            rendererKind: "app_declared",
-            artifactType: "videoStoryboard",
-            outputArtifactKind: "workspace_patch",
-            surfaceKind: "articleWorkspace",
-            paneKind: "storyboard",
-            entry: "./renderer/storyboard.tsx",
-            actionKeys: ["open_storyboard"],
-            runtimeAuthorization: {
-              status: "placeholder_only",
-              executionMode: "host_placeholder",
-              reasonCode: "app_declared_renderer_placeholder_only",
-              requestedOutputArtifactKind: "workspace_patch",
-              allowedOutputArtifactKinds: ["workspace_patch"],
-            },
-          },
           scenes: [
             {
               id: "shot-1",

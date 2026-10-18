@@ -1,4 +1,9 @@
 import path from "node:path";
+import {
+  settingsDraftNativeChecks,
+  settingsDraftNavigationChecks,
+  summarizeSettingsDraftProof,
+} from "./settings-draft-navigation-scenario.mjs";
 
 export const MCP_LIFECYCLE_SCENARIO_ID = "mcp-lifecycle-recovery";
 export const MCP_LIFECYCLE_REQUIRED_METHODS = [
@@ -166,7 +171,7 @@ export function createSettingsMcpLifecycleEvidence({
     priority: "P0",
     proofLevel: "Gate B-F",
     claimBoundary:
-      "Real Electron MCP Settings configuration lifecycle through preload/IPC and App Server mcpServer list/create/update/delete. It proves GUI creation, update, cold-restart readback, GUI deletion, and final cold-restart absence in isolated user data. It does not start a live MCP server, call tools, access the configured URL, or store server config, names, descriptions, IDs, paths, credentials, prompts, resources, or tool output.",
+      "Real Electron MCP Settings configuration lifecycle through preload/IPC and App Server mcpServer list/create/update/delete. It proves same-server draft retention, real Keep/Discard navigation without persistence, GUI creation, update, cold-restart readback, GUI deletion, and final cold-restart absence in isolated user data. It does not start a live MCP server, call tools, access the configured URL, or store server config, names, descriptions, IDs, paths, credentials, prompts, resources, or tool output.",
     candidateRunId: validateName(candidateRunId, "run-id"),
     testOnly: true,
     startedAt,
@@ -227,7 +232,12 @@ export function applyPassingSettingsMcpLifecycleEvidence(summary, facts) {
     restartReadback: facts.restartReadback === true,
     guiDeleted: facts.guiDeleted === true,
     finalRestartAbsent: facts.finalRestartAbsent === true,
+    sameServerAcrossRestarts: facts.sameServerAcrossRestarts === true,
   };
+  summary.mcpDraft = summarizeSettingsDraftProof("mcp", facts.mcpDraft);
+  summary.normalMainExits = facts.normalMainExits;
+  summary.buildFreshness = facts.buildFreshness;
+  summary.sourceManifest = facts.sourceManifest;
   summary.errors = {
     consoleErrorCount: consoleErrors.length,
     pageErrorCount: pageErrors.length,
@@ -247,6 +257,7 @@ export function applyPassingSettingsMcpLifecycleEvidence(summary, facts) {
     ["restartReadback", summary.lifecycle.restartReadback],
     ["guiDeleted", summary.lifecycle.guiDeleted],
     ["finalRestartAbsent", summary.lifecycle.finalRestartAbsent],
+    ["sameServerAcrossRestarts", summary.lifecycle.sameServerAcrossRestarts],
     ["consoleErrorsZero", consoleErrors.length === 0],
     ["pageErrorsZero", pageErrors.length === 0],
     ["invokeErrorsZero", facts.invokeErrorCount === 0],
@@ -255,6 +266,8 @@ export function applyPassingSettingsMcpLifecycleEvidence(summary, facts) {
     ["updatedScreenshotWritten", facts.updatedScreenshotWritten === true],
     ["recoveredScreenshotWritten", facts.recoveredScreenshotWritten === true],
     ["finalScreenshotWritten", facts.finalScreenshotWritten === true],
+    ...settingsDraftNavigationChecks("mcp", facts.mcpDraft),
+    ...settingsDraftNativeChecks(facts, 3),
   ];
   const failed = checks.filter(([, passed]) => !passed).map(([name]) => name);
   if (failed.length > 0) {

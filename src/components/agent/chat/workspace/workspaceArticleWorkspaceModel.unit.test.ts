@@ -547,7 +547,7 @@ describe("workspaceArticleWorkspaceModel", () => {
       active_turn_id: "turn-worker-failed",
       articleWorkspace: legacyWorkspacePatch,
       diagnostics: {
-        latest_turn_error_message: "Plugin task worker failed: invalid JSON",
+        latest_turn_error_message: "Article turn failed: invalid JSON",
         latest_turn_completed_at: "2026-06-24T00:00:03.000Z",
         warning_count: 0,
         context_compaction_count: 0,
@@ -564,7 +564,7 @@ describe("workspaceArticleWorkspaceModel", () => {
       expect.objectContaining({
         status: "failed",
         turnId: "turn-worker-failed",
-        errorMessage: "Plugin task worker failed: invalid JSON",
+        errorMessage: "Article turn failed: invalid JSON",
       }),
     );
   });
@@ -615,26 +615,6 @@ describe("workspaceArticleWorkspaceModel", () => {
             artifact_ids: ["artifact-image-1"],
           },
         },
-        pane_action: {
-          key: "regenerate",
-          intent: "regenerate",
-          risk: "write",
-          task_kind: "content.image.generate",
-          output_artifact_kind: "workspace_patch",
-          prompt: "请重新生成「配图组」",
-          pane_kind: "imageGenerationSet",
-          surface_kind: "articleWorkspace",
-          source_artifact_ids: ["artifact-image-1"],
-          object: {
-            app_id: "content-factory-app",
-            kind: "imageGenerationSet",
-            id: "image-set-1",
-            session_id: "session-main",
-            title: "配图组",
-            status: "needs_review",
-            artifact_ids: ["artifact-image-1"],
-          },
-        },
       },
       right_surface: {
         surface_kind: "articleWorkspace",
@@ -643,6 +623,7 @@ describe("workspaceArticleWorkspaceModel", () => {
         action_key: "regenerate",
       },
     });
+    expect(metadata.plugin).not.toHaveProperty("pane_action");
   });
 
   it("Article Editor action 应保留 canonical workspace patch kind", () => {
@@ -680,9 +661,6 @@ describe("workspaceArticleWorkspaceModel", () => {
     expect(metadata).toMatchObject({
       plugin: {
         article_workspace_action: {
-          output_artifact_kind: "workspace_patch",
-        },
-        pane_action: {
           output_artifact_kind: "workspace_patch",
         },
       },

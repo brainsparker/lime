@@ -2,6 +2,10 @@
 // Source: lime-rs/crates/app-server-protocol/schema/json/app_server_protocol.schemas.json
 // Run `npm run generate:protocol-types` to regenerate.
 
+export const METHOD_ACCOUNT_LOGIN_START = "account/login/start";
+export const METHOD_ACCOUNT_LOGOUT = "account/logout";
+export const METHOD_ACCOUNT_READ = "account/read";
+export const METHOD_ACCOUNT_UPDATED = "account/updated";
 export const METHOD_AGENT_SESSION_ACTION_RESPOND =
   "agentSession/action/respond";
 export const METHOD_AGENT_SESSION_ANALYSIS_HANDOFF_EXPORT =
@@ -34,6 +38,7 @@ export const METHOD_ARTIFACT_WRITE = "artifact/write";
 export const METHOD_STRICT_REVIEW_REQUIRED =
   "autoApprovalReview/strictReviewRequired";
 export const METHOD_CAPABILITY_LIST = "capability/list";
+export const METHOD_CLOUD_REQUEST = "cloud/request";
 export const METHOD_COLLABORATION_MODE_LIST = "collaborationMode/list";
 export const METHOD_COMMAND_EXEC = "command/exec";
 export const METHOD_COMMAND_EXEC_OUTPUT_DELTA = "command/exec/outputDelta";
@@ -266,7 +271,13 @@ export const METHOD_PLUGIN_INSTALL = "plugin/install";
 export const METHOD_PLUGIN_INSTALLED = "plugin/installed";
 export const METHOD_PLUGIN_LIST = "plugin/list";
 export const METHOD_PLUGIN_READ = "plugin/read";
+export const METHOD_PLUGIN_RECONCILE = "plugin/reconcile";
 export const METHOD_PLUGIN_SEARCH = "plugin/search";
+export const METHOD_PLUGIN_SHARE_CHECKOUT = "plugin/share/checkout";
+export const METHOD_PLUGIN_SHARE_DELETE = "plugin/share/delete";
+export const METHOD_PLUGIN_SHARE_LIST = "plugin/share/list";
+export const METHOD_PLUGIN_SHARE_SAVE = "plugin/share/save";
+export const METHOD_PLUGIN_SHARE_UPDATE_TARGETS = "plugin/share/updateTargets";
 export const METHOD_PLUGIN_UNINSTALL = "plugin/uninstall";
 export const METHOD_PROCESS_EXITED = "process/exited";
 export const METHOD_PROCESS_KILL = "process/kill";
@@ -499,6 +510,22 @@ export const METHOD_WORKSPACE_SKILL_BINDINGS_LIST =
 export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
+    method: "account/login/start",
+  },
+  {
+    kind: "request",
+    method: "account/logout",
+  },
+  {
+    kind: "request",
+    method: "account/read",
+  },
+  {
+    kind: "notification",
+    method: "account/updated",
+  },
+  {
+    kind: "request",
     method: "agentSession/action/respond",
   },
   {
@@ -576,6 +603,10 @@ export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
     method: "capability/list",
+  },
+  {
+    kind: "request",
+    method: "cloud/request",
   },
   {
     kind: "request",
@@ -1315,7 +1346,31 @@ export const GENERATED_APP_SERVER_METHODS = [
   },
   {
     kind: "request",
+    method: "plugin/reconcile",
+  },
+  {
+    kind: "request",
     method: "plugin/search",
+  },
+  {
+    kind: "request",
+    method: "plugin/share/checkout",
+  },
+  {
+    kind: "request",
+    method: "plugin/share/delete",
+  },
+  {
+    kind: "request",
+    method: "plugin/share/list",
+  },
+  {
+    kind: "request",
+    method: "plugin/share/save",
+  },
+  {
+    kind: "request",
+    method: "plugin/share/updateTargets",
   },
   {
     kind: "request",
@@ -2114,8 +2169,24 @@ export type GeneratedAppServerMethodKind = GeneratedAppServerMethodSpec["kind"];
 
 export const GENERATED_APP_SERVER_REQUEST_SERIALIZATION_SCOPES = [
   {
+    method: "account/login/start",
+    scope: "accountAuth",
+  },
+  {
+    method: "account/logout",
+    scope: "accountAuth",
+  },
+  {
+    method: "account/read",
+    scope: "accountAuth",
+  },
+  {
     method: "artifact/write",
     scope: "thread",
+  },
+  {
+    method: "cloud/request",
+    scope: "accountAuth",
   },
   {
     method: "mcpResource/subscribe",
@@ -2132,6 +2203,26 @@ export const GENERATED_APP_SERVER_REQUEST_SERIALIZATION_SCOPES = [
   {
     method: "mcpServer/oauth/logout",
     scope: "mcpOauth",
+  },
+  {
+    method: "plugin/share/checkout",
+    scope: "accountAuth",
+  },
+  {
+    method: "plugin/share/delete",
+    scope: "accountAuth",
+  },
+  {
+    method: "plugin/share/list",
+    scope: "accountAuth",
+  },
+  {
+    method: "plugin/share/save",
+    scope: "accountAuth",
+  },
+  {
+    method: "plugin/share/updateTargets",
+    scope: "accountAuth",
   },
   {
     method: "thread/approveGuardianDeniedAction",
@@ -2244,6 +2335,24 @@ export type GeneratedAppServerRequestSerializationScopeSpec =
 
 export type GeneratedAppServerRequestSerializationScope =
   GeneratedAppServerRequestSerializationScopeSpec["scope"];
+
+export type AbsolutePathBuf = string;
+
+export type Account = {
+  baseUrl: string;
+  displayName?: null | string;
+  email?: null | string;
+  expiresAt?: null | string;
+  sessionId: string;
+  tenantId: string;
+  type: "cloud";
+  userId: string;
+};
+
+export interface AccountUpdatedNotification {
+  authMode?: null | string;
+  planType?: null | string;
+}
 
 export interface ActivePermissionProfile {
   extends?: null | string;
@@ -4111,6 +4220,7 @@ export type AppServerRequestMethod =
   | "workspaceSkillBindings/list";
 
 export type AppServerRequestSerializationScope =
+  | "accountAuth"
   | "mcpOauth"
   | "mcpResourceSubscription"
   | "thread";
@@ -4387,6 +4497,26 @@ export type ClientNotification = {
 };
 
 export type ClientRequest =
+  | {
+      id: number | string;
+      method: "cloud/request";
+      params: CloudRequestParams;
+    }
+  | {
+      id: number | string;
+      method: "account/login/start";
+      params: LoginAccountParams;
+    }
+  | {
+      id: number | string;
+      method: "account/read";
+      params?: GetAccountParams;
+    }
+  | {
+      id: number | string;
+      method: "account/logout";
+      params?: null;
+    }
   | {
       id: number | string;
       method: "thread/start";
@@ -4833,6 +4963,36 @@ export type ClientRequest =
     }
   | {
       id: number | string;
+      method: "plugin/reconcile";
+      params: PluginReconcileParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/share/save";
+      params: PluginShareSaveParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/share/list";
+      params: PluginShareListParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/share/updateTargets";
+      params: PluginShareUpdateTargetsParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/share/checkout";
+      params: PluginShareCheckoutParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/share/delete";
+      params: PluginShareDeleteParams;
+    }
+  | {
+      id: number | string;
       method: "turn/start";
       params: TurnStartParams;
     }
@@ -4945,6 +5105,20 @@ export type ClientRequest =
 export interface ClientResponse {
   id: number | string;
   result: unknown;
+}
+
+export type CloudRequestMethod = "DELETE" | "GET" | "POST" | "PUT";
+
+export interface CloudRequestParams {
+  body?: unknown;
+  method: CloudRequestMethod;
+  path: string;
+}
+
+export interface CloudRequestResponse {
+  account: Account;
+  body: unknown;
+  status: number;
 }
 
 export type CodexErrorInfo =
@@ -6177,6 +6351,15 @@ export interface GatewayTunnelSyncWebhookUrlResponse {
   webhookUrl: string;
 }
 
+export interface GetAccountParams {
+  refreshToken?: boolean;
+}
+
+export interface GetAccountResponse {
+  account?: Account | null;
+  requiresOpenaiAuth: boolean;
+}
+
 export interface GitInfo {
   branch?: null | string;
   originUrl?: null | string;
@@ -6593,6 +6776,19 @@ export interface LogStorageDiagnosticsResponse {
   rawResponseFiles?: LogArtifactEntry[];
   relatedLogFiles?: LogArtifactEntry[];
 }
+
+export type LoginAccountParams = {
+  accessToken: string;
+  baseUrl: string;
+  tenantId: string;
+  type: "cloudAuthTokens";
+};
+
+export type LoginAccountResponse = {
+  type: "cloudAuthTokens";
+};
+
+export type LogoutAccountResponse = Record<string, unknown>;
 
 export interface MarketplaceAddParams {
   refName?: null | string;
@@ -7427,10 +7623,14 @@ export interface MemoryStoreSearchResponse {
 export type MergeStrategy = "replace" | "upsert";
 
 export type Method =
+  | "account/login/start"
+  | "account/logout"
+  | "account/read"
   | "app/installed"
   | "app/list"
   | "app/read"
   | "artifact/write"
+  | "cloud/request"
   | "collaborationMode/list"
   | "command/exec"
   | "command/exec/resize"
@@ -7472,7 +7672,13 @@ export type Method =
   | "plugin/installed"
   | "plugin/list"
   | "plugin/read"
+  | "plugin/reconcile"
   | "plugin/search"
+  | "plugin/share/checkout"
+  | "plugin/share/delete"
+  | "plugin/share/list"
+  | "plugin/share/save"
+  | "plugin/share/updateTargets"
   | "plugin/uninstall"
   | "process/kill"
   | "process/resizePty"
@@ -8165,6 +8371,24 @@ export interface PluginReadResponse {
   plugin: PluginDetail;
 }
 
+export interface PluginReconcileChangedPlugin {
+  hasApps: boolean;
+  hasHooks: boolean;
+  hasMcps: boolean;
+  hasSkills: boolean;
+  id: string;
+}
+
+export interface PluginReconcileParams {
+  reason?: null | string;
+}
+
+export interface PluginReconcileResponse {
+  changedPlugins: PluginReconcileChangedPlugin[];
+  failedMaterializationRemotePluginIds: string[];
+  failedRemotePluginIds: string[];
+}
+
 export interface PluginSearchParams {
   cursor?: null | string;
   cwds?: string[] | null;
@@ -8186,6 +8410,20 @@ export interface PluginSearchResult {
 
 export type PluginSearchScope = "global" | "personal" | "workspace";
 
+export interface PluginShareCheckoutParams {
+  remotePluginId: string;
+}
+
+export interface PluginShareCheckoutResponse {
+  marketplaceName: string;
+  marketplacePath: AbsolutePathBuf;
+  pluginId: string;
+  pluginName: string;
+  pluginPath: AbsolutePathBuf;
+  remotePluginId: string;
+  remoteVersion?: null | string;
+}
+
 export interface PluginShareContext {
   canPublishToWorkspace?: boolean | null;
   creatorAccountUserId?: null | string;
@@ -8197,7 +8435,24 @@ export interface PluginShareContext {
   shareUrl?: null | string;
 }
 
+export interface PluginShareDeleteParams {
+  remotePluginId: string;
+}
+
+export type PluginShareDeleteResponse = Record<string, unknown>;
+
 export type PluginShareDiscoverability = "LISTED" | "PRIVATE" | "UNLISTED";
+
+export interface PluginShareListItem {
+  localPluginPath?: AbsolutePathBuf | null;
+  plugin: PluginSummary;
+}
+
+export type PluginShareListParams = Record<string, unknown>;
+
+export interface PluginShareListResponse {
+  data: PluginShareListItem[];
+}
 
 export interface PluginSharePrincipal {
   name: string;
@@ -8209,6 +8464,43 @@ export interface PluginSharePrincipal {
 export type PluginSharePrincipalRole = "editor" | "owner" | "reader";
 
 export type PluginSharePrincipalType = "group" | "user" | "workspace";
+
+export interface PluginShareSaveParams {
+  discoverability?: PluginShareDiscoverability | null;
+  pluginPath: AbsolutePathBuf;
+  remotePluginId?: null | string;
+  shareTargets?: PluginShareTarget[] | null;
+}
+
+export interface PluginShareSaveResponse {
+  canPublishToWorkspace?: boolean | null;
+  remotePluginId: string;
+  shareUrl: string;
+}
+
+export interface PluginShareTarget {
+  principalId: string;
+  principalType: PluginSharePrincipalType;
+  role: PluginShareTargetRole;
+}
+
+export type PluginShareTargetRole = "editor" | "reader";
+
+export type PluginShareUpdateDiscoverability =
+  | "LISTED"
+  | "PRIVATE"
+  | "UNLISTED";
+
+export interface PluginShareUpdateTargetsParams {
+  discoverability: PluginShareUpdateDiscoverability;
+  remotePluginId: string;
+  shareTargets: PluginShareTarget[];
+}
+
+export interface PluginShareUpdateTargetsResponse {
+  discoverability: PluginShareDiscoverability;
+  principals: PluginSharePrincipal[];
+}
 
 export type PluginSource =
   | {
@@ -9065,6 +9357,10 @@ export interface ServerInfo {
 }
 
 export type ServerNotification =
+  | {
+      method: "account/updated";
+      params: AccountUpdatedNotification;
+    }
   | {
       method: "configWarning";
       params: ConfigWarningNotification;

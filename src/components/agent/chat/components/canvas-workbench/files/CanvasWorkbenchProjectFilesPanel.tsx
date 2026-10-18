@@ -92,12 +92,12 @@ export const CanvasWorkbenchProjectFilesPanel = memo(
       <section
         ref={containerRef}
         data-testid="canvas-workbench-panel-project-files"
-        className="grid h-full min-h-0 bg-white"
+        className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)] overflow-hidden bg-white"
         style={{
           gridTemplateColumns: `minmax(0,1fr) 6px minmax(220px, ${treeWidthPercent}%)`,
         }}
       >
-        <div className="min-w-0 bg-slate-50/60">
+        <div className="min-h-0 min-w-0 overflow-hidden bg-slate-50/60">
           {documentContext?.selectionKey?.startsWith("workspace-file:") ? (
             <CanvasWorkbenchPreviewModePanel
               context={documentContext}
@@ -143,7 +143,7 @@ export const CanvasWorkbenchProjectFilesPanel = memo(
         >
           <span className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-slate-200 transition-colors group-hover:bg-sky-400 group-focus-visible:bg-sky-500" />
         </button>
-        <div className="min-w-0">
+        <div className="min-h-0 min-w-0 overflow-hidden">
           <CanvasWorkbenchWorkspacePanel
             workspaceUnavailable={workspaceUnavailable}
             workspaceRoot={workspaceRoot}

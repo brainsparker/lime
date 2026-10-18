@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
+import { randomUUID } from "node:crypto";
 
 const DEFAULT_RUST_WORKSPACE_DIR = "lime-rs";
 const SHERPA_RELEASE_BASE_URL =
@@ -474,7 +475,9 @@ export function extractSherpaArchive(
             );
             const intermediateMissing = missingLibraries(plan);
             if (intermediateMissing.length === 0) {
-              console.log(`Extracted sherpa-onnx archive: ${plan.extractedDir}`);
+              console.log(
+                `Extracted sherpa-onnx archive: ${plan.extractedDir}`,
+              );
               return;
             }
             console.warn(
@@ -536,7 +539,28 @@ function ensureArchiveExtracted(plan) {
   }
 }
 
-function copyRuntimeLibraries(plan) {
+export function copySherpaRuntimeLibrary(
+  sourcePath,
+  destinationPath,
+  { copy = fs.copyFileSync, publish = fs.renameSync } = {},
+) {
+  const sourceSize = fs.statSync(sourcePath).size;
+  if (!sourceSize) fail(`Empty ONNX runtime shared library: ${sourcePath}`);
+  if (path.resolve(sourcePath) === path.resolve(destinationPath)) return;
+  // Build/test/package processes can share this directory. Publish only
+  // complete files so another process never packages a truncated library.
+  const temporaryPath = `${destinationPath}.${process.pid}.${randomUUID()}.tmp`;
+  try {
+    copy(sourcePath, temporaryPath, fs.constants.COPYFILE_EXCL);
+    if (fs.statSync(temporaryPath).size !== sourceSize)
+      fail(`Incomplete ONNX runtime shared library: ${sourcePath}`);
+    publish(temporaryPath, destinationPath);
+  } finally {
+    fs.rmSync(temporaryPath, { force: true });
+  }
+}
+
+export function copySherpaRuntimeLibraries(plan, io = {}) {
   const destinationDirs = [
     plan.releaseDir,
     plan.runtimeLibDir,
@@ -554,12 +578,9 @@ function copyRuntimeLibraries(plan) {
         `Expected ONNX runtime shared library missing: ${path.join(plan.libDir, lib)}`,
       );
     }
-
     for (const destinationDir of destinationDirs) {
       const destinationPath = path.join(destinationDir, lib);
-      if (path.resolve(sourcePath) !== path.resolve(destinationPath)) {
-        fs.copyFileSync(sourcePath, destinationPath);
-      }
+      copySherpaRuntimeLibrary(sourcePath, destinationPath, io);
       if (!fs.existsSync(destinationPath)) {
         fail(
           `Expected ONNX runtime shared library missing: ${destinationPath}`,
@@ -614,7 +635,7 @@ export function prepareSherpaOnnxRuntime({
   });
 
   ensureArchiveExtracted(plan);
-  copyRuntimeLibraries(plan);
+  copySherpaRuntimeLibraries(plan);
   const rpathResults = ensureRuntimeBinaryRpaths(plan);
 
   console.log(`Prepared sherpa-onnx shared libraries for ${plan.targetTriple}`);

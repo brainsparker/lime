@@ -825,7 +825,19 @@ vi.mock("@/components/general-chat/bridge", () => ({
 }));
 
 vi.mock("@/components/artifact", () => ({
-  ArtifactRenderer: () => <div data-testid="artifact-renderer" />,
+  ArtifactRenderer: ({
+    artifact,
+  }: {
+    artifact?: { content: string; meta: Record<string, unknown> };
+  }) => (
+    <div
+      data-testid="artifact-renderer"
+      data-source-ref={String(artifact?.meta.sourceRef ?? "")}
+      data-file-path={String(artifact?.meta.filePath ?? "")}
+      data-content-kind={String(artifact?.meta.contentKind ?? "")}
+      data-content={artifact?.content ?? ""}
+    />
+  ),
   ArtifactToolbar: ({ onClose }: { onClose?: () => void }) => (
     <div data-testid="artifact-toolbar">
       <button

@@ -2044,6 +2044,7 @@
   "settings.mcpPage.toast.syncFailed": "동기화 실패: {{message}}",
   "settings.mcpPage.toast.nameRequired": "서버 이름을 입력하세요.",
   "settings.mcpPage.toast.saveFailed": "저장 실패: {{message}}",
+  "settings.mcpPage.toast.deleteFailed": "MCP 서버를 삭제하지 못했습니다. 다시 시도하세요.",
   "settings.mcpPage.error.invalidJson": "JSON 형식이 잘못되었습니다",
   "settings.mcpPage.error.invalidJsonCannotSave": "JSON 형식이 잘못되어 저장할 수 없습니다",
   "settings.mcpPage.preset.filesystem.name": "Filesystem",

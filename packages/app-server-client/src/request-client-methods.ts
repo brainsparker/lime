@@ -18,6 +18,30 @@ export type AppServerRequestClientMethodSpec = {
 export const APP_SERVER_REQUEST_CLIENT_METHODS: readonly AppServerRequestClientMethodSpec[] =
   [
     {
+      name: "requestCloud",
+      method: protocol.METHOD_CLOUD_REQUEST,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "loginAccount",
+      method: protocol.METHOD_ACCOUNT_LOGIN_START,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "readAccount",
+      method: protocol.METHOD_ACCOUNT_READ,
+      kind: "request",
+      params: "optional-empty",
+    },
+    {
+      name: "logoutAccount",
+      method: protocol.METHOD_ACCOUNT_LOGOUT,
+      kind: "request",
+      params: "omitted",
+    },
+    {
       name: "initialize",
       method: protocol.METHOD_INITIALIZE,
       kind: "request",
@@ -662,6 +686,42 @@ export const APP_SERVER_REQUEST_CLIENT_METHODS: readonly AppServerRequestClientM
     {
       name: "listInstalledPlugins",
       method: protocol.METHOD_PLUGIN_INSTALLED,
+      kind: "request",
+      params: "optional-empty",
+    },
+    {
+      name: "savePluginShare",
+      method: protocol.METHOD_PLUGIN_SHARE_SAVE,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "listPluginShares",
+      method: protocol.METHOD_PLUGIN_SHARE_LIST,
+      kind: "request",
+      params: "optional-empty",
+    },
+    {
+      name: "updatePluginShareTargets",
+      method: protocol.METHOD_PLUGIN_SHARE_UPDATE_TARGETS,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "checkoutPluginShare",
+      method: protocol.METHOD_PLUGIN_SHARE_CHECKOUT,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "deletePluginShare",
+      method: protocol.METHOD_PLUGIN_SHARE_DELETE,
+      kind: "request",
+      params: "required",
+    },
+    {
+      name: "reconcilePlugins",
+      method: protocol.METHOD_PLUGIN_RECONCILE,
       kind: "request",
       params: "optional-empty",
     },

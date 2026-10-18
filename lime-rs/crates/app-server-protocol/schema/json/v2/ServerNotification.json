@@ -1,5 +1,22 @@
 {
   "$defs": {
+    "AccountUpdatedNotification": {
+      "properties": {
+        "authMode": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "planType": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "AgentMessageDelivery": {
       "description": "Codex v2 assistant message delivery mode.\n\nThe current upstream contract only exposes `async`; keeping this as a\nclosed enum prevents arbitrary presentation strings from crossing the\nprotocol boundary.",
       "enum": [
@@ -4563,6 +4580,22 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Notifications emitted by the current v2 skeleton. Unknown methods fail\nclosed until their typed payloads are added to the v2 catalog.",
   "oneOf": [
+    {
+      "properties": {
+        "method": {
+          "const": "account/updated",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/AccountUpdatedNotification"
+        }
+      },
+      "required": [
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
     {
       "properties": {
         "method": {

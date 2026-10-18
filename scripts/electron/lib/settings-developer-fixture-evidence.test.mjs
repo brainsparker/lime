@@ -4,24 +4,30 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEVELOPER_REQUIRED_APP_SERVER_METHODS,
+  DEVELOPER_REQUIRED_CONFIG_METHODS,
+  DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS,
   applyPassingSettingsDeveloperEvidence,
   createSettingsDeveloperEvidence,
   parseSettingsDeveloperFixtureArgs,
   summarizeSettingsDeveloperTrace,
 } from "./settings-developer-fixture-evidence.mjs";
+import { SETTINGS_DRAFT_FIXTURE_SOURCES } from "./settings-draft-navigation-scenario.mjs";
 
 const RUN_ID = "standalone-settings-b-test";
 
 function traceRaw(transport = "electron-ipc", methods = undefined) {
   return JSON.stringify([
-    {
+    ...[
+      ...DEVELOPER_REQUIRED_CONFIG_METHODS,
+      ...DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS,
+    ].map((method) => ({
       command: "app_server_handle_json_lines",
       transport,
       status: "success",
       args_preview: {
-        request: { lines: [JSON.stringify({ method: "config/read" })] },
+        request: { lines: [JSON.stringify({ method })] },
       },
-    },
+    })),
     ...(methods ?? DEVELOPER_REQUIRED_APP_SERVER_METHODS).map((method) => ({
       command: "app_server_handle_json_lines",
       transport,
@@ -54,6 +60,10 @@ function payloadShape() {
 }
 
 function passingFacts() {
+  const sources = SETTINGS_DRAFT_FIXTURE_SOURCES.map((file) => ({
+    file,
+    sha256: "a".repeat(64),
+  }));
   return {
     completedAt: "2026-07-17T00:03:00.000Z",
     electronRenderer: true,
@@ -77,6 +87,36 @@ function passingFacts() {
     pageErrors: [],
     invokeErrorCount: 0,
     screenshotWritten: true,
+    normalMainExits: [
+      {
+        exited: true,
+        exitCode: 0,
+        signal: null,
+        mode: "normal",
+        forcedCleanup: false,
+      },
+    ],
+    buildFreshness: { before: { ready: true }, after: { ready: true } },
+    sourceManifest: { before: sources, after: structuredClone(sources) },
+    experimentalDraft: {
+      sameNodeAcrossTabs: true,
+      tabDraftRetained: true,
+      sectionKeep: true,
+      sectionDiscard: true,
+      keepDefaultFocus: true,
+      unpersistedDraft: true,
+      safeCrashPreflight: true,
+      guiSaveReadback: true,
+      reopenedValue: true,
+      untouchedConfigPreserved: true,
+      configurationRestored: true,
+      readbacks: Array.from({ length: 3 }, () => ({
+        method: "config/read",
+        transport: "electron-ipc",
+        currentPreload: true,
+        matchingRequestResponse: true,
+      })),
+    },
   };
 }
 
@@ -107,10 +147,18 @@ describe("Settings Developer Gate B evidence", () => {
 
   it("requires every current diagnostic method and Host config read", () => {
     expect(summarizeSettingsDeveloperTrace(traceRaw())).toMatchObject({
-      appServerIpcHitCount: DEVELOPER_REQUIRED_APP_SERVER_METHODS.length + 1,
-      methods: ["config/read", ...DEVELOPER_REQUIRED_APP_SERVER_METHODS],
+      appServerIpcHitCount:
+        DEVELOPER_REQUIRED_APP_SERVER_METHODS.length +
+        DEVELOPER_REQUIRED_CONFIG_METHODS.length +
+        DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS.length,
+      methods: [
+        ...DEVELOPER_REQUIRED_CONFIG_METHODS,
+        ...DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS,
+        ...DEVELOPER_REQUIRED_APP_SERVER_METHODS,
+      ],
       missingMethods: [],
       missingConfigMethods: [],
+      missingDraftConfigMethods: [],
       legacyCommands: [],
       mockFallbackHitCount: 0,
     });
@@ -154,5 +202,76 @@ describe("Settings Developer Gate B evidence", () => {
     ).toThrow(
       /appServerElectronIpc.*allCurrentDiagnosticMethods.*configCurrentRead.*diagnosticPayloadShape.*mockFallbackZero/,
     );
+  });
+
+  it.each([
+    "sameNodeAcrossTabs",
+    "tabDraftRetained",
+    "sectionKeep",
+    "sectionDiscard",
+    "keepDefaultFocus",
+    "unpersistedDraft",
+    "safeCrashPreflight",
+    "guiSaveReadback",
+    "reopenedValue",
+    "untouchedConfigPreserved",
+    "configurationRestored",
+  ])("rejects absent Experimental draft evidence: %s", (key) => {
+    const facts = passingFacts();
+    delete facts.experimentalDraft[key];
+    expect(() =>
+      applyPassingSettingsDeveloperEvidence(
+        createSettingsDeveloperEvidence({
+          candidateRunId: RUN_ID,
+          startedAt: "2026-10-18",
+          prefix: "fixture",
+        }),
+        facts,
+      ),
+    ).toThrow(`experimentalDraft.${key}`);
+  });
+
+  it("rejects exit, freshness, source drift and missing readback identity", () => {
+    const facts = passingFacts();
+    facts.normalMainExits[0].forcedCleanup = true;
+    facts.buildFreshness.after.ready = false;
+    facts.sourceManifest.after.pop();
+    facts.experimentalDraft.readbacks[0].matchingRequestResponse = false;
+    expect(() =>
+      applyPassingSettingsDeveloperEvidence(
+        createSettingsDeveloperEvidence({
+          candidateRunId: RUN_ID,
+          startedAt: "2026-10-18",
+          prefix: "fixture",
+        }),
+        facts,
+      ),
+    ).toThrow(
+      /currentReadbackIdentity.*normalMainExits.*buildFreshnessBeforeAfter.*declaredSourcesStable/,
+    );
+  });
+
+  it("keeps the diagnostic read contract and additionally requires draft writes", () => {
+    const facts = passingFacts();
+    facts.trace = summarizeSettingsDeveloperTrace(
+      traceRaw(
+        "electron-ipc",
+        DEVELOPER_REQUIRED_APP_SERVER_METHODS,
+      ).replaceAll("config/batchWrite", "config/read"),
+    );
+    expect(facts.trace.missingConfigMethods).toEqual([]);
+    expect(facts.trace.missingDraftConfigMethods).toEqual([
+      "config/batchWrite",
+    ]);
+    expect(() =>
+      applyPassingSettingsDeveloperEvidence(
+        createSettingsDeveloperEvidence({
+          candidateRunId: RUN_ID,
+          startedAt: "2026-10-18",
+          prefix: "fixture",
+        }),
+        facts,
+      ),
+    ).toThrow(/configDraftWrite/);
   });
 });

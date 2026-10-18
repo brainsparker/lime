@@ -13,8 +13,10 @@ import type {
 } from "@/lib/api/mcp";
 import { McpPanel } from "./McpPanel";
 import { MCP_RESOURCE_TEXT_PREVIEW_CHAR_LIMIT } from "./mcpResourcePreview";
+import { SettingsDraftContext } from "../settings-v2/_layout/useSettingsDraft";
 
 const useMcpMock = vi.hoisted(() => vi.fn<() => UseMcpReturn>());
+const useMcpServersMock = vi.hoisted(() => vi.fn());
 const toastMock = vi.hoisted(() => ({
   success: vi.fn(),
   error: vi.fn(),
@@ -22,6 +24,9 @@ const toastMock = vi.hoisted(() => ({
 
 vi.mock("@/hooks/useMcp", () => ({
   useMcp: useMcpMock,
+}));
+vi.mock("@/hooks/useMcpServers", () => ({
+  useMcpServers: useMcpServersMock,
 }));
 
 vi.mock("sonner", () => ({
@@ -107,7 +112,6 @@ function createMcpState(overrides: Partial<UseMcpReturn> = {}): UseMcpReturn {
     })),
     refreshServers: vi.fn(async () => undefined),
     refreshTools: vi.fn(async () => undefined),
-    callTool: vi.fn(async () => ({ content: [], is_error: false })),
     refreshPrompts: vi.fn(async () => undefined),
     getPrompt: vi.fn(async () => ({ messages: [] })),
     refreshResources: vi.fn(async () => undefined),
@@ -178,6 +182,16 @@ beforeEach(() => {
   ).IS_REACT_ACT_ENVIRONMENT = true;
 
   return changeLimeLocale("zh-CN").then(() => {
+    useMcpServersMock.mockReturnValue({
+      servers: [],
+      loading: false,
+      importing: false,
+      error: null,
+      addServer: vi.fn(),
+      updateServer: vi.fn(),
+      deleteServer: vi.fn(),
+      refresh: vi.fn(),
+    });
     vi.mocked(openExternalUrlWithSystemBrowser).mockResolvedValue(undefined);
     useMcpMock.mockReturnValue(createMcpState());
   });
@@ -199,6 +213,103 @@ afterEach(() => {
 });
 
 describe("McpPanel", () => {
+  it("首次进入配置管理才加载配置页，切换 Tab 保留同一草稿并移出隐藏焦点", async () => {
+    const container = await renderPanel();
+    expect(useMcpServersMock).not.toHaveBeenCalled();
+    const tab = (name: string) =>
+      container.querySelector<HTMLButtonElement>(
+        `[data-testid="mcp-panel-tab-${name}"]`,
+      )!;
+    await act(async () => tab("config").click());
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="mcp-config-create-server"]',
+        )!
+        .click(),
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-testid="mcp-config-name"]',
+    )!;
+    await act(async () => {
+      input.focus();
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "retained draft");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => tab("runtime").click());
+    expect(container.querySelector('[data-testid="mcp-config-name"]')).toBe(
+      input,
+    );
+    expect(input.closest("[hidden]")).not.toBeNull();
+    expect(document.activeElement).toBe(tab("runtime"));
+    expect(document.activeElement?.closest("[hidden]")).toBeNull();
+    await act(async () => tab("config").click());
+    expect(container.querySelector('[data-testid="mcp-config-name"]')).toBe(
+      input,
+    );
+    expect(input.value).toBe("retained draft");
+    expect(input.closest("[hidden]")).toBeNull();
+    expect(
+      container.querySelectorAll('[data-testid="mcp-config-page"]'),
+    ).toHaveLength(1);
+  });
+
+  it("隐藏配置页继续注册同一草稿护栏，卸载面板时清理注册", async () => {
+    const unregister = vi.fn();
+    const register = vi.fn(() => unregister);
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    await act(async () =>
+      root.render(
+        <SettingsDraftContext.Provider value={register}>
+          <McpPanel />
+        </SettingsDraftContext.Provider>,
+      ),
+    );
+    mountedRoots.push({ root, container });
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="mcp-panel-tab-config"]',
+        )!
+        .click(),
+    );
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="mcp-config-create-server"]',
+        )!
+        .click(),
+    );
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-testid="mcp-config-name"]',
+    )!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(
+        HTMLInputElement.prototype,
+        "value",
+      )!.set!.call(input, "guarded draft");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(register).toHaveBeenLastCalledWith({ dirty: true, saving: false });
+    const callsBefore = register.mock.calls.length;
+    await act(async () =>
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="mcp-panel-tab-tools"]',
+        )!
+        .click(),
+    );
+    expect(register).toHaveBeenCalledTimes(callsBefore);
+    expect(unregister).not.toHaveBeenCalled();
+    await act(async () => root.render(<p>Replacement</p>));
+    expect(unregister).toHaveBeenCalledTimes(1);
+  });
+
   it("设置页内嵌时仍渲染统一页头和摘要指标", async () => {
     const container = await renderPanel({ hideHeader: true });
 

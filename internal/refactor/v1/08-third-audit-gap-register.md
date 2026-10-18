@@ -70,7 +70,7 @@ serialization scope 和 v2 schema 绑定；README 还要求每条连接执行
 
 已补 machine-readable method matrix：
 `internal/refactor/v1/fixtures/codex-method-product-scope.v0.1.json`。矩阵覆盖 Codex
-注册表的 221 个方向化 method，每个只能标记为 `implemented`、`product-scope-excluded`
+注册表的245个方向化method基线，每个只能标记为`implemented`、`product-scope-excluded`
 或 `planned`，并由
 `src/lib/governance/codexMethodProductScopeBoundary.test.ts` 固定方向计数、唯一性、
 owner/evidence、planned gap、excluded rationale 和 Lime generated manifest 同方向契约。
@@ -315,26 +315,26 @@ score/path 排序，保留相对路径、file/directory、file name 与 match in
 `@token`，空格路径加引号，不生成 connector/plugin `Mention`。
 
 Codex experimental `fuzzyFileSearch/sessionStart|sessionUpdate|sessionStop` 与
-`fuzzyFileSearch/sessionUpdated|sessionCompleted` 没有 Desktop consumer，分类为
-`product-scope-excluded / forbidden-to-restore`。notification inventory 仅保留 method/field-name
-诊断，禁止进入 pending interaction、current projector、generated manifest 或兼容 wrapper。
+`fuzzyFileSearch/sessionUpdated|sessionCompleted` 已由2026-10-18范围复审更正为planned，
+复用现役文件搜索owner并补消费者；当前notification inventory只有诊断接线，不冒充产品
+实现。不得因暂无消费者重新排除，也不恢复兼容wrapper。具体状态以范围矩阵为准。
 
 ## 5. P2/P3 明确不能静默跳过
 
-| 域              | 必须逐项决定的 Codex contract                                                                                                                                                                                                                                                            | 允许的 Lime 结果                                                                          |
-| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Multi-Agent     | root-shared AgentControl、role/model/reasoning/service-tier 约束、max width/depth、execution limiter、rollout budget、nickname/path、V2 residency restore、full/last-N fork、过滤 tool/reasoning/inter-agent side-channel、mailbox `trigger_turn`、delivery phase、steer 优先、wait 三态 | `implemented` 或 `product-scope-excluded`，不能以 graph/identity/mailbox 模块存在代替完成 |
-| Process/admin   | `command/exec/*`、`process/spawn                                                                                                                                                                                                                                                         | writeStdin                                                                                | resizePty | kill`、`fs/\*`、file checkpoint、rollback、inject items、config lock、current time、memory mode、attestation | 有真实 App Server handler/read model/evidence，或写出明确 exclusion 和删除未实现声明的条件 |
-| Realtime/review | `thread/realtime/*`、review start/notification、audio/text/speech lifecycle                                                                                                                                                                                                              | 产品需要则迁入 current；不需要则在 method matrix 标记排除并移除 catalog/fixture           |
-| Clients         | CLI/TUI/SDK/VS Code 都只消费 App Server schema                                                                                                                                                                                                                                           | Lime 可仅实现 Electron/typed client；不得为“对齐 Codex”把客户端逻辑塞进 runtime           |
+| 域              | 必须逐项决定的 Codex contract                                                                         | 允许的 Lime 结果                                                                 |
+| --------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| Multi-Agent     | root-shared AgentControl、role/model约束、limiter、预算、fork/restore、mailbox、steer与wait           | 缺口标planned；真实状态/恢复/host证据通过后才标implemented，不以模块存在代替完成 |
+| Process/admin   | command/exec、process spawn/writeStdin/resizePty/kill、fs、checkpoint、rollback、config、time和memory | 在现役App Server owner实现并验证；专属服务排除必须符合当前范围矩阵               |
+| Realtime/review | thread/realtime、review、audio/text/speech生命周期与通知                                              | 合理能力全部实施；未完成标planned，不因缺消费者永久排除                          |
+| Clients         | GUI、CLI/TUI与SDK共用App Server schema                                                                | GUI与CLI/TUI均为目标产品面；业务runtime保持唯一owner                             |
 
 ## 6. 多模型最终取舍（本轮修正）
 
-| 维度                                                           | primary               | secondary | 本轮新增验收                                                                              |
-| -------------------------------------------------------------- | --------------------- | --------- | ----------------------------------------------------------------------------------------- |
-| catalog/default/selection/switch/child subset/retry-breaker    | Grok Build            | -         | route readiness、credential identity、effective options、unsupported protocol fail closed |
+| 维度                                                           | primary               | secondary | 本轮新增验收                                                                                    |
+| -------------------------------------------------------------- | --------------------- | --------- | ----------------------------------------------------------------------------------------------- |
+| catalog/default/selection/switch/child subset/retry-breaker    | Grok Build            | -         | route readiness、credential identity、effective options、unsupported protocol fail closed       |
 | endpoint/auth/query/header/variant/body/content/media/lowering | Lime `model-provider` | OpenCode  | variant/header/body merge、media capability、schema-aware repair、跨协议 invalid tool、协议穷举 |
-| runtime/session/history/Thread/Turn/Item                       | Codex                 | -         | 不把 OpenCode session store 或 Grok MvpAgent 带入 Lime                                    |
+| runtime/session/history/Thread/Turn/Item                       | Codex                 | -         | 不把 OpenCode session store 或 Grok MvpAgent 带入 Lime                                          |
 
 Grok 的 `SamplerConfig` 与 Codex `ModelProviderInfo` 提醒我们：provider/model 选择还包括
 auth scheme、headers/query、variant、limits、timeouts、stream/request retry、service tier、

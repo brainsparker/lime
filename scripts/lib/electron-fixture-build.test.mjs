@@ -466,6 +466,36 @@ describe("electron fixture build freshness", () => {
     );
   });
 
+  it("invalidates only app-server artifacts when embedded resources change", () => {
+    const rootDir = createTempRoot();
+    writeRequiredFiles(rootDir, new Date("2026-01-01T00:10:00.000Z"));
+    const resource = path.join(
+      "lime-rs",
+      "resources",
+      "default-skills",
+      "example",
+      "SKILL.md",
+    );
+    writeFile(
+      path.join(rootDir, resource),
+      "changed embedded skill",
+      new Date("2026-01-01T00:20:00.000Z"),
+    );
+
+    expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+      ready: false,
+      reason: "stale-source",
+      staleSegments: ["appServer"],
+      segments: {
+        renderer: { ready: true },
+        host: { ready: true },
+        appServer: { newestSource: { relativePath: resource } },
+      },
+    });
+    writeRequiredFiles(rootDir, new Date("2026-01-01T00:30:00.000Z"));
+    expect(inspectElectronFixtureBuildFreshness({ rootDir }).ready).toBe(true);
+  });
+
   it("only rebuilds the app-server segment for Rust-only fixture staleness", () => {
     const rootDir = createTempRoot();
     const envKey = electronFixtureBuildReadyEnv();

@@ -1,0 +1,672 @@
+[
+  {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.218 Electron/42.3.3 Safari/537.36",
+    "devicePixelRatio": 1,
+    "zoomFactor": 1,
+    "source": {
+      "path": ".lime/qc/professional-files/presentation-border-width-20261018-1/electron-border-oracle-dpr-1.json",
+      "sha256": "0c806243a944a4e4f62e611db5776f077496b490b0d04e20087101773788f2c2",
+      "electron": "42.3.3",
+      "chrome": "148.0.7778.218"
+    },
+    "contexts": ["div", "separate", "collapse"],
+    "samples": [
+      {
+        "input": 0,
+        "borderStyle": "solid",
+        "declaredWidth": "0px",
+        "declaredStyle": "solid",
+        "computedWidth": "0px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0,
+        "borderStyle": "none",
+        "declaredWidth": "0px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0,
+        "declarationKind": "shorthand-none",
+        "borderStyle": "none",
+        "declaredWidth": "medium",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0,
+        "borderStyle": "hidden",
+        "declaredWidth": "0px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "solid",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "none",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "solid",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "none",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "solid",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "none",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "none",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1,
+        "borderStyle": "solid",
+        "declaredWidth": "1px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1,
+        "borderStyle": "none",
+        "declaredWidth": "1px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1,
+        "borderStyle": "hidden",
+        "declaredWidth": "1px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "solid",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "none",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "solid",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "none",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "none",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 2,
+        "borderStyle": "solid",
+        "declaredWidth": "2px",
+        "declaredStyle": "solid",
+        "computedWidth": "2px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 2,
+        "borderStyle": "none",
+        "declaredWidth": "2px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 2,
+        "borderStyle": "hidden",
+        "declaredWidth": "2px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "2px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "none",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "solid",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "solid",
+        "computedWidth": "3px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "none",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "hidden",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "3px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "none",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      }
+    ]
+  },
+  {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.7778.218 Electron/42.3.3 Safari/537.36",
+    "devicePixelRatio": 2,
+    "zoomFactor": 1,
+    "source": {
+      "path": ".lime/qc/professional-files/presentation-border-width-20261018-1/electron-border-oracle-dpr-2.json",
+      "sha256": "042e6382fe57b9ad992b595716682a0063524b8dcc8a6ea1902a13501f1062c4",
+      "electron": "42.3.3",
+      "chrome": "148.0.7778.218"
+    },
+    "contexts": ["div", "separate", "collapse"],
+    "samples": [
+      {
+        "input": 0,
+        "borderStyle": "solid",
+        "declaredWidth": "0px",
+        "declaredStyle": "solid",
+        "computedWidth": "0px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0,
+        "borderStyle": "none",
+        "declaredWidth": "0px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0,
+        "declarationKind": "shorthand-none",
+        "borderStyle": "none",
+        "declaredWidth": "medium",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0,
+        "borderStyle": "hidden",
+        "declaredWidth": "0px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "solid",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "solid",
+        "computedWidth": "0.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "none",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.001,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.001px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "solid",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "solid",
+        "computedWidth": "0.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "none",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.25,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.25px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "solid",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "solid",
+        "computedWidth": "0.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "none",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.5,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.5px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "0.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "none",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 0.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "0.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1,
+        "borderStyle": "solid",
+        "declaredWidth": "1px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1,
+        "borderStyle": "none",
+        "declaredWidth": "1px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1,
+        "borderStyle": "hidden",
+        "declaredWidth": "1px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "solid",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "solid",
+        "computedWidth": "1px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "none",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.3333333333333333,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.33333px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "solid",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "solid",
+        "computedWidth": "1.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "none",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.5,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.5px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "1.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "none",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 1.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "1.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 2,
+        "borderStyle": "solid",
+        "declaredWidth": "2px",
+        "declaredStyle": "solid",
+        "computedWidth": "2px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 2,
+        "borderStyle": "none",
+        "declaredWidth": "2px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 2,
+        "borderStyle": "hidden",
+        "declaredWidth": "2px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "2.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "none",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 2.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "2.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "solid",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "solid",
+        "computedWidth": "3px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "none",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 3.25,
+        "borderStyle": "hidden",
+        "declaredWidth": "3.25px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "solid",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "solid",
+        "computedWidth": "3.5px",
+        "computedStyle": "solid"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "none",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "none",
+        "computedWidth": "0px",
+        "computedStyle": "none"
+      },
+      {
+        "input": 3.9999,
+        "borderStyle": "hidden",
+        "declaredWidth": "3.9999px",
+        "declaredStyle": "hidden",
+        "computedWidth": "0px",
+        "computedStyle": "hidden"
+      }
+    ]
+  }
+]

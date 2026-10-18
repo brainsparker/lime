@@ -50,6 +50,7 @@ import {
 import { buildHistoricalMessagePreview } from "./messageListHistoricalPreviewText";
 import { isTerminalThreadTurnStatus } from "./messageListItemProjectionHelpers";
 import { isActiveThreadTurnStatus } from "./messageListProjectionWebRetrieval";
+import { sanitizeMessageTextForDisplay } from "../utils/messageDisplaySanitizer";
 import { StreamingRenderer } from "./StreamingRenderer";
 import {
   ThreadRevertTrigger,
@@ -114,10 +115,14 @@ function resolveUserMessageContent(
 ): string {
   if (segment.item.type !== "user_message") return "";
   const content = segment.item.content ?? "";
-  if (content.trim()) return content;
-  return (segment.item.content_parts ?? [])
-    .flatMap((part) => (part.type === "text" ? [part.text] : []))
-    .join("\n");
+  return sanitizeMessageTextForDisplay(
+    content.trim()
+      ? content
+      : (segment.item.content_parts ?? [])
+          .flatMap((part) => (part.type === "text" ? [part.text] : []))
+          .join("\n"),
+    { role: "user" },
+  );
 }
 
 function resolveUserMessageLabels(

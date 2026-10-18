@@ -1,3 +1,4 @@
+import { resolveWorkspaceFilePreviewTarget } from "./canvas-workbench/files/workspaceFilePreview";
 import { resolveArtifactProtocolFilePath } from "@/lib/artifact-protocol";
 import type { DirectoryListing } from "@/lib/api/fileBrowser";
 import type { Artifact } from "@/lib/artifact/types";
@@ -717,39 +718,7 @@ export function resolveSelectionContext({
       status: "loading" as const,
     };
 
-    let target: CanvasWorkbenchPreviewTarget;
-    if (workspaceFile.status === "loading") {
-      target = {
-        kind: "loading",
-        title: workspaceFile.title,
-        filePath: workspaceFile.path,
-        absolutePath: workspaceFile.path,
-      };
-    } else if (workspaceFile.status === "binary") {
-      target = {
-        kind: "unsupported",
-        title: workspaceFile.title,
-        reason: copy.workspaceFile.binaryUnsupported,
-        filePath: workspaceFile.path,
-        absolutePath: workspaceFile.path,
-      };
-    } else if (workspaceFile.status === "error") {
-      target = {
-        kind: "unsupported",
-        title: workspaceFile.title,
-        reason: workspaceFile.error || copy.workspaceFile.readFailed,
-        filePath: workspaceFile.path,
-        absolutePath: workspaceFile.path,
-      };
-    } else {
-      target = {
-        kind: "default-canvas",
-        title: workspaceFile.title,
-        content: workspaceFile.content || "",
-        filePath: workspaceFile.path,
-        absolutePath: workspaceFile.path,
-      };
-    }
+    const target = resolveWorkspaceFilePreviewTarget(workspaceFile, copy);
 
     const displayPath = resolveWorkspaceRelativeDisplayPath(
       workspaceRoot,

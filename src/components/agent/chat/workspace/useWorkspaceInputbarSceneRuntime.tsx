@@ -589,6 +589,7 @@ export function useWorkspaceInputbarSceneRuntime({
   ) : null;
 
   return {
+    handleInputbarSend,
     ...presentationRuntime,
     inputbarNode:
       composerStatusNode || draftStatusNode ? (

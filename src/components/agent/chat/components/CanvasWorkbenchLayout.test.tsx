@@ -12,6 +12,7 @@ import {
   expectWorkbenchTabNotInNewMenu,
   flushEffects,
   mockListDirectory,
+  mockReadFileBytes,
   mount,
   mountHarness,
   resizeWorkbench,
@@ -222,7 +223,8 @@ describe("CanvasWorkbenchLayout", () => {
     const documentPreviewRegion = container.querySelector(
       '[data-testid="canvas-workbench-preview-mode-panel"]',
     ) as HTMLElement | null;
-    expect(documentPreviewRegion?.className).toContain("bg-white");
+    expect(documentPreviewRegion?.className).toContain("bg-background");
+    expect(documentPreviewRegion?.className).not.toContain("bg-white");
     expect(documentPreviewRegion?.className).not.toContain("rounded-[14px]");
     expect(documentPreviewRegion?.className).not.toContain("border");
     expect(container.textContent).toContain("README.md");
@@ -256,6 +258,8 @@ describe("CanvasWorkbenchLayout", () => {
     expect(onOpenPath).toHaveBeenCalledWith("/workspace/README.md");
 
     clickByAriaLabel(container, "下载");
+    await flushEffects();
+    expect(mockReadFileBytes).toHaveBeenCalledWith("/workspace/README.md");
     expect(globalThis.URL.createObjectURL).toHaveBeenCalledTimes(1);
     expect(HTMLAnchorElement.prototype.click).toHaveBeenCalledTimes(1);
   }, 15_000);
@@ -871,7 +875,9 @@ describe("CanvasWorkbenchLayout", () => {
     ).toContain("session-runtime-panel");
     expect(renderSessionPanel).toHaveBeenCalled();
 
-    clickByAriaLabel(container, "关闭画布工作台");
+    await act(async () => {
+      clickByAriaLabel(container, "关闭画布工作台");
+    });
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 

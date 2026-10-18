@@ -493,7 +493,7 @@ async function waitForContentFactoryArticleWorkspaceEditedDraftRestored(
   );
 }
 
-async function clickContentFactoryArticleArtifactFrame(
+export async function clickContentFactoryArticleArtifactFrame(
   page,
   options,
   articleArtifactRef,
@@ -978,11 +978,6 @@ async function waitForContentFactoryArticleWorkspaceGui(page, options) {
         ),
       );
       const root = roots.find(isVisible) ?? roots[0] ?? null;
-      const rendererHost = document.querySelector(
-        '[data-testid="workspace-article-workspace-app-declared-renderer"]',
-      );
-      const rendererExecutableHost =
-        rendererHost?.querySelector("iframe, webview");
       const toggle = document.querySelector(
         '[data-testid="task-center-object-canvas-toggle"]',
       );
@@ -1047,23 +1042,6 @@ async function waitForContentFactoryArticleWorkspaceGui(page, options) {
         hasRegeneratedImageSummary: bodyText.includes("已重新生成 2 张候选图"),
         hasRegeneratedImagePrompt:
           bodyText.includes("厨房台面主图，明亮自然光"),
-        rendererHost: {
-          visible: isVisible(rendererHost),
-          pluginVisible: bodyText.includes("content-factory-app"),
-          rendererKindVisible: bodyText.includes("app_declared"),
-          executionModeVisible: bodyText.includes("host_placeholder"),
-          rendererExecutionModelVisible: bodyText.includes(
-            "host_placeholder_only",
-          ),
-          entryLoadPolicyVisible: bodyText.includes("not_loaded"),
-          executableHostAbsent: !rendererExecutableHost,
-          reasonVisible: bodyText.includes(
-            "app_declared_renderer_placeholder_only",
-          ),
-          allowedOutputVisible: bodyText.includes("workspace_patch"),
-          entryVisible: bodyText.includes("./renderer/storyboard.tsx"),
-          actionVisible: bodyText.includes("open_storyboard"),
-        },
         bodyTextSample: bodyText.slice(0, 2000),
       };
 
@@ -1629,14 +1607,6 @@ function summarizeContentFactoryArticleWorkspaceReadModel(result, identity) {
     asRecord(storyboardObject?.source) ??
     asRecord(storyboardObject?.source_metadata) ??
     {};
-  const storyboardRendererContract =
-    asRecord(storyboardObjectSource.rendererContract) ??
-    asRecord(storyboardObjectSource.renderer_contract) ??
-    {};
-  const storyboardRuntimeAuthorization =
-    asRecord(storyboardRendererContract.runtimeAuthorization) ??
-    asRecord(storyboardRendererContract.runtime_authorization) ??
-    {};
   const actionResultArtifacts = artifacts.filter((artifact) => {
     const artifactRef = readString(
       artifact?.artifactRef,
@@ -1899,31 +1869,11 @@ function summarizeContentFactoryArticleWorkspaceReadModel(result, identity) {
             storyboardArticleWorkspace.surfaceKind,
             storyboardArticleWorkspace.surface_kind,
           ),
-          rendererContract: {
-            pluginId: readString(
-              storyboardRendererContract.pluginId,
-              storyboardRendererContract.plugin_id,
-            ),
-            rendererKind: readString(
-              storyboardRendererContract.rendererKind,
-              storyboardRendererContract.renderer_kind,
-            ),
-            entry: readString(storyboardRendererContract.entry),
-            executionMode: readString(
-              storyboardRuntimeAuthorization.executionMode,
-              storyboardRuntimeAuthorization.execution_mode,
-            ),
-            reasonCode: readString(
-              storyboardRuntimeAuthorization.reasonCode,
-              storyboardRuntimeAuthorization.reason_code,
-            ),
-            allowedOutputArtifactKinds: readArray(
-              storyboardRuntimeAuthorization.allowedOutputArtifactKinds,
-              storyboardRuntimeAuthorization.allowed_output_artifact_kinds,
-            )
-              .map((value) => readString(value))
-              .filter(Boolean),
-          },
+          scenes: readArray(storyboardObjectSource.scenes).map((scene) => ({
+            id: readString(scene?.id),
+            title: readString(scene?.title),
+            description: readString(scene?.description),
+          })),
         }
       : null,
     checklistArtifact: checklistArtifact

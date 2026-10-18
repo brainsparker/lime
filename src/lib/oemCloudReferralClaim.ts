@@ -1,5 +1,5 @@
 import { claimClientReferral } from "@/lib/api/oemCloudControlPlane";
-import { getStoredOemCloudSessionState } from "@/lib/oemCloudSession";
+import { getCloudAccount } from "@/lib/cloudAccount";
 
 const OEM_CLOUD_REFERRAL_PENDING_STORAGE_KEY =
   "lime:oem-cloud-referral:pending";
@@ -179,7 +179,7 @@ export function clearStoredOemCloudReferralInvite(code?: string): void {
 export async function claimOemCloudReferralInvite(
   detail: OemCloudReferralInviteDetail,
 ): Promise<OemCloudReferralClaimResult> {
-  const sessionState = getStoredOemCloudSessionState();
+  const sessionState = getCloudAccount();
   if (!sessionState) {
     storeOemCloudReferralInvite(detail);
     return {

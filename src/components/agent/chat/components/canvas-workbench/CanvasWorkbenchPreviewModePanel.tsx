@@ -64,6 +64,9 @@ function shouldRenderArtifactDirectly(
 
   return (
     artifact.meta.renderMode === "media" ||
+    artifact.meta.renderMode === "document_pages" ||
+    artifact.meta.renderMode === "workbook" ||
+    artifact.meta.renderMode === "presentation" ||
     artifact.meta.renderMode === "system_open" ||
     artifact.meta.renderMode === "unsupported"
   );
@@ -84,9 +87,9 @@ export const CanvasWorkbenchPreviewModePanel = memo(
         <div
           data-testid="canvas-workbench-preview-mode-panel"
           data-preview-mode={mode}
-          className={cn("h-full min-h-0 bg-white p-5", className)}
+          className={cn("h-full min-h-0 bg-background p-5", className)}
         >
-          <div className="rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+          <div className="rounded-[10px] border border-dashed border-border bg-muted/50 px-4 py-5 text-sm text-muted-foreground">
             {translateWorkbench(
               "agentChat.canvasWorkbench.coding.preview.mode.empty",
             )}
@@ -100,10 +103,10 @@ export const CanvasWorkbenchPreviewModePanel = memo(
         <div
           data-testid="canvas-workbench-preview-mode-panel"
           data-preview-mode={mode}
-          className={cn("h-full min-h-0 bg-white p-5", className)}
+          className={cn("h-full min-h-0 bg-background p-5", className)}
         >
           <div
-            className="rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500"
+            className="rounded-[10px] border border-dashed border-border bg-muted/50 px-4 py-5 text-sm text-muted-foreground"
             data-testid="canvas-workbench-preview-loading"
           >
             {translateWorkbench(
@@ -119,10 +122,10 @@ export const CanvasWorkbenchPreviewModePanel = memo(
         <div
           data-testid="canvas-workbench-preview-mode-panel"
           data-preview-mode={mode}
-          className={cn("h-full min-h-0 bg-white p-5", className)}
+          className={cn("h-full min-h-0 bg-background p-5", className)}
         >
           <div
-            className="rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500"
+            className="rounded-[10px] border border-dashed border-border bg-muted/50 px-4 py-5 text-sm text-muted-foreground"
             data-testid="canvas-workbench-preview-unsupported"
           >
             {context.target.reason}
@@ -136,9 +139,9 @@ export const CanvasWorkbenchPreviewModePanel = memo(
         <div
           data-testid="canvas-workbench-preview-mode-panel"
           data-preview-mode={mode}
-          className={cn("h-full min-h-0 bg-white p-5", className)}
+          className={cn("h-full min-h-0 bg-background p-5", className)}
         >
-          <div className="rounded-[10px] border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
+          <div className="rounded-[10px] border border-dashed border-border bg-muted/50 px-4 py-5 text-sm text-muted-foreground">
             {translateWorkbench(
               "agentChat.canvasWorkbench.coding.preview.mode.empty",
             )}
@@ -172,57 +175,59 @@ export const CanvasWorkbenchPreviewModePanel = memo(
       <section
         data-testid="canvas-workbench-preview-mode-panel"
         data-preview-mode={mode}
-        className={cn("flex h-full min-h-0 flex-col bg-white", className)}
+        className={cn("flex h-full min-h-0 flex-col bg-background", className)}
       >
-        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-slate-200 bg-white px-3">
+        <div className="flex h-11 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-3">
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-slate-200 bg-slate-50 text-slate-500">
+            <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-[8px] border border-border bg-muted/50 text-muted-foreground">
               {resolveModeIcon(mode)}
             </span>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[13px] font-semibold text-slate-950">
+              <div className="truncate text-[13px] font-semibold text-foreground">
                 {context.title}
               </div>
               {title ? (
-                <div className="truncate font-mono text-[11px] text-slate-500">
+                <div className="truncate font-mono text-[11px] text-muted-foreground">
                   {title}
                 </div>
               ) : null}
             </div>
           </div>
-          <div
-            className="flex shrink-0 items-center gap-1"
-            data-testid="canvas-workbench-preview-mode-tabs"
-          >
-            {Object.values(modeState.modes).map((option) => (
-              <button
-                key={option.mode}
-                type="button"
-                aria-label={translateWorkbench(option.ariaKey)}
-                disabled={!option.enabled}
-                onClick={() => onSelectMode?.(option.mode)}
-                className={cn(
-                  "inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-                  mode === option.mode
-                    ? "border-slate-300 bg-slate-900 text-white"
-                    : "border-slate-200 bg-slate-50 text-slate-600 hover:bg-white hover:text-slate-900",
-                )}
-              >
-                {option.mode === "html" ? (
-                  <Eye className="h-3.5 w-3.5" />
-                ) : option.mode === "code" ? (
-                  <FileCode2 className="h-3.5 w-3.5" />
-                ) : (
-                  resolveModeIcon(option.mode)
-                )}
-                {translateWorkbench(option.labelKey)}
-              </button>
-            ))}
-          </div>
+          {!artifactPreview && (
+            <div
+              className="flex shrink-0 items-center gap-1"
+              data-testid="canvas-workbench-preview-mode-tabs"
+            >
+              {Object.values(modeState.modes).map((option) => (
+                <button
+                  key={option.mode}
+                  type="button"
+                  aria-label={translateWorkbench(option.ariaKey)}
+                  disabled={!option.enabled}
+                  onClick={() => onSelectMode?.(option.mode)}
+                  className={cn(
+                    "inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45",
+                    mode === option.mode
+                      ? "border-border bg-primary text-primary-foreground"
+                      : "border-border bg-muted/50 text-muted-foreground hover:bg-background hover:text-foreground",
+                  )}
+                >
+                  {option.mode === "html" ? (
+                    <Eye className="h-3.5 w-3.5" />
+                  ) : option.mode === "code" ? (
+                    <FileCode2 className="h-3.5 w-3.5" />
+                  ) : (
+                    resolveModeIcon(option.mode)
+                  )}
+                  {translateWorkbench(option.labelKey)}
+                </button>
+              ))}
+            </div>
+          )}
           {toolbarActions}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-hidden bg-white">
+        <div className="min-h-0 flex-1 overflow-hidden bg-background">
           {artifactPreview ? (
             <ArtifactRenderer
               artifact={artifactPreview}
@@ -232,7 +237,7 @@ export const CanvasWorkbenchPreviewModePanel = memo(
           ) : mode === "markdown" ? (
             <div
               data-testid="canvas-workbench-markdown-preview"
-              className="h-full overflow-auto bg-white px-6 py-5"
+              className="h-full overflow-auto bg-background px-6 py-5"
             >
               <MarkdownRenderer
                 content={context.content}
@@ -245,7 +250,7 @@ export const CanvasWorkbenchPreviewModePanel = memo(
               src={htmlPreviewFrame?.src || undefined}
               srcDoc={htmlPreviewFrame?.srcDoc}
               sandbox={htmlPreviewFrame?.sandbox}
-              className="h-full min-h-[420px] w-full border-0 bg-white"
+              className="h-full min-h-[420px] w-full border-0 bg-background"
               title={
                 context.title ||
                 translateWorkbench(
@@ -256,7 +261,7 @@ export const CanvasWorkbenchPreviewModePanel = memo(
           ) : (
             <div
               data-testid="canvas-workbench-code-preview"
-              className="h-full min-h-0 bg-white"
+              className="h-full min-h-0 bg-background"
             >
               <CodePreview
                 code={context.content}

@@ -139,6 +139,7 @@ pub(super) fn server_notification_thread_target(
             Some(notification.thread_id.as_str())
         }
         ServerNotification::ConfigWarning(_)
+        | ServerNotification::AccountUpdated(_)
         | ServerNotification::SkillsChanged(_)
         | ServerNotification::McpServerEventStream(_)
         | ServerNotification::AppListUpdated(_)
@@ -168,8 +169,9 @@ mod tests {
         server_notification_thread_target, server_request_thread_id, ServerNotificationThreadTarget,
     };
     use app_server_protocol::protocol::v2::{
-        AgentMessageDeltaNotification, CurrentTimeReadParams, McpServerStartupState,
-        McpServerStatusUpdatedNotification, ServerNotification, ServerRequest, WarningNotification,
+        AccountUpdatedNotification, AgentMessageDeltaNotification, CurrentTimeReadParams,
+        McpServerStartupState, McpServerStatusUpdatedNotification, ServerNotification,
+        ServerRequest, WarningNotification,
     };
     use app_server_protocol::RequestId;
 
@@ -185,6 +187,20 @@ mod tests {
             server_notification_thread_target(&notification),
             ServerNotificationThreadTarget::Global
         );
+    }
+
+    #[test]
+    fn account_updates_are_global_with_or_without_an_authenticated_account() {
+        for auth_mode in [None, Some("cloud".to_string())] {
+            let notification = ServerNotification::AccountUpdated(AccountUpdatedNotification {
+                auth_mode,
+                plan_type: None,
+            });
+            assert_eq!(
+                server_notification_thread_target(&notification),
+                ServerNotificationThreadTarget::Global
+            );
+        }
     }
 
     #[test]

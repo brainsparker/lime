@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { inspectImportedFilePreviewArtifacts } from "./lib/imported-file-preview.mjs";
+
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
@@ -28,7 +30,6 @@ import {
   inspectImportedHistoricalTimelineSummary,
   inspectEnvironmentPopoverImportBoundary,
   inspectImportedAttachmentPreview,
-  inspectImportedFilePreviewArtifacts,
   inspectImportedHistoryBanner,
   inspectImportedMarkdownAndSearchRendering,
   inspectSidebarImportDiscoverability,
@@ -53,6 +54,9 @@ import {
 } from "./lib/local-history-import-smoke-utils.mjs";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
+import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
 
 const DEFAULTS = {
   appUrl: "",
@@ -277,7 +281,9 @@ function canonicalThreadReadProjection(readResult) {
         ];
       }
       case "dynamicToolCall": {
-        const toolName = String(item.tool ?? "").trim().toLowerCase();
+        const toolName = String(item.tool ?? "")
+          .trim()
+          .toLowerCase();
         if (toolName !== "web_search") {
           return [{ ...item, type: "dynamic_tool_call" }];
         }
@@ -327,7 +333,8 @@ function summarizeReadModel(readResult) {
   const messages = projection.messages;
   const items = projection.items;
   return {
-    sessionId: readResult?.thread?.sessionId ?? readResult?.session?.sessionId ?? null,
+    sessionId:
+      readResult?.thread?.sessionId ?? readResult?.session?.sessionId ?? null,
     messagesLength: messages.length,
     itemsLength: items.length,
     itemTypes: [...new Set(items.map((item) => item?.type).filter(Boolean))],
@@ -408,8 +415,7 @@ function summarizeReadModel(readResult) {
         message?.role === "user" &&
         Array.isArray(message?.content) &&
         message.content.some(
-          (part) =>
-            part?.type === "image" || part?.type === "localImage",
+          (part) => part?.type === "image" || part?.type === "localImage",
         ),
     ),
   };
@@ -734,6 +740,7 @@ async function run() {
   };
 
   let app = null;
+  let mainExit;
   let page = null;
   const consoleErrors = [];
   const rendererSnapshots = [];
@@ -758,6 +765,13 @@ async function run() {
   let clickThroughSummary = null;
 
   try {
+    summary.freshnessBefore = inspectElectronFixtureBuildFreshness({
+      rootDir: process.cwd(),
+    });
+    assert(
+      summary.freshnessBefore.ready,
+      "import preview fixture requires current build",
+    );
     logStage("launch-electron");
     app = await electron.launch({
       executablePath: electronPath,
@@ -782,6 +796,7 @@ async function run() {
       },
       timeout: options.timeoutMs,
     });
+    mainExit = captureMainProcessExit(app.process());
 
     app.on("console", (message) => {
       if (message.type() === "error") {
@@ -790,6 +805,10 @@ async function run() {
     });
 
     page = await app.firstWindow({ timeout: options.timeoutMs });
+    summary.pageErrors = [];
+    page.on("pageerror", (error) =>
+      summary.pageErrors.push(sanitizeText(error.message)),
+    );
     page.setDefaultTimeout(options.timeoutMs);
     await page.setViewportSize({ width: 1440, height: 1000 });
 
@@ -1134,6 +1153,17 @@ async function run() {
     summary.screenshot = screenshotPath;
     summary.visualAudit = sanitizeJson(visualAuditSummary);
     summary.consoleErrors = consoleErrors;
+    assert(
+      summary.pageErrors.length === 0,
+      `page errors: ${summary.pageErrors.join(" | ")}`,
+    );
+    summary.freshnessAfter = inspectElectronFixtureBuildFreshness({
+      rootDir: process.cwd(),
+    });
+    assert(
+      summary.freshnessAfter.ready,
+      "import preview fixture build changed during execution",
+    );
     summary.ok = true;
     summary.completedAt = new Date().toISOString();
     writeJsonFile(summaryPath, summary);
@@ -1191,24 +1221,26 @@ async function run() {
     }
     throw error;
   } finally {
-    if (app) {
-      await app.close().catch(() => undefined);
-    }
-    if (!options.keepTemp) {
-      try {
-        fs.rmSync(runtimeEnv.tempRoot, {
-          recursive: true,
-          force: true,
-          maxRetries: 5,
-          retryDelay: 200,
-        });
-      } catch (cleanupError) {
-        console.warn(
-          `${LOG_PREFIX} cleanup warning: ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
-        );
-      }
-    }
+    summary.teardown = await settleFixtureResources({
+      app,
+      mainExit,
+      cleanupTemp: options.keepTemp
+        ? undefined
+        : () =>
+            fs.rmSync(runtimeEnv.tempRoot, {
+              recursive: true,
+              force: true,
+              maxRetries: 5,
+              retryDelay: 200,
+            }),
+    });
+    summary.ok = summary.ok && summary.teardown.ok;
+    writeJsonFile(summaryPath, summary);
   }
+  assert(
+    summary.ok,
+    "import preview fixture failed to complete and exit normally",
+  );
 }
 
 run().catch((error) => {

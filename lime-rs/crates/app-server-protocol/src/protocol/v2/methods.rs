@@ -1,6 +1,12 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub const METHOD_ACCOUNT_LOGIN_START: &str = "account/login/start";
+pub const METHOD_ACCOUNT_READ: &str = "account/read";
+pub const METHOD_ACCOUNT_LOGOUT: &str = "account/logout";
+pub const METHOD_CLOUD_REQUEST: &str = "cloud/request";
+pub const METHOD_ACCOUNT_UPDATED: &str = "account/updated";
+
 pub const METHOD_THREAD_START: &str = "thread/start";
 pub const METHOD_THREAD_FORK: &str = "thread/fork";
 pub const METHOD_THREAD_RESUME: &str = "thread/resume";
@@ -91,6 +97,12 @@ pub const METHOD_PLUGIN_READ: &str = "plugin/read";
 pub const METHOD_PLUGIN_INSTALL: &str = "plugin/install";
 pub const METHOD_PLUGIN_UNINSTALL: &str = "plugin/uninstall";
 pub const METHOD_PLUGIN_INSTALLED: &str = "plugin/installed";
+pub const METHOD_PLUGIN_RECONCILE: &str = "plugin/reconcile";
+pub const METHOD_PLUGIN_SHARE_SAVE: &str = "plugin/share/save";
+pub const METHOD_PLUGIN_SHARE_LIST: &str = "plugin/share/list";
+pub const METHOD_PLUGIN_SHARE_UPDATE_TARGETS: &str = "plugin/share/updateTargets";
+pub const METHOD_PLUGIN_SHARE_CHECKOUT: &str = "plugin/share/checkout";
+pub const METHOD_PLUGIN_SHARE_DELETE: &str = "plugin/share/delete";
 pub const METHOD_MODEL_LIST_UPDATED: &str = "model/list/updated";
 pub const METHOD_APP_LIST_UPDATED: &str = "app/list/updated";
 pub const METHOD_SCHEDULED_TASK_CHANGED: &str = "scheduledTask/changed";
@@ -346,6 +358,14 @@ pub enum Method {
     SkillsExtraRootsSet,
     #[serde(rename = "skills/config/write")]
     SkillsConfigWrite,
+    #[serde(rename = "account/login/start")]
+    AccountLoginStart,
+    #[serde(rename = "account/read")]
+    AccountRead,
+    #[serde(rename = "account/logout")]
+    AccountLogout,
+    #[serde(rename = "cloud/request")]
+    CloudRequest,
     #[serde(rename = "marketplace/add")]
     MarketplaceAdd,
     #[serde(rename = "marketplace/remove")]
@@ -364,6 +384,18 @@ pub enum Method {
     PluginUninstall,
     #[serde(rename = "plugin/installed")]
     PluginInstalled,
+    #[serde(rename = "plugin/reconcile")]
+    PluginReconcile,
+    #[serde(rename = "plugin/share/save")]
+    PluginShareSave,
+    #[serde(rename = "plugin/share/list")]
+    PluginShareList,
+    #[serde(rename = "plugin/share/updateTargets")]
+    PluginShareUpdateTargets,
+    #[serde(rename = "plugin/share/checkout")]
+    PluginShareCheckout,
+    #[serde(rename = "plugin/share/delete")]
+    PluginShareDelete,
     #[serde(rename = "turn/start")]
     TurnStart,
     #[serde(rename = "turn/steer")]
@@ -495,6 +527,10 @@ impl Method {
             Self::SkillsList => METHOD_SKILLS_LIST,
             Self::SkillsExtraRootsSet => METHOD_SKILLS_EXTRA_ROOTS_SET,
             Self::SkillsConfigWrite => METHOD_SKILLS_CONFIG_WRITE,
+            Self::AccountLoginStart => METHOD_ACCOUNT_LOGIN_START,
+            Self::AccountRead => METHOD_ACCOUNT_READ,
+            Self::AccountLogout => METHOD_ACCOUNT_LOGOUT,
+            Self::CloudRequest => METHOD_CLOUD_REQUEST,
             Self::MarketplaceAdd => METHOD_MARKETPLACE_ADD,
             Self::MarketplaceRemove => METHOD_MARKETPLACE_REMOVE,
             Self::MarketplaceUpgrade => METHOD_MARKETPLACE_UPGRADE,
@@ -504,6 +540,12 @@ impl Method {
             Self::PluginInstall => METHOD_PLUGIN_INSTALL,
             Self::PluginUninstall => METHOD_PLUGIN_UNINSTALL,
             Self::PluginInstalled => METHOD_PLUGIN_INSTALLED,
+            Self::PluginReconcile => METHOD_PLUGIN_RECONCILE,
+            Self::PluginShareSave => METHOD_PLUGIN_SHARE_SAVE,
+            Self::PluginShareList => METHOD_PLUGIN_SHARE_LIST,
+            Self::PluginShareUpdateTargets => METHOD_PLUGIN_SHARE_UPDATE_TARGETS,
+            Self::PluginShareCheckout => METHOD_PLUGIN_SHARE_CHECKOUT,
+            Self::PluginShareDelete => METHOD_PLUGIN_SHARE_DELETE,
             Self::TurnStart => METHOD_TURN_START,
             Self::TurnSteer => METHOD_TURN_STEER,
             Self::TurnInterrupt => METHOD_TURN_INTERRUPT,
@@ -617,6 +659,10 @@ impl Method {
             METHOD_SKILLS_LIST => Some(Self::SkillsList),
             METHOD_SKILLS_EXTRA_ROOTS_SET => Some(Self::SkillsExtraRootsSet),
             METHOD_SKILLS_CONFIG_WRITE => Some(Self::SkillsConfigWrite),
+            METHOD_ACCOUNT_LOGIN_START => Some(Self::AccountLoginStart),
+            METHOD_ACCOUNT_READ => Some(Self::AccountRead),
+            METHOD_ACCOUNT_LOGOUT => Some(Self::AccountLogout),
+            METHOD_CLOUD_REQUEST => Some(Self::CloudRequest),
             METHOD_MARKETPLACE_ADD => Some(Self::MarketplaceAdd),
             METHOD_MARKETPLACE_REMOVE => Some(Self::MarketplaceRemove),
             METHOD_MARKETPLACE_UPGRADE => Some(Self::MarketplaceUpgrade),
@@ -626,6 +672,12 @@ impl Method {
             METHOD_PLUGIN_INSTALL => Some(Self::PluginInstall),
             METHOD_PLUGIN_UNINSTALL => Some(Self::PluginUninstall),
             METHOD_PLUGIN_INSTALLED => Some(Self::PluginInstalled),
+            METHOD_PLUGIN_RECONCILE => Some(Self::PluginReconcile),
+            METHOD_PLUGIN_SHARE_SAVE => Some(Self::PluginShareSave),
+            METHOD_PLUGIN_SHARE_LIST => Some(Self::PluginShareList),
+            METHOD_PLUGIN_SHARE_UPDATE_TARGETS => Some(Self::PluginShareUpdateTargets),
+            METHOD_PLUGIN_SHARE_CHECKOUT => Some(Self::PluginShareCheckout),
+            METHOD_PLUGIN_SHARE_DELETE => Some(Self::PluginShareDelete),
             METHOD_TURN_START => Some(Self::TurnStart),
             METHOD_TURN_STEER => Some(Self::TurnSteer),
             METHOD_TURN_INTERRUPT => Some(Self::TurnInterrupt),
@@ -733,6 +785,10 @@ pub const METHODS: &[&str] = &[
     METHOD_SKILLS_LIST,
     METHOD_SKILLS_EXTRA_ROOTS_SET,
     METHOD_SKILLS_CONFIG_WRITE,
+    METHOD_ACCOUNT_LOGIN_START,
+    METHOD_ACCOUNT_READ,
+    METHOD_ACCOUNT_LOGOUT,
+    METHOD_CLOUD_REQUEST,
     METHOD_MARKETPLACE_ADD,
     METHOD_MARKETPLACE_REMOVE,
     METHOD_MARKETPLACE_UPGRADE,
@@ -742,6 +798,12 @@ pub const METHODS: &[&str] = &[
     METHOD_PLUGIN_INSTALL,
     METHOD_PLUGIN_UNINSTALL,
     METHOD_PLUGIN_INSTALLED,
+    METHOD_PLUGIN_RECONCILE,
+    METHOD_PLUGIN_SHARE_SAVE,
+    METHOD_PLUGIN_SHARE_LIST,
+    METHOD_PLUGIN_SHARE_UPDATE_TARGETS,
+    METHOD_PLUGIN_SHARE_CHECKOUT,
+    METHOD_PLUGIN_SHARE_DELETE,
     METHOD_TURN_START,
     METHOD_TURN_STEER,
     METHOD_TURN_INTERRUPT,
@@ -767,6 +829,7 @@ pub const METHODS: &[&str] = &[
 ];
 
 pub const NOTIFICATION_METHODS: &[&str] = &[
+    METHOD_ACCOUNT_UPDATED,
     METHOD_CONFIG_WARNING,
     METHOD_WARNING,
     METHOD_GUARDIAN_WARNING,

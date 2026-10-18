@@ -70,44 +70,21 @@ const articleEditorPendingRequest: WorkspaceRightSurfacePendingRequest = {
     },
   },
 };
-const articleEditorArtifactPendingRequest: WorkspaceRightSurfacePendingRequest = {
-  ...articleEditorPendingRequest,
-  requestId: "right_surface_article_workspace_artifact_1",
-  metadata: {
-    artifact: {
-      artifactId: "artifact-workspace-patch-1",
-      path: ".lime/artifacts/workspace-patch.json",
-      title: "内容工厂工作区补丁",
-      kind: "workspace_patch",
-      status: "ready",
-      metadata: articleEditorPendingRequest.metadata,
-    },
-  },
-};
-const pluginSurfacePendingRequest: WorkspaceRightSurfacePendingRequest = {
-  ...pendingRequest,
-  requestId: "right_surface_plugin_1",
-  surfaceKind: "appSurface",
-  origin: "runtime",
-  reason: "plugin_surface_ready",
-  candidateId: "content-factory-app",
-  metadata: {
-    appId: "content-factory-app",
-    title: "内容工厂",
-    surface: {
-      activeStrategy: "controlledBrowserWindow",
-      supportedStrategies: ["controlledBrowserWindow", "webContentsView"],
-      entryUrl: "http://127.0.0.1:4199/dashboard",
-      containerId: "plugin-shell-content-factory-app-standalone",
-      embedding: {
-        standaloneWindow: true,
-        rightSurfaceDock: true,
-        iframe: false,
-        browserView: false,
+const articleEditorArtifactPendingRequest: WorkspaceRightSurfacePendingRequest =
+  {
+    ...articleEditorPendingRequest,
+    requestId: "right_surface_article_workspace_artifact_1",
+    metadata: {
+      artifact: {
+        artifactId: "artifact-workspace-patch-1",
+        path: ".lime/artifacts/workspace-patch.json",
+        title: "内容工厂工作区补丁",
+        kind: "workspace_patch",
+        status: "ready",
+        metadata: articleEditorPendingRequest.metadata,
       },
     },
-  },
-};
+  };
 const browserPendingRequest: WorkspaceRightSurfacePendingRequest = {
   ...pendingRequest,
   requestId: "right_surface_browser_1",
@@ -439,43 +416,6 @@ describe("useWorkspaceRightSurfacePendingRuntime", () => {
         ],
       });
     });
-  });
-
-  it("应把 appSurface pending metadata 投影为右侧 Plugin Surface", async () => {
-    const listPending = vi.fn(async () => ({
-      pending: [pluginSurfacePendingRequest],
-    }));
-    const { render, getValue } = renderHook({ listPending });
-
-    await render();
-
-    await vi.waitFor(() => {
-      expect(getValue().pendingPluginSurface).toEqual({
-        appId: "content-factory-app",
-        title: "内容工厂",
-        entryUrl: "http://127.0.0.1:4199/dashboard",
-        containerId: "plugin-shell-content-factory-app-standalone",
-        activeStrategy: "controlledBrowserWindow",
-        supportedStrategies: ["controlledBrowserWindow", "webContentsView"],
-        sourceRequestId: "right_surface_plugin_1",
-      });
-    });
-    expect(getValue().pendingPluginSurfaces).toEqual([
-      expect.objectContaining({
-        appId: "content-factory-app",
-        containerId: "plugin-shell-content-factory-app-standalone",
-      }),
-    ]);
-    expect(getValue().pendingIntents).toEqual([
-      expect.objectContaining({
-        id: "app-server:right_surface_plugin_1",
-        command: expect.objectContaining({
-          action: "open",
-          kind: "appSurface",
-          reason: "plugin_surface_ready",
-        }),
-      }),
-    ]);
   });
 
   it("应把 browser pending metadata 投影为 Right Surface Browser intent", async () => {

@@ -52,13 +52,12 @@ function createOemRuntime(
     sceneBaseUrl: "https://scene.limeai.run",
     gatewayBaseUrl: "https://llm.limeai.run",
     tenantId: "tenant-0001",
-    sessionToken: null,
+    accountSessionId: null,
     hubProviderName: "Lime 云端",
     loginPath: "/login",
     desktopClientId: "desktop-client",
     desktopOauthRedirectUrl: "lime://oauth/callback",
     desktopOauthNextPath: "/welcome",
-    pluginSignatureTrustRoots: [],
     ...overrides,
   };
 }
@@ -84,9 +83,7 @@ describe("buildConfiguredProviders", () => {
       "openai",
       "custom-provider",
     ]);
-    expect(providers[0]).toEqual(
-      expect.objectContaining({ sortOrder: 1 }),
-    );
+    expect(providers[0]).toEqual(expect.objectContaining({ sortOrder: 1 }));
   });
 
   it("应将无 Key 但已启用且地址有效的 Ollama 视为已配置渠道", () => {
@@ -161,7 +158,7 @@ describe("buildConfiguredProviders", () => {
         }),
       ],
       {
-        oemRuntime: createOemRuntime({ sessionToken: null }),
+        oemRuntime: createOemRuntime({ accountSessionId: null }),
       },
     );
 
@@ -189,7 +186,7 @@ describe("buildConfiguredProviders", () => {
         }),
       ],
       {
-        oemRuntime: createOemRuntime({ sessionToken: null }),
+        oemRuntime: createOemRuntime({ accountSessionId: null }),
       },
     );
 
@@ -206,7 +203,7 @@ describe("buildConfiguredProviders", () => {
 
   it("后端未返回 Lime Hub 但 OEM Runtime 未登录时应合成登录提示 Provider", () => {
     const providers = buildConfiguredProviders([], {
-      oemRuntime: createOemRuntime({ sessionToken: null }),
+      oemRuntime: createOemRuntime({ accountSessionId: null }),
     });
 
     expect(providers).toEqual([
@@ -222,7 +219,7 @@ describe("buildConfiguredProviders", () => {
 
   it("OEM Runtime 已登录但无 Key 时不应合成 Lime Hub 登录提示 Provider", () => {
     const providers = buildConfiguredProviders([], {
-      oemRuntime: createOemRuntime({ sessionToken: "session-token" }),
+      oemRuntime: createOemRuntime({ accountSessionId: "session-token" }),
     });
 
     expect(providers).toEqual([]);
@@ -241,7 +238,7 @@ describe("buildConfiguredProviders", () => {
         }),
       ],
       {
-        oemRuntime: createOemRuntime({ sessionToken: "session-token" }),
+        oemRuntime: createOemRuntime({ accountSessionId: "session-token" }),
       },
     );
 
@@ -269,7 +266,7 @@ describe("buildConfiguredProviders", () => {
         }),
       ],
       {
-        oemRuntime: createOemRuntime({ sessionToken: null }),
+        oemRuntime: createOemRuntime({ accountSessionId: null }),
       },
     );
 

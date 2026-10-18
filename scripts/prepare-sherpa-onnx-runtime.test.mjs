@@ -1,4 +1,6 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -14,9 +16,100 @@ import {
   readMachORpaths,
   resolveSherpaOnnxSysVersion,
   resolveSherpaRuntimePlan,
+  copySherpaRuntimeLibraries,
 } from "./prepare-sherpa-onnx-runtime.mjs";
 
 describe("prepare sherpa-onnx runtime", () => {
+  it.each(["libonnxruntime.1.24.4.dylib", "onnxruntime.dll"])(
+    "发布 %s 时读者始终看到完整旧库或完整新库",
+    (name) => {
+      const root = fs.mkdtempSync(path.join(os.tmpdir(), "runtime-publish-"));
+      try {
+        const libDir = path.join(root, "source");
+        const destination = path.join(root, "debug");
+        fs.mkdirSync(libDir);
+        fs.mkdirSync(destination);
+        const source = path.join(libDir, name);
+        const target = path.join(destination, name);
+        fs.writeFileSync(source, Buffer.alloc(128 * 1024, 0xab));
+        fs.writeFileSync(target, "previous complete library");
+        const plan = {
+          libDir,
+          libs: [name],
+          releaseDir: destination,
+          runtimeLibDir: destination,
+          debugDirs: [],
+        };
+        let published = false;
+        copySherpaRuntimeLibraries(plan, {
+          copy: (from, to, flags) => {
+            expect(to).not.toBe(target);
+            expect(fs.readFileSync(target)).toEqual(
+              published
+                ? fs.readFileSync(source)
+                : Buffer.from("previous complete library"),
+            );
+            fs.copyFileSync(from, to, flags);
+          },
+          publish: (from, to) => {
+            expect(fs.readFileSync(from)).toEqual(fs.readFileSync(source));
+            fs.renameSync(from, to);
+            published = true;
+          },
+        });
+        expect(fs.readFileSync(target)).toEqual(fs.readFileSync(source));
+        expect(fs.readdirSync(destination)).toEqual([name]);
+      } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it("复制不完整时保留已有库并清理临时文件", () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), "runtime-publish-failed-"),
+    );
+    try {
+      const libDir = path.join(root, "source");
+      const destination = path.join(root, "debug");
+      fs.mkdirSync(libDir);
+      fs.mkdirSync(destination);
+      fs.writeFileSync(
+        path.join(libDir, "library.dll"),
+        "new complete library",
+      );
+      fs.writeFileSync(
+        path.join(destination, "library.dll"),
+        "previous complete library",
+      );
+      const plan = {
+        libDir,
+        libs: ["library.dll"],
+        releaseDir: destination,
+        runtimeLibDir: destination,
+        debugDirs: [],
+      };
+      expect(() =>
+        copySherpaRuntimeLibraries(plan, {
+          copy: (_from, to) => fs.writeFileSync(to, ""),
+        }),
+      ).toThrow("Incomplete ONNX runtime shared library");
+      expect(
+        fs.readFileSync(path.join(destination, "library.dll"), "utf8"),
+      ).toBe("previous complete library");
+      expect(fs.readdirSync(destination)).toEqual(["library.dll"]);
+      fs.writeFileSync(path.join(libDir, "library.dll"), "");
+      expect(() => copySherpaRuntimeLibraries(plan)).toThrow(
+        "Empty ONNX runtime shared library",
+      );
+      expect(
+        fs.readFileSync(path.join(destination, "library.dll"), "utf8"),
+      ).toBe("previous complete library");
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("从 Cargo.lock 解析 sherpa-onnx-sys 版本", () => {
     const version = resolveSherpaOnnxSysVersion(`
 [[package]]

@@ -1,37 +1,38 @@
-## Lime v1.160.0
+## Lime v1.161.0
 
 Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
 
 ### Features
 
-- Search settings content and navigate to fields and inner tabs in web search, memory, appearance, and other sections while preserving unsaved changes protection.
-- Use shared marketplace and plugin identities across catalog, details, installation, and CLI commands; share configuration and installation state with Skills, MCP, and Apps.
-- Improve working directory, service tier, and approvals reviewer propagation and persistence when starting, resuming, and forking conversations.
+- Preview original PDF, DOCX, workbook, and presentation files in the workspace, add location annotations, and send feedback to conversations; edit and save supported workbook and presentation content.
+- Extend marketplace source management, remote plugin retrieval, plugin sharing, and access controls through shared desktop, CLI, and App Server contracts.
+- Add App Server account and cloud request interfaces to unify desktop login, account state synchronization, and logout.
 
 ### Fixes
 
-- Reset dynamic tool host state after connection loss and restore host ownership when resuming conversations.
-- Strengthen Skills root watching, plugin configuration persistence, and installation state consistency across entry points.
-- Recover macOS release packaging from temporary ticket stapling network failures after notarization acceptance, retaining signing and notarization diagnostics.
+- Fix file revision hashing failures that could prevent professional file previews or annotations from initializing.
+- Improve state ownership, stale response handling, and file revision conflicts when switching workspaces, previewing files, and submitting annotations.
+- Protect unsaved MCP, experimental, and media service settings, and improve search navigation to developer and media settings.
+- Improve App Server request timeouts and diagnostics, plugin refresh and installation identity, and Hooks lifecycle handling.
 
 ### Improvements and Refactoring
 
-- Continue sharing App Server protocols, runtime behavior, and conversation projections across CLI, TUI, and desktop; separate connection, history, resume, and working directory responsibilities.
-- Replace retired plugin protocols and direct directory installation entry points; remove old mocks and outdated documentation without parallel implementations.
-- Separate memory and appearance presentation components while reusing search, navigation, drafts, and configuration owners; update all five interface languages.
+- Reorder queued messages with drag and drop or keyboard controls using the existing queue protocol and conversation state.
+- Separate file format preview, editing, and annotation responsibilities while sharing file access, save, and conversation submission owners; remove replaced workspace preview paths.
+- Keep account credentials in App Server, remove duplicate renderer session token and logout paths, and update all five interface languages.
 
 ### Tests and Quality
 
-- Extend protocol and runtime coverage for plugin marketplaces, approvals, service tiers, remote working directories, dynamic tools, and Skills.
-- Add settings search, inner tab targeting, unsaved navigation, and five language coverage, and update real Electron scenarios.
-- Synchronize protocol schemas, generated clients, command catalogs, and retired entry point guards.
+- Extend focused regressions and Electron scenarios for file parsing, editing, saving, annotations, queue ordering, settings navigation, accounts, and plugins.
+- Synchronize protocol schemas, generated clients, command catalogs, CLI consumers, and boundary guards.
+- Update runtime dependency preparation, capability scope, and validation records.
 
 ### Documentation
 
-- Update architecture diagrams, capability maps, and validation records for the shared backend, plugin reconstruction, and settings search; complete remote marketplace support and overall GUI alignment remain in progress.
+- Update architecture and execution plans for professional files, plugin reconstruction, settings drafts, queue interactions, and the shared backend; track remaining GUI alignment and unverified capabilities in their domain plans.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.160.0`.
+- Align the desktop app, CLI npm package, and Rust workspace at `1.161.0`.
 
-**Full Changelog**: `v1.159.0` -> `v1.160.0`
+**Full Changelog**: `v1.160.0` -> `v1.161.0`

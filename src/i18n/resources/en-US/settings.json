@@ -2044,6 +2044,7 @@
   "settings.mcpPage.toast.syncFailed": "Sync failed: {{message}}",
   "settings.mcpPage.toast.nameRequired": "Enter a server name.",
   "settings.mcpPage.toast.saveFailed": "Save failed: {{message}}",
+  "settings.mcpPage.toast.deleteFailed": "Failed to delete MCP server. Try again.",
   "settings.mcpPage.error.invalidJson": "Invalid JSON format",
   "settings.mcpPage.error.invalidJsonCannotSave": "Invalid JSON format; cannot save",
   "settings.mcpPage.preset.filesystem.name": "Filesystem",

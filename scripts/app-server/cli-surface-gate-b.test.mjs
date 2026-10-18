@@ -32,13 +32,17 @@ describe("CLI surface Gate B", () => {
       "OAuth logout is only supported for streamable_http transports.",
       "No OAuth credentials stored for",
     ]) {
-      expect(source).toContain(required);
+      expect(source.replace(/\s+/g, " ")).toContain(
+        required.replace(/\s+/g, " "),
+      );
     }
     expect(source).toContain('"--app-server"');
     expect(source).toContain('"--app-server-arg=--data-dir"');
     expect(source).toContain("LIME_APP_SERVER_BIN");
     expect(source).toContain("read_only_sandbox_blocks_shell_command");
-    expect(source).not.toContain("until the protocol exposes credential deletion");
+    expect(source).not.toContain(
+      "until the protocol exposes credential deletion",
+    );
   });
 
   it("keeps the fixture on real stdio App Server and does not call providers", () => {

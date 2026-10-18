@@ -6,7 +6,9 @@ import {
   mountSidebarContainer,
   mockListInstalledPluginCatalog,
   resetAppSidebarTest,
+  seedCloudAccount,
 } from "./AppSidebar.testFixtures";
+import { logoutCloudAccount } from "@/lib/cloudAccount";
 
 describe("AppSidebar Plugins", () => {
   beforeEach(resetAppSidebarTest);
@@ -53,9 +55,19 @@ describe("AppSidebar Plugins", () => {
 
   it("已安装目录应读取真实 catalog 投影并随变更刷新，点击直接打开插件详情", async () => {
     mockListInstalledPluginCatalog.mockResolvedValue({
-      marketplaces: [{ name: "personal", plugins: [
-        { id: "remotion", name: "Remotion", installed: true, enabled: false },
-      ] }],
+      marketplaces: [
+        {
+          name: "personal",
+          plugins: [
+            {
+              id: "remotion",
+              name: "Remotion",
+              installed: true,
+              enabled: false,
+            },
+          ],
+        },
+      ],
     });
     const onNavigate = vi.fn();
     const container = mountSidebarContainer({
@@ -103,6 +115,101 @@ describe("AppSidebar Plugins", () => {
         '[data-testid="app-sidebar-customization-skills"]',
       ),
     ).not.toBeNull();
+  });
+
+  it("换号立即清除旧安装列表并拒绝迟到响应，注销后仍读取本地插件", async () => {
+    const installed = (name: string) => ({
+      marketplaces: [
+        {
+          name: "workspace-directory",
+          plugins: [
+            {
+              id: `${name}@workspace-directory`,
+              name,
+              installed: true,
+              enabled: true,
+            },
+          ],
+        },
+      ],
+    });
+    await seedCloudAccount({
+      tenant: { id: "tenant" },
+      user: { id: "first" },
+      session: { id: "first-session" },
+    });
+    mockListInstalledPluginCatalog.mockResolvedValue(installed("first-plugin"));
+    const container = mountSidebarContainer({ currentPage: "plugins" });
+    await flushEffects();
+    const names = () =>
+      Array.from(
+        container.querySelectorAll(
+          '[data-testid="app-sidebar-installed-plugin"]',
+        ),
+      ).map((element) => element.textContent);
+    expect(names()).toEqual(["first-plugin"]);
+
+    let resolveOld!: (value: unknown) => void;
+    mockListInstalledPluginCatalog.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveOld = resolve;
+      }),
+    );
+    await act(async () => {
+      window.dispatchEvent(new Event("lime:plugin-catalog-changed"));
+    });
+    let resolveCurrent!: (value: unknown) => void;
+    mockListInstalledPluginCatalog.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveCurrent = resolve;
+      }),
+    );
+    await act(async () => {
+      await seedCloudAccount({
+        tenant: { id: "tenant" },
+        user: { id: "second" },
+        session: { id: "second-session" },
+      });
+    });
+    expect(names()).toEqual([]);
+    await act(async () => {
+      resolveOld(installed("first-plugin"));
+    });
+    expect(names()).toEqual([]);
+    await act(async () => {
+      resolveCurrent(installed("second-plugin"));
+    });
+    expect(names()).toEqual(["second-plugin"]);
+
+    mockListInstalledPluginCatalog.mockResolvedValue({
+      marketplaces: [
+        {
+          name: "local",
+          plugins: [
+            {
+              id: "local-plugin@local",
+              name: "local-plugin",
+              installed: true,
+              enabled: true,
+            },
+          ],
+        },
+      ],
+    });
+    await act(async () => {
+      await logoutCloudAccount();
+    });
+    await flushEffects();
+    expect(names()).toEqual(["local-plugin"]);
+    mockListInstalledPluginCatalog.mockRejectedValueOnce(
+      new Error("unavailable"),
+    );
+    await act(async () => {
+      window.dispatchEvent(new Event("lime:plugin-catalog-changed"));
+    });
+    await flushEffects();
+    expect(names()).toEqual([]);
+    expect(container.textContent).toContain("暂时无法读取已安装插件");
   });
 
   it("插件中心入口应常驻主导航并进入插件页", async () => {

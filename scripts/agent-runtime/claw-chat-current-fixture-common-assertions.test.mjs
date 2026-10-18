@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { buildCommonAssertions } from "./claw-chat-current-fixture-common-assertions.mjs";
-import { INPUTBAR_RICH_RESTORE_PROMPT } from "./claw-chat-current-fixture-constants.mjs";
+import { isBrowserIdentityAligned } from "./claw-chat-current-fixture-runtime-surface-assertions.mjs";
+import {
+  APP_SERVER_METHOD_SESSION_LIST,
+  APP_SERVER_METHOD_SESSION_READ,
+  APP_SERVER_METHOD_SESSION_START,
+  APP_SERVER_METHOD_SESSION_TURN_START,
+  APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
+  INPUTBAR_RICH_RESTORE_PROMPT,
+} from "./claw-chat-current-fixture-constants.mjs";
 
 const SCENARIO_FLAGS = [
   "isCancelOnlyScenario",
@@ -25,6 +33,7 @@ const SCENARIO_FLAGS = [
   "isSkillsRuntimeScenario",
   "isSoulStyleScenario",
   "isRightSurfaceVisualMatrixScenario",
+  "isThreadActivityPanelScenario",
   "isContentFactoryArticleWorkspaceScenario",
   "isAnyExpertSkillsRuntimeScenario",
   "isApprovalRequestResumeScenario",
@@ -83,6 +92,144 @@ function buildTraceSummary({
     },
   };
 }
+
+describe.each([
+  "isRightSurfaceVisualMatrixScenario",
+  "isThreadActivityPanelScenario",
+])("read-only panel common contract: %s", (scenarioFlag) => {
+  function panelContext() {
+    return {
+      ...buildContext(),
+      [scenarioFlag]: true,
+      rendererSnapshot: {
+        electron: true,
+        hasInvokeBridge: true,
+        supportsAppServer: true,
+      },
+      appServerRequestMethods: [
+        APP_SERVER_METHOD_SESSION_START,
+        APP_SERVER_METHOD_SESSION_READ,
+        APP_SERVER_METHOD_SESSION_LIST,
+        ...(scenarioFlag === "isRightSurfaceVisualMatrixScenario"
+          ? [APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST]
+          : []),
+      ],
+      summary: {
+        rightSurfaceVisualMatrixSessionCreation: {
+          sessionId: "panel-session",
+          threadId: "panel-thread",
+        },
+        guiRightSurfaceVisualMatrixSessionOpened: {
+          readModel: {
+            hasThread: true,
+            sessionId: "panel-session",
+            threadId: "panel-thread",
+            error: null,
+          },
+          inputReady: {
+            editorSessionId: "panel-session",
+            editorCount: 1,
+            editorVisible: true,
+            editorDisabled: false,
+          },
+        },
+      },
+    };
+  }
+
+  it("accepts a real bridge and matching read model without fabricated chat output", () => {
+    const result = buildCommonAssertions(panelContext());
+    expect(Object.values(result).every((passed) => passed === true)).toBe(true);
+    expect(result).not.toHaveProperty("guiUserMessageVisible");
+    expect(result).not.toHaveProperty("guiAssistantOutputVisible");
+  });
+
+  it.each([
+    ["missing-bridge", "electronPreloadBridge"],
+    ["missing-rpc", "appServerJsonRpcUsed"],
+    ["wrong-thread", "rightSurfaceSessionReadModelAligned"],
+    ["wrong-editor", "guiInputRemainsReady"],
+    ["disabled-editor", "guiInputRemainsReady"],
+    ["rpc-turn", "rightSurfaceDoesNotStartModelTurn"],
+    ["backend-turn", "rightSurfaceDoesNotStartModelTurn"],
+    ["invoke-error", "noInvokeErrors"],
+    ["console-error", "noConsoleErrors"],
+  ])("rejects %s evidence", (mode, assertion) => {
+    const input = panelContext();
+    const opened = input.summary.guiRightSurfaceVisualMatrixSessionOpened;
+    if (mode === "missing-bridge")
+      input.rendererSnapshot.hasInvokeBridge = false;
+    if (mode === "missing-rpc") {
+      const method =
+        scenarioFlag === "isThreadActivityPanelScenario"
+          ? APP_SERVER_METHOD_SESSION_READ
+          : APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST;
+      input.appServerRequestMethods = input.appServerRequestMethods.filter(
+        (entry) => entry !== method,
+      );
+    }
+    if (mode === "wrong-thread") opened.readModel.threadId = "foreign";
+    if (mode === "wrong-editor") opened.inputReady.editorSessionId = "foreign";
+    if (mode === "disabled-editor") opened.inputReady.editorDisabled = true;
+    if (mode === "rpc-turn")
+      input.appServerRequestMethods.push(APP_SERVER_METHOD_SESSION_TURN_START);
+    if (mode === "backend-turn")
+      input.backendLedger.push({ kind: "turnStart" });
+    if (mode === "invoke-error") input.errorRaw = "invoke failed";
+    if (mode === "console-error")
+      input.actionableConsoleErrors.push("render failed");
+    expect(buildCommonAssertions(input)[assertion]).toBe(false);
+  });
+});
+
+describe("current native browser identity", () => {
+  const url = "https://example.com/right-surface-browser";
+  function capture() {
+    return {
+      stable: {
+        browserSurface: {
+          sessionId: "canonical-browser",
+          tabId: "canonical-tab",
+          threadId: "panel-thread",
+          webContentsId: 5,
+          controlOwner: "human",
+        },
+      },
+      nativeTabs: [
+        {
+          browserSessionId: "canonical-browser",
+          tabId: "canonical-tab",
+          threadId: "panel-thread",
+          webContentsId: 5,
+          selected: true,
+          controlOwner: "user",
+          url,
+        },
+      ],
+    };
+  }
+
+  it("requires the renderer projection to match the selected real native tab", () => {
+    expect(isBrowserIdentityAligned(capture(), "panel-thread", url)).toBe(true);
+    expect(isBrowserIdentityAligned(undefined, "panel-thread", url)).toBe(
+      false,
+    );
+  });
+
+  it.each([
+    ["browserSessionId", "foreign"],
+    ["tabId", "foreign"],
+    ["threadId", "foreign"],
+    ["webContentsId", 6],
+    ["selected", false],
+    ["controlOwner", "agent"],
+    ["url", "https://example.com/foreign"],
+  ])("rejects native %s drift", (field, value) => {
+    const input = capture();
+    input.nativeTabs[0][field] = value;
+    expect(isBrowserIdentityAligned(input, "panel-thread", url)).toBe(false);
+  });
+});
 
 describe("rich Composer restored readiness assertion", () => {
   function context() {

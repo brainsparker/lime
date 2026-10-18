@@ -6,14 +6,7 @@
  * 需求: 6.1, 6.2, 6.3, 6.5 - 实验室标签页，截图对话功能开关，快捷键设置，权限警告
  */
 
-import {
-  Suspense,
-  lazy,
-  useState,
-  useEffect,
-  useCallback,
-  type ReactNode,
-} from "react";
+import { Suspense, lazy, useState, useCallback, type ReactNode } from "react";
 import {
   Globe,
   AlertCircle,
@@ -28,19 +21,6 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/utils";
-import {
-  getConfig,
-  saveConfig,
-  type Config,
-  type CrashReportingConfig,
-  type ToolCallingConfig,
-} from "@/lib/api/appConfig";
-import {
-  DEFAULT_EXPERIMENTAL_FEATURES,
-  getExperimentalConfig,
-  saveExperimentalConfig,
-  type ExperimentalFeatures,
-} from "@/lib/api/experimentalFeatures";
 import { getLogs, getPersistedLogsTail } from "@/lib/api/logs";
 import {
   getLogStorageDiagnostics,
@@ -48,24 +28,18 @@ import {
   getWindowsStartupDiagnostics,
 } from "@/lib/api/serverRuntime";
 import { getDesktopHostDiagnostics } from "@/lib/api/desktopHostDiagnostics";
-import { applyCrashReportingSettings } from "@/lib/crashReporting";
 import {
   buildCrashDiagnosticPayload,
   collectRuntimeSnapshotForDiagnostic,
   collectGeneralWorkbenchDocumentStateForDiagnostic,
   copyCrashDiagnosticJsonToClipboard,
   copyCrashDiagnosticToClipboard,
-  DEFAULT_CRASH_REPORTING_CONFIG,
   exportCrashDiagnosticToJson,
   isClipboardPermissionDeniedError,
-  normalizeCrashReportingConfig,
   openCrashDiagnosticDownloadDirectory,
 } from "@/lib/crashDiagnostic";
 import { Switch } from "@/components/ui/switch";
-import {
-  DEFAULT_TOOL_CALLING_CONFIG,
-  normalizeToolCallingConfig,
-} from "./tool-calling-config";
+import { useExperimentalSettingsState } from "./useExperimentalSettingsState";
 
 const UpdateCheckSettings = lazy(() =>
   import("./UpdateCheckSettings").then((module) => ({
@@ -220,222 +194,27 @@ export function ExperimentalSettings({
   embedded = false,
 }: ExperimentalSettingsProps = {}) {
   const { t } = useTranslation("settings");
-  // 状态
-  const [config, setConfig] = useState<ExperimentalFeatures | null>(null);
-  const [toolCallingConfig, setToolCallingConfig] = useState<ToolCallingConfig>(
-    DEFAULT_TOOL_CALLING_CONFIG,
-  );
-  const [crashConfig, setCrashConfig] = useState<CrashReportingConfig>(
-    DEFAULT_CRASH_REPORTING_CONFIG,
-  );
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const {
+    config,
+    toolCallingConfig,
+    crashConfig,
+    crashDraft,
+    loading,
+    saving,
+    error,
+    message,
+    setMessage,
+    loadConfig,
+    handleToggleWebMcp,
+    handleToggleToolCallingEnabled,
+    handleToggleDynamicFiltering,
+    handleToggleNativeInputExamples,
+    handleCrashEnabledToggle,
+    handleCrashFieldChange,
+    handleSaveCrashConfig,
+  } = useExperimentalSettingsState();
   const [diagnosticBusy, setDiagnosticBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
   const [showClipboardGuide, setShowClipboardGuide] = useState(false);
-
-  // 加载配置
-  const loadConfig = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [experimentalConfig, fullConfig] = await Promise.all([
-        getExperimentalConfig(),
-        getConfig(),
-      ]);
-      setConfig(experimentalConfig);
-      setToolCallingConfig(normalizeToolCallingConfig(fullConfig.tool_calling));
-      setCrashConfig(normalizeCrashReportingConfig(fullConfig.crash_reporting));
-    } catch (err) {
-      console.error("加载实验室配置失败:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : t("settings.experimental.message.loadFailed"),
-      );
-      setConfig(DEFAULT_EXPERIMENTAL_FEATURES);
-      setCrashConfig(DEFAULT_CRASH_REPORTING_CONFIG);
-      setToolCallingConfig(DEFAULT_TOOL_CALLING_CONFIG);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  // 初始加载
-  useEffect(() => {
-    loadConfig();
-  }, [loadConfig]);
-
-  const handleToggleWebMcp = useCallback(async () => {
-    if (!config) return;
-
-    const newEnabled = !(config.webmcp?.enabled ?? false);
-    const newConfig: ExperimentalFeatures = {
-      ...config,
-      webmcp: {
-        enabled: newEnabled,
-      },
-    };
-
-    setSaving(true);
-    setMessage(null);
-
-    try {
-      await saveExperimentalConfig(newConfig);
-      setConfig(newConfig);
-      setMessage({
-        type: "success",
-        text: newEnabled
-          ? t("settings.experimental.message.webMcpEnabled")
-          : t("settings.experimental.message.webMcpDisabled"),
-      });
-      setTimeout(() => setMessage(null), 2000);
-    } catch (err) {
-      console.error("保存 WebMCP 配置失败:", err);
-      setMessage({
-        type: "error",
-        text:
-          err instanceof Error
-            ? err.message
-            : t("settings.experimental.message.saveFailed"),
-      });
-    } finally {
-      setSaving(false);
-    }
-  }, [config, t]);
-
-  const persistToolCallingConfig = useCallback(
-    async (next: ToolCallingConfig, successText: string) => {
-      setSaving(true);
-      setMessage(null);
-      try {
-        const latestConfig = await getConfig();
-        const updatedConfig: Config = {
-          ...latestConfig,
-          tool_calling: next,
-        };
-        await saveConfig(updatedConfig);
-        setToolCallingConfig(next);
-        setMessage({ type: "success", text: successText });
-        setTimeout(() => setMessage(null), 2000);
-      } catch (err) {
-        console.error("保存 Tool Calling 配置失败:", err);
-        setMessage({
-          type: "error",
-          text:
-            err instanceof Error
-              ? err.message
-              : t("settings.experimental.message.toolCallingSaveFailed"),
-        });
-      } finally {
-        setSaving(false);
-      }
-    },
-    [t],
-  );
-
-  const handleToggleToolCallingEnabled = useCallback(() => {
-    const next = {
-      ...toolCallingConfig,
-      enabled: !toolCallingConfig.enabled,
-    };
-    void persistToolCallingConfig(
-      next,
-      next.enabled
-        ? t("settings.experimental.message.toolCallingEnabled")
-        : t("settings.experimental.message.toolCallingDisabled"),
-    );
-  }, [persistToolCallingConfig, toolCallingConfig, t]);
-
-  const handleToggleDynamicFiltering = useCallback(() => {
-    const next = {
-      ...toolCallingConfig,
-      dynamic_filtering: !toolCallingConfig.dynamic_filtering,
-    };
-    void persistToolCallingConfig(
-      next,
-      next.dynamic_filtering
-        ? t("settings.experimental.message.dynamicFilteringEnabled")
-        : t("settings.experimental.message.dynamicFilteringDisabled"),
-    );
-  }, [persistToolCallingConfig, toolCallingConfig, t]);
-
-  const handleToggleNativeInputExamples = useCallback(() => {
-    const next = {
-      ...toolCallingConfig,
-      native_input_examples: !toolCallingConfig.native_input_examples,
-    };
-    void persistToolCallingConfig(
-      next,
-      next.native_input_examples
-        ? t("settings.experimental.message.nativeInputExamplesEnabled")
-        : t("settings.experimental.message.nativeInputExamplesDisabled"),
-    );
-  }, [persistToolCallingConfig, toolCallingConfig, t]);
-
-  const persistCrashConfig = useCallback(
-    async (next: CrashReportingConfig) => {
-      setSaving(true);
-      setMessage(null);
-      try {
-        const latestConfig = await getConfig();
-        const normalized = normalizeCrashReportingConfig(next);
-        const updatedConfig: Config = {
-          ...latestConfig,
-          crash_reporting: normalized,
-        };
-        await saveConfig(updatedConfig);
-        await applyCrashReportingSettings(normalized);
-        setCrashConfig(normalized);
-        setMessage({
-          type: "success",
-          text: t("settings.experimental.message.crashReportingSaved"),
-        });
-        setTimeout(() => setMessage(null), 2000);
-      } catch (err) {
-        console.error("保存崩溃上报配置失败:", err);
-        setMessage({
-          type: "error",
-          text:
-            err instanceof Error
-              ? err.message
-              : t("settings.experimental.message.crashReportingSaveFailed"),
-        });
-      } finally {
-        setSaving(false);
-      }
-    },
-    [t],
-  );
-
-  const handleCrashEnabledToggle = useCallback(() => {
-    const nextConfig = {
-      ...crashConfig,
-      enabled: !crashConfig.enabled,
-    };
-    void persistCrashConfig(nextConfig);
-  }, [crashConfig, persistCrashConfig]);
-
-  const handleCrashFieldChange = useCallback(
-    (
-      field: keyof CrashReportingConfig,
-      value: string | boolean | number | null,
-    ) => {
-      setCrashConfig((previous) => ({
-        ...previous,
-        [field]: value,
-      }));
-    },
-    [],
-  );
-
-  const handleSaveCrashConfig = useCallback(() => {
-    void persistCrashConfig(crashConfig);
-  }, [crashConfig, persistCrashConfig]);
 
   const buildDiagnosticPayload = useCallback(async () => {
     const [
@@ -485,7 +264,6 @@ export function ExperimentalSettings({
         type: "success",
         text: t("settings.experimental.message.diagnosticCopied"),
       });
-      setTimeout(() => setMessage(null), 2500);
     } catch (err) {
       console.error("复制诊断信息失败:", err);
       const isPermissionDenied = isClipboardPermissionDeniedError(err);
@@ -500,7 +278,7 @@ export function ExperimentalSettings({
     } finally {
       setDiagnosticBusy(false);
     }
-  }, [buildDiagnosticPayload, t]);
+  }, [buildDiagnosticPayload, setMessage, t]);
 
   const copyCrashDiagnosticJson = useCallback(async () => {
     setDiagnosticBusy(true);
@@ -513,7 +291,6 @@ export function ExperimentalSettings({
         type: "success",
         text: t("settings.experimental.message.diagnosticJsonCopied"),
       });
-      setTimeout(() => setMessage(null), 2500);
     } catch (err) {
       console.error("复制纯 JSON 失败:", err);
       const isPermissionDenied = isClipboardPermissionDeniedError(err);
@@ -528,7 +305,7 @@ export function ExperimentalSettings({
     } finally {
       setDiagnosticBusy(false);
     }
-  }, [buildDiagnosticPayload, t]);
+  }, [buildDiagnosticPayload, setMessage, t]);
 
   const exportCrashDiagnostic = useCallback(async () => {
     setDiagnosticBusy(true);
@@ -551,7 +328,6 @@ export function ExperimentalSettings({
           location: result.locationHint,
         }),
       });
-      setTimeout(() => setMessage(null), 2500);
     } catch (err) {
       console.error("导出诊断信息失败:", err);
       setMessage({
@@ -564,7 +340,7 @@ export function ExperimentalSettings({
     } finally {
       setDiagnosticBusy(false);
     }
-  }, [buildDiagnosticPayload, t]);
+  }, [buildDiagnosticPayload, setMessage, t]);
 
   const openCrashDownloadDirectory = useCallback(async () => {
     setDiagnosticBusy(true);
@@ -584,7 +360,7 @@ export function ExperimentalSettings({
     } finally {
       setDiagnosticBusy(false);
     }
-  }, [t]);
+  }, [setMessage, t]);
 
   if (loading) {
     return (
@@ -632,6 +408,7 @@ export function ExperimentalSettings({
     <div className={cn("space-y-5", embedded ? "pb-0" : "pb-8")}>
       {message && (
         <div
+          role="status"
           className={cn(
             "flex items-center gap-2 rounded-[20px] border px-4 py-3 text-sm shadow-sm shadow-slate-950/5",
             message.type === "success"
@@ -743,148 +520,182 @@ export function ExperimentalSettings({
             />
           </AdvancedDetails>
 
-          <AdvancedDetails
-            icon={Bug}
-            title={t("settings.experimental.crashReporting.title")}
-            description={t("settings.experimental.crashReporting.description")}
+          <div
+            data-settings-search-target="experimental-crash-reporting"
+            tabIndex={-1}
           >
-            <div className="space-y-3">
-              <CompactSwitchRow
-                title={t("settings.experimental.crashReporting.enabled.title")}
-                description={t(
-                  "settings.experimental.crashReporting.enabled.description",
-                )}
-                checked={Boolean(crashConfig.enabled)}
-                onCheckedChange={handleCrashEnabledToggle}
-                disabled={saving}
-                ariaLabel={t(
-                  "settings.experimental.crashReporting.enabled.aria",
-                )}
-              />
+            <AdvancedDetails
+              icon={Bug}
+              title={t("settings.experimental.crashReporting.title")}
+              description={t(
+                "settings.experimental.crashReporting.description",
+              )}
+            >
+              <div className="space-y-3">
+                <CompactSwitchRow
+                  title={t(
+                    "settings.experimental.crashReporting.enabled.title",
+                  )}
+                  description={t(
+                    "settings.experimental.crashReporting.enabled.description",
+                  )}
+                  checked={Boolean(crashConfig.enabled)}
+                  onCheckedChange={handleCrashEnabledToggle}
+                  disabled={saving}
+                  ariaLabel={t(
+                    "settings.experimental.crashReporting.enabled.aria",
+                  )}
+                />
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2">
-                  <label className="text-sm font-medium text-slate-700">
-                    {t("settings.experimental.crashReporting.dsn.label")}
-                  </label>
-                  <input
-                    value={crashConfig.dsn ?? ""}
-                    onChange={(event) =>
-                      handleCrashFieldChange("dsn", event.target.value || null)
-                    }
-                    disabled={saving}
-                    placeholder={t(
-                      "settings.experimental.crashReporting.dsn.placeholder",
-                    )}
-                    className={FIELD_CLASS_NAME}
-                  />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <label
+                      htmlFor="experimental-crash-dsn"
+                      className="text-sm font-medium text-slate-700"
+                    >
+                      {t("settings.experimental.crashReporting.dsn.label")}
+                    </label>
+                    <input
+                      id="experimental-crash-dsn"
+                      value={crashDraft.dsn}
+                      onChange={(event) =>
+                        handleCrashFieldChange(
+                          "dsn",
+                          event.target.value || null,
+                        )
+                      }
+                      disabled={saving}
+                      placeholder={t(
+                        "settings.experimental.crashReporting.dsn.placeholder",
+                      )}
+                      className={FIELD_CLASS_NAME}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="experimental-crash-environment"
+                      className="text-sm font-medium text-slate-700"
+                    >
+                      {t(
+                        "settings.experimental.crashReporting.environment.label",
+                      )}
+                    </label>
+                    <input
+                      id="experimental-crash-environment"
+                      value={crashDraft.environment}
+                      onChange={(event) =>
+                        handleCrashFieldChange(
+                          "environment",
+                          event.target.value,
+                        )
+                      }
+                      disabled={saving}
+                      className={FIELD_CLASS_NAME}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <label
+                      htmlFor="experimental-crash-sample-rate"
+                      className="text-sm font-medium text-slate-700"
+                    >
+                      {t(
+                        "settings.experimental.crashReporting.sampleRate.label",
+                      )}
+                    </label>
+                    <input
+                      id="experimental-crash-sample-rate"
+                      type="number"
+                      min={0}
+                      max={1}
+                      step={0.1}
+                      value={crashDraft.sample_rate}
+                      onChange={(event) =>
+                        handleCrashFieldChange(
+                          "sample_rate",
+                          event.target.value,
+                        )
+                      }
+                      disabled={saving}
+                      className={FIELD_CLASS_NAME}
+                    />
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">
+                <CompactSwitchRow
+                  title={t(
+                    "settings.experimental.crashReporting.sendPii.title",
+                  )}
+                  description={t(
+                    "settings.experimental.crashReporting.sendPii.description",
+                  )}
+                  checked={Boolean(crashConfig.send_pii)}
+                  onCheckedChange={(checked) =>
+                    handleCrashFieldChange("send_pii", checked)
+                  }
+                  disabled={saving}
+                  ariaLabel={t(
+                    "settings.experimental.crashReporting.sendPii.aria",
+                  )}
+                />
+
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => void copyCrashDiagnostic()}
+                    disabled={saving || diagnosticBusy}
+                    className={SECONDARY_BUTTON_CLASS_NAME}
+                  >
+                    <Bug className="h-4 w-4" />
                     {t(
-                      "settings.experimental.crashReporting.environment.label",
+                      "settings.experimental.crashReporting.action.copyDiagnostic",
                     )}
-                  </label>
-                  <input
-                    value={crashConfig.environment ?? "production"}
-                    onChange={(event) =>
-                      handleCrashFieldChange("environment", event.target.value)
-                    }
-                    disabled={saving}
-                    className={FIELD_CLASS_NAME}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-slate-700">
-                    {t("settings.experimental.crashReporting.sampleRate.label")}
-                  </label>
-                  <input
-                    type="number"
-                    min={0}
-                    max={1}
-                    step={0.1}
-                    value={Number(crashConfig.sample_rate ?? 1)}
-                    onChange={(event) =>
-                      handleCrashFieldChange(
-                        "sample_rate",
-                        Number(event.target.value || 1),
-                      )
-                    }
-                    disabled={saving}
-                    className={FIELD_CLASS_NAME}
-                  />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void copyCrashDiagnosticJson()}
+                    disabled={saving || diagnosticBusy}
+                    className={SECONDARY_BUTTON_CLASS_NAME}
+                  >
+                    <Sparkles className="h-4 w-4" />
+                    {t("settings.experimental.crashReporting.action.copyJson")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void exportCrashDiagnostic()}
+                    disabled={saving || diagnosticBusy}
+                    className={SECONDARY_BUTTON_CLASS_NAME}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    {t(
+                      "settings.experimental.crashReporting.action.exportJson",
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void openCrashDownloadDirectory()}
+                    disabled={saving || diagnosticBusy}
+                    className={SECONDARY_BUTTON_CLASS_NAME}
+                  >
+                    <FolderOpen className="h-4 w-4" />
+                    {t(
+                      "settings.experimental.crashReporting.action.openDownloadDirectory",
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveCrashConfig}
+                    data-testid="experimental-crash-save"
+                    disabled={saving || diagnosticBusy}
+                    className={PRIMARY_BUTTON_CLASS_NAME}
+                  >
+                    {t("settings.experimental.crashReporting.action.save")}
+                  </button>
                 </div>
               </div>
-
-              <CompactSwitchRow
-                title={t("settings.experimental.crashReporting.sendPii.title")}
-                description={t(
-                  "settings.experimental.crashReporting.sendPii.description",
-                )}
-                checked={Boolean(crashConfig.send_pii)}
-                onCheckedChange={(checked) =>
-                  handleCrashFieldChange("send_pii", checked)
-                }
-                disabled={saving}
-                ariaLabel={t(
-                  "settings.experimental.crashReporting.sendPii.aria",
-                )}
-              />
-
-              <div className="flex flex-wrap gap-3">
-                <button
-                  type="button"
-                  onClick={() => void copyCrashDiagnostic()}
-                  disabled={saving || diagnosticBusy}
-                  className={SECONDARY_BUTTON_CLASS_NAME}
-                >
-                  <Bug className="h-4 w-4" />
-                  {t(
-                    "settings.experimental.crashReporting.action.copyDiagnostic",
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void copyCrashDiagnosticJson()}
-                  disabled={saving || diagnosticBusy}
-                  className={SECONDARY_BUTTON_CLASS_NAME}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  {t("settings.experimental.crashReporting.action.copyJson")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void exportCrashDiagnostic()}
-                  disabled={saving || diagnosticBusy}
-                  className={SECONDARY_BUTTON_CLASS_NAME}
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  {t("settings.experimental.crashReporting.action.exportJson")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void openCrashDownloadDirectory()}
-                  disabled={saving || diagnosticBusy}
-                  className={SECONDARY_BUTTON_CLASS_NAME}
-                >
-                  <FolderOpen className="h-4 w-4" />
-                  {t(
-                    "settings.experimental.crashReporting.action.openDownloadDirectory",
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={handleSaveCrashConfig}
-                  disabled={saving || diagnosticBusy}
-                  className={PRIMARY_BUTTON_CLASS_NAME}
-                >
-                  {t("settings.experimental.crashReporting.action.save")}
-                </button>
-              </div>
-            </div>
-          </AdvancedDetails>
+            </AdvancedDetails>
+          </div>
 
           {showClipboardGuide ? (
             <SurfacePanel

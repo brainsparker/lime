@@ -2044,6 +2044,7 @@
   "settings.mcpPage.toast.syncFailed": "同期失敗: {{message}}",
   "settings.mcpPage.toast.nameRequired": "サーバー名を入力してください",
   "settings.mcpPage.toast.saveFailed": "保存失敗: {{message}}",
+  "settings.mcpPage.toast.deleteFailed": "MCP サーバーを削除できませんでした。もう一度お試しください。",
   "settings.mcpPage.error.invalidJson": "JSON 形式が正しくありません",
   "settings.mcpPage.error.invalidJsonCannotSave": "JSON 形式が正しくないため保存できません",
   "settings.mcpPage.preset.filesystem.name": "Filesystem",

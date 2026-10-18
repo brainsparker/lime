@@ -8,7 +8,6 @@ import {
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
   CONTINUE_PROMPT,
-  CONTENT_FACTORY_INLINE_IMAGE_URL,
   EVENT_READ_PROBE_TOOL_NAME,
   GOAL_PROMPT,
   HOME_HOTPATH_GREETING_SCENARIO,
@@ -24,6 +23,7 @@ import {
   SESSION_ID,
   SOUL_STYLE_SCENARIO,
 } from "./claw-chat-current-fixture-constants.mjs";
+import { IMAGE_PROVIDER_FIXTURE_DATA_URL } from "./claw-chat-current-fixture-backend-file.mjs";
 import { buildContentFactoryArticleWorkspaceScenarioAssertions } from "./claw-chat-current-fixture-content-factory-assertions.mjs";
 import {
   buildApprovalRequestDecisionScenarioAssertions,
@@ -36,6 +36,7 @@ import {
   buildMcpStructuredContentScenarioAssertions,
   buildMediaReferenceScenarioAssertions,
   buildReasoningFirstVisibleScenarioAssertions,
+  isBrowserIdentityAligned,
 } from "./claw-chat-current-fixture-runtime-surface-assertions.mjs";
 import {
   buildExpertSkillsRuntimeScenarioAssertions,
@@ -357,8 +358,6 @@ export function buildScenarioAssertions(context) {
   const planCollaborationModeGateB = gateBContract?.collaborationMode;
   const rightSurfaceVisualMatrix = summary.rightSurfaceVisualMatrix ?? {};
   const rightSurfaceVisualCaptures = rightSurfaceVisualMatrix.captures ?? {};
-  const rightSurfaceVisualAppSurface =
-    rightSurfaceVisualCaptures.appSurface?.stable?.pluginSurface ?? {};
   const imageCommandTask = readImageCommandTaskFromHarness(imageCommandHarness);
   const imageCommandRuntimeContract =
     imageCommandTask?.runtime_contract ?? imageCommandTask?.runtimeContract;
@@ -414,7 +413,10 @@ export function buildScenarioAssertions(context) {
                           ?.relationshipSlotId ===
                           "article-inline-image-slot-e2e" &&
                         summary.contentFactoryInlineImageTaskCompleted
-                          ?.firstImageUrl === CONTENT_FACTORY_INLINE_IMAGE_URL,
+                          ?.firstImageUrl === IMAGE_PROVIDER_FIXTURE_DATA_URL &&
+                        summary.contentFactoryInlineImageTaskCompleted
+                          ?.firstImageSlotId ===
+                          "article-inline-image-slot-e2e",
                       contentFactoryInlineImageReadModelRestored:
                         summary.contentFactoryInlineImageReadModel
                           ?.hasInlineTitle === true &&
@@ -467,39 +469,13 @@ export function buildScenarioAssertions(context) {
                         rightSurfaceVisualMatrix.requests?.files?.requestId,
                       ) &&
                       Boolean(
-                        rightSurfaceVisualMatrix.requests?.objectCanvas
-                          ?.requestId,
-                      ) &&
-                      Boolean(
                         rightSurfaceVisualMatrix.requests?.browser?.requestId,
-                      ) &&
-                      Boolean(
-                        rightSurfaceVisualMatrix.requests
-                          ?.appSurfaceContentFactory?.requestId,
-                      ) &&
-                      Boolean(
-                        rightSurfaceVisualMatrix.requests?.appSurfacePromptLab
-                          ?.requestId,
                       ),
                     rightSurfaceVisualMatrixFilesSurfaceVisible:
                       rightSurfaceVisualCaptures.files?.stable
                         ?.activeSurface === "files" &&
                       rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
                         true,
-                    rightSurfaceVisualMatrixObjectCanvasSurfaceVisible:
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.activeSurface === "objectCanvas" &&
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.expectedActiveSurface === "objectCanvas" &&
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.visibleRootKinds?.[0] === "objectCanvas",
-                    rightSurfaceVisualMatrixExpertSurfaceVisible:
-                      rightSurfaceVisualCaptures.expertInfo?.stable
-                        ?.activeSurface === "expertInfo" &&
-                      rightSurfaceVisualCaptures.expertInfo?.stable
-                        ?.rootVisible === true,
                     rightSurfaceVisualMatrixBrowserSurfaceVisible:
                       rightSurfaceVisualCaptures.browser?.stable
                         ?.activeSurface === "browser" &&
@@ -513,32 +489,12 @@ export function buildScenarioAssertions(context) {
                       fs.existsSync(
                         rightSurfaceVisualCaptures.browser.screenshot,
                       ) &&
-                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                        ?.sessionId === "fixture-browser-session" &&
-                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                        ?.profileKey === "fixture-profile" &&
-                      rightSurfaceVisualCaptures.browser?.stable?.browserSurface
-                        ?.controlOwner === "shared",
-                    rightSurfaceVisualMatrixAppSurfaceVisible:
-                      rightSurfaceVisualCaptures.appSurface?.stable
-                        ?.activeSurface === "appSurface" &&
-                      rightSurfaceVisualCaptures.appSurface?.stable
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.activity?.opened
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.activity?.stable
-                        ?.rootVisible === true,
-                    rightSurfaceVisualMatrixAppSurfaceMultiInstanceTabs:
-                      rightSurfaceVisualAppSurface.tabs?.visible === true &&
-                      rightSurfaceVisualAppSurface.tabCount >= 2 &&
-                      rightSurfaceVisualAppSurface.visibleFrameCount === 1 &&
-                      rightSurfaceVisualAppSurface.visibleViewportCount === 1 &&
-                      rightSurfaceVisualAppSurface.tabLabels?.includes(
-                        "内容工厂",
-                      ) === true &&
-                      rightSurfaceVisualAppSurface.tabLabels?.includes(
-                        "Prompt Lab",
-                      ) === true,
+                      isBrowserIdentityAligned(
+                        rightSurfaceVisualCaptures.browser,
+                        summary.rightSurfaceVisualMatrixSessionCreation
+                          ?.threadId,
+                        "https://example.com/right-surface-browser",
+                      ),
                     rightSurfaceVisualMatrixActivitySurfaceVisible:
                       rightSurfaceVisualCaptures.activity?.stable
                         ?.activeSurface === "activity" &&
@@ -548,10 +504,7 @@ export function buildScenarioAssertions(context) {
                         ?.visibleRootKinds?.[0] === "activity",
                     rightSurfaceVisualMatrixSurfacesMutuallyExclusive: [
                       rightSurfaceVisualCaptures.files?.stable,
-                      rightSurfaceVisualCaptures.objectCanvas?.stable,
-                      rightSurfaceVisualCaptures.expertInfo?.stable,
                       rightSurfaceVisualCaptures.browser?.stable,
-                      rightSurfaceVisualCaptures.appSurface?.stable,
                       rightSurfaceVisualCaptures.activity?.stable,
                     ].every(
                       (capture) =>
@@ -562,10 +515,7 @@ export function buildScenarioAssertions(context) {
                     ),
                     rightSurfaceVisualMatrixHostsFillRightSide: [
                       rightSurfaceVisualCaptures.files?.stable,
-                      rightSurfaceVisualCaptures.objectCanvas?.stable,
-                      rightSurfaceVisualCaptures.expertInfo?.stable,
                       rightSurfaceVisualCaptures.browser?.stable,
-                      rightSurfaceVisualCaptures.appSurface?.stable,
                       rightSurfaceVisualCaptures.activity?.stable,
                     ].every(
                       (capture) =>
@@ -573,27 +523,14 @@ export function buildScenarioAssertions(context) {
                           capture?.geometry?.rootFillsActivePane === true) &&
                         capture?.geometry?.rootFillsSurfaceViewport === true,
                     ),
-                    rightSurfaceVisualMatrixObjectCanvasRailVisible:
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.activeSurface === "objectCanvas" &&
-                      rightSurfaceVisualCaptures.objectCanvas?.stable?.geometry
-                        ?.rootFillsSurfaceViewport === true,
                     rightSurfaceVisualMatrixPendingConsumeKeepsSurfaceOpen:
                       rightSurfaceVisualCaptures.files?.opened?.rootVisible ===
                         true &&
                       rightSurfaceVisualCaptures.files?.stable?.rootVisible ===
                         true &&
-                      rightSurfaceVisualCaptures.objectCanvas?.opened
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.objectCanvas?.stable
-                        ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.browser?.opened
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.browser?.stable
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.appSurface?.opened
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.appSurface?.stable
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.activity?.opened
                         ?.rootVisible === true &&

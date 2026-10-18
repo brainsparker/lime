@@ -46,6 +46,7 @@ async fn local_marketplace_is_a_persistent_reference_and_remove_preserves_source
         config_path: store.config_path.clone(),
         home: None,
         bundled_marketplace: None,
+        account: None,
     };
     assert_eq!(
         configured_paths(&restored).unwrap(),

@@ -1,3 +1,7 @@
+import {
+  clearOemCloudBootstrapSnapshot,
+  setOemCloudBootstrapSnapshot,
+} from "./cloudAccount";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readStoredBaseSetupPackageSnapshot } from "@/lib/base-setup/storage";
 import {
@@ -171,16 +175,17 @@ function buildBaseSetupPackage() {
 
 describe("skillCatalogBootstrap", () => {
   beforeEach(() => {
+    clearOemCloudBootstrapSnapshot();
     window.localStorage.clear();
     clearSkillCatalogCache();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_SKILL_CATALOG__;
   });
 
   afterEach(() => {
     window.localStorage.clear();
     clearSkillCatalogCache();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_SKILL_CATALOG__;
   });
 
@@ -273,9 +278,9 @@ describe("skillCatalogBootstrap", () => {
     window.__LIME_SKILL_CATALOG__ = {
       invalid: true,
     };
-    window.__LIME_BOOTSTRAP__ = {
+    setOemCloudBootstrapSnapshot({
       skillCatalog: catalog,
-    };
+    });
 
     const synced = applyInitialSkillCatalogBootstrap();
     const stored = await getSkillCatalog();

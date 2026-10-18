@@ -18,7 +18,12 @@ vi.mock("../developer", () => ({
 vi.mock("../experimental", () => ({
   ExperimentalSettings: (props: unknown) => {
     mockExperimentalSettings(props);
-    return <div>Experimental panel placeholder</div>;
+    return (
+      <div>
+        Experimental panel placeholder
+        <input data-testid="experimental-draft" />
+      </div>
+    );
   },
 }));
 
@@ -115,5 +120,36 @@ describe("DeveloperLabSettings", () => {
     expect(text).toContain("Experimental panel placeholder");
     expect(text).not.toContain("Developer panel placeholder");
     expect(mockExperimentalSettings).toHaveBeenCalledWith({ embedded: true });
+  });
+
+  it("initialTab 变化时保留唯一实验页实例，并移走隐藏字段焦点", () => {
+    const container = renderComponent("experimental");
+    const original = container.querySelector<HTMLInputElement>(
+      '[data-testid="experimental-draft"]',
+    )!;
+    original.value = "retained draft";
+    original.focus();
+    const current = mounted[mounted.length - 1];
+    act(() =>
+      current.root.render(<DeveloperLabSettings initialTab="developer" />),
+    );
+    expect(container.querySelector('[data-testid="experimental-draft"]')).toBe(
+      original,
+    );
+    expect(original.closest("[hidden]")).not.toBeNull();
+    expect(document.activeElement).toBe(
+      container.querySelector('[data-testid="developer-lab-tab-developer"]'),
+    );
+    act(() =>
+      current.root.render(<DeveloperLabSettings initialTab="experimental" />),
+    );
+    expect(container.querySelector('[data-testid="experimental-draft"]')).toBe(
+      original,
+    );
+    expect(original.value).toBe("retained draft");
+    expect(original.closest("[hidden]")).toBeNull();
+    expect(
+      container.querySelectorAll('[data-testid="experimental-draft"]'),
+    ).toHaveLength(1);
   });
 });

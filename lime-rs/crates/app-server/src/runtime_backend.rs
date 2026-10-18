@@ -23,6 +23,7 @@ mod model_routing;
 mod native_tools;
 mod orchestrator_skills;
 mod plan_events;
+mod plugin_hooks;
 mod proposed_plan_parser;
 mod provider_config;
 mod reasoning_events;
@@ -512,6 +513,8 @@ impl RuntimeBackend {
                     .unwrap_or_default(),
             );
             session_config.tool_mode = route_resolution.tool_mode;
+            session_config.plugin_hook_source =
+                plugin_hooks::source(self.current_app_data_source()?);
             session_config.supports_custom_tools = route_resolution.supports_custom_tools;
             mention_selection.apply_to_session_config(&mut session_config);
             let model_context_window = lime_agent::model_request_policy_from_turn_context(

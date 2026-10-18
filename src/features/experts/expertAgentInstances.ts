@@ -1,3 +1,4 @@
+import { requestControlPlane } from "@/lib/api/oemCloudControlPlaneRuntime";
 import {
   hasOemCloudSession,
   resolveOemCloudRuntimeContext,
@@ -24,12 +25,6 @@ export interface ExpertAgentInstanceRecord extends ExpertAgentInstanceIdentity {
   createdAt: number;
   updatedAt: number;
   lastStartedAt: number;
-}
-
-interface CloudExpertAgentInstanceEnvelope {
-  code?: number;
-  message?: string;
-  data?: unknown;
 }
 
 interface CloudExpertAgentInstanceListPayload {
@@ -125,7 +120,8 @@ function normalizeExpertAgentInstanceRecord(
   return {
     ...identity,
     agentInstanceId:
-      normalizeText(record.agentInstanceId) ?? buildExpertAgentInstanceId(identity),
+      normalizeText(record.agentInstanceId) ??
+      buildExpertAgentInstanceId(identity),
     agentInstanceKey,
     catalogVersion: normalizeText(record.catalogVersion) ?? undefined,
     skillRefsOverride: normalizeStringList(record.skillRefsOverride),
@@ -221,7 +217,8 @@ export function upsertExpertAgentInstance(
       status: "active" as const,
       createdAt: now,
     }),
-    catalogVersion: normalizeText(identity.catalogVersion) ?? existing?.catalogVersion,
+    catalogVersion:
+      normalizeText(identity.catalogVersion) ?? existing?.catalogVersion,
     skillRefsOverride:
       normalizeStringList(identity.skillRefsOverride) ??
       existing?.skillRefsOverride,
@@ -296,32 +293,10 @@ export async function refreshExpertAgentInstancesFromCloud(): Promise<
     return readExpertAgentInstances();
   }
 
-  const response = await fetch(
-    `${runtime.controlPlaneBaseUrl}/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/expert-agent-instances?status=active`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${runtime.sessionToken}`,
-      },
-    },
+  const data = await requestControlPlane<CloudExpertAgentInstanceListPayload>(
+    `/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/expert-agent-instances?status=active`,
+    { auth: true },
   );
-
-  let payload: CloudExpertAgentInstanceEnvelope | null = null;
-  try {
-    payload = (await response.json()) as CloudExpertAgentInstanceEnvelope;
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      payload?.message?.trim() ||
-        `专家 Agent 实例拉取失败 (${response.status})`,
-    );
-  }
-
-  const data = (payload?.data ?? {}) as CloudExpertAgentInstanceListPayload;
   const cloudRecords = (Array.isArray(data.items) ? data.items : [])
     .map((item) => normalizeCloudExpertAgentInstance(item, runtime.tenantId))
     .filter((item): item is ExpertAgentInstanceRecord => Boolean(item));
@@ -339,36 +314,19 @@ export async function syncExpertAgentInstanceToCloud(
     return;
   }
 
-  const response = await fetch(
-    `${runtime.controlPlaneBaseUrl}/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/expert-agent-instances`,
+  await requestControlPlane(
+    `/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/expert-agent-instances`,
     {
       method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${runtime.sessionToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
+      auth: true,
+      payload: {
         projectId: record.projectId,
         expertId: record.expertId,
         releaseId: record.releaseId,
         catalogVersion: record.catalogVersion,
         skillRefsOverride: record.skillRefsOverride,
-      }),
+      },
     },
-  );
-  if (response.ok) {
-    return;
-  }
-
-  let payload: CloudExpertAgentInstanceEnvelope | null = null;
-  try {
-    payload = (await response.json()) as CloudExpertAgentInstanceEnvelope;
-  } catch {
-    payload = null;
-  }
-  throw new Error(
-    payload?.message?.trim() || `专家 Agent 实例同步失败 (${response.status})`,
   );
 }
 

@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  stubCloudRequest,
+  cloudRequestMock,
+} from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createClientAccessToken,
@@ -30,8 +35,6 @@ import { parseAppServerConfig } from "./oemCloudControlPlaneCoreParsers";
 
 describe("oemCloudControlPlane desktop auth", () => {
   beforeEach(() => {
-    delete window.__LIME_BOOTSTRAP__;
-    delete window.__LIME_SESSION_TOKEN__;
     window.__LIME_OEM_CLOUD__ = {
       enabled: true,
       baseUrl: "https://user.limeai.run",
@@ -40,9 +43,8 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   afterEach(() => {
-    delete window.__LIME_BOOTSTRAP__;
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -216,7 +218,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应解析 bootstrap 中缓存的邀请开关与分享事实源", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -295,16 +305,14 @@ describe("oemCloudControlPlane desktop auth", () => {
         },
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const bootstrap = await getClientBootstrap("tenant-0001");
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/bootstrap",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token-001",
-        }),
+        path: "/v1/public/tenants/tenant-0001/client/bootstrap",
+        method: "GET",
       }),
     );
     expect(bootstrap.features.referralEnabled).toBe(true);
@@ -343,7 +351,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应读取并更新首页场景技能偏好", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const preferencePayload = {
       tenantId: "tenant-0001",
@@ -387,7 +403,7 @@ describe("oemCloudControlPlane desktop auth", () => {
           data: preferencePayload,
         }),
       });
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const preference = await getClientSceneSkillPreferences("tenant-0001");
     expect(preference.customScenes[0]?.title).toBe("每日复盘");
@@ -398,32 +414,37 @@ describe("oemCloudControlPlane desktop auth", () => {
       customScenes: preference.customScenes,
     });
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
+    expect(cloudRequestMock).toHaveBeenNthCalledWith(
       1,
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/scene-skill-preferences",
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/scene-skill-preferences",
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token-001",
-        }),
       }),
     );
-    expect(fetchMock).toHaveBeenNthCalledWith(
+    expect(cloudRequestMock).toHaveBeenNthCalledWith(
       2,
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/scene-skill-preferences",
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/scene-skill-preferences",
         method: "PUT",
-        body: JSON.stringify({
+        body: {
           orderedEntryIds: preference.orderedEntryIds,
           hiddenEntryIds: preference.hiddenEntryIds,
           customScenes: preference.customScenes,
-        }),
+        },
       }),
     );
   });
 
   it("应解析服务端下发的云端治理字段", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const fetchMock = vi
       .fn()
@@ -495,7 +516,7 @@ describe("oemCloudControlPlane desktop auth", () => {
           },
         }),
       });
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const [offers, detail] = await Promise.all([
       listClientProviderOffers("tenant-0001"),
@@ -526,7 +547,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应解析服务端直接下发的 OEM 模型 taxonomy 字段", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -561,7 +590,7 @@ describe("oemCloudControlPlane desktop auth", () => {
         },
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const models = await listClientProviderOfferModels(
       "tenant-0001",
@@ -585,7 +614,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应读取客户端邀请看板并以云端 share 作为事实源", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -636,18 +673,14 @@ describe("oemCloudControlPlane desktop auth", () => {
         },
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const dashboard = await getClientReferralDashboard("tenant-0001");
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/referral",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/referral",
         method: "GET",
-        headers: expect.objectContaining({
-          Accept: "application/json",
-          Authorization: "Bearer session-token-001",
-        }),
       }),
     );
     expect(dashboard.share).toEqual(
@@ -662,7 +695,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应调用客户端邀请码领取接口", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -686,7 +727,7 @@ describe("oemCloudControlPlane desktop auth", () => {
         },
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const result = await claimClientReferral("tenant-0001", {
       code: "LIME-2026",
@@ -694,19 +735,15 @@ describe("oemCloudControlPlane desktop auth", () => {
       entrySource: "code_input",
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/referrals/claim",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/referrals/claim",
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token-001",
-          "Content-Type": "application/json",
-        }),
-        body: JSON.stringify({
+        body: {
           code: "LIME-2026",
           claimMethod: "manual",
           entrySource: "code_input",
-        }),
+        },
       }),
     );
     expect(result.creditAccount?.balance).toBe(120);
@@ -714,7 +751,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("应接入套餐、积分、订单和 API Key 控制面接口", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const accessToken = {
       id: "token-001",
@@ -914,7 +959,7 @@ describe("oemCloudControlPlane desktop auth", () => {
           status: "pending",
         }),
       );
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     await expect(listClientPaymentConfigs("tenant-0001")).resolves.toEqual([
       expect.objectContaining({
@@ -989,29 +1034,37 @@ describe("oemCloudControlPlane desktop auth", () => {
         "https://pay.example.com/submit.php?out_trade_no=topup-order-001",
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/orders",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/orders",
         method: "POST",
-        body: JSON.stringify({
+        body: {
           planId: "plan-pro",
           paymentChannel: "epay",
           paymentMethod: "alipay",
           billingCycle: "monthly",
-        }),
+        },
       }),
     );
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://user.limeai.run/api/v1/public/tenants/tenant-0001/client/orders/order-001/checkout",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/orders/order-001/checkout",
         method: "POST",
-        body: JSON.stringify({ paymentMethod: "alipay" }),
+        body: { paymentMethod: "alipay" },
       }),
     );
   });
 
   it("应解析云端激活聚合状态和订单详情", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
 
     const paymentConfig = {
       id: "pay-alipay",
@@ -1235,7 +1288,7 @@ describe("oemCloudControlPlane desktop auth", () => {
       )
       .mockResolvedValueOnce(response(order))
       .mockResolvedValueOnce(response(topupOrder));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     await expect(
       getClientCloudActivation("tenant-0001"),
@@ -1258,7 +1311,15 @@ describe("oemCloudControlPlane desktop auth", () => {
   });
 
   it("客户端激活应容忍未开通订阅只返回状态摘要", async () => {
-    window.__LIME_SESSION_TOKEN__ = "session-token-001";
+    await seedCloudAccount(
+      {
+        token: "session-token-001",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://user.limeai.run",
+    );
     const response = (data: unknown) => ({
       ok: true,
       status: 200,
@@ -1303,7 +1364,7 @@ describe("oemCloudControlPlane desktop auth", () => {
         creditTopupOrders: [],
       }),
     );
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     await expect(
       getClientCloudActivation("tenant-0001"),

@@ -109,4 +109,45 @@ export const settingsSearchDocuments: readonly SettingsSearchDocument[] = [
     labelKey: `settings.appearance.${message}.title`,
     termKeys: [`settings.appearance.${message}.tip`],
   })),
+  {
+    section: SettingsTabs.Developer,
+    targetId: "experimental-crash-reporting",
+    path: "experimental",
+    labelKey: "settings.experimental.crashReporting.title",
+    termKeys: [
+      "settings.experimental.crashReporting.description",
+      "settings.experimental.crashReporting.dsn.label",
+      "settings.experimental.crashReporting.environment.label",
+      "settings.experimental.crashReporting.sampleRate.label",
+      "settings.experimental.crashReporting.sendPii.title",
+      "settings.experimental.crashReporting.sendPii.description",
+    ],
+  },
+  ...(
+    [
+      ["responsive-chat", "responsiveChat"],
+      ["topic", "topic"],
+      ["generation-topic", "generationTopic"],
+      ["translation", "translation"],
+      ["history-compress", "historyCompress"],
+      ["agent-meta", "agentMeta"],
+      ["input-completion", "inputCompletion"],
+      ["prompt-rewrite", "promptRewrite"],
+      ["resource-prompt-rewrite", "resourcePromptRewrite"],
+    ] as const
+  ).map(([field, message]) => ({
+    section: SettingsTabs.MediaServices,
+    targetId: `media-service-${field}`,
+    labelKey: `settings.mediaServices.sections.${message}.title`,
+    termKeys: [
+      `settings.mediaServices.sections.${message}.description`,
+      `settings.mediaServices.sections.${message}.modelHint`,
+    ],
+  })),
+  {
+    section: SettingsTabs.MediaServices,
+    targetId: "media-image-count",
+    labelKey: "settings.mediaServices.imageSettings.count.label",
+    termKeys: ["settings.mediaServices.imageSettings.count.description"],
+  },
 ];

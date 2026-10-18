@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * 从 Rust JSON Schema bundle 生成 TypeScript 类型定义（自定义转换器，无外部依赖）
+ * 从 Rust JSON Schema bundle 生成 TypeScript 类型定义（自定义转换器，使用仓库 Prettier 格式化）
  *
  * 输入：lime-rs/crates/app-server-protocol/schema/json/app_server_protocol.schemas.json
  * 输出：packages/app-server-client/src/generated/protocol-types.ts
  *
  * 规则（参照 internal/refactor/progressive-refactor-plan.md R-10）：
  *   1. 生成物头部 // @generated 标记，棘轮按生成代码豁免
- *   2. 生成后 git diff --exit-code 检查漂移（CI 守卫）
+ *   2. --check 只读比较格式化后的生成内容，检查协议漂移（CI 守卫）
  *   3. 方法常量、方法 catalog 和协议类型都从 Rust schema / manifest 生成
  *
  * 用法：
@@ -17,7 +17,7 @@
 
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
+import { format, resolveConfig } from "prettier";
 
 const REPO_ROOT = process.cwd();
 const SCHEMA_BUNDLE_PATH = path.join(
@@ -138,7 +138,7 @@ function schemaToTs(schema, indent = 0) {
 
   // 基本类型
   if (schema.type) {
-    return primitiveToTs(schema.type, schema);
+    return primitiveToTs(schema.type);
   }
 
   // 空 schema 或 true（任意类型）
@@ -162,7 +162,7 @@ function composeRootSchemaWithVariants(schema, variants, keyword, indent) {
   return `(${schemaToTs(rootSchema, indent)}) & (${variantType})`;
 }
 
-function primitiveToTs(type, schema = {}) {
+function primitiveToTs(type) {
   switch (type) {
     case "string":
       return "string";
@@ -203,7 +203,7 @@ function objectTypeToTs(schema, indent = 0) {
   return `{\n${lines.join("\n")}\n${closingPad}}`;
 }
 
-function generateTypes() {
+function generateFormattedTypes() {
   assertCompositionSupport();
   console.log("📖 读取 JSON Schema bundle...");
   const bundleRaw = fs.readFileSync(SCHEMA_BUNDLE_PATH, "utf8");
@@ -289,12 +289,14 @@ function generateTypes() {
     typeBlocks.join("\n\n") +
     "\n";
 
-  // 确保输出目录存在
+  return formatGeneratedOutput(output);
+}
+
+async function generateTypes() {
+  const output = await generateFormattedTypes();
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
   fs.writeFileSync(OUTPUT_PATH, output, "utf8");
-  formatGeneratedOutput();
-  const formattedLength = fs.readFileSync(OUTPUT_PATH, "utf8").length;
-  console.log(`✅ 已写入 ${OUTPUT_PATH} (${formattedLength} bytes)`);
+  console.log(`✅ 已写入 ${OUTPUT_PATH} (${output.length} bytes)`);
 }
 
 function assertCompositionSupport() {
@@ -411,11 +413,14 @@ function collectMethodConstants(methods) {
   return methods.map(({ method }) => [byMethod.get(method), method]);
 }
 
-function formatGeneratedOutput() {
-  execFileSync("npx", ["prettier", "--write", OUTPUT_PATH], {
-    cwd: REPO_ROOT,
-    stdio: "ignore",
-  });
+async function formatGeneratedOutput(output) {
+  // filepath 和 EditorConfig 保持 CLI 的 parser/config 解析，格式化全程只在内存中进行。
+  try {
+    const config = await resolveConfig(OUTPUT_PATH, { editorconfig: true });
+    return await format(output, { ...config, filepath: OUTPUT_PATH });
+  } catch (error) {
+    throw new Error(`协议类型格式化失败: ${error.message}`);
+  }
 }
 
 function collectSchemaDefinitions(bundle) {
@@ -444,25 +449,18 @@ function collectSchemaDefinitions(bundle) {
   return collected;
 }
 
-function checkDrift() {
+async function checkDrift() {
   if (!fs.existsSync(OUTPUT_PATH)) {
     console.error(`❌ 生成文件不存在: ${OUTPUT_PATH}`);
     console.error("   请先运行: npm run generate:protocol-types");
     process.exit(1);
   }
 
-  // 保存当前内容
-  const current = fs.readFileSync(OUTPUT_PATH, "utf8");
-
-  // 重新生成
-  generateTypes();
-  const regenerated = fs.readFileSync(OUTPUT_PATH, "utf8");
-
-  // 恢复原内容
-  fs.writeFileSync(OUTPUT_PATH, current, "utf8");
+  const current = fs.readFileSync(OUTPUT_PATH);
+  const regenerated = Buffer.from(await generateFormattedTypes(), "utf8");
 
   // 比较
-  if (current === regenerated) {
+  if (current.equals(regenerated)) {
     console.log("✅ 生成文件无漂移。");
   } else {
     console.error("❌ 生成文件与当前版本不一致！存在协议漂移。");
@@ -474,7 +472,7 @@ function checkDrift() {
 
 const args = process.argv.slice(2);
 if (args.includes("--check")) {
-  checkDrift();
+  await checkDrift();
 } else {
-  generateTypes();
+  await generateTypes();
 }

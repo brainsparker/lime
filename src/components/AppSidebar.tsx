@@ -103,11 +103,11 @@ import {
 import { shouldReserveMacWindowControls } from "@/lib/windowControls";
 import {
   getOemCloudBootstrapSnapshot,
-  getStoredOemCloudSessionState,
+  getCloudAccount,
   subscribeOemCloudBootstrapChanged,
-  subscribeOemCloudSessionChanged,
-  type OemCloudStoredSessionState,
-} from "@/lib/oemCloudSession";
+  subscribeCloudAccount,
+  type CloudAccountView,
+} from "@/lib/cloudAccount";
 import {
   getClientReferralDashboard,
   type OemCloudBootstrapResponse,
@@ -381,8 +381,8 @@ export function AppSidebar({
     themeState,
   } = useAppSidebarAppearance();
   const [cloudSessionState, setCloudSessionState] =
-    useState<OemCloudStoredSessionState | null>(() =>
-      typeof window === "undefined" ? null : getStoredOemCloudSessionState(),
+    useState<CloudAccountView | null>(() =>
+      typeof window === "undefined" ? null : getCloudAccount(),
     );
   const [cloudBootstrapState, setCloudBootstrapState] =
     useState<OemCloudBootstrapResponse | null>(() =>
@@ -514,12 +514,12 @@ export function AppSidebar({
       return;
     }
 
-    const currentSession = getStoredOemCloudSessionState();
+    const currentSession = getCloudAccount();
     setCloudSessionState(currentSession);
     setCachedReferralState(
       readCachedOemCloudReferralState(currentSession?.session.tenant.id),
     );
-    return subscribeOemCloudSessionChanged((state) => {
+    return subscribeCloudAccount((state) => {
       setCloudSessionState(state);
       setCachedReferralState(
         readCachedOemCloudReferralState(state?.session.tenant.id),

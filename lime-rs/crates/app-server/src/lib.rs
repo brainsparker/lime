@@ -1,3 +1,4 @@
+mod account;
 mod agent_identity_store;
 mod agent_mailbox_store;
 mod agent_ui_event_schema;
@@ -37,6 +38,7 @@ mod model_task_contract;
 mod otel_trace;
 mod permission_profile;
 mod permission_server_request;
+mod plugin_remote;
 mod process;
 mod processor;
 mod runtime;

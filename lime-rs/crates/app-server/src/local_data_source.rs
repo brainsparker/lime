@@ -357,10 +357,11 @@ impl LocalAppDataSource {
         let app_data_root = app_data_root.into();
         let data_root = data_root.into();
         let product_db_path = crate::runtime::product_db_path_for_agent_root(&data_root);
-        let plugin_store = plugin_catalog::PluginStore::new(
+        let mut plugin_store = plugin_catalog::PluginStore::new(
             data_root.join("plugins"),
             lime_core::config::ConfigManager::default_config_path(),
         );
+        plugin_store.account = Some(Arc::new(crate::account::AccountManager::new(&app_data_root)));
         let session_files_root = SessionFileStorage::base_dir_for_agent_root(&data_root);
         let connect_registry_cache_path =
             connect::connect_registry_cache_path_for_agent_root(&data_root);

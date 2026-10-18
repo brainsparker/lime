@@ -314,6 +314,7 @@ pub async fn run_command_hook(
     let child = Command::new(&shell)
         .arg(shell_flag)
         .arg(command)
+        .envs(&hook.env)
         .current_dir(&context.working_directory)
         .kill_on_drop(true)
         .stdin(std::process::Stdio::piped())
@@ -529,7 +530,49 @@ mod tests {
                 trust_status: RuntimeHookTrustStatus::Trusted,
             },
             executable: true,
+            env: Default::default(),
         }
+    }
+
+    #[tokio::test]
+    async fn plugin_environment_is_scoped_to_the_hook_process() {
+        let command = match shell_command_flag(&resolve_command_shell()) {
+            "/C" => "echo %PLUGIN_ROOT%& echo %PLUGIN_DATA%& echo %CLAUDE_PLUGIN_ROOT%& echo %CLAUDE_PLUGIN_DATA%",
+            "-Command" => "$env:PLUGIN_ROOT; $env:PLUGIN_DATA; $env:CLAUDE_PLUGIN_ROOT; $env:CLAUDE_PLUGIN_DATA",
+            _ => "printf '%s\\n' \"$PLUGIN_ROOT\" \"$PLUGIN_DATA\" \"$CLAUDE_PLUGIN_ROOT\" \"$CLAUDE_PLUGIN_DATA\"",
+        };
+        let mut hook = discovered(command, 5);
+        hook.env = std::collections::BTreeMap::from([
+            (
+                "PLUGIN_ROOT".to_string(),
+                "plugin root with spaces".to_string(),
+            ),
+            (
+                "PLUGIN_DATA".to_string(),
+                "plugin data with spaces".to_string(),
+            ),
+            (
+                "CLAUDE_PLUGIN_ROOT".to_string(),
+                "plugin root with spaces".to_string(),
+            ),
+            (
+                "CLAUDE_PLUGIN_DATA".to_string(),
+                "plugin data with spaces".to_string(),
+            ),
+        ]);
+        let previous = std::env::var_os("PLUGIN_ROOT");
+        let output = run_command_hook(&hook, &context()).await;
+        assert!(output.success, "{}", output.stderr);
+        assert_eq!(
+            output.stdout.lines().map(str::trim).collect::<Vec<_>>(),
+            [
+                "plugin root with spaces",
+                "plugin data with spaces",
+                "plugin root with spaces",
+                "plugin data with spaces"
+            ]
+        );
+        assert_eq!(std::env::var_os("PLUGIN_ROOT"), previous);
     }
 
     fn context() -> RuntimeHookEventContext {

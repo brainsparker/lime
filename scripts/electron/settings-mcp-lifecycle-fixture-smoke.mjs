@@ -3,13 +3,21 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import assert from "node:assert/strict";
 
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { writeJsonFile } from "../mcp/lib/current-smoke-transport.mjs";
+import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
+import {
+  captureSettingsDraftFixtureSources,
+  observeSettingsDraftReadback,
+  runMcpDraftNavigationScenario,
+} from "./lib/settings-draft-navigation-scenario.mjs";
 import {
   appServerCallFromPage,
-  closeElectronFixture,
   createContext7ConfigFromGui,
   createTempRuntimeEnv,
   launchElectronFixture,
@@ -62,15 +70,34 @@ async function readInvokeBuffers(page) {
   }));
 }
 
-async function waitForFixtureServer(page, options, predicate, failureMessage) {
+async function waitForFixtureServer(
+  page,
+  options,
+  predicate,
+  failureMessage,
+  expectedId = null,
+) {
   const startedAt = Date.now();
   let lastCall = null;
   while (Date.now() - startedAt < Math.min(options.timeoutMs, 45_000)) {
     lastCall = await appServerCallFromPage(page, "mcpServer/list", {});
+    observeSettingsDraftReadback(lastCall, "mcpServer/list");
     const servers = Array.isArray(lastCall.result?.servers)
       ? lastCall.result.servers
       : [];
     const server = servers.find((item) => item?.name === CONTEXT7_PRESET_NAME);
+    if (server && expectedId !== null)
+      assert.equal(
+        server.id === expectedId,
+        true,
+        "MCP server identity must survive restart",
+      );
+    if (!server && expectedId !== null)
+      assert.equal(
+        servers.some((item) => item?.id === expectedId),
+        false,
+        "MCP server identity must not change its name",
+      );
     if (predicate(server)) {
       return { server, call: lastCall };
     }
@@ -131,7 +158,37 @@ async function run() {
   const errorRaws = [];
   let electronHandle = null;
   let page = null;
+  let mainExit = null;
+  const teardowns = [];
+  const fresh = () => {
+    const value = inspectElectronFixtureBuildFreshness({
+      rootDir: process.cwd(),
+    });
+    assert.equal(value.ready, true, "current Electron build must be fresh");
+    return value;
+  };
+  const close = async () => {
+    if (!electronHandle) return;
+    const teardown = await settleFixtureResources({
+      app: electronHandle.app,
+      mainExit,
+    });
+    teardowns.push(teardown);
+    summary.teardowns = teardowns;
+    electronHandle = null;
+    page = null;
+    mainExit = null;
+    assert.equal(
+      teardown.ok,
+      true,
+      "normal Main exit is required within 15 seconds",
+    );
+  };
   try {
+    summary.buildFreshness = { before: fresh() };
+    summary.sourceManifest = {
+      before: captureSettingsDraftFixtureSources(process.cwd()),
+    };
     electronHandle = await launchElectronFixture({
       options,
       runtimeEnv,
@@ -140,6 +197,7 @@ async function run() {
       pageErrors,
       backendMode: "unavailable",
     });
+    mainExit = captureMainProcessExit(electronHandle.app.process());
     rendererSnapshots.push(electronHandle.rendererSnapshot);
     page = electronHandle.page;
     await openMcpConfigSettings(page, options);
@@ -147,13 +205,21 @@ async function run() {
       configUrl: FIXTURE_URL,
       envVarName: FIXTURE_ENV_VAR,
     });
-    await waitForFixtureServer(
+    const created = await waitForFixtureServer(
       page,
       options,
       (server) => Boolean(server),
       "MCP Settings did not create the fixture server",
     );
-    await selectFixtureServer(page, options);
+    const serverId = created.server?.id;
+    assert.equal(typeof serverId, "string");
+    assert.ok(serverId);
+    const mcpDraft = await runMcpDraftNavigationScenario({
+      page,
+      options,
+      server: created.server,
+      selectServer: () => selectFixtureServer(page, options),
+    });
     await page
       .locator('[data-testid="mcp-config-description"]')
       .fill(UPDATED_DESCRIPTION);
@@ -166,15 +232,14 @@ async function run() {
         server?.description === UPDATED_DESCRIPTION &&
         server?.enabled_lime === false,
       "MCP Settings update was not persisted",
+      serverId,
     );
     await page.locator('[data-testid="mcp-config-cancel"]').click();
     await page.screenshot({ path: updatedScreenshotPath, fullPage: true });
     const updatedBuffers = await readInvokeBuffers(page);
     traceRaws.push(updatedBuffers.traceRaw);
     errorRaws.push(updatedBuffers.errorRaw);
-    await closeElectronFixture(electronHandle);
-    electronHandle = null;
-    page = null;
+    await close();
 
     electronHandle = await launchElectronFixture({
       options,
@@ -184,6 +249,7 @@ async function run() {
       pageErrors,
       backendMode: "unavailable",
     });
+    mainExit = captureMainProcessExit(electronHandle.app.process());
     rendererSnapshots.push(electronHandle.rendererSnapshot);
     page = electronHandle.page;
     await openMcpConfigSettings(page, options);
@@ -194,6 +260,7 @@ async function run() {
         server?.description === UPDATED_DESCRIPTION &&
         server?.enabled_lime === false,
       "MCP Settings restart did not recover the updated server",
+      serverId,
     );
     await selectFixtureServer(page, options);
     const recoveredDescription = await page
@@ -218,13 +285,12 @@ async function run() {
       options,
       (server) => !server,
       "MCP Settings did not delete the fixture server",
+      serverId,
     );
     const deletedBuffers = await readInvokeBuffers(page);
     traceRaws.push(deletedBuffers.traceRaw);
     errorRaws.push(deletedBuffers.errorRaw);
-    await closeElectronFixture(electronHandle);
-    electronHandle = null;
-    page = null;
+    await close();
 
     electronHandle = await launchElectronFixture({
       options,
@@ -234,6 +300,7 @@ async function run() {
       pageErrors,
       backendMode: "unavailable",
     });
+    mainExit = captureMainProcessExit(electronHandle.app.process());
     rendererSnapshots.push(electronHandle.rendererSnapshot);
     page = electronHandle.page;
     await openMcpConfigSettings(page, options);
@@ -242,6 +309,7 @@ async function run() {
       options,
       (server) => !server,
       "MCP Settings final restart restored a deleted server",
+      serverId,
     );
     await page
       .locator('[data-testid="mcp-config-empty-create-server"]')
@@ -254,6 +322,11 @@ async function run() {
     traceRaws.push(finalBuffers.traceRaw);
     errorRaws.push(finalBuffers.errorRaw);
     const trace = summarizeSettingsMcpLifecycleTrace(traceRaws);
+    await close();
+    summary.buildFreshness.after = fresh();
+    summary.sourceManifest.after = captureSettingsDraftFixtureSources(
+      process.cwd(),
+    );
     applyPassingSettingsMcpLifecycleEvidence(summary, {
       completedAt: new Date().toISOString(),
       electronLaunchCount: rendererSnapshots.filter(
@@ -270,6 +343,14 @@ async function run() {
       restartReadback: true,
       guiDeleted: trace.methods.includes("mcpServer/delete"),
       finalRestartAbsent: !finalList.server,
+      sameServerAcrossRestarts: true,
+      mcpDraft,
+      buildFreshness: summary.buildFreshness,
+      sourceManifest: summary.sourceManifest,
+      normalMainExits: teardowns.map((value) => ({
+        ...value.normalMainExit,
+        forcedCleanup: value.forcedCleanup !== null,
+      })),
       trace,
       consoleErrors,
       pageErrors,
@@ -290,6 +371,7 @@ async function run() {
         guiDeleted: true,
         finalRestartAbsent: true,
       },
+      mcpDraft,
       appServerMethods: trace.methods.filter((method) =>
         MCP_LIFECYCLE_REQUIRED_METHODS.includes(method),
       ),
@@ -314,7 +396,13 @@ async function run() {
     writeJsonFile(summaryPath, summary);
     throw error;
   } finally {
-    if (electronHandle) await closeElectronFixture(electronHandle);
+    if (electronHandle) {
+      try {
+        await close();
+      } finally {
+        writeJsonFile(summaryPath, summary);
+      }
+    }
     if (!options.keepTemp) {
       fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true });
     }

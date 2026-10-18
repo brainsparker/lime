@@ -1442,7 +1442,7 @@ describe("ElectronAppServerHost", () => {
     expect(requestCalls[0]?.[2]).toMatchObject({ timeoutMs: 240000 });
   });
 
-  it("current conversation import scan/preview 使用独立长读取窗口", async () => {
+  it("current import 读取与插件安装保留各自的长窗口", async () => {
     const { ElectronAppServerHost } = await import("./appServerHost");
     const host = new ElectronAppServerHost();
 
@@ -1463,6 +1463,27 @@ describe("ElectronAppServerHost", () => {
           method: "conversationImport/job/read",
           params: { jobId: "import-job-1" },
         }),
+        encodeMessage({
+          id: "remote-plugin-install",
+          method: "plugin/install",
+          params: {
+            remoteMarketplaceName: "workspace-directory",
+            pluginName: "opaque~1",
+          },
+        }),
+        encodeMessage({
+          id: "remote-plugin-reconcile",
+          method: "plugin/reconcile",
+          params: {},
+        }),
+        ...["save", "list", "updateTargets", "checkout", "delete"].map(
+          (operation) =>
+            encodeMessage({
+              id: `share-${operation}`,
+              method: `plugin/share/${operation}`,
+              params: {},
+            }),
+        ),
       ],
     });
 
@@ -1473,9 +1494,17 @@ describe("ElectronAppServerHost", () => {
       "conversationImport/source/scan",
       "conversationImport/thread/preview",
       "conversationImport/job/read",
+      "plugin/install",
+      "plugin/reconcile",
+      "plugin/share/save",
+      "plugin/share/list",
+      "plugin/share/updateTargets",
+      "plugin/share/checkout",
+      "plugin/share/delete",
     ]);
     expect(requestCalls.map(([, , options]) => options.timeoutMs)).toEqual([
-      120000, 120000, 120000,
+      120000, 120000, 120000, 150000, 150000, 150000, 150000, 150000, 150000,
+      150000,
     ]);
   });
 });

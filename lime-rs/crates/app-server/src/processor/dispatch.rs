@@ -68,6 +68,10 @@ impl RequestProcessor {
             request.await
         } else {
             match method {
+                v2::METHOD_ACCOUNT_LOGIN_START => self.handle_account_login_start(params).boxed(),
+                v2::METHOD_CLOUD_REQUEST => self.handle_cloud_request(params).boxed(),
+                v2::METHOD_ACCOUNT_READ => self.handle_account_read(params).boxed(),
+                v2::METHOD_ACCOUNT_LOGOUT => self.handle_account_logout(params).boxed(),
                 METHOD_INITIALIZE => self.handle_initialize(params).boxed(),
                 METHOD_CAPABILITY_LIST => ready(self.handle_capability_list(params)).boxed(),
                 METHOD_ARTIFACT_READ => ready(self.handle_artifact_read(params)).boxed(),
@@ -525,6 +529,24 @@ impl RequestProcessor {
                 }
                 app_server_protocol::protocol::v2::METHOD_PLUGIN_INSTALLED => {
                     self.handle_plugin_installed_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_RECONCILE => {
+                    self.handle_plugin_reconcile_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SHARE_SAVE => {
+                    self.handle_plugin_share_save_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SHARE_LIST => {
+                    self.handle_plugin_share_list_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SHARE_UPDATE_TARGETS => {
+                    self.handle_plugin_share_update_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SHARE_CHECKOUT => {
+                    self.handle_plugin_share_checkout_v2_impl(params).boxed()
+                }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SHARE_DELETE => {
+                    self.handle_plugin_share_delete_v2_impl(params).boxed()
                 }
                 METHOD_SOUL_STYLE_PACK_INSTALL => {
                     self.handle_soul_style_pack_install_impl(params).boxed()

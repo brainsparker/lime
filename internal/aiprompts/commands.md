@@ -48,6 +48,19 @@ Electron `safeStorage` 加密后落在统一 `AppDataRoot/credentials`，状态�
 query、Debug 或日志；safeStorage 不可用时必须 fail closed。该 owner 只是 Cloud
 transport foundation，不会启用默认远端 App Server，也不替代 App Server JSON-RPC。
 
+产品云账号的共享 owner 为 App Server `account` 领域，入口为 `account/login/start`、
+`account/read`、无参 `account/logout`，同进程广播 `account/updated`。上述请求与 `cloud/request` 使用同一
+`accountAuth` 序列化队列。`cloudAuthTokens` 是明确的外部会话扩展：由 Rust 调用
+LimeCore `client/session` 验证租户/用户/会话，成功后原子替换组合根注入的
+`AppDataRoot/credentials/account.json`；读取与通知只返回 metadata。此私有文件 owner
+服务 Desktop/CLI/TUI，和上述未来 WebSocket transport 凭证用途不同，不提供 token 读取 RPC。
+GUI 公开登录的临时 token 只用于导入；localStorage credential owner 与 window token globals
+已删除，不迁移。`cloud/request` 由同一 AccountManager 发往当前 issuer/tenant 的 client API，
+params 只有 path/method/body，无 caller URL/headers/token。禁止 redirect/路径越界，15 秒/
+4MiB 上限，返回 status/body 和账号 metadata；Session/bootstrap 的账号 token 不回 renderer。
+消费者重读共享账号并比对响应身份，避免换号/注销后的旧响应覆盖新投影。登录 JSONL 的诊断
+不记录凭据。CLI 入口、OpenAI managed/device/API-key 与远端插件物化继续由执行计划跟踪。
+
 ## Desktop persisted atom
 
 桌面未发送 UI 草稿只允许：
@@ -101,8 +114,25 @@ settings notification 返回实际 reviewer，缺省为 `user`。`guardian_subag
 插件命令按 [Codex 插件合同](../roadmap/plugin/codex-contract.md) 重构，CLI/TUI/GUI 共用
 App Server 与 typed client。目标 list/installed 返回 marketplace 分组，read/install 通过市场与
 pluginName 定位，uninstall 使用完整 `name@marketplace`，启停走共享 `config/batchWrite`。
-旧 `sourcePath` 安装、扁平 catalog DTO、自建 `plugin/enabled/set` 仍是 P03 待删除项，不能
-作为新消费者合同；远程市场、账号与授权能力不再按旧产品范围排除。实现和验证以
+旧 `sourcePath` 安装、扁平 catalog DTO、自建 `plugin/enabled/set` 已删除，禁止恢复为
+消费者合同或兼容入口；市场管理走 `marketplace/add/remove/upgrade`，来源记录在共享配置。
+远端 list/read 委托 RuntimeCore 插件 owner 与共享 AccountManager，不暴露 token/header/
+任意 URL；账号 metadata 来自同一 account RPC。远端 pluginName 必须是 remotePluginId，
+本地仍用 canonical name；不接受缺 ID 时回退名字。显式 local 不触网，显式远端缺账号失败。
+GUI 插件页与 customization 侧栏在账号变化后清空旧目录并重新读取同一 plugin catalog /
+plugin/installed，迟到响应不覆盖；bundle URL 不投影到 GUI。
+远端安装复用共享 PluginStore 的暂存/提交/回滚；独立下载不携带账号 header，完整下载预算
+60 秒，tar.gz 压缩上限 100 MiB、普通文件累计 512 MiB。来源绑定 opaque ID 与共享账号
+fingerprint，Skills/MCP/Hooks 只读取当前账号匹配的安装记录。Electron 的请求超时策略由
+`electron/appServerRequestTimeout.ts` 持有，current DevBridge 复用既有 long-running 分类：
+`plugin/install`、`plugin/reconcile` 与当前五个 `plugin/share/save/list/updateTargets/delete/checkout` 等待窗口
+均为150秒，其他插件读请求仍为30秒；Host只传输请求。
+分享五方法与account/cloud复用AccountAuth队列；save的pluginPath必须为绝对路径，manifest和tar.gz
+由共享PluginStore处理。renderer只接收typed结果，不接触上传capability、归档字节或账号凭据。
+UNLISTED补当前workspace reader；create/update都POST，撤回严格要求204，失败不回退旧插件。
+checkout仅取授权workspace分享为home内可编辑目录，注册同一store的个人市场和账号编辑映射；
+复用目录保留编辑，未映射现存目录拒绝，不产生远端install或本地installed事实。
+prefer-cache及其余完整合同继续按Codex补齐。实现和验证以
 `internal/exec-plans/codex-plugin-reconstruction.md` 为准。
 
 `@limecloud/lime` 的 npm 根包只暴露 `bin/lime.js`。它按当前 host 解析 optional platform package，启动 `vendor/<target-triple>/bin/lime[.exe]`，继承 stdio，转发 `SIGINT`/`SIGTERM`/`SIGHUP` 并镜像原生进程的退出码或 signal。平台载荷必须把 `lime`、`app-server`、`code-mode-host`、Windows sandbox helpers 和动态运行库放在同一 `bin` 目录，使 Rust CLI 的 sibling lookup 继续命中唯一 App Server 产品链。禁止恢复 npm `postinstall` 网络下载、生产 `LIME_CLI_BINARY_PATH`、源码 target 搜索或 `cargo run` fallback；开发 staging 仅允许从根包本地 `vendor` 读取与平台包相同的目录合同。
@@ -469,6 +499,11 @@ current method 为 `mcpServer/list`、`mcpServerStatus/list`、`mcpServer/create
 
 Thread-owned `mcpServer/resource/read` 收到 `originCallId` 时必须先命中已加载 Thread；无 `threadId` 时 fail closed。只有 `server=codex_apps` 才消费该字段，并要求来源是已完成、resource URI 一致的 canonical MCP tool Item；其它 server 按 Codex 语义忽略 `originCallId`。MCP tool lifecycle 必须从同一次冻结的 step route 把 `connectorId/linkId/resourceUri/appName/actionName` 写入 canonical `appContext`；materializer、read model、history merge 与冷恢复继续消费同一 Item，不允许 Renderer 或 live catalog 补写 authority。
 
+MCP Apps 面板从 completed canonical MCP tool Item 的 `ui:` resource identity 打开，原生视图
+先空白挂载，再通过同一 `mcpServer/resource/read` 受控加载 HTML。旧插件 URL/embedding/strategy
+投影已删除；`workspaceRightSurface/request` 的 `surfaceKind=appSurface` 返回 invalid request，
+不写 pending 或发布 requested 通知。Renderer 不从 pending 创建插件面板，不传插件 URL 给 mount/navigation。
+
 `codex_apps` resource origin 从 canonical Thread 完整历史派生，最多保留最近 64 条、单条 authority 最多 1024 bytes。读取时必须重新核对当前 MCP tool metadata 的 connector/link authority；tool argument 与 canonical `linkId` 冲突、缺少明确要求的 account link、connector/link 漂移或 URI 不一致均 fail closed。通过校验后，真实 MCP `resources/read.params._meta` 同时携带 `threadId`、`selected_connector_ids` 与 canonical `link_id`；Renderer 传入的 `connectorId` 不能覆盖 origin authority。非 origin read 的 `connectorId` 仍 lowering 到 `x-codex-turn-metadata.mcp_request_meta.selected_connector_ids`，不得只在 App Server response 回填。
 
 `mcpServerStatus/list.data[].authStatus` 使用 Codex v2 exact camelCase wire：`unknown`、`unsupported`、`notLoggedIn`、`bearerToken`、`oAuth`。OAuth runtime `available=false` 必须投影 `notLoggedIn`，已具备凭证时投影 `oAuth`；静态 header 可用时投影 `bearerToken`，无认证配置投影 `unsupported`。不得恢复旧 `notloggedin`、`bearertoken`、`oauth` lowercase wire 或在 Renderer 猜测修复错误枚举。
@@ -651,9 +686,9 @@ file/directory、file name 与 match indices。Renderer 使用稳定 cancellatio
 现有 JSONL，不新增文件搜索 IPC、业务后端或生产 mock fallback。
 
 Codex experimental `fuzzyFileSearch/sessionStart|sessionUpdate|sessionStop` 与
-`fuzzyFileSearch/sessionUpdated|sessionCompleted` 不属于 Lime Desktop 产品面，均为
-`product-scope-excluded / forbidden-to-restore`。两个 notification 只允许 method/field-name 级 drift diagnostics，
-不得进入 current protocol manifest、Composer state、pending interaction 或兼容 wrapper。
+`fuzzyFileSearch/sessionUpdated|sessionCompleted` 均已纳入planned，复用同一文件搜索owner。
+目前仍无session接线，不将drift diagnostics当作current投影；实施时同步exact协议、取消/
+终态和GUI/CLI消费者，不建立第二文件搜索服务或兼容wrapper。范围见method scope矩阵。
 
 ## Browser Workspace 主链
 
@@ -820,14 +855,12 @@ Desktop 配置只允许走单一全局用户层：
 `filePath` 均 fail closed。写入必须携带当前版本，未知 key、版本冲突和无效 schema 均拒绝。Electron 只转发
 `app_server_handle_json_lines`，不得恢复 `get_config` / `save_config` 或新增第二套配置业务后端。
 
-Codex `configRequirements/read` 不属于 Lime Desktop 产品范围：仓库没有 MDM 或 `requirements/config.toml`
-owner，不建立未消费的策略层。该裁决也覆盖其 `allowBrowserAndComputerUse`、`browserUse`、`computerUse`
-与 `inAppBrowser` 字段：Lime 的 `browser_requirement` 只是 Turn 的任务意图，不是管理策略；
-`ElectronBrowserTabHost` 只拥有同一 Thread/Turn/WebContentsView 的逐次审批、站点权限、下载/上传和人工接管，
-不接受持久审批、origin allowlist、history/full-CDP policy 或任意 macOS/Windows App allowlist。以后若产品范围
-需要这些能力，必须先建立唯一 policy owner 和真实 consumer，再扩展 current App Server contract；不得直接恢复
-Codex requirements method 或把 Renderer metadata 当 policy。`config/mcpServer/reload` 同样 excluded，MCP 配置继续由
-`mcpServer/list|create|update|delete` 与 `mcpServer/start|stop` 负责。
+Codex `configRequirements/read` 已纳入planned，由现役core config与App Server权限owner承接
+requirements/managed policy和真实admission消费者。目前这些层尚未实现，未知策略继续fail
+closed；`browser_requirement`仍只是Turn任务意图，不能冒充管理策略。`ElectronBrowserTabHost`
+现役逐次审批、站点权限与人工接管也不能代替持久策略。`config/mcpServer/reload`同为planned，
+必须重读同一配置并协调现役MCP连接；既有`mcpServer/list|create|update|delete`和start/stop
+继续current，不增加第二配置库或用同类功能冒充exact reload合同。
 
 ## Permission Profile 主链
 

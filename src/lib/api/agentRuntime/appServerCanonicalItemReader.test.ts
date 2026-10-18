@@ -773,6 +773,41 @@ describe("readCanonicalThreadItem", () => {
     expect(projected).not.toHaveProperty("changes");
   });
 
+  it.each([
+    "/Users/example/imported/docs/预算.docx",
+    "C:\\Users\\example\\imported\\预算.xlsx",
+    "\\\\server\\workspace\\报告.pdf",
+    "../reports/source.csv",
+  ])("preserves the actionable read-only source path %s", (path) => {
+    expect(
+      readCanonicalThreadItem(
+        item({
+          type: "fileChange",
+          metadata: { sourceEventType: "file.read" },
+          changes: [{ path, kind: { type: "update" }, diff: "extracted text" }],
+          status: "completed",
+        }),
+        event,
+      ),
+    ).toMatchObject({ type: "file_artifact", path, content: "extracted text" });
+  });
+
+  it("preserves source and rename destination paths for file review", () => {
+    const path = "/Users/example/project/src/old.ts";
+    const movePath = "/Users/example/project/src/new.ts";
+    const change = {
+      path,
+      kind: { type: "update", move_path: movePath },
+      diff: "-old\n+new",
+    };
+    expect(
+      readCanonicalThreadItem(
+        item({ type: "fileChange", changes: [change], status: "completed" }),
+        event,
+      ),
+    ).toMatchObject({ type: "patch", paths: [path], changes: [change] });
+  });
+
   it("derives terminal lifecycle from the raw event envelope", () => {
     expect(
       readCanonicalThreadItem(item({ type: "contextCompaction" }), {

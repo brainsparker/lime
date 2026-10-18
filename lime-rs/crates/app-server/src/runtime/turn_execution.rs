@@ -334,10 +334,6 @@ fn workflow_resume_action_metadata_candidates(metadata: &Value) -> Vec<&Value> {
         "workflow_resume",
         "workflowResumeLifecycle",
         "workflow_resume_lifecycle",
-        "workerLifecycle",
-        "worker_lifecycle",
-        "pluginWorkflow",
-        "plugin_workflow",
     ] {
         if let Some(candidate) = metadata.get(key) {
             candidates.push(candidate);

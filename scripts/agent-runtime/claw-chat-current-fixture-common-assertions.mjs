@@ -8,7 +8,6 @@ import {
   APP_SERVER_METHOD_DIAGNOSTICS_TRACE_EXPORT,
   APP_SERVER_METHOD_DIAGNOSTICS_TRACE_LIST,
   APP_SERVER_METHOD_DIAGNOSTICS_TRACE_READ,
-  APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
   APPROVAL_REQUEST_CANCEL_DONE_TEXT,
   APPROVAL_REQUEST_DECLINE_DONE_TEXT,
   APPROVAL_REQUEST_DECLINE_RESULT_TEXT,
@@ -64,6 +63,7 @@ import {
   ACTIVE_STEER_INPUT,
 } from "./claw-chat-current-fixture-active-steer.mjs";
 import { isRichInputDraftRestored } from "./claw-chat-current-fixture-rich-input-evidence.mjs";
+import { buildRightSurfaceCommonAssertions } from "./claw-chat-current-fixture-runtime-surface-assertions.mjs";
 
 const LEGACY_RESPOND_ACTION_METHOD = [
   "agent",
@@ -73,6 +73,12 @@ const LEGACY_RESPOND_ACTION_METHOD = [
 ].join("_");
 
 export function buildCommonAssertions(context) {
+  if (
+    context.isRightSurfaceVisualMatrixScenario ||
+    context.isThreadActivityPanelScenario
+  ) {
+    return buildRightSurfaceCommonAssertions(context);
+  }
   const {
     rendererSnapshot,
     appServerRequestMethods,
@@ -101,8 +107,6 @@ export function buildCommonAssertions(context) {
     isTypedErrorRetrySuccessScenario,
     isSkillsRuntimeScenario,
     isSoulStyleScenario,
-    isRightSurfaceVisualMatrixScenario,
-    isThreadActivityPanelScenario,
     isContentFactoryArticleWorkspaceScenario,
     isAnyExpertSkillsRuntimeScenario,
     isApprovalRequestResumeScenario,
@@ -119,8 +123,6 @@ export function buildCommonAssertions(context) {
     actionableConsoleErrors,
   } = context;
   const shouldRequireAgentUiTraceEvidence =
-    !isRightSurfaceVisualMatrixScenario &&
-    !isThreadActivityPanelScenario &&
     !isContentFactoryArticleWorkspaceScenario &&
     !isExpertPlazaSkillsRuntimeScenario;
   const isLiveTailLayoutScenario =
@@ -194,12 +196,6 @@ export function buildCommonAssertions(context) {
     appServerJsonRpcUsed:
       appServerRequestMethods.includes(APP_SERVER_METHOD_SESSION_TURN_START) ||
       guiTurnStartReachedBackend ||
-      (isRightSurfaceVisualMatrixScenario &&
-        appServerRequestMethods.includes(
-          APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
-        )) ||
-      (isThreadActivityPanelScenario &&
-        appServerRequestMethods.includes(APP_SERVER_METHOD_SESSION_READ)) ||
       (isContentFactoryArticleWorkspaceScenario &&
         appServerRequestMethods.includes(APP_SERVER_METHOD_ARTIFACT_WRITE)),
     usedCurrentSessionStart: appServerRequestMethods.includes(
@@ -216,9 +212,7 @@ export function buildCommonAssertions(context) {
         summary.activeSteer?.provider?.chatRequestCount >= 2
       : isImageCommandScenario
         ? summary.imageCommandWorkflowUsed === true
-        : isRightSurfaceVisualMatrixScenario ||
-            isThreadActivityPanelScenario ||
-            isContentFactoryArticleWorkspaceScenario
+        : isContentFactoryArticleWorkspaceScenario
           ? true
           : isSoulStyleScenario
             ? summary.textProviderFixtureServer?.requestCount >= 1
@@ -226,9 +220,7 @@ export function buildCommonAssertions(context) {
     fixturePromptReachedBackend: isActiveSteerScenario
       ? summary.activeSteer?.provider?.initialRequestObserved === true &&
         summary.activeSteer?.provider?.steerRequestObserved === true
-      : isRightSurfaceVisualMatrixScenario ||
-          isThreadActivityPanelScenario ||
-          isContentFactoryArticleWorkspaceScenario
+      : isContentFactoryArticleWorkspaceScenario
         ? true
         : isInputbarRichRestoreScenario
           ? Boolean(inputbarRichRestoreTurnStart)
@@ -265,94 +257,84 @@ export function buildCommonAssertions(context) {
           summary.guiContinueCompleted?.bodyText?.includes(NEWS_PROMPT) === true
         : isInputbarRichRestoreScenario
           ? summary.inputbarRichRestoreGuiCanceled?.hasPrompt === true
-          : isThreadActivityPanelScenario
-            ? summary.rightSurfaceVisualMatrix?.captures?.activity?.stable
-                ?.rootVisible === true
-            : isRightSurfaceVisualMatrixScenario
-              ? summary.rightSurfaceVisualMatrix?.captures?.expertInfo?.stable
-                  ?.rootVisible === true
-              : isContentFactoryArticleWorkspaceScenario
-                ? summary.contentFactoryArticleWorkspaceGui?.rootVisible ===
-                    true &&
-                  summary.contentFactoryArticleWorkspaceGui
-                    ?.hasArticleDraftObject === true
-                : isPlanScenario
-                  ? summary.guiPlanCompleted?.hasPrompt === true
-                  : isGoalScenario
-                    ? summary.guiGoalCompleted?.hasPrompt === true
-                    : isHomeHotpathScenario
-                      ? homeHotpathGuiCompleted.hasPrompt === true ||
-                        homeHotpathPostSubmitProjection.promptInBody === true ||
-                        homeHotpathInputAfterClick.promptInBody === true
-                      : isImageCommandScenario
-                        ? summary.guiImageCommandCompleted?.hasPrompt === true
-                        : isWebToolsRenderingScenario
-                          ? summary.guiWebToolsRenderingCompleted?.hasPrompt ===
-                            true
-                          : isReasoningFirstVisibleScenario
-                            ? summary.guiReasoningFirstVisibleCompleted
+          : isContentFactoryArticleWorkspaceScenario
+            ? summary.contentFactoryArticleWorkspaceGui?.rootVisible === true &&
+              summary.contentFactoryArticleWorkspaceGui
+                ?.hasArticleDraftObject === true
+            : isPlanScenario
+              ? summary.guiPlanCompleted?.hasPrompt === true
+              : isGoalScenario
+                ? summary.guiGoalCompleted?.hasPrompt === true
+                : isHomeHotpathScenario
+                  ? homeHotpathGuiCompleted.hasPrompt === true ||
+                    homeHotpathPostSubmitProjection.promptInBody === true ||
+                    homeHotpathInputAfterClick.promptInBody === true
+                  : isImageCommandScenario
+                    ? summary.guiImageCommandCompleted?.hasPrompt === true
+                    : isWebToolsRenderingScenario
+                      ? summary.guiWebToolsRenderingCompleted?.hasPrompt ===
+                        true
+                      : isReasoningFirstVisibleScenario
+                        ? summary.guiReasoningFirstVisibleCompleted
+                            ?.hasPrompt === true
+                        : isLiveTailLayoutScenario
+                          ? summary.guiLiveTailCompleted?.hasPrompt === true ||
+                            summary.guiElectronResizeReflowCompleted
+                              ?.hasPrompt === true
+                          : isApprovalRequestResumeScenario
+                            ? summary.guiApprovalRequestResumeCompleted
                                 ?.hasPrompt === true
-                            : isLiveTailLayoutScenario
-                              ? summary.guiLiveTailCompleted?.hasPrompt ===
-                                  true ||
-                                summary.guiElectronResizeReflowCompleted
+                            : isApprovalRequestFullAccessScenario
+                              ? summary.guiApprovalRequestFullAccessCompleted
                                   ?.hasPrompt === true
-                              : isApprovalRequestResumeScenario
-                                ? summary.guiApprovalRequestResumeCompleted
-                                    ?.hasPrompt === true
-                                : isApprovalRequestFullAccessScenario
+                              : isApprovalRequestDecisionScenario
+                                ? approvalRequestDecisionCompleted?.hasPrompt ===
+                                  true
+                                : isTerminalCanceledAfterAnswerScenario
                                   ? summary
-                                      .guiApprovalRequestFullAccessCompleted
+                                      .guiTerminalCanceledAfterAnswerCanceled
                                       ?.hasPrompt === true
-                                  : isApprovalRequestDecisionScenario
-                                    ? approvalRequestDecisionCompleted?.hasPrompt ===
-                                      true
-                                    : isTerminalCanceledAfterAnswerScenario
+                                  : isTerminalFailedAfterAnswerScenario
+                                    ? summary
+                                        .guiTerminalFailedAfterAnswerCompleted
+                                        ?.hasPrompt === true
+                                    : isTerminalStaleGuardScenario
                                       ? summary
-                                          .guiTerminalCanceledAfterAnswerCanceled
+                                          .guiTerminalStaleGuardFirstCompleted
+                                          ?.hasPrompt === true &&
+                                        summary
+                                          .guiTerminalStaleGuardSecondCompleted
                                           ?.hasPrompt === true
-                                      : isTerminalFailedAfterAnswerScenario
-                                        ? summary
-                                            .guiTerminalFailedAfterAnswerCompleted
+                                      : isTypedErrorRetryScenario
+                                        ? summary.guiTypedErrorTerminal
                                             ?.hasPrompt === true
-                                        : isTerminalStaleGuardScenario
+                                        : isMcpStructuredContentScenario
                                           ? summary
-                                              .guiTerminalStaleGuardFirstCompleted
-                                              ?.hasPrompt === true &&
-                                            summary
-                                              .guiTerminalStaleGuardSecondCompleted
+                                              .guiMcpStructuredContentCompleted
                                               ?.hasPrompt === true
-                                          : isTypedErrorRetryScenario
-                                            ? summary.guiTypedErrorTerminal
+                                          : isMediaReferenceScenario
+                                            ? summary.guiMediaReferenceCompleted
                                                 ?.hasPrompt === true
-                                            : isMcpStructuredContentScenario
+                                            : isSkillsRuntimeScenario
                                               ? summary
-                                                  .guiMcpStructuredContentCompleted
+                                                  .guiSkillsRuntimeCompleted
+                                                  ?.hasPrompt === true &&
+                                                summary
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.hasPrompt === true &&
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
                                                   ?.hasPrompt === true
-                                              : isMediaReferenceScenario
-                                                ? summary
-                                                    .guiMediaReferenceCompleted
-                                                    ?.hasPrompt === true
-                                                : isSkillsRuntimeScenario
+                                              : isAnyExpertSkillsRuntimeScenario
+                                                ? isExpertPanelSkillsRuntimeScenario
                                                   ? summary
-                                                      .guiSkillsRuntimeCompleted
-                                                      ?.hasPrompt === true &&
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
-                                                      ?.hasPrompt === true &&
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.hasPrompt === true
-                                                  : isAnyExpertSkillsRuntimeScenario
-                                                    ? isExpertPanelSkillsRuntimeScenario
-                                                      ? summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.hasPrompt === true
-                                                      : summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.hasPrompt === true
-                                                    : summary.guiCompleted
-                                                        ?.hasPrompt === true,
+                                                  : summary
+                                                      .guiExpertSkillsRuntimeCompleted
+                                                      ?.hasPrompt === true
+                                                : summary.guiCompleted
+                                                    ?.hasPrompt === true,
     guiAssistantOutputVisible: isCancelOnlyScenario
       ? summary.guiCanceled?.hasStoppedCopy === true
       : isCancelThenContinueScenario
@@ -361,169 +343,149 @@ export function buildCommonAssertions(context) {
         : isInputbarRichRestoreScenario
           ? summary.inputbarRichRestoreGuiCanceled?.noVisibleAssistantOutput ===
             true
-          : isThreadActivityPanelScenario
-            ? summary.rightSurfaceVisualMatrix?.captures?.activity?.stable
-                ?.rootVisible === true
-            : isRightSurfaceVisualMatrixScenario
-              ? summary.rightSurfaceVisualMatrix?.captures?.files?.stable
-                  ?.rootVisible === true &&
-                summary.rightSurfaceVisualMatrix?.captures?.objectCanvas?.stable
-                  ?.rootVisible === true &&
-                summary.rightSurfaceVisualMatrix?.captures?.browser?.stable
-                  ?.rootVisible === true &&
-                summary.rightSurfaceVisualMatrix?.captures?.activity?.stable
-                  ?.rootVisible === true
-              : isContentFactoryArticleWorkspaceScenario
-                ? summary.contentFactoryArticleWorkspaceArtifactFrame
-                    ?.visible === true &&
-                  summary.contentFactoryArticleWorkspaceArtifactFrame
-                    ?.hasArticlePreviewContent === true &&
-                  summary.contentFactoryArticleWorkspaceGui
-                    ?.hasArticleCanvasContent === true
-                : isPlanScenario
-                  ? summary.guiPlanCompleted?.hasPlanIntro === true ||
-                    summary.guiPlanCompleted?.hasDoneText === true ||
-                    (summary.guiPlanCompleted?.hasPlanSection === true &&
-                      summary.guiPlanCompleted?.hasAllPlanSteps === true)
-                  : isGoalScenario
-                    ? summary.guiGoalCompleted?.hasAssistantSummary === true ||
-                      summary.guiGoalCompleted?.hasDoneText === true
-                    : isHomeHotpathScenario
-                      ? homeHotpathGuiCompleted.hasAssistantSummary === true ||
-                        homeHotpathGuiCompleted.hasDoneText === true ||
-                        homeHotpathReadModelCompleted.includesDone === true
-                      : isImageCommandScenario
-                        ? summary.guiImageCommandCompleted
-                            ?.hasAssistantSummary === true ||
-                          summary.guiImageCommandCompleted?.hasDoneText ===
-                            true ||
-                          summary.guiImageCommandCompleted
-                            ?.imageTaskCardVisible === true
-                        : isWebToolsRenderingScenario
-                          ? summary.guiWebToolsRenderingCompleted
-                              ?.hasAssistantSummary === true ||
-                            summary.guiWebToolsRenderingCompleted
-                              ?.hasDoneText === true
-                          : isReasoningFirstVisibleScenario
-                            ? summary.guiReasoningFirstVisibleBeforeAnswer
-                                ?.hasReasoningText === true &&
-                              summary.guiReasoningFirstVisibleCompleted
-                                ?.hasFinalText === true
-                            : isLiveTailLayoutScenario
-                              ? summary.guiLiveTailFirstVisibleBeforeCommit
-                                  ?.hasFirstText === true ||
-                                (summary.guiElectronResizeReflowCompleted
-                                  ?.hasAssistantSummary === true &&
-                                  summary.electronResizeReflowLayout?.snapshots
-                                    ?.restored?.hasTableTail === true)
-                              : isApprovalRequestResumeScenario
-                                ? summary.guiApprovalRequestResumeCompleted
-                                    ?.hasAssistantSummary === true ||
-                                  summary.guiApprovalRequestResumeCompleted
-                                    ?.hasDoneText === true
-                                : isApprovalRequestFullAccessScenario
+          : isContentFactoryArticleWorkspaceScenario
+            ? summary.contentFactoryArticleWorkspaceArtifactFrame?.visible ===
+                true &&
+              summary.contentFactoryArticleWorkspaceArtifactFrame
+                ?.hasArticlePreviewContent === true &&
+              summary.contentFactoryArticleWorkspaceGui
+                ?.hasArticleCanvasContent === true
+            : isPlanScenario
+              ? summary.guiPlanCompleted?.hasPlanIntro === true ||
+                summary.guiPlanCompleted?.hasDoneText === true ||
+                (summary.guiPlanCompleted?.hasPlanSection === true &&
+                  summary.guiPlanCompleted?.hasAllPlanSteps === true)
+              : isGoalScenario
+                ? summary.guiGoalCompleted?.hasAssistantSummary === true ||
+                  summary.guiGoalCompleted?.hasDoneText === true
+                : isHomeHotpathScenario
+                  ? homeHotpathGuiCompleted.hasAssistantSummary === true ||
+                    homeHotpathGuiCompleted.hasDoneText === true ||
+                    homeHotpathReadModelCompleted.includesDone === true
+                  : isImageCommandScenario
+                    ? summary.guiImageCommandCompleted?.hasAssistantSummary ===
+                        true ||
+                      summary.guiImageCommandCompleted?.hasDoneText === true ||
+                      summary.guiImageCommandCompleted?.imageTaskCardVisible ===
+                        true
+                    : isWebToolsRenderingScenario
+                      ? summary.guiWebToolsRenderingCompleted
+                          ?.hasAssistantSummary === true ||
+                        summary.guiWebToolsRenderingCompleted?.hasDoneText ===
+                          true
+                      : isReasoningFirstVisibleScenario
+                        ? summary.guiReasoningFirstVisibleBeforeAnswer
+                            ?.hasReasoningText === true &&
+                          summary.guiReasoningFirstVisibleCompleted
+                            ?.hasFinalText === true
+                        : isLiveTailLayoutScenario
+                          ? summary.guiLiveTailFirstVisibleBeforeCommit
+                              ?.hasFirstText === true ||
+                            (summary.guiElectronResizeReflowCompleted
+                              ?.hasAssistantSummary === true &&
+                              summary.electronResizeReflowLayout?.snapshots
+                                ?.restored?.hasTableTail === true)
+                          : isApprovalRequestResumeScenario
+                            ? summary.guiApprovalRequestResumeCompleted
+                                ?.hasAssistantSummary === true ||
+                              summary.guiApprovalRequestResumeCompleted
+                                ?.hasDoneText === true
+                            : isApprovalRequestFullAccessScenario
+                              ? summary.guiApprovalRequestFullAccessCompleted
+                                  ?.hasAssistantSummary === true ||
+                                summary.guiApprovalRequestFullAccessCompleted
+                                  ?.hasDoneText === true
+                              : isApprovalRequestDecisionScenario
+                                ? isApprovalRequestDeclineScenario
+                                  ? approvalRequestDecisionCompleted?.hasAssistantSummary ===
+                                      true ||
+                                    approvalRequestDecisionCompleted?.hasDoneText ===
+                                      true
+                                  : approvalRequestDecisionCanceledReadModel?.latestTurnCanceled ===
+                                      true &&
+                                    approvalRequestDecisionHistoricalDetailsHidden
+                                : isTerminalCanceledAfterAnswerScenario
                                   ? summary
-                                      .guiApprovalRequestFullAccessCompleted
-                                      ?.hasAssistantSummary === true ||
-                                    summary
-                                      .guiApprovalRequestFullAccessCompleted
-                                      ?.hasDoneText === true
-                                  : isApprovalRequestDecisionScenario
-                                    ? isApprovalRequestDeclineScenario
-                                      ? approvalRequestDecisionCompleted?.hasAssistantSummary ===
-                                          true ||
-                                        approvalRequestDecisionCompleted?.hasDoneText ===
-                                          true
-                                      : approvalRequestDecisionCanceledReadModel?.latestTurnCanceled ===
-                                          true &&
-                                        approvalRequestDecisionHistoricalDetailsHidden
-                                    : isTerminalCanceledAfterAnswerScenario
+                                      .guiTerminalCanceledAfterAnswerCanceled
+                                      ?.hasPartialText === true
+                                  : isTerminalFailedAfterAnswerScenario
+                                    ? summary
+                                        .guiTerminalFailedAfterAnswerCompleted
+                                        ?.hasAssistantSummary === true
+                                    : isTerminalStaleGuardScenario
                                       ? summary
-                                          .guiTerminalCanceledAfterAnswerCanceled
-                                          ?.hasPartialText === true
-                                      : isTerminalFailedAfterAnswerScenario
-                                        ? summary
-                                            .guiTerminalFailedAfterAnswerCompleted
-                                            ?.hasAssistantSummary === true
-                                        : isTerminalStaleGuardScenario
-                                          ? summary
-                                              .guiTerminalStaleGuardSecondCompleted
-                                              ?.hasAssistantSummary === true ||
+                                          .guiTerminalStaleGuardSecondCompleted
+                                          ?.hasAssistantSummary === true ||
+                                        summary
+                                          .guiTerminalStaleGuardSecondCompleted
+                                          ?.hasDoneText === true
+                                      : isTypedErrorRetryScenario
+                                        ? summary.guiTypedErrorTerminal
+                                            ?.hasAssistantSummary === true ||
+                                          summary.guiTypedErrorTerminal
+                                            ?.hasDoneText === true
+                                        : isMcpStructuredContentScenario
+                                          ? (summary
+                                              .guiMcpStructuredContentCompleted
+                                              ?.hasStructuredAnswer === true &&
+                                              summary
+                                                .guiMcpStructuredContentCompleted
+                                                ?.hasReferenceId === true) ||
                                             summary
-                                              .guiTerminalStaleGuardSecondCompleted
-                                              ?.hasDoneText === true
-                                          : isTypedErrorRetryScenario
-                                            ? summary.guiTypedErrorTerminal
-                                                ?.hasAssistantSummary ===
-                                                true ||
-                                              summary.guiTypedErrorTerminal
-                                                ?.hasDoneText === true
-                                            : isMcpStructuredContentScenario
-                                              ? (summary
-                                                  .guiMcpStructuredContentCompleted
-                                                  ?.hasStructuredAnswer ===
-                                                  true &&
-                                                  summary
-                                                    .guiMcpStructuredContentCompleted
-                                                    ?.hasReferenceId ===
-                                                    true) ||
+                                              .guiMcpStructuredContentCompleted
+                                              ?.hasDoneText === true ||
+                                            summary
+                                              .guiMcpStructuredContentCompleted
+                                              ?.terminalDetailsCompacted ===
+                                              true
+                                          : isMediaReferenceScenario
+                                            ? summary.guiMediaReferenceSnapshot
+                                                ?.hasCard === true &&
+                                              summary.guiMediaReferenceSnapshot
+                                                ?.hasUri === true
+                                            : isSkillsRuntimeScenario
+                                              ? summary
+                                                  .guiSkillsRuntimeCompleted
+                                                  ?.hasAssistantSummary ===
+                                                  true ||
                                                 summary
-                                                  .guiMcpStructuredContentCompleted
+                                                  .guiSkillsRuntimeCompleted
                                                   ?.hasDoneText === true ||
                                                 summary
-                                                  .guiMcpStructuredContentCompleted
-                                                  ?.terminalDetailsCompacted ===
-                                                  true
-                                              : isMediaReferenceScenario
-                                                ? summary
-                                                    .guiMediaReferenceSnapshot
-                                                    ?.hasCard === true &&
-                                                  summary
-                                                    .guiMediaReferenceSnapshot
-                                                    ?.hasUri === true
-                                                : isSkillsRuntimeScenario
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.hasAssistantSummary ===
+                                                  true ||
+                                                summary
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.hasDoneText === true ||
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
+                                                  ?.hasAssistantSummary ===
+                                                  true ||
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
+                                                  ?.hasDoneText === true
+                                              : isAnyExpertSkillsRuntimeScenario
+                                                ? isExpertPanelSkillsRuntimeScenario
                                                   ? summary
-                                                      .guiSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.hasAssistantSummary ===
                                                       true ||
                                                     summary
-                                                      .guiSkillsRuntimeCompleted
-                                                      ?.hasDoneText === true ||
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
-                                                      ?.hasAssistantSummary ===
-                                                      true ||
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
-                                                      ?.hasDoneText === true ||
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
-                                                      ?.hasAssistantSummary ===
-                                                      true ||
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.hasDoneText === true
-                                                  : isAnyExpertSkillsRuntimeScenario
-                                                    ? isExpertPanelSkillsRuntimeScenario
-                                                      ? summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.hasAssistantSummary ===
-                                                          true ||
-                                                        summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.hasDoneText === true
-                                                      : summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.hasAssistantSummary ===
-                                                          true ||
-                                                        summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.hasDoneText === true
-                                                    : summary.guiCompleted
-                                                        ?.hasAssistantSummary ===
-                                                        true ||
-                                                      summary.guiCompleted
-                                                        ?.hasDoneText === true,
+                                                  : summary
+                                                      .guiExpertSkillsRuntimeCompleted
+                                                      ?.hasAssistantSummary ===
+                                                      true ||
+                                                    summary
+                                                      .guiExpertSkillsRuntimeCompleted
+                                                      ?.hasDoneText === true
+                                                : summary.guiCompleted
+                                                    ?.hasAssistantSummary ===
+                                                    true ||
+                                                  summary.guiCompleted
+                                                    ?.hasDoneText === true,
     guiInputRemainsReady: isCancelOnlyScenario
       ? summary.guiCanceled?.editorVisible === true &&
         summary.guiCanceled?.editorDisabled === false
@@ -536,243 +498,215 @@ export function buildCommonAssertions(context) {
               restored: summary.inputbarRichRestoreGuiCanceled,
               sessionId: summary.sessionId,
             })
-          : isThreadActivityPanelScenario
-            ? summary.guiRightSurfaceVisualMatrixSessionOpened?.inputReady
+          : isContentFactoryArticleWorkspaceScenario
+            ? summary.guiContentFactoryArticleWorkspaceSessionOpened?.inputReady
                 ?.editorDisabled === false
-            : isRightSurfaceVisualMatrixScenario
-              ? summary.guiRightSurfaceVisualMatrixSessionOpened?.inputReady
-                  ?.editorDisabled === false
-              : isContentFactoryArticleWorkspaceScenario
-                ? summary.guiContentFactoryArticleWorkspaceSessionOpened
-                    ?.inputReady?.editorDisabled === false
-                : isPlanScenario
-                  ? summary.guiPlanCompleted?.planDecisionVisible === true &&
-                    summary.guiPlanCompleted?.editorVisible === false
-                  : isGoalScenario
-                    ? summary.guiGoalCompleted?.editorVisible === true &&
-                      summary.guiGoalCompleted?.editorDisabled === false
-                    : isHomeHotpathScenario
-                      ? homeHotpathGuiCompleted.editorVisible === true &&
-                        homeHotpathGuiCompleted.editorDisabled === false
-                      : isImageCommandScenario
-                        ? summary.guiImageCommandCompleted?.editorVisible ===
-                            true &&
-                          summary.guiImageCommandCompleted?.editorDisabled ===
-                            false
-                        : isWebToolsRenderingScenario
-                          ? summary.guiWebToolsRenderingCompleted
+            : isPlanScenario
+              ? summary.guiPlanCompleted?.planDecisionVisible === true &&
+                summary.guiPlanCompleted?.editorVisible === false
+              : isGoalScenario
+                ? summary.guiGoalCompleted?.editorVisible === true &&
+                  summary.guiGoalCompleted?.editorDisabled === false
+                : isHomeHotpathScenario
+                  ? homeHotpathGuiCompleted.editorVisible === true &&
+                    homeHotpathGuiCompleted.editorDisabled === false
+                  : isImageCommandScenario
+                    ? summary.guiImageCommandCompleted?.editorVisible ===
+                        true &&
+                      summary.guiImageCommandCompleted?.editorDisabled === false
+                    : isWebToolsRenderingScenario
+                      ? summary.guiWebToolsRenderingCompleted?.editorVisible ===
+                          true &&
+                        summary.guiWebToolsRenderingCompleted
+                          ?.editorDisabled === false
+                      : isReasoningFirstVisibleScenario
+                        ? summary.guiReasoningFirstVisibleCompleted
+                            ?.editorVisible === true &&
+                          summary.guiReasoningFirstVisibleCompleted
+                            ?.editorDisabled === false
+                        : isLiveTailLayoutScenario
+                          ? summary.guiLiveTailCompleted?.editorVisible ===
+                              true ||
+                            (summary.guiElectronResizeReflowCompleted
                               ?.editorVisible === true &&
-                            summary.guiWebToolsRenderingCompleted
-                              ?.editorDisabled === false
-                          : isReasoningFirstVisibleScenario
-                            ? summary.guiReasoningFirstVisibleCompleted
+                              summary.guiElectronResizeReflowCompleted
+                                ?.editorDisabled === false)
+                          : isApprovalRequestResumeScenario
+                            ? summary.guiApprovalRequestResumeCompleted
                                 ?.editorVisible === true &&
-                              summary.guiReasoningFirstVisibleCompleted
+                              summary.guiApprovalRequestResumeCompleted
                                 ?.editorDisabled === false
-                            : isLiveTailLayoutScenario
-                              ? summary.guiLiveTailCompleted?.editorVisible ===
-                                  true ||
-                                (summary.guiElectronResizeReflowCompleted
+                            : isApprovalRequestFullAccessScenario
+                              ? summary.guiApprovalRequestFullAccessCompleted
                                   ?.editorVisible === true &&
-                                  summary.guiElectronResizeReflowCompleted
-                                    ?.editorDisabled === false)
-                              : isApprovalRequestResumeScenario
-                                ? summary.guiApprovalRequestResumeCompleted
-                                    ?.editorVisible === true &&
-                                  summary.guiApprovalRequestResumeCompleted
-                                    ?.editorDisabled === false
-                                : isApprovalRequestFullAccessScenario
+                                summary.guiApprovalRequestFullAccessCompleted
+                                  ?.editorDisabled === false
+                              : isApprovalRequestDecisionScenario
+                                ? approvalRequestDecisionCompleted?.editorVisible ===
+                                    true &&
+                                  approvalRequestDecisionCompleted?.editorDisabled ===
+                                    false
+                                : isTerminalCanceledAfterAnswerScenario
                                   ? summary
-                                      .guiApprovalRequestFullAccessCompleted
+                                      .guiTerminalCanceledAfterAnswerCanceled
                                       ?.editorVisible === true &&
                                     summary
-                                      .guiApprovalRequestFullAccessCompleted
+                                      .guiTerminalCanceledAfterAnswerCanceled
                                       ?.editorDisabled === false
-                                  : isApprovalRequestDecisionScenario
-                                    ? approvalRequestDecisionCompleted?.editorVisible ===
-                                        true &&
-                                      approvalRequestDecisionCompleted?.editorDisabled ===
-                                        false
-                                    : isTerminalCanceledAfterAnswerScenario
+                                  : isTerminalFailedAfterAnswerScenario
+                                    ? summary
+                                        .guiTerminalFailedAfterAnswerCompleted
+                                        ?.editorVisible === true &&
+                                      summary
+                                        .guiTerminalFailedAfterAnswerCompleted
+                                        ?.editorDisabled === false
+                                    : isTerminalStaleGuardScenario
                                       ? summary
-                                          .guiTerminalCanceledAfterAnswerCanceled
+                                          .guiTerminalStaleGuardSecondCompleted
                                           ?.editorVisible === true &&
                                         summary
-                                          .guiTerminalCanceledAfterAnswerCanceled
+                                          .guiTerminalStaleGuardSecondCompleted
                                           ?.editorDisabled === false
-                                      : isTerminalFailedAfterAnswerScenario
-                                        ? summary
-                                            .guiTerminalFailedAfterAnswerCompleted
+                                      : isTypedErrorRetryScenario
+                                        ? summary.guiTypedErrorTerminal
                                             ?.editorVisible === true &&
-                                          summary
-                                            .guiTerminalFailedAfterAnswerCompleted
+                                          summary.guiTypedErrorTerminal
                                             ?.editorDisabled === false
-                                        : isTerminalStaleGuardScenario
+                                        : isMcpStructuredContentScenario
                                           ? summary
-                                              .guiTerminalStaleGuardSecondCompleted
+                                              .guiMcpStructuredContentCompleted
                                               ?.editorVisible === true &&
                                             summary
-                                              .guiTerminalStaleGuardSecondCompleted
+                                              .guiMcpStructuredContentCompleted
                                               ?.editorDisabled === false
-                                          : isTypedErrorRetryScenario
-                                            ? summary.guiTypedErrorTerminal
+                                          : isMediaReferenceScenario
+                                            ? summary.guiMediaReferenceCompleted
                                                 ?.editorVisible === true &&
-                                              summary.guiTypedErrorTerminal
+                                              summary.guiMediaReferenceCompleted
                                                 ?.editorDisabled === false
-                                            : isMcpStructuredContentScenario
+                                            : isSkillsRuntimeScenario
                                               ? summary
-                                                  .guiMcpStructuredContentCompleted
+                                                  .guiSkillsRuntimeCompleted
                                                   ?.editorVisible === true &&
                                                 summary
-                                                  .guiMcpStructuredContentCompleted
+                                                  .guiSkillsRuntimeCompleted
+                                                  ?.editorDisabled === false &&
+                                                summary
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.editorVisible === true &&
+                                                summary
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.editorDisabled === false &&
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
+                                                  ?.editorVisible === true &&
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
                                                   ?.editorDisabled === false
-                                              : isMediaReferenceScenario
-                                                ? summary
-                                                    .guiMediaReferenceCompleted
-                                                    ?.editorVisible === true &&
-                                                  summary
-                                                    .guiMediaReferenceCompleted
-                                                    ?.editorDisabled === false
-                                                : isSkillsRuntimeScenario
+                                              : isAnyExpertSkillsRuntimeScenario
+                                                ? isExpertPanelSkillsRuntimeScenario
                                                   ? summary
-                                                      .guiSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.editorVisible ===
                                                       true &&
                                                     summary
-                                                      .guiSkillsRuntimeCompleted
-                                                      ?.editorDisabled ===
-                                                      false &&
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
-                                                      ?.editorVisible ===
-                                                      true &&
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
-                                                      ?.editorDisabled ===
-                                                      false &&
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
-                                                      ?.editorVisible ===
-                                                      true &&
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.editorDisabled === false
-                                                  : isAnyExpertSkillsRuntimeScenario
-                                                    ? isExpertPanelSkillsRuntimeScenario
-                                                      ? summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.editorVisible ===
-                                                          true &&
-                                                        summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.editorDisabled ===
-                                                          false
-                                                      : summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.editorVisible ===
-                                                          true &&
-                                                        summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.editorDisabled ===
-                                                          false
-                                                    : summary.guiCompleted
-                                                        ?.editorVisible ===
-                                                        true &&
-                                                      summary.guiCompleted
-                                                        ?.editorDisabled ===
-                                                        false,
+                                                  : summary
+                                                      .guiExpertSkillsRuntimeCompleted
+                                                      ?.editorVisible ===
+                                                      true &&
+                                                    summary
+                                                      .guiExpertSkillsRuntimeCompleted
+                                                      ?.editorDisabled === false
+                                                : summary.guiCompleted
+                                                    ?.editorVisible === true &&
+                                                  summary.guiCompleted
+                                                    ?.editorDisabled === false,
     guiNotStuckStreaming: isCancelOnlyScenario
       ? summary.guiCanceled?.stopButtonVisible === false
       : isCancelThenContinueScenario
         ? summary.guiContinueCompleted?.stopButtonVisible === false
         : isInputbarRichRestoreScenario
           ? summary.inputbarRichRestoreGuiCanceled?.stopButtonVisible === false
-          : isThreadActivityPanelScenario
+          : isContentFactoryArticleWorkspaceScenario
             ? true
-            : isRightSurfaceVisualMatrixScenario
-              ? true
-              : isContentFactoryArticleWorkspaceScenario
-                ? true
-                : isPlanScenario
-                  ? summary.guiPlanCompleted?.stopButtonVisible === false
-                  : isGoalScenario
-                    ? summary.guiGoalCompleted?.stopButtonVisible === false
-                    : isHomeHotpathScenario
-                      ? homeHotpathGuiCompleted.stopButtonVisible === false
-                      : isImageCommandScenario
-                        ? summary.guiImageCommandCompleted
+            : isPlanScenario
+              ? summary.guiPlanCompleted?.stopButtonVisible === false
+              : isGoalScenario
+                ? summary.guiGoalCompleted?.stopButtonVisible === false
+                : isHomeHotpathScenario
+                  ? homeHotpathGuiCompleted.stopButtonVisible === false
+                  : isImageCommandScenario
+                    ? summary.guiImageCommandCompleted?.stopButtonVisible ===
+                      false
+                    : isWebToolsRenderingScenario
+                      ? summary.guiWebToolsRenderingCompleted
+                          ?.stopButtonVisible === false
+                      : isReasoningFirstVisibleScenario
+                        ? summary.guiReasoningFirstVisibleCompleted
                             ?.stopButtonVisible === false
-                        : isWebToolsRenderingScenario
-                          ? summary.guiWebToolsRenderingCompleted
+                        : isLiveTailLayoutScenario
+                          ? summary.guiLiveTailCompleted?.stopButtonVisible ===
+                              false ||
+                            summary.guiElectronResizeReflowCompleted
                               ?.stopButtonVisible === false
-                          : isReasoningFirstVisibleScenario
-                            ? summary.guiReasoningFirstVisibleCompleted
+                          : isApprovalRequestResumeScenario
+                            ? summary.guiApprovalRequestResumeCompleted
                                 ?.stopButtonVisible === false
-                            : isLiveTailLayoutScenario
-                              ? summary.guiLiveTailCompleted
-                                  ?.stopButtonVisible === false ||
-                                summary.guiElectronResizeReflowCompleted
+                            : isApprovalRequestFullAccessScenario
+                              ? summary.guiApprovalRequestFullAccessCompleted
                                   ?.stopButtonVisible === false
-                              : isApprovalRequestResumeScenario
-                                ? summary.guiApprovalRequestResumeCompleted
-                                    ?.stopButtonVisible === false
-                                : isApprovalRequestFullAccessScenario
+                              : isApprovalRequestDecisionScenario
+                                ? approvalRequestDecisionCompleted?.stopButtonVisible ===
+                                  false
+                                : isTerminalCanceledAfterAnswerScenario
                                   ? summary
-                                      .guiApprovalRequestFullAccessCompleted
+                                      .guiTerminalCanceledAfterAnswerCanceled
                                       ?.stopButtonVisible === false
-                                  : isApprovalRequestDecisionScenario
-                                    ? approvalRequestDecisionCompleted?.stopButtonVisible ===
-                                      false
-                                    : isTerminalCanceledAfterAnswerScenario
+                                  : isTerminalFailedAfterAnswerScenario
+                                    ? summary
+                                        .guiTerminalFailedAfterAnswerCompleted
+                                        ?.stopButtonVisible === false
+                                    : isTerminalStaleGuardScenario
                                       ? summary
-                                          .guiTerminalCanceledAfterAnswerCanceled
+                                          .guiTerminalStaleGuardSecondCompleted
                                           ?.stopButtonVisible === false
-                                      : isTerminalFailedAfterAnswerScenario
-                                        ? summary
-                                            .guiTerminalFailedAfterAnswerCompleted
+                                      : isTypedErrorRetryScenario
+                                        ? summary.guiTypedErrorTerminal
                                             ?.stopButtonVisible === false
-                                        : isTerminalStaleGuardScenario
+                                        : isMcpStructuredContentScenario
                                           ? summary
-                                              .guiTerminalStaleGuardSecondCompleted
+                                              .guiMcpStructuredContentCompleted
                                               ?.stopButtonVisible === false
-                                          : isTypedErrorRetryScenario
-                                            ? summary.guiTypedErrorTerminal
+                                          : isMediaReferenceScenario
+                                            ? summary.guiMediaReferenceCompleted
                                                 ?.stopButtonVisible === false
-                                            : isMcpStructuredContentScenario
+                                            : isSkillsRuntimeScenario
                                               ? summary
-                                                  .guiMcpStructuredContentCompleted
+                                                  .guiSkillsRuntimeCompleted
+                                                  ?.stopButtonVisible ===
+                                                  false &&
+                                                summary
+                                                  .guiExplicitSkillsRuntimeCompleted
+                                                  ?.stopButtonVisible ===
+                                                  false &&
+                                                summary
+                                                  .guiManualEnableSkillsRuntimeCompleted
                                                   ?.stopButtonVisible === false
-                                              : isMediaReferenceScenario
-                                                ? summary
-                                                    .guiMediaReferenceCompleted
-                                                    ?.stopButtonVisible ===
-                                                  false
-                                                : isSkillsRuntimeScenario
+                                              : isAnyExpertSkillsRuntimeScenario
+                                                ? isExpertPanelSkillsRuntimeScenario
                                                   ? summary
-                                                      .guiSkillsRuntimeCompleted
+                                                      .guiExpertPanelSkillsRuntimeCompleted
                                                       ?.stopButtonVisible ===
-                                                      false &&
-                                                    summary
-                                                      .guiExplicitSkillsRuntimeCompleted
+                                                    false
+                                                  : summary
+                                                      .guiExpertSkillsRuntimeCompleted
                                                       ?.stopButtonVisible ===
-                                                      false &&
-                                                    summary
-                                                      .guiManualEnableSkillsRuntimeCompleted
-                                                      ?.stopButtonVisible ===
-                                                      false
-                                                  : isAnyExpertSkillsRuntimeScenario
-                                                    ? isExpertPanelSkillsRuntimeScenario
-                                                      ? summary
-                                                          .guiExpertPanelSkillsRuntimeCompleted
-                                                          ?.stopButtonVisible ===
-                                                        false
-                                                      : summary
-                                                          .guiExpertSkillsRuntimeCompleted
-                                                          ?.stopButtonVisible ===
-                                                        false
-                                                    : summary.guiCompleted
-                                                        ?.stopButtonVisible ===
-                                                      false,
+                                                    false
+                                                : summary.guiCompleted
+                                                    ?.stopButtonVisible ===
+                                                  false,
     guiRunningStatusPreservedBeforeStop:
       !hasCancelPhase ||
       (summary.stopClick?.beforeClick?.hasVisibleAssistantOutput === true &&
@@ -799,304 +733,272 @@ export function buildCommonAssertions(context) {
             ? pageText.includes(INPUTBAR_RICH_RESTORE_PROMPT) &&
               summary.inputbarRichRestoreGuiCanceled
                 ?.noVisibleAssistantOutput === true
-            : isThreadActivityPanelScenario
-              ? summary.rightSurfaceVisualMatrix?.captures?.activity?.stable
-                  ?.activeSurface === "activity"
-              : isRightSurfaceVisualMatrixScenario
-                ? summary.rightSurfaceVisualMatrix?.captures?.files?.stable
-                    ?.activeSurface === "files" &&
-                  summary.rightSurfaceVisualMatrix?.captures?.objectCanvas
-                    ?.stable?.activeSurface === "objectCanvas" &&
-                  summary.rightSurfaceVisualMatrix?.captures?.expertInfo?.stable
-                    ?.activeSurface === "expertInfo" &&
-                  summary.rightSurfaceVisualMatrix?.captures?.browser?.stable
-                    ?.activeSurface === "browser" &&
-                  summary.rightSurfaceVisualMatrix?.captures?.appSurface?.stable
-                    ?.activeSurface === "appSurface" &&
-                  summary.rightSurfaceVisualMatrix?.captures?.activity?.stable
-                    ?.activeSurface === "activity"
-                : isContentFactoryArticleWorkspaceScenario
-                  ? summary.contentFactoryArticleWorkspaceGui?.activeSurface ===
-                      "articleWorkspace" &&
-                    summary.contentFactoryArticleWorkspaceGui
-                      ?.hasArticleDraftObject === true &&
-                    summary.contentFactoryArticleWorkspaceGui
-                      ?.hasArticleCanvasContent === true &&
-                    summary.contentFactoryArticleWorkspaceArtifactFrame
-                      ?.hasArticlePreviewContent === true &&
-                    summary.contentFactoryArticleWorkspaceReadModel
-                      ?.hasImageSetObject === true &&
-                    summary.contentFactoryArticleWorkspaceReadModel
-                      ?.hasStoryboardObject === true &&
-                    summary.contentFactoryArticleWorkspaceReadModel
-                      ?.hasChecklistObject === true
-                  : isPlanScenario
-                    ? pageText.includes(PLAN_PROMPT) &&
-                      PLAN_STEPS.every((step) => pageText.includes(step.step))
-                    : isGoalScenario
-                      ? pageText.includes(GOAL_PROMPT) &&
-                        (pageText.includes("目标已绑定到本轮请求") ||
-                          pageText.includes(GOAL_DONE_TEXT))
-                      : isHomeHotpathScenario
-                        ? homeHotpathPageText.includes(
-                            homeHotpathExpectedPrompt,
-                          ) &&
-                          (homeHotpathPageText.includes(
-                            homeHotpathExpectedSummaryText,
-                          ) ||
-                            homeHotpathPageText.includes(
-                              homeHotpathExpectedDoneText,
-                            ))
-                        : isImageCommandScenario
-                          ? summary.guiImageCommandCompleted?.hasPrompt ===
-                              true &&
-                            (summary.guiImageCommandCompleted
-                              ?.imageTaskCardVisible === true ||
-                              summary.guiImageCommandCompleted?.hasDoneText ===
-                                true ||
-                              pageText.includes(IMAGE_COMMAND_DONE_TEXT)) &&
-                            (summary.guiImageCommandCompleted?.hasSkillName ===
-                              true ||
-                              summary.guiImageCommandCompleted
-                                ?.hasCreateTaskTool === true)
-                          : isWebToolsRenderingScenario
-                            ? summary.guiWebToolsRenderingCompleted
-                                ?.hasPrompt === true &&
-                              summary.guiWebToolsRenderingCompleted
-                                ?.historicalTimelinePreviewVisible === true &&
-                              summary.guiWebToolsRenderingCompleted
-                                ?.hasAssistantSummary === true
-                            : isReasoningFirstVisibleScenario
+            : isContentFactoryArticleWorkspaceScenario
+              ? summary.contentFactoryArticleWorkspaceGui?.activeSurface ===
+                  "articleWorkspace" &&
+                summary.contentFactoryArticleWorkspaceGui
+                  ?.hasArticleDraftObject === true &&
+                summary.contentFactoryArticleWorkspaceGui
+                  ?.hasArticleCanvasContent === true &&
+                summary.contentFactoryArticleWorkspaceArtifactFrame
+                  ?.hasArticlePreviewContent === true &&
+                summary.contentFactoryArticleWorkspaceReadModel
+                  ?.hasImageSetObject === true &&
+                summary.contentFactoryArticleWorkspaceReadModel
+                  ?.hasStoryboardObject === true &&
+                summary.contentFactoryArticleWorkspaceReadModel
+                  ?.hasChecklistObject === true
+              : isPlanScenario
+                ? pageText.includes(PLAN_PROMPT) &&
+                  PLAN_STEPS.every((step) => pageText.includes(step.step))
+                : isGoalScenario
+                  ? pageText.includes(GOAL_PROMPT) &&
+                    (pageText.includes("目标已绑定到本轮请求") ||
+                      pageText.includes(GOAL_DONE_TEXT))
+                  : isHomeHotpathScenario
+                    ? homeHotpathPageText.includes(homeHotpathExpectedPrompt) &&
+                      (homeHotpathPageText.includes(
+                        homeHotpathExpectedSummaryText,
+                      ) ||
+                        homeHotpathPageText.includes(
+                          homeHotpathExpectedDoneText,
+                        ))
+                    : isImageCommandScenario
+                      ? summary.guiImageCommandCompleted?.hasPrompt === true &&
+                        (summary.guiImageCommandCompleted
+                          ?.imageTaskCardVisible === true ||
+                          summary.guiImageCommandCompleted?.hasDoneText ===
+                            true ||
+                          pageText.includes(IMAGE_COMMAND_DONE_TEXT)) &&
+                        (summary.guiImageCommandCompleted?.hasSkillName ===
+                          true ||
+                          summary.guiImageCommandCompleted
+                            ?.hasCreateTaskTool === true)
+                      : isWebToolsRenderingScenario
+                        ? summary.guiWebToolsRenderingCompleted?.hasPrompt ===
+                            true &&
+                          summary.guiWebToolsRenderingCompleted
+                            ?.historicalTimelinePreviewVisible === true &&
+                          summary.guiWebToolsRenderingCompleted
+                            ?.hasAssistantSummary === true
+                        : isReasoningFirstVisibleScenario
+                          ? pageText.includes(REASONING_FIRST_VISIBLE_PROMPT) &&
+                            pageText.includes(REASONING_FIRST_VISIBLE_TEXT) &&
+                            (pageText.includes(
+                              REASONING_FIRST_VISIBLE_FINAL_TEXT,
+                            ) ||
+                              pageText.includes(
+                                REASONING_FIRST_VISIBLE_DONE_TEXT,
+                              ))
+                          : isLiveTailLayoutScenario
+                            ? isLiveTailCommitScenario
+                              ? summary.guiLiveTailVisualOracle?.hasPrompt ===
+                                  true &&
+                                summary.guiLiveTailVisualOracle
+                                  ?.hasFirstText === true &&
+                                summary.guiLiveTailVisualOracle
+                                  ?.hasOverflowMarker === true &&
+                                summary.guiLiveTailVisualOracle
+                                  ?.hasTableTail === true &&
+                                summary.guiLiveTailVisualOracle?.hasDoneText ===
+                                  true
+                              : summary.guiElectronResizeReflowCompleted
+                                  ?.hasPrompt === true &&
+                                summary.electronResizeReflowLayout?.snapshots
+                                  ?.restored?.hasTableTail === true
+                            : isApprovalRequestResumeScenario
                               ? pageText.includes(
-                                  REASONING_FIRST_VISIBLE_PROMPT,
+                                  APPROVAL_REQUEST_RESUME_PROMPT,
                                 ) &&
                                 pageText.includes(
-                                  REASONING_FIRST_VISIBLE_TEXT,
+                                  APPROVAL_REQUEST_RESUME_RESULT_TEXT,
                                 ) &&
-                                (pageText.includes(
-                                  REASONING_FIRST_VISIBLE_FINAL_TEXT,
-                                ) ||
-                                  pageText.includes(
-                                    REASONING_FIRST_VISIBLE_DONE_TEXT,
-                                  ))
-                              : isLiveTailLayoutScenario
-                                ? isLiveTailCommitScenario
-                                  ? summary.guiLiveTailVisualOracle
-                                      ?.hasPrompt === true &&
-                                    summary.guiLiveTailVisualOracle
-                                      ?.hasFirstText === true &&
-                                    summary.guiLiveTailVisualOracle
-                                      ?.hasOverflowMarker === true &&
-                                    summary.guiLiveTailVisualOracle
-                                      ?.hasTableTail === true &&
-                                    summary.guiLiveTailVisualOracle
-                                      ?.hasDoneText === true
-                                  : summary.guiElectronResizeReflowCompleted
-                                      ?.hasPrompt === true &&
-                                    summary.electronResizeReflowLayout
-                                      ?.snapshots?.restored?.hasTableTail ===
-                                      true
-                                : isApprovalRequestResumeScenario
+                                pageText.includes(
+                                  APPROVAL_REQUEST_RESUME_DONE_TEXT,
+                                ) &&
+                                !pageText.includes(LEGACY_RESPOND_ACTION_METHOD)
+                              : isApprovalRequestDecisionScenario
+                                ? approvalRequestDecisionPageText.includes(
+                                    APPROVAL_REQUEST_RESUME_PROMPT,
+                                  ) &&
+                                  !approvalRequestDecisionPageText.includes(
+                                    LEGACY_RESPOND_ACTION_METHOD,
+                                  ) &&
+                                  approvalRequestDecisionHistoricalDetailsHidden &&
+                                  (isApprovalRequestDeclineScenario
+                                    ? approvalRequestDecisionPageText.includes(
+                                        APPROVAL_REQUEST_DECLINE_RESULT_TEXT,
+                                      ) &&
+                                      approvalRequestDecisionPageText.includes(
+                                        APPROVAL_REQUEST_DECLINE_DONE_TEXT,
+                                      ) &&
+                                      approvalRequestDecisionDeclinedReadModel?.includesToolResult ===
+                                        false
+                                    : (approvalRequestDecisionPageText.includes(
+                                        APPROVAL_REQUEST_CANCEL_DONE_TEXT,
+                                      ) ||
+                                        approvalRequestDecisionCanceledReadModel?.latestTurnCanceled ===
+                                          true) &&
+                                      approvalRequestDecisionCanceledReadModel?.includesToolResult ===
+                                        false)
+                                : isApprovalRequestFullAccessScenario
                                   ? pageText.includes(
-                                      APPROVAL_REQUEST_RESUME_PROMPT,
+                                      APPROVAL_REQUEST_FULL_ACCESS_PROMPT,
                                     ) &&
                                     pageText.includes(
-                                      APPROVAL_REQUEST_RESUME_RESULT_TEXT,
+                                      APPROVAL_REQUEST_FULL_ACCESS_RESULT_TEXT,
                                     ) &&
                                     pageText.includes(
-                                      APPROVAL_REQUEST_RESUME_DONE_TEXT,
+                                      APPROVAL_REQUEST_FULL_ACCESS_DONE_TEXT,
                                     ) &&
                                     !pageText.includes(
                                       LEGACY_RESPOND_ACTION_METHOD,
                                     )
-                                  : isApprovalRequestDecisionScenario
-                                    ? approvalRequestDecisionPageText.includes(
-                                        APPROVAL_REQUEST_RESUME_PROMPT,
+                                  : isTerminalCanceledAfterAnswerScenario
+                                    ? pageText.includes(
+                                        TERMINAL_CANCELED_AFTER_ANSWER_PROMPT,
                                       ) &&
-                                      !approvalRequestDecisionPageText.includes(
-                                        LEGACY_RESPOND_ACTION_METHOD,
-                                      ) &&
-                                      approvalRequestDecisionHistoricalDetailsHidden &&
-                                      (isApprovalRequestDeclineScenario
-                                        ? approvalRequestDecisionPageText.includes(
-                                            APPROVAL_REQUEST_DECLINE_RESULT_TEXT,
-                                          ) &&
-                                          approvalRequestDecisionPageText.includes(
-                                            APPROVAL_REQUEST_DECLINE_DONE_TEXT,
-                                          ) &&
-                                          approvalRequestDecisionDeclinedReadModel?.includesToolResult ===
-                                            false
-                                        : (approvalRequestDecisionPageText.includes(
-                                            APPROVAL_REQUEST_CANCEL_DONE_TEXT,
-                                          ) ||
-                                            approvalRequestDecisionCanceledReadModel?.latestTurnCanceled ===
-                                              true) &&
-                                          approvalRequestDecisionCanceledReadModel?.includesToolResult ===
-                                            false)
-                                    : isApprovalRequestFullAccessScenario
+                                      pageText.includes(
+                                        TERMINAL_CANCELED_AFTER_ANSWER_PARTIAL_TEXT,
+                                      )
+                                    : isTerminalFailedAfterAnswerScenario
                                       ? pageText.includes(
-                                          APPROVAL_REQUEST_FULL_ACCESS_PROMPT,
+                                          TERMINAL_FAILED_AFTER_ANSWER_PROMPT,
                                         ) &&
                                         pageText.includes(
-                                          APPROVAL_REQUEST_FULL_ACCESS_RESULT_TEXT,
-                                        ) &&
-                                        pageText.includes(
-                                          APPROVAL_REQUEST_FULL_ACCESS_DONE_TEXT,
-                                        ) &&
-                                        !pageText.includes(
-                                          LEGACY_RESPOND_ACTION_METHOD,
+                                          TERMINAL_FAILED_AFTER_ANSWER_PARTIAL_TEXT,
                                         )
-                                      : isTerminalCanceledAfterAnswerScenario
+                                      : isTerminalStaleGuardScenario
                                         ? pageText.includes(
-                                            TERMINAL_CANCELED_AFTER_ANSWER_PROMPT,
+                                            TERMINAL_STALE_GUARD_FIRST_PROMPT,
                                           ) &&
                                           pageText.includes(
-                                            TERMINAL_CANCELED_AFTER_ANSWER_PARTIAL_TEXT,
+                                            TERMINAL_STALE_GUARD_SECOND_PROMPT,
+                                          ) &&
+                                          pageText.includes(
+                                            TERMINAL_STALE_GUARD_SECOND_TEXT,
+                                          ) &&
+                                          pageText.includes(
+                                            TERMINAL_STALE_GUARD_DONE_TEXT,
+                                          ) &&
+                                          pageText.includes(
+                                            TERMINAL_STALE_GUARD_FIRST_DONE_TEXT,
+                                          ) &&
+                                          !pageText.includes(
+                                            TERMINAL_STALE_GUARD_STALE_DONE_TEXT,
                                           )
-                                        : isTerminalFailedAfterAnswerScenario
+                                        : isTypedErrorRetryScenario
                                           ? pageText.includes(
-                                              TERMINAL_FAILED_AFTER_ANSWER_PROMPT,
+                                              isTypedErrorRetrySuccessScenario
+                                                ? TYPED_ERROR_RETRY_SUCCESS_PROMPT
+                                                : TYPED_ERROR_RETRY_FAILURE_PROMPT,
                                             ) &&
                                             pageText.includes(
-                                              TERMINAL_FAILED_AFTER_ANSWER_PARTIAL_TEXT,
+                                              isTypedErrorRetrySuccessScenario
+                                                ? TYPED_ERROR_RETRY_SUCCESS_TEXT
+                                                : TYPED_ERROR_RETRY_FAILURE_PARTIAL_TEXT,
                                             )
-                                          : isTerminalStaleGuardScenario
-                                            ? pageText.includes(
-                                                TERMINAL_STALE_GUARD_FIRST_PROMPT,
-                                              ) &&
-                                              pageText.includes(
-                                                TERMINAL_STALE_GUARD_SECOND_PROMPT,
-                                              ) &&
-                                              pageText.includes(
-                                                TERMINAL_STALE_GUARD_SECOND_TEXT,
-                                              ) &&
-                                              pageText.includes(
-                                                TERMINAL_STALE_GUARD_DONE_TEXT,
-                                              ) &&
-                                              pageText.includes(
-                                                TERMINAL_STALE_GUARD_FIRST_DONE_TEXT,
-                                              ) &&
-                                              !pageText.includes(
-                                                TERMINAL_STALE_GUARD_STALE_DONE_TEXT,
-                                              )
-                                            : isTypedErrorRetryScenario
+                                          : isMcpStructuredContentScenario
+                                            ? summary
+                                                .guiMcpStructuredContentCompleted
+                                                ?.hasPrompt === true &&
+                                              ((summary
+                                                .guiMcpStructuredContentCompleted
+                                                ?.hasStructuredAnswer ===
+                                                true &&
+                                                summary
+                                                  .guiMcpStructuredContentCompleted
+                                                  ?.hasReferenceId === true) ||
+                                                summary
+                                                  .guiMcpStructuredContentCompleted
+                                                  ?.hasDoneText === true ||
+                                                summary
+                                                  .guiMcpStructuredContentCompleted
+                                                  ?.terminalDetailsCompacted ===
+                                                  true) &&
+                                              summary
+                                                .guiMcpStructuredContentCompleted
+                                                ?.envelopeVisible === false
+                                            : isMediaReferenceScenario
                                               ? pageText.includes(
-                                                  isTypedErrorRetrySuccessScenario
-                                                    ? TYPED_ERROR_RETRY_SUCCESS_PROMPT
-                                                    : TYPED_ERROR_RETRY_FAILURE_PROMPT,
+                                                  MEDIA_REFERENCE_PROMPT,
                                                 ) &&
                                                 pageText.includes(
-                                                  isTypedErrorRetrySuccessScenario
-                                                    ? TYPED_ERROR_RETRY_SUCCESS_TEXT
-                                                    : TYPED_ERROR_RETRY_FAILURE_PARTIAL_TEXT,
+                                                  MEDIA_REFERENCE_SUMMARY_TEXT,
+                                                ) &&
+                                                pageText.includes(
+                                                  MEDIA_REFERENCE_URI,
                                                 )
-                                              : isMcpStructuredContentScenario
+                                              : isSkillsRuntimeScenario
                                                 ? summary
-                                                    .guiMcpStructuredContentCompleted
+                                                    .guiSkillsRuntimeCompleted
                                                     ?.hasPrompt === true &&
-                                                  ((summary
-                                                    .guiMcpStructuredContentCompleted
-                                                    ?.hasStructuredAnswer ===
-                                                    true &&
+                                                  (summary
+                                                    .guiSkillsRuntimeCompleted
+                                                    ?.hasAssistantSummary ===
+                                                    true ||
                                                     summary
-                                                      .guiMcpStructuredContentCompleted
-                                                      ?.hasReferenceId ===
-                                                      true) ||
-                                                    summary
-                                                      .guiMcpStructuredContentCompleted
-                                                      ?.hasDoneText === true ||
-                                                    summary
-                                                      .guiMcpStructuredContentCompleted
-                                                      ?.terminalDetailsCompacted ===
-                                                      true) &&
+                                                      .guiSkillsRuntimeCompleted
+                                                      ?.hasDoneText === true) &&
                                                   summary
-                                                    .guiMcpStructuredContentCompleted
-                                                    ?.envelopeVisible === false
-                                                : isMediaReferenceScenario
-                                                  ? pageText.includes(
-                                                      MEDIA_REFERENCE_PROMPT,
-                                                    ) &&
-                                                    pageText.includes(
-                                                      MEDIA_REFERENCE_SUMMARY_TEXT,
-                                                    ) &&
-                                                    pageText.includes(
-                                                      MEDIA_REFERENCE_URI,
-                                                    )
-                                                  : isSkillsRuntimeScenario
+                                                    .guiExplicitSkillsRuntimeCompleted
+                                                    ?.hasPrompt === true &&
+                                                  (summary
+                                                    .guiExplicitSkillsRuntimeCompleted
+                                                    ?.hasAssistantSummary ===
+                                                    true ||
+                                                    summary
+                                                      .guiExplicitSkillsRuntimeCompleted
+                                                      ?.hasDoneText === true) &&
+                                                  summary
+                                                    .guiManualEnableSkillsRuntimeCompleted
+                                                    ?.hasPrompt === true &&
+                                                  (summary
+                                                    .guiManualEnableSkillsRuntimeCompleted
+                                                    ?.hasAssistantSummary ===
+                                                    true ||
+                                                    summary
+                                                      .guiManualEnableSkillsRuntimeCompleted
+                                                      ?.hasDoneText === true)
+                                                : isAnyExpertSkillsRuntimeScenario
+                                                  ? isExpertPanelSkillsRuntimeScenario
                                                     ? summary
-                                                        .guiSkillsRuntimeCompleted
+                                                        .guiExpertPanelSkillsRuntimeCompleted
                                                         ?.hasPrompt === true &&
                                                       (summary
-                                                        .guiSkillsRuntimeCompleted
+                                                        .guiExpertPanelSkillsRuntimeCompleted
                                                         ?.hasAssistantSummary ===
                                                         true ||
                                                         summary
-                                                          .guiSkillsRuntimeCompleted
+                                                          .guiExpertPanelSkillsRuntimeCompleted
                                                           ?.hasDoneText ===
                                                           true) &&
-                                                      summary
-                                                        .guiExplicitSkillsRuntimeCompleted
+                                                      pageText.includes(
+                                                        EXPERT_SKILLS_RUNTIME_TITLE,
+                                                      )
+                                                    : summary
+                                                        .guiExpertSkillsRuntimeCompleted
                                                         ?.hasPrompt === true &&
                                                       (summary
-                                                        .guiExplicitSkillsRuntimeCompleted
+                                                        .guiExpertSkillsRuntimeCompleted
                                                         ?.hasAssistantSummary ===
                                                         true ||
                                                         summary
-                                                          .guiExplicitSkillsRuntimeCompleted
+                                                          .guiExpertSkillsRuntimeCompleted
                                                           ?.hasDoneText ===
                                                           true) &&
-                                                      summary
-                                                        .guiManualEnableSkillsRuntimeCompleted
-                                                        ?.hasPrompt === true &&
-                                                      (summary
-                                                        .guiManualEnableSkillsRuntimeCompleted
-                                                        ?.hasAssistantSummary ===
-                                                        true ||
-                                                        summary
-                                                          .guiManualEnableSkillsRuntimeCompleted
-                                                          ?.hasDoneText ===
-                                                          true)
-                                                    : isAnyExpertSkillsRuntimeScenario
-                                                      ? isExpertPanelSkillsRuntimeScenario
-                                                        ? summary
-                                                            .guiExpertPanelSkillsRuntimeCompleted
-                                                            ?.hasPrompt ===
-                                                            true &&
-                                                          (summary
-                                                            .guiExpertPanelSkillsRuntimeCompleted
-                                                            ?.hasAssistantSummary ===
-                                                            true ||
-                                                            summary
-                                                              .guiExpertPanelSkillsRuntimeCompleted
-                                                              ?.hasDoneText ===
-                                                              true) &&
-                                                          pageText.includes(
-                                                            EXPERT_SKILLS_RUNTIME_TITLE,
-                                                          )
-                                                        : summary
-                                                            .guiExpertSkillsRuntimeCompleted
-                                                            ?.hasPrompt ===
-                                                            true &&
-                                                          (summary
-                                                            .guiExpertSkillsRuntimeCompleted
-                                                            ?.hasAssistantSummary ===
-                                                            true ||
-                                                            summary
-                                                              .guiExpertSkillsRuntimeCompleted
-                                                              ?.hasDoneText ===
-                                                              true) &&
-                                                          pageText.includes(
-                                                            EXPERT_SKILLS_RUNTIME_TITLE,
-                                                          )
-                                                      : pageText.includes(
-                                                          NEWS_PROMPT,
-                                                        ) &&
-                                                        (pageText.includes(
-                                                          "今日国际新闻简要整理",
-                                                        ) ||
-                                                          pageText.includes(
-                                                            ASSISTANT_DONE_TEXT,
-                                                          )),
+                                                      pageText.includes(
+                                                        EXPERT_SKILLS_RUNTIME_TITLE,
+                                                      )
+                                                  : pageText.includes(
+                                                      NEWS_PROMPT,
+                                                    ) &&
+                                                    (pageText.includes(
+                                                      "今日国际新闻简要整理",
+                                                    ) ||
+                                                      pageText.includes(
+                                                        ASSISTANT_DONE_TEXT,
+                                                      )),
     noInvokeErrors: !errorRaw,
     noConsoleErrors: actionableConsoleErrors.length === 0,
     agentUiPerformanceTraceEvidenceAvailable:

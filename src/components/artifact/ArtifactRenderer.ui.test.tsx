@@ -620,18 +620,18 @@ describe("ArtifactRenderer 空内容态", () => {
     const container = renderArtifact(
       createArtifact({
         type: "document",
-        title: "deck.pdf",
-        content: "该文档暂不支持在工作台内嵌预览。\n\n/tmp/lime/deck.pdf",
+        title: "deck.ppt",
+        content: "该文档暂不支持在工作台内嵌预览。\n\n/tmp/lime/deck.ppt",
         status: "complete",
         meta: {
           previewArtifact: true,
           isSourceBacked: true,
           contentKind: "document",
           renderMode: "system_open",
-          sourcePath: "/tmp/lime/deck.pdf",
-          filePath: "/tmp/lime/deck.pdf",
-          filename: "deck.pdf",
-          mimeType: "application/pdf",
+          sourcePath: "/tmp/lime/deck.ppt",
+          filePath: "/tmp/lime/deck.ppt",
+          filename: "deck.ppt",
+          mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           capabilities: {
             preview: false,
             systemOpen: true,
@@ -650,9 +650,9 @@ describe("ArtifactRenderer 空内容态", () => {
       "system_open",
     );
     expect(container.textContent).toContain("请用系统应用打开");
-    expect(container.textContent).toContain("deck.pdf");
-    expect(container.textContent).toContain("/tmp/lime/deck.pdf");
-    expect(container.textContent).toContain("类型：application/pdf");
+    expect(container.textContent).toContain("deck.ppt");
+    expect(container.textContent).toContain("/tmp/lime/deck.ppt");
+    expect(container.textContent).toContain("类型：application/vnd.openxmlformats-officedocument.presentationml.presentation");
     expect(
       container.querySelector('[data-testid="artifact-empty-surface"]'),
     ).toBeNull();

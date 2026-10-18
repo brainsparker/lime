@@ -1,8 +1,3 @@
-use app_server_protocol::protocol::v2::{
-    MarketplaceAddParams, MarketplaceAddResponse,
-    MarketplaceRemoveParams, MarketplaceRemoveResponse,
-    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
-};
 use super::super::*;
 use app_server_protocol::protocol::v2::{
     AppsInstalledParams, AppsInstalledResponse, AppsListParams, AppsListResponse, AppsReadParams,
@@ -10,6 +5,16 @@ use app_server_protocol::protocol::v2::{
     PluginInstalledResponse, PluginListParams, PluginListResponse, PluginReadParams,
     PluginReadResponse, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
     PluginUninstallResponse,
+};
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse, MarketplaceRemoveParams,
+    MarketplaceRemoveResponse, MarketplaceUpgradeParams, MarketplaceUpgradeResponse,
+};
+use app_server_protocol::protocol::v2::{
+    PluginShareCheckoutParams, PluginShareCheckoutResponse, PluginShareDeleteParams,
+    PluginShareDeleteResponse, PluginShareListParams, PluginShareListResponse,
+    PluginShareSaveParams, PluginShareSaveResponse, PluginShareUpdateTargetsParams,
+    PluginShareUpdateTargetsResponse,
 };
 use async_trait::async_trait;
 
@@ -28,16 +33,68 @@ impl LocalAppDataSource {
 
 #[async_trait]
 impl PluginDataSource for LocalAppDataSource {
-    async fn add_marketplace(&self, params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+    async fn checkout_plugin_share(
+        &self,
+        params: PluginShareCheckoutParams,
+    ) -> Result<PluginShareCheckoutResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::share::checkout(&self.plugin_store, params).await
+    }
+    async fn save_plugin_share(
+        &self,
+        params: PluginShareSaveParams,
+    ) -> Result<PluginShareSaveResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::share::save(&self.plugin_store, params).await
+    }
+
+    async fn list_plugin_shares(
+        &self,
+        params: PluginShareListParams,
+    ) -> Result<PluginShareListResponse, RuntimeCoreError> {
+        let _ = params;
+        crate::local_data_source::plugin_catalog::share::list(&self.plugin_store).await
+    }
+
+    async fn update_plugin_share_targets(
+        &self,
+        params: PluginShareUpdateTargetsParams,
+    ) -> Result<PluginShareUpdateTargetsResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::share::update(&self.plugin_store, params).await
+    }
+
+    async fn delete_plugin_share(
+        &self,
+        params: PluginShareDeleteParams,
+    ) -> Result<PluginShareDeleteResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::share::delete(&self.plugin_store, params).await
+    }
+
+    async fn load_plugin_hooks(
+        &self,
+    ) -> Result<tool_runtime::hook_source::PluginHookLoadOutcome, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::hooks::load(&self.plugin_store)
+            .map_err(data_error)
+    }
+
+    async fn add_marketplace(
+        &self,
+        params: MarketplaceAddParams,
+    ) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
         crate::local_data_source::plugin_catalog::marketplace::add(&self.plugin_store, params).await
     }
 
-    async fn remove_marketplace(&self, params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+    async fn remove_marketplace(
+        &self,
+        params: MarketplaceRemoveParams,
+    ) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
         crate::local_data_source::plugin_catalog::marketplace::remove(&self.plugin_store, params)
     }
 
-    async fn upgrade_marketplace(&self, params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::marketplace::upgrade(&self.plugin_store, params).await
+    async fn upgrade_marketplace(
+        &self,
+        params: MarketplaceUpgradeParams,
+    ) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::marketplace::upgrade(&self.plugin_store, params)
+            .await
     }
 
     async fn list_plugins(
@@ -68,6 +125,14 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
         params: PluginInstallParams,
     ) -> Result<PluginInstallResponse, RuntimeCoreError> {
+        if params.marketplace_path.is_none() && params.remote_marketplace_name.is_some() {
+            return crate::local_data_source::plugin_catalog::remote::install(
+                &self.plugin_store,
+                params,
+            )
+            .await
+            .map_err(data_error);
+        }
         crate::local_data_source::plugin_catalog::install(&self.plugin_store, params)
             .map_err(data_error)
     }
@@ -76,7 +141,8 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
         params: PluginUninstallParams,
     ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
-        crate::local_data_source::plugin_catalog::uninstall(&self.plugin_store, params)
+        crate::local_data_source::plugin_catalog::remote::uninstall(&self.plugin_store, params)
+            .await
             .map_err(data_error)
     }
 
@@ -92,6 +158,15 @@ impl PluginDataSource for LocalAppDataSource {
         &self,
     ) -> Result<Vec<crate::runtime::PluginTurnSnapshot>, RuntimeCoreError> {
         crate::local_data_source::plugin_catalog::enabled_plugin_turn_snapshots(&self.plugin_store)
+            .map_err(data_error)
+    }
+
+    async fn reconcile_plugins(
+        &self,
+        _params: app_server_protocol::protocol::v2::PluginReconcileParams,
+    ) -> Result<app_server_protocol::protocol::v2::PluginReconcileResponse, RuntimeCoreError> {
+        crate::local_data_source::plugin_catalog::remote::reconcile(&self.plugin_store)
+            .await
             .map_err(data_error)
     }
 

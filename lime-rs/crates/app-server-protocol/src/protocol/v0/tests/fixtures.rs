@@ -276,7 +276,7 @@ fn turn_start_request_matches_protocol_fixture_shape() {
                 runtime_options: Some(RuntimeOptions {
                     capability_id: Some("draft.write".to_string()),
                     stream: true,
-                    event_name: Some("plugin_runtime:app:task".to_string()),
+                    event_name: Some("automation.turn".to_string()),
                     queued_turn_id: Some("queued-turn-1".to_string()),
                     runtime_request: Some(RuntimeRequest {
                         provider_preference: Some("deepseek".to_string()),
@@ -315,7 +315,7 @@ fn turn_start_request_matches_protocol_fixture_shape() {
                 "runtimeOptions": {
                     "capabilityId": "draft.write",
                     "stream": true,
-                    "eventName": "plugin_runtime:app:task",
+                    "eventName": "automation.turn",
                     "queuedTurnId": "queued-turn-1",
                     "runtimeRequest": {
                         "providerPreference": "deepseek",
@@ -375,7 +375,7 @@ fn agent_session_action_respond_request_matches_protocol_fixture_shape() {
                 response: Some("allow".to_string()),
                 user_data: Some(json!({ "choice": "allow" })),
                 metadata: Some(json!({ "source": "content-studio" })),
-                event_name: Some("plugin_runtime:app:task".to_string()),
+                event_name: Some("automation.turn".to_string()),
                 action_scope: Some(AgentSessionActionScope {
                     session_id: Some("sess_1".to_string()),
                     thread_id: Some("thread_1".to_string()),
@@ -404,7 +404,7 @@ fn agent_session_action_respond_request_matches_protocol_fixture_shape() {
                 "metadata": {
                     "source": "content-studio"
                 },
-                "eventName": "plugin_runtime:app:task",
+                "eventName": "automation.turn",
                 "actionScope": {
                     "sessionId": "sess_1",
                     "threadId": "thread_1",

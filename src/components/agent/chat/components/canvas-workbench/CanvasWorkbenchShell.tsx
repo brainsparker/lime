@@ -57,6 +57,8 @@ interface CanvasWorkbenchShellProps {
   headerActionsVisible: boolean;
   activeSelectionPath?: string;
   activeContent: string;
+  downloadEnabled?: boolean;
+  fileActionBusy?: boolean;
   onCopyPath: () => void;
   onOpenPath: (path: string) => void;
   onRevealPath: (path: string) => void;
@@ -144,6 +146,8 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
   headerActionsVisible,
   activeSelectionPath,
   activeContent,
+  downloadEnabled = Boolean(activeContent.trim()),
+  fileActionBusy = false,
   onCopyPath,
   onOpenPath,
   onRevealPath,
@@ -284,7 +288,7 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
                       label={translateWorkbench(
                         "agentChat.canvasWorkbench.actions.openPath",
                       )}
-                      disabled={!activeSelectionPath}
+                      disabled={!activeSelectionPath || fileActionBusy}
                       onClick={() => {
                         if (activeSelectionPath) {
                           onOpenPath(activeSelectionPath);
@@ -297,7 +301,7 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
                       label={translateWorkbench(
                         "agentChat.canvasWorkbench.actions.download",
                       )}
-                      disabled={!activeContent.trim()}
+                      disabled={!downloadEnabled || fileActionBusy}
                       onClick={onDownload}
                       icon={<Download className="h-4 w-4" />}
                       ghostButtonClassName={ghostButtonClassName}

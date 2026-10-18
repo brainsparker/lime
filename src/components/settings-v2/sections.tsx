@@ -276,7 +276,13 @@ export const settingsSections: readonly SettingsSection[] = [
         ),
       ]),
     render: (context) => (
-      <DeveloperLabSettings initialTab={context.developerLabTab} />
+      <DeveloperLabSettings
+        initialTab={
+          context.searchPath === "experimental"
+            ? "experimental"
+            : context.developerLabTab
+        }
+      />
     ),
   },
   {

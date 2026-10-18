@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   type Dispatch,
@@ -23,6 +24,7 @@ import type { CanvasWorkbenchLayoutMode } from "../components/CanvasWorkbenchLay
 const FALLBACK_CANVAS_CONTENT = "";
 
 interface UseWorkspaceCanvasLayoutRuntimeParams {
+  canvasScopeKey?: string;
   activeTheme: string;
   isThemeWorkbench: boolean;
   hasPendingA2UIForm: boolean;
@@ -52,6 +54,7 @@ interface UseWorkspaceCanvasLayoutRuntimeParams {
 }
 
 export function useWorkspaceCanvasLayoutRuntime({
+  canvasScopeKey,
   activeTheme,
   isThemeWorkbench,
   hasPendingA2UIForm,
@@ -78,6 +81,45 @@ export function useWorkspaceCanvasLayoutRuntime({
   setCanvasWorkbenchLayoutMode,
 }: UseWorkspaceCanvasLayoutRuntimeParams) {
   const previousThemeWorkbenchStateRef = useRef(false);
+  const beforeLeave = useRef<(() => Promise<boolean>) | null>(null);
+  const leaving = useRef(false);
+  const generation = useRef(0);
+  useLayoutEffect(() => {
+    const epoch = generation.current + 1;
+    generation.current = epoch;
+    return () => {
+      generation.current = epoch + 1;
+    };
+  }, [canvasScopeKey, activeTheme, layoutMode]);
+  const bindBeforeCanvasLeave = useCallback(
+    (guard: (() => Promise<boolean>) | null) => {
+      beforeLeave.current = guard;
+    },
+    [],
+  );
+  const leaveCanvas = useCallback((action: () => void) => {
+    if (leaving.current) return;
+    const guard = beforeLeave.current;
+    if (!guard) {
+      action();
+      return;
+    }
+    const captured = generation.current;
+    leaving.current = true;
+    void guard()
+      .then((saved) => {
+        if (saved && captured === generation.current) action();
+      })
+      .catch((error: unknown) => {
+        console.error(
+          "[Canvas] Failed to prepare the visible file before closing",
+          error,
+        );
+      })
+      .finally(() => {
+        leaving.current = false;
+      });
+  }, []);
 
   useEffect(() => {
     autoCollapsedTopicSidebarRef.current = false;
@@ -318,7 +360,7 @@ export function useWorkspaceCanvasLayoutRuntime({
     onHasMessagesChange?.(hasMessages);
   }, [hasMessages, onHasMessagesChange]);
 
-  const handleToggleCanvas = useCallback(() => {
+  const applyToggleCanvas = useCallback(() => {
     if (activeTheme === "general" && !isThemeWorkbench) {
       const shouldManageStandaloneGeneralCanvas =
         !hasCurrentCanvasArtifact && !currentImageWorkbenchActive;
@@ -372,12 +414,20 @@ export function useWorkspaceCanvasLayoutRuntime({
     setLayoutMode,
   ]);
 
-  const handleCloseCanvas = useCallback(() => {
+  const applyCloseCanvas = useCallback(() => {
     setLayoutMode("chat");
     if (activeTheme === "general") {
       setGeneralCanvasState((previous) => ({ ...previous, isOpen: false }));
     }
   }, [activeTheme, setGeneralCanvasState, setLayoutMode]);
+
+  const handleToggleCanvas = useCallback(() => {
+    if (layoutMode === "chat") applyToggleCanvas();
+    else leaveCanvas(applyToggleCanvas);
+  }, [applyToggleCanvas, layoutMode, leaveCanvas]);
+  const handleCloseCanvas = useCallback(() => {
+    leaveCanvas(applyCloseCanvas);
+  }, [applyCloseCanvas, leaveCanvas]);
 
   const resolvedCanvasState = useMemo<CanvasStateUnion | null>(() => {
     if (canvasState) {
@@ -411,6 +461,7 @@ export function useWorkspaceCanvasLayoutRuntime({
   return {
     handleToggleCanvas,
     handleCloseCanvas,
+    bindBeforeCanvasLeave,
     resolvedCanvasState,
   };
 }

@@ -625,13 +625,3 @@ export async function createClientCreditTopupOrderCheckout(
     ),
   );
 }
-
-export async function logoutClient(tenantId: string): Promise<void> {
-  await requestControlPlane<unknown>(
-    `/v1/public/tenants/${encodeURIComponent(tenantId)}/client/logout`,
-    {
-      method: "POST",
-      auth: true,
-    },
-  );
-}

@@ -1,3 +1,4 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildOemCloudLoginUrl,
@@ -5,7 +6,6 @@ import {
   openExternalUrl,
   startOemCloudLogin,
 } from "@/lib/oemCloudLoginLauncher";
-import { setStoredOemCloudSessionState } from "@/lib/oemCloudSession";
 
 const shellOpenMock = vi.hoisted(() => vi.fn());
 const controlPlaneMocks = vi.hoisted(() => ({
@@ -231,7 +231,6 @@ describe("oemCloudLoginLauncher", () => {
         desktopClientId: "desktop-client",
         desktopOauthRedirectUrl: "lime://oauth/callback",
         desktopOauthNextPath: "/welcome",
-        pluginSignatureTrustRoots: [],
       },
       { waitForCompletion: false },
     );
@@ -280,7 +279,6 @@ describe("oemCloudLoginLauncher", () => {
         desktopClientId: "desktop-client",
         desktopOauthRedirectUrl: "lime://oauth/callback",
         desktopOauthNextPath: "/welcome",
-        pluginSignatureTrustRoots: [],
       },
       { waitForCompletion: false },
     );
@@ -369,7 +367,6 @@ describe("oemCloudLoginLauncher", () => {
       desktopClientId: "desktop-client",
       desktopOauthRedirectUrl: "lime://oauth/callback",
       desktopOauthNextPath: "/welcome",
-      pluginSignatureTrustRoots: [],
     });
 
     await vi.waitFor(() => {
@@ -380,7 +377,7 @@ describe("oemCloudLoginLauncher", () => {
       );
     });
 
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0514", slug: "tenant-0001" },
       user: { id: "user-001" },
@@ -436,7 +433,6 @@ describe("oemCloudLoginLauncher", () => {
           desktopClientId: "desktop-client",
           desktopOauthRedirectUrl: "lime://oauth/callback",
           desktopOauthNextPath: "/welcome",
-        pluginSignatureTrustRoots: [],
         },
         { waitForCompletion: false },
       ),
@@ -487,7 +483,6 @@ describe("oemCloudLoginLauncher", () => {
         desktopClientId: "desktop-client",
         desktopOauthRedirectUrl: "lime://oauth/callback",
         desktopOauthNextPath: "/welcome",
-        pluginSignatureTrustRoots: [],
       },
       { waitForCompletion: true },
     );
@@ -503,7 +498,7 @@ describe("oemCloudLoginLauncher", () => {
       "http://127.0.0.1:18081/oauth/callback",
     );
 
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0001", slug: "tenant-0001" },
       user: { id: "user-001" },

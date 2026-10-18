@@ -59,6 +59,32 @@ pub struct PluginInstalledResponse {
     pub marketplace_load_errors: Vec<MarketplaceLoadErrorInfo>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginReconcileParams {
+    pub reason: Option<String>,
+}
+
+/// Changes observed by this pass, rather than an acknowledgement of runtime readiness.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginReconcileResponse {
+    pub changed_plugins: Vec<PluginReconcileChangedPlugin>,
+    pub failed_remote_plugin_ids: Vec<String>,
+    pub failed_materialization_remote_plugin_ids: Vec<String>,
+}
+
+/// Categories declared by either the previous or new package, before runtime policy filtering.
+#[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginReconcileChangedPlugin {
+    pub id: String,
+    pub has_mcps: bool,
+    pub has_apps: bool,
+    pub has_hooks: bool,
+    pub has_skills: bool,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct MarketplaceLoadErrorInfo {

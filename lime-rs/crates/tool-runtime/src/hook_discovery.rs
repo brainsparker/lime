@@ -1,13 +1,15 @@
 //! Codex-compatible Hook discovery and trust evaluation.
 
+use crate::hook_config::{HookEventsConfig, HookHandlerConfig};
+use crate::hook_source::PluginHookSource;
 use crate::turn_snapshot::{
     RuntimeHookEventName, RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSnapshot,
     RuntimeHookSource, RuntimeHookTrustStatus,
 };
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 const DEFAULT_TIMEOUT_SEC: u64 = 600;
@@ -16,50 +18,10 @@ const SESSION_END_MAX_TIMEOUT_SEC: u64 = 3;
 const DEFAULT_ADDITIONAL_CONTEXT_LIMIT: usize = 2_500;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct HookPluginSource {
-    pub plugin_id: String,
-    pub package_root: PathBuf,
-}
-
-pub fn plugin_sources_from_activations(activations: &[serde_json::Value]) -> Vec<HookPluginSource> {
-    let mut seen = HashSet::new();
-    activations
-        .iter()
-        .filter_map(|activation| {
-            let plugin_id = activation
-                .get("pluginId")
-                .or_else(|| activation.get("plugin_id"))
-                .and_then(serde_json::Value::as_str)?
-                .trim()
-                .to_string();
-            let source = activation
-                .get("packageSourceUri")
-                .or_else(|| activation.get("package_source_uri"))
-                .and_then(serde_json::Value::as_str)?;
-            let package_root = if source.starts_with("file:") {
-                url::Url::parse(source).ok()?.to_file_path().ok()?
-            } else {
-                PathBuf::from(source)
-            };
-            if plugin_id.is_empty()
-                || !package_root.is_absolute()
-                || !seen.insert(plugin_id.clone())
-            {
-                return None;
-            }
-            Some(HookPluginSource {
-                plugin_id,
-                package_root,
-            })
-        })
-        .collect()
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HookDiscoveryInput {
     pub codex_home: PathBuf,
     pub cwd: PathBuf,
-    pub plugins: Vec<HookPluginSource>,
+    pub plugins: Vec<PluginHookSource>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,6 +34,7 @@ pub struct HookDiscoveryErrorInfo {
 pub struct DiscoveredHook {
     pub snapshot: RuntimeHookSnapshot,
     pub(crate) executable: bool,
+    pub(crate) env: BTreeMap<String, String>,
 }
 
 impl DiscoveredHook {
@@ -126,119 +89,13 @@ struct HookStateConfig {
     trusted_hash: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
-struct JsonHooksFile {
-    #[serde(default)]
-    hooks: HookEventsConfig,
-}
-
-#[derive(Debug, Clone, Default, Deserialize)]
-struct HookEventsConfig {
-    #[serde(rename = "PreToolUse", default)]
-    pre_tool_use: Vec<MatcherGroup>,
-    #[serde(rename = "PermissionRequest", default)]
-    permission_request: Vec<MatcherGroup>,
-    #[serde(rename = "PostToolUse", default)]
-    post_tool_use: Vec<MatcherGroup>,
-    #[serde(rename = "PreCompact", default)]
-    pre_compact: Vec<MatcherGroup>,
-    #[serde(rename = "PostCompact", default)]
-    post_compact: Vec<MatcherGroup>,
-    #[serde(rename = "SessionStart", default)]
-    session_start: Vec<MatcherGroup>,
-    #[serde(rename = "SessionEnd", default)]
-    session_end: Vec<MatcherGroup>,
-    #[serde(rename = "UserPromptSubmit", default)]
-    user_prompt_submit: Vec<MatcherGroup>,
-    #[serde(rename = "SubagentStart", default)]
-    subagent_start: Vec<MatcherGroup>,
-    #[serde(rename = "SubagentStop", default)]
-    subagent_stop: Vec<MatcherGroup>,
-    #[serde(rename = "Stop", default)]
-    stop: Vec<MatcherGroup>,
-}
-
-impl HookEventsConfig {
-    fn into_groups(self) -> [(RuntimeHookEventName, Vec<MatcherGroup>); 11] {
-        [
-            (RuntimeHookEventName::PreToolUse, self.pre_tool_use),
-            (
-                RuntimeHookEventName::PermissionRequest,
-                self.permission_request,
-            ),
-            (RuntimeHookEventName::PostToolUse, self.post_tool_use),
-            (RuntimeHookEventName::PreCompact, self.pre_compact),
-            (RuntimeHookEventName::PostCompact, self.post_compact),
-            (RuntimeHookEventName::SessionStart, self.session_start),
-            (RuntimeHookEventName::SessionEnd, self.session_end),
-            (
-                RuntimeHookEventName::UserPromptSubmit,
-                self.user_prompt_submit,
-            ),
-            (RuntimeHookEventName::SubagentStart, self.subagent_start),
-            (RuntimeHookEventName::SubagentStop, self.subagent_stop),
-            (RuntimeHookEventName::Stop, self.stop),
-        ]
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct MatcherGroup {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    matcher: Option<String>,
-    #[serde(default)]
-    hooks: Vec<HookHandlerConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(tag = "type")]
-enum HookHandlerConfig {
-    #[serde(rename = "command")]
-    Command {
-        command: String,
-        #[serde(
-            default,
-            rename = "commandWindows",
-            alias = "command_windows",
-            skip_serializing_if = "Option::is_none"
-        )]
-        command_windows: Option<String>,
-        #[serde(
-            default,
-            rename = "timeout",
-            alias = "timeout_sec",
-            skip_serializing_if = "Option::is_none"
-        )]
-        timeout_sec: Option<u64>,
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-        r#async: bool,
-        #[serde(
-            default,
-            rename = "statusMessage",
-            alias = "status_message",
-            skip_serializing_if = "Option::is_none"
-        )]
-        status_message: Option<String>,
-        #[serde(
-            default,
-            rename = "additionalContextLimit",
-            alias = "additional_context_limit",
-            skip_serializing_if = "Option::is_none"
-        )]
-        additional_context_limit: Option<usize>,
-    },
-    #[serde(rename = "prompt")]
-    Prompt {},
-    #[serde(rename = "agent")]
-    Agent {},
-}
-
 struct LoadedSource {
     path: PathBuf,
     key_source: String,
     source: RuntimeHookSource,
     plugin_id: Option<String>,
     events: HookEventsConfig,
+    env: BTreeMap<String, String>,
 }
 
 pub fn discover_hooks(input: &HookDiscoveryInput) -> HookDiscoveryReport {
@@ -276,19 +133,21 @@ pub fn discover_hooks(input: &HookDiscoveryInput) -> HookDiscoveryReport {
         );
     }
     for plugin in &input.plugins {
-        let path = plugin.package_root.join("hooks/hooks.json");
-        if let Some(events) = load_json_hooks(&path, &mut report) {
-            match absolute_existing_path(&path) {
-                Ok(path) => sources.push(LoadedSource {
-                    key_source: format!("{}:hooks/hooks.json", plugin.plugin_id),
-                    path,
-                    source: RuntimeHookSource::Plugin,
-                    plugin_id: Some(plugin.plugin_id.clone()),
-                    events,
-                }),
-                Err(message) => report.errors.push(HookDiscoveryErrorInfo { path, message }),
-            }
-        }
+        let root = plugin.plugin_root.to_string_lossy().into_owned();
+        let data = plugin.plugin_data_root.to_string_lossy().into_owned();
+        sources.push(LoadedSource {
+            path: plugin.source_path.clone(),
+            key_source: format!("{}:{}", plugin.plugin_id, plugin.source_relative_path),
+            source: RuntimeHookSource::Plugin,
+            plugin_id: Some(plugin.plugin_id.clone()),
+            events: plugin.hooks.clone(),
+            env: BTreeMap::from([
+                ("PLUGIN_ROOT".to_string(), root.clone()),
+                ("CLAUDE_PLUGIN_ROOT".to_string(), root),
+                ("PLUGIN_DATA".to_string(), data.clone()),
+                ("CLAUDE_PLUGIN_DATA".to_string(), data),
+            ]),
+        });
     }
 
     let mut display_order = 0_i64;
@@ -328,30 +187,6 @@ fn load_toml_config(path: &Path, report: &mut HookDiscoveryReport) -> Option<Con
     }
 }
 
-fn load_json_hooks(path: &Path, report: &mut HookDiscoveryReport) -> Option<HookEventsConfig> {
-    let contents = match std::fs::read_to_string(path) {
-        Ok(contents) => contents,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(error) => {
-            report.errors.push(HookDiscoveryErrorInfo {
-                path: path.to_path_buf(),
-                message: format!("failed to read plugin hook config: {error}"),
-            });
-            return None;
-        }
-    };
-    match serde_json::from_str::<JsonHooksFile>(&contents) {
-        Ok(config) => Some(config.hooks),
-        Err(error) => {
-            report.errors.push(HookDiscoveryErrorInfo {
-                path: path.to_path_buf(),
-                message: format!("failed to parse plugin hook config: {error}"),
-            });
-            None
-        }
-    }
-}
-
 fn push_toml_source(
     sources: &mut Vec<LoadedSource>,
     path: &Path,
@@ -369,6 +204,7 @@ fn push_toml_source(
             source,
             plugin_id: None,
             events,
+            env: BTreeMap::new(),
         }),
         Err(message) => report.errors.push(HookDiscoveryErrorInfo {
             path: path.to_path_buf(),
@@ -500,6 +336,7 @@ fn append_source_hooks(
                         trust_status,
                     },
                     executable,
+                    env: source.env.clone(),
                 });
                 *display_order += 1;
             }
@@ -653,204 +490,4 @@ fn canonical_json(value: &Value) -> Value {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::fs;
-
-    fn setup() -> (tempfile::TempDir, tempfile::TempDir) {
-        (
-            tempfile::TempDir::new().expect("codex home"),
-            tempfile::TempDir::new().expect("cwd"),
-        )
-    }
-
-    #[test]
-    fn discovers_user_toml_with_exact_metadata_and_untrusted_default() {
-        let (home, cwd) = setup();
-        fs::write(
-            home.path().join("config.toml"),
-            r#"[hooks]
-
-[[hooks.PreToolUse]]
-matcher = "Bash"
-
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = "python3 /tmp/listed-hook.py"
-timeout = 5
-statusMessage = "checking"
-additionalContextLimit = 4096
-"#,
-        )
-        .expect("write config");
-
-        let report = discover_hooks(&HookDiscoveryInput {
-            codex_home: home.path().to_path_buf(),
-            cwd: cwd.path().to_path_buf(),
-            plugins: Vec::new(),
-        });
-
-        assert!(report.errors.is_empty(), "{:?}", report.errors);
-        assert_eq!(report.hooks.len(), 1);
-        let hook = &report.hooks[0];
-        assert_eq!(hook.snapshot.event_name, RuntimeHookEventName::PreToolUse);
-        assert_eq!(hook.snapshot.matcher.as_deref(), Some("Bash"));
-        assert_eq!(hook.snapshot.timeout_sec, 5);
-        assert_eq!(hook.snapshot.additional_context_limit, Some(4096));
-        assert_eq!(
-            hook.snapshot.trust_status,
-            RuntimeHookTrustStatus::Untrusted
-        );
-        assert!(!hook.is_executable());
-        assert!(hook.snapshot.current_hash.starts_with("sha256:"));
-    }
-
-    #[test]
-    fn discovers_async_command_with_async_execution_mode() {
-        let (home, cwd) = setup();
-        fs::write(
-            home.path().join("config.toml"),
-            r#"[hooks]
-[[hooks.PostToolUse]]
-[[hooks.PostToolUse.hooks]]
-type = "command"
-command = "echo background"
-async = true
-"#,
-        )
-        .expect("write config");
-
-        let report = discover_hooks(&HookDiscoveryInput {
-            codex_home: home.path().to_path_buf(),
-            cwd: cwd.path().to_path_buf(),
-            plugins: Vec::new(),
-        });
-
-        assert!(report.errors.is_empty(), "{:?}", report.errors);
-        assert_eq!(report.hooks.len(), 1);
-        assert_eq!(
-            report.hooks[0].snapshot.execution_mode,
-            RuntimeHookExecutionMode::Async
-        );
-    }
-
-    #[test]
-    fn trusted_hash_enables_same_normalized_definition_and_changes_fail_closed() {
-        let (home, cwd) = setup();
-        let config_path = home.path().join("config.toml");
-        fs::write(
-            &config_path,
-            r#"[hooks]
-[[hooks.PreToolUse]]
-matcher = "Bash"
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = "echo trusted"
-"#,
-        )
-        .expect("write config");
-        let input = HookDiscoveryInput {
-            codex_home: home.path().to_path_buf(),
-            cwd: cwd.path().to_path_buf(),
-            plugins: Vec::new(),
-        };
-        let first = discover_hooks(&input);
-        let hook = &first.hooks[0].snapshot;
-        let key = hook.key.clone();
-        let hash = hook.current_hash.clone();
-        fs::write(
-            &config_path,
-            format!(
-                r#"[hooks]
-[[hooks.PreToolUse]]
-matcher = "Bash"
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = "echo trusted"
-
-[hooks.state."{key}"]
-enabled = true
-trusted_hash = "{hash}"
-"#
-            ),
-        )
-        .expect("trust config");
-        let trusted = discover_hooks(&input);
-        assert_eq!(
-            trusted.hooks[0].snapshot.trust_status,
-            RuntimeHookTrustStatus::Trusted
-        );
-        assert!(trusted.hooks[0].is_executable());
-
-        let changed = fs::read_to_string(&config_path)
-            .expect("read config")
-            .replace("echo trusted", "echo modified");
-        fs::write(&config_path, changed).expect("modify config");
-        let modified = discover_hooks(&input);
-        assert_eq!(
-            modified.hooks[0].snapshot.trust_status,
-            RuntimeHookTrustStatus::Modified
-        );
-        assert!(!modified.hooks[0].is_executable());
-    }
-
-    #[test]
-    fn discovers_active_plugin_hooks_with_plugin_stable_key() {
-        let (home, cwd) = setup();
-        let plugin_root = home.path().join("plugins/demo");
-        fs::create_dir_all(plugin_root.join("hooks")).expect("hooks dir");
-        fs::write(
-            plugin_root.join("hooks/hooks.json"),
-            r#"{"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command","command":"echo plugin","timeout":7}]}]}}"#,
-        )
-        .expect("plugin hooks");
-
-        let report = discover_hooks(&HookDiscoveryInput {
-            codex_home: home.path().to_path_buf(),
-            cwd: cwd.path().to_path_buf(),
-            plugins: vec![HookPluginSource {
-                plugin_id: "demo@test".to_string(),
-                package_root: plugin_root,
-            }],
-        });
-
-        assert!(report.errors.is_empty(), "{:?}", report.errors);
-        assert_eq!(
-            report.hooks[0].snapshot.key,
-            "demo@test:hooks/hooks.json:pre_tool_use:0:0"
-        );
-        assert_eq!(
-            report.hooks[0].snapshot.plugin_id.as_deref(),
-            Some("demo@test")
-        );
-        assert_eq!(report.hooks[0].snapshot.source, RuntimeHookSource::Plugin);
-    }
-
-    #[test]
-    fn session_end_timeout_is_clamped_and_standard_default_is_ten_minutes() {
-        let (home, cwd) = setup();
-        fs::write(
-            home.path().join("config.toml"),
-            r#"[hooks]
-[[hooks.PreToolUse]]
-[[hooks.PreToolUse.hooks]]
-type = "command"
-command = "echo pre"
-[[hooks.SessionEnd]]
-[[hooks.SessionEnd.hooks]]
-type = "command"
-command = "echo end"
-timeout = 30
-"#,
-        )
-        .expect("config");
-        let report = discover_hooks(&HookDiscoveryInput {
-            codex_home: home.path().to_path_buf(),
-            cwd: cwd.path().to_path_buf(),
-            plugins: Vec::new(),
-        });
-        assert_eq!(report.hooks[0].snapshot.timeout_sec, 600);
-        assert_eq!(report.hooks[1].snapshot.timeout_sec, 3);
-        assert_eq!(report.warnings.len(), 1);
-    }
-}
+mod tests;

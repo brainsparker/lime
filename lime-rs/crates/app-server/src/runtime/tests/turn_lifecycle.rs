@@ -1636,12 +1636,7 @@ async fn cancel_turn_writes_open_workflow_cancel_events_to_workflow_audit_jsonl(
                     json!({
                         "workflowRunId": "turn_cancel_workflow:content-article",
                         "workflowKey": "content_article_workflow",
-                        "status": "running",
-                        "metadata": {
-                            "pluginWorkflow": {
-                                "status": "running"
-                            }
-                        }
+                        "status": "running"
                     }),
                 ),
                 RuntimeEvent::new(
@@ -1649,12 +1644,7 @@ async fn cancel_turn_writes_open_workflow_cancel_events_to_workflow_audit_jsonl(
                     json!({
                         "workflowRunId": "turn_cancel_workflow:content-article",
                         "stepId": "draft",
-                        "status": "running",
-                        "metadata": {
-                            "pluginWorkflow": {
-                                "status": "running"
-                            }
-                        }
+                        "status": "running"
                     }),
                 ),
             ],
@@ -1721,10 +1711,7 @@ async fn cancel_turn_writes_open_workflow_cancel_events_to_workflow_audit_jsonl(
     );
     let canceled_run = &workflow_audit_records[3].event;
     assert_eq!(canceled_run.payload["status"], "canceled");
-    assert_eq!(
-        canceled_run.payload["metadata"]["pluginWorkflow"]["status"],
-        "canceled"
-    );
+    assert!(canceled_run.payload.get("metadata").is_none());
 }
 
 #[tokio::test]

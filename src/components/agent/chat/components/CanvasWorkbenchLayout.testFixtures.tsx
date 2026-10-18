@@ -19,6 +19,7 @@ type MockResizeObserverCallback = (
 
 const hoisted = vi.hoisted(() => ({
   mockListDirectory: vi.fn(),
+  mockReadFileBytes: vi.fn(),
   mockListProjectGitCommits: vi.fn(),
   mockReadProjectGitDiff: vi.fn(),
   mockReadProjectGitStatus: vi.fn(),
@@ -47,6 +48,7 @@ const hoisted = vi.hoisted(() => ({
 }));
 
 export const mockListDirectory = hoisted.mockListDirectory;
+export const mockReadFileBytes = hoisted.mockReadFileBytes;
 export const mockListProjectGitCommits = hoisted.mockListProjectGitCommits;
 export const mockReadProjectGitDiff = hoisted.mockReadProjectGitDiff;
 export const mockReadProjectGitStatus = hoisted.mockReadProjectGitStatus;
@@ -301,6 +303,8 @@ vi.mock("react-i18next", () => ({
 
 vi.mock("@/lib/api/fileBrowser", () => ({
   listDirectory: hoisted.mockListDirectory,
+  readFileBytes: hoisted.mockReadFileBytes,
+  writeFileBytes: vi.fn(),
 }));
 
 vi.mock("@/lib/api/projectGit", () => ({
@@ -568,6 +572,9 @@ export function expectWorkbenchTabNotInNewMenu(
 }
 
 beforeEach(() => {
+  mockReadFileBytes.mockResolvedValue(
+    new TextEncoder().encode("original file bytes"),
+  );
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;

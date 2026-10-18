@@ -80,6 +80,9 @@ function shouldUseProjectedPreviewArtifact(artifact: Artifact): boolean {
     source === "database_record" ||
     source === "app" ||
     contentKind === "app_shell" ||
+    renderMode === "document_pages" ||
+    renderMode === "workbook" ||
+    renderMode === "presentation" ||
     renderMode === "media" ||
     renderMode === "system_open" ||
     renderMode === "unsupported"
@@ -196,12 +199,23 @@ interface UseWorkspaceArtifactPreviewActionsParams {
   setCanvasState: Dispatch<SetStateAction<CanvasStateUnion | null>>;
 }
 
+interface FilePreviewInput {
+  fileName: string;
+  content: string;
+  sourcePath?: string | null;
+  isBinary?: boolean | null;
+  size?: number | null;
+  error?: string | null;
+  previewRequestKey?: string;
+}
+
 interface WorkspaceArtifactPreviewActionsResult {
   handleHarnessLoadFilePreview: (
     path: string,
     artifact?: Artifact,
   ) => Promise<HarnessFilePreviewResult>;
   openArtifactInWorkbench: (artifact: Artifact) => Promise<void>;
+  openFilePreviewArtifact: (params: FilePreviewInput) => Promise<void>;
   handleArtifactClick: (artifact: Artifact) => void;
   handleFileClick: (fileName: string, content: string) => void;
   handleCodeBlockClick: (language: string, code: string) => void;
@@ -467,14 +481,7 @@ export function useWorkspaceArtifactPreviewActions({
   );
 
   const openFilePreviewArtifact = useCallback(
-    (params: {
-      fileName: string;
-      content: string;
-      sourcePath?: string | null;
-      isBinary?: boolean | null;
-      size?: number | null;
-      error?: string | null;
-    }) => {
+    (params: FilePreviewInput) => {
       const projection = createPreviewArtifactFromFile({
         filePath: params.fileName,
         path: params.sourcePath || params.fileName,
@@ -484,9 +491,10 @@ export function useWorkspaceArtifactPreviewActions({
         error: params.error,
         meta: {
           openedFrom: "general-workbench-file",
+          previewRequestKey: params.previewRequestKey ?? crypto.randomUUID(),
         },
       });
-      void openArtifactInWorkbench(projection.artifact);
+      return openArtifactInWorkbench(projection.artifact);
     },
     [openArtifactInWorkbench],
   );
@@ -745,6 +753,7 @@ export function useWorkspaceArtifactPreviewActions({
   return {
     handleHarnessLoadFilePreview,
     openArtifactInWorkbench,
+    openFilePreviewArtifact,
     handleArtifactClick,
     handleFileClick,
     handleCodeBlockClick,

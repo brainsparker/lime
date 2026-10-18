@@ -1,19 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTranslation } from "react-i18next";
 import {
-  Check,
   ChevronDown,
   CircleAlert,
-  ExternalLink,
   LoaderCircle,
-  MoreHorizontal,
   PackageCheck,
   RefreshCw,
   Search,
-  ShieldCheck,
   SlidersHorizontal,
   Sparkles,
-  Unplug,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,18 +27,27 @@ import type {
 import {
   installPlugin,
   listPlugins,
+  reconcilePlugins,
   readPlugin,
   setPluginEnabled,
   uninstallPlugin,
 } from "@/lib/api/pluginCatalog";
 import type { PluginsPageParams } from "@/types/page";
 import { getProject } from "@/lib/api/project";
+import {
+  cloudAccountIdentity,
+  getCloudAccount,
+  subscribeCloudAccount,
+} from "@/lib/cloudAccount";
+import { PluginCatalogCard } from "./PluginCatalogCard";
+import { PluginCatalogDialogs } from "./PluginCatalogDialogs";
+import { PluginShareDialog } from "./PluginShareDialog";
+import { mergePluginShareCatalog } from "./PluginShareViewModel";
+import { listPluginShares } from "@/lib/api/pluginShare";
 import { PluginDetailPanel } from "./PluginDetailPanel";
 import {
   filterPluginCatalog,
   pluginCatalogEntries,
-  pluginDescription,
-  pluginDisplayName,
   pluginLocation,
   type PluginCatalogEntry,
   type PluginCatalogView,
@@ -48,6 +59,11 @@ export function PluginCatalogPage({
   pageParams?: PluginsPageParams;
 }) {
   const { t } = useTranslation("agent");
+  const accountIdentity = useSyncExternalStore(
+    subscribeCloudAccount,
+    () => cloudAccountIdentity(getCloudAccount()),
+    () => null,
+  );
   const [marketplaces, setMarketplaces] = useState<
     AppServerPluginMarketplaceEntry[]
   >([]);
@@ -77,8 +93,13 @@ export function PluginCatalogPage({
   );
   const [uninstallTarget, setUninstallTarget] =
     useState<AppServerPluginSummary | null>(null);
+  const [shareTarget, setShareTarget] = useState<{
+    entry: PluginCatalogEntry;
+    accountIdentity: string;
+  } | null>(null);
   const projectId = pageParams?.currentProjectId;
   const refreshRequest = useRef<symbol | null>(null);
+  const catalogAccount = useRef<string | null>();
 
   // 侧栏在同一页面内切换目录、安装态和详情时同步路由参数。
   useEffect(() => {
@@ -96,21 +117,74 @@ export function PluginCatalogPage({
     try {
       const project = projectId ? await getProject(projectId) : null;
       if (request !== refreshRequest.current) return;
-      const response = await listPlugins(
-        project?.rootPath ? { cwds: [project.rootPath] } : {},
-      );
+      const params = project?.rootPath ? { cwds: [project.rootPath] } : {};
+      if (accountIdentity) {
+        await reconcilePlugins({ reason: "plugin-catalog-refresh" });
+        if (
+          request !== refreshRequest.current ||
+          accountIdentity !== cloudAccountIdentity(getCloudAccount())
+        )
+          return;
+      }
+      const response = { ...(await listPlugins(params)) };
+      if (
+        request !== refreshRequest.current ||
+        accountIdentity !== cloudAccountIdentity(getCloudAccount())
+      )
+        return;
+      const remoteErrors: string[] = [];
+      if (accountIdentity) {
+        const [remote, shares] = await Promise.allSettled([
+          listPlugins({
+            ...params,
+            marketplaceKinds: [
+              "workspace-directory",
+              "created-by-me-remote",
+              "shared-with-me",
+            ],
+          }),
+          listPluginShares(),
+        ]);
+        if (remote.status === "fulfilled") {
+          response.marketplaces = [
+            ...response.marketplaces,
+            ...remote.value.marketplaces,
+          ];
+          response.marketplaceLoadErrors = [
+            ...(response.marketplaceLoadErrors ?? []),
+            ...(remote.value.marketplaceLoadErrors ?? []),
+          ];
+        } else
+          remoteErrors.push(
+            remote.reason instanceof Error
+              ? remote.reason.message
+              : String(remote.reason),
+          );
+        if (shares.status === "fulfilled") {
+          response.marketplaces = mergePluginShareCatalog(
+            response.marketplaces,
+            shares.value,
+            t("plugin.share.createdByMe"),
+          );
+        } else
+          remoteErrors.push(
+            shares.reason instanceof Error
+              ? shares.reason.message
+              : String(shares.reason),
+          );
+      }
       if (request !== refreshRequest.current) return;
+      if (accountIdentity !== cloudAccountIdentity(getCloudAccount())) return;
+      catalogAccount.current = accountIdentity;
       setMarketplaces(response.marketplaces);
       const plugins = response.marketplaces.flatMap(
         (marketplace) => marketplace.plugins,
       );
-      if (response.marketplaceLoadErrors?.length) {
-        setError(
-          response.marketplaceLoadErrors
-            .map((error) => error.message)
-            .join("\n"),
-        );
-      }
+      const loadErrors = [
+        ...(response.marketplaceLoadErrors ?? []).map((error) => error.message),
+        ...remoteErrors,
+      ];
+      if (loadErrors.length) setError(loadErrors.join("\n"));
       setSelectedId((current) => {
         if (current && plugins.some((plugin) => plugin.id === current)) {
           return current;
@@ -118,17 +192,23 @@ export function PluginCatalogPage({
         return plugins[0]?.id ?? null;
       });
     } catch (cause) {
-      if (request !== refreshRequest.current) return;
+      if (
+        request !== refreshRequest.current ||
+        accountIdentity !== cloudAccountIdentity(getCloudAccount())
+      )
+        return;
       const message = cause instanceof Error ? cause.message : String(cause);
       setError(message);
     } finally {
       if (request === refreshRequest.current) setLoading(false);
     }
-  }, [projectId]);
+  }, [projectId, accountIdentity, t]);
 
   useEffect(() => {
+    catalogAccount.current = undefined;
     setMarketplaces([]);
     setInstallTarget(null);
+    setShareTarget(null);
     setUninstallTarget(null);
     setActionMenuId(null);
     void refresh();
@@ -143,20 +223,31 @@ export function PluginCatalogPage({
       return;
     }
     const selected = entries.find(({ plugin }) => plugin.id === selectedId);
-    if (!selected) {
+    if (!selected || catalogAccount.current !== accountIdentity) {
       setDetail(null);
       return;
     }
     let cancelled = false;
     setDetail(null);
-    void readPlugin(pluginLocation(selected))
+    void Promise.resolve()
+      .then(() =>
+        readPlugin(
+          pluginLocation(selected, t("plugin.catalog.v2.invalidRemoteId")),
+        ),
+      )
       .then((response) => {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          accountIdentity === cloudAccountIdentity(getCloudAccount())
+        ) {
           setDetail(response.plugin);
         }
       })
       .catch((cause) => {
-        if (!cancelled) {
+        if (
+          !cancelled &&
+          accountIdentity === cloudAccountIdentity(getCloudAccount())
+        ) {
           setDetail(null);
           setError(cause instanceof Error ? cause.message : String(cause));
         }
@@ -164,7 +255,7 @@ export function PluginCatalogPage({
     return () => {
       cancelled = true;
     };
-  }, [entries, selectedId]);
+  }, [entries, selectedId, accountIdentity, t]);
 
   const filteredPlugins = useMemo(
     () => filterPluginCatalog(entries, { query, source, view }),
@@ -188,10 +279,15 @@ export function PluginCatalogPage({
     setBusyId(pluginId);
     try {
       const response = await installPlugin({
-        ...pluginLocation(installTarget),
+        ...pluginLocation(
+          installTarget,
+          t("plugin.catalog.v2.invalidRemoteId"),
+        ),
         installAttemptId: crypto.randomUUID(),
       });
+      if (accountIdentity !== cloudAccountIdentity(getCloudAccount())) return;
       await refresh();
+      if (accountIdentity !== cloudAccountIdentity(getCloudAccount())) return;
       setSelectedId(pluginId);
       if (response.appsNeedingAuth.length) {
         toast.info(
@@ -207,7 +303,7 @@ export function PluginCatalogPage({
     } finally {
       setBusyId(null);
     }
-  }, [installTarget, refresh, t]);
+  }, [installTarget, refresh, t, accountIdentity]);
 
   const handleToggle = useCallback(
     async (plugin: AppServerPluginSummary) => {
@@ -400,155 +496,34 @@ export function PluginCatalogPage({
               className="grid min-w-0 grid-cols-1 content-start gap-3 md:grid-cols-2"
               data-testid="plugin-catalog-list"
             >
-              {filteredPlugins.map((entry) => {
-                const { plugin, marketplace } = entry;
-                const isSelected = selectedId === plugin.id;
-                const isBusy = busyId === plugin.id;
-                return (
-                  <article
-                    key={`${plugin.id}:${plugin.version}`}
-                    className={`min-w-0 rounded-lg border bg-[color:var(--lime-surface)] p-4 transition ${
-                      isSelected
-                        ? "border-[color:var(--lime-surface-border-strong)] shadow-sm"
-                        : "border-[color:var(--lime-surface-border)] hover:border-[color:var(--lime-surface-border-strong)]"
-                    }`}
-                    data-testid={`plugin-catalog-card-${plugin.id}`}
-                  >
-                    <div className="flex min-w-0 items-start justify-between gap-3">
-                      <button
-                        type="button"
-                        className="min-w-0 text-left"
-                        onClick={() => setSelectedId(plugin.id)}
-                        data-testid={`plugin-catalog-select-${plugin.id}`}
-                      >
-                        <h2 className="truncate text-base font-semibold text-[color:var(--lime-text-strong)]">
-                          {pluginDisplayName(plugin)}
-                        </h2>
-                        <p className="mt-1 truncate text-xs text-[color:var(--lime-text-muted)]">
-                          {plugin.id} ·{" "}
-                          {t("plugin.catalog.v2.version", {
-                            version: plugin.version,
-                          })}
-                        </p>
-                      </button>
-                      {plugin.installed ? (
-                        <div className="relative shrink-0">
-                          <button
-                            type="button"
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-surface-hover)] hover:text-[color:var(--lime-text-strong)]"
-                            onClick={() =>
-                              setActionMenuId((current) =>
-                                current === plugin.id ? null : plugin.id,
-                              )
-                            }
-                            aria-haspopup="menu"
-                            aria-expanded={actionMenuId === plugin.id}
-                            aria-label={t("plugin.catalog.v2.moreActions")}
-                            data-testid={`plugin-catalog-actions-${plugin.id}`}
-                          >
-                            <MoreHorizontal size={17} />
-                          </button>
-                          {actionMenuId === plugin.id ? (
-                            <div
-                              className="absolute right-0 top-9 z-10 min-w-[150px] overflow-hidden rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] py-1 shadow-lg shadow-slate-950/10"
-                              role="menu"
-                            >
-                              <button
-                                type="button"
-                                className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm font-medium hover:bg-[color:var(--lime-surface-hover)]"
-                                onClick={() => void handleToggle(plugin)}
-                                role="menuitem"
-                                data-testid={`plugin-catalog-toggle-${plugin.id}`}
-                              >
-                                {plugin.enabled ? (
-                                  <Unplug size={15} />
-                                ) : (
-                                  <Check size={15} />
-                                )}
-                                {plugin.enabled
-                                  ? t("plugin.catalog.v2.disable")
-                                  : t("plugin.catalog.v2.enable")}
-                              </button>
-                              <button
-                                type="button"
-                                className="flex h-9 w-full items-center gap-2 px-3 text-left text-sm font-medium text-rose-700 hover:bg-rose-50"
-                                onClick={() => {
-                                  setActionMenuId(null);
-                                  setUninstallTarget(plugin);
-                                }}
-                                role="menuitem"
-                                data-testid={`plugin-catalog-uninstall-${plugin.id}`}
-                              >
-                                <X size={15} />
-                                {t("plugin.catalog.v2.uninstall")}
-                              </button>
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                    <p className="mt-3 line-clamp-2 min-h-[40px] text-sm leading-5 text-[color:var(--lime-text-muted)]">
-                      {pluginDescription(plugin) ||
-                        t("plugin.catalog.v2.descriptionFallback")}
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-2 text-xs text-[color:var(--lime-text-muted)]">
-                      <span className="rounded-full bg-[color:var(--lime-surface-hover)] px-2.5 py-1 font-medium">
-                        {marketplace.interface?.displayName || marketplace.name}
-                      </span>
-                      {plugin.installed ? (
-                        <span
-                          className={
-                            plugin.enabled
-                              ? "text-emerald-700"
-                              : "text-amber-700"
-                          }
-                        >
-                          {plugin.enabled
-                            ? t("plugin.catalog.v2.status.enabled")
-                            : t("plugin.catalog.v2.status.disabled")}
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="mt-4 flex items-center justify-between gap-3">
-                      <span className="text-xs text-[color:var(--lime-text-muted)]">
-                        {plugin.authPolicy === "ON_USE"
-                          ? t("plugin.catalog.v2.auth.onUse")
-                          : plugin.authPolicy}
-                      </span>
-                      {plugin.installed ? (
-                        <button
-                          type="button"
-                          className="inline-flex h-8 items-center gap-1 rounded-full border border-[color:var(--lime-surface-border)] px-3 text-xs font-semibold text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-surface-hover)]"
-                          onClick={() => setSelectedId(plugin.id)}
-                          data-testid={`plugin-catalog-details-${plugin.id}`}
-                        >
-                          {t("plugin.catalog.v2.details")}
-                          <ExternalLink size={13} />
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="inline-flex h-8 items-center gap-1 rounded-full bg-[color:var(--lime-text-strong)] px-3 text-xs font-semibold text-[color:var(--lime-surface)] hover:opacity-90"
-                          onClick={() => {
-                            setInstallTarget(entry);
-                          }}
-                          disabled={
-                            Boolean(busyId) ||
-                            plugin.installPolicy === "NOT_AVAILABLE" ||
-                            plugin.availability === "DISABLED_BY_ADMIN"
-                          }
-                          data-testid={`plugin-catalog-install-${plugin.id}`}
-                        >
-                          {isBusy ? (
-                            <LoaderCircle size={13} className="animate-spin" />
-                          ) : null}
-                          {t("plugin.catalog.v2.install")}
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                );
-              })}
+              {filteredPlugins.map((entry) => (
+                <PluginCatalogCard
+                  key={`${entry.plugin.id}:${entry.plugin.version}`}
+                  entry={entry}
+                  isSelected={selectedId === entry.plugin.id}
+                  busy={Boolean(busyId)}
+                  menuOpen={actionMenuId === entry.plugin.id}
+                  onSelect={() => setSelectedId(entry.plugin.id)}
+                  onMenuToggle={() =>
+                    setActionMenuId((current) =>
+                      current === entry.plugin.id ? null : entry.plugin.id,
+                    )
+                  }
+                  onToggle={() => void handleToggle(entry.plugin)}
+                  onUninstall={() => {
+                    setActionMenuId(null);
+                    setUninstallTarget(entry.plugin);
+                  }}
+                  onInstall={() => setInstallTarget(entry)}
+                  onShare={
+                    accountIdentity &&
+                    (entry.plugin.source.type === "local" ||
+                      entry.plugin.shareContext)
+                      ? () => setShareTarget({ entry, accountIdentity })
+                      : undefined
+                  }
+                />
+              ))}
             </section>
 
             <PluginDetailPanel
@@ -561,136 +536,25 @@ export function PluginCatalogPage({
         )}
       </div>
 
-      {installTarget ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/25 px-4"
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-[520px] rounded-xl border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] p-5 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="plugin-catalog-install-title"
-            data-testid="plugin-catalog-install-review"
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[color:var(--lime-text-muted)]">
-                  {t("plugin.catalog.v2.review.eyebrow")}
-                </p>
-                <h2
-                  id="plugin-catalog-install-title"
-                  className="mt-1 text-lg font-semibold text-[color:var(--lime-text-strong)]"
-                >
-                  {t("plugin.catalog.v2.review.title")}
-                </h2>
-              </div>
-              <button
-                type="button"
-                className="rounded-full p-1.5 text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-surface-hover)]"
-                onClick={() => setInstallTarget(null)}
-                aria-label={t("plugin.catalog.v2.close")}
-              >
-                <X size={17} />
-              </button>
-            </div>
-            {installTarget ? (
-              <div className="mt-5 rounded-lg border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-soft)] p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <h3 className="truncate font-semibold text-[color:var(--lime-text-strong)]">
-                      {pluginDisplayName(installTarget.plugin)}
-                    </h3>
-                    <p className="mt-1 text-xs text-[color:var(--lime-text-muted)]">
-                      {installTarget.plugin.id} ·{" "}
-                      {t("plugin.catalog.v2.version", {
-                        version: installTarget.plugin.version,
-                      })}
-                    </p>
-                  </div>
-                  <ShieldCheck
-                    size={19}
-                    className="shrink-0 text-emerald-700"
-                  />
-                </div>
-                <p className="mt-3 text-sm leading-6 text-[color:var(--lime-text-muted)]">
-                  {pluginDescription(installTarget.plugin) ||
-                    t("plugin.catalog.v2.descriptionFallback")}
-                </p>
-                <p className="mt-3 truncate text-xs text-[color:var(--lime-text-muted)]">
-                  {t("plugin.catalog.v2.review.source", {
-                    name:
-                      installTarget.marketplace.interface?.displayName ||
-                      installTarget.marketplace.name,
-                  })}
-                </p>
-              </div>
-            ) : null}
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-9 rounded-full border border-[color:var(--lime-surface-border)] px-4 text-sm font-semibold text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-surface-hover)]"
-                onClick={() => setInstallTarget(null)}
-              >
-                {t("plugin.catalog.v2.cancel")}
-              </button>
-              <button
-                type="button"
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-[color:var(--lime-text-strong)] px-5 text-sm font-semibold text-[color:var(--lime-surface)] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => void handleInstall()}
-                disabled={!installTarget || Boolean(busyId)}
-                data-testid="plugin-catalog-confirm-install"
-              >
-                {busyId ? (
-                  <LoaderCircle size={15} className="animate-spin" />
-                ) : (
-                  <PackageCheck size={15} />
-                )}
-                {t("plugin.catalog.v2.confirmInstall")}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {uninstallTarget ? (
-        <div
-          className="fixed inset-0 z-40 flex items-center justify-center bg-slate-950/25 px-4"
-          role="presentation"
-        >
-          <div
-            className="w-full max-w-[420px] rounded-xl border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] p-5 shadow-xl"
-            role="dialog"
-            aria-modal="true"
-            data-testid="plugin-catalog-uninstall-confirm"
-          >
-            <h2 className="text-lg font-semibold text-[color:var(--lime-text-strong)]">
-              {t("plugin.catalog.v2.uninstallTitle", {
-                name: pluginDisplayName(uninstallTarget),
-              })}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-[color:var(--lime-text-muted)]">
-              {t("plugin.catalog.v2.uninstallDescription")}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                className="h-9 rounded-full border border-[color:var(--lime-surface-border)] px-4 text-sm font-semibold text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-surface-hover)]"
-                onClick={() => setUninstallTarget(null)}
-              >
-                {t("plugin.catalog.v2.cancel")}
-              </button>
-              <button
-                type="button"
-                className="h-9 rounded-full bg-rose-700 px-4 text-sm font-semibold text-white hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => void handleUninstall()}
-                disabled={Boolean(busyId)}
-              >
-                {t("plugin.catalog.v2.confirmUninstall")}
-              </button>
-            </div>
-          </div>
-        </div>
+      <PluginCatalogDialogs
+        installTarget={installTarget}
+        uninstallTarget={uninstallTarget}
+        busyId={busyId}
+        onInstall={() => void handleInstall()}
+        onUninstall={() => void handleUninstall()}
+        onCancelInstall={() => setInstallTarget(null)}
+        onCancelUninstall={() => setUninstallTarget(null)}
+      />
+      {shareTarget && shareTarget.accountIdentity === accountIdentity ? (
+        <PluginShareDialog
+          key={`${shareTarget.accountIdentity}:${shareTarget.entry.plugin.id}`}
+          entry={shareTarget.entry}
+          accountIdentity={shareTarget.accountIdentity}
+          onClose={() => {
+            setShareTarget(null);
+            void refresh();
+          }}
+        />
       ) : null}
     </div>
   );

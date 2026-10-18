@@ -1,4 +1,7 @@
 import type { ContentPart, Message } from "../types";
+import { readWorkbookAnnotationDisplayContent } from "@/components/artifact/workbook/workbookAnnotation";
+import { readPresentationAnnotationDisplayContent } from "@/components/artifact/presentation/presentationAnnotation";
+import { readDocumentAnnotationDisplayContent } from "@/components/artifact/document/documentAnnotation";
 import {
   containsRuntimeAttachmentPlaceholder,
   isOnlyRuntimeAttachmentPlaceholderText,
@@ -438,7 +441,10 @@ export function sanitizeMessageTextForDisplay(
   const normalized =
     options.role === "assistant"
       ? stripAssistantPhaseSummaryTitle(stripAssistantProtocolResidue(text))
-      : text.trim();
+      : (readDocumentAnnotationDisplayContent(text) ??
+        readWorkbookAnnotationDisplayContent(text) ??
+        readPresentationAnnotationDisplayContent(text) ??
+        text.trim());
   if (
     options.role === "assistant" &&
     isAssistantRuntimeErrorDisplayText(normalized)

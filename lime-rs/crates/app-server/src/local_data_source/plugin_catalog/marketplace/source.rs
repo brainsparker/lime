@@ -104,7 +104,7 @@ fn is_local(source: &str) -> bool {
     Path::new(source).is_absolute()
         || ["./", ".\\", "../", "..\\", "~/", "\\\\"]
             .iter()
-            .any(|prefix| source.starts_with(prefix))
+            .any(|prefix| source.starts_with(*prefix))
         || matches!(source, "." | "..")
         || (bytes.len() >= 3
             && bytes[0].is_ascii_alphabetic()

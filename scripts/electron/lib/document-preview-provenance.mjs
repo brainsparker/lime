@@ -1,0 +1,101 @@
+import fs from "node:fs";
+import path from "node:path";
+import { createHash } from "node:crypto";
+
+export const hash = (file) =>
+  createHash("sha256").update(fs.readFileSync(file)).digest("hex");
+export const manifest = (directories) => {
+  const records = {};
+  const visit = (file) => {
+    const stat = fs.lstatSync(file);
+    if (stat.isDirectory())
+      for (const child of fs.readdirSync(file).sort())
+        visit(path.join(file, child));
+    else if (stat.isFile()) records[file] = hash(file);
+  };
+  for (const directory of directories) visit(directory);
+  return records;
+};
+export const sourcePaths = [
+  "package.json",
+  "pnpm-lock.yaml",
+  "src/components/artifact/document",
+  "src/components/artifact/workbook",
+  "src/components/artifact/presentation",
+  "src/components/artifact/annotations",
+  "src/components/artifact/ArtifactRenderer.tsx",
+  "src/components/artifact/PreviewArtifactRenderer.tsx",
+  "src/components/artifact/previewArtifactView.ts",
+  "src/lib/artifact/previewArtifact.ts",
+  "src/lib/api/fileBrowser.ts",
+  "src/lib/api/agentRuntime/appServerCanonicalItemReader.ts",
+  "src/lib/artifact/fileRevision.ts",
+  "src/components/artifact/ArtifactCommentSubmissionContext.tsx",
+  "src/components/artifact/ArtifactToolbar.tsx",
+  "src/components/artifact/usePublicFileAction.ts",
+  "src/lib/artifact/artifactFilename.ts",
+  "src/lib/artifact/downloadBlob.ts",
+  "src/components/agent/chat/components/Inputbar/index.tsx",
+  "src/components/agent/chat/hooks/useArtifactAutoPreviewSync.ts",
+  "src/components/agent/chat/workspace/useWorkspaceArtifactCommentSubmission.ts",
+  "src/components/agent/chat/workspace/useWorkspaceArtifactOpenRuntime.tsx",
+  "src/components/agent/chat/workspace/useWorkspaceArtifactPreviewActions.ts",
+  "src/components/agent/chat/components/ConversationTurnTimeline.tsx",
+  "src/components/agent/chat/utils/messageDisplaySanitizer.ts",
+  "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
+  "src/components/agent/chat/workspace/useAgentChatWorkspaceSceneRuntime.tsx",
+  "src/components/agent/chat/workspace/useAgentChatWorkspaceCommandRuntime.ts",
+  "src/components/agent/chat/workspace/useAgentChatWorkspaceShellInteractionRuntime.ts",
+  "src/components/agent/chat/workspace/useWorkspaceCanvasLayoutRuntime.ts",
+  "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx",
+  "src/components/agent/chat/components/CanvasWorkbenchLayout.tsx",
+  "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchLayoutState.ts",
+  "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchShell.tsx",
+  "src/components/agent/chat/components/canvas-workbench/useCanvasWorkbenchDocumentState.ts",
+  "src/components/agent/chat/components/CanvasWorkbenchLayoutViewModel.ts",
+  "src/components/agent/chat/components/canvas-workbench/files/workspaceFilePreview.ts",
+  "src/components/agent/chat/components/canvas-workbench/files/CanvasWorkbenchProjectFilesPanel.tsx",
+  "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.tsx",
+  "scripts/electron/document-preview-fixture-smoke.mjs",
+  "scripts/electron/lib/pdf-preview-scenario.mjs",
+  "scripts/electron/lib/pdf-annotation-scenario.mjs",
+  "scripts/electron/lib/docx-preview-scenario.mjs",
+  "scripts/electron/lib/docx-annotation-scenario.mjs",
+  "scripts/electron/lib/artifact-frame-driver.mjs",
+  "scripts/electron/lib/presentation-preview-scenario.mjs",
+  "scripts/electron/lib/presentation-annotation-scenario.mjs",
+  "scripts/electron/lib/presentation-editing-scenario.mjs",
+  "scripts/electron/lib/presentation-text-editor-dom.mjs",
+  "scripts/electron/lib/presentation-flush-scenario.mjs",
+  "scripts/electron/lib/presentation-structure-scenario.mjs",
+  "scripts/electron/lib/presentation-navigation-scenario.mjs",
+  "scripts/electron/lib/document-preview-diagnostics.mjs",
+  "scripts/electron/lib/document-preview-provenance.mjs",
+  "scripts/electron/lib/document-preview-options.mjs",
+  "scripts/electron/lib/document-preview-presentation-scenarios.mjs",
+  "scripts/electron/lib/presentation-table-builtin-scenario.mjs",
+  "scripts/electron/lib/presentation-element-scenario.mjs",
+  "scripts/electron/lib/presentation-rich-text-scenario.mjs",
+  "scripts/electron/lib/presentation-rich-text-scenario-oracle.mjs",
+  "scripts/electron/lib/presentation-table-scenario.mjs",
+  "scripts/electron/lib/presentation-table-structure-scenario.mjs",
+  "scripts/electron/lib/presentation-table-advanced-scenario.mjs",
+  "scripts/electron/lib/presentation-table-advanced-workflow.mjs",
+  "scripts/electron/lib/presentation-table-row-resize-scenario.mjs",
+  "scripts/electron/lib/presentation-table-reorder-scenario.mjs",
+  "scripts/electron/lib/presentation-table-format-scenario.mjs",
+  "scripts/electron/lib/presentation-border-width.mjs",
+  "scripts/electron/lib/docx-annotation-batch-scenario.mjs",
+  "scripts/electron/lib/workbook-preview-scenario.mjs",
+  "scripts/electron/lib/workbook-annotation-scenario.mjs",
+  "scripts/electron/lib/workbook-editing-scenario.mjs",
+  "scripts/electron/lib/workbook-flush-scenario.mjs",
+  "scripts/electron/lib/workbook-clipboard-scenario.mjs",
+  "scripts/electron/lib/workbook-clipboard-scenario-oracle.mjs",
+  "scripts/lib/electron-fixture-build.mjs",
+  "scripts/agent-runtime/claw-chat-current-fixture-backend-script.mjs",
+  "scripts/agent-runtime/runtime-input-image-evidence.mjs",
+  ...["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"].map(
+    (locale) => `src/i18n/resources/${locale}/workspace.json`,
+  ),
+];

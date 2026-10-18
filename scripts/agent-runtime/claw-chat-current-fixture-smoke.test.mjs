@@ -2821,46 +2821,43 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).not.toContain("fixture:right-surface-visual-matrix");
     expect(content).toContain("workspaceRightSurface/pending/list");
     expect(content).toContain("task-center-files-toggle");
-    expect(content).toContain("task-center-object-canvas-toggle");
     expect(content).toContain("task-center-browser-toggle");
-    expect(content).toContain("task-center-expert-info-toggle");
     expect(content).toContain("task-center-activity-toggle");
     expect(content).toContain("workspace-right-surface-tab-appSurface");
     expect(content).toContain("right-surface-browser.png");
     expect(content).toContain("workspace-right-surface-host");
     expect(content).toContain("workspace-files-surface");
-    expect(content).toContain("workspace-object-canvas-surface");
     expect(content).toContain("right-surface-browser-panel");
     expect(content).toContain("summarizeRightSurfaceRequest(requests.browser)");
     expect(content).toMatch(
       /fs\.existsSync\(\s*rightSurfaceVisualCaptures\.browser\.screenshot,?\s*\)/u,
     );
-    expect(content).toContain("expert-info-panel");
     expect(content).toContain("workspace-plugin-surface");
     expect(content).toContain("workspace-plugin-surface-tabs");
     expect(content).toContain("workspace-plugin-surface-frame");
     expect(content).toContain("workspace-plugin-surface-viewport");
     expect(content).toContain("thread-activity-panel");
-    expect(content).toContain("plugin-shell-content-factory-app-main");
-    expect(content).toContain("plugin-shell-prompt-lab-app");
-    expect(content).toContain("webContentsView");
-    expect(content).toContain("iframe: false");
-    expect(content).toContain("browserView: false");
     expect(content).toContain("rightSurfaceVisualMatrixHostsFillRightSide");
-    expect(content).toContain(
+    expect(content).not.toContain(
       "rightSurfaceVisualMatrixObjectCanvasRailVisible",
     );
     expect(content).toContain("rightSurfaceVisualMatrixBrowserSurfaceVisible");
-    expect(content).toContain("rightSurfaceVisualMatrixAppSurfaceVisible");
     expect(content).toContain("rightSurfaceVisualMatrixActivitySurfaceVisible");
-    expect(content).toContain(
-      "rightSurfaceVisualMatrixAppSurfaceMultiInstanceTabs",
-    );
+    expect(content).not.toContain("plugin-shell-");
+    expect(content).not.toContain("https://example.com/lime-plugins/");
+    expect(content).not.toContain("appSurfaceContentFactory");
+    expect(content).not.toContain("appSurfacePromptLab");
     expect(content).toContain(
       "rightSurfaceVisualMatrixPendingConsumeKeepsSurfaceOpen",
     );
     expect(content).toContain("rightSurfaceVisualMatrixDoesNotUseModelTurn");
     expect(content).not.toContain("agent_runtime_");
+    expect(
+      fs.readFileSync(
+        "scripts/agent-runtime/claw-chat-current-fixture-right-surface-visual.mjs",
+        "utf8",
+      ),
+    ).not.toContain("task-center-object-canvas-toggle");
   });
 
   it("accepts Article Editor right rail snapshots without canvas-panel fill", () => {

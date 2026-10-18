@@ -3,12 +3,19 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import assert from "node:assert/strict";
 
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { writeJsonFile } from "../mcp/lib/current-smoke-transport.mjs";
+import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
 import {
-  closeElectronFixture,
+  captureSettingsDraftFixtureSources,
+  runExperimentalDraftNavigationScenario,
+} from "./lib/settings-draft-navigation-scenario.mjs";
+import {
   createTempRuntimeEnv,
   launchElectronFixture,
   openSettings,
@@ -259,9 +266,39 @@ async function run() {
   });
   let handle = null;
   let page = null;
+  let mainExit = null;
   const consoleErrors = [];
   const pageErrors = [];
+  const teardowns = [];
+  const fresh = () => {
+    const value = inspectElectronFixtureBuildFreshness({
+      rootDir: process.cwd(),
+    });
+    assert.equal(value.ready, true, "current Electron build must be fresh");
+    return value;
+  };
+  const close = async () => {
+    if (!handle) return;
+    const teardown = await settleFixtureResources({
+      app: handle.app,
+      mainExit,
+    });
+    teardowns.push(teardown);
+    summary.teardowns = teardowns;
+    handle = null;
+    page = null;
+    mainExit = null;
+    assert.equal(
+      teardown.ok,
+      true,
+      "normal Main exit is required within 15 seconds",
+    );
+  };
   try {
+    summary.buildFreshness = { before: fresh() };
+    summary.sourceManifest = {
+      before: captureSettingsDraftFixtureSources(process.cwd()),
+    };
     handle = await launchElectronFixture({
       options,
       runtimeEnv,
@@ -269,7 +306,9 @@ async function run() {
       consoleErrors,
       pageErrors,
     });
+    mainExit = captureMainProcessExit(handle.app.process());
     page = handle.page;
+    const rendererSnapshot = handle.rendererSnapshot;
     const clipboardSinkInstalled = await installClipboardSink(page);
     await openDeveloperSettings(page, options);
     const readyState = await readDeveloperReadyState(page, options);
@@ -277,12 +316,34 @@ async function run() {
     await button.scrollIntoViewIfNeeded();
     await button.click();
     const state = await readDeveloperTerminalState(page, options);
-    const trace = summarizeSettingsDeveloperTrace(state.traceRaw);
     await page.screenshot({ path: screenshotPath, fullPage: true });
+    const experimentalDraft = await runExperimentalDraftNavigationScenario({
+      page,
+      options,
+    });
+    await openDeveloperSettings(page, options);
+    await readDeveloperReadyState(page, options);
+    const finalBuffers = await page.evaluate(() => ({
+      traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
+      errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),
+      clipboardWriteCount:
+        window.__LIME_SETTINGS_DEVELOPER_CLIPBOARD_SINK__?.writeCount,
+    }));
+    assert.equal(
+      finalBuffers.clipboardWriteCount,
+      1,
+      "draft actions never write diagnostics to clipboard",
+    );
+    const trace = summarizeSettingsDeveloperTrace(finalBuffers.traceRaw);
+    await close();
+    summary.buildFreshness.after = fresh();
+    summary.sourceManifest.after = captureSettingsDraftFixtureSources(
+      process.cwd(),
+    );
     applyPassingSettingsDeveloperEvidence(summary, {
       completedAt: new Date().toISOString(),
-      electronRenderer: handle.rendererSnapshot.electron,
-      preloadInvoke: handle.rendererSnapshot.hasInvokeBridge,
+      electronRenderer: rendererSnapshot.electron,
+      preloadInvoke: rendererSnapshot.hasInvokeBridge,
       isolatedUserData: runtimeEnv.electronUserDataDir.startsWith(
         runtimeEnv.tempRoot,
       ),
@@ -295,8 +356,15 @@ async function run() {
       trace,
       consoleErrors,
       pageErrors,
-      invokeErrorCount: parseInvokeTraceRaw(state.errorRaw).length,
+      invokeErrorCount: parseInvokeTraceRaw(finalBuffers.errorRaw).length,
       screenshotWritten: fs.existsSync(screenshotPath),
+      experimentalDraft,
+      buildFreshness: summary.buildFreshness,
+      sourceManifest: summary.sourceManifest,
+      normalMainExits: teardowns.map((value) => ({
+        ...value.normalMainExit,
+        forcedCleanup: value.forcedCleanup !== null,
+      })),
     });
     writeJsonFile(rawEvidencePath, {
       collection: {
@@ -307,6 +375,7 @@ async function run() {
       clipboard: state.clipboard,
       appServerMethods: trace.methods,
       configMethods: trace.methods,
+      experimentalDraft,
     });
     writeJsonFile(summaryPath, summary);
     console.log(`[smoke:settings-developer-fixture] summary=${summaryPath}`);
@@ -330,7 +399,13 @@ async function run() {
     }
     throw error;
   } finally {
-    if (handle) await closeElectronFixture(handle);
+    if (handle) {
+      try {
+        await close();
+      } finally {
+        writeJsonFile(summaryPath, summary);
+      }
+    }
     if (!options.keepTemp) {
       fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true });
     }

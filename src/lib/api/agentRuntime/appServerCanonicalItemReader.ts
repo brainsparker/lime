@@ -303,10 +303,12 @@ export function readRuntimeCanonicalToolThreadItem(
     return null;
   }
 
-  const status = normalizeItemStatus(readString(item, "status"), false) ?? fallbackStatus;
+  const status =
+    normalizeItemStatus(readString(item, "status"), false) ?? fallbackStatus;
   const output = normalizeRecord(payload.output);
   const error = readString(output ?? {}, "error");
-  const structuredContent = output?.structuredContent ?? output?.structured_content;
+  const structuredContent =
+    output?.structuredContent ?? output?.structured_content;
   return {
     id: readString(item, "id", "itemId", "item_id") ?? callId,
     thread_id: route.threadId,
@@ -326,7 +328,11 @@ export function readRuntimeCanonicalToolThreadItem(
     duration_ms: readFiniteNumber(output ?? {}, "durationMs", "duration_ms"),
     success:
       readBoolean(output ?? {}, "success") ??
-      (status === "completed" ? !error : status === "failed" ? false : undefined),
+      (status === "completed"
+        ? !error
+        : status === "failed"
+          ? false
+          : undefined),
     ...(error ? { error } : {}),
     metadata: {
       ...(normalizeRecord(item.metadata) ?? {}),
@@ -938,12 +944,10 @@ function readFileChanges(value: unknown): Record<string, unknown>[] {
     }
     return [
       {
-        path: safeDisplayPath(path),
+        path,
         kind: omitUndefined({
           type: kindType,
-          move_path: readString(kind, "move_path")
-            ? safeDisplayPath(readString(kind, "move_path") as string)
-            : undefined,
+          move_path: readString(kind, "move_path"),
         }),
         diff,
       },

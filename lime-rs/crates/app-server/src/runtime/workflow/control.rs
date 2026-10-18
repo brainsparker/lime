@@ -740,14 +740,6 @@ fn canceled_run_payload(
         "cancellation".to_string(),
         cancellation_payload(target, canceled_at),
     );
-    object.insert(
-        "metadata".to_string(),
-        json!({
-            "pluginWorkflow": {
-                "status": "canceled"
-            }
-        }),
-    );
     Value::Object(object)
 }
 
@@ -805,16 +797,6 @@ fn retrying_run_payload(
     object.insert(
         "retry".to_string(),
         retry_payload(target, reschedule, retried_at),
-    );
-    object.insert(
-        "metadata".to_string(),
-        json!({
-            "pluginWorkflow": {
-                "status": "retrying",
-                "sourceTurnId": reschedule.source_turn_id,
-                "rescheduledTurnId": reschedule.rescheduled_turn_id
-            }
-        }),
     );
     Value::Object(object)
 }

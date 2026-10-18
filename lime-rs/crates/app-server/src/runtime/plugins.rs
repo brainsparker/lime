@@ -1,8 +1,3 @@
-use app_server_protocol::protocol::v2::{
-    MarketplaceAddParams, MarketplaceAddResponse,
-    MarketplaceRemoveParams, MarketplaceRemoveResponse,
-    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
-};
 use super::RuntimeCore;
 use super::RuntimeCoreError;
 use app_server_protocol::protocol::v2::{
@@ -13,17 +8,78 @@ use app_server_protocol::protocol::v2::{
     PluginUninstallResponse,
 };
 
+mod remote;
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse, MarketplaceRemoveParams,
+    MarketplaceRemoveResponse, MarketplaceUpgradeParams, MarketplaceUpgradeResponse,
+};
+use app_server_protocol::protocol::v2::{
+    PluginShareCheckoutParams, PluginShareCheckoutResponse, PluginShareDeleteParams,
+    PluginShareDeleteResponse, PluginShareListParams, PluginShareListResponse,
+    PluginShareSaveParams, PluginShareSaveResponse, PluginShareUpdateTargetsParams,
+    PluginShareUpdateTargetsResponse,
+};
+
 impl RuntimeCore {
-    pub async fn add_marketplace(&self, params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+    pub async fn checkout_plugin_share(
+        &self,
+        params: PluginShareCheckoutParams,
+    ) -> Result<PluginShareCheckoutResponse, RuntimeCoreError> {
+        self.app_data_source.checkout_plugin_share(params).await
+    }
+    pub async fn save_plugin_share(
+        &self,
+        params: PluginShareSaveParams,
+    ) -> Result<PluginShareSaveResponse, RuntimeCoreError> {
+        self.app_data_source.save_plugin_share(params).await
+    }
+
+    pub async fn list_plugin_shares(
+        &self,
+        params: PluginShareListParams,
+    ) -> Result<PluginShareListResponse, RuntimeCoreError> {
+        self.app_data_source.list_plugin_shares(params).await
+    }
+
+    pub async fn update_plugin_share_targets(
+        &self,
+        params: PluginShareUpdateTargetsParams,
+    ) -> Result<PluginShareUpdateTargetsResponse, RuntimeCoreError> {
+        self.app_data_source
+            .update_plugin_share_targets(params)
+            .await
+    }
+
+    pub async fn delete_plugin_share(
+        &self,
+        params: PluginShareDeleteParams,
+    ) -> Result<PluginShareDeleteResponse, RuntimeCoreError> {
+        self.app_data_source.delete_plugin_share(params).await
+    }
+
+    pub async fn add_marketplace(
+        &self,
+        params: MarketplaceAddParams,
+    ) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
         self.app_data_source.add_marketplace(params).await
     }
 
-    pub async fn remove_marketplace(&self, params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+    pub async fn remove_marketplace(
+        &self,
+        params: MarketplaceRemoveParams,
+    ) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
         self.app_data_source.remove_marketplace(params).await
     }
 
-    pub async fn upgrade_marketplace(&self, params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
-        self.app_data_source.upgrade_marketplace(params).await
+    pub async fn upgrade_marketplace(
+        &self,
+        params: MarketplaceUpgradeParams,
+    ) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+        let response = self.app_data_source.upgrade_marketplace(params).await?;
+        if !response.upgraded_roots.is_empty() {
+            self.invalidate_plugin_components().await;
+        }
+        Ok(response)
     }
 
     pub(crate) async fn invalidate_plugin_components(&self) {
@@ -83,7 +139,11 @@ impl RuntimeCore {
         &self,
         params: PluginListParams,
     ) -> Result<PluginListResponse, RuntimeCoreError> {
-        self.app_data_source.list_plugins(params).await
+        let mut response = self.app_data_source.list_plugins(params.clone()).await?;
+        response
+            .marketplaces
+            .extend(remote::list(self, &params).await?);
+        Ok(response)
     }
 
     pub async fn search_plugins(
@@ -97,6 +157,9 @@ impl RuntimeCore {
         &self,
         params: PluginReadParams,
     ) -> Result<PluginReadResponse, RuntimeCoreError> {
+        if params.marketplace_path.is_none() && params.remote_marketplace_name.is_some() {
+            return remote::read(self, params).await;
+        }
         self.app_data_source.read_plugin(params).await
     }
 
@@ -105,7 +168,13 @@ impl RuntimeCore {
         params: PluginInstallParams,
     ) -> Result<PluginInstallResponse, RuntimeCoreError> {
         self.backend.invalidate_mcp_runtimes().await;
-        self.app_data_source.install_plugin(params).await
+        let result = self.app_data_source.install_plugin(params).await;
+        if result.is_ok() {
+            // A concurrent turn may have rebuilt the previous MCP snapshot while
+            // the remote bundle was downloading. Invalidate after commit as well.
+            self.backend.invalidate_mcp_runtimes().await;
+        }
+        result
     }
 
     pub async fn uninstall_plugin(
@@ -113,7 +182,11 @@ impl RuntimeCore {
         params: PluginUninstallParams,
     ) -> Result<PluginUninstallResponse, RuntimeCoreError> {
         self.backend.invalidate_mcp_runtimes().await;
-        self.app_data_source.uninstall_plugin(params).await
+        let result = self.app_data_source.uninstall_plugin(params).await;
+        if result.is_ok() {
+            self.backend.invalidate_mcp_runtimes().await;
+        }
+        result
     }
 
     pub async fn list_installed_plugins(
@@ -121,5 +194,16 @@ impl RuntimeCore {
         params: PluginInstalledParams,
     ) -> Result<PluginInstalledResponse, RuntimeCoreError> {
         self.app_data_source.list_installed_plugins(params).await
+    }
+
+    pub async fn reconcile_plugins(
+        &self,
+        params: app_server_protocol::protocol::v2::PluginReconcileParams,
+    ) -> Result<app_server_protocol::protocol::v2::PluginReconcileResponse, RuntimeCoreError> {
+        self.invalidate_plugin_components().await;
+        let result = self.app_data_source.reconcile_plugins(params).await;
+        // Publication can succeed before a later materialization or account check fails.
+        self.invalidate_plugin_components().await;
+        result
     }
 }

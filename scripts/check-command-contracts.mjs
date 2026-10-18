@@ -1459,6 +1459,8 @@ function collectProductionBridgeGuardFailures() {
 
   const appServerHostPath = "electron/appServerHost.ts";
   const appServerHostSource = readSource(appServerHostPath);
+  const requestTimeoutPath = "electron/appServerRequestTimeout.ts";
+  const requestTimeoutSource = readSource(requestTimeoutPath);
   if (/backendMode:\s*["'`]mock["'`]/.test(appServerHostSource)) {
     failures.push({
       file: appServerHostPath,
@@ -1498,7 +1500,7 @@ function collectProductionBridgeGuardFailures() {
     }
   }
   const runtimeRequestTimeoutBody = extractNamedFunctionBody(
-    appServerHostSource,
+    requestTimeoutSource,
     "function resolveAppServerRequestTimeoutMs",
   );
   if (
@@ -1507,14 +1509,14 @@ function collectProductionBridgeGuardFailures() {
     )
   ) {
     failures.push({
-      file: appServerHostPath,
+      file: requestTimeoutPath,
       message:
         "Electron App Server host 的请求 timeout override 必须以默认 method timeout 为下限",
       token: "resolveDefaultAppServerRequestTimeoutMs(method)",
     });
   }
   const runtimeDefaultRequestTimeoutBody = extractNamedFunctionBody(
-    appServerHostSource,
+    requestTimeoutSource,
     "function resolveDefaultAppServerRequestTimeoutMs",
   );
   for (const snippet of [
@@ -1525,7 +1527,7 @@ function collectProductionBridgeGuardFailures() {
   ]) {
     if (!runtimeDefaultRequestTimeoutBody.includes(snippet)) {
       failures.push({
-        file: appServerHostPath,
+        file: requestTimeoutPath,
         message:
           "Electron App Server host 必须让长回合请求等待预算跟随 external backend timeout",
         token: snippet,
@@ -2454,12 +2456,12 @@ function collectRetiredPluginRuntimeSourceFailures() {
     {
       path: "lime-rs/src/app/runner.rs",
       message:
-        "plugin_runtime_* 已由 Plugin v3 App Server 主链取代，不能回到 legacy Tauri generate_handler",
+        "plugin_runtime_* 已删除；插件只能通过 App Server current 主链，禁止恢复 legacy Tauri generate_handler",
     },
     {
       path: "lime-rs/src/commands/mod.rs",
       message:
-        "plugin_runtime_cmd 已退为 cleanup-only residual，不能重新暴露为 legacy Tauri command module",
+        "plugin_runtime_cmd 已删除，禁止恢复 legacy Tauri command module 或兼容包装",
       commands: ["plugin_runtime_cmd"],
     },
   ];

@@ -54,7 +54,6 @@ import { useWorkspaceRightSurfaceArtifactOpenRuntime } from "./useWorkspaceRight
 import { useWorkspaceServiceSkillResultFileRuntime } from "./useWorkspaceServiceSkillResultFileRuntime";
 import { resolveImageWorkbenchStateForPreviewSelection } from "./imageWorkbenchPreviewSelection";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
-import { buildGeneralCanvasStateFromWorkspaceFile } from "./workspaceFilePreview";
 import { doesWorkspaceFileCandidateMatch } from "./workspaceFilePathMatch";
 import {
   isAbsoluteWorkspacePath,
@@ -171,6 +170,7 @@ export function useWorkspaceArtifactOpenRuntime({
   const {
     handleHarnessLoadFilePreview,
     openArtifactInWorkbench: openWorkspaceArtifactInWorkbench,
+    openFilePreviewArtifact,
     handleArtifactClick,
     handleFileClick,
     handleCodeBlockClick,
@@ -242,21 +242,13 @@ export function useWorkspaceArtifactOpenRuntime({
           : normalizedFileName;
         startTransition(() => {
           if (activeTheme === "general") {
-            setSelectedArtifactId(null);
-            requestCanvasWorkbenchPreviewOpen({
-              filePath: preview.path || absolutePath,
-              selectionKey: `default-preview:${
-                nextFilePath || "current-canvas"
-              }`,
+            void openFilePreviewArtifact({
+              fileName: nextFilePath,
+              content: nextContent,
+              sourcePath: preview.path || absolutePath,
+              isBinary: preview.isBinary,
+              size: preview.size,
             });
-            setGeneralCanvasState(
-              buildGeneralCanvasStateFromWorkspaceFile(
-                nextFilePath,
-                nextContent,
-                { sourcePath: preview.path || absolutePath },
-              ),
-            );
-            openCanvasForReason("user_open_file", setLayoutMode);
             return;
           }
           handleFileClick(nextFilePath, nextContent);
@@ -268,11 +260,8 @@ export function useWorkspaceArtifactOpenRuntime({
       clearFocusedArtifactBlock,
       handleFileClick,
       handleHarnessLoadFilePreview,
+      openFilePreviewArtifact,
       projectRootPath,
-      requestCanvasWorkbenchPreviewOpen,
-      setGeneralCanvasState,
-      setLayoutMode,
-      setSelectedArtifactId,
       t,
     ],
   );
@@ -282,10 +271,12 @@ export function useWorkspaceArtifactOpenRuntime({
       relativePath,
       absolutePath,
       isCancelled,
+      previewRequestKey,
     }: {
       relativePath?: string | null;
       absolutePath: string;
       isCancelled?: () => boolean;
+      previewRequestKey?: string;
     }) => {
       const preview = await handleHarnessLoadFilePreview(absolutePath);
       if (isCancelled?.()) {
@@ -293,7 +284,9 @@ export function useWorkspaceArtifactOpenRuntime({
       }
 
       if (preview.error) {
-        toast.error(`打开导出文件失败: ${preview.error}`);
+        toast.error(
+          t("agentChat.filePreview.openFailed", { message: preview.error }),
+        );
         return false;
       }
 
@@ -302,35 +295,28 @@ export function useWorkspaceArtifactOpenRuntime({
           ? preview.content
           : "";
       const nextFilePath = relativePath?.trim() || preview.path || absolutePath;
-      startTransition(() => {
-        if (activeTheme === "general") {
-          setSelectedArtifactId(null);
-          requestCanvasWorkbenchPreviewOpen({
-            filePath: preview.path || absolutePath,
-            selectionKey: `default-preview:${nextFilePath || "current-canvas"}`,
-          });
-          setGeneralCanvasState(
-            buildGeneralCanvasStateFromWorkspaceFile(
-              nextFilePath,
-              nextContent,
-              { sourcePath: preview.path || absolutePath },
-            ),
-          );
-          openCanvasForReason("user_open_file", setLayoutMode);
-          return;
-        }
-        handleWorkspaceFileClick(nextFilePath, nextContent);
-      });
+      clearFocusedArtifactBlock();
+      if (activeTheme === "general") {
+        await openFilePreviewArtifact({
+          fileName: nextFilePath,
+          content: nextContent,
+          sourcePath: preview.path || absolutePath,
+          isBinary: preview.isBinary,
+          size: preview.size,
+          previewRequestKey,
+        });
+      } else {
+        handleFileClick(nextFilePath, nextContent);
+      }
       return true;
     },
     [
       activeTheme,
+      clearFocusedArtifactBlock,
+      handleFileClick,
       handleHarnessLoadFilePreview,
-      handleWorkspaceFileClick,
-      requestCanvasWorkbenchPreviewOpen,
-      setGeneralCanvasState,
-      setLayoutMode,
-      setSelectedArtifactId,
+      openFilePreviewArtifact,
+      t,
     ],
   );
 
@@ -522,10 +508,7 @@ export function useWorkspaceArtifactOpenRuntime({
         );
       });
     },
-    [
-      projectId,
-      threadId,
-    ],
+    [projectId, threadId],
   );
 
   const handleOpenMessagePreview = useCallback(
@@ -615,6 +598,28 @@ export function useWorkspaceArtifactOpenRuntime({
   const handleOpenArtifactFromTimeline = useCallback(
     (target: ArtifactTimelineOpenTarget) => {
       void (async () => {
+        const sourcePath = resolveAbsoluteWorkspacePath(
+          projectRootPath,
+          target.filePath,
+        );
+        if (sourcePath) {
+          const projection = createPreviewArtifact({
+            source: "artifact",
+            sourceRef: target.timelineItemId,
+            path: sourcePath,
+          });
+          if (
+            projection.renderMode === "document_pages" ||
+            projection.renderMode === "workbook" ||
+            projection.renderMode === "presentation"
+          ) {
+            await openProjectFilePreviewInCanvas({
+              absolutePath: sourcePath,
+              relativePath: target.filePath,
+            });
+            return;
+          }
+        }
         let content = target.content;
         if (!content.trim()) {
           const absolutePath = resolveAbsoluteWorkspacePath(
@@ -650,6 +655,7 @@ export function useWorkspaceArtifactOpenRuntime({
       focusArtifactBlock,
       handleHarnessLoadFilePreview,
       handleWorkspaceFileClick,
+      openProjectFilePreviewInCanvas,
       projectRootPath,
     ],
   );

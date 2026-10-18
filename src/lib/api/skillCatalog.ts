@@ -1,3 +1,4 @@
+import { requestControlPlane } from "@/lib/api/oemCloudControlPlaneRuntime";
 import { getRuntimeAppVersion } from "@/lib/appVersion";
 import { resolveBaseSetupCatalogPayload } from "@/lib/base-setup/bootstrap";
 import { compileCommandCatalogProjection } from "@/lib/base-setup/compat/commandCatalogProjection";
@@ -194,12 +195,6 @@ export type SkillCatalogChangeSource =
   | "bootstrap_sync"
   | "manual_override"
   | "cache_clear";
-
-interface SkillCatalogResponseEnvelope {
-  code?: number;
-  message?: string;
-  data?: unknown;
-}
 
 interface NormalizedSkillCatalogInput {
   catalog: SkillCatalog;
@@ -2043,33 +2038,14 @@ async function requestRemoteSkillCatalog(): Promise<NormalizedSkillCatalogInput>
     throw new Error("缺少品牌云端 Session Token，请先完成登录或注入会话。");
   }
 
-  const response = await fetch(
-    `${runtime.controlPlaneBaseUrl}/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/skills`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${runtime.sessionToken}`,
-      },
-    },
+  const data = await requestControlPlane<unknown>(
+    `/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/skills`,
+    { auth: true },
   );
 
-  let payload: SkillCatalogResponseEnvelope | null = null;
-  try {
-    payload = (await response.json()) as SkillCatalogResponseEnvelope;
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      payload?.message?.trim() || `请求失败 (${response.status})`,
-    );
-  }
-
-  const normalizedInput = normalizeSkillCatalogInput(payload?.data);
+  const normalizedInput = normalizeSkillCatalogInput(data);
   if (!normalizedInput) {
-    throw new Error(payload?.message?.trim() || "服务端返回的技能目录格式非法");
+    throw new Error("服务端返回的技能目录格式非法");
   }
 
   return normalizedInput;

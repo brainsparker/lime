@@ -60,6 +60,15 @@ export function buildNotApplicableAssertions(context) {
     isContentFactoryArticleWorkspaceScenario
   ) {
     return [
+      ...(isRightSurfaceVisualMatrixScenario || isThreadActivityPanelScenario
+        ? [
+            "guiUserMessageVisible",
+            "guiAssistantOutputVisible",
+            "pageMentionsPromptAndAssistant",
+            "fixturePromptReachedBackend",
+            "externalFixtureBackendUsed",
+          ]
+        : []),
       "usedCurrentTurnCancel",
       "externalFixtureCancelUsed",
       "fixtureCancelReachedBackend",

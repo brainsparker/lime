@@ -1,3 +1,4 @@
+import { requestControlPlane } from "@/lib/api/oemCloudControlPlaneRuntime";
 import {
   hasOemCloudSession,
   resolveOemCloudRuntimeContext,
@@ -23,12 +24,6 @@ const SENSITIVE_EVENT_KEYS = new Set([
   "conversation",
   "conversations",
 ]);
-
-interface ExpertEventResponseEnvelope {
-  code?: number;
-  message?: string;
-  data?: unknown;
-}
 
 function normalizeKey(value: string) {
   return value
@@ -145,30 +140,10 @@ async function submitExpertCatalogEvents(events: ExpertCatalogEvent[]) {
     return;
   }
 
-  const response = await fetch(
-    `${runtime.controlPlaneBaseUrl}/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/experts/events`,
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${runtime.sessionToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ events: normalized }),
-    },
+  await requestControlPlane(
+    `/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/experts/events`,
+    { method: "POST", auth: true, payload: { events: normalized } },
   );
-
-  let payload: ExpertEventResponseEnvelope | null = null;
-  try {
-    payload = (await response.json()) as ExpertEventResponseEnvelope;
-  } catch {
-    payload = null;
-  }
-  if (!response.ok) {
-    throw new Error(
-      payload?.message?.trim() || `专家运营事件上报失败 (${response.status})`,
-    );
-  }
 }
 
 export async function flushExpertCatalogEvents() {

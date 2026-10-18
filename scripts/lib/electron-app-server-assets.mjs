@@ -23,6 +23,7 @@ import {
   resolveRuntimeLibrarySource,
   resolveSherpaOnnxSysVersion,
   resolveSherpaRuntimePlan,
+  copySherpaRuntimeLibrary,
 } from "../prepare-sherpa-onnx-runtime.mjs";
 
 const execFileAsync = promisify(execFile);
@@ -421,7 +422,7 @@ export async function copyElectronAppServerRuntimeLibraries({
   sourceBinary,
   destinationDirectory,
   readCargoLock = readFile,
-  copy = copyFile,
+  copy = copySherpaRuntimeLibrary,
   makeDir = mkdir,
   exists = existsSync,
   resolvePlan = resolveSherpaRuntimePlan,

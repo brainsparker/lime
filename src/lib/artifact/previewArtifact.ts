@@ -18,6 +18,8 @@ export type PreviewArtifactContentKind =
   | "html"
   | "image"
   | "document"
+  | "workbook"
+  | "presentation"
   | "audio"
   | "video"
   | "binary"
@@ -28,7 +30,9 @@ export type PreviewArtifactRenderMode =
   | "inline"
   | "canvas"
   | "media"
-  | "document_text"
+  | "document_pages"
+  | "workbook"
+  | "presentation"
   | "external_window"
   | "system_open"
   | "unsupported";
@@ -85,9 +89,18 @@ const DOCUMENT_EXTENSIONS = new Set([
   "rtf",
   "odt",
   "xls",
-  "xlsx",
   "ppt",
   "pptx",
+]);
+const WORKBOOK_EXTENSIONS = new Set(["xlsx", "csv", "tsv"]);
+const WORKBOOK_MIME_TYPES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "text/csv",
+  "text/tab-separated-values",
+]);
+const PAGED_DOCUMENT_MIME_TYPES = new Set([
+  "application/pdf",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
 const CODE_LANGUAGE_BY_EXTENSION: Record<string, string> = {
   c: "c",
@@ -178,6 +191,15 @@ function resolveContentKind(input: {
   }
   const mimeType = input.mimeType?.toLowerCase() || "";
   const extension = extractExtension(input.path);
+  if (
+    extension === "pptx" ||
+    mimeType ===
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+  )
+    return "presentation";
+  if (WORKBOOK_EXTENSIONS.has(extension) || WORKBOOK_MIME_TYPES.has(mimeType)) {
+    return "workbook";
+  }
   if (input.isBinary) {
     if (mimeType.startsWith("image/") || IMAGE_EXTENSIONS.has(extension)) {
       return "image";
@@ -188,7 +210,10 @@ function resolveContentKind(input: {
     if (mimeType.startsWith("video/") || VIDEO_EXTENSIONS.has(extension)) {
       return "video";
     }
-    if (DOCUMENT_EXTENSIONS.has(extension)) {
+    if (
+      DOCUMENT_EXTENSIONS.has(extension) ||
+      PAGED_DOCUMENT_MIME_TYPES.has(mimeType)
+    ) {
       return "document";
     }
     return "binary";
@@ -196,11 +221,14 @@ function resolveContentKind(input: {
   if (HTML_EXTENSIONS.has(extension) || mimeType.includes("html")) {
     return "html";
   }
+  if (
+    DOCUMENT_EXTENSIONS.has(extension) ||
+    PAGED_DOCUMENT_MIME_TYPES.has(mimeType)
+  ) {
+    return "document";
+  }
   if (MARKDOWN_EXTENSIONS.has(extension) || looksLikeMarkdown(input.content)) {
     return "markdown";
-  }
-  if (DOCUMENT_EXTENSIONS.has(extension)) {
-    return "document";
   }
   if (CODE_LANGUAGE_BY_EXTENSION[extension]) {
     return CODE_LANGUAGE_BY_EXTENSION[extension] === "text" ? "text" : "code";
@@ -224,7 +252,8 @@ function resolveRenderMode(
   contentKind: PreviewArtifactContentKind,
   input: {
     source: PreviewArtifactSource;
-    content: string;
+    path: string;
+    mimeType?: string | null;
   },
 ): PreviewArtifactRenderMode {
   if (input.source === "url" || input.source === "database_record") {
@@ -239,7 +268,17 @@ function resolveRenderMode(
     case "video":
       return "media";
     case "document":
-      return input.content.trim() ? "document_text" : "system_open";
+      if (
+        ["pdf", "docx"].includes(extractExtension(input.path)) ||
+        PAGED_DOCUMENT_MIME_TYPES.has(input.mimeType?.toLowerCase() ?? "")
+      ) {
+        return "document_pages";
+      }
+      return "system_open";
+    case "workbook":
+      return "workbook";
+    case "presentation":
+      return "presentation";
     case "binary":
       return "system_open";
     case "unsupported":
@@ -284,11 +323,13 @@ function resolvePreviewContent(input: {
 function resolvePreviewUrl(
   contentKind: PreviewArtifactContentKind,
   path: string,
+  renderMode: PreviewArtifactRenderMode,
 ): string | undefined {
   if (
     contentKind !== "image" &&
     contentKind !== "audio" &&
-    contentKind !== "video"
+    contentKind !== "video" &&
+    renderMode !== "document_pages"
   ) {
     return undefined;
   }
@@ -311,7 +352,8 @@ export function createPreviewArtifact(
   });
   const renderMode = resolveRenderMode(contentKind, {
     source: input.source,
-    content,
+    path,
+    mimeType: input.mimeType,
   });
   const artifactType = resolveArtifactType(contentKind);
   const filename = extractFilename(path);
@@ -338,7 +380,8 @@ export function createPreviewArtifact(
     capabilities.reveal = false;
   }
   const previewUrl =
-    input.previewUrl?.trim() || resolvePreviewUrl(contentKind, path);
+    input.previewUrl?.trim() ||
+    resolvePreviewUrl(contentKind, path, renderMode);
   const previewContent = resolvePreviewContent({
     content,
     contentKind,

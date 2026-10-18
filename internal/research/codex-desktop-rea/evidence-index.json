@@ -1,5 +1,87 @@
 {
+  "professional_files_docx_analysis": {
+    "checked_date": "2026-10-17",
+    "parent_evidence_id": "ev_efd39a734807c918d2026b8553f25bf13477bce5ef74d6bc253f80bf722e24d6",
+    "summary_evidence_id": "ev_23674a5b290a5219608b6992b89a5bb0fe0663437c5e5ae2990998ce6e89af3b",
+    "confirmed_export": "DocxPreviewPanel",
+    "library_sha256": "7302f9d120a6b54000e511b152d04a4648e56d5d6796fb859a1b6749f529024b",
+    "wrapper_sha256": "ced645d7edfa698d65983f4a902682447ddaa8cc478a8acdd7b456072cbe5286",
+    "semantic_status": "partial/truncated",
+    "semantic_unknowns": 13936,
+    "parse_failures": 0,
+    "target_executed": false,
+    "implementation_dependency": "docx-preview@0.4.1; exact reference npm version unknown",
+    "report": "professional-files-audit.md"
+  },
+  "professional_files_product_validation": {
+    "checked_date": "2026-10-17",
+    "candidate_version": "1.159.0",
+    "root_version": "1.160.0",
+    "pdf_preview_receipt": ".lime/qc/professional-files/pdf-preview-final-20261017-1/receipt.json",
+    "point_annotation_receipt": ".lime/qc/professional-files/pdf-annotation-final-20261017-1/receipt.json",
+    "point_annotation_receipt_sha256": "e8f88ba7073b230317e73e9e28f082bc48595d112de151b08a64c733e4fc4fa0",
+    "pending_native": [
+      "Latest root1.160.0 current backend/GUI validation; fixed candidate1.159.0 five-format regression passed"
+    ],
+    "not_claimed": [
+      "latest parallel backend",
+      "process-restart durability",
+      "Office editing/roundtrip",
+      "live",
+      "Windows",
+      "packaged",
+      "full GUI alignment"
+    ],
+    "pdf_recovery_receipt": ".lime/qc/professional-files/pdf-recovery-final-20261017-1/receipt.json",
+    "pdf_recovery_receipt_sha256": "213d633e34d83ce6944fa63e1d5c4318efe49c415c135df900c449fdffe02615",
+    "pdf_display_receipt": ".lime/qc/professional-files/pdf-display-final-20261017-1/receipt.json",
+    "pdf_display_receipt_sha256": "863f7bded5b61af4b327d6b55fe1f670309bf15f66f4a3b3f51a5f0aad83374a",
+    "docx_preview_receipt": ".lime/qc/professional-files/docx-preview-final-20261017-1/receipt.json",
+    "docx_preview_receipt_sha256": "541deab393df4bf7068d18f724fbf3deaa2d5f3334b61cf3d54c7d0824ed2b30",
+    "current_annotation_owner": {
+      "model": "artifactAnnotation discriminated union; documentAnnotation page, workbookAnnotation sheet/range, presentationAnnotation source slideId/position adapters",
+      "drafts": "ArtifactAnnotationDraftStore",
+      "editor": "ArtifactAnnotationCommentEditor",
+      "surface": "useArtifactAnnotations / ArtifactAnnotations; useDocumentAnnotations page adapter",
+      "docx_locator": "DocxPageView; parent DOM Selection and native DOM annotation layer in same-origin sandbox without scripts; no React portal; CSP remains none",
+      "regression": "Shared native regression and app-scope Workbook8 real settings/back unmount regression passed; app-scope receipt excludes subsequent Slides changes",
+      "candidate_input": ".lime/qc/professional-files/document-annotation-validation.json",
+      "standard_wrapper": "Latest Slides wrapper3 passed24/24, standalone-shell-01-20261017124039-91788",
+      "default_gate": "local7 frontend134/134, Rust AccountUpdated match failed; Global mapping targeted5 passed. local8 Cloud generated method missing; local9 CloudRequestResponse.account type missing after concurrent field addition. No latest-root pass."
+    },
+    "composer_review_receipt": ".lime/qc/professional-files/composer-review-20261017-1/receipt.json",
+    "docx_annotations_native": "docx-annotation-native-20261017-13",
+    "docx_batch_native": "docx-annotation-batch-native-20261017-4",
+    "docx_composer_native": "docx-annotation-composer-native-20261017-7 passed; shared owner, exact source path, point/text recovery, cross-page batch, main Composer preserved; normal Main code0",
+    "pdf_composer_native": "pdf-annotation-composer-native-20261017-9 passed including actual viewport geometry, point/text feedback, source revision recovery and main Composer; normal Main code0",
+    "workbook_preview_native": "workbook-preview-native-20261017-7 passed; canonical fileChange entry, exact appended artifact item, no additional Turn/provider request; Main normal code0",
+    "workbook_range_native": "workbook-annotation-native-20261017-7 passed; single and cross-sheet batch, source-change zero-send rejection, explicit reanchor and main Composer preservation; normal Main code0",
+    "import_source_path_native": "import-click-through-native-20261017-6 passed; six source-file previews, continuation and three visual viewports; rounds4 Office dispatch and5 missing fixture import failed and retained",
+    "import_source_path_receipt": ".lime/qc/professional-files/import-source-path-final-20261017-1/receipt.json",
+    "import_source_path_receipt_sha256": "eb75b61c6484339c7d6c86bf5cc692d2b9da7f54176666154bf921a0fe1ad473",
+    "annotation_scope_receipt": ".lime/qc/professional-files/annotation-scope-final-20261017-1/receipt.json",
+    "annotation_scope_receipt_sha256": "f40cbab2cbaf82af4696797e4dc5d89c48e8173725c4aa452bb723b7f779b5a4",
+    "import_source_path_identity": "94 declared sources / 1688 regular artifacts unchanged across four serialized native runs; candidate backend1.159.0; excludes subsequent app-scope annotation change",
+    "presentation_receipt": ".lime/qc/professional-files/presentation-final-20261017-1/receipt.json",
+    "presentation_receipt_sha256": "b58c5f2371fd49bd338e1a8fb028d4eea8697a43370e20dd8169aa41e57197f3",
+    "presentation_native": "Slides4/import9/DOCX10/PDF12/Workbook11 all passed;106 sources/2133 regular artifacts unchanged; normal Main exit, zero console/page errors, freshness ready; candidate backend1.159.0"
+  },
   "date": "2026-10-13",
+  "professional_files_pdf_analysis": {
+    "checked_date": "2026-10-17",
+    "parent_evidence_id": "ev_87ba97728327a9b942255e18bb42d20c39afb710e85305de5b35548b614be8f4",
+    "summary_evidence_id": "ev_bb295d0f43112d8bf88f335dd0da981fa9dc60060955985b3ded499fd170b374",
+    "modules_evidence_id": "ev_b4465e2dd9ecf11eb4a3cda2cf356f6e60c800bc15a5e86fb70790b1db06c060",
+    "pdf_source_sha256": "1532d5f6037ad4d7a869021279cf90fe04d220b28a430cd02f39a4299de338a7",
+    "confirmed_export": "PdfPreviewPanel",
+    "application_status": "partial",
+    "semantic_unknowns": 8056,
+    "exported_session_records": 26,
+    "target_executed": false,
+    "report": "professional-files-audit.md",
+    "implementation_plan": "../../exec-plans/codex-professional-files-alignment.md",
+    "limitation": "Static inert PDF/comment members with incomplete semantic coverage; product native validation and its scope are tracked separately. No Office roundtrip/live/Windows/packaged or full GUI completion claim."
+  },
   "local_evidence_lifecycle": {
     "checked_date": "2026-10-16",
     "observed_at_local": "09:31 Asia/Shanghai",
@@ -8987,5 +9069,496 @@
       "read-only freshness reporting expression treated object as array; original ready guard JSON retained",
       "initial JSON evidence-index formatting warning; normal Prettier correction"
     ]
+  },
+  "professional_files_workbook_analysis": {
+    "checked_date": "2026-10-17",
+    "confirmed_export": "WorkbookPanel",
+    "parent_evidence_id": "ev_e43b4b7ce0e35465a48ce864b3da1b7c8d892cb8955c0fc33431e3d2195215dd",
+    "summary_evidence_id": "ev_fbfbc284975ea02adc1a0174f1f7a16761ee9f4e8259c4b26fcb74079cbd7eae",
+    "entry_sha256": "28e341c3265294890f6f3928b88d6223795110110fc8e2d761624f9f7bdc59b8",
+    "implementation_sha256": "fff4db5c2d594b7bcaec3569f6ab335d2fd0b982a891109c5a053210ef30a6e9",
+    "semantic_status": "partial/truncated",
+    "semantic_unknowns": 28165,
+    "target_executed": false,
+    "implementation": "XLSX/CSV/TSV read-only WorkbookPanel; exceljs@4.4.0 and ssf@0.11.2; worker import, source SHA and existing fs/readFile owner",
+    "tests": "read-only native7, range native7 and app-scope range native8 passed; fixed candidate backend1.159.0; editing/save/roundtrip remains open",
+    "lock_validation": "isolated frozen install and root all-9-workspace frozen lock-only checks pass",
+    "plan": "../../exec-plans/codex-workbook-alignment.md",
+    "not_claimed": [
+      "editing/save/roundtrip",
+      "full Excel format fidelity",
+      "reference runtime"
+    ]
+  },
+  "professional_files_workbook_range": {
+    "checked_date": "2026-10-17",
+    "status": "implemented / Workbook7 and app-scope Workbook8 native passed",
+    "parent_evidence_id": "ev_e43b4b7ce0e35465a48ce864b3da1b7c8d892cb8955c0fc33431e3d2195215dd",
+    "asset_view_evidence_id": "ev_7c1eedad628984e0df7802a217280a8697af1f32afcd8352a29c71892d4f8890",
+    "source_sha256": "fff4db5c2d594b7bcaec3569f6ab335d2fd0b982a891109c5a053210ef30a6e9",
+    "byte_contexts": ".lime/qc/professional-files/workbook-range-source-contexts-20261017-2.json",
+    "observed_static": "addCommentThread emits workbook target sheetName/sheetId/address; navigation changes active sheet, selected address and selection rect; inert byte reading alongside REA asset identity",
+    "unknowns": "28165 parent semantic unknowns; imported range parser unresolved; original internal developer names and reference runtime not claimed",
+    "current_owner": "src/components/artifact/annotations/; workbook-specific target and source format in workbook/workbookAnnotation.ts",
+    "behavior": "A1 range, Shift/drag selection, single/batch comments, Composer review and exact sheet/range return, SHA rejection and explicit relocation; existing start/queue typed acceptance",
+    "cleanup": "8 document-level shared files moved/deleted; callers/tests directly migrated; no alias/compat runtime",
+    "verification": "18 suites 176 tests, full typecheck and focused strict lint pass; scripts governance pass; source-path wrapper24 and four native scenarios passed; separate app-scope wrapper24/Workbook8 passed; excludes new Slides",
+    "plan": "../../exec-plans/codex-workbook-alignment.md",
+    "not_claimed": [
+      "Office editing/save/roundtrip",
+      "full Excel fidelity",
+      "process restart durability",
+      "reference runtime",
+      "live",
+      "Windows",
+      "packaged",
+      "full GUI alignment"
+    ]
+  },
+  "professional_files_presentation_analysis": {
+    "checked_date": "2026-10-17",
+    "parent_evidence_id": "ev_363dcdc24c3bb1717c709daf6b82fb17bb7878999d041c4feb0804fd16d24069",
+    "summary_evidence_id": "ev_46a02bd5e8bcdf0a3800d81f8c34c45654bddcb4a2ac674bf1ed1476f1cadec1",
+    "asset_view_evidence_id": "ev_9494b724edaa659c40d951f39ecbae4586c274e535125a37a4e79ea2b6bc8d82",
+    "entry_sha256": "7c92622e8a4b8ca9827e765371fe497c7aa58680d0c90a49f1dd87735621aa44",
+    "confirmed_export": "PresentationPanel",
+    "parsed_files": 5,
+    "parse_failures": 0,
+    "application_status": "partial",
+    "semantic_status": "partial/truncated",
+    "target_executed": false,
+    "observed_contract": [
+      "source bytes and pptx format bootstrap before empty proto creation",
+      "slide index, zoom and navigation command",
+      "importready/firstsliderendered/importerror/workerfailure",
+      "addCommentThread target uses slideId, optional elementId/textRange/position",
+      "CRDT drain and edit callbacks"
+    ],
+    "unknown": [
+      "internal original class names",
+      "complete position and textRange schema",
+      "exact reference rendering library and version",
+      "reference runtime behavior"
+    ],
+    "implementation_status": "Read-only PresentationPanel and source slideId/point/cross-slide feedback accepted on fixed1.159.0 candidate. Office editing/save/roundtrip and latest-root validation open.",
+    "candidate_dependency_review": {
+      "package": "pptx-preview@1.0.7",
+      "decision": "not integrated",
+      "reason": "registry ISC metadata and bundled README source redistribution terms do not agree"
+    },
+    "report": "professional-files-audit.md",
+    "implementation_dependency": "@aiden0z/pptx-renderer@1.3.0; original reference library/version unknown"
+  },
+  "professional_files_workbook_edit": {
+    "checked_date": "2026-10-17",
+    "status": "XLSX native edit/save/flush and shared regression accepted; default gates partial",
+    "parent_evidence_id": "ev_e43b4b7ce0e35465a48ce864b3da1b7c8d892cb8955c0fc33431e3d2195215dd",
+    "implementation_sha256": "fff4db5c2d594b7bcaec3569f6ab335d2fd0b982a891109c5a053210ef30a6e9",
+    "confirmed_methods": [
+      "openCellEditor",
+      "commitCellEdit",
+      "cancelCellEdit",
+      "updateFormulaInput",
+      "setActiveSheetName",
+      "setSelectionRect"
+    ],
+    "unknown": [
+      "original controller class name",
+      "reference runtime behavior",
+      "process restart durability"
+    ],
+    "candidate_version": "1.160.0",
+    "candidate": ".lime/validation/workbook-edit-1.160.0-20261017-2",
+    "preparation_receipt": ".lime/qc/professional-files/workbook-edit-root-validation-20261017-2/candidate-artifacts-receipt.json",
+    "source_files": 8660,
+    "artifact_files": 2010,
+    "candidate_copy_drift": 0,
+    "standard_smoke": "standalone-shell-01-20261017134718-42385",
+    "standard_assertions_passed": 24,
+    "native_status": "4 scenarios passed",
+    "default_local_gate": "local11 failed at batch94 on two ImageGen timers; diagnostic traced real Cloud Account polling in the component fixture; isolated gateway and corrected delayed updater, 11/11 targeted passed; default resume pending",
+    "limitations": [
+      "protected/grouped-formula worksheet save unsupported",
+      "no formula execution",
+      "no cross-process CAS",
+      "no live/Windows/installer evidence"
+    ],
+    "plan": "../../exec-plans/codex-workbook-alignment.md",
+    "receipt": ".lime/qc/professional-files/workbook-edit-final-20261017-2/receipt.json",
+    "receipt_sha256": "176685cd012fb03445b17a66d3506030950f1002ca0745d3917989ace05860e7",
+    "frozen_files": 79,
+    "root_drift_recorded": true,
+    "agent_fixture": "frontloaded focused suites passed; root sidecar compile failed during concurrent Plugin refactor",
+    "delimited_native": "candidate6 native4 exit0: prepared sidecar d491fc0d711aeb43d6eec7fec32cec1b7ec868087a5fa974ed325c76700835a7; CSV/TSV full lexical bytes, old panel disconnected, 2 successful same-path IPC reads per reopen, IPC129/errors0/mock0, Main47003 normal code0/signalnull/forcedCleanup null; 8660 sources/2010 artifacts stable; negative mismatched root-debug sidecar rejected before launch. Prior candidate4 native2 exit timeout and candidate5 native3 used different root-debug binaries and are diagnostic only; timeout root cause unknown",
+    "delimited_receipt": ".lime/qc/professional-files/workbook-delimited-final-20261017-1/receipt.json",
+    "delimited_receipt_sha256": "c0995d82c06c613c627b6db03e86c901e34a245e384c49e0718a6c685b00dd45"
+  },
+  "professional_files_presentation_edit": {
+    "checked_date": "2026-10-18",
+    "status": "basic editing Gate B frozen; structure/autosave/navigation candidate active; not full presentation parity",
+    "caller_parent_evidence_id": "ev_7e96cf795451f834a7bddc70daacbc950320070656781f6347f1cf9c759e4299",
+    "presentation_parent_evidence_id": "ev_363dcdc24c3bb1717c709daf6b82fb17bb7878999d041c4feb0804fd16d24069",
+    "editor_asset_view_evidence_id": "ev_99db9c395716d39135d83502ab0327e4e23c8639a2b08b606208dbdbf992be56",
+    "static_contexts": ".lime/qc/professional-files/presentation-edit-reference-20261017-1/local-caller-contexts.json",
+    "static_contexts_sha256": "7c0b0a9b1b04590741a3509d945ca79920666665c105b126684d5630958763c0",
+    "static_findings": ".lime/qc/professional-files/presentation-edit-reference-20261017-1/local-caller-findings.json",
+    "static_findings_sha256": "6885eed948d2f43fdca490a4ff732aed6dc3257a6bd47944a049b8781c2688cb",
+    "evidence_classification": "Bounded original-member source inspection bound to existing REA identities; no new producer or reference execution",
+    "observed_local_contract": "local SidePanelPresentationPanel -> PresentationPanel; feature/read-write gates; CRDT edit export;500ms serial save; baseline bytes and ETag; same-host/path ifMatch; flush before close/download/share",
+    "implementation_owner": "src/components/artifact/presentation/PresentationController.ts; presentationPackage.ts; existing Workspace artifact annotation flush",
+    "implementation_choice": "Targeted original OOXML package edits, not Walnut proto/CRDT equivalence; two SHA checks do not establish atomic cross-process CAS",
+    "candidate": ".lime/validation/presentation-edit-1.160.0-20261017-1",
+    "basic_edit_receipt": ".lime/qc/professional-files/presentation-edit-final-20261018-1/receipt.json",
+    "basic_edit_receipt_sha256": "35a781088939c351c8a2b7a00c81dda80699b019d3168331b604fdf536525d2f",
+    "basic_edit_validation": "8670 declared sources/2233 regular artifacts unchanged; 173 real IPC; console/page/trace/mock errors zero; normal Main code0/signalnull; forcedCleanup null",
+    "structure_candidate": ".lime/validation/presentation-structure-1.160.0-20261018-1",
+    "structure_inputs": ".lime/qc/professional-files/presentation-structure-validation-20261018-1/candidate-sources-build-input.json",
+    "structure_status": "Controller/OOXML/UI implemented; standard GUI and native validation pending; existing receipt excludes these extensions",
+    "navigation_validation": "32/32 targeted Workbench tests; outer close/toggle11 plus owner guards2; full root typecheck passed after command composition callback wiring",
+    "plan": "../../exec-plans/codex-presentation-alignment.md",
+    "unknown": [
+      "effective reference feature flag",
+      "reference runtime success",
+      "workspaceFiles downstream ifMatch enforcement",
+      "original controller class names",
+      "complete object/group/table editing",
+      "complete CRDT synchronization",
+      "full GUI alignment"
+    ],
+    "pending_product_validation": [
+      "slide insert/delete/reorder in new fixed candidate",
+      "500ms autosave, persisted undo/redo and close/navigation flush in new fixed candidate",
+      "current root default verify:local remains exit101; five original Rust failures passed serial targeted rerun"
+    ],
+    "selection_methods_contexts": ".lime/qc/professional-files/presentation-edit-reference-20261017-1/selection-methods.json",
+    "selection_methods_contexts_sha256": "8e888c29a8269d5e6c4e1ffa63f426d9863e8598bc6c61dabc43b6d4e22a5b5a",
+    "confirmed_selection_methods": [
+      "setSelectedSlideIdx",
+      "setSelectedElementId"
+    ],
+    "cleanup": "Directly migrated callers/tests; no selectSlide/selectElement aliases"
+  },
+  "professional_files_presentation_table": {
+    "checked_date": "2026-10-18",
+    "status": "cell and slide lifecycle candidate1 plus table structure candidate2 passed; advanced slice active; full GUI partial",
+    "reference_contract": "internal/research/codex-desktop-rea/presentation-table-editing-contract.json",
+    "structure_contract": "internal/research/codex-desktop-rea/presentation-table-structure-contract.json",
+    "current_verification": "internal/research/codex-desktop-rea/presentation-table-current-verification.json",
+    "candidate": ".lime/validation/presentation-table-1.160.0-20261018-1",
+    "receipt": ".lime/qc/professional-files/presentation-table-final-20261018-1/receipt.json",
+    "receipt_sha256": "2ff9a27cec2c30878fd90b6caa43d2b28a4a8e21e94d9f1b9efddd6736d3e681",
+    "source_count": 11210,
+    "artifact_count": 382,
+    "native_runs": [
+      "presentation-table-native-20261018-1",
+      "presentation-structure-revalidation-20261018-2"
+    ],
+    "real_ipc": [70, 175],
+    "native_validation": "freshness and all source/artifact hashes stable; console/page/trace/mock errors zero; both Main processes normal code0/signalnull; no forced cleanup",
+    "candidate2": ".lime/validation/presentation-table-structure-1.160.0-20261018-2",
+    "candidate2_sources": 11219,
+    "candidate2_scope": "same tableEditing owner; row/column insert/delete, Tab append, tracks+frame resize and accessible actions menu; standard wrapper3/native passed",
+    "root_default_gate": "normal resume4 completed136 batches exit0; latest root full verify:local not completed; newer source requires directed checks",
+    "limits": [
+      "controlled external backend",
+      "no reference runtime/live/Windows/installer claim",
+      "old originals remain missing",
+      "remaining table/group/rich text/full GUI not complete"
+    ],
+    "candidate2_receipt": ".lime/qc/professional-files/presentation-table-structure-final-20261018-1/receipt.json",
+    "candidate2_receipt_sha256": "a84586f7cd192f202653592da5c04fa1ee6d4bb5b3cc52fb363926e928211d34"
+  },
+  "validation_evidence_lifecycle_20261018": {
+    "status": "previous local originals missing; fresh validation required",
+    "declaration": "internal/research/codex-desktop-rea/validation-evidence-lifecycle-20261018.json",
+    "scope": "Entire prior .lime/ tree disappeared, including all historical fixed candidates, receipts, source/artifact manifests, screenshots and original QC logs. Actor unknown.",
+    "precedence": "Historical passed/frozen fields elsewhere in this index are observations from the time of execution, not claims of surviving or currently reproducible evidence. Do not use them to validate current source.",
+    "recovered_static_contract": "internal/research/codex-desktop-rea/presentation-table-editing-contract.json",
+    "new_originals": ".lime/qc/professional-files/presentation-table-reference-20261018-2/",
+    "limit": "New static table evidence and codec checks do not restore historical native/GUI results."
+  },
+  "professional_files_presentation_table_structure": {
+    "status": "passed bounded structure, full GUI partial",
+    "verification": "internal/research/codex-desktop-rea/presentation-table-current-verification.json#tableStructure",
+    "receipt": ".lime/qc/professional-files/presentation-table-structure-final-20261018-1/receipt.json",
+    "receiptSha256": "a84586f7cd192f202653592da5c04fa1ee6d4bb5b3cc52fb363926e928211d34",
+    "candidate": ".lime/validation/presentation-table-structure-1.160.0-20261018-2",
+    "sourceCount": 11219,
+    "artifactCount": 605,
+    "nativeIpc": 124,
+    "errors": 0,
+    "mockHits": 0,
+    "mainExit": {
+      "code": 0,
+      "signal": null,
+      "forcedCleanup": null
+    },
+    "excludes": "advanced table slice and full GUI; does not alter candidate 1"
+  },
+  "professional_files_presentation_table_advanced": {
+    "candidate": ".lime/validation/presentation-table-advanced-1.160.0-20261018-3",
+    "status": "passed bounded advanced table native; full GUI partial",
+    "sourceCount": 11251,
+    "input": {
+      "path": ".lime/qc/professional-files/presentation-table-advanced-integration-20261018-1/candidate-3-sources-focus-input.json",
+      "sha256": "e5b17d9037c2a06bb160e699d5ab6f1e5ac441c8f743e08cba9fa38a3570ffb6"
+    },
+    "typecheckExitCode": 0,
+    "contractsExitCode": 0,
+    "gui": "wrapper4 passed",
+    "native": {
+      "runId": "presentation-table-advanced-native-20261018-6",
+      "ipc": 161,
+      "errors": 0,
+      "mockHits": 0,
+      "normalMainExit": true,
+      "stages": {
+        "editing": 14,
+        "rowResize": 5,
+        "reorder": 7
+      }
+    },
+    "rootIntegration": {
+      "passed": 453,
+      "failed": 1,
+      "total": 454,
+      "reason": "advanced invalid-options process test exceeded original 5000ms under concurrent load; no deadline changed",
+      "log": ".lime/qc/professional-files/presentation-table-structure-integration-20261018-1/advanced-all-root-1.log"
+    },
+    "open": [
+      "independent builtin native",
+      "root object/rich implementation and native"
+    ],
+    "receipt": ".lime/qc/professional-files/presentation-table-advanced-final-20261018-1/receipt.json",
+    "receiptSha256": "98fded23d03412c5793e8a91d15b0c9191dad1f4cc119cff7c52f70eb64c778f",
+    "artifactCount": 1051,
+    "finalIntegration": {
+      "passed": 455,
+      "total": 455,
+      "suites": 29,
+      "mode": "maxWorkers=1; original deadlines",
+      "log": ".lime/qc/professional-files/presentation-table-advanced-integration-20261018-1/presentation-final-candidate-3-serial.log"
+    },
+    "failedChecksPreserved": [
+      ".lime/qc/professional-files/presentation-table-advanced-integration-20261018-1/presentation-final-candidate-3.log"
+    ]
+  },
+  "professional_files_presentation_table_format": {
+    "status": "passed bounded table format; full GUI partial",
+    "candidate": ".lime/validation/presentation-table-format-1.160.0-20261018-4",
+    "receipt": {
+      "path": ".lime/qc/professional-files/presentation-table-format-final-20261018-1/receipt.json",
+      "sha256": "dc1ff140edcff54136ae5136cc20ffe68ca27c7ef6620b1b028777a87c03788b"
+    },
+    "sourceCount": 11272,
+    "artifactCount": 1162,
+    "integration": {
+      "presentation": {
+        "suites": 32,
+        "passed": 716
+      },
+      "borderFinal": {
+        "suites": 2,
+        "passed": 17
+      }
+    },
+    "native": {
+      "runId": "presentation-table-format-native-20261018-3",
+      "stages": 16,
+      "ipc": 124,
+      "errors": 0,
+      "mockHits": 0,
+      "normalMainExit": true
+    },
+    "excludes": [
+      "root later object and rich text bytes",
+      "full GUI completion",
+      "production provider/live",
+      "reference runtime execution",
+      "Windows/installer"
+    ]
+  },
+  "settings_mcp_draft_alignment": {
+    "checked_date": "2026-10-18",
+    "status": "implemented and directed renderer checks passed; native pending",
+    "receipt": {
+      "path": ".lime/qc/settings/mcp-draft-20261018-1/implementation-receipt.json",
+      "sha256": "922a937a14cb7264e9abff596d9b5070d9fcdac0e543922cd3d26e96ce71442e"
+    },
+    "directed_tests_passed": 44,
+    "compat_added": 0,
+    "deprecated_added": 0,
+    "claim_boundary": "renderer domain checks only; no Electron/live/Windows/full GUI claim"
+  },
+  "settings_experimental_draft_alignment": {
+    "checked_date": "2026-10-18",
+    "status": "implemented and directed renderer checks passed; native pending",
+    "receipt": {
+      "path": ".lime/qc/settings/experimental-draft-20261018-1/implementation-receipt.json",
+      "sha256": "9a0c47a3b78f015131ec5827070c303b95268ac32414518ba4a2df11ec9d8047"
+    },
+    "directed_tests_passed": 35,
+    "compat_added": 0,
+    "deprecated_added": 0,
+    "claim_boundary": "renderer domain checks only; no Electron/live/Windows/full GUI claim",
+    "search_target_supplement": {
+      "path": ".lime/qc/settings/experimental-search-target-20261018-1/implementation-receipt.json",
+      "sha256": "b4b881d094df8486a1cbeecc900914aa3fcac11c487c2329a78249f2e8cc988e",
+      "passed": 36
+    }
+  },
+  "settings_media_draft_alignment": {
+    "checked_date": "2026-10-18",
+    "status": "implemented and directed renderer checks passed; native pending",
+    "receipt": {
+      "path": ".lime/qc/settings-media-draft-owner-20261018-1/verification.json",
+      "sha256": "af5faf472da58cea470338210d0b4ee85f023acb22c558b929435681acb7d6c7"
+    },
+    "directed_tests_passed": 37,
+    "compat_added": 0,
+    "deprecated_added": 0,
+    "claim_boundary": "renderer domain checks only; no Electron/live/Windows/full GUI claim"
+  },
+  "queue_drag_renderer_alignment": {
+    "checked_date": "2026-10-18",
+    "status": "implemented and directed renderer checks passed; native pending",
+    "receipt": {
+      "path": ".lime/qc/gui-remaining/queue-drag-owner-20261018-1/implementation-receipt.json",
+      "sha256": "7965bb6f35153da712bbed2e7d326a9de93a171f8656f196142adf8276faa620"
+    },
+    "directed_tests_passed": 65,
+    "compat_added": 0,
+    "deprecated_added": 0,
+    "claim_boundary": "renderer domain checks only; no Electron/live/Windows/full GUI claim"
+  },
+  "professional_files_presentation_elements": {
+    "status": "passed bounded object collection and builtin table; full GUI partial",
+    "candidate": ".lime/validation/presentation-elements-1.160.0-20261018-5",
+    "receipt": {
+      "path": ".lime/qc/professional-files/presentation-elements-final-20261018-1/receipt.json",
+      "sha256": "b814cf3479dd6e6e3ba1db70a91d002358082e707b07a5c6d7486636dd05ebb0"
+    },
+    "sourceCount": 11289,
+    "artifactCount": 1384,
+    "native": [
+      {
+        "runId": "presentation-table-builtin-native-20261018-9",
+        "stages": 14,
+        "ipc": 118
+      },
+      {
+        "runId": "presentation-elements-native-20261018-3",
+        "stages": 17,
+        "ipc": 90
+      }
+    ],
+    "normalMainExit": true,
+    "errors": 0,
+    "mockHits": 0,
+    "preservedFailure": "builtin7 normal exit timeout remains failed, cause unconfirmed; no shutdown guard weakened",
+    "excludes": [
+      "later root rich/Workbook/settings/queue bytes",
+      "full GUI",
+      "production/live/reference runtime/Windows/installer"
+    ]
+  },
+  "current_settings_content_search_developer_media": {
+    "status": "47 current static targets; 11 new targets implemented; Electron pending",
+    "checked_date": "2026-10-18",
+    "receipt": {
+      "path": ".lime/qc/settings/developer-media-search-20261018-1/implementation-receipt.json",
+      "sha256": "b4009ae4b02871ea92d219e3d1b297d9ea4cdeb4e190280dbbead3e640c674ae"
+    },
+    "tests": {
+      "passed": 139,
+      "new_search_integration": 68,
+      "five_language_target_dom": 55
+    },
+    "sourceBoundary": "same settingsSearchDocuments/white-list/sections/requestKey/draft guard; static labels only; no credential values or automatic secret expansion/focus",
+    "targetCount": 47,
+    "newTargetCount": 11,
+    "excludes": ["full settings/GUI coverage", "Electron/live/Windows"]
+  },
+  "public_profile_shared_account_audit_20261018": {
+    "receipt": {
+      "path": ".lime/qc/gui-remaining/public-profile-contract-audit-20261018-1/receipt.json",
+      "sha256": "ec8fd0bdbe521b0bf5ab5fc70ab13054c9a9facd3139492e90da038f6fac802d"
+    },
+    "report": {
+      "path": ".lime/qc/gui-remaining/public-profile-contract-audit-20261018-1/report.md",
+      "sha256": "5168c23b694909e43e5722b57380017cf25f75df9be98d904b8bddf7f5fcd4d5"
+    },
+    "input_count": 40,
+    "read_after_drift": 0,
+    "classification": "static current account/cloud transport audit; public profile same-meaning producer/contract remains missing",
+    "target_executed": false,
+    "live_network": false
+  },
+  "public_profile_dependency_rea_followup_20261018": {
+    "receipt": {
+      "path": ".lime/qc/gui-remaining/public-profile-dependency-rea-20261018-1/receipt.json",
+      "sha256": "9c983895089654f747ebcab54849218e11e0837c7e99c1dca9cdeaf43234d587"
+    },
+    "report": {
+      "path": ".lime/qc/gui-remaining/public-profile-dependency-rea-20261018-1/report.md",
+      "sha256": "c9e3ae057ad626a457fd577cacd0e5cc19f4bad83ad3d93a7a481ddef7602396"
+    },
+    "parent_evidence_id": "ev_5ad24c5ecf8bc9a336335a73dd7acb02d88f01dbbd2bf54f599b6e1d4bcac5f0",
+    "confirmed": [
+      "eligibility Statsig feature-gate producer",
+      "ProfileShowcaseEditor pins GET/PUT with expected_version and self/can_edit cache guards",
+      "multipart photo POST asset_pointer followed by profile PATCH"
+    ],
+    "parse_failures": 0,
+    "semantic_unknowns": 1190,
+    "checks": 82,
+    "frozen_artifacts": 30,
+    "target_executed": false,
+    "live_network": false,
+    "claim_boundary": "same selected ASAR focused member/source slices; reference static contracts do not implement Lime remote service"
+  },
+  "professional_files_presentation_html_native_repair": {
+    "source_owner": "presentationTextHtml",
+    "review": {
+      "path": ".lime/qc/professional-files/presentation-html-meta-review-20261018-1/review-receipt.json",
+      "sha256": "9afb8e2211c6705c58fd496ead97b90562d9c030671057ebc0c3a82520561eb8"
+    },
+    "directed_tests": 76,
+    "independent_parser_diagnostics": 27,
+    "native_failure_preserved": "presentation-rich-native-20261018-1",
+    "repairs": [
+      "precise inert UTF-8 clipboard metadata allowed without rewriting HTML token boundaries",
+      "noncanonical and nested comment terminators rejected before detached HTML parsing"
+    ],
+    "native_final_status": "rich6/advanced4 passed; structure4 selection timeout preserved; read-only native dispatch diagnostics running, candidate6 not frozen",
+    "whole_gui_status": "partial"
+  },
+  "public_profile_contract_rea_followup_20261018": {
+    "report": {
+      "path": ".lime/qc/gui-remaining/public-profile-contract-followup-rea-20261018-1/report.md",
+      "sha256": "54b7051619be7863926bf5271b0d93fbc304a1cf177defea483f33e972864e10"
+    },
+    "receipt": {
+      "path": ".lime/qc/gui-remaining/public-profile-contract-followup-rea-20261018-1/receipt.json",
+      "sha256": "a12fb4aad4975d5a7dcde78dd38ccbe9f0cd9115168aa8386292a5bc61018248"
+    },
+    "checks": 376,
+    "frozen_artifacts": 28,
+    "source_drift": 0,
+    "target_executed": false,
+    "live_network": false,
+    "confirmed": [
+      "page factory returns server is_self/can_edit without renderer identity synthesis",
+      "username availability POST with account header, debounce/cache and stale-response guard",
+      "independent username mutation and cache invalidation",
+      "photo FormData delegates host fetch; final auth/origin unknown",
+      "pins artifact identity requires actual skill publish and permission check"
+    ],
+    "remaining": [
+      "Lime public profile service and full schema",
+      "host auth/origin and upload policy",
+      "server permissions/version semantics"
+    ],
+    "classification": "static REA evidence only; no product remote profile implementation claim"
   }
 }

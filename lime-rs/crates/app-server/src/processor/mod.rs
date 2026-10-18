@@ -1,3 +1,4 @@
+mod account;
 mod agent_session;
 mod app;
 mod artifact;
@@ -29,6 +30,7 @@ mod model;
 mod notifications;
 mod permission_profile;
 mod plugin;
+mod plugin_share;
 mod process;
 mod project;
 mod project_git;

@@ -1,5 +1,9 @@
 {
   "$defs": {
+    "AbsolutePathBuf": {
+      "description": "A host path validated when entering the protocol boundary.",
+      "type": "string"
+    },
     "AdditionalContextEntry": {
       "properties": {
         "kind": {
@@ -173,6 +177,33 @@
       "required": [
         "end",
         "start"
+      ],
+      "type": "object"
+    },
+    "CloudRequestMethod": {
+      "enum": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "type": "string"
+    },
+    "CloudRequestParams": {
+      "additionalProperties": false,
+      "description": "Authenticated client APIs at the current account's issuer. No caller credentials or URL.",
+      "properties": {
+        "body": true,
+        "method": {
+          "$ref": "#/$defs/CloudRequestMethod"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "method",
+        "path"
       ],
       "type": "object"
     },
@@ -793,6 +824,14 @@
       ],
       "type": "object"
     },
+    "GetAccountParams": {
+      "properties": {
+        "refreshToken": {
+          "type": "boolean"
+        }
+      },
+      "type": "object"
+    },
     "HooksListParams": {
       "properties": {
         "cwds": {
@@ -847,6 +886,35 @@
         }
       },
       "type": "object"
+    },
+    "LoginAccountParams": {
+      "description": "External LimeCore sessions share the account boundary used by every surface.",
+      "oneOf": [
+        {
+          "properties": {
+            "accessToken": {
+              "type": "string"
+            },
+            "baseUrl": {
+              "type": "string"
+            },
+            "tenantId": {
+              "type": "string"
+            },
+            "type": {
+              "const": "cloudAuthTokens",
+              "type": "string"
+            }
+          },
+          "required": [
+            "accessToken",
+            "baseUrl",
+            "tenantId",
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
     },
     "MarketplaceAddParams": {
       "properties": {
@@ -1252,6 +1320,17 @@
       ],
       "type": "object"
     },
+    "PluginReconcileParams": {
+      "properties": {
+        "reason": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "type": "object"
+    },
     "PluginSearchParams": {
       "properties": {
         "cursor": {
@@ -1307,6 +1386,139 @@
         "workspace"
       ],
       "type": "string"
+    },
+    "PluginShareCheckoutParams": {
+      "properties": {
+        "remotePluginId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "remotePluginId"
+      ],
+      "type": "object"
+    },
+    "PluginShareDeleteParams": {
+      "properties": {
+        "remotePluginId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "remotePluginId"
+      ],
+      "type": "object"
+    },
+    "PluginShareDiscoverability": {
+      "enum": [
+        "LISTED",
+        "PRIVATE",
+        "UNLISTED"
+      ],
+      "type": "string"
+    },
+    "PluginShareListParams": {
+      "type": "object"
+    },
+    "PluginSharePrincipalType": {
+      "enum": [
+        "group",
+        "user",
+        "workspace"
+      ],
+      "type": "string"
+    },
+    "PluginShareSaveParams": {
+      "properties": {
+        "discoverability": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PluginShareDiscoverability"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pluginPath": {
+          "$ref": "#/$defs/AbsolutePathBuf"
+        },
+        "remotePluginId": {
+          "type": [
+            "null",
+            "string"
+          ]
+        },
+        "shareTargets": {
+          "items": {
+            "$ref": "#/$defs/PluginShareTarget"
+          },
+          "type": [
+            "array",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "pluginPath"
+      ],
+      "type": "object"
+    },
+    "PluginShareTarget": {
+      "properties": {
+        "principalId": {
+          "type": "string"
+        },
+        "principalType": {
+          "$ref": "#/$defs/PluginSharePrincipalType"
+        },
+        "role": {
+          "$ref": "#/$defs/PluginShareTargetRole"
+        }
+      },
+      "required": [
+        "principalId",
+        "principalType",
+        "role"
+      ],
+      "type": "object"
+    },
+    "PluginShareTargetRole": {
+      "enum": [
+        "editor",
+        "reader"
+      ],
+      "type": "string"
+    },
+    "PluginShareUpdateDiscoverability": {
+      "enum": [
+        "LISTED",
+        "PRIVATE",
+        "UNLISTED"
+      ],
+      "type": "string"
+    },
+    "PluginShareUpdateTargetsParams": {
+      "properties": {
+        "discoverability": {
+          "$ref": "#/$defs/PluginShareUpdateDiscoverability"
+        },
+        "remotePluginId": {
+          "type": "string"
+        },
+        "shareTargets": {
+          "items": {
+            "$ref": "#/$defs/PluginShareTarget"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "discoverability",
+        "remotePluginId",
+        "shareTargets"
+      ],
+      "type": "object"
     },
     "PluginUninstallParams": {
       "properties": {
@@ -3663,6 +3875,85 @@
           "$ref": "#/$defs/RequestId"
         },
         "method": {
+          "const": "cloud/request",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/CloudRequestParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "account/login/start",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/LoginAccountParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "account/read",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/GetAccountParams",
+          "default": {}
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "account/logout",
+          "type": "string"
+        },
+        "params": {
+          "type": "null"
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
           "const": "thread/start",
           "type": "string"
         },
@@ -5430,6 +5721,126 @@
         },
         "params": {
           "$ref": "#/$defs/PluginInstalledParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/reconcile",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginReconcileParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/share/save",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginShareSaveParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/share/list",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginShareListParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/share/updateTargets",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginShareUpdateTargetsParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/share/checkout",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginShareCheckoutParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/share/delete",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginShareDeleteParams"
         }
       },
       "required": [

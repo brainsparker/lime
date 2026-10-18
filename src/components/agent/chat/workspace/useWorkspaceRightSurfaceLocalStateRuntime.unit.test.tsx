@@ -99,8 +99,12 @@ describe("Right Surface 本地显示状态", () => {
           appId: "old-app",
           containerId: "old-plugin",
           title: "Old plugin",
-          activeStrategy: "webContentsView",
-          supportedStrategies: ["webContentsView"],
+          mcpApp: {
+            serverName: "codex_apps",
+            connectorId: "demo",
+            resourceUri: "ui://demo/view.html",
+            toolItemId: "item-demo",
+          },
         },
       ]);
       view.get().setActivePluginSurfaceContainerId("old-plugin");

@@ -9,6 +9,7 @@ import {
   parseSettingsMcpLifecycleFixtureArgs,
   summarizeSettingsMcpLifecycleTrace,
 } from "./settings-mcp-lifecycle-fixture-evidence.mjs";
+import { SETTINGS_DRAFT_FIXTURE_SOURCES } from "./settings-draft-navigation-scenario.mjs";
 
 const RUN_ID = "standalone-settings-b-test";
 
@@ -30,6 +31,10 @@ function traceRaw(transport = "electron-ipc", methods = undefined) {
 }
 
 function passingFacts() {
+  const sources = SETTINGS_DRAFT_FIXTURE_SOURCES.map((file) => ({
+    file,
+    sha256: "a".repeat(64),
+  }));
   return {
     completedAt: "2026-07-17T00:03:00.000Z",
     electronLaunchCount: 3,
@@ -40,6 +45,7 @@ function passingFacts() {
     restartReadback: true,
     guiDeleted: true,
     finalRestartAbsent: true,
+    sameServerAcrossRestarts: true,
     trace: summarizeSettingsMcpLifecycleTrace(traceRaw()),
     consoleErrors: [],
     pageErrors: [],
@@ -47,6 +53,32 @@ function passingFacts() {
     updatedScreenshotWritten: true,
     recoveredScreenshotWritten: true,
     finalScreenshotWritten: true,
+    normalMainExits: Array.from({ length: 3 }, () => ({
+      exited: true,
+      exitCode: 0,
+      signal: null,
+      mode: "normal",
+      forcedCleanup: false,
+    })),
+    buildFreshness: { before: { ready: true }, after: { ready: true } },
+    sourceManifest: { before: sources, after: structuredClone(sources) },
+    mcpDraft: {
+      sameNodeAcrossTabs: true,
+      tabDraftRetained: true,
+      sectionKeep: true,
+      sectionDiscard: true,
+      keepDefaultFocus: true,
+      unpersistedDraft: true,
+      sameServerIdentity: true,
+      cancelKeep: true,
+      cancelDiscard: true,
+      readbacks: Array.from({ length: 3 }, () => ({
+        method: "mcpServer/list",
+        transport: "electron-ipc",
+        currentPreload: true,
+        matchingRequestResponse: true,
+      })),
+    },
   };
 }
 
@@ -116,6 +148,50 @@ describe("Settings MCP lifecycle Gate B evidence", () => {
       }),
     ).toThrow(
       /appServerElectronIpc.*allCurrentMcpLifecycleMethods.*finalRestartAbsent.*mockFallbackZero/,
+    );
+  });
+
+  it.each([
+    "sameNodeAcrossTabs",
+    "tabDraftRetained",
+    "sectionKeep",
+    "sectionDiscard",
+    "keepDefaultFocus",
+    "unpersistedDraft",
+    "sameServerIdentity",
+    "cancelKeep",
+    "cancelDiscard",
+  ])("rejects absent MCP draft evidence: %s", (key) => {
+    const facts = passingFacts();
+    delete facts.mcpDraft[key];
+    expect(() =>
+      applyPassingSettingsMcpLifecycleEvidence(
+        createSettingsMcpLifecycleEvidence({
+          candidateRunId: RUN_ID,
+          startedAt: "2026-10-18",
+          prefix: "fixture",
+        }),
+        facts,
+      ),
+    ).toThrow(`mcpDraft.${key}`);
+  });
+
+  it("rejects server identity replacement, short process lifecycle and readback mock", () => {
+    const facts = passingFacts();
+    facts.sameServerAcrossRestarts = false;
+    facts.normalMainExits.pop();
+    facts.mcpDraft.readbacks[0].transport = "renderer-mock";
+    expect(() =>
+      applyPassingSettingsMcpLifecycleEvidence(
+        createSettingsMcpLifecycleEvidence({
+          candidateRunId: RUN_ID,
+          startedAt: "2026-10-18",
+          prefix: "fixture",
+        }),
+        facts,
+      ),
+    ).toThrow(
+      /sameServerAcrossRestarts.*currentReadbackIdentity.*normalMainExits/,
     );
   });
 });

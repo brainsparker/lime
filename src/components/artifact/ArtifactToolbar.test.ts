@@ -10,6 +10,10 @@ import * as fc from "fast-check";
 import { fastCheckRuns } from "../../test/fastCheckRuns";
 import { artifactRegistry, ArtifactRegistry } from "@/lib/artifact/registry";
 import {
+  generateFilename,
+  getLanguageExtension,
+} from "@/lib/artifact/artifactFilename";
+import {
   ALL_ARTIFACT_TYPES,
   LIGHTWEIGHT_ARTIFACT_TYPES,
   CANVAS_ARTIFACT_TYPES,
@@ -17,95 +21,6 @@ import {
   type ArtifactType,
   type Artifact,
 } from "@/lib/artifact/types";
-
-// ============================================================================
-// 辅助函数（从 ArtifactToolbar.tsx 复制，用于测试）
-// ============================================================================
-
-/**
- * 根据语言获取文件扩展名
- * @param language - 编程语言
- * @returns 文件扩展名
- */
-function getLanguageExtension(language: string): string {
-  const langExtMap: Record<string, string> = {
-    javascript: "js",
-    typescript: "ts",
-    python: "py",
-    rust: "rs",
-    go: "go",
-    java: "java",
-    cpp: "cpp",
-    c: "c",
-    csharp: "cs",
-    ruby: "rb",
-    php: "php",
-    swift: "swift",
-    kotlin: "kt",
-    scala: "scala",
-    html: "html",
-    css: "css",
-    scss: "scss",
-    less: "less",
-    json: "json",
-    yaml: "yaml",
-    yml: "yml",
-    xml: "xml",
-    markdown: "md",
-    sql: "sql",
-    shell: "sh",
-    bash: "sh",
-    powershell: "ps1",
-    dockerfile: "dockerfile",
-    tsx: "tsx",
-    jsx: "jsx",
-    vue: "vue",
-    svelte: "svelte",
-  };
-
-  const lower = language.toLowerCase();
-  // 使用 hasOwnProperty 检查，避免原型链上的属性污染
-  return Object.prototype.hasOwnProperty.call(langExtMap, lower)
-    ? langExtMap[lower]
-    : "txt";
-}
-
-/**
- * 清理文件名，移除非法字符
- * @param name - 原始文件名
- * @returns 清理后的文件名
- */
-function sanitizeFilename(name: string): string {
-  const sanitized = name
-    .replace(/[<>:"/\\|?*]/g, "_")
-    .replace(/\s+/g, "_")
-    .trim();
-  return sanitized || "artifact";
-}
-
-/**
- * 根据 Artifact 类型和元数据生成文件名
- * @param artifact - Artifact 对象
- * @param registry - 注册表实例
- * @returns 文件名
- */
-function generateFilename(
-  artifact: Artifact,
-  registry: ArtifactRegistry,
-): string {
-  if (artifact.meta.filename) {
-    return artifact.meta.filename;
-  }
-
-  const ext = registry.getFileExtension(artifact.type);
-
-  if (artifact.type === "code" && artifact.meta.language) {
-    const langExt = getLanguageExtension(artifact.meta.language);
-    return `${sanitizeFilename(artifact.title)}.${langExt}`;
-  }
-
-  return `${sanitizeFilename(artifact.title)}.${ext}`;
-}
 
 // ============================================================================
 // 自定义生成器 (Arbitraries)

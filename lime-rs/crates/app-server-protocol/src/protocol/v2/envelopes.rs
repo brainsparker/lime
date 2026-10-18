@@ -1,4 +1,8 @@
 use super::{
+    AccountUpdatedNotification, CloudRequestParams, GetAccountParams, LoginAccountParams,
+    METHOD_ACCOUNT_UPDATED,
+};
+use super::{
     AgentMessageDeltaNotification, AppListUpdatedNotification, AppsInstalledParams,
     AppsInstalledResponse, AppsListParams, AppsListResponse, AppsReadParams, AppsReadResponse,
     ArtifactWriteParams, ArtifactWriteResponse, CollaborationModeListParams,
@@ -22,7 +26,8 @@ use super::{
     HookCompletedNotification, HookStartedNotification, HooksListParams, HooksListResponse,
     ItemCompletedNotification, ItemGuardianApprovalReviewCompletedNotification,
     ItemGuardianApprovalReviewStartedNotification, ItemStartedNotification,
-    ListMcpServerStatusParams, ListMcpServerStatusResponse, McpServerElicitationRequestParams,
+    ListMcpServerStatusParams, ListMcpServerStatusResponse, MarketplaceAddParams,
+    MarketplaceRemoveParams, MarketplaceUpgradeParams, McpServerElicitationRequestParams,
     McpServerEventStreamNotification, McpServerEventStreamStartParams,
     McpServerEventStreamStartResponse, McpServerEventStreamStopParams,
     McpServerEventStreamStopResponse, McpServerOauthLoginCompletedNotification,
@@ -32,10 +37,10 @@ use super::{
     ModelListUpdatedNotification, ModelProviderCapabilitiesReadParams, ModelReroutedNotification,
     ModelSafetyBufferingUpdatedNotification, ModelVerificationNotification,
     PermissionProfileListParams, PermissionsRequestApprovalParams, PlanDeltaNotification,
-    MarketplaceAddParams, MarketplaceRemoveParams, MarketplaceUpgradeParams,
-    PluginInstallParams, PluginInstalledParams, PluginListParams,
-    PluginReadParams, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
-    ProcessExitedNotification, ProcessKillParams, ProcessKillResponse,
+    PluginInstallParams, PluginInstalledParams, PluginListParams, PluginReadParams,
+    PluginReconcileParams, PluginSearchParams, PluginSearchResponse, PluginShareDeleteParams,
+    PluginShareListParams, PluginShareSaveParams, PluginShareUpdateTargetsParams,
+    PluginUninstallParams, ProcessExitedNotification, ProcessKillParams, ProcessKillResponse,
     ProcessOutputDeltaNotification, ProcessResizePtyParams, ProcessResizePtyResponse,
     ProcessSpawnParams, ProcessSpawnResponse, ProcessWriteStdinParams, ProcessWriteStdinResponse,
     ProjectChangedNotification, ProjectCreateParams, ProjectCreateResponse, ProjectDeleteParams,
@@ -129,6 +134,28 @@ pub const V2_ENVELOPE_SCHEMA_TYPE_NAMES: &[&str] = &[
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "method")]
 pub enum ClientRequest {
+    #[serde(rename = "cloud/request")]
+    CloudRequest {
+        id: RequestId,
+        params: CloudRequestParams,
+    },
+    #[serde(rename = "account/login/start")]
+    AccountLoginStart {
+        id: RequestId,
+        params: LoginAccountParams,
+    },
+    #[serde(rename = "account/read")]
+    AccountRead {
+        id: RequestId,
+        #[serde(default)]
+        params: GetAccountParams,
+    },
+    #[serde(rename = "account/logout")]
+    AccountLogout {
+        id: RequestId,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        params: Option<()>,
+    },
     #[serde(rename = "thread/start")]
     ThreadStart {
         id: RequestId,
@@ -572,6 +599,36 @@ pub enum ClientRequest {
         id: RequestId,
         params: PluginInstalledParams,
     },
+    #[serde(rename = "plugin/reconcile")]
+    PluginReconcile {
+        id: RequestId,
+        params: PluginReconcileParams,
+    },
+    #[serde(rename = "plugin/share/save")]
+    PluginShareSave {
+        id: RequestId,
+        params: PluginShareSaveParams,
+    },
+    #[serde(rename = "plugin/share/list")]
+    PluginShareList {
+        id: RequestId,
+        params: PluginShareListParams,
+    },
+    #[serde(rename = "plugin/share/updateTargets")]
+    PluginShareUpdateTargets {
+        id: RequestId,
+        params: PluginShareUpdateTargetsParams,
+    },
+    #[serde(rename = "plugin/share/checkout")]
+    PluginShareCheckout {
+        id: RequestId,
+        params: super::PluginShareCheckoutParams,
+    },
+    #[serde(rename = "plugin/share/delete")]
+    PluginShareDelete {
+        id: RequestId,
+        params: PluginShareDeleteParams,
+    },
     #[serde(rename = "turn/start")]
     TurnStart {
         id: RequestId,
@@ -764,6 +821,10 @@ impl ClientRequest {
             | Self::SkillsList { id, .. }
             | Self::SkillsExtraRootsSet { id, .. }
             | Self::SkillsConfigWrite { id, .. }
+            | Self::AccountLoginStart { id, .. }
+            | Self::AccountRead { id, .. }
+            | Self::AccountLogout { id, .. }
+            | Self::CloudRequest { id, .. }
             | Self::MarketplaceAdd { id, .. }
             | Self::MarketplaceRemove { id, .. }
             | Self::MarketplaceUpgrade { id, .. }
@@ -773,6 +834,12 @@ impl ClientRequest {
             | Self::PluginInstall { id, .. }
             | Self::PluginUninstall { id, .. }
             | Self::PluginInstalled { id, .. }
+            | Self::PluginReconcile { id, .. }
+            | Self::PluginShareSave { id, .. }
+            | Self::PluginShareList { id, .. }
+            | Self::PluginShareUpdateTargets { id, .. }
+            | Self::PluginShareCheckout { id, .. }
+            | Self::PluginShareDelete { id, .. }
             | Self::TurnStart { id, .. }
             | Self::TurnSteer { id, .. }
             | Self::TurnInterrupt { id, .. }
@@ -886,6 +953,10 @@ impl ClientRequest {
             Self::SkillsList { .. } => Method::SkillsList,
             Self::SkillsExtraRootsSet { .. } => Method::SkillsExtraRootsSet,
             Self::SkillsConfigWrite { .. } => Method::SkillsConfigWrite,
+            Self::AccountLoginStart { .. } => Method::AccountLoginStart,
+            Self::AccountRead { .. } => Method::AccountRead,
+            Self::AccountLogout { .. } => Method::AccountLogout,
+            Self::CloudRequest { .. } => Method::CloudRequest,
             Self::MarketplaceAdd { .. } => Method::MarketplaceAdd,
             Self::MarketplaceRemove { .. } => Method::MarketplaceRemove,
             Self::MarketplaceUpgrade { .. } => Method::MarketplaceUpgrade,
@@ -895,6 +966,12 @@ impl ClientRequest {
             Self::PluginInstall { .. } => Method::PluginInstall,
             Self::PluginUninstall { .. } => Method::PluginUninstall,
             Self::PluginInstalled { .. } => Method::PluginInstalled,
+            Self::PluginReconcile { .. } => Method::PluginReconcile,
+            Self::PluginShareSave { .. } => Method::PluginShareSave,
+            Self::PluginShareList { .. } => Method::PluginShareList,
+            Self::PluginShareUpdateTargets { .. } => Method::PluginShareUpdateTargets,
+            Self::PluginShareCheckout { .. } => Method::PluginShareCheckout,
+            Self::PluginShareDelete { .. } => Method::PluginShareDelete,
             Self::TurnStart { .. } => Method::TurnStart,
             Self::TurnSteer { .. } => Method::TurnSteer,
             Self::TurnInterrupt { .. } => Method::TurnInterrupt,
@@ -1410,6 +1487,8 @@ impl From<ServerRequest> for JsonRpcRequest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "method", content = "params")]
 pub enum ServerNotification {
+    #[serde(rename = "account/updated")]
+    AccountUpdated(AccountUpdatedNotification),
     #[serde(rename = "configWarning")]
     ConfigWarning(ConfigWarningNotification),
     #[serde(rename = "warning")]
@@ -1546,6 +1625,7 @@ impl ServerNotification {
             Self::McpServerEventStream(_) => METHOD_MCP_SERVER_EVENT_STREAM_NOTIFICATION,
             Self::EnvironmentConnected(_) => METHOD_THREAD_ENVIRONMENT_CONNECTED,
             Self::EnvironmentDisconnected(_) => METHOD_THREAD_ENVIRONMENT_DISCONNECTED,
+            Self::AccountUpdated(_) => METHOD_ACCOUNT_UPDATED,
             Self::AppListUpdated(_) => METHOD_APP_LIST_UPDATED,
             Self::ScheduledTaskChanged(_) => METHOD_SCHEDULED_TASK_CHANGED,
             Self::ScheduledTaskRunUpdated(_) => METHOD_SCHEDULED_TASK_RUN_UPDATED,
@@ -1639,6 +1719,9 @@ impl TryFrom<JsonRpcNotification> for ServerNotification {
                 .map_err(|error| error.to_string()),
             METHOD_THREAD_ENVIRONMENT_DISCONNECTED => serde_json::from_value(params)
                 .map(Self::EnvironmentDisconnected)
+                .map_err(|error| error.to_string()),
+            METHOD_ACCOUNT_UPDATED => serde_json::from_value(params)
+                .map(Self::AccountUpdated)
                 .map_err(|error| error.to_string()),
             METHOD_APP_LIST_UPDATED => serde_json::from_value(params)
                 .map(Self::AppListUpdated)
@@ -1823,6 +1906,9 @@ impl From<ServerNotification> for JsonRpcNotification {
             }
             ServerNotification::EnvironmentDisconnected(params) => {
                 jsonrpc_notification(METHOD_THREAD_ENVIRONMENT_DISCONNECTED, params)
+            }
+            ServerNotification::AccountUpdated(params) => {
+                jsonrpc_notification(METHOD_ACCOUNT_UPDATED, params)
             }
             ServerNotification::AppListUpdated(params) => {
                 jsonrpc_notification(METHOD_APP_LIST_UPDATED, params)

@@ -3,7 +3,11 @@ import { getLimeI18n } from "@/i18n/createI18n";
 import { SettingsTabs } from "@/types/settings";
 import { settingsSections } from "./sections";
 import type { CategoryGroup } from "./hooks/useSettingsCategory";
-import { searchSettings, isSettingsSearchTarget } from "./settingsSearch";
+import {
+  searchSettings,
+  isSettingsSearchTarget,
+  getSettingsSearchDocument,
+} from "./settingsSearch";
 import { settingsSearchDocuments } from "./settingsSearchDocuments";
 
 const localize = (locale = "en-US") => {
@@ -32,7 +36,136 @@ const search = (query: string, localProfile = true) => {
   return searchSettings(query, groups, t, localProfile);
 };
 
+// 独立列出 current 可见字段，避免从被测索引生成自己的期望。
+const developerMediaTargets = [
+  [
+    SettingsTabs.Developer,
+    "experimental-crash-reporting",
+    "experimental.crashReporting.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-responsive-chat",
+    "mediaServices.sections.responsiveChat.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-topic",
+    "mediaServices.sections.topic.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-generation-topic",
+    "mediaServices.sections.generationTopic.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-translation",
+    "mediaServices.sections.translation.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-history-compress",
+    "mediaServices.sections.historyCompress.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-agent-meta",
+    "mediaServices.sections.agentMeta.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-input-completion",
+    "mediaServices.sections.inputCompletion.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-prompt-rewrite",
+    "mediaServices.sections.promptRewrite.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-service-resource-prompt-rewrite",
+    "mediaServices.sections.resourcePromptRewrite.title",
+  ],
+  [
+    SettingsTabs.MediaServices,
+    "media-image-count",
+    "mediaServices.imageSettings.count.label",
+  ],
+] as const;
+
 describe("current settings search projection", () => {
+  it.each(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"])(
+    "%s resolves the eleven independent Developer and Media expectations",
+    (locale) => {
+      const { t, groups } = localize(locale);
+      for (const [section, targetId, message] of developerMediaTargets) {
+        expect(
+          searchSettings(t(`settings.${message}`), groups, t, true),
+        ).toContainEqual(expect.objectContaining({ section, targetId }));
+        expect(
+          searchSettings(
+            t(
+              `settings.${message.replace(/\.(title|label)$/, ".description")}`,
+            ),
+            groups,
+            t,
+            true,
+          ),
+        ).toContainEqual(expect.objectContaining({ section, targetId }));
+        expect(getSettingsSearchDocument(section, targetId, true)?.path).toBe(
+          section === SettingsTabs.Developer ? "experimental" : undefined,
+        );
+      }
+      for (const field of ["dsn", "environment", "sampleRate"])
+        expect(
+          searchSettings(
+            t(`settings.experimental.crashReporting.${field}.label`),
+            groups,
+            t,
+            true,
+          ),
+        ).toContainEqual(
+          expect.objectContaining({
+            section: SettingsTabs.Developer,
+            targetId: "experimental-crash-reporting",
+          }),
+        );
+    },
+  );
+  it("keeps Developer paths in the exact whitelist and excludes private configuration values", () => {
+    for (const targetId of [
+      "experimental",
+      "experimental-crash-reporting/experimental",
+      'experimental-crash-reporting"] input, *',
+      "media-service-topic",
+    ])
+      expect(
+        getSettingsSearchDocument(SettingsTabs.Developer, targetId, true),
+      ).toBeUndefined();
+    expect(
+      getSettingsSearchDocument(
+        SettingsTabs.Experimental,
+        "experimental-crash-reporting",
+        true,
+      ),
+    ).toBeUndefined();
+    for (const value of [
+      "fixture-secret-dsn-value",
+      "fixture-private-prompt",
+      "fixture-custom-model-name",
+      "https://secret.invalid/42",
+    ])
+      expect(search(value)).toEqual([]);
+    expect(
+      getSettingsSearchDocument(
+        SettingsTabs.Developer,
+        "experimental-crash-reporting",
+        true,
+      )?.termKeys,
+    ).not.toContain("settings.experimental.crashReporting.dsn.placeholder");
+  });
   it.each(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"])(
     "%s resolves current static targets with existing messages",
     (locale) => {

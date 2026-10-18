@@ -7,6 +7,7 @@ import { McpPageActions } from "./McpPageActions";
 import { McpPageEditor } from "./McpPageEditor";
 import { McpPageServerList } from "./McpPageServerList";
 import { useMcpPageEditorState } from "./useMcpPageEditorState";
+import { SettingsUnsavedChangesDialog } from "@/components/settings-v2/_layout/SettingsUnsavedChangesDialog";
 
 interface McpPageProps {
   hideHeader?: boolean;
@@ -43,6 +44,9 @@ export function McpPage({ hideHeader = false }: McpPageProps) {
     configError,
     selectedPreset,
     deleteConfirm,
+    pendingNavigation,
+    clearPendingNavigation,
+    discardPendingNavigation,
     setEditName,
     setEditDescription,
     setEnabledLime,
@@ -224,6 +228,12 @@ export function McpPage({ hideHeader = false }: McpPageProps) {
         )}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}
+      />
+      <SettingsUnsavedChangesDialog
+        pendingNavigation={pendingNavigation}
+        saving={saving}
+        onClearPendingNavigation={clearPendingNavigation}
+        onDiscardChanges={discardPendingNavigation}
       />
     </div>
   );

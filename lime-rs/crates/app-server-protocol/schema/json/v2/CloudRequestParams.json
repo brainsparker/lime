@@ -1,0 +1,31 @@
+{
+  "$defs": {
+    "CloudRequestMethod": {
+      "enum": [
+        "DELETE",
+        "GET",
+        "POST",
+        "PUT"
+      ],
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Authenticated client APIs at the current account's issuer. No caller credentials or URL.",
+  "properties": {
+    "body": true,
+    "method": {
+      "$ref": "#/$defs/CloudRequestMethod"
+    },
+    "path": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "method",
+    "path"
+  ],
+  "title": "CloudRequestParams",
+  "type": "object"
+}

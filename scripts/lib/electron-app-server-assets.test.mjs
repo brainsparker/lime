@@ -1,4 +1,6 @@
 import path from "node:path";
+import fs from "node:fs";
+import os from "node:os";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -18,6 +20,39 @@ import {
 } from "./electron-app-server-assets.mjs";
 
 describe("electron app-server assets", () => {
+  it("真实资源复制拒绝空库，不以空文件替换已打包的运行库", async () => {
+    const root = fs.mkdtempSync(
+      path.join(os.tmpdir(), "sidecar-empty-runtime-"),
+    );
+    try {
+      const source = path.join(root, "libonnxruntime.dylib");
+      const destination = path.join(root, "packaged");
+      fs.writeFileSync(source, "");
+      fs.mkdirSync(destination);
+      const target = path.join(destination, "libonnxruntime.dylib");
+      fs.writeFileSync(target, "previous complete library");
+      await expect(
+        copyElectronAppServerRuntimeLibraries({
+          platform: "darwin",
+          arch: "arm64",
+          destinationDirectory: destination,
+          readCargoLock: async () =>
+            '[[package]]\nname = "sherpa-onnx-sys"\nversion = "1.13.0"\n',
+          resolvePlan: () => ({
+            targetTriple: "aarch64-apple-darwin",
+            libs: ["libonnxruntime.dylib"],
+          }),
+          resolveLibrary: (_plan, name) =>
+            name === "libonnxruntime.dylib" ? source : null,
+        }),
+      ).rejects.toThrow("Empty ONNX runtime shared library");
+      expect(fs.readFileSync(target, "utf8")).toBe("previous complete library");
+      expect(fs.readdirSync(destination)).toEqual(["libonnxruntime.dylib"]);
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it("按平台解析 resources sidecar 名称与平台 key", () => {
     expect(appServerResourceBinaryName("darwin")).toBe("app-server");
     expect(appServerResourceBinaryName("win32")).toBe("app-server.exe");

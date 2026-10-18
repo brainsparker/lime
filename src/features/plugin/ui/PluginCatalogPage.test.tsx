@@ -6,12 +6,16 @@ import type { AppServerPluginSummary } from "@/lib/api/appServerTypes";
 import { PluginCatalogPage } from "./PluginCatalogPage";
 
 const mocks = vi.hoisted(() => ({
+  accountId: null as string | null,
+  accountListeners: new Set<() => void>(),
   appsSubscription: null as null | {
     onUpdate: (apps: unknown[]) => void;
   },
   getProject: vi.fn(),
   installPlugin: vi.fn(),
   listPlugins: vi.fn(),
+  listPluginShares: vi.fn(),
+  reconcilePlugins: vi.fn(),
   readAppsReadiness: vi.fn(),
   readPlugin: vi.fn(),
   setPluginEnabled: vi.fn(),
@@ -20,8 +24,31 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
 }));
 
+vi.mock("@/lib/cloudAccount", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/cloudAccount")>()),
+  getCloudAccount: () =>
+    mocks.accountId
+      ? {
+          account: {
+            baseUrl: "https://fixture.test",
+            tenantId: "tenant",
+            userId: mocks.accountId,
+            sessionId: `session-${mocks.accountId}`,
+          },
+        }
+      : null,
+  subscribeCloudAccount: (listener: () => void) => {
+    mocks.accountListeners.add(listener);
+    return () => mocks.accountListeners.delete(listener);
+  },
+}));
+
 vi.mock("@/lib/api/project", () => ({
   getProject: (...args: unknown[]) => mocks.getProject(...args),
+}));
+
+vi.mock("@/lib/api/pluginShare", () => ({
+  listPluginShares: (...args: unknown[]) => mocks.listPluginShares(...args),
 }));
 
 vi.mock("@/lib/api/apps", () => ({
@@ -40,6 +67,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/api/pluginCatalog", () => ({
   installPlugin: (...args: unknown[]) => mocks.installPlugin(...args),
   listPlugins: (...args: unknown[]) => mocks.listPlugins(...args),
+  reconcilePlugins: (...args: unknown[]) => mocks.reconcilePlugins(...args),
   readPlugin: (...args: unknown[]) => mocks.readPlugin(...args),
   setPluginEnabled: (...args: unknown[]) => mocks.setPluginEnabled(...args),
   uninstallPlugin: (...args: unknown[]) => mocks.uninstallPlugin(...args),
@@ -106,6 +134,8 @@ describe("PluginCatalogPage", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
     await changeLimeLocale("zh-CN");
     vi.clearAllMocks();
+    mocks.accountId = null;
+    mocks.listPluginShares.mockResolvedValue({ data: [] });
     mocks.appsSubscription = null;
     mocks.listPlugins.mockResolvedValue({
       marketplaces: [
@@ -143,6 +173,11 @@ describe("PluginCatalogPage", () => {
       },
     });
     mocks.setPluginEnabled.mockResolvedValue(undefined);
+    mocks.reconcilePlugins.mockResolvedValue({
+      changedPlugins: [],
+      failedRemotePluginIds: [],
+      failedMaterializationRemotePluginIds: [],
+    });
     mocks.uninstallPlugin.mockResolvedValue({});
     mocks.readAppsReadiness.mockResolvedValue({
       apps: [
@@ -346,6 +381,215 @@ describe("PluginCatalogPage", () => {
       pluginId: "writer-plugin@personal",
       enabled: false,
     });
+  });
+
+  it("远端详情和安装传服务 ID，配置身份保持 canonical ID", async () => {
+    mocks.accountId = "one";
+    const plugin = summary({
+      id: "writer-plugin@workspace-directory",
+      remotePluginId: "remote_writer~1",
+      source: { type: "remote" },
+      installed: false,
+      enabled: false,
+    });
+    const remoteCatalog = {
+      marketplaces: [
+        {
+          name: "workspace-directory",
+          path: null,
+          plugins: [plugin],
+        },
+      ],
+    };
+    mocks.listPlugins.mockImplementation(async ({ marketplaceKinds }) =>
+      marketplaceKinds ? remoteCatalog : { marketplaces: [] },
+    );
+    mocks.installPlugin.mockResolvedValue({
+      authPolicy: "ON_USE",
+      appsNeedingAuth: [],
+    });
+    const container = await renderPage();
+    expect(mocks.readPlugin).toHaveBeenCalledWith({
+      remoteMarketplaceName: "workspace-directory",
+      pluginName: "remote_writer~1",
+    });
+    expect(mocks.reconcilePlugins).toHaveBeenCalledWith({
+      reason: "plugin-catalog-refresh",
+    });
+    expect(mocks.reconcilePlugins.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.listPlugins.mock.invocationCallOrder[0],
+    );
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-install-writer-plugin@workspace-directory"]',
+      ),
+    );
+    await click(
+      document.body.querySelector(
+        '[data-testid="plugin-catalog-confirm-install"]',
+      ),
+    );
+    expect(mocks.installPlugin).toHaveBeenCalledWith({
+      remoteMarketplaceName: "workspace-directory",
+      pluginName: "remote_writer~1",
+      installAttemptId: expect.any(String),
+    });
+    expect(mocks.listPlugins).toHaveBeenCalledWith({
+      marketplaceKinds: [
+        "workspace-directory",
+        "created-by-me-remote",
+        "shared-with-me",
+      ],
+    });
+  });
+
+  it("换号丢弃迟到目录，注销清空远端视图", async () => {
+    mocks.accountId = "old";
+    let finishOld!: (value: unknown) => void;
+    mocks.listPlugins.mockImplementation(async ({ marketplaceKinds }) => {
+      if (!marketplaceKinds) return { marketplaces: [] };
+      if (mocks.accountId === "old")
+        return new Promise((resolve) => {
+          finishOld = resolve;
+        });
+      return {
+        marketplaces: [
+          {
+            name: "workspace-directory",
+            path: null,
+            plugins: [
+              summary({
+                id: "new@workspace-directory",
+                name: "new",
+                remotePluginId: "new-id",
+                source: { type: "remote" },
+              }),
+            ],
+          },
+        ],
+      };
+    });
+    const container = await renderPage();
+    await act(async () => {
+      mocks.accountId = "new";
+      mocks.accountListeners.forEach((listener) => listener());
+    });
+    await flush();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-new@workspace-directory"]',
+      ),
+    ).not.toBeNull();
+    await act(async () => {
+      finishOld({
+        marketplaces: [{ name: "old", path: null, plugins: [summary()] }],
+      });
+    });
+    await flush();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-new@workspace-directory"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-writer-plugin@personal"]',
+      ),
+    ).toBeNull();
+    await act(async () => {
+      mocks.accountId = null;
+      mocks.accountListeners.forEach((listener) => listener());
+    });
+    await flush();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-card-new@workspace-directory"]',
+      ),
+    ).toBeNull();
+  });
+
+  it("从分享列表补入我创建的私人远端插件并提供管理入口", async () => {
+    mocks.accountId = "owner";
+    const plugin = summary({
+      id: "private@workspace-shared-with-me",
+      name: "private",
+      remotePluginId: "opaque~private",
+      source: { type: "remote" },
+      shareContext: {
+        remotePluginId: "opaque~private",
+        discoverability: "PRIVATE",
+        creatorAccountUserId: "owner",
+      },
+    });
+    mocks.listPluginShares.mockResolvedValue({
+      data: [{ plugin, localPluginPath: null }],
+    });
+    mocks.listPlugins.mockResolvedValue({ marketplaces: [] });
+    const container = await renderPage();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-share-private@workspace-shared-with-me"]',
+      ),
+    ).not.toBeNull();
+    await click(
+      container.querySelector(
+        '[data-testid="plugin-catalog-select-private@workspace-shared-with-me"]',
+      ),
+    );
+    expect(mocks.readPlugin).toHaveBeenCalledWith({
+      pluginName: "opaque~private",
+      remoteMarketplaceName: "workspace-shared-with-me",
+    });
+  });
+
+  it("分享读取失败仍保留真实本地目录，并显示失败原因", async () => {
+    mocks.accountId = "owner";
+    mocks.listPlugins.mockImplementation(async ({ marketplaceKinds }) => ({
+      marketplaces: marketplaceKinds
+        ? []
+        : [
+            {
+              name: "personal",
+              path: "/tmp/marketplace.json",
+              plugins: [summary()],
+            },
+          ],
+    }));
+    mocks.listPluginShares.mockRejectedValue(new Error("sharing unavailable"));
+    const container = await renderPage();
+    expect(
+      container.querySelector(
+        '[data-testid="plugin-catalog-share-writer-plugin@personal"]',
+      ),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="plugin-catalog-error"]')
+        ?.textContent,
+    ).toContain("sharing unavailable");
+  });
+
+  it.each([
+    ["zh-CN", "远端插件标识无效，请刷新目录。"],
+    ["zh-TW", "遠端插件識別碼無效，請重新整理目錄。"],
+    ["en-US", "Invalid remote plugin ID. Refresh the catalog."],
+    ["ja-JP", "リモートプラグインの ID が無効です。一覧を更新してください。"],
+    ["ko-KR", "원격 플러그인 ID가 올바르지 않습니다. 목록을 새로 고침하세요."],
+  ])("%s 远端缺 ID 时显示本地化错误且不请求详情", async (locale, message) => {
+    await changeLimeLocale(locale);
+    mocks.listPlugins.mockResolvedValue({
+      marketplaces: [
+        {
+          name: "workspace-directory",
+          path: null,
+          plugins: [
+            summary({ source: { type: "remote" }, remotePluginId: null }),
+          ],
+        },
+      ],
+    });
+    const container = await renderPage();
+    expect(container.textContent).toContain(message);
+    expect(mocks.readPlugin).not.toHaveBeenCalled();
   });
 
   it("收到 typed app/list/updated 后刷新 Apps readiness", async () => {

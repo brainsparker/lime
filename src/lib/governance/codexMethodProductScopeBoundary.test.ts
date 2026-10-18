@@ -166,7 +166,7 @@ describe("Codex method product scope boundary", () => {
     expect(methods).not.toContain("agentSession/compact");
   });
 
-  it("Codex realtime surface must stay outside the Desktop manifest", () => {
+  it("实时Thread属于待实现范围，未完成前不伪造manifest", () => {
     const matrix = readJson<Matrix>(MATRIX_PATH);
     const manifest = readJson<Manifest>(MANIFEST_PATH);
     const realtimeEntries = flatten(matrix).filter(({ method }) =>
@@ -178,14 +178,16 @@ describe("Codex method product scope boundary", () => {
 
     expect(realtimeEntries).toHaveLength(14);
     for (const entry of realtimeEntries) {
-      expect(entry.status).toBe("product-scope-excluded");
+      expect(entry.status).toBe("planned");
+      expect(entry.owner).toContain("model-provider");
+      expect(entry.gap).toBeTruthy();
       expect(
         contracts.has(`${manifestKind(entry.direction)}:${entry.method}`),
       ).toBe(false);
     }
   });
 
-  it("Codex process-local diagnostics must stay outside the Desktop manifest", () => {
+  it("无内容进程诊断进入待实施范围", () => {
     const matrix = readJson<Matrix>(MATRIX_PATH);
     const manifest = readJson<Manifest>(MANIFEST_PATH);
     const entry = flatten(matrix).find(
@@ -193,7 +195,8 @@ describe("Codex method product scope boundary", () => {
         direction === "clientRequest" && method === "server/diagnostics",
     );
 
-    expect(entry?.status).toBe("product-scope-excluded");
+    expect(entry?.status).toBe("planned");
+    expect(entry?.owner).toBe("app-server diagnostics");
     expect(
       manifest.methods.some(
         ({ kind, method }) =>
@@ -202,7 +205,7 @@ describe("Codex method product scope boundary", () => {
     ).toBe(false);
   });
 
-  it("browser and computer-use requirements stay outside the Desktop config contract", () => {
+  it("配置requirements复用现役config owner并明确待实施", () => {
     const matrix = readJson<Matrix>(MATRIX_PATH);
     const manifest = readJson<Manifest>(MANIFEST_PATH);
     const entry = flatten(matrix).find(
@@ -210,9 +213,9 @@ describe("Codex method product scope boundary", () => {
         direction === "clientRequest" && method === "configRequirements/read",
     );
 
-    expect(entry?.status).toBe("product-scope-excluded");
-    expect(entry?.owner).toBe("product-scope");
-    expect(entry?.rationale).toContain("ElectronBrowserTabHost");
+    expect(entry?.status).toBe("planned");
+    expect(entry?.owner).toContain("core config");
+    expect(entry?.gap).toContain("admission");
     expect(
       manifest.methods.some(
         ({ kind, method }) =>
@@ -221,7 +224,7 @@ describe("Codex method product scope boundary", () => {
     ).toBe(false);
   });
 
-  it("only the one-shot fuzzy file search belongs to the Desktop manifest", () => {
+  it("一发式搜索保持current，session能力进入同一owner的待实施清单", () => {
     const matrix = readJson<Matrix>(MATRIX_PATH);
     const manifest = readJson<Manifest>(MANIFEST_PATH);
     const entries = flatten(matrix).filter(({ method }) =>
@@ -242,45 +245,122 @@ describe("Codex method product scope boundary", () => {
     expect(contracts.has("request:fuzzyFileSearch")).toBe(true);
     expect(sessionEntries).toHaveLength(5);
     for (const entry of sessionEntries) {
-      expect(entry.status).toBe("product-scope-excluded");
+      expect(entry.status).toBe("planned");
+      expect(entry.owner).toBe("App Server filesystem search");
       expect(
         contracts.has(`${manifestKind(entry.direction)}:${entry.method}`),
       ).toBe(false);
     }
   });
 
-  it("excluded migration, marketplace and share surfaces cannot enter Desktop", () => {
+  it("外部配置和历史导入明确待实施，不恢复旧插件迁移", () => {
     const matrix = readJson<Matrix>(MATRIX_PATH);
     const manifest = readJson<Manifest>(MANIFEST_PATH);
-    const excludedMethods = new Set([
+    const plannedMethods = new Set([
       "externalAgentConfig/detect",
       "externalAgentConfig/import",
       "externalAgentConfig/import/readHistories",
       "externalAgentConfig/import/recordHistory",
-      "marketplace/add",
-      "marketplace/remove",
-      "marketplace/upgrade",
-      "plugin/share/checkout",
-      "plugin/share/delete",
-      "plugin/share/list",
-      "plugin/share/save",
-      "plugin/share/updateTargets",
       "externalAgentConfig/import/completed",
       "externalAgentConfig/import/progress",
     ]);
     const entries = flatten(matrix).filter(({ method }) =>
-      excludedMethods.has(method),
+      plannedMethods.has(method),
     );
 
-    expect(entries).toHaveLength(excludedMethods.size);
+    expect(entries).toHaveLength(plannedMethods.size);
     for (const entry of entries) {
-      expect(entry.status).toBe("product-scope-excluded");
+      expect(entry.status).toBe("planned");
+      expect(entry.owner).toBe("App Server import + thread-store");
       expect(
         manifest.methods.some(
           ({ kind, method }) =>
             kind === manifestKind(entry.direction) && method === entry.method,
         ),
       ).toBe(false);
+    }
+  });
+
+  it("MCP重载、账号控制、反馈与远程控制不得因当前缺实现而排除", () => {
+    const entries = flatten(readJson<Matrix>(MATRIX_PATH));
+    const methods = [
+      "config/mcpServer/reload",
+      "feedback/upload",
+      "account/login/cancel",
+      "account/bedrock/discover",
+      "account/bedrock/setup",
+      "account/rateLimits/read",
+      "account/usage/read",
+      "account/workspaceMessages/read",
+      "account/chatgptAuthTokens/refresh",
+      "account/login/completed",
+      "account/rateLimits/updated",
+      "remoteControl/client/list",
+      "remoteControl/client/revoke",
+      "remoteControl/disable",
+      "remoteControl/enable",
+      "remoteControl/pairing/start",
+      "remoteControl/pairing/status",
+      "remoteControl/status/read",
+      "remoteControl/status/changed",
+    ];
+    for (const method of methods) {
+      const entry = entries.find((entry) => entry.method === method);
+      expect(entry?.status, method).toBe("planned");
+      expect(entry?.evidence, method).toContain(
+        "internal/exec-plans/codex-method-scope-reassessment.md",
+      );
+    }
+    const excluded = entries.filter(
+      (entry) => entry.status === "product-scope-excluded",
+    );
+    expect(excluded).toHaveLength(15);
+    expect(
+      excluded.some((entry) => entry.method.startsWith("account/bedrock/")),
+    ).toBe(false);
+  });
+
+  it("remote sharing and skill preview remain explicit plugin alignment work", () => {
+    const matrix = readJson<Matrix>(MATRIX_PATH);
+    const methods = [
+      "plugin/share/checkout",
+      "plugin/share/delete",
+      "plugin/share/list",
+      "plugin/share/save",
+      "plugin/share/updateTargets",
+      "plugin/skill/read",
+    ];
+    const entries = flatten(matrix);
+    for (const method of methods) {
+      const entry = entries.find((entry) => entry.method === method);
+      expect(entry?.status, method).toBe("planned");
+      expect(entry?.owner).toContain("LimeCore");
+      expect(entry?.evidence).toContain(
+        "internal/exec-plans/codex-plugin-reconstruction.md",
+      );
+    }
+  });
+
+  it("Plugin marketplace mutations use their current Plugin owner and same-name contracts", () => {
+    const matrix = readJson<Matrix>(MATRIX_PATH);
+    const manifest = readJson<Manifest>(MANIFEST_PATH);
+    for (const method of [
+      "marketplace/add",
+      "marketplace/remove",
+      "marketplace/upgrade",
+    ]) {
+      const entry = flatten(matrix).find((entry) => entry.method === method);
+      expect(entry?.status).toBe("implemented");
+      expect(entry?.direction).toBe("clientRequest");
+      expect(entry?.owner).toContain("Plugin catalog");
+      expect(entry?.evidence).toContain(
+        "lime-rs/crates/app-server/tests/marketplace_jsonrpc.rs",
+      );
+      expect(
+        manifest.methods.some(
+          (entry) => entry.kind === "request" && entry.method === method,
+        ),
+      ).toBe(true);
     }
   });
 
@@ -364,10 +444,8 @@ describe("Codex method product scope boundary", () => {
       const entry = entries.find(
         ({ method: candidate }) => candidate === method,
       );
-      expect(entry?.status).toBe("product-scope-excluded");
-      expect(contracts.has(`${manifestKind(entry!.direction)}:${method}`)).toBe(
-        false,
-      );
+      expect(entry?.status).toBe("planned");
+      expect(entry?.owner).toContain("model-provider");
     }
   });
 });

@@ -558,7 +558,7 @@ describe("http-client", () => {
     expect(settled).toBe(true);
   });
 
-  it("插件 App Server 请求使用 current 读取窗口", async () => {
+  it("插件安装覆盖 60 秒下载预算并在长窗口到期时终止", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
       .mockResolvedValueOnce(electronHostHealthResponse())
@@ -573,8 +573,8 @@ describe("http-client", () => {
             id: "plugin-install",
             method: "plugin/install",
             params: {
-              marketplacePath: "/tmp/marketplace.json",
-              pluginName: "demo",
+              remoteMarketplaceName: "workspace-directory",
+              pluginName: "opaque~1",
             },
           }),
         ],
@@ -590,11 +590,13 @@ describe("http-client", () => {
     await vi.advanceTimersByTimeAsync(1800);
     expect(settled).toBe(false);
 
-    await vi.advanceTimersByTimeAsync(28200);
+    await vi.advanceTimersByTimeAsync(59200);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(89000);
     await expect(invokePromise).resolves.toMatchObject({
       ok: false,
       error: expect.objectContaining({
-        message: expect.stringContaining("timeout after 30000ms"),
+        message: expect.stringContaining("timeout after 150000ms"),
       }),
     });
   });
@@ -686,7 +688,6 @@ describe("http-client", () => {
       "plugin/list",
       "plugin/search",
       "plugin/read",
-      "plugin/install",
       "plugin/uninstall",
       "plugin/installed",
     ]) {
@@ -699,6 +700,21 @@ describe("http-client", () => {
           },
         }),
       ).toBe(30000);
+    }
+    for (const method of [
+      "plugin/share/save",
+      "plugin/share/list",
+      "plugin/share/updateTargets",
+      "plugin/share/checkout",
+      "plugin/share/delete",
+    ]) {
+      expect(
+        resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {
+          request: {
+            lines: [JSON.stringify({ id: method, method, params: {} })],
+          },
+        }),
+      ).toBe(150000);
     }
     expect(
       resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {

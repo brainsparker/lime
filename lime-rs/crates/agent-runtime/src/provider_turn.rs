@@ -19,9 +19,7 @@ use ::code_mode::{
 };
 use agent_protocol::provider_trace::{ProviderTraceEvent, ProviderTraceFailure};
 use agent_protocol::world_state::{RuntimeWorldState, WORLD_STATE_TURN_METADATA_KEY};
-use code_mode_protocol::{
-    RuntimeToolDefinition, RuntimeToolExposure, RuntimeToolIdentity, RuntimeToolSnapshot,
-};
+use code_mode_protocol::{RuntimeToolDefinition, RuntimeToolExposure};
 use futures::future::join_all;
 use futures::FutureExt;
 use futures::StreamExt;
@@ -53,9 +51,10 @@ use tool_runtime::tool_executor::{
     RuntimeToolExecutorHandle, RuntimeToolPolicyErrorKind,
 };
 use tool_runtime::tool_lifecycle::ToolLifecycleEmitter;
-use tool_runtime::turn_snapshot::{RuntimeHookSnapshot, RuntimeTurnSnapshot};
+use tool_runtime::turn_snapshot::RuntimeHookSnapshot;
 
 mod code_mode;
+mod hook_snapshot;
 mod input;
 mod output_lifecycle;
 mod stream_producer;
@@ -481,42 +480,11 @@ where
                 .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?
         };
 
-        // Hook 门控：捕获 Hook snapshot，构造 RuntimeTurnSnapshot，并包装 executor。
         if !is_empty_response_retry {
             if let Some(ref hook_source) = hook_snapshot_source {
-                let hook_step_snapshot = hook_source
-                    .capture()
+                hook_snapshot::apply(&mut tool_step_snapshot, hook_source)
                     .await
                     .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
-                if !hook_step_snapshot.hooks.is_empty() {
-                    let tool_snapshots = tool_step_snapshot
-                        .definitions
-                        .iter()
-                        .map(|def| {
-                            RuntimeToolSnapshot::new(
-                                RuntimeToolIdentity::plain(&def.name),
-                                def.clone(),
-                                RuntimeToolExposure::Direct,
-                                false,
-                                true,
-                            )
-                        })
-                        .collect();
-                    if let Ok(turn_snapshot) =
-                        RuntimeTurnSnapshot::try_new(tool_snapshots, hook_step_snapshot.hooks)
-                    {
-                        use tool_runtime::hook_gated_executor::hook_gated_executor;
-                        use tool_runtime::tool_executor::RuntimeToolExecutorHandle;
-                        // 克隆原 executor 的内部 Arc，用 hook 包装后重新构造 handle。
-                        let original_executor = tool_step_snapshot.executor.clone();
-                        let gated = hook_gated_executor(
-                            original_executor.inner_executor(),
-                            Arc::new(turn_snapshot),
-                            hook_step_snapshot.reporter,
-                        );
-                        tool_step_snapshot.executor = RuntimeToolExecutorHandle::new(gated);
-                    }
-                }
             }
         }
 

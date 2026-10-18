@@ -1,3 +1,4 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   claimStoredOemCloudReferralInvite,
@@ -6,10 +7,7 @@ import {
   readStoredOemCloudReferralInvite,
   storeOemCloudReferralInvite,
 } from "./oemCloudReferralClaim";
-import {
-  clearStoredOemCloudSessionState,
-  setStoredOemCloudSessionState,
-} from "./oemCloudSession";
+import { logoutCloudAccount } from "./cloudAccount";
 
 const { mockClaimClientReferral } = vi.hoisted(() => ({
   mockClaimClientReferral: vi.fn(),
@@ -19,8 +17,8 @@ vi.mock("@/lib/api/oemCloudControlPlane", () => ({
   claimClientReferral: mockClaimClientReferral,
 }));
 
-function setCloudSession(tenantId = "tenant-0001") {
-  setStoredOemCloudSessionState({
+async function setCloudSession(tenantId = "tenant-0001") {
+  await seedCloudAccount({
     token: "session-token-001",
     tenant: { id: tenantId, name: "Lime" },
     user: { id: "user-001", displayName: "晚风" },
@@ -29,19 +27,18 @@ function setCloudSession(tenantId = "tenant-0001") {
 }
 
 describe("oemCloudReferralClaim", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-28T08:00:00.000Z"));
     vi.clearAllMocks();
     mockClaimClientReferral.mockResolvedValue({});
     window.localStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
   });
 
-  afterEach(() => {
-    clearStoredOemCloudSessionState();
+  afterEach(async () => {
+    await logoutCloudAccount();
     window.localStorage.clear();
     vi.useRealTimers();
   });
@@ -83,7 +80,7 @@ describe("oemCloudReferralClaim", () => {
   });
 
   it("已登录时应调用当前租户 claim 接口并清理缓存", async () => {
-    setCloudSession("tenant-0001");
+    await setCloudSession("tenant-0001");
     storeOemCloudReferralInvite({
       code: "LIME-2026",
       tenantId: "tenant-0001",
@@ -107,7 +104,7 @@ describe("oemCloudReferralClaim", () => {
   });
 
   it("租户不匹配时不调用 claim 接口", async () => {
-    setCloudSession("tenant-0002");
+    await setCloudSession("tenant-0002");
 
     const result = await handleOemCloudReferralInviteUrl(
       "https://limeai.run/invite?code=LIME-2026&tenantId=tenant-0001",

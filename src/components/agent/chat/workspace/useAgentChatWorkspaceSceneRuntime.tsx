@@ -1,6 +1,8 @@
 /** Workspace scene/projection current owner。 */
 
 import { useCallback } from "react";
+import { ArtifactCommentSubmissionContext } from "@/components/artifact/ArtifactCommentSubmissionContext";
+import { useWorkspaceArtifactCommentSubmission } from "./useWorkspaceArtifactCommentSubmission";
 import { useWorkspaceCanvasSceneRuntime } from "./useWorkspaceCanvasSceneRuntime";
 import { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 import { useWorkspaceTaskCenterSendRuntime } from "./useWorkspaceTaskCenterSendRuntime";
@@ -81,7 +83,7 @@ export function useAgentChatWorkspaceSceneRuntime({
     setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleRecommendationClick, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,
     imageWorkbenchActionRuntime, handleContinueGeneralWorkbenchEntryPrompt, handleRestartGeneralWorkbenchEntryPrompt, handleDocumentAutoContinueRun, handleArtifactBlockRewriteRun, handleDocumentContentReviewRun, handleDocumentTextStylizeRun, handleAddImage,
-    handleImportDocument, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, handleCanvasSelectionTextChange, handleCloseCanvas, handleOpenProjectConversation,
+    handleImportDocument, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, handleCanvasSelectionTextChange, handleCloseCanvas, bindBeforeCanvasLeave, handleOpenProjectConversation,
     handleOpenTaskTopic, handleResumeRecentSession, handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, projectConversationGroups, recentSessionActionLabel, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRenderTaskCenterTabStrip, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
     suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, taskCenterTabsNode, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
     handleHarnessLoadFilePreview, handleOpenArtifactFromTimeline, handleOpenMessagePreview, handleOpenSavedSiteContent, handleOpenServiceSkillResultFile, handleOpenUrlPreview, handleSaveArtifactDocument, handleWorkspaceArtifactClick,
@@ -674,6 +676,7 @@ export function useAgentChatWorkspaceSceneRuntime({
         selectedFileId,
         handleHarnessLoadFilePreview,
         setCanvasWorkbenchLayoutMode,
+        onBeforeCanvasLeaveChange: bindBeforeCanvasLeave,
         workspacePathMissing: Boolean(workspacePathMissing),
         workspaceHealthError,
       },
@@ -699,8 +702,26 @@ export function useAgentChatWorkspaceSceneRuntime({
       onExpandGeneralWorkbenchSidebar: handleExpandGeneralWorkbenchSidebar,
     },
   });
+  const artifactCommentSubmission = useWorkspaceArtifactCommentSubmission({
+    sessionId,
+    threadId: threadRead?.thread_id,
+    originatingTurnId: threadRead?.thread_turns?.at(-1)?.id ?? null,
+    projectId,
+    isSending,
+    activeSessionIdRef,
+    getNavigationEpoch: getComposerDraftNavigationEpoch,
+    send: inputbarScene.handleInputbarSend,
+    openFile: (absolutePath, isCurrent, previewRequestKey) =>
+      openProjectFilePreviewInCanvas({
+        absolutePath,
+        isCancelled: () => !isCurrent(),
+        previewRequestKey,
+      }),
+  });
   return (
-    <>
+    <ArtifactCommentSubmissionContext.Provider
+      value={artifactCommentSubmission}
+    >
       {workspaceSceneNode}
       <ScheduledTaskDialog
         open={workspaceServiceSkillEntryActions.automationDialogOpen}
@@ -716,6 +737,6 @@ export function useAgentChatWorkspaceSceneRuntime({
           workspaceServiceSkillEntryActions.handleAutomationDialogSubmit
         }
       />
-    </>
+    </ArtifactCommentSubmissionContext.Provider>
   );
 }

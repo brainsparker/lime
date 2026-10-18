@@ -456,7 +456,9 @@ describe("commandPolicy", () => {
       expect(
         resolveDevBridgeCommandTimeoutProfile("app_server_handle_json_lines", {
           request: {
-            lines: [JSON.stringify({ id: `read-${method}`, method, params: {} })],
+            lines: [
+              JSON.stringify({ id: `read-${method}`, method, params: {} }),
+            ],
           },
         }),
       ).toBe("app-server-read");
@@ -477,6 +479,19 @@ describe("commandPolicy", () => {
         }),
       ).toBe("app-server-read");
     }
+    expect(
+      resolveDevBridgeCommandTimeoutProfile("app_server_handle_json_lines", {
+        request: {
+          lines: [
+            JSON.stringify({
+              id: "remote-install",
+              method: "plugin/install",
+              params: {},
+            }),
+          ],
+        },
+      }),
+    ).toBe("app-server-long-running");
     expect(
       resolveDevBridgeCommandTimeoutProfile("app_server_handle_json_lines", {
         request: {
@@ -523,7 +538,6 @@ describe("commandPolicy", () => {
       "plugin/list",
       "plugin/search",
       "plugin/read",
-      "plugin/install",
       "plugin/uninstall",
       "plugin/installed",
     ]) {

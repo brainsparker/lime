@@ -28,5 +28,5 @@ window.__LIME_OEM_CLOUD__ = {
   desktopOauthNextPath: "/welcome",
 };
 
-window.__LIME_SESSION_TOKEN__ = "session-token-from-login";
+// Account credentials are owned by App Server account/login/start.
 */

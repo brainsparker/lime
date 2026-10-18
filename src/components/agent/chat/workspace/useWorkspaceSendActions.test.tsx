@@ -46,9 +46,9 @@ vi.mock("@/lib/api/oemCloudRuntime", () => ({
   resolveOemCloudRuntimeContext: () => mockResolveOemCloudRuntimeContext(),
 }));
 
-vi.mock("@/lib/oemCloudSession", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/oemCloudSession")>(
-    "@/lib/oemCloudSession",
+vi.mock("@/lib/cloudAccount", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/cloudAccount")>(
+    "@/lib/cloudAccount",
   );
 
   return {

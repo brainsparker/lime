@@ -1,5 +1,4 @@
 use crate::protocol::AgentEvent;
-use agent_protocol::turn_context::TurnContextOverride;
 use agent_runtime::provider_turn::{
     RuntimeHookSnapshotFuture, RuntimeHookSnapshotSource, RuntimeHookSnapshotSourceHandle,
     RuntimeHookStepSnapshot,
@@ -14,9 +13,10 @@ use tool_runtime::hook_runtime::{
     AsyncHookResultSink, CommandHookReporter, HookLifecycleEmitter, HookLifecycleEvent,
     HookLifecyclePhase,
 };
+use tool_runtime::hook_source::PluginHookSourceProviderHandle;
 
 pub(super) fn current_hook_step_snapshot_source(
-    _turn_context: Option<TurnContextOverride>,
+    plugin_source: Option<PluginHookSourceProviderHandle>,
     working_directory: PathBuf,
     event_sender: mpsc::UnboundedSender<AgentEvent>,
     pending_input: Option<RuntimeSessionInputHandle>,
@@ -30,6 +30,7 @@ pub(super) fn current_hook_step_snapshot_source(
                 cwd: working_directory,
                 plugins: Vec::new(),
             },
+            plugin_source,
             emitter: Arc::new(AgentHookLifecycleEmitter {
                 event_sender: event_sender.clone(),
             }),
@@ -42,6 +43,7 @@ pub(super) fn current_hook_step_snapshot_source(
 
 struct CurrentHookStepSnapshotSource {
     input: HookDiscoveryInput,
+    plugin_source: Option<PluginHookSourceProviderHandle>,
     emitter: Arc<dyn HookLifecycleEmitter>,
     event_sender: mpsc::UnboundedSender<AgentEvent>,
     pending_input: Option<RuntimeSessionInputHandle>,
@@ -51,7 +53,20 @@ struct CurrentHookStepSnapshotSource {
 impl RuntimeHookSnapshotSource for CurrentHookStepSnapshotSource {
     fn capture(&self) -> RuntimeHookSnapshotFuture<'_> {
         Box::pin(async move {
-            let report = discover_hooks(&self.input);
+            let plugins = match &self.plugin_source {
+                Some(source) => source.load().await?,
+                None => Default::default(),
+            };
+            let mut input = self.input.clone();
+            input.plugins = plugins.sources;
+            let mut report = discover_hooks(&input);
+            report.warnings.extend(plugins.warnings);
+            for warning in &report.warnings {
+                let _ = self.event_sender.send(AgentEvent::Warning {
+                    code: Some("hook_load_warning".to_string()),
+                    message: warning.clone(),
+                });
+            }
             if !report.errors.is_empty() {
                 return Err(report
                     .errors

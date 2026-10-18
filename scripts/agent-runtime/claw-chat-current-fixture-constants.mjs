@@ -1,6 +1,5 @@
 import path from "node:path";
 import process from "node:process";
-import { pathToFileURL } from "node:url";
 import {
   buildExpertSkillsRuntimeCatalog,
   buildExpertSkillsRuntimeMetadata,
@@ -356,15 +355,6 @@ export const CONTENT_FACTORY_INLINE_IMAGE_SLOT_ID =
   "article-inline-image-slot-e2e";
 export const CONTENT_FACTORY_INLINE_IMAGE_TASK_PROMPT =
   "广州夏天午后街景原位配图";
-export const CONTENT_FACTORY_INLINE_IMAGE_FILE_PATH = path.join(
-  process.cwd(),
-  "public",
-  "fixtures",
-  "article-inline-image-e2e.svg",
-);
-export const CONTENT_FACTORY_INLINE_IMAGE_URL = pathToFileURL(
-  CONTENT_FACTORY_INLINE_IMAGE_FILE_PATH,
-).href;
 export const WEB_TOOLS_SEARCH_TOOL_CALL_ID = `${SESSION_ID}:tool:websearch-rendering`;
 export const WEB_TOOLS_REASONING_ITEM_ID = `${SESSION_ID}:reasoning:web-tools-rendering`;
 export const WEB_TOOLS_FETCH_TOOL_CALL_ID = `${SESSION_ID}:tool:webfetch-rendering`;
@@ -624,9 +614,8 @@ export const INPUTBAR_RICH_RESTORE_ASSERTION_KEYS = [
 export const RIGHT_SURFACE_VISUAL_MATRIX_ASSERTION_KEYS = [
   "rightSurfaceVisualMatrixRequestedThroughAppServer",
   "rightSurfaceVisualMatrixFilesSurfaceVisible",
-  "rightSurfaceVisualMatrixObjectCanvasSurfaceVisible",
-  "rightSurfaceVisualMatrixExpertSurfaceVisible",
   "rightSurfaceVisualMatrixBrowserSurfaceVisible",
+  "rightSurfaceVisualMatrixActivitySurfaceVisible",
   "rightSurfaceVisualMatrixSurfacesMutuallyExclusive",
   "rightSurfaceVisualMatrixHostsFillRightSide",
   "rightSurfaceVisualMatrixPendingConsumeKeepsSurfaceOpen",
@@ -648,6 +637,6 @@ export const CONTENT_FACTORY_ARTICLE_WORKSPACE_ASSERTION_KEYS = [
   "contentFactoryArticleWorkspaceWorkspacePatchEvidenceProjected",
   "contentFactoryArticleWorkspaceWorkspacePatchEvidenceScoped",
   "contentFactoryArticleWorkspaceActionResultPatchProjected",
-  "contentFactoryArticleWorkspaceStoryboardRendererContractPreserved",
+  "contentFactoryArticleWorkspaceStoryboardContentPreserved",
   "contentFactoryArticleWorkspaceDoesNotUseModelTurn",
 ];

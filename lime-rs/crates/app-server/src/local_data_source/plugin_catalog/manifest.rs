@@ -244,7 +244,7 @@ pub(super) fn is_standard_manifest(manifest: &Value) -> bool {
     manifest.get("$schema").and_then(Value::as_str) == Some(STANDARD_MANIFEST_SCHEMA)
 }
 
-fn read_manifest_file(path: &Path) -> Result<String, String> {
+pub(super) fn read_manifest_file(path: &Path) -> Result<String, String> {
     let metadata =
         fs::symlink_metadata(path).map_err(io_error("读取 Plugin manifest 元数据失败"))?;
     if metadata.file_type().is_symlink() || !metadata.is_file() {

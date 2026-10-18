@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  stubCloudRequest,
+  cloudRequestMock,
+} from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   SEEDED_SERVICE_SKILL_CATALOG_TENANT_ID,
@@ -170,7 +175,7 @@ describe("serviceSkills API", () => {
   afterEach(() => {
     window.localStorage.clear();
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
   });
@@ -382,7 +387,15 @@ describe("serviceSkills API", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -392,19 +405,15 @@ describe("serviceSkills API", () => {
         data: buildRemoteCatalog(),
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const catalog = await refreshServiceSkillCatalogFromRemote();
     const stored = await getServiceSkillCatalog();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://oem.example.com/api/v1/public/tenants/tenant-demo/client/service-skills",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-demo/client/service-skills",
         method: "GET",
-        headers: expect.objectContaining({
-          Accept: "application/json",
-          Authorization: "Bearer session-token-demo",
-        }),
       }),
     );
     expect(catalog?.tenantId).toBe("tenant-demo");
@@ -417,7 +426,15 @@ describe("serviceSkills API", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -427,7 +444,7 @@ describe("serviceSkills API", () => {
         data: buildStaleRemoteCatalog(),
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const catalog = await refreshServiceSkillCatalogFromRemote();
     const stored = await getServiceSkillCatalog();
@@ -487,7 +504,15 @@ describe("serviceSkills API", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -497,7 +522,7 @@ describe("serviceSkills API", () => {
         data: buildRemoteBaseSetupPackage(),
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const catalog = await refreshServiceSkillCatalogFromRemote();
     const stored = await getServiceSkillCatalog();

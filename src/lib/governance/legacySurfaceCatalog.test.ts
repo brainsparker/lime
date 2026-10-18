@@ -621,13 +621,7 @@ describe("legacySurfaceCatalog", () => {
       "src/features/plugin",
       "src/i18n/resources",
     ]);
-    expect(profileMonitor?.allowedPaths).toEqual(
-      expect.arrayContaining([
-        "src/features/plugin/testing/workflowRuntimeCapabilityProfile.ts",
-        "src/features/plugin/testing/capabilityDispatcherTestFixtures.ts",
-        "src/features/plugin/ui/PluginsPage.runtime.test.tsx",
-      ]),
-    );
+    expect(profileMonitor?.allowedPaths).toEqual([]);
 
     expect(adapterMonitor).toBeTruthy();
     expect(adapterMonitor?.classification).toBe("dead");

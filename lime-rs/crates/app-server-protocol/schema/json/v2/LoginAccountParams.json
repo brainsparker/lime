@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "External LimeCore sessions share the account boundary used by every surface.",
+  "oneOf": [
+    {
+      "properties": {
+        "accessToken": {
+          "type": "string"
+        },
+        "baseUrl": {
+          "type": "string"
+        },
+        "tenantId": {
+          "type": "string"
+        },
+        "type": {
+          "const": "cloudAuthTokens",
+          "type": "string"
+        }
+      },
+      "required": [
+        "accessToken",
+        "baseUrl",
+        "tenantId",
+        "type"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "LoginAccountParams"
+}

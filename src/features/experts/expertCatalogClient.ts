@@ -1,3 +1,4 @@
+import { requestControlPlane } from "@/lib/api/oemCloudControlPlaneRuntime";
 import {
   hasOemCloudSession,
   resolveOemCloudRuntimeContext,
@@ -7,12 +8,6 @@ import { getSeededExpertCatalog } from "./seededExpertCatalog";
 import type { ExpertCatalog } from "./types";
 
 const EXPERT_CATALOG_CACHE_STORAGE_KEY = "lime:expert-catalog-cache:v1";
-
-interface ExpertCatalogResponseEnvelope {
-  code?: number;
-  message?: string;
-  data?: unknown;
-}
 
 export interface GetExpertCatalogOptions {
   refreshRemote?: boolean;
@@ -64,33 +59,14 @@ async function requestRemoteExpertCatalog(): Promise<ExpertCatalog> {
     throw new Error("缺少品牌云端 Session Token，请先完成登录或注入会话。");
   }
 
-  const response = await fetch(
-    `${runtime.controlPlaneBaseUrl}/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/experts?includeRankings=true`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${runtime.sessionToken}`,
-      },
-    },
+  const data = await requestControlPlane<unknown>(
+    `/v1/public/tenants/${encodeURIComponent(runtime.tenantId)}/client/experts?includeRankings=true`,
+    { auth: true },
   );
 
-  let payload: ExpertCatalogResponseEnvelope | null = null;
-  try {
-    payload = (await response.json()) as ExpertCatalogResponseEnvelope;
-  } catch {
-    payload = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(
-      payload?.message?.trim() || `请求失败 (${response.status})`,
-    );
-  }
-
-  const catalog = parseExpertCatalog(payload?.data);
+  const catalog = parseExpertCatalog(data);
   if (!catalog) {
-    throw new Error(payload?.message?.trim() || "服务端返回的专家目录格式非法");
+    throw new Error("服务端返回的专家目录格式非法");
   }
 
   return catalog;

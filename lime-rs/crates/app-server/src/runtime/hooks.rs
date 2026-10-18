@@ -19,21 +19,27 @@ impl RuntimeCore {
         } else {
             params.cwds
         };
+        let plugins = self.app_data_source.load_plugin_hooks().await?;
 
         let data = cwds
             .into_iter()
-            .map(|cwd| list_hooks_for_cwd(codex_home.clone(), cwd))
+            .map(|cwd| list_hooks_for_cwd(codex_home.clone(), cwd, &plugins))
             .collect();
         Ok(HooksListResponse { data })
     }
 }
 
-fn list_hooks_for_cwd(codex_home: PathBuf, cwd: PathBuf) -> HooksListEntry {
-    let report = discover_hooks(&HookDiscoveryInput {
+fn list_hooks_for_cwd(
+    codex_home: PathBuf,
+    cwd: PathBuf,
+    plugins: &tool_runtime::hook_source::PluginHookLoadOutcome,
+) -> HooksListEntry {
+    let mut report = discover_hooks(&HookDiscoveryInput {
         codex_home,
         cwd: cwd.clone(),
-        plugins: Vec::new(),
+        plugins: plugins.sources.clone(),
     });
+    report.warnings.extend(plugins.warnings.iter().cloned());
     HooksListEntry {
         cwd,
         hooks: report

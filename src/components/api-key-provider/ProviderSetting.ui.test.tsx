@@ -234,10 +234,7 @@ describe("ProviderSetting", () => {
     });
 
     expect(onUpdate).toHaveBeenCalledWith("deepseek", {
-      models: [
-        { id: "deepseek-chat" },
-        { id: "deepseek-coder-large" },
-      ],
+      models: [{ id: "deepseek-chat" }, { id: "deepseek-coder-large" }],
     });
   });
 
@@ -548,8 +545,18 @@ describe("ProviderSetting", () => {
   });
 
   it("手动添加模型应直接更新 models", async () => {
-    const onUpdate = vi.fn().mockResolvedValue(undefined);
-    const container = renderSetting(createProvider({ models: [] }), {
+    const provider = createProvider({ models: [] });
+    let container: HTMLDivElement;
+    const onUpdate = vi.fn<
+      NonNullable<React.ComponentProps<typeof ProviderSetting>["onUpdate"]>
+    >(async (_id, request) => {
+      rerenderSetting(
+        container,
+        { ...provider, models: request.models ?? [] },
+        { onUpdate },
+      );
+    });
+    container = renderSetting(provider, {
       onUpdate,
     });
     await flushEffects();

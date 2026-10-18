@@ -1,3 +1,4 @@
+import { getOemCloudBootstrapSnapshot } from "./cloudAccount";
 import {
   applyServerSyncedSkillCatalog,
   parseSkillCatalog,
@@ -9,7 +10,6 @@ const SKILL_CATALOG_BOOTSTRAP_EVENT = "lime:skill-catalog-bootstrap";
 
 declare global {
   interface Window {
-    __LIME_BOOTSTRAP__?: unknown;
     __LIME_SKILL_CATALOG__?: unknown;
   }
 }
@@ -96,7 +96,7 @@ export function applyInitialSkillCatalogBootstrap(): SkillCatalog | null {
     }
   }
 
-  return syncSkillCatalogFromBootstrapPayload(window.__LIME_BOOTSTRAP__);
+  return syncSkillCatalogFromBootstrapPayload(getOemCloudBootstrapSnapshot());
 }
 
 export function subscribeSkillCatalogBootstrap(

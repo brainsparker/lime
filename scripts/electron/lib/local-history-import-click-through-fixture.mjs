@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { writePdfPreviewFixture } from "./pdf-preview-scenario.mjs";
 
 const BACKGROUND_IMPORT_FILLER_COMMAND_COUNT = 180;
 
@@ -46,12 +47,10 @@ export const IMPORTED_PREVIEW_HTML_TEXT =
   "导入会话 HTML 预览内容：iframe 或独立窗口应可显示。";
 export const IMPORTED_PREVIEW_DOCX_TEXT =
   "导入会话 DOCX 预览内容：中文不能乱码，也不能显示 ZIP 噪音。";
-export const IMPORTED_PREVIEW_XLSX_TEXT =
-  "导入会话 XLSX 预览内容：表格文本应进入文档预览。";
+export const IMPORTED_PREVIEW_XLSX_TEXT = "年度预算";
 export const IMPORTED_PREVIEW_PPTX_TEXT =
   "导入会话 PPTX 预览内容：幻灯片文本应进入文档预览。";
-export const IMPORTED_PREVIEW_PDF_TEXT =
-  "导入会话 PDF 预览内容：可解析文本流应进入文档预览。";
+export const IMPORTED_PREVIEW_PDF_TEXT = "PDF_PREVIEW_01";
 export let IMPORTED_CWD = "";
 export const REQUIRED_BACKEND_METHODS = [
   "conversationImport/source/scan",
@@ -163,35 +162,18 @@ function writeImportedPreviewFiles(docsDir) {
     path.join(docsDir, IMPORTED_PREVIEW_DOCX_FILE),
     IMPORTED_PREVIEW_DOCX_TEXT,
   );
-  writeMinimalXlsx(
+  fs.copyFileSync(
+    path.join(
+      process.cwd(),
+      "src/components/artifact/workbook/__fixtures__/review.xlsx",
+    ),
     path.join(docsDir, IMPORTED_PREVIEW_XLSX_FILE),
-    IMPORTED_PREVIEW_XLSX_TEXT,
   );
-  writeMinimalPptx(
+  fs.copyFileSync(
+    "src/components/artifact/presentation/__fixtures__/review.pptx",
     path.join(docsDir, IMPORTED_PREVIEW_PPTX_FILE),
-    IMPORTED_PREVIEW_PPTX_TEXT,
   );
-  writeMinimalPdf(
-    path.join(docsDir, IMPORTED_PREVIEW_PDF_FILE),
-    IMPORTED_PREVIEW_PDF_TEXT,
-  );
-}
-
-function writeMinimalPdf(filePath, text) {
-  fs.writeFileSync(
-    filePath,
-    `%PDF-1.4
-1 0 obj
-<< /Length ${Buffer.byteLength(`BT\n(${text}) Tj\nET`, "utf8")} >>
-stream
-BT
-(${text}) Tj
-ET
-endstream
-endobj
-%%EOF
-`,
-  );
+  writePdfPreviewFixture(path.join(docsDir, IMPORTED_PREVIEW_PDF_FILE), 1);
 }
 
 function writeMinimalDocx(filePath, text) {
@@ -226,52 +208,6 @@ function writeMinimalDocx(filePath, text) {
     </w:p>
   </w:body>
 </w:document>
-`,
-    },
-  ]);
-}
-
-function writeMinimalXlsx(filePath, text) {
-  writeZipFile(filePath, [
-    {
-      name: "xl/sharedStrings.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <si><t>${escapeXmlText(text)}</t></si>
-</sst>
-`,
-    },
-    {
-      name: "xl/worksheets/sheet1.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetData>
-    <row r="1">
-      <c r="A1" t="s"><v>0</v></c>
-    </row>
-  </sheetData>
-</worksheet>
-`,
-    },
-  ]);
-}
-
-function writeMinimalPptx(filePath, text) {
-  writeZipFile(filePath, [
-    {
-      name: "ppt/slides/slide1.xml",
-      content: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
-  <p:cSld>
-    <p:spTree>
-      <p:sp>
-        <p:txBody>
-          <a:p><a:r><a:t>${escapeXmlText(text)}</a:t></a:r></a:p>
-        </p:txBody>
-      </p:sp>
-    </p:spTree>
-  </p:cSld>
-</p:sld>
 `,
     },
   ]);

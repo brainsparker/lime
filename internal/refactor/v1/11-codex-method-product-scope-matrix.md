@@ -5,87 +5,84 @@
 > fixture: `internal/refactor/v1/fixtures/codex-method-product-scope.v0.1.json`
 > upstream: `/Users/coso/Documents/dev/rust/codex@99660ab3c7b861c916e467581fa9b8723504d66b`
 
-## 目标
+## 目标与口径
 
-把 Codex App Server 注册表的全部 method 变成可审计产品裁决，禁止用“已有同类模块”或
-legacy 同义命令冒充协议对齐。矩阵覆盖 `clientRequest`、`serverRequest`、
-`serverNotification` 与 `clientNotification` 四个方向；每个方向化 method 只能属于：
+Codex 的合理能力全部进入对齐范围。缺少现有消费者、GUI入口或领域实现是待实施缺口，
+不能作为排除依据。开发期直接替换冲突实现，不恢复旧插件、退役runtime或兼容包装。
+GUI、CLI/TUI 共用 App Server、runtime、Thread/Turn/Item、工具和持久化owner。
 
-- `implemented`：Lime generated manifest 存在同方向、同名 current contract，并有 owner/evidence。
-- `planned`：能力属于 Lime 产品范围，但 exact method、shape、lifecycle 或证据尚未完成。
-- `product-scope-excluded`：Codex/ChatGPT 专属、test-only、internal 或 deprecated surface，禁止复制或恢复兼容层。
+矩阵按方向覆盖 `clientRequest`、`serverRequest`、`serverNotification` 和
+`clientNotification`。每个方向化identity只能属于以下状态：
+
+- `implemented`：generated manifest已有同方向、同名合同，且存在owner/evidence；仅为合同分类，
+  不代表字段、行为、恢复、产品消费者或Gate B完整通过。
+- `planned`：能力应对齐，但exact method、shape、lifecycle或证据仍欠账。
+- `product-scope-excluded`：过时协议、显式test-only方法或依赖上游专属服务authority且不能
+  合理复刻的合同；不得伪造结果或恢复兼容层。所有排除必须写具体依据。
 
 ## 当前盘点
 
-| 状态                     | 数量 | 裁决                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ------------------------ | ---: | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `implemented`            |  171 | 连接握手、核心 Thread/Turn/Item、durable ordered Thread Section、Thread Queue、Project/Thread assignment、Thread Revert、strict review、thread subscription/lifecycle/content search/raw item injection/background terminals/elicitation/Guardian continuation、typed Collaboration Mode catalog、experimental feature catalog/enablement、Desktop permission profile catalog、Windows `windowsSandbox/readiness` 与 `windowsSandbox/setupStart` current setup/readiness、Windows `windows/worldWritableWarning` 与 `windowsSandbox/setupCompleted` typed lifecycle notifications、基础 Plugin catalog（list/read/install/uninstall/installed）与 Plugin Search、Hook discovery/lifecycle notifications、Skills list/config/extra roots/watcher、Apps exact catalog/read/installed 与 typed `app/list/updated` watcher、exact memory reset、connection-scoped process lifecycle、exact fs IO/watch、Composer one-shot `fuzzyFileSearch`、exact command/exec lifecycle、inline review/start 与 entered/exitedReviewMode boundary、`currentTime/read`、`item/permissions/requestApproval`、`item/tool/call`、typed `error`/`warning`、`item/commandExecution/terminalInteraction`、`item/autoApprovalReview/{started,completed}`、独立 `guardianWarning`、`turn/plan/updated`、精确 `turn/diff/updated`、`turn/moderationMetadata`、exact MCP resource/tool/event-stream lifecycle notifications、typed approval/MCP server request、model control plane、current-provider `modelProvider/capabilities/read`、Environment registry `environment/{add,info,status}` 与 Thread/Turn environment lifecycle notifications |
-| `planned`                |    0 | 当前没有已具备 exact contract、current producer/consumer 和 Windows evidence 的 planned method；后续新增 Codex method 必须先获得产品裁决 |
-| `product-scope-excluded` |   74 | Codex account/commerce/Bedrock account setup、attestation、remote control、test-only、internal raw response、process-local `server/diagnostics`、deprecated surface、Desktop 不消费的开发/设置 deprecation notice、外部 `config.toml` 专用 MCP reload、未安装远端 Plugin Skill 预览、`configRequirements/read`、Codex realtime WebRTC/session surface、experimental fuzzy search session request/notification、external-agent migration、Plugin share 与 Codex Plugin marketplace mutations                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| 合计                     |  245 | `155` client request、`11` server request、`78` server notification、`1` client notification                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 状态                   | 数量 | 含义                                          |
+| ---------------------- | ---: | --------------------------------------------- |
+| implemented            |  174 | 已有同名合同及owner，产品完成度仍需独立验证   |
+| planned                |   56 | 按现役owner实施，不能由缺实现再次改成excluded |
+| product-scope-excluded |   15 | 仅以下明确类别                                |
+| total                  |  245 | 冻结方向化identity，无遗漏或重复              |
 
-`implemented` 只说明 method boundary 已存在并接入 current owner，不代表字段、恢复、GUI 或 Gate B 已全面 parity。Windows setup 的真实执行与 readiness 只引用 Windows runner evidence，不以 macOS 推断。
-当前上游 revision 相比历史 `c9c6c0d` 增加 24 个方向化 identity：Queue 7、Project 9、Revert 2、Strict Review 1、MCP event stream 3 与 Bedrock account 2。前 22 项已有同名 current manifest、owner 和公共/GUI/Electron 证据；Bedrock 两项按 account-auth 专属能力 excluded。字段和 lifecycle 缺口继续由 Item inventory、gap register 与对应执行切片管理，不能因 method identity 已分类而提前关闭。
+方向计数保持：155 clientRequest、11 serverRequest、78 serverNotification、1 clientNotification。
+identity排序SHA-256保持 `cfebd0e98216f2a0f2e97d3999cf63457f8882c0d7f336336503f96caa0c4c95`。
+它是固定上游方法基线；新增方法（如本轮 `plugin/reconcile`）、tar.gz格式、组件发现、工具
+生命周期和桌面交互不包含在245分母内。不得把174/245当整体对齐完成率。
 
-## 产品裁决
+## 2026-10-18 合理能力复审
 
-1. Codex/ChatGPT account、billing、Bedrock account discover/setup、attestation 和 remote-control client administration 不进入 Lime；不建 compat。Lime 的 AWS Bedrock 继续由 provider-neutral `model-provider` credential/config owner 承接，不复制 Codex account-auth setup。
-2. `applyPatchApproval`、`execCommandApproval`、`thread/rollback`、`item/fileChange/outputDelta`、`thread/compacted` 为 deprecated，禁止恢复。
-3. `rawResponse/*` 绕过 canonical Thread/Turn/Item，保持 internal/excluded。
-4. `executionProcess/*`、`fileSystem/*`、旧 skill/plugin method 即使功能相似，也不能算 Codex method parity；只有 generated manifest 中同名、同方向且接入 current owner 的 Plugin catalog 方法才计入。
-5. Codex `thread/realtime/*` WebRTC/session control 与通知不进入 Lime Desktop，归入 `product-scope-excluded / forbidden-to-restore`；旧 realtime voice GUI 已退役，音频、语音和媒体能力继续由 Grok-aligned `model-provider` 与 `voice-core` / `media-runtime` 承接。Windows sandbox 属于产品范围；`windowsSandbox/readiness`、`windowsSandbox/setupStart`、`windows/worldWritableWarning` 与 `windowsSandbox/setupCompleted` 已进入 current owner，setup mode persistence、双 mode restricted-token runner、ACL/Job/ConPTY、Firewall/WFP、warning lifecycle 和 Windows runner evidence 已闭环。Desktop review 已由 inline `review/start` current owner 承接，Codex TUI detached/background review 不进入 Lime。
-6. `modelProvider/capabilities/read` 已接入 current App Server owner；handler 只读取 RuntimeCore 当前 provider route，并复用 `model-provider::provider_capabilities` 返回 exact 三项能力。未知 provider、配置失败和未知响应均 fail closed，不得恢复脱离当前 route 的静态全局 capability owner。
-7. Codex HEAD 的 durable ordered Thread Section 已进入 Lime current 主链：section/store/order、五个 exact method、typed client、冷启动恢复与 Desktop 分组/置顶均消费同一事实源。旧 `isPinned` metadata、Renderer 时间重排与 localStorage 收藏为 `dead / deleted / forbidden-to-restore`。
-   7a. Codex `server/diagnostics` 只提供无内容的进程本地诊断，Lime Desktop 没有对应用户流程；它保持 `product-scope-excluded / forbidden-to-restore`，不得新增 Electron 诊断后端或把日志指标当作模型/运行时 readiness。
-8. `plugin/list`、`plugin/read`、`plugin/install`、`plugin/uninstall`、`plugin/installed` 和 `plugin/search` 已使用 exact Codex method、params/result wire、typed client 与公共 JSON-RPC/Electron 证据接入本地 Plugin catalog owner；Codex remote catalog watcher、share 和 hosted readiness 不属于 Lime Desktop 产品流，不由这些基础方法冒充完成。
-9. `hooks/list` 已接入 `tool-runtime` 唯一 discovery/trust owner、exact v2 contract、公共 JSON-RPC、command Hook sampling lifecycle、canonical Hook Item 恢复与真实 Electron Gate B；旧 raw config、默认信任、空 reporter 和 Renderer drift fallback 为 `dead / deleted / forbidden-to-restore`。
-10. `skills/list` 已接入 `lime-skills::AgentSkillSnapshot` 唯一 discovery owner、exact `cwds + forceReload -> data[{cwd,skills,errors}]` contract、公共 JSON-RPC、typed clients 与 Renderer catalog projection；`skills/changed {}` 通过真实 Electron Gate B 驱动 GUI 自动刷新。singular `skill/list`、`SkillListResponse` 与 `get_local_skills_for_app` 为 `dead / deleted / forbidden-to-restore`。
-11. `skills/config/write` 与 `skills/extraRoots/set` 已接入 exact v2 contract、公共 JSON-RPC、typed clients 与同一 `lime-skills::AgentSkillSnapshot` owner。Desktop 将用户级启停配置持久化到 Lime YAML `skills.config`，extra roots 只做进程级原子替换；成功设置 roots 发送 `skills/changed {}`。两者不引入 Codex TUI 或第二套管理 catalog。
-12. `app/list`、`app/read`、`app/installed` 与 `app/list/updated` 已接入 exact v2 contract、公共 JSON-RPC、typed package client 和 Desktop Apps gateway。Apps catalog 唯一复用 Plugin catalog；本地 Plugin 没有 hosted connector 的 model-visible tool snapshot 时，`callable` 必须为 `false`，不能冒充 readiness 或模型可调用能力。
-13. `process/spawn`、`process/writeStdin`、`process/resizePty`、`process/kill`、`process/outputDelta` 与 `process/exited` 已接入 exact connection-scoped contract、真实 local supervisor 和 typed package client。Desktop Workspace 继续通过 `thread/backgroundTerminals/*` 投影 Thread-owned 终止能力，不复制 Codex TUI，也不把 Thread item id 冒充 connection process handle；旧 `executionProcess/*` 为 `dead / deleted / forbidden-to-restore`。
-14. `fs/readFile`、`fs/writeFile`、`fs/createDirectory`、`fs/getMetadata`、`fs/readDirectory`、`fs/remove`、`fs/copy`、`fs/watch`、`fs/unwatch` 与 `fs/changed` 已接入 exact v2 contract、App Server `FsServer`、typed clients 和公共 JSON-RPC 证据。raw bytes 始终使用 base64，路径必须为绝对路径，watch id 按 connection 隔离；Desktop 文件浏览/预览只做 GUI 投影。旧 `fileSystem/*`、v0 DTO/schema 和 file browser Rust owner 为 `dead / deleted / forbidden-to-restore`。
-15. `currentTime/read` 由 Electron Desktop Host 唯一读取系统时钟，App Server waiter 负责 canonical thread scope、响应校验和超时；它不创建 Thread Item，也不暴露 Renderer 时钟 API。`item/tool/call` 由冻结的 Desktop dynamic-tool binding 响应，RuntimeCore waiter 与 canonical DynamicToolCall Item 负责生命周期和恢复，Renderer 不能伪造调用。两者均有同名 generated manifest、typed contract、边界单测和 Electron Gate B 证据。
-16. `turn/plan/updated` 由 RuntimeCore `update_plan` producer 生成 durable `turn.plan.updated` fact，经 App Server v2 projector、typed package notification 和 Renderer projection 投递；Plan snapshot 仍由 canonical Plan Item/read model 承担，不能用本地 GUI 状态或 Tool Item 冒充。
-17. `item/permissions/requestApproval` 由 `tool-runtime` 解析并收紧 permission profile，App Server exact-id waiter 传递 canonical session/thread/turn/item/environment identity，Renderer 统一 `PendingInteractionController` 返回 turn/session grant 或 fail-closed 空 grant；相对路径、越界 profile、重复和迟到响应均被拒绝。
-18. `warning` 与 `error` 由 runtime durable event producer、App Server v2 projector、canonical read model、typed client 和 Renderer 共同承接；`error.willRetry` 不伪造 Turn terminal，`warning.code` 只用于五语言展示。`item/commandExecution/terminalInteraction` 由 command completion producer 生成脱敏摘要，live notification、cold read 和 GUI 都消费同一 bounded typed projection。
-19. `turn/diff/updated` 由 `apply_patch` 的 Turn-scoped 精确 delta producer 生成 durable `turn.diff.updated` fact，经 App Server v2 projector、typed client 和 canonical conversation Turn 投影；Desktop Changes previous-conversation 只读取该 Turn 的 `unified_diff`，空字符串表示 net-zero 清除，不回退到第二套本地 patch 拼装。
-20. `turn/moderationMetadata` 只接受 trusted first-party Responses `response.metadata.openai_chatgpt_moderation_metadata`，经 `model-provider` canonical event、Agent runtime durable `turn.moderation_metadata`、App Server exact v2 notification 和 Renderer canonical Turn 投影。metadata 保持任意 JSON，不猜字段、不展示 raw JSON；每次更新均投递并按 last-write-wins 合并，`null` 是有效覆盖值。Codex TUI 当前忽略该通知，Lime Desktop 不复制 TUI surface，也不新增 Electron IPC 或改变 Grok-aligned 多模型/多模态 owner。
+从原excluded重新纳入46项；原有account基础合同4项、plugin/share五项和plugin/skill/read
+一项保持planned。详细owner、顺序、退出条件及证据见
+[合理范围复审计划](../../exec-plans/codex-method-scope-reassessment.md)。
 
-21. `deprecationNotice` 属于 Codex 开发/设置诊断，不进入 Lime Desktop 对话或通知事实源。Lime 对无外部兼容负担的退役实现直接替换/删除，不新增同名兼容通知；`guardianWarning` 已由 Guardian denial circuit breaker 的独立 producer 接入 current App Server v2 主链，不得降级为普通 `warning`。
-22. `config/mcpServer/reload` 只服务 Codex 外部编辑 `config.toml` 后的 registry reload。Lime Desktop 的 MCP 配置唯一事实源是 App Server `mcpServer/list|create|update|delete`，启停走显式 `mcpServer/start|stop` lifecycle，Settings Gate B 已验证该主链；新增 reload 会建立第二份配置 owner，因此归入 `product-scope-excluded`。其余 Codex config read/write/requirements method 仍保持 `planned`，不得由 Lime MCP CRUD 冒充 exact parity。
-23. `plugin/skill/read` 的 exact Codex wire 要求 `remoteMarketplaceName`、`remotePluginId` 和 `skillName`，从远端服务读取未安装 Plugin 的 Skill markdown。Lime Desktop 已由 Skills catalog 与 `skill/read` 读取已安装本地 `SKILL.md`；二者同名不同义。远端预览归入 `product-scope-excluded`，本地 Skill owner 保持 current，不新增 alias、remote backend facade 或 compat wrapper。
-24. `collaborationMode/list` 已接入 exact v2 contract、公共 App Server JSON-RPC、typed package client 与 Renderer submit gateway。Desktop Composer 的 Plan 开关只表达选择意图，实际 preset 必须从 App Server catalog 解析；Plan mask 将 reasoning 覆盖为 `medium`，model 保持 `null` 并沿用 Grok-aligned `model-provider` 当前选择。不得恢复 Renderer 本地 preset、复制 Codex TUI mode picker，或把 collaboration catalog 扩成第二模型目录。
-25. `experimentalFeature/list` 与 `experimentalFeature/enablement/set` 已接入 exact v2 contract、公共 App Server JSON-RPC、typed package client 与 Settings Experimental consumer。Lime Desktop 当前只公开真实消费的 `webmcp`，由 App Server catalog 和 `lime_core config.yaml` 统一读写；可选 `threadId` 必须命中已加载 Thread，但 Lime 不建立 Codex project-local feature config。旧 Electron `get_experimental_config` / `save_experimental_config` 及 Renderer 直连 IPC 为 `dead / deleted / forbidden-to-restore`，不得恢复兼容包装或生产 mock fallback。
-26. `permissionProfile/list` 已接入 exact v2 contract、公共 App Server JSON-RPC、typed package client 与 Desktop Composer 新回合提交 consumer。Lime Desktop 只公开 `:read-only`、`:workspace`、`:danger-full-access` 三个内建 profile；提交前必须从 App Server catalog 解析唯一且 `allowed=true` 的 profile，并以 `turn/start { approvalPolicy, permissions }` 进入 App Server，再 lowering 到 RuntimeRequest sandbox policy。未知/禁止 profile 与 `permissions + sandboxPolicy` 组合均 fail closed。Codex project-local 自定义 profile、`thread/settings/update.permissions` 仍为 planned，不得由本目录读取或旧 sandbox wire 冒充完成。
-27. `windowsSandbox/readiness`、`windowsSandbox/setupStart`、`windows/worldWritableWarning` 与 `windowsSandbox/setupCompleted` 已接入 exact v2 contract、公共 App Server JSON-RPC、typed package client、Desktop Settings 与 Windows setup lifecycle。setup 持久化 `elevated/unelevated` mode；`tool-runtime` 对两种模式共享 restricted-token runner，unelevated 由当前用户启动并拒绝 managed network，elevated 继续使用 sandbox account 与 Firewall/WFP artifact。readiness 只在 `Ready + enforced=true` 时返回 `ready`；Windows runner schema v3 `7/7`、GitHub evidence 与复验 run 为平台事实，macOS 不得推断 Windows readiness。
-28. 一发式 `fuzzyFileSearch { query, roots, cancellationToken }` 已接入 App Server filesystem search owner、typed clients 与 Desktop Composer 项目文件 `@` 补全。路径必须来自绝对项目 root，结果是相对路径、file/directory type、score 与 indices；Renderer 仅替换当前 `@token`，空格路径加引号。Codex experimental `fuzzyFileSearch/sessionStart|sessionUpdate|sessionStop` 与 `sessionUpdated|sessionCompleted` 没有 Desktop 产品消费者，统一为 `product-scope-excluded / forbidden-to-restore`；两个 notification 只保留脱敏 drift diagnostics，不进入 pending interaction 或 current projector。
-29. Codex 远端 exec-server `environment/{add,info,status}` 与 `thread/environment/{connected,disconnected}` 已接入 App Server `EnvironmentRegistry` current owner；Thread/Turn 选择完成 ID/cwd/workspace roots 校验、metadata lowering、cold resume lifecycle、远端 filesystem/process lowering、有限 reconnect 和独立 Electron Gate B。external-agent config migration、Plugin share 和 Codex Plugin marketplace mutations 继续保持 `product-scope-excluded / forbidden-to-restore`。
-30. 当前 HEAD 新增的 Queue、Project、Revert、Strict Review 与 MCP event stream 共 22 个方向化 identity 均已进入 exact manifest 和各自 current owner，并有公共 JSON-RPC 或 owner integration 与独立 Electron Gate B。`account/bedrock/discover|setup` 只服务 Codex account-auth，不进入 Lime Desktop；Lime 的 `amazon-bedrock` provider route 不能冒充同名 account contract。
+| planned能力                                                 | 数量 | 现役owner                                                  |
+| ----------------------------------------------------------- | ---: | ---------------------------------------------------------- |
+| 进程诊断                                                    |    1 | App Server诊断                                             |
+| 配置requirements                                            |    1 | core config + App Server权限                               |
+| MCP配置重载                                                 |    1 | 同一config + tool-runtime MCP                              |
+| 外部配置/历史导入及通知                                     |    6 | App Server导入 + thread-store                              |
+| 模糊搜索session及通知                                       |    5 | App Server文件搜索                                         |
+| 实时Thread音频/语音/文本及通知                              |   14 | Thread/Turn + model-provider + voice-core/media-runtime    |
+| 完整account基础、控制、Bedrock、usage/limits、通知及refresh |   13 | AccountManager + model-provider + LimeCore认证控制面       |
+| 反馈                                                        |    1 | App Server诊断/反馈                                        |
+| 远程控制配对/撤销/状态及通知                                |    8 | app-server-client认证transport + LimeCore runtime registry |
+| 插件分享与未安装Skill正文                                   |    6 | 同一Plugin owner + LimeCore发布/授权                       |
 
-## 守卫
+Bedrock setup的源码实际发现AWS profile/环境凭据存在性、验证区域并配置当前provider，
+此前“只是Codex专属账号服务”的排除理由不成立；不得把已有Bedrock provider route当成已完成
+同名account合同。实时能力、导入、搜索session和远程配对同样不能因暂无消费者而禁止。
+这些是范围纠正，没有增加空handler、fake manifest或第二业务后端。
 
-`src/lib/governance/codexMethodProductScopeBoundary.test.ts` 固定以下事实：
+account/read、login/start、logout和updated虽已有cloudAuthTokens基础实现，仍缺上游全部
+认证模式及消费者，保持planned。LimeCore凭据不伪装成ChatGPT token；多模型控制面与provider
+readiness继续归Grok-aligned model-provider。
 
-- 245 个方向化 identity 无遗漏、无重复，状态和方向计数稳定。
-- planned 必须写 gap，excluded 必须写 rationale，所有组必须写 owner/evidence/priority。
-- `implemented` 必须能在 Lime generated manifest 找到同方向、同名 contract。
-- fuzzy search 只允许一发式 request 进入 manifest；五个 experimental session surface 必须保持 excluded 且禁止回流。
-- `externalAgentConfig/*`、`marketplace/*`、`plugin/share/*` 与 `account/bedrock/*` 必须保持 excluded 且不进入 Lime manifest；Environment、Queue、Project、Revert、Strict Review 与 MCP event stream method/notification 已进入 current manifest，恢复与 GUI/Gate B 证据由执行计划记录，不得进入脱敏 drift-only fallback。
+## 保留的15项排除
 
-上游 Codex revision 变化时，先重跑注册表审计并更新矩阵；不得只改 hash 或计数让守卫通过。
+- legacy/deprecated请求和通知9项：旧v1鉴权/会话/审批、thread/rollback、旧fileChange与
+  compaction通知及deprecationNotice。现役typed审批、ContextCompaction等不受此排除影响。
+- test-only `mock/experimentalMethod` 一项。
+- 上游专属计费操作两项：`account/rateLimitResetCredit/consume` 与
+  `account/sendAddCreditsNudgeEmail`；不伪造OpenAI credits或发送结果。通用usage/limits已在planned。
+- 上游专属 `attestation/generate` 一项；不伪造服务证明。
+- 绕过canonical投影的内部 `rawResponse/completed`、`rawResponseItem/completed` 两项。
 
-## 下一刀
+实现时发现上游状态或服务authority变化，应基于源码/REA重新裁决并记录；禁止只改hash或
+计数掩盖identity漂移。旧插件及退役runtime的删除守卫保持有效。
 
-上一刀已完成 `fuzzyFileSearch` one-shot、Windows readiness 与 Desktop reasoning identity 等 current slices；多模型
-catalog、provider capability/readiness、retry/circuit breaker 与多模态 lowering 仍由 Grok-aligned
-`model-provider` 负责，不以 Codex TUI surface 充数。
+## 守卫与下一步
 
-本轮产品范围裁决已把当前 HEAD 的 Queue、Project、Revert、Strict Review 与 MCP event stream 接入 current owner；Bedrock
-account、external-agent migration、Plugin share 和 Codex Plugin marketplace mutations 保持
-`product-scope-excluded / forbidden-to-restore`。当前矩阵为
-`171 implemented / 0 planned / 74 product-scope-excluded`，method 产品范围完成度 `171 / 171 = 100%`；Windows
-setup/notifications 的真实执行只由 Windows runner schema v3 与复验 run 证明，不能由 macOS 证据伪造完成。MCP
-status/resource、Thread/Item 等字段和恢复差距不在这个 method 百分比中，继续由完整对齐计划追踪。
+`src/lib/governance/codexMethodProductScopeBoundary.test.ts` 验证完整identity/hash、状态计数、
+owner/evidence、implemented的同名manifest，以及本轮合理能力保持待实施状态。
+它不再禁止合理的TUI、搜索session、实时或导入能力。planned未实施前不登记fake manifest。
 
-下一刀只回到 Windows 平台证据，或在发现新的真实 Desktop consumer 后重新开启范围审计。任何新增方法必须同步
-exact protocol、handler、typed client、fixture/evidence 和产品守卫；不得恢复 excluded surface、TUI 入口或兼容包装。
+Plugin marketplace三方法、Environment、Queue、Project、Revert、Strict Review与MCP event
+stream已有current合同；具体生命周期、权限和跨host产品证据继续归各执行计划，不能从
+method计数推导完成。当前插件主线继续见 [插件重构](../../exec-plans/codex-plugin-reconstruction.md)，
+按P04b11–15完成workspace权限、分享tar.gz、远端正文、真实Turn与三host验收。
+其余合理能力按范围复审计划实施；Windows/live/packaged证据独立，不用macOS结果替代。

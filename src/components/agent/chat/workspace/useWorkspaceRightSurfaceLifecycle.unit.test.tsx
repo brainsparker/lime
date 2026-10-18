@@ -16,7 +16,6 @@ import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceM
 
 const pending = vi.hoisted(() => ({
   pendingIntents: [],
-  pendingPluginSurfaces: [],
   pendingBrowserIntent: null,
   pendingFileTarget: null,
   refreshPendingRequests: vi.fn(async () => undefined),
@@ -59,8 +58,12 @@ const plugin: WorkspacePluginSurfaceDescriptor = {
   appId: "app-a",
   containerId: "container-a",
   title: "App A",
-  activeStrategy: "webContentsView",
-  supportedStrategies: ["webContentsView"],
+  mcpApp: {
+    serverName: "codex_apps",
+    connectorId: "demo",
+    resourceUri: "ui://demo/view.html",
+    toolItemId: "item-demo",
+  },
 };
 const threadItems: never[] = [];
 const noop = () => undefined;

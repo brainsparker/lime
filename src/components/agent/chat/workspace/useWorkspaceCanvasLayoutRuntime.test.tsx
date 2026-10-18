@@ -97,6 +97,78 @@ afterEach(() => {
 });
 
 describe("useWorkspaceCanvasLayoutRuntime", () => {
+  it("外层关闭和收起等待同一可见文件保存，失败不改变布局且可以重试", async () => {
+    const setLayoutMode = vi.fn();
+    const { render, getValue } = renderHook({
+      setLayoutMode,
+      hasCurrentCanvasArtifact: true,
+    });
+    await render();
+    setLayoutMode.mockClear();
+    let finish!: (saved: boolean) => void;
+    const guard = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    getValue().bindBeforeCanvasLeave(guard);
+    act(() => {
+      getValue().handleCloseCanvas();
+      getValue().handleToggleCanvas();
+    });
+    expect(guard).toHaveBeenCalledTimes(1);
+    expect(setLayoutMode).not.toHaveBeenCalled();
+    await act(async () => finish(false));
+    expect(setLayoutMode).not.toHaveBeenCalled();
+    act(() => getValue().handleToggleCanvas());
+    expect(guard).toHaveBeenCalledTimes(2);
+    await act(async () => finish(true));
+    expect(setLayoutMode).toHaveBeenCalledExactlyOnceWith("chat");
+  });
+
+  it("工作区A到B再回A时旧保存完成不得关闭当前画布", async () => {
+    const setLayoutMode = vi.fn();
+    const { render, getValue } = renderHook({
+      canvasScopeKey: "A",
+      setLayoutMode,
+      hasCurrentCanvasArtifact: true,
+    });
+    await render();
+    let finish!: (saved: boolean) => void;
+    getValue().bindBeforeCanvasLeave(
+      () =>
+        new Promise<boolean>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    act(() => getValue().handleCloseCanvas());
+    await render({ canvasScopeKey: "B" });
+    await render({ canvasScopeKey: "A" });
+    setLayoutMode.mockClear();
+    await act(async () => finish(true));
+    expect(setLayoutMode).not.toHaveBeenCalled();
+  });
+
+  it("重新打开画布不调用关闭护栏；解除注册后保持同步关闭行为", async () => {
+    const setLayoutMode = vi.fn();
+    const { render, getValue } = renderHook({
+      layoutMode: "chat",
+      setLayoutMode,
+      hasCurrentCanvasArtifact: true,
+    });
+    await render();
+    const guard = vi.fn(async () => false);
+    getValue().bindBeforeCanvasLeave(guard);
+    setLayoutMode.mockClear();
+    act(() => getValue().handleToggleCanvas());
+    expect(guard).not.toHaveBeenCalled();
+    expect(setLayoutMode).toHaveBeenCalledWith("chat-canvas");
+    getValue().bindBeforeCanvasLeave(null);
+    setLayoutMode.mockClear();
+    act(() => getValue().handleCloseCanvas());
+    expect(setLayoutMode).toHaveBeenCalledWith("chat");
+  });
   it("进入真实预览目标时应自动收起通用空画布，但保留已有内容", async () => {
     const setGeneralCanvasState = vi.fn();
     const { render } = renderHook({

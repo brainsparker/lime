@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Code2, FlaskConical } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -15,17 +15,37 @@ export function DeveloperLabSettings({
   initialTab = "developer",
 }: DeveloperLabSettingsProps = {}) {
   const [activeTab, setActiveTab] = useState<DeveloperLabTab>(initialTab);
+  const [experimentalVisited, setExperimentalVisited] = useState(
+    initialTab === "experimental",
+  );
+  const panelRef = useRef<HTMLDivElement>(null);
+  const experimentalRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation("settings");
 
+  const selectTab = useCallback((tab: DeveloperLabTab) => {
+    if (tab === "experimental") setExperimentalVisited(true);
+    if (
+      tab !== "experimental" &&
+      experimentalRef.current?.contains(document.activeElement)
+    ) {
+      panelRef.current
+        ?.querySelector<HTMLButtonElement>(
+          '[data-testid="developer-lab-tab-developer"]',
+        )
+        ?.focus();
+    }
+    setActiveTab(tab);
+  }, []);
+
   useEffect(() => {
-    setActiveTab(initialTab);
-  }, [initialTab]);
+    selectTab(initialTab);
+  }, [initialTab, selectTab]);
 
   return (
-    <div className="space-y-6 pb-8">
+    <div ref={panelRef} className="space-y-6 pb-8">
       <Tabs
         value={activeTab}
-        onValueChange={(value) => setActiveTab(value as DeveloperLabTab)}
+        onValueChange={(value) => selectTab(value as DeveloperLabTab)}
         className="space-y-5"
       >
         <section className="rounded-[26px] border border-slate-200/80 bg-white px-5 py-4 shadow-sm shadow-slate-950/5">
@@ -66,9 +86,16 @@ export function DeveloperLabSettings({
         <TabsContent value="developer" className="mt-0">
           <DeveloperSettings embedded />
         </TabsContent>
-        <TabsContent value="experimental" className="mt-0">
-          <ExperimentalSettings embedded />
-        </TabsContent>
+        {experimentalVisited && (
+          <div
+            ref={experimentalRef}
+            role="tabpanel"
+            hidden={activeTab !== "experimental"}
+            className="mt-0"
+          >
+            <ExperimentalSettings embedded />
+          </div>
+        )}
       </Tabs>
     </div>
   );

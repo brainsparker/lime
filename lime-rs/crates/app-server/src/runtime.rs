@@ -59,6 +59,7 @@ mod model_providers;
 mod output_media;
 mod output_refs;
 pub(crate) mod pending_action_descriptor;
+mod account;
 mod plugins;
 mod project_git;
 mod projection_item_events;
@@ -325,6 +326,7 @@ pub struct RuntimeCore {
     backend: Arc<dyn ExecutionBackend>,
     capability_source: Arc<dyn CapabilitySource>,
     app_config_path: PathBuf,
+    account_manager: Option<Arc<crate::account::AccountManager>>,
     pub(in crate::runtime) artifact_content_provider: Arc<dyn ArtifactContentProvider>,
     pub(in crate::runtime) file_checkpoint_snapshot_store: Arc<dyn FileCheckpointSnapshotStore>,
     pub(in crate::runtime) output_snapshot_store: Arc<dyn OutputSnapshotStore>,
@@ -428,6 +430,7 @@ impl RuntimeCore {
             backend,
             capability_source,
             app_config_path: lime_core::config::ConfigManager::default_config_path(),
+            account_manager: None,
             artifact_content_provider,
             file_checkpoint_snapshot_store: Arc::new(NoopFileCheckpointSnapshotStore),
             output_snapshot_store: Arc::new(NoopOutputSnapshotStore),

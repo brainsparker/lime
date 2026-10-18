@@ -66,6 +66,7 @@ pub fn protocol_fixture_manifest() -> Value {
 
 fn request_serialization_scope_name(scope: AppServerRequestSerializationScope) -> &'static str {
     match scope {
+        AppServerRequestSerializationScope::AccountAuth => "accountAuth",
         AppServerRequestSerializationScope::Thread => "thread",
         AppServerRequestSerializationScope::McpOauth => "mcpOauth",
         AppServerRequestSerializationScope::McpResourceSubscription => "mcpResourceSubscription",

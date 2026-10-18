@@ -6,6 +6,7 @@ import {
   mkdir,
   mkdtemp,
   readdir,
+  realpath,
   rm,
   writeFile,
 } from "node:fs/promises";
@@ -220,22 +221,91 @@ async function main() {
       "utf8",
     );
     const pluginConnection = ["-C", tempDir, ...connection];
+    const marketRoot = await realpath(tempDir);
+    for (const alreadyAdded of [false, true]) {
+      const added = await runCli(
+        ["plugin", "marketplace", "add", ".", "--json", ...pluginConnection],
+        tempDir,
+      );
+      const result = JSON.parse(added.stdout);
+      if (
+        result.marketplaceName !== "cli-surface-marketplace" ||
+        result.installedRoot !== marketRoot ||
+        result.alreadyAdded !== alreadyAdded
+      ) {
+        throw new Error(
+          `marketplace add identity/idempotency mismatch: ${added.stdout}`,
+        );
+      }
+    }
+    const markets = await runCli(
+      ["plugin", "marketplace", "list", "--json", ...pluginConnection],
+      tempDir,
+    );
+    const market = JSON.parse(markets.stdout).marketplaces.find(
+      (entry) =>
+        entry.name === "cli-surface-marketplace" && entry.root === marketRoot,
+    );
+    if (
+      market?.marketplaceSource?.sourceType !== "local" ||
+      market.marketplaceSource.source !== marketRoot
+    ) {
+      throw new Error(
+        `marketplace list did not project shared configured source: ${markets.stdout}`,
+      );
+    }
+    const upgraded = await runCli(
+      ["plugin", "marketplace", "upgrade", "--json", ...pluginConnection],
+      tempDir,
+    );
+    if (
+      JSON.stringify(JSON.parse(upgraded.stdout)) !==
+      JSON.stringify({
+        selectedMarketplaces: [],
+        upgradedRoots: [],
+        errors: [],
+      })
+    ) {
+      throw new Error(
+        `local marketplace must not be selected for Git upgrade: ${upgraded.stdout}`,
+      );
+    }
+    for (const name of ["cli-surface-marketplace", "missing-marketplace"]) {
+      const rejected = await runCliResult(
+        [
+          "plugin",
+          "marketplace",
+          "upgrade",
+          name,
+          "--json",
+          ...pluginConnection,
+        ],
+        tempDir,
+      );
+      if (
+        rejected.code === 0 ||
+        !rejected.stderr.includes("not configured as a Git marketplace")
+      ) {
+        throw new Error(
+          `explicit non-Git marketplace ${name} must fail: ${JSON.stringify(rejected)}`,
+        );
+      }
+    }
     const availableBeforeInstall = await runCli(
-      [
-        "plugin",
-        "list",
-        "--available",
-        "--json",
-        ...pluginConnection,
-      ],
+      ["plugin", "list", "--available", "--json", ...pluginConnection],
       tempDir,
     );
     const availablePayload = JSON.parse(availableBeforeInstall.stdout);
-    assertArray(availablePayload.marketplaces.flatMap((market) => market.plugins), "available plugin list plugins");
-    const availablePlugin = availablePayload.marketplaces.flatMap((market) => market.plugins).find(
-      (candidate) =>
-        candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
+    assertArray(
+      availablePayload.marketplaces.flatMap((market) => market.plugins),
+      "available plugin list plugins",
     );
+    const availablePlugin = availablePayload.marketplaces
+      .flatMap((market) => market.plugins)
+      .find(
+        (candidate) =>
+          candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
+      );
     if (!availablePlugin || availablePlugin.installed !== false) {
       throw new Error(
         `plugin list --available did not expose an uninstalled candidate: ${availableBeforeInstall.stdout}`,
@@ -258,30 +328,34 @@ async function main() {
       tempDir,
     );
     const pluginPayload = JSON.parse(plugins.stdout);
-    assertArray(pluginPayload.marketplaces.flatMap((market) => market.plugins), "plugin list plugins");
-    const plugin = pluginPayload.marketplaces.flatMap((market) => market.plugins).find(
-      (candidate) =>
-        candidate.id === "cli-surface-plugin@cli-surface-marketplace",
+    assertArray(
+      pluginPayload.marketplaces.flatMap((market) => market.plugins),
+      "plugin list plugins",
     );
+    const plugin = pluginPayload.marketplaces
+      .flatMap((market) => market.plugins)
+      .find(
+        (candidate) =>
+          candidate.id === "cli-surface-plugin@cli-surface-marketplace",
+      );
     if (!plugin)
       throw new Error("plugin add did not expose the installed plugin");
     const repoPlugins = await runCli(
-      [
-        "plugin",
-        "list",
-        "--available",
-        "--json",
-        ...pluginConnection,
-      ],
+      ["plugin", "list", "--available", "--json", ...pluginConnection],
       tempDir,
     );
     const repoPluginPayload = JSON.parse(repoPlugins.stdout);
-    assertArray(repoPluginPayload.marketplaces.flatMap((market) => market.plugins), "repo-local plugin list plugins");
+    assertArray(
+      repoPluginPayload.marketplaces.flatMap((market) => market.plugins),
+      "repo-local plugin list plugins",
+    );
     if (
-      !repoPluginPayload.marketplaces.flatMap((market) => market.plugins).some(
-        (candidate) =>
-          candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
-      )
+      !repoPluginPayload.marketplaces
+        .flatMap((market) => market.plugins)
+        .some(
+          (candidate) =>
+            candidate?.id === "cli-surface-plugin@cli-surface-marketplace",
+        )
     ) {
       throw new Error(
         `repo-local plugin list did not return the fixture: ${repoPlugins.stdout}`,
@@ -306,12 +380,7 @@ async function main() {
       );
     }
     const pluginSearch = await runCli(
-      [
-        "plugin",
-        "search",
-        "cli-surface",
-        ...pluginConnection,
-      ],
+      ["plugin", "search", "cli-surface", ...pluginConnection],
       tempDir,
     );
     const pluginSearchPayload = JSON.parse(pluginSearch.stdout);
@@ -375,6 +444,53 @@ async function main() {
     ) {
       throw new Error(
         `plugin remove did not preserve the requested identity: ${repeatedRemove.stdout}`,
+      );
+    }
+
+    const marketRemoved = await runCli(
+      [
+        "plugin",
+        "marketplace",
+        "remove",
+        "cli-surface-marketplace",
+        "--json",
+        ...pluginConnection,
+      ],
+      tempDir,
+    );
+    if (
+      JSON.stringify(JSON.parse(marketRemoved.stdout)) !==
+      JSON.stringify({
+        marketplaceName: "cli-surface-marketplace",
+        installedRoot: null,
+      })
+    ) {
+      throw new Error(
+        `marketplace remove result mismatch: ${marketRemoved.stdout}`,
+      );
+    }
+    await access(path.join(marketplaceRoot, "marketplace.json"));
+    const unrelated = path.join(tempDir, "unrelated");
+    await mkdir(unrelated);
+    const noConfiguredMarket = await runCli(
+      [
+        "plugin",
+        "marketplace",
+        "list",
+        "--json",
+        "-C",
+        unrelated,
+        ...connection,
+      ],
+      tempDir,
+    );
+    if (
+      JSON.parse(noConfiguredMarket.stdout).marketplaces.some(
+        (entry) => entry.name === "cli-surface-marketplace",
+      )
+    ) {
+      throw new Error(
+        "removed marketplace source remained configured outside the repo scope",
       );
     }
 
@@ -541,6 +657,7 @@ async function main() {
         "features=list",
         "features=enable|disable",
         "plugin=add|list|read|search|enable|disable|remove",
+        "marketplace=add|list|upgrade|remove",
         "debug=models|clear-memories",
         "execpolicy=check|prefix-rule|justification",
         "queue=add|list|unavailable-fail-closed",

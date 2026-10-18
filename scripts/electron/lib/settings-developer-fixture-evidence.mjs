@@ -1,4 +1,9 @@
 import path from "node:path";
+import {
+  settingsDraftNativeChecks,
+  settingsDraftNavigationChecks,
+  summarizeSettingsDraftProof,
+} from "./settings-draft-navigation-scenario.mjs";
 
 export const DEVELOPER_SCENARIO_ID = "developer-current-diagnostics";
 export const DEVELOPER_REQUIRED_APP_SERVER_METHODS = [
@@ -11,6 +16,7 @@ export const DEVELOPER_REQUIRED_APP_SERVER_METHODS = [
   "mcpServerStatus/list",
 ];
 export const DEVELOPER_REQUIRED_CONFIG_METHODS = ["config/read"];
+export const DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS = ["config/batchWrite"];
 export const DEVELOPER_REQUIRED_HOST_COMMANDS = [];
 
 const APP_SERVER_COMMAND = "app_server_handle_json_lines";
@@ -160,6 +166,9 @@ export function summarizeSettingsDeveloperTrace(traceRaw) {
     missingConfigMethods: DEVELOPER_REQUIRED_CONFIG_METHODS.filter(
       (method) => !methods.includes(method),
     ),
+    missingDraftConfigMethods: DEVELOPER_DRAFT_REQUIRED_CONFIG_METHODS.filter(
+      (method) => !methods.includes(method),
+    ),
     legacyCommands: LEGACY_DEVELOPER_COMMANDS.filter((command) =>
       commands.has(command),
     ),
@@ -180,7 +189,7 @@ export function createSettingsDeveloperEvidence({
     priority: "P0",
     proofLevel: "Gate B-F",
     claimBoundary:
-      "Real Electron Developer diagnostic collection through current Host and App Server methods. A renderer test-only clipboard sink replaces only the final operating-system clipboard write and records JSON shape booleans plus text length; it does not replace collection. Evidence stores no clipboard content, log text, config, path, provider data, MCP data, or secret, and does not claim operating-system clipboard delivery.",
+      "Real Electron Developer diagnostic collection and Experimental environment draft navigation, GUI save, current readback and isolated configuration restoration. Crash reporting is disabled with empty DSN during draft actions. A renderer test-only clipboard sink replaces only the final operating-system clipboard write and records JSON shape booleans plus text length; it does not replace collection. Evidence stores no clipboard content, log text, config, path, provider data, MCP data, or secret, and does not claim operating-system clipboard delivery or crash upload.",
     candidateRunId: validateName(candidateRunId, "run-id"),
     testOnly: true,
     startedAt,
@@ -251,6 +260,13 @@ export function applyPassingSettingsDeveloperEvidence(summary, facts) {
     legacyCommands: trace.legacyCommands,
     mockFallbackHitCount: trace.mockFallbackHitCount,
   };
+  summary.experimentalDraft = summarizeSettingsDraftProof(
+    "experimental",
+    facts.experimentalDraft,
+  );
+  summary.normalMainExits = facts.normalMainExits;
+  summary.buildFreshness = facts.buildFreshness;
+  summary.sourceManifest = facts.sourceManifest;
   const payloadShapeReady = Object.values(clipboard.payloadShape ?? {}).every(
     (value) => value === true,
   );
@@ -260,6 +276,7 @@ export function applyPassingSettingsDeveloperEvidence(summary, facts) {
     ["appServerElectronIpc", summary.bridge.appServerIpcHitCount > 0],
     ["allCurrentDiagnosticMethods", trace.missingMethods.length === 0],
     ["configCurrentRead", trace.missingConfigMethods.length === 0],
+    ["configDraftWrite", trace.missingDraftConfigMethods.length === 0],
     ["isolatedUserData", facts.isolatedUserData === true],
     ["developerTabActive", facts.developerTabActive === true],
     ["developerLabActive", facts.developerLabActive === true],
@@ -278,6 +295,8 @@ export function applyPassingSettingsDeveloperEvidence(summary, facts) {
     ["legacyCommandsZero", trace.legacyCommands.length === 0],
     ["mockFallbackZero", trace.mockFallbackHitCount === 0],
     ["screenshotWritten", facts.screenshotWritten === true],
+    ...settingsDraftNavigationChecks("experimental", facts.experimentalDraft),
+    ...settingsDraftNativeChecks(facts, 1),
   ];
   const failed = checks.filter(([, passed]) => !passed).map(([name]) => name);
   if (failed.length > 0) {

@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  stubCloudRequest,
+  cloudRequestMock,
+} from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getExpertCatalog,
@@ -33,16 +38,15 @@ function buildEmptyRemoteCatalog(): ExpertCatalog {
 describe("expertCatalogClient", () => {
   beforeEach(() => {
     window.localStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
   });
 
   afterEach(() => {
     window.localStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.unstubAllGlobals();
   });
 
@@ -73,7 +77,15 @@ describe("expertCatalogClient", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -83,18 +95,14 @@ describe("expertCatalogClient", () => {
         data: buildRemoteCatalog(),
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const catalog = await getExpertCatalog({ refreshRemote: true });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://oem.example.com/api/v1/public/tenants/tenant-demo/client/experts?includeRankings=true",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-demo/client/experts?includeRankings=true",
         method: "GET",
-        headers: expect.objectContaining({
-          Accept: "application/json",
-          Authorization: "Bearer session-token-demo",
-        }),
       }),
     );
     expect(catalog.tenantId).toBe("tenant-demo");
@@ -109,9 +117,16 @@ describe("expertCatalogClient", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
-    vi.stubGlobal(
-      "fetch",
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
+    stubCloudRequest(
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
@@ -136,9 +151,16 @@ describe("expertCatalogClient", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
-    vi.stubGlobal(
-      "fetch",
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
+    stubCloudRequest(
       vi.fn(async () => ({
         ok: true,
         json: async () => ({
@@ -162,9 +184,16 @@ describe("expertCatalogClient", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
-    vi.stubGlobal(
-      "fetch",
+    await seedCloudAccount(
+      {
+        token: "session-token-demo",
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
+    stubCloudRequest(
       vi.fn(async () => ({
         ok: false,
         status: 503,

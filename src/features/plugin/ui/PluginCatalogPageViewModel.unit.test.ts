@@ -57,16 +57,37 @@ describe("PluginCatalogPageViewModel", () => {
     expect(
       pluginLocation({
         ...entries[0],
+        plugin: {
+          ...plugins[0],
+          remotePluginId: "opaque_writer~1",
+          source: { type: "remote" },
+        },
         marketplace: {
           ...entries[0].marketplace,
+          name: "workspace-directory",
           path: null,
         },
       }),
     ).toEqual({
-      pluginName: "Writing Tools",
-      remoteMarketplaceName: "personal",
+      pluginName: "opaque_writer~1",
+      remoteMarketplaceName: "workspace-directory",
     });
   });
+
+  it.each([undefined, "", "writer@workspace-directory", "../writer"])(
+    "远端 ID %s 无效时拒绝退回名称",
+    (remotePluginId) => {
+      expect(() =>
+        pluginLocation({
+          marketplace: { name: "workspace-directory", path: null, plugins: [] },
+          plugin: summary("writer@workspace-directory", {
+            name: "writer",
+            remotePluginId,
+          }),
+        }),
+      ).toThrow();
+    },
+  );
 
   it("详情能力由 typed detail 统计", () => {
     expect(

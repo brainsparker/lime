@@ -4,24 +4,27 @@ import {
   installPlugin,
   listInstalledPlugins,
   listPlugins,
+  reconcilePlugins,
   readPlugin,
   searchPluginCatalog,
   setPluginEnabled,
   uninstallPlugin,
   type PluginCatalogClient,
+  addMarketplace,
+  removeMarketplace,
+  upgradeMarketplace,
+  type MarketplaceClient,
 } from "./pluginCatalog";
 
 function client(): PluginCatalogClient {
   return {
-    listPlugins: vi
-      .fn()
-      .mockResolvedValue({
-        result: {
-          marketplaces: [],
-          marketplaceLoadErrors: [],
-          featuredPluginIds: [],
-        },
-      }),
+    listPlugins: vi.fn().mockResolvedValue({
+      result: {
+        marketplaces: [],
+        marketplaceLoadErrors: [],
+        featuredPluginIds: [],
+      },
+    }),
     searchPlugins: vi
       .fn()
       .mockResolvedValue({ result: { data: [], nextCursor: null } }),
@@ -29,19 +32,98 @@ function client(): PluginCatalogClient {
     readPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
     installPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
     uninstallPlugin: vi.fn().mockResolvedValue({ result: {} }),
-    listInstalledPlugins: vi
-      .fn()
-      .mockResolvedValue({
-        result: {
-          marketplaces: [],
-          marketplaceLoadErrors: [],
-          featuredPluginIds: [],
-        },
-      }),
+    listInstalledPlugins: vi.fn().mockResolvedValue({
+      result: {
+        marketplaces: [],
+        marketplaceLoadErrors: [],
+        featuredPluginIds: [],
+      },
+    }),
   };
 }
 
 describe("Plugin catalog API", () => {
+  it("对账保留部分物化失败合同，只有成功响应通知共享读面刷新", async () => {
+    const result = {
+      changedPlugins: [
+        {
+          id: "research@workspace-directory",
+          hasSkills: true,
+          hasMcps: false,
+          hasApps: false,
+          hasHooks: false,
+        },
+      ],
+      failedRemotePluginIds: ["remote-failed"],
+      failedMaterializationRemotePluginIds: ["remote-failed"],
+    };
+    const reconciliation = {
+      reconcilePlugins: vi.fn().mockResolvedValue({ result }),
+    };
+    const listener = vi.fn();
+    window.addEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    try {
+      expect(
+        await reconcilePlugins({ reason: "catalog-refresh" }, reconciliation),
+      ).toEqual(result);
+      expect(reconciliation.reconcilePlugins).toHaveBeenCalledWith({
+        reason: "catalog-refresh",
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
+      reconciliation.reconcilePlugins.mockRejectedValueOnce(
+        new Error("incomplete snapshot"),
+      );
+      await expect(reconcilePlugins({}, reconciliation)).rejects.toThrow(
+        "incomplete snapshot",
+      );
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    }
+  });
+
+  it("市场变更成功后刷新同一catalog，失败不发出成功刷新", async () => {
+    const marketClient: MarketplaceClient = {
+      addMarketplace: vi.fn().mockResolvedValue({
+        result: {
+          marketplaceName: "team",
+          installedRoot: "/tmp/team",
+          alreadyAdded: false,
+        },
+      }),
+      removeMarketplace: vi.fn().mockResolvedValue({
+        result: { marketplaceName: "team", installedRoot: null },
+      }),
+      upgradeMarketplace: vi.fn().mockResolvedValue({
+        result: {
+          selectedMarketplaces: ["team"],
+          upgradedRoots: [],
+          errors: [{ marketplaceName: "team", message: "source unavailable" }],
+        },
+      }),
+    };
+    const listener = vi.fn();
+    window.addEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    try {
+      await addMarketplace(
+        { source: "owner/repo", refName: "main", sparsePaths: ["plugins"] },
+        marketClient,
+      );
+      await upgradeMarketplace({}, marketClient);
+      await removeMarketplace({ marketplaceName: "team" }, marketClient);
+      expect(listener).toHaveBeenCalledTimes(3);
+      vi.mocked(marketClient.addMarketplace).mockRejectedValueOnce(
+        new Error("source rejected"),
+      );
+      await expect(
+        addMarketplace({ source: "invalid" }, marketClient),
+      ).rejects.toThrow("source rejected");
+      expect(listener).toHaveBeenCalledTimes(3);
+    } finally {
+      window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, listener);
+    }
+  });
+
   it("只通过 typed App Server client 访问 catalog/install owner", async () => {
     const appServerClient = client();
 

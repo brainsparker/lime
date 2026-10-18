@@ -90,6 +90,7 @@ interface MethodScopeFixture {
   };
   groups: Array<{
     direction: Direction;
+    status: string;
     methods: string[];
   }>;
 }
@@ -230,9 +231,12 @@ function methodsByDirection(
 }
 
 describe("Codex render projection coverage boundary", () => {
-  it("product-scope-excluded notifications remain diagnostics-only and outside the current projector", () => {
+  it("尚无current接线的通知保持诊断，planned能力不伪造投影或永久排除", () => {
     const coverage = readJson<CoverageFixture>(COVERAGE_PATH);
-    const excludedMethods = [
+    const scope = readJson<MethodScopeFixture>(
+      coverage.factSources.methodScope,
+    );
+    const methodsWithoutCurrentProjection = [
       "fuzzyFileSearch/sessionCompleted",
       "fuzzyFileSearch/sessionUpdated",
       "process/outputDelta",
@@ -247,13 +251,22 @@ describe("Codex render projection coverage boundary", () => {
       "thread/realtime/transcript/done",
     ];
 
-    for (const method of excludedMethods) {
+    for (const method of methodsWithoutCurrentProjection) {
       const entry = coverage.notifications.find(
         (candidate) => candidate.method === method,
       );
       expect(entry).toBeDefined();
       expect(entry?.outlets).toEqual(["diagnostics"]);
       expect(isAppServerV2NotificationMethod(method)).toBe(false);
+      if (
+        method.startsWith("thread/realtime/") ||
+        method.startsWith("fuzzyFileSearch/session")
+      ) {
+        expect(
+          scope.groups.find((group) => group.methods.includes(method))?.status,
+          method,
+        ).toBe("planned");
+      }
     }
   });
 

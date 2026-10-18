@@ -1,8 +1,8 @@
-import type { OemCloudStoredSessionState } from "@/lib/oemCloudSession";
+import type { CloudAccountView } from "@/lib/cloudAccount";
 import type { OemCloudBootstrapResponse } from "@/lib/api/oemCloudControlPlane";
 
 export function resolveAccountDisplayName(
-  sessionState: OemCloudStoredSessionState | null,
+  sessionState: CloudAccountView | null,
   fallbackDisplayName: string,
 ): string {
   const user = sessionState?.session.user;
@@ -16,13 +16,13 @@ export function resolveAccountDisplayName(
 }
 
 export function resolveAccountEmail(
-  sessionState: OemCloudStoredSessionState | null,
+  sessionState: CloudAccountView | null,
 ): string | null {
   return sessionState?.session.user.email?.trim() || null;
 }
 
 export function resolveAccountTenantLabel(
-  sessionState: OemCloudStoredSessionState | null,
+  sessionState: CloudAccountView | null,
 ): string | null {
   const tenant = sessionState?.session.tenant;
   return (

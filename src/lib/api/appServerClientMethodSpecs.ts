@@ -1,6 +1,7 @@
 import * as constants from "./appServerConstants";
 export type AppServerClientMethodParamsMode =
   | "none"
+  | "omitted"
   | "required"
   | "optional-empty";
 
@@ -11,6 +12,26 @@ export type AppServerClientMethodSpec = {
 };
 
 export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
+  {
+    name: "requestCloud",
+    method: constants.APP_SERVER_METHOD_CLOUD_REQUEST,
+    params: "required",
+  },
+  {
+    name: "loginAccount",
+    method: constants.APP_SERVER_METHOD_ACCOUNT_LOGIN_START,
+    params: "required",
+  },
+  {
+    name: "readAccount",
+    method: constants.APP_SERVER_METHOD_ACCOUNT_READ,
+    params: "optional-empty",
+  },
+  {
+    name: "logoutAccount",
+    method: constants.APP_SERVER_METHOD_ACCOUNT_LOGOUT,
+    params: "omitted",
+  },
   {
     name: "startSession",
     method: constants.APP_SERVER_METHOD_THREAD_START,
@@ -430,6 +451,36 @@ export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
   {
     name: "listInstalledPlugins",
     method: constants.APP_SERVER_METHOD_PLUGIN_INSTALLED,
+    params: "optional-empty",
+  },
+  {
+    name: "savePluginShare",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SHARE_SAVE,
+    params: "required",
+  },
+  {
+    name: "listPluginShares",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SHARE_LIST,
+    params: "optional-empty",
+  },
+  {
+    name: "updatePluginShareTargets",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SHARE_UPDATE_TARGETS,
+    params: "required",
+  },
+  {
+    name: "checkoutPluginShare",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SHARE_CHECKOUT,
+    params: "required",
+  },
+  {
+    name: "deletePluginShare",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SHARE_DELETE,
+    params: "required",
+  },
+  {
+    name: "reconcilePlugins",
+    method: constants.APP_SERVER_METHOD_PLUGIN_RECONCILE,
     params: "optional-empty",
   },
   {

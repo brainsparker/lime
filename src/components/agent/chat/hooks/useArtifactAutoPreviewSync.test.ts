@@ -26,6 +26,30 @@ function createArtifact(overrides: Partial<Artifact> = {}): Artifact {
 }
 
 describe("useArtifactAutoPreviewSync helpers", () => {
+  it.each([
+    ["pdf", "document_pages"],
+    ["docx", "document_pages"],
+    ["xlsx", "workbook"],
+  ])("%s 原文件预览不进入生成文档的文本轮询或合并", (extension, renderMode) => {
+    const artifact = createArtifact({
+      status: "complete",
+      title: `report.${extension}`,
+      meta: {
+        filePath: `/workspace/report.${extension}`,
+        previewArtifact: true,
+        isSourceBacked: true,
+        renderMode,
+      },
+    });
+    expect(shouldAutoSyncArtifactPreview(artifact)).toBe(false);
+    expect(
+      mergePreviewContentIntoArtifact(artifact, {
+        path: `/workspace/report.${extension}`,
+        content: "Extracted text must not reset the source renderer",
+      }),
+    ).toBeNull();
+  });
+
   it("空内容的 pending artifact 应触发自动预览同步", () => {
     const artifact = createArtifact({
       status: "pending",
@@ -74,7 +98,7 @@ describe("useArtifactAutoPreviewSync helpers", () => {
   it("读取到 App Server metadata 后应把版本链证据合并回 artifact", () => {
     const artifact = createArtifact({
       status: "complete",
-      content: "{\"schemaVersion\":\"artifact_document.v1\"}",
+      content: '{"schemaVersion":"artifact_document.v1"}',
       meta: {
         filePath: ".app-server/artifacts/report.json",
         writePhase: "completed",
@@ -85,7 +109,7 @@ describe("useArtifactAutoPreviewSync helpers", () => {
       artifactId: "artifact-document:report",
       artifactRef: "artifact-report",
       path: ".app-server/artifacts/report.json",
-      content: "{\"schemaVersion\":\"artifact_document.v1\"}",
+      content: '{"schemaVersion":"artifact_document.v1"}',
       title: "Report",
       metadata: {
         artifactDocumentId: "artifact-document:report",
@@ -97,7 +121,7 @@ describe("useArtifactAutoPreviewSync helpers", () => {
     });
 
     expect(merged).not.toBeNull();
-    expect(merged?.content).toBe("{\"schemaVersion\":\"artifact_document.v1\"}");
+    expect(merged?.content).toBe('{"schemaVersion":"artifact_document.v1"}');
     expect(merged?.status).toBe("complete");
     expect(merged?.meta).toMatchObject({
       artifactId: "artifact-document:report",
@@ -124,7 +148,7 @@ describe("useArtifactAutoPreviewSync helpers", () => {
   it("已有相同 ArtifactDocument persistence scope 时不应重复写回", () => {
     const artifact = createArtifact({
       status: "complete",
-      content: "{\"schemaVersion\":\"artifact_document.v1\"}",
+      content: '{"schemaVersion":"artifact_document.v1"}',
       meta: {
         filePath: ".app-server/artifacts/report.json",
         artifactId: "artifact-document:report",
@@ -151,7 +175,7 @@ describe("useArtifactAutoPreviewSync helpers", () => {
       artifactId: "artifact-document:report",
       artifactRef: "artifact-report",
       path: ".app-server/artifacts/report.json",
-      content: "{\"schemaVersion\":\"artifact_document.v1\"}",
+      content: '{"schemaVersion":"artifact_document.v1"}',
       metadata: {
         artifactDocumentId: "artifact-document:report",
         artifactVersionId: "artifact-document:report:v2",

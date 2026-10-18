@@ -1,0 +1,74 @@
+{
+  "$defs": {
+    "Account": {
+      "oneOf": [
+        {
+          "properties": {
+            "baseUrl": {
+              "type": "string"
+            },
+            "displayName": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "email": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "expiresAt": {
+              "type": [
+                "null",
+                "string"
+              ]
+            },
+            "sessionId": {
+              "type": "string"
+            },
+            "tenantId": {
+              "type": "string"
+            },
+            "type": {
+              "const": "cloud",
+              "type": "string"
+            },
+            "userId": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "baseUrl",
+            "sessionId",
+            "tenantId",
+            "type",
+            "userId"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "account": {
+      "$ref": "#/$defs/Account"
+    },
+    "body": true,
+    "status": {
+      "format": "uint16",
+      "maximum": 65535,
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "required": [
+    "account",
+    "body",
+    "status"
+  ],
+  "title": "CloudRequestResponse",
+  "type": "object"
+}

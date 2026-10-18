@@ -1284,6 +1284,10 @@ flowchart LR
 
 此链仅为本地配置资料编辑，不是远端公共身份接口。REA 已确认的公共 profile query/PATCH、eligibility、is_self/can_edit、preview、username/pins/上传仍为 gap；现有账号卡继续由独立 session owner 展示，不新建账号后端、假 flag 或本地公共 Profile fallback。非重大架构：既有 presentation 重组和未消费字段收缩，owner、协议方法、read model 与依赖方向不变；验证进度见 current 计划。
 
+MCP 的 `useMcpPageEditorState` 继续是唯一表单草稿 owner，按 server identity 持有原始 JSON、字段基线、dirty 与同步保存锁，向同一 `useSettingsDraft` 报告；内部 server/new/cancel 与外部导航共用确认语义。`McpPanel` 首次访问配置后隐藏并保留同实例，隐藏焦点离开，保存失败、刷新与卸载迟到不清稿。Media 的 `useMediaServicesDraft` 同样只持有字段级 raw prompt/image-count 与提交基线/在途计数，既有串行 `updateConfig` 合并实际 owned 字段；blur 保存、即时 toggle 和导航确认不夹带其他未提交文本，在途新输入与失败原值保持。两者未新增配置 store、协议或后端 authority，旧页面重复草稿与 revision-only 保存路径直接替换。以上属于上图 Existing settings page owners 的生命周期接线；root 于 2026-10-18 确认 owner、依赖和数据流，局部回归与真实桌面验收分开结算。
+
+Experimental 的 `useExperimentalSettingsState` 唯一拥有页面加载、crash 原始手动字段/基线、同步mutation锁与提示timer；手动保存只合并dirty字段，即时enabled只提交该字段，其他开关不夹带未保存的crash文本。DeveloperLab初访Experimental后保持同一隐藏实例并处理initialTab焦点。失败/在途新编辑/StrictMode和卸载迟到保持原导航与草稿合同，未引入第二配置owner；原953行页面内联状态与不受控timer直接替换。root于2026-10-18确认现有设置架构图适用；35项局部回归与真实桌面证据分开。
+
 ### 4.5 Desktop 公开新建会话
 
 `useAppNavigation.startNewConversation` 是唯一公开动作，typed intent 明确保留 null/project identity 与 Home 恢复或 New fresh 意图。AppPageContent 只在真实 route/request 提交后交付请求；requested preview 不能清稿。root draft runtime 提交稳定 Home scope 与单调 epoch，同一 Coordinator 在有效 hydration 后执行受保护的 identity CAS，只有 applied 才清空 Controller。冲突、不可用、再次导航或新编辑均保稿；fresh 请求不进入 reload restore，避免冷启动重放。
@@ -1660,9 +1664,10 @@ action-required/approval 与 ask-user 的 live continuation 归 `agent-runtime` 
 | `patch-apply`                                    | 受控 patch 应用领域能力。                                                                                                                |
 | `browser-runtime`、`media-runtime`、`voice-core` | 浏览器、媒体、语音等独立 runtime domain。                                                                                                |
 
-Codex `thread/realtime/*` 的 WebRTC/session control 与通知不进入 Lime Desktop 产品协议，分类为
-`product-scope-excluded / forbidden-to-restore`。旧录音、麦克风和 realtime voice GUI 已退役；不得为了
-Codex method parity 恢复第二套 Thread lifecycle、SDP 通道或 Renderer 音频队列。音频、语音和媒体能力继续按
+Codex `thread/realtime/*` 的WebRTC/session control与通知已纳入planned，必须在同一App Server
+Thread/Turn生命周期中重建；当前没有该exact接线，不据此声明已交付。旧录音、麦克风和
+realtime voice GUI保持dead，不能恢复成第二套Thread lifecycle或Renderer音频后端。
+音频、语音和媒体能力继续按
 grok-build 对齐 `model-provider` 的 catalog/capability/readiness 与 sampling/lowering，再由
 `voice-core` / `media-runtime` 承接领域执行和 artifact 生命周期。
 
@@ -2297,6 +2302,321 @@ Architecture impact: major; this changes the Renderer live/read/resume Item stat
 
 ### 7.2 Plugin、Skills 与 MCP
 
+MCP Apps 面板只从 completed canonical `mcpToolCall` item 及 `ui:` resource identity 投影：
+
+```mermaid
+flowchart LR
+  Item[Canonical MCP tool item] --> Projection[GUI MCP App descriptor]
+  Projection --> Read[App Server mcpServer/resource/read]
+  Read --> MCP[RuntimeCore / MCP resource owner]
+  MCP --> HTML[Electron controlled WebContentsView HTML]
+```
+
+旧 `appSurface` pending 的 URL/embedding/strategy 插件外壳直接删除，App Server 拒绝该输入，
+renderer 不再从 pending 创建 Plugin descriptor，也不向 native mount/navigate 传插件 URL。
+MCP descriptor 必须携带资源身份；lease、多页签、canonical 恢复与卸载后历史继续走同一 owner。
+旧 URL 视觉 fixture 的正向验收删除，不用空白页面或浏览器外链冒充插件能力。
+架构影响：重大。责任开发者确认：root，2026-10-17；验证归 P04a6，完整对齐仍 active。
+
+共享账号基础链新增为：
+
+```mermaid
+flowchart LR
+  Surface[Desktop / CLI / TUI typed client] --> RPC[App Server account and cloud RPC]
+  RPC --> Queue[accountAuth request queue]
+  Queue --> Runtime[RuntimeCore]
+  Runtime --> Account[account AccountManager]
+  Account --> Verify[LimeCore client/session identity verification]
+  Account --> HTTP[Authenticated tenant client HTTP]
+  Account --> Store[AppDataRoot credentials/account.json]
+  Account --> Metadata[metadata-only read / account updated]
+```
+
+组合根显式注入同一 AppDataRoot；账号领域持私有凭据、HTTP 验证与同 issuer 认证 HTTP，不加入 PluginDataSource
+supertrait 或 Electron 后端。导入先校验 tenant/user/session 与有效期，再以私有临时文件
+原子替换；失败保留原账号。
+loopback issuer 使用 direct HTTP client，避免系统或环境代理截获本地认证；公网 HTTPS
+继续使用正常 proxy-aware client。两者均禁止 redirect，保持相同 timeout/身份验证。
+read 每次读共享文件，冷启动/同根多进程可见，notification 仅
+广播同 App Server 的连接，不宣称跨进程实时通知。logout 删除本地凭据，不撤销发行方会话。
+`cloudAuthTokens` 不冒充 ChatGPT token，OpenAI managed/device/API-key 模式未完成。
+GUI 的 localStorage 凭据 owner、window token/bootstrap globals 与旧远端注销入口已删除。
+公开 OAuth/邮箱/密码登录响应的临时 token 只用于 account/login/start 导入；恢复、换号、注销
+读取共享 account RPC。Renderer 只缓存 metadata/view 与不含账号凭据的临时 bootstrap，
+同进程通知和窗口 focus 触发重读，不宣称跨进程实时通知；不读取或迁移旧凭据。
+所有认证 Core client HTTP（含 Expert、Skills/Service Skills 与 Provider 同步）经 cloud/request
+进入同一 accountAuth 队列和 AccountManager，params 不接收任意 URL/headers/token；仅允许
+当前 issuer、当前 tenant 的 client 路径，禁止跳转/越界与 GET body，15 秒预算、4MiB body。
+返回 HTTP status/body 和请求所属账号 metadata。Renderer 重新读取共享身份并比对初始身份、
+响应身份和当前身份，丢弃换号/注销后的旧响应。Session/bootstrap 的账号 token 不出 owner；
+独立开发者 API Key 保持原合同。登录请求诊断只保留 id/method/type，不把 JSONL 凭据写回
+localStorage。CLI 登录入口和远端 Plugin 物化仍待接入，完整对齐继续 active。
+Electron safeStorage 仅是未来 WebSocket transport 凭据基础设施。
+架构影响：重大。root 已确认此 owner/数据流，2026-10-17；验证与剩余见 P04b3/P04b3b，未进入发布证据。
+
+LimeCore 远端读取合同已直接替换为租户认证 base URL 下的 `/ps/plugins/list` 与
+`/ps/plugins/{id}`。唯一来源为现有 catalog/release/tenant enablement，返回 Codex 的 raw
+snake_case directory 与 plugins/pagination；租户发布映射 WORKSPACE/LISTED，先按当前用户
+授权再分页。详情仅显式 includeDownloadUrls=true 且当前授权允许时返回 bundle_download_url。
+旧 plugin-marketplace/v1、activation/packageRef 投影、SDK 读取方法和旧 activation 产品验收器
+均已删除，不增加兼容或数据迁移。商业注册码由现役目录授权 owner 承担。旧 install-state
+自报遥测及其服务端存储、snapshot、审计动作、SDK 和合同已删除；客户端旧签名可信根解析、
+服务端 bootstrap 下发及专用配置也已删除。本地物化事实仍只来自共享 App Server 插件 owner，
+不得恢复旧遥测或 renderer 验签分支。服务端 release 签名证据校验独立归发布 owner。
+完整合同门禁现同时校验 YAML 层级、重复键与引用完整性。
+
+```mermaid
+flowchart LR
+  Package[Controlled tar.gz upload] --> Scan[Bounded static component scan / private temporary files]
+  Package --> Bytes[Core private immutable hash files / configured persistent volume]
+  Package --> UploadState[Core Repository revision CAS / session and scan snapshot]
+  Scan --> UploadState
+  UploadState --> Verified[Verified record only / read hash and size validation]
+  ShareUpload[Authenticated share upload-url / active actor and edit role] --> Capability[15-minute credential-free PUT / 50 MiB / immutable content]
+  Capability --> Bytes
+  Capability --> UploadState
+  ShareUpload --> UploadState
+  UploadState --> ShareCommit[Static identity discovery / etag and base hash / same-lock SQL transaction]
+  Scan --> ShareCommit
+  ShareCommit --> Release
+  ShareCommit --> ACL[Current catalog ACL / owner policy / editor package]
+  ACL --> Directory
+  Directory --> Signed[Explicit detail or installed download / 5-minute HMAC]
+  Signed --> Recheck[Current membership creator ACL policy release and bytes]
+  Recheck --> Bytes
+  Revoke[Owner DELETE / archive catalog and revoke releases] --> Release
+  Bytes --> Verified
+  Verified --> Binding
+  Scan --> Binding[Package hash / identity / components check]
+  Binding --> Release
+  Facts[Catalog typed directory / scope / creator / vertical] --> Release
+  Release[LimeCore catalog / release components / tenant policy] --> Directory[Authenticated ps/plugins directory]
+  Policy[Current tenant user / explicit policy precedence] --> Directory
+  Directory --> Mutation[Core authenticated install / uninstall]
+  Mutation --> Installed[Core tenant-user installed facts / snapshot]
+  Installed --> InstalledRead[Core installed page / current authorization]
+  InstalledRead --> Snapshot[Validate full snapshot / canonical IDs / account fence]
+  Snapshot --> State[PluginStore account-scoped installed projection]
+  State --> Store
+  State --> Components
+  Catalog[Shared App Server plugin owner] --> Account[Shared AccountManager]
+  Account --> Directory
+  Directory --> Plan[Internal plugin_remote Context / wire]
+  Plan --> Download[Credential-free bundle download / 60s / 100 MiB]
+  Download --> Extract[Private tar.gz extraction / 512 MiB]
+  Extract --> Prepare[GLOBAL metadata preparation / raw Apps / portable preservation]
+  Prepare --> Stage[Shared PluginStore private staging / digest / components]
+  Stage --> Confirm[Authenticated install mutation / matching id and enabled]
+  Confirm --> Store[Shared PluginStore cache and config commit]
+  Account --> Identity[Issuer tenant user fingerprint]
+  Identity --> Store
+  Surface[CLI / TUI / GUI] --> Catalog
+  ShareGUI[PluginShareDialog / staged access / account fence] --> ShareGateway[Typed pluginShare gateway]
+  ShareGateway --> Catalog
+  Catalog --> ShareRPC[AccountAuth queue / shared share save list updateTargets delete checkout]
+  ShareRPC --> Archive[PluginStore native or standard manifest / relative tar.gz / 50 MiB streaming limit]
+  Archive --> ShareUpload
+  ShareRPC --> ShareACL[Authenticated ACL update and owner DELETE]
+  ShareACL --> ACL
+  ShareRPC --> Created[Complete created and installed metadata snapshots]
+  Directory --> Created
+  Created --> ShareView[Typed share summary / installed facts / local editor path]
+  ShareCommit --> Paths[PluginStore account-scoped editor path cache]
+  Identity --> Paths
+  Paths --> ShareView
+  ShareRPC --> Checkout[Authorized shared detail / account fence / editable checkout]
+  Checkout --> Download
+  Extract --> Editor[Home plugin directory / preserve mapped edits / no install]
+  Editor --> Personal[Store lock / personal marketplace and editor mapping / rollback]
+  Personal --> Paths
+  Personal --> Catalog
+  Catalog --> Components[Skills / MCP / typed Hooks]
+  Components --> Runtime[RuntimeCore / canonical Thread Turn Item]
+```
+
+Core 包会话、内容 hash 与静态扫描事实已从进程 broker 收回现役 Repository/snapshot；原字节
+进入 `plugin.packageRootDir` 的私有不可变 hash 文件，只有已提交 verified 记录才能经原下载
+API 读取，读取复验 hash/大小。上传/扫描以 revision CAS 提交；写盘或持久化失败不发布 URL，
+已 verified 对象不受上传 TTL 影响。不再保留内存 bytes fallback 或 example 下载基地址；默认
+未配置时上传 fail-closed，启用时 runtime 要求数据库可用，生产使用持久卷及 HTTPS publicBaseUrl。
+P04b12b分享沿同一upload record附目标、etag、短时上传token hash与独立下载key；不增加registry。
+原文capability只返回一次；PUT不携带账号凭据、禁止换bytes。finalize复用现役tar.gz scanner发现
+name/version/hash/components，校验当前actor/owner或editor和base release/hash，同锁及MySQL事务
+提交catalog/release/upload/ACL/audit/snapshot；失败只恢复本次写集。owner管理ACL，LISTED及广泛
+workspace授权复用publisher规则；UNLISTED补workspace reader。分享包绕过通用公开asset入口被拒绝，
+仅认证详情/installed显式要URL时签发5分钟HMAC链接，无凭据GET仍重新授权；撤权、停用、更新和
+DELETE后旧URL失效。DELETE归档目录并revoke releases，保留历史。share_url暂为认证API详情。
+P04b12c/d五个分享RPC从同一AccountAuth队列进入RuntimeCore/PluginDataSource/PluginStore；
+归档在blocking任务执行，不把文件IO放入async请求线程。保留相对树、隐藏文件和执行权限，
+拒绝链接/特殊文件，压缩输出50 MiB、展开512 MiB及10000条目上限。P04b12c1已将Core scanner
+同步为10000条目、manifest 2 MiB、路径256层及整个tar流32 MiB额外metadata/padding预算；
+只接受全零尾部，目录body与稀疏文件拒绝，两仓固定同一批56个字节样例与manifest/hash。
+常见./根目录可读；未选中manifest不阻断有效候选，Core其他组件metadata保留1 MiB/累计8 MiB。
+当前账号HTTP只申请capability和finalize；独立PUT不携带账号凭据、禁止
+redirect，30秒预算，前后检查共享账号。delete严格要求204；成功后只清编辑路径映射，不删用户
+目录或历史。映射在同一store按账号fingerprint隔离，复用跨进程锁、bounded读取及原子写入；
+缓存写失败不伪造远端提交失败。list完整分页created与installed事实，拒绝重复ID/cursor及不匹配
+creator/owner，不请求下载URL。checkout显式请求授权详情的下载URL，复用无凭据GET与同一解包
+owner，锁内注册home/.agents/plugins/marketplace.json和账号编辑映射。新目录默认home/plugins/name；
+既有映射目录保留用户编辑，未映射现存目录拒绝。mapping和marketplace各自原子写，普通失败
+回滚注册，仅清本次创建目录，不提供跨文件断电事务。checkout不写远端install或installed cache。
+typed client/gateway和Host等待策略同步；GUI分享/编辑流程仍待后续切片。
+源码与本地验证不替代Core进程/MySQL、模型Turn、Electron/CLI/PTY或平台证据。
+架构图确认：root，2026-10-18；完整目标仍active，本节不进入release evidence。
+Core源码/HTTP与SDK验证归P04b12b；App Server share五RPC已过本地真实JSON-RPC与HTTP夹具。
+checkout新产物已过Electron/preload/IPC、个人市场可见、冷启保留编辑和stdio共享状态，
+依赖为受控Core形状HTTP；真实Core进程/MySQL、模型Turn与分享GUI流程仍待验。
+普通Electron壳smoke不替代分享产品验收。
+未引用对象GC不在本刀。架构图/目录归属/依赖方向由root于2026-10-18确认。
+
+远端 installed/install/uninstall/reconcile/share、下载物化到真实 Turn 的完整产品路径仍未验收，
+不能用 directory metadata 测试核销。架构图由责任开发者 root 于 2026-10-18 确认。P04b8 新增 Core 用户安装事实，
+不增加 Agent runtime 或第二套 CLI/GUI 后端；App Server mutation/reconcile接线由P04b9/P04b10继续验证。
+
+远端 directory 的 backend ID 与本地 `name@marketplace` 分离：前者遵循 Codex ASCII 字母数字/`-_~`
+约束，由现役 catalog 的 name 与 marketplace 生成稳定 SHA-256 ID；后者继续由共享 PluginStore
+拥有。release、展示名和授权变更不改变远端 ID，每次详情和分页仍重新授权；不新增 registry、
+旧 ID alias 或迁移。WORKSPACE/LISTED 的 canonical 市场为 `workspace-directory`，跨 catalog
+market 同名条目映射相同 canonical key 时，Core 在同一 resolver 对目录、详情、安装和
+installed 一致拒绝，客户端完整快照也先验证再提交，不以云端ID独立冒充可并存安装。
+架构图与 owner 边界由root于2026-10-18确认。现役远端 list/read 已通过 RuntimeCore 插件 owner 委托共享
+AccountManager 访问当前 issuer/tenant 的 client API；所有 host 复用同一 JSON-RPC。
+响应只投影 PluginSummary/Detail，原始 bundle URL 不进入 renderer。目录分页最多 100 页/
+10000 项、总预算 30 秒；重复 ID/名称、错 scope、游标循环和换号/注销后的响应被拒绝。
+显式本地不触网，默认隐式远端失败保留真实本地目录；显式远端错误直接返回。
+GLOBAL/USER/WORKSPACE 的固定外部市场标识与 canonical name、opaque service ID 分离；
+远端 read/install 消费 opaque ID，配置和卸载使用 canonical `name@marketplace`。
+GUI 插件页和 customization 侧栏均从现有 metadata 订阅观察账号；插件页附加请求
+workspace/created-by-me 目录，侧栏 fresh read 同一 plugin/installed。账号变化清空旧视图并
+拒绝迟到结果，注销后仍读取本地安装；不建立账号或插件第二存储。Apps 摘要委托现有 Apps owner，缺元数据
+仍显示声明 ID，不据此推定 hosted access。安装状态只接受 PluginStore 的真实来源记录。
+P04b6 实现将 Context/wire 提为 App Server 内部共享 plugin_remote，认证详情后单独下载 bundle，
+不通过 cloud/request 放大 JSON 请求权限；URL/账号 header 不进入 renderer 或下载诊断。
+PluginStore 在 cache base 写 schema_version/remote_plugin_id/账号 fingerprint，未匹配身份或
+没有来源记录的同名缓存不被远端消费。Skills/MCP/Hooks 都复用同一 installed 读取，远端持久
+data 按账号 fingerprint 隔离；变更身份拒绝提交，失败恢复旧 cache/config。所有物化/卸载
+使用 store 文件锁串行提交。该受限下载/物化切片已通过 owner、公共 RPC/HTTP/stdio 与真实
+Electron 安装/账号隔离/冷启/卸载验收；模型 Turn 和实际 Core 发布闭环仍单独欠账。
+Electron 安装请求消费窗口归 `electron/appServerRequestTimeout.ts`，Host 只委托解析；
+`plugin/install` 与 current DevBridge long-running policy 均等待 150 秒，容纳详情请求、
+60 秒下载及物化提交，其他插件读请求仍为 30 秒，不在 Host 复制插件编排。
+GLOBAL 准备归 plugin_catalog/remote/preparation.rs，仅修改私有无链接解包树；原生 manifest
+覆盖 release 版本并保留其他字段，受支持 portable manifest 原字节保持。远端 app_manifest
+保留完整 JSON；非 null 时按已解析的 Apps 声明/extension 路径写入，无有效声明则写默认
+.app.json，省略/null 保留原包、显式空覆盖。Apps owner 共用路径规则并拒绝包外路径；
+native 默认 Apps 接入同一 installed/app/list，portable Apps 只保留原文、不启用组件。
+USER/WORKSPACE 元数据不被覆盖；任何准备失败都在唯一 store 提交前结束，保留旧安装/config。
+本批未改变 owner 或依赖方向，上图由 root 于 2026-10-18 确认；验证归 P04b7，不复用旧产物。
+P04b9 App Server install 先下载/解包/GLOBAL准备，并在唯一PluginStore构建私有staging，
+manifest、digest和组件校验通过才POST远端install；返回opaque ID/enabled匹配且账号仍相同，
+再提交cache/config。mutation失败只丢弃暂存，旧包和config保持；这对齐Codex remote_mutations
+先materialize再调用远端的失败边界，且本地提交后置。远端成功而本地提交失败仍待installed
+reconciliation收敛，不用补偿uninstall误删既存云端事实。请求按既有installAttemptId转snake_case
+install_attempt_id，返回的optional app_ids_needing_auth可过滤已发现Apps；完整connector授权仍待接。
+uninstall从当前账号provenance定位opaque ID，远端确认enabled=false后复用唯一store移除事务；
+失败保留旧包/config。跨进程.remote-mutation.lock协调完整远端操作，后取store mutation锁，
+等待后重新捕获账号、提交时再次校验；本刀不增加协议、凭据、下载或存储owner。
+架构图由root于2026-10-18确认。真实产品和installed对账未验收前不核销两仓闭环。
+P04b10 新增同名 `plugin/reconcile`。它复用 `plugin_remote::Context` 读取完整 `/installed`
+分页（全scope、limit=200、includeDownloadUrls=true；30秒、100页、10000项，循环/重复/错误
+身份全部拒绝），完成所有 canonical key 验证后，在唯一 PluginStore 的 `remote-state/<账号
+fingerprint>.json` 原子发布安装投影。文件仅保存无凭据/下载URL的 typed PluginSummary，
+不建立第二 registry；云端安装事实仍归Core。缺少本地包时installed=true而localVersion=null。
+同版本保留包，新版本经同一 package preparation/PreparedPackage 物化；部分失败明确返回
+failed IDs，旧版本可保留。Skills/MCP/Hooks/Apps沿用store.installed，并受安装投影约束，
+已撤回记录先失去runtime可见性，清理失败后重试缓存删除。显式install/uninstall在同一
+mutation锁内更新已有投影，配置提交失败回滚投影；首次完整fetch前只有确认过的显式安装
+provenance，不伪造完整云端列表。本地启停override保留，不投影上游尚未消费的disabled_skill_names。
+跨进程remote gate覆盖整个pass；逐页/物化/提交核验账号，换号不能发布另一账号视图。
+RuntimeCore在pass前后失效MCP，processor通知现役Skills/Apps读面。GUI插件页在认证身份下
+先reconcile再读取目录；typed package/Desktop客户端与current bridge共享150秒消费窗口。
+服务端mutation已成功而客户端未提交的失败可由此路径恢复。本批架构图root于2026-10-18确认；
+当前源码/受控RPC验证不等于真实Core发布、模型Turn或stdio/Electron/CLI/PTY与跨平台验收。
+
+P04b8 Core 新增 raw installed/install/uninstall，唯一记录为 MySQL snapshot 的
+remotePluginInstallations，按 tenant/user/opaque ID 隔离。安装复用 directory 授权和策略，
+卸载可删除已撤回可见性的自身记录；保存候选快照成功后发布内存新状态，不全量回滚。
+已安装分页重新授权，默认 limit=200，cursor 绑定 tenant/user/scope，与目录 cursor 分离。
+它是云端用户意图事实；PluginStore 仍拥有本地包/config，不把已下载包当云端安装。
+当前客户端 mutation与reconcile已接线；两仓真实发布安装、模型Turn及产品面仍待验收。
+Core请求每次重新授权；Codex prefer-cache与share写路径仍pending。SharedWithMe由P04b11b消费；当前installed/reconcile
+已有源码与定向验证，三产品面完整验收仍欠账。实际架构图 root 确认，
+2026-10-18；目录和安装产品验证结果分别归 P04b4/P04b6，未通过的证据不得进入 release evidence。
+
+P04b11a在同一Core catalog增加typed `directory`，scope/creator/collections随catalog快照与
+SQL `directory_json`投影持久化，不建立独立目录registry。省略directory的current默认值为
+WORKSPACE；GLOBAL取active catalog当前ready release，USER额外绑定当前tenant/creator user。
+creator必须来自现役活跃用户事实；catalog更新不改变scope/creator。显式tenant enablement
+优先，包括选定release、暂停、灰度、用户可见性、license与registration；拒绝不能回退默认
+授权。没有显式策略的GLOBAL/USER采用目录默认策略，不伪造WORKSPACE_SETTING来源。
+目录分页limit=200，GLOBAL支持`collection=vertical`，cursor绑定tenant/user/scope/collection；
+全部页重新授权，list/detail/install/installed复用同一resolver。catalog创建/更新在同一仓储
+锁内保存快照，成功后对读取者可见，失败仅恢复本次catalog/audit写集，不回滚其他领域。
+开发期只更新现役初始DDL，无旧插件迁移或双轨；真实MySQL/新GUI、CLI/TUI产物未据此验收。
+P04b11b 增加下列 current 授权边界（Core/App Server定向验证通过，产品待验）：
+
+```mermaid
+flowchart LR
+  HTTP[Authenticated plugin HTTP] --> Resolver[Same catalog/release/tenant policy resolver]
+  Resolver --> ACL[Catalog directory discoverability and targets]
+  ACL --> Users[Active tenant and user facts]
+  ACL --> Groups[Active Organization and OrganizationMember]
+  ACL --> Governance[Current tenant role bindings]
+  Resolver --> Views[Listed / explicitly shared / created views]
+  Resolver --> Consumption[Detail / install / installed]
+  Shares[Owner shares PUT] --> Locked[Repository lock and snapshot commit]
+  Locked --> ACL
+```
+
+workspace 分享仍在同一 catalog.directory_json/snapshot，group ID 使用现役 Organization.ID，
+授权读取真实 active 成员，不创建第二个 registry。creator tenant 限定边界；PRIVATE 仅 owner
+与匹配主体，UNLISTED workspace reader 只授予链接访问，不能进入显式 shared 视图；created
+独立于 USER scope。详情、安装和 installed 统一重新授权，tenant policy 优先；canonical key
+按 LISTED/workspace-directory 与 PRIVATE/UNLISTED/workspace-shared-with-me 区分。owner-only ACL、
+租户级管理员发布门槛是 Core 设计选择，上游源码只证明 wire 合同；UNLISTED workspace reader
+无需管理员授权。owner/editor 可读 principals，普通 reader 不读取完整 ACL。旧 tenant role
+绑定同步现在撤销被移除的角色，发布权限直接读取现役治理事实。ACL mutation 在仓储锁内
+重新验证 owner/target/发布权限并保存，失败仅恢复本次 catalog/audit/seq，500 不泄露存储细节。
+共享 App Server 的 collection 已通过同一 plugin_remote Context 接线：vertical 请求 GLOBAL
+collection=vertical，SharedWithMe 请求 workspace/shared 并读取 fresh installed 完整分页，
+区分直接分享与仅链接安装的 view bucket；两桶 summary、read、install 与 reconcile 只写
+workspace-shared-with-me canonical 缓存，不把 view 名持久化成第二份安装。LISTED 继续使用
+workspace-directory，变更 discoverability 后对账物化新 identity 并清理旧缓存。creator、principals、
+can_publish、share_url 的 snake_case wire 元数据转换为同一 typed PluginShareContext；read
+接受 view 名时先还原 canonical 安装身份，冷启仍从同一 store 读取组件。
+分享链接/上传与 tar.gz 出站、GUI集合入口、其它集合fresh installed/cache策略、
+stdio/Electron/CLI/PTY 和真实同包 Turn 继续待验；不新增旧插件迁移。root 于2026-10-18确认 owner、依赖方向与本图。
+架构影响：重大；root于2026-10-18确认上图与owner变更，验证分母仅P04b11a，不核销完整目标。
+
+LimeCore release 的 typed `components` 与同一 catalog/release/tenant-policy owner 关联，
+单条及批量发布、更新、repository 深复制、snapshot 与 SQL `components_json` 使用同一记录；
+授权 directory 在 release 中展开 Apps/模板/Skills/MCP/onboarding/定时任务摘要。schedule 内部
+保留 Codex camelCase tagged union。内容 hash 实际变化且未提供替代摘要时清除旧组件，
+幂等发布保留；显式空 app_manifest 和 scheduled_tasks 保留空对象/空数组语义。
+受控 tar.gz 的 Skills/onboarding/MCP key 和原生 Apps 声明由同一上传扫描 owner 自动提取，
+scan report.components 与所选原始 manifest/package hash 绑定。开发者审核前以及平台单条创建/
+更新、bulk publish/preflight 均对照包内字段；手填不一致拒绝，省略自动填充。受控包显式空对象
+仅清云端字段，不能删除包内事实；任务与 Apps workspace 模板/授权继续来自云端，不能从包推导。
+标准包固定 skills/mcp.json，原生包使用声明 roots 或默认 skills/.mcp.json/.app.json；onboarding
+必须指向已发现的 SKILL.md。归档上传/交付使用 tar.gz，压缩上限 100 MiB，普通文件总量
+512 MiB；默认 application/gzip，对象后缀 .tar.gz，无 ZIP 双轨或旧包迁移。只接受普通文件/
+目录，路径越界、链接/特殊类型、重复/冲突、gzip CRC/截断和额外压缩流均拒绝。扫描暂存到
+私有临时目录的受控数字文件，不按包内路径写宿主目录、不执行包代码，成功/失败均清理。
+P04b12c1将两端合同收敛为10000 entries、manifest 2 MiB、路径256层和tar全流32 MiB额外
+metadata/padding预算；Core其他组件metadata仍为单文件1 MiB/累计8 MiB。客户端P04b6
+download owner实施60秒预算，实际验证单独记账；共享package copy上限为512 MiB。
+共同资源/安全约束明确区别于Codex上游限制，56个共同golden/负向字节样例不冒充跨平台产品证明。
+架构图与此事实源由 root 于
+2026-10-17 确认，产品验证结果归 P04b5。
+扫描结果和审核单深复制保持 JSON 值与 null/空数组语义，审核 hash 在保存后仍相同；扫描期间
+字节被替换则拒绝提交证据。技能相对图标只报未发布告警，不伪造公共 URL；标准包 Apps 按当前
+Codex manager 保持未启用。客户端该行为仍需单独复核，不能从服务端回归推定已同步。
+不新增 registry、执行器或 renderer owner；外部平台 URL 的下载/内容验证、完整 MCP/技能
+runtime 解析一致性、公共资源发布、账号/HTTP/物化仍 pending。服务端对格式错误的声明严格拒绝，
+不会复刻客户端所有容错修复，也不把声明摘要当作可调用性验证。
+本刀只更新开发期现役建表基线，未操作实际数据库或增加旧数据迁移。架构图及组件事实源由
+root 于 2026-10-17 确认，不能用 metadata 回归核销客户端完整远端安装或真实 Turn。
+
 插件按 [Codex 目标合同](../roadmap/plugin/codex-contract.md) 重构，进度归
 [执行计划](../exec-plans/codex-plugin-reconstruction.md)。标准根 `plugin.json` 与 Codex 支持的
 原生生态 manifest 由同一 loader 选择；标准包固定资源与原生声明 roots 分别解析，不能把
@@ -2306,12 +2626,22 @@ Architecture impact: major; this changes the Renderer live/read/resume Item stat
 ```text
 CLI / TUI / Electron GUI
   -> App Server JSON-RPC -> RuntimeCore PluginDataSource
-  -> plugin_catalog: manifest / discovery / PluginStore / install
+  -> plugin_catalog: manifest / discovery / PluginStore / install / marketplace
        plugins/cache/<marketplace>/<plugin>/<version>
        shared config: plugins.<name@marketplace>.enabled
+       shared config: marketplaces.<name> -> local source | .tmp/marketplaces/<name>
        plugins/data/{agent-plugins/<identity hash>,<plugin>-<marketplace>}
   -> immutable plugin component snapshot
   -> Skills / MCP / Hooks -> RuntimeCore -> Thread / Turn / Item
+
+hooks/list / provider step capture
+  -> PluginDataSource.load_plugin_hooks -> plugin_catalog/hooks
+  -> typed PluginHookSource -> tool-runtime discovery / trust
+  -> validated step snapshot -> command reporter -> canonical hook notifications
+
+marketplace/upgrade -> validated Git snapshot
+  -> configured plugin keys -> install::materialize (staging / digest / atomic replace)
+  -> preserve enablement -> MCP invalidate + Skills watch/cache/changed
 
 LimeCore package scan / release / marketplace / tenant policy
   -> same manifest selection / effective identity / bundle contract
@@ -2322,6 +2652,21 @@ LimeCore package scan / release / marketplace / tenant policy
 cache 选择版本并按共享配置决定启停，同版本重装原子替换；标准技能与原生声明的多 roots
 生成真实 metadata，技能显示使用 `plugin:skill`，内部 ID 保留完整插件身份。MCP 复用既有
 配置和执行 owner，保持 Codex server 名称，不再生成旧私有前缀。
+
+市场来源管理继续归同一 `plugin_catalog/marketplace` owner，公开入口为
+`marketplace/add/remove/upgrade`。共享配置 `marketplaces.<name>` 记录来源、ref/sparse和已激活版本；
+本地源只引用，Git在 `<AgentRoot>/.tmp/marketplaces/<name>` 保存受管快照。网络工作在锁外，
+提交时持共享配置锁、重读来源并原子替换/回滚；移除市场不卸载已安装插件。旧
+`plugins/marketplaces/*.json` 私有目录扫描已删除，无迁移或fallback。CLI `plugin marketplace`
+与typed GUI gateway消费同一App Server，不建立私有registry。定向owner、真实Git公共JSON-RPC、
+新产物CLI市场管理和同产物Skills/GUI smoke/Apps/插件Electron回归已通过。
+升级新快照后，由同一 install::materialize 强制刷新对应市场的已配置插件，包含 disabled 与同版本内容；
+刷新不写启停配置，不安装未配置插件。失败逐插件返回并保留该插件旧 cache，其他插件继续。
+有 upgraded roots 才失效 MCP、重建 Skills watch 并通知 catalog；指定非 Git/未知市场返回错误。
+`openai-curated` / `openai-api-curated` 按上游排除，归remote reconcile，不能用本地刷新代替。
+本刀新产物的公共JSON-RPC、双连接5个runtime Turn/两次Git升级/冷启、CLI、标准GUI smoke和插件
+Electron均通过，证据归执行计划的`marketplace-refresh-*`，不以旧产物核销。配置层级/托管策略、跨进程一致性、
+Hooks完整生命周期、远端控制面与Desktop管理入口继续由执行计划跟踪。
 
 core/config 的唯一写盘入口使用同目录临时文件完整写入并同步后原子替换，保留配置文件
 符号链接及权限；安装和卸载在配置提交失败时恢复原 cache。配置锁由共享 config owner 提供，
@@ -2342,7 +2687,33 @@ Hooks、Apps、远程市场、share 与授权语义仍逐项补齐；旧产品�
 原 UI runtime 专用模型代理 token 与 Connector delivery 脚本也已删除；模型代理统一使用
 既有 API key 校验，插件权限、连接器授权和市场发布在 current App Server/LimeCore owner 实现。
 未接入生产的独立 `pluginCapabilityRuntime` catalog 投影及其导出/测试已删除，不建立旁路事实源。
+旧官方插件创作技能及官网同名 ZIP/bundle/file-tree 已删除；官网生成器在 build/check 均拒绝
+无源码公开包。无 current 消费者的旧 VM/反馈 Connector 专用技能及官网同名制品一并删除。
+发布模板不再生成旧 renderer/skills 摘要，实际组件仍由受控包扫描 owner 提供。
+Article Editor 直接构造其领域 action metadata，旧 generic pane-action helper 已删除。
+generic workflow 只接受现役 resume 绑定，不再从旧插件/worker metadata 容器推断恢复，也不再
+于取消/重试事件写入冗余插件状态；通用 workflow 的顶层状态、取消和重试仍归原 owner。
+上述清退不新增协议、状态副本或兼容层。架构图及唯一 owner 由 root 于 2026-10-17 确认；
+无调用方的 Article 插件 renderer host、声明模型和授权占位策略已删除，现役文章编辑器
+只消费领域动作和 artifact 投影；正向夹具改验分镜内容，不保留旧 renderer 合同。
+本轮验证结果与剩余项归执行计划 P04a3/P04a4/P04a5，不能核销远端安装到真实 Turn 的完整目标。
+tool-runtime 中零消费者的旧 activation JSON -> HookPluginSource 转换已删除，不能恢复
+`packageSourceUri` 旁路。插件Hooks来源由同一catalog loader解析为typed component source，
+`hooks/list`与provider每次sampling step消费同一启用安装事实；后续step重读停用/升级/卸载，
+已捕获step不变，empty-response retry沿用原快照。按上游HooksOnly规则，Mention选择不关闭
+其他启用插件的Hooks；标准Agent Plugins格式不加载Hooks。原生默认文件、显式路径/数组及inline
+对象/数组保留完整插件ID与来源key；坏组件报告warning，不读取renderer传入的目录。
+Command子进程注入PLUGIN_ROOT/DATA及CLAUDE_PLUGIN_ROOT/DATA，data归既有PluginStore；
+安装不能绕过hash信任。来源失败或快照无效在sampling前失败，不允许静默绕过门控。
+本切片实现与验证结果归执行计划的typed Hooks条目；其他生命周期admission、MCP handler、
+executor/builtin清理allowlist及managed config/layers仍未核销，不代表完整Hooks对齐。
+本地来源切片已通过143项Rust、6项前端/守卫、两次真实stdio四场景、标准GUI smoke和插件Electron回归；
+产物macOS rpath准备前后摘要分别保留，prepared复跑与最终9项产物/25项源码复核通过。
+全仓docs boundary仍受并行发布计划引用阻塞；云端远端合同、live、Windows、packaged与新CLI/PTY不由此核销。
 GUI suggestion 直接消费 App Server 的完整插件 ID，不重复拼接 marketplace。
+
+本刀架构图确认：root，2026-10-17；复用 App Server 插件事实、安装事务和现有 Skills/MCP owner，
+不新增协议、运行时或兼容后端。未验证的产品层级由执行计划单独保留。
 MCP App 从 canonical MCP Tool Item/resource 进入 Right Surface。生产路径不能回退 mock。
 
 Architecture impact: major; 插件包选择、缓存/配置、组件快照与云端扫描沿同一 owner 重构。
@@ -2457,6 +2828,8 @@ identity，不成为第二 queue store。`thread/queue/start` 当前仅在 idle 
 Queue/Header renderer 对齐图确认：root，2026-10-14。`QueuedMessageList` 直接替换旧组件，
 thread-scoped 草稿与同步 mutation 锁只管理 UI 操作；现有 queue/store 是唯一业务 owner。
 Header 编辑绑定开始编辑的 session/token/callback，切换会话取消旧编辑。
+
+Queue 拖拽 handle、方向键与上下按钮共用 `queuedMessageReorder` 的按 ID 变换，再由现 `runAction -> reorderThreadQueue` 提交并读回 canonical queue。drag 仅保存当前实例/thread/源 ID 顺序/原始 submissions 引用/mutation epoch/transfer identity；drop 再验同一快照与锁，取消、在途、跨线程往返与失败均不乐观改队列。没有新增 queue store 或 runtime 动作。root 于 2026-10-18 确认此为同一 renderer owner 的交互接线，65 项局部回归不替代真实 Electron Gate B。
 
 Queue mutation、公共历史与队列呈现沿同一 canonical owner：
 
@@ -3945,9 +4318,9 @@ interaction 和生产 mock fallback 继续为 `dead / deleted / forbidden-to-res
 `deprecationNotice` 已按 Desktop 产品范围裁决为 `product-scope-excluded`：它是 Codex 开发/设置诊断，不进入
 对话通知链；旧实现无外部兼容负担时直接替换或删除，不恢复同名通知包装。
 
-Codex `server/diagnostics` 同样保持 `product-scope-excluded / forbidden-to-restore`。它只返回进程本地、无内容的
-上游诊断指标，Lime Desktop 没有对应用户流程；Electron 不新增诊断业务后端，也不把该接口的指标当作模型
-capability、provider readiness 或 sandbox enforcement 证据。
+Codex `server/diagnostics` 已纳入planned，由共享App Server提供有界、无内容的进程诊断；
+缺少用户入口是待实施缺口。Electron不新增诊断业务后端，也不把该接口指标当作模型
+capability、provider readiness或sandbox enforcement证据。
 
 Architecture impact: major; 本节新增了从 Turn-scoped 精确 delta producer、durable event、v2 notification、canonical Turn
 到 Desktop Changes 的跨层数据流，并明确空 diff 清理与唯一事实源边界。Responsible developer confirmation: root,
@@ -4143,10 +4516,11 @@ Settings / fixture / internal provider selection
   -> lime_core config.yaml
 ```
 
-`config/read` 只暴露用户层并返回版本；写入必须经过当前版本、已知 key 和当前绝对 `filePath` 校验。project-local、
-MDM、requirements 层与 Codex `configRequirements/read` 不属于 Lime Desktop 产品范围，必须 fail closed 或保持
-product-scope-excluded。Electron 不承接配置业务，不恢复 `get_config` / `save_config`，Settings/Claw fixture 的证据只
-记录 `app_server_handle_json_lines` 与 `config/*` method。MCP 外部 `config.toml` reload 同样 excluded，避免第二配置 owner。
+`config/read` 当前只暴露用户层并返回版本；写入必须经过当前版本、已知key和当前绝对filePath
+校验。project-local、MDM、requirements层与`configRequirements/read`属于同一config owner的
+planned扩展，未实现策略仍fail closed。MCP外部配置reload同为planned，复用同一配置与连接
+owner。Electron不承接配置业务，不恢复get_config/save_config；不能以缺消费者将这些能力
+永久排除。当前Settings/Claw fixture只证明既有config合同，新增层必须补真实消费者证据。
 
 Architecture impact: major；本节完成 Electron config facade 到 App Server config control plane 的 owner 迁移，并同步
 Settings/Claw evidence。Responsible developer confirmation: root, 2026-08-10。
@@ -4581,3 +4955,215 @@ Architecture impact: major；Responsible developer confirmation: root, 2026-10-0
 Codex `tui/chatwidget.rs`、`chatwidget/input_queue.rs`、`chatwidget/turn_runtime.rs` 与 `app/right_click_paste.rs`，
 确认上述 session-local 状态归 ChatWidget/BottomPane，App 不再成为第二个 ChatWidget；CLI/TUI 共享业务主链与 GUI，未复制
 runtime、provider、transport 或 canonical read model。
+
+## PDF 页面预览（2026-10-17）
+
+`workspaceFilePreview` 与会话文件 artifact 共用 `previewArtifact -> ArtifactRenderer -> PreviewArtifactRenderer -> PdfPreviewPanel`；PDF 的 current render mode 为 `document_pages`。`pdfDocument` 经既有 `fileBrowser.readFileBytes -> fs/readFile` 读取源字节，并持有 PDF.js loading task/worker 生命周期；字体、CMap 与 WASM 经 Vite 的固定打包资源映射读取，不接受 PDF 指定的任意资源路径。`PdfPageView` 仅持有可见页面的 canvas/TextLayer；`PdfPreviewPanel` 管理取消、失败、分页、缩放与虚拟化。文件/版本变化释放旧任务，迟到响应不得覆盖当前投影。
+
+专业源预览不进入生成文档的自动文本轮询或merge。重载由明确的 `previewRequestKey` 控制：主动重开生成新请求，批注回原文沿指定请求定位；同路径消息合并的 `updatedAt` 仅为投影时间，不能触发字节重读或清空用户选区。没有新请求时保留当前格式面板，格式适配器自己的重试与重新定位仍可显式重新读取。
+
+canonical fileChange 的 `path` 与 rename `move_path` 是操作 identity，reader 原样保留；路径缩略仅在显示层进行，不能改变后续文件 gateway 的读取目标。历史抽取文本不决定专业格式 renderer，PDF/DOCX/Workbook/PPTX 使用原字节面板，尚无 renderer 的 Office 格式明确 system_open，不退回 Markdown。
+
+该依赖仅属于 Renderer，PDF 的脚本、链接和表单没有交给页面执行；不新增 App Server、工具、配置、持久化或 Thread/Turn/Item authority。Office 文本抽取继续归原 owner，不能据 PDF 新面板声称 Office 版式或文件批注已经完成。依赖与锁文件同步为 PDF.js 6.4.299，验收和剩余范围由 `internal/exec-plans/codex-professional-files-alignment.md` 持有。
+
+Architecture impact: minor；Responsible developer confirmation: root, 2026-10-17。确认同一 artifact surface 内的格式分发和渲染资源边界，不形成第二条业务主链。
+
+## 专业文件批注与 DOCX 版式（2026-10-17）
+
+PDF / DOCX 批注通过单一 `ArtifactCommentSubmissionContext` 接入既有 Workspace。`ArtifactAnnotationDraftStore` 仅持有按 canonical session/thread/path 隔离的内存草稿视图，正文仍由每条批注的 `ComposerController` 持有。应用 scope 的 `artifactAnnotationDraftsAtom` 复用既有 Jotai Store，Workspace 卸载/重挂载保留同一批注 Controller、位置、附件、pending 和失败状态；独立应用 Store 互不共享，进程重启耐久性仍未建立。页面选择产生 scale-1 坐标、源 SHA-256、页码/尺寸及可选截图；截图沿当前 Composer 附件通道，结构 metadata 不重复携带 base64。`useWorkspaceArtifactCommentSubmission` 在原文件 hash 校验后委托已有 `handleInputbarSend` 与 typed start/queue acceptance。失败保稿、导航取消、重复发送和 revision-safe cleanup 继续复用原 settlement；文件变化必须明确重新定位，不暗中把旧位置绑定到新版本。应用内批注状态不新增业务后端或存储 authority。
+
+DOCX 沿同一 `document_pages` 分发到公开同名 `DocxPreviewPanel`。`docxDocument` 经相同 `readFileBytes -> fs/readFile` 读取；`docx-preview@0.4.1` 仅在 Renderer 解析、分页和渲染。节点先在无 browsing context 的 Document 构造，再进入无脚本、允许父页面读取已清洗 DOM 的 sandbox iframe。CSP 禁止网络资源和表单，altChunk 关闭；仅允许 HTTP/HTTPS 链接通过已有 Main window-open guard 向系统浏览器打开。分页、缩放、适宽和修订为显示状态；不声明 DOCX 编辑、原文件保存或批注 roundtrip。
+
+DOCX readiness 在当前文档及显示样式就绪后成立；同一源版本的翻页/缩放只更新既有 iframe 的样式，源版本、修订或文件变化才重建文档。忽略初始空白 iframe 的 load，旧页监听在切换/卸载时清理。PDF 批注的完整输入保留在 canonical item；展示层仅识别可完整校验并精确重建的批注输入，复用文件名/页码/正文格式化，不将本地临时 Message 当作历史 authority。模型请求、原始 canonical 内容与文件版本/位置不会因展示投影被改写。
+
+```mermaid
+flowchart LR
+  F[会话文件 / 文件树] --> P[previewArtifact / ArtifactRenderer]
+  P --> PDF[PdfPreviewPanel]
+  P --> DOCX[DocxPreviewPanel]
+  PDF --> B[readFileBytes]
+  DOCX --> B
+  B --> A[现有 App Server fs/readFile]
+  PDF --> C[批注 Controller / 文件版本校验]
+  DOCX --> C
+  M[主 Composer 批注审阅] --> O[现有 artifact 文件打开]
+  O --> P
+  C --> S[handleInputbarSend / typed settlement]
+  S --> T[原 App Server Thread / Turn / Item]
+```
+
+Architecture impact: minor；Responsible developer confirmation: root, 2026-10-17。确认依赖均属 Renderer，显示状态和真实提交沿原 gateway/authority；没有增加协议方法、业务后端、工具或历史 owner。公开组件名称来自 REA，内部 helper 名称为 Lime 职责名。阶段验收和剩余差距见专业文件执行计划，图不构成全面完成声明。
+
+专业文档共享批注：`documentAnnotation` 定义 format、scale-1 page/point/region 及严格 canonical 展示投影；`ArtifactAnnotations` 只编排当前文件编辑卡和草稿可见性，`ArtifactAnnotationCommentEditor` 复用单一 ComposerController，`ArtifactAnnotationDraftStore` 复用同一 session/thread/path 隔离与 settlement。PDF 的 canvas/TextLayer 与 DOCX 的受限 iframe DOM 分别提供定位，不建立格式专用提交后端。DOCX 的父页面通过 allow-same-origin 读取已清洗的 DOM 并以原生 DOM/event listener 挂载批注按钮；sandbox 不允许 scripts、forms、top-navigation，CSP 继续禁止脚本及主动网络。显式格式只进入同一 artifactAnnotation type 合同；PDF 既有完整 canonical 输入仍可恢复。架构边界保持原 owner，此次为同 Renderer 内的重复实现收敛，未新增跨层 owner。
+
+DOCX 内的批注按钮由父页面建立原生节点并注册 addEventListener，换页/卸载移除节点；文档的脚本权限与 CSP 不变。React portal 的 onclick 占位曾作为诊断线索，但移除后原生轮次仍失败，不能将其写成已证明根因。实际加载 chunk 和 realm 诊断确认 Playwright 在子文档主世界及隔离世界注册鼠标监听器；fixture 改为父文档读取同源 DOM、CDP Input 产生真实点击和选区后，同一 Renderer 完整通过且 console/page error 为零。没有启用 scripts、过滤错误或修改零错误断言，失败原件保留。
+
+批量批注由 `artifactAnnotationSubmission` 统一捕获 per-comment Controller receipt、原子 beginBatch、调用既有 Workspace submit，并在接受后逐条 revision-safe commit。文档浮层和 `ArtifactAnnotationComposerAccessory` 共用该函数与同一个 Store pending；按当前 session/thread 与文件分组，普通主 Composer 正文和附件不受批注清理影响。Store 聚焦请求仅承载从 Composer 回到当前文件/页码的显示意图。每次回跳生成 previewRequestKey，随同既有文件打开投影传给 PDF/DOCX 面板；只有匹配该请求且源文件就绪的面板才能一次消费聚焦，旧面板不能提前消费。文件打开结束后仍检查 scope、导航代次、最新打开请求和草稿身份；同一 predicate 取消迟到文件选择。Workspace 两处旧文本打开已统一委托 openFilePreviewArtifact -> openArtifactInWorkbench，document_pages 不再落入文本 Canvas；提交来源 Turn 直接读取 canonical `thread_turns`，不使用可能滞后的 surface `currentTurnId`。PDF 的默认分页和宽度/滚动初始化先于批注定位，避免新面板回跳被第一页覆盖。这些 Renderer 状态仍为应用 scope 内存草稿，Workspace 卸载后保留；不声明进程重启耐久性。
+
+## 工作表预览与原文件编辑（2026-10-17）
+
+`previewArtifact` 的 `workbook` content kind/render mode 统一消费 XLSX/CSV/TSV。公开 `WorkbookPanel` 与 REA export 对齐；`WorkbookGrid` 仅持有页签对应的选择、焦点和双轴虚拟滚动。`loadWorkbookDocument` 读取原字节并绑定 SHA，Worker 内的 `workbookDocument` 使用固定 ExcelJS/SSF 解析并生成只读 snapshot。公式只显示原式/缓存结果；CSV/TSV、超链接和 HTML 样值均为文本，不执行或请求网络。合并、隐藏行列和可表达格式沿 snapshot 投影，未实现格式不伪造保真。
+
+```mermaid
+flowchart LR
+  Files[Workspace 文件树] --> Projection[previewArtifact]
+  Timeline[canonical artifact 打开] --> Open[既有原文件打开]
+  Open --> Projection
+  Projection --> Renderer[PreviewArtifactRenderer]
+  Renderer --> Panel[WorkbookPanel]
+  Panel --> Grid[WorkbookGrid]
+  Panel --> Load[loadWorkbookDocument]
+  Load --> Gateway[fileBrowser.readFileBytes]
+  Gateway --> RPC[App Server fs/readFile]
+  Load --> Import[Worker / workbookDocument]
+  Import --> Snapshot[只读 snapshot / 原字节 SHA]
+  Snapshot --> Panel
+```
+
+读取中取消阻止创建 Worker，解析中取消立即结算/终止；成功与失败均释放 Worker，迟到响应不能覆盖当前 path/预览请求。规模上限和失败重试由 Renderer import owner 负责，五语言错误使用现有 namespace。专业文件时间线不再提前拒绝二进制，仍委托 `openProjectFilePreviewInCanvas`；保留其原绝对源路径和共享 artifact 分发。Canvas 面板样式使用既有主题 token。
+
+PDF 显式跳页改成导航请求，在包含页面总高度的 DOM 提交后滚动；滚动观察与显式导航分开，真实验收同时检查页码、编辑卡和目标页在视口内的位置。旧截图只证明页码/编辑卡的成功不得扩张为视口定位通过。
+
+Architecture impact: minor；Responsible developer confirmation: root, 2026-10-17。没有新增协议、业务后端、持久化或提交 authority。工作表范围批注已接入下述共享 owner；原文件编辑/保存实现与原生验收分别按下述合同及[工作表计划](../exec-plans/codex-workbook-alignment.md)记录。公式计算、完整 Excel 编辑和文档草稿重启耐久性仍未实现。
+
+`WorkbookController` 是应用 Jotai scope 中按源路径保留的编辑 owner，持有 active sheet、各表选区、活跃输入和未保存 edits；Workspace 卸载/返回复用同一实例。默认关闭编辑，`openCellEditor`、`updateFormulaInput`、`commitCellEdit`、`cancelCellEdit` 与 REA 可确认方法名对齐，类名是 Lime 的职责名。`flushEdits` 结算输入；`flushPublicFile` 合并并发保存，先读原 SHA、在原包内编辑、序列化后再读 SHA，最后委托 `fileBrowser.writeFileBytes -> fs/writeFile`。保存中阻止继续编辑和放弃；已观测冲突零写入，失败保留正文，明确放弃后才重读外部版本。现有协议没有 CAS，双重核验不宣称跨外部进程原子写入。
+
+```mermaid
+flowchart LR
+  Grid[WorkbookGrid / formula input] --> Controller[WorkbookController application scope]
+  Clipboard[Native ClipboardEvent / grid focus only] --> Controller
+  Controller --> ClipboardCodec[workbookClipboard / text matrix validation]
+  ClipboardCodec --> Delimited[delimitedWorkbook.parseDelimitedRows]
+  Controller --> Check[Read original bytes / SHA]
+  Check --> Package[workbookPackage or delimitedWorkbook]
+  Package --> Recheck[Recheck source SHA]
+  Recheck --> Gateway[fileBrowser.writeFileBytes]
+  Gateway --> RPC[Existing App Server fs/writeFile]
+  Feedback[Workspace annotation submission] --> Flush[Validate annotation then flushPublicFile]
+  Flush --> Controller
+  Flush --> Revision[Verify current scope and annotation source SHA]
+  Revision --> Turn[Existing typed turn / queue submission]
+```
+
+范围剪贴板继续委托同一 Controller 的 `requestClipboardPayload(copyKind)` 与 `pasteClipboardData(payload)`；`workbookClipboard` 只拥有当前选区文本的 TSV 转换与整批矩形校验。原生事件仅在网格拥有焦点且没有单格/公式输入时接管，输入框保留浏览器行为。复制只使用 `cell.text`，不计算公式；粘贴先校验完整范围，成功后一次通知并进入既有 flush/writer。XLSX 前导等号遵循原输入公式合同，CSV/TSV 保留字面。merged 交集、越界或非法矩阵整批拒绝并保稿。未实现 cut、HTML/结构 MIME 和相对引用迁移，不把纯文本切片描述为完整 Excel 剪贴板。Architecture impact: minor；Responsible developer confirmation: root, 2026-10-18。
+
+XLSX 使用固定 JSZip 修改原 worksheet cell，保留样式和非目标包成员 payload；不通过 ExcelJS 整包重建。central directory 在解压前检查声明尺寸/数量、重复和穿越路径，XML 禁止实体；受保护或包含分组公式的目标表明确拒绝保存。输入修改后移除公式缓存与 calcChain，并标记由外部表格引擎重算，Renderer 不执行公式。CSV/TSV 读取和保存复用 `delimitedWorkbook`，保留未改字段的原词法、BOM、UTF-8/UTF-16 编码及换行。批注提交先验证结构，再 flush 文件，然后检查当前 scope 与原 SHA；保存导致版本改变时要求重新定位，保存失败不新增 Turn。该图描述 current 实现；真实保存、冲突与往返验收仍以独立原生收据为准，不扩大旧只读收据。
+
+工作表范围反馈继续沿 `artifact/annotations/` 唯一 Renderer owner：`ArtifactAnnotationDraftStore`、`ArtifactAnnotationCommentEditor`、`ArtifactAnnotationComposerAccessory`、`artifactAnnotationSubmission` 与 `useArtifactAnnotations` 共享草稿、pending、文件版本检查和 typed acceptance；旧 document 下的同义实现已迁移调用者并删除，无兼容别名。`useDocumentAnnotations` 仅为 PDF/DOCX 的页面坐标适配器，`workbookAnnotation` 使用 sheetName/sheetId/address 与源格式，禁止把工作表范围降低成页码。WorkbookGrid 负责单格/A1 范围、Shift/拖选、双轴定位；WorkbookPanel 在同一 snapshot 中解析批注目标。过期或不存在目标显示失败并保留正文，显式重新定位后才接受新 SHA。单条和跨表批次仍通过 Workspace 的原字节校验与既有 start/queue 接受回执，未新增协议、业务存储或 provider 后端。
+
+```mermaid
+flowchart LR
+  PDF[PDF / DOCX page adapter] --> Drafts[ArtifactAnnotationDraftStore]
+  WB[Workbook sheet / range adapter] --> Drafts
+  Drafts --> Editor[Shared comment editor / Composer accessory]
+  Editor --> Submit[Workspace submission + file SHA verification]
+  Submit --> RPC[Existing App Server turn / queue]
+  RPC --> Projection[Canonical Thread / Turn / Item]
+```
+
+架构影响 minor；责任开发者 root 于 2026-10-17 确认仅收敛 Renderer 显示状态 owner。草稿仍为会话内存状态；进程重启耐久性、Office 原文件编辑/保存/roundtrip 和幻灯片不由该范围反馈图证明。
+
+原文件预览不进入生成文档的 `useArtifactAutoPreviewSync` 文本轮询或文本 merge；已有 `isPreviewArtifact` 合同直接区分该边界。PDF/DOCX/Workbook/PPTX 的 bytes、readiness 与重试由对应格式面板持有，禁止文本抽取更新 timestamp 后重建正在审阅的面板。生成文档的 streaming 文本同步继续由原 owner 负责。
+
+
+## 幻灯片只读预览与源 slideId 反馈（2026-10-17）
+
+`previewArtifact` 的 `presentation` 分发只服务 OOXML PPTX；旧二进制 PPT 明确 system_open。REA确认公开导出 `PresentationPanel`；内部 snapshot、解析和定位 helper 为 Lime 职责名，不声称还原压缩前源码。`presentationDocument` 沿既有 `fs/readFile` 读取原字节并绑定 SHA，有界解析ZIP/XML，使用真实 OOXML slideId（不是页码）与原尺寸坐标。固定渲染库为 Lime 实现选择，参考库版本 unknown。外部关系先剔除，渲染节点清洗后才采用到受限同源 iframe；CSP/sandbox 禁止脚本、表单、导航和主动网络。父文档以原生 DOM/event listener 管理定位和 marker，未开放iframe脚本或另建业务后端。
+
+```mermaid
+flowchart LR
+  Files[Files / canonical fileChange / imported history] --> Preview[previewArtifact presentation]
+  Preview --> Panel[PresentationPanel]
+  Panel --> Bytes[fs/readFile original bytes + SHA]
+  Bytes --> Snapshot[presentationDocument bounded ZIP/XML + source slideIds]
+  Snapshot --> Frame[PresentationSlideView inert iframe]
+  Snapshot --> Edit[PresentationController application-scope draft]
+  Edit --> Package[presentationPackage targeted OOXML edits]
+  Package --> Snapshot
+  Edit --> Save[fs/readFile SHA checks then fs/writeFile]
+  Edit --> Flush[workspace annotation flush registry]
+  Flush --> Submit
+  Frame --> Drafts[artifactAnnotationDraftsAtom / ArtifactAnnotationDraftStore]
+  Drafts --> Submit[useWorkspaceArtifactCommentSubmission]
+  Submit --> Composer[existing Composer typed start / queue]
+  Composer --> AppServer[App Server canonical Thread / Turn / Item]
+```
+
+单条与跨slide批次沿 `artifact/annotations` 的同一 Store/Controller/pending/settlement，主 Composer、文件变化拒绝与显式重新定位同 PDF/DOCX/Workbook。仅使用已确认的 `target.slideId` 语义；本实现的 slideSize/position schema 是明示合同，参考完整 proto unknown。DOCX/Slides 原生测试共用 `artifact-frame-driver` 的父DOM读取与CDP输入，不给受限iframe注入自动化脚本。
+
+Presentation 编辑只扩展该 owner：按路径注册的 `PresentationController` 在应用 scope 保管编辑稿、选区与撤销/重做；顶层文字、frame/style 和删除经 `presentationPackage` 修改原包并重新导入同一投影。受限 iframe 的原生文字与对象控件由父文档安装，不开放脚本。保存前两次读取原文件并核 SHA，再委托既有 `fs/writeFile`；冲突/失败保稿，批注提交先 flush，保存后的旧 SHA 批注必须明确重新定位。此机制不是跨进程原子 CAS；完整对象/分组/表格编辑、CRDT、完整 Office roundtrip 和进程重启耐久性仍有缺口。幻灯片结构、自动保存与关闭/导航前flush已在下述current owner接续，真实验收独立记录在 [Presentation 计划](../exec-plans/codex-presentation-alignment.md)。
+
+Architecture impact: minor；Responsible developer confirmation: root, 2026-10-17。确认仅 Renderer 格式适配与既有批注调用者迁移，无新协议、跨层 authority 或兼容双轨；验收状态以专业文件计划和独立候选收据为准。
+
+结构编辑仍由同一Controller持有有序操作日志，`presentationEdits`按原顺序重放对象/表格/幻灯片修改；连续对象编辑在结构操作前合并，确保复制的是当时内容。`presentationSlidesPackage`与`presentationPackageGraph`处理原slideId、真实layout、私有部件复制/关系重写及删除，未知不可安全处理的结构明确失败。`usePresentationController`只持有500ms定时器，已提交编辑空闲后委托同一flush；活动文字/IME、投影、保存或失败期间不启动自动保存，卸载取消定时器但不丢应用scope稿。
+
+自动保存不清撤销历史。Controller区分操作重放起点与最后落盘snapshot/revision；保存只推进已保存日志位置与源SHA，undo/redo跨保存边界仍按同一日志重放，保存前后两次核验最后落盘SHA。显式放弃才以最后落盘snapshot重置日志。原字节属于格式编辑状态，不是业务read model或第二持久化后端。
+
+```mermaid
+flowchart LR
+  Controls[Slide / element / table controls and iframe input] --> Controller[PresentationController ordered edit history]
+  Controller --> Replay[presentationEdits]
+  Replay --> Elements[presentationPackage]
+  Replay --> Slides[presentationSlidesPackage / PackageGraph]
+  Replay --> Tables[presentationTablePackage]
+  Tables --> Grid[presentationTableGrid / StructurePackage]
+  Tables --> Advanced[AdvancedPackage / Dimensions / Merges]
+  Tables --> Format[FormatPackage / resolved TableStyle and BorderStyle]
+  Selection[presentationTableSelection] --> Format
+  Measure[Real renderer DOM and font readiness] --> Track[Track and reorder overlay]
+  Track --> Controller
+  Advanced --> Move[Shared presentationTableMove validation]
+  Track --> Move
+  Format --> Projection
+  Advanced --> Projection
+  Grid --> Projection
+  Tables --> Projection
+  Elements --> Projection[Same imported presentation snapshot]
+  Slides --> Projection
+  Timer[500ms idle timer] --> Controller
+  Actions[Toolbar / Workbench public file actions] --> Gate[usePublicFileAction scope and generation check]
+  Navigation[Workbench file / tab / mode / preview request] --> Gate
+  Outer[Canvas close / collapse scope epoch] --> Slot[Visible Workbench beforeLeave callback]
+  Slot --> Gate
+  Gate --> Existing[Existing presentation / workbook Controller]
+  Existing --> File[Existing fileBrowser and App Server fs methods]
+  Gate --> Action[Download original bytes / system open after flush]
+```
+
+`usePublicFileAction`委托原有两种Controller map，无第二份稿件或保存registry。动作锁与scope/generation只管理可见文件动作；读取后再次检查身份，失败保稿并阻止动作。下载原始字节，读取失败不回退预览文本；Blob下载与文件名算法分别复用唯一helper。DocumentState持有Workbench唯一动作锁，所有文件、标签、模式与预览请求转换复用；替换文件前保留已接受context，保存失败不确认请求。CanvasLayoutRuntime仅保留一个可见surface生命周期slot，外层关闭/收起await该guard后改布局，scope epoch拒绝迟到动作，Layout关闭不重复获取同一锁。Architecture impact: minor；Responsible developer confirmation: root, 2026-10-18，确认图与调用链，无新增业务authority或协议。结构/自动保存/文件动作/导航的新产品验收由新候选独立证明，不扩大基础候选收据。
+
+基础编辑固定候选曾于2026-10-18通过，但随后整个 `.lime/` 消失，该收据原件当前missing，须新验收重建。历史观察：8670源/2233产物零漂移、173 IPC、错误/mock 0、Main正常退出，收据 `presentation-edit-final-20261018-1/receipt.json`（SHA `35a781088939c351c8a2b7a00c81dda80699b019d3168331b604fdf536525d2f`）。此结果不覆盖随后增加的结构、自动保存、跨保存undo和导航flush。Workbench可见文件guard由现有CanvasLayoutRuntime向下注册到单一可见Layout；外层关闭/收起await guard成功后再更改布局，并核scope epoch。注册是组件生命周期回调，无全局事件或新文件owner。
+
+表格编辑沿同一链扩展：`PresentationController.tableEditing.{subscribe,getSnapshot,interact,edit}` 投影单元格选区，逻辑row/column与原cNvPr tableId是明确Lime OPC适配，不伪造上游cellId。`presentationTableSelection`校验完整格网、合并锚点/continuation并扩展完整选区；受限iframe的父文档overlay只投递动作，不持有第二份编辑稿。文字、样式、清空按原序委托`presentationTablePackage`，与对象/slide共享undo/redo、SHA冲突保护和500ms自动保存。
+
+行列增删与尺寸同步继续由该owner持有：`presentationTableInteraction`只生成导航/追加意图，末格Tab经同一历史追加一行；新投影后clamp numeric选区并恢复焦点。`presentationTableGrid`为cell与结构codec共用完整矩阵校验；`presentationTableStructurePackage`复制邻轨格式、清空新增正文、变换合并矩形，并将轨道和外框尺寸作为同一动作写回。删除原合并锚点不迁移其正文。外框resize按比例缩放tracks，保留rotation/flip；原先尺寸拒绝的过渡实现已替换，冻结候选1仍保留其旧字节。Lime增加OPC正safe-integer EMU与舍入一致性校验，不伪造参考raw的16px下限。
+
+行列移动、合并创建/解除、均分与单轨resize延伸到 `presentationTableAdvancedPackage`；Dimensions/Merges为原包共享校验。合并只改标记、保留全部cell正文，移动与GUI共用`presentationTableMove`守住merged连续性及内部原序，分布在整数EMU保持总长。父文档track/reorder installer只持有指针预览，结束时向同一tableEditing提交单次动作；键盘、新投影焦点和历史沿现有owner。`presentationTableMeasure`唯一绑定真实renderer table并测量rich DOM内容下限，字体loading明确not-ready，歧义绑定或未知布局不启用行拖动。该下限只适用于单行改变，不能整体写回所有轨道。
+
+`presentationTableFormatPackage`修改原包边框和表头options，`presentationTableStyle`解析真实OPC样式/主题关系，`presentationTableBorderStyle`为原包与选区snapshot共用resolved reader；未知继承明确unavailable，不以explicit-only假装完整样式。五语言控件仍委托同一Controller，border unavailable不阻止独立表头编辑。custom格式与themeOverride已由候选4独立验证；74种builtin定义已接线，独立builtin/对象Electron与富文本仍待各自终态。group/ungroup producer保持unknown。此变更未新增runtime、协议、read model或文件owner。Architecture impact: minor；Responsible developer confirmation: root, 2026-10-18，确认上图与调用链；定向/候选验证只按Presentation计划及独立收据结算，不能据此标记完整GUI完成。
+
+
+### Presentation 原包文本与集合编辑接续
+
+`selectedElementIds`/`primarySelectedElementId`是对象选区唯一状态；`presentationElementController`协调preview/commit/cancel，`presentationElementOverlay`只接真实指针/键盘。preview不修改文档、历史或dirty；commit把所有frame（含table tracks）作为同一Controller事务，cancel无历史。四种z-order按原序移动完整spTree绘制节点，不被Map合并。框选SAT为本地策略，group/ungroup producer未证实。
+
+主题与内置表格样式从原始OPC登记不可变输入；custom定义优先，builtin仅为缺失定义提供已确认74种fallback。clr/font/fmt组件按base/master/layout/slide覆盖，派生theme及按需style只服务本次render，禁止写回原包或污染共享model。unknown builtin/无theme限制authoring/snapshot；原可预览文件的renderer fallback继续可观察。
+
+```mermaid
+flowchart LR
+  OPC[原始PPTX bytes / slide XML / relationships] --> Import[presentationDocument import]
+  Import --> Model[同一snapshot.model]
+  Import --> Raw[presentationTextDocument model-keyed immutable source adapter]
+  Raw --> Text[presentationTextController transient body / canonical selection]
+  DOM[presentationTextEditor inert iframe DOM events] --> Text
+  Text --> Range[TextRange / Selection / Style / Html codecs]
+  Text --> History[PresentationController ordered edit history]
+  Objects[presentationElementController preview / commit] --> History
+  History --> Apply[presentationEdits]
+  Apply --> Codec[TextEditPackage / element / table / slides codecs]
+  Codec --> OPC
+  History --> Save[existing SHA checks / fs-write gateway]
+  Model --> Render[presentation renderer / theme projection]
+```
+
+文本原文适配器只按模型identity登记不可变XML及关系字符串，每次读取返回独立body；不是第二持久化或业务read model。renderer外部关系仍先清洗，copy/paste链接从原始同part关系验证，禁止网络请求。canonical anchor/caret使用合法UTF-16的block/para/run/char；临时正文、HTML片段、选区样式及草稿undo/redo归同一文本协调模块；草稿历史恢复body/方向选区/typing style/临时链接，提交后才产生一个全局text历史动作，再走既有重建、双SHA及保存。原有内部slide跳转关系只保留，不作为可新建链接；新外部URL仅http/https/mailto，已删除的临时链接不进入原包。GUI接线与真实富文本证据仍active，不能以codec通过宣称原生完成。Architecture impact: minor；Responsible developer confirmation: root, 2026-10-18，确认唯一Controller、协议及文件owner边界。

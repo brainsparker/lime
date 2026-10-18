@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { resolveAgentRuntimeArtifactDocumentScope } from "@/lib/api/agentRuntime/appServerArtifactClient";
 import type { Artifact } from "@/lib/artifact/types";
+import { isPreviewArtifact } from "@/lib/artifact/previewArtifact";
 import { resolveArtifactProtocolFilePath } from "@/lib/artifact-protocol";
 import type { ArtifactWriteMetadata, WriteArtifactContext } from "../types";
 import {
@@ -106,7 +107,7 @@ function hasMetadataPatchChange(
 export function shouldAutoSyncArtifactPreview(
   artifact: Artifact | null,
 ): boolean {
-  if (!artifact) {
+  if (!artifact || isPreviewArtifact(artifact)) {
     return false;
   }
 
@@ -135,7 +136,7 @@ export function mergePreviewContentIntoArtifact(
   artifact: Artifact,
   preview: ArtifactAutoPreviewResult,
 ): Artifact | null {
-  if (preview.isBinary || preview.error) {
+  if (isPreviewArtifact(artifact) || preview.isBinary || preview.error) {
     return null;
   }
 

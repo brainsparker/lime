@@ -72,9 +72,18 @@ export function pluginDescription(plugin: AppServerPluginSummary): string {
   return plugin.interface?.shortDescription?.trim() || "";
 }
 
-export function pluginLocation({ marketplace, plugin }: PluginCatalogEntry) {
+export function pluginLocation(
+  { marketplace, plugin }: PluginCatalogEntry,
+  invalidMessage = "invalid remote plugin id",
+) {
+  if (
+    !marketplace.path &&
+    !/^[A-Za-z0-9_~-]+$/.test(plugin.remotePluginId ?? "")
+  ) {
+    throw new Error(invalidMessage);
+  }
   return {
-    pluginName: plugin.name,
+    pluginName: marketplace.path ? plugin.name : plugin.remotePluginId!,
     ...(marketplace.path
       ? { marketplacePath: marketplace.path }
       : { remoteMarketplaceName: marketplace.name }),

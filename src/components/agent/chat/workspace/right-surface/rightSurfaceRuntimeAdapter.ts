@@ -52,7 +52,6 @@ export interface WorkspaceRightSurfaceMcpShellOutputInput {
 const DEFAULT_RUNTIME_PENDING_INTENT_TTL_MS = 60_000;
 const KNOWN_RIGHT_SURFACE_KINDS = new Set<WorkspaceRightSurfaceKind>([
   "workbench",
-  "appSurface",
   "articleWorkspace",
   "expertInfo",
   "browser",

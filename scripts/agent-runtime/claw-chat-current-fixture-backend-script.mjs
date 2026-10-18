@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { runtimeInputImageEvidence } from "./runtime-input-image-evidence.mjs";
 import {
   renderApprovalRequestResumeActionRespondScript,
   renderApprovalRequestResumeTurnStartScript,
@@ -97,7 +98,10 @@ import {
   MEDIA_REFERENCE_URI,
 } from "./claw-chat-current-fixture-media-reference.mjs";
 
-export function summarizeRequestInput(request) {
+export function summarizeRequestInput(
+  request,
+  imageEvidence = runtimeInputImageEvidence,
+) {
   const agentImages = Array.isArray(
     request?.runtimeOptions?.runtimeRequest?.images,
   )
@@ -121,6 +125,7 @@ export function summarizeRequestInput(request) {
   const inputImageCount = runtimeInputImageCount(request);
   return {
     textLength: runtimeInputText(request).length,
+    imageEvidence: imageEvidence(request),
     attachmentCount: inputImageCount + agentImages.length,
     imageAttachmentCount: inputImageCount + agentImages.length,
     fileReferenceCount: fileReferences.length,
@@ -365,6 +370,7 @@ export function currentTurnId() {
 ${summarizeRequestInput.toString()}
 ${runtimeInputText.toString()}
 ${runtimeInputImageCount.toString()}
+${runtimeInputImageEvidence.toString()}
 ${buildCanonicalToolItem.toString()}
 
 export function summarizeActionRespondRequest(request) {
@@ -401,7 +407,7 @@ appendLedgerEntry({
     sessionId: input.request?.session?.sessionId,
     turnId: input.request?.turn?.turnId,
     inputText: runtimeInputText(input.request),
-    inputSummary: summarizeRequestInput(input.request),
+    inputSummary: summarizeRequestInput(input.request, (request) => runtimeInputImageEvidence(request, createHash)),
     providerPreference: input.request?.providerPreference,
     modelPreference: input.request?.modelPreference,
     runtimeOptions: input.request?.runtimeOptions,

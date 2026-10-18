@@ -33,6 +33,8 @@ const CLICK_THROUGH_SMOKE_PATH =
   "scripts/electron/codex-import-click-through-fixture-smoke.mjs";
 const CLICK_THROUGH_GUI_HELPER_PATH =
   "scripts/electron/lib/local-history-import-click-through-gui.mjs";
+const FILE_PREVIEW_HELPER_PATH =
+  "scripts/electron/lib/imported-file-preview.mjs";
 const CLICK_THROUGH_FIXTURE_HELPER_PATH =
   "scripts/electron/lib/local-history-import-click-through-fixture.mjs";
 const PREVIEW_ARTIFACT_TEST_PATH = "src/lib/artifact/previewArtifact.test.ts";
@@ -225,12 +227,13 @@ describe("codex import fidelity acceptance matrix guard", () => {
     const clickThroughSurface = readFiles(
       CLICK_THROUGH_SMOKE_PATH,
       CLICK_THROUGH_GUI_HELPER_PATH,
+      FILE_PREVIEW_HELPER_PATH,
       CLICK_THROUGH_SMOKE_TEST_PATH,
     );
 
     expect(matrix).toContain("Preview Artifact Contract");
     expect(matrix).toContain(
-      "`thread_read.tool_calls.arguments.path` + `inline-tool-open-file` + Preview Artifact Contract",
+      "`thread_read.tool_calls.arguments.path` + `timeline-file-artifact-card` + Preview Artifact Contract",
     );
     expect(matrix).toContain("URL / record / app shell source preview");
     expect(matrix).toContain("PreviewSourceSummaryRenderer");
@@ -242,11 +245,12 @@ describe("codex import fidelity acceptance matrix guard", () => {
     expect(artifactRoadmap).toContain("PreviewSourceSummaryRenderer");
     expect(artifactRoadmap).toContain("PDF、Excel、PPT");
     expect(artifactRoadmap).toContain("document-preview");
-    expect(artifactRoadmap).toContain("renderMode=document_text");
+    expect(artifactRoadmap).toContain("renderMode=document_pages");
+    expect(artifactRoadmap).toContain("renderMode=workbook");
     expect(artifactRoadmap).toContain("renderMode=system_open");
     expect(artifactRoadmap).toContain("open_with_default_app");
     expect(matrix).toContain(
-      "DOCX / XLSX / PPTX 与可解析 PDF 文本流走 `document_text`",
+      "PDF / DOCX 走 `document_pages`，XLSX / CSV / TSV 走 `workbook`",
     );
     expect(matrix).toContain("PDF OCR / 扫描件 / 复杂字体映射");
     expect(matrix).toContain("`entered_review_mode`、`exited_review_mode`");
@@ -254,7 +258,9 @@ describe("codex import fidelity acceptance matrix guard", () => {
       "`context_compaction`、`reasoning`、`agent_message`",
     );
     expect(previewArtifactTests).toContain("research.pdf");
-    expect(previewArtifactTests).toContain("budget.xlsx");
+    expect(previewArtifactTests).toContain('contentKind: "workbook"');
+    expect(previewArtifactTests).toContain('renderMode: "workbook"');
+    expect(previewArtifactTests).toContain('renderMode: "document_pages"');
     expect(previewArtifactTests).toContain("deck.pptx");
     expect(previewArtifactTests).toContain("interview.wav");
     expect(previewArtifactTests).toContain("demo.mp4");
@@ -265,7 +271,7 @@ describe("codex import fidelity acceptance matrix guard", () => {
     expect(previewArtifactTests).toContain("preview-source-summary-renderer");
     expect(previewArtifactTests).toContain("openExternalUrlWithSystemBrowser");
     expect(previewArtifactTests).toContain('renderMode: "system_open"');
-    expect(clickThroughSurface).toContain("inline-tool-open-file");
+    expect(clickThroughSurface).toContain("timeline-file-artifact-card");
     expect(clickThroughSurface).toContain(
       "inspectImportedFilePreviewArtifacts",
     );

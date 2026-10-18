@@ -1,7 +1,7 @@
 # Lime Artifacts Current 路线图
 
 > 状态：current，Preview Artifact Contract 已进入导入历史与文件预览主链
-> 更新时间：2026-06-18
+> 更新时间：2026-10-17
 > 主目标：Codex 导入对话、Lime 原生对话、任务结果、文件、图片、DOCX、HTML、URL、Plugin shell entry 等所有可打开对象，都通过统一预览合同进入右侧工作台或独立窗口；正式交付物继续由 `ArtifactDocument v1` 承接。
 
 ## 当前结论
@@ -61,8 +61,8 @@ Preview artifact 是普通 `Artifact` 的 source-backed 投影，`meta` 必须�
 - `source`: `file | artifact | task | knowledge | url | session_file | app | database_record`
 - `sourceRef`: 稳定引用，优先使用路径、URL、task id 或 domain id
 - `sourcePath` / `filePath` / `filename`
-- `contentKind`: `text | markdown | code | html | image | document | audio | video | binary | app_shell | unsupported`
-- `renderMode`: `inline | canvas | media | document_text | external_window | system_open | unsupported`
+- `contentKind`: `text | markdown | code | html | image | document | workbook | audio | video | binary | app_shell | unsupported`
+- `renderMode`: `inline | canvas | media | document_text | document_pages | workbook | external_window | system_open | unsupported`
 - `lifecycle: "transient"`，除非用户显式保存或 domain 明确要求持久化
 - `capabilities`: `preview / edit / save / reveal / systemOpen / externalWindow` 等布尔能力
 
@@ -74,9 +74,9 @@ Preview artifact 是普通 `Artifact` 的 source-backed 投影，`meta` 必须�
 4. preview artifact 默认不写入正式消息产物历史，不污染 `ArtifactDocument` 版本。
 5. 内容来自真实 source；编辑必须显式保存才写回 source。
 6. HTML 允许在右侧 iframe 预览，也允许经 Electron Desktop Host 打开独立窗口。
-7. DOCX 不再按 UTF-8 lossless 读取 ZIP 字节；必须先抽取可读文本。
+7. PDF / DOCX 原字节进入 `renderMode=document_pages`，分别由 `PdfPreviewPanel` / `DocxPreviewPanel` 呈现；不得用文本抽取代替页面版式。XLSX / CSV / TSV 进入 `contentKind=workbook / renderMode=workbook`，由 `WorkbookPanel` 读取原字节并显示真实工作表。
 8. 图片、音频、视频必须写入 `meta.previewUrl` 并由媒体 renderer 消费；不得把 `<img>` / `<audio>` / `<video>` HTML 字符串塞进 document renderer。
-9. 只有可抽取出可读文本的文档才进入 `renderMode=document_text`；DOCX、XLSX、PPTX 与可解析 PDF 文本流优先走后端 `document-preview` 抽取。PDF 扫描件、复杂编码文本流、旧版 Office 二进制格式或抽取为空的文档仍保留同一 preview artifact，但必须退化为 `renderMode=system_open`，由统一 artifact 工具栏调起系统默认应用，而不是渲染空白正文。
+9. `document-preview` 是后端文本抽取 owner，服务实际需要文本的消费者，不能决定已有页面/工作表渲染器的分发。PPTX 尚未接入原生幻灯片面板，当前显式进入 `renderMode=system_open`；PDF / DOCX / XLSX 加载失败在对应面板明确报错并允许重试，不偷偷回退文本或生产 mock。
 10. 二进制不可内嵌时仍进入同一 preview artifact，renderMode 退化到 `system_open` 或 `unsupported`，并由 `ArtifactRenderer` 渲染明确兜底面，而不是消失、乱码或落回空内容文档。
 
 ## 与 ArtifactDocument v1 的边界
@@ -111,10 +111,10 @@ Preview artifact 是普通 `Artifact` 的 source-backed 投影，`meta` 必须�
 - 保留 `canvas:design` 等专用 artifact 主链。
 - 补纯单元测试与 Workspace hook 回归。
 
-### P2：文档与乱码修复
+### P2：文档原字节与文本消费者
 
 - 接入 `lime-rs/crates/document-preview`。
-- `file_browser_service.read_file_preview` 对 DOCX / XLSX / PPTX / 可解析 PDF 返回 `document_text` 文本预览。
+- `file_browser_service.read_file_preview` 的文本抽取仅供文本消费者；GUI 的 PDF / DOCX / XLSX 分发优先使用原字节专用 renderer。
 - Agent `ReadTool` 对 DOCX 走文档抽取，避免 `String::from_utf8_lossy` 读取 ZIP 乱码；PDF / Office 运行时工具读取继续按后续 Agent tool contract 扩展，不把文件预览能力误当成模型工具全文解析。
 
 ### P3：Electron 独立预览窗口迁移
@@ -128,14 +128,16 @@ Preview artifact 是普通 `Artifact` 的 source-backed 投影，`meta` 必须�
 - 图片、音视频、URL、任务结果、知识库命中、Plugin shell entry、数据库记录详情全部补 projection。
 - 对每类 source 明确 `contentKind / renderMode / capabilities`。
 - 媒体类 preview artifact 已由 workbench renderer 消费 `contentKind / renderMode / previewUrl`；Codex 导入消息图片点击会生成 `source=session_file` 的 preview artifact，并通过 `previewOpenRequest.selectionKey` 精确打开右侧图片预览。
-- PDF、Excel、PPT 等文档类 source 先由 App Server `readFilePreview` 尝试文本抽取；DOCX / XLSX / PPTX 与可解析 PDF 文本流成功时进入 `contentKind=document / renderMode=document_text`，抽取为空或不支持时进入 `contentKind=document / renderMode=system_open`；仍使用同一 preview artifact、同一 ArtifactToolbar、同一 `open_with_default_app` 桌面 current 命令。
+- PDF、Excel、PPT 统一进入 Preview Artifact Contract；PDF / DOCX 使用 `document_pages`，XLSX / CSV / TSV 使用 `workbook`，PPTX 当前使用 `system_open`。原文件通过同一 `readFileBytes -> fs/readFile` 读取；系统打开仍由 ArtifactToolbar 的 `open_with_default_app` current 命令负责。
 - `ArtifactRenderer` 对 `renderMode=system_open/unsupported` 已新增 renderer-level fallback surface，展示文件名、来源路径、mime/error metadata；打开动作仍由外层 `ArtifactToolbar` 统一处理，避免第二套打开逻辑。
 - URL、database_record 与 Plugin shell entry 不再伪装成普通文件或空文档；`source=url/database_record/app` 的 preview artifact 由 `PreviewSourceSummaryRenderer` 展示来源摘要，打开 URL 仍走 ArtifactToolbar 的 `open_external_url` current 通道，record / app 后续动作由对应业务工作台承接。
 - 消息工具轨 WebSearch 搜索结果点击已接入同一 URL preview artifact 链路：`SearchResultPreviewList -> InlineToolProcessStep -> StreamingRenderer -> MessageList -> useWorkspaceConversationSceneRuntime -> AgentChatWorkspace` 透传 `onOpenUrlPreview`，由 Workspace 创建 `source=url` projection、写入 artifact store，并以 `selectionKey=artifact:<id>` 打开右侧来源摘要；组件独立复用时才 fallback 到系统浏览器。
 - WebSearch 与 WebFetch 同组出现时，URL preview artifact 会复用已存在的 WebFetch 结构化正文作为 `source=url` 快照内容，并在 meta 标记 `urlSnapshotSource=web_fetch`；RSS/XML、timeout、HTTP 诊断等噪音不进入快照。该能力只复用已在对话中产生的工具结果，不新增 renderer 网络抓取器。
 - GUI smoke 覆盖 Codex 导入对话打开文件、DOCX、HTML、图片和继续对话。
 
-## 2026-06-17 实施记录
+专业文件 current owner 与验证以[专业文件计划](../../exec-plans/codex-professional-files-alignment.md)和[工作表计划](../../exec-plans/codex-workbook-alignment.md)为准。页面与工作表批注共享 `artifact/annotations/`，经既有 Composer typed acceptance 提交；页面坐标与 sheet/range 使用各自目标模型。原文件编辑保存、幻灯片和跨进程批注耐久性仍未完成。下方带日期记录仅为历史实现，不作为 current 文本优先分发指令。
+
+## 2026-06-17 实施记录（历史）
 
 - Codex 导入用户消息附件已作为 `Message.images` 恢复，保留 `sourceUri / sourcePath / previewUrl / metadata / index`，不再只保留文本占位。
 - 消息图片点击统一投影为 `source=session_file` 的 preview artifact；`contentKind=image`、`renderMode=media`、`previewUrl` 由 `ArtifactRenderer` 消费。

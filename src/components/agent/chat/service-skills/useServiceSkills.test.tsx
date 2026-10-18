@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  cloudRequestMock,
+  stubCloudRequest,
+} from "@/test/cloudAccountFixture";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -267,7 +272,7 @@ describe("useServiceSkills", () => {
   afterEach(() => {
     window.localStorage.clear();
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
     vi.useRealTimers();
@@ -278,9 +283,16 @@ describe("useServiceSkills", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
     const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const harness = mountHook({ autoLoad: false });
 
@@ -291,7 +303,7 @@ describe("useServiceSkills", () => {
       expect(harness.getValue().skills).toEqual([]);
       expect(harness.getValue().groups).toEqual([]);
       expect(harness.getValue().catalogMeta).toBeNull();
-      expect(fetchMock).not.toHaveBeenCalled();
+      expect(cloudRequestMock).not.toHaveBeenCalled();
       expect(scheduledTasksApi.listDetailed).not.toHaveBeenCalled();
     } finally {
       harness.unmount();
@@ -451,30 +463,32 @@ describe("useServiceSkills", () => {
       baseUrl: "https://oem.example.com",
       tenantId: "tenant-demo",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token-demo";
+    await seedCloudAccount(
+      {
+        tenant: { id: "tenant-demo" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://oem.example.com",
+    );
 
     const responseDeferred = createDeferred<{
       ok: boolean;
       json: () => Promise<unknown>;
     }>();
     const fetchMock = vi.fn(() => responseDeferred.promise);
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const harness = mountHook();
 
     try {
       await flushEffects(4);
 
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://oem.example.com/api/v1/public/tenants/tenant-demo/client/skills",
-        expect.objectContaining({
-          method: "GET",
-          headers: expect.objectContaining({
-            Accept: "application/json",
-            Authorization: "Bearer session-token-demo",
-          }),
-        }),
-      );
+      expect(cloudRequestMock).toHaveBeenCalledWith({
+        path: "/v1/public/tenants/tenant-demo/client/skills",
+        method: "GET",
+        body: undefined,
+      });
       expect(harness.getValue().catalogMeta).toEqual(
         expect.objectContaining({
           tenantId: "local-seeded",

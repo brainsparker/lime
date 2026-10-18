@@ -13,6 +13,7 @@ use agent_protocol::world_state::{
     WORLD_STATE_TURN_METADATA_KEY,
 };
 use agent_protocol::MultiAgentMode;
+use code_mode_protocol::RuntimeToolIdentity;
 use futures::future::BoxFuture;
 use futures::{stream, StreamExt};
 use model_provider::current_client::CurrentProviderRole;
@@ -33,6 +34,8 @@ use tool_runtime::tool_lifecycle::{
     ToolLifecyclePhase, ToolOutputDeltaEvent,
 };
 
+#[path = "tests/hook_snapshot.rs"]
+mod hook_snapshot;
 #[path = "tests/stream_producer.rs"]
 mod stream_producer;
 

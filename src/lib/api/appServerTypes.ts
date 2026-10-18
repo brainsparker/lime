@@ -1,5 +1,16 @@
 import type * as protocol from "../../../packages/app-server-client/src/protocol";
 
+export type AppServerCloudRequestParams = protocol.CloudRequestParams;
+export type AppServerCloudRequestResponse = protocol.CloudRequestResponse;
+export type AppServerAccount = protocol.Account;
+export type AppServerLoginAccountParams = protocol.LoginAccountParams;
+export type AppServerLoginAccountResponse = protocol.LoginAccountResponse;
+export type AppServerGetAccountParams = protocol.GetAccountParams;
+export type AppServerGetAccountResponse = protocol.GetAccountResponse;
+export type AppServerLogoutAccountResponse = protocol.LogoutAccountResponse;
+export type AppServerAccountUpdatedNotification =
+  protocol.AccountUpdatedNotification;
+
 export type AppServerHandleJsonLinesRequest = {
   lines: string[];
 };
@@ -173,6 +184,23 @@ export type AppServerPluginUninstallParams = protocol.PluginUninstallParams;
 export type AppServerPluginUninstallResponse = protocol.PluginUninstallResponse;
 export type AppServerPluginInstalledParams = protocol.PluginInstalledParams;
 export type AppServerPluginInstalledResponse = protocol.PluginInstalledResponse;
+export type AppServerPluginReconcileParams = protocol.PluginReconcileParams;
+export type AppServerPluginReconcileResponse = protocol.PluginReconcileResponse;
+export type AppServerPluginShareSaveParams = protocol.PluginShareSaveParams;
+export type AppServerPluginShareSaveResponse = protocol.PluginShareSaveResponse;
+export type AppServerPluginShareListParams = protocol.PluginShareListParams;
+export type AppServerPluginShareListResponse = protocol.PluginShareListResponse;
+export type AppServerPluginShareUpdateTargetsParams =
+  protocol.PluginShareUpdateTargetsParams;
+export type AppServerPluginShareUpdateTargetsResponse =
+  protocol.PluginShareUpdateTargetsResponse;
+export type AppServerPluginShareCheckoutParams =
+  protocol.PluginShareCheckoutParams;
+export type AppServerPluginShareCheckoutResponse =
+  protocol.PluginShareCheckoutResponse;
+export type AppServerPluginShareDeleteParams = protocol.PluginShareDeleteParams;
+export type AppServerPluginShareDeleteResponse =
+  protocol.PluginShareDeleteResponse;
 export type AppServerPluginMarketplaceEntry = protocol.PluginMarketplaceEntry;
 export type AppServerAppSummary = protocol.AppSummary;
 export type AppServerAgentSessionToolInventoryReadParams =

@@ -25,6 +25,7 @@ import {
 } from "../agent-runtime/tool-execution-current-contract.mjs";
 import { terminalGateRuntimeEnvironment } from "./terminal-gate-binaries.mjs";
 import { runPluginSkillsScenario } from "./plugin-skills-scenario.mjs";
+import { runMarketplaceUpgradeScenario } from "./marketplace-upgrade-scenario.mjs";
 
 const repo = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -66,6 +67,7 @@ let stderr = "";
 let active;
 let succeeded = false;
 let coldRestarts = 0;
+let marketplaceUpgrade;
 const fixture = await startOpenAiCompatibleFixtureServer({
   scriptedResponses: [
     ({ body }) => {
@@ -286,7 +288,11 @@ async function turn(
   present,
   absent,
   overrides = {},
-  skillNames = ["watch-root-proof", "workspace-watch-proof", "selected-watch-proof"],
+  skillNames = [
+    "watch-root-proof",
+    "workspace-watch-proof",
+    "selected-watch-proof",
+  ],
 ) {
   active = {
     index: turns.length + 1,
@@ -471,8 +477,11 @@ try {
     ["EXTRA_BEFORE_WATCH_381", "PROJECT_BEFORE_WATCH_381"],
     [],
   );
-  if (process.argv.includes("--plugins")) {
-    coldRestarts += await runPluginSkillsScenario({
+  if (
+    process.argv.includes("--marketplace-upgrade") ||
+    process.argv.includes("--plugins")
+  ) {
+    const scenario = {
       temp,
       workspace,
       threadId,
@@ -484,7 +493,13 @@ try {
       mutate,
       start,
       stop,
-    });
+    };
+    if (process.argv.includes("--marketplace-upgrade")) {
+      marketplaceUpgrade = await runMarketplaceUpgradeScenario(scenario);
+      coldRestarts += marketplaceUpgrade.coldRestarts;
+    } else {
+      coldRestarts += await runPluginSkillsScenario(scenario);
+    }
   } else if (
     process.argv.includes("--scope-cwd") ||
     process.argv.includes("--scope-root") ||
@@ -756,6 +771,7 @@ try {
         liveProviderUsed: false,
         runtimePromptVerified: true,
         coldRestarts,
+        marketplaceUpgrade,
         multipleHostsVerified: true,
         hosts: "two SDK WebSocket connections; no GUI or PTY claim",
         platform: process.platform,

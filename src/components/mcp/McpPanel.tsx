@@ -7,7 +7,7 @@
  * @module components/mcp/McpPanel
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useMcp } from "@/hooks/useMcp";
@@ -37,6 +37,23 @@ interface McpPanelProps {
 export function McpPanel({ hideHeader = false }: McpPanelProps) {
   const { t } = useTranslation("settings");
   const [activeTab, setActiveTab] = useState<McpTab>("runtime");
+  const [configVisited, setConfigVisited] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const configRef = useRef<HTMLDivElement>(null);
+  const selectTab = (tab: McpTab) => {
+    if (tab === "config") setConfigVisited(true);
+    if (
+      tab !== "config" &&
+      configRef.current?.contains(document.activeElement)
+    ) {
+      panelRef.current
+        ?.querySelector<HTMLButtonElement>(
+          `[data-testid="mcp-panel-tab-${tab}"]`,
+        )
+        ?.focus();
+    }
+    setActiveTab(tab);
+  };
   const {
     servers,
     tools,
@@ -113,6 +130,7 @@ export function McpPanel({ hideHeader = false }: McpPanelProps) {
 
   return (
     <div
+      ref={panelRef}
       data-settings-embedded={hideHeader ? "true" : "false"}
       className="space-y-6 pb-20 text-slate-900"
     >
@@ -126,7 +144,7 @@ export function McpPanel({ hideHeader = false }: McpPanelProps) {
       <McpPanelTabs
         tabs={mcpPanelTabs}
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={selectTab}
         getTabCount={getTabCount}
       />
 
@@ -167,8 +185,8 @@ export function McpPanel({ hideHeader = false }: McpPanelProps) {
                   onRefresh={refreshTools}
                   serverCount={servers.length}
                   runningServerCount={runningServerCount}
-                  onOpenRuntimeTab={() => setActiveTab("runtime")}
-                  onOpenConfigTab={() => setActiveTab("config")}
+                  onOpenRuntimeTab={() => selectTab("runtime")}
+                  onOpenConfigTab={() => selectTab("config")}
                 />
               </div>
             </div>
@@ -205,8 +223,12 @@ export function McpPanel({ hideHeader = false }: McpPanelProps) {
           )}
 
           {/* 配置管理 Tab */}
-          {activeTab === "config" && (
-            <div className="min-h-[464px] overflow-auto p-4">
+          {configVisited && (
+            <div
+              ref={configRef}
+              hidden={activeTab !== "config"}
+              className="min-h-[464px] overflow-auto p-4"
+            >
               <McpPage hideHeader />
             </div>
           )}

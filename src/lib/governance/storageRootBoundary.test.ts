@@ -491,7 +491,10 @@ describe("storage root boundary", () => {
     expect(localDataSource).toContain("plugin_catalog::PluginStore::new(");
     expect(pluginDataSourceImpl).toContain("&self.plugin_store");
     expect(pluginStore).toContain('self.root.join("cache")');
-    expect(pluginStore).toContain('.join("data/agent-plugins")');
+    expect(pluginStore).toContain(
+      'self.root.join("cache").join(&id.marketplace).join(&id.name)',
+    );
+    expect(pluginStore).not.toContain("data/agent-plugins");
     expect(pluginCatalog).not.toContain("mod inventory;");
     expect(pluginCatalog).not.toContain('const STORE_DIR: &str = "v3";');
     expect(pluginStore).not.toContain('join("v3")');

@@ -62,6 +62,8 @@ pub struct AgentSessionConfigurationRequest {
 
 #[derive(Debug, Clone)]
 pub struct AgentSessionConfig {
+    /// App Server-owned plugin components, loaded at each provider step.
+    pub plugin_hook_source: Option<tool_runtime::hook_source::PluginHookSourceProviderHandle>,
     pub id: String,
     pub thread_id: Option<String>,
     pub turn_id: Option<String>,
@@ -81,6 +83,7 @@ pub struct AgentSessionConfig {
 
 pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> AgentSessionConfig {
     AgentSessionConfig {
+        plugin_hook_source: None,
         id: request.session_id,
         thread_id: Some(request.thread_id),
         turn_id: Some(request.turn_id),
@@ -209,6 +212,7 @@ impl SessionConfigBuilder {
 
     pub fn build(self) -> AgentSessionConfig {
         AgentSessionConfig {
+            plugin_hook_source: None,
             id: self.id,
             thread_id: self.thread_id,
             turn_id: self.turn_id,

@@ -22,10 +22,6 @@ import {
 } from "./right-surface";
 import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import {
-  buildWorkspacePluginSurfacesFromPendingRequests,
-  type WorkspacePluginSurfaceDescriptor,
-} from "./workspacePluginSurfaceModel";
-import {
   buildWorkspaceArticleWorkspaceFromPendingRequests,
   type WorkspaceArticleWorkspace,
 } from "./workspaceArticleWorkspaceModel";
@@ -70,8 +66,6 @@ export interface WorkspaceRightSurfacePendingRuntime {
   pendingRequests: WorkspaceRightSurfacePendingRequest[];
   pendingIntents: WorkspaceRightSurfaceIntent[];
   pendingFileTarget: ReviewThreadSidePanelTarget | null;
-  pendingPluginSurface: WorkspacePluginSurfaceDescriptor | null;
-  pendingPluginSurfaces: WorkspacePluginSurfaceDescriptor[];
   pendingArticleWorkspace: WorkspaceArticleWorkspace | null;
   pendingBrowserIntent: WorkspaceRightSurfaceBrowserIntent | null;
   lastError: Error | null;
@@ -375,11 +369,6 @@ export function useWorkspaceRightSurfacePendingRuntime({
     () => buildWorkspaceRightSurfacePendingFileTarget(pendingRequests),
     [pendingRequests],
   );
-  const pendingPluginSurfaces = useMemo(
-    () => buildWorkspacePluginSurfacesFromPendingRequests(pendingRequests),
-    [pendingRequests],
-  );
-  const pendingPluginSurface = pendingPluginSurfaces[0] ?? null;
   const pendingArticleWorkspace = useMemo(
     () => buildWorkspaceArticleWorkspaceFromPendingRequests(pendingRequests),
     [pendingRequests],
@@ -393,8 +382,6 @@ export function useWorkspaceRightSurfacePendingRuntime({
     pendingRequests,
     pendingIntents,
     pendingFileTarget,
-    pendingPluginSurface,
-    pendingPluginSurfaces,
     pendingArticleWorkspace,
     pendingBrowserIntent,
     lastError,

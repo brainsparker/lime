@@ -1,10 +1,14 @@
 import fs from "node:fs";
+import { ESLint } from "eslint";
+import globals from "globals";
 import { describe, expect, it } from "vitest";
 
 const SMOKE_SCRIPT_PATH =
   "scripts/electron/codex-import-click-through-fixture-smoke.mjs";
 const GUI_HELPER_PATH =
   "scripts/electron/lib/local-history-import-click-through-gui.mjs";
+const FILE_PREVIEW_HELPER_PATH =
+  "scripts/electron/lib/imported-file-preview.mjs";
 const FIXTURE_HELPER_PATH =
   "scripts/electron/lib/local-history-import-click-through-fixture.mjs";
 const SMOKE_UTILS_PATH =
@@ -18,12 +22,39 @@ function readSmokeSurface() {
   return readFiles(
     SMOKE_SCRIPT_PATH,
     GUI_HELPER_PATH,
+    FILE_PREVIEW_HELPER_PATH,
     FIXTURE_HELPER_PATH,
     SMOKE_UTILS_PATH,
   );
 }
 
 describe("codex import click-through Electron fixture smoke guard", () => {
+  it("keeps split fixture modules free of unresolved lexical references", async () => {
+    const eslint = new ESLint({
+      overrideConfigFile: true,
+      overrideConfig: {
+        languageOptions: { globals: { ...globals.node, ...globals.browser } },
+        rules: { "no-undef": "error" },
+      },
+    });
+    const results = await eslint.lintFiles([
+      SMOKE_SCRIPT_PATH,
+      GUI_HELPER_PATH,
+      FILE_PREVIEW_HELPER_PATH,
+      FIXTURE_HELPER_PATH,
+      SMOKE_UTILS_PATH,
+      "scripts/electron/document-preview-fixture-smoke.mjs",
+      "scripts/electron/lib/artifact-frame-driver.mjs",
+      "scripts/electron/lib/presentation-preview-scenario.mjs",
+      "scripts/electron/lib/presentation-annotation-scenario.mjs",
+    ]);
+    expect(
+      results.flatMap(({ filePath, messages }) =>
+        messages.map(({ line, message }) => `${filePath}:${line}: ${message}`),
+      ),
+    ).toEqual([]);
+  });
+
   it("drives the real sidebar import dialog instead of direct import API only", () => {
     const content = readSmokeSurface();
 
@@ -116,9 +147,15 @@ describe("codex import click-through Electron fixture smoke guard", () => {
     expect(content).toContain("imported-preview.pptx");
     expect(content).toContain("imported-preview.pdf");
     expect(content).toContain("writeMinimalDocx");
-    expect(content).toContain("writeMinimalXlsx");
-    expect(content).toContain("writeMinimalPptx");
-    expect(content).toContain("writeMinimalPdf");
+    expect(content).toContain("workbook/__fixtures__/review.xlsx");
+    expect(content).toContain("presentation/__fixtures__/review.pptx");
+    expect(content).not.toContain("writeMinimalPptx");
+    expect(content).toContain("presentation-panel");
+    expect(content).toContain('kind: "pptx"');
+    expect(content).toContain("writePdfPreviewFixture");
+    expect(content).toContain("docxDocument?.body?.innerText");
+    expect(content).toContain("workbook-preview-panel");
+    expect(content).toContain("pdf-preview-panel");
     expect(content).toContain("read_file");
     expect(content).toContain("call_read_docx");
     expect(content).toContain("call_read_xlsx");

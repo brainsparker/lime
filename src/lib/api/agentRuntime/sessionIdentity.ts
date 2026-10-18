@@ -4,7 +4,6 @@ const NON_USER_FACING_AGENT_SESSION_ID_PREFIXES = [
   "knowledge-builder-session-",
   "__lime_theme_context_search__-",
   "persisted-usage-",
-  "plugin-runtime-",
 ];
 
 export function isAuxiliaryAgentSessionId(sessionId?: string | null): boolean {

@@ -1,10 +1,12 @@
 # Codex 对齐重构 v1
 
-状态：执行中（2026-07-26）。产品范围完成度 `69 / 180 = 38.3%`（见
-[11-codex-method-product-scope-matrix.md](11-codex-method-product-scope-matrix.md)）；
+状态：执行中（2026-10-18）。冻结method基线为174 implemented / 56 planned / 15 excluded；
+该分类不表示产品完成度（见 [范围矩阵](11-codex-method-product-scope-matrix.md)）；
 [04-execution-plan.md](04-execution-plan.md) 的六条完成定义尚无一条全满足。
 
-本目录是 Lime 对齐本地 Codex 的执行方案。目标不是复制 Codex 的 CLI、TUI 或 ChatGPT 专属产品，而是把 Codex 已验证的 runtime 语义、可恢复状态、App Server 协议、工具生命周期和多 Agent 控制面收敛到 Lime current owner。
+本目录是Lime完整对齐本地Codex合理能力的执行方案；GUI、CLI/TUI共用同一App Server、runtime、
+可恢复状态、工具生命周期与多Agent控制面。缺少当前消费者不能作为永久排除理由，当前
+范围更正与顺序见 [合理能力复审](../../exec-plans/codex-method-scope-reassessment.md)。
 
 多模型/provider 采用分层参考：以 `/Users/coso/Documents/dev/rust/grok-build` 作为模型控制平面的 primary reference（目录、选择、切换、能力、重试/熔断），以 `/Users/coso/Documents/dev/js/opencode` 作为 provider wire 平面的 secondary reference（endpoint、canonical content、lowering、媒体和多协议 stream）。两者都不负责 Lime 的 Thread/Turn/Item、App Server、Agent loop 或 GUI owner。
 
@@ -128,4 +130,6 @@ V1-24 FileChange patchUpdated、typed `artifact/write` 与旧 runtime append 删
 - **P1 transport 阻塞**：stdio/ws/unix、逐连接 notification filtering 与 slow-client 已有实现和定向测试；剩余阻塞是 Windows transport 语义、真实 reconnect/overload Gate B 和产品范围确认。
 - **P1 lifecycle 阻塞**：Item 字段级 inventory、hook/deferred tool、MCP immutable snapshot、Skills/Plugins/Apps watcher 和 environment/config-lock 仍缺 contract。
 
-本轮已获授权删除旧路径和直接重构，不保留长期兼容层。迁移期间只允许短期编译适配；完成后必须物理删除 `protocol/v0`、`agentSession/*` production surface、`lime-providers` 和未实现的 transport 声明，并由 [07-second-audit-gap-register.md](07-second-audit-gap-register.md) 的扫描守卫阻止回流。
+本轮已获授权删除旧路径和直接重构，开发期不保留兼容层或旧插件迁移。直接修改现役调用，
+删除protocol/v0、agentSession旧入口、已退役provider crate及虚假transport声明，保留对应
+扫描守卫。新能力只能在current owner重建，不以恢复旧路满足planned清单。

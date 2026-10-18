@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  stubCloudRequest,
+  cloudRequestMock,
+} from "@/test/cloudAccountFixture";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildExpertAgentInstanceKey,
@@ -14,7 +19,7 @@ describe("expertAgentInstances", () => {
   beforeEach(() => {
     window.localStorage.clear();
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.unstubAllGlobals();
   });
 
@@ -37,9 +42,7 @@ describe("expertAgentInstances", () => {
       now: 200,
     });
 
-    expect(first.agentInstanceKey).toBe(
-      buildExpertAgentInstanceKey(identity),
-    );
+    expect(first.agentInstanceKey).toBe(buildExpertAgentInstanceKey(identity));
     expect(second.agentInstanceId).toBe(first.agentInstanceId);
     expect(findExpertAgentInstance(identity)?.skillRefsOverride).toEqual([
       "skill:xlsx",
@@ -126,9 +129,7 @@ describe("expertAgentInstances", () => {
       ]),
     );
 
-    expect(readExpertAgentInstances()[0]).not.toHaveProperty(
-      "latestSessionId",
-    );
+    expect(readExpertAgentInstances()[0]).not.toHaveProperty("latestSessionId");
   });
 
   it("有云端会话时应同步到 LimeCore 专家 Agent 实例接口", async () => {
@@ -137,12 +138,22 @@ describe("expertAgentInstances", () => {
       baseUrl: "https://lime.example.com",
       tenantId: "tenant-0001",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token";
-    const fetchMock = vi.fn(async (_input: unknown, _init?: { body?: unknown }) => ({
-      ok: true,
-      json: async () => ({ code: 200, data: {} }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
+    await seedCloudAccount(
+      {
+        token: "session-token",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://lime.example.com",
+    );
+    const fetchMock = vi.fn(
+      async (_input: unknown, _init?: { body?: unknown }) => ({
+        ok: true,
+        json: async () => ({ code: 200, data: {} }),
+      }),
+    );
+    stubCloudRequest(fetchMock);
 
     await syncExpertAgentInstanceToCloud({
       tenantId: "tenant-0001",
@@ -151,8 +162,7 @@ describe("expertAgentInstances", () => {
       releaseId: "rel-1",
       agentInstanceId:
         "expert:tenant-0001:project-a:marketing-strategist:rel-1",
-      agentInstanceKey:
-        "tenant-0001:project-a:marketing-strategist:rel-1",
+      agentInstanceKey: "tenant-0001:project-a:marketing-strategist:rel-1",
       catalogVersion: "tenant-0001:v1",
       skillRefsOverride: ["skill:docx"],
       status: "active",
@@ -161,17 +171,13 @@ describe("expertAgentInstances", () => {
       lastStartedAt: 2,
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://lime.example.com/api/v1/public/tenants/tenant-0001/client/expert-agent-instances",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/expert-agent-instances",
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token",
-          "Content-Type": "application/json",
-        }),
       }),
     );
-    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+    expect(cloudRequestMock.mock.calls[0]?.[0]?.body).toEqual({
       projectId: "project-a",
       expertId: "marketing-strategist",
       releaseId: "rel-1",
@@ -186,7 +192,15 @@ describe("expertAgentInstances", () => {
       baseUrl: "https://lime.example.com",
       tenantId: "tenant-0001",
     };
-    window.__LIME_SESSION_TOKEN__ = "session-token";
+    await seedCloudAccount(
+      {
+        token: "session-token",
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://lime.example.com",
+    );
     upsertExpertAgentInstance({
       tenantId: "tenant-0001",
       projectId: "project-local",
@@ -219,17 +233,14 @@ describe("expertAgentInstances", () => {
         },
       }),
     }));
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     const records = await refreshExpertAgentInstancesFromCloud();
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://lime.example.com/api/v1/public/tenants/tenant-0001/client/expert-agent-instances?status=active",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/expert-agent-instances?status=active",
         method: "GET",
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token",
-        }),
       }),
     );
     expect(
@@ -239,11 +250,11 @@ describe("expertAgentInstances", () => {
       projectId: "project-cloud",
       skillRefsOverride: ["skill:docx"],
     });
-    expect(records.find((item) => item.expertId === "local-only")).toMatchObject(
-      {
-        projectId: "project-local",
-        skillRefsOverride: ["skill:local"],
-      },
-    );
+    expect(
+      records.find((item) => item.expertId === "local-only"),
+    ).toMatchObject({
+      projectId: "project-local",
+      skillRefsOverride: ["skill:local"],
+    });
   });
 });

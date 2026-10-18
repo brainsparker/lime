@@ -5,7 +5,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "version": "1.160.0",
+  "version": "1.161.0",
   "description": "Open-source full-stack desktop AI agent for global users: coding, research, content, files, terminals, tools, multimodal work, and multi-agent workflows.",
   "keywords": [
     "ai",
@@ -307,6 +307,7 @@
     "agent-qc:project-gate-settings-b": "node scripts/agent-qc/project-gate-settings-b.mjs"
   },
   "dependencies": {
+    "@aiden0z/pptx-renderer": "1.3.0",
     "@babel/standalone": "^7.29.0",
     "@floating-ui/react": "^0.27.16",
     "@limecloud/agent-runtime-client": "0.1.1",
@@ -369,6 +370,7 @@
     "lucide-react": "^0.460.0",
     "marked": "^17.0.1",
     "mermaid": "^11.12.2",
+    "pdfjs-dist": "6.4.299",
     "qrcode": "^1.5.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -389,7 +391,11 @@
     "tone": "^15.1.22",
     "turndown": "^7.2.2",
     "yaml": "^2.8.3",
-    "zustand": "^5.0.10"
+    "zustand": "^5.0.10",
+    "docx-preview": "0.4.1",
+    "exceljs": "4.4.0",
+    "jszip": "3.10.2",
+    "ssf": "0.11.2"
   },
   "devDependencies": {
     "@babel/plugin-transform-react-jsx-source": "^7.27.1",

@@ -1,3 +1,4 @@
+import { ArtifactAnnotationComposerAccessory } from "@/components/artifact/annotations/ArtifactAnnotationComposerAccessory";
 import type {
   ComposerDraftCoordinator,
   ComposerDraftCapture,
@@ -342,6 +343,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
         style={{ display: "none" }}
         onChange={handleFileSelect}
       />
+      <ArtifactAnnotationComposerAccessory />
       <InputbarComposerSection
         renderWorkflowGeneratingPanel={renderWorkflowGeneratingPanel}
         workflowGate={workflowGate}

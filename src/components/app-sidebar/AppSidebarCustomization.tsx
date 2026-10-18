@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Boxes, PackageCheck, Search, Sparkles, Users } from "lucide-react";
 import styled from "styled-components";
 import { useTranslation } from "react-i18next";
@@ -15,6 +15,11 @@ import {
   listInstalledPlugins,
   PLUGIN_CATALOG_CHANGED_EVENT,
 } from "@/lib/api/pluginCatalog";
+import {
+  cloudAccountIdentity,
+  getCloudAccount,
+  subscribeCloudAccount,
+} from "@/lib/cloudAccount";
 import {
   HeaderArea,
   HeaderTopRow,
@@ -71,6 +76,11 @@ export function AppSidebarCustomization({
   onNavigate,
 }: AppSidebarCustomizationProps) {
   const { t } = useTranslation("navigation");
+  const accountIdentity = useSyncExternalStore(
+    subscribeCloudAccount,
+    () => cloudAccountIdentity(getCloudAccount()),
+    () => null,
+  );
   const [plugins, setPlugins] = useState<AppServerPluginSummary[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">(
     "loading",
@@ -92,6 +102,8 @@ export function AppSidebarCustomization({
   useEffect(() => {
     let disposed = false;
     let sequence = 0;
+    setPlugins([]);
+    setStatus("loading");
     const load = async () => {
       const request = ++sequence;
       try {
@@ -110,7 +122,10 @@ export function AppSidebarCustomization({
           setStatus("ready");
         }
       } catch {
-        if (!disposed && request === sequence) setStatus("error");
+        if (!disposed && request === sequence) {
+          setPlugins([]);
+          setStatus("error");
+        }
       }
     };
     void load();
@@ -119,7 +134,7 @@ export function AppSidebarCustomization({
       disposed = true;
       window.removeEventListener(PLUGIN_CATALOG_CHANGED_EVENT, load);
     };
-  }, [scopedProjectId]);
+  }, [scopedProjectId, accountIdentity]);
 
   useEffect(() => {
     if (searchOpen) inputRef.current?.focus();

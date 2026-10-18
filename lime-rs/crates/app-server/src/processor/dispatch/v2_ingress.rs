@@ -85,6 +85,12 @@ pub(super) fn into_parts(
     request: ClientRequest,
 ) -> Result<(RequestId, String, Option<serde_json::Value>), JsonRpcError> {
     match request {
+        ClientRequest::CloudRequest { id, params } => parts(id, Method::CloudRequest, params),
+        ClientRequest::AccountLoginStart { id, params } => {
+            parts(id, Method::AccountLoginStart, params)
+        }
+        ClientRequest::AccountRead { id, params } => parts(id, Method::AccountRead, params),
+        ClientRequest::AccountLogout { id, params } => parts(id, Method::AccountLogout, params),
         ClientRequest::ThreadStart { id, params } => parts(id, Method::ThreadStart, params),
         ClientRequest::ThreadFork { id, params } => parts(id, Method::ThreadFork, params),
         ClientRequest::ThreadResume { id, params } => parts(id, Method::ThreadResume, params),
@@ -232,14 +238,30 @@ pub(super) fn into_parts(
             parts(id, Method::SkillsConfigWrite, params)
         }
         ClientRequest::MarketplaceAdd { id, params } => parts(id, Method::MarketplaceAdd, params),
-        ClientRequest::MarketplaceRemove { id, params } => parts(id, Method::MarketplaceRemove, params),
-        ClientRequest::MarketplaceUpgrade { id, params } => parts(id, Method::MarketplaceUpgrade, params),
+        ClientRequest::MarketplaceRemove { id, params } => {
+            parts(id, Method::MarketplaceRemove, params)
+        }
+        ClientRequest::MarketplaceUpgrade { id, params } => {
+            parts(id, Method::MarketplaceUpgrade, params)
+        }
         ClientRequest::PluginList { id, params } => parts(id, Method::PluginList, params),
         ClientRequest::PluginSearch { id, params } => parts(id, Method::PluginSearch, params),
         ClientRequest::PluginRead { id, params } => parts(id, Method::PluginRead, params),
         ClientRequest::PluginInstall { id, params } => parts(id, Method::PluginInstall, params),
         ClientRequest::PluginUninstall { id, params } => parts(id, Method::PluginUninstall, params),
         ClientRequest::PluginInstalled { id, params } => parts(id, Method::PluginInstalled, params),
+        ClientRequest::PluginReconcile { id, params } => parts(id, Method::PluginReconcile, params),
+        ClientRequest::PluginShareSave { id, params } => parts(id, Method::PluginShareSave, params),
+        ClientRequest::PluginShareList { id, params } => parts(id, Method::PluginShareList, params),
+        ClientRequest::PluginShareUpdateTargets { id, params } => {
+            parts(id, Method::PluginShareUpdateTargets, params)
+        }
+        ClientRequest::PluginShareCheckout { id, params } => {
+            parts(id, Method::PluginShareCheckout, params)
+        }
+        ClientRequest::PluginShareDelete { id, params } => {
+            parts(id, Method::PluginShareDelete, params)
+        }
         ClientRequest::ThreadSettingsUpdate { id, params } => {
             parts(id, Method::ThreadSettingsUpdate, params)
         }
@@ -320,8 +342,8 @@ mod tests {
     use super::*;
     use app_server_protocol::protocol::v2::{
         METHOD_MEDIA_READ, METHOD_MEMORY_RESET, METHOD_PLUGIN_INSTALL, METHOD_PLUGIN_INSTALLED,
-        METHOD_PLUGIN_LIST, METHOD_PLUGIN_READ, METHOD_PLUGIN_UNINSTALL, METHOD_SKILLS_LIST,
-        METHOD_THREAD_READ, METHOD_THREAD_RESUME, METHOD_TURN_INTERRUPT,
+        METHOD_PLUGIN_LIST, METHOD_PLUGIN_READ, METHOD_PLUGIN_RECONCILE, METHOD_PLUGIN_UNINSTALL,
+        METHOD_SKILLS_LIST, METHOD_THREAD_READ, METHOD_THREAD_RESUME, METHOD_TURN_INTERRUPT,
         METHOD_WINDOWS_SANDBOX_READINESS,
     };
     use app_server_protocol::RequestId;
@@ -494,13 +516,17 @@ mod tests {
     fn plugin_v2_methods_lower_through_typed_ingress() {
         for (method, params) in [
             (METHOD_PLUGIN_LIST, json!({})),
-            (METHOD_PLUGIN_READ, json!({ "marketplacePath": "/tmp/marketplace.json", "pluginName": "demo" })),
+            (
+                METHOD_PLUGIN_READ,
+                json!({ "marketplacePath": "/tmp/marketplace.json", "pluginName": "demo" }),
+            ),
             (
                 METHOD_PLUGIN_INSTALL,
                 json!({ "marketplacePath": "/tmp/marketplace.json", "pluginName": "demo" }),
             ),
             (METHOD_PLUGIN_UNINSTALL, json!({ "pluginId": "demo" })),
             (METHOD_PLUGIN_INSTALLED, json!({})),
+            (METHOD_PLUGIN_RECONCILE, json!({ "reason": "refresh" })),
         ] {
             let request = decode(&request(method, params))
                 .expect("decode plugin request")

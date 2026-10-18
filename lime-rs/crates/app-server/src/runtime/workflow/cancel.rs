@@ -120,14 +120,6 @@ fn canceled_payload(mut payload: Value) -> Value {
                 "canceledAt": canceled_at,
             }),
         );
-        if let Some(metadata) = object
-            .get_mut("metadata")
-            .and_then(Value::as_object_mut)
-            .and_then(|metadata| metadata.get_mut("pluginWorkflow"))
-            .and_then(Value::as_object_mut)
-        {
-            metadata.insert("status".to_string(), json!("canceled"));
-        }
     }
     payload
 }
@@ -156,12 +148,7 @@ mod tests {
                 json!({
                     "workflowRunId": "task-1:workflow",
                     "workflowKey": "content_article_workflow",
-                    "status": "running",
-                    "metadata": {
-                        "pluginWorkflow": {
-                            "status": "running"
-                        }
-                    }
+                    "status": "running"
                 }),
             ),
             record(
@@ -169,12 +156,7 @@ mod tests {
                 json!({
                     "workflowRunId": "task-1:workflow",
                     "stepId": "research",
-                    "status": "running",
-                    "metadata": {
-                        "pluginWorkflow": {
-                            "status": "running"
-                        }
-                    }
+                    "status": "running"
                 }),
             ),
         ];
@@ -192,10 +174,7 @@ mod tests {
         assert_eq!(events[1].event_type, "workflow.run.canceled");
         assert_eq!(events[1].payload["workflowRunId"], "task-1:workflow");
         assert_eq!(events[1].payload["status"], "canceled");
-        assert_eq!(
-            events[1].payload["metadata"]["pluginWorkflow"]["status"],
-            "canceled"
-        );
+        assert!(events[1].payload.get("metadata").is_none());
     }
 
     #[test]

@@ -52,7 +52,7 @@ describe("rightSurfaceRuntimeAdapter", () => {
     });
   });
 
-  it("应把 App Server pending request 投影到统一 surface intent", () => {
+  it("应投影现役 pending，但不接受旧插件 appSurface 打开请求", () => {
     const pending: WorkspaceRightSurfacePendingRequest[] = [
       {
         requestId: "right_surface_article_workspace",
@@ -100,17 +100,6 @@ describe("rightSurfaceRuntimeAdapter", () => {
         }),
       }),
       expect.objectContaining({
-        id: "app-server:right_surface_plugin",
-        priority: "foreground",
-        createdAt: Date.parse("2026-06-23T00:00:02.000Z"),
-        command: expect.objectContaining({
-          action: "open",
-          kind: "appSurface",
-          origin: "runtime",
-          reason: "plugin_surface_ready",
-        }),
-      }),
-      expect.objectContaining({
         id: "app-server:right_surface_2",
         priority: "background",
         createdAt: 200,
@@ -151,9 +140,9 @@ describe("rightSurfaceRuntimeAdapter", () => {
       },
     ];
 
-    expect(buildWorkspaceRightSurfaceAppServerPendingIntents(pending, 200)).toEqual(
-      [],
-    );
+    expect(
+      buildWorkspaceRightSurfaceAppServerPendingIntents(pending, 200),
+    ).toEqual([]);
   });
 
   it("应把 Harness pending 数量投影为右侧 surface badge intent", () => {

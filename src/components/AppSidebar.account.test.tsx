@@ -9,7 +9,7 @@ import {
   mountSidebarContainer,
   resetAppSidebarTest,
   seedCloudSessionWithReferral,
-  setStoredOemCloudSessionState,
+  seedCloudAccount,
 } from "./AppSidebar.testFixtures";
 import type { AgentPageParams } from "./AppSidebar.testFixtures";
 
@@ -18,7 +18,7 @@ describe("AppSidebar account menu", () => {
   afterEach(cleanupAppSidebarTest);
 
   it("侧栏底部不再渲染账户区，只保留设置与主题入口", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0001" },
       user: { id: "user-001", displayName: "zhong feng shan" },
@@ -46,16 +46,27 @@ describe("AppSidebar account menu", () => {
   });
 
   it("已登录账户也不会回到侧栏底部", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0001", name: "Lime Cloud" },
-      user: { id: "user-001", displayName: "晚风", email: "wanfeng@example.com" },
+      user: {
+        id: "user-001",
+        displayName: "晚风",
+        email: "wanfeng@example.com",
+      },
       session: { id: "session-001", provider: "google" },
     });
-    const container = mountSidebarContainer({ currentPage: "agent", currentPageParams: { agentEntry: "new-task" } as AgentPageParams });
+    const container = mountSidebarContainer({
+      currentPage: "agent",
+      currentPageParams: { agentEntry: "new-task" } as AgentPageParams,
+    });
     await flushEffects(2);
-    expect(container.querySelector('[data-testid="app-sidebar-account-menu"]')).toBeNull();
-    expect(container.querySelector('[data-testid="app-sidebar-account-button"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="app-sidebar-account-menu"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="app-sidebar-account-button"]'),
+    ).toBeNull();
   });
 
   it("云端开启邀请时应在头部展示入口并读取 share 事实源", async () => {
@@ -64,7 +75,7 @@ describe("AppSidebar account menu", () => {
       configurable: true,
       value: { writeText },
     });
-    seedCloudSessionWithReferral();
+    await seedCloudSessionWithReferral();
 
     const container = mountSidebarContainer({
       currentPage: "agent",
@@ -121,7 +132,7 @@ describe("AppSidebar account menu", () => {
       configurable: true,
       value: { writeText },
     });
-    seedCloudSessionWithReferral();
+    await seedCloudSessionWithReferral();
 
     const container = mountSidebarContainer({
       currentPage: "agent",
@@ -166,7 +177,7 @@ describe("AppSidebar account menu", () => {
   });
 
   it("缓存的云端邀请开关关闭时不应展示头部邀请入口", async () => {
-    seedCloudSessionWithReferral({
+    await seedCloudSessionWithReferral({
       referralEnabled: false,
       referral: null,
     });
@@ -184,5 +195,4 @@ describe("AppSidebar account menu", () => {
     ).toBeNull();
     expect(mockGetClientReferralDashboard).not.toHaveBeenCalled();
   });
-
 });

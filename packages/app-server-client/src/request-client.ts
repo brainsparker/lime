@@ -20,6 +20,10 @@ export class AppServerClient {
 }
 
 export interface AppServerClient {
+  requestCloud(params: protocol.CloudRequestParams): protocol.JsonRpcRequest;
+  loginAccount(params: protocol.LoginAccountParams): protocol.JsonRpcRequest;
+  readAccount(params?: protocol.GetAccountParams): protocol.JsonRpcRequest;
+  logoutAccount(): protocol.JsonRpcRequest;
   initialize(params: protocol.InitializeParams): protocol.JsonRpcRequest;
   initialized(): protocol.JsonRpcNotification;
   listCapabilities(
@@ -206,6 +210,21 @@ export interface AppServerClient {
     params: protocol.MarketplaceUpgradeParams,
   ): protocol.JsonRpcRequest;
   listPlugins(params?: protocol.PluginListParams): protocol.JsonRpcRequest;
+  savePluginShare(
+    params: protocol.PluginShareSaveParams,
+  ): protocol.JsonRpcRequest;
+  listPluginShares(
+    params?: protocol.PluginShareListParams,
+  ): protocol.JsonRpcRequest;
+  updatePluginShareTargets(
+    params: protocol.PluginShareUpdateTargetsParams,
+  ): protocol.JsonRpcRequest;
+  checkoutPluginShare(
+    params: protocol.PluginShareCheckoutParams,
+  ): protocol.JsonRpcRequest;
+  deletePluginShare(
+    params: protocol.PluginShareDeleteParams,
+  ): protocol.JsonRpcRequest;
   searchPlugins(params: protocol.PluginSearchParams): protocol.JsonRpcRequest;
   readPlugin(params: protocol.PluginReadParams): protocol.JsonRpcRequest;
   installPlugin(params: protocol.PluginInstallParams): protocol.JsonRpcRequest;
@@ -214,6 +233,9 @@ export interface AppServerClient {
   ): protocol.JsonRpcRequest;
   listInstalledPlugins(
     params?: protocol.PluginInstalledParams,
+  ): protocol.JsonRpcRequest;
+  reconcilePlugins(
+    params?: protocol.PluginReconcileParams,
   ): protocol.JsonRpcRequest;
   listSkills(params?: protocol.SkillsListParams): protocol.JsonRpcRequest;
   setSkillsExtraRoots(

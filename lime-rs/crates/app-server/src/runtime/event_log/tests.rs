@@ -258,8 +258,8 @@ fn workflow_audit_events_are_metadata_only_redacted() {
             "apiKey": "sk-live-secret"
         },
         "metadata": {
-            "pluginWorkflow": {
-                "eventSource": "worker_progress",
+            "workflow": {
+                "eventSource": "step_progress",
                 "safeLabel": "research"
             },
             "note": "Bearer should-redact"
@@ -282,13 +282,10 @@ fn workflow_audit_events_are_metadata_only_redacted() {
     assert_eq!(payload["toolName"], "WebSearch");
     assert_eq!(payload["status"], "completed");
     assert_eq!(
-        payload["metadata"]["pluginWorkflow"]["eventSource"],
-        "worker_progress"
+        payload["metadata"]["workflow"]["eventSource"],
+        "step_progress"
     );
-    assert_eq!(
-        payload["metadata"]["pluginWorkflow"]["safeLabel"],
-        "research"
-    );
+    assert_eq!(payload["metadata"]["workflow"]["safeLabel"], "research");
     assert_eq!(payload["prompt"]["redacted"], true);
     assert_eq!(payload["query"]["redacted"], true);
     assert_eq!(payload["result"]["redacted"], true);

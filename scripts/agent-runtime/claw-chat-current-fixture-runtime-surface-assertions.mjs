@@ -1,4 +1,9 @@
 import {
+  APP_SERVER_METHOD_SESSION_LIST,
+  APP_SERVER_METHOD_SESSION_READ,
+  APP_SERVER_METHOD_SESSION_START,
+  APP_SERVER_METHOD_SESSION_TURN_START,
+  APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
   LIVE_TAIL_COMMIT_PROMPT,
   MCP_STRUCTURED_CONTENT_PROMPT,
   REASONING_FIRST_VISIBLE_PROMPT,
@@ -16,6 +21,77 @@ import {
   isExpandedReasoningSnapshotReady,
   isReasoningHistoryPreserved,
 } from "./reasoning-fixture.mjs";
+
+export function isBrowserIdentityAligned(capture, threadId, url) {
+  const surface = capture?.stable?.browserSurface;
+  return (
+    Boolean(threadId && surface?.sessionId && surface?.tabId) &&
+    surface.threadId === threadId &&
+    surface.controlOwner === "human" &&
+    Array.isArray(capture.nativeTabs) &&
+    capture.nativeTabs.some(
+      (tab) =>
+        tab.selected === true &&
+        tab.browserSessionId === surface.sessionId &&
+        tab.tabId === surface.tabId &&
+        tab.threadId === threadId &&
+        tab.webContentsId > 0 &&
+        tab.webContentsId === surface.webContentsId &&
+        tab.url === url &&
+        tab.controlOwner === "user",
+    )
+  );
+}
+
+export function buildRightSurfaceCommonAssertions({
+  rendererSnapshot,
+  appServerRequestMethods,
+  backendLedger,
+  summary,
+  isThreadActivityPanelScenario,
+  errorRaw,
+  actionableConsoleErrors,
+}) {
+  const opened = summary.guiRightSurfaceVisualMatrixSessionOpened;
+  const identity = summary.rightSurfaceVisualMatrixSessionCreation;
+  return {
+    electronPreloadBridge:
+      rendererSnapshot.electron === true &&
+      rendererSnapshot.hasInvokeBridge === true &&
+      rendererSnapshot.supportsAppServer === true,
+    appServerJsonRpcUsed: appServerRequestMethods.includes(
+      isThreadActivityPanelScenario
+        ? APP_SERVER_METHOD_SESSION_READ
+        : APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
+    ),
+    usedCurrentSessionStart: appServerRequestMethods.includes(
+      APP_SERVER_METHOD_SESSION_START,
+    ),
+    usedCurrentSessionRead: appServerRequestMethods.includes(
+      APP_SERVER_METHOD_SESSION_READ,
+    ),
+    usedCurrentSessionList: appServerRequestMethods.includes(
+      APP_SERVER_METHOD_SESSION_LIST,
+    ),
+    rightSurfaceSessionReadModelAligned:
+      Boolean(identity?.sessionId && identity?.threadId) &&
+      opened?.readModel?.hasThread === true &&
+      opened.readModel.sessionId === identity.sessionId &&
+      opened.readModel.threadId === identity.threadId &&
+      opened.readModel.error === null,
+    guiInputRemainsReady:
+      Boolean(identity?.sessionId) &&
+      opened?.inputReady?.editorSessionId === identity.sessionId &&
+      opened.inputReady.editorCount === 1 &&
+      opened.inputReady.editorVisible === true &&
+      opened.inputReady.editorDisabled === false,
+    rightSurfaceDoesNotStartModelTurn:
+      !appServerRequestMethods.includes(APP_SERVER_METHOD_SESSION_TURN_START) &&
+      backendLedger.every((entry) => entry.kind !== "turnStart"),
+    noInvokeErrors: !errorRaw,
+    noConsoleErrors: actionableConsoleErrors.length === 0,
+  };
+}
 
 export function buildReasoningFirstVisibleScenarioAssertions({
   reasoningFirstVisibleTurnStart,

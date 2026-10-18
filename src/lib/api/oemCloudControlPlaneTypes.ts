@@ -1,4 +1,3 @@
-import type { OemCloudCurrentSessionLike } from "@/lib/oemCloudSession";
 import type {
   ModelAliasSource,
   ModelDeploymentSource,
@@ -69,10 +68,7 @@ export interface OemCloudPublicAuthCatalog {
   authPolicy: OemCloudAuthPolicy;
 }
 
-export interface OemCloudCurrentSession extends Omit<
-  OemCloudCurrentSessionLike,
-  "tenant" | "user" | "session"
-> {
+export interface OemCloudCurrentSession {
   token?: string;
   tenant: OemCloudTenant;
   user: OemCloudUser;

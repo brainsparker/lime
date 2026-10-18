@@ -2,11 +2,15 @@ import {
   getClientBootstrap,
   type OemCloudBootstrapResponse,
 } from "@/lib/api/oemCloudControlPlane";
-import { DEFAULT_OEM_CLOUD_DESKTOP_OAUTH_NEXT_PATH } from "@/lib/api/oemCloudRuntime";
+import {
+  DEFAULT_OEM_CLOUD_DESKTOP_OAUTH_NEXT_PATH,
+  resolveOemCloudRuntimeContext,
+} from "@/lib/api/oemCloudRuntime";
 import {
   setOemCloudBootstrapSnapshot,
-  setStoredOemCloudSessionState,
-} from "@/lib/oemCloudSession";
+  importCloudAccount,
+  updateCloudSessionView,
+} from "@/lib/cloudAccount";
 import { syncSkillCatalogFromBootstrapPayload } from "@/lib/skillCatalogBootstrap";
 import { syncServiceSkillCatalogFromBootstrapPayload } from "@/lib/serviceSkillCatalogBootstrap";
 
@@ -23,10 +27,6 @@ export interface OemCloudDesktopOAuthCompletedDetail {
   tenantId: string;
   nextPath: string;
   provider: "google";
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object";
 }
 
 function normalizeText(value: unknown): string | null {
@@ -49,62 +49,6 @@ function normalizeAppPath(value: unknown, fallback: string): string {
   }
 
   return normalized.startsWith("/") ? normalized : `/${normalized}`;
-}
-
-function setWindowSessionToken(token: string | null): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (!token) {
-    delete window.__LIME_SESSION_TOKEN__;
-    return;
-  }
-
-  window.__LIME_SESSION_TOKEN__ = token;
-}
-
-function setWindowRuntimeTenantId(tenantId: string | null): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  const currentRuntime = isRecord(window.__LIME_OEM_CLOUD__)
-    ? window.__LIME_OEM_CLOUD__
-    : {};
-
-  if (!tenantId) {
-    window.__LIME_OEM_CLOUD__ = {
-      ...currentRuntime,
-    };
-    return;
-  }
-
-  window.__LIME_OEM_CLOUD__ = {
-    ...currentRuntime,
-    tenantId,
-  };
-}
-
-function restoreWindowOauthContext(previous: {
-  runtime: unknown;
-  sessionToken: unknown;
-}): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  if (previous.runtime === undefined) {
-    delete window.__LIME_OEM_CLOUD__;
-  } else {
-    window.__LIME_OEM_CLOUD__ = previous.runtime;
-  }
-
-  if (previous.sessionToken === undefined) {
-    delete window.__LIME_SESSION_TOKEN__;
-  } else {
-    window.__LIME_SESSION_TOKEN__ = previous.sessionToken;
-  }
 }
 
 export function parseOemCloudDesktopOAuthCallbackUrl(
@@ -159,44 +103,22 @@ export async function completeOemCloudDesktopOAuthLogin(
     throw new Error("桌面 OAuth 回调缺少 tenantId 或 token");
   }
 
-  const previousWindowState =
-    typeof window === "undefined"
-      ? {
-          runtime: undefined,
-          sessionToken: undefined,
-        }
-      : {
-          runtime: window.__LIME_OEM_CLOUD__,
-          sessionToken: window.__LIME_SESSION_TOKEN__,
-        };
-
-  setWindowRuntimeTenantId(payload.tenantId);
-  setWindowSessionToken(payload.token);
-
-  try {
-    const bootstrap = await getClientBootstrap(payload.tenantId);
-    const nextSession = {
-      ...bootstrap.session,
-      token: bootstrap.session.token ?? payload.token,
-    };
-    const nextBootstrap = {
-      ...bootstrap,
-      session: nextSession,
-    };
-
-    setStoredOemCloudSessionState(nextSession);
-    setOemCloudBootstrapSnapshot(nextBootstrap);
-    syncSkillCatalogFromBootstrapPayload(nextBootstrap);
-    syncServiceSkillCatalogFromBootstrapPayload(nextBootstrap);
-    dispatchOemCloudOAuthCompleted({
-      tenantId: payload.tenantId,
-      nextPath: payload.nextPath,
-      provider: "google",
-    });
-
-    return nextBootstrap;
-  } catch (error) {
-    restoreWindowOauthContext(previousWindowState);
-    throw error;
-  }
+  const runtime = resolveOemCloudRuntimeContext();
+  if (!runtime) throw new Error("云端登录配置不可用");
+  await importCloudAccount({
+    baseUrl: runtime.baseUrl,
+    tenantId: payload.tenantId,
+    accessToken: payload.token,
+  });
+  const bootstrap = await getClientBootstrap(payload.tenantId);
+  updateCloudSessionView(bootstrap.session);
+  setOemCloudBootstrapSnapshot(bootstrap);
+  syncSkillCatalogFromBootstrapPayload(bootstrap);
+  syncServiceSkillCatalogFromBootstrapPayload(bootstrap);
+  dispatchOemCloudOAuthCompleted({
+    tenantId: payload.tenantId,
+    nextPath: payload.nextPath,
+    provider: "google",
+  });
+  return bootstrap;
 }

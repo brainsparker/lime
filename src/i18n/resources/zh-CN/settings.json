@@ -2044,6 +2044,7 @@
   "settings.mcpPage.toast.syncFailed": "同步失败：{{message}}",
   "settings.mcpPage.toast.nameRequired": "请输入服务器名称",
   "settings.mcpPage.toast.saveFailed": "保存失败：{{message}}",
+  "settings.mcpPage.toast.deleteFailed": "删除 MCP 服务器失败，请重试。",
   "settings.mcpPage.error.invalidJson": "JSON 格式错误",
   "settings.mcpPage.error.invalidJsonCannotSave": "JSON 格式错误，无法保存",
   "settings.mcpPage.preset.filesystem.name": "Filesystem",

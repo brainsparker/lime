@@ -1,3 +1,4 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 /* eslint-disable react-refresh/only-export-components */
 import React from "react";
 import {
@@ -14,10 +15,9 @@ import { changeLimeLocale as changeLimeLocaleImpl } from "@/i18n/createI18n";
 import { LIME_COLOR_SCHEME_STORAGE_KEY as LIME_COLOR_SCHEME_STORAGE_KEY_VALUE } from "@/lib/appearance/colorSchemes";
 import { LIME_THEME_STORAGE_KEY as LIME_THEME_STORAGE_KEY_VALUE } from "@/lib/appearance/themeMode";
 import {
-  getStoredOemCloudSessionState as getStoredOemCloudSessionStateImpl,
+  getCloudAccount as getCloudAccountImpl,
   setOemCloudBootstrapSnapshot as setOemCloudBootstrapSnapshotImpl,
-  setStoredOemCloudSessionState as setStoredOemCloudSessionStateImpl,
-} from "@/lib/oemCloudSession";
+} from "@/lib/cloudAccount";
 import type {
   ConversationImportJob,
   ConversationImportThreadCommitResponse,
@@ -36,9 +36,9 @@ export const SettingsTabs = LimeSettingsTabs;
 export const LIME_COLOR_SCHEME_STORAGE_KEY =
   LIME_COLOR_SCHEME_STORAGE_KEY_VALUE;
 export const LIME_THEME_STORAGE_KEY = LIME_THEME_STORAGE_KEY_VALUE;
-export const getStoredOemCloudSessionState = getStoredOemCloudSessionStateImpl;
+export const getCloudAccount = getCloudAccountImpl;
 export const setOemCloudBootstrapSnapshot = setOemCloudBootstrapSnapshotImpl;
-export const setStoredOemCloudSessionState = setStoredOemCloudSessionStateImpl;
+export { seedCloudAccount } from "@/test/cloudAccountFixture";
 
 const {
   mockListInstalledPluginCatalog,
@@ -69,7 +69,6 @@ const {
   mockWaitForConversationImportJob,
   mockSetI18nLanguage,
   mockScheduleMinimumDelayIdleTask,
-  mockLogoutClient,
   mockGetConfiguredOemCloudTarget,
   mockBuildOemCloudUserCenterUrl,
   mockCreateExternalBrowserOpenTarget,
@@ -121,7 +120,6 @@ const {
     task();
     return () => undefined;
   }),
-  mockLogoutClient: vi.fn(),
   mockGetConfiguredOemCloudTarget: vi.fn(),
   mockBuildOemCloudUserCenterUrl: vi.fn(
     (baseUrl: string, path = "") => `${baseUrl}${path}`,
@@ -173,7 +171,6 @@ export {
   mockCreateProjectGitWorktree,
   mockRevealPathInFinder,
   mockScanConversationImportSource,
-  mockLogoutClient,
   mockPreviewConversationImportThread,
   mockCommitConversationImportThread,
   mockReadConversationImportJob,
@@ -306,7 +303,6 @@ vi.mock("@/lib/api/appUpdate", () => ({
 }));
 
 vi.mock("@/lib/api/oemCloudControlPlane", () => ({
-  logoutClient: mockLogoutClient,
   getConfiguredOemCloudTarget: mockGetConfiguredOemCloudTarget,
   getClientReferralDashboard: mockGetClientReferralDashboard,
 }));
@@ -563,11 +559,11 @@ export function buildMockReferralDashboard() {
   };
 }
 
-export function seedCloudSessionWithReferral(options?: {
+export async function seedCloudSessionWithReferral(options?: {
   referralEnabled?: boolean;
   referral?: ReturnType<typeof buildMockReferralDashboard> | null;
 }) {
-  setStoredOemCloudSessionState({
+  await seedCloudAccount({
     token: "session-token",
     tenant: { id: "tenant-0001", name: "Lime Cloud" },
     user: {
@@ -719,9 +715,9 @@ export async function resetAppSidebarTest() {
     mockAgentUiPerformanceMetricListeners.length,
   );
   localStorage.clear();
-  delete window.__LIME_BOOTSTRAP__;
+
   delete window.__LIME_OEM_CLOUD__;
-  delete window.__LIME_SESSION_TOKEN__;
+
   document.documentElement.classList.remove("dark");
   document.documentElement.removeAttribute("data-lime-theme");
   document.documentElement.removeAttribute("data-lime-color-scheme");
@@ -963,7 +959,6 @@ export async function resetAppSidebarTest() {
     canCloseWindow: true,
     isActive: true,
   });
-  mockLogoutClient.mockResolvedValue(undefined);
   mockGetConfiguredOemCloudTarget.mockReturnValue({
     baseUrl: "https://user.limeai.run",
     tenantId: "tenant-0001",
@@ -1016,9 +1011,9 @@ export function cleanupAppSidebarTest() {
     mockAgentUiPerformanceMetricListeners.length,
   );
   vi.unstubAllGlobals();
-  delete window.__LIME_BOOTSTRAP__;
+
   delete window.__LIME_OEM_CLOUD__;
-  delete window.__LIME_SESSION_TOKEN__;
+
   document.documentElement.classList.remove("dark");
   document.documentElement.removeAttribute("data-lime-theme");
   document.documentElement.removeAttribute("data-lime-color-scheme");

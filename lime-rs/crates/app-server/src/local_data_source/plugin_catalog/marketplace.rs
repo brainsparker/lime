@@ -9,6 +9,7 @@ use lime_core::config::{ConfigManager, MarketplaceConfig, MarketplaceSourceType}
 use std::collections::BTreeMap;
 
 mod git;
+mod refresh;
 mod source;
 mod transaction;
 
@@ -227,6 +228,26 @@ pub(crate) async fn upgrade(
             Err(error) => outcome.errors.push(MarketplaceUpgradeErrorInfo {
                 marketplace_name: name.clone(),
                 message: error.to_string(),
+            }),
+        }
+    }
+    if let Some(name) = &params.marketplace_name {
+        if outcome.selected_marketplaces.is_empty() {
+            return Err(invalid(format!(
+                "marketplace `{name}` is not configured as a Git marketplace"
+            )));
+        }
+    }
+    if !outcome.upgraded_roots.is_empty() {
+        match refresh::configured_plugins(store, &outcome.upgraded_roots) {
+            Ok(errors) => outcome.errors.extend(errors),
+            Err(error) => outcome.errors.push(MarketplaceUpgradeErrorInfo {
+                marketplace_name: params
+                    .marketplace_name
+                    .unwrap_or_else(|| "all configured marketplaces".into()),
+                message: format!(
+                    "failed to refresh installed plugin cache after marketplace upgrade: {error}"
+                ),
             }),
         }
     }

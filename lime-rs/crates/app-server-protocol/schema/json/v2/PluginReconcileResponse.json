@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "PluginReconcileChangedPlugin": {
+      "description": "Categories declared by either the previous or new package, before runtime policy filtering.",
+      "properties": {
+        "hasApps": {
+          "type": "boolean"
+        },
+        "hasHooks": {
+          "type": "boolean"
+        },
+        "hasMcps": {
+          "type": "boolean"
+        },
+        "hasSkills": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "hasApps",
+        "hasHooks",
+        "hasMcps",
+        "hasSkills",
+        "id"
+      ],
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Changes observed by this pass, rather than an acknowledgement of runtime readiness.",
+  "properties": {
+    "changedPlugins": {
+      "items": {
+        "$ref": "#/$defs/PluginReconcileChangedPlugin"
+      },
+      "type": "array"
+    },
+    "failedMaterializationRemotePluginIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "failedRemotePluginIds": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "changedPlugins",
+    "failedMaterializationRemotePluginIds",
+    "failedRemotePluginIds"
+  ],
+  "title": "PluginReconcileResponse",
+  "type": "object"
+}

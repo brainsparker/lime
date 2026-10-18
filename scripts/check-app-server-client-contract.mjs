@@ -7652,8 +7652,7 @@ const checks = [
     snippets: [
       'resolveRuntimeBackendLaunchOptions("runtime")',
       "...resolveRuntimeBackendLaunchOptions(defaultBackendMode)",
-      'const APP_SERVER_TURN_START_METHOD = "turn/start"',
-      "APP_SERVER_BACKEND_TIMEOUT_GRACE_MS",
+      'from "./appServerRequestTimeout"',
       "process.env.APP_SERVER_BACKEND_TIMEOUT_MS",
       "process.env.APP_SERVER_BACKEND_COMMAND?.trim()",
       "parseBackendArgs(process.env.APP_SERVER_BACKEND_ARGS)",
@@ -7675,6 +7674,23 @@ const checks = [
       "streamingTurnStartAcceptedResponse",
       "turnIdentityFromThreadRead",
       "requestUntilFirstNotificationOrResponse",
+    ],
+  },
+  {
+    name: "Electron request timeout owner preserves backend budget and plugin materialization window",
+    file: "electron/appServerRequestTimeout.ts",
+    snippets: [
+      'const APP_SERVER_TURN_START_METHOD = "turn/start"',
+      "APP_SERVER_BACKEND_TIMEOUT_GRACE_MS",
+      "process.env.APP_SERVER_BACKEND_TIMEOUT_MS",
+      "resolveDefaultAppServerRequestTimeoutMs(method)",
+      '"plugin/install"',
+      '"plugin/reconcile"',
+      '"plugin/share/save"',
+      '"plugin/share/list"',
+      '"plugin/share/updateTargets"',
+      '"plugin/share/checkout"',
+      '"plugin/share/delete"',
     ],
   },
   {

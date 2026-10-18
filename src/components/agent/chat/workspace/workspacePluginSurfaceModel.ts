@@ -1,24 +1,15 @@
-import type { WorkspaceRightSurfacePendingRequest } from "@/lib/api/workspaceRightSurface";
 import type { AgentThreadItem } from "@/lib/api/agentProtocol";
-
-export type WorkspacePluginSurfaceStrategy =
-  | "controlledBrowserWindow"
-  | "webContentsView";
 
 export interface WorkspacePluginSurfaceDescriptor {
   appId: string;
   title: string;
-  entryUrl?: string;
-  mcpApp?: {
+  mcpApp: {
     connectorId?: string;
     resourceUri: string;
     serverName: string;
     toolItemId: string;
   };
   containerId: string;
-  activeStrategy: WorkspacePluginSurfaceStrategy;
-  supportedStrategies: WorkspacePluginSurfaceStrategy[];
-  sourceRequestId?: string;
 }
 
 export interface WorkspacePluginSurfaceSessionEpoch {
@@ -38,7 +29,7 @@ export function resolveWorkspacePluginSurfaceThreadId(
   const itemThreadIds = new Set(
     threadItems.map((item) => normalizeKey(item.thread_id)).filter(Boolean),
   );
-  return itemThreadIds.size === 1 ? [...itemThreadIds][0] ?? null : null;
+  return itemThreadIds.size === 1 ? ([...itemThreadIds][0] ?? null) : null;
 }
 
 export function resolveWorkspacePluginSurfaceSessionEpoch({
@@ -113,8 +104,6 @@ export function buildWorkspacePluginSurfacesFromThreadItems(
       appId,
       title: firstString(pluginId, appName, connectorId) ?? appId,
       containerId,
-      activeStrategy: "webContentsView",
-      supportedStrategies: ["webContentsView"],
       mcpApp: {
         ...(connectorId ? { connectorId } : {}),
         resourceUri,
@@ -124,90 +113,6 @@ export function buildWorkspacePluginSurfacesFromThreadItems(
     });
   }
   return next;
-}
-
-export function buildWorkspacePluginSurfaceFromPendingRequests(
-  pendingRequests: readonly WorkspaceRightSurfacePendingRequest[],
-): WorkspacePluginSurfaceDescriptor | null {
-  return (
-    buildWorkspacePluginSurfacesFromPendingRequests(pendingRequests)[0] ?? null
-  );
-}
-
-export function buildWorkspacePluginSurfacesFromPendingRequests(
-  pendingRequests: readonly WorkspaceRightSurfacePendingRequest[],
-): WorkspacePluginSurfaceDescriptor[] {
-  const next: WorkspacePluginSurfaceDescriptor[] = [];
-  for (const request of pendingRequests) {
-    if (request.status !== "pending" || request.surfaceKind !== "appSurface") {
-      continue;
-    }
-
-    const descriptor = buildWorkspacePluginSurfaceFromPendingRequest(request);
-    if (descriptor) {
-      upsertWorkspacePluginSurfaceDescriptor(next, descriptor);
-    }
-  }
-
-  return next;
-}
-
-export function buildWorkspacePluginSurfaceFromPendingRequest(
-  request: WorkspaceRightSurfacePendingRequest,
-): WorkspacePluginSurfaceDescriptor | null {
-  const metadata = asRecord(request.metadata);
-  const surface = asRecord(metadata?.surface) ?? metadata;
-  const embedding = asRecord(surface?.embedding);
-  const entryUrl = firstString(
-    surface?.entryUrl,
-    metadata?.entryUrl,
-    metadata?.url,
-  );
-  const appId = firstString(
-    metadata?.appId,
-    surface?.appId,
-    request.candidateId,
-  );
-  const containerId = firstString(
-    surface?.containerId,
-    metadata?.containerId,
-    request.candidateId,
-    request.requestId,
-  );
-  if (!entryUrl || !appId || !containerId) {
-    return null;
-  }
-
-  const supportedStrategies = normalizeStrategies(
-    surface?.supportedStrategies,
-    metadata?.supportedStrategies,
-  );
-  if (!supportedStrategies.includes("webContentsView")) {
-    return null;
-  }
-  if (embedding?.rightSurfaceDock === false) {
-    return null;
-  }
-  if (embedding?.iframe === true || embedding?.browserView === true) {
-    return null;
-  }
-
-  return {
-    appId,
-    title:
-      firstString(
-        metadata?.title,
-        metadata?.name,
-        metadata?.appName,
-        surface?.title,
-      ) ?? appId,
-    entryUrl,
-    containerId,
-    activeStrategy:
-      normalizeStrategy(surface?.activeStrategy) ?? "webContentsView",
-    supportedStrategies,
-    sourceRequestId: request.requestId,
-  };
 }
 
 export function mergeWorkspacePluginSurfaceDescriptors(
@@ -328,29 +233,6 @@ function upsertWorkspacePluginSurfaceDescriptor(
     return;
   }
   surfaces.push(incoming);
-}
-
-function normalizeStrategies(
-  ...values: unknown[]
-): WorkspacePluginSurfaceStrategy[] {
-  const strategies = values.flatMap((value) =>
-    Array.isArray(value) ? value : [],
-  );
-  const next = strategies
-    .map(normalizeStrategy)
-    .filter(
-      (strategy): strategy is WorkspacePluginSurfaceStrategy =>
-        strategy !== null,
-    );
-  return next.length > 0 ? Array.from(new Set(next)) : ["webContentsView"];
-}
-
-function normalizeStrategy(
-  value: unknown,
-): WorkspacePluginSurfaceStrategy | null {
-  return value === "controlledBrowserWindow" || value === "webContentsView"
-    ? value
-    : null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {

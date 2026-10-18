@@ -1,3 +1,8 @@
+import {
+  seedCloudAccount,
+  stubCloudRequest,
+  cloudRequestMock,
+} from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   expertAnalyticsStorageKeys,
@@ -6,13 +11,20 @@ import {
 } from "./expertAnalytics";
 
 describe("expertAnalytics", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
+    await seedCloudAccount(
+      {
+        tenant: { id: "tenant-0001" },
+        user: { id: "user-001" },
+        session: { id: "session-001" },
+      },
+      "https://lime.example.com",
+    );
     window.localStorage.clear();
     window.__LIME_OEM_CLOUD__ = {
       enabled: true,
       baseUrl: "https://lime.example.com",
       tenantId: "tenant-0001",
-      sessionToken: "session-token",
     };
   });
 
@@ -30,7 +42,7 @@ describe("expertAnalytics", () => {
         data: { acceptedCount: 1, rejectedCount: 0 },
       }),
     });
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     await recordExpertCatalogEvent({
       expertId: "marketing-strategist",
@@ -45,23 +57,19 @@ describe("expertAnalytics", () => {
       },
     });
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://lime.example.com/api/v1/public/tenants/tenant-0001/client/experts/events",
+    expect(cloudRequestMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        path: "/v1/public/tenants/tenant-0001/client/experts/events",
         method: "POST",
-        headers: expect.objectContaining({
-          Authorization: "Bearer session-token",
-          "Content-Type": "application/json",
-        }),
       }),
     );
-    const request = fetchMock.mock.calls[0]?.[1] as globalThis.RequestInit;
-    const body = JSON.parse(String(request.body)) as {
+    const request = cloudRequestMock.mock.calls[0]?.[0];
+    const body = request.body as {
       events: Array<{ metadata?: Record<string, string> }>;
     };
     expect(body.events[0]?.metadata).toEqual({ category: "marketing" });
-    expect(String(request.body)).not.toContain("用户原始输入");
-    expect(String(request.body)).not.toContain("助手回复");
+    expect(JSON.stringify(request.body)).not.toContain("用户原始输入");
+    expect(JSON.stringify(request.body)).not.toContain("助手回复");
   });
 
   it("网络失败时进入本地队列，flush 成功后清空", async () => {
@@ -75,7 +83,7 @@ describe("expertAnalytics", () => {
           data: { acceptedCount: 1, rejectedCount: 0 },
         }),
       });
-    vi.stubGlobal("fetch", fetchMock);
+    stubCloudRequest(fetchMock);
 
     await recordExpertCatalogEvent({
       expertId: "marketing-strategist",
@@ -90,7 +98,7 @@ describe("expertAnalytics", () => {
 
     await flushExpertCatalogEvents();
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(cloudRequestMock).toHaveBeenCalledTimes(2);
     expect(window.localStorage.getItem(expertAnalyticsStorageKeys.queue)).toBe(
       null,
     );

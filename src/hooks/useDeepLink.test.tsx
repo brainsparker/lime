@@ -1,3 +1,4 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -15,7 +16,6 @@ import {
   readStoredOemCloudPaymentReturn,
 } from "@/lib/oemCloudPaymentReturn";
 import { readStoredOemCloudReferralInvite } from "@/lib/oemCloudReferralClaim";
-import { setStoredOemCloudSessionState } from "@/lib/oemCloudSession";
 
 const {
   mockClaimClientReferral,
@@ -146,9 +146,8 @@ describe("useDeepLink", () => {
     });
     mockClaimClientReferral.mockResolvedValue({});
     window.localStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
   });
 
   afterEach(async () => {
@@ -162,9 +161,9 @@ describe("useDeepLink", () => {
       });
       mounted.container.remove();
     }
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     await changeLimeLocale("zh-CN");
   });
 
@@ -306,7 +305,7 @@ describe("useDeepLink", () => {
   });
 
   it("已有云端会话时应自动调用邀请 claim 接口", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: { id: "tenant-0001", name: "Lime" },
       user: { id: "user-001", displayName: "晚风" },

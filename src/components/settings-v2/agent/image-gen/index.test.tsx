@@ -19,6 +19,14 @@ vi.mock("@/lib/api/appConfig", () => ({
   updateConfig: mockUpdateConfig,
 }));
 
+// 配置表单只消费账户投影，不在组件测试中启动真实 App Server 订阅。
+vi.mock("@/lib/api/account", () => ({
+  readAccount: async () => ({ account: null, requiresOpenaiAuth: false }),
+}));
+vi.mock("@/lib/api/appServerEventBus", () => ({
+  subscribeAppServerNotifications: () => () => {},
+}));
+
 vi.mock("@/components/input-kit", () => ({
   ModelSelector: (props: {
     providerType: string;
@@ -416,12 +424,14 @@ describe("ImageGenSettings", () => {
 
   it("卸载后完成保存不应重新创建消息定时器", async () => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
-    let resolveSave!: (config: Config) => void;
+    let resolveSave!: () => void;
     mockUpdateConfig.mockImplementationOnce(
-      () =>
-        new Promise<Config>((resolve) => {
-          resolveSave = resolve;
-        }),
+      (updater: (current: Config) => Config) => {
+        const savedConfig = updater(persistedConfig);
+        return new Promise<Config>((resolve) => {
+          resolveSave = () => resolve(savedConfig);
+        });
+      },
     );
     const container = renderComponent();
     await flushEffects(3);
@@ -433,7 +443,7 @@ describe("ImageGenSettings", () => {
     act(() => target.root.unmount());
     target.container.remove();
     await act(async () => {
-      resolveSave(persistedConfig);
+      resolveSave();
       await flushEffects(3);
     });
     expect(vi.getTimerCount()).toBe(0);

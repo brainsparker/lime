@@ -1,3 +1,4 @@
+import { getOemCloudBootstrapSnapshot } from "./cloudAccount";
 import {
   applyServerSyncedServiceSkillCatalog,
   parseServiceSkillCatalog,
@@ -10,7 +11,6 @@ const SERVICE_SKILL_CATALOG_BOOTSTRAP_EVENT =
 
 declare global {
   interface Window {
-    __LIME_BOOTSTRAP__?: unknown;
     __LIME_SERVICE_SKILL_CATALOG__?: unknown;
   }
 }
@@ -101,7 +101,9 @@ export function applyInitialServiceSkillCatalogBootstrap(): ServiceSkillCatalog 
     }
   }
 
-  return syncServiceSkillCatalogFromBootstrapPayload(window.__LIME_BOOTSTRAP__);
+  return syncServiceSkillCatalogFromBootstrapPayload(
+    getOemCloudBootstrapSnapshot(),
+  );
 }
 
 export function emitServiceSkillCatalogBootstrap(payload: unknown): void {

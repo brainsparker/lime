@@ -17,7 +17,6 @@ import { useWorkspaceRightSurfacePendingBridgeRuntime } from "./useWorkspaceRigh
 import { useWorkspaceRightSurfaceProjectionRuntime } from "./useWorkspaceRightSurfaceProjectionRuntime";
 import {
   buildWorkspacePluginSurfacesFromThreadItems,
-  mergeWorkspacePluginSurfaceDescriptors,
   resolveWorkspacePluginSurfaceSessionEpoch,
   resolveWorkspacePluginSurfaceThreadId,
   type WorkspacePluginSurfaceSessionEpoch,
@@ -131,14 +130,6 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     sessionId,
     taskCenterHomeHotpathActive,
   });
-  const mergedIncomingPluginSurfaces = useMemo(
-    () =>
-      mergeWorkspacePluginSurfaceDescriptors(
-        pendingRuntime.pendingPluginSurfaces,
-        canonicalPluginSurfaces,
-      ),
-    [canonicalPluginSurfaces, pendingRuntime.pendingPluginSurfaces],
-  );
   const derivedRuntime = useWorkspaceRightSurfaceDerivedRuntime({
     activeBrowserRightSurfaceIntent: localState.activeBrowserRightSurfaceIntent,
     activeFilesRightSurfaceTarget: localState.activeFilesRightSurfaceTarget,
@@ -146,7 +137,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     activePluginSurfaces: localState.activePluginSurfaces,
     pendingBrowserRightSurfaceIntent: pendingRuntime.pendingBrowserIntent,
     pendingFileTarget: pendingRuntime.pendingFileTarget,
-    pendingPluginSurfaces: mergedIncomingPluginSurfaces,
+    pendingPluginSurfaces: canonicalPluginSurfaces,
     preferredServiceSkillResultFileTarget,
     projectRootPath: canvasWorkbenchRootPath,
     threadItems,
@@ -209,7 +200,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     handleToggleCanvas,
     manualRightSurface: localState.manualRightSurface,
     pendingBrowserRightSurfaceIntent: pendingRuntime.pendingBrowserIntent,
-    pendingPluginSurfaces: mergedIncomingPluginSurfaces,
+    pendingPluginSurfaces: canonicalPluginSurfaces,
     pluginSurfaceRightSurface: derivedRuntime.pluginSurfaceRightSurface,
     pluginSurfaceRightSurfaceAvailable:
       derivedRuntime.pluginSurfaceRightSurfaceAvailable,

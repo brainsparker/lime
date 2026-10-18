@@ -284,7 +284,7 @@ fn manifest_matches_codex_agent_plugin_validation_and_extension_precedence() {
 }
 
 #[test]
-fn codex_apps_extension_uses_config_path_and_isolates_invalid_config() {
+fn portable_apps_extension_is_metadata_without_enabling_apps() {
     let temp = TempDir::new().unwrap();
     let root = temp.path().join("source");
     fs::create_dir_all(root.join(".codex-plugin")).unwrap();
@@ -317,9 +317,8 @@ fn codex_apps_extension_uses_config_path_and_isolates_invalid_config() {
 
     let manifest = read_manifest(&root).unwrap();
     let detail = build_capability_detail(&root, &manifest).unwrap();
-    assert_eq!(detail.apps.len(), 1);
-    assert_eq!(detail.apps[0].id, "calendar");
-    assert_eq!(detail.apps[0].name, "Calendar");
+    assert_eq!(manifest["apps"], "./apps.json");
+    assert!(detail.apps.is_empty());
 
     fs::write(root.join("apps.json"), r#"{"apps":{"Broken":{}}}"#).unwrap();
     let manifest = read_manifest(&root).unwrap();

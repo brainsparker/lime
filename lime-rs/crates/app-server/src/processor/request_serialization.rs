@@ -14,6 +14,7 @@ const MISSING_SCOPE_KEY: &str = "<missing>";
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub(super) enum RequestSerializationQueueKey {
+    AccountAuth,
     Thread(String),
     McpOauth(String),
     McpResourceSubscription(String),
@@ -41,6 +42,9 @@ pub(super) async fn request_serialization_scope(
     let params = request.params.as_ref();
     let is_v2_method = V2Method::parse(&request.method).is_some();
     let key = match scope {
+        AppServerRequestSerializationScope::AccountAuth => {
+            RequestSerializationQueueKey::AccountAuth
+        }
         AppServerRequestSerializationScope::Thread => {
             let key = if is_v2_method {
                 scope_param(params, &["threadId"])?

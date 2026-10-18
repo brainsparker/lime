@@ -2,6 +2,7 @@
   "$defs": {
     "AppServerRequestSerializationScope": {
       "enum": [
+        "accountAuth",
         "mcpOauth",
         "mcpResourceSubscription",
         "thread"

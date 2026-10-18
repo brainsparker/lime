@@ -97,6 +97,9 @@ describe("workspaceArticleEditorActionDispatch", () => {
       }),
     );
     const [, sendOptions] = submit.mock.calls[0] ?? [];
+    expect(sendOptions?.requestMetadata?.plugin).not.toHaveProperty(
+      "pane_action",
+    );
     expect(sendOptions?.systemPromptOverride).toContain(
       "content.image.generate",
     );

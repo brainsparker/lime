@@ -22,7 +22,7 @@ import {
   OEM_CLOUD_OAUTH_COMPLETED_EVENT,
   type OemCloudDesktopOAuthCompletedDetail,
 } from "@/lib/oemCloudDesktopAuth";
-import { getStoredOemCloudSessionState } from "@/lib/oemCloudSession";
+import { getCloudAccount } from "@/lib/cloudAccount";
 import {
   hasDesktopHostInvokeCapability,
   hasDesktopHostRuntimeMarkers,
@@ -492,7 +492,7 @@ function isGoogleOauthCompletionForRuntime(
     return true;
   }
 
-  const storedSession = getStoredOemCloudSessionState();
+  const storedSession = getCloudAccount();
   const sessionTenantId = storedSession?.session.tenant.id?.trim();
   const sessionTenantSlug = storedSession?.session.tenant.slug?.trim();
   return Boolean(

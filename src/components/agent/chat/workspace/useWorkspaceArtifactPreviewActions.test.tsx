@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Artifact } from "@/lib/artifact/types";
 import * as fileBrowserModule from "@/lib/api/fileBrowser";
+import { toast } from "sonner";
 import { useWorkspaceArtifactPreviewActions } from "./useWorkspaceArtifactPreviewActions";
 
 const { mockHasArtifactPreviewScope, mockReadArtifactPreviewContent } =
@@ -140,6 +141,44 @@ afterEach(() => {
 });
 
 describe("useWorkspaceArtifactPreviewActions", () => {
+  it.each(["pdf", "docx", "xlsx", "pptx"])(
+    "%s 原字节面板拥有读取，不重读空内容或弹出二进制不支持提示",
+    async (extension) => {
+      const path = `/workspace/report.${extension}`;
+      const read = vi
+        .spyOn(fileBrowserModule, "readFilePreview")
+        .mockResolvedValue({
+          path,
+          content: null,
+          isBinary: true,
+          size: 2048,
+          error: null,
+        });
+      vi.mocked(toast.info).mockClear();
+      const upsertGeneralArtifact = vi.fn();
+      const onRequestCanvasPreviewOpen = vi.fn();
+      const { render, getValue } = renderHook({
+        upsertGeneralArtifact,
+        onRequestCanvasPreviewOpen,
+      });
+      await render();
+      await act(async () =>
+        getValue().openFilePreviewArtifact({
+          fileName: path,
+          content: "",
+          isBinary: true,
+        }),
+      );
+      expect(read).not.toHaveBeenCalled();
+      expect(toast.info).not.toHaveBeenCalled();
+      expect(upsertGeneralArtifact).toHaveBeenCalledOnce();
+      expect(onRequestCanvasPreviewOpen).toHaveBeenCalledWith({
+        filePath: null,
+        selectionKey: expect.stringMatching(/^artifact:/),
+      });
+    },
+  );
+
   it("打开普通 artifact 时应进入工作台预览", async () => {
     const setSelectedArtifactId = vi.fn();
     const setArtifactViewMode = vi.fn();
@@ -195,7 +234,9 @@ describe("useWorkspaceArtifactPreviewActions", () => {
       await getValue().openArtifactInWorkbench(artifact);
     });
 
-    expect(setSelectedArtifactId).toHaveBeenCalledWith("preview-article-workspace-2");
+    expect(setSelectedArtifactId).toHaveBeenCalledWith(
+      "preview-article-workspace-2",
+    );
     expect(setArtifactViewMode).toHaveBeenCalledWith("preview", {
       artifactId: "preview-article-workspace-2",
     });
@@ -261,6 +302,31 @@ describe("useWorkspaceArtifactPreviewActions", () => {
     expect(setGeneralCanvasState).toHaveBeenCalledWith(expect.any(Function));
   });
 
+  it("明确重开同一文件使用新的预览请求，批注回原文保留指定请求", async () => {
+    const upsertGeneralArtifact = vi.fn();
+    const { render, getValue } = renderHook({ upsertGeneralArtifact });
+    await render();
+    const input = { fileName: "/tmp/report.xlsx", content: "", isBinary: true };
+    await act(async () => {
+      await getValue().openFilePreviewArtifact(input);
+      await getValue().openFilePreviewArtifact(input);
+      await getValue().openFilePreviewArtifact({
+        ...input,
+        previewRequestKey: "comment-focus",
+      });
+    });
+    const artifacts = upsertGeneralArtifact.mock.calls.map(
+      ([artifact]) => artifact as Artifact,
+    );
+    expect(artifacts).toHaveLength(3);
+    expect(artifacts[0].id).toBe(artifacts[1].id);
+    expect(artifacts[0].meta.previewRequestKey).toEqual(expect.any(String));
+    expect(artifacts[1].meta.previewRequestKey).not.toBe(
+      artifacts[0].meta.previewRequestKey,
+    );
+    expect(artifacts[2].meta.previewRequestKey).toBe("comment-focus");
+  });
+
   it("非通用模式打开带文本的 PDF 文件时应作为文档切到工作台预览", async () => {
     const setTaskFiles = vi.fn();
     const setSelectedFileId = vi.fn();
@@ -276,10 +342,8 @@ describe("useWorkspaceArtifactPreviewActions", () => {
       setLayoutMode,
       onRequestCanvasPreviewOpen,
     });
-    const filePath =
-      "/tmp/imported-local-history/docs/imported-preview.pdf";
-    const content =
-      "导入会话 PDF 预览内容：可解析文本流应进入文档预览。";
+    const filePath = "/tmp/imported-local-history/docs/imported-preview.pdf";
+    const content = "导入会话 PDF 预览内容：可解析文本流应进入文档预览。";
 
     await render();
 
@@ -962,7 +1026,7 @@ describe("useWorkspaceArtifactPreviewActions", () => {
     expect(setGeneralCanvasState).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it("通用模式打开真实 DOCX 路径时应读取抽取文本并投影为 document_text artifact", async () => {
+  it("通用模式打开真实 DOCX 路径时应保留源路径并投影为 document_pages artifact", async () => {
     const docxPath =
       "/Users/coso/Documents/other/谢晶_个人IP知识库v1.0_深澜智能.docx";
     const readFilePreviewSpy = vi
@@ -1014,14 +1078,14 @@ describe("useWorkspaceArtifactPreviewActions", () => {
           filename: "谢晶_个人IP知识库v1.0_深澜智能.docx",
           fileKind: "docx",
           contentKind: "document",
-          renderMode: "document_text",
+          renderMode: "document_pages",
           lifecycle: "transient",
         }),
       }),
     );
     expect(setSelectedArtifactId).toHaveBeenCalledWith(artifact.id);
     expect(onRequestCanvasPreviewOpen).toHaveBeenCalledWith({
-      filePath: docxPath,
+      filePath: null,
       selectionKey: `artifact:${artifact.id}`,
     });
     expect(setArtifactViewMode).toHaveBeenCalledWith("preview", {
@@ -1031,15 +1095,17 @@ describe("useWorkspaceArtifactPreviewActions", () => {
     expect(setGeneralCanvasState).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it("通用模式打开可抽取文本的 PDF 路径时应投影为 document_text artifact", async () => {
+  it("通用模式打开可抽取文本的 PDF 路径时应打开真实 PDF 页面", async () => {
     const pdfPath = "/Users/coso/Documents/other/汇报材料.pdf";
-    const readFilePreviewSpy = vi.spyOn(fileBrowserModule, "readFilePreview").mockResolvedValue({
-      path: pdfPath,
-      content: "PDF 正文预览\n\n关键结论",
-      isBinary: false,
-      size: 55007,
-      error: null,
-    });
+    const readFilePreviewSpy = vi
+      .spyOn(fileBrowserModule, "readFilePreview")
+      .mockResolvedValue({
+        path: pdfPath,
+        content: "PDF 正文预览\n\n关键结论",
+        isBinary: false,
+        size: 55007,
+        error: null,
+      });
     const setGeneralCanvasState = vi.fn();
     const setSelectedArtifactId = vi.fn();
     const setArtifactViewMode = vi.fn();
@@ -1080,7 +1146,7 @@ describe("useWorkspaceArtifactPreviewActions", () => {
           filename: "汇报材料.pdf",
           fileKind: "pdf",
           contentKind: "document",
-          renderMode: "document_text",
+          renderMode: "document_pages",
           lifecycle: "transient",
           capabilities: expect.objectContaining({
             preview: true,
@@ -1091,7 +1157,7 @@ describe("useWorkspaceArtifactPreviewActions", () => {
     );
     expect(setSelectedArtifactId).toHaveBeenCalledWith(artifact.id);
     expect(onRequestCanvasPreviewOpen).toHaveBeenCalledWith({
-      filePath: pdfPath,
+      filePath: null,
       selectionKey: `artifact:${artifact.id}`,
     });
     expect(setArtifactViewMode).toHaveBeenCalledWith("preview", {
@@ -1101,15 +1167,17 @@ describe("useWorkspaceArtifactPreviewActions", () => {
     expect(setGeneralCanvasState).toHaveBeenCalledWith(expect.any(Function));
   });
 
-  it("通用模式打开可抽取文本的 Excel 路径时应复用 document_text artifact", async () => {
+  it("通用模式打开 Excel 保留绝对源路径，抽取文本不替代真实工作表", async () => {
     const xlsxPath = "/Users/coso/Documents/other/导入验收矩阵.xlsx";
-    const readFilePreviewSpy = vi.spyOn(fileBrowserModule, "readFilePreview").mockResolvedValue({
-      path: xlsxPath,
-      content: "能力\t状态\nWebSearch\tcurrent",
-      isBinary: false,
-      size: 12048,
-      error: null,
-    });
+    const readFilePreviewSpy = vi
+      .spyOn(fileBrowserModule, "readFilePreview")
+      .mockResolvedValue({
+        path: xlsxPath,
+        content: "能力\t状态\nWebSearch\tcurrent",
+        isBinary: false,
+        size: 12048,
+        error: null,
+      });
     const setGeneralCanvasState = vi.fn();
     const setSelectedArtifactId = vi.fn();
     const setArtifactViewMode = vi.fn();
@@ -1145,13 +1213,13 @@ describe("useWorkspaceArtifactPreviewActions", () => {
           sourceRef: xlsxPath,
           filename: "导入验收矩阵.xlsx",
           fileKind: "xlsx",
-          contentKind: "document",
-          renderMode: "document_text",
+          contentKind: "workbook",
+          renderMode: "workbook",
         }),
       }),
     );
     expect(onRequestCanvasPreviewOpen).toHaveBeenCalledWith({
-      filePath: xlsxPath,
+      filePath: null,
       selectionKey: `artifact:${artifact.id}`,
     });
   });

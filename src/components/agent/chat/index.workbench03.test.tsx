@@ -9,6 +9,7 @@ import {
   renderPage,
 } from "./index.testFixtures";
 import * as fileBrowserModule from "@/lib/api/fileBrowser";
+import type { Artifact } from "@/lib/artifact/types";
 
 const {
   mockCanvasWorkbenchLayout,
@@ -16,6 +17,39 @@ const {
   mockMessageList,
   mockUseAgentChatUnified,
 } = getIndexTestMocks();
+
+function expectSelectedFilePreview(expected: {
+  filePath: string;
+  absolutePath: string;
+  contentKind: "markdown" | "code";
+  content: string;
+}) {
+  const props = mockCanvasWorkbenchLayout.mock.calls.at(-1)?.[0] as
+    | {
+        artifacts: Artifact[];
+        previewOpenRequest?: {
+          filePath?: string | null;
+          selectionKey?: string | null;
+        };
+      }
+    | undefined;
+  const matches = props?.artifacts.filter(
+    (artifact) => artifact.meta.sourceRef === expected.filePath,
+  );
+  expect(matches).toHaveLength(1);
+  const artifact = matches![0];
+  expect(artifact.meta).toMatchObject({
+    previewArtifact: true,
+    contentKind: expected.contentKind,
+    filePath: expected.absolutePath,
+    sourcePath: expected.absolutePath,
+  });
+  expect(artifact.content).toContain(expected.content);
+  expect(props?.previewOpenRequest).toMatchObject({
+    filePath: expected.absolutePath,
+    selectionKey: `artifact:${artifact.id}`,
+  });
+}
 
 describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
   it("历史旧导出结果与同会话新到的 saved_content 都不应自动打开画布，应等待用户手动点开", async () => {
@@ -166,22 +200,21 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat-canvas");
 
-    const generalCanvas = container.querySelector(
-      '[data-testid="general-canvas"]',
-    ) as HTMLDivElement | null;
-    expect(generalCanvas).not.toBeNull();
-    expect(generalCanvas?.dataset.filename).toBe(
+    const preview = container.querySelector<HTMLDivElement>(
+      '[data-testid="artifact-renderer"]',
+    );
+    expect(preview?.dataset.sourceRef).toBe(
       "exports/x-article-export/history/index.md",
     );
-    expect(generalCanvas?.dataset.baseFilePath).toBe(
+    expect(preview?.dataset.filePath).toBe(
       "/tmp/project-history-export/exports/x-article-export/history/index.md",
     );
-    expect(generalCanvas?.dataset.contentType).toBe("markdown");
-    expect(generalCanvas?.dataset.content || "").toContain(
+    expect(preview?.dataset.contentKind).toBe("markdown");
+    expect(preview?.dataset.content).toContain(
       "![插图](images/history-cover.png)",
     );
     expect(
-      container.querySelector('[data-testid="artifact-renderer"]'),
+      container.querySelector('[data-testid="general-canvas"]'),
     ).toBeNull();
   });
 
@@ -240,20 +273,13 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat-canvas");
 
-    const workbench = container.querySelector(
-      '[data-testid="canvas-workbench-layout-mock"]',
-    ) as HTMLDivElement | null;
-    expect(workbench).not.toBeNull();
-    expect(workbench?.dataset.defaultPreviewFilePath).toBe(
-      "exports/x-article-export/latest/index.md",
-    );
-    expect(workbench?.dataset.defaultPreviewAbsolutePath).toBe(
-      "/tmp/project-inline-export/exports/x-article-export/latest/index.md",
-    );
-    expect(workbench?.dataset.defaultPreviewContentType).toBe("markdown");
-    expect(workbench?.dataset.defaultPreviewContent || "").toContain(
-      "![封面](images/cover.png)",
-    );
+    expectSelectedFilePreview({
+      filePath: "exports/x-article-export/latest/index.md",
+      absolutePath:
+        "/tmp/project-inline-export/exports/x-article-export/latest/index.md",
+      contentKind: "markdown",
+      content: "![封面](images/cover.png)",
+    });
   });
 
   it("工具结果只提供文件路径时应读取真实文件预览再打开通用画布", async () => {
@@ -294,20 +320,12 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat-canvas");
 
-    const workbench = container.querySelector(
-      '[data-testid="canvas-workbench-layout-mock"]',
-    ) as HTMLDivElement | null;
-    expect(workbench).not.toBeNull();
-    expect(workbench?.dataset.defaultPreviewFilePath).toBe(
-      "src/components/App.tsx",
-    );
-    expect(workbench?.dataset.defaultPreviewAbsolutePath).toBe(
-      "/tmp/project-tool-file/src/components/App.tsx",
-    );
-    expect(workbench?.dataset.defaultPreviewContentType).toBe("code");
-    expect(workbench?.dataset.defaultPreviewContent || "").toContain(
-      "return <main>Lime</main>;",
-    );
+    expectSelectedFilePreview({
+      filePath: "src/components/App.tsx",
+      absolutePath: "/tmp/project-tool-file/src/components/App.tsx",
+      contentKind: "code",
+      content: "return <main>Lime</main>;",
+    });
   });
 
   it("时间线文件预览不应以无 selection 的旧请求覆盖目标 artifact", async () => {
@@ -365,5 +383,4 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
       selectionKey: expect.stringMatching(/^artifact:preview-file-/),
     });
   });
-
 });

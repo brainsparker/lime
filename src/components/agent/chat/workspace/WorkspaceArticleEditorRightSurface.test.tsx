@@ -28,6 +28,7 @@ vi.mock("react-i18next", () => ({
         "workspace.articleWorkspace.status.ready": "已就绪",
         "workspace.articleWorkspace.status.needsReview": "待复核",
         "workspace.articleEditor.title": "文章编辑器",
+        "workspace.articleEditor.actions.title": "动作",
         "workspace.articleEditor.subtitle": `${options?.count ?? 0} 个来源产物`,
         "workspace.articleEditor.openPreview": "打开预览",
         "workspace.articleEditor.updatedAt": `更新：${options?.value ?? ""}`,
@@ -415,6 +416,14 @@ describe("WorkspaceArticleEditorRightSurface", () => {
     expect(container.textContent).toContain("文章编辑器");
     expect(container.textContent).toContain("公众号文章草稿");
     expect(container.textContent).toContain("正文画布");
+    expect(
+      container.querySelector(
+        '[data-testid="workspace-article-editor-actions"]',
+      )?.textContent,
+    ).toContain("动作");
+    expect(container.textContent).not.toContain(
+      "workspace.articleEditor.actions.title",
+    );
     expect(container.textContent).toContain("已载入产物正文");
     expect(container.textContent).toContain("这是可编辑的文章正文");
     expect(container.textContent).not.toContain("文章结构");

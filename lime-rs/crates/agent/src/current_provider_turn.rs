@@ -140,7 +140,7 @@ where
     lifecycle_emitter.command_publisher = command_publisher.clone();
     let lifecycle_emitter = Arc::new(lifecycle_emitter);
     let hook_snapshot_source = hook_step_snapshot::current_hook_step_snapshot_source(
-        session_config.turn_context.clone(),
+        session_config.plugin_hook_source.clone(),
         working_directory.clone(),
         agent_event_sender.clone(),
         pending_input.clone(),

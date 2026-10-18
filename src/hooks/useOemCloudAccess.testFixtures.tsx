@@ -22,7 +22,6 @@ const hoisted = vi.hoisted(() => ({
     createClientDesktopAuthSession: vi.fn(),
     pollClientDesktopAuthSession: vi.fn(),
     loginClientByPassword: vi.fn(),
-    logoutClient: vi.fn(),
     sendClientAuthEmailCode: vi.fn(),
     verifyClientAuthEmailCode: vi.fn(),
   },
@@ -84,9 +83,7 @@ vi.mock("@/lib/api/oemCloudControlPlane", () => {
     pollClientDesktopAuthSession:
       hoisted.controlPlaneMocks.pollClientDesktopAuthSession,
     loginClientByPassword: hoisted.controlPlaneMocks.loginClientByPassword,
-    logoutClient: hoisted.controlPlaneMocks.logoutClient,
-    sendClientAuthEmailCode:
-      hoisted.controlPlaneMocks.sendClientAuthEmailCode,
+    sendClientAuthEmailCode: hoisted.controlPlaneMocks.sendClientAuthEmailCode,
     verifyClientAuthEmailCode:
       hoisted.controlPlaneMocks.verifyClientAuthEmailCode,
   };
@@ -105,8 +102,10 @@ vi.mock("@/lib/api/externalUrl", () => ({
 }));
 
 vi.mock("@/lib/desktop-runtime", () => ({
-  hasDesktopHostInvokeCapability: hoisted.desktopRuntimeMocks.hasDesktopHostInvokeCapability,
-  hasDesktopHostRuntimeMarkers: hoisted.desktopRuntimeMocks.hasDesktopHostRuntimeMarkers,
+  hasDesktopHostInvokeCapability:
+    hoisted.desktopRuntimeMocks.hasDesktopHostInvokeCapability,
+  hasDesktopHostRuntimeMarkers:
+    hoisted.desktopRuntimeMocks.hasDesktopHostRuntimeMarkers,
 }));
 
 vi.mock("@/lib/oemCloudDesktopAuth", () => ({
@@ -210,8 +209,7 @@ export function useOemCloudAccessTestLifecycle() {
 
     latestState = null;
     window.localStorage.clear();
-    delete window.__LIME_SESSION_TOKEN__;
-    delete window.__LIME_BOOTSTRAP__;
+
     window.__LIME_OEM_CLOUD__ = {
       enabled: true,
       baseUrl: "https://user.limeai.run",
@@ -269,7 +267,6 @@ export function useOemCloudAccessTestLifecycle() {
     controlPlaneMocks.createClientDesktopAuthSession.mockResolvedValue(null);
     controlPlaneMocks.pollClientDesktopAuthSession.mockResolvedValue(null);
     controlPlaneMocks.loginClientByPassword.mockResolvedValue(null);
-    controlPlaneMocks.logoutClient.mockResolvedValue(undefined);
     controlPlaneMocks.sendClientAuthEmailCode.mockResolvedValue(null);
     controlPlaneMocks.verifyClientAuthEmailCode.mockResolvedValue(null);
     desktopAuthMocks.completeOemCloudDesktopOAuthLogin.mockResolvedValue({});
@@ -290,8 +287,7 @@ export function useOemCloudAccessTestLifecycle() {
     vi.clearAllMocks();
     vi.useRealTimers();
     window.localStorage.clear();
-    delete window.__LIME_SESSION_TOKEN__;
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
 
     if (mountedHarness) {

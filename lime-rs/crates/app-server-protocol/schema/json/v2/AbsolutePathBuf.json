@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "A host path validated when entering the protocol boundary.",
+  "title": "AbsolutePathBuf",
+  "type": "string"
+}

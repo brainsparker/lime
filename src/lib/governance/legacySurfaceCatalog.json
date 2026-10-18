@@ -4309,7 +4309,7 @@
     {
       "id": "plugin-local-workflow-runtime-profile-production-surface",
       "classification": "dead",
-      "description": "前端本地 workflow runtime profile 只允许停留在测试夹具；生产 Plugin workflow entry 必须 fail closed 或走 App Server workflow/read|cancel|retry|respond",
+      "description": "旧 Plugin 本地 workflow runtime profile 及其正向测试已删除，禁止恢复；执行事实只来自 App Server current owner",
       "patterns": [
         "buildWorkflowRuntimeCapabilityProfile",
         "workerRuntimeEnabled: true",
@@ -4318,20 +4318,7 @@
         "allow-listed workflow DSL"
       ],
       "includePathPrefixes": ["src/features/plugin", "src/i18n/resources"],
-      "allowedPaths": [
-        "src/features/plugin/testing/workflowRuntimeCapabilityProfile.ts",
-        "src/features/plugin/testing/capabilityDispatcherTestFixtures.ts",
-        "src/features/plugin/runtime/agentRuntimeCapabilityHost.test.ts",
-        "src/features/plugin/runtime/entryRuntimeGuard.test.ts",
-        "src/features/plugin/adapters/AdapterCapabilityHost.test.ts",
-        "src/features/plugin/install/labInstallFlow.test.ts",
-        "src/features/plugin/ui/PluginManagerPanel.test.tsx",
-        "src/features/plugin/ui/PluginRuntimePage.testFixtures.tsx",
-        "src/features/plugin/ui/PluginsPage.runtime.test.tsx",
-        "src/features/plugin/ui/PluginsPage.test.tsx",
-        "src/features/plugin/ui/PluginsPage.testFixtures.tsx",
-        "src/features/plugin/ui/PluginsPageViewModel.unit.test.ts"
-      ]
+      "allowedPaths": []
     },
     {
       "id": "plugin-adapter-local-workflow-entry-success-runner",

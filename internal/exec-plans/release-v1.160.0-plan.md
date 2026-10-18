@@ -1,6 +1,6 @@
 # v1.160.0 发布执行计划
 
-状态：active，本地准备 100%，所有选定本地门禁通过；尚未 commit / tag / push，等待用户一次明确确认后继续远端发布。
+状态：active，本地准备 100%，所有选定本地门禁通过；用户已明确确认，commit / tag / main 与 tag 推送完成，正在核验远端发布结果。
 
 ## 目标与固定候选
 
@@ -76,3 +76,20 @@ Rust 定向命令：`cargo test --offline --locked --manifest-path lime-rs/Cargo
 
 - 最终排除复核（2026-10-17T05:34:11.631342+00:00）：冻结后 24 个既有路径出现后续差异、6 个新文件，另排除上述 2 个本地文件。完整路径列于 candidate-review.md 和 post-freeze-exclusions.json；用户确认应包含该排除范围。
 - 设置夹具首次直接调用在产品启动前因证据父目录不存在退出；仅创建父目录后以 fresh run ID 重跑，完整最终场景 exit0，保留原始启动日志。
+
+## 远端发布收据
+
+- 用户回复「继续」，已授权固定候选及声明的排除范围的 commit、tag、main/tag push 与发布。
+- 发布提交：`ece78016447ec973108e606e30993baa84933430`（`Release v1.160.0`）；tree：`97ff143c22f7c0aec43d80546552c6da6bfa49c4`。实际正常 commit hook 为 407 passed / 0 failed，未绕过。
+- 2026-10-17T05:45:30Z 已推送 main 和新 tag `v1.160.0`，远端两 ref 均核对为上述提交；未覆盖标签。
+- Release：[39007428648](https://github.com/limecloud/lime/actions/runs/39007428648)；Quality：[39007422009](https://github.com/limecloud/lime/actions/runs/39007422009)；Docs：[39007422031](https://github.com/limecloud/lime/actions/runs/39007422031)。当前仍在运行，GitHub 公开资产、npm 与 R2 核验待完成。
+- 2026-10-17T05:47:24Z 原工作区已 fast-forward 到发布提交，index 干净，工作文件未替换，后续并行修改保留。原 index 备份与同步日志保存在 `.lime/release/v1.160.0/`。
+- 本节为推送后的本地执行记录，不回写或移动已发布的 tag。
+
+## 远端门禁诊断与后续部署
+
+- Quality 39007422009 已结束：Integrity、Bridge & Contracts、GUI Smoke 和 Windows Shell Runtime 通过；Frontend Full 与 Rust Full 失败，不能记为全量 CI 通过。
+- 前端失败在第 60/131 批：范围矩阵和守卫仍把已进入 current manifest 的 `marketplace/add|remove|upgrade` 标记 excluded。隔离修复仅同步治理说明、产品范围矩阵 JSON/文档及守卫，12 项定向测试通过，正在续跑第 60 批之后的测试。
+- Rust Full 的 `media_task_jsonrpc` 为 6 passed / 2 failed：两个 image-command 场景共用的 helper 将 `turn/start` 响应与异步消息总行数误当成单一 response 数量；正在保存具体 wire 诊断并准备复用既有通知感知 helper，保留业务断言。未据此修改 runtime。
+- 2026-10-17 用户追加要求：Lime 发布完成后，将 `/Users/coso/Documents/dev/ai/limecloud/limecore` 部署到 Railway。已读取该仓 Runbook，冻结后端候选并开始独立预检；实际部署等待本次发布收口。该仓执行记录为 [Railway 部署计划](/Users/coso/Documents/dev/ai/limecloud/limecore/docs/exec-plans/railway-deploy-2026-10-17.md)。
+- Colima 共享 VM 缺失 DNS stub 文件，最初请求过系统配置修复确认；随后已找到本任务专用 BuildKit 容器方案，基础镜像拉取成功，无需修改 VM/宿主机 DNS，不执行该配置修复。

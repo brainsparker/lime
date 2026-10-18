@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Buffer } from "node:buffer";
 import { safeInvoke } from "@/lib/dev-bridge";
 import {
   createDirectoryAtPath,
@@ -8,6 +9,8 @@ import {
   getFileManagerLocations,
   listDirectory,
   readFilePreview,
+  readFileBytes,
+  writeFileBytes,
   renamePath,
 } from "./fileBrowser";
 
@@ -48,6 +51,21 @@ vi.mock("@/lib/dev-bridge", () => ({
 describe("fileBrowser API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("原字节写入使用同一fs/writeFile合同，二进制和多块内容不转码", async () => {
+    const bytes = Uint8Array.from({ length: 25000 }, (_, index) => index % 256);
+    appServerWriteFileMock.mockResolvedValueOnce({ result: {} });
+    await writeFileBytes("C:\\work\\report.xlsx", bytes);
+    expect(appServerWriteFileMock).toHaveBeenCalledExactlyOnceWith({
+      path: "C:\\work\\report.xlsx",
+      dataBase64: Buffer.from(bytes).toString("base64"),
+    });
+    appServerWriteFileMock.mockRejectedValueOnce(new Error("write denied"));
+    await expect(writeFileBytes("/tmp/report.xlsx", bytes)).rejects.toThrow(
+      "write denied",
+    );
+    expect(safeInvoke).not.toHaveBeenCalled();
   });
 
   it("应通过 App Server current 主链获取目录列表与文件预览", async () => {
@@ -120,6 +138,21 @@ describe("fileBrowser API", () => {
       size: 2,
       error: null,
     });
+  });
+
+  it("专业文件原字节保留零字节与非 UTF-8 值，读取拒绝直接失败", async () => {
+    appServerReadFileMock
+      .mockResolvedValueOnce({ result: { dataBase64: "JVBERgD/" } })
+      .mockRejectedValueOnce(new Error("Access denied"));
+    await expect(readFileBytes("/tmp/report.pdf")).resolves.toEqual(
+      new Uint8Array([37, 80, 68, 70, 0, 255]),
+    );
+    expect(appServerReadFileMock).toHaveBeenCalledWith({
+      path: "/tmp/report.pdf",
+    });
+    await expect(readFileBytes("/tmp/private.pdf")).rejects.toThrow(
+      "Access denied",
+    );
   });
 
   it("应代理文件增删改命令", async () => {

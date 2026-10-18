@@ -145,7 +145,7 @@ async fn build_app_server(config: &CliConfig) -> anyhow::Result<AppServer> {
     app_server::install_style_pack_data_root(&app_data_root)
         .map_err(|error| anyhow::anyhow!("failed to install style pack data root: {error}"))?;
     let mut app_data_source =
-        LocalAppDataSource::initialize_with_roots(db.clone(), app_data_root, data_root)
+        LocalAppDataSource::initialize_with_roots(db.clone(), app_data_root.clone(), data_root)
             .await
             .map_err(|error| {
                 anyhow::anyhow!("failed to initialize local app data source: {error}")
@@ -194,7 +194,8 @@ async fn build_app_server(config: &CliConfig) -> anyhow::Result<AppServer> {
             AppServerRuntimeFactory::unavailable_runtime_core()
         }
     }
-    .with_app_data_source(app_data_source);
+    .with_app_data_source(app_data_source)
+    .with_account_store_root(&app_data_root);
     if let Some(storage_roots) = initialized.storage_roots {
         runtime = runtime
             .with_prompt_history_path(&storage_roots.prompt_history_path)

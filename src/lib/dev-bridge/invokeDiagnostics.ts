@@ -77,6 +77,33 @@ export function invokeArgsPreview(
   args: Record<string, unknown> | undefined,
 ): Record<string, unknown> | undefined {
   if (!args) return undefined;
+  if (command === "app_server_handle_json_lines") {
+    const lines = ownDataValue(ownDataValue(args, "request"), "lines");
+    if (Array.isArray(lines)) {
+      return {
+        request: {
+          lines: lines.map((line) => {
+            if (typeof line !== "string") return "[invalid JSON-RPC]";
+            try {
+              const request = JSON.parse(line);
+              if (request?.method === "account/login/start") {
+                // 登录凭据不得经 JSON 字符串旁路进入本地诊断缓冲。
+                return JSON.stringify({
+                  jsonrpc: request.jsonrpc,
+                  id: request.id,
+                  method: request.method,
+                  params: { type: request.params?.type },
+                });
+              }
+              return sanitizeText(line);
+            } catch {
+              return "[invalid JSON-RPC]";
+            }
+          }),
+        },
+      };
+    }
+  }
   if (!isPersistedAtomCommand(command))
     return sanitizeValue(args) as Record<string, unknown>;
   // 草稿、媒体、scope 与任意身份文本不能进入持久化诊断缓冲。

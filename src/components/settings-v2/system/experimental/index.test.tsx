@@ -8,13 +8,12 @@ const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
   mockSaveConfig: vi.fn(),
 }));
 
-const {
-  mockGetExperimentalConfig,
-  mockSaveExperimentalConfig,
-} = vi.hoisted(() => ({
-  mockGetExperimentalConfig: vi.fn(),
-  mockSaveExperimentalConfig: vi.fn(),
-}));
+const { mockGetExperimentalConfig, mockSaveExperimentalConfig } = vi.hoisted(
+  () => ({
+    mockGetExperimentalConfig: vi.fn(),
+    mockSaveExperimentalConfig: vi.fn(),
+  }),
+);
 
 const { mockGetLogs, mockGetPersistedLogsTail } = vi.hoisted(() => ({
   mockGetLogs: vi.fn(),
@@ -60,6 +59,11 @@ const {
 vi.mock("@/lib/api/appConfig", () => ({
   getConfig: mockGetConfig,
   saveConfig: mockSaveConfig,
+  updateConfig: async (update: import("@/lib/api/appConfig").ConfigUpdater) => {
+    const next = update(await mockGetConfig());
+    await mockSaveConfig(next);
+    return next;
+  },
 }));
 
 vi.mock("@/lib/api/experimentalFeatures", async () => {

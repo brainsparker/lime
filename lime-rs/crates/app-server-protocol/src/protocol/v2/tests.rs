@@ -3494,6 +3494,7 @@ fn typed_v2_envelope_schema_names_are_stable() {
     assert_eq!(
         methods,
         [
+            "account/updated",
             "configWarning",
             "warning",
             "guardianWarning",

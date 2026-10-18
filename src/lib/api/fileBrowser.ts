@@ -250,8 +250,7 @@ export async function readFilePreview(
   path: string,
   maxSize: number,
 ): Promise<FilePreview> {
-  const response = await createFileBrowserAppServerClient().readFile({ path });
-  const bytes = decodeBase64(response.result.dataBase64);
+  const bytes = await readFileBytes(path);
   const content = decodeTextPreview(bytes, maxSize);
   return {
     path,
@@ -260,6 +259,24 @@ export async function readFilePreview(
     size: bytes.length,
     error: null,
   };
+}
+
+export async function readFileBytes(path: string): Promise<Uint8Array> {
+  const response = await createFileBrowserAppServerClient().readFile({ path });
+  return decodeBase64(response.result.dataBase64);
+}
+
+export async function writeFileBytes(
+  path: string,
+  bytes: Uint8Array,
+): Promise<void> {
+  const chunks: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += 8192)
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 8192)));
+  await createFileBrowserAppServerClient().writeFile({
+    path,
+    dataBase64: btoa(chunks.join("")),
+  });
 }
 
 export async function createFileAtPath(path: string): Promise<void> {

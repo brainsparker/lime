@@ -1,5 +1,5 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { setStoredOemCloudSessionState } from "@/lib/oemCloudSession";
 import { startOemCloudStartupLoginIfRequired } from "@/lib/oemCloudStartupLogin";
 
 const { mockGetPublicAuthCatalog, mockStartOemCloudLogin } = vi.hoisted(() => ({
@@ -35,9 +35,9 @@ describe("oemCloudStartupLogin", () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     mockGetPublicAuthCatalog.mockResolvedValue({
       providers: [
@@ -63,9 +63,9 @@ describe("oemCloudStartupLogin", () => {
   afterEach(() => {
     localStorage.clear();
     sessionStorage.clear();
-    delete window.__LIME_BOOTSTRAP__;
+
     delete window.__LIME_OEM_CLOUD__;
-    delete window.__LIME_SESSION_TOKEN__;
+
     vi.restoreAllMocks();
   });
 
@@ -91,7 +91,7 @@ describe("oemCloudStartupLogin", () => {
 
   it("已有当前租户会话时不应启动登录", async () => {
     configureRuntime();
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0001" },
       user: { id: "user-001" },
@@ -107,7 +107,7 @@ describe("oemCloudStartupLogin", () => {
 
   it("后端返回内部租户 ID 但 slug 命中运行时租户时不应重复登录", async () => {
     configureRuntime();
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token",
       tenant: { id: "tenant-0514", slug: "tenant-0001" },
       user: { id: "user-001" },

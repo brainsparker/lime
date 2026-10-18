@@ -1,13 +1,13 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import {
   clearOemCloudBootstrapSnapshot,
-  clearStoredOemCloudSessionState,
+  logoutCloudAccount,
   setOemCloudBootstrapSnapshot,
-  setStoredOemCloudSessionState,
-} from "@/lib/oemCloudSession";
+} from "@/lib/cloudAccount";
 
 const apiKeyProviderMocks = vi.hoisted(() => ({
   addApiKey: vi.fn(),
@@ -42,9 +42,7 @@ vi.mock("@/lib/api/apiKeyProvider", () => ({
     const existingById = new Map(
       existingModels.map((model) => [model.id.toLowerCase(), model]),
     );
-    return modelIds.map(
-      (id) => existingById.get(id.toLowerCase()) ?? { id },
-    );
+    return modelIds.map((id) => existingById.get(id.toLowerCase()) ?? { id });
   },
   apiKeyProviderApi: {
     addApiKey: apiKeyProviderMocks.addApiKey,
@@ -104,8 +102,7 @@ describe("useOemLimeHubProviderSync", () => {
     ).IS_REACT_ACT_ENVIRONMENT = true;
 
     window.localStorage.clear();
-    delete window.__LIME_SESSION_TOKEN__;
-    delete window.__LIME_BOOTSTRAP__;
+
     window.__LIME_OEM_CLOUD__ = {
       enabled: true,
       baseUrl: "https://user.limeai.run",
@@ -151,7 +148,7 @@ describe("useOemLimeHubProviderSync", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
-    clearStoredOemCloudSessionState();
+    await logoutCloudAccount();
     clearOemCloudBootstrapSnapshot();
     delete window.__LIME_OEM_CLOUD__;
 
@@ -168,7 +165,7 @@ describe("useOemLimeHubProviderSync", () => {
   it("Desktop Host 无 invoke 能力时不应触发 Provider 同步", async () => {
     desktopRuntimeMocks.hasDesktopHostInvokeCapability.mockReturnValue(false);
     desktopRuntimeMocks.hasDesktopHostRuntimeMarkers.mockReturnValue(true);
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -299,7 +296,7 @@ describe("useOemLimeHubProviderSync", () => {
               },
             ],
     );
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -418,7 +415,7 @@ describe("useOemLimeHubProviderSync", () => {
         models: ["gpt-5.2-pro", "gpt-5.2-fast"],
       }),
     );
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -491,7 +488,7 @@ describe("useOemLimeHubProviderSync", () => {
         modelId: "claude-opus-4-7",
       },
     ]);
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -576,7 +573,7 @@ describe("useOemLimeHubProviderSync", () => {
   });
 
   it("本地云端 Key 已禁用时应重新创建桌面 Key", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -643,7 +640,7 @@ describe("useOemLimeHubProviderSync", () => {
   });
 
   it("登录后即使当前偏好为本地来源，也应同步可见云端模型目录", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",
@@ -705,7 +702,7 @@ describe("useOemLimeHubProviderSync", () => {
   });
 
   it("bootstrap 切换到本地来源后应清空内部云端模型目录", async () => {
-    setStoredOemCloudSessionState({
+    await seedCloudAccount({
       token: "session-token-001",
       tenant: {
         id: "tenant-0001",

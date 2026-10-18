@@ -1,9 +1,9 @@
 mod connection;
 mod dispatch;
 mod exec;
+mod marketplace_cmd;
 mod mcp_cmd;
 mod plugin_cmd;
-mod marketplace_cmd;
 mod queue_cmd;
 mod review_cmd;
 mod sandbox_setup;

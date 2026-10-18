@@ -122,7 +122,6 @@ describe("officialSkillMarketplace", () => {
       desktopClientId: "desktop-client",
       desktopOauthRedirectUrl: "lime://oauth/callback",
       desktopOauthNextPath: "/welcome",
-      pluginSignatureTrustRoots: [],
     });
     const fetchMock = vi.mocked(fetch);
     fetchMock.mockResolvedValueOnce(

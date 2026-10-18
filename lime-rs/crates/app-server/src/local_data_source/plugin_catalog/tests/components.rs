@@ -31,6 +31,7 @@ fn loads_default_mcp_file_and_resolves_cwd_to_installed_package_root() {
             &PluginId::parse("example-plugin@test-marketplace").unwrap(),
             true
         )
+        .unwrap()
         .is_dir());
     assert_eq!(
         specs[0].config.sanitized_cwd(),
@@ -73,6 +74,7 @@ fn does_not_create_plugin_data_for_http_only_servers() {
             &PluginId::parse("example-plugin@test-marketplace").unwrap(),
             true
         )
+        .unwrap()
         .exists());
 }
 
@@ -181,7 +183,7 @@ fn same_name_in_two_marketplaces_has_independent_cache_and_enablement() {
     let first = PluginId::parse("example-plugin@first").unwrap();
     let second = PluginId::parse("example-plugin@second").unwrap();
     for id in [&first, &second] {
-        let data = store.data_root(id, true);
+        let data = store.data_root(id, true).unwrap();
         fs::create_dir_all(&data).unwrap();
         fs::write(data.join("state.json"), id.key()).unwrap();
     }
@@ -205,7 +207,7 @@ fn same_name_in_two_marketplaces_has_independent_cache_and_enablement() {
     );
     for id in [&first, &second] {
         assert_eq!(
-            fs::read_to_string(store.data_root(id, true).join("state.json")).unwrap(),
+            fs::read_to_string(store.data_root(id, true).unwrap().join("state.json")).unwrap(),
             id.key()
         );
     }

@@ -60,7 +60,11 @@ const HOST_SOURCE_FILES = [
   "scripts/electron/copy-desktop-assets.mjs",
   "scripts/lib/electron-desktop-resources.mjs",
 ];
-const APP_SERVER_SOURCE_DIRS = ["lime-rs/crates", "lime-rs/vendor"];
+const APP_SERVER_SOURCE_DIRS = [
+  "lime-rs/crates",
+  "lime-rs/vendor",
+  "lime-rs/resources",
+];
 const APP_SERVER_SOURCE_FILES = [
   "package.json",
   "lime-rs/Cargo.lock",

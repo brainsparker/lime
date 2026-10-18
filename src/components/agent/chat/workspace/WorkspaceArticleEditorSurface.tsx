@@ -277,9 +277,7 @@ export function WorkspaceArticleEditorSurface({
           {actions.length > 0 ? (
             <ArticleEditorSection
               icon={<PenLine className="h-4 w-4" />}
-              title={dynamicT(
-                "workspace.articleWorkspace.rendererHost.actions",
-              )}
+              title={dynamicT("workspace.articleEditor.actions.title")}
               detail={dynamicT("workspace.articleEditor.canvas.detail")}
               testId="workspace-article-editor-actions"
             >

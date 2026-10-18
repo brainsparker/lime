@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { TFunction } from "i18next";
 import { AlertCircle, CheckCircle2, Pencil } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -9,43 +9,25 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  getConfig,
-  updateConfig,
-  type Config,
-  type ServiceModelPreferenceConfig,
-  type ServiceModelsConfig,
-} from "@/lib/api/appConfig";
 import { modelSupportsTaskFamily } from "@/lib/model/inferModelCapabilities";
 import type { ModelTaskFamily } from "@/lib/types/modelRegistry";
-import {
-  buildPersistedServiceModelPreference,
-  normalizeServiceModelPreference,
-} from "@/lib/serviceModels";
+import type { ServiceModelConfigKey } from "@/lib/serviceModels";
 import { cn } from "@/lib/utils";
 import { ImageGenSettings } from "../image-gen";
 import { SettingModelSelectorField } from "../shared/SettingModelSelectorField";
 import { useAutoDismissMessage } from "../shared/useAutoDismissMessage";
 import { VideoGenSettings } from "../video-gen";
 import { VoiceSettings } from "../voice";
-
-const DEFAULT_IMAGE_COUNT = 2;
-const MIN_IMAGE_COUNT = 1;
-const MAX_IMAGE_COUNT = 6;
-
-type ServiceModelKey =
-  | "responsive_chat"
-  | "topic"
-  | "generation_topic"
-  | "translation"
-  | "history_compress"
-  | "agent_meta"
-  | "input_completion"
-  | "prompt_rewrite"
-  | "resource_prompt_rewrite";
+import {
+  DEFAULT_IMAGE_COUNT,
+  MIN_IMAGE_COUNT,
+  MAX_IMAGE_COUNT,
+  getSectionPreference,
+  useMediaServicesDraft,
+} from "./useMediaServicesDraft";
 
 interface ServiceModelSectionDefinition {
-  key: ServiceModelKey;
+  key: ServiceModelConfigKey;
   title: string;
   description: string;
   modelHint: string;
@@ -57,6 +39,12 @@ interface ServiceModelSectionDefinition {
 }
 
 type MediaServicesTranslate = TFunction<"settings", undefined>;
+
+function isConfirmationTarget(target: EventTarget | null) {
+  return (
+    target instanceof Element && Boolean(target.closest('[role="alertdialog"]'))
+  );
+}
 
 function createServiceModelSections(
   t: MediaServicesTranslate,
@@ -147,15 +135,6 @@ function createServiceModelSections(
   ];
 }
 
-function getSectionPreference(
-  config: Config | null,
-  key: ServiceModelKey,
-): ServiceModelPreferenceConfig {
-  return normalizeServiceModelPreference(
-    config?.workspace_preferences?.service_models?.[key],
-  );
-}
-
 function SettingCard({
   title,
   description,
@@ -163,6 +142,7 @@ function SettingCard({
   headerExtra,
   tipAriaLabel,
   dimmed = false,
+  searchTarget,
 }: {
   title: string;
   description: string;
@@ -170,9 +150,12 @@ function SettingCard({
   headerExtra?: ReactNode;
   tipAriaLabel: string;
   dimmed?: boolean;
+  searchTarget?: string;
 }) {
   return (
     <section
+      data-settings-search-target={searchTarget}
+      tabIndex={searchTarget ? -1 : undefined}
       className={cn(
         "overflow-visible rounded-[24px] border border-slate-200/80 bg-white shadow-sm shadow-slate-950/5",
         dimmed && "opacity-70",
@@ -202,13 +185,19 @@ function SettingRow({
   label,
   description,
   children,
+  searchTarget,
 }: {
   label: string;
   description: string;
   children: ReactNode;
+  searchTarget?: string;
 }) {
   return (
-    <div className="grid gap-3 px-5 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center">
+    <div
+      data-settings-search-target={searchTarget}
+      tabIndex={searchTarget ? -1 : undefined}
+      className="grid gap-3 px-5 py-4 md:grid-cols-[220px_minmax(0,1fr)] md:items-center"
+    >
       <div className="space-y-1.5">
         <Label className="text-sm font-medium text-slate-800">{label}</Label>
         <p className="text-xs leading-5 text-slate-500">{description}</p>
@@ -220,132 +209,31 @@ function SettingRow({
 
 export function MediaServicesSettings() {
   const { t } = useTranslation("settings");
-  const [config, setConfig] = useState<Config | null>(null);
   const { message, showMessage } = useAutoDismissMessage();
   const [promptEditors, setPromptEditors] = useState<
-    Partial<Record<ServiceModelKey, boolean>>
+    Partial<Record<ServiceModelConfigKey, boolean>>
   >({});
-  const [promptDrafts, setPromptDrafts] = useState<
-    Partial<Record<ServiceModelKey, string>>
-  >({});
-  const [imageCountDraft, setImageCountDraft] = useState(DEFAULT_IMAGE_COUNT);
-  const [imageCountInput, setImageCountInput] = useState(
-    String(DEFAULT_IMAGE_COUNT),
+  const {
+    config,
+    promptDrafts,
+    imageCountDraft,
+    imageCountInput,
+    imageCountInvalid,
+    changePrompt,
+    commitPrompt,
+    changeImageCount,
+    commitImageCount,
+    updateServiceModelPreference,
+  } = useMediaServicesDraft((type) =>
+    showMessage(
+      type,
+      t(
+        type === "success"
+          ? "settings.mediaServices.message.saved"
+          : "settings.mediaServices.message.saveFailed",
+      ),
+    ),
   );
-  const configRef = useRef<Config | null>(null);
-  const saveRevisionRef = useRef(0);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    void (async () => {
-      try {
-        const nextConfig = await getConfig();
-        if (cancelled) {
-          return;
-        }
-
-        setConfig(nextConfig);
-        configRef.current = nextConfig;
-        const nextImageCount =
-          nextConfig.image_gen?.default_count ?? DEFAULT_IMAGE_COUNT;
-        setImageCountDraft(nextImageCount);
-        setImageCountInput(String(nextImageCount));
-        setPromptDrafts({
-          resource_prompt_rewrite:
-            nextConfig.workspace_preferences?.service_models
-              ?.resource_prompt_rewrite?.customPrompt ?? "",
-        });
-      } catch (error) {
-        console.error("加载服务模型配置失败:", error);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const persistConfig = async (updater: (current: Config) => Config) => {
-    if (!configRef.current) {
-      return;
-    }
-
-    const nextRevision = saveRevisionRef.current + 1;
-    saveRevisionRef.current = nextRevision;
-
-    try {
-      const nextConfig = await updateConfig(updater);
-      configRef.current = nextConfig;
-      setConfig(nextConfig);
-      if (saveRevisionRef.current === nextRevision) {
-        showMessage("success", t("settings.mediaServices.message.saved"));
-      }
-    } catch (error) {
-      console.error("保存服务模型配置失败:", error);
-      if (saveRevisionRef.current === nextRevision) {
-        showMessage("error", t("settings.mediaServices.message.saveFailed"));
-      }
-    }
-  };
-
-  const updateServiceModelPreference = (
-    key: ServiceModelKey,
-    buildNextPreference: (
-      currentPreference: ServiceModelPreferenceConfig,
-    ) => ServiceModelPreferenceConfig,
-  ) => {
-    void persistConfig((currentConfig) => {
-      const nextServiceModels: ServiceModelsConfig = {
-        ...(currentConfig.workspace_preferences?.service_models ?? {}),
-      };
-      const currentPreference = getSectionPreference(currentConfig, key);
-      const nextPreference = buildNextPreference(currentPreference);
-      const persistedPreference =
-        buildPersistedServiceModelPreference(nextPreference);
-
-      if (persistedPreference) {
-        nextServiceModels[key] = persistedPreference;
-      } else {
-        delete nextServiceModels[key];
-      }
-
-      return {
-        ...currentConfig,
-        workspace_preferences: {
-          ...currentConfig.workspace_preferences,
-          service_models: nextServiceModels,
-        },
-      };
-    });
-  };
-
-  const updateImageGenConfig = (
-    patch: Partial<NonNullable<Config["image_gen"]>>,
-  ) => {
-    void persistConfig((currentConfig) => ({
-      ...currentConfig,
-      image_gen: {
-        ...currentConfig.image_gen,
-        ...patch,
-      },
-    }));
-  };
-
-  const clampImageCount = (value: number) =>
-    Math.min(MAX_IMAGE_COUNT, Math.max(MIN_IMAGE_COUNT, Math.round(value)));
-
-  const commitImageCount = (rawValue: string | number) => {
-    const parsed =
-      typeof rawValue === "number" ? rawValue : Number.parseInt(rawValue, 10);
-    const nextCount = Number.isFinite(parsed)
-      ? clampImageCount(parsed)
-      : (config?.image_gen?.default_count ?? DEFAULT_IMAGE_COUNT);
-
-    setImageCountDraft(nextCount);
-    setImageCountInput(String(nextCount));
-    updateImageGenConfig({ default_count: nextCount });
-  };
 
   const serviceModelSections = useMemo(
     () => createServiceModelSections(t),
@@ -383,15 +271,18 @@ export function MediaServicesSettings() {
       </section>
 
       {sectionViews.map(({ section, preference, disabled }) => {
-        const promptVisible =
-          Boolean(section.allowCustomPrompt) &&
-          (Boolean(preference.customPrompt) || promptEditors[section.key]);
         const promptDraft =
           promptDrafts[section.key] ?? preference.customPrompt ?? "";
+        const promptVisible =
+          Boolean(section.allowCustomPrompt) &&
+          (Boolean(promptDraft) ||
+            Boolean(preference.customPrompt) ||
+            promptEditors[section.key]);
 
         return (
           <SettingCard
             key={section.key}
+            searchTarget={`media-service-${section.key.replaceAll("_", "-")}`}
             title={section.title}
             description={section.description}
             tipAriaLabel={t("settings.mediaServices.card.tipAria", {
@@ -480,21 +371,11 @@ export function MediaServicesSettings() {
                     )}
                     className="min-h-[120px] rounded-2xl border-slate-200 bg-white text-sm text-slate-900 shadow-none focus-visible:ring-slate-300"
                     onChange={(event) => {
-                      setPromptDrafts((currentDrafts) => ({
-                        ...currentDrafts,
-                        [section.key]: event.target.value,
-                      }));
+                      changePrompt(section.key, event.target.value);
                     }}
                     onBlur={(event) => {
-                      const nextPrompt = event.target.value.trim() || undefined;
-                      updateServiceModelPreference(section.key, (current) => ({
-                        ...current,
-                        customPrompt: nextPrompt,
-                      }));
-                      setPromptEditors((currentEditors) => ({
-                        ...currentEditors,
-                        [section.key]: Boolean(nextPrompt),
-                      }));
+                      if (!isConfirmationTarget(event.relatedTarget))
+                        commitPrompt(section.key, event.target.value);
                     }}
                   />
                 ) : (
@@ -507,10 +388,6 @@ export function MediaServicesSettings() {
                       setPromptEditors((currentEditors) => ({
                         ...currentEditors,
                         [section.key]: true,
-                      }));
-                      setPromptDrafts((currentDrafts) => ({
-                        ...currentDrafts,
-                        [section.key]: preference.customPrompt ?? "",
                       }));
                     }}
                   >
@@ -532,6 +409,7 @@ export function MediaServicesSettings() {
         })}
       >
         <SettingRow
+          searchTarget="media-image-count"
           label={t("settings.mediaServices.imageSettings.count.label")}
           description={t(
             "settings.mediaServices.imageSettings.count.description",
@@ -546,9 +424,7 @@ export function MediaServicesSettings() {
               disabled={!config}
               className="flex-1"
               onValueChange={(values) => {
-                const nextCount = values[0] ?? DEFAULT_IMAGE_COUNT;
-                setImageCountDraft(nextCount);
-                setImageCountInput(String(nextCount));
+                changeImageCount(String(values[0] ?? DEFAULT_IMAGE_COUNT));
               }}
               onValueCommit={(values) => {
                 commitImageCount(values[0] ?? DEFAULT_IMAGE_COUNT);
@@ -560,23 +436,15 @@ export function MediaServicesSettings() {
               max={MAX_IMAGE_COUNT}
               inputMode="numeric"
               value={imageCountInput}
+              aria-invalid={imageCountInvalid || undefined}
               disabled={!config}
               className="h-11 w-20 rounded-2xl border-slate-200 bg-white text-center text-slate-900 shadow-none focus-visible:ring-slate-300"
               onChange={(event) => {
-                const rawValue = event.target.value;
-                setImageCountInput(rawValue);
-
-                if (!rawValue.trim()) {
-                  return;
-                }
-
-                const parsed = Number.parseInt(rawValue, 10);
-                if (Number.isFinite(parsed)) {
-                  setImageCountDraft(clampImageCount(parsed));
-                }
+                changeImageCount(event.target.value);
               }}
               onBlur={(event) => {
-                commitImageCount(event.target.value);
+                if (!isConfirmationTarget(event.relatedTarget))
+                  commitImageCount(event.target.value);
               }}
               onKeyDown={(event) => {
                 if (event.key === "Enter") {

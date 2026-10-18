@@ -188,6 +188,108 @@ additionalContextLimit = 4096
         .is_some_and(|hash| hash.starts_with("sha256:")));
 }
 
+#[tokio::test]
+async fn plugin_hook_declarations_list_enablement_upgrade_and_cold_restart_share_one_owner() {
+    let temp = TempDir::new().unwrap();
+    let root = temp.path().join("market");
+    let native = root.join("demo/.codex-plugin");
+    fs::create_dir_all(&native).unwrap();
+    fs::create_dir_all(root.join(".agents/plugins")).unwrap();
+    let market = root.join(".agents/plugins/marketplace.json");
+    fs::write(
+        &market,
+        json!({"name":"team","plugins":[{"name":"demo","source":"./demo"}]}).to_string(),
+    )
+    .unwrap();
+    let manifest = |version, command| json!({"name":"demo","version":version,"hooks":{"hooks":{"PreToolUse":[{"matcher":"exec_command","hooks":[{"type":"command","command":command}]}]}}});
+    fs::write(
+        native.join("plugin.json"),
+        manifest("1.0.0", "echo initial").to_string(),
+    )
+    .unwrap();
+    let server = plugin_hook_server(&temp).await;
+    let params = json!({"marketplacePath":market,"pluginName":"demo"});
+    request(&server, 2, "plugin/install", params.clone()).await;
+    let list = request(&server, 3, METHOD_HOOKS_LIST, json!({"cwds":[temp.path()]})).await;
+    let first = list["result"]["data"][0]["hooks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|hook| hook["pluginId"] == "demo@team")
+        .unwrap();
+    assert_eq!(
+        first["key"],
+        "demo@team:plugin.json#hooks[0]:pre_tool_use:0:0"
+    );
+    assert_eq!(first["source"], "plugin");
+    assert_eq!(first["trustStatus"], "untrusted");
+    assert_eq!(first["command"], "echo initial");
+    let detail = request(&server, 4, "plugin/read", params.clone()).await;
+    assert_eq!(
+        detail["result"]["plugin"]["hooks"],
+        json!([{"key":first["key"],"eventName":"preToolUse"}])
+    );
+    request(&server,5,"config/batchWrite",json!({"edits":[{"keyPath":"plugins.\"demo@team\".enabled","value":false,"mergeStrategy":"replace"}]})).await;
+    let disabled = request(&server, 6, METHOD_HOOKS_LIST, json!({"cwds":[temp.path()]})).await;
+    assert!(!disabled["result"]["data"][0]["hooks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|hook| hook["pluginId"] == "demo@team"));
+    fs::write(
+        native.join("plugin.json"),
+        manifest("2.0.0", "echo updated").to_string(),
+    )
+    .unwrap();
+    request(&server, 7, "plugin/install", params).await;
+    drop(server);
+    let cold = plugin_hook_server(&temp).await;
+    let list = request(&cold, 8, METHOD_HOOKS_LIST, json!({"cwds":[temp.path()]})).await;
+    let updated = list["result"]["data"][0]["hooks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|hook| hook["pluginId"] == "demo@team")
+        .unwrap();
+    assert_eq!(updated["key"], first["key"]);
+    assert_ne!(updated["currentHash"], first["currentHash"]);
+    assert_eq!(updated["command"], "echo updated");
+    request(
+        &cold,
+        9,
+        "plugin/uninstall",
+        json!({"pluginId":"demo@team"}),
+    )
+    .await;
+    let list = request(&cold, 10, METHOD_HOOKS_LIST, json!({"cwds":[temp.path()]})).await;
+    assert!(!list["result"]["data"][0]["hooks"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|hook| hook["pluginId"] == "demo@team"));
+}
+
+async fn plugin_hook_server(temp: &TempDir) -> AppServer {
+    let db = Connection::open_in_memory().unwrap();
+    create_tables(&db).unwrap();
+    let data = LocalAppDataSource::initialize_with_roots(
+        Arc::new(Mutex::new(db)),
+        temp.path(),
+        temp.path().join("agent"),
+    )
+    .await
+    .unwrap()
+    .with_app_config_path(temp.path().join("config.yaml"))
+    .with_plugin_discovery_roots(None, None);
+    let server = AppServer::with_runtime(
+        RuntimeCore::with_backend(Arc::new(MockBackend))
+            .with_app_data_source(Arc::new(data))
+            .with_app_config_path(temp.path().join("config.yaml")),
+    );
+    initialize(&server).await;
+    server
+}
+
 async fn request(server: &AppServer, id: u64, method: &str, params: Value) -> Value {
     let lines = server
         .handle_json_line(

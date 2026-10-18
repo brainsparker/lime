@@ -45,21 +45,6 @@ export const WORKBENCH_MUTED_PANEL_CLASSNAME =
 export const WORKBENCH_GHOST_BUTTON_CLASSNAME =
   "border-[color:var(--lime-surface-border)] text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-surface-soft)] hover:text-[color:var(--lime-text-strong)]";
 
-export function downloadCanvasWorkbenchText(
-  filename: string,
-  content: string,
-): void {
-  const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = filename;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
-
 export function resolveInitialCanvasWorkbenchTab(
   defaultPreview: CanvasWorkbenchDefaultPreview | null,
   changeView: { items?: unknown[] } | null | undefined,

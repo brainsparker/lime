@@ -1,8 +1,3 @@
-use app_server_protocol::protocol::v2::{
-    MarketplaceAddParams, MarketplaceAddResponse,
-    MarketplaceRemoveParams, MarketplaceRemoveResponse,
-    MarketplaceUpgradeParams, MarketplaceUpgradeResponse
-};
 use super::unavailable;
 use super::NoopAppDataSource;
 use super::RuntimeCoreError;
@@ -12,6 +7,16 @@ use app_server_protocol::protocol::v2::{
     PluginInstalledResponse, PluginListParams, PluginListResponse, PluginReadParams,
     PluginReadResponse, PluginSearchParams, PluginSearchResponse, PluginUninstallParams,
     PluginUninstallResponse,
+};
+use app_server_protocol::protocol::v2::{
+    MarketplaceAddParams, MarketplaceAddResponse, MarketplaceRemoveParams,
+    MarketplaceRemoveResponse, MarketplaceUpgradeParams, MarketplaceUpgradeResponse,
+};
+use app_server_protocol::protocol::v2::{
+    PluginShareCheckoutParams, PluginShareCheckoutResponse, PluginShareDeleteParams,
+    PluginShareDeleteResponse, PluginShareListParams, PluginShareListResponse,
+    PluginShareSaveParams, PluginShareSaveResponse, PluginShareUpdateTargetsParams,
+    PluginShareUpdateTargetsResponse,
 };
 use async_trait::async_trait;
 use std::path::PathBuf;
@@ -49,15 +54,64 @@ impl PluginTurnSnapshot {
 }
 #[async_trait]
 pub trait PluginDataSource: Send + Sync {
-    async fn add_marketplace(&self, _params: MarketplaceAddParams) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
+    async fn checkout_plugin_share(
+        &self,
+        _params: PluginShareCheckoutParams,
+    ) -> Result<PluginShareCheckoutResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/share/checkout"))
+    }
+    async fn save_plugin_share(
+        &self,
+        _params: PluginShareSaveParams,
+    ) -> Result<PluginShareSaveResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/share/save"))
+    }
+
+    async fn list_plugin_shares(
+        &self,
+        _params: PluginShareListParams,
+    ) -> Result<PluginShareListResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/share/list"))
+    }
+
+    async fn update_plugin_share_targets(
+        &self,
+        _params: PluginShareUpdateTargetsParams,
+    ) -> Result<PluginShareUpdateTargetsResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/share/updateTargets"))
+    }
+
+    async fn delete_plugin_share(
+        &self,
+        _params: PluginShareDeleteParams,
+    ) -> Result<PluginShareDeleteResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/share/delete"))
+    }
+
+    async fn load_plugin_hooks(
+        &self,
+    ) -> Result<tool_runtime::hook_source::PluginHookLoadOutcome, RuntimeCoreError> {
+        Ok(Default::default())
+    }
+
+    async fn add_marketplace(
+        &self,
+        _params: MarketplaceAddParams,
+    ) -> Result<MarketplaceAddResponse, RuntimeCoreError> {
         Err(unavailable("marketplace/add"))
     }
 
-    async fn remove_marketplace(&self, _params: MarketplaceRemoveParams) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
+    async fn remove_marketplace(
+        &self,
+        _params: MarketplaceRemoveParams,
+    ) -> Result<MarketplaceRemoveResponse, RuntimeCoreError> {
         Err(unavailable("marketplace/remove"))
     }
 
-    async fn upgrade_marketplace(&self, _params: MarketplaceUpgradeParams) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
+    async fn upgrade_marketplace(
+        &self,
+        _params: MarketplaceUpgradeParams,
+    ) -> Result<MarketplaceUpgradeResponse, RuntimeCoreError> {
         Err(unavailable("marketplace/upgrade"))
     }
 
@@ -101,6 +155,13 @@ pub trait PluginDataSource: Send + Sync {
         _params: PluginInstalledParams,
     ) -> Result<PluginInstalledResponse, RuntimeCoreError> {
         Err(unavailable("plugin/installed"))
+    }
+
+    async fn reconcile_plugins(
+        &self,
+        _params: app_server_protocol::protocol::v2::PluginReconcileParams,
+    ) -> Result<app_server_protocol::protocol::v2::PluginReconcileResponse, RuntimeCoreError> {
+        Err(unavailable("plugin/reconcile"))
     }
 
     async fn list_enabled_plugin_turn_snapshots(

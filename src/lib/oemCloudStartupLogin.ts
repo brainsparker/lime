@@ -6,7 +6,7 @@ import {
   resolveOemCloudRuntimeContext,
   type OemCloudRuntimeContext,
 } from "@/lib/api/oemCloudRuntime";
-import { getStoredOemCloudSessionState } from "@/lib/oemCloudSession";
+import { getCloudAccount, readCloudAccount } from "@/lib/cloudAccount";
 
 export type OemCloudStartupLoginStatus =
   | "not_configured"
@@ -58,12 +58,12 @@ function resolveStartupLoginPolicy(
 }
 
 function hasCurrentTenantSession(runtime: OemCloudRuntimeContext): boolean {
-  const storedSession = getStoredOemCloudSessionState();
+  const storedSession = getCloudAccount();
   const runtimeTenantId = runtime.tenantId.trim();
   const sessionTenantId = storedSession?.session.tenant.id?.trim();
   const sessionTenantSlug = storedSession?.session.tenant.slug?.trim();
   return Boolean(
-    storedSession?.token &&
+    storedSession &&
     (sessionTenantId === runtimeTenantId ||
       sessionTenantSlug === runtimeTenantId),
   );
@@ -72,6 +72,12 @@ function hasCurrentTenantSession(runtime: OemCloudRuntimeContext): boolean {
 export async function startOemCloudStartupLoginIfRequired(
   runtime = resolveOemCloudRuntimeContext(),
 ): Promise<OemCloudStartupLoginResult> {
+  try {
+    await readCloudAccount();
+  } catch {
+    return { status: "failed", reason: "读取共享账号失败" };
+  }
+  runtime = resolveOemCloudRuntimeContext() ?? runtime;
   if (!runtime) {
     return { status: "not_configured" };
   }

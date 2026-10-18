@@ -1,10 +1,14 @@
 # GUI 结构与命名对齐账本
 
-状态：current / partial。校准日期：2026-10-16。本页归并已有 REA 审计与正式实现映射，不新增参考应用运行结论，也不是全量符号清单。
+当前证据有效性以[缺失声明](validation-evidence-lifecycle-20261018.json)为准：旧`.lime/`整个目录消失，本账本旧收据/冻结结果只保留历史观察，不作为当前验收。新表格合同与测试独立补证，新原生结果须由新候选重建。
+
+状态：current / partial。校准日期：2026-10-17。本页归并已有 REA 审计与正式实现映射，不新增参考应用运行结论，也不是全量符号清单。
 
 参考为 Codex Desktop `26.1007.30912` / build `20156`，Bundle ID `com.openai.codex`，ASAR SHA-256 `75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af`。版本、Evidence ID、原成员摘要和锚点分别由链接的领域审计及[证据索引](evidence-index.json)持有。公开 Rust checkout 只用于共享协议/runtime；不能补出 Desktop 前端原文件名。
 
 ## 已确认名称与 current owner
+
+2026-10-17：已确认公开导出 `PdfPreviewPanel`、`DocxPreviewPanel`、`WorkbookPanel`、`PresentationPanel`，Lime同名组件由唯一 `ArtifactRenderer -> PreviewArtifactRenderer` 与文件树消费；四种预览和位置反馈均有固定候选原生证据。共享批注唯一owner为`artifact/annotations/`，各格式持有自己的位置适配器；内部拆分名未冒称上游原名。XLSX普通单元格编辑/保存与共享flush已验收；CSV/TSV原生重验因Main正常退出尚未关闭。Presentation对象/正文编辑与导出保存、DOCX/PDF具体编辑入口、进程重启耐久性和全量类/函数映射继续开放。详见[专业文件审计](professional-files-audit.md)与[工作簿实施计划](../../exec-plans/codex-workbook-alignment.md)。
 
 | 参考名称及证据性质                                                                | Lime current owner / 调用者                                                                                                                          | 已迁移内容与边界                                                                                                                                                                     | 待办                                                                                                                                                                                   |
 | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -72,3 +76,90 @@ Profile数据追踪新增：core source-module view `ev_e0a17e7831cc4351f87bf767
 Memory / Appearance搜索结构（2026-10-17，已验收）：沿原静态索引/path/sections/canonical requestKey链新增7+5目标，累计36。MemorySettings → SoulSettingsPanel / AdvancedMemorySettings，页面保留导入文本/预览和useMemorySettingsDraft，MemoryStoreStatusPanel保持挂载；AppearanceSettings → AppearanceSettingsView，原appearance与Config owner不变，语言选项复用同一LanguageOption。新组件/类型名仅为Lime职责名，上游原名unknown。旧过长内联展示、重复ResponseLanguageOption与Memory固定memory初始入口直接替换；无compat/deprecated、第二草稿或路由authority。入口871→566与993→418行，其余新展示最大681行。8suite105/105与strict lint通过；进程/产品证据结算另记，不能将本批搜索或拆分等同于整页/整体GUI完成。参考主题差异仍由原skin owner保留，多模型与首页Banner未受影响。
 
 本批最终验收：原生36/36累计、12/12新增目标与Memory3页签、四主题/窄屏/导入草稿保护均通过，标准24/24、定向105/105、证据护栏8/8、typecheck/lint和相关边界通过。1757IPC、错误/mock0、同一canonical identity/turnStart=1，Main正常退出；95源/1481产物/sidecar无漂移，10覆盖源与原工作树SHA相同，10张截图复核。完整默认/最新并行Rust未重跑；整页布局/业务及内部上游原名仍partial。辅助命令失败原件与最终成功记录分别保留；新双份收据`.lime/qc/settings-content-search/memory-appearance-final-20261017-1/receipt.json`不覆盖旧冻结证据。
+
+专业文件当前映射（2026-10-17）：REA 确认的 `PdfPreviewPanel` / `DocxPreviewPanel` → 同一 `artifact/document/` current 组件；`previewArtifact -> PreviewArtifactRenderer` 统一格式分发，文件树与会话 artifact 共用，原字节仅走既有 `readFileBytes -> fs/readFile`。PDF 页面、文字选区、截图与 DOCX 版式、位置分别适配，共用 `ArtifactAnnotationDraftStore` / `ArtifactAnnotationCommentEditor` / `documentAnnotation`、`useDocumentAnnotations` / `ArtifactAnnotations`。PDF 旧共享路径/导出已直接迁移，无 alias。公开组件名来自安装包；内部名为 Lime 职责名，参考压缩符号与原 npm 版本仍 unknown。
+
+DOCX 单条第13轮、跨两页批量第4轮已独立原生通过；来源 Turn 来自 canonical thread_turns，typed start/queue settlement 仍为唯一提交 owner。`artifactAnnotationSubmission` 为浮层和 `ArtifactAnnotationComposerAccessory` 共用批量捕获/发送/revision-safe cleanup。fixture 从父文档读取 iframe DOM，以 CDP Input 操作真实鼠标，sandbox 未开放脚本。Main 正常退出、零错误/mock/freshness 与摘要稳定仅绑定候选1.159.0，不代表根1.160.0并行后端。
+
+主 Composer 回原文的旧文本构造、`document_pages` 误选 Canvas 的两处逻辑及旧正向 selection 断言已替换；现统一 `openFilePreviewArtifact -> openArtifactInWorkbench`。回跳第2轮 DOCX/第1轮 PDF 正确打开 ready 面板但丢失编辑卡，已改为等待读取完成再发布聚焦，导航/卸载/后续请求使旧请求失效，最新原生仍待验收。新增 compat/deprecated 为0；文本 Canvas 仍服务文本，不整文件误删。Store 仍为内存；跨 Workspace/进程耐久性、幻灯片、Office 原文件编辑保存和 Workbook 范围反馈为 gap。WorkbookPanel 已按公开导出实现只读 XLSX/CSV/TSV，同一 gateway 的 Worker 原字节解析、snapshot、虚拟网格、页签/A1/键盘与缓存公式；70项定向通过，原生产品验收中。内部类/函数仍为 Lime 职责名，不将压缩符号猜测成原名。
+
+主 Composer 最新合同：DOCX 第5轮和标准 wrapper5 的24项通过；PDF 第5轮原合同通过后，人工截图发现实际视口仍在第1页。最终导航请求延迟至页面总高度 DOM 提交后滚动，原生新增页码/编辑卡/实际页顶部几何联合检查，尚不声明最终定位通过。专业时间线旧二进制提前拒绝入口已统一委托原文件打开，与 PDF 导航23项定向通过。旧失败/较弱合同成功保留于 composer-review-20261017-1 收据；没有过滤错误、改期限或删失败断言。
+
+2026-10-17 范围反馈接续：PDF 原生第7轮真实视口几何及人工截图通过；工作表只读第7轮完整通过并人工复核原字节网格、样式及 canonical 文件变更打开。artifact/write 的公开投影为 fileChange；fixture 改为真实变更入口并严格保留原 item、只增加本次唯一 event item，不制造 read marker。Main 均正常退出，失败轮次保留。
+
+新增工作表范围反馈已使用 sheetName/sheetId/address、sourceFormat 与源 SHA；范围输入、Shift/拖选和原工作表定位复用同一 WorkbookPanel。共享草稿/编辑卡/Composer accessory/批次 settlement 已直接迁移至 `artifact/annotations/`，页面坐标保留为 document 适配器，无兼容别名。18 suite / 176 定向项、完整类型与 strict lint 通过；共享最终原生、标准 wrapper 和默认门禁仍待结算。REA asset item `ev_7c1eedad628984e0df7802a217280a8697af1f32afcd8352a29c71892d4f8890` 只绑定原成员摘要；addCommentThread 与导航范围语义来自同摘要原字节有界阅读，不冒称完整静态分析或参考运行。Office 编辑保存/roundtrip、幻灯片、重启耐久性及整体 GUI 继续开放。
+
+
+专业文件最新结算：导入6、Workbook7、PDF9、DOCX7完整原生与标准wrapper24/24通过，绑定94源/1688产物无漂移；收据`import-source-path-final-20261017-1`只关闭源路径、分发及共享批注回归。旧“最终共享原生待验”属历史状态。canonical reader保留原path/move_path，显示裁剪不再污染操作identity；无用document_text分支直接删除，未新增compat/deprecated。
+
+应用scope批注接续：`artifactAnnotationDraftsAtom -> ArtifactAnnotationDraftStore -> ComposerController`复用既有Jotai应用Store，Workspace卸载不重建正文/位置/pending；submit仍由Workspace委托原typed acceptance，跨会话过滤和revision-safe结算不变。上游只确认app-shared scoped signal与jX导出，Lime atom/类名为职责名，不冒称压缩符号的原名。4项红后61项绿、实际Composer隔离33项通过；新原生与wrapper待独立结算。进程重启、Slides、Office编辑保存及整体GUI继续开放。
+
+
+应用 scope 批注已独立冻结：标准 wrapper24/24，Workbook 原生第8轮真实设置导航卸载原 Workspace（原 Composer DOM isConnected=false），返回后两条正文、位置、源文件变化错误及主草稿保留；显式重定位后整批仅新增1个Turn。Main code0/signalnull、forcedCleanup null、console/page错误0、freshness前后ready，94源/1688产物无漂移。收据 `.lime/qc/professional-files/annotation-scope-final-20261017-1/receipt.json`，SHA `f40cbab2cbaf82af4696797e4dc5d89c48e8173725c4aa452bb723b7f779b5a4`，设置返回截图已人工复核。该收据不包含后续 Slides 变更；进程重启耐久性仍 unknown。
+
+
+Slides最终验收（2026-10-17）：PresentationPanel、源slideId/点位置与跨slide反馈已沿统一artifact/annotations/Composer实现。Slides4、导入9、DOCX10、PDF12、Workbook11五原生及wrapper3的24/24通过；106声明源/2133 regular产物零漂移（更正此前2022）、错误0、Main正常退出、freshness前后ready。双份收据 .lime/qc/professional-files/presentation-final-20261017-1/receipt.json，SHA b58c5f2371fd49bd338e1a8fb028d4eea8697a43370e20dd8169aa41e57197f3。失败及人工发现的旧toast均保留并修复，完整说明见专业文件计划末节。旧不完整PPTX构造器、DOCX共享驱动名和PPTX系统打开正向分发已替换，无compat/deprecated新增。候选后端1.159.0，根1.160.0默认9因并行Cloud生成类型缺account而失败；不声明最新根通过。Office编辑/flush/save/冲突/roundtrip、其余GUI/符号和平台证据仍开放。
+
+
+## Workbook 原文件编辑与保存接续（2026-10-17）
+
+复用工作簿 REA parent `ev_e43b4b7ce0e35465a48ce864b3da1b7c8d892cb8955c0fc33431e3d2195215dd` 与实现摘要 `fff4db5c2d594b7bcaec3569f6ab335d2fd0b982a891109c5a053210ef30a6e9`；新保留原字节上下文确认 `openCellEditor`、`commitCellEdit`、`cancelCellEdit`、`updateFormulaInput`、`setActiveSheetName`、`setSelectionRect`。`WorkbookController`、原包编辑 helper 与内存 registry 是 Lime 职责名，不将压缩类名 unknown 改写成已恢复。参考 CRDT 的 `flushCrdtUpdates` 不冒名套用到本地 XLSX 包保存。
+
+current 链为 Grid/公式栏→应用 scope Controller→flushEdits→原文件两次SHA核验→原包定点修改/统一CSV词法→既有 `writeFileBytes / fs/writeFile`。Workspace批注先验证结构，再flush文件，再核原批注SHA，旧版本需显式重新定位。删除重复CSV parser、只读文案及sheetIndex authority，compat/deprecated新增0。XLSX非目标payload保留、公式缓存清理/外部重算；受保护表和分组公式保存明确失败，不声明完整Excel编辑、CAS或重启耐久性。
+
+定向7suite91项和末次原包/词法/Controller24项通过；完整Renderer/Node类型、strict lint与命令合同通过。根1.160.0完整标准wrapper `standalone-shell-01-20261017133528-59598` 24/24通过，console/page/trace/mock错误0。8591份wrapper前声明源中锁文件和两份fixture有变化，原前后清单保留，不能报告该前置集合零漂移。独立持久候选 `.lime/validation/workbook-edit-1.160.0-20261017-1` 复制时8660声明源/1899regular产物与根逐份核验无差异、freshness ready；真实原生编辑/保存/冲突/flush/范围反馈正在该候选运行，尚未验收。根默认门禁另行运行，不扩大旧1.159.0只读收据。
+
+
+### 工作簿编辑结构与命名结算
+
+| 参考确认项 | Lime current owner | 行为与清理 |
+| --- | --- | --- |
+| openCellEditor / commitCellEdit / cancelCellEdit / updateFormulaInput | WorkbookController | 同一编辑文档、IME/提交/取消、应用scope恢复；原压缩类名unknown |
+| setActiveSheetName / setSelectionRect | WorkbookController / WorkbookGrid | 迁移重复sheetIndex authority，重开保留文件选区；旧A1重置测试直接迁移并隔离Jotai scope |
+| 通用flushEdits / flushPublicFile gate | Controller / Workspace提交owner / 原fileBrowser gateway | 原包保存、两次SHA检查、失败保稿、旧批注重新定位；无CRDT同名伪装，无新增协议/业务后端 |
+| CSV/TSV读取与写回 | delimitedWorkbook | 删除重复parser；原词法/编码/换行单一owner |
+
+Current新增上述职责，compat/deprecated新增0；dead/deleted为重复parser、只读文案和重复页签authority。固定1.160.0候选XLSX与三格式共享原生回归、标准24/24已冻结，收据 `.lime/qc/professional-files/workbook-edit-final-20261017-2/receipt.json`（SHA `176685cd012fb03445b17a66d3506030950f1002ca0745d3917989ace05860e7`）。候选应用scope内存不证明重启持久化或完整Excel编辑。根并行Plugin变化/默认门禁及CSV/TSV原生接续见[工作簿计划](../../exec-plans/codex-workbook-alignment.md)。
+
+## Presentation 本地编辑结构与命名（2026-10-17，原生验证中）
+
+| 参考可确认符号/合同 | Lime current owner | 结构与语义边界 |
+| --- | --- | --- |
+| PresentationPanel / source slideId、elementId | PresentationPanel / PresentationSlideView | 沿原文件预览owner扩展，无第二个编辑页面或runtime |
+| setSelectedSlideIdx、setSelectedElementId、setEditingEnabled、textActivateBlockEnd、textHandleInput/CompositionEnd | PresentationController | 应用scope唯一稿件/选区；原始类名unknown，Lime类名为职责名 |
+| nudgeSelectedElements、updateSelectedElementFrame/Style、deleteSelectedElement、undo/redo | 同一Controller与受限iframe父文档overlay | 顶层对象原ID、原尺寸坐标；方向键重绘保焦点、IME取消不落盘 |
+| 本地编辑导出→500ms串行保存、ETag/ifMatch | presentationPackage + 既有fs/readFile/fs/writeFile | 第一切片为原包定点修改/手动保存/两次SHA检查，不能冒称Walnut导出、CRDT或原子CAS等价 |
+| 批注前flush / 保存后文件版本校验 | useWorkspaceArtifactCommentSubmission | 复用current文件网关与typed start/queue；旧SHA拒绝、明确重定位后再发送 |
+
+旧只读限定与缺写入网关的测试fixture随实现迁移；新增compat/deprecated为0。包编辑66、Controller8、Panel9、Workspace提交38项分别通过；原生编辑/冲突/应用scope保稿与flush待候选最终收据，不能引用旧只读PPTX收据冒充。完整分组/表格文字、幻灯片增删排序、自动保存/关闭flush、CRDT和平台证据仍gap。原caller来源、40段有界上下文及unknown见[审计](professional-files-audit.md)，唯一实施状态见[Presentation计划](../../exec-plans/codex-presentation-alignment.md)。
+
+后续current接线：addSlide / duplicateSelectedSlide / moveSlide / deleteSlide已沿同一Controller落地，有序`presentationEdits`统一对象与页结构的undo/redo/保存；原包结构codec94/94、Controller13/13。真实layoutId使用本地OPC路径，不冒称上游proto identity。500ms自动保存timer委托同一flush，活动文字/IME不自动commit、失败不轮询重试，hook3/3。真实指针修复使用screen坐标避免工具栏移动iframe产生假拖动，Panel10/10；候选wrapper4与基础编辑原生继续验收。Toolbar原始字节下载/系统打开前flush由`usePublicFileAction`委托现有Controller，删除复制的文件名/Blob算法；33项worker定向通过，新Workbench导航与新候选证据仍待结算。以上名称只对REA确认的公开方法作上游映射，新helper为Lime职责名；不将本段实现写成完整Desktop完成。
+
+
+### 表格单元格接线（2026-10-18）
+
+确认的公开`tableEditing.{subscribe,getSnapshot,interact,edit}`沿同一PresentationController实现；单元格选区与对象选区分开，文字、基础样式、clear-cells仍按原序进入同一`presentationEdits`和原包codec。逻辑row/column为Lime OPC适配，未冒名cellId。`presentationTableSelection`与`usePresentationTableOverlay`是职责名；受限iframe只由父文档安装控件/监听器，不执行文件脚本。基础cell新候选1已通过集成59项、types/contracts/标准GUI及原生table1、结构导航批注2；11210源/382产物零漂移，IPC70/175、错误/mock0、两个Main正常退出。新收据`presentation-table-final-20261018-1/receipt.json`的SHA为`2ff9a27cec2c30878fd90b6caa43d2b28a4a8e21e94d9f1b9efddd6736d3e681`；旧原件仍missing。
+
+原包结构延伸以`presentationTableGrid`共用矩阵，`presentationTableStructurePackage`实现五种insert/delete/resize动作；纯`presentationTableInteraction`只返回导航/追加意图，末格Tab复用同一历史追加，numeric选区clamp。控件按已绑定panel-structure-menu改为Portal菜单，保留键盘打开/Escape回焦与禁删尽轨；不是上游内部原类名恢复。新结构codec47、既有cell46、Controller14与overlay9通过；独立11219源候选2已通过292项集成、types/contracts、标准GUI与13阶段native；605产物零漂移、IPC124、Main正常退出，收据 `presentation-table-structure-final-20261018-1/receipt.json` SHA `a84586f7cd192f202653592da5c04fa1ee6d4bb5b3cc52fb363926e928211d34`，不扩大候选1。高级8动作和track接线另建验收。 整格rich text、其余表格动作、group及完整GUI仍开放，新增compat/deprecated为0。
+
+
+### 表格格式、对象集合与canonical文本接续（2026-10-18）
+
+高级表格已由候选3独立冻结26阶段原生验收。custom格式及theme覆盖由候选4冻结16阶段、124 IPC、源码/产物零漂移，收据 `presentation-table-format-final-20261018-1/receipt.json` SHA `dc1ff140edcff54136ae5136cc20ffe68ca27c7ef6620b1b028777a87c03788b`。`presentationTableStyle`/`presentationTableTheme`/`presentationTableBuiltinStyle`继续同一原包与派生renderer职责，不保存renderer fallback定义到文件。device pixel量化由真实Electron证明，声明与显示宽度独立核验，旧失败保持可追溯。
+
+对象状态直接使用已确认的`selectedElementIds`/`primarySelectedElementId`，删除单选state alias；交互预览/提交归`presentationElementController`，原始spTree层级修改归`presentationPackage`。Lime职责型模块名不冒称压缩前类名；SAT框选是明确本地策略，group/ungroup producer保持unknown。候选5独立绑定对象/builtin冻结字节，790项、types/contracts与标准GUI已通过，原生交互仍待终态。
+
+文本方法保留`textActivateBlockEnd`、`textHandleInput`、`textHandleCompositionEnd`并由唯一Controller委托文本协调模块；canonical范围为block/para/run/char，`presentationTextDocument`只登记原始XML/关系，`presentationTextRange`/`Selection`/`Style`/`Html`负责转换，`presentationTextEditor`只处理受限iframe的父DOM事件。旧textarea生产入口已替换，8份原生场景及组件测试迁current DOM，返回字段改为activeTextEditor，旧名字仅留负向回流检查或历史证据。草稿undo/redo与提交后的全局历史分层，但最终只提交同一text action/原包事务；新公开内部类型按职责命名，未声称恢复参考原类名。富文本仍待独立candidate Gate B与最终根门禁。
+
+
+### 设置草稿与Queue拖拽（2026-10-18，renderer已实现）
+
+MCP `useMcpPageEditorState`、Experimental `useExperimentalSettingsState`、Media `useMediaServicesDraft` 均委托同一 `useSettingsDraft -> SettingsDraftContext -> useAppNavigation`，保留唯一字段草稿与既有配置/CRUD gateway。内部server/tab切换不绕过保护；dirty原始输入、同步在途锁、失败保稿与卸载迟到分别定向验证44/35/37项。Experimental折叠非编辑搜索锚点补充后36项通过，不自动展开凭证。上述hook名为Lime职责名，参考内部表单符号unknown；原页面重复状态/保存与不受控timer直接替换，不新增兼容层、store、协议或业务authority。
+
+Queue公开`onDragEnd`行为由原生handle/drop接入现`QueuedMessageList`；按ID变换`queuedMessageReorder`为Lime职责名。按钮/方向键/拖拽统一进入`runAction -> reorderThreadQueue`并重读canonical投影；实例/thread/完整ID序/数组引用/mutation epoch校验，取消/失效/失败不本地假提交。65项局部回归、窄类型/lint/format通过；不扩active Steer或durable handoff语义。收据见Evidence索引。三个设置与Queue的真实Electron证据仍待候选，整体GUI继续partial。
+
+
+候选5最终冻结（2026-10-18）：11289份声明源/1384份regular产物及prepared sidecar终态零漂移；35套790项、焦点56项、helper18项、types/contracts/标准GUI通过。builtin9的14阶段/118 IPC与objects3的17阶段/90 IPC均错误/mock0、Main正常code0/signalnull、无强制清理，两张重开截图已人工复核。双份收据 `.lime/qc/professional-files/presentation-elements-final-20261018-1/receipt.json` SHA `b814cf3479dd6e6e3ba1db70a91d002358082e707b07a5c6d7486636dd05ebb0`。旧失败全部保留，builtin7退出超时未定位原因，不据新通过声称修复；富文本及后继字节不属于本冻结候选。
+
+
+Developer/Media静态内容搜索（2026-10-18，renderer已实现）：原`settingsSearchDocuments`由36扩为47目标，Developer仅静态折叠组外壳，Media9常驻卡与图片数10目标；同一白名单/path/sections/定位requestKey，无新路由或索引authority。原字符串、配置值与凭证不索引，不自动打开或聚焦秘密输入。139项局部回归含五语言55次真实lazy页面定位与跨target草稿保护，strict类型/lint/格式通过；真实Electron后继候选待验。原内部名称仍unknown，不把单批索引数量当完整GUI分母。收据见Evidence索引。
