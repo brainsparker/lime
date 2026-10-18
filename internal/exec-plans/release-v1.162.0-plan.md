@@ -1,15 +1,15 @@
 # v1.162.0 发布执行计划
 
-状态：active；发布提交 `e74400284f534a8d0f7614eff9fbdbce5930e027` 已推送 main，完整 Quality 与本地 Rust/GUI 后验运行中；尚未创建或推送 v1.162.0 tag。
+状态：completed；v1.162.0 已公开发布，发布流程完成度 100%。Quality、Release、公开资产与已发布 npm 包的 CLI/所选 TUI 后验通过；验证边界和已知限制见最后的发布终态。此完成度仅指本版发布，不核销仍 active 的产品/架构计划。
 
 ## 目标与候选范围
 
 - 用户要求发布 v1.162.0；基线为 main/origin/main `2a0ad389da30be96e12b157ef09024a94ba34b8f`（v1.161.0）。首次检查本地与远端均无 v1.162.0 标签，上版 Release 与 Quality 均已 success。
-- 当前工作树约 290 项改动，默认候选包含产品、测试、脚本、研究与执行文档；已询问是否沿用上版排除 `local-conversation-page-a83a1af2c24b.js` 和 `tsconfig.node.tsbuildinfo`，范围答复待收取。
+- 首次工作树盘点约 290 项改动；冻结候选包含产品、测试、脚本、研究与执行文档，排除本地产物 `local-conversation-page-a83a1af2c24b.js` 和 `tsconfig.node.tsbuildinfo`。冻结后的并行增量保留在原工作区，后续授权和排除清单记录在本计划及证据收据中。
 - 直接写集：`package.json`、`packages/cli/package.json`、`lime-rs/Cargo.toml`、`lime-rs/Cargo.lock`、双语 `RELEASE_NOTES`、本计划和执行计划 README 发布指针。既有业务脏改动只读审阅；必要门禁修复另行登记。
 - 不创建分支或 worktree，不覆盖其他进程改动，不终止用户进程；候选固定后记录清单与内容摘要，再以同一候选验证和发布。
 - 本轮证据目录：`.lime/release/v1.162.0/`。历史计划结果只作风险判断，不作为本版通过证据。
-- 独立候选：`/Users/coso/Documents/dev/ai/aiclientproxy/lime-release-v1.162.0-candidate`，含独立 Git 数据、依赖与 Cargo target 的文件系统副本；未创建分支/worktree。冻结 10,052 条源码记录，首次原工作区摘要复核零漂移。候选内同路径证据目录保存实际测试日志与临时 index 预览，原工作区 index 不变。
+- 最终独立候选：`/Users/coso/Documents/dev/ai/aiclientproxy/lime-release-v1.162.0-recovered`，含独立 Git 数据、依赖与 Cargo target；未创建分支/worktree。从保全 Git 对象恢复 10,045 路径，逐文件摘要零漂移。早期 `lime-release-v1.162.0-candidate` 因目录异常退出，仅作为救援历史保全，不再作为发布输入。原工作区的 HEAD/index 已安全同步至最终发布提交，后续并行内容继续保留。
 
 ## 发布内容与分类
 
@@ -25,9 +25,11 @@
 2. 按候选风险执行受影响前端/Rust 测试；Agent current fixture 先于标准 `npm run verify:gui-smoke`，按实际触达边界报告。
 3. 仅记录本候选实际执行结果；本机 macOS、controlled provider、Gate A/B 与打包/Windows/live 分别说明，不混用证据等级。
 4. 发布前复核候选漂移、排除清单与暂存摘要。用户最新明确授权“完成发布,我去睡觉了,不要让我确认”，覆盖本次 commit/tag/push 与公开发布链，不再次请求确认；候选仍须先形成可审阅结果并完成必要门禁。
-5. 确认后连续执行提交、标签、main/tag 推送及远端引用复核；跟踪本版 Quality、Release、GitHub/npm/updater 资产，失败先定位，不覆盖已发布标签。
+5. 按已获授权连续执行提交、标签、main/tag 推送及远端引用复核；跟踪本版 Quality、Release、GitHub/npm/updater 资产，失败先定位，不覆盖已发布标签。
 
 ## 执行记录
+
+以下按时间保留执行过程；早期失败、待办和被替换候选不作为最终通过证据，终态以本计划最后的发布结果为准。
 
 - 完成初始只读盘点；本地 Node 默认 v23.4.0，另有运行时 Node v24.19.0 可供依赖新 Node API 的验证使用，不修改全局环境。
 - `verify:app-version` exit0；应用、CLI、workspace 和 36 个 Cargo lock 本地包统一版本，保留原有依赖增量。Forge/manifest 继承同一 package version，pnpm lock 无需改写。
@@ -90,3 +92,294 @@
 
 - 本组修正后的完整 npm run typecheck exit0（renderer + node）；五处首页 toolbar 断言和第 15 批 navbar 断言均已迁至 current shell。Agent chat index16、workbench01 15、taskTabs02 8 项全部通过；四个前端文件 ESLint 与 Prettier exit0。前端 smart 当前已通过前 17 批，后验仍继续。追加窄写集 index.taskTabs02.test.tsx，不引入生产 DOM 或兼容入口。
 - 提交前已审阅四个前端文件、一个 Rust 测试和本计划；tsconfig.node.tsbuildinfo 与本地 conversation dump 继续排除。本轮修复推送仅用于取得最终 SHA 的完整 Quality，尚未打 tag，公开发布完成度仍待后继产物验收。
+
+- 测试修正提交 b660c38df8962fc9f45a00922761dbe61837f338 已正常通过 Husky（6 文件/0 失败，平均 97 分）并推送 main；没有跳过 hook 或强推。原工作区冻结后排除增量最新为 99 路径、其中 23 新文件，收据位于恢复候选 drift-latest.json。该扫描排除已登记发布修复和本地产物；tag 尚未创建。
+
+- 最终修正 SHA 的第二轮 Quality 为 39154673715：https://github.com/limecloud/lime/actions/runs/39154673715 。test-only 范围按 workflow 规则跳过 Bridge & Contracts；本版产品边界已在前一 SHA 全链成功，当前没有协议/生产行为增量。
+- 下载并人工查看首轮 macOS arm64 GUI Smoke 的 1280x800、980x680 与 Settings Memory 截图，布局未见溢出/遮挡。summary 为 SHELL-01 pass、24/24、App Server IPC 66 次、renderer/preload/invoke/page/trace 错误及 legacy/mock fallback 均零，三尺寸几何断言全部通过。边界仅真实启动、重载、IPC/JSON-RPC、设置及响应式布局，不宣称模型 turn、Thread/Turn/Item identity、打包应用或 live provider。
+
+- 恢复候选 Rust 后验 exit0：9 owner unit +6 公共 JSON-RPC target，合计 4,354 passed、4 个既有 ignored、1 个明确 filtered watcher。thread_compact_jsonrpc 30/30（含四协议生命周期及真实 stdio）、plugin_share 7/7、remote_plugins 59/59，其余 fork/inject/loaded targets 全过；具体分项见 rust-final-results.json。不将此记录称为 workspace 无排除全绿。
+- 正常 freshness 链的字面 npm run verify:gui-smoke exit0：本地 macOS arm64 的 SHELL-01 24/24，App Server IPC41，console/page/invoke/preload/crash/legacy/mock fallback 均零；最新证据 .lime/qc/project-gates/standalone-shell-01-20261018184817-91775/。远端插件 Electron + stdio controlled issuer 场景已启动，未冒充 live Core/OAuth/provider。
+
+- 远端插件 Electron/stdio 场景 exit0、summary ok=true：目录详情、安装、插件与逐技能偏好、peer account 切换隔离、renderer reload、冷进程恢复与卸载全部验证；dependency 为 controlled issuer，backend unavailable，没有执行模型 turn。证据目录恢复候选 .lime/release/v1.162.0/remote-plugin-electron/，不得宣称 live Core/OAuth/provider。
+
+- 第二轮 Quality 39154673715 已在 b660c38df8962fc9f45a00922761dbe61837f338 全部成功：Frontend Full 138/138 批、Rust Full workspace（日志 142 个结果汇总，7,781 passed/0 failed/27 ignored）、GUI Smoke、Windows Shell Runtime、Integrity。Windows restricted execution current matrix 8/8、missing/failed/ignored 均零。Bridge & Contracts 因 test-only 差异按规则跳过，产品边界的前一轮结果与本地全链通过证据保留。
+
+- 本地前端从第15批续跑已 exit0，smart 状态为 passed，138/138 批全部通过。`v1.162.0` 已创建并推送，远端标签与 main 均精确指向 `b660c38df8962fc9f45a00922761dbe61837f338`。正式 Release [39157217135](https://github.com/limecloud/lime/actions/runs/39157217135) 已启动；安装包、npm、updater 尚待全链验证，不提前计成功。
+
+- 原工作区修复同步已完成：16路径预览摘要全部复核，15项原子写入、1项已一致；三个并行热区仅合并已审阅的窄补丁，保留 Changes/helper、tool_history/command_history 等后继功能。先备份原16文件、HEAD、index，再持有 index.lock 并用 update-ref CAS 将 HEAD/index 从 `2a0ad389d` 同步至 `b660c38df`，没有 checkout/reset 或整树覆盖。暂存区为空，16路径 diff-check 与生命周期脚本 node --check exit0。收据 `original-sync-result.json` 与 `original-sync-backup-20261018T190846Z/` 位于恢复候选证据目录。同步前最终扫描含118路径冻结后增量（30新增，包含3个fix热区的增量），清单 `excluded-after-freeze-final.txt`；这些范围不在本次发布，不将带并行增量的原工作区称为全部验证通过。
+
+- 正式 Release 的 Windows packaged 证据已下载并复核：安装/快捷方式、v1.161.0 -> v1.162.0 真实 Squirrel 下载升级与卸载21/21；已安装 Electron/preload/IPC/App Server/独立 code-mode-host/同一 Turn 投影与可见结果21项断言通过，production mock/invoke/console/provider-request error均零；read-only native host六项检查通过，资源digest一致。combined identity四项全部passed，版本1.162.0、SHA b660与runId一致，已查看CodeMode截图。CodeMode使用受控 Responses fixture，不宣称live provider或Codex视觉对比。证据 `packaged-windows-*` 与 `packaged-review.json`。
+
+- Windows 正式构建日志确认未配置 Authenticode 证书，按既有 Forge Squirrel 合同产出未签名安装包；不将 Windows 安装、升级与运行验收误写为签名验收通过。该配置没有在本轮新增或更改。线上 updater 实际 base 已从上版 GitHub feed 与公开R2响应确认是 `https://pub-fa568bd8496349bcafe04091e2b02e1e.r2.dev`，不能以源码默认域替代实际发布配置；待本次R2 job结束后按此地址复核。
+
+- 正式 Release 的 macOS arm64/x64 打包验收均通过，已下载两份summary并查看各自设置截图：每架构 native8项、Electron5项、错误数组全空；App Server JSON-RPC与native-host IPC真实命中，bookmark持久化/冷重启/撤销/重授权通过。两架构 Developer ID、Gatekeeper接受与staple公证票据全部passed，app/helper签名Team一致；permissionMode为observe。签名会改变helper原始Mach-O摘要，summary中digestMatches=false，按current合同核验有效签名与release trust，不冒称摘要相同。原生宿主/设置证据不提升为模型turn或live provider证据。三类桌面包验收均已成功，公开上传与后续CLI/R2尚待完成。
+
+- GitHub [v1.162.0 Release](https://github.com/limecloud/lime/releases/tag/v1.162.0) 已公开，draft=false、prerelease=false；桌面9资产全部非零并有SHA256。已下载新发布的两份macOS feed与Windows RELEASES，版本均为1.162.0；新feed实际URL继续指向上述R2 public base。Windows元数据保留标准UTF8 BOM，验证器按utf-8-sig读取，不修改产品产物。R2与4平台CLI job已启动，npm根包尚未发布。
+
+- R2 updater job成功，公开HTTP核验 exit0：darwin-arm64、darwin-x64、win32-x64 的stable与 `/v1.162.0/` 版本路径共6份feed全部HTTP200，目标版本1.162.0、SHA256与对应GitHub元数据资产完全一致；6个对应二进制URL HEAD200，Content-Length与GitHub资产逐一一致。证据 `public-updater-verification.json` 与日志，实际base为新发布feed声明的R2 public地址。这是线上feed/文件可用性证据；Windows真实安装升级使用前述controlled候选feed，不冒充已执行线上用户升级。
+
+- 更新验证边界补充：上述R2地址是本次新feed中声明且已公开核验的资产地址，不等同于证明客户端默认配置。`electron/updateHost.ts::runtimeUpdateFeedUrl` 在运行时读取 `LIME_ELECTRON_UPDATES_URL` / `LIME_UPDATES_BASE_URL`，缺省回落 `https://updates.limecloud.com`；本机直接与既有系统代理访问该默认域均TLS连接失败，而实际R2地址可达。构建环境变量本身不证明用户运行时持有该变量；本轮没有执行不带override的线上客户端自动升级。因此只声明R2 feed与产物发布核验成功，不宣称默认域或完整线上自动更新通过。此为既有运行配置边界，未修改已公开tag或扩大本次冻结源码范围；后续应由updateHost/release配置owner补无override的打包更新证据。
+
+- 正式 Release [39157217135](https://github.com/limecloud/lime/actions/runs/39157217135) 已在最终SHA b660全部成功，11/11 job success。GitHub公开14资产全部非零；npm根包1.162.0、latest和4个平台后缀版本/optionalDependencies全部正确。最终公开核验13项 exit0，证据 `release-final.json`、`release-public.json`、`public-verification.json`。五包npm日志均为真实发布成功与provenance签名；最初registry可见性短暂不一致，首安装ETARGET、第二次只装根包，失败收据attempt1/2保留；没有重发不可变版本。registry就绪后全新隔离安装实际root+darwin-arm64两包 exit0，普通启动输出 `lime 1.162.0`，payload三二进制SHA256和package-lock已保存。真实CLI stdio和TUI PTY后验正在执行，尚不提前记通过。
+
+- 真实公开npm安装包的CLI Gate B `31637` exit0：同一root launcher与平台sibling app-server，未使用源码替换二进制；真实stdio流式/稳定Item ID、runtime中断exit130/子进程回收、reasoning canonical与冷恢复、五语言human/JSON输出、resume/fork、review、图片、output schema、stdin编码与输出文件失败保留、command shutdown全部通过。outer stdin非TTY，入口明确输出 `CLI_HUMAN_TTY_NOT_RUN`，不将该子项记通过。证据 `npm-cli-gate-b.log`，published payload SHA256和锁文件保留；全部依赖为受控fixture，不宣称live provider。TUI入口另有 `cargo test -p tui --no-run` 与PTY oracle准备，仍运行中，未记通过。
+
+## 已发布 npm 包的 TUI 后验
+
+- 首轮 `npm-tui-gate-b.log` exit1：`complete` 场景在历史搜索边界等待瞬态 `searching` 超时；屏幕已稳定显示唯一 BETA 预览，`user-input` 尚未执行。本轮未将此失败记为通过。
+- 源码读取确认 App Server 的持久历史读取持有共享文件锁；取消后的合法响应允许填入 TUI 缓存，PTY 绘制亦可合并过快的中间状态。`v1.161.0..v1.162.0` 中该夹具和历史搜索 owner 无差异，不能只凭瞬态超时认定发布二进制回归。
+- 补验窄写集：`lime-rs/crates/tui/src/runtime_pty_tests/composer.rs`。在本地/持久历史边界的真实读取前取得同一跨平台独占锁，观察原有 `searching` 后释放，再保留唯一预览、双向导航、Enter 只接受不提交及 canonical turn 零新增断言；没有修改生产代码、延长等待或删除断言。该文件在原工作区无并行改动。原始失败日志保留。
+- `rustfmt --check --edition 2021 --config skip_children=true` 和 `git diff --check` 通过；session 60376 正以同一公开 npm launcher、平台 App Server 重跑 `complete,user-input`，仍使用 controlled external backend，不冒充 live provider。最终结果待下节登记；已公开的 `v1.162.0` tag 和 npm 版本保持不可变。
+
+## 发布终态（2026-10-19）
+
+- 发布提交与不可变 tag：`b660c38df8962fc9f45a00922761dbe61837f338` / `v1.162.0`，main/tag 均已推送并复核。最终证据和 test-only 夹具修正作为后续 main 提交，不重打已公开 tag 或 npm 版本。
+- [GitHub Release](https://github.com/limecloud/lime/releases/tag/v1.162.0)：公开、非预发布，14 个非零资产；macOS 两架构、Windows Squirrel、四平台 CLI 全部上传。`@limecloud/lime@1.162.0` 和 latest 正确，四个平台包及根包 optionalDependencies 一致。
+- [Quality](https://github.com/limecloud/lime/actions/runs/39154673715) 在发布 SHA 成功；[Release](https://github.com/limecloud/lime/actions/runs/39157217135) 11/11 jobs 成功。最终公开核验 `public-verification.json` 为 13 项全部通过，R2 三平台 stable/版本共六份 feed 及下载大小核验通过。
+
+| 边界             | 实际结果与限制                                                                                                                                                                                                                                                                                  |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 版本、静态和协议 | `verify:app-version`、完整 `typecheck`、`test:contracts` 全部通过。scoped lint/format、diff-check 通过；不宣称 workspace 全量 fmt 通过。                                                                                                                                                        |
+| 前端与 Rust      | 本地续跑和 CI 前端均完成 138/138 批；CI Rust workspace 7,781 passed / 0 failed / 27 ignored。本地 9 owners + 6 公共 JSON-RPC targets 为 4,354 passed / 4 ignored，另显式过滤 1 个已知 macOS watcher，不冒称本地无排除全绿。                                                                     |
+| Electron         | 标准 `verify:gui-smoke` 24/24；真实 Electron/preload/IPC/App Server，错误与 production mock fallback 为零。远端插件 controlled issuer + 真实 stdio 后验通过，不等同 live OAuth/provider。                                                                                                       |
+| 打包平台         | Windows Squirrel 安装/N-1 升级/卸载 21/21，CodeMode 21、native 6、identity 4 断言通过；macOS 每架构 native 8 + Electron 5，Developer ID/Gatekeeper/staple 通过。helper 签名改变原始 digest，按有效签名与 release trust 验收。                                                                   |
+| 公开 npm CLI     | 全新隔离安装成功、版本正确；真实 stdio、流式 identity、中断/回收、冷恢复、resume/fork/review/images/schema、五语言与文件输出等通过。outer stdin 非 TTY，human TTY 子项未运行；controlled backend，不宣称 live provider。                                                                        |
+| 公开 npm TUI     | session 60376 exit0，`complete,user-input` 及入口实际附带的 reasoning/冷恢复、外部编辑器、reconnect、restricted paste、resize/tmux 通过。真实 PTY、alternate screen、键盘与终端恢复，用户输入响应 exactly once；补充 websocket fixture 证据分别标识。未运行入口全部场景，不将两场景扩称全矩阵。 |
+
+- TUI 首轮超时由 test-only 时序控制修正后通过，失败日志保留。`npm-tui-receipt.json`、`npm-tui-gate-b-retry.log` 与 `npm-cli-gate-b.log` 关联公开安装路径和 canonical identity；再次核对三个发布二进制 SHA256 均与安装收据一致。生产代码与公开产物未因补验修改，原等待期限和行为断言保留。
+- Windows 安装器沿用未签名 Forge Squirrel 配置，安装/升级成功不代表 Authenticode 通过。
+- R2 feed/文件公开可达不代表默认客户端完整自动更新通过。默认 `https://updates.limecloud.com` 本机 TLS 失败；本轮未取得不带 override 的线上客户端更新证据。下一刀归 updateHost/release 配置 owner，补默认域连通性与真实客户端升级验收；不改写本版 tag。
+- current：发布仍走 Forge、Electron 内置 updater、现役 App Server/CLI/TUI owner；本轮最终补丁仅为 test-only PTY 夹具。compat/deprecated 不新增；dead/deleted 沿冻结候选的 10 项既有删除，不恢复旧发布器/runtime/mock 路径。KISS/DRY 复用现有文件锁与发布入口，SOLID 不迁移业务 authority，YAGNI 不增加兼容层。
+- 自有 `caffeinate -i -t 21600` 已核对 PID 93544、PPID 8768 后定点停止，其他进程未动；收据 `caffeinate-cleanup.json`。原工作区 16 项必要发布修复已窄同步并备份，最终证据提交后以备份 index + HEAD CAS 同步引用，不覆盖工作树或并行暂存。
+
+### 冻结后并行增量快照
+
+快照时间 `2026-10-18T21:00:14.239116+00:00`，相对发布 SHA 共 219 路径（tracked 143、untracked 76），均保留在原工作区，未纳入 v1.162.0，也未宣称经过本版全部验证。另排除本地 conversation dump 与 tsbuildinfo。本轮最终写集仅本计划和 PTY 夹具；后续新增或变化仍归其并行 owner。结构化收据 `original-final-parallel-snapshot.json` 的 entries 摘要为 `df8d60a96d345286f1b70c9080b69ed0a6a8667d2b483e9003cfb26710ea2bad`。
+
+<details>
+<summary>保留的完整路径清单</summary>
+
+```text
+.codex/skills/lime-design-language/SKILL.md
+electron/appServerHost.test.ts
+electron/appServerHost.ts
+electron/appServerRequestTimeout.ts
+electron/persistedAtomPin.test.ts
+electron/persistedAtomStore.ts
+internal/aiprompts/architecture.md
+internal/aiprompts/commands.md
+internal/aiprompts/design-language.md
+internal/exec-plans/codex-gui-alignment-current-plan.md
+internal/exec-plans/codex-runtime-gap-alignment-plan.md
+internal/research/codex-desktop-rea/evidence-index.json
+internal/research/codex-desktop-rea/structure-alignment-ledger.md
+lime-rs/crates/agent-protocol/src/thread.rs
+lime-rs/crates/agent-runtime/src/lib.rs
+lime-rs/crates/agent-runtime/src/provider_turn.rs
+lime-rs/crates/agent-runtime/src/provider_turn/tests.rs
+lime-rs/crates/agent-runtime/src/provider_turn/tests/tool_call.rs
+lime-rs/crates/agent-runtime/src/provider_turn/tests/tool_history.rs
+lime-rs/crates/agent-runtime/src/provider_turn/tool_call.rs
+lime-rs/crates/agent-runtime/src/session_config.rs
+lime-rs/crates/agent-runtime/src/tool_history.rs
+lime-rs/crates/agent-runtime/src/tool_history/tests.rs
+lime-rs/crates/agent/src/current_provider_turn.rs
+lime-rs/crates/agent/src/current_provider_turn/tool_history.rs
+lime-rs/crates/app-server/src/command_exec.rs
+lime-rs/crates/app-server/src/command_exec/sandbox.rs
+lime-rs/crates/app-server/src/command_exec/tests.rs
+lime-rs/crates/app-server/src/execution_process.rs
+lime-rs/crates/app-server/src/execution_process/terminal/tests.rs
+lime-rs/crates/app-server/src/execution_process/tests.rs
+lime-rs/crates/app-server/src/runtime/agent_control.rs
+lime-rs/crates/app-server/src/runtime/agent_control/fork.rs
+lime-rs/crates/app-server/src/runtime/context_compaction.rs
+lime-rs/crates/app-server/src/runtime/context_compaction/boundary.rs
+lime-rs/crates/app-server/src/runtime/context_compaction/operation.rs
+lime-rs/crates/app-server/src/runtime/context_compaction/tests.rs
+lime-rs/crates/app-server/src/runtime/context_packet.rs
+lime-rs/crates/app-server/src/runtime/event_sink.rs
+lime-rs/crates/app-server/src/runtime/memory_prompt.rs
+lime-rs/crates/app-server/src/runtime/provider_history.rs
+lime-rs/crates/app-server/src/runtime/provider_history/boundary_tests.rs
+lime-rs/crates/app-server/src/runtime/provider_history/tests.rs
+lime-rs/crates/app-server/src/runtime/provider_history/tool_history.rs
+lime-rs/crates/app-server/src/runtime/tests/agent_control/fork.rs
+lime-rs/crates/app-server/src/runtime/tests/context_auto_compaction.rs
+lime-rs/crates/app-server/src/runtime/tests/sessions.rs
+lime-rs/crates/app-server/src/runtime/thread_fork.rs
+lime-rs/crates/app-server/src/runtime/thread_fork/compaction.rs
+lime-rs/crates/app-server/src/runtime/thread_fork/tests.rs
+lime-rs/crates/app-server/src/runtime/thread_fork/tool_history.rs
+lime-rs/crates/app-server/src/runtime/thread_item_projection/materializer/lowering.rs
+lime-rs/crates/app-server/src/runtime/thread_item_projection/typed_tests.rs
+lime-rs/crates/app-server/src/runtime/turn_execution.rs
+lime-rs/crates/app-server/src/runtime/turn_execution/tool_history.rs
+lime-rs/crates/app-server/src/runtime_backend.rs
+lime-rs/crates/app-server/src/runtime_backend/mention_selection.rs
+lime-rs/crates/app-server/tests/command_exec_jsonrpc.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/catalog_truncation.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/command_history.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/history_representation.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model_fixture.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model_tool_reply.rs
+lime-rs/crates/app-server/tests/thread_compact_jsonrpc/origin_budget.rs
+lime-rs/crates/app-server/tests/thread_compaction_boundary_jsonrpc.rs
+lime-rs/crates/app-server/tests/thread_fork_compaction_jsonrpc.rs
+lime-rs/crates/model-provider/src/current_client.rs
+lime-rs/crates/model-provider/src/current_client/gemini.rs
+lime-rs/crates/model-provider/src/current_client/gemini/identity_tests.rs
+lime-rs/crates/model-provider/src/current_client/history_tests.rs
+lime-rs/crates/model-provider/src/current_client/lowering.rs
+lime-rs/crates/model-provider/src/current_client/lowering/tests.rs
+lime-rs/crates/model-provider/src/current_client/stream.rs
+lime-rs/crates/model-provider/src/current_client/stream/call_identity/tests.rs
+lime-rs/crates/model-provider/src/current_client/tool_arguments.rs
+lime-rs/crates/runtime-core/src/llm_protocol/canonical.rs
+lime-rs/crates/tool-runtime/src/tool_call_surface.rs
+lime-rs/crates/tool-runtime/src/tool_call_surface/tests.rs
+lime-rs/crates/tool-runtime/src/unified_exec.rs
+lime-rs/crates/tool-runtime/src/unified_exec/session.rs
+package.json
+packages/app-server-client/src/browser.ts
+packages/app-server-client/src/command-exec-timeout.ts
+packages/app-server-client/src/index.ts
+pnpm-lock.yaml
+scripts/agent-runtime/claw-chat-current-fixture-resize-reflow.mjs
+scripts/agent-runtime/claw-chat-current-fixture-right-surface-visual.mjs
+scripts/agent-runtime/claw-chat-current-fixture-smoke.test.mjs
+scripts/check-app-server-client-contract.mjs
+scripts/electron/lib/background-terminal-gate-b.mjs
+scripts/electron/lib/background-terminal-scenario.mjs
+scripts/electron/lib/review-thread-side-panel-gate-b.mjs
+scripts/electron/lib/right-surface-lifecycle-gate-b.mjs
+scripts/electron/lib/right-surface-lifecycle-gate-b.test.mjs
+scripts/electron/lib/thread-side-panel-file-editor-scenario.mjs
+scripts/electron/lib/thread-side-panel-navigation.mjs
+scripts/electron/lib/thread-side-panel-new-tab-scenario.mjs
+scripts/electron/mcp-config-fixture-smoke.test.mjs
+src/components/agent/chat/components/CanvasWorkbenchLayout.coding.test.tsx
+src/components/agent/chat/components/CanvasWorkbenchLayout.test.tsx
+src/components/agent/chat/components/CanvasWorkbenchLayout.testFixtures.tsx
+src/components/agent/chat/components/ProjectShellSurface.tsx
+src/components/agent/chat/components/ProjectShellTerminal.tsx
+src/components/agent/chat/components/ShellBackgroundTerminalList.test.tsx
+src/components/agent/chat/components/ShellBackgroundTerminalList.tsx
+src/components/agent/chat/components/TaskCenterShellPanel.tsx
+src/components/agent/chat/components/TaskCenterUtilityToolbar.integration.test.tsx
+src/components/agent/chat/components/TaskCenterUtilityToolbar.planRail.test.tsx
+src/components/agent/chat/components/TaskCenterUtilityToolbar.tsx
+src/components/agent/chat/components/TerminalPanel.test.tsx
+src/components/agent/chat/components/TerminalPanel.tsx
+src/components/agent/chat/components/TerminalTab.tsx
+src/components/agent/chat/components/XtermOutputPanel.test.tsx
+src/components/agent/chat/components/XtermOutputPanel.tsx
+src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.test.tsx
+src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.tsx
+src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModeViewModel.ts
+src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchShell.tsx
+src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesContent.tsx
+src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesFileList.tsx
+src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesPanel.tsx
+src/components/agent/chat/components/canvas-workbench/changes/useCanvasWorkbenchChangesFilesPanelResize.test.tsx
+src/components/agent/chat/components/canvas-workbench/changes/useCanvasWorkbenchChangesFilesPanelResize.ts
+src/components/agent/chat/components/canvas-workbench/files/useFileTreeResize.test.tsx
+src/components/agent/chat/components/canvas-workbench/files/useFileTreeResize.ts
+src/components/agent/chat/components/canvas-workbench/files/workspaceFilePreview.ts
+src/components/agent/chat/components/terminalKeyboard.test.ts
+src/components/agent/chat/components/terminalKeyboard.ts
+src/components/agent/chat/components/terminalTheme.ts
+src/components/agent/chat/workspace/BackgroundTerminalList.tsx
+src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx
+src/components/agent/chat/workspace/LocalConversationBackgroundTerminalTab.test.tsx
+src/components/agent/chat/workspace/LocalConversationBackgroundTerminalTab.tsx
+src/components/agent/chat/workspace/ReviewThreadSidePanelTab.test.tsx
+src/components/agent/chat/workspace/ReviewThreadSidePanelTab.tsx
+src/components/agent/chat/workspace/ThreadSummaryPanel.test.tsx
+src/components/agent/chat/workspace/ThreadSummaryPanel.tsx
+src/components/agent/chat/workspace/WorkspaceConversationScene.test.tsx
+src/components/agent/chat/workspace/WorkspaceConversationScene.tsx
+src/components/agent/chat/workspace/WorkspaceFileThreadSidePanelTab.test.tsx
+src/components/agent/chat/workspace/WorkspaceFileThreadSidePanelTab.tsx
+src/components/agent/chat/workspace/WorkspaceMainArea.test.tsx
+src/components/agent/chat/workspace/WorkspaceMainArea.tsx
+src/components/agent/chat/workspace/WorkspaceRightSurfaceHostRuntime.tsx
+src/components/agent/chat/workspace/WorkspaceStyles.tsx
+src/components/agent/chat/workspace/localConversationBackgroundTerminalSignals.test.ts
+src/components/agent/chat/workspace/localConversationBackgroundTerminalSignals.ts
+src/components/agent/chat/workspace/right-surface/RightSurfaceHost.tsx
+src/components/agent/chat/workspace/right-surface/RightSurfaceHost.unit.test.tsx
+src/components/agent/chat/workspace/right-surface/RightSurfaceTabStrip.tsx
+src/components/agent/chat/workspace/right-surface/ThreadSidePanelLauncher.tsx
+src/components/agent/chat/workspace/right-surface/ThreadSidePanelNewTab.tsx
+src/components/agent/chat/workspace/right-surface/WorkspaceFileTree.tsx
+src/components/agent/chat/workspace/right-surface/openBackgroundTerminal.test.ts
+src/components/agent/chat/workspace/right-surface/openBackgroundTerminal.ts
+src/components/agent/chat/workspace/right-surface/openWorkspaceFile.ts
+src/components/agent/chat/workspace/right-surface/rightSurfaceRegistry.ts
+src/components/agent/chat/workspace/right-surface/rightSurfaceRegistry.unit.test.ts
+src/components/agent/chat/workspace/right-surface/rightSurfaceTypes.ts
+src/components/agent/chat/workspace/right-surface/threadSidePanelActions.ts
+src/components/agent/chat/workspace/right-surface/threadSidePanelTabs.test.ts
+src/components/agent/chat/workspace/right-surface/threadSidePanelTabs.ts
+src/components/agent/chat/workspace/text-file-editor/CodeMirrorFileEditor.test.tsx
+src/components/agent/chat/workspace/text-file-editor/CodeMirrorFileEditor.tsx
+src/components/agent/chat/workspace/text-file-editor/FileEditorController.test.ts
+src/components/agent/chat/workspace/text-file-editor/FileEditorController.ts
+src/components/agent/chat/workspace/text-file-editor/FileTabLifecycle.test.tsx
+src/components/agent/chat/workspace/text-file-editor/FileTabLifecycle.tsx
+src/components/agent/chat/workspace/text-file-editor/TextFileEditorTabContent.test.tsx
+src/components/agent/chat/workspace/text-file-editor/TextFileEditorTabContent.tsx
+src/components/agent/chat/workspace/text-file-editor/fileDocument.ts
+src/components/agent/chat/workspace/text-file-editor/fileEditorPhrases.ts
+src/components/agent/chat/workspace/text-file-editor/fileTabDraftContext.ts
+src/components/agent/chat/workspace/text-file-editor/fileTabLifecycleContext.ts
+src/components/agent/chat/workspace/text-file-editor/useFileTabCloseGuard.ts
+src/components/agent/chat/workspace/useAgentChatWorkspaceSceneComposition.tsx
+src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.testFixtures.tsx
+src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceActionRuntime.ts
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceCompositionRuntime.ts
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceCoordinatorRuntime.ts
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceHostRuntime.ts
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceLifecycle.unit.test.tsx
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceLocalStateRuntime.ts
+src/components/agent/chat/workspace/useWorkspaceRightSurfaceProjectionRuntime.ts
+src/components/agent/chat/workspace/workspaceConversationRightSurfaceChrome.ts
+src/components/agent/chat/workspace/workspaceConversationRightSurfaceChrome.unit.test.ts
+src/components/agent/chat/workspace/workspaceRightSurfaceRuntimeProjection.ts
+src/components/agent/chat/workspace/workspaceRightSurfaceRuntimeProjection.unit.test.ts
+src/components/artifact/document/DocumentPreview.integration.test.tsx
+src/components/general-chat/canvas/CodePreview.tsx
+src/components/workspace/layout/LayoutTransition.tsx
+src/components/workspace/layout/contentPaneWidth.test.ts
+src/components/workspace/layout/contentPaneWidth.ts
+src/i18n/__tests__/loadNamespace.test.ts
+src/i18n/resources/en-US/agent.json
+src/i18n/resources/en-US/navigation.json
+src/i18n/resources/en-US/workspace.json
+src/i18n/resources/ja-JP/agent.json
+src/i18n/resources/ja-JP/navigation.json
+src/i18n/resources/ja-JP/workspace.json
+src/i18n/resources/ko-KR/agent.json
+src/i18n/resources/ko-KR/navigation.json
+src/i18n/resources/ko-KR/workspace.json
+src/i18n/resources/zh-CN/agent.json
+src/i18n/resources/zh-CN/navigation.json
+src/i18n/resources/zh-CN/workspace.json
+src/i18n/resources/zh-TW/agent.json
+src/i18n/resources/zh-TW/navigation.json
+src/i18n/resources/zh-TW/workspace.json
+src/lib/api/fileBrowser.test.ts
+src/lib/api/fileBrowser.ts
+src/lib/api/textFileStorage.test.ts
+src/lib/api/textFileStorage.ts
+src/lib/dev-bridge/commandExecTimeout.test.ts
+src/lib/dev-bridge/commandExecTimeout.ts
+src/lib/dev-bridge/http-client.ts
+src/lib/governance/agentRuntimeExportBoundary.test.ts
+```
+
+</details>

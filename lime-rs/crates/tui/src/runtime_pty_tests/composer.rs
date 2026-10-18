@@ -76,7 +76,7 @@ pub(super) fn exercise_multiline_surface(
         },
     );
     exercise_slow_history_search(writer, output_rx, output, data_dir);
-    exercise_history_search(writer, output_rx, output);
+    exercise_history_search(writer, output_rx, output, data_dir);
     exercise_persistent_history_search(writer, output_rx, output);
     exercise_editor_keymap(writer, output_rx, output);
     exercise_vim_command_state(writer, output_rx, output);
@@ -434,6 +434,7 @@ fn exercise_history_search(
     writer: &mut impl Write,
     output_rx: &mpsc::Receiver<Vec<u8>>,
     output: &mut String,
+    data_dir: &Path,
 ) {
     for text in ["PTY_HISTORY_ALPHA", "PTY_HISTORY_BETA", "PTY_HISTORY_ALPHA"] {
         writer
@@ -468,6 +469,13 @@ fn exercise_history_search(
         "› PTY_HISTORY_BETA",
         Duration::from_secs(10),
     );
+    // Keep the real read pending until its rendered state is observed; fast I/O can skip a frame.
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(data_dir.join("prompt_history.jsonl"))
+        .unwrap();
+    fs2::FileExt::lock_exclusive(&file).unwrap();
     writer.write_all(b"\x1b[A").unwrap();
     writer.flush().unwrap();
     wait_for_screen(
@@ -476,6 +484,7 @@ fn exercise_history_search(
         "local search boundary waits for uncached persistent rows",
         |screen| screen.contains("› PTY_HISTORY_BETA") && screen.contains("searching"),
     );
+    drop(file);
     wait_for_screen(
         output_rx,
         output,
