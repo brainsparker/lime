@@ -1,5 +1,7 @@
 pub mod action_required;
 pub mod code_mode;
+pub mod context_compaction;
+mod context_history;
 pub mod event_stream;
 pub mod identity;
 pub mod provider_trace;

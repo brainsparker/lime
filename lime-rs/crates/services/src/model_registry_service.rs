@@ -18,7 +18,7 @@ use lime_core::models::model_registry::{
     ModelMultiAgentVersion, ModelReasoningEffortOption, ModelReasoningEffortSource,
     ModelReasoningEffortSupport, ModelRuntimeFeature, ModelServiceTier, ModelSource, ModelStatus,
     ModelSyncState, ModelTaskFamily, ModelTier, ModelVisibility, ProviderAliasConfig,
-    ProviderModelConfig, UserModelPreference,
+    ProviderModelConfig, TruncationPolicy, UserModelPreference,
 };
 use model_provider::canonical::{maybe_get_canonical_model, CanonicalModel};
 use model_provider::provider_url::{lime_tenant_id_from_base_url, LIME_TENANT_HEADER};
@@ -31,13 +31,15 @@ use tokio::sync::RwLock;
 
 mod managed_model_fetch_access;
 mod runtime_metadata;
+#[cfg(test)]
+mod truncation_tests;
 pub use runtime_metadata::{
     ProviderModelCacheAccess, ProviderModelRegistryMetadata, ProviderModelRegistryMetadataSource,
 };
 
 const PROVIDER_MODELS_CACHE_KEY_PREFIX: &str = "provider_models_fetch_cache:";
 const PROVIDER_MODELS_CACHE_TTL_SECONDS: i64 = 10 * 24 * 60 * 60;
-const PROVIDER_MODELS_CACHE_TAXONOMY_VERSION: u32 = 3;
+const PROVIDER_MODELS_CACHE_TAXONOMY_VERSION: u32 = 4;
 const XIAOMI_MODEL_FETCH_HOST_KEYWORDS: &[&str] = &["xiaomimimo.com"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -2518,10 +2520,9 @@ impl ModelRegistryService {
     ) -> ModelFetchProtocol {
         if let Some(provider_type) = provider_type {
             return match provider_type {
-                ApiProviderType::OpenaiResponse | ApiProviderType::Codex => {
-                    ModelFetchProtocol::ResponsesCompatible
-                }
-                ApiProviderType::Openai
+                ApiProviderType::Codex => ModelFetchProtocol::ResponsesCompatible,
+                ApiProviderType::OpenaiResponse
+                | ApiProviderType::Openai
                 | ApiProviderType::NewApi
                 | ApiProviderType::Gateway
                 | ApiProviderType::Fal => {
@@ -3132,6 +3133,7 @@ impl ModelRegistryService {
                 tool_mode: None,
                 multi_agent_version: None,
                 model_messages: None,
+                truncation_policy: model.truncation_policy,
                 multi_agent_reasoning_effort: None,
                 vision_supported: None,
                 capabilities: None,
@@ -3239,6 +3241,7 @@ impl ModelRegistryService {
                 tool_mode: None,
                 multi_agent_version: None,
                 model_messages: None,
+                truncation_policy: model.truncation_policy,
                 multi_agent_reasoning_effort: None,
                 vision_supported: None,
                 capabilities: None,
@@ -3289,6 +3292,7 @@ impl ModelRegistryService {
                 tool_mode: None,
                 multi_agent_version: None,
                 model_messages: None,
+                truncation_policy: model.truncation_policy,
                 multi_agent_reasoning_effort: None,
                 vision_supported: None,
                 capabilities: None,
@@ -3466,6 +3470,7 @@ impl ModelRegistryService {
             tool_mode,
             multi_agent_version: parse_multi_agent_version(model.multi_agent_version.as_deref()),
             model_messages: model.model_messages,
+            truncation_policy: model.truncation_policy,
             multi_agent_reasoning_effort: model.multi_agent_reasoning_effort,
             deployment_source: taxonomy.deployment_source,
             management_plane: taxonomy.management_plane,
@@ -3534,6 +3539,7 @@ impl ModelRegistryService {
                     tool_mode: None,
                     multi_agent_version: None,
                     model_messages: None,
+                    truncation_policy: None,
                     multi_agent_reasoning_effort: None,
                     vision_supported: None,
                     capabilities: None,
@@ -3552,14 +3558,7 @@ impl ModelRegistryService {
                 now,
             )
             .with_source(ModelSource::Custom);
-        if let Some(capability) = model.capability.as_ref() {
-            metadata.task_families = capability.task_families.clone();
-            metadata.input_modalities = capability.input_modalities.clone();
-            metadata.output_modalities = capability.output_modalities.clone();
-            metadata.runtime_features = capability.runtime_features.clone();
-            metadata.capabilities = capability.capabilities.clone();
-            metadata.capability_provenance = ModelCapabilityProvenance::ProviderExplicit;
-        }
+        runtime_metadata::apply_declared_model_capabilities(&mut metadata, model);
         metadata
     }
 
@@ -3761,6 +3760,8 @@ struct ApiModelResponse {
     multi_agent_version: Option<String>,
     #[serde(default, alias = "modelMessages", alias = "model_messages")]
     model_messages: Option<serde_json::Value>,
+    #[serde(default, alias = "truncationPolicy")]
+    truncation_policy: Option<TruncationPolicy>,
     #[serde(
         default,
         alias = "multiAgentReasoningEffort",
@@ -3853,6 +3854,8 @@ struct RawAnthropicModelResponse {
     id: String,
     #[serde(default)]
     display_name: Option<String>,
+    #[serde(default, alias = "truncationPolicy")]
+    truncation_policy: Option<TruncationPolicy>,
 }
 
 #[derive(Debug)]
@@ -3880,6 +3883,8 @@ struct RawGeminiModelResponse {
     input_token_limit: Option<u32>,
     #[serde(default)]
     supported_generation_methods: Option<Vec<String>>,
+    #[serde(default, alias = "truncation_policy")]
+    truncation_policy: Option<TruncationPolicy>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -3893,6 +3898,8 @@ struct OllamaModelResponse {
     name: String,
     #[serde(default)]
     details: Option<OllamaModelDetails>,
+    #[serde(default, alias = "truncationPolicy")]
+    truncation_policy: Option<TruncationPolicy>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -5342,31 +5349,6 @@ mod tests {
         assert_ne!(first, second);
         assert_ne!(first, unscoped);
         assert_ne!(second, unscoped);
-    }
-
-    #[tokio::test]
-    async fn test_openai_response_fetch_uses_declared_image_models_on_plain_base_url() {
-        let (service, _db) = setup_cache_service();
-
-        let result = service
-            .fetch_models_from_api_with_hints(
-                "openai-gpt-images-2",
-                "https://api.openai.com/v1",
-                "sk-test",
-                Some(ApiProviderType::OpenaiResponse),
-                &[ProviderModelConfig::hint("gpt-images-2")],
-            )
-            .await
-            .expect("openai-response declared image models should resolve");
-
-        assert_eq!(result.source, ModelFetchSource::Api);
-        assert_eq!(result.models.len(), 1);
-        assert_eq!(result.models[0].id, "gpt-images-2");
-        assert!(result
-            .diagnostic_hint
-            .as_deref()
-            .unwrap_or_default()
-            .contains("已使用 Provider 中声明的图片模型"));
     }
 
     #[tokio::test]

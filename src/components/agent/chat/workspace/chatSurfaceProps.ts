@@ -73,10 +73,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
   onObjectiveEnabledChange?: ComponentProps<
     typeof EmptyState
   >["onObjectiveEnabledChange"];
-  creationMode: ComponentProps<typeof EmptyState>["creationMode"];
-  onCreationModeChange?: ComponentProps<
-    typeof EmptyState
-  >["onCreationModeChange"];
   activeTheme: ComponentProps<typeof EmptyState>["activeTheme"];
   onThemeChange?: NonNullable<
     ComponentProps<typeof EmptyState>["onThemeChange"]
@@ -105,14 +101,10 @@ interface BuildWorkspaceEmptyStatePropsParams {
   onLaunchBrowserAssist?: ComponentProps<
     typeof EmptyState
   >["onLaunchBrowserAssist"];
-  browserAssistLoading: boolean;
   projectId: string | null;
   openedProjects?: ComponentProps<typeof EmptyState>["openedProjects"];
   sessionId?: string | null;
   onProjectChange?: ComponentProps<typeof EmptyState>["onProjectContextChange"];
-  runtimeToolAvailability?: ComponentProps<
-    typeof EmptyState
-  >["runtimeToolAvailability"];
   pluginSuggestions?: ComponentProps<typeof EmptyState>["pluginSuggestions"];
   pluginSuggestionsError?: ComponentProps<
     typeof EmptyState
@@ -147,11 +139,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
   onManageKnowledgePacks?: ComponentProps<
     typeof EmptyState
   >["onManageKnowledgePacks"];
-  runtimeTaskCard?: ComponentProps<typeof EmptyState>["runtimeTaskCard"];
-  onOpenMemoryWorkbench?: ComponentProps<
-    typeof EmptyState
-  >["onOpenMemoryWorkbench"];
-  onOpenChannels?: ComponentProps<typeof EmptyState>["onOpenChannels"];
   creationReplaySurface?: CreationReplaySurfaceModel | null;
   defaultCuratedTaskReferenceMemoryIds?: ComponentProps<
     typeof EmptyState
@@ -208,8 +195,6 @@ export function buildWorkspaceEmptyStateProps({
   onToolPreferenceChange,
   objectiveEnabled,
   onObjectiveEnabledChange,
-  creationMode,
-  onCreationModeChange,
   activeTheme,
   onThemeChange,
   themeLocked,
@@ -224,12 +209,10 @@ export function buildWorkspaceEmptyStateProps({
   onRefreshSkills,
   onSkillSuggestionsNeeded,
   onLaunchBrowserAssist,
-  browserAssistLoading,
   projectId,
   openedProjects,
   onProjectChange,
   sessionId,
-  runtimeToolAvailability,
   pluginSuggestions,
   pluginSuggestionsError,
   pluginSuggestionsLoading,
@@ -242,9 +225,6 @@ export function buildWorkspaceEmptyStateProps({
   onToggleKnowledgeCompanionPack,
   onStartKnowledgeOrganize,
   onManageKnowledgePacks,
-  runtimeTaskCard,
-  onOpenMemoryWorkbench,
-  onOpenChannels,
   creationReplaySurface,
   defaultCuratedTaskReferenceMemoryIds,
   defaultCuratedTaskReferenceEntries,
@@ -291,8 +271,6 @@ export function buildWorkspaceEmptyStateProps({
     subagentEnabled: toolPreferences.subagent,
     onSubagentEnabledChange: (enabled) =>
       onToolPreferenceChange("subagent", enabled),
-    creationMode,
-    onCreationModeChange,
     activeTheme,
     onThemeChange: themeLocked
       ? undefined
@@ -310,12 +288,10 @@ export function buildWorkspaceEmptyStateProps({
     onRefreshSkills,
     onSkillSuggestionsNeeded,
     onLaunchBrowserAssist,
-    browserAssistLoading,
     projectId,
     openedProjects,
     onProjectContextChange: onProjectChange,
     sessionId,
-    runtimeToolAvailability,
     pluginSuggestions,
     pluginSuggestionsError,
     pluginSuggestionsLoading,
@@ -328,9 +304,6 @@ export function buildWorkspaceEmptyStateProps({
     onToggleKnowledgeCompanionPack,
     onStartKnowledgeOrganize,
     onManageKnowledgePacks,
-    runtimeTaskCard,
-    onOpenMemoryWorkbench,
-    onOpenChannels,
     creationReplaySurface,
     defaultCuratedTaskReferenceMemoryIds,
     defaultCuratedTaskReferenceEntries,

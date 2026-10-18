@@ -38,6 +38,8 @@ const RENDERER_SOURCE_FILES = [
   "tsconfig.json",
   "tsconfig.renderer.json",
   "vite.config.ts",
+  "postcss.config.js",
+  "tailwind.config.js",
   "scripts/electron/build-renderer-smoke.mjs",
   "scripts/electron/build-renderer.mjs",
   "scripts/electron/renderer-build-env.mjs",

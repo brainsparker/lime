@@ -10,6 +10,8 @@ pub(crate) struct Installed {
     pub plugin: Item,
     pub enabled: bool,
     pub installed_at: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub disabled_skill_names: BTreeSet<String>,
 }
 
 #[derive(Deserialize)]

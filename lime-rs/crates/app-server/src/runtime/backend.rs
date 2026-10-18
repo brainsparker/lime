@@ -14,6 +14,15 @@ pub struct MockBackend;
 
 #[async_trait]
 impl ExecutionBackend for MockBackend {
+    async fn compact_context(
+        &self,
+        _request: ExecutionRequest,
+        _history: super::ProviderTurnHistory,
+        _cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        Ok("Explicit test backend compaction summary".to_string())
+    }
+
     async fn start_turn(
         &self,
         request: ExecutionRequest,

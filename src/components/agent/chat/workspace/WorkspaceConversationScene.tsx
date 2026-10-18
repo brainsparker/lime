@@ -1,3 +1,4 @@
+import { HeaderToolbar } from "@/components/app-shell/HeaderToolbar";
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ThreadGoal } from "@limecloud/app-server-client";
@@ -42,6 +43,12 @@ import {
   MessageViewport,
 } from "./WorkspaceStyles";
 import { ThreadWorkspaceHeader } from "./ThreadWorkspaceHeader";
+import { ThreadSummaryPanel } from "./ThreadSummaryPanel";
+import {
+  ThreadSummaryLayout,
+  ThreadSummaryToggle,
+} from "./ThreadSummaryLayout";
+import { useThreadSummaryPanel } from "./useThreadSummaryPanel";
 
 import type { ThreadWorkspaceHeaderViewModel } from "./threadWorkspaceHeaderViewModel";
 import { QueuedMessageList } from "../components/QueuedMessageList";
@@ -317,7 +324,6 @@ interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
     typeof ChatNavbar
   >["deferWorkspaceListLoad"];
   onOpenSettings?: () => void;
-  taskCenterTabsNode?: ReactNode;
   navbarVisible: boolean;
   isRunning: boolean;
   navbarChrome: ComponentProps<typeof ChatNavbar>["chrome"];
@@ -354,6 +360,7 @@ interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
   hasLiveCanvasPreviewContent: boolean;
   liveCanvasPreview: ReactNode;
   rightSurfaceContent?: ReactNode;
+  rightSurfaceTabStrip?: ReactNode;
   rightSurfaceLaunchers?: ComponentProps<
     typeof TaskCenterUtilityToolbar
   >["rightSurfaceLaunchers"];
@@ -363,8 +370,6 @@ interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
   onToggleRightSurfaceFiles?: () => void;
   rightSurfaceTraceOpen?: boolean;
   onToggleRightSurfaceTrace?: () => void;
-  rightSurfaceActivityOpen?: boolean;
-  onToggleRightSurfaceActivity?: () => void;
   rightSurfaceShellOpen?: boolean;
   onToggleRightSurfaceShell?: () => void;
   currentImageWorkbenchActive: boolean;
@@ -399,7 +404,6 @@ export function WorkspaceConversationScene({
   workspaceType,
   deferWorkspaceListLoad,
   onOpenSettings,
-  taskCenterTabsNode,
   navbarVisible,
   isRunning,
   navbarChrome,
@@ -426,6 +430,7 @@ export function WorkspaceConversationScene({
   hasLiveCanvasPreviewContent,
   liveCanvasPreview,
   rightSurfaceContent,
+  rightSurfaceTabStrip,
   rightSurfaceLaunchers,
   rightSurfaceBrowserOpen,
   onToggleRightSurfaceBrowser,
@@ -433,8 +438,6 @@ export function WorkspaceConversationScene({
   onToggleRightSurfaceFiles,
   rightSurfaceTraceOpen,
   onToggleRightSurfaceTrace,
-  rightSurfaceActivityOpen,
-  onToggleRightSurfaceActivity,
   rightSurfaceShellOpen,
   onToggleRightSurfaceShell,
   currentImageWorkbenchActive,
@@ -442,7 +445,6 @@ export function WorkspaceConversationScene({
   canvasWorkbenchLayoutProps,
   shellBottomInset,
   chatPanelWidth,
-  chatPanelMinWidth,
   generalWorkbenchDialog,
   showFloatingInputOverlay,
   hasPendingA2UIForm,
@@ -461,6 +463,20 @@ export function WorkspaceConversationScene({
     openedProjects?.find((project) => project.id === projectId)?.name ?? null;
   const queueStatusNode = (
     <QueuedMessageList threadId={messageListProps.threadRead?.thread_id} />
+  );
+  const summary = useThreadSummaryPanel(
+    showChatLayout ? currentThreadId : null,
+  );
+  const summaryPanel = (
+    <ThreadSummaryPanel
+      threadItems={messageListProps.threadItems}
+      canonicalChildren={messageListProps.canonicalChildren}
+      onOpenSubagentSession={messageListProps.onOpenSubagentSession}
+      onFileClick={messageListProps.onFileClick}
+      onOpenArtifactFromTimeline={messageListProps.onOpenArtifactFromTimeline}
+      onOpenUrlPreview={messageListProps.onOpenUrlPreview}
+      persistenceError={summary.persistenceError}
+    />
   );
   const chatContent = renderWorkspaceChatContent({
     landingSurface,
@@ -555,11 +571,6 @@ export function WorkspaceConversationScene({
           ? onToggleRightSurfaceTrace
           : undefined
       }
-      onToggleActivityPanel={
-        rightSurfaceActivityOpen || onToggleRightSurfaceActivity
-          ? onToggleRightSurfaceActivity
-          : undefined
-      }
       rightSurfaceLaunchers={rightSurfaceLaunchers}
       onToggleShellPanel={() => {
         if (onToggleRightSurfaceShell) {
@@ -574,15 +585,9 @@ export function WorkspaceConversationScene({
     shouldRenderThreadHeader && threadHeader ? (
       <ThreadWorkspaceHeader
         {...threadHeader}
-        onBackHome={onBackHome}
-        onBackToResources={onBackToResources}
-        onBackToProjectManagement={onBackToProjectManagement}
-        showCanvasToggle={!isThemeWorkbench}
-        isCanvasOpen={layoutMode !== "chat"}
-        onToggleCanvas={onToggleCanvas}
-        onOpenSettings={onOpenSettings}
-        summaryOpen={Boolean(rightSurfaceActivityOpen)}
-        onToggleSummary={onToggleRightSurfaceActivity}
+        summaryToggle={
+          <ThreadSummaryToggle state={summary} panel={summaryPanel} />
+        }
         actions={
           <>
             <ThreadProjectSelector
@@ -690,18 +695,32 @@ export function WorkspaceConversationScene({
     <>
       <WorkspaceMainArea
         compactChrome={compactChrome}
-        navbarNode={navbarNode}
-        threadHeaderNode={threadHeaderNode}
-        taskCenterUtilityToolbarNode={
-          shouldRenderThreadHeader ? null : taskCenterUtilityToolbarNode
+        mainToolbar={
+          threadHeaderNode ?? (
+            <HeaderToolbar className="flex-1">
+              {navbarNode}
+              <HeaderToolbar.Actions>
+                {taskCenterUtilityToolbarNode}
+              </HeaderToolbar.Actions>
+            </HeaderToolbar>
+          )
         }
-        taskCenterTabsNode={taskCenterTabsNode}
+        mainTabLabel={threadHeader?.title}
+        sidePanelTabStrip={rightSurfaceTabStrip}
         taskCenterShellPanelNode={taskCenterShellPanelNode}
         contentSyncNoticeNode={contentSyncNoticeNode}
         shellBottomInset={effectiveShellBottomInset}
         layoutMode={layoutMode}
         forceCanvasMode={forceCanvasMode}
-        chatContent={chatContent}
+        chatContent={
+          showChatLayout ? (
+            <ThreadSummaryLayout state={summary} panel={summaryPanel}>
+              {chatContent}
+            </ThreadSummaryLayout>
+          ) : (
+            chatContent
+          )
+        }
         canvasContent={canvasContent}
         rightSurfaceContent={
           rightSurfaceContent ? (
@@ -719,11 +738,11 @@ export function WorkspaceConversationScene({
           )
         }
         chatPanelWidth={chatPanelWidth}
-        chatPanelMinWidth={chatPanelMinWidth}
         generalWorkbenchDialog={generalWorkbenchDialog}
         showFloatingInputOverlay={showFloatingInputOverlay}
         hasPendingA2UIForm={hasPendingA2UIForm}
         inputbarNode={inputbarNode}
+        inputContentShift={summary.contentShift}
       />
     </>
   );

@@ -6,6 +6,20 @@ use app_server_protocol::protocol::v2::{
 };
 
 impl Item {
+    pub(super) fn summary_with_installation(
+        &self,
+        installed: Option<&crate::plugin_remote::Installed>,
+    ) -> PluginSummary {
+        let mut summary = self.summary();
+        if let Some(installed) = installed {
+            summary.installed = true;
+            summary.installed_at = installed.installed_at.map(|time| time.timestamp());
+            summary.enabled = installed.enabled;
+            summary.local_version = installed.plugin.release.version.clone();
+        }
+        summary
+    }
+
     pub(crate) fn summary(&self) -> PluginSummary {
         let interface = &self.release.interface;
         let mut prompts = interface
@@ -86,7 +100,11 @@ impl Item {
         }
     }
 
-    pub(super) fn detail(self, apps: Vec<AppSummary>) -> PluginDetail {
+    pub(super) fn detail(
+        self,
+        apps: Vec<AppSummary>,
+        disabled_skills: Option<&std::collections::BTreeSet<String>>,
+    ) -> PluginDetail {
         let summary = self.summary();
         let marketplace_name = self.marketplace().to_string();
         let skills = self
@@ -105,6 +123,8 @@ impl Item {
                     default_prompt: interface.default_prompt,
                 });
                 SkillSummary {
+                    enabled: !disabled_skills
+                        .is_some_and(|disabled| disabled.contains(&skill.name)),
                     name: skill.name,
                     description: skill.description,
                     short_description: interface
@@ -112,21 +132,9 @@ impl Item {
                         .and_then(|interface| interface.short_description.clone()),
                     interface,
                     path: None,
-                    enabled: false,
                 }
             })
             .collect::<Vec<_>>();
-        let onboarding_skill = if summary.enabled {
-            skills
-                .iter()
-                .find(|skill| {
-                    skill.enabled
-                        && Some(&skill.name) == self.release.onboarding_skill_name.as_ref()
-                })
-                .cloned()
-        } else {
-            None
-        };
         PluginDetail {
             marketplace_name,
             marketplace_path: None,
@@ -134,7 +142,7 @@ impl Item {
             share_url: self.share_url,
             description: non_empty(&self.release.description),
             skills,
-            onboarding_skill,
+            onboarding_skill: None,
             hooks: Vec::new(),
             apps,
             app_templates: self

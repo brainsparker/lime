@@ -2,6 +2,12 @@
 
 状态：active。责任：root。创建：2026-10-16。
 
+2026-10-18 优先级覆盖：按用户要求先对齐核心 Context & Memory、Agent Loop、Tools & Extensions 与 harness，
+直接读取 Codex CLI 源码；REA 仅补 Desktop 非公开行为。当前下一刀为真正模型 compaction，
+详见 [核心机制复审与实施矩阵](./codex-runtime-gap-alignment-plan.md#当前证据与实施顺序2026-10-18)。
+历史四项 runtime 完成、插件/UI/Host 门禁均不代表核心对齐。用户最新“开发期间不考虑兼容/迁移”
+覆盖下文旧迁移要求，后续直接替换 current owner，不新增兼容层。全量插件、tar.gz、LimeCore 范围保留。
+
 当前阶段（2026-10-17）：S01/T01、普通 CLI typed cancel、S02 Thread 请求派发/重放/结算、S02-D 动态工具单 Host、R03 service tier 与 R02-A/B/C 审批和旧数据迁移切片已有实际证据，边界见下文。S03-A remote workspace 已通过 8 个 runtime Turn、3 项真 PTY、冷重开和 Host gates。默认门禁前端 131/131 批完成；Rust 修复后阶段续验为 29 批 / 7067 passed / 0 failed / 5 ignored，原父进程 exit 101 保留。S09-A/B/C/D 同一最新固定产物已通过 18 个双连接 Skills Turn、冷重开、stdio/CLI Gate B、Electron current 聚合与 GUI shell。S09-F 已实施 canonical workspace 迁移与旧副本清理，新固定产物通过 25 Turn/6 次冷重开、stdio/CLI/Electron current，GUI 壳门禁待收。S09-E 已完成插件 Skill 来源和监听接线以及 1542 行 catalog 职责拆分，最新整库与实际产物验收进行中。下一刀继续同名 namespace、按路径身份选择和旧禁用配置迁移，再推进真正模型 compaction、R06 resume overrides。三端同实例和跨平台仍未整体验收；68 项包含待核实/排除项，总分母未冻结，不提供整体百分比。
 
 ## 目标与工作方式

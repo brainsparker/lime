@@ -4,6 +4,49 @@ import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 describe("AgentChatWorkspace local display boundary", () => {
+  it("旧任务标签和顶部补位已删除，展示注册不能成为第二业务store", () => {
+    for (const path of [
+      "src/components/agent/chat/components/TaskCenterTabStrip.tsx",
+      "src/components/agent/chat/workspace/useTaskCenterTabChrome.tsx",
+      "src/components/agent/chat/workspace/taskCenterTabProjection.ts",
+      "src/components/agent/chat/workspace/ThreadActivityPanel.tsx",
+    ])
+      expect(existsSync(join(process.cwd(), path)), path).toBe(false);
+    const source = ["WorkspaceMainArea.tsx", "WorkspaceStyles.tsx"]
+      .map((path) =>
+        readFileSync(
+          join(process.cwd(), "src/components/agent/chat/workspace", path),
+          "utf8",
+        ),
+      )
+      .join("\n");
+    expect(source).not.toMatch(
+      /AutoHideNavbar|TASK_CENTER_SPLIT_CHROME_TOP_INSET|shouldDetachTaskCenterToolbar|taskCenterTabsNode/,
+    );
+    const layoutOwners = [
+      "src/components/workspace/layout/LayoutTransition.tsx",
+      ...[
+        "WorkspaceMainArea.tsx",
+        "WorkspaceStyles.tsx",
+        "workspaceShellChromeRuntime.ts",
+        "useWorkspaceConversationSceneRuntime.tsx",
+        "WorkspaceConversationScene.tsx",
+      ].map((file) => `src/components/agent/chat/workspace/${file}`),
+    ]
+      .map((file) => readFileSync(join(process.cwd(), file), "utf8"))
+      .join("\n");
+    expect(layoutOwners).not.toMatch(
+      /\bchatPanelMinWidth\b|layoutTransitionChatPanelMinWidth|CHAT_PANEL_MIN_WIDTH/,
+    );
+    expect(layoutOwners).not.toMatch(/rightSurfaceActivityOpen|onToggleRightSurfaceActivity/);
+    const registry = readFileSync(
+      join(process.cwd(), "src/components/app-shell/shellRegistry.ts"),
+      "utf8",
+    );
+    expect(registry).not.toMatch(
+      /openSurfaces|thread\/|turn\/|localStorage|safeInvoke/,
+    );
+  });
   it("草稿、恢复、选择、横幅、布局和预览状态必须由 local display owner 提供", () => {
     const workspaceSource = [
       "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
@@ -852,7 +895,7 @@ describe("AgentChatWorkspace conversation landing surface boundary", () => {
       expect(sceneCallSource).not.toContain(retiredSceneParam);
     }
     expect(conversationRuntimeSource).toContain("landingSurface:");
-    expect(conversationRuntimeSource).toContain(
+    expect(conversationRuntimeSource).not.toContain(
       "useWorkspaceConversationLandingSessionRuntime({",
     );
     expect(conversationRuntimeSource).not.toContain(
@@ -870,10 +913,14 @@ describe("AgentChatWorkspace conversation landing surface boundary", () => {
     expect(sceneSource).toContain("landingSurface.emptyStateProps");
     expect(sceneSource).not.toContain("buildWorkspaceEmptyStateProps({");
     expect(ownerSource).toContain("buildWorkspaceEmptyStateProps({");
-    expect(ownerSource).toContain("buildAgentTaskRuntimeCardModel({");
-    expect(ownerSource).toContain("...landingSurface.emptyStateProps");
-    expect(ownerSource).not.toContain("suppressRecentSessionRecovery");
-    expect(ownerSource).not.toContain("useWorkspaceHomeRecoveryRuntime");
+    for (const retiredLandingState of [
+      "buildAgentTaskRuntimeCardModel({",
+      "...landingSurface.emptyStateProps",
+      "suppressRecentSessionRecovery",
+      "useWorkspaceConversationLandingSessionRuntime",
+    ]) {
+      expect(ownerSource).not.toContain(retiredLandingState);
+    }
   });
 });
 

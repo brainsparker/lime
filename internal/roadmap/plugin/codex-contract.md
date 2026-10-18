@@ -2,6 +2,12 @@
 
 更新时间：2026-10-18。实现状态见[执行计划](../../exec-plans/codex-plugin-reconstruction.md)。本文件描述目标，未通过对应验证的条目不能宣称完成。
 
+目录安装事实切片见 [P04b13e](../../exec-plans/codex-plugin-catalog-installed-facts.md)：
+远端目录按 scope/opaque ID 关联同一账号完整 installed 快照，不索要下载 URL，不用本地
+物化摘要覆盖。version 为目录版本，localVersion 为 installed release 版本，installedAt
+为 Unix 秒；enabled 还受共享 plugins 配置限制。GLOBAL 补 installed-only，其余普通集合
+不补；Shared 保持显式分享/链接安装分桶，空集合省略。此合同不核销目录缓存或 runtime readiness。
+
 ## 事实源
 
 Codex 源码 `/Users/coso/Documents/dev/rust/codex`，基线 `4eb4a65407d98cebc4c83bf13be440b9fbc78a7c`。manifest/store/marketplace 参考 `codex-rs/core-plugins`，公开协议参考 `codex-rs/app-server-protocol/src/protocol/v2/plugin.rs`，技能选择参考 `codex-rs/ext/skills/src/selection.rs`。
@@ -43,7 +49,8 @@ Electron Host/current DevBridge 的等待窗口为 150 秒，下载本身仍为 
 
 远端详情的技能enabled目标按installed.disabled_skill_names投影，未安装默认true；
 Codex明确尚不把该远端偏好写入skills/list，本地skills.config仍为runtime启停来源。
-此详情差异仍待补齐，不能将其误做跨仓强制启停或新增未知的偏好写入接口。
+该详情投影已由P04b13d补齐；P04b13f进一步依REA定位的端点持久化账号偏好。
+不得将远端逐技能偏好误做跨仓强制runtime启停；普通技能开关UI仍需消费者证据。
 
 旧 Lime 客户端 install-state 上报链及 bootstrap 签名可信根合同已删除，禁止用其实现远端
 installed registry、renderer 安装或兼容回退。远端安装状态须按 Codex remote 合同在 current
@@ -126,8 +133,23 @@ union（如 hourly.intervalHours），不改成外层 snake_case。非受控平�
 远端双身份校验及账号fence，正式协议/typed client/gateway共用唯一owner。DOM/严格TS已验，
 最终正文公共JSON-RPC5/5、protocol crate142/142、完整contracts及新产物受控Electron/stdio
 专项已验：未安装远端错误/重试/null/Markdown、本地路径优先、账号隔离与冷启共用store。
-普通壳`verify:gui-smoke`也已exit0、24/24；五分钟缓存、included_files规则和逐技能偏好
-仍未完成，不以Core测试或局部组件通过核销完整正文能力。
+P04b13b普通壳历史轮exit0、24/24；P04b13c五分钟缓存的66项相关回归和真实Electron/stdio
+专项已通过，最终正文GET7次及产物前后摘要一致。P04b13c当时通用壳23/24，小窗口首页输入区
+越界导致布局门禁失败；此失败及未确认的included_files规则、逐技能偏好编辑继续跟踪，不以
+Core测试、历史壳通过或局部专项通过核销完整正文能力。
+
+P04b13d远端详情已替换为授权release与fresh installed分页投影：忽略调用方
+marketplace label，以opaque ID及返回scope为准；installed读取不请求下载URL，也不物化包。
+disabled_skill_names控制远端技能enabled，省略默认空、显式null拒绝、未安装默认true；
+保留raw name、path=null及hooks=[]，已安装远端预览仍用远端正文query。本地插件详情的
+真实path继续走fs/readFile。summary使用fresh安装事实与共享插件配置门禁，localVersion
+遵循CLI/native的installed release版本，installedAt为Unix秒。远端偏好不改skills.config，
+不改变skills/list或Turn的本地启停。P04b13d未包含偏好写入；后续P04b13f已用REA定位
+四个启停端点，Core安装事实保存真实偏好，GUI远端开关经cloud/request写账号事实。
+普通技能开关UI仍未完成。远端插件54/54、分享RPC7/7、完整
+contracts及WORKSPACE/GLOBAL两组真实Electron＋stdio专项已过；同一冻结整合产物的通用GUI
+24/24（含小窗口布局），4,642项完整产物原字节留存、前后摘要一致。测试及产品证据归同名
+执行计划，不代表后来共享dist或真实Core/MySQL/Turn已验。
 
 旧私有包 schema、独立 worker/runtime、renderer registry、v3 installed records 与旧规则为 `dead / deleted / forbidden-to-restore`。历史资料从 Git history 追溯。完成验收必须覆盖两仓包发布/下载、安装、真实 Turn 和三端消费；unit、stdio、CLI、PTY、Electron 与 Windows 证据分别报告。
 

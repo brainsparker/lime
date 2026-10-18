@@ -10,7 +10,11 @@ export interface JsonObject {
   readonly [key: string]: JsonValue;
 }
 
-export type PersistedAtomKey = "composer-drafts-v1";
+export const SUMMARY_PANEL_PIN_ATOM_KEY = "app-shell-summary-panel-pinned";
+
+export type PersistedAtomKey =
+  | "composer-drafts-v1"
+  | typeof SUMMARY_PANEL_PIN_ATOM_KEY;
 
 export interface DraftScope {
   readonly workspaceId: string | null;
@@ -71,15 +75,25 @@ export type PersistedAtomReadQuery =
       readonly workspaceId: string | null;
     };
 
-export interface PersistedAtomReadRequest {
-  readonly key: PersistedAtomKey;
-  readonly query: PersistedAtomReadQuery;
-}
+export type PersistedAtomReadRequest =
+  | {
+      readonly key: "composer-drafts-v1";
+      readonly query: PersistedAtomReadQuery;
+    }
+  | {
+      readonly key: typeof SUMMARY_PANEL_PIN_ATOM_KEY;
+      readonly query: { readonly kind: "value" };
+    };
 
-export interface PersistedAtomUpdateRequest {
-  readonly key: PersistedAtomKey;
-  readonly mutation: PersistedAtomMutation;
-}
+export type PersistedAtomUpdateRequest =
+  | {
+      readonly key: "composer-drafts-v1";
+      readonly mutation: PersistedAtomMutation;
+    }
+  | {
+      readonly key: typeof SUMMARY_PANEL_PIN_ATOM_KEY;
+      readonly mutation: { readonly op: "set"; readonly value: boolean };
+    };
 
 export interface PersistedAtomDiagnostic {
   readonly phase: "load" | "serialize" | "primary" | "backup";
@@ -123,6 +137,7 @@ export interface PersistedDraftIndexItem {
 }
 
 export type PersistedAtomReadData =
+  | { readonly queryKind: "value"; readonly value: boolean }
   | { readonly queryKind: "scope"; readonly view: PersistedDraftView }
   | {
       readonly queryKind: "workspace-index";
@@ -145,6 +160,7 @@ export interface PersistedAtomUpdateResult extends PersistedAtomMetadata {
   readonly changed: boolean;
   readonly reason?: PersistedAtomReason;
   readonly entry: PersistedDraftEntry | null;
+  readonly value?: boolean;
 }
 
 /** Notifications contain metadata only; drafts never enter diagnostics. */
@@ -157,6 +173,7 @@ export interface PersistedAtomEnvelope {
   readonly version: 1;
   readonly storeRevision: number;
   readonly atoms: {
+    readonly "app-shell-summary-panel-pinned"?: boolean;
     readonly "composer-drafts-v1": {
       readonly bindings: Readonly<Record<string, string>>;
       readonly entries: Readonly<Record<string, PersistedDraftEntry>>;

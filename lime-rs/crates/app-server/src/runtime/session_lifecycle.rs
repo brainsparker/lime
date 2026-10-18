@@ -428,7 +428,10 @@ impl RuntimeCore {
                 history_before_message_id: None,
             })
             .await?;
-        self.insert_hydrated_session(context.stored)
+        let mut stored = context.stored;
+        stored.session = context.response.session;
+        stored.turns = context.response.turns;
+        self.insert_hydrated_session(stored)
     }
 
     fn has_runtime_core_session(&self, session_id: &str) -> bool {

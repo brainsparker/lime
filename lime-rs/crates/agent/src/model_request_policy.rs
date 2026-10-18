@@ -1,11 +1,21 @@
 use crate::turn_context_configuration::AgentTurnContext;
+use agent_protocol::truncation::TruncationPolicy;
 use model_provider::provider_stream::{
     RuntimeReplyModelRequestPolicy, RuntimeReplyReasoningOutputPolicy, RuntimeReplyResponsesPolicy,
     RuntimeReplyToolCallPolicy,
 };
 use serde_json::Value;
 
-const DEFAULT_TOOL_OUTPUT_TRUNCATION_BYTES: u64 = 10_000;
+mod truncation;
+
+const REQUEST_METADATA_KEYS: [&str; 5] = [
+    "runtime_options",
+    "runtimeOptions",
+    "runtime_request",
+    "runtimeRequest",
+    "config",
+];
+
 const DEFAULT_EFFECTIVE_CONTEXT_WINDOW_PERCENT: i64 = 95;
 const AUTO_COMPACT_CONTEXT_WINDOW_RATIO_NUMERATOR: i64 = 9;
 const AUTO_COMPACT_CONTEXT_WINDOW_RATIO_DENOMINATOR: i64 = 10;
@@ -13,7 +23,7 @@ pub const MODEL_NATIVE_SHELL_TOOL_NAME: &str = "exec_command";
 pub const MODEL_NATIVE_STDIN_TOOL_NAME: &str = "write_stdin";
 pub const MODEL_NATIVE_APPLY_PATCH_TOOL_NAME: &str = "apply_patch";
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct ModelRequestPolicySnapshot {
     pub source: Option<String>,
     pub provider_id: Option<String>,
@@ -92,26 +102,29 @@ pub struct ModelNativeToolPolicySnapshot {
 pub fn model_request_policy_from_turn_context(
     context: Option<&AgentTurnContext>,
 ) -> Option<ModelRequestPolicySnapshot> {
-    let metadata = &context?.metadata;
-    [
-        "runtime_options",
-        "runtimeOptions",
-        "runtime_request",
-        "runtimeRequest",
-        "config",
-    ]
-    .into_iter()
-    .filter_map(|key| metadata.get(key))
-    .find_map(model_request_policy_from_metadata)
-    .or_else(|| {
-        let value = Value::Object(serde_json::Map::from_iter(metadata.clone()));
-        model_request_policy_from_metadata(&value)
-    })
+    let metadata = Value::Object(serde_json::Map::from_iter(context?.metadata.clone()));
+    let mut snapshot = REQUEST_METADATA_KEYS
+        .into_iter()
+        .filter_map(|key| metadata.get(key))
+        .filter_map(model_request_policy_value)
+        .map(model_request_policy_from_value)
+        .find(ModelRequestPolicySnapshot::has_policy_payload)
+        .or_else(|| model_request_policy_value(&metadata).map(model_request_policy_from_value))
+        .unwrap_or_default();
+    snapshot.truncation_policy = truncation::resolve(&metadata);
+    snapshot.has_policy_payload().then_some(snapshot)
 }
 
 pub fn model_request_policy_from_metadata(metadata: &Value) -> Option<ModelRequestPolicySnapshot> {
-    let policy = model_request_policy_value(metadata)?;
-    let snapshot = ModelRequestPolicySnapshot {
+    let mut snapshot = model_request_policy_value(metadata)
+        .map(model_request_policy_from_value)
+        .unwrap_or_default();
+    snapshot.truncation_policy = truncation::resolve(metadata);
+    snapshot.has_policy_payload().then_some(snapshot)
+}
+
+fn model_request_policy_from_value(policy: &Value) -> ModelRequestPolicySnapshot {
+    ModelRequestPolicySnapshot {
         source: string_field(policy, &["source"]),
         provider_id: string_field(policy, &["provider_id", "providerId"]),
         model_id: string_field(policy, &["model_id", "modelId"]),
@@ -135,8 +148,7 @@ pub fn model_request_policy_from_metadata(metadata: &Value) -> Option<ModelReque
             .map(truncation_policy_from_value),
         native_tool_policy: object_field(policy, &["native_tool_policy", "nativeToolPolicy"])
             .map(native_tool_policy_from_value),
-    };
-    snapshot.has_policy_payload().then_some(snapshot)
+    }
 }
 
 pub fn runtime_reply_model_request_policy_from_turn_context(
@@ -225,7 +237,15 @@ pub fn runtime_reply_model_request_policy_from_snapshot(
         .as_ref()
         .map(runtime_reply_reasoning_output_policy);
 
-    RuntimeReplyModelRequestPolicy::new(responses, tool_call, reasoning_output)
+    let truncation = snapshot.truncation_policy.as_ref().and_then(|policy| {
+        let limit = usize::try_from(policy.limit).unwrap_or(usize::MAX);
+        match policy.mode.as_str() {
+            "tokens" => Some(TruncationPolicy::Tokens(limit)),
+            "bytes" => Some(TruncationPolicy::Bytes(limit)),
+            _ => None,
+        }
+    });
+    RuntimeReplyModelRequestPolicy::new(responses, tool_call, reasoning_output, truncation)
 }
 
 fn runtime_reply_responses_policy(
@@ -271,16 +291,10 @@ fn model_request_policy_value(value: &Value) -> Option<&Value> {
     direct_model_request_policy_value(value)
         .or_else(|| nested_metadata_value(value).and_then(model_request_policy_value))
         .or_else(|| {
-            [
-                "runtime_options",
-                "runtimeOptions",
-                "runtime_request",
-                "runtimeRequest",
-                "config",
-            ]
-            .into_iter()
-            .filter_map(|key| value.get(key))
-            .find_map(model_request_policy_value)
+            REQUEST_METADATA_KEYS
+                .into_iter()
+                .filter_map(|key| value.get(key))
+                .find_map(model_request_policy_value)
         })
         .or_else(|| looks_like_policy_value(value).then_some(value))
 }
@@ -525,10 +539,15 @@ fn reasoning_output_policy_from_value(value: &Value) -> ModelReasoningOutputPoli
 
 fn truncation_policy_from_value(value: &Value) -> ModelTruncationPolicySnapshot {
     let inner = object_field(value, &["truncation_policy", "truncationPolicy"]).unwrap_or(value);
+    let mode = enum_field(inner, &["mode"], &["bytes", "tokens"]);
+    let limit = mode
+        .as_ref()
+        .and_then(|_| inner.get("limit"))
+        .and_then(Value::as_u64)
+        .unwrap_or_else(|| TruncationPolicy::default().byte_budget() as u64);
     ModelTruncationPolicySnapshot {
-        mode: enum_field(inner, &["mode"], &["bytes", "tokens"]).unwrap_or_else(|| "bytes".into()),
-        limit: positive_u64_field(inner, &["limit"])
-            .unwrap_or(DEFAULT_TOOL_OUTPUT_TRUNCATION_BYTES),
+        mode: mode.unwrap_or_else(|| "bytes".into()),
+        limit,
     }
 }
 
@@ -594,13 +613,6 @@ fn bool_field(value: &Value, keys: &[&str]) -> Option<bool> {
     keys.iter()
         .filter_map(|key| value.get(*key))
         .find_map(Value::as_bool)
-}
-
-fn positive_u64_field(value: &Value, keys: &[&str]) -> Option<u64> {
-    keys.iter()
-        .filter_map(|key| value.get(*key))
-        .filter_map(Value::as_u64)
-        .find(|limit| *limit > 0)
 }
 
 fn positive_i64_field(value: &Value, keys: &[&str]) -> Option<i64> {

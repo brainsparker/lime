@@ -4,10 +4,9 @@ use crate::execution_process::{
     BoundedProcessOutput, ExecutionOutputDelta, ExecutionProcessStatus,
 };
 use crate::tool_executor::RuntimeToolExecutionResult;
-use crate::tool_io::{
-    estimate_tool_io_tokens, format_tool_output_for_model, ToolOutputTruncationPolicy,
-};
+use crate::tool_io::{estimate_tool_io_tokens, format_tool_output_for_model};
 use crate::tool_lifecycle::{ToolLifecycleEmitter, ToolOutputDeltaEvent};
+use agent_protocol::truncation::TruncationPolicy;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
@@ -113,7 +112,7 @@ pub(super) fn project_output(output: UnifiedExecCallOutput) -> RuntimeToolExecut
     let original_token_count = estimate_tool_io_tokens(&output.output);
     let visible_output = format_tool_output_for_model(
         &output.output,
-        ToolOutputTruncationPolicy::Tokens(output.max_output_tokens),
+        TruncationPolicy::Tokens(output.max_output_tokens),
     );
     let mut structured = json!({
         "chunk_id": Uuid::new_v4().to_string(),

@@ -27,8 +27,10 @@ async fn shared_collection_distinguishes_explicit_shares_from_link_installs_and_
     let mut installed = unlisted.clone();
     installed["enabled"] = json!(false);
     installed["installed_at"] = json!("2026-10-18T00:00:00Z");
+    installed["release"]["version"] = json!("0.9.0");
     let mut link_installed = link.clone();
     link_installed["enabled"] = json!(true);
+    let installed_rows = vec![installed.clone(), link_installed.clone()];
     let (url, task) = issuer(vec![
         ok(session("one")),
         ok(page(vec![private.clone(), listed], Some("shared+/="))),
@@ -36,7 +38,9 @@ async fn shared_collection_distinguishes_explicit_shares_from_link_installs_and_
         ok(page(vec![installed], Some("installed+/="))),
         ok(page(vec![link_installed], None)),
         ok(private),
+        ok(page(installed_rows.clone(), None)),
         ok(link),
+        ok(page(installed_rows, None)),
     ])
     .await;
     rpc(&server, "account/login/start", Some(login(&url))).await;
@@ -56,7 +60,9 @@ async fn shared_collection_distinguishes_explicit_shares_from_link_installs_and_
     assert_eq!(direct[1]["id"], "unlisted@workspace-shared-with-me");
     assert_eq!(direct[1]["installed"], true);
     assert_eq!(direct[1]["enabled"], false);
-    assert!(direct[1]["installedAt"].is_number());
+    assert_eq!(direct[1]["installedAt"], 1792281600_i64);
+    assert_eq!(direct[1]["version"], "1.2.3");
+    assert_eq!(direct[1]["localVersion"], "0.9.0");
     assert_eq!(
         markets[1]["plugins"][0]["id"],
         "link@workspace-shared-with-me"
@@ -100,7 +106,7 @@ async fn shared_collection_distinguishes_explicit_shares_from_link_installs_and_
         .lines()
         .next()
         .unwrap()
-        .contains("installed?limit=200&includeDownloadUrls=true"));
+        .contains("installed?limit=200&includeDownloadUrls=false"));
     assert!(requests[4]
         .lines()
         .next()
@@ -121,6 +127,7 @@ async fn vertical_collection_preserves_the_global_canonical_identity_and_paginat
         ok(session("one")),
         ok(page(vec![one], Some("vertical+/="))),
         ok(page(vec![two], None)),
+        ok(page(vec![], None)),
     ])
     .await;
     rpc(&server, "account/login/start", Some(login(&url))).await;
@@ -193,10 +200,7 @@ async fn private_install_reconcile_cold_read_and_visibility_change_use_one_canon
         read["plugin"]["summary"]["id"],
         "research@workspace-shared-with-me"
     );
-    assert!(read["plugin"]["skills"][0]["path"]
-        .as_str()
-        .unwrap()
-        .contains("workspace-shared-with-me"));
+    assert_eq!(read["plugin"]["skills"][0]["path"], Value::Null);
     let cold = server(temp.path()).await;
     assert_eq!(
         rpc(&cold, "plugin/read", params).await["plugin"]["summary"]["localVersion"],

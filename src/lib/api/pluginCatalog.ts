@@ -5,6 +5,10 @@ import {
 } from "@limecloud/app-server-client";
 import { invalidateAppConfigCache } from "./appConfig";
 import { AppServerClient } from "@/lib/api/appServer";
+import {
+  writeRemotePluginPreference,
+  type RemotePluginPreferenceClient,
+} from "./remotePluginPreferences";
 import type {
   AppServerMarketplaceAddParams,
   AppServerMarketplaceAddResponse,
@@ -40,6 +44,8 @@ export type PluginCatalogClient = Pick<
   | "installPlugin"
   | "uninstallPlugin"
   | "listInstalledPlugins"
+  | "requestCloud"
+  | "readAccount"
 >;
 
 export const PLUGIN_CATALOG_CHANGED_EVENT = "lime:plugin-catalog-changed";
@@ -75,20 +81,38 @@ export async function searchPluginCatalog(
 }
 
 export async function setPluginEnabled(
-  params: { pluginId: string; enabled: boolean },
-  client: PluginCatalogClient = new AppServerClient(),
+  params: { enabled: boolean } & (
+    | { pluginId: string; remotePluginId?: never }
+    | { remotePluginId: string; pluginId?: never }
+  ),
+  client: Pick<
+    PluginCatalogClient,
+    "request" | "requestCloud" | "readAccount"
+  > = new AppServerClient(),
 ): Promise<void> {
-  await client.request<ConfigWriteResponse>(METHOD_CONFIG_BATCH_WRITE, {
-    edits: [
-      {
-        keyPath: `plugins.${JSON.stringify(params.pluginId)}.enabled`,
-        value: params.enabled,
-        mergeStrategy: "replace",
-      },
-    ],
-    reloadUserConfig: true,
-  } satisfies ConfigBatchWriteParams);
+  if (params.remotePluginId !== undefined) {
+    await writeRemotePluginPreference(params, client);
+  } else {
+    await client.request<ConfigWriteResponse>(METHOD_CONFIG_BATCH_WRITE, {
+      edits: [
+        {
+          keyPath: `plugins.${JSON.stringify(params.pluginId)}.enabled`,
+          value: params.enabled,
+          mergeStrategy: "replace",
+        },
+      ],
+      reloadUserConfig: true,
+    } satisfies ConfigBatchWriteParams);
+  }
   invalidateAppConfigCache();
+  emitPluginCatalogChanged();
+}
+
+export async function setPluginSkillEnabled(
+  params: { remotePluginId: string; skillName: string; enabled: boolean },
+  client: RemotePluginPreferenceClient = new AppServerClient(),
+): Promise<void> {
+  await writeRemotePluginPreference(params, client);
   emitPluginCatalogChanged();
 }
 

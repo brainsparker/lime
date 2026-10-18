@@ -42,6 +42,50 @@ const SIDEBAR_SESSION_DOMAIN_SOURCES = [
 ] as const;
 
 describe("AppSidebar current App Server session boundary", () => {
+  it("会话页头不恢复独立导航、常驻状态和工作目录派生", () => {
+    const header = readSource(
+      "src/components/agent/chat/workspace/ThreadWorkspaceHeader.tsx",
+    );
+    for (const retired of [
+      "hasNavigationActions",
+      "thread-workspace-header-navigation",
+      "thread-workspace-header-status",
+      "thread-workspace-header-directory",
+      "data-can-accept-direct-input",
+      "statusMeta",
+      "onBackHome",
+      "onBackToResources",
+      "onOpenSettings",
+    ]) {
+      expect(header, retired).not.toContain(retired);
+    }
+    expect(
+      readSource(
+        "src/components/agent/chat/workspace/threadWorkspaceHeaderViewModel.ts",
+      ),
+    ).not.toContain("resolveThreadWorkspaceStatus");
+  });
+  it("共享页头迁移后不得恢复行内宿主、重复高度或侧栏专用补位", () => {
+    const sources = [
+      "src/App.tsx",
+      "src/components/AppSidebar.tsx",
+      "src/components/app-sidebar/AppSidebar.styles.ts",
+      "src/components/agent/chat/workspace/WorkspaceMainArea.tsx",
+      "src/components/agent/chat/workspace/ThreadWorkspaceHeader.tsx",
+    ];
+    for (const file of sources) {
+      const source = readSource(file);
+      for (const retired of [
+        "thread-workspace-header-host",
+        "THREAD_WORKSPACE_HEADER_TOP_INSET",
+        "--lime-thread-header-leading",
+        "$reserveWindowControls",
+        "data-window-controls-reserved",
+      ]) {
+        expect(source, `${file}: ${retired}`).not.toContain(retired);
+      }
+    }
+  });
   it("侧栏会话域不得回绕 agentRuntime compat 根 barrel", () => {
     for (const relativePath of SIDEBAR_SESSION_DOMAIN_SOURCES) {
       const source = readSource(relativePath);

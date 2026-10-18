@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
@@ -18,6 +18,8 @@ export function PluginSkillPreview({
   accountIdentity,
   accountVersion,
   onClose,
+  headerActions,
+  footer,
 }: {
   detail: AppServerPluginDetail;
   skill: PluginSkill;
@@ -25,6 +27,8 @@ export function PluginSkillPreview({
   accountIdentity: string | null;
   accountVersion: number;
   onClose: () => void;
+  headerActions?: ReactNode;
+  footer?: ReactNode;
 }) {
   const { t } = useTranslation("agent");
   const { data, error, isFetching, refetch } = useQuery(
@@ -69,12 +73,15 @@ export function PluginSkillPreview({
                 {skill.description}
               </Dialog.Description>
             </div>
-            <Dialog.Close
-              className="rounded-full p-1.5 hover:bg-[color:var(--lime-surface-hover)]"
-              aria-label={t("plugin.catalog.v2.close")}
-            >
-              <X size={18} />
-            </Dialog.Close>
+            <div className="flex shrink-0 items-center gap-3">
+              {headerActions}
+              <Dialog.Close
+                className="rounded-full p-1.5 hover:bg-[color:var(--lime-surface-hover)]"
+                aria-label={t("plugin.catalog.v2.close")}
+              >
+                <X size={18} />
+              </Dialog.Close>
+            </div>
           </div>
           <div
             className="mt-4 min-h-0 overflow-auto"
@@ -99,6 +106,7 @@ export function PluginSkillPreview({
               renderSkillMarkdown(data?.contents ?? "", title)
             )}
           </div>
+          {footer}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

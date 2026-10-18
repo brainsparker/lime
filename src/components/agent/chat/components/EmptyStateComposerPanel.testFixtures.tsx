@@ -3,6 +3,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { StyleSheetManager } from "styled-components";
+import { createTestStyleSheet } from "@/test/createTestStyleSheet";
 import { afterEach, beforeEach, expect, vi } from "vitest";
 import { EmptyStateComposerPanel } from "./EmptyStateComposerPanel";
 import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
@@ -215,6 +216,7 @@ export function renderPanel(
   // 隔离其它页面的 container query，避免旧 jsdom 解析失败污染本夹具样式。
   const styleTarget = document.createElement("div");
   document.head.appendChild(styleTarget);
+  const sheet = createTestStyleSheet(styleTarget);
   const root = createRoot(container);
 
   const defaultProps: React.ComponentProps<typeof EmptyStateComposerPanel> = {
@@ -233,9 +235,6 @@ export function renderPanel(
     skillSelection: createSkillSelection(),
     copy: TEST_COMPOSER_COPY,
     inputbarCopy: TEST_INPUTBAR_CORE_COPY,
-    showCreationModeSelector: false,
-    creationMode: "guided",
-    onCreationModeChange: vi.fn(),
     subagentEnabled: false,
     onSubagentEnabledChange: vi.fn(),
     pendingImages: [],
@@ -258,7 +257,7 @@ export function renderPanel(
 
   act(() => {
     root.render(
-      <StyleSheetManager target={styleTarget}>
+      <StyleSheetManager sheet={sheet}>
         <ControlledPanel />
       </StyleSheetManager>,
     );
@@ -276,6 +275,7 @@ export function renderStatefulPanel(
   document.body.appendChild(container);
   const styleTarget = document.createElement("div");
   document.head.appendChild(styleTarget);
+  const sheet = createTestStyleSheet(styleTarget);
   const root = createRoot(container);
   const initialInput = props?.input ?? "";
   const {
@@ -308,9 +308,6 @@ export function renderStatefulPanel(
         skillSelection={createSkillSelection()}
         copy={TEST_COMPOSER_COPY}
         inputbarCopy={TEST_INPUTBAR_CORE_COPY}
-        showCreationModeSelector={false}
-        creationMode="guided"
-        onCreationModeChange={vi.fn()}
         subagentEnabled={subagentEnabled}
         onSubagentEnabledChange={setSubagentEnabled}
         pendingImages={[]}
@@ -324,7 +321,7 @@ export function renderStatefulPanel(
 
   act(() => {
     root.render(
-      <StyleSheetManager target={styleTarget}>
+      <StyleSheetManager sheet={sheet}>
         <StatefulPanel />
       </StyleSheetManager>,
     );

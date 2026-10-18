@@ -11,7 +11,7 @@ mod skill;
 use crate::plugin_remote::{wire, Context};
 pub(super) use skill::read as read_skill;
 
-use wire::{Item, Scope};
+use wire::Item;
 
 mod collections;
 use collections::Collection;
@@ -54,10 +54,28 @@ pub(super) async fn list(
         };
     };
     let result = tokio::time::timeout(CATALOG_BUDGET, async {
-        let installed = installed(runtime).await?;
-        let mut marketplaces = Vec::new();
+        let mut directories = Vec::new();
         for collection in collections {
-            marketplaces.extend(collection.load(&context, &installed).await?);
+            directories.push((collection, context.directory(collection).await?));
+        }
+        let installed = context.installed_snapshot(false).await?;
+        let mut marketplaces = Vec::new();
+        for (collection, items) in directories {
+            marketplaces.extend(collection.project(items, &installed));
+        }
+        {
+            let _guard = lime_core::config::config_file_lock();
+            let config = lime_core::config::ConfigManager::load(&runtime.app_config_path).map_err(
+                |error| {
+                    RuntimeCoreError::Backend(format!("failed to load plugin settings: {error}"))
+                },
+            )?;
+            for summary in marketplaces
+                .iter_mut()
+                .flat_map(|market| &mut market.plugins)
+            {
+                summary.enabled &= config.config().plugins.enabled(&summary.id);
+            }
         }
         context.ensure_current()?;
         Ok(marketplaces)
@@ -77,9 +95,8 @@ pub(super) async fn list(
 
 pub(super) async fn read(
     runtime: &RuntimeCore,
-    mut params: PluginReadParams,
+    params: PluginReadParams,
 ) -> Result<PluginReadResponse, RuntimeCoreError> {
-    let scope = Scope::from_marketplace(params.remote_marketplace_name.as_deref().unwrap_or(""))?;
     wire::validate_remote_id(&params.plugin_name)?;
     let context = Context::current(runtime.account_manager.as_deref())?.ok_or_else(|| {
         RuntimeCoreError::InvalidRequest("authentication required for remote plugin details".into())
@@ -87,23 +104,16 @@ pub(super) async fn read(
     let item: Item = context
         .get(&format!("{}?includeDownloadUrls=false", params.plugin_name))
         .await?;
-    item.validate(Some(scope))?;
+    // Remote IDs are unique; the authorized detail determines its canonical marketplace.
+    item.validate(None)?;
     if item.id != params.plugin_name {
         return Err(RuntimeCoreError::Backend(
             "remote plugin detail identity does not match request".to_string(),
         ));
     }
-    let installed = installed(runtime).await?;
-    let local = if installed.values().any(|summary| {
-        summary.local_version.is_some()
-            && summary.remote_plugin_id.as_deref() == Some(&item.id)
-            && summary.id == format!("{}@{}", item.name, item.marketplace())
-    }) {
-        params.remote_marketplace_name = Some(item.marketplace().to_string());
-        Some(runtime.app_data_source.read_plugin(params).await?.plugin)
-    } else {
-        None
-    };
+    let installed = context.installed_snapshot(false).await?;
+    let installed = installed.iter().find(|row| row.plugin.id == item.id);
+    let disabled_skills = installed.map(|row| &row.disabled_skill_names);
     let mut app_ids = BTreeSet::new();
     let app_ids = item
         .release
@@ -151,60 +161,30 @@ pub(super) async fn read(
             }
         })
         .collect();
-    context.ensure_current()?;
     let onboarding_name = item.release.onboarding_skill_name.clone();
-    let mut plugin = item.detail(apps);
-    apply_installation(&mut plugin.summary, &installed);
-    if let Some(local) = local {
-        plugin.skills = local.skills;
-        plugin.hooks = local.hooks;
-        plugin.mcp_servers = local.mcp_servers;
+    let summary = item.summary_with_installation(installed);
+    let mut plugin = item.detail(apps, disabled_skills);
+    plugin.summary = summary;
+    {
+        let _guard = lime_core::config::config_file_lock();
+        let config =
+            lime_core::config::ConfigManager::load(&runtime.app_config_path).map_err(|error| {
+                RuntimeCoreError::Backend(format!("failed to load plugin settings: {error}"))
+            })?;
+        plugin.summary.enabled &= config.config().plugins.enabled(&plugin.summary.id);
     }
-    if plugin.summary.enabled {
+    if plugin.summary.enabled
+        && plugin.summary.availability
+            == app_server_protocol::protocol::v2::PluginAvailability::Available
+    {
         plugin.onboarding_skill = onboarding_name.and_then(|name| {
-            let qualified = format!("{}:{name}", plugin.summary.name);
             plugin
                 .skills
                 .iter()
-                .find(|skill| skill.enabled && (skill.name == name || skill.name == qualified))
+                .find(|skill| skill.enabled && skill.name == name)
                 .cloned()
         });
     }
+    context.ensure_current()?;
     Ok(PluginReadResponse { plugin })
-}
-
-async fn installed(
-    runtime: &RuntimeCore,
-) -> Result<
-    std::collections::BTreeMap<String, app_server_protocol::protocol::v2::PluginSummary>,
-    RuntimeCoreError,
-> {
-    Ok(runtime
-        .app_data_source
-        .list_installed_plugins(Default::default())
-        .await?
-        .marketplaces
-        .into_iter()
-        .flat_map(|market| market.plugins)
-        .filter(|plugin| plugin.installed && plugin.remote_plugin_id.is_some())
-        .map(|plugin| (plugin.id.clone(), plugin))
-        .collect())
-}
-
-fn apply_installation(
-    summary: &mut app_server_protocol::protocol::v2::PluginSummary,
-    installed: &std::collections::BTreeMap<
-        String,
-        app_server_protocol::protocol::v2::PluginSummary,
-    >,
-) {
-    if let Some(local) = installed
-        .get(&summary.id)
-        .filter(|local| local.remote_plugin_id == summary.remote_plugin_id)
-    {
-        summary.installed_at = local.installed_at;
-        summary.installed = local.installed;
-        summary.enabled = local.enabled;
-        summary.local_version = local.local_version.clone();
-    }
 }

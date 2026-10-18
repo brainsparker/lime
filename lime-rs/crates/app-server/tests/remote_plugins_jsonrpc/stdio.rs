@@ -124,10 +124,16 @@ async fn remote_plugins_real_stdio_processes_use_shared_account_for_directory_an
     let binary = fixed_binary();
     let mut first = Peer::start(temp.path(), &binary).await;
     let plugin = item("stdio~1", "research");
+    let mut installed = plugin.clone();
+    installed["enabled"] = json!(true);
+    installed["release"]["version"] = json!("0.9.0");
+    installed["installed_at"] = json!("2026-01-01T00:00:00Z");
     let (url, task) = issuer(vec![
         ok(session("stdio")),
         ok(page(vec![plugin.clone()], None)),
+        ok(page(vec![installed.clone()], None)),
         ok(plugin),
+        ok(page(vec![installed], None)),
     ])
     .await;
     first.rpc("account/login/start", Some(login(&url))).await;
@@ -142,6 +148,19 @@ async fn remote_plugins_real_stdio_processes_use_shared_account_for_directory_an
         "remote stdio directory: {list}"
     );
     let read = first.rpc("plugin/read", detail("stdio~1")).await;
+    assert_eq!(list["marketplaces"][0]["plugins"][0]["installed"], true);
+    assert_eq!(
+        list["marketplaces"][0]["plugins"][0]["localVersion"],
+        "0.9.0"
+    );
+    assert_eq!(
+        list["marketplaces"][0]["plugins"][0]["installedAt"],
+        1767225600_i64
+    );
+    assert_eq!(
+        peer.rpc("plugin/installed", Some(json!({}))).await["marketplaces"],
+        json!([])
+    );
     assert_eq!(
         read["plugin"]["summary"],
         list["marketplaces"][0]["plugins"][0]
@@ -152,7 +171,14 @@ async fn remote_plugins_real_stdio_processes_use_shared_account_for_directory_an
         .await
         .get("error")
         .is_some());
-    assert_eq!(finish(task).await.len(), 3);
+    assert_eq!(read["plugin"]["skills"][0]["path"], Value::Null);
+    assert_eq!(read["plugin"]["skills"][0]["enabled"], true);
+    let requests = finish(task).await;
+    assert_eq!(requests.len(), 5);
+    assert!(requests[2].contains("/installed?limit=200&includeDownloadUrls=false "));
+    assert!(!requests
+        .iter()
+        .any(|request| request.contains("includeDownloadUrls=true")));
     peer.close().await;
     first.close().await;
 }

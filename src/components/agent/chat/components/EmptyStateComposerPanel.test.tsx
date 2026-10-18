@@ -557,7 +557,6 @@ describe("EmptyStateComposerPanel", () => {
       inputbarCopy: TEST_EN_INPUTBAR_CORE_COPY,
       isGeneralTheme: true,
       onToggleFileManager: vi.fn(),
-      showCreationModeSelector: true,
     });
 
     const plusTrigger = container.querySelector(

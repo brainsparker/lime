@@ -246,14 +246,14 @@ async fn remote_tar_gz_install_persists_shared_provenance_and_cold_read_model_th
     let listed = rpc(&server, "plugin/list", workspace()).await;
     assert_eq!(summary(&listed)["installed"], true);
     let details = rpc(&server, "plugin/read", detail("opaque~install")).await;
-    assert_eq!(details["plugin"]["skills"][0]["name"], "research:research");
-    assert!(details["plugin"]["skills"][0]["path"].is_string());
+    assert_eq!(details["plugin"]["skills"][0]["name"], "research");
+    assert_eq!(details["plugin"]["skills"][0]["path"], Value::Null);
     assert_eq!(
         details["plugin"]["onboardingSkill"],
         details["plugin"]["skills"][0]
     );
     assert_eq!(details["plugin"]["mcpServers"], json!(["search"]));
-    assert!(!details["plugin"]["hooks"].as_array().unwrap().is_empty());
+    assert_eq!(details["plugin"]["hooks"], json!([]));
     for enabled in [false, true] {
         rpc(
             &server,
@@ -271,7 +271,7 @@ async fn remote_tar_gz_install_persists_shared_provenance_and_cold_read_model_th
         )
         .await;
         assert_eq!(detail["plugin"]["summary"]["enabled"], enabled);
-        assert_eq!(detail["plugin"]["skills"][0]["enabled"], enabled);
+        assert_eq!(detail["plugin"]["skills"][0]["enabled"], true);
         assert_eq!(detail["plugin"]["onboardingSkill"].is_null(), !enabled);
     }
     let metadata = std::fs::read(temp.path().join(

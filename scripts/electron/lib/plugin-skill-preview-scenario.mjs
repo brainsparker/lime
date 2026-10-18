@@ -7,20 +7,35 @@ export async function exercisePluginSkillPreview({
   checks,
   evidenceDir,
   installed = false,
+  local = false,
 }) {
   const card = page.locator('[data-testid="plugin-skill-card"]').first();
   const dialog = page.locator('[data-testid="plugin-skill-preview"]');
   const body = dialog.locator('[data-testid="plugin-skill-contents"]');
   const requestsBefore = state.requests;
-  if (installed) {
+  if (local) {
     await card.click();
-    await body.getByText("Research carefully.", { exact: true }).waitFor();
+    await body
+      .getByText(
+        "Use the existing Lime browser session for page inspection and navigation tasks.",
+        { exact: true },
+      )
+      .waitFor();
     assert.equal(
       state.requests,
       requestsBefore,
       "local path must take priority over the remote skill API",
     );
-    checks.installedSkillUsesLocalFile = true;
+    checks.localSkillUsesLocalFile = true;
+  } else if (installed) {
+    await card.click();
+    await body.getByText("Verified skill body", { exact: true }).waitFor();
+    assert.equal(
+      state.requests,
+      requestsBefore,
+      "installed remote skills must retain their cached remote preview",
+    );
+    checks.installedSkillRetainsRemotePreview = true;
   } else {
     state.mode = "error";
     await card.click();
@@ -80,7 +95,11 @@ export async function exercisePluginSkillPreview({
   await page.screenshot({
     path: path.join(
       evidenceDir,
-      installed ? "skill-local.png" : "skill-remote.png",
+      local
+        ? "skill-local.png"
+        : installed
+          ? "skill-installed-remote.png"
+          : "skill-remote.png",
     ),
   });
   await page.keyboard.press("Escape");

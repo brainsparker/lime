@@ -22,7 +22,6 @@ import {
   getServiceSkillRunnerLabel,
   getServiceSkillRunnerTone,
 } from "./skillPresentation";
-import { shouldExposeServiceSkillHomeItem } from "./homeEntrySkills";
 import {
   buildServiceSkillHomeCopy,
   type ServiceSkillHomeCopy,
@@ -168,9 +167,7 @@ export function useServiceSkills(
 
   const applyCatalogSnapshot = useCallback(
     async (catalog: SkillCatalog) => {
-      const visibleItems = catalog.items.filter(
-        shouldExposeServiceSkillHomeItem,
-      );
+      const visibleItems = catalog.items;
       const visibleGroupKeys = new Set(
         visibleItems.map((item) => item.groupKey),
       );

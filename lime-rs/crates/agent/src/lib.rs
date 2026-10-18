@@ -12,6 +12,7 @@
 
 pub mod agent_tools;
 pub mod artifact_protocol;
+mod context_compaction;
 mod credential_bridge;
 mod current_provider_turn;
 mod direct_text_generation;
@@ -50,6 +51,7 @@ pub mod turn_input_envelope;
 pub mod turn_state;
 mod write_artifact_events;
 
+pub use context_compaction::run_context_compaction_with_db;
 pub use current_provider_turn::CommandEventPublisher;
 pub use direct_text_generation::{
     run_direct_text_generation_with_db, DirectTextGenerationRequest, DirectTextGenerationResult,

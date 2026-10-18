@@ -12,12 +12,6 @@ import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, { useEffect, useRef, useState } from "react";
 import styled from "styled-components";
 import { FolderOpen } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { CharacterMention } from "../skill-selection/CharacterMention";
 import { BuiltinCommandBadge } from "./Inputbar/components/BuiltinCommandBadge";
@@ -32,14 +26,9 @@ import { InputbarModelExtra } from "./Inputbar/components/InputbarModelExtra";
 import { RuntimeSceneBadge } from "./Inputbar/components/RuntimeSceneBadge";
 import { CuratedTaskBadge } from "../skill-selection/CuratedTaskBadge";
 import { SkillSelector } from "../skill-selection/SkillSelector";
-import { CREATION_MODE_CONFIG } from "./constants";
-import type { CreationMode } from "./types";
 import type { Character } from "@/lib/api/projectMemory";
 import type { MessageImage, MessagePathReference } from "../types";
-import {
-  EMPTY_STATE_PASSIVE_BADGE_CLASSNAME,
-  EMPTY_STATE_SELECT_TRIGGER_CLASSNAME,
-} from "./emptyStateSurfaceTokens";
+import { EMPTY_STATE_PASSIVE_BADGE_CLASSNAME } from "./emptyStateSurfaceTokens";
 import { resolveEmptyStateActiveCapability } from "./EmptyStateComposerPanelViewModel";
 import { MetaIconButton } from "./Inputbar/styles";
 import {
@@ -198,9 +187,6 @@ interface EmptyStateComposerPanelProps {
   pluginSuggestionsError?: string | null;
   pluginSuggestionsLoading?: boolean;
   onPluginSuggestionsNeeded?: () => void;
-  showCreationModeSelector: boolean;
-  creationMode: CreationMode;
-  onCreationModeChange?: (mode: CreationMode) => void;
   taskEnabled?: boolean;
   onTaskEnabledChange?: (enabled: boolean) => void;
   objectiveEnabled?: boolean;
@@ -271,9 +257,6 @@ export function EmptyStateComposerPanel({
   pluginSuggestionsError = null,
   pluginSuggestionsLoading = false,
   onPluginSuggestionsNeeded,
-  showCreationModeSelector,
-  creationMode,
-  onCreationModeChange,
   taskEnabled = false,
   onTaskEnabledChange,
   objectiveEnabled: objectiveEnabledProp,
@@ -563,42 +546,6 @@ export function EmptyStateComposerPanel({
           testId="empty-state-objective-status"
           onRemove={() => handleToolAction("objective_mode")}
         />
-      ) : null}
-
-      {showCreationModeSelector ? (
-        <Select
-          value={creationMode}
-          onValueChange={(value) =>
-            onCreationModeChange?.(value as CreationMode)
-          }
-        >
-          <SelectTrigger
-            className={`${EMPTY_STATE_SELECT_TRIGGER_CLASSNAME} min-w-[120px]`}
-          >
-            <div className="flex items-center gap-2">
-              {CREATION_MODE_CONFIG[creationMode].icon}
-              <span>{CREATION_MODE_CONFIG[creationMode].name}</span>
-            </div>
-          </SelectTrigger>
-          <SelectContent className="min-w-[200px] p-1" side="top">
-            <div className="px-2 py-1.5 text-xs font-medium text-slate-500">
-              {copy.creationMode.label}
-            </div>
-            {(
-              Object.entries(CREATION_MODE_CONFIG) as [
-                CreationMode,
-                (typeof CREATION_MODE_CONFIG)[CreationMode],
-              ][]
-            ).map(([key, config]) => (
-              <SelectItem key={key} value={key}>
-                <div className="flex items-center gap-3">
-                  <span className="flex-shrink-0">{config.icon}</span>
-                  <span className="font-medium">{config.name}</span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
       ) : null}
 
       {onToggleFileManager ? (

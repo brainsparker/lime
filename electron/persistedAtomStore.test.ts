@@ -421,9 +421,12 @@ describe("persisted atom Main CAS and draft lifecycle", () => {
     expect(store.updatePersistedAtomState(put())).toMatchObject({
       outcome: "applied",
     });
-    expect(events).toHaveLength(1);
-    expect(events[0]).not.toHaveProperty("entry");
-    expect(events[0]).not.toHaveProperty("draft");
+    expect(events.map((event) => event.key)).toEqual(["composer-drafts-v1", "app-shell-summary-panel-pinned"]);
+    for (const event of events) {
+      expect(event).not.toHaveProperty("entry");
+      expect(event).not.toHaveProperty("draft");
+      expect(event).not.toHaveProperty("value");
+    }
     expect(JSON.stringify(events)).not.toContain("rich 中文");
   });
 

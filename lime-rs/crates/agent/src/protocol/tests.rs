@@ -40,6 +40,7 @@ fn unified_exec_output(running: bool) -> NormalizedToolOutput {
         metadata.insert("session_id".to_string(), serde_json::json!(1001));
     }
     NormalizedToolOutput {
+        history_token_limit: None,
         success: true,
         text: "{}".to_string(),
         structured_content: None,
@@ -50,6 +51,39 @@ fn unified_exec_output(running: bool) -> NormalizedToolOutput {
         metadata,
         agent_control_projection_facts: Vec::new(),
         agent_control_state_facts: Vec::new(),
+    }
+}
+
+#[test]
+fn canonical_history_budget_uses_only_typed_host_value_and_preserves_zero() {
+    use agent_protocol::truncation::HISTORY_TOKEN_LIMIT_KEY;
+    for limit in [None, Some(0), Some(17)] {
+        let mut output = unified_exec_output(false);
+        output.history_token_limit = limit;
+        output
+            .metadata
+            .insert(HISTORY_TOKEN_LIMIT_KEY.into(), serde_json::json!(99999));
+        let event = canonical_tool_item_event(
+            ToolLifecycleEvent {
+                turn_id: "turn-history".into(),
+                call_id: "call-history".into(),
+                tool_name: "Read".into(),
+                arguments: serde_json::json!({}),
+                provider_metadata: Value::Null,
+                environments: Vec::new(),
+                phase: ToolLifecyclePhase::Completed,
+                output: Some(output),
+            },
+            tool_item_context(),
+        )
+        .unwrap();
+        let AgentEvent::ItemCompleted { item } = event else {
+            panic!("completed tool")
+        };
+        assert_eq!(
+            item.metadata.get(HISTORY_TOKEN_LIMIT_KEY),
+            limit.map(Value::from).as_ref()
+        );
     }
 }
 
@@ -65,6 +99,7 @@ fn aborted_tool_output_projects_cancelled_item_status() {
             environments: Vec::new(),
             phase: ToolLifecyclePhase::Completed,
             output: Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: false,
                 text: "Tool execution aborted".to_string(),
                 structured_content: None,

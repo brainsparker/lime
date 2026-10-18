@@ -69,8 +69,6 @@ import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics"
 import { getLimeSkinCopy } from "@/lib/appearance/skinContent";
 import { useHomeSkinPresentation } from "./homeSkinPresentation";
 
-const CREATION_THEMES: string[] = [];
-
 export const EmptyState: React.FC<EmptyStateProps> = ({
   composerController: externalComposerController,
   composerDraftCoordinator,
@@ -80,8 +78,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onSend,
   onStop,
   sendOnPointerDown = false,
-  creationMode = "guided",
-  onCreationModeChange,
   activeTheme = "general",
   onThemeChange,
   providerType,
@@ -456,9 +452,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     },
     [onThemeChange],
   );
-
-  // 判断当前主题是否需要显示创作模式选择器
-  const showCreationModeSelector = CREATION_THEMES.includes(activeTheme);
 
   const isGeneralTheme = isGeneralResearchTheme(activeTheme);
   const isComposerBusy = isLoading || disabled;
@@ -919,9 +912,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         pluginSuggestionsError={pluginSuggestionsError}
         pluginSuggestionsLoading={pluginSuggestionsLoading}
         onPluginSuggestionsNeeded={onPluginSuggestionsNeeded}
-        showCreationModeSelector={showCreationModeSelector}
-        creationMode={creationMode}
-        onCreationModeChange={onCreationModeChange}
         taskEnabled={taskEnabled}
         onTaskEnabledChange={onTaskEnabledChange}
         objectiveEnabled={objectiveEnabled}

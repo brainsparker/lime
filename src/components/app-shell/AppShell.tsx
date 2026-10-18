@@ -6,85 +6,28 @@ import {
   useState,
   useSyncExternalStore,
   type CSSProperties,
+  type HTMLAttributes,
   type ReactNode,
+  type Ref,
 } from "react";
 
-type SlotPosition = "left" | "center" | "right";
-type Align = "start" | "center" | "end";
-
-interface HeaderEntry {
-  align: Align;
-  allowsThreadContentOverlap: boolean;
-  node: ReactNode;
-  order: number;
-}
-
-interface HeaderActionEntry extends HeaderEntry {
-  actionId: string;
-}
-
-function createHeaderRegistry() {
-  const slots = new Map<SlotPosition, Map<string, HeaderEntry>>();
-  const ids = new Map<SlotPosition, string[]>();
-  const listeners = new Set<() => void>();
-  let snapshot: Record<SlotPosition, HeaderActionEntry[]> = {
-    left: [],
-    center: [],
-    right: [],
-  };
-  const publish = () => {
-    const entries = (slot: SlotPosition) =>
-      (ids.get(slot) ?? [])
-        .flatMap((actionId) => {
-          const entry = slots.get(slot)?.get(actionId);
-          return entry ? [{ actionId, ...entry }] : [];
-        })
-        .sort((a, b) => a.order - b.order);
-    snapshot = {
-      left: entries("left"),
-      center: entries("center"),
-      right: entries("right"),
-    };
-    listeners.forEach((listener) => listener());
-  };
-  return {
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    getSnapshot: () => snapshot,
-    update(slot: SlotPosition, actionId: string, entry: HeaderEntry) {
-      let byId = slots.get(slot);
-      if (!byId) {
-        byId = new Map();
-        slots.set(slot, byId);
-      }
-      byId.set(actionId, entry);
-      publish();
-    },
-    register(slot: SlotPosition, actionId: string) {
-      const current = ids.get(slot) ?? [];
-      if (!current.includes(actionId)) {
-        ids.set(slot, [...current, actionId]);
-        publish();
-      }
-    },
-    remove(slot: SlotPosition, actionId: string, entry: HeaderEntry | null) {
-      if (slots.get(slot)?.get(actionId) !== entry) return;
-      slots.get(slot)?.delete(actionId);
-      ids.set(
-        slot,
-        (ids.get(slot) ?? []).filter((id) => id !== actionId),
-      );
-      publish();
-    },
-  };
-}
+import {
+  createShellRegistry,
+  type Align,
+  type ContentLayout,
+  type HeaderActionEntry,
+  type HeaderEntry,
+  type LayoutEntry,
+  type PageHeaderEntry,
+  type SlotPosition,
+} from "./shellRegistry";
+import {
+  UnifiedTabStripRenderer,
+  type UnifiedTabStripEntry,
+} from "./UnifiedTabStripRenderer";
 
 const HeaderContext = createContext<ReturnType<
-  typeof createHeaderRegistry
+  typeof createShellRegistry
 > | null>(null);
 
 function useHeaderRegistry() {
@@ -94,9 +37,201 @@ function useHeaderRegistry() {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [registry] = useState(createHeaderRegistry);
+  const [registry] = useState(createShellRegistry);
   return (
     <HeaderContext.Provider value={registry}>{children}</HeaderContext.Provider>
+  );
+}
+
+function useShellSnapshot() {
+  const registry = useHeaderRegistry();
+  return useSyncExternalStore(
+    registry.subscribe,
+    registry.getSnapshot,
+    registry.getSnapshot,
+  );
+}
+
+export function Header({
+  children,
+  className,
+  contentFade = true,
+  divider = true,
+  desktopPlacement = "page",
+  inline = false,
+  separator = false,
+}: {
+  children: ReactNode;
+  className?: string;
+  contentFade?: boolean;
+  divider?: boolean;
+  desktopPlacement?: PageHeaderEntry["desktopPlacement"];
+  inline?: boolean;
+  separator?: boolean;
+}) {
+  const registry = useHeaderRegistry();
+  useLayoutEffect(() => {
+    registry.setPageHeader(
+      inline
+        ? null
+        : { node: children, contentFade, divider, desktopPlacement, separator },
+    );
+    return () => registry.setPageHeader(null);
+  }, [
+    registry,
+    children,
+    contentFade,
+    divider,
+    desktopPlacement,
+    inline,
+    separator,
+  ]);
+  return inline ? (
+    <div
+      className={className}
+      style={
+        separator
+          ? { borderBottom: "1px solid var(--lime-surface-border)" }
+          : undefined
+      }
+    >
+      {children}
+    </div>
+  ) : null;
+}
+
+export function UnifiedTabStrip({
+  children,
+  mode,
+  isVisible,
+  desktopPlacement = "page",
+  mainTabId,
+  mainTabPanelId,
+  mainToolbar,
+  sidePanelTabStrip,
+  sidePanelActive,
+  mainPaneEnd,
+  onContentTabDoubleClick,
+}: Omit<UnifiedTabStripEntry, "node"> & { children?: ReactNode }) {
+  const registry = useHeaderRegistry();
+  const entry = useRef<UnifiedTabStripEntry | null>(null);
+  useLayoutEffect(() => {
+    entry.current = {
+      mode,
+      isVisible,
+      desktopPlacement,
+      mainTabId,
+      mainTabPanelId,
+      mainToolbar,
+      sidePanelTabStrip,
+      sidePanelActive,
+      mainPaneEnd,
+      onContentTabDoubleClick,
+      node: children,
+    };
+    registry.setUnifiedTabStrip(entry.current);
+  }, [
+    registry,
+    children,
+    mode,
+    isVisible,
+    desktopPlacement,
+    mainTabId,
+    mainTabPanelId,
+    mainToolbar,
+    sidePanelTabStrip,
+    sidePanelActive,
+    mainPaneEnd,
+    onContentTabDoubleClick,
+  ]);
+  useLayoutEffect(
+    () => () => registry.removeUnifiedTabStrip(entry.current),
+    [registry],
+  );
+  return null;
+}
+
+export function MainContentLayout({
+  layout,
+  fallback = false,
+}: {
+  layout: ContentLayout;
+  fallback?: boolean;
+}) {
+  const registry = useHeaderRegistry();
+  const entry = useRef<LayoutEntry | null>(null);
+  useLayoutEffect(() => {
+    entry.current = { layout };
+    registry.setLayout(fallback, entry.current);
+  }, [registry, fallback, layout]);
+  useLayoutEffect(
+    () => () => registry.removeLayout(fallback, entry.current),
+    [registry, fallback],
+  );
+  return null;
+}
+
+export function AppShellContent({
+  pageSurface,
+  children,
+  style,
+  ...props
+}: HTMLAttributes<HTMLElement> & { pageSurface: boolean }) {
+  const registry = useHeaderRegistry();
+  const { layout, pageHeader, unifiedTabStrip, contentBounds } =
+    useShellSnapshot();
+  const ref = useRef<HTMLElement>(null);
+  useLayoutEffect(() => {
+    const element = ref.current!;
+    const measure = () => {
+      const { left, right } = element.getBoundingClientRect();
+      registry.setContentBounds({ left, right });
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      registry.setContentBounds(null);
+    };
+  }, [registry]);
+  const fullBleed = layout === "full-bleed" || layout === "custom-titlebar";
+  const inset =
+    !fullBleed &&
+    (pageSurface || pageHeader !== null || unifiedTabStrip !== null);
+  return (
+    <main
+      {...props}
+      ref={ref}
+      data-app-shell-content
+      data-main-content-layout={layout}
+      className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.className ?? ""}`}
+      style={{
+        margin: inset ? (pageSurface ? "44px 4px 4px 0" : "44px 0 0") : 0,
+        borderRadius: pageSurface && !fullBleed ? 12 : 0,
+        background: "var(--lime-app-bg, hsl(var(--background)))",
+        ...style,
+      }}
+    >
+      {unifiedTabStrip?.desktopPlacement !== "titlebar" && unifiedTabStrip ? (
+        <div
+          className="h-[44px] shrink-0"
+          style={
+            {
+              "--app-shell-main-titlebar-left": `${contentBounds?.left ?? 0}px`,
+            } as CSSProperties
+          }
+        >
+          <UnifiedTabStripRenderer entry={unifiedTabStrip} />
+        </div>
+      ) : null}
+      {children}
+    </main>
   );
 }
 
@@ -144,9 +279,11 @@ export function HeaderAction({
 function HeaderSlot({
   entries,
   side,
+  slotRef,
 }: {
   entries: HeaderActionEntry[];
   side: "start" | "center" | "end";
+  slotRef?: Ref<HTMLDivElement>;
 }) {
   const start = entries.filter((entry) => entry.align === "start");
   const center = entries.filter((entry) => entry.align === "center");
@@ -169,6 +306,7 @@ function HeaderSlot({
   );
   return (
     <div
+      ref={slotRef}
       data-app-shell-header-slot={side}
       data-app-shell-header-obstacle
       data-app-shell-thread-content-overlap={
@@ -195,16 +333,57 @@ export function AppShellHeader({
 }: {
   reserveWindowControls?: boolean;
 }) {
-  const registry = useHeaderRegistry();
-  const entries = useSyncExternalStore(
-    registry.subscribe,
-    registry.getSnapshot,
-    registry.getSnapshot,
+  const entries = useShellSnapshot();
+  const startRef = useRef<HTMLDivElement>(null);
+  const endRef = useRef<HTMLDivElement>(null);
+  const [obstacles, setObstacles] = useState({ start: 0, end: 0 });
+  useLayoutEffect(() => {
+    const measure = () => {
+      const start = startRef.current!.getBoundingClientRect().right;
+      const end = endRef.current!.getBoundingClientRect().left;
+      setObstacles((current) =>
+        current.start === start && current.end === end
+          ? current
+          : { start, end },
+      );
+    };
+    measure();
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(measure);
+    observer?.observe(startRef.current!);
+    observer?.observe(endRef.current!);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [reserveWindowControls, entries.left, entries.right]);
+  const left = Math.max(
+    entries.contentBounds?.left ?? 0,
+    reserveWindowControls ? 92 : 8,
+    entries.left.some((entry) => !entry.allowsThreadContentOverlap)
+      ? obstacles.start + 6
+      : 0,
   );
+  const right = Math.max(
+    8,
+    entries.contentBounds ? window.innerWidth - entries.contentBounds.right : 0,
+    entries.right.some((entry) => !entry.allowsThreadContentOverlap) &&
+      obstacles.end
+      ? window.innerWidth - obstacles.end + 6
+      : 0,
+  );
+  const pageHeader =
+    entries.layout === "custom-titlebar" || entries.unifiedTabStrip
+      ? null
+      : entries.pageHeader;
   return (
     <header
       data-app-shell-titlebar
       data-testid="app-shell-header"
+      data-main-content-layout={entries.layout}
       className="pointer-events-none fixed inset-x-0 top-0 z-30 flex h-[44px] min-w-0 items-center gap-1.5"
       style={
         {
@@ -214,9 +393,43 @@ export function AppShellHeader({
         } as CSSProperties
       }
     >
-      <HeaderSlot entries={entries.left} side="start" />
-      <HeaderSlot entries={entries.center} side="center" />
-      <HeaderSlot entries={entries.right} side="end" />
+      <HeaderSlot entries={entries.left} side="start" slotRef={startRef} />
+      <div
+        data-app-shell-main-titlebar
+        className="pointer-events-none absolute inset-y-0 flex min-w-0 items-center gap-1.5"
+        style={
+          {
+            left,
+            right,
+            "--app-shell-main-titlebar-left": `${left}px`,
+          } as CSSProperties
+        }
+      >
+        {entries.unifiedTabStrip?.desktopPlacement === "titlebar" ? (
+          <UnifiedTabStripRenderer entry={entries.unifiedTabStrip} />
+        ) : null}
+        {pageHeader ? (
+          <div
+            data-app-shell-page-header
+            data-desktop-placement={pageHeader.desktopPlacement}
+            data-content-fade={pageHeader.contentFade}
+            data-divider={pageHeader.divider}
+            className="pointer-events-auto flex h-full min-w-0 flex-1 items-center"
+            style={
+              {
+                WebkitAppRegion: "no-drag",
+                borderBottom: pageHeader.separator
+                  ? "1px solid var(--lime-surface-border)"
+                  : undefined,
+              } as CSSProperties
+            }
+          >
+            {pageHeader.node}
+          </div>
+        ) : null}
+        <HeaderSlot entries={entries.center} side="center" />
+      </div>
+      <HeaderSlot entries={entries.right} side="end" slotRef={endRef} />
     </header>
   );
 }

@@ -1,4 +1,4 @@
-use super::{flush_assistant, flush_tool_results, PROVIDER_TOOL_OUTPUT_MAX_BYTES};
+use super::{flush_assistant, flush_tool_results};
 use agent_protocol::{AgentInput, ItemStatus, ThreadItem, ThreadItemPayload, ToolArgument};
 use agent_runtime::reply_input::RuntimeReplyInput;
 use app_server_protocol::AgentEvent;
@@ -215,6 +215,7 @@ fn tool_result_from_item(item: &ThreadItem) -> Option<CurrentProviderToolResult>
                 .unwrap_or_else(|| "dynamic tool call failed".to_string())
         });
         return Some(CurrentProviderToolResult {
+            history_token_limit: history_token_limit(item),
             call_id: call_id.clone(),
             name,
             success,
@@ -255,14 +256,6 @@ fn tool_result_from_item(item: &ThreadItem) -> Option<CurrentProviderToolResult>
         .filter(|text| !text.trim().is_empty())
         .map(ToString::to_string)
         .or_else(|| output.structured_content.as_ref().map(Value::to_string))
-        .map(|text| {
-            tool_runtime::tool_io::format_tool_output_for_model(
-                &text,
-                tool_runtime::tool_io::ToolOutputTruncationPolicy::Bytes(
-                    PROVIDER_TOOL_OUTPUT_MAX_BYTES,
-                ),
-            )
-        })
         .or_else(|| {
             output_ref.map(|reference| {
                 format!(
@@ -272,6 +265,7 @@ fn tool_result_from_item(item: &ThreadItem) -> Option<CurrentProviderToolResult>
         })
         .unwrap_or_default();
     Some(CurrentProviderToolResult {
+        history_token_limit: history_token_limit(item),
         call_id,
         name,
         success: status == ItemStatus::Completed,
@@ -289,6 +283,13 @@ fn canonical_tool_item(event: &AgentEvent) -> Option<ThreadItem> {
         return None;
     }
     serde_json::from_value(event.payload.get("item")?.clone()).ok()
+}
+
+fn history_token_limit(item: &ThreadItem) -> Option<usize> {
+    item.metadata
+        .get(agent_protocol::truncation::HISTORY_TOKEN_LIMIT_KEY)
+        .and_then(Value::as_u64)
+        .and_then(|limit| usize::try_from(limit).ok())
 }
 
 fn canonical_tool_arguments(arguments: &[ToolArgument]) -> (Value, String) {

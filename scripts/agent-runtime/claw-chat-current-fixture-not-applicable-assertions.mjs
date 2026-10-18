@@ -45,7 +45,7 @@ export function buildNotApplicableAssertions(context) {
     isPlanScenario,
     isReasoningFirstVisibleScenario,
     isRightSurfaceVisualMatrixScenario,
-    isThreadActivityPanelScenario,
+    isThreadSummaryPanelScenario,
     isSkillsRuntimeScenario,
     isSoulStyleScenario,
     isTerminalCanceledAfterAnswerScenario,
@@ -56,11 +56,11 @@ export function buildNotApplicableAssertions(context) {
   } = context;
   if (
     isRightSurfaceVisualMatrixScenario ||
-    isThreadActivityPanelScenario ||
+    isThreadSummaryPanelScenario ||
     isContentFactoryArticleWorkspaceScenario
   ) {
     return [
-      ...(isRightSurfaceVisualMatrixScenario || isThreadActivityPanelScenario
+      ...(isRightSurfaceVisualMatrixScenario || isThreadSummaryPanelScenario
         ? [
             "guiUserMessageVisible",
             "guiAssistantOutputVisible",
@@ -116,7 +116,7 @@ export function buildNotApplicableAssertions(context) {
       ...EXPERT_SKILLS_RUNTIME_ASSERTION_KEYS,
       ...EXPERT_PLAZA_SKILLS_RUNTIME_ASSERTION_KEYS,
       ...EXPERT_PANEL_SKILLS_RUNTIME_ASSERTION_KEYS,
-      ...(isRightSurfaceVisualMatrixScenario || isThreadActivityPanelScenario
+      ...(isRightSurfaceVisualMatrixScenario || isThreadSummaryPanelScenario
         ? CONTENT_FACTORY_ARTICLE_WORKSPACE_ASSERTION_KEYS
         : RIGHT_SURFACE_VISUAL_MATRIX_ASSERTION_KEYS),
     ];

@@ -37,10 +37,7 @@ import {
   buildQuotedReplyText,
   buildWorkspaceHeaderView,
 } from "./workspaceConversationSceneViewModel";
-import {
-  useWorkspaceConversationLandingSessionRuntime,
-  type WorkspaceConversationLandingSurfaceRuntime,
-} from "./useWorkspaceConversationLandingSurfaceRuntime";
+import type { WorkspaceConversationLandingSurfaceRuntime } from "./useWorkspaceConversationLandingSurfaceRuntime";
 import {
   buildWorkspaceConversationRightSurfaceSceneProps,
   type WorkspaceConversationRightSurfaceChromeRuntime,
@@ -120,8 +117,6 @@ type NavigationActions = Pick<
   | "handleOpenExecutionPolicySettings"
   | "handleProjectChange"
   | "handleOpenAppearanceSettings"
-  | "handleOpenRuntimeMemoryWorkbench"
-  | "handleOpenChannels"
   | "handleBackToResources"
   | "handleCompactContext"
 >;
@@ -135,7 +130,6 @@ interface ShellChromeRuntime {
   shouldHideGeneralWorkbenchInputForTheme: boolean;
   shouldRenderTopBar: boolean;
   layoutTransitionChatPanelWidth?: string;
-  layoutTransitionChatPanelMinWidth?: string;
   shouldShowGeneralWorkbenchFloatingInputOverlay: boolean;
   shouldRenderInlineA2UI: boolean;
 }
@@ -258,7 +252,6 @@ interface UseWorkspaceConversationSceneRuntimeParams {
   openedProjects?: ConversationScenePresentationParams["scene"]["openedProjects"];
   onCloseProject?: ConversationScenePresentationParams["scene"]["onCloseProject"];
   deferWorkspaceListLoad?: ConversationScenePresentationParams["scene"]["deferWorkspaceListLoad"];
-  taskCenterTabsNode?: ConversationScenePresentationParams["scene"]["taskCenterTabsNode"];
   suppressNavbarUtilityActions?: boolean;
   topBarChrome: ConversationScenePresentationParams["scene"]["navbarChrome"];
   onBackToProjectManagement?: ConversationScenePresentationParams["scene"]["onBackToProjectManagement"];
@@ -320,7 +313,6 @@ export function useWorkspaceConversationSceneRuntime({
   openedProjects,
   onCloseProject,
   deferWorkspaceListLoad,
-  taskCenterTabsNode,
   suppressNavbarUtilityActions = false,
   topBarChrome,
   onBackToProjectManagement,
@@ -539,26 +531,6 @@ export function useWorkspaceConversationSceneRuntime({
       t,
     ],
   );
-  const landingSurfaceWithSessionRuntime =
-    useWorkspaceConversationLandingSessionRuntime({
-      landingSurface,
-      showChatLayout: shellChromeRuntime.showChatLayout,
-      messages: displayMessages,
-      turns: projectedTurns,
-      threadItems: projectedThreadItems,
-      currentTurnId: projectedCurrentTurnId,
-      threadRead: projectedThreadRead,
-      pendingActions: projectedPendingActions,
-      submittedActionsInFlight: projectedSubmittedActionsInFlight,
-      canonicalChildren,
-      isSending,
-      sessionId,
-      projectRootPath,
-      currentUserMessage:
-        codingWorkbenchViews.currentSessionTurn?.prompt_text || null,
-      onOpenMemoryWorkbench: navigationActions.handleOpenRuntimeMemoryWorkbench,
-      onOpenChannels: navigationActions.handleOpenChannels,
-    });
   const sessionRuntimeCounters = codingWorkbenchViews.counters;
   const shouldUseCodingWorkbenchChrome =
     sessionRuntimeCounters.shouldUseRuntimeWorkbench ||
@@ -597,7 +569,7 @@ export function useWorkspaceConversationSceneRuntime({
   return renderWorkspaceConversationScene({
     scene: {
       threadHeader,
-      landingSurface: landingSurfaceWithSessionRuntime,
+      landingSurface,
       showChatLayout: shellChromeRuntime.showChatLayout,
       compactChrome: shellChromeRuntime.isWorkspaceCompactChrome,
       contextWorkspaceEnabled,
@@ -621,8 +593,7 @@ export function useWorkspaceConversationSceneRuntime({
       onOpenSettings: navbarUtilityActionsVisible
         ? navigationActions.handleOpenAppearanceSettings
         : undefined,
-      taskCenterTabsNode,
-      workspaceType: activeTheme,
+        workspaceType: activeTheme,
       navbarVisible: shellChromeRuntime.shouldRenderTopBar,
       isRunning: Boolean(isSending),
       navbarChrome: topBarChrome,
@@ -657,7 +628,6 @@ export function useWorkspaceConversationSceneRuntime({
       shellBottomInset:
         shellChromeRuntime.workflowLayoutBottomSpacing.shellBottomInset,
       chatPanelWidth: shellChromeRuntime.layoutTransitionChatPanelWidth,
-      chatPanelMinWidth: shellChromeRuntime.layoutTransitionChatPanelMinWidth,
       generalWorkbenchDialog: inputbarScene.generalWorkbenchDialog,
       showFloatingInputOverlay:
         shellChromeRuntime.shouldShowGeneralWorkbenchFloatingInputOverlay,

@@ -109,7 +109,9 @@ impl V2NotificationProjector {
             "item.started" | "command.started" => self.project_item(event, false),
             "item.completed" | "command.exited" => self.project_item(event, true),
             "context.compaction.started" => self.project_item(event, false),
-            "context.compaction.completed" => self.project_item(event, true),
+            "context.compaction.completed"
+            | "context.compaction.failed"
+            | "context.compaction.canceled" => self.project_item(event, true),
             "command.output" => {
                 return command::project_output_delta(
                     &self.started_command_item_ids,

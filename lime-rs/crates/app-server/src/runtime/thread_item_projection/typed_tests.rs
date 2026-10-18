@@ -10,6 +10,7 @@ use serde_json::json;
 mod canonical_lifecycle;
 mod incremental;
 mod queue;
+mod read_tool;
 
 fn event(
     id: &str,

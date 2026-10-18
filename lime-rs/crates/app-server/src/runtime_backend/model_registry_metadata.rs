@@ -1,4 +1,5 @@
 use super::request_context::RuntimeModelSelection;
+use agent_protocol::truncation::TruncationPolicy;
 use code_mode::RuntimeToolMode;
 use lime_agent::SessionProviderConfig;
 use lime_core::database::DbConnection;
@@ -117,6 +118,15 @@ pub(super) async fn resolve_runtime_model_registry_metadata(
         } else {
             "direct_provider_config_not_in_registry"
         };
+        let truncation_policy = config
+            .model_capabilities
+            .as_ref()
+            .and_then(|value| {
+                value
+                    .get("truncation_policy")
+                    .or_else(|| value.get("truncationPolicy"))
+            })
+            .and_then(|value| serde_json::from_value::<TruncationPolicy>(value.clone()).ok());
         return Ok(RuntimeModelRegistryMetadata {
             payload: json!({
                 "source": "direct_provider_config",
@@ -132,6 +142,7 @@ pub(super) async fn resolve_runtime_model_registry_metadata(
                 "matchedModelId": null,
                 "matched_model_id": null,
                 "model": null,
+                "truncation_policy": truncation_policy,
                 "modelCapabilities": model_capabilities.clone(),
                 "model_capabilities": model_capabilities,
                 "modelMessages": model_messages_from_provider_config(config.model_capabilities.as_ref()),
@@ -538,6 +549,7 @@ mod tests {
                     "runtimeFeatures": ["streaming"],
                     "multiAgentVersion": "v2",
                     "multiAgentReasoningEffort": "high",
+                    "truncationPolicy": {"mode":"tokens", "limit": 64, "apiKey":"must-not-persist"},
                     "capabilities": {
                         "streaming": true,
                         "apiKey": "must-not-persist"
@@ -582,6 +594,15 @@ mod tests {
         );
         assert_eq!(metadata.payload()["multiAgentVersion"], "v2");
         assert_eq!(metadata.payload()["multiAgentReasoningEffort"], "high");
+        assert_eq!(
+            metadata.payload()["truncation_policy"],
+            json!({"mode":"tokens", "limit":64})
+        );
+        let policy = lime_agent::runtime_reply_model_request_policy_from_metadata(
+            &json!({"modelRegistry":metadata.payload()}),
+        )
+        .unwrap();
+        assert_eq!(policy.truncation, Some(TruncationPolicy::Tokens(64)));
         assert_eq!(metadata.tool_mode(), RuntimeToolMode::Direct);
         assert!(!metadata.supports_custom_tools());
         let encoded = metadata.payload().to_string();

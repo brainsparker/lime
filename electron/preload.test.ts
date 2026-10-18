@@ -154,6 +154,28 @@ describe("electron/preload", () => {
     },
   );
 
+  it("Summary pin uses the existing public persisted-atom IPC", async () => {
+    const api = await loadPreloadApi();
+    const key = "app-shell-summary-panel-pinned";
+    const args = { key, query: { kind: "value" } };
+    const result = {
+      key,
+      storeRevision: 0,
+      persistence: { state: "saved", savedRevision: 0 },
+      outcome: "ready",
+      data: { queryKind: "value", value: true },
+    };
+    ipcInvoke.mockResolvedValueOnce({ ok: true, result });
+    await expect(api.invoke("persisted_atom_read", args)).resolves.toEqual(
+      result,
+    );
+    expect(ipcInvoke).toHaveBeenCalledExactlyOnceWith(
+      IPC_INVOKE_CHANNEL,
+      "persisted_atom_read",
+      args,
+    );
+  });
+
   it("preload rejects renderer persistence notifications before sending IPC", async () => {
     const api = await loadPreloadApi();
     await expect(

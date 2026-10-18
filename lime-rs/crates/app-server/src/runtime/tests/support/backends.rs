@@ -8,6 +8,17 @@ pub(in crate::runtime::tests) struct CompletedBackend;
 
 #[async_trait]
 impl ExecutionBackend for CompletedBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: ProviderTurnHistory,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        MockBackend
+            .compact_context(request, history, cancellation)
+            .await
+    }
+
     async fn start_turn(
         &self,
         _request: ExecutionRequest,
@@ -435,6 +446,17 @@ pub(in crate::runtime::tests) struct TurnCompletedRecordingBackend {
 
 #[async_trait]
 impl ExecutionBackend for TurnCompletedRecordingBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: ProviderTurnHistory,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        MockBackend
+            .compact_context(request, history, cancellation)
+            .await
+    }
+
     async fn start_turn(
         &self,
         request: ExecutionRequest,

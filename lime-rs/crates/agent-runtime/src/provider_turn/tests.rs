@@ -34,6 +34,8 @@ use tool_runtime::tool_lifecycle::{
     ToolLifecyclePhase, ToolOutputDeltaEvent,
 };
 
+#[path = "tests/context_history.rs"]
+mod context_history;
 #[path = "tests/hook_snapshot.rs"]
 mod hook_snapshot;
 #[path = "tests/stream_producer.rs"]
@@ -2883,6 +2885,7 @@ async fn turn_executes_same_response_tool_batch_in_parallel_when_policy_allows()
     ]));
     let probe = Arc::new(ParallelProbe::default());
     let policy = RuntimeReplyModelRequestPolicy {
+        truncation: None,
         responses: None,
         tool_call: Some(
             model_provider::provider_stream::RuntimeReplyToolCallPolicy {

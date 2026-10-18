@@ -43,6 +43,7 @@ pub(crate) fn model_catalog(
                 .iter()
                 .find(|model| model.id.trim().eq_ignore_ascii_case(model_id.id.trim()))
                 .cloned()
+                .map(|model| ModelRegistryService::merge_declared_capabilities(model, model_id))
                 .unwrap_or_else(|| {
                     model_registry_service.build_declared_model_metadata_for_endpoint(
                         provider_id,

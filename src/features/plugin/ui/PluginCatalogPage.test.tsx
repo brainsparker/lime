@@ -383,6 +383,64 @@ describe("PluginCatalogPage", () => {
     });
   });
 
+  it.each([
+    ["zh-CN", "无法更新插件启停状态，请重试。"],
+    ["zh-TW", "無法更新外掛啟停狀態，請重試。"],
+    ["en-US", "Could not update the plugin. Please try again."],
+    [
+      "ja-JP",
+      "プラグインの状態を更新できませんでした。もう一度お試しください。",
+    ],
+    ["ko-KR", "플러그인 상태를 업데이트하지 못했습니다. 다시 시도해 주세요."],
+  ])(
+    "%s 远端启停传 opaque ID，成功刷新，失败保留状态",
+    async (locale, message) => {
+      await changeLimeLocale(locale);
+      mocks.accountId = "one";
+      const plugin = summary({
+        id: "writer-plugin@workspace-directory",
+        remotePluginId: "remote_writer~1",
+        source: { type: "remote" },
+      });
+      mocks.listPlugins.mockImplementation(async ({ marketplaceKinds }) =>
+        marketplaceKinds
+          ? {
+              marketplaces: [
+                { name: "workspace-directory", path: null, plugins: [plugin] },
+              ],
+            }
+          : { marketplaces: [] },
+      );
+      const container = await renderPage();
+      for (const failed of [false, true]) {
+        if (failed)
+          mocks.setPluginEnabled.mockRejectedValueOnce(
+            new Error("HTTP 503 private detail"),
+          );
+        const reads = mocks.reconcilePlugins.mock.calls.length;
+        await click(
+          container.querySelector(
+            '[data-testid="plugin-catalog-actions-writer-plugin@workspace-directory"]',
+          ),
+        );
+        await click(
+          container.querySelector(
+            '[data-testid="plugin-catalog-toggle-writer-plugin@workspace-directory"]',
+          ),
+        );
+        expect(mocks.setPluginEnabled).toHaveBeenLastCalledWith({
+          remotePluginId: "remote_writer~1",
+          enabled: false,
+        });
+        expect(mocks.reconcilePlugins.mock.calls.length).toBe(
+          reads + (failed ? 0 : 1),
+        );
+      }
+      expect(container.textContent).toContain(message);
+      expect(container.textContent).not.toContain("private detail");
+    },
+  );
+
   it("远端详情和安装传服务 ID，配置身份保持 canonical ID", async () => {
     mocks.accountId = "one";
     const plugin = summary({

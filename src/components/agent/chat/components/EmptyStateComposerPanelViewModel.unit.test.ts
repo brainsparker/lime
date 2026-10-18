@@ -2,11 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Skill } from "@/lib/api/skills";
 import type { InputCapabilitySelection } from "../skill-selection/inputCapabilitySelection";
 import type { CuratedTaskTemplateItem } from "../utils/curatedTaskTemplates";
-import {
-  buildEmptyStateAdvancedControlsState,
-  resolveEmptyStateActiveCapability,
-  resolveCurrentModelSummary,
-} from "./EmptyStateComposerPanelViewModel";
+import { resolveEmptyStateActiveCapability } from "./EmptyStateComposerPanelViewModel";
 
 function skill(overrides: Partial<Skill> = {}): Skill {
   return {
@@ -93,69 +89,5 @@ describe("EmptyStateComposerPanelViewModel", () => {
     expect(taskState.activeCuratedTask?.id).toBe("weekly");
     expect(taskState.activeCuratedTaskReferenceEntries).toHaveLength(1);
     expect(taskState.activeSkill).toBe(fallbackSkill);
-  });
-
-  it("应裁剪 provider/model 后生成当前模型摘要", () => {
-    expect(
-      resolveCurrentModelSummary({
-        providerType: " openai ",
-        model: " gpt-5 ",
-        getProviderLabel: (value) => value.toUpperCase(),
-      }),
-    ).toEqual({
-      currentModelSummary: "OPENAI / gpt-5",
-      trimmedModel: "gpt-5",
-    });
-    expect(
-      resolveCurrentModelSummary({
-        providerType: "openai",
-        model: " ",
-        getProviderLabel: (value) => value,
-      }).currentModelSummary,
-    ).toBeNull();
-  });
-
-  it("应派生高级控件显示和高亮状态", () => {
-    const collapsedState = buildEmptyStateAdvancedControlsState({
-      providerType: "openai",
-      model: "gpt-5",
-      getProviderLabel: () => "OpenAI",
-      subagentEnabled: false,
-      knowledgePackEnabled: false,
-      accessMode: undefined,
-      isGeneralTheme: false,
-      showCreationModeSelector: false,
-      hasAccessModeSetter: false,
-      hasFileManagerToggle: false,
-      hasKnowledgePackControl: false,
-    });
-
-    expect(collapsedState).toMatchObject({
-      currentModelSummary: "OpenAI / gpt-5",
-      trimmedModel: "gpt-5",
-      hasHighlightedAdvancedPreference: false,
-      shouldShowAdvancedToggle: true,
-      shouldShowLeftExtra: true,
-    });
-
-    const highlightedState = buildEmptyStateAdvancedControlsState({
-      providerType: "openai",
-      model: "gpt-5",
-      getProviderLabel: () => "OpenAI",
-      subagentEnabled: false,
-      knowledgePackEnabled: true,
-      accessMode: "read-only",
-      isGeneralTheme: true,
-      showCreationModeSelector: true,
-      hasAccessModeSetter: true,
-      hasFileManagerToggle: true,
-      hasKnowledgePackControl: true,
-    });
-
-    expect(highlightedState).toMatchObject({
-      hasHighlightedAdvancedPreference: true,
-      shouldShowAdvancedToggle: true,
-      shouldShowLeftExtra: true,
-    });
   });
 });

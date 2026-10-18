@@ -40,7 +40,7 @@
 - 能走真实 Electron Desktop Host 和 App Server 就必须走真实链路；浏览器镜像入口暂不支持的原生壳能力只能使用显式测试夹具，并在结论里标为 `test-only / fixture`，不能作为 GUI 主路径交付证据
 - 通过 Electron CDP 连接真实窗口时，先断言 `window.__LIME_ELECTRON__ === true` 且 `window.electronAPI.invoke` 存在；随后从页面内读取 `localStorage.lime_invoke_trace_buffer_v1`，确认关键动作的 `transport` 为 `electron-ipc`，并能看到 `app_server_handle_json_lines` 中的 current JSON-RPC method。不要只以页面文本或 DevBridge `/health` 成功作为主路径证据
 - `lime_invoke_trace_buffer_v1` 可能包含 `save_config` / provider 配置的脱敏不足字段。汇报和落库 evidence 时只保留 method、transport、status、sessionId、turnId、marker、必要片段；不要粘贴完整 config、API key、token、provider secret 或用户私密 prompt
-- `lime_invoke_trace_buffer_v1` 中的 `agentSession/turn/start` 是 renderer 发给 App Server 的请求预览，只证明前端、Electron IPC 与 App Server JSON-RPC 主链；它不是 Runtime backend 完成 session config / final prompt 拼装后的模型请求。不要用其中的 `runtimeOptions.runtimeRequest.systemPrompt` 判断 Soul prompt 是否最终生效
+- `lime_invoke_trace_buffer_v1` 中的 `turn/start` 是 renderer 发给 App Server 的请求预览，只证明前端、Electron IPC 与 App Server JSON-RPC 主链；它不是 Runtime backend 完成 session config / final prompt 拼装后的模型请求。renderer 请求预览不能证明最终 Soul prompt
 - `APP_SERVER_BACKEND_MODE=external` 适合证明 GUI、read model、Electron IPC 和 current JSON-RPC 链路，但会绕过 `RuntimeBackend::handle_turn_start` 中的 `session_config_from_request` / session prompt 拼装，因此不能作为 Soul 最终 prompt 注入证据
 - Soul / AI 个性最终 prompt 只能通过 Rust prompt 单测或 `APP_SERVER_BACKEND_MODE=runtime` + 本地 OpenAI-compatible provider fixture 证明；provider fixture evidence 只保存 marker booleans，例如 `hasInteractionSoul`、`hasMemorySoulSchema`、`profileId`、`stylePackId`、`hasSurfaceContracts`，不得保存完整 `system_prompt`、provider request / response 或用户私密 prompt
 - `verify:gui-smoke` 默认启动真实 Electron Desktop Host 但隐藏主窗口，避免本地最小 smoke 抢占开发者当前窗口；这仍属于真实 Electron fixture 证据，不是 browser mirror
@@ -225,22 +225,25 @@ const turnStarts = trace.flatMap((entry) => {
   if (entry.command !== "app_server_handle_json_lines") return [];
   return (entry.args_preview?.request?.lines ?? [])
     .map((line) => JSON.parse(String(line)))
-    .filter((message) => message.method === "agentSession/turn/start")
+    .filter((message) => message.method === "turn/start")
     .map((message) => ({
       transport: entry.transport,
       status: entry.status,
-      sessionId: message.params?.sessionId,
-      turnId: message.params?.turnId,
-      text: message.params?.input?.text,
+      requestId: message.id,
+      threadId: message.params?.threadId,
+      hasMarker: (message.params?.input ?? []).some(
+        (part) => part.type === "text" && part.text.includes("fixture-marker"),
+      ),
     }));
 });
 ```
 
 通过标准：
 
-- 至少一条匹配本轮 marker / prompt 的 `agentSession/turn/start`
+- 至少一条匹配本轮 fixture marker 的 `turn/start`；生产用户输入不保存全文
 - `transport === "electron-ipc"`
 - `status === "success"`
+- Turn ID 从响应、通知或 read model 取得，与同一 Thread 关联；不从 `turn/start` 请求推测服务端分配的 Turn ID
 - 页面上同一轮出现用户消息和 assistant 输出，且停止按钮已消失
 - `lime_invoke_error_buffer_v1` 本轮无新增错误；如有，必须分类为阻塞 / 非阻塞 / 历史残留
 
@@ -253,7 +256,7 @@ Soul / AI 个性风格测试必须在 Claw 真实输入框中发送，不得只�
 Soul / AI 个性风格的完整闭环分三段验收：
 
 1. 设置层：`memory.soul.enabled`、`style_profile_id` 正确写入配置，且 i18n / UI 控件能恢复状态；`style_intensity` 不存在，测试不得要求或写入该字段
-2. 产品链路层：真实 Claw 输入框发送一轮，trace 中有 `electron-ipc`、`app_server_handle_json_lines`、`agentSession/turn/start`，read model 和页面 assistant 输出同轮可见
+2. 产品链路层：真实 Claw 输入框发送一轮，trace 中有 `electron-ipc`、`app_server_handle_json_lines`、`turn/start`，read model 和页面 assistant 输出同轮可见
 3. Runtime prompt 层：Rust prompt 单测或本地 provider fixture 证明最终模型请求含 Soul marker
 
 Runtime prompt 层的允许证据：
@@ -263,7 +266,7 @@ Runtime prompt 层的允许证据：
 
 Runtime prompt 层的禁止证据：
 
-- renderer trace 中的 `runtimeOptions.runtimeRequest.systemPrompt`
+- renderer trace 中的请求预览或测试侧注入的 prompt
 - `APP_SERVER_BACKEND_MODE=external` 下的 GUI 成功
 - 仅凭 assistant 输出“看起来像某种风格”
 - 保存或粘贴完整 `system_prompt` / provider request / provider response / API key / 用户私密 prompt
@@ -346,7 +349,7 @@ Web Search 复用同一导航fixture，子场景为`scripts/electron/lib/setting
 1. 进入 `Claw` 或通用工作区对话入口，确认输入区可见并已连接当前 workspace
 2. 点击输入区或工具栏中的计划模式开关，确认 UI 状态切到 `plan`，且运行时请求 metadata / turn config 也带上 plan mode 语义；不要只看按钮高亮
 3. 发送一个明确需要规划的请求，例如 `先给我一个修复计划，不要直接改代码`
-4. 确认本轮经 `Frontend -> Electron preload bridge -> app_server_handle_json_lines -> App Server JSON-RPC2 -> RuntimeCore/backend` 发起 `agentSession/turn/start`，而不是旧 Tauri command、renderer mock fallback 或 legacy `agent_runtime_*`
+4. 确认本轮经 `Frontend -> Electron preload bridge -> app_server_handle_json_lines -> App Server JSON-RPC2 -> RuntimeCore/backend` 发起 `turn/start`；旧 Tauri command、renderer mock fallback 或 legacy `agent_runtime_*` 命中均判失败
 5. 确认模型可见工具面包含 Codex 风格 `request_user_input`，且计划模式系统指令要求最终计划输出为 `<proposed_plan>...</proposed_plan>`；`AskUserQuestion` 不应出现在 current tool surface、工具库存或普通工具展示里
 6. 等待本轮输出后，确认线程事件或 read model 中出现 `plan` item / proposed plan 内容；不要把普通 checklist 工具 `update_plan` 当作进入或退出 Plan mode 的机制
 7. 确认右侧任务 / 环境信息区域显示计划过程，计划项不会重复出现在普通工具活动列表；普通非 Plan mode 回合若使用 `update_plan`，其 metadata 至少包含 `plan` 数组，且每项有 `step` 与 `status=pending|in_progress|completed`

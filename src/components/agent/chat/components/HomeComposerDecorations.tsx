@@ -24,15 +24,10 @@ import {
   type HomeKeepsakeVariant,
 } from "./homeSkinPresentation";
 
-const DecorationFrame = styled.div<{ $hasKeepsake: boolean }>`
+const DecorationFrame = styled.div`
   position: relative;
   width: 100%;
   box-sizing: border-box;
-  padding-right: ${({ $hasKeepsake }) => ($hasKeepsake ? "112px" : "0")};
-
-  @media (max-width: 900px) {
-    padding-right: 0;
-  }
 `;
 
 const DecorationLayer = styled.div`
@@ -51,16 +46,14 @@ const ComposerOrnament = styled.img`
   transform: rotate(-4deg);
   user-select: none;
 
-  @media (max-width: 900px) {
-    bottom: 62px;
-    left: 40%;
-    width: 64px;
+  @container (max-width: 1039px) {
+    display: none;
   }
 `;
 
 const Keepsake = styled.div<{ $variant: HomeKeepsakeVariant }>`
   position: absolute;
-  right: 8px;
+  right: -108px;
   bottom: 6px;
   display: grid;
   width: ${({ $variant }) =>
@@ -132,7 +125,7 @@ const Keepsake = styled.div<{ $variant: HomeKeepsakeVariant }>`
     color: var(--lime-brand, #d95f87);
   }
 
-  @media (max-width: 900px) {
+  @container (max-width: 1039px) {
     display: none;
   }
 `;
@@ -240,7 +233,11 @@ function ComposerDecorationLayer({
   return (
     <DecorationLayer aria-hidden="true">
       {decorations.ornamentImage ? (
-        <ComposerOrnament src={decorations.ornamentImage} alt="" />
+        <ComposerOrnament
+          data-home-composer-ornament=""
+          src={decorations.ornamentImage}
+          alt=""
+        />
       ) : null}
       {decorations.keepsakeImage ? (
         <Keepsake
@@ -265,7 +262,6 @@ export function HomeComposerDecorationFrame({
   children: ReactNode;
 }) {
   const { composerDecorations } = useHomeSkinPresentation();
-  const hasKeepsake = Boolean(composerDecorations?.keepsakeImage);
 
   return (
     <DecorationFrame
@@ -273,7 +269,6 @@ export function HomeComposerDecorationFrame({
       data-home-composer-decoration-skin={
         composerDecorations ? "configured" : "plain"
       }
-      $hasKeepsake={hasKeepsake}
     >
       {children}
       <ComposerDecorationLayer decorations={composerDecorations} />

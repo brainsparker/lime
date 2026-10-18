@@ -80,10 +80,7 @@ async fn share_rpc_saves_real_archive_lists_cold_paths_updates_and_deletes() {
     assert_eq!(listed["data"][1]["localPluginPath"], Value::Null);
     assert_eq!(listed["data"][0]["plugin"]["installed"], true);
     assert_eq!(listed["data"][0]["plugin"]["enabled"], true);
-    assert_eq!(
-        listed["data"][0]["plugin"]["installedAt"],
-        1792281600000_i64
-    );
+    assert_eq!(listed["data"][0]["plugin"]["installedAt"], 1792281600_i64);
     assert_eq!(listed["data"][0]["plugin"]["localVersion"], "1.2.3");
     assert_eq!(
         listed["data"][0]["plugin"]["shareContext"]["sharePrincipals"][0]["role"],

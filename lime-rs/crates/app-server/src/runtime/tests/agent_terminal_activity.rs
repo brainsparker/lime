@@ -347,15 +347,15 @@ async fn terminal_result_notifies_an_existing_parent_session_actor() {
     );
 }
 
-async fn wait_for_recovered_child_result(
+async fn recover_child_result_in_next_turn(
     temp: &tempfile::TempDir,
     store: Arc<ProjectionStore>,
-) -> serde_json::Value {
+) -> ThreadItem {
     let restarted = RuntimeCore::default()
         .with_event_log_writer(Arc::new(
             EventLogWriter::new(temp.path().join("event-log")).expect("reopen event log writer"),
         ))
-        .with_projection_store(store);
+        .with_projection_store(store.clone());
     restarted
         .ensure_current_session_hydrated("root-session")
         .await
@@ -363,10 +363,30 @@ async fn wait_for_recovered_child_result(
     let (root, turns) = restarted
         .session_snapshot("root-session")
         .expect("root snapshot");
-    let root_turn = turns
+    let stale_turn = turns
         .into_iter()
         .find(|turn| turn.turn_id == "root-turn")
         .expect("root turn");
+    assert_eq!(stale_turn.status, AgentTurnStatus::Canceled);
+    let root_turn = restarted
+        .start_turn(
+            AgentSessionTurnStartParams {
+                session_id: root.session_id.clone(),
+                turn_id: Some("root-turn-after-restart".to_string()),
+                input: AgentInput {
+                    text: "recover child result".to_string(),
+                    attachments: Vec::new(),
+                },
+                runtime_options: None,
+                queue_if_busy: false,
+                skip_pre_submit_resume: true,
+            },
+            RuntimeHostContext::default(),
+        )
+        .await
+        .expect("new root turn after restart")
+        .response
+        .turn;
     let gateway =
         restarted.agent_control_gateway_for_turn(&root, &root_turn, RuntimeHostContext::default());
     let waited = gateway
@@ -378,6 +398,7 @@ async fn wait_for_recovered_child_result(
         })
         .await
         .expect("wait recovered result");
+    assert_eq!(waited.output["message"], "Wait timed out.");
     let repeated = gateway
         .gateway()
         .execute(AgentControlGatewayRequest {
@@ -388,7 +409,34 @@ async fn wait_for_recovered_child_result(
         .await
         .expect("repeat wait after recovery");
     assert_eq!(repeated.output["message"], "Wait timed out.");
-    waited.output
+    let thread = store
+        .read_thread(ReadThreadParams {
+            thread_id: ThreadId::new("root-thread"),
+            include_archived: true,
+            turns_view: ThreadTurnsView::Full,
+        })
+        .await
+        .expect("read recovered parent thread")
+        .expect("parent thread");
+    let results = thread
+        .turns
+        .iter()
+        .flat_map(|turn| &turn.items)
+        .filter(|item| item.metadata.pointer("/mailbox/kind") == Some(&json!("result")))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        results.len(),
+        1,
+        "next turn must recover the result exactly once"
+    );
+    let result = results[0];
+    assert_eq!(result.turn_id.as_str(), root_turn.turn_id);
+    assert_eq!(result.status, ItemStatus::Completed);
+    assert_eq!(
+        result.metadata.pointer("/mailbox/sourceTurnId"),
+        Some(&json!("child-turn"))
+    );
+    result.clone()
 }
 
 fn caller(root: &AgentSession, root_turn: &AgentTurn, call_id: &str) -> AgentControlCaller {
@@ -1014,13 +1062,12 @@ async fn restart_recovers_result_after_canonical_terminal_apply_failure() {
         .expect("remove canonical terminal failure");
     drop(core);
 
-    let waited = wait_for_recovered_child_result(&temp, store.clone()).await;
-    assert_eq!(waited["message"], "Wait completed.");
-    assert_eq!(waited["activity"][0]["kind"], "result");
-    assert!(waited["activity"][0]["content"]
-        .as_str()
-        .expect("result content")
-        .contains("durable child result"));
+    let recovered = recover_child_result_in_next_turn(&temp, store.clone()).await;
+    assert_eq!(recovered.kind, ItemKind::AgentMessage);
+    assert!(matches!(
+        &recovered.payload,
+        ThreadItemPayload::AgentMessage { text, .. } if text.contains("durable child result")
+    ));
     assert!(store
         .list_pending_agent_mailbox_messages(
             ThreadId::new("root-thread"),
@@ -1060,9 +1107,12 @@ async fn restart_recovers_result_after_canonical_terminal_before_mailbox_failure
         .expect("restore child identity");
     drop(core);
 
-    let waited = wait_for_recovered_child_result(&temp, store.clone()).await;
-    assert_eq!(waited["message"], "Wait completed.");
-    assert_eq!(waited["activity"][0]["kind"], "result");
+    let recovered = recover_child_result_in_next_turn(&temp, store.clone()).await;
+    assert_eq!(recovered.kind, ItemKind::AgentMessage);
+    assert!(matches!(
+        &recovered.payload,
+        ThreadItemPayload::AgentMessage { text, .. } if text.contains("durable child result")
+    ));
     assert!(store
         .list_pending_agent_mailbox_messages(
             ThreadId::new("root-thread"),

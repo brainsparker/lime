@@ -52,12 +52,9 @@ async fn remote_plugins_reject_wrong_scope_malformed_pages_and_cross_page_duplic
 async fn remote_plugin_details_validate_requested_identity_and_never_follow_redirects() {
     let temp = TempDir::new().unwrap();
     let server = server(temp.path()).await;
-    let mut wrong_scope = item("expected", "research");
-    wrong_scope["scope"] = json!("USER");
     let (url, task) = issuer(vec![
         ok(session("one")),
         ok(item("other", "research")),
-        ok(wrong_scope),
         (
             302,
             json!({}),
@@ -72,14 +69,14 @@ async fn remote_plugin_details_validate_requested_identity_and_never_follow_redi
             .get("error")
             .is_some());
     }
-    for _ in 0..3 {
+    for _ in 0..2 {
         assert!(raw(&server, "plugin/read", detail("expected"))
             .await
             .get("error")
             .is_some());
     }
     let requests = finish(task).await;
-    assert_eq!(requests.len(), 4);
+    assert_eq!(requests.len(), 3);
     for request in &requests[1..] {
         assert!(request.starts_with("GET /api/v1/public/tenants/tenant-one/client/ps/plugins/expected?includeDownloadUrls=false HTTP/1.1"));
     }

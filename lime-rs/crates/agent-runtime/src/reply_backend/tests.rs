@@ -114,6 +114,7 @@ fn backend_start_maps_provider_wire_support_issue_to_start_error() {
         }),
         None,
         None,
+        None,
     );
     let request = RuntimeReplyRequest::from_attempt_input(
         "session-backend",
@@ -234,6 +235,7 @@ fn backend_start_exposes_trace_snapshot() {
         }),
         None,
         None,
+        None,
     );
     let request = RuntimeReplyRequest::from_attempt_input(
         "session-backend",
@@ -278,6 +280,7 @@ fn backend_start_prepares_session_metadata() {
             parallel_tool_calls_allowed: true,
             requires_responses_lite_header: true,
         }),
+        None,
         None,
         None,
     );
@@ -451,6 +454,7 @@ fn backend_start_prepare_run_maps_wire_support_issue() {
             parallel_tool_calls_allowed: false,
             requires_responses_lite_header: true,
         }),
+        None,
         None,
         None,
     );

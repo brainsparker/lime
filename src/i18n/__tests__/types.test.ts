@@ -240,19 +240,8 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.home.composer.pathReferenceFallbackPrompt", {
     ns: "agent",
   });
-  i18n.t("agentChat.home.composer.advancedSettings.label", { ns: "agent" });
-  i18n.t("agentChat.home.composer.advancedSettings.expand", { ns: "agent" });
-  i18n.t("agentChat.home.composer.advancedSettings.collapse", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.home.composer.currentModel.label", { ns: "agent" });
-  i18n.t("agentChat.home.composer.currentModel.title", {
-    ns: "agent",
-    model: "OpenAI / gpt-4.1",
-  });
   i18n.t("agentChat.home.composer.fileManager.open", { ns: "agent" });
   i18n.t("agentChat.home.composer.fileManager.close", { ns: "agent" });
-  i18n.t("agentChat.home.composer.creationMode.label", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.dictation.recording", {
     ns: "agent",
     duration: "0:12",

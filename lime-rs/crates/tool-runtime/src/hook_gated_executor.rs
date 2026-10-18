@@ -79,6 +79,7 @@ impl HookGatedToolExecutor {
             tool_arguments: Some(request.params.to_string()),
             tool_output: None,
             content: None,
+            stop: None,
         }
     }
 

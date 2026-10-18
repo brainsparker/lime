@@ -13,6 +13,9 @@ lime-rs/.cargo/
 *.exe
 *.pdb
 output/
+# Rust module sources are not build output.
+!lime-rs/crates/agent-runtime/src/context_history/output/
+!lime-rs/crates/agent-runtime/src/context_history/output/tests.rs
 docs/.data/
 docs/.nuxt/
 docs/.output/
@@ -74,6 +77,10 @@ internal/exec-plans/*
 !internal/exec-plans/codex-cli-shared-backend-audit-2026-10-16.md
 !internal/exec-plans/codex-cli-shared-backend-work-packages.md
 !internal/exec-plans/codex-plugin-reconstruction.md
+!internal/exec-plans/codex-plugin-catalog-installed-facts.md
+!internal/exec-plans/codex-plugin-account-preferences.md
+!internal/exec-plans/codex-plugin-skill-preferences.md
+!internal/exec-plans/codex-plugin-app-connections.md
 !internal/exec-plans/codex-plugin-desktop-evidence.md
 !internal/exec-plans/codex-gui-alignment-history-20261015.md
 !internal/exec-plans/codex-gui-alignment-history-20261017.md

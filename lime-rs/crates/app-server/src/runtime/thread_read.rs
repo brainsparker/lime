@@ -48,6 +48,7 @@ pub(crate) enum ThreadUnloadResult {
 struct ThreadExecutionState {
     loaded: bool,
     active_turn_id: Option<String>,
+    pending_turn_ids: Vec<String>,
 }
 
 fn normalize_thread_runtime_snapshot(
@@ -63,11 +64,10 @@ fn normalize_thread_runtime_snapshot(
         }
     }
 
-    let terminal_projection_pending = execution.loaded
-        && execution.active_turn_id.is_none()
-        && thread.turns.iter().any(|turn| {
-            turn.status == agent_protocol::TurnStatus::InProgress && !is_queued_turn(turn)
-        });
+    let terminal_projection_pending = thread
+        .turns
+        .iter()
+        .any(|turn| turn.status == agent_protocol::TurnStatus::InProgress && !is_queued_turn(turn));
     thread.status = if execution.active_turn_id.is_some() || terminal_projection_pending {
         let active_flags = match &thread.status {
             agent_protocol::ThreadStatus::Active { active_flags } => active_flags.clone(),
@@ -102,10 +102,8 @@ fn is_queued_turn(turn: &agent_protocol::Turn) -> bool {
 }
 
 fn turn_is_orphaned(turn_id: &str, execution: &ThreadExecutionState) -> bool {
-    match execution.active_turn_id.as_deref() {
-        Some(active_turn_id) => active_turn_id != turn_id,
-        None => !execution.loaded,
-    }
+    execution.active_turn_id.as_deref() != Some(turn_id)
+        && !execution.pending_turn_ids.iter().any(|id| id == turn_id)
 }
 
 impl RuntimeCore {
@@ -117,7 +115,7 @@ impl RuntimeCore {
         let Some(session_id) = session_id else {
             return Ok(ThreadExecutionState::default());
         };
-        let active_turn_id = self
+        let snapshot = self
             .session_loops
             .snapshot(session_id.as_str())
             .await
@@ -125,11 +123,11 @@ impl RuntimeCore {
                 RuntimeCoreError::Backend(format!(
                     "read runtime session snapshot for thread state: {error}"
                 ))
-            })?
-            .and_then(|snapshot| snapshot.active_turn_id);
+            })?;
         Ok(ThreadExecutionState {
             loaded: true,
-            active_turn_id,
+            active_turn_id: snapshot.and_then(|snapshot| snapshot.active_turn_id),
+            pending_turn_ids: self.turn_driver_completions.pending_turn_ids(&session_id),
         })
     }
 

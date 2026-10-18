@@ -107,15 +107,20 @@ export function invokeArgsPreview(
   if (!isPersistedAtomCommand(command))
     return sanitizeValue(args) as Record<string, unknown>;
   // 草稿、媒体、scope 与任意身份文本不能进入持久化诊断缓冲。
+  const candidateKey = ownDataValue(args, "key");
   const key =
-    ownDataValue(args, "key") === "composer-drafts-v1"
-      ? "composer-drafts-v1"
+    candidateKey === "composer-drafts-v1" ||
+    candidateKey === "app-shell-summary-panel-pinned"
+      ? candidateKey
       : "unknown";
   if (command === "persisted_atom_read") return { key };
   const candidate = ownDataValue(ownDataValue(args, "mutation"), "op");
   const op =
     typeof candidate === "string" &&
-    ["put", "promote", "consume", "clear"].includes(candidate)
+    (key === "app-shell-summary-panel-pinned"
+      ? ["set"]
+      : ["put", "promote", "consume", "clear"]
+    ).includes(candidate)
       ? candidate
       : "unknown";
   return { key, op };

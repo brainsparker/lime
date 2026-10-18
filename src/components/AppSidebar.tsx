@@ -106,7 +106,6 @@ import {
   resolveAccountTenantLabel,
   resolveCloudBrandLabel,
 } from "@/components/app-sidebar/sidebarAccount";
-import { shouldReserveMacWindowControls } from "@/lib/windowControls";
 import {
   getOemCloudBootstrapSnapshot,
   getCloudAccount,
@@ -411,7 +410,6 @@ export function AppSidebar({
     DEFAULT_ENABLED_SIDEBAR_NAV_ITEM_IDS,
   );
   const sidebarSearchInputRef = useRef<HTMLInputElement | null>(null);
-  const reserveWindowControls = shouldReserveMacWindowControls();
 
   const openSidebarSearchDialog = useCallback(() => {
     setSidebarSearchOpen(true);
@@ -1176,11 +1174,9 @@ export function AppSidebar({
       <Container
         $collapsed={collapsed}
         $themeMode={themeState.effectiveThemeMode}
-        $reserveWindowControls={reserveWindowControls}
         data-testid="app-sidebar"
         data-collapsed={String(collapsed)}
         data-lime-window-drag-region
-        data-window-controls-reserved={String(reserveWindowControls)}
         style={
           { "--sidebar-preferred-width": `${sidebarWidth}px` } as CSSProperties
         }

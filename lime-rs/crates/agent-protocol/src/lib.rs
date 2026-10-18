@@ -14,6 +14,7 @@ pub mod provider_trace;
 pub mod response_item;
 pub mod session_context;
 pub mod thread;
+pub mod truncation;
 pub mod turn_context;
 pub mod world_state;
 

@@ -9,6 +9,9 @@ use serde_json::{json, Value};
 use tempfile::TempDir;
 use tokio::time::{timeout, Duration};
 
+#[path = "thread_compact_jsonrpc/model.rs"]
+mod model;
+
 #[tokio::test]
 async fn thread_compact_start_uses_the_public_jsonrpc_contract() {
     let (_temp, server) = test_server();

@@ -1,135 +1,49 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import {
-  ArrowLeft,
-  CheckCircle2,
-  CircleAlert,
-  CircleDot,
-  Clock3,
-  FolderOpen,
-  GitFork,
-  LoaderCircle,
-  MoreHorizontal,
-  PanelRightClose,
-  PanelRightOpen,
-  Pencil,
-  Archive,
-  Home,
-  Settings,
-} from "lucide-react";
+import { createPortal } from "react-dom";
+import { GitFork, MoreHorizontal, Pencil, Archive } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import type { TaskStatus } from "../hooks/agentChatShared";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { cn } from "@/lib/utils";
+import { HeaderAction } from "@/components/app-shell/AppShell";
+import {
+  HeaderToolbar,
+  HeaderToolbarActionMount,
+} from "@/components/app-shell/HeaderToolbar";
+import { useUnifiedToolbar } from "@/components/app-shell/unifiedTabStripContext";
 
 interface ThreadWorkspaceHeaderProps {
   sessionId: string;
   title: string;
-  status: TaskStatus | null;
-  workingDirectory: string | null;
-  canAcceptDirectInput?: boolean | null;
   onRename?: (title: string) => Promise<void>;
   onArchive?: () => Promise<void>;
   onFork?: () => Promise<void>;
-  onBackHome?: () => void;
-  onBackToResources?: () => void;
-  onBackToProjectManagement?: () => void;
-  showCanvasToggle?: boolean;
-  isCanvasOpen?: boolean;
-  onToggleCanvas?: () => void;
-  onOpenSettings?: () => void;
   actions?: ReactNode;
-  summaryOpen?: boolean;
-  onToggleSummary?: () => void;
+  summaryToggle?: ReactNode;
 }
 
-const statusMeta: Record<
-  TaskStatus,
-  {
-    key: string;
-    defaultValue: string;
-    className: string;
-    Icon: typeof CircleDot;
-    animated?: boolean;
-  }
-> = {
-  draft: {
-    key: "agentChat.threadTimeline.status.pending",
-    defaultValue: "待处理",
-    className: "text-[color:var(--lime-text-muted)]",
-    Icon: CircleDot,
-  },
-  running: {
-    key: "agentChat.inputbar.runtimeStatus.status.running",
-    defaultValue: "处理中",
-    className: "text-[color:var(--lime-info)]",
-    Icon: LoaderCircle,
-    animated: true,
-  },
-  queued: {
-    key: "agentChat.inputbar.runtimeStatus.status.queued",
-    defaultValue: "排队中",
-    className: "text-sky-700 dark:text-sky-300",
-    Icon: Clock3,
-  },
-  waiting: {
-    key: "agentChat.inputbar.runtimeStatus.status.waitingInput",
-    defaultValue: "等待补充",
-    className: "text-[color:var(--lime-warning)]",
-    Icon: CircleAlert,
-  },
-  done: {
-    key: "agentChat.inputbar.runtimeStatus.status.completed",
-    defaultValue: "已完成",
-    className: "text-[color:var(--lime-text-muted)]",
-    Icon: CheckCircle2,
-  },
-  failed: {
-    key: "agentChat.inputbar.runtimeStatus.status.failed",
-    defaultValue: "失败",
-    className: "text-[color:var(--lime-danger)]",
-    Icon: CircleAlert,
-  },
-};
+function useHeaderToolbarActionContainer(children: ReactNode) {
+  const [container] = useState(() => {
+    const element = document.createElement("div");
+    element.className = "flex h-full min-w-0 items-center gap-1";
+    return element;
+  });
+  return { container, content: createPortal(children, container) };
+}
 
 export function ThreadWorkspaceHeader({
   sessionId,
   title,
-  status,
-  workingDirectory,
-  canAcceptDirectInput = null,
   onRename,
   onArchive,
   onFork,
-  onBackHome,
-  onBackToResources,
-  onBackToProjectManagement,
-  showCanvasToggle = false,
-  isCanvasOpen = false,
-  onToggleCanvas,
-  onOpenSettings,
   actions,
-  summaryOpen = false,
-  onToggleSummary,
+  summaryToggle,
 }: ThreadWorkspaceHeaderProps) {
-  const { t } = useTranslation("agent");
   const { t: tNavigation } = useTranslation("navigation");
-  const currentStatus = status ? statusMeta[status] : null;
-  const statusLabel = currentStatus
-    ? String(
-        t(
-          currentStatus.key as never,
-          {
-            defaultValue: currentStatus.defaultValue,
-          } as never,
-        ),
-      )
-    : null;
-  const StatusIcon = currentStatus?.Icon;
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(title);
   const titleInputRef = useRef<HTMLInputElement>(null);
@@ -147,13 +61,6 @@ export function ThreadWorkspaceHeader({
       : null;
   const renamePrompt = String(
     tNavigation("navigation.sidebar.conversations.rename.prompt"),
-  );
-  const hasNavigationActions = Boolean(
-    onBackHome ||
-    onBackToResources ||
-    onBackToProjectManagement ||
-    (showCanvasToggle && onToggleCanvas) ||
-    onOpenSettings,
   );
   useEffect(() => {
     if (titleEdit.current?.sessionId !== sessionId) {
@@ -217,265 +124,191 @@ export function ThreadWorkspaceHeader({
     setEditingTitle(false);
   };
 
-  return (
-    <header
-      className="relative flex h-[46px] min-w-0 items-center gap-2 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-3"
-      data-testid="thread-workspace-header"
-      style={{ paddingInlineStart: "var(--lime-thread-header-leading, 12px)" }}
-      data-header-placement="titlebar"
-      data-session-id={sessionId}
-      data-status={status ?? undefined}
-      data-can-accept-direct-input={
-        canAcceptDirectInput === null ? undefined : String(canAcceptDirectInput)
-      }
+  const unified = useUnifiedToolbar();
+  const actionDestination = unified?.isVisible
+    ? unified.mode === "split"
+      ? "chat"
+      : "tab-strip"
+    : "window";
+  const summaryDestination = actionDestination === "chat" ? "chat" : "window";
+  const threadActions = useHeaderToolbarActionContainer(
+    <div
+      className="flex min-w-0 items-center gap-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      data-testid="thread-workspace-header-tools"
+      data-action-destination={actionDestination}
     >
-      {hasNavigationActions ? (
-        <div
-          className="flex shrink-0 items-center gap-0.5 max-[640px]:hidden"
-          data-testid="thread-workspace-header-navigation"
-          data-responsive-navigation="collapse"
-        >
-          {onBackHome ? (
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              onClick={onBackHome}
-              aria-label={String(t("agentChat.navbar.backHome"))}
-              title={String(t("agentChat.navbar.backHome"))}
-            >
-              <Home className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          ) : null}
-          {onBackToResources ? (
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              onClick={onBackToResources}
-              aria-label={String(t("agentChat.navbar.backResources"))}
-              title={String(t("agentChat.navbar.backResources"))}
-            >
-              <FolderOpen className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          ) : null}
-          {onBackToProjectManagement ? (
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              onClick={onBackToProjectManagement}
-              aria-label={String(t("agentChat.navbar.projectManagement"))}
-              title={String(t("agentChat.navbar.projectManagement"))}
-            >
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          ) : null}
-          {showCanvasToggle && onToggleCanvas ? (
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              onClick={onToggleCanvas}
-              aria-label={String(
-                t(
-                  isCanvasOpen
-                    ? "agentChat.navbar.collapseCanvas"
-                    : "agentChat.navbar.expandCanvas",
-                ),
-              )}
-              title={String(
-                t(
-                  isCanvasOpen
-                    ? "agentChat.navbar.collapseCanvas"
-                    : "agentChat.navbar.expandCanvas",
-                ),
-              )}
-            >
-              {isCanvasOpen ? (
-                <PanelRightClose className="h-3.5 w-3.5" aria-hidden="true" />
-              ) : (
-                <PanelRightOpen className="h-3.5 w-3.5" aria-hidden="true" />
-              )}
-            </button>
-          ) : null}
-          {onOpenSettings ? (
-            <button
-              type="button"
-              className="inline-flex h-7 w-7 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              onClick={onOpenSettings}
-              aria-label={String(t("agentChat.navbar.openSettings"))}
-              title={String(t("agentChat.navbar.openSettings"))}
-            >
-              <Settings className="h-3.5 w-3.5" aria-hidden="true" />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-      <div
-        className="flex min-w-0 flex-1 items-center gap-2.5"
-        data-testid="thread-workspace-header-context"
+      {actions}
+    </div>,
+  );
+  const summaryActions = useHeaderToolbarActionContainer(
+    <div className="contents" data-action-destination={summaryDestination}>
+      {summaryToggle}
+    </div>,
+  );
+
+  return (
+    <>
+      {threadActions.content}
+      {summaryActions.content}
+      <HeaderToolbar
+        className="flex-1"
+        data-testid="thread-workspace-header"
+        data-header-placement="titlebar"
+        data-session-id={sessionId}
       >
-        {activeTitleEdit ? (
-          <input
-            ref={titleInputRef}
-            className="h-7 min-w-[8ch] max-w-[320px] flex-1 rounded-md border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-2 text-[13px] font-medium text-[color:var(--lime-text-strong)] outline-none"
-            data-testid="thread-workspace-header-title-input"
-            aria-label={renamePrompt}
-            value={titleDraft}
-            onChange={(event) => {
-              if (
-                titleEdit.current === activeTitleEdit &&
-                currentSessionId.current === activeTitleEdit.sessionId
-              ) {
-                activeTitleEdit.draft = event.target.value;
-                setTitleDraft(event.target.value);
-              }
-            }}
-            onBlur={() => commitRename(activeTitleEdit)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                commitRename(activeTitleEdit);
-              }
-              if (event.key === "Escape") {
-                event.preventDefault();
-                cancelRename(activeTitleEdit);
-              }
-            }}
-          />
-        ) : (
-          <h1
-            className="min-w-0 max-w-[320px] truncate text-[13px] font-medium leading-5 text-[color:var(--lime-text-strong)]"
-            data-testid="thread-workspace-header-title"
-            title={title}
-          >
-            {onRename ? (
-              <button
-                type="button"
-                className="max-w-full truncate rounded-md px-1 text-left hover:bg-[color:var(--lime-chrome-tab-hover)]"
-                onClick={startRename}
-              >
-                {title}
-              </button>
-            ) : (
-              title
-            )}
-          </h1>
-        )}
-        {currentStatus && StatusIcon && statusLabel ? (
-          <span
-            className={cn(
-              "inline-flex shrink-0 items-center gap-1 text-[11px] font-medium",
-              "max-[760px]:hidden",
-              currentStatus.className,
-            )}
-            data-testid="thread-workspace-header-status"
-          >
-            <StatusIcon
-              className={cn(
-                "h-3.5 w-3.5",
-                currentStatus.animated && "animate-spin",
-              )}
-              aria-hidden="true"
-            />
-            {statusLabel}
-          </span>
-        ) : null}
-        {workingDirectory ? (
-          <span
-            className="hidden min-w-0 items-center gap-1 text-[11px] text-[color:var(--lime-text-muted)] min-[900px]:inline-flex"
-            data-testid="thread-workspace-header-directory"
-            title={workingDirectory}
-          >
-            <FolderOpen className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-            <span className="max-w-[min(34vw,420px)] truncate">
-              {workingDirectory}
-            </span>
-          </span>
-        ) : null}
-      </div>
-      {actions || onRename || onArchive || onFork || onToggleSummary ? (
         <div
-          className="flex min-w-0 max-w-[min(48%,calc(100vw-8rem))] shrink-0 items-center gap-1 overflow-x-auto overscroll-x-contain [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-          data-testid="thread-workspace-header-actions"
-          data-header-action-overflow="scroll"
+          className="flex min-w-0 flex-1 items-center gap-2.5"
+          data-testid="thread-workspace-header-context"
         >
-          {onToggleSummary ? (
-            <button
-              type="button"
-              className="inline-flex h-7 shrink-0 items-center rounded-[10px] px-2 text-[12px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-              aria-expanded={summaryOpen}
-              aria-label={String(t("agentChat.activityPanel.title"))}
-              data-testid="thread-workspace-summary-toggle"
-              onClick={onToggleSummary}
+          {activeTitleEdit ? (
+            <input
+              ref={titleInputRef}
+              className="h-7 min-w-[8ch] max-w-[320px] flex-1 rounded-md border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-2 text-[13px] font-medium text-[color:var(--lime-text-strong)] outline-none"
+              data-testid="thread-workspace-header-title-input"
+              aria-label={renamePrompt}
+              value={titleDraft}
+              onChange={(event) => {
+                if (
+                  titleEdit.current === activeTitleEdit &&
+                  currentSessionId.current === activeTitleEdit.sessionId
+                ) {
+                  activeTitleEdit.draft = event.target.value;
+                  setTitleDraft(event.target.value);
+                }
+              }}
+              onBlur={() => commitRename(activeTitleEdit)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  commitRename(activeTitleEdit);
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelRename(activeTitleEdit);
+                }
+              }}
+            />
+          ) : (
+            <h1
+              className="[[data-mode=full]_&]:hidden min-w-0 max-w-[320px] truncate text-[13px] font-medium leading-5 text-[color:var(--lime-text-strong)]"
+              data-testid="thread-workspace-header-title"
+              title={title}
             >
-              {String(t("agentChat.activityPanel.title"))}
-            </button>
-          ) : null}
-          {actions}
-          {onRename || onArchive || onFork ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              {onRename ? (
                 <button
                   type="button"
-                  className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
-                  aria-label={String(
-                    tNavigation(
-                      "navigation.sidebar.conversations.openActionMenu",
-                      {
-                        title,
-                      },
-                    ),
-                  )}
-                  title={String(
-                    tNavigation("navigation.sidebar.conversations.moreActions"),
-                  )}
-                  data-testid="thread-workspace-header-action-menu"
+                  className="max-w-full truncate rounded-md px-1 text-left hover:bg-[color:var(--lime-chrome-tab-hover)]"
+                  onClick={startRename}
                 >
-                  <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  {title}
                 </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-36 p-1">
-                {onRename ? (
-                  <DropdownMenuItem onClick={startRename}>
-                    <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    {String(
-                      tNavigation(
-                        "navigation.sidebar.conversations.menu.rename",
-                      ),
-                    )}
-                  </DropdownMenuItem>
-                ) : null}
-                {onFork ? (
-                  <DropdownMenuItem
-                    data-testid="thread-workspace-header-fork"
-                    onClick={() => {
-                      void onFork();
-                    }}
-                  >
-                    <GitFork className="h-3.5 w-3.5" aria-hidden="true" />
-                    {String(
-                      tNavigation("navigation.sidebar.conversations.menu.fork"),
-                    )}
-                  </DropdownMenuItem>
-                ) : null}
-                {onArchive ? (
-                  <DropdownMenuItem
-                    data-testid="thread-workspace-header-archive"
-                    onClick={() => {
-                      void onArchive();
-                    }}
-                  >
-                    <Archive className="h-3.5 w-3.5" aria-hidden="true" />
-                    {String(
-                      tNavigation(
-                        "navigation.sidebar.conversations.menu.archive",
-                      ),
-                    )}
-                  </DropdownMenuItem>
-                ) : null}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          ) : null}
+              ) : (
+                title
+              )}
+            </h1>
+          )}
         </div>
+        {actionDestination === "chat" ? (
+          <HeaderToolbar.Actions className="max-w-[min(44vw,520px)]">
+            <HeaderToolbarActionMount container={summaryActions.container} />
+            <HeaderToolbarActionMount container={threadActions.container} />
+          </HeaderToolbar.Actions>
+        ) : null}
+      </HeaderToolbar>
+      {actionDestination === "tab-strip" ? (
+        <HeaderToolbarActionMount
+          container={threadActions.container}
+          destination={unified?.tabStripActions ?? null}
+        />
       ) : null}
-    </header>
+      {actions || onRename || onArchive || onFork || summaryToggle ? (
+        <HeaderAction
+          actionId="unified-workspace-controls"
+          align="end"
+          slotPosition="right"
+        >
+          <HeaderToolbar.Actions
+            className="max-w-[min(44vw,520px)]"
+            data-testid="thread-workspace-header-actions"
+            data-header-action-overflow="tools"
+          >
+            {summaryDestination === "window" ? (
+              <HeaderToolbarActionMount container={summaryActions.container} />
+            ) : null}
+            {actionDestination === "window" ? (
+              <HeaderToolbarActionMount container={threadActions.container} />
+            ) : null}
+            {onRename || onArchive || onFork ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-[10px] text-[color:var(--lime-chrome-muted)] transition hover:bg-[color:var(--lime-chrome-tab-hover)] hover:text-[color:var(--lime-chrome-text)]"
+                    aria-label={String(
+                      tNavigation(
+                        "navigation.sidebar.conversations.openActionMenu",
+                        {
+                          title,
+                        },
+                      ),
+                    )}
+                    title={String(
+                      tNavigation(
+                        "navigation.sidebar.conversations.moreActions",
+                      ),
+                    )}
+                    data-testid="thread-workspace-header-action-menu"
+                  >
+                    <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-36 p-1">
+                  {onRename ? (
+                    <DropdownMenuItem onClick={startRename}>
+                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                      {String(
+                        tNavigation(
+                          "navigation.sidebar.conversations.menu.rename",
+                        ),
+                      )}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onFork ? (
+                    <DropdownMenuItem
+                      data-testid="thread-workspace-header-fork"
+                      onClick={() => {
+                        void onFork();
+                      }}
+                    >
+                      <GitFork className="h-3.5 w-3.5" aria-hidden="true" />
+                      {String(
+                        tNavigation(
+                          "navigation.sidebar.conversations.menu.fork",
+                        ),
+                      )}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {onArchive ? (
+                    <DropdownMenuItem
+                      data-testid="thread-workspace-header-archive"
+                      onClick={() => {
+                        void onArchive();
+                      }}
+                    >
+                      <Archive className="h-3.5 w-3.5" aria-hidden="true" />
+                      {String(
+                        tNavigation(
+                          "navigation.sidebar.conversations.menu.archive",
+                        ),
+                      )}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </HeaderToolbar.Actions>
+        </HeaderAction>
+      ) : null}
+    </>
   );
 }

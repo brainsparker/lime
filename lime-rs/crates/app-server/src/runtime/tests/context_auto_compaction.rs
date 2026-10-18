@@ -46,6 +46,17 @@ impl AutoCompactionUsageBackend {
 
 #[async_trait]
 impl ExecutionBackend for AutoCompactionUsageBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: ProviderTurnHistory,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        MockBackend
+            .compact_context(request, history, cancellation)
+            .await
+    }
+
     async fn start_turn(
         &self,
         request: ExecutionRequest,
@@ -317,9 +328,7 @@ async fn auto_compaction_replaces_provider_prefix_with_summary_and_bounded_tail(
     let summary = completed.payload["summary"]
         .as_str()
         .expect("compaction summary");
-    assert!(summary.contains("fact-from-turn-1"));
-    assert!(summary.contains("fact-from-turn-2"));
-    assert!(!summary.contains("fact-from-turn-3"));
+    assert_eq!(summary, "Explicit test backend compaction summary");
     assert_eq!(
         completed.payload["artifact"]["policy"]["durableHistoryRewrite"].as_bool(),
         Some(false)
@@ -346,10 +355,11 @@ async fn auto_compaction_replaces_provider_prefix_with_summary_and_bounded_tail(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    // Replacement history contains the original user boundary and the compact summary. A third
-    // occurrence would mean the durable prefix was appended again after replacement.
-    assert_eq!(provider_text.matches("fact-from-turn-1").count(), 2);
-    assert_eq!(provider_text.matches("fact-from-turn-2").count(), 2);
+    // The explicit model summary and original user boundaries each appear once.
+    // The durable prefix must not be appended again after replacement.
+    assert!(provider_text.contains(summary));
+    assert_eq!(provider_text.matches("fact-from-turn-1").count(), 1);
+    assert_eq!(provider_text.matches("fact-from-turn-2").count(), 1);
     for index in 3..=6 {
         assert!(
             provider_text.contains(&format!("fact-from-turn-{index}")),

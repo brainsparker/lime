@@ -98,15 +98,9 @@ export function useAgentChatWorkspaceEntryRuntime({
   initialSiteSkillLaunch,
 }: AgentChatWorkspaceProps) {
   const { t } = useTranslation("agent");
-  const { t: tNavigation } = useTranslation("navigation");
   const untitledTaskLabel = t(
     "generalWorkbench.workflow.outputs.summary.untitledTask",
   );
-  const taskCenterRenamePromptLabel = tNavigation(
-    "navigation.sidebar.conversations.rename.prompt",
-  );
-  const newConversationLabel = "新对话";
-
   // 性能埋点：记录组件渲染开始时间
   const workspaceRenderT0 = useRef<number>(performance.now());
   useEffect(() => {
@@ -469,10 +463,7 @@ export function useAgentChatWorkspaceEntryRuntime({
 
   return {
     t,
-    tNavigation,
     untitledTaskLabel,
-    taskCenterRenamePromptLabel,
-    newConversationLabel,
     workspaceRenderT0,
     normalizedEntryTheme,
     shouldAutoCollapseClassicClawSidebar,

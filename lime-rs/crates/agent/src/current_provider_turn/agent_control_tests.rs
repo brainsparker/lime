@@ -17,6 +17,7 @@ fn terminal_event(tool_name: &str, activity: SubAgentProjectionActivity) -> Tool
         environments: Vec::new(),
         phase: ToolLifecyclePhase::Completed,
         output: Some(NormalizedToolOutput {
+            history_token_limit: None,
             success: true,
             text: "accepted".to_string(),
             structured_content: None,

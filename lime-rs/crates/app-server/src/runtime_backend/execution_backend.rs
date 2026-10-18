@@ -113,6 +113,15 @@ fn route_supports_service_tier(decision_payload: &Value, requested: &str) -> boo
 
 #[async_trait]
 impl ExecutionBackend for RuntimeBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: crate::ProviderTurnHistory,
+        cancellation: CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        self.summarize_context(request, history, cancellation).await
+    }
+
     fn requires_provider_selection(&self) -> bool {
         true
     }

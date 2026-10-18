@@ -48,7 +48,7 @@ export function buildRightSurfaceCommonAssertions({
   appServerRequestMethods,
   backendLedger,
   summary,
-  isThreadActivityPanelScenario,
+  isThreadSummaryPanelScenario,
   errorRaw,
   actionableConsoleErrors,
 }) {
@@ -60,7 +60,7 @@ export function buildRightSurfaceCommonAssertions({
       rendererSnapshot.hasInvokeBridge === true &&
       rendererSnapshot.supportsAppServer === true,
     appServerJsonRpcUsed: appServerRequestMethods.includes(
-      isThreadActivityPanelScenario
+      isThreadSummaryPanelScenario
         ? APP_SERVER_METHOD_SESSION_READ
         : APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
     ),

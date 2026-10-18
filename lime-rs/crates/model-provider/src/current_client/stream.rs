@@ -10,8 +10,10 @@ use serde_json::{json, Value};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::time::Duration;
 
+mod call_identity;
 mod hosted_tools;
 
+use call_identity::ResponseCallIdentity;
 use hosted_tools::{hosted_tool_events, HostedToolState};
 
 pub(super) const DEFAULT_STREAM_IDLE_TIMEOUT: Duration = Duration::from_secs(300);
@@ -330,6 +332,7 @@ struct ResponsesStreamState {
     response_id: Option<String>,
     calls: HashMap<String, ToolCallAccumulator>,
     custom_calls: HashMap<String, CustomToolCallAccumulator>,
+    call_identity: ResponseCallIdentity,
     emitted_calls: HashSet<String>,
     hosted_tools: HostedToolState,
     emitted_tool_call: bool,
@@ -454,6 +457,7 @@ impl ResponsesEventReducer {
             }
             "response.output_item.added" => {
                 if let Some(item) = payload.get("item") {
+                    self.state.call_identity.observe_item(payload);
                     observe_active_responses_reasoning_item(item, &mut self.state);
                     absorb_responses_call(item, &mut self.state);
                     absorb_responses_custom_call(item, &mut self.state);
@@ -465,7 +469,7 @@ impl ResponsesEventReducer {
                 }
             }
             "response.function_call_arguments.delta" => {
-                let key = response_call_key(payload);
+                let key = self.state.call_identity.resolve(payload);
                 let call = self.state.calls.entry(key.clone()).or_default();
                 if let Some(call_id) = payload.get("call_id").and_then(Value::as_str) {
                     call.id = Some(call_id.to_string());
@@ -497,7 +501,7 @@ impl ResponsesEventReducer {
                 }
             }
             "response.function_call_arguments.done" => {
-                let key = response_call_key(payload);
+                let key = self.state.call_identity.resolve(payload);
                 let call = self.state.calls.entry(key.clone()).or_default();
                 if let Some(call_id) = payload.get("call_id").and_then(Value::as_str) {
                     call.id = Some(call_id.to_string());
@@ -508,10 +512,9 @@ impl ResponsesEventReducer {
                 if let Some(arguments) = payload.get("arguments").and_then(Value::as_str) {
                     call.arguments = arguments.to_string();
                 }
-                events.extend(take_responses_call(&mut self.state, &key)?);
             }
             "response.custom_tool_call_input.delta" => {
-                let key = response_call_key(payload);
+                let key = self.state.call_identity.resolve(payload);
                 let call = self.state.custom_calls.entry(key.clone()).or_default();
                 if let Some(call_id) = payload.get("call_id").and_then(Value::as_str) {
                     call.id = Some(call_id.to_string());
@@ -546,7 +549,7 @@ impl ResponsesEventReducer {
                 }
             }
             "response.custom_tool_call_input.done" => {
-                let key = response_call_key(payload);
+                let key = self.state.call_identity.resolve(payload);
                 let call = self.state.custom_calls.entry(key.clone()).or_default();
                 if let Some(call_id) = payload.get("call_id").and_then(Value::as_str) {
                     call.id = Some(call_id.to_string());
@@ -557,10 +560,10 @@ impl ResponsesEventReducer {
                 if let Some(input) = payload.get("input").and_then(Value::as_str) {
                     call.input = input.to_string();
                 }
-                events.extend(take_responses_custom_call(&mut self.state, &key)?);
             }
             "response.output_item.done" => {
                 if let Some(item) = payload.get("item") {
+                    self.state.call_identity.observe_item(payload);
                     clear_active_responses_reasoning_item(item, &mut self.state);
                     absorb_responses_call(item, &mut self.state);
                     absorb_responses_custom_call(item, &mut self.state);
@@ -570,11 +573,11 @@ impl ResponsesEventReducer {
                         true,
                     )?);
                     if item.get("type").and_then(Value::as_str) == Some("function_call") {
-                        let key = response_call_key(item);
+                        let key = self.state.call_identity.resolve(item);
                         events.extend(take_responses_call(&mut self.state, &key)?);
                     }
                     if item.get("type").and_then(Value::as_str) == Some("custom_tool_call") {
-                        let key = response_call_key(item);
+                        let key = self.state.call_identity.resolve(item);
                         events.extend(take_responses_custom_call(&mut self.state, &key)?);
                     }
                 }
@@ -924,23 +927,11 @@ fn response_item_id(item: &Value, prefix: &str) -> String {
         .unwrap_or_else(|| format!("{prefix}-0"))
 }
 
-fn response_call_key(payload: &Value) -> String {
-    payload
-        .get("call_id")
-        .or_else(|| payload.get("item_id"))
-        .or_else(|| payload.get("output_index"))
-        .map(|value| match value {
-            Value::String(value) => value.clone(),
-            other => other.to_string(),
-        })
-        .unwrap_or_else(|| "response_call".to_string())
-}
-
 fn absorb_responses_call(item: &Value, state: &mut ResponsesStreamState) {
     if item.get("type").and_then(Value::as_str) != Some("function_call") {
         return;
     }
-    let key = response_call_key(item);
+    let key = state.call_identity.resolve(item);
     let call = state.calls.entry(key).or_default();
     call.id = item
         .get("call_id")
@@ -961,7 +952,7 @@ fn absorb_responses_custom_call(item: &Value, state: &mut ResponsesStreamState) 
     if item.get("type").and_then(Value::as_str) != Some("custom_tool_call") {
         return;
     }
-    let key = response_call_key(item);
+    let key = state.call_identity.resolve(item);
     let call = state.custom_calls.entry(key).or_default();
     call.id = item
         .get("call_id")

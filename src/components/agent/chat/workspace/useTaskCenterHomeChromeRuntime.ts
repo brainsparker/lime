@@ -1,11 +1,9 @@
 import {
-  useCallback,
   useEffect,
   useMemo,
   type Dispatch,
   type SetStateAction,
 } from "react";
-import type { Topic } from "../hooks/agentChatShared";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
 import {
   isTaskCenterTopicSwitchPending,
@@ -15,17 +13,12 @@ import {
   resolveTaskCenterHomeChromeState,
   type TaskCenterHomeChromeState,
 } from "./taskCenterSurfaceState";
-import { resolveTaskCenterTopicTitle } from "./taskCenterTabProjection";
 
 interface UseTaskCenterHomeChromeRuntimeParams {
   agentEntry: string;
   sessionId?: string | null;
   detachedTopicId?: string | null;
   transitionTopicId?: string | null;
-  topicById: ReadonlyMap<string, Topic>;
-  untitledTaskLabel: string;
-  renamePromptLabel: string;
-  renameTopic: (topicId: string, title: string) => void | Promise<void>;
   draftSurfaceActive: boolean;
   shouldSuppressDraftContent: boolean;
   draftSendRequest: TaskCenterDraftSendRequest | null;
@@ -50,7 +43,6 @@ interface UseTaskCenterHomeChromeRuntimeParams {
 }
 
 export interface TaskCenterHomeChromeRuntime extends TaskCenterHomeChromeState {
-  handleRenameTaskTopic: (topicId: string) => Promise<void>;
   taskCenterPreviewTopicId: string | null;
   taskCenterSessionSwitchPending: boolean;
 }
@@ -60,10 +52,6 @@ export function useTaskCenterHomeChromeRuntime({
   sessionId,
   detachedTopicId,
   transitionTopicId,
-  topicById,
-  untitledTaskLabel,
-  renamePromptLabel,
-  renameTopic,
   draftSurfaceActive,
   shouldSuppressDraftContent,
   draftSendRequest,
@@ -86,31 +74,6 @@ export function useTaskCenterHomeChromeRuntime({
   setHarnessPanelVisible,
   clearEmbeddedHomeSession,
 }: UseTaskCenterHomeChromeRuntimeParams): TaskCenterHomeChromeRuntime {
-  const handleRenameTaskTopic = useCallback(
-    async (topicId: string) => {
-      if (typeof window === "undefined") {
-        return;
-      }
-
-      const topic = topicById.get(topicId);
-      if (!topic) {
-        return;
-      }
-
-      const currentTitle = resolveTaskCenterTopicTitle(
-        topic.title,
-        untitledTaskLabel,
-      );
-      const nextTitle = window.prompt(renamePromptLabel, currentTitle)?.trim();
-      if (!nextTitle || nextTitle === currentTitle) {
-        return;
-      }
-
-      await renameTopic(topicId, nextTitle);
-    },
-    [renamePromptLabel, renameTopic, topicById, untitledTaskLabel],
-  );
-
   const taskCenterPreviewTopicId = useMemo(
     () =>
       resolveTaskCenterPreviewTopicId({
@@ -184,7 +147,6 @@ export function useTaskCenterHomeChromeRuntime({
 
   return {
     ...homeChromeState,
-    handleRenameTaskTopic,
     taskCenterPreviewTopicId,
     taskCenterSessionSwitchPending,
   };

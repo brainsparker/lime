@@ -103,6 +103,9 @@ function fixtureEvidence(overrides = {}) {
       childActive: true,
       matchingConversationCount: 2,
       successToastVisible: true,
+      composerSessionId: CHILD_SESSION_ID,
+      composerEditable: true,
+      composerDraftState: null,
     },
     setupRequests: [
       {
@@ -129,7 +132,38 @@ describe("Thread Fork Electron Gate B", () => {
     expect(evidence.identity.childReadPreservesForkLineage).toBe(true);
     expect(evidence.identity.childStartedNotificationMatches).toBe(true);
     expect(evidence.gui.childActiveAfter).toBe(true);
+    expect(evidence.gui.childDraftReady).toBe(true);
   });
+
+  it.each([
+    { composerDraftState: "restoring" },
+    { composerEditable: false },
+    { composerSessionId: PARENT_SESSION_ID },
+    { composerSessionId: "" },
+  ])(
+    "rejects an active child whose Composer is unavailable: %j",
+    (composer) => {
+      const evidence = fixtureEvidence({
+        afterDom: {
+          headerTitle: THREAD_FORK_TITLE,
+          activeThreadId: CHILD_THREAD_ID,
+          activeSessionId: CHILD_SESSION_ID,
+          childActive: true,
+          matchingConversationCount: 2,
+          successToastVisible: true,
+          composerSessionId: CHILD_SESSION_ID,
+          composerEditable: true,
+          composerDraftState: null,
+          ...composer,
+        },
+      });
+
+      expect(evidence.identity.childReadMatchesActiveSession).toBe(true);
+      expect(() => assertThreadForkEvidence(evidence)).toThrow(
+        /Composer draft/u,
+      );
+    },
+  );
 
   it("retains action evidence after the trace ring evicts early requests", () => {
     const observedActionRequests = [
@@ -246,6 +280,8 @@ describe("Thread Fork Electron Gate B", () => {
         headerTitle: THREAD_FORK_TITLE,
         activeConversationPresent: true,
         matchingConversationCount: 1,
+        composerEditable: false,
+        composerDraftState: "restoring",
       },
       observer: {
         requests: [{ method: "thread/fork" }, { method: "thread/read" }],
@@ -269,6 +305,8 @@ describe("Thread Fork Electron Gate B", () => {
     expect(failure.dom).toMatchObject({
       activeConversationPresent: true,
       matchingConversationCount: 1,
+      composerEditable: false,
+      composerDraftState: "restoring",
     });
     expect(failure.observer).toMatchObject({
       methods: ["thread/fork", "thread/read"],

@@ -4,7 +4,6 @@ import { APP_SIDEBAR_WIDTH } from "./AppSidebar.constants";
 export const Container = styled.aside<{
   $collapsed?: boolean;
   $themeMode: "light" | "dark";
-  $reserveWindowControls?: boolean;
 }>`
   --sidebar-surface-top: ${({ $themeMode }) =>
     $themeMode === "dark"
@@ -79,10 +78,6 @@ export const Container = styled.aside<{
   isolation: isolate;
   z-index: 20;
   background: var(--sidebar-surface);
-  &[data-collapsed="true"] + main {
-    --lime-thread-header-leading: ${({ $reserveWindowControls }) =>
-      $reserveWindowControls ? "136px" : "48px"};
-  }
   border-right: none;
   transition:
     width 180ms ease,

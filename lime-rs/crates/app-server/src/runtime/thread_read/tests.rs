@@ -412,6 +412,7 @@ fn runtime_snapshot_keeps_only_the_live_turn_in_progress() {
         &ThreadExecutionState {
             loaded: true,
             active_turn_id: Some("turn-live".to_string()),
+            pending_turn_ids: Vec::new(),
         },
     );
 
@@ -444,15 +445,22 @@ fn loaded_runtime_preserves_turn_until_terminal_projection_converges() {
     let execution = ThreadExecutionState {
         loaded: true,
         active_turn_id: None,
+        pending_turn_ids: vec!["turn-converging".to_string()],
     };
+    thread.turns.push(Turn {
+        turn_id: TurnId::new("turn-orphan"),
+        ..thread.turns[0].clone()
+    });
 
     normalize_thread_runtime_snapshot(&mut thread, &execution);
 
     assert!(matches!(thread.status, ThreadStatus::Active { .. }));
     assert_eq!(thread.turns[0].status, TurnStatus::InProgress);
+    assert_eq!(thread.turns[1].status, TurnStatus::Interrupted);
 
     normalize_turn_runtime_snapshots(&mut thread.turns, &execution);
     assert_eq!(thread.turns[0].status, TurnStatus::InProgress);
+    assert_eq!(thread.turns[1].status, TurnStatus::Interrupted);
 }
 
 fn make_thread(thread_id: &str, timestamp: i64) -> Thread {

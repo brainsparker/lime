@@ -1,5 +1,5 @@
 import { useTrayModelShortcuts } from "../hooks/useTrayModelShortcuts";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   isRuntimeSubmissionAccepted,
   runRuntimeSubmissionEffect,
@@ -112,10 +112,22 @@ export function useAgentChatWorkspaceCommandWiring<
   sceneGateResumeHandlerRef,
 }: UseAgentChatWorkspaceCommandWiringParams<Scope>) {
   const workspaceId = scope.taskCenterWorkspaceId?.trim() || null;
+  const initialSessionHydration = useRef({
+    route: scope.normalizedInitialSessionId,
+    resolved: false,
+  });
+  if (initialSessionHydration.current.route !== scope.normalizedInitialSessionId)
+    initialSessionHydration.current = {
+      route: scope.normalizedInitialSessionId,
+      resolved: false,
+    };
+  if (scope.sessionId === scope.normalizedInitialSessionId)
+    initialSessionHydration.current.resolved = true;
   const initialScope = useMemo(() => {
     const currentSessionId = scope.sessionId?.trim();
     if (
       scope.normalizedInitialSessionId &&
+      !initialSessionHydration.current.resolved &&
       scope.normalizedInitialSessionId !== currentSessionId
     )
       return null;

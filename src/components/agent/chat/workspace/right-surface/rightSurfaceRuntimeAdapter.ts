@@ -59,7 +59,6 @@ const KNOWN_RIGHT_SURFACE_KINDS = new Set<WorkspaceRightSurfaceKind>([
   "shell",
   "harness",
   "trace",
-  "activity",
 ]);
 const KNOWN_RIGHT_SURFACE_ORIGINS = new Set<
   Extract<WorkspaceRightSurfaceCommandOrigin, "runtime" | "skill" | "mcpTool">

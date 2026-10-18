@@ -324,7 +324,7 @@ export function buildScenarioAssertions(context) {
     isTypedErrorRetryScenario,
     isUnknownItemScenario,
     isRightSurfaceVisualMatrixScenario,
-    isThreadActivityPanelScenario,
+    isThreadSummaryPanelScenario,
     isSkillsRuntimeScenario,
     isSoulStyleScenario,
     isTerminalStaleGuardScenario,
@@ -440,19 +440,27 @@ export function buildScenarioAssertions(context) {
                     }
                   : {}),
               }
-            : isThreadActivityPanelScenario
+            : isThreadSummaryPanelScenario
               ? {
-                  threadActivityPanelVisible:
-                    rightSurfaceVisualCaptures.activity?.stable
-                      ?.activeSurface === "activity" &&
-                    rightSurfaceVisualCaptures.activity?.stable?.rootVisible ===
-                      true &&
-                    rightSurfaceVisualCaptures.activity?.stable
-                      ?.visibleRootKinds?.[0] === "activity",
-                  threadActivityPanelFillsActivePane:
-                    rightSurfaceVisualCaptures.activity?.stable?.geometry
-                      ?.rootFillsActivePane === true,
-                  threadActivityPanelDoesNotUseModelTurn: backendLedger.every(
+                  threadSummaryPanelVisible:
+                    rightSurfaceVisualCaptures.summary?.overlay
+                      ?.popoverVisible === true,
+                  threadSummaryPanelUsesShippedLayouts:
+                    rightSurfaceVisualCaptures.summary?.gutter?.mode ===
+                      "gutter" &&
+                    rightSurfaceVisualCaptures.summary?.shift?.mode ===
+                      "shift" &&
+                    rightSurfaceVisualCaptures.summary?.overlay?.mode ===
+                      "overlay",
+                  threadSummaryPanelSavesMainPin:
+                    rightSurfaceVisualCaptures.summary?.pinReceipt?.data
+                      ?.value === false &&
+                    rightSurfaceVisualCaptures.summary?.pinReceipt?.persistence
+                      ?.state === "saved",
+                  threadSummaryPanelPreservesEditorAndFocus:
+                    rightSurfaceVisualCaptures.summary?.sameEditor === true &&
+                    rightSurfaceVisualCaptures.summary?.focusRestored === true,
+                  threadSummaryPanelDoesNotUseModelTurn: backendLedger.every(
                     (entry) => entry.kind !== "turnStart",
                   ),
                 }
@@ -495,17 +503,9 @@ export function buildScenarioAssertions(context) {
                           ?.threadId,
                         "https://example.com/right-surface-browser",
                       ),
-                    rightSurfaceVisualMatrixActivitySurfaceVisible:
-                      rightSurfaceVisualCaptures.activity?.stable
-                        ?.activeSurface === "activity" &&
-                      rightSurfaceVisualCaptures.activity?.stable
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.activity?.stable
-                        ?.visibleRootKinds?.[0] === "activity",
                     rightSurfaceVisualMatrixSurfacesMutuallyExclusive: [
                       rightSurfaceVisualCaptures.files?.stable,
                       rightSurfaceVisualCaptures.browser?.stable,
-                      rightSurfaceVisualCaptures.activity?.stable,
                     ].every(
                       (capture) =>
                         Array.isArray(capture?.visibleRootKinds) &&
@@ -516,7 +516,6 @@ export function buildScenarioAssertions(context) {
                     rightSurfaceVisualMatrixHostsFillRightSide: [
                       rightSurfaceVisualCaptures.files?.stable,
                       rightSurfaceVisualCaptures.browser?.stable,
-                      rightSurfaceVisualCaptures.activity?.stable,
                     ].every(
                       (capture) =>
                         (capture?.geometry?.hostFillsCanvasPanel === true ||
@@ -531,10 +530,6 @@ export function buildScenarioAssertions(context) {
                       rightSurfaceVisualCaptures.browser?.opened
                         ?.rootVisible === true &&
                       rightSurfaceVisualCaptures.browser?.stable
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.activity?.opened
-                        ?.rootVisible === true &&
-                      rightSurfaceVisualCaptures.activity?.stable
                         ?.rootVisible === true,
                     rightSurfaceVisualMatrixDoesNotUseModelTurn:
                       backendLedger.every(

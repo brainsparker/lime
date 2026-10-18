@@ -1,8 +1,6 @@
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import {
-  CODE_WORKBENCH_CHAT_PANEL_MIN_WIDTH,
   CODE_WORKBENCH_CHAT_PANEL_WIDTH,
-  TEAM_PRIMARY_CHAT_PANEL_MIN_WIDTH,
   TEAM_PRIMARY_CHAT_PANEL_WIDTH,
 } from "./WorkspaceStyles";
 import { shouldShowChatLayout } from "../utils/chatLayoutVisibility";
@@ -179,11 +177,6 @@ export function resolveWorkspaceShellChromeRuntime({
       ? TEAM_PRIMARY_CHAT_PANEL_WIDTH
       : shouldUseCodeWorkbenchChatPanelWidth
         ? CODE_WORKBENCH_CHAT_PANEL_WIDTH
-        : undefined,
-    layoutTransitionChatPanelMinWidth: shouldUseSubagentsPrimaryChatPanelWidth
-      ? TEAM_PRIMARY_CHAT_PANEL_MIN_WIDTH
-      : shouldUseCodeWorkbenchChatPanelWidth
-        ? CODE_WORKBENCH_CHAT_PANEL_MIN_WIDTH
         : undefined,
     shouldShowGeneralWorkbenchFloatingInputOverlay,
     shouldRenderInlineA2UI,

@@ -31,7 +31,7 @@ pub(crate) async fn reconcile(store: &PluginStore) -> Result<PluginReconcileResp
                 let mut summary = row.plugin.summary();
                 summary.installed = true;
                 summary.enabled = row.enabled;
-                summary.installed_at = row.installed_at.map(|time| time.timestamp_millis());
+                summary.installed_at = row.installed_at.map(|time| time.timestamp());
                 (id.key(), summary)
             })
             .collect(),

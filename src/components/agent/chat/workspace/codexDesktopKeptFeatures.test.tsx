@@ -5,14 +5,6 @@ import { afterEach, describe, expect, it } from "vitest";
 import { AppSidebarAppearancePopover } from "@/components/app-sidebar/AppSidebarAppearancePopover";
 import { EmptyStateHero } from "../components/EmptyStateHero";
 
-const homeAndComposerSources = [
-  "src/components/agent/chat/components/EmptyStateLayout.tsx",
-  "src/components/agent/chat/components/EmptyState.tsx",
-  "src/components/agent/chat/workspace/WorkspaceConversationScene.tsx",
-  "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
-  "src/components/AppSidebar.tsx",
-];
-
 function sourceOf(relativePath: string): string {
   return readFileSync(relativePath, "utf8");
 }
@@ -33,9 +25,12 @@ describe("Codex alignment kept product surfaces", () => {
       "home/buildHomeSkillSurface.ts",
       "home/homeSkillSurfaceAdapters.ts",
       "home/homeSurfaceTypes.ts",
+      "utils/contextualRecommendations.ts",
+      "service-skills/homeEntrySkills.ts",
       "components/useHomeSkillSurface.ts",
       "components/useEmptyStateHomeActions.ts",
       "components/EmptyStateQuickActions.tsx",
+      "components/constants.tsx",
       "workspace/useWorkspaceHomeRecoveryRuntime.ts",
       "workspace/useTaskCenterConversationNavigationRuntime.ts",
     ];
@@ -57,7 +52,6 @@ describe("Codex alignment kept product surfaces", () => {
     );
     const sidebar = sourceOf("src/components/AppSidebar.tsx");
 
-    expect(homeAndComposerSources).toHaveLength(5);
     expect(layout).toContain("EmptyStateHero");
     expect(scene).toContain('data-testid="workspace-entry-banner"');
     expect(scene).toContain("entryBannerMessage");

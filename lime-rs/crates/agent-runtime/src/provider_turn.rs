@@ -54,6 +54,7 @@ use tool_runtime::tool_lifecycle::ToolLifecycleEmitter;
 use tool_runtime::turn_snapshot::RuntimeHookSnapshot;
 
 mod code_mode;
+mod history_budget;
 mod hook_snapshot;
 mod input;
 mod output_lifecycle;
@@ -85,6 +86,7 @@ pub struct RuntimeToolStepSnapshot {
     code_mode_session: Option<RuntimeCodeModeSessionHandle>,
     code_mode_tools: Arc<Vec<RuntimeCodeModeTool>>,
     filesystem_gateway: Option<Arc<dyn tool_runtime::filesystem_gateway::RuntimeFileSystemGateway>>,
+    history_token_limit: Option<usize>,
 }
 
 impl RuntimeToolStepSnapshot {
@@ -100,6 +102,7 @@ impl RuntimeToolStepSnapshot {
             code_mode_session: None,
             code_mode_tools: Arc::new(Vec::new()),
             filesystem_gateway: None,
+            history_token_limit: None,
         }
     }
 
@@ -117,6 +120,7 @@ impl RuntimeToolStepSnapshot {
             code_mode_session: None,
             code_mode_tools: Arc::new(Vec::new()),
             filesystem_gateway: None,
+            history_token_limit: None,
         }
     }
 
@@ -488,6 +492,7 @@ where
             }
         }
 
+        history_budget::capture(&mut tool_step_snapshot, model_request_policy.as_ref());
         let mut tools = tool_step_snapshot
             .definitions
             .iter()
@@ -518,7 +523,13 @@ where
                 )
                 .with_history_ingest_requested(session_config.history_ingest_requested)
             });
-        let mut request = CurrentProviderRequest::new(initial_messages.clone())
+        let mut request =
+            CurrentProviderRequest::new(crate::context_history::normalize_tool_history(
+                &initial_messages,
+                model_request_policy
+                    .as_ref()
+                    .and_then(|policy| policy.truncation),
+            ))
             .with_system_prompt(session_config.system_prompt.clone())
             .with_tools(tools.clone())
             .with_generation(generation.clone())
@@ -1366,6 +1377,10 @@ where
             })
             .collect::<Vec<_>>();
         let code_mode_notification_sink = code_mode::CodeModeNotificationSink::default();
+        let step_lifecycle_emitter = history_budget::emitter(
+            tool_lifecycle_emitter.clone(),
+            tool_step_snapshot.history_token_limit,
+        );
         let allow_parallel = model_request_policy
             .as_ref()
             .and_then(RuntimeReplyModelRequestPolicy::parallel_tool_calls)
@@ -1378,7 +1393,7 @@ where
                 session_config.turn_context.as_ref(),
                 &working_directory,
                 cancel_token.clone(),
-                tool_lifecycle_emitter.clone(),
+                step_lifecycle_emitter.clone(),
                 function_calls,
                 allow_parallel,
             ),
@@ -1388,7 +1403,7 @@ where
                 &session_config.id,
                 session_config.turn_context.as_ref(),
                 &working_directory,
-                tool_lifecycle_emitter.clone(),
+                step_lifecycle_emitter.clone(),
                 code_mode_notification_sink.clone(),
                 custom_calls,
                 cancel_token.clone(),
@@ -1398,7 +1413,7 @@ where
                 &tool_step_snapshot,
                 &turn_id,
                 &working_directory,
-                tool_lifecycle_emitter.clone(),
+                step_lifecycle_emitter.clone(),
                 wait_calls,
                 cancel_token.clone(),
                 allow_parallel,
@@ -1431,6 +1446,10 @@ where
                 ),
             }
         }));
+        history_budget::capture_outputs(
+            &mut result_content,
+            tool_step_snapshot.history_token_limit,
+        );
         initial_messages.push(CurrentProviderMessage::tool(result_content));
         initial_messages.extend(pending_messages);
     }
@@ -1838,6 +1857,7 @@ fn provider_executed_tool_output(result: ToolResultValue) -> NormalizedToolOutpu
         }
     };
     NormalizedToolOutput {
+        history_token_limit: None,
         success,
         text,
         structured_content,
@@ -1950,6 +1970,7 @@ async fn execute_calls(
             environment_id,
             working_directory.clone(),
             tool_step_snapshot.filesystem_gateway().cloned(),
+            tool_step_snapshot.history_token_limit,
             cancel_token.clone(),
             lifecycle_emitter.clone(),
             call,
@@ -1978,6 +1999,7 @@ async fn execute_calls(
     let mut results = Vec::with_capacity(completed.len());
     for CompletedToolCall { call, output } in completed {
         results.push(CurrentProviderToolResult {
+            history_token_limit: output.history_token_limit,
             call_id: call.id,
             name: call.name,
             success: output.success,
@@ -2125,6 +2147,7 @@ async fn execute_call(
     environment_id: String,
     working_directory: PathBuf,
     filesystem_gateway: Option<Arc<dyn tool_runtime::filesystem_gateway::RuntimeFileSystemGateway>>,
+    history_token_limit: Option<usize>,
     cancel_token: Option<CancellationToken>,
     lifecycle_emitter: Arc<dyn ToolLifecycleEmitter>,
     call: CurrentProviderToolCall,
@@ -2135,7 +2158,8 @@ async fn execute_call(
         cancel_token,
         workspace_sandbox: None,
     })
-    .with_optional_filesystem_gateway(filesystem_gateway);
+    .with_optional_filesystem_gateway(filesystem_gateway)
+    .with_history_token_limit(history_token_limit);
     let provider_metadata =
         serde_json::Value::Object(call.provider_metadata.clone().into_iter().collect());
     let tool_call = ToolCall::new(

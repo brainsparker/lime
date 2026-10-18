@@ -15,9 +15,7 @@ interface UseWorkspaceTaskCenterInteractionRuntimeParams extends Pick<
 > {
   chromeNavigation: Omit<
     ChromeNavigationParams,
-    | "onCloseTaskCenterTab"
     | "onOpenTaskTopic"
-    | "onSwitchTaskTopic"
     | "isTaskCenterDraftSurfaceActive"
   >;
   taskCenterSurface: { isTaskCenterDraftSurfaceActive: boolean };
@@ -39,26 +37,18 @@ export function useWorkspaceTaskCenterInteractionRuntime({
     composerDraftCoordinator,
     getComposerDraftNavigationEpoch,
   });
-  const { handleOpenTaskTopic, handleSwitchTaskTopic } = topicNavigationRuntime;
+  const { handleOpenTaskTopic } = topicNavigationRuntime;
   const onOpenTaskTopic = useCallback(
     async (...args: Parameters<typeof handleOpenTaskTopic>) => {
       await handleOpenTaskTopic(...args);
     },
     [handleOpenTaskTopic],
   );
-  const onSwitchTaskTopic = useCallback(
-    async (id: string) => {
-      await handleSwitchTaskTopic(id);
-    },
-    [handleSwitchTaskTopic],
-  );
   const chromeNavigationRuntime = useTaskCenterChromeNavigationRuntime({
     ...chromeNavigation,
     isTaskCenterDraftSurfaceActive:
       taskCenterSurface.isTaskCenterDraftSurfaceActive,
-    onCloseTaskCenterTab: topicNavigationRuntime.handleCloseTaskCenterTab,
     onOpenTaskTopic,
-    onSwitchTaskTopic,
   });
   return { ...topicNavigationRuntime, ...chromeNavigationRuntime };
 }

@@ -1061,13 +1061,19 @@ src/main.tsx
 
 ```mermaid
 flowchart LR
-  App --> Shell["AppShell scope / HeaderAction registry"]
+  App --> Shell["AppShell scope / HeaderAction · Header · MainContentLayout · UnifiedTabStrip"]
   AppSidebar --> Shell
   Shell --> SharedHeader["AppShellHeader / start · center · end"]
+  ThreadHeader["ThreadWorkspaceHeader / canonical title · HeaderToolbar"] --> Unified["UnifiedTabStrip / display registration"]
+  Unified --> Shell
+  RightTabs["right-surface projection / single active · open · close owner"] --> Unified
+  Layout["LayoutTransition / resize · full/split · focus · inert"] --> Unified
+  Shell --> ContentLayout["AppShellContent / primary → fallback → default"]
   App --> AppSidebar
   AppSidebar --> Rail["AppNavigationRail / persistent destinations and footer"]
   AppSidebar --> Contextual["contextual header / new chat / projects / recents or customization"]
   App --> PageContent
+  PageContent --> ThreadHeader
   PageContent --> Home["EmptyStateLayout → Banner / Composer"]
   PageContent --> Settings["SettingsPage → SettingsNavigation / content"]
   AppSidebar --> Width["useSidebarWidth / SidebarResizeHandle"]
@@ -1077,9 +1083,15 @@ flowchart LR
   Gateway --> Server["App Server → canonical Thread/Turn/Item"]
 ```
 
-`sidebar-width` 仅存用户的显示偏好，默认340；Shell 包含52px图标栏，展开最小290、最大520，折叠只收起上下文列。PageSurface44px标题栏与52px上下文页头来自同包分支；图标控件36px及两侧8px形成固有宽度。设置范围240..520，两者都受主区空间约束；不存业务状态。设置用同一宽度owner，返回委托既有navigation guard，不再持有全局rail或独立窄窗口浮层。首页 Banner 由 EmptyStateHero presentation 持有；Composer 在 EmptyStateLayout 独立下部区域，单侧24px留白、最大48rem。删除旧13任务入口、Guide/Drawer/Manager及专用状态和Workspace接线；没有真实 ambient 投影时不渲染伪建议。后台会话只由 useWorkspaceBackgroundSessionRuntime 投影 canonical identity/status 给既有侧栏。主题、多模型、Banner仍归既有owner。架构图由责任root确认；无业务后端/协议owner迁移。
+`sidebar-width` 仅存用户的显示偏好，默认340；Shell 包含52px图标栏，展开最小290、最大520，折叠只收起上下文列。PageSurface44px标题栏与52px上下文页头来自同包分支；图标控件36px及两侧8px形成固有宽度。设置范围240..520，两者都受主区空间约束；不存业务状态。设置用同一宽度owner，返回委托既有navigation guard，不再持有全局rail或独立窄窗口浮层。首页 Banner 由 EmptyStateHero presentation 持有；Composer 在 EmptyStateLayout 独立下部区域，单侧24px留白、最大48rem。删除旧13任务入口、Guide/Drawer/Manager及专用状态和Workspace接线；没有真实 ambient 投影时不渲染伪建议。后台会话只由 useWorkspaceBackgroundSessionRuntime 投影 canonical identity/status 给既有侧栏。首页不再计算无人消费的任务卡或注入 Memory/Channels 回调，ConversationScene 直接消费唯一 landingSurface；删除无效 creation selector，主题装饰不预留Composer内部宽度。主题、多模型、Banner仍归既有owner。架构图由责任root确认；无业务后端/协议owner迁移。
 
-共享页头的基础三槽采用同包已证 `HeaderAction` 的当前 scope、首次注册顺序、order 排序及实例身份清理。侧栏开关注册 left/order=1，由唯一窗口 renderer 呈现；不再自行 fixed 定位或复制一份折叠态按钮。AppShell/AppShellHeader 是本地 owner 名称；统一工作区其他槽、Header metadata 与 MainContentLayout 仍待后继接线，不能把基础三槽实现写成全壳等价。
+共享页头采用同包已证 `HeaderAction` 的当前 scope、首次注册顺序、order 排序及实例身份清理。侧栏开关注册 left/order=1，由唯一窗口 renderer 呈现。`Header` 将页面 children/metadata 注册到同一 renderer，`MainContentLayout` 为 primary → fallback → default 两级选择，无旧页面恢复栈。`AppShellContent` 测量实际主区，页头避让共享左右动作；会话页头不再在工作区内占一行，不再保留46px宿主/inset或侧栏折叠专用补位变量。页头仅消费当前线程身份和操作，不再派生独立状态、工作目录或重复Home/设置导航；普通线程标题与无标题分支以实际安装包合同区分，不能从rail布局推断。AppShell/AppShellHeader/AppShellContent 是本地owner名称；当前没有过渡context，按已证立即清理分支实现。统一工作区其他槽、完整fade分支及原线程开发名称仍待证，不声明全壳等价。实现与产品验证分别由[共享页头计划](../exec-plans/codex-shared-page-header-20261018.md)持有。责任root确认依赖方向与业务owner未变；未新增backend/read model或兼容层。
+
+Unified后继直接迁移：`UnifiedTabStrip`与Header/HeaderAction共用同一scope，展示快照由`shellRegistry`持有；注册替换/卸载按实例身份清理，不建立恢复栈或业务tab store。`HeaderToolbar`/`Actions`使用安装包可确认名称，ThreadWorkspaceHeader提供canonical标题和重命名，动作注册到右侧`unified-workspace-controls`。right-surface既有coordinator/action/local-state继续是active/open/close/pending唯一owner，host只渲染pane，同一projection的tab strip经chrome显式传给LayoutTransition，再进入共享标题栏。删除TaskCenterTabStrip/useTaskCenterTabChrome/专用projection及旧42/84px split/detached/auto-hide栏；有效title清洗归threadTitle、fallback导航语义继续保留。
+
+真实Electron后继发现window动作挤压tab strip后，ThreadWorkspaceHeader把既有thread/summary容器按REA已证window/chat/tab-strip规则移动到同一renderer；`HeaderToolbarActionMount`只挂载原DOM容器，保持工具组件实例，不持业务状态。More保持窗口右槽。UnifiedToolbarContext仅投影mode/isVisible和DOM目标，side-panel context仅投影可见性。LayoutTransition从同一pane几何投影派生`mainPaneEnd`并对齐标题栏，不再把内容百分比套到被窗口动作缩短的标题栏。分隔条的10px键盘步进、Home/End、尺寸aria、指针身份和双击恢复默认宽度复用同一尺寸owner，普通左右pane保留320px下限，CSS上限同时为内容pane留出空间。双击full/split继续由同一layout owner持有，不新增持久化、协议、业务tab store或runtime。责任root确认依赖方向；完整参考route transition、divider动作插槽和content/new-tab合同仍须后继补齐。
+
+既有LayoutTransition负责实际容器宽度、resize和动画，驱动full/split/chat及tabpanel/aria/inert、编辑焦点恢复；统一壳只消费展示注册，不读取业务协议。当前mainPaneWidth和sidePanelActive是Lime本地展示适配字段，不冒称上游原类型。当前没有参考实现的共享route transition context和全部content/divider/context-menu action destination，不宣称该部分等价。责任root确认上述内部依赖方向与架构图，2026-10-18；业务runtime/protocol/持久化owner没有迁移。产品证据和退出条件由[unified计划](../exec-plans/codex-unified-workspace-20261018.md)持有，未通过真实场景前保持active。
 
 ### 3.2 Renderer 数据流
 
@@ -1265,11 +1277,13 @@ Apple Events authorization owner/data flow updated: root, 2026-09-01.
 
 ### 4.3 Desktop persisted atom
 
-未发送的桌面 UI 草稿保存归 `PersistedAtomHost` / `PersistedAtomStore` / `PersistedAtomFile`，固定使用统一 `AppDataRoot/host-state.json`。它不保存 canonical transcript、Thread/Turn/Item、队列或 runtime 状态；业务持久化仍由 App Server 与 thread-store 承接。
+未发送的桌面 UI 草稿与 Summary 固定偏好保存归 `PersistedAtomHost` / `PersistedAtomStore` / `PersistedAtomFile`，固定使用统一 `AppDataRoot/host-state.json`。它不保存 canonical transcript、Thread/Turn/Item、队列或 runtime 状态；业务持久化仍由 App Server 与 thread-store 承接。
 
 ```mermaid
 flowchart LR
-  Gateway[Renderer typed persistedAtoms gateway] --> Bridge[Current safeInvoke / preload IPC]
+  Composer[ComposerDraftCoordinator] --> Gateway[Renderer typed persistedAtoms gateway]
+  Summary[useThreadSummaryPanel: Desktop pin] --> Gateway
+  Gateway --> Bridge[Current safeInvoke / preload IPC]
   Bridge --> Main[Main: lifecycle and delegation]
   Main --> Host[PersistedAtomHost]
   Host --> Store[PersistedAtomStore: synchronous CAS and bindings]
@@ -1283,11 +1297,15 @@ flowchart LR
 
 `persisted_atom_read` / `persisted_atom_update` 只经 `src/lib/api/persistedAtoms.ts` 的唯一 typed gateway。types、JSON transport parser 与预算归 `src/lib/api/persistedAtomTypes.ts` / `persistedAtomProtocol.ts`；Main 不引入 PM/React。Host 方法名对齐可确认的 `sendPersistedAtomState`、`updatePersistedAtomState` 与 `broadcastPersistedAtomUpdate`，新增类名是 Lime 的领域命名，不冒充安装包原开发源码名称。
 
-唯一 atom 为 `composer-drafts-v1`。put/promote/consume/clear 在同一 Store 中执行 draftId + opaque scopeVersion CAS；promotion 不改变版本，consume/clear 保留无正文 tombstone，拒绝迟到 put。record/binding 预算各为10,000，单 draft128MiB、完整UTF8 JSON256MiB，整次拒绝保旧，不截断或自动驱逐。应用 revision 与 savedRevision 分开，500ms 合并进入串行落盘；主文件原子替换后再更新 backup，primary 成功而 backup 失败时可能是新 primary / 旧 backup。无效文件恢复失败保持 unavailable，不覆盖为空。
+现有 atom 为 `composer-drafts-v1` 与 `app-shell-summary-panel-pinned`。草稿 put/promote/consume/clear 在同一 Store 中执行 draftId + opaque scopeVersion CAS；promotion 不改变版本，consume/clear 保留无正文 tombstone，拒绝迟到 put。record/binding 预算各为10,000，单 draft128MiB、完整UTF8 JSON256MiB，整次拒绝保旧，不截断或自动驱逐。Summary atom 只接受 boolean value/read 和 set/update，默认 true，缺失字段可按默认加载，错误类型不得强转。两个 atom 共用应用 revision 与 savedRevision，500ms 合并进入串行落盘；主文件原子替换后再更新 backup，primary 成功而 backup 失败时可能是新 primary / 旧 backup。无效文件恢复失败保持 unavailable，不覆盖为空。
 
 `rendererEventPolicy` 是 Main handler 与 preload 的同一事件策略，禁止 Renderer 伪造 `persisted-atom-update`。current safeInvoke/HTTP 诊断复用 `invokeDiagnostics`，草稿命令只记录固定 key/op/error 分类，不回显正文、media、scope 或原始错误。原始 transport 错误仍向调用者传播；native notification 订阅失败显式失败。
 
-Main 只负责组装、命令委托与 dispose；不在大文件添加保存、CAS 或 schema 业务。退出 best effort，不建立 Quit 握手或发送 checkpoint。当前 read 使用唯一 query/data 判别合同：scope 查询或 workspace-index 查询。索引仅投影当前 live binding 的 identity/scope/updatedAt/sessionId?/threadId?，workspace 精确匹配（含null）、updatedAt降序与canonical scope codepoint升序，不返回正文或media，不推进revision，不截断10,000预算内结果。实际编辑目标按scope重读并继续同一CAS。旧scope-only/top-level view已删除，gateway/fixture/preload/tests/guard成套迁移。公开 IPC 的正常重启证据只证明原生边界；GUI 富草稿恢复与 acceptance 的验证在 current 执行计划独立记录。
+Main 只负责组装、命令委托与 dispose；不在大文件添加保存、CAS 或 schema 业务。退出 best effort，不建立 Quit 握手或发送 checkpoint。当前 read 使用唯一 key/query/data 判别合同：草稿 scope/workspace-index 查询，或 Summary value 查询。索引仅投影当前 live binding 的 identity/scope/updatedAt/sessionId?/threadId?，workspace 精确匹配（含null）、updatedAt降序与canonical scope codepoint升序，不返回正文或media，不推进revision，不截断10,000预算内结果。实际编辑目标按scope重读并继续同一CAS。旧scope-only/top-level view已删除，gateway/fixture/preload/tests/guard成套迁移。广播只有 metadata，草稿协调器忽略非草稿 key；Summary 只接受当前 generation 且不低于已接受 revision 的回读。公开 IPC 的正常重启证据只证明原生边界；GUI 富草稿恢复、Summary pin 恢复与 acceptance 在 current 执行计划独立验收。
+
+Summary 的 renderer 展示由 `useThreadSummaryPanel` / `ThreadSummaryLayout` / `ThreadSummaryPanel` 单一负责，直接消费现有 canonical thread items/children 与已有打开动作。它独立于 Right Surface registry；旧 Activity 面板、tab 与 toggle 已删除。主 pane 的 ResizeObserver 驱动 300px 面板的 overlay/shift/gutter，shift 同步作用于既有 Composer，不重建编辑 owner。REA 对齐仅覆盖已确认布局和当前存在的数据 sections；其余 sections/身份分支仍在专项计划开放。
+
+Summary 后继架构图确认：root，2026-10-18；已复核 UI pin 复用同一 gateway/IPC/Host/Store/File，canonical 数据仍只读消费，无新增 JSON-RPC、runtime、业务 store 或兼容入口。实际验证见 `codex-unified-workspace-20261018.md`，不据此声明全 GUI 完成。
 
 Architecture impact: major; Desktop UI persistence owner and IPC boundary added. Architecture diagram confirmation: root, 2026-10-14; Host/gateway/parser/file/event/diagnostic ownership and separation from the canonical App Server chain checked. Product verification remains recorded in the current execution plan.
 
@@ -2557,6 +2575,62 @@ flowchart LR
 408/425/429/5xx，无numeric status沿同一上限，不从错误文字猜状态。账号代际错误立即终止。
 架构影响：重大（Renderer查询依赖/投影owner）。责任开发者确认：root，2026-10-18；
 已核对依赖、目录、数据流、协议边界及Gate B验证合同，结果归执行计划P04b13c。
+
+P04b13d远端详情不再覆盖本地物化包的Skills/MCP/Hooks。RuntimeCore沿同一Context按opaque
+ID读取授权release，由响应scope确定canonical marketplace；完整分页读取fresh installed
+（includeDownloadUrls=false），按ID关联安装状态、installed release版本及逐技能禁用名单。
+远端技能保留raw name、path=null、hooks=[]；未安装技能默认启用。summary还经过共享plugins
+配置门禁，onboarding要求插件可用、启用且匹配技能启用。公开installedAt统一Unix秒。
+
+```mermaid
+flowchart LR
+  DetailRPC[Shared plugin/read] --> Context[AccountManager / same authenticated Context]
+  Context --> Release[Authorized remote release / canonical scope]
+  Context --> Installed[Fresh installed pages / no download URLs]
+  Release --> Detail[Remote detail projection / path null]
+  Installed --> Detail
+  Config[Shared plugins config gate] --> Detail
+  Local[PluginStore / local skills.config] --> RuntimeSkills[skills/list / Turn]
+```
+
+该读面不下载、不发布本地安装投影，也不把远端偏好写进skills.config；runtime仍只消费
+现役本地store和配置。CLI/native summary.localVersion使用installed release版本，不能套用
+Desktop hosted H2的null。Core included_files内部规则仍未定位。
+重大架构调整由root于2026-10-18确认：沿既有owner替换详情事实来源，无新增RPC、迁移或
+兼容层。验证结果归执行计划P04b13d，静态REA不作为Codex运行证据。
+
+P04b13e 将同一远端目录读面收敛到 fresh installed：先完整校验本次各 collection 的
+directory，再以同一 Context 读取一次 all-scope 安装分页（includeDownloadUrls=false），
+按 scope/opaque ID 关联；共享 plugins 配置只限制 enabled。current version 来自目录，
+localVersion 来自 installed release，installedAt 为 Unix 秒；不以物化包摘要覆盖。
+GLOBAL 补 installed-only，其余普通集合不补；Shared 保留显式分享和链接安装两桶，空集合省略。
+
+```mermaid
+flowchart LR
+  ListRPC[Shared plugin/list] --> Directory[Validated collection directories]
+  ListRPC --> InstalledList[Same Context / complete installed snapshot]
+  Directory --> Join[Scope and opaque ID projection]
+  InstalledList --> Join
+  Policy[Shared plugins config gate] --> Join
+  Join --> Surfaces[Typed GUI / CLI / TUI consumers]
+```
+
+旧列表本地安装 overlay helper 已删除；此路径不下载、物化或写回安装状态/配置。
+先验证目录再读一次安装清单是 Lime 现有 all-scope Core API 的复用选择；上游按 scope
+读取，安装事实与集合语义一致。全部读取和最终返回保留账号 fence，失败不发布部分远端
+目录。重大架构调整由 root 于 2026-10-18 确认；验证合同与结果归 P04b13e 专项计划。
+缓存/prefer-cache/forceRefetch、本地 readiness 和偏好编辑不能由本刀核销。
+
+P04b13f 的 REA Tkn/uAn 已定位远端插件和逐技能的 enable/disable 无 body POST。
+GUI 插件开关按 source 分支：local 走 config/batchWrite，remote 走既有 cloud/request；
+认证仍归 AccountManager，renderer 不持有 token 或直接访问认证 API。请求前捕获账号
+identity/epoch，返回后重读账号并拒绝换号及切走再切回的迟到结果。成功才发 catalog changed，
+页面随后 reconcile/fresh read，失败保留原状态并显示五语言提示。
+Core 的安装事实模型保存 enabled/disabledSkillNames，复用同一 snapshot repository，
+保存成功后发布内存；列表投影不再伪造 true/空数组。偏好不能创建安装或绕过当前目录授权，
+技能按授权 release 声明原文匹配；远端逐技能偏好仍不写本地 skills.config 或 Turn 技能开关。
+普通技能开关 UI 与安装 release 固定策略继续单独跟踪。
+架构图由 root 于2026-10-18确认，详见 P04b13f 计划；没有新增RPC、IPC或数据库表。
 
 Core 包会话、内容 hash 与静态扫描事实已从进程 broker 收回现役 Repository/snapshot；原字节
 进入 `plugin.packageRootDir` 的私有不可变 hash 文件，只有已提交 verified 记录才能经原下载

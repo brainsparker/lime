@@ -51,9 +51,9 @@ export function useAgentChatWorkspaceSceneRuntime({
     preferContentReviewInRightRail ?? false;
   // prettier-ignore
   const {
-    untitledTaskLabel, normalizedEntryTheme, shouldBootstrapCanvasOnEntry, activeTheme, artifactPreviewSize, creationMode, effectiveEntryBannerMessage, entryBannerVisible,
+    untitledTaskLabel, normalizedEntryTheme, shouldBootstrapCanvasOnEntry, activeTheme, artifactPreviewSize, effectiveEntryBannerMessage, entryBannerVisible,
     expertInfoPanelCollapsed, handleInputRestoreRequestHandled, input, composerController, inputbarObjectiveModeEnabled, inputRestoreRequest, layoutMode, selectedText, setActiveTheme,
-    setArtifactPreviewSize, setCanvasWorkbenchLayoutMode, setCreationMode, setExpertInfoPanelCollapsed, setInput, setInputbarObjectiveModeEnabled, setLayoutMode, pathReferences,
+    setArtifactPreviewSize, setCanvasWorkbenchLayoutMode, setExpertInfoPanelCollapsed, setInput, setInputbarObjectiveModeEnabled, setLayoutMode, pathReferences,
     handleAddPathReferences, handleRemovePathReference, handleClearPathReferences, fileManagerSidebar, activeSessionIdRef, setChatToolPreferences, handleInstallSkillPackageFromFileManager,
     handleOpenSkillsManageFromExpertPanel, projectId, markNewChatRequestHandled, taskCenterWorkspaceId, normalizedInitialSessionId, shouldUseBrowserWorkspaceHomeChrome, shouldDeferWorkspaceAuxiliaryLoads, project,
     projectMemory, isInitialContentLoading, initialContentLoadError, canvasState, setCanvasState, initialCreationReplaySurface, runtimeWorkspaceId, generalCanvasState,
@@ -84,9 +84,9 @@ export function useAgentChatWorkspaceSceneRuntime({
     setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,
     imageWorkbenchActionRuntime, handleContinueGeneralWorkbenchEntryPrompt, handleRestartGeneralWorkbenchEntryPrompt, handleDocumentAutoContinueRun, handleArtifactBlockRewriteRun, handleDocumentContentReviewRun, handleDocumentTextStylizeRun, handleAddImage,
-    handleImportDocument, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, handleCanvasSelectionTextChange, handleCloseCanvas, bindBeforeCanvasLeave,
- handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRenderTaskCenterTabStrip, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
-    suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, taskCenterTabsNode, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
+    handleImportDocument, bootstrapPendingPreviewMessages, handleCanvasSelectionTextChange, handleCloseCanvas, bindBeforeCanvasLeave,
+ handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
+    suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
     handleHarnessLoadFilePreview, handleOpenArtifactFromTimeline, handleOpenMessagePreview, handleOpenSavedSiteContent, handleOpenServiceSkillResultFile, handleOpenUrlPreview, handleSaveArtifactDocument, handleWorkspaceArtifactClick,
     handleWorkspaceFileClick, openProjectFilePreviewInCanvas, openWorkspaceArtifactInWorkbench, preferredServiceSkillResultFileTarget, renderArtifactWorkbenchToolbarActions, shouldCollapseCodeBlockInChat, shouldCollapseCodeBlocks, handleWriteFile,
     handleJumpToTimelineItem, serviceSkillExecutionCard, generalWorkbenchActivityLogs,
@@ -392,7 +392,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         sceneLayoutMode,
         sceneSessionId,
         sceneThreadId: sceneThreadRead?.thread_id ?? null,
-        activityAvailable: Boolean(sceneThreadRead?.thread_id),
         sessionId,
         showHarnessToggle,
         suppressHomeNavbarUtilityActions,
@@ -407,12 +406,6 @@ export function useAgentChatWorkspaceSceneRuntime({
       host: {
         ensureBrowserWorkspaceOwner,
         generalWorkbenchHarnessPanelBaseProps,
-        activityPanelProps: {
-          canonicalChildren,
-          threadItems: sceneThreadItems,
-          toolInventory: generalWorkbenchHarnessPanelBaseProps.toolInventory,
-          onOpenSubagentSession: handleOpenSubagentSession,
-        },
         harnessState,
         preferredServiceSkillResultFileTarget,
         runtimeWorkspaceId,
@@ -443,10 +436,8 @@ export function useAgentChatWorkspaceSceneRuntime({
         accessMode,
         activeTheme,
 
-        browserAssistLoading: false,
         chatToolPreferences: effectiveChatToolPreferences,
 
-        creationMode,
         creationReplaySurface: initialCreationReplaySurface,
         defaultCuratedTaskReferenceEntries:
           initialCreationReplaySurface?.defaultReferenceEntries,
@@ -509,7 +500,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         setAccessMode,
         setActiveTheme,
         setChatToolPreferences,
-        setCreationMode,
         setInput,
         setModel,
         setProviderType,
@@ -581,10 +571,6 @@ export function useAgentChatWorkspaceSceneRuntime({
           initialSessionId: normalizedInitialSessionId,
           initialSessionName,
           topic: sceneSessionId ? topicById.get(sceneSessionId) : null,
-          sessionWorkingDirectory: sessionWorkingDir,
-          projectRootPath: project?.rootPath,
-          canonicalThreadStatus: threadRead?.status,
-          canAcceptDirectInput: threadRead?.can_accept_direct_input,
           onRename: sceneSessionId
             ? (nextTitle) => renameTopic(sceneSessionId, nextTitle)
             : undefined,
@@ -600,12 +586,10 @@ export function useAgentChatWorkspaceSceneRuntime({
             ? async () => {
                 const forkedSessionId = await forkTopic(sceneSessionId);
                 if (forkedSessionId) {
-                  await originalSwitchTopic(forkedSessionId);
+                  await commandRuntime.handleOpenTaskTopic(forkedSessionId);
                 }
               }
             : undefined,
-          isSending: sceneIsSending,
-          pendingActionCount: scenePendingActions.length,
           untitledTaskLabel,
         }),
         navbarContextVariant:
@@ -630,9 +614,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         contextWorkspaceEnabled: contextWorkspace.generalWorkbenchEnabled,
         activeTheme,
         contentId,
-        taskCenterTabsNode: shouldRenderTaskCenterTabStrip
-          ? taskCenterTabsNode
-          : browserWorkspaceHomeTabsNode,
         suppressNavbarUtilityActions: suppressHomeNavbarUtilityActions,
         topBarChrome,
         onBackToProjectManagement,

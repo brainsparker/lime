@@ -9,19 +9,22 @@ import React, {
   useCallback,
   useEffect,
   useMemo,
+  useId,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
 import styled from "styled-components";
-import { MessageSquareText, PanelsTopLeft } from "lucide-react";
+import { UnifiedTabStrip } from "@/components/app-shell/AppShell";
+import { HeaderToolbar } from "@/components/app-shell/HeaderToolbar";
 import { LayoutMode } from "@/lib/workspace/workflowTypes";
 import { useLayoutTransition, TransitionConfig } from "./useLayoutTransition";
 
 const COMPACT_CHAT_CANVAS_CONTAINER_WIDTH = 900;
 const COMPACT_CHAT_CANVAS_BREAKPOINT_HEIGHT = 620;
-const CHAT_CANVAS_RESIZE_MIN_CHAT_WIDTH = 360;
-const CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH = 420;
+const CHAT_CANVAS_RESIZE_MIN_CHAT_WIDTH = 320;
+const CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH = 320;
 
 function shouldUseCompactChatCanvasLayout(
   mode: LayoutMode,
@@ -51,62 +54,6 @@ const Container = styled.div`
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-`;
-
-const CompactModeBar = styled.div<{ $visible: boolean; $topInset: string }>`
-  display: ${({ $visible }) => ($visible ? "flex" : "none")};
-  min-width: 0;
-  height: 42px;
-  flex: 0 0 42px;
-  margin-top: ${({ $topInset }) => $topInset};
-  align-items: center;
-  justify-content: flex-start;
-  border-bottom: 1px solid var(--lime-surface-border, rgba(226, 232, 240, 0.9));
-  background: var(--lime-home-card-surface, #fff);
-  padding: 5px 12px;
-`;
-
-const CompactModeControl = styled.div`
-  display: inline-flex;
-  min-width: 0;
-  align-items: center;
-  gap: 2px;
-  border: 1px solid var(--lime-surface-border, rgba(226, 232, 240, 0.9));
-  border-radius: 7px;
-  background: var(--lime-surface-soft, #f8fafc);
-  padding: 2px;
-`;
-
-const CompactModeButton = styled.button<{ $active: boolean }>`
-  display: inline-flex;
-  height: 28px;
-  min-width: 0;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  border: 0;
-  border-radius: 5px;
-  background: ${({ $active }) =>
-    $active ? "var(--lime-home-card-surface, #fff)" : "transparent"};
-  color: ${({ $active }) =>
-    $active
-      ? "var(--lime-text-strong, #0f172a)"
-      : "var(--lime-text-muted, #64748b)"};
-  box-shadow: ${({ $active }) =>
-    $active ? "0 1px 2px rgba(15, 23, 42, 0.08)" : "none"};
-  padding: 0 10px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-
-  &:hover {
-    color: var(--lime-text-strong, #0f172a);
-  }
-
-  &:focus-visible {
-    outline: 2px solid var(--lime-focus-ring, #38bdf8);
-    outline-offset: 1px;
-  }
 `;
 
 const PanelViewport = styled.div<{ $compactSinglePanel: boolean }>`
@@ -165,6 +112,11 @@ const SplitResizeHandle = styled.div<{ $dragging: boolean }>`
   &:hover::after {
     background: var(--lime-brand-soft, #ecfdf5);
   }
+
+  &:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+  }
 `;
 
 const ChatPanel = styled.div<{
@@ -173,7 +125,6 @@ const ChatPanel = styled.div<{
   $minWidth: string;
   $compactSinglePanel: boolean;
   $hidden: boolean;
-  $chrome: "panel" | "plain";
 }>`
   position: relative;
   height: ${({ $hidden }) => ($hidden ? "0" : "100%")};
@@ -192,29 +143,14 @@ const ChatPanel = styled.div<{
   will-change: width, height;
   display: ${({ $hidden }) => ($hidden ? "none" : "flex")};
   flex-direction: column;
-  padding: ${({ $chrome }) => ($chrome === "plain" ? "0" : "16px 16px 16px 0")};
+  padding: 0;
 `;
 
-const ChatPanelInner = styled.div<{ $topInset: string }>`
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  background: hsl(var(--background));
-  border-radius: 12px;
-  border: 1px solid hsl(var(--border));
-  overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  box-sizing: border-box;
-  padding-top: ${({ $topInset }) => $topInset};
-`;
-
-const PlainChatPanelInner = styled.div<{ $topInset: string }>`
+const ChatPanelInner = styled.div`
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
-  padding-top: ${({ $topInset }) => $topInset};
 `;
 
 const CanvasPanel = styled.div<{
@@ -222,7 +158,6 @@ const CanvasPanel = styled.div<{
   $transform: string;
   $opacity: number;
   $duration: number;
-  $topInset: string;
 }>`
   position: relative;
   height: 100%;
@@ -238,7 +173,6 @@ const CanvasPanel = styled.div<{
   display: ${({ $visible }) => ($visible ? "block" : "none")};
   will-change: transform, opacity;
   box-sizing: border-box;
-  padding-top: ${({ $topInset }) => $topInset};
 `;
 
 interface LayoutTransitionProps {
@@ -250,16 +184,11 @@ interface LayoutTransitionProps {
   canvasContent: React.ReactNode;
   /** 过渡配置 */
   transitionConfig?: TransitionConfig;
-  /** 聊天区域是否使用额外面板壳 */
-  chatPanelChrome?: "panel" | "plain";
+  mainToolbar?: React.ReactNode;
+  sidePanelTabStrip?: React.ReactNode;
+  mainTabLabel?: string;
   /** chat-canvas 模式下聊天面板宽度 */
   chatPanelWidth?: string;
-  /** chat-canvas 模式下聊天面板最小宽度 */
-  chatPanelMinWidth?: string;
-  /** chat-canvas 模式下聊天面板顶部预留 */
-  chatPanelTopInset?: string;
-  /** chat-canvas 模式下画布面板顶部预留 */
-  canvasPanelTopInset?: string;
   /** 紧凑单面板态下强制切回聊天区 */
   forceOpenChatPanel?: boolean;
 }
@@ -275,16 +204,34 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
     chatContent,
     canvasContent,
     transitionConfig,
-    chatPanelChrome = "panel",
+    mainToolbar,
+    sidePanelTabStrip,
+    mainTabLabel,
     chatPanelWidth,
-    chatPanelMinWidth,
-    chatPanelTopInset = "0px",
-    canvasPanelTopInset = "0px",
     forceOpenChatPanel = false,
   }) => {
     const { t } = useTranslation("workspace");
     const containerRef = useRef<HTMLDivElement | null>(null);
-    const resizingChatPanelRef = useRef(false);
+    const chatPanelRef = useRef<HTMLDivElement>(null);
+    const canvasPanelRef = useRef<HTMLDivElement>(null);
+    const [paneBounds, setPaneBounds] = useState<{
+      end: number;
+      contentWidth: number;
+      totalWidth: number;
+      gap: number;
+    }>();
+    const lastChatFocus = useRef<HTMLElement | null>(null);
+    const id = useId();
+    const mainTabId = `${id}-chat-tab`;
+    const mainTabPanelId = `${id}-chat-panel`;
+    const canvasTabId = `${id}-canvas-tab`;
+    const canvasPanelId = `${id}-canvas-panel`;
+    const resizingChatPanelRef = useRef<{
+      pointerId: number;
+      startX: number;
+      startWidth: number;
+      didMove: boolean;
+    } | null>(null);
     const [resizedChatPanelWidth, setResizedChatPanelWidth] = useState<
       number | null
     >(null);
@@ -310,26 +257,110 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
     );
     const [compactPrimaryPanel, setCompactPrimaryPanel] = useState<
       "chat" | "canvas"
-    >("chat");
+    >(effectiveMode === "canvas" ? "canvas" : "chat");
+    const [fullWidthRequested, setFullWidthRequested] = useState(false);
 
     const chatStyles = getTransitionStyles("chat");
     const canvasStyles = getTransitionStyles("canvas");
     const resolvedChatPanelMinWidth =
-      effectiveMode === "chat-canvas" ? chatPanelMinWidth || "360px" : "0px";
+      effectiveMode === "chat-canvas"
+        ? `${CHAT_CANVAS_RESIZE_MIN_CHAT_WIDTH}px`
+        : "0px";
     const shouldRenderCanvas = hasCanvasContent && isCanvasVisible;
     const isCompactChatCanvas =
-      compactChatCanvasLayout && effectiveMode === "chat-canvas";
-    const compactModeTopInset = isCompactChatCanvas ? chatPanelTopInset : "0px";
-    const resolvedChatPanelTopInset = isCompactChatCanvas
-      ? "0px"
-      : chatPanelTopInset;
-    const resolvedCanvasPanelTopInset = isCompactChatCanvas
-      ? "0px"
-      : canvasPanelTopInset;
+      effectiveMode === "canvas" ||
+      (effectiveMode === "chat-canvas" &&
+        (compactChatCanvasLayout || fullWidthRequested));
+    const handleContentTabDoubleClick = useCallback(
+      (tabId: string) => {
+        setFullWidthRequested(!isCompactChatCanvas);
+        setCompactPrimaryPanel(tabId === mainTabId ? "chat" : "canvas");
+      },
+      [isCompactChatCanvas, mainTabId],
+    );
+    const chatHidden =
+      (effectiveMode === "canvas" && compactPrimaryPanel !== "chat") ||
+      (isCompactChatCanvas && compactPrimaryPanel !== "chat");
+    const canvasHidden =
+      effectiveMode === "chat" ||
+      !shouldRenderCanvas ||
+      (effectiveMode === "canvas" && compactPrimaryPanel === "chat") ||
+      (isCompactChatCanvas && compactPrimaryPanel !== "canvas");
+    const wasChatHidden = useRef(chatHidden);
+    const wasCompactChatCanvas = useRef(isCompactChatCanvas);
+    useLayoutEffect(() => {
+      if (
+        wasChatHidden.current === chatHidden &&
+        wasCompactChatCanvas.current === isCompactChatCanvas
+      ) return;
+      wasChatHidden.current = chatHidden;
+      wasCompactChatCanvas.current = isCompactChatCanvas;
+      if (chatHidden) {
+        if (
+          document.activeElement === lastChatFocus.current ||
+          document.activeElement === document.body
+        ) {
+          document.getElementById(mainTabId)?.focus({ preventScroll: true });
+        }
+      } else {
+        const active = document.activeElement;
+        const tab = document.getElementById(mainTabId);
+        if (
+          active === document.body ||
+          active === tab ||
+          tab?.closest("[data-app-shell-unified-tab-strip]")?.contains(active)
+        ) {
+          const target = lastChatFocus.current?.isConnected
+            ? lastChatFocus.current
+            : chatPanelRef.current?.querySelector<HTMLElement>(
+                '[contenteditable="true"], textarea, input, button, [tabindex="0"]',
+              );
+          target?.focus({ preventScroll: true });
+        }
+      }
+    }, [chatHidden, isCompactChatCanvas, mainTabId]);
     const shouldRenderResizeHandle =
       effectiveMode === "chat-canvas" &&
       shouldRenderCanvas &&
       !isCompactChatCanvas;
+
+    useLayoutEffect(() => {
+      const container = containerRef.current;
+      const canvas = canvasPanelRef.current;
+      if (!container || !canvas || isCompactChatCanvas) return;
+      const measure = () => {
+        const rect = container.getBoundingClientRect();
+        const next = {
+          end: rect.left + canvas.offsetLeft,
+          contentWidth: canvas.getBoundingClientRect().width,
+          totalWidth: rect.width,
+          gap: Math.max(
+            0,
+            canvas.offsetLeft - (chatPanelRef.current?.offsetWidth ?? 0),
+          ),
+        };
+        setPaneBounds((current) =>
+          current?.end === next.end &&
+          current.contentWidth === next.contentWidth &&
+          current.totalWidth === next.totalWidth &&
+          current.gap === next.gap
+            ? current
+            : next,
+        );
+      };
+      measure();
+      const observer =
+        typeof ResizeObserver === "undefined"
+          ? null
+          : new ResizeObserver(measure);
+      observer?.observe(container);
+      if (chatPanelRef.current) observer?.observe(chatPanelRef.current);
+      window.addEventListener("resize", measure);
+      return () => {
+        observer?.disconnect();
+        window.removeEventListener("resize", measure);
+      };
+    }, [isCompactChatCanvas, shouldRenderCanvas, chatStyles.width]);
 
     const resolveConstrainedChatWidth = useCallback((clientX: number) => {
       const containerRect = containerRef.current?.getBoundingClientRect();
@@ -338,7 +369,13 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
       }
       const maxWidth = Math.max(
         CHAT_CANVAS_RESIZE_MIN_CHAT_WIDTH,
-        containerRect.width - CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH,
+        containerRect.width -
+          CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH -
+          Math.max(
+            0,
+            (canvasPanelRef.current?.offsetLeft ?? 0) -
+              (chatPanelRef.current?.offsetWidth ?? 0),
+          ),
       );
       return Math.min(
         Math.max(
@@ -349,27 +386,61 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
       );
     }, []);
 
-    const handleResizePointerDown = useCallback(
-      (event: React.PointerEvent<HTMLDivElement>) => {
-        const nextWidth = resolveConstrainedChatWidth(event.clientX);
-        if (nextWidth === null) {
-          return;
-        }
-        event.currentTarget.setPointerCapture(event.pointerId);
+    const handleResizeKeyDown = useCallback(
+      (event: React.KeyboardEvent<HTMLDivElement>) => {
+        const rect = containerRef.current?.getBoundingClientRect();
+        if (!rect || !chatPanelRef.current) return;
+        const width = chatPanelRef.current.getBoundingClientRect().width;
+        const next =
+          event.key === "Home"
+            ? rect.right
+            : event.key === "End"
+              ? rect.left
+              : event.key === "ArrowRight"
+                ? rect.left + width + 10
+                : event.key === "ArrowLeft"
+                  ? rect.left + width - 10
+                  : null;
+        if (next === null) return;
+        const constrained = resolveConstrainedChatWidth(next);
+        if (constrained === null) return;
         event.preventDefault();
-        resizingChatPanelRef.current = true;
-        setResizingChatPanel(true);
-        setResizedChatPanelWidth(nextWidth);
+        event.stopPropagation();
+        setResizedChatPanelWidth(constrained);
       },
       [resolveConstrainedChatWidth],
     );
 
+    const handleResizePointerDown = useCallback(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        if (
+          event.button !== 0 ||
+          resizingChatPanelRef.current ||
+          !chatPanelRef.current
+        )
+          return;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        event.preventDefault();
+        resizingChatPanelRef.current = {
+          pointerId: event.pointerId,
+          startX: event.clientX,
+          startWidth: chatPanelRef.current.getBoundingClientRect().width,
+          didMove: false,
+        };
+        setResizingChatPanel(true);
+      },
+      [],
+    );
+
     const handleResizePointerMove = useCallback(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!resizingChatPanelRef.current) {
-          return;
-        }
-        const nextWidth = resolveConstrainedChatWidth(event.clientX);
+        const drag = resizingChatPanelRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        const left = containerRef.current?.getBoundingClientRect().left ?? 0;
+        drag.didMove ||= event.clientX !== drag.startX;
+        const nextWidth = resolveConstrainedChatWidth(
+          left + drag.startWidth + event.clientX - drag.startX,
+        );
         if (nextWidth !== null) {
           setResizedChatPanelWidth(nextWidth);
         }
@@ -379,24 +450,29 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
 
     const handleResizePointerEnd = useCallback(
       (event: React.PointerEvent<HTMLDivElement>) => {
-        if (!resizingChatPanelRef.current) {
-          return;
+        const drag = resizingChatPanelRef.current;
+        if (!drag || drag.pointerId !== event.pointerId) return;
+        if (drag.didMove && event.type === "pointerup")
+          handleResizePointerMove(event);
+        resizingChatPanelRef.current = null;
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
+          event.currentTarget.releasePointerCapture?.(event.pointerId);
         }
-        if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-          event.currentTarget.releasePointerCapture(event.pointerId);
-        }
-        resizingChatPanelRef.current = false;
         setResizingChatPanel(false);
       },
-      [],
+      [handleResizePointerMove],
     );
 
     useEffect(() => {
       if (effectiveMode !== "chat-canvas" || compactChatCanvasLayout) {
-        resizingChatPanelRef.current = false;
+        resizingChatPanelRef.current = null;
         setResizingChatPanel(false);
       }
     }, [compactChatCanvasLayout, effectiveMode]);
+
+    useEffect(() => {
+      if (effectiveMode === "chat") setFullWidthRequested(false);
+    }, [effectiveMode]);
 
     useEffect(() => {
       const updateLayout = (containerWidth?: number) => {
@@ -436,10 +512,10 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
     }, [effectiveMode]);
 
     useEffect(() => {
-      if (isCompactChatCanvas) {
-        setCompactPrimaryPanel("chat");
+      if (compactChatCanvasLayout || effectiveMode === "canvas") {
+        setCompactPrimaryPanel(effectiveMode === "canvas" ? "canvas" : "chat");
       }
-    }, [isCompactChatCanvas]);
+    }, [effectiveMode, compactChatCanvasLayout]);
 
     useEffect(() => {
       if (!forceOpenChatPanel || !isCompactChatCanvas) {
@@ -451,18 +527,22 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
 
     const canvasPanelNode = (
       <CanvasPanel
+        ref={canvasPanelRef}
         $visible={
           shouldRenderCanvas &&
           (!isCompactChatCanvas || compactPrimaryPanel === "canvas")
         }
         $transform={canvasStyles.transform as string}
         $opacity={canvasStyles.opacity as number}
-        $topInset={resolvedCanvasPanelTopInset}
         $duration={parseInt(
           canvasStyles.transition?.match(/\d+/)?.[0] || "300",
         )}
-        data-top-inset={resolvedCanvasPanelTopInset}
         data-testid="layout-canvas-panel"
+        id={sidePanelTabStrip ? undefined : canvasPanelId}
+        role={sidePanelTabStrip ? undefined : "tabpanel"}
+        aria-labelledby={sidePanelTabStrip ? undefined : canvasTabId}
+        aria-hidden={canvasHidden}
+        {...(canvasHidden ? { inert: "" } : {})}
       >
         {canvasContent}
       </CanvasPanel>
@@ -470,16 +550,30 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
 
     const chatPanelNode = (
       <ChatPanel
-        $width={chatStyles.width as string}
+        $width={
+          effectiveMode === "canvas" && !chatHidden
+            ? "100%"
+            : (chatStyles.width as string)
+        }
         $duration={parseInt(chatStyles.transition?.match(/\d+/)?.[0] || "300")}
         $minWidth={resolvedChatPanelMinWidth}
         $compactSinglePanel={isCompactChatCanvas}
-        $hidden={
-          effectiveMode === "canvas" ||
-          (isCompactChatCanvas && compactPrimaryPanel !== "chat")
-        }
-        $chrome={chatPanelChrome}
+        $hidden={chatHidden}
+        style={{
+          maxWidth: shouldRenderResizeHandle
+            ? `calc(100% - ${CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH}px - ${paneBounds?.gap ?? 0}px)`
+            : undefined,
+        }}
         data-testid="layout-chat-panel"
+        ref={chatPanelRef}
+        id={mainTabPanelId}
+        role="tabpanel"
+        aria-labelledby={mainTabId}
+        aria-hidden={chatHidden}
+        {...(chatHidden ? { inert: "" } : {})}
+        onFocusCapture={(event) => {
+          lastChatFocus.current = event.target as HTMLElement;
+        }}
         data-chat-panel-width={chatStyles.width as string}
         data-chat-panel-min-width={resolvedChatPanelMinWidth}
         data-overlay-state={
@@ -490,23 +584,9 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
             : "inline"
         }
       >
-        {chatPanelChrome === "plain" ? (
-          <PlainChatPanelInner
-            $topInset={resolvedChatPanelTopInset}
-            data-top-inset={resolvedChatPanelTopInset}
-            data-testid="layout-chat-panel-plain"
-          >
-            {chatContent}
-          </PlainChatPanelInner>
-        ) : (
-          <ChatPanelInner
-            $topInset={resolvedChatPanelTopInset}
-            data-top-inset={resolvedChatPanelTopInset}
-            data-testid="layout-chat-panel-inner"
-          >
-            {chatContent}
-          </ChatPanelInner>
-        )}
+        <ChatPanelInner data-testid="layout-chat-panel-inner">
+          {chatContent}
+        </ChatPanelInner>
       </ChatPanel>
     );
 
@@ -524,43 +604,69 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
           isCompactChatCanvas ? compactPrimaryPanel : undefined
         }
       >
-        <CompactModeBar
-          $visible={isCompactChatCanvas}
-          $topInset={compactModeTopInset}
-          data-testid="layout-compact-mode-bar"
-          data-visible={isCompactChatCanvas ? "true" : "false"}
-          data-top-inset={compactModeTopInset}
+        <UnifiedTabStrip
+          mode={isCompactChatCanvas ? "full" : "split"}
+          isVisible={effectiveMode !== "chat"}
+          desktopPlacement="titlebar"
+          mainTabId={mainTabId}
+          mainTabPanelId={mainTabPanelId}
+          sidePanelActive={!canvasHidden}
+          mainPaneEnd={paneBounds?.end}
+          onContentTabDoubleClick={handleContentTabDoubleClick}
+          mainToolbar={
+            <div
+              id={!isCompactChatCanvas ? mainTabId : undefined}
+              className="h-full min-w-0 flex-1"
+            >
+              {mainToolbar ?? (
+                <HeaderToolbar>
+                  {mainTabLabel ?? t("workspace.layout.compactMode.chat")}
+                </HeaderToolbar>
+              )}
+            </div>
+          }
+          sidePanelTabStrip={
+            <div
+              className="flex h-full min-w-0 items-center"
+              onClickCapture={(event) => {
+                if ((event.target as Element).closest('[role="tab"]'))
+                  setCompactPrimaryPanel("canvas");
+              }}
+            >
+              {sidePanelTabStrip ?? (
+                <button
+                  type="button"
+                  role="tab"
+                  data-testid="layout-content-tab"
+                  id={canvasTabId}
+                  aria-controls={canvasPanelId}
+                  aria-selected={!canvasHidden}
+                  tabIndex={canvasHidden ? -1 : 0}
+                  onClick={() => setCompactPrimaryPanel("canvas")}
+                  className="h-8 truncate rounded-lg px-3 text-xs text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
+                >
+                  {t("workspace.layout.compactMode.workbench")}
+                </button>
+              )}
+            </div>
+          }
         >
           {isCompactChatCanvas ? (
-            <CompactModeControl
-              role="tablist"
-              aria-label={t("workspace.layout.compactMode.ariaLabel")}
+            <button
+              type="button"
+              role="tab"
+              data-testid="layout-main-tab"
+              id={mainTabId}
+              aria-controls={mainTabPanelId}
+              aria-selected={!chatHidden}
+              tabIndex={chatHidden ? -1 : 0}
+              onClick={() => setCompactPrimaryPanel("chat")}
+              className="h-8 max-w-64 shrink-0 truncate rounded-lg px-3 text-xs text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
             >
-              <CompactModeButton
-                type="button"
-                role="tab"
-                aria-selected={compactPrimaryPanel === "chat"}
-                $active={compactPrimaryPanel === "chat"}
-                data-testid="layout-compact-chat-tab"
-                onClick={() => setCompactPrimaryPanel("chat")}
-              >
-                <MessageSquareText size={15} aria-hidden="true" />
-                <span>{t("workspace.layout.compactMode.chat")}</span>
-              </CompactModeButton>
-              <CompactModeButton
-                type="button"
-                role="tab"
-                aria-selected={compactPrimaryPanel === "canvas"}
-                $active={compactPrimaryPanel === "canvas"}
-                data-testid="layout-compact-canvas-tab"
-                onClick={() => setCompactPrimaryPanel("canvas")}
-              >
-                <PanelsTopLeft size={15} aria-hidden="true" />
-                <span>{t("workspace.layout.compactMode.workbench")}</span>
-              </CompactModeButton>
-            </CompactModeControl>
+              {mainTabLabel ?? t("workspace.layout.compactMode.chat")}
+            </button>
           ) : null}
-        </CompactModeBar>
+        </UnifiedTabStrip>
         <PanelViewport
           $compactSinglePanel={isCompactChatCanvas}
           data-testid="layout-panel-viewport"
@@ -571,6 +677,24 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
               role="separator"
               aria-orientation="vertical"
               aria-label={t("workspace.layout.splitter.resizeAria")}
+              aria-valuemin={CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH}
+              aria-valuemax={
+                paneBounds && paneBounds.totalWidth > 0
+                  ? Math.max(
+                      CHAT_CANVAS_RESIZE_MIN_CANVAS_WIDTH,
+                      paneBounds.totalWidth -
+                        paneBounds.gap -
+                        CHAT_CANVAS_RESIZE_MIN_CHAT_WIDTH,
+                    )
+                  : undefined
+              }
+              aria-valuenow={
+                paneBounds && paneBounds.totalWidth > 0
+                  ? paneBounds.contentWidth
+                  : undefined
+              }
+              tabIndex={0}
+              onKeyDown={handleResizeKeyDown}
               $dragging={resizingChatPanel}
               data-testid="layout-chat-canvas-resize-handle"
               data-dragging={resizingChatPanel ? "true" : "false"}
@@ -578,6 +702,13 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
               onPointerMove={handleResizePointerMove}
               onPointerUp={handleResizePointerEnd}
               onPointerCancel={handleResizePointerEnd}
+              onLostPointerCapture={handleResizePointerEnd}
+              onDoubleClick={(event) => {
+                event.preventDefault();
+                resizingChatPanelRef.current = null;
+                setResizingChatPanel(false);
+                setResizedChatPanelWidth(null);
+              }}
             />
           ) : null}
           {canvasPanelNode}

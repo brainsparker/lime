@@ -31,6 +31,7 @@ pub struct RuntimeToolExecutionContext {
     execution_attempt: Option<crate::execution_orchestrator::RuntimeToolExecutionAttempt>,
     filesystem_gateway: Option<Arc<dyn crate::filesystem_gateway::RuntimeFileSystemGateway>>,
     lifecycle_emitter: Option<Arc<dyn crate::tool_lifecycle::ToolLifecycleEmitter>>,
+    history_token_limit: Option<usize>,
 }
 
 impl std::fmt::Debug for RuntimeToolExecutionContext {
@@ -92,6 +93,7 @@ impl RuntimeToolExecutionContext {
             execution_attempt: None,
             filesystem_gateway: None,
             lifecycle_emitter: None,
+            history_token_limit: None,
         }
     }
 
@@ -147,6 +149,11 @@ impl RuntimeToolExecutionContext {
 
     pub fn with_tool_identity(mut self, identity: RuntimeToolExecutionIdentity) -> Self {
         self.tool_identity = Some(identity);
+        self
+    }
+
+    pub fn with_history_token_limit(mut self, limit: Option<usize>) -> Self {
+        self.history_token_limit = limit;
         self
     }
 
@@ -408,7 +415,8 @@ impl RuntimeTool {
             ))
         };
         let duration_ms = u64::try_from(started_at.elapsed().as_millis()).unwrap_or(u64::MAX);
-        let output = NormalizedToolOutput::from_execution_outcome(outcome, duration_ms);
+        let mut output = NormalizedToolOutput::from_execution_outcome(outcome, duration_ms);
+        output.history_token_limit = output.history_token_limit.or(context.history_token_limit);
         call.emit_completed(output.clone()).await;
         output
     }
@@ -434,6 +442,8 @@ pub async fn run_runtime_tool_execution(
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct RuntimeToolExecutionResult {
+    /// Tool-specific history budget, including serialization allowance. Host-owned.
+    pub history_token_limit: Option<usize>,
     pub success: bool,
     pub output: String,
     pub structured_content: Option<Value>,
@@ -455,6 +465,7 @@ impl RuntimeToolExecutionResult {
         Self {
             success,
             output,
+            history_token_limit: None,
             structured_content: None,
             error,
             truncation: None,
@@ -467,6 +478,11 @@ impl RuntimeToolExecutionResult {
 
     pub fn with_structured_content(mut self, structured_content: Value) -> Self {
         self.structured_content = Some(structured_content);
+        self
+    }
+
+    pub fn with_history_token_limit(mut self, limit: usize) -> Self {
+        self.history_token_limit = Some(limit);
         self
     }
 

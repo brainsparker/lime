@@ -179,6 +179,7 @@ export class ComposerDraftCoordinator {
       .listen((metadata) => {
         if (
           !this.#attached ||
+          metadata.key !== "composer-drafts-v1" ||
           metadata.storeRevision < (this.#status.storeRevision ?? 0)
         )
           return;

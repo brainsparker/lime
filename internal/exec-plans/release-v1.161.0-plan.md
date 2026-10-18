@@ -1,6 +1,6 @@
 # v1.161.0 发布执行计划
 
-状态：active，候选已冻结并已推送main；正在修复远端门禁发现的问题。标签须等待最终候选SHA的Quality与真实GUI冒烟通过。
+状态：active，最终候选Quality全部通过，v1.161.0标签已推送并核对；正式安装包、CLI/npm与更新源构建/分发核验进行中。
 
 ## 目标、候选与写集
 
@@ -102,3 +102,23 @@
 - 样式隔离修复后首页与输入区两文件65项全部exit0（含原Plan/Goal opacity与独立关闭断言），fixture的Prettier/ESLint均exit0；原CI失败保留为前验，使用CI第97批精确16文件清单追加整批复验，避免重新收集后批次顺序漂移。
 
 - CI第97批精确16文件复验exit0：206项全部通过，保留所有原断言与原测试期限（home-style-isolation-batch97.log）。候选增加必要测试fixture路径，共942路径；发布前仍等待修复SHA的完整Quality，未创建v1.161.0 tag。
+
+## 最终候选与正式发布
+
+- 最终候选SHA：`2a0ad389da30be96e12b157ef09024a94ba34b8f`，相对v1.160.0共942路径，包含用户追加的109路径最新更新、两文件布局后续快照及必要门禁修复。正常提交钩子通过；原工作区HEAD/index已同步，冻结后的并行开发内容保留。
+- Quality run39106955768完整success：版本一致性、Lint、完整renderer+node类型检查；前端137/137批、1875文件16044项；Rust workspace全量；真实Electron/App Server启动、reload、记忆设置与三尺寸几何24/24断言。Bridge/Windows最后相关SHA 1ff0e34的run39102645544通过，最终两项UI/test变动按selector跳过这两类检查，不冒充重跑。
+- 本地余项按精确文件集合补验112文件通过后，因最终SHA远端前端全量通过，已仅终止本任务的补验进程；未完成本机余项不计本地全量通过。此前资源超时与清单排序漂移日志保留。
+- `v1.161.0`轻量tag已于2026-10-18 07:41 UTC推送并以远端ref核验，指向上述SHA；没有覆盖既有标签或force push。正式Release流水线正在启动，GitHub非draft、签名/公证安装包、Windows安装Gate B、R2 updater、四平台CLI/npm与公开下载核验尚待完成，暂不记作发布100%。
+
+- Release run39108607165首轮Windows构建、Squirrel实际安装/旧版本升级/卸载21/21、已安装桌面壳24/24、CodeMode与native host Gate B全部通过；下载并核对五份summary的版本、候选SHA和资源manifest（收据windows-packaged-verification.json）。fixture provider证据不冒充live provider。
+- 同轮macOS-arm64在Forge postPackage的独立`xcrun stapler validate`失败；此前notarize调用已返回，日志未保留execFile的stdout/stderr/退出码，具体原因尚未判明，不记作已通过公证校验。macOS-x64仍在构建，GitHub拒绝在该run仍执行时重跑已失败job；待run结束后以同一SHA重试，不移动tag或绕过release-trust门禁。公开GitHub/npm/R2分发仍未完成。
+
+- macOS-x64首轮日志已下载：postPackage先出现Apple ticket delivery unavailable并重试staple两次，再于同一独立stapler validate命令失败；确认票据交付存在网络失败，校验本身具体stdout仍未保留。2026-10-18 08:32 UTC以`gh run rerun --failed --debug`成功启动同run第2轮，只重跑两macOS失败目标，已成功Windows结果复用；远端tag再次核验仍指向2a0ad389，未降低公证/安装门禁。
+
+- macOS-arm64第2轮job117629469083完整success，公证与独立票据校验已恢复；下载实际packaged Gate B summary并核验候选SHA/1.161.0/runId一致，Developer ID、Gatekeeper、stapleValid全部true，8项native与5项Electron/App Server/GUI/bookmark检查通过，console/page/invoke errors均空。权限证据为observe模式，不扩大为所有授权交互完成；收据macos-arm64-packaged-verification.json。Intel构建与公开分发仍待完成。
+
+- macOS-x64第2轮构建/资源/Gate B均success，下载summary并核验1.161.0/2a0ad389/runId一致；Developer ID、Gatekeeper、stapleValid全部true，8项native与5项Electron检查通过，错误数组为空（macos-x64-packaged-verification.json）。至此三种桌面安装包门禁全部通过，首轮Apple票据故障已由同SHA重试恢复；GitHub/R2与四平台CLI/npm分发及公开核验继续执行。
+
+- GitHub Release已于2026-10-18 08:58:52 UTC转为非draft、非prerelease并公开，9个桌面资产全部上传（published-desktop-release.json）。公开macOS元数据currentRelease=1.161.0，实际下载指向pub-fa568bd8496349bcafe04091e2b02e1e.r2.dev；R2与四平台CLI仍执行中。已准备在整个Release成功后校验14个GitHub资产、npm主包/四平台依赖、三平台稳定与固定版本更新源，随后从官方registry非全局安装CLI并运行版本；未执行完成前不计通过。
+
+- R2发布job117634507414已success；公网实测darwin-arm64、darwin-x64、win32-x64的stable与v1.161.0固定入口共6份feed全部为本版，各feed实际安装包URL的HEAD均200，收据published-feeds-verification.json。GitHub三个DMG/Setup公网HEAD也均200且大小与资产记录一致。四平台CLI仍编译中，npm发布与从registry安装核验未完成。

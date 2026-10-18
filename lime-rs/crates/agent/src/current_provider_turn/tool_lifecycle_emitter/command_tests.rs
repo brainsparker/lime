@@ -97,6 +97,7 @@ async fn execution_facts_survive_failure_completion_without_result_metadata() {
     };
     assert_invocation(&item);
     let failed = NormalizedToolOutput {
+        history_token_limit: None,
         success: false,
         text: "execution was interrupted".to_owned(),
         structured_content: None,
@@ -140,6 +141,7 @@ async fn owned_command_publisher_outlives_the_turn_channel_and_ignores_dispatch_
     let emitter = Arc::new(emitter);
     emitter.emit_command_start(prepared_start()).await;
     let output = NormalizedToolOutput {
+        history_token_limit: None,
         success: true,
         text: "done".to_owned(),
         structured_content: None,
@@ -187,6 +189,7 @@ async fn failure_before_execution_keeps_the_shell_unknown() {
     emitter.emit(ToolLifecycleEvent::started(&call)).await;
     assert!(events.try_recv().is_err(), "preparation is not execution");
     let failed = NormalizedToolOutput {
+        history_token_limit: None,
         success: false,
         text: "working directory does not exist".to_owned(),
         structured_content: None,

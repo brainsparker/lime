@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { join, relative } from "node:path";
 import process from "node:process";
 import * as ts from "typescript";
@@ -35,15 +36,15 @@ function extensionOf(path: string): string {
 
 function collectSourceFiles(dir: string): string[] {
   const files: string[] = [];
-  for (const entry of readdirSync(dir)) {
-    const fullPath = join(dir, entry);
-    const stat = statSync(fullPath);
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    const stat = entry.isSymbolicLink() ? statSync(fullPath) : entry;
     if (stat.isDirectory()) {
       if (
-        entry === "node_modules" ||
-        entry === "dist" ||
-        entry === "build" ||
-        entry === "coverage"
+        entry.name === "node_modules" ||
+        entry.name === "dist" ||
+        entry.name === "build" ||
+        entry.name === "coverage"
       ) {
         continue;
       }
@@ -51,7 +52,7 @@ function collectSourceFiles(dir: string): string[] {
       continue;
     }
 
-    if (stat.isFile() && SOURCE_EXTENSIONS.has(extensionOf(entry))) {
+    if (stat.isFile() && SOURCE_EXTENSIONS.has(extensionOf(entry.name))) {
       files.push(fullPath);
     }
   }
@@ -178,24 +179,28 @@ describe("Agent runtime export boundary", () => {
     }
   });
 
-  it("生产源码不得重新调用 agent_runtime_export_* legacy command", () => {
-    const offenders = PRODUCTION_SCAN_ROOTS.flatMap((root) =>
+  it("生产源码不得重新调用 agent_runtime_export_* legacy command", async () => {
+    const files = PRODUCTION_SCAN_ROOTS.flatMap((root) =>
       collectSourceFiles(join(REPO_ROOT, root)),
-    )
-      .map((file) => ({
-        path: repoRelative(file),
-        source: readFileSync(file, "utf8"),
-      }))
-      .filter(({ path }) => isProductionSource(path))
-      .flatMap(({ path, source }) => {
-        const matches = [
-          ...source.matchAll(/agent_runtime_export_[a-z0-9_]+/gu),
-        ];
-        return matches.map((match) => `${path}: ${match[0]}`);
-      });
+    ).filter((file) => isProductionSource(repoRelative(file)));
+    const offenders: string[] = [];
+    let nextFile = 0;
+    await Promise.all(
+      Array.from({ length: 8 }, async () => {
+        while (nextFile < files.length) {
+          const file = files[nextFile++];
+          const path = repoRelative(file);
+          const source = await readFile(file, "utf8");
+          const matches = [
+            ...source.matchAll(/agent_runtime_export_[a-z0-9_]+/gu),
+          ];
+          offenders.push(...matches.map((match) => `${path}: ${match[0]}`));
+        }
+      }),
+    );
 
     expect(
-      offenders,
+      offenders.sort(),
       "agent_runtime_export_* 只能作为测试 / retired guard / 诊断夹具出现；生产 evidence / replay / handoff 导出必须走 App Server current methods",
     ).toEqual([]);
   });

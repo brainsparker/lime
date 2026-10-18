@@ -47,7 +47,10 @@ export function createRemotePluginIssuer({
   observations,
   bundleRequests,
   issuerErrors,
+  preferences = { fail: false, writes: [] },
 }) {
+  const enabledByAccount = new Map();
+  const disabledSkillsByAccount = new Map();
   const respond = async (request, response) => {
     const url = new URL(request.url, "http://fixture.test");
     if (url.pathname.startsWith("/signed-bundle/")) {
@@ -119,13 +122,23 @@ export function createRemotePluginIssuer({
     const index = tokens.indexOf(
       String(request.headers.authorization || "").replace(/^Bearer /, ""),
     );
-    observations.push({
+    const observation = {
+      method: request.method,
+      accountIndex: index,
+      time: Date.now(),
       path: url.pathname,
       query: url.search,
       authenticated: index >= 0,
       renderer: Boolean(
         request.headers.origin || request.headers["sec-fetch-mode"],
       ),
+    };
+    observations.push(observation);
+    response.once("finish", () => {
+      observation.status = response.statusCode;
+    });
+    request.once("aborted", () => {
+      observation.aborted = true;
     });
     if (url.pathname.endsWith("/client/auth-catalog")) {
       response.end(
@@ -150,12 +163,22 @@ export function createRemotePluginIssuer({
     }
     if (url.pathname.endsWith("/client/ps/plugins/installed")) {
       assert.equal(request.method, "GET");
-      assert.equal(url.searchParams.get("includeDownloadUrls"), "true");
+      const includeDownloadUrls = url.searchParams.get("includeDownloadUrls");
+      assert(["true", "false"].includes(includeDownloadUrls));
+      const installed = {
+        ...plugin(index),
+        enabled: enabledByAccount.get(index) ?? true,
+        disabled_skill_names: disabledSkillsByAccount.get(index) ?? [
+          "research-skill",
+        ],
+        installed_at: "2026-10-18T00:00:00Z",
+      };
+      if (includeDownloadUrls === "false") {
+        delete installed.release.bundle_download_url;
+      }
       response.end(
         JSON.stringify({
-          plugins: installedAccounts.has(index)
-            ? [{ ...plugin(index), enabled: true }]
-            : [],
+          plugins: installedAccounts.has(index) ? [installed] : [],
           pagination: { next_page_token: null },
         }),
       );
@@ -184,6 +207,65 @@ export function createRemotePluginIssuer({
       return;
     }
     if (
+      url.pathname.endsWith(
+        `/client/ps/plugins/opaque~${index}/skills/research-skill/enable`,
+      ) ||
+      url.pathname.endsWith(
+        `/client/ps/plugins/opaque~${index}/skills/research-skill/disable`,
+      )
+    ) {
+      assert.equal(request.method, "POST");
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      assert.equal(Buffer.concat(chunks).length, 0);
+      assert.equal(url.search, "");
+      if (!installedAccounts.has(index)) {
+        response.writeHead(404).end(JSON.stringify({ code: 404 }));
+        return;
+      }
+      if (preferences.fail) {
+        response.writeHead(500).end(JSON.stringify({ code: 500 }));
+        return;
+      }
+      const enabled = url.pathname.endsWith("/enable");
+      disabledSkillsByAccount.set(index, enabled ? [] : ["research-skill"]);
+      (preferences.skillWrites ??= []).push({
+        index,
+        skillName: "research-skill",
+        enabled,
+      });
+      response.end(JSON.stringify({ id: `opaque~${index}`, enabled }));
+      return;
+    }
+    if (
+      url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/enable`) ||
+      url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/disable`)
+    ) {
+      assert.equal(request.method, "POST");
+      const chunks = [];
+      for await (const chunk of request) chunks.push(chunk);
+      assert.equal(Buffer.concat(chunks).length, 0);
+      assert.equal(url.search, "");
+      if (!installedAccounts.has(index)) {
+        response.writeHead(404).end(JSON.stringify({ code: 404 }));
+        return;
+      }
+      if (preferences.fail) {
+        response.writeHead(500).end(
+          JSON.stringify({
+            code: 500,
+            message: "fixture persistence failure",
+          }),
+        );
+        return;
+      }
+      const enabled = url.pathname.endsWith("/enable");
+      enabledByAccount.set(index, enabled);
+      preferences.writes.push({ index, enabled });
+      response.end(JSON.stringify({ id: `opaque~${index}`, enabled }));
+      return;
+    }
+    if (
       url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/install`) ||
       url.pathname.endsWith(`/client/ps/plugins/opaque~${index}/uninstall`)
     ) {
@@ -200,8 +282,14 @@ export function createRemotePluginIssuer({
         const payload = JSON.parse(body);
         assert.deepEqual(Object.keys(payload), ["install_attempt_id"]);
       }
-      if (installing) installedAccounts.add(index);
-      else installedAccounts.delete(index);
+      if (installing) {
+        installedAccounts.add(index);
+        enabledByAccount.set(index, true);
+      } else {
+        installedAccounts.delete(index);
+        enabledByAccount.delete(index);
+        disabledSkillsByAccount.delete(index);
+      }
       response.end(
         JSON.stringify({ id: `opaque~${index}`, enabled: installing }),
       );

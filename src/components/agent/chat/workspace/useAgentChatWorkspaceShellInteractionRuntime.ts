@@ -3,8 +3,6 @@ import type { useSoulInteractionCopy } from "@/hooks/useSoulInteractionCopy";
 import type { CanvasState as GeneralCanvasState } from "@/components/general-chat/bridge";
 import type { AgentChatWorkspaceProps } from "../agentChatWorkspaceContract";
 import type { TaskFile } from "../components/TaskFiles";
-import type { useAgentChatUnified } from "../hooks";
-import type { useWorkspaceProjectSelection } from "../hooks/useWorkspaceProjectSelection";
 import { resolveAgentChatWorkspaceShellViewModel } from "../agentChatWorkspaceShellViewModel";
 import type { useAgentChatWorkspaceCommandWiring } from "./useAgentChatWorkspaceCommandWiring";
 import type { useAgentChatWorkspaceLocalDisplayState } from "./useAgentChatWorkspaceLocalDisplayState";
@@ -34,11 +32,9 @@ type GeneralWorkbenchRuntime = ReturnType<
 
 interface UseAgentChatWorkspaceShellInteractionRuntimeParams {
   scope: CommandCompositionScope;
-  agentChatRuntime: ReturnType<typeof useAgentChatUnified>;
   localDisplayRuntime: ReturnType<
     typeof useAgentChatWorkspaceLocalDisplayState
   >;
-  projectSelectionRuntime: ReturnType<typeof useWorkspaceProjectSelection>;
   contextSurfaceRuntime: ContextSurfaceRuntime;
   artifactCanvasRuntime: ArtifactCanvasRuntime;
   imageWorkbenchSessionRuntime: ImageWorkbenchSessionRuntime;
@@ -49,11 +45,7 @@ interface UseAgentChatWorkspaceShellInteractionRuntimeParams {
   clearEntryPendingA2UI: () => void;
   generalCanvasState: GeneralCanvasState;
   hasPendingA2UIForm: boolean;
-  homeMountedAt: number;
   initialPendingServiceSkillLaunchSignature: string | null;
-  initialSessionName?: string;
-  newConversationLabel: string;
-  renamePromptLabel: string;
   sessionRestorePresentation: "foreground" | "background";
   selectedFileId?: string;
   shouldBootstrapCanvasOnEntry: boolean;
@@ -63,13 +55,11 @@ interface UseAgentChatWorkspaceShellInteractionRuntimeParams {
   taskCenterWorkspaceId: string | null;
   taskFiles: TaskFile[];
   onHasMessagesChange?: (hasMessages: boolean) => void;
-  untitledTaskLabel: string;
 }
 
 /** 组合 Workspace 壳层交互，不持有 Thread/Turn/Item 或 Task Center 状态事实源。 */
 export function useAgentChatWorkspaceShellInteractionRuntime({
   scope,
-  agentChatRuntime,
   localDisplayRuntime,
   contextSurfaceRuntime,
   artifactCanvasRuntime,
@@ -81,11 +71,7 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
   clearEntryPendingA2UI,
   generalCanvasState,
   hasPendingA2UIForm,
-  homeMountedAt,
   initialPendingServiceSkillLaunchSignature,
-  initialSessionName,
-  newConversationLabel,
-  renamePromptLabel,
   sessionRestorePresentation,
   selectedFileId,
   shouldBootstrapCanvasOnEntry,
@@ -95,7 +81,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
   taskCenterWorkspaceId,
   taskFiles,
   onHasMessagesChange,
-  untitledTaskLabel,
 }: UseAgentChatWorkspaceShellInteractionRuntimeParams) {
   const {
     activeTheme,
@@ -118,7 +103,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
     mappedTheme,
     markTaskCenterLocalSessionOverride,
     messages,
-    newChatAt,
     normalizedInitialSessionId,
     queuedTurnCount,
     replaceTaskCenterOpenTabs,
@@ -148,7 +132,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
     topics,
     upsertTaskCenterOpenTab,
   } = scope;
-  const { renameTopic } = agentChatRuntime;
   const {
     canvasWorkbenchLayoutMode,
     layoutMode,
@@ -268,8 +251,6 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
       getComposerDraftNavigationEpoch: scope.getComposerDraftNavigationEpoch,
       chromeNavigation: {
         agentEntry,
-        activeTheme,
-        onStartNewConversation: scope.onStartNewConversation,
         clearEmbeddedHomeSession: clearTaskCenterEmbeddedHomeSession,
         detachedTopicId: taskCenterDetachedTopicId,
         displayMessageCount: displayMessages.length,
@@ -281,9 +262,7 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
         hasLocalSessionOverride: taskCenterLocalSessionOverride !== null,
         hasPendingA2UIForm,
         harnessPanelVisible,
-        homeMountedAt,
         initialDispatchKey,
-        initialSessionName,
         initialPendingServiceSkillLaunchSignature,
         isAutoRestoringSession,
         isBootstrapDispatchPending,
@@ -295,16 +274,10 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
         isPreparingSend,
         isSending,
         isSessionHydrating: scope.isSessionHydrating,
-        layoutMode,
         messagesLength: messages.length,
-        newChatAt,
-        newConversationLabel,
         normalizedInitialSessionId,
-        onToggleWorkbench: canvasSurfaceRuntime.handleToggleCanvas,
         openTabIds: taskCenterOpenTabIds,
         queuedTurnsLength: queuedTurnCount,
-        renamePromptLabel,
-        renameTopic,
         sessionId,
         setHarnessPanelVisible,
         shouldSuppressDraftContent: shouldSuppressTaskCenterDraftContent,
@@ -314,13 +287,11 @@ export function useAgentChatWorkspaceShellInteractionRuntime({
         topicById,
         topics,
         transitionTopicId: taskCenterTransitionTopicId,
-        untitledTaskLabel,
       },
       taskCenterSurface: {
         isTaskCenterDraftSurfaceActive,
       },
       topicNavigation: {
-        onStartNewConversation: scope.onStartNewConversation,
         activeSessionIdRef,
         agentEntry,
         clearEntryPendingA2UI,

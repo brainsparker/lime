@@ -1,8 +1,12 @@
 use serde_json::{json, Value};
 use tempfile::TempDir;
 
+#[path = "remote_plugins_jsonrpc/catalog.rs"]
+mod catalog;
 #[path = "remote_plugins_jsonrpc/collections.rs"]
 mod collections;
+#[path = "remote_plugins_jsonrpc/details.rs"]
+mod details;
 #[path = "remote_plugins_jsonrpc/failures.rs"]
 mod failures;
 #[path = "remote_plugins_jsonrpc/identity.rs"]
@@ -56,7 +60,9 @@ async fn remote_plugins_public_rpc_pages_and_projects_raw_directory_and_details(
         ok(session("one")),
         ok(page(vec![plugin.clone()], Some("next+/="))),
         ok(page(vec![item("opaque_2", "writer")], None)),
+        ok(page(vec![], None)),
         ok(plugin),
+        ok(page(vec![], None)),
     ])
     .await;
     rpc(&server, "account/login/start", Some(login(&url))).await;
@@ -109,7 +115,7 @@ async fn remote_plugins_public_rpc_pages_and_projects_raw_directory_and_details(
     assert_eq!(plugin["description"], "Remote description");
     assert_eq!(plugin["mcpServers"], json!(["search"]));
     assert_eq!(plugin["skills"][0]["path"], Value::Null);
-    assert_eq!(plugin["skills"][0]["enabled"], false);
+    assert_eq!(plugin["skills"][0]["enabled"], true);
     assert_eq!(
         plugin["skills"][0]["interface"]["iconSmallUrl"],
         "https://example.test/small.svg"
@@ -139,7 +145,8 @@ async fn remote_plugins_public_rpc_pages_and_projects_raw_directory_and_details(
         .next()
         .unwrap()
         .ends_with("&pageToken=next%2B%2F%3D HTTP/1.1"));
-    assert!(requests[3].starts_with("GET /api/v1/public/tenants/tenant-one/client/ps/plugins/opaque~1?includeDownloadUrls=false HTTP/1.1"));
+    assert!(requests[3].contains("/installed?limit=200&includeDownloadUrls=false "));
+    assert!(requests[4].starts_with("GET /api/v1/public/tenants/tenant-one/client/ps/plugins/opaque~1?includeDownloadUrls=false HTTP/1.1"));
 }
 
 #[tokio::test]
@@ -191,7 +198,12 @@ async fn remote_plugins_consume_the_published_limecore_component_fixture() {
         serde_json::from_str(include_str!("remote_plugins_jsonrpc/core-directory.json")).unwrap();
     let temp = TempDir::new().unwrap();
     let server = server(temp.path()).await;
-    let (url, task) = issuer(vec![ok(session("one")), ok(fixture.clone())]).await;
+    let (url, task) = issuer(vec![
+        ok(session("one")),
+        ok(fixture.clone()),
+        ok(page(vec![], None)),
+    ])
+    .await;
     rpc(&server, "account/login/start", Some(login(&url))).await;
     let response = rpc(
         &server,

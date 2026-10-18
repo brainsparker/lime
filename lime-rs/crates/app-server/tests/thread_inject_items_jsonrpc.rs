@@ -42,6 +42,20 @@ async fn thread_inject_items_validates_and_persists_raw_response_items() {
                 "content": [{"type": "input_image", "image_url": "https://example.com/a.png"}]
             }]),
         ),
+        (
+            8,
+            json!([{"type":"function_call_output","name":"external_event","namespace":7,"output":"invalid namespace"}]),
+        ),
+        (
+            9,
+            json!([{"type":"function_call_output","name":"external_event"}]),
+        ),
+        (
+            10,
+            json!([{"type":"function_call_output","name":"external_event","output":[
+                {"type":"input_image","image_url":"https://example.com/external.png"}]
+            }]),
+        ),
     ] {
         let response = request_raw(
             &server,

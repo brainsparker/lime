@@ -14,11 +14,9 @@ import type { Character } from "@/lib/api/projectMemory";
 import type { ThemeType } from "@/lib/workspace/workbenchContract";
 import { EmptyState } from "../components/EmptyState";
 import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
-import type { CreationMode } from "../components/types";
 import type { InterruptedInputRestoreRequest } from "../hooks/agentStreamInputRestoreTypes";
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
 import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
-import { buildAgentTaskRuntimeCardModel } from "../utils/agentTaskRuntime";
 import { buildWorkspaceEmptyStateProps } from "./chatSurfaceProps";
 import type { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 
@@ -32,15 +30,8 @@ export interface WorkspaceConversationLandingSurfaceRuntime {
   emptyStateProps: ComponentProps<typeof EmptyState>;
 }
 
-interface OpenRuntimeMemoryWorkbenchParams {
-  sessionId?: string | null;
-  workingDir?: string | null;
-  userMessage?: string | null;
-}
-
 type WorkspaceConversationLandingInputbarSceneRuntime = Pick<
   ReturnType<typeof useWorkspaceInputbarSceneRuntime>,
-  | "runtimeToolAvailability"
   | "knowledgePackSelection"
   | "knowledgePackOptions"
   | "onToggleKnowledgePack"
@@ -51,24 +42,10 @@ type WorkspaceConversationLandingInputbarSceneRuntime = Pick<
   | "onImportPathReferenceAsKnowledge"
 >;
 
-type UseWorkspaceConversationLandingSessionRuntimeParams = Parameters<
-  typeof buildAgentTaskRuntimeCardModel
->[0] & {
-  landingSurface: WorkspaceConversationLandingSurfaceRuntime;
-  showChatLayout: boolean;
-  sessionId?: string | null;
-  projectRootPath?: string | null;
-  currentUserMessage?: string | null;
-  onOpenMemoryWorkbench: (params: OpenRuntimeMemoryWorkbenchParams) => void;
-  onOpenChannels: () => void;
-};
-
 interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   accessMode: ComponentProps<typeof EmptyState>["accessMode"];
   activeTheme: string;
-  browserAssistLoading: boolean;
   chatToolPreferences: ChatToolPreferences;
-  creationMode: CreationMode;
   creationReplaySurface?: CreationReplaySurfaceModel | null;
   defaultCuratedTaskReferenceEntries?: ComponentProps<
     typeof EmptyState
@@ -163,7 +140,6 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   setAccessMode?: ComponentProps<typeof EmptyState>["setAccessMode"];
   setActiveTheme: Dispatch<SetStateAction<string>>;
   setChatToolPreferences: Dispatch<SetStateAction<ChatToolPreferences>>;
-  setCreationMode: Dispatch<SetStateAction<CreationMode>>;
   setInput: ComponentProps<typeof EmptyState>["setInput"];
   setModel: ComponentProps<typeof EmptyState>["setModel"];
   setProviderType: ComponentProps<typeof EmptyState>["setProviderType"];
@@ -173,87 +149,10 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   selectedText: ComponentProps<typeof EmptyState>["selectedText"];
 }
 
-export function useWorkspaceConversationLandingSessionRuntime({
-  landingSurface,
-  showChatLayout,
-  messages,
-  turns,
-  threadItems,
-  currentTurnId,
-  threadRead,
-  pendingActions,
-  submittedActionsInFlight,
-  canonicalChildren,
-  isSending,
-  sessionId,
-  projectRootPath,
-  currentUserMessage,
-  onOpenMemoryWorkbench,
-  onOpenChannels,
-}: UseWorkspaceConversationLandingSessionRuntimeParams): WorkspaceConversationLandingSurfaceRuntime {
-  const runtimeTaskCard = useMemo(
-    () =>
-      showChatLayout
-        ? null
-        : buildAgentTaskRuntimeCardModel({
-            messages,
-            turns,
-            threadItems,
-            currentTurnId,
-            threadRead,
-            pendingActions,
-            submittedActionsInFlight,
-            canonicalChildren,
-            isSending,
-          }),
-    [
-      canonicalChildren,
-      currentTurnId,
-      isSending,
-      messages,
-      pendingActions,
-      showChatLayout,
-      submittedActionsInFlight,
-      threadItems,
-      threadRead,
-      turns,
-    ],
-  );
-  const handleOpenMemoryWorkbench = useCallback(
-    () =>
-      onOpenMemoryWorkbench({
-        sessionId,
-        workingDir: projectRootPath,
-        userMessage: currentUserMessage,
-      }),
-    [currentUserMessage, onOpenMemoryWorkbench, projectRootPath, sessionId],
-  );
-
-  return useMemo(
-    () => ({
-      ...landingSurface,
-      emptyStateProps: {
-        ...landingSurface.emptyStateProps,
-        runtimeTaskCard,
-        onOpenMemoryWorkbench: handleOpenMemoryWorkbench,
-        onOpenChannels,
-      },
-    }),
-    [
-      handleOpenMemoryWorkbench,
-      landingSurface,
-      onOpenChannels,
-      runtimeTaskCard,
-    ],
-  );
-}
-
 export function useWorkspaceConversationLandingSurfaceRuntime({
   accessMode,
   activeTheme,
-  browserAssistLoading,
   chatToolPreferences,
-  creationMode,
   creationReplaySurface,
   defaultCuratedTaskReferenceEntries,
   defaultCuratedTaskReferenceMemoryIds,
@@ -308,7 +207,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   setAccessMode,
   setActiveTheme,
   setChatToolPreferences,
-  setCreationMode,
   setInput,
   setModel,
   setProviderType,
@@ -326,7 +224,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
     onStartKnowledgeOrganize,
     onToggleKnowledgeCompanionPack,
     onToggleKnowledgePack,
-    runtimeToolAvailability,
   } = inputbarScene;
   const handleToolPreferenceChange = useCallback(
     (key: keyof ChatToolPreferences, enabled: boolean) =>
@@ -363,8 +260,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onToolPreferenceChange: handleToolPreferenceChange,
         objectiveEnabled,
         onObjectiveEnabledChange,
-        creationMode,
-        onCreationModeChange: setCreationMode,
         activeTheme: activeTheme as ThemeType,
         onThemeChange: setActiveTheme,
         themeLocked: lockTheme,
@@ -379,12 +274,10 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onRefreshSkills,
         onSkillSuggestionsNeeded,
         onLaunchBrowserAssist,
-        browserAssistLoading,
         projectId,
         openedProjects,
         onProjectChange,
         sessionId,
-        runtimeToolAvailability,
         pluginSuggestions,
         pluginSuggestionsError,
         pluginSuggestionsLoading,
@@ -397,9 +290,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onToggleKnowledgeCompanionPack,
         onStartKnowledgeOrganize,
         onManageKnowledgePacks,
-        runtimeTaskCard: null,
-        onOpenMemoryWorkbench: undefined,
-        onOpenChannels: undefined,
         creationReplaySurface,
         defaultCuratedTaskReferenceMemoryIds,
         defaultCuratedTaskReferenceEntries,
@@ -416,9 +306,7 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
     [
       accessMode,
       activeTheme,
-      browserAssistLoading,
       chatToolPreferences,
-      creationMode,
       creationReplaySurface,
       defaultCuratedTaskReferenceEntries,
       defaultCuratedTaskReferenceMemoryIds,
@@ -467,13 +355,11 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       projectId,
       providerType,
       reasoningEffort,
-      runtimeToolAvailability,
       serviceSkillGroups,
       serviceSkills,
       sessionId,
       setAccessMode,
       setActiveTheme,
-      setCreationMode,
       setInput,
       setModel,
       setProviderType,

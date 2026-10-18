@@ -75,6 +75,17 @@ pub trait ExecutionBackend: Send + Sync {
         sink: &mut dyn RuntimeEventSink,
     ) -> Result<(), RuntimeCoreError>;
 
+    async fn compact_context(
+        &self,
+        _request: ExecutionRequest,
+        _history: ProviderTurnHistory,
+        _cancellation: CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime backend does not support model context compaction".to_string(),
+        ))
+    }
+
     async fn start_turn_with_provider_history(
         &self,
         request: ExecutionRequest,

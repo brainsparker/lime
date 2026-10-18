@@ -10,6 +10,7 @@ use crate::safety::{
 };
 use crate::ModelProviderProtocol;
 use agent_protocol::provider_trace::ProviderTraceEvent;
+use agent_protocol::truncation::TruncationPolicy;
 use serde::{Deserialize, Serialize};
 
 mod failure;
@@ -467,6 +468,8 @@ impl RuntimeReplyProviderWireSupportIssue {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct RuntimeReplyModelRequestPolicy {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub truncation: Option<TruncationPolicy>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub responses: Option<RuntimeReplyResponsesPolicy>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -480,8 +483,14 @@ impl RuntimeReplyModelRequestPolicy {
         responses: Option<RuntimeReplyResponsesPolicy>,
         tool_call: Option<RuntimeReplyToolCallPolicy>,
         reasoning_output: Option<RuntimeReplyReasoningOutputPolicy>,
+        truncation: Option<TruncationPolicy>,
     ) -> Option<Self> {
-        (responses.is_some() || tool_call.is_some() || reasoning_output.is_some()).then_some(Self {
+        (responses.is_some()
+            || tool_call.is_some()
+            || reasoning_output.is_some()
+            || truncation.is_some())
+        .then_some(Self {
+            truncation,
             responses,
             tool_call,
             reasoning_output,

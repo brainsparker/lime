@@ -1,7 +1,4 @@
-import { memo, type ReactNode } from "react";
 import styled from "styled-components";
-import { LayoutTransition } from "@/components/workspace/layout/LayoutTransition";
-import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { SyncStatus } from "../hooks/useContentSync";
 import {
   FLOATING_CONVERSATION_CONTENT_WIDTH,
@@ -45,84 +42,6 @@ export const MainArea = styled.div<{
     $taskCenterSurface ? LIME_STAGE_SURFACE : "transparent"};
   border: none;
   box-shadow: none;
-`;
-
-export const AutoHideNavbarHost = styled.div`
-  position: absolute;
-  top: 2px;
-  left: 12px;
-  right: 12px;
-  z-index: 35;
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  pointer-events: none;
-`;
-
-export const AutoHideNavbarBackdrop = styled.button<{ $visible: boolean }>`
-  position: absolute;
-  inset: 0;
-  z-index: 32;
-  border: none;
-  padding: 0;
-  margin: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--lime-surface-soft, #f8fcf9) 34%, transparent) 0%,
-    color-mix(in srgb, var(--lime-surface-soft, #f8fcf9) 52%, transparent) 26%,
-    color-mix(in srgb, var(--lime-surface-soft, #f8fcf9) 60%, transparent) 100%
-  );
-  backdrop-filter: blur(18px) saturate(1.04);
-  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
-  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
-  transition: opacity 0.18s ease;
-`;
-
-export const AutoHideNavbarHandle = styled.button<{ $visible: boolean }>`
-  display: inline-flex;
-  align-items: center;
-  align-self: flex-end;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--lime-surface-border, rgba(226, 240, 226, 0.95));
-  border-radius: 999px;
-  background: var(--lime-home-card-surface-strong);
-  color: ${({ $visible }) =>
-    $visible
-      ? "var(--lime-text-strong, #0f172a)"
-      : "var(--lime-text-muted, #6b826b)"};
-  box-shadow: 0 10px 24px -18px var(--lime-shadow-color);
-  pointer-events: auto;
-  transition:
-    color 0.16s ease,
-    border-color 0.16s ease,
-    box-shadow 0.16s ease,
-    transform 0.16s ease;
-
-  &:hover {
-    color: var(--lime-text-strong, #0f172a);
-    border-color: var(--lime-surface-border-strong, #bbf7d0);
-    transform: translateY(-1px);
-  }
-`;
-
-export const AutoHideNavbarPanel = styled.div<{ $visible: boolean }>`
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
-  max-height: ${({ $visible }) => ($visible ? "180px" : "0")};
-  opacity: ${({ $visible }) => ($visible ? 1 : 0)};
-  transform: ${({ $visible }) =>
-    $visible ? "translateY(0)" : "translateY(-10px) scale(0.98)"};
-  transform-origin: top right;
-  pointer-events: ${({ $visible }) => ($visible ? "auto" : "none")};
-  transition:
-    max-height 0.18s ease,
-    opacity 0.18s ease,
-    transform 0.18s ease;
 `;
 
 function resolveContentSyncTone(status: SyncStatus): {
@@ -289,26 +208,13 @@ export const GeneralWorkbenchLayoutShell = styled.div<{
 }>`
   display: flex;
   flex-direction: column;
-  height: 100%;
+  flex: 1;
   min-height: 0;
   box-sizing: border-box;
   background: ${({ $taskCenterSurface }) =>
     $taskCenterSurface ? LIME_STAGE_SURFACE_SOFT : "transparent"};
   padding-bottom: ${({ $bottomInset }) => $bottomInset};
   transition: padding-bottom 0.2s ease;
-`;
-
-const GeneralWorkbenchCanvasHost = styled.div`
-  flex: 1;
-  width: 100%;
-  min-width: 0;
-  min-height: 0;
-
-  > * {
-    width: 100%;
-    height: 100%;
-    min-width: 0;
-  }
 `;
 
 export const GeneralWorkbenchLeftExpandButton = styled.button`
@@ -336,61 +242,9 @@ export const GeneralWorkbenchLeftExpandButton = styled.button`
   }
 `;
 
-interface LayoutTransitionRenderGateProps {
-  mode: LayoutMode;
-  chatContent: ReactNode;
-  canvasContent: ReactNode;
-  chatPanelWidth?: string;
-  chatPanelMinWidth?: string;
-  chatPanelTopInset?: string;
-  canvasPanelTopInset?: string;
-  forceOpenChatPanel?: boolean;
-}
-
-export const LayoutTransitionRenderGate = memo(
-  ({
-    mode,
-    chatContent,
-    canvasContent,
-    chatPanelWidth,
-    chatPanelMinWidth,
-    chatPanelTopInset,
-    canvasPanelTopInset,
-    forceOpenChatPanel = false,
-  }: LayoutTransitionRenderGateProps) => (
-    <GeneralWorkbenchCanvasHost>
-      <LayoutTransition
-        mode={mode}
-        chatContent={chatContent}
-        canvasContent={canvasContent}
-        chatPanelChrome="plain"
-        chatPanelWidth={chatPanelWidth}
-        chatPanelMinWidth={chatPanelMinWidth}
-        chatPanelTopInset={chatPanelTopInset}
-        canvasPanelTopInset={canvasPanelTopInset}
-        forceOpenChatPanel={forceOpenChatPanel}
-      />
-    </GeneralWorkbenchCanvasHost>
-  ),
-  (previous, next) =>
-    previous.mode === next.mode &&
-    previous.chatContent === next.chatContent &&
-    previous.canvasContent === next.canvasContent &&
-    previous.chatPanelWidth === next.chatPanelWidth &&
-    previous.chatPanelMinWidth === next.chatPanelMinWidth &&
-    previous.chatPanelTopInset === next.chatPanelTopInset &&
-    previous.canvasPanelTopInset === next.canvasPanelTopInset &&
-    previous.forceOpenChatPanel === next.forceOpenChatPanel,
-);
-
-LayoutTransitionRenderGate.displayName = "LayoutTransitionRenderGate";
-
 export const TEAM_PRIMARY_CHAT_PANEL_WIDTH =
   "min(100%, clamp(420px, 34%, 560px))";
-export const TEAM_PRIMARY_CHAT_PANEL_MIN_WIDTH = "400px";
 export const CODE_WORKBENCH_CHAT_PANEL_WIDTH =
   "min(100%, clamp(640px, 54%, 1180px))";
-export const CODE_WORKBENCH_CHAT_PANEL_MIN_WIDTH = "560px";
 export const RIGHT_SURFACE_CHAT_PANEL_WIDTH =
   "min(100%, clamp(680px, 60%, 1040px))";
-export const RIGHT_SURFACE_CHAT_PANEL_MIN_WIDTH = "560px";

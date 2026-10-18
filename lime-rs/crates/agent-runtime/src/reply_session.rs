@@ -126,6 +126,7 @@ mod tests {
             }),
             None,
             None,
+            None,
         );
         let stream_request = RuntimeReplyStreamRequest::new(
             "session-1",

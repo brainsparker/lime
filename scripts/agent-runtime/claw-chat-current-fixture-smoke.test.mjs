@@ -9,7 +9,7 @@ import {
   HOME_HOTPATH_SCENARIO,
   IMAGE_FIXTURE_MODEL,
   RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO,
-  THREAD_ACTIVITY_PANEL_SCENARIO,
+  THREAD_SUMMARY_PANEL_SCENARIO,
   TEXT_PROVIDER_FIXTURE_API_KEY,
   TURN_PLAN_UPDATE_DONE_TEXT,
   TURN_PLAN_UPDATE_PROMPT,
@@ -403,13 +403,13 @@ describe("claw chat current Electron fixture smoke guard", () => {
     });
   });
 
-  it("registers the Thread Activity panel as a current Electron scenario", () => {
+  it("registers the Thread Summary panel as a current Electron scenario", () => {
     const content = readSmokeScript();
-    expect(content).toContain("THREAD_ACTIVITY_PANEL_SCENARIO");
+    expect(content).toContain("THREAD_SUMMARY_PANEL_SCENARIO");
     expect(content).toContain(
-      "options.scenario === THREAD_ACTIVITY_PANEL_SCENARIO",
+      "options.scenario === THREAD_SUMMARY_PANEL_SCENARIO",
     );
-    expect(content).toContain("runThreadActivityPanelSmoke");
+    expect(content).toContain("runThreadSummaryPanelSmoke");
   });
 
   it("binds skills runtime Gate B identity to the final manual-enable turn", () => {
@@ -2822,7 +2822,7 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain("workspaceRightSurface/pending/list");
     expect(content).toContain("task-center-files-toggle");
     expect(content).toContain("task-center-browser-toggle");
-    expect(content).toContain("task-center-activity-toggle");
+    expect(content).toContain("thread-workspace-summary-toggle");
     expect(content).toContain("workspace-right-surface-tab-appSurface");
     expect(content).toContain("right-surface-browser.png");
     expect(content).toContain("workspace-right-surface-host");
@@ -2836,13 +2836,13 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain("workspace-plugin-surface-tabs");
     expect(content).toContain("workspace-plugin-surface-frame");
     expect(content).toContain("workspace-plugin-surface-viewport");
-    expect(content).toContain("thread-activity-panel");
+    expect(content).toContain("thread-summary-panel");
     expect(content).toContain("rightSurfaceVisualMatrixHostsFillRightSide");
     expect(content).not.toContain(
       "rightSurfaceVisualMatrixObjectCanvasRailVisible",
     );
     expect(content).toContain("rightSurfaceVisualMatrixBrowserSurfaceVisible");
-    expect(content).toContain("rightSurfaceVisualMatrixActivitySurfaceVisible");
+    expect(content).toContain("threadSummaryPanelUsesShippedLayouts");
     expect(content).not.toContain("plugin-shell-");
     expect(content).not.toContain("https://example.com/lime-plugins/");
     expect(content).not.toContain("appSurfaceContentFactory");

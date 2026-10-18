@@ -322,7 +322,6 @@ describe("AppSidebar navigation", () => {
     });
     await flushEffects(2);
 
-    const sidebar = container.querySelector('[data-testid="app-sidebar"]');
     const header = container.querySelector(
       '[data-testid="app-sidebar-header"]',
     );
@@ -333,7 +332,10 @@ describe("AppSidebar navigation", () => {
       '[data-testid="app-sidebar-main-nav"]',
     );
 
-    expect(sidebar?.getAttribute("data-window-controls-reserved")).toBe("true");
+    expect(
+      container.querySelector<HTMLElement>("[data-app-shell-titlebar]")?.style
+        .paddingInlineStart,
+    ).toBe("92px");
     expect(header).not.toBeNull();
     expect(homeButton).not.toBeNull();
     expect(homeButton?.textContent).toContain("Lime");

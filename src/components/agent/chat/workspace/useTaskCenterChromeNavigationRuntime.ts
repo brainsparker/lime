@@ -1,18 +1,15 @@
 import { useMemo } from "react";
-import type {
-  Dispatch,
-  MutableRefObject,
-  ReactNode,
-  SetStateAction,
-} from "react";
+import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import type { Topic } from "../hooks/agentChatShared";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
-import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { TaskCenterHomeSurfaceState } from "./agentChatWorkspaceHelpers";
 import { resolveRecentTopicCandidate } from "../hooks/agentChatShared";
 import { useTaskCenterFallbackRestoreRuntime } from "./useTaskCenterFallbackRestoreRuntime";
 import { useTaskCenterHomeChromeRuntime } from "./useTaskCenterHomeChromeRuntime";
-import { useTaskCenterTabChrome } from "./useTaskCenterTabChrome";
+import {
+  resolveTaskCenterVisibleTabIds,
+  shouldHideTaskCenterTabsForDetachedSession,
+} from "../utils/taskCenterTabs";
 
 interface TaskCenterFallbackRestoreState {
   topicId: string;
@@ -27,8 +24,6 @@ interface OpenTaskTopicOptions {
 
 interface UseTaskCenterChromeNavigationRuntimeParams {
   agentEntry: "new-task" | "claw";
-  activeTheme: string;
-  onStartNewConversation?: import("@/lib/workspace/navigation").StartNewConversation;
   clearEmbeddedHomeSession: (sessionId: string) => void;
   detachedTopicId: string | null;
   draftSendRequest: TaskCenterDraftSendRequest | null;
@@ -38,9 +33,7 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
   hasDisplayMessages: boolean;
   hasLocalSessionOverride: boolean;
   hasPendingA2UIForm: boolean;
-  homeMountedAt: number;
   initialDispatchKey: string | null;
-  initialSessionName?: string | null;
   initialPendingServiceSkillLaunchSignature?: string | null;
   isAutoRestoringSession: boolean;
   isBootstrapDispatchPending: boolean;
@@ -51,22 +44,14 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
   isSending: boolean;
   isSessionHydrating: boolean;
   isTaskCenterDraftSurfaceActive: boolean;
-  layoutMode: LayoutMode;
   messagesLength: number;
-  newChatAt?: number;
-  newConversationLabel: string;
   normalizedInitialSessionId?: string | null;
-  onCloseTaskCenterTab: (topicId: string) => void;
   onOpenTaskTopic: (
     topicId: string,
     options?: OpenTaskTopicOptions,
   ) => void | Promise<void>;
-  onSwitchTaskTopic: (topicId: string) => void | Promise<void>;
-  onToggleWorkbench: () => void;
   openTabIds: string[];
   queuedTurnsLength: number;
-  renamePromptLabel: string;
-  renameTopic: (topicId: string, title: string) => void | Promise<void>;
   sessionId?: string | null;
   setHarnessPanelVisible: Dispatch<SetStateAction<boolean>>;
   shouldSuppressDraftContent: boolean;
@@ -76,30 +61,21 @@ interface UseTaskCenterChromeNavigationRuntimeParams {
   topicById: ReadonlyMap<string, Topic>;
   topics: Topic[];
   transitionTopicId: string | null;
-  untitledTaskLabel: string;
   harnessPanelVisible: boolean;
   displayMessageCount: number;
 }
 
 interface TaskCenterChromeNavigationRuntime {
-  browserWorkspaceHomeTabsNode: ReactNode;
-  handleOpenTaskCenterNewTaskPage: () => void;
   hasHomeConversationActivity: boolean;
   recentSessionTopic: Topic | null;
-  shouldHideDetachedTaskCenterTabs: boolean;
   isTaskCenterDraftSendPending: boolean;
   shouldRenderTaskCenterEmbeddedHome: boolean;
-  shouldRenderTaskCenterTabStrip: boolean;
   suppressHomeNavbarUtilityActions: boolean;
   taskCenterHomeSurfaceState: TaskCenterHomeSurfaceState;
-  taskCenterTabsNode: ReactNode;
-  taskCenterVisibleTabIds: string[];
 }
 
 export function useTaskCenterChromeNavigationRuntime({
   agentEntry,
-  activeTheme,
-  onStartNewConversation,
   clearEmbeddedHomeSession,
   detachedTopicId,
   displayMessageCount,
@@ -111,9 +87,7 @@ export function useTaskCenterChromeNavigationRuntime({
   hasLocalSessionOverride,
   hasPendingA2UIForm,
   harnessPanelVisible,
-  homeMountedAt,
   initialDispatchKey,
-  initialSessionName,
   initialPendingServiceSkillLaunchSignature,
   isAutoRestoringSession,
   isBootstrapDispatchPending,
@@ -124,19 +98,11 @@ export function useTaskCenterChromeNavigationRuntime({
   isSending,
   isSessionHydrating,
   isTaskCenterDraftSurfaceActive,
-  layoutMode,
   messagesLength,
-  newChatAt,
-  newConversationLabel,
   normalizedInitialSessionId,
-  onCloseTaskCenterTab,
   onOpenTaskTopic,
-  onSwitchTaskTopic,
-  onToggleWorkbench,
   openTabIds,
   queuedTurnsLength,
-  renamePromptLabel,
-  renameTopic,
   sessionId,
   setHarnessPanelVisible,
   shouldSuppressDraftContent,
@@ -146,10 +112,8 @@ export function useTaskCenterChromeNavigationRuntime({
   topicById,
   topics,
   transitionTopicId,
-  untitledTaskLabel,
 }: UseTaskCenterChromeNavigationRuntimeParams): TaskCenterChromeNavigationRuntime {
   const {
-    handleRenameTaskTopic,
     taskCenterPreviewTopicId,
     hasHomeConversationActivity,
     taskCenterHomeSurfaceState,
@@ -161,10 +125,6 @@ export function useTaskCenterChromeNavigationRuntime({
     sessionId,
     detachedTopicId,
     transitionTopicId,
-    topicById,
-    untitledTaskLabel,
-    renamePromptLabel,
-    renameTopic,
     draftSurfaceActive: isTaskCenterDraftSurfaceActive,
     shouldSuppressDraftContent,
     draftSendRequest,
@@ -193,43 +153,29 @@ export function useTaskCenterChromeNavigationRuntime({
     [sessionId, topics],
   );
 
-  const handleOpenTaskCenterNewTaskPage = () => {
-    onStartNewConversation?.({
-      projectId: taskCenterWorkspaceId ?? null,
-      freshDraft: true,
+  const shouldHideDetachedTaskCenterTabs =
+    shouldHideTaskCenterTabsForDetachedSession({
+      sessionId,
+      initialSessionId: normalizedInitialSessionId,
+      detachedTopicId,
+      openTabIds,
     });
-  };
-
-  const {
-    shouldHideDetachedTaskCenterTabs,
-    taskCenterVisibleTabIds,
-    shouldRenderTaskCenterTabStrip,
-    taskCenterTabsNode,
-    browserWorkspaceHomeTabsNode,
-  } = useTaskCenterTabChrome({
-    agentEntry,
-    activeTheme,
-    sessionId,
-    normalizedInitialSessionId,
-    initialSessionName,
-    detachedTopicId,
-    openTabIds,
-    topics,
-    previewTopicId: taskCenterPreviewTopicId,
-    hasLocalSessionOverride,
-    topicById,
-    untitledTaskLabel,
-    shouldUseBrowserWorkspaceHomeChrome,
-    newConversationLabel,
-    newChatAt,
-    homeMountedAt,
-    layoutMode,
-    onSwitchTaskTopic,
-    onRenameTaskTopic: handleRenameTaskTopic,
-    onCloseTaskCenterTab,
-    onOpenTaskCenterNewTaskPage: handleOpenTaskCenterNewTaskPage,
-    onToggleWorkbench,
-  });
+  const taskCenterVisibleTabIds = useMemo(
+    () =>
+      shouldHideDetachedTaskCenterTabs
+        ? []
+        : resolveTaskCenterVisibleTabIds({
+            openTabIds,
+            topics,
+            currentTopicId: taskCenterPreviewTopicId,
+          }),
+    [
+      openTabIds,
+      topics,
+      taskCenterPreviewTopicId,
+      shouldHideDetachedTaskCenterTabs,
+    ],
+  );
 
   useTaskCenterFallbackRestoreRuntime({
     agentEntry,
@@ -259,17 +205,11 @@ export function useTaskCenterChromeNavigationRuntime({
   });
 
   return {
-    browserWorkspaceHomeTabsNode,
-    handleOpenTaskCenterNewTaskPage,
     hasHomeConversationActivity,
     recentSessionTopic,
-    shouldHideDetachedTaskCenterTabs,
     isTaskCenterDraftSendPending,
     shouldRenderTaskCenterEmbeddedHome,
-    shouldRenderTaskCenterTabStrip,
     suppressHomeNavbarUtilityActions,
     taskCenterHomeSurfaceState,
-    taskCenterTabsNode,
-    taskCenterVisibleTabIds,
   };
 }

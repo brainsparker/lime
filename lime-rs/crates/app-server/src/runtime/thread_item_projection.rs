@@ -103,7 +103,10 @@ pub(super) fn thread_items_from_events(stored: &StoredSession) -> Vec<Value> {
             | "action.expired" => {
                 upsert_approval_item(stored, event, &mut approval_items);
             }
-            "context.compaction.started" | "context.compaction.completed" => {
+            "context.compaction.started"
+            | "context.compaction.completed"
+            | "context.compaction.failed"
+            | "context.compaction.canceled" => {
                 upsert_context_compaction_item(stored, event, &mut context_compaction_items);
             }
             "expert.profile_switch.completed" => {

@@ -49,6 +49,7 @@ fn targeted_lifecycle_event(
         environments: Vec::new(),
         phase: ToolLifecyclePhase::Completed,
         output: Some(NormalizedToolOutput {
+            history_token_limit: None,
             success,
             text: "accepted".to_string(),
             structured_content: None,
@@ -90,6 +91,7 @@ fn canonical_wait_agent_projects_one_collab_lifecycle_item() {
         wait_lifecycle_event(
             ToolLifecyclePhase::Completed,
             Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: true,
                 text: "Wait completed.".to_string(),
                 structured_content: Some(serde_json::json!({ "timed_out": false })),

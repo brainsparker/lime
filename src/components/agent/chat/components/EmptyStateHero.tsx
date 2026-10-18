@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 import { Sparkles } from "lucide-react";
 import styled, { keyframes } from "styled-components";
+import { getLimeColorScheme } from "@/lib/appearance/colorSchemes";
 import { HomeSkinDecorationIcon } from "./HomeComposerDecorations";
 import { useHomeSkinPresentation } from "./homeSkinPresentation";
 
@@ -238,10 +239,6 @@ const HeroSection = styled.section`
 `;
 
 const HeroContent = styled.div`
-  --home-hero-available-height: max(
-    160px,
-    calc(100cqh - var(--home-hero-breakout-space, 0px))
-  );
   position: relative;
   display: flex;
   width: 100%;
@@ -251,12 +248,16 @@ const HeroContent = styled.div`
 `;
 
 const ArtworkStage = styled.div`
-  container-type: inline-size;
+  --home-hero-available-height: max(
+    160px,
+    calc(100cqh - var(--home-hero-breakout-space, 0px))
+  );
+  container-type: size;
   position: relative;
   isolation: isolate;
   width: min(1180px, 100%);
   margin: var(--home-hero-breakout-space, 0) auto 0;
-  min-height: min(
+  height: min(
     var(--home-hero-stage-height, 310px),
     var(--home-hero-available-height)
   );
@@ -276,7 +277,7 @@ const ArtworkStage = styled.div`
   );
 
   @media (min-width: 1280px) and (min-height: 900px) {
-    min-height: min(
+    height: min(
       var(--home-hero-stage-height-wide, 340px),
       var(--home-hero-available-height)
     );
@@ -284,7 +285,7 @@ const ArtworkStage = styled.div`
 
   @media (max-width: 760px) {
     margin-top: var(--home-hero-breakout-space-mobile, 0);
-    min-height: min(
+    height: min(
       var(--home-hero-stage-height-mobile, 270px),
       var(--home-hero-available-height)
     );
@@ -292,7 +293,7 @@ const ArtworkStage = styled.div`
   }
 
   @media (max-height: 780px) {
-    min-height: min(
+    height: min(
       var(--home-hero-stage-height-short, 250px),
       var(--home-hero-available-height)
     );
@@ -559,10 +560,8 @@ const LeadTextGroup = styled.div`
   position: relative;
   display: flex;
   width: min(var(--home-hero-content-width, 48%), 520px);
-  min-height: min(
-    var(--home-hero-stage-height, 310px),
-    var(--home-hero-available-height)
-  );
+  height: 100%;
+  min-height: 0;
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
@@ -572,28 +571,10 @@ const LeadTextGroup = styled.div`
   text-align: left;
   z-index: 3;
 
-  @media (min-width: 1280px) and (min-height: 900px) {
-    min-height: min(
-      var(--home-hero-stage-height-wide, 340px),
-      var(--home-hero-available-height)
-    );
-  }
-
   @media (max-width: 760px) {
     width: 58%;
-    min-height: min(
-      var(--home-hero-stage-height-mobile, 270px),
-      var(--home-hero-available-height)
-    );
     gap: 0.7rem;
     padding-left: 1.35rem;
-  }
-
-  @media (max-height: 780px) {
-    min-height: min(
-      var(--home-hero-stage-height-short, 250px),
-      var(--home-hero-available-height)
-    );
   }
 
   @container (max-height: 280px) {
@@ -695,6 +676,7 @@ export function EmptyStateHero({
   skinStatus,
 }: EmptyStateHeroProps) {
   const presentation = useHomeSkinPresentation();
+  const artworkPalette = getLimeColorScheme(presentation.skinId).variables;
   const isDarkArtwork = presentation.tone === "dark";
   const heroDecorations = presentation.heroDecorations;
   const foreground = presentation.foreground;
@@ -712,19 +694,19 @@ export function EmptyStateHero({
     "--home-hero-title-max-width": presentation.titleMaxWidth,
     "--home-hero-title-color": isDarkArtwork
       ? "#f7fbff"
-      : "var(--lime-text-strong, #402530)",
+      : artworkPalette["--lime-text-strong"],
     "--home-hero-description-color": isDarkArtwork
       ? "#d9e5e9"
-      : "var(--lime-text, #654652)",
+      : artworkPalette["--lime-text"],
     "--home-hero-badge-bg": isDarkArtwork
       ? "rgba(10, 14, 20, 0.48)"
-      : "var(--lime-surface, #fffafd)",
+      : artworkPalette["--lime-surface"],
     "--home-hero-badge-border": isDarkArtwork
       ? "rgba(232, 244, 247, 0.34)"
-      : "var(--lime-surface-border-strong, #dfafc1)",
+      : artworkPalette["--lime-surface-border-strong"],
     "--home-hero-badge-text": isDarkArtwork
       ? "#f1fbf8"
-      : "var(--lime-brand-strong, #963958)",
+      : artworkPalette["--lime-brand-strong"],
     "--home-hero-text-shadow": isDarkArtwork
       ? "0 2px 18px rgba(0, 0, 0, 0.42)"
       : "0 2px 18px rgba(255, 255, 255, 0.72)",
@@ -733,19 +715,19 @@ export function EmptyStateHero({
       : "0 1px 10px rgba(255, 255, 255, 0.86)",
     "--home-hero-meta-color": isDarkArtwork
       ? "rgba(232, 244, 247, 0.76)"
-      : "var(--lime-text-muted, #8e6e7a)",
+      : artworkPalette["--lime-text-muted"],
     "--home-hero-brand-color": isDarkArtwork
       ? "#f1fbf8"
-      : "var(--lime-brand-strong, #963958)",
+      : artworkPalette["--lime-brand-strong"],
     "--home-hero-status-bg": isDarkArtwork
       ? "rgba(10, 14, 20, 0.48)"
       : "rgba(255, 255, 255, 0.48)",
     "--home-hero-status-border": isDarkArtwork
       ? "rgba(232, 244, 247, 0.34)"
-      : "var(--lime-surface-border, #efceda)",
+      : artworkPalette["--lime-surface-border"],
     "--home-hero-status-color": isDarkArtwork
       ? "#f1fbf8"
-      : "var(--lime-brand-strong, #963958)",
+      : artworkPalette["--lime-brand-strong"],
     "--home-hero-art-blend-width": presentation.artBlendWidth ?? "0%",
     "--home-hero-art-blend-color": presentation.fallback,
     "--home-hero-stage-height": presentation.stageHeight ?? "310px",

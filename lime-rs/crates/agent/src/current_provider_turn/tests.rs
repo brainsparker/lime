@@ -115,6 +115,7 @@ fn lifecycle_projection_preserves_normalized_terminal_output() {
             environments: vec![ToolEnvironment::new("local", PathBuf::from("/workspace"))],
             phase: ToolLifecyclePhase::Completed,
             output: Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: true,
                 text: "preview".to_string(),
                 structured_content: Some(serde_json::json!({ "rows": 3 })),
@@ -215,6 +216,7 @@ fn lifecycle_projection_maps_failed_output_to_failed_item() {
             environments: Vec::new(),
             phase: ToolLifecyclePhase::Completed,
             output: Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: false,
                 text: "failed".to_string(),
                 structured_content: None,
@@ -291,6 +293,7 @@ async fn ready_lifecycle_and_policy_events_keep_start_action_end_order() {
             environments: environment,
             phase: ToolLifecyclePhase::Completed,
             output: Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: true,
                 text: "done".to_string(),
                 structured_content: None,

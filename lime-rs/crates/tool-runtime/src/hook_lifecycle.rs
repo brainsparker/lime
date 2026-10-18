@@ -17,6 +17,9 @@ use std::future::Future;
 use std::path::PathBuf;
 use std::pin::Pin;
 
+mod stop;
+pub use stop::{RuntimeStopHookContext, RuntimeStopHookTarget};
+
 /// 单个 Hook 在一次事件上的裁决结果。
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RuntimeHookOutcome {
@@ -27,7 +30,7 @@ pub enum RuntimeHookOutcome {
     /// 改写工具输入后放行。
     Rewrite { arguments: String },
     /// 中止整个回合。
-    Abort { reason: String },
+    Abort { reason: Option<String> },
     /// 未参与：matcher 不匹配、未启用或事件不符。
     Skipped { reason: RuntimeHookSkipReason },
     /// fail closed：无法安全裁决。
@@ -70,6 +73,24 @@ pub struct RuntimeHookEventContext {
     pub tool_arguments: Option<String>,
     pub tool_output: Option<String>,
     pub content: Option<String>,
+    pub stop: Option<RuntimeStopHookContext>,
+}
+
+impl RuntimeHookEventContext {
+    pub(crate) fn run_id(&self, hook: &RuntimeHookSnapshot) -> String {
+        let invocation = if matches!(
+            hook.event_name,
+            RuntimeHookEventName::Stop | RuntimeHookEventName::SubagentStop
+        ) {
+            self.stop.as_ref().map(|stop| stop.invocation_id.as_str())
+        } else {
+            self.tool_call_id.as_deref()
+        };
+        match invocation {
+            Some(id) => format!("{}:{id}", hook.run_id()),
+            None => hook.run_id(),
+        }
+    }
 }
 
 /// handler 侧回报的原始结果，由执行 owner 填充。
@@ -78,7 +99,7 @@ pub enum RuntimeHookHandlerReport {
     Allow { additional_context: Option<String> },
     Block { reason: String },
     Rewrite { arguments: String },
-    Abort { reason: String },
+    Abort { reason: Option<String> },
     Failed { reason: String },
 }
 
@@ -138,9 +159,8 @@ impl RuntimeHookEvaluation {
         self.decisions
             .iter()
             .find_map(|decision| match &decision.outcome {
-                RuntimeHookOutcome::Block { reason } | RuntimeHookOutcome::Abort { reason } => {
-                    Some(reason.clone())
-                }
+                RuntimeHookOutcome::Block { reason } => Some(reason.clone()),
+                RuntimeHookOutcome::Abort { reason } => reason.clone(),
                 RuntimeHookOutcome::Failed { reason } => {
                     Some(format!("hook {} fail closed: {reason:?}", decision.key))
                 }
@@ -212,7 +232,27 @@ fn admit(
         });
     }
     if let Some(matcher) = hook.matcher.as_deref() {
-        if !matcher_matches(matcher, context)? {
+        let matches = match hook.event_name {
+            RuntimeHookEventName::Stop => true,
+            RuntimeHookEventName::SubagentStop => {
+                let agent_type = context.stop.as_ref().and_then(|stop| match &stop.target {
+                    RuntimeStopHookTarget::SubagentStop { agent_type, .. } => {
+                        Some(agent_type.as_str())
+                    }
+                    RuntimeStopHookTarget::Stop => None,
+                });
+                matcher_matches(matcher, agent_type.unwrap_or_default())?
+            }
+            _ => matcher_matches(
+                matcher,
+                context
+                    .tool_name
+                    .as_deref()
+                    .or(context.content.as_deref())
+                    .unwrap_or_default(),
+            )?,
+        };
+        if !matches {
             return Err(RuntimeHookOutcome::Skipped {
                 reason: RuntimeHookSkipReason::MatcherMismatch,
             });
@@ -221,15 +261,7 @@ fn admit(
     Ok(())
 }
 
-fn matcher_matches(
-    matcher: &str,
-    context: &RuntimeHookEventContext,
-) -> Result<bool, RuntimeHookOutcome> {
-    let target = context
-        .tool_name
-        .as_deref()
-        .or(context.content.as_deref())
-        .unwrap_or_default();
+fn matcher_matches(matcher: &str, target: &str) -> Result<bool, RuntimeHookOutcome> {
     if matcher.is_empty() || matcher == "*" {
         return Ok(true);
     }
@@ -271,7 +303,7 @@ where
         };
         decisions.push(RuntimeHookDecision {
             key: hook.key.clone(),
-            run_id: hook.run_id(),
+            run_id: context.run_id(hook),
             event_name,
             outcome,
         });
@@ -293,7 +325,7 @@ pub async fn evaluate_hook_event_async(
         };
         decisions.push(RuntimeHookDecision {
             key: hook.key.clone(),
-            run_id: hook.run_id(),
+            run_id: context.run_id(hook),
             event_name,
             outcome,
         });
@@ -551,7 +583,7 @@ mod tests {
             &tool_context("shell"),
             |_| {
                 Some(RuntimeHookHandlerReport::Abort {
-                    reason: "turn aborted".to_string(),
+                    reason: Some("turn aborted".to_string()),
                 })
             },
         );

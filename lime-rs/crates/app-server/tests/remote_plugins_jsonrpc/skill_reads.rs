@@ -162,7 +162,7 @@ async fn current_codex_release_fields_accept_missing_keywords_alias_and_null_pro
     let templates = release.remove("app_templates").unwrap();
     release.insert("unavailable_app_templates".into(), templates);
     release.get_mut("interface").unwrap()["default_prompts"] = Value::Null;
-    let (url, task) = issuer(vec![ok(session("one")), ok(plugin)]).await;
+    let (url, task) = issuer(vec![ok(session("one")), ok(plugin), ok(page(vec![], None))]).await;
     rpc(&server, "account/login/start", Some(login(&url))).await;
     let response = rpc(&server, "plugin/read", detail("opaque~1")).await;
     assert_eq!(response["plugin"]["summary"]["keywords"], json!([]));

@@ -1,5 +1,4 @@
 import type { Skill } from "@/lib/api/skills";
-import type { AgentAccessMode } from "../hooks/agentChatStorage";
 import type { InputCapabilitySelection } from "../skill-selection/inputCapabilitySelection";
 import type { CuratedTaskReferenceEntry } from "../utils/curatedTaskReferenceSelection";
 
@@ -15,14 +14,6 @@ export interface EmptyStateActiveCapabilityViewModel {
     | null;
   activeCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
   activeSkill: Skill | null;
-}
-
-export interface EmptyStateAdvancedControlsState {
-  currentModelSummary: string | null;
-  trimmedModel: string;
-  hasHighlightedAdvancedPreference: boolean;
-  shouldShowAdvancedToggle: boolean;
-  shouldShowLeftExtra: boolean;
 }
 
 export function resolveEmptyStateActiveCapability({
@@ -59,79 +50,5 @@ export function resolveEmptyStateActiveCapability({
     activeCuratedTask,
     activeCuratedTaskReferenceEntries,
     activeSkill,
-  };
-}
-
-export function resolveCurrentModelSummary({
-  providerType,
-  model,
-  getProviderLabel,
-}: {
-  providerType: string;
-  model: string;
-  getProviderLabel: (providerType: string) => string;
-}): { currentModelSummary: string | null; trimmedModel: string } {
-  const trimmedProviderType = providerType.trim();
-  const trimmedModel = model.trim();
-  const hasConfiguredModel = Boolean(trimmedProviderType && trimmedModel);
-
-  return {
-    currentModelSummary: hasConfiguredModel
-      ? `${getProviderLabel(trimmedProviderType)} / ${trimmedModel}`
-      : null,
-    trimmedModel,
-  };
-}
-
-export function buildEmptyStateAdvancedControlsState({
-  providerType,
-  model,
-  getProviderLabel,
-  subagentEnabled,
-  knowledgePackEnabled,
-  accessMode,
-  isGeneralTheme,
-  showCreationModeSelector,
-  hasAccessModeSetter,
-  hasFileManagerToggle,
-  hasKnowledgePackControl,
-}: {
-  providerType: string;
-  model: string;
-  getProviderLabel: (providerType: string) => string;
-  subagentEnabled: boolean;
-  knowledgePackEnabled: boolean;
-  accessMode?: AgentAccessMode;
-  isGeneralTheme: boolean;
-  showCreationModeSelector: boolean;
-  hasAccessModeSetter: boolean;
-  hasFileManagerToggle: boolean;
-  hasKnowledgePackControl: boolean;
-}): EmptyStateAdvancedControlsState {
-  const shouldShowThemeSpecificExtra = showCreationModeSelector;
-  const shouldShowModelControls = true;
-  const { currentModelSummary, trimmedModel } = resolveCurrentModelSummary({
-    providerType,
-    model,
-    getProviderLabel,
-  });
-  const hasHighlightedAdvancedPreference =
-    subagentEnabled ||
-    knowledgePackEnabled ||
-    accessMode === "read-only" ||
-    accessMode === "full-access";
-  const shouldShowAdvancedToggle =
-    isGeneralTheme ||
-    shouldShowModelControls ||
-    hasAccessModeSetter ||
-    shouldShowThemeSpecificExtra ||
-    hasFileManagerToggle;
-
-  return {
-    currentModelSummary,
-    trimmedModel,
-    hasHighlightedAdvancedPreference,
-    shouldShowAdvancedToggle,
-    shouldShowLeftExtra: hasKnowledgePackControl || shouldShowAdvancedToggle,
   };
 }

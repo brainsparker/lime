@@ -93,6 +93,7 @@ fn queued_snapshot_never_becomes_orphaned_or_active() {
         let execution = ThreadExecutionState {
             loaded,
             active_turn_id: None,
+            pending_turn_ids: Vec::new(),
         };
         normalize_thread_runtime_snapshot(&mut thread, &execution);
         normalize_turn_runtime_snapshots(&mut thread.turns, &execution);
@@ -119,6 +120,7 @@ fn queued_snapshot_never_becomes_orphaned_or_active() {
         &ThreadExecutionState {
             loaded: true,
             active_turn_id: Some("turn-2".to_string()),
+            pending_turn_ids: Vec::new(),
         },
     );
     assert!(matches!(thread.status, ThreadStatus::Active { .. }));

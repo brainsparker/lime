@@ -476,6 +476,7 @@ fn normalized_code_mode_output(
         Value::Bool(true),
     );
     NormalizedToolOutput {
+        history_token_limit: None,
         success: result.success,
         text: result.output.clone(),
         structured_content: None,
@@ -617,6 +618,7 @@ impl RuntimeCodeModeSessionDelegate for RuntimeCodeModeNestedToolDelegate {
                 return Ok(());
             }
             let provider_output = CurrentProviderToolResult {
+                history_token_limit: None,
                 call_id: tool_call_id.clone(),
                 name: CODE_MODE_EXEC_TOOL_NAME.to_string(),
                 success: true,
@@ -661,6 +663,7 @@ fn custom_provider_result(
     result: RuntimeCodeModeToolResult,
 ) -> CurrentProviderToolResult {
     CurrentProviderToolResult {
+        history_token_limit: None,
         call_id: call.id,
         name: call.name,
         success: result.success,
@@ -674,6 +677,7 @@ fn wait_provider_result(
     result: RuntimeCodeModeToolResult,
 ) -> CurrentProviderToolResult {
     CurrentProviderToolResult {
+        history_token_limit: None,
         call_id: call.id,
         name: call.name,
         success: result.success,

@@ -15,6 +15,7 @@ import type {
   PersistedAtomUpdateRequest,
   PersistedDraftEntry,
 } from "./persistedAtomTypes";
+import { SUMMARY_PANEL_PIN_ATOM_KEY } from "./persistedAtomTypes";
 
 export interface PersistedAtomLimits {
   readonly maxDraftBytes: number;
@@ -121,6 +122,11 @@ export function parsePersistedAtomReadRequest(
   value: unknown,
 ): PersistedAtomReadRequest {
   const request = exact(value, ["key", "query"]);
+  if (request.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+    const query = exact(request.query, ["kind"]);
+    if (query.kind !== "value") reject();
+    return { key: SUMMARY_PANEL_PIN_ATOM_KEY, query: { kind: "value" } };
+  }
   if (request.key !== "composer-drafts-v1") reject();
   return {
     key: "composer-drafts-v1",
@@ -239,10 +245,13 @@ function persistence(
   };
 }
 function metadata(value: Record<string, unknown>): PersistedAtomMetadata {
-  if (value.key !== "composer-drafts-v1") reject();
+  const key = member(value.key, [
+    "composer-drafts-v1",
+    SUMMARY_PANEL_PIN_ATOM_KEY,
+  ]);
   const storeRevision = integer(value.storeRevision);
   return {
-    key: "composer-drafts-v1",
+    key,
     storeRevision,
     persistence: persistence(value.persistence, storeRevision),
   };
@@ -386,6 +395,7 @@ export function parsePersistedAtomReadResult(
   );
   const meta = metadata(response),
     outcome = member(response.outcome, ["ready", "invalid", "unavailable"]);
+  if (request && meta.key !== request.key) reject();
   const reason = optionalReason(response);
   if (outcome !== "ready") {
     if (response.data !== null || (outcome === "invalid" && !reason.reason))
@@ -401,8 +411,15 @@ export function parsePersistedAtomReadResult(
   const queryKind = member(object(response.data).queryKind, [
     "scope",
     "workspace-index",
+    "value",
   ]);
   if (expected && queryKind !== expected.kind) reject();
+  if (meta.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+    const data = exact(response.data, ["queryKind", "value"]);
+    if (queryKind !== "value" || typeof data.value !== "boolean") reject();
+    return { ...meta, outcome, data: { queryKind, value: data.value } };
+  }
+  if (queryKind === "value") reject();
   if (queryKind === "workspace-index") {
     const data = exact(response.data, ["queryKind", "workspaceId", "items"]);
     const workspaceId =
@@ -444,12 +461,17 @@ export function parsePersistedAtomUpdateResult(
   request?: PersistedAtomUpdateRequest,
 ): PersistedAtomUpdateResult {
   const context = request ? exact(request, ["key", "mutation"]) : undefined;
-  if (context && context.key !== "composer-drafts-v1") reject();
+  if (
+    context &&
+    context.key !== "composer-drafts-v1" &&
+    context.key !== SUMMARY_PANEL_PIN_ATOM_KEY
+  )
+    reject();
   const requestedMutation = context ? object(context.mutation) : undefined;
   const data = exact(
     value,
     ["key", "storeRevision", "persistence", "outcome", "changed", "entry"],
-    ["reason"],
+    ["reason", "value"],
   );
   const meta = metadata(data),
     outcome = member(data.outcome, [
@@ -459,6 +481,37 @@ export function parsePersistedAtomUpdateResult(
       "unavailable",
     ]);
   const reason = optionalReason(data);
+  if (context && meta.key !== context.key) reject();
+  if (meta.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+    if (
+      typeof data.changed !== "boolean" ||
+      data.entry !== null ||
+      (outcome !== "applied" && data.changed) ||
+      ((outcome === "invalid" || outcome === "conflict") && !reason.reason) ||
+      (Object.hasOwn(data, "value") && typeof data.value !== "boolean") ||
+      (outcome === "applied" &&
+        (reason.reason ||
+          typeof data.value !== "boolean" ||
+          meta.persistence.state === "loading" ||
+          meta.persistence.state === "unavailable"))
+    )
+      reject();
+    if (requestedMutation) {
+      const mutation = exact(requestedMutation, ["op", "value"]);
+      if (mutation.op !== "set" || typeof mutation.value !== "boolean")
+        reject();
+      if (outcome === "applied" && data.value !== mutation.value) reject();
+    }
+    return {
+      ...meta,
+      outcome,
+      changed: data.changed,
+      ...reason,
+      entry: null,
+      ...(typeof data.value === "boolean" ? { value: data.value } : {}),
+    };
+  }
+  if (Object.hasOwn(data, "value")) reject();
   if (
     typeof data.changed !== "boolean" ||
     (outcome !== "applied" && data.changed) ||

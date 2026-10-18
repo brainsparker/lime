@@ -232,7 +232,12 @@ pub enum ResponseItem {
     FunctionCallOutput {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         id: Option<String>,
-        call_id: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        call_id: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        namespace: Option<String>,
         output: FunctionCallOutputBody,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         internal_chat_message_metadata_passthrough: Option<InternalChatMessageMetadataPassthrough>,
@@ -315,3 +320,6 @@ impl ResponseItem {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

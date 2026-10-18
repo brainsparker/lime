@@ -1,3 +1,4 @@
+import { AppShell, AppShellHeader } from "@/components/app-shell/AppShell";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -248,20 +249,16 @@ vi.mock("./WorkspacePendingA2UIPanel", () => ({
 vi.mock("./WorkspaceMainArea", () => ({
   WorkspaceMainArea: ({
     navbarNode,
-    threadHeaderNode,
-    taskCenterUtilityToolbarNode,
-    taskCenterTabsNode,
     taskCenterShellPanelNode,
+    mainToolbar,
     chatContent,
     canvasContent,
     rightSurfaceContent,
     ...rest
   }: {
     navbarNode?: React.ReactNode;
-    threadHeaderNode?: React.ReactNode;
-    taskCenterUtilityToolbarNode?: React.ReactNode;
-    taskCenterTabsNode?: React.ReactNode;
     taskCenterShellPanelNode?: React.ReactNode;
+    mainToolbar?: React.ReactNode;
     chatContent?: React.ReactNode;
     canvasContent?: React.ReactNode;
     rightSurfaceContent?: React.ReactNode;
@@ -271,10 +268,7 @@ vi.mock("./WorkspaceMainArea", () => ({
       data-testid="workspace-main-area-stub"
       ref={() => {
         mockWorkspaceMainArea({
-          navbarNode,
-          threadHeaderNode,
-          taskCenterUtilityToolbarNode,
-          taskCenterTabsNode,
+          mainToolbar,
           taskCenterShellPanelNode,
           chatContent,
           canvasContent,
@@ -284,9 +278,7 @@ vi.mock("./WorkspaceMainArea", () => ({
       }}
     >
       {navbarNode}
-      {threadHeaderNode}
-      {taskCenterUtilityToolbarNode}
-      {taskCenterTabsNode}
+      {mainToolbar}
       {chatContent}
       {canvasContent}
       {rightSurfaceContent}
@@ -396,8 +388,6 @@ function renderScene(props?: RenderSceneProps) {
         subagent: false,
       },
       onToolPreferenceChange: vi.fn(),
-      creationMode: "guided",
-      onCreationModeChange: vi.fn(),
       activeTheme: "general",
       onThemeChange: vi.fn(),
       themeLocked: false,
@@ -414,14 +404,10 @@ function renderScene(props?: RenderSceneProps) {
       onNavigateToSettings: vi.fn(),
       onRefreshSkills: vi.fn(),
       onLaunchBrowserAssist: vi.fn(),
-      browserAssistLoading: false,
       projectId: null,
       onProjectChange: vi.fn(),
       onOpenSettings: vi.fn(),
       runtimeToolAvailability: null,
-      runtimeTaskCard: null,
-      onOpenMemoryWorkbench: vi.fn(),
-      onOpenChannels: vi.fn(),
       onOpenChromeRelay: vi.fn(),
       navbarVisible: false,
       isRunning: false,
@@ -452,7 +438,6 @@ function renderScene(props?: RenderSceneProps) {
       } as any,
       shellBottomInset: "0px",
       chatPanelWidth: undefined,
-      chatPanelMinWidth: undefined,
       generalWorkbenchDialog: null,
       showFloatingInputOverlay: false,
       hasPendingA2UIForm: false,
@@ -468,7 +453,12 @@ function renderScene(props?: RenderSceneProps) {
   };
 
   act(() => {
-    root.render(<WorkspaceConversationScene {...sceneProps} />);
+    root.render(
+      <AppShell>
+        <AppShellHeader />
+        <WorkspaceConversationScene {...sceneProps} />
+      </AppShell>,
+    );
   });
 
   mountedRoots.push({ root, container });
@@ -476,6 +466,13 @@ function renderScene(props?: RenderSceneProps) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -484,6 +481,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   while (mountedRoots.length > 0) {
     const mounted = mountedRoots.pop();
     if (!mounted) {
@@ -505,7 +503,6 @@ describe("WorkspaceConversationScene", () => {
       threadHeader: {
         sessionId: "thread-empty",
         title: "空对话",
-        status: "done",
         workingDirectory: "/workspace/lime",
       },
       projectId: "workspace-1",
@@ -521,7 +518,7 @@ describe("WorkspaceConversationScene", () => {
 
     expect(
       container.querySelector(
-        '[data-testid="thread-workspace-header-actions"] [data-testid="thread-project-selector"]',
+        '[data-header-action-id="unified-workspace-controls"] [data-testid="thread-project-selector"]',
       ),
     ).not.toBeNull();
     expect(mockThreadProjectSelector).toHaveBeenLastCalledWith(
@@ -640,7 +637,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
     });
 
     expect(mockWorkspaceMainArea).toHaveBeenCalled();
@@ -654,7 +650,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       projectRootPath: "/tmp/project",
       showHarnessToggle: true,
     });
@@ -667,8 +662,7 @@ describe("WorkspaceConversationScene", () => {
       "task-strip",
     );
     expect(
-      mockWorkspaceMainArea.mock.calls.at(-1)?.[0]
-        ?.taskCenterUtilityToolbarNode,
+      mockWorkspaceMainArea.mock.calls.at(-1)?.[0]?.mainToolbar,
     ).toBeTruthy();
     expect(
       container.querySelector('[data-testid="canvas-layout-top-right-tools"]'),
@@ -695,11 +689,9 @@ describe("WorkspaceConversationScene", () => {
         navbarVisible: true,
         navbarChrome: "workspace-compact",
         navbarContextVariant: "task-center",
-        taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
         threadHeader: {
           sessionId: "thread-1",
           title: "对齐 Codex App GUI",
-          status: "running",
           workingDirectory: "/workspace/lime",
         },
       });
@@ -713,32 +705,30 @@ describe("WorkspaceConversationScene", () => {
       ).toBe("对齐 Codex App GUI");
       expect(
         container.querySelector(
-          '[data-testid="thread-workspace-header-actions"] [data-testid="task-center-utility-toolbar-stub"]',
+          '[data-header-action-id="unified-workspace-controls"] [data-testid="task-center-utility-toolbar-stub"]',
         ),
       ).not.toBeNull();
       expect(
-        mockWorkspaceMainArea.mock.calls.at(-1)?.[0]
-          ?.taskCenterUtilityToolbarNode,
-      ).toBeNull();
+        mockWorkspaceMainArea.mock.calls.at(-1)?.[0]?.mainToolbar,
+      ).toBeTruthy();
       expect(
         mockTaskCenterUtilityToolbar.mock.calls.at(-1)?.[0]?.placement,
       ).toBe("workbench-header");
     },
   );
 
-  it("标题栏应显示并隐藏同一 Thread 的既有活动摘要", () => {
-    const onToggleRightSurfaceActivity = vi.fn();
+  it("标题栏打开独立Summary并委托同一canonical子线程动作", async () => {
+    const onOpenSubagentSession = vi.fn();
     const container = renderScene({
       navbarVisible: true,
       navbarContextVariant: "task-center",
       threadHeader: {
         sessionId: "thread-1",
         title: "当前 Thread",
-        status: "running",
         workingDirectory: "/workspace/lime",
       },
-      onToggleRightSurfaceActivity,
       messageListProps: {
+        onOpenSubagentSession,
         messages: [],
         threadItems: [
           {
@@ -763,7 +753,7 @@ describe("WorkspaceConversationScene", () => {
     });
 
     expect(
-      container.querySelector('[data-testid="thread-workspace-summary"]'),
+      document.querySelector('[data-testid="thread-summary-popover"]'),
     ).toBeNull();
     expect(
       container
@@ -771,7 +761,7 @@ describe("WorkspaceConversationScene", () => {
         ?.getAttribute("aria-expanded"),
     ).toBe("false");
 
-    act(() => {
+    await act(async () => {
       (
         container.querySelector(
           '[data-testid="thread-workspace-summary-toggle"]',
@@ -779,55 +769,38 @@ describe("WorkspaceConversationScene", () => {
       ).click();
     });
 
-    expect(onToggleRightSurfaceActivity).toHaveBeenCalledTimes(1);
-    expect(
-      container.querySelector('[data-testid="thread-workspace-summary"]'),
-    ).toBeNull();
+    const panel = document.querySelector(
+      '[data-testid="thread-summary-panel"]',
+    );
+    expect(panel?.textContent).toContain("reviewer");
+    expect(panel?.textContent).not.toContain("npm test");
+    act(() =>
+      (
+        panel?.querySelector('button[title="reviewer"]') as HTMLButtonElement
+      ).click(),
+    );
+    expect(onOpenSubagentSession).toHaveBeenCalledWith("child-1");
   });
 
-  it("非任务中心的 active Thread 也应显示稳定页头并保留必要导航动作", () => {
-    const onBackHome = vi.fn();
-    const onToggleCanvas = vi.fn();
-    const onOpenSettings = vi.fn();
+  it("普通会话复用共享页头，不恢复页头内的全局导航", () => {
     const container = renderScene({
       navbarVisible: true,
       navbarChrome: "full",
       navbarContextVariant: "default",
-      onBackHome,
-      onToggleCanvas,
-      onOpenSettings,
       threadHeader: {
         sessionId: "thread-default-1",
         title: "普通工作区任务",
-        status: "done",
-        workingDirectory: "/workspace/lime",
       },
     });
-
     expect(
-      container.querySelector('[data-testid="thread-workspace-header"]'),
-    ).not.toBeNull();
+      container.querySelector('[data-testid="thread-workspace-header-title"]')
+        ?.textContent,
+    ).toBe("普通工作区任务");
     expect(
       container.querySelector(
         '[data-testid="thread-workspace-header-navigation"]',
       ),
-    ).not.toBeNull();
-
-    const navigation = container.querySelector(
-      '[data-testid="thread-workspace-header-navigation"]',
-    );
-    const buttons = navigation?.querySelectorAll("button") ?? [];
-    expect(buttons.length).toBe(3);
-
-    act(() => {
-      (buttons[0] as HTMLButtonElement).click();
-      (buttons[1] as HTMLButtonElement).click();
-      (buttons[2] as HTMLButtonElement).click();
-    });
-
-    expect(onBackHome).toHaveBeenCalledTimes(1);
-    expect(onToggleCanvas).toHaveBeenCalledTimes(1);
-    expect(onOpenSettings).toHaveBeenCalledTimes(1);
+    ).toBeNull();
   });
 
   it("任务中心场景应把专家信息按钮状态透传给统一工具栏", () => {
@@ -836,7 +809,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       showExpertInfoToggle: true,
       expertInfoPanelVisible: false,
       onToggleExpertInfoPanel,
@@ -877,7 +849,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       showHarnessToggle: true,
       harnessPanelVisible: false,
       onToggleHarnessPanel,
@@ -921,7 +892,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       rightSurfaceLaunchers,
     });
 
@@ -952,7 +922,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       rightSurfaceFilesOpen: true,
       onToggleRightSurfaceFiles,
       rightSurfaceLaunchers,
@@ -994,7 +963,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       rightSurfaceBrowserOpen: true,
       onToggleRightSurfaceBrowser,
       rightSurfaceLaunchers,
@@ -1041,7 +1009,6 @@ describe("WorkspaceConversationScene", () => {
       navbarVisible: true,
       navbarChrome: "workspace-compact",
       navbarContextVariant: "task-center",
-      taskCenterTabsNode: <div data-testid="task-center-tabs-stub">tabs</div>,
       projectRootPath: "/tmp/project",
       shellBottomInset: "12px",
       showHarnessToggle: true,

@@ -16,8 +16,6 @@ use model_provider::current_client::{
 use serde_json::Value;
 use std::collections::HashMap;
 
-const PROVIDER_TOOL_OUTPUT_MAX_BYTES: usize = 10_000;
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct ProviderRouteIdentity {
     provider: String,
@@ -1366,7 +1364,8 @@ mod tests {
     }
 
     #[test]
-    fn canonical_history_bounds_unoffloaded_inline_tool_output() {
+    fn canonical_history_keeps_inline_output_for_model_specific_sampling() {
+        let original = "x".repeat(20_000);
         let messages = messages_from_events(&[canonical_tool_event(
             1,
             "item.completed",
@@ -1375,7 +1374,7 @@ mod tests {
             "Read",
             json!({ "path": "large.txt" }),
             Some(ToolOutput {
-                text: Some("x".repeat(PROVIDER_TOOL_OUTPUT_MAX_BYTES * 2)),
+                text: Some(original.clone()),
                 ..ToolOutput::default()
             }),
         )]);
@@ -1383,8 +1382,7 @@ mod tests {
         let CurrentProviderContent::ToolResult(result) = &messages[0].content[0] else {
             panic!("expected tool result");
         };
-        assert!(result.output.len() < PROVIDER_TOOL_OUTPUT_MAX_BYTES * 2);
-        assert!(result.output.contains("Warning: truncated output"));
+        assert_eq!(result.output, original);
     }
 
     #[test]

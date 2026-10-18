@@ -36,13 +36,16 @@ export function CanvasWorkbenchChangesContent({
 }: CanvasWorkbenchChangesContentProps) {
   return (
     <div
+      data-testid="canvas-workbench-changes-content"
       className={cn(
-        "grid min-h-0 gap-0",
-        filesPanelOpen ? "grid-cols-[minmax(0,1fr)_252px]" : "grid-cols-1",
+        "grid min-h-0 min-w-0 gap-0",
+        filesPanelOpen
+          ? "grid-cols-[minmax(0,1fr)_min(60%,250px)]"
+          : "grid-cols-1",
       )}
       style={filesPanelGridStyle}
     >
-      <div className="relative min-h-0 overflow-hidden">
+      <div className="relative min-h-0 min-w-0 overflow-hidden">
         {filesPanelResizeHandle}
         {detail}
       </div>

@@ -43,7 +43,7 @@ export function useAgentChatWorkspaceCommandRuntime({
   const {
     onNavigate: _onNavigate, projectId: externalProjectId, contentId, initialSessionId, initialAutoSendRequestMetadata, autoRunInitialPromptOnMount, agentEntry,
     theme: initialTheme, initialCreationMode, lockTheme, showChatPanel, hideTopBar, topBarChrome, onWorkflowProgressChange, initialUserPrompt,
-    initialUserImages, initialSessionName, initialInputCapability, initialProjectFileOpenTarget, onInitialUserPromptConsumed, newChatAt, newConversationRequest, onStartNewConversation, onHasMessagesChange: _onHasMessagesChange,
+    initialUserImages, initialInputCapability, initialProjectFileOpenTarget, onInitialUserPromptConsumed, newChatAt, newConversationRequest, onStartNewConversation, onHasMessagesChange: _onHasMessagesChange,
   } = props;
   const resolvedAutoRunInitialPromptOnMount =
     autoRunInitialPromptOnMount ?? false;
@@ -54,7 +54,7 @@ export function useAgentChatWorkspaceCommandRuntime({
   const resolvedTopBarChrome = topBarChrome ?? "full";
   // prettier-ignore
   const {
-    t, untitledTaskLabel, taskCenterRenamePromptLabel, newConversationLabel, workspaceRenderT0, normalizedEntryTheme, defaultTopicSidebarVisible, shouldBootstrapCanvasOnEntry,
+    t, untitledTaskLabel, normalizedEntryTheme, defaultTopicSidebarVisible, shouldBootstrapCanvasOnEntry,
     shouldKeepNewTaskHomeSessionRestoreDisabled, localDisplayRuntime, activeTheme, layoutMode, runtimeInitialInputCapability, setCanvasWorkbenchLayoutMode, setEntryBannerVisible, setExpertInfoPanelCollapsed,
     setInput, setLayoutMode, showSidebar, activeSessionIdRef, deferSessionRecentMetadataSyncForNavigation, setChatToolPreferences, projectSelectionRuntime,
     projectId, runtimeWorkspaceId, shouldDisableSessionRestore, applyProjectSelection, taskCenterWorkspaceId, normalizedInitialSessionId, sessionRestorePresentation, shouldPreserveBlankHomeSurface, shouldUseBrowserWorkspaceHomeChrome,
@@ -266,9 +266,7 @@ export function useAgentChatWorkspaceCommandRuntime({
 
   const shellInteractionRuntime = useAgentChatWorkspaceShellInteractionRuntime({
     scope: commandWiring.compositionScope,
-    agentChatRuntime,
     localDisplayRuntime,
-    projectSelectionRuntime,
     contextSurfaceRuntime,
     artifactCanvasRuntime,
     imageWorkbenchSessionRuntime,
@@ -279,11 +277,7 @@ export function useAgentChatWorkspaceCommandRuntime({
     clearEntryPendingA2UI,
     generalCanvasState,
     hasPendingA2UIForm,
-    homeMountedAt: workspaceRenderT0.current,
     initialPendingServiceSkillLaunchSignature,
-    initialSessionName,
-    newConversationLabel,
-    renamePromptLabel: taskCenterRenamePromptLabel,
     sessionRestorePresentation,
     selectedFileId,
     shouldBootstrapCanvasOnEntry,
@@ -293,11 +287,9 @@ export function useAgentChatWorkspaceCommandRuntime({
     taskCenterWorkspaceId,
     taskFiles,
     onHasMessagesChange: _onHasMessagesChange,
-    untitledTaskLabel,
   });
   const {
     bootstrapPendingPreviewMessages,
-    browserWorkspaceHomeTabsNode,
     effectiveShowChatPanel,
     handleCanvasSelectionTextChange,
     handleCloseCanvas,
@@ -313,12 +305,10 @@ export function useAgentChatWorkspaceCommandRuntime({
     recentSessionTopic,
     resolvedCanvasState,
     shouldRenderTaskCenterEmbeddedHome,
-    shouldRenderTaskCenterTabStrip,
     shouldRestoreImageTasksFromWorkspace,
     shouldSuppressTaskCenterDraftContent,
     suppressHomeNavbarUtilityActions,
     taskCenterHomeSurfaceState,
-    taskCenterTabsNode,
   } = shellInteractionRuntime;
   const artifactInteractionRuntime =
     useAgentChatWorkspaceArtifactInteractionRuntime({
@@ -605,9 +595,9 @@ export function useAgentChatWorkspaceCommandRuntime({
     setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,
     imageWorkbenchActionRuntime, handleContinueGeneralWorkbenchEntryPrompt, handleRestartGeneralWorkbenchEntryPrompt, handleDocumentAutoContinueRun, handleArtifactBlockRewriteRun, handleDocumentContentReviewRun, handleDocumentTextStylizeRun, handleAddImage,
-    handleImportDocument, bootstrapPendingPreviewMessages, browserWorkspaceHomeTabsNode, handleCanvasSelectionTextChange, handleCloseCanvas, bindBeforeCanvasLeave,
-    handleOpenTaskTopic, handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRenderTaskCenterTabStrip, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
-    suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, taskCenterTabsNode, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
+    handleImportDocument, bootstrapPendingPreviewMessages, handleCanvasSelectionTextChange, handleCloseCanvas, bindBeforeCanvasLeave,
+    handleOpenTaskTopic, handleToggleCanvas, hasDisplayMessages, hasMessages, homePendingPreviewMessages, isTaskCenterDraftSendPending, recentSessionTopic, resolvedCanvasState, shouldRenderTaskCenterEmbeddedHome, shouldRestoreImageTasksFromWorkspace, shouldSuppressTaskCenterDraftContent,
+    suppressHomeNavbarUtilityActions, taskCenterHomeSurfaceState, bindArticleEditorRightSurface, bindRightSurfacePendingActions, handleCodeBlockClick,
     handleHarnessLoadFilePreview, handleOpenArtifactFromTimeline, handleOpenMessagePreview, handleOpenSavedSiteContent, handleOpenServiceSkillResultFile, handleOpenUrlPreview, handleSaveArtifactDocument, handleWorkspaceArtifactClick,
     handleWorkspaceFileClick, openProjectFilePreviewInCanvas, openWorkspaceArtifactInWorkbench, preferredServiceSkillResultFileTarget, renderArtifactWorkbenchToolbarActions, shouldCollapseCodeBlockInChat, shouldCollapseCodeBlocks, handleWriteFile,
     handleJumpToTimelineItem, serviceSkillExecutionCard, generalWorkbenchActivityLogs,

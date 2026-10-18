@@ -12,11 +12,8 @@ import {
   type WorkspaceRightSurfaceKind,
   type WorkspaceRightSurfaceState,
 } from "./right-surface";
+import { RightSurfaceTabStrip } from "./right-surface/RightSurfaceTabStrip";
 import { RightSurfaceBrowserPanel } from "./right-surface/browser/RightSurfaceBrowserPanel";
-import {
-  ThreadActivityPanel,
-  type ThreadActivityPanelProps,
-} from "./ThreadActivityPanel";
 
 type ArticleEditorRightSurfaceProps = ComponentProps<
   typeof WorkspaceArticleEditorRightSurface
@@ -30,6 +27,8 @@ type GeneralWorkbenchHarnessSurfaceProps = ComponentProps<
 type PluginSurfaceProps = ComponentProps<typeof WorkspacePluginSurface>;
 type ShellPanelProps = ComponentProps<typeof TaskCenterShellPanel>;
 export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
+  idPrefix: string;
+  onCloseRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
   activePluginSurfaceContainerId: string | null;
   articleActionsDisabled: boolean;
   articleEditorRightSurface:
@@ -57,7 +56,6 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   rightSurfaceState: WorkspaceRightSurfaceState;
   rightSurfaceTraceAvailable: boolean;
   rightSurfaceTraceEnabled: boolean;
-  activityPanelProps?: ThreadActivityPanelProps;
   runtimeWorkspaceId?: string | null;
   sceneSessionId?: string | null;
   sceneThreadId?: string | null;
@@ -74,6 +72,8 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
 }
 
 export function renderWorkspaceRightSurfaceHostRuntime({
+  idPrefix,
+  onCloseRightSurfaceTab,
   activePluginSurfaceContainerId,
   articleActionsDisabled,
   articleEditorRightSurface,
@@ -96,7 +96,6 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   rightSurfaceState,
   rightSurfaceTraceAvailable,
   rightSurfaceTraceEnabled,
-  activityPanelProps,
   runtimeWorkspaceId,
   sceneSessionId,
   sceneThreadId,
@@ -110,7 +109,10 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   onRightSurfaceBrowserNavigate,
   onSelectPluginSurface,
   onSelectRightSurfaceTab,
-}: RenderWorkspaceRightSurfaceHostRuntimeParams): ReactNode | null {
+}: RenderWorkspaceRightSurfaceHostRuntimeParams): {
+  content: ReactNode;
+  tabStrip: ReactNode;
+} {
   const rightSurfaceDefinitions = buildWorkspaceRightSurfaceDefinitions({
     expertInfo: () => <ExpertInfoPanel {...expertInfoPanelProps} />,
     ...(pluginSurfaceRightSurface
@@ -203,11 +205,6 @@ export function renderWorkspaceRightSurfaceHostRuntime({
           ),
         }
       : {}),
-    ...(activityPanelProps
-      ? {
-          activity: () => <ThreadActivityPanel {...activityPanelProps} />,
-        }
-      : {}),
     shell: () => (
       <TaskCenterShellPanel
         variant="surface"
@@ -221,12 +218,26 @@ export function renderWorkspaceRightSurfaceHostRuntime({
     (definition) => definition.kind === rightSurfaceState.activeSurface,
   );
 
-  return rightSurfaceState.activeSurface && hasActiveRightSurfaceDefinition ? (
-    <RightSurfaceHost
-      activeSurface={rightSurfaceState.activeSurface}
-      definitions={rightSurfaceDefinitions}
-      openSurfaces={rightSurfaceState.openSurfaces}
-      onSelectSurface={onSelectRightSurfaceTab}
-    />
-  ) : null;
+  const activeSurface = rightSurfaceState.activeSurface;
+  if (!activeSurface || !hasActiveRightSurfaceDefinition)
+    return { content: null, tabStrip: null };
+  return {
+    content: (
+      <RightSurfaceHost
+        activeSurface={activeSurface}
+        definitions={rightSurfaceDefinitions}
+        idPrefix={idPrefix}
+      />
+    ),
+    tabStrip: (
+      <RightSurfaceTabStrip
+        activeSurface={activeSurface}
+        definitions={rightSurfaceDefinitions}
+        openSurfaces={rightSurfaceState.openSurfaces}
+        onSelectSurface={onSelectRightSurfaceTab}
+        onCloseSurface={onCloseRightSurfaceTab}
+        idPrefix={idPrefix}
+      />
+    ),
+  };
 }

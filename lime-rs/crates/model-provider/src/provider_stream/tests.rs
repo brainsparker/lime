@@ -1256,6 +1256,7 @@ fn stream_request_carries_model_request_policy() {
                     parallel_tool_calls: false,
                 }),
                 None,
+                None,
             ));
 
     let policy = request.model_request_policy.as_ref().expect("policy");
@@ -1283,6 +1284,7 @@ fn stream_request_projects_responses_lite_wire_shape() {
                     supports_parallel_tool_calls: true,
                     parallel_tool_calls: false,
                 }),
+                None,
                 None,
             ));
 
@@ -1328,6 +1330,7 @@ fn stream_request_accepts_responses_lite_wire_for_current_backend() {
         }),
         None,
         None,
+        None,
     ));
 
     assert_eq!(
@@ -1345,6 +1348,7 @@ fn model_policy_keeps_parallel_tool_calls_fail_closed_without_explicit_support()
             supports_parallel_tool_calls: false,
             parallel_tool_calls: true,
         }),
+        None,
         None,
     )
     .expect("tool policy");
@@ -1374,6 +1378,7 @@ fn stream_request_accepts_responses_lite_wire_for_openai_responses_compat() {
         }),
         None,
         None,
+        None,
     ));
 
     assert!(request.provider_request_wire_support_issue().is_none());
@@ -1400,6 +1405,7 @@ fn stream_request_rejects_responses_lite_wire_for_chat_compat() {
             parallel_tool_calls_allowed: false,
             requires_responses_lite_header: true,
         }),
+        None,
         None,
         None,
     ));
@@ -1440,6 +1446,7 @@ fn stream_request_projects_plain_responses_parallel_tool_calls_without_lite_head
                     parallel_tool_calls: true,
                 }),
                 None,
+                None,
             ));
 
     let wire_shape = request.provider_request_wire_shape();
@@ -1464,6 +1471,7 @@ fn stream_request_projects_reasoning_output_wire_shape() {
                     default_verbosity: Some("low".to_string()),
                     can_set_verbosity: true,
                 }),
+                None,
             ));
 
     let wire_shape = request.provider_request_wire_shape();
@@ -1485,6 +1493,7 @@ fn reasoning_output_wire_shape_omits_none_summary_and_unsupported_verbosity() {
                     default_verbosity: Some("high".to_string()),
                     can_set_verbosity: false,
                 }),
+                None,
             ));
 
     let wire_shape = request.provider_request_wire_shape();

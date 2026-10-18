@@ -76,6 +76,71 @@ afterEach(() => {
 });
 
 describe("Command wiring keeps Composer scope in the visible workspace", () => {
+  it("keeps a forked child editable after the initial parent route was hydrated", async () => {
+    const fixture = await setup();
+    const parent = { workspaceId: "w", kind: "local" as const, id: "parent" };
+    const child = { ...parent, id: "child" };
+    fixture.seed(parent, "parent unsent draft");
+    let current!: ReturnType<typeof useAgentChatWorkspaceCommandWiring>;
+    let select!: (id: string) => void;
+    let route!: (id: string) => void;
+    function Surface() {
+      const [sessionId, setSessionId] = useState(parent.id);
+      const [initialSessionId, setInitialSessionId] = useState(parent.id);
+      select = setSessionId;
+      route = setInitialSessionId;
+      current = useAgentChatWorkspaceCommandWiring({
+        scope: {
+          composerController: fixture.controller,
+          taskCenterWorkspaceId: "w",
+          sessionId,
+          normalizedInitialSessionId: initialSessionId,
+          projectSelectionSource: "manual",
+        } as AgentChatWorkspaceCommandScope,
+        navigationProjectId: "w",
+        trayActiveTheme: "general",
+        consumePendingSkill: vi.fn(),
+        pendingSkillKey: undefined,
+        sceneGateResumeHandlerRef: { current: async () => false },
+        composerDraftTitle: "Draft",
+      });
+      return (
+        <output>{String(current.composerDraft.composerDraftRestoring)}</output>
+      );
+    }
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    roots.push({ root, host });
+    await act(async () => root.render(<Surface />));
+    expect(current.composerDraft.composerDraftRestoring).toBe(false);
+    const navigate = async (scope: typeof parent) => {
+      const options = navigation.capture.mock.lastCall![0] as Parameters<
+        typeof useWorkspaceTaskCenterNavigationRuntime
+      >[0];
+      const epoch = current.composerDraft.getComposerDraftNavigationEpoch();
+      await act(async () => {
+        select(scope.id);
+        options.onAfterTopicSwitch?.(scope.id, scope.workspaceId, epoch);
+      });
+      expect(current.composerDraft.composerDraftStatus?.scope).toEqual(scope);
+      expect(current.composerDraft.composerDraftRestoring).toBe(false);
+    };
+    await navigate(child);
+    expect(fixture.controller.getDocument().text).toBe("");
+    act(() => fixture.controller.setText("child unsent draft"));
+    await navigate(parent);
+    expect(fixture.controller.getDocument().text).toBe("parent unsent draft");
+    await navigate(child);
+    expect(fixture.controller.getDocument().text).toBe("child unsent draft");
+    await act(async () => route("another-route"));
+    expect(current.composerDraft.composerDraftRestoring).toBe(true);
+    expect(fixture.controller.getDocument().text).toBe("child unsent draft");
+    await act(async () => route(parent.id));
+    expect(current.composerDraft.composerDraftRestoring).toBe(true);
+  });
+
   async function mountSend(submit: () => Promise<RuntimeSubmissionResult>) {
     const fixture = await setup();
     const home = {

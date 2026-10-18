@@ -3,7 +3,7 @@ use app_server_protocol::protocol::v2::{
     MarketplaceInterface, PluginShareDiscoverability, PluginSummary,
 };
 use std::collections::BTreeMap;
-use wire::Directory;
+use wire::{Directory, Scope};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum Collection {
@@ -31,41 +31,42 @@ impl Collection {
         }
     }
 
-    pub(super) async fn load(
+    pub(super) fn project(
         self,
-        context: &Context<'_>,
-        local: &BTreeMap<String, PluginSummary>,
-    ) -> Result<Vec<PluginMarketplaceEntry>, RuntimeCoreError> {
-        let items = context.directory(self).await?;
+        items: Vec<Item>,
+        snapshot: &[crate::plugin_remote::Installed],
+    ) -> Vec<PluginMarketplaceEntry> {
+        let mut installed = snapshot
+            .iter()
+            .filter(|row| row.plugin.scope == self.scope())
+            .map(|row| (row.plugin.id.as_str(), row))
+            .collect::<BTreeMap<_, _>>();
         if self != Self::Shared {
-            let plugins = items
+            let mut plugins = items
                 .into_iter()
                 .map(|item| {
-                    let mut summary = item.summary();
-                    apply_installation(&mut summary, local);
-                    summary
+                    let row = installed.remove(item.id.as_str());
+                    item.summary_with_installation(row)
                 })
-                .collect();
-            return Ok(vec![marketplace(
+                .collect::<Vec<_>>();
+            if self == Self::Global {
+                plugins.extend(
+                    installed
+                        .into_values()
+                        .map(|row| row.plugin.summary_with_installation(Some(row))),
+                );
+            }
+            if plugins.is_empty() {
+                return Vec::new();
+            }
+            return vec![marketplace(
                 self.scope().marketplace(),
                 self.scope().display_name(),
                 plugins,
-            )]);
+            )];
         }
 
         // A fresh installed snapshot distinguishes explicit sharing from link installations.
-        let mut installed = BTreeMap::new();
-        for row in context.installed().await? {
-            if row.plugin.scope != Scope::Workspace {
-                continue;
-            }
-            let mut summary = row.plugin.summary();
-            summary.installed = true;
-            summary.enabled = row.enabled;
-            summary.installed_at = row.installed_at.map(|time| time.timestamp_millis());
-            apply_installation(&mut summary, local);
-            installed.insert(row.plugin.id, summary);
-        }
         let shared_ids = items
             .iter()
             .map(|item| item.id.clone())
@@ -73,30 +74,15 @@ impl Collection {
         let directly_shared = items
             .into_iter()
             .filter(|item| item.discoverability != PluginShareDiscoverability::Listed)
-            .map(|item| {
-                let mut summary = item.summary();
-                if let Some(installed) = installed.get(&item.id) {
-                    if installed.id == summary.id {
-                        summary.installed = true;
-                        summary.enabled = installed.enabled;
-                        summary.installed_at = installed.installed_at;
-                        summary.local_version = installed.local_version.clone();
-                    }
-                }
-                summary
-            })
+            .map(|item| item.summary_with_installation(installed.get(item.id.as_str()).copied()))
             .collect::<Vec<_>>();
         let link_installed = installed
             .into_iter()
-            .filter(|(id, summary)| {
-                !shared_ids.contains(id)
-                    && summary
-                        .share_context
-                        .as_ref()
-                        .and_then(|context| context.discoverability)
-                        == Some(PluginShareDiscoverability::Unlisted)
+            .filter(|(id, row)| {
+                !shared_ids.contains(*id)
+                    && row.plugin.discoverability == PluginShareDiscoverability::Unlisted
             })
-            .map(|(_, summary)| summary)
+            .map(|(_, row)| row.plugin.summary_with_installation(Some(row)))
             .collect::<Vec<_>>();
         let mut entries = Vec::new();
         if !directly_shared.is_empty() {
@@ -113,12 +99,15 @@ impl Collection {
                 link_installed,
             ));
         }
-        Ok(entries)
+        entries
     }
 }
 
 impl Context<'_> {
-    async fn directory(&self, collection: Collection) -> Result<Vec<Item>, RuntimeCoreError> {
+    pub(super) async fn directory(
+        &self,
+        collection: Collection,
+    ) -> Result<Vec<Item>, RuntimeCoreError> {
         let mut items = Vec::new();
         let mut ids = BTreeSet::new();
         let mut keys = BTreeSet::new();

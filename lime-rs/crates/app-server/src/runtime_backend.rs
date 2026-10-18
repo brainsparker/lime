@@ -3,6 +3,7 @@ mod agent_skills_context;
 mod agent_skills_telemetry;
 mod coding_events;
 pub(crate) mod command_events;
+mod context_compaction;
 mod event_mapper;
 mod execution_backend;
 mod image_command;

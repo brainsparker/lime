@@ -120,6 +120,8 @@ pub(super) fn upsert_context_compaction_item(
     let id = context_compaction_id(&event.payload).unwrap_or_else(|| event.event_id.clone());
     let status = match event.event_type.as_str() {
         "context.compaction.started" => "in_progress",
+        "context.compaction.failed" => "failed",
+        "context.compaction.canceled" => "interrupted",
         _ => "completed",
     };
     let entry = items
@@ -135,11 +137,14 @@ pub(super) fn upsert_context_compaction_item(
         "stage",
         string_field(&event.payload, &["stage"])
             .or_else(|| {
-                Some(if status == "completed" {
-                    "completed".to_string()
-                } else {
-                    "started".to_string()
-                })
+                Some(
+                    if status == "in_progress" {
+                        "started"
+                    } else {
+                        status
+                    }
+                    .to_string(),
+                )
             })
             .map(Value::String),
     );

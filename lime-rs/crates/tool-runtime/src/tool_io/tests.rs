@@ -229,7 +229,7 @@ fn build_tool_io_history_eviction_plan_should_skip_when_under_trigger() {
 #[test]
 fn token_policy_formats_large_output_with_codex_style_warning() {
     let output = "alpha beta gamma delta epsilon zeta eta theta iota kappa";
-    let formatted = format_tool_output_for_model(output, ToolOutputTruncationPolicy::Tokens(4));
+    let formatted = format_tool_output_for_model(output, TruncationPolicy::Tokens(4));
 
     assert!(formatted.starts_with("Warning: truncated output (original token count:"));
     assert!(formatted.contains("Total output lines: 1"));
@@ -243,19 +243,39 @@ fn token_policy_keeps_small_output_unchanged() {
     let output = "small output";
 
     assert_eq!(
-        format_tool_output_for_model(output, ToolOutputTruncationPolicy::Tokens(64)),
+        format_tool_output_for_model(output, TruncationPolicy::Tokens(64)),
         output
     );
 }
 
 #[test]
 fn byte_policy_preserves_utf8_boundaries() {
-    let formatted = format_tool_output_for_model(
-        "你好，世界。hello world",
-        ToolOutputTruncationPolicy::Bytes(18),
-    );
+    let formatted =
+        format_tool_output_for_model("你好，世界。hello world", TruncationPolicy::Bytes(18));
 
     assert!(formatted.contains("chars truncated"));
     assert!(formatted.contains("你好"));
     assert!(formatted.contains("world"));
+}
+
+#[test]
+fn history_budget_has_no_warning_header_and_uses_provider_neutral_tokens() {
+    assert_eq!(
+        truncate_tool_output("abcdefghijklmnopqrst", TruncationPolicy::Tokens(2)),
+        "abcd…3 tokens truncated…qrst"
+    );
+    assert_eq!(
+        truncate_tool_output("你好世界", TruncationPolicy::Bytes(0)),
+        "…4 chars truncated…"
+    );
+    assert_eq!(
+        TruncationPolicy::Bytes(101).with_serialization_allowance(),
+        TruncationPolicy::Bytes(122)
+    );
+    assert_eq!(
+        TruncationPolicy::Tokens(usize::MAX)
+            .with_serialization_allowance()
+            .byte_budget(),
+        usize::MAX
+    );
 }

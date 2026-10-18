@@ -1,4 +1,5 @@
 import path from "node:path";
+import { waitForPageCondition } from "../electron/mcp-config-fixture-smoke.mjs";
 import {
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST,
@@ -16,7 +17,6 @@ const RIGHT_SURFACE_ROOTS = {
   browser: "right-surface-browser-panel",
   files: "workspace-files-surface",
   articleWorkspace: "workspace-article-editor-surface",
-  activity: "thread-activity-panel",
 };
 
 export async function runRightSurfaceVisualMatrix({
@@ -92,12 +92,6 @@ export async function runRightSurfaceVisualMatrix({
         threadId: captures.browser.stable.browserSurface.threadId,
       },
     );
-    captures.activity = await clickAndAssertRightSurface(page, options, {
-      surfaceKind: "activity",
-      toggleTestId: "task-center-activity-toggle",
-      rootTestId: RIGHT_SURFACE_ROOTS.activity,
-      requireCanvasPanelFill: false,
-    });
   } catch (error) {
     const toolbarAfterFailure = await captureRightSurfaceToolbarDiagnostics(
       page,
@@ -141,34 +135,144 @@ export async function runRightSurfaceVisualMatrix({
   });
 }
 
-export async function runThreadActivityPanelSmoke({
-  page,
-  options,
-  sessionId,
-}) {
-  const toggle = await waitForRightSurfaceToggle(
+export async function runThreadSummaryPanelSmoke({ page, options, sessionId }) {
+  const toggle = page.getByTestId("thread-workspace-summary-toggle");
+  const editor = page.getByTestId("composer-editor");
+  await page.setViewportSize({ width: 2100, height: 1000 });
+  await toggle.waitFor({ state: "visible", timeout: options.timeoutMs });
+  await page.waitForFunction(
+    () =>
+      !document.querySelector('[data-testid="thread-workspace-summary-toggle"]')
+        ?.disabled,
+  );
+  await page.getByTestId("thread-summary-inline").waitFor({ state: "visible" });
+  const editorHandle = await editor.elementHandle();
+  const draft = "Summary keeps the unsent canonical draft";
+  await editor.fill(draft);
+  const capture = async (name) => {
+    const snapshot = await page.evaluate(() => {
+      const layout = document.querySelector(
+        '[data-testid="thread-summary-layout"]',
+      );
+      const trigger = document.querySelector(
+        '[data-testid="thread-workspace-summary-toggle"]',
+      );
+      return {
+        mode: layout?.getAttribute("data-summary-mode"),
+        width: layout?.getBoundingClientRect().width,
+        contentTransform:
+          layout?.firstElementChild &&
+          getComputedStyle(layout.firstElementChild).transform,
+        inlineVisible: Boolean(
+          document.querySelector('[data-testid="thread-summary-inline"]'),
+        ),
+        popoverVisible: Boolean(
+          document.querySelector('[data-testid="thread-summary-popover"]'),
+        ),
+        pressed: trigger?.getAttribute("aria-pressed"),
+        panelCount: document.querySelectorAll(
+          '[data-testid="thread-summary-panel"]',
+        ).length,
+        draft: document.querySelector('[data-testid="composer-editor"]')
+          ?.textContent,
+        rightSurface:
+          document
+            .querySelector('[data-testid="workspace-right-surface-host"]')
+            ?.getAttribute("data-surface") ?? null,
+      };
+    });
+    const screenshot = path.join(
+      options.evidenceDir,
+      `${options.prefix}-${name}.png`,
+    );
+    await page.screenshot({ path: screenshot });
+    assert(
+      await editorHandle.evaluate((node) => node.isConnected),
+      "Summary replaced the editor instance",
+    );
+    assert(snapshot.draft === draft, "Summary changed the unsent draft");
+    assert(snapshot.panelCount <= 1, "Summary mounted duplicate panels");
+    return { ...snapshot, screenshot };
+  };
+  const gutter = await capture("summary-gutter");
+  assert(
+    gutter.mode === "gutter" && gutter.inlineVisible,
+    "Summary gutter layout missing",
+  );
+  await page.setViewportSize({ width: 1600, height: 1000 });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="thread-summary-layout"]')
+        ?.getAttribute("data-summary-mode") === "shift",
+  );
+  const shift = await capture("summary-shift");
+  assert(
+    shift.contentTransform === "matrix(1, 0, 0, 1, -154, 0)",
+    "Summary content shift differs from shipped contract",
+  );
+  await toggle.click();
+  await page
+    .getByTestId("thread-summary-inline")
+    .waitFor({ state: "detached" });
+  const unpinned = await capture("summary-unpinned");
+  const key = "app-shell-summary-panel-pinned";
+  const pinReceipt = await waitForPageCondition(
     page,
     options,
-    "task-center-activity-toggle",
+    async ({ atomKey }) => {
+      const result = await window.electronAPI.invoke("persisted_atom_read", {
+        key: atomKey,
+        query: { kind: "value" },
+      });
+      return result.key === atomKey &&
+        result.outcome === "ready" &&
+        result.data.value === false &&
+        result.persistence.state === "saved"
+        ? result
+        : false;
+    },
+    "Summary pin did not reach saved Main state",
+    { atomKey: key },
   );
-  await clickRightSurfaceToggle(page, "task-center-activity-toggle");
-  const opened = await waitForRightSurfaceSnapshot(page, options, {
-    activeSurfaceKind: "activity",
-    requireCanvasPanelFill: false,
-    surfaceKind: "activity",
-    rootTestId: RIGHT_SURFACE_ROOTS.activity,
-  });
-  await sleep(1_000);
-  const stable = await captureRightSurfaceSnapshot(page, {
-    activeSurfaceKind: "activity",
-    surfaceKind: "activity",
-    rootTestId: RIGHT_SURFACE_ROOTS.activity,
-  });
-  assertRightSurfaceSnapshot(stable, "activity", "activity", false);
+  // Drafts share this revision; preserve the saved observation before another edit.
+  await page.setViewportSize({ width: 800, height: 700 });
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('[data-testid="thread-summary-layout"]')
+        ?.getAttribute("data-summary-mode") === "overlay",
+  );
+  await toggle.click();
+  await page
+    .getByTestId("thread-summary-popover")
+    .waitFor({ state: "visible" });
+  const overlay = await capture("summary-overlay");
+  await page.keyboard.press("Escape");
+  await page
+    .getByTestId("thread-summary-popover")
+    .waitFor({ state: "detached" });
+  const focusRestored = await toggle.evaluate(
+    (node) => node === document.activeElement,
+  );
+  assert(focusRestored, "Summary Escape did not restore trigger focus");
+  assert(
+    overlay.rightSurface === null,
+    "Summary used the retired Right Surface owner",
+  );
   return sanitizeJson({
-    activityOnly: true,
     sessionId,
-    captures: { activity: { toggle, opened, stable } },
+    captures: {
+      summary: {
+        gutter,
+        shift,
+        unpinned,
+        overlay,
+        pinReceipt,
+        focusRestored,
+        sameEditor: await editorHandle.evaluate((node) => node.isConnected),
+      },
+    },
   });
 }
 

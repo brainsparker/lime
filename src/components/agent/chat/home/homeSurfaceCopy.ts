@@ -3,14 +3,8 @@ import type { LimeSkinHomeCopy } from "@/lib/appearance/skinContent";
 export type HomeSurfaceCopyKey =
   | "agentChat.home.composer.placeholder"
   | "agentChat.home.composer.pathReferenceFallbackPrompt"
-  | "agentChat.home.composer.advancedSettings.label"
-  | "agentChat.home.composer.advancedSettings.expand"
-  | "agentChat.home.composer.advancedSettings.collapse"
-  | "agentChat.home.composer.currentModel.label"
-  | "agentChat.home.composer.currentModel.title"
   | "agentChat.home.composer.fileManager.open"
   | "agentChat.home.composer.fileManager.close"
-  | "agentChat.home.composer.creationMode.label"
   | "agentChat.inputbar.plusMenu.open"
   | "agentChat.inputbar.plusMenu.addFiles"
   | "agentChat.inputbar.plusMenu.attachKnowledge"
@@ -62,15 +56,6 @@ export interface HomeSurfaceToastCopy {
 }
 
 export interface HomeSurfaceComposerCopy {
-  advancedSettings: {
-    label: string;
-    expand: string;
-    collapse: string;
-  };
-  currentModel: {
-    label: string;
-    title: (model: string) => string;
-  };
   fileManager: {
     open: string;
     close: string;
@@ -94,9 +79,6 @@ export interface HomeSurfaceComposerCopy {
     skillPrefix: string;
     selectorTitle: string;
     unavailable: string;
-  };
-  creationMode: {
-    label: string;
   };
 }
 
@@ -130,18 +112,6 @@ export function buildHomeSurfaceCopy(
       "agentChat.home.composer.pathReferenceFallbackPrompt",
     ),
     composer: {
-      advancedSettings: {
-        label: translate("agentChat.home.composer.advancedSettings.label"),
-        expand: translate("agentChat.home.composer.advancedSettings.expand"),
-        collapse: translate(
-          "agentChat.home.composer.advancedSettings.collapse",
-        ),
-      },
-      currentModel: {
-        label: translate("agentChat.home.composer.currentModel.label"),
-        title: (model) =>
-          translate("agentChat.home.composer.currentModel.title", { model }),
-      },
       fileManager: {
         open: translate("agentChat.home.composer.fileManager.open"),
         close: translate("agentChat.home.composer.fileManager.close"),
@@ -168,9 +138,6 @@ export function buildHomeSurfaceCopy(
         skillPrefix: translate("agentChat.inputbar.pluginChip.skillPrefix"),
         selectorTitle: translate("agentChat.inputbar.pluginChip.selectorTitle"),
         unavailable: translate("agentChat.inputbar.pluginChip.unavailable"),
-      },
-      creationMode: {
-        label: translate("agentChat.home.composer.creationMode.label"),
       },
     },
     toast: {

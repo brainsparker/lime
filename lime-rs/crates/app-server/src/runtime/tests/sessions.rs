@@ -404,7 +404,7 @@ async fn compact_thread_writes_session_context_artifact() {
         .read_text(relative_path)
         .expect("sidecar content");
     assert!(sidecar.contains("\"schema\": \"session_context_compaction.v2\""));
-    assert!(sidecar.contains("No earlier turns were removed"));
+    assert!(sidecar.contains("Explicit test backend compaction summary"));
     assert!(!sidecar.contains("请总结上下文"));
 
     let read = core

@@ -125,6 +125,7 @@ pub(crate) fn canonical_tool_item_event(
     let (mut status, output) = match output {
         Some(output) => {
             let NormalizedToolOutput {
+                history_token_limit,
                 success,
                 text,
                 structured_content,
@@ -146,6 +147,14 @@ pub(crate) fn canonical_tool_item_event(
                 .and_then(Value::as_str)
                 == Some(tool_runtime::tool_result_projection::TOOL_OUTCOME_ABORTED);
             metadata.extend(output_metadata);
+            // Only the typed host field can supply this reserved history attribute.
+            metadata.remove(agent_protocol::truncation::HISTORY_TOKEN_LIMIT_KEY);
+            if let Some(limit) = history_token_limit {
+                metadata.insert(
+                    agent_protocol::truncation::HISTORY_TOKEN_LIMIT_KEY.to_string(),
+                    Value::from(limit),
+                );
+            }
             metadata.insert("success".to_string(), Value::Bool(success));
             metadata.insert("duration_ms".to_string(), Value::from(duration_ms));
             if let Some(truncation) = truncation.as_ref() {

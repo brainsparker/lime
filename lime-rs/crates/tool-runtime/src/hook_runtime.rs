@@ -13,6 +13,8 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::process::Command;
 
+mod stop;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookLifecyclePhase {
     Started,
@@ -75,7 +77,7 @@ impl RuntimeHookReporter for CommandHookReporter {
         let context = context.clone();
         Box::pin(async move {
             let hook = hook?;
-            let mut run = running_summary(snapshot, context.tool_call_id.as_deref());
+            let mut run = running_summary(snapshot, &context);
             emitter.emit(HookLifecycleEvent {
                 phase: HookLifecyclePhase::Started,
                 turn_id: context.turn_id.clone(),
@@ -88,12 +90,12 @@ impl RuntimeHookReporter for CommandHookReporter {
                 tokio::spawn(async move {
                     let started = Instant::now();
                     let output = run_command_hook(&hook, &context).await;
-                    let report = limit_report_context(&hook, report_from_output(&hook, &output));
+                    let CommandHookReport { report, entries } = command_report(&hook, &output);
                     run.status = status_for_report(&report);
                     run.completed_at = Some(chrono::Utc::now().timestamp());
                     run.duration_ms =
                         Some(started.elapsed().as_millis().min(i64::MAX as u128) as i64);
-                    run.entries = entries_for_report(&report);
+                    run.entries = entries;
                     emitter.emit(HookLifecycleEvent {
                         phase: HookLifecyclePhase::Completed,
                         turn_id,
@@ -110,12 +112,12 @@ impl RuntimeHookReporter for CommandHookReporter {
 
             let started = Instant::now();
             let output = run_command_hook(&hook, &context).await;
-            let report = limit_report_context(&hook, report_from_output(&hook, &output));
+            let CommandHookReport { report, entries } = command_report(&hook, &output);
             let completed_at = chrono::Utc::now().timestamp();
             run.status = status_for_report(&report);
             run.completed_at = Some(completed_at);
             run.duration_ms = Some(started.elapsed().as_millis().min(i64::MAX as u128) as i64);
-            run.entries = entries_for_report(&report);
+            run.entries = entries;
             emitter.emit(HookLifecycleEvent {
                 phase: HookLifecyclePhase::Completed,
                 turn_id: context.turn_id.clone(),
@@ -126,12 +128,12 @@ impl RuntimeHookReporter for CommandHookReporter {
     }
 }
 
-fn running_summary(snapshot: &RuntimeHookSnapshot, tool_call_id: Option<&str>) -> HookRunSummary {
-    let id = tool_call_id
-        .map(|tool_call_id| format!("{}:{tool_call_id}", snapshot.run_id()))
-        .unwrap_or_else(|| snapshot.run_id());
+fn running_summary(
+    snapshot: &RuntimeHookSnapshot,
+    context: &RuntimeHookEventContext,
+) -> HookRunSummary {
     HookRunSummary {
-        id,
+        id: context.run_id(snapshot),
         event_name: snapshot.event_name,
         handler_type: snapshot.handler_type,
         execution_mode: snapshot.execution_mode,
@@ -171,7 +173,9 @@ fn entries_for_report(report: &RuntimeHookHandlerReport) -> Vec<HookOutputEntry>
             kind: HookOutputEntryKind::Feedback,
             text: reason.clone(),
         }],
-        RuntimeHookHandlerReport::Abort { reason } => vec![HookOutputEntry {
+        RuntimeHookHandlerReport::Abort {
+            reason: Some(reason),
+        } => vec![HookOutputEntry {
             kind: HookOutputEntryKind::Stop,
             text: reason.clone(),
         }],
@@ -182,8 +186,23 @@ fn entries_for_report(report: &RuntimeHookHandlerReport) -> Vec<HookOutputEntry>
         RuntimeHookHandlerReport::Allow {
             additional_context: None,
         }
+        | RuntimeHookHandlerReport::Abort { reason: None }
         | RuntimeHookHandlerReport::Rewrite { .. } => Vec::new(),
     }
+}
+
+struct CommandHookReport {
+    report: RuntimeHookHandlerReport,
+    entries: Vec<HookOutputEntry>,
+}
+
+fn command_report(hook: &DiscoveredHook, output: &HookCommandOutput) -> CommandHookReport {
+    if stop::is_stop(hook.snapshot.event_name) {
+        return stop::parse_output(hook, output);
+    }
+    let report = limit_report_context(hook, report_from_output(hook, output));
+    let entries = entries_for_report(&report);
+    CommandHookReport { report, entries }
 }
 
 fn limit_report_context(
@@ -310,7 +329,11 @@ pub async fn run_command_hook(
     }
     let shell = resolve_command_shell();
     let shell_flag = shell_command_flag(&shell);
-    let context_json = command_input(hook, context).to_string();
+    let context_json = match command_input(hook, context) {
+        Ok(input) => input.to_string(),
+        Err(error) => return failed_output(error),
+    };
+    let timeout_started = Instant::now();
     let child = Command::new(&shell)
         .arg(shell_flag)
         .arg(command)
@@ -325,26 +348,39 @@ pub async fn run_command_hook(
         Ok(child) => child,
         Err(error) => return failed_output(format!("hook spawn failed: {error}")),
     };
-    if let Some(mut stdin) = child.stdin.take() {
+    let stdin = child.stdin.take();
+    let write_stdin = async {
         use tokio::io::AsyncWriteExt;
-        if let Err(error) = stdin.write_all(context_json.as_bytes()).await {
-            return failed_output(format!("hook stdin write failed: {error}"));
+        if let Some(mut stdin) = stdin {
+            if let Err(error) = stdin.write_all(context_json.as_bytes()).await {
+                if error.kind() != std::io::ErrorKind::BrokenPipe {
+                    return Err(format!("hook stdin write failed: {error}"));
+                }
+            }
         }
-    }
+        Ok(())
+    };
+    let wait_with_output = async {
+        child
+            .wait_with_output()
+            .await
+            .map_err(|error| format!("hook wait failed: {error}"))
+    };
+    // Drain output concurrently and include blocked stdin writes in the same deadline.
     match tokio::time::timeout(
-        Duration::from_secs(hook.snapshot.timeout_sec),
-        child.wait_with_output(),
+        Duration::from_secs(hook.snapshot.timeout_sec).saturating_sub(timeout_started.elapsed()),
+        futures::future::try_join(write_stdin, wait_with_output),
     )
     .await
     {
-        Ok(Ok(output)) => HookCommandOutput {
+        Ok(Ok(((), output))) => HookCommandOutput {
             success: output.status.success(),
             exit_code: output.status.code(),
             stdout: String::from_utf8_lossy(&output.stdout).into_owned(),
             stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
             timed_out: false,
         },
-        Ok(Err(error)) => failed_output(format!("hook wait failed: {error}")),
+        Ok(Err(error)) => failed_output(error),
         Err(_) => HookCommandOutput {
             success: false,
             exit_code: None,
@@ -365,7 +401,13 @@ fn failed_output(message: impl Into<String>) -> HookCommandOutput {
     }
 }
 
-fn command_input(hook: &DiscoveredHook, context: &RuntimeHookEventContext) -> serde_json::Value {
+fn command_input(
+    hook: &DiscoveredHook,
+    context: &RuntimeHookEventContext,
+) -> Result<serde_json::Value, String> {
+    if stop::is_stop(hook.snapshot.event_name) {
+        return stop::command_input(hook.snapshot.event_name, context);
+    }
     let tool_input = context
         .tool_arguments
         .as_deref()
@@ -376,7 +418,7 @@ fn command_input(hook: &DiscoveredHook, context: &RuntimeHookEventContext) -> se
         .as_deref()
         .and_then(|output| serde_json::from_str(output).ok())
         .unwrap_or(serde_json::Value::Null);
-    serde_json::json!({
+    Ok(serde_json::json!({
         "session_id": context.session_id,
         "turn_id": context.turn_id,
         "cwd": context.working_directory,
@@ -385,7 +427,7 @@ fn command_input(hook: &DiscoveredHook, context: &RuntimeHookEventContext) -> se
         "tool_input": tool_input,
         "tool_response": tool_response,
         "tool_use_id": context.tool_call_id,
-    })
+    }))
 }
 
 fn event_config_label(event_name: RuntimeHookEventName) -> &'static str {
@@ -408,6 +450,9 @@ pub fn report_from_output(
     hook: &DiscoveredHook,
     output: &HookCommandOutput,
 ) -> RuntimeHookHandlerReport {
+    if stop::is_stop(hook.snapshot.event_name) {
+        return stop::parse_output(hook, output).report;
+    }
     if output.exit_code == Some(2) {
         let reason = non_empty(Some(output.stderr.clone())).unwrap_or_else(|| {
             format!(
@@ -444,7 +489,9 @@ pub fn report_from_output(
     if payload.continue_processing == Some(false) {
         let reason =
             non_empty(payload.stop_reason).unwrap_or_else(|| "hook stopped execution".to_string());
-        return RuntimeHookHandlerReport::Abort { reason };
+        return RuntimeHookHandlerReport::Abort {
+            reason: Some(reason),
+        };
     }
     if payload.decision.as_deref() == Some("block") {
         let reason =
@@ -500,274 +547,4 @@ fn non_empty(value: Option<String>) -> Option<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::turn_snapshot::{
-        RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSource, RuntimeHookTrustStatus,
-    };
-    use std::path::PathBuf;
-    use std::sync::Mutex;
-
-    fn discovered(command: &str, timeout_sec: u64) -> DiscoveredHook {
-        DiscoveredHook {
-            snapshot: RuntimeHookSnapshot {
-                key: "project:pre_tool_use:0:0".to_string(),
-                event_name: RuntimeHookEventName::PreToolUse,
-                handler_type: RuntimeHookHandlerType::Command,
-                execution_mode: RuntimeHookExecutionMode::Sync,
-                matcher: None,
-                command: Some(command.to_string()),
-                timeout_sec,
-                status_message: Some("checking".to_string()),
-                additional_context_limit: None,
-                source_path: PathBuf::from("/tmp/hooks.json"),
-                source: RuntimeHookSource::Project,
-                plugin_id: None,
-                display_order: 0,
-                enabled: true,
-                is_managed: false,
-                current_hash: "sha256:test".to_string(),
-                trust_status: RuntimeHookTrustStatus::Trusted,
-            },
-            executable: true,
-            env: Default::default(),
-        }
-    }
-
-    #[tokio::test]
-    async fn plugin_environment_is_scoped_to_the_hook_process() {
-        let command = match shell_command_flag(&resolve_command_shell()) {
-            "/C" => "echo %PLUGIN_ROOT%& echo %PLUGIN_DATA%& echo %CLAUDE_PLUGIN_ROOT%& echo %CLAUDE_PLUGIN_DATA%",
-            "-Command" => "$env:PLUGIN_ROOT; $env:PLUGIN_DATA; $env:CLAUDE_PLUGIN_ROOT; $env:CLAUDE_PLUGIN_DATA",
-            _ => "printf '%s\\n' \"$PLUGIN_ROOT\" \"$PLUGIN_DATA\" \"$CLAUDE_PLUGIN_ROOT\" \"$CLAUDE_PLUGIN_DATA\"",
-        };
-        let mut hook = discovered(command, 5);
-        hook.env = std::collections::BTreeMap::from([
-            (
-                "PLUGIN_ROOT".to_string(),
-                "plugin root with spaces".to_string(),
-            ),
-            (
-                "PLUGIN_DATA".to_string(),
-                "plugin data with spaces".to_string(),
-            ),
-            (
-                "CLAUDE_PLUGIN_ROOT".to_string(),
-                "plugin root with spaces".to_string(),
-            ),
-            (
-                "CLAUDE_PLUGIN_DATA".to_string(),
-                "plugin data with spaces".to_string(),
-            ),
-        ]);
-        let previous = std::env::var_os("PLUGIN_ROOT");
-        let output = run_command_hook(&hook, &context()).await;
-        assert!(output.success, "{}", output.stderr);
-        assert_eq!(
-            output.stdout.lines().map(str::trim).collect::<Vec<_>>(),
-            [
-                "plugin root with spaces",
-                "plugin data with spaces",
-                "plugin root with spaces",
-                "plugin data with spaces"
-            ]
-        );
-        assert_eq!(std::env::var_os("PLUGIN_ROOT"), previous);
-    }
-
-    fn context() -> RuntimeHookEventContext {
-        RuntimeHookEventContext {
-            session_id: Some("thread-1".to_string()),
-            turn_id: Some("turn-1".to_string()),
-            tool_call_id: Some("call-1".to_string()),
-            working_directory: std::env::temp_dir(),
-            tool_name: Some("Bash".to_string()),
-            tool_arguments: Some(r#"{"command":"pwd"}"#.to_string()),
-            tool_output: None,
-            content: None,
-        }
-    }
-
-    fn successful(stdout: &str) -> HookCommandOutput {
-        HookCommandOutput {
-            success: true,
-            exit_code: Some(0),
-            stdout: stdout.to_string(),
-            stderr: String::new(),
-            timed_out: false,
-        }
-    }
-
-    #[test]
-    fn codex_pre_tool_output_can_block_rewrite_or_add_context() {
-        let hook = discovered("true", 5);
-        assert_eq!(
-            report_from_output(
-                &hook,
-                &successful(
-                    r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":"denied"}}"#,
-                ),
-            ),
-            RuntimeHookHandlerReport::Block {
-                reason: "denied".to_string()
-            }
-        );
-        assert_eq!(
-            report_from_output(
-                &hook,
-                &successful(
-                    r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","updatedInput":{"command":"echo safe"}}}"#,
-                ),
-            ),
-            RuntimeHookHandlerReport::Rewrite {
-                arguments: r#"{"command":"echo safe"}"#.to_string()
-            }
-        );
-        assert_eq!(
-            report_from_output(
-                &hook,
-                &successful(
-                    r#"{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"reviewed"}}"#,
-                ),
-            ),
-            RuntimeHookHandlerReport::Allow {
-                additional_context: Some("reviewed".to_string())
-            }
-        );
-    }
-
-    #[test]
-    fn process_failures_fail_closed_and_exit_two_blocks() {
-        let hook = discovered("false", 5);
-        assert!(matches!(
-            report_from_output(
-                &hook,
-                &HookCommandOutput {
-                    success: false,
-                    exit_code: Some(3),
-                    stdout: String::new(),
-                    stderr: String::new(),
-                    timed_out: false,
-                }
-            ),
-            RuntimeHookHandlerReport::Failed { .. }
-        ));
-        assert_eq!(
-            report_from_output(
-                &hook,
-                &HookCommandOutput {
-                    success: false,
-                    exit_code: Some(2),
-                    stdout: String::new(),
-                    stderr: "policy denied".to_string(),
-                    timed_out: false,
-                }
-            ),
-            RuntimeHookHandlerReport::Block {
-                reason: "policy denied".to_string()
-            }
-        );
-    }
-
-    #[derive(Default)]
-    struct RecordingEmitter(Mutex<Vec<HookLifecycleEvent>>);
-
-    impl HookLifecycleEmitter for RecordingEmitter {
-        fn emit(&self, event: HookLifecycleEvent) {
-            self.0.lock().expect("events").push(event);
-        }
-    }
-
-    #[derive(Default)]
-    struct RecordingAsyncResultSink(Mutex<Vec<HookRunSummary>>);
-
-    impl AsyncHookResultSink for RecordingAsyncResultSink {
-        fn submit(&self, run: HookRunSummary) {
-            self.0.lock().expect("async hook results").push(run);
-        }
-    }
-
-    #[tokio::test]
-    async fn command_reporter_executes_and_emits_paired_lifecycle() {
-        let hook = discovered(
-            "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"from hook\"}}'",
-            5,
-        );
-        let emitter = Arc::new(RecordingEmitter::default());
-        let reporter = CommandHookReporter::new(vec![hook.clone()], emitter.clone());
-        let context = context();
-
-        let report = reporter
-            .report(&hook.snapshot, RuntimeHookEventName::PreToolUse, &context)
-            .await
-            .expect("report");
-
-        assert_eq!(
-            report,
-            RuntimeHookHandlerReport::Allow {
-                additional_context: Some("from hook".to_string())
-            }
-        );
-        let events = emitter.0.lock().expect("events");
-        assert_eq!(events.len(), 2);
-        assert_eq!(events[0].phase, HookLifecyclePhase::Started);
-        assert_eq!(events[1].phase, HookLifecyclePhase::Completed);
-        assert_eq!(events[0].run.id, events[1].run.id);
-        assert_eq!(events[1].run.status, HookRunStatus::Completed);
-        assert_eq!(events[1].run.entries[0].kind, HookOutputEntryKind::Context);
-    }
-
-    #[tokio::test]
-    async fn timed_out_command_is_failed() {
-        let hook = discovered("sleep 5", 1);
-        let output = run_command_hook(&hook, &context()).await;
-        assert!(output.timed_out);
-        assert!(matches!(
-            report_from_output(&hook, &output),
-            RuntimeHookHandlerReport::Failed { ref reason } if reason.contains("timed out")
-        ));
-    }
-
-    #[tokio::test]
-    async fn async_command_returns_immediately_and_reports_context_out_of_band() {
-        let mut hook = discovered(
-            "printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"additionalContext\":\"async context\"}}'",
-            5,
-        );
-        hook.snapshot.execution_mode = RuntimeHookExecutionMode::Async;
-        let emitter = Arc::new(RecordingEmitter::default());
-        let sink = Arc::new(RecordingAsyncResultSink::default());
-        let reporter = CommandHookReporter::new(vec![hook.clone()], emitter.clone())
-            .with_async_result_sink(sink.clone());
-
-        let report = reporter
-            .report(&hook.snapshot, RuntimeHookEventName::PreToolUse, &context())
-            .await
-            .expect("async report admission");
-        assert_eq!(
-            report,
-            RuntimeHookHandlerReport::Allow {
-                additional_context: None
-            }
-        );
-
-        tokio::time::timeout(Duration::from_secs(2), async {
-            loop {
-                if !sink.0.lock().expect("async hook results").is_empty() {
-                    break;
-                }
-                tokio::task::yield_now().await;
-            }
-        })
-        .await
-        .expect("async hook result");
-        let events = emitter.0.lock().expect("events");
-        assert_eq!(events.len(), 2);
-        assert_eq!(events[0].phase, HookLifecyclePhase::Started);
-        assert_eq!(events[1].phase, HookLifecyclePhase::Completed);
-        assert_eq!(
-            sink.0.lock().expect("async hook results")[0].entries[0].kind,
-            HookOutputEntryKind::Context
-        );
-    }
-}
+mod tests;

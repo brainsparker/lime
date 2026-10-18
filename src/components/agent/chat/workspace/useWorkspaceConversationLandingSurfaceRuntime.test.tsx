@@ -2,10 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  useWorkspaceConversationLandingSessionRuntime,
-  useWorkspaceConversationLandingSurfaceRuntime,
-} from "./useWorkspaceConversationLandingSurfaceRuntime";
+import { useWorkspaceConversationLandingSurfaceRuntime } from "./useWorkspaceConversationLandingSurfaceRuntime";
 
 type HookProps = Parameters<
   typeof useWorkspaceConversationLandingSurfaceRuntime
@@ -17,25 +14,19 @@ function createDefaultProps(overrides: Partial<HookProps> = {}): HookProps {
   return {
     accessMode: "default",
     activeTheme: "general",
-    artifacts: [],
-    browserAssistLoading: false,
     chatToolPreferences: {
       task: false,
       subagent: false,
     },
-    contentId: null,
-    creationMode: "guided",
     creationReplaySurface: null,
     emptyStateDisabled: false,
     emptyStateIsLoading: false,
     emptyStateSendOnPointerDown: true,
     entryBannerMessage: undefined,
     entryBannerVisible: false,
-    generalCanvasContent: "",
     handleSendFromEmptyState: vi.fn(),
     input: "",
     inputbarScene: {
-      runtimeToolAvailability: undefined,
       knowledgePackSelection: undefined,
       knowledgePackOptions: [],
       onToggleKnowledgePack: vi.fn(),
@@ -51,12 +42,10 @@ function createDefaultProps(overrides: Partial<HookProps> = {}): HookProps {
     projectCharacters: [],
     projectId: "project-1",
     providerType: "mock-provider",
-    resolvedCanvasState: null,
     serviceSkillGroups: [],
     serviceSkills: [],
     setActiveTheme: vi.fn(),
     setChatToolPreferences: vi.fn(),
-    setCreationMode: vi.fn(),
     setInput: vi.fn(),
     setModel: vi.fn(),
     setProviderType: vi.fn(),
@@ -89,38 +78,6 @@ function renderHook(props: HookProps) {
     getValue: () => {
       if (!latestValue) {
         throw new Error("hook 尚未初始化");
-      }
-      return latestValue;
-    },
-  };
-}
-
-type SessionHookProps = Parameters<
-  typeof useWorkspaceConversationLandingSessionRuntime
->[0];
-
-function renderSessionHook(props: SessionHookProps) {
-  const container = document.createElement("div");
-  document.body.appendChild(container);
-  const root = createRoot(container);
-  let latestValue: ReturnType<
-    typeof useWorkspaceConversationLandingSessionRuntime
-  > | null = null;
-
-  function Probe(currentProps: SessionHookProps) {
-    latestValue = useWorkspaceConversationLandingSessionRuntime(currentProps);
-    return null;
-  }
-
-  act(() => {
-    root.render(<Probe {...props} />);
-  });
-  mountedRoots.push({ root, container });
-
-  return {
-    getValue: () => {
-      if (!latestValue) {
-        throw new Error("session hook 尚未初始化");
       }
       return latestValue;
     },
@@ -241,103 +198,5 @@ describe("useWorkspaceConversationLandingSurfaceRuntime", () => {
     expect(emptyStateProps.onImportPathReferenceAsKnowledge).toBe(
       onImportPathReferenceAsKnowledge,
     );
-  });
-});
-
-describe("useWorkspaceConversationLandingSessionRuntime", () => {
-  it("非聊天布局应由 landing owner 补齐任务卡和运行时入口", () => {
-    const onOpenMemoryWorkbench = vi.fn();
-    const onOpenChannels = vi.fn();
-    const baseRuntime = renderHook(createDefaultProps()).getValue();
-    const { getValue } = renderSessionHook({
-      landingSurface: baseRuntime,
-      showChatLayout: false,
-      messages: [
-        {
-          id: "user-1",
-          role: "user",
-          content: "整理项目进度",
-          timestamp: new Date("2026-07-10T10:00:00.000Z"),
-        },
-        {
-          id: "assistant-1",
-          role: "assistant",
-          content: "",
-          timestamp: new Date("2026-07-10T10:00:01.000Z"),
-          toolCalls: [
-            {
-              id: "tool-1",
-              name: "Read",
-              arguments: JSON.stringify({ file_path: "/tmp/project-1" }),
-              status: "running",
-              startTime: new Date("2026-07-10T10:00:01.000Z"),
-            },
-          ],
-        },
-      ],
-      turns: [
-        {
-          id: "turn-1",
-          thread_id: "thread-1",
-          prompt_text: "整理项目进度",
-          status: "running",
-          started_at: "2026-07-10T10:00:00.000Z",
-          created_at: "2026-07-10T10:00:00.000Z",
-          updated_at: "2026-07-10T10:00:00.000Z",
-        },
-      ],
-      currentTurnId: "turn-1",
-      threadRead: {
-        thread_id: "thread-1",
-        status: "running",
-      },
-      canonicalChildren: [
-        {
-          name: "执行",
-          parentThreadId: "thread-1",
-          sessionId: "subagent-1",
-          status: "running",
-          threadId: "thread-subagent-1",
-          updatedAtMs: 1783699200000,
-        },
-      ],
-      isSending: true,
-      sessionId: "session-1",
-      projectRootPath: "/tmp/project-1",
-      currentUserMessage: "整理项目进度",
-      onOpenMemoryWorkbench,
-      onOpenChannels,
-    });
-
-    const emptyStateProps = getValue().emptyStateProps;
-    expect(emptyStateProps.runtimeTaskCard).toEqual(
-      expect.objectContaining({
-        taskId: "turn-1",
-        title: "整理项目进度",
-      }),
-    );
-
-    emptyStateProps.onOpenMemoryWorkbench?.();
-    emptyStateProps.onOpenChannels?.();
-
-    expect(onOpenMemoryWorkbench).toHaveBeenCalledWith({
-      sessionId: "session-1",
-      workingDir: "/tmp/project-1",
-      userMessage: "整理项目进度",
-    });
-    expect(onOpenChannels).toHaveBeenCalledTimes(1);
-  });
-
-  it("聊天布局不应生成重复的首页任务卡", () => {
-    const baseRuntime = renderHook(createDefaultProps()).getValue();
-    const { getValue } = renderSessionHook({
-      landingSurface: baseRuntime,
-      showChatLayout: true,
-      messages: [],
-      onOpenMemoryWorkbench: vi.fn(),
-      onOpenChannels: vi.fn(),
-    });
-
-    expect(getValue().emptyStateProps.runtimeTaskCard).toBeNull();
   });
 });

@@ -13,8 +13,6 @@ import type { AgentAccessMode } from "../hooks/agentChatStorage";
 import type { ScopedComposerRestoreRequest } from "./composerSubmissionSettlement";
 import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
 import type { CuratedTaskReferenceEntry } from "../utils/curatedTaskReferenceSelection";
-import type { AgentTaskRuntimeCardModel } from "../utils/agentTaskRuntime";
-import type { RuntimeToolAvailability } from "../utils/runtimeToolAvailability";
 import type { MessagePathReference } from "../types";
 import type { InputbarSendHandler } from "./Inputbar/inputbarSendPayload";
 import type { ComposerProject } from "./Inputbar/components/composerUtilityBarTypes";
@@ -23,7 +21,6 @@ import type {
   InputbarKnowledgePackOption,
   InputbarKnowledgePackSelection,
 } from "./Inputbar/types";
-import type { CreationMode } from "./types";
 
 export type AgentI18nKey = keyof AgentI18nResource;
 
@@ -42,10 +39,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   sendOnPointerDown?: boolean;
   isLoading?: boolean;
   disabled?: boolean;
-  /** 创作模式 */
-  creationMode?: CreationMode;
-  /** 创作模式变更回调 */
-  onCreationModeChange?: (mode: CreationMode) => void;
   /** 当前激活的主题 */
   activeTheme?: string;
   /** 主题变更回调 */
@@ -70,8 +63,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   characters?: Character[];
   /** 启动浏览器协助 */
   onLaunchBrowserAssist?: () => void | Promise<void>;
-  /** 浏览器协助启动中 */
-  browserAssistLoading?: boolean;
   /** 当前项目 ID */
   projectId?: string | null;
   /** 已打开项目列表 */
@@ -88,16 +79,8 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   pluginSuggestionsLoading?: boolean;
   /** 用户显式打开插件候选入口 */
   onPluginSuggestionsNeeded?: () => void;
-  /** 当前 runtime tool surface */
-  runtimeToolAvailability?: RuntimeToolAvailability | null;
-  /** 当前执行态摘要 */
-  runtimeTaskCard?: AgentTaskRuntimeCardModel | null;
   /** 进入首页时预选的输入框能力 */
   initialInputCapability?: AgentInitialInputCapabilityParams;
-  /** 打开记忆工作台 */
-  onOpenMemoryWorkbench?: () => void;
-  /** 打开消息渠道 */
-  onOpenChannels?: () => void;
   /** 当前带入的 creation replay 前台投影 */
   creationReplaySurface?: CreationReplaySurfaceModel | null;
   /** 当前结果模板默认带入的 memory 引用 id */

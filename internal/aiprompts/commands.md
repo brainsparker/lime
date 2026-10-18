@@ -63,7 +63,7 @@ params 只有 path/method/body，无 caller URL/headers/token。禁止 redirect/
 
 ## Desktop persisted atom
 
-桌面未发送 UI 草稿只允许：
+桌面未发送 UI 草稿与 Summary 固定偏好只允许：
 
 ```text
 Renderer -> src/lib/api/persistedAtoms.ts
@@ -72,7 +72,11 @@ Renderer -> src/lib/api/persistedAtoms.ts
   -> fixed AppDataRoot/host-state.json
 ```
 
-read 为 `{key:"composer-drafts-v1",query}`，query 判别为 `{kind:"scope",scope}` 或 `{kind:"workspace-index",workspaceId}`；ready 结果分别为 `data:{queryKind:"scope",view}` 或 `data:{queryKind:"workspace-index",workspaceId,items}`，invalid/unavailable 为 data:null。update 为 `{key,mutation}`，仅支持 put/promote/consume/clear。read/update 结果与 `persisted-atom-update` notification 必须经过同一纯 JSON parser。notification 仅含 revision / persistence metadata，无草稿正文；Renderer emit/send 与 Main IPC handler 拒绝伪造该事件。旧 scope-only/top-level view 已直接删除。索引精确匹配 workspace（含null），只发现当前 live binding，返回 scope/identity/updatedAt/sessionId?/threadId?，不读正文、不改变 revision、不截断。选中后重新读scope并执行原CAS。
+草稿 read 为 `{key:"composer-drafts-v1",query}`，query 判别为 `{kind:"scope",scope}` 或 `{kind:"workspace-index",workspaceId}`；ready 结果分别为 `data:{queryKind:"scope",view}` 或 `data:{queryKind:"workspace-index",workspaceId,items}`，invalid/unavailable 为 data:null。草稿 update 为 `{key,mutation}`，仅支持 put/promote/consume/clear。索引精确匹配 workspace（含null），只发现当前 live binding，返回 scope/identity/updatedAt/sessionId?/threadId?，不读正文、不改变 revision、不截断。选中后重新读scope并执行原CAS。
+
+Summary 固定偏好复用同两个命令和同一文件：key 为 `app-shell-summary-panel-pinned`，read query 为 `{kind:"value"}`，ready data 为 `{queryKind:"value",value:boolean}`；update mutation 仅为 `{op:"set",value:boolean}`，applied 结果为 `entry:null,value:boolean`。默认 true，文件缺失该 atom 时亦为 true；存在但类型错误须拒绝，不能强转或静默重置。宽 pane 的 toggle 写入该偏好，overlay toggle 仅开关 popover。它是 Desktop UI 偏好，不是 Thread/Turn/Item 字段。
+
+read/update 结果与 `persisted-atom-update` notification 必须经过同一纯 JSON parser，并核对请求 key 与 query/mutation。两个 atom 共用 storeRevision/savedRevision、串行保存与 backup；每次广播两个 key 的 revision / persistence metadata，不含草稿正文或偏好值。草稿协调器忽略其他 key；Summary 拒绝较旧 revision 回读。Renderer emit/send 与 Main IPC handler 拒绝伪造该事件。旧 scope-only/top-level view 已直接删除。
 
 `PersistedAtomStore` 为唯一 CAS/binding owner，`PersistedAtomFile` 为唯一原子保存/backup owner。typed gateway 之外禁止裸 invoke/listen；catalog、preload 白名单、实际 handler、ESLint restriction 与 command guard 同批同步。safeInvoke 与 HTTP 诊断由同一 `invokeDiagnostics` 承接，保存参数和任意原始错误正文不进入 trace/console。
 

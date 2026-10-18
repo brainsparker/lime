@@ -1,4 +1,4 @@
-import { useCallback, type MutableRefObject, type ReactNode } from "react";
+import { useCallback, useId, type MutableRefObject } from "react";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
 import {
@@ -18,6 +18,7 @@ type RightSurfaceHostRuntimeProjection = Pick<
   | "filesRightSurfaceTarget"
   | "handleClosePluginSurface"
   | "handleCloseRightSurfaceShell"
+  | "handleCloseRightSurfaceTab"
   | "handleRightSurfaceBrowserNavigate"
   | "handleSelectPluginSurface"
   | "handleSelectRightSurfaceTab"
@@ -32,6 +33,8 @@ type RightSurfaceHostRuntimeProjection = Pick<
 
 interface UseWorkspaceRightSurfaceHostRuntimeParams extends Omit<
   RenderWorkspaceRightSurfaceHostRuntimeParams,
+  | "idPrefix"
+  | "onCloseRightSurfaceTab"
   | "activePluginSurfaceContainerId"
   | "browserRightSurfaceAvailable"
   | "browserRightSurfaceInitialUrl"
@@ -69,7 +72,10 @@ export function useWorkspaceRightSurfaceHostRuntime({
   rightSurfaceRuntime,
   setLayoutMode,
   ...hostRuntimeParams
-}: UseWorkspaceRightSurfaceHostRuntimeParams): ReactNode | null {
+}: UseWorkspaceRightSurfaceHostRuntimeParams): ReturnType<
+  typeof renderWorkspaceRightSurfaceHostRuntime
+> {
+  const idPrefix = useId();
   const handleArticleWorkspaceActionIntent = useCallback(
     async (intent: WorkspaceArticleWorkspaceActionIntent) => {
       setLayoutMode("chat");
@@ -93,6 +99,8 @@ export function useWorkspaceRightSurfaceHostRuntime({
 
   return renderWorkspaceRightSurfaceHostRuntime({
     ...hostRuntimeParams,
+    idPrefix,
+    onCloseRightSurfaceTab: rightSurfaceRuntime.handleCloseRightSurfaceTab,
     activePluginSurfaceContainerId:
       rightSurfaceRuntime.activePluginSurfaceContainerId,
     browserRightSurfaceAvailable:

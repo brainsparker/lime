@@ -37,8 +37,8 @@ function isModelTruncationMode(value: unknown): value is ModelTruncationMode {
   return MODEL_TRUNCATION_MODES.includes(value as ModelTruncationMode);
 }
 
-function normalizePositiveInteger(value: unknown): number | null {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
+function normalizeNonnegativeInteger(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
     return null;
   }
   return value;
@@ -56,7 +56,7 @@ function normalizeTruncationPolicy(
 
   const record = value as Record<string, unknown>;
   const mode = record.mode;
-  const limit = normalizePositiveInteger(record.limit);
+  const limit = normalizeNonnegativeInteger(record.limit);
 
   if (!isModelTruncationMode(mode) || limit === null) {
     return {

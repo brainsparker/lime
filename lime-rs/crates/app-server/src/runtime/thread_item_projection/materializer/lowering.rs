@@ -104,6 +104,10 @@ impl ItemFamily {
 
 pub(super) fn item_family(event_type: &str, payload: &Value) -> Option<ItemFamily> {
     let normalized = event_type.to_ascii_lowercase();
+    // A read observation is not a file change. Its call ID belongs to the Tool item.
+    if normalized == "file.read" {
+        return None;
+    }
     if matches!(normalized.as_str(), "queue.added" | "queue.updated") {
         return Some(ItemFamily::UserMessage);
     }

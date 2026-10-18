@@ -9784,10 +9784,69 @@
       "ev_b9bcd0a7a2fbb1dc35209e55fe9e1843a9889aa56327c574455ac8222dcbd0e9"
     ],
     "correction": "sidebar-a9ef58c0cd4b.js exports ScheduledSidebar, not main sidebar",
-    "verification": "Legacy 239 checks are historical. Rail directed 32 passed and standard GUI passed on prior snapshot. Current home cleanup validation in progress.",
+    "verification": "Final cold hydration: public ordinary+fork4,hydration1,thread_read13,pending recovery5,multimodal queue restart1 all passed; fixture lifecycle38 and contracts passed. Real GUI restart continuation27/27,multi reload33/33,latest standardGUI24/24 and full current fixture22 scenarios passed; pre/post freshness true,28declared sources unchanged. Initial aggregate Coding script lacked normal-exit proof; its subsequent shared teardown migration passed36 tests and actual41 assertions/Main code0/signalnull,29sources unchanged, separately receipted. visual8 ten reviewed images belong to the pre-shared-page-header snapshot; changed shell sources require the successor recorded below. Earlier Main exit timeout root cause unknown; full frontend78 remains243 passed/25 failed plus worker RPC. No full-local/whole-GUI completion claim.",
     "sourceNames": "Upstream HomeAmbientSuggestionsContent export confirmed, but Lime legacy task tree removed instead of retaining a false equivalent. AppNavigationRail and EmptyStateLayout are local responsibility names.",
     "featureNavigation": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/feature-navigation/report.md",
     "featureNavigationParent": "ev_ae91adc4fca524b34a183b550a9641a0be0794f621774d96b8c68457934fc090",
-    "home": "Banner + independent canonical Composer. No production ambient endpoint established; old 13-entry tree, guide/drawer/manager and dedicated state removed."
+    "home": "Banner + independent canonical Composer. No production ambient endpoint established; old 13-entry tree, guide/drawer/manager and dedicated state removed.",
+    "cleanupManifest": "../../exec-plans/artifacts/codex-shell-layout-rea-20261018/home-cleanup-manifest.json",
+    "cleanup": "24 retired paths absent; old creation selector/dead landing props/session projection/seeded home skills removed, no new compat/deprecated wrappers. Theme decorations cannot consume editor width or cover controls.",
+    "recovery": "Same sidebar and canonical identities replace removed Home recovery cards. RuntimeCore derives actor active identity and existing driver pending identity; temporary actor_loaded removed. Ordinary cold hydration inserts normalized session/turns from the same existing load context. Public regression and real GUI continue/stop now pass; no new owner/protocol/compat/persistent synthetic terminal. Exact source/freshness and successors held by home-continuation-product-receipt.json; historical Main timeout remains unknown."
+  },
+  "current_shared_page_header_20261018": {
+    "status": "partial / header cleanup and fork draft navigation verified; unified successor active",
+    "plan": "../../exec-plans/codex-shared-page-header-20261018.md",
+    "evidenceParent": "ev_6dd45156be06e2d66cf6d095f2d4816bbed1e06f60604f09dc2e026b1f21a86b",
+    "registrationView": "ev_f500bdb82103991af61e107db37a81448f4d751625dceb091d753f2a01f1d2d1",
+    "titleReferenceParent": "ev_9854822edac7c5955321276097abc6c99f00f75f545ee95c0cb19be14fec4513",
+    "unifiedChromeReferenceParent": "ev_33499484db9b2dbe905a5fc2de39aea4f1ff13952f472d101e832c4534765d1a",
+    "titleReferenceReport": "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/report.md",
+    "implementation": "Header/MainContentLayout page registration shares AppShell scope; ordinary canonical thread title and rename confirmed by the package. Unified successor now migrates ThreadWorkspaceHeader to HeaderToolbar presentation and right-side unified-workspace-controls, recorded separately.",
+    "cleanup": "Removed inline46px host/inset, duplicate App main styles, sidebar-only leading variable/dead props/marker, duplicate Home/resource/project/settings/canvas header navigation, resident status/directory/readiness marker and their dedicated projection/props. More stays outside tools scroll. No new compatibility/deprecated owner or hide-title flag.",
+    "verification": "Fork parent-route hydration regression red then green37, full Renderer/Node types, strict lint and standard GUI24 passed. thread-header-parent-route-fix-1 passed canonical rename/fork, parent-child-settings draft isolation, seven reviewed screenshots,15 source digests, freshness, zero mock/errors and normal Main exit. fork-ready-gate-b-1 passed canonical lineage/read/resume/notification, editable child draft and normal Main exit. Unavailable backend, no Turn/model. Earlier120s failures remain; full frontend batch78 still failed.",
+    "limits": "Static reference, no source TypeScript types recovered; no whole-GUI, live, Windows, packaged, unified workspace or complete fade claim.",
+    "unifiedRegistrationReferenceParent": "ev_510ea23eb3f657aa91ec654e613ce44f636c57a47ec021f837f1199a098c876e",
+    "unifiedRendererReferenceParent": "ev_63dece790eea4393d8906f204f9c38dd80da7d3600c7f1f19bcd5c28d4b2d31c",
+    "unifiedContract": "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/unified-workspace-contract.md"
+  },
+  "current_unified_workspace_20261018": {
+    "status": "active / candidate3,4,5 passed; candidate6 toolbar successor building; summary migration remains open",
+    "plan": "../../exec-plans/codex-unified-workspace-20261018.md",
+    "referenceContract": "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/unified-workspace-contract.md",
+    "registrationEvidence": "ev_510ea23eb3f657aa91ec654e613ce44f636c57a47ec021f837f1199a098c876e",
+    "rendererEvidence": "ev_63dece790eea4393d8906f204f9c38dd80da7d3600c7f1f19bcd5c28d4b2d31c",
+    "implementation": "Same-scope UnifiedTabStrip registration; HeaderToolbar/Actions; thread actions move as stable containers between window/chat/tab-strip, summary follows split chat/window routing, More stays in the window slot. Pane-only RightSurfaceHost and lifted tabs share the same right-surface projection. Existing LayoutTransition owns resize/double-click/full/split/chat/focus/inert and measures the pane boundary. No new business tab store.",
+    "deleted": "TaskCenterTabStrip, useTaskCenterTabChrome, tab-only projection/positive tests, AutoHideNavbar and42/84px split/detached inset branches. Title semantics retained as threadTitle; canonical fallback navigation retained.",
+    "dividerReferenceParent": "ev_52abf6e068fc01327c50e66fda539aa7fa2fdabf8c2fea6d1b10c0ff0e249e8d",
+    "contentActionsReferenceParent": "ev_49bea57855d965288e00b11fca6edef2c1735647c6f93f5b78f8a34e26fd413e",
+    "dividerSuccessor": "Single layout owner enforces10px steps, content-pane Home/End,320px minima, anchored pointer identity and default-size reset. Candidate3 and5 real Electron gates passed. Candidate5 removes per-surface minimum override API,94 related tests and strict lint passed.",
+    "verification": "Candidate2 actual failed focus terminal and317 artifacts retained. Candidate3 six gates passed with9462 source files,429 artifacts and normal Main exits; candidate4 only tightens settled screenshots, same product bytes. Candidate5 frozen11-input min-width successor passed full types/build/GUI24/header/right matrix32/Activity28,9462-source drift0,541 recorded artifacts. Candidate6 has4 exact toolbar/capture successors,28 tests/lint passed; full native/build terminal pending. Parallel root backend excluded.",
+    "limits": "Local mainPaneEnd/sidePanelActive are display adaptations. Complete reference route transition context, divider action slot, content/new-tab/context-menu contracts remain open. New REA parents retain959 and662 semantic unknowns; no runtime or original TypeScript-name claim. No whole-GUI, reference runtime, live, Windows or packaged parity claim.",
+    "focusProbe": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-focus-probe-2.json",
+    "threadSummaryReferenceParent": "ev_83011e06d28ca110820a1e0688adad13ed10e33e02d79255c483c7bd7f71c632",
+    "threadSummaryGap": "Existing Summary delegates to Activity and remains unequal. Exact layout611bytes retains19 semantic unknowns;14 complete section functions18040bytes retain1191. Pin/overlay/shift/gutter and conditionally populated sections require canonical projection and real Main persistence; existing typed atom key only supports composer drafts. Imported output/identity owners and runtime flags unresolved. No summary product migration in candidates3-6.",
+    "threadSummaryLayoutReferenceParent": "ev_e457dea934ddb45739ab0ef92d51716a575f57c193c1567b5e2b99fdad9e4068",
+    "threadSummarySectionsReferenceParent": "ev_2da75de405e3fc5e7a9ae8b81d33f98e878609083d0c54db939ba7838e11fa8b",
+    "portableEvidence": [
+      "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/unified-successor-rea-bundle-manifest.json",
+      "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/thread-summary-successor-bundle-manifest.json"
+    ],
+    "toolbarSuccessor": "Shipped HeaderToolbar/Actions names/boolean inset/compact/secondary; integrity-verified CSS8px default,8+6px tab-strip,40px pane and42rem named container. No claim all current utility actions/grouping or narrow layout are equivalent.",
+    "candidate5Artifacts": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-5.json",
+    "toolbarContainerGateA": {
+      "receipt": "../../exec-plans/artifacts/codex-shared-page-header-20261018/header-toolbar-container-gate-a-6-4/receipt.json",
+      "status": "passed",
+      "observations": 8,
+      "scope": "Isolated component renderer only; no product IPC/App Server or reference runtime. Source matches candidate6 freeze."
+    },
+    "candidate6_final": {
+      "status": "passed",
+      "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-6.json",
+      "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-6.json",
+      "artifact_manifest_sha256": "aad9e6ad36677810b3235a2f5a0feefa4f71ab5163933207dbd04ed75858f538",
+      "root_gui_audit": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-root-final6-gui-audit.json",
+      "reviewed_screenshots": 12,
+      "overall_gui": "partial"
+    }
   }
 }

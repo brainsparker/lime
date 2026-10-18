@@ -1,32 +1,14 @@
 use super::{
-    normalize_fast_model, normalize_provider_tool_messages, parse_safety_buffering_response_event,
+    normalize_fast_model, parse_safety_buffering_response_event,
     parse_safety_buffering_retry_model, parse_safety_buffering_runtime_event_payload,
     parse_safety_buffering_update, safety_buffering_enabled_header,
     safety_buffering_legacy_faster_model_header, should_disable_provider_default_fast_model,
-    truncate_provider_text, ProviderSafetyBufferingRetryModelSource, ProviderToolContentProjection,
-    ProviderToolMessageProjection, ProviderToolMessageRole, SAFETY_BUFFERING_ENABLED_HEADER,
-    SAFETY_BUFFERING_FASTER_MODEL_HEADER, SAFETY_BUFFERING_RUNTIME_EVENT_KIND,
+    truncate_provider_text, ProviderSafetyBufferingRetryModelSource,
+    SAFETY_BUFFERING_ENABLED_HEADER, SAFETY_BUFFERING_FASTER_MODEL_HEADER,
+    SAFETY_BUFFERING_RUNTIME_EVENT_KIND,
 };
 use crate::ModelProviderProtocol;
 use serde_json::json;
-
-fn assistant(contents: Vec<ProviderToolContentProjection>) -> ProviderToolMessageProjection {
-    ProviderToolMessageProjection {
-        role: ProviderToolMessageRole::Assistant,
-        contents,
-    }
-}
-
-fn user(contents: Vec<ProviderToolContentProjection>) -> ProviderToolMessageProjection {
-    ProviderToolMessageProjection {
-        role: ProviderToolMessageRole::User,
-        contents,
-    }
-}
-
-fn text() -> ProviderToolContentProjection {
-    ProviderToolContentProjection::Other
-}
 
 #[test]
 fn provider_default_fast_model_policy_should_keep_first_party_openai() {
@@ -66,140 +48,6 @@ fn provider_default_fast_model_policy_should_disable_anthropic_compatible_proxy(
         Some("https://proxy.example.com"),
         None,
     ));
-}
-
-fn tool_request(id: &str) -> ProviderToolContentProjection {
-    ProviderToolContentProjection::ToolRequest {
-        id: id.to_string(),
-        valid: true,
-    }
-}
-
-fn invalid_tool_request(id: &str) -> ProviderToolContentProjection {
-    ProviderToolContentProjection::ToolRequest {
-        id: id.to_string(),
-        valid: false,
-    }
-}
-
-fn invalid_frontend_tool_request(id: &str) -> ProviderToolContentProjection {
-    ProviderToolContentProjection::FrontendToolRequest {
-        id: id.to_string(),
-        valid: false,
-    }
-}
-
-fn tool_response(id: &str) -> ProviderToolContentProjection {
-    ProviderToolContentProjection::ToolResponse { id: id.to_string() }
-}
-
-#[test]
-fn normalize_provider_tool_messages_should_preserve_valid_tool_chain() {
-    let messages = vec![
-        user(vec![text()]),
-        assistant(vec![text(), tool_request("tool-1")]),
-        user(vec![tool_response("tool-1")]),
-        assistant(vec![text()]),
-    ];
-
-    let normalized = normalize_provider_tool_messages(&messages);
-
-    assert_eq!(
-        normalized
-            .messages
-            .iter()
-            .map(|message| message.retained_content_indices.as_slice())
-            .collect::<Vec<_>>(),
-        vec![&[0][..], &[0, 1][..], &[0][..], &[0][..]]
-    );
-    assert_eq!(normalized.removed_invalid_requests, 0);
-    assert_eq!(normalized.removed_invalid_responses, 0);
-}
-
-#[test]
-fn normalize_provider_tool_messages_should_remove_orphan_response() {
-    let messages = vec![
-        user(vec![text()]),
-        user(vec![tool_response("orphan-tool")]),
-        assistant(vec![text()]),
-    ];
-
-    let normalized = normalize_provider_tool_messages(&messages);
-
-    assert_eq!(
-        normalized
-            .messages
-            .iter()
-            .map(|message| message.retained_content_indices.as_slice())
-            .collect::<Vec<_>>(),
-        vec![&[0][..], &[][..], &[0][..]]
-    );
-    assert_eq!(normalized.removed_invalid_responses, 1);
-}
-
-#[test]
-fn normalize_provider_tool_messages_should_drop_invalid_request_and_response() {
-    let messages = vec![
-        assistant(vec![text(), invalid_tool_request("broken-tool")]),
-        user(vec![tool_response("broken-tool")]),
-        assistant(vec![text()]),
-    ];
-
-    let normalized = normalize_provider_tool_messages(&messages);
-
-    assert_eq!(
-        normalized
-            .messages
-            .iter()
-            .map(|message| message.retained_content_indices.as_slice())
-            .collect::<Vec<_>>(),
-        vec![&[0][..], &[][..], &[0][..]]
-    );
-    assert_eq!(normalized.removed_invalid_requests, 1);
-    assert_eq!(normalized.removed_invalid_responses, 1);
-}
-
-#[test]
-fn normalize_provider_tool_messages_should_drop_invalid_frontend_request_and_response() {
-    let messages = vec![
-        assistant(vec![text(), invalid_frontend_tool_request("frontend-tool")]),
-        user(vec![tool_response("frontend-tool")]),
-        assistant(vec![text()]),
-    ];
-
-    let normalized = normalize_provider_tool_messages(&messages);
-
-    assert_eq!(
-        normalized
-            .messages
-            .iter()
-            .map(|message| message.retained_content_indices.as_slice())
-            .collect::<Vec<_>>(),
-        vec![&[0][..], &[][..], &[0][..]]
-    );
-    assert_eq!(normalized.removed_invalid_requests, 1);
-    assert_eq!(normalized.removed_invalid_responses, 1);
-}
-
-#[test]
-fn normalize_provider_tool_messages_should_drop_duplicate_response() {
-    let messages = vec![
-        assistant(vec![tool_request("tool-1")]),
-        user(vec![tool_response("tool-1")]),
-        user(vec![tool_response("tool-1")]),
-    ];
-
-    let normalized = normalize_provider_tool_messages(&messages);
-
-    assert_eq!(
-        normalized
-            .messages
-            .iter()
-            .map(|message| message.retained_content_indices.as_slice())
-            .collect::<Vec<_>>(),
-        vec![&[0][..], &[0][..], &[][..]]
-    );
-    assert_eq!(normalized.removed_invalid_responses, 1);
 }
 
 #[test]

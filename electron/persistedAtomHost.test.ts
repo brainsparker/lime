@@ -205,7 +205,7 @@ describe("persisted atom isolated Host command boundary", () => {
   it("emits safe revision/persistence notifications without content or runtime fields", async () => {
     const { host, events } = await createHost();
     host.updatePersistedAtomState(request);
-    const event = events.at(-1);
+    const event = events.filter((event) => (event.payload as PersistedAtomUpdateEvent).key === "composer-drafts-v1").at(-1);
     expect(event?.name).toBe("persisted-atom-update");
     expect(event?.payload).toMatchObject({
       key: "composer-drafts-v1",

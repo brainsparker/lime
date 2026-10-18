@@ -8,8 +8,9 @@ use agent_runtime::session_loop::{
 };
 use app_server_protocol::{
     AgentInput, AgentSession, AgentSessionActionRespondParams, AgentSessionActionScope,
-    AgentSessionActionType, AgentSessionApprovalDecision, AgentSessionStartParams,
-    AgentSessionStatus, AgentSessionTurnStartParams, AgentTurn, AgentTurnStatus, RuntimeOptions,
+    AgentSessionActionType, AgentSessionApprovalDecision, AgentSessionReadParams,
+    AgentSessionStartParams, AgentSessionStatus, AgentSessionTurnStartParams, AgentTurn,
+    AgentTurnStatus, RuntimeOptions,
 };
 use async_trait::async_trait;
 use lime_core::database::schema::create_tables;
@@ -540,7 +541,7 @@ async fn denied_ask_user_cancels_restored_action_without_resolved_event() {
 }
 
 #[tokio::test]
-async fn runtime_core_hydrates_persisted_descriptor_into_runtime_backend() {
+async fn runtime_core_rejects_orphaned_persisted_action_after_restart() {
     let temp = tempfile::tempdir().expect("tempdir");
     let roots = crate::StorageRoots::initialize(temp.path(), temp.path().join("app-server"))
         .expect("roots");
@@ -583,22 +584,7 @@ async fn runtime_core_hydrates_persisted_descriptor_into_runtime_backend() {
         )
         .await
         .expect("seed pending action");
-    drop(seed_core);
-    drop(event_log_writer);
-    drop(projection_store);
-
-    let event_log_writer =
-        Arc::new(crate::EventLogWriter::new(&roots.event_log_root).expect("reopen event log"));
-    let projection_store = Arc::new(
-        crate::ProjectionStore::initialize(&roots.projection_db_path)
-            .expect("reopen projection store"),
-    );
-
-    let restarted_core =
-        crate::RuntimeCore::with_backend(Arc::new(RuntimeBackend::with_db(test_db())))
-            .with_event_log_writer(event_log_writer.clone())
-            .with_projection_store(projection_store);
-    let type_mismatch = restarted_core
+    let type_mismatch = seed_core
         .respond_action(
             AgentSessionActionRespondParams {
                 session_id: session_id.to_string(),
@@ -625,6 +611,21 @@ async fn runtime_core_hydrates_persisted_descriptor_into_runtime_backend() {
         RuntimeCoreError::ActionResponse { ref code, ref request_id }
             if code == "action_type_mismatch" && request_id == "ask-restart-1"
     ));
+    drop(seed_core);
+    drop(event_log_writer);
+    drop(projection_store);
+
+    let event_log_writer =
+        Arc::new(crate::EventLogWriter::new(&roots.event_log_root).expect("reopen event log"));
+    let projection_store = Arc::new(
+        crate::ProjectionStore::initialize(&roots.projection_db_path)
+            .expect("reopen projection store"),
+    );
+
+    let restarted_core =
+        crate::RuntimeCore::with_backend(Arc::new(RuntimeBackend::with_db(test_db())))
+            .with_event_log_writer(event_log_writer.clone())
+            .with_projection_store(projection_store);
     let error = restarted_core
         .respond_action(
             AgentSessionActionRespondParams {
@@ -652,10 +653,20 @@ async fn runtime_core_hydrates_persisted_descriptor_into_runtime_backend() {
         matches!(
             error,
             RuntimeCoreError::ActionResponse { ref code, ref request_id }
-                if code == "action_not_resumable" && request_id == "ask-restart-1"
+                if code == "action_not_found" && request_id == "ask-restart-1"
         ),
         "unexpected runtime restart error: {error:?}"
     );
+    let restored = restarted_core
+        .read_session(AgentSessionReadParams {
+            session_id: session_id.to_string(),
+            history_limit: None,
+            history_offset: None,
+            history_before_message_id: None,
+        })
+        .expect("hydrated session");
+    assert_eq!(restored.session.status, AgentSessionStatus::Idle);
+    assert_eq!(restored.turns[0].status, AgentTurnStatus::Canceled);
     let persisted_events = event_log_writer
         .read_session_events(session_id)
         .expect("persisted events");

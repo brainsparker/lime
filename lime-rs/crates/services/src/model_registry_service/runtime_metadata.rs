@@ -1,6 +1,8 @@
 use super::{FetchModelsResult, ModelRegistryService};
 use lime_core::database::dao::api_key_provider::ProviderWithKeys;
-use lime_core::models::model_registry::{EnhancedModelMetadata, ProviderModelConfig};
+use lime_core::models::model_registry::{
+    EnhancedModelMetadata, ModelCapabilityProvenance, ProviderModelConfig,
+};
 use lime_core::models::{RuntimeCredentialData, RuntimeProviderCredential};
 use serde::Serialize;
 
@@ -64,6 +66,16 @@ impl ProviderModelRegistryMetadata {
 }
 
 impl ModelRegistryService {
+    pub fn merge_declared_capabilities(
+        mut model: EnhancedModelMetadata,
+        declared: &ProviderModelConfig,
+    ) -> EnhancedModelMetadata {
+        if model.capability_provenance == ModelCapabilityProvenance::InferredHint {
+            apply_declared_model_capabilities(&mut model, declared);
+        }
+        model
+    }
+
     pub fn get_cached_provider_models_for_access(
         &self,
         provider_id: &str,
@@ -123,6 +135,12 @@ impl ModelRegistryService {
             if let Some(cached) = cached {
                 cached_model_count = Some(cached.models.len());
                 if let Some(model) = find_model_metadata(&cached.models, requested_model_id) {
+                    let mut model = model.clone();
+                    if let Some(declared) =
+                        find_declared_model(&provider.provider.models, requested_model_id)
+                    {
+                        model = Self::merge_declared_capabilities(model, declared);
+                    }
                     return Ok(ProviderModelRegistryMetadata {
                         provider_id: provider_id.to_string(),
                         requested_model_id: requested_model_id.to_string(),
@@ -132,7 +150,7 @@ impl ModelRegistryService {
                         cached_model_count,
                         from_cache: cached.from_cache,
                         provider_declared_model: false,
-                        model: Some(model.clone()),
+                        model: Some(model),
                     });
                 }
             }
@@ -172,6 +190,20 @@ impl ModelRegistryService {
             "model_registry_metadata_missing",
             None,
         ))
+    }
+}
+
+pub(super) fn apply_declared_model_capabilities(
+    metadata: &mut EnhancedModelMetadata,
+    model: &ProviderModelConfig,
+) {
+    if let Some(capability) = model.capability.as_ref() {
+        metadata.task_families = capability.task_families.clone();
+        metadata.input_modalities = capability.input_modalities.clone();
+        metadata.output_modalities = capability.output_modalities.clone();
+        metadata.runtime_features = capability.runtime_features.clone();
+        metadata.capabilities = capability.capabilities.clone();
+        metadata.capability_provenance = ModelCapabilityProvenance::ProviderExplicit;
     }
 }
 
@@ -280,6 +312,87 @@ mod tests {
             },
             name: None,
             prompt_cache_mode_override: None,
+        }
+    }
+
+    #[test]
+    fn inferred_catalog_uses_only_matching_declared_capabilities_and_keeps_budget() {
+        use lime_core::models::model_registry::{ProviderModelCapability, TruncationPolicy};
+        for provenance in [
+            ModelCapabilityProvenance::InferredHint,
+            ModelCapabilityProvenance::ProviderExplicit,
+            ModelCapabilityProvenance::Canonical,
+        ] {
+            for declaration in 0..3 {
+                let service = service();
+                let mut provider = provider("fixture", "https://catalog.example/v1");
+                let mut declared = ProviderModelConfig::hint(if declaration == 2 {
+                    "other-model"
+                } else {
+                    "model"
+                });
+                if declaration != 0 {
+                    declared.capability = Some(ProviderModelCapability {
+                        task_families: vec![ModelTaskFamily::Chat],
+                        input_modalities: vec![ModelModality::Text],
+                        output_modalities: vec![ModelModality::Text],
+                        runtime_features: vec![ModelRuntimeFeature::Streaming],
+                        capabilities: ModelCapabilities {
+                            tools: true,
+                            streaming: true,
+                            ..Default::default()
+                        },
+                    });
+                }
+                provider.provider.models = vec![declared];
+                let mut model = EnhancedModelMetadata::new(
+                    "model".into(),
+                    "Catalog Model".into(),
+                    "fixture".into(),
+                    "Fixture".into(),
+                );
+                model.capability_provenance = provenance;
+                model.truncation_policy = Some(TruncationPolicy::Tokens(16));
+                model.limits.context_length = Some(2048);
+                service
+                    .save_provider_models_cache_scoped(
+                        "fixture",
+                        &provider.provider.api_host,
+                        Some(ApiProviderType::Openai),
+                        &[model],
+                        None,
+                        chrono::Utc::now().timestamp(),
+                        ModelRegistryService::credential_cache_fingerprint("key").as_deref(),
+                    )
+                    .unwrap();
+                let resolved = service
+                    .resolve_provider_model_metadata(
+                        Some(&provider),
+                        "fixture",
+                        "model",
+                        ProviderModelCacheAccess::Credential(&credential("key-id", "key")),
+                    )
+                    .unwrap()
+                    .model
+                    .unwrap();
+                let declared_applies =
+                    provenance == ModelCapabilityProvenance::InferredHint && declaration == 1;
+                assert_eq!(resolved.capabilities.tools, declared_applies);
+                assert_eq!(
+                    resolved.capability_provenance,
+                    if declared_applies {
+                        ModelCapabilityProvenance::ProviderExplicit
+                    } else {
+                        provenance
+                    }
+                );
+                assert_eq!(
+                    resolved.truncation_policy,
+                    Some(TruncationPolicy::Tokens(16))
+                );
+                assert_eq!(resolved.limits.context_length, Some(2048));
+                assert_eq!(resolved.display_name, "Catalog Model");
+            }
         }
     }
 

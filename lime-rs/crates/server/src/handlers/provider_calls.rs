@@ -472,6 +472,7 @@ fn openai_message_content(
         content.clear();
         content.push(CurrentProviderContent::ToolResult(
             CurrentProviderToolResult {
+                history_token_limit: None,
                 call_id: message
                     .tool_call_id
                     .clone()
@@ -619,6 +620,7 @@ fn anthropic_content(
                     )),
                     "tool_result" => content.push(CurrentProviderContent::ToolResult(
                         CurrentProviderToolResult {
+                            history_token_limit: None,
                             call_id: part
                                 .get("tool_use_id")
                                 .and_then(Value::as_str)

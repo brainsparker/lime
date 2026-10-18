@@ -3,6 +3,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { RightSurfaceHost } from "./RightSurfaceHost";
+import {
+  RightSurfaceTabStrip,
+  type RightSurfaceTabStripProps,
+} from "./RightSurfaceTabStrip";
 import type { RightSurfaceDefinition } from "./rightSurfaceTypes";
 
 vi.mock("react-i18next", () => ({
@@ -68,21 +72,29 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-function renderHost(
-  props?: Partial<React.ComponentProps<typeof RightSurfaceHost>>,
-) {
+function renderHost(props?: Partial<RightSurfaceTabStripProps>) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
 
   act(() => {
     root.render(
-      <RightSurfaceHost
-        activeSurface="articleWorkspace"
-        definitions={definitions}
-        openSurfaces={["articleWorkspace", "files", "shell"]}
-        {...props}
-      />,
+      <>
+        <div role="tablist">
+          <RightSurfaceTabStrip
+            activeSurface="articleWorkspace"
+            definitions={definitions}
+            openSurfaces={["articleWorkspace", "files", "shell"]}
+            idPrefix="surface-fixture"
+            {...props}
+          />
+        </div>
+        <RightSurfaceHost
+          activeSurface={props?.activeSurface ?? "articleWorkspace"}
+          definitions={definitions}
+          idPrefix="surface-fixture"
+        />
+      </>,
     );
   });
 
@@ -145,25 +157,43 @@ describe("RightSurfaceHost", () => {
     ).toBe("Example Domain");
   });
 
-  it("只有一个 open surface 时不渲染 tab strip", () => {
+  it("单一右侧面仍提供可关联的标签，pane只由内容host承载", () => {
     const container = renderHost({ openSurfaces: ["articleWorkspace"] });
-
+    const tab = container.querySelector('[role="tab"]')!;
+    const pane = container.querySelector('[role="tabpanel"]')!;
+    expect(tab.getAttribute("aria-controls")).toBe(pane.id);
+    expect(pane.getAttribute("aria-labelledby")).toBe(tab.id);
     expect(
-      container.querySelector('[data-testid="workspace-right-surface-tabs"]'),
+      container.querySelector(
+        '[data-testid="workspace-right-surface-host"] [role="tablist"]',
+      ),
     ).toBeNull();
-    expect(
-      container.querySelector('[data-testid="article-workspace-pane"]'),
-    ).not.toBeNull();
   });
 
-  it("文章编辑器右栏可隐藏通用 tab strip", () => {
-    const container = renderHost({ tabMode: "hidden" });
-
-    expect(
-      container.querySelector('[data-testid="workspace-right-surface-tabs"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[data-testid="article-workspace-pane"]'),
-    ).not.toBeNull();
+  it("关闭及Delete委托同一owner，去重并排除不可用标签", () => {
+    const close = vi.fn();
+    const container = renderHost({
+      openSurfaces: ["files", "files", "workbench", "articleWorkspace"],
+      onCloseSurface: close,
+    });
+    expect(container.querySelectorAll('[role="tab"]')).toHaveLength(2);
+    const files = container.querySelector(
+      '[data-testid="workspace-right-surface-tab-files"]',
+    )!;
+    act(() =>
+      files.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Delete", bubbles: true }),
+      ),
+    );
+    expect(close).toHaveBeenLastCalledWith("files");
+    const button = container
+      .querySelector(
+        '[data-testid="workspace-right-surface-tab-articleWorkspace"]',
+      )
+      ?.parentElement?.querySelector<HTMLButtonElement>(
+        "button:not([role=tab])",
+      );
+    act(() => button?.click());
+    expect(close).toHaveBeenLastCalledWith("articleWorkspace");
   });
 });

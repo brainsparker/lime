@@ -109,7 +109,6 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       shouldHideGeneralWorkbenchInputForTheme: false,
       shouldRenderTopBar: true,
       layoutTransitionChatPanelWidth: undefined,
-      layoutTransitionChatPanelMinWidth: undefined,
       shouldShowGeneralWorkbenchFloatingInputOverlay: false,
       shouldRenderInlineA2UI: false,
     },

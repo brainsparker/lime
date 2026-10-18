@@ -5,7 +5,7 @@ import {
   isObservedPreloadAppServerResponse,
 } from "./mcp-config-fixture-evidence.mjs";
 
-const HOST = '[data-testid="workspace-right-surface-host"]';
+const TABS = '[data-testid="workspace-right-surface-tabs"]';
 const BROWSER = '[data-testid="right-surface-browser-panel"]';
 
 function assert(condition, message) {
@@ -141,11 +141,20 @@ export async function collectRightSurfaceLifecycleEvidence(
         const host = document.querySelector(
           '[data-testid="workspace-right-surface-host"]',
         );
+        const tabs = document.querySelector(
+          '[data-testid="workspace-right-surface-tabs"]',
+        );
+        const selected = tabs?.querySelector(
+          `[data-testid="workspace-right-surface-tab-${kind}"]`,
+        );
         return (
           host?.getAttribute("data-surface") === kind &&
+          selected?.getAttribute("aria-selected") === "true" &&
+          selected.getAttribute("aria-controls") ===
+            host.querySelector('[role="tabpanel"]')?.id &&
           (!both ||
             ["browser", "files"].every((surface) =>
-              host.querySelector(
+              tabs.querySelector(
                 `[data-testid="workspace-right-surface-tab-${surface}"]`,
               ),
             ))
@@ -337,7 +346,7 @@ export async function collectRightSurfaceLifecycleEvidence(
     await waitSurface("files", false);
     assert(
       (await page
-        .locator(`${HOST} [data-testid="workspace-right-surface-tab-browser"]`)
+        .locator(`${TABS} [data-testid="workspace-right-surface-tab-browser"]`)
         .count()) === 0,
       "关闭 Browser 后旧 tab 仍在",
     );

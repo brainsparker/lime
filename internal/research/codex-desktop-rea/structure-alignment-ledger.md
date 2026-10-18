@@ -21,11 +21,15 @@
 
 ## 窗口与首页排版重定位（2026-10-18）
 
-实际主Shell为app-initial，sidebar-a9ef58c0cd4b.js是ScheduledSidebar，旧主侧栏映射作废。用户最新截图指定 rail-with-contextual-sidebar，已直接替换上一轮误选的legacy。AppNavigationRail为本地职责名，采用已证36px控件/两侧8px；上下文可折叠，保留52px rail。AppSidebar和SettingsNavigation共用useSidebarWidth/SidebarResizeHandle。参考HeaderAction基础三槽scope/注册/排序/身份清理迁入app-shell/AppShell，侧栏开关left/order1经唯一renderer呈现，44px共享标题栏。Header metadata/MainContentLayout及统一工作区其他槽仍有缺口。
+实际主Shell为app-initial，sidebar-a9ef58c0cd4b.js是ScheduledSidebar，旧主侧栏映射作废。用户最新截图指定 rail-with-contextual-sidebar，已直接替换上一轮误选的legacy。AppNavigationRail为本地职责名，采用已证36px控件/两侧8px；上下文可折叠，保留52px rail。AppSidebar和SettingsNavigation共用useSidebarWidth/SidebarResizeHandle。参考HeaderAction三槽scope/注册/排序/身份清理迁入app-shell/AppShell，侧栏开关left/order1经唯一renderer呈现，44px共享标题栏。后继已接入Header页面注册、metadata及MainContentLayout两级优先级；ThreadWorkspaceHeader迁入共享renderer，删除工作区46px页头宿主/inset及折叠补位。后继清退其重复导航、常驻状态/目录及专用派生；普通线程title/rename由同包pc/mc/ac确认存在，隐藏identity和NS非空分支仍待实际布局合同，见[补证](../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/report.md)。实现/验证见[共享页头计划](../../exec-plans/codex-shared-page-header-20261018.md)。完整fade/统一工作区其他槽/过渡context及原线程开发名称仍unknown；不以本地AppShellContent职责名称冒充参考原导出。
 
-首页只保留Banner presentation与统一Composer；删除伪装为ambient建议的旧13入口、HomeAmbientSuggestionsContent、HomeSuggestionList、Guide/Drawer/Manager、专用hooks与类型，以及旧恢复卡、项目会话目录和推荐callback接线。上游存在同名export不意味着Lime在缺数据端点时应留空壳。独立Composer布局最大48rem，仅一次panel留白；编辑区136px为用户要求放大的显示选择。useWorkspaceBackgroundSessionRuntime保留侧栏所需canonical状态，删除Home恢复专用状态/导航，不建第二后端。current ambient生产数据能力仍为gap。SettingsPage已删除双栏、多余Title和窄浮层。
+首页只保留Banner presentation与统一Composer；删除伪装为ambient建议的旧13入口、HomeAmbientSuggestionsContent、HomeSuggestionList、Guide/Drawer/Manager、专用hooks与类型，以及旧恢复卡、项目会话目录和推荐callback接线。上游存在同名export不意味着Lime在缺数据端点时应留空壳。独立Composer布局最大48rem，仅一次panel留白；编辑区136px为用户要求放大的显示选择。useWorkspaceBackgroundSessionRuntime保留侧栏所需canonical状态，删除Home恢复专用状态/导航，不建第二后端。永不显示的creation selector、无人消费的运行卡/Memory/Channels props及为其计算数据的LandingSessionRuntime均已删除，当前ConversationScene直接消费landingSurface。current ambient生产数据能力仍为gap。SettingsPage已删除双栏、多余Title和窄浮层。
 
 当前验证、精确原件和未完成的Home内容/内部命名/账户位置差距由[本轮报告](../../exec-plans/artifacts/codex-shell-layout-rea-20261018/report.md)持有；组件测试通过不冒充实际GUI或全结构对齐。
+
+后台恢复清退的后继验证：当前侧栏承接单会话/双会话reload，真实Gate B已通过。restart暴露RuntimeCore把历史loaded误判为执行仍存活；对照公开Codex thread_read_response_inner/set_thread_status_and_interrupt_stale_turns，以actor active Turn及现有RuntimeTurnDriverCompletions中尚未完成收敛的具体identity派生执行事实，删除仅区分actor存在的临时actor_loaded。具体pending Turn读取是Lime对既有终态投影约束的内部适配，不冒称上游原字段；不合成terminal、不改持久化或新增owner。公共JSON-RPC冷恢复回归已复现，修正及后继验收由同一布局计划/manifest持有。
+
+普通持久化会话的后继公共turn/start另复现“界面空闲但旧Turn仍active”：ensure_current_session_hydrated直接插入raw历史状态。现改用同一SessionLoadContext已归一化的session/turns，其余StoredSession数据不变；这属于既有owner接纳状态修正，不是新增read model或恢复API。普通/fork公共4、hydration1、read13、pending recovery5及multimodal queue1共24项通过；真实GUI restart继续发送/停止27、双会话reload隔离33项通过，原Main15秒/零mock/freshness不变。标准GUI/current聚合及历史退出超时的unknown边界统一见布局报告，不把此修正冒称上游原函数结构。
 
 ## 已确认结构与方法，原类名未知
 
@@ -184,3 +188,25 @@ Main `eZe`/`u7`的prepare→drain→恢复quit顺序映射到
 直接替换，无compat。重复请求共享同一drain是明确本地实现选择；上游flush集合、
 context dispose界限与资源树不冒称同义。26项定向回归、严格lint、Electron类型通过；
 新固定产物原生验证待做，历史偶发超时根因unknown，原15秒门禁不变。
+
+### 共享页头清退与unified合同后继（2026-10-18）
+
+同一AppShell registry的Header/MainContentLayout已接管普通会话页头；独立46px宿主、侧栏补位、重复导航、常驻状态/目录及专用派生/props直接删除，没有新增compat/deprecated owner。清退74项、VM4、完整types/lint、标准GUI24/24和canonical动作后继通过；settled画面检查另暴露分叉raw hydration绕过workspace草稿导航，原120秒失败保留。调用迁到唯一`handleOpenTaskTopic`后，真实后继再次暴露initialScope恒等门槛；修正同一CommandWiring的初始路由恢复生命周期，red/green37、完整types、标准GUI24、真实7图/父子与设置返回草稿隔离及加严Fork Gate B均通过。unavailable backend，无Turn/模型；历史失败保留。
+
+`HeaderToolbar`/`.Actions`/`UnifiedTabStrip`是安装包明文属性；其注册器与shell完整渲染器REA parent分别为`ev_510ea23eb3f657aa91ec654e613ce44f636c57a47ec021f837f1199a098c876e`和`ev_63dece790eea4393d8906f204f9c38dd80da7d3600c7f1f19bcd5c28d4b2d31c`。各自2575/19005bytes解析不代表完整语义或运行证明；full/split/chat、tabpanel/inert/focus及六槽动作应映射既有shell/right-surface owner，产品迁移仍开放。普通及unified内部均存在条件标题；不从rail外观推断flag，不增加独立隐藏开关。精确合同、范围和限制见[unified合同](../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/unified-workspace-contract.md)。
+
+### Unified产品迁移（2026-10-18，active）
+
+唯一[专项计划](../../exec-plans/codex-unified-workspace-20261018.md)持有后继验证。HeaderToolbar/Actions/UnifiedTabStrip采用已证名称；同scope注册只持展示对象，右侧面tab与pane从既有projection显式分流，不新增业务store。Thread动作按REA容器合同进入window/chat/tab-strip，summary按split进入chat，其余留window；More始终保留窗口右槽。稳定DOM容器避免重建工具组件。旧TaskCenterTabStrip/hook/projection与旧42/84px补位、auto-hide栏物理删除；title清洗保留threadTitle，fallback导航保留canonical语义。LayoutTransition继续实际resize/transition、双击full/split/chat、aria/inert和焦点owner。mainPaneEnd/sidePanelActive是本地展示适配，不冒充上游原字段；完整route transition context及content/divider/new-tab/context-menu仍gap。架构图已由root确认依赖方向。标准GUI与真实Electron已由候选3/5结算；工具栏后继候选6另验，不把局部通过写成整体100%。
+
+分隔条后继复用LayoutTransition尺寸owner；参照新REA parent `ev_52abf6e068fc01327c50e66fda539aa7fa2fdabf8c2fea6d1b10c0ff0e249e8d`补10px键盘步进、内容Home/End、separator尺寸aria、主键/pointer身份、起点增量与双击默认宽度，清退360/420和右侧面560px旧下限为320px。28项定向及候选3/5真实后继通过。该项不关闭divider action slot、菜单、route transition或整体GUI。
+
+候选2原生页头在full→chat→split后焦点落BODY；独立真实探针与normal Main退出保留。LayoutTransition仍是唯一focus owner，同一effect观察隐藏与布局形态。候选3完整六步骤通过，9462源码零漂移/429产物摘要；候选4只加严静止截图，同产品字节再次通过。候选5删除chatPanelMinWidth/layoutTransitionChatPanelMinWidth及team/code/Right Surface三个min常量，CSS、keyboard/pointer/aria统一320；94项、strict lint、完整types和原生六步骤通过，9462源码零漂移/541产物。失败317产物摘要独立保留。
+
+线程summary的REA parent `ev_83011e06d28ca110820a1e0688adad13ed10e33e02d79255c483c7bd7f71c632`覆盖6精确输入16949bytes、1393 semantic unknown。完整layout与sections父证据分别为 `ev_e457dea934ddb45739ab0ef92d51716a575f57c193c1567b5e2b99fdad9e4068` / `ev_2da75de405e3fc5e7a9ae8b81d33f98e878609083d0c54db939ba7838e11fa8b`。组件producer `ev_e608e8136665557de99468feb67bb21aa3dd3ccab5b0bb0e2fbfacb24c089809`解析完整30591字节、保留1939 semantic unknown。它们为静态证据，参考运行flags仍unknown。
+
+后继产品已直接替换Activity：`useThreadSummaryPanel`、`ThreadSummaryLayout` 和 `ThreadSummaryPanel` 为本地职责名，消费既有canonical items/children与artifact/thread/URL动作；压缩fc/tE/sE不作原始开发名称。主pane实际宽度驱动300px overlay/shift/gutter，shift同步浮动Composer；Main pin默认true，复用persistedAtoms typed gateway及同一Host file。旧Activity文件、registry、toggle与正向fixture同步删除，不新增compat。当前只覆盖plan、file_artifact输出、children和实际web_search来源；Subscriptions/Created tasks/Side chats/PR/Chrome/Computer Use、深层output identity、projectless空Sources仍partial。226项风险回归、strict lint与contracts已通过；新候选原生验收尚待运行，不能继承候选6的成功。
+
+布局与分组补证分别为 `ev_e457dea934ddb45739ab0ef92d51716a575f57c193c1567b5e2b99fdad9e4068`（完整611bytes/19 semantic unknown）和`ev_2da75de405e3fc5e7a9ae8b81d33f98e878609083d0c54db939ba7838e11fa8b`（14完整函数18040bytes/1191 unknown）。阈值基于主内容目标宽度，不是window宽度；sections随canonical数据/能力显示。Main pin当前typed协议尚无该key，实施需迁移真实Host合同，不能伪造renderer持久化。portable bundle与完整122记录导出均经完整JSON解析和gzip解压SHA验证，保留原unknown。
+
+HeaderToolbar后继按原注册producer与integrity核对CSS补齐boolean inset、8px默认/8+6px tab-strip、40px pane、compact/secondary、42rem具名容器与原明文DOM属性；不新增alias。28项与strict lint通过；候选6只迁四份冻结输入后重建/原生六步骤全部通过。次级动作能力与当前工具分组分开验，不凭组件API补齐声称窄窗排版完整对齐。

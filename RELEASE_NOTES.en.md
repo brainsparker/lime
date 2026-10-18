@@ -1,43 +1,38 @@
-## Lime v1.161.0
+## Lime v1.162.0
 
-Simplified Chinese release notes are the primary version; this English companion summarizes the same release.
+Simplified Chinese release notes are the primary version. This English companion summarizes the same release scope.
 
 ### Features
 
-- Preview original PDF, DOCX, workbook, and presentation files in the workspace, add location annotations, and send feedback to conversations; edit and save supported workbook and presentation content.
-- Extend marketplace source management, remote plugin retrieval, plugin sharing, and access controls through shared desktop, CLI, and App Server contracts.
-- Add App Server account and cloud request interfaces to unify desktop login, account state synchronization, and logout.
+- Unify the window header and workspace tabs, bring conversation actions and side-panel entry points together, and support pointer and keyboard resizing.
+- Add a conversation summary panel with a persisted pin preference, using canonical conversation state.
+- Add account preferences for enabling remote plugins and individual skills, shared by lists and previews and refreshed after saving.
 
 ### Fixes
 
-- Keep the home composer and its bottom controls visible in shorter windows.
-- Wait for App Server shutdown when quitting the desktop app.
-- Fix file revision hashing failures that could prevent professional file previews or annotations from initializing.
-- Improve state ownership, stale response handling, and file revision conflicts when switching workspaces, previewing files, and submitting annotations.
-- Protect unsaved MCP, experimental, and media service settings, and improve search navigation to developer and media settings.
-- Improve App Server request timeouts and diagnostics, plugin refresh and installation identity, and Hooks lifecycle handling.
+- Correct Responses streaming tool-call identity and terminal-event deduplication to avoid treating argument events as extra calls.
+- Correct tool-history truncation, budgets and read-result projection while preserving call/output associations and original records.
+- Generate context-compaction summaries with the current model and improve cancellation, persistence and forked-history handling.
+- Route conversation forks through the existing draft-scope navigation flow to keep parent and child drafts separate.
+- Strengthen account isolation, failure handling and refresh behavior for plugin preferences; skills requiring Apps authorization remain gated.
 
 ### Improvements and Refactoring
 
-- Add a navigation rail that remains visible when collapsed, contextual sidebars, and a shared title bar; simplify the home page by removing old recommendation entries while retaining the Banner and separate composer.
-- Improve worktree submission, execution scope handoff, and background session recovery state synchronization.
-- Read plugin skill previews through the shared App Server contract, with query caching, request deduplication, and cache isolation when accounts change.
-- Reorder queued messages with drag and drop or keyboard controls using the existing queue protocol and conversation state.
-- Separate file format preview, editing, and annotation responsibilities while sharing file access, save, and conversation submission owners; remove replaced workspace preview paths.
-- Keep account credentials in App Server, remove duplicate renderer session token and logout paths, and update all five interface languages.
+- Consolidate remote plugin catalog, detail and installed-state facts while keeping local runtime configuration separate from remote account preferences.
+- Replace legacy task-center tabs and the Activity panel with the shared header, tabs and summary, and remove unused home callbacks and derived state.
+- Split context compaction, history normalization and Hook lifecycle logic into existing domain modules.
 
 ### Tests and Quality
 
-- Extend focused regressions and Electron scenarios for file parsing, editing, saving, annotations, queue ordering, settings navigation, accounts, and plugins.
-- Synchronize protocol schemas, generated clients, command catalogs, CLI consumers, and boundary guards.
-- Update runtime dependency preparation, capability scope, and validation records.
+- Extend regressions for workspace layout, summary pinning, plugin preferences, tool-call identity and history budgets, with related Electron and public JSON-RPC scenarios.
+- Update interface resources in all five languages and align affected contracts and fixtures.
 
 ### Documentation
 
-- Update architecture and execution plans for professional files, plugin reconstruction, settings drafts, queue interactions, and the shared backend; track remaining GUI alignment and unverified capabilities in their domain plans.
+- Update architecture diagrams, desktop structure evidence and runtime/plugin execution plans while retaining open scope and validation limits.
 
 ### Other
 
-- Align the desktop app, CLI npm package, and Rust workspace at `1.161.0`.
+- Align the application, CLI and Rust workspace versions to 1.162.0.
 
-**Full Changelog**: `v1.160.0` -> `v1.161.0`
+**Full changes**: `v1.161.0` -> `v1.162.0`

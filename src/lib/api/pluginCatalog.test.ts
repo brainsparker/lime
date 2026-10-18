@@ -30,6 +30,8 @@ function client(): PluginCatalogClient {
       .fn()
       .mockResolvedValue({ result: { data: [], nextCursor: null } }),
     request: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
+    requestCloud: vi.fn(),
+    readAccount: vi.fn(),
     readPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
     installPlugin: vi.fn().mockResolvedValue({ result: { plugin: {} } }),
     uninstallPlugin: vi.fn().mockResolvedValue({ result: {} }),

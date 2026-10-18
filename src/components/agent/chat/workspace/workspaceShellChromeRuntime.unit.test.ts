@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  TEAM_PRIMARY_CHAT_PANEL_MIN_WIDTH,
-  TEAM_PRIMARY_CHAT_PANEL_WIDTH,
-} from "./WorkspaceStyles";
+import { TEAM_PRIMARY_CHAT_PANEL_WIDTH } from "./WorkspaceStyles";
 import { resolveWorkspaceShellChromeRuntime } from "./workspaceShellChromeRuntime";
 
 function baseInput(
@@ -123,9 +120,6 @@ describe("resolveWorkspaceShellChromeRuntime", () => {
 
     expect(runtime.layoutTransitionChatPanelWidth).toBe(
       TEAM_PRIMARY_CHAT_PANEL_WIDTH,
-    );
-    expect(runtime.layoutTransitionChatPanelMinWidth).toBe(
-      TEAM_PRIMARY_CHAT_PANEL_MIN_WIDTH,
     );
   });
 

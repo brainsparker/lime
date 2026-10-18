@@ -56,6 +56,7 @@ fn request_with_multimodal_tool_history() -> CurrentProviderRequest {
         )]),
         CurrentProviderMessage::tool(vec![CurrentProviderContent::ToolResult(
             CurrentProviderToolResult {
+                history_token_limit: Some(17),
                 call_id: "call-1".to_string(),
                 name: "read_file".to_string(),
                 success: true,
@@ -96,6 +97,7 @@ fn request_with_custom_tool_history() -> CurrentProviderRequest {
         CurrentProviderMessage::assistant(vec![CurrentProviderContent::CustomToolCall(call)]),
         CurrentProviderMessage::tool(vec![CurrentProviderContent::CustomToolResult(
             CurrentProviderToolResult {
+                history_token_limit: Some(17),
                 call_id: "custom-call-1".to_string(),
                 name: "run_code".to_string(),
                 success: true,
@@ -170,6 +172,10 @@ async fn capture_provider_request_with(
         .collect::<Result<Vec<_>, _>>()
         .expect("collect provider capture events");
     let capture = capture.await.expect("capture provider request");
+    assert!(!capture
+        .body
+        .to_string()
+        .contains(agent_protocol::truncation::HISTORY_TOKEN_LIMIT_KEY));
     server.await.expect("join provider capture fixture");
     (capture, events)
 }

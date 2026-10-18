@@ -13,6 +13,7 @@ import type {
   PersistedDraftEntry,
   PersistedDraftIndexItem,
 } from "../src/lib/api/persistedAtomTypes";
+import { SUMMARY_PANEL_PIN_ATOM_KEY } from "../src/lib/api/persistedAtomTypes";
 
 export const COMPOSER_ATOM_KEY = "composer-drafts-v1" as const;
 
@@ -328,7 +329,17 @@ export function parseEnvelope(
     envelope.version !== 1
   )
     invalid("invalid_request");
-  const atoms = exactRecord(envelope.atoms, [COMPOSER_ATOM_KEY]);
+  const atoms = exactRecord(
+    envelope.atoms,
+    [COMPOSER_ATOM_KEY],
+    [SUMMARY_PANEL_PIN_ATOM_KEY],
+  );
+  const pin = atoms[SUMMARY_PANEL_PIN_ATOM_KEY];
+  if (
+    Object.hasOwn(atoms, SUMMARY_PANEL_PIN_ATOM_KEY) &&
+    typeof pin !== "boolean"
+  )
+    invalid("invalid_request");
   const atom = exactRecord(atoms[COMPOSER_ATOM_KEY], ["bindings", "entries"]);
   const rawEntries = record(atom.entries);
   const rawBindings = record(atom.bindings);
@@ -384,6 +395,11 @@ export function parseEnvelope(
     format: "electron-persisted-atom-state",
     version: 1,
     storeRevision: timestamp(envelope.storeRevision),
-    atoms: { [COMPOSER_ATOM_KEY]: { entries, bindings } },
+    atoms: {
+      [COMPOSER_ATOM_KEY]: { entries, bindings },
+      ...(typeof pin === "boolean"
+        ? { [SUMMARY_PANEL_PIN_ATOM_KEY]: pin }
+        : {}),
+    },
   };
 }

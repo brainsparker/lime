@@ -13,6 +13,8 @@ pub const TOOL_OUTCOME_REJECTED: &str = "rejected";
 /// Canonical terminal output emitted for every tool execution outcome.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct NormalizedToolOutput {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub history_token_limit: Option<usize>,
     pub success: bool,
     pub text: String,
     pub structured_content: Option<Value>,
@@ -46,6 +48,7 @@ impl NormalizedToolOutput {
                     Value::Bool(true),
                 );
                 Self {
+                    history_token_limit: result.history_token_limit,
                     success: result.success,
                     text,
                     structured_content: result.structured_content,
@@ -80,6 +83,7 @@ impl NormalizedToolOutput {
                     );
                 }
                 Self {
+                    history_token_limit: None,
                     success: false,
                     text: message.clone(),
                     structured_content: None,
@@ -93,6 +97,7 @@ impl NormalizedToolOutput {
                 }
             }
             RuntimeToolExecutionOutcome::Aborted => Self {
+                history_token_limit: None,
                 success: false,
                 text: "Tool execution aborted".to_string(),
                 structured_content: None,

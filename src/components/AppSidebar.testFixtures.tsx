@@ -7,11 +7,14 @@ import {
 } from "@/lib/workspace/navigation";
 import { act as reactAct } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { StyleSheetManager } from "styled-components";
+import { createTestStyleSheet } from "@/test/createTestStyleSheet";
 import { vi } from "vitest";
 import type { AgentPageParams, Page, PageParams } from "@/types/page";
 import { SettingsTabs as LimeSettingsTabs } from "@/types/settings";
 import { AppSidebar as AppSidebarComponent } from "./AppSidebar";
 import { AppShell, AppShellHeader } from "./app-shell/AppShell";
+import { shouldReserveMacWindowControls } from "@/lib/windowControls";
 import { changeLimeLocale as changeLimeLocaleImpl } from "@/i18n/createI18n";
 import { LIME_COLOR_SCHEME_STORAGE_KEY as LIME_COLOR_SCHEME_STORAGE_KEY_VALUE } from "@/lib/appearance/colorSchemes";
 import { LIME_THEME_STORAGE_KEY as LIME_THEME_STORAGE_KEY_VALUE } from "@/lib/appearance/themeMode";
@@ -362,6 +365,7 @@ vi.mock("@/lib/agentUiPerformanceMetrics", () => ({
 interface MountedSidebar {
   container: HTMLDivElement;
   root: Root;
+  styleTarget: HTMLDivElement;
 }
 
 const mountedSidebars: MountedSidebar[] = [];
@@ -381,12 +385,24 @@ export function mountSidebar(options?: {
 }): MountedSidebar {
   const container = document.createElement("div");
   document.body.appendChild(container);
-  const root = createRoot(container);
+  const styleTarget = document.createElement("div");
+  document.head.appendChild(styleTarget);
+  const sheet = createTestStyleSheet(styleTarget);
+  const renderer = createRoot(container);
+  const root: Root = {
+    render: (children) =>
+      renderer.render(
+        <StyleSheetManager sheet={sheet}>{children}</StyleSheetManager>,
+      ),
+    unmount: () => renderer.unmount(),
+  };
 
   act(() => {
     root.render(
       <AppShell>
-        <AppShellHeader />
+        <AppShellHeader
+          reserveWindowControls={shouldReserveMacWindowControls()}
+        />
         <AppSidebar
           currentPage={options?.currentPage ?? "agent"}
           currentPageParams={options?.currentPageParams}
@@ -417,7 +433,7 @@ export function mountSidebar(options?: {
     );
   });
 
-  const mounted = { container, root };
+  const mounted = { container, root, styleTarget };
   mountedSidebars.push(mounted);
   return mounted;
 }
@@ -1007,6 +1023,7 @@ export function cleanupAppSidebarTest() {
       mounted.root.unmount();
     });
     mounted.container.remove();
+    mounted.styleTarget.remove();
   }
 
   vi.clearAllMocks();

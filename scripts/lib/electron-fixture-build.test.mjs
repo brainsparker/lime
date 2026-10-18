@@ -66,6 +66,29 @@ afterEach(() => {
 describe("Electron renderer entry assets", () => {
   const artifactTime = new Date("2026-01-01T00:10:00.000Z");
 
+  it.each(["postcss.config.js", "tailwind.config.js"])(
+    "invalidates the renderer when %s changes",
+    (config) => {
+      const rootDir = createTempRoot();
+      writeRequiredFiles(rootDir, artifactTime);
+      writeFile(
+        path.join(rootDir, config),
+        "export default {};",
+        new Date("2026-01-01T00:20:00.000Z"),
+      );
+      expect(inspectElectronFixtureBuildFreshness({ rootDir })).toMatchObject({
+        ready: false,
+        reason: "stale-source",
+        staleSegments: ["renderer"],
+        segments: {
+          renderer: { newestSource: { relativePath: config } },
+          host: { ready: true },
+          appServer: { ready: true },
+        },
+      });
+    },
+  );
+
   function rendererFixture(html) {
     const rootDir = createTempRoot();
     writeRequiredFiles(rootDir, artifactTime);

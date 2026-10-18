@@ -4,6 +4,7 @@
 //! manage large tool inputs and outputs under context window pressure.
 
 use agent_protocol::model_context::resolve_model_context_window_or;
+use agent_protocol::truncation::TruncationPolicy;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -37,21 +38,6 @@ pub struct ToolIoPayloadStats {
     pub chars: usize,
     pub bytes: usize,
     pub tokens: usize,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ToolOutputTruncationPolicy {
-    Bytes(usize),
-    Tokens(usize),
-}
-
-impl ToolOutputTruncationPolicy {
-    pub fn drain_max_bytes(self, default_bytes: u64) -> u64 {
-        match self {
-            Self::Bytes(limit) => u64::try_from(limit).unwrap_or(u64::MAX),
-            Self::Tokens(_) => default_bytes,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -371,71 +357,44 @@ pub fn build_tool_io_history_eviction_plan(
     plan
 }
 
-pub fn format_tool_output_for_model(output: &str, policy: ToolOutputTruncationPolicy) -> String {
-    match policy {
-        ToolOutputTruncationPolicy::Bytes(limit) => formatted_truncate_bytes(output, limit),
-        ToolOutputTruncationPolicy::Tokens(limit) => formatted_truncate_tokens(output, limit),
-    }
-}
-
-fn formatted_truncate_bytes(output: &str, limit: usize) -> String {
+/// Match Codex's prompt budget: retain UTF-8 head/tail bytes and put the marker outside it.
+/// Token limits are a four-byte approximation, independent of any provider's tokenizer.
+pub fn truncate_tool_output(output: &str, policy: TruncationPolicy) -> String {
+    let limit = policy.byte_budget();
     if output.len() <= limit {
         return output.to_string();
     }
-    formatted_truncated_output(output, truncate_middle_bytes(output, limit))
-}
-
-fn formatted_truncate_tokens(output: &str, limit: usize) -> String {
-    let original_tokens = estimate_tool_io_tokens(output);
-    if original_tokens <= limit {
-        return output.to_string();
-    }
-    formatted_truncated_output(
-        output,
-        truncate_middle_tokens(output, limit, original_tokens),
-    )
-}
-
-fn formatted_truncated_output(output: &str, truncated: String) -> String {
-    let original_tokens = estimate_tool_io_tokens(output);
-    let total_lines = output.lines().count();
-    format!(
-        "Warning: truncated output (original token count: {original_tokens})\nTotal output lines: {total_lines}\n\n{truncated}"
-    )
-}
-
-fn truncate_middle_bytes(output: &str, limit: usize) -> String {
-    if limit == 0 {
-        return format!("…{} chars truncated…", output.chars().count());
-    }
-
-    if output.len() <= limit {
-        return output.to_string();
-    }
-
     let prefix_budget = limit / 2;
     let suffix_budget = limit.saturating_sub(prefix_budget);
     let prefix = take_prefix_by_byte_budget(output, prefix_budget);
     let suffix = take_suffix_by_byte_budget(output, suffix_budget);
-    let omitted = output
-        .chars()
-        .count()
-        .saturating_sub(prefix.chars().count())
-        .saturating_sub(suffix.chars().count());
-    format!("{prefix}…{omitted} chars truncated…{suffix}")
+    let marker = match policy {
+        TruncationPolicy::Bytes(_) => {
+            let omitted = output
+                .chars()
+                .count()
+                .saturating_sub(prefix.chars().count())
+                .saturating_sub(suffix.chars().count());
+            format!("…{omitted} chars truncated…")
+        }
+        TruncationPolicy::Tokens(_) => {
+            let omitted = output.len().saturating_sub(limit).div_ceil(4);
+            format!("…{omitted} tokens truncated…")
+        }
+    };
+    format!("{prefix}{marker}{suffix}")
 }
 
-fn truncate_middle_tokens(output: &str, limit: usize, original_tokens: usize) -> String {
-    if limit == 0 {
-        return format!("…{original_tokens} tokens truncated…");
+pub fn format_tool_output_for_model(output: &str, policy: TruncationPolicy) -> String {
+    if output.len() <= policy.byte_budget() {
+        return output.to_string();
     }
-
-    let prefix_budget = limit / 2;
-    let suffix_budget = limit.saturating_sub(prefix_budget);
-    let prefix = take_prefix_by_token_budget(output, prefix_budget);
-    let suffix = take_suffix_by_token_budget(output, suffix_budget);
-    let omitted = original_tokens.saturating_sub(limit);
-    format!("{prefix}…{omitted} tokens truncated…{suffix}")
+    let original_tokens = output.len().div_ceil(4);
+    let total_lines = output.lines().count();
+    let truncated = truncate_tool_output(output, policy);
+    format!(
+        "Warning: truncated output (original token count: {original_tokens})\nTotal output lines: {total_lines}\n\n{truncated}"
+    )
 }
 
 pub(crate) fn truncate_chars(text: &str, max_chars: usize) -> (String, bool) {
@@ -443,58 +402,6 @@ pub(crate) fn truncate_chars(text: &str, max_chars: usize) -> (String, bool) {
         Some((end, _)) => (text[..end].to_string(), true),
         None => (text.to_string(), false),
     }
-}
-
-fn char_boundaries(output: &str) -> Vec<usize> {
-    let mut boundaries = output
-        .char_indices()
-        .map(|(idx, _)| idx)
-        .collect::<Vec<_>>();
-    if boundaries.first().copied() != Some(0) {
-        boundaries.insert(0, 0);
-    }
-    if boundaries.last().copied() != Some(output.len()) {
-        boundaries.push(output.len());
-    }
-    boundaries
-}
-
-fn take_prefix_by_token_budget(output: &str, budget: usize) -> String {
-    if budget == 0 || output.is_empty() {
-        return String::new();
-    }
-
-    let boundaries = char_boundaries(output);
-    let mut low = 0usize;
-    let mut high = boundaries.len().saturating_sub(1);
-    while low < high {
-        let mid = (low + high).div_ceil(2);
-        if estimate_tool_io_tokens(&output[..boundaries[mid]]) <= budget {
-            low = mid;
-        } else {
-            high = mid.saturating_sub(1);
-        }
-    }
-    output[..boundaries[low]].to_string()
-}
-
-fn take_suffix_by_token_budget(output: &str, budget: usize) -> String {
-    if budget == 0 || output.is_empty() {
-        return String::new();
-    }
-
-    let boundaries = char_boundaries(output);
-    let mut low = 0usize;
-    let mut high = boundaries.len().saturating_sub(1);
-    while low < high {
-        let mid = (low + high) / 2;
-        if estimate_tool_io_tokens(&output[boundaries[mid]..]) <= budget {
-            high = mid;
-        } else {
-            low = mid + 1;
-        }
-    }
-    output[boundaries[low]..].to_string()
 }
 
 fn take_prefix_by_byte_budget(output: &str, budget: usize) -> String {

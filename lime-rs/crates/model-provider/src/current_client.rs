@@ -549,6 +549,8 @@ impl CurrentProviderToolCall {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct CurrentProviderToolResult {
+    /// Originating history budget, including allowance; never serialized to provider wire.
+    pub history_token_limit: Option<usize>,
     pub call_id: String,
     pub name: String,
     pub success: bool,
@@ -2206,6 +2208,7 @@ mod tests {
             )]),
             CurrentProviderMessage::tool(vec![CurrentProviderContent::ToolResult(
                 CurrentProviderToolResult {
+                    history_token_limit: None,
                     call_id: "call-1".to_string(),
                     name: "Read".to_string(),
                     success: true,

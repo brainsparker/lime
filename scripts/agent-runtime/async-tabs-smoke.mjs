@@ -29,21 +29,27 @@ function main() {
     throw new Error("async-tabs 必须执行全部三项 canonical 队列水合测试");
   }
 
-  const navigation = runVitest("侧栏任务状态与专用工作台标签", [
+  const navigation = runVitest("侧栏状态与canonical会话恢复", [
     "src/components/AppSidebar.conversations.test.tsx",
-    "src/components/agent/chat/components/TaskCenterTabStrip.test.tsx",
     "src/components/agent/chat/utils/taskCenterTabs.test.ts",
-    "src/components/agent/chat/workspace/taskCenterTabProjection.test.ts",
-    "src/components/agent/chat/workspace/useTaskCenterTabChrome.test.tsx",
     "-t",
-    "回到首页时应按后台未完成会话状态显示侧栏运行图标|回到首页时应按后台排队会话状态显示侧栏排队图标|后台状态不会覆盖已完成的侧栏会话终态|reconcile 当前任务应保留本地追平目标，并跳过 detached 预览|切换中的目标会话尚未成为当前会话时，应标记为待恢复态|应渲染第二层会话 tabs 和加号入口|应清理任务标签里的运行时错误标题|初始 Thread 标题|general home=|specialized workbench keeps canonical",
+    "回到首页时应按后台未完成会话状态显示侧栏运行图标|回到首页时应按后台排队会话状态显示侧栏排队图标|后台状态不会覆盖已完成的侧栏会话终态|reconcile 当前任务应保留本地追平目标，并跳过 detached 预览|切换中的目标会话尚未成为当前会话时，应标记为待恢复态",
   ]);
-  if (navigation.executedTests !== 11) {
-    throw new Error("async-tabs 必须执行全部十一项侧栏与专用工作台测试");
+  if (navigation.executedTests !== 5) {
+    throw new Error("async-tabs 必须执行全部五项canonical导航测试");
+  }
+  const unified = runVitest("统一工作区与canonical标题", [
+    "src/components/agent/chat/workspace/threadTitle.unit.test.ts",
+    "src/components/agent/chat/workspace/threadWorkspaceHeaderViewModel.unit.test.ts",
+    "src/components/app-shell/AppShell.test.tsx",
+    "src/components/workspace/layout/LayoutTransition.test.tsx",
+  ]);
+  if (unified.executedTests !== 24) {
+    throw new Error("async-tabs 必须执行全部二十四项统一工作区测试");
   }
 
   console.log(
-    `[${LOG_PREFIX}] async-tabs.summary: canonical_queue_hydration=covered; running_thread_subscription=covered; title_loading=covered; general_second_strip=absent; specialized_navigation=covered`,
+    `[${LOG_PREFIX}] async-tabs.summary: canonical_queue_hydration=covered; running_thread_subscription=covered; title_loading=covered; legacy_task_strip=deleted; unified_navigation=covered`,
   );
   console.log(`\n[${LOG_PREFIX}] 通过`);
 }

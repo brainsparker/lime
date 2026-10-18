@@ -310,18 +310,28 @@ export function PluginCatalogPage({
       setBusyId(plugin.id);
       setActionMenuId(null);
       try {
-        await setPluginEnabled({
-          pluginId: plugin.id,
-          enabled: !plugin.enabled,
-        });
+        if (accountIdentity !== cloudAccountIdentity(getCloudAccount())) return;
+        if (plugin.source.type === "remote" && !plugin.remotePluginId) {
+          throw new Error("remote plugin preference requires a plugin ID");
+        }
+        await setPluginEnabled(
+          plugin.source.type === "remote"
+            ? {
+                remotePluginId: plugin.remotePluginId!,
+                enabled: !plugin.enabled,
+              }
+            : { pluginId: plugin.id, enabled: !plugin.enabled },
+        );
         await refresh();
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : String(cause));
+      } catch {
+        if (accountIdentity === cloudAccountIdentity(getCloudAccount())) {
+          setError(t("plugin.catalog.v2.toggleFailed"));
+        }
       } finally {
         setBusyId(null);
       }
     },
-    [refresh],
+    [refresh, accountIdentity, t],
   );
 
   const handleUninstall = useCallback(async () => {

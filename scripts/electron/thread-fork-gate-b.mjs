@@ -18,12 +18,19 @@ import {
 } from "./lib/mcp-config-fixture-evidence.mjs";
 import {
   appServerCallFromPage,
-  closeElectronFixture,
   createTempRuntimeEnv,
   launchElectronFixture,
   sanitizeText,
   waitForPageCondition,
 } from "./mcp-config-fixture-smoke.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
+import {
+  clickConversation,
+  readThreadDom,
+  waitForConversation,
+  waitForForkComposerReady,
+} from "./lib/thread-fork-dom.mjs";
 
 export const THREAD_FORK_TITLE = "Thread Fork Gate B canonical thread";
 export const THREAD_FORK_REQUIRED_METHODS = [
@@ -63,7 +70,7 @@ Thread Fork Electron Gate B
 
 用途:
   从真实 Electron Thread header 菜单执行 Fork，验证 parent/child lineage、
-  侧栏激活项、成功反馈和 canonical read/resume identity。
+  侧栏激活项、成功反馈、canonical read/resume identity、可编辑草稿和正常退出。
 
 边界:
   使用 unavailable backend；不启动 Turn、不调用模型，不使用 mock backend、
@@ -260,6 +267,11 @@ export function summarizeThreadForkEvidence({
       successToastVisible: afterDom?.successToastVisible === true,
       parentActiveBefore: beforeDom?.parentActive === true,
       childActiveAfter: afterDom?.childActive === true,
+      childDraftReady:
+        Boolean(childSessionId) &&
+        afterDom?.composerSessionId === childSessionId &&
+        afterDom?.composerEditable === true &&
+        afterDom?.composerDraftState !== "restoring",
       matchingConversationCount: Number(
         afterDom?.matchingConversationCount ?? 0,
       ),
@@ -329,6 +341,8 @@ export function summarizeThreadForkFailure({
       ),
       activeConversationPresent: dom?.activeConversationPresent === true,
       matchingConversationCount: Number(dom?.matchingConversationCount ?? 0),
+      composerEditable: dom?.composerEditable === true,
+      composerDraftState: dom?.composerDraftState ?? null,
     },
     observer: {
       methods: Array.from(
@@ -418,85 +432,16 @@ export function assertThreadForkEvidence(evidence) {
   assert(evidence.gui.parentActiveBefore, "Fork 前 parent 侧栏项未激活");
   assert(evidence.gui.childActiveAfter, "Fork 后 child 侧栏项未激活");
   assert(
+    evidence.gui.childDraftReady,
+    "Fork child Composer draft 未就绪或 session 不匹配",
+  );
+  assert(
     evidence.gui.matchingConversationCount === 2,
     `Fork 后应保留两个同名 Thread，实际: ${evidence.gui.matchingConversationCount}`,
   );
   assert(
     evidence.errors.invokeErrorCount === 0,
     `观察到 invoke error: ${evidence.errors.invokeErrorCount}`,
-  );
-}
-
-async function waitForConversation(page, options) {
-  await waitForPageCondition(
-    page,
-    options,
-    (title) =>
-      Array.from(
-        document.querySelectorAll(
-          '[data-testid="app-sidebar-conversation-open"]',
-        ),
-      ).some(
-        (button) =>
-          button.getAttribute("title") === title ||
-          button.textContent?.includes(title),
-      ),
-    "Thread Fork parent 侧栏会话未出现",
-    THREAD_FORK_TITLE,
-  );
-}
-
-async function clickConversation(page) {
-  const clicked = await page.evaluate((title) => {
-    const button = Array.from(
-      document.querySelectorAll(
-        '[data-testid="app-sidebar-conversation-open"]',
-      ),
-    ).find(
-      (candidate) =>
-        candidate.getAttribute("title") === title ||
-        candidate.textContent?.includes(title),
-    );
-    if (!(button instanceof HTMLButtonElement)) return false;
-    button.click();
-    return true;
-  }, THREAD_FORK_TITLE);
-  assert(clicked, "无法点击 Thread Fork parent 侧栏会话");
-}
-
-async function readThreadDom(page, parentSessionId = "") {
-  return await page.evaluate(
-    ({ title, parentSessionId }) => {
-      const rows = Array.from(
-        document.querySelectorAll(
-          '[data-testid="app-sidebar-conversation-open"]',
-        ),
-      );
-      const matchingRows = rows.filter(
-        (row) =>
-          row.getAttribute("title") === title ||
-          row.textContent?.includes(title),
-      );
-      const activeRow = rows.find(
-        (row) => row.getAttribute("aria-current") === "page",
-      );
-      const header = document.querySelector(
-        '[data-testid="thread-workspace-header-title"]',
-      );
-      return {
-        headerTitle: header?.textContent?.trim() || "",
-        activeSessionId: activeRow?.getAttribute("data-session-id") || "",
-        activeThreadId: "",
-        parentActive:
-          activeRow?.getAttribute("data-session-id") === parentSessionId,
-        childActive:
-          Boolean(activeRow?.getAttribute("data-session-id")) &&
-          activeRow?.getAttribute("data-session-id") !== parentSessionId,
-        matchingConversationCount: matchingRows.length,
-        successToastVisible: false,
-      };
-    },
-    { title: THREAD_FORK_TITLE, parentSessionId },
   );
 }
 
@@ -727,6 +672,8 @@ async function run() {
   const workspaceRoot = path.join(runtimeEnv.tempRoot, "workspace");
   fs.mkdirSync(workspaceRoot, { recursive: true });
   let handle = null;
+  let mainExit = null;
+  let businessFailure = null;
   const consoleErrors = [];
   const pageErrors = [];
   const summary = {
@@ -734,7 +681,7 @@ async function run() {
     scenarioId: "CODEX-ALIGN-thread-fork",
     proofLevel: "Gate B controlled fixture",
     claimBoundary:
-      "Real Electron GUI thread/fork from one paginated canonical source Thread to one canonical forked Thread, including sidebar activation, forkedFromId lineage, read/resume and notification identity. It does not start a Turn or call a model.",
+      "Real Electron GUI thread/fork from one paginated canonical source Thread to one canonical forked Thread, including sidebar activation, forkedFromId lineage, read/resume, notification identity, an editable child draft and normal Main exit. It does not start a Turn or call a model.",
     backendMode: "unavailable",
     ok: false,
     checkedAt: new Date().toISOString(),
@@ -769,6 +716,7 @@ async function run() {
       consoleErrors,
       pageErrors,
     });
+    mainExit = captureMainProcessExit(handle.app.process());
     await handle.page.evaluate(() => {
       window.localStorage.setItem("lime.app-sidebar.collapsed", "false");
     });
@@ -809,12 +757,15 @@ async function run() {
         Boolean(document.querySelector('[data-testid="app-sidebar"]')),
       "Electron renderer reload 未就绪",
     );
-    await waitForConversation(handle.page, options);
-    await clickConversation(handle.page);
+    await waitForConversation(handle.page, options, THREAD_FORK_TITLE);
+    await clickConversation(handle.page, THREAD_FORK_TITLE);
     await handle.page
       .locator('[data-testid="thread-workspace-header-action-menu"]')
       .waitFor({ state: "visible", timeout: options.timeoutMs });
-    const beforeDom = await readThreadDom(handle.page, parentSessionId);
+    const beforeDom = await readThreadDom(handle.page, {
+      title: THREAD_FORK_TITLE,
+      parentSessionId,
+    });
     await handle.page.evaluate(() => {
       window.localStorage.removeItem("lime_invoke_error_buffer_v1");
       window.localStorage.removeItem("lime_invoke_trace_buffer_v1");
@@ -859,13 +810,21 @@ async function run() {
       "thread/read",
       { threadId: forked.childThreadId, includeTurns: false },
     );
+    await waitForForkComposerReady(
+      handle.page,
+      options,
+      childReadResponse.result?.thread?.sessionId,
+    );
     const listResponse = await appServerCallFromPage(
       handle.page,
       "thread/list",
       { archived: false, limit: 100 },
     );
     const notifications = await readRecentNotifications(handle.page);
-    const afterDom = await readThreadDom(handle.page, parentSessionId);
+    const afterDom = await readThreadDom(handle.page, {
+      title: THREAD_FORK_TITLE,
+      parentSessionId,
+    });
     afterDom.activeThreadId = forked.childThreadId;
     afterDom.successToastVisible = forked.successToastSeen === true;
     const observed = await handle.page.evaluate(() => ({
@@ -896,7 +855,7 @@ async function run() {
     );
 
     await handle.page.screenshot({ path: screenshotPath, fullPage: true });
-    summary.ok = true;
+    summary.businessAssertionsPassed = true;
     summary.identity = evidence.identity;
     summary.bridge = evidence.bridge;
     summary.gui = evidence.gui;
@@ -908,9 +867,8 @@ async function run() {
     };
     summary.requests = evidence.requests;
     summary.screenshot = `${options.prefix}.png`;
-    writeJsonFile(summaryPath, summary);
-    console.log(`${LOG_PREFIX} summary=${summaryPath}`);
   } catch (error) {
+    businessFailure = error;
     summary.failure = sanitizeDiagnosticText(
       error instanceof Error ? error.message : String(error),
     );
@@ -938,6 +896,14 @@ async function run() {
               text: toast.textContent?.trim() || "",
             })),
             dom: {
+              composerEditable:
+                document
+                  .querySelector('[data-testid="composer-editor"]')
+                  ?.getAttribute("contenteditable") === "true",
+              composerDraftState:
+                document
+                  .querySelector('[data-testid="composer-draft-status"]')
+                  ?.getAttribute("data-state") ?? null,
               headerTitle:
                 document
                   .querySelector(
@@ -973,14 +939,35 @@ async function run() {
         .screenshot({ path: failureScreenshotPath, fullPage: true })
         .catch(() => undefined);
     }
-    writeJsonFile(summaryPath, summary);
-    throw error;
   } finally {
-    await closeElectronFixture(handle);
-    if (!options.keepTemp) {
-      fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true });
-    }
+    summary.teardown = await settleFixtureResources({
+      app: handle?.app,
+      mainExit,
+      cleanupTemp: options.keepTemp
+        ? undefined
+        : () =>
+            fs.rmSync(runtimeEnv.tempRoot, { recursive: true, force: true }),
+    });
+    summary.errors = {
+      ...(summary.errors ?? {}),
+      consoleErrorCount: consoleErrors.length,
+      pageErrorCount: pageErrors.length,
+    };
+    summary.ok =
+      summary.businessAssertionsPassed === true &&
+      summary.teardown.ok &&
+      consoleErrors.length === 0 &&
+      pageErrors.length === 0;
+    if (!summary.ok && !summary.failure)
+      summary.failure = "Thread Fork Gate B resource or late renderer failure";
+    summary.completedAt = new Date().toISOString();
+    writeJsonFile(summaryPath, summary);
+    console.log(
+      `${LOG_PREFIX} result=${summary.ok ? "pass" : "fail"} summary=${summaryPath}`,
+    );
   }
+  if (businessFailure) throw businessFailure;
+  if (!summary.ok) throw new Error(summary.failure);
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] || "").href) {

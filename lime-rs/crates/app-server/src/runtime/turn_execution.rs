@@ -163,6 +163,16 @@ pub(in crate::runtime) struct RuntimeTurnDriverCompletions {
 }
 
 impl RuntimeTurnDriverCompletions {
+    pub(in crate::runtime) fn pending_turn_ids(&self, session_id: &str) -> Vec<String> {
+        self.inner
+            .lock()
+            .expect("runtime turn driver completions mutex poisoned")
+            .keys()
+            .filter(|(session, _)| session == session_id)
+            .map(|(_, turn)| turn.clone())
+            .collect()
+    }
+
     fn register(&self, session_id: &str, turn_id: &str) -> Arc<RuntimeTurnDriverCompletion> {
         let completion = Arc::new(RuntimeTurnDriverCompletion::default());
         self.inner
@@ -2361,14 +2371,11 @@ impl RuntimeCore {
             }
         }
         if interrupted_by_session_loop {
-            driver_completion
-                .ok_or_else(|| {
-                    RuntimeCoreError::Backend(
-                        "active runtime turn is missing its driver completion".to_string(),
-                    )
-                })?
-                .wait()
-                .await;
+            // Compaction persists inside the actor task. Provider turns additionally
+            // need their external event driver to drain after actor interruption.
+            if let Some(driver_completion) = driver_completion {
+                driver_completion.wait().await;
+            }
         }
         let mut events = pre_cancel_events;
         events.extend(

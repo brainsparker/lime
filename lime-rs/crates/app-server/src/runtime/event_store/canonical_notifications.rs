@@ -108,7 +108,8 @@ fn canonical_notification_target(event: &AgentEvent) -> Option<CanonicalNotifica
     }
     if matches!(
         event_type,
-        "hook.started"
+        "file.read"
+            | "hook.started"
             | "hook.completed"
             | "item.removed"
             | "item.deleted"
@@ -201,6 +202,20 @@ mod tests {
         for event_type in ["hook.started", "hook.completed"] {
             assert!(canonical_notification_target(&event(event_type)).is_none());
         }
+    }
+
+    #[test]
+    fn file_read_observation_preserves_diagnostics_without_a_competing_item() {
+        let mut read = event("file.read");
+        read.payload = json!({"toolCallId":"read-call","path":"source.txt"});
+        assert!(canonical_notification_target(&read).is_none());
+        let notifications = notification_events_with_canonical_entities(
+            &stored_session(),
+            std::slice::from_ref(&read),
+        )
+        .expect("read observations must not require a File item");
+        assert_eq!(notifications.len(), 1);
+        assert_eq!(notifications[0].payload, read.payload);
     }
 
     #[test]

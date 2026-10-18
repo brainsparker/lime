@@ -370,9 +370,15 @@ async fn remote_reconcile_enablement_changes_refresh_cached_categories_without_r
     assert_eq!(response["changedPlugins"][0]["hasSkills"], true);
     let actual = installed(&server).await;
     assert_eq!(summary(&actual)["enabled"], false);
-    assert_eq!(summary(&actual)["installedAt"], 1767225600000_i64);
+    assert_eq!(summary(&actual)["installedAt"], 1767225600_i64);
+    issuer
+        .installed_replies
+        .lock()
+        .unwrap()
+        .push_back((200, page(vec![row.clone()], None)));
     let details = rpc(&server, "plugin/read", detail("opaque~install")).await;
-    assert_eq!(details["plugin"]["skills"][0]["enabled"], false);
+    assert_eq!(details["plugin"]["summary"]["enabled"], false);
+    assert_eq!(details["plugin"]["skills"][0]["enabled"], true);
     row["enabled"] = json!(true);
     issuer
         .installed_replies
@@ -409,6 +415,8 @@ async fn remote_reconcile_update_reports_components_removed_from_new_bundle() {
         ".codex-plugin/plugin.json",
         br#"{"name":"research","version":"2.0.0"}"#,
     )]);
+    issuer.plugin.lock().unwrap()["release"]["skills"] = json!([]);
+    issuer.plugin.lock().unwrap()["release"]["mcp_servers"] = json!([]);
     let response = reconcile(&server).await;
     assert_eq!(
         response["changedPlugins"][0],

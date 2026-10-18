@@ -27,6 +27,17 @@ struct CompactionForkBackend {
 
 #[async_trait]
 impl ExecutionBackend for CompactionForkBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: app_server::ProviderTurnHistory,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        app_server::MockBackend
+            .compact_context(request, history, cancellation)
+            .await
+    }
+
     async fn start_turn(
         &self,
         request: ExecutionRequest,

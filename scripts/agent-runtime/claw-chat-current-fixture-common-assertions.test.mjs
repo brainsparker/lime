@@ -33,7 +33,7 @@ const SCENARIO_FLAGS = [
   "isSkillsRuntimeScenario",
   "isSoulStyleScenario",
   "isRightSurfaceVisualMatrixScenario",
-  "isThreadActivityPanelScenario",
+  "isThreadSummaryPanelScenario",
   "isContentFactoryArticleWorkspaceScenario",
   "isAnyExpertSkillsRuntimeScenario",
   "isApprovalRequestResumeScenario",
@@ -95,7 +95,7 @@ function buildTraceSummary({
 
 describe.each([
   "isRightSurfaceVisualMatrixScenario",
-  "isThreadActivityPanelScenario",
+  "isThreadSummaryPanelScenario",
 ])("read-only panel common contract: %s", (scenarioFlag) => {
   function panelContext() {
     return {
@@ -161,7 +161,7 @@ describe.each([
       input.rendererSnapshot.hasInvokeBridge = false;
     if (mode === "missing-rpc") {
       const method =
-        scenarioFlag === "isThreadActivityPanelScenario"
+        scenarioFlag === "isThreadSummaryPanelScenario"
           ? APP_SERVER_METHOD_SESSION_READ
           : APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST;
       input.appServerRequestMethods = input.appServerRequestMethods.filter(

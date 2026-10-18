@@ -1,7 +1,6 @@
-import { act, useMemo, type Dispatch, type SetStateAction } from "react";
+import { act, type Dispatch, type SetStateAction } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Topic } from "../hooks/agentChatShared";
 import type { TaskCenterDraftSendRequest } from "../homePendingPreview";
 import {
   useTaskCenterHomeChromeRuntime,
@@ -9,11 +8,9 @@ import {
 } from "./useTaskCenterHomeChromeRuntime";
 
 interface HarnessProps {
-  topics?: Topic[];
   sessionId?: string | null;
   detachedTopicId?: string | null;
   transitionTopicId?: string | null;
-  renameTopic?: (topicId: string, title: string) => void | Promise<void>;
   displayMessageCount?: number;
   threadItemCount?: number;
   draftSendRequest?: TaskCenterDraftSendRequest | null;
@@ -30,32 +27,10 @@ let container: HTMLDivElement;
 let root: Root;
 let latestRuntime: TaskCenterHomeChromeRuntime | null = null;
 
-function createTopic(id: string, overrides: Partial<Topic> = {}): Topic {
-  return {
-    id,
-    title: overrides.title ?? id,
-    createdAt: new Date("2026-06-22T00:00:00.000Z"),
-    updatedAt: new Date("2026-06-22T01:00:00.000Z"),
-    workspaceId: "workspace-a",
-    workingDir: null,
-    messagesCount: 1,
-    executionStrategy: "react",
-    status: "done",
-    statusReason: "default",
-    lastPreview: `${id} preview`,
-    hasUnread: false,
-    tag: null,
-    sourceSessionId: id,
-    ...overrides,
-  };
-}
-
 function Harness({
-  topics = [createTopic("topic-a", { title: "旧标题" })],
   sessionId = "topic-a",
   detachedTopicId = null,
   transitionTopicId = null,
-  renameTopic = () => undefined,
   displayMessageCount = 0,
   threadItemCount = 0,
   draftSendRequest = null,
@@ -67,19 +42,11 @@ function Harness({
   setHarnessPanelVisible = () => undefined,
   clearEmbeddedHomeSession = () => undefined,
 }: HarnessProps) {
-  const topicById = useMemo(
-    () => new Map(topics.map((topic) => [topic.id, topic])),
-    [topics],
-  );
   latestRuntime = useTaskCenterHomeChromeRuntime({
     agentEntry: "claw",
     sessionId,
     detachedTopicId,
     transitionTopicId,
-    topicById,
-    untitledTaskLabel: "未命名任务",
-    renamePromptLabel: "重命名任务",
-    renameTopic,
     draftSurfaceActive: false,
     shouldSuppressDraftContent: false,
     draftSendRequest,
@@ -134,32 +101,6 @@ describe("useTaskCenterHomeChromeRuntime", () => {
     container.remove();
     vi.restoreAllMocks();
     latestRuntime = null;
-  });
-
-  it("重命名普通任务话题时应使用当前标题并提交修剪后的新标题", async () => {
-    const renameTopic = vi.fn().mockResolvedValue(undefined);
-    const prompt = vi.spyOn(window, "prompt").mockReturnValue(" 新标题 ");
-    const runtime = renderHarness({ renameTopic });
-
-    await act(async () => {
-      await runtime.handleRenameTaskTopic("topic-a");
-    });
-
-    expect(prompt).toHaveBeenCalledWith("重命名任务", "旧标题");
-    expect(renameTopic).toHaveBeenCalledWith("topic-a", "新标题");
-  });
-
-  it("重命名草稿页签时不应弹出 prompt 或提交更新", async () => {
-    const renameTopic = vi.fn().mockResolvedValue(undefined);
-    const prompt = vi.spyOn(window, "prompt").mockReturnValue("新标题");
-    const runtime = renderHarness({ renameTopic });
-
-    await act(async () => {
-      await runtime.handleRenameTaskTopic("task-draft-local");
-    });
-
-    expect(prompt).not.toHaveBeenCalled();
-    expect(renameTopic).not.toHaveBeenCalled();
   });
 
   it("embedded home 会话出现真实内容后应清理首页占位标记", () => {

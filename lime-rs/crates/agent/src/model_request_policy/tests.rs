@@ -4,6 +4,23 @@ use serde_json::json;
 use std::collections::HashMap;
 
 #[test]
+fn truncation_only_policy_reaches_runtime_without_responses_settings() {
+    for (mode, limit, expected) in [
+        ("tokens", 32, TruncationPolicy::Tokens(32)),
+        ("bytes", 128, TruncationPolicy::Bytes(128)),
+        ("tokens", 0, TruncationPolicy::Tokens(0)),
+    ] {
+        let metadata = json!({"harness":{"model_request_policy":{
+            "truncation_policy":{"mode":mode,"limit":limit}
+        }}});
+        let policy = runtime_reply_model_request_policy_from_metadata(&metadata).unwrap();
+        assert_eq!(policy.truncation, Some(expected));
+        assert_eq!(policy.parallel_tool_calls(), None);
+        assert!(!policy.use_responses_lite());
+    }
+}
+
+#[test]
 fn model_request_policy_from_metadata_reads_snake_case_harness_policy() {
     let metadata = json!({
         "harness": {
@@ -108,11 +125,8 @@ fn model_request_policy_from_metadata_reads_snake_case_harness_policy() {
         })
     );
     assert_eq!(
-        policy.truncation_policy,
-        Some(ModelTruncationPolicySnapshot {
-            mode: "tokens".into(),
-            limit: 4096,
-        })
+        policy.truncation_policy, None,
+        "catalog hints are not overrides"
     );
     assert_eq!(
         policy.native_tool_policy,
@@ -590,7 +604,7 @@ fn invalid_truncation_policy_falls_back_to_codex_default_bytes() {
         policy.truncation_policy,
         Some(ModelTruncationPolicySnapshot {
             mode: "bytes".into(),
-            limit: DEFAULT_TOOL_OUTPUT_TRUNCATION_BYTES,
+            limit: TruncationPolicy::default().byte_budget() as u64,
         })
     );
 }

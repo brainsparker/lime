@@ -2,6 +2,7 @@
 //!
 //! 基于多协议模型运行时的目录管理方式，定义增强的模型元数据结构
 
+pub use agent_protocol::truncation::TruncationPolicy;
 use serde::{Deserialize, Serialize};
 
 /// 模型能力
@@ -461,6 +462,13 @@ pub struct EnhancedModelMetadata {
     /// 模型目录拥有的消息与运行时指令。仅允许来自可信 catalog/provider metadata。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model_messages: Option<serde_json::Value>,
+    /// 模型目录声明的工具输出预算；缺失时由 runtime 使用默认值。
+    #[serde(
+        default,
+        alias = "truncationPolicy",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub truncation_policy: Option<TruncationPolicy>,
     /// 模型目录指定的 Multi-Agent 推理档位；缺失时不得按模型名推断。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub multi_agent_reasoning_effort: Option<String>,
@@ -524,6 +532,7 @@ impl EnhancedModelMetadata {
             tool_mode: None,
             multi_agent_version: None,
             model_messages: None,
+            truncation_policy: None,
             multi_agent_reasoning_effort: None,
             deployment_source: ModelDeploymentSource::UserCloud,
             management_plane: ModelManagementPlane::LocalSettings,
@@ -880,6 +889,7 @@ impl ModelsDevModel {
             tool_mode: None,
             multi_agent_version: None,
             model_messages: None,
+            truncation_policy: None,
             multi_agent_reasoning_effort: None,
             deployment_source: ModelDeploymentSource::UserCloud,
             management_plane: ModelManagementPlane::LocalSettings,
@@ -961,39 +971,4 @@ fn infer_model_tier(model_id: &str, model_name: &str) -> ModelTier {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_model_tier_inference() {
-        assert_eq!(
-            infer_model_tier("claude-opus-4-5-20250514", "Claude Opus 4.5"),
-            ModelTier::Max
-        );
-        assert_eq!(
-            infer_model_tier("gpt-4o-mini", "GPT-4o Mini"),
-            ModelTier::Mini
-        );
-        assert_eq!(
-            infer_model_tier("claude-sonnet-4-5", "Claude Sonnet 4.5"),
-            ModelTier::Pro
-        );
-        assert_eq!(
-            infer_model_tier("gemini-2.5-flash", "Gemini 2.5 Flash"),
-            ModelTier::Mini
-        );
-    }
-
-    #[test]
-    fn test_model_status_parsing() {
-        assert_eq!(
-            "active".parse::<ModelStatus>().unwrap(),
-            ModelStatus::Active
-        );
-        assert_eq!(
-            "deprecated".parse::<ModelStatus>().unwrap(),
-            ModelStatus::Deprecated
-        );
-        assert_eq!("beta".parse::<ModelStatus>().unwrap(), ModelStatus::Beta);
-    }
-}
+mod tests;

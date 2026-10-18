@@ -30,7 +30,7 @@ import {
   REASONING_FIRST_VISIBLE_PROMPT,
   REASONING_FIRST_VISIBLE_SCENARIO,
   RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO,
-  THREAD_ACTIVITY_PANEL_SCENARIO,
+  THREAD_SUMMARY_PANEL_SCENARIO,
   SOUL_STYLE_SCENARIO,
   SKILLS_RUNTIME_EXPLICIT_PROMPT,
   SKILLS_RUNTIME_MANUAL_ENABLE_PROMPT,
@@ -106,7 +106,7 @@ export function resolveGateBExpectedIdentity({
     }
     return { sessionId, threadId };
   }
-  if (options?.scenario === THREAD_ACTIVITY_PANEL_SCENARIO) {
+  if (options?.scenario === THREAD_SUMMARY_PANEL_SCENARIO) {
     const identity = summary?.rightSurfaceVisualMatrixSessionCreation;
     const sessionId =
       typeof identity?.sessionId === "string" ? identity.sessionId.trim() : "";
@@ -114,7 +114,7 @@ export function resolveGateBExpectedIdentity({
       typeof identity?.threadId === "string" ? identity.threadId.trim() : "";
     if (!sessionId || !threadId) {
       throw new Error(
-        "Gate B Thread Activity identity requires the scenario-created sessionId and threadId",
+        "Gate B Thread Summary identity requires the scenario-created sessionId and threadId",
       );
     }
     return { sessionId, threadId };
@@ -516,8 +516,8 @@ export function buildAssertionContext({
     options.scenario === "expert-panel-skills-runtime";
   const isRightSurfaceVisualMatrixScenario =
     options.scenario === RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO;
-  const isThreadActivityPanelScenario =
-    options.scenario === THREAD_ACTIVITY_PANEL_SCENARIO;
+  const isThreadSummaryPanelScenario =
+    options.scenario === THREAD_SUMMARY_PANEL_SCENARIO;
   const isContentFactoryInlineImageArticleWorkspaceScenario =
     options.scenario ===
     CONTENT_FACTORY_INLINE_IMAGE_ARTICLE_WORKSPACE_SCENARIO;
@@ -760,7 +760,7 @@ export function buildAssertionContext({
     isExpertPlazaSkillsRuntimeScenario,
     isExpertPanelSkillsRuntimeScenario,
     isRightSurfaceVisualMatrixScenario,
-    isThreadActivityPanelScenario,
+    isThreadSummaryPanelScenario,
     isContentFactoryArticleWorkspaceScenario,
     isContentFactoryInlineImageArticleWorkspaceScenario,
     isAnyExpertSkillsRuntimeScenario,

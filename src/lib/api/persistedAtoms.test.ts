@@ -80,6 +80,41 @@ describe("persisted atom typed gateway (explicit fake bridge unit evidence)", ()
     );
   });
 
+  it("carries the supported Summary boolean through the same typed read/update gateway", async () => {
+    const key = "app-shell-summary-panel-pinned";
+    const read = { key, query: { kind: "value" } } as const;
+    const update = { key, mutation: { op: "set", value: false } } as const;
+    const meta = {
+      key,
+      storeRevision: 4,
+      persistence: { state: "saved", savedRevision: 4 },
+    };
+    vi.mocked(safeInvoke).mockResolvedValueOnce({
+      ...meta,
+      outcome: "ready",
+      data: { queryKind: "value", value: true },
+    });
+    await expect(sendPersistedAtomState(read)).resolves.toMatchObject({
+      data: { value: true },
+    });
+    vi.mocked(safeInvoke).mockResolvedValueOnce({
+      ...meta,
+      outcome: "applied",
+      changed: true,
+      entry: null,
+      value: false,
+    });
+    await expect(updatePersistedAtomState(update)).resolves.toMatchObject({
+      value: false,
+    });
+    expect(safeInvoke).toHaveBeenNthCalledWith(1, "persisted_atom_read", read);
+    expect(safeInvoke).toHaveBeenNthCalledWith(
+      2,
+      "persisted_atom_update",
+      update,
+    );
+  });
+
   it("sends a conditional mutation rather than a replacement atom", async () => {
     vi.mocked(safeInvoke).mockResolvedValue(updateResult());
     await expect(updatePersistedAtomState(updateRequest)).resolves.toEqual(

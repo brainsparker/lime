@@ -9,7 +9,10 @@ import { _electron as electron, chromium } from "playwright";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { ensureElectronFixtureBuild } from "../lib/electron-fixture-build.mjs";
+import { captureMainProcessExit } from "../electron/lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "./claw-chat-current-fixture-teardown.mjs";
 import { createTempRuntimeEnv } from "./claw-chat-current-fixture-backend-file.mjs";
+import { verifyRestartTurnContinuation } from "./reopen-turn-continuation.mjs";
 import {
   waitForBackendLedgerEntry,
   waitForBackendLedgerTurnStart,
@@ -104,7 +107,7 @@ Reopen Running Turn CDP Gate
   主区、侧栏、输入框运行态保持一致。reload 模式还要求产品恢复逻辑
   自动调用 thread/resume；restart 模式只声明 cold-start
   后孤儿 turn 投影为 interrupted，GUI 回到非运行态；不声明 external
-  backend 子进程跨重启存活。
+  backend 子进程跨重启存活。restart 还要求从 GUI 继续发送新 Turn 并停止。
 
 边界:
   这是 Gate B controlled fixture：覆盖 Electron/preload/IPC、
@@ -376,6 +379,19 @@ async function launchElectronCdpGate(
     env: buildElectronLaunchEnv(options, runtimeEnv, appServerEnv),
     timeout: options.timeoutMs,
   });
+  const mainExit = captureMainProcessExit(launchedApp.process());
+  const mainOutput = { stdout: [], stderr: [] };
+  for (const stream of ["stdout", "stderr"]) {
+    launchedApp.process()[stream]?.on("data", (chunk) => {
+      mainOutput[stream].push(sanitizeText(String(chunk)).slice(-8_000));
+      if (mainOutput[stream].length > 64) mainOutput[stream].shift();
+    });
+  }
+  await launchedApp.evaluate(({ app }) => {
+    for (const event of ["before-quit", "will-quit", "quit"]) {
+      app.on(event, () => console.info(`[fixture-main-lifecycle] ${event}`));
+    }
+  });
   bindElectronConsoleErrors(launchedApp, consoleErrors);
 
   const firstWindow = await launchedApp.firstWindow({
@@ -396,6 +412,8 @@ async function launchElectronCdpGate(
 
   return {
     app: launchedApp,
+    mainExit,
+    mainOutput,
     browser: connectedBrowser,
     page,
     cdpEndpoint,
@@ -406,27 +424,18 @@ async function launchElectronCdpGate(
   };
 }
 
-async function closeElectronCdpGate(app, browser) {
+async function closeElectronCdpGate(app, browser, mainExit) {
   const startedAt = Date.now();
-  const result = {
-    closed: false,
-    durationMs: 0,
-    browserCloseError: null,
-    appCloseError: null,
+  const teardown = await settleFixtureResources({
+    app,
+    mainExit,
+    cdpBrowser: browser,
+  });
+  return {
+    ...teardown,
+    closed: teardown.ok,
+    durationMs: Date.now() - startedAt,
   };
-  try {
-    await browser?.close();
-  } catch (error) {
-    result.browserCloseError = sanitizeText(error);
-  }
-  try {
-    await app?.close();
-  } catch (error) {
-    result.appCloseError = sanitizeText(error);
-  }
-  result.durationMs = Date.now() - startedAt;
-  result.closed = !result.browserCloseError && !result.appCloseError;
-  return result;
 }
 
 async function readRendererTrace(page) {
@@ -1444,7 +1453,10 @@ async function sampleGuiHomeBackgroundRecoveryState(
       const backgroundConversationMatch = runningSessionSpecs.find(
         (spec) =>
           backgroundConversation?.getAttribute("data-session-id") ===
-          spec.sessionId,
+            spec.sessionId &&
+          (backgroundConversation?.getAttribute("title") || "").includes(
+            spec.title,
+          ),
       );
       const matchingSidebarRows = sidebarRows.filter((row) => {
         const label = [
@@ -2047,6 +2059,7 @@ async function run() {
 
   let app = null;
   let browser = null;
+  let mainExit = null;
   try {
     if (options.appUrl) {
       logStage("wait-app-url");
@@ -2064,6 +2077,8 @@ async function run() {
     );
     app = initialLaunch.app;
     browser = initialLaunch.browser;
+    mainExit = initialLaunch.mainExit;
+    summary.initialMainOutput = initialLaunch.mainOutput;
     let page = initialLaunch.page;
     const pageRef = { current: page };
     summary.cdpEndpoint = initialLaunch.cdpEndpoint;
@@ -2295,10 +2310,15 @@ async function run() {
     if (options.reopenMode === "restart") {
       logStage("restart-electron:close");
       summary.restartClose = sanitizeJson(
-        await closeElectronCdpGate(app, browser),
+        await closeElectronCdpGate(app, browser, mainExit),
       );
       app = null;
       browser = null;
+      mainExit = null;
+      assert(
+        summary.restartClose.closed,
+        "restart requires normal Main exit within 15 seconds",
+      );
       pageRef.current = null;
       await sleep(500);
 
@@ -2311,6 +2331,8 @@ async function run() {
       );
       app = restartedLaunch.app;
       browser = restartedLaunch.browser;
+      mainExit = restartedLaunch.mainExit;
+      summary.restartedMainOutput = restartedLaunch.mainOutput;
       page = restartedLaunch.page;
       pageRef.current = page;
       summary.cdpEndpointAfterRestart = restartedLaunch.cdpEndpoint;
@@ -2940,6 +2962,36 @@ async function run() {
       assert(passed, `reopen running turn CDP assertion failed: ${name}`);
     }
 
+    if (options.reopenMode === "restart") {
+      logStage("continue-and-stop-after-restart");
+      summary.restartContinuation = await verifyRestartTurnContinuation({
+        page,
+        options,
+        requestLog,
+        backendLedgerPath: runtimeEnv.backendLedgerPath,
+        identity: primaryIdentity,
+        orphanTurnId: turnId,
+      });
+      summary.assertions.guiContinuesAndStopsAfterRestart =
+        summary.restartContinuation.continuedAndStopped === true;
+    }
+
+    summary.finalClose = sanitizeJson(
+      await closeElectronCdpGate(app, browser, mainExit),
+    );
+    app = null;
+    browser = null;
+    mainExit = null;
+    assert(
+      summary.finalClose.closed,
+      "Gate requires normal Main exit within 15 seconds",
+    );
+    summary.assertions.normalMainExit = true;
+    summary.assertions.noConsoleErrors = consoleErrors.length === 0;
+    assert(
+      summary.assertions.noConsoleErrors,
+      "Gate requires zero Electron/renderer console errors",
+    );
     summary.completedGateB = true;
     summary.ok = true;
     summary.completedAt = new Date().toISOString();
@@ -2964,8 +3016,12 @@ async function run() {
     console.error(`${LOG_PREFIX} failureSummary=${summaryPath}`);
     throw error;
   } finally {
-    await browser?.close().catch(() => undefined);
-    await app?.close().catch(() => undefined);
+    if (app || browser) {
+      summary.failureClose = sanitizeJson(
+        await closeElectronCdpGate(app, browser, mainExit),
+      );
+      writeJsonFile(summaryPath, summary);
+    }
     if (!options.keepTemp) {
       cleanupTempRoot(runtimeEnv.tempRoot);
     }

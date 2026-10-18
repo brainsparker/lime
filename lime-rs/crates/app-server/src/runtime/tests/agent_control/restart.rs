@@ -1616,6 +1616,33 @@ async fn restart_hydrates_only_the_exact_open_child_on_demand() {
     assert_session_unloaded(&restarted, &closed_session_id);
     assert_session_unloaded(&restarted, &reviewer_session_id);
 
+    assert_eq!(
+        restarted
+            .stored_turn("root-session", "root-turn")
+            .expect("hydrated root turn")
+            .expect("persisted root turn")
+            .status,
+        app_server_protocol::AgentTurnStatus::Canceled
+    );
+    let root_turn = restarted
+        .start_turn(
+            AgentSessionTurnStartParams {
+                session_id: root.session_id.clone(),
+                turn_id: Some("root-turn-after-restart".to_string()),
+                input: AgentInput {
+                    text: "resume delegated work".to_string(),
+                    attachments: Vec::new(),
+                },
+                runtime_options: None,
+                queue_if_busy: false,
+                skip_pre_submit_resume: true,
+            },
+            RuntimeHostContext::default(),
+        )
+        .await
+        .expect("new root turn after restart")
+        .response
+        .turn;
     let gateway =
         restarted.agent_control_gateway_for_turn(&root, &root_turn, RuntimeHostContext::default());
     let caller = AgentControlCaller {
@@ -1729,7 +1756,7 @@ async fn restart_hydrates_only_the_exact_open_child_on_demand() {
         })
         .await
         .expect("interrupt exact child");
-    assert_eq!(interrupted.output["previous_status"], "pending_init");
+    assert_eq!(interrupted.output["previous_status"], "completed");
     let interrupted_child = restarted
         .read_session(AgentSessionReadParams {
             session_id: interrupt_session_id,

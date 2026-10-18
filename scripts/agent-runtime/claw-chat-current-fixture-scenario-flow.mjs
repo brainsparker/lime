@@ -33,7 +33,7 @@ import {
   PLAN_STEPS,
   REASONING_FIRST_VISIBLE_SCENARIO,
   RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO,
-  THREAD_ACTIVITY_PANEL_SCENARIO,
+  THREAD_SUMMARY_PANEL_SCENARIO,
   SESSION_ID,
   SOUL_STYLE_SCENARIO,
   TERMINAL_CANCELED_AFTER_ANSWER_SCENARIO,
@@ -102,7 +102,7 @@ import {
 import { verifyPlanHistoryHydrate } from "./claw-chat-current-fixture-plan-history.mjs";
 import {
   runRightSurfaceVisualMatrix,
-  runThreadActivityPanelSmoke,
+  runThreadSummaryPanelSmoke,
 } from "./claw-chat-current-fixture-right-surface-visual.mjs";
 import { runWebToolsRenderingScenario } from "./claw-chat-current-fixture-web-tools-rendering.mjs";
 import { runUserShellGateScenario } from "./claw-chat-current-fixture-user-shell.mjs";
@@ -287,7 +287,7 @@ export async function executeScenarioFlow({
     );
   } else if (
     options.scenario === RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO ||
-    options.scenario === THREAD_ACTIVITY_PANEL_SCENARIO
+    options.scenario === THREAD_SUMMARY_PANEL_SCENARIO
   ) {
     logStage("create-right-surface-visual-expert-session");
     const expertSessionCreation = await createExpertSkillsRuntimeSession(
@@ -318,10 +318,10 @@ export async function executeScenarioFlow({
       }),
     );
 
-    if (options.scenario === THREAD_ACTIVITY_PANEL_SCENARIO) {
-      logStage("run-thread-activity-panel");
+    if (options.scenario === THREAD_SUMMARY_PANEL_SCENARIO) {
+      logStage("run-thread-summary-panel");
       summary.rightSurfaceVisualMatrix = sanitizeJson(
-        await runThreadActivityPanelSmoke({
+        await runThreadSummaryPanelSmoke({
           page,
           options,
           sessionId: expertSessionCreation.identity.sessionId,
@@ -866,7 +866,7 @@ export async function executeScenarioFlow({
     options.scenario !== "expert-plaza-skills-runtime" &&
     options.scenario !== "expert-panel-skills-runtime" &&
     options.scenario !== RIGHT_SURFACE_VISUAL_MATRIX_SCENARIO &&
-    options.scenario !== THREAD_ACTIVITY_PANEL_SCENARIO &&
+    options.scenario !== THREAD_SUMMARY_PANEL_SCENARIO &&
     options.scenario !== INPUTBAR_RICH_RESTORE_SCENARIO &&
     options.scenario !== ACTIVE_STEER_SCENARIO &&
     options.scenario !== CONTENT_FACTORY_ARTICLE_WORKSPACE_SCENARIO &&

@@ -30,7 +30,6 @@ interface UseWorkspaceRightSurfaceProjectionRuntimeParams {
   showHarnessToggle: boolean;
   suppressHomeNavbarUtilityActions: boolean;
   traceAvailable: boolean;
-  activityAvailable?: boolean;
 }
 
 interface UseWorkspaceRightSurfaceProjectionRuntimeResult {
@@ -56,9 +55,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   showHarnessToggle,
   suppressHomeNavbarUtilityActions,
   traceAvailable,
-  activityAvailable,
 }: UseWorkspaceRightSurfaceProjectionRuntimeParams): UseWorkspaceRightSurfaceProjectionRuntimeResult {
-  const effectiveActivityAvailable = activityAvailable === true;
   const availableSurfaces = useMemo(
     () =>
       buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
@@ -70,12 +67,10 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
         showHarnessToggle,
         suppressHomeNavbarUtilityActions,
         traceAvailable,
-        activityAvailable: effectiveActivityAvailable,
       }),
     [
       appSurfaceAvailable,
       articleWorkspaceAvailable,
-      effectiveActivityAvailable,
       filesAvailable,
       hasExpertInfoPanel,
       shellAvailable,
@@ -143,7 +138,6 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
         shellAvailable,
         showHarnessToggle,
         traceAvailable,
-        activityAvailable: effectiveActivityAvailable,
         suppressHomeNavbarUtilityActions,
       }),
     [
@@ -157,7 +151,6 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
       showHarnessToggle,
       suppressHomeNavbarUtilityActions,
       traceAvailable,
-      effectiveActivityAvailable,
     ],
   );
 

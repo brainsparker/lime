@@ -81,7 +81,11 @@ export function CanvasWorkbenchChangesPanel({
     handleFilesPanelResizeMove,
     handleFilesPanelResizeEnd,
     handleFilesPanelResizeKeyDown,
-  } = useCanvasWorkbenchChangesFilesPanelResize(filesPanelOpen);
+    resetFilesPanelWidth,
+  } = useCanvasWorkbenchChangesFilesPanelResize(
+    filesPanelOpen,
+    onToggleFilesPanel,
+  );
   const {
     backendHasGitRepository,
     backendPatch,
@@ -353,7 +357,9 @@ export function CanvasWorkbenchChangesPanel({
       onPointerMove={handleFilesPanelResizeMove}
       onPointerUp={handleFilesPanelResizeEnd}
       onPointerCancel={handleFilesPanelResizeEnd}
+      onLostPointerCapture={handleFilesPanelResizeEnd}
       onKeyDown={handleFilesPanelResizeKeyDown}
+      onDoubleClick={resetFilesPanelWidth}
     >
       <span className="mx-auto block h-full w-px bg-[color:var(--lime-surface-border)] transition-colors group-hover:bg-[color:var(--lime-surface-border-strong)]" />
     </div>

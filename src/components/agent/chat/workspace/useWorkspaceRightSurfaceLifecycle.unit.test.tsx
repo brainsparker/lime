@@ -1,3 +1,5 @@
+import { RightSurfaceHost } from "./right-surface/RightSurfaceHost";
+import { RightSurfaceTabStrip } from "./right-surface/RightSurfaceTabStrip";
 import React, { act, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -7,10 +9,7 @@ import {
   useWorkspaceRightSurfaceLocalStateRuntime,
   type WorkspaceRightSurfaceOwner,
 } from "./useWorkspaceRightSurfaceLocalStateRuntime";
-import {
-  buildWorkspaceRightSurfaceDefinitions,
-  RightSurfaceHost,
-} from "./right-surface";
+import { buildWorkspaceRightSurfaceDefinitions } from "./right-surface";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
 
@@ -103,7 +102,6 @@ function useLifecycle(props: Props) {
     sceneThreadId: props.owner.threadId,
     sessionId: props.owner.sessionId,
     shellRightSurfaceAvailable: props.shellAvailable,
-    activityAvailable: true,
     showHarnessToggle: true,
     suppressHomeNavbarUtilityActions: props.suppressUtilities,
     taskCenterHomeHotpathActive: false,
@@ -129,30 +127,37 @@ function mount() {
   };
   function Probe(current: Props) {
     latest = useLifecycle(current);
+    if (!latest.coordinator.rightSurfaceState.activeSurface) return null;
+    const definitions = buildWorkspaceRightSurfaceDefinitions({
+      browser: () => <div>{latest.coordinator.rightSurfaceBrowserTitle}</div>,
+      files: () => (
+        <div>{latest.coordinator.filesRightSurfaceTarget?.relativePath}</div>
+      ),
+      articleWorkspace: () => (
+        <div>{latest.local.activeArticleWorkspace?.selectedObjectRef?.id}</div>
+      ),
+      shell: () => <div>Shell output</div>,
+      expertInfo: () => <div>Expert info</div>,
+      appSurface: () => <div>Plugin</div>,
+    });
     return (
-      <RightSurfaceHost
-        activeSurface={latest.coordinator.rightSurfaceState.activeSurface}
-        openSurfaces={latest.coordinator.rightSurfaceState.openSurfaces}
-        onSelectSurface={latest.coordinator.handleSelectRightSurfaceTab}
-        definitions={buildWorkspaceRightSurfaceDefinitions({
-          browser: () => (
-            <div>{latest.coordinator.rightSurfaceBrowserTitle}</div>
-          ),
-          files: () => (
-            <div>
-              {latest.coordinator.filesRightSurfaceTarget?.relativePath}
-            </div>
-          ),
-          articleWorkspace: () => (
-            <div>
-              {latest.local.activeArticleWorkspace?.selectedObjectRef?.id}
-            </div>
-          ),
-          shell: () => <div>Shell output</div>,
-          expertInfo: () => <div>Expert info</div>,
-          appSurface: () => <div>Plugin</div>,
-        })}
-      />
+      <>
+        <RightSurfaceTabStrip
+          idPrefix="right-lifecycle"
+          activeSurface={
+            latest.coordinator.rightSurfaceState.activeSurface ?? "files"
+          }
+          openSurfaces={latest.coordinator.rightSurfaceState.openSurfaces}
+          onSelectSurface={latest.coordinator.handleSelectRightSurfaceTab}
+          onCloseSurface={latest.coordinator.handleCloseRightSurfaceTab}
+          definitions={definitions}
+        />
+        <RightSurfaceHost
+          idPrefix="right-lifecycle"
+          activeSurface={latest.coordinator.rightSurfaceState.activeSurface}
+          definitions={definitions}
+        />
+      </>
     );
   }
   const render = (changes: Partial<Props> = {}) => {
@@ -388,5 +393,44 @@ describe("Right Surface 标签生命周期接线", () => {
     );
     expect(view.get().coordinator.rightSurfaceState.openSurfaces).toEqual([]);
     expect(view.get().coordinator.rightSurfaceBrowserTitle).toBeNull();
+  });
+
+  it("共享标签关闭后台Browser后保留Files目标，关闭最后标签不再恢复旧面", () => {
+    const view = mount();
+    act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());
+    act(() => view.get().coordinator.handleToggleRightSurfaceFiles());
+    act(() => view.get().coordinator.handleCloseRightSurfaceTab("browser"));
+    expect(view.get().coordinator.rightSurfaceState.openSurfaces).toEqual([
+      "files",
+    ]);
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "files",
+    );
+    expect(view.get().coordinator.filesRightSurfaceTarget).toEqual(file);
+    act(() => view.get().coordinator.handleCloseRightSurfaceTab("files"));
+    expect(view.get().coordinator.rightSurfaceState.openSurfaces).toEqual([]);
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBeNull();
+    expect(view.get().local.activeFilesRightSurfaceTarget).toBeNull();
+  });
+
+  it("共享标签关闭Plugin分组清除描述符与待处理投影，旧会话关闭不污染新会话", () => {
+    const view = mount();
+    act(() => view.get().local.setActivePluginSurfaces([plugin]));
+    act(() => view.get().coordinator.handleSelectPluginSurface(plugin));
+    act(() => view.get().coordinator.handleCloseRightSurfaceTab("appSurface"));
+    expect(view.get().coordinator.pluginSurfaceRightSurfaces).toEqual([]);
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBeNull();
+    expect(view.get().local.dismissedPluginSurfaceContainerIds).toContain(
+      plugin.containerId,
+    );
+    const previous = view.get().coordinator;
+    view.render({
+      owner: { ...owner, sessionId: "session-b", threadId: "thread-b" },
+    });
+    act(() => view.get().coordinator.handleToggleRightSurfaceFiles());
+    act(() => previous.handleCloseRightSurfaceTab("files"));
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "files",
+    );
   });
 });

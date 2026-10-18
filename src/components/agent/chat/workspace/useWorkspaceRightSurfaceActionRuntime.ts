@@ -53,7 +53,6 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
   rightSurfaceActiveSurface: WorkspaceRightSurfaceKind | null;
   rightSurfaceHarnessEnabled: boolean;
   rightSurfaceTraceAvailable: boolean;
-  rightSurfaceActivityAvailable: boolean;
   sceneLayoutMode: LayoutMode;
   setActiveArticleWorkspace: Dispatch<
     SetStateAction<WorkspaceArticleWorkspace | null>
@@ -79,6 +78,7 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
 }
 
 interface WorkspaceRightSurfaceActionRuntime {
+  handleCloseRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
   handleClosePluginSurface: (surface: WorkspacePluginSurfaceDescriptor) => void;
   handleCloseRightSurfaceShell: () => void;
   handleRightSurfaceBrowserNavigate: (
@@ -96,7 +96,6 @@ interface WorkspaceRightSurfaceActionRuntime {
   handleToggleRightSurfaceHarness: () => void;
   handleToggleRightSurfaceShell: () => void;
   handleToggleRightSurfaceTrace: () => void;
-  handleToggleRightSurfaceActivity: () => void;
 }
 
 export function useWorkspaceRightSurfaceActionRuntime({
@@ -124,7 +123,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
   rightSurfaceActiveSurface,
   rightSurfaceHarnessEnabled,
   rightSurfaceTraceAvailable,
-  rightSurfaceActivityAvailable,
   sceneLayoutMode,
   setActiveArticleWorkspace,
   setActiveBrowserRightSurfaceIntent,
@@ -393,34 +391,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
     setManualRightSurface,
   ]);
 
-  const handleToggleRightSurfaceActivity = useCallback(() => {
-    if (!rightSurfaceActivityAvailable) {
-      return;
-    }
-    const shouldOpenActivity = manualRightSurface !== "activity";
-    closeCompetingRightSurfaces();
-    if (shouldOpenActivity) {
-      setManualRightSurface("activity");
-    } else {
-      closeRightSurface("activity");
-    }
-    if (shouldOpenActivity) {
-      void refreshRightSurfacePendingRequests();
-      void consumePendingRequestsForSurface("activity");
-    } else {
-      void dismissPendingRequestsForSurface("activity", "user_closed_surface");
-    }
-  }, [
-    closeRightSurface,
-    closeCompetingRightSurfaces,
-    consumePendingRequestsForSurface,
-    dismissPendingRequestsForSurface,
-    manualRightSurface,
-    refreshRightSurfacePendingRequests,
-    rightSurfaceActivityAvailable,
-    setManualRightSurface,
-  ]);
-
   const handleToggleExpertInfoPanel = useCallback(() => {
     if (!availableSurfaces.has("expertInfo")) {
       return;
@@ -609,7 +579,43 @@ export function useWorkspaceRightSurfaceActionRuntime({
     ],
   );
 
+  const handleCloseRightSurfaceTab = useCallback(
+    (kind: WorkspaceRightSurfaceKind) => {
+      closeRightSurface(kind);
+      if (kind === "harness") setHarnessPanelVisible(false);
+      if (kind === "expertInfo") setExpertInfoPanelCollapsed(true);
+      if (kind === "files") setActiveFilesRightSurfaceTarget(null);
+      if (kind === "articleWorkspace") setActiveArticleWorkspace(null);
+      if (kind === "workbench") setLayoutMode("chat");
+      if (kind === "appSurface") {
+        setDismissedPluginSurfaceContainerIds((current) => [
+          ...new Set([
+            ...current,
+            ...pluginSurfaceRightSurfaces.map((surface) => surface.containerId),
+          ]),
+        ]);
+        setActivePluginSurfaces([]);
+        setActivePluginSurfaceContainerId(null);
+      }
+      void dismissPendingRequestsForSurface(kind, "user_closed_surface");
+    },
+    [
+      closeRightSurface,
+      dismissPendingRequestsForSurface,
+      pluginSurfaceRightSurfaces,
+      setActiveArticleWorkspace,
+      setActiveFilesRightSurfaceTarget,
+      setActivePluginSurfaceContainerId,
+      setActivePluginSurfaces,
+      setDismissedPluginSurfaceContainerIds,
+      setExpertInfoPanelCollapsed,
+      setHarnessPanelVisible,
+      setLayoutMode,
+    ],
+  );
+
   return {
+    handleCloseRightSurfaceTab,
     handleClosePluginSurface,
     handleCloseRightSurfaceShell,
     handleRightSurfaceBrowserNavigate,
@@ -622,6 +628,5 @@ export function useWorkspaceRightSurfaceActionRuntime({
     handleToggleRightSurfaceHarness,
     handleToggleRightSurfaceShell,
     handleToggleRightSurfaceTrace,
-    handleToggleRightSurfaceActivity,
   };
 }

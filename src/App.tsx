@@ -3,7 +3,7 @@
  *
  * 管理页面路由和全局状态
  * 支持静态页面和动态插件页面路由
- * 包含启动画面、共享窗口页头和单侧栏
+ * 包含启动画面、共享窗口页头和上下文导航
  *
  * _需求: 2.2, 3.2, 5.2_
  */
@@ -18,7 +18,12 @@ import { AppServerConfigWarningToastBridge } from "./components/AppServerConfigW
 import { ScheduledTaskNotificationBridge } from "./components/ScheduledTaskNotificationBridge";
 import { SplashScreen } from "./components/SplashScreen";
 import { AppSidebar } from "./components/AppSidebar";
-import { AppShell, AppShellHeader } from "./components/app-shell/AppShell";
+import {
+  AppShell,
+  AppShellContent,
+  AppShellHeader,
+  MainContentLayout,
+} from "./components/app-shell/AppShell";
 import { startupTracker } from "./lib/diagnostics/startupPerformance";
 import { preloadDefaultProject } from "./lib/api/project";
 import {
@@ -71,18 +76,6 @@ const AppContainer = styled.div`
   width: 100vw;
   background: var(--lime-app-bg, hsl(var(--background)));
   overflow: hidden;
-`;
-
-const MainContent = styled.main<{ $pageSurface: boolean }>`
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  min-width: 0;
-  margin: ${({ $pageSurface }) => ($pageSurface ? "44px 4px 4px 0" : "0")};
-  border-radius: ${({ $pageSurface }) => ($pageSurface ? "12px" : "0")};
-  background: var(--lime-app-bg, hsl(var(--background)));
 `;
 
 const WINDOW_DRAG_TOP_HEIGHT = 30;
@@ -439,6 +432,10 @@ function AppContent() {
   return (
     <ComponentDebugProvider>
       <AppShell>
+        <MainContentLayout
+          layout={currentPage === "settings" ? "full-bleed" : "default"}
+          fallback
+        />
         <AppContainer>
           <AppShellHeader reserveWindowControls={reserveMacWindowControls} />
           {hasDesktopHostRuntime ? (
@@ -474,8 +471,8 @@ function AppContent() {
               onStartWindowDrag={handleWindowDragStart}
             />
           )}
-          <MainContent
-            $pageSurface={shouldShowAppSidebar}
+          <AppShellContent
+            pageSurface={shouldShowAppSidebar}
             data-lime-window-drag-region
             onMouseDown={(event) => {
               void startWindowDragFromMouseEvent(event, {
@@ -502,7 +499,7 @@ function AppContent() {
                 }
               />
             </Suspense>
-          </MainContent>
+          </AppShellContent>
           <Suspense fallback={null}>
             <RecentImageInsertFloating onNavigate={handleNavigate} />
           </Suspense>

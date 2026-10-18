@@ -10,6 +10,8 @@ import { _electron as electron } from "playwright";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
 import { withElectronFixtureSystemPath } from "../lib/electron-fixture-runtime-env.mjs";
+import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
+import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
 import { collectReviewThreadSidePanelEvidence } from "./lib/review-thread-side-panel-gate-b.mjs";
 import { collectRightSurfaceLifecycleEvidence } from "./lib/right-surface-lifecycle-gate-b.mjs";
 import {
@@ -3231,6 +3233,7 @@ async function run() {
   });
   const summary = {
     ok: false,
+    businessAssertionsPassed: false,
     scenarioId: "code-artifact-workbench-electron-fixture",
     scenario: options.scenario,
     prompt:
@@ -3277,6 +3280,7 @@ async function run() {
   };
 
   let app = null;
+  let mainExit = null;
   let page = null;
   const consoleErrors = [];
   const pageErrors = [];
@@ -3315,6 +3319,7 @@ async function run() {
       timeout: options.timeoutMs,
     });
 
+    mainExit = captureMainProcessExit(app.process());
     app.on("console", (message) => {
       if (message.type() === "error") {
         consoleErrors.push(sanitizeText(message.text()));
@@ -3646,7 +3651,7 @@ async function run() {
       summary.consoleErrors = consoleErrors;
       summary.pageErrors = pageErrors;
       assertNoRendererErrors(consoleErrors, pageErrors);
-      summary.ok = true;
+      summary.businessAssertionsPassed = true;
       summary.completedAt = new Date().toISOString();
       await withTimeout(
         page.screenshot({ path: screenshotPath, fullPage: true }),
@@ -3656,7 +3661,6 @@ async function run() {
       summary.screenshot = screenshotPath;
       writeJsonFile(summaryPath, summary);
       console.log(`${LOG_PREFIX} summary=${summaryPath}`);
-      console.log(`${LOG_PREFIX} pass session=${SESSION_ID}`);
       return;
     }
 
@@ -4151,12 +4155,12 @@ async function run() {
     summary.historicalOperationalDetailsHidden =
       historicalOperationalDetailsHidden;
     summary.assertions = assertions;
-    summary.ok = true;
+    summary.businessAssertionsPassed = true;
     summary.completedAt = new Date().toISOString();
     writeJsonFile(summaryPath, summary);
     console.log(`${LOG_PREFIX} summary=${summaryPath}`);
-    console.log(`${LOG_PREFIX} pass session=${SESSION_ID}`);
   } catch (error) {
+    summary.businessAssertionsPassed = false;
     try {
       const backendLedgerEvidence = persistBackendLedgerEvidence(
         runtimeEnv.backendLedgerPath,
@@ -4240,33 +4244,30 @@ async function run() {
     console.error(`${LOG_PREFIX} failureSummary=${summaryPath}`);
     process.exitCode = 1;
   } finally {
-    if (app) {
-      try {
-        await withTimeout(
-          app.close(),
-          FINAL_PAGE_OPERATION_TIMEOUT_MS,
-          "关闭 Electron",
-        );
-      } catch (closeError) {
-        console.warn(
-          `${LOG_PREFIX} electron close skipped error=${sanitizeText(closeError)}`,
-        );
-        try {
-          const childProcess =
-            typeof app.process === "function" ? app.process() : null;
-          if (childProcess && !childProcess.killed) {
-            childProcess.kill("SIGTERM");
-          }
-        } catch (killError) {
-          console.warn(
-            `${LOG_PREFIX} electron kill skipped error=${sanitizeText(killError)}`,
-          );
-        }
-      }
+    summary.teardown = sanitizeJson(
+      await settleFixtureResources({
+        app,
+        mainExit,
+        cleanupTemp: options.keepTemp
+          ? undefined
+          : () => cleanupTempRoot(runtimeEnv.tempRoot),
+      }),
+    );
+    summary.assertions.normalMainExit =
+      summary.teardown.normalMainExit?.exitCode === 0 &&
+      summary.teardown.normalMainExit?.signal === null;
+    summary.ok =
+      summary.businessAssertionsPassed &&
+      summary.teardown.ok &&
+      summary.assertions.normalMainExit;
+    summary.completedAt = new Date().toISOString();
+    if (!summary.ok) {
+      process.exitCode = 1;
+      summary.error ??=
+        "Gate requires normal Main exit within 15 seconds and successful resource teardown";
     }
-    if (!options.keepTemp) {
-      cleanupTempRoot(runtimeEnv.tempRoot);
-    }
+    writeJsonFile(summaryPath, summary);
+    if (summary.ok) console.log(`${LOG_PREFIX} pass session=${SESSION_ID}`);
   }
 }
 

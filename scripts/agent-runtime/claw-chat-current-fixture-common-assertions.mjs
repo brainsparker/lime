@@ -75,7 +75,7 @@ const LEGACY_RESPOND_ACTION_METHOD = [
 export function buildCommonAssertions(context) {
   if (
     context.isRightSurfaceVisualMatrixScenario ||
-    context.isThreadActivityPanelScenario
+    context.isThreadSummaryPanelScenario
   ) {
     return buildRightSurfaceCommonAssertions(context);
   }

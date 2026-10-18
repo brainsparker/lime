@@ -7,9 +7,9 @@ import {
   type PointerEvent,
 } from "react";
 
-const MIN_FILES_PANEL_WIDTH = 220;
-const MAX_FILES_PANEL_WIDTH = 420;
-const DEFAULT_FILES_PANEL_WIDTH = 252;
+const MIN_FILES_PANEL_WIDTH = 200;
+const MAX_FILES_PANEL_RATIO = 0.6;
+const DEFAULT_FILES_PANEL_WIDTH = 250;
 
 export interface CanvasWorkbenchChangesFilesPanelResizeState {
   filesPanelWidth: number;
@@ -18,10 +18,12 @@ export interface CanvasWorkbenchChangesFilesPanelResizeState {
   handleFilesPanelResizeMove: (event: PointerEvent<HTMLDivElement>) => void;
   handleFilesPanelResizeEnd: (event: PointerEvent<HTMLDivElement>) => void;
   handleFilesPanelResizeKeyDown: (event: KeyboardEvent<HTMLDivElement>) => void;
+  resetFilesPanelWidth: () => void;
 }
 
 export function useCanvasWorkbenchChangesFilesPanelResize(
   filesPanelOpen: boolean,
+  onToggleFilesPanel?: () => void,
 ): CanvasWorkbenchChangesFilesPanelResizeState {
   const [filesPanelWidth, setFilesPanelWidth] = useState(
     DEFAULT_FILES_PANEL_WIDTH,
@@ -32,20 +34,60 @@ export function useCanvasWorkbenchChangesFilesPanelResize(
     startWidth: number;
   } | null>(null);
 
+  const currentGeometry = useCallback(
+    (element: HTMLDivElement) => {
+      const container = element.closest(
+        '[data-testid="canvas-workbench-changes-content"]',
+      );
+      const containerWidth = container?.getBoundingClientRect().width ?? 0;
+      const measuredWidth = container
+        ?.querySelector('[data-testid="canvas-workbench-changes-file-list"]')
+        ?.getBoundingClientRect().width;
+      return {
+        width: measuredWidth || filesPanelWidth,
+        maximum:
+          containerWidth > 0
+            ? Math.max(
+                MIN_FILES_PANEL_WIDTH,
+                containerWidth * MAX_FILES_PANEL_RATIO,
+              )
+            : DEFAULT_FILES_PANEL_WIDTH,
+      };
+    },
+    [filesPanelWidth],
+  );
+
+  const setSize = useCallback(
+    (width: number, element: HTMLDivElement) => {
+      if (width < MIN_FILES_PANEL_WIDTH / 2 && onToggleFilesPanel) {
+        dragStartRef.current = null;
+        onToggleFilesPanel();
+        return;
+      }
+      setFilesPanelWidth(
+        Math.min(
+          currentGeometry(element).maximum,
+          Math.max(MIN_FILES_PANEL_WIDTH, width),
+        ),
+      );
+    },
+    [currentGeometry, onToggleFilesPanel],
+  );
+
   const handleFilesPanelResizeStart = useCallback(
     (event: PointerEvent<HTMLDivElement>) => {
-      if (!filesPanelOpen) {
+      if (!filesPanelOpen || event.button !== 0 || event.isPrimary === false) {
         return;
       }
       event.preventDefault();
       dragStartRef.current = {
         pointerId: event.pointerId,
         startX: event.clientX,
-        startWidth: filesPanelWidth,
+        startWidth: currentGeometry(event.currentTarget).width,
       };
       event.currentTarget.setPointerCapture(event.pointerId);
     },
-    [filesPanelOpen, filesPanelWidth],
+    [filesPanelOpen, currentGeometry],
   );
 
   const handleFilesPanelResizeMove = useCallback(
@@ -56,14 +98,14 @@ export function useCanvasWorkbenchChangesFilesPanelResize(
       }
       const nextWidth =
         dragStart.startWidth - (event.clientX - dragStart.startX);
-      setFilesPanelWidth(
-        Math.min(
-          MAX_FILES_PANEL_WIDTH,
-          Math.max(MIN_FILES_PANEL_WIDTH, nextWidth),
-        ),
-      );
+      setSize(nextWidth, event.currentTarget);
+      if (
+        !dragStartRef.current &&
+        event.currentTarget.hasPointerCapture(event.pointerId)
+      )
+        event.currentTarget.releasePointerCapture(event.pointerId);
     },
-    [],
+    [setSize],
   );
 
   const handleFilesPanelResizeEnd = useCallback(
@@ -82,32 +124,29 @@ export function useCanvasWorkbenchChangesFilesPanelResize(
 
   const handleFilesPanelResizeKeyDown = useCallback(
     (event: KeyboardEvent<HTMLDivElement>) => {
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        setFilesPanelWidth((width) =>
-          Math.min(MAX_FILES_PANEL_WIDTH, width + 16),
-        );
-      }
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        setFilesPanelWidth((width) =>
-          Math.max(MIN_FILES_PANEL_WIDTH, width - 16),
-        );
-      }
+      if (!filesPanelOpen || !["ArrowLeft", "ArrowRight"].includes(event.key))
+        return;
+      event.preventDefault();
+      const width = currentGeometry(event.currentTarget).width;
+      setSize(
+        width + (event.key === "ArrowLeft" ? 10 : -10),
+        event.currentTarget,
+      );
     },
-    [],
+    [filesPanelOpen, currentGeometry, setSize],
   );
 
   return {
     filesPanelWidth,
     filesPanelGridStyle: filesPanelOpen
       ? {
-          gridTemplateColumns: `minmax(0, 1fr) ${filesPanelWidth}px`,
+          gridTemplateColumns: `minmax(0, 1fr) min(60%, ${filesPanelWidth}px)`,
         }
       : undefined,
     handleFilesPanelResizeStart,
     handleFilesPanelResizeMove,
     handleFilesPanelResizeEnd,
     handleFilesPanelResizeKeyDown,
+    resetFilesPanelWidth: () => setFilesPanelWidth(DEFAULT_FILES_PANEL_WIDTH),
   };
 }

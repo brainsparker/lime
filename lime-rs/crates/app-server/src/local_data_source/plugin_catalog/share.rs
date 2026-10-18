@@ -74,7 +74,7 @@ pub(crate) async fn list(store: &PluginStore) -> Result<PluginShareListResponse,
                 }
                 summary.installed = true;
                 summary.enabled = row.enabled;
-                summary.installed_at = row.installed_at.map(|time| time.timestamp_millis());
+                summary.installed_at = row.installed_at.map(|time| time.timestamp());
                 summary.local_version = row.plugin.release.version.clone();
             }
             Ok(PluginShareListItem {

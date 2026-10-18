@@ -6,6 +6,7 @@ use serde::de::DeserializeOwned;
 
 pub(crate) mod bundle;
 mod installed;
+pub(crate) use installed::Installed;
 mod mutation;
 pub(crate) mod share;
 mod upload;

@@ -67,6 +67,32 @@ describe("EmptyStateLayout", () => {
     );
   });
 
+  it("全局深色文字不得覆盖浅色 Banner 素材的文字配色", () => {
+    const appStyle = document.documentElement.style;
+    const previousTitle = appStyle.getPropertyValue("--lime-text-strong");
+    const previousText = appStyle.getPropertyValue("--lime-text");
+    appStyle.setProperty("--lime-text-strong", "#fff1f5");
+    appStyle.setProperty("--lime-text", "#f1dce4");
+
+    try {
+      const container = renderLayout();
+      const artwork = container.querySelector<HTMLElement>(
+        '[data-testid="dream-blossom-home-artwork"]',
+      );
+      expect(artwork?.style.getPropertyValue("--home-hero-title-color")).toBe(
+        "#402530",
+      );
+      expect(
+        artwork?.style.getPropertyValue("--home-hero-description-color"),
+      ).toBe("#654652");
+    } finally {
+      if (previousTitle) appStyle.setProperty("--lime-text-strong", previousTitle);
+      else appStyle.removeProperty("--lime-text-strong");
+      if (previousText) appStyle.setProperty("--lime-text", previousText);
+      else appStyle.removeProperty("--lime-text");
+    }
+  });
+
   it("切换皮肤时应实时更换首页 hero 图片", () => {
     const container = renderLayout();
     const artworkStage = container.querySelector(

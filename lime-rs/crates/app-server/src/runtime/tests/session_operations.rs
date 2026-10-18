@@ -146,6 +146,17 @@ impl ExecutionBackend for LiveActionBackend {
 
 #[async_trait]
 impl ExecutionBackend for ReplaceBlockingBackend {
+    async fn compact_context(
+        &self,
+        request: ExecutionRequest,
+        history: ProviderTurnHistory,
+        cancellation: tokio_util::sync::CancellationToken,
+    ) -> Result<String, RuntimeCoreError> {
+        MockBackend
+            .compact_context(request, history, cancellation)
+            .await
+    }
+
     async fn start_turn(
         &self,
         _request: ExecutionRequest,

@@ -8,6 +8,7 @@ import type {
   DraftIdentity,
   PersistedAtomEnvelope,
   PersistedAtomMetadata,
+  PersistedAtomKey,
   PersistedAtomMutation,
   PersistedAtomPersistence,
   PersistedAtomReadResult,
@@ -16,6 +17,7 @@ import type {
   PersistedAtomUpdateResult,
   PersistedDraftEntry,
 } from "../src/lib/api/persistedAtomTypes";
+import { SUMMARY_PANEL_PIN_ATOM_KEY } from "../src/lib/api/persistedAtomTypes";
 import {
   PersistedAtomFile,
   PersistedAtomFileError,
@@ -26,6 +28,7 @@ import {
   COMPOSER_ATOM_KEY,
   parseMutation,
   projectWorkspaceDraftIndex,
+  exactRecord,
   scopeKey,
 } from "./persistedAtomRecords";
 
@@ -63,6 +66,7 @@ export class PersistedAtomStore {
   readonly #bindings = new Map<string, string>();
   readonly #listeners = new Set<(metadata: PersistedAtomMetadata) => void>();
   #storeRevision = 0;
+  #summaryPanelPinned = true;
   #persistence: PersistedAtomPersistence = {
     state: "loading",
     savedRevision: null,
@@ -88,9 +92,9 @@ export class PersistedAtomStore {
     this.ready = this.#load();
   }
 
-  metadata(): PersistedAtomMetadata {
+  metadata(key: PersistedAtomKey = COMPOSER_ATOM_KEY): PersistedAtomMetadata {
     return {
-      key: COMPOSER_ATOM_KEY,
+      key,
       storeRevision: this.#storeRevision,
       persistence: detached(this.#persistence),
     };
@@ -101,6 +105,59 @@ export class PersistedAtomStore {
     return () => {
       this.#listeners.delete(listener);
     };
+  }
+
+  sendSummaryPanelPinState(): PersistedAtomReadResult {
+    const metadata = this.metadata(SUMMARY_PANEL_PIN_ATOM_KEY);
+    if (!this.#available || this.#closed)
+      return {
+        ...metadata,
+        outcome: "unavailable",
+        data: null,
+        ...(this.#closed ? { reason: "closed" as const } : {}),
+      };
+    return {
+      ...metadata,
+      outcome: "ready",
+      data: { queryKind: "value", value: this.#summaryPanelPinned },
+    };
+  }
+
+  updateSummaryPanelPinState(value: unknown): PersistedAtomUpdateResult {
+    const result = (
+      outcome: PersistedAtomUpdateResult["outcome"],
+      changed = false,
+      reason?: PersistedAtomReason,
+    ): PersistedAtomUpdateResult => ({
+      ...this.metadata(SUMMARY_PANEL_PIN_ATOM_KEY),
+      outcome,
+      changed,
+      entry: null,
+      value: this.#summaryPanelPinned,
+      ...(reason ? { reason } : {}),
+    });
+    if (!this.#available || this.#closed)
+      return result("unavailable", false, this.#closed ? "closed" : undefined);
+    let mutation: Record<string, unknown>;
+    try {
+      mutation = exactRecord(value, ["op", "value"]);
+      if (mutation.op !== "set" || typeof mutation.value !== "boolean")
+        throw new Error("invalid pin mutation");
+    } catch {
+      return result("invalid", false, "invalid_request");
+    }
+    if (mutation.value === this.#summaryPanelPinned) return result("applied");
+    if (this.#storeRevision === Number.MAX_SAFE_INTEGER)
+      return result("invalid", false, "capacity_exceeded");
+    this.#summaryPanelPinned = mutation.value;
+    this.#storeRevision += 1;
+    this.#persistence = {
+      state: "pending",
+      savedRevision: this.#persistence.savedRevision,
+    };
+    this.#broadcastPersistedAtomUpdate();
+    this.#schedule();
+    return result("applied", true);
   }
 
   sendPersistedAtomState(query: unknown): PersistedAtomReadResult {
@@ -426,6 +483,7 @@ export class PersistedAtomStore {
       version: 1,
       storeRevision: this.#storeRevision,
       atoms: {
+        [SUMMARY_PANEL_PIN_ATOM_KEY]: this.#summaryPanelPinned,
         [COMPOSER_ATOM_KEY]: {
           bindings: Object.fromEntries(this.#bindings),
           entries: Object.fromEntries(this.#entries),
@@ -438,6 +496,8 @@ export class PersistedAtomStore {
     try {
       const { envelope, recovered } = await this.#file.load();
       if (envelope) {
+        this.#summaryPanelPinned =
+          envelope.atoms[SUMMARY_PANEL_PIN_ATOM_KEY] ?? true;
         const atom = envelope.atoms[COMPOSER_ATOM_KEY];
         for (const [id, entry] of Object.entries(atom.entries))
           this.#entries.set(id, entry);
@@ -477,10 +537,15 @@ export class PersistedAtomStore {
 
   #broadcastPersistedAtomUpdate(): void {
     for (const listener of this.#listeners) {
-      try {
-        listener(this.metadata());
-      } catch {
-        /* Notification failure cannot roll back a committed atom. */
+      for (const key of [
+        COMPOSER_ATOM_KEY,
+        SUMMARY_PANEL_PIN_ATOM_KEY,
+      ] as const) {
+        try {
+          listener(this.metadata(key));
+        } catch {
+          /* Notification failure cannot roll back a committed atom. */
+        }
       }
     }
   }

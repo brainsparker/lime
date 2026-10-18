@@ -1,3 +1,4 @@
+import { AppShell, AppShellHeader } from "@/components/app-shell/AppShell";
 import React from "react";
 import { act } from "react";
 import { createRoot } from "react-dom/client";
@@ -5,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { ThreadWorkspaceHeader } from "./ThreadWorkspaceHeader";
+import { LayoutTransition } from "@/components/workspace/layout/LayoutTransition";
 
 beforeEach(async () => {
   await changeLimeLocale("zh-CN");
@@ -21,60 +23,127 @@ afterEach(async () => {
 });
 
 describe("ThreadWorkspaceHeader", () => {
-  it("应集中展示 active Thread 标题、状态、工作目录和上下文操作", () => {
+  it("动作在window/chat/tab-strip之间移动时保持同一实例，More始终留在窗口槽", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
-
-    act(() => {
-      root.render(
-        <ThreadWorkspaceHeader
-          sessionId="thread-1"
-          title="对齐 Codex App GUI"
-          status="running"
-          workingDirectory="/workspace/lime"
-          canAcceptDirectInput={false}
-          actions={<button data-testid="header-action">打开位置</button>}
-        />,
+    const render = (mode: "chat" | "chat-canvas") =>
+      act(() =>
+        root.render(
+          <AppShell>
+            <AppShellHeader />
+            <LayoutTransition
+              mode={mode}
+              mainTabLabel="canonical title"
+              mainToolbar={
+                <ThreadWorkspaceHeader
+                  sessionId="thread-1"
+                  title="canonical title"
+                  onRename={vi.fn()}
+                  summaryToggle={
+                    <button data-testid="thread-workspace-summary-toggle">
+                      Summary
+                    </button>
+                  }
+                  actions={
+                    <input
+                      aria-label="tool draft"
+                      defaultValue="retained tool state"
+                    />
+                  }
+                />
+              }
+              chatContent={
+                <textarea
+                  aria-label="composer"
+                  defaultValue="retained composer"
+                />
+              }
+              canvasContent={<div>files</div>}
+            />
+          </AppShell>,
+        ),
       );
-    });
-
+    const tools = () =>
+      container.querySelector('[data-testid="thread-workspace-header-tools"]')!;
+    render("chat");
+    const input = container.querySelector<HTMLInputElement>(
+      'input[aria-label="tool draft"]',
+    )!;
+    expect(
+      tools().closest('[data-app-shell-header-slot="end"]'),
+    ).not.toBeNull();
+    render("chat-canvas");
+    expect(
+      tools().closest('[data-testid="thread-workspace-header"]'),
+    ).not.toBeNull();
+    act(() =>
+      container
+        .querySelector('[data-testid="layout-content-tab"]')!
+        .dispatchEvent(new MouseEvent("dblclick", { bubbles: true })),
+    );
+    expect(tools().closest('[role="tablist"]')).not.toBeNull();
+    expect(container.querySelector('input[aria-label="tool draft"]')).toBe(
+      input,
+    );
+    expect(input.value).toBe("retained tool state");
     expect(
       container
-        .querySelector('[data-testid="thread-workspace-header"]')
-        ?.getAttribute("data-header-placement"),
-    ).toBe("titlebar");
+        .querySelector('[data-testid="thread-workspace-header-action-menu"]')
+        ?.closest('[data-app-shell-header-slot="end"]'),
+    ).not.toBeNull();
+    render("chat");
+    expect(
+      tools().closest('[data-app-shell-header-slot="end"]'),
+    ).not.toBeNull();
+    expect(container.querySelector('input[aria-label="tool draft"]')).toBe(
+      input,
+    );
+    act(() => root.unmount());
+    expect(document.querySelector('input[aria-label="tool draft"]')).toBeNull();
+  });
+
+  it("共享页头保留线程身份和动作，删除重复导航、状态与目录", () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    act(() => {
+      root.render(
+        <AppShell>
+          <AppShellHeader />
+          <ThreadWorkspaceHeader
+            sessionId="thread-1"
+            title="对齐 Codex App GUI"
+            actions={<button data-testid="header-action">打开位置</button>}
+          />
+        </AppShell>,
+      );
+    });
+    expect(
+      container.querySelector("[data-app-shell-header-toolbar]"),
+    ).not.toBeNull();
     expect(
       container.querySelector('[data-testid="thread-workspace-header-title"]')
         ?.textContent,
     ).toBe("对齐 Codex App GUI");
-    expect(
-      container.querySelector('[data-testid="thread-workspace-header-status"]')
-        ?.textContent,
-    ).toContain("处理中");
-    expect(
-      container.querySelector(
-        '[data-testid="thread-workspace-header-directory"]',
-      )?.textContent,
-    ).toContain("/workspace/lime");
-    expect(
-      container
-        .querySelector('[data-testid="thread-workspace-header"]')
-        ?.getAttribute("data-can-accept-direct-input"),
-    ).toBe("false");
+    for (const id of ["navigation", "status", "directory"]) {
+      expect(
+        container.querySelector(
+          `[data-testid="thread-workspace-header-${id}"]`,
+        ),
+      ).toBeNull();
+    }
     expect(
       container.querySelector('[data-testid="header-action"]'),
     ).not.toBeNull();
     expect(
-      container
-        .querySelector('[data-testid="thread-workspace-header-actions"]')
-        ?.getAttribute("data-header-action-overflow"),
-    ).toBe("scroll");
+      container.querySelector('[data-testid="thread-workspace-header-tools"]')
+        ?.className,
+    ).toContain("overflow-x-auto");
     expect(
       container.querySelector('[data-testid="thread-workspace-header-actions"]')
         ?.className,
-    ).toContain("overflow-x-auto");
-
+    ).not.toContain("overflow-x-auto");
     act(() => root.unmount());
   });
 
@@ -87,27 +156,24 @@ describe("ThreadWorkspaceHeader", () => {
 
     act(() => {
       root.render(
-        <ThreadWorkspaceHeader
-          sessionId="thread-1"
-          title="旧 Thread 名称"
-          status="done"
-          workingDirectory="/workspace/lime"
-          onRename={onRename}
-          onFork={vi.fn()}
-          onArchive={vi.fn()}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <ThreadWorkspaceHeader
+            sessionId="thread-1"
+            title="旧 Thread 名称"
+            onRename={onRename}
+            onFork={vi.fn()}
+            onArchive={vi.fn()}
+          />
+        </AppShell>,
       );
     });
 
     expect(
-      container.querySelector('[data-testid="thread-workspace-header-status"]')
-        ?.textContent,
-    ).toContain("已完成");
-    expect(
       container.querySelector(
-        '[data-testid="thread-workspace-header-directory"]',
-      )?.textContent,
-    ).toContain("/workspace/lime");
+        '[data-testid="thread-workspace-header-tools"] [data-testid="thread-workspace-header-action-menu"]',
+      ),
+    ).toBeNull();
 
     act(() => {
       (
@@ -158,14 +224,6 @@ describe("ThreadWorkspaceHeader", () => {
 
     expect(prompt).not.toHaveBeenCalled();
     expect(onRename).toHaveBeenCalledWith("新的 Thread 名称");
-    expect(
-      container.querySelector('[data-testid="thread-workspace-header-status"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector(
-        '[data-testid="thread-workspace-header-directory"]',
-      ),
-    ).not.toBeNull();
 
     act(() => {
       (
@@ -198,14 +256,15 @@ describe("ThreadWorkspaceHeader", () => {
 
     act(() => {
       root.render(
-        <ThreadWorkspaceHeader
-          sessionId="thread-1"
-          title="当前 Thread"
-          status="done"
-          workingDirectory={null}
-          onFork={onFork}
-          onArchive={onArchive}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <ThreadWorkspaceHeader
+            sessionId="thread-1"
+            title="当前 Thread"
+            onFork={onFork}
+            onArchive={onArchive}
+          />
+        </AppShell>,
       );
     });
 
@@ -241,7 +300,7 @@ describe("ThreadWorkspaceHeader", () => {
     act(() => root.unmount());
   });
 
-  it("标题栏只切换既有右侧活动面，不再自建摘要层", () => {
+  it("标题栏委托摘要动作，并保持展示与面板状态分离", () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
     const root = createRoot(container);
@@ -249,14 +308,22 @@ describe("ThreadWorkspaceHeader", () => {
 
     act(() => {
       root.render(
-        <ThreadWorkspaceHeader
-          sessionId="thread-1"
-          title="当前 Thread"
-          status="running"
-          workingDirectory="/workspace/lime"
-          summaryOpen={false}
-          onToggleSummary={onToggleSummary}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <ThreadWorkspaceHeader
+            sessionId="thread-1"
+            title="当前 Thread"
+            summaryToggle={
+              <button
+                data-testid="thread-workspace-summary-toggle"
+                aria-expanded={false}
+                onClick={onToggleSummary}
+              >
+                Summary
+              </button>
+            }
+          />
+        </AppShell>,
       );
     });
 
@@ -293,13 +360,14 @@ describe("ThreadWorkspaceHeader", () => {
     ) => {
       act(() =>
         root.render(
-          <ThreadWorkspaceHeader
-            sessionId={sessionId}
-            title={title}
-            status="done"
-            workingDirectory={null}
-            onRename={onRename}
-          />,
+          <AppShell>
+            <AppShellHeader />
+            <ThreadWorkspaceHeader
+              sessionId={sessionId}
+              title={title}
+              onRename={onRename}
+            />
+          </AppShell>,
         ),
       );
     };
@@ -366,13 +434,14 @@ describe("ThreadWorkspaceHeader", () => {
     const onRename = vi.fn().mockResolvedValue(undefined);
     act(() =>
       root.render(
-        <ThreadWorkspaceHeader
-          sessionId="thread-1"
-          title="当前标题"
-          status="done"
-          workingDirectory={null}
-          onRename={onRename}
-        />,
+        <AppShell>
+          <AppShellHeader />
+          <ThreadWorkspaceHeader
+            sessionId="thread-1"
+            title="当前标题"
+            onRename={onRename}
+          />
+        </AppShell>,
       ),
     );
     const startEditing = () => {

@@ -199,6 +199,19 @@ describe("persisted atom current bridge diagnostics", () => {
     expect(buffers()).not.toContain(privateMedia);
   });
 
+  it("摘要固定偏好只记录已知key/op，不记录偏好值或附带内容", async () => {
+    installBridge();
+    await safeInvoke("persisted_atom_update", {
+      key: "app-shell-summary-panel-pinned",
+      mutation: { op: "set", value: false, privateText },
+    });
+    expect(getInvokeTraceBuffer()[0].args_preview).toEqual({
+      key: "app-shell-summary-panel-pinned",
+      op: "set",
+    });
+    expect(buffers()).not.toContain(privateText);
+  });
+
   it("原生保存通知订阅失败明确抛出，不能返回空取消函数", async () => {
     installBridge();
     const failure = new Error("native event bridge unavailable");

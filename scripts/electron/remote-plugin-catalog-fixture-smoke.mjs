@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 import { exercisePluginSkillPreview } from "./lib/plugin-skill-preview-scenario.mjs";
 import { createRemotePluginIssuer } from "./lib/remote-plugin-catalog-issuer.mjs";
+import { exerciseRemotePluginPreferences } from "./lib/remote-plugin-preference-scenario.mjs";
+import { exerciseRemotePluginSkillPreferences } from "./lib/remote-plugin-skill-preference-scenario.mjs";
 import {
   ensureElectronFixtureBuild,
   inspectElectronFixtureBuildFreshness,
@@ -140,6 +142,7 @@ const plugin = (index) => ({
 });
 const installedAccounts = new Set();
 const skillPreview = { requests: 0, mode: "ready" };
+const preferences = { fail: false, writes: [] };
 const issuer = createRemotePluginIssuer({
   rootDir: process.cwd(),
   evidenceDir,
@@ -154,6 +157,7 @@ const issuer = createRemotePluginIssuer({
   observations,
   bundleRequests,
   issuerErrors,
+  preferences,
 });
 
 function artifactDigest() {
@@ -198,11 +202,7 @@ async function launch(appServerEnv) {
 
 async function visible(index, stage, installed = false) {
   const { page } = handle;
-  await page
-    .locator(
-      '[data-testid="app-sidebar-nav-plugins"], [data-testid="app-sidebar-customization-plugins"]',
-    )
-    .click();
+  await page.getByTestId("app-sidebar-nav-plugins").click();
   await page
     .locator(
       `[data-testid="plugin-catalog-card-research-${index}@${marketplace}"]`,
@@ -373,6 +373,16 @@ try {
     evidenceDir,
     installed: true,
   });
+  await handle.page
+    .getByTestId("plugin-catalog-select-browser@openai-bundled")
+    .click();
+  await exercisePluginSkillPreview({
+    page: handle.page,
+    state: skillPreview,
+    checks,
+    evidenceDir,
+    local: true,
+  });
   const { connectAppServerSidecar, stdioSidecar } =
     await import("../../packages/app-server-client/dist/index.js");
   peer = await connectAppServerSidecar(
@@ -423,6 +433,99 @@ try {
     "stdio must observe the GUI-installed package and version",
   );
   checks.sharedInstallation = true;
+  await exerciseRemotePluginPreferences({
+    page: handle.page,
+    peer,
+    preferences,
+    marketplace,
+    evidenceDir,
+    checks,
+  });
+  await exerciseRemotePluginSkillPreferences({
+    page: handle.page,
+    peer,
+    preferences,
+    marketplace,
+    evidenceDir,
+    checks,
+    remoteScope,
+  });
+  const detail = (
+    await peer.connection.request(
+      peer.client.readPlugin({
+        remoteMarketplaceName: "caller-label-is-not-authoritative",
+        pluginName: "opaque~0",
+      }),
+    )
+  ).result.plugin;
+  assert(
+    detail.marketplaceName === marketplace &&
+      detail.summary.installed &&
+      detail.summary.enabled &&
+      detail.summary.installedAt === 1792281600 &&
+      detail.summary.localVersion === "1.0.0" &&
+      detail.skills[0]?.name === "research-skill" &&
+      detail.skills[0]?.path === null &&
+      detail.skills[0]?.enabled === false &&
+      isDeepStrictEqual(detail.mcpServers, ["research-server"]) &&
+      detail.hooks.length === 0,
+    "stdio detail must project fresh remote preferences, raw names and Unix seconds",
+  );
+  const localSkills = (
+    await peer.connection.request(
+      peer.client.listSkills({
+        cwds: [runtimeEnv.appServerDataDir],
+        forceReload: true,
+      }),
+    )
+  ).result.data.flatMap((entry) => entry.skills);
+  assert(
+    localSkills.some(
+      (skill) => skill.name === "research-0:research-skill" && skill.enabled,
+    ),
+    "remote disabled_skill_names must not disable materialized runtime skills",
+  );
+  checks.remoteDetailPreferencesAndIndependentRuntime = true;
+  const listParams =
+    remoteScope === "GLOBAL" ? {} : { marketplaceKinds: [marketplace] };
+  const remoteSummary = (response) =>
+    response.marketplaces
+      .flatMap((entry) => entry.plugins)
+      .find((entry) => entry.remotePluginId === "opaque~0");
+  installedAccounts.delete(0);
+  const revokedCatalog = await appServerCallFromPage(
+    handle.page,
+    "plugin/list",
+    listParams,
+  );
+  const revoked = remoteSummary(revokedCatalog.result);
+  assert(
+    revoked?.installed === false &&
+      revoked.enabled === false &&
+      revoked.localVersion === null &&
+      revoked.installedAt === null,
+    "Electron catalog must project remote revocation before local reconciliation",
+  );
+  const localAfterRead = (
+    await peer.connection.request(peer.client.listInstalledPlugins({}))
+  ).result;
+  assert(
+    isDeepStrictEqual(localAfterRead, installed),
+    "catalog reads must not change the materialized installation snapshot",
+  );
+  installedAccounts.add(0);
+  const restoredCatalog = (
+    await peer.connection.request(peer.client.listPlugins(listParams))
+  ).result;
+  const restored = remoteSummary(restoredCatalog);
+  assert(
+    restored?.installed === true &&
+      restored.enabled === true &&
+      restored.localVersion === "1.0.0" &&
+      restored.installedAt === 1792281600,
+    "shared stdio catalog must project the restored fresh installation",
+  );
+  checks.freshCatalogRevocationAndIndependentLocalInstallation = true;
   if (remoteScope === "GLOBAL") {
     const packageRoot = path.join(
       runtimeEnv.appServerDataDir,
@@ -601,6 +704,23 @@ try {
 } catch (error) {
   summary.failure = error instanceof Error ? error.message : String(error);
   if (handle) {
+    summary.failureDiagnostics = {};
+    for (const [name, method, params] of [
+      ["account", "account/read", {}],
+      [
+        "catalog",
+        "plugin/list",
+        remoteScope === "GLOBAL" ? {} : { marketplaceKinds: [marketplace] },
+      ],
+    ]) {
+      summary.failureDiagnostics[name] = await appServerCallFromPage(
+        handle.page,
+        method,
+        params,
+      ).catch((cause) => ({
+        error: cause instanceof Error ? cause.message : String(cause),
+      }));
+    }
     await handle.page
       .screenshot({ path: path.join(evidenceDir, "failure.png") })
       .catch(() => undefined);

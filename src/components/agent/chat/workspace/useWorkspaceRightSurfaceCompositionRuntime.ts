@@ -31,7 +31,7 @@ interface UseWorkspaceRightSurfaceCompositionRuntimeParams {
     "canvasWorkbenchRootPath" | "onImageSlotIntent"
   >;
   bindArticleEditorRightSurface: (surface: ArticleEditorRightSurface) => void;
-  chrome: Omit<ChromeParams, "content" | "rightSurfaceRuntime">;
+  chrome: Omit<ChromeParams, "content" | "tabStrip" | "rightSurfaceRuntime">;
   coordinator: Omit<
     CoordinatorParams,
     | "articleEditorRightSurface"
@@ -101,7 +101,8 @@ export function useWorkspaceRightSurfaceCompositionRuntime({
   });
   const rightSurfaceChrome = buildWorkspaceConversationRightSurfaceChrome({
     ...chrome,
-    content: rightSurfaceContent,
+    content: rightSurfaceContent.content,
+    tabStrip: rightSurfaceContent.tabStrip,
     rightSurfaceRuntime,
   });
 

@@ -1267,68 +1267,6 @@ describe("EmptyState", () => {
     ).toBeNull();
   });
 
-  it("通用首页不再渲染 runtime 总览层", async () => {
-    const onOpenMemoryWorkbench = vi.fn();
-    const onOpenChannels = vi.fn();
-    const onOpenChromeRelay = vi.fn();
-    const container = renderEmptyState({
-      activeTheme: "general",
-      runtimeToolAvailability: {
-        source: "runtime_tools",
-        known: true,
-        agentInitialized: true,
-        availableToolCount: 9,
-        webSearch: true,
-        subagentCore: true,
-        subagentTeamTools: true,
-        subagentRuntime: true,
-        planRuntime: true,
-        missingSubagentCoreTools: [],
-        missingSubagentTeamTools: [],
-        missingPlanTools: [],
-      },
-      runtimeTaskCard: {
-        taskId: "task-1",
-        title: "当前任务",
-        summary: "正在执行",
-        status: "running",
-        statusLabel: "进行中",
-        phase: "tool_batch",
-        phaseLabel: "工具批次处理中",
-        detail: "正在执行工具批次",
-        supportingLines: [],
-        batchDescriptor: null,
-        pendingRequestCount: 0,
-        subtaskStats: null,
-      },
-      onOpenMemoryWorkbench,
-      onOpenChannels,
-    });
-
-    await act(async () => {
-      await Promise.resolve();
-      await Promise.resolve();
-    });
-
-    expect(
-      container.querySelector('[data-testid="empty-state-runtime-overview"]'),
-    ).toBeNull();
-    expect(container.textContent).not.toContain("当前能力、执行态和远程入口");
-    expect(container.textContent).not.toContain("Runtime Tool Surface");
-    expect(container.textContent).not.toContain("Thread Runtime");
-    expect(container.textContent).not.toContain("消息渠道 + 浏览器连接器");
-    expect(container.textContent).not.toContain(
-      "当前回合 / 长期 / Team / 压缩",
-    );
-    expect(container.textContent).not.toContain("频道入口");
-    expect(container.textContent).not.toContain("浏览器连接器");
-    expect(container.textContent).not.toContain("打开记忆工作台");
-
-    expect(onOpenChannels).not.toHaveBeenCalled();
-    expect(onOpenChromeRelay).not.toHaveBeenCalled();
-    expect(onOpenMemoryWorkbench).not.toHaveBeenCalled();
-  });
-
   it("浏览器接入不再通过首屏补充入口直接触发", async () => {
     const onLaunchBrowserAssist = vi.fn();
     const container = renderEmptyState({

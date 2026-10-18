@@ -40,6 +40,7 @@ async fn code_cell_evidence_is_forwarded_before_public_exec_item_projection() {
     ));
 
     let output = NormalizedToolOutput {
+        history_token_limit: None,
         success: true,
         text: "Script completed".to_string(),
         structured_content: None,
@@ -257,6 +258,7 @@ fn exact_snapshot_route_projects_typed_dynamic_tool_lifecycle() {
             environments: Vec::new(),
             phase: ToolLifecyclePhase::Completed,
             output: Some(NormalizedToolOutput {
+                history_token_limit: None,
                 success: true,
                 text: content_items.to_string(),
                 structured_content: Some(content_items.clone()),

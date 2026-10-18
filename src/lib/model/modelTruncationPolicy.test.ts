@@ -53,7 +53,7 @@ describe("modelTruncationPolicy", () => {
   it("非法 mode 或 limit fail-closed 到默认 bytes policy", () => {
     for (const truncation_policy of [
       { mode: "lines", limit: 10_000 },
-      { mode: "tokens", limit: 0 },
+      { mode: "tokens", limit: 0.5 },
       { mode: "bytes", limit: -1 },
       { mode: "bytes", limit: Number.MAX_SAFE_INTEGER + 1 },
       null,
@@ -68,6 +68,12 @@ describe("modelTruncationPolicy", () => {
         },
       });
     }
+  });
+
+  it.each(["bytes", "tokens"])("保留 %s 模式的零预算", (mode) => {
+    expect(
+      buildModelTruncationPolicy({ truncation_policy: { mode, limit: 0 } }),
+    ).toEqual({ mode, limit: 0, truncation_policy: { mode, limit: 0 } });
   });
 
   it("不会从 context、tools、runtime features 或 picker/catalog 字段推断截断策略", () => {
