@@ -76,3 +76,4 @@
 - 8939efe的Quality run39099827907真实GUI smoke在记忆设置导航处失败：设置/插件/已安排任务均被NavButton的展开态隐藏规则设为display:none，任务中心还移除了对应test ID。窄修复AppSidebar与现有样式owner，删除隐藏规则和条件定位标识；补首页/任务中心中三入口的可见性与实际跳转回归。仅恢复已有入口，不纳入原工作区冻结后的新rail布局；原并行工作文件不覆盖。此修复需定向测试、完整typecheck和新SHA的Quality/GUI门禁。
 - 同一run前端全量至批41发现preferences中5项失败；其中项目会话插件入口由上述定位标识修复覆盖，其余4项仍查找旧全局导航按钮。按现有AppSidebarCustomization迁移到对应子页入口与当前激活语义，保留实际点击回到插件Tab的行为断言，不恢复旧侧栏实现。
 - 导航修复后本地全部侧栏9文件107项exit0（含新增首页/任务中心可见性与跳转回归）；完整`npm run typecheck`（renderer+node）exit0，4个变动TS文件定向ESLint exit0。无新增文案、协议或后端owner；等待修复提交SHA的远端全量门禁。
+- run39099827907的Rust Full在apps_jsonrpc两项失败：夹具仍用portable标准包声明Apps，而current合同与既有负向单测明确标准包仅保存Apps元数据、不启用组件。将该Apps公共JSON-RPC夹具改为native `.codex-plugin/plugin.json`，保留所有分页、安装/卸载、通知、禁用与不可访问断言；不修改生产行为。此项另补定向Rust验证，并以最终SHA远端全量为准。
