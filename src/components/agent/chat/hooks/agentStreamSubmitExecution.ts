@@ -60,6 +60,7 @@ import {
 type MessageParts = NonNullable<Message["contentParts"]>;
 
 interface ExecuteAgentStreamSubmitOptions {
+  isCurrent?: () => boolean;
   runtime: AgentRuntimeAdapter;
   ensureSession: (options?: {
     targetSessionId?: string;
@@ -277,6 +278,11 @@ export async function executeAgentStreamSubmit(
     soulCopy,
   } = options;
 
+  const requireCurrent = () => {
+    if (options.isCurrent?.() === false)
+      throw new DOMException("Execution scope was superseded", "AbortError");
+  };
+  requireCurrent();
   if (!effectiveProviderType.trim() || !effectiveModel.trim()) {
     throw new Error(MODEL_SELECTION_REQUIRED_ERROR_MESSAGE);
   }
@@ -304,6 +310,7 @@ export async function executeAgentStreamSubmit(
     performanceTrace,
     soulCopy,
   });
+  requireCurrent();
   const resolvedActiveSessionId = activeSessionId?.trim();
   if (!resolvedActiveSessionId) {
     throw new Error("缺少会话 ID，无法启动流式任务");
@@ -311,6 +318,7 @@ export async function executeAgentStreamSubmit(
   let resolvedThreadId = getThreadIdForSubmit(targetSessionId)?.trim();
   if (!resolvedThreadId) {
     await refreshSessionReadModel(resolvedActiveSessionId);
+    requireCurrent();
     resolvedThreadId = getThreadIdForSubmit(resolvedActiveSessionId)?.trim();
   }
   if (!resolvedThreadId) {
@@ -328,6 +336,7 @@ export async function executeAgentStreamSubmit(
       : {}),
   };
   const turnControl = await runtime.getThreadTurnControl(resolvedThreadId);
+  requireCurrent();
   const expectedTurnId = turnControl.activeTurnId?.trim();
   if (expectedTurnId) {
     const { modelCapabilitySummary } = await resolveSubmitModelPolicy({
@@ -468,6 +477,10 @@ export async function executeAgentStreamSubmit(
     soulCopy,
   });
 
+  if (options.isCurrent?.() === false) {
+    unlisten();
+    requireCurrent();
+  }
   callbacks.registerListener(unlisten);
 
   const receipt = await runAgentStreamSubmitLifecycle({
@@ -517,6 +530,7 @@ export async function executeAgentStreamSubmit(
       } else {
         await resolveAllowedPermissionProfile(permissionProfileId);
       }
+      requireCurrent();
       const submitOp = buildAgentStreamSubmitOp({
         content,
         images,

@@ -227,6 +227,7 @@ export interface AppServerClient {
   ): protocol.JsonRpcRequest;
   searchPlugins(params: protocol.PluginSearchParams): protocol.JsonRpcRequest;
   readPlugin(params: protocol.PluginReadParams): protocol.JsonRpcRequest;
+  readPluginSkill(params: protocol.PluginSkillReadParams): protocol.JsonRpcRequest;
   installPlugin(params: protocol.PluginInstallParams): protocol.JsonRpcRequest;
   uninstallPlugin(
     params: protocol.PluginUninstallParams,

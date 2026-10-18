@@ -147,7 +147,7 @@ export async function openPluginPackageAppCenter(
   screenshotPath,
 ) {
   const sidebarPlugins = page.locator(
-    '[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]',
+    '[data-testid="app-sidebar-nav-plugins"]',
   );
   const refresh = page.locator('[data-testid="plugin-catalog-refresh"]');
   const loading = page.locator('[data-testid="plugin-catalog-loading"]');
@@ -301,7 +301,7 @@ export async function setPluginPackageEnabledFromAppCenter(
   options,
   observedMethods,
 ) {
-  await page.locator('[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]').click();
+  await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
   await page.locator('[data-testid="plugin-catalog-refresh"]').waitFor({
     state: "visible",
     timeout: options.timeoutMs,
@@ -364,7 +364,7 @@ export async function uninstallPluginPackageFromAppCenter({
   observedMethods,
   screenshotPath,
 }) {
-  await page.locator('[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]').click();
+  await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
   await page.locator('[data-testid="plugin-catalog-refresh"]').waitFor({
     state: "visible",
     timeout: options.timeoutMs,

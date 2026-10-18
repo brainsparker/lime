@@ -2,7 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HomeStartSurface } from "./HomeStartSurface";
+import { HomeAmbientSuggestionsContent } from "./HomeAmbientSuggestionsContent";
 import type {
   HomeGuideCard,
   HomeProjectConversationGroup,
@@ -37,8 +37,6 @@ const TEST_CHROME_COPY: HomeSurfaceChromeCopy = {
   starterManagerLabel: "管理做法",
   guideCardsLabel: "首页引导帮助",
   moreSkillsDrawerLabel: "更多做法",
-  galleryTitle: "你可以从这些任务开始",
-  secondScreenLabel: "Lime 可执行任务示例",
   projectConversationsMoreLabel: (count) => `更多 ${count} 个对话`,
   recoverySessionTitle: (status, title) => {
     if (status === "waiting") {
@@ -129,7 +127,7 @@ function renderSurface(options?: {
   starterChips?: HomeStarterChip[];
   sections?: HomeSkillSection[];
   supplementalActions?: React.ComponentProps<
-    typeof HomeStartSurface
+    typeof HomeAmbientSuggestionsContent
   >["supplementalActions"];
   conversationGroups?: HomeProjectConversationGroup[];
   recoverySession?: HomeRecoverySession | null;
@@ -156,7 +154,7 @@ function renderSurface(options?: {
 
   act(() => {
     root.render(
-      <HomeStartSurface
+      <HomeAmbientSuggestionsContent
         starterChips={options?.starterChips ?? createStarterChips()}
         copy={TEST_CHROME_COPY}
         guideCards={options?.guideCards ?? createGuideCards()}
@@ -207,7 +205,7 @@ afterEach(() => {
   }
 });
 
-describe("HomeStartSurface", () => {
+describe("HomeAmbientSuggestionsContent", () => {
   it("普通起手 chip 只透传给上层，不打开抽屉或管理弹窗", () => {
     const { container, onSelectStarterChip } = renderSurface();
     const chip = container.querySelector(

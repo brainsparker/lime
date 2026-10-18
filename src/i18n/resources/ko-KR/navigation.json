@@ -1,4 +1,5 @@
 {
+  "navigation.sidebar.actions.resize": "사이드바 너비 조절",
   "navigation.sidebar.actions.collapse": "탐색 막대 접기",
   "navigation.sidebar.actions.expand": "탐색 막대 펼치기",
   "navigation.sidebar.home.ariaLabel": "Lime 홈으로 돌아가기",

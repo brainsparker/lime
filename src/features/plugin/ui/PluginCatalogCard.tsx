@@ -16,7 +16,7 @@ import {
 export function PluginCatalogCard({
   entry,
   isSelected,
-  busy,
+  busyId,
   menuOpen,
   onSelect,
   onMenuToggle,
@@ -27,7 +27,7 @@ export function PluginCatalogCard({
 }: {
   entry: PluginCatalogEntry;
   isSelected: boolean;
-  busy: boolean;
+  busyId: string | null;
   menuOpen: boolean;
   onSelect: () => void;
   onMenuToggle: () => void;
@@ -38,7 +38,8 @@ export function PluginCatalogCard({
 }) {
   const { t } = useTranslation("agent");
   const { plugin, marketplace } = entry;
-  const isBusy = busy;
+  const busy = Boolean(busyId);
+  const isBusy = busyId === plugin.id;
   return (
     <article
       className={`min-w-0 rounded-lg border bg-[color:var(--lime-surface)] p-4 transition ${

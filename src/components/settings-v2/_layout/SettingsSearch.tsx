@@ -19,10 +19,10 @@ const SearchField = styled.div`
   display: flex;
   align-items: center;
   gap: 7px;
-  min-height: 32px;
-  padding: 0 9px;
+  min-height: 30px;
+  padding: 0 8px;
   border: 1px solid var(--lime-sidebar-border, hsl(var(--border)));
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--lime-sidebar-search-bg, hsl(var(--background)));
   color: var(--lime-sidebar-muted, hsl(var(--muted-foreground)));
   &:focus-within {
@@ -82,7 +82,6 @@ interface SettingsSearchProps {
   query: string;
   results: SettingsSearchResult[];
   inputRef: RefObject<HTMLInputElement>;
-  mobile?: boolean;
   onQueryChange: (query: string) => void;
   onSelect: (result: SettingsSearchResult) => void;
   onPrefetch?: (tab: SettingsTabs) => void;
@@ -92,7 +91,6 @@ export function SettingsSearch({
   query,
   results,
   inputRef,
-  mobile,
   onQueryChange,
   onSelect,
   onPrefetch,
@@ -125,9 +123,7 @@ export function SettingsSearch({
           }
           aria-label={t("settings.layout.sidebar.search.label")}
           placeholder={t("settings.layout.sidebar.search.placeholder")}
-          data-testid={
-            mobile ? "settings-mobile-search" : "settings-sidebar-search"
-          }
+          data-testid="settings-sidebar-search"
           value={query}
           onChange={(event) => changeQuery(event.target.value)}
           onFocus={() => setDismissed(false)}

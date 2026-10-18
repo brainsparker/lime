@@ -293,7 +293,7 @@ it("disconnects a waiting observer on unmount", async () => {
   expect(stray.hasAttribute("data-settings-search-active")).toBe(false);
 });
 
-it("keeps narrow search mounted through dirty confirmation, then closes on canonical commit", async () => {
+it("keeps narrow search mounted through dirty confirmation, then focuses the committed target", async () => {
   vi.spyOn(window, "matchMedia").mockReturnValue({
     matches: true,
   } as MediaQueryList);
@@ -301,7 +301,7 @@ it("keeps narrow search mounted through dirty confirmation, then closes on canon
   await click(target("profile-displayName")!.querySelector("button")!);
   await edit(
     container.querySelector<HTMLInputElement>("#profile-field-displayName")!,
-    "Mobile draft",
+    "Narrow draft",
   );
   await act(async () =>
     document.dispatchEvent(
@@ -309,7 +309,7 @@ it("keeps narrow search mounted through dirty confirmation, then closes on canon
     ),
   );
   const mobile = container.querySelector<HTMLInputElement>(
-    '[data-testid="settings-mobile-search"]',
+    '[data-testid="settings-sidebar-search"]',
   )!;
   expect(document.activeElement).toBe(mobile);
   await edit(mobile, "bio");
@@ -333,7 +333,7 @@ it("keeps narrow search mounted through dirty confirmation, then closes on canon
   expect(
     container.querySelector<HTMLInputElement>("#profile-field-displayName")
       ?.value,
-  ).toBe("Mobile draft");
+  ).toBe("Narrow draft");
   await act(async () =>
     mobile.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
@@ -343,9 +343,7 @@ it("keeps narrow search mounted through dirty confirmation, then closes on canon
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  expect(
-    container.querySelector('[data-testid="settings-floating-nav-panel"]'),
-  ).toBeNull();
+  expect(mobile.isConnected).toBe(true);
   expect(document.activeElement).toBe(target("profile-bio"));
   expect(api.saveConfig).not.toHaveBeenCalled();
 });

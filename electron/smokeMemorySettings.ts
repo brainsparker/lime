@@ -91,12 +91,8 @@ export async function waitForElectronSmokeMemorySettingsReady(
       };
       const sidebarMemoryTabSelector = '[data-testid="settings-sidebar-tab-memory"]';
       const sidebarSettingsSelector = '[data-testid="app-sidebar-nav-settings"]';
-      const floatingNavButtonSelector = '[data-testid="settings-floating-nav-button"]';
-      const floatingMemoryTabSelector = '[data-testid="settings-floating-tab-memory"]';
       const memoryTabNavigationReady = () =>
-        interactable(document.querySelector(sidebarMemoryTabSelector)) ||
-        interactable(document.querySelector(floatingNavButtonSelector)) ||
-        interactable(document.querySelector(floatingMemoryTabSelector));
+        interactable(document.querySelector(sidebarMemoryTabSelector));
       const memoryActionSelectors = [
         '[data-testid="settings-memory-health-refresh"]',
         '[data-testid="settings-memory-review-refresh"]',
@@ -197,8 +193,6 @@ export async function waitForElectronSmokeMemorySettingsReady(
             '[data-testid="settings-memory-soul-copy-export"]',
             '[data-testid="settings-memory-soul-import-textarea"]',
             sidebarMemoryTabSelector,
-            floatingNavButtonSelector,
-            floatingMemoryTabSelector,
           ].map(targetState),
           visibleButtons: Array.from(document.querySelectorAll("button"))
             .map((button, index) => {
@@ -257,16 +251,7 @@ export async function waitForElectronSmokeMemorySettingsReady(
 
         result = await waitFor(memoryTabNavigationReady, "wait settings memory tab");
         if (!result.ok) return result;
-        if (interactable(document.querySelector(sidebarMemoryTabSelector))) {
-          if (!click(sidebarMemoryTabSelector)) return summarize("open memory settings tab");
-        } else {
-          if (!interactable(document.querySelector(floatingMemoryTabSelector))) {
-            if (!click(floatingNavButtonSelector)) return summarize("open settings floating nav");
-            result = await waitFor(() => displayed(document.querySelector(floatingMemoryTabSelector)), "wait floating settings memory tab");
-            if (!result.ok) return result;
-          }
-          if (!click(floatingMemoryTabSelector)) return summarize("open floating memory settings tab");
-        }
+        if (!click(sidebarMemoryTabSelector)) return summarize("open memory settings tab");
 
         result = await waitFor(() =>
           displayed(document.querySelector('[data-testid="settings-memory-page"]')) &&

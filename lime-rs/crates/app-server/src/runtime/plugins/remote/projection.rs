@@ -11,6 +11,7 @@ impl Item {
         let mut prompts = interface
             .default_prompts
             .iter()
+            .flatten()
             .filter_map(|prompt| normalized_prompt(prompt))
             .take(3)
             .collect::<Vec<_>>();

@@ -72,13 +72,13 @@ const AppContainer = styled.div`
   overflow: hidden;
 `;
 
-const MainContent = styled.main<{ $withSidebarGap?: boolean }>`
+const MainContent = styled.main`
   flex: 1;
   overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding-left: ${(props) => (props.$withSidebarGap ? "10px" : "0")};
+  min-width: 0;
   background: var(--lime-app-bg, hsl(var(--background)));
 `;
 
@@ -363,7 +363,7 @@ function AppContent() {
   useAppStartupEffects({
     currentPage,
   });
-  const { shouldShowAppSidebar, shouldAddMainContentGap } = useAppShellLayout({
+  const { shouldShowAppSidebar } = useAppShellLayout({
     currentPage,
     pageParams,
     agentHasMessages,
@@ -470,7 +470,6 @@ function AppContent() {
           />
         )}
         <MainContent
-          $withSidebarGap={shouldAddMainContentGap}
           data-lime-window-drag-region
           onMouseDown={(event) => {
             void startWindowDragFromMouseEvent(event, {

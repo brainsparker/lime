@@ -19,13 +19,17 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { getProject } from "@/lib/api/project";
+import {
+  useComposerMode,
+  type ComposerModeState,
+} from "../../../workspace/ComposerModeContext";
 import { useComposerUtilityActions } from "./useComposerUtilityActions";
 import type {
   ComposerProject,
   ComposerUtilityBarCopy,
 } from "./composerUtilityBarTypes";
 
-interface ComposerUtilityBarProps {
+interface ComposerUtilityBarProps extends Partial<ComposerModeState> {
   projectId?: string | null;
   openedProjects?: ComposerProject[];
   onProjectChange?: (projectId: string | null) => void;
@@ -188,6 +192,8 @@ function ComposerUtilityBarWorkspace({
   activeProject,
   onProjectChange,
   modeLabel,
+  composerMode: controlledMode,
+  setComposerMode: setControlledMode,
   branchLabel,
   projectOpen,
   onProjectOpenChange,
@@ -200,6 +206,9 @@ function ComposerUtilityBarWorkspace({
   projectMenuSideOffset = 8,
   copy,
 }: ComposerUtilityBarWorkspaceProps) {
+  const modeState = useComposerMode();
+  const composerMode = controlledMode ?? modeState?.composerMode ?? "local";
+  const setComposerMode = setControlledMode ?? modeState?.setComposerMode;
   const [searchQuery, setSearchQuery] = useState("");
   const [uncontrolledProjectOpen, setUncontrolledProjectOpen] = useState(false);
   const [submenuOpen, setSubmenuOpen] = useState(false);
@@ -223,7 +232,6 @@ function ComposerUtilityBarWorkspace({
     selectProject: openEnsuredProject,
     createBlankProject: handleCreateBlankProject,
     useExistingFolder: handleUseExistingFolder,
-    createWorktree: handleCreateWorktree,
     checkoutBranch: handleCheckoutBranch,
     createBranch,
   } = useComposerUtilityActions({
@@ -232,7 +240,6 @@ function ComposerUtilityBarWorkspace({
     copy,
     onProjectChange,
     onProjectOpenChange: handleProjectPopoverOpenChange,
-    onModeOpenChange: setModePopoverOpen,
     onBranchOpenChange: setBranchPopoverOpen,
     onBranchSearchChange: setBranchSearchQuery,
   });
@@ -245,7 +252,10 @@ function ComposerUtilityBarWorkspace({
           project.id.toLowerCase().includes(normalizedSearch),
       )
     : visibleOpenedProjects;
-  const resolvedModeLabel = modeLabel?.trim() || copy.localMode;
+  const resolvedModeLabel =
+    composerMode === "worktree"
+      ? copy.newWorktree
+      : modeLabel?.trim() || copy.localMode;
   const hasGitRepository = Boolean(gitRepositoryState?.hasGitRepository);
   const resolvedBranchLabel = hasGitRepository
     ? branchLabel?.trim() ||
@@ -506,25 +516,39 @@ function ComposerUtilityBarWorkspace({
                 <button
                   type="button"
                   className="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] font-medium text-[color:var(--lime-text-strong)] transition hover:bg-[color:var(--lime-surface-subtle)]"
-                  onClick={() => setModePopoverOpen(false)}
+                  data-utility-action="select-local"
+                  aria-pressed={composerMode === "local"}
+                  onClick={() => {
+                    setComposerMode?.("local");
+                    setModePopoverOpen(false);
+                  }}
                 >
                   <Monitor className="h-3.5 w-3.5 text-[color:var(--lime-text-muted)]" />
                   <span className="min-w-0 flex-1 truncate">
                     {copy.localProcessing}
                   </span>
-                  <Check className="h-3.5 w-3.5 text-[color:var(--lime-text)]" />
+                  {composerMode === "local" ? (
+                    <Check className="h-3.5 w-3.5 text-[color:var(--lime-text)]" />
+                  ) : null}
                 </button>
                 <button
                   type="button"
                   className="flex h-8 w-full items-center gap-2 rounded-lg px-2 text-left text-[13px] font-medium text-[color:var(--lime-text)] transition hover:bg-[color:var(--lime-surface-subtle)] hover:text-[color:var(--lime-text-strong)]"
-                  disabled={Boolean(mutation)}
-                  data-utility-action="create-worktree"
-                  onClick={() => void handleCreateWorktree()}
+                  disabled={Boolean(mutation) || !setComposerMode}
+                  data-utility-action="select-worktree"
+                  aria-pressed={composerMode === "worktree"}
+                  onClick={() => {
+                    setComposerMode?.("worktree");
+                    setModePopoverOpen(false);
+                  }}
                 >
                   <FolderPlus className="h-3.5 w-3.5 text-[color:var(--lime-text-muted)]" />
                   <span className="min-w-0 flex-1 truncate">
                     {copy.newWorktree}
                   </span>
+                  {composerMode === "worktree" ? (
+                    <Check className="h-3.5 w-3.5 text-[color:var(--lime-text)]" />
+                  ) : null}
                 </button>
               </PopoverContent>
             </Popover>

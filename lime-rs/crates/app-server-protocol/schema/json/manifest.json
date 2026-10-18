@@ -876,6 +876,10 @@
     },
     {
       "kind": "request",
+      "method": "plugin/skill/read"
+    },
+    {
+      "kind": "request",
       "method": "plugin/uninstall"
     },
     {
@@ -1719,6 +1723,10 @@
     },
     {
       "method": "plugin/share/updateTargets",
+      "scope": "accountAuth"
+    },
+    {
+      "method": "plugin/skill/read",
       "scope": "accountAuth"
     },
     {
@@ -2644,6 +2652,8 @@
       "PluginShareUpdateDiscoverability",
       "PluginShareUpdateTargetsParams",
       "PluginShareUpdateTargetsResponse",
+      "PluginSkillReadParams",
+      "PluginSkillReadResponse",
       "PluginSource",
       "PluginSummary",
       "PluginUninstallParams",

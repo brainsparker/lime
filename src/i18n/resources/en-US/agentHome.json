@@ -88,8 +88,6 @@
   "agentChat.home.guide.knowledge.prompt": "Tell me how to add, confirm, and use Lime project knowledge. I want to save knowledge from the file manager, composer knowledge icon, and chat results for later generation.",
   "agentChat.home.guideCards.label": "Home guide help",
   "agentChat.home.moreSkills.drawerLabel": "More methods",
-  "agentChat.home.gallery.title": "Start from these tasks",
-  "agentChat.home.secondScreen.label": "Lime executable task examples",
   "agentChat.home.projectConversations.more": "More {{count}} conversations",
   "agentChat.home.recovery.running.title": "Continuing: {{title}}",
   "agentChat.home.recovery.running.summary": "Background output is still running. Open the session for the latest progress.",

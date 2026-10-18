@@ -357,7 +357,6 @@ describe("i18n namespace loader", () => {
         "agentChat.home.starter.ppt.prompt",
         "agentChat.home.guide.longTermPlan.title",
         "agentChat.home.guideCards.label",
-        "agentChat.home.gallery.title",
         "agentChat.home.category.recent",
         "agentChat.home.sceneManager.title.list",
         "agentChat.home.sceneManager.action.addScene",
@@ -995,9 +994,6 @@ describe("i18n namespace loader", () => {
       ).toEqual([]);
       expect(resources[locale].settings).toHaveProperty(
         "settings.layout.loading.skills",
-      );
-      expect(resources[locale].settings).toHaveProperty(
-        "settings.layout.sidebar.floatingNav.openAria",
       );
       expect(resources[locale].settings).toHaveProperty(
         "settings.about.version.label",

@@ -57,7 +57,7 @@ export function useAgentChatWorkspaceCommandRuntime({
     t, untitledTaskLabel, taskCenterRenamePromptLabel, newConversationLabel, workspaceRenderT0, normalizedEntryTheme, defaultTopicSidebarVisible, shouldBootstrapCanvasOnEntry,
     shouldKeepNewTaskHomeSessionRestoreDisabled, localDisplayRuntime, activeTheme, layoutMode, runtimeInitialInputCapability, setCanvasWorkbenchLayoutMode, setEntryBannerVisible, setExpertInfoPanelCollapsed,
     setInput, setLayoutMode, showSidebar, activeSessionIdRef, deferSessionRecentMetadataSyncForNavigation, setChatToolPreferences, projectSelectionRuntime,
-    projectId, shouldDisableSessionRestore, applyProjectSelection, taskCenterWorkspaceId, normalizedInitialSessionId, sessionRestorePresentation, shouldPreserveBlankHomeSurface, shouldUseBrowserWorkspaceHomeChrome,
+    projectId, runtimeWorkspaceId, shouldDisableSessionRestore, applyProjectSelection, taskCenterWorkspaceId, normalizedInitialSessionId, sessionRestorePresentation, shouldPreserveBlankHomeSurface, shouldUseBrowserWorkspaceHomeChrome,
     shouldDeferWorkspaceAuxiliaryLoads, project, isInitialContentLoading, canvasState, setCanvasState, setDocumentVersionStatusMap, lastCanvasSyncRequestRef, initialAutoSendAllowsDetachedSession,
     initialCreationReplay, initialPendingServiceSkillLaunchSignature, validatedRuntimeProjectId, generalCanvasState, setGeneralCanvasState, taskFiles, setTaskFiles,
     selectedFileId, setSelectedFileId, taskFilesRef, socialStageLogRef, openedProjects, serviceModels, agentResponseLanguage, refreshServiceModelsConfig,
@@ -168,6 +168,7 @@ export function useAgentChatWorkspaceCommandRuntime({
       projectImageGenerationPreference: project?.settings?.imageGeneration,
       projectName: project?.name,
       projectRootPath: project?.rootPath || null,
+      executionWorkspaceId: runtimeWorkspaceId,
       queuedTurnCount,
       queuedTurnsLength: queuedTurnCount,
       resolveServiceModelsBeforeSend: shouldDeferWorkspaceAuxiliaryLoads
@@ -237,6 +238,8 @@ export function useAgentChatWorkspaceCommandRuntime({
   } = commandWiring.taskCenterNavigation;
 
   const {
+    composerMode,
+    setComposerMode,
     handleSend,
     handleRecommendationClick,
     handleSendRef,
@@ -603,6 +606,7 @@ export function useAgentChatWorkspaceCommandRuntime({
   // prettier-ignore
   return {
     ...commandWiring.composerDraft,
+    composerMode, setComposerMode,
     shellChromeRuntime, showGeneralWorkbenchLeftExpandButton, effectiveInitialInputCapability, generalWorkbenchHarnessPanelBaseProps, navigationActions, homePendingPreviewRequest, setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleRecommendationClick, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,

@@ -1,3 +1,4 @@
+import type { ExecutionScope } from "./executionScope";
 import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type {
@@ -156,6 +157,8 @@ export interface SendMessageOptions {
   systemPromptOverride?: string;
   searchMode?: RuntimeSearchMode;
   explicitToolPreferences?: boolean;
+  executionScope?: ExecutionScope;
+  executionScopeIsCurrent?: () => boolean;
   targetSessionId?: string;
   skipSessionRestore?: boolean;
   skipSessionStartHooks?: boolean;

@@ -3,7 +3,6 @@ import type { AgentPageParams, Page, PageParams } from "@/types/page";
 interface AppShellLayoutState {
   shouldHideSidebarForAgent: boolean;
   shouldShowAppSidebar: boolean;
-  shouldAddMainContentGap: boolean;
 }
 
 export function getAppShellLayoutState(params: {
@@ -26,8 +25,6 @@ export function getAppShellLayoutState(params: {
   return {
     shouldHideSidebarForAgent,
     shouldShowAppSidebar,
-    shouldAddMainContentGap:
-      shouldShowAppSidebar && params.currentPage === "agent",
   };
 }
 

@@ -153,6 +153,13 @@ impl RuntimeCore {
         self.app_data_source.search_plugins(params).await
     }
 
+    pub async fn read_plugin_skill(
+        &self,
+        params: app_server_protocol::protocol::v2::PluginSkillReadParams,
+    ) -> Result<app_server_protocol::protocol::v2::PluginSkillReadResponse, RuntimeCoreError> {
+        remote::read_skill(self, params).await
+    }
+
     pub async fn read_plugin(
         &self,
         params: PluginReadParams,

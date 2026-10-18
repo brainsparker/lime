@@ -125,13 +125,13 @@ async function readHomeState(page, options) {
     options,
     () => {
       const homeStartVisible = Boolean(
-        document.querySelector('[data-testid="home-start-surface"]'),
+        document.querySelector('[data-testid="home-ambient-suggestions"]'),
       );
       const accountButtonVisible = Boolean(
         document.querySelector('[data-testid="app-sidebar-account-button"]'),
       );
       const settingsHeaderVisible = Boolean(
-        document.querySelector('[data-testid="settings-top-header"]'),
+        document.querySelector('[data-testid="settings-navigation"]'),
       );
       if (!homeStartVisible || !accountButtonVisible || settingsHeaderVisible) {
         return null;

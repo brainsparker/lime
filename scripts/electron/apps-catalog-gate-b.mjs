@@ -431,7 +431,7 @@ export async function run(argv = process.argv.slice(2)) {
       "plugin/install 未发布 typed app/list/updated",
     );
 
-    await page.locator('[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]').click();
+    await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
     await page.locator('[data-testid="plugin-catalog-loading"]').waitFor({
       state: "hidden",
       timeout: options.timeoutMs,

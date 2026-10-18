@@ -229,16 +229,11 @@ async function runSmoke(options) {
     await userMenuDialog
       .getByRole("button", { name: "设置", exact: true })
       .click();
-    await page.getByTestId("settings-top-header").waitFor({
+    await page.getByTestId("settings-navigation").waitFor({
       state: "visible",
       timeout: options.timeoutMs,
     });
-    await page.getByTestId("settings-floating-nav-button").waitFor({
-      state: "visible",
-      timeout: options.timeoutMs,
-    });
-    await page.getByTestId("settings-floating-nav-button").click();
-    await page.getByTestId("settings-floating-nav-panel").waitFor({
+    await page.getByTestId("settings-sidebar-search").waitFor({
       state: "visible",
       timeout: options.timeoutMs,
     });

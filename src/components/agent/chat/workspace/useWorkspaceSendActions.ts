@@ -1,3 +1,7 @@
+import { parseSlashCommand } from "../commands";
+import { useComposerWorktree } from "./useComposerWorktree";
+import type { ExecutionScope } from "../hooks/executionScope";
+import type { RuntimeAcceptanceReceipt } from "../hooks/agentSendResult";
 import {
   submitWorkspaceMessage,
   submitWorkspaceLocalConfirmation,
@@ -236,6 +240,17 @@ interface UseWorkspaceSendActionsParams {
   contextWorkspace: ContextWorkspaceSummary;
   projectId?: string | null;
   projectRootPath?: string | null;
+  executionWorkspaceId?: string;
+  cancelExecutionScope?: () => void;
+  getComposerDraftNavigationEpoch?: () => number;
+  isAcceptedExecutionScopeCurrent?: (
+    scope: ExecutionScope,
+    receipt: RuntimeAcceptanceReceipt,
+  ) => boolean;
+  onExecutionScopeAccepted?: (
+    scope: ExecutionScope,
+    receipt: RuntimeAcceptanceReceipt,
+  ) => void;
   sessionId?: string | null;
   executionStrategy: CurrentExecutionStrategy;
   accessMode?: AgentAccessMode;
@@ -373,6 +388,11 @@ export function useWorkspaceSendActions({
   contextWorkspace,
   projectId,
   projectRootPath,
+  executionWorkspaceId,
+  cancelExecutionScope,
+  getComposerDraftNavigationEpoch,
+  isAcceptedExecutionScopeCurrent,
+  onExecutionScopeAccepted,
   sessionId: _sessionId,
   executionStrategy,
   accessMode: _accessMode,
@@ -400,6 +420,14 @@ export function useWorkspaceSendActions({
   resolveImageWorkbenchCommandRequest,
 }: UseWorkspaceSendActionsParams) {
   const { t } = useTranslation("agent");
+  const composerWorktree = useComposerWorktree({
+    workspaceId: executionWorkspaceId ?? projectId,
+    workingDir: projectRootPath,
+    cancelExecutionScope,
+    getNavigationEpoch: getComposerDraftNavigationEpoch,
+    isAcceptedTargetCurrent: isAcceptedExecutionScopeCurrent,
+    onAccepted: onExecutionScopeAccepted,
+  });
   const messagesCount = messages.length;
   const [submissionPreview, setSubmissionPreview] =
     useState<SubmissionPreviewSnapshot | null>(null);
@@ -3059,6 +3087,7 @@ export function useWorkspaceSendActions({
         return { kind: "rejected" };
       }
 
+      const worktreeSubmission = composerWorktree.capture();
       isPreparingSendRef.current = true;
       setIsPreparingSend(true);
 
@@ -3079,7 +3108,55 @@ export function useWorkspaceSendActions({
           if (resolution.kind === "local_confirmation") {
             return await executeLocalConfirmationPlan(resolution.plan);
           }
-          return await executeSendPlan(resolution.plan);
+          if (!worktreeSubmission)
+            return await executeSendPlan(resolution.plan);
+          if (
+            sendOptions?.composerTarget &&
+            sendOptions.composerTarget !== "start"
+          )
+            return { kind: "rejected" };
+          const localCommand = parseSlashCommand(resolution.plan.text);
+          if (
+            resolution.plan.text.startsWith("!") ||
+            (localCommand &&
+              (localCommand.definition.kind !== "prompt_action" ||
+                localCommand.definition.support !== "supported"))
+          )
+            return await executeSendPlan(resolution.plan);
+          const result = await worktreeSubmission.submit((executionScope) =>
+            executeSendPlan({
+              ...resolution.plan,
+              sendOptions: {
+                ...resolution.plan.sendOptions,
+                targetSessionId: undefined,
+                composerTarget: "start",
+                executionScope,
+              },
+            }),
+          );
+          if (result.kind === "unknown")
+            toast.error(
+              String(
+                t(
+                  "agentChat.inputbar.core.projectContext.worktreeSubmitUnknown",
+                ),
+              ),
+            );
+          else if (
+            result.kind === "rejected" &&
+            !(
+              result.error instanceof DOMException &&
+              result.error.name === "AbortError"
+            )
+          )
+            toast.error(
+              String(
+                t(
+                  "agentChat.inputbar.core.projectContext.worktreeCreateFailed",
+                ),
+              ),
+            );
+          return result;
         },
         () => {
           isPreparingSendRef.current = false;
@@ -3087,7 +3164,13 @@ export function useWorkspaceSendActions({
         },
       );
     },
-    [executeLocalConfirmationPlan, executeSendPlan, resolveSendExecutionPlan],
+    [
+      composerWorktree,
+      executeLocalConfirmationPlan,
+      executeSendPlan,
+      resolveSendExecutionPlan,
+      t,
+    ],
   );
 
   const handleRecommendationClick = useCallback(
@@ -3141,6 +3224,8 @@ export function useWorkspaceSendActions({
   }, [handleSend]);
 
   return {
+    composerMode: composerWorktree.composerMode,
+    setComposerMode: composerWorktree.setComposerMode,
     handleSend,
     handleRecommendationClick,
     handleSendRef,

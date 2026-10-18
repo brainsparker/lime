@@ -18,9 +18,8 @@ import styled from "styled-components";
 import { SettingsNavigation } from "./SettingsNavigation";
 import { SettingsTabs } from "@/types/settings";
 import { Page, PageParams, type SettingsPageParams } from "@/types/page";
-import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import { shouldReserveMacWindowControls } from "@/lib/windowControls";
-import { isSettingsSection, resolveSettingsSection } from "../sections";
+import { resolveSettingsSection } from "../sections";
 import { SettingsHomePage } from "../home";
 import type { NavigationGuard } from "@/lib/navigationGuard";
 import { SettingsNavigationGuard } from "./SettingsNavigationGuard";
@@ -38,89 +37,45 @@ const LayoutContainer = styled.div`
   background: var(--lime-app-bg, hsl(var(--background)));
 `;
 
-const ContentContainer = styled.main<{ $reserveWindowControls: boolean }>`
+const ContentArea = styled.div`
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--lime-stage-surface-soft, hsl(var(--background)));
+`;
+
+const Toolbar = styled.div`
+  height: 46px;
+  flex-shrink: 0;
+  padding-inline: var(--lime-panel-padding, 24px);
+  -webkit-app-region: drag;
+`;
+
+const ContentContainer = styled.main`
   flex: 1;
   min-width: 0;
-  position: relative;
-  isolation: isolate;
+  min-height: 0;
   overflow-y: auto;
-  padding: ${({ $reserveWindowControls }) =>
-    $reserveWindowControls ? "48px 32px 24px" : "24px 32px"};
-  background: var(
-    --lime-stage-surface-soft,
-    linear-gradient(
-      180deg,
-      rgba(248, 250, 252, 0.96) 0%,
-      rgba(244, 249, 247, 0.92) 100%
-    )
-  );
+  scrollbar-gutter: stable;
+  padding: var(--lime-settings-panel-padding, 20px);
 
   [data-settings-search-active="true"] {
     outline: 2px solid var(--lime-brand, hsl(var(--primary)));
     outline-offset: 4px;
     border-radius: 8px;
   }
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: hsl(var(--border));
-    border-radius: 3px;
-  }
-
-  @media (max-width: 1200px) {
-    padding: 20px;
-  }
-
-  @media (max-width: 640px) {
-    padding: 16px 12px 24px;
-  }
 `;
 
-const ContentWrapper = styled.div<{ $wide: boolean }>`
-  position: relative;
-  z-index: 1;
+const ContentWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  min-width: 0;
-  max-width: ${({ $wide }) => ($wide ? "1440px" : "800px")};
-`;
-
-const ContentAtmosphere = styled.div`
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background:
-    radial-gradient(
-      circle at 8% 0%,
-      var(--lime-home-glow-primary, rgba(16, 185, 129, 0.1)) 0%,
-      rgba(16, 185, 129, 0) 34%
-    ),
-    radial-gradient(
-      circle at 92% 4%,
-      var(--lime-home-glow-secondary, rgba(56, 189, 248, 0.1)) 0%,
-      rgba(56, 189, 248, 0) 30%
-    );
-
-  @media (max-width: 640px) {
-    background:
-      radial-gradient(
-        circle at 10% 0%,
-        var(--lime-home-glow-primary, rgba(16, 185, 129, 0.08)) 0%,
-        rgba(16, 185, 129, 0) 36%
-      ),
-      radial-gradient(
-        circle at 92% 2%,
-        var(--lime-home-glow-secondary, rgba(56, 189, 248, 0.08)) 0%,
-        rgba(56, 189, 248, 0) 32%
-      );
-  }
+  min-width: min(100%, 320px);
+  max-width: 48rem;
+  margin-inline: auto;
 `;
 
 const LoadingPanel = styled.div`
@@ -267,10 +222,6 @@ export function SettingsPage({
     });
   }, []);
 
-  const handleBackHome = useCallback(() => {
-    onNavigate?.("agent", buildHomeAgentParams());
-  }, [onNavigate]);
-
   useEffect(() => {
     contentContainerRef.current?.scrollTo?.({ top: 0, behavior: "auto" });
   }, [activeTab]);
@@ -294,28 +245,27 @@ export function SettingsPage({
           searchRequestKey={pageParams.searchFocus?.requestKey}
           navigationPending={navigationGuard.pendingNavigation}
           onBack={onBack}
-          onHome={handleBackHome}
-          onNavigate={onNavigate}
         />
-        <ContentContainer
-          ref={contentContainerRef}
-          $reserveWindowControls={reserveWindowControls}
-        >
-          <ContentAtmosphere data-testid="settings-content-atmosphere" />
-          <ContentWrapper
-            key={`${activeTab}:${pageParams.searchFocus?.requestKey ?? ""}`}
-            $wide={isSettingsSection(activeTab)}
+        <ContentArea>
+          <Toolbar aria-hidden data-testid="settings-content-toolbar" />
+          <ContentContainer
+            ref={contentContainerRef}
+            data-testid="settings-content"
           >
-            {renderSettingsContent(
-              activeTab,
-              handleTabChange,
-              t,
-              handleTabPrefetch,
-              onNavigate,
-              pageParams,
-            )}
-          </ContentWrapper>
-        </ContentContainer>
+            <ContentWrapper
+              key={`${activeTab}:${pageParams.searchFocus?.requestKey ?? ""}`}
+            >
+              {renderSettingsContent(
+                activeTab,
+                handleTabChange,
+                t,
+                handleTabPrefetch,
+                onNavigate,
+                pageParams,
+              )}
+            </ContentWrapper>
+          </ContentContainer>
+        </ContentArea>
       </LayoutContainer>
     </SettingsNavigationGuard>
   );

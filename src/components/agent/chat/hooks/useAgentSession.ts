@@ -523,8 +523,8 @@ export function useAgentSession(options: UseAgentSessionOptions) {
   const pendingSessionMetadataSyncCancelRef =
     sharedPendingSessionMetadataSyncCancelRef ??
     localPendingSessionMetadataSyncCancelRef;
-  const createFreshSessionPromiseRef = useRef<Promise<string | null> | null>(
-    null,
+  const createFreshSessionPromisesRef = useRef(
+    new Map<string, Promise<string | null>>(),
   );
   const missingSessionVerificationRef = useRef<string | null>(null);
   const detachedSessionIdRef = useRef<string | null>(null);
@@ -1424,11 +1424,28 @@ export function useAgentSession(options: UseAgentSessionOptions) {
         activateSession?: boolean;
         preserveCurrentSnapshot?: boolean;
         skipSessionStartHooks?: boolean;
+        modelPreference?: SessionModelPreference;
+        onCreated?: (sessionId: string) => void;
+        requestId?: string;
+        isCurrent?: () => boolean;
       },
     ): Promise<string | null> => {
-      if (createFreshSessionPromiseRef.current) {
-        return createFreshSessionPromiseRef.current;
-      }
+      const creationKey = JSON.stringify([
+        workspaceId,
+        normalizedWorkingDir,
+        createOptions?.requestId ?? "local",
+      ]);
+      const pendingCreation =
+        createFreshSessionPromisesRef.current.get(creationKey);
+      if (pendingCreation) return pendingCreation;
+      const isCurrent = () => createOptions?.isCurrent?.() !== false;
+      const requireCurrent = () => {
+        if (!isCurrent())
+          throw new DOMException(
+            "Session creation was superseded",
+            "AbortError",
+          );
+      };
 
       const resolvedWorkspaceId = workspaceId?.trim() || "";
       const sessionScopeId =
@@ -1440,6 +1457,7 @@ export function useAgentSession(options: UseAgentSessionOptions) {
         const creationExecutionStrategy =
           normalizeExecutionStrategy(executionStrategy);
         try {
+          requireCurrent();
           invalidatePendingSessionSwitches();
           skipAutoRestoreRef.current = true;
           logAgentDebug("useAgentSession", "createFreshSession.start", {
@@ -1450,9 +1468,11 @@ export function useAgentSession(options: UseAgentSessionOptions) {
             workspaceId: resolvedWorkspaceId || null,
             workingDir: normalizedWorkingDir,
           });
-          const workspaceModelPreference = resolveWorkspaceAgentPreferences(
-            resolvedWorkspaceId || workspaceId,
-          );
+          const workspaceModelPreference =
+            createOptions?.modelPreference ??
+            resolveWorkspaceAgentPreferences(
+              resolvedWorkspaceId || workspaceId,
+            );
           const nextProviderType =
             workspaceModelPreference.providerType || providerTypeRef.current;
           const nextModel = workspaceModelPreference.model || modelRef.current;
@@ -1470,10 +1490,13 @@ export function useAgentSession(options: UseAgentSessionOptions) {
               ),
             },
           );
+          createOptions?.onCreated?.(newSessionId);
+          requireCurrent();
           const freshThreadRead = await hydrateFreshAgentSessionReadModel(
             runtime,
             newSessionId,
           );
+          requireCurrent();
           appServerConfirmedSessionIdsRef.current.add(newSessionId);
           canonicalThreadIdBySessionIdRef.current.set(
             newSessionId,
@@ -1482,6 +1505,7 @@ export function useAgentSession(options: UseAgentSessionOptions) {
 
           const now = new Date();
           if (activateSession) {
+            sessionStateWorkspaceRef.current = resolvedWorkspaceId;
             applySessionSnapshot({
               ...createEmptyAgentSessionSnapshot({
                 workingDir: normalizedWorkingDir,
@@ -1548,6 +1572,7 @@ export function useAgentSession(options: UseAgentSessionOptions) {
           }
           const nextScopedKeys = scopedKeys;
           scheduleFreshSessionPostCreatePersistence(() => {
+            if (!isCurrent()) return;
             persistSessionModelPreference(
               newSessionId,
               nextProviderType,
@@ -1573,7 +1598,7 @@ export function useAgentSession(options: UseAgentSessionOptions) {
           });
           return newSessionId;
         } catch (error) {
-          skipAutoRestoreRef.current = false;
+          if (isCurrent()) skipAutoRestoreRef.current = false;
           console.error("[AgentChat] 创建新任务失败:", error);
           logAgentDebug(
             "useAgentSession",
@@ -1594,12 +1619,18 @@ export function useAgentSession(options: UseAgentSessionOptions) {
       })();
 
       const trackedCreationPromise = creationPromise.finally(() => {
-        if (createFreshSessionPromiseRef.current === trackedCreationPromise) {
-          createFreshSessionPromiseRef.current = null;
+        if (
+          createFreshSessionPromisesRef.current.get(creationKey) ===
+          trackedCreationPromise
+        ) {
+          createFreshSessionPromisesRef.current.delete(creationKey);
         }
       });
 
-      createFreshSessionPromiseRef.current = trackedCreationPromise;
+      createFreshSessionPromisesRef.current.set(
+        creationKey,
+        trackedCreationPromise,
+      );
       return trackedCreationPromise;
     },
     [

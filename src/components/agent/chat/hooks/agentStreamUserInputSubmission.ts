@@ -35,6 +35,8 @@ export async function submitAgentStreamUserInput(
     threadGoal,
     assistantDraft,
     targetSessionId,
+    executionScope,
+    executionScopeIsCurrent,
     submittedDraft,
     composerRestoreToken,
     inputMentions,
@@ -82,6 +84,7 @@ export async function submitAgentStreamUserInput(
   try {
     return await executeAgentStreamSubmit({
       runtime: env.runtime,
+      isCurrent: executionScopeIsCurrent,
       ensureSession: env.ensureSession,
       attemptSilentTurnRecovery: env.attemptSilentTurnRecovery,
       refreshSessionReadModel: env.refreshSessionReadModel,
@@ -91,7 +94,7 @@ export async function submitAgentStreamUserInput(
       getSyncedSessionExecutionStrategy: env.getSyncedSessionExecutionStrategy,
       getSyncedSessionRecentPreferences: env.getSyncedSessionRecentPreferences,
       effectiveAccessMode: env.accessMode,
-      workingDir: env.workingDir,
+      workingDir: executionScope?.workingDir ?? env.workingDir,
       content,
       images,
       inputMentions,
@@ -150,6 +153,11 @@ export async function submitAgentStreamUserInput(
       soulCopy: env.soulCopy,
     });
   } catch (error) {
+    if (executionScopeIsCurrent?.() === false) {
+      disposeListener();
+      env.clearActiveStreamIfMatch(eventName);
+      throw error;
+    }
     handleAgentStreamSubmitFailure({
       error,
       requestState,

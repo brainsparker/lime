@@ -207,7 +207,7 @@ describe("AgentChatPage 侧栏显示控制", () => {
       container.querySelector('[data-testid="empty-state"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="home-start-surface"]'),
+      container.querySelector('[data-testid="home-ambient-suggestions"]'),
     ).not.toBeNull();
     expect(container.querySelector('[data-testid="message-list"]')).toBeNull();
     expect(container.querySelector('[data-testid="inputbar"]')).toBeNull();

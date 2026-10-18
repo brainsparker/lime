@@ -114,6 +114,74 @@ describe("captured TaskCenter send source", () => {
     ).toBe(false);
   });
 
+  it("permits only the matching Worktree receipt to continue its promoted target workspace", () => {
+    const receipt = {
+      kind: "start" as const,
+      sessionId: "ready",
+      threadId: "t1",
+      turnId: "turn1",
+      executionScope: {
+        requestId: "r1",
+        sourceWorkspaceId: "w",
+        sourceWorkingDir: "/w",
+        workspaceId: "target",
+        workingDir: "/target",
+      },
+    };
+    const scoped = {
+      ...options,
+      acceptedResult: { kind: "runtime-accepted" as const, receipt },
+    };
+    const promoted = {
+      ...current,
+      sessionId: "ready",
+      workspaceId: "target",
+      navigationEpoch: 8,
+      composerDraftStatus: {
+        generation: 3,
+        scope: { workspaceId: "target", kind: "local" as const, id: "ready" },
+        identity: null,
+      },
+    };
+    expect(isTaskCenterSendSourceCurrent(scoped, promoted, "ready")).toBe(true);
+    expect(
+      isTaskCenterSendSourceCurrent(
+        scoped,
+        { ...promoted, navigationEpoch: 10 },
+        "ready",
+      ),
+    ).toBe(false);
+    expect(
+      isTaskCenterSendSourceCurrent(
+        scoped,
+        { ...promoted, workspaceId: "unrelated" },
+        "ready",
+      ),
+    ).toBe(false);
+    expect(
+      isTaskCenterSendSourceCurrent(scoped, promoted, "wrong-session"),
+    ).toBe(false);
+    expect(
+      isTaskCenterSendSourceCurrent(
+        {
+          ...scoped,
+          acceptedResult: {
+            ...scoped.acceptedResult,
+            receipt: {
+              ...receipt,
+              executionScope: {
+                ...receipt.executionScope,
+                sourceWorkspaceId: "wrong",
+              },
+            },
+          },
+        },
+        promoted,
+        "ready",
+      ),
+    ).toBe(false);
+  });
+
   it("only permits epoch+1 for same-generation promotion to the accepted receipt session", () => {
     const promoted = {
       ...current,

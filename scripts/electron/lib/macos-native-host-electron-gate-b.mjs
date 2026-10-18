@@ -219,7 +219,7 @@ export async function runMacOSNativeHostElectronGateB(options) {
         document.querySelector("[data-lime-startup-shell]"),
       ),
       settingsHeaderVisible: Boolean(
-        document.querySelector('[data-testid="settings-top-header"]'),
+        document.querySelector('[data-testid="settings-navigation"]'),
       ),
       traceRaw: window.localStorage.getItem("lime_invoke_trace_buffer_v1"),
       errorRaw: window.localStorage.getItem("lime_invoke_error_buffer_v1"),

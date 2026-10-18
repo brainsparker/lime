@@ -7,6 +7,6 @@
  * 避免继续直接深挖 `general-chat` 内部实现目录。
  */
 
-export { CanvasPanel } from "./canvas";
+export { CanvasPanel, CodePreview } from "./canvas";
 export { DEFAULT_CANVAS_STATE } from "./types";
 export type { CanvasState, Message } from "./types";

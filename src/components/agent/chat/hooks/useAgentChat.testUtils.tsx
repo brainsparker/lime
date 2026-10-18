@@ -75,6 +75,7 @@ const {
     mockRespondAgentRuntimeAction: vi.fn(),
     mockParseAgentEvent: vi.fn((payload: unknown) => payload),
     mockSafeInvoke: vi.fn(async (command: string, payload?: unknown) => {
+      if (command === "app_server_drain_events") return { lines: [] };
       if (command !== "app_server_handle_json_lines") {
         return undefined;
       }

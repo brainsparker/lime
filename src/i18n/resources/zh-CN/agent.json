@@ -1,4 +1,8 @@
 {
+  "plugin.skillPreview.loading": "正在加载技能正文…",
+  "plugin.skillPreview.error": "无法加载技能正文。",
+  "plugin.skillPreview.empty": "暂无可用指令",
+  "plugin.skillPreview.retry": "重试",
   "plugin.share.createdByMe": "我创建的分享",
   "plugin.share.manage": "分享与编辑",
   "plugin.share.title": "分享 {{name}}",

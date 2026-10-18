@@ -18,16 +18,6 @@ const legacyChatRestrictedPatterns = [
 const agentCompatRestrictedPatterns = [
   {
     group: [
-      "@/components/agent/chat/hooks/useAgentChat",
-      "@/components/agent/chat/hooks/useAgentChat.*",
-      "**/useAgentChat",
-      "**/useAgentChat.*",
-    ],
-    message:
-      "useAgentChat 属于零引用 compat Hook，请改用 useAgentChatUnified 或 useAgentChat；仅兼容回归测试允许引用。",
-  },
-  {
-    group: [
       "@/stores/agentStore",
       "@/stores/agentStore.*",
       "**/agentStore",
@@ -426,7 +416,7 @@ const generalChatRestrictedPathsWithoutCompatApi =
 
 const createLegacyChatImportRule = (
   paths,
-  { includeAgentCompatPatterns = true } = {},
+  { includeAgentCompatPatterns = true, additionalPatterns = [] } = {},
 ) => {
   const patterns = [
     {
@@ -439,6 +429,7 @@ const createLegacyChatImportRule = (
   if (includeAgentCompatPatterns) {
     patterns.push(...agentCompatRestrictedPatterns);
   }
+  patterns.push(...additionalPatterns);
 
   return [
     "error",
@@ -1272,10 +1263,10 @@ export default [
     ],
     ignores: ["**/*.test.ts", "**/*.test.tsx", "**/*.d.ts", "src/lib/**"],
     rules: {
-      "no-restricted-imports": [
-        "error",
+      "no-restricted-imports": createLegacyChatImportRule(
+        generalChatRestrictedPaths,
         {
-          patterns: [
+          additionalPatterns: [
             {
               group: ["@/lib/dev-bridge/**", "@/lib/dev-bridge"],
               message:
@@ -1283,7 +1274,7 @@ export default [
             },
           ],
         },
-      ],
+      ),
     },
   },
 ];

@@ -74,8 +74,8 @@ describe("main window chrome options", () => {
 
   it("macOS 主窗口隐藏系统标题栏并保留红绿灯按钮", () => {
     expect(buildMainWindowChromeOptions("darwin")).toEqual({
-      titleBarStyle: "hidden",
-      trafficLightPosition: { x: 18, y: 18 },
+      titleBarStyle: "hiddenInset",
+      trafficLightPosition: { x: 16, y: 15 },
     });
   });
 

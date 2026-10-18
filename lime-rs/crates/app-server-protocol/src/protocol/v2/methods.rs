@@ -94,6 +94,7 @@ pub const METHOD_MARKETPLACE_UPGRADE: &str = "marketplace/upgrade";
 pub const METHOD_PLUGIN_LIST: &str = "plugin/list";
 pub const METHOD_PLUGIN_SEARCH: &str = "plugin/search";
 pub const METHOD_PLUGIN_READ: &str = "plugin/read";
+pub const METHOD_PLUGIN_SKILL_READ: &str = "plugin/skill/read";
 pub const METHOD_PLUGIN_INSTALL: &str = "plugin/install";
 pub const METHOD_PLUGIN_UNINSTALL: &str = "plugin/uninstall";
 pub const METHOD_PLUGIN_INSTALLED: &str = "plugin/installed";
@@ -378,6 +379,8 @@ pub enum Method {
     PluginSearch,
     #[serde(rename = "plugin/read")]
     PluginRead,
+    #[serde(rename = "plugin/skill/read")]
+    PluginSkillRead,
     #[serde(rename = "plugin/install")]
     PluginInstall,
     #[serde(rename = "plugin/uninstall")]
@@ -537,6 +540,7 @@ impl Method {
             Self::PluginList => METHOD_PLUGIN_LIST,
             Self::PluginSearch => METHOD_PLUGIN_SEARCH,
             Self::PluginRead => METHOD_PLUGIN_READ,
+            Self::PluginSkillRead => METHOD_PLUGIN_SKILL_READ,
             Self::PluginInstall => METHOD_PLUGIN_INSTALL,
             Self::PluginUninstall => METHOD_PLUGIN_UNINSTALL,
             Self::PluginInstalled => METHOD_PLUGIN_INSTALLED,
@@ -669,6 +673,7 @@ impl Method {
             METHOD_PLUGIN_LIST => Some(Self::PluginList),
             METHOD_PLUGIN_SEARCH => Some(Self::PluginSearch),
             METHOD_PLUGIN_READ => Some(Self::PluginRead),
+            METHOD_PLUGIN_SKILL_READ => Some(Self::PluginSkillRead),
             METHOD_PLUGIN_INSTALL => Some(Self::PluginInstall),
             METHOD_PLUGIN_UNINSTALL => Some(Self::PluginUninstall),
             METHOD_PLUGIN_INSTALLED => Some(Self::PluginInstalled),
@@ -795,6 +800,7 @@ pub const METHODS: &[&str] = &[
     METHOD_PLUGIN_LIST,
     METHOD_PLUGIN_SEARCH,
     METHOD_PLUGIN_READ,
+    METHOD_PLUGIN_SKILL_READ,
     METHOD_PLUGIN_INSTALL,
     METHOD_PLUGIN_UNINSTALL,
     METHOD_PLUGIN_INSTALLED,

@@ -1,4 +1,5 @@
 {
+  "navigation.sidebar.actions.resize": "調整側欄寬度",
   "navigation.sidebar.actions.collapse": "收合導覽列",
   "navigation.sidebar.actions.expand": "展開導覽列",
   "navigation.sidebar.home.ariaLabel": "返回 Lime 首頁",

@@ -1,4 +1,5 @@
 {
+  "navigation.sidebar.actions.resize": "サイドバーの幅を変更",
   "navigation.sidebar.actions.collapse": "ナビゲーションを折りたたむ",
   "navigation.sidebar.actions.expand": "ナビゲーションを展開",
   "navigation.sidebar.home.ariaLabel": "Lime ホームへ戻る",

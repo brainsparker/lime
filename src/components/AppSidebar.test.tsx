@@ -52,50 +52,45 @@ describe("AppSidebar navigation", () => {
     );
   });
 
-  it("展开态应提供独立全局图标栏，并复用现有导航动作", async () => {
+  it("展开态只显示一份导航，并复用现有导航动作", async () => {
     const onNavigate = vi.fn();
     const container = mountSidebarContainer({ onNavigate });
     await flushEffects(2);
-
-    const rail = container.querySelector('[data-testid="app-sidebar-rail"]');
-    expect(rail).not.toBeNull();
     expect(
-      rail?.querySelector('[data-testid="app-sidebar-nav-home-general"]'),
-    ).not.toBeNull();
-    expect(
-      rail?.querySelector('[data-testid="app-sidebar-rail-scheduled-tasks"]'),
-    ).not.toBeNull();
-
-    act(() => {
-      rail
-        ?.querySelector<HTMLButtonElement>(
-          '[data-testid="app-sidebar-rail-scheduled-tasks"]',
-        )
-        ?.click();
-    });
-
+      container.querySelector('[data-testid="app-sidebar-rail"]'),
+    ).toBeNull();
+    const buttons = container.querySelectorAll<HTMLButtonElement>(
+      '[data-testid="app-sidebar-nav-scheduled-tasks"]',
+    );
+    expect(buttons).toHaveLength(1);
+    act(() => buttons[0].click());
     expect(onNavigate).toHaveBeenCalledWith("scheduled-tasks", undefined);
   });
 
-  it("折叠态仍保留全局搜索入口和展开提示", async () => {
+  it("折叠后释放侧栏宽度，并从窗口页头重新展开", async () => {
     const container = mountSidebarContainer();
     await flushEffects(2);
-
-    act(() => {
+    act(() =>
       container
         .querySelector<HTMLButtonElement>('button[aria-label="折叠导航栏"]')
-        ?.click();
-    });
+        ?.click(),
+    );
     await flushEffects();
-
+    const sidebar = container.querySelector<HTMLElement>(
+      '[data-testid="app-sidebar"]',
+    )!;
+    expect(sidebar.dataset.collapsed).toBe("true");
+    expect(getComputedStyle(sidebar).width).toBe("0px");
     expect(
-      container.querySelector(
-        '[data-testid="app-sidebar-rail-search-button"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('button[aria-label="展开导航栏"]'),
-    ).not.toBeNull();
+      container.querySelector('[data-testid="app-sidebar-rail"]'),
+    ).toBeNull();
+    act(() =>
+      container
+        .querySelector<HTMLButtonElement>('[data-testid="app-sidebar-expand"]')
+        ?.click(),
+    );
+    await flushEffects();
+    expect(sidebar.dataset.collapsed).toBe("false");
   });
 
   it("新建任务首页应短 idle 加载最近对话，避免列表首屏长时间为空", async () => {
@@ -220,11 +215,11 @@ describe("AppSidebar navigation", () => {
       container.querySelector('[data-testid="app-sidebar-footer-nav"]'),
     ).toBeNull();
     expect(menuScroll).not.toBeNull();
-    expect(getComputedStyle(menuScroll as Element).flexGrow).toBe("0");
+    expect(getComputedStyle(menuScroll as Element).flexGrow).toBe("1");
     expect(getComputedStyle(menuScroll as Element).flexShrink).toBe("1");
     expect(settingsRailButton).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="app-sidebar-rail-appearance"]'),
+      container.querySelector('[data-testid="app-sidebar-appearance"]'),
     ).not.toBeNull();
     expect(
       container.querySelector('[data-testid="app-sidebar-account-button"]'),
@@ -250,15 +245,21 @@ describe("AppSidebar navigation", () => {
     expect(onNavigate).toHaveBeenCalledWith("scheduled-tasks", undefined);
   });
 
-  it("进入已安排任务页时应收起上下文栏，只保留 rail", async () => {
+  it("已安排任务页沿用同一导航栏", async () => {
     localStorage.setItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY, "false");
     const container = mountSidebarContainer({
       currentPage: "scheduled-tasks",
     });
     await flushEffects(2);
 
-    expect(container.querySelector('[data-testid="app-sidebar"]')?.getAttribute("data-collapsed")).toBe("true");
-    expect(container.querySelector('[data-testid="app-sidebar-rail-settings"]')).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-testid="app-sidebar"]')
+        ?.getAttribute("data-collapsed"),
+    ).toBe("false");
+    expect(
+      container.querySelector('[data-testid="app-sidebar-nav-settings"]'),
+    ).not.toBeNull();
   });
 
   it("从项目工作区进入已安排任务时应保留项目作用域", async () => {

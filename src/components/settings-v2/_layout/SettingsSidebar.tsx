@@ -6,20 +6,15 @@
  */
 
 import styled from "styled-components";
-import { ChevronDown } from "lucide-react";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  useSettingsCategory,
-  type CategoryGroup,
-  type CategoryItem,
-} from "../hooks/useSettingsCategory";
-import { SettingsTabs, SettingsGroupKey } from "@/types/settings";
+import { useSettingsCategory } from "../hooks/useSettingsCategory";
+import { SettingsTabs } from "@/types/settings";
 import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
 import { searchSettings, type SettingsSearchResult } from "../settingsSearch";
 import { SettingsSearch } from "./SettingsSearch";
 
-const SidebarContainer = styled.aside`
+const SidebarContainer = styled.div`
   width: 100%;
   min-width: 0;
   min-height: 0;
@@ -30,7 +25,7 @@ const SidebarContainer = styled.aside`
     var(--lime-surface-subtle, hsl(var(--card)))
   );
   overflow-y: auto;
-  padding: 0 10px 12px;
+  padding: 4px 8px 8px;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -44,74 +39,33 @@ const SidebarContainer = styled.aside`
     background: var(--lime-sidebar-border, hsl(var(--border)));
     border-radius: 2px;
   }
-
-  @media (max-width: 640px) {
-    display: none;
-  }
-`;
-
-const FloatingNavRoot = styled.div`
-  display: none;
-
-  @media (max-width: 640px) {
-    display: block;
-    position: fixed;
-    top: 96px;
-    right: 20px;
-    z-index: 40;
-  }
-
-  @media (max-width: 640px) {
-    top: 88px;
-    right: 14px;
-  }
 `;
 
 const GroupContainer = styled.div`
-  margin-bottom: 10px;
+  margin-bottom: 16px;
 `;
 
-const GroupHeader = styled.button<{ $expanded: boolean }>`
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  padding: 8px 9px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
+const GroupHeader = styled.div`
+  padding: 0 8px 4px;
   font-size: 12px;
   font-weight: 500;
   color: var(--lime-text-muted, hsl(var(--muted-foreground)));
-
-  svg {
-    width: 14px;
-    height: 14px;
-    transition: transform 0.2s;
-    transform: rotate(${({ $expanded }) => ($expanded ? "0deg" : "-90deg")});
-  }
-
-  &:hover {
-    color: var(--lime-text-strong, hsl(var(--foreground)));
-  }
 `;
 
-const GroupItems = styled.div<{ $expanded: boolean }>`
-  display: ${({ $expanded }) => ($expanded ? "flex" : "none")};
+const GroupItems = styled.div`
+  display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 4px 0;
 `;
 
 const NavItem = styled.button<{ $active: boolean }>`
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  min-height: 32px;
-  padding: 6px 9px;
+  min-height: 30px;
+  padding: 0 8px;
   border: none;
-  border-radius: 7px;
+  border-radius: 10px;
   background: ${({ $active }) =>
     $active ? "var(--lime-sidebar-active, hsl(var(--accent)))" : "transparent"};
   cursor: pointer;
@@ -153,99 +107,6 @@ const ExperimentalBadge = styled.span`
   flex-shrink: 0;
 `;
 
-const FloatingNavButton = styled.button`
-  display: inline-flex;
-  min-width: 0;
-  max-width: min(58vw, 260px);
-  align-items: center;
-  gap: 8px;
-  min-height: 40px;
-  padding: 0 14px;
-  border: 1px solid var(--lime-surface-border, hsl(var(--border)));
-  border-radius: 999px;
-  background: var(--lime-surface, hsl(var(--card)));
-  color: var(--lime-text-strong, hsl(var(--foreground)));
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  box-shadow:
-    0 10px 28px rgba(15, 23, 42, 0.12),
-    0 1px 2px rgba(15, 23, 42, 0.06);
-  transition:
-    border-color 0.15s ease,
-    background 0.15s ease,
-    transform 0.15s ease;
-
-  &:hover {
-    border-color: var(
-      --lime-surface-border-strong,
-      hsl(var(--foreground) / 0.18)
-    );
-    background: var(--lime-surface-hover, hsl(var(--accent)));
-  }
-
-  &:active {
-    transform: translateY(1px);
-  }
-
-  svg {
-    width: 17px;
-    height: 17px;
-    flex-shrink: 0;
-  }
-`;
-
-const FloatingButtonLabel = styled.span`
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-`;
-
-const FloatingNavPanel = styled.div`
-  position: absolute;
-  top: calc(100% + 10px);
-  right: 0;
-  width: min(420px, calc(100vw - 28px));
-  max-height: min(72vh, 640px);
-  overflow-y: auto;
-  border: 1px solid var(--lime-surface-border, hsl(var(--border)));
-  border-radius: 22px;
-  background: var(--lime-surface, hsl(var(--card)));
-  padding: 10px;
-  box-shadow:
-    0 24px 56px rgba(15, 23, 42, 0.16),
-    0 2px 8px rgba(15, 23, 42, 0.08);
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: var(--lime-sidebar-border, hsl(var(--border)));
-    border-radius: 3px;
-  }
-`;
-
-const FloatingGroup = styled.div`
-  padding: 6px 0 8px;
-
-  & + & {
-    border-top: 1px solid var(--lime-surface-border, hsl(var(--border)));
-  }
-`;
-
-const FloatingGroupTitle = styled.div`
-  padding: 6px 10px;
-  color: var(--lime-text-muted, hsl(var(--muted-foreground)));
-  font-size: 12px;
-  font-weight: 700;
-`;
-
 interface SettingsSidebarProps {
   activeTab: SettingsTabs;
   onTabChange: (tab: SettingsTabs) => void;
@@ -253,19 +114,6 @@ interface SettingsSidebarProps {
   onSearchSelect?: (result: SettingsSearchResult) => void;
   searchRequestKey?: number;
   navigationPending?: boolean;
-}
-
-function findActiveItem(
-  groups: CategoryGroup[],
-  activeTab: SettingsTabs,
-): CategoryItem | null {
-  for (const group of groups) {
-    const item = group.items.find((candidate) => candidate.key === activeTab);
-    if (item) {
-      return item;
-    }
-  }
-  return null;
 }
 
 export function SettingsSidebar({
@@ -278,18 +126,8 @@ export function SettingsSidebar({
 }: SettingsSidebarProps) {
   const { t } = useTranslation("settings");
   const categoryGroups = useSettingsCategory();
-  const floatingPanelId = useId();
-  const floatingRootRef = useRef<HTMLDivElement | null>(null);
-  const floatingButtonRef = useRef<HTMLButtonElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  const mobileSearchRef = useRef<HTMLInputElement | null>(null);
-  const focusMobileSearch = useRef(false);
-  const [floatingOpen, setFloatingOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const activeItem = useMemo(
-    () => findActiveItem(categoryGroups, activeTab),
-    [activeTab, categoryGroups],
-  );
   const localProfile = !resolveOemCloudRuntimeContext();
   const results = useMemo(
     () => searchSettings(searchQuery, categoryGroups, t, localProfile),
@@ -308,72 +146,8 @@ export function SettingsSidebar({
   };
 
   useEffect(() => {
-    setFloatingOpen(false);
     setSearchQuery("");
   }, [activeTab, searchRequestKey]);
-
-  useEffect(() => {
-    if (floatingOpen && focusMobileSearch.current) {
-      focusMobileSearch.current = false;
-      mobileSearchRef.current?.focus();
-      mobileSearchRef.current?.select();
-    }
-  }, [floatingOpen]);
-
-  // 默认展开所有分组
-  const [expandedGroups, setExpandedGroups] = useState<
-    Record<SettingsGroupKey, boolean>
-  >({
-    [SettingsGroupKey.Overview]: true,
-    [SettingsGroupKey.Account]: true,
-    [SettingsGroupKey.General]: true,
-    [SettingsGroupKey.Agent]: true,
-    [SettingsGroupKey.System]: true,
-  });
-
-  const toggleGroup = (key: SettingsGroupKey) => {
-    setExpandedGroups((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  const handleFloatingItemClick = (tab: SettingsTabs) => {
-    onTabChange(tab);
-    setFloatingOpen(false);
-    floatingButtonRef.current?.focus();
-  };
-
-  useEffect(() => {
-    if (!floatingOpen) {
-      return;
-    }
-
-    const handlePointerDown = (event: PointerEvent) => {
-      if (navigationPending) return;
-      const target = event.target;
-      if (target instanceof Node && floatingRootRef.current?.contains(target)) {
-        return;
-      }
-      setFloatingOpen(false);
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (navigationPending || event.isComposing || event.key !== "Escape") {
-        return;
-      }
-      setFloatingOpen(false);
-      floatingButtonRef.current?.focus();
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [floatingOpen, navigationPending]);
 
   useEffect(() => {
     const handleSearchShortcut = (event: KeyboardEvent) => {
@@ -386,136 +160,49 @@ export function SettingsSidebar({
       }
 
       event.preventDefault();
-      if (window.matchMedia?.("(max-width: 640px)").matches) {
-        if (floatingOpen) {
-          mobileSearchRef.current?.focus();
-          mobileSearchRef.current?.select();
-        } else {
-          focusMobileSearch.current = true;
-          setFloatingOpen(true);
-        }
-      } else {
-        searchInputRef.current?.focus();
-        searchInputRef.current?.select();
-      }
+      searchInputRef.current?.focus();
+      searchInputRef.current?.select();
     };
 
     document.addEventListener("keydown", handleSearchShortcut);
     return () => {
       document.removeEventListener("keydown", handleSearchShortcut);
     };
-  }, [floatingOpen, navigationPending]);
-
-  const ActiveIcon = activeItem?.icon;
+  }, [navigationPending]);
 
   return (
-    <>
-      <SidebarContainer data-testid="settings-sidebar">
-        <SettingsSearch {...searchProps} inputRef={searchInputRef} />
-        {!searchQuery.trim()
-          ? categoryGroups.map((group) => (
-              <GroupContainer key={group.key}>
-                <GroupHeader
-                  $expanded={expandedGroups[group.key] ?? true}
-                  onClick={() => toggleGroup(group.key)}
-                >
-                  {group.title}
-                  <ChevronDown />
-                </GroupHeader>
-                <GroupItems $expanded={expandedGroups[group.key] ?? true}>
-                  {group.items.map((item) => (
-                    <NavItem
-                      key={item.key}
-                      $active={activeTab === item.key}
-                      aria-current={activeTab === item.key ? "page" : undefined}
-                      data-active={String(activeTab === item.key)}
-                      data-testid={`settings-sidebar-tab-${item.key}`}
-                      onMouseEnter={() => onTabPrefetch?.(item.key)}
-                      onMouseDown={() => onTabPrefetch?.(item.key)}
-                      onFocus={() => onTabPrefetch?.(item.key)}
-                      onClick={() => onTabChange(item.key)}
-                    >
-                      <item.icon />
-                      <ItemLabel>{item.label}</ItemLabel>
-                      {item.experimental && (
-                        <ExperimentalBadge>
-                          {t("settings.layout.sidebar.experimentalBadge")}
-                        </ExperimentalBadge>
-                      )}
-                    </NavItem>
-                  ))}
-                </GroupItems>
-              </GroupContainer>
-            ))
-          : null}
-      </SidebarContainer>
-
-      <FloatingNavRoot
-        ref={floatingRootRef}
-        data-testid="settings-floating-nav"
-      >
-        <FloatingNavButton
-          ref={floatingButtonRef}
-          type="button"
-          aria-expanded={floatingOpen}
-          aria-controls={floatingPanelId}
-          aria-label={t("settings.layout.sidebar.floatingNav.openAria")}
-          data-testid="settings-floating-nav-button"
-          onClick={() => setFloatingOpen((value) => !value)}
-        >
-          {ActiveIcon ? <ActiveIcon /> : null}
-          <FloatingButtonLabel>
-            {activeItem?.label ??
-              t("settings.layout.sidebar.floatingNav.fallbackLabel")}
-          </FloatingButtonLabel>
-          <ChevronDown />
-        </FloatingNavButton>
-
-        {floatingOpen ? (
-          <FloatingNavPanel
-            id={floatingPanelId}
-            data-testid="settings-floating-nav-panel"
-          >
-            <SettingsSearch
-              {...searchProps}
-              inputRef={mobileSearchRef}
-              mobile
-            />
-            {!searchQuery.trim()
-              ? categoryGroups.map((group) => (
-                  <FloatingGroup key={group.key}>
-                    <FloatingGroupTitle>{group.title}</FloatingGroupTitle>
-                    <GroupItems $expanded>
-                      {group.items.map((item) => (
-                        <NavItem
-                          key={item.key}
-                          $active={activeTab === item.key}
-                          aria-current={
-                            activeTab === item.key ? "page" : undefined
-                          }
-                          data-active={String(activeTab === item.key)}
-                          data-testid={`settings-floating-tab-${item.key}`}
-                          onMouseEnter={() => onTabPrefetch?.(item.key)}
-                          onMouseDown={() => onTabPrefetch?.(item.key)}
-                          onFocus={() => onTabPrefetch?.(item.key)}
-                          onClick={() => handleFloatingItemClick(item.key)}
-                        >
-                          <item.icon />
-                          <ItemLabel>{item.label}</ItemLabel>
-                          {item.experimental && (
-                            <ExperimentalBadge>
-                              {t("settings.layout.sidebar.experimentalBadge")}
-                            </ExperimentalBadge>
-                          )}
-                        </NavItem>
-                      ))}
-                    </GroupItems>
-                  </FloatingGroup>
-                ))
-              : null}
-          </FloatingNavPanel>
-        ) : null}
-      </FloatingNavRoot>
-    </>
+    <SidebarContainer data-testid="settings-sidebar">
+      <SettingsSearch {...searchProps} inputRef={searchInputRef} />
+      {!searchQuery.trim()
+        ? categoryGroups.map((group) => (
+            <GroupContainer key={group.key}>
+              <GroupHeader>{group.title}</GroupHeader>
+              <GroupItems>
+                {group.items.map((item) => (
+                  <NavItem
+                    key={item.key}
+                    $active={activeTab === item.key}
+                    aria-current={activeTab === item.key ? "page" : undefined}
+                    data-active={String(activeTab === item.key)}
+                    data-testid={`settings-sidebar-tab-${item.key}`}
+                    onMouseEnter={() => onTabPrefetch?.(item.key)}
+                    onMouseDown={() => onTabPrefetch?.(item.key)}
+                    onFocus={() => onTabPrefetch?.(item.key)}
+                    onClick={() => onTabChange(item.key)}
+                  >
+                    <item.icon />
+                    <ItemLabel>{item.label}</ItemLabel>
+                    {item.experimental && (
+                      <ExperimentalBadge>
+                        {t("settings.layout.sidebar.experimentalBadge")}
+                      </ExperimentalBadge>
+                    )}
+                  </NavItem>
+                ))}
+              </GroupItems>
+            </GroupContainer>
+          ))
+        : null}
+    </SidebarContainer>
   );
 }

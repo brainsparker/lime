@@ -3,7 +3,7 @@ import { Code2, Eye, FileCode2, FileText, Globe2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveLocalFilePreviewUrl } from "@/lib/api/fileSystem";
 import { ArtifactRenderer } from "@/components/artifact";
-import { CodePreview } from "@/components/general-chat/canvas";
+import { CodePreview } from "@/components/general-chat/bridge";
 import { MarkdownRenderer } from "../MarkdownRenderer";
 import type { CanvasWorkbenchResolvedSelection } from "../CanvasWorkbenchLayoutViewModel";
 import type {

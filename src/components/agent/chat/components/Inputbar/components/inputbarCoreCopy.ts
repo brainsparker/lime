@@ -47,8 +47,6 @@ export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.projectContext.modeMenuTitle"
   | "agentChat.inputbar.core.projectContext.localProcessing"
   | "agentChat.inputbar.core.projectContext.newWorktree"
-  | "agentChat.inputbar.core.projectContext.worktreeCreated"
-  | "agentChat.inputbar.core.projectContext.worktreeCreateFailed"
   | "agentChat.inputbar.core.projectContext.branchLabel"
   | "agentChat.inputbar.core.projectContext.branchFallback"
   | "agentChat.inputbar.core.projectContext.branchSearchPlaceholder"
@@ -248,12 +246,6 @@ export function buildInputbarCoreCopy(
       ),
       newWorktree: translate(
         "agentChat.inputbar.core.projectContext.newWorktree",
-      ),
-      worktreeCreated: translate(
-        "agentChat.inputbar.core.projectContext.worktreeCreated",
-      ),
-      worktreeCreateFailed: translate(
-        "agentChat.inputbar.core.projectContext.worktreeCreateFailed",
       ),
       branchLabel: translate(
         "agentChat.inputbar.core.projectContext.branchLabel",

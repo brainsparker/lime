@@ -9,11 +9,10 @@ import {
   type SkillCatalogSceneEntry,
 } from "@/lib/api/skillCatalog";
 import {
-  buildHomeGalleryItems,
   buildHomeGuideCards,
   buildHomeSkillItems,
   buildHomeSkillSections,
-  buildHomeStarterChips,
+  buildHomeSuggestionList,
 } from "../home/buildHomeSkillSurface";
 import type { HomeSurfaceCopy } from "../home/homeSurfaceCopy";
 import { listFeaturedHomeServiceSkills } from "../service-skills/homeEntrySkills";
@@ -94,7 +93,7 @@ export function useHomeSkillSurface({
     [serviceSkills],
   );
   const starterChips = useMemo(
-    () => buildHomeStarterChips(catalogEntries, copy),
+    () => buildHomeSuggestionList(catalogEntries, copy),
     [catalogEntries, copy],
   );
   const guideCards = useMemo(
@@ -123,13 +122,8 @@ export function useHomeSkillSurface({
     () => buildHomeSkillSections(skillItems, copy),
     [copy, skillItems],
   );
-  const galleryItems = useMemo(
-    () => buildHomeGalleryItems(skillItems, "all"),
-    [skillItems],
-  );
 
   return {
-    galleryItems,
     guideCards,
     serviceSkillItems,
     skillItems,

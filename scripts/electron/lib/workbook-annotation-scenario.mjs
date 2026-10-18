@@ -202,7 +202,7 @@ export async function runWorkbookAnnotationScenario({
       })
       .click();
   }
-  await page.getByTestId("settings-top-header").waitFor({ state: "visible" });
+  await page.getByTestId("settings-navigation").waitFor({ state: "visible" });
   await composer.waitFor({ state: "detached" });
   assert.ok(originalComposer);
   assert.equal(

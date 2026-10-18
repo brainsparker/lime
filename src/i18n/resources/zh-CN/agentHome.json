@@ -88,8 +88,6 @@
   "agentChat.home.guide.knowledge.prompt": "请告诉我 Lime 的项目资料怎么添加、确认和使用。我想知道如何从文件管理器、输入框资料图标和对话结果里完成资料沉淀与后续生成。",
   "agentChat.home.guideCards.label": "首页引导帮助",
   "agentChat.home.moreSkills.drawerLabel": "更多做法",
-  "agentChat.home.gallery.title": "你可以从这些任务开始",
-  "agentChat.home.secondScreen.label": "Lime 可执行任务示例",
   "agentChat.home.projectConversations.more": "更多 {{count}} 个对话",
   "agentChat.home.recovery.running.title": "正在继续：{{title}}",
   "agentChat.home.recovery.running.summary": "后台输出仍在继续，打开会话查看最新进展。",

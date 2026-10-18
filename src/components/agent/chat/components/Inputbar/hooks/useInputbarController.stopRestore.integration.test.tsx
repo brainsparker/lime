@@ -81,7 +81,6 @@ vi.mock("@/components/agent/chat/skill-selection/CuratedTaskBadge", () => ({
 vi.mock("@/lib/api/appConfig", () => ({ getConfig: vi.fn(async () => ({})) }));
 vi.mock("@/components/agent/chat/components/useHomeSkillSurface", () => ({
   useHomeSkillSurface: () => ({
-    galleryItems: [],
     guideCards: [],
     serviceSkillItems: [],
     skillItems: [],
@@ -89,8 +88,8 @@ vi.mock("@/components/agent/chat/components/useHomeSkillSurface", () => ({
     starterChips: [],
   }),
 }));
-vi.mock("@/components/agent/chat/home/HomeStartSurface", () => ({
-  HomeStartSurface: () => null,
+vi.mock("@/components/agent/chat/home/HomeAmbientSuggestionsContent", () => ({
+  HomeAmbientSuggestionsContent: () => null,
 }));
 vi.mock("@/components/agent/chat/components/EmptyStateQuickActions", () => ({
   EmptyStateQuickActions: () => null,

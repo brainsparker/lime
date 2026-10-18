@@ -221,6 +221,7 @@ export function ThreadWorkspaceHeader({
     <header
       className="relative flex h-[46px] min-w-0 items-center gap-2 border-b border-[color:var(--lime-surface-border)] bg-[color:var(--lime-stage-surface,var(--lime-app-bg,#f4f7f1))] px-3"
       data-testid="thread-workspace-header"
+      style={{ paddingInlineStart: "var(--lime-thread-header-leading, 12px)" }}
       data-header-placement="titlebar"
       data-session-id={sessionId}
       data-status={status ?? undefined}

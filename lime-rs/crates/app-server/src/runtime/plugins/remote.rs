@@ -7,7 +7,9 @@ use std::collections::BTreeSet;
 use std::time::Duration;
 
 mod projection;
+mod skill;
 use crate::plugin_remote::{wire, Context};
+pub(super) use skill::read as read_skill;
 
 use wire::{Item, Scope};
 

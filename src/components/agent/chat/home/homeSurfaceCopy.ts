@@ -105,8 +105,6 @@ export type HomeSurfaceCopyKey =
   | "agentChat.home.guide.knowledge.prompt"
   | "agentChat.home.guideCards.label"
   | "agentChat.home.moreSkills.drawerLabel"
-  | "agentChat.home.gallery.title"
-  | "agentChat.home.secondScreen.label"
   | "agentChat.home.projectConversations.more"
   | "agentChat.home.recovery.running.title"
   | "agentChat.home.recovery.running.summary"
@@ -131,8 +129,6 @@ export interface HomeSurfaceChromeCopy {
   starterManagerLabel: string;
   guideCardsLabel: string;
   moreSkillsDrawerLabel: string;
-  galleryTitle: string;
-  secondScreenLabel: string;
   projectConversationsMoreLabel: (count: number) => string;
   recoverySessionTitle: (
     status: HomeRecoverySessionStatus,
@@ -449,8 +445,6 @@ export function buildHomeSurfaceCopy(
       starterManagerLabel: translate("agentChat.home.starter.managerLabel"),
       guideCardsLabel: translate("agentChat.home.guideCards.label"),
       moreSkillsDrawerLabel: translate("agentChat.home.moreSkills.drawerLabel"),
-      galleryTitle: translate("agentChat.home.gallery.title"),
-      secondScreenLabel: translate("agentChat.home.secondScreen.label"),
       projectConversationsMoreLabel: (count) =>
         translate("agentChat.home.projectConversations.more", { count }),
       recoverySessionTitle: (status, title) =>

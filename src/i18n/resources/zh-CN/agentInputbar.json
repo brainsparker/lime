@@ -46,7 +46,6 @@
   "agentChat.inputbar.core.projectContext.modeMenuTitle": "启动模式",
   "agentChat.inputbar.core.projectContext.localProcessing": "在本地处理",
   "agentChat.inputbar.core.projectContext.newWorktree": "新工作树",
-  "agentChat.inputbar.core.projectContext.worktreeCreated": "工作树已创建",
   "agentChat.inputbar.core.projectContext.worktreeCreateFailed": "创建工作树失败",
   "agentChat.inputbar.core.projectContext.gitStatusLoading": "正在读取 Git 状态",
   "agentChat.inputbar.core.projectContext.gitStatusFailed": "无法读取 Git 状态",
@@ -264,5 +263,6 @@
   "agentChat.inputbar.draftPersistence.error": "草稿暂时无法保存或恢复，已保留当前输入",
   "agentChat.inputbar.draftPersistence.unavailable": "草稿保存暂不可用，当前输入仍在",
   "agentChat.inputbar.draftPersistence.saving": "正在保存草稿…",
-  "agentChat.inputbar.draftPersistence.saved": "草稿已保存"
+  "agentChat.inputbar.draftPersistence.saved": "草稿已保存",
+  "agentChat.inputbar.core.projectContext.worktreeSubmitUnknown": "工作树提交结果尚未确认，请检查会话后再重试。"
 }

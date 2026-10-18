@@ -15,6 +15,8 @@ mod mutation;
 mod preparation;
 #[path = "remote_plugins_jsonrpc/reconcile.rs"]
 mod reconcile;
+#[path = "remote_plugins_jsonrpc/skill_reads.rs"]
+mod skill_reads;
 #[path = "remote_plugins_jsonrpc/stdio.rs"]
 mod stdio;
 #[path = "remote_plugins_jsonrpc/support.rs"]

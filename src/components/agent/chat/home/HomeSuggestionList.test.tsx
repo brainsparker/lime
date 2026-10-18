@@ -2,7 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { HomeStarterChips } from "./HomeStarterChips";
+import { HomeSuggestionList } from "./HomeSuggestionList";
 import type { HomeStarterChip } from "./homeSurfaceTypes";
 import type { HomeSurfaceChromeCopy } from "./homeSurfaceCopy";
 
@@ -32,7 +32,7 @@ function renderChips(chips: HomeStarterChip[], onSelect = vi.fn()) {
 
   act(() => {
     root.render(
-      <HomeStarterChips
+      <HomeSuggestionList
         chips={chips}
         copy={TEST_CHROME_COPY}
         onSelect={onSelect}
@@ -54,7 +54,7 @@ afterEach(() => {
   }
 });
 
-describe("HomeStarterChips", () => {
+describe("HomeSuggestionList", () => {
   it("渲染轻量起手入口并把选择交给上层", () => {
     const chips: HomeStarterChip[] = [
       {

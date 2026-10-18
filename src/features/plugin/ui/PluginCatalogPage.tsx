@@ -464,7 +464,7 @@ export function PluginCatalogPage({
           </div>
         ) : null}
 
-        {loading ? (
+        {loading && entries.length === 0 ? (
           <div
             className="flex min-h-[280px] items-center justify-center text-sm text-[color:var(--lime-text-muted)]"
             data-testid="plugin-catalog-loading"
@@ -498,10 +498,10 @@ export function PluginCatalogPage({
             >
               {filteredPlugins.map((entry) => (
                 <PluginCatalogCard
-                  key={`${entry.plugin.id}:${entry.plugin.version}`}
+                  key={entry.plugin.id}
                   entry={entry}
                   isSelected={selectedId === entry.plugin.id}
-                  busy={Boolean(busyId)}
+                  busyId={busyId}
                   menuOpen={actionMenuId === entry.plugin.id}
                   onSelect={() => setSelectedId(entry.plugin.id)}
                   onMenuToggle={() =>

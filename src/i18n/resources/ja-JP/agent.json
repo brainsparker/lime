@@ -1,4 +1,8 @@
 {
+  "plugin.skillPreview.loading": "スキルの内容を読み込み中…",
+  "plugin.skillPreview.error": "スキルの内容を読み込めません。",
+  "plugin.skillPreview.empty": "利用できる指示はまだありません",
+  "plugin.skillPreview.retry": "再試行",
   "plugin.share.createdByMe": "自分が作成した共有",
   "plugin.share.manage": "共有と編集",
   "plugin.share.title": "{{name}} を共有",

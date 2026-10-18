@@ -88,8 +88,6 @@
   "agentChat.home.guide.knowledge.prompt": "Lime のプロジェクト資料を追加、確認、利用する方法を教えてください。ファイル管理、入力欄の資料アイコン、チャット結果から資料を保存し、その後の生成で使う流れを知りたいです。",
   "agentChat.home.guideCards.label": "ホームガイドヘルプ",
   "agentChat.home.moreSkills.drawerLabel": "その他の方法",
-  "agentChat.home.gallery.title": "これらのタスクから始められます",
-  "agentChat.home.secondScreen.label": "Lime が実行できるタスク例",
   "agentChat.home.projectConversations.more": "さらに{{count}}件の会話",
   "agentChat.home.recovery.running.title": "継続中：{{title}}",
   "agentChat.home.recovery.running.summary": "バックグラウンド出力が続いています。セッションを開いて最新状況を確認してください。",

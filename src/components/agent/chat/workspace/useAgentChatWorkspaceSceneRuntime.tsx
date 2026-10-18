@@ -1,6 +1,7 @@
 /** Workspace scene/projection current owner。 */
 
 import { useCallback } from "react";
+import { ComposerModeContext } from "./ComposerModeContext";
 import { ArtifactCommentSubmissionContext } from "@/components/artifact/ArtifactCommentSubmissionContext";
 import { useWorkspaceArtifactCommentSubmission } from "./useWorkspaceArtifactCommentSubmission";
 import { useWorkspaceCanvasSceneRuntime } from "./useWorkspaceCanvasSceneRuntime";
@@ -78,7 +79,7 @@ export function useAgentChatWorkspaceSceneRuntime({
   } = setupRuntime;
   // prettier-ignore
   const {
-    composerDraftCoordinator, composerDraftStatus, composerDraftRestoring, handleComposerDraftAccepted, getComposerDraftNavigationEpoch,
+    composerMode, setComposerMode, composerDraftCoordinator, composerDraftStatus, composerDraftRestoring, handleComposerDraftAccepted, getComposerDraftNavigationEpoch,
     shellChromeRuntime, showGeneralWorkbenchLeftExpandButton, effectiveInitialInputCapability, generalWorkbenchHarnessPanelBaseProps, navigationActions, homePendingPreviewRequest, setHomePendingPreviewRequest,
     setTaskCenterDraftSendRequest, taskCenterDraftSendRequest, taskCenterHomeSurfaceActiveRef, generalWorkbenchEntryPrompt, handleBackHome, markTaskCenterLocalSessionOverride, setTaskCenterDetachedTopicId,
     setTaskCenterTransitionTopicId, upsertTaskCenterOpenTab, handleSend, handleRecommendationClick, handleSendRef, isPreparingSend, displayMessages, handleImageWorkbenchCommand,
@@ -719,24 +720,26 @@ export function useAgentChatWorkspaceSceneRuntime({
       }),
   });
   return (
-    <ArtifactCommentSubmissionContext.Provider
-      value={artifactCommentSubmission}
-    >
-      {workspaceSceneNode}
-      <ScheduledTaskDialog
-        open={workspaceServiceSkillEntryActions.automationDialogOpen}
-        mode="create"
-        initialForm={
-          workspaceServiceSkillEntryActions.automationDialogInitialValues
-        }
-        saving={workspaceServiceSkillEntryActions.automationJobSaving}
-        onOpenChange={
-          workspaceServiceSkillEntryActions.handleAutomationDialogOpenChange
-        }
-        onSubmit={
-          workspaceServiceSkillEntryActions.handleAutomationDialogSubmit
-        }
-      />
-    </ArtifactCommentSubmissionContext.Provider>
+    <ComposerModeContext.Provider value={{ composerMode, setComposerMode }}>
+      <ArtifactCommentSubmissionContext.Provider
+        value={artifactCommentSubmission}
+      >
+        {workspaceSceneNode}
+        <ScheduledTaskDialog
+          open={workspaceServiceSkillEntryActions.automationDialogOpen}
+          mode="create"
+          initialForm={
+            workspaceServiceSkillEntryActions.automationDialogInitialValues
+          }
+          saving={workspaceServiceSkillEntryActions.automationJobSaving}
+          onOpenChange={
+            workspaceServiceSkillEntryActions.handleAutomationDialogOpenChange
+          }
+          onSubmit={
+            workspaceServiceSkillEntryActions.handleAutomationDialogSubmit
+          }
+        />
+      </ArtifactCommentSubmissionContext.Provider>
+    </ComposerModeContext.Provider>
   );
 }

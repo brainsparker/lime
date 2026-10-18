@@ -200,10 +200,19 @@ export function useWorkspaceComposerDraftRuntime({
     ) => {
       const token = capture.binding;
       if (!token) return;
+      const executionScope =
+        result.kind === "runtime-accepted"
+          ? result.receipt.executionScope
+          : undefined;
+      if (
+        executionScope &&
+        executionScope.sourceWorkspaceId !== token.scope.workspaceId
+      )
+        return;
       await promoteComposerDraft(
         token,
         {
-          workspaceId: token.scope.workspaceId,
+          workspaceId: executionScope?.workspaceId ?? token.scope.workspaceId,
           kind: "local",
           id: result.receipt.sessionId,
         },

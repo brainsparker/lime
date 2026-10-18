@@ -1520,6 +1520,25 @@
       ],
       "type": "object"
     },
+    "PluginSkillReadParams": {
+      "properties": {
+        "remoteMarketplaceName": {
+          "type": "string"
+        },
+        "remotePluginId": {
+          "type": "string"
+        },
+        "skillName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "remoteMarketplaceName",
+        "remotePluginId",
+        "skillName"
+      ],
+      "type": "object"
+    },
     "PluginUninstallParams": {
       "properties": {
         "pluginId": {
@@ -5661,6 +5680,26 @@
         },
         "params": {
           "$ref": "#/$defs/PluginReadParams"
+        }
+      },
+      "required": [
+        "id",
+        "method",
+        "params"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
+          "const": "plugin/skill/read",
+          "type": "string"
+        },
+        "params": {
+          "$ref": "#/$defs/PluginSkillReadParams"
         }
       },
       "required": [

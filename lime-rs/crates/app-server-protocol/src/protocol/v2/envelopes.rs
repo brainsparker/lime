@@ -40,17 +40,17 @@ use super::{
     PluginInstallParams, PluginInstalledParams, PluginListParams, PluginReadParams,
     PluginReconcileParams, PluginSearchParams, PluginSearchResponse, PluginShareDeleteParams,
     PluginShareListParams, PluginShareSaveParams, PluginShareUpdateTargetsParams,
-    PluginUninstallParams, ProcessExitedNotification, ProcessKillParams, ProcessKillResponse,
-    ProcessOutputDeltaNotification, ProcessResizePtyParams, ProcessResizePtyResponse,
-    ProcessSpawnParams, ProcessSpawnResponse, ProcessWriteStdinParams, ProcessWriteStdinResponse,
-    ProjectChangedNotification, ProjectCreateParams, ProjectCreateResponse, ProjectDeleteParams,
-    ProjectDeleteResponse, ProjectImportParams, ProjectImportResponse, ProjectListParams,
-    ProjectListResponse, ProjectMoveParams, ProjectMoveResponse, ProjectReadParams,
-    ProjectReadResponse, ProjectUpdateParams, ProjectUpdateResponse, PromptHistoryAppendParams,
-    PromptHistoryAppendResponse, PromptHistoryReadParams, PromptHistoryReadResponse,
-    ReasoningSummaryPartAddedNotification, ReasoningSummaryTextDeltaNotification,
-    ReasoningTextDeltaNotification, ReviewStartParams, ReviewStartResponse,
-    ScheduledTaskChangedNotification, ScheduledTaskRunUpdatedNotification,
+    PluginSkillReadParams, PluginUninstallParams, ProcessExitedNotification, ProcessKillParams,
+    ProcessKillResponse, ProcessOutputDeltaNotification, ProcessResizePtyParams,
+    ProcessResizePtyResponse, ProcessSpawnParams, ProcessSpawnResponse, ProcessWriteStdinParams,
+    ProcessWriteStdinResponse, ProjectChangedNotification, ProjectCreateParams,
+    ProjectCreateResponse, ProjectDeleteParams, ProjectDeleteResponse, ProjectImportParams,
+    ProjectImportResponse, ProjectListParams, ProjectListResponse, ProjectMoveParams,
+    ProjectMoveResponse, ProjectReadParams, ProjectReadResponse, ProjectUpdateParams,
+    ProjectUpdateResponse, PromptHistoryAppendParams, PromptHistoryAppendResponse,
+    PromptHistoryReadParams, PromptHistoryReadResponse, ReasoningSummaryPartAddedNotification,
+    ReasoningSummaryTextDeltaNotification, ReasoningTextDeltaNotification, ReviewStartParams,
+    ReviewStartResponse, ScheduledTaskChangedNotification, ScheduledTaskRunUpdatedNotification,
     ServerRequestResolvedNotification, SkillsChangedNotification, SkillsConfigWriteParams,
     SkillsConfigWriteResponse, SkillsExtraRootsSetParams, SkillsExtraRootsSetResponse,
     SkillsListParams, SkillsListResponse, StrictReviewRequiredNotification,
@@ -584,6 +584,11 @@ pub enum ClientRequest {
         id: RequestId,
         params: PluginReadParams,
     },
+    #[serde(rename = "plugin/skill/read")]
+    PluginSkillRead {
+        id: RequestId,
+        params: PluginSkillReadParams,
+    },
     #[serde(rename = "plugin/install")]
     PluginInstall {
         id: RequestId,
@@ -831,6 +836,7 @@ impl ClientRequest {
             | Self::PluginList { id, .. }
             | Self::PluginSearch { id, .. }
             | Self::PluginRead { id, .. }
+            | Self::PluginSkillRead { id, .. }
             | Self::PluginInstall { id, .. }
             | Self::PluginUninstall { id, .. }
             | Self::PluginInstalled { id, .. }
@@ -963,6 +969,7 @@ impl ClientRequest {
             Self::PluginList { .. } => Method::PluginList,
             Self::PluginSearch { .. } => Method::PluginSearch,
             Self::PluginRead { .. } => Method::PluginRead,
+            Self::PluginSkillRead { .. } => Method::PluginSkillRead,
             Self::PluginInstall { .. } => Method::PluginInstall,
             Self::PluginUninstall { .. } => Method::PluginUninstall,
             Self::PluginInstalled { .. } => Method::PluginInstalled,

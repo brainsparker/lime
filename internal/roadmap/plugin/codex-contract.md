@@ -1,12 +1,12 @@
 # Codex 插件目标合同
 
-更新时间：2026-10-17。实现状态见[执行计划](../../exec-plans/codex-plugin-reconstruction.md)。本文件描述目标，未通过对应验证的条目不能宣称完成。
+更新时间：2026-10-18。实现状态见[执行计划](../../exec-plans/codex-plugin-reconstruction.md)。本文件描述目标，未通过对应验证的条目不能宣称完成。
 
 ## 事实源
 
 Codex 源码 `/Users/coso/Documents/dev/rust/codex`，基线 `4eb4a65407d98cebc4c83bf13be440b9fbc78a7c`。manifest/store/marketplace 参考 `codex-rs/core-plugins`，公开协议参考 `codex-rs/app-server-protocol/src/protocol/v2/plugin.rs`，技能选择参考 `codex-rs/ext/skills/src/selection.rs`。
 
-桌面安装包 `/Applications/ChatGPT.app`，bundle ID `com.openai.codex`，版本 `26.1007.30912` / build `20156`。REA 的五个插件模块静态分析只覆盖所提取成员，不代表完整应用或运行验证。成员路径、摘要与完整内联结果保存在 `.lime/qc/plugin-reconstruction/desktop-static/member-manifest.json` 和 `.lime/qc/plugin-reconstruction/desktop-focused-rea.json`；Evidence ID 与限制见执行计划。
+桌面安装包 `/Applications/ChatGPT.app`，bundle ID `com.openai.codex`，版本 `26.1007.30912` / build `20156`，app.asar SHA256 为 `75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af`。REA 静态分析只覆盖所提取成员，不代表完整应用或运行验证。分享及技能预览/请求模块的成员摘要、Evidence ID、临时原件位置与限制见执行计划；旧 `.lime/qc` 证据目录已清理，不作为当前可复查原件入口。
 
 ## 包与资源
 
@@ -106,6 +106,16 @@ union（如 hourly.intervalHours），不改成外层 snake_case。非受控平�
 图标仅报 warning，不拼虚假 URL。摘要不是本地安装、授权或 runtime readiness。
 完整 MCP/技能容错解析一致性、资源发布和客户端 HTTP/账号/安装/对账链仍由 P04b 跟踪。
 
+远端技能正文按 Codex CLI 与 Desktop REA 的认证
+`GET /ps/plugins/{plugin_id}/skills/{skill_name}` 合同实现，响应包含
+`plugin_id/name/skill_md_contents`。Core P04b13a已落在当前目录授权及verified包owner，
+未安装可读、普通包/分享包复用同一manifest和技能发现；返回原始正文，不签发下载URL。
+托管包损坏报错；外部非托管正文不可得返回显式null是本地设计，闭源服务端内部未知。
+客户端P04b13b已接线共享`plugin/skill/read`和GUI加载/重试/null/正文消费：本地path优先，
+远端双身份校验及账号fence，正式协议/typed client/gateway共用唯一owner。DOM/严格TS已验，
+Rust/完整contracts与新产物Electron验收中；五分钟缓存、included_files规则和逐技能偏好
+仍未完成，不以Core测试或局部组件通过核销完整正文能力。
+
 旧私有包 schema、独立 worker/runtime、renderer registry、v3 installed records 与旧规则为 `dead / deleted / forbidden-to-restore`。历史资料从 Git history 追溯。完成验收必须覆盖两仓包发布/下载、安装、真实 Turn 和三端消费；unit、stdio、CLI、PTY、Electron 与 Windows 证据分别报告。
 
 ## P04b9 远端 mutation 事务
@@ -121,8 +131,16 @@ P04b10 installed对账：共享App Server新增Codex同名plugin/reconcile，完
 唯一PluginStore发布按账号隔离的无凭据安装投影。同版本保留、新版本复用tar.gz事务，清理
 失败不恢复撤回插件的runtime可见性；本地override保留、显式mutation同步投影。字段、失败
 分类、定向验证与真实产品缺口唯一记录在执行计划P04b10。plugin/share五方法已由P04b12c/d
-接通同一store/account owner，checkout另有受控Electron/stdio可见与冷复用证据；分享GUI、
-plugin/skill/read和真实Core同包Turn仍planned。开发期缺少实现不作为excluded理由。
+接通同一store/account owner，checkout另有受控Electron/stdio可见与冷复用证据。基础分享GUI
+已沿同一typed gateway实现首次PRIVATE创建、现有权限保存、复制链接、同ID版本更新、
+checkout/编辑路径和撤销；P04b12d1真实Electron点击/五RPC及原生复制读回与恢复已通过，
+依赖为受控Core形状HTTP及unavailable Turn backend。人员/组目录搜索与新增邀请、
+组成员editor能力投影、非creator checkout冷重开定位、plugin/skill/read和真实Core同包Turn
+仍planned。开发期缺少实现不作为excluded理由。
+
+分享链接解析另归P04b12d2：Desktop REA显示认证`GET /ps/plugin-shares/{share_key}`读取
+plugin_id再导航现役详情。Core当前share_url是API详情，复制成功不能核销链接访问闭环；
+key生成/生命周期尚未观察，不假定任意shareKey等于插件ID，不引入旧URL兼容层。
 
 P04b11b workspace 权限：catalog.directory 拥有 discoverability 与 targets，group 复用真实
 Organization/OrganizationMember；private、unlisted链接访问、显式 shared 和 creator分享列表

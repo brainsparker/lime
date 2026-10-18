@@ -27,8 +27,6 @@ export interface ComposerUtilityBarCopy {
   modeMenuTitle: string;
   localProcessing: string;
   newWorktree: string;
-  worktreeCreated: string;
-  worktreeCreateFailed: string;
   branchLabel: string;
   branchFallback: string;
   branchSearchPlaceholder: string;

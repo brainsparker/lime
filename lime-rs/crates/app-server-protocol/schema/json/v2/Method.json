@@ -57,6 +57,7 @@
     "plugin/share/list",
     "plugin/share/save",
     "plugin/share/updateTargets",
+    "plugin/skill/read",
     "plugin/uninstall",
     "process/kill",
     "process/resizePty",

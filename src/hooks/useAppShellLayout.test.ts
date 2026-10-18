@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getAppShellLayoutState } from "./useAppShellLayout";
 
 describe("getAppShellLayoutState", () => {
-  it("agent 沉浸态应隐藏 sidebar 与主区间距", () => {
+  it("agent 沉浸态应隐藏 sidebar ", () => {
     expect(
       getAppShellLayoutState({
         currentPage: "agent",
@@ -14,7 +14,6 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: true,
       shouldShowAppSidebar: false,
-      shouldAddMainContentGap: false,
     });
   });
 
@@ -30,11 +29,10 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: true,
       shouldShowAppSidebar: false,
-      shouldAddMainContentGap: false,
     });
   });
 
-  it("普通 agent 页应显示 sidebar 且保留间距", () => {
+  it("普通 agent 页应显示 sidebar ", () => {
     expect(
       getAppShellLayoutState({
         currentPage: "agent",
@@ -44,7 +42,6 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: false,
       shouldShowAppSidebar: true,
-      shouldAddMainContentGap: true,
     });
   });
 
@@ -58,11 +55,10 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: false,
       shouldShowAppSidebar: false,
-      shouldAddMainContentGap: false,
     });
   });
 
-  it("skills 页应显示 sidebar 且不追加 agent 间距", () => {
+  it("skills 页应显示 sidebar ", () => {
     expect(
       getAppShellLayoutState({
         currentPage: "skills",
@@ -72,11 +68,10 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: false,
       shouldShowAppSidebar: true,
-      shouldAddMainContentGap: false,
     });
   });
 
-  it("项目资料页应显示 sidebar 且不追加 agent 间距", () => {
+  it("项目资料页应显示 sidebar ", () => {
     expect(
       getAppShellLayoutState({
         currentPage: "knowledge",
@@ -86,7 +81,6 @@ describe("getAppShellLayoutState", () => {
     ).toEqual({
       shouldHideSidebarForAgent: false,
       shouldShowAppSidebar: true,
-      shouldAddMainContentGap: false,
     });
   });
 });

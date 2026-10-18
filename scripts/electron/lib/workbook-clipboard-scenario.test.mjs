@@ -9,9 +9,13 @@ import {
   assertWorkbookClipboardFixture,
   assertWorkbookClipboardSave,
   readWorkbookClipboardFile,
-  withWorkbookClipboard,
+  withWorkbookClipboard as withClipboard,
   writeWorkbookClipboardFixture,
 } from "./workbook-clipboard-scenario.mjs";
+
+// 单测使用显式内存夹具，不读取或修改运行机器的系统剪贴板。
+const withWorkbookClipboard = (app, perform) =>
+  withClipboard(app, perform, { platform: "linux" });
 import {
   assertWorkbookClipboardIo,
   workbookClipboardCopyText,

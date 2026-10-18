@@ -43,6 +43,9 @@ import {
 } from "./agentChatAutoTitleViewModel";
 import { hasActiveRuntimeTurn } from "./agentSessionState";
 import { resolveAgentChatCopy } from "@/i18n/agentChatCopy";
+import { useExecutionScopeHandoff } from "./useExecutionScopeHandoff";
+import { requireExecutionScope } from "./executionScope";
+import { executeScopedSend } from "./executeScopedSend";
 
 export type { Topic } from "./agentChatShared";
 
@@ -64,9 +67,9 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     systemPrompt,
     clawTraceEnabled = false,
     onWriteFile,
-    workspaceId,
-    workingDir,
-    disableSessionRestore = false,
+    workspaceId: surfaceWorkspaceId,
+    workingDir: surfaceWorkingDir,
+    disableSessionRestore: requestedDisableSessionRestore = false,
     sessionRestorePresentation = "foreground",
     initialTopicsLoadMode = "immediate",
     initialTopicsDeferredDelayMs,
@@ -79,6 +82,14 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     runtimeAdapter,
     preserveRestoredMessages = false,
   } = options;
+  const scopeHandoff = useExecutionScopeHandoff(
+    surfaceWorkspaceId,
+    surfaceWorkingDir,
+  );
+  const workspaceId = scopeHandoff.scope?.workspaceId ?? surfaceWorkspaceId;
+  const workingDir = scopeHandoff.scope?.workingDir ?? surfaceWorkingDir;
+  const disableSessionRestore =
+    requestedDisableSessionRestore || Boolean(scopeHandoff.scope);
   const runtime = runtimeAdapter ?? defaultAgentRuntimeAdapter;
 
   const [isInitialized, setIsInitialized] = useState(false);
@@ -127,7 +138,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     initialTopicsDeferredDelayMs,
     preserveRestoredMessages,
     executionStrategy: context.executionStrategy,
-    accessMode: context.accessMode,
+    accessMode: scopeHandoff.accessMode ?? context.accessMode,
     providerTypeRef: context.providerTypeRef,
     modelRef: context.modelRef,
     pendingSessionMetadataSyncCancelRef,
@@ -406,7 +417,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     sessionIdRef,
     sessionId: session.sessionId,
     executionStrategy: context.executionStrategy,
-    accessMode: context.accessMode,
+    accessMode: scopeHandoff.accessMode ?? context.accessMode,
     workingDir: session.sessionWorkingDir,
     providerTypeRef: context.providerTypeRef,
     modelRef: context.modelRef,
@@ -508,7 +519,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     ],
   );
 
-  const sendMessage = useCallback<SendMessageFn>(
+  const sendCurrentMessage = useCallback<SendMessageFn>(
     async (...args) => {
       const hasCompleteModelSelection = Boolean(
         context.providerTypeRef.current.trim() &&
@@ -570,6 +581,46 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
       rawSendMessage,
       runUserShellCommand,
       warmupRuntime,
+    ],
+  );
+
+  useEffect(() => {
+    scopeHandoff.commit((task) =>
+      executeScopedSend(task, { session, runtime, sendCurrentMessage }),
+    );
+  }, [scopeHandoff, session, runtime, sendCurrentMessage]);
+
+  const sendMessage = useCallback<SendMessageFn>(
+    async (...args) => {
+      const options = args[8];
+      if (!options?.executionScope) return sendCurrentMessage(...args);
+      if (options.composerTarget && options.composerTarget !== "start")
+        return { kind: "rejected" };
+      const scope = requireExecutionScope(options.executionScope);
+      const capturedArgs = [...args] as Parameters<SendMessageFn>;
+      capturedArgs[1] = args[1].map((image) => ({ ...image }));
+      capturedArgs[8] = {
+        ...options,
+        executionScope: scope,
+        targetSessionId: undefined,
+        providerOverride:
+          options.providerOverride ?? context.providerTypeRef.current,
+        modelOverride: options.modelOverride ?? context.modelRef.current,
+        reasoningEffort:
+          options.reasoningEffort ?? context.reasoningEffortRef.current,
+      };
+      return scopeHandoff.request(scope, {
+        args: capturedArgs,
+        accessMode: context.accessMode,
+      });
+    },
+    [
+      scopeHandoff,
+      sendCurrentMessage,
+      context.accessMode,
+      context.providerTypeRef,
+      context.modelRef,
+      context.reasoningEffortRef,
     ],
   );
 
@@ -819,7 +870,7 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     setReasoningEffort: context.setReasoningEffort,
     executionStrategy: context.executionStrategy,
     setExecutionStrategy: context.setExecutionStrategy,
-    accessMode: context.accessMode,
+    accessMode: scopeHandoff.accessMode ?? context.accessMode,
     setAccessMode: context.setAccessMode,
     providerConfig: {},
     isConfigLoading: false,
@@ -841,6 +892,8 @@ export function useAgentChat(options: UseAgentChatRuntimeOptions) {
     activeExecutionRuntime,
     isSending: stream.isSending,
     sendMessage,
+    cancelExecutionScope: scopeHandoff.cancel,
+    executionScope: scopeHandoff.scope,
     compactSession: stream.compactSession,
     stopSending: stream.stopSending,
     replayPendingAction: tools.replayPendingAction,

@@ -278,6 +278,7 @@ export const METHOD_PLUGIN_SHARE_DELETE = "plugin/share/delete";
 export const METHOD_PLUGIN_SHARE_LIST = "plugin/share/list";
 export const METHOD_PLUGIN_SHARE_SAVE = "plugin/share/save";
 export const METHOD_PLUGIN_SHARE_UPDATE_TARGETS = "plugin/share/updateTargets";
+export const METHOD_PLUGIN_SKILL_READ = "plugin/skill/read";
 export const METHOD_PLUGIN_UNINSTALL = "plugin/uninstall";
 export const METHOD_PROCESS_EXITED = "process/exited";
 export const METHOD_PROCESS_KILL = "process/kill";
@@ -1374,6 +1375,10 @@ export const GENERATED_APP_SERVER_METHODS = [
   },
   {
     kind: "request",
+    method: "plugin/skill/read",
+  },
+  {
+    kind: "request",
     method: "plugin/uninstall",
   },
   {
@@ -2222,6 +2227,10 @@ export const GENERATED_APP_SERVER_REQUEST_SERIALIZATION_SCOPES = [
   },
   {
     method: "plugin/share/updateTargets",
+    scope: "accountAuth",
+  },
+  {
+    method: "plugin/skill/read",
     scope: "accountAuth",
   },
   {
@@ -4945,6 +4954,11 @@ export type ClientRequest =
       id: number | string;
       method: "plugin/read";
       params: PluginReadParams;
+    }
+  | {
+      id: number | string;
+      method: "plugin/skill/read";
+      params: PluginSkillReadParams;
     }
   | {
       id: number | string;
@@ -7679,6 +7693,7 @@ export type Method =
   | "plugin/share/list"
   | "plugin/share/save"
   | "plugin/share/updateTargets"
+  | "plugin/skill/read"
   | "plugin/uninstall"
   | "process/kill"
   | "process/resizePty"
@@ -8500,6 +8515,16 @@ export interface PluginShareUpdateTargetsParams {
 export interface PluginShareUpdateTargetsResponse {
   discoverability: PluginShareDiscoverability;
   principals: PluginSharePrincipal[];
+}
+
+export interface PluginSkillReadParams {
+  remoteMarketplaceName: string;
+  remotePluginId: string;
+  skillName: string;
+}
+
+export interface PluginSkillReadResponse {
+  contents?: null | string;
 }
 
 export type PluginSource =

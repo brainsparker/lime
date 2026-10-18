@@ -9,11 +9,10 @@ import type { ServiceSkillHomeCopy } from "../service-skills/homeCopy";
 import type { CuratedTaskTemplateItem } from "../utils/curatedTaskTemplates";
 import { agentEnUSResource, agentZhCNResource } from "@/i18n/agentResources";
 import {
-  buildHomeGalleryItems,
   buildHomeGuideCards,
   buildHomeSkillItems,
   buildHomeSkillSections,
-  buildHomeStarterChips,
+  buildHomeSuggestionList,
 } from "./buildHomeSkillSurface";
 import { buildHomeSurfaceCopy } from "./homeSurfaceCopy";
 
@@ -103,7 +102,7 @@ function createServiceSkill(): ServiceSkillHomeItem {
 
 describe("buildHomeSkillSurface", () => {
   it("服务端未下发首页展示时使用 参考站式本地兜底入口", () => {
-    const labels = buildHomeStarterChips(undefined, TEST_HOME_SURFACE_COPY).map(
+    const labels = buildHomeSuggestionList(undefined, TEST_HOME_SURFACE_COPY).map(
       (chip) => chip.label,
     );
 
@@ -175,12 +174,12 @@ describe("buildHomeSkillSurface", () => {
     ];
 
     expect(
-      buildHomeStarterChips(entries, TEST_HOME_SURFACE_COPY).map(
+      buildHomeSuggestionList(entries, TEST_HOME_SURFACE_COPY).map(
         (chip) => chip.label,
       ),
     ).toEqual(["做海报", "更多做法", "⚙"]);
     expect(
-      buildHomeStarterChips(entries, TEST_HOME_SURFACE_COPY)[0],
+      buildHomeSuggestionList(entries, TEST_HOME_SURFACE_COPY)[0],
     ).toMatchObject({
       launchKind: "prefill_prompt",
       prompt: "请帮我做一张海报。",
@@ -273,7 +272,7 @@ describe("buildHomeSkillSurface", () => {
     });
   });
 
-  it("按分类生成 drawer 分组，并为 gallery 截取最多 12 个任务", () => {
+  it("按分类生成 drawer 分组", () => {
     const items = buildHomeSkillItems({
       curatedTasks: [
         createCuratedTask("daily-trend-briefing", "每日趋势摘要", 10),
@@ -283,14 +282,12 @@ describe("buildHomeSkillSurface", () => {
     });
 
     const sections = buildHomeSkillSections(items, TEST_HOME_SURFACE_COPY);
-    const gallery = buildHomeGalleryItems(items);
 
     expect(sections[0]).toMatchObject({
       id: "recent",
       title: "最近使用",
     });
     expect(sections.some((section) => section.id === "video")).toBe(true);
-    expect(gallery).toHaveLength(2);
   });
 
   it("本地兜底首页 copy 可从 en-US 资源派生", () => {
@@ -305,7 +302,7 @@ describe("buildHomeSkillSurface", () => {
       ),
     ).toBe("Say one sentence, for example: open example.com");
     expect(
-      buildHomeStarterChips(undefined, TEST_HOME_SURFACE_EN_COPY).map(
+      buildHomeSuggestionList(undefined, TEST_HOME_SURFACE_EN_COPY).map(
         (chip) => chip.label,
       ),
     ).toContain("Guide help");

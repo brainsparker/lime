@@ -1,3 +1,4 @@
+import type { ExecutionScope } from "./executionScope";
 import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type {
   SendMessageObserver,
@@ -41,6 +42,8 @@ export interface HandleSendOptions {
   searchMode?: RuntimeSearchMode;
   explicitToolPreferences?: boolean;
   assistantDraft?: AssistantDraftState;
+  executionScope?: ExecutionScope;
+  executionScopeIsCurrent?: () => boolean;
   targetSessionId?: string;
   skipSessionRestore?: boolean;
   skipSessionStartHooks?: boolean;

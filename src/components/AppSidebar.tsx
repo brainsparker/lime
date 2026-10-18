@@ -1,8 +1,7 @@
 /**
  * 全局应用侧边栏
  *
- * 当前导航收口为一级主入口 + 独立图标 rail。
- * 业务主线入口直接显示在侧栏，设置与主题入口固定在 rail 底部。
+ * 单一导航与项目列表共用可伸缩侧栏；折叠后入口回到窗口页头。
  */
 
 import {
@@ -12,6 +11,7 @@ import {
   useRef,
   useCallback,
   type ReactElement,
+  type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
@@ -47,8 +47,9 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { LIME_BRAND_LOGO_SRC, LIME_BRAND_NAME } from "@/lib/branding";
-import { AppSidebarRail } from "@/components/app-sidebar/AppSidebarRail";
 import { AppSidebarCustomization } from "@/components/app-sidebar/AppSidebarCustomization";
+import { SidebarResizeHandle } from "@/components/app-sidebar/SidebarResizeHandle";
+import { useSidebarWidth } from "@/components/app-sidebar/useSidebarWidth";
 import { AppSidebarAppearancePopover } from "@/components/app-sidebar/AppSidebarAppearancePopover";
 import { AppSidebarConversationShelf } from "@/components/app-sidebar/AppSidebarConversationShelf";
 import { AppSidebarConversationImportDialog } from "@/components/app-sidebar/AppSidebarConversationImportDialog";
@@ -214,8 +215,6 @@ export function AppSidebar({
   );
   const activePage = requestedPage ?? currentPage;
   const activePageParams = requestedPageParams ?? currentPageParams;
-  const isContextlessPage =
-    activePage === "scheduled-tasks" || activePage === "resources";
   const isCustomizationPage = ["plugins", "skills", "experts"].includes(
     activePage,
   );
@@ -324,8 +323,8 @@ export function AppSidebar({
     );
   });
   const collapsedRef = useRef(collapsed);
+  const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth();
   const collapseRestoreBySourceRef = useRef<Record<string, boolean>>({});
-  const routeCollapseRestoreRef = useRef<boolean | null>(null);
   useEffect(() => {
     collapsedRef.current = collapsed;
   }, [collapsed]);
@@ -673,22 +672,6 @@ export function AppSidebar({
       collapsed ? "true" : "false",
     );
   }, [collapsed]);
-
-  useEffect(() => {
-    if (isContextlessPage) {
-      if (routeCollapseRestoreRef.current === null) {
-        routeCollapseRestoreRef.current = collapsed;
-      }
-      setCollapsed(true);
-      return;
-    }
-
-    if (routeCollapseRestoreRef.current !== null) {
-      const previous = routeCollapseRestoreRef.current;
-      routeCollapseRestoreRef.current = null;
-      setCollapsed(previous);
-    }
-  }, [collapsed, isContextlessPage]);
 
   useEffect(() => {
     if (isNewTaskHome || isCustomizationPage) {
@@ -1177,72 +1160,28 @@ export function AppSidebar({
         data-collapsed={String(collapsed)}
         data-lime-window-drag-region
         data-window-controls-reserved={String(reserveWindowControls)}
+        style={
+          { "--sidebar-preferred-width": `${sidebarWidth}px` } as CSSProperties
+        }
         onMouseDown={onStartWindowDrag}
       >
-        <AppSidebarRail
-          collapsed={collapsed}
-          homeLabel={homeLabel}
-          expandLabel={expandNavigationLabel}
-          homeActive={isNewTaskHome}
-          items={filteredMainNavItems.filter(
-            (item) => item.id !== "home-general",
-          )}
-          settingsItem={localizedSettingsFooterNavItem}
-          isActive={isActive}
-          onHome={() => handleNavigate(MAIN_SIDEBAR_NAV_ITEMS[0])}
-          onNavigate={handleNavigate}
-          onExpand={
-            collapsed && !isContextlessPage ? toggleSidebarCollapsed : undefined
-          }
-          searchSlot={
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <IconActionButton
-                  type="button"
-                  title={searchTaskLabel}
-                  aria-label={searchTaskLabel}
-                  aria-haspopup="dialog"
-                  aria-expanded={sidebarSearchOpen ? true : undefined}
-                  data-testid="app-sidebar-rail-search-button"
-                  onClick={openSidebarSearchDialog}
-                >
-                  <Search size={15} />
-                </IconActionButton>
-              </TooltipTrigger>
-              <TooltipContent side="right">{searchTaskLabel}</TooltipContent>
-            </Tooltip>
-          }
-          appearanceSlot={
-            <FooterAppearanceActionSlot ref={appearanceControlRef}>
-              <IconActionButton
-                type="button"
-                $active={appearancePopoverOpen}
-                title={appearanceCopy.entryLabel}
-                aria-label={appearanceCopy.entryLabel}
-                aria-expanded={appearancePopoverOpen}
-                aria-haspopup="dialog"
-                data-testid="app-sidebar-rail-appearance"
-                onClick={() => {
-                  setAppearancePopoverOpen((current) => !current);
-                }}
-              >
-                <Palette />
-              </IconActionButton>
-              {appearancePopoverOpen ? (
-                <AppSidebarAppearancePopover
-                  themeMode={themeState.themeMode}
-                  colorSchemeId={colorSchemeId}
-                  themeOptions={appearanceThemeOptions}
-                  colorSchemes={appearanceColorSchemes}
-                  copy={appearanceCopy}
-                  onThemeModeChange={handleThemeModeChange}
-                  onColorSchemeChange={handleColorSchemeChange}
-                  onRandomColorScheme={handleRandomColorScheme}
-                />
-              ) : null}
-            </FooterAppearanceActionSlot>
-          }
-        />
+        {collapsed ? (
+          <IconActionButton
+            type="button"
+            title={expandNavigationLabel}
+            aria-label={expandNavigationLabel}
+            data-testid="app-sidebar-expand"
+            onClick={toggleSidebarCollapsed}
+            style={{
+              position: "fixed",
+              top: 8,
+              left: reserveWindowControls ? 92 : 8,
+              zIndex: 60,
+            }}
+          >
+            <PanelLeftOpen />
+          </IconActionButton>
+        ) : null}
         <SidebarSurface $collapsed={collapsed}>
           {isCustomizationPage && !collapsed ? (
             <AppSidebarCustomization
@@ -1402,7 +1341,50 @@ export function AppSidebar({
               </MenuScroll>
             </>
           )}
+          <div
+            data-testid="app-sidebar-footer"
+            className="flex shrink-0 items-center justify-between pt-2"
+          >
+            {localizedSettingsFooterNavItem
+              ? renderNavItem(localizedSettingsFooterNavItem)
+              : null}
+
+            <FooterAppearanceActionSlot ref={appearanceControlRef}>
+              <IconActionButton
+                type="button"
+                $active={appearancePopoverOpen}
+                title={appearanceCopy.entryLabel}
+                aria-label={appearanceCopy.entryLabel}
+                aria-expanded={appearancePopoverOpen}
+                aria-haspopup="dialog"
+                data-testid="app-sidebar-appearance"
+                onClick={() => {
+                  setAppearancePopoverOpen((current) => !current);
+                }}
+              >
+                <Palette />
+              </IconActionButton>
+              {appearancePopoverOpen ? (
+                <AppSidebarAppearancePopover
+                  themeMode={themeState.themeMode}
+                  colorSchemeId={colorSchemeId}
+                  themeOptions={appearanceThemeOptions}
+                  colorSchemes={appearanceColorSchemes}
+                  copy={appearanceCopy}
+                  onThemeModeChange={handleThemeModeChange}
+                  onColorSchemeChange={handleColorSchemeChange}
+                  onRandomColorScheme={handleRandomColorScheme}
+                />
+              ) : null}
+            </FooterAppearanceActionSlot>
+          </div>
         </SidebarSurface>
+        {!collapsed ? (
+          <SidebarResizeHandle
+            width={sidebarWidth}
+            onWidthChange={setSidebarWidth}
+          />
+        ) : null}
       </Container>
       <AppSidebarSearchDialog
         isOpen={sidebarSearchOpen}

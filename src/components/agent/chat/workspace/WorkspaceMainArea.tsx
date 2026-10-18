@@ -19,7 +19,7 @@ import { TASK_CENTER_CHROME_RAIL_SURFACE } from "./taskCenterChromeTokens";
 const TASK_CENTER_SPLIT_CHROME_TOP_INSET = "84px";
 const TASK_CENTER_SPLIT_WORKBENCH_TOP_INSET = "42px";
 const TASK_CENTER_DETACHED_TOOLBAR_TOP_INSET = "42px";
-const THREAD_WORKSPACE_HEADER_TOP_INSET = "52px";
+const THREAD_WORKSPACE_HEADER_TOP_INSET = "46px";
 const TASK_CENTER_SPLIT_CHROME_BREAKPOINT_WIDTH = 900;
 const TASK_CENTER_SPLIT_CHROME_BREAKPOINT_HEIGHT = 620;
 const TASK_CENTER_DETACHED_TOOLBAR_BREAKPOINT_WIDTH = 1024;
@@ -224,7 +224,7 @@ export function WorkspaceMainArea({
     >
       {hasThreadHeader ? (
         <div
-          className="absolute inset-x-0 top-0 z-20 h-[52px] min-w-0"
+          className="absolute inset-x-0 top-0 z-20 h-[46px] min-w-0"
           data-testid="thread-workspace-header-host"
         >
           {threadHeaderNode}

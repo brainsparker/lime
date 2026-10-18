@@ -434,6 +434,11 @@ export const APP_SERVER_CLIENT_METHODS: readonly AppServerClientMethodSpec[] = [
     params: "required",
   },
   {
+    name: "readPluginSkill",
+    method: constants.APP_SERVER_METHOD_PLUGIN_SKILL_READ,
+    params: "required",
+  },
+  {
     name: "readPlugin",
     method: constants.APP_SERVER_METHOD_PLUGIN_READ,
     params: "required",

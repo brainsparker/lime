@@ -158,7 +158,7 @@ export async function runWorkbookEditingScenario({
       })
       .click();
   }
-  await page.getByTestId("settings-top-header").waitFor({ state: "visible" });
+  await page.getByTestId("settings-navigation").waitFor({ state: "visible" });
   await panel.waitFor({ state: "detached" });
   assert.equal(await originalPanel.evaluate((node) => node.isConnected), false);
   await page.getByTestId("settings-back-button").click();

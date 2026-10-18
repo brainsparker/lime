@@ -518,6 +518,9 @@ impl RequestProcessor {
                 app_server_protocol::protocol::v2::METHOD_PLUGIN_SEARCH => {
                     self.handle_plugin_search_v2_impl(params).boxed()
                 }
+                app_server_protocol::protocol::v2::METHOD_PLUGIN_SKILL_READ => {
+                    self.handle_plugin_skill_read_v2_impl(params).boxed()
+                }
                 app_server_protocol::protocol::v2::METHOD_PLUGIN_READ => {
                     self.handle_plugin_read_v2_impl(params).boxed()
                 }

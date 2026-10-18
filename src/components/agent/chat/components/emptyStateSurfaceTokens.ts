@@ -52,10 +52,10 @@ export const EMPTY_STATE_RECOMMENDATION_CARD_CLASSNAME =
   "group flex min-w-0 flex-col items-start gap-2 rounded-[20px] border border-[color:var(--lime-surface-border)] bg-[image:var(--lime-home-card-surface)] px-3.5 py-3.5 text-left shadow-sm shadow-slate-950/5 transition-colors hover:border-[color:var(--lime-home-card-hover-border)] hover:bg-[color:var(--lime-surface)]";
 
 export const EMPTY_STATE_PAGE_CONTAINER_CLASSNAME =
-  "relative flex min-h-full flex-1 flex-col items-stretch justify-start overflow-y-auto bg-transparent px-2 pb-5 pt-[clamp(2px,0.6vw,6px)] md:px-3";
+  "relative flex h-full min-h-0 flex-1 flex-col overflow-y-auto";
 
 export const EMPTY_STATE_CONTENT_WRAPPER_CLASSNAME =
-  "relative z-[1] mx-auto flex min-h-full w-full max-w-[1360px] flex-1 flex-col items-stretch gap-3";
+  "relative mx-auto flex min-h-0 w-full flex-1 flex-col";
 
 export const EMPTY_STATE_THEME_TABS_CONTAINER_CLASSNAME =
   "flex w-full max-w-full flex-nowrap justify-start gap-1.5 overflow-x-auto overflow-y-hidden rounded-[20px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-soft)] p-[5px] shadow-[0_10px_24px_-22px_rgba(15,23,42,0.18)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden";

@@ -257,7 +257,12 @@ export function useTaskCenterEmptyStateSendRuntime({
       ) => {
         const readySessionId = result.receipt.sessionId;
         if (!mountedRef.current) return;
-        if (isSendSourceCurrent?.(sourceOptions, readySessionId) === false) {
+        if (
+          isSendSourceCurrent?.(
+            { ...sourceOptions, acceptedResult: result },
+            readySessionId,
+          ) === false
+        ) {
           setHomePendingPreviewRequest((current) =>
             current?.id === id ? null : current,
           );

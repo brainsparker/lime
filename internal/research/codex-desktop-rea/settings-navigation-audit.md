@@ -1,5 +1,7 @@
 # Codex Desktop 设置导航对齐审计
 
+2026-10-18 布局纠正：本版legacy设置共用340px偏好侧栏，无全局rail及独立Settings标题；实际Back→search→groups，内容居中48rem/20px scroll padding/46px toolbar。旧railHome验收仅为历史，该用户路径已迁为Back回来源后Home。当前合同及待验状态见[窗口排版报告](../../exec-plans/artifacts/codex-shell-layout-rea-20261018/report.md)。下文旧布局对比均为实施前快照。
+
 七 member 静态审计及后续切片的采用记录；章节 owner、公开 SettingsPage、canonical 路由与返回已交付。Memory配置/SOUL、独立笔记、Web Search、Environment、Execution Policy与Profile未保存导航保护已分别完成验收；公共Profile身份/可见性、内容搜索、其他表单与完整外部 dirty authority 仍待交付。下文保留各阶段历史事实，不以首屏读取证明写入或丢稿保护。
 
 ## 证据范围

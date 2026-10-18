@@ -15,7 +15,6 @@ import {
   fromSkillCatalogSceneEntry,
 } from "./homeSkillSurfaceAdapters";
 import type {
-  HomeSkillCategory,
   HomeGuideCard,
   HomeSkillSection,
   HomeSkillSurfaceItem,
@@ -138,16 +137,6 @@ export function buildHomeSkillSections(
   }).filter((section) => section.items.length > 0);
 }
 
-export function buildHomeGalleryItems(
-  items: HomeSkillSurfaceItem[],
-  category: HomeSkillCategory | "all" = "all",
-): HomeSkillSurfaceItem[] {
-  return items
-    .filter((item) => category === "all" || item.category === category)
-    .sort(compareHomeItems)
-    .slice(0, 12);
-}
-
 function hasHomeScope(entry: SkillCatalogEntry): boolean {
   return (entry.surfaceScopes ?? []).includes("home");
 }
@@ -203,7 +192,7 @@ function listHomePresentationEntries(
     .sort(compareHomePresentationEntries);
 }
 
-export function buildHomeStarterChips(
+export function buildHomeSuggestionList(
   entries: SkillCatalogEntry[] | undefined,
   copy: HomeSurfaceCopy,
 ): HomeStarterChip[] {

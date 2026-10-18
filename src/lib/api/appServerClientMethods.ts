@@ -210,6 +210,12 @@ declare module "./appServerClient" {
     ): Promise<
       appServer.AppServerRequestResult<appServer.AppServerPluginSearchResponse>
     >;
+    readPluginSkill(
+      params: appServer.AppServerPluginSkillReadParams,
+      options?: appServer.AppServerRequestOptions,
+    ): Promise<
+      appServer.AppServerRequestResult<appServer.AppServerPluginSkillReadResponse>
+    >;
     readPlugin(
       params: appServer.AppServerPluginReadParams,
     ): Promise<

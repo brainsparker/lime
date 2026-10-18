@@ -372,7 +372,7 @@ async function openAgentHome(page, options) {
   await page.waitForSelector('[data-testid="workspace-shell-scene"]', {
     timeout: options.timeoutMs,
   });
-  await page.waitForSelector('[data-testid="home-start-surface"]', {
+  await page.waitForSelector('[data-testid="home-ambient-suggestions"]', {
     timeout: options.timeoutMs,
   });
 }
@@ -487,7 +487,7 @@ async function run() {
     summary.agentWorkspaceMounted =
       (await page.locator('[data-testid="workspace-shell-scene"]').count()) > 0;
     summary.homeStartSurfaceMounted =
-      (await page.locator('[data-testid="home-start-surface"]').count()) > 0;
+      (await page.locator('[data-testid="home-ambient-suggestions"]').count()) > 0;
     summary.rememberedProjectId = await page.evaluate((lastProjectKey) => {
       const raw = localStorage.getItem(lastProjectKey);
       if (!raw) {

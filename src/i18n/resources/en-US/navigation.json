@@ -1,4 +1,5 @@
 {
+  "navigation.sidebar.actions.resize": "Resize sidebar",
   "navigation.sidebar.actions.collapse": "Collapse navigation",
   "navigation.sidebar.actions.expand": "Expand navigation",
   "navigation.sidebar.home.ariaLabel": "Back to Lime Home",

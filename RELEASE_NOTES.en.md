@@ -10,6 +10,7 @@ Simplified Chinese release notes are the primary version; this English companion
 
 ### Fixes
 
+- Wait for App Server shutdown when quitting the desktop app.
 - Fix file revision hashing failures that could prevent professional file previews or annotations from initializing.
 - Improve state ownership, stale response handling, and file revision conflicts when switching workspaces, previewing files, and submitting annotations.
 - Protect unsaved MCP, experimental, and media service settings, and improve search navigation to developer and media settings.
@@ -17,6 +18,8 @@ Simplified Chinese release notes are the primary version; this English companion
 
 ### Improvements and Refactoring
 
+- Unify home suggestions, sidebar and settings navigation, and improve worktree submission and execution scope handoff.
+- Add plugin skill content previews through the shared App Server contract.
 - Reorder queued messages with drag and drop or keyboard controls using the existing queue protocol and conversation state.
 - Separate file format preview, editing, and annotation responsibilities while sharing file access, save, and conversation submission owners; remove replaced workspace preview paths.
 - Keep account credentials in App Server, remove duplicate renderer session token and logout paths, and update all five interface languages.

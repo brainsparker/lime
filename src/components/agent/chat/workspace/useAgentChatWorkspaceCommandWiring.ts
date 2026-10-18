@@ -209,7 +209,11 @@ export function useAgentChatWorkspaceCommandWiring<
       const epoch = getComposerDraftNavigationEpoch();
       const result = await sendRuntimeMessage(...args);
       // 初始意图等程序化发送不经过 Composer settlement；仍提交真实可见会话。
-      if (!args[8]?.composerDraft && isRuntimeSubmissionAccepted(result))
+      if (
+        !args[8]?.composerDraft &&
+        !args[8]?.executionScope &&
+        isRuntimeSubmissionAccepted(result)
+      )
         runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
           commitVisibleTopic(result.receipt.sessionId, null, epoch),
         );
@@ -227,6 +231,25 @@ export function useAgentChatWorkspaceCommandWiring<
     sceneGateResumeHandlerRef,
     sendActions: {
       ...scope,
+      getComposerDraftNavigationEpoch,
+      isAcceptedExecutionScopeCurrent: (executionScope, receipt) => {
+        const target = composerDraftRuntime.getComposerDraftTarget();
+        return (
+          target?.workspaceId === executionScope.workspaceId &&
+          target.kind === "local" &&
+          target.id === receipt.sessionId
+        );
+      },
+      onExecutionScopeAccepted: (executionScope, receipt) => {
+        scope.deferTopicSwitch(receipt.sessionId, executionScope.workspaceId, {
+          allowDetachedSession: true,
+          forceRefresh: true,
+        });
+        handleTopicSwitchCommitted(
+          receipt.sessionId,
+          executionScope.workspaceId,
+        );
+      },
       sendMessage,
       bootstrapDispatchPreview: initialDispatch.bootstrapDispatchPreview,
       finalizeAfterSendSuccess: initialDispatch.finalizeAfterSendSuccess,

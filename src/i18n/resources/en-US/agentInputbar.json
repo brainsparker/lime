@@ -46,7 +46,6 @@
   "agentChat.inputbar.core.projectContext.modeMenuTitle": "Launch mode",
   "agentChat.inputbar.core.projectContext.localProcessing": "Process locally",
   "agentChat.inputbar.core.projectContext.newWorktree": "New worktree",
-  "agentChat.inputbar.core.projectContext.worktreeCreated": "Worktree created",
   "agentChat.inputbar.core.projectContext.worktreeCreateFailed": "Failed to create worktree",
   "agentChat.inputbar.core.projectContext.gitStatusLoading": "Loading Git status",
   "agentChat.inputbar.core.projectContext.gitStatusFailed": "Could not load Git status",
@@ -264,5 +263,6 @@
   "agentChat.inputbar.draftPersistence.error": "Unable to save or restore the draft. Your input is preserved.",
   "agentChat.inputbar.draftPersistence.unavailable": "Draft saving is unavailable. Your current input is preserved.",
   "agentChat.inputbar.draftPersistence.saving": "Saving draft…",
-  "agentChat.inputbar.draftPersistence.saved": "Draft saved"
+  "agentChat.inputbar.draftPersistence.saved": "Draft saved",
+  "agentChat.inputbar.core.projectContext.worktreeSubmitUnknown": "The worktree submission is unconfirmed. Check the conversation before retrying."
 }

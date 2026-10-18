@@ -279,6 +279,8 @@ pub const V2_SCHEMA_TYPE_NAMES: &[&str] = &[
     "PluginSummary",
     "PluginReadParams",
     "PluginReadResponse",
+    "PluginSkillReadParams",
+    "PluginSkillReadResponse",
     "PluginDetail",
     "PluginHookSummary",
     "PluginInstallParams",

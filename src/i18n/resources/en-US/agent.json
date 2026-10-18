@@ -1,4 +1,8 @@
 {
+  "plugin.skillPreview.loading": "Loading skill contents…",
+  "plugin.skillPreview.error": "Unable to load skill contents.",
+  "plugin.skillPreview.empty": "No instructions available yet",
+  "plugin.skillPreview.retry": "Retry",
   "plugin.share.createdByMe": "Created by me",
   "plugin.share.manage": "Share and edit",
   "plugin.share.title": "Share {{name}}",

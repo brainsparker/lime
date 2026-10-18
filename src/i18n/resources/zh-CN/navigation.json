@@ -1,4 +1,5 @@
 {
+  "navigation.sidebar.actions.resize": "调整侧栏宽度",
   "navigation.sidebar.actions.collapse": "折叠导航栏",
   "navigation.sidebar.actions.expand": "展开导航栏",
   "navigation.sidebar.home.ariaLabel": "返回 Lime 首页",

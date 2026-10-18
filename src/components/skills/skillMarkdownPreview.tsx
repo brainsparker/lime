@@ -7,17 +7,32 @@ import {
 } from "@/lib/markdown/externalLinks";
 
 export function stripSkillFrontmatter(content: string): string {
-  const normalized = content.replace(/^\uFEFF/, "");
-  if (!normalized.startsWith("---")) {
-    return normalized.trim();
+  const normalized = content.replace(/\r\n/g, "\n");
+  if (!normalized.startsWith("---\n")) {
+    return normalized;
   }
 
-  const end = normalized.indexOf("\n---", 3);
+  const end = normalized.indexOf("\n---", 4);
   if (end === -1) {
-    return normalized.trim();
+    return normalized;
   }
 
-  return normalized.slice(end + 4).trim();
+  return normalized.slice(end + 4).replace(/^\n/, "");
+}
+
+export function projectSkillMarkdown(
+  content: string,
+  expectedTitle?: string,
+): string {
+  const markdown = stripSkillFrontmatter(content);
+  if (!expectedTitle) return markdown;
+  const lines = markdown.split("\n");
+  let first = 0;
+  while (first < lines.length && !lines[first].trim()) first += 1;
+  if (!/^#\s+/.test(lines[first]?.trim() ?? "")) return markdown;
+  first += 1;
+  while (first < lines.length && !lines[first].trim()) first += 1;
+  return lines.slice(first).join("\n");
 }
 
 const skillMarkdownComponents: Components = {
@@ -175,7 +190,7 @@ const skillMarkdownComponents: Components = {
   },
 };
 
-export function renderSkillMarkdown(content: string) {
+export function renderSkillMarkdown(content: string, expectedTitle?: string) {
   return (
     <div
       className="skills-markdown-preview text-left"
@@ -185,7 +200,7 @@ export function renderSkillMarkdown(content: string) {
         components={skillMarkdownComponents}
         remarkPlugins={[remarkGfm]}
       >
-        {stripSkillFrontmatter(content)}
+        {projectSkillMarkdown(content, expectedTitle)}
       </ReactMarkdown>
     </div>
   );

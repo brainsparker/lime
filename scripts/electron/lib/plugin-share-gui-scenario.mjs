@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { createHash } from "node:crypto";
-import { withWorkbookClipboard } from "./workbook-clipboard-scenario.mjs";
+import { withNativeClipboard } from "./native-clipboard.mjs";
 import { parseJsonRpcRequestsFromInvokeTrace } from "../mcp-config-fixture-smoke.mjs";
 
 export function preparePluginShareDraft(home) {
@@ -47,7 +47,7 @@ export async function exercisePluginShareGui({
   const { page, app } = handle;
   await page
     .locator(
-      '[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]',
+      '[data-testid="app-sidebar-nav-plugins"]',
     )
     .click();
   await page
@@ -83,15 +83,19 @@ export async function exercisePluginShareGui({
       },
     ],
   });
-  await withWorkbookClipboard(app, async (clipboard) => {
-    await clipboard.writeText("PLUGIN_SHARE_COPY_SENTINEL");
+  await withNativeClipboard(app, async () => {
+    await app.evaluate(({ clipboard }) =>
+      clipboard.writeText("PLUGIN_SHARE_COPY_SENTINEL"),
+    );
     await page.locator('[data-testid="plugin-share-copy"]').click();
     const expected = `${baseUrl}/share/opaque~draft`;
     await waitUntil(
-      async () => (await clipboard.readText()) === expected,
+      async () =>
+        (await app.evaluate(({ clipboard }) => clipboard.readText())) ===
+        expected,
       "native clipboard must contain the complete share URL",
     );
-    const copied = await clipboard.readText();
+    const copied = await app.evaluate(({ clipboard }) => clipboard.readText());
     summary.checks.nativeShareClipboard = {
       exact: copied === expected,
       length: copied.length,
@@ -149,6 +153,11 @@ export async function exercisePluginShareGui({
   await page
     .locator('[data-testid="plugin-share-dialog"]')
     .waitFor({ state: "detached" });
+  await page.waitForFunction(
+    () =>
+      document.activeElement?.getAttribute("data-testid") ===
+      "plugin-catalog-share-research-0@workspace-shared-with-me",
+  );
   summary.checks.shareGui = {
     privateCreate: true,
     serverAccessSaved: true,

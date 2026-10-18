@@ -6,6 +6,7 @@ import {
   listPlugins,
   reconcilePlugins,
   readPlugin,
+  readPluginSkill,
   searchPluginCatalog,
   setPluginEnabled,
   uninstallPlugin,
@@ -43,6 +44,27 @@ function client(): PluginCatalogClient {
 }
 
 describe("Plugin catalog API", () => {
+  it("技能正文走typed RPC且传递取消信号，失败保留错误", async () => {
+    const params = {
+      remoteMarketplaceName: "workspace-directory",
+      remotePluginId: "opaque~1",
+      skillName: "research",
+    };
+    const options = { signal: new AbortController().signal };
+    const client = {
+      readPluginSkill: vi
+        .fn()
+        .mockResolvedValue({ result: { contents: null } }),
+    };
+    expect(await readPluginSkill(params, options, client)).toEqual({
+      contents: null,
+    });
+    expect(client.readPluginSkill).toHaveBeenCalledWith(params, options);
+    client.readPluginSkill.mockRejectedValueOnce(new Error("HTTP 404"));
+    await expect(readPluginSkill(params, options, client)).rejects.toThrow(
+      "HTTP 404",
+    );
+  });
   it("对账保留部分物化失败合同，只有成功响应通知共享读面刷新", async () => {
     const result = {
       changedPlugins: [

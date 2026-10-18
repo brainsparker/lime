@@ -285,7 +285,7 @@ export async function runPresentationEditingScenario({
       })
       .click();
   }
-  await page.getByTestId("settings-top-header").waitFor({ state: "visible" });
+  await page.getByTestId("settings-navigation").waitFor({ state: "visible" });
   await panel.waitFor({ state: "detached" });
   assert.equal(await previous.evaluate((node) => node.isConnected), false);
   await previous.dispose();

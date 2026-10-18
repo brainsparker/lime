@@ -183,7 +183,7 @@ async function enterSettings(page, options) {
   await settingsButton.waitFor({ state: "visible", timeout: 10_000 });
   await settingsButton.click();
   await page
-    .locator('[data-testid="settings-top-header"]')
+    .locator('[data-testid="settings-navigation"]')
     .waitFor({ state: "visible", timeout: 20_000 });
 }
 
@@ -210,31 +210,14 @@ async function activateSettingsTab(page, tab) {
   const sidebarTab = page.locator(
     `[data-testid="settings-sidebar-tab-${tab}"]`,
   );
-  if (await sidebarTab.isVisible()) {
-    await sidebarTab.click();
-  } else {
-    const floatingButton = page.locator(
-      '[data-testid="settings-floating-nav-button"]',
-    );
-    await floatingButton.waitFor({ state: "visible", timeout: 10_000 });
-    await floatingButton.click();
-    const floatingTab = page.locator(
-      `[data-testid="settings-floating-tab-${tab}"]`,
-    );
-    await floatingTab.waitFor({ state: "visible", timeout: 10_000 });
-    await floatingTab.click();
-  }
+  await sidebarTab.waitFor({ state: "visible", timeout: 10_000 });
+  await sidebarTab.click();
   await page.waitForFunction(
     (activeTab) => {
       const sidebar = document.querySelector(
         `[data-testid="settings-sidebar-tab-${activeTab}"]`,
       );
-      const floating = document.querySelector(
-        `[data-testid="settings-floating-tab-${activeTab}"]`,
-      );
-      return [sidebar, floating].some(
-        (entry) => entry?.getAttribute("data-active") === "true",
-      );
+      return sidebar?.getAttribute("data-active") === "true";
     },
     tab,
     { timeout: 12_000 },
@@ -245,10 +228,7 @@ async function clickSettingsTab(page, tab) {
   await activateSettingsTab(page, tab);
   await page.waitForFunction(
     () => {
-      const atmosphere = document.querySelector(
-        '[data-testid="settings-content-atmosphere"]',
-      );
-      const content = atmosphere?.parentElement;
+      const content = document.querySelector('[data-testid="settings-content"]');
       if (!(content instanceof HTMLElement)) {
         return false;
       }
@@ -284,22 +264,14 @@ async function observeSettingsTab(page, { locale, viewport, tab }) {
           style.visibility !== "hidden"
         );
       };
-      const atmosphere = document.querySelector(
-        '[data-testid="settings-content-atmosphere"]',
-      );
-      const content = atmosphere?.parentElement;
+      const content = document.querySelector('[data-testid="settings-content"]');
       const sidebar = document.querySelector(
         '[data-testid="settings-sidebar"]',
       );
-      const floating = document.querySelector(
-        '[data-testid="settings-floating-nav"]',
-      );
+
       const activeCandidates = [
         document.querySelector(
           `[data-testid="settings-sidebar-tab-${tabKey}"]`,
-        ),
-        document.querySelector(
-          `[data-testid="settings-floating-tab-${tabKey}"]`,
         ),
       ];
       const text =
@@ -331,7 +303,7 @@ async function observeSettingsTab(page, { locale, viewport, tab }) {
         locale: expectedLocale,
         tab: tabKey,
         title,
-        settingsMounted: Boolean(atmosphere),
+        settingsMounted: Boolean(content),
         activeTabBound: activeCandidates.some(
           (entry) => entry?.getAttribute("data-active") === "true",
         ),
@@ -343,7 +315,7 @@ async function observeSettingsTab(page, { locale, viewport, tab }) {
         visibleLoadingCount: loading.length,
         documentOverflow:
           document.documentElement.scrollWidth > window.innerWidth + 2,
-        navigationVisible: isVisible(sidebar) || isVisible(floating),
+        navigationVisible: isVisible(sidebar),
         invokeErrorCount,
       };
     },
@@ -386,7 +358,7 @@ async function verifyNavigationRecovery(page) {
     .locator('[data-testid="app-sidebar-account-model-settings"]')
     .click();
   await page
-    .locator('[data-testid="settings-top-header"]')
+    .locator('[data-testid="settings-navigation"]')
     .waitFor({ state: "visible", timeout: 15_000 });
   return true;
 }

@@ -22,6 +22,9 @@ import type {
   AppServerPluginListResponse,
   AppServerPluginReadParams,
   AppServerPluginReadResponse,
+  AppServerPluginSkillReadParams,
+  AppServerPluginSkillReadResponse,
+  AppServerRequestOptions,
   AppServerPluginUninstallParams,
   AppServerPluginUninstallResponse,
   AppServerPluginSearchParams,
@@ -94,6 +97,14 @@ export async function readPlugin(
   client: PluginCatalogClient = new AppServerClient(),
 ): Promise<AppServerPluginReadResponse> {
   return (await client.readPlugin(params)).result;
+}
+
+export async function readPluginSkill(
+  params: AppServerPluginSkillReadParams,
+  options?: AppServerRequestOptions,
+  client: Pick<AppServerClient, "readPluginSkill"> = new AppServerClient(),
+): Promise<AppServerPluginSkillReadResponse> {
+  return (await client.readPluginSkill(params, options)).result;
 }
 
 export async function installPlugin(

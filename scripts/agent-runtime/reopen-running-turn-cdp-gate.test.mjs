@@ -134,7 +134,7 @@ describe("reopen running turn CDP Gate", () => {
     expect(content).toContain("sampleGuiHomeBackgroundRecoveryState");
     expect(content).toContain("isTransientGuiSamplingError");
     expect(content).toContain("Execution context was destroyed");
-    expect(content).toContain("home-start-surface");
+    expect(content).toContain("home-ambient-suggestions");
     expect(content).toContain("home-unfinished-session-card");
     expect(content).toContain("homeRecoveryCardVisible");
     expect(content).toContain("homeRecoveryCardStatus ===");

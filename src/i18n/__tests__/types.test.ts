@@ -483,7 +483,6 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.home.starter.ppt.prompt", { ns: "agent" });
   i18n.t("agentChat.home.guide.longTermPlan.title", { ns: "agent" });
   i18n.t("agentChat.home.guideCards.label", { ns: "agent" });
-  i18n.t("agentChat.home.gallery.title", { ns: "agent" });
   i18n.t("agentChat.home.category.recent", { ns: "agent" });
   i18n.t("agentChat.home.sceneManager.title.list", { ns: "agent" });
   i18n.t("agentChat.home.sceneManager.action.addScene", { ns: "agent" });
@@ -901,7 +900,6 @@ function assertI18nKeyTypes() {
   i18n.t("settings.profile.message.saveFailed", { ns: "settings" });
   i18n.t("settings.profile.message.saved", { ns: "settings" });
   i18n.t("settings.layout.loading.skills", { ns: "settings" });
-  i18n.t("settings.layout.sidebar.floatingNav.openAria", { ns: "settings" });
   i18n.t("settings.about.version.label", {
     ns: "settings",
     version: "1.10.0",

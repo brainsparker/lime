@@ -147,6 +147,7 @@
     "plugin/list",
     "plugin/search",
     "plugin/read",
+    "plugin/skill/read",
     "plugin/install",
     "plugin/uninstall",
     "plugin/installed"

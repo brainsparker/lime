@@ -701,7 +701,7 @@ describe("EmptyState", () => {
     expect(container.textContent).not.toContain("新建任务");
   });
 
-  it("通用首页应挂载轻量起手区与下滑第二屏，无 Git 仓库时不显示分支", async () => {
+  it("通用首页应挂载单一输入区与技能入口，无 Git 仓库时不显示分支", async () => {
     const container = renderEmptyState({
       activeTheme: "general",
       onLaunchBrowserAssist: vi.fn(),
@@ -719,7 +719,7 @@ describe("EmptyState", () => {
     await flushAsyncEffects();
 
     expect(
-      container.querySelector('[data-testid="home-start-surface"]'),
+      container.querySelector('[data-testid="home-ambient-suggestions"]'),
     ).toBeTruthy();
     expect(
       container.querySelector('[data-testid="home-starter-chips"]'),
@@ -731,7 +731,7 @@ describe("EmptyState", () => {
       '[data-testid="inputbar-core-container"]',
     );
     const homeStartSurface = primaryStack?.querySelector(
-      '[data-testid="home-start-surface"]',
+      '[data-testid="home-ambient-suggestions"]',
     );
     const projectContextSlot = primaryStack?.querySelector(
       '[data-testid="inputbar-context-bar-slot"]',
@@ -799,12 +799,10 @@ describe("EmptyState", () => {
     );
     expect(
       container.querySelector('[data-testid="home-second-screen"]'),
-    ).toBeTruthy();
+    ).toBeNull();
     expect(
       container.querySelector('[data-testid="home-skill-gallery"]'),
-    ).toBeTruthy();
-    expect(container.textContent).toContain("你可以从这些任务开始");
-    expect(container.textContent).toContain("每日趋势摘要");
+    ).toBeNull();
     expect(container.textContent).not.toContain("先开始这一轮");
     expect(container.textContent).not.toContain("其他起手结果");
     expect(container.textContent).not.toContain("也可以直接按做法开工");
@@ -978,67 +976,6 @@ describe("EmptyState", () => {
     ).toContain("feature/new");
   });
 
-  it("第二屏向上回首屏应使用非 passive wheel listener", async () => {
-    const addEventListenerSpy = vi.spyOn(
-      HTMLElement.prototype,
-      "addEventListener",
-    );
-    const originalScrollTo = HTMLElement.prototype.scrollTo;
-    const scrollTo = vi.fn();
-    Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-      configurable: true,
-      value: scrollTo,
-    });
-
-    try {
-      const container = renderEmptyState({
-        activeTheme: "general",
-        onLaunchBrowserAssist: vi.fn(),
-        onSelectServiceSkill: vi.fn(),
-      });
-
-      await act(async () => {
-        await Promise.resolve();
-      });
-
-      expect(addEventListenerSpy).toHaveBeenCalledWith(
-        "wheel",
-        expect.any(Function),
-        { passive: false },
-      );
-
-      const secondScreen = container.querySelector(
-        '[data-testid="home-second-screen"]',
-      ) as HTMLElement | null;
-      expect(secondScreen).toBeTruthy();
-
-      act(() => {
-        secondScreen?.dispatchEvent(
-          new WheelEvent("wheel", {
-            bubbles: true,
-            cancelable: true,
-            deltaY: -24,
-          }),
-        );
-      });
-
-      expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
-    } finally {
-      addEventListenerSpy.mockRestore();
-      if (originalScrollTo) {
-        Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-          configurable: true,
-          value: originalScrollTo,
-        });
-      } else {
-        Object.defineProperty(HTMLElement.prototype, "scrollTo", {
-          configurable: true,
-          value: undefined,
-        });
-      }
-    }
-  });
-
   it("通用首页静态起手与引导文案应跟随 en-US 资源", async () => {
     await changeLimeLocale("en-US");
     const skinCopy = getLimeSkinCopy(DEFAULT_LIME_COLOR_SCHEME_ID, "en-US");
@@ -1061,7 +998,6 @@ describe("EmptyState", () => {
     expect(container.textContent).toContain("Writing");
     expect(container.textContent).toContain("Add knowledge");
     expect(container.textContent).toContain("More methods");
-    expect(container.textContent).toContain("Start from these tasks");
     expect(
       container.querySelector('[data-testid="home-scroll-cue"]'),
     ).toBeNull();
@@ -1657,12 +1593,13 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
     expect(container.textContent).toContain("每日趋势摘要");
     expect(container.textContent).not.toContain("云目录");
     expect(container.textContent).not.toContain("最近使用");
 
     const projectCard = container.querySelector(
-      '[data-testid="home-gallery-entry-service-skill-project-insight-flow"]',
+      '[data-testid="home-drawer-entry-service-skill-project-insight-flow"]',
     );
     expect(projectCard?.textContent).toContain("项目线索整理");
     expect(projectCard?.textContent).toContain(
@@ -1953,7 +1890,7 @@ describe("EmptyState", () => {
     ).toBeNull();
     expect(mockProjectSelector).not.toHaveBeenCalled();
     expect(
-      container.querySelector('[data-testid="home-start-surface"]'),
+      container.querySelector('[data-testid="home-ambient-suggestions"]'),
     ).toBeTruthy();
     expect(
       container.querySelector('[data-testid^="entry-project-continuation-"]'),
@@ -2079,8 +2016,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const card = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLDivElement | null;
     expect(card).toBeTruthy();
 
@@ -2135,8 +2074,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const card = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLDivElement | null;
     expect(card).toBeTruthy();
 
@@ -2216,8 +2157,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const card = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-social-post-starter"]',
+      '[data-testid="home-drawer-entry-recommended-social-post-starter"]',
     ) as HTMLDivElement | null;
     expect(card).toBeTruthy();
 
@@ -2273,8 +2216,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const card = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-longform-multiplatform-rewrite"]',
+      '[data-testid="home-drawer-entry-recommended-longform-multiplatform-rewrite"]',
     ) as HTMLDivElement | null;
     expect(card).toBeTruthy();
 
@@ -2326,11 +2271,12 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
     expect(container.textContent).toContain("复制轮播帖");
     expect(container.textContent).toContain("仓库线索研究");
 
     const card = container.querySelector(
-      '[data-testid="home-gallery-entry-service-skill-carousel-post-replication"]',
+      '[data-testid="home-drawer-entry-service-skill-carousel-post-replication"]',
     ) as HTMLButtonElement | null;
     expect(card).toBeTruthy();
 
@@ -2774,8 +2720,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLButtonElement | null;
     expect(templateButton).toBeTruthy();
 
@@ -2892,8 +2840,10 @@ describe("EmptyState", () => {
       },
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLButtonElement | null;
     expect(templateButton).toBeTruthy();
 
@@ -2998,8 +2948,10 @@ describe("EmptyState", () => {
       },
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLButtonElement | null;
     expect(templateButton).toBeTruthy();
 
@@ -3042,8 +2994,10 @@ describe("EmptyState", () => {
       ],
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-account-project-review"]',
+      '[data-testid="home-drawer-entry-recommended-account-project-review"]',
     ) as HTMLButtonElement | null;
     expect(templateButton).toBeTruthy();
     expect(container.textContent).not.toContain("当前判断：先补复核与修复");
@@ -3105,8 +3059,10 @@ describe("EmptyState", () => {
       ],
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLButtonElement | null;
 
     await act(async () => {
@@ -3147,6 +3103,8 @@ describe("EmptyState", () => {
     await act(async () => {
       await Promise.resolve();
     });
+
+    await openHomeMoreSkillsDrawer(container);
 
     expect(container.textContent).toContain("参考");
     expect(container.textContent).toContain("品牌风格样本");
@@ -3215,6 +3173,8 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     expect(container.textContent).not.toContain("成果：账号复盘结论");
     expect(container.textContent).toContain("复盘这个账号/项目");
   });
@@ -3248,8 +3208,10 @@ describe("EmptyState", () => {
       await Promise.resolve();
     });
 
+    await openHomeMoreSkillsDrawer(container);
+
     const templateButton = container.querySelector(
-      '[data-testid="home-gallery-entry-recommended-daily-trend-briefing"]',
+      '[data-testid="home-drawer-entry-recommended-daily-trend-briefing"]',
     ) as HTMLButtonElement | null;
     expect(templateButton).toBeTruthy();
 
@@ -3524,7 +3486,7 @@ describe("EmptyState", () => {
     expect(container.textContent).not.toContain("编排模式已开启");
     expect(container.textContent).not.toContain("联网搜索已开启");
     expect(
-      container.querySelector('[data-testid="home-start-surface"]'),
+      container.querySelector('[data-testid="home-ambient-suggestions"]'),
     ).toBeTruthy();
     expect(container.textContent).toContain("调研报告");
   });

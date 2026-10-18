@@ -406,6 +406,24 @@ export async function runComposerDraftGuiFixture(options, scenario = null) {
         modules,
         runtimeEnv,
         protocol: owners.protocol,
+        captureTrace: async () => {
+          const capture = await modules.trace.captureInvokeTraceCollector(
+            active.page,
+            active.trace,
+          );
+          const observed = modules.trace.validateInvokeTraceCollectorCapture(
+            capture,
+            active.trace,
+          );
+          requireDraftProof(
+            observed.complete,
+            "complete current native trace snapshot",
+          );
+          return {
+            entries: observed.ledgerEntries,
+            provenance: observed.provenance,
+          };
+        },
         setPhase: (value) => {
           phase = value;
           process.stdout.write(`[composer-draft-fixture] stage=${value}\n`);
@@ -576,6 +594,7 @@ export async function runComposerDraftGuiFixture(options, scenario = null) {
       firstSubmissionRoutesVerified:
         scenarioResult.firstSubmissionRoutesVerified === true,
       firstSubmissionRoutes: scenarioResult.firstSubmissionRoutes ?? [],
+      worktreeSubmission: scenarioResult.worktreeSubmission ?? null,
       sameCanonicalThreadTurnItemOwner: true,
       normalExitMustNotBeReplacedByKill: true,
       generations,

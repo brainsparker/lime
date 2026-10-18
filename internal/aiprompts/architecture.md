@@ -1005,6 +1005,27 @@ Cloud 当前落地 `app-server-client` 的 authenticated transport foundation，
 
 Architecture impact: major; Desktop-only product chain expanded to shared Desktop + CLI/TUI surfaces with a controlled Cloud transport boundary and tenant runtime endpoint registry. Responsible developer confirmation: root, 2026-09-05.
 
+### 2.2 Desktop Main 退出生命周期
+
+`electron/appQuitLifecycle` 是 Electron 退出事件的唯一协调入口；`main` 只注入
+原有同步资源清理、`appServerHost.stop` 与错误记录。`before-quit` 仅准备一次，
+`will-quit` 阻止退出并等待同一异步清理，完成或拒绝后再调用 `app.quit()`；恢复的
+退出事件不重复清理。它不接管 sidecar 连接、终止策略或业务状态。
+
+```text
+Electron before-quit -> Main 同步资源清理（once）
+Electron will-quit -> preventDefault -> AppServerHost.stop
+  -> existing SidecarLifecycle.stop -> existing sidecar.close
+  -> fulfilled / rejected -> app.quit -> resumed will-quit
+```
+
+此顺序依据同版本安装包的 REA `eZe` / `u7` 静态证据；上游完整 flush 集合、
+context 资源树与五秒 dispose 界限不等同于 Lime 的资源合同。Lime 复用既有 sidecar
+SIGTERM/等待及超时 SIGKILL/等待边界，不新增退出计时器。连接中或恢复中竞态仍需
+独立证明；本改动不证明历史偶发超时的根因，真实 Main 仍须通过原十五秒正常退出门禁。
+Architecture impact: minor；Responsible developer confirmation: root, 2026-10-18，
+确认只调整 Host 生命周期等待关系，App Server/runtime/canonical 投影 owner 不变。
+
 ## 3. 前端目录规范
 
 ### 3.1 Renderer 启动与页面
@@ -1034,6 +1055,25 @@ src/main.tsx
 
 组件测试只覆盖渲染、DOM 交互、hook 生命周期和关键接线。可纯化的筛选、分组、request builder、状态转移、formatter 和 projection 应拆为 `*.unit.test.ts` 覆盖。
 
+### 3.1.1 Desktop 导航与首页布局（2026-10-18）
+
+同包 REA 确认 App Shell 在 `app-initial`，原 `sidebar-*.js` 是 ScheduledSidebar，不能继续作为全局导航 owner。Lime 当前采用参考已证的 legacy 单侧栏分支；目标实例的实际 feature flag 模式仍 unknown。
+
+```mermaid
+flowchart LR
+  App --> AppSidebar
+  App --> PageContent
+  PageContent --> Home["EmptyStateLayout → Banner / Composer / HomeAmbientSuggestionsContent"]
+  PageContent --> Settings["SettingsPage → SettingsNavigation / content"]
+  AppSidebar --> Width["useSidebarWidth / SidebarResizeHandle"]
+  Settings --> Width
+  Home --> Gateway["既有 typed gateway"]
+  Settings --> Gateway
+  Gateway --> Server["App Server → canonical Thread/Turn/Item"]
+```
+
+`sidebar-width` 仅存用户的显示偏好，默认340、CSS范围240..520并受主区空间约束；不存业务状态。设置用同一宽度owner，返回委托既有navigation guard，不再持有全局rail或独立窄窗口浮层。首页公开组件名 `HomeAmbientSuggestionsContent` 已核上游export，`HomeSuggestionList` 为按上游模块职责选择的本地名称；内部类型仍未全面同名，不能据压缩变量伪造原名。主题、多模型、Banner仍归既有owner。架构图由责任root确认；无业务后端/协议owner迁移。
+
 ### 3.2 Renderer 数据流
 
 ```text
@@ -1048,6 +1088,45 @@ UI event
 ```
 
 Renderer 可以临时保存输入框、选择态、展开态和 optimistic UI；不能生成、修补或持久化 Thread/Turn/Item 真相。流完成、取消和失败必须消费 App Server terminal event/read model，禁止通过固定 timeout 或本地合成事件断言完成。
+
+### 3.3 Composer 运行位置与 Worktree 首发
+
+Composer 的 `composerMode/setComposerMode` 是 Renderer 提交意图，归
+`workspace/useComposerWorktree`。`ComposerModeContext` 仅向 Utility 提供同一选择；
+菜单选择不创建 checkout。`useWorkspaceSendActions` 先完成原发送计划解析，只有
+ready/start 分支委托 `ComposerWorktreeSubmission`，本地命令、空输入和本地确认均
+沿用原 owner。Git/Workspace 继续由现有 current gateway 和 App Server service 执行。
+
+```text
+ComposerUtilityBar -> staged composerMode
+ -> Workspace send plan (ready/start)
+ -> ComposerWorktreeSubmission (request -> confirmed path/workspace identity)
+ -> projectGit/worktree/create + workspace/ensure (existing App Server owners)
+ -> typed ExecutionScope handoff
+ -> useAgentChat -> useAgentContext/useAgentSession/useAgentStream commit target
+ -> canonical Thread hydration + cwd/workspace/session/thread validation
+ -> permissionProfile/list(target cwd) -> turn/start
+ -> accepted receipt -> same ComposerDraftCoordinator capture promotion
+ -> existing project selection / TaskCenter navigation
+```
+
+`ExecutionScopeHandoff` 只保存单次冻结 payload、request/scope 去重和交接 epoch，不持有
+Thread/Turn/Item、权限或持久化的第二事实源。session create/restore/persistence 仍归
+`useAgentSession`，按目标 Workspace/cwd/request 去重，创建后 canonical hydrate 失败
+重用已确认 session；源 Workspace snapshot 不接收目标 session。异步提交准备及实际
+Turn 发送前检查同一 scope authority，ABA 或取消使旧请求失效。真正接受后仍用原 capture
+promote 到目标 Workspace，旧 receipt 不能清除新 revision 或抢占新导航目标。
+
+current Git create 是 detached checkout，不等同 Desktop pending-worktree Host 消息或新分支。
+已确认 path/session 保留供失败重试；创建响应或 Turn 接受未知时不自动重复，不自动删除。
+不新增 delete/remote producer、持久化 owner 或 runtime fallback。旧 Utility 即时 create
+mutation 和相应正向测试已替换。详细退出条件和证据见
+`internal/exec-plans/codex-composer-worktree-alignment.md`。
+
+Architecture impact: major（Renderer owner/data flow 接线）；责任开发者
+`presentation_package_editing`，2026-10-18，确认目录归属、数据流、依赖方向、协议边界
+和验证门禁。root 于 2026-10-18 核对依赖方向、同 scope identity 与现有 owner 后进行窄段集成；真实 Electron Gate B 和最终类型检查通过前不进入 release evidence。
+
 
 ## 4. Electron Desktop Host 规范
 
@@ -2392,6 +2471,10 @@ flowchart LR
   Facts[Catalog typed directory / scope / creator / vertical] --> Release
   Release[LimeCore catalog / release components / tenant policy] --> Directory[Authenticated ps/plugins directory]
   Policy[Current tenant user / explicit policy precedence] --> Directory
+  Directory --> SkillRead[Core authenticated skill detail / no installation prerequisite]
+  SkillRead --> Verified
+  Verified --> SkillBody[Same manifest and skill discovery / original UTF-8 body]
+  SkillBody --> SkillResponse[Raw plugin_id name skill_md_contents / no download URL]
   Directory --> Mutation[Core authenticated install / uninstall]
   Mutation --> Installed[Core tenant-user installed facts / snapshot]
   Installed --> InstalledRead[Core installed page / current authorization]
@@ -2434,6 +2517,17 @@ flowchart LR
   Components --> Runtime[RuntimeCore / canonical Thread Turn Item]
 ```
 
+P04b13a Core技能正文沿当前目录授权与选中release进入同一verified包owner，原组件摘要与
+正文共用技能根选择及namesByPath发现映射；覆盖普通包与分享包，未安装可读，不执行包。
+正文成功响应no-store且不签发下载URL；托管包校验失败报存储错误，外部非托管正文不可得
+返回显式null，不请求任意外部URL。P04b13b新增共享plugin/skill/read：typed surface经AccountAuth
+队列进入RuntimeCore remote owner，沿同一Context认证GET，逐段编码并校验plugin_id/name，
+保留原始正文；账号fence拒绝迟到响应。GUI技能卡片优先走现役fs/readFile，本地path为空时才
+使用远端identity；不以skill.enabled或installed禁止授权预览。关闭/换号取消并丢弃旧正文，
+Markdown投影集中复用Skills owner，frontmatter/一级标题规则来自同版Desktop原字节REA。
+不引入renderer HTTP、假本地path、本地datasource空实现、第二缓存/registry或runtime。
+root确认该只读数据流，2026-10-18。公共RPC/GUI和真实进程结果见执行计划，未验不计完成。
+
 Core 包会话、内容 hash 与静态扫描事实已从进程 broker 收回现役 Repository/snapshot；原字节
 进入 `plugin.packageRootDir` 的私有不可变 hash 文件，只有已提交 verified 记录才能经原下载
 API 读取，读取复验 hash/大小。上传/扫描以 revision CAS 提交；写盘或持久化失败不发布 URL，
@@ -2460,12 +2554,19 @@ creator/owner，不请求下载URL。checkout显式请求授权详情的下载UR
 owner，锁内注册home/.agents/plugins/marketplace.json和账号编辑映射。新目录默认home/plugins/name；
 既有映射目录保留用户编辑，未映射现存目录拒绝。mapping和marketplace各自原子写，普通失败
 回滚注册，仅清本次创建目录，不提供跨文件断电事务。checkout不写远端install或installed cache。
-typed client/gateway和Host等待策略同步；GUI分享/编辑流程仍待后续切片。
+typed client/gateway和Host等待策略同步。基础分享GUI已由独立Dialog、权限草稿投影与状态hook
+消费同一typed gateway，支持PRIVATE创建、同ID更新、已有对象权限/工作区策略、复制、checkout
+和撤销；目录读取SharedWithMe/created shares并按canonical ID合并。账号身份同时绑定目标与
+异步响应，远端成功先保留ID，随后列表失败不重复创建；失败保留权限草稿，不增加renderer
+HTTP/凭据owner。人员/组搜索邀请、组editor capability及非creator冷重开编辑定位仍待补。
 源码与本地验证不替代Core进程/MySQL、模型Turn、Electron/CLI/PTY或平台证据。
 架构图确认：root，2026-10-18；完整目标仍active，本节不进入release evidence。
 Core源码/HTTP与SDK验证归P04b12b；App Server share五RPC已过本地真实JSON-RPC与HTTP夹具。
 checkout新产物已过Electron/preload/IPC、个人市场可见、冷启保留编辑和stdio共享状态，
-依赖为受控Core形状HTTP；真实Core进程/MySQL、模型Turn与分享GUI流程仍待验。
+依赖为受控Core形状HTTP；分享GUI专项已用固定摘要新产物通过PRIVATE创建、权限保存、原生
+复制/恢复、同ID更新、确认撤销和checkout，五RPC均经真实Electron/preload/IPC；冷复用与
+stdio共享状态另验，结果及摘要归P04b12d1。普通GUI smoke继续独立记账。
+真实Core进程/MySQL、模型Turn与完整分享GUI仍待验。
 普通Electron壳smoke不替代分享产品验收。
 未引用对象GC不在本刀。架构图/目录归属/依赖方向由root于2026-10-18确认。
 

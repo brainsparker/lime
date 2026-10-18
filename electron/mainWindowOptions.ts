@@ -431,8 +431,8 @@ export function buildMainWindowChromeOptions(
   }
 
   return {
-    titleBarStyle: "hidden",
-    trafficLightPosition: { x: 18, y: 18 },
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 16, y: 15 },
   };
 }
 

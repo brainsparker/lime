@@ -166,6 +166,84 @@ describe("Workspace committed draft lifecycle through the real Coordinator and S
     expect(await h.read(home)).toBeNull();
   });
 
+  it.each([false, true])(
+    "worktree acceptance promotes into the target workspace and preserves newer input: %s",
+    async (edit) => {
+      const h = await setup();
+      const source = { ...home, workspaceId: "a" };
+      const target = { workspaceId: "b", kind: "local" as const, id: "s1" };
+      const view = await mount(h.controller, source);
+      act(() => h.controller.setText("worktree captured input"));
+      const owner = view.current().composerDraftCoordinator!;
+      const capture = owner.captureSubmission("start");
+      await owner.idle();
+      if (edit) act(() => h.controller.setText("new revision while creating"));
+      const canonical = accepted();
+      if (canonical.kind !== "runtime-accepted")
+        throw new Error("test acceptance missing");
+      const result = {
+        ...canonical,
+        receipt: {
+          ...canonical.receipt,
+          executionScope: {
+            requestId: "r1",
+            sourceWorkspaceId: "a",
+            sourceWorkingDir: "/a",
+            workspaceId: "b",
+            workingDir: "/b",
+          },
+        },
+      };
+      await act(async () => {
+        await view.current().handleComposerDraftAccepted(capture, result);
+        expect(await owner.settleSubmission(capture, result)).toBe(!edit);
+        await owner.idle();
+      });
+      expect(view.current().getComposerDraftTarget()).toEqual(target);
+      expect(owner.getSnapshot().scope).toEqual(target);
+      expect(h.controller.getDocument().text).toBe(
+        edit ? "new revision while creating" : "",
+      );
+      expect(await h.read(source)).toBeNull();
+      if (edit)
+        expect(await h.read(target)).toMatchObject({
+          draft: { document: { text: "new revision while creating" } },
+        });
+    },
+  );
+
+  it("does not promote a capture when accepted execution scope names a different source workspace", async () => {
+    const h = await setup();
+    const source = { ...home, workspaceId: "a" };
+    const view = await mount(h.controller, source);
+    act(() => h.controller.setText("source input"));
+    const owner = view.current().composerDraftCoordinator!;
+    const capture = owner.captureSubmission("start");
+    const canonical = accepted();
+    if (canonical.kind !== "runtime-accepted")
+      throw new Error("test acceptance missing");
+    await act(async () =>
+      view.current().handleComposerDraftAccepted(capture, {
+        ...canonical,
+        receipt: {
+          ...canonical.receipt,
+          executionScope: {
+            requestId: "r1",
+            sourceWorkspaceId: "wrong",
+            sourceWorkingDir: "/wrong",
+            workspaceId: "b",
+            workingDir: "/b",
+          },
+        },
+      }),
+    );
+    expect(view.current().getComposerDraftTarget()).toEqual(source);
+    expect(h.controller.getDocument().text).toBe("source input");
+    expect(h.mutations.filter((mutation) => mutation.op === "promote")).toEqual(
+      [],
+    );
+  });
+
   it("cross-navigation acceptance consumes the old identity and leaves the new document", async () => {
     const h = await setup();
     h.seed(b, "B unsent");

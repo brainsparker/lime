@@ -1,8 +1,5 @@
 import styled from "styled-components";
-import {
-  APP_SIDEBAR_RAIL_WIDTH,
-  APP_SIDEBAR_WIDTH,
-} from "./AppSidebar.constants";
+import { APP_SIDEBAR_WIDTH } from "./AppSidebar.constants";
 
 export const Container = styled.aside<{
   $collapsed?: boolean;
@@ -10,7 +7,7 @@ export const Container = styled.aside<{
   $reserveWindowControls?: boolean;
 }>`
   --sidebar-window-control-safe-top: ${({ $reserveWindowControls }) =>
-    $reserveWindowControls ? "34px" : "0px"};
+    $reserveWindowControls ? "46px" : "0px"};
   --sidebar-surface-top: ${({ $themeMode }) =>
     $themeMode === "dark"
       ? "#15202b"
@@ -71,37 +68,40 @@ export const Container = styled.aside<{
     $themeMode === "dark"
       ? "rgba(255, 255, 255, 0.08)"
       : "var(--lime-sidebar-card-highlight, rgba(255, 255, 255, 0.72))"};
-  display: grid;
-  grid-template-columns: ${({ $collapsed }) =>
-    $collapsed
-      ? `${APP_SIDEBAR_RAIL_WIDTH}px 0px`
-      : `${APP_SIDEBAR_RAIL_WIDTH}px minmax(0, 1fr)`};
+  display: flex;
   width: ${({ $collapsed }) =>
-    $collapsed ? `${APP_SIDEBAR_RAIL_WIDTH}px` : `${APP_SIDEBAR_WIDTH}px`};
-  min-width: ${({ $collapsed }) =>
-    $collapsed ? `${APP_SIDEBAR_RAIL_WIDTH}px` : `${APP_SIDEBAR_WIDTH}px`};
+    $collapsed
+      ? "0px"
+      : `clamp(240px, var(--sidebar-preferred-width, ${APP_SIDEBAR_WIDTH}px), min(520px, calc(100vw - 320px)))`};
+  min-width: ${({ $collapsed }) => ($collapsed ? "0px" : "240px")};
+  flex-shrink: 0;
   height: 100vh;
   position: relative;
   isolation: isolate;
   z-index: 30;
   background: var(--sidebar-surface);
-  border-right: 1px solid var(--sidebar-border);
-  box-shadow: 10px 0 26px -28px rgba(15, 23, 42, 0.38);
+  &[data-collapsed="true"] + main {
+    --lime-thread-header-leading: ${({ $reserveWindowControls }) =>
+      $reserveWindowControls ? "136px" : "48px"};
+  }
+  border-right: ${({ $collapsed }) =>
+    $collapsed ? "none" : "1px solid var(--sidebar-border)"};
   transition:
     width 180ms ease,
     min-width 180ms ease,
-    grid-template-columns 180ms ease;
+    border-color 180ms ease;
 `;
 
 export const SidebarSurface = styled.div<{ $collapsed?: boolean }>`
-  display: flex;
+  width: 100%;
+  display: ${({ $collapsed }) => ($collapsed ? "none" : "flex")};
   min-width: 0;
   min-height: 0;
   flex-direction: column;
   padding: ${({ $collapsed }) =>
     $collapsed
       ? "0"
-      : "calc(10px + var(--sidebar-window-control-safe-top)) 10px 12px"};
+      : "calc(4px + var(--sidebar-window-control-safe-top)) 8px 8px"};
   overflow: hidden;
   background: var(--sidebar-surface);
 `;
@@ -109,14 +109,15 @@ export const SidebarSurface = styled.div<{ $collapsed?: boolean }>`
 export const HeaderArea = styled.div<{ $collapsed?: boolean }>`
   display: flex;
   flex-direction: column;
-  gap: ${({ $collapsed }) => ($collapsed ? "8px" : "7px")};
-  margin-bottom: 10px;
+  gap: 0;
+  margin-bottom: 4px;
 `;
 
 export const HeaderTopRow = styled.div<{ $collapsed?: boolean }>`
   display: flex;
   align-items: center;
   gap: 2px;
+  min-height: 32px;
   ${({ $collapsed }) =>
     $collapsed
       ? `
@@ -184,14 +185,12 @@ export const SearchButton = styled.button<{
   gap: 8px;
   width: ${({ $inline }) => ($inline ? "26px" : "100%")};
   flex-shrink: 0;
-  height: ${({ $inline }) => ($inline ? "30px" : "40px")};
-  border-radius: ${({ $inline }) => ($inline ? "8px" : "12px")};
-  border: ${({ $inline }) =>
-    $inline ? "none" : "1px solid var(--sidebar-card-border)"};
-  background: ${({ $inline }) =>
-    $inline ? "transparent" : "var(--sidebar-search-bg)"};
+  height: 30px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
   color: var(--sidebar-muted);
-  padding: ${({ $inline }) => ($inline ? "0" : "0 12px")};
+  padding: ${({ $inline }) => ($inline ? "0" : "0 8px")};
   cursor: pointer;
   justify-content: ${({ $inline }) => ($inline ? "center" : "flex-start")};
   transition:
@@ -199,8 +198,7 @@ export const SearchButton = styled.button<{
     background-color 0.18s ease,
     color 0.18s ease,
     box-shadow 0.18s ease;
-  box-shadow: ${({ $inline }) =>
-    $inline ? "none" : "inset 0 1px 0 rgba(255, 255, 255, 0.5)"};
+  box-shadow: none;
 
   &:hover {
     border-color: ${({ $inline }) =>
@@ -212,7 +210,7 @@ export const SearchButton = styled.button<{
   span {
     display: ${({ $inline }) => ($inline ? "none" : "inline")};
     font-size: 14px;
-    font-weight: 600;
+    font-weight: 400;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -521,7 +519,7 @@ export const SidebarSearchMoreButton = styled.button`
 `;
 
 export const MenuScroll = styled.div`
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-height: 0;
   max-height: 100%;
   overflow-y: auto;
@@ -560,7 +558,7 @@ export const NavButton = styled.button<{
   width: 100%;
   height: ${({ $collapsed }) => ($collapsed ? "40px" : "30px")};
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: ${({ $collapsed }) => ($collapsed ? "0" : "0 8px")};
   position: relative;
   background: ${({ $active }) =>

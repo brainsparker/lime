@@ -297,12 +297,8 @@ describe("SettingsPage Experimental Tab", () => {
 });
 
 describe("SettingsPage Developer Tab", () => {
-  it("设置页应在上下文侧栏保留标题、返回和全局导航", async () => {
-    vi.stubGlobal("navigator", {
-      platform: "MacIntel",
-      userAgent: "Mac OS X",
-    });
-
+  it("设置导航使用单侧栏，并返回进入设置前的页面", async () => {
+    vi.stubGlobal("navigator", { platform: "MacIntel", userAgent: "Mac OS X" });
     const onNavigate = vi.fn();
     const onBack = vi.fn();
     const container = renderComponent(
@@ -314,69 +310,30 @@ describe("SettingsPage Developer Tab", () => {
       onBack,
     );
     await flushEffects();
-
-    const header = container.querySelector(
-      '[data-testid="settings-top-header"]',
+    const navigation = container.querySelector(
+      '[data-testid="settings-navigation"]',
     );
     const button = container.querySelector<HTMLButtonElement>(
       '[data-testid="settings-back-button"]',
     );
-
-    expect(header).not.toBeNull();
-    expect(header?.textContent ?? "").not.toContain("设置中心");
-    expect(header?.textContent ?? "").toContain("Settings");
-    expect(header?.classList.contains("lime-settings-theme-scope")).toBe(true);
-    expect(header?.getAttribute("data-window-controls-reserved")).toBe("true");
-    expect(button).not.toBeNull();
-    expect(button?.textContent ?? "").toContain("Back");
-    expect(button?.getAttribute("aria-label")).toBe("Back");
-    const navigation = container.querySelector(
-      '[data-testid="settings-navigation"]',
+    expect(navigation?.getAttribute("data-window-controls-reserved")).toBe(
+      "true",
     );
-    expect(navigation?.contains(header)).toBe(true);
-    expect(getComputedStyle(navigation as Element).width).toBe("280px");
     expect(
-      container
-        .querySelector('[data-testid="app-sidebar-rail-settings"]')
-        ?.getAttribute("aria-current"),
-    ).toBe("page");
+      (navigation as HTMLElement).style.getPropertyValue(
+        "--sidebar-preferred-width",
+      ),
+    ).toBe("340px");
+    expect(button?.getAttribute("aria-label")).toBe("Back");
+    expect(navigation?.querySelector("h2")).toBeNull();
     expect(
-      container.querySelector('[data-testid="settings-title-group"]'),
-    ).toBe(null);
-
+      navigation?.querySelector('[data-testid="app-sidebar-rail"]'),
+    ).toBeNull();
     await act(async () => {
       button?.click();
-      await Promise.resolve();
     });
-
     expect(onBack).toHaveBeenCalledTimes(1);
     expect(onNavigate).not.toHaveBeenCalled();
-    act(() => {
-      container
-        .querySelector<HTMLButtonElement>(
-          '[data-testid="app-sidebar-nav-home-general"]',
-        )
-        ?.click();
-    });
-    expect(onNavigate).toHaveBeenCalledWith(
-      "agent",
-      expect.objectContaining({ agentEntry: "new-task" }),
-    );
-    expect(onBack).toHaveBeenCalledTimes(1);
-  });
-
-  it("设置页的全局图标栏应能够切回插件上下文", async () => {
-    const onNavigate = vi.fn();
-    const container = renderComponent(SettingsTabs.Home, onNavigate);
-    await flushEffects();
-    act(() => {
-      container
-        .querySelector<HTMLButtonElement>(
-          '[data-testid="app-sidebar-rail-plugins"]',
-        )
-        ?.click();
-    });
-    expect(onNavigate).toHaveBeenCalledWith("plugins", undefined);
   });
 
   it("开发者页应展示开发者与实验功能合并页，不再复用壳层设置页标题", async () => {
@@ -391,12 +348,12 @@ describe("SettingsPage Developer Tab", () => {
     expect(text).not.toContain("开发者");
   });
 
-  it("设置内容区应挂载统一氛围层，避免页面背景过于单调", async () => {
+  it("设置内容使用独立窗口工具栏与主题作用域", async () => {
     const container = renderComponent(SettingsTabs.Providers);
     await flushEffects();
 
     expect(
-      container.querySelector('[data-testid="settings-content-atmosphere"]'),
+      container.querySelector('[data-testid="settings-content-toolbar"]'),
     ).not.toBeNull();
     expect(
       container.querySelector(".lime-settings-theme-scope"),

@@ -19,6 +19,12 @@
 | `VisibleSettingsCommandMenuSectionItems`、`SettingsExternalSection`，确认公开导出 | 目前没有登记为同义 owner 的 Lime 对应符号                                                                                                            | [设置审计](settings-navigation-audit.md)仅证明参考模块职责与导出，未据字符串建立空壳或 alias                                                                                         | 现有命令菜单/外部设置消费者需按实际能力映射                                                                                                                                            |
 | `startNewConversation`，确认公开导出                                              | [useAppNavigation](../../../src/hooks/useAppNavigation.ts) → App/Sidebar → Workspace root navigation                                                 | 唯一动作、committed request、稳定 Home scope 与 fresh CAS；删除随机草稿事件、预热/materialized 双轨和 dead general tab owner，见[新建导航审计](new-conversation-navigation-audit.md) | 普通 Codex 侧栏的运行时 fresh 行为、完整冷草稿 picker 仍 unknown                                                                                                                       |
 
+## 窗口与首页排版重定位（2026-10-18）
+
+实际主Shell为app-initial，sidebar-a9ef58c0cd4b.js是ScheduledSidebar，旧主侧栏映射作废。Lime采用已证legacy分支，目标运行flag仍unknown。公开export `HomeAmbientSuggestionsContent` 已直接迁入同名唯一组件，旧HomeStartSurface删除；HomeStarterChips迁为按参考模块职责命名的HomeSuggestionList，不声称内部压缩符号原名。AppSidebarRail删除，AppSidebar和SettingsNavigation共用useSidebarWidth/SidebarResizeHandle；参考HeaderAction registry尚待迁移。SettingsPage删除双栏/多余Title/窄浮层，内容区收敛48rem和独立46px toolbar。首页删除wheel强制翻屏/第二屏gallery，Banner保留。
+
+当前验证、精确原件和未完成的Home内容/内部命名/账户位置差距由[本轮报告](../../exec-plans/artifacts/codex-shell-layout-rea-20261018/report.md)持有；组件测试通过不冒充实际GUI或全结构对齐。
+
 ## 已确认结构与方法，原类名未知
 
 | 参考职责 / 可确认成员                                                                                                                                     | Lime current owner                                                                                                                                                                                                                   | 对齐合同与限制                                                                                                                                                                        |
@@ -163,3 +169,16 @@ Queue公开`onDragEnd`行为由原生handle/drop接入现`QueuedMessageList`；�
 
 
 Developer/Media静态内容搜索（2026-10-18，renderer已实现）：原`settingsSearchDocuments`由36扩为47目标，Developer仅静态折叠组外壳，Media9常驻卡与图片数10目标；同一白名单/path/sections/定位requestKey，无新路由或索引authority。原字符串、配置值与凭证不索引，不自动打开或聚焦秘密输入。139项局部回归含五语言55次真实lazy页面定位与跨target草稿保护，strict类型/lint/格式通过；真实Electron后继候选待验。原内部名称仍unknown，不把单批索引数量当完整GUI分母。收据见Evidence索引。
+
+### 粘贴参数与Main退出顺序补证（2026-10-18）
+
+同摘要panel/worker片段确认`textHandlePaste`输入为clipboard对象，根已迁为
+`{plainText,html}`并一次更新DOM及回归调用，不留旧签名包装。
+`PresentationTextClipboard`是本地职责型类型名；REA跨worker语义trace未匹配，
+不宣称恢复了完整原始类型或调用图，详见[补证](presentation-clipboard-followup-20261018.md)。
+
+Main `eZe`/`u7`的prepare→drain→恢复quit顺序映射到
+`electron/appQuitLifecycle`→既有`AppServerHost.stop`；原fire-and-forget stop接线
+直接替换，无compat。重复请求共享同一drain是明确本地实现选择；上游flush集合、
+context dispose界限与资源树不冒称同义。26项定向回归、严格lint、Electron类型通过；
+新固定产物原生验证待做，历史偶发超时根因unknown，原15秒门禁不变。

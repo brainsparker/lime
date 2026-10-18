@@ -69,7 +69,8 @@ const profile = {
 };
 const summary = {
   ok: false,
-  proofLevel: "real Electron bridge + visible catalog + real stdio",
+  proofLevel:
+    "real Electron share GUI + five RPC + visible catalog + real stdio",
   dependency: "controlled Core-shaped HTTP; unavailable Turn backend",
   shareGuiEntry: false,
   modelTurn: false,
@@ -360,7 +361,7 @@ async function visible(stage) {
   const page = handle.page;
   await page
     .locator(
-      '[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]',
+      '[data-testid="app-sidebar-nav-plugins"]',
     )
     .click();
   await page

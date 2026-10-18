@@ -1934,6 +1934,10 @@ pub const APP_SERVER_METHODS: &[AppServerMethodSpec] = &[
 
 pub const APP_SERVER_REQUEST_SERIALIZATION_SCOPES: &[AppServerRequestSerializationScopeSpec] = &[
     AppServerRequestSerializationScopeSpec {
+        method: crate::protocol::v2::METHOD_PLUGIN_SKILL_READ,
+        scope: AppServerRequestSerializationScope::AccountAuth,
+    },
+    AppServerRequestSerializationScopeSpec {
         method: crate::protocol::v2::METHOD_PLUGIN_SHARE_SAVE,
         scope: AppServerRequestSerializationScope::AccountAuth,
     },

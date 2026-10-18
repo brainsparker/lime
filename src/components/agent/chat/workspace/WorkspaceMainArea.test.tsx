@@ -392,12 +392,12 @@ describe("WorkspaceMainArea", () => {
       container.querySelector<HTMLElement>(
         '[data-testid="layout-chat-panel-plain"]',
       )?.dataset.topInset,
-    ).toBe("52px");
+    ).toBe("46px");
     expect(
       container.querySelector<HTMLElement>(
         '[data-testid="layout-canvas-panel"]',
       )?.dataset.topInset,
-    ).toBe("52px");
+    ).toBe("46px");
   });
 
   it("窄宽度任务中心也不应恢复内联会话标签条", () => {

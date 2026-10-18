@@ -36,6 +36,11 @@ export function PluginShareDialog({
   const [targets, setTargets] = useState<PluginShareTarget[]>([]);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [opener] = useState(() =>
+    document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null,
+  );
   const account = getCloudAccount()?.account;
   const { context, pending } = share;
   const permissions = pluginSharePermissions(context, account?.userId ?? "");
@@ -65,6 +70,12 @@ export function PluginShareDialog({
         <Dialog.Content
           className="lime-workbench-theme-scope lime-workbench-surface-scope fixed left-1/2 top-1/2 z-50 max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-[520px] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-xl border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] p-6 text-[color:var(--lime-text-strong)] shadow-xl"
           data-testid="plugin-share-dialog"
+          onCloseAutoFocus={(event) => {
+            if (opener?.isConnected) {
+              event.preventDefault();
+              opener.focus();
+            }
+          }}
           onInteractOutside={(event) => {
             if (pending || dirty || confirmDelete) event.preventDefault();
           }}

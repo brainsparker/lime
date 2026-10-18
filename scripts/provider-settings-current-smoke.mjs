@@ -295,7 +295,7 @@ async function openProviderSettings(page, options) {
   });
 
   assert(clicked, "未找到账号菜单里的模型设置入口");
-  await page.waitForSelector('[data-testid="settings-top-header"]', {
+  await page.waitForSelector('[data-testid="settings-navigation"]', {
     timeout: options.timeoutMs,
   });
   await page.waitForSelector('[data-testid="api-key-provider-section"]', {

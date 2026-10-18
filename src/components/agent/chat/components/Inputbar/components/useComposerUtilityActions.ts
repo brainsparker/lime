@@ -10,7 +10,6 @@ import {
 import {
   checkoutProjectGitBranch,
   createProjectGitBranch,
-  createProjectGitWorktree,
   readProjectGitStatus,
   type ProjectGitStatus,
 } from "@/lib/api/projectGit";
@@ -20,12 +19,7 @@ import type {
   ComposerUtilityBarCopy,
 } from "./composerUtilityBarTypes";
 
-type UtilityMutation =
-  | "blank"
-  | "folder"
-  | "worktree"
-  | "checkout"
-  | "createBranch";
+type UtilityMutation = "blank" | "folder" | "checkout" | "createBranch";
 type GitReadState = "unavailable" | "loading" | "ready" | "error";
 
 interface ComposerUtilityActionsParams {
@@ -34,7 +28,6 @@ interface ComposerUtilityActionsParams {
   copy: ComposerUtilityBarCopy;
   onProjectChange?: (projectId: string | null) => void;
   onProjectOpenChange: (open: boolean) => void;
-  onModeOpenChange: (open: boolean) => void;
   onBranchOpenChange: (open: boolean) => void;
   onBranchSearchChange: (query: string) => void;
 }
@@ -50,7 +43,6 @@ export function useComposerUtilityActions({
   copy,
   onProjectChange,
   onProjectOpenChange,
-  onModeOpenChange,
   onBranchOpenChange,
   onBranchSearchChange,
 }: ComposerUtilityActionsParams) {
@@ -177,33 +169,6 @@ export function useComposerUtilityActions({
       toast.success(copy.projectOpened);
     });
 
-  const createWorktree = () => {
-    if (!rootPath || !gitStatus?.hasGitRepository) return;
-    return runMutation(
-      "worktree",
-      copy.worktreeCreateFailed,
-      async (isCurrent) => {
-        const worktree = await createProjectGitWorktree(
-          rootPath,
-          undefined,
-          gitStatus.currentBranch ?? undefined,
-        );
-        if (!isCurrent()) return;
-        const project = await ensureProjectWorkspace({
-          name:
-            directoryName(worktree.worktreePath) ||
-            copy.newProjectNameFallback.trim(),
-          rootPath: worktree.worktreePath,
-          workspaceType: "general",
-        });
-        if (!isCurrent()) return;
-        selectProject(project);
-        onModeOpenChange(false);
-        toast.success(copy.worktreeCreated);
-      },
-    );
-  };
-
   const checkoutBranch = (branch: string) => {
     if (!rootPath || !gitStatus?.hasGitRepository || requestRef.current) return;
     if (branch === gitStatus.currentBranch) {
@@ -260,7 +225,6 @@ export function useComposerUtilityActions({
     selectProject,
     createBlankProject,
     useExistingFolder,
-    createWorktree,
     checkoutBranch,
     createBranch,
     retryGitStatus,

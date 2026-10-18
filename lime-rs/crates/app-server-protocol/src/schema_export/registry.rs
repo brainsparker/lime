@@ -956,6 +956,8 @@ pub(super) fn v2_schemas() -> Vec<GeneratedJsonSchema> {
         typed_schema::<v2::PluginSummary>("PluginSummary"),
         typed_schema::<v2::PluginReadParams>("PluginReadParams"),
         typed_schema::<v2::PluginReadResponse>("PluginReadResponse"),
+        typed_schema::<v2::PluginSkillReadParams>("PluginSkillReadParams"),
+        typed_schema::<v2::PluginSkillReadResponse>("PluginSkillReadResponse"),
         typed_schema::<v2::PluginDetail>("PluginDetail"),
         typed_schema::<v2::PluginHookSummary>("PluginHookSummary"),
         typed_schema::<v2::PluginInstallParams>("PluginInstallParams"),

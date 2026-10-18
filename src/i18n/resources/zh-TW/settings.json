@@ -1832,8 +1832,6 @@
   "settings.appearance.colorScheme.options.lime-future.label": "紅白未來城",
   "settings.appearance.colorScheme.options.lime-future.description": "紅色天體、冷白城市與中國紅軌道。",
   "settings.layout.sidebar.experimentalBadge": "實驗",
-  "settings.layout.sidebar.floatingNav.openAria": "開啟設定導覽",
-  "settings.layout.sidebar.floatingNav.fallbackLabel": "設定導覽",
   "settings.executionPolicy.title": "執行策略",
   "settings.executionPolicy.description": "管理程式碼任務的工作區沙箱、命令風險核准與網路規則，讓被策略阻擋的執行可以從同一入口恢復。",
   "settings.executionPolicy.hero.tipAria": "執行策略說明",

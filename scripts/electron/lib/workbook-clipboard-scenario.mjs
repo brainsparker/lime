@@ -1,3 +1,4 @@
+import { withNativeClipboard } from "./native-clipboard.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -27,89 +28,30 @@ export {
 
 const timeout = 15_000;
 
-/** 用户原剪贴板仅留在内存；无法完整还原的格式在任何覆盖发生前拒绝。 */
-export async function withWorkbookClipboard(app, perform) {
-  assert.equal(
-    typeof app?.evaluate,
-    "function",
-    "real Electron main clipboard is required",
-  );
-  const backup = await app.evaluate(({ clipboard }) => {
-    const formats = clipboard.availableFormats();
-    if (
-      !formats.every((format) =>
-        [
-          "text/plain",
-          "text/html",
-          "text/rtf",
-          "application/rtf",
-          "image/png",
-        ].includes(format),
-      )
-    )
-      throw new Error(
-        "Clipboard has unsupported formats; refusing to overwrite user clipboard",
-      );
-    const data = {};
-    if (formats.includes("text/plain")) data.text = clipboard.readText();
-    if (formats.includes("text/html")) data.html = clipboard.readHTML();
-    if (
-      formats.some((format) => ["text/rtf", "application/rtf"].includes(format))
-    )
-      data.rtf = clipboard.readRTF();
-    if (formats.includes("image/png"))
-      data.image = clipboard.readImage().toDataURL();
-    return { formats, data };
-  });
-  try {
-    return await perform({
-      readText: () => app.evaluate(({ clipboard }) => clipboard.readText()),
-      writeText: async (text) => {
-        const matches = await app.evaluate(({ clipboard }, text) => {
-          clipboard.write({ text });
-          return (
-            clipboard.readText() === text &&
-            !clipboard.availableFormats().includes("text/html")
+/** 用户原剪贴板只留内存，和富文本场景共用同一原始格式恢复 owner。 */
+export async function withWorkbookClipboard(app, perform, options) {
+  return withNativeClipboard(
+    app,
+    () =>
+      perform({
+        readText: () => app.evaluate(({ clipboard }) => clipboard.readText()),
+        writeText: async (text) => {
+          const matches = await app.evaluate(({ clipboard }, text) => {
+            clipboard.write({ text });
+            return (
+              clipboard.readText() === text &&
+              !clipboard.availableFormats().includes("text/html")
+            );
+          }, text);
+          assert.equal(
+            matches,
+            true,
+            "native plain text clipboard roundtrip; no synthetic event fallback",
           );
-        }, text);
-        assert.equal(
-          matches,
-          true,
-          "native plain text clipboard roundtrip; no synthetic event fallback",
-        );
-      },
-    });
-  } finally {
-    const restored = await app.evaluate(
-      ({ clipboard, nativeImage }, original) => {
-        clipboard.clear();
-        if (original.formats.length) {
-          const data = { ...original.data };
-          if (data.image)
-            data.image = nativeImage.createFromDataURL(data.image);
-          clipboard.write(data);
-        }
-        return (
-          JSON.stringify(clipboard.availableFormats().sort()) ===
-            JSON.stringify([...original.formats].sort()) &&
-          (original.data.text === undefined ||
-            clipboard.readText() === original.data.text) &&
-          (original.data.html === undefined ||
-            clipboard.readHTML() === original.data.html) &&
-          (original.data.rtf === undefined ||
-            clipboard.readRTF() === original.data.rtf) &&
-          (original.data.image === undefined ||
-            clipboard.readImage().toDataURL() === original.data.image)
-        );
-      },
-      backup,
-    );
-    assert.equal(
-      restored,
-      true,
-      "native clipboard restoration failed; user content is never written to evidence",
-    );
-  }
+        },
+      }),
+    options,
+  );
 }
 
 /** 只读取公开 DOM；不调用 Controller，不注入 ClipboardEvent 或替代选择状态。 */

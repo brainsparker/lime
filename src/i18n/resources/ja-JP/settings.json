@@ -1832,8 +1832,6 @@
   "settings.appearance.colorScheme.options.lime-future.label": "レッドホワイトフューチャーシティ",
   "settings.appearance.colorScheme.options.lime-future.description": "赤い天体光、白い建築、中国紅のレール。",
   "settings.layout.sidebar.experimentalBadge": "ラボ",
-  "settings.layout.sidebar.floatingNav.openAria": "設定ナビゲーションを開く",
-  "settings.layout.sidebar.floatingNav.fallbackLabel": "設定ナビゲーション",
   "settings.executionPolicy.title": "実行ポリシー",
   "settings.executionPolicy.description": "コードタスクのワークスペースサンドボックス、コマンドリスク承認、ネットワークルールを管理し、ポリシーで止まった実行を同じ入口から復旧できるようにします。",
   "settings.executionPolicy.hero.tipAria": "実行ポリシーの説明",

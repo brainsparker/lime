@@ -1832,8 +1832,6 @@
   "settings.appearance.colorScheme.options.lime-future.label": "红白未来城",
   "settings.appearance.colorScheme.options.lime-future.description": "红色天体、冷白城市与中国红轨道。",
   "settings.layout.sidebar.experimentalBadge": "实验",
-  "settings.layout.sidebar.floatingNav.openAria": "打开设置导航",
-  "settings.layout.sidebar.floatingNav.fallbackLabel": "设置导航",
   "settings.executionPolicy.title": "执行策略",
   "settings.executionPolicy.description": "管理代码任务的工作区沙箱、命令风险审批和网络规则，让被策略阻断的运行可以从同一入口恢复。",
   "settings.executionPolicy.hero.tipAria": "执行策略说明",

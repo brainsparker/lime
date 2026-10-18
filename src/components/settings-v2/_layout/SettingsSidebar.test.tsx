@@ -59,22 +59,22 @@ afterEach(async () => {
 });
 
 describe("SettingsSidebar", () => {
-  it("应通过 settings namespace 渲染实验 badge 与浮动导航 aria", () => {
+  it("应通过 settings namespace 渲染实验 badge 与搜索名称", () => {
     const container = renderSidebar();
-
     expect(container.textContent).toContain("Labs");
     expect(
       container
-        .querySelector('[data-testid="settings-floating-nav-button"]')
+        .querySelector('[data-testid="settings-sidebar-search"]')
         ?.getAttribute("aria-label"),
-    ).toBe("Open settings navigation");
+    ).toBe("Search settings");
     expect(container.textContent).not.toContain("settings.layout.sidebar");
   });
 
-  it("无 active item 时应使用 settings namespace 的浮动导航兜底标题", () => {
+  it("无 active item 时导航仍可访问且不会选中错误设置", () => {
     const container = renderSidebar("__missing__" as SettingsTabs);
-
-    expect(container.textContent).toContain("Settings navigation");
-    expect(container.textContent).not.toContain("打开设置导航");
+    expect(container.querySelector('[aria-current="page"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="settings-sidebar-search"]'),
+    ).not.toBeNull();
   });
 });

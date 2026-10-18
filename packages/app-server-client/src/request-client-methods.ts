@@ -666,6 +666,12 @@ export const APP_SERVER_REQUEST_CLIENT_METHODS: readonly AppServerRequestClientM
       params: "required",
     },
     {
+      name: "readPluginSkill",
+      method: protocol.METHOD_PLUGIN_SKILL_READ,
+      kind: "request",
+      params: "required",
+    },
+    {
       name: "readPlugin",
       method: protocol.METHOD_PLUGIN_READ,
       kind: "request",

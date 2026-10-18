@@ -145,10 +145,10 @@ describe("同一PresentationController的canonical富文本输入与原包保存
     const { controller, select, editor, original, disk } = await setup();
     select(0);
     expect(
-      controller.textHandlePaste(
-        "安全 <&>",
-        '<p><strong>安全 &lt;&amp;&gt;</strong><a href="https://example.invalid/new?x=1&amp;y=2">link</a></p>',
-      ),
+      controller.textHandlePaste({
+        plainText: "安全 <&>",
+        html: '<p><strong>安全 &lt;&amp;&gt;</strong><a href="https://example.invalid/new?x=1&amp;y=2">link</a></p>',
+      }),
     ).toBe(true);
     expect(editor().value.startsWith("安全 <&>linkAlpha ")).toBe(true);
     expect(await controller.flushPublicFile()).toBe(true);
@@ -190,10 +190,10 @@ describe("同一PresentationController的canonical富文本输入与原包保存
     expect(controller.textHandleBeforeInput("historyRedo")).toBe(true);
     expect(editor().typingStyle).toEqual({ italic: true });
     expect(
-      controller.textHandlePaste(
-        "new link",
-        '<a href="https://example.invalid/local-history">new link</a>',
-      ),
+      controller.textHandlePaste({
+        plainText: "new link",
+        html: '<a href="https://example.invalid/local-history">new link</a>',
+      }),
     ).toBe(true);
     const linked = editor().bodyXml;
     expect(controller.textHandleBeforeInput("historyUndo")).toBe(true);
@@ -228,12 +228,15 @@ describe("同一PresentationController的canonical富文本输入与原包保存
     select(0);
     expect(controller.textHandleBeforeInput("historyUndo")).toBe(false);
     expect(controller.textHandleBeforeInput("historyRedo")).toBe(false);
-    controller.textHandlePaste(
-      "discard",
-      '<a href="https://example.invalid/discard">discard</a>',
-    );
+    controller.textHandlePaste({
+      plainText: "discard",
+      html: '<a href="https://example.invalid/discard">discard</a>',
+    });
     select(0, editor().value.length);
-    controller.textHandlePaste("保留正文", "<p>保留正文</p>");
+    controller.textHandlePaste({
+      plainText: "保留正文",
+      html: "<p>保留正文</p>",
+    });
     expect(await controller.flushPublicFile()).toBe(true);
     const saved = await JSZip.loadAsync(disk());
     expect(await saved.file(textRelationsPath)!.async("string")).not.toContain(
@@ -264,10 +267,10 @@ describe("同一PresentationController的canonical富文本输入与原包保存
     expect(editor().bodyXml).toBe(previous);
     expect(controller.textHandleBeforeInput("historyUndo")).toBe(false);
     expect(
-      controller.textHandlePaste(
-        "plain fallback",
-        '<img src="https://example.invalid/remote.png">',
-      ),
+      controller.textHandlePaste({
+        plainText: "plain fallback",
+        html: '<img src="https://example.invalid/remote.png">',
+      }),
     ).toBe(true);
     expect(editor().value).toContain("plain fallback");
     controller.cancelTextEdit();

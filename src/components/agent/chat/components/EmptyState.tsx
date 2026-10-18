@@ -63,7 +63,7 @@ import {
   type InputCapabilitySendRoute,
 } from "../skill-selection/inputCapabilitySelection";
 import { buildServiceSkillHomeCopy } from "../service-skills/homeCopy";
-import { HomeStartSurface } from "../home/HomeStartSurface";
+import { HomeAmbientSuggestionsContent } from "../home/HomeAmbientSuggestionsContent";
 import { buildHomeSurfaceCopy } from "../home/homeSurfaceCopy";
 import { buildInputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import { buildInputbarToolPreferencesOverride } from "./Inputbar/utils/inputbarModeRequestMetadata";
@@ -978,7 +978,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const quickStartPresets = homeSurfaceCopy.quickActions.presets;
 
   const {
-    galleryItems: homeGalleryItems,
     guideCards: homeGuideCards,
     serviceSkillItems: homeServiceSkillItems,
     skillItems: homeSkillItems,
@@ -1164,7 +1163,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   );
 
   const homeStartSurfacePanel = (
-    <HomeStartSurface
+    <HomeAmbientSuggestionsContent
       starterChips={homeStarterChips}
       copy={homeSurfaceCopy.chrome}
       guideCards={homeGuideCards}
@@ -1194,12 +1193,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <EmptyStateLayout
       heroCopy={homeSurfaceCopy.hero}
-      chromeCopy={homeSurfaceCopy.chrome}
       prioritySlot={priorityPanel}
       supportingSlot={isGeneralTheme ? null : defaultQuickActionsPanel}
-      isGeneralTheme={isGeneralTheme}
-      galleryItems={homeGalleryItems}
-      onSelectGalleryItem={handleSelectHomeSkillItem}
     >
       <CuratedTaskLauncherDialog
         open={Boolean(curatedTaskLauncherTask)}

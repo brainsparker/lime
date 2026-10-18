@@ -18,6 +18,7 @@ import {
   resolveCurrentDesktopStorageRoots,
 } from "./appDataPaths";
 import { ElectronAppServerHost } from "./appServerHost";
+import { installAppQuitLifecycle } from "./appQuitLifecycle";
 import {
   ElectronEmbeddedBrowserHost,
   isEmbeddedBrowserCommand,
@@ -1544,16 +1545,21 @@ app.on("activate", () => {
   }
 });
 
-app.on("before-quit", () => {
-  isQuitting = true;
-  globalShortcut.unregisterAll();
-  tray?.destroy();
-  tray = null;
-  devHttpBridge?.stop();
-  devHttpBridge = null;
-  hostCommands.dispose();
-  persistedAtomHost.dispose();
-  void appServerHost.stop();
+installAppQuitLifecycle(app, {
+  prepare() {
+    isQuitting = true;
+    globalShortcut.unregisterAll();
+    tray?.destroy();
+    tray = null;
+    devHttpBridge?.stop();
+    devHttpBridge = null;
+    hostCommands.dispose();
+    persistedAtomHost.dispose();
+  },
+  dispose: () => appServerHost.stop(),
+  onError: (error) => {
+    console.error("[electron-host] App Server shutdown failed", error);
+  },
 });
 
 function handleWindowsSquirrelStartup(): boolean {

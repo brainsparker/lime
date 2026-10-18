@@ -1,12 +1,17 @@
+import { requireExecutionScope, type ExecutionScope } from "./executionScope";
 import type { QueuedSubmission } from "@limecloud/app-server-client";
 import {
   requireRuntimeAcceptanceReceipt,
   reportRuntimeAcceptancePostProcessingFailure,
-  type RuntimeAcceptanceReceipt,
+  type RuntimeAcceptanceReceipt as CanonicalRuntimeAcceptanceReceipt,
   type RuntimeAcceptancePostProcessingPhase,
 } from "@/lib/api/agentRuntime/runtimeAcceptance";
 import { parseQueuedSubmission } from "@/lib/api/agentRuntime/threadQueueClient";
 import type { SendMessageObserver } from "./agentChatShared";
+
+export type RuntimeAcceptanceReceipt = CanonicalRuntimeAcceptanceReceipt & {
+  readonly executionScope?: ExecutionScope;
+};
 
 export interface RuntimeQueueAcceptanceReceipt {
   readonly kind: "queue";
@@ -45,7 +50,12 @@ export function fromRuntimeAcceptanceReceipt(
   try {
     return Object.freeze({
       kind: "runtime-accepted",
-      receipt: requireRuntimeAcceptanceReceipt(receipt),
+      receipt: Object.freeze({
+        ...requireRuntimeAcceptanceReceipt(receipt),
+        ...(receipt.executionScope
+          ? { executionScope: requireExecutionScope(receipt.executionScope) }
+          : {}),
+      }),
     });
   } catch {
     return { kind: "unknown" };

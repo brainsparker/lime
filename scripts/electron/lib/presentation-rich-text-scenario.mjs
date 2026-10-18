@@ -1,3 +1,4 @@
+import { withNativeClipboard } from "./native-clipboard.mjs";
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
@@ -37,91 +38,31 @@ export {
 const timeout = 15_000;
 const editorSelector = "[data-presentation-text-editor]";
 
-/** 仅允许可完整读取/还原的系统剪贴板格式；用户内容只保留在本函数内存中。 */
-export async function withPresentationRichTextClipboard(app, perform) {
-  assert.equal(
-    typeof app?.evaluate,
-    "function",
-    "real Electron main clipboard API is required; no synthetic paste fallback",
-  );
-  const backup = await app.evaluate(({ clipboard }) => {
-    const formats = clipboard.availableFormats();
-    if (
-      !formats.every((format) =>
-        [
-          "text/plain",
-          "text/html",
-          "text/rtf",
-          "application/rtf",
-          "image/png",
-        ].includes(format),
-      )
-    )
-      throw new Error(
-        "Clipboard has unsupported formats; refusing to overwrite user clipboard",
+/** 真实 HTML 粘贴；原始系统剪贴板由共享 owner 在内存中保全并精确恢复。 */
+export async function withPresentationRichTextClipboard(app, perform, options) {
+  return withNativeClipboard(
+    app,
+    async () => {
+      const controlled = await app.evaluate(
+        ({ clipboard }, input) => {
+          clipboard.write({ text: input.plain, html: input.html });
+          return (
+            clipboard.readText() === input.plain &&
+            clipboard.readHTML().includes("HTML_BOLD") &&
+            clipboard.readHTML().includes("example.invalid/rich-paste")
+          );
+        },
+        { plain: richPastePlain, html: richPasteHtml },
       );
-    const data = {};
-    if (formats.includes("text/plain")) data.text = clipboard.readText();
-    if (formats.includes("text/html")) data.html = clipboard.readHTML();
-    if (
-      formats.some((format) => ["text/rtf", "application/rtf"].includes(format))
-    )
-      data.rtf = clipboard.readRTF();
-    if (formats.includes("image/png"))
-      data.image = clipboard.readImage().toDataURL();
-    return { formats, data };
-  });
-  try {
-    const controlled = await app.evaluate(
-      ({ clipboard }, input) => {
-        clipboard.write({ text: input.plain, html: input.html });
-        return (
-          clipboard.readText() === input.plain &&
-          clipboard.readHTML().includes("HTML_BOLD") &&
-          clipboard.readHTML().includes("example.invalid/rich-paste")
-        );
-      },
-      { plain: richPastePlain, html: richPasteHtml },
-    );
-    assert.equal(
-      controlled,
-      true,
-      "native clipboard HTML/plain roundtrip failed; no synthetic paste fallback",
-    );
-    return await perform();
-  } finally {
-    const restored = await app.evaluate(
-      ({ clipboard, nativeImage }, original) => {
-        clipboard.clear();
-        if (original.formats.length) {
-          const data = { ...original.data };
-          if (data.image)
-            data.image = nativeImage.createFromDataURL(data.image);
-          clipboard.write(data);
-        }
-        const sameFormats =
-          JSON.stringify(clipboard.availableFormats().sort()) ===
-          JSON.stringify([...original.formats].sort());
-        return (
-          sameFormats &&
-          (original.data.text === undefined ||
-            clipboard.readText() === original.data.text) &&
-          (original.data.html === undefined ||
-            clipboard.readHTML() === original.data.html) &&
-          (original.data.rtf === undefined ||
-            clipboard.readRTF() === original.data.rtf) &&
-          (original.data.image === undefined ||
-            clipboard.readImage().toDataURL() === original.data.image)
-        );
-      },
-      backup,
-    );
-    assert.equal(
-      restored,
-      true,
-      "native clipboard restore failed; user content is never written to evidence",
-    );
-  }
+      assert.equal(
+        controlled,
+        true,
+        "native clipboard HTML/plain roundtrip failed; no synthetic paste fallback",
+      );
+      return perform();
+    },
+    options,
+  );
 }
 
 /** 父文档只读同源DOM/原生Selection；不向受限iframe注入脚本、监听器或状态。 */

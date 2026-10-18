@@ -2,7 +2,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { openExternalUrlWithSystemBrowser } from "@/lib/api/externalUrl";
-import { renderSkillMarkdown } from "./skillMarkdownPreview";
+import {
+  projectSkillMarkdown,
+  renderSkillMarkdown,
+  stripSkillFrontmatter,
+} from "./skillMarkdownPreview";
 
 vi.mock("@/lib/api/externalUrl", () => ({
   openExternalUrlWithSystemBrowser: vi.fn(),
@@ -50,6 +54,26 @@ function render(content: string): HTMLDivElement {
 }
 
 describe("skillMarkdownPreview", () => {
+  it("预览只移除开头frontmatter与一级标题，原文不变", () => {
+    const raw =
+      "---\r\nname: research\r\n---\r\n\r\n# Different title\r\n\r\n## Usage\r\nBody\r\n";
+    expect(projectSkillMarkdown(raw, "Researcher")).toBe("## Usage\nBody\n");
+    expect(projectSkillMarkdown(raw)).toBe(
+      "\n# Different title\n\n## Usage\nBody\n",
+    );
+    expect(raw).toContain("\r\n# Different title\r\n");
+    for (const content of [
+      "---suffix\nBody",
+      "---\nNo closing fence",
+      "Intro\n---\nBody",
+      "\n---\nname: test\n---\nBody",
+    ]) {
+      expect(stripSkillFrontmatter(content)).toBe(content);
+    }
+    expect(projectSkillMarkdown("## Keep this\nBody", "Researcher")).toBe(
+      "## Keep this\nBody",
+    );
+  });
   it("http/https 链接应交给 externalUrl current 网关", async () => {
     const container = render("[文档](https://example.com/skill)");
     const link = container.querySelector("a");

@@ -1401,7 +1401,7 @@ async function sampleGuiHomeBackgroundRecoveryState(
       const main = document.querySelector("main") ?? document.body;
       const mainText = main?.innerText || "";
       const homeStartSurface = document.querySelector(
-        '[data-testid="home-start-surface"]',
+        '[data-testid="home-ambient-suggestions"]',
       );
       const homeRecoveryCard = document.querySelector(
         '[data-testid="home-unfinished-session-card"]',
@@ -1489,7 +1489,7 @@ async function sampleGuiHomeBackgroundRecoveryState(
       return {
         url: window.location.href,
         homeStartVisible: isVisible(homeStartSurface),
-        hasHomeStartSurface: Boolean(homeStartSurface),
+        hasHomeAmbientSuggestionsContent: Boolean(homeStartSurface),
         homeRecoveryCardVisible: isVisible(homeRecoveryCard),
         homeRecoveryCardStatus:
           homeRecoveryCard?.getAttribute("data-status") || "",

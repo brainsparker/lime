@@ -168,39 +168,24 @@ it("pointer selection keeps the input available for dirty-navigation focus resto
     expect.objectContaining({ targetId: "profile-bio" }),
   );
 });
-it("narrow-screen shortcut opens and focuses the visible search and shares its query", async () => {
+it("narrow-screen shortcut focuses the same search and preserves keyboard navigation", async () => {
   const { select } = await mountSidebar();
   vi.spyOn(window, "matchMedia").mockReturnValue({
     matches: true,
   } as MediaQueryList);
   await key(document.body, "f", { ctrlKey: true });
-  const mobile = container.querySelector<HTMLInputElement>(
-    '[data-testid="settings-mobile-search"]',
-  )!;
-  expect(document.activeElement).toBe(mobile);
-  await enter("bio", mobile);
-  const desktop = container.querySelector<HTMLInputElement>(
+  const input = container.querySelector<HTMLInputElement>(
     '[data-testid="settings-sidebar-search"]',
   )!;
-  expect(desktop.value).toBe("bio");
-  await key(mobile, "Enter");
+  expect(document.activeElement).toBe(input);
+  await enter("bio", input);
+  expect(container.querySelectorAll('[role="combobox"]')).toHaveLength(1);
+  await key(input, "Enter");
   expect(select).toHaveBeenCalledWith(
     expect.objectContaining({ targetId: "profile-bio" }),
   );
-  expect(
-    container.querySelector('[data-testid="settings-floating-nav-panel"]'),
-  ).not.toBeNull();
-  await key(mobile, "Escape");
-  expect(mobile.value).toBe("");
-  expect(
-    container.querySelector('[data-testid="settings-floating-nav-panel"]'),
-  ).not.toBeNull();
-  await key(mobile, "Escape");
-  expect(
-    container.querySelector('[data-testid="settings-floating-nav-panel"]'),
-  ).toBeNull();
-  expect(document.activeElement).toBe(
-    container.querySelector('[data-testid="settings-floating-nav-button"]'),
-  );
+  await key(input, "Escape");
+  expect(input.value).toBe("");
+  expect(document.activeElement).toBe(input);
   vi.restoreAllMocks();
 });

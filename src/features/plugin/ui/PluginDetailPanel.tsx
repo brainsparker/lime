@@ -4,6 +4,7 @@ import type {
   AppServerPluginSummary,
 } from "@/lib/api/appServerTypes";
 import { PluginCatalogAppsSection } from "./PluginCatalogAppsSection";
+import { PluginSkillsSection } from "./PluginSkillsSection";
 import {
   detailCapabilityCount,
   pluginDisplayName,
@@ -83,10 +84,7 @@ export function PluginDetailPanel({
       ) : null}
       {detail ? (
         <div className="mt-5 space-y-4 border-t border-[color:var(--lime-surface-border)] pt-4">
-          <CapabilityGroup
-            title={t("plugin.catalog.v2.detail.skills")}
-            items={detail.skills.map((item) => item.name)}
-          />
+          <PluginSkillsSection detail={detail} t={t} />
           <CapabilityGroup
             title={t("plugin.catalog.v2.detail.mcp")}
             items={detail.mcpServers}

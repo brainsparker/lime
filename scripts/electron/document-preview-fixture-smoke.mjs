@@ -2,91 +2,82 @@ import fs from "node:fs";
 import path from "node:path";
 import assert from "node:assert/strict";
 import { parseDocumentPreviewOptions } from "./lib/document-preview-options.mjs";
-import {
-  writePresentationScenarioFixture,
-  runPresentationScenarios,
-} from "./lib/document-preview-presentation-scenarios.mjs";
-import {
-  hash,
-  manifest,
-  sourcePaths,
-} from "./lib/document-preview-provenance.mjs";
-import { launchElectronFixture } from "./mcp-config-fixture-smoke.mjs";
-import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
-import {
-  createTempRuntimeEnv,
-  startTextProviderFixtureServer,
-} from "../agent-runtime/claw-chat-current-fixture-backend-file.mjs";
-import {
-  initializeAppServer,
-  ensureDefaultWorkspace,
-  ensureFixtureTextProvider,
-  bindGuiWorkspaceAndModelPreferences,
-  reloadRendererDocument,
-  invokeAppServerFromPage,
-  collectTraceRequestMethods,
-} from "../agent-runtime/claw-chat-current-fixture-rpc.mjs";
-import { sendPromptFromGui } from "../agent-runtime/claw-chat-current-fixture-gui-actions.mjs";
-import {
-  GREETING_PROMPT,
-  GREETING_DONE_TEXT,
-  GREETING_SUMMARY_TEXT,
-} from "../agent-runtime/claw-chat-current-fixture-constants.mjs";
-import { waitForSessionReadCompleted } from "../agent-runtime/claw-chat-current-fixture-read-model-waits.mjs";
-import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
-import {
-  readJsonl,
-  sanitizeText,
-} from "../agent-runtime/claw-chat-current-fixture-utils.mjs";
-import {
-  electronAppServerBinaryDestination,
-  resolveElectronAppServerRuntimeEnv,
-} from "../lib/electron-app-server-assets.mjs";
-import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
-import {
-  installInvokeTraceCollector,
-  captureInvokeTraceCollector,
-  stopInvokeTraceCollector,
-  validateInvokeTraceCollectorCapture,
-} from "../lib/invoke-trace-collector.mjs";
-import {
-  writePdfPreviewFixture,
-  runPdfPreviewScenario,
-} from "./lib/pdf-preview-scenario.mjs";
-import {
-  runPdfAnnotationScenario,
-  runPdfRegionRecoveryScenario,
-} from "./lib/pdf-annotation-scenario.mjs";
-import {
-  writeDocxPreviewFixture,
-  runDocxPreviewScenario,
-} from "./lib/docx-preview-scenario.mjs";
-import { runDocxAnnotationScenario } from "./lib/docx-annotation-scenario.mjs";
-
-import { runDocxAnnotationBatchScenario } from "./lib/docx-annotation-batch-scenario.mjs";
-import {
-  writeWorkbookPreviewFixture,
-  runWorkbookPreviewScenario,
-} from "./lib/workbook-preview-scenario.mjs";
-import { runWorkbookAnnotationScenario } from "./lib/workbook-annotation-scenario.mjs";
-import {
-  runWorkbookEditingScenario,
-  runDelimitedWorkbookEditingScenario,
-} from "./lib/workbook-editing-scenario.mjs";
-import { runWorkbookFlushScenario } from "./lib/workbook-flush-scenario.mjs";
-import {
-  writeWorkbookClipboardFixture,
-  runWorkbookClipboardScenario,
-} from "./lib/workbook-clipboard-scenario.mjs";
-import { runPresentationPreviewScenario } from "./lib/presentation-preview-scenario.mjs";
-import { runPresentationAnnotationScenario } from "./lib/presentation-annotation-scenario.mjs";
-import { runPresentationFlushScenario } from "./lib/presentation-flush-scenario.mjs";
-import {
-  observePreviewConsoleError,
-  capturePreviewFailureTrace,
-} from "./lib/document-preview-diagnostics.mjs";
 
 const previewOptions = parseDocumentPreviewOptions(process.argv);
+
+// Reject invalid scenarios before loading GUI and document dependencies.
+const [
+  { writePresentationScenarioFixture, runPresentationScenarios },
+  { hash, manifest, sourcePaths },
+  { launchElectronFixture },
+  { captureMainProcessExit },
+  { createTempRuntimeEnv, startTextProviderFixtureServer },
+  {
+    initializeAppServer,
+    ensureDefaultWorkspace,
+    ensureFixtureTextProvider,
+    bindGuiWorkspaceAndModelPreferences,
+    reloadRendererDocument,
+    invokeAppServerFromPage,
+    collectTraceRequestMethods,
+  },
+  { sendPromptFromGui },
+  { GREETING_PROMPT, GREETING_DONE_TEXT, GREETING_SUMMARY_TEXT },
+  { waitForSessionReadCompleted },
+  { settleFixtureResources },
+  { readJsonl, sanitizeText },
+  { electronAppServerBinaryDestination, resolveElectronAppServerRuntimeEnv },
+  { inspectElectronFixtureBuildFreshness },
+  {
+    installInvokeTraceCollector,
+    captureInvokeTraceCollector,
+    stopInvokeTraceCollector,
+    validateInvokeTraceCollectorCapture,
+  },
+  { writePdfPreviewFixture, runPdfPreviewScenario },
+  { runPdfAnnotationScenario, runPdfRegionRecoveryScenario },
+  { writeDocxPreviewFixture, runDocxPreviewScenario },
+  { runDocxAnnotationScenario },
+  { runDocxAnnotationBatchScenario },
+  { writeWorkbookPreviewFixture, runWorkbookPreviewScenario },
+  { runWorkbookAnnotationScenario },
+  { runWorkbookEditingScenario, runDelimitedWorkbookEditingScenario },
+  { runWorkbookFlushScenario },
+  { writeWorkbookClipboardFixture, runWorkbookClipboardScenario },
+  { runPresentationPreviewScenario },
+  { runPresentationAnnotationScenario },
+  { runPresentationFlushScenario },
+  { observePreviewConsoleError, capturePreviewFailureTrace },
+] = await Promise.all([
+  import("./lib/document-preview-presentation-scenarios.mjs"),
+  import("./lib/document-preview-provenance.mjs"),
+  import("./mcp-config-fixture-smoke.mjs"),
+  import("./lib/persisted-atom-fixture-driver.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-backend-file.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-rpc.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-gui-actions.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-constants.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-read-model-waits.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-teardown.mjs"),
+  import("../agent-runtime/claw-chat-current-fixture-utils.mjs"),
+  import("../lib/electron-app-server-assets.mjs"),
+  import("../lib/electron-fixture-build.mjs"),
+  import("../lib/invoke-trace-collector.mjs"),
+  import("./lib/pdf-preview-scenario.mjs"),
+  import("./lib/pdf-annotation-scenario.mjs"),
+  import("./lib/docx-preview-scenario.mjs"),
+  import("./lib/docx-annotation-scenario.mjs"),
+  import("./lib/docx-annotation-batch-scenario.mjs"),
+  import("./lib/workbook-preview-scenario.mjs"),
+  import("./lib/workbook-annotation-scenario.mjs"),
+  import("./lib/workbook-editing-scenario.mjs"),
+  import("./lib/workbook-flush-scenario.mjs"),
+  import("./lib/workbook-clipboard-scenario.mjs"),
+  import("./lib/presentation-preview-scenario.mjs"),
+  import("./lib/presentation-annotation-scenario.mjs"),
+  import("./lib/presentation-flush-scenario.mjs"),
+  import("./lib/document-preview-diagnostics.mjs"),
+]);
 const {
   runId,
   withAnnotations,

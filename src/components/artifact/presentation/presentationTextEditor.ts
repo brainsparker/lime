@@ -438,10 +438,10 @@ export function installPresentationTextEditor({
     if (composing) return;
     canonical(() => {
       if (!event.clipboardData || !synchronizeSelection()) return false;
-      return controller.textHandlePaste(
-        event.clipboardData.getData("text/plain"),
-        event.clipboardData.getData("text/html"),
-      );
+      return controller.textHandlePaste({
+        plainText: event.clipboardData.getData("text/plain"),
+        html: event.clipboardData.getData("text/html"),
+      });
     });
   });
   for (const name of ["copy", "cut"] as const)

@@ -1832,8 +1832,6 @@
   "settings.appearance.colorScheme.options.lime-future.label": "레드 화이트 퓨처 시티",
   "settings.appearance.colorScheme.options.lime-future.description": "붉은 천체빛, 흰 건축, 중국홍 궤도.",
   "settings.layout.sidebar.experimentalBadge": "실험",
-  "settings.layout.sidebar.floatingNav.openAria": "설정 내비게이션 열기",
-  "settings.layout.sidebar.floatingNav.fallbackLabel": "설정 내비게이션",
   "settings.executionPolicy.title": "실행 정책",
   "settings.executionPolicy.description": "코드 작업의 워크스페이스 샌드박스, 명령 위험 승인, 네트워크 규칙을 관리해 정책으로 막힌 실행을 한 곳에서 복구합니다.",
   "settings.executionPolicy.hero.tipAria": "실행 정책 설명",

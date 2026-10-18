@@ -35,6 +35,11 @@ export type PresentationTextTarget =
   | string
   | { tableId: string; row: number; column: number };
 
+export interface PresentationTextClipboard {
+  plainText: string;
+  html?: string;
+}
+
 export interface PresentationTextEditorState {
   slideId: string;
   elementId: string;
@@ -474,7 +479,7 @@ export function presentationTextController(host: Host) {
     });
   }
 
-  function textHandlePaste(plainText: string, html?: string) {
+  function textHandlePaste({ plainText, html }: PresentationTextClipboard) {
     const parsed =
       draft && html
         ? parsePresentationTextHtml(html, draft.body.ownerDocument)

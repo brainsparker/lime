@@ -11,9 +11,13 @@ import {
   assertPresentationRichTextFixture,
   assertPresentationRichTextSave,
   readPresentationRichTextFile,
-  withPresentationRichTextClipboard,
+  withPresentationRichTextClipboard as withClipboard,
   writePresentationRichTextFixture,
 } from "./presentation-rich-text-scenario.mjs";
+
+// 单测使用显式内存夹具，不读取或修改运行机器的系统剪贴板。
+const withPresentationRichTextClipboard = (app, perform) =>
+  withClipboard(app, perform, { platform: "linux" });
 import {
   richRelationsPath,
   richSlidePath,

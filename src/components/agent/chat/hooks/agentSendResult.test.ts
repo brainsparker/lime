@@ -121,3 +121,40 @@ describe("receipt identity consistency", () => {
     expect(accepted).toHaveBeenCalledOnce();
   });
 });
+
+describe("execution scope acceptance", () => {
+  it("retains the validated target scope through early observer capture and final normalization", () => {
+    const executionScope = {
+      requestId: "r1",
+      sourceWorkspaceId: "a",
+      sourceWorkingDir: "/a",
+      workspaceId: "b",
+      workingDir: "/b/",
+    };
+    const scopedReceipt = { ...receipt, executionScope };
+    const capture = createRuntimeSubmissionCapture();
+    capture.observer.onRuntimeAccepted?.(scopedReceipt);
+    expect(capture.finish({ kind: "unknown" })).toMatchObject({
+      kind: "runtime-accepted",
+      receipt: { executionScope: { ...executionScope, workingDir: "/b" } },
+    });
+    expect(
+      normalizeRuntimeSubmissionResult({
+        kind: "runtime-accepted",
+        receipt: scopedReceipt,
+      }),
+    ).toMatchObject({
+      kind: "runtime-accepted",
+      receipt: { executionScope: { ...executionScope, workingDir: "/b" } },
+    });
+    expect(
+      normalizeRuntimeSubmissionResult({
+        kind: "runtime-accepted",
+        receipt: {
+          ...scopedReceipt,
+          executionScope: { ...executionScope, requestId: "" },
+        },
+      }),
+    ).toEqual({ kind: "unknown" });
+  });
+});

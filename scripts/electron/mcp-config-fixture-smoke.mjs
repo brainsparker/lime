@@ -323,7 +323,7 @@ export async function openSettings(page, options) {
     assert(clicked, "未找到账号菜单里的模型设置入口");
   }
 
-  await page.locator('[data-testid="settings-top-header"]').waitFor({
+  await page.locator('[data-testid="settings-navigation"]').waitFor({
     state: "visible",
     timeout: Math.min(45_000, options.timeoutMs),
   });

@@ -85,6 +85,7 @@ describe("Command wiring keeps Composer scope in the visible workspace", () => {
     };
     fixture.seed(home, "unsent Home draft");
     let current!: ReturnType<typeof useAgentChatWorkspaceCommandWiring>;
+    const deferTopicSwitch = vi.fn();
     let setSession!: (id: string) => void;
     function Surface() {
       const [sessionId, updateSession] = useState<string | null>(null);
@@ -95,6 +96,7 @@ describe("Command wiring keeps Composer scope in the visible workspace", () => {
           taskCenterWorkspaceId: home.workspaceId,
           sessionId,
           sendMessage: submit,
+          deferTopicSwitch,
           normalizedInitialSessionId: null,
           projectSelectionSource: "prop",
         } as unknown as AgentChatWorkspaceCommandScope,
@@ -122,12 +124,46 @@ describe("Command wiring keeps Composer scope in the visible workspace", () => {
     ).sendActions.sendMessage;
     return {
       fixture,
+      deferTopicSwitch,
       home,
       current: () => current,
       setSession: (id: string) => setSession(id),
       send,
     };
   }
+
+  it("commits accepted Worktree navigation with the target project and canonical session", async () => {
+    const view = await mountSend(async () => accepted());
+    const sendActions = (
+      navigation.send.capture.mock.lastCall![0] as Parameters<
+        typeof useWorkspaceSendSurfaceRuntime
+      >[0]
+    ).sendActions;
+    const executionScope = {
+      requestId: "r1",
+      sourceWorkspaceId: view.home.workspaceId,
+      sourceWorkingDir: "/source",
+      workspaceId: "target-workspace",
+      workingDir: "/target",
+    };
+    const result = accepted();
+    if (result.kind !== "runtime-accepted")
+      throw new Error("missing fixture acceptance");
+    await act(async () => {
+      sendActions.onExecutionScopeAccepted?.(executionScope, {
+        ...result.receipt,
+        executionScope,
+      });
+    });
+    expect(view.deferTopicSwitch).toHaveBeenCalledExactlyOnceWith(
+      "s1",
+      "target-workspace",
+      { allowDetachedSession: true, forceRefresh: true },
+    );
+    expect(view.current().composerDraft.getComposerDraftTarget()).toEqual(
+      view.home,
+    );
+  });
 
   it("binds a visible session accepted by an imperative initial send and preserves its Home draft", async () => {
     const view = await mountSend(async () => accepted());

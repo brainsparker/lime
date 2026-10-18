@@ -1,3 +1,4 @@
+import type { ExecutionScope } from "./executionScope";
 import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import type { AgentExecutionStrategy } from "@/lib/api/agentExecutionRuntime";
 import type { AutoContinueRequestPayload } from "@/lib/api/agentRuntime/sessionTypes";
@@ -77,6 +78,8 @@ export interface PreparedAgentStreamUserInputSend {
   modelInputCapabilityGate?: ModelCapabilitySendGateResult;
   assistantDraft?: AssistantDraftState;
   skillRequest?: SendMessageOptions["skillRequest"];
+  executionScope?: ExecutionScope;
+  executionScopeIsCurrent?: () => boolean;
   targetSessionId?: string;
   skipSessionRestore?: boolean;
   skipSessionStartHooks?: boolean;
@@ -434,6 +437,8 @@ export function prepareAgentStreamUserInputSend(
     modelInputCapabilityGate: projectedModelInputCapabilityGate,
     assistantDraft,
     skillRequest,
+    executionScope: sendOptions?.executionScope,
+    executionScopeIsCurrent: sendOptions?.executionScopeIsCurrent,
     targetSessionId,
     skipSessionRestore,
     skipSessionStartHooks,

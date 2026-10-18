@@ -247,6 +247,7 @@ pub(super) fn into_parts(
         ClientRequest::PluginList { id, params } => parts(id, Method::PluginList, params),
         ClientRequest::PluginSearch { id, params } => parts(id, Method::PluginSearch, params),
         ClientRequest::PluginRead { id, params } => parts(id, Method::PluginRead, params),
+        ClientRequest::PluginSkillRead { id, params } => parts(id, Method::PluginSkillRead, params),
         ClientRequest::PluginInstall { id, params } => parts(id, Method::PluginInstall, params),
         ClientRequest::PluginUninstall { id, params } => parts(id, Method::PluginUninstall, params),
         ClientRequest::PluginInstalled { id, params } => parts(id, Method::PluginInstalled, params),

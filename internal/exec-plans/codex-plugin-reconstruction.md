@@ -17,6 +17,7 @@
 | --- | --- | --- |
 | P04b11 目录与分享权限 | Core catalog/release/tenant-policy + 认证用户/租户事实；App Server plugin_remote canonical identity | GLOBAL/USER真实目录、workspace shared/private/unlisted/vertical、creator/targets权限、稳定opaque ID及缓存冲突拒绝；禁止以空目录或品牌改名冒充权限实现 |
 | P04b12 分享与tar.gz出站 | 同一Core发布/包owner + App Server插件store | share save/list/updateTargets/delete/checkout、50 MiB上游分享归档合同、无凭据下载/签名上传及失败回收；checkout不另造registry |
+| P04b12d2 分享链接解析与导航 | Core现役catalog/ACL + Lime现役详情导航 | 认证share key解析为授权plugin identity，进入真实详情；403/404/撤销后不可用；直接替换API详情地址，不用复制成功核销链接产品路径 |
 | P04b13 远端正文与完整DTO | 同一release组件owner + App Server typed projection | plugin/skill/read读取未安装插件的授权正文；完整嵌套release/connector/App template/scheduled task、prefer-cache/forceRefetch语义；保留上游尚未消费per-skill状态的边界 |
 | P04b14 同包进入真实Turn | Core实际发布进程 + 共享AccountManager/App Server/RuntimeCore | 同一包经发布、授权、安装、刷新、工具消费、撤回及冷启恢复；真实provider或明确受控provider请求捕获，不能只读目录/卡片 |
 | P04b15 三产品面与交付 | Desktop Host / CLI-TUI Host，共享协议/runtime/store | 新产物stdio、Electron/preload/IPC、lime exec、真实PTY输入/alternate screen/终端恢复；Windows/live/packaged独立验证，全部证据原件可复查 |
@@ -27,6 +28,218 @@ Core的creator/scope事实、GLOBAL/USER目录和vertical已由P04b11a补入同�
 下一刀补workspace真实分享授权，不能仅改客户端flag。旧插件42项删除基线及回流守卫继续保持；
 本表不引入迁移、compat或第二套业务后端。完整CLI/TUI/runtime/GUI其它合理行为继续由各自
 现役执行计划持有，本插件阶段顺序不缩减原始全量目标。
+
+## P04b13 远端正文与 DTO（客户端接线验收中）
+
+Codex app-server-protocol/v2/plugin.rs:269–280确认plugin/skill/read输入为
+remoteMarketplaceName、remotePluginId、skillName，输出contents可空；core-plugins/remote.rs:
+1399–1435使用认证GET ps/plugins/{id}/skills/{name}，URL逐segment编码，响应plugin_id与name
+必须同时匹配。Lime下一刀在同一App Server插件owner与Core release/package读取合同补齐，
+允许未安装的授权正文；不借renderer本地文件、下载URL或第二registry实现。
+
+远端嵌套release字段继续逐项核对，不因当前DTO有同名字段就判已对齐。Codex远端wire接收
+app_templates及unavailable_app_templates alias，包含connector/materialized IDs/reason；Lime
+已有canonical字段，当前alias修正见P04b13b，服务端完整消费者仍需核定。上游catalog_cache明确标记将退役，
+3小时磁盘缓存属于参考实现细节；forceRefetch/prefer-cache的可观察行为、账号/scope隔离与
+撤权安全仍必须对齐，不为模仿该内部实现增加第二缓存owner。不得据此核销P04b13。
+
+已从Codex core-plugins/remote.rs:626–658与Lime plugin_remote/wire.rs:140–175核出三项
+三项原始差异（P04b13b已修，公共JSON回归验收中）：
+
+| 输入字段 | Codex当前接受 | Lime原始差异（本轮已修） |
+| --- | --- | --- |
+| release.app_templates | 接受当前wire别名unavailable_app_templates | 尚无此serde alias |
+| release.keywords | 缺字段时默认空数组 | 必需Vec，缺字段会反序列化失败 |
+| interface.default_prompts | Option<Vec<String>>，接受显式null | 默认Vec只覆盖缺字段，显式null会失败 |
+
+这些是当前Codex wire接收合同，不是恢复旧Lime兼容入口。Core当前输出keywords且空
+default_prompts使用omitempty；既有成功夹具不能据此证明客户端接受上述输入。本刀已补
+实际JSON解码/投影回归，结果见P04b13b，不以同名字段或单个Core响应判定完整DTO已对齐。
+
+续查发现第四项独立DTO缺口：Codex core-plugins/remote.rs:1473–1494根据installed的
+disabled_skill_names计算逐技能enabled，app-server/request_processors/plugins.rs:2326–2336
+原样投影；Lime runtime/plugins/remote/projection.rs的远端元数据统一enabled=false，只有
+已物化本地详情覆盖后才有实际值。上游此字段不等于插件安装或runtime readiness，正文预览
+不能依其false阻挡未安装技能。逐技能偏好读面与local overlay的一致性仍需在同一installed/
+store owner补齐；Core尚未提供偏好编辑时默认空数组不意味着完整偏好已实现。本发现不由
+三项wire修正或正文RPC核销，也不为GUI另造启用策略。
+
+### P04b13 Desktop REA 定位补记（只读，2026-10-18）
+
+按用户要求先定位对标实现，再确定补丁。实际安装包仍为26.1007.30912/build20156，
+app.asar SHA256 `75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af`。
+从同一ASAR提取四个新模块原字节，REA parent
+`ev_3ce04eef802e6a20a4e15356fa068615f1d6f271b01ff3b3aed4ba2ab8c09606`，summary
+`ev_d475ac65c8cc04527c1cc9f728cf2f2410568754329a51ca46dc2815ee302362`：
+4/4解析、8271字节、110 findings、parse failure 0；语义unknown/557 unknowns。
+`plugin-skill-preview-a6e4e2401612.js` 原字节SHA256
+`1b79ebde4a70c273dc9944a33391cfc9c8fb125fecc96159d6a5006714126c28`，
+其静态代码按pluginId/skillName查询，读取skill_md_contents，分别呈现加载、失败重试、
+空正文和Markdown；转交onCloseAutoFocus与shouldBlockExternalEgress，不以错误伪造空正文成功。
+
+继续沿静态import定位`queries-8e44ea13992d.js`，原字节4865B、SHA256
+`2edc1a2f784deb95ae741010548e4ffcafb8095fed46bdaf3c70d6af6d755bfa`。REA parent
+`ev_aadf397363c4f8638228ad120c4873b7694f1904a7836255326cef3de56a57dd`，summary
+`ev_88f898e9a5f62830eb85575d6ddd51062140456ffc3ce1978c5d4f3c14589d75`：
+1/1解析、48 findings、parse failure 0；语义unknown/239 unknowns。原字节偏移3124附近的
+safeGet为`/ps/plugins/{plugin_id}/skills/{skill_name}`，includeDownloadUrls=false，
+403/404为预期错误，传AbortSignal；query key包含账号、插件和技能，账号存在才启用，
+staleTime为FIVE_MINUTES，retryOnMount=false。这是Desktop此构建的静态策略；Lime需在
+共享App Server owner实现同一授权正文能力，不照搬renderer持凭据HTTP或另造缓存owner。
+身份状态另由原字节核对：query导入app-shared的tyt，export为gQ；app-shared SHA256
+`607ad0866dd25ed3764711b4467a9b60708353a599485b5249ff4cbe0e870245`，export偏移8123732、
+偏移5421257附近将该状态与accountId比较并抛出账号变化错误，偏移5444266附近还与
+r.accountId对照。账号含义依据这些显式消费者推导，未把不明压缩变量名直接猜作账号。
+
+REA literal trace `ev_d8ecf98d0aa51f32135218c634ceae6d4d198f671ba4fc5ca2cbc187617b1791`
+为no-match，未恢复safeGet动态包装到网络的图关系；不能据此称接口不存在，也不能把
+上述静态原字节核对冒充运行观察。与CLI源码GET合同相互印证，仅确认请求/显示设计，
+尚未执行Codex、未观察服务端授权或真实缓存撤权。定位时LimeCore public_client.go仅有
+目录/分享/安装路由；后续P04b13a复用clientPluginReleaseByID授权与
+verified package owner，不能借用独立Service Skill或本地安装路径绕过授权。
+Core现役selectPluginPackageManifest与extractPluginPackageSkills已持有manifest优先级、
+声明根目录、递归/去重和frontmatter默认名；后者返回namesByPath映射。正文必须复用这些
+发现事实按声明技能名定位，不能猜成固定skills/<name>/SKILL.md或重新维护另一技能索引。
+原件、manifest与REA摘要在`/tmp`对应的系统临时目录
+`lime-plugin-skill-desktop-fTi7vn/`；original与request分别冻结，不修改已分析字节。
+本补记不计实现完成、不修改方法完成计数。
+
+### P04b13a Core 技能正文（本地服务端切片100%，客户端待接线）
+
+root，2026-10-18。基于上节同一 REA 请求模块与 CLI 源码，先补 Core API 接入文档和
+Verification Contract，再实现认证 `GET client/ps/plugins/:pluginId/skills/:skillName`。
+raw 响应使用 `plugin_id/name/skill_md_contents` 及既有 description/interface，未安装可读。
+current owner 为同一 catalog/release/ACL、verified upload/store 和 metadata scanner；
+技能根选择从原组件摘要流程提为两处共用 helper，正文按 namesByPath 定位，不造第二索引。
+普通包及分享包校验状态、hash、manifest、身份和选中 release 后返回原始 UTF-8 SKILL.md。
+未知、不可见、撤回和当前策略禁止时拒绝；托管包损坏报500。外部非托管且正文不可得时
+显式null，是基于公开nullable合同的本地设计，闭源服务端内部行为仍未知；不拉外部URL。
+仅接受省略/单个includeDownloadUrls=false，永不签发下载URL；成功响应no-store。
+
+窄写集在Core现役插件service/model、controller/responder/精确GET授权、定向测试、
+OpenAPI source fragments及正式bundle、SDK/types与API文档；Lime生产源码继续冻结。
+SDK既有JS的新增方法由已安装TypeScript transpileModule生成后仅插入对应区块，不新增镜像。
+大文件仅机械注册，正文业务为独立模块。结构应用KISS/DRY：复用既有授权、包和技能发现，
+未引入新的registry、runtime、兼容或迁移。
+
+验证：定向service/controller通过，SDK/安装/目录10项通过，SDK/types严格typecheck通过；
+bundle一致性及现役OpenAPI controller门禁通过，全bundle重复键/1148处本地引用及nullable
+合同检查通过。首轮漏responder与token route、测试重复创建enablement及SDK夹具缺JSON
+Content-Type，已按真实边界修复，失败不计green。仓库级make verify-go exit0，含Go基线、
+格式、全部模块vet与tests；make verify-client-contract-sync及Core legacy-report exit0。
+证据为/tmp/limecore-plugin-skill-{go-final,sdk-final,typecheck,openapi-parse,contracts}.log。
+上述是本地Go HTTP/隔离repository+真实包文件证据，不代表Core部署进程/MySQL、客户端
+plugin/skill/read/GUI消费或同包Turn。P04b13整体、三项wire差异及完整目标仍active。
+架构图确认：root，2026-10-18，沿现有目录授权与包owner新增只读投影，无第二业务后端。
+
+### P04b13 原生 Desktop 技能卡片与 RPC 预览证据
+
+在同一ASAR继续定位原生插件页面的入口，不能把浏览器来源弹窗等同于全部Desktop路径。
+新REA parent `ev_ac8dd0b6c03a9361688acd6194469aa4a6a73e9357aaef2f70da13fce4ba1f61`，
+summary `ev_0b180ab96dbe149bdc1a2ebcf53ec03a26242f549fb8ca3bd40b666880715a8d`：
+两个原始模块55023B、2/2解析、231findings、parse0，语义unknown/3359unknowns。
+`skills-2f34a0e689e2.js` SHA256
+`ec2642e82142b7304dfeafb3812abefe43d788b8e013d909349f915fc84f0427`（48935B），
+其插件技能卡片传remotePluginSkill、version、skillPath；仅remote source构造
+remoteMarketplaceName/remotePluginId/skillName，展示名优先interface.displayName，
+其次技能name最后的冒号段。`skill-details-4953fb61389a.js` SHA256
+`75b2044d70514768911d7c06a6bdd89c8383e0ebbf0a0349b3a546b57665c765`（6088B）另属
+skillData/Showcase权限与文件流，只复用Markdown显示组件；不能由此推断它就是插件正文后端。
+
+沿skills模块的app-initial导出Xi定位Jil（顶层导出；同字母存在其它内层导出，不混用）。
+原始`app-initial-6350d04672d0.js` SHA256
+`604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f`，11440241B。
+用现有Acorn只解析Iil/Jil起始表达式边界，冻结原字节函数范围；不是重写/模拟函数。
+Iil字节[10949222,10951151)，SHA256
+`b5cfaed124991dc805566a063b5f495b7aad501e3ceb5ad02e7aec566655d220`；
+Jil字节[10956942,10959075)，SHA256
+`72d100303f98f03f6200cd3acbbdf97b7dfeb935b8ae9db61e8273eb0236597f`。
+范围REA parent `ev_746b896f0a3a2540fbb74f421ed908221971094d3fbfe7ce5c7736d4073d5f83`，
+summary `ev_8d3f1ca679bdf436fa2e0641adc09132c3368281d0932b9edafe444aeb240960`：
+4062B、2/2解析、parse0、findings0；语义unknown/297unknowns，外部imports/closures未包含。
+原字节明确一条远端分支发送`sendRequest("plugin/skill/read", remotePluginSkill)`；
+query key含host/market/plugin/skill，5分钟staleTime。存在本地path时优先read-file，
+另有由Pp(hostId)选择Hil的分支，其含义与后端此处未知，不泛化为所有host都只走RPC。
+Jil仅在打开且有本地path或远端identity时启用，显示loading/error/empty/Markdown；contents
+与preview有不同正文投影，还可展示includedFiles。不得把浏览器预览的retry UI直接套成
+原生此分支已有同样重试按钮，也不假定本地路径授权可替代远端读取。
+
+原件、source-range manifest、完整REA摘要在系统临时目录
+`lime-plugin-skill-entry-desktop-p0XAqA/`；original与native-preview-functions分别冻结，
+readable仅作派生阅读。未执行Codex，未恢复所有动态网络/host分支；这是静态定位，
+不记运行成功。下一刀按此证据补共享RPC、账号fence及GUI技能预览，Core不再造第二后端。
+
+host选择分支续查：app-initial导入app-shared的mq为Pp；后者export为U2，原字节UTF-16
+偏移5420185为`return e===kM`，偏移1858452附近初始化kM为`durable`。这些是同一hash成员
+的静态字面量核对，不能推断初始化或分支已运行，也不能把durable任意解释为全部远端host。
+Hil精确原字节赋值范围[10952097,10953041)，944B、SHA256
+`ada1a2f7734deb8c335a0ce3f37f06fe7228c10d5b5d5722cb8fa5eea5eecd7f`；REA parent
+`ev_fd4bc664d2918ceb4b86a56ab522120281898266d9a9fc07f2e047eb165e2c3d`，summary
+`ev_c01f5d2ed06d97c398498fb7d097683ce6b644c280a6998e17e5f6a640fe2b0f`，1/1解析、
+parse0、findings0、语义unknown/43unknowns。该分支也是认证GET正文，带AbortSignal、
+includeDownloadUrls=false，401/403/404清query cache后继续抛错，retry=false；请求前后
+比对两份身份状态，状态具体含义尚未沿外部闭包核定。响应消费skill_md_contents及可选
+included_files，后者在展示参考文件时被使用；其服务端选择规则、完整DTO与服务端实现尚未知。
+新增P04b13正文参考文件义务，不能以当前Core纯正文接口或CLI仅contents的合同核销，
+也不凭包目录猜出included_files返回。函数及manifest/REA摘要在同一临时目录的独立
+durable-preview-query中，未修改已分析的其它树。
+
+参考文件与正文投影继续定位：同一app-initial的十段原字节函数（3855B）经REA解析10/10，
+parent `ev_2d2bafac2b1d100aeb5db911eff0b3c7c3821ffed039e7c0653c052fc1a9016c`，summary
+`ev_c5fba03508b9169a7be49fc4092a1ab8c2aafc44a9396a641c09b05c30775025`；findings0、parse0，
+语义unknown/304unknowns，外部闭包未包含，未执行Codex。Yil/Qil只筛选relative_path以
+`references/`开头的项，Zil去掉该前缀显示文件名，Xil原文明确列表不能打开文件。
+这只确定renderer选择和显示，不证明后端如何生成included_files或完整DTO。
+Pil剥离开头frontmatter，Iil先将CRLF转LF；Lil在存在expectedTitle或可解析path时移除
+正文开头的一级标题，未观察到与标题文字比对。contents模式则保留原正文。
+原件与source-range/hash manifest位于系统临时目录`lime-plugin-skill-reference-u4Prhh/`
+的exact-ranges和exact-manifest.json。首次抽取在大小写不敏感文件系统中发生zil/Zil文件名
+冲突，已弃用original-ranges证据；现役十段使用数字前缀独立文件并逐字节核验，不改原函数。
+
+### P04b13b 下一刀与验证合同（实施中）
+
+P04b12d1分享专项已通过，普通壳门禁的独立首页布局失败见下；现在认领以下窄写集：
+protocol插件类型/Method/envelope/schema注册、processor插件入口与accountAuth调度、
+RuntimeCore插件remote owner和plugin_remote wire/Context、正式schema/TS生成、typed
+app-server-client与renderer gateway、方法catalog/fixture及五语言GUI技能卡片/预览。
+新RPC严格采用Codex PluginSkillReadParams/Response；Core raw字段仅在共享Rust边界转为
+contents，不让renderer持凭据、直接调Core或从下载URL取正文。remote-only能力不为本地
+data source添加空成功实现；不存在的本地skillPath不得用假路径占位。
+
+Verification Contract：root，P1/budget:normal。未安装远端技能卡片 -> typed gateway ->
+真实Electron/preload/IPC或stdio -> plugin/skill/read -> 同一账号Context -> Core形状认证HTTP
+-> 匹配plugin_id/name -> contents投影。失败终态覆盖错误身份、404/500、null、超时与
+换号迟到响应，不能把错误转换为空正文；同一账号切换丢弃旧内容，重新打开定位不串技能。
+GUI按原生REA证据呈现loading/error/empty/Markdown，恢复关闭焦点；支持重试的本地设计
+需明确验证，不冒称原生Jil已有同款retry按钮。Core真实进程与受控HTTP分别记账。
+先Rust领域/公共JSON-RPC、DOM/五语言及typed gateway，正式生成和完整contracts；再真实
+Electron及literal verify:gui-smoke。CLI管理和浏览器投影不替代exec/PTY，完整Turn另验。
+同轮处理已核出的三项wire解码差异，补实际JSON输入回归；不为当前Codex alias重建旧Lime
+兼容层。产物前后摘要和源码冻结检查必须可复核，不使用已删除.lime/qc中的旧binary。
+
+实施记录：共享RPC的nullable DTO、Method/envelope/schema/AccountAuth注册、processor及
+RuntimeCore远端读取已接线。业务逻辑独立在remote/skill.rs，不给本地datasource增加空实现；
+Context逐段编码并校验双身份，HTTP错误不带issuer正文或签名URL。keywords缺省、
+unavailable_app_templates别名与nullable default_prompts三项已修，公共JSON输入回归待收。
+GUI以PluginSkillsSection/PluginSkillPreview替换只读span，优先现役fs/readFile，remote-only
+使用typed gateway；enabled/installed不作为授权正文开关。五语言、加载/空态/失败/重试、
+关闭取消与焦点、账号变化立即隐藏和迟到隔离均有DOM回归。共享Markdown helper按REA收紧
+开头frontmatter识别、归一CRLF，并在有expectedTitle时剥离开头一级标题，不比较标题文字。
+retry是明确的本地恢复动作，不声称Jil已有该按钮。未新增contents切换/参考文件假数据。
+
+精确写集另冻结于/tmp/lime-plugin-skill-client-before.json；除上表协议/边界注册外，新增
+remote/skill.rs、remote_plugins_jsonrpc/skill_reads.rs、PluginSkillsSection/PluginSkillPreview
+及其测试、pluginSkillRead.test.ts、现役remote-plugin-catalog-fixture-smoke.mjs的机械接线和
+独立plugin-skill-preview-scenario.mjs。near-800 runner仅登记调用，下一刀若继续扩展须拆出
+HTTP/生命周期编排，不在原文件堆场景。协议/envelope/dispatch等千行文件仅注册，不加业务。
+架构图确认：root，2026-10-18；architecture.md §7.2同步单一owner，无迁移/compat。
+
+当前验证：首次DOM/Markdown/gateway19/19；定向严格TS与client package build exit0。
+首次直接cargo test因V8默认上游归档404失败，改用仓库resolveRustyV8CargoEnv校验现有产物
+后继续编译，不修改依赖。正式schema生成只同步经审阅的差异；完整Rust/contract/Electron
+结果待收。仍有明确差异：五分钟缓存尚未实现（当前每次打开重新授权读取）、included_files
+服务端规则未知、逐技能偏好投影未补齐；AccountManager既有路径边界拒绝编码slash/dot等，
+未为任意skillName放宽共享安全边界，需按实际包命名/跨仓路由继续核定，不能称完全等价。
 
 ## P04b12c 共享 App Server 分享主链（四RPC本地合同已验，完整目标active）
 
@@ -138,9 +351,27 @@ typed pluginShare gateway -> 同一 App Server/PluginStore -> Core catalog/relea
 checkout/打开目录与撤销。人员/组目录搜索与新增邀请仍属完整目标，未接 current directory
 合同前不伪装成裸 ID 输入，不以本切片核销完整分享 GUI。
 
+实现补记：目录页由约780行拆为561行，card/dialog分别独立；分享组件、状态hook与纯投影单独
+持有current职责。目录补SharedWithMe与created share读取，按canonical ID去重；分享或额外
+远端目录读取失败不抹掉真实本地目录，错误保留可见。账号绑定同时保存在分享目标和异步
+请求fence，防换号后旧entry被新账号复用；pending用同步ref去重。
+待续缺口还包括组成员editor的服务端可编辑能力投影、非creator checkout映射的冷重开编辑
+入口。不能由renderer猜组成员身份，也不能将created-only share/list扩称全体编辑者目录。
+
+专项夹具沿既有plugin-share-checkout-fixture-smoke扩展，不复制HTTP/启动后端；GUI场景拆在
+scripts/electron/lib/plugin-share-gui-scenario.mjs。原拟复用专业预览剪贴板工具，但其JSZip依赖
+指向已消失的独立目录；已改用无第三方依赖的lib/native-clipboard.mjs，保护原剪贴板并原生
+读回/恢复，不改专业预览或依赖写集。该helper仅test-only。插件合同文档同步基础GUI和缺口。
+首轮构建因实施期间源码变化被freshness guard拒绝，尚未启动Electron（checks/requests为空），
+不是产品流程失败；随后依赖加载失败也在启动前，均不计通过。稳定源码已冻结七个production
+文件摘要到/tmp/lime-plugin-share-gui-source-stable.json，重建中；共享版本已由其他写集升到1.161.0。
+
 REA：app.asar SHA256 75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af，
 版本26.1007.30912/build20156；parent ev_b8ba68fff49bf2b25c733045a97595dac04dd6ef369a84b8f700e427661fa39d，
 summary ev_72637875f6c7bda6beb1c256d541cf6201ae15d733898d66fa2d22f239a1d028。
+installed-plugin-actions复用旧parent ev_b115cb93e8d47b40ce326e0d12127ef511b6d4813e253d5cfcac507834525f32；
+同ASAR重新取出的原字节SHA256为94cd43d9fa2e5495c3c80f53b8324160cb17401d81eb5cd00ceb2ce9256d1c92，
+与旧retained记录一致；没有恢复被删的旧证据目录。
 6/6模块解析、88830字节、443 findings；语义 unknown/5206 unknowns，不是完整运行证据。
 补集与 manifest 在 /tmp/lime-plugin-share-desktop-MJoV1y；原字节目录冻结，可读副本仅辅助阅读。
 全 ASAR webview 有界搜索未发现 checkout 字面量；新公开源码仍是 checkout 目标，不能由此排除。
@@ -152,6 +383,59 @@ preload/IPC -> app_server_handle_json_lines -> 五 RPC -> 受控 Core 形状 HTT
 专项 Electron 及 literal verify:gui-smoke；不将 unavailable Turn backend/受控 HTTP 声称为真实
 Core/MySQL、模型 Turn、Windows/live/packaged 或发布验收。证据新建 /tmp。
 架构图已登记该组件依赖；root 确认单一 owner 与依赖方向，最终验证后填写结果。
+
+已收取本轮最新门禁：分享Dialog/目录/gateway三文件36/36，最后card pending反馈调整后
+目录21/21复验；七个production根文件及传递依赖的定向严格typecheck exit0，九文件ESLint
+exit0；native剪贴板保护6/6、三个fixture语法检查与两仓窄写集whitespace通过。
+最后完整`npm run test:contracts` exit0（当前1.161.0），`npm run docs:boundary` exit0。
+全仓renderer TSC后期因共享机器负载终止exit143，不计当前整仓通过；未无差别重复全仓测试。
+专项fixture格式检查曾报一文件，已定向格式化并复验通过。真实Electron专项仍在构建，
+literal verify:gui-smoke待专项结束后串行执行，不以单测替代该结果。
+构建期间发现native-clipboard及其测试mtime晚于runner启动；ESM已预加载旧模块，因此暂停
+尚未进入场景的runner，仅保留其编译子进程完成。产物就绪后以新进程加载当前helper再验，
+不能把旧进程结果归到新脚本。helper现以macOS原始pasteboard item/type字节备份与恢复，
+只在内存/管道传输，不把HTML规范化后的字符串当作原件；失败保留主错误与恢复错误。
+当前四份场景/helper摘要另冻结于/tmp/lime-plugin-share-gui-scenario-stable.json。
+
+真实分享专项已通过（2026-10-18）：新进程完成PRIVATE创建、UNLISTED权限保存、原生
+复制读回及原剪贴板恢复、同ID更新、撤销二次确认、目录checkout、关闭焦点恢复、冷重开复用
+和真实stdio读取。五个share RPC均由真实Electron/preload/IPC进入同一App Server；HTTP上传/
+下载均无账号header，renderer未持凭据或发起Core请求，console/page errors为0。summary及
+两张已目检截图在系统临时目录`lime-plugin-checkout-electron-XgiFjO/`；日志
+`/tmp/lime-plugin-share-gui-electron-retry.log`，exit0。前一新进程因场景误把保护回调参数当成
+clipboard对象而失败，已改为显式app.evaluate使用真实Electron API；原始pasteboard恢复成功，
+失败轮不计通过。暂停旧runner在资源准备完成后主动终止137，只清其自有空锁，不计产品失败。
+当前实际HTML链为index-DjW68NQ8.js -> PluginCatalogPage-DCIGII5b.js，catalog chunk SHA256
+`141b86c3704b9727d7877c7dcd4e274f5fde8de0d2520d1327a4e19228188093`；App Server SHA256
+`df3360c006dd890cbdd7c1456f9d1725943a8fe29a5c5877e8e444e13e2e0c70`。
+七个production根、四个当前fixture/helper和六个实际引用产物前后摘要均未变，记录于
+`/tmp/lime-plugin-share-gui-{source-stable,scenario-reviewed,reviewed-artifacts,postcheck}.json`。
+literal `npm run verify:gui-smoke`已收取exit1：23/24项通过，980×680首页输入区bottom742，
+超出680视口62px，唯一失败layoutGeometryStable；1536×960与1280×800通过。renderer/host/
+App Server构建、真实启动、reload、设置、IPC通过。日志为
+`/tmp/lime-plugin-share-gui-smoke-current.log`，summary及已目检截图位于
+`/tmp/lime-plugin-share-gui-shell-failed/shell-01-electron-smoke/`。只将本轮自有生成证据完整
+移至/tmp并核验字节，共享qc目录和其他证据未动。首页Hero/Layout/Inputbar属未知并行脏热区，
+本轮只读登记阻塞，不覆盖、不放宽断言；该失败不阻断独立正文主线，也不计全局门禁通过。
+普通smoke重建了dist，前述产物hash只代表分享专项当时。该专项证据为受控Core形状HTTP及
+unavailable Turn backend，不核销真实Core/MySQL、模型Turn、lime exec/PTY、Windows或packaged。
+
+### P04b12d2 REA新增明确缺口（未实施）
+
+实际ASAR的`browser-plugin-share-page-9f3f6bdce8d1.js`原字节1825B，SHA256
+`48f95ae5601bcc332e6c5fc4b31b65bfafd2f8b112c06c169697b1ab40defa9c`。REA parent
+`ev_a6d2396db6d945d4b94604674739df3e8c62a6678f57b2b0afb9a7658663a933`，summary
+`ev_636f8c50e6c53cd0b8ec13fa90dc518ffd7b92c91e31c9e25a0480a65788a3e0`：1/1解析、
+29 findings、parse failure 0，语义unknown/132 unknowns；同一安装包hash见上。
+静态代码读取shareKey，有账号才请求`GET /ps/plugin-shares/{share_key}`，传AbortSignal，
+403/404为预期错误、retry=false。成功取得plugin_id后校验并replace跳转现役详情，保留search；
+失败或无有效ID使用missing状态。少数内置canonical identity有本地直达分支；不能推断任意key
+都是plugin ID，不能据此猜服务端key生成、生命周期或未登录行为。未执行Codex页面。
+
+LimeCore当前share_url仍指向认证API详情，尚缺对应的链接解析/产品导航闭环。这一差异不能
+被PRIVATE创建、复制读回或checkout证明完成。退出条件归上表；后续沿同一catalog/ACL及
+现役导航接入，不预建第二插件registry或保留旧URL兼容。原件/manifest/REA摘要新建于系统
+临时目录`lime-plugin-share-page-desktop-wQfiTd/`，本补记不计实现或产品验收。
 
 ## P04b12d checkout已验，GUI分享闭环待实施
 
@@ -1895,12 +2179,12 @@ LimeCore 首刀：`control_plane_plugin_package_upload_service.go` 的扫描/man
 | plugin/installed | 已直接替换；公共合同及新产物本地产品验证通过 | cwds/installSuggestionPluginNames；市场分组与 load errors |
 | plugin/reconcile | P04b10共享owner与受控Desktop/stdio已验；完整Core/Turn待验 | bundle/enablement/removal diff、失败远端 ID 与 materialization 分类；不伪造 readiness |
 | plugin/read | 外层合同及新产物本地验证通过；嵌套语义仍 partial | marketplacePath/remoteMarketplaceName + pluginName；Codex PluginDetail、Skill/App/Hook summaries |
-| plugin/skill/read | 缺失 | 远端插件 Skill 读取与同一包/授权边界 |
-| plugin/share/save | P04b12b/c Core和App Server本地合同已验；分享GUI待补 | pluginPath、远端身份、discoverability 与 targets；shareUrl |
-| plugin/share/updateTargets | P04b12a/c两仓本地合同已验；分享GUI待补 | principals/discoverability，权限与租户过滤 |
-| plugin/share/list | P04b12c本地分页/冷映射合同已验；分享GUI待补 | 远端插件与可用本地 checkout 路径 |
-| plugin/share/checkout | P04b12d本地及受控Electron/stdio可见与冷复用已验；分享GUI入口待补 | materialized identity/root、市场定位与远端版本 |
-| plugin/share/delete | P04b12b/c两仓本地合同已验；分享GUI/实际Core流程待补 | 空 response、远端权限与失败不破坏本地状态 |
+| plugin/skill/read | P04b13a Core已验；P04b13b客户端接线验收中 | 远端插件 Skill 读取与同一包/授权边界 |
+| plugin/share/save | P04b12b/c本地合同、P04b12d1受控Electron创建/同ID更新已验 | pluginPath、远端身份、discoverability 与 targets；shareUrl |
+| plugin/share/updateTargets | P04b12a/c本地合同、P04b12d1受控Electron权限草稿/服务端投影已验 | principals/discoverability，权限与租户过滤 |
+| plugin/share/list | P04b12c本地分页/冷映射、P04b12d1受控Electron目录消费已验 | 远端插件与可用本地 checkout 路径 |
+| plugin/share/checkout | P04b12d/d1本地及受控Electron点击/stdio可见与冷复用已验 | materialized identity/root、市场定位与远端版本 |
+| plugin/share/delete | P04b12b/c本地合同、P04b12d1受控Electron确认撤销已验；实际Core产品流待验 | 空 response、远端权限与失败不破坏本地状态 |
 | plugin/install | 已直接替换；公共合同及新产物本地产品验证通过 | 按市场定位 + pluginName，installAttemptId；authPolicy/appsNeedingAuth；旧 sourcePath/expectedDigest wire 已删 |
 | plugin/uninstall | 本地 Codex DTO 已替换，公共协议/CLI/Electron 通过 | 完整 pluginId、空 response；旧 bool 与 Catalog 卸载命名已删，远端 ID 语义仍待 P04 |
 

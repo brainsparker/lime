@@ -76,6 +76,7 @@ export const sourcePaths = [
   "scripts/electron/lib/presentation-table-builtin-scenario.mjs",
   "scripts/electron/lib/presentation-element-scenario.mjs",
   "scripts/electron/lib/presentation-rich-text-scenario.mjs",
+  "scripts/electron/lib/native-clipboard.mjs",
   "scripts/electron/lib/presentation-rich-text-scenario-oracle.mjs",
   "scripts/electron/lib/presentation-table-scenario.mjs",
   "scripts/electron/lib/presentation-table-structure-scenario.mjs",

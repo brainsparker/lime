@@ -6,6 +6,10 @@ import { buildInputbarCoreCopy } from "./inputbarCoreCopy";
 import { useComposerUtilityActions } from "./useComposerUtilityActions";
 import type { ProjectGitStatus } from "@/lib/api/projectGit";
 
+(
+  globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
 const mocks = vi.hoisted(() => ({
   getProject: vi.fn(),
   projectsRoot: vi.fn(),
@@ -414,81 +418,34 @@ describe("ComposerUtilityBar", () => {
     ).toBe("");
   });
 
-  it("旧 worktree 请求完成后不继续 ensure 或导航到已经离开的 workspace", async () => {
-    const request = deferred<{
-      worktreePath: string;
-      branch: string;
-      status: ProjectGitStatus;
-    }>();
-    mocks.worktree.mockReturnValueOnce(request.promise);
-    await render();
+  it("选择 Worktree 只暂存 mode，不创建 Git、Workspace 或导航", async () => {
+    const setComposerMode = vi.fn();
+    await render({ setComposerMode });
     await click("mode-picker");
-    await click("create-worktree");
-    expect(mocks.worktree).toHaveBeenCalledWith(
-      "/workspace/a",
-      undefined,
-      "a-main",
-    );
-    await render({ projectId: "b" });
-    await act(async () =>
-      request.resolve({
-        worktreePath: "/workspace/a-next",
-        branch: "a-main",
-        status: status("/workspace/a-next"),
-      }),
-    );
+    expect(action("select-local").getAttribute("aria-pressed")).toBe("true");
+    await click("select-worktree");
+    expect(setComposerMode).toHaveBeenCalledExactlyOnceWith("worktree");
+    expect(mocks.worktree).not.toHaveBeenCalled();
     expect(mocks.ensureProject).not.toHaveBeenCalled();
     expect(onProjectChange).not.toHaveBeenCalled();
     expect(mocks.markOpened).not.toHaveBeenCalled();
     expect(mocks.success).not.toHaveBeenCalled();
+    expect(
+      container.querySelector('[data-testid="composer-utility-mode-menu"]'),
+    ).toBeNull();
   });
 
-  it.each(["success", "error"])(
-    "旧 worktree 的 ensure %s 在 A→B→A 后不会导航或提示到新 A",
-    async (outcome) => {
-      const request = deferred<{
-        id: string;
-        name: string;
-        rootPath: string;
-      }>();
-      mocks.ensureProject.mockReturnValueOnce(request.promise);
-      await render();
-      await click("mode-picker");
-      await click("create-worktree");
-      expect(mocks.ensureProject).toHaveBeenCalledTimes(1);
-      await render({ projectId: "b" });
-      await render();
-      await act(async () => {
-        if (outcome === "success")
-          request.resolve({
-            id: "old-worktree",
-            name: "old",
-            rootPath: "/workspace/a-next",
-          });
-        else request.reject(new Error("old ensure failed"));
-      });
-      expect(onProjectChange).not.toHaveBeenCalled();
-      expect(mocks.markOpened).not.toHaveBeenCalled();
-      expect(mocks.success).not.toHaveBeenCalled();
-      expect(mocks.error).not.toHaveBeenCalled();
-      expect(bar().getAttribute("aria-busy")).toBe("false");
-      expect(action("branch-picker").textContent).toBe("a-main");
-    },
-  );
-
-  it("当前 worktree 创建沿用真实 gateway/ensure/navigation，状态仍归所属 root", async () => {
-    await render();
+  it("受控 Worktree 显示选中态，切回 local 也只更新 mode", async () => {
+    const setComposerMode = vi.fn();
+    await render({ composerMode: "worktree", setComposerMode });
+    expect(action("mode-picker").textContent).toContain(copy.newWorktree);
     await click("mode-picker");
-    await click("create-worktree");
-    expect(mocks.ensureProject).toHaveBeenCalledWith({
-      name: "a-next",
-      rootPath: "/workspace/a-next",
-      workspaceType: "general",
-    });
-    expect(onProjectChange).toHaveBeenCalledWith("created");
-    expect(mocks.markOpened).toHaveBeenCalledWith("created");
-    expect(mocks.success).toHaveBeenCalledWith(copy.worktreeCreated);
-    expect(action("branch-picker").textContent).toBe("a-main");
+    expect(action("select-worktree").getAttribute("aria-pressed")).toBe("true");
+    expect(action("select-local").getAttribute("aria-pressed")).toBe("false");
+    await click("select-local");
+    expect(setComposerMode).toHaveBeenCalledExactlyOnceWith("local");
+    expect(mocks.worktree).not.toHaveBeenCalled();
+    expect(mocks.ensureProject).not.toHaveBeenCalled();
   });
 
   it("旧目录选择完成后不注册 workspace；取消选择会释放当前锁", async () => {
@@ -594,7 +551,6 @@ describe("ComposerUtilityBar", () => {
         copy,
         onProjectChange,
         onProjectOpenChange: vi.fn(),
-        onModeOpenChange: vi.fn(),
         onBranchOpenChange: vi.fn(),
         onBranchSearchChange: vi.fn(),
       });
@@ -606,7 +562,6 @@ describe("ComposerUtilityBar", () => {
       void actions.createBlankProject();
       void actions.useExistingFolder();
       void actions.checkoutBranch("feature");
-      void actions.createWorktree();
       void actions.createBranch("new");
     });
     expect(mocks.projectsRoot).toHaveBeenCalledTimes(1);

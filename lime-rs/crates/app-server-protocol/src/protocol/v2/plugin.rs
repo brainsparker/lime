@@ -108,6 +108,20 @@ pub struct PluginReadResponse {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct PluginSkillReadParams {
+    pub remote_marketplace_name: String,
+    pub remote_plugin_id: String,
+    pub skill_name: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginSkillReadResponse {
+    pub contents: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct PluginInstallParams {
     pub marketplace_path: Option<PathBuf>,
     pub remote_marketplace_name: Option<String>,

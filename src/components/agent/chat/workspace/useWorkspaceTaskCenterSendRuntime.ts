@@ -146,14 +146,27 @@ export function isTaskCenterSendSourceCurrent(
   const binding = options.composerDraftCapture?.binding;
   const status = current.composerDraftStatus;
   if (binding && !status) return false;
+  const executionScope =
+    options.acceptedResult?.kind === "runtime-accepted"
+      ? options.acceptedResult.receipt.executionScope
+      : undefined;
+  if (
+    executionScope &&
+    (executionScope.sourceWorkspaceId !==
+      (source?.workspaceId ?? binding?.scope.workspaceId) ||
+      options.acceptedResult?.receipt.sessionId !== acceptedSessionId)
+  )
+    return false;
+  const acceptedWorkspaceId =
+    executionScope?.workspaceId ?? binding?.scope.workspaceId;
   const promoted = Boolean(
     binding &&
     status &&
     acceptedSessionId &&
     status.generation === binding.generation &&
-    status.scope?.workspaceId === binding.scope.workspaceId &&
-    status.scope.kind === "local" &&
-    status.scope.id === acceptedSessionId,
+    status.scope?.workspaceId === acceptedWorkspaceId &&
+    status.scope?.kind === "local" &&
+    status.scope?.id === acceptedSessionId,
   );
   if (binding && status) {
     const matchesIdentity =
@@ -174,7 +187,12 @@ export function isTaskCenterSendSourceCurrent(
     return false;
   if (!source) return true;
   if (
-    source.workspaceId !== current.workspaceId ||
+    (source.workspaceId !== current.workspaceId &&
+      !(
+        executionScope?.sourceWorkspaceId === source.workspaceId &&
+        executionScope.workspaceId === current.workspaceId &&
+        current.sessionId === acceptedSessionId
+      )) ||
     source.newChatAt !== current.newChatAt
   )
     return false;
@@ -304,12 +322,19 @@ export function useWorkspaceTaskCenterSendRuntime<
       taskCenterHomeSurfaceActiveRef.current = false;
       setTransitionTopicId(null);
       setDetachedTopicId(null);
+      const executionScope =
+        options?.acceptedResult?.kind === "runtime-accepted"
+          ? options.acceptedResult.receipt.executionScope
+          : undefined;
       upsertTaskCenterOpenTab(
         readySessionId,
-        options?.sendSource?.workspaceId ?? taskCenterWorkspaceId,
+        executionScope?.workspaceId ??
+          options?.sendSource?.workspaceId ??
+          taskCenterWorkspaceId,
       );
       markTaskCenterLocalSessionOverride(readySessionId);
       if (
+        !executionScope &&
         shouldSwitchToReadyTaskCenterSession({
           readySessionId,
           currentSessionId,

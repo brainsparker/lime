@@ -100,3 +100,21 @@ describe("inputbarCoreCopy", () => {
     );
   });
 });
+
+describe("Worktree unknown outcome localization", () => {
+  it.each([
+    ["zh-CN", zhCN],
+    ["zh-TW", zhTW],
+    ["en-US", enUS],
+    ["ja-JP", jaJP],
+    ["ko-KR", koKR],
+  ] as const)(
+    "%s provides an explicit unconfirmed submission message",
+    (_locale, resource) => {
+      const key =
+        "agentChat.inputbar.core.projectContext.worktreeSubmitUnknown";
+      expect(resource[key].trim().length).toBeGreaterThan(10);
+      expect(resource[key]).not.toBe(key);
+    },
+  );
+});

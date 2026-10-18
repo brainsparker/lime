@@ -38,10 +38,10 @@ describe("AppSidebar account menu", () => {
       container.querySelector('[data-testid="app-sidebar-account-slot"]'),
     ).toBeNull();
     expect(
-      container.querySelector('[data-testid="app-sidebar-rail-settings"]'),
+      container.querySelector('[data-testid="app-sidebar-nav-settings"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="app-sidebar-rail-appearance"]'),
+      container.querySelector('[data-testid="app-sidebar-appearance"]'),
     ).not.toBeNull();
   });
 

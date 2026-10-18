@@ -1832,8 +1832,6 @@
   "settings.appearance.colorScheme.options.lime-future.label": "Red White Future City",
   "settings.appearance.colorScheme.options.lime-future.description": "Red celestial light, cool white buildings, and Chinese-red rails.",
   "settings.layout.sidebar.experimentalBadge": "Labs",
-  "settings.layout.sidebar.floatingNav.openAria": "Open settings navigation",
-  "settings.layout.sidebar.floatingNav.fallbackLabel": "Settings navigation",
   "settings.executionPolicy.title": "Execution Policy",
   "settings.executionPolicy.description": "Manage workspace sandboxing, command risk approval, and network rules for code tasks so blocked runs can be recovered from one place.",
   "settings.executionPolicy.hero.tipAria": "Execution policy info",

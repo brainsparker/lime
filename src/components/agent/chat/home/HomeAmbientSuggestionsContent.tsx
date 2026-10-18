@@ -8,7 +8,7 @@ import {
   LoaderCircle,
   MessageCircle,
 } from "lucide-react";
-import { HomeStarterChips } from "./HomeStarterChips";
+import { HomeSuggestionList } from "./HomeSuggestionList";
 import { HomeMoreSkillsDrawer } from "./HomeMoreSkillsDrawer";
 import { HomeGuideCards } from "./HomeGuideCards";
 import { HomeSceneSkillManagerDialog } from "./HomeSceneSkillManagerDialog";
@@ -316,7 +316,7 @@ export interface HomeSupplementalAction {
   onSelect: () => void;
 }
 
-interface HomeStartSurfaceProps {
+interface HomeAmbientSuggestionsContentProps {
   starterChips: HomeStarterChip[];
   copy: HomeSurfaceChromeCopy;
   guideCards?: HomeGuideCard[];
@@ -336,7 +336,7 @@ interface HomeStartSurfaceProps {
   onSelectSkillItem: (item: HomeSkillSurfaceItem) => void;
 }
 
-export function HomeStartSurface({
+export function HomeAmbientSuggestionsContent({
   starterChips,
   copy,
   guideCards = [],
@@ -351,7 +351,7 @@ export function HomeStartSurface({
   onSelectStarterChip,
   onSelectGuideCard,
   onSelectSkillItem,
-}: HomeStartSurfaceProps) {
+}: HomeAmbientSuggestionsContentProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
   const [internalGuideOpen, setInternalGuideOpen] = useState(false);
@@ -417,9 +417,9 @@ export function HomeStartSurface({
   }, [conversationCount]);
 
   return (
-    <Surface data-testid="home-start-surface">
+    <Surface data-testid="home-ambient-suggestions">
       {!resolvedGuideOpen ? (
-        <HomeStarterChips
+        <HomeSuggestionList
           chips={starterChips}
           copy={copy}
           onSelect={handleSelectStarterChip}

@@ -106,6 +106,19 @@ impl RequestProcessor {
         dispatch_result(response)
     }
 
+    pub(super) async fn handle_plugin_skill_read_v2_impl(
+        &self,
+        params: Option<serde_json::Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let response = self
+            .runtime
+            .read_plugin_skill(parse_params(params)?)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        dispatch_result(response)
+    }
+
     pub(super) async fn handle_plugin_read_v2_impl(
         &self,
         params: Option<serde_json::Value>,

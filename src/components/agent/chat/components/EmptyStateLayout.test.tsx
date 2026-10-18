@@ -1,7 +1,7 @@
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { LIME_COLOR_SCHEME_CHANGED_EVENT } from "@/lib/appearance/colorSchemes";
 import { EmptyStateLayout } from "./EmptyStateLayout";
 
@@ -14,17 +14,6 @@ const heroCopy = {
   slogan: "青柠一下，灵感即来",
   description: "",
   supportingDescription: "",
-};
-
-const chromeCopy = {
-  starterRowLabel: "起手",
-  starterManagerLabel: "管理",
-  guideCardsLabel: "引导",
-  moreSkillsDrawerLabel: "更多",
-  galleryTitle: "更多做法",
-  secondScreenLabel: "更多做法",
-  projectConversationsMoreLabel: (count: number) => `更多 ${count} 个对话`,
-  recentSessionDefaultActionLabel: "继续",
 };
 
 let root: Root | null = null;
@@ -49,11 +38,7 @@ function renderLayout() {
     root?.render(
       <EmptyStateLayout
         heroCopy={heroCopy}
-        chromeCopy={chromeCopy}
         prioritySlot={<div data-testid="priority-slot">输入区</div>}
-        isGeneralTheme
-        galleryItems={[]}
-        onSelectGalleryItem={vi.fn()}
       />,
     );
   });
@@ -78,9 +63,9 @@ describe("EmptyStateLayout", () => {
     expect(artwork).toBeTruthy();
     expect(firstScreen?.textContent).toContain("青柠一下，灵感即来");
     expect(firstScreen?.contains(prioritySlot)).toBe(true);
-    expect(prioritySlot?.parentElement?.getAttribute("data-home-hero-layer")).toBe(
-      "composer-above-foreground",
-    );
+    expect(
+      prioritySlot?.parentElement?.getAttribute("data-home-hero-layer"),
+    ).toBe("composer-above-foreground");
     expect(artwork?.querySelector("img")?.getAttribute("src")).toContain(
       "home-hero-v3.webp",
     );

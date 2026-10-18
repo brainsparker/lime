@@ -1,4 +1,8 @@
 {
+  "plugin.skillPreview.loading": "스킬 내용을 불러오는 중…",
+  "plugin.skillPreview.error": "스킬 내용을 불러올 수 없습니다.",
+  "plugin.skillPreview.empty": "아직 사용 가능한 지침이 없습니다",
+  "plugin.skillPreview.retry": "다시 시도",
   "plugin.share.createdByMe": "내가 만든 공유",
   "plugin.share.manage": "공유 및 편집",
   "plugin.share.title": "{{name}} 공유",

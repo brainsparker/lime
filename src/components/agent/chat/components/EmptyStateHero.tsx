@@ -243,14 +243,13 @@ const HeroContent = styled.div`
   width: 100%;
   min-width: 0;
   flex-direction: column;
-  gap: 0.65rem;
-  padding: 0 0.5rem 1rem;
+  gap: 22px;
 `;
 
 const ArtworkStage = styled.div`
   position: relative;
   isolation: isolate;
-  width: min(1180px, 100%);
+  width: min(1180px, calc(100% - 48px));
   margin: var(--home-hero-breakout-space, 0) auto 0;
   min-height: var(--home-hero-stage-height, 310px);
   overflow: var(--home-hero-stage-overflow, hidden);
@@ -637,7 +636,9 @@ const Description = styled.p`
 const PriorityShell = styled.div`
   position: relative;
   z-index: 50;
-  width: min(1180px, 100%);
+  width: min(100%, var(--thread-content-max-width, 48rem));
+  box-sizing: border-box;
+  padding-inline: var(--lime-panel-padding, 24px);
   margin: 0 auto;
 
   @media (max-width: 760px) {
@@ -646,7 +647,9 @@ const PriorityShell = styled.div`
 `;
 
 const SupportingShell = styled.div`
-  width: min(1180px, 100%);
+  width: min(100%, var(--thread-content-max-width, 48rem));
+  box-sizing: border-box;
+  padding-inline: var(--lime-panel-padding, 24px);
   margin: 0 auto;
 `;
 

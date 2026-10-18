@@ -6,6 +6,10 @@ import { isDeepStrictEqual } from "node:util";
 import nodeAssert from "node:assert/strict";
 import { remotePluginBundle } from "./lib/remote-plugin-bundle-fixture.mjs";
 import {
+  respondPluginSkill,
+  exercisePluginSkillPreview,
+} from "./lib/plugin-skill-preview-scenario.mjs";
+import {
   ensureElectronFixtureBuild,
   inspectElectronFixtureBuildFreshness,
 } from "../lib/electron-fixture-build.mjs";
@@ -138,6 +142,7 @@ const plugin = (index) => ({
   },
 });
 const installedAccounts = new Set();
+const skillPreview = { requests: 0, mode: "ready" };
 const issuer = http.createServer(async (request, response) => {
   const url = new URL(request.url, "http://fixture.test");
   if (url.pathname.startsWith("/signed-bundle/")) {
@@ -285,6 +290,10 @@ const issuer = http.createServer(async (request, response) => {
     );
     return;
   }
+  if (
+    respondPluginSkill({ request, response, url, index, state: skillPreview })
+  )
+    return;
   if (url.pathname.includes("/client/ps/plugins/")) {
     assert(
       url.pathname.endsWith(`/opaque~${index}`),
@@ -371,11 +380,7 @@ async function launch(appServerEnv) {
 
 async function visible(index, stage, installed = false) {
   const { page } = handle;
-  await page
-    .locator(
-      '[data-testid="app-sidebar-rail"] [data-testid="app-sidebar-nav-plugins"]',
-    )
-    .click();
+  await page.locator('[data-testid="app-sidebar-nav-plugins"]').click();
   await page
     .locator(
       `[data-testid="plugin-catalog-card-research-${index}@${marketplace}"]`,
@@ -389,12 +394,7 @@ async function visible(index, stage, installed = false) {
   await page
     .getByText(`Remote description ${index}`, { exact: true })
     .waitFor();
-  await page
-    .getByText(
-      installed ? `research-${index}:research-skill` : "research-skill",
-      { exact: true },
-    )
-    .waitFor();
+  await page.getByText("research-skill", { exact: true }).waitFor();
   await page.getByText("research-server", { exact: true }).waitFor();
   assert(
     (await page
@@ -522,6 +522,12 @@ try {
   console.log("[remote-plugins] shared account imported");
   await handle.page.evaluate(() => window.dispatchEvent(new Event("focus")));
   await visible(0, "directory-detail");
+  await exercisePluginSkillPreview({
+    page: handle.page,
+    state: skillPreview,
+    checks,
+    evidenceDir,
+  });
   await handle.page
     .locator(`[data-testid="plugin-catalog-install-research-0@${marketplace}"]`)
     .click();
@@ -538,6 +544,13 @@ try {
     .locator('[data-testid="plugin-catalog-install-review"]')
     .waitFor({ state: "detached" });
   await visible(0, "installed", true);
+  await exercisePluginSkillPreview({
+    page: handle.page,
+    state: skillPreview,
+    checks,
+    evidenceDir,
+    installed: true,
+  });
   const { connectAppServerSidecar, stdioSidecar } =
     await import("../../packages/app-server-client/dist/index.js");
   peer = await connectAppServerSidecar(
@@ -560,6 +573,20 @@ try {
     "stdio must use the same shared account and catalog",
   );
   checks.sharedStdio = true;
+  const skill = (
+    await peer.connection.request(
+      peer.client.readPluginSkill({
+        remoteMarketplaceName: marketplace,
+        remotePluginId: "opaque~0",
+        skillName: "research-skill",
+      }),
+    )
+  ).result;
+  assert(
+    skill.contents?.includes("Verified skill body"),
+    "stdio must read the same authorized skill",
+  );
+  checks.sharedSkillStdio = true;
   const installed = (
     await peer.connection.request(peer.client.listInstalledPlugins({}))
   ).result;
@@ -720,9 +747,13 @@ try {
     "renderer sent an account credential",
   );
   assert(
-    ["plugin/list", "plugin/read", "plugin/install", "plugin/uninstall"].every(
-      (method) => methods.has(method),
-    ),
+    [
+      "plugin/list",
+      "plugin/read",
+      "plugin/skill/read",
+      "plugin/install",
+      "plugin/uninstall",
+    ].every((method) => methods.has(method)),
     "real plugin RPC evidence missing",
   );
   assert(

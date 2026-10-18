@@ -143,12 +143,13 @@ pub(crate) struct Release {
     pub bundle_download_url: Option<String>,
     pub display_name: String,
     pub description: String,
+    #[serde(default)]
     pub keywords: Vec<String>,
     pub interface: Interface,
     #[serde(default)]
     pub app_ids: Vec<String>,
     pub app_manifest: Option<serde_json::Value>,
-    #[serde(default)]
+    #[serde(default, alias = "unavailable_app_templates")]
     pub app_templates: Vec<AppTemplate>,
     #[serde(default)]
     pub skills: Vec<Skill>,
@@ -171,8 +172,7 @@ pub(crate) struct Interface {
     pub terms_of_service_url: Option<String>,
     pub brand_color: Option<String>,
     pub default_prompt: Option<String>,
-    #[serde(default)]
-    pub default_prompts: Vec<String>,
+    pub default_prompts: Option<Vec<String>>,
     pub composer_icon_url: Option<String>,
     pub logo_url: Option<String>,
     pub logo_url_dark: Option<String>,

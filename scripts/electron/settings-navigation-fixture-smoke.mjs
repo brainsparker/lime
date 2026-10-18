@@ -80,7 +80,9 @@ const sourcePaths = [
   "src/hooks/useDeepLink.ts",
   "src/lib/deepLink/websiteLaunch.ts",
   "src/components/AppPageContent.tsx",
-  "src/components/app-sidebar/AppSidebarRail.tsx",
+  "src/components/app-sidebar/SidebarResizeHandle.tsx",
+  "src/components/app-sidebar/useSidebarWidth.ts",
+  "src/components/app-sidebar/AppSidebar.constants.ts",
   "src/components/settings-v2/sections.tsx",
   "src/components/settings-v2/_layout/index.tsx",
   "src/components/settings-v2/_layout/SettingsNavigation.tsx",
@@ -218,7 +220,7 @@ async function surface(page, options, sessionId) {
             ?.getAttribute("data-workspace-root") || null;
       const answerVisible = document.body.innerText.includes(answerText);
       const home = Boolean(
-        document.querySelector('[data-testid="home-start-surface"]'),
+        document.querySelector('[data-testid="home-ambient-suggestions"]'),
       );
       if (expected ? !workspaceRoot || !answerVisible : !home) return null;
       return {
@@ -230,7 +232,7 @@ async function surface(page, options, sessionId) {
         workspaceRoot,
         home,
         settings: Boolean(
-          document.querySelector('[data-testid="settings-top-header"]'),
+          document.querySelector('[data-testid="settings-navigation"]'),
         ),
         answerVisible,
         restore: JSON.parse(
@@ -677,12 +679,14 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       })),
     );
     await openSettings(page, options);
+    await page.getByTestId("settings-back-button").click();
+    await surface(page, options, sessionId);
     await page.getByTestId("app-sidebar-nav-home-general").click();
     const home = await surface(page, options, null);
     assert.equal(home.home, true);
     assert.equal(home.settings, false);
     assert.equal(ledger().length, 1);
-    summary.railHome = { home: true, sessionId: null, backendTurnStarts: 1 };
+    summary.backThenHome = { home: true, sessionId: null, backendTurnStarts: 1 };
     stage("verify-incoming-service-skill-and-new-conversation");
     await handle.app.evaluate(({ app }, url) => {
       app.emit("open-url", { preventDefault() {} }, url);
@@ -785,10 +789,10 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
               visible: editor.getClientRects().length > 0,
             })),
             home: Boolean(
-              document.querySelector('[data-testid="home-start-surface"]'),
+              document.querySelector('[data-testid="home-ambient-suggestions"]'),
             ),
             settings: Boolean(
-              document.querySelector('[data-testid="settings-top-header"]'),
+              document.querySelector('[data-testid="settings-navigation"]'),
             ),
             answerVisible: document.body.innerText.includes(answerText),
             restore: JSON.parse(

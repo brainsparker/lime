@@ -12731,6 +12731,25 @@
           ],
           "type": "object"
         },
+        "PluginSkillReadParams": {
+          "properties": {
+            "remoteMarketplaceName": {
+              "type": "string"
+            },
+            "remotePluginId": {
+              "type": "string"
+            },
+            "skillName": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "remoteMarketplaceName",
+            "remotePluginId",
+            "skillName"
+          ],
+          "type": "object"
+        },
         "PluginUninstallParams": {
           "properties": {
             "pluginId": {
@@ -16872,6 +16891,26 @@
             },
             "params": {
               "$ref": "#/$defs/PluginReadParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/RequestId"
+            },
+            "method": {
+              "const": "plugin/skill/read",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/$defs/PluginSkillReadParams"
             }
           },
           "required": [
@@ -40752,6 +40791,7 @@
         "plugin/share/list",
         "plugin/share/save",
         "plugin/share/updateTargets",
+        "plugin/skill/read",
         "plugin/uninstall",
         "process/kill",
         "process/resizePty",
@@ -53744,6 +53784,40 @@
         "principals"
       ],
       "title": "PluginShareUpdateTargetsResponse",
+      "type": "object"
+    },
+    "PluginSkillReadParams": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "remoteMarketplaceName": {
+          "type": "string"
+        },
+        "remotePluginId": {
+          "type": "string"
+        },
+        "skillName": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "remoteMarketplaceName",
+        "remotePluginId",
+        "skillName"
+      ],
+      "title": "PluginSkillReadParams",
+      "type": "object"
+    },
+    "PluginSkillReadResponse": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "properties": {
+        "contents": {
+          "type": [
+            "null",
+            "string"
+          ]
+        }
+      },
+      "title": "PluginSkillReadResponse",
       "type": "object"
     },
     "PluginSource": {
@@ -130780,6 +130854,7 @@
               "plugin/share/list",
               "plugin/share/save",
               "plugin/share/updateTargets",
+              "plugin/skill/read",
               "plugin/uninstall",
               "process/kill",
               "process/resizePty",

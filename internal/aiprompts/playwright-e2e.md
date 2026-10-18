@@ -143,7 +143,7 @@ npm run verify:gui-smoke -- --include-knowledge-product-e2e --reuse-running
 3. 从所有 context pages 中选择 URL 包含 `127.0.0.1:1420` 的页签，并确认：
    - `window.__LIME_ELECTRON__ === true`
    - `Boolean(window.electronAPI?.invoke) === true`
-   - `document.querySelector('[data-testid="app-sidebar"], [data-testid="settings-top-header"]')` 可见
+   - `document.querySelector('[data-testid="app-sidebar"], [data-testid="settings-navigation"]')` 可见
 4. 如果当前页在设置 layout，需要先点可见 rail `app-sidebar-nav-home-general` 回到 Claw 首页（页头 `settings-back-button` 返回进入设置前的来处，不能用于强制回首页），再找唯一可见的 `[data-testid="composer-editor"][role="textbox"]`；会话输入还须核对 `data-session-id`，通过真实 EditorView 编辑，不使用 textarea value/selection API。
 
 最小脚本骨架：

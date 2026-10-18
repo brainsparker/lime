@@ -458,30 +458,26 @@ export async function runSettingsSearchScenario({
   }));
   await page.setViewportSize({ width: 600, height: 900 });
   await page.keyboard.press("Control+f");
-  const mobile = page.getByTestId("settings-mobile-search");
-  await mobile.waitFor({ state: "visible" });
+  const narrowSearch = page.getByTestId("settings-sidebar-search");
+  await narrowSearch.waitFor({ state: "visible" });
   assert.equal(
-    await mobile.evaluate((node) => node === document.activeElement),
+    await narrowSearch.evaluate((node) => node === document.activeElement),
     true,
   );
   await search(
     "profile-bio",
     messages["settings.profile.field.bio.label"],
-    mobile,
-  );
-  assert.equal(
-    await page.getByTestId("settings-floating-nav-panel").count(),
-    0,
+    narrowSearch,
   );
   await page.getByRole("button", { name: "编辑个人简介", exact: true }).click();
   const bio = page.locator("#profile-field-bio");
   await bio.fill("narrow search unsaved draft");
   await page.keyboard.press("Control+f");
-  await mobile.fill(messages["settings.environment.overrides.title"]);
+  await narrowSearch.fill(messages["settings.environment.overrides.title"]);
   await page.screenshot({
     path: path.join(evidenceDir, "search-narrow-results.png"),
   });
-  await mobile.press("Enter");
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await keep.click();
   await dialog.waitFor({ state: "detached" });
@@ -491,36 +487,28 @@ export async function runSettingsSearchScenario({
     options,
     () =>
       document.activeElement?.getAttribute("data-testid") ===
-      "settings-mobile-search",
+      "settings-sidebar-search",
     "narrow keep restores search focus",
   );
-  assert.equal(
-    await page.getByTestId("settings-floating-nav-panel").count(),
-    1,
-  );
-  await mobile.press("Enter");
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await discard.click();
   const narrow = await locate("environment-overrides");
-  assert.equal(
-    await page.getByTestId("settings-floating-nav-panel").count(),
-    0,
-  );
   await page.screenshot({
     path: path.join(evidenceDir, "search-narrow-target.png"),
   });
   await page.keyboard.press("Control+f");
-  await mobile.waitFor({ state: "visible" });
+  await narrowSearch.waitFor({ state: "visible" });
   await search(
     "web-search-mse-timeout",
     messages["settings.webSearch.mse.timeout.label"],
-    mobile,
+    narrowSearch,
   );
   const timeout = page.locator("#web-search-mse-timeout");
   await timeout.fill("27182");
   await page.keyboard.press("Control+f");
-  await mobile.fill(messages["settings.webSearch.images.pixabay.label"]);
-  await mobile.press("Enter");
+  await narrowSearch.fill(messages["settings.webSearch.images.pixabay.label"]);
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await keep.click();
   await dialog.waitFor({ state: "detached" });
@@ -530,10 +518,10 @@ export async function runSettingsSearchScenario({
     options,
     () =>
       document.activeElement?.getAttribute("data-testid") ===
-      "settings-mobile-search",
+      "settings-sidebar-search",
     "hidden tab keep restores narrow search focus",
   );
-  await mobile.press("Enter");
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await discard.click();
   const narrowWebSearch = await locate("web-search-pixabay-key");
@@ -544,10 +532,6 @@ export async function runSettingsSearchScenario({
     "true",
   );
   assert.equal(
-    await page.getByTestId("settings-floating-nav-panel").count(),
-    0,
-  );
-  assert.equal(
     await page.locator("#web-search-pixabay-key").getAttribute("type"),
     "password",
   );
@@ -555,16 +539,16 @@ export async function runSettingsSearchScenario({
     path: path.join(evidenceDir, "search-web-search-narrow.png"),
   });
   await page.keyboard.press("Control+f");
-  await mobile.waitFor({ state: "visible" });
+  await narrowSearch.waitFor({ state: "visible" });
   await search(
     "memory-import",
     messages["settings.memory.soul.import.title"],
-    mobile,
+    narrowSearch,
   );
   await imported.fill("narrow search fixture private import draft");
   await page.keyboard.press("Control+f");
-  await mobile.fill(messages["settings.appearance.language.title"]);
-  await mobile.press("Enter");
+  await narrowSearch.fill(messages["settings.appearance.language.title"]);
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await keep.click();
   await dialog.waitFor({ state: "detached" });
@@ -577,17 +561,13 @@ export async function runSettingsSearchScenario({
     options,
     () =>
       document.activeElement?.getAttribute("data-testid") ===
-      "settings-mobile-search",
+      "settings-sidebar-search",
     "memory keep restores narrow search focus",
   );
-  await mobile.press("Enter");
+  await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
   await discard.click();
   const narrowAppearance = await locate("appearance-language");
-  assert.equal(
-    await page.getByTestId("settings-floating-nav-panel").count(),
-    0,
-  );
   await page.screenshot({
     path: path.join(evidenceDir, "search-memory-appearance-narrow.png"),
   });
