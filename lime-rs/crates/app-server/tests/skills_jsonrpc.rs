@@ -10,6 +10,7 @@ use app_server_protocol::{METHOD_INITIALIZE, METHOD_INITIALIZED};
 use lime_core::config::ConfigManager;
 use serde_json::{json, Value};
 use tempfile::TempDir;
+use tokio::time::{timeout, Duration};
 
 #[tokio::test]
 async fn skills_list_preserves_cwd_order_errors_and_exact_metadata_shape() {
@@ -118,6 +119,7 @@ async fn skills_extra_roots_replace_clear_and_notify_over_public_jsonrpc() {
 
     let server = app_server_with_config_path(cwd.path().join("config.yaml"));
     initialize(&server).await;
+    let mut outbound = server.subscribe_outbound_messages();
 
     let messages = request_messages(
         &server,
@@ -127,9 +129,19 @@ async fn skills_extra_roots_replace_clear_and_notify_over_public_jsonrpc() {
     )
     .await;
     assert_eq!(response_for(&messages, 2)["result"], json!({}));
-    assert!(messages.iter().any(|message| {
-        message["method"] == "skills/changed" && message["params"] == json!({})
-    }));
+    timeout(Duration::from_secs(5), async {
+        loop {
+            let notification =
+                serde_json::to_value(outbound.recv().await.expect("skills mutation notification"))
+                    .expect("serialize skills mutation notification");
+            if notification["method"] == "skills/changed" {
+                assert_eq!(notification["params"], json!({}));
+                break;
+            }
+        }
+    })
+    .await
+    .expect("skills/extraRoots/set must broadcast skills/changed to connected consumers");
     let first_list = request(
         &server,
         3,

@@ -85,3 +85,5 @@
 - 独立候选按新增依赖锁文件恢复环境，原工作区依赖不改；先定向验证最新侧栏/首页/插件与完整typecheck，再推送最终SHA运行Quality。不得用87c70d0之前结果代替最新写集。
 
 - 最新候选本地定向回归30文件568项全部exit0（单worker，原测试期限；`latest-tests.log`与`latest-test-results.json`）；版本一致性exit0。相对v1.160.0完整候选938路径（含删除），暂存清单/逐文件哈希审计无非预期漂移；本次相对87c70d0为114路径。完整`npm run typecheck`（renderer+node）exit0（`latest-typecheck.log`）；远端Quality/GUI及Release产物未完成，不记作发布成功。
+
+- 最新产品提交3290a2519通过正常预提交守卫（91通过/0失败，平均99分）。前轮39100767112的Rust Full已证明Apps两项、media八项与远程插件49项通过，随后skills_jsonrpc一项仍断言响应内联通知而失败。窄修复该测试：请求前订阅真实outbound，按skills/changed事件等待并断言空params，保留替换/清空/无效根目录及技能投影断言，不修改生产逻辑；与既有marketplace/apps公共JSON-RPC通知合同一致。定向Rust验证及最终SHA远端门禁仍需完成。
