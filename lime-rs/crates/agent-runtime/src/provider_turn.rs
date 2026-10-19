@@ -267,6 +267,11 @@ pub enum CurrentProviderTurnEvent {
         item_id: String,
         phase: Option<MessagePhase>,
     },
+    TextCompleted {
+        item_id: String,
+        text: String,
+        phase: Option<MessagePhase>,
+    },
     ReasoningStart {
         item_id: String,
     },
@@ -286,6 +291,11 @@ pub enum CurrentProviderTurnEvent {
     },
     ReasoningEnd {
         item_id: String,
+    },
+    ReasoningCompleted {
+        item_id: String,
+        summary: Vec<String>,
+        content: Vec<String>,
     },
     ToolInputDelta {
         tool_id: String,
@@ -607,7 +617,9 @@ where
         let mut pending_text_item_ids = Vec::new();
         let mut finish_reason = None;
         let mut step_text_output_chars = 0_u64;
-        let mut step_reasoning_output_chars = 0_u64;
+        let text_output_offset = text_output.len();
+        let mut step_text_output = output_lifecycle::TextOutput::default();
+        let mut step_reasoning_output = output_lifecycle::ReasoningOutput::default();
         let mut step_usage = None;
         let mut has_user_visible_output = false;
         let mut step_has_user_visible_text = false;
@@ -760,6 +772,7 @@ where
                     step_text_output_chars =
                         step_text_output_chars.saturating_add(text.chars().count() as u64);
                     text_output.push_str(&text);
+                    step_text_output.append(&id, &text);
                     assistant_content
                         .display(id.clone(), CurrentProviderContent::Text(text.clone()));
                     start_output_item(
@@ -804,14 +817,13 @@ where
                     text,
                     summary_index,
                 } => {
-                    step_reasoning_output_chars =
-                        step_reasoning_output_chars.saturating_add(text.chars().count() as u64);
                     let id = provider_output_item_id(
                         &turn_id,
                         attempt,
                         ProviderOutputFamily::Reasoning,
                         &id,
                     );
+                    step_reasoning_output.append(&id, &text);
                     emitted_any = true;
                     start_output_item(
                         &mut active_reasoning_item_id,
@@ -851,14 +863,13 @@ where
                     text,
                     content_index,
                 } => {
-                    step_reasoning_output_chars =
-                        step_reasoning_output_chars.saturating_add(text.chars().count() as u64);
                     let id = provider_output_item_id(
                         &turn_id,
                         attempt,
                         ProviderOutputFamily::Reasoning,
                         &id,
                     );
+                    step_reasoning_output.append(&id, &text);
                     emitted_any = true;
                     assistant_content
                         .display(id.clone(), CurrentProviderContent::Reasoning(text.clone()));
@@ -882,12 +893,14 @@ where
                         ProviderOutputFamily::Reasoning,
                         &id,
                     );
-                    end_reasoning_output_item(
-                        &mut active_reasoning_item_id,
-                        id,
-                        &mut on_event,
-                        emitted_any,
-                    )?;
+                    if !assistant_content.has_completed_reasoning(&id) {
+                        end_reasoning_output_item(
+                            &mut active_reasoning_item_id,
+                            id,
+                            &mut on_event,
+                            emitted_any,
+                        )?;
+                    }
                 }
                 CanonicalLlmEvent::ResponseItemDone {
                     source_id,
@@ -906,14 +919,31 @@ where
                         .await?;
                     // 完成项已进入模型历史，即使没有展示 delta 也不能按空输出改路由。
                     emitted_any = true;
-                    if let Some(message) = completed_message {
-                        complete_text_output_item(
-                            &mut active_text_item_id,
-                            &mut pending_text_item_ids,
-                            message,
-                            &mut on_event,
-                            emitted_any,
-                        )?;
+                    match completed_message {
+                        output_lifecycle::CompletedOutput::Message(message) => {
+                            step_text_output.complete(&message.item_id, &message.text);
+                            text_output.truncate(text_output_offset);
+                            text_output.push_str(&step_text_output.text());
+                            step_text_output_chars = step_text_output.chars();
+                            step_has_user_visible_text = step_text_output.visible();
+                            has_user_visible_output |= step_has_user_visible_text;
+                            complete_text_output_item(
+                                &mut active_text_item_id,
+                                &mut pending_text_item_ids,
+                                message,
+                                &mut on_event,
+                                emitted_any,
+                            )?;
+                        }
+                        output_lifecycle::CompletedOutput::Reasoning(reasoning) => {
+                            step_reasoning_output.complete(&reasoning);
+                            output_lifecycle::complete_reasoning_output_item(
+                                &mut active_reasoning_item_id,
+                                reasoning,
+                                &mut on_event,
+                                emitted_any,
+                            )?;
+                        }
                     }
                 }
                 CanonicalLlmEvent::ToolInputDelta { id, name, text } => {
@@ -1175,7 +1205,7 @@ where
             completed,
             finish_reason: finish_reason.clone(),
             text_output_chars: step_text_output_chars,
-            reasoning_output_chars: step_reasoning_output_chars,
+            reasoning_output_chars: step_reasoning_output.chars(),
             tool_call_count: pending_calls.len().min(u32::MAX as usize) as u32,
             usage: step_usage.clone(),
         });

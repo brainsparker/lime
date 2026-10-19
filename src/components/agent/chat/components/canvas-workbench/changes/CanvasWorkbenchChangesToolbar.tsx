@@ -37,7 +37,7 @@ export interface CanvasWorkbenchChangesToolbarProps extends CanvasWorkbenchRevie
   baseMenuOpen: boolean;
   selectedBase: CanvasWorkbenchReviewBase;
   branchCompareLabel?: string | null;
-  filesPanelOpen?: boolean;
+  filesPanelOpen: boolean;
   showFilesToggle?: boolean;
   actionsDisabled?: boolean;
   baseSelectorDisabled?: boolean;
@@ -76,7 +76,7 @@ export function CanvasWorkbenchChangesToolbar({
   baseMenuOpen,
   selectedBase,
   branchCompareLabel,
-  filesPanelOpen = true,
+  filesPanelOpen,
   showFilesToggle = true,
   actionsDisabled = false,
   baseSelectorDisabled,

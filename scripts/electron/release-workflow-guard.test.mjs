@@ -45,6 +45,14 @@ describe("Electron release workflow guard", () => {
     expect(() => validateReleaseWorkflow()).not.toThrow();
   });
 
+  it("ignores local verification artifacts when checking retired packaging files", () => {
+    const repositoryRoot = tempRepositoryRoot({
+      ".lime/release/candidate/latest.yml": "local fixture",
+      "src/current.ts": "export {};",
+    });
+    expect(() => validateReleaseWorkflow({ repositoryRoot })).not.toThrow();
+  });
+
   it("rejects updater uploads without S3 multipart and remote verification", () => {
     const current = fs.readFileSync(".github/workflows/release.yml", "utf8");
     const workflowPath = tempWorkflowPath(

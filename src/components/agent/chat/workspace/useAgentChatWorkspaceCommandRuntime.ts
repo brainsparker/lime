@@ -330,6 +330,7 @@ export function useAgentChatWorkspaceCommandRuntime({
         messages,
         onNavigate: _onNavigate,
         openArticleWorkspaceRightSurface,
+        openWorkspaceFile: contextSurfaceRuntime.rightSurfaceLocalState.openWorkspaceFile,
         projectId,
         projectRootPath: project?.rootPath || null,
         readSessionFile,

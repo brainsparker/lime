@@ -69,13 +69,10 @@ describe("Summary pin in the existing persisted atom owner", () => {
         );
         if (extraBytes === 0) {
           expect(
-            store.updateSummaryPanelPinState({ op: "set", value: false })
-              .outcome,
+            store.updateBooleanState(key, { op: "set", value: false }).outcome,
           ).toBe("applied");
           await store.flush();
-          expect(store.sendSummaryPanelPinState().persistence.state).toBe(
-            "saved",
-          );
+          expect(store.sendBooleanState(key).persistence.state).toBe("saved");
         }
       } finally {
         store.dispose();
@@ -88,7 +85,7 @@ describe("Summary pin in the existing persisted atom owner", () => {
     const root = await rootDirectory();
     const store = new PersistedAtomStore(root);
     await store.ready;
-    expect(store.sendSummaryPanelPinState()).toMatchObject({
+    expect(store.sendBooleanState(key)).toMatchObject({
       key,
       data: { queryKind: "value", value: true },
     });
@@ -102,7 +99,7 @@ describe("Summary pin in the existing persisted atom owner", () => {
     });
     expect(draft.outcome).toBe("applied");
     const request = { key, mutation: { op: "set", value: false } } as const;
-    const update = store.updateSummaryPanelPinState(request.mutation);
+    const update = store.updateBooleanState(key, request.mutation);
     expect(parsePersistedAtomUpdateResult(update, request)).toMatchObject({
       outcome: "applied",
       changed: true,
@@ -121,13 +118,14 @@ describe("Summary pin in the existing persisted atom owner", () => {
     );
     const restored = new PersistedAtomStore(root);
     await restored.ready;
-    expect(restored.sendSummaryPanelPinState()).toMatchObject({
+    expect(restored.sendBooleanState(key)).toMatchObject({
       data: { value: false },
       persistence: { state: "saved", savedRevision: 2 },
     });
-    expect(restored.updateSummaryPanelPinState(request.mutation)).toMatchObject(
-      { changed: false, storeRevision: 2 },
-    );
+    expect(restored.updateBooleanState(key, request.mutation)).toMatchObject({
+      changed: false,
+      storeRevision: 2,
+    });
     restored.dispose();
     await restored.flush();
   });

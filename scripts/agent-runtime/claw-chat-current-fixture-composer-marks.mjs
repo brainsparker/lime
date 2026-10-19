@@ -54,7 +54,9 @@ export function composerMarksFixture({ prompt, skillIdentity, pasteText }) {
   assert(
     /^[a-zA-Z0-9_-]+$/.test(skillIdentity?.name ?? "") &&
       typeof skillIdentity?.key === "string" &&
-      skillIdentity.key.length > 0,
+      skillIdentity.key.length > 0 &&
+      typeof skillIdentity.path === "string" &&
+      skillIdentity.path.length > 0,
     "marks Skill identity 缺失",
   );
   assert(
@@ -64,30 +66,27 @@ export function composerMarksFixture({ prompt, skillIdentity, pasteText }) {
   const body = `${CODE}\n\n`;
   const pasteLabel = `[Pasted text 1: ${pasteText.length} characters]`;
   const skillLabel = `$${skillIdentity.name}`;
+  const skillPath = skillIdentity.path
+    .replaceAll("\\", "\\\\")
+    .replaceAll(")", "\\)");
+  const skillLink = `[${skillLabel}](${skillPath})`;
   const displayPrefix = `${prompt}\n${LINK.label}\n${body}\n${TAIL} `;
   const markdownPrefix = `${prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`typescript\n${body}\n\`\`\`\`\`\n${TAIL} `;
   const pasteStart = Buffer.byteLength(markdownPrefix, "utf8");
   const pasteEnd = pasteStart + Buffer.byteLength(pasteText, "utf8");
   return {
-    text: `${markdownPrefix}${pasteText} ${skillLabel}`,
+    text: `${markdownPrefix}${pasteText} ${skillLink}`,
     displayText: `${displayPrefix}${pasteLabel} ${skillLabel}`,
     renderedTextParts: [
       prompt,
       LINK.label,
       body,
-      `${TAIL} ${pasteText} ${skillLabel}`,
+      `${TAIL} ${pasteText} ${skillIdentity.displayName || skillLabel}`,
     ],
     textElements: [
       {
         byteRange: { start: pasteStart, end: pasteEnd },
         placeholder: pasteLabel,
-      },
-      {
-        byteRange: {
-          start: pasteEnd + 1,
-          end: pasteEnd + 1 + Buffer.byteLength(skillLabel, "utf8"),
-        },
-        placeholder: skillLabel,
       },
     ],
     marks: expectedMarks(body),

@@ -187,12 +187,7 @@ describe("Windows Squirrel RC smoke", () => {
     });
     expect(runProcessImpl).toHaveBeenCalledWith(
       "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-Command",
-        script,
-      ],
+      ["-NoProfile", "-NonInteractive", "-Command", script],
       expect.objectContaining({
         env: expect.objectContaining({
           LIME_TARGET_EXECUTABLE: "C:\\runner\\Lime.exe",
@@ -377,8 +372,13 @@ describe("Windows Squirrel RC smoke", () => {
       evaluate: vi
         .fn()
         .mockResolvedValueOnce({ stage: "idle" })
+        .mockResolvedValueOnce({ stage: "idle" })
+        .mockResolvedValueOnce({ stage: "idle" })
         .mockResolvedValue(checking),
       getByTestId: vi.fn((id) => ({
+        isVisible: vi
+          .fn()
+          .mockResolvedValue(settingsClick.mock.calls.length > 0),
         click: id === "app-sidebar-nav-settings" ? settingsClick : aboutClick,
       })),
     };
@@ -387,6 +387,7 @@ describe("Windows Squirrel RC smoke", () => {
       checking,
     );
     expect(page.getByTestId.mock.calls).toEqual([
+      ["settings-sidebar-tab-about"],
       ["app-sidebar-nav-settings"],
       ["settings-sidebar-tab-about"],
     ]);
@@ -395,13 +396,35 @@ describe("Windows Squirrel RC smoke", () => {
     );
   });
 
-  it("N-1 已开始检查时只观察会话，不重复打开入口", async () => {
-    const downloaded = { stage: "completed", latestVersion: "1.150.0" };
+  it("N-1 设置导航重挂载后重新定位，仍要求真实更新会话启动", async () => {
+    const checking = { stage: "checking", currentVersion: "1.162.0" };
+    const aboutClick = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("element was detached from the DOM"))
+      .mockResolvedValue(undefined);
     const page = {
       evaluate: vi
         .fn()
-        .mockResolvedValueOnce({ stage: "checking" })
-        .mockResolvedValue(downloaded),
+        .mockResolvedValueOnce({ stage: "idle" })
+        .mockResolvedValueOnce({ stage: "idle" })
+        .mockResolvedValueOnce({ stage: "idle" })
+        .mockResolvedValue(checking),
+      getByTestId: vi.fn(() => ({
+        isVisible: vi.fn().mockResolvedValue(true),
+        click: aboutClick,
+      })),
+    };
+    await expect(waitForNMinusOneAutomaticUpdate(page)).resolves.toEqual(
+      checking,
+    );
+    expect(aboutClick).toHaveBeenCalledTimes(2);
+    expect(aboutClick).toHaveBeenCalledWith({ timeout: 2_000 });
+  });
+
+  it("N-1 已开始检查时只观察会话，不重复打开入口", async () => {
+    const downloaded = { stage: "completed", latestVersion: "1.150.0" };
+    const page = {
+      evaluate: vi.fn().mockResolvedValue(downloaded),
       getByTestId: vi.fn(),
     };
 
@@ -415,6 +438,7 @@ describe("Windows Squirrel RC smoke", () => {
     const page = {
       evaluate: vi.fn().mockResolvedValue({ stage: "idle" }),
       getByTestId: vi.fn(() => ({
+        isVisible: vi.fn().mockResolvedValue(true),
         click: vi.fn().mockResolvedValue(undefined),
       })),
     };

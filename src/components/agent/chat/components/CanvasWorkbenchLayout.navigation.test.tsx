@@ -12,6 +12,18 @@ import {
   type CanvasWorkbenchLayoutProps,
 } from "./CanvasWorkbenchLayout";
 import type { CanvasWorkbenchShell } from "./canvas-workbench";
+import { configureBooleanGateway } from "@/hooks/usePersistedBooleanAtom.testFixtures";
+
+const atomGateway = vi.hoisted(() => ({
+  read: vi.fn(),
+  update: vi.fn(),
+  listen: vi.fn(),
+}));
+vi.mock("@/lib/api/persistedAtoms", () => ({
+  sendPersistedAtomState: atomGateway.read,
+  updatePersistedAtomState: atomGateway.update,
+  listenPersistedAtomUpdates: atomGateway.listen,
+}));
 
 type ShellProps = ComponentProps<typeof CanvasWorkbenchShell>;
 const boundary = vi.hoisted(() => ({
@@ -148,6 +160,7 @@ async function settle() {
 }
 
 beforeEach(() => {
+  configureBooleanGateway(atomGateway);
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -167,6 +180,17 @@ afterEach(() => {
 });
 
 describe("Workbench 保存前导航", () => {
+  it("Changes consumes the same saved file tree setting instead of local state", async () => {
+    const gateway = configureBooleanGateway(atomGateway);
+    mountWorkbench();
+    await act(async () => undefined);
+    expect(shell().changesFilesPanelOpen).toBe(false);
+    await act(async () => shell().onToggleChangesFilesPanel?.());
+    expect(shell().changesFilesPanelOpen).toBe(true);
+    await act(async () => gateway.set("app-shell-file-tree-open", false, 5));
+    expect(shell().changesFilesPanelOpen).toBe(false);
+  });
+
   it.each([
     {
       name: "tab 选择",

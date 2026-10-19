@@ -84,6 +84,7 @@ beforeEach(() => {
   document.body.appendChild(container);
   root = createRoot(container);
   act(() => root.render(<Harness />));
+  act(() => resize.resetFilesPanelWidth());
 });
 afterEach(() => {
   act(() => root.unmount());
@@ -93,6 +94,32 @@ afterEach(() => {
 });
 
 describe("Review Files resize in its own pane", () => {
+  it("shares the live width across file panes without persisting it", () => {
+    function OtherPane() {
+      const other = useFileTreeResize(true);
+      return <output data-testid="other-width">{other.filesPanelWidth}</output>;
+    }
+    act(() =>
+      root.render(
+        <>
+          <Harness />
+          <OtherPane />
+        </>,
+      ),
+    );
+    pointer("pointerdown", 300);
+    pointer("pointermove", 270);
+    pointer("pointerup", 270);
+    expect(resize.filesPanelWidth).toBe(280);
+    expect(
+      container.querySelector("[data-testid=other-width]")?.textContent,
+    ).toBe("280");
+    act(() => resize.resetFilesPanelWidth());
+    expect(
+      container.querySelector("[data-testid=other-width]")?.textContent,
+    ).toBe("250");
+  });
+
   it("clamps a drag to the pane instead of the wide window and keeps the same detail instance", () => {
     const detail = container.querySelector("input");
     pointer("pointerdown", 300);

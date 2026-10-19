@@ -11,10 +11,26 @@ export interface JsonObject {
 }
 
 export const SUMMARY_PANEL_PIN_ATOM_KEY = "app-shell-summary-panel-pinned";
+export const FILE_TREE_OPEN_ATOM_KEY = "app-shell-file-tree-open";
+export const PERSISTED_BOOLEAN_DEFAULTS = {
+  [SUMMARY_PANEL_PIN_ATOM_KEY]: true,
+  [FILE_TREE_OPEN_ATOM_KEY]: false,
+} as const;
+export type PersistedBooleanAtomKey = keyof typeof PERSISTED_BOOLEAN_DEFAULTS;
+export const PERSISTED_BOOLEAN_ATOM_KEYS = Object.keys(
+  PERSISTED_BOOLEAN_DEFAULTS,
+) as PersistedBooleanAtomKey[];
 
-export type PersistedAtomKey =
-  | "composer-drafts-v1"
-  | typeof SUMMARY_PANEL_PIN_ATOM_KEY;
+export function isPersistedBooleanAtomKey(
+  value: unknown,
+): value is PersistedBooleanAtomKey {
+  return (
+    typeof value === "string" &&
+    Object.hasOwn(PERSISTED_BOOLEAN_DEFAULTS, value)
+  );
+}
+
+export type PersistedAtomKey = "composer-drafts-v1" | PersistedBooleanAtomKey;
 
 export interface DraftScope {
   readonly workspaceId: string | null;
@@ -81,7 +97,7 @@ export type PersistedAtomReadRequest =
       readonly query: PersistedAtomReadQuery;
     }
   | {
-      readonly key: typeof SUMMARY_PANEL_PIN_ATOM_KEY;
+      readonly key: PersistedBooleanAtomKey;
       readonly query: { readonly kind: "value" };
     };
 
@@ -91,7 +107,7 @@ export type PersistedAtomUpdateRequest =
       readonly mutation: PersistedAtomMutation;
     }
   | {
-      readonly key: typeof SUMMARY_PANEL_PIN_ATOM_KEY;
+      readonly key: PersistedBooleanAtomKey;
       readonly mutation: { readonly op: "set"; readonly value: boolean };
     };
 
@@ -172,8 +188,9 @@ export interface PersistedAtomEnvelope {
   readonly format: "electron-persisted-atom-state";
   readonly version: 1;
   readonly storeRevision: number;
-  readonly atoms: {
-    readonly "app-shell-summary-panel-pinned"?: boolean;
+  readonly atoms: Partial<
+    Readonly<Record<PersistedBooleanAtomKey, boolean>>
+  > & {
     readonly "composer-drafts-v1": {
       readonly bindings: Readonly<Record<string, string>>;
       readonly entries: Readonly<Record<string, PersistedDraftEntry>>;

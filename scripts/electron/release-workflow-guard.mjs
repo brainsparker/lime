@@ -30,6 +30,7 @@ const RETIRED_PACKAGING_FILE_PATTERNS = [
 const IGNORED_RETIRED_FILE_DIRS = new Set([
   ".codex",
   ".git",
+  ".lime",
   ".tmp",
   "coverage",
   "dist",

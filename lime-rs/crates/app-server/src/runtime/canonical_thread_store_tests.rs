@@ -1977,101 +1977,108 @@ fn reasoning_deltas_persist_linearly_in_canonical_history_and_rollout() {
 }
 
 #[test]
-fn empty_reasoning_completion_preserves_canonical_content_across_persistence() {
-    let (_temp, store) = store();
-    let stored = StoredSession {
-        session: AgentSession {
-            session_id: "session-reasoning-empty-completion".to_string(),
-            thread_id: "thread-reasoning-empty-completion".to_string(),
-            app_id: "agent-chat".to_string(),
-            workspace_id: None,
-            business_object_ref: None,
-            status: AgentSessionStatus::Running,
-            created_at: "2026-08-05T00:00:00Z".to_string(),
-            updated_at: "2026-08-05T00:00:01Z".to_string(),
-        },
-        turns: Vec::new(),
-        turn_inputs: HashMap::new(),
-        turn_runtime_options: HashMap::new(),
-        events: Vec::new(),
-        output_blobs: HashMap::new(),
-    };
-    let reasoning_item_id = "item_reasoning-turn-reasoning-empty-completion";
-    let event = |sequence, event_type: &str, payload| AgentEvent {
-        event_id: format!("reasoning-empty-event-{sequence}"),
-        sequence,
-        session_id: stored.session.session_id.clone(),
-        thread_id: Some(stored.session.thread_id.clone()),
-        turn_id: Some("turn-reasoning-empty-completion".to_string()),
-        event_type: event_type.to_string(),
-        timestamp: format!("2026-08-05T00:00:{sequence:02}Z"),
-        payload,
-    };
+fn reasoning_completion_distinguishes_missing_body_from_empty_snapshot_across_persistence() {
+    for (payload, expected_content) in [
+        (
+            json!({"type": "reasoning"}),
+            vec!["inspect inputs".to_string()],
+        ),
+        (
+            json!({"type": "reasoning", "summary": [], "content": []}),
+            Vec::new(),
+        ),
+    ] {
+        let (_temp, store) = store();
+        let stored = StoredSession {
+            session: AgentSession {
+                session_id: "session-reasoning-empty-completion".to_string(),
+                thread_id: "thread-reasoning-empty-completion".to_string(),
+                app_id: "agent-chat".to_string(),
+                workspace_id: None,
+                business_object_ref: None,
+                status: AgentSessionStatus::Running,
+                created_at: "2026-08-05T00:00:00Z".to_string(),
+                updated_at: "2026-08-05T00:00:01Z".to_string(),
+            },
+            turns: Vec::new(),
+            turn_inputs: HashMap::new(),
+            turn_runtime_options: HashMap::new(),
+            events: Vec::new(),
+            output_blobs: HashMap::new(),
+        };
+        let reasoning_item_id = "item_reasoning-turn-reasoning-empty-completion";
+        let event = |sequence, event_type: &str, payload| AgentEvent {
+            event_id: format!("reasoning-empty-event-{sequence}"),
+            sequence,
+            session_id: stored.session.session_id.clone(),
+            thread_id: Some(stored.session.thread_id.clone()),
+            turn_id: Some("turn-reasoning-empty-completion".to_string()),
+            event_type: event_type.to_string(),
+            timestamp: format!("2026-08-05T00:00:{sequence:02}Z"),
+            payload,
+        };
 
-    store
-        .apply_canonical_events(
-            &stored,
-            &[event(
-                1,
-                "reasoning.delta",
-                json!({
-                    "reasoningId": "reasoning-empty-completion",
-                    "text": "inspect inputs"
-                }),
-            )],
-        )
-        .expect("persist reasoning content");
-    store
-        .apply_canonical_events(
-            &stored,
-            &[event(
-                2,
-                "item.completed",
-                json!({
-                    "item": {
-                        "sessionId": stored.session.session_id.clone(),
-                        "threadId": stored.session.thread_id.clone(),
-                        "turnId": "turn-reasoning-empty-completion",
-                        "itemId": reasoning_item_id,
-                        "sequence": 2,
-                        "ordinal": 2,
-                        "createdAtMs": 2,
-                        "updatedAtMs": 2,
-                        "completedAtMs": 2,
-                        "kind": "reasoning",
-                        "status": "completed",
-                        "payload": {
-                            "type": "reasoning",
-                            "summary": [],
-                            "content": []
-                        },
-                        "metadata": {}
-                    }
-                }),
-            )],
-        )
-        .expect("persist empty reasoning completion");
+        store
+            .apply_canonical_events(
+                &stored,
+                &[event(
+                    1,
+                    "reasoning.delta",
+                    json!({
+                        "reasoningId": "reasoning-empty-completion",
+                        "text": "inspect inputs"
+                    }),
+                )],
+            )
+            .expect("persist reasoning content");
+        store
+            .apply_canonical_events(
+                &stored,
+                &[event(
+                    2,
+                    "item.completed",
+                    json!({
+                        "item": {
+                            "sessionId": stored.session.session_id.clone(),
+                            "threadId": stored.session.thread_id.clone(),
+                            "turnId": "turn-reasoning-empty-completion",
+                            "itemId": reasoning_item_id,
+                            "sequence": 2,
+                            "ordinal": 2,
+                            "createdAtMs": 2,
+                            "updatedAtMs": 2,
+                            "completedAtMs": 2,
+                            "kind": "reasoning",
+                            "status": "completed",
+                            "payload": payload,
+                            "metadata": {}
+                        }
+                    }),
+                )],
+            )
+            .expect("persist empty reasoning completion");
 
-    let thread = block_on(store.read_thread(ReadThreadParams {
-        thread_id: ThreadId::new(&stored.session.thread_id),
-        include_archived: false,
-        turns_view: ThreadTurnsView::Full,
-    }))
-    .expect("read persisted reasoning thread")
-    .expect("persisted reasoning thread");
-    let reasoning = thread.turns[0]
-        .items
-        .iter()
-        .find(|item| matches!(item.payload, ThreadItemPayload::Reasoning { .. }))
-        .expect("persisted reasoning item");
-    assert_eq!(reasoning.status, ItemStatus::Completed);
-    assert_eq!(
-        reasoning.payload,
-        ThreadItemPayload::Reasoning {
-            summary: Vec::new(),
-            content: vec!["inspect inputs".to_string()],
-        }
-    );
+        let thread = block_on(store.read_thread(ReadThreadParams {
+            thread_id: ThreadId::new(&stored.session.thread_id),
+            include_archived: false,
+            turns_view: ThreadTurnsView::Full,
+        }))
+        .expect("read persisted reasoning thread")
+        .expect("persisted reasoning thread");
+        let reasoning = thread.turns[0]
+            .items
+            .iter()
+            .find(|item| matches!(item.payload, ThreadItemPayload::Reasoning { .. }))
+            .expect("persisted reasoning item");
+        assert_eq!(reasoning.status, ItemStatus::Completed);
+        assert_eq!(
+            reasoning.payload,
+            ThreadItemPayload::Reasoning {
+                summary: Vec::new(),
+                content: expected_content,
+            }
+        );
+    }
 }
 
 #[test]

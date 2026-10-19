@@ -8,6 +8,9 @@
 use agent_protocol::{ItemId, ThreadHistoryChangeSet, ThreadItem, Turn};
 use std::collections::HashMap;
 
+pub(super) const MESSAGE_TEXT_SNAPSHOT: &str = "text_is_snapshot";
+pub(super) const REASONING_SNAPSHOT: &str = "reasoning_is_snapshot";
+
 #[cfg(test)]
 #[path = "change_set/command_tests.rs"]
 mod command_tests;
@@ -234,6 +237,14 @@ pub(in crate::runtime) fn merge_item_snapshot(
         next.payload,
         source_event_type.as_deref(),
         command_output_delta,
+        next.metadata
+            .get(MESSAGE_TEXT_SNAPSHOT)
+            .and_then(serde_json::Value::as_bool)
+            == Some(true),
+        next.metadata
+            .get(REASONING_SNAPSHOT)
+            .and_then(serde_json::Value::as_bool)
+            == Some(true),
     );
     if matches!(
         next.payload,
@@ -272,6 +283,8 @@ fn merge_payload(
     next: agent_protocol::ThreadItemPayload,
     source_event_type: Option<&str>,
     command_output_delta: bool,
+    message_text_snapshot: bool,
+    reasoning_snapshot: bool,
 ) -> agent_protocol::ThreadItemPayload {
     use agent_protocol::ThreadItemPayload;
 
@@ -298,7 +311,11 @@ fn merge_payload(
                 content_parts,
             },
         ) => ThreadItemPayload::AgentMessage {
-            text: merge_stream_text(previous, text),
+            text: if message_text_snapshot {
+                text
+            } else {
+                merge_stream_text(previous, text)
+            },
             phase,
             content_parts: merge_message_content_parts(previous_parts, content_parts),
         },
@@ -329,6 +346,16 @@ fn merge_payload(
             explanation: explanation.or(previous_explanation),
             tool_call_id: tool_call_id.or(previous_tool_call_id),
             source_item_id: source_item_id.or(previous_source_item_id),
+        },
+        (
+            ThreadItemPayload::Reasoning { .. },
+            ThreadItemPayload::Reasoning {
+                summary: next_summary,
+                content: next_content,
+            },
+        ) if reasoning_snapshot => ThreadItemPayload::Reasoning {
+            summary: next_summary,
+            content: next_content,
         },
         (
             ThreadItemPayload::Reasoning {

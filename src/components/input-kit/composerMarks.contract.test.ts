@@ -75,18 +75,17 @@ describe("Composer link and code contracts", () => {
     expect(display.mentionBindings[0]).toMatchObject({ from: 20, to: 23 });
     const submission = controller.submit("queue").submission;
     expect(submission.text).toBe(
-      "[中😀](https://e.test)\n`````ts\n中😀\n````\n`````\n长😀\n文$审阅尾",
+      "[中😀](https://e.test)\n`````ts\n中😀\n````\n`````\n长😀\n文[$审阅](/skills/review)尾",
     );
     expect(submission.textElements).toEqual([
       { byteRange: { start: 53, end: 64 }, placeholder: "[paste]" },
-      { byteRange: { start: 64, end: 71 }, placeholder: "$审阅" },
     ]);
     const bytes = new TextEncoder().encode(submission.text);
     expect(
       submission.textElements.map(({ byteRange }) =>
         new TextDecoder().decode(bytes.slice(byteRange.start, byteRange.end)),
       ),
-    ).toEqual(["长😀\n文", "$审阅"]);
+    ).toEqual(["长😀\n文"]);
     expect(submission.inputMentions).toEqual([
       { type: "skill", name: "审阅", path: "/skills/review" },
     ]);

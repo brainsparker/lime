@@ -295,8 +295,8 @@ describe("Composer link and code edge contracts", () => {
     expect(
       controller.getEditorState().doc.lastChild!.firstChild!.attrs.id,
     ).toBe("paste-1");
-    expect(controller.submit("queue").submission.textElements[2]).toEqual({
-      byteRange: { start: 71, end: 74 },
+    expect(controller.submit("queue").submission.textElements[1]).toEqual({
+      byteRange: { start: 89, end: 92 },
       placeholder: "tail",
     });
     controller.setMentionBindings([]);

@@ -220,7 +220,11 @@ pub(super) fn typed_payload(
             client_id: map_string(payload, &["clientId", "client_id"]),
         },
         ItemFamily::AgentMessage => ThreadItemPayload::AgentMessage {
-            text: message_text(payload),
+            text: payload
+                .get("text")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+                .unwrap_or_else(|| message_text(payload)),
             phase: map_string(payload, &["phase", "messagePhase", "message_phase"])
                 .as_deref()
                 .and_then(agent_protocol::response_item::MessagePhase::from_wire),

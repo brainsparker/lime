@@ -5,7 +5,7 @@ import type {
   PersistedAtomUpdateEvent,
   PersistedAtomUpdateResult,
 } from "../src/lib/api/persistedAtomTypes";
-import { SUMMARY_PANEL_PIN_ATOM_KEY } from "../src/lib/api/persistedAtomTypes";
+import { isPersistedBooleanAtomKey } from "../src/lib/api/persistedAtomTypes";
 import { COMPOSER_ATOM_KEY, exactRecord } from "./persistedAtomRecords";
 import { PersistedAtomStore } from "./persistedAtomStore";
 
@@ -30,8 +30,8 @@ export class PersistedAtomHost {
   sendPersistedAtomState(args: unknown): PersistedAtomReadResult {
     try {
       const request = parsePersistedAtomReadRequest(args);
-      if (request.key === SUMMARY_PANEL_PIN_ATOM_KEY)
-        return this.#store.sendSummaryPanelPinState();
+      if (isPersistedBooleanAtomKey(request.key))
+        return this.#store.sendBooleanState(request.key);
       return this.#store.sendPersistedAtomState(request.query);
     } catch {
       return {
@@ -46,8 +46,8 @@ export class PersistedAtomHost {
   updatePersistedAtomState(args: unknown): PersistedAtomUpdateResult {
     try {
       const request = exactRecord(args, ["key", "mutation"]);
-      if (request.key === SUMMARY_PANEL_PIN_ATOM_KEY)
-        return this.#store.updateSummaryPanelPinState(request.mutation);
+      if (isPersistedBooleanAtomKey(request.key))
+        return this.#store.updateBooleanState(request.key, request.mutation);
       if (request.key !== COMPOSER_ATOM_KEY)
         throw new Error("invalid atom key");
       return this.#store.updatePersistedAtomState(request.mutation);

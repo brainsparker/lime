@@ -1,3 +1,4 @@
+import { inlineMentionStyles } from "@/components/input-kit/inlineMentionStyles";
 import styled from "styled-components";
 import { ComposerEditor } from "@/components/input-kit";
 
@@ -217,40 +218,7 @@ export const StyledComposerEditor = styled(ComposerEditor)`
   }
 
   [data-appearance="inline-mention"] {
-    display: inline;
-    padding: 0;
-    font-family: inherit;
-    font-weight: 500;
-    color: color-mix(
-      in srgb,
-      var(--lime-info, var(--info)) 80%,
-      hsl(var(--foreground)) 20%
-    );
-    white-space: nowrap;
-  }
-
-  [data-mention-icon-container] {
-    position: relative;
-    display: inline-block;
-    box-sizing: content-box;
-    height: 1lh;
-    padding-inline-end: 3px;
-    vertical-align: bottom;
-  }
-
-  [data-mention-icon] {
-    position: relative;
-    display: block;
-    top: 50%;
-    width: 16px;
-    height: 16px;
-    transform: translateY(-50%);
-  }
-
-  [data-mention-label] {
-    min-width: 0;
-    overflow-wrap: break-word;
-    white-space: normal;
+    ${inlineMentionStyles}
   }
 
   &::-webkit-scrollbar {

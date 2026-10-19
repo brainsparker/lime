@@ -1,3 +1,4 @@
+import { configureBooleanGateway } from "@/hooks/usePersistedBooleanAtom.testFixtures";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -11,6 +12,16 @@ import {
   selectWorkspaceFileChangePaths,
 } from "./workspaceFiles";
 
+const atomGateway = vi.hoisted(() => ({
+  read: vi.fn(),
+  update: vi.fn(),
+  listen: vi.fn(),
+}));
+vi.mock("@/lib/api/persistedAtoms", () => ({
+  sendPersistedAtomState: atomGateway.read,
+  updatePersistedAtomState: atomGateway.update,
+  listenPersistedAtomUpdates: atomGateway.listen,
+}));
 const git = vi.hoisted(() => ({
   diff: vi.fn(),
   status: vi.fn(),
@@ -29,6 +40,7 @@ vi.mock("react-i18next", () => ({
 const roots: Array<{ root: Root; container: HTMLDivElement }> = [];
 const scrollIntoView = vi.fn();
 beforeEach(() => {
+  configureBooleanGateway(atomGateway, { "app-shell-file-tree-open": true });
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,

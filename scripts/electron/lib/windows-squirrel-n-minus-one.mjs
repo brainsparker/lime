@@ -203,20 +203,34 @@ export async function waitForNMinusOneAutomaticUpdate(
     page
       .evaluate(() => window.electronAPI.invoke("get_update_install_session"))
       .catch(() => null);
-  const session = await waitFor(readSession, {
-    label: "N-1 update session",
-    timeoutMs,
-  });
-  if (session.stage === "idle") {
-    await page.getByTestId("app-sidebar-nav-settings").click();
-    await page.getByTestId("settings-sidebar-tab-about").click();
+  let navigationError;
+  try {
+    return await waitFor(
+      async () => {
+        const session = await readSession();
+        if (!session || session.stage !== "idle") return session;
+        try {
+          const about = page.getByTestId("settings-sidebar-tab-about");
+          const target = (await about.isVisible())
+            ? about
+            : page.getByTestId("app-sidebar-nav-settings");
+          await target.click({ timeout: 2_000 });
+        } catch (error) {
+          navigationError = error.message;
+        }
+        return await readSession();
+      },
+      {
+        accept: (value) => Boolean(value && value.stage !== "idle"),
+        label: "N-1 automatic update check",
+        timeoutMs,
+        intervalMs: 250,
+      },
+    );
+  } catch (error) {
+    if (navigationError) error.message += `; navigation: ${navigationError}`;
+    throw error;
   }
-  return await waitFor(readSession, {
-    accept: (value) => Boolean(value && value.stage !== "idle"),
-    label: "N-1 automatic update check",
-    timeoutMs,
-    intervalMs: 250,
-  });
 }
 
 export function buildStopInstalledAppScript() {

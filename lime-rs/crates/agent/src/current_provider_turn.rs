@@ -359,6 +359,19 @@ fn handle_provider_event<F>(
             AgentEvent::TextEnd { item_id, phase },
             on_event,
         ),
+        CurrentProviderTurnEvent::TextCompleted {
+            item_id,
+            text,
+            phase,
+        } => emit_with_artifacts(
+            artifact_events,
+            AgentEvent::TextCompleted {
+                item_id,
+                text,
+                phase,
+            },
+            on_event,
+        ),
         CurrentProviderTurnEvent::ReasoningStart { item_id } => emit_with_artifacts(
             artifact_events,
             AgentEvent::ReasoningStart { item_id },
@@ -404,6 +417,19 @@ fn handle_provider_event<F>(
         CurrentProviderTurnEvent::ReasoningEnd { item_id } => emit_with_artifacts(
             artifact_events,
             AgentEvent::ReasoningEnd { item_id },
+            on_event,
+        ),
+        CurrentProviderTurnEvent::ReasoningCompleted {
+            item_id,
+            summary,
+            content,
+        } => emit_with_artifacts(
+            artifact_events,
+            AgentEvent::ReasoningCompleted {
+                item_id,
+                summary,
+                content,
+            },
             on_event,
         ),
         CurrentProviderTurnEvent::ToolInputDelta {

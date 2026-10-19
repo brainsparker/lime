@@ -44,6 +44,10 @@ mod final_completion;
 mod hook_snapshot;
 #[path = "tests/model_history.rs"]
 mod model_history;
+#[path = "tests/output_snapshot.rs"]
+mod output_snapshot;
+#[path = "tests/reasoning_snapshot.rs"]
+mod reasoning_snapshot;
 #[path = "tests/stream_producer.rs"]
 mod stream_producer;
 #[path = "tests/tool_call.rs"]

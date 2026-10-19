@@ -107,6 +107,10 @@ internal/exec-plans/*
 !internal/exec-plans/codex-desktop-platform-parity-plan.md
 !internal/exec-plans/codex-reasoning-projection-and-notification-drift-fix.md
 !internal/exec-plans/codex-runtime-gap-alignment-plan.md
+!internal/exec-plans/codex-model-history-alignment-plan.md
+!internal/exec-plans/codex-message-phase-alignment-plan.md
+!internal/exec-plans/codex-output-snapshot-alignment-plan.md
+!internal/exec-plans/codex-reasoning-snapshot-alignment-plan.md
 !internal/exec-plans/orchestrator-complete-alignment-plan.md
 !internal/exec-plans/app-server-implementation-plan.md
 !internal/exec-plans/production-command-current-migration-plan.md

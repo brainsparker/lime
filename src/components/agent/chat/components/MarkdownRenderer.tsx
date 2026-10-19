@@ -17,10 +17,7 @@ import {
   hasDesktopHostInvokeCapability,
   hasDesktopHostRuntimeMarkers,
 } from "@/lib/desktop-runtime";
-import {
-  interceptHttpExternalLinkClick,
-  resolveHttpExternalHref,
-} from "@/lib/markdown/externalLinks";
+import { interceptHttpExternalLinkClick } from "@/lib/markdown/externalLinks";
 import { resolveMarkdownImageSrc } from "@/lib/markdown/resolveMarkdownImageSrc";
 import {
   parseMarkdownBundleImageOverrides,
@@ -30,6 +27,8 @@ import { normalizeLooseMarkdownSyntax } from "../utils/markdownLooseSyntaxNormal
 import { ArtifactPlaceholder } from "./ArtifactPlaceholder";
 import { A2UITaskCard, A2UITaskLoadingCard } from "./A2UITaskCard";
 import { MarkdownImageWithFallback } from "./MarkdownImageWithFallback";
+import { MarkdownLink } from "./MarkdownLink";
+import { remarkPromptLinks } from "./remarkPromptLinks";
 import {
   CODE_FONT_FAMILY,
   CodeBlockContainer,
@@ -110,6 +109,7 @@ interface MarkdownRendererProps {
   onQuoteContent?: (content: string) => void;
   /** 历史恢复等冷路径可用轻量模式，避开高成本 HTML/Katex/语法高亮。 */
   renderMode?: MarkdownRenderMode;
+  promptLinkItemId?: string;
 }
 
 export type MarkdownRenderMode = "standard" | "light";
@@ -128,6 +128,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     showBlockActions = false,
     onQuoteContent,
     renderMode = "standard",
+    promptLinkItemId,
   }) => {
     const { t } = useTranslation("agent");
     const [copied, setCopied] = React.useState<string | null>(null);
@@ -161,7 +162,9 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
 
     const remarkPlugins = React.useMemo(
       () =>
-        useLightweightMarkdownRender ? [remarkGfm] : [remarkGfm, remarkMath],
+        useLightweightMarkdownRender
+          ? [remarkGfm, remarkPromptLinks]
+          : [remarkGfm, remarkMath, remarkPromptLinks],
       [useLightweightMarkdownRender],
     );
 
@@ -813,40 +816,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                     </code>
                   );
                 },
-                a({ href, children, ...props }: any) {
-                  const { onAuxClick, onClick, rel, ...anchorProps } = props;
-                  const externalHref = typeof href === "string" ? href : "";
-                  const linkRel = resolveHttpExternalHref(externalHref)
-                    ? "noreferrer noopener"
-                    : rel;
-                  const handleClick = (
-                    event: React.MouseEvent<HTMLAnchorElement>,
-                  ) => {
-                    onClick?.(event);
-                    if (!event.defaultPrevented) {
-                      interceptHttpExternalLinkClick(event, externalHref);
-                    }
-                  };
-                  const handleAuxClick = (
-                    event: React.MouseEvent<HTMLAnchorElement>,
-                  ) => {
-                    onAuxClick?.(event);
-                    if (!event.defaultPrevented) {
-                      interceptHttpExternalLinkClick(event, externalHref);
-                    }
-                  };
-
-                  return (
-                    <a
-                      {...anchorProps}
-                      href={href}
-                      rel={linkRel}
-                      onClick={handleClick}
-                      onAuxClick={handleAuxClick}
-                    >
-                      {children}
-                    </a>
-                  );
+                a(props: any) {
+                  return <MarkdownLink {...props} itemId={promptLinkItemId} />;
                 },
                 // 普通图片渲染（非 base64）
                 img({ src, alt, ...props }: any) {

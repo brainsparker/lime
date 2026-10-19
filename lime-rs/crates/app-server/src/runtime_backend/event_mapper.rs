@@ -87,6 +87,21 @@ pub(super) fn emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_s
                 sink,
             )?;
         }
+        RuntimeAgentEvent::TextCompleted {
+            item_id,
+            text,
+            phase,
+        } => {
+            let message =
+                proposed_plan_parser::finish_runtime_snapshot(proposed_plan_parser, item_id, text)
+                    .map_err(RuntimeCoreError::Backend)?;
+            emit_finished_message(
+                message,
+                phase.as_ref().map(|phase| phase.as_str()),
+                "completed",
+                sink,
+            )?;
+        }
         RuntimeAgentEvent::ReasoningStart { item_id } => {
             reasoning_event_state
                 .start(item_id)
@@ -151,6 +166,18 @@ pub(super) fn emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_s
         RuntimeAgentEvent::ReasoningEnd { item_id } => {
             for event in reasoning_event_state
                 .end(item_id, "completed")
+                .map_err(RuntimeCoreError::Backend)?
+            {
+                sink.emit(event)?;
+            }
+        }
+        RuntimeAgentEvent::ReasoningCompleted {
+            item_id,
+            summary,
+            content,
+        } => {
+            for event in reasoning_event_state
+                .complete(item_id, summary.clone(), content.clone())
                 .map_err(RuntimeCoreError::Backend)?
             {
                 sink.emit(event)?;
@@ -266,6 +293,12 @@ fn emit_finished_message(
         });
         if let (Some(item_id), Some(payload)) = (message.item_id, payload.as_object_mut()) {
             payload.insert("itemId".to_string(), item_id.into());
+        }
+        if message.needs_start {
+            sink.emit(crate::RuntimeEvent::new("message.started", payload.clone()))?;
+        }
+        if let Some(text) = message.text {
+            payload["text"] = text.into();
         }
         sink.emit(crate::RuntimeEvent::new("message.completed", payload))?;
     }

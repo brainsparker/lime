@@ -235,15 +235,16 @@ describe("ComposerController", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
-  it("mention 前插入与删除使用 PM 映射重新生成中文 UTF-8 ranges", () => {
+  it("mention 编辑重映射显示范围，提交保留资源路径且删除无悬空身份", () => {
     const controller = new ComposerController({ text: "中 " });
     controller.insertMention({ id: "s", kind: "skill", name: "审阅", path: "/review", label: "$审阅" });
-    expect(controller.submit("start").submission.textElements[0]).toEqual({
+    expect(controller.getDocument().textElements[0]).toEqual({
       byteRange: { start: 4, end: 11 }, placeholder: "$审阅",
     });
     controller.applyTransaction(controller.getEditorState().tr.insertText("😀", 1));
     expect(controller.getDocument().mentionBindings[0]).toMatchObject({ from: 4, to: 7 });
-    expect(controller.submit("steer").submission.textElements[0].byteRange).toEqual({ start: 8, end: 15 });
+    expect(controller.submit("steer").submission).toMatchObject({ text: "😀中 [$审阅](/review)", textElements: [] });
+    expect(controller.getDocument().textElements[0].byteRange).toEqual({ start: 8, end: 15 });
     controller.replaceRange({ start: 4, end: 7 }, "");
     expect(controller.getDocument().text).toBe("😀中 ");
     expect(controller.submit("queue").submission.inputMentions).toEqual([]);
@@ -298,7 +299,7 @@ describe("ComposerController", () => {
     expect(controller.recallHistory("next")).toEqual(temporary);
     controller.restoreDraft(original);
     expect(controller.captureDraft()).toEqual(original);
-    expect(controller.submit("queue").submission.text).toBe(`中 @检索${"长".repeat(1_001)}`);
+    expect(controller.submit("queue").submission.text).toBe(`中 [@检索](plugin:search)${"长".repeat(1_001)}`);
   });
 
   it("同显示文本同步不丢 token，草稿快照与回执不引用 Controller 私有数据", () => {

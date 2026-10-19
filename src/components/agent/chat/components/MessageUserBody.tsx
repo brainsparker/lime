@@ -56,6 +56,7 @@ export function MessageUserBody({
     >
       <MarkdownRenderer
         content={content}
+        promptLinkItemId={message.id}
         onA2UISubmit={
           onA2UISubmit
             ? (formData) => onA2UISubmit(formData, message.id)

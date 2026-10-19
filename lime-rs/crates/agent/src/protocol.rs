@@ -330,6 +330,14 @@ pub enum AgentEvent {
         phase: Option<MessagePhase>,
     },
 
+    #[serde(rename = "text_completed")]
+    TextCompleted {
+        #[serde(rename = "itemId")]
+        item_id: String,
+        text: String,
+        phase: Option<MessagePhase>,
+    },
+
     #[serde(rename = "text_delta_batch")]
     TextDeltaBatch {
         text: String,
@@ -373,6 +381,14 @@ pub enum AgentEvent {
     ReasoningEnd {
         #[serde(rename = "itemId")]
         item_id: String,
+    },
+
+    #[serde(rename = "reasoning_completed")]
+    ReasoningCompleted {
+        #[serde(rename = "itemId")]
+        item_id: String,
+        summary: Vec<String>,
+        content: Vec<String>,
     },
 
     #[serde(rename = "tool_progress")]

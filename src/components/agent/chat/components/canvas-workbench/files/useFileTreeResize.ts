@@ -1,7 +1,7 @@
 import {
   useCallback,
   useRef,
-  useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent,
   type PointerEvent,
@@ -10,6 +10,21 @@ import {
 const MIN_FILES_PANEL_WIDTH = 200;
 const MAX_FILES_PANEL_RATIO = 0.6;
 const DEFAULT_FILES_PANEL_WIDTH = 250;
+
+let sharedWidth = DEFAULT_FILES_PANEL_WIDTH;
+const widthListeners = new Set<() => void>();
+const getWidth = () => sharedWidth;
+const subscribeWidth = (listener: () => void) => {
+  widthListeners.add(listener);
+  return () => {
+    widthListeners.delete(listener);
+  };
+};
+const setFilesPanelWidth = (value: number) => {
+  if (value === sharedWidth) return;
+  sharedWidth = value;
+  for (const listener of widthListeners) listener();
+};
 
 export interface FileTreeResizeState {
   filesPanelWidth: number;
@@ -25,8 +40,10 @@ export function useFileTreeResize(
   filesPanelOpen: boolean,
   onToggleFilesPanel?: () => void,
 ): FileTreeResizeState {
-  const [filesPanelWidth, setFilesPanelWidth] = useState(
-    DEFAULT_FILES_PANEL_WIDTH,
+  const filesPanelWidth = useSyncExternalStore(
+    subscribeWidth,
+    getWidth,
+    getWidth,
   );
   const dragStartRef = useRef<{
     pointerId: number;

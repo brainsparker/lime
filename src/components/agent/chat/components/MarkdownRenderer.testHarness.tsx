@@ -6,6 +6,7 @@ import { afterEach, beforeEach, vi } from "vitest";
 import "@/i18n/config";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { PromptLinkContext, type PromptLinkScope } from "./promptLinkContext";
 
 export const mockConvertLocalFileSrc = vi.fn(
   (path: string) => `asset://${path}`,
@@ -127,7 +128,8 @@ vi.mock("@/lib/api/externalUrl", () => ({
 vi.mock("@/lib/desktop-runtime", () => ({
   hasDesktopHostInvokeCapability:
     markdownRendererMocks.hasDesktopHostInvokeCapability,
-  hasDesktopHostRuntimeMarkers: markdownRendererMocks.hasDesktopHostRuntimeMarkers,
+  hasDesktopHostRuntimeMarkers:
+    markdownRendererMocks.hasDesktopHostRuntimeMarkers,
 }));
 
 interface MountedHarness {
@@ -136,6 +138,8 @@ interface MountedHarness {
 }
 
 interface RenderOptions {
+  promptLinkScope?: PromptLinkScope;
+  promptLinkItemId?: string;
   baseFilePath?: string;
   isStreaming?: boolean;
   collapseCodeBlocks?: boolean;
@@ -180,6 +184,8 @@ function renderIntoRoot(
   root: Root,
   content: string,
   {
+    promptLinkScope,
+    promptLinkItemId,
     baseFilePath,
     isStreaming = false,
     collapseCodeBlocks = false,
@@ -191,16 +197,19 @@ function renderIntoRoot(
 ) {
   act(() => {
     root.render(
-      <MarkdownRenderer
-        content={content}
-        baseFilePath={baseFilePath}
-        isStreaming={isStreaming}
-        collapseCodeBlocks={collapseCodeBlocks}
-        shouldCollapseCodeBlock={shouldCollapseCodeBlock}
-        showBlockActions={showBlockActions}
-        onQuoteContent={onQuoteContent}
-        readOnlyA2UI={readOnlyA2UI}
-      />,
+      <PromptLinkContext.Provider value={promptLinkScope ?? null}>
+        <MarkdownRenderer
+          content={content}
+          promptLinkItemId={promptLinkItemId}
+          baseFilePath={baseFilePath}
+          isStreaming={isStreaming}
+          collapseCodeBlocks={collapseCodeBlocks}
+          shouldCollapseCodeBlock={shouldCollapseCodeBlock}
+          showBlockActions={showBlockActions}
+          onQuoteContent={onQuoteContent}
+          readOnlyA2UI={readOnlyA2UI}
+        />
+      </PromptLinkContext.Provider>,
     );
   });
 }
@@ -229,10 +238,7 @@ export function renderMarkdownHarness(
   document.body.appendChild(container);
   const root = createRoot(container);
 
-  const rerender = (
-    nextContent: string,
-    nextOptions: RenderOptions = {},
-  ) => {
+  const rerender = (nextContent: string, nextOptions: RenderOptions = {}) => {
     renderIntoRoot(root, nextContent, { ...options, ...nextOptions });
   };
 

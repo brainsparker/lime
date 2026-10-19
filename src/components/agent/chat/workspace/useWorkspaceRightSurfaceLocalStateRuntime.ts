@@ -219,13 +219,17 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
       ) => update((current) => openSurface(current, kind, replaceTabId)),
       openWorkspaceFile: (
         path: string,
-        sourceTab: ThreadSidePanelTab,
+        sourceTab?: ThreadSidePanelTab,
         options?: FileSelectionOptions,
       ) =>
         update((current) => {
           const sidePanelTabs = openWorkspaceFile(current.sidePanelTabs, path, {
             ...options,
-            sourceTab,
+            sourceTab:
+              sourceTab ??
+              current.sidePanelTabs.tabs.find(
+                (tab) => tab.kind === "files" && !tab.filePath,
+              ),
           });
           return sidePanelTabs === current.sidePanelTabs
             ? current

@@ -42,6 +42,7 @@ function mount(overrides: Partial<UseWorkspaceArtifactOpenRuntimeParams> = {}) {
     mappedTheme: "general",
     messages: [],
     openArticleWorkspaceRightSurface: vi.fn(),
+    openWorkspaceFile: vi.fn(),
     projectRootPath: "/workspace",
     readSessionFile: vi.fn(async () => null),
     sessionFiles: [],
@@ -90,6 +91,24 @@ afterEach(() => {
 });
 
 describe("Workspace 文件重新打开", () => {
+  it("正文资源引用直接激活文件 owner，不进入产物预览或读取副本", () => {
+    const params = mount();
+    act(() => runtime.handleOpenArtifactFromTimeline({
+      timelineItemId: "user-item-1",
+      filePath: "/skills/Review work/SKILL.md",
+      content: "",
+      openMode: "file_preview",
+    }));
+    expect(params.openWorkspaceFile).toHaveBeenCalledExactlyOnceWith(
+      "/skills/Review work/SKILL.md",
+    );
+    expect(params.setHarnessPanelVisible).toHaveBeenCalledWith(false);
+    expect(params.setExpertInfoPanelCollapsed).toHaveBeenCalledWith(true);
+    expect(readFilePreview).not.toHaveBeenCalled();
+    expect(params.upsertGeneralArtifact).not.toHaveBeenCalled();
+    expect(params.workbenchRequests.requestCanvasWorkbenchPreviewOpen).not.toHaveBeenCalled();
+  });
+
   it.each(["pdf", "docx", "xlsx", "csv", "tsv", "pptx"])(
     "canonical 导入历史 %s 经时间线打开时保留原文件路径",
     async (extension) => {

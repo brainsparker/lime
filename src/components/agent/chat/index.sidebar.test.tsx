@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   createMockAgentChatUnifiedState,
+  clickButton,
   flushEffects,
   getIndexTestMocks,
   installMockAgentChatUnifiedState,
@@ -151,7 +152,17 @@ describe("AgentChatPage 侧栏显示控制", () => {
 
     expect(
       container.querySelector('[data-testid="toggle-harness"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="thread-side-panel-toggle"]'),
     ).not.toBeNull();
+    clickButton(container, "thread-side-panel-toggle");
+    await flushEffects();
+    expect(
+      container
+        .querySelector('[data-testid="thread-side-panel-toggle"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("true");
     expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
     expect(
       container.querySelector('[data-testid="toggle-history"]'),

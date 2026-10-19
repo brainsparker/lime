@@ -1610,7 +1610,7 @@ flat EventLog 仍是 `deprecated / bounded diagnostics`，旧 `runtime/projectio
 
 P0 的 current 组合根链固定为 `Electron appDataPaths -> APP_SERVER_APP_DATA_DIR + AgentRoot -> App Server StorageRoots/LocalAppDataSource -> domain root`。Windows `HostUserData` 保持 roaming，`HostSessionData` 固定到 `<AppDataRoot>/host-session`；portable/E2E override 必须同时显式注入 AppDataRoot 与 AgentRoot，禁止从 `AgentRoot.parent()` 反推。Product DB 只写 `AgentRoot/lime.db`；diagnostics、support bundle、Soul style-pack 与 MCP OAuth 不得自行解析平台默认根。旧 Product DB 整库复制、通用 migration manifest、启动 cleanup，以及 managed project/workspace/session path 启动迁移均为 `dead / deleted / forbidden-to-restore`；Windows 真机证据与责任开发者确认完成前，P0 继续保持 `in_progress`。
 
-Message、Reasoning 与 Plan 必须遵循 Codex 的 canonical Item lifecycle。用户输入在 `message.created` 时直接形成带 `completed_at_ms` 的 completed UserMessage；provider text/reasoning 的 Start/Delta/End 必须以 canonical Turn + sampling attempt scoped Item identity 贯穿 `model-provider -> agent-runtime -> agent -> App Server`，同一 Turn 的后续 sampling 或同一 Thread 的后续 Turn 均不得复用前一 Item。assistant 只有出现真实正文时才启动 AgentMessage，并由同一 Item 在对应 End/`message.completed` 进入 completed，取消或中断映射为 `Interrupted`；terminal Item 拒绝 late delta。Plan 是独立的 `ThreadItemPayload::Plan`，`plan.delta` 与 `plan.final` 必须按 `(turn_id, revision_id)` 共享稳定 Item identity；delta 只表达流式过程，completed `plan.final` snapshot 是恢复和 GUI 决策绑定的权威内容。Plan parser 按 source Message Item 隔离 buffer，Plan 只记录 `sourceItemId` 而不复用 Message identity。Plan 前的纯空白按 Codex `leading_whitespace_by_item` 语义暂存：后续出现正文时随正文发出，Plan-only 输出则丢弃，因此不得创建空白 AgentMessage 或伪造 `message.completed`。历史恢复、live notification 与 read model 必须保留同一 revision identity、Plan steps/status 与 terminal timestamp，禁止用 `update_plan` Tool Item 或 Renderer 本地状态替代。
+Message、Reasoning 与 Plan 必须遵循 Codex 的 canonical Item lifecycle。用户输入在 `message.created` 时直接形成带 `completed_at_ms` 的 completed UserMessage；provider text/reasoning 的 Start/Delta/End 必须以 canonical Turn + sampling attempt scoped Item identity 贯穿 `model-provider -> agent-runtime -> agent -> App Server`，同一 Turn 的后续 sampling 或同一 Thread 的后续 Turn 均不得复用前一 Item。assistant 的流式展示在出现真实正文时启动 AgentMessage；已提交模型历史的原生 message 完成快照可独立建立同一 canonical Item（包括显式空正文），并由对应 End/`message.completed` 进入 completed，取消或中断映射为 `Interrupted`；terminal Item 拒绝 late delta。Plan 是独立的 `ThreadItemPayload::Plan`，`plan.delta` 与 `plan.final` 必须按 `(turn_id, revision_id)` 共享稳定 Item identity；delta 只表达流式过程，completed `plan.final` snapshot 是恢复和 GUI 决策绑定的权威内容。Plan parser 按 source Message Item 隔离 buffer，Plan 只记录 `sourceItemId` 而不复用 Message identity。Plan 前的纯空白按 Codex `leading_whitespace_by_item` 语义暂存：后续出现正文时随正文发出，Plan-only 输出则丢弃，因此不得创建空白 AgentMessage 或伪造 `message.completed`。历史恢复、live notification 与 read model 必须保留同一 revision identity、Plan steps/status 与 terminal timestamp，禁止用 `update_plan` Tool Item 或 Renderer 本地状态替代。
 
 AgentMessage 的 canonical 正文只由 `ThreadItemPayload::AgentMessage { text, phase, content_parts }` 持有。`content_parts` 只允许 typed Text 与 Media reference；Media 必须引用 sidecar/artifact URI 并携带 MIME 等可验证元数据，禁止保存 provider raw payload、inline `data:` URI 或 presentation metadata escape hatch。`ThreadStore` 持久化、Codex v2 `thread/read` 与 live canonical event 必须保留相同 part 顺序和 reference；presentation 可以映射为 `contentParts`，但不得在读取或 Renderer 边界从 raw event、metadata、正文文案或第二 read model 补造。
 
@@ -2186,7 +2186,46 @@ EventLog -> provider history / summary / fork
 
 2026-10-19 架构确认（root）：本片保持 Surface -> App Server -> RuntimeCore -> Thread/Turn/Item 主链，新增的是原 EventLog 的模型工具记录与 receipt，工具执行和网络 owner 不变；channel 只承担既有业务链的顺序/ACK，不建立第二历史 store。本次原位泛化不新增 store、ACK、alias 或双读。root 于 2026-10-19 再次确认上图 owner/依赖方向：model-provider 保留 Responses completed envelope、分配一次缺省 identity、请求 encrypted reasoning，并仅在请求副本归一非 prefixed ID；agent-runtime 等待原 receipt，App Server 的冷恢复/fork/summary 复用同一 EventLog。host-only producer scope 不含模型名，包含 provider/endpoint/API version/protocol/credential scope；跨 scope 的请求副本仅转换已完成正文与公开 summary，不发送原生密文/私有内容。历史原件保持不变，未知 raw envelope 仍 fail closed。旧模型 route 压缩、完整用户授权、继承/保留来源、原生 Anthropic/Gemini signature 和 Context/Memory envelope 仍待对齐，本片不核销这些能力。
 
-消息 phase 只有 `agent-protocol::response_item::MessagePhase` 一个 owner，包含 `commentary / partial_answer / final_answer`；缺失值在 runtime、Agent、EventLog、canonical projection 与公开 ThreadItem 保持 unknown，不由工具有无或 Turn 终态推断。已完成原生 message 的模型历史 receipt 成功后，current executor 立即发送对应 TextEnd/phase，App Server 经原 parser 与 `message.completed` 完成同一 Item；随后 adapter 的块结束不得重复完成。无原生完成项的 provider 保留 delta/stream 收尾，但 phase 为空。`provider.model_history` 仍为内部历史事实，不直接生成公开 Item；完成消息的展示和模型历史共用 source identity，不能暴露 encrypted content 或 producer。完整 snapshot/无 delta 展示、推理 snapshot 与工具 dispatch/drain 尚待后续切片，不据本合同核销。重大架构变更（共享生命周期数据流）；架构图仍为既有 `RuntimeCore -> EventLog -> Thread/Turn/Item`，此段同步其 phase/完成边界。责任开发者 root 于 2026-10-19 确认 owner、依赖方向、协议、图与验证门禁；本片验证见 `codex-message-phase-alignment-plan.md`，不代表 release evidence。
+消息 phase 只有 `agent-protocol::response_item::MessagePhase` 一个 owner，包含 `commentary / partial_answer / final_answer`；缺失值在 runtime、Agent、EventLog、canonical projection 与公开 ThreadItem 保持 unknown，不由工具有无或 Turn 终态推断。已完成原生 message 的模型历史 receipt 成功后，current executor 立即发送对应 TextCompleted（完整正文/phase），App Server 经原 parser 与 `message.completed` 完成同一 Item；随后 adapter 的块结束不得重复完成。无原生完成项的 provider 保留 delta/stream TextEnd 收尾，但 phase 为空。`provider.model_history` 仍为内部历史事实，不直接生成公开 Item；完成消息的展示和模型历史共用 source identity，不能暴露 encrypted content 或 producer。推理 snapshot、完整 plan-mode、工具 dispatch/drain 仍开放。重大架构变更（共享生命周期数据流）；责任开发者 root 于 2026-10-19 确认 owner、依赖方向、协议、下图与验证门禁。消息 phase 与完成正文的验证分别见 `codex-message-phase-alignment-plan.md`、`codex-output-snapshot-alignment-plan.md`，完成正文当前验证中，不代表 release evidence。
+
+```text
+Current executor -> durable model-history receipt
+                 -> TextCompleted { same identity, full text, optional phase }
+                 -> Agent host -> App Server completion parser
+                    -> existing plan revision identities / safe visible text
+                    -> message.started (when no visible delta preceded it)
+                    -> message.completed -> canonical Item snapshot -> ThreadStore/live v2
+```
+
+完成正文按 identity 同步 runtime reply 与 step 统计，保证 Skill/harness 与公开 Item 消费同一
+权威文本。parser 的完成正文不重播为 delta；已有 plan revision identity 在重解析时复用。
+typed materializer 依据事件类型和显式 text 字段推导 `text_is_snapshot`，使完整正文（包括空
+字符串）替换流式正文；缺正文的生命周期事件保留既有内容。`thread-store::history_merge`
+继续消费该标记，保存已解析的完整正文，不能再次以流式文本拼接。该 owner 标记不携带原始
+内容，不进入公开 v2 AgentMessage。CLI/TUI/GUI 仍经同一 App Server 和投影，不建立额外
+历史或后端。root 于 2026-10-19 确认上述 durable 接线与同一数据流；验证仍按完成快照计划结算。
+
+原生 reasoning 的同一 history receipt 成功后，executor 发送 ReasoningCompleted，载体仅含
+同 identity 与安全 summary/content 文本数组。Agent host 转交既有 ReasoningEventState，
+无先前可见 delta 时发布 started，再以完整数组发 reasoning.final/ended，canonical owner
+生成同一 completed Item。随后 adapter ReasoningEnd 不重复结束该原生 Item；其它协议
+继续真实 delta/end 合同。encrypted_content/producer 只留在既有模型历史，不进入该展示
+事件。runtime step 的 reasoning 字符数按同 identity 更新，不能把旧部分正文重复累计。
+
+```text
+Current executor -> durable model-history receipt
+                 -> ReasoningCompleted { same identity, safe summary[], content[] }
+                 -> Agent host -> existing ReasoningEventState
+                    -> started when needed -> reasoning.final / reasoning.ended
+                    -> canonical Item -> same typed projection / ThreadStore -> GUI/CLI/TUI
+```
+
+typed materializer 根据完成事件与显式数组推导 reasoning_is_snapshot，typed/durable merge
+均用完整数组替换，包括清空旧内容；body-less 生命周期事件保留已有数据。此标记不进入
+公开 v2 Reasoning，不建立新协议方法或历史表。root 于 2026-10-19 确认上图 owner、依赖
+方向和共享边界；验证按 codex-reasoning-snapshot-alignment-plan.md 独立结算，目前仍在
+公共回归阶段，不是 release evidence。完整 plan-mode、started seeded content、工具
+dispatch/drain 及 Memory 流水线继续开放；grok 不定义这些生命周期。
 
 工具历史 ACK 由 `HistoryReceipt` 承载实际追加记录的 `event_id/sequence`，host/session channel 必须原样传回；没有 EventLog writer、写盘失败或终态拒绝导致空追加时，均不得返回成功 receipt。receipt 不进入 provider wire、公开 Item 或 notification。序号仅标识该记录，不能直接作为模型摘要覆盖边界：已持久化的 steer 仍可能尚未进入 live 模型历史。完整 source/order、history generation 和 prefix/suffix commit 继续在现有 owner 对齐，不新增平行历史 store。root 于 2026-10-19 确认此敏感 ACK 边界、唯一 owner 与依赖方向；验证及开放义务见执行计划 `C02 / tool history receipt`。
 

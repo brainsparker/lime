@@ -16,6 +16,9 @@ Simplified Chinese release notes are the primary version. This English companion
 - Correct streaming tool-call identity and argument parsing across protocols, including Gemini and Responses history conversion.
 - Preserve native Responses reasoning summaries, encrypted content and ordering across cold recovery, and continue interrupted responses within the same turn.
 - Preserve native message phases and correct streaming item completion and turn projection without treating an unknown phase as a final answer.
+- Correct completed-message snapshots in public notifications and persistence so live views and cold recovery retain full text after missing or partial deltas.
+- Apply completed reasoning snapshots consistently, distinguishing missing text from explicit empty content across summaries, reasoning text and restored views.
+- Improve file, skill and command references in messages and navigation restoration after closing preview tabs.
 - Correct native file opening, attachment draft restoration, sidebar navigation and panel-resize interactions.
 
 ### Improvements and Refactoring
@@ -28,6 +31,7 @@ Simplified Chinese release notes are the primary version. This English companion
 
 - Extend regressions and public JSON-RPC scenarios for continuation, interruption, completion, tool history, native attachments, file editing and background terminals.
 - Update interface resources in all five languages, command contracts and Electron fixtures.
+- Correct shared-sidebar and external-process streaming fixtures, and improve release validation for transient macOS notarization ticket failures and Windows updater navigation.
 
 ### Documentation
 

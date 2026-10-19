@@ -68,7 +68,7 @@ interface CanvasWorkbenchShellProps {
   documentDiffLines: CanvasWorkbenchDiffLine[];
   previewModeState: CanvasWorkbenchPreviewModeState;
   changeView?: CanvasWorkbenchChangeView | null;
-  changesFilesPanelOpen?: boolean;
+  changesFilesPanelOpen: boolean;
   loadFilePreview?: (path: string) => Promise<HarnessFilePreviewResult>;
   workspaceUnavailable: boolean;
   workspaceRoot?: string | null;
@@ -157,7 +157,7 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
   documentDiffLines,
   previewModeState,
   changeView,
-  changesFilesPanelOpen = true,
+  changesFilesPanelOpen,
   loadFilePreview,
   workspaceUnavailable,
   workspaceRoot,

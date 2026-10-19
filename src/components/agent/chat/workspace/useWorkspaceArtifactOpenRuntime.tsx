@@ -82,6 +82,7 @@ export interface UseWorkspaceArtifactOpenRuntimeParams {
   openArticleWorkspaceRightSurface: (
     articleWorkspace: WorkspaceArticleWorkspace,
   ) => void;
+  openWorkspaceFile: (path: string) => void;
   projectId?: string | null;
   projectRootPath?: string | null;
   readSessionFile: (fileName: string) => Promise<string | null>;
@@ -126,6 +127,7 @@ export function useWorkspaceArtifactOpenRuntime({
   messages,
   onNavigate,
   openArticleWorkspaceRightSurface,
+  openWorkspaceFile,
   projectId,
   projectRootPath,
   readSessionFile,
@@ -609,6 +611,16 @@ export function useWorkspaceArtifactOpenRuntime({
             path: sourcePath,
           });
           if (
+            target.openMode === "file_preview" &&
+            ["text", "code", "markdown"].includes(projection.contentKind)
+          ) {
+            clearFocusedArtifactBlock();
+            setHarnessPanelVisible(false);
+            setExpertInfoPanelCollapsed(true);
+            openWorkspaceFile(sourcePath);
+            return;
+          }
+          if (
             projection.renderMode === "document_pages" ||
             projection.renderMode === "workbook" ||
             projection.renderMode === "presentation"
@@ -652,11 +664,15 @@ export function useWorkspaceArtifactOpenRuntime({
       })();
     },
     [
+      clearFocusedArtifactBlock,
       focusArtifactBlock,
       handleHarnessLoadFilePreview,
       handleWorkspaceFileClick,
       openProjectFilePreviewInCanvas,
+      openWorkspaceFile,
       projectRootPath,
+      setExpertInfoPanelCollapsed,
+      setHarnessPanelVisible,
     ],
   );
 

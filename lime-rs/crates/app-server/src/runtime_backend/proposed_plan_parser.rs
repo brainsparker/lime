@@ -5,6 +5,8 @@ use serde_json::json;
 use serde_json::Value;
 use std::collections::HashMap;
 
+mod snapshot;
+
 const OPEN_TAG: &str = "<proposed_plan>";
 const CLOSE_TAG: &str = "</proposed_plan>";
 const ANONYMOUS_MESSAGE_KEY: &str = "\0anonymous-message";
@@ -23,6 +25,9 @@ struct MessageParser {
     mode: ParserMode,
     plan_text: String,
     current_revision_id: Option<String>,
+    plan_revision_ids: Vec<String>,
+    plan_revision_cursor: usize,
+    finished_plans: HashMap<String, String>,
     message_output_emitted: bool,
     leading_message_whitespace: String,
     source_item_id: Option<String>,
@@ -55,6 +60,8 @@ pub(super) struct FinishedMessage {
     pub(super) events: Vec<RuntimeEvent>,
     pub(super) item_id: Option<String>,
     pub(super) has_message_output: bool,
+    pub(super) text: Option<String>,
+    pub(super) needs_start: bool,
 }
 
 impl ProposedPlanParser {
@@ -122,6 +129,8 @@ impl ProposedPlanParser {
             ),
             item_id: message.source_item_id,
             has_message_output: message.message_output_emitted,
+            text: None,
+            needs_start: false,
         })
     }
 
@@ -141,6 +150,8 @@ impl ProposedPlanParser {
                     ),
                     item_id: message.source_item_id,
                     has_message_output: message.message_output_emitted,
+                    text: None,
+                    needs_start: false,
                 })
             })
             .collect()
@@ -227,8 +238,17 @@ impl MessageParser {
             let message = self.buffer[..index].to_string();
             self.buffer.drain(..index + OPEN_TAG.len());
             self.push_message_delta(segments, message);
-            *plan_revision_index += 1;
-            self.start_plan(format!("proposed_plan:{}", *plan_revision_index));
+            let revision_id =
+                if let Some(id) = self.plan_revision_ids.get(self.plan_revision_cursor) {
+                    id.clone()
+                } else {
+                    *plan_revision_index += 1;
+                    let id = format!("proposed_plan:{}", *plan_revision_index);
+                    self.plan_revision_ids.push(id.clone());
+                    id
+                };
+            self.plan_revision_cursor += 1;
+            self.start_plan(revision_id);
             return true;
         }
 
@@ -321,6 +341,8 @@ impl MessageParser {
         if text.is_empty() {
             return None;
         }
+        self.finished_plans
+            .insert(revision_id.clone(), text.clone());
         Some(ProposedPlanSegment::PlanFinal { revision_id, text })
     }
 }
@@ -347,6 +369,14 @@ pub(super) fn finish_runtime_message(
     item_id: &str,
 ) -> Result<FinishedMessage, String> {
     parser.finish_message(Some(item_id))
+}
+
+pub(super) fn finish_runtime_snapshot(
+    parser: &mut ProposedPlanParser,
+    item_id: &str,
+    text: &str,
+) -> Result<FinishedMessage, String> {
+    snapshot::finish(parser, item_id, text)
 }
 
 pub(super) fn finish_runtime_messages(parser: &mut ProposedPlanParser) -> Vec<FinishedMessage> {

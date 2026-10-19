@@ -49,7 +49,7 @@ describe("macOS release trust", () => {
     ).toThrow("not Developer ID signed");
   });
 
-  it("requires app/helper team parity, Gatekeeper, and stapling", () => {
+  it("requires app/helper team parity, Gatekeeper, and stapling", async () => {
     const execFileSyncImpl = vi.fn();
     const spawnSyncImpl = vi.fn(() => ({
       status: 0,
@@ -58,7 +58,7 @@ describe("macOS release trust", () => {
     }));
 
     expect(
-      verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
+      await verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
         execFileSyncImpl,
         spawnSyncImpl,
       }),
@@ -87,7 +87,7 @@ describe("macOS release trust", () => {
     );
   });
 
-  it("rejects a helper signed by another team", () => {
+  it("rejects a helper signed by another team", async () => {
     const spawnSyncImpl = vi
       .fn()
       .mockReturnValueOnce({
@@ -103,15 +103,15 @@ describe("macOS release trust", () => {
           "TeamIdentifier=OTHER12345\n",
       });
 
-    expect(() =>
+    await expect(
       verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
         execFileSyncImpl: vi.fn(),
         spawnSyncImpl,
       }),
-    ).toThrow("signing teams do not match");
+    ).rejects.toThrow("signing teams do not match");
   });
 
-  it("preserves native stapler output and rejects the failed trust check", () => {
+  it("preserves native stapler output and rejects the failed trust check", async () => {
     const failure = Object.assign(
       new Error("Command failed: xcrun stapler validate"),
       {
@@ -123,7 +123,7 @@ describe("macOS release trust", () => {
     const execFileSyncImpl = vi.fn((command) => {
       if (command === "xcrun") throw failure;
     });
-    expect(() =>
+    await expect(
       verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
         execFileSyncImpl,
         spawnSyncImpl: vi.fn(() => ({
@@ -131,7 +131,69 @@ describe("macOS release trust", () => {
           stderr: `Authority=${APP_AUTHORITY}\nTeamIdentifier=TEAM123456\n`,
         })),
       }),
-    ).toThrow(/Error 68\.[\s\S]*CloudKit lookup failed/);
+    ).rejects.toThrow(/Error 68\.[\s\S]*CloudKit lookup failed/);
     expect(failure.status).toBe(68);
+  });
+
+  it("retries CloudKit validation failures while retaining every trust check", async () => {
+    const failure = Object.assign(new Error("Command failed: xcrun"), {
+      status: 68,
+      stdout: Buffer.from(
+        "NSURLErrorDomain Code=-1005\nThe validate action failed! Error 68.",
+      ),
+    });
+    let validations = 0;
+    const execFileSyncImpl = vi.fn((command) => {
+      if (command === "xcrun" && ++validations < 3) throw failure;
+    });
+    const sleep = vi.fn().mockResolvedValue();
+    await expect(
+      verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
+        execFileSyncImpl,
+        spawnSyncImpl: vi.fn(() => ({
+          status: 0,
+          stderr: `Authority=${APP_AUTHORITY}\nTeamIdentifier=TEAM123456\n`,
+        })),
+        sleep,
+        log: vi.fn(),
+      }),
+    ).resolves.toMatchObject({ status: "passed", stapleValid: true });
+    expect(validations).toBe(3);
+    expect(sleep.mock.calls).toEqual([[15_000], [30_000]]);
+    expect(execFileSyncImpl.mock.calls.map(([command]) => command)).toEqual([
+      "codesign",
+      "codesign",
+      "spctl",
+      "xcrun",
+      "xcrun",
+      "xcrun",
+    ]);
+  });
+
+  it("fails closed after the CloudKit validation retry budget", async () => {
+    const failure = Object.assign(new Error("Command failed: xcrun"), {
+      stdout:
+        "NSURLErrorDomain Code=-1005\nThe validate action failed! Error 68.",
+    });
+    const sleep = vi.fn().mockResolvedValue();
+    let validations = 0;
+    await expect(
+      verifyMacOSReleaseTrust("/Applications/Lime.app", "/helper.app", {
+        execFileSyncImpl: vi.fn((command) => {
+          if (command === "xcrun") {
+            validations += 1;
+            throw failure;
+          }
+        }),
+        spawnSyncImpl: vi.fn(() => ({
+          status: 0,
+          stderr: `Authority=${APP_AUTHORITY}\nTeamIdentifier=TEAM123456\n`,
+        })),
+        sleep,
+        log: vi.fn(),
+      }),
+    ).rejects.toBe(failure);
+    expect(validations).toBe(6);
+    expect(sleep).toHaveBeenCalledTimes(5);
   });
 });

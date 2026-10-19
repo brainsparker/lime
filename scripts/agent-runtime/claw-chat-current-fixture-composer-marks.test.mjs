@@ -45,7 +45,12 @@ const EXPECTED_MARKS = {
 function oracle() {
   return composerMarksFixture({
     prompt: PROMPT,
-    skillIdentity: { name: "capability-report", key: "user:capability-report" },
+    skillIdentity: {
+      name: "capability-report",
+      displayName: "Capability Report",
+      key: "user:capability-report",
+      path: "/fixture/skills/capability-report/SKILL.md",
+    },
     pasteText: PASTE,
   });
 }
@@ -138,22 +143,18 @@ describe("independent marks Markdown/UTF8 fixture", () => {
       "[中😀](https://example.invalid/marks \"标题\")\n`````typescript\n  const value = '中😀';\n````\n\n\n`````\n尾中😀 ",
     );
     const bytes = Buffer.from(expected.text, "utf8");
-    expect(bytes.length).toBe(4362);
+    expect(bytes.length).toBe(4408);
     expect(expected.textElements).toEqual([
       {
         byteRange: { start: 203, end: 4343 },
         placeholder: "[Pasted text 1: 1620 characters]",
       },
-      {
-        byteRange: { start: 4344, end: 4362 },
-        placeholder: "$capability-report",
-      },
     ]);
     expect(
       createHash("sha256").update(bytes.subarray(203, 4343)).digest("hex"),
     ).toBe("efe7ffb00ece5294d1cd2b7cac4533861af4b728d7988212acc3a9551b98cb0a");
-    expect(bytes.subarray(4344, 4362).toString("utf8")).toBe(
-      "$capability-report",
+    expect(bytes.subarray(4344).toString("utf8")).toBe(
+      "[$capability-report](/fixture/skills/capability-report/SKILL.md)",
     );
     expect(expected.displayText).toContain(
       "中😀\n  const value = '中😀';\n````\n\n\n尾中😀",

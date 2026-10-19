@@ -16,7 +16,21 @@ pub(super) fn merge_item_snapshot(previous: ThreadItem, mut next: ThreadItem) ->
     if previous.status.is_terminal() && !next.status.is_terminal() {
         next.status = previous.status;
     }
-    next.payload = merge_payload(previous.payload, next.payload, source_event_type.as_deref());
+    let message_text_snapshot = next
+        .metadata
+        .get("text_is_snapshot")
+        .and_then(serde_json::Value::as_bool)
+        == Some(true);
+    next.payload = merge_payload(
+        previous.payload,
+        next.payload,
+        source_event_type.as_deref(),
+        message_text_snapshot,
+        next.metadata
+            .get("reasoning_is_snapshot")
+            .and_then(serde_json::Value::as_bool)
+            == Some(true),
+    );
     next
 }
 
@@ -45,6 +59,8 @@ fn merge_payload(
     previous: ThreadItemPayload,
     next: ThreadItemPayload,
     source_event_type: Option<&str>,
+    message_text_snapshot: bool,
+    reasoning_snapshot: bool,
 ) -> ThreadItemPayload {
     use ThreadItemPayload::*;
 
@@ -70,7 +86,13 @@ fn merge_payload(
                 content_parts,
             },
         ) => AgentMessage {
-            text: merge_stream_text(old, text),
+            // The materializer has already resolved this complete body, including
+            // an explicit empty snapshot. Durable history must not append it again.
+            text: if message_text_snapshot {
+                text
+            } else {
+                merge_stream_text(old, text)
+            },
             phase,
             content_parts: merge_parts(old_parts, content_parts),
         },
@@ -101,6 +123,16 @@ fn merge_payload(
             explanation: explanation.or(old_explanation),
             tool_call_id: tool_call_id.or(old_call),
             source_item_id: source_item_id.or(old_item),
+        },
+        (
+            Reasoning { .. },
+            Reasoning {
+                summary: next_summary,
+                content: next_content,
+            },
+        ) if reasoning_snapshot => Reasoning {
+            summary: next_summary,
+            content: next_content,
         },
         (
             Reasoning {
@@ -451,7 +483,7 @@ mod tests {
             app_context,
             mcp_app_resource_uri,
             ..
-        } = merge_payload(previous, next, None)
+        } = merge_payload(previous, next, None, false, false)
         else {
             panic!("MCP tool payload");
         };

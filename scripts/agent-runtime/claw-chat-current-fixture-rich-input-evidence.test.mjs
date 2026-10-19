@@ -58,20 +58,13 @@ function fixture() {
   const label = `$${skillIdentity.name}`;
   const prefix = `${prompt} `;
   const wirePrefix = prefix;
+  const skillLink = `[${label}](${skillIdentity.path.replaceAll("\\", "\\\\").replaceAll(")", "\\)")})`;
   const imageBase64 = Buffer.from("fixture-image").toString("base64");
   const input = [
     {
       type: "text",
-      text: `${wirePrefix}${label}`,
-      text_elements: [
-        {
-          byteRange: {
-            start: Buffer.byteLength(wirePrefix),
-            end: Buffer.byteLength(wirePrefix + label),
-          },
-          placeholder: label,
-        },
-      ],
+      text: `${wirePrefix}${skillLink}`,
+      text_elements: [],
     },
     {
       type: "skill",
@@ -127,17 +120,9 @@ function fixture() {
       threadId: request.params.threadId,
       turnId: "turn-rich",
       expectedSubmission: {
-        text: `${wirePrefix}${label}`,
+        text: `${wirePrefix}${skillLink}`,
         displayText: `${prefix}${label}`,
-        textElements: [
-          {
-            byteRange: {
-              start: Buffer.byteLength(wirePrefix),
-              end: Buffer.byteLength(wirePrefix + label),
-            },
-            placeholder: label,
-          },
-        ],
+        textElements: [],
       },
       prompt,
       editorText: `${prefix}${label}`,
@@ -214,12 +199,12 @@ function marksFixture() {
 }
 
 describe("rich Composer submission evidence", () => {
-  it("preserves both independent Unicode Markdown atom ranges through canonical readback", () => {
+  it("preserves independent Unicode paste ranges and Skill resource links through canonical readback", () => {
     expect(summarize(marksFixture())).toMatchObject({
       ok: true,
       textElementsPreserved: true,
       pasteRangePreserved: true,
-      skillRangePreserved: true,
+      skillResourceLinkPreserved: true,
       canonicalTurnIdentityPreserved: true,
       singleInputRequest: true,
     });
@@ -256,9 +241,7 @@ describe("rich Composer submission evidence", () => {
     "paste-start",
     "paste-end",
     "paste-utf16",
-    "skill-prefix",
     "placeholder",
-    "reorder",
     "extra",
   ])("rejects mutually consistent wire/canonical %s range drift", (mode) => {
     const input = marksFixture();
@@ -270,10 +253,7 @@ describe("rich Composer submission evidence", () => {
       part.text_elements[0].byteRange.start = part.text.indexOf(
         input.evidence.pasteText,
       );
-    if (mode === "skill-prefix")
-      part.text_elements[1].byteRange.start -= "/capability-report ".length;
     if (mode === "placeholder") part.text_elements[0].placeholder = "wrong";
-    if (mode === "reorder") part.text_elements.reverse();
     if (mode === "extra")
       part.text_elements.push(structuredClone(part.text_elements[0]));
     input.evidence.canonical.thread.turns[0].items[0].content[0] =
@@ -335,21 +315,14 @@ describe("rich Composer submission evidence", () => {
   it("uses independent Markdown rather than link labels and code display text", () => {
     const input = fixture();
     const display = `${input.evidence.prompt}\n中😀\n  中😀\n\`\`\`\`\n\n\n $${skillIdentity.name}`;
-    const markdown = `${input.evidence.prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`ts\n  中😀\n\`\`\`\`\n\n\n\`\`\`\`\`\n $${skillIdentity.name}`;
+    const resource = input.request.params.input[0].text.slice(
+      input.evidence.prompt.length + 1,
+    );
+    const markdown = `${input.evidence.prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`ts\n  中😀\n\`\`\`\`\n\n\n\`\`\`\`\`\n ${resource}`;
     input.evidence.editorText = display;
     const part = input.request.params.input[0];
     part.text = markdown;
-    part.text_elements = [
-      {
-        placeholder: `$${skillIdentity.name}`,
-        byteRange: {
-          start: Buffer.byteLength(
-            markdown.slice(0, markdown.lastIndexOf(`$${skillIdentity.name}`)),
-          ),
-          end: Buffer.byteLength(markdown),
-        },
-      },
-    ];
+    part.text_elements = [];
     input.evidence.expectedSubmission = {
       text: markdown,
       displayText: display,
@@ -397,6 +370,11 @@ describe("rich Composer submission evidence", () => {
     const input = fixture();
     input.evidence.skillToken.path = alias;
     input.request.params.input[1].path = alias;
+    const body = input.request.params.input[0];
+    body.text = body.text.replace(skillIdentity.path, alias);
+    input.evidence.expectedSubmission.text = body.text;
+    input.evidence.canonical.thread.turns[0].items[0].content[0] =
+      structuredClone(body);
     expect(summarize(input).ok).toBe(true);
   });
 
@@ -441,7 +419,7 @@ describe("rich Composer submission evidence", () => {
   it.each(["missing", "utf16", "out-of-bounds", "placeholder"])(
     "rejects %s text element evidence",
     (mode) => {
-      const input = fixture();
+      const input = marksFixture();
       const part = input.request.params.input[0];
       if (mode === "missing") delete part.text_elements;
       if (mode === "utf16")
@@ -522,54 +500,36 @@ describe("rich Composer submission evidence", () => {
     expect(summarize(input).ok).toBe(false);
   });
 
-  it("expands the known paste source before checking the later Skill UTF8 range", () => {
-    const input = fixture();
-    const pasteText = "历史😀\n".repeat(300);
-    const label = `[Pasted text 1: ${pasteText.length} characters]`;
-    const skillLabel = input.evidence.skillToken.label;
-    const prefix = `${input.evidence.prompt} `;
-    input.evidence.editorText = `${prefix}${label} ${skillLabel}`;
-    input.evidence.pasteToken = { id: "paste-1", label, editable: "false" };
-    input.evidence.pasteText = pasteText;
-    const expanded = `${prefix}${pasteText} ${skillLabel}`;
-    const part = input.request.params.input[0];
-    part.text = expanded;
-    part.text_elements = [
-      {
-        placeholder: label,
-        byteRange: {
-          start: Buffer.byteLength(`${prefix}`),
-          end: Buffer.byteLength(`${prefix}${pasteText}`),
-        },
-      },
-      {
-        placeholder: skillLabel,
-        byteRange: {
-          start: Buffer.byteLength(`${prefix}${pasteText} `),
-          end: Buffer.byteLength(part.text),
-        },
-      },
-    ];
-    input.evidence.expectedSubmission = {
-      text: expanded,
-      displayText: `${prefix}${label} ${skillLabel}`,
-      textElements: structuredClone(part.text_elements),
-    };
-    input.evidence.canonical.thread.turns[0].items[0].content[0] =
-      structuredClone(part);
-    expect(summarize(input)).toMatchObject({
-      ok: true,
-      pasteExpanded: true,
-      skillRangePreserved: true,
-    });
-    part.text_elements[1].byteRange = {
-      start: Buffer.byteLength(`${prefix}${label} `),
-      end: Buffer.byteLength(expanded),
-    };
-    expect(summarize(input).skillRangePreserved).toBe(false);
-    part.text_elements[1].byteRange.start = `${prefix}${label} `.length;
-    expect(summarize(input).skillRangePreserved).toBe(false);
-  });
+  it.each(["bare-label", "wrong-path", "duplicate-link", "legacy-range"])(
+    "rejects %s Skill resource serialization even with matching wire/canonical",
+    (mode) => {
+      const input = fixture();
+      const body = input.request.params.input[0];
+      const label = input.evidence.skillToken.label;
+      const link = body.text.slice(input.evidence.prompt.length + 1);
+      if (mode === "bare-label") body.text = body.text.replace(link, label);
+      if (mode === "wrong-path")
+        body.text = body.text.replace(skillIdentity.path, foreign);
+      if (mode === "duplicate-link") body.text += ` ${link}`;
+      if (mode === "legacy-range")
+        body.text_elements.push({
+          placeholder: label,
+          byteRange: {
+            start: Buffer.byteLength(input.evidence.prompt + " ["),
+            end: Buffer.byteLength(input.evidence.prompt + " [" + label),
+          },
+        });
+      input.evidence.expectedSubmission = {
+        ...input.evidence.expectedSubmission,
+        text: body.text,
+        textElements: structuredClone(body.text_elements),
+      };
+      input.evidence.canonical.thread.turns[0].items[0].content[0] =
+        structuredClone(body);
+      expect(summarize(input).skillResourceLinkPreserved).toBe(false);
+      expect(summarize(input).ok).toBe(false);
+    },
+  );
 
   it.each([
     "duplicate-placeholder",

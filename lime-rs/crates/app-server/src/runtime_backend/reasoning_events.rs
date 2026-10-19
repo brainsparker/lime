@@ -177,6 +177,28 @@ impl ReasoningEventState {
         Ok(events)
     }
 
+    pub fn complete(
+        &mut self,
+        item_id: &str,
+        summary: Vec<String>,
+        content: Vec<String>,
+    ) -> Result<Vec<RuntimeEvent>, String> {
+        self.start(item_id)?;
+        let item = self
+            .items
+            .get_mut(item_id)
+            .expect("reasoning item was inserted above");
+        let mut events = Vec::new();
+        if !item.started {
+            item.started = true;
+            events.push(reasoning_started_event(item_id));
+        }
+        item.ended = true;
+        events.push(reasoning_final_event(item_id, summary, content));
+        events.push(reasoning_ended_event(item_id, "completed"));
+        Ok(events)
+    }
+
     pub fn finish(&mut self, status: &str) -> Result<Vec<RuntimeEvent>, String> {
         let active_item_ids = self
             .item_order

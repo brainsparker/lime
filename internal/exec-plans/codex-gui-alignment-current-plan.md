@@ -23,7 +23,7 @@
 | --- | --- | --- |
 | 92 canonical Skill/inline mention | 删除installed_skill额外slash调度、宽松匹配/假Skill fallback、重复初始化状态及旧route徽标；导航解析唯一runtime Skill；默认glyph和inline-flow样式来自REA | 74套1341项、完整预检、新Renderer、标准GUI及真实rich/Sources/Plan/Goal/Skills通过；矩阵因PM textBetween漏叶节点失败。325产物与原失败已冻结，sourceDrift空 |
 | 93 canonical用户消息 | 删除resolveUserMessageLabels、UserInstalledSkillMessageContent及额外sidecar徽标循环；迁移旧正向标签测试 | 根6套71项通过；独立10输入候选已通过8套102项、lint/types/contracts/i18n/治理并构建新Renderer，真实标准GUI/rich及54项观察、48张截图全通过；sourceDrift空、Main正常退出，325产物冻结。矩阵使用既有canonical DOM reader |
-| 94 mention可见文档文本 | 按REA89 sJr补齐leafText，让PM普通文本读取包含displayName；canonical输入仍使用label/path/typed identity | 原真实EditorView回归已复现1失败/14通过；修复后6套112项及strict lint通过，独立新字节产品证据尚待 |
+| 94 mention可见文档文本 | 按REA89 sJr补齐leafText，让PM普通文本读取包含displayName；canonical输入仍使用label/path/typed identity | 原真实EditorView回归已复现1失败/14通过；独立11套150项、完整预检、新Renderer/标准GUI/rich与54观察48截图通过，sourceDrift空；325产物冻结 |
 
 92的Goal通过真实GUI暂停后验证同一线程目标paused、首轮completed、输入框可用与stop消失；没有关闭自动续跑或放宽身份/期限。92 Skills覆盖自动、显式和工作区手动启用；受控fixture证据不等于live provider。
 
@@ -62,6 +62,12 @@ Rust、协议/生成客户端、发布、Cloud/account及未知工作树增量�
 
 current：表中唯一owner、canonical输入与消息投影。已删除：旧slash Skill调度/fallback、重复状态、旧route及sidecar徽标；完整删除清单归专项计划和结构账本。本次新增compat/deprecated均为0，既有委托不扩张。
 
-整体仍partial；没有完整验收分母，不编造总完成百分比。分别报告行为、结构/命名、清理和产品验证。下一步验证94最终字节，再沿正文内联引用与完整来源主链推进。
+整体仍partial；没有完整验收分母，不编造总完成百分比。分别报告行为、结构/命名、清理和产品验证。下一步实现已由REA89/92/95/100确认的引用序列化，再沿共享runtime和其余引用来源主链推进。
 
 本页只保留当前状态与导航，逐轮细节由专项计划及不可变收据持有。旧历史入口：[2026-10-15](codex-gui-alignment-history-20261015.md)、[2026-10-17](codex-gui-alignment-history-20261017.md)、[2026-10-18](codex-gui-alignment-history-20261018.md)。外部清理造成的缺失证据只作历史观察，不恢复成有效通过。
+
+当前99 recovery1已完成Files引用打开切片：18套212项预检及新Renderer/标准GUI已认证，60项引用矩阵与真实rich恢复通过；源码无漂移，Main均正常退出。原98/99失败保留，97退出根因仍open。完整serializer及其他GUI仍partial，下一步实施atom→Markdown提交并同步恢复/范围护栏。
+
+2026-10-19 102/104更新：资源Markdown提交候选102的19套336项、strict lint/types/contracts/i18n/治理、新Renderer及标准GUI通过；原矩阵60项业务观察完成，但Main原15秒正常退出超时，整轮failed，sourceDrift空、325产物manifest SHA 725e417ad2072fcd80510e672858e9995c7590985f64829ef85701f407f082b0。102 recovery1再次完成60观察但同一退出门禁failed；7秒被动sample超时且无有效栈，不能归因或当修复证据。原件均保留，rich独立补测中；97/102退出根因open。
+
+104沿REA103 recovery1的dzt/DC/ozt/wn合同实施文件树默认关闭、共享开关与250px临时宽度（min200/max60%）；不凭截图调整固定像素。泛化既有Host bool owner并直接删除summary专用方法，无alias；Summary、Files、Changes及Workbench消费者收敛同一typed gateway，删除每入口局部开关和true默认。Host7套193项、消费者6套44项已通过；真实桌面三主题/多宽度、保存重载与Files/Changes共享待验。`internal/exec-plans/codex-file-tree-visibility-20261019.md`。无新增业务owner/兼容层，不扩写未知Rust、发布和architecture增量；全GUI保持partial。

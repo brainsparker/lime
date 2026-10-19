@@ -159,27 +159,20 @@ export function summarizeRichInputSubmission({
               .subarray(element.byteRange?.start, element.byteRange?.end)
               .toString("utf8") === pasteText,
         );
-  const skillIndex = expectedWireText?.indexOf(skillToken?.label) ?? -1;
-  const skillStart = Buffer.byteLength(
-    expectedWireText?.slice(0, skillIndex) ?? "",
-  );
-  const skillRangePreserved =
+  const skillLink = validSkillToken
+    ? `[${skillToken.label.replaceAll("\\", "\\\\").replaceAll("](", "]\\(").replaceAll("]", "\\]")}](${skillToken.path.replaceAll("\\", "\\\\").replaceAll(")", "\\)")})`
+    : null;
+  const skillLinkIndex = skillLink
+    ? (expectedWireText?.indexOf(skillLink) ?? -1)
+    : -1;
+  const skillResourceLinkPreserved =
     validSkillToken &&
-    skillIndex >= 0 &&
-    expectedWireText.indexOf(skillToken.label, skillIndex + 1) < 0 &&
+    skillLinkIndex >= 0 &&
+    expectedWireText.indexOf(skillLink, skillLinkIndex + 1) < 0 &&
     Array.isArray(body?.text_elements) &&
-    body.text_elements.some((element) => {
-      const { start, end } = element?.byteRange ?? {};
-      return (
-        Number.isInteger(start) &&
-        Number.isInteger(end) &&
-        start === skillStart &&
-        end === skillStart + Buffer.byteLength(skillToken.label) &&
-        end <= bytes.length &&
-        element.placeholder === skillToken.label &&
-        bytes.subarray(start, end).toString("utf8") === skillToken.label
-      );
-    });
+    body.text_elements.every(
+      (element) => element.placeholder !== skillToken.label,
+    );
   const clientId = request?.params.clientUserMessageId;
   const canonicalTurnIdentityPreserved =
     typeof turnId === "string" &&
@@ -311,7 +304,7 @@ export function summarizeRichInputSubmission({
     textPreserved,
     pasteExpanded,
     skillIdentityPreserved,
-    skillRangePreserved,
+    skillResourceLinkPreserved,
     textElementsPreserved,
     pasteRangePreserved,
     canonicalTurnIdentityPreserved,

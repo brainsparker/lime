@@ -1,11 +1,116 @@
 use super::CurrentProviderTurnEvent;
 use crate::reply_execution::RuntimeReplyAttemptError;
 use agent_protocol::response_item::MessagePhase;
+use std::collections::HashMap;
+
+#[derive(Default)]
+pub(super) struct TextOutput {
+    parts: Vec<String>,
+    indices: HashMap<String, usize>,
+}
+
+impl TextOutput {
+    fn part(&mut self, item_id: &str) -> &mut String {
+        let index = *self.indices.entry(item_id.to_string()).or_insert_with(|| {
+            self.parts.push(String::new());
+            self.parts.len() - 1
+        });
+        &mut self.parts[index]
+    }
+
+    pub fn append(&mut self, item_id: &str, text: &str) {
+        self.part(item_id).push_str(text);
+    }
+
+    pub fn complete(&mut self, item_id: &str, text: &str) {
+        *self.part(item_id) = text.to_string();
+    }
+
+    pub fn text(&self) -> String {
+        self.parts.concat()
+    }
+
+    pub fn visible(&self) -> bool {
+        self.parts.iter().any(|text| !text.trim().is_empty())
+    }
+
+    pub fn chars(&self) -> u64 {
+        self.parts
+            .iter()
+            .map(|text| text.chars().count() as u64)
+            .sum()
+    }
+}
 
 #[derive(Debug)]
 pub(super) struct CompletedMessage {
     pub item_id: String,
+    pub text: String,
     pub phase: Option<MessagePhase>,
+}
+
+#[derive(Debug)]
+pub(super) struct CompletedReasoning {
+    pub item_id: String,
+    pub summary: Vec<String>,
+    pub content: Vec<String>,
+}
+
+#[derive(Debug)]
+pub(super) enum CompletedOutput {
+    Message(CompletedMessage),
+    Reasoning(CompletedReasoning),
+}
+
+#[derive(Default)]
+pub(super) struct ReasoningOutput {
+    sizes: HashMap<String, u64>,
+}
+
+impl ReasoningOutput {
+    pub fn append(&mut self, item_id: &str, text: &str) {
+        let size = self.sizes.entry(item_id.to_string()).or_default();
+        *size = size.saturating_add(text.chars().count() as u64);
+    }
+
+    pub fn complete(&mut self, item: &CompletedReasoning) {
+        let size = item
+            .summary
+            .iter()
+            .chain(&item.content)
+            .map(|text| text.chars().count() as u64)
+            .sum();
+        self.sizes.insert(item.item_id.clone(), size);
+    }
+
+    pub fn chars(&self) -> u64 {
+        self.sizes.values().copied().sum()
+    }
+}
+
+pub(super) fn complete_reasoning_output_item<F>(
+    active_item_id: &mut Option<String>,
+    item: CompletedReasoning,
+    on_event: &mut F,
+    emitted_any: bool,
+) -> Result<(), RuntimeReplyAttemptError>
+where
+    F: FnMut(CurrentProviderTurnEvent),
+{
+    start_output_item(
+        active_item_id,
+        item.item_id.clone(),
+        ProviderOutputFamily::Reasoning,
+        on_event,
+        emitted_any,
+    )?;
+    active_item_id.take();
+    on_event(CurrentProviderTurnEvent::ReasoningCompleted {
+        item_id: item.item_id,
+        summary: item.summary,
+        content: item.content,
+    });
+    Ok(())
 }
 
 pub(super) fn complete_text_output_item<F>(
@@ -26,8 +131,9 @@ where
         emitted_any,
     )?;
     pending_item_ids.retain(|item_id| item_id != &message.item_id);
-    on_event(CurrentProviderTurnEvent::TextEnd {
+    on_event(CurrentProviderTurnEvent::TextCompleted {
         item_id: message.item_id,
+        text: message.text,
         phase: message.phase,
     });
     Ok(())

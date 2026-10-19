@@ -3,21 +3,13 @@ import path from "node:path";
 import { setTimeout } from "node:timers/promises";
 import { promisify } from "node:util";
 import { notarize } from "@electron/notarize";
+import {
+  isTransientStapleError,
+  retryMacOSTicketDelivery,
+  ticketRetryDelays as retryDelays,
+} from "./macos-ticket-delivery.mjs";
 
 const run = promisify(execFile);
-const retryDelays = [15_000, 30_000, 60_000, 120_000, 120_000];
-
-function isTransientStapleError(error) {
-  const output = `${error.message}\n${error.stdout || ""}\n${error.stderr || ""}`;
-  return (
-    /Failed to staple your application with code: 68|staple and validate action failed! Error 68/u.test(
-      output,
-    ) &&
-    /NSURLErrorDomain|CloudKit's response is inconsistent|HTTPError\(statusCode: nil/u.test(
-      output,
-    )
-  );
-}
 
 export async function notarizeMacApp(
   appPath,
@@ -56,9 +48,11 @@ export async function notarizeMacApp(
       }
     }
   }
-  await runImpl("xcrun", ["stapler", "validate", appPath], {
-    timeout: 60_000,
-  });
+  await retryMacOSTicketDelivery(
+    () =>
+      runImpl("xcrun", ["stapler", "validate", appPath], { timeout: 60_000 }),
+    { sleep, log },
+  );
 }
 
 export async function notarizeMacPackages(

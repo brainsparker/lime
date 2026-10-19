@@ -421,7 +421,11 @@ describe("persisted atom Main CAS and draft lifecycle", () => {
     expect(store.updatePersistedAtomState(put())).toMatchObject({
       outcome: "applied",
     });
-    expect(events.map((event) => event.key)).toEqual(["composer-drafts-v1", "app-shell-summary-panel-pinned"]);
+    expect(events.map((event) => event.key)).toEqual([
+      "composer-drafts-v1",
+      "app-shell-summary-panel-pinned",
+      "app-shell-file-tree-open",
+    ]);
     for (const event of events) {
       expect(event).not.toHaveProperty("entry");
       expect(event).not.toHaveProperty("draft");

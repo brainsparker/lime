@@ -41,7 +41,7 @@ interface CanvasWorkbenchChangesPanelProps {
   mutedPanelClassName: string;
   workspaceRoot?: string | null;
   loadFilePreview?: (path: string) => Promise<HarnessFilePreviewResult>;
-  filesPanelOpen?: boolean;
+  filesPanelOpen: boolean;
   onToggleFilesPanel?: () => void;
   selectedPath?: string | null;
   initialBase?: CanvasWorkbenchReviewBase;
@@ -56,7 +56,7 @@ export function CanvasWorkbenchChangesPanel({
   mutedPanelClassName,
   workspaceRoot,
   loadFilePreview,
-  filesPanelOpen = true,
+  filesPanelOpen,
   onToggleFilesPanel,
   selectedPath,
   initialBase,

@@ -45,6 +45,7 @@ import {
 } from "./ThreadRevertDialog";
 import type { ThreadRevertTarget } from "./ThreadRevertTrigger";
 import { ReasoningVisibility } from "./ReasoningVisibility";
+import { PromptLinks } from "./PromptLinks";
 
 function findLastMessage(
   messages: readonly Message[],
@@ -520,218 +521,231 @@ const MessageListInner: React.FC<MessageListProps> = ({
   );
 
   return (
-    <ReasoningVisibility>
-      <MessageListFrame
-        data-testid="message-list-frame"
-        data-session-id={sessionId || ""}
-      >
-        <MessageListContainer
-          ref={scrollController.containerRef}
-          $taskCenterSurface={isTaskCenterEmptyState}
-          data-testid="message-list-scroll-container"
-          data-mounted-turns={mountedTurnIds.size}
-          data-mounted-items={
-            timelineState.renderedThreadItems.filter((item) =>
-              mountedTurnIds.has(item.turn_id),
-            ).length
-          }
+    <PromptLinks
+      key={sessionId ?? "no-session"}
+      onOpenFile={
+        threadRead?.environment_selections?.length
+          ? undefined
+          : onOpenArtifactFromTimeline
+      }
+    >
+      <ReasoningVisibility>
+        <MessageListFrame
+          data-testid="message-list-frame"
+          data-session-id={sessionId || ""}
         >
-          <div
-            data-testid="message-list-column"
-            data-content-axis="thread"
-            data-layout-density="compact"
-            style={{ maxWidth: CONVERSATION_CONTENT_MAX_WIDTH }}
-            className={[
-              "mx-auto flex min-h-full w-full flex-col gap-3 py-3",
-              compactLeadingSpacing ? "pl-2.5 pr-3" : "pl-4 pr-4",
-              "justify-start",
-            ].join(" ")}
+          <MessageListContainer
+            ref={scrollController.containerRef}
+            $taskCenterSurface={isTaskCenterEmptyState}
+            data-testid="message-list-scroll-container"
+            data-mounted-turns={mountedTurnIds.size}
+            data-mounted-items={
+              timelineState.renderedThreadItems.filter((item) =>
+                mountedTurnIds.has(item.turn_id),
+              ).length
+            }
           >
-            {leadingContent ? (
-              <div data-testid="message-list-leading-content">
-                {leadingContent}
-              </div>
-            ) : null}
-            {historyState.hasPersistedOlderHistory ? (
-              <PersistedHistoryWindow
-                loadedEntries={timelineState.renderEntries.length}
-                hasMore
-                isLoadingFull={sessionHistoryWindow?.isLoadingFull === true}
-                error={sessionHistoryWindow?.error}
-                onLoadFullHistory={onLoadFullHistory}
-              />
-            ) : null}
-            {timelineState.renderEntries.length === 0 &&
-              (isRestoringSession ? (
-                <RestoringSessionEmptyState />
-              ) : isTaskCenterEmptyState ? (
-                <TaskCenterEmptyState />
-              ) : null)}
+            <div
+              data-testid="message-list-column"
+              data-content-axis="thread"
+              data-layout-density="compact"
+              style={{ maxWidth: CONVERSATION_CONTENT_MAX_WIDTH }}
+              className={[
+                "mx-auto flex min-h-full w-full flex-col gap-3 py-3",
+                compactLeadingSpacing ? "pl-2.5 pr-3" : "pl-4 pr-4",
+                "justify-start",
+              ].join(" ")}
+            >
+              {leadingContent ? (
+                <div data-testid="message-list-leading-content">
+                  {leadingContent}
+                </div>
+              ) : null}
+              {historyState.hasPersistedOlderHistory ? (
+                <PersistedHistoryWindow
+                  loadedEntries={timelineState.renderEntries.length}
+                  hasMore
+                  isLoadingFull={sessionHistoryWindow?.isLoadingFull === true}
+                  error={sessionHistoryWindow?.error}
+                  onLoadFullHistory={onLoadFullHistory}
+                />
+              ) : null}
+              {timelineState.renderEntries.length === 0 &&
+                (isRestoringSession ? (
+                  <RestoringSessionEmptyState />
+                ) : isTaskCenterEmptyState ? (
+                  <TaskCenterEmptyState />
+                ) : null)}
 
-            <VirtualizedTurnList
-              key={sessionId || activeThreadId || "conversation"}
-              entries={timelineState.renderEntries}
-              scrollContainerRef={scrollController.containerRef}
-              isFollowingTail={scrollController.isFollowingTail}
-              scrollToTail={scrollController.scrollToTail}
-              setScrollTop={scrollController.setScrollTop}
-              holdViewport={scrollController.holdViewport}
-              retainedKeys={retainedEntryKeys}
-              focusedKey={focusedEntryKey}
-              getFocusedElement={getFocusedElement}
-              focusRequestKey={timelineFocusRequestKey}
-              onRangeChange={handleRangeChange}
-              renderEntry={(entry, groupIndex) => {
-                if (entry.kind === "canonical_turn") {
-                  const lastAssistantItemId = entry.segments
-                    .filter(
-                      (segment) =>
-                        segment.kind === "message" &&
-                        segment.item.type === "agent_message",
-                    )
-                    .at(-1)?.id;
-                  const lastAssistantMessageId =
-                    findLastMessage(
+              <VirtualizedTurnList
+                key={sessionId || activeThreadId || "conversation"}
+                entries={timelineState.renderEntries}
+                scrollContainerRef={scrollController.containerRef}
+                isFollowingTail={scrollController.isFollowingTail}
+                scrollToTail={scrollController.scrollToTail}
+                setScrollTop={scrollController.setScrollTop}
+                holdViewport={scrollController.holdViewport}
+                retainedKeys={retainedEntryKeys}
+                focusedKey={focusedEntryKey}
+                getFocusedElement={getFocusedElement}
+                focusRequestKey={timelineFocusRequestKey}
+                onRangeChange={handleRangeChange}
+                renderEntry={(entry, groupIndex) => {
+                  if (entry.kind === "canonical_turn") {
+                    const lastAssistantItemId = entry.segments
+                      .filter(
+                        (segment) =>
+                          segment.kind === "message" &&
+                          segment.item.type === "agent_message",
+                      )
+                      .at(-1)?.id;
+                    const lastAssistantMessageId =
+                      findLastMessage(
+                        messages,
+                        (message) =>
+                          message.role === "assistant" &&
+                          message.runtimeTurnId?.trim() === entry.turn.id,
+                      )?.id ?? lastAssistantItemId;
+                    const lastUserMessageId = findLastMessage(
                       messages,
                       (message) =>
-                        message.role === "assistant" &&
+                        message.role === "user" &&
                         message.runtimeTurnId?.trim() === entry.turn.id,
-                    )?.id ?? lastAssistantItemId;
-                  const lastUserMessageId = findLastMessage(
-                    messages,
-                    (message) =>
-                      message.role === "user" &&
-                      message.runtimeTurnId?.trim() === entry.turn.id,
-                  )?.id;
+                    )?.id;
+                    return (
+                      <MessageTurnGroup
+                        key={entry.id}
+                        data-testid="message-turn-group"
+                        data-render-entry-kind="canonical_turn"
+                        data-group-index={groupIndex + 1}
+                        data-runtime-turn-id={entry.turn.id}
+                        data-runtime-turn-status={entry.turn.status}
+                        data-last-assistant-message-id={
+                          lastAssistantMessageId || ""
+                        }
+                        data-timeline-message-id={lastAssistantItemId || ""}
+                        data-render-priority="viewport"
+                        className="py-1"
+                      >
+                        <ConversationTurnTimeline
+                          entry={entry}
+                          sessionId={sessionId}
+                          userMessageId={lastUserMessageId}
+                          assistantMessageId={lastAssistantMessageId}
+                          threadRead={threadRead}
+                          pendingActions={pendingActions}
+                          submittedActionsInFlight={submittedActionsInFlight}
+                          assistantLabel={assistantLabel}
+                          copiedId={copiedId}
+                          compactLeadingSpacing={compactLeadingSpacing}
+                          isSending={isSending}
+                          renderA2UIInline={renderA2UIInline}
+                          a2uiFormDataMap={a2uiFormDataMap}
+                          collapseCodeBlocks={collapseCodeBlocks}
+                          shouldCollapseCodeBlock={shouldCollapseCodeBlock}
+                          focusedTimelineItemId={focusedTimelineItemId}
+                          timelineFocusRequestKey={timelineFocusRequestKey}
+                          shouldDeferHistoricalTimelineDetails={
+                            timelineState.shouldDeferHistoricalTimelineDetails
+                          }
+                          handleCopy={handleCopy}
+                          onBeforeUserMessageToggle={
+                            scrollController.holdViewport
+                          }
+                          onA2UISubmit={onA2UISubmit}
+                          onA2UIFormChange={onA2UIFormChange}
+                          onWriteFile={onWriteFile}
+                          onFileClick={onFileClick}
+                          onOpenArtifactFromTimeline={
+                            onOpenArtifactFromTimeline
+                          }
+                          onOpenUrlPreview={onOpenUrlPreview}
+                          onOpenSavedSiteContent={onOpenSavedSiteContent}
+                          onOpenMessagePreview={onOpenMessagePreview}
+                          onOpenSubagentSession={onOpenSubagentSession}
+                          onPermissionResponse={onPermissionResponse}
+                          onQuoteMessage={onQuoteMessage}
+                          onRequestThreadRevert={handleRequestThreadRevert}
+                          onSaveMessageAsSkill={onSaveMessageAsSkill}
+                          onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
+                          onCodeBlockClick={onCodeBlockClick}
+                        />
+                      </MessageTurnGroup>
+                    );
+                  }
+
+                  const group = entry.group;
+                  const groupRuntimeTurnId =
+                    group.timeline?.turn?.id ||
+                    group.messages.find((message) => message.runtimeTurnId)
+                      ?.runtimeTurnId ||
+                    "";
+                  const groupRuntimeTurnStatus =
+                    group.timeline?.turn?.status ||
+                    timelineState.renderedTurns.find(
+                      (turn) => turn.id === groupRuntimeTurnId,
+                    )?.status ||
+                    "";
                   return (
                     <MessageTurnGroup
                       key={entry.id}
                       data-testid="message-turn-group"
-                      data-render-entry-kind="canonical_turn"
+                      data-render-entry-kind="message_group"
                       data-group-index={groupIndex + 1}
-                      data-runtime-turn-id={entry.turn.id}
-                      data-runtime-turn-status={entry.turn.status}
+                      data-runtime-turn-id={groupRuntimeTurnId}
+                      data-runtime-turn-status={groupRuntimeTurnStatus}
                       data-last-assistant-message-id={
-                        lastAssistantMessageId || ""
+                        group.lastAssistantId || ""
                       }
-                      data-timeline-message-id={lastAssistantItemId || ""}
+                      data-timeline-message-id={group.timelineMessageId || ""}
                       data-render-priority="viewport"
                       className="py-1"
                     >
-                      <ConversationTurnTimeline
-                        entry={entry}
-                        sessionId={sessionId}
-                        userMessageId={lastUserMessageId}
-                        assistantMessageId={lastAssistantMessageId}
-                        threadRead={threadRead}
-                        pendingActions={pendingActions}
-                        submittedActionsInFlight={submittedActionsInFlight}
-                        assistantLabel={assistantLabel}
-                        copiedId={copiedId}
-                        compactLeadingSpacing={compactLeadingSpacing}
-                        isSending={isSending}
-                        renderA2UIInline={renderA2UIInline}
-                        a2uiFormDataMap={a2uiFormDataMap}
-                        collapseCodeBlocks={collapseCodeBlocks}
-                        shouldCollapseCodeBlock={shouldCollapseCodeBlock}
-                        focusedTimelineItemId={focusedTimelineItemId}
-                        timelineFocusRequestKey={timelineFocusRequestKey}
-                        shouldDeferHistoricalTimelineDetails={
-                          timelineState.shouldDeferHistoricalTimelineDetails
-                        }
-                        handleCopy={handleCopy}
-                        onBeforeUserMessageToggle={
-                          scrollController.holdViewport
-                        }
-                        onA2UISubmit={onA2UISubmit}
-                        onA2UIFormChange={onA2UIFormChange}
-                        onWriteFile={onWriteFile}
-                        onFileClick={onFileClick}
-                        onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-                        onOpenUrlPreview={onOpenUrlPreview}
-                        onOpenSavedSiteContent={onOpenSavedSiteContent}
-                        onOpenMessagePreview={onOpenMessagePreview}
-                        onOpenSubagentSession={onOpenSubagentSession}
-                        onPermissionResponse={onPermissionResponse}
-                        onQuoteMessage={onQuoteMessage}
-                        onRequestThreadRevert={handleRequestThreadRevert}
-                        onSaveMessageAsSkill={onSaveMessageAsSkill}
-                        onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
-                        onCodeBlockClick={onCodeBlockClick}
-                      />
+                      <div className="space-y-1">
+                        {group.messages.map((msg, messageIndex) => (
+                          <MessageListStreamingOverlayItem
+                            key={msg.id ?? `${group.id}:${messageIndex}`}
+                            msg={msg}
+                            group={group}
+                            onOverlayUpdate={
+                              scrollController.handleStreamingOverlayUpdate
+                            }
+                            render={renderMessageItem}
+                          />
+                        ))}
+                      </div>
                     </MessageTurnGroup>
                   );
-                }
-
-                const group = entry.group;
-                const groupRuntimeTurnId =
-                  group.timeline?.turn?.id ||
-                  group.messages.find((message) => message.runtimeTurnId)
-                    ?.runtimeTurnId ||
-                  "";
-                const groupRuntimeTurnStatus =
-                  group.timeline?.turn?.status ||
-                  timelineState.renderedTurns.find(
-                    (turn) => turn.id === groupRuntimeTurnId,
-                  )?.status ||
-                  "";
-                return (
-                  <MessageTurnGroup
-                    key={entry.id}
-                    data-testid="message-turn-group"
-                    data-render-entry-kind="message_group"
-                    data-group-index={groupIndex + 1}
-                    data-runtime-turn-id={groupRuntimeTurnId}
-                    data-runtime-turn-status={groupRuntimeTurnStatus}
-                    data-last-assistant-message-id={group.lastAssistantId || ""}
-                    data-timeline-message-id={group.timelineMessageId || ""}
-                    data-render-priority="viewport"
-                    className="py-1"
-                  >
-                    <div className="space-y-1">
-                      {group.messages.map((msg, messageIndex) => (
-                        <MessageListStreamingOverlayItem
-                          key={msg.id ?? `${group.id}:${messageIndex}`}
-                          msg={msg}
-                          group={group}
-                          onOverlayUpdate={
-                            scrollController.handleStreamingOverlayUpdate
-                          }
-                          render={renderMessageItem}
-                        />
-                      ))}
-                    </div>
-                  </MessageTurnGroup>
-                );
-              }}
-            />
-            {trailingContent ? (
-              <section
-                data-testid="message-list-trailing-content"
-                className="py-2"
-              >
-                {trailingContent}
-              </section>
-            ) : null}
-            <div ref={scrollController.scrollRef} />
-          </div>
-        </MessageListContainer>
-      </MessageListFrame>
-      <ThreadRevertDialog
-        target={threadRevertTarget}
-        status={threadRevertStatus}
-        onClose={handleCloseThreadRevert}
-        onConfirm={handleConfirmThreadRevert}
-      />
-      <span
-        className="sr-only"
-        data-testid="thread-revert-status"
-        data-state={threadRevertStatus}
-        aria-live="polite"
-      >
-        {threadRevertStatusText}
-      </span>
-    </ReasoningVisibility>
+                }}
+              />
+              {trailingContent ? (
+                <section
+                  data-testid="message-list-trailing-content"
+                  className="py-2"
+                >
+                  {trailingContent}
+                </section>
+              ) : null}
+              <div ref={scrollController.scrollRef} />
+            </div>
+          </MessageListContainer>
+        </MessageListFrame>
+        <ThreadRevertDialog
+          target={threadRevertTarget}
+          status={threadRevertStatus}
+          onClose={handleCloseThreadRevert}
+          onConfirm={handleConfirmThreadRevert}
+        />
+        <span
+          className="sr-only"
+          data-testid="thread-revert-status"
+          data-state={threadRevertStatus}
+          aria-live="polite"
+        >
+          {threadRevertStatusText}
+        </span>
+      </ReasoningVisibility>
+    </PromptLinks>
   );
 };
 

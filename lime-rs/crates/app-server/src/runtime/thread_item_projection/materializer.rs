@@ -17,7 +17,9 @@ use self::lifecycle::{
     turn_approval_state, turn_queue_state,
 };
 use self::lowering::{item_family, typed_payload, unknown_payload_is_safe, ItemFamily};
-use super::change_set::{ChangeSetAccumulator, MaterializationError};
+use super::change_set::{
+    ChangeSetAccumulator, MaterializationError, MESSAGE_TEXT_SNAPSHOT, REASONING_SNAPSHOT,
+};
 use super::helpers::event_metadata;
 use agent_protocol::{
     ItemId, ItemStatus, SessionId, ThreadHistoryChangeSet, ThreadId, ThreadItem, ThreadItemPayload,
@@ -289,6 +291,30 @@ fn materialized_item_metadata(
     if let Some(source_metadata) = source.get("metadata").and_then(Value::as_object) {
         metadata.extend(source_metadata.clone());
     }
+    if matches!(family, ItemFamily::AgentMessage) {
+        // Presence distinguishes a full snapshot (including empty text) from a
+        // body-less lifecycle event that only finishes the existing content.
+        metadata.insert(
+            MESSAGE_TEXT_SNAPSHOT.to_string(),
+            Value::Bool(
+                matches!(event.event_type.as_str(), "item.updated" | "item.completed")
+                    && source.get("text").is_some_and(Value::is_string),
+            ),
+        );
+    }
+    if matches!(family, ItemFamily::Reasoning) {
+        // A full reasoning snapshot may deliberately clear either array.
+        metadata.insert(
+            REASONING_SNAPSHOT.to_string(),
+            Value::Bool(
+                matches!(
+                    event.event_type.as_str(),
+                    "reasoning.final" | "item.updated" | "item.completed"
+                ) && source.get("summary").is_some_and(Value::is_array)
+                    && source.get("content").is_some_and(Value::is_array),
+            ),
+        );
+    }
     if matches!(family, ItemFamily::File) {
         preserve_file_event_markers(&mut metadata, source);
     }
@@ -425,7 +451,9 @@ fn canonical_item_from_event(
         item.completed_at_ms = item.status.is_terminal().then_some(timestamp);
         if matches!(
             item.payload,
-            ThreadItemPayload::Reasoning { .. } | ThreadItemPayload::Command { .. }
+            ThreadItemPayload::Reasoning { .. }
+                | ThreadItemPayload::Command { .. }
+                | ThreadItemPayload::AgentMessage { .. }
         ) {
             // Typed lifecycle payloads are snapshots, not deltas. The envelope owns
             // this distinction even when nested metadata is absent or names a previous event.
@@ -438,6 +466,34 @@ fn canonical_item_from_event(
                 "source_event_type".to_string(),
                 Value::String(event.event_type.clone()),
             );
+            if matches!(item.payload, ThreadItemPayload::AgentMessage { .. }) {
+                metadata.insert(
+                    MESSAGE_TEXT_SNAPSHOT.to_string(),
+                    Value::Bool(matches!(
+                        event.event_type.as_str(),
+                        "item.updated" | "item.completed"
+                    )),
+                );
+            }
+            if matches!(item.payload, ThreadItemPayload::Reasoning { .. }) {
+                let reasoning_snapshot =
+                    matches!(event.event_type.as_str(), "item.updated" | "item.completed")
+                        && source
+                            .get("payload")
+                            .and_then(serde_json::Value::as_object)
+                            .is_some_and(|payload| {
+                                payload
+                                    .get("summary")
+                                    .is_some_and(serde_json::Value::is_array)
+                                    && payload
+                                        .get("content")
+                                        .is_some_and(serde_json::Value::is_array)
+                            });
+                metadata.insert(
+                    REASONING_SNAPSHOT.to_string(),
+                    Value::Bool(reasoning_snapshot),
+                );
+            }
             item.metadata = Value::Object(metadata);
         }
     }

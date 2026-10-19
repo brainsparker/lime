@@ -81,6 +81,10 @@ function escapeBasicLabel(label: string): string {
     .replace(/\]/g, "\\]");
 }
 
+export function formatResourceLink(label: string, path: string): string {
+  return `[${escapeBasicLabel(label)}](${path.replace(/\\/g, "\\\\").replace(/\)/g, "\\)")})`;
+}
+
 function escapeMarkdownPhrasing(value: string): string {
   return escapeMarkdownControls(value.replace(/[\\`*_[\]]/g, "\\$&"));
 }
@@ -119,7 +123,7 @@ export function formatComposerLink(
   if (href === null) return label;
   if (label === href && attrs.title === null) return href;
   if (attrs.title) return formatLinkWithTitle(label, href, attrs.title);
-  return `[${escapeBasicLabel(label)}](${href.replace(/\\/g, "\\\\").replace(/\)/g, "\\)")})`;
+  return formatResourceLink(label, href);
 }
 
 export function parseComposerInlineLinks(

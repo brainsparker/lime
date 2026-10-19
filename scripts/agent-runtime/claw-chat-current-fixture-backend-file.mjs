@@ -547,6 +547,7 @@ export async function startTextProviderFixtureServer({
   soulStyleExpectation = null,
   activeSteerDelayMs = 0,
   turnPlanUpdate = false,
+  requestMarkers = [],
 } = {}) {
   const requests = [];
   const expectedAuthorization = `Bearer ${TEXT_PROVIDER_FIXTURE_API_KEY}`;
@@ -730,6 +731,9 @@ export async function startTextProviderFixtureServer({
         bodySummary: summarizeChatCompletionRequestBody(
           entry.body,
           soulStyleExpectation,
+        ),
+        bodyMarkers: Object.fromEntries(
+          requestMarkers.map((marker) => [marker, entry.body.includes(marker)]),
         ),
         bodyIncludesPresentationContract:
           entry.body.includes("image_task_presentation.v1") ||

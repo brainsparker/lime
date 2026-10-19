@@ -1,8 +1,19 @@
+import { configureBooleanGateway } from "@/hooks/usePersistedBooleanAtom.testFixtures";
 import React, { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceFileThreadSidePanelTab } from "./WorkspaceFileThreadSidePanelTab";
 
+const atomGateway = vi.hoisted(() => ({
+  read: vi.fn(),
+  update: vi.fn(),
+  listen: vi.fn(),
+}));
+vi.mock("@/lib/api/persistedAtoms", () => ({
+  sendPersistedAtomState: atomGateway.read,
+  updatePersistedAtomState: atomGateway.update,
+  listenPersistedAtomUpdates: atomGateway.listen,
+}));
 const boundary = vi.hoisted(() => ({
   list: vi.fn(),
   read: vi.fn(),
@@ -58,6 +69,7 @@ async function flush() {
   });
 }
 beforeEach(() => {
+  configureBooleanGateway(atomGateway, { "app-shell-file-tree-open": true });
   (
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -114,6 +126,33 @@ function fileButton(container: HTMLElement, name: string) {
   ).find((button) => button.textContent === name)!;
 }
 describe("Workspace file tab", () => {
+  it("default closed gives a direct file full width and Open file explicitly focuses the shared tree", async () => {
+    configureBooleanGateway(atomGateway);
+    const direct = render("/work/README.md");
+    await flush();
+    expect(
+      direct.querySelector("[data-testid=workspace-file-tree]"),
+    ).toBeNull();
+    expect(direct.querySelector("[data-testid=file-editor]")).not.toBeNull();
+    const empty = render();
+    await flush();
+    expect(empty.querySelector("[data-testid=workspace-file-tree]")).toBeNull();
+    await act(async () =>
+      fileButton(empty, "agentChat.rightSurface.files.openFile").click(),
+    );
+    expect(
+      empty.querySelector("[data-testid=workspace-file-tree]"),
+    ).not.toBeNull();
+    expect(
+      direct.querySelector("[data-testid=workspace-file-tree]"),
+    ).not.toBeNull();
+    expect(document.activeElement).toBe(empty.querySelector("input"));
+    expect(atomGateway.update).toHaveBeenCalledExactlyOnceWith({
+      key: "app-shell-file-tree-open",
+      mutation: { op: "set", value: true },
+    });
+  });
+
   it("空Files首次选择固定，已有文件页的选择与双击分别传preview和固定", async () => {
     const select = vi.fn();
     const container = render(null, select);

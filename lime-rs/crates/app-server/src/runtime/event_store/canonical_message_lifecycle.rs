@@ -307,6 +307,24 @@ pub(super) fn with_canonical_message_reasoning_lifecycle(
                     normalized.push(event);
                 }
             }
+            "message.started" => {
+                let (item_id, explicit) =
+                    runtime_item_identity(MessageItemFamily::Agent, &event.payload, turn_id);
+                if state.begin_or_validate_presentation(
+                    MessageItemFamily::Agent,
+                    &item_id,
+                    explicit,
+                    event.event_type.as_str(),
+                )? {
+                    normalized.push(lifecycle_event(
+                        "item.started",
+                        MessageItemFamily::Agent,
+                        &item_id,
+                        "in_progress",
+                        Some(&event.payload),
+                    ));
+                }
+            }
             "message.delta" | "message.delta_batch" | "message.batch" => {
                 let (item_id, explicit) =
                     runtime_item_identity(MessageItemFamily::Agent, &event.payload, turn_id);

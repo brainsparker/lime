@@ -18,6 +18,7 @@ import type { TaskFile } from "./TaskFiles";
 import type { HarnessFilePreviewResult } from "./HarnessStatusPanel";
 import { buildCanvasWorkbenchDiff } from "../utils/canvasWorkbenchDiff";
 import { extractFileNameFromPath } from "../workspace/workspacePath";
+import { useFileTreePanel } from "../workspace/useFileTreePanel";
 import {
   type CanvasWorkbenchCopy,
   type CanvasWorkbenchPreviewTarget,
@@ -312,7 +313,7 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       activeTab,
       setActiveTab: applyActiveTab,
     });
-  const [changesFilesPanelOpen, setChangesFilesPanelOpen] = useState(false);
+  const fileTree = useFileTreePanel();
   const [previewOnlyFilePath, setPreviewOnlyFilePath] = useState<string | null>(
     null,
   );
@@ -740,7 +741,7 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       documentDiffLines={documentDiffLines}
       previewModeState={previewModeState}
       changeView={resolvedChangeView}
-      changesFilesPanelOpen={changesFilesPanelOpen}
+      changesFilesPanelOpen={fileTree.isOpen}
       loadFilePreview={loadFilePreview}
       workspaceUnavailable={workspaceUnavailable}
       workspaceRoot={workspaceRoot}
@@ -773,8 +774,8 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
           applyProjectFilesPreviewMode(mode),
         );
       }}
-      onToggleChangesFilesPanel={() =>
-        setChangesFilesPanelOpen((open) => !open)
+      onToggleChangesFilesPanel={
+        fileTree.disabled ? undefined : () => void fileTree.toggle()
       }
     />
   );

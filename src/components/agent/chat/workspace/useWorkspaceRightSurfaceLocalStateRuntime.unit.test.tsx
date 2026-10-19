@@ -46,6 +46,28 @@ afterEach(() => {
 });
 
 describe("Right Surface 本地显示状态", () => {
+  it("外部资源引用激活同一路径文件标签，保留终端与文件内容实例", () => {
+    const view = mount();
+    act(() => view.get().openSidePanelTab("files"));
+    act(() => view.get().setManualRightSurface("shell"));
+    const terminal = view.get().sidePanelTabs.tabs[1];
+    const path = "/skills/Review work/SKILL.md";
+    act(() => view.get().openWorkspaceFile(path));
+    const file = view.get().sidePanelTabs.tabs[1];
+    expect(view.get().sidePanelTabs.activeTabId).toBe(file.tabId);
+    expect(view.get().manualRightSurface).toBe("files");
+    expect(file.filePath).toBe(path);
+    act(() => view.get().selectSidePanelTab(terminal.tabId));
+    act(() => view.get().openWorkspaceFile(path));
+    expect(view.get().sidePanelTabs.tabs).toEqual([terminal, file]);
+    expect(view.get().sidePanelTabs.tabs[1]).toBe(file);
+    expect(view.get().sidePanelTabs.activeTabId).toBe(file.tabId);
+    const stale = view.get();
+    view.render({ ...owner, sessionId: "session-b", threadId: "thread-b" });
+    act(() => stale.openWorkspaceFile(path));
+    expect(view.get().sidePanelTabs.tabs).toEqual([]);
+  });
+
   it("预览固定保留同一内容对象与草稿，旧owner固定不影响新预览", () => {
     const view = mount();
     act(() => view.get().openSidePanelTab("files"));

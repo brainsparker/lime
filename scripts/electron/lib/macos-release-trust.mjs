@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { retryMacOSTicketDelivery } from "./macos-ticket-delivery.mjs";
 
 function readPlistString(content, key) {
   return (
@@ -97,10 +98,15 @@ function readCodeSignatureIdentity(bundlePath, spawnSyncImpl) {
   );
 }
 
-export function verifyMacOSReleaseTrust(
+export async function verifyMacOSReleaseTrust(
   appBundlePath,
   helperBundlePath,
-  { execFileSyncImpl = execFileSync, spawnSyncImpl = spawnSync } = {},
+  {
+    execFileSyncImpl = execFileSync,
+    spawnSyncImpl = spawnSync,
+    sleep,
+    log,
+  } = {},
 ) {
   const check = (command, args) => {
     try {
@@ -124,7 +130,10 @@ export function verifyMacOSReleaseTrust(
     "--verbose=4",
     appBundlePath,
   ]);
-  check("xcrun", ["stapler", "validate", appBundlePath]);
+  await retryMacOSTicketDelivery(
+    () => check("xcrun", ["stapler", "validate", appBundlePath]),
+    { sleep, log },
+  );
   return {
     status: "passed",
     developerId: true,

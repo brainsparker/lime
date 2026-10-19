@@ -13,7 +13,10 @@ import type {
   PersistedDraftEntry,
   PersistedDraftIndexItem,
 } from "../src/lib/api/persistedAtomTypes";
-import { SUMMARY_PANEL_PIN_ATOM_KEY } from "../src/lib/api/persistedAtomTypes";
+import {
+  PERSISTED_BOOLEAN_ATOM_KEYS,
+  type PersistedBooleanAtomKey,
+} from "../src/lib/api/persistedAtomTypes";
 
 export const COMPOSER_ATOM_KEY = "composer-drafts-v1" as const;
 
@@ -332,14 +335,15 @@ export function parseEnvelope(
   const atoms = exactRecord(
     envelope.atoms,
     [COMPOSER_ATOM_KEY],
-    [SUMMARY_PANEL_PIN_ATOM_KEY],
+    PERSISTED_BOOLEAN_ATOM_KEYS,
   );
-  const pin = atoms[SUMMARY_PANEL_PIN_ATOM_KEY];
-  if (
-    Object.hasOwn(atoms, SUMMARY_PANEL_PIN_ATOM_KEY) &&
-    typeof pin !== "boolean"
-  )
-    invalid("invalid_request");
+  const booleans: Partial<Record<PersistedBooleanAtomKey, boolean>> = {};
+  for (const key of PERSISTED_BOOLEAN_ATOM_KEYS) {
+    if (!Object.hasOwn(atoms, key)) continue;
+    const value = atoms[key];
+    if (typeof value !== "boolean") invalid("invalid_request");
+    booleans[key] = value;
+  }
   const atom = exactRecord(atoms[COMPOSER_ATOM_KEY], ["bindings", "entries"]);
   const rawEntries = record(atom.entries);
   const rawBindings = record(atom.bindings);
@@ -397,9 +401,7 @@ export function parseEnvelope(
     storeRevision: timestamp(envelope.storeRevision),
     atoms: {
       [COMPOSER_ATOM_KEY]: { entries, bindings },
-      ...(typeof pin === "boolean"
-        ? { [SUMMARY_PANEL_PIN_ATOM_KEY]: pin }
-        : {}),
+      ...booleans,
     },
   };
 }

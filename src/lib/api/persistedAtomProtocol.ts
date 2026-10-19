@@ -15,7 +15,10 @@ import type {
   PersistedAtomUpdateRequest,
   PersistedDraftEntry,
 } from "./persistedAtomTypes";
-import { SUMMARY_PANEL_PIN_ATOM_KEY } from "./persistedAtomTypes";
+import {
+  PERSISTED_BOOLEAN_ATOM_KEYS,
+  isPersistedBooleanAtomKey,
+} from "./persistedAtomTypes";
 
 export interface PersistedAtomLimits {
   readonly maxDraftBytes: number;
@@ -122,10 +125,10 @@ export function parsePersistedAtomReadRequest(
   value: unknown,
 ): PersistedAtomReadRequest {
   const request = exact(value, ["key", "query"]);
-  if (request.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+  if (isPersistedBooleanAtomKey(request.key)) {
     const query = exact(request.query, ["kind"]);
     if (query.kind !== "value") reject();
-    return { key: SUMMARY_PANEL_PIN_ATOM_KEY, query: { kind: "value" } };
+    return { key: request.key, query: { kind: "value" } };
   }
   if (request.key !== "composer-drafts-v1") reject();
   return {
@@ -247,7 +250,7 @@ function persistence(
 function metadata(value: Record<string, unknown>): PersistedAtomMetadata {
   const key = member(value.key, [
     "composer-drafts-v1",
-    SUMMARY_PANEL_PIN_ATOM_KEY,
+    ...PERSISTED_BOOLEAN_ATOM_KEYS,
   ]);
   const storeRevision = integer(value.storeRevision);
   return {
@@ -414,7 +417,7 @@ export function parsePersistedAtomReadResult(
     "value",
   ]);
   if (expected && queryKind !== expected.kind) reject();
-  if (meta.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+  if (isPersistedBooleanAtomKey(meta.key)) {
     const data = exact(response.data, ["queryKind", "value"]);
     if (queryKind !== "value" || typeof data.value !== "boolean") reject();
     return { ...meta, outcome, data: { queryKind, value: data.value } };
@@ -464,7 +467,7 @@ export function parsePersistedAtomUpdateResult(
   if (
     context &&
     context.key !== "composer-drafts-v1" &&
-    context.key !== SUMMARY_PANEL_PIN_ATOM_KEY
+    !isPersistedBooleanAtomKey(context.key)
   )
     reject();
   const requestedMutation = context ? object(context.mutation) : undefined;
@@ -482,7 +485,7 @@ export function parsePersistedAtomUpdateResult(
     ]);
   const reason = optionalReason(data);
   if (context && meta.key !== context.key) reject();
-  if (meta.key === SUMMARY_PANEL_PIN_ATOM_KEY) {
+  if (isPersistedBooleanAtomKey(meta.key)) {
     if (
       typeof data.changed !== "boolean" ||
       data.entry !== null ||

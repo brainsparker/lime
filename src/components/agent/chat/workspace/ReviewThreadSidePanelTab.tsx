@@ -1,8 +1,9 @@
 import { FileText } from "lucide-react";
-import { useContext, useState } from "react";
+import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { CanvasWorkbenchChangesPanel } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanel";
+import { useFileTreePanel } from "./useFileTreePanel";
 import { ReviewThreadSidePanelProjectionContext } from "./ReviewThreadSidePanelProjection";
 
 export interface ReviewThreadSidePanelTarget {
@@ -23,7 +24,7 @@ export function ReviewThreadSidePanelTab({
 }: ReviewThreadSidePanelTabProps) {
   const { t } = useTranslation("agent");
   const projection = useContext(ReviewThreadSidePanelProjectionContext);
-  const [filesPanelOpen, setFilesPanelOpen] = useState(true);
+  const fileTree = useFileTreePanel();
   const relativePath = target?.relativePath?.trim() || "";
   const workspaceRoot = projection?.workspaceRoot ?? projectRootPath;
   const changeView = projection?.changeView;
@@ -70,8 +71,10 @@ export function ReviewThreadSidePanelTab({
               ? "unstaged"
               : "previousConversation"
           }
-          filesPanelOpen={filesPanelOpen}
-          onToggleFilesPanel={() => setFilesPanelOpen((open) => !open)}
+          filesPanelOpen={fileTree.isOpen}
+          onToggleFilesPanel={
+            fileTree.disabled ? undefined : () => void fileTree.toggle()
+          }
           translateWorkbench={(key, options) => t(key, options ?? {})}
           panelClassName="h-full min-h-0 bg-[color:var(--lime-surface)]"
           mutedPanelClassName="p-4 text-xs text-[color:var(--lime-text-muted)]"

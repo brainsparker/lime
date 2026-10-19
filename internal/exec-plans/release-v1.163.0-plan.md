@@ -1,6 +1,6 @@
 # v1.163.0 发布执行计划
 
-状态：ready / 等待固定候选范围及 Git 写操作明确确认；已验证候选为 660 路径/654 变更条目，后续并行增量保留工作树。尚未提交、打标签或推送。
+状态：recovering / 首次候选已提交推送，远端出现失败；用户随后授权纳入新增改动、更新同版本候选并继续发布，无需再次确认。当前执行记录见 [发布恢复计划](release-v1.163.0-recovery-plan.md)。
 
 ## 目标与范围
 
@@ -26,6 +26,9 @@
 5. 获确认后连续执行 release commit、v1.163.0 标签、main/tag 推送和远端引用复核，跟踪 GitHub Actions/Release；不覆盖已存在发布标签。
 
 ## 执行记录
+
+- 最终确认后直接暂存已批准 tree `022822d6cd01804b5281dfc520dacb7d92e285d3`，未重新读取晚到工作树字节；正常提交钩子 576 通过、0 失败。提交 parent 与批准 base 一致，commit tree 与批准 tree 一致。
+- Git 阶段已完成（4/5，80%）；Release [39268570286](https://github.com/limecloud/lime/actions/runs/39268570286) 与 Quality [39268500181](https://github.com/limecloud/lime/actions/runs/39268500181) 正在执行，GitHub Release 当前为 draft、0 assets。最终产物结果待核验，本记录为发布后的工作树证据，不追加到已冻结标签。
 
 - 首次盘点工作树 432 路径（含展开的未跟踪文件）；tracked diff 为 271 文件、7,376 新增/17,111 删除行，后续候选以内容摘要为准。
 - 远端 main 与本地 HEAD 一致；v1.163.0 未存在。

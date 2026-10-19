@@ -11178,7 +11178,251 @@
     },
     "root_red_log": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-mention-leaf-text-red-94.log",
     "root_lint": "passed",
-    "independent_product": "pending",
+    "independent_product": "passed",
+    "full_gui_claim": false,
+    "tests": {
+      "suites": 11,
+      "passed": 150
+    },
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-94.json",
+    "artifact_manifest_sha256": "67068b0804a774aae5f51b3008499f93eb93077df40766bf5781a1f1fe52694b",
+    "sourceDrift": [],
+    "matrix_observations": 54,
+    "screenshots": 48
+  },
+  "submitted_mention_contracts_97": {
+    "evidence_id": "ev_afa5528d17de7e6b271c4f1ccf21703f475a33bcf16ec6fa7ad5592cd18043f0",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mention-contracts-bundle-manifest-97.json",
+    "bundle_sha256": "7940ec953f4b152ad36fccf593636e23091b0fdc4b472c136f29aee7c65be3c1",
+    "statistics": {
+      "relevant_files": 11,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 1321,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 11,
+      "visited_ast_nodes": 481,
+      "findings": 2,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
     "full_gui_claim": false
+  },
+  "skill_prompt_link_95": {
+    "root_tests_first": {
+      "suites": 7,
+      "passed": 77
+    },
+    "resource_path_tests": {
+      "suites": 2,
+      "passed": 28
+    },
+    "original_resource_path_failure": "2 failures/26 passes retained; hProperties normalized to camelCase, then corrected without changing expected paths",
+    "independent_product": "failed-matrix-after-54-composer-observations",
+    "full_gui_claim": false,
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-95-failed.json",
+    "artifact_manifest_sha256": "5b2ec7c6664c61b27f5395a861c6eff3d3aa556cf3bb356fa7f9ab43ea1a39ff",
+    "sourceDrift": [],
+    "failure_observations": [
+      "multi-Skill labels parsed as math",
+      "launcher defaults backendMode to unavailable; no provider POST; user-only interrupted turn"
+    ]
+  },
+  "submitted_mention_lexer_98": {
+    "evidence_id": "ev_8bd6d2b1ec01c1cdd03ecf68f8fce75c9f4bd9270ef1a838da6269fb01b00697",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mention-lexer-bundle-manifest-98.json",
+    "bundle_sha256": "eb4fa1d6c47c213fe84f7ac5045136e0403d09c9da2c1b730ae1da767addb582",
+    "statistics": {
+      "relevant_files": 9,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 2575,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 9,
+      "visited_ast_nodes": 920,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "limitations": [
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "Graph coverage is incomplete; unavailable facts remain explicit and must not be read as absence.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code.",
+      "QVr and $Vr are uninitialized declarations in the extraction; their constant values remain unknown."
+    ],
+    "full_gui_claim": false
+  },
+  "submitted_mention_link_pipeline_99": {
+    "evidence_id": "ev_835761eb2518d6b90986a82a96730e8d6af7f22f813ac724ae99c2d4256804f0",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mention-link-pipeline-bundle-manifest-99.json",
+    "bundle_sha256": "6374af01c119714bf3d9072808fd591be4dd8730d0ad4c6465c20f7b8693523f",
+    "statistics": {
+      "relevant_files": 5,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 1930,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 5,
+      "visited_ast_nodes": 629,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "limitations": [
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code."
+    ],
+    "full_gui_claim": false
+  },
+  "skill_prompt_link_96": {
+    "status": "failed-before-build-types",
+    "root_tests": {
+      "suites": 6,
+      "passed": 70
+    },
+    "original_lexer_red": "4 failures/7 passes retained",
+    "parent": "authenticated failed95/sourceDrift0; no parent product pass inherited",
+    "full_gui_claim": false,
+    "failure_receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/candidate-context-types-failure-96.json",
+    "sourceDrift": [],
+    "product_executed": false
+  },
+  "skill_prompt_link_97": {
+    "status": "failed-rich-normal-main-exit-timeout",
+    "scope": "type-only plugin correction; no relaxed config or contract",
+    "full_gui_claim": false,
+    "tests": {
+      "suites": 13,
+      "passed": 161
+    },
+    "standard_gui": "passed",
+    "rich_business_assertions": "passed",
+    "rich_normal_exit": "failed-15s-then-SIGKILL",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-97-recovery1-failed.json",
+    "artifact_manifest_sha256": "3ca5b1abcae5cf283e6f05a8c8a265acb453cd3aa79c11b4743fa4ab3e882239",
+    "sourceDrift": [],
+    "original_verification": "failed-host-source-manifest-dependency-mismatch",
+    "recovery_verification": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-97-recovery1.json",
+    "independent_matrix": "failed-capture-API-mismatch-and-terminal-summary-loss; original last checkpoint remains running; no pass inferred"
+  },
+  "submitted_mention_wire_input_100": {
+    "evidence_id": "ev_74cb2596e3f2d7ec0a59e811e829e9ae7861602d0d68a7b424fd4a148a0e40a7",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mention-wire-input-bundle-manifest-100.json",
+    "bundle_sha256": "4d15859af49e6f80d4de89cbc4fb982d0ac968d791d86a2b2d99862b9077485c",
+    "statistics": {
+      "relevant_files": 4,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 2040,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 4,
+      "visited_ast_nodes": 594,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "full_gui_claim": false,
+    "observation": "Dle normal input preserves context prompt with text_elements []; untrusted branch has separate full-byte annotation. Eln adds image/comment inputs via Osn. Dependencies remain partial."
+  },
+  "skill_prompt_link_98": {
+    "status": "pending",
+    "source_scope": "test fixture marker API, real HTTP privacy regression, six docs; production source unchanged from97",
+    "parent": "authenticated failed97/sourceDrift0 + failed frozen artifacts",
+    "full_gui_claim": false
+  },
+  "quit_lifecycle_101": {
+    "evidence_id": "ev_ce638abaf49a49db7d0fd9ed7bef81e46f79d79bb8869d1577376980c6ea1c97",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/quit-lifecycle-focused-bundle-manifest-101.json",
+    "bundle_sha256": "fb079856960b9a96edc36c52be63388d21664b26a898e253f8ab8b8df7e14946",
+    "statistics": {
+      "relevant_files": 4,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 2345,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 4,
+      "visited_ast_nodes": 671,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "limitations": [
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code."
+    ],
+    "main_exit_root_cause": "unknown; context drain timeout does not bound preceding flushes",
+    "full_gui_claim": false
+  },
+  "skillFileOwner99": {
+    "status": "passed-bounded-slice",
+    "referenceEvidence": "ev_2da75de405e3fc5e7a9ae8b81d33f98e878609083d0c54db939ba7838e11fa8b",
+    "consumerEvidence": "ev_39097e6ae3706546f0f855f241d5faabb6160b473899103b147080aafd9cc3fa",
+    "parentFailedReceipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-98.json",
+    "parentArtifactSha256": "02d76b67bc369fe2a86daa8bc4d1ed4dcf349c46fabd3eebe8ce19794e1e0e96",
+    "boundary": "Current LocalState/openWorkspaceFile receives text file_preview directly; no reference execution, serializer parity or Main exit root-cause claim.",
+    "verificationReceipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-99-recovery1.json",
+    "artifactManifestSha256": "db3e1ce11fd6d103707ae84774f30da775beb583237b482851f0459e2f528586",
+    "originalFailurePreserved": true,
+    "observations": 60,
+    "sourceDrift": [],
+    "limitations": [
+      "Full GUI/preview geometry still partial",
+      "97 Main exit root cause remains unknown",
+      "Atom-to-Markdown serializer not yet implemented"
+    ]
+  },
+  "resourceSubmission102": {
+    "status": "desktop-failed-normal-main-exit",
+    "referenceEvidence": [
+      "ev_d510599074216d86eb3c48a11c9976726f1d9a81ba6c35df4f528fd5cb94c056",
+      "ev_9ef7855a7eccb4ed57887b320e6c734ab683ab06737c5c03dd042f552db0c622",
+      "ev_6abdbfee18fb272f9557c8be99713836061a6982671dea18ba36ca57c6b87cf1",
+      "ev_74cb2596e3f2d7ec0a59e811e829e9ae7861602d0d68a7b424fd4a148a0e40a7"
+    ],
+    "owner": "src/components/input-kit/composerSerialization.ts",
+    "boundary": "Resource Markdown prompt and no ordinary mention text_elements. Typed input identities retained pending shared runtime linked parser migration. No reference execution or full wire parity claim.",
+    "artifactManifestSha256": "725e417ad2072fcd80510e672858e9995c7590985f64829ef85701f407f082b0",
+    "riskTestsPassed": 336,
+    "businessObservations": 60,
+    "normalMainExitPassed": false,
+    "rootCause": "open",
+    "recovery1": "failed-normal-main-exit"
+  },
+  "fileTreeVisibility103": {
+    "status": "implemented104-pending-desktop",
+    "evidenceId": "ev_7dc06967630bf22b9c716747f82fbb2e8c722b89837cb29ffec7219b590c152b",
+    "bundleSha256": "93d15f251841eabd5f3b8cbc2e83daeefa597c67ae07615b31ca783ea70564ed",
+    "targetExecuted": false,
+    "declarations": 5,
+    "bytes": 2877,
+    "astNodes": 1062,
+    "parseFailures": 0,
+    "observations": {
+      "key": "app-shell-file-tree-open",
+      "defaultOpen": false,
+      "defaultWidth": 250,
+      "minimumWidth": 200,
+      "maximumRatio": 0.6
+    },
+    "limitations": [
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code."
+    ],
+    "priorEmptyAnalysisExcluded": true,
+    "hostTestsPassed": 193,
+    "consumerTestsPassed": 44,
+    "plan": "internal/exec-plans/codex-file-tree-visibility-20261019.md"
   }
 }

@@ -119,6 +119,31 @@ describe("macOS notarization ticket delivery", () => {
     ]);
   });
 
+  it("retries transient validation after notarization without submitting again", async () => {
+    const notarizeImpl = vi.fn().mockResolvedValue();
+    const failure = Object.assign(new Error("Command failed: xcrun"), {
+      stdout:
+        "NSURLErrorDomain Code=-1005\nThe validate action failed! Error 68.",
+    });
+    const runImpl = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValue({});
+    const sleep = vi.fn().mockResolvedValue();
+    await notarizeMacApp(appPath, credentials, {
+      notarizeImpl,
+      runImpl,
+      sleep,
+      log: vi.fn(),
+    });
+    expect(notarizeImpl).toHaveBeenCalledTimes(1);
+    expect(runImpl).toHaveBeenCalledTimes(2);
+    expect(runImpl.mock.calls.every(([, args]) => args[1] === "validate")).toBe(
+      true,
+    );
+    expect(sleep).toHaveBeenCalledWith(15_000);
+  });
+
   it("notarizes Forge output before makers and skips local or Windows packages", async () => {
     const notarizeImpl = vi.fn().mockResolvedValue();
     await notarizeMacPackages(

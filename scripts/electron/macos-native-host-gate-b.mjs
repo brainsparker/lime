@@ -536,7 +536,10 @@ export async function runMacOSNativeHostGateB(options) {
     "Installed app and desktop resource manifest versions do not match",
   );
   const releaseTrust = options.releaseTrust
-    ? verifyMacOSReleaseTrust(appIdentity.appBundlePath, helper.bundlePath)
+    ? await verifyMacOSReleaseTrust(
+        appIdentity.appBundlePath,
+        helper.bundlePath,
+      )
     : { status: "not-requested" };
   const client = new NativeHostClient(helper.helperPath, options.timeoutMs);
   const checks = [];

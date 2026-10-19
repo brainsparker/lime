@@ -9,8 +9,10 @@ use serde_json::json;
 
 mod canonical_lifecycle;
 mod incremental;
+mod message_snapshot;
 mod queue;
 mod read_tool;
+mod reasoning_snapshot;
 
 fn event(
     id: &str,

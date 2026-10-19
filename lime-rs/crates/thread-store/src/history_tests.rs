@@ -6,6 +6,11 @@ use agent_protocol::{
 };
 use std::collections::HashMap;
 
+#[path = "history_tests/message_snapshot.rs"]
+mod message_snapshot;
+#[path = "history_tests/reasoning_snapshot.rs"]
+mod reasoning_snapshot;
+
 fn item(sequence: u64, ordinal: u64, id: &str, text: &str) -> ThreadItem {
     ThreadItem {
         session_id: SessionId::new("session-1"),

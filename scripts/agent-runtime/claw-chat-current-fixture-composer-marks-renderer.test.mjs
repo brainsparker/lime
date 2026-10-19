@@ -22,16 +22,33 @@ function fixture() {
     prompt: "请结合这个截图、文件和 Capability Report 技能，先不要输出正文。",
     skillIdentity: {
       name: "capability-report",
+      displayName: "Capability Report",
+      path: "/fixture/skills/capability-report/SKILL.md",
       key: "user:capability-report",
     },
     pasteText: "历史粘贴验证😀\n".repeat(180),
   });
 }
 
+function renderFixture(text) {
+  return renderMarkdown(text, {
+    promptLinkItemId: "fixture-item",
+    promptLinkScope: {
+      skills: [{
+        key: "user:capability-report", name: "capability-report",
+        displayName: "Capability Report", description: "Fixture Skill",
+        directory: "capability-report", localDirectoryPath: "/fixture/skills/capability-report",
+        installed: true, sourceKind: "other",
+      }],
+      loading: false, requestSkills: vi.fn(), openSkill: vi.fn(),
+    },
+  });
+}
+
 describe("marks fixture against the current Markdown renderer", () => {
   it("retains all independently specified rendered body parts", () => {
     const expected = fixture();
-    const container = renderMarkdown(expected.text);
+    const container = renderFixture(expected.text);
     const normalized = (text) => text.replace(/\s+/gu, " ").trim();
     const observed = normalized(container.textContent);
     let offset = 0;
@@ -51,7 +68,7 @@ describe("marks fixture against the current Markdown renderer", () => {
 
   it("uses rendered parts while canonical and clipboard expectations keep raw Markdown", () => {
     const expected = fixture();
-    const container = renderMarkdown(expected.text);
+    const container = renderFixture(expected.text);
     const bubble = document.createElement("div");
     bubble.setAttribute("data-message-role", "user");
     bubble.setAttribute("data-thread-item-id", "fixture-item");

@@ -584,6 +584,7 @@ export function ConversationTurnTimeline({
                       >
                         <MarkdownRenderer
                           content={content}
+                          promptLinkItemId={segment.item.id}
                           renderA2UIInline={renderA2UIInline}
                           readOnlyA2UI={!isActiveOperationalTurn}
                         />

@@ -124,6 +124,7 @@ async fn json_lines_loop_streams_external_backend_events_before_turn_response() 
         &script_path,
         r#"
           import { setTimeout as delay } from 'node:timers/promises';
+          for await (const chunk of process.stdin) {}
           console.log(JSON.stringify({
             type: 'message.delta',
             payload: { chunk: 1, text: 'hello' }
@@ -418,12 +419,13 @@ async fn json_lines_loop_streams_turn_failed_after_partial_external_backend_even
     std::fs::write(
         &script_path,
         r#"
+          for await (const chunk of process.stdin) {}
           console.log(JSON.stringify({
             type: 'message.delta',
             payload: { chunk: 1, text: 'partial' }
           }));
           console.error('external backend crashed after partial output');
-          process.exit(7);
+          process.exitCode = 7;
         "#,
     )
     .expect("write backend script");

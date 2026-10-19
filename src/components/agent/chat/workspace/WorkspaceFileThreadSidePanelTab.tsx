@@ -21,6 +21,7 @@ import type {
   FileSelectionOptions,
   ThreadSidePanelTab,
 } from "./right-surface/threadSidePanelTabs";
+import { useFileTreePanel } from "./useFileTreePanel";
 import { TextFileEditorTabContent } from "./text-file-editor/TextFileEditorTabContent";
 import { useFileTabDrafts } from "./text-file-editor/fileTabDraftContext";
 import type { FileEditorDraft } from "./text-file-editor/FileEditorController";
@@ -72,7 +73,9 @@ export function WorkspaceFileThreadSidePanelTab({
   });
   const { selectWorkspaceFile, loadDirectory } = tree;
   const selectedPath = filePath;
-  const [treeOpen, setTreeOpen] = useState(true);
+  const fileTree = useFileTreePanel();
+  const treeOpen = fileTree.isOpen && Boolean(root);
+  const setTreeOpen = fileTree.setOpen;
   const [mode, setMode] = useState<CanvasWorkbenchPreviewMode>(() =>
     resolveCanvasWorkbenchPreferredPreviewModeFromPath(filePath),
   );
@@ -114,7 +117,8 @@ export function WorkspaceFileThreadSidePanelTab({
       className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg hover:bg-[color:var(--lime-chrome-tab-hover)]"
       aria-label={t("agentChat.rightSurface.files.toggleTree")}
       aria-pressed={treeOpen}
-      onClick={() => setTreeOpen((open) => !open)}
+      disabled={fileTree.disabled}
+      onClick={() => void fileTree.toggle()}
     >
       <PanelRight size={16} />
     </button>
@@ -182,9 +186,14 @@ export function WorkspaceFileThreadSidePanelTab({
                 size={24}
                 className="text-[color:var(--lime-text-muted)]"
               />
-              <h2 className="text-sm font-medium">
+              <button
+                type="button"
+                disabled={fileTree.disabled || !root}
+                onClick={() => void setTreeOpen(true)}
+                className="rounded-lg border border-[color:var(--lime-surface-border)] px-3 py-1.5 text-sm font-medium hover:bg-[color:var(--lime-chrome-tab-hover)] disabled:opacity-50"
+              >
                 {t("agentChat.rightSurface.files.openFile")}
-              </h2>
+              </button>
               <p className="text-xs text-[color:var(--lime-text-muted)]">
                 {t(
                   root

@@ -10,6 +10,7 @@ pub(super) struct AssistantHistory {
     suppressed: HashSet<usize>,
     producers: HashMap<usize, String>,
     text_phases: HashMap<String, Option<MessagePhase>>,
+    completed_reasoning: HashSet<String>,
 }
 
 impl AssistantHistory {
@@ -19,6 +20,10 @@ impl AssistantHistory {
 
     pub fn has_completed_text(&self, item_id: &str) -> bool {
         self.text_phases.contains_key(item_id)
+    }
+
+    pub fn has_completed_reasoning(&self, item_id: &str) -> bool {
+        self.completed_reasoning.contains(item_id)
     }
 
     pub fn push(&mut self, content: CurrentProviderContent) {
@@ -41,7 +46,7 @@ impl AssistantHistory {
         item: serde_json::Value,
         producer: Option<String>,
         recorder: Option<&ModelHistoryRecorder>,
-    ) -> Result<Option<output_lifecycle::CompletedMessage>, RuntimeReplyAttemptError> {
+    ) -> Result<output_lifecycle::CompletedOutput, RuntimeReplyAttemptError> {
         let family = match item.get("type").and_then(serde_json::Value::as_str) {
             Some("message") => ProviderOutputFamily::Text,
             Some("reasoning") => ProviderOutputFamily::Reasoning,
@@ -52,15 +57,37 @@ impl AssistantHistory {
             }
         };
         let item_id = provider_output_item_id(turn_id, attempt, family, &source_id);
-        let completed_message = matches!(family, ProviderOutputFamily::Text).then(|| {
-            output_lifecycle::CompletedMessage {
-                item_id: item_id.clone(),
-                phase: item
-                    .get("phase")
-                    .and_then(serde_json::Value::as_str)
-                    .and_then(MessagePhase::from_wire),
+        let completed = match family {
+            ProviderOutputFamily::Text => {
+                output_lifecycle::CompletedOutput::Message(output_lifecycle::CompletedMessage {
+                    item_id: item_id.clone(),
+                    text: item
+                        .get("content")
+                        .and_then(serde_json::Value::as_array)
+                        .into_iter()
+                        .flatten()
+                        .filter(|part| {
+                            matches!(
+                                part.get("type").and_then(serde_json::Value::as_str),
+                                Some("input_text" | "output_text")
+                            )
+                        })
+                        .filter_map(|part| part.get("text").and_then(serde_json::Value::as_str))
+                        .collect(),
+                    phase: item
+                        .get("phase")
+                        .and_then(serde_json::Value::as_str)
+                        .and_then(MessagePhase::from_wire),
+                })
             }
-        });
+            ProviderOutputFamily::Reasoning => {
+                output_lifecycle::CompletedOutput::Reasoning(output_lifecycle::CompletedReasoning {
+                    item_id: item_id.clone(),
+                    summary: reasoning_text_parts(&item, "summary", &["summary_text"]),
+                    content: reasoning_text_parts(&item, "content", &["reasoning_text", "text"]),
+                })
+            }
+        };
         let mut message = CurrentProviderMessage::raw_response_item(item);
         message.producer = producer;
         let record = ModelHistoryRecord::completed(message.clone(), item_id.clone())
@@ -68,8 +95,13 @@ impl AssistantHistory {
         if let Some(recorder) = recorder {
             recorder.record(record).await.map_err(history_error)?;
         }
-        if let Some(message) = completed_message.as_ref() {
-            self.text_phases.insert(item_id.clone(), message.phase);
+        match &completed {
+            output_lifecycle::CompletedOutput::Message(message) => {
+                self.text_phases.insert(item_id.clone(), message.phase);
+            }
+            output_lifecycle::CompletedOutput::Reasoning(_) => {
+                self.completed_reasoning.insert(item_id.clone());
+            }
         }
         if let Some(indices) = self.displays.remove(&item_id) {
             self.suppressed.extend(indices);
@@ -79,7 +111,7 @@ impl AssistantHistory {
             message.producer.expect("validated producer"),
         );
         self.content.extend(message.content);
-        Ok(completed_message)
+        Ok(completed)
     }
 
     pub fn into_messages(self) -> Vec<CurrentProviderMessage> {
@@ -107,6 +139,21 @@ impl AssistantHistory {
         }
         messages
     }
+}
+
+fn reasoning_text_parts(item: &serde_json::Value, key: &str, types: &[&str]) -> Vec<String> {
+    item.get(key)
+        .and_then(serde_json::Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter(|part| {
+            part.get("type")
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|kind| types.contains(&kind))
+        })
+        .filter_map(|part| part.get("text").and_then(serde_json::Value::as_str))
+        .map(str::to_string)
+        .collect()
 }
 
 #[cfg(test)]

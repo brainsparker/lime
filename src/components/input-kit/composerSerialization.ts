@@ -5,7 +5,11 @@ import {
   composerSchema,
   normalizeComposerText,
 } from "./composerSchema";
-import { formatComposerLink, parseComposerInlineLinks } from "./composerLinks";
+import {
+  formatComposerLink,
+  formatResourceLink,
+  parseComposerInlineLinks,
+} from "./composerLinks";
 import type {
   ComposerInputMention,
   ComposerMentionBinding,
@@ -191,19 +195,22 @@ export function serializeComposerDocument(
       else if (["mention", "paste", "text_element"].includes(node.type.name)) {
         const attrs = node.attrs;
         const isMention = node.type.name === "mention";
-        const text = isMention ? attrs.label : attrs.text;
-        const byteRange = append(text);
-        const placeholder = isMention ? attrs.label : attrs.placeholder;
-        result.textElements.push({
-          byteRange,
-          ...(placeholder == null ? {} : { placeholder }),
-        });
-        if (isMention)
+        if (isMention) {
+          append(formatResourceLink(attrs.label, attrs.path));
           result.inputMentions.push({
             type: attrs.kind === "skill" ? "skill" : "mention",
             name: attrs.name,
             path: attrs.path,
           });
+        } else {
+          const byteRange = append(attrs.text);
+          result.textElements.push({
+            byteRange,
+            ...(attrs.placeholder == null
+              ? {}
+              : { placeholder: attrs.placeholder }),
+          });
+        }
       } else throw new Error("Invalid composer inline");
     });
     flushLink();

@@ -148,11 +148,9 @@ describe("ComposerEditor", () => {
     const receipt = controller.submit("start");
     expect(receipt.kind).toBe("accepted");
     expect(receipt.submission).toMatchObject({
-      text: "中😀$审阅",
+      text: "中😀[$审阅](/review)",
       inputMentions: [{ type: "skill", name: "审阅", path: "/review" }],
-      textElements: [
-        { byteRange: { start: 7, end: 14 }, placeholder: "$审阅" },
-      ],
+      textElements: [],
     });
     act(() => controller.restoreDraft({ text: "恢复\n新段" }));
     expect(
@@ -407,8 +405,9 @@ describe("ComposerEditor", () => {
       from: 4,
       to: 7,
     });
-    expect(
-      controller.submit("start").submission.textElements[0].byteRange,
-    ).toEqual({ start: 8, end: 15 });
+    expect(controller.getDocument().textElements[0].byteRange).toEqual({
+      start: 8,
+      end: 15,
+    });
   });
 });
