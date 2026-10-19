@@ -1,11 +1,11 @@
 use super::actor::RuntimeSessionCommand;
 use super::resources::RuntimeSessionResources;
 use super::{
-    RuntimeSessionInput, RuntimeSessionInterAgentInput, RuntimeSessionLoopError,
-    RuntimeSessionOperation, RuntimeSessionOperationResult, RuntimeSessionOperationSubmission,
-    RuntimeSessionSnapshot, RuntimeSessionSubmission, RuntimeSessionSubmitResult,
-    RuntimeSessionTask, RuntimeSessionTaskFailure, RuntimeSessionTaskOutcome,
-    RuntimeSessionTraceContext, RuntimeSessionUserInputResult,
+    RuntimeSessionInput, RuntimeSessionInputCommit, RuntimeSessionInterAgentInput,
+    RuntimeSessionLoopError, RuntimeSessionOperation, RuntimeSessionOperationResult,
+    RuntimeSessionOperationSubmission, RuntimeSessionSnapshot, RuntimeSessionSubmission,
+    RuntimeSessionSubmitResult, RuntimeSessionTask, RuntimeSessionTaskFailure,
+    RuntimeSessionTaskOutcome, RuntimeSessionTraceContext, RuntimeSessionUserInputResult,
 };
 use serde_json::Value;
 use std::sync::Arc;
@@ -91,6 +91,7 @@ impl RuntimeSessionHandle {
                 RuntimeSessionOperation::UserInput {
                     expected_turn_id: None,
                     input,
+                    before_delivery: None,
                     task: Some(task),
                     queue_if_busy,
                 },
@@ -156,7 +157,7 @@ impl RuntimeSessionHandle {
         expected_turn_id: Option<&str>,
         input: Vec<RuntimeSessionInput>,
     ) -> Result<String, RuntimeSessionLoopError> {
-        self.steer_for_turn_id_with_metadata(expected_turn_id, input, None, None)
+        self.steer_for_turn_id_with_metadata(expected_turn_id, input, None, None, None)
             .await
     }
 
@@ -166,6 +167,7 @@ impl RuntimeSessionHandle {
         input: Vec<RuntimeSessionInput>,
         client_user_message_id: Option<String>,
         trace: Option<RuntimeSessionTraceContext>,
+        before_delivery: Option<RuntimeSessionInputCommit>,
     ) -> Result<String, RuntimeSessionLoopError> {
         if input.is_empty() {
             return Err(RuntimeSessionLoopError::InvalidTask(
@@ -177,6 +179,7 @@ impl RuntimeSessionHandle {
                 RuntimeSessionOperation::UserInput {
                     expected_turn_id: expected_turn_id.map(str::to_string),
                     input,
+                    before_delivery,
                     task: None,
                     queue_if_busy: false,
                 },

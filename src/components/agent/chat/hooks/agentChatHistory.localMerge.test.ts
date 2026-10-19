@@ -719,9 +719,9 @@ describe("agentChatHistory local merge", () => {
         content: "请说明 Minimal API 的测试策略",
         timestamp: new Date("2026-05-13T03:20:00.000Z"),
         inputCapabilityRoute: {
-          kind: "installed_skill" as const,
-          skillKey: "aspnet-core",
-          skillName: "aspnet-core",
+          kind: "builtin_command" as const,
+          commandKey: "aspnet-core",
+          commandPrefix: "@inspect",
         },
       },
       {
@@ -759,9 +759,9 @@ describe("agentChatHistory local merge", () => {
     expect(mergedMessages[0]).toMatchObject({
       id: "local-user-skill",
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "aspnet-core",
-        skillName: "aspnet-core",
+        kind: "builtin_command",
+        commandKey: "aspnet-core",
+        commandPrefix: "@inspect",
       },
     });
   });

@@ -223,7 +223,6 @@ export function MessageListItem({
     hasImageWorkbenchLeadContent,
     historicalAssistantPreviewContent,
     imageWorkbenchRendererState,
-    installedSkillMessageLabel,
     isActiveProcessOnlyOutput,
     isConversationTailAssistant,
     isCurrentInteractiveAssistantMessage,
@@ -536,7 +535,6 @@ export function MessageListItem({
             ) : (
               <MessageUserBody
                 content={displayContent}
-                installedSkillMessageLabel={installedSkillMessageLabel}
                 isUserCommandMessage={isUserCommandMessage}
                 message={msg}
                 onA2UISubmit={onA2UISubmit}

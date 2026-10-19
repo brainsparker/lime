@@ -32,7 +32,7 @@ import {
   type CanvasWorkbenchWorkspacePanelProps,
 } from "./CanvasWorkbenchWorkspacePanel";
 import { CanvasWorkbenchProjectFilesPanel } from "./files/CanvasWorkbenchProjectFilesPanel";
-import { ProjectShellSurface } from "../ProjectShellSurface";
+import { TerminalTab } from "../TerminalTab";
 
 type CanvasWorkbenchTranslation = (
   key: string,
@@ -393,21 +393,28 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
             mutedPanelClassName={mutedPanelClassName}
             translateWorkbench={translateWorkbench}
           />
-        ) : contentToolTabKind === "terminal" ? (
-          <section
-            data-testid="canvas-workbench-panel-terminal"
-            className="h-full min-h-0 bg-white"
-          >
-            <ProjectShellSurface
-              projectRootPath={workspaceRoot}
-              testIdPrefix="canvas-workbench-shell"
-              className="h-full"
-              bodyClassName="px-3 py-2"
-            />
-          </section>
-        ) : (
+        ) : contentToolTabKind === "terminal" ? null : (
           workspacePanel
         )}
+        {tabs
+          .filter(
+            (tab) => resolveCanvasWorkbenchToolTabKind(tab.key) === "terminal",
+          )
+          .map((tab) => (
+            <section
+              key={tab.key}
+              hidden={contentTab !== tab.key}
+              data-testid="canvas-workbench-panel-terminal"
+              className="h-full min-h-0 bg-[color:var(--lime-surface)]"
+            >
+              <TerminalTab
+                cwd={workspaceRoot}
+                sessionId={tab.key}
+                active={contentTab === tab.key}
+                onNewTerminalTab={() => onNewToolTab("terminal")}
+              />
+            </section>
+          ))}
       </div>
     </section>
   );

@@ -37,6 +37,11 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
   availableSurfaces: ReadonlySet<WorkspaceRightSurfaceKind>;
   browserRightSurfaceAvailable: boolean;
   closeRightSurface: (kind: WorkspaceRightSurfaceKind) => void;
+  canReplaceSidePanelTab: (tabId: string) => boolean;
+  openSidePanelTab: (
+    kind: WorkspaceRightSurfaceKind,
+    replaceTabId?: string,
+  ) => void;
   consumePendingRequestsForSurface: ConsumePendingRequestsForSurface;
   dismissPendingRequestsForSurface: DismissPendingRequestsForSurface;
   expertInfoPanelCollapsed: boolean;
@@ -80,7 +85,6 @@ interface UseWorkspaceRightSurfaceActionRuntimeParams {
 interface WorkspaceRightSurfaceActionRuntime {
   handleCloseRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
   handleClosePluginSurface: (surface: WorkspacePluginSurfaceDescriptor) => void;
-  handleCloseRightSurfaceShell: () => void;
   handleRightSurfaceBrowserNavigate: (
     url: string,
     title?: string | null,
@@ -88,7 +92,10 @@ interface WorkspaceRightSurfaceActionRuntime {
   handleSelectPluginSurface: (
     surface: WorkspacePluginSurfaceDescriptor,
   ) => void;
-  handleSelectRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
+  handleSelectRightSurfaceTab: (
+    kind: WorkspaceRightSurfaceKind,
+    replaceTabId?: string,
+  ) => void;
   handleToggleExpertInfoPanel: () => void;
   handleToggleCanvasFromRightSurface: () => void;
   handleToggleRightSurfaceBrowser: () => void;
@@ -107,6 +114,8 @@ export function useWorkspaceRightSurfaceActionRuntime({
   availableSurfaces,
   browserRightSurfaceAvailable,
   closeRightSurface,
+  openSidePanelTab,
+  canReplaceSidePanelTab,
   consumePendingRequestsForSurface,
   dismissPendingRequestsForSurface,
   expertInfoPanelCollapsed,
@@ -285,11 +294,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
     refreshRightSurfacePendingRequests,
     setManualRightSurface,
   ]);
-
-  const handleCloseRightSurfaceShell = useCallback(() => {
-    closeRightSurface("shell");
-    void dismissPendingRequestsForSurface("shell", "user_closed_surface");
-  }, [closeRightSurface, dismissPendingRequestsForSurface]);
 
   const handleToggleRightSurfaceBrowser = useCallback(() => {
     if (!browserRightSurfaceAvailable) {
@@ -477,8 +481,14 @@ export function useWorkspaceRightSurfaceActionRuntime({
   ]);
 
   const handleSelectRightSurfaceTab = useCallback(
-    (kind: WorkspaceRightSurfaceKind) => {
-      if (!availableSurfaces.has(kind) || kind === rightSurfaceActiveSurface) {
+    (kind: WorkspaceRightSurfaceKind, replaceTabId?: string) => {
+      if (
+        !availableSurfaces.has(kind) ||
+        (!replaceTabId &&
+          kind === rightSurfaceActiveSurface &&
+          kind !== "shell") ||
+        (replaceTabId && !canReplaceSidePanelTab(replaceTabId))
+      ) {
         return;
       }
 
@@ -506,7 +516,7 @@ export function useWorkspaceRightSurfaceActionRuntime({
           pendingBrowserRightSurfaceIntent.title?.trim() || null,
         );
       }
-      setManualRightSurface(kind === "workbench" ? null : kind);
+      openSidePanelTab(kind, replaceTabId);
       void refreshRightSurfacePendingRequests();
       void consumePendingRequestsForSurface(kind);
     },
@@ -526,7 +536,8 @@ export function useWorkspaceRightSurfaceActionRuntime({
       setActivePluginSurfaces,
       setExpertInfoPanelCollapsed,
       setHarnessPanelVisible,
-      setManualRightSurface,
+      openSidePanelTab,
+      canReplaceSidePanelTab,
       setRightSurfaceBrowserTitle,
     ],
   );
@@ -617,7 +628,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
   return {
     handleCloseRightSurfaceTab,
     handleClosePluginSurface,
-    handleCloseRightSurfaceShell,
     handleRightSurfaceBrowserNavigate,
     handleSelectPluginSurface,
     handleSelectRightSurfaceTab,

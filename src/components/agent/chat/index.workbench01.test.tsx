@@ -7,24 +7,18 @@ import {
   createMockThemeContextWorkspaceState,
   createProject,
   flushEffects,
-  GENERAL_CONTEXT_HINT,
   getIndexTestMocks,
   getSendMessageCall,
   installMockAgentChatUnifiedState,
-  textContainsAny,
   type MockInputbarSendPayload,
   type MockInputbarSendProps,
   mountPage,
   renderPage,
   sharedSendMessageMock,
   waitForElement,
-  WORKSPACE_HARNESS_DESCRIPTION_CANDIDATES,
-  WORKSPACE_HARNESS_TITLE_CANDIDATES,
 } from "./index.testFixtures";
 
 const {
-  mockCanvasWorkbenchLayout,
-  mockCanvasWorkbenchLayoutState,
   mockEmptyState,
   mockGetAgentRuntimeToolInventory,
   mockGetProject,
@@ -308,92 +302,62 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     ).toBeNull();
   });
 
-  it("聊天态应通过顶栏按钮展开画布，并支持在展开后再次折叠", async () => {
+  it("共享页头通过当前侧面板入口展开工具新标签，并可折叠和重开", async () => {
     const container = renderPage({
       theme: "general",
       lockTheme: true,
+      projectId: "project-side-panel",
     });
     await flushEffects();
-
-    const toolbar = container.querySelector(
-      '[data-testid="task-center-utility-toolbar"]',
-    ) as HTMLDivElement | null;
-    const toggleCanvasButton = container.querySelector(
-      '[data-testid="toggle-canvas"]',
-    ) as HTMLButtonElement | null;
-
-    expect(toolbar?.dataset.showCanvasToggle).toBe("true");
-    expect(toolbar?.dataset.canvasOpen).toBe("false");
-    expect(toggleCanvasButton?.textContent).toContain("展开画布");
-    expect(
-      container
-        .querySelector('[data-testid="layout-transition"]')
-        ?.getAttribute("data-mode"),
-    ).toBe("chat");
-
-    act(() => {
-      toggleCanvasButton?.click();
-    });
+    const toggle = () =>
+      container.querySelector<HTMLButtonElement>(
+        '[data-testid="thread-side-panel-toggle"]',
+      );
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
+    expect(container.querySelector('[data-testid="toggle-canvas"]')).toBeNull();
+    clickButton(container, "thread-side-panel-toggle");
     await flushEffects();
-
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
     expect(
-      (
-        container.querySelector(
-          '[data-testid="task-center-utility-toolbar"]',
-        ) as HTMLDivElement | null
-      )?.dataset.canvasOpen,
-    ).toBe("true");
+      container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+    ).not.toBeNull();
     expect(
       container
-        .querySelector('[data-testid="layout-transition"]')
-        ?.getAttribute("data-mode"),
-    ).toBe("chat-canvas");
-
-    act(() => {
-      (
-        container.querySelector(
-          '[data-testid="toggle-canvas"]',
-        ) as HTMLButtonElement | null
-      )?.click();
-    });
+        .querySelector('[data-testid="workspace-right-surface-host"]')
+        ?.getAttribute("data-surface"),
+    ).toBe("workspace-new-tab");
+    clickButton(container, "thread-side-panel-toggle");
     await flushEffects();
-
-    expect(
-      (
-        container.querySelector(
-          '[data-testid="task-center-utility-toolbar"]',
-        ) as HTMLDivElement | null
-      )?.dataset.canvasOpen,
-    ).toBe("false");
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("false");
+    clickButton(container, "thread-side-panel-toggle");
+    await flushEffects();
+    expect(toggle()?.getAttribute("aria-expanded")).toBe("true");
     expect(
       container
-        .querySelector('[data-testid="layout-transition"]')
-        ?.getAttribute("data-mode"),
-    ).toBe("chat");
+        .querySelector('[data-testid="workspace-right-surface-host"]')
+        ?.getAttribute("data-surface"),
+    ).toBe("workspace-new-tab");
   });
 
-  it("普通画布应将工作台触发按钮并入头部工具栏，避免覆盖关闭区", async () => {
-    mockCanvasWorkbenchLayoutState.renderPreviewProbe = true;
-
+  it("新标签工具选择通过当前 Browser surface 打开内容，不回到旧画布", async () => {
     const container = renderPage({
       theme: "general",
       lockTheme: true,
+      projectId: "project-side-panel",
     });
     await flushEffects();
-
-    clickButton(container, "toggle-canvas");
+    clickButton(container, "thread-side-panel-toggle");
+    await flushEffects();
+    clickButton(container, "side-panel-new-tab-browser");
     await flushEffects(4);
-
-    const workbench = container.querySelector(
-      '[data-testid="canvas-workbench-layout-mock"]',
-    ) as HTMLDivElement | null;
-
-    expect(workbench).not.toBeNull();
     expect(
-      workbench?.querySelector(
-        '[data-testid="canvas-workbench-default-preview-probe"]',
-      ),
-    ).not.toBeNull();
+      container
+        .querySelector('[data-testid="workspace-right-surface-host"]')
+        ?.getAttribute("data-surface"),
+    ).toBe("browser");
+    expect(
+      container.querySelector('[data-testid="canvas-workbench-layout-mock"]'),
+    ).toBeNull();
   });
 
   it("点击 WebSearch 来源应请求右侧 Browser，而不是打开旧 Canvas 预览", async () => {
@@ -467,190 +431,87 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     });
   });
 
-  it("通用模式空闲时应保留顶部 Harness 入口", async () => {
-    const container = renderPage({
-      theme: "general",
-      lockTheme: true,
-    });
-    await flushEffects();
+  it.each([false, true])(
+    "发送中=%s 时侧面板保持显式打开，退出旧 Harness 顶栏和库存读取",
+    async (isSending) => {
+      installMockAgentChatUnifiedState(
+        createMockAgentChatUnifiedState({ isSending }),
+      );
+      const mounted = mountPage({
+        theme: "general",
+        lockTheme: true,
+        projectId: "project-side-panel",
+      });
+      await flushEffects();
+      expect(
+        mounted.container
+          .querySelector('[data-testid="thread-side-panel-toggle"]')
+          ?.getAttribute("aria-expanded"),
+      ).toBe("false");
+      clickButton(mounted.container, "thread-side-panel-toggle");
+      await flushEffects();
+      expect(
+        mounted.container.querySelector(
+          '[data-testid="thread-side-panel-new-tab"]',
+        ),
+      ).not.toBeNull();
+      expect(
+        mounted.container.querySelector('[data-testid="toggle-harness"]'),
+      ).toBeNull();
+      expect(
+        mounted.container.querySelector(
+          '[data-testid="task-center-harness-toggle"]',
+        ),
+      ).toBeNull();
+      expect(mockGetAgentRuntimeToolInventory).not.toHaveBeenCalled();
+      clickButton(mounted.container, "thread-side-panel-toggle");
+      await flushEffects();
+      mounted.rerender();
+      await flushEffects();
+      expect(
+        mounted.container
+          .querySelector('[data-testid="thread-side-panel-toggle"]')
+          ?.getAttribute("aria-expanded"),
+      ).toBe("false");
+    },
+  );
 
-    const toolbar = container.querySelector(
-      '[data-testid="task-center-utility-toolbar"]',
-    ) as HTMLDivElement | null;
-    expect(toolbar?.dataset.showHarnessToggle).toBe("true");
-    expect(toolbar?.dataset.harnessToggleLabel).toBe("Harness");
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(false);
-    expect(document.body.textContent).not.toContain(GENERAL_CONTEXT_HINT);
-
-    clickButton(container, "toggle-harness");
-    await flushEffects();
-
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(true);
-    expect(document.body.textContent).toContain(GENERAL_CONTEXT_HINT);
-  });
-
-  it("通用模式有处理活动时应通过顶部 Harness 按钮打开弹窗，而不是常驻右侧占位", async () => {
-    installMockAgentChatUnifiedState(
-      createMockAgentChatUnifiedState({
-        isSending: true,
-      }),
-    );
-
-    const container = renderPage({
-      theme: "general",
-      lockTheme: true,
-    });
-    await flushEffects();
-
-    const toolbar = container.querySelector(
-      '[data-testid="task-center-utility-toolbar"]',
-    ) as HTMLDivElement | null;
-    expect(toolbar?.dataset.showHarnessToggle).toBe("true");
-    expect(toolbar?.dataset.harnessToggleLabel).toBe("Harness");
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(false);
-    expect(document.body.textContent).not.toContain(GENERAL_CONTEXT_HINT);
-
-    clickButton(container, "toggle-harness");
-    await flushEffects();
-
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(true);
-    expect(document.body.textContent).toContain(GENERAL_CONTEXT_HINT);
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_DESCRIPTION_CANDIDATES,
-      ),
-    ).toBe(true);
-  });
-
-  it("处理工作台调试信息开关开启时右侧 Harness surface 应触发工具库存读取", async () => {
-    const container = renderPage({
-      theme: "general",
-      lockTheme: true,
-    });
-    await flushEffects();
-
-    const toolbar = container.querySelector(
-      '[data-testid="task-center-utility-toolbar"]',
-    ) as HTMLDivElement | null;
-    expect(toolbar?.dataset.showHarnessToggle).toBe("true");
-    expect(toolbar?.dataset.harnessPanelVisible).toBe("false");
-    expect(
-      container.querySelector('[data-testid="task-center-harness-toggle"]'),
-    ).not.toBeNull();
-    expect(mockGetAgentRuntimeToolInventory).not.toHaveBeenCalled();
-
-    clickButton(container, "task-center-harness-toggle");
-    await flushEffects();
-
-    expect(toolbar?.dataset.harnessPanelVisible).toBe("true");
-    expect(mockGetAgentRuntimeToolInventory).toHaveBeenCalledWith(
-      expect.objectContaining({
-        caller: "assistant",
-        workbench: false,
-      }),
-    );
-  });
-
-  it("处理工作台调试信息开关关闭时仍应保留入口，但不触发工具库存读取", async () => {
+  it("关闭调试信息时侧面板仍可用，工具新标签不读取旧库存", async () => {
     mockUseDeveloperFeatureFlags.mockReturnValue({
       clawTraceEnabled: false,
       workspaceHarnessEnabled: false,
     });
-
     const container = renderPage({
       theme: "general",
       lockTheme: true,
+      projectId: "project-side-panel",
     });
     await flushEffects();
-
-    const toolbar = container.querySelector(
-      '[data-testid="task-center-utility-toolbar"]',
-    ) as HTMLDivElement | null;
-    expect(toolbar?.dataset.showHarnessToggle).toBe("true");
-    expect(toolbar?.dataset.harnessToggleLabel).toBe("Harness");
-    expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(false);
-    expect(mockGetAgentRuntimeToolInventory).not.toHaveBeenCalled();
-
-    clickButton(container, "toggle-harness");
+    clickButton(container, "thread-side-panel-toggle");
     await flushEffects();
-
     expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(true);
+      container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+    ).not.toBeNull();
     expect(mockGetAgentRuntimeToolInventory).not.toHaveBeenCalled();
   });
 
-  it("窄屏工作台切换 stacked/split 时不应恢复旧对话侧栏入口", async () => {
-    mockCanvasWorkbenchLayoutState.renderPreviewProbe = true;
-
+  it("侧面板打开、折叠、重开时不恢复旧对话侧栏", async () => {
     const container = renderPage({
       theme: "general",
       lockTheme: true,
+      projectId: "project-side-panel",
     });
     await flushEffects();
-
-    expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(
-      container.querySelector('[data-testid="toggle-history"]'),
-    ).toBeNull();
-
-    clickButton(container, "toggle-canvas");
-    await flushEffects(4);
-
-    const getWorkbenchProps = () =>
-      (mockCanvasWorkbenchLayout.mock.calls.at(-1)?.[0] || null) as {
-        onLayoutModeChange?: (mode: "split" | "stacked") => void;
-      } | null;
-
-    expect(
-      container.querySelector('[data-testid="canvas-workbench-layout-mock"]'),
-    ).not.toBeNull();
-
-    act(() => {
-      getWorkbenchProps()?.onLayoutModeChange?.("stacked");
-    });
-    await flushEffects(4);
-
-    expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
-    expect(
-      container.querySelector('[data-testid="toggle-history"]'),
-    ).toBeNull();
-
-    act(() => {
-      getWorkbenchProps()?.onLayoutModeChange?.("split");
-    });
-    await flushEffects(4);
-
-    expect(container.querySelector('[data-testid="chat-sidebar"]')).toBeNull();
+    for (let step = 0; step < 3; step += 1) {
+      clickButton(container, "thread-side-panel-toggle");
+      await flushEffects();
+      expect(
+        container.querySelector('[data-testid="chat-sidebar"]'),
+      ).toBeNull();
+      expect(
+        container.querySelector('[data-testid="toggle-history"]'),
+      ).toBeNull();
+    }
   });
 
   it("发送时不再先调用本地 Team 规划模型，而是直接发送并透传已选 Team 约束", async () => {

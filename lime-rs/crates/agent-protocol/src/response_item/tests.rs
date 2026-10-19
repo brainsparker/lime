@@ -2,6 +2,27 @@ use super::*;
 use serde_json::json;
 
 #[test]
+fn message_phases_preserve_partial_answer_and_unknown() {
+    for phase in ["commentary", "partial_answer", "final_answer"] {
+        let item = json!({"type":"message","role":"assistant","content":[],"phase":phase});
+        let parsed: ResponseItem = serde_json::from_value(item.clone()).unwrap();
+        assert_eq!(serde_json::to_value(parsed).unwrap(), item);
+        assert_eq!(MessagePhase::from_wire(phase).unwrap().as_str(), phase);
+    }
+    for phase in [None, Some(Value::Null)] {
+        let mut item = json!({"type":"message","role":"assistant","content":[]});
+        if let Some(phase) = phase {
+            item["phase"] = phase;
+        }
+        let parsed: ResponseItem = serde_json::from_value(item).unwrap();
+        assert!(matches!(parsed, ResponseItem::Message { phase: None, .. }));
+    }
+    for invalid in ["final", "finalAnswer", "analysis", " final_answer "] {
+        assert_eq!(MessagePhase::from_wire(invalid), None);
+    }
+}
+
+#[test]
 fn external_function_results_accept_absent_and_null_call_ids() {
     for call_id in [None, Some(Value::Null)] {
         let mut item = json!({

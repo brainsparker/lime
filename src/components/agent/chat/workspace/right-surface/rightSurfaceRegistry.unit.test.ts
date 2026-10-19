@@ -13,7 +13,10 @@ const EXPECTED_SURFACE_KINDS: WorkspaceRightSurfaceKind[] = [
   "expertInfo",
   "browser",
   "files",
+  "changes",
+  "workspace-new-tab",
   "shell",
+  "background-terminal",
   "harness",
   "trace",
 ];
@@ -53,8 +56,11 @@ describe("rightSurfaceRegistry", () => {
       "expertInfo",
       "shell",
     ]);
-    expect(definitions[0]?.render({ activeSurface: "expertInfo" })).toBe(
-      "expert",
-    );
+    expect(
+      definitions[0]?.render({
+        activeSurface: "expertInfo",
+        tab: { tabId: "expert", kind: "expertInfo" },
+      }),
+    ).toBe("expert");
   });
 });

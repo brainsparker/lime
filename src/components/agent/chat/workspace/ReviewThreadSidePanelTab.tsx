@@ -31,7 +31,7 @@ export function ReviewThreadSidePanelTab({
   return (
     <section
       className="flex h-full min-h-0 flex-col bg-[color:var(--lime-surface)] text-[color:var(--lime-text)]"
-      data-testid="workspace-files-surface"
+      data-testid="workspace-changes-surface"
       data-review-thread-id={changeView?.reviewThreadId ?? undefined}
     >
       {relativePath ? (
@@ -40,7 +40,7 @@ export function ReviewThreadSidePanelTab({
           <span
             className="min-w-0 flex-1 truncate text-xs"
             title={relativePath}
-            data-testid="workspace-files-surface-path"
+            data-testid="workspace-changes-surface-path"
           >
             {target?.title?.trim() || relativePath}
           </span>
@@ -50,7 +50,7 @@ export function ReviewThreadSidePanelTab({
             size="sm"
             disabled={!onOpenResultFile}
             onClick={() => void onOpenResultFile?.(relativePath)}
-            data-testid="workspace-files-surface-open"
+            data-testid="workspace-changes-surface-open"
           >
             {t("agentChat.fileChangesSummary.openFile")}
           </Button>

@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -94,13 +94,16 @@ afterEach(async () => {
 
 describe("FileShellHost", () => {
   it("revealInFinder 通过 Electron shell 定位本地文件", async () => {
+    const directory = await createTempUserDataDir();
+    const targetFile = path.join(directory, "demo.txt");
+    await writeFile(targetFile, "local file");
     const host = new FileShellHost();
 
-    await expect(
-      host.revealInFinder({ path: "/tmp/demo.txt" }),
-    ).resolves.toEqual({});
+    await expect(host.revealInFinder({ path: targetFile })).resolves.toEqual(
+      {},
+    );
 
-    expect(showItemInFolderMock).toHaveBeenCalledWith("/tmp/demo.txt");
+    expect(showItemInFolderMock).toHaveBeenCalledWith(targetFile);
     expect(openPathMock).not.toHaveBeenCalled();
   });
 
@@ -125,6 +128,19 @@ describe("FileShellHost", () => {
     await expect(
       host.revealInFinder({ path: targetDirectory }),
     ).rejects.toThrow("Unable to open directory");
+  });
+
+  it("不存在的工作区路径交给原生打开并暴露错误，不能假定位成功", async () => {
+    const directory = await createTempUserDataDir();
+    const missingPath = path.join(directory, "missing");
+    openPathMock.mockResolvedValueOnce("Path does not exist");
+    const host = new FileShellHost();
+
+    await expect(host.revealInFinder({ path: missingPath })).rejects.toThrow(
+      "Path does not exist",
+    );
+    expect(openPathMock).toHaveBeenCalledWith(missingPath);
+    expect(showItemInFolderMock).not.toHaveBeenCalled();
   });
 
   it("openWithDefaultApp 通过 Electron shell 打开本地路径", async () => {
@@ -272,62 +288,5 @@ describe("FileShellHost", () => {
     const host = new FileShellHost();
 
     expect(() => host.getHomeDir()).toThrow("无法获取主目录");
-  });
-
-  it("getFileManagerLocations 应返回存在的系统快捷入口并去重", async () => {
-    const userDataDir = await createTempUserDataDir();
-    const homeDir = path.join(userDataDir, "home");
-    const missingDesktopDir = path.join(userDataDir, "missing-desktop");
-    const documentsDir = path.join(userDataDir, "Documents");
-    const downloadsDir = path.join(userDataDir, "Downloads");
-    await mkdir(homeDir, { recursive: true });
-    await mkdir(documentsDir, { recursive: true });
-    await mkdir(downloadsDir, { recursive: true });
-    getPathMock.mockImplementation((name: string) => {
-      if (name === "home") {
-        return homeDir;
-      }
-      if (name === "desktop") {
-        return missingDesktopDir;
-      }
-      if (name === "documents") {
-        return documentsDir;
-      }
-      if (name === "downloads") {
-        return downloadsDir;
-      }
-      return os.tmpdir();
-    });
-    const host = new FileShellHost();
-
-    const locations = await host.getFileManagerLocations();
-
-    expect(locations).toEqual(
-      expect.arrayContaining([
-        {
-          id: "home",
-          label: "个人",
-          path: homeDir,
-          kind: "home",
-        },
-        {
-          id: "documents",
-          label: "文档",
-          path: documentsDir,
-          kind: "documents",
-        },
-        {
-          id: "downloads",
-          label: "下载",
-          path: downloadsDir,
-          kind: "downloads",
-        },
-      ]),
-    );
-    const returnedPaths = locations.map((location) => location.path);
-    expect(
-      returnedPaths.filter((nextPath) => nextPath === homeDir),
-    ).toHaveLength(1);
-    expect(returnedPaths).not.toContain(missingDesktopDir);
   });
 });

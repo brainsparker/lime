@@ -262,7 +262,7 @@ fn session_compaction_prompt_context_from_event(payload: &Value) -> Option<Value
     );
     copy_optional_value(payload, &mut context, "compactionId");
     copy_optional_value(payload, &mut context, "contextEpoch");
-    copy_optional_value(payload, &mut context, "tailStartTurnId");
+    copy_optional_value(payload, &mut context, "coveredThroughSequence");
     copy_optional_value(payload, &mut context, "turnCount");
     copy_optional_value(payload, &mut context, "trigger");
     copy_optional_value(payload, &mut context, SIDECAR_REF_FIELD);
@@ -304,7 +304,7 @@ fn session_compaction_packet_from_prompt_context(value: &Value) -> Option<Contex
     let mut metadata = Map::new();
     copy_optional_value(value, &mut metadata, "compactionId");
     copy_optional_value(value, &mut metadata, "contextEpoch");
-    copy_optional_value(value, &mut metadata, "tailStartTurnId");
+    copy_optional_value(value, &mut metadata, "coveredThroughSequence");
     copy_optional_value(value, &mut metadata, "turnCount");
     copy_optional_value(value, &mut metadata, "trigger");
     copy_optional_value(value, &mut metadata, SIDECAR_REF_FIELD);

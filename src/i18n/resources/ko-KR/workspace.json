@@ -5,7 +5,6 @@
   "workspace.pendingA2UI.footer.stale": "방금 추가한 정보를 받았습니다. 지금은 다시 제출하지 않아도 됩니다.",
   "workspace.pendingA2UI.status.progressStep": "{{currentStep}}/{{totalSteps}}단계",
   "workspace.pendingA2UI.status.stale": "계속 처리 중",
-  "workspace.layout.compactMode.ariaLabel": "채팅과 워크벤치 전환",
   "workspace.layout.compactMode.chat": "채팅",
   "workspace.layout.compactMode.workbench": "워크벤치",
   "workspace.layout.splitter.resizeAria": "드래그하여 채팅 영역과 워크벤치 너비 조정",
@@ -724,5 +723,9 @@
   "workspace.presentationTable.headerColumn": "머리글 열",
   "workspace.presentationTable.reorderRow": "{{row}}행 이동",
   "workspace.presentationTable.reorderColumn": "{{column}}열 이동",
-  "workspace.presentationTable.reorderHint": "드래그하여 이동. Alt + 화살표 키로 순서 변경."
+  "workspace.presentationTable.reorderHint": "드래그하여 이동. Alt + 화살표 키로 순서 변경.",
+  "workspace.artifactPreviewHeader.open": "열기",
+  "workspace.artifactPreviewHeader.openOptions": "열기 옵션",
+  "workspace.artifactPreviewHeader.openInFolder": "폴더에서 열기",
+  "workspace.artifactPreviewHeader.saveAs": "다른 이름으로 저장…"
 }

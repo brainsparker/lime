@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposerController } from "@/components/input-kit/ComposerController";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import { InputbarCore } from "./InputbarCore";
+import { createContextualSuggestionsFixture } from "./contextualSuggestions.testFixtures";
 import { buildInputbarCoreCopy } from "./inputbarCoreCopy";
 
 const api = vi.hoisted(() => ({
@@ -21,8 +22,6 @@ vi.mock("react-i18next", () => ({
   useTranslation: () => ({ t: (key: string) => key }),
 }));
 vi.mock("sonner", () => ({ toast: { info: api.info, error: api.error } }));
-vi.mock("./InputbarTools", () => ({ InputbarTools: () => null }));
-
 const copy = buildInputbarCoreCopy((key, values) =>
   Object.entries(values ?? {}).reduce(
     (text, [name, value]) => text.split(`{{${name}}}`).join(String(value)),
@@ -146,6 +145,7 @@ function mount() {
     selectionStart: 2,
   });
   const onSend = vi.fn();
+  const contextualSuggestions = createContextualSuggestionsFixture();
   const setText = vi.fn();
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -165,9 +165,8 @@ function mount() {
         setText={onText}
         onSend={onSend}
         sessionId={sessionId}
-        activeTools={{}}
         onToolClick={vi.fn()}
-        toolMode="attach-only"
+        contextualSuggestions={contextualSuggestions}
       />
     );
   }

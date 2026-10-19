@@ -19,7 +19,7 @@ function withChinesePreparingCopy(
 }
 
 describe("buildHomePendingPreviewMessages", () => {
-  it("首页首发等待态应保留 Skill route 与用户可见文本", () => {
+  it("首页首发等待态保留可见正文，不生成额外 Skill 路由", () => {
     const request: TaskCenterDraftSendRequest = {
       id: "draft-send-1",
       sessionId: "session-1",
@@ -28,11 +28,13 @@ describe("buildHomePendingPreviewMessages", () => {
       sendExecutionStrategy: "react",
       sendOptions: {
         displayContent: "帮我整理资料",
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "brand-product-knowledge-builder",
-          skillName: "brand-product-knowledge-builder",
-        },
+        inputMentions: [
+          {
+            type: "skill",
+            name: "brand-product-knowledge-builder",
+            path: "/skills/brand-product-knowledge-builder/SKILL.md",
+          },
+        ],
       },
       submittedAt: 1_710_000_000_000,
       source: "empty-state",
@@ -48,11 +50,7 @@ describe("buildHomePendingPreviewMessages", () => {
       id: "draft-send-1:user",
       role: "user",
       content: "帮我整理资料",
-      inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "brand-product-knowledge-builder",
-        skillName: "brand-product-knowledge-builder",
-      },
+      inputCapabilityRoute: undefined,
     });
     expect(messages[1]).toMatchObject({
       id: "draft-send-1:assistant",

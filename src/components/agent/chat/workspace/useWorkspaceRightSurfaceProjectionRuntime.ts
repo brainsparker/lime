@@ -15,6 +15,7 @@ import {
 } from "./workspaceRightSurfaceRuntimeProjection";
 
 interface UseWorkspaceRightSurfaceProjectionRuntimeParams {
+  backgroundTerminalAvailable?: boolean;
   appServerPendingIntents: readonly WorkspaceRightSurfaceIntent[];
   appSurfaceAvailable: boolean;
   articleWorkspaceAvailable: boolean;
@@ -40,6 +41,7 @@ interface UseWorkspaceRightSurfaceProjectionRuntimeResult {
 }
 
 export function useWorkspaceRightSurfaceProjectionRuntime({
+  backgroundTerminalAvailable = false,
   appServerPendingIntents,
   appSurfaceAvailable,
   articleWorkspaceAvailable,
@@ -59,6 +61,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   const availableSurfaces = useMemo(
     () =>
       buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
+        backgroundTerminalAvailable,
         appSurfaceAvailable,
         articleWorkspaceAvailable,
         filesAvailable,
@@ -69,6 +72,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
         traceAvailable,
       }),
     [
+      backgroundTerminalAvailable,
       appSurfaceAvailable,
       articleWorkspaceAvailable,
       filesAvailable,
@@ -129,6 +133,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
   const rightSurfaceLaunchers = useMemo(
     () =>
       buildWorkspaceRightSurfaceRuntimeLaunchers({
+        backgroundTerminalAvailable,
         surfaceState: rightSurfaceState,
         pendingIntents: rightSurfacePendingIntents,
         filesAvailable,
@@ -145,6 +150,7 @@ export function useWorkspaceRightSurfaceProjectionRuntime({
       articleWorkspaceAvailable,
       filesAvailable,
       hasExpertInfoPanel,
+      backgroundTerminalAvailable,
       rightSurfacePendingIntents,
       rightSurfaceState,
       shellAvailable,

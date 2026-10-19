@@ -252,12 +252,3 @@ export function readWorkspaceSkillRuntimeEnableFromTurnStart(turnStart) {
     null
   );
 }
-
-export function readObjectiveTextFromHarness(harness) {
-  return (
-    harness?.thread_goal?.set?.objective ??
-    harness?.threadGoal?.set?.objective ??
-    harness?.goal?.set?.objective ??
-    null
-  );
-}

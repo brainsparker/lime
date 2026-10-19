@@ -7,10 +7,7 @@
 
 use crate::provider_trace::RuntimeProviderTraceAttempt;
 use crate::reply_execution::{RuntimeReplyAttemptError, RuntimeReplyExecution};
-use crate::reply_loop::{
-    RuntimeEmptyResponseStep, RuntimeReplyLoop, RuntimeReplyLoopStep,
-    MAX_REPLY_TURNS_REACHED_MESSAGE,
-};
+use crate::reply_loop::{RuntimeReplyLoop, RuntimeReplyLoopStep, MAX_REPLY_TURNS_REACHED_MESSAGE};
 use crate::session_config::AgentSessionConfig;
 use crate::session_loop::RuntimeSessionInputHandle;
 use ::code_mode::{
@@ -18,6 +15,7 @@ use ::code_mode::{
     CODE_MODE_WAIT_TOOL_NAME,
 };
 use agent_protocol::provider_trace::{ProviderTraceEvent, ProviderTraceFailure};
+use agent_protocol::response_item::MessagePhase;
 use agent_protocol::world_state::{RuntimeWorldState, WORLD_STATE_TURN_METADATA_KEY};
 use code_mode_protocol::{RuntimeToolDefinition, RuntimeToolExposure};
 use futures::future::join_all;
@@ -42,9 +40,6 @@ use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tool_runtime::hook_lifecycle::RuntimeHookReporter;
 use tool_runtime::tool_call::{ToolCall, ToolEnvironment};
-use tool_runtime::tool_call_surface::{
-    repair_tool_call, runtime_tool_call_canonical_name, ToolCallRepairOutcome,
-};
 use tool_runtime::tool_executor::{
     RuntimeToolExecutionContext, RuntimeToolExecutionContextInput, RuntimeToolExecutionError,
     RuntimeToolExecutionFuture, RuntimeToolExecutionRequest, RuntimeToolExecutor,
@@ -57,17 +52,20 @@ mod code_mode;
 mod history_budget;
 mod hook_snapshot;
 mod input;
+mod model_history;
 mod output_lifecycle;
 mod stream_producer;
+mod tool_call;
 use code_mode::PendingProviderToolCall;
 #[cfg(test)]
 use input::runtime_inter_agent_text;
 use input::runtime_session_input_message;
 use output_lifecycle::{
-    defer_text_output_item_end, end_reasoning_output_item, finish_active_output_items,
-    provider_output_item_id, start_output_item, ProviderOutputFamily,
+    complete_text_output_item, defer_text_output_item_end, end_reasoning_output_item,
+    finish_active_output_items, provider_output_item_id, start_output_item, ProviderOutputFamily,
 };
 use stream_producer::{start_provider_stream, ProviderStreamStart};
+use tool_call::prepare_provider_tool_call;
 use tool_runtime::tool_result_projection::NormalizedToolOutput;
 
 const LOCAL_TOOL_ENVIRONMENT_ID: &str = "local";
@@ -253,12 +251,6 @@ pub struct CurrentProviderTurnInput {
     pub pending_input: Option<RuntimeSessionInputHandle>,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CurrentProviderTextPhase {
-    Commentary,
-    FinalAnswer,
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub enum CurrentProviderTurnEvent {
     ProviderTrace {
@@ -273,7 +265,7 @@ pub enum CurrentProviderTurnEvent {
     },
     TextEnd {
         item_id: String,
-        phase: CurrentProviderTextPhase,
+        phase: Option<MessagePhase>,
     },
     ReasoningStart {
         item_id: String,
@@ -370,8 +362,6 @@ where
     let world_state = resolve_world_state(&session_config, &working_directory)?;
     insert_world_state_before_current_user(&mut initial_messages, &world_state);
     let mut loop_state = RuntimeReplyLoop::new(session_config.max_turns);
-    let mut retry_empty_response = false;
-    let mut retry_tool_step_snapshot = None;
     let mut text_output = String::new();
     let mut errors = Vec::new();
     let mut emitted_any = false;
@@ -394,102 +384,83 @@ where
                 true,
             ));
         }
-        let is_empty_response_retry = std::mem::take(&mut retry_empty_response);
-        let attempt = if is_empty_response_retry {
-            loop_state.next_retry_attempt()
-        } else {
-            match loop_state.next_attempt() {
-                RuntimeReplyLoopStep::Continue { attempt } => attempt,
-                RuntimeReplyLoopStep::MaxTurnsReached { .. } => {
-                    if let Some(input) = pending_input.as_ref() {
-                        input.mark_mailbox_delivery_for_next_turn().await;
-                        input.mark_finishing().await;
-                    }
-                    if !text_output.is_empty() {
-                        text_output.push('\n');
-                    }
-                    text_output.push_str(MAX_REPLY_TURNS_REACHED_MESSAGE);
-                    let item_id = format!("text-{turn_id}-max-turns");
-                    on_event(CurrentProviderTurnEvent::TextStart {
-                        item_id: item_id.clone(),
-                    });
-                    on_event(CurrentProviderTurnEvent::TextDelta {
-                        item_id: item_id.clone(),
-                        text: MAX_REPLY_TURNS_REACHED_MESSAGE.to_string(),
-                    });
-                    on_event(CurrentProviderTurnEvent::TextEnd {
-                        item_id,
-                        phase: CurrentProviderTextPhase::FinalAnswer,
-                    });
+        let attempt = match loop_state.next_attempt() {
+            RuntimeReplyLoopStep::Continue { attempt } => attempt,
+            RuntimeReplyLoopStep::MaxTurnsReached { .. } => {
+                if let Some(input) = pending_input.as_ref() {
+                    input.mark_mailbox_delivery_for_next_turn().await;
+                    input.mark_finishing().await;
+                }
+                if !text_output.is_empty() {
+                    text_output.push('\n');
+                }
+                text_output.push_str(MAX_REPLY_TURNS_REACHED_MESSAGE);
+                let item_id = format!("text-{turn_id}-max-turns");
+                on_event(CurrentProviderTurnEvent::TextStart {
+                    item_id: item_id.clone(),
+                });
+                on_event(CurrentProviderTurnEvent::TextDelta {
+                    item_id: item_id.clone(),
+                    text: MAX_REPLY_TURNS_REACHED_MESSAGE.to_string(),
+                });
+                on_event(CurrentProviderTurnEvent::TextEnd {
+                    item_id,
+                    phase: Some(MessagePhase::FinalAnswer),
+                });
+                return Ok(RuntimeReplyExecution::new(
+                    text_output,
+                    errors,
+                    true,
+                    attempts_summary(&loop_state),
+                    false,
+                ));
+            }
+        };
+
+        if let Some(source) = session_config.rollout_budget_reminder_source.as_ref() {
+            let reminder = source
+                .next_reminder()
+                .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
+            if let Some(reminder) = reminder {
+                let text = format!(
+                    "<rollout_budget>\nYou have {} weighted tokens left in the shared session token budget.\n</rollout_budget>",
+                    reminder.remaining_tokens
+                );
+                on_event(CurrentProviderTurnEvent::RolloutBudgetReminder {
+                    remaining_tokens: reminder.remaining_tokens,
+                    reminder_index: reminder.reminder_index,
+                    window_id: reminder.window_id,
+                    durable_event_id: reminder.durable_event_id,
+                    text: text.clone(),
+                });
+                if is_cancelled(&cancel_token) {
                     return Ok(RuntimeReplyExecution::new(
                         text_output,
                         errors,
-                        true,
+                        emitted_any,
                         attempts_summary(&loop_state),
-                        false,
+                        true,
                     ));
                 }
-            }
-        };
-
-        if !is_empty_response_retry {
-            if let Some(source) = session_config.rollout_budget_reminder_source.as_ref() {
-                let reminder = source
-                    .next_reminder()
-                    .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
-                if let Some(reminder) = reminder {
-                    let text = format!(
-                        "<rollout_budget>\nYou have {} weighted tokens left in the shared session token budget.\n</rollout_budget>",
-                        reminder.remaining_tokens
-                    );
-                    on_event(CurrentProviderTurnEvent::RolloutBudgetReminder {
-                        remaining_tokens: reminder.remaining_tokens,
-                        reminder_index: reminder.reminder_index,
-                        window_id: reminder.window_id,
-                        durable_event_id: reminder.durable_event_id,
-                        text: text.clone(),
-                    });
-                    if is_cancelled(&cancel_token) {
-                        return Ok(RuntimeReplyExecution::new(
-                            text_output,
-                            errors,
-                            emitted_any,
-                            attempts_summary(&loop_state),
-                            true,
-                        ));
-                    }
-                    initial_messages.push(CurrentProviderMessage::developer(vec![
-                        CurrentProviderContent::Text(text),
-                    ]));
-                }
-            }
-            if let Some(input) = pending_input.as_ref() {
-                // Context, tool inventory and mailbox phase are captured once per sampling step.
-                // Empty-response retries reuse the same immutable step snapshot.
-                let _step_context = input.capture_step_context().await;
+                initial_messages.push(CurrentProviderMessage::developer(vec![
+                    CurrentProviderContent::Text(text),
+                ]));
             }
         }
+        if let Some(input) = pending_input.as_ref() {
+            // Context, tool inventory and mailbox phase are captured once per sampling step.
+            let _step_context = input.capture_step_context().await;
+        }
 
-        let mut tool_step_snapshot = if is_empty_response_retry {
-            retry_tool_step_snapshot.take().ok_or_else(|| {
-                RuntimeReplyAttemptError::new(
-                    "Empty-response retry lost its provider step snapshot",
-                    emitted_any,
-                )
-            })?
-        } else {
-            tool_step_snapshot_source
-                .capture()
+        let mut tool_step_snapshot = tool_step_snapshot_source
+            .capture()
+            .await
+            .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
+
+        if let Some(ref hook_source) = hook_snapshot_source {
+            hook_snapshot::apply(&mut tool_step_snapshot, hook_source)
                 .await
-                .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?
-        };
-
-        if !is_empty_response_retry {
-            if let Some(ref hook_source) = hook_snapshot_source {
-                hook_snapshot::apply(&mut tool_step_snapshot, hook_source)
-                    .await
-                    .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
-            }
+                .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
         }
 
         history_budget::capture(&mut tool_step_snapshot, model_request_policy.as_ref());
@@ -625,10 +596,11 @@ where
                 ));
             }
         };
-        let mut assistant_content = Vec::new();
+        let mut assistant_content = model_history::AssistantHistory::default();
         let mut pending_calls = Vec::new();
         let mut provider_executed_calls = HashMap::<String, ToolCall>::new();
         let mut completed = false;
+        let mut needs_follow_up = false;
         let mut tool_arguments = HashMap::<String, String>::new();
         let mut active_text_item_id = None;
         let mut active_reasoning_item_id = None;
@@ -660,8 +632,8 @@ where
                     );
                     for item_id in pending_text_item_ids.drain(..) {
                         on_event(CurrentProviderTurnEvent::TextEnd {
+                            phase: assistant_content.text_phase(&item_id),
                             item_id,
-                            phase: CurrentProviderTextPhase::FinalAnswer,
                         });
                     }
                     if let Some(trace) = provider_trace_attempt.as_ref() {
@@ -686,8 +658,8 @@ where
                     );
                     for item_id in pending_text_item_ids.drain(..) {
                         on_event(CurrentProviderTurnEvent::TextEnd {
+                            phase: assistant_content.text_phase(&item_id),
                             item_id,
-                            phase: CurrentProviderTextPhase::FinalAnswer,
                         });
                     }
                     if let Some(trace) = provider_trace_attempt.as_ref() {
@@ -788,7 +760,8 @@ where
                     step_text_output_chars =
                         step_text_output_chars.saturating_add(text.chars().count() as u64);
                     text_output.push_str(&text);
-                    assistant_content.push(CurrentProviderContent::Text(text.clone()));
+                    assistant_content
+                        .display(id.clone(), CurrentProviderContent::Text(text.clone()));
                     start_output_item(
                         &mut active_text_item_id,
                         id.clone(),
@@ -801,13 +774,15 @@ where
                 CanonicalLlmEvent::TextEnd { id } => {
                     let id =
                         provider_output_item_id(&turn_id, attempt, ProviderOutputFamily::Text, &id);
-                    defer_text_output_item_end(
-                        &mut active_text_item_id,
-                        &mut pending_text_item_ids,
-                        id,
-                        &mut on_event,
-                        emitted_any,
-                    )?;
+                    if !assistant_content.has_completed_text(&id) {
+                        defer_text_output_item_end(
+                            &mut active_text_item_id,
+                            &mut pending_text_item_ids,
+                            id,
+                            &mut on_event,
+                            emitted_any,
+                        )?;
+                    }
                 }
                 CanonicalLlmEvent::ReasoningStart { id } => {
                     let id = provider_output_item_id(
@@ -885,7 +860,8 @@ where
                         &id,
                     );
                     emitted_any = true;
-                    assistant_content.push(CurrentProviderContent::Reasoning(text.clone()));
+                    assistant_content
+                        .display(id.clone(), CurrentProviderContent::Reasoning(text.clone()));
                     start_output_item(
                         &mut active_reasoning_item_id,
                         id.clone(),
@@ -912,6 +888,33 @@ where
                         &mut on_event,
                         emitted_any,
                     )?;
+                }
+                CanonicalLlmEvent::ResponseItemDone {
+                    source_id,
+                    item,
+                    producer,
+                } => {
+                    let completed_message = assistant_content
+                        .complete(
+                            &turn_id,
+                            attempt,
+                            source_id,
+                            item,
+                            producer,
+                            session_config.model_history_recorder.as_ref(),
+                        )
+                        .await?;
+                    // 完成项已进入模型历史，即使没有展示 delta 也不能按空输出改路由。
+                    emitted_any = true;
+                    if let Some(message) = completed_message {
+                        complete_text_output_item(
+                            &mut active_text_item_id,
+                            &mut pending_text_item_ids,
+                            message,
+                            &mut on_event,
+                            emitted_any,
+                        )?;
+                    }
                 }
                 CanonicalLlmEvent::ToolInputDelta { id, name, text } => {
                     emitted_any = true;
@@ -959,25 +962,21 @@ where
                         provider_executed_calls.insert(id, call);
                         continue;
                     }
-                    let call = if name == CODE_MODE_WAIT_TOOL_NAME
+                    let model_call =
+                        tool_call::model_call(id, name, input, raw_arguments, provider_metadata);
+                    let call = if model_call.name == CODE_MODE_WAIT_TOOL_NAME
                         && tool_step_snapshot.code_mode_session().is_some()
                     {
-                        let raw_arguments = raw_arguments.unwrap_or_else(|| {
-                            serde_json::to_string(&input).unwrap_or_else(|_| "{}".to_string())
-                        });
-                        CurrentProviderToolCall::from_raw(id, name, raw_arguments)
-                            .with_provider_metadata(provider_metadata)
+                        model_call.clone()
                     } else {
-                        prepare_provider_tool_call(
-                            &tool_step_snapshot,
-                            id,
-                            name,
-                            input,
-                            raw_arguments,
-                            provider_metadata,
-                        )
+                        prepare_provider_tool_call(&tool_step_snapshot, &model_call)
                     };
-                    assistant_content.push(CurrentProviderContent::ToolCall(call.clone()));
+                    crate::model_history::record_calls(
+                        session_config.model_history_recorder.as_ref(),
+                        &[CurrentProviderContent::ToolCall(model_call.clone())],
+                    )
+                    .await?;
+                    assistant_content.push(CurrentProviderContent::ToolCall(model_call));
                     if call.name == CODE_MODE_WAIT_TOOL_NAME
                         && tool_step_snapshot.code_mode_session().is_some()
                     {
@@ -1020,6 +1019,11 @@ where
                         CurrentProviderCustomToolCall::new(id.clone(), name.clone(), input.clone());
                     custom_call.namespace = namespace;
                     custom_call.provider_metadata = provider_metadata;
+                    crate::model_history::record_calls(
+                        session_config.model_history_recorder.as_ref(),
+                        &[CurrentProviderContent::CustomToolCall(custom_call.clone())],
+                    )
+                    .await?;
                     assistant_content
                         .push(CurrentProviderContent::CustomToolCall(custom_call.clone()));
                     pending_calls.push(PendingProviderToolCall::Custom(custom_call));
@@ -1034,7 +1038,7 @@ where
                     has_user_visible_output = true;
                     let terminal_raw_item = provider_executed_raw_response_item(&result).cloned();
                     if let Some(raw_item) = terminal_raw_item.as_ref() {
-                        upsert_raw_response_item(&mut assistant_content, raw_item.clone());
+                        upsert_raw_response_item(&mut assistant_content.content, raw_item.clone());
                     }
                     let mut call = provider_executed_calls.remove(&id).unwrap_or_else(|| {
                         ToolCall::new(
@@ -1093,7 +1097,13 @@ where
                 CanonicalLlmEvent::TurnModerationMetadata { metadata } => {
                     on_event(CurrentProviderTurnEvent::TurnModerationMetadata { metadata });
                 }
-                CanonicalLlmEvent::Finish { reason, usage, .. } => {
+                CanonicalLlmEvent::Finish {
+                    reason,
+                    usage,
+                    needs_follow_up: follow_up,
+                    ..
+                } => {
+                    needs_follow_up |= follow_up;
                     if let Some(usage) = usage {
                         let usage = current_provider_usage(usage);
                         step_usage = Some(usage.clone());
@@ -1154,15 +1164,10 @@ where
             &mut pending_text_item_ids,
             &mut on_event,
         );
-        let text_phase = if pending_calls.is_empty() {
-            CurrentProviderTextPhase::FinalAnswer
-        } else {
-            CurrentProviderTextPhase::Commentary
-        };
         for item_id in pending_text_item_ids {
             on_event(CurrentProviderTurnEvent::TextEnd {
+                phase: assistant_content.text_phase(&item_id),
                 item_id,
-                phase: text_phase,
             });
         }
         on_event(CurrentProviderTurnEvent::ProviderStep {
@@ -1194,16 +1199,37 @@ where
             ));
         }
 
-        let assistant_message_pushed = !assistant_content.is_empty();
-        if assistant_message_pushed {
-            initial_messages.push(CurrentProviderMessage::assistant(assistant_content));
+        let model_call_names = tool_call::model_call_names(&assistant_content.content);
+        initial_messages.extend(assistant_content.into_messages());
+        if !pending_calls.is_empty() || needs_follow_up {
+            if let Some(message) = provider_budget_exhaustion_message(
+                session_config.provider_token_budget,
+                provider_budget_tokens_used,
+                attempt,
+            ) {
+                if let Some(input) = pending_input.as_ref() {
+                    input.mark_finishing().await;
+                }
+                errors.push(message);
+                return Ok(RuntimeReplyExecution::new(
+                    text_output,
+                    errors,
+                    emitted_any,
+                    attempts_summary(&loop_state),
+                    true,
+                ));
+            }
         }
         if pending_calls.is_empty() {
             let pending_messages = match pending_input.as_ref() {
                 Some(input) => {
-                    input.mark_mailbox_delivery_for_next_turn().await;
+                    if needs_follow_up {
+                        input.accept_mailbox_delivery_for_current_turn().await;
+                    } else {
+                        input.mark_mailbox_delivery_for_next_turn().await;
+                    }
                     input
-                        .try_take_pending_input(false)
+                        .try_take_pending_input(needs_follow_up)
                         .await
                         .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?
                         .into_iter()
@@ -1212,8 +1238,8 @@ where
                 }
                 None => Vec::new(),
             };
-            if !pending_messages.is_empty() {
-                consumed_pending_input = true;
+            if !pending_messages.is_empty() || needs_follow_up {
+                consumed_pending_input |= !pending_messages.is_empty();
                 initial_messages.extend(pending_messages);
                 continue;
             }
@@ -1239,54 +1265,7 @@ where
                             emitted_any,
                         ));
                     }
-                    _ => {
-                        if let Some(message) = provider_budget_exhaustion_message(
-                            session_config.provider_token_budget,
-                            provider_budget_tokens_used,
-                            attempt,
-                        ) {
-                            if let Some(input) = pending_input.as_ref() {
-                                input.mark_finishing().await;
-                            }
-                            errors.push(message);
-                            return Ok(RuntimeReplyExecution::new(
-                                text_output,
-                                errors,
-                                emitted_any,
-                                attempts_summary(&loop_state),
-                                true,
-                            ));
-                        }
-                        match loop_state.request_empty_response_retry() {
-                            RuntimeEmptyResponseStep::Retry { retry, max_retries } => {
-                                if assistant_message_pushed {
-                                    let removed = initial_messages.pop();
-                                    debug_assert!(removed.as_ref().is_some_and(|message| {
-                                        message.role == CurrentProviderRole::Assistant
-                                    }));
-                                }
-                                debug_assert!(retry <= max_retries);
-                                retry_tool_step_snapshot = Some(tool_step_snapshot.clone());
-                                retry_empty_response = true;
-                                continue;
-                            }
-                            RuntimeEmptyResponseStep::Exhausted {
-                                retries,
-                                max_retries,
-                            } => {
-                                if let Some(input) = pending_input.as_ref() {
-                                    input.mark_finishing().await;
-                                }
-                                return Err(RuntimeReplyAttemptError::new(
-                                    format!(
-                                        "Provider completed without user-visible output after {} attempts (empty response retries exhausted: {retries}/{max_retries})",
-                                        loop_state.attempts_taken()
-                                    ),
-                                    emitted_any,
-                                ));
-                            }
-                        }
-                    }
+                    _ => {}
                 }
             }
             if let Some(input) = pending_input.as_ref() {
@@ -1316,24 +1295,6 @@ where
                 emitted_any,
                 attempts_summary(&loop_state),
                 false,
-            ));
-        }
-
-        if let Some(message) = provider_budget_exhaustion_message(
-            session_config.provider_token_budget,
-            provider_budget_tokens_used,
-            attempt,
-        ) {
-            if let Some(input) = pending_input.as_ref() {
-                input.mark_finishing().await;
-            }
-            errors.push(message);
-            return Ok(RuntimeReplyExecution::new(
-                text_output,
-                errors,
-                emitted_any,
-                attempts_summary(&loop_state),
-                true,
             ));
         }
 
@@ -1446,10 +1407,16 @@ where
                 ),
             }
         }));
+        tool_call::restore_result_names(&mut result_content, &model_call_names);
         history_budget::capture_outputs(
             &mut result_content,
             tool_step_snapshot.history_token_limit,
         );
+        crate::model_history::record_outputs(
+            session_config.model_history_recorder.as_ref(),
+            &result_content,
+        )
+        .await?;
         initial_messages.push(CurrentProviderMessage::tool(result_content));
         initial_messages.extend(pending_messages);
     }
@@ -2008,56 +1975,6 @@ async fn execute_calls(
         });
     }
     results
-}
-
-fn prepare_provider_tool_call(
-    tool_step_snapshot: &RuntimeToolStepSnapshot,
-    id: String,
-    name: String,
-    input: serde_json::Value,
-    raw_arguments: Option<String>,
-    mut provider_metadata: ProviderMetadata,
-) -> CurrentProviderToolCall {
-    let raw_arguments = raw_arguments
-        .unwrap_or_else(|| serde_json::to_string(&input).unwrap_or_else(|_| "{}".to_string()));
-    let outcome = repair_tool_call(
-        &tool_step_snapshot.definitions,
-        &name,
-        &raw_arguments,
-        &runtime_tool_call_canonical_name,
-    );
-
-    match outcome {
-        ToolCallRepairOutcome::Ready(repair) => {
-            if repair.requested_name != repair.resolved_name || !repair.argument_changes.is_empty()
-            {
-                provider_metadata.insert(
-                    TOOL_CALL_REPAIR_METADATA_KEY.to_string(),
-                    serde_json::to_value(ToolCallRepairOutcome::Ready(repair.clone()))
-                        .expect("tool call repair outcome must serialize"),
-                );
-            }
-            CurrentProviderToolCall::new(
-                id,
-                repair.resolved_name,
-                serde_json::Value::Object(repair.arguments),
-            )
-            .with_provider_metadata(provider_metadata)
-        }
-        ToolCallRepairOutcome::Invalid(failure) => {
-            provider_metadata.insert(
-                TOOL_CALL_REPAIR_METADATA_KEY.to_string(),
-                serde_json::to_value(ToolCallRepairOutcome::Invalid(failure.clone()))
-                    .expect("tool call repair failure must serialize"),
-            );
-            CurrentProviderToolCall::new(
-                id,
-                INVALID_TOOL_CALL_NAME,
-                serde_json::Value::Object(failure.model_arguments()),
-            )
-            .with_provider_metadata(provider_metadata)
-        }
-    }
 }
 
 fn runtime_tool_definition_for_call(

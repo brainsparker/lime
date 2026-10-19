@@ -9,6 +9,7 @@ import {
   useWorkspaceRightSurfaceLocalStateRuntime,
   type WorkspaceRightSurfaceOwner,
 } from "./useWorkspaceRightSurfaceLocalStateRuntime";
+import type { AgentThreadItem } from "../types";
 import { buildWorkspaceRightSurfaceDefinitions } from "./right-surface";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
@@ -69,6 +70,7 @@ const noop = () => undefined;
 const mounted: Array<{ root: Root; container: HTMLDivElement }> = [];
 
 interface Props {
+  threadItems?: readonly AgentThreadItem[];
   owner: WorkspaceRightSurfaceOwner;
   articleAvailable: boolean;
   shellAvailable: boolean;
@@ -105,7 +107,7 @@ function useLifecycle(props: Props) {
     showHarnessToggle: true,
     suppressHomeNavbarUtilityActions: props.suppressUtilities,
     taskCenterHomeHotpathActive: false,
-    threadItems,
+    threadItems: props.threadItems ?? threadItems,
     setExpertInfoPanelCollapsed: setExpertCollapsed,
     setHarnessPanelVisible: setHarness,
     setLayoutMode: setLayout,
@@ -130,9 +132,7 @@ function mount() {
     if (!latest.coordinator.rightSurfaceState.activeSurface) return null;
     const definitions = buildWorkspaceRightSurfaceDefinitions({
       browser: () => <div>{latest.coordinator.rightSurfaceBrowserTitle}</div>,
-      files: () => (
-        <div>{latest.coordinator.filesRightSurfaceTarget?.relativePath}</div>
-      ),
+      files: ({ tab }) => <div>{tab.filePath ?? "Open file"}</div>,
       articleWorkspace: () => (
         <div>{latest.local.activeArticleWorkspace?.selectedObjectRef?.id}</div>
       ),
@@ -144,18 +144,22 @@ function mount() {
       <>
         <RightSurfaceTabStrip
           idPrefix="right-lifecycle"
-          activeSurface={
-            latest.coordinator.rightSurfaceState.activeSurface ?? "files"
-          }
-          openSurfaces={latest.coordinator.rightSurfaceState.openSurfaces}
-          onSelectSurface={latest.coordinator.handleSelectRightSurfaceTab}
-          onCloseSurface={latest.coordinator.handleCloseRightSurfaceTab}
+          tabs={latest.coordinator.sidePanelTabs.tabs}
+          activeTabId={latest.coordinator.sidePanelTabs.activeTabId}
+          previewTabId={latest.coordinator.sidePanelTabs.previewTabId ?? null}
+          onNewTab={latest.coordinator.handleNewSidePanelTab}
+          onSelectTab={latest.coordinator.handleSelectSidePanelTab}
+          onCloseTab={latest.coordinator.handleCloseSidePanelTab}
           definitions={definitions}
         />
         <RightSurfaceHost
           idPrefix="right-lifecycle"
+          tabId={latest.coordinator.sidePanelTabs.activeTabId ?? ""}
           activeSurface={latest.coordinator.rightSurfaceState.activeSurface}
           definitions={definitions}
+          tabs={latest.coordinator.sidePanelTabs.tabs}
+          onPinTab={latest.coordinator.pinSidePanelTab}
+          previewTabId={latest.coordinator.sidePanelTabs.previewTabId ?? null}
         />
       </>
     );
@@ -182,6 +186,133 @@ afterEach(() => {
 });
 
 describe("Right Surface 标签生命周期接线", () => {
+  it("文件草稿归同一内容实例；关闭重开及owner变化拒绝旧回调", () => {
+    const view = mount();
+    act(() => view.get().local.openSidePanelTab("files"));
+    const picker = view.get().local.sidePanelTabs.tabs[0];
+    act(() => view.get().local.openWorkspaceFile("/workspace/a.ts", picker));
+    const first = view.get().local.sidePanelTabs.tabs[0];
+    const draft = {
+      content: "local",
+      document: { kind: "ready" as const, baseContent: "base" },
+    };
+    view.get().local.setFileDraft(first, draft);
+    expect(view.get().coordinator.getFileDraft(first)).toBe(draft);
+    act(() => view.get().local.openWorkspaceFile("/workspace/b.ts", first));
+    const second = view.get().local.sidePanelTabs.tabs[1];
+    expect(view.get().local.getFileDraft(second)).toBeNull();
+    expect(view.get().local.getFileDraft(first)).toBe(draft);
+    const stale = view.get().local;
+    act(() => stale.closeSidePanelTab(first.tabId));
+    act(() => view.get().local.openWorkspaceFile("/workspace/a.ts", second));
+    const reopened = view.get().local.sidePanelTabs.tabs[1];
+    stale.setFileDraft(first, draft);
+    expect(view.get().local.getFileDraft(reopened)).toBeNull();
+    view.get().local.setFileDraft(reopened, draft);
+    const prior = view.get().local;
+    view.render({
+      owner: { ...owner, sessionId: "session-b", threadId: "thread-b" },
+    });
+    prior.setFileDraft(reopened, draft);
+    expect(prior.getFileDraft(reopened)).toBeNull();
+    expect(view.get().local.getFileDraft(reopened)).toBeNull();
+  });
+
+  it("后台输出标签无项目目录也能打开，关闭不干预后台进程且拒绝跨线程迟到动作", () => {
+    const view = mount();
+    const item = {
+      id: "command",
+      thread_id: "thread-a",
+      turn_id: "turn-a",
+      type: "command_execution",
+      process_id: "process-a",
+      command: "npm test",
+    } as AgentThreadItem;
+    view.render({ shellAvailable: false, threadItems: [item] });
+    act(() => view.get().coordinator.openBackgroundTerminal(item));
+    const opened = view.get().local.sidePanelTabs.tabs[0];
+    expect(opened).toMatchObject({
+      kind: "background-terminal",
+      backgroundTerminal: {
+        threadId: "thread-a",
+        turnId: "turn-a",
+        itemId: "command",
+      },
+    });
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "background-terminal",
+    );
+    const lateOpen = view.get().coordinator.openBackgroundTerminal;
+    act(() => view.get().coordinator.handleCloseSidePanelTab(opened.tabId));
+    expect(view.get().local.sidePanelTabs.tabs).toHaveLength(0);
+    expect(pending.dismissPendingRequestsForSurface).not.toHaveBeenCalled();
+    view.render({ owner: { ...owner, threadId: "thread-b" } });
+    act(() => lateOpen(item));
+    expect(view.get().local.sidePanelTabs.tabs).toHaveLength(0);
+  });
+  it("same item ids in different turns open the requested canonical output without a live process id", () => {
+    const view = mount();
+    const first = {
+      id: "reused",
+      type: "command_execution",
+      thread_id: "thread-a",
+      turn_id: "first",
+      command: "first command",
+    } as AgentThreadItem;
+    const second = { ...first, turn_id: "second", command: "second command" };
+    view.render({ threadItems: [first, second] });
+    act(() => view.get().coordinator.openBackgroundTerminal(second));
+    expect(view.get().local.sidePanelTabs.tabs[0]).toMatchObject({
+      title: "second command",
+      backgroundTerminal: {
+        threadId: "thread-a",
+        turnId: "second",
+        itemId: "reused",
+      },
+    });
+    act(() =>
+      view
+        .get()
+        .coordinator.openBackgroundTerminal({ ...second, turn_id: "unloaded" }),
+    );
+    expect(view.get().local.sidePanelTabs.tabs).toHaveLength(1);
+  });
+  it("文件选择进入路径标签，切回已有路径不产生空Files或丢掉其它路径", () => {
+    const view = mount();
+    act(() => view.get().coordinator.handleSelectRightSurfaceTab("files"));
+    const picker = view.get().local.sidePanelTabs.tabs[0];
+    act(() =>
+      view
+        .get()
+        .coordinator.openWorkspaceFile("/workspace/project/a.ts", picker),
+    );
+    const first = view.get().local.sidePanelTabs.tabs[0];
+    act(() =>
+      view
+        .get()
+        .coordinator.openWorkspaceFile("/workspace/project/b.ts", first),
+    );
+    act(() => view.get().coordinator.handleSelectSidePanelTab(first.tabId));
+    expect(
+      view.get().local.sidePanelTabs.tabs.map((tab) => tab.filePath),
+    ).toEqual(["/workspace/project/a.ts", "/workspace/project/b.ts"]);
+    expect(view.get().local.sidePanelTabs.activeTabId).toBe(first.tabId);
+    expect(
+      view.container.querySelector(
+        '[data-testid="workspace-right-surface-active-pane"]',
+      )?.textContent,
+    ).toBe("/workspace/project/a.ts");
+    act(() => view.get().coordinator.handleCloseSidePanelTab(first.tabId));
+    expect(
+      view.get().local.sidePanelTabs.tabs.map((tab) => tab.filePath),
+    ).toEqual(["/workspace/project/b.ts"]);
+    act(() =>
+      view
+        .get()
+        .coordinator.openWorkspaceFile("/workspace/project/late.ts", first),
+    );
+    expect(view.get().local.sidePanelTabs.tabs).toHaveLength(1);
+  });
   it("可用 launcher 不会自动打开标签", () => {
     const view = mount();
     expect(view.get().coordinator.rightSurfaceLaunchers.length).toBeGreaterThan(
@@ -189,6 +320,50 @@ describe("Right Surface 标签生命周期接线", () => {
     );
     expect(view.get().coordinator.rightSurfaceState.openSurfaces).toEqual([]);
     expect(view.container.querySelectorAll('[role="tab"]')).toHaveLength(0);
+  });
+
+  it("选择已有 New tab 不增加标签；Chat 关闭对应身份并恢复现有编辑器焦点", () => {
+    const view = mount();
+    const host = document.createElement("div");
+    host.setAttribute("data-composer-editor-host", "true");
+    const editor = document.createElement("div");
+    editor.setAttribute("role", "textbox");
+    editor.setAttribute("contenteditable", "true");
+    editor.tabIndex = 0;
+    editor.textContent = "unsent draft";
+    host.append(editor);
+    document.body.append(host);
+    try {
+      act(() => view.get().coordinator.handleNewSidePanelTab());
+      const tabId = view.get().local.sidePanelTabs.activeTabId!;
+      act(() => view.get().coordinator.handleSelectRightSurfaceTab("browser"));
+      act(() => view.get().coordinator.handleSelectSidePanelTab(tabId));
+      expect(view.get().local.sidePanelTabs.tabs).toHaveLength(2);
+      act(() => view.get().coordinator.handleSelectChatFromNewTab(tabId));
+      expect(
+        view.get().local.sidePanelTabs.tabs.map((tab) => tab.kind),
+      ).toEqual(["browser"]);
+      expect(view.get().local.sidePanelTabs.open).toBe(false);
+      expect(document.activeElement).toBe(editor);
+      expect(editor.textContent).toBe("unsent draft");
+    } finally {
+      host.remove();
+    }
+  });
+
+  it("关闭 New tab 后的迟到动作不消费请求或改变当前面板", () => {
+    const view = mount();
+    act(() => view.get().coordinator.handleNewSidePanelTab());
+    const tabId = view.get().local.sidePanelTabs.activeTabId!;
+    const select = view.get().coordinator.handleSelectRightSurfaceTab;
+    act(() => view.get().coordinator.handleCloseSidePanelTab(tabId));
+    pending.refreshPendingRequests.mockClear();
+    pending.consumePendingRequestsForSurface.mockClear();
+    act(() => select("browser", tabId));
+    expect(view.get().local.sidePanelTabs.tabs).toHaveLength(0);
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBeNull();
+    expect(pending.refreshPendingRequests).not.toHaveBeenCalled();
+    expect(pending.consumePendingRequestsForSurface).not.toHaveBeenCalled();
   });
 
   it("Browser → Files → Browser 保留标签、Browser 标题和 Files 目标", () => {
@@ -256,7 +431,16 @@ describe("Right Surface 标签生命周期接线", () => {
     act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());
     act(() => view.get().coordinator.handleToggleRightSurfaceShell());
     act(() => view.get().coordinator.handleSelectRightSurfaceTab("browser"));
-    act(() => view.get().coordinator.handleCloseRightSurfaceShell());
+    act(() =>
+      view
+        .get()
+        .coordinator.handleCloseSidePanelTab(
+          view
+            .get()
+            .local.sidePanelTabs.tabs.find((tab) => tab.kind === "shell")!
+            .tabId,
+        ),
+    );
     expect(view.get().coordinator.rightSurfaceState.openSurfaces).toEqual([
       "browser",
     ]);

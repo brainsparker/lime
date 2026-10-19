@@ -4,7 +4,7 @@ import type { CanvasWorkbenchDefaultPreview } from "./CanvasWorkbenchLayout";
 import {
   clickByAriaLabel,
   clickNewWorkbenchTool,
-  clickPreviewMode,
+  toggleFilePreview,
   clickWorkbenchTab,
   createTaskFile,
   expectNewWorkbenchToolInMenu,
@@ -122,7 +122,7 @@ describe("CanvasWorkbenchLayout coding mode", () => {
     expect(fileTab?.getAttribute("aria-selected")).toBe("true");
     expect(reviewTab).not.toBeNull();
     expect(reviewTab?.getAttribute("aria-selected")).toBe("false");
-    clickPreviewMode(harness.container, "Code");
+    toggleFilePreview(harness.container);
     await flushEffects();
     expect(
       harness.container.querySelector(
@@ -568,7 +568,7 @@ describe("CanvasWorkbenchLayout coding mode", () => {
         '[data-testid="canvas-workbench-markdown-preview"]',
       ),
     ).not.toBeNull();
-    clickPreviewMode(container, "Code");
+    toggleFilePreview(container);
     await flushEffects();
     expect(
       container.querySelector(
@@ -587,9 +587,7 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ),
     ).not.toBeNull();
     expect(
-      container.querySelector(
-        '[data-testid="canvas-workbench-shell-terminal"]',
-      ),
+      container.querySelector('[data-testid="terminal-xterm"]'),
     ).not.toBeNull();
     expect(mockExecCommand).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -18,7 +18,6 @@ export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.placeholder.default"
   | "agentChat.inputbar.core.image.previewAlt"
   | "agentChat.inputbar.core.image.remove"
-  | "agentChat.inputbar.core.image.add"
   | "agentChat.inputbar.core.path.containerLabel"
   | "agentChat.inputbar.core.path.localFolder"
   | "agentChat.inputbar.core.path.localFile"
@@ -100,7 +99,6 @@ export interface InputbarCoreCopy {
   image: {
     previewAlt: (index: number) => string;
     remove: (index: number) => string;
-    add: string;
   };
   path: {
     containerLabel: string;
@@ -172,7 +170,6 @@ export function buildInputbarCoreCopy(
         translate("agentChat.inputbar.core.image.previewAlt", { index }),
       remove: (index) =>
         translate("agentChat.inputbar.core.image.remove", { index }),
-      add: translate("agentChat.inputbar.core.image.add"),
     },
     path: {
       containerLabel: translate("agentChat.inputbar.core.path.containerLabel"),

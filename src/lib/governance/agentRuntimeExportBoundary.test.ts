@@ -1,7 +1,7 @@
-import { readdirSync, readFileSync, statSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import process from "node:process";
+import { setImmediate as yieldIO } from "node:timers/promises";
 import * as ts from "typescript";
 import { describe, expect, it } from "vitest";
 
@@ -184,24 +184,78 @@ describe("Agent runtime export boundary", () => {
       collectSourceFiles(join(REPO_ROOT, root)),
     ).filter((file) => isProductionSource(repoRelative(file)));
     const offenders: string[] = [];
-    let nextFile = 0;
-    await Promise.all(
-      Array.from({ length: 8 }, async () => {
-        while (nextFile < files.length) {
-          const file = files[nextFile++];
-          const path = repoRelative(file);
-          const source = await readFile(file, "utf8");
-          const matches = [
-            ...source.matchAll(/agent_runtime_export_[a-z0-9_]+/gu),
-          ];
-          offenders.push(...matches.map((match) => `${path}: ${match[0]}`));
-        }
-      }),
-    );
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      const path = repoRelative(file);
+      const source = readFileSync(file, "utf8");
+      const matches = [...source.matchAll(/agent_runtime_export_[a-z0-9_]+/gu)];
+      offenders.push(...matches.map((match) => `${path}: ${match[0]}`));
+      // 小文件避免线程池往返；分批让出事件循环，原测试期限仍可执行。
+      if ((index + 1) % 64 === 0) await yieldIO();
+    }
 
     expect(
       offenders.sort(),
       "agent_runtime_export_* 只能作为测试 / retired guard / 诊断夹具出现；生产 evidence / replay / handoff 导出必须走 App Server current methods",
     ).toEqual([]);
+  });
+
+  it("终端只由外层标签与current command/exec持有，旧嵌套工具栏不得回流", () => {
+    const componentRoot = "src/components/agent/chat/components";
+    for (const name of [
+      "ProjectShellSurface",
+      "ProjectShellTerminal",
+      "TaskCenterShellPanel",
+      "ShellBackgroundTerminalList",
+    ]) {
+      expect(existsSync(join(REPO_ROOT, componentRoot, `${name}.tsx`))).toBe(
+        false,
+      );
+    }
+    const panel = readRepoFile(`${componentRoot}/TerminalPanel.tsx`);
+    expect(panel).toContain("@/lib/api/commandExec");
+    expect(panel).not.toMatch(/bg-white|PROJECT_SHELL_THEME|runQuickCommand/);
+    for (const file of [
+      "src/components/agent/chat/workspace/WorkspaceRightSurfaceHostRuntime.tsx",
+      `${componentRoot}/canvas-workbench/CanvasWorkbenchShell.tsx`,
+    ]) {
+      const source = readRepoFile(file);
+      expect(source).toContain("<TerminalTab");
+      expect(source).not.toMatch(
+        /ProjectShellSurface|TaskCenterShellPanel|ShellBackgroundTerminalList/,
+      );
+    }
+  });
+  it("文件树与路径菜单共享目录owner，已删除的产物隐藏策略不得回流", () => {
+    const workspace = "src/components/agent/chat/workspace";
+    expect(
+      existsSync(join(REPO_ROOT, workspace, "workspaceTreeVisibility.ts")),
+    ).toBe(false);
+    const treeOwner = readRepoFile(
+      "src/components/agent/chat/components/canvas-workbench/files/useCanvasWorkbenchFileTreeState.ts",
+    );
+    expect(treeOwner).not.toMatch(
+      /filterWorkspaceDirectoryListing|shouldHideWorkspaceTreeEntry|ROOT_HIDDEN_/,
+    );
+    for (const file of [
+      "right-surface/WorkspaceFileTree.tsx",
+      "text-file-editor/FileSourceBreadcrumb.tsx",
+    ]) {
+      const source = readRepoFile(`${workspace}/${file}`);
+      expect(source).toContain("WorkspaceDirectoryTree");
+      expect(source).not.toMatch(
+        /listDirectory\(|readDirectory\(|safeInvoke\(/,
+      );
+    }
+  });
+  it("项目文件动作共用文件壳，已删除的四选一工具Host不得回流", () => {
+    expect(
+      existsSync(join(REPO_ROOT, "electron/projectToolsHost.ts")),
+    ).toBe(false);
+    expect(readRepoFile("src/lib/api/fileSystem.ts")).not.toMatch(
+      /ProjectPathOpenTool|openProjectPathWithTool|open_project_path_with_tool/,
+    );
+    expect(readRepoFile("src/lib/governance/agentCommandCatalog.json"))
+      .not.toContain("open_project_path_with_tool");
   });
 });

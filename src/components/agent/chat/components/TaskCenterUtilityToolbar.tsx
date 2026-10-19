@@ -1,22 +1,11 @@
 import React from "react";
 import type { ThreadGoal } from "@limecloud/app-server-client";
-import {
-  ChevronDown,
-  Code2,
-  FileText,
-  Globe2,
-  PanelRightClose,
-  PanelRightOpen,
-  PanelRight,
-  SlidersHorizontal,
-  SquareTerminal,
-  UserRound,
-} from "lucide-react";
+import { ChevronDown, Code2, SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger } from "@/components/ui/popover";
-import { openProjectPathWithTool } from "@/lib/api/fileSystem";
+import { revealPathInFinder } from "@/lib/api/fileSystem";
 import { openExternalUrlWithSystemBrowser } from "@/lib/api/externalUrl";
 import {
   checkoutProjectGitBranch,
@@ -50,7 +39,6 @@ import { useThreadEnvironmentLifecycleStatus } from "../hooks/useThreadEnvironme
 import { TaskCenterLocationPanel } from "./TaskCenterLocationPanel";
 import { markProjectOpened } from "../hooks/agentProjectStorage";
 import { hydrateAgentPlanState } from "../utils/planState";
-import type { WorkspaceRightSurfaceLauncherProjection } from "../workspace/right-surface";
 
 interface TaskCenterUtilityToolbarProps {
   projectRootPath?: string | null;
@@ -79,24 +67,7 @@ interface TaskCenterUtilityToolbarProps {
     onRespondToAction?: (response: ConfirmResponse) => void | Promise<void>;
   };
   placement?: "task-strip" | "workbench-header";
-  showCanvasToggle: boolean;
-  isCanvasOpen: boolean;
-  onToggleCanvas?: () => void;
-  showHarnessToggle: boolean;
-  harnessPanelVisible: boolean;
-  onToggleHarnessPanel?: () => void;
-  showExpertInfoToggle?: boolean;
-  expertInfoPanelVisible?: boolean;
-  onToggleExpertInfoPanel?: () => void;
-  harnessPendingCount: number;
-  harnessAttentionLevel: "idle" | "active" | "warning";
-  harnessToggleLabel: string;
-  shellPanelOpen: boolean;
-  onToggleShellPanel?: () => void;
-  onToggleBrowserPanel?: () => void;
-  onToggleFilesPanel?: () => void;
-  onToggleTracePanel?: () => void;
-  rightSurfaceLaunchers?: readonly WorkspaceRightSurfaceLauncherProjection[];
+  sidePanelLauncher?: React.ReactNode;
 }
 
 const taskCenterToolButtonClassName =
@@ -216,24 +187,7 @@ export function TaskCenterUtilityToolbar({
   onProjectChange,
   taskRail,
   placement = "task-strip",
-  showCanvasToggle,
-  isCanvasOpen,
-  onToggleCanvas,
-  showHarnessToggle,
-  harnessPanelVisible,
-  onToggleHarnessPanel,
-  showExpertInfoToggle = false,
-  expertInfoPanelVisible = false,
-  onToggleExpertInfoPanel,
-  harnessPendingCount,
-  harnessAttentionLevel,
-  harnessToggleLabel,
-  shellPanelOpen,
-  onToggleShellPanel,
-  onToggleBrowserPanel,
-  onToggleFilesPanel,
-  onToggleTracePanel,
-  rightSurfaceLaunchers,
+  sidePanelLauncher,
 }: TaskCenterUtilityToolbarProps) {
   const { t } = useTranslation("agent");
   const normalizedProjectRootPath = projectRootPath?.trim() || null;
@@ -246,80 +200,8 @@ export function TaskCenterUtilityToolbar({
   const autoRevealedPlanKeyRef = React.useRef<string | null>(null);
   const { status, changeSummary, loading, error, refresh } =
     useProjectGitStatus(environmentVisited ? normalizedProjectRootPath : null);
-  const shouldRenderHarnessToggle =
-    showHarnessToggle || Boolean(onToggleHarnessPanel);
   const isWorkbenchHeaderPlacement = placement === "workbench-header";
-  const toolGroupClassName = cn(
-    taskCenterToolGroupClassName,
-    isWorkbenchHeaderPlacement ? "flex-nowrap" : "flex-wrap",
-  );
-  const rightSurfaceLauncherByKind = React.useMemo(
-    () =>
-      new Map(
-        (rightSurfaceLaunchers ?? []).map((projection) => [
-          projection.kind,
-          projection,
-        ]),
-      ),
-    [rightSurfaceLaunchers],
-  );
-  const workbenchLauncher = rightSurfaceLauncherByKind.get("workbench");
-  const expertInfoLauncher = rightSurfaceLauncherByKind.get("expertInfo");
-  const shellLauncher = rightSurfaceLauncherByKind.get("shell");
-  const harnessLauncher = rightSurfaceLauncherByKind.get("harness");
-  const filesLauncher = rightSurfaceLauncherByKind.get("files");
-  const browserLauncher = rightSurfaceLauncherByKind.get("browser");
-  const traceLauncher = rightSurfaceLauncherByKind.get("trace");
-  const shouldRenderFilesToggle =
-    Boolean(onToggleFilesPanel) &&
-    Boolean(filesLauncher) &&
-    (!filesLauncher?.disabled ||
-      Boolean(filesLauncher?.active) ||
-      (filesLauncher?.pendingCount ?? 0) > 0);
-  const shouldRenderTraceToggle =
-    Boolean(onToggleTracePanel) &&
-    Boolean(traceLauncher) &&
-    (!traceLauncher?.disabled ||
-      Boolean(traceLauncher?.active) ||
-      (traceLauncher?.pendingCount ?? 0) > 0);
-  const shouldRenderBrowserToggle =
-    Boolean(onToggleBrowserPanel) &&
-    Boolean(browserLauncher) &&
-    (!browserLauncher?.disabled ||
-      Boolean(browserLauncher?.active) ||
-      (browserLauncher?.pendingCount ?? 0) > 0);
-  const shouldRenderPanelToolGroup =
-    shouldRenderHarnessToggle ||
-    showExpertInfoToggle ||
-    showCanvasToggle ||
-    shouldRenderTraceToggle ||
-    shouldRenderBrowserToggle ||
-    shouldRenderFilesToggle;
-  const effectiveCanvasOpen = workbenchLauncher?.active ?? isCanvasOpen;
-  const workbenchPendingCount = workbenchLauncher?.pendingCount ?? 0;
-  const effectiveShellPanelOpen = shellLauncher?.active ?? shellPanelOpen;
-  const shellPendingCount = shellLauncher?.pendingCount ?? 0;
-  const effectiveFilesPanelOpen = Boolean(filesLauncher?.active);
-  const filesPendingCount = filesLauncher?.pendingCount ?? 0;
-  const effectiveBrowserPanelOpen = Boolean(browserLauncher?.active);
-  const browserPendingCount = browserLauncher?.pendingCount ?? 0;
-  const effectiveTracePanelOpen = traceLauncher?.active ?? false;
-  const tracePendingCount = traceLauncher?.pendingCount ?? 0;
-  const effectiveExpertInfoPanelVisible =
-    expertInfoLauncher?.active ?? expertInfoPanelVisible;
-  const expertInfoPendingCount = expertInfoLauncher?.pendingCount ?? 0;
-  const effectiveHarnessPanelVisible =
-    harnessPanelVisible || Boolean(harnessLauncher?.active);
-  const effectiveHarnessPendingCount = Math.max(
-    harnessPendingCount,
-    harnessLauncher?.pendingCount ?? 0,
-  );
-  const expertInfoToggleLabel = agentText(
-    effectiveExpertInfoPanelVisible
-      ? "agentChat.navbar.closeExpertInfo"
-      : "agentChat.navbar.openExpertInfo",
-    effectiveExpertInfoPanelVisible ? "关闭专家信息" : "打开专家信息",
-  );
+  const toolGroupClassName = cn(taskCenterToolGroupClassName, "flex-nowrap");
 
   const handleOpenLocalLocation = React.useCallback(async () => {
     if (!normalizedProjectRootPath) {
@@ -333,7 +215,7 @@ export function TaskCenterUtilityToolbar({
     }
 
     try {
-      await openProjectPathWithTool(normalizedProjectRootPath, "finder");
+      await revealPathInFinder(normalizedProjectRootPath);
     } catch (openError) {
       toast.error(
         agentText(
@@ -491,7 +373,7 @@ export function TaskCenterUtilityToolbar({
         "ml-auto flex min-w-0 items-center justify-end gap-x-2 gap-y-1 overflow-visible",
         isWorkbenchHeaderPlacement
           ? "min-h-8 shrink-0 flex-nowrap"
-          : "min-h-9 shrink flex-wrap pb-1",
+          : "min-h-9 shrink-0 flex-nowrap",
       )}
       data-testid="task-center-utility-toolbar"
       data-placement={placement}
@@ -614,246 +496,7 @@ export function TaskCenterUtilityToolbar({
         </Popover>
       </div>
 
-      {shouldRenderPanelToolGroup ? (
-        <div
-          className={toolGroupClassName}
-          data-testid="task-center-tool-group-panels"
-        >
-          {shouldRenderHarnessToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                taskCenterIconOnlyButtonClassName,
-                "relative",
-                effectiveHarnessPanelVisible &&
-                  "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-                harnessAttentionLevel === "warning" &&
-                  !effectiveHarnessPanelVisible &&
-                  "bg-[color:var(--lime-warning-soft)] text-[color:var(--lime-warning)] hover:bg-[color:var(--lime-warning-soft)] hover:text-[color:var(--lime-warning)]",
-              )}
-              disabled={harnessLauncher?.disabled}
-              onClick={onToggleHarnessPanel}
-              aria-label={
-                effectiveHarnessPanelVisible
-                  ? agentText(
-                      "agentChat.navbar.closeHarness",
-                      "关闭{{label}}",
-                      {
-                        label: harnessToggleLabel,
-                      },
-                    )
-                  : agentText("agentChat.navbar.openHarness", "打开{{label}}", {
-                      label: harnessToggleLabel,
-                    })
-              }
-              aria-expanded={effectiveHarnessPanelVisible}
-              title={harnessToggleLabel}
-              data-testid="task-center-harness-toggle"
-            >
-              <Code2 className="h-4 w-4" />
-              {effectiveHarnessPendingCount > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                  {effectiveHarnessPendingCount > 99
-                    ? "99+"
-                    : effectiveHarnessPendingCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
-          {showExpertInfoToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                taskCenterIconOnlyButtonClassName,
-                "relative",
-                effectiveExpertInfoPanelVisible &&
-                  "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-              )}
-              disabled={expertInfoLauncher?.disabled}
-              onClick={onToggleExpertInfoPanel}
-              aria-label={expertInfoToggleLabel}
-              aria-expanded={effectiveExpertInfoPanelVisible}
-              title={expertInfoToggleLabel}
-              data-testid="task-center-expert-info-toggle"
-            >
-              <UserRound className="h-4 w-4" />
-              {expertInfoPendingCount > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                  {expertInfoPendingCount > 99 ? "99+" : expertInfoPendingCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
-          {shouldRenderBrowserToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                taskCenterIconOnlyButtonClassName,
-                "relative",
-                effectiveBrowserPanelOpen &&
-                  "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-              )}
-              disabled={browserLauncher?.disabled}
-              onClick={onToggleBrowserPanel}
-              aria-label={agentText(
-                effectiveBrowserPanelOpen
-                  ? "agentChat.navbar.closeBrowser"
-                  : "agentChat.navbar.openBrowser",
-                effectiveBrowserPanelOpen ? "关闭浏览器" : "打开浏览器",
-              )}
-              aria-expanded={effectiveBrowserPanelOpen}
-              title={agentText("agentChat.navbar.browser", "浏览器")}
-              data-testid="task-center-browser-toggle"
-            >
-              <Globe2 className="h-4 w-4" />
-              {browserPendingCount > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                  {browserPendingCount > 99 ? "99+" : browserPendingCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
-          {shouldRenderTraceToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                taskCenterIconOnlyButtonClassName,
-                "relative",
-                effectiveTracePanelOpen &&
-                  "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-              )}
-              disabled={traceLauncher?.disabled}
-              onClick={onToggleTracePanel}
-              aria-label={agentText(
-                effectiveTracePanelOpen
-                  ? "agentChat.navbar.closeTrace"
-                  : "agentChat.navbar.openTrace",
-                effectiveTracePanelOpen ? "关闭 Trace" : "打开 Trace",
-              )}
-              aria-expanded={effectiveTracePanelOpen}
-              title={agentText("agentChat.navbar.trace", "Trace")}
-              data-testid="task-center-trace-toggle"
-            >
-              <PanelRight className="h-4 w-4" />
-              {tracePendingCount > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                  {tracePendingCount > 99 ? "99+" : tracePendingCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
-          {shouldRenderFilesToggle ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                taskCenterIconOnlyButtonClassName,
-                "relative",
-                effectiveFilesPanelOpen &&
-                  "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-              )}
-              disabled={filesLauncher?.disabled}
-              onClick={onToggleFilesPanel}
-              aria-label={agentText(
-                "agentChat.fileChangesSummary.openFile",
-                "打开文件",
-              )}
-              aria-expanded={effectiveFilesPanelOpen}
-              title={agentText("agentChat.canvasWorkbench.tabs.files", "文件")}
-              data-testid="task-center-files-toggle"
-            >
-              <FileText className="h-4 w-4" />
-              {filesPendingCount > 0 ? (
-                <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                  {filesPendingCount > 99 ? "99+" : filesPendingCount}
-                </span>
-              ) : null}
-            </Button>
-          ) : null}
-
-          {showCanvasToggle ? (
-            <>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  taskCenterIconOnlyButtonClassName,
-                  "relative",
-                  effectiveShellPanelOpen &&
-                    "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-                )}
-                disabled={shellLauncher?.disabled ?? !normalizedProjectRootPath}
-                aria-label={agentText(
-                  "agentChat.navbar.openShell",
-                  "打开 Shell",
-                )}
-                aria-expanded={effectiveShellPanelOpen}
-                title={agentText("agentChat.navbar.openShell", "打开 Shell")}
-                data-testid="task-center-shell-toggle"
-                onClick={onToggleShellPanel}
-              >
-                <SquareTerminal className="h-4 w-4" />
-                {shellPendingCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                    {shellPendingCount > 99 ? "99+" : shellPendingCount}
-                  </span>
-                ) : null}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  taskCenterIconOnlyButtonClassName,
-                  "relative",
-                  effectiveCanvasOpen &&
-                    "bg-[color:var(--lime-chrome-tab-active-surface)] text-[color:var(--lime-text)]",
-                )}
-                disabled={workbenchLauncher?.disabled}
-                onClick={onToggleCanvas}
-                aria-label={agentText(
-                  effectiveCanvasOpen
-                    ? "agentChat.navbar.closeWorkbench"
-                    : "agentChat.navbar.openWorkbench",
-                  effectiveCanvasOpen ? "关闭工作台" : "打开工作台",
-                )}
-                title={agentText(
-                  effectiveCanvasOpen
-                    ? "agentChat.navbar.closeWorkbench"
-                    : "agentChat.navbar.openWorkbench",
-                  effectiveCanvasOpen ? "关闭工作台" : "打开工作台",
-                )}
-                data-testid="task-center-workbench-toggle"
-              >
-                {effectiveCanvasOpen ? (
-                  <PanelRightClose className="h-4 w-4" />
-                ) : (
-                  <PanelRightOpen className="h-4 w-4" />
-                )}
-                {workbenchPendingCount > 0 ? (
-                  <span className="absolute -right-1 -top-1 rounded-full border border-[color:var(--lime-surface-border-strong)] bg-[color:var(--lime-surface)] px-1 text-[9px] font-medium leading-4 text-[color:var(--lime-brand-strong)]">
-                    {workbenchPendingCount > 99 ? "99+" : workbenchPendingCount}
-                  </span>
-                ) : null}
-              </Button>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+      {sidePanelLauncher}
     </div>
   );
 }

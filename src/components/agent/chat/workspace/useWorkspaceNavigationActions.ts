@@ -134,6 +134,12 @@ export function useWorkspaceNavigationActions({
     workspacePathMissing,
   ]);
 
+  const handleOpenPluginDirectory = useCallback(() => {
+    onNavigate?.("plugins", {
+      ...(projectId ? { currentProjectId: projectId } : {}),
+    });
+  }, [onNavigate, projectId]);
+
   const handleOpenAppearanceSettings = useCallback(() => {
     onNavigate?.("settings", {
       tab: SettingsTabs.Appearance,
@@ -195,6 +201,7 @@ export function useWorkspaceNavigationActions({
     handleOpenKnowledgeManagement,
     handleOpenRuntimeMemoryWorkbench,
     handleOpenAppearanceSettings,
+    handleOpenPluginDirectory: onNavigate ? handleOpenPluginDirectory : undefined,
     handleProjectChange,
     handleWorkspaceAlertSelectDirectory,
   };

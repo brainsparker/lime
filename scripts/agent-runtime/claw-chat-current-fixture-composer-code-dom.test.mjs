@@ -5,7 +5,7 @@ let host;
 function mount() {
   host = document.createElement("div");
   host.innerHTML =
-    '<div data-testid="composer-editor" role="textbox" data-session-id="modern-history" contenteditable="true"><p>前 <span text-link-href="https://example.invalid/marks" text-link-title="标题" role="link" aria-disabled="false">中😀</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto JavaScript</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">\'中😀\'</span>;\n````\n\n</code></pre></div><p><span data-composer-token="paste" data-composer-id="paste-1" contenteditable="false">[Pasted text]</span> <span data-composer-token="skill" data-composer-id="user:capability-report" data-composer-name="capability-report" data-composer-path="/fixture/SKILL.md" contenteditable="false">/user:capability-report</span> 尾 </p></div>';
+    '<div data-testid="composer-editor" role="textbox" data-session-id="modern-history" contenteditable="true"><p>前 <span text-link-href="https://example.invalid/marks" text-link-title="标题" role="link" aria-disabled="false">中😀</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto JavaScript</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">\'中😀\'</span>;\n````\n\n</code></pre></div><p><span data-composer-token="paste" data-composer-id="paste-1" contenteditable="false">[Pasted text]</span> <span data-composer-token="skill" data-composer-label="$capability-report" data-composer-display-name="Capability Report" data-composer-id="user:capability-report" data-composer-name="capability-report" data-composer-path="/fixture/SKILL.md" contenteditable="false">Capability Report</span> 尾 </p></div>';
   document.body.append(host);
   const editor = host.firstChild;
   vi.spyOn(editor, "getClientRects").mockReturnValue([{}]);
@@ -25,7 +25,7 @@ describe("modern code history document projection", () => {
     const editor = mount();
     const before = await read();
     expect(before.text).toBe(
-      `前 中😀\n${BODY}\n[Pasted text] /user:capability-report 尾 `,
+      `前 中😀\n${BODY}\n[Pasted text] $capability-report 尾 `,
     );
     expect(before.documentProjection[1]).toEqual({
       type: "code_block",
@@ -83,7 +83,11 @@ describe("modern code history document projection", () => {
     if (mode === "lost-paste")
       editor.querySelector('[data-composer-token="paste"]').remove();
     if (mode === "lost-skill")
-      editor.querySelector('[data-composer-token="skill"]').remove();
+      editor
+        .querySelector(
+          '[data-composer-token="skill"]',
+        )
+        .remove();
     if (mode === "link-href")
       editor
         .querySelector("[text-link-href]")

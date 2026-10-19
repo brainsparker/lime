@@ -47,6 +47,9 @@ mod gemini;
 #[cfg(test)]
 mod gemini_tests;
 mod health;
+mod history;
+#[cfg(test)]
+mod history_tests;
 #[cfg(test)]
 mod hosted_web_search_tests;
 mod lowering;
@@ -57,6 +60,7 @@ mod request_capture_tests;
 mod stream;
 #[cfg(test)]
 mod stream_tests;
+mod tool_arguments;
 mod transport;
 #[cfg(test)]
 mod vertex_gemini_tests;
@@ -373,6 +377,7 @@ fn canonical_content(
             id: call.id.clone(),
             name: call.name.clone(),
             input: call.arguments.clone(),
+            raw_arguments: Some(call.raw_arguments.clone()),
             provider_executed: None,
             metadata: call.provider_metadata.clone(),
         }),
@@ -422,10 +427,13 @@ fn canonical_content(
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CurrentProviderMessage {
     pub role: CurrentProviderRole,
     pub content: Vec<CurrentProviderContent>,
+    /// Host-only route fingerprint; never lowered into provider wire or GUI Items.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub producer: Option<String>,
 }
 
 impl CurrentProviderMessage {
@@ -433,6 +441,7 @@ impl CurrentProviderMessage {
         Self {
             role: CurrentProviderRole::User,
             content,
+            producer: None,
         }
     }
 
@@ -440,6 +449,7 @@ impl CurrentProviderMessage {
         Self {
             role: CurrentProviderRole::Assistant,
             content,
+            producer: None,
         }
     }
 
@@ -447,6 +457,7 @@ impl CurrentProviderMessage {
         Self {
             role: CurrentProviderRole::Developer,
             content,
+            producer: None,
         }
     }
 
@@ -454,6 +465,7 @@ impl CurrentProviderMessage {
         Self {
             role: CurrentProviderRole::Tool,
             content,
+            producer: None,
         }
     }
 
@@ -462,7 +474,7 @@ impl CurrentProviderMessage {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum CurrentProviderRole {
     User,
     Developer,
@@ -470,7 +482,7 @@ pub enum CurrentProviderRole {
     Tool,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum CurrentProviderContent {
     Text(String),
     Reasoning(String),
@@ -487,7 +499,7 @@ pub enum CurrentProviderContent {
     RawResponseItem(Value),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CurrentProviderToolCall {
     pub id: String,
     pub name: String,
@@ -496,7 +508,7 @@ pub struct CurrentProviderToolCall {
     pub provider_metadata: ProviderMetadata,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CurrentProviderCustomToolCall {
     pub id: String,
     pub name: String,
@@ -534,7 +546,7 @@ impl CurrentProviderToolCall {
             .unwrap_or_else(|_| Value::String(raw_arguments.clone()));
         Self {
             id,
-            name: name.trim().to_string(),
+            name,
             arguments,
             raw_arguments,
             provider_metadata: ProviderMetadata::new(),
@@ -547,7 +559,7 @@ impl CurrentProviderToolCall {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CurrentProviderToolResult {
     /// Originating history budget, including allowance; never serialized to provider wire.
     pub history_token_limit: Option<usize>,
@@ -797,6 +809,7 @@ impl CurrentProviderClient {
     ) -> Result<CurrentProviderStream, CurrentProviderError> {
         let protocol = self.protocol()?;
         ensure_supported_protocol(&protocol)?;
+        let request = history::prepare_request(request, &self.config)?;
         if request.contains_raw_response_items()
             && !matches!(protocol, ModelProviderProtocol::Responses)
         {
@@ -928,11 +941,15 @@ impl CurrentProviderClient {
         permit: CircuitPermit,
     ) -> CurrentProviderStream {
         let requested_model = self.config.model_name.clone();
+        let producer = health::history_producer(&self.config);
         let trust_server_model = self.trusts_openai_response_metadata();
         Box::pin(stream! {
             let mut permit = Some(permit);
             let mut model_reroute_emitted = false;
-            while let Some(item) = futures::StreamExt::next(&mut stream).await {
+            while let Some(mut item) = futures::StreamExt::next(&mut stream).await {
+                if let Ok(CanonicalLlmEvent::ResponseItemDone { producer: origin, .. }) = &mut item {
+                    *origin = Some(producer.clone());
+                }
                 match &item {
                     Ok(CanonicalLlmEvent::Finish { .. }) => {
                         if let Some(mut permit) = permit.take() {
@@ -1862,7 +1879,7 @@ mod tests {
     };
     use tokio_tungstenite::tungstenite::Message;
 
-    fn config(protocol: Option<RuntimeProviderProtocol>) -> RuntimeProviderConfig {
+    pub(super) fn config(protocol: Option<RuntimeProviderProtocol>) -> RuntimeProviderConfig {
         RuntimeProviderConfig {
             provider_name: "openai".to_string(),
             provider_selector: Some("openai".to_string()),
@@ -2420,7 +2437,7 @@ mod tests {
             .expect("tool call envelope")
             .expect("tool call");
 
-        assert_eq!(call.name, "");
+        assert_eq!(call.name, item["name"].as_str().unwrap());
         assert_eq!(call.arguments, json!({}));
     }
 
@@ -3397,6 +3414,7 @@ mod tests {
             Box::pin(futures::stream::iter([Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             })])),
             success_client.health.acquire().expect("success permit"),
@@ -3460,6 +3478,7 @@ mod tests {
                 Ok(CanonicalLlmEvent::Finish {
                     reason: FinishReason::Stop,
                     usage: None,
+                    needs_follow_up: false,
                     response_id: None,
                 }),
             ])),
@@ -3508,6 +3527,7 @@ mod tests {
                     Ok(CanonicalLlmEvent::Finish {
                         reason: FinishReason::Stop,
                         usage: None,
+                        needs_follow_up: false,
                         response_id: None,
                     }),
                 ])),

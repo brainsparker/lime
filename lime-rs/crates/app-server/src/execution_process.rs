@@ -279,7 +279,7 @@ impl ExecutionProcessServer {
         let background = thread_scope.map(|(thread_id, display_command)| BackgroundTerminalEntry {
             thread_id: thread_id.to_string(),
             public_process_id: 0,
-            item_id: request.tool_id.clone(),
+            item_id: agent_protocol::ItemId::new(request.tool_id.clone()).to_string(),
             command: display_command.trim().to_string(),
             cwd: working_directory.to_string_lossy().to_string(),
             listed: true,
@@ -435,7 +435,7 @@ impl ExecutionProcessServer {
         let background = thread_scope.map(|(thread_id, display_command)| BackgroundTerminalEntry {
             thread_id: thread_id.to_string(),
             public_process_id: 0,
-            item_id: request.tool_id.clone(),
+            item_id: agent_protocol::ItemId::new(request.tool_id.clone()).to_string(),
             command: display_command.trim().to_string(),
             cwd: request.working_directory.to_string_lossy().to_string(),
             listed: true,
@@ -534,7 +534,7 @@ impl ExecutionProcessServer {
     ) -> Result<bool, ExecutionProcessError> {
         let process = {
             let mut state = self.inner.lock().map_err(|_| ExecutionProcessError::Lock)?;
-            let Some((process_id, entry)) = state.processes.iter_mut().find(|(_, entry)| {
+            let Some(entry) = state.processes.values_mut().find(|entry| {
                 entry.background.as_ref().is_some_and(|background| {
                     background.thread_id == thread_id
                         && background.public_process_id == public_process_id
@@ -548,21 +548,19 @@ impl ExecutionProcessServer {
             };
             background.listed = false;
             (
-                process_id.clone(),
                 entry.handle.as_ref().and_then(|handle| {
                     (!handle.status().status.is_terminal()).then(|| handle.clone())
                 }),
                 entry.remote_control.clone(),
             )
         };
-        tool_runtime::unified_exec::forget_process_session(&process.0);
-        if let Some(control) = process.2 {
+        if let Some(control) = process.1 {
             return Ok(control
                 .commands
                 .send(RemoteProcessCommand::Terminate)
                 .is_ok());
         }
-        let Some(handle) = process.1 else {
+        let Some(handle) = process.0 else {
             return Ok(false);
         };
         Ok(handle.terminate().is_ok())
@@ -573,15 +571,14 @@ impl ExecutionProcessServer {
             let mut state = self.inner.lock().map_err(|_| ExecutionProcessError::Lock)?;
             state
                 .processes
-                .iter_mut()
-                .filter_map(|(process_id, entry)| {
+                .values_mut()
+                .filter_map(|entry| {
                     let background = entry.background.as_mut()?;
                     if background.thread_id != thread_id || !background.listed {
                         return None;
                     }
                     background.listed = false;
                     Some((
-                        process_id.clone(),
                         entry.handle.as_ref().and_then(|handle| {
                             (!handle.status().status.is_terminal()).then(|| handle.clone())
                         }),
@@ -590,8 +587,7 @@ impl ExecutionProcessServer {
                 })
                 .collect::<Vec<_>>()
         };
-        for (process_id, handle, remote_control) in processes {
-            tool_runtime::unified_exec::forget_process_session(&process_id);
+        for (handle, remote_control) in processes {
             if let Some(control) = remote_control {
                 let _ = control.commands.send(RemoteProcessCommand::Terminate);
             }
@@ -943,48 +939,6 @@ pub(crate) fn runtime_windows_sandbox_mode(
         "unelevated" => Some(WindowsSandboxExecutionMode::Unelevated),
         _ => None,
     }
-}
-
-pub(crate) fn decide_command_execution(
-    command: &[String],
-    working_directory: &Path,
-    sandbox_policy: Option<&str>,
-) -> Result<(bool, Option<tool_runtime::sandbox::SandboxBackend>), String> {
-    let command_text = shell_command_text_from_argv(command);
-    let request_metadata = sandbox_policy.map(|_| {
-        json!({
-            "workspaceSandbox": {
-                "enabled": true,
-                "strict": true,
-                "notifyOnFallback": false,
-            }
-        })
-    });
-    let decision = decide_tool_execution(
-        ToolExecutionDecisionInput {
-            tool_name: tool_runtime::unified_exec::EXEC_COMMAND_TOOL_NAME,
-            params: &json!({ "command": command_text }),
-            working_directory,
-            surface: "command_exec",
-            auto_mode: false,
-            bypass_restrictions: false,
-            approval_policy: None,
-            requested_sandbox_policy: sandbox_policy,
-            resolver_input: ToolExecutionResolverInput {
-                persisted_policy: None,
-                request_metadata: request_metadata.as_ref(),
-            },
-        },
-        app_server_tool_execution_policy_options(),
-    );
-    if !decision.allowed() {
-        return Err(format!("{}: {}", decision.reason_code, decision.reason));
-    }
-    validate_shell_execution_process_command(command, working_directory, None, sandbox_policy)?;
-    Ok((
-        decision.workspace_sandbox_backend_enforced(),
-        decision.sandbox_backend(),
-    ))
 }
 
 impl LiveExecutionProcessRegistry for ExecutionProcessServer {

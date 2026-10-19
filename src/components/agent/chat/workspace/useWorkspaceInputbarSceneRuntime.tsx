@@ -41,7 +41,7 @@ import {
 import { buildTurnInput } from "../utils/buildUserInputSubmitOp";
 import { addThreadQueue } from "@/lib/api/agentRuntime/threadQueueActions";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
-import type { CuratedTaskReferenceEntry } from "../utils/curatedTaskReferenceSelection";
+
 import { useWorkspaceKnowledgeRuntime } from "./knowledge/useWorkspaceKnowledgeRuntime";
 import { selectPendingInputbarApprovalAction } from "./inputbarApprovalAction";
 import {
@@ -57,7 +57,6 @@ type NavigationActions = ReturnType<typeof useWorkspaceNavigationActions>;
 
 interface UseWorkspaceInputbarSceneRuntimeParams {
   contextVariant?: "default" | "task-center";
-  setMentionedCharacters: InputbarScenePresentationParams["setMentionedCharacters"];
   taskFiles?: InputbarScenePresentationParams["taskFiles"];
   selectedFileId?: InputbarScenePresentationParams["selectedFileId"];
   isThemeWorkbench: InputbarScenePresentationParams["isThemeWorkbench"];
@@ -105,12 +104,8 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
     | "handleOpenRuntimeMemoryWorkbench"
     | "handleOpenKnowledgeManagement"
   >;
-  characters: InputbarParams["characters"];
   skills: InputbarParams["skills"];
-  serviceSkills: InputbarParams["serviceSkills"];
-  serviceSkillGroups: InputbarParams["serviceSkillGroups"];
   skillsLoading: InputbarParams["isSkillsLoading"];
-  onSelectServiceSkill: InputbarParams["onSelectServiceSkill"];
   onSkillSuggestionsNeeded?: InputbarParams["onSkillSuggestionsNeeded"];
   initialInputCapability?: AgentInitialInputCapabilityParams;
   initialKnowledgePackSelection?: AgentInitialKnowledgePackSelectionParams;
@@ -121,8 +116,6 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   setChatToolPreferences: Dispatch<SetStateAction<ChatToolPreferences>>;
   objectiveEnabled?: boolean;
   onObjectiveEnabledChange?: (enabled: boolean) => void;
-  handleNavigateToSkillSettings: InputbarParams["onNavigateToSettings"];
-  handleRefreshSkills: InputbarParams["onRefreshSkills"];
   soulArtifactVoiceGenerationBrief?: Record<string, unknown> | null;
   soulArtifactVoiceEnabledForTurn: boolean;
   onSoulArtifactVoiceEnabledForTurnChange: (enabled: boolean) => void;
@@ -137,22 +130,16 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   mappedTheme: GeneralWorkbenchDialogParams["activeTheme"];
   activeRuntimeStatusTitle: GeneralWorkbenchDialogParams["runtimeStatusTitle"];
   chatToolPreferences?: ChatToolPreferences;
-  defaultCuratedTaskReferenceMemoryIds?: string[];
-  defaultCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
   pathReferences: InputbarParams["pathReferences"];
   onAddPathReferences: InputbarParams["onAddPathReferences"];
   inputRestoreRequest?: InputbarParams["inputRestoreRequest"];
   onInputRestoreRequestHandled?: InputbarParams["onInputRestoreRequestHandled"];
   onRemovePathReference: InputbarParams["onRemovePathReference"];
   onClearPathReferences: InputbarParams["onClearPathReferences"];
-  fileManagerOpen: InputbarParams["fileManagerOpen"];
-  onToggleFileManager: InputbarParams["onToggleFileManager"];
-  inputCompletionEnabled?: boolean;
 }
 
 export function useWorkspaceInputbarSceneRuntime({
   contextVariant = "default",
-  setMentionedCharacters,
   isThemeWorkbench,
   sessionId,
   threadId,
@@ -192,12 +179,8 @@ export function useWorkspaceInputbarSceneRuntime({
   setAccessMode,
   activeTheme,
   navigationActions,
-  characters,
   skills,
-  serviceSkills,
-  serviceSkillGroups,
   skillsLoading,
-  onSelectServiceSkill,
   onSkillSuggestionsNeeded,
   initialInputCapability,
   initialKnowledgePackSelection,
@@ -208,8 +191,6 @@ export function useWorkspaceInputbarSceneRuntime({
   setChatToolPreferences,
   objectiveEnabled = false,
   onObjectiveEnabledChange,
-  handleNavigateToSkillSettings,
-  handleRefreshSkills,
   soulArtifactVoiceGenerationBrief,
   soulArtifactVoiceEnabledForTurn,
   onSoulArtifactVoiceEnabledForTurnChange,
@@ -224,17 +205,12 @@ export function useWorkspaceInputbarSceneRuntime({
   mappedTheme,
   activeRuntimeStatusTitle,
   chatToolPreferences,
-  defaultCuratedTaskReferenceMemoryIds = [],
-  defaultCuratedTaskReferenceEntries = [],
   pathReferences,
   onAddPathReferences,
   inputRestoreRequest,
   onInputRestoreRequestHandled,
   onRemovePathReference,
   onClearPathReferences,
-  fileManagerOpen,
-  onToggleFileManager,
-  inputCompletionEnabled = true,
 }: UseWorkspaceInputbarSceneRuntimeParams) {
   const { t } = useTranslation("agent");
   const {
@@ -432,7 +408,6 @@ export function useWorkspaceInputbarSceneRuntime({
     ) : null;
 
   const presentationRuntime = useWorkspaceInputbarScenePresentationRuntime({
-    setMentionedCharacters,
     isThemeWorkbench,
     inputbarPresentation: {
       inputbar: {
@@ -456,15 +431,6 @@ export function useWorkspaceInputbarSceneRuntime({
         onSend: handleInputbarSend,
         onStop: handleStopSending,
         isLoading: isSending,
-        knowledgePackSelection: knowledgeRuntime.knowledgePackSelection,
-        knowledgePackOptions: knowledgeRuntime.knowledgePackOptions,
-        onKnowledgePacksNeeded: knowledgeRuntime.onKnowledgePacksNeeded,
-        onToggleKnowledgePack: knowledgeRuntime.onToggleKnowledgePack,
-        onSelectKnowledgePack: knowledgeRuntime.onSelectKnowledgePack,
-        onToggleKnowledgeCompanionPack:
-          knowledgeRuntime.onToggleKnowledgeCompanionPack,
-        onStartKnowledgeOrganize: knowledgeRuntime.onStartKnowledgeOrganize,
-        onManageKnowledgePacks: knowledgeRuntime.onManageKnowledgePacks,
         providerType,
         setProviderType,
         model,
@@ -485,12 +451,8 @@ export function useWorkspaceInputbarSceneRuntime({
         disabledPlaceholder: directInputBlocked
           ? t("agentChat.inputbar.parentOwned.placeholder")
           : undefined,
-        characters,
         skills,
-        serviceSkills,
-        serviceSkillGroups,
         isSkillsLoading: skillsLoading,
-        onSelectServiceSkill,
         onSkillSuggestionsNeeded,
         initialInputCapability,
         pluginSuggestions,
@@ -503,10 +465,6 @@ export function useWorkspaceInputbarSceneRuntime({
           subagent: resolvedChatToolPreferences.subagent,
         },
         onToolStatesChange: handleInputbarToolStatesChange,
-        onNavigateToSettings: handleNavigateToSkillSettings,
-        onRefreshSkills: handleRefreshSkills,
-        defaultCuratedTaskReferenceMemoryIds,
-        defaultCuratedTaskReferenceEntries,
         pathReferences,
         onAddPathReferences,
         inputRestoreRequest,
@@ -515,9 +473,6 @@ export function useWorkspaceInputbarSceneRuntime({
           knowledgeRuntime.onImportPathReferenceAsKnowledge,
         onRemovePathReference,
         onClearPathReferences,
-        fileManagerOpen,
-        onToggleFileManager,
-        inputCompletionEnabled,
       },
       generalWorkbenchEntryPrompt,
       onRestartGeneralWorkbenchEntryPrompt:

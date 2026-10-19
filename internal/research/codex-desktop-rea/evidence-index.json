@@ -9820,11 +9820,11 @@
     "dividerReferenceParent": "ev_52abf6e068fc01327c50e66fda539aa7fa2fdabf8c2fea6d1b10c0ff0e249e8d",
     "contentActionsReferenceParent": "ev_49bea57855d965288e00b11fca6edef2c1735647c6f93f5b78f8a34e26fd413e",
     "dividerSuccessor": "Single layout owner enforces10px steps, content-pane Home/End,320px minima, anchored pointer identity and default-size reset. Candidate3 and5 real Electron gates passed. Candidate5 removes per-surface minimum override API,94 related tests and strict lint passed.",
-    "verification": "Candidate2 actual failed focus terminal and317 artifacts retained. Candidate3 six gates passed with9462 source files,429 artifacts and normal Main exits; candidate4 only tightens settled screenshots, same product bytes. Candidate5 frozen11-input min-width successor passed full types/build/GUI24/header/right matrix32/Activity28,9462-source drift0,541 recorded artifacts. Candidate6 has4 exact toolbar/capture successors,28 tests/lint passed; full native/build terminal pending. Parallel root backend excluded.",
+    "verification": "Candidate2 actual failed focus terminal and317 artifacts retained. Candidates3/4/5/6 passed their frozen scoped gates; candidate6 has28 toolbar regressions/full types/build/GUI24/native gates. Candidate9 includes Files container60% sizing, passes full types/359 regressions/lint/Host types/fresh renderer/GUI24/header/right matrix32 but fails Summary evidence. Candidate10 retains failed async-predicate evidence. Candidate11 fixture-only successor passes Summary29 and3 independent normal Main restarts; same product bytes/9470 frozen inputs/drift0/317 artifacts. Limited root audit100 declared GUI/Host/fixture inputs matches candidate, excluding parallel root backend. Whole GUI remains partial.",
     "limits": "Local mainPaneEnd/sidePanelActive are display adaptations. Complete reference route transition context, divider action slot, content/new-tab/context-menu contracts remain open. New REA parents retain959 and662 semantic unknowns; no runtime or original TypeScript-name claim. No whole-GUI, reference runtime, live, Windows or packaged parity claim.",
     "focusProbe": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-focus-probe-2.json",
     "threadSummaryReferenceParent": "ev_83011e06d28ca110820a1e0688adad13ed10e33e02d79255c483c7bd7f71c632",
-    "threadSummaryGap": "Existing Summary delegates to Activity and remains unequal. Exact layout611bytes retains19 semantic unknowns;14 complete section functions18040bytes retain1191. Pin/overlay/shift/gutter and conditionally populated sections require canonical projection and real Main persistence; existing typed atom key only supports composer drafts. Imported output/identity owners and runtime flags unresolved. No summary product migration in candidates3-6.",
+    "threadSummaryGap": "Historical candidates3-6 delegated Summary to Activity. The successor physically deletes Activity and wires independent canonical Summary layout/projection with Main pin through the same Host file and typed persisted-atom gateway. Candidate9 passed full types/359 regressions/lint/Host types/renderer/GUI/header/right-surface; Summary observation failed. Candidate10 exposed async-predicate polling; candidate11 reuses identical product bytes, corrects evidence capture with the existing async-aware helper, passes Summary29 and three independent normal Main restarts, and freezes9470 source files with zero drift/317 artifacts. Current sections: latest plan, file_artifact outputs, canonical children, actual web_search results. Subscriptions/Created tasks/Side chats/PR/Chrome/Computer Use/deep output identity/projectless empty Sources remain gaps. Static layout/section unknowns and absent reference runtime remain unresolved.",
     "threadSummaryLayoutReferenceParent": "ev_e457dea934ddb45739ab0ef92d51716a575f57c193c1567b5e2b99fdad9e4068",
     "threadSummarySectionsReferenceParent": "ev_2da75de405e3fc5e7a9ae8b81d33f98e878609083d0c54db939ba7838e11fa8b",
     "portableEvidence": [
@@ -9839,6 +9839,18 @@
       "observations": 8,
       "scope": "Isolated component renderer only; no product IPC/App Server or reference runtime. Source matches candidate6 freeze."
     },
+    "candidate11_final": {
+      "status": "passed-scoped-successor",
+      "receipt": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-11.json",
+      "artifact_manifest": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-11.json",
+      "artifact_manifest_sha256": "e7da3d9bec2ff69d7d1f6e870510854705798378ab1ec596283549282afcf8ce",
+      "root_gui_audit": "../../exec-plans/artifacts/codex-shared-page-header-20261018/unified-root-final11-gui-audit.json",
+      "root_scope_files": 100,
+      "overall_gui": "partial",
+      "limits": "Same candidate9 product artifacts; fixture-only corrected async Main observation. Not whole-root or complete reference equivalence."
+    },
+    "headerLauncherReferenceParent": "ev_711fef79660733ea60f13c15c73f7d1b83ecb24a6c1c6a626c6ccd2b23097ac7",
+    "headerNewTabReferenceParent": "ev_b035fa067bc31b0a8eff82e1f634d0efaa1340a231383d3671351d4dd009c4b7",
     "candidate6_final": {
       "status": "passed",
       "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-6.json",
@@ -9848,5 +9860,1325 @@
       "reviewed_screenshots": 12,
       "overall_gui": "partial"
     }
+  },
+  "current_thread_side_panel_new_tab_20261019": {
+    "status": "active-partial",
+    "contract": "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/thread-side-panel-contract.md",
+    "filesParent": "ev_19d8d6af9b70bdf341eccf231bfbfde070953ba48d860576b92c1f65f836e101",
+    "filesSummary": "ev_37fb162cfd1856f7b69ab977961415ccccfb1ac332df1779dbeec1e249f26818",
+    "portableBundle": "../../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/files-browser-rea-bundle.json.gz",
+    "boundary": "Static shipped-artifact evidence; flags/reference runtime unknown. Successor product validation remains separate from passed candidate12.",
+    "fileTabIdentityParent": "ev_a7bc6018311a1dabb3734e575d7e9af113a75410c59fd9066ab82f7f56d2a35e",
+    "fileTabIdentitySummary": "ev_3eb791abfaa3d098e15907cd22face1bb11d90a4cb991ce45d70ca770927968d",
+    "confirmedFileOpenExport": "openWorkspaceFile",
+    "candidate13": "failed; native fixture input missing, then candidate sources/artifacts disappeared before freeze",
+    "candidate14": "not-run/superseded",
+    "candidate15": "passed scoped frozen build/types/risk/lint/Renderer/GUI/New tab/Summary; 9180 source inputs drift0; artifact manifest retained",
+    "candidate16": "failed TS2430: optional Scene override conflicted with required MainArea visibility; frozen failure retained",
+    "candidate17": "failed: native preflight controlled SIGTERM after redundant Cargo build; types/246 risk/lint/Renderer/standard GUI passed; no native success",
+    "file_editor_contract": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-editor-contract.md",
+    "file_editor_parent": "ev_0359651141c3bfd058aef005c5f5b58f6fb7589915a11def1549332b1e6ad8b4",
+    "file_storage_parent": "ev_f5a8599d307550dff4a65cf7a02a24106ee8cea7e281500c480c1e12f9c97b20",
+    "file_editor_status": "CodeMirror/controller/current fs storage+watch/identity-checked close guard implemented; 29 then 78 scoped regressions and strict lint passed; native verification pending; broad editor parity not claimed",
+    "candidate18": "automatic gates passed; terminal product acceptance REJECTED by actual screenshot (Shell startup failed); compact Files unproven. Immutable 577-artifact manifest retained. See candidate-18-terminal-visual-review.json; candidate19 requires a freshly rebuilt backend and strict RPC/output evidence.",
+    "file_document_parent": "ev_2fc0aad06c84714db5247b10f1c353546fc9209fa7f5eaaf287cc320e9c282e9",
+    "file_document_summary": "ev_9320051b086c8894a2e646a402c8667589ff060a12b9deb65016526658b1be1e",
+    "candidate19": "Backend recovery1 four steps passed; exact source/receipt/artifact digests required for reuse; original frontend fixture failure retained",
+    "candidate20": "failed lint/contracts/native; native exposed premature input and 30s renderer timeout; originals retained",
+    "candidate21": "types/272 risk/lint passed; contract support input incomplete",
+    "candidate22": "quality failed (missing isolated contract-support JSON); recovery3 standard GUI/New tab/terminal/Summary passed; sourceDrift0; four screenshots reviewed; not a whole-GUI pass",
+    "terminal_status": "current TerminalTab -> TerminalPanel; old four components and nested session UI deleted; matching candidate22 proved delayed output/theme/sessions/close isolation",
+    "background_output_parent": "ev_38f254cb44c36ff9f7a0d996203dc580a8aa4db55e3d4c6b49accd7dda601d14",
+    "background_output_summary": "ev_607651281ae7b5e4bbe93f0a74684dd1de847c212a65b00de38a8d52ecc169c2",
+    "background_output_status": "independent readonly kind/renderer/canonical-key projection implemented; 66 risk tests/types passed; native/full opener/session-buffer fallback unproven"
+  },
+  "current_summary_processes_20261019": {
+    "parent": "ev_e3c13d5108436dd20034ee4b66ef097519918e57078a3a24b36e4f656dfecdf9",
+    "summary": "ev_369b07273a2a34a28360054b7514c810c1ca357cbe6d51c8eabcac747023b7a8",
+    "summary_path": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/background-process-list-summary.json",
+    "source_member": "webview/assets/local-conversation-thread-c8c5e92ea89e.js",
+    "source_sha256": "ee192ab3f19d493d64580f7690c94b05c589fe59c1757984e1c5a076976a47eb",
+    "ranges": {
+      "yx": [
+        40226,
+        41867
+      ],
+      "process_list": [
+        30957,
+        33929
+      ]
+    },
+    "target_executed": false,
+    "application": "complete-focused-input",
+    "semantic_unknowns": 413,
+    "product": "Candidate28 passed real Electron/current IPC/App Server/runtime lifecycle: two real background exec commands survive output-tab close/reopen, stop-all clears process owner and publishes both canonical terminal Items. Candidate29 independently verifies removal of dead session wrapper.",
+    "limits": [
+      "Local minified names are locators only",
+      "Parent347KB analysis partial",
+      "Reference flags/interruptedItemIds/session-buffer unresolved"
+    ],
+    "identity": "ExecutionProcessServer projects the existing canonical ItemId without renderer prefix fallback. Exit watcher alone observes final output and retires the session; premature forget API deleted."
+  },
+  "current_unified_default_width_20261019": {
+    "parent": "ev_743b2a230075368070079f5e4efdd79a87468b6fd519ee82dcf3846a2073ed10",
+    "summary": "ev_437fc193a40f4454bcbc0aeb00ea946fa682a68586e8168303b3403c52958933",
+    "summary_path": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/unified-width-summary.json",
+    "target_executed": false,
+    "application": "complete-focused-input",
+    "semantic_unknowns": 465,
+    "product": "Old fixed680px chat rule removed; existing LayoutTransition owns adaptive default/resize. Candidate24/25 passed real Electron; normal editor width390px, compact/full toolbar visual parity remains partial.",
+    "default_content_width": "max(320,min(shellHeight*1.6,W-500),min(640,W-352)); unified clamp maximum=max(320,W-320)",
+    "limits": [
+      "Reference active width config and persisted override unknown",
+      "Local minified names are locators only"
+    ]
+  },
+  "current_file_editor_candidate23_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-23.json",
+    "status": "passed",
+    "source_count": 10084,
+    "source_drift": [],
+    "scope": [
+      "Standard Electron smoke",
+      "Keyboard CodeMirror/current fs RPC",
+      "Autosave exact disk bytes",
+      "External conflict reject",
+      "Close cancel/discard preserves external disk",
+      "Markdown saved before preview",
+      "Terminal31s/two sessions/theme/close isolation"
+    ],
+    "visual_review": "Rejected old cramped width for successor24; no full GUI parity claim",
+    "not_run": [
+      "Reference runtime",
+      "Summary real background process lifecycle",
+      "Windows",
+      "packaged",
+      "live",
+      "window quit draft durability"
+    ]
+  },
+  "current_file_editor_candidate25_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-25.json",
+    "status": "passed",
+    "source_count": 10095,
+    "source_drift": [],
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-25-passed.json",
+    "artifact_manifest_sha256": "91392c7cdfc705f8f512facc34df09007ba7d9ed8cb7454d22aadbba70fb190f",
+    "native": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/candidate-editor-native-25/unified-editor-25-summary.json",
+    "scope": [
+      "Files current fs autosave/conflict/close/discard",
+      "Chinese CodeMirror search",
+      "Markdown save before preview",
+      "Terminal31s/multi-session/theme/isolated close"
+    ],
+    "visual_review": "Five screenshots actually reviewed by root; normal editor390px usable, compact/full toolbar still partial",
+    "limits": [
+      "external agent backend in this scoped fixture; does not prove real background process lifecycle",
+      "Reference runtime unknown",
+      "Windows/live/packaged/window quit not-run"
+    ]
+  },
+  "current_background_runtime26_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/background-runtime-26-verification.json",
+    "status": "failed",
+    "backend_mode": "runtime",
+    "provider_mode": "localhost-scripted-http",
+    "observed": "GUI turn completed while two real exec commands remained inProgress; background list itemId differed from canonical Item ID",
+    "normal_main_exit": true,
+    "source_drift": [],
+    "next": "Failure retained. Candidate27 recovery1 corrected identity but exposed missing canonical terminal. Candidate28 fixed lifecycle and passed real runtime Gate B."
+  },
+  "current_background_runtime27_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-27-recovery1.json",
+    "status": "failed",
+    "observed": "Stop-all emptied process owner but canonical commands never became terminal because premature session removal suppressed exit watcher.",
+    "normal_main_exit": true,
+    "source_drift": [],
+    "artifact_manifest_sha256": "39679407e27bd0b75bfa11b947de376408e2f2640eaac8dd8b902f9be5961041"
+  },
+  "current_background_file_candidate28_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-28.json",
+    "status": "passed",
+    "source_count": 10097,
+    "source_drift": [],
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-28-passed.json",
+    "artifact_manifest_sha256": "dc71af1f9426ceb2ec6ce584ffbf075b8b2c94e4d09983d083d43fdeefffa0b4",
+    "native_background": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/background-runtime-28-summary.json",
+    "native_file_matrix": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/candidate-editor-native-28/unified-editor-28-summary.json",
+    "scope": [
+      "25 execution_process and 19 unified_exec Rust regressions",
+      "Types and file/Summary risk regression",
+      "Real runtime background open/output growth/close/reopen/stop-all/canonical terminal",
+      "UTF8 preview truncation fix with >2MiB Chinese/emoji file entering CodeMirror",
+      "File autosave/conflict/discard/Chinese search/Markdown plus 31s terminal/multi-session/theme"
+    ],
+    "limits": [
+      "Reference application not executed; flags unknown",
+      "File matrix agent backend external; real background separately uses runtime",
+      "Windows/live/packaged/window quit not-run",
+      "Compact layout/full toolbar/Summary sections still partial"
+    ]
+  },
+  "current_file_tab_drafts_20261019": {
+    "parent": "ev_0359651141c3bfd058aef005c5f5b58f6fb7589915a11def1549332b1e6ad8b4",
+    "document_parent": "ev_2fc0aad06c84714db5247b10f1c353546fc9209fa7f5eaaf287cc320e9c282e9",
+    "status": "candidate30 failed in terminal output wait after file save/undo-redo/conflict/Markdown assertions; no native matrix pass",
+    "owner": "Existing right-surface LocalState, weakly keyed by live tab identity; no new business store or durable file cache",
+    "behavior": "500ms/save/dispose checkpoints return content/document/CodeMirror undo history; load rechecks disk and content before history restore; closed/reopened/foreign owner callbacks rejected",
+    "limits": [
+      "Cross-process durability unknown",
+      "Complete file toolbar/review and read-classification consolidation open"
+    ],
+    "props": "TextFileEditorTabContent initialDraft/onDraftChange; WorkspaceFileThreadSidePanelTab owns tab checkpoint binding",
+    "late_callback": "Unmount flushes synchronously before disabling old instance reports, preventing late save checkpoints from replacing a newer controller draft",
+    "cleanup": "18 retired navbar/navigation/layout keys deleted across five locales, old translation regression migrated to current side panel API",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-30.json",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-30-failed.json",
+    "artifact_manifest_sha256": "6ce52df44c168532a78ce51e306b6a2e7525e96847b723dbb8891f46f217b96a",
+    "source_count": 10099,
+    "source_drift": []
+  },
+  "current_background_candidate29_20261019": {
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-29.json",
+    "status": "passed",
+    "source_count": 10097,
+    "source_drift": [],
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-29-passed.json",
+    "artifact_manifest_sha256": "02aa63ff19706dae684d962126b46b9e48b17046a65ec31425af3623eb2a55e6",
+    "native": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/background-runtime-29-summary.json",
+    "scope": [
+      "Remove dead UnifiedExecSessionRegistration/process_id plumbing",
+      "25 execution_process and19 unified_exec tests",
+      "Independent sidecar rebuild/freshness/GUI/real runtime background lifecycle"
+    ],
+    "normal_main_exit": true,
+    "production_mock_fallback_hits": 0,
+    "limits": [
+      "Frontend and file matrix28 referenced only after full input/artifact identity check",
+      "Reference flags/live/Windows/packaged/window quit remain unverified"
+    ]
+  },
+  "current_file_history_toolbar_candidate31_20261019": {
+    "status": "passed within frozen candidate scope; complete GUI remains partial",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-31.json",
+    "source_count": 10101,
+    "source_drift": [],
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-31-passed.json",
+    "artifact_manifest_sha256": "3d637b66034cebe51be20aa50c61b0f54a8862ede8b464f6610742375a11c607",
+    "scope": [
+      "Five-language i18n/unused/full types, 12 suites91 risk cases, strict lint",
+      "Fresh renderer/freshness/standard GUI",
+      "Real Electron history-toolbar click and keyboard undo/redo after autosave/tab switch, exact disk contents; file conflict/discard/Markdown; 31s terminal and multi-session lifecycle"
+    ],
+    "static_reference": [
+      "ev_0359651141c3bfd058aef005c5f5b58f6fb7589915a11def1549332b1e6ad8b4",
+      "ev_2fc0aad06c84714db5247b10f1c353546fc9209fa7f5eaaf287cc320e9c282e9"
+    ],
+    "normal_main_exit": true,
+    "page_errors": [],
+    "actionable_console_errors": [],
+    "manual_visual_review": [
+      "file-editor-history",
+      "compact"
+    ],
+    "cleanup": "Header Save/Unsaved path removed; editor history/save state appears only in bottom-right toolbar.",
+    "limits": [
+      "Candidate30 terminal timeout cause unresolved;31 success does not establish a fix",
+      "Agent backend external for file matrix; current fs/IPC/process path real",
+      "Full navigation/review and compact toolbar remain open",
+      "Reference flags, Windows/live/packaged/window quit not-run"
+    ]
+  },
+  "current_file_navigation_analysis_20261019": {
+    "parent": "ev_4a45e99a84b0b2c1b589fe75def3f8594929b14c1884b68ef505f99f364ee555",
+    "summary": "ev_ac0eb11310933eef0734969ddecebd14820317d2b9ad1594d67556078fa56669",
+    "target_asar_sha256": "75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af",
+    "input_sha256": "013c1e08c70363c6451e4e8bb0d6e8141deb2bf291d11c73790f56186664ef72",
+    "members": 3,
+    "text_bytes": 76144,
+    "ast_nodes": 27196,
+    "parse_failures": 0,
+    "semantic_unknowns": 5508,
+    "bundle": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-navigation-evidence-bundle-31.json.gz",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-navigation-bundle-manifest-31.json",
+    "target_executed": false,
+    "observed": "Full-height unified external review, expanded context, bottom wrap/Edit/Reject/Accept, bounded preview; breadcrumb/tree members retained.",
+    "implementation": "Candidate32 review and33 breadcrumb passed at execution; retained receipts/screenshots. Candidate33 directory later disappeared; toolbar successor35 requires fresh product verification.",
+    "limits": [
+      "Raw short symbols are not source class names",
+      "Reference runtime flags unknown",
+      "Full toolbar/search/context-menu and complete GUI remain open"
+    ]
+  },
+  "current_file_review_candidate32_20261019": {
+    "status": "passed within frozen candidate scope; complete GUI partial",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-32.json",
+    "source_count": 10103,
+    "source_drift": [],
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-32-passed.json",
+    "artifact_manifest_sha256": "d2da1d23652c0c4499c20e01a4f77e5cd42540c72543983e14316dd733e6324e",
+    "scope": [
+      "18 suites128 risk cases, full types/strict lint/i18n/unused",
+      "Fresh renderer/freshness/standard GUI smoke",
+      "Real Electron full-height unified conflict review; edit/reject/accept, focus, retained editor/history and exact disk saves",
+      "Existing31s terminal and multi-session matrix"
+    ],
+    "manual_visual_review": [
+      "file-editor-conflict",
+      "file-editor-history",
+      "compact"
+    ],
+    "backend_mode": "external",
+    "normal_main_exit": true,
+    "page_errors": [],
+    "console_errors": [],
+    "limits": [
+      "Reference runtime flags unknown; target not executed",
+      "Compact/full toolbar and full GUI remain partial",
+      "Candidate30 timeout root cause remains unknown"
+    ]
+  },
+  "current_file_breadcrumb_path_helpers_20261019": {
+    "parent": "ev_fc11cde0223a55bca94fe0ba9400c309d1dbc351071c3a44f9c93d0015b129d5",
+    "target_asar_sha256": "75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af",
+    "complete_functions": 20,
+    "input_files": 2,
+    "text_bytes": 3188,
+    "ast_nodes": 1097,
+    "parse_failures": 0,
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-path-helpers-extraction-32.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-path-helpers-evidence-32.json",
+    "observed": [
+      "cwd/workspaceRoot display label and segment mapping",
+      "Windows/UNC/extended path/WSL comparison classification",
+      "root/active/directory paths; full and partial path copy"
+    ],
+    "target_executed": false,
+    "source_names": "Minified symbols/export aliases are locators, not recovered TypeScript names",
+    "limits": [
+      "Static source observations; semantic coverage unknown",
+      "No reference runtime flags or live GUI observation"
+    ],
+    "implementation": "Candidate33 passed eight stages;10106 sources zero drift at verification/327 artifacts. Native path segments/menu selection/tab reuse/disk/history/terminal passed; root reviewed screenshots. Candidate source directory later disappeared; original manifest/receipt/screenshots retained."
+  },
+  "current_file_breadcrumb_candidate33_20261019": {
+    "status": "passed-at-execution; candidate directory subsequently missing",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-33.json",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-33-passed.json",
+    "artifact_manifest_sha256": "f2489e51d6cb21dac3745d422f38881e93e25db8319e53ee6b01f03d95cbfd92",
+    "source_count": 10106,
+    "source_drift_at_execution": [],
+    "limits": [
+      "External Agent backend; real fs/IPC/terminal",
+      "Compact/full toolbar/tree still partial",
+      "No current candidate revalidation after cache loss"
+    ]
+  },
+  "current_file_tree_order_analysis_20261019": {
+    "target_asar_sha256": "75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af",
+    "member": "webview/assets/app-initial-6350d04672d0.js",
+    "member_sha256": "604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f",
+    "target_executed": false,
+    "steps": [
+      {
+        "role": "model",
+        "parent": "ev_01b2b4454a8ad79476264a332ca63c128173324ad754510d0fc5eba9bef4eb88",
+        "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-model-evidence-34.json",
+        "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-model-extraction-34.json"
+      },
+      {
+        "role": "controller",
+        "parent": "ev_a46b3cb3c2c11d679df9a742fd44d3e1baf8767f8e83fbdfbb699ddc42ffca91",
+        "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-controller-evidence-34.json",
+        "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-controller-extraction-34.json"
+      },
+      {
+        "role": "order",
+        "parent": "ev_60fda382d4a37a0d9254591e31686b7f432a349595ed860a4dc2938d3b80957e",
+        "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-order-evidence-34.json",
+        "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-order-extraction-34.json"
+      },
+      {
+        "role": "sort",
+        "parent": "ev_ceb79e66108203283afaa354bffa52cf1e5917ee62a8d95c56774f1ecc53bd97",
+        "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-sort-evidence-34.json",
+        "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-sort-extraction-34.json"
+      }
+    ],
+    "observed": "Directories first; lowercase natural numeric-token names; lowercase then original textual tie-break. No Markdown/bundle/zh-CN priority.",
+    "implementation": "fileTreeOrder single owner; old VM sorter helpers/tests removed. 37 targeted risks passed. Candidate34 quality/renderer passed then directory disappeared; GUI/native not-run. Fresh35 required.",
+    "limits": [
+      "Static inert declarations; original source class names unknown",
+      "Full tree keyboard/virtualization/context menu open"
+    ]
+  },
+  "current_file_toolbar_analysis_20261019": {
+    "parent": "ev_9789fa3cd9ca0f0e4ca174c16bb2a99ccd8832cdf02ab1c710f1e99151c50893",
+    "target_asar_sha256": "75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af",
+    "member": "webview/assets/artifact-preview-header-c6337f052a2f.js",
+    "member_sha256": "37f9e2a02b0f77613f74239dafab300e251d04eea2472e058c12c5c434654197",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/artifact-preview-header-evidence-35.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/artifact-preview-header-extraction-35.json",
+    "ast_nodes": 5675,
+    "parse_failures": 0,
+    "target_executed": false,
+    "observed": [
+      "TextFileEditor default headerActions uses viewer/showLabel; Markdown includes same actions",
+      "No primary target: Open reveals through fileManager",
+      "Menu target list/conditional Drive/Open in folder/conditional GitHub/available Save as",
+      "Before-file-action/prepare/current-file capability gates"
+    ],
+    "implementation": "ArtifactPreviewHeader local no-preferred-target subset; independent35-recovery1 passed full contracts/client/Host/sidecar/Renderer/freshness/GUI/native matrix after same-source recovery.28 risk suites/214 tests and full types/i18n/unused/lint passed;10136 sources zero drift. OS Save as roundtrip and full target chain remain open.",
+    "limits": [
+      "Target discovery/preferred target, GitHub/Drive and remaining preview consumers open",
+      "No original TS component name recovery claimed",
+      "Native OS Save as dialog roundtrip not-run"
+    ]
+  },
+  "current_root_frontend_contracts_20261019": {
+    "frontend": {
+      "status": "passed",
+      "batches": 139,
+      "log": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-test-resume-32-rustup.log",
+      "state": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-test-resume32-passed-state.json",
+      "state_sha256": "adc39a3115fcb2c4b0917996b5b6d9b69ea8d7f28e0dd3565c8a61c20402a790",
+      "limits": "Not complete verify:local; subsequent edits receive focused/frozen tests."
+    },
+    "contracts": {
+      "status": "passed",
+      "log": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-contracts-34-2.log",
+      "previous_failure": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-contracts-34-1.log",
+      "fix": "Read current turn_execution/input_commit.rs in existing active-turn steering guard; assertion preserved."
+    }
+  },
+  "current_candidate_cache_loss_20261019": {
+    "incident": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/candidate-cache-loss-34.json",
+    "candidate34": "failed/interrupted after renderer; no freshness/GUI/native proof",
+    "candidate33": "prior passed receipt retained, source candidate now missing",
+    "cause": "unknown",
+    "recovery": "New root snapshot outside system cache, rebuild and independently verify; do not recreate or inherit lost evidence."
+  },
+  "current_file_tree_interaction_20261019": {
+    "parent": "ev_19b04b8bc1cee926617d382dc5d94374be39e45739aae6ca6af6e1f6eb9a5e21",
+    "member": "webview/assets/app-initial-6350d04672d0.js",
+    "member_sha256": "604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-interaction-extraction-36.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-interaction-evidence-36.json",
+    "full_functions": 8,
+    "bytes": 25969,
+    "ast_nodes": 8333,
+    "parse_failures": 0,
+    "target_executed": false,
+    "observed": "ArrowDown/Up clamp visible focus; Right collapsed-directory expand else next; Left expanded-directory collapse else parent; Home/End. Rich selection/context/rename/search/virtualization branches separately visible.",
+    "implementation": "WorkspaceDirectoryTree shared visible-row keyboard handler. Independent36 full preflight types/6 risk suites/lint/Renderer plus identity-validated35 Host/backend, fresh standard GUI and native keyboard/file/history/terminal matrix passed;10137 sources zero drift. Original modifiers remain delegated; no complete multiselect/tree claim.",
+    "limits": [
+      "Original TS names unknown",
+      "No complete multi-select/context-menu/rename/virtualization implementation claim",
+      "Static reference; runtime flags unknown"
+    ]
+  },
+  "current_file_open_targets_analysis_20261019": {
+    "parent": "ev_0daa872fe19c21e16b59481db620a16b3ba959bdaca2298e5d02ea72909af414",
+    "member": "webview/assets/use-target-apps-414908f21fc2.js",
+    "member_sha256": "95f99b52b6bf6aab7a609f8b3f0d156482d242005a070daaa2209e6d154ee25f",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-targets-evidence-37.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-targets-extraction-37.json",
+    "statistics": {
+      "relevant_files": 1,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 6412,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 1,
+      "visited_ast_nodes": 2550,
+      "findings": 43,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "observed": [
+      "Catalog query imported from app-initial; native bridge openIn.detectTarget and loadTargetIcon enrich availableTargets/resolvedIcon",
+      "Abort prevents stale query mutation; individual detection/icon errors clear availability/icon",
+      "Open action carries host/path/target/appPath/environment/line/column/openMode; preferred target optimistically updates existing query and passes persistPreferredTargetPath",
+      "Can load when cwd or openPath exists; current-file producer remains optional"
+    ],
+    "implementation": "Gap: target catalog/native detection/open mutation owner and preferred target still need exact external declarations and native adapter mapping. Local no-preferred viewer35 is only a subset.",
+    "limits": [
+      "Imported producers outside single-member evidence; not analyzed as equivalent full chain",
+      "Reference execution and flags unknown",
+      "No fabricated installed targets or hardcoded available status"
+    ]
+  },
+  "current_file_open_targets_producers_20261019": {
+    "parent": "ev_b6a90ef2b299d4b6bfb753ff549cdc151433dd37c0dd262dfd37ad8e671ce912",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-target-producers-evidence-37.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-target-producers-extraction-37.json",
+    "target_executed": false,
+    "bytes": 1008,
+    "ast_nodes": 334,
+    "parse_failures": 0,
+    "observed": [
+      "Catalog producer uses native openIn.getTargets; query staleTime ONE_MINUTE",
+      "Target selection: custom appPath entries first; native mode systemDefault/fileManager; editor mode available/hidden filter",
+      "Primary target uses preferred matching available item or first item",
+      "Open mutation delegates external jBi; helper remains outside slice"
+    ],
+    "limits": [
+      "Wrapper v1 parse failed for uninitialized const; retained v1, v2 includes complete var/lazy assignments",
+      "Raw export aliases/minified names do not establish original TS function names",
+      "getTargets is nontrivial capability owner, cannot treat all files as permanently no target"
+    ]
+  },
+  "current_file_open_targets_host_20261019": {
+    "parent": "ev_d64c045d267189fd8da693277bf044defe2e4f4dd138962a839b4f7e28fd480e",
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-target-host-evidence-37.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-target-host-extraction-37.json",
+    "target_executed": false,
+    "bytes": 4502,
+    "ast_nodes": 1339,
+    "parse_failures": 0,
+    "methods": [
+      "detectTarget",
+      "getTargets",
+      "loadTargetIcon",
+      "open",
+      "setGlobalPreferredTarget"
+    ],
+    "observed": [
+      "Native worker get-target-command/load-target-icon gates available status",
+      "getTargets joins platform/host-filtered target metadata, actual availability, per-cwd preferred selection, path classification and native app discovery; mode native/editor",
+      "Open validates actual target, local/remote paths, explicit/default target, line/column/openMode and supports browser pane/systemDefault URL/file manager; unavailable yields failure",
+      "Preferred mutation scoped through existing settingsStore, not renderer second store"
+    ],
+    "implementation": "Future native file-shell/target owner mapping required; local ArtifactPreviewHeader branch remains partial. No new fabricated target catalog.",
+    "limits": [
+      "Complete inert class; worker/catalog/platform path classification helpers outside slice",
+      "extractedClass wrapper is scaffolding, not recovered source name",
+      "Reference runtime/flags unknown"
+    ]
+  },
+  "current_file_candidate35_recovery1_20261019": {
+    "status": "passed",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-35-recovery1.json",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-35-recovery1-passed.json",
+    "artifact_manifest_sha256": "6e9e67e61be44552c63fc666784463937769a47565d80f6fa58aee3583bba392",
+    "source_count": 10136,
+    "source_drift": [],
+    "visual_review": "root inspected menu/keyboard, saved editor and compact screenshots",
+    "proof": "Real Electron/preload/IPC/current fs and terminal; controlled external Agent fixture; normal Main code0/signalnull, no forced cleanup",
+    "limits": [
+      "Immutable candidate; does not claim latest root Rust equality",
+      "Full targets/tree/routes and full GUI still partial",
+      "No live provider/Windows/packaged/reference-runtime equivalence"
+    ]
+  },
+  "current_file_candidate36_20261019": {
+    "status": "passed",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-36.json",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-36-passed.json",
+    "artifact_manifest_sha256": "5e7892e6c84392d377dac7815744692db18de3aa892fc6559794ae899743b914",
+    "source_count": 10137,
+    "source_drift": [],
+    "visual_review": "root inspected menu/keyboard, saved editor and compact screenshots",
+    "proof": "Real Electron/preload/IPC/current fs and terminal; controlled external Agent fixture; normal Main code0/signalnull, no forced cleanup",
+    "limits": [
+      "Immutable candidate; does not claim latest root Rust equality",
+      "Full targets/tree/routes and full GUI still partial",
+      "No live provider/Windows/packaged/reference-runtime equivalence"
+    ]
+  },
+  "current_file_tree_rows_20261019": {
+    "parent": "ev_5a4cce6772170c93ab2a3f0fee5c820611a9624810cba56f4468bb5f8eed5ef7",
+    "member": "webview/assets/app-initial-6350d04672d0.js",
+    "member_sha256": "604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-rows-extraction-37-v2.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-rows-evidence-37.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-rows-bundle-manifest-37.json",
+    "functions": 5,
+    "bytes": 5219,
+    "ast_nodes": 1342,
+    "parse_failures": 0,
+    "semantic_unknowns": 292,
+    "target_executed": false,
+    "observed": "treeitem/level/posinset/setsize/selected; focused row tabIndex0, all others-1; root tree/-1; one chevron/file icon lane; row onFocus updates controller focus",
+    "implementation": "Shared renderer flattens existing directory cache/expanded projection; local focus distinct from selectedPath; old aria-current/data attributes/double folder icon removed, native fixture migrated.16 targeted tests and strict lint passed. Independent37 failed full renderer typecheck because grouped status kinds did not narrow; receipt/source preserved. Successor38 splits literal variants only and will rerun full validation; no native success inherited from37. Candidate38 external directory disappeared during typecheck: exit127/tsc missing/10137 source entries absent. Original failed receipt retained. Fresh39 snapshot10139 full Renderer/Node types passed; remaining stages running. No new native claim.",
+    "limits": [
+      "Minified symbols not original TS names",
+      "No complete virtualization/sticky/search/context/rename/multiselect claim",
+      "First valid row-only extraction was expanded before analysis; MCP schema mistakes did not execute target"
+    ]
+  },
+  "current_file_open_catalog_analysis_20261019": {
+    "parent": "ev_525bb18a66f3d3bf0833054c3b64b114d0b0a9ffebfd937b322eaed356fc03c8",
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-catalog-extraction-38.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-catalog-evidence-38.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-catalog-bundle-manifest-38.json",
+    "declarations": 46,
+    "target_definitions": 32,
+    "bytes": 11719,
+    "ast_nodes": 2846,
+    "parse_failures": 0,
+    "semantic_unknowns": 277,
+    "target_executed": false,
+    "observed": "Built-in platform-gated catalog plus registry/detection/path/args factories. Windows/Linux/macOS entries differ; configured declarations do not establish installed/available commands. Full original functions/variables retained with inert wrappers.",
+    "implementation": "Not yet implemented. Existing FileShellHost and ProjectPathOpenTool/command paths inventoried; future migration must converge to one native shell owner, not introduce a second execution backend.",
+    "limits": [
+      "Platform-specific detector and launcher helper closure still partial",
+      "No original TypeScript symbols recovered from minified catalog locals",
+      "No target discovery UI/runtime/default/preference equivalence claim"
+    ]
+  },
+  "current_file_open_worker_analysis_20261019": {
+    "parent": "ev_8a11174a6898a831a2054c27efeecf8ce134bff00cfc5a84d3e131849ef72ac7",
+    "member": ".vite/build/worker.js",
+    "member_sha256": "df97ab945ce9850480ccdd0317b2d194febcc580c81ab25adfcfa6d265a00ae1",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-worker-direct-extraction-40.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-worker-direct-evidence-40.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-worker-direct-bundle-manifest-40.json",
+    "functions": 6,
+    "bytes": 1804,
+    "ast_nodes": 518,
+    "parse_failures": 0,
+    "semantic_unknowns": 131,
+    "target_executed": false,
+    "observed": [
+      "getTargetCommand promise cache by [target,customTarget.command]; rejection evicts",
+      "load-target-icon serializes image acquisition via Sema(1), release in finally",
+      "factory uses built-in detect or custom path/command resolver; Windows .lnk/icon fallback"
+    ],
+    "limits": [
+      "Full592 declaration/118934byte closure timed out180s; partial ev_c9f58268102975125d0db5fc4a1bcec8c10956b78dca06a057c7ab1e8e1fa2f9 retained",
+      "Native/platform detector/launcher/association dependencies outside direct slice; no installed-target or runtime claim",
+      "Minified symbols are not original TS names"
+    ]
+  },
+  "current_project_tool_retirement_20261019": {
+    "status": "source complete; candidate validation pending",
+    "current_owner": "TaskCenterUtilityToolbar -> revealPathInFinder -> FileShellHost",
+    "deleted": [
+      "electron/projectToolsHost.ts",
+      "ProjectPathOpenTool",
+      "openProjectPathWithTool",
+      "open_project_path_with_tool",
+      "dedicated positive tests/catalog/whitelist"
+    ],
+    "targeted_risk_tests": 99,
+    "new_compat": 0,
+    "boundary": "No new target-app implementation; existing local file-manager action only. Root risk tests do not substitute new Host/Renderer/GUI build.",
+    "successor": "41 aligns existing FileShellHost file-first reveal/error branch to REA. Root file shell15 passed; aggregate99/100 with legacy scanner original5s timeout. Candidate40 quality125/types/lint/contracts passed; Renderer and41 native pending."
+  },
+  "current_file_open_launcher_20261019": {
+    "parent": "ev_61ee26c8db6b1e953aae11e63030b9760626cc71a7531da75aa4fd452efa6d79",
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-launcher-extraction-40.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-launcher-evidence-40.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-launcher-bundle-manifest-40.json",
+    "bytes": 2141,
+    "ast_nodes": 644,
+    "parse_failures": 0,
+    "semantic_unknowns": 167,
+    "target_executed": false,
+    "limits": [
+      "Complete original direct helper declarations only; imported/nested native platform/SSH/association dependencies outside scope",
+      "Minified symbols are not recovered original TypeScript names; no installed-target/runtime claim"
+    ]
+  },
+  "current_file_open_platform_20261019": {
+    "parent": "ev_a4cb83333838c8893b1b7cca700326c95239cc1f00da33ca8ea9840c299a090d",
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-platform-extraction-40.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-platform-evidence-40.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-platform-bundle-manifest-40.json",
+    "bytes": 3511,
+    "ast_nodes": 1089,
+    "parse_failures": 0,
+    "semantic_unknowns": 259,
+    "target_executed": false,
+    "limits": [
+      "Complete original direct helper declarations only; imported/nested native platform/SSH/association dependencies outside scope",
+      "Minified symbols are not recovered original TypeScript names; no installed-target/runtime claim"
+    ]
+  },
+  "current_file_open_detector_20261019": {
+    "parent": "ev_11a37faf9cd18be05b11900cc9fcbcf81c427f81818e4ed592c1068ac4db1cfe",
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-detector-extraction-40.json",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-detector-evidence-40.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-detector-bundle-manifest-40.json",
+    "bytes": 4682,
+    "ast_nodes": 1371,
+    "parse_failures": 0,
+    "semantic_unknowns": 287,
+    "target_executed": false,
+    "limits": [
+      "Complete original direct helper declarations only; imported/nested native platform/SSH/association dependencies outside scope",
+      "Minified symbols are not recovered original TypeScript names; no installed-target/runtime claim"
+    ]
+  },
+  "current_gui_guard42_20261019": {
+    "status": "root-risk-passed; candidate pending",
+    "measurement": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/legacy-scan-performance-42.json",
+    "risk_log": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/legacy-scan-risk-42.log",
+    "tests_passed": 7,
+    "prior_failures_preserved": [
+      "file-manager-rea-risk-41.log",
+      "candidate-retirement-risk-41.log",
+      "candidate-export-governance-41-recovery1.log"
+    ],
+    "boundary": "Same scan roots/filters/patterns/assertions and original 5000ms. Sequential reads yield every 64 files; timeout remains effective. No new REA/product/native coverage."
+  },
+  "current_file_tree_viewport43_20261019": {
+    "parents": [
+      "ev_45f94bb253033bec57cfe9b6ae8a3fb696432a4b32a3803181805756c81b8075",
+      "ev_5fb0a8d763a1246e424944a45b8bc2be242d4b54db2902e326a555dd8563df2a"
+    ],
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-viewport-evidence-43.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-viewport-bundle-manifest-43.json",
+    "ast_nodes": [
+      277,
+      793
+    ],
+    "parse_failures": 0,
+    "semantic_unknowns": [
+      55,
+      184
+    ],
+    "target_executed": false,
+    "product_status": "19 root risks passed;45 combines viewport, search empty-state and sticky layering; full types/Renderer/GUI/native pending",
+    "limits": [
+      "Complete direct inert declarations; nested helpers outside slices",
+      "Minified symbols are not original TS names",
+      "No reference runtime/flags or overall GUI equivalence claim"
+    ]
+  },
+  "current_gui_search44_20261019": {
+    "status": "in candidate45;44 source-only snapshot, no preflight/product claim",
+    "owner": "WorkspaceFileTree",
+    "native_scenario": "scripts/electron/lib/thread-side-panel-new-tab-scenario.mjs",
+    "boundary": "Same search and directory owners. Empty-feedback rectangle must lie inside visible pane; source43 stays immutable, no product success inherited."
+  },
+  "current_file_open_discovery44_20261019": {
+    "parents": [
+      "ev_65a2ee4c247539d719dddc678c1dbb64004b9d2d8a89de5ea62f5d2f342294aa",
+      "ev_07b6b7dd3fe0b4e48a7536cb9292ccd7bc9f57e4961788525946c342b19ae688",
+      "ev_3497a6f6e3fd0cff198f9e7a4242bdfd53cee4249e76ebaf808f55a1a918f90f"
+    ],
+    "member": ".vite/build/main-CqEoQDOU.js",
+    "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-discovery-evidence-44.json.gz",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-discovery-bundle-manifest-44.json",
+    "definitions": [
+      15,
+      10,
+      16
+    ],
+    "bytes": [
+      2681,
+      2455,
+      2911
+    ],
+    "ast_nodes": [
+      856,
+      796,
+      784
+    ],
+    "parse_failures": 0,
+    "semantic_unknowns": [
+      231,
+      202,
+      156
+    ],
+    "target_executed": false,
+    "export_transport_timed_out": true,
+    "exported_artifact_observed_and_validated": true,
+    "product_status": "Full target-app implementation remains gap; no target catalog/config/IPC added by this evidence pass",
+    "limits": [
+      "41 complete direct helper declarations; imported native provider and deeper platform constants/parsers remain unknown",
+      "Definitions do not prove installed or available targets; no reference runtime/flags claim",
+      "Minified symbols are locators, not recovered TypeScript names"
+    ]
+  },
+  "current_file_open_native46_20261019": {
+    "parents": [
+      "ev_a9b22da43b9fe244374a511b7aa479379c1507b1655e4360b08dfd1a2a27deb2",
+      "ev_156083a014118e0d50604f3256d9c0b81b0eff214af16ca1dea450f14b060eff"
+    ],
+    "complete_evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/composer-native-evidence-46-48.json.gz",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/composer-native-bundle-manifest-46-48.json",
+    "observed": "Darwin launches launch-services-helper with 2000ms execFile timeout; validation failures return null. Native target selector filters .app/bundle IDs, deduplicates appPath, merges isDefault, prioritizes then limits.",
+    "helper_sha256": "2805f57082722f1a15293961abc313536ffd811368f1021ebc1154d9dbd1ed33",
+    "helper_control_flow": "unknown: native deep analysis provider unavailable; imports and Mach-O metadata only",
+    "target_executed": false,
+    "native_session_closed": true,
+    "semantic_unknowns": 122
+  },
+  "current_main_composer_layout47_48_20261019": {
+    "parents": [
+      "ev_0b3be8d21e101b4df02aae5ed05108e403a702ade047f8bf3b4d022d378aa914",
+      "ev_f2b3325f4913e5eb8a5c6ea5f703ac3d62f91a4187872dd3d62ac9d9624ab667"
+    ],
+    "complete_evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/composer-native-evidence-46-48.json.gz",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/composer-native-bundle-manifest-46-48.json",
+    "extractions": [
+      "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-layout-extraction-47.json",
+      "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-surface-extraction-48.json"
+    ],
+    "bytes": [
+      61203,
+      42080
+    ],
+    "ast_nodes": [
+      16322,
+      15843
+    ],
+    "parse_failures": 0,
+    "semantic_unknowns": [
+      2913,
+      2882
+    ],
+    "current_owner": "InputbarCore -> ComposerLayout.AdaptiveFooter + composerStyles; same ComposerController and EditorView",
+    "deleted": "MainRow/BottomBar/empty-draft forced collapse and duplicate attach button; no compatibility aliases",
+    "root_validation": "47 related cases passed across original45/47 and original5000ms sequential retry9/9; strict lint passed. Frozen49 independently passed full Renderer/Node types, all47 risks, lint/docs, Renderer and standard GUI; real home800 geometry failed and was frozen.",
+    "remaining": "Only multiline slot migration implemented; upstream auto-single-line width measurement/composition lock/voice layouts remain gaps.",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "current_candidate39_42_45_20261019": {
+    "39": "passed full build/standardGUI/controlled GateB;10139 source zero drift;327 artifact manifest;keyboard/saved/compact screenshots reviewed",
+    "42": "original final failed before GUI: stale plugin asset overwritten by39 artifact reuse; failure frozen. Recovery1 actual desktop asset producer/freshness/standardGUI/controlled GateB passed,zero drift,normal Main exit0;327 artifact manifest13e09b3ff6251e371f60806dc632c6c4087b48a45eb191f8ac11837e4083cdcd.",
+    "45": "passed full types/19 risks/lint/docs,own Renderer,exact42→43→44→45 source/artifact checks,standardGUI and203-file controlled GateB;10141 source zero drift,normal Main exit0,zero console/page errors;327 artifacts manifest2ec1a82a8f2fd6dc563ab219f0841ef05db5c688fa2e68bf5380163a2e26af72. Does not prove successor49 Composer.",
+    "whole_gui": "partial"
+  },
+  "current_composer_mode50_20261019": {
+    "parent": "ev_e74e1af289bfe4b44f9d691f18aa79ec95a893d4a5777f632a16322c35804154",
+    "summary": "ev_04da4a8b16295f0fa2a5d06062af9a3b852833803de24b39df85350ed5053e61",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-mode-extraction-50.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-mode-bundle-manifest-50.json",
+    "declarations": 3,
+    "bytes": 2692,
+    "ast_nodes": 1024,
+    "parse_failures": 0,
+    "semantic_unknowns": 198,
+    "confirmed": "Mode policy gates auto-single-line on attachments/multiline/voice/overflow/lockedLayout; composition locks current layout until end; compact/goal/awaiting/dictation overrides separately.",
+    "remaining": "Imported width measurement dependency,reference runtime mode/flags and product migration unverified.",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "current_composer_controls51_width52_20261019": {
+    "parents": [
+      "ev_a66fba1cfeeeb6672a703adcf1324fcf0874709f3829162f8d0b2a93b22e8156",
+      "ev_fabf2c90e42d437ff24d2745f356bec49c5f97b61f1328cc008c40bd494eb171"
+    ],
+    "manifests": [
+      "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-controls-bundle-manifest-51.json",
+      "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-width-bundle-manifest-52.json"
+    ],
+    "declarations": [
+      2,
+      1
+    ],
+    "bytes": [
+      3342,
+      2435
+    ],
+    "ast_nodes": [
+      1460,
+      1029
+    ],
+    "semantic_unknowns": [
+      288,
+      245
+    ],
+    "parse_failures": 0,
+    "confirmed": "Consumer supplies availableWidth; hook measures expanded/compact widths,first collapses labels,then hides control after compact measurement;ResizeObserver recalculates and restores. Actual reference runtime geometry unobserved.",
+    "implementation": "InlineControlLayout presentation context plus extracted ModelSelectorTrigger; same model selection owner and same EditorView/draft. Frozen53 superseded after new root async-mount regression failed; frozen54 adds container observation and invalidates measurements on control/label changes. Own complete quality/Renderer/desktop pending.",
+    "failed49": "All preflight/new Renderer/standard GUI passed; home800 model exceeded core and overlapped mic/send. Source/artifact failure frozen; no native success inherited.",
+    "root53": "2 actual EditorView resize/selection/focus/draft/trigger cases and strict lint passed; jsdom is not desktop geometry.",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "current_composer_async_mount54_20261019": {
+    "before": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-width-async-risk-54-before.log",
+    "after": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-width-lifecycle-risk-54.log",
+    "tests": 3,
+    "candidate": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-54.json",
+    "superseded53": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/candidate-53-superseded-by-54.json",
+    "boundary": "Root jsdom lifecycle only. Frozen54 full types, risks, lint/docs, Renderer and real Electron pending; not full GUI parity."
+  },
+  "composer_overflow_55": {
+    "parent_evidence_id": "ev_b7fca04b25e3ad1c0bd9ba80ea1778bad6c0db9d5ceff125c2648ca3edb183d2",
+    "summary_evidence_id": "ev_3622c0d554ad650788ace385751e01f0c8e4872c247c4fe18467b70dcd18760d",
+    "bundle": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-overflow-evidence-55.json.gz",
+    "bundle_sha256": "a173ad14a61cc25bc5929f0252ed1885b8e7d400f9a5c0ba48e5b7740acf7502",
+    "declarations": [
+      "uHc",
+      "vdl",
+      "cGc"
+    ],
+    "bytes": 6094,
+    "ast_nodes": 1866,
+    "parse_failures": 0,
+    "semantic_unknowns": 406,
+    "target_executed": false,
+    "limitations": "Static overflow producer only; original names and runtime flags unknown. auto-single-line/IME/voice implementation pending."
+  },
+  "current_composer_retirement_56_57_20261019": {
+    "54": "Complete preflight/Renderer/standard GUI passed; home three sizes passed; thread editor52px failed required88px. Later scenarios not run. Failed source/artifacts retained.",
+    "56": "69 changed/8 deleted;10141 sources. Complete Renderer/Node types and Electron Host types passed.21 suites378 tests:376 passed,two original5000ms Composer timeouts;overall failed,sourceDrift empty. Subsequent lint/contracts/Renderer/Host producer/GUI not run.",
+    "57": "Original preflight failed372/374 after full types passed;recovery1 Composer timeout retained. Recovery2 original uninstrumented timeout cases cleared at5000ms;strict lint/contracts/i18n/legacy and independent Renderer passed;sourceDrift empty. Final own Host/assets/GUI/geometry/rich-restore/native running;not product pass yet.",
+    "reuse_boundary": "Final57 may reuse only56 passed unchanged types/Host types and five Host/API/IPC/mock-policy suites94 tests, plus45 exact unchanged backend artifacts. It must independently verify contracts/Composer/lint/Renderer,run Host producers and real desktop scenarios. Immutable origin wording is not evidence of56 overall pass.",
+    "56_receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-preflight-56.json",
+    "57_receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-preflight-57.json",
+    "full_gui_claim": false
+  },
+  "workspace_file_tree_consumers_58": {
+    "parent_evidence_id": "ev_00921a8c268f2a8a8545c0d31c671d616f9432f2f8a5c29d51216e6f07e3c286",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tree-consumers-extraction-58.json",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tree-consumers-summary-58.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tree-consumers-bundle-manifest-58.json",
+    "bundle_sha256": "e631fccf2456f4f6780f1d8225979950a99344dc2ab3c6619f84986b940e038e",
+    "bytes": 96244,
+    "ast_nodes": 32076,
+    "files": 6,
+    "parse_failures": 0,
+    "semantic_coverage": "unknown; complete record is not complete semantics",
+    "confirmed": "Workspace consumer conditionally enables context menu only without environmentId;selection,double-click and state change remain distinct. Actual menu extracts file path from composedPath and uses native target query. Framework rename/multiselect support does not prove product enablement. Review item height29 differs from workspace default28.",
+    "audit": "internal/research/codex-desktop-rea/workspace-file-tree-consumers-audit.md",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "workspace_file_menus_59": {
+    "parent_evidence_id": "ev_53927f67a2cde7b59bb3ed9522076db3a31922f78516c1a9a87024256def3729",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/workspace-file-menus-extraction-59.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/workspace-file-menus-bundle-manifest-59.json",
+    "bundle_sha256": "9d0494f84fedb6d1d2e8942cc03f920586a05ac08f15bf390701f82fbc0dd3ff",
+    "declarations": [
+      "hsa",
+      "gsa",
+      "ysa",
+      "bsa",
+      "msa"
+    ],
+    "bytes": 3792,
+    "ast_nodes": 1020,
+    "parse_failures": 0,
+    "semantic_unknowns": 192,
+    "confirmed": "Separate file and file-tab builders;same target query/launcher,conditional browser/GitHub/save/copy/reveal actions;library menu prepend. No rename/delete in these exact five declarations. Target provider and library internals remain outside scope.",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "workspace_file_preview_60": {
+    "parent_evidence_id": "ev_e02cfd43f9812b116a8adaf619890a3311ad776e94fb58bb34493162e1773a93",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tab-preview-summary-60.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tab-preview-bundle-manifest-60.json",
+    "bundle_sha256": "4ea1be789e81f98f3223ceccb0829b81934f0ffa52e1365eea7cdea6a2a11a75",
+    "statistics": {
+      "relevant_files": 3,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 17389,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 3,
+      "visited_ast_nodes": 6553,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 1610,
+    "semantic_coverage": "unknown",
+    "target_executed": false,
+    "full_gui_claim": false,
+    "confirmed": "Single preview per panel;replacement creates contentInstance,reuses dndId;existing fixed tabs stay fixed;pin changes display state only.",
+    "audit": "internal/research/codex-desktop-rea/workspace-file-tree-consumers-audit.md"
+  },
+  "workspace_file_preview_61": {
+    "parent_evidence_id": "ev_f539dd886988be9eeb53a9ef1a86cdbc9f09500eb26b42adba22b191e605d38d",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tab-preview-summary-61.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/file-tab-preview-bundle-manifest-61.json",
+    "bundle_sha256": "cd03ef662caa3c240c32feaf9975300a70986ed837ca7f8bffe5d60e5fc956a8",
+    "statistics": {
+      "relevant_files": 3,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 2340,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 3,
+      "visited_ast_nodes": 726,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 157,
+    "semantic_coverage": "unknown",
+    "target_executed": false,
+    "full_gui_claim": false,
+    "confirmed": "Actual pane pointer/key capture pins preview unless native composedPath contains data-tab-preview-pin-exempt. Tree exempt;search input does not declare exemption in58 actual search consumer. Default insertion appends.",
+    "audit": "internal/research/codex-desktop-rea/workspace-file-tree-consumers-audit.md"
+  },
+  "workspace_file_preview_62_implementation": {
+    "plan": "internal/exec-plans/codex-file-preview-tabs-20261019.md",
+    "status": "product-preview-matrix-passed",
+    "risk": "Frozen62 six suites61,full Renderer/Node types,strict lint,docs/scripts and new Renderer passed. Exact64 production bytes independently passed native file/editor/terminal matrix including five preview checks; source/artifact SHA/freshness unchanged. Separate64 rich Main failure remains open.",
+    "classification": "current display state owner;no compat/deprecated",
+    "full_gui_claim": false,
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-native-64.json"
+  },
+  "summary_sources_empty_63": {
+    "parent_evidence_id": "ev_9008acaf49ea695930ceebd4b9ca62dda9612739a30a1b1216e19e84c0afbbbf",
+    "statistics": {
+      "relevant_files": 2,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 2950,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 2,
+      "visited_ast_nodes": 1060,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 218,
+    "semantic_coverage": "unknown",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-sources-empty-bundle-manifest-63.json",
+    "bundle_sha256": "3373ee524aca032e945f104cd7a21248d8a72786fe46d4ca697ef89981d01995",
+    "confirmed": "KT preserves empty Sources for projectless/force;RT row opens same menu;JT delegates connected/featured plugins/install to existing owner,Attach files or folders action present. Attachment insertion handlers remain unresolved.",
+    "implementation": "gap;Lime empty Summary box and projectless Add source not yet replaced",
+    "target_executed": false,
+    "full_gui_claim": false
+  },
+  "summary_source_actions_65": {
+    "parent_evidence_id": "ev_0265b133c8cb1b40784c4384736c06a459443c93d958655658e8420cc0eb6e01",
+    "statistics": {
+      "relevant_files": 13,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 6457,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 13,
+      "visited_ast_nodes": 1902,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 364,
+    "semantic_coverage": "unknown",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-source-actions-summary-65.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-source-actions-extraction-65.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-source-actions-bundle-manifest-65.json",
+    "bundle_sha256": "04508d046ae7442e8a8e463dd8656284a5bf45f6eec8fc2a863dec3c61d86008",
+    "audit": "internal/research/codex-desktop-rea/summary-source-actions-audit.md",
+    "target_executed": false,
+    "implementation": "Sources/Add source gap remains open;reuse current Composer/Plugin and shared attachment owner. Image-only picker is insufficient.",
+    "full_gui_claim": false
+  },
+  "summary_attachment_owner_66": {
+    "parent_evidence_id": "ev_d8180da779b93e3ce92295d7671804957b9e0418ea2cd6d5ad937e1b05c9ffae",
+    "statistics": {
+      "relevant_files": 3,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 9070,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 3,
+      "visited_ast_nodes": 3139,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "semantic_unknowns": 752,
+    "semantic_coverage": "unknown",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-attachment-owner-summary-66.json",
+    "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-attachment-owner-extraction-66.json",
+    "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/summary-attachment-owner-bundle-manifest-66.json",
+    "bundle_sha256": "df4454988a483fbd0229f7b365754521ec19f8091e8583364c7758f98508b381",
+    "audit": "internal/research/codex-desktop-rea/summary-source-actions-audit.md",
+    "target_executed": false,
+    "implementation": "Sources/Add source gap remains open;reuse current Composer/Plugin and shared attachment owner. Image-only picker is insufficient.",
+    "full_gui_claim": false
+  },
+  "composer_fixture_migration_64": {
+    "plan": "internal/exec-plans/codex-composer-fixture-migration-20261019.md",
+    "origin": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-64.json",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-64.json",
+    "status": "failed-normal-main-exit",
+    "fixture_risk": "10 passed",
+    "lint": "passed",
+    "scripts": "passed",
+    "renderer": "exact source62 build passed;artifact/source SHA and freshness verified",
+    "gui": "passed",
+    "rich_restore": "All business assertions passed; original15s Main exit failed. Original failure retained.",
+    "preview_native": "Independent exact64 source/artifact/freshness matrix passed;five preview identity/capture checks passed;Main code0/signalnull. Does not supersede rich failure.",
+    "classification": "current fixture migration;retired standalone image-button positive dependency removed;no new compat/deprecated",
+    "full_gui_claim": false,
+    "diagnostic": "Observer-wrapped rich restore passed;qualityClaim=false;no lifecycle stderr retained,Main root cause unresolved."
+  },
+  "composer_single_entry_67": {
+    "plan": "internal/exec-plans/codex-composer-single-entry-20261019.md",
+    "origin": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-67.json",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-67.json",
+    "status": "failed-normal-main-exit",
+    "risk": "68/68, strict lint, full types, i18n, legacy, new Renderer and standard GUI passed;rich business assertions all true but original15s Main deadline failed. 327 artifacts frozen without drift;observer67 confirms JS exit0 but OS Main required SIGKILL. Root cause open;no deadline change.",
+    "classification": "current plus-menu required;dead standalone image fallback and five-language key deleted;no compat/deprecated",
+    "full_gui_claim": false
+  },
+  "native_picker_68": {
+    "evidence_id": "ev_8a07b27e6a28033ca77c72c2b474a99c5bf065e9eb95bd2e8cf092851061b6ac",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/native-picker-bundle-manifest-68.json",
+    "summary": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/native-picker-summary-68.json",
+    "memberSha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
+    "semanticUnknowns": 2292,
+    "semanticCoverage": "unknown",
+    "targetExecuted": false
+  },
+  "native_picker_69": {
+    "plan": "internal/exec-plans/codex-composer-sources-20261019.md",
+    "origin": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-69.json",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-69.json",
+    "status": "failed-host-types",
+    "risk": "Frozen25 tests/lint/full Renderer+Node types passed;Electron types failed because shared type import pulled Renderer window into Host. Original failure retained;successor71 isolates type. Composer/Sources remain unconnected.",
+    "classification": "current Host/gateway foundation;no new IPC command or backend;Composer/Sources unconnected and still partial",
+    "full_gui_claim": false
+  },
+  "native_picker_71": {
+    "status": "passed-foundation-only",
+    "origin": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-71.json",
+    "receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-71.json",
+    "boundary": "Exact69+4 environment-neutral shared type files;no other root increments;own Host/Renderer validation required",
+    "full_gui_claim": false,
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-71-passed.json",
+    "artifact_manifest_sha256": "b57389114e4afba091294d099412e6eab1f93ab289ac660ba1943619cdaccfe0",
+    "sourceDrift": []
+  },
+  "shared_attachments_72": {
+    "status": "renderer-building-after-runner-command-fix",
+    "origin": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-origin-72.json",
+    "original_receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-72.json",
+    "resume_receipt": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-verification-72-recovery1.json",
+    "boundary": "Exact source frozen;285 risk/lint/types/contracts/i18n passed. Wrong unused npm script preserved as failed;resume actual i18n:unused then build/GUI/rich;OS-result fixture explicit. Does not include Sources75."
+  },
+  "sources_75": {
+    "status": "implemented-gate-a-product-pending",
+    "plan": "internal/exec-plans/codex-composer-sources-20261019.md",
+    "evidence": [
+      "ev_9008acaf49ea695930ceebd4b9ca62dda9612739a30a1b1216e19e84c0afbbbf",
+      "ev_0265b133c8cb1b40784c4384736c06a459443c93d958655658e8420cc0eb6e01",
+      "ev_d8180da779b93e3ce92295d7671804957b9e0418ea2cd6d5ad937e1b05c9ffae"
+    ],
+    "risk": "59 component/command+15 Scene+1 actual Core/native owner+8 runtime passed;strict lint passed. Product/new types pending. Plugin directory branch only;connected/featured/install-backfill open.",
+    "full_gui_claim": false
+  },
+  "composer_skill_binding_88": {
+    "evidence_id": "ev_21ada3c011744f66de21ca8788aefa13457cc8ddaaef19d4a3f4b68095946186",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-skill-binding-bundle-manifest-88.json",
+    "bundle_sha256": "179d0b6810e28d1e8d521423aa66224ba4a0dc807053f81c0f3ff167cd02927f",
+    "statistics": {
+      "relevant_files": 1,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 69,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 1,
+      "visited_ast_nodes": 23,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "90/91 partial validation and original failures retained;92 removes independent installed_skill dispatch and requires new product validation",
+    "full_gui_claim": false
+  },
+  "composer_skill_atoms_89": {
+    "evidence_id": "ev_d510599074216d86eb3c48a11c9976726f1d9a81ba6c35df4f528fd5cb94c056",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-skill-atoms-bundle-manifest-89.json",
+    "bundle_sha256": "f2ac366415dac778095334a462f885ad8746576454f1450210bacdf441834b1c",
+    "statistics": {
+      "relevant_files": 10,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 6103,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 10,
+      "visited_ast_nodes": 1801,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "90/91 partial validation and original failures retained;92 removes independent installed_skill dispatch and requires new product validation",
+    "full_gui_claim": false
+  },
+  "composer_skill_display_name_90": {
+    "evidence_id": "ev_751ae644d35a9acf62af7a45df448b5a2119e8eb63a431e81dbbee9427f9cb1d",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-skill-display-name-bundle-manifest-90.json",
+    "bundle_sha256": "8c52513b03ade20cc82f655530cb6ff00b64512063fb598eb58ae205e0f329f0",
+    "statistics": {
+      "relevant_files": 5,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 673,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 5,
+      "visited_ast_nodes": 202,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "90/91 partial validation and original failures retained;92 removes independent installed_skill dispatch and requires new product validation",
+    "full_gui_claim": false
+  },
+  "composer_skill_serialization_92": {
+    "evidence_id": "ev_9ef7855a7eccb4ed57887b320e6c734ab683ab06737c5c03dd042f552db0c622",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-skill-serialization-bundle-manifest-92.json",
+    "bundle_sha256": "ed527e2540d0c8c5d1903f3db5af6fbc5805d251a75320e9a8e3e85cb523a1f6",
+    "statistics": {
+      "relevant_files": 7,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 3343,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 7,
+      "visited_ast_nodes": 1155,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "92 risk/types/contracts/build/standard GUI and rich/Sources/Plan/Goal/Skills passed; matrix failed at atom text observer;93 uses canonical DOM reader and removes timeline sidecar badges; full inline consumer remains partial",
+    "full_gui_claim": false
+  },
+  "composer_inline_mention_93": {
+    "evidence_id": "ev_fff2e82fdef297397afd3fcfb6404328641ce4294dda6f5383d8f33f0131720e",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-inline-mention-bundle-manifest-93.json",
+    "bundle_sha256": "ee56f9cc39730fd626b1be5f28771056c4ded84223bc8dfef63d1ea72a00ea00",
+    "statistics": {
+      "relevant_files": 2,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 1488,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 2,
+      "visited_ast_nodes": 377,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "92 risk/types/contracts/build/standard GUI and rich/Sources/Plan/Goal/Skills passed; matrix failed at atom text observer;93 uses canonical DOM reader and removes timeline sidecar badges; full inline consumer remains partial",
+    "full_gui_claim": false
+  },
+  "composer_skill_icon_94": {
+    "evidence_id": "ev_d582949a75f8d70acad667dca90b97213dca336128e99f3d6e76754152afae5f",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-skill-icon-bundle-manifest-94.json",
+    "bundle_sha256": "b99feee80670261b592252f84a1022b951381656067c262e072241bef4c94f25",
+    "statistics": {
+      "relevant_files": 2,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 1417,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 2,
+      "visited_ast_nodes": 80,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "92 risk/types/contracts/build/standard GUI and rich/Sources/Plan/Goal/Skills passed; matrix failed at atom text observer;93 uses canonical DOM reader and removes timeline sidecar badges; full inline consumer remains partial",
+    "full_gui_claim": false
+  },
+  "composer_context_candidate_91": {
+    "status": "failed-goal-auto-continuation-idle-observer",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-91-failed.json",
+    "artifact_manifest_sha256": "6a19c7ad125ef8e264bbdc1a750ad9dd4eb80e3c8e5961233d4d7e858a42e6d7",
+    "passed_scenarios": [
+      "inputbar-rich-restore",
+      "thread-summary-panel",
+      "plan"
+    ],
+    "not_run": [
+      "skills-runtime",
+      "matrix"
+    ],
+    "sourceDrift": [],
+    "full_gui_claim": false
+  },
+  "submitted_mentions_95": {
+    "evidence_id": "ev_6abdbfee18fb272f9557c8be99713836061a6982671dea18ba36ca57c6b87cf1",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mentions-bundle-manifest-95.json",
+    "bundle_sha256": "7d29ead4a11ee247335270b87f32cd4c567896f4eae1881db261814e7a05ff65",
+    "statistics": {
+      "relevant_files": 10,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 22149,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 10,
+      "visited_ast_nodes": 6370,
+      "findings": 1,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "93 canonical sidecar-only badges deleted; independent 8 suites/102 tests, strict lint/types/contracts/i18n/governance, new Renderer, standard GUI, rich restore and 54 observations/48 screenshots passed; full inline consumer still partial",
+    "full_gui_claim": false
+  },
+  "composer_context_candidate_92": {
+    "status": "failed-matrix-PM-textBetween-skips-atom",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-92-failed.json",
+    "artifact_manifest_sha256": "1cfdd1484beea11ec98806abc5404d3064bc1b1608984dea0efbf1605fa0ec03",
+    "source_count": 10134,
+    "tests": {
+      "suites": 74,
+      "passed": 1341
+    },
+    "passed_scenarios": [
+      "standard-gui",
+      "inputbar-rich-restore",
+      "thread-summary-panel",
+      "plan",
+      "goal",
+      "skills-runtime"
+    ],
+    "matrix_observations_before_failure": 7,
+    "sourceDrift": [],
+    "full_gui_claim": false
+  },
+  "composer_context_candidate_93": {
+    "status": "passed",
+    "artifact_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/unified-candidate-artifact-manifest-93.json",
+    "artifact_manifest_sha256": "19f8612ab7147a96c9f94395a87b21450e8d781e05974d2666061b9519c87b65",
+    "source_count": 10134,
+    "tests": {
+      "suites": 8,
+      "passed": 102
+    },
+    "matrix_observations": 54,
+    "screenshots": 48,
+    "sourceDrift": [],
+    "full_gui_claim": false
+  },
+  "submitted_mention_consumers_96": {
+    "evidence_id": "ev_39097e6ae3706546f0f855f241d5faabb6160b473899103b147080aafd9cc3fa",
+    "manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mention-consumers-bundle-manifest-96.json",
+    "bundle_sha256": "3664943283f517fcc6782c655f46dade925b1b86aead2a6cb911e1cb07046ada",
+    "statistics": {
+      "relevant_files": 9,
+      "nested_asar_containers": 0,
+      "text_bytes_read": 18278,
+      "invalid_utf8_files": 0,
+      "parsed_javascript_files": 9,
+      "visited_ast_nodes": 7615,
+      "findings": 0,
+      "modules": 0,
+      "parse_failures": 0
+    },
+    "target_executed": false,
+    "implementation_status": "consumer evidence complete for selected declarations; Skill/plugin/app rendering and conditional navigation still partial",
+    "full_gui_claim": false
+  },
+  "mention_leaf_text_94": {
+    "root_tests": {
+      "suites": 6,
+      "passed": 112
+    },
+    "root_red_log": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/root-mention-leaf-text-red-94.log",
+    "root_lint": "passed",
+    "independent_product": "pending",
+    "full_gui_claim": false
   }
 }

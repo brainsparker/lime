@@ -46,6 +46,39 @@ afterEach(() => {
 });
 
 describe("Right Surface 本地显示状态", () => {
+  it("预览固定保留同一内容对象与草稿，旧owner固定不影响新预览", () => {
+    const view = mount();
+    act(() => view.get().openSidePanelTab("files"));
+    const picker = view.get().sidePanelTabs.tabs[0];
+    act(() => view.get().openWorkspaceFile("/work/a.ts", picker));
+    const first = view.get().sidePanelTabs.tabs[0];
+    act(() =>
+      view.get().openWorkspaceFile("/work/b.ts", first, { isPreview: true }),
+    );
+    const preview = view.get().sidePanelTabs.tabs[1];
+    const draft = {
+      content: "edited",
+      document: { kind: "ready" as const, baseContent: "base" },
+    };
+    view.get().setFileDraft(preview, draft);
+    act(() => view.get().pinSidePanelTab(preview.tabId));
+    expect(view.get().sidePanelTabs.tabs[1]).toBe(preview);
+    expect(view.get().getFileDraft(preview)).toBe(draft);
+    expect(view.get().sidePanelTabs.previewTabId).toBeNull();
+    const stale = view.get();
+    view.render({ ...owner, sessionId: "session-b", threadId: "thread-b" });
+    act(() => view.get().openSidePanelTab("files"));
+    const newPicker = view.get().sidePanelTabs.tabs[0];
+    act(() =>
+      view
+        .get()
+        .openWorkspaceFile("/work/b.ts", newPicker, { isPreview: true }),
+    );
+    const currentPreview = view.get().sidePanelTabs.tabs[0];
+    act(() => stale.pinSidePanelTab(currentPreview.tabId));
+    expect(view.get().sidePanelTabs.previewTabId).toBe(currentPreview.tabId);
+    expect(view.get().getFileDraft(currentPreview)).toBeNull();
+  });
   it("切换保留打开顺序；关闭未选中标签只移除它，关闭选中标签回退", () => {
     const view = mount();
     act(() => view.get().setManualRightSurface("browser"));

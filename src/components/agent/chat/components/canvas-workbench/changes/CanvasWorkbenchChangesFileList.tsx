@@ -253,6 +253,7 @@ export function CanvasWorkbenchChangesFileList({
     <aside
       className="flex min-h-0 flex-col border-l border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface-subtle)]"
       data-testid="canvas-workbench-changes-file-list"
+      data-file-tree-panel
     >
       <div className="px-2 py-2">
         <label className="flex h-8 items-center gap-2 rounded-[8px] border border-[color:var(--lime-surface-border)] bg-[color:var(--lime-surface)] px-2.5 text-xs text-[color:var(--lime-text-muted)] shadow-sm">

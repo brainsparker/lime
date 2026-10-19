@@ -913,7 +913,7 @@ async fn execution_process_server_rejects_dangerous_shell_command() {
 }
 
 #[test]
-fn command_execution_checks_the_selected_shell() {
+fn agent_shell_execution_checks_the_selected_shell() {
     for argv in [
         vec![
             "/opt/pwsh/pwsh",
@@ -931,7 +931,8 @@ fn command_execution_checks_the_selected_shell() {
     ] {
         let command = argv.iter().map(|word| word.to_string()).collect::<Vec<_>>();
         assert!(
-            decide_command_execution(&command, &current_directory(), None).is_err(),
+            validate_shell_execution_process_command(&command, &current_directory(), None, None)
+                .is_err(),
             "{argv:?} must be denied before process launch"
         );
     }

@@ -231,9 +231,6 @@ describe("mockPriorityCommands", () => {
     expect(
       shouldDisallowMockFallbackInBrowser("session_files_resolve_file_path"),
     ).toBe(false);
-    expect(
-      shouldDisallowMockFallbackInBrowser("get_file_manager_locations"),
-    ).toBe(false);
     expect(shouldDisallowMockFallbackInBrowser("get_file_icon_data_url")).toBe(
       false,
     );

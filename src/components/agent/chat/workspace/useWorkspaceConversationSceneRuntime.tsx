@@ -117,6 +117,7 @@ type NavigationActions = Pick<
   | "handleOpenExecutionPolicySettings"
   | "handleProjectChange"
   | "handleOpenAppearanceSettings"
+  | "handleOpenPluginDirectory"
   | "handleBackToResources"
   | "handleCompactContext"
 >;
@@ -237,6 +238,7 @@ const EMPTY_PROJECTED_SUBMITTED_ACTIONS: NonNullable<
   ConversationScenePresentationParams["messageList"]["submittedActionsInFlight"]
 > = [];
 interface UseWorkspaceConversationSceneRuntimeParams {
+  onOpenBackgroundTerminal?: WorkspaceConversationSceneProps["onOpenBackgroundTerminal"];
   threadHeader?: WorkspaceConversationSceneProps["threadHeader"];
   navbarContextVariant?: "default" | "task-center";
   navigationActions: NavigationActions;
@@ -319,6 +321,7 @@ export function useWorkspaceConversationSceneRuntime({
   fromResources,
   handleBackHome,
   rightSurfaceChrome,
+  onOpenBackgroundTerminal,
   isRestoringSession,
   sessionId,
   threadGoal,
@@ -569,6 +572,7 @@ export function useWorkspaceConversationSceneRuntime({
   return renderWorkspaceConversationScene({
     scene: {
       threadHeader,
+      onOpenPluginDirectory: navigationActions.handleOpenPluginDirectory,
       landingSurface,
       showChatLayout: shellChromeRuntime.showChatLayout,
       compactChrome: shellChromeRuntime.isWorkspaceCompactChrome,
@@ -593,7 +597,7 @@ export function useWorkspaceConversationSceneRuntime({
       onOpenSettings: navbarUtilityActionsVisible
         ? navigationActions.handleOpenAppearanceSettings
         : undefined,
-        workspaceType: activeTheme,
+      workspaceType: activeTheme,
       navbarVisible: shellChromeRuntime.shouldRenderTopBar,
       isRunning: Boolean(isSending),
       navbarChrome: topBarChrome,
@@ -607,6 +611,8 @@ export function useWorkspaceConversationSceneRuntime({
       onToggleCanvas: handleToggleCanvas,
       onBackHome: handleBackHome,
       ...rightSurfaceSceneProps,
+      onOpenBackgroundTerminal,
+      onRefreshThread: onRefreshSessionReadModel,
       showContextCompactionAction:
         navbarUtilityActionsVisible &&
         Boolean(sessionId) &&

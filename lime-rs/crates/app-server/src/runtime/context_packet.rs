@@ -422,7 +422,7 @@ fn render_session_context_compaction(
 ) -> String {
     let compaction_id = string_metadata(packet, "compactionId").unwrap_or("unknown");
     let context_epoch = u64_metadata(packet, "contextEpoch").unwrap_or(0);
-    let tail_start_turn_id = string_metadata(packet, "tailStartTurnId").unwrap_or("unknown");
+    let covered_through_sequence = u64_metadata(packet, "coveredThroughSequence").unwrap_or(0);
     let budget_hint = if truncated {
         "\n- 该压缩摘要已按单包预算截断；不要推断被截断部分的内容。"
     } else {
@@ -431,7 +431,7 @@ fn render_session_context_compaction(
 
     format!(
         "## Session Context Compaction\n\
-         来源：session context artifact `{compaction_id}`，context epoch `{context_epoch}`，tail starts at `{tail_start_turn_id}`。\n\
+         来源：session context artifact `{compaction_id}`，context epoch `{context_epoch}`，已覆盖事件序号 `{covered_through_sequence}`。\n\
          这些内容只用于当前会话续接，不是长期记忆，不是用户本轮输入，也不替代原始历史。需要精确信息时优先读取原始 thread / turn / tool evidence。不得把本摘要自动写入 memory store。{budget_hint}\n\
          \n\
          ```session-context-summary\n{content}\n```"

@@ -54,6 +54,19 @@ pub(super) type RuntimeEventCallback<'a> =
     dyn FnMut(AgentEvent) -> Result<(), RuntimeCoreError> + Send + 'a;
 
 pub trait RuntimeEventSink: Send {
+    fn model_history_recorder(&self) -> Option<agent_runtime::model_history::ModelHistoryRecorder> {
+        None
+    }
+
+    fn persist_model_history(
+        &mut self,
+        _record: agent_runtime::model_history::ModelHistoryRecord,
+    ) -> Result<agent_runtime::model_history::HistoryReceipt, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime sink has no durable model tool history owner".to_string(),
+        ))
+    }
+
     fn emit(&mut self, event: RuntimeEvent) -> Result<(), RuntimeCoreError>;
 
     /// Persists internal CodeMode evidence without creating a RuntimeEvent or

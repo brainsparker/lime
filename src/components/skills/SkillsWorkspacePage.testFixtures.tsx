@@ -28,6 +28,7 @@ const hoisted = vi.hoisted(() => ({
     openDialog: vi.fn(),
     saveDialog: vi.fn(),
     createSkillScaffold: vi.fn(),
+    getRuntimeCatalog: vi.fn(),
     importLocalSkill: vi.fn(),
     inspectLocalSkill: vi.fn(),
     inspectLocalSkillDetail: vi.fn(),
@@ -127,6 +128,7 @@ vi.mock("@/lib/api/skills", async (importOriginal) => {
     ...actual,
     skillsApi: {
       ...actual.skillsApi,
+      getRuntimeCatalog: () => mocks.getRuntimeCatalog(),
       createSkillScaffold: (...args: unknown[]) =>
         mocks.createSkillScaffold(...args),
       importLocalSkill: (...args: unknown[]) => mocks.importLocalSkill(...args),
@@ -178,8 +180,7 @@ vi.mock("@/lib/api/agentRuntime/inventoryClient", () => ({
 vi.mock("@/lib/api/scheduledTasks", () => ({
   scheduledTasksApi: {
     listDetailed: (...args: unknown[]) => mocks.listScheduledTasks(...args),
-    setEnabled: (...args: unknown[]) =>
-      mocks.setScheduledTaskEnabled(...args),
+    setEnabled: (...args: unknown[]) => mocks.setScheduledTaskEnabled(...args),
   },
 }));
 
@@ -499,6 +500,9 @@ export function useSkillsWorkspacePageTestLifecycle() {
     mocks.officialMarketplaceLoading = false;
     mocks.skillGroups = createDefaultSkillGroups();
     mocks.localSkills = createDefaultLocalSkills();
+    mocks.getRuntimeCatalog
+      .mockReset()
+      .mockImplementation(async () => mocks.localSkills);
     mocks.refreshServiceSkills.mockReset();
     mocks.refreshServiceSkills.mockResolvedValue(undefined);
     mocks.refreshOfficialMarketplace.mockReset();

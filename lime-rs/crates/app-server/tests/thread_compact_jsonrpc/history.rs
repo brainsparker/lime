@@ -43,9 +43,13 @@ pub(super) fn assert_normalized(
             .as_str()
             .is_some_and(|id| id.starts_with("orphan-"))
     }) {
+        // All seeded IDs are unprefixed. Codex strips them only from the
+        // request copy; assert_prompt_only still checks the exact durable item.
+        let mut expected = item.clone();
+        expected.as_object_mut().unwrap().remove("id");
         assert!(
-            items.contains(item),
-            "original item changed or missing: {item}; {items:?}"
+            items.contains(&expected),
+            "request item changed beyond its unprefixed ID: {expected}; {items:?}"
         );
     }
     assert!(!items.iter().any(|item| item["call_id"]

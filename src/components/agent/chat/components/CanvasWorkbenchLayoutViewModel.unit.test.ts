@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { DirectoryListing } from "@/lib/api/fileBrowser";
 import type { Artifact } from "@/lib/artifact/types";
 import {
   buildEntries,
-  isSavedContentBundleDirectory,
   isHtmlPreviewContext,
   normalizeCanvasWorkbenchPath,
   resolveCodingPreviewTabLabel,
@@ -14,23 +12,9 @@ import {
   resolveWorkspacePanelDisplayPath,
   resolveWorkspaceRelativeDisplayPath,
   resolveWorkspaceRelativePath,
-  sortWorkspaceListingEntries,
   type CanvasWorkbenchTaskFile,
   type CanvasWorkbenchCopy,
 } from "./CanvasWorkbenchLayoutViewModel";
-
-function entry(
-  name: string,
-  isDir = false,
-): DirectoryListing["entries"][number] {
-  return {
-    name,
-    path: `/workspace/${name}`,
-    isDir,
-    size: 0,
-    modifiedAt: 0,
-  };
-}
 
 function createArtifact(
   id: string,
@@ -97,7 +81,9 @@ const copy: CanvasWorkbenchCopy = {
 };
 
 const artifactDocType = ["doc", "ument"].join("") as Artifact["type"];
-const taskDocType = ["doc", "ument"].join("") as CanvasWorkbenchTaskFile["type"];
+const taskDocType = ["doc", "ument"].join(
+  "",
+) as CanvasWorkbenchTaskFile["type"];
 
 describe("CanvasWorkbenchLayoutViewModel", () => {
   it("应归一化 macOS 与 Windows 路径分隔符", () => {
@@ -119,9 +105,9 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
     expect(
       resolveWorkspaceRelativeDisplayPath("/workspace", "/workspace"),
     ).toBe("workspace");
-    expect(
-      resolveWorkspaceRelativeDisplayPath(null, "src\\index.md"),
-    ).toBe("src/index.md");
+    expect(resolveWorkspaceRelativeDisplayPath(null, "src\\index.md")).toBe(
+      "src/index.md",
+    );
   });
 
   it("应把 workspace 内路径转成命令用相对路径，并拒绝外部绝对路径", () => {
@@ -174,79 +160,9 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
         "/workspace/exports/x-article-export/latest",
       ),
     ).toBe("exports/x-article-export/latest");
-    expect(resolveWorkspacePanelDisplayPath("/workspace", null)).toBeUndefined();
-  });
-
-  it("应识别内容包目录及其子目录", () => {
     expect(
-      isSavedContentBundleDirectory(
-        "/workspace",
-        "/workspace/exports/x-article-export/latest",
-      ),
-    ).toBe(true);
-    expect(
-      isSavedContentBundleDirectory(
-        "/workspace",
-        "/workspace/exports/x-article-export/latest/images",
-      ),
-    ).toBe(true);
-    expect(
-      isSavedContentBundleDirectory("/workspace", "/workspace/exports"),
-    ).toBe(false);
-  });
-
-  it("应按内容包语义排序目录项", () => {
-    const sorted = sortWorkspaceListingEntries(
-      [
-        entry("manifest.json"),
-        entry("cover.png"),
-        entry("notes.txt"),
-        entry("chapter.md"),
-        entry("z-dir", true),
-        entry("images", true),
-        entry("skills", true),
-        entry("Agents.md"),
-        entry("index.md"),
-        entry("assets", true),
-      ],
-      "/workspace/exports/x-article-export/latest",
-      "/workspace",
-    ).map((item) => item.name);
-
-    expect(sorted).toEqual([
-      "index.md",
-      "Agents.md",
-      "skills",
-      "assets",
-      "images",
-      "z-dir",
-      "chapter.md",
-      "cover.png",
-      "notes.txt",
-      "manifest.json",
-    ]);
-  });
-
-  it("普通目录应保持目录、Markdown、其他文件的扫描顺序", () => {
-    const sorted = sortWorkspaceListingEntries(
-      [
-        entry("readme-10.md"),
-        entry("image.png"),
-        entry("src", true),
-        entry("readme-2.md"),
-        entry("docs", true),
-      ],
-      "/workspace",
-      "/workspace",
-    ).map((item) => item.name);
-
-    expect(sorted).toEqual([
-      "docs",
-      "src",
-      "readme-2.md",
-      "readme-10.md",
-      "image.png",
-    ]);
+      resolveWorkspacePanelDisplayPath("/workspace", null),
+    ).toBeUndefined();
   });
 
   it("应从 preview target 解析内容和可操作路径", () => {
@@ -339,14 +255,14 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
       "task:task-latest",
       "task:task-current",
     ]);
-    expect(entries.find((item) => item.key === "task:task-current")).toMatchObject(
-      {
-        title: "current.md",
-        absolutePath: "/workspace/current.md",
-        badgeLabel: "文档",
-        kindLabel: "任务文件",
-      },
-    );
+    expect(
+      entries.find((item) => item.key === "task:task-current"),
+    ).toMatchObject({
+      title: "current.md",
+      absolutePath: "/workspace/current.md",
+      badgeLabel: "文档",
+      kindLabel: "任务文件",
+    });
   });
 
   it("应解析 default preview、workspace file 和 entry selection", () => {

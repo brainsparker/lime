@@ -46,33 +46,3 @@ export const UserCommandMessageContent: React.FC<
     </div>
   );
 };
-
-export const UserInstalledSkillMessageContent: React.FC<
-  {
-    content: string;
-    label: string;
-  } & UserContentToggleProps
-> = ({ content, label, onBeforeToggle, revealRequestKey }) => (
-  <div
-    data-testid="message-user-skill-content"
-    aria-label={`@ ${label} ${content}`.trim()}
-    className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] leading-7 text-slate-950"
-  >
-    <span
-      data-testid="message-user-skill-tag"
-      className="inline-flex items-center rounded-[6px] border border-sky-200 bg-sky-50 px-1.5 py-[1px] text-[13px] font-semibold leading-5 text-sky-800"
-    >
-      <span className="mr-1 text-sky-500">@</span>
-      {label}
-    </span>
-    {content.trim() ? (
-      <CollapsibleUserMessageContent
-        content={content}
-        onBeforeToggle={onBeforeToggle}
-        revealRequestKey={revealRequestKey}
-      >
-        <span className="whitespace-pre-wrap">{content}</span>
-      </CollapsibleUserMessageContent>
-    ) : null}
-  </div>
-);

@@ -5,6 +5,7 @@ use serde_json::json;
 
 #[test]
 fn responses_call_ids_correlate_without_phantom_or_duplicate_calls() {
+    let original_name = " Read ";
     for custom in [false, true] {
         let mut reducer = ResponsesEventReducer::new(None, true);
         let kind = if custom {
@@ -23,8 +24,10 @@ fn responses_call_ids_correlate_without_phantom_or_duplicate_calls() {
         } else {
             "{\"path\":\"source.txt\"}"
         };
-        let added = json!({"type":kind,"id":"fc_1","call_id":"call_1","name":"Read",field:""});
-        let done = json!({"type":kind,"id":"fc_1","call_id":"call_1","name":"Read",field:input});
+        let added =
+            json!({"type":kind,"id":"fc_1","call_id":"call_1","name":original_name,field:""});
+        let done =
+            json!({"type":kind,"id":"fc_1","call_id":"call_1","name":original_name,field:input});
         let frames = [
             json!({"type":"response.output_item.added","output_index":0,"item":added}),
             json!({"type":format!("response.{prefix}.delta"),"item_id":"fc_1","output_index":0,"delta":input}),
@@ -55,13 +58,13 @@ fn responses_call_ids_correlate_without_phantom_or_duplicate_calls() {
                 _ => None,
             })
             .collect::<Vec<_>>();
-        assert_eq!(calls, [("call_1", "Read", input)], "{events:?}");
+        assert_eq!(calls, [("call_1", original_name, input)], "{events:?}");
         for event in &events {
             if let CanonicalLlmEvent::ToolInputStart { id, name }
             | CanonicalLlmEvent::ToolInputEnd { id, name }
             | CanonicalLlmEvent::ToolInputDelta { id, name, .. } = event
             {
-                assert_eq!((id.as_str(), name.as_str()), ("call_1", "Read"));
+                assert_eq!((id.as_str(), name.as_str()), ("call_1", original_name));
             }
         }
     }

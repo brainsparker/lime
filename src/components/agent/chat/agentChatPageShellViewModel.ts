@@ -45,7 +45,7 @@ export function resolveAgentChatPageShellViewModel(
     hasText(props.initialKnowledgePackSelection?.packName) ||
     (preferHomeForInitialInputCapability
       ? false
-      : Boolean(props.initialInputCapability?.capabilityRoute)) ||
+      : Boolean(props.initialInputCapability)) ||
     hasText(props.initialProjectFileOpenTarget?.relativePath) ||
     Boolean(props.openBrowserAssistOnMount);
 

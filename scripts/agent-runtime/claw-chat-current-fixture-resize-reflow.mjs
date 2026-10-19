@@ -660,7 +660,6 @@ export async function runElectronResizeReflowScenario({
   result.electronResizeReflowFilesSurface = sanitizeJson(
     await clickAndAssertRightSurface(page, options, {
       surfaceKind: "files",
-      toggleTestId: "task-center-files-toggle",
       rootTestId: "workspace-files-surface",
       requireCanvasPanelFill: false,
     }),

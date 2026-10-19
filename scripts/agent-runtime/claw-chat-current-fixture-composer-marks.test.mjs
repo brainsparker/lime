@@ -138,22 +138,22 @@ describe("independent marks Markdown/UTF8 fixture", () => {
       "[中😀](https://example.invalid/marks \"标题\")\n`````typescript\n  const value = '中😀';\n````\n\n\n`````\n尾中😀 ",
     );
     const bytes = Buffer.from(expected.text, "utf8");
-    expect(bytes.length).toBe(4386);
+    expect(bytes.length).toBe(4362);
     expect(expected.textElements).toEqual([
       {
-        byteRange: { start: 222, end: 4362 },
+        byteRange: { start: 203, end: 4343 },
         placeholder: "[Pasted text 1: 1620 characters]",
       },
       {
-        byteRange: { start: 4363, end: 4386 },
-        placeholder: "/user:capability-report",
+        byteRange: { start: 4344, end: 4362 },
+        placeholder: "$capability-report",
       },
     ]);
     expect(
-      createHash("sha256").update(bytes.subarray(222, 4362)).digest("hex"),
+      createHash("sha256").update(bytes.subarray(203, 4343)).digest("hex"),
     ).toBe("efe7ffb00ece5294d1cd2b7cac4533861af4b728d7988212acc3a9551b98cb0a");
-    expect(bytes.subarray(4363, 4386).toString("utf8")).toBe(
-      "/user:capability-report",
+    expect(bytes.subarray(4344, 4362).toString("utf8")).toBe(
+      "$capability-report",
     );
     expect(expected.displayText).toContain(
       "中😀\n  const value = '中😀';\n````\n\n\n尾中😀",

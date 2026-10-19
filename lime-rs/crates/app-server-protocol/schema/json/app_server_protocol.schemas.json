@@ -31319,9 +31319,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -33581,9 +33583,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -58820,9 +58824,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -66651,9 +66657,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -75393,9 +75401,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -78097,9 +78107,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -80710,9 +80722,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -82377,9 +82391,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -84111,9 +84127,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -86144,9 +86162,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -88544,9 +88564,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -91506,9 +91528,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -93861,9 +93885,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -96413,9 +96439,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -98778,9 +98806,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -101273,9 +101303,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -103526,9 +103558,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -106774,9 +106808,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -109081,9 +109117,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -111647,9 +111685,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -113618,9 +113658,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -116141,9 +116183,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -118050,9 +118094,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -120773,9 +120819,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -122693,9 +122741,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },
@@ -124880,9 +124930,11 @@
           "type": "object"
         },
         "MessagePhase": {
+          "description": "Assistant message phase; absent phase remains unknown for providers that omit it.",
           "enum": [
             "commentary",
-            "final_answer"
+            "final_answer",
+            "partial_answer"
           ],
           "type": "string"
         },

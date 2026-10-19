@@ -1,5 +1,37 @@
 use super::CurrentProviderTurnEvent;
 use crate::reply_execution::RuntimeReplyAttemptError;
+use agent_protocol::response_item::MessagePhase;
+
+#[derive(Debug)]
+pub(super) struct CompletedMessage {
+    pub item_id: String,
+    pub phase: Option<MessagePhase>,
+}
+
+pub(super) fn complete_text_output_item<F>(
+    active_item_id: &mut Option<String>,
+    pending_item_ids: &mut Vec<String>,
+    message: CompletedMessage,
+    on_event: &mut F,
+    emitted_any: bool,
+) -> Result<(), RuntimeReplyAttemptError>
+where
+    F: FnMut(CurrentProviderTurnEvent),
+{
+    defer_text_output_item_end(
+        active_item_id,
+        pending_item_ids,
+        message.item_id.clone(),
+        on_event,
+        emitted_any,
+    )?;
+    pending_item_ids.retain(|item_id| item_id != &message.item_id);
+    on_event(CurrentProviderTurnEvent::TextEnd {
+        item_id: message.item_id,
+        phase: message.phase,
+    });
+    Ok(())
+}
 
 #[derive(Clone, Copy)]
 pub(super) enum ProviderOutputFamily {

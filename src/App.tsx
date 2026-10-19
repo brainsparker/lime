@@ -55,6 +55,7 @@ import {
   resolveWebsiteOpenNavigation,
   resolveWebsiteSkillTitle,
 } from "./lib/deepLink/websiteLaunch";
+import { skillsApi } from "./lib/api/skills";
 import { installOfficialMarketplaceSkill } from "./lib/api/officialSkillMarketplace";
 import { toast } from "sonner";
 import { SettingsTabs } from "./types/settings";
@@ -276,9 +277,7 @@ function AppContent() {
   const handleOpenWebsiteDeepLink = useCallback(
     async (payload: OpenDeepLinkPayload) => {
       if (payload.kind === "skill" && payload.action === "install") {
-        const installNavigation =
-          resolveWebsiteInstalledSkillNavigation(payload);
-        if (!installNavigation) {
+        if (!resolveWebsiteSkillTitle(payload.slug)) {
           toast.error(t("common.app.websiteDeepLink.unsupported.title"), {
             description: t(
               "common.app.websiteDeepLink.unsupported.description",
@@ -325,7 +324,27 @@ function AppContent() {
           );
         }
 
-        handleNavigate(installNavigation.page, installNavigation.params);
+        try {
+          const installed = (await skillsApi.getRuntimeCatalog()).filter(
+            (entry) =>
+              entry.directory === payload.slug &&
+              entry.catalogSource === "user",
+          );
+          const skill = installed.length === 1 ? installed[0] : null;
+          const navigation = skill
+            ? resolveWebsiteInstalledSkillNavigation(payload, skill)
+            : null;
+          if (!navigation) {
+            throw new Error(
+              t("common.app.websiteDeepLink.unsupported.description"),
+            );
+          }
+          handleNavigate(navigation.page, navigation.params);
+        } catch (error) {
+          toast.error(t("common.app.websiteDeepLink.install.failed.title"), {
+            description: error instanceof Error ? error.message : String(error),
+          });
+        }
         return;
       }
 

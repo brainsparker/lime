@@ -29,6 +29,7 @@ import { ElectronDevHttpBridge } from "./devHttpBridge";
 import { ElectronHostCommands } from "./hostCommands";
 import { PersistedAtomHost } from "./persistedAtomHost";
 import { registerRendererEventHandler } from "./rendererEventPolicy";
+import { normalizeOpenDialogOptions } from "./dialogOptions";
 import { ElectronSecureCredentialStore } from "./secureCredentialStore";
 import {
   buildMainWindowChromeOptions,
@@ -63,7 +64,6 @@ import {
   session,
   safeStorage,
   type MenuItemConstructorOptions,
-  type OpenDialogOptions,
   protocol,
   shell,
   type SaveDialogOptions,
@@ -1182,47 +1182,6 @@ async function handleHostInvoke(
     return await updateHost.invoke(command, args);
   }
   return await hostCommands.invoke(command, args);
-}
-
-type HostOpenDialogOptions = {
-  title?: string;
-  defaultPath?: string;
-  filters?: OpenDialogOptions["filters"];
-  multiple?: boolean;
-  directory?: boolean;
-  recursive?: boolean;
-};
-
-function normalizeOpenDialogOptions(options: unknown): {
-  options: OpenDialogOptions;
-  multipleSelection: boolean;
-} {
-  const input =
-    options && typeof options === "object"
-      ? (options as HostOpenDialogOptions)
-      : {};
-  const properties: OpenDialogOptions["properties"] = [];
-  if (input.directory) {
-    properties.push("openDirectory");
-  } else {
-    properties.push("openFile");
-  }
-  if (input.multiple) {
-    properties.push("multiSelections");
-  }
-  if (input.recursive) {
-    properties.push("treatPackageAsDirectory");
-  }
-
-  return {
-    options: {
-      title: input.title,
-      defaultPath: input.defaultPath,
-      filters: input.filters,
-      properties,
-    },
-    multipleSelection: Boolean(input.multiple),
-  };
 }
 
 function normalizeSaveDialogOptions(options: unknown): SaveDialogOptions {

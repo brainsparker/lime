@@ -10,21 +10,55 @@ vi.mock("@/lib/api/fileBrowser", () => ({
 }));
 
 describe("knowledgeSourceImport", () => {
-  it("浏览器文件管理器 mock 文本资料读取失败时应返回可整理内容", async () => {
+  it("文件读取失败必须保留错误，不按路径生成模拟资料", async () => {
     vi.mocked(readFilePreview).mockRejectedValueOnce(
       new Error("No such file or directory"),
     );
 
-    const result = await readKnowledgeTextSourceFromPath({
-      name: "brief.md",
-      path: "/Users/mock/brief.md",
-      isDir: false,
-      mimeType: "text/markdown",
-    });
+    await expect(
+      readKnowledgeTextSourceFromPath({
+        name: "brief.md",
+        path: "/Users/mock/brief.md",
+        isDir: false,
+        mimeType: "text/markdown",
+      }),
+    ).rejects.toThrow("No such file or directory");
+  });
 
-    expect(result.sourceName).toBe("brief.md");
-    expect(result.sourceText).toContain("从文件管理器加入的文本资料");
-    expect(result.sourceText).not.toContain("/Users/mock/brief.md");
+  it("读取结果中的错误也不能生成模拟资料", async () => {
+    vi.mocked(readFilePreview).mockResolvedValueOnce({
+      path: "/Users/mock/brief.md",
+      size: 0,
+      error: "Read denied",
+      content: "",
+      isBinary: false,
+    });
+    await expect(
+      readKnowledgeTextSourceFromPath({
+        name: "brief.md",
+        path: "/Users/mock/brief.md",
+        isDir: false,
+        mimeType: "text/markdown",
+      }),
+    ).rejects.toThrow("Read denied");
+  });
+
+  it("成功时只返回实际读取的内容", async () => {
+    vi.mocked(readFilePreview).mockResolvedValueOnce({
+      path: "/workspace/brief.md",
+      size: new TextEncoder().encode("# 实际资料").length,
+      content: "# 实际资料",
+      isBinary: false,
+      error: null,
+    });
+    await expect(
+      readKnowledgeTextSourceFromPath({
+        name: "brief.md",
+        path: "/workspace/brief.md",
+        isDir: false,
+        mimeType: "text/markdown",
+      }),
+    ).resolves.toEqual({ sourceName: "brief.md", sourceText: "# 实际资料" });
   });
 
   it("应识别运营类资料类型", () => {

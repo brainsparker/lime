@@ -951,7 +951,7 @@ async fn thread_fork_rebuilds_provider_history_across_restarts_without_duplicate
     assert!(matches!(
         &histories[2][histories[1].len()],
         CurrentProviderMessage {
-            role: CurrentProviderRole::User,
+            producer: None, role: CurrentProviderRole::User,
             content,
         } if matches!(
             &content[..],
@@ -984,7 +984,7 @@ fn assert_source_provider_history(history: &[CurrentProviderMessage]) {
     );
     assert!(matches!(
         &history[0],
-        CurrentProviderMessage { role: CurrentProviderRole::User, content }
+        CurrentProviderMessage { producer: None, role: CurrentProviderRole::User, content }
             if matches!(&content[..], [
                 CurrentProviderContent::Text(text),
                 CurrentProviderContent::Image {
@@ -1005,7 +1005,7 @@ fn assert_source_provider_history(history: &[CurrentProviderMessage]) {
     ));
     assert!(matches!(
         &history[1],
-        CurrentProviderMessage { role: CurrentProviderRole::Assistant, content }
+        CurrentProviderMessage { producer: None, role: CurrentProviderRole::Assistant, content }
             if matches!(&content[..], [CurrentProviderContent::ToolCall(call)]
                 if call.id == "source-tool-call"
                     && call.name == "read_file"
@@ -1013,7 +1013,7 @@ fn assert_source_provider_history(history: &[CurrentProviderMessage]) {
     ));
     assert!(matches!(
         &history[2],
-        CurrentProviderMessage { role: CurrentProviderRole::Tool, content }
+        CurrentProviderMessage { producer: None, role: CurrentProviderRole::Tool, content }
             if matches!(&content[..], [CurrentProviderContent::ToolResult(result)]
                 if result.call_id == "source-tool-call"
                     && result.name == "read_file"
@@ -1022,7 +1022,7 @@ fn assert_source_provider_history(history: &[CurrentProviderMessage]) {
     ));
     assert!(matches!(
         &history[3],
-        CurrentProviderMessage { role: CurrentProviderRole::Assistant, content }
+        CurrentProviderMessage { producer: None, role: CurrentProviderRole::Assistant, content }
             if matches!(&content[..], [CurrentProviderContent::Text(text)] if text == "source assistant answer")
     ));
 }

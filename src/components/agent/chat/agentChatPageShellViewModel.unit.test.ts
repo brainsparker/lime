@@ -9,7 +9,9 @@ function resolve(input: ShellInput = {}) {
 }
 
 function expectForced(input: ShellInput) {
-  expect(resolve({ agentEntry: "new-task", showChatPanel: false, ...input })).toMatchObject({
+  expect(
+    resolve({ agentEntry: "new-task", showChatPanel: false, ...input }),
+  ).toMatchObject({
     hasDirectWorkspaceIntent: true,
     shouldForceClawWorkspace: true,
     effectiveAgentEntry: "claw",
@@ -102,10 +104,14 @@ describe("agentChatPageShellViewModel", () => {
 
   it("new-task 携带输入能力时默认直达工作区，但首页偏好会保留首页", () => {
     const initialInputCapability: ShellInput["initialInputCapability"] = {
-      capabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "writer",
-        skillName: "写作助手",
+      skill: {
+        key: "writer",
+        name: "写作助手",
+        directory: "writer",
+        localDirectoryPath: "/skills/" + "writer",
+        installed: true,
+        sourceKind: "other" as const,
+        description: "",
       },
     };
 

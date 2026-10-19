@@ -625,6 +625,30 @@ node:assert/strict并改5个调用，定向ESLint exit0，保留首轮/tmp/lime-
 分类保持current包/账号/协议/store/runtime；旧插件42项dead/deleted/forbidden-to-restore不恢复，
 本刀新增compat/deprecated为0。新增模块保持800行以下，已验证的重复读取流程直接替换。
 
+## P04b12c2 manifest 非普通路径共享样例（2026-10-19，本片完成）
+
+Codex `plugin_bundle_archive::unpack_plugin_bundle_tar` 保留显式与隐式目录，
+`plugin_namespace::find_plugin_manifest_path` 拒绝高优先级非普通 manifest 后再选择格式。
+Core 的独立目录切片已完成 38 个发布/分享场景，客户端尚缺同包运行证据。本片直接复用唯一
+`tests/fixtures/plugin-archive/generate.py`，向两仓共享 corpus 增加 19 包：root/Codex/Claude/Cursor
+的显式目录、普通子文件隐式目录、目录子条目隐式目录，三个 native 父路径为普通文件，以及四种
+合法格式。15 负向、4 正向；总量 56→75。原 56 包和原有断言保持逐字节不变，两仓 75 包与 index
+及逐包 SHA 已核对相同，不另外复制一套 archive builder。
+
+Verification Contract：root；唯一 current owner 仍为客户端 extractor/manifest selector 和 Core
+archive/selector/scanner。窄写集仅生成器、两仓 index/19 个新 tar.gz、两侧既有 corpus 测试计数、
+计划与证据；没有生产逻辑、RPC/schema、依赖、迁移或 compat。测试目录不在 Electron freshness
+源集中，当前 continuation 的 84 项冻结生产核心保持不变，避让 GUI/Electron/runtime。
+
+退出分母 4 项：①新增包与原字节/两仓镜像验证；②Lime 当前 extractor/manifest 跑全 75 包；
+③Core 当前 scanner 跑相同 75 包并保留原 38 发布/分享场景；④结果、源码摘要和分类归档。
+当前 **4/4（100%）**：Lime 的 1 项真实 Rust corpus 测试已遍历并通过全部 **75 包**；
+Core 定向 **75/75** 共享包和原 **38/38** 发布/分享场景通过，标准
+`GOMAXPROCS=1 make verify-go-fast` 的 Node baseline、格式和 10 模块 vet 通过；客户端日志与阶段 summary 已归档，并在阶段前后核对两侧各五项源码/index 和全部 75 包摘要，
+均无漂移。测试改动未改变 current parser/scanner，也不复用历史 56 包结果。
+账本为 `artifacts/codex-plugin-manifest-corpus-20261019/validation.json`。这仍不覆盖真实 Core/MySQL
+发布到 Turn、CLI/PTY、Windows/live 或完整插件总目标。
+
 ## P04b12d1 分享管理 GUI（实施中，完整目标 active）
 
 本刀责任 root，2026-10-18。接续已验的五 RPC；只认领 PluginCatalogPage 及其拆分组件、

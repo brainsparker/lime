@@ -25,14 +25,12 @@
   ],
   "fileBrowserCommands": [
     "get_home_dir",
-    "get_file_manager_locations",
     "get_file_icon_data_url",
     "get_file_name",
     "reveal_in_finder",
     "open_with_default_app",
     "open_file_preview_window",
-    "open_resource_manager_window",
-    "open_project_path_with_tool"
+    "open_resource_manager_window"
   ],
   "deprecatedCommandReplacements": {
     "list_agent_sessions": "thread/list",

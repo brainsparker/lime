@@ -3,7 +3,11 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
-import { ComposerController, ComposerEditor, type ComposerEditorHandle } from "@/components/input-kit";
+import {
+  ComposerController,
+  ComposerEditor,
+  type ComposerEditorHandle,
+} from "@/components/input-kit";
 import "@/components/input-kit/composerEditor.testUtils";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import type { MessageImage } from "../../../types";
@@ -46,7 +50,11 @@ vi.mock("./InputbarCore", () => ({
     trailingMeta?: React.ReactNode;
   }) => (
     <div data-testid="inputbar-core" data-disabled={String(props.disabled)}>
-      <ComposerEditor controller={props.controller} editorRef={props.editorRef} disabled={props.disabled} />
+      <ComposerEditor
+        controller={props.controller}
+        editorRef={props.editorRef}
+        disabled={props.disabled}
+      />
       <button
         type="button"
         data-testid="mock-send"
@@ -94,14 +102,6 @@ vi.mock("./InputbarVisionCapabilityNotice", async () => {
   };
 });
 
-vi.mock("../../../skill-selection/CharacterMention", () => ({
-  CharacterMention: () => null,
-}));
-
-vi.mock("../../../skill-selection/SkillSelector", () => ({
-  SkillSelector: () => null,
-}));
-
 const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 
 function translateResource(
@@ -123,11 +123,7 @@ const workflowPanelCopy = buildInputbarWorkflowPanelCopy(translateResource);
 
 const defaultSkillSelection: SkillSelectionProps = {
   skills: [],
-  serviceSkills: [],
-  serviceSkillGroups: [],
-  activeSkill: null,
   isSkillsLoading: false,
-  onSelectInputCapability: vi.fn(),
 };
 
 function createInputAdapter(): ChatInputAdapter {
@@ -195,8 +191,9 @@ function renderComposerSection(
     workflowProgressLabel: "",
     workflowSummaryLabel: "",
     inputAdapter: createInputAdapter(),
-    composerController: new ComposerController({ text: props?.input ?? "先给我计划" }),
-    characters: [],
+    composerController: new ComposerController({
+      text: props?.input ?? "先给我计划",
+    }),
     skillSelection: defaultSkillSelection,
     editorRef,
     input: "先给我计划",
@@ -213,7 +210,6 @@ function renderComposerSection(
     reasoningEffort: "medium",
     setReasoningEffort: vi.fn(),
     showModelControls: true,
-    inputCompletionEnabled: true,
     copy: composerCopy,
     inputbarCopy,
     workflowPanelCopy,

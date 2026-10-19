@@ -381,10 +381,7 @@ async fn compact_thread_writes_session_context_artifact() {
     let completed =
         wait_for_runtime_event(&mut runtime_events, "context.compaction.completed").await;
     assert_eq!(completed.payload["contextEpoch"].as_u64(), Some(1));
-    assert_eq!(
-        completed.payload["tailStartTurnId"].as_str(),
-        Some("turn_compact_1")
-    );
+    assert_eq!(completed.payload["coveredThroughSequence"], 0);
     assert_eq!(
         completed.payload["artifact"]["policy"]["durableHistoryRewrite"].as_bool(),
         Some(false)
@@ -403,7 +400,7 @@ async fn compact_thread_writes_session_context_artifact() {
     let sidecar = sidecar_store
         .read_text(relative_path)
         .expect("sidecar content");
-    assert!(sidecar.contains("\"schema\": \"session_context_compaction.v2\""));
+    assert!(sidecar.contains("\"schema\": \"session_context_compaction.v3\""));
     assert!(sidecar.contains("Explicit test backend compaction summary"));
     assert!(!sidecar.contains("请总结上下文"));
 

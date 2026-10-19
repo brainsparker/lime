@@ -5,7 +5,7 @@ import {
   type CanvasWorkbenchLayoutProps,
   clickByAriaLabel,
   clickNewWorkbenchTool,
-  clickPreviewMode,
+  toggleFilePreview,
   createArtifact,
   createTaskFile,
   expectNewWorkbenchToolInMenu,
@@ -200,10 +200,10 @@ describe("CanvasWorkbenchLayout", () => {
     expect(container.textContent).toContain("名称");
     expect(container.textContent).toContain("修改日期");
     expect(container.textContent).toContain("大小");
-    expect(container.textContent).not.toContain(".lime");
+    expect(container.textContent).toContain(".lime");
     expect(container.textContent).toContain("exports");
-    expect(container.textContent).not.toContain("output_image.jpg");
-    expect(container.textContent).not.toContain(".DS_Store");
+    expect(container.textContent).toContain("output_image.jpg");
+    expect(container.textContent).toContain(".DS_Store");
     clickByAriaLabel(container, "选择工作区文件-README.md");
     await flushEffects();
 
@@ -213,7 +213,7 @@ describe("CanvasWorkbenchLayout", () => {
         '[data-testid="canvas-workbench-markdown-preview"]',
       ),
     ).not.toBeNull();
-    clickPreviewMode(container, "Code");
+    toggleFilePreview(container);
     await flushEffects();
     expect(
       container.querySelector(
@@ -353,7 +353,14 @@ describe("CanvasWorkbenchLayout", () => {
     expect(
       container.querySelector('button[aria-label="展开当前文稿检查器"]'),
     ).toBeNull();
-    clickPreviewMode(container, "Code");
+    toggleFilePreview(container);
+    await flushEffects();
+    expect(
+      container.querySelector(
+        '[data-testid="canvas-workbench-markdown-preview"]',
+      ),
+    ).not.toBeNull();
+    toggleFilePreview(container);
     await flushEffects();
     expect(
       container.querySelector('[data-testid="canvas-workbench-code-preview"]'),

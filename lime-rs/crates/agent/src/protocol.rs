@@ -1,5 +1,6 @@
 use agent_protocol::hook::HookRunSummary;
 use agent_protocol::provider_trace::{ProviderTraceEvent, ProviderTraceStage};
+use agent_protocol::response_item::MessagePhase;
 use agent_protocol::turn_context::TurnOutputSchemaRuntime;
 use agent_protocol::ThreadItem;
 use lime_core::database::dao::agent_timeline::AgentThreadTurn;
@@ -251,22 +252,6 @@ pub type AgentProviderTraceStage = ProviderTraceStage;
 pub type AgentProviderTraceEvent = ProviderTraceEvent;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentMessagePhase {
-    Commentary,
-    FinalAnswer,
-}
-
-impl AgentMessagePhase {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Self::Commentary => "commentary",
-            Self::FinalAnswer => "final_answer",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum GuardianReviewStatus {
     InProgress,
@@ -342,7 +327,7 @@ pub enum AgentEvent {
     TextEnd {
         #[serde(rename = "itemId")]
         item_id: String,
-        phase: AgentMessagePhase,
+        phase: Option<MessagePhase>,
     },
 
     #[serde(rename = "text_delta_batch")]

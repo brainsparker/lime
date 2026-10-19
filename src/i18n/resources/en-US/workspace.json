@@ -5,7 +5,6 @@
   "workspace.pendingA2UI.footer.stale": "Your latest details were received. No need to submit again for now.",
   "workspace.pendingA2UI.status.progressStep": "Step {{currentStep}}/{{totalSteps}}",
   "workspace.pendingA2UI.status.stale": "Still processing",
-  "workspace.layout.compactMode.ariaLabel": "Switch between chat and workbench",
   "workspace.layout.compactMode.chat": "Chat",
   "workspace.layout.compactMode.workbench": "Workbench",
   "workspace.layout.splitter.resizeAria": "Drag to resize the chat area and workbench",
@@ -724,5 +723,9 @@
   "workspace.presentationTable.headerColumn": "Header column",
   "workspace.presentationTable.reorderRow": "Reorder row {{row}}",
   "workspace.presentationTable.reorderColumn": "Reorder column {{column}}",
-  "workspace.presentationTable.reorderHint": "Drag to move. Alt + arrow keys to reorder."
+  "workspace.presentationTable.reorderHint": "Drag to move. Alt + arrow keys to reorder.",
+  "workspace.artifactPreviewHeader.open": "Open",
+  "workspace.artifactPreviewHeader.openOptions": "Open options",
+  "workspace.artifactPreviewHeader.openInFolder": "Open in folder",
+  "workspace.artifactPreviewHeader.saveAs": "Save as…"
 }

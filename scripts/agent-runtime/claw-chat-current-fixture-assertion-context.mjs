@@ -56,7 +56,6 @@ import {
 import { buildGateBContractEvidence } from "./claw-chat-current-fixture-gate-b-contract.mjs";
 import {
   readHarnessMetadataFromTurnStart,
-  readObjectiveTextFromHarness,
   readWorkspaceSkillRuntimeEnableFromTurnStart,
 } from "./claw-chat-current-fixture-backend-ledger.mjs";
 import {
@@ -68,6 +67,10 @@ import {
   ACTIVE_STEER_SCENARIO,
 } from "./claw-chat-current-fixture-active-steer.mjs";
 import { UNKNOWN_ITEM_SCENARIO } from "./claw-chat-current-fixture-unknown-item.mjs";
+import {
+  resolveGoalUserTurn,
+  resolveGoalObjective,
+} from "./claw-chat-current-fixture-goal.mjs";
 
 export function resolveGateBExpectedIdentity({
   summary,
@@ -163,6 +166,7 @@ export function resolveGateBExpectedIdentity({
 }
 
 function resolveScenarioTurnStart(summary, options) {
+  if (options?.scenario === "goal") return resolveGoalUserTurn(summary);
   if (
     options?.scenario === TYPED_ERROR_RETRY_SUCCESS_SCENARIO ||
     options?.scenario === TYPED_ERROR_RETRY_FAILURE_SCENARIO
@@ -574,8 +578,10 @@ export function buildAssertionContext({
                                             : newsTurnStart?.runtimeRequest) ??
     {};
   const hasCancelPhase = isCancelOnlyScenario || isCancelThenContinueScenario;
-  const goalHarness = readHarnessMetadataFromTurnStart(goalTurnStart);
-  const goalObjectiveText = readObjectiveTextFromHarness(goalHarness);
+  const goalObjectiveText = resolveGoalObjective(
+    appServerRequests,
+    gateBExpectedIdentity.threadId,
+  );
   const imageCommandHarness = readHarnessMetadataFromTurnStart(
     imageCommandTurnStart,
   );

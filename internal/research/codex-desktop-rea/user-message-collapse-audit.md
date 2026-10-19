@@ -159,3 +159,15 @@ REA CLI 曾对既有 primary parent `ev_18100ea823ab540f529ba756499161870e17f824
 仍 unknown：producer→wire→history 是否实际采用该链接语法；bare `$skill/@name` 与 plain-text decoration；完整 URL/path normalization、catalog/query 时序、远程 host/readiness；selection/HTML transform 对身份属性的保存和回贴；真实窗口、点击与键盘效果。没有扩展到云/外部全部支路，也没有 GUI Gate 或 E2E 完成声明。
 
 本节只复用完成产物，验证目标、Evidence、成员 SHA、所列原范围/绑定及 Lime 本地引用，并执行 Prettier 和定向 diff 检查。研究与既有 owner 为 current；无 compat/deprecated/dead 新入口或删除。本次静态问题“是否存在实际专用 consumer”已回答，产品修改与真实交互验证仍为 0%。
+
+## 2026-10-19：提交链补证与重复徽标清退
+
+REA95 `ev_6abdbfee18fb272f9557c8be99713836061a6982671dea18ba36ca57c6b87cf1`认证initial/primary/shared原成员摘要，提取Put/fut/Zs/wta/Hm/Eln/Ccn/n2/GVr/KVr十个完整声明（22149bytes、6370 AST、parse0）。[原件范围与摘要](../../exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mentions-extraction-95.json)及[完整Evidence保全摘要](../../exec-plans/artifacts/codex-shared-page-header-20261018/submitted-mentions-bundle-manifest-95.json)可追溯；全部静态、未运行参考应用，未解析的上下文/transport支路不能提升为完整producer到wire证明。
+
+补证确认n2将label/href格式化为Markdown链接；Put从Controller取得正文并委托buildLocalContextForPrompt，wta独立保留本地消息text。Hm仍只聚合text rows；独立skill/mention元数据不直接产生展示标签。不能从GB的单个text字段推出整个GUI最终提交只有裸`$name`，也不能从typed Skill元数据反向生成无path的`@`徽标。
+
+Lime93根写集已删除resolveUserMessageLabels、UserInstalledSkillMessageContent和对应额外标签循环，未改写canonical正文/元数据。旧正向标签期待迁成负向回流断言，图片、长正文折叠、全文复制与精确Item/Turn身份继续覆盖。消息3套38项、复制3套33项及strict lint通过；独立候选产品验证尚待。当前链接serializer/consumer、条件打开、粘贴身份及全GUI仍partial，旧审计中的取证时owner仅作历史观察。
+
+REA96 `ev_39097e6ae3706546f0f855f241d5faabb6160b473899103b147080aafd9cc3fa`认证并提取m7c/q3c/J3c/FBc/e6c/X3c/Y3c/Z6r/YL九个完整声明（18278bytes、7615 AST、parse0），完整Evidence gzip逐字节回读保全。分类依据href与label；Skill按规范化path优先，否则name/displayName匹配且只接受唯一结果；无目录无href时保留文字，不伪造安装项。打开技能文件还要求本地同host、非远程、可识别Skill定义文件或真实模板目标；加载中的元数据不抢先打开。App与Plugin各自使用current catalog/host/readiness，不由任意文字绑定。上述是静态消费者合同，依赖仍有未解析分支，未执行参考，不能声称全部catalog/remote/点击分支已穷尽。
+
+93独立通过8套102项、标准GUI、真实rich与54观察/48截图，删除sidecar徽标已取得冻结字节产品证据；manifest SHA `19f8612ab7147a96c9f94395a87b21450e8d781e05974d2666061b9519c87b65`，sourceDrift空。94仅补PM leafText可见文本，根112项及lint通过；它不实现内联引用consumer。

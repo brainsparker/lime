@@ -33,6 +33,7 @@ describe("projectRuntimeSkillCatalog", () => {
       {
         key: "user:article-writer",
         name: "article-writer",
+        displayName: "Article Writer",
         description: "Write structured articles.",
         directory: "article-writer",
         localDirectoryPath: "/tmp/.agents/skills/article-writer",

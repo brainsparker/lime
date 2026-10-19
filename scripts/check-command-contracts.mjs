@@ -29,6 +29,7 @@ const frontendCommandPatterns = [
 
 const knownDeferredRegistrationReasons = new Map();
 const retiredFileBrowserFacadeCommands = new Set([
+  "get_file_manager_locations",
   "list_dir",
   "read_file_preview_cmd",
   "create_file",
@@ -528,7 +529,6 @@ const retiredAgentRuntimeRustCommands = new Set([
 ]);
 const currentFileBrowserDesktopHostShellCommands = new Set([
   "get_home_dir",
-  "get_file_manager_locations",
   "get_file_icon_data_url",
   "reveal_in_finder",
   "open_with_default_app",

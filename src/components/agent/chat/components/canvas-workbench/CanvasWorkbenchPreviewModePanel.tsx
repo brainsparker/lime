@@ -170,6 +170,17 @@ export const CanvasWorkbenchPreviewModePanel = memo(
         : null;
     const codeLanguage =
       mode === "html" ? "html" : modeState.language || "text";
+    const previewMode = modeState.isMarkdownLike
+      ? "markdown"
+      : modeState.isHtmlLike
+        ? "html"
+        : null;
+    const nextMode = mode === "code" ? previewMode : "code";
+    const switchLabel = translateWorkbench(
+      mode === "code"
+        ? "agentChat.canvasWorkbench.coding.preview.mode.viewPreview"
+        : "agentChat.canvasWorkbench.coding.preview.mode.viewSource",
+    );
 
     return (
       <section
@@ -193,37 +204,23 @@ export const CanvasWorkbenchPreviewModePanel = memo(
               ) : null}
             </div>
           </div>
-          {!artifactPreview && (
-            <div
-              className="flex shrink-0 items-center gap-1"
-              data-testid="canvas-workbench-preview-mode-tabs"
+          {!artifactPreview && previewMode && nextMode && onSelectMode ? (
+            <button
+              type="button"
+              data-testid="file-preview-mode-toggle"
+              aria-label={switchLabel}
+              title={switchLabel}
+              onClick={() => onSelectMode(nextMode)}
+              className="inline-flex h-7 shrink-0 items-center gap-1.5 rounded-lg px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
             >
-              {Object.values(modeState.modes).map((option) => (
-                <button
-                  key={option.mode}
-                  type="button"
-                  aria-label={translateWorkbench(option.ariaKey)}
-                  disabled={!option.enabled}
-                  onClick={() => onSelectMode?.(option.mode)}
-                  className={cn(
-                    "inline-flex h-7 items-center gap-1.5 rounded-[8px] border px-2 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-45",
-                    mode === option.mode
-                      ? "border-border bg-primary text-primary-foreground"
-                      : "border-border bg-muted/50 text-muted-foreground hover:bg-background hover:text-foreground",
-                  )}
-                >
-                  {option.mode === "html" ? (
-                    <Eye className="h-3.5 w-3.5" />
-                  ) : option.mode === "code" ? (
-                    <FileCode2 className="h-3.5 w-3.5" />
-                  ) : (
-                    resolveModeIcon(option.mode)
-                  )}
-                  {translateWorkbench(option.labelKey)}
-                </button>
-              ))}
-            </div>
-          )}
+              {mode === "code" ? (
+                <Eye className="h-3.5 w-3.5" aria-hidden="true" />
+              ) : (
+                <FileCode2 className="h-3.5 w-3.5" aria-hidden="true" />
+              )}
+              {switchLabel}
+            </button>
+          ) : null}
           {toolbarActions}
         </div>
 

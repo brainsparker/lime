@@ -4,8 +4,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
-import { useFileManagerSidebar } from "../hooks/useFileManagerSidebar";
-
 import { usePathReferences } from "../hooks/usePathReferences";
 
 import { useWorkspaceWorkbenchRequests } from "../hooks/useWorkspaceWorkbenchRequests";
@@ -133,7 +131,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     effectiveEntryBannerMessage,
     entryBannerVisible,
     expertInfoPanelCollapsed,
-    handleCollapseTopicSidebarForFileManager,
+
     handleInputRestoreRequestHandled,
     handleRestoreInterruptedInput,
     input,
@@ -161,9 +159,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     removePathReference: handleRemovePathReference,
     clearPathReferences: handleClearPathReferences,
   } = usePathReferences([], composerController);
-  const fileManagerSidebar = useFileManagerSidebar({
-    onCollapseTopicSidebar: handleCollapseTopicSidebarForFileManager,
-  });
+
   const {
     activeSessionIdRef,
     chatToolPreferenceSessionSync,
@@ -178,14 +174,11 @@ export function useAgentChatWorkspaceEntryRuntime({
   } = useThemeScopedChatToolPreferences(activeTheme, {
     sessionSync: chatToolPreferenceSessionSync,
   });
-  const {
-    handleInstallSkillPackageFromFileManager,
-    handleOpenSkillsManageFromExpertPanel,
-    handleOpenSubagents,
-  } = useWorkspaceEntryNavigationRuntime({
-    onNavigate: _onNavigate,
-    setChatToolPreferences,
-  });
+  const { handleOpenSkillsManageFromExpertPanel, handleOpenSubagents } =
+    useWorkspaceEntryNavigationRuntime({
+      onNavigate: _onNavigate,
+      setChatToolPreferences,
+    });
   const projectSelectionRuntime = useWorkspaceProjectSelection({
     autoRunInitialPromptOnMount,
     externalProjectId,
@@ -350,8 +343,6 @@ export function useAgentChatWorkspaceEntryRuntime({
     generationBrief: soulArtifactVoiceGenerationBrief,
     setSoulArtifactVoiceEnabledForTurn,
   });
-  const inputCompletionEnabled =
-    serviceModels.input_completion?.enabled !== false;
   const {
     effectiveImageWorkbenchPreference,
     imageGenerationSelectionReady,
@@ -479,7 +470,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     effectiveEntryBannerMessage,
     entryBannerVisible,
     expertInfoPanelCollapsed,
-    handleCollapseTopicSidebarForFileManager,
+
     handleInputRestoreRequestHandled,
     handleRestoreInterruptedInput,
     input,
@@ -504,7 +495,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     handleAddPathReferences,
     handleRemovePathReference,
     handleClearPathReferences,
-    fileManagerSidebar,
+
     activeSessionIdRef,
     chatToolPreferenceSessionSync,
     deferSessionRecentMetadataSyncForNavigation,
@@ -513,7 +504,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     setChatToolPreferences,
     syncChatToolPreferencesSource,
     getSyncedSessionRecentPreferences,
-    handleInstallSkillPackageFromFileManager,
+
     handleOpenSkillsManageFromExpertPanel,
     handleOpenSubagents,
     projectSelectionRuntime,
@@ -576,7 +567,7 @@ export function useAgentChatWorkspaceEntryRuntime({
     soulInteractionCopy,
     soulArtifactVoiceEnabledForTurn,
     setSoulArtifactVoiceEnabledForTurn,
-    inputCompletionEnabled,
+
     effectiveImageWorkbenchPreference,
     imageGenerationSelectionReady,
     imageGenerationSelectionWarning,

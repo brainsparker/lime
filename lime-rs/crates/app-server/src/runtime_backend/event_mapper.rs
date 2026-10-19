@@ -82,7 +82,7 @@ pub(super) fn emit_runtime_agent_event_with_coding_mirror_and_plan_parser_with_s
             emit_agent_message_item_finish(
                 proposed_plan_parser,
                 item_id,
-                phase.as_str(),
+                phase.as_ref().map(|phase| phase.as_str()),
                 "completed",
                 sink,
             )?;
@@ -231,13 +231,8 @@ pub(super) fn emit_agent_message_finish(
     status: &str,
     sink: &mut dyn RuntimeEventSink,
 ) -> Result<(), RuntimeCoreError> {
-    let phase = if status == "completed" {
-        "final_answer"
-    } else {
-        "commentary"
-    };
     for message in proposed_plan_parser::finish_runtime_messages(proposed_plan_parser) {
-        emit_finished_message(message, phase, status, sink)?;
+        emit_finished_message(message, None, status, sink)?;
     }
     Ok(())
 }
@@ -245,7 +240,7 @@ pub(super) fn emit_agent_message_finish(
 fn emit_agent_message_item_finish(
     proposed_plan_parser: &mut proposed_plan_parser::ProposedPlanParser,
     item_id: &str,
-    phase: &str,
+    phase: Option<&str>,
     status: &str,
     sink: &mut dyn RuntimeEventSink,
 ) -> Result<(), RuntimeCoreError> {
@@ -256,7 +251,7 @@ fn emit_agent_message_item_finish(
 
 fn emit_finished_message(
     message: proposed_plan_parser::FinishedMessage,
-    phase: &str,
+    phase: Option<&str>,
     status: &str,
     sink: &mut dyn RuntimeEventSink,
 ) -> Result<(), RuntimeCoreError> {

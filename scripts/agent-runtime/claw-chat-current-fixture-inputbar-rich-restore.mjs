@@ -1,3 +1,4 @@
+import { selectComposerSkillFromGui } from "./claw-chat-current-fixture-gui-input-modes.mjs";
 import {
   composerEditorSelector,
   withComposerEditorDom,
@@ -131,12 +132,6 @@ async function evaluateRichRestoreSnapshot(page) {
         sessionId,
         skillName,
       }) => {
-        const normalizeMentionText = (value) =>
-          String(value || "")
-            .trim()
-            .toLocaleLowerCase()
-            .replace(/[\s_-]+/g, "");
-        const expectedSkillName = normalizeMentionText(skillName);
         const editorCandidates = findVisibleComposerEditorsDom(sessionId);
         const editor =
           editorCandidates.length === 1 ? editorCandidates[0] : null;
@@ -211,7 +206,9 @@ async function evaluateRichRestoreSnapshot(page) {
           id: node.getAttribute("data-composer-id") || "",
           name: node.getAttribute("data-composer-name") || "",
           path: node.getAttribute("data-composer-path") || "",
-          label: node.textContent || "",
+          label: node.getAttribute("data-composer-label") || "",
+          displayName: node.getAttribute("data-composer-display-name") || "",
+          renderedText: node.textContent || "",
           editable: node.getAttribute("contenteditable"),
         }));
         const imagePreviewCount = Array.from(
@@ -276,8 +273,8 @@ async function evaluateRichRestoreSnapshot(page) {
           skillTokenCount: skillTokens.length,
           skillTokenTexts: skillTokens,
           skillTokenData,
-          skillRestored: skillTokens.some((text) =>
-            normalizeMentionText(text).includes(expectedSkillName),
+          skillRestored: skillTokenData.some(
+            (token) => token.name === skillName,
           ),
           stopButtonVisible,
           sendButtonExists: Boolean(sendButton),
@@ -353,10 +350,11 @@ async function fillRichRestorePrompt(page, options) {
   );
 }
 
-async function attachFixtureImage(page, options) {
+async function attachFixtureImage(app, page, options) {
   const upload = await attachComposerImage(page, {
+    app,
     sessionId: richRestoreSessionId,
-    imageButtonName: "添加图片",
+    addFilesName: "添加照片和文件",
     timeoutMs: Math.min(options.timeoutMs, 15_000),
     image: {
       name: "rich-restore-fixture.png",
@@ -476,101 +474,12 @@ async function selectCapabilityReportSkill(page, options, skillIdentity) {
   const editor = page.locator(
     `${composerEditorSelector(richRestoreSessionId)}:visible`,
   );
-  await editor.focus();
-  await editor.press("ControlOrMeta+End");
-  await page.keyboard.insertText(" /capability-report");
-  let lastSelectionResult = null;
-  const selected = await waitForRichRestoreSnapshot(
-    page,
-    { ...options, timeoutMs: Math.min(options.timeoutMs, 30_000) },
-    async () => {
-      const result = await page.evaluate((skillName) => {
-        const normalizeMentionText = (value) =>
-          String(value || "")
-            .trim()
-            .toLocaleLowerCase()
-            .replace(/[\s_-]+/g, "");
-        const expectedSkillName = normalizeMentionText(skillName);
-        const popover = document.querySelector(
-          '[data-testid="mention-popover-content"]',
-        );
-        if (
-          !popover ||
-          !normalizeMentionText(popover.textContent).includes(expectedSkillName)
-        ) {
-          return {
-            clicked: false,
-            reason: "skill-not-visible",
-            candidates: popover
-              ? Array.from(
-                  popover.querySelectorAll('[cmdk-item], [role="option"]'),
-                )
-                  .map((node) => String(node.textContent || "").trim())
-                  .filter(Boolean)
-                  .slice(0, 8)
-              : [],
-          };
-        }
-        const items = Array.from(
-          popover.querySelectorAll('[cmdk-item], [role="option"]'),
-        ).filter(
-          (node) =>
-            node instanceof HTMLElement &&
-            normalizeMentionText(node.textContent).includes(
-              expectedSkillName,
-            ) &&
-            node.getAttribute("aria-disabled") !== "true" &&
-            !(node instanceof HTMLButtonElement && node.disabled),
-        );
-        const summarizeItem = (node) => {
-          const group = node.closest("[cmdk-group]");
-          const heading =
-            group?.querySelector("[cmdk-group-heading]")?.textContent || "";
-          return {
-            text: node.textContent || "",
-            heading,
-          };
-        };
-        const target =
-          items.find((node) => {
-            const { heading, text } = summarizeItem(node);
-            return /installed|已安装|已安裝/i.test(`${heading}\n${text}`);
-          }) ??
-          items.find((node) => {
-            const { text } = summarizeItem(node);
-            return /skill|技能/i.test(text);
-          }) ??
-          items[0] ??
-          null;
-        if (!(target instanceof HTMLElement)) {
-          return {
-            clicked: false,
-            reason: "missing-click-target",
-            candidates: items.map(summarizeItem).slice(0, 8),
-          };
-        }
-        target.click();
-        const selected = summarizeItem(target);
-        return {
-          clicked: true,
-          targetText: selected.text,
-          targetHeading: selected.heading,
-          candidateCount: items.length,
-        };
-      }, skillIdentity.name);
-      lastSelectionResult = sanitizeJson(result);
-      return result?.clicked === true;
-    },
-    "Inputbar mention 面板未选中 Capability Report 技能",
-  ).catch(async (error) => {
-    const debug = await evaluateRichRestoreSnapshot(page);
-    throw new Error(
-      `${error instanceof Error ? error.message : String(error)}; selection=${JSON.stringify(
-        lastSelectionResult,
-      )}; snapshot=${JSON.stringify(sanitizeJson(debug))}`,
-    );
+  const selection = await selectComposerSkillFromGui(page, {
+    editor,
+    skillIdentity,
+    timeoutMs: Math.min(options.timeoutMs, 30_000),
   });
-  void selected;
+  assert(selection.trustedPointer, "技能选择必须经过真实 pointerdown");
   return await waitForRichRestoreSnapshot(
     page,
     options,
@@ -579,7 +488,9 @@ async function selectCapabilityReportSkill(page, options, skillIdentity) {
       snapshot.skillTokenCount === 1 &&
       isExpectedSkillIdentity(snapshot.skillTokenData[0], skillIdentity) &&
       snapshot.skillTokenData[0].id === skillIdentity.key &&
-      snapshot.skillTokenData[0].label === `/${skillIdentity.key}`,
+      snapshot.skillTokenData[0].label === `$${skillIdentity.name}` &&
+      snapshot.skillTokenData[0].renderedText ===
+        snapshot.skillTokenData[0].displayName,
     "Inputbar 未显示 Capability Report inline skill token",
   );
 }
@@ -589,7 +500,7 @@ export async function prepareRichDraft(
   options,
   runtimeEnv,
   summary,
-  { submitAction = "send", marks = false } = {},
+  { submitAction = "send", marks = false, app } = {},
 ) {
   richRestoreSessionId = summary?.sessionId?.trim() || SESSION_ID;
   const skill = ensureUserVisibleCapabilityReportSkill(runtimeEnv);
@@ -627,7 +538,7 @@ export async function prepareRichDraft(
     skill.skillIdentity,
   );
   recordRichRestoreStep(summary, "skill-selected", skillToken);
-  const image = await attachFixtureImage(page, options);
+  const image = await attachFixtureImage(app, page, options);
   recordRichRestoreStep(summary, "image-attached", image);
   const pathReference = await dropPathReference(page, options);
   recordRichRestoreStep(summary, "path-reference-dropped", pathReference);
@@ -748,6 +659,7 @@ export async function runInputbarRichRestoreScenario(args) {
 }
 
 async function runObservedInputbarRichRestoreScenario({
+  app,
   page,
   options,
   summary,
@@ -763,7 +675,7 @@ async function runObservedInputbarRichRestoreScenario({
     options,
     runtimeEnv,
     summary,
-    { marks: true },
+    { marks: true, app },
   );
   summary.inputbarRichRestoreSkill =
     summary.inputbarRichRestoreDraftPrepared.skill;

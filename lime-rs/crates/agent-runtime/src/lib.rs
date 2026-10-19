@@ -26,3 +26,5 @@ pub mod session_execution;
 pub mod session_loop;
 pub mod session_recent;
 pub mod turn_executor;
+
+pub mod model_history;

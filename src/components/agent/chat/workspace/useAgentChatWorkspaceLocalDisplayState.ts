@@ -1,4 +1,9 @@
-import { useCallback, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  useCallback,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { useComposerController } from "@/components/input-kit/useComposerController";
 import type { AgentInitialInputCapabilityParams } from "@/types/page";
 import type { LayoutMode } from "@/lib/workspace/workbenchContract";
@@ -29,10 +34,16 @@ export function useAgentChatWorkspaceLocalDisplayState({
   const { controller: composerController, snapshot: composerSnapshot } =
     useComposerController();
   const input = composerSnapshot.document.text;
-  const setInput = useCallback<Dispatch<SetStateAction<string>>>((value) => {
-    composerController.setText(typeof value === "function"
-      ? value(composerController.getDocument().text) : value);
-  }, [composerController]);
+  const setInput = useCallback<Dispatch<SetStateAction<string>>>(
+    (value) => {
+      composerController.setText(
+        typeof value === "function"
+          ? value(composerController.getDocument().text)
+          : value,
+      );
+    },
+    [composerController],
+  );
   const resetComposerDraft = useCallback(() => {
     composerController.clear();
   }, [composerController]);
@@ -86,9 +97,6 @@ export function useAgentChatWorkspaceLocalDisplayState({
       current?.requestId === requestId ? null : current,
     );
   }, []);
-  const handleCollapseTopicSidebarForFileManager = useCallback(() => {
-    setShowSidebar(false);
-  }, []);
 
   return {
     activeTheme,
@@ -99,7 +107,7 @@ export function useAgentChatWorkspaceLocalDisplayState({
     effectiveEntryBannerMessage,
     entryBannerVisible,
     expertInfoPanelCollapsed,
-    handleCollapseTopicSidebarForFileManager,
+
     handleInputRestoreRequestHandled,
     handleRestoreInterruptedInput,
     input,

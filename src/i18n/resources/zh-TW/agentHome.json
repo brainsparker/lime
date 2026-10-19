@@ -8,15 +8,8 @@
   "agentChat.serviceSkills.catalogSource.synced": "已同步做法",
   "agentChat.home.composer.placeholder": "先說這輪要做什麼，目標、對象或限制都可以。",
   "agentChat.home.composer.pathReferenceFallbackPrompt": "請查看這些檔案或資料夾。",
-  "agentChat.home.composer.fileManager.open": "打開左側檔案管理器",
-  "agentChat.home.composer.fileManager.close": "關閉左側檔案管理器",
   "agentChat.home.hero.eyebrow": "創作",
   "agentChat.home.hero.slogan": "青檸一下，靈感即來",
   "agentChat.home.hero.description": "說一句目標，Lime 就接著幫你做。",
-  "agentChat.home.toast.imageReadFailed": "圖片讀取失敗：{{fileName}}",
-  "agentChat.home.toast.unnamedImage": "未命名圖片",
-  "agentChat.home.toast.imagePasted": "已貼上圖片",
-  "agentChat.home.toast.imageAdded": "已新增圖片",
-  "agentChat.home.toast.systemPathDropUnsupported": "無法讀取系統檔案路徑，請從內建檔案管理器拖入。",
   "agentChat.home.curatedTask.reviewSuggestionPrefillHint": "已按最近判斷切到更適合的結果模板，你可以繼續修改後再進入生成。"
 }

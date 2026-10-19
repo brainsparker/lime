@@ -182,15 +182,17 @@ async fn explicit_read_only_policy_fails_closed_for_mutating_command() {
     params.cwd = Some(temp.path().to_path_buf());
     params.sandbox_policy = Some(serde_json::json!("read-only"));
 
-    let error = CommandExecServer::default()
+    let result = CommandExecServer::default()
         .exec(ConnectionId(10), params, None)
-        .await
-        .expect_err("read-only command/exec must reject a mutating command");
+        .await;
 
-    assert_eq!(error.code, error_codes::RUNTIME_ERROR);
-    assert!(error
-        .message
-        .contains("read_only_sandbox_blocks_shell_command"));
+    match result {
+        Ok(response) => assert_ne!(
+            response.exit_code, 0,
+            "read-only OS sandbox must deny writes"
+        ),
+        Err(error) => assert_eq!(error.code, error_codes::RUNTIME_ERROR),
+    }
     assert!(!temp.path().join("command-exec-must-not-exist").exists());
 }
 

@@ -538,6 +538,20 @@ export function summarizeAppServerInvocationResult(method, result) {
     return summarizeReadModelQueueState(result);
   }
 
+  if (method === "thread/goal/get") {
+    const goal = result?.goal;
+    return goal
+      ? sanitizeJson({
+          goal: {
+            threadId: goal.threadId,
+            objective: goal.objective,
+            status: goal.status,
+            tokenBudget: goal.tokenBudget,
+          },
+        })
+      : { goal: null };
+  }
+
   return null;
 }
 
@@ -684,38 +698,38 @@ export async function ensureFixtureImageProvider(
   const configBindingResult = await updateConfigFromPage(
     page,
     (currentConfig) => ({
-        ...(currentConfig || {}),
-        server: {
-          ...(currentConfig?.server || {}),
-          host:
-            typeof options.localImageServerHost === "string" &&
-            options.localImageServerHost.trim()
-              ? options.localImageServerHost.trim()
-              : currentConfig?.server?.host,
-          port:
-            typeof options.localImageServerPort === "number" &&
-            Number.isFinite(options.localImageServerPort) &&
-            options.localImageServerPort > 0
-              ? options.localImageServerPort
-              : currentConfig?.server?.port,
-          api_key:
-            typeof options.localImageServerApiKey === "string" &&
-            options.localImageServerApiKey.trim()
-              ? options.localImageServerApiKey.trim()
-              : currentConfig?.server?.api_key,
-        },
-        workspace_preferences: {
-          ...(currentConfig?.workspace_preferences || {}),
-          media_defaults: {
-            ...(currentConfig?.workspace_preferences?.media_defaults || {}),
-            image: {
-              preferredProviderId: providerId,
-              preferredModelId: IMAGE_FIXTURE_MODEL,
-              allowFallback: false,
-            },
+      ...(currentConfig || {}),
+      server: {
+        ...(currentConfig?.server || {}),
+        host:
+          typeof options.localImageServerHost === "string" &&
+          options.localImageServerHost.trim()
+            ? options.localImageServerHost.trim()
+            : currentConfig?.server?.host,
+        port:
+          typeof options.localImageServerPort === "number" &&
+          Number.isFinite(options.localImageServerPort) &&
+          options.localImageServerPort > 0
+            ? options.localImageServerPort
+            : currentConfig?.server?.port,
+        api_key:
+          typeof options.localImageServerApiKey === "string" &&
+          options.localImageServerApiKey.trim()
+            ? options.localImageServerApiKey.trim()
+            : currentConfig?.server?.api_key,
+      },
+      workspace_preferences: {
+        ...(currentConfig?.workspace_preferences || {}),
+        media_defaults: {
+          ...(currentConfig?.workspace_preferences?.media_defaults || {}),
+          image: {
+            preferredProviderId: providerId,
+            preferredModelId: IMAGE_FIXTURE_MODEL,
+            allowFallback: false,
           },
         },
-      }),
+      },
+    }),
     requestLog,
   );
   const configBinding = await page.evaluate(

@@ -558,7 +558,7 @@ fn maps_core_families_to_typed_payloads() {
                     "firstWindowId": "01890f3e-7b12-7cc0-8c2f-2d0fdab7c123",
                     "previousWindowId": "01890f3e-7b12-7cc0-8c2f-2d0fdab7c124",
                     "windowId": "01890f3e-7b12-7cc0-8c2f-2d0fdab7c125",
-                    "tailStartTurnId": "turn-1"
+                    "coveredThroughSequence": 0
                 }),
             ),
         ],
@@ -608,7 +608,7 @@ fn maps_core_families_to_typed_payloads() {
             first_window_id: Some("01890f3e-7b12-7cc0-8c2f-2d0fdab7c123".to_string()),
             previous_window_id: Some("01890f3e-7b12-7cc0-8c2f-2d0fdab7c124".to_string()),
             window_id: Some("01890f3e-7b12-7cc0-8c2f-2d0fdab7c125".to_string()),
-            tail_start_turn_id: Some("turn-1".to_string()),
+            covered_through_sequence: Some(0),
         }
     );
 }

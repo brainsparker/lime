@@ -62,6 +62,7 @@ pub struct AgentSessionConfigurationRequest {
 
 #[derive(Debug, Clone)]
 pub struct AgentSessionConfig {
+    pub model_history_recorder: Option<crate::model_history::ModelHistoryRecorder>,
     /// App Server-owned plugin components, loaded at each provider step.
     pub plugin_hook_source: Option<tool_runtime::hook_source::PluginHookSourceProviderHandle>,
     pub id: String,
@@ -83,6 +84,7 @@ pub struct AgentSessionConfig {
 
 pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> AgentSessionConfig {
     AgentSessionConfig {
+        model_history_recorder: None,
         plugin_hook_source: None,
         id: request.session_id,
         thread_id: Some(request.thread_id),
@@ -212,6 +214,7 @@ impl SessionConfigBuilder {
 
     pub fn build(self) -> AgentSessionConfig {
         AgentSessionConfig {
+            model_history_recorder: None,
             plugin_hook_source: None,
             id: self.id,
             thread_id: self.thread_id,

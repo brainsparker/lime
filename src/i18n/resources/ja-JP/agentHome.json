@@ -8,15 +8,8 @@
   "agentChat.serviceSkills.catalogSource.synced": "同期済みの手順",
   "agentChat.home.composer.placeholder": "このラウンドでやりたいことから始めてください。目標、対象、制約を書くと進めやすくなります。",
   "agentChat.home.composer.pathReferenceFallbackPrompt": "これらのファイルまたはフォルダーを確認してください。",
-  "agentChat.home.composer.fileManager.open": "左側のファイルマネージャーを開く",
-  "agentChat.home.composer.fileManager.close": "左側のファイルマネージャーを閉じる",
   "agentChat.home.hero.eyebrow": "制作",
   "agentChat.home.hero.slogan": "Limeに聞けば、ひらめきが動き出す",
   "agentChat.home.hero.description": "目標を一言伝えれば、Lime が続きの作業を進めます。",
-  "agentChat.home.toast.imageReadFailed": "画像の読み込みに失敗しました：{{fileName}}",
-  "agentChat.home.toast.unnamedImage": "名前のない画像",
-  "agentChat.home.toast.imagePasted": "画像を貼り付けました",
-  "agentChat.home.toast.imageAdded": "画像を追加しました",
-  "agentChat.home.toast.systemPathDropUnsupported": "システムのファイルパスを読み取れません。内蔵ファイルマネージャーからドラッグしてください。",
   "agentChat.home.curatedTask.reviewSuggestionPrefillHint": "直近の判断に基づき、より適した結果テンプレートへ切り替えました。生成に進む前に引き続き編集できます。"
 }

@@ -401,6 +401,7 @@ export async function runComposerDraftGuiFixture(options, scenario = null) {
         generation,
       };
       context = {
+        app: launched.app,
         page: launched.page,
         options,
         modules,

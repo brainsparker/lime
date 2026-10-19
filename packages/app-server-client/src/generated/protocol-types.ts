@@ -11990,7 +11990,7 @@ export interface ThreadItemSourceProvenance {
 
 export type AgentMessageDelivery = "async";
 
-export type MessagePhase = "commentary" | "final_answer";
+export type MessagePhase = "commentary" | "final_answer" | "partial_answer";
 
 export type ReasoningEffort = string;
 

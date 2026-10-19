@@ -147,6 +147,18 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     rightSurfaceTraceAvailable && clawTraceEnabled;
   const { availableSurfaces, rightSurfaceLaunchers, rightSurfaceState } =
     useWorkspaceRightSurfaceProjectionRuntime({
+      backgroundTerminalAvailable: Boolean(
+        effectiveSceneThreadId &&
+        (threadItems.some(
+          (item) =>
+            item.type === "command_execution" &&
+            item.thread_id === effectiveSceneThreadId &&
+            item.process_id,
+        ) ||
+          localState.sidePanelTabs.tabs.some(
+            (tab) => tab.kind === "background-terminal",
+          )),
+      ),
       appServerPendingIntents: pendingRuntime.pendingIntents,
       appSurfaceAvailable: derivedRuntime.pluginSurfaceRightSurfaceAvailable,
       articleWorkspaceAvailable: articleEditorRightSurfaceAvailable,
@@ -187,6 +199,8 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     availableSurfaces,
     browserRightSurfaceAvailable: derivedRuntime.browserRightSurfaceAvailable,
     closeRightSurface: localState.closeRightSurface,
+    openSidePanelTab: localState.openSidePanelTab,
+    canReplaceSidePanelTab: localState.canReplaceSidePanelTab,
     consumePendingRequestsForSurface:
       pendingRuntime.consumePendingRequestsForSurface,
     dismissPendingRequestsForSurface:
@@ -227,6 +241,93 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
   return {
     ...derivedRuntime,
     ...actionRuntime,
+    sidePanelTabs: localState.sidePanelTabs,
+    getFileDraft: localState.getFileDraft,
+    setFileDraft: localState.setFileDraft,
+    openWorkspaceFile: localState.openWorkspaceFile,
+    pinSidePanelTab: localState.pinSidePanelTab,
+    backgroundTerminalItems: threadItems,
+    openBackgroundTerminal: (target: AgentThreadItem) => {
+      if (
+        target.type !== "command_execution" ||
+        target.thread_id !== effectiveSceneThreadId
+      )
+        return;
+      const item = threadItems.find(
+        (item) =>
+          item.id === target.id &&
+          item.turn_id === target.turn_id &&
+          item.thread_id === target.thread_id,
+      );
+      if (item?.type !== "command_execution") return;
+      setHarnessPanelVisible(false);
+      setExpertInfoPanelCollapsed(true);
+      localState.openBackgroundTerminal(item);
+    },
+    handleNewSidePanelTab: () => {
+      setHarnessPanelVisible(false);
+      setExpertInfoPanelCollapsed(true);
+      localState.openSidePanelTab("workspace-new-tab");
+    },
+    handleSelectSidePanelTab: (tabId: string) => {
+      const tab = localState.sidePanelTabs.tabs.find(
+        (item) => item.tabId === tabId,
+      );
+      if (!tab) return;
+      if (
+        tab.kind !== "workspace-new-tab" &&
+        tab.kind !== "files" &&
+        tab.kind !== "background-terminal" &&
+        tab.kind !== "shell"
+      )
+        actionRuntime.handleSelectRightSurfaceTab(tab.kind);
+      else {
+        setHarnessPanelVisible(false);
+        setExpertInfoPanelCollapsed(true);
+      }
+      localState.selectSidePanelTab(tabId);
+    },
+    handleCloseSidePanelTab: (tabId: string) => {
+      const tab = localState.sidePanelTabs.tabs.find(
+        (item) => item.tabId === tabId,
+      );
+      if (!tab) return;
+      if (tab.kind === "background-terminal") {
+        localState.closeSidePanelTab(tabId);
+        return;
+      }
+      const sameKind = localState.sidePanelTabs.tabs.filter(
+        (item) => item.kind === tab.kind,
+      );
+      if (sameKind.length === 1)
+        actionRuntime.handleCloseRightSurfaceTab(tab.kind);
+      else localState.closeSidePanelTab(tabId);
+    },
+    handleSelectChatFromNewTab: (tabId: string) => {
+      if (!localState.canReplaceSidePanelTab(tabId)) return;
+      localState.closeSidePanelTab(tabId);
+      localState.setManualRightSurface(null);
+      setHarnessPanelVisible(false);
+      setExpertInfoPanelCollapsed(true);
+      setLayoutMode("chat");
+      document
+        .querySelector<HTMLElement>(
+          '[data-composer-editor-host] [role="textbox"][contenteditable="true"]',
+        )
+        ?.focus();
+    },
+    handleToggleSidePanel: (
+      onlyAction?: import("./right-surface/rightSurfaceTypes").WorkspaceRightSurfaceKind,
+    ) => {
+      setHarnessPanelVisible(false);
+      setExpertInfoPanelCollapsed(true);
+      if (rightSurfaceState.activeSurface) {
+        localState.setManualRightSurface(null);
+        setLayoutMode("chat");
+      } else if (!localState.sidePanelTabs.tabs.length && onlyAction) {
+        actionRuntime.handleSelectRightSurfaceTab(onlyAction);
+      } else localState.showSidePanel();
+    },
     activePluginSurfaceContainerId: localState.activePluginSurfaceContainerId,
     rightSurfaceBrowserTitle: localState.rightSurfaceBrowserTitle,
     rightSurfaceHarnessEnabled,

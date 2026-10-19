@@ -9,17 +9,17 @@ import { TaskCenterUtilityToolbar } from "./TaskCenterUtilityToolbar";
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 const {
-  mockOpenProjectPathWithTool,
+  mockRevealPathInFinder,
   mockReadProjectGitDiff,
   mockReadProjectGitStatus,
 } = vi.hoisted(() => ({
-  mockOpenProjectPathWithTool: vi.fn(),
+  mockRevealPathInFinder: vi.fn(),
   mockReadProjectGitDiff: vi.fn(),
   mockReadProjectGitStatus: vi.fn(),
 }));
 
 vi.mock("@/lib/api/fileSystem", () => ({
-  openProjectPathWithTool: mockOpenProjectPathWithTool,
+  revealPathInFinder: mockRevealPathInFinder,
 }));
 
 vi.mock("@/lib/api/projectGit", () => ({
@@ -178,23 +178,7 @@ function renderToolbar(
 function buildToolbar(
   props?: Partial<React.ComponentProps<typeof TaskCenterUtilityToolbar>>,
 ) {
-  return (
-    <TaskCenterUtilityToolbar
-      projectRootPath="/tmp/project"
-      showCanvasToggle
-      isCanvasOpen={false}
-      onToggleCanvas={vi.fn()}
-      showHarnessToggle
-      harnessPanelVisible={false}
-      onToggleHarnessPanel={vi.fn()}
-      harnessPendingCount={0}
-      harnessAttentionLevel="idle"
-      harnessToggleLabel="Harness"
-      shellPanelOpen={false}
-      onToggleShellPanel={vi.fn()}
-      {...props}
-    />
-  );
+  return <TaskCenterUtilityToolbar projectRootPath="/tmp/project" {...props} />;
 }
 
 function rerenderToolbar(

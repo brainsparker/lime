@@ -121,9 +121,7 @@ export function resolveWorkspaceEntry(
   const hasPendingServiceSkillLaunch = Boolean(
     payload.initialPendingServiceSkillLaunch?.skillId?.trim(),
   );
-  const hasInitialInputCapability = Boolean(
-    payload.initialInputCapability?.capabilityRoute,
-  );
+  const hasInitialInputCapability = Boolean(payload.initialInputCapability);
   const toolPreferences = payload.toolPreferences ?? defaultToolPreferences;
   const targetTheme = payload.themeOverride ?? activeTheme;
   const lockTheme =

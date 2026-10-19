@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { readComposerEditorText } from "../lib/composer-editor-dom.mjs";
 import path from "node:path";
 import { canonicalSkillFilePath } from "./claw-chat-current-fixture-skill-identity.mjs";
 import { APP_SERVER_HANDLE_JSON_LINES_COMMAND } from "./claw-chat-current-fixture-constants.mjs";
@@ -40,68 +41,53 @@ async function readSkillListTrace(page) {
   };
 }
 
-async function readSkillSelectorSnapshot(page) {
-  return await evaluatePageSnapshot(
-    page,
-    (skillName) => {
-      const panel = document.querySelector(
-        '[data-testid="inputbar-plus-panel-skills"]',
-      );
-      const selector = document.querySelector(
-        '[data-testid="skill-selector-inline"]',
-      );
-      const refreshClicks = Number(
-        document.documentElement.dataset.skillsRuntimeRefreshClicks || "0",
-      );
-      return {
-        panelVisible:
-          panel instanceof HTMLElement && panel.offsetParent !== null,
-        selectorVisible:
-          selector instanceof HTMLElement && selector.offsetParent !== null,
-        skillVisible: Boolean(
-          selector?.textContent?.includes(String(skillName || "")),
-        ),
-        manualRefreshClickCount: Number.isFinite(refreshClicks)
-          ? refreshClicks
-          : null,
-      };
-    },
-    SKILLS_CHANGED_FIXTURE_SKILL_NAME,
+async function readSkillSuggestionsSnapshot(page) {
+  const panel = page.locator('[data-testid="composer-context-suggestions"]');
+  const interactions = await page.evaluate(() =>
+    Number(
+      document.documentElement.dataset.skillsRuntimeCatalogInteractions || "0",
+    ),
   );
+  return {
+    panelVisible: await panel.isVisible(),
+    listVisible: await panel.getByRole("listbox").isVisible(),
+    skillVisible: await panel
+      .locator(
+        `[data-suggestion-key="skill:user:${SKILLS_CHANGED_FIXTURE_SKILL_NAME}"]`,
+      )
+      .isVisible(),
+    userInteractionCount: Number.isFinite(interactions) ? interactions : null,
+  };
 }
 
-async function installManualRefreshClickTracker(page) {
+async function installCatalogInteractionTracker(page) {
   await page.evaluate(() => {
     const runtimeWindow = window;
-    runtimeWindow.__limeSkillsRuntimeRefreshTrackerCleanup?.();
-    document.documentElement.dataset.skillsRuntimeRefreshClicks = "0";
-    const onClick = (event) => {
-      const target =
-        event.target instanceof Element
-          ? event.target.closest('[data-testid="skill-selector-refresh"]')
-          : null;
-      if (!target) {
-        return;
-      }
+    runtimeWindow.__limeSkillsRuntimeCatalogTrackerCleanup?.();
+    document.documentElement.dataset.skillsRuntimeCatalogInteractions = "0";
+    const onInteraction = (event) => {
+      if (!event.isTrusted) return;
       const count = Number(
-        document.documentElement.dataset.skillsRuntimeRefreshClicks || "0",
+        document.documentElement.dataset.skillsRuntimeCatalogInteractions ||
+          "0",
       );
-      document.documentElement.dataset.skillsRuntimeRefreshClicks = String(
-        Number.isFinite(count) ? count + 1 : 1,
-      );
+      document.documentElement.dataset.skillsRuntimeCatalogInteractions =
+        String(Number.isFinite(count) ? count + 1 : 1);
     };
-    document.addEventListener("click", onClick, true);
-    runtimeWindow.__limeSkillsRuntimeRefreshTrackerCleanup = () => {
-      document.removeEventListener("click", onClick, true);
-      delete runtimeWindow.__limeSkillsRuntimeRefreshTrackerCleanup;
+    for (const type of ["pointerdown", "keydown", "input"])
+      document.addEventListener(type, onInteraction, true);
+    runtimeWindow.__limeSkillsRuntimeCatalogTrackerCleanup = () => {
+      for (const type of ["pointerdown", "keydown", "input"])
+        document.removeEventListener(type, onInteraction, true);
+      delete runtimeWindow.__limeSkillsRuntimeCatalogTrackerCleanup;
     };
   });
 }
 
-async function removeManualRefreshClickTracker(page) {
+async function removeCatalogInteractionTracker(page) {
   await page
     .evaluate(() => {
-      window.__limeSkillsRuntimeRefreshTrackerCleanup?.();
+      window.__limeSkillsRuntimeCatalogTrackerCleanup?.();
     })
     .catch(() => undefined);
 }
@@ -139,13 +125,15 @@ export async function verifySkillsChangedCatalogRefresh(
   runtimeEnv,
 ) {
   const beforeOpenTrace = await readSkillListTrace(page);
-  await page.locator('[data-testid="inputbar-plus-trigger"]').click();
-  await page.locator('[data-testid="inputbar-plus-skills"]').click();
+  const editor = page
+    .locator('[data-testid="composer-editor"][role="textbox"]:visible')
+    .first();
+  const originalText = await readComposerEditorText(editor);
+  await editor.focus();
+  await editor.press("ControlOrMeta+End");
+  await page.keyboard.insertText(" $");
   await page
-    .locator('[data-testid="inputbar-plus-panel-skills"]')
-    .waitFor({ state: "visible", timeout: options.timeoutMs });
-  await page
-    .locator('[data-testid="skill-selector-inline"]')
+    .locator('[data-testid="composer-context-suggestions"] [role="listbox"]')
     .waitFor({ state: "visible", timeout: options.timeoutMs });
 
   const initialStartedAt = Date.now();
@@ -153,10 +141,10 @@ export async function verifySkillsChangedCatalogRefresh(
   let initialGui = null;
   while (Date.now() - initialStartedAt < options.timeoutMs) {
     initialTrace = await readSkillListTrace(page);
-    initialGui = await readSkillSelectorSnapshot(page);
+    initialGui = await readSkillSuggestionsSnapshot(page);
     if (
       initialGui?.panelVisible &&
-      initialGui?.selectorVisible &&
+      initialGui?.listVisible &&
       initialTrace.electronIpcSuccessCount >
         beforeOpenTrace.electronIpcSuccessCount
     ) {
@@ -172,7 +160,7 @@ export async function verifySkillsChangedCatalogRefresh(
     )}`,
   );
 
-  await installManualRefreshClickTracker(page);
+  await installCatalogInteractionTracker(page);
   const notificationMarkers = [];
   const collectNotificationMarker = (message) => {
     const text = String(message.text?.() || "");
@@ -189,15 +177,15 @@ export async function verifySkillsChangedCatalogRefresh(
     const startedAt = Date.now();
     while (Date.now() - startedAt < options.timeoutMs) {
       const trace = await readSkillListTrace(page);
-      const gui = await readSkillSelectorSnapshot(page);
+      const gui = await readSkillSuggestionsSnapshot(page);
       lastSnapshot = { trace, gui, markerCount: notificationMarkers.length };
       if (
         notificationMarkers.length > 0 &&
         trace.electronIpcSuccessCount > initialTrace.electronIpcSuccessCount &&
         gui?.panelVisible &&
-        gui?.selectorVisible &&
+        gui?.listVisible &&
         gui?.skillVisible &&
-        gui?.manualRefreshClickCount === 0
+        gui?.userInteractionCount === 0
       ) {
         completed = {
           skillName: fixtureSkill.skillName,
@@ -221,8 +209,8 @@ export async function verifySkillsChangedCatalogRefresh(
             transport: "electron-ipc",
           },
           gui,
-          manualRefresh: {
-            clickCount: gui.manualRefreshClickCount,
+          userInteraction: {
+            count: gui.userInteractionCount,
           },
         };
         break;
@@ -231,7 +219,7 @@ export async function verifySkillsChangedCatalogRefresh(
     }
   } finally {
     page.off("console", collectNotificationMarker);
-    await removeManualRefreshClickTracker(page);
+    await removeCatalogInteractionTracker(page);
   }
 
   assert(
@@ -240,7 +228,13 @@ export async function verifySkillsChangedCatalogRefresh(
       sanitizeJson(lastSnapshot),
     )}`,
   );
-  await page.keyboard.press("Escape").catch(() => undefined);
+  await editor.press("Escape");
+  await editor.press("Backspace");
+  await editor.press("Backspace");
+  assert(
+    (await readComposerEditorText(editor)) === originalText,
+    "catalog 建议查询未原样恢复原草稿",
+  );
   return sanitizeJson(completed);
 }
 

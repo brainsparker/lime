@@ -1,4 +1,6 @@
-/** Files 复用 current review projection 的真实 Electron 交互证据。 */
+import { selectThreadSidePanelTool } from "./thread-side-panel-navigation.mjs";
+
+/** Changes 复用 current review projection 的真实 Electron 交互证据。 */
 export async function collectReviewThreadSidePanelEvidence(
   page,
   { threadId, changes, timeoutMs = 60_000 },
@@ -8,7 +10,7 @@ export async function collectReviewThreadSidePanelEvidence(
     hasInvoke: typeof window.electronAPI?.invoke === "function",
   }));
   if (!host.electron || !host.hasInvoke) {
-    throw new Error("Files review requires the real Electron/preload host");
+    throw new Error("Changes review requires the real Electron/preload host");
   }
 
   const openCount = () =>
@@ -21,18 +23,13 @@ export async function collectReviewThreadSidePanelEvidence(
       ).length;
     });
   const externalOpenBefore = await openCount();
-  const toggle = page
-    .locator('[data-testid="task-center-files-toggle"]')
-    .first();
-  await toggle.waitFor({ state: "visible", timeout: timeoutMs });
-  if ((await toggle.getAttribute("aria-expanded")) !== "true")
-    await toggle.click();
-  const root = page.locator('[data-testid="workspace-files-surface"]');
+  await selectThreadSidePanelTool(page, "changes", timeoutMs);
+  const root = page.locator('[data-testid="workspace-changes-surface"]');
   await root.waitFor({ state: "visible", timeout: timeoutMs });
   await page.waitForFunction(
     (identity) =>
       document
-        .querySelector('[data-testid="workspace-files-surface"]')
+        .querySelector('[data-testid="workspace-changes-surface"]')
         ?.getAttribute("data-review-thread-id") === identity,
     threadId,
     { timeout: timeoutMs },
@@ -47,7 +44,7 @@ export async function collectReviewThreadSidePanelEvidence(
     await page.waitForFunction(
       ({ path, lines }) => {
         const root = document.querySelector(
-          '[data-testid="workspace-files-surface"]',
+          '[data-testid="workspace-changes-surface"]',
         );
         const diff = Array.from(
           root?.querySelectorAll(
@@ -123,7 +120,7 @@ export function assertReviewThreadSidePanelEvidence(evidence) {
     !evidence.threadId
   ) {
     throw new Error(
-      "Files review lacks Electron/preload or canonical Thread identity",
+      "Changes review lacks Electron/preload or canonical Thread identity",
     );
   }
   if (
@@ -137,7 +134,7 @@ export function assertReviewThreadSidePanelEvidence(evidence) {
     )
   ) {
     throw new Error(
-      "Files review did not select and locate every expected diff",
+      "Changes review did not select and locate every expected diff",
     );
   }
   if (evidence.externalOpenBefore !== evidence.externalOpenAfter) {

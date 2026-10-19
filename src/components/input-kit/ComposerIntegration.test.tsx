@@ -92,10 +92,9 @@ function mount(
 }
 
 describe("Composer code block integration", () => {
-  it("defaults enable one Controller registry, two independent plugins and code NodeView", () => {
+  it("defaults enable one Controller registry, highlighting and code NodeView", () => {
     const { controller, host } = mount();
     expect(Object.keys(controller.createNodeViews())).toEqual(["code_block"]);
-    expect(controller.getEditorState().plugins).toHaveLength(5);
     expect(
       codeBlockHighlightKey.getState(controller.getEditorState()),
     ).toBeDefined();
@@ -110,12 +109,11 @@ describe("Composer code block integration", () => {
     { enableCodeBlocks: false },
     { plainTextMode: true },
   ] as ComposerControllerOptions[])(
-    "effective constructor options %j disable both plugins and NodeView",
+    "effective constructor options %j disable code highlighting and NodeView",
     (options) => {
       const controller = new ComposerController(codeDraft(), options);
       const { host, render } = mount(controller);
       expect(controller.createNodeViews()).toEqual({});
-      expect(controller.getEditorState().plugins).toHaveLength(3);
       expect(
         codeBlockHighlightKey.getState(controller.getEditorState()),
       ).toBeUndefined();
@@ -126,7 +124,6 @@ describe("Composer code block integration", () => {
         host.querySelector("[data-composer-code-block-toolbar]"),
       ).toBeNull();
       render(controller, { disabled: false });
-      expect(controller.getEditorState().plugins).toHaveLength(3);
       expect(controller.createNodeViews()).toEqual({});
     },
   );
@@ -139,7 +136,9 @@ describe("Composer code block integration", () => {
     act(() => controller.restoreDraft(codeDraft()));
     render(controller, { disabled: false, autoFocus: true });
     expect(controller.createNodeViews()).toEqual({});
-    expect(controller.getEditorState().plugins).toHaveLength(3);
+    expect(
+      codeBlockHighlightKey.getState(controller.getEditorState()),
+    ).toBeUndefined();
   });
 
   it("clear and each identical restore get new EditorState/plugin arrays without a second document owner", () => {

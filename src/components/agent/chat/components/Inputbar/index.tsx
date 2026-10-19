@@ -8,7 +8,7 @@ import React from "react";
 import styled from "styled-components";
 import { useTranslation } from "react-i18next";
 import type { MessagePathReference } from "../../types";
-import type { Character } from "@/lib/api/projectMemory";
+
 import type { AgentSessionExecutionRuntime } from "@/lib/api/agentExecutionRuntime";
 import { InputbarComposerSection } from "./components/InputbarComposerSection";
 import { HintRoutePopup } from "./components/HintRoutePopup";
@@ -22,11 +22,7 @@ import { type InputbarToolStates } from "./hooks/useInputbarToolState";
 import { useInputbarController } from "./hooks/useInputbarController";
 import type { AgentAccessMode } from "../../hooks/agentChatStorage";
 import type { AgentInitialInputCapabilityParams } from "@/types/page";
-import type { CuratedTaskReferenceEntry } from "../../utils/curatedTaskReferenceSelection";
-import type {
-  InputbarKnowledgePackOption,
-  InputbarKnowledgePackSelection,
-} from "./types";
+
 import type { InputbarPluginCapability } from "./pluginInputCapability";
 import { buildInputbarComposerSectionCopy } from "./components/inputbarComposerSectionCopy";
 import { buildInputbarCoreCopy } from "./components/inputbarCoreCopy";
@@ -77,10 +73,6 @@ interface InputbarProps extends SkillSelectionSourceProps {
   disabledPlaceholder?: string;
   /** 输入区上方并排浮层控件 */
   overlayAccessory?: React.ReactNode;
-  /** 角色列表（用于 @ 引用） */
-  characters?: Character[];
-  /** 选择角色回调 */
-  onSelectCharacter?: (character: Character) => void;
   providerType?: string;
   setProviderType?: (type: string) => void;
   model?: string;
@@ -99,19 +91,11 @@ interface InputbarProps extends SkillSelectionSourceProps {
   workflowGate?: WorkflowGateState | null;
   workflowSteps?: WorkflowStep[];
   workflowRunState?: "idle" | "auto_running" | "await_user_decision";
-  knowledgePackSelection?: InputbarKnowledgePackSelection | null;
-  knowledgePackOptions?: InputbarKnowledgePackOption[];
   pluginSuggestions?: InputbarPluginCapability[];
   pluginSuggestionsError?: string | null;
   pluginSuggestionsLoading?: boolean;
   onSkillSuggestionsNeeded?: () => void;
   onPluginSuggestionsNeeded?: () => void;
-  onKnowledgePacksNeeded?: () => void;
-  onToggleKnowledgePack?: (enabled: boolean) => void;
-  onSelectKnowledgePack?: (packName: string) => void;
-  onToggleKnowledgeCompanionPack?: (packName: string, enabled: boolean) => void;
-  onStartKnowledgeOrganize?: () => void;
-  onManageKnowledgePacks?: () => void;
   contextVariant?: "default" | "task-center";
   projectId?: string | null;
   sessionId?: string | null;
@@ -126,11 +110,6 @@ interface InputbarProps extends SkillSelectionSourceProps {
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
   onClearPathReferences?: () => void;
-  fileManagerOpen?: boolean;
-  onToggleFileManager?: () => void;
-  defaultCuratedTaskReferenceMemoryIds?: string[];
-  defaultCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
-  inputCompletionEnabled?: boolean;
   submitTarget?: ComposerSubmitTarget;
 }
 
@@ -146,16 +125,8 @@ export const Inputbar: React.FC<InputbarProps> = ({
   disabled,
   disabledPlaceholder,
   overlayAccessory,
-  characters = [],
   skills,
-  serviceSkills,
-  serviceSkillGroups,
   isSkillsLoading,
-  onSelectCharacter,
-  onSelectServiceSkill,
-  onNavigateToSettings,
-  onImportSkill,
-  onRefreshSkills,
   providerType,
   setProviderType,
   model,
@@ -174,19 +145,11 @@ export const Inputbar: React.FC<InputbarProps> = ({
   workflowGate,
   workflowSteps = [],
   workflowRunState,
-  knowledgePackSelection = null,
-  knowledgePackOptions = [],
   pluginSuggestions = [],
   pluginSuggestionsError = null,
   pluginSuggestionsLoading = false,
   onSkillSuggestionsNeeded,
   onPluginSuggestionsNeeded,
-  onKnowledgePacksNeeded,
-  onToggleKnowledgePack,
-  onSelectKnowledgePack,
-  onToggleKnowledgeCompanionPack,
-  onStartKnowledgeOrganize,
-  onManageKnowledgePacks,
   contextVariant = "default",
   projectId = null,
   sessionId = null,
@@ -201,11 +164,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
-  fileManagerOpen = false,
-  onToggleFileManager,
-  defaultCuratedTaskReferenceMemoryIds = [],
-  defaultCuratedTaskReferenceEntries = [],
-  inputCompletionEnabled = true,
+
   submitTarget,
 }) => {
   const { t } = useTranslation("agent");
@@ -237,8 +196,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
     composerController,
     isWorkspaceVariant,
     pendingImages,
-    fileInputRef,
-    handleFileSelect,
     handlePaste,
     handleDragOver,
     handleDrop,
@@ -253,8 +210,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
     isFullscreen,
     handleSend,
     inputAdapter,
-    topExtra,
-    dialogLayer,
     workflowQuickActions,
     workflowQueueItems,
     workflowActiveItem,
@@ -266,11 +221,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
     renderWorkflowGeneratingPanel,
     skillSelection,
     handleSelectInputCapability,
-    activeCapability,
     pluginSuggestions: resolvedPluginSuggestions,
-    activePluginSelection,
-    handleSelectPlugin,
-    knowledgeHubOpenRequestKey,
   } = useInputbarController({
     composerController: externalComposerController,
     composerDraftCoordinator,
@@ -294,11 +245,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
     workflowGate,
     workflowSteps,
     workflowRunState,
-    knowledgePackSelection,
     pluginSuggestions,
-    onKnowledgePacksNeeded,
-    onStartKnowledgeOrganize,
-    onManageKnowledgePacks,
     projectId,
     sessionId,
     pathReferences,
@@ -307,13 +254,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
     onInputRestoreRequestHandled,
     onClearPathReferences,
     skills,
-    serviceSkills,
-    serviceSkillGroups,
     isSkillsLoading,
-    onSelectServiceSkill,
-    onNavigateToSettings,
-    onImportSkill,
-    onRefreshSkills,
     submitTarget,
   });
 
@@ -335,14 +276,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
           {overlayAccessory}
         </SecondaryControlsRow>
       ) : null}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        style={{ display: "none" }}
-        onChange={handleFileSelect}
-      />
       <ArtifactAnnotationComposerAccessory />
       <InputbarComposerSection
         renderWorkflowGeneratingPanel={renderWorkflowGeneratingPanel}
@@ -357,40 +290,21 @@ export const Inputbar: React.FC<InputbarProps> = ({
         workflowSummaryLabel={workflowSummaryLabel}
         inputAdapter={inputAdapter}
         composerController={composerController}
-        characters={characters}
         skillSelection={skillSelection}
         onSkillSuggestionsNeeded={onSkillSuggestionsNeeded}
         editorRef={editorRef}
-        input={input}
         disabledPlaceholder={disabledPlaceholder}
-        onSelectCharacter={onSelectCharacter}
         onSelectInputCapability={handleSelectInputCapability}
-        activeCapability={activeCapability}
-        activePluginSelection={activePluginSelection}
         pluginSuggestions={resolvedPluginSuggestions}
         pluginSuggestionsError={pluginSuggestionsError}
         pluginSuggestionsLoading={pluginSuggestionsLoading}
         onPluginSuggestionsNeeded={onPluginSuggestionsNeeded}
-        onSelectPlugin={handleSelectPlugin}
         projectId={projectId}
         sessionId={sessionId}
         threadId={threadId}
         threadGoal={threadGoal}
         threadGoalError={threadGoalError}
         threadGoalLoading={threadGoalLoading}
-        defaultCuratedTaskReferenceMemoryIds={
-          defaultCuratedTaskReferenceMemoryIds
-        }
-        defaultCuratedTaskReferenceEntries={defaultCuratedTaskReferenceEntries}
-        knowledgePackSelection={knowledgePackSelection}
-        knowledgePackOptions={knowledgePackOptions}
-        knowledgeHubOpenRequestKey={knowledgeHubOpenRequestKey}
-        onKnowledgePacksNeeded={onKnowledgePacksNeeded}
-        onToggleKnowledgePack={onToggleKnowledgePack}
-        onSelectKnowledgePack={onSelectKnowledgePack}
-        onToggleKnowledgeCompanionPack={onToggleKnowledgeCompanionPack}
-        onStartKnowledgeOrganize={onStartKnowledgeOrganize}
-        onManageKnowledgePacks={onManageKnowledgePacks}
         onSend={handleSend}
         onToolClick={handleToolClick}
         activeTools={activeTools}
@@ -406,8 +320,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
           );
           onRemovePathReference?.(id);
         }}
-        fileManagerOpen={fileManagerOpen}
-        onToggleFileManager={onToggleFileManager}
         onPaste={handlePaste}
         onKeyDown={handleHintKeyDown}
         onHistoryRecall={handleComposerHistoryRecall}
@@ -421,14 +333,11 @@ export const Inputbar: React.FC<InputbarProps> = ({
         accessMode={accessMode}
         setAccessMode={setAccessMode}
         showModelControls={showModelControls}
-        topExtra={topExtra}
         contextVariant={contextVariant}
-        inputCompletionEnabled={inputCompletionEnabled}
         copy={inputbarComposerCopy}
         inputbarCopy={inputbarCopy}
         workflowPanelCopy={workflowPanelCopy}
       />
-      {dialogLayer}
     </InputbarSurface>
   );
 };

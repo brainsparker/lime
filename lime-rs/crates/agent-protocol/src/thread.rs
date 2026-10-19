@@ -454,7 +454,7 @@ pub enum ThreadItemPayload {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         window_id: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        tail_start_turn_id: Option<String>,
+        covered_through_sequence: Option<u64>,
     },
     Unknown {
         upstream_type: String,

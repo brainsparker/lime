@@ -11,8 +11,12 @@ describe("Plugin package current Electron fixture guard", () => {
       "scripts/electron/plugin-package-electron-gate-b.mjs",
       "utf8",
     );
-    const gate = ["scripts/electron/mcp-elicitation-gate-b.mjs", "scripts/electron/lib/plugin-package-fixture.mjs"]
-      .map((file) => fs.readFileSync(file, "utf8")).join("\n");
+    const gate = [
+      "scripts/electron/mcp-elicitation-gate-b.mjs",
+      "scripts/electron/lib/plugin-package-fixture.mjs",
+    ]
+      .map((file) => fs.readFileSync(file, "utf8"))
+      .join("\n");
     const fixture = fs.readFileSync(
       "scripts/electron/mcp-config-fixture-smoke.mjs",
       "utf8",
@@ -68,8 +72,8 @@ describe("Plugin package current Electron fixture guard", () => {
     expect(gate).toContain('"plugin/read"');
     expect(gate).toContain('"plugin/installed"');
     expect(gate).toContain('"config/batchWrite"');
-    expect(gate).toContain('data-testid="inputbar-plus-plugins"');
-    expect(gate).toContain('data-testid="inputbar-plugin-option"');
+    expect(gate).toContain('data-testid="composer-context-suggestions"');
+    expect(gate).toContain('data-suggestion-key^="plugin:"');
     expect(gate).toContain('data-composer-token="plugin"');
     expect(gate).toContain('data-testid="model-selector"');
     expect(gate).toContain('data-model-selector-popover="true"');

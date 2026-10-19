@@ -1,6 +1,5 @@
 import { resolveWorkspaceFilePreviewTarget } from "./canvas-workbench/files/workspaceFilePreview";
 import { resolveArtifactProtocolFilePath } from "@/lib/artifact-protocol";
-import type { DirectoryListing } from "@/lib/api/fileBrowser";
 import type { Artifact } from "@/lib/artifact/types";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
 import type { DocumentVersion } from "@/components/workspace/canvas/canvasUtils";
@@ -42,20 +41,17 @@ export interface CanvasWorkbenchEntryBase {
   kindLabel: string;
 }
 
-export interface CanvasWorkbenchArtifactEntry
-  extends CanvasWorkbenchEntryBase {
+export interface CanvasWorkbenchArtifactEntry extends CanvasWorkbenchEntryBase {
   source: "artifact";
   artifact: Artifact;
 }
 
-export interface CanvasWorkbenchDocumentVersionEntry
-  extends CanvasWorkbenchEntryBase {
+export interface CanvasWorkbenchDocumentVersionEntry extends CanvasWorkbenchEntryBase {
   source: "document-version";
   version: DocumentVersion;
 }
 
-export interface CanvasWorkbenchTaskFileEntry
-  extends CanvasWorkbenchEntryBase {
+export interface CanvasWorkbenchTaskFileEntry extends CanvasWorkbenchEntryBase {
   source: "task-file";
   taskFile: CanvasWorkbenchTaskFile;
 }
@@ -284,86 +280,6 @@ export function resolveWorkspacePanelDisplayPath(
   return normalizeManagedWorkspacePathForDisplay(normalizedPanelRoot);
 }
 
-export function isSavedContentBundleDirectory(
-  workspaceRoot: string | null | undefined,
-  listingPath: string,
-): boolean {
-  const relativePath = resolveWorkspaceRelativePath(workspaceRoot, listingPath);
-  return Boolean(relativePath?.match(/^exports\/[^/]+\/[^/]+(?:\/.*)?$/));
-}
-
-export function compareWorkspaceTreeEntryName(
-  left: string,
-  right: string,
-): number {
-  return left.localeCompare(right, "zh-CN", {
-    numeric: true,
-    sensitivity: "base",
-  });
-}
-
-export function sortWorkspaceListingEntries(
-  entries: DirectoryListing["entries"],
-  listingPath: string,
-  workspaceRoot: string | null | undefined,
-): DirectoryListing["entries"] {
-  const isBundleDirectory = isSavedContentBundleDirectory(
-    workspaceRoot,
-    listingPath,
-  );
-
-  const resolveRank = (entry: DirectoryListing["entries"][number]) => {
-    const normalizedName = (entry.name || "").trim().toLowerCase();
-
-    if (isBundleDirectory) {
-      if (normalizedName === "index.md") {
-        return 0;
-      }
-      if (normalizedName === "agents.md") {
-        return 1;
-      }
-      if (entry.isDir && normalizedName === "skills") {
-        return 2;
-      }
-      if (
-        entry.isDir &&
-        (normalizedName === "images" || normalizedName === "assets")
-      ) {
-        return 3;
-      }
-      if (entry.isDir) {
-        return 4;
-      }
-      if (/\.(md|markdown|mdx)$/i.test(normalizedName)) {
-        return 5;
-      }
-      if (/\.(png|jpe?g|webp|gif|svg)$/i.test(normalizedName)) {
-        return 6;
-      }
-      if (/\.json$/i.test(normalizedName)) {
-        return 8;
-      }
-      return 7;
-    }
-
-    if (entry.isDir) {
-      return 0;
-    }
-    if (/\.(md|markdown|mdx)$/i.test(normalizedName)) {
-      return 1;
-    }
-    return 2;
-  };
-
-  return [...entries].sort((left, right) => {
-    const rankDiff = resolveRank(left) - resolveRank(right);
-    if (rankDiff !== 0) {
-      return rankDiff;
-    }
-    return compareWorkspaceTreeEntryName(left.name, right.name);
-  });
-}
-
 function buildSyntheticArtifact(
   id: string,
   filePath: string,
@@ -504,7 +420,9 @@ export function buildEntries(
   const taskFilePathSet = new Set(
     taskFileEntries
       .map((entry) =>
-        normalizeCanvasWorkbenchPath(entry.absolutePath || entry.filePath || ""),
+        normalizeCanvasWorkbenchPath(
+          entry.absolutePath || entry.filePath || "",
+        ),
       )
       .filter(Boolean),
   );

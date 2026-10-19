@@ -203,6 +203,7 @@ async fn collect_provider_output(
                 reason,
                 usage,
                 response_id,
+                ..
             } => {
                 output.finish_reason = reason;
                 if let Some(usage) = usage {
@@ -229,7 +230,8 @@ async fn collect_provider_output(
                     retry_after: None,
                 });
             }
-            CanonicalLlmEvent::TextStart { .. }
+            CanonicalLlmEvent::ResponseItemDone { .. }
+            | CanonicalLlmEvent::TextStart { .. }
             | CanonicalLlmEvent::TextEnd { .. }
             | CanonicalLlmEvent::ReasoningStart { .. }
             | CanonicalLlmEvent::ReasoningSummaryDelta { .. }
@@ -513,7 +515,11 @@ fn openai_request_to_current(
         } else {
             CurrentProviderRole::User
         };
-        messages.push(CurrentProviderMessage { role, content });
+        messages.push(CurrentProviderMessage {
+            producer: None,
+            role,
+            content,
+        });
     }
     let tools = request
         .tools
@@ -653,6 +659,7 @@ fn anthropic_request_to_current(
             CurrentProviderRole::User
         };
         messages.push(CurrentProviderMessage {
+            producer: None,
             role,
             content: anthropic_content(&message.content, &mut image_index)?,
         });
@@ -848,6 +855,7 @@ mod tests {
                     output_tokens: Some(1),
                     ..Usage::default()
                 }),
+                needs_follow_up: false,
                 response_id: Some("upstream-response".to_string()),
             }))
             .await
@@ -873,6 +881,7 @@ mod tests {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ];
@@ -922,12 +931,20 @@ mod tests {
                 text: "raw-reasoning".to_string(),
                 content_index: 0,
             }),
+            Ok(CanonicalLlmEvent::ResponseItemDone {
+                source_id: "reasoning-0".to_string(),
+                producer: Some("host-route-only".to_string()),
+                item: json!({"type":"reasoning","id":"rs_private",
+                    "summary":[{"type":"summary_text","text":"summary-only"}],
+                    "encrypted_content":"private-completed-ciphertext"}),
+            }),
             Ok(CanonicalLlmEvent::ReasoningEnd {
                 id: "reasoning-0".to_string(),
             }),
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ];
@@ -949,6 +966,8 @@ mod tests {
             let body = String::from_utf8(body.to_vec()).expect("reasoning SSE UTF-8");
             assert!(body.contains("raw-reasoning"));
             assert!(!body.contains("summary-only"));
+            assert!(!body.contains("private-completed-ciphertext"));
+            assert!(!body.contains("host-route-only"));
         }
     }
 
@@ -968,6 +987,7 @@ mod tests {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ];
@@ -1043,6 +1063,7 @@ mod tests {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ];

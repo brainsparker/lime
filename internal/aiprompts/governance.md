@@ -50,7 +50,7 @@ legacy alias 或默认值放行。
 脚本和文档入口只能出现在负向回流守卫或不可变历史 evidence 中，不得恢复为 compat、
 fallback 或 active 文档导航。
 
-Agent loop、状态机、Thread/Turn/Item、工具、MCP、Skills、Multi-Agent、历史恢复和 GUI 护栏按 `/Users/coso/Documents/dev/rust/codex` 收敛。多模型控制平面的 model catalog、model switch、provider capability、provider readiness 和 retry/circuit breaker 按 `/Users/coso/Documents/dev/rust/grok-build` 收敛；provider wire 的 endpoint、canonical content、媒体 lowering 和多协议 stream 可参考 `/Users/coso/Documents/dev/js/opencode`。grok-build/OpenCode 只提供 provider/model 机制参考，不成为 Lime runtime 或 GUI owner。
+Codex 是唯一主对标：Agent loop、状态机、Thread/Turn/Item、工具、MCP、Skills、Multi-Agent 与历史恢复直接读 `/Users/coso/Documents/dev/rust/codex` 源码；Desktop 行为使用 REA 安装包证据。保留 Lime 多模型、多协议；model catalog、model switch、provider capability/readiness 与 retry/circuit breaker 仅参考 `/Users/coso/Documents/dev/rust/grok-build` 的适用机制；provider wire 的 endpoint、canonical content、媒体 lowering 和多协议 stream 可辅助参考 `/Users/coso/Documents/dev/js/opencode`。参考项目不能替代 Codex 的 runtime、harness 或产品语义，也不能成为 Lime 的平行 owner。
 
 ## 直接替换
 

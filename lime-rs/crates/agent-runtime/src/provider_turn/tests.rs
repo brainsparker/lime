@@ -36,10 +36,18 @@ use tool_runtime::tool_lifecycle::{
 
 #[path = "tests/context_history.rs"]
 mod context_history;
+#[path = "tests/continuation.rs"]
+mod continuation;
+#[path = "tests/final_completion.rs"]
+mod final_completion;
 #[path = "tests/hook_snapshot.rs"]
 mod hook_snapshot;
+#[path = "tests/model_history.rs"]
+mod model_history;
 #[path = "tests/stream_producer.rs"]
 mod stream_producer;
+#[path = "tests/tool_call.rs"]
+mod tool_call;
 
 #[test]
 fn harness_generation_projects_provider_request_controls() {
@@ -143,6 +151,7 @@ impl CurrentProvider for ScriptedProvider {
                 vec![Ok(CanonicalLlmEvent::Finish {
                     reason: FinishReason::Stop,
                     usage: None,
+                    needs_follow_up: false,
                     response_id: None,
                 })]
             });
@@ -214,6 +223,7 @@ impl CurrentProvider for GatedEmptyThenRetryableErrorProvider {
                     Ok(CanonicalLlmEvent::Finish {
                         reason: FinishReason::Stop,
                         usage: None,
+                        needs_follow_up: false,
                         response_id: Some("empty-before-steer".to_string()),
                     })
                 }));
@@ -305,6 +315,7 @@ impl CurrentProvider for ToolCallThenHangingProvider {
                     Ok(CanonicalLlmEvent::Finish {
                         reason: FinishReason::ToolCall,
                         usage: None,
+                        needs_follow_up: false,
                         response_id: Some("response-tool".to_string()),
                     }),
                 ]));
@@ -974,25 +985,15 @@ fn provider_output_item_id_is_turn_and_attempt_scoped() {
 }
 
 #[tokio::test]
-async fn rollout_budget_reminder_is_reused_across_empty_response_retry() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![Ok(CanonicalLlmEvent::Finish {
+async fn empty_final_keeps_budget_reminder() {
+    let provider = Arc::new(ScriptedProvider::new(vec![vec![Ok(
+        CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("empty-response".to_string()),
-        })],
-        vec![
-            Ok(CanonicalLlmEvent::TextDelta {
-                id: "text-0".to_string(),
-                text: "done".to_string(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: None,
-                response_id: Some("response-2".to_string()),
-            }),
-        ],
-    ]));
+        },
+    )]]));
     let requests = Arc::clone(&provider.requests);
     let reminder_source = Arc::new(ScriptedRolloutBudgetReminderSource::new(vec![Some(
         crate::session_config::RolloutBudgetReminder {
@@ -1035,7 +1036,7 @@ async fn rollout_budget_reminder_is_reused_across_empty_response_retry() {
         |event| events.push(event),
     )
     .await
-    .expect("empty response retry should preserve the reminder snapshot");
+    .expect("normal empty final should preserve its reminder");
 
     assert_eq!(
         *reminder_source.calls.lock().expect("reminder source calls"),
@@ -1065,8 +1066,7 @@ async fn rollout_budget_reminder_is_reused_across_empty_response_retry() {
     )));
 
     let requests = requests.lock().expect("provider requests");
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0], requests[1]);
+    assert_eq!(requests.len(), 1);
     assert_eq!(
         requests[0]
             .messages
@@ -1087,6 +1087,7 @@ async fn provider_request_uses_typed_cwd_world_state_without_app_server_snapshot
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-1".to_string()),
         }),
     ]]));
@@ -1126,11 +1127,11 @@ async fn provider_request_uses_typed_cwd_world_state_without_app_server_snapshot
         requests[0].messages.as_slice(),
         [
             CurrentProviderMessage {
-                role: CurrentProviderRole::User,
+                producer: None, role: CurrentProviderRole::User,
                 content: environment_content,
             },
             CurrentProviderMessage {
-                role: CurrentProviderRole::User,
+                producer: None, role: CurrentProviderRole::User,
                 content: user_content,
             }
         ] if matches!(environment_content.as_slice(), [CurrentProviderContent::Text(text)]
@@ -1150,6 +1151,7 @@ async fn provider_request_projects_typed_world_state_once_before_current_user() 
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-1".to_string()),
         }),
     ]]));
@@ -1265,6 +1267,7 @@ async fn provider_request_preserves_canonical_fork_lineage() {
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-1".to_string()),
         }),
     ]]));
@@ -1344,6 +1347,7 @@ async fn provider_metadata_is_deduplicated_across_sampling_steps() {
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::ToolCall,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-1".to_string()),
         }),
     ]);
@@ -1356,6 +1360,7 @@ async fn provider_metadata_is_deduplicated_across_sampling_steps() {
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-2".to_string()),
         }),
     ]);
@@ -1453,6 +1458,7 @@ async fn reasoning_summary_and_content_share_item_but_only_content_enters_provid
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-1".to_string()),
             }),
         ],
@@ -1464,6 +1470,7 @@ async fn reasoning_summary_and_content_share_item_but_only_content_enters_provid
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-2".to_string()),
             }),
         ],
@@ -1565,6 +1572,7 @@ async fn each_sampling_attempt_emits_independent_provider_phase_trace() {
                     cache_read_input_tokens: Some(2),
                     ..Usage::default()
                 }),
+                needs_follow_up: false,
                 response_id: Some("response-1".to_string()),
             }),
         ],
@@ -1581,6 +1589,7 @@ async fn each_sampling_attempt_emits_independent_provider_phase_trace() {
                     cache_read_input_tokens: Some(5),
                     ..Usage::default()
                 }),
+                needs_follow_up: false,
                 response_id: Some("response-2".to_string()),
             }),
         ],
@@ -1658,10 +1667,8 @@ async fn each_sampling_attempt_emits_independent_provider_phase_trace() {
         .collect::<Vec<_>>();
     assert_eq!(
         text_phases,
-        vec![
-            CurrentProviderTextPhase::Commentary,
-            CurrentProviderTextPhase::FinalAnswer,
-        ]
+        vec![None, None],
+        "tool presence does not declare a provider message phase"
     );
 
     let traces = events
@@ -1776,6 +1783,7 @@ async fn max_turns_stops_before_starting_an_extra_provider_request() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some(response_id.to_string()),
             }),
         ]
@@ -1876,6 +1884,7 @@ async fn provider_token_budget_stops_before_tool_execution_and_next_sampling() {
                 cache_read_input_tokens: Some(25),
                 ..Usage::default()
             }),
+            needs_follow_up: false,
             response_id: Some("response-1".to_string()),
         }),
     ]]));
@@ -1976,6 +1985,7 @@ async fn turn_executes_tool_then_continues_with_tool_result_transcript() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-1".to_string()),
             }),
         ],
@@ -1987,6 +1997,7 @@ async fn turn_executes_tool_then_continues_with_tool_result_transcript() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-2".to_string()),
             }),
         ],
@@ -2056,7 +2067,7 @@ async fn turn_executes_tool_then_continues_with_tool_result_transcript() {
     assert!(matches!(
         requests[1].messages.last(),
         Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
+            producer: None, role: CurrentProviderRole::Tool,
             content,
         }) if matches!(content.as_slice(), [CurrentProviderContent::ToolResult(result)]
             if result.call_id == "call-1" && result.output == "executed Read")
@@ -2104,6 +2115,7 @@ async fn provider_executed_web_search_emits_item_without_local_execution() {
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-search".to_string()),
         }),
     ]]));
@@ -2213,6 +2225,7 @@ async fn each_sampling_step_uses_a_fresh_definition_and_executor_snapshot() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-1".to_string()),
             }),
         ],
@@ -2224,6 +2237,7 @@ async fn each_sampling_step_uses_a_fresh_definition_and_executor_snapshot() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-2".to_string()),
             }),
         ],
@@ -2282,7 +2296,7 @@ async fn each_sampling_step_uses_a_fresh_definition_and_executor_snapshot() {
     assert!(matches!(
         requests[1].messages.last(),
         Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
+            producer: None, role: CurrentProviderRole::Tool,
             content,
         }) if matches!(content.as_slice(), [CurrentProviderContent::ToolResult(result)]
             if result.output == "first-executor")
@@ -2337,515 +2351,6 @@ async fn mcp_tool_lifecycle_uses_captured_environment_identity() {
 }
 
 #[tokio::test]
-async fn repaired_tool_call_uses_canonical_snapshot_identity_and_arguments() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-repaired".to_string(),
-                name: "read_file".to_string(),
-                input: serde_json::json!({
-                    "file_path": " README.md ",
-                    "start_line": "2",
-                    "end_line": "3"
-                }),
-                raw_arguments: Some(
-                    r#"{"file_path":" README.md ","start_line":"2","end_line":"3"}"#.to_string(),
-                ),
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::ToolCall,
-                usage: None,
-                response_id: Some("response-1".to_string()),
-            }),
-        ],
-        vec![
-            Ok(CanonicalLlmEvent::TextDelta {
-                id: "text-final".to_string(),
-                text: "done".to_string(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: None,
-                response_id: Some("response-2".to_string()),
-            }),
-        ],
-    ]));
-    let requests = Arc::clone(&provider.requests);
-    let step_executor = Arc::new(CountingTool::default());
-    let lifecycle_emitter = Arc::new(RecordingLifecycleEmitter::default());
-
-    run_current_provider_turn(
-        CurrentProviderTurnInput {
-            provider,
-            provider_trace_metadata: None,
-            session_config: crate::session_config::SessionConfigBuilder::new("session-1")
-                .turn_id("turn-1")
-                .max_turns(3)
-                .build(),
-            initial_messages: vec![CurrentProviderMessage::user(vec![
-                CurrentProviderContent::Text("read it".to_string()),
-            ])],
-            tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                RuntimeToolStepSnapshot::new(
-                    vec![RuntimeToolDefinition::new(
-                        "Read",
-                        "visible tool",
-                        serde_json::json!({
-                            "type": "object",
-                            "properties": {
-                                "path": { "type": "string" },
-                                "start_line": { "type": "integer", "minimum": 1 },
-                                "end_line": { "type": "integer", "minimum": 1 }
-                            },
-                            "required": ["path"]
-                        }),
-                    )],
-                    RuntimeToolExecutorHandle::new(step_executor.clone()),
-                ),
-            ),
-            hook_snapshot_source: None,
-            model_request_policy: None,
-            tool_lifecycle_emitter: lifecycle_emitter.clone(),
-            working_directory: PathBuf::from("."),
-            cancel_token: None,
-            pending_input: None,
-        },
-        |_| {},
-    )
-    .await
-    .expect("repaired tool call should complete");
-
-    assert_eq!(step_executor.calls.load(Ordering::SeqCst), 1);
-    let lifecycle_events = lifecycle_emitter.events();
-    assert_eq!(lifecycle_events.len(), 2);
-    for event in &lifecycle_events {
-        assert_eq!(event.tool_name, "Read");
-        assert_eq!(event.arguments["path"], "README.md");
-        assert_eq!(event.arguments["start_line"], 2);
-        assert_eq!(event.arguments["end_line"], 3);
-        assert_eq!(
-            event.provider_metadata[TOOL_CALL_REPAIR_METADATA_KEY]["status"],
-            "ready"
-        );
-    }
-
-    let requests = requests.lock().expect("recorded requests");
-    let repaired_call = requests[1]
-        .messages
-        .iter()
-        .find_map(|message| {
-            message.content.iter().find_map(|content| match content {
-                CurrentProviderContent::ToolCall(call) => Some(call),
-                _ => None,
-            })
-        })
-        .expect("repaired assistant tool call");
-    assert_eq!(repaired_call.name, "Read");
-    assert_eq!(repaired_call.arguments["path"], "README.md");
-    assert!(matches!(
-        requests[1].messages.last(),
-        Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
-            content,
-        }) if matches!(content.as_slice(), [CurrentProviderContent::ToolResult(result)]
-            if result.name == "Read" && result.success)
-    ));
-}
-
-#[tokio::test]
-async fn repaired_tool_call_cancel_wins_over_late_handler_completion() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-cancel-repaired".to_string(),
-                name: "read_file".to_string(),
-                input: serde_json::json!({
-                    "file_path": " README.md ",
-                    "start_line": "2"
-                }),
-                raw_arguments: Some(r#"{"file_path":" README.md ","start_line":"2"}"#.to_string()),
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::ToolCall,
-                usage: None,
-                response_id: Some("response-tool".to_string()),
-            }),
-        ],
-        vec![Ok(CanonicalLlmEvent::Finish {
-            reason: FinishReason::Stop,
-            usage: None,
-            response_id: Some("response-after-tool".to_string()),
-        })],
-    ]));
-    let requests = Arc::clone(&provider.requests);
-    let (started_sender, started_receiver) = oneshot::channel();
-    let (release_sender, release_receiver) = oneshot::channel();
-    let (late_completed_sender, late_completed_receiver) = oneshot::channel();
-    let tool = Arc::new(LateCompletingTool {
-        calls: AtomicUsize::new(0),
-        started: Mutex::new(Some(started_sender)),
-        release_after_cancel: Mutex::new(Some(release_receiver)),
-        late_completed: Mutex::new(Some(late_completed_sender)),
-    });
-    let lifecycle_emitter = Arc::new(RecordingLifecycleEmitter::default());
-    let turn_lifecycle_emitter = lifecycle_emitter.clone();
-    let turn_tool = tool.clone();
-    let cancel_token = CancellationToken::new();
-    let turn_cancel_token = cancel_token.clone();
-
-    let turn = tokio::spawn(async move {
-        run_current_provider_turn(
-            CurrentProviderTurnInput {
-                provider,
-                provider_trace_metadata: None,
-                session_config: crate::session_config::SessionConfigBuilder::new("session-cancel")
-                    .turn_id("turn-cancel")
-                    .max_turns(3)
-                    .build(),
-                initial_messages: vec![CurrentProviderMessage::user(vec![
-                    CurrentProviderContent::Text("read it".to_string()),
-                ])],
-                tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                    RuntimeToolStepSnapshot::new(
-                        vec![RuntimeToolDefinition::new(
-                            "Read",
-                            "visible tool",
-                            serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "path": { "type": "string" },
-                                    "start_line": { "type": "integer", "minimum": 1 }
-                                },
-                                "required": ["path"]
-                            }),
-                        )],
-                        RuntimeToolExecutorHandle::new(turn_tool),
-                    ),
-                ),
-                hook_snapshot_source: None,
-                model_request_policy: None,
-                tool_lifecycle_emitter: turn_lifecycle_emitter,
-                working_directory: PathBuf::from("."),
-                cancel_token: Some(turn_cancel_token),
-                pending_input: None,
-            },
-            |_| {},
-        )
-        .await
-    });
-
-    started_receiver
-        .await
-        .expect("repaired handler should start");
-    cancel_token.cancel();
-    let execution = tokio::time::timeout(Duration::from_secs(5), turn)
-        .await
-        .expect("cancel should release the repaired tool call")
-        .expect("turn task should complete")
-        .expect("cancel should be a normal terminal result");
-
-    assert!(execution.cancelled);
-    assert_eq!(execution.attempts_summary, "attempts=1");
-    assert_eq!(tool.calls.load(Ordering::SeqCst), 1);
-    assert_eq!(requests.lock().expect("provider requests").len(), 1);
-    let lifecycle_events = lifecycle_emitter.events();
-    assert_eq!(lifecycle_events.len(), 2);
-    assert_eq!(lifecycle_events[0].phase, ToolLifecyclePhase::Started);
-    assert_eq!(lifecycle_events[1].phase, ToolLifecyclePhase::Completed);
-    for event in &lifecycle_events {
-        assert_eq!(event.tool_name, "Read");
-        assert_eq!(event.arguments["path"], "README.md");
-        assert_eq!(event.arguments["start_line"], 2);
-        assert_eq!(
-            event.provider_metadata[TOOL_CALL_REPAIR_METADATA_KEY]["status"],
-            "ready"
-        );
-    }
-    assert_eq!(
-        lifecycle_events[1]
-            .output
-            .as_ref()
-            .and_then(|output| output.metadata.get("tool_outcome"))
-            .and_then(serde_json::Value::as_str),
-        Some("aborted")
-    );
-
-    release_sender
-        .send(())
-        .expect("release late handler completion");
-    tokio::time::timeout(Duration::from_secs(5), late_completed_receiver)
-        .await
-        .expect("late handler should finish")
-        .expect("late handler completion signal");
-    assert_eq!(lifecycle_emitter.events(), lifecycle_events);
-    assert_eq!(requests.lock().expect("provider requests").len(), 1);
-}
-
-#[tokio::test]
-async fn repaired_tool_call_is_not_replayed_when_next_provider_step_times_out() {
-    let provider = Arc::new(ToolCallThenHangingProvider {
-        attempt: AtomicUsize::new(0),
-        requests: Mutex::new(Vec::new()),
-    });
-    let retained_provider = provider.clone();
-    let tool = Arc::new(CountingTool::default());
-    let lifecycle_emitter = Arc::new(RecordingLifecycleEmitter::default());
-    let mut turn_context = agent_protocol::turn_context::TurnContextOverride::default();
-    turn_context.metadata.insert(
-        "runtime_request".to_string(),
-        serde_json::json!({
-            "harness": {
-                "generation": {
-                    "first_visible_output_timeout_ms": 1_000,
-                    "provider_step_timeout_ms": 20
-                }
-            }
-        }),
-    );
-
-    let error = tokio::time::timeout(
-        Duration::from_secs(5),
-        run_current_provider_turn(
-            CurrentProviderTurnInput {
-                provider,
-                provider_trace_metadata: None,
-                session_config: crate::session_config::SessionConfigBuilder::new("session-timeout")
-                    .turn_id("turn-timeout")
-                    .turn_context(turn_context)
-                    .max_turns(3)
-                    .build(),
-                initial_messages: vec![CurrentProviderMessage::user(vec![
-                    CurrentProviderContent::Text("read it".to_string()),
-                ])],
-                tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                    RuntimeToolStepSnapshot::new(
-                        vec![RuntimeToolDefinition::new(
-                            "Read",
-                            "visible tool",
-                            serde_json::json!({
-                                "type": "object",
-                                "properties": {
-                                    "path": { "type": "string" },
-                                    "start_line": { "type": "integer", "minimum": 1 }
-                                },
-                                "required": ["path"]
-                            }),
-                        )],
-                        RuntimeToolExecutorHandle::new(tool.clone()),
-                    ),
-                ),
-                hook_snapshot_source: None,
-                model_request_policy: None,
-                tool_lifecycle_emitter: lifecycle_emitter.clone(),
-                working_directory: PathBuf::from("."),
-                cancel_token: None,
-                pending_input: None,
-            },
-            |_| {},
-        ),
-    )
-    .await
-    .expect("provider timeout should beat the outer test timeout")
-    .expect_err("second provider step should hit its absolute deadline");
-
-    assert_eq!(
-        error.message,
-        "Provider step exceeded the absolute deadline of 20ms"
-    );
-    assert_eq!(tool.calls.load(Ordering::SeqCst), 1);
-    let lifecycle_events = lifecycle_emitter.events();
-    assert_eq!(lifecycle_events.len(), 2);
-    assert_eq!(lifecycle_events[0].phase, ToolLifecyclePhase::Started);
-    assert_eq!(lifecycle_events[1].phase, ToolLifecyclePhase::Completed);
-    assert!(lifecycle_events[1]
-        .output
-        .as_ref()
-        .is_some_and(|output| output.success));
-
-    let requests = retained_provider
-        .requests
-        .lock()
-        .expect("provider requests");
-    assert_eq!(requests.len(), 2);
-    let repaired_call = requests[1]
-        .messages
-        .iter()
-        .flat_map(|message| message.content.iter())
-        .find_map(|content| match content {
-            CurrentProviderContent::ToolCall(call) => Some(call),
-            _ => None,
-        })
-        .expect("repaired assistant tool call");
-    assert_eq!(repaired_call.name, "Read");
-    assert_eq!(repaired_call.arguments["path"], "README.md");
-    assert_eq!(repaired_call.arguments["start_line"], 2);
-    assert!(matches!(
-        requests[1].messages.last(),
-        Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
-            content,
-        }) if matches!(content.as_slice(), [CurrentProviderContent::ToolResult(result)]
-            if result.name == "Read" && result.success)
-    ));
-}
-
-#[tokio::test]
-async fn malformed_unknown_and_schema_mismatched_calls_fail_without_reaching_step_executor() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-malformed".to_string(),
-                name: "Read".to_string(),
-                input: serde_json::json!("{not-json"),
-                raw_arguments: Some("{not-json".to_string()),
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-mcp".to_string(),
-                name: "mcp__hidden__unknown".to_string(),
-                input: serde_json::json!({}),
-                raw_arguments: None,
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-schema".to_string(),
-                name: "Read".to_string(),
-                input: serde_json::json!({ "path": 42 }),
-                raw_arguments: Some(r#"{"path":42}"#.to_string()),
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::ToolCall,
-                usage: None,
-                response_id: Some("response-1".to_string()),
-            }),
-        ],
-        vec![
-            Ok(CanonicalLlmEvent::TextDelta {
-                id: "text-final".to_string(),
-                text: "done".to_string(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: None,
-                response_id: Some("response-2".to_string()),
-            }),
-        ],
-    ]));
-    let requests = Arc::clone(&provider.requests);
-    let step_executor = Arc::new(CountingTool::default());
-    let lifecycle_emitter = Arc::new(RecordingLifecycleEmitter::default());
-
-    run_current_provider_turn(
-        CurrentProviderTurnInput {
-            provider,
-            provider_trace_metadata: None,
-            session_config: crate::session_config::SessionConfigBuilder::new("session-1")
-                .turn_id("turn-1")
-                .max_turns(3)
-                .build(),
-            initial_messages: vec![CurrentProviderMessage::user(vec![
-                CurrentProviderContent::Text("guess hidden tools".to_string()),
-            ])],
-            tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                RuntimeToolStepSnapshot::new(
-                    vec![RuntimeToolDefinition::new(
-                        "Read",
-                        "visible tool",
-                        serde_json::json!({
-                            "type": "object",
-                            "properties": {
-                                "path": { "type": "string" }
-                            },
-                            "required": ["path"],
-                            "additionalProperties": false
-                        }),
-                    )],
-                    RuntimeToolExecutorHandle::new(step_executor.clone()),
-                ),
-            ),
-            hook_snapshot_source: None,
-            model_request_policy: None,
-            tool_lifecycle_emitter: lifecycle_emitter.clone(),
-            working_directory: PathBuf::from("."),
-            cancel_token: None,
-            pending_input: None,
-        },
-        |_| {},
-    )
-    .await
-    .expect("invalid tool calls should become failed tool results");
-
-    assert_eq!(step_executor.calls.load(Ordering::SeqCst), 0);
-    let lifecycle_events = lifecycle_emitter.events();
-    assert_eq!(lifecycle_events.len(), 6);
-    assert!(lifecycle_events
-        .iter()
-        .all(|event| event.tool_name == INVALID_TOOL_CALL_NAME));
-    let errors = lifecycle_events
-        .iter()
-        .filter(|event| event.phase == ToolLifecyclePhase::Completed)
-        .filter_map(|event| event.output.as_ref())
-        .filter_map(|output| output.error.as_deref())
-        .collect::<Vec<_>>();
-    assert!(errors
-        .iter()
-        .any(|error| error.contains("malformed JSON arguments")));
-    assert!(errors.iter().any(|error| error.contains("not advertised")));
-    assert!(errors
-        .iter()
-        .any(|error| error.contains("did not match the advertised input schema")));
-    for completed in lifecycle_events
-        .iter()
-        .filter(|event| event.phase == ToolLifecyclePhase::Completed)
-    {
-        let output = completed.output.as_ref().expect("completed output");
-        assert!(!output.success);
-        assert_eq!(
-            output
-                .metadata
-                .get(tool_runtime::tool_result_projection::TOOL_HANDLER_EXECUTED_METADATA_KEY),
-            Some(&serde_json::Value::Bool(false))
-        );
-    }
-
-    let requests = requests.lock().expect("recorded requests");
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0].tools.len(), 1);
-    assert_eq!(requests[0].tools[0].name(), "Read");
-    let schema_invalid_call = requests[1]
-        .messages
-        .iter()
-        .flat_map(|message| message.content.iter())
-        .find_map(|content| match content {
-            CurrentProviderContent::ToolCall(call) if call.id == "call-schema" => Some(call),
-            _ => None,
-        })
-        .expect("schema-invalid assistant tool call");
-    assert_eq!(schema_invalid_call.name, INVALID_TOOL_CALL_NAME);
-    assert!(!schema_invalid_call.arguments.to_string().contains("42"));
-    assert!(matches!(
-        requests[1].messages.last(),
-        Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
-            content,
-        }) if content.len() == 3 && content.iter().all(|part| matches!(
-            part,
-            CurrentProviderContent::ToolResult(result)
-                if !result.success
-                    && result.name == INVALID_TOOL_CALL_NAME
-        ))
-    ));
-}
-
-#[tokio::test]
 async fn turn_executes_same_response_tool_batch_in_parallel_when_policy_allows() {
     let provider = Arc::new(ScriptedProvider::new(vec![
         vec![
@@ -2868,6 +2373,7 @@ async fn turn_executes_same_response_tool_batch_in_parallel_when_policy_allows()
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-1".to_string()),
             }),
         ],
@@ -2879,6 +2385,7 @@ async fn turn_executes_same_response_tool_batch_in_parallel_when_policy_allows()
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-2".to_string()),
             }),
         ],
@@ -3092,6 +2599,7 @@ async fn custom_exec_uses_code_mode_session_and_resamples_with_typed_result() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-custom-1".to_string()),
             }),
         ],
@@ -3103,6 +2611,7 @@ async fn custom_exec_uses_code_mode_session_and_resamples_with_typed_result() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-custom-2".to_string()),
             }),
         ],
@@ -3176,11 +2685,11 @@ async fn custom_exec_uses_code_mode_session_and_resamples_with_typed_result() {
         requests[1].messages.as_slice(),
         [..,
             CurrentProviderMessage {
-                role: CurrentProviderRole::Assistant,
+                producer: None, role: CurrentProviderRole::Assistant,
                 content: assistant_content,
             },
             CurrentProviderMessage {
-                role: CurrentProviderRole::Tool,
+                producer: None, role: CurrentProviderRole::Tool,
                 content: tool_content,
             }
         ] if matches!(assistant_content.as_slice(), [CurrentProviderContent::CustomToolCall(call)]
@@ -3242,6 +2751,7 @@ async fn custom_exec_nested_tool_reuses_the_frozen_executor_and_lifecycle() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-nested-1".to_string()),
             }),
         ],
@@ -3253,6 +2763,7 @@ async fn custom_exec_nested_tool_reuses_the_frozen_executor_and_lifecycle() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-nested-2".to_string()),
             }),
         ],
@@ -3352,7 +2863,7 @@ async fn custom_exec_nested_tool_reuses_the_frozen_executor_and_lifecycle() {
     assert!(matches!(
         requests[1].messages.last(),
         Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
+            producer: None, role: CurrentProviderRole::Tool,
             content,
         }) if matches!(
             content.as_slice(),
@@ -3388,6 +2899,7 @@ async fn wait_function_uses_the_same_code_mode_session_and_resamples() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-wait-1".to_string()),
             }),
         ],
@@ -3399,6 +2911,7 @@ async fn wait_function_uses_the_same_code_mode_session_and_resamples() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-wait-2".to_string()),
             }),
         ],
@@ -3475,7 +2988,7 @@ async fn wait_function_uses_the_same_code_mode_session_and_resamples() {
     assert!(matches!(
         requests[1].messages.last(),
         Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
+            producer: None, role: CurrentProviderRole::Tool,
             content,
         }) if matches!(content.as_slice(), [CurrentProviderContent::ToolResult(result)]
             if result.call_id == "wait-call-1"
@@ -3499,6 +3012,7 @@ async fn custom_exec_session_failure_is_returned_to_model_for_recovery() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-custom-failed".to_string()),
             }),
         ],
@@ -3510,6 +3024,7 @@ async fn custom_exec_session_failure_is_returned_to_model_for_recovery() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-custom-recovered".to_string()),
             }),
         ],
@@ -3555,7 +3070,7 @@ async fn custom_exec_session_failure_is_returned_to_model_for_recovery() {
     assert!(matches!(
         requests[1].messages.last(),
         Some(CurrentProviderMessage {
-            role: CurrentProviderRole::Tool,
+            producer: None, role: CurrentProviderRole::Tool,
             content,
         }) if matches!(content.as_slice(), [CurrentProviderContent::CustomToolResult(result)]
             if !result.success
@@ -3593,6 +3108,7 @@ async fn mixed_function_and_custom_results_preserve_provider_call_order() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-mixed-tools".to_string()),
             }),
         ],
@@ -3604,6 +3120,7 @@ async fn mixed_function_and_custom_results_preserve_provider_call_order() {
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("response-mixed-final".to_string()),
             }),
         ],
@@ -3670,11 +3187,11 @@ async fn mixed_function_and_custom_results_preserve_provider_call_order() {
         requests[1].messages.as_slice(),
         [..,
             CurrentProviderMessage {
-                role: CurrentProviderRole::Assistant,
+                producer: None, role: CurrentProviderRole::Assistant,
                 content: assistant_content,
             },
             CurrentProviderMessage {
-                role: CurrentProviderRole::Tool,
+                producer: None, role: CurrentProviderRole::Tool,
                 content: tool_content,
             }
         ] if matches!(assistant_content.as_slice(), [
@@ -3708,6 +3225,7 @@ async fn cancellation_terminates_a_started_code_mode_cell() {
         Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::ToolCall,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-hanging".to_string()),
         }),
     ]]));
@@ -3972,261 +3490,12 @@ async fn provider_quota_error_preserves_usage_limit_kind() {
 }
 
 #[tokio::test]
-async fn turn_resamples_reasoning_only_response_with_same_sampling_snapshot() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![
-            Ok(CanonicalLlmEvent::ReasoningContentDelta {
-                id: "reasoning-1".to_string(),
-                text: "I need to think about this first.".to_string(),
-                content_index: 0,
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: Some(Usage {
-                    input_tokens: Some(10),
-                    output_tokens: Some(4),
-                    ..Usage::default()
-                }),
-                response_id: Some("response-1".to_string()),
-            }),
-        ],
-        vec![
-            Ok(CanonicalLlmEvent::TextDelta {
-                id: "text-2".to_string(),
-                text: "done".to_string(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: Some(Usage {
-                    input_tokens: Some(10),
-                    output_tokens: Some(1),
-                    ..Usage::default()
-                }),
-                response_id: Some("response-2".to_string()),
-            }),
-        ],
-    ]));
-    let requests = Arc::clone(&provider.requests);
-    let snapshot_source =
-        RuntimeToolStepSnapshotSourceHandle::new(Arc::new(SequencedToolStepSnapshotSource {
-            snapshots: Mutex::new(VecDeque::from([RuntimeToolStepSnapshot::new(
-                Vec::new(),
-                RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
-            )])),
-        }));
-
-    let mut events = Vec::new();
-    let execution = run_current_provider_turn(
-        CurrentProviderTurnInput {
-            provider,
-            provider_trace_metadata: None,
-            session_config: crate::session_config::SessionConfigBuilder::new("session-1")
-                .turn_id("turn-1")
-                .max_turns(1)
-                .build(),
-            initial_messages: vec![CurrentProviderMessage::user(vec![
-                CurrentProviderContent::Text("hello".to_string()),
-            ])],
-            tool_step_snapshot_source: snapshot_source,
-            hook_snapshot_source: None,
-            model_request_policy: None,
-            tool_lifecycle_emitter: Arc::new(RecordingLifecycleEmitter::default()),
-            working_directory: PathBuf::from("."),
-            cancel_token: None,
-            pending_input: None,
-        },
-        |event| events.push(event),
-    )
-    .await
-    .expect("reasoning-only completion should be resampled");
-
-    assert_eq!(execution.text_output, "done");
-    assert_eq!(execution.attempts_summary, "attempts=2");
-    let requests = requests.lock().expect("provider requests");
-    assert_eq!(requests.len(), 2);
-    assert_eq!(requests[0], requests[1]);
-
-    assert_eq!(
-        events
-            .iter()
-            .filter_map(|event| match event {
-                CurrentProviderTurnEvent::ReasoningStart { item_id } => {
-                    Some(("start", item_id.as_str()))
-                }
-                CurrentProviderTurnEvent::ReasoningContentDelta { item_id, .. } => {
-                    Some(("delta", item_id.as_str()))
-                }
-                CurrentProviderTurnEvent::ReasoningEnd { item_id } => {
-                    Some(("end", item_id.as_str()))
-                }
-                _ => None,
-            })
-            .collect::<Vec<_>>(),
-        vec![
-            ("start", "provider:turn-1:1:reasoning:reasoning-1"),
-            ("delta", "provider:turn-1:1:reasoning:reasoning-1"),
-            ("end", "provider:turn-1:1:reasoning:reasoning-1"),
-        ]
-    );
-    assert_eq!(
-        events
-            .iter()
-            .filter_map(|event| match event {
-                CurrentProviderTurnEvent::ProviderStep { attempt, .. } => Some(*attempt),
-                _ => None,
-            })
-            .collect::<Vec<_>>(),
-        vec![1, 2]
-    );
-}
-
-#[tokio::test]
-async fn empty_response_retry_budget_is_bounded_and_does_not_spend_max_turns() {
-    let empty = || {
-        vec![Ok(CanonicalLlmEvent::Finish {
-            reason: FinishReason::Stop,
-            usage: None,
-            response_id: None,
-        })]
-    };
-    let provider = Arc::new(ScriptedProvider::new(vec![empty(), empty(), empty()]));
-    let requests = Arc::clone(&provider.requests);
-
-    let error = run_current_provider_turn(
-        CurrentProviderTurnInput {
-            provider,
-            provider_trace_metadata: None,
-            session_config: crate::session_config::SessionConfigBuilder::new("session-1")
-                .turn_id("turn-1")
-                .max_turns(1)
-                .build(),
-            initial_messages: vec![CurrentProviderMessage::user(vec![
-                CurrentProviderContent::Text("hello".to_string()),
-            ])],
-            tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                RuntimeToolStepSnapshot::new(
-                    Vec::new(),
-                    RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
-                ),
-            ),
-            hook_snapshot_source: None,
-            model_request_policy: None,
-            tool_lifecycle_emitter: Arc::new(RecordingLifecycleEmitter::default()),
-            working_directory: PathBuf::from("."),
-            cancel_token: None,
-            pending_input: None,
-        },
-        |_| {},
-    )
-    .await
-    .expect_err("empty response retries must be bounded");
-
-    assert_eq!(requests.lock().expect("provider requests").len(), 3);
-    assert_eq!(
-        error.message,
-        "Provider completed without user-visible output after 3 attempts (empty response retries exhausted: 2/2)"
-    );
-}
-
-#[tokio::test]
-async fn empty_final_after_tool_call_resamples_without_spending_max_turns() {
-    let provider = Arc::new(ScriptedProvider::new(vec![
-        vec![
-            Ok(CanonicalLlmEvent::ToolCall {
-                id: "call-1".to_string(),
-                name: "Read".to_string(),
-                input: serde_json::json!({ "path": "README.md" }),
-                raw_arguments: None,
-                provider_executed: None,
-                provider_metadata: Default::default(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::ToolCall,
-                usage: None,
-                response_id: Some("response-1".to_string()),
-            }),
-        ],
-        vec![Ok(CanonicalLlmEvent::Finish {
-            reason: FinishReason::Stop,
-            usage: None,
-            response_id: Some("response-empty".to_string()),
-        })],
-        vec![
-            Ok(CanonicalLlmEvent::TextDelta {
-                id: "text-final".to_string(),
-                text: "done".to_string(),
-            }),
-            Ok(CanonicalLlmEvent::Finish {
-                reason: FinishReason::Stop,
-                usage: None,
-                response_id: Some("response-3".to_string()),
-            }),
-        ],
-    ]));
-    let requests = Arc::clone(&provider.requests);
-
-    let execution = run_current_provider_turn(
-        CurrentProviderTurnInput {
-            provider,
-            provider_trace_metadata: None,
-            session_config: crate::session_config::SessionConfigBuilder::new("session-1")
-                .turn_id("turn-1")
-                .max_turns(2)
-                .build(),
-            initial_messages: vec![CurrentProviderMessage::user(vec![
-                CurrentProviderContent::Text("inspect it".to_string()),
-            ])],
-            tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
-                RuntimeToolStepSnapshot::new(
-                    vec![RuntimeToolDefinition::new(
-                        "Read",
-                        "read files",
-                        serde_json::json!({}),
-                    )],
-                    RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
-                ),
-            ),
-            hook_snapshot_source: None,
-            model_request_policy: None,
-            tool_lifecycle_emitter: Arc::new(RecordingLifecycleEmitter::default()),
-            working_directory: PathBuf::from("."),
-            cancel_token: None,
-            pending_input: None,
-        },
-        |_| {},
-    )
-    .await
-    .expect("empty final answer after a tool call should be resampled");
-
-    assert_eq!(execution.text_output, "done");
-    assert_eq!(execution.attempts_summary, "attempts=3");
-    assert!(!execution
-        .text_output
-        .contains(MAX_REPLY_TURNS_REACHED_MESSAGE));
-
-    let requests = requests.lock().expect("provider requests");
-    assert_eq!(requests.len(), 3);
-    assert_eq!(requests[1], requests[2]);
-    assert!(requests[2].messages.iter().any(|message| {
-        message.role == CurrentProviderRole::Tool
-            && message.content.iter().any(|part| {
-                matches!(part, CurrentProviderContent::ToolResult(result)
-                    if result.output == "executed Read")
-            })
-    }));
-    assert!(requests[2]
-        .messages
-        .iter()
-        .all(|message| !(message.role == CurrentProviderRole::Assistant
-            && message.content.is_empty())));
-}
-
-#[tokio::test]
 async fn content_filtered_empty_response_completes_without_resampling() {
     let provider = Arc::new(ScriptedProvider::new(vec![vec![Ok(
         CanonicalLlmEvent::Finish {
             reason: FinishReason::ContentFilter,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-refusal".to_string()),
         },
     )]]));
@@ -4271,6 +3540,7 @@ async fn empty_length_response_fails_without_resampling() {
         CanonicalLlmEvent::Finish {
             reason: FinishReason::Length,
             usage: None,
+            needs_follow_up: false,
             response_id: Some("response-truncated".to_string()),
         },
     )]]));
@@ -4966,7 +4236,7 @@ async fn provider_step_deadline_closes_continuous_visible_text_stream() {
         event,
         CurrentProviderTurnEvent::TextEnd {
             item_id,
-            phase: CurrentProviderTextPhase::FinalAnswer,
+            phase: None,
         } if item_id == text_item_id
     )));
 }

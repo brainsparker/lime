@@ -11,8 +11,7 @@ interface WorkspaceShellSceneProps {
   generalWorkbenchSidebarNode: ReactNode;
   showGeneralWorkbenchLeftExpandButton: boolean;
   onExpandGeneralWorkbenchSidebar: () => void;
-  fileManagerNode?: ReactNode;
-  fileManagerToggleNode?: ReactNode;
+
   mainAreaNode: ReactNode;
 }
 
@@ -22,8 +21,7 @@ export function WorkspaceShellScene({
   generalWorkbenchSidebarNode,
   showGeneralWorkbenchLeftExpandButton,
   onExpandGeneralWorkbenchSidebar,
-  fileManagerNode,
-  fileManagerToggleNode,
+
   mainAreaNode,
 }: WorkspaceShellSceneProps) {
   return (
@@ -32,9 +30,7 @@ export function WorkspaceShellScene({
       className="lime-workbench-theme-scope"
       data-testid="workspace-shell-scene"
     >
-      {isThemeWorkbench ? (
-        generalWorkbenchSidebarNode
-      ) : null}
+      {isThemeWorkbench ? generalWorkbenchSidebarNode : null}
       {showGeneralWorkbenchLeftExpandButton ? (
         <GeneralWorkbenchLeftExpandButton
           type="button"
@@ -45,8 +41,6 @@ export function WorkspaceShellScene({
           <PanelLeftOpen size={14} />
         </GeneralWorkbenchLeftExpandButton>
       ) : null}
-      {fileManagerNode}
-      {fileManagerToggleNode}
 
       {mainAreaNode}
     </PageContainer>

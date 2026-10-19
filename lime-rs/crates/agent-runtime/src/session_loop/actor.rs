@@ -169,6 +169,7 @@ async fn run_session_loop(
                     RuntimeSessionOperation::UserInput {
                         expected_turn_id,
                         input,
+                        before_delivery,
                         task,
                         queue_if_busy,
                     } => {
@@ -185,7 +186,21 @@ async fn run_session_loop(
                                     )));
                                     continue;
                                 }
-                                if !active_task.context.input_handle().push_steer(input).await {
+                                let accepted = active_task
+                                    .context
+                                    .input_handle()
+                                    .push_steer_with_commit(input, before_delivery.as_ref())
+                                    .await;
+                                let accepted = match accepted {
+                                    Ok(accepted) => accepted,
+                                    Err(message) => {
+                                        let _ = reply.send(Err(
+                                            RuntimeSessionLoopError::OperationFailed(message),
+                                        ));
+                                        continue;
+                                    }
+                                };
+                                if !accepted {
                                     let _ = reply.send(Err(RuntimeSessionLoopError::InvalidTask(
                                         "runtime session turn is already finishing".to_string(),
                                     )));

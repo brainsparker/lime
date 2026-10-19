@@ -640,6 +640,12 @@ Codex exact 独立命令执行与 Desktop 交互终端只允许走 connection-sc
 未知 process id 和同一连接重复 active id 均 fail closed。断连、response 发送失败或 notification writer 失败都清理该
 连接拥有的进程。Electron 只转发 App Server JSONL，不持有第二套终端会话、轮询 drain 或 renderer mock fallback。
 
+`command/exec` 的 response 在进程退出后返回，transport deadline 必须跟随该生命周期。共享
+`app-server-client/command-exec-timeout` 将 `disableTimeout: true` 投影为无 transport deadline；有限
+`timeoutMs` 使用进程时限加 30 秒 response grace，省略时按服务端默认 10 秒计算。Renderer current bridge
+与 Electron Host 都消费同一规则，不能用普通请求的 30 秒或固定 10 分钟提前切断交互 PTY；其它 method
+继续原有 deadline。进程超时、权限和终止 authority 仍在 App Server，没有客户端延长执行权限。
+
 旧 `project_shell_*`、`run_project_shell_command`、Project Shell v0 DTO/schema、旧 API gateway 和 Electron 私有
 session host 均为 `dead / deleted / forbidden-to-restore`；没有 compat/deprecated wrapper。
 
@@ -673,8 +679,9 @@ symlink 等 GUI 投影，但不得定义第二套 file wire。rename 由 Rendere
 Desktop 操作，不新增 Codex 不存在的 rename method。
 
 旧 `fileSystem/*`、v0 DTO/schema、App Server `processor/file.rs`、RuntimeCore file projection、services
-`file_browser_service` 与旧 renderer aliases 均为 `dead / deleted / forbidden-to-restore`。`get_file_manager_locations`
-和 `get_file_icon_data_url` 仍是 Electron Desktop Host 的系统壳能力，不属于业务文件 IO，也不能承接 fs fallback。
+`file_browser_service`、旧 renderer aliases 与旧左侧文件管理器专属 `get_file_manager_locations` 均为
+`dead / deleted / forbidden-to-restore`。后者已同步删除 API、Host 分发、IPC 白名单、catalog 和旧正向 fixture。
+`get_file_icon_data_url` 仍是 Electron Desktop Host 的系统壳能力，不属于业务文件 IO，也不能承接 fs fallback。
 Office/PDF 文本提取不属于 `fs/readFile`；若产品继续需要，应在独立 current 文档能力 owner 中重建，禁止恢复旧
 `fileSystem/readFilePreview`。
 

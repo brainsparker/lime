@@ -1,94 +1,20 @@
 import type { Skill } from "@/lib/api/skills";
-import type {
-  ServiceSkillGroup,
-  ServiceSkillHomeItem,
-} from "@/components/agent/chat/service-skills/types";
-import type { SelectInputCapabilityHandler } from "./inputCapabilitySelection";
 
 export interface SkillSelectionSourceProps {
   skills?: Skill[];
-  serviceSkills?: ServiceSkillHomeItem[];
-  serviceSkillGroups?: ServiceSkillGroup[];
   isSkillsLoading?: boolean;
-  onSelectServiceSkill?: (skill: ServiceSkillHomeItem) => void;
-  onNavigateToSettings?: () => void;
-  onImportSkill?: () => void | Promise<void>;
-  onRefreshSkills?: () => void | Promise<void>;
   onSkillSuggestionsNeeded?: () => void;
 }
 
-export interface SkillSelectionControllerProps {
-  activeSkill?: Skill | null;
-  onSelectInputCapability: SelectInputCapabilityHandler;
-  onClearSkill?: () => void;
-}
-
-export interface SkillSelectionProps
-  extends SkillSelectionSourceProps, SkillSelectionControllerProps {
+export interface SkillSelectionProps extends SkillSelectionSourceProps {
   skills: Skill[];
-  serviceSkills: ServiceSkillHomeItem[];
-  serviceSkillGroups: ServiceSkillGroup[];
-  activeSkill: Skill | null;
   isSkillsLoading: boolean;
 }
 
-export function createSkillSelectionProps({
+export function buildSkillSelectionProps({
   skills = [],
-  serviceSkills = [],
-  serviceSkillGroups = [],
-  activeSkill = null,
   isSkillsLoading = false,
-  ...rest
-}: SkillSelectionSourceProps &
-  SkillSelectionControllerProps): SkillSelectionProps {
-  return {
-    ...rest,
-    skills,
-    serviceSkills,
-    serviceSkillGroups,
-    activeSkill,
-    isSkillsLoading,
-  };
-}
-
-export function buildSkillSelectionProps(
-  props: SkillSelectionSourceProps & SkillSelectionControllerProps,
-): SkillSelectionProps {
-  return createSkillSelectionProps(props);
-}
-
-export function buildSkillSelectionBindings({
-  skills,
-  serviceSkills = [],
-  serviceSkillGroups = [],
-  activeSkill = null,
-  isSkillsLoading = false,
-  onSelectInputCapability,
-  onClearSkill,
-  onNavigateToSettings,
-  onImportSkill,
-  onRefreshSkills,
   onSkillSuggestionsNeeded,
-}: SkillSelectionProps) {
-  return {
-    mentionProps: {
-      skills,
-      serviceSkills,
-      serviceSkillGroups,
-      onNavigateToSettings,
-      onSkillSuggestionsNeeded,
-    },
-    selectorProps: {
-      skills,
-      serviceSkills,
-      serviceSkillGroups,
-      activeSkill,
-      isLoading: isSkillsLoading,
-      onSelectInputCapability,
-      onClearSkill,
-      onNavigateToSettings,
-      onImportSkill,
-      onRefreshSkills,
-    },
-  };
+}: SkillSelectionSourceProps): SkillSelectionProps {
+  return { skills, isSkillsLoading, onSkillSuggestionsNeeded };
 }

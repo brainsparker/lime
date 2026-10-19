@@ -198,6 +198,8 @@ async fn raw_named_output_truncates_only_prompt_text_and_keeps_durable_original(
     .await;
     run_turn(&reopened, 5, thread, "consume external event").await;
     let mut expected = original.clone();
+    // Codex removes this unprefixed ID from the request, not the durable item.
+    expected.as_object_mut().unwrap().remove("id");
     expected["output"][0]["text"] = json!(tool_runtime::tool_io::truncate_tool_output(
         &text,
         TruncationPolicy::Bytes(12_000)

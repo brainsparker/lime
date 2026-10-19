@@ -8,8 +8,6 @@ export type CanvasWorkbenchPreviewMode = "markdown" | "html" | "code";
 
 export interface CanvasWorkbenchPreviewModeOption {
   mode: CanvasWorkbenchPreviewMode;
-  labelKey: string;
-  ariaKey: string;
   enabled: boolean;
 }
 
@@ -32,18 +30,6 @@ export interface CanvasWorkbenchHtmlPreviewFrameState {
 export type CanvasWorkbenchLocalPreviewUrlResolver = (
   path?: string | null,
 ) => string | null;
-
-const MODE_LABEL_KEYS = {
-  markdown: "agentChat.canvasWorkbench.coding.tabs.markdown",
-  html: "agentChat.canvasWorkbench.coding.tabs.html",
-  code: "agentChat.canvasWorkbench.coding.tabs.code",
-} as const satisfies Record<CanvasWorkbenchPreviewMode, string>;
-
-const MODE_ARIA_KEYS = {
-  markdown: "agentChat.canvasWorkbench.coding.preview.mode.markdownAria",
-  html: "agentChat.canvasWorkbench.coding.preview.mode.htmlAria",
-  code: "agentChat.canvasWorkbench.coding.preview.mode.codeAria",
-} as const satisfies Record<CanvasWorkbenchPreviewMode, string>;
 
 const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
   cjs: "javascript",
@@ -71,7 +57,8 @@ const EXTENSION_LANGUAGE_MAP: Record<string, string> = {
 
 const HTML_FILE_SANDBOX =
   "allow-scripts allow-forms allow-popups allow-modals allow-same-origin";
-const HTML_SRCDOC_SANDBOX = "allow-scripts allow-forms allow-popups allow-modals";
+const HTML_SRCDOC_SANDBOX =
+  "allow-scripts allow-forms allow-popups allow-modals";
 
 function normalizeValue(value?: string | null): string {
   return value?.trim() || "";
@@ -230,20 +217,14 @@ export function resolveCanvasWorkbenchPreviewModeState(
     modes: {
       markdown: {
         mode: "markdown",
-        labelKey: MODE_LABEL_KEYS.markdown,
-        ariaKey: MODE_ARIA_KEYS.markdown,
         enabled: hasContent && isMarkdownLike,
       },
       html: {
         mode: "html",
-        labelKey: MODE_LABEL_KEYS.html,
-        ariaKey: MODE_ARIA_KEYS.html,
         enabled: hasContent && isHtmlLike,
       },
       code: {
         mode: "code",
-        labelKey: MODE_LABEL_KEYS.code,
-        ariaKey: MODE_ARIA_KEYS.code,
         enabled: hasContent,
       },
     },

@@ -76,6 +76,9 @@ pub enum ContentPart {
         id: String,
         name: String,
         input: Value,
+        /// Original string arguments for protocols that accept a JSON string.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        raw_arguments: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         provider_executed: Option<bool>,
         #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
@@ -418,6 +421,13 @@ pub enum LlmEvent {
     ReasoningEnd {
         id: String,
     },
+    /// A completed native model item. Deltas remain presentation events.
+    ResponseItemDone {
+        source_id: String,
+        item: Value,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        producer: Option<String>,
+    },
     ToolInputStart {
         id: String,
         name: String,
@@ -490,6 +500,9 @@ pub enum LlmEvent {
     },
     Finish {
         reason: FinishReason,
+        /// The provider completed this response and requested another sampling step.
+        #[serde(default)]
+        needs_follow_up: bool,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         usage: Option<Usage>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -574,6 +587,7 @@ mod tests {
             id: "call-1".to_string(),
             name: "search".to_string(),
             input: json!({"q": "lime"}),
+            raw_arguments: None,
             provider_executed: Some(true),
             metadata: ProviderMetadata::new(),
         };

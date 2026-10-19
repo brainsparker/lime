@@ -108,7 +108,7 @@ describe("SkillsWorkspacePage marketplace", () => {
     );
   });
 
-  it("已安装的官方技能点击使用应回首页输入框预选本地 Skill", () => {
+  it("已安装的官方技能点击使用应回首页输入框预选本地 Skill", async () => {
     mocks.localSkills = [
       ...createDefaultLocalSkills(),
       {
@@ -124,7 +124,7 @@ describe("SkillsWorkspacePage marketplace", () => {
     const { container, onNavigate } = renderPage();
     const card = findMarketplaceCard(container, "数据分析");
 
-    act(() => {
+    await act(async () => {
       findButtonIn(card!, "使用")?.click();
     });
 
@@ -135,11 +135,10 @@ describe("SkillsWorkspacePage marketplace", () => {
         theme: "general",
         preferHomeForInitialInputCapability: true,
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "local:analysis",
-            skillName: "数据分析",
-          },
+          skill: expect.objectContaining({
+            key: "local:analysis",
+            name: "数据分析",
+          }),
           requestKey: expect.any(Number),
         },
       }),

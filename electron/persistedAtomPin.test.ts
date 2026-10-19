@@ -4,11 +4,13 @@ import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PersistedAtomStore } from "./persistedAtomStore";
 import { PersistedAtomHost } from "./persistedAtomHost";
+import { Buffer } from "node:buffer";
 import { SUMMARY_PANEL_PIN_ATOM_KEY as key } from "../src/lib/api/persistedAtomTypes";
 import {
   parsePersistedAtomReadRequest,
   parsePersistedAtomReadResult,
   parsePersistedAtomUpdateResult,
+  PERSISTED_ATOM_LIMITS,
 } from "../src/lib/api/persistedAtomProtocol";
 
 const roots: string[] = [];
@@ -23,6 +25,65 @@ async function rootDirectory() {
 }
 
 describe("Summary pin in the existing persisted atom owner", () => {
+  it("reserves the shared pin value before accepting a draft at the file budget", async () => {
+    const root = await rootDirectory();
+    const draft = {
+      op: "put",
+      scope: { workspaceId: null, kind: "home", id: "new-conversation" },
+      draftId: "draft-budget",
+      expectedVersion: null,
+      nextVersion: "v1",
+      draft: { text: "x".repeat(512) },
+    };
+    const baseline = new PersistedAtomStore(root, { now: () => 1 });
+    await baseline.ready;
+    expect(baseline.updatePersistedAtomState(draft).outcome).toBe("applied");
+    await baseline.flush();
+    baseline.dispose();
+    await baseline.flush();
+    const envelope = JSON.parse(
+      await readFile(path.join(root, "host-state.json"), "utf8"),
+    );
+    // The budget reserves future revisions and the longer boolean representation.
+    envelope.storeRevision = Number.MAX_SAFE_INTEGER;
+    envelope.atoms[key] = false;
+    const maxFileBytes = Buffer.byteLength(JSON.stringify(envelope), "utf8");
+    for (const extraBytes of [-1, 0]) {
+      const store = new PersistedAtomStore(await rootDirectory(), {
+        now: () => 1,
+        limits: {
+          ...PERSISTED_ATOM_LIMITS,
+          maxFileBytes: maxFileBytes + extraBytes,
+        },
+      });
+      try {
+        await store.ready;
+        expect(store.updatePersistedAtomState(draft)).toMatchObject(
+          extraBytes < 0
+            ? {
+                outcome: "invalid",
+                reason: "capacity_exceeded",
+                changed: false,
+              }
+            : { outcome: "applied", changed: true },
+        );
+        if (extraBytes === 0) {
+          expect(
+            store.updateSummaryPanelPinState({ op: "set", value: false })
+              .outcome,
+          ).toBe("applied");
+          await store.flush();
+          expect(store.sendSummaryPanelPinState().persistence.state).toBe(
+            "saved",
+          );
+        }
+      } finally {
+        store.dispose();
+        await store.flush();
+      }
+    }
+  });
+
   it("starts pinned, saves false alongside drafts, and restores through the real file owner", async () => {
     const root = await rootDirectory();
     const store = new PersistedAtomStore(root);

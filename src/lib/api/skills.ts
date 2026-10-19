@@ -98,6 +98,7 @@ export interface CreateSkillScaffoldRequest extends Record<string, unknown> {
 export interface Skill {
   key: string;
   name: string;
+  displayName?: string;
   description: string;
   directory: string;
   localDirectoryPath?: string;

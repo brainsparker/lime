@@ -321,10 +321,18 @@ async fn auto_compaction_replaces_provider_prefix_with_summary_and_bounded_tail(
         .iter()
         .find(|event| event.event_type == "context.compaction.completed")
         .expect("auto compaction completed event");
-    assert_eq!(
-        completed.payload["tailStartTurnId"].as_str(),
-        Some("turn_history_3")
-    );
+    let covered = completed.payload["coveredThroughSequence"]
+        .as_u64()
+        .expect("covered prefix");
+    let history_events = core
+        .events_for_session("sess_auto_compact_history")
+        .expect("history events");
+    let tail_start = history_events
+        .iter()
+        .find(|event| event.turn_id.as_deref() == Some("turn_history_3"))
+        .expect("surviving tail");
+    assert!(covered < tail_start.sequence);
+    assert!(history_events.iter().any(|event| event.sequence == covered));
     let summary = completed.payload["summary"]
         .as_str()
         .expect("compaction summary");

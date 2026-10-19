@@ -668,6 +668,12 @@ export function buildScenarioAssertions(context) {
                           goalTurnStart?.inputText === GOAL_PROMPT,
                         goalObjectiveTextReachedBackend:
                           goalObjectiveText === GOAL_PROMPT,
+                        goalPausedFromGui:
+                          summary.goalActiveBeforePause?.status === "active" &&
+                          summary.goalPausedFromGui?.status === "paused" &&
+                          summary.goalPausedFromGui?.threadId ===
+                            summary.threadId &&
+                          summary.goalPausedFromGui?.objective === GOAL_PROMPT,
                         guiGoalCompleted:
                           summary.guiGoalCompleted?.hasPrompt === true &&
                           (summary.guiGoalCompleted?.hasAssistantSummary ===

@@ -413,7 +413,7 @@ pub(super) fn typed_payload(
             first_window_id: map_string(payload, &["firstWindowId", "first_window_id"]),
             previous_window_id: map_string(payload, &["previousWindowId", "previous_window_id"]),
             window_id: map_string(payload, &["windowId", "window_id", "contextWindowId"]),
-            tail_start_turn_id: map_string(payload, &["tailStartTurnId", "tail_start_turn_id"]),
+            covered_through_sequence: map_u64(payload, &["coveredThroughSequence"]),
         },
         ItemFamily::Unknown => ThreadItemPayload::Unknown {
             upstream_type: unknown_item_upstream_type(payload)?,

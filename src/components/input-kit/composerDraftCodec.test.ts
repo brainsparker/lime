@@ -148,8 +148,8 @@ function controller(plainTextMode = false) {
         },
       ],
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillId: "review",
+        kind: "builtin_command",
+        commandKey: "review",
         config: { array: ["😀", 1, null] },
       },
     },

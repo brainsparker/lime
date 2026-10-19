@@ -1,38 +1,40 @@
-## Lime v1.162.0
+## Lime v1.163.0
 
 Simplified Chinese release notes are the primary version. This English companion summarizes the same release scope.
 
 ### Features
 
-- Unify the window header and workspace tabs, bring conversation actions and side-panel entry points together, and support pointer and keyboard resizing.
-- Add a conversation summary panel with a persisted pin preference, using canonical conversation state.
-- Add account preferences for enabling remote plugins and individual skills, shared by lists and previews and refreshed after saving.
+- Unify home and conversation composers, with native file, folder and image selection and a Sources panel for conversation materials.
+- Consolidate context suggestions through `+`, `@` and skill references for files, skills and commands, retaining structured references and draft restoration.
+- Add workspace file browsing and text editing to the shared side panel, with multiple tabs, syntax highlighting, search, saving and unsaved-change protection.
+- Integrate background terminal lists and terminal tabs to switch between conversation terminals and inspect ongoing output.
 
 ### Fixes
 
-- Correct Responses streaming tool-call identity and terminal-event deduplication to avoid treating argument events as extra calls.
-- Correct tool-history truncation, budgets and read-result projection while preserving call/output associations and original records.
-- Generate context-compaction summaries with the current model and improve cancellation, persistence and forked-history handling.
-- Route conversation forks through the existing draft-scope navigation flow to keep parent and child drafts separate.
-- Strengthen account isolation, failure handling and refresh behavior for plugin preferences; skills requiring Apps authorization remain gated.
+- Correct conversation input commits and queuing, and improve explicit continuation, cancellation, normal completion and their history records.
+- Correct tool-history associations and budgets during truncation, context compaction and conversation forks while retaining traceable calls and outputs.
+- Correct streaming tool-call identity and argument parsing across protocols, including Gemini and Responses history conversion.
+- Preserve native Responses reasoning summaries, encrypted content and ordering across cold recovery, and continue interrupted responses within the same turn.
+- Preserve native message phases and correct streaming item completion and turn projection without treating an unknown phase as a final answer.
+- Correct native file opening, attachment draft restoration, sidebar navigation and panel-resize interactions.
 
 ### Improvements and Refactoring
 
-- Consolidate remote plugin catalog, detail and installed-state facts while keeping local runtime configuration separate from remote account preferences.
-- Replace legacy task-center tabs and the Activity panel with the shared header, tabs and summary, and remove unused home callbacks and derived state.
-- Split context compaction, history normalization and Hook lifecycle logic into existing domain modules.
+- Consolidate composer layout, commands and attachments, removing the old toolbar, separate image-attachment implementation and duplicate file-management entry points.
+- Unify side-panel tabs and lifecycle for file editing, previews, terminals and summaries through existing App Server and tool-execution boundaries.
+- Consolidate tool and native response history within the existing model-history boundary, and split call arguments and input commits into focused modules to reduce duplication.
 
 ### Tests and Quality
 
-- Extend regressions for workspace layout, summary pinning, plugin preferences, tool-call identity and history budgets, with related Electron and public JSON-RPC scenarios.
-- Update interface resources in all five languages and align affected contracts and fixtures.
+- Extend regressions and public JSON-RPC scenarios for continuation, interruption, completion, tool history, native attachments, file editing and background terminals.
+- Update interface resources in all five languages, command contracts and Electron fixtures.
 
 ### Documentation
 
-- Update architecture diagrams, desktop structure evidence and runtime/plugin execution plans while retaining open scope and validation limits.
+- Update architecture, desktop behavior evidence and GUI, runtime and plugin execution plans while retaining open alignment scope and validation limits.
 
 ### Other
 
-- Align the application, CLI and Rust workspace versions to 1.162.0.
+- Align the application, CLI and Rust workspace versions to 1.163.0.
 
-**Full changes**: `v1.161.0` -> `v1.162.0`
+**Full changes**: `v1.162.0` -> `v1.163.0`

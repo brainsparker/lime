@@ -2899,15 +2899,13 @@ describe("legacySurfaceCatalog", () => {
     );
 
     expect(monitor).toBeTruthy();
-    expect(monitor?.classification).toBe("dead-candidate");
+    expect(monitor?.classification).toBe("dead");
     expect(monitor?.patterns).toEqual(["createSkillSelectionProps("]);
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components",
       "src/components/agent/chat/skill-selection",
     ]);
-    expect(monitor?.allowedPaths).toEqual([
-      "src/components/agent/chat/skill-selection/skillSelectionBindings.ts",
-    ]);
+    expect(monitor?.allowedPaths).toEqual([]);
   });
 
   it("应禁止共享技能选择能力继续从 Inputbar 旧目录导入", () => {
@@ -2922,13 +2920,10 @@ describe("legacySurfaceCatalog", () => {
       "src/components/agent/chat/components/EmptyState.tsx",
       "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
       "src/components/agent/chat/components/EmptyStateComposerPanel.test.tsx",
-      "src/components/agent/chat/components/EmptyState.test.tsx",
       "src/components/agent/chat/components/Inputbar/index.tsx",
-      "src/components/agent/chat/components/Inputbar/index.test.tsx",
       "src/components/agent/chat/components/Inputbar/hooks/useInputbarController.ts",
       "src/components/agent/chat/components/Inputbar/hooks/useInputbarSend.ts",
       "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
-      "src/components/agent/chat/components/Inputbar/components/BuiltinCommandBadge.tsx",
     ]);
     expect(monitor?.patterns).toEqual(
       expect.arrayContaining([
@@ -3262,7 +3257,6 @@ describe("legacySurfaceCatalog", () => {
       "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
       "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
       "src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx",
-      "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx",
       "src/components/agent/chat/components/Inputbar/hooks/useInputbarAdapter.ts",
       "src/components/input-kit/adapters/agentAdapter.ts",
       "src/components/input-kit/adapters/types.ts",
@@ -3286,7 +3280,6 @@ describe("legacySurfaceCatalog", () => {
       "src/components/agent/chat/components/Inputbar/index.tsx",
       "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
       "src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx",
-      "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx",
     ]);
   });
 
@@ -3408,7 +3401,6 @@ describe("legacySurfaceCatalog", () => {
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components/Inputbar/hooks/useInputbarToolState.ts",
       "src/components/agent/chat/components/Inputbar/index.tsx",
-      "src/components/agent/chat/components/Inputbar/index.test.tsx",
     ]);
   });
 
@@ -3470,23 +3462,23 @@ describe("legacySurfaceCatalog", () => {
     ]);
   });
 
-  it("应禁止 SkillSelector 恢复旧触发按钮自定义表面", () => {
-    const monitor = legacySurfaceCatalogJson.frontendText.find(
-      (entry) => entry.id === "skill-selector-legacy-trigger-surface",
+  it("共享上下文建议替代的旧树必须删除且不可通过 import 回流", () => {
+    const monitor = legacySurfaceCatalogJson.imports.find(
+      (entry) => entry.id === "retired-composer-context-panels",
     );
-
-    expect(monitor).toBeTruthy();
-    expect(monitor?.classification).toBe("dead-candidate");
+    expect(monitor?.classification).toBe("dead");
     expect(monitor?.allowedPaths).toEqual([]);
-    expect(monitor?.patterns).toEqual([
-      "triggerLabel?: string;",
-      "className?: string;",
-      'triggerLabel = "技能",',
-      "className,",
-    ]);
-    expect(monitor?.includePathPrefixes).toEqual([
-      "src/components/agent/chat/skill-selection/SkillSelector.tsx",
-    ]);
+    expect(monitor?.targets).toEqual(
+      expect.arrayContaining([
+        "src/components/agent/chat/skill-selection/CharacterMention.tsx",
+        "src/components/agent/chat/skill-selection/SkillSelector.tsx",
+        "src/components/agent/chat/components/Inputbar/components/InputbarPlusMenu.tsx",
+        "src/components/agent/chat/components/Inputbar/knowledge/InputbarKnowledgeControl.tsx",
+      ]),
+    );
+    expect(
+      monitor?.targets.filter((target) => existsSync(join(REPO_ROOT, target))),
+    ).toEqual([]);
   });
 
   it("应禁止 InputbarModelExtra 恢复旧模型 setter fallback", () => {
@@ -3507,27 +3499,6 @@ describe("legacySurfaceCatalog", () => {
     ]);
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components/Inputbar/components/InputbarModelExtra.tsx",
-    ]);
-  });
-
-  it("应禁止 InputbarTools 恢复旧可选工具状态 props", () => {
-    const monitor = legacySurfaceCatalogJson.frontendText.find(
-      (entry) => entry.id === "inputbar-tools-legacy-optional-state-props",
-    );
-
-    expect(monitor).toBeTruthy();
-    expect(monitor?.classification).toBe("dead-candidate");
-    expect(monitor?.allowedPaths).toEqual([]);
-    expect(monitor?.patterns).toEqual([
-      "onToolClick?: (tool: string) => void;",
-      "activeTools?: Record<string, boolean>;",
-      "activeTools = {}",
-      'onToolClick?.("thinking")',
-      'onToolClick?.("web_search")',
-      'onToolClick?.("subagent_mode")',
-    ]);
-    expect(monitor?.includePathPrefixes).toEqual([
-      "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx",
     ]);
   });
 
@@ -3674,7 +3645,6 @@ describe("legacySurfaceCatalog", () => {
     expect(monitor?.patterns).toEqual(["supportingSlotOverride"]);
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components/EmptyState.tsx",
-      "src/components/agent/chat/components/EmptyState.test.tsx",
     ]);
   });
 
@@ -4380,7 +4350,6 @@ describe("legacySurfaceCatalog", () => {
     expect(monitor?.allowedPaths).toEqual([]);
     expect(monitor?.includePathPrefixes).toEqual([
       "src/components/agent/chat/components/EmptyState.tsx",
-      "src/components/agent/chat/skill-selection/SkillSelector.tsx",
     ]);
     expect(monitor?.patterns).toEqual(
       expect.arrayContaining([

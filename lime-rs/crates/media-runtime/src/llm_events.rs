@@ -198,6 +198,7 @@ fn turn_completed_event() -> Value {
         json!({ "backend": "media_runtime" }),
         CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
+            needs_follow_up: false,
             usage: None,
             response_id: None,
         },

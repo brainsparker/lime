@@ -4,11 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import type { AgentThreadItem } from "@/lib/api/agentProtocol";
 import { ThreadSummaryPanel } from "./ThreadSummaryPanel";
+import { cleanBackgroundTerminals } from "@/lib/api/backgroundTerminals";
+import type { AgentThreadTurn } from "../types";
 import { selectThreadSummary } from "./threadSummaryProjection";
 import {
   getThreadSummaryContentShift,
   getThreadSummaryDisplayMode,
 } from "./threadSummaryPanelLayout";
+
+vi.mock("@/lib/api/backgroundTerminals", () => ({
+  cleanBackgroundTerminals: vi.fn(),
+}));
 
 const base = {
   thread_id: "thread-1",
@@ -34,12 +40,14 @@ const items: AgentThreadItem[] = [
     ...base,
     id: "search-1",
     type: "web_search",
+    query: "Reference query",
     results: [{ title: "Reference", url: "https://example.com/reference" }],
   },
 ];
 let root: Root;
 let container: HTMLDivElement;
 beforeEach(async () => {
+  vi.mocked(cleanBackgroundTerminals).mockReset();
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   await changeLimeLocale("en-US");
   container = document.createElement("div");
@@ -53,10 +61,78 @@ afterEach(async () => {
 });
 
 describe("Thread Summary canonical projection and actions", () => {
-  it("opens canonical outputs, the latest plan, child threads and actual search sources through existing actions", () => {
+  it("opens canonical background output and stops all through the current thread API with retry", async () => {
+    const open = vi.fn();
+    const refresh = vi.fn();
+    let reject!: (error: Error) => void;
+    vi.mocked(cleanBackgroundTerminals).mockImplementationOnce(
+      () =>
+        new Promise((_, fail) => {
+          reject = fail;
+        }),
+    );
+    const command: AgentThreadItem = {
+      ...base,
+      id: "background",
+      type: "command_execution",
+      status: "in_progress",
+      command_status: "inProgress",
+      command: "npm run dev",
+      cwd: "/work",
+    };
+    act(() =>
+      root.render(
+        <ThreadSummaryPanel
+          threadId="thread-1"
+          turns={[
+            {
+              id: "turn-1",
+              thread_id: "thread-1",
+              status: "completed",
+            } as AgentThreadTurn,
+          ]}
+          threadItems={[command]}
+          onOpenBackgroundTerminal={open}
+          onRefresh={refresh}
+        />,
+      ),
+    );
+    const section = container.querySelector(
+      '[data-summary-section="background-tasks"]',
+    )!;
+    act(() =>
+      (
+        section.querySelector(
+          'button[title="npm run dev"]',
+        ) as HTMLButtonElement
+      ).click(),
+    );
+    expect(open).toHaveBeenCalledWith(command);
+    const stop = section.querySelector(
+      'button[aria-label="Stop all background terminals"]',
+    ) as HTMLButtonElement;
+    act(() => {
+      stop.click();
+      stop.click();
+    });
+    expect(cleanBackgroundTerminals).toHaveBeenCalledTimes(1);
+    expect(cleanBackgroundTerminals).toHaveBeenCalledWith("thread-1");
+    expect(stop.disabled).toBe(true);
+    await act(async () => reject(new Error("offline")));
+    expect(section.querySelector('[role="alert"]')?.textContent).toBeTruthy();
+    expect(refresh).not.toHaveBeenCalled();
+    vi.mocked(cleanBackgroundTerminals).mockResolvedValueOnce({
+      cleanedCount: 1,
+    } as Awaited<ReturnType<typeof cleanBackgroundTerminals>>);
+    await act(async () => stop.click());
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(section.querySelector('[role="alert"]')).toBeNull();
+    expect(stop.disabled).toBe(false);
+    expect(section.textContent).toContain("npm run dev");
+  });
+  it("opens canonical outputs, the latest plan and child threads while grouping Web search", () => {
     const file = vi.fn(),
       output = vi.fn(),
-      source = vi.fn(),
       child = vi.fn();
     act(() =>
       root.render(
@@ -74,7 +150,6 @@ describe("Thread Summary canonical projection and actions", () => {
           ]}
           onFileClick={file}
           onOpenArtifactFromTimeline={output}
-          onOpenUrlPreview={source}
           onOpenSubagentSession={child}
         />,
       ),
@@ -84,7 +159,7 @@ describe("Thread Summary canonical projection and actions", () => {
         node.getAttribute("data-summary-section"),
       ),
     ).toEqual(["outputs", "plan", "background-subagents", "tool-sources"]);
-    for (const title of ["result.md", "Plan", "Reviewer", "Reference"]) {
+    for (const title of ["result.md", "Plan", "Reviewer"]) {
       act(() =>
         (
           container.querySelector(
@@ -101,9 +176,8 @@ describe("Thread Summary canonical projection and actions", () => {
     );
     expect(file).toHaveBeenCalledWith("plan.md", "Current canonical plan");
     expect(child).toHaveBeenCalledWith("child-1");
-    expect(source).toHaveBeenCalledWith(
-      expect.objectContaining({ url: "https://example.com/reference" }),
-    );
+    expect(container.textContent).toContain("Web search");
+    expect(container.textContent).not.toContain("Reference");
     expect(container.textContent).not.toContain("Keep in timeline");
     expect(container.textContent).not.toContain("Superseded plan");
   });
@@ -143,7 +217,7 @@ describe("Thread Summary canonical projection and actions", () => {
     );
     expect(
       selectThreadSummary(items.filter((item) => item.type === "warning")),
-    ).toEqual({ plan: null, outputs: [], sources: [] });
+    ).toEqual({ plan: null, outputs: [], hasWebSearch: false });
   });
 
   it.each(["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"] as const)(

@@ -5,7 +5,6 @@
   "workspace.pendingA2UI.footer.stale": "剛剛補充的資訊已收到，暫時不用重複提交。",
   "workspace.pendingA2UI.status.progressStep": "第 {{currentStep}}/{{totalSteps}} 步",
   "workspace.pendingA2UI.status.stale": "繼續處理中",
-  "workspace.layout.compactMode.ariaLabel": "切換聊天與工作台",
   "workspace.layout.compactMode.chat": "聊天",
   "workspace.layout.compactMode.workbench": "工作台",
   "workspace.layout.splitter.resizeAria": "拖動調整對話區和工作台寬度",
@@ -724,5 +723,9 @@
   "workspace.presentationTable.headerColumn": "標題欄",
   "workspace.presentationTable.reorderRow": "移動第 {{row}} 列",
   "workspace.presentationTable.reorderColumn": "移動 {{column}} 欄",
-  "workspace.presentationTable.reorderHint": "拖曳以移動；Alt + 方向鍵調整順序"
+  "workspace.presentationTable.reorderHint": "拖曳以移動；Alt + 方向鍵調整順序",
+  "workspace.artifactPreviewHeader.open": "開啟",
+  "workspace.artifactPreviewHeader.openOptions": "開啟選項",
+  "workspace.artifactPreviewHeader.openInFolder": "在資料夾中開啟",
+  "workspace.artifactPreviewHeader.saveAs": "另存新檔…"
 }

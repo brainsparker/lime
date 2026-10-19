@@ -1,6 +1,64 @@
 {
   "imports": [
     {
+      "id": "retired-composer-context-panels",
+      "classification": "dead",
+      "description": "ComposerController 的 ProseMirror 建议状态与 ContextualSuggestions 是唯一 +/@/$/命令入口；禁止恢复角色目录、独立技能/插件/知识面板及第二份 trigger/range 状态",
+      "targets": [
+        "src/components/agent/chat/skill-selection/CharacterMention.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.types.ts",
+        "src/components/agent/chat/skill-selection/CharacterMentionPanel.tsx",
+        "src/components/agent/chat/skill-selection/useCharacterMentionSelection.ts",
+        "src/components/agent/chat/skill-selection/characterMentionPanelLoader.ts",
+        "src/components/agent/chat/skill-selection/SkillSelector.tsx",
+        "src/components/agent/chat/skill-selection/SkillSelector.test.tsx",
+        "src/components/agent/chat/skill-selection/composerMentionSelection.ts",
+        "src/components/agent/chat/skill-selection/useIdleModulePreload.ts",
+        "src/components/agent/chat/skill-selection/scheduleIdleModulePreload.ts",
+        "src/components/agent/chat/skill-selection/inputCapabilitySections.ts",
+        "src/components/agent/chat/skill-selection/inputCapabilitySections.test.ts",
+        "src/components/agent/chat/skill-selection/pluginCapabilitySections.ts",
+        "src/components/agent/chat/skill-selection/pluginCapabilitySections.unit.test.ts",
+        "src/components/agent/chat/skill-selection/skillQuery.ts",
+        "src/components/agent/chat/skill-selection/skillQuery.test.ts",
+        "src/components/agent/chat/skill-selection/projectFileMention.ts",
+        "src/components/agent/chat/skill-selection/projectFileMention.unit.test.ts",
+        "src/components/agent/chat/skill-selection/skillSelectionDisplay.ts",
+        "src/components/agent/chat/skill-selection/skillSelectionDisplay.test.ts",
+        "src/components/agent/chat/skill-selection/CharacterMention.catalog.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.catalog.unit.test.ts",
+        "src/components/agent/chat/skill-selection/CharacterMention.catalogBuiltins.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.history.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.projectFiles.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.slashActions.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.slashRecent.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.slashTemplates.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.test.tsx",
+        "src/components/agent/chat/skill-selection/CharacterMention.testFixtures.tsx",
+        "src/components/agent/chat/components/Inputbar/components/InputbarPlusMenu.tsx",
+        "src/components/agent/chat/components/Inputbar/components/InputbarPluginSelector.tsx",
+        "src/components/agent/chat/components/Inputbar/knowledge/InputbarKnowledgeControl.tsx",
+        "src/components/agent/chat/components/Inputbar/components/BuiltinCommandBadge.tsx",
+        "src/components/agent/chat/components/Inputbar/components/RuntimeSceneBadge.tsx",
+        "src/components/agent/chat/skill-selection/CuratedTaskBadge.tsx",
+        "src/components/agent/chat/skill-selection/CuratedTaskBadge.test.tsx",
+        "src/components/agent/chat/components/CuratedTaskLauncherDialog.tsx",
+        "src/components/agent/chat/components/CuratedTaskLauncherDialog.test.tsx",
+        "src/components/agent/chat/components/CuratedTaskLauncherDialogViewModel.ts",
+        "src/components/agent/chat/components/CuratedTaskLauncherDialogViewModel.unit.test.ts",
+        "src/components/agent/chat/components/useCuratedTaskLauncherState.ts",
+        "src/components/agent/chat/components/useCuratedTaskLauncherState.unit.test.tsx",
+        "src/components/agent/chat/components/useEmptyStateRecommendationPreferences.ts",
+        "src/components/agent/chat/components/useEmptyStateRecommendationPreferences.unit.test.tsx",
+        "src/components/agent/chat/components/EmptyStateViewModel.ts",
+        "src/components/agent/chat/components/EmptyStateViewModel.unit.test.ts",
+        "src/components/agent/chat/components/Inputbar/hooks/inputbarControllerCopy.ts",
+        "src/components/agent/chat/components/EmptyStateComposerPanelViewModel.ts",
+        "src/components/agent/chat/components/EmptyStateComposerPanelViewModel.unit.test.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "retired-main-window-media-permissions",
       "classification": "dead",
       "description": "主窗口媒体与剪贴板权限统一归 mainWindowPermissions；禁止恢复旧媒体策略或第二个主窗口权限注册 owner，嵌入浏览器独立 session 策略保留",
@@ -3095,9 +3153,7 @@
         "src/components/input-kit/",
         "src/components/agent/chat/components/Inputbar/",
         "src/components/agent/chat/components/EmptyState.tsx",
-        "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
-        "src/components/agent/chat/skill-selection/CharacterMention.tsx",
-        "src/components/agent/chat/skill-selection/useCharacterMentionSelection.ts"
+        "src/components/agent/chat/components/EmptyStateComposerPanel.tsx"
       ],
       "allowedPaths": []
     },
@@ -3868,13 +3924,10 @@
         "src/components/agent/chat/components/EmptyState.tsx",
         "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
         "src/components/agent/chat/components/EmptyStateComposerPanel.test.tsx",
-        "src/components/agent/chat/components/EmptyState.test.tsx",
         "src/components/agent/chat/components/Inputbar/index.tsx",
-        "src/components/agent/chat/components/Inputbar/index.test.tsx",
         "src/components/agent/chat/components/Inputbar/hooks/useInputbarController.ts",
         "src/components/agent/chat/components/Inputbar/hooks/useInputbarSend.ts",
-        "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
-        "src/components/agent/chat/components/Inputbar/components/BuiltinCommandBadge.tsx"
+        "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx"
       ],
       "allowedPaths": []
     },
@@ -3964,16 +4017,14 @@
     },
     {
       "id": "skill-selection-direct-construction-runtime-usage",
-      "classification": "dead-candidate",
-      "description": "运行时代码不允许绕过共享绑定边界直接构造 createSkillSelectionProps，必须收敛到 skillSelectionBindings",
+      "classification": "dead",
+      "description": "已退役的技能选择构造包装不得回流；当前建议仅消费安装技能 catalog",
       "patterns": ["createSkillSelectionProps("],
       "includePathPrefixes": [
         "src/components/agent/chat/components",
         "src/components/agent/chat/skill-selection"
       ],
-      "allowedPaths": [
-        "src/components/agent/chat/skill-selection/skillSelectionBindings.ts"
-      ]
+      "allowedPaths": []
     },
     {
       "id": "empty-state-local-active-skill-hook-usage",
@@ -3992,7 +4043,7 @@
     {
       "id": "skill-selection-legacy-display-copy",
       "classification": "dead-candidate",
-      "description": "技能入口页面层不允许回到分散手写旧展示文案，必须收敛到共享 skillSelectionDisplay helper",
+      "description": "首页不允许恢复已退役独立技能面板的展示文案，已安装技能通过共享建议列表与 canonical atom 呈现",
       "patterns": [
         "当前技能 ",
         "当前已启用 ",
@@ -4001,8 +4052,7 @@
         "项技能可用"
       ],
       "includePathPrefixes": [
-        "src/components/agent/chat/components/EmptyState.tsx",
-        "src/components/agent/chat/skill-selection/SkillSelector.tsx"
+        "src/components/agent/chat/components/EmptyState.tsx"
       ],
       "allowedPaths": []
     },
@@ -4048,7 +4098,6 @@
         "src/components/agent/chat/components/EmptyStateComposerPanel.tsx",
         "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
         "src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx",
-        "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx",
         "src/components/agent/chat/components/Inputbar/hooks/useInputbarAdapter.ts",
         "src/components/input-kit/adapters/agentAdapter.ts",
         "src/components/input-kit/adapters/types.ts"
@@ -4064,8 +4113,7 @@
         "src/components/agent/chat/AgentChatWorkspace.tsx",
         "src/components/agent/chat/components/Inputbar/index.tsx",
         "src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx",
-        "src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx",
-        "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx"
+        "src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx"
       ],
       "allowedPaths": []
     },
@@ -4159,8 +4207,7 @@
       ],
       "includePathPrefixes": [
         "src/components/agent/chat/components/Inputbar/hooks/useInputbarToolState.ts",
-        "src/components/agent/chat/components/Inputbar/index.tsx",
-        "src/components/agent/chat/components/Inputbar/index.test.tsx"
+        "src/components/agent/chat/components/Inputbar/index.tsx"
       ],
       "allowedPaths": []
     },
@@ -4211,21 +4258,6 @@
       "allowedPaths": []
     },
     {
-      "id": "skill-selector-legacy-trigger-surface",
-      "classification": "dead-candidate",
-      "description": "SkillSelector 不允许恢复旧 triggerLabel / className 自定义触发表面，技能入口按钮样式与文案应继续停留在当前组件事实源",
-      "patterns": [
-        "triggerLabel?: string;",
-        "className?: string;",
-        "triggerLabel = \"技能\",",
-        "className,"
-      ],
-      "includePathPrefixes": [
-        "src/components/agent/chat/skill-selection/SkillSelector.tsx"
-      ],
-      "allowedPaths": []
-    },
-    {
       "id": "inputbar-model-extra-legacy-setter-fallback",
       "classification": "dead-candidate",
       "description": "InputbarModelExtra 不允许恢复旧 setProviderType / setModel 可选兜底与 NOOP fallback，模型切换动作应继续停留在现役输入状态边界",
@@ -4239,23 +4271,6 @@
       ],
       "includePathPrefixes": [
         "src/components/agent/chat/components/Inputbar/components/InputbarModelExtra.tsx"
-      ],
-      "allowedPaths": []
-    },
-    {
-      "id": "inputbar-tools-legacy-optional-state-props",
-      "classification": "dead-candidate",
-      "description": "InputbarTools 不允许恢复旧 onToolClick / activeTools 可选兜底，工具栏状态应继续停留在现役 InputbarCore 调度边界",
-      "patterns": [
-        "onToolClick?: (tool: string) => void;",
-        "activeTools?: Record<string, boolean>;",
-        "activeTools = {}",
-        "onToolClick?.(\"thinking\")",
-        "onToolClick?.(\"web_search\")",
-        "onToolClick?.(\"subagent_mode\")"
-      ],
-      "includePathPrefixes": [
-        "src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx"
       ],
       "allowedPaths": []
     },
@@ -4391,8 +4406,7 @@
       "description": "首页空态不允许恢复 supportingSlotOverride 测试注入口，支持面板应继续由当前首页主链统一决定",
       "patterns": ["supportingSlotOverride"],
       "includePathPrefixes": [
-        "src/components/agent/chat/components/EmptyState.tsx",
-        "src/components/agent/chat/components/EmptyState.test.tsx"
+        "src/components/agent/chat/components/EmptyState.tsx"
       ],
       "allowedPaths": []
     },

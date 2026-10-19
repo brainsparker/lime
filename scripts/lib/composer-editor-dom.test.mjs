@@ -41,10 +41,10 @@ describe("Composer fixture DOM projection", () => {
   );
   it("skips toolbar text while retaining nested syntax leaves and visible atoms", () => {
     const element = editor(
-      '<p>lead <span data-composer-token="skill" contenteditable="false">/user:capability-report</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto TypeScript search</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">中😀</span>;\n````\n\n</code></pre></div><p><span data-composer-token="paste" contenteditable="false" data-payload="hidden">[Pasted text]</span> tail</p>',
+      '<p>lead <span data-composer-token="skill" data-composer-label="$capability-report" data-composer-display-name="Capability Report" contenteditable="false">Capability Report</span></p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false">Auto TypeScript search</div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">中😀</span>;\n````\n\n</code></pre></div><p><span data-composer-token="paste" contenteditable="false" data-payload="hidden">[Pasted text]</span> tail</p>',
     );
     expect(readComposerEditorTextDom(element)).toBe(
-      "lead /user:capability-report\n  const value = 中😀;\n````\n\n\n[Pasted text] tail",
+      "lead $capability-report\n  const value = 中😀;\n````\n\n\n[Pasted text] tail",
     );
     element.remove();
   });
@@ -64,12 +64,12 @@ describe("Composer fixture DOM projection", () => {
     element.remove();
   });
 
-  it("reads visible atom labels and placeholders while excluding undisplayed payload", () => {
+  it("reads canonical mention labels separately from display names and paste payload", () => {
     const element = editor(
-      '<p>Use <span data-composer-token="skill" contenteditable="false">Capability Report</span> <span data-composer-token="paste" contenteditable="false" data-payload="unseen full paste">[Pasted 80 lines]</span></p>',
+      '<p>Use <span data-composer-token="skill" data-composer-label="$capability-report" data-composer-display-name="Capability Report" contenteditable="false">Capability Report</span> <span data-composer-token="paste" contenteditable="false" data-payload="unseen full paste">[Pasted 80 lines]</span></p>',
     );
     expect(readComposerEditorTextDom(element)).toBe(
-      "Use Capability Report [Pasted 80 lines]",
+      "Use $capability-report [Pasted 80 lines]",
     );
     expect(readComposerEditor(element)).toMatchObject({
       sessionId: "session-current",
@@ -78,6 +78,22 @@ describe("Composer fixture DOM projection", () => {
     });
     element.remove();
   });
+
+  it.each(["file", "skill", "plugin"])(
+    "rejects a %s display name without its canonical label",
+    (kind) => {
+      const element = editor(
+        `<p><span data-composer-token="${kind}">Display name</span></p>`,
+      );
+      try {
+        expect(() => readComposerEditorTextDom(element)).toThrow(
+          `Missing canonical Composer ${kind} label`,
+        );
+      } finally {
+        element.remove();
+      }
+    },
+  );
 
   it.each([
     { "aria-disabled": "true" },

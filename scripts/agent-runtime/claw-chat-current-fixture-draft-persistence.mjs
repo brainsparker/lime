@@ -1,3 +1,4 @@
+import { selectComposerSkillFromGui } from "./claw-chat-current-fixture-gui-input-modes.mjs";
 import { isDeepStrictEqual } from "node:util";
 import { Buffer } from "node:buffer";
 import {
@@ -352,39 +353,20 @@ export async function prepareVisibleDraft(
     expected.pasteText,
   );
   context.setPhase?.("select-installed-skill");
-  await editor(context, record).focus();
-  await editor(context, record).press("ControlOrMeta+End");
-  await context.page.keyboard.insertText(" /capability-report");
-  await until(
-    context,
-    () =>
-      context.page.evaluate(() => {
-        const popover = document.querySelector(
-          '[data-testid="mention-popover-content"]',
-        );
-        const target = Array.from(
-          popover?.querySelectorAll('[cmdk-item], [role="option"]') ?? [],
-        ).find(
-          (node) =>
-            node instanceof HTMLElement &&
-            node.getClientRects().length > 0 &&
-            node.getAttribute("aria-disabled") !== "true" &&
-            String(node.textContent)
-              .toLocaleLowerCase()
-              .replace(/[\s_-]+/g, "")
-              .includes("capabilityreport"),
-        );
-        if (!(target instanceof HTMLElement)) return false;
-        target.click();
-        return true;
-      }),
-    (selected) => selected === true,
-    "real installed-skill popup selection",
+  const skillSelection = await selectComposerSkillFromGui(context.page, {
+    editor: editor(context, record),
+    skillIdentity: { name: "capability-report", key: "user:capability-report" },
+    timeoutMs: context.options.timeoutMs,
+  });
+  requireDraftProof(
+    skillSelection.trustedPointer,
+    "real installed-skill suggestion selection",
   );
-  context.setPhase?.("attach-image-through-filechooser");
+  context.setPhase?.("attach-image-through-native-dialog-fixture");
   await context.modules.image.attachComposerImage(context.page, {
+    app: context.app,
     sessionId: record.sessionId,
-    imageButtonName: "添加图片",
+    addFilesName: "添加照片和文件",
     timeoutMs: context.options.timeoutMs,
     image: {
       name: "composer-persistence.png",

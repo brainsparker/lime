@@ -15,7 +15,9 @@ use uuid::Uuid;
 
 use super::{RuntimeCore, RuntimeCoreError, StoredSession};
 
+mod compaction;
 mod hydration;
+mod model_history;
 mod settings;
 
 use settings::{fork_thread_snapshot, validate_fork_params};
@@ -67,8 +69,15 @@ impl RuntimeCore {
             .ok_or_else(|| RuntimeCoreError::SessionNotFound(source_session_id.clone()))?;
         let target_thread_id = Uuid::now_v7().to_string();
         let target_session_id = target_thread_id.clone();
-        let history = fork_history(&source, &params, &target_session_id, &target_thread_id)?;
+        let mut history = fork_history(&source, &params, &target_session_id, &target_thread_id)?;
         validate_fork_provider_history(&history)?;
+        compaction::validate_source(&source_stored.events, &history)?;
+        let checkpoints =
+            compaction::selected_session_checkpoints(&source_stored.events, &source, &history)?;
+        if let Some(marker) = checkpoints.last() {
+            let changes = history.changes.get_or_insert_with(Default::default);
+            changes.sequence = changes.sequence.max(marker.sequence);
+        }
         let history_sequence = history
             .changes
             .as_ref()
@@ -121,6 +130,7 @@ impl RuntimeCore {
                 .unwrap_or_default(),
             history_sequence,
         )?;
+        compaction::copy_session_checkpoints(&mut target_stored, checkpoints)?;
         let mut durable_events = interrupted_boundaries;
         durable_events.extend(token_usage_event);
         target_stored.events = merge_fork_history_events(target_stored.events, durable_events)?;
@@ -662,13 +672,14 @@ fn fork_stored_session(
     source
         .turn_runtime_options
         .retain(|turn_id, _| turn_ids.contains(turn_id));
-    source.events.clear();
+    let model_history = std::mem::take(&mut source.events);
     source.events = fork_history_seed_events(
         &source.session,
         canonical_turns,
         canonical_items,
         history_sequence,
     )?;
+    model_history::copy_model_records(&mut source, model_history, turn_ids, history_sequence)?;
     source.output_blobs.clear();
     Ok(source)
 }
@@ -777,7 +788,7 @@ fn fork_compaction_payload(item: &ThreadItem) -> Option<Value> {
         first_window_id,
         previous_window_id,
         window_id,
-        tail_start_turn_id,
+        covered_through_sequence,
     } = &item.payload
     else {
         return None;
@@ -790,7 +801,7 @@ fn fork_compaction_payload(item: &ThreadItem) -> Option<Value> {
         "firstWindowId": first_window_id,
         "previousWindowId": previous_window_id,
         "windowId": window_id,
-        "tailStartTurnId": tail_start_turn_id,
+        "coveredThroughSequence": covered_through_sequence,
     }))
 }
 
@@ -819,7 +830,10 @@ pub(in crate::runtime) fn merge_fork_history_events(
         if sequence <= prefix_len {
             let canonical = &merged[sequence - 1];
             if canonical.event_type == "thread.fork.baseline"
-                && (event.event_type == FORK_INTERRUPTED_MARKER_EVENT_TYPE
+                && (event.event_type == agent_runtime::model_history::MODEL_HISTORY_EVENT_TYPE
+                    || (event.event_type == "context.compaction.completed"
+                        && event.turn_id.is_none())
+                    || event.event_type == FORK_INTERRUPTED_MARKER_EVENT_TYPE
                     || (event.event_type == "turn.canceled"
                         && event.payload.get("forkSnapshot").and_then(Value::as_bool)
                             == Some(true)))

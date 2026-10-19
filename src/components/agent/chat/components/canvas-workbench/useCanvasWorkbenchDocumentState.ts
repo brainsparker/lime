@@ -157,7 +157,6 @@ export function useCanvasWorkbenchDocumentState({
     toggleDirectory,
     selectWorkspaceFile,
   } = useCanvasWorkbenchFileTreeState({
-    workspaceRoot,
     loadFilePreview,
     translateWorkbench,
   });

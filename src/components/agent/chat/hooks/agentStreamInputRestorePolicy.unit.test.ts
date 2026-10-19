@@ -24,9 +24,9 @@ describe("agentStream input restore policy", () => {
           { byteRange: { start: 12, end: 18 }, placeholder: "提纲" },
         ],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
       assistantMessage: {
@@ -48,9 +48,9 @@ describe("agentStream input restore policy", () => {
           { byteRange: { start: 12, end: 18 }, placeholder: "提纲" },
         ],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
     });
@@ -181,9 +181,9 @@ describe("agentStream input restore policy", () => {
           },
         ],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "capability-report",
-          skillName: "Capability Report",
+          kind: "builtin_command",
+          commandKey: "capability-report",
+          commandPrefix: "@inspect",
         },
       },
       assistantMessage: {
@@ -211,9 +211,9 @@ describe("agentStream input restore policy", () => {
           },
         ],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "capability-report",
-          skillName: "Capability Report",
+          kind: "builtin_command",
+          commandKey: "capability-report",
+          commandPrefix: "@inspect",
         },
       },
     });

@@ -15,8 +15,9 @@ use super::*;
 use agent_protocol::{ItemStatus, ThreadId, ThreadItem, ThreadItemPayload, ThreadTurnsView};
 use agent_runtime::session_loop::{
     RuntimeSessionClosureTask, RuntimeSessionHandle, RuntimeSessionInput,
-    RuntimeSessionInputHandle, RuntimeSessionLoopError, RuntimeSessionSubmitResult,
-    RuntimeSessionTaskFailure, RuntimeSessionTaskOutcome, RuntimeSessionUserInputResult,
+    RuntimeSessionInputHandle, RuntimeSessionLoopError, RuntimeSessionOperation,
+    RuntimeSessionOperationResult, RuntimeSessionOperationSubmission, RuntimeSessionSubmitResult,
+    RuntimeSessionTaskFailure, RuntimeSessionTaskOutcome,
 };
 use app_server_protocol::*;
 use futures::future::BoxFuture;
@@ -31,6 +32,8 @@ use tokio_util::sync::CancellationToken;
 use uuid::Uuid;
 
 mod cancellation;
+mod input_commit;
+mod model_history;
 
 #[derive(Default)]
 pub(in crate::runtime) struct CollectingRuntimeEventSink {
@@ -128,6 +131,7 @@ impl RuntimeEventSink for CollectingRuntimeEventSink {
 }
 
 enum SessionLoopEvent {
+    ModelHistory(model_history::HistoryAppend),
     Runtime(RuntimeEvent),
     Transient(RuntimeEvent),
     CodeCellTrace(tool_runtime::tool_lifecycle::CodeCellTraceEvent),
@@ -233,6 +237,10 @@ impl RuntimeTurnDriverCompletion {
 }
 
 impl RuntimeEventSink for ChannelRuntimeEventSink {
+    fn model_history_recorder(&self) -> Option<agent_runtime::model_history::ModelHistoryRecorder> {
+        Some(self.history_recorder())
+    }
+
     fn emit(&mut self, event: RuntimeEvent) -> Result<(), RuntimeCoreError> {
         self.sender
             .send(SessionLoopEvent::Runtime(event))
@@ -535,6 +543,13 @@ impl<'a> AppendingRuntimeEventSink<'a> {
 }
 
 impl RuntimeEventSink for AppendingRuntimeEventSink<'_> {
+    fn persist_model_history(
+        &mut self,
+        record: agent_runtime::model_history::ModelHistoryRecord,
+    ) -> Result<agent_runtime::model_history::HistoryReceipt, RuntimeCoreError> {
+        self.append_model_history(record)
+    }
+
     fn emit(&mut self, event: RuntimeEvent) -> Result<(), RuntimeCoreError> {
         if self.is_duplicate_accepted_event(&event) {
             return Ok(());
@@ -890,95 +905,6 @@ impl RuntimeCore {
             TurnStartInputKind::User,
         )
         .await
-    }
-
-    /// Adds user input to the expected active regular turn without creating a
-    /// replacement turn. The session loop owns the atomic active-turn check.
-    pub async fn steer_turn(
-        &self,
-        thread_id: &str,
-        expected_turn_id: &str,
-        input: Vec<agent_protocol::AgentInput>,
-        client_user_message_id: Option<String>,
-    ) -> Result<RuntimeCoreOutput<String>, RuntimeCoreError> {
-        let thread_id = thread_id.trim();
-        let expected_turn_id = expected_turn_id.trim();
-        if thread_id.is_empty() {
-            return Err(RuntimeCoreError::InvalidRequest(
-                "turn/steer requires threadId".to_string(),
-            ));
-        }
-        if expected_turn_id.is_empty() {
-            return Err(RuntimeCoreError::InvalidRequest(
-                "turn/steer requires expectedTurnId".to_string(),
-            ));
-        }
-        validate_user_input(&input).map_err(RuntimeCoreError::InvalidRequest)?;
-
-        let session = {
-            let state = self
-                .state
-                .lock()
-                .expect("runtime core state mutex poisoned");
-            let stored = state
-                .sessions
-                .values()
-                .find(|stored| stored.session.thread_id == thread_id)
-                .ok_or_else(|| RuntimeCoreError::SessionNotFound(thread_id.to_string()))?;
-            let active_turn = stored
-                .turns
-                .iter()
-                .find(|turn| agent_turn_is_active(turn.status))
-                .ok_or_else(|| {
-                    RuntimeCoreError::InvalidRequest("no active turn to steer".to_string())
-                })?;
-            if active_turn.turn_id != expected_turn_id {
-                return Err(RuntimeCoreError::InvalidRequest(format!(
-                    "expected active turn id `{expected_turn_id}` but found `{}`",
-                    active_turn.turn_id
-                )));
-            }
-            stored.session.clone()
-        };
-
-        let prepared_input = super::input_media::prepare_runtime_input(
-            input,
-            self.sidecar_store.as_deref(),
-            &session.session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
-        let session_loop = self
-            .session_loop_for_input(&session.session_id, &session.thread_id)
-            .await?;
-        let active_turn_id = session_loop
-            .steer_for_turn_id_with_metadata(
-                Some(expected_turn_id),
-                vec![RuntimeSessionInput::User(prepared_input.provider)],
-                client_user_message_id.clone(),
-                None,
-            )
-            .await
-            .map_err(|error| steer_runtime_error(error, expected_turn_id))?;
-
-        let payload = steer_input_event_payload(
-            "turn/steer",
-            prepared_input.durable,
-            client_user_message_id.as_deref(),
-        );
-        let events = self.append_runtime_events(
-            &session.session_id,
-            &session.thread_id,
-            Some(&active_turn_id),
-            vec![RuntimeEvent::new(
-                super::turn_input_events::TURN_INPUT_EVENT_TYPE,
-                payload,
-            )],
-        )?;
-
-        Ok(RuntimeCoreOutput {
-            response: active_turn_id,
-            events,
-        })
     }
 
     #[cfg(test)]
@@ -1927,107 +1853,6 @@ impl RuntimeCore {
         }
     }
 
-    async fn steer_existing_actor_turn(
-        &self,
-        params: &TurnStartRequest,
-        mut event_callback: Option<&mut RuntimeEventCallback<'_>>,
-    ) -> Result<Option<RuntimeCoreOutput<AgentSessionTurnStartResponse>>, RuntimeCoreError> {
-        if params.queue_if_busy {
-            return Ok(None);
-        }
-        let session = {
-            let state = self
-                .state
-                .lock()
-                .expect("runtime core state mutex poisoned");
-            let Some(stored) = state.sessions.get(&params.session_id) else {
-                return Err(RuntimeCoreError::SessionNotFound(params.session_id.clone()));
-            };
-            stored.session.clone()
-        };
-
-        let prepared_input = super::input_media::prepare_runtime_input(
-            params.input.clone(),
-            self.sidecar_store.as_deref(),
-            &params.session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
-        let (client_user_message_id, trace) = super::session_submission::metadata(
-            params
-                .runtime_options
-                .as_ref()
-                .and_then(RuntimeOptions::runtime_metadata),
-        );
-        let Some(session_loop) = self.session_loops.get_existing(&session.session_id).await else {
-            return Ok(None);
-        };
-        let requested_turn_id = params.turn_id.as_deref().filter(|id| !id.trim().is_empty());
-        let active_turn_id = match session_loop
-            .steer_for_turn_id_with_metadata(
-                requested_turn_id,
-                vec![RuntimeSessionInput::User(prepared_input.provider)],
-                client_user_message_id.clone(),
-                trace,
-            )
-            .await
-        {
-            Ok(active_turn_id) => active_turn_id,
-            Err(RuntimeSessionLoopError::InvalidTask(_)) => return Ok(None),
-            Err(RuntimeSessionLoopError::Closed) => {
-                return Err(RuntimeCoreError::Backend(
-                    "runtime session submission loop is closed".to_string(),
-                ));
-            }
-            Err(RuntimeSessionLoopError::OperationFailed(message)) => {
-                return Err(RuntimeCoreError::Backend(message));
-            }
-        };
-        let turn = {
-            let state = self
-                .state
-                .lock()
-                .expect("runtime core state mutex poisoned");
-            let Some(turn) = state
-                .sessions
-                .get(&session.session_id)
-                .and_then(|stored| {
-                    stored.turns.iter().find(|turn| {
-                        turn.turn_id == active_turn_id && agent_turn_is_active(turn.status)
-                    })
-                })
-                .cloned()
-            else {
-                return Err(RuntimeCoreError::Backend(
-                    "session actor accepted steer without an active canonical turn".to_string(),
-                ));
-            };
-            turn
-        };
-        let payload = steer_input_event_payload(
-            "session_steer",
-            prepared_input.durable,
-            client_user_message_id.as_deref(),
-        );
-        let events = self.append_runtime_events(
-            &session.session_id,
-            &session.thread_id,
-            Some(&active_turn_id),
-            vec![RuntimeEvent::new(
-                super::turn_input_events::TURN_INPUT_EVENT_TYPE,
-                payload,
-            )],
-        )?;
-        if let Some(callback) = event_callback.as_deref_mut() {
-            for event in events.iter().cloned() {
-                callback(event)?;
-            }
-        }
-        Ok(Some(RuntimeCoreOutput {
-            response: AgentSessionTurnStartResponse { turn },
-            events,
-        }))
-    }
-
     async fn submit_backend_via_session_loop(
         &self,
         request: ExecutionRequest,
@@ -2037,7 +1862,6 @@ impl RuntimeCore {
         let thread_id = request.session.thread_id.clone();
         let turn_id = request.turn.turn_id.clone();
         let queue_if_busy = request.queue_if_busy;
-        let user_input = request.input.clone();
         let (client_user_message_id, trace) =
             super::session_submission::metadata(request.runtime_metadata());
         let (event_sender, event_receiver) = mpsc::unbounded_channel();
@@ -2120,23 +1944,26 @@ impl RuntimeCore {
             .with_abort(|_context| Box::pin(async {})),
         );
         let session = self.session_loop_for_input(&session_id, &thread_id).await?;
+        // Canonical admission already owns this candidate Turn. A concurrent actor Turn
+        // must return busy rather than consume its input under a different identity.
         let submission = match session
-            .submit_user_input_with_metadata(
-                task,
-                vec![RuntimeSessionInput::User(user_input)],
-                queue_if_busy,
+            .dispatch(RuntimeSessionOperationSubmission::with_metadata(
+                RuntimeSessionOperation::StartTask {
+                    task,
+                    queue_if_busy,
+                    replace_active: false,
+                },
                 client_user_message_id,
                 trace,
-            )
+            ))
             .await
             .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?
         {
-            RuntimeSessionUserInputResult::Submitted(submission) => submission,
-            RuntimeSessionUserInputResult::Steered {
-                turn_id: active_turn_id,
-                ..
-            } => {
-                return Err(RuntimeCoreError::TurnAlreadyActive(active_turn_id));
+            RuntimeSessionOperationResult::Submission(submission) => submission,
+            _ => {
+                return Err(RuntimeCoreError::Backend(
+                    "session task submission returned an invalid operation result".to_string(),
+                ));
             }
         };
         if matches!(submission.result, RuntimeSessionSubmitResult::Busy) {
@@ -2166,6 +1993,7 @@ impl RuntimeCore {
                 event = submission.event_receiver.recv() => {
                     if let Some(event) = event {
                         let result = match event {
+                            SessionLoopEvent::ModelHistory(append) => append.persist(sink),
                             SessionLoopEvent::Runtime(event) => sink.emit(event),
                             SessionLoopEvent::Transient(event) => sink.emit_transient(event),
                             SessionLoopEvent::CodeCellTrace(event) => {
@@ -2185,6 +2013,7 @@ impl RuntimeCore {
                 result = &mut submission.completion => {
                     while let Ok(event) = submission.event_receiver.try_recv() {
                         match event {
+                            SessionLoopEvent::ModelHistory(append) => append.persist(sink)?,
                             SessionLoopEvent::Runtime(event) => sink.emit(event)?,
                             SessionLoopEvent::Transient(event) => sink.emit_transient(event)?,
                             SessionLoopEvent::CodeCellTrace(event) => {
@@ -2980,61 +2809,5 @@ fn runtime_error_from_session_task_failure(error: RuntimeSessionTaskFailure) -> 
         RuntimeCoreError::UsageLimitExceeded(error.message)
     } else {
         RuntimeCoreError::Backend(error.message)
-    }
-}
-
-fn steer_input_event_payload(
-    source: &str,
-    input: Vec<agent_protocol::AgentInput>,
-    client_user_message_id: Option<&str>,
-) -> Value {
-    let input_text = user_input_text(&input);
-    let explicit_item_id = client_user_message_id
-        .map(|client_id| format!("steer-{client_id}"))
-        .unwrap_or_else(|| format!("steer-{}", Uuid::new_v4()));
-    let mut payload = json!({
-        "itemId": explicit_item_id,
-        "role": "user",
-        "visibility": "user_visible",
-        "source": source,
-        "input": input,
-        "content": {
-            "kind": "inline_text",
-            "text": input_text,
-        },
-    });
-    if let Some(client_id) = client_user_message_id
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-    {
-        payload["clientId"] = Value::String(client_id.to_string());
-    }
-    payload
-}
-
-fn steer_runtime_error(error: RuntimeSessionLoopError, expected_turn_id: &str) -> RuntimeCoreError {
-    match error {
-        RuntimeSessionLoopError::InvalidTask(message)
-            if message.contains("does not accept steer input") =>
-        {
-            RuntimeCoreError::InvalidRequest(format!(
-                "turn {expected_turn_id} does not accept steering"
-            ))
-        }
-        RuntimeSessionLoopError::InvalidTask(message) if message.contains("has no active turn") => {
-            RuntimeCoreError::InvalidRequest("no active turn to steer".to_string())
-        }
-        RuntimeSessionLoopError::InvalidTask(message)
-            if message.contains("no longer active") || message.contains("already finishing") =>
-        {
-            RuntimeCoreError::InvalidRequest(format!(
-                "expected active turn id `{expected_turn_id}` is no longer active"
-            ))
-        }
-        RuntimeSessionLoopError::InvalidTask(message) => RuntimeCoreError::InvalidRequest(message),
-        RuntimeSessionLoopError::Closed => {
-            RuntimeCoreError::Backend("runtime session submission loop is closed".to_string())
-        }
-        RuntimeSessionLoopError::OperationFailed(message) => RuntimeCoreError::Backend(message),
     }
 }

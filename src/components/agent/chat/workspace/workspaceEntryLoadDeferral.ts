@@ -62,7 +62,7 @@ export function resolveWorkspaceEntryLoadDeferral({
     !initialSiteSkillLaunch &&
     !initialPendingServiceSkillLaunch?.skillId?.trim() &&
     !initialPendingServiceSkillLaunch?.skillKey?.trim() &&
-    !initialInputCapability?.capabilityRoute &&
+    !initialInputCapability &&
     !initialProjectFileOpenTarget?.relativePath?.trim();
   const shouldDeferWorkspaceAuxiliaryLoads =
     shouldPreserveBlankHomeSurface ||

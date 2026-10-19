@@ -25,9 +25,9 @@ React Renderer
 
 ## 参考与边界
 
-- Agent runtime、App Server、Thread / Turn / Item、工具生命周期、MCP、Skills、Multi-Agent、history hydrate、projection 与测试护栏对齐本地 Codex：`/Users/coso/Documents/dev/rust/codex`。
-- 多模型控制平面的 model catalog、model switch、capability、provider readiness 与 retry/circuit breaker 以本地 grok-build：`/Users/coso/Documents/dev/rust/grok-build` 为主参考；provider wire 的多协议 endpoint、canonical content、媒体和 lowering 选择性参考本地 OpenCode：`/Users/coso/Documents/dev/js/opencode`。
-- 运行时 owner 服从 Codex；model control 服从 grok-build；provider wire 由 Lime `model-provider` 统一承接并吸收 OpenCode 的协议边界；这些参考都不能替代 Lime 的桌面产品、i18n 或交付边界。
+- Codex 是唯一主对标。Agent runtime、App Server、Thread / Turn / Item、工具生命周期、MCP、Skills、Multi-Agent、history hydrate、projection 与测试护栏直接读本地源码：`/Users/coso/Documents/dev/rust/codex`；Desktop 行为使用 REA 安装包证据。
+- 保留 Lime 多模型、多协议。model catalog、model switch、capability、provider readiness 与 retry/circuit breaker 仅参考本地 grok-build：`/Users/coso/Documents/dev/rust/grok-build` 的适用机制；provider wire 的多协议 endpoint、canonical content、媒体和 lowering 可辅助参考本地 OpenCode：`/Users/coso/Documents/dev/js/opencode`。
+- runtime 与产品语义以 Codex 为准；多模型控制面和 provider wire 继续由 Lime `model-provider` 统一承接。参考项目不成为平行 owner，也不能替代 Lime 的桌面产品、i18n 或交付边界。
 
 ## 继续阅读
 

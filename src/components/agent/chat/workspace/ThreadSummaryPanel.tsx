@@ -1,116 +1,64 @@
-import { useId, useState, type ReactNode } from "react";
-import { Bot, ChevronDown, FileText, Globe, ListChecks } from "lucide-react";
+import { SummarySection, SummaryRow } from "./ThreadSummarySection";
+import { ThreadSources } from "./ThreadSources";
+import { Bot, FileText, ListChecks } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import type { MessageListProps } from "../components/MessageList.types";
 import type { CanonicalChildThreadSummary } from "../projection/canonicalChildThreadSummary";
 import type { AgentThreadItem } from "@/lib/api/agentProtocol";
 import { selectThreadSummary } from "./threadSummaryProjection";
+import {
+  selectBackgroundTerminals,
+  type BackgroundTerminal,
+} from "./localConversationBackgroundTerminalSignals";
+import { BackgroundTerminalList } from "./BackgroundTerminalList";
 
 interface ThreadSummaryPanelProps extends Pick<
   MessageListProps,
-  | "onOpenSubagentSession"
-  | "onFileClick"
-  | "onOpenArtifactFromTimeline"
-  | "onOpenUrlPreview"
+  "onOpenSubagentSession" | "onFileClick" | "onOpenArtifactFromTimeline"
 > {
+  threadId?: string | null;
+  turns?: MessageListProps["turns"];
   threadItems?: readonly AgentThreadItem[];
+  onOpenBackgroundTerminal?: (terminal: BackgroundTerminal) => void;
+  onRefresh?: () => void | Promise<unknown>;
   canonicalChildren?: readonly CanonicalChildThreadSummary[];
   persistenceError?: boolean;
-}
-
-function SummarySection({
-  title,
-  count,
-  children,
-  sectionKey,
-}: {
-  title: string;
-  count?: number;
-  children: ReactNode;
-  sectionKey: string;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const id = useId();
-  return (
-    <section
-      className="relative flex min-w-0 flex-col border-b border-[color:var(--lime-surface-border)] pb-2 last:border-0 last:pb-0"
-      data-summary-section={sectionKey}
-    >
-      <div className="px-5 py-1">
-        <button
-          type="button"
-          className="group flex w-full min-w-0 items-center gap-1.5 rounded-lg py-0.5 text-left text-[13px] text-[color:var(--lime-text-muted)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-          aria-expanded={expanded}
-          aria-controls={id}
-          onClick={() => setExpanded(!expanded)}
-        >
-          <span className="truncate">{title}</span>
-          {!expanded && Boolean(count) ? <span>· {count}</span> : null}
-          <ChevronDown
-            className={`h-3 w-3 shrink-0 ${expanded ? "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100" : "-rotate-90"}`}
-            aria-hidden="true"
-          />
-        </button>
-      </div>
-      <div id={id} hidden={!expanded} className="min-w-0 px-5">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function SummaryRow({
-  icon,
-  label,
-  detail,
-  onClick,
-}: {
-  icon: ReactNode;
-  label: string;
-  detail?: string;
-  onClick?: () => void;
-}) {
-  const content = (
-    <>
-      {icon}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {detail ? (
-        <span className="shrink-0 text-xs text-[color:var(--lime-text-muted)]">
-          {detail}
-        </span>
-      ) : null}
-    </>
-  );
-  const className =
-    "flex min-h-7 w-full min-w-0 items-center gap-2 rounded-lg py-1 text-left text-[13px] text-[color:var(--lime-text-strong)]";
-  return onClick ? (
-    <button
-      type="button"
-      onClick={onClick}
-      title={label}
-      className={`${className} hover:bg-[color:var(--lime-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring`}
-    >
-      {content}
-    </button>
-  ) : (
-    <div className={className} title={label}>
-      {content}
-    </div>
-  );
+  projectless?: boolean;
+  onOpenPluginDirectory?: () => void;
 }
 
 export function ThreadSummaryPanel({
+  threadId,
+  projectless = false,
+  onOpenPluginDirectory,
+  turns = [],
   threadItems = [],
+  onOpenBackgroundTerminal,
+  onRefresh,
   canonicalChildren = [],
   persistenceError,
   onOpenSubagentSession,
   onFileClick,
   onOpenArtifactFromTimeline,
-  onOpenUrlPreview,
 }: ThreadSummaryPanelProps) {
   const { t } = useTranslation("agent");
   const summary = selectThreadSummary(threadItems);
+  const backgroundTerminals = selectBackgroundTerminals(
+    threadId,
+    turns,
+    threadItems,
+  );
   const plan = summary.plan;
+  if (
+    !persistenceError &&
+    !summary.outputs.length &&
+    !plan &&
+    !canonicalChildren.length &&
+    !backgroundTerminals.length &&
+    !summary.hasWebSearch &&
+    !projectless
+  )
+    return null;
   const text = (key: string) => String(t(`agentChat.summary.${key}`));
   return (
     <div
@@ -188,24 +136,28 @@ export function ThreadSummaryPanel({
             ))}
           </SummarySection>
         ) : null}
-        {summary.sources.length ? (
+        {threadId && backgroundTerminals.length ? (
           <SummarySection
-            sectionKey="tool-sources"
-            title={text("sources")}
-            count={summary.sources.length}
+            sectionKey="background-tasks"
+            title={text("processes")}
+            count={backgroundTerminals.length}
           >
-            {summary.sources.map((source) => (
-              <SummaryRow
-                key={source.url}
-                icon={<Globe className="h-4 w-4 shrink-0" aria-hidden="true" />}
-                label={source.title || source.hostname}
-                onClick={
-                  onOpenUrlPreview ? () => onOpenUrlPreview(source) : undefined
-                }
-              />
-            ))}
+            <BackgroundTerminalList
+              key={threadId}
+              threadId={threadId}
+              terminals={backgroundTerminals}
+              onOpenTerminal={onOpenBackgroundTerminal}
+              onRefresh={onRefresh}
+            />
           </SummarySection>
         ) : null}
+        <ThreadSources
+          key={threadId}
+          threadId={threadId}
+          projectless={projectless}
+          hasWebSearch={summary.hasWebSearch}
+          onOpenPluginDirectory={onOpenPluginDirectory}
+        />
       </div>
     </div>
   );

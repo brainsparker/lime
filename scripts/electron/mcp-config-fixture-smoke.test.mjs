@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
+import { waitForPageCondition } from "./mcp-config-fixture-smoke.mjs";
 
 function readSmokeScript() {
   return fs.readFileSync(
@@ -14,6 +15,53 @@ function readEvidenceCore() {
     "utf8",
   );
 }
+
+describe("async Electron evidence polling", () => {
+  it("waits for pending Main reads and returns the exact saved observation", async () => {
+    const pending = { persistence: { state: "pending", savedRevision: 1 } };
+    const saved = { persistence: { state: "saved", savedRevision: 2 } };
+    const laterEdit = { persistence: { state: "pending", savedRevision: 2 } };
+    const reads = [pending, saved, laterEdit];
+    let readCount = 0;
+    const page = {
+      evaluate: async (predicate, arg) => {
+        readCount += 1;
+        return predicate(arg);
+      },
+    };
+    const result = await waitForPageCondition(
+      page,
+      { timeoutMs: 1000, intervalMs: 1 },
+      async () => {
+        const read = await Promise.resolve(reads.shift());
+        return read.persistence.state === "saved" ? read : false;
+      },
+      "Main state did not reach saved",
+    );
+    expect(readCount).toBe(2);
+    expect(result).toBe(saved);
+    expect(reads).toEqual([laterEdit]);
+  });
+
+  it("fails when an async observation never reaches the requested state", async () => {
+    let reads = 0;
+    const page = {
+      evaluate: async (predicate, arg) => {
+        reads += 1;
+        return predicate(arg);
+      },
+    };
+    await expect(
+      waitForPageCondition(
+        page,
+        { timeoutMs: 10, intervalMs: 1 },
+        async () => false,
+        "Main state did not reach saved",
+      ),
+    ).rejects.toThrow("Main state did not reach saved");
+    expect(reads).toBeGreaterThan(0);
+  });
+});
 
 describe("MCP config Electron fixture smoke guard", () => {
   it("keeps the smoke on real Electron Desktop Host IPC and App Server JSON-RPC", () => {

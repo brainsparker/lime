@@ -10,6 +10,9 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
 use tokio::sync::{oneshot, watch, Mutex};
 use tokio_util::sync::CancellationToken;
+
+mod commit;
+pub use commit::RuntimeSessionInputCommit;
 #[derive(Clone, Debug)]
 pub enum RuntimeSessionInput {
     User(RuntimeReplyInput),
@@ -614,16 +617,9 @@ impl RuntimeSessionInputHandle {
     }
 
     pub(super) async fn push_steer(&self, input: Vec<RuntimeSessionInput>) -> bool {
-        let mut state = self.state.input.lock().await;
-        if state.finishing {
-            return false;
-        }
-        state.steer.extend(input);
-        state.mailbox_delivery_phase = RuntimeSessionMailboxDeliveryPhase::CurrentTurn;
-        drop(state);
-        self.pending_input
-            .publish_activity(RuntimeSessionInputActivity::Steer);
-        true
+        self.push_steer_with_commit(input, None)
+            .await
+            .expect("input without a durable callback cannot fail to commit")
     }
 
     pub(super) async fn clear_turn_state(&self) {

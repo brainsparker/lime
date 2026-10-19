@@ -1,3 +1,5 @@
+import { commandExecRequestTimeoutMs } from "../packages/app-server-client/src/command-exec-timeout";
+
 const DEFAULT_APP_SERVER_REQUEST_TIMEOUT_MS = 30_000;
 const APP_SERVER_BACKEND_TIMEOUT_GRACE_MS = 30_000;
 const APP_SERVER_TURN_START_METHOD = "turn/start";
@@ -20,7 +22,10 @@ export function parsePositiveInteger(
 export function resolveAppServerRequestTimeoutMs(
   method: string,
   requestedTimeoutMs?: unknown,
-): number {
+  params?: unknown,
+): number | undefined {
+  if (method === "command/exec")
+    return commandExecRequestTimeoutMs(params) || undefined;
   const defaultTimeoutMs = resolveDefaultAppServerRequestTimeoutMs(method);
   const overrideTimeoutMs = parsePositiveIntegerValue(requestedTimeoutMs);
   if (!overrideTimeoutMs) {
@@ -33,7 +38,6 @@ export function resolveAppServerRequestTimeoutMs(
 }
 
 function resolveDefaultAppServerRequestTimeoutMs(method: string): number {
-  if (method === "command/exec") return 600_000;
   if (
     [
       "plugin/install",

@@ -1,7 +1,9 @@
 use super::*;
 use agent_protocol::truncation::{TruncationPolicy, HISTORY_TOKEN_LIMIT_KEY};
-use catalog_truncation::{fixture, fixture_with_tool, provision, runtime};
+use catalog_truncation::{fixture, provision, runtime};
 use history_truncation::contains_text;
+
+const ORIGINAL_TOOL_NAME: &str = " read_file ";
 
 fn saved_result(temp: &TempDir, session: &str) -> Value {
     EventLogWriter::new(temp.path().join("events"))
@@ -53,8 +55,74 @@ async fn assert_projection(temp: &TempDir, thread: &str, original: &Value, stage
     );
 }
 
-fn assert_request(fixture: &ModelFixture, original: &str, limit: usize, stage: &str) {
+fn assert_request(
+    fixture: &ModelFixture,
+    original: &str,
+    limit: usize,
+    raw_arguments: &str,
+    stage: &str,
+) {
     let captured = fixture.last_request();
+    let model_call = captured
+        .history()
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|message| match fixture.wire {
+            Wire::Chat => message.get("tool_calls")?.as_array()?.first().map(|call| {
+                assert_eq!(
+                    call["function"]["arguments"], raw_arguments,
+                    "{stage}: raw model arguments were re-encoded"
+                );
+                (
+                    call["function"]["name"].clone(),
+                    serde_json::from_str::<Value>(call["function"]["arguments"].as_str().unwrap())
+                        .unwrap(),
+                )
+            }),
+            Wire::Responses if message["type"] == "function_call" => {
+                assert_eq!(
+                    message["arguments"], raw_arguments,
+                    "{stage}: raw model arguments were re-encoded"
+                );
+                Some((
+                    message["name"].clone(),
+                    serde_json::from_str::<Value>(message["arguments"].as_str().unwrap()).unwrap(),
+                ))
+            }
+            Wire::Anthropic => message.get("content")?.as_array()?.iter().find_map(|part| {
+                (part["type"] == "tool_use").then(|| (part["name"].clone(), part["input"].clone()))
+            }),
+            Wire::Gemini => message.get("parts")?.as_array()?.iter().find_map(|part| {
+                let call = part.get("functionCall")?;
+                Some((call["name"].clone(), call["args"].clone()))
+            }),
+            _ => None,
+        })
+        .expect("original model tool call");
+    assert_eq!(
+        model_call.0, ORIGINAL_TOOL_NAME,
+        "{stage}: model call name was rewritten"
+    );
+    assert_eq!(
+        model_call.1,
+        json!({"file_path":" source.txt "}),
+        "{stage}: execution repair replaced model arguments"
+    );
+    if matches!(fixture.wire, Wire::Gemini) {
+        let result = captured
+            .history()
+            .as_array()
+            .unwrap()
+            .iter()
+            .flat_map(|message| message["parts"].as_array().into_iter().flatten())
+            .find_map(|part| part.get("functionResponse"))
+            .expect("Gemini tool result");
+        assert_eq!(
+            result["name"], ORIGINAL_TOOL_NAME,
+            "{stage}: result name must match model call"
+        );
+    }
     let expected =
         tool_runtime::tool_io::truncate_tool_output(original, TruncationPolicy::Tokens(limit));
     assert!(
@@ -78,7 +146,19 @@ async fn originating_budget(wire: Wire, expected_limit: usize) {
         "甲乙".repeat(800)
     );
     std::fs::write(temp.path().join("source.txt"), &source).unwrap();
-    let origin = fixture_with_tool(wire, json!({"path":"source.txt"})).await;
+    let arguments = json!({"file_path":" source.txt "});
+    let raw_arguments = if matches!(wire, Wire::Gemini) {
+        arguments.to_string()
+    } else {
+        serde_json::to_string_pretty(&arguments).unwrap()
+    };
+    let origin = ModelFixture::start_with_catalog_and_tool(
+        wire,
+        catalog_truncation::model_catalog_with_budget(wire, catalog_truncation::budget(wire)),
+        ORIGINAL_TOOL_NAME,
+        arguments,
+    )
+    .await;
     let server = AppServer::with_runtime(runtime(&temp).await);
     initialize_server(&server).await;
     let provider = provision(&server, &origin, 10).await;
@@ -103,7 +183,13 @@ async fn originating_budget(wire: Wire, expected_limit: usize) {
     assert!(original.contains("HEAD-KEEP") && original.contains("TAIL-KEEP"));
     assert!(original.contains("MIDDLE-MUST-NOT-REACH-MODEL"));
     assert_projection(&temp, thread, &item, "after execution").await;
-    assert_request(&origin, original, expected_limit, "continuation");
+    assert_request(
+        &origin,
+        original,
+        expected_limit,
+        &raw_arguments,
+        "continuation",
+    );
     drop(server);
 
     let server = AppServer::with_runtime(runtime(&temp).await);
@@ -144,7 +230,13 @@ async fn originating_budget(wire: Wire, expected_limit: usize) {
         )
         .await;
         next.last_request().assert_route(next.wire);
-        assert_request(next, original, expected_limit, "cold model switch");
+        assert_request(
+            next,
+            original,
+            expected_limit,
+            &raw_arguments,
+            "cold model switch",
+        );
     }
 
     assert_projection(&temp, thread, &item, "before fork").await;
@@ -153,12 +245,24 @@ async fn originating_budget(wire: Wire, expected_limit: usize) {
     let fork_id = forked["result"]["thread"]["id"].as_str().unwrap();
     assert_projection(&temp, fork_id, &item, "fork projection").await;
     run_turn(&server, 91, fork_id, "keep the inherited tool budget").await;
-    assert_request(&switches[3], original, expected_limit, "fork");
+    assert_request(
+        &switches[3],
+        original,
+        expected_limit,
+        &raw_arguments,
+        "fork",
+    );
     assert_eq!(
         compact(&server, 92, thread).await["params"]["turn"]["status"],
         "completed"
     );
-    assert_request(&switches[3], original, expected_limit, "summary");
+    assert_request(
+        &switches[3],
+        original,
+        expected_limit,
+        &raw_arguments,
+        "summary",
+    );
     assert_eq!(
         saved_result(&temp, session),
         item,

@@ -239,11 +239,7 @@ function isCommandStyleUserMessage(message: Message): boolean {
   }
 
   const route = message.inputCapabilityRoute;
-  if (
-    route?.kind === "installed_skill" ||
-    route?.kind === "builtin_command" ||
-    route?.kind === "runtime_scene"
-  ) {
+  if (route?.kind === "builtin_command" || route?.kind === "runtime_scene") {
     return true;
   }
 
@@ -254,9 +250,9 @@ function isCommandStyleUserMessage(message: Message): boolean {
 function hasLocalThinkingSnapshot(message: Message): boolean {
   return Boolean(
     message.thinkingContent?.trim() ||
-      message.contentParts?.some(
-        (part) => part.type === "thinking" && part.text.trim().length > 0,
-      ),
+    message.contentParts?.some(
+      (part) => part.type === "thinking" && part.text.trim().length > 0,
+    ),
   );
 }
 
@@ -343,10 +339,13 @@ function getSnapshotIndexKey(workspaceId: string): string {
 
 function loadSnapshotIndex(workspaceId: string): {
   hasIndex: boolean;
-  index: Record<string, {
-    transient?: AgentSessionCachedSnapshotMetadataSummary;
-    persisted?: AgentSessionCachedSnapshotMetadataSummary;
-  }>;
+  index: Record<
+    string,
+    {
+      transient?: AgentSessionCachedSnapshotMetadataSummary;
+      persisted?: AgentSessionCachedSnapshotMetadataSummary;
+    }
+  >;
 } {
   const indexKey = getSnapshotIndexKey(workspaceId);
 
@@ -399,20 +398,24 @@ function normalizeSnapshotMetadataSummary(
   };
 }
 
-function normalizeSnapshotIndex(
-  value: unknown,
-): Record<string, {
-  transient?: AgentSessionCachedSnapshotMetadataSummary;
-  persisted?: AgentSessionCachedSnapshotMetadataSummary;
-}> {
+function normalizeSnapshotIndex(value: unknown): Record<
+  string,
+  {
+    transient?: AgentSessionCachedSnapshotMetadataSummary;
+    persisted?: AgentSessionCachedSnapshotMetadataSummary;
+  }
+> {
   if (!value || typeof value !== "object") {
     return {};
   }
 
-  const index: Record<string, {
-    transient?: AgentSessionCachedSnapshotMetadataSummary;
-    persisted?: AgentSessionCachedSnapshotMetadataSummary;
-  }> = {};
+  const index: Record<
+    string,
+    {
+      transient?: AgentSessionCachedSnapshotMetadataSummary;
+      persisted?: AgentSessionCachedSnapshotMetadataSummary;
+    }
+  > = {};
 
   Object.entries(value as Record<string, unknown>).forEach(
     ([sessionId, rawEntry]) => {
@@ -452,10 +455,13 @@ function buildSnapshotMetadataSummary(
 
 function saveSnapshotIndex(
   workspaceId: string,
-  index: Record<string, {
-    transient?: AgentSessionCachedSnapshotMetadataSummary;
-    persisted?: AgentSessionCachedSnapshotMetadataSummary;
-  }>,
+  index: Record<
+    string,
+    {
+      transient?: AgentSessionCachedSnapshotMetadataSummary;
+      persisted?: AgentSessionCachedSnapshotMetadataSummary;
+    }
+  >,
 ): void {
   savePersisted(getSnapshotIndexKey(workspaceId), index);
 }
@@ -465,10 +471,13 @@ function updateSnapshotIndex(params: {
   transientEntries: [string, AgentSessionCachedSnapshotRecord][];
   persistedEntries: [string, AgentSessionCachedSnapshotRecord][];
 }): void {
-  const nextIndex: Record<string, {
-    transient?: AgentSessionCachedSnapshotMetadataSummary;
-    persisted?: AgentSessionCachedSnapshotMetadataSummary;
-  }> = {};
+  const nextIndex: Record<
+    string,
+    {
+      transient?: AgentSessionCachedSnapshotMetadataSummary;
+      persisted?: AgentSessionCachedSnapshotMetadataSummary;
+    }
+  > = {};
 
   params.transientEntries.forEach(([sessionId, record]) => {
     nextIndex[sessionId] = {
@@ -585,8 +594,7 @@ function hasRetainedSkillProcessMessage(messages: Message[]): boolean {
       (Boolean(message.thinkingContent?.trim()) ||
         Boolean(
           message.contentParts?.some(
-            (part) =>
-              part.type === "thinking" && part.text.trim().length > 0,
+            (part) => part.type === "thinking" && part.text.trim().length > 0,
           ),
         )),
   );
@@ -902,9 +910,13 @@ export function saveAgentSessionCachedMessagesSnapshot(
   messages: Message[],
   options: SaveAgentSessionCachedSnapshotOptions = {},
 ): void {
-  const cachedSnapshot = loadAgentSessionCachedSnapshot(workspaceId, sessionId, {
-    nowMs: options.nowMs,
-  });
+  const cachedSnapshot = loadAgentSessionCachedSnapshot(
+    workspaceId,
+    sessionId,
+    {
+      nowMs: options.nowMs,
+    },
+  );
 
   saveAgentSessionCachedSnapshot(
     workspaceId,

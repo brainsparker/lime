@@ -40,7 +40,6 @@ import {
   HistoricalAssistantMessagePreview,
   HistoricalTimelinePreview,
 } from "./MessageListHistoricalPreviews";
-import { UserInstalledSkillMessageContent } from "./MessageListUserContent";
 import {
   MESSAGE_LIST_COMPACT_HISTORICAL_ASSISTANT_PREVIEW_CHARS,
   MESSAGE_LIST_COMPACT_HISTORICAL_ASSISTANT_THRESHOLD,
@@ -122,15 +121,6 @@ function resolveUserMessageContent(
           .flatMap((part) => (part.type === "text" ? [part.text] : []))
           .join("\n"),
     { role: "user" },
-  );
-}
-
-function resolveUserMessageLabels(
-  segment: CanonicalTurnMessageSegment,
-): string[] {
-  if (segment.item.type !== "user_message") return [];
-  return (segment.item.content_parts ?? []).flatMap((part) =>
-    part.type === "skill" || part.type === "mention" ? [part.name] : [],
   );
 }
 
@@ -519,7 +509,6 @@ export function ConversationTurnTimeline({
           entry.isActive &&
           entry.turn.status === "running" &&
           segment.item.status === "in_progress";
-        const userLabels = isUser ? resolveUserMessageLabels(segment) : [];
         const userImages = isUser ? resolveUserMessageImages(segment) : [];
         const previewMessage = buildCanonicalPreviewMessage({
           entry,
@@ -583,13 +572,6 @@ export function ConversationTurnTimeline({
               >
                 {isUser ? (
                   <div className="space-y-2">
-                    {userLabels.map((label, index) => (
-                      <UserInstalledSkillMessageContent
-                        key={`${label}:${index}`}
-                        content=""
-                        label={label}
-                      />
-                    ))}
                     {content ? (
                       <CollapsibleUserMessageContent
                         content={content}

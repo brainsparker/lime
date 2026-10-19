@@ -391,10 +391,14 @@ describe("workspaceEntry", () => {
         defaultToolPreferences,
         payload: {
           initialInputCapability: {
-            capabilityRoute: {
-              kind: "installed_skill",
-              skillKey: "writer",
-              skillName: "写作助手",
+            skill: {
+              key: "writer",
+              name: "写作助手",
+              directory: "writer",
+              localDirectoryPath: "/skills/" + "writer",
+              installed: true,
+              sourceKind: "other" as const,
+              description: "",
             },
           },
         },
@@ -415,10 +419,14 @@ describe("workspaceEntry", () => {
         initialUserImages: undefined,
         openBrowserAssistOnMount: undefined,
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "writer",
-            skillName: "写作助手",
+          skill: {
+            key: "writer",
+            name: "写作助手",
+            directory: "writer",
+            localDirectoryPath: "/skills/" + "writer",
+            installed: true,
+            sourceKind: "other" as const,
+            description: "",
           },
           requestKey: 741,
         },
@@ -434,10 +442,14 @@ describe("workspaceEntry", () => {
         initialCreationMode: "guided",
         openBrowserAssistOnMount: undefined,
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "writer",
-            skillName: "写作助手",
+          skill: {
+            key: "writer",
+            name: "写作助手",
+            directory: "writer",
+            localDirectoryPath: "/skills/" + "writer",
+            installed: true,
+            sourceKind: "other" as const,
+            description: "",
           },
           requestKey: 741,
         },

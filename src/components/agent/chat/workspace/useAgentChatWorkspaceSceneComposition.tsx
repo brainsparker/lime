@@ -1,6 +1,6 @@
 import type { ComponentProps } from "react";
 import { WorkspaceShellScene } from "./WorkspaceShellScene";
-import { renderWorkspaceFileManagerSidebarRuntime } from "./WorkspaceFileManagerSidebarRuntime";
+
 import { useWorkspaceConversationCompositionRuntime } from "./useWorkspaceConversationCompositionRuntime";
 import { useWorkspaceBackgroundSessionRuntime } from "./useWorkspaceBackgroundSessionRuntime";
 import { useWorkspaceRightSurfaceCompositionRuntime } from "./useWorkspaceRightSurfaceCompositionRuntime";
@@ -18,18 +18,13 @@ type BackgroundSessionParams = Parameters<
 type ConversationParams = Parameters<
   typeof useWorkspaceConversationCompositionRuntime
 >[0];
-type FileManagerParams = Parameters<
-  typeof renderWorkspaceFileManagerSidebarRuntime
->[0];
+
 type ShellParams = ComponentProps<typeof WorkspaceShellScene>;
 
 interface UseAgentChatWorkspaceSceneCompositionParams {
   expertPanel: ExpertPanelParams;
   rightSurface: Omit<RightSurfaceParams, "chrome" | "coordinator" | "host"> & {
-    chrome: Omit<
-      RightSurfaceParams["chrome"],
-      "expertInfoPanelVisible" | "hasExpertInfoPanel"
-    >;
+    chrome: RightSurfaceParams["chrome"];
     coordinator: Omit<
       RightSurfaceParams["coordinator"],
       "expertInfoPanelVisible" | "hasExpertInfoPanel"
@@ -53,11 +48,8 @@ interface UseAgentChatWorkspaceSceneCompositionParams {
       "canvasWorkbenchRootPath" | "handleToggleCanvas" | "rightSurfaceChrome"
     >;
   };
-  fileManager: FileManagerParams;
-  shell: Omit<
-    ShellParams,
-    "fileManagerNode" | "generalWorkbenchSidebarNode" | "mainAreaNode"
-  >;
+
+  shell: Omit<ShellParams, "generalWorkbenchSidebarNode" | "mainAreaNode">;
 }
 
 /** 只组合既有 scene owner，不创建第二套 scene tree 或 runtime truth。 */
@@ -66,7 +58,7 @@ export function useAgentChatWorkspaceSceneComposition({
   rightSurface,
   backgroundSession,
   conversation,
-  fileManager,
+
   shell,
 }: UseAgentChatWorkspaceSceneCompositionParams) {
   const { expertInfoPanelProps, expertInfoPanelVisible, hasExpertInfoPanel } =
@@ -77,13 +69,10 @@ export function useAgentChatWorkspaceSceneComposition({
     handleToggleCanvasFromRightSurface,
     rightSurfaceChrome,
     sceneDisplayMessagesWithArticleWorkspaceArtifact,
+    openBackgroundTerminal,
   } = useWorkspaceRightSurfaceCompositionRuntime({
     ...rightSurface,
-    chrome: {
-      ...rightSurface.chrome,
-      expertInfoPanelVisible,
-      hasExpertInfoPanel,
-    },
+    chrome: rightSurface.chrome,
     coordinator: {
       ...rightSurface.coordinator,
       expertInfoPanelVisible,
@@ -109,14 +98,13 @@ export function useAgentChatWorkspaceSceneComposition({
       canvasWorkbenchRootPath,
       handleToggleCanvas: handleToggleCanvasFromRightSurface,
       rightSurfaceChrome,
+      onOpenBackgroundTerminal: openBackgroundTerminal,
     },
   });
-  const fileManagerNode = renderWorkspaceFileManagerSidebarRuntime(fileManager);
 
   return (
     <WorkspaceShellScene
       {...shell}
-      fileManagerNode={fileManagerNode}
       generalWorkbenchSidebarNode={generalWorkbenchSidebarNode}
       mainAreaNode={conversationSceneRuntime.mainAreaNode}
     />

@@ -6,15 +6,7 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  AlertCircle,
-  ArrowRight,
-  Bot,
-  Check,
-  ChevronDown,
-  Settings2,
-  X,
-} from "lucide-react";
+import { AlertCircle, ArrowRight, Check, Settings2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -60,12 +52,7 @@ import {
   useCommitPendingProviderSelection,
   useProviderSelection,
 } from "./useProviderSelection";
-
-const compactTriggerClassName =
-  "h-8 min-w-[104px] max-w-[224px] justify-start gap-1.5 rounded-full border-slate-200/80 bg-white/92 px-2.5 text-slate-600 shadow-none transition-colors hover:border-slate-300 hover:bg-white hover:text-slate-800";
-
-const defaultTriggerClassName =
-  "h-9 w-full min-w-0 justify-start gap-2 rounded-full border-slate-200/80 bg-white/92 px-3 font-normal text-slate-700 shadow-none transition-colors hover:border-slate-300 hover:bg-white";
+import { ModelSelectorTrigger } from "./ModelSelectorTrigger";
 
 const itemClassName =
   "flex w-full items-center justify-between rounded-xl border border-transparent px-2.5 py-2 text-left text-sm transition-colors";
@@ -855,61 +842,18 @@ export const ModelSelector: React.FC<ModelSelectorProps> = ({
         }}
       >
         <PopoverTrigger asChild>
-          {compactTrigger ? (
-            <Button
-              variant="outline"
-              role="combobox"
-              data-testid="model-selector"
-              aria-expanded={open}
-              disabled={disabled}
-              className={cn(
-                compactTriggerClassName,
-                open && "border-slate-300 bg-white text-slate-700",
-              )}
-              title={
-                showPlaceholderSelection
-                  ? resolvedPlaceholderLabel
-                  : `${selectedProviderLabel} / ${selectedModelWithReasoningLabel}`
-              }
-            >
-              <ProviderIcon
-                providerType={compactProviderType}
-                fallbackText={compactProviderLabel}
-                size={15}
-              />
-              <span className="min-w-0 flex-1 truncate text-xs font-medium">
-                {compactModelLabel}
-              </span>
-              <ChevronDown className="h-3 w-3 shrink-0 text-slate-400 opacity-80" />
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              role="combobox"
-              data-testid="model-selector"
-              aria-expanded={open}
-              disabled={disabled}
-              className={defaultTriggerClassName}
-            >
-              <Bot size={16} className="text-slate-500" />
-              {showPlaceholderSelection ? (
-                <span className="min-w-0 flex-1 font-medium text-left text-slate-700">
-                  {resolvedPlaceholderLabel}
-                </span>
-              ) : (
-                <span className="min-w-0 flex-1 flex items-center gap-1.5">
-                  <span className="font-medium truncate">
-                    {selectedProviderLabel}
-                  </span>
-                  <span className="text-slate-300 shrink-0">/</span>
-                  <span className="text-sm text-slate-500 truncate">
-                    {selectedModelWithReasoningLabel}
-                  </span>
-                </span>
-              )}
-              <ChevronDown className="ml-1 h-3 w-3 text-slate-400 opacity-70" />
-            </Button>
-          )}
+          <ModelSelectorTrigger
+            compact={compactTrigger}
+            open={open}
+            disabled={disabled}
+            providerType={compactProviderType}
+            providerLabel={compactProviderLabel}
+            selectedProviderLabel={selectedProviderLabel}
+            modelLabel={compactModelLabel}
+            placeholderLabel={
+              showPlaceholderSelection ? resolvedPlaceholderLabel : undefined
+            }
+          />
         </PopoverTrigger>
 
         <PopoverContent

@@ -115,13 +115,45 @@ describe("ComposerEditor", () => {
         name: "审阅",
         path: "/review",
         label: "$审阅",
+        displayName: "审阅变更",
       }),
     );
     const atom = element.querySelector('[data-composer-token="skill"]');
-    expect(atom?.textContent).toBe("$审阅");
+    expect(atom?.textContent).toBe("审阅变更");
+    expect(atom?.querySelector("[data-mention-label]")?.textContent).toBe(
+      "审阅变更",
+    );
+    const icon = atom?.querySelector("svg");
+    expect(icon?.namespaceURI).toBe("http://www.w3.org/2000/svg");
+    expect(icon?.getAttribute("viewBox")).toBe("0 0 20 20");
+    expect(icon?.closest("[aria-hidden]")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+    expect(atom?.getAttribute("data-layout")).toBe("inline-flow");
+    expect(atom?.getAttribute("data-composer-label")).toBe("$审阅");
+    expect(atom?.getAttribute("data-composer-display-name")).toBe("审阅变更");
     expect(atom?.getAttribute("data-composer-path")).toBe("/review");
     expect(atom?.getAttribute("contenteditable")).toBe("false");
+    const doc = controller.getEditorState().doc;
+    expect(doc.textBetween(0, doc.content.size, "\n")).toBe("中😀审阅变更");
     expect(editorRef.current?.getSelection()).toEqual({ start: 6, end: 6 });
+    const draft = controller.captureDraft();
+    act(() => controller.clear());
+    act(() => controller.restoreDraft(draft));
+    expect(
+      element.querySelector('[data-composer-token="skill"]')?.textContent,
+    ).toBe("审阅变更");
+    expect(controller.getDocument().text).toBe("中😀$审阅");
+    expect(editorRef.current?.getSelection()).toEqual({ start: 6, end: 6 });
+    const receipt = controller.submit("start");
+    expect(receipt.kind).toBe("accepted");
+    expect(receipt.submission).toMatchObject({
+      text: "中😀$审阅",
+      inputMentions: [{ type: "skill", name: "审阅", path: "/review" }],
+      textElements: [
+        { byteRange: { start: 7, end: 14 }, placeholder: "$审阅" },
+      ],
+    });
     act(() => controller.restoreDraft({ text: "恢复\n新段" }));
     expect(
       Array.from(element.children).map((node) => node.textContent),

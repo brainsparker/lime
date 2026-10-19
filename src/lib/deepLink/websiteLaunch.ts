@@ -1,3 +1,4 @@
+import type { Skill } from "@/lib/api/skills";
 import { findCuratedTaskTemplateById } from "../../components/agent/chat/utils/curatedTaskTemplates";
 import { buildHomeAgentParams } from "@/lib/workspace/navigation";
 import type { AgentPageParams, Page, PageParams } from "@/types/page";
@@ -234,7 +235,9 @@ function buildCuratedTaskParams(params: {
 }
 
 function findWebsiteSkillLaunchEntry(slug: string) {
-  return WEBSITE_SKILL_LAUNCH_ENTRIES.find((item) => item.slug === slug) ?? null;
+  return (
+    WEBSITE_SKILL_LAUNCH_ENTRIES.find((item) => item.slug === slug) ?? null
+  );
 }
 
 export function resolveWebsiteSkillTitle(slug: string): string | null {
@@ -243,13 +246,14 @@ export function resolveWebsiteSkillTitle(slug: string): string | null {
 
 export function resolveWebsiteInstalledSkillNavigation(
   payload: WebsiteOpenDeepLinkPayload,
+  skill: Skill,
 ): WebsiteOpenNavigationResult | null {
   if (payload.kind !== "skill") {
     return null;
   }
 
   const entry = findWebsiteSkillLaunchEntry(payload.slug);
-  if (!entry) {
+  if (!entry || skill.directory !== entry.slug) {
     return null;
   }
 
@@ -257,14 +261,13 @@ export function resolveWebsiteInstalledSkillNavigation(
     page: "agent",
     params: buildHomeAgentParams({
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: entry.slug,
-          skillName: entry.title,
-        },
+        skill,
         requestKey: Date.now(),
       },
-      entryBannerMessage: buildWebsiteInstallBanner(entry.title, payload.source),
+      entryBannerMessage: buildWebsiteInstallBanner(
+        entry.title,
+        payload.source,
+      ),
       initialSessionName: entry.title,
     }),
   };

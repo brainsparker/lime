@@ -12,6 +12,7 @@ import {
 } from "./composerPositions";
 import { createCodeBlockHighlight } from "./composerCodeBlockHighlight";
 import { createCodeBlockAutoDetect } from "./composerCodeBlockAutoDetect";
+import { createComposerSuggestions } from "./composerSuggestions";
 import type {
   ComposerAttachment,
   ComposerDocument,
@@ -57,6 +58,7 @@ export function stateFrom(
     }),
     plugins: [
       history(),
+      createComposerSuggestions(),
       ...createComposerEditingKeymap(),
       ...(codeBlocksEnabled
         ? [createCodeBlockHighlight(), createCodeBlockAutoDetect()]

@@ -34,26 +34,18 @@ describe("workspaceConversationRightSurfaceChrome", () => {
     const runtime = createRightSurfaceRuntime("browser");
 
     const chrome = buildWorkspaceConversationRightSurfaceChrome({
+      open: true,
       content: "right-surface",
       rightSurfaceRuntime: runtime,
       showHarnessToggle: true,
-      hasExpertInfoPanel: true,
-      expertInfoPanelVisible: false,
       harnessPendingCount: 2,
       harnessAttentionLevel: "warning",
       harnessToggleLabel: "Harness",
     });
 
     expect(chrome.content).toBe("right-surface");
-    expect(chrome.launchers).toBe(runtime.rightSurfaceLaunchers);
-    expect(chrome.browserOpen).toBe(true);
-    expect(chrome.filesOpen).toBe(false);
-    expect(chrome.onToggleBrowser).toBe(
-      runtime.handleToggleRightSurfaceBrowser,
-    );
     expect(chrome.showHarnessToggle).toBe(true);
     expect(chrome.harnessPanelVisible).toBe(false);
-    expect(chrome.showExpertInfoToggle).toBe(true);
     expect(chrome.harnessPendingCount).toBe(2);
     expect(chrome.harnessAttentionLevel).toBe("warning");
   });
@@ -62,10 +54,10 @@ describe("workspaceConversationRightSurfaceChrome", () => {
     const runtime = createRightSurfaceRuntime("harness");
 
     const chrome = buildWorkspaceConversationRightSurfaceChrome({
+      open: true,
       content: "right-surface",
       rightSurfaceRuntime: runtime,
       showHarnessToggle: true,
-      hasExpertInfoPanel: false,
       harnessPendingCount: 3,
       harnessAttentionLevel: "active",
       harnessToggleLabel: "Harness",
@@ -83,11 +75,10 @@ describe("workspaceConversationRightSurfaceChrome", () => {
   it("scene props 在隐藏 utility actions 时保留内容但关闭右侧按钮动作", () => {
     const runtime = createRightSurfaceRuntime("files");
     const chrome = buildWorkspaceConversationRightSurfaceChrome({
+      open: true,
       content: "right-surface",
       rightSurfaceRuntime: runtime,
       showHarnessToggle: true,
-      hasExpertInfoPanel: true,
-      expertInfoPanelVisible: true,
       harnessPendingCount: 1,
       harnessAttentionLevel: "active",
       harnessToggleLabel: "Harness",
@@ -99,8 +90,6 @@ describe("workspaceConversationRightSurfaceChrome", () => {
     });
 
     expect(sceneProps.rightSurfaceContent).toBe("right-surface");
-    expect(sceneProps.rightSurfaceFilesOpen).toBe(false);
-    expect(sceneProps.onToggleRightSurfaceFiles).toBeUndefined();
     expect(sceneProps.showHarnessToggle).toBe(false);
     expect(sceneProps.harnessPanelVisible).toBe(false);
     expect(sceneProps.harnessPendingCount).toBe(0);

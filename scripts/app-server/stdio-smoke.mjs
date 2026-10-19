@@ -56,6 +56,9 @@ async function main() {
       {
         initializeTimeoutMs: 5_000,
         expectedProtocolVersion: PROTOCOL_VERSION,
+        env: {
+          APP_SERVER_APP_DATA_DIR: path.join(tempDir, "app"),
+        },
       },
     );
 

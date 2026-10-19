@@ -103,14 +103,14 @@ describe("SkillsWorkspacePage", () => {
     expect(dialogScope?.className).toContain("bg-[color:var(--lime-surface)]");
   });
 
-  it("用户安装页点击使用应回首页输入框预选 @ 技能，不显示入口横幅", () => {
+  it("用户安装页点击使用应回首页输入框预选 canonical 技能，不显示入口横幅", async () => {
     const { container, onNavigate } = renderPage();
 
     act(() => {
       findButton(container, "用户安装")?.click();
     });
     openLocalSkillMenu(container);
-    act(() => {
+    await act(async () => {
       clickMenuItem(container, "在聊天中试用");
     });
 
@@ -121,11 +121,10 @@ describe("SkillsWorkspacePage", () => {
         theme: "general",
         preferHomeForInitialInputCapability: true,
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "local:writer",
-            skillName: "写作助手",
-          },
+          skill: expect.objectContaining({
+            key: "local:writer",
+            name: "写作助手",
+          }),
           requestKey: expect.any(Number),
         },
       }),
@@ -134,6 +133,50 @@ describe("SkillsWorkspacePage", () => {
       "entryBannerMessage",
     );
   });
+
+  it("使用技能时保留 runtime catalog 的 canonical name、显示名与路径", async () => {
+    const local = mocks.localSkills.find(
+      (skill) => skill.key === "local:writer",
+    )!;
+    local.localDirectoryPath = "/skills/writer";
+    const canonical = {
+      ...local,
+      key: "user:writer",
+      name: "writer",
+      displayName: "写作助手",
+    };
+    mocks.getRuntimeCatalog.mockResolvedValueOnce([canonical]);
+    const { container, onNavigate } = renderPage({ initialView: "installed" });
+    openLocalSkillMenu(container);
+    await act(async () => clickMenuItem(container, "在聊天中试用"));
+    expect(
+      getLatestNavigationPayload(onNavigate)?.initialInputCapability,
+    ).toMatchObject({ skill: canonical });
+  });
+
+  it.each(["missing", "ambiguous", "unavailable"])(
+    "runtime Skill %s 时显示错误，不生成 fallback 输入",
+    async (mode) => {
+      const local = mocks.localSkills.find(
+        (skill) => skill.key === "local:writer",
+      )!;
+      if (mode === "unavailable")
+        mocks.getRuntimeCatalog.mockRejectedValueOnce(
+          new Error("catalog unavailable"),
+        );
+      else
+        mocks.getRuntimeCatalog.mockResolvedValueOnce(
+          mode === "missing" ? [] : [local, { ...local }],
+        );
+      const { container, onNavigate } = renderPage({
+        initialView: "installed",
+      });
+      openLocalSkillMenu(container);
+      await act(async () => clickMenuItem(container, "在聊天中试用"));
+      expect(onNavigate).not.toHaveBeenCalled();
+      expect(mocks.toastError).toHaveBeenCalledOnce();
+    },
+  );
 
   it("用户安装页首屏不等待已保存技能面板", () => {
     const { container } = renderPage({ initialView: "installed" });
@@ -186,9 +229,7 @@ describe("SkillsWorkspacePage", () => {
     ).toBeTruthy();
     expect(scaffoldDialog?.textContent).toContain("project-report");
     expect(scaffoldDialog?.textContent).toContain("项目报告");
-    expect(scaffoldDialog?.textContent).toContain(
-      "沉淀为可注册的工作区技能。",
-    );
+    expect(scaffoldDialog?.textContent).toContain("沉淀为可注册的工作区技能。");
   });
 
   it("项目级脚手架创建后应刷新已保存技能和 workspace binding readiness", async () => {

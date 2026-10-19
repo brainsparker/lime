@@ -210,8 +210,7 @@ export function createSceneProps(
     onAddPathReferences: noop,
     onRemovePathReference: noop,
     onClearPathReferences: noop,
-    fileManagerOpen: false,
-    onToggleFileManager: noop,
+
     inputCompletionEnabled: true,
     ...hookOverrides,
   };

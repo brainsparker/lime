@@ -1,5 +1,4 @@
 import type { Skill } from "@/lib/api/skills";
-import type { ComposerMentionBinding } from "@/components/input-kit";
 import type { ServiceSkillHomeItem } from "@/components/agent/chat/service-skills/types";
 import {
   findCuratedTaskTemplateById,
@@ -59,11 +58,6 @@ export type InputCapabilitySendRoute =
       commandPrefix: string;
     }
   | {
-      kind: "installed_skill";
-      skillKey: string;
-      skillName: string;
-    }
-  | {
       kind: "runtime_scene";
       sceneKey: string;
       commandPrefix: string;
@@ -77,76 +71,6 @@ export type InputCapabilitySendRoute =
       referenceMemoryIds?: string[];
       referenceEntries?: CuratedTaskReferenceEntry[];
     };
-
-const SLASH_SKILL_KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
-
-function normalizeSkillRouteCandidate(value: string | null | undefined) {
-  return value?.trim() || "";
-}
-
-function stripLocalSkillKeyPrefix(value: string) {
-  const normalized = value.trim();
-  if (!normalized) {
-    return "";
-  }
-  return normalized.includes(":")
-    ? normalized.split(":").pop()?.trim() || normalized
-    : normalized;
-}
-
-function resolveInstalledSkillExecutionKey(skill: Skill): string {
-  const candidates = [
-    normalizeSkillRouteCandidate(skill.directory),
-    normalizeSkillRouteCandidate(skill.name),
-    stripLocalSkillKeyPrefix(skill.key),
-    normalizeSkillRouteCandidate(skill.key),
-  ].filter(Boolean);
-
-  return (
-    candidates.find((candidate) => SLASH_SKILL_KEY_PATTERN.test(candidate)) ??
-    candidates[0] ??
-    skill.key
-  );
-}
-
-function matchesInstalledSkillRoute(
-  skill: Skill,
-  route: Extract<InputCapabilitySendRoute, { kind: "installed_skill" }>,
-): boolean {
-  const routeKey = route.skillKey.trim();
-  if (!routeKey) {
-    return false;
-  }
-
-  const routeKeyWithoutPrefix = stripLocalSkillKeyPrefix(routeKey);
-  const candidates = [
-    skill.key,
-    skill.directory,
-    skill.name,
-    stripLocalSkillKeyPrefix(skill.key),
-    resolveInstalledSkillExecutionKey(skill),
-  ].map((value) => value.trim());
-
-  return candidates.some(
-    (candidate) =>
-      candidate === routeKey ||
-      (!!routeKeyWithoutPrefix && candidate === routeKeyWithoutPrefix),
-  );
-}
-
-export function matchesInstalledSkillMention(
-  skill: Skill,
-  binding: ComposerMentionBinding,
-): boolean {
-  return (
-    binding.kind === "skill" &&
-    matchesInstalledSkillRoute(skill, {
-      kind: "installed_skill",
-      skillKey: binding.id,
-      skillName: binding.name,
-    })
-  );
-}
 
 export interface ResolvedInputCapabilityDispatch {
   displayContent?: string;
@@ -167,12 +91,6 @@ export function resolveInputCapabilitySendRoute(
         kind: "builtin_command",
         commandKey: capability.command.key,
         commandPrefix: capability.command.commandPrefix,
-      };
-    case "installed_skill":
-      return {
-        kind: "installed_skill",
-        skillKey: resolveInstalledSkillExecutionKey(capability.skill),
-        skillName: capability.skill.name,
       };
     case "runtime_scene":
       return {
@@ -213,19 +131,6 @@ export function resolveInputCapabilitySendRoute(
     default:
       return undefined;
   }
-}
-
-function createFallbackInstalledSkill(
-  route: Extract<InputCapabilitySendRoute, { kind: "installed_skill" }>,
-): Skill {
-  return {
-    key: route.skillKey,
-    name: route.skillName || route.skillKey,
-    description: "",
-    directory: route.skillKey,
-    installed: true,
-    sourceKind: "other",
-  };
 }
 
 function createFallbackBuiltinCommand(
@@ -280,13 +185,11 @@ function createFallbackCuratedTask(
 
 export function resolveInputCapabilitySelectionFromRoute(params: {
   route: InputCapabilitySendRoute;
-  skills?: Skill[];
   builtinCommands?: BuiltinInputCommand[];
   runtimeSceneCommands?: RuntimeSceneSlashCommand[];
 }): InputCapabilitySelection {
   const {
     route,
-    skills = [],
     builtinCommands = INPUTBAR_BUILTIN_COMMANDS,
     runtimeSceneCommands = [],
   } = params;
@@ -301,16 +204,6 @@ export function resolveInputCapabilitySelectionFromRoute(params: {
     return {
       kind: "builtin_command",
       command,
-    };
-  }
-
-  if (route.kind === "installed_skill") {
-    const skill =
-      skills.find((item) => matchesInstalledSkillRoute(item, route)) ??
-      createFallbackInstalledSkill(route);
-    return {
-      kind: "installed_skill",
-      skill,
     };
   }
 
@@ -330,6 +223,9 @@ export function resolveInputCapabilitySelectionFromRoute(params: {
     };
   }
 
+  if (route.kind !== "runtime_scene")
+    throw new Error("Unsupported input capability route");
+
   const command =
     runtimeSceneCommands.find(
       (item) =>
@@ -347,7 +243,9 @@ export function resolveInputCapabilityDispatch(
   input: string,
 ): ResolvedInputCapabilityDispatch {
   const isSendCapability =
-    capability !== null && capability.kind !== "service_skill";
+    capability !== null &&
+    capability.kind !== "service_skill" &&
+    capability.kind !== "installed_skill";
   const capabilityRoute = isSendCapability
     ? resolveInputCapabilitySendRoute(capability)
     : undefined;

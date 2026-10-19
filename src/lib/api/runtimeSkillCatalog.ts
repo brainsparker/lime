@@ -21,6 +21,7 @@ export function projectRuntimeSkillCatalog(
   return skills.map((skill) => ({
     key: skill.skill_id,
     name: skill.name,
+    displayName: skill.display_name,
     description: skill.description,
     directory: directoryName(skill.locator.directory),
     localDirectoryPath: skill.locator.directory,

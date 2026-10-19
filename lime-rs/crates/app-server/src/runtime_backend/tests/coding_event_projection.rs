@@ -508,7 +508,7 @@ fn runtime_agent_message_emits_its_own_terminal_before_turn_terminal() {
     emit_runtime_agent_event_with_coding_mirror_and_plan_parser(
         &RuntimeAgentEvent::TextEnd {
             item_id: "message-1".to_string(),
-            phase: lime_agent::protocol::AgentMessagePhase::FinalAnswer,
+            phase: Some(agent_protocol::response_item::MessagePhase::FinalAnswer),
         },
         &mut sink,
         &mut mirror,
@@ -558,7 +558,7 @@ fn runtime_output_items_keep_distinct_provider_identities() {
         },
         RuntimeAgentEvent::TextEnd {
             item_id: "message-1".to_string(),
-            phase: lime_agent::protocol::AgentMessagePhase::Commentary,
+            phase: Some(agent_protocol::response_item::MessagePhase::Commentary),
         },
         RuntimeAgentEvent::ReasoningStart {
             item_id: "reasoning-2".to_string(),
@@ -580,7 +580,7 @@ fn runtime_output_items_keep_distinct_provider_identities() {
         },
         RuntimeAgentEvent::TextEnd {
             item_id: "message-2".to_string(),
-            phase: lime_agent::protocol::AgentMessagePhase::FinalAnswer,
+            phase: Some(agent_protocol::response_item::MessagePhase::FinalAnswer),
         },
     ];
 
@@ -659,7 +659,7 @@ fn canceled_runtime_agent_message_uses_interrupted_item_status() {
 
     assert_eq!(sink.events[1].event_type, "message.completed");
     assert_eq!(sink.events[1].payload["status"], "interrupted");
-    assert_eq!(sink.events[1].payload["phase"], "commentary");
+    assert_eq!(sink.events[1].payload["phase"], serde_json::Value::Null);
 }
 
 #[test]
@@ -712,7 +712,7 @@ fn failed_runtime_output_items_finish_before_turn_failure() {
         .expect("message terminal");
     assert_eq!(reasoning_terminal.payload["status"], "failed");
     assert_eq!(message_terminal.payload["status"], "failed");
-    assert_eq!(message_terminal.payload["phase"], "commentary");
+    assert_eq!(message_terminal.payload["phase"], serde_json::Value::Null);
 }
 
 #[test]

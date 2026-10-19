@@ -38,13 +38,13 @@ export const CodePreview: React.FC<CodePreviewProps> = ({
       <div className="h-full flex">
         {/* 行号 */}
         <div
-          className="flex-shrink-0 bg-ink-50 border-r border-ink-200 text-right py-3 select-none"
+          className="flex-shrink-0 border-r border-border bg-muted text-right py-3 select-none"
           style={{ width: lineNumberWidth }}
         >
           {lines.map((_, index) => (
             <div
               key={index}
-              className="px-2 text-xs text-ink-400 leading-6 font-mono"
+              className="px-2 text-xs text-muted-foreground leading-6 font-mono"
             >
               {index + 1}
             </div>
@@ -65,13 +65,13 @@ export const CodePreview: React.FC<CodePreviewProps> = ({
     <div className="h-full flex overflow-auto">
       {/* 行号 */}
       <div
-        className="flex-shrink-0 bg-ink-50 border-r border-ink-200 text-right py-3 select-none sticky left-0"
+        className="flex-shrink-0 border-r border-border bg-muted text-right py-3 select-none sticky left-0"
         style={{ width: lineNumberWidth }}
       >
         {lines.map((_, index) => (
           <div
             key={index}
-            className="px-2 text-xs text-ink-400 leading-6 font-mono"
+            className="px-2 text-xs text-muted-foreground leading-6 font-mono"
           >
             {index + 1}
           </div>
@@ -79,7 +79,7 @@ export const CodePreview: React.FC<CodePreviewProps> = ({
       </div>
       {/* 代码内容 */}
       <div className="flex-1 overflow-x-auto">
-        <pre className="p-3 font-mono text-sm leading-6 text-ink-800">
+        <pre className="p-3 font-mono text-sm leading-6 text-foreground">
           <code>{code}</code>
         </pre>
       </div>

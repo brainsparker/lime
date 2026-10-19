@@ -1,0 +1,795 @@
+# v1.163.0 发布执行计划
+
+状态：ready / 等待固定候选范围及 Git 写操作明确确认；已验证候选为 660 路径/654 变更条目，后续并行增量保留工作树。尚未提交、打标签或推送。
+
+## 目标与范围
+
+- 用户要求发布 v1.163.0。起点为 main/origin/main `4f062c3788fa1c63dcbb99e0487c7a7f85c7908e`；首次检查本地及远端均无目标标签。
+- 纳入现有工作树的产品、测试、脚本、规则和文档改动；排除上版已识别的本地研究产物 `local-conversation-page-a83a1af2c24b.js` 与构建缓存 `tsconfig.node.tsbuildinfo`，保留原文件。
+- 直接写集：`package.json`、`packages/cli/package.json`、`lime-rs/Cargo.toml`、`lime-rs/Cargo.lock`、双语 `RELEASE_NOTES`、本计划和执行计划 README 的发布指针。产品既有改动先只读验证，门禁修复另记窄写集。
+- 证据目录：`.lime/release/v1.163.0/`；保存候选路径、摘要和命令日志，发布前复核漂移。不创建分支/worktree，不覆盖并行修改，不终止用户进程。
+
+## 发布内容与分类
+
+- current：统一 Composer 布局、命令和原生附件；Sources 与文件树、CodeMirror 文本编辑；共享右侧面板和后台终端；会话输入提交、续接、终态和工具历史；多协议工具调用身份与参数处理。
+- release metadata：应用、CLI 与 Rust workspace 统一为 1.163.0，Cargo lock 同步本地包版本；Forge 和 App Server manifest 继承应用版本，pnpm lock 保留候选依赖变更。
+- compat/deprecated：不新增。dead/deleted：候选移除旧 FileManager Sidebar、InputbarTools、独立图片附件 hook 与 ProjectToolsHost 等入口，保留 current owner 和回流守卫。
+- 架构图确认：发布 metadata 不改变 authority；候选沿 `Product Surface -> App Server JSON-RPC -> RuntimeCore -> Thread/Turn/Item projection`，领域架构与责任确认以 `architecture.md` 及 GUI/runtime/plugin 专项计划为准。整体对齐仍 partial，未完成产品范围不因发布核销。
+- 原则：KISS/DRY 复用现有版本、Forge 和测试入口；SOLID 保持既有领域 owner；YAGNI 不引入第二发布器、runtime 或兼容层。
+
+## 验证与退出条件
+
+1. `npm run verify:app-version`、完整 `npm run typecheck`、`npm run test:contracts` 必须执行并记录。
+2. 先受影响前端与 Rust owner 回归，再 Agent current fixture、标准 `npm run verify:gui-smoke`；必要时补公共 JSON-RPC 集成。
+3. 仅本候选实际通过的命令计入证据；controlled provider、Electron、live、Windows 与打包结果分开报告。
+4. 复核候选摘要、完整文件清单、暂存摘要和排除项后，依据 AGENTS.md 与 lime-release-workflow 请求一次 commit/tag/push 明确确认。
+5. 获确认后连续执行 release commit、v1.163.0 标签、main/tag 推送和远端引用复核，跟踪 GitHub Actions/Release；不覆盖已存在发布标签。
+
+## 执行记录
+
+- 首次盘点工作树 432 路径（含展开的未跟踪文件）；tracked diff 为 271 文件、7,376 新增/17,111 删除行，后续候选以内容摘要为准。
+- 远端 main 与本地 HEAD 一致；v1.163.0 未存在。
+- 待执行：版本更新、双语说明、发布门禁、候选复核与危险操作确认。
+
+- 应用、CLI、workspace 与 Cargo lock 的 36 个本地包版本已更新；`npm run verify:app-version` exit0。Forge/manifest 继承同一版本，pnpm lock 保留 CodeMirror 候选依赖。
+- 双语说明已替换为 v1.163.0 单页；发版文件 Prettier 检查通过。
+- `npm --prefix packages/cli test` 9/9 通过；五语言键覆盖 100%，missing=0、extra=0。
+- 完整 typecheck、contracts、82 个变动前端测试文件及 9 Rust owner 单元测试已启动，未完成前不计通过。前端首轮出现扫描 guard 的默认 5 秒超时，保留失败日志，后续需定向复测。
+- 验证期间发现 Sources、ThreadSummaryPanel、WorkspaceConversationScene、threadSummaryProjection 和五语言 agent 资源持续并行变化；已询问发布候选应等待合入还是固定快照，未静默排除产品改动。当前运行的相关结果仅作预检，最终候选须重新核对并补相应后验。
+
+- `npm run test:contracts` 全链 exit0，协议生成零漂移、客户端/命令/harness/模态/脚本/Forge/Desktop reference/CLI/清理与 docs 边界通过。
+- 前端首轮 82 文件、1,147 项：79 文件/1,144 项通过，3 项失败（仓库扫描超时、工具栏语言空 mock、Inputbar CSS computed style）。首轮不记整组通过。
+- 发版窄修复：`TaskCenterUtilityToolbar.integration.test.tsx` 删除伪造 `changeLimeLocale` 的 mock，恢复真实语言初始化；8/8 后验通过，ESLint 零警告。其余失败正在复测，不放宽断言或超时。
+
+- 完整 `npm run typecheck` exit0（renderer 与 node）；运行期间有 GUI 候选漂移，最终产品输入固定后补相应后验。
+- Export boundary guard 单独运行在原 5 秒期限内 7/7 通过；首轮与混合后验的超时保留。Inputbar 单独 91/91 通过，整组 CSS 污染需用既有独立样式夹具修正。
+- 发版额外窄写集：`Inputbar/index.test.tsx` 的 mount 持有独立 StyleSheetManager/CSSOM sheet 并随卸载清理，复用 `src/test/createTestStyleSheet.ts`，保持原 computed style 断言；不改变产品 CSS。该历史大文件仅调整测试 mount，不扩展业务职责，退出条件为同组样式与交互后验通过。
+
+- 后验纠正：直接恢复工具栏的全局 i18n 初始化曾导致 4 文件组出现 53 项跨文件语言失败，该做法已替换。最终工具栏保留原 createI18n mock，并让 useTranslation 与 agentText 共享隔离翻译 stub，避免改写 i18next singleton。
+- 最终 Composer/首页/工具栏同组 4 文件 162/162 通过；两处发版测试夹具 ESLint 零警告。Inputbar 的独立 CSSOM sheet 保留原样式断言并通过同组后验。
+- 最新 Sources/摘要/Scene 组 54 项中 53 通过，Sources 首次挂载在高负载下触发默认期限；Sources 单独后验 9/9 在原期限内通过。未放宽断言或期限；五语言键后验覆盖 100%，missing=0、extra=0。
+- 采用等待并行内容稳定后纳入的保守范围；post-drift 候选记录 438 路径，产品源码随后未漂移，仅本轮工具栏测试夹具继续修改。第二次完整 typecheck 正验证该稳定产品输入。
+
+- 第二次完整 `npm run typecheck` exit0，稳定产品源码后验通过。曾计划因内存压力停止此轮，但执行时已自然完成，未终止任何进程。
+- 候选临时 index 的 diff 为空白无误：432 Git diff 条目（438 路径含重命名两端）、28,942 新增/16,068 删除行；提交钩子预检 406 文件通过、0 失败。正式提交/标签/推送仍待门禁完成后的明确确认。
+
+- 用户补充“继续”后沿当前稳定候选推进；首次 Rust 会话消失且日志没有测试终态，标为 interrupted/unknown，未计通过。恢复同一 9 owner 命令复用缓存，日志 `rust-owners-resume.log`；Agent current fixture 和 9 个公共 JSON-RPC integration target 开始执行。
+
+- Rust 格式检查发现 `command_exec/sandbox.rs` 的 `windows_mode` 字段缩进不一致，仅修正空白；100 个变动 Rust 文件使用 rustfmt、edition 2021、skip_children 的最终检查 exit0，日志 `rustfmt-final.log`。该文件由后续 JSON-RPC 与 sidecar 构建消费；未改变沙箱行为。
+- 继续核对候选：相对 post-drift 仅领域执行记录、本发布计划、工具栏测试夹具及上述缩进修正变化；产品输入无新增漂移。远端 main 仍为起点 SHA，目标 tag 不存在。
+- Rust 9 owner 首轮恢复 exit101：agent-protocol 46/46，agent-runtime 242/243，其余 owner 被 Cargo 失败提前阻断。失败夹具仍假定空响应自动重试，与本候选的显式 `needs_follow_up` 续接合同冲突；窄写集仅 `provider_turn/tests/context_history.rs`，将中间响应声明为显式续接并更新测试名，保持三次请求、截断预算及原始 lifecycle 输出断言。相邻已有 final-completion 用例继续守住无续接标志时不重试。完整 9 owner 后验日志 `rust-owners-final.log`。
+- Rust 9 owner 后验 exit0：agent-protocol 46、agent-runtime 243、app-server 1,994、lime-agent 290、lime-media-runtime 56、lime-server 118、model-provider 275、runtime-core 69、tool-runtime 523，合计 3,614/3,614，通过且无 ignored。夹具格式后验 exit0；该修复不改变产品代码或协议。
+- 公共 JSON-RPC 首轮：command exec 1、thread compact 35、compaction boundary 5、fork compaction 1、tool-history receipt 1、explicit continuation 1 均通过；final completion 7/8，Responses reasoning 冷恢复后的第二个采样请求漏发已持久化 reasoning，exit101，后续 interrupted/steer targets 被提前阻断。
+- 发布阻断修复的窄写集为 `model-provider/current_client/lowering.rs`、既有 `lowering/tests.rs` 与新建 `lowering/reasoning.rs`：复用 canonical Reasoning，将文本与 encrypted content 转成 Responses reasoning item 并置于可见文本前；空内容不造 item。参考 Codex protocol `models.rs` 的 `ResponseItem::Reasoning` / `ReasoningItemContent`，不新增协议、owner 或兼容链。原 lowering 834 行，仅增加模块声明及委托，领域逻辑落入小模块，避免继续扩大历史大文件；补充 owner 请求形状回归，并重跑失败 public completion 与尚未执行的 interrupted/steer targets。
+- Agent 聚合在上述 Provider 修复前已完成构建；其 external controlled backend 绕过真实 Provider lowering，按未受影响 Electron/IPC/read-model 边界计证据。最终标准 GUI smoke 必须重新构建并消费修复后的 sidecar；Provider 修复另以真实 loopback request capture 和公共 JSON-RPC 后验验收，不冒充 live provider。
+- Provider 全 owner 后验 exit0，276/276（含新增请求形状回归），日志 `provider-reasoning-final.log`。公共完成态使用明确的 3 个 `--test` target 和相同 V8/8MiB stack 环境重跑，日志 `jsonrpc-completion-targeted.log`。曾启动 `test:rust:integration`，其 `--tests` 会扩大到全部 integration target，经临时最小 Cargo 项目验证后，只终止本轮尚在等待锁的误扩大命令，未终止用户或其他 Agent 进程；该日志不计通过。
+- Agent 聚合 exit1：unknown-item、首页首发、首页短问候三个真实 Electron 场景通过（版本 1.163.0，external fixture、零 mock fallback）；第四个 Coding Workbench 在旧工作台入口观察失败，截图显示当前共享侧栏与行内产物卡片，后续场景未执行。失败原件保留，不能声明聚合全绿或恢复/输出面板产品通过。标准 `npm run verify:gui-smoke` 已独立启动，日志 `gui-smoke.log`。
+- 再次发现并行 Composer/五语言及 Inputbar 测试拆分变化（含原 `Inputbar/index.test.tsx` 删除），已只读避让并异步询问等待最新内容还是冻结候选。最终范围未确定，之前前端及 GUI 证据仅覆盖当时输入；原样式隔离修复的保留与迁移需在新夹具核对，不能恢复大文件覆盖并行拆分。latest-observation 记录 457 路径，提交/标签/推送仍未执行。
+
+### 续跑复核与纠正
+
+- `jsonrpc-completion-targeted.log`：普通 final 8/8 通过，但该次使用的 Responses reasoning 合成补丁后经源码复核撤回，不能把该 green 当作最终正确合同证据。Codex 以完成的 `output_item.done` 保存原始 reasoning item，展示 delta 不能合成为可回传 envelope；原补丁只让不完整公共夹具变绿，属于本轮误修。
+- 已撤回 `lowering.rs` 的新委托，并把本轮新增 helper 移到忽略的证据目录 `withdrawn-reasoning-helper.rs`，不进入候选；新增回归改为断言仅保留完成的 `RawResponseItem` 原形、展示 delta 不生成请求 item。相关公共夹具正在被另一进程准备迁移，遵循窄写集不覆盖。双语发布说明移除推理冷恢复的过度声明。
+- 同一 JSON-RPC 后验的 interrupted target 0/1，实际 failed/预期 completed；与领域计划“尚未实施”的独立行为 red 一致。steer 因前者失败没有执行，已独立补跑。不能把 planned red 记为通过或擅自从候选排除。
+- 最新 Composer 18 文件回归为 16 文件/192 项通过、2 文件/12 项失败；包含缺少 ResizeObserver 的测试环境错误。并行进程在执行期间迁移了首页与 Inputbar 夹具，旧结果不证明迁移后的测试通过；原样式隔离已确认保留在新 `Inputbar.testFixtures.tsx`。
+- 最新完整 typecheck、标准 GUI smoke 仍在执行。GUI 构建期间 Composer、workspace 接线及五语言仍有并行变化，已保存新的 491 路径观察快照 `candidate-observation-resume.json`，候选尚未冻结。
+
+### 当前门禁与范围阻断
+
+- 完整 `npm run typecheck` 第三轮 exit0，日志 `typecheck-latest.log`；版本一致性与双语说明/计划 Prettier 检查 exit0。GUI 在本轮执行期间及之后仍有修改，该结果不等于已冻结最终输入。
+- `npm run verify:gui-smoke` exit0，日志 `gui-smoke.log`，真实 Electron evidence 为 `standalone-shell-01-20261019110551-76118/shell-01-electron-smoke/summary.json`。实际覆盖 startup/reload、preload/IPC、App Server 1.163.0 初始化、Workbench 壳、Memory 设置和三档窗口布局；不包含 Provider Turn、Thread/Turn/Item identity、live provider、打包平台或像素对齐验收。
+- `provider-and-steer-post-review.log` exit0：展示 delta 不合成 item、completed raw reasoning 原形保留的 owner 回归 1/1；公共 steer 提交失败不泄漏、接受输入冷恢复回归 1/1，均通过。Responses 公共 final 夹具仍须按 completed item 合同迁移后重跑，之前合成补丁的 green 已撤销有效性。
+- 未关闭：Composer 组 12 项失败尚无迁移后的最终后验；interrupted 公共 red 0/1；领域计划另记录 Responses 原生 reasoning history 0/3 red、实现未完成；Coding Workbench 聚合失败且后续场景未跑。不得将普通壳 smoke 或 owner 通过替代这些结果。
+- `git diff --check` 当前报告并行 `skillSelectionBindings.ts` 末尾空行；按并行约束不夹写，最终候选冻结后再清理并复核。
+- 已再次发出范围选择：等待其它任务完成后纳入全部、暂停其它任务后由本会话接管修复、或由用户明确划定已完成发布范围。尚无答复，不排除新红灯测试，也不继续冻结/暂存或请求 commit/tag/push 确认。
+- 本轮观察见 `scope-pending-observation.json`。当前发布流程完成 **2/5 阶段（40%）**：版本/说明与基础检查已完成；最终候选验证、Git 发布及远端产物核验尚未完成。current/compat/deprecated/dead 分类沿本计划上述账本，不因发布准备核销领域缺口。
+
+### 用户确认后继续（2026-10-19 21:20 CST 起）
+
+- 用户回复“确认”，按前一轮推荐项继续：等待并行任务收敛，最终纳入全部候选；排除清单仍只有已识别的研究文件与构建缓存。此次确认属于发布范围，不冒充尚未出示的最终 Git 危险操作确认。
+- 当前观察扩大为 660 路径，保存于 `candidate-confirmed-all-observation.json`。中断续接与原生模型历史已有后继源码及定向 green；之前的 planned red 不再代表当前产品状态，旧日志继续保留。
+- 最新消息 phase 与 GUI 93/94 仍在独立回归，尚未验收；已启动根工作树的完整 typecheck 与 contracts（`typecheck-confirmed-all.log`、`contracts-confirmed-all.log`），不把独立候选快照 green 转记为根工作树全部内容通过。
+- 本轮继续窄写发布 metadata/本计划；runtime、协议、GUI/Composer 由并行任务持有，保持只读，不覆盖其新增实现与测试迁移。剩余验证以新失败、实际漂移和现役合同决定，不无差别重跑全仓矩阵。
+
+### 最新工作树验证
+
+- `typecheck-confirmed-all.log`：完整 renderer + node typecheck exit0；`i18n-confirmed-all.log`：五语言覆盖 100%，missing/extra=0；`version-confirmed-all.log`：1.163.0 一致；CLI launcher 9/9、发布 metadata Prettier 均 exit0。
+- `composer-confirmed-all.log`：19 文件、185/185，覆盖拆分后的首页、Composer、Inputbar、上下文建议、工具栏、phase selector 与真实 Editor/序列化/草稿恢复。此前 12 项错误没有删除或记作原轮通过，迁移后的根目录后验现已通过。
+- `contracts-confirmed-all.log` 首轮 exit1：生成协议已无漂移，但 client guard 仍期待旧两值 MessagePhase，未同步 `partial_answer`；该 guard 由并行 phase 任务持有，当前只读登记，最终必须取得完整后验。
+- 临时 `candidate-all-preview.index`：660 路径、654 Git diff 条目，39,723 新增/42,320 删除行；whitespace 检查 exit0；提交钩子预检 576 文件通过、0 失败。预览不更改真实暂存区，最终仍需刷新。
+- GUI 93 独立候选已 passed、sourceDrift=[]，实际 rich 与矩阵均通过。10,134 项源码 manifest 与根目录比较，JS/TS 只有 8 项差异，其中前端生产行为只多 mention leafText；额外根目录 candidate JS/TS 文件为 0。比较记录 `gui93-root-source-comparison.json`，不将该事实当作根目录全链验证；根目录 `verify:gui-smoke` 正重新构建最新 phase sidecar 与 Renderer。
+- 发布说明已按真实新实现增加上下文建议、原生 reasoning envelope 与 interrupted continuation；phase 的产品链尚未完成，不宣称该片全部对齐或旧 Workbench 产品通过。KISS/DRY 继续复用现有发布器、协议与 current owner，没有新增兼容链。
+
+### 最新产品后验及剩余契约
+
+- `gui-smoke-confirmed-all.log` 的标准入口完成重建，但首轮 App Server initialize 30 秒超时、重启成功后仍触发 noConsoleErrors/noInvokeErrors，整轮 exit1；保留完整 summary `standalone-shell-01-20261019132710-89282`，不推定负载是唯一原因。
+- 随后直接调用同一现役 `scripts/electron/smoke.mjs`，原预算与原断言均保留；`gui-smoke-same-artifacts-retest.log` exit0。复测前后 9,521 项构建产物字节全部一致（`gui-smoke-same-artifacts-result.json`），pass summary `standalone-shell-01-20261019132841-94086`。真实壳覆盖与前述 SHELL-01 相同，不能替代 Workbench/Provider Turn 产品验收。
+- 并行 phase 的公共 live/cold/错误/取消 4/4、新模型历史边界 2/2 与跨协议 live/cold/fork 8/8 已通过；App Server 两处旧 commentary 预期已迁移且 2/2、projection 66/66 通过。最终 contracts 阶段命中与本发布同一旧 union 字符串守卫，待其 owner 同步后补完整门禁。
+- GUI 94 独立验证正在执行，根目录生产源码从本轮观察至今无新增漂移；只增加测试预期修正、发布说明与领域记录。不得因这些进展宣布 GUI/Runtime 整体对齐完成。
+
+### 最终门禁收口与 Git 确认准备
+
+- 已明确窄补丁：`scripts/check-app-server-client-contract.mjs` 仅将已生成 MessagePhase 的 union 预期补上 `partial_answer`，保留其余并行改动与检查行为；未改协议生成结果或放宽断言。`contracts-final.log` 完整链 exit0，覆盖 protocol/client/command/harness/modality/scripts/Forge/Desktop/CLI/cleanup/docs。
+- 当前可用根目录证据：完整 typecheck、五语言、版本、CLI 9/9、Composer 19 文件185/185、完整 contracts 均通过；标准 Electron 首轮失败后，同一 9,521 项产物/原预算/原断言后验通过，零产物漂移。历史失败不核销，不称首轮全绿。
+- GUI 93 和 GUI 94 的 rich/矩阵均已 passed、sourceDrift=[]。当前根目录产品源码保持不变，消息 phase/shared model history 的公共错误、取消、冷恢复、协议切换与 fork 已取得上述 green；不把其等同 live provider、TUI、Windows 或 packaged 证据。
+- 保留发布限制：Agent 聚合仍被 Coding Workbench 入口失败阻断，后续聚合场景未执行；没有恢复旧 UI、删除断言或推断产品恢复链通过。领域计划的整体对齐继续 partial，不由本版发布核销。
+- 最终候选为 660 路径/654 Git 变更条目；`candidate-final.json`、`candidate-final-paths.txt`、`candidate-final-stat.txt` 与临时 index 提供可审阅摘要。whitespace 与 hook 预检 exit0（576 通过、0 失败），真实 index 仍未暂存；最终确认覆盖 commit/tag/main与tag推送，确认后连续执行并跟踪远端 Release/Quality。
+- 发布流程当前 **3/5 阶段（60%）**：候选/metadata、基础门禁、审阅材料已收口；Git 发布与远端产物核验未执行。版本 v1.163.0，本地/远端目标 tag 与 GitHub Release 均未存在。
+
+### 收口期间新增增量与最终审阅边界
+
+- 最终摘要守卫检测到并行任务新增 PromptLinks/SkillPromptLink 等6个产品文件，并修改3个已有消息/引用文件；这批字节晚于通过门禁的候选，不自动混入版本。原先等待全部收敛的范围需要用户在最终危险操作确认中调整，尚未批准排除前不执行 Git 发布。
+- 提议发布现已验证的临时 index 快照（660 路径/654 条目），后续差异完整保留工作树；候选路径见下表，实际晚到差异见 `.lime/release/v1.163.0/candidate-post-freeze-paths.txt`。冻结后不重新 add 全工作树，也不回退/覆盖并行文件。两个既有本地产物继续保留并排除。
+- 本计划的收口说明是唯一更新到冻结 index 的文档；其余候选源码保留原已验证字节。最终 tree、完整 stat/路径、排除项与后续差异均在 `candidate-final.json` 等审阅文件，正常 hook 与 whitespace 预检之后请求一次 commit/tag/push 明确确认。
+
+## 当前候选路径（660 项，最终 Git 确认前再校验摘要）
+
+release metadata：`RELEASE_NOTES.en.md`、`RELEASE_NOTES.md`、`lime-rs/Cargo.lock`、`lime-rs/Cargo.toml`、`package.json`、`packages/cli/package.json`。
+
+candidate changes 包括下列产品、规则、文档、脚本、测试与本计划。排除并保留研究产物 `local-conversation-page-a83a1af2c24b.js` 与缓存 `tsconfig.node.tsbuildinfo`；忽略目录沿仓库既有规则处理。真实 index 未暂存。
+
+<details>
+<summary>完整路径清单（由当前 git 差异生成）</summary>
+
+- `.codex/skills/lime-design-language/SKILL.md`
+- `AGENTS.md`
+- `RELEASE_NOTES.en.md`
+- `RELEASE_NOTES.md`
+- `electron/appServerHost.test.ts`
+- `electron/appServerHost.ts`
+- `electron/appServerRequestTimeout.ts`
+- `electron/dialogOptions.test.ts`
+- `electron/dialogOptions.ts`
+- `electron/fileShellHost.test.ts`
+- `electron/fileShellHost.ts`
+- `electron/hostCommands.test.ts`
+- `electron/hostCommands.ts`
+- `electron/ipcChannels.test.ts`
+- `electron/ipcChannels.ts`
+- `electron/main.ts`
+- `electron/persistedAtomPin.test.ts`
+- `electron/persistedAtomStore.ts`
+- `electron/projectToolsHost.ts`
+- `internal/aiprompts/architecture.md`
+- `internal/aiprompts/commands.md`
+- `internal/aiprompts/design-language.md`
+- `internal/aiprompts/governance.md`
+- `internal/aiprompts/overview.md`
+- `internal/exec-plans/README.md`
+- `internal/exec-plans/codex-gui-alignment-current-plan.md`
+- `internal/exec-plans/codex-plugin-reconstruction.md`
+- `internal/exec-plans/codex-runtime-gap-alignment-plan.md`
+- `internal/exec-plans/release-v1.163.0-plan.md`
+- `internal/research/codex-desktop-rea/evidence-index.json`
+- `internal/research/codex-desktop-rea/main-composer-audit.md`
+- `internal/research/codex-desktop-rea/navigation-composer-audit.md`
+- `internal/research/codex-desktop-rea/structure-alignment-ledger.md`
+- `internal/research/codex-desktop-rea/user-message-collapse-audit.md`
+- `lime-rs/Cargo.lock`
+- `lime-rs/Cargo.toml`
+- `lime-rs/crates/agent-protocol/src/response_item.rs`
+- `lime-rs/crates/agent-protocol/src/response_item/tests.rs`
+- `lime-rs/crates/agent-protocol/src/thread.rs`
+- `lime-rs/crates/agent-runtime/src/context_compaction/tests.rs`
+- `lime-rs/crates/agent-runtime/src/context_history.rs`
+- `lime-rs/crates/agent-runtime/src/lib.rs`
+- `lime-rs/crates/agent-runtime/src/model_history.rs`
+- `lime-rs/crates/agent-runtime/src/model_history/tests.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/model_history.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/output_lifecycle.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests/context_history.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests/continuation.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests/final_completion.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests/model_history.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tests/tool_call.rs`
+- `lime-rs/crates/agent-runtime/src/provider_turn/tool_call.rs`
+- `lime-rs/crates/agent-runtime/src/reply_loop.rs`
+- `lime-rs/crates/agent-runtime/src/session_config.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop/actor.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop/handle.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop/input_commit_tests.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop/input_queue.rs`
+- `lime-rs/crates/agent-runtime/src/session_loop/input_queue/commit.rs`
+- `lime-rs/crates/agent/src/current_provider_turn.rs`
+- `lime-rs/crates/agent/src/current_provider_turn/model_history.rs`
+- `lime-rs/crates/agent/src/protocol.rs`
+- `lime-rs/crates/agent/src/protocol/tests.rs`
+- `lime-rs/crates/app-server-protocol/schema/json/app_server_protocol.schemas.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ItemCompletedNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ItemStartedNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ReviewStartResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ServerNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/Thread.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadForkResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadItem.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadItemEntry.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadItemsListResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadListResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadMetadataUpdateResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadQueueStartResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadReadResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadResumeResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadRevertResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadSearchResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadSearchResult.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadStartResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadStartedNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadTurnsListResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/ThreadUnarchiveResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/Turn.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/TurnCompletedNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/TurnStartResponse.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/TurnStartedNotification.json`
+- `lime-rs/crates/app-server-protocol/schema/json/v2/TurnsPage.json`
+- `lime-rs/crates/app-server-protocol/src/protocol/v2/tests.rs`
+- `lime-rs/crates/app-server/src/command_exec.rs`
+- `lime-rs/crates/app-server/src/command_exec/sandbox.rs`
+- `lime-rs/crates/app-server/src/command_exec/tests.rs`
+- `lime-rs/crates/app-server/src/execution_process.rs`
+- `lime-rs/crates/app-server/src/execution_process/terminal/tests.rs`
+- `lime-rs/crates/app-server/src/execution_process/tests.rs`
+- `lime-rs/crates/app-server/src/local_data_source/plugin_catalog/bundle/tests/corpus.rs`
+- `lime-rs/crates/app-server/src/runtime/agent_control.rs`
+- `lime-rs/crates/app-server/src/runtime/agent_control/fork.rs`
+- `lime-rs/crates/app-server/src/runtime/context_compaction.rs`
+- `lime-rs/crates/app-server/src/runtime/context_compaction/boundary.rs`
+- `lime-rs/crates/app-server/src/runtime/context_compaction/operation.rs`
+- `lime-rs/crates/app-server/src/runtime/context_compaction/tests.rs`
+- `lime-rs/crates/app-server/src/runtime/context_packet.rs`
+- `lime-rs/crates/app-server/src/runtime/event_sink.rs`
+- `lime-rs/crates/app-server/src/runtime/memory_prompt.rs`
+- `lime-rs/crates/app-server/src/runtime/provider_history.rs`
+- `lime-rs/crates/app-server/src/runtime/provider_history/boundary_tests.rs`
+- `lime-rs/crates/app-server/src/runtime/provider_history/continuation_tests.rs`
+- `lime-rs/crates/app-server/src/runtime/provider_history/model_history.rs`
+- `lime-rs/crates/app-server/src/runtime/provider_history/tests.rs`
+- `lime-rs/crates/app-server/src/runtime/tests.rs`
+- `lime-rs/crates/app-server/src/runtime/tests/agent_control/fork.rs`
+- `lime-rs/crates/app-server/src/runtime/tests/context_auto_compaction.rs`
+- `lime-rs/crates/app-server/src/runtime/tests/input_commit.rs`
+- `lime-rs/crates/app-server/src/runtime/tests/sessions.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_fork.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_fork/compaction.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_fork/model_history.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_fork/settings.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_fork/tests.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_item_projection/materializer/lowering.rs`
+- `lime-rs/crates/app-server/src/runtime/thread_item_projection/typed_tests.rs`
+- `lime-rs/crates/app-server/src/runtime/turn_execution.rs`
+- `lime-rs/crates/app-server/src/runtime/turn_execution/input_commit.rs`
+- `lime-rs/crates/app-server/src/runtime/turn_execution/input_commit/tests.rs`
+- `lime-rs/crates/app-server/src/runtime/turn_execution/model_history.rs`
+- `lime-rs/crates/app-server/src/runtime/turn_execution/model_history/tests.rs`
+- `lime-rs/crates/app-server/src/runtime_backend.rs`
+- `lime-rs/crates/app-server/src/runtime_backend/event_mapper.rs`
+- `lime-rs/crates/app-server/src/runtime_backend/mention_selection.rs`
+- `lime-rs/crates/app-server/src/runtime_backend/tests/coding_event_projection.rs`
+- `lime-rs/crates/app-server/tests/command_exec_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/generate.py`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/index.json`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-claude-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-claude-implicit-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-claude-implicit-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-claude-parent-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-codex-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-codex-implicit-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-codex-implicit-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-codex-parent-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-cursor-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-cursor-implicit-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-cursor-implicit-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-cursor-parent-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-root-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-root-implicit-directory.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-root-implicit-file.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-valid-claude.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-valid-codex.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-valid-cursor.tar.gz`
+- `lime-rs/crates/app-server/tests/fixtures/plugin-archive/manifest-valid-root.tar.gz`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/catalog_truncation.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/command_history.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/history.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/history_representation.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/history_truncation.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model_fixture.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/model_tool_reply.rs`
+- `lime-rs/crates/app-server/tests/thread_compact_jsonrpc/origin_budget.rs`
+- `lime-rs/crates/app-server/tests/thread_compaction_boundary_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/thread_compaction_boundary_jsonrpc/session_checkpoint.rs`
+- `lime-rs/crates/app-server/tests/thread_fork_compaction_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/thread_fork_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/tool_history_receipt_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_continuation_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_continuation_jsonrpc/provider.rs`
+- `lime-rs/crates/app-server/tests/turn_final_completion_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_final_completion_jsonrpc/provider.rs`
+- `lime-rs/crates/app-server/tests/turn_interrupted_completion_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_interrupted_completion_jsonrpc/provider.rs`
+- `lime-rs/crates/app-server/tests/turn_message_phase_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_model_history_boundary_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_reasoning_history_jsonrpc.rs`
+- `lime-rs/crates/app-server/tests/turn_reasoning_history_jsonrpc/provider.rs`
+- `lime-rs/crates/app-server/tests/turn_reasoning_history_jsonrpc/routes.rs`
+- `lime-rs/crates/app-server/tests/turn_steer_admission_jsonrpc.rs`
+- `lime-rs/crates/media-runtime/src/llm_events.rs`
+- `lime-rs/crates/model-provider/src/current_client.rs`
+- `lime-rs/crates/model-provider/src/current_client/gemini.rs`
+- `lime-rs/crates/model-provider/src/current_client/gemini/identity_tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/health.rs`
+- `lime-rs/crates/model-provider/src/current_client/history.rs`
+- `lime-rs/crates/model-provider/src/current_client/history_tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/lowering.rs`
+- `lime-rs/crates/model-provider/src/current_client/lowering/responses.rs`
+- `lime-rs/crates/model-provider/src/current_client/lowering/tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream/call_identity/tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream/responses.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream/responses/completed_history.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream/responses/completion_tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream/responses/completion_tests/websocket.rs`
+- `lime-rs/crates/model-provider/src/current_client/stream_tests.rs`
+- `lime-rs/crates/model-provider/src/current_client/tool_arguments.rs`
+- `lime-rs/crates/runtime-core/src/llm_protocol/canonical.rs`
+- `lime-rs/crates/server/src/handlers/provider_calls.rs`
+- `lime-rs/crates/server/src/handlers/provider_calls/streaming.rs`
+- `lime-rs/crates/tool-runtime/src/tool_call_surface.rs`
+- `lime-rs/crates/tool-runtime/src/tool_call_surface/tests.rs`
+- `lime-rs/crates/tool-runtime/src/unified_exec.rs`
+- `lime-rs/crates/tool-runtime/src/unified_exec/session.rs`
+- `package.json`
+- `packages/app-server-client/src/browser.ts`
+- `packages/app-server-client/src/command-exec-timeout.ts`
+- `packages/app-server-client/src/generated/protocol-types.ts`
+- `packages/app-server-client/src/index.ts`
+- `packages/cli/package.json`
+- `pnpm-lock.yaml`
+- `scripts/agent-runtime/claw-chat-current-fixture-assertion-context.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-backend-ledger.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-common-assertions.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-code-dom.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-code-picker.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-history.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-history.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-image-upload.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-image-upload.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-marks.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-composer-marks.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-constants.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-draft-persistence.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-goal-identity.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-goal.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-gui-input-modes.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-inputbar-rich-restore.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-inputbar-rich-restore.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-resize-reflow.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-rich-input-evidence.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-rich-input-evidence.test.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-right-surface-visual.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-rpc.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-scenario-assertions.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-scenario-flow.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-skills-runtime-assertions.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-skills-workspace.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-smoke-skills-runtime-guards.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-smoke.mjs`
+- `scripts/agent-runtime/claw-chat-current-fixture-smoke.test.mjs`
+- `scripts/app-server/stdio-smoke.mjs`
+- `scripts/check-app-server-client-contract.mjs`
+- `scripts/check-command-contracts.mjs`
+- `scripts/electron/lib/background-terminal-gate-b.mjs`
+- `scripts/electron/lib/background-terminal-scenario.mjs`
+- `scripts/electron/lib/composer-draft-fixture-driver.mjs`
+- `scripts/electron/lib/review-thread-side-panel-gate-b.mjs`
+- `scripts/electron/lib/right-surface-lifecycle-gate-b.mjs`
+- `scripts/electron/lib/right-surface-lifecycle-gate-b.test.mjs`
+- `scripts/electron/lib/thread-side-panel-file-editor-scenario.mjs`
+- `scripts/electron/lib/thread-side-panel-navigation.mjs`
+- `scripts/electron/lib/thread-side-panel-new-tab-scenario.mjs`
+- `scripts/electron/lib/thread-side-panel-terminal-diagnostics.mjs`
+- `scripts/electron/mcp-config-fixture-smoke.test.mjs`
+- `scripts/electron/mcp-elicitation-gate-b.mjs`
+- `scripts/electron/plugin-package-electron-gate-b.test.mjs`
+- `scripts/knowledge-gui-smoke.mjs`
+- `scripts/lib/composer-editor-dom.mjs`
+- `scripts/lib/composer-editor-dom.test.mjs`
+- `src/App.tsx`
+- `src/components/AppPageContent.test.tsx`
+- `src/components/AppSidebar.test.tsx`
+- `src/components/AppSidebar.tsx`
+- `src/components/agent/chat/AgentChatWorkspace.homePendingPreview.test.ts`
+- `src/components/agent/chat/AgentChatWorkspace.rightSurfaceCompositionBoundaryGuard.test.ts`
+- `src/components/agent/chat/AgentChatWorkspace.workspaceBoundaryGuard.test.ts`
+- `src/components/agent/chat/agentChatPageShellViewModel.ts`
+- `src/components/agent/chat/agentChatPageShellViewModel.unit.test.ts`
+- `src/components/agent/chat/components/CanvasWorkbenchLayout.coding.test.tsx`
+- `src/components/agent/chat/components/CanvasWorkbenchLayout.test.tsx`
+- `src/components/agent/chat/components/CanvasWorkbenchLayout.testFixtures.tsx`
+- `src/components/agent/chat/components/CanvasWorkbenchLayoutViewModel.ts`
+- `src/components/agent/chat/components/CanvasWorkbenchLayoutViewModel.unit.test.ts`
+- `src/components/agent/chat/components/ConversationTurnTimeline.tsx`
+- `src/components/agent/chat/components/CuratedTaskLauncherDialog.test.tsx`
+- `src/components/agent/chat/components/CuratedTaskLauncherDialog.tsx`
+- `src/components/agent/chat/components/CuratedTaskLauncherDialogViewModel.ts`
+- `src/components/agent/chat/components/CuratedTaskLauncherDialogViewModel.unit.test.ts`
+- `src/components/agent/chat/components/EmptyState.draft.component.test.tsx`
+- `src/components/agent/chat/components/EmptyState.layout.component.test.tsx`
+- `src/components/agent/chat/components/EmptyState.project.component.test.tsx`
+- `src/components/agent/chat/components/EmptyState.selection.component.test.tsx`
+- `src/components/agent/chat/components/EmptyState.test.tsx`
+- `src/components/agent/chat/components/EmptyState.testFixtures.tsx`
+- `src/components/agent/chat/components/EmptyState.tsx`
+- `src/components/agent/chat/components/EmptyState.types.ts`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.inputFlow.test.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.references.test.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.teamSettings.test.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.test.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.testFixtures.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanel.tsx`
+- `src/components/agent/chat/components/EmptyStateComposerPanelViewModel.ts`
+- `src/components/agent/chat/components/EmptyStateComposerPanelViewModel.unit.test.ts`
+- `src/components/agent/chat/components/EmptyStateViewModel.ts`
+- `src/components/agent/chat/components/EmptyStateViewModel.unit.test.ts`
+- `src/components/agent/chat/components/FileManager/FileManagerSidebar.test.tsx`
+- `src/components/agent/chat/components/FileManager/FileManagerSidebar.tsx`
+- `src/components/agent/chat/components/FileManager/fileManagerDisplay.ts`
+- `src/components/agent/chat/components/FileManager/fileManagerSidebarViewModel.ts`
+- `src/components/agent/chat/components/FileManager/fileManagerSidebarViewModel.unit.test.ts`
+- `src/components/agent/chat/components/Inputbar/Inputbar.controls.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/Inputbar.draft.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/Inputbar.selection.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/Inputbar.testFixtures.tsx`
+- `src/components/agent/chat/components/Inputbar/Inputbar.workflow.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/BuiltinCommandBadge.tsx`
+- `src/components/agent/chat/components/Inputbar/components/ComposerLayout.tsx`
+- `src/components/agent/chat/components/Inputbar/components/ContextualSuggestions.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/ContextualSuggestions.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.alignment.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.planStatus.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarComposerSection.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarCore.dictation.component.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarCore.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarCore.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarPluginSelector.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarPlusMenu.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarTools.test.tsx`
+- `src/components/agent/chat/components/Inputbar/components/InputbarTools.tsx`
+- `src/components/agent/chat/components/Inputbar/components/RuntimeSceneBadge.tsx`
+- `src/components/agent/chat/components/Inputbar/components/contextualSuggestions.testFixtures.ts`
+- `src/components/agent/chat/components/Inputbar/components/inputbarComposerSectionCopy.ts`
+- `src/components/agent/chat/components/Inputbar/components/inputbarCoreCopy.ts`
+- `src/components/agent/chat/components/Inputbar/components/inputbarCoreCopy.unit.test.ts`
+- `src/components/agent/chat/components/Inputbar/components/inputbarToolsCopy.ts`
+- `src/components/agent/chat/components/Inputbar/composerStyles.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/inputbarControllerCopy.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/inputbarImageAttachmentsCopy.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/inputbarToolStateCopy.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/useImageAttachments.test.tsx`
+- `src/components/agent/chat/components/Inputbar/hooks/useImageAttachments.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/useInputbarController.stopRestore.integration.test.tsx`
+- `src/components/agent/chat/components/Inputbar/hooks/useInputbarController.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/useInputbarSend.test.tsx`
+- `src/components/agent/chat/components/Inputbar/hooks/useInputbarSend.ts`
+- `src/components/agent/chat/components/Inputbar/hooks/useInputbarToolState.ts`
+- `src/components/agent/chat/components/Inputbar/index.test.tsx`
+- `src/components/agent/chat/components/Inputbar/index.tsx`
+- `src/components/agent/chat/components/Inputbar/knowledge/InputbarKnowledgeControl.tsx`
+- `src/components/agent/chat/components/Inputbar/styles.ts`
+- `src/components/agent/chat/components/MessageList.directTimeline.test.tsx`
+- `src/components/agent/chat/components/MessageList.imageTasks.test.tsx`
+- `src/components/agent/chat/components/MessageList.userCollapse.component.test.tsx`
+- `src/components/agent/chat/components/MessageListItem.tsx`
+- `src/components/agent/chat/components/MessageListUserContent.tsx`
+- `src/components/agent/chat/components/MessageUserBody.tsx`
+- `src/components/agent/chat/components/ProjectShellSurface.tsx`
+- `src/components/agent/chat/components/ProjectShellTerminal.tsx`
+- `src/components/agent/chat/components/README.md`
+- `src/components/agent/chat/components/ShellBackgroundTerminalList.test.tsx`
+- `src/components/agent/chat/components/ShellBackgroundTerminalList.tsx`
+- `src/components/agent/chat/components/TaskCenterShellPanel.tsx`
+- `src/components/agent/chat/components/TaskCenterUtilityToolbar.integration.test.tsx`
+- `src/components/agent/chat/components/TaskCenterUtilityToolbar.planRail.test.tsx`
+- `src/components/agent/chat/components/TaskCenterUtilityToolbar.tsx`
+- `src/components/agent/chat/components/TerminalPanel.test.tsx`
+- `src/components/agent/chat/components/TerminalPanel.tsx`
+- `src/components/agent/chat/components/TerminalTab.tsx`
+- `src/components/agent/chat/components/XtermOutputPanel.test.tsx`
+- `src/components/agent/chat/components/XtermOutputPanel.tsx`
+- `src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.test.tsx`
+- `src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.tsx`
+- `src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModeViewModel.ts`
+- `src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchShell.tsx`
+- `src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchWorkspacePanel.tsx`
+- `src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesContent.tsx`
+- `src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesFileList.tsx`
+- `src/components/agent/chat/components/canvas-workbench/changes/CanvasWorkbenchChangesPanel.tsx`
+- `src/components/agent/chat/components/canvas-workbench/changes/useCanvasWorkbenchChangesFilesPanelResize.test.tsx`
+- `src/components/agent/chat/components/canvas-workbench/changes/useCanvasWorkbenchChangesFilesPanelResize.ts`
+- `src/components/agent/chat/components/canvas-workbench/files/useCanvasWorkbenchFileTreeState.ts`
+- `src/components/agent/chat/components/canvas-workbench/files/useFileTreeResize.test.tsx`
+- `src/components/agent/chat/components/canvas-workbench/files/useFileTreeResize.ts`
+- `src/components/agent/chat/components/canvas-workbench/files/workspaceFileDisplay.ts`
+- `src/components/agent/chat/components/canvas-workbench/files/workspaceFilePreview.ts`
+- `src/components/agent/chat/components/canvas-workbench/useCanvasWorkbenchDocumentState.ts`
+- `src/components/agent/chat/components/composerAttachmentsCopy.ts`
+- `src/components/agent/chat/components/messageListItemProjection.ts`
+- `src/components/agent/chat/components/messageListUserContentState.ts`
+- `src/components/agent/chat/components/terminalKeyboard.test.ts`
+- `src/components/agent/chat/components/terminalKeyboard.ts`
+- `src/components/agent/chat/components/terminalTheme.ts`
+- `src/components/agent/chat/components/useComposerAttachments.native.test.tsx`
+- `src/components/agent/chat/components/useComposerAttachments.test.tsx`
+- `src/components/agent/chat/components/useComposerAttachments.ts`
+- `src/components/agent/chat/components/useCuratedTaskLauncherState.ts`
+- `src/components/agent/chat/components/useCuratedTaskLauncherState.unit.test.tsx`
+- `src/components/agent/chat/components/useEmptyStateAttachments.test.tsx`
+- `src/components/agent/chat/components/useEmptyStateAttachments.ts`
+- `src/components/agent/chat/components/useEmptyStateRecommendationPreferences.ts`
+- `src/components/agent/chat/components/useEmptyStateRecommendationPreferences.unit.test.tsx`
+- `src/components/agent/chat/home/homeSurfaceCopy.ts`
+- `src/components/agent/chat/hooks/agentChatHistory.localMerge.test.ts`
+- `src/components/agent/chat/hooks/agentSessionScopedStorage.ts`
+- `src/components/agent/chat/hooks/agentStreamFlowControl.test.ts`
+- `src/components/agent/chat/hooks/agentStreamInputRestorePolicy.unit.test.ts`
+- `src/components/agent/chat/hooks/agentStreamSubmitDraft.component.test.ts`
+- `src/components/agent/chat/hooks/agentStreamUserInputSendPreparation.structured.unit.test.ts`
+- `src/components/agent/chat/hooks/agentStreamUserInputSendPreparation.test.ts`
+- `src/components/agent/chat/hooks/useFileManagerSidebar.test.tsx`
+- `src/components/agent/chat/hooks/useFileManagerSidebar.ts`
+- `src/components/agent/chat/index.shell-routing.test.tsx`
+- `src/components/agent/chat/index.testFixtures.tsx`
+- `src/components/agent/chat/index.workbench01.test.tsx`
+- `src/components/agent/chat/index.workbench02.test.tsx`
+- `src/components/agent/chat/projection/turnTimelineRenderProjection.ownership.test.ts`
+- `src/components/agent/chat/skill-selection/CharacterMention.catalog.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.catalog.unit.test.ts`
+- `src/components/agent/chat/skill-selection/CharacterMention.catalogBuiltins.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.history.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.projectFiles.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.slashActions.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.slashRecent.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.slashTemplates.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.test.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.testFixtures.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.tsx`
+- `src/components/agent/chat/skill-selection/CharacterMention.types.ts`
+- `src/components/agent/chat/skill-selection/CharacterMentionPanel.tsx`
+- `src/components/agent/chat/skill-selection/CuratedTaskBadge.test.tsx`
+- `src/components/agent/chat/skill-selection/CuratedTaskBadge.tsx`
+- `src/components/agent/chat/skill-selection/SkillSelector.test.tsx`
+- `src/components/agent/chat/skill-selection/SkillSelector.tsx`
+- `src/components/agent/chat/skill-selection/characterMentionPanelLoader.ts`
+- `src/components/agent/chat/skill-selection/composerCapabilityMention.ts`
+- `src/components/agent/chat/skill-selection/composerCapabilityMention.unit.test.ts`
+- `src/components/agent/chat/skill-selection/composerMentionSelection.ts`
+- `src/components/agent/chat/skill-selection/inputCapabilitySections.test.ts`
+- `src/components/agent/chat/skill-selection/inputCapabilitySections.ts`
+- `src/components/agent/chat/skill-selection/inputCapabilitySelection.test.ts`
+- `src/components/agent/chat/skill-selection/inputCapabilitySelection.ts`
+- `src/components/agent/chat/skill-selection/pluginCapabilitySections.ts`
+- `src/components/agent/chat/skill-selection/pluginCapabilitySections.unit.test.ts`
+- `src/components/agent/chat/skill-selection/projectFileMention.ts`
+- `src/components/agent/chat/skill-selection/projectFileMention.unit.test.ts`
+- `src/components/agent/chat/skill-selection/scheduleIdleModulePreload.ts`
+- `src/components/agent/chat/skill-selection/skillDisplayName.ts`
+- `src/components/agent/chat/skill-selection/skillDisplayName.unit.test.ts`
+- `src/components/agent/chat/skill-selection/skillQuery.test.ts`
+- `src/components/agent/chat/skill-selection/skillQuery.ts`
+- `src/components/agent/chat/skill-selection/skillSelectionBindings.ts`
+- `src/components/agent/chat/skill-selection/skillSelectionDisplay.test.ts`
+- `src/components/agent/chat/skill-selection/skillSelectionDisplay.ts`
+- `src/components/agent/chat/skill-selection/useCharacterMentionSelection.ts`
+- `src/components/agent/chat/skill-selection/useComposerCapabilitySelection.ts`
+- `src/components/agent/chat/skill-selection/useIdleModulePreload.ts`
+- `src/components/agent/chat/skill-selection/useProjectFileMentionSearch.test.tsx`
+- `src/components/agent/chat/skill-selection/useProjectFileMentionSearch.ts`
+- `src/components/agent/chat/utils/agentMessagePhase.unit.test.ts`
+- `src/components/agent/chat/workspace/BackgroundTerminalList.tsx`
+- `src/components/agent/chat/workspace/CodingWorkbenchOutputPanel.tsx`
+- `src/components/agent/chat/workspace/LocalConversationBackgroundTerminalTab.test.tsx`
+- `src/components/agent/chat/workspace/LocalConversationBackgroundTerminalTab.tsx`
+- `src/components/agent/chat/workspace/ReviewThreadSidePanelTab.test.tsx`
+- `src/components/agent/chat/workspace/ReviewThreadSidePanelTab.tsx`
+- `src/components/agent/chat/workspace/ThreadSources.component.test.tsx`
+- `src/components/agent/chat/workspace/ThreadSources.composer.component.test.tsx`
+- `src/components/agent/chat/workspace/ThreadSources.tsx`
+- `src/components/agent/chat/workspace/ThreadSources.webSearch.component.test.tsx`
+- `src/components/agent/chat/workspace/ThreadSummaryPanel.test.tsx`
+- `src/components/agent/chat/workspace/ThreadSummaryPanel.tsx`
+- `src/components/agent/chat/workspace/ThreadSummarySection.tsx`
+- `src/components/agent/chat/workspace/WorkspaceConversationScene.test.tsx`
+- `src/components/agent/chat/workspace/WorkspaceConversationScene.tsx`
+- `src/components/agent/chat/workspace/WorkspaceFileManagerSidebarRuntime.tsx`
+- `src/components/agent/chat/workspace/WorkspaceFileThreadSidePanelTab.test.tsx`
+- `src/components/agent/chat/workspace/WorkspaceFileThreadSidePanelTab.tsx`
+- `src/components/agent/chat/workspace/WorkspaceMainArea.test.tsx`
+- `src/components/agent/chat/workspace/WorkspaceMainArea.tsx`
+- `src/components/agent/chat/workspace/WorkspaceRightSurfaceHostRuntime.tsx`
+- `src/components/agent/chat/workspace/WorkspaceShellScene.tsx`
+- `src/components/agent/chat/workspace/WorkspaceStyles.tsx`
+- `src/components/agent/chat/workspace/agentChatWorkspaceHelpers.ts`
+- `src/components/agent/chat/workspace/chatSurfaceProps.ts`
+- `src/components/agent/chat/workspace/fileTreeOrder.test.ts`
+- `src/components/agent/chat/workspace/fileTreeOrder.ts`
+- `src/components/agent/chat/workspace/inputCapabilityRouting.test.ts`
+- `src/components/agent/chat/workspace/inputCapabilityRouting.ts`
+- `src/components/agent/chat/workspace/localConversationBackgroundTerminalSignals.test.ts`
+- `src/components/agent/chat/workspace/localConversationBackgroundTerminalSignals.ts`
+- `src/components/agent/chat/workspace/right-surface/RightSurfaceHost.tsx`
+- `src/components/agent/chat/workspace/right-surface/RightSurfaceHost.unit.test.tsx`
+- `src/components/agent/chat/workspace/right-surface/RightSurfaceTabStrip.tsx`
+- `src/components/agent/chat/workspace/right-surface/ThreadSidePanelLauncher.tsx`
+- `src/components/agent/chat/workspace/right-surface/ThreadSidePanelNewTab.tsx`
+- `src/components/agent/chat/workspace/right-surface/WorkspaceDirectoryTree.test.tsx`
+- `src/components/agent/chat/workspace/right-surface/WorkspaceDirectoryTree.tsx`
+- `src/components/agent/chat/workspace/right-surface/WorkspaceFileTree.tsx`
+- `src/components/agent/chat/workspace/right-surface/fileTreeViewport.test.ts`
+- `src/components/agent/chat/workspace/right-surface/fileTreeViewport.ts`
+- `src/components/agent/chat/workspace/right-surface/openBackgroundTerminal.test.ts`
+- `src/components/agent/chat/workspace/right-surface/openBackgroundTerminal.ts`
+- `src/components/agent/chat/workspace/right-surface/openWorkspaceFile.ts`
+- `src/components/agent/chat/workspace/right-surface/rightSurfaceRegistry.ts`
+- `src/components/agent/chat/workspace/right-surface/rightSurfaceRegistry.unit.test.ts`
+- `src/components/agent/chat/workspace/right-surface/rightSurfaceTypes.ts`
+- `src/components/agent/chat/workspace/right-surface/threadSidePanelActions.ts`
+- `src/components/agent/chat/workspace/right-surface/threadSidePanelTabs.test.ts`
+- `src/components/agent/chat/workspace/right-surface/threadSidePanelTabs.ts`
+- `src/components/agent/chat/workspace/right-surface/useFileTreeViewport.ts`
+- `src/components/agent/chat/workspace/stopSendChain.testFixtures.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/CodeMirrorFileEditor.test.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/CodeMirrorFileEditor.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/FileEditorController.test.ts`
+- `src/components/agent/chat/workspace/text-file-editor/FileEditorController.ts`
+- `src/components/agent/chat/workspace/text-file-editor/FileEditorHistoryToolbar.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/FileSourceBreadcrumb.test.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/FileSourceBreadcrumb.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/FileTabLifecycle.test.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/FileTabLifecycle.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/InlineFileDiffReview.test.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/InlineFileDiffReview.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/TextFileEditorTabContent.test.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/TextFileEditorTabContent.tsx`
+- `src/components/agent/chat/workspace/text-file-editor/fileDocument.ts`
+- `src/components/agent/chat/workspace/text-file-editor/fileEditorPhrases.ts`
+- `src/components/agent/chat/workspace/text-file-editor/filePathBreadcrumb.test.ts`
+- `src/components/agent/chat/workspace/text-file-editor/filePathBreadcrumb.ts`
+- `src/components/agent/chat/workspace/text-file-editor/fileTabDraftContext.ts`
+- `src/components/agent/chat/workspace/text-file-editor/fileTabLifecycleContext.ts`
+- `src/components/agent/chat/workspace/text-file-editor/useFileTabCloseGuard.ts`
+- `src/components/agent/chat/workspace/threadSummaryProjection.ts`
+- `src/components/agent/chat/workspace/useAgentChatWorkspaceComposerScope.unit.test.tsx`
+- `src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts`
+- `src/components/agent/chat/workspace/useAgentChatWorkspaceLocalDisplayState.ts`
+- `src/components/agent/chat/workspace/useAgentChatWorkspaceSceneComposition.tsx`
+- `src/components/agent/chat/workspace/useAgentChatWorkspaceSceneRuntime.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceConversationLandingSurfaceRuntime.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.test.ts`
+- `src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.testFixtures.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceEntryNavigationRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceInputbarScenePresentationRuntime.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.test.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceNavigationActions.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceActionRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceCompositionRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceCoordinatorRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceHostRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceLifecycle.unit.test.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceLocalStateRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceLocalStateRuntime.unit.test.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceRightSurfaceProjectionRuntime.ts`
+- `src/components/agent/chat/workspace/useWorkspaceSendActions.test.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceSkillDirectoryRuntime.component.test.tsx`
+- `src/components/agent/chat/workspace/useWorkspaceSkillDirectoryRuntime.ts`
+- `src/components/agent/chat/workspace/workspaceConversationRightSurfaceChrome.ts`
+- `src/components/agent/chat/workspace/workspaceConversationRightSurfaceChrome.unit.test.ts`
+- `src/components/agent/chat/workspace/workspaceEntryLoadDeferral.ts`
+- `src/components/agent/chat/workspace/workspaceEntryLoadDeferral.unit.test.ts`
+- `src/components/agent/chat/workspace/workspaceRightSurfaceRuntimeProjection.ts`
+- `src/components/agent/chat/workspace/workspaceRightSurfaceRuntimeProjection.unit.test.ts`
+- `src/components/agent/chat/workspace/workspaceSendHelpers.test.ts`
+- `src/components/agent/chat/workspace/workspaceTreeVisibility.test.ts`
+- `src/components/agent/chat/workspace/workspaceTreeVisibility.ts`
+- `src/components/agent/chat/workspaceEntry.test.ts`
+- `src/components/agent/chat/workspaceEntry.ts`
+- `src/components/artifact/ArtifactPreviewHeader.test.tsx`
+- `src/components/artifact/ArtifactPreviewHeader.tsx`
+- `src/components/artifact/document/DocumentPreview.integration.test.tsx`
+- `src/components/general-chat/canvas/CodePreview.tsx`
+- `src/components/input-kit/ComposerCommands.test.ts`
+- `src/components/input-kit/ComposerCommands.ts`
+- `src/components/input-kit/ComposerController.ts`
+- `src/components/input-kit/ComposerEditor.test.tsx`
+- `src/components/input-kit/ComposerIntegration.test.tsx`
+- `src/components/input-kit/InlineControlLayout.test.tsx`
+- `src/components/input-kit/InlineControlLayout.tsx`
+- `src/components/input-kit/ModelSelector.tsx`
+- `src/components/input-kit/ModelSelectorTrigger.tsx`
+- `src/components/input-kit/SuggestionList.component.test.tsx`
+- `src/components/input-kit/SuggestionList.tsx`
+- `src/components/input-kit/composerDraftCodec.test.ts`
+- `src/components/input-kit/composerEditor.testUtils.ts`
+- `src/components/input-kit/composerMarks.testFixtures.ts`
+- `src/components/input-kit/composerMention.ts`
+- `src/components/input-kit/composerSchema.ts`
+- `src/components/input-kit/composerSerialization.ts`
+- `src/components/input-kit/composerState.ts`
+- `src/components/input-kit/composerSuggestions.test.ts`
+- `src/components/input-kit/composerSuggestions.ts`
+- `src/components/input-kit/types.ts`
+- `src/components/input-kit/useComposerCommand.component.test.tsx`
+- `src/components/input-kit/useComposerCommand.ts`
+- `src/components/input-kit/useComposerController.externalOwner.test.tsx`
+- `src/components/skills/SkillsWorkspacePage.marketplace.test.tsx`
+- `src/components/skills/SkillsWorkspacePage.test.tsx`
+- `src/components/skills/SkillsWorkspacePage.testFixtures.tsx`
+- `src/components/skills/SkillsWorkspacePage.tsx`
+- `src/components/skills/useSkillsWorkspaceLocalSkillActions.ts`
+- `src/components/workspace/layout/LayoutTransition.tsx`
+- `src/components/workspace/layout/contentPaneWidth.test.ts`
+- `src/components/workspace/layout/contentPaneWidth.ts`
+- `src/features/knowledge/import/knowledgeSourceImport.test.ts`
+- `src/features/knowledge/import/knowledgeSourceImport.ts`
+- `src/i18n/__tests__/artifactPreviewHeader.test.ts`
+- `src/i18n/__tests__/loadNamespace.test.ts`
+- `src/i18n/__tests__/types.test.ts`
+- `src/i18n/legacy-patch/patches/en.json`
+- `src/i18n/legacy-patch/patches/zh.json`
+- `src/i18n/resources/en-US/agent.json`
+- `src/i18n/resources/en-US/agentHome.json`
+- `src/i18n/resources/en-US/agentInputbar.json`
+- `src/i18n/resources/en-US/navigation.json`
+- `src/i18n/resources/en-US/workspace.json`
+- `src/i18n/resources/ja-JP/agent.json`
+- `src/i18n/resources/ja-JP/agentHome.json`
+- `src/i18n/resources/ja-JP/agentInputbar.json`
+- `src/i18n/resources/ja-JP/navigation.json`
+- `src/i18n/resources/ja-JP/workspace.json`
+- `src/i18n/resources/ko-KR/agent.json`
+- `src/i18n/resources/ko-KR/agentHome.json`
+- `src/i18n/resources/ko-KR/agentInputbar.json`
+- `src/i18n/resources/ko-KR/navigation.json`
+- `src/i18n/resources/ko-KR/workspace.json`
+- `src/i18n/resources/zh-CN/agent.json`
+- `src/i18n/resources/zh-CN/agentHome.json`
+- `src/i18n/resources/zh-CN/agentInputbar.json`
+- `src/i18n/resources/zh-CN/navigation.json`
+- `src/i18n/resources/zh-CN/workspace.json`
+- `src/i18n/resources/zh-TW/agent.json`
+- `src/i18n/resources/zh-TW/agentHome.json`
+- `src/i18n/resources/zh-TW/agentInputbar.json`
+- `src/i18n/resources/zh-TW/navigation.json`
+- `src/i18n/resources/zh-TW/workspace.json`
+- `src/lib/api/fileBrowser.test.ts`
+- `src/lib/api/fileBrowser.ts`
+- `src/lib/api/filePicker.test.ts`
+- `src/lib/api/filePicker.ts`
+- `src/lib/api/fileSystem.ts`
+- `src/lib/api/runtimeSkillCatalog.ts`
+- `src/lib/api/runtimeSkillCatalog.unit.test.ts`
+- `src/lib/api/skills.ts`
+- `src/lib/api/textFileStorage.test.ts`
+- `src/lib/api/textFileStorage.ts`
+- `src/lib/artifact/saveFileCopy.test.ts`
+- `src/lib/artifact/saveFileCopy.ts`
+- `src/lib/deepLink/websiteLaunch.test.ts`
+- `src/lib/deepLink/websiteLaunch.ts`
+- `src/lib/desktop-host/dialog.test.ts`
+- `src/lib/desktop-host/dialog.ts`
+- `src/lib/desktop-host/dialogOptions.ts`
+- `src/lib/dev-bridge/commandExecTimeout.test.ts`
+- `src/lib/dev-bridge/commandExecTimeout.ts`
+- `src/lib/dev-bridge/http-client.ts`
+- `src/lib/dev-bridge/mockPriorityCommands.test.ts`
+- `src/lib/electron-host.ts`
+- `src/lib/governance/agentCommandCatalog.json`
+- `src/lib/governance/agentRuntimeExportBoundary.test.ts`
+- `src/lib/governance/legacySurfaceCatalog.json`
+- `src/lib/governance/legacySurfaceCatalog.test.ts`
+- `src/types/page.ts`
+
+</details>

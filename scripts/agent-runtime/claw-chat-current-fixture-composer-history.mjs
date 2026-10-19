@@ -64,7 +64,11 @@ function readHistorySnapshotDom({ sessionId }) {
         id: node.getAttribute("data-composer-id"),
         name: node.getAttribute("data-composer-name"),
         path: node.getAttribute("data-composer-path"),
-        label: node.textContent,
+        label: ["file", "skill", "plugin"].includes(kind)
+          ? node.getAttribute("data-composer-label")
+          : node.textContent,
+        displayName: node.getAttribute("data-composer-display-name"),
+        renderedText: node.textContent,
         editable: node.getAttribute("contenteditable"),
       };
     }
@@ -173,61 +177,50 @@ export async function prepareHistoryPaste(page, sessionId, text) {
   return pastes[0];
 }
 
-export async function observeHistorySkillCapability(
+export async function observeHistorySkillMention(
   page,
   sessionId,
   skillName,
   active,
   timeoutMs,
 ) {
-  const trigger = page
-    .locator(`${composerEditorSelector(sessionId)}:visible`)
-    .locator(
-      'xpath=ancestor::*[@data-testid="inputbar-core-container"][1]//*[@data-testid="inputbar-plus-trigger"]',
-    );
-  await trigger.click();
-  await page.locator('[data-testid="inputbar-plus-skills"]:visible').click();
-  const panel = page.locator(
-    '[data-testid="inputbar-plus-panel-skills"]:visible',
-  );
-  await panel.waitFor({
+  const editor = page.locator(`${composerEditorSelector(sessionId)}:visible`);
+  await editor.waitFor({
     state: "visible",
     timeout: Math.min(timeoutMs, 10_000),
   });
   await page.waitForFunction(
-    ({ active, skillName }) => {
-      const panels = Array.from(
-        document.querySelectorAll('[data-testid="inputbar-plus-panel-skills"]'),
-      ).filter(
-        (node) =>
-          node instanceof HTMLElement && node.getClientRects().length > 0,
+    ({ sessionId, skillName, active }) => {
+      const editor = document.querySelector(
+        `[data-testid="composer-editor"][data-session-id="${CSS.escape(sessionId)}"]`,
       );
-      if (panels.length !== 1) return false;
-      const clear = panels[0].querySelector(
-        '[data-testid="skill-selector-clear"]',
+      const mentions = [
+        ...(editor?.querySelectorAll('[data-composer-token="skill"]') ?? []),
+      ];
+      const found = mentions.some(
+        (node) => node.getAttribute("data-composer-name") === skillName,
       );
-      return active
-        ? !!clear &&
-            (clear.parentElement?.textContent ?? "").includes(skillName)
-        : !clear;
+      return Boolean(editor) && found === active;
     },
-    { active, skillName },
+    { sessionId, skillName, active },
     { timeout: Math.min(timeoutMs, 10_000) },
   );
-  const observation = await panel.evaluate((node) => {
-    const clear = node.querySelector('[data-testid="skill-selector-clear"]');
+  return editor.evaluate((node, skillName) => {
+    const mention = [
+      ...node.querySelectorAll('[data-composer-token="skill"]'),
+    ].find((node) => node.getAttribute("data-composer-name") === skillName);
     return {
-      panelObserved: true,
-      active: !!clear,
-      selectionLabel: clear?.parentElement?.textContent ?? null,
+      documentObserved: true,
+      active: Boolean(mention),
+      identity: mention
+        ? {
+            name: mention.getAttribute("data-composer-name"),
+            path: mention.getAttribute("data-composer-path"),
+            id: mention.getAttribute("data-composer-id"),
+          }
+        : null,
     };
-  });
-  await trigger.click();
-  await panel.waitFor({
-    state: "hidden",
-    timeout: Math.min(timeoutMs, 10_000),
-  });
-  return observation;
+  }, skillName);
 }
 
 function isLiveSnapshot(snapshot, sessionId) {
@@ -340,7 +333,7 @@ export function summarizeComposerHistoryRecall({
         token.type === "skill" &&
         isExpectedSkillIdentity(token, skillIdentity) &&
         token.id === skillIdentity.key &&
-        token.label === `/${skillIdentity.key}` &&
+        token.label === `$${skillIdentity.name}` &&
         token.editable === "false",
     ) &&
     prepared.tokens.some(
@@ -365,16 +358,15 @@ export function summarizeComposerHistoryRecall({
       (path) => path.id && path.path && path.name && path.isDir === "false",
     ) &&
     isDeepStrictEqual(prepared.paths, recalled?.paths);
-  const capabilityPreserved =
-    prepared?.capability?.panelObserved === true &&
-    prepared.capability.active === true &&
-    prepared.capability.selectionLabel?.includes(skillIdentity?.name) ===
-      true &&
-    isDeepStrictEqual(prepared.capability, recalled?.capability) &&
+  const skillMentionPreserved =
+    prepared?.skillMention?.documentObserved === true &&
+    prepared.skillMention.active === true &&
+    isExpectedSkillIdentity(prepared.skillMention.identity, skillIdentity) &&
+    isDeepStrictEqual(prepared.skillMention, recalled?.skillMention) &&
     [cleared, returned].every(
       (snapshot) =>
-        snapshot?.capability?.panelObserved === true &&
-        snapshot.capability.active === false,
+        snapshot?.skillMention?.documentObserved === true &&
+        snapshot.skillMention.active === false,
     );
   const keyboardObserved =
     isDeepStrictEqual(keyboardActions, [
@@ -462,8 +454,8 @@ export function summarizeComposerHistoryRecall({
       ),
       expectedWireTextPresent:
         typeof expectedWireText === "string" &&
-        expectedWireText.startsWith(`/${skillIdentity?.name} `) &&
-        expectedWireText.length > skillIdentity.name.length + 2,
+        expectedWireText === expectedSubmission?.text &&
+        expectedWireText.length > 0,
       backendTextMatched: backendText === expectedWireText,
     };
     acceptedSubmissionObserved = Object.values(checks).every(Boolean);
@@ -507,7 +499,7 @@ export function summarizeComposerHistoryRecall({
     tokenIdentityPreserved,
     imagesPreserved,
     pathIdentityPreserved,
-    capabilityPreserved,
+    skillMentionPreserved,
     canonicalInputUnchanged,
     noAdditionalInput,
   };
@@ -554,7 +546,7 @@ export async function captureComposerHistoryDraft(
       draft.paths.length === 1,
     "history rich draft DOM/图片解码未准备完整",
   );
-  snapshot.capability = await observeHistorySkillCapability(
+  snapshot.skillMention = await observeHistorySkillMention(
     page,
     sessionId,
     skillIdentity.name,
@@ -582,18 +574,6 @@ export async function clearComposerDraftForHistory({
   );
   await image.locator("..").getByRole("button").click();
   await path.getByRole("button").last().click();
-  const trigger = core.locator('[data-testid="inputbar-plus-trigger"]');
-  await trigger.click();
-  await page.locator('[data-testid="inputbar-plus-skills"]:visible').click();
-  const panel = page.locator(
-    '[data-testid="inputbar-plus-panel-skills"]:visible',
-  );
-  await panel.locator('[data-testid="skill-selector-clear"]').click();
-  await trigger.click();
-  await panel.waitFor({
-    state: "hidden",
-    timeout: Math.min(options.timeoutMs, 10_000),
-  });
   await editor.press("ControlOrMeta+A");
   await editor.press("Backspace");
   const cleared = await waitForSnapshot(
@@ -607,7 +587,7 @@ export async function clearComposerDraftForHistory({
     origin: "user_clear_after_verified_stop_restore",
     sessionId,
     actionSource:
-      "Electron/CDP public image/path remove, Skill clear and editor keyboard",
+      "Electron/CDP public image/path remove, inline mention deletion and editor keyboard",
     emptyText: cleared.text === "",
     tokenCount: cleared.tokens.length,
     imageCount: cleared.images.length,
@@ -656,7 +636,7 @@ export async function verifyComposerHistoryRecall({
     isEmptySnapshot,
     "history 验收起点未清空完整 Composer draft",
   );
-  cleared.capability = await observeHistorySkillCapability(
+  cleared.skillMention = await observeHistorySkillMention(
     page,
     sessionId,
     skillIdentity.name,
@@ -689,7 +669,7 @@ export async function verifyComposerHistoryRecall({
       isDeepStrictEqual(snapshot.paths, prepared.paths),
     "ArrowUp 未恢复完整可见 rich draft",
   );
-  recalled.capability = await observeHistorySkillCapability(
+  recalled.skillMention = await observeHistorySkillMention(
     page,
     sessionId,
     skillIdentity.name,
@@ -707,7 +687,7 @@ export async function verifyComposerHistoryRecall({
     isEmptySnapshot,
     "ArrowDown 未返回发送后空草稿",
   );
-  returned.capability = await observeHistorySkillCapability(
+  returned.skillMention = await observeHistorySkillMention(
     page,
     sessionId,
     skillIdentity.name,

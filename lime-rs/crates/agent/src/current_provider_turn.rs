@@ -42,6 +42,7 @@ mod hook_step_snapshot;
 #[cfg(test)]
 mod input_tests;
 mod mcp_step_snapshot;
+mod model_history;
 mod structured_input;
 mod tool_executor;
 mod tool_lifecycle_emitter;
@@ -147,6 +148,10 @@ where
         cancel_token.clone(),
     );
 
+    session_config.model_history_recorder = session_config
+        .model_history_recorder
+        .take()
+        .map(|recorder| model_history::ordered_recorder(recorder, host_event_sender.clone()));
     let turn_future = run_current_provider_turn(
         CurrentProviderTurnInput {
             provider: Arc::new(provider.session()),
@@ -170,7 +175,13 @@ where
         tokio::select! {
             biased;
             Some(event) = host_event_receiver.recv() => {
-                handle_ordered_host_event(event, &mut agent_event_receiver, &provider_name, policy, &mut artifact_events, &mut web_search_tracker, &mut usage, &mut on_event);
+                match event {
+                    CurrentTurnHostEvent::ModelHistory(append) => {
+                        drain_ready_agent_events(&mut agent_event_receiver, &mut on_event);
+                        append.persist().await;
+                    }
+                    event => handle_ordered_host_event(event, &mut agent_event_receiver, &provider_name, policy, &mut artifact_events, &mut web_search_tracker, &mut usage, &mut on_event),
+                }
             }
             result = &mut turn_future => {
                 drain_ready_turn_events(&mut host_event_receiver, &mut agent_event_receiver, &provider_name, policy, &mut artifact_events, &mut web_search_tracker, &mut usage, &mut on_event);
@@ -206,6 +217,7 @@ where
 
 enum CurrentTurnHostEvent {
     Provider(CurrentProviderTurnEvent),
+    ModelHistory(model_history::HistoryAppend),
     ToolLifecycle(AgentEvent),
 }
 
@@ -288,6 +300,7 @@ fn handle_host_event<F>(
     F: FnMut(&AgentEvent),
 {
     match event {
+        CurrentTurnHostEvent::ModelHistory(append) => append.reject(),
         CurrentTurnHostEvent::Provider(event) => {
             handle_provider_event(event, provider_name, artifact_events, usage, on_event)
         }
@@ -343,17 +356,7 @@ fn handle_provider_event<F>(
         ),
         CurrentProviderTurnEvent::TextEnd { item_id, phase } => emit_with_artifacts(
             artifact_events,
-            AgentEvent::TextEnd {
-                item_id,
-                phase: match phase {
-                    agent_runtime::provider_turn::CurrentProviderTextPhase::Commentary => {
-                        crate::protocol::AgentMessagePhase::Commentary
-                    }
-                    agent_runtime::provider_turn::CurrentProviderTextPhase::FinalAnswer => {
-                        crate::protocol::AgentMessagePhase::FinalAnswer
-                    }
-                },
-            },
+            AgentEvent::TextEnd { item_id, phase },
             on_event,
         ),
         CurrentProviderTurnEvent::ReasoningStart { item_id } => emit_with_artifacts(

@@ -451,6 +451,8 @@ export class PersistedAtomStore {
             ...snapshot,
             storeRevision: Number.MAX_SAFE_INTEGER,
             atoms: {
+              ...snapshot.atoms,
+              [SUMMARY_PANEL_PIN_ATOM_KEY]: false,
               [COMPOSER_ATOM_KEY]: { bindings, entries: reservedEntries },
             },
           }),

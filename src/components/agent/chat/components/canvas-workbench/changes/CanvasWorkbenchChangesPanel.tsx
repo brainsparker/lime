@@ -25,7 +25,7 @@ import { CanvasWorkbenchChangeDiffList } from "./CanvasWorkbenchChangeDiffList";
 import type { CanvasWorkbenchChangesToolbarProps } from "./CanvasWorkbenchChangesToolbar";
 import { CanvasWorkbenchEmptyDiffPanel } from "./CanvasWorkbenchEmptyDiffPanel";
 import { CanvasWorkbenchReviewSurface } from "./CanvasWorkbenchReviewSurface";
-import { useCanvasWorkbenchChangesFilesPanelResize } from "./useCanvasWorkbenchChangesFilesPanelResize";
+import { useFileTreeResize } from "../files/useFileTreeResize";
 import { useCanvasWorkbenchReviewState } from "./useCanvasWorkbenchReviewState";
 import type {
   CanvasWorkbenchReviewBase,
@@ -82,10 +82,7 @@ export function CanvasWorkbenchChangesPanel({
     handleFilesPanelResizeEnd,
     handleFilesPanelResizeKeyDown,
     resetFilesPanelWidth,
-  } = useCanvasWorkbenchChangesFilesPanelResize(
-    filesPanelOpen,
-    onToggleFilesPanel,
-  );
+  } = useFileTreeResize(filesPanelOpen, onToggleFilesPanel);
   const {
     backendHasGitRepository,
     backendPatch,

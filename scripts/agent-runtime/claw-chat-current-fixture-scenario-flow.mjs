@@ -1,5 +1,6 @@
 import process from "node:process";
 import { runReasoningFirstVisibleScenario } from "./reasoning-fixture.mjs";
+import { runGoalScenario } from "./claw-chat-current-fixture-goal.mjs";
 
 import {
   APPROVAL_REQUEST_CANCEL_SCENARIO,
@@ -14,8 +15,6 @@ import {
   CONTINUE_PROMPT,
   ELECTRON_RESIZE_REFLOW_SCENARIO,
   EXPERT_SKILLS_RUNTIME_SESSION_TITLE,
-  GOAL_DONE_TEXT,
-  GOAL_PROMPT,
   GREETING_DONE_TEXT,
   GREETING_PROMPT,
   GREETING_SUMMARY_TEXT,
@@ -54,10 +53,7 @@ import { runContentFactoryInlineImageArticleWorkspaceScenario } from "./claw-cha
 import { collectAgentUiPerformanceTraceEvidence } from "./claw-chat-current-fixture-agent-ui-trace.mjs";
 import { sendPromptFromGui } from "./claw-chat-current-fixture-gui-actions.mjs";
 import { runHomeHotpathScenario } from "./claw-chat-current-fixture-home-hotpath.mjs";
-import {
-  enableGoalModeFromGui,
-  enablePlanModeFromGui,
-} from "./claw-chat-current-fixture-gui-input-modes.mjs";
+import { enablePlanModeFromGui } from "./claw-chat-current-fixture-gui-input-modes.mjs";
 import { runInputbarRichRestoreScenario } from "./claw-chat-current-fixture-inputbar-rich-restore.mjs";
 import {
   ACTIVE_STEER_SCENARIO,
@@ -104,6 +100,7 @@ import {
   runRightSurfaceVisualMatrix,
   runThreadSummaryPanelSmoke,
 } from "./claw-chat-current-fixture-right-surface-visual.mjs";
+import { runSummarySourcesAttachmentSmoke } from "./claw-chat-current-fixture-composer-image-upload.mjs";
 import { runWebToolsRenderingScenario } from "./claw-chat-current-fixture-web-tools-rendering.mjs";
 import { runUserShellGateScenario } from "./claw-chat-current-fixture-user-shell.mjs";
 import {
@@ -243,6 +240,7 @@ async function recordAgentUiPerformanceTraceEvidence(summary, page) {
 }
 
 export async function executeScenarioFlow({
+  app,
   page,
   options,
   workspace,
@@ -327,6 +325,15 @@ export async function executeScenarioFlow({
           sessionId: expertSessionCreation.identity.sessionId,
         }),
       );
+      summary.summarySourcesAttachments =
+        await runSummarySourcesAttachmentSmoke({
+          app,
+          page,
+          options,
+          appServerRequests,
+          sessionId: expertSessionCreation.identity.sessionId,
+          threadId: expertSessionCreation.identity.threadId,
+        });
     } else {
       logStage("run-right-surface-visual-matrix");
       summary.rightSurfaceVisualMatrix = sanitizeJson(
@@ -409,6 +416,7 @@ export async function executeScenarioFlow({
     Object.assign(
       summary,
       await runInputbarRichRestoreScenario({
+        app,
         page,
         options,
         summary,
@@ -514,56 +522,7 @@ export async function executeScenarioFlow({
       }),
     );
   } else if (options.scenario === "goal") {
-    logStage("enable-goal-mode-from-gui");
-    summary.goalModeEnabled = sanitizeJson(
-      await enableGoalModeFromGui(page, options),
-    );
-
-    logStage("send-goal-prompt-from-gui");
-    summary.goalInputSend = sanitizeJson(
-      await sendPromptFromGui(page, options, GOAL_PROMPT),
-    );
-
-    logStage("wait-gui-goal-completed");
-    summary.guiGoalCompleted = sanitizeJson(
-      await waitForGuiChatCompleted(page, options, {
-        prompt: GOAL_PROMPT,
-        doneText: GOAL_DONE_TEXT,
-        summaryText: "目标已绑定到本轮请求",
-      }),
-    );
-
-    logStage("wait-read-model-goal-completed");
-    const readModelGoalCompleted = await waitForSessionReadCompleted(
-      page,
-      options,
-      appServerRequests,
-      {
-        prompt: GOAL_PROMPT,
-        doneText: GOAL_DONE_TEXT,
-        summaryText: "目标已绑定到本轮请求",
-      },
-    );
-    summary.readModelGoalCompleted = sanitizeJson({
-      detailItemCount: Array.isArray(readModelGoalCompleted?.detail?.items)
-        ? readModelGoalCompleted.detail.items.length
-        : null,
-      latestTurnStatus:
-        readModelGoalCompleted?.detail?.thread_read?.runtime_summary
-          ?.latestTurnStatus ??
-        readModelGoalCompleted?.detail?.thread_read?.status ??
-        readModelGoalCompleted?.detail?.status ??
-        null,
-      includesPrompt: JSON.stringify(readModelGoalCompleted || {}).includes(
-        GOAL_PROMPT,
-      ),
-      includesAssistantDone: JSON.stringify(
-        readModelGoalCompleted || {},
-      ).includes(GOAL_DONE_TEXT),
-      includesAssistantSummary: JSON.stringify(
-        readModelGoalCompleted || {},
-      ).includes("目标已绑定到本轮请求"),
-    });
+    await runGoalScenario({ page, options, summary, appServerRequests });
   } else if (isImageIntentScenario) {
     logStage("run-image-command-scenario");
     Object.assign(

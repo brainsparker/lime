@@ -39,12 +39,14 @@ pub(super) fn budget(wire: Wire) -> TruncationPolicy {
 }
 
 fn model_catalog(wire: Wire) -> Value {
+    model_catalog_with_budget(wire, budget(wire))
+}
+
+pub(super) fn model_catalog_with_budget(wire: Wire, policy: TruncationPolicy) -> Value {
     let models =
-        [(wire.model(), Some(budget(wire))), (ALTERNATE_MODEL, None)].map(|(model, budget)| {
-            match wire {
-                Wire::Gemini => json!({"name":format!("models/{model}"),"truncationPolicy":budget}),
-                _ => json!({"id":model,"truncation_policy":budget}),
-            }
+        [(wire.model(), Some(policy)), (ALTERNATE_MODEL, None)].map(|(model, budget)| match wire {
+            Wire::Gemini => json!({"name":format!("models/{model}"),"truncationPolicy":budget}),
+            _ => json!({"id":model,"truncation_policy":budget}),
         });
     match wire {
         Wire::Gemini => json!({"models":models}),
@@ -56,11 +58,24 @@ pub(super) async fn fixture(wire: Wire) -> ModelFixture {
     ModelFixture::start_with_catalog(wire, model_catalog(wire)).await
 }
 
-pub(super) async fn fixture_with_tool(wire: Wire, arguments: Value) -> ModelFixture {
-    ModelFixture::start_with_catalog_and_tool(wire, model_catalog(wire), "Read", arguments).await
+pub(super) async fn default_budget_fixture(wire: Wire) -> ModelFixture {
+    ModelFixture::start_with_catalog(
+        wire,
+        model_catalog_with_budget(wire, TruncationPolicy::Tokens(10000)),
+    )
+    .await
 }
 
 pub(super) async fn provision(server: &AppServer, fixture: &ModelFixture, id: u64) -> String {
+    provision_with_budget(server, fixture, id, budget(fixture.wire)).await
+}
+
+pub(super) async fn provision_with_budget(
+    server: &AppServer,
+    fixture: &ModelFixture,
+    id: u64,
+    expected_budget: TruncationPolicy,
+) -> String {
     let created = request(server, id, "modelProvider/create", json!({
         "name":fixture.wire.model(), "providerType":fixture.wire.provider_type().to_string(), "apiHost":fixture.url,
     })).await;
@@ -98,7 +113,7 @@ pub(super) async fn provision(server: &AppServer, fixture: &ModelFixture, id: u6
     assert!(fetched.get("error").is_none(), "{fetched}");
     assert_eq!(
         fetched["result"]["models"][0]["truncationPolicy"],
-        serde_json::to_value(budget(fixture.wire)).unwrap(),
+        serde_json::to_value(expected_budget).unwrap(),
         "{fetched}"
     );
     let captures = fixture.catalog_requests();

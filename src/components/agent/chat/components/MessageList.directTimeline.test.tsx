@@ -367,7 +367,7 @@ describe("MessageList direct canonical timeline", () => {
     );
   });
 
-  it("direct User 保留 image、skill 与 mention content_parts", () => {
+  it("direct User 保留正文与图片，不把 skill/mention sidecar 额外渲染为标签", () => {
     const directTurn = turn("turn-user-parts", "running");
     const onOpenMessagePreview = vi.fn();
     const container = render([], {
@@ -401,7 +401,11 @@ describe("MessageList direct canonical timeline", () => {
 
     expect(
       container.querySelectorAll('[data-testid="message-user-skill-content"]'),
-    ).toHaveLength(2);
+    ).toHaveLength(0);
+    const userBubble = container.querySelector('[data-message-role="user"]');
+    expect(userBubble?.textContent).toContain("inspect image");
+    expect(userBubble?.textContent).not.toContain("image-review");
+    expect(userBubble?.textContent).not.toContain("reference.png");
     expect(
       container.querySelectorAll('[data-testid^="message-image-attachment-"]'),
     ).toHaveLength(4);

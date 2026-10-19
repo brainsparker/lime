@@ -37,6 +37,11 @@ describe("desktop-host/dialog", () => {
     await expect(open({ directory: true, multiple: false })).rejects.toThrow(
       "Native directory dialog is unavailable in browser preview.",
     );
+    await expect(
+      open({ filesAndDirectories: true, multiple: true }),
+    ).rejects.toThrow(
+      "Native directory dialog is unavailable in browser preview.",
+    );
   });
 
   it("测试环境允许普通文件选择夹具", async () => {

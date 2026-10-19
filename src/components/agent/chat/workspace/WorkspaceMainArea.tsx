@@ -5,7 +5,6 @@ import {
   MainArea,
   GeneralWorkbenchInputOverlay,
   GeneralWorkbenchLayoutShell,
-  RIGHT_SURFACE_CHAT_PANEL_WIDTH,
 } from "./WorkspaceStyles";
 
 interface WorkspaceMainAreaProps {
@@ -21,6 +20,7 @@ interface WorkspaceMainAreaProps {
   chatContent: ReactNode;
   canvasContent: ReactNode;
   rightSurfaceContent?: ReactNode;
+  rightSurfaceOpen: boolean;
   chatPanelWidth?: string;
   generalWorkbenchDialog: ReactNode;
   showFloatingInputOverlay: boolean;
@@ -42,6 +42,7 @@ export function WorkspaceMainArea({
   chatContent,
   canvasContent,
   rightSurfaceContent,
+  rightSurfaceOpen,
   chatPanelWidth,
   generalWorkbenchDialog,
   showFloatingInputOverlay,
@@ -50,13 +51,21 @@ export function WorkspaceMainArea({
   inputContentShift = 0,
 }: WorkspaceMainAreaProps) {
   const hasRightSurfaceContent = Children.count(rightSurfaceContent) > 0;
-  const useRightSurfaceWidth = hasRightSurfaceContent && !chatPanelWidth;
-  const effectiveCanvasContent = hasRightSurfaceContent
-    ? rightSurfaceContent
-    : canvasContent;
+  const showRightSurface = hasRightSurfaceContent && rightSurfaceOpen;
+  const useRightSurfaceWidth = showRightSurface && !chatPanelWidth;
+  const effectiveCanvasContent = hasRightSurfaceContent ? (
+    <>
+      <div hidden={!showRightSurface} className="h-full min-h-0 min-w-0">
+        {rightSurfaceContent}
+      </div>
+      {!showRightSurface ? canvasContent : null}
+    </>
+  ) : (
+    canvasContent
+  );
   const effectiveLayoutMode = hasPendingA2UIForm
     ? "chat"
-    : hasRightSurfaceContent
+    : showRightSurface
       ? "chat-canvas"
       : forceCanvasMode
         ? "canvas"
@@ -68,7 +77,7 @@ export function WorkspaceMainArea({
       $taskCenterSurface
       data-testid="workspace-main-area"
       data-layout-mode={effectiveLayoutMode}
-      data-has-right-surface={hasRightSurfaceContent ? "true" : "false"}
+      data-has-right-surface={showRightSurface ? "true" : "false"}
       data-floating-input-overlay={showFloatingInputOverlay ? "true" : "false"}
     >
       {contentSyncNoticeNode}
@@ -80,16 +89,11 @@ export function WorkspaceMainArea({
           mode={effectiveLayoutMode}
           mainToolbar={mainToolbar}
           mainTabLabel={mainTabLabel}
-          sidePanelTabStrip={
-            hasRightSurfaceContent ? sidePanelTabStrip : undefined
-          }
+          sidePanelTabStrip={showRightSurface ? sidePanelTabStrip : undefined}
           chatContent={chatContent}
           canvasContent={effectiveCanvasContent}
-          chatPanelWidth={
-            useRightSurfaceWidth
-              ? RIGHT_SURFACE_CHAT_PANEL_WIDTH
-              : chatPanelWidth
-          }
+          chatPanelWidth={chatPanelWidth}
+          contentPaneDefaultWidth={useRightSurfaceWidth ? 600 : undefined}
           forceOpenChatPanel={hasPendingA2UIForm}
         />
       </GeneralWorkbenchLayoutShell>

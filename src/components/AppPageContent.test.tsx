@@ -603,10 +603,14 @@ describe("AppPageContent", () => {
       projectId: "project-3",
       theme: "general",
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "local:writer",
-          skillName: "写作助手",
+        skill: {
+          key: "local:writer",
+          name: "写作助手",
+          directory: "writer",
+          localDirectoryPath: "/skills/" + "writer",
+          installed: true,
+          sourceKind: "other" as const,
+          description: "",
         },
         requestKey: 20260418,
       },
@@ -619,10 +623,14 @@ describe("AppPageContent", () => {
       projectId: "project-3",
       agentEntry: "new-task",
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "local:writer",
-          skillName: "写作助手",
+        skill: {
+          key: "local:writer",
+          name: "写作助手",
+          directory: "writer",
+          localDirectoryPath: "/skills/" + "writer",
+          installed: true,
+          sourceKind: "other" as const,
+          description: "",
         },
         requestKey: 20260418,
       },
@@ -637,10 +645,14 @@ describe("AppPageContent", () => {
         projectId: "project-3",
         theme: "general",
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "local:writer",
-            skillName: "写作助手",
+          skill: {
+            key: "local:writer",
+            name: "写作助手",
+            directory: "writer",
+            localDirectoryPath: "/skills/" + "writer",
+            installed: true,
+            sourceKind: "other" as const,
+            description: "",
           },
           requestKey: 20260418,
         },
@@ -658,10 +670,14 @@ describe("AppPageContent", () => {
         projectId: "project-3",
         theme: "general",
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "local:analyst",
-            skillName: "分析助手",
+          skill: {
+            key: "local:analyst",
+            name: "分析助手",
+            directory: "analyst",
+            localDirectoryPath: "/skills/" + "analyst",
+            installed: true,
+            sourceKind: "other" as const,
+            description: "",
           },
           requestKey: 20260419,
         },
@@ -673,10 +689,14 @@ describe("AppPageContent", () => {
     expect(agentChatLifecycle.unmounts).toBe(0);
     expect(latestAgentChatProps.value).toMatchObject({
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "local:analyst",
-          skillName: "分析助手",
+        skill: {
+          key: "local:analyst",
+          name: "分析助手",
+          directory: "analyst",
+          localDirectoryPath: "/skills/" + "analyst",
+          installed: true,
+          sourceKind: "other" as const,
+          description: "",
         },
         requestKey: 20260419,
       },

@@ -95,6 +95,7 @@ export function projectComposerDocument(
             name: attrs.name,
             path: attrs.path,
             label: attrs.label,
+            ...(attrs.displayName ? { displayName: attrs.displayName } : {}),
             from: range.from,
             to: range.to,
           });

@@ -62,6 +62,25 @@ impl RouteHealthKey {
     }
 }
 
+// Reuse the health owner's complete route identity, including API version and
+// credential scope. Model names do not define an opaque-state compatibility
+// boundary; Codex handles declared compaction compatibility separately.
+pub(super) fn history_producer(config: &RuntimeProviderConfig) -> String {
+    let key = RouteHealthKey::from_config(config);
+    let mut digest = Sha256::new();
+    for value in [
+        key.provider,
+        key.base_url,
+        key.api_version,
+        key.protocol.to_string(),
+        key.credential_scope,
+    ] {
+        digest.update((value.len() as u64).to_be_bytes());
+        digest.update(value.as_bytes());
+    }
+    format!("{:x}", digest.finalize())
+}
+
 fn credential_scope(config: &RuntimeProviderConfig) -> String {
     match config.auth {
         RuntimeProviderAuth::NoAuth => return "no-auth".to_string(),

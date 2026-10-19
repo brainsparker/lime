@@ -5,7 +5,7 @@ import { act } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { acceptedSubmission } from "../hooks/agentSendResult.testFixtures";
 import {
-  mockEmptyStateCharacterMention,
+  openContextSuggestions,
   createSkillSelection,
   renderPanel,
   updateComposerEditorValue,
@@ -18,11 +18,10 @@ import {
 describe("EmptyStateComposerPanel", () => {
   it("requests the shared lazy Skill catalog from the Home mention surface", () => {
     const onSkillSuggestionsNeeded = vi.fn();
-    renderPanel({
+    const container = renderPanel({
       skillSelection: createSkillSelection({ onSkillSuggestionsNeeded }),
     });
-    const mention = mockEmptyStateCharacterMention.mock.calls.at(-1)?.[0];
-    act(() => mention?.onSkillSuggestionsNeeded?.());
+    openContextSuggestions(container);
     expect(onSkillSuggestionsNeeded).toHaveBeenCalledOnce();
   });
   it("不应重新接入 input restore request 子面板 fallback", () => {
@@ -145,22 +144,18 @@ describe("EmptyStateComposerPanel", () => {
       onSend,
       pluginSuggestions: [plugin],
     });
-    const mentionProps = mockEmptyStateCharacterMention.mock.calls.at(-1)?.[0];
-
-    await act(async () => {
-      mentionProps?.onSelectPlugin?.(plugin, undefined, {
-        inputOverride: "帮我整理项目资料",
-        preserveInputOverride: true,
-      });
-      await Promise.resolve();
-    });
+    openContextSuggestions(container);
+    const item = document.querySelector<HTMLButtonElement>(
+      '[data-suggestion-key="plugin:content-factory-app"]',
+    )!;
+    await act(async () => item.click());
 
     expect(
       container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("写文章");
     expect(
       getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR)),
-    ).toBe("@写文章 帮我整理项目资料");
+    ).toBe("帮我整理项目资料 @写文章");
     expect(
       container
         .querySelector('[data-composer-token="plugin"]')
@@ -179,7 +174,7 @@ describe("EmptyStateComposerPanel", () => {
     });
 
     expect(onSend).toHaveBeenCalledWith(
-      "@写文章 帮我整理项目资料",
+      "帮我整理项目资料 @写文章",
       {
         goalEnabled: false,
         planEnabled: false,

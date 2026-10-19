@@ -37,9 +37,9 @@ beforeAll(() => {
 afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
 
 function fixture() {
-  const expandedText = `正文 ${"中😀\n".repeat(350)} /${skillIdentity.key}`;
+  const expandedText = `正文 ${"中😀\n".repeat(350)} $${skillIdentity.name}`;
   const input = [
-    { type: "text", text: `/${skillIdentity.name} ${expandedText}` },
+    { type: "text", text: expandedText },
     { type: "skill", name: skillIdentity.name, path: skillIdentity.path },
   ];
   const trace = [
@@ -86,7 +86,7 @@ function fixture() {
       id: skillIdentity.key,
       name: skillIdentity.name,
       path: skillIdentity.path,
-      label: `/${skillIdentity.key}`,
+      label: `$${skillIdentity.name}`,
       editable: "false",
     },
   ];
@@ -107,10 +107,14 @@ function fixture() {
         isDir: "false",
       },
     ],
-    capability: {
-      panelObserved: true,
+    skillMention: {
+      documentObserved: true,
       active: true,
-      selectionLabel: `技能能力已挂载 ${skillIdentity.name}清空技能`,
+      identity: {
+        name: skillIdentity.name,
+        path: skillIdentity.path,
+        id: skillIdentity.key,
+      },
     },
   };
   const cleared = {
@@ -121,7 +125,7 @@ function fixture() {
     tokens: [],
     images: [],
     paths: [],
-    capability: { panelObserved: true, active: false, selectionLabel: null },
+    skillMention: { documentObserved: true, active: false, identity: null },
   };
   const beforeRead = {
     ipcObservation: {
@@ -166,12 +170,12 @@ function fixture() {
     skillIdentity: { ...skillIdentity },
     expandedText,
     expectedSubmission: {
-      text: `/${skillIdentity.name} ${expandedText}`,
+      text: expandedText,
       displayText: `正文 ${tokens[0].label} ${tokens[1].label}`,
       textElements: [],
       marks: { links: [], codeBlocks: [], blockTags: ["P"] },
     },
-    backendText: `/${skillIdentity.name} ${expandedText}`,
+    backendText: expandedText,
     keyboardActions: [
       "ControlOrMeta+Home",
       "ArrowUp",
@@ -385,7 +389,7 @@ describe("real keyboard Composer history evidence", () => {
     expect(summarizeComposerHistoryRecall(input).ok).toBe(false);
   });
   it.each([
-    "missing-prefix",
+    "missing-body",
     "wrong-prefix",
     "double-prefix",
     "suffix",
@@ -396,7 +400,7 @@ describe("real keyboard Composer history evidence", () => {
       const input = fixture();
       const expected = input.backendText;
       const changed = {
-        "missing-prefix": input.expandedText,
+        "missing-body": `$${skillIdentity.name}`,
         "wrong-prefix": `/foreign ${input.expandedText}`,
         "double-prefix": `/capability-report ${expected}`,
         suffix: `${expected} extra`,
@@ -597,7 +601,7 @@ describe("real keyboard Composer history evidence", () => {
     "image-decode",
     "path",
     "path-id",
-    "capability",
+    "skillMention",
   ])("rejects recalled %s drift", (mode) => {
     const input = fixture();
     const recalled = input.recalled;
@@ -612,11 +616,11 @@ describe("real keyboard Composer history evidence", () => {
     if (mode === "image-decode") recalled.images[0].decoded = false;
     if (mode === "path") recalled.paths[0].path = "/foreign/a.ts";
     if (mode === "path-id") recalled.paths[0].id = "other-reference";
-    if (mode === "capability") recalled.capability.active = false;
+    if (mode === "skillMention") recalled.skillMention.active = false;
     expect(summarizeComposerHistoryRecall(input).ok).toBe(false);
   });
 
-  it.each(["tokens", "images", "paths", "capability"])(
+  it.each(["tokens", "images", "paths", "skillMention"])(
     "rejects resources retained after ArrowDown: %s",
     (field) => {
       const input = fixture();

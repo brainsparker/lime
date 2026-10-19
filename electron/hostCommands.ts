@@ -1,5 +1,5 @@
 /* global process */
-import { app, shell } from "./electronRuntime";
+import { app } from "./electronRuntime";
 import {
   METHOD_CONFIG_READ,
   METHOD_MODEL_LIST,
@@ -30,10 +30,6 @@ import { createServer, type Server } from "node:http";
 import path from "node:path";
 import type { ElectronAppServerHost } from "./appServerHost";
 import { resolveCurrentDesktopStorageRoots } from "./appDataPaths";
-import {
-  openProjectPathWithLocalTool,
-  type ProjectPathOpenTool,
-} from "./projectToolsHost";
 import { showDesktopNotification } from "./desktopNotificationHost";
 import { FileShellHost } from "./fileShellHost";
 import { LayeredDesignProjectHost } from "./layeredDesignProjectHost";
@@ -77,7 +73,6 @@ const OEM_CLOUD_OAUTH_CALLBACK_HTML = `<!doctype html>
 
 export class ElectronHostCommands {
   readonly #appServerHost: ElectronAppServerHost;
-  readonly #userDataDir: string;
   readonly #emit: HostEventEmitter;
   readonly #fileShellHost = new FileShellHost();
   readonly #layeredDesignProjectHost = new LayeredDesignProjectHost();
@@ -95,7 +90,6 @@ export class ElectronHostCommands {
     secureCredentialStore: SecureCredentialStore | null = null,
   ) {
     this.#appServerHost = appServerHost;
-    this.#userDataDir = userDataDir;
     this.#emit = emit;
     this.#secureCredentialStore = secureCredentialStore;
     this.#systemUtilityHost = new SystemUtilityHost({
@@ -126,8 +120,6 @@ export class ElectronHostCommands {
         return this.#fileShellHost.revealInFinder(args);
       case "open_with_default_app":
         return await this.#fileShellHost.openWithDefaultApp(args);
-      case "open_project_path_with_tool":
-        return await this.#openProjectPathWithTool(args);
       case "save_exported_document":
         return await this.#saveExportedDocument(args);
       case "save_layered_design_project_export":
@@ -140,8 +132,6 @@ export class ElectronHostCommands {
         return this.#layeredDesignProjectHost.analyzeFlatImage(args);
       case "get_home_dir":
         return this.#fileShellHost.getHomeDir();
-      case "get_file_manager_locations":
-        return await this.#fileShellHost.getFileManagerLocations();
       case "get_file_icon_data_url":
         return await this.#fileShellHost.getFileIconDataUrl(args);
       case "start_oem_cloud_oauth_callback_bridge":
@@ -222,23 +212,6 @@ export class ElectronHostCommands {
     params: AppServerParams = {},
   ): Promise<T> {
     return await this.#appServerHost.request<T>(method, params);
-  }
-
-  async #openProjectPathWithTool(
-    args: HostArgs,
-  ): Promise<Record<string, never>> {
-    const request = readRequest(args);
-    const rootPath = readRequiredAbsolutePath(request, "rootPath");
-    const tool = readProjectPathOpenTool(request);
-    if (tool === "finder") {
-      const errorMessage = await shell.openPath(rootPath);
-      if (errorMessage) {
-        throw new Error(errorMessage);
-      }
-      return {};
-    }
-    await openProjectPathWithLocalTool(rootPath, tool);
-    return {};
   }
 
   async #saveExportedDocument(args: HostArgs): Promise<null> {
@@ -650,29 +623,6 @@ function readRequiredRawString(value: unknown, key: string): string {
     throw new Error(`Missing required string field: ${key}`);
   }
   return next;
-}
-
-function readRequiredAbsolutePath(value: unknown, key: string): string {
-  const next = readRequiredString(value, key);
-  if (!path.isAbsolute(next)) {
-    throw new Error(`${key} 必须是绝对路径`);
-  }
-  return next;
-}
-
-function readProjectPathOpenTool(
-  value: Record<string, unknown>,
-): ProjectPathOpenTool {
-  const tool = readRequiredString(value, "tool");
-  if (
-    tool === "vscode" ||
-    tool === "cursor" ||
-    tool === "terminal" ||
-    tool === "finder"
-  ) {
-    return tool;
-  }
-  throw new Error(`不支持的项目打开工具: ${tool}`);
 }
 
 function findProvider(

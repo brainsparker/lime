@@ -20,6 +20,7 @@ import { UnifiedTabStrip } from "@/components/app-shell/AppShell";
 import { HeaderToolbar } from "@/components/app-shell/HeaderToolbar";
 import { LayoutMode } from "@/lib/workspace/workflowTypes";
 import { useLayoutTransition, TransitionConfig } from "./useLayoutTransition";
+import { getDefaultContentPaneWidth } from "./contentPaneWidth";
 
 const COMPACT_CHAT_CANVAS_CONTAINER_WIDTH = 900;
 const COMPACT_CHAT_CANVAS_BREAKPOINT_HEIGHT = 620;
@@ -189,6 +190,7 @@ interface LayoutTransitionProps {
   mainTabLabel?: string;
   /** chat-canvas 模式下聊天面板宽度 */
   chatPanelWidth?: string;
+  contentPaneDefaultWidth?: number;
   /** 紧凑单面板态下强制切回聊天区 */
   forceOpenChatPanel?: boolean;
 }
@@ -208,6 +210,7 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
     sidePanelTabStrip,
     mainTabLabel,
     chatPanelWidth,
+    contentPaneDefaultWidth,
     forceOpenChatPanel = false,
   }) => {
     const { t } = useTranslation("workspace");
@@ -218,6 +221,7 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
       end: number;
       contentWidth: number;
       totalWidth: number;
+      shellHeight: number;
       gap: number;
     }>();
     const lastChatFocus = useRef<HTMLElement | null>(null);
@@ -242,8 +246,10 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
       () =>
         resizedChatPanelWidth !== null && effectiveMode === "chat-canvas"
           ? `${resizedChatPanelWidth}px`
-          : chatPanelWidth,
-      [chatPanelWidth, effectiveMode, resizedChatPanelWidth],
+          : contentPaneDefaultWidth !== undefined && paneBounds?.totalWidth
+            ? `${Math.max(320, paneBounds.totalWidth - paneBounds.gap - getDefaultContentPaneWidth(paneBounds.totalWidth, paneBounds.shellHeight, contentPaneDefaultWidth))}px`
+            : chatPanelWidth,
+      [chatPanelWidth, contentPaneDefaultWidth, paneBounds, effectiveMode, resizedChatPanelWidth],
     );
     const { isCanvasVisible, getTransitionStyles } = useLayoutTransition(
       effectiveMode,
@@ -334,6 +340,7 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
           end: rect.left + canvas.offsetLeft,
           contentWidth: canvas.getBoundingClientRect().width,
           totalWidth: rect.width,
+          shellHeight: window.innerHeight,
           gap: Math.max(
             0,
             canvas.offsetLeft - (chatPanelRef.current?.offsetWidth ?? 0),
@@ -343,6 +350,7 @@ export const LayoutTransition: React.FC<LayoutTransitionProps> = memo(
           current?.end === next.end &&
           current.contentWidth === next.contentWidth &&
           current.totalWidth === next.totalWidth &&
+          current.shellHeight === next.shellHeight &&
           current.gap === next.gap
             ? current
             : next,

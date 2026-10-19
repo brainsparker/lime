@@ -152,9 +152,9 @@ vi.mock("react-i18next", () => ({
         "agentChat.canvasWorkbench.workspace.loading": "正在加载目录...",
         "agentChat.canvasWorkbench.workspace.emptyDirectory": "暂无目录内容。",
         "agentChat.canvasWorkbench.team.empty": "当前没有可展示的生成结果。",
-        "agentChat.fileManager.column.name": "名称",
-        "agentChat.fileManager.column.modified": "修改日期",
-        "agentChat.fileManager.column.size": "大小",
+        "agentChat.fileTree.column.name": "名称",
+        "agentChat.fileTree.column.modified": "修改日期",
+        "agentChat.fileTree.column.size": "大小",
         "agentChat.canvasWorkbench.actions.copyPath": "复制路径",
         "agentChat.canvasWorkbench.actions.revealPath": "显示位置",
         "agentChat.canvasWorkbench.actions.openPath": "打开",
@@ -172,12 +172,9 @@ vi.mock("react-i18next", () => ({
         "agentChat.canvasWorkbench.coding.preview.mode.loading":
           "正在读取文件预览...",
         "agentChat.canvasWorkbench.coding.preview.mode.htmlTitle": "HTML 预览",
-        "agentChat.canvasWorkbench.coding.preview.mode.markdownAria":
-          "切换到 Markdown 预览",
-        "agentChat.canvasWorkbench.coding.preview.mode.htmlAria":
-          "切换到 HTML 预览",
-        "agentChat.canvasWorkbench.coding.preview.mode.codeAria":
-          "切换到 Code 预览",
+        "agentChat.canvasWorkbench.coding.preview.mode.viewSource":
+          "查看源代码",
+        "agentChat.canvasWorkbench.coding.preview.mode.viewPreview": "查看预览",
         "agentChat.canvasWorkbench.coding.changes.empty":
           "还没有可对比的文件变更。",
         "agentChat.canvasWorkbench.coding.changes.afterLabel": "当前",
@@ -327,10 +324,13 @@ vi.mock("@xterm/xterm", () => ({
   Terminal: vi.fn().mockImplementation((options: Record<string, unknown>) => {
     hoisted.mockXtermTerminalOptions.push(options);
     return {
+      options,
       cols: 120,
       rows: 14,
       dispose: vi.fn(),
       focus: vi.fn(),
+      refresh: vi.fn(),
+      attachCustomKeyEventHandler: vi.fn(),
       loadAddon: hoisted.mockXtermLoadAddon,
       onData: vi.fn((handler: (data: string) => void) => {
         hoisted.mockXtermOnDataHandlers.push(handler);
@@ -505,14 +505,12 @@ export function clickWorkbenchTab(container: HTMLElement, label: string) {
   });
 }
 
-export function clickPreviewMode(container: HTMLElement, label: string) {
-  const ariaLabel =
-    label === "Markdown"
-      ? "切换到 Markdown 预览"
-      : label === "HTML"
-        ? "切换到 HTML 预览"
-        : "切换到 Code 预览";
-  clickByAriaLabel(container, ariaLabel);
+export function toggleFilePreview(container: HTMLElement) {
+  const button = container.querySelector<HTMLButtonElement>(
+    '[data-testid="file-preview-mode-toggle"]',
+  );
+  if (!button) throw new Error("未找到文件预览切换按钮");
+  act(() => button.click());
 }
 
 export function expectWorkbenchTabInMenu(

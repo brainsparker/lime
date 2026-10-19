@@ -38,7 +38,9 @@ describe("AgentChatWorkspace local display boundary", () => {
     expect(layoutOwners).not.toMatch(
       /\bchatPanelMinWidth\b|layoutTransitionChatPanelMinWidth|CHAT_PANEL_MIN_WIDTH/,
     );
-    expect(layoutOwners).not.toMatch(/rightSurfaceActivityOpen|onToggleRightSurfaceActivity/);
+    expect(layoutOwners).not.toMatch(
+      /rightSurfaceActivityOpen|onToggleRightSurfaceActivity/,
+    );
     const registry = readFileSync(
       join(process.cwd(), "src/components/app-shell/shellRegistry.ts"),
       "utf8",
@@ -791,7 +793,7 @@ describe("AgentChatWorkspace conversation landing surface boundary", () => {
     );
     const sceneCallStart = workspaceSource.indexOf("scene: {", landingCallEnd);
     const sceneCallEnd = workspaceSource.indexOf(
-      "\n      },\n    },\n    fileManager:",
+      "\n    shell:",
       sceneCallStart,
     );
     expect(compositionCallStart).toBeGreaterThanOrEqual(0);

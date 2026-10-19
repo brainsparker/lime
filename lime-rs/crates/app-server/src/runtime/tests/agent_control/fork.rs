@@ -304,7 +304,16 @@ async fn full_history_compaction_fails_before_child_side_effects() {
 }
 
 #[tokio::test]
-async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
+async fn full_history_rewrites_mid_turn_compaction_boundary_after_restart() {
+    assert_compaction_fork_boundary(false).await;
+}
+
+#[tokio::test]
+async fn full_history_rewrites_fully_covered_compaction_boundary_after_restart() {
+    assert_compaction_fork_boundary(true).await;
+}
+
+async fn assert_compaction_fork_boundary(cover_answer: bool) {
     let (_temp, event_log_writer, store, core) = persistent_core();
     let parent = core
         .start_session(start_params(
@@ -313,8 +322,15 @@ async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
         ))
         .expect("parent")
         .session;
-    let first_window_id = Uuid::now_v7().to_string();
-    let window_id = Uuid::now_v7().to_string();
+    // Offset the parent log so copying its sequence into the child cannot pass.
+    core.append_external_runtime_events(
+        &parent.session_id,
+        None,
+        (0..8)
+            .map(|_| RuntimeEvent::new("fixture.offset", json!({})))
+            .collect(),
+    )
+    .expect("offset source log");
     append_parent_turn(
         &core,
         &parent,
@@ -323,36 +339,47 @@ async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
             text: "parent task".to_string(),
             attachments: Vec::new(),
         },
-        vec![RuntimeEvent::new(
-            "context.compaction.completed",
-            json!({
-                "compactionId": "compact-valid-1",
-                "tailStartTurnId": "compact-valid-parent-turn",
-                "replacementHistory": [{
-                    "type": "message",
-                    "role": "user",
-                    "content": [{"type": "input_text", "text": "earlier context"}]
-                }],
-                "windowNumber": 1,
-                "firstWindowId": first_window_id,
-                "previousWindowId": null,
-                "windowId": window_id,
-                "artifact": {
-                    "tailStartTurnId": "compact-valid-parent-turn",
-                    "replacementHistory": [{
-                        "type": "message",
-                        "role": "user",
-                        "content": [{"type": "input_text", "text": "earlier context"}]
-                    }],
-                    "windowNumber": 1,
-                    "firstWindowId": first_window_id,
-                    "previousWindowId": null,
-                    "windowId": window_id,
-                },
-            }),
-        )],
+        Vec::new(),
     )
     .await;
+    let source_events = core
+        .events_for_session(&parent.session_id)
+        .expect("source events");
+    let covered = source_events
+        .iter()
+        .find(|event| {
+            if cover_answer {
+                event.event_type == "item.completed"
+                    && event.payload["itemId"] == "final-compact-valid-parent-turn"
+            } else {
+                event.event_type == "message.created"
+            }
+        })
+        .expect("source prefix boundary")
+        .sequence;
+    let first_window_id = Uuid::now_v7().to_string();
+    let window_id = Uuid::now_v7().to_string();
+    let lineage = json!({
+        "compactionId": "compact-valid-1",
+        "coveredThroughSequence": covered,
+        "replacementHistory": [{
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": "earlier context"}]
+        }],
+        "windowNumber": 1,
+        "firstWindowId": first_window_id,
+        "previousWindowId": null,
+        "windowId": window_id,
+    });
+    let mut payload = lineage.clone();
+    payload["artifact"] = lineage;
+    core.append_external_runtime_events(
+        &parent.session_id,
+        None,
+        vec![RuntimeEvent::new("context.compaction.completed", payload)],
+    )
+    .expect("parent checkpoint");
 
     core.create_open_agent_control_child_for_test(AgentControlSpawnRequest {
         parent_session_id: parent.session_id,
@@ -379,18 +406,42 @@ async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
         .turn_id
         .as_str()
         .to_string();
-    let marker = event_log_writer
+    let child_events = event_log_writer
         .read_session_events("compact-valid-child-session")
-        .expect("read child events")
-        .into_iter()
+        .expect("read child events");
+    let marker = child_events
+        .iter()
         .find(|event| event.event.event_type == "context.compaction.completed")
         .expect("rewritten child compaction marker");
-    assert_eq!(marker.event.turn_id, None);
-    assert_eq!(marker.event.payload["tailStartTurnId"], child_turn_id);
-    assert_eq!(
-        marker.event.payload["artifact"]["tailStartTurnId"],
-        child_turn_id
+    let expected_boundary = child_events
+        .iter()
+        .find(|record| {
+            record.event.turn_id.as_deref() == Some(&child_turn_id)
+                && record.event.event_type == "item.completed"
+                && record.event.payload["itemType"]
+                    == if cover_answer {
+                        "agent_message"
+                    } else {
+                        "user_message"
+                    }
+        })
+        .expect("child boundary")
+        .event
+        .sequence;
+    assert_ne!(
+        expected_boundary, covered,
+        "parent and child sequence spaces must differ"
     );
+    assert_eq!(marker.event.turn_id, None);
+    assert_eq!(
+        marker.event.payload["coveredThroughSequence"],
+        expected_boundary
+    );
+    assert_eq!(
+        marker.event.payload["artifact"]["coveredThroughSequence"],
+        expected_boundary
+    );
+    assert!(marker.event.sequence > expected_boundary);
     assert_eq!(
         marker.event.payload["replacementHistory"][0]["content"][0]["text"],
         "earlier context"
@@ -398,8 +449,8 @@ async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
 
     drop(core);
     let restarted = RuntimeCore::default()
-        .with_event_log_writer(event_log_writer)
-        .with_projection_store(store);
+        .with_event_log_writer(event_log_writer.clone())
+        .with_projection_store(store.clone());
     restarted
         .ensure_current_session_hydrated("compact-valid-child-session")
         .await
@@ -419,20 +470,73 @@ async fn full_history_rewrites_compaction_lineage_and_replays_after_restart() {
             "future-turn",
         )
         .expect("rebuild provider history after restart");
-    assert!(provider_history.iter().any(|message| {
-        message.role == CurrentProviderRole::User
-            && matches!(
-                &message.content[..],
-                [CurrentProviderContent::Text(text)] if text == "earlier context"
-            )
-    }));
-    assert!(provider_history.iter().any(|message| {
-        message.role == CurrentProviderRole::Assistant
-            && matches!(
-                &message.content[..],
-                [CurrentProviderContent::Text(text)] if text == "answer for compact-valid-parent-turn"
-            )
-    }));
+    let mut expected = vec![model_provider::current_client::CurrentProviderMessage {
+        producer: None,
+        role: CurrentProviderRole::User,
+        content: vec![CurrentProviderContent::Text("earlier context".to_string())],
+    }];
+    if !cover_answer {
+        expected.push(model_provider::current_client::CurrentProviderMessage {
+            producer: None,
+            role: CurrentProviderRole::Assistant,
+            content: vec![CurrentProviderContent::Text(
+                "answer for compact-valid-parent-turn".to_string(),
+            )],
+        });
+    }
+    assert_eq!(
+        provider_history, expected,
+        "replacement plus the exact surviving suffix"
+    );
+
+    // The checkpoint has no canonical Item. Each ordinary fork must still copy it.
+    let original_events = event_log_writer
+        .read_session_events("compact-valid-child-session")
+        .expect("original child log");
+    let mut source_thread = "compact-valid-child-thread".to_string();
+    for _ in 0..2 {
+        let forked = restarted
+            .fork_thread(app_server_protocol::protocol::v2::ThreadForkParams {
+                thread_id: source_thread,
+                ..Default::default()
+            })
+            .await
+            .expect("ordinary fork of compacted child");
+        let cold = RuntimeCore::default()
+            .with_event_log_writer(event_log_writer.clone())
+            .with_projection_store(store.clone());
+        cold.hydrate_thread_session(&forked)
+            .await
+            .expect("cold fork hydration");
+        for runtime in [&restarted, &cold] {
+            let stored = runtime
+                .state
+                .lock()
+                .unwrap()
+                .sessions
+                .get(forked.session_id.as_str())
+                .cloned()
+                .expect("fork session");
+            let actual =
+                crate::runtime::provider_history::provider_history_excluding_current_turn_input(
+                    &stored,
+                    None,
+                    "future-turn",
+                )
+                .expect("fork provider history");
+            assert_eq!(
+                actual, expected,
+                "ordinary fork must retain the session checkpoint"
+            );
+        }
+        source_thread = forked.thread_id.as_str().to_string();
+    }
+    assert_eq!(
+        event_log_writer
+            .read_session_events("compact-valid-child-session")
+            .unwrap(),
+        original_events
+    );
 }
 
 #[tokio::test]

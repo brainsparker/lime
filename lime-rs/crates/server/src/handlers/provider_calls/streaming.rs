@@ -152,6 +152,7 @@ impl OpenAiStreamEncoder {
             | CanonicalLlmEvent::ToolCall { .. }
             | CanonicalLlmEvent::TextDelta { .. }
             | CanonicalLlmEvent::ReasoningContentDelta { .. }
+            | CanonicalLlmEvent::ResponseItemDone { .. }
             | CanonicalLlmEvent::ProviderError { .. } => Vec::new(),
         }
     }
@@ -329,6 +330,7 @@ impl AnthropicStreamEncoder {
             | CanonicalLlmEvent::ReasoningSummaryDelta { .. }
             | CanonicalLlmEvent::ReasoningSummaryPartAdded { .. }
             | CanonicalLlmEvent::ReasoningContentDelta { .. }
+            | CanonicalLlmEvent::ResponseItemDone { .. }
             | CanonicalLlmEvent::ProviderError { .. } => Vec::new(),
         }
     }

@@ -426,7 +426,7 @@ fn agent_output_lifecycle_serializes_required_item_identity() {
         },
         AgentEvent::TextEnd {
             item_id: "message-1".to_string(),
-            phase: AgentMessagePhase::FinalAnswer,
+            phase: Some(MessagePhase::FinalAnswer),
         },
         AgentEvent::ReasoningSummaryDelta {
             item_id: "reasoning-1".to_string(),

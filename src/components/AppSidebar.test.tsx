@@ -147,7 +147,7 @@ describe("AppSidebar navigation", () => {
     });
   });
 
-  it("文件管理器临时折叠导航栏后应恢复用户原始状态", async () => {
+  it("用户折叠和展开导航栏都会保存实际选择", async () => {
     localStorage.setItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY, "false");
 
     const container = mountSidebarContainer();
@@ -158,11 +158,9 @@ describe("AppSidebar navigation", () => {
     ).not.toBeNull();
 
     await act(async () => {
-      window.dispatchEvent(
-        new CustomEvent("lime:app-sidebar-collapse", {
-          detail: { collapsed: true, source: "file-manager" },
-        }),
-      );
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="折叠导航栏"]')
+        ?.click();
       await Promise.resolve();
     });
 
@@ -170,21 +168,22 @@ describe("AppSidebar navigation", () => {
       container.querySelector('button[aria-label="展开导航栏"]'),
     ).not.toBeNull();
     expect(localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
-      "false",
+      "true",
     );
 
     await act(async () => {
-      window.dispatchEvent(
-        new CustomEvent("lime:app-sidebar-collapse", {
-          detail: { collapsed: false, source: "file-manager" },
-        }),
-      );
+      container
+        .querySelector<HTMLButtonElement>('button[aria-label="展开导航栏"]')
+        ?.click();
       await Promise.resolve();
     });
 
     expect(
       container.querySelector('button[aria-label="折叠导航栏"]'),
     ).not.toBeNull();
+    expect(localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
+      "false",
+    );
   });
 
   it("图标栏承接主入口与设置，只有新聊天留在上下文侧栏", async () => {

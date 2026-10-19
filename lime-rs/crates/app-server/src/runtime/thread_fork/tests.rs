@@ -28,7 +28,7 @@ fn fork_rejects_canonical_history_that_cannot_be_lowered_without_loss() {
                 first_window_id: None,
                 previous_window_id: None,
                 window_id: None,
-                tail_start_turn_id: None,
+                covered_through_sequence: None,
             }),
             "compacted provider history",
         ),
@@ -96,7 +96,7 @@ fn fork_accepts_complete_compaction_lineage_and_rejects_incomplete_variants() {
         first_window_id: Some(first_window_id.clone()),
         previous_window_id: None,
         window_id: Some(window_id.clone()),
-        tail_start_turn_id: Some("turn-1".to_string()),
+        covered_through_sequence: Some(0),
     };
 
     validate_fork_canonical_item(&completed_item(complete()))
@@ -123,12 +123,13 @@ fn fork_accepts_complete_compaction_lineage_and_rejects_incomplete_variants() {
 
     let mut missing_tail = complete();
     let ThreadItemPayload::ContextCompaction {
-        tail_start_turn_id, ..
+        covered_through_sequence,
+        ..
     } = &mut missing_tail
     else {
         unreachable!();
     };
-    *tail_start_turn_id = None;
+    *covered_through_sequence = None;
     incomplete.push(missing_tail);
 
     for payload in incomplete {

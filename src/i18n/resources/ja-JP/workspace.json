@@ -5,7 +5,6 @@
   "workspace.pendingA2UI.footer.stale": "追加情報を受け取りました。今は再送信しなくて大丈夫です。",
   "workspace.pendingA2UI.status.progressStep": "ステップ {{currentStep}}/{{totalSteps}}",
   "workspace.pendingA2UI.status.stale": "処理を続行中",
-  "workspace.layout.compactMode.ariaLabel": "チャットとワークベンチを切り替える",
   "workspace.layout.compactMode.chat": "チャット",
   "workspace.layout.compactMode.workbench": "ワークベンチ",
   "workspace.layout.splitter.resizeAria": "ドラッグしてチャット欄とワークベンチの幅を調整",
@@ -724,5 +723,9 @@
   "workspace.presentationTable.headerColumn": "見出し列",
   "workspace.presentationTable.reorderRow": "{{row}} 行目を移動",
   "workspace.presentationTable.reorderColumn": "{{column}} 列を移動",
-  "workspace.presentationTable.reorderHint": "ドラッグして移動。Alt + 矢印キーで並べ替え。"
+  "workspace.presentationTable.reorderHint": "ドラッグして移動。Alt + 矢印キーで並べ替え。",
+  "workspace.artifactPreviewHeader.open": "開く",
+  "workspace.artifactPreviewHeader.openOptions": "開くオプション",
+  "workspace.artifactPreviewHeader.openInFolder": "フォルダーで開く",
+  "workspace.artifactPreviewHeader.saveAs": "名前を付けて保存…"
 }

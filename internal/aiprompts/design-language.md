@@ -51,7 +51,7 @@ Desktop 与 CLI/TUI 共享协议、runtime、持久化和工具 owner。Renderer
 2026-10-18 用户最新截图指定 `rail-with-contextual-sidebar`。当前窗口骨架为持久窄图标导航＋可伸缩上下文列；折叠保留图标入口，新聊天/项目/最近会话在上下文列，设置在图标栏底部。插件/技能等使用同一 rail，切换 contextual 内容。不得回退到上一轮误选的 legacy 单侧栏或仅凭历史测试选择目标模式。可确认静态合同及限制见 [feature navigation 证据](../exec-plans/artifacts/codex-shell-layout-rea-20261018/sidebar/feature-navigation/report.md)。
 
 
-导航、会话页头、时间线、Composer、审批、队列、历史恢复、Files/diff、右侧面和设置以可确认的 Desktop 结构与行为为基线。尺寸与密度随窗口适配，不强制套固定宽度、卡片墙、统计摘要或“3 到 7 步”导轨。
+导航、会话页头、时间线、Composer、审批、队列、历史恢复、Files、Changes、右侧面和设置以可确认的 Desktop 结构与行为为基线。尺寸与密度随窗口适配，不强制套固定宽度、卡片墙、统计摘要或“3 到 7 步”导轨。
 
 当前工作对象、运行状态、主动作和阻塞恢复必须清楚。状态由同一 canonical identity 投影，不能让时间线、页头、Composer 与右侧面各自猜测业务完成态。
 
@@ -61,7 +61,7 @@ Desktop 与 CLI/TUI 共享协议、runtime、持久化和工具 owner。Renderer
 - Composer：Controller 唯一 ProseMirror 文档，View 事务回交；file/skill/plugin/paste atom、JSON 草稿、UTF16 选择区与 UTF8 发送范围各自保持语义。首页/会话共用草稿 owner，start/steer/queue 共用 typed submission；接受前锁定重复提交，失败保留完整输入，旧 receipt 不清新 revision。附件、模型/reasoning、停止、队列和键盘历史同时验证，不只对齐输入框外观。
 - 输入法候选确认及 compositionEnd 属于编辑，不能隐式发送；另一次普通 Enter 或显式按钮按当前提交合同处理。清空、替换或卸载草稿后，旧附件读取的成功与错误不得回流到新草稿；首页和会话复用同一生命周期原语。
 - 审批：完整操作与权限详情、可用决定、pending/resolved 状态和重复响应防护；自动审查详情与等待用户审批分别核对。
-- Files/diff：打开实际文件或既有 diff owner；正确关联路径与 patch，保留审阅、inline/split 和返回路径。
+- Files：空文件标签展示工作区文件树和源码预览；选择路径进入相应文件标签。Changes：委托既有 diff owner，正确关联路径与 patch，保留审阅、inline/split 和返回路径。两者使用独立标签，不以 Git 列表代替文件浏览器；具体身份与原件证据见 [侧栏合同](../exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/thread-side-panel-contract.md)。
 - 右侧面：使用既有单一 host/registry，切换、关闭和恢复遵循同一可见状态；不重复建 browser、terminal、artifact 或 subagent owner。
 
 ## 主题与视觉样式

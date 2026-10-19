@@ -126,7 +126,7 @@ describe("ReviewThreadSidePanelTab", () => {
     expect(git.diff).not.toHaveBeenCalled();
     expect(
       container
-        .querySelector('[data-testid="workspace-files-surface"]')
+        .querySelector('[data-testid="workspace-changes-surface"]')
         ?.getAttribute("data-review-thread-id"),
     ).toBe("thread-1");
     const tree = '[data-testid="canvas-workbench-change-item"]';
@@ -190,7 +190,7 @@ describe("ReviewThreadSidePanelTab", () => {
         ?.getAttribute("data-review-path"),
     ).toBe("src/two.ts");
     expect(onOpenResultFile).not.toHaveBeenCalled();
-    click(container, '[data-testid="workspace-files-surface-open"]');
+    click(container, '[data-testid="workspace-changes-surface-open"]');
     expect(onOpenResultFile).toHaveBeenCalledWith("src/two.ts");
   });
 
@@ -215,7 +215,7 @@ describe("ReviewThreadSidePanelTab", () => {
     await flush();
     expect(
       container
-        .querySelector('[data-testid="workspace-files-surface"]')
+        .querySelector('[data-testid="workspace-changes-surface"]')
         ?.getAttribute("data-review-thread-id"),
     ).toBe("thread-empty");
     expect(
@@ -264,7 +264,7 @@ describe("ReviewThreadSidePanelTab", () => {
     expect(container.textContent).not.toContain("STALE");
     expect(
       container
-        .querySelector('[data-testid="workspace-files-surface"]')
+        .querySelector('[data-testid="workspace-changes-surface"]')
         ?.getAttribute("data-review-thread-id"),
     ).toBe("new");
   });

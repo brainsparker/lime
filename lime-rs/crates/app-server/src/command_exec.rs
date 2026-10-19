@@ -20,8 +20,9 @@ use tokio::sync::Mutex;
 use tool_runtime::execution_process::{
     start_local_execution_process, ExecutionOutputDelta, ExecutionOutputKind,
     LocalExecutionProcessControlHandle, LocalExecutionProcessEvent, LocalExecutionRequest,
-    LocalExecutionSandbox,
 };
+
+mod sandbox;
 
 const DEFAULT_OUTPUT_BYTES_CAP: usize = 1024 * 1024;
 const COMMAND_EXEC_TIMEOUT_EXIT_CODE: i32 = 124;
@@ -98,26 +99,11 @@ impl CommandExecServer {
             return Err(invalid_request("command/exec cwd must be a directory"));
         }
         let sandbox_policy = sandbox_policy_label(params.sandbox_policy.as_ref());
-        let decision = crate::execution_process::decide_command_execution(
-            &params.command,
-            &cwd,
+        let sandbox = sandbox::resolve_command_exec_sandbox(
             sandbox_policy.as_deref(),
-        )
-        .map_err(invalid_runtime)?;
-        let sandbox = if decision.0 {
-            Some(LocalExecutionSandbox {
-                backend: decision.1.ok_or_else(|| {
-                    invalid_runtime("command/exec sandbox backend is unavailable")
-                })?,
-                requested_policy: sandbox_policy.clone(),
-                granted_permissions,
-                windows_mode: crate::execution_process::runtime_windows_sandbox_mode(
-                    crate::runtime_backend::current_agent_runtime_config_metadata().as_ref(),
-                ),
-            })
-        } else {
-            None
-        };
+            granted_permissions,
+            crate::runtime_backend::current_agent_runtime_config_metadata().as_ref(),
+        )?;
         let mut env = std::env::vars().collect::<HashMap<_, _>>();
         if let Some(overrides) = &params.env {
             for (key, value) in overrides {

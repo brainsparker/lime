@@ -233,8 +233,7 @@ function CodingWorkbenchCommandProcessRow({
 }) {
   const { t } = useTranslation("agent");
   const live = isLiveExecutionProcessStatus(executionProcessStatus);
-  const hasControls =
-    live && Boolean(processControls?.onTerminateBackgroundTerminal);
+  const hasControls = live && Boolean(processControls?.onTerminateBackgroundTerminal);
 
   return (
     <div
@@ -269,6 +268,7 @@ function CodingWorkbenchCommandProcessRow({
             itemId={itemId}
             processId={processId}
             processControls={processControls}
+            live={live}
           />
         ) : null}
       </div>
@@ -280,10 +280,12 @@ function CodingWorkbenchCommandProcessButtons({
   itemId,
   processId,
   processControls,
+  live,
 }: {
   itemId: string;
   processId: string;
   processControls?: CodingWorkbenchCommandProcessControls;
+  live: boolean;
 }) {
   const { t } = useTranslation("agent");
   const [pendingAction, setPendingAction] = useState<string | null>(null);
@@ -306,7 +308,7 @@ function CodingWorkbenchCommandProcessButtons({
       className="flex shrink-0 items-center gap-1"
       data-testid="coding-workbench-command-process-controls"
     >
-      {processControls?.onTerminateBackgroundTerminal ? (
+      {live && processControls?.onTerminateBackgroundTerminal ? (
         <ProcessControlButton
           label={t(
             "agentChat.canvasWorkbench.coding.outputs.processTerminateAria",

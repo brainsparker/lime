@@ -15,7 +15,7 @@ impl RuntimeToolExecutor for LargeOutput {
 }
 
 #[tokio::test]
-async fn live_tool_output_is_bounded_on_continuation_and_retry_but_lifecycle_keeps_original() {
+async fn live_tool_output_is_bounded_across_continuations_but_lifecycle_keeps_original() {
     use agent_protocol::truncation::TruncationPolicy;
     for (policy, default_limit) in [
         (TruncationPolicy::Tokens(100), 120),
@@ -48,12 +48,14 @@ async fn live_output(
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::ToolCall,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ],
         vec![Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: true,
             response_id: None,
         })],
         vec![
@@ -64,6 +66,7 @@ async fn live_output(
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: None,
             }),
         ],
@@ -111,7 +114,11 @@ async fn live_output(
     .await
     .unwrap();
     let requests = requests.lock().unwrap();
-    assert_eq!(requests.len(), 3);
+    assert_eq!(
+        requests.len(),
+        3,
+        "must observe both explicit continuations"
+    );
     let expected = tool_runtime::tool_io::truncate_tool_output(
         &original,
         TruncationPolicy::Tokens(expected_limit),
@@ -145,11 +152,12 @@ async fn live_output(
 }
 
 #[tokio::test]
-async fn sampling_and_empty_retry_normalize_history_without_executing_inherited_calls() {
+async fn sampling_and_explicit_continuation_normalize_history_without_executing_inherited_calls() {
     let provider = Arc::new(ScriptedProvider::new(vec![
         vec![Ok(CanonicalLlmEvent::Finish {
             reason: FinishReason::Stop,
             usage: None,
+            needs_follow_up: true,
             response_id: Some("empty".to_string()),
         })],
         vec![
@@ -160,6 +168,7 @@ async fn sampling_and_empty_retry_normalize_history_without_executing_inherited_
             Ok(CanonicalLlmEvent::Finish {
                 reason: FinishReason::Stop,
                 usage: None,
+                needs_follow_up: false,
                 response_id: Some("complete".to_string()),
             }),
         ],
@@ -204,7 +213,7 @@ async fn sampling_and_empty_retry_normalize_history_without_executing_inherited_
     .expect("sampling should repair incomplete history on both attempts");
 
     let requests = requests.lock().unwrap();
-    assert_eq!(requests.len(), 2, "must observe the empty-response retry");
+    assert_eq!(requests.len(), 2, "must observe explicit continuation");
     for request in requests.iter() {
         let raw = request
             .messages

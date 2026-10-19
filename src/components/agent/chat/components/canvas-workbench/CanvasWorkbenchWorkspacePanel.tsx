@@ -14,8 +14,8 @@ import type { DirectoryListing } from "@/lib/api/fileBrowser";
 import {
   formatEntryModifiedTime,
   formatFileSize,
-} from "../FileManager/fileManagerDisplay";
-import { sortWorkspaceListingEntries } from "../CanvasWorkbenchLayoutViewModel";
+} from "./files/workspaceFileDisplay";
+import { sortFileTreeEntries } from "../../workspace/fileTreeOrder";
 import type { CanvasWorkbenchPanelCopy } from "../CanvasWorkbenchLayout";
 
 type CanvasWorkbenchTranslation = (
@@ -101,11 +101,7 @@ export const CanvasWorkbenchWorkspacePanel = memo(
         return null;
       }
 
-      return sortWorkspaceListingEntries(
-        listing.entries,
-        path,
-        workspaceRoot,
-      ).map((entry) => {
+      return sortFileTreeEntries(listing.entries).map((entry) => {
         const isDirectory = entry.isDir;
         const isExpanded = Boolean(expandedDirectories[entry.path]);
         const fileSelectionKey = `workspace-file:${entry.path}`;
@@ -231,13 +227,13 @@ export const CanvasWorkbenchWorkspacePanel = memo(
           {rootListing ? (
             <div className="grid h-8 grid-cols-[minmax(0,1fr)_94px_66px] items-center gap-3 border-b border-slate-200 bg-white px-3 text-[11px] font-medium text-slate-500">
               <span>
-                {translateWorkbench("agentChat.fileManager.column.name")}
+                {translateWorkbench("agentChat.fileTree.column.name")}
               </span>
               <span>
-                {translateWorkbench("agentChat.fileManager.column.modified")}
+                {translateWorkbench("agentChat.fileTree.column.modified")}
               </span>
               <span className="text-right">
-                {translateWorkbench("agentChat.fileManager.column.size")}
+                {translateWorkbench("agentChat.fileTree.column.size")}
               </span>
             </div>
           ) : null}

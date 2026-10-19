@@ -78,6 +78,7 @@ fn text(value: &str) -> CanonicalLlmEvent {
 fn finish(reason: FinishReason) -> CanonicalLlmEvent {
     CanonicalLlmEvent::Finish {
         reason,
+        needs_follow_up: false,
         usage: None,
         response_id: None,
     }

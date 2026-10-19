@@ -5,10 +5,15 @@ use std::sync::atomic::Ordering;
 
 #[path = "catalog_truncation.rs"]
 mod catalog_truncation;
+#[cfg(unix)]
+#[path = "command_history.rs"]
+mod command_history;
 #[path = "history.rs"]
 mod history;
 #[path = "history_protocols.rs"]
 mod history_protocols;
+#[path = "history_representation.rs"]
+mod history_representation;
 #[path = "history_truncation.rs"]
 mod history_truncation;
 #[path = "model_fixture.rs"]

@@ -92,21 +92,6 @@ function buildSourceFileName(name: string): string {
   return `${safeBase}.${extension && extension !== "txt" ? extension : "md"}`;
 }
 
-function isBrowserMockFileManagerPath(path: string): boolean {
-  return path.replace(/\\/g, "/").startsWith("/Users/mock/");
-}
-
-function buildBrowserMockFileManagerSourceText(sourceName: string): string {
-  const title = normalizeKnowledgeSourceTitle(sourceName);
-  return [
-    `# ${title}`,
-    "",
-    "- 事实：这是一份从文件管理器加入的文本资料。",
-    "- 适用场景：用于验证项目资料从本地文件添加、确认和生成引用的流程。",
-    "- 待确认：替换成真实项目内容后再作为长期资料使用。",
-  ].join("\n");
-}
-
 export function buildKnowledgeImportDraft(params: {
   sourceName: string;
   sourceText: string;
@@ -142,27 +127,8 @@ export async function readKnowledgeTextSourceFromPath(
     throw new Error("这份文件暂时不能直接整理，请换成 Markdown 或文本文件。");
   }
 
-  let preview: Awaited<ReturnType<typeof readFilePreview>>;
-  try {
-    preview = await readFilePreview(path, KNOWLEDGE_TEXT_IMPORT_MAX_BYTES);
-  } catch (error) {
-    if (isBrowserMockFileManagerPath(path)) {
-      const sourceName = getKnowledgeSourceDisplayName(source);
-      return {
-        sourceName,
-        sourceText: buildBrowserMockFileManagerSourceText(sourceName),
-      };
-    }
-    throw error;
-  }
+  const preview = await readFilePreview(path, KNOWLEDGE_TEXT_IMPORT_MAX_BYTES);
   if (preview.error) {
-    if (isBrowserMockFileManagerPath(path)) {
-      const sourceName = getKnowledgeSourceDisplayName(source);
-      return {
-        sourceName,
-        sourceText: buildBrowserMockFileManagerSourceText(sourceName),
-      };
-    }
     throw new Error(preview.error);
   }
   if (preview.isBinary || !preview.content?.trim()) {

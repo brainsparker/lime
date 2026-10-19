@@ -72,7 +72,7 @@ describe("electron/ipcChannels", () => {
     expect(isElectronHostCommand("get_experimental_config")).toBe(false);
     expect(isElectronHostCommand("save_experimental_config")).toBe(false);
     expect(isElectronHostCommand("get_file_icon_data_url")).toBe(true);
-    expect(isElectronHostCommand("get_file_manager_locations")).toBe(true);
+    expect(isElectronHostCommand("get_file_manager_locations")).toBe(false);
     expect(isElectronHostCommand("get_home_dir")).toBe(true);
     expect(isElectronHostCommand("plugin_list_installed")).toBe(false);
     expect(isElectronHostCommand("plugin_select_directory")).toBe(false);
@@ -163,7 +163,7 @@ describe("electron/ipcChannels", () => {
     expect(isElectronHostCommand("macos_native_host_invoke")).toBe(true);
     expect(isElectronHostCommand("windows_native_host_invoke")).toBe(true);
     expect(isElectronHostCommand("open_with_default_app")).toBe(true);
-    expect(isElectronHostCommand("open_project_path_with_tool")).toBe(true);
+    expect(isElectronHostCommand("open_project_path_with_tool")).toBe(false);
     expect(isElectronHostCommand("run_project_shell_command")).toBe(false);
     expect(isElectronHostCommand("project_shell_session_start")).toBe(false);
     expect(isElectronHostCommand("project_shell_session_write")).toBe(false);

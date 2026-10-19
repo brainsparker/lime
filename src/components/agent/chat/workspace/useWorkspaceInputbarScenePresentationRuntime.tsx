@@ -1,16 +1,9 @@
-import {
-  useCallback,
-  useMemo,
-  type ComponentProps,
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
-} from "react";
+import { useMemo, type ComponentProps, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Info, Palette } from "lucide-react";
 import styled from "styled-components";
 import { Switch } from "@/components/ui/switch";
-import type { Character } from "@/lib/api/projectMemory";
+
 import { Inputbar } from "../components/Inputbar";
 import type { TaskFile } from "../components/TaskFiles";
 import { CONVERSATION_CONTENT_MAX_WIDTH } from "../styles/conversationLayoutTokens";
@@ -265,12 +258,11 @@ export type WorkspaceInputbarBuilderParams = Omit<
 >;
 
 export interface UseWorkspaceInputbarScenePresentationRuntimeParams {
-  setMentionedCharacters: Dispatch<SetStateAction<Character[]>>;
   taskFiles?: TaskFile[];
   selectedFileId?: string;
   isThemeWorkbench: boolean;
   inputbarPresentation: {
-    inputbar: Omit<WorkspaceInputbarBuilderParams, "onSelectCharacter">;
+    inputbar: WorkspaceInputbarBuilderParams;
     generalWorkbenchEntryPrompt: GeneralWorkbenchEntryPromptState | null;
     onRestartGeneralWorkbenchEntryPrompt: () => void;
     onContinueGeneralWorkbenchEntryPrompt: () => Promise<void> | void;
@@ -304,25 +296,12 @@ export type WorkspaceInputbarToolStates = NonNullable<
 >;
 
 export function useWorkspaceInputbarScenePresentationRuntime({
-  setMentionedCharacters,
   taskFiles = [],
   selectedFileId,
   isThemeWorkbench,
   inputbarPresentation,
 }: UseWorkspaceInputbarScenePresentationRuntimeParams): WorkspaceInputbarScenePresentationRuntimeResult {
   const { t } = useTranslation("agent");
-  const handleSelectCharacter = useCallback(
-    (character: Character) => {
-      setMentionedCharacters((previous) => {
-        if (previous.find((item) => item.id === character.id)) {
-          return previous;
-        }
-        return [...previous, character];
-      });
-    },
-    [setMentionedCharacters],
-  );
-
   const visibleTaskFiles = useMemo(
     () =>
       taskFiles.filter((file) => isRenderableTaskFile(file, isThemeWorkbench)),
@@ -389,14 +368,6 @@ export function useWorkspaceInputbarScenePresentationRuntime({
     ],
   );
 
-  const workspaceInputbarProps = useMemo<WorkspaceInputbarBuilderParams>(
-    () => ({
-      ...inputbarPresentation.inputbar,
-      onSelectCharacter: handleSelectCharacter,
-    }),
-    [handleSelectCharacter, inputbarPresentation.inputbar],
-  );
-
   const overlayAccessory =
     generalWorkbenchEntryPromptAccessory || soulArtifactVoiceAccessory ? (
       <InputbarOverlayAccessoryStack>
@@ -422,7 +393,10 @@ export function useWorkspaceInputbarScenePresentationRuntime({
       {inputbarPresentation.planDecisionAccessory}
     </InputbarControlReplacement>
   ) : (
-    <Inputbar {...workspaceInputbarProps} overlayAccessory={overlayAccessory} />
+    <Inputbar
+      {...inputbarPresentation.inputbar}
+      overlayAccessory={overlayAccessory}
+    />
   );
   const generalWorkbenchDialog = (
     <GeneralWorkbenchDialogSection

@@ -46,9 +46,9 @@ describe("Composer send preparation", () => {
               commandPrefix: "/dispatch-command",
             };
       const fallbackRoute: InputCapabilitySendRoute = {
-        kind: "installed_skill",
-        skillKey: "fallback-skill",
-        skillName: "备用技能",
+        kind: "builtin_command",
+        commandKey: "fallback-skill",
+        commandPrefix: "@inspect",
       };
       const controller = new ComposerController({
         text: "A😀 原始草稿",
@@ -100,9 +100,9 @@ describe("Composer send preparation", () => {
         commandPrefix: "/dispatch-command",
       };
       const restoreRoute: InputCapabilitySendRoute = {
-        kind: "installed_skill",
-        skillKey: "restore-skill",
-        skillName: "恢复技能",
+        kind: "builtin_command",
+        commandKey: "restore-skill",
+        commandPrefix: "@inspect",
       };
       const prepared = prepareAgentStreamUserInputSend({
         content: "发送正文",

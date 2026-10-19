@@ -205,9 +205,9 @@ describe("agentStreamUserInputSendPreparation", () => {
             { byteRange: { start: 9, end: 15 }, placeholder: "截图" },
           ],
           inputCapabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "code-review",
-            skillName: "Code Review",
+            kind: "builtin_command",
+            commandKey: "code-review",
+            commandPrefix: "@inspect",
           },
         },
       },
@@ -222,8 +222,9 @@ describe("agentStreamUserInputSendPreparation", () => {
       ],
       textElements: [{ byteRange: { start: 9, end: 15 }, placeholder: "截图" }],
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "code-review",
+        kind: "builtin_command",
+        commandKey: "code-review",
+        commandPrefix: "@inspect",
       },
     });
     expect(result.requestMetadata).toMatchObject({
@@ -236,8 +237,9 @@ describe("agentStreamUserInputSendPreparation", () => {
         { byteRange: { start: 9, end: 15 }, placeholder: "截图" },
       ],
       input_capability_route: {
-        kind: "installed_skill",
-        skillKey: "code-review",
+        kind: "builtin_command",
+        commandKey: "code-review",
+        commandPrefix: "@inspect",
       },
       harness: {
         source: "inputbar",
@@ -247,8 +249,9 @@ describe("agentStreamUserInputSendPreparation", () => {
           },
         ],
         input_capability_route: {
-          kind: "installed_skill",
-          skillKey: "code-review",
+          kind: "builtin_command",
+          commandKey: "code-review",
+          commandPrefix: "@inspect",
         },
       },
     });

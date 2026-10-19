@@ -72,12 +72,7 @@ vi.mock("@/lib/api/modelRegistry", () => ({
     ]),
   },
 }));
-vi.mock("@/components/agent/chat/components/CuratedTaskLauncherDialog", () => ({
-  CuratedTaskLauncherDialog: () => null,
-}));
-vi.mock("@/components/agent/chat/skill-selection/CuratedTaskBadge", () => ({
-  CuratedTaskBadge: () => null,
-}));
+
 vi.mock("@/lib/api/appConfig", () => ({ getConfig: vi.fn(async () => ({})) }));
 vi.mock("@/components/agent/chat/components/EmptyStateLayout", () => ({
   EmptyStateComposerFrame: ({ children }: { children: React.ReactNode }) => (
@@ -468,8 +463,9 @@ describe("actual Inputbar Stop across submission settlement, stream and draft ow
           ]);
         if (kind === "capability")
           h.controller.setInputCapabilityRoute({
-            kind: "builtin-command",
-            key: "image",
+            kind: "builtin_command",
+            commandKey: "image",
+            commandPrefix: "@image",
           });
       });
       if (kind === "foreign") await h.foreignScope();
@@ -499,16 +495,16 @@ describe("actual Inputbar restored skill identity", () => {
     expect(h.controller.captureDraft()).toEqual(h.original);
     const revision = h.controller.getSnapshot().revision;
     await h.loadSkills(skills);
-    expect(h.current.activeCapability).toEqual({
-      kind: "installed_skill",
-      skill,
-    });
+    expect(h.current.activeCapability).toBeNull();
+    expect(h.controller.getDocument().mentionBindings).toEqual(
+      h.original.mentionBindings,
+    );
     expect(h.controller.captureDraft()).toEqual(h.original);
     expect(h.controller.getSnapshot().revision).toBe(revision);
   });
 
   it.each([false, true])(
-    "clears the selected route when its token is deleted despite another skill token (catalog loaded=%s)",
+    "deleting one skill atom preserves another without a selected route (catalog loaded=%s)",
     async (loaded) => {
       const h = await setup({ initialSkills: loaded ? skills : [] });
       expect(h.controller.captureDraft()).toEqual(h.original);

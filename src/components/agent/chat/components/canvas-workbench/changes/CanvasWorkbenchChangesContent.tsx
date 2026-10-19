@@ -37,6 +37,7 @@ export function CanvasWorkbenchChangesContent({
   return (
     <div
       data-testid="canvas-workbench-changes-content"
+      data-file-tree-container
       className={cn(
         "grid min-h-0 min-w-0 gap-0",
         filesPanelOpen

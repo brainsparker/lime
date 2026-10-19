@@ -33,19 +33,6 @@ export interface FilePreview {
   error: string | null;
 }
 
-export interface FileManagerLocation {
-  id: string;
-  label: string;
-  path: string;
-  kind:
-    | "home"
-    | "desktop"
-    | "documents"
-    | "downloads"
-    | "applications"
-    | string;
-}
-
 export type FileBrowserAppServerClient = Pick<
   AppServerClient,
   | "readFile"
@@ -70,34 +57,6 @@ async function invokeFileBrowserCommand<T>(
     : await safeInvoke(command);
   assertNotDiagnosticFacade(command, result, "真实文件管理 current 通道");
   return result as T;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-
-function isFileManagerLocation(value: unknown): value is FileManagerLocation {
-  return (
-    isRecord(value) &&
-    typeof value.id === "string" &&
-    value.id.trim().length > 0 &&
-    typeof value.label === "string" &&
-    value.label.trim().length > 0 &&
-    typeof value.path === "string" &&
-    value.path.trim().length > 0 &&
-    typeof value.kind === "string" &&
-    value.kind.trim().length > 0
-  );
-}
-
-function assertFileManagerLocations(
-  value: unknown,
-): asserts value is FileManagerLocation[] {
-  if (!Array.isArray(value) || !value.every(isFileManagerLocation)) {
-    throw new Error(
-      "get_file_manager_locations did not return file manager locations",
-    );
-  }
 }
 
 function assertFileIconDataUrl(value: unknown): asserts value is string | null {
@@ -183,9 +142,12 @@ function decodeTextPreview(bytes: Uint8Array, maxSize: number): string | null {
   }
   const limit = Math.max(0, Math.floor(maxSize));
   try {
-    return new TextDecoder("utf-8", { fatal: true }).decode(
-      bytes.subarray(0, Math.min(bytes.length, limit)),
-    );
+    const decoder = new TextDecoder("utf-8", { fatal: true });
+    const content = decoder.decode(bytes);
+    // 分类基于完整文件；预览边界截断的多字节字符不能被误判为二进制。
+    return bytes.length <= limit
+      ? content
+      : decoder.decode(bytes.subarray(0, limit), { stream: true });
   } catch {
     return null;
   }
@@ -223,16 +185,6 @@ export async function listDirectory(path: string): Promise<DirectoryListing> {
     entries,
     error: null,
   };
-}
-
-export async function getFileManagerLocations(): Promise<
-  FileManagerLocation[]
-> {
-  const result = await invokeFileBrowserCommand<unknown>(
-    "get_file_manager_locations",
-  );
-  assertFileManagerLocations(result);
-  return result;
 }
 
 export async function getFileIconDataUrl(path: string): Promise<string | null> {
@@ -287,6 +239,17 @@ export async function createDirectoryAtPath(path: string): Promise<void> {
   await createFileBrowserAppServerClient().createDirectory({
     path,
     recursive: true,
+  });
+}
+
+export async function copyFile(
+  sourcePath: string,
+  destinationPath: string,
+): Promise<void> {
+  await createFileBrowserAppServerClient().copy({
+    sourcePath,
+    destinationPath,
+    recursive: false,
   });
 }
 

@@ -2,7 +2,7 @@ import type { InputCapabilitySendRoute } from "../skill-selection/inputCapabilit
 import { parseRuntimeSceneCommand } from "./serviceSkillSceneLaunch";
 
 export interface CompletedInputCapabilitySlashUsage {
-  kind: "scene" | "skill";
+  kind: "scene";
   entryId: string;
   replayText?: string;
 }
@@ -33,59 +33,6 @@ function normalizeSlashCommandReplayText(
   return trimmed.slice(0, 400).trim();
 }
 
-function normalizeInstalledSkillExecutionKey(skillKey: string): string {
-  const normalized = skillKey.trim();
-  if (!normalized) {
-    return "";
-  }
-
-  return normalized.startsWith("local:")
-    ? normalized.slice("local:".length).trim()
-    : normalized;
-}
-
-function normalizeInputCapabilityRoute(
-  route: InputCapabilitySendRoute | undefined,
-): InputCapabilitySendRoute | undefined {
-  if (route?.kind !== "installed_skill") {
-    return route;
-  }
-
-  const normalizedSkillKey = normalizeInstalledSkillExecutionKey(
-    route.skillKey,
-  );
-  if (!normalizedSkillKey || normalizedSkillKey === route.skillKey) {
-    return route;
-  }
-
-  return {
-    ...route,
-    skillKey: normalizedSkillKey,
-  };
-}
-
-function resolveInstalledSkillReplayText(params: {
-  rawText: string;
-  skillKey: string;
-  displayContent?: string;
-}): string | undefined {
-  const displayReplayText = normalizeSlashCommandReplayText(
-    params.displayContent,
-  );
-  if (displayReplayText) {
-    return displayReplayText;
-  }
-
-  const escapedSkillKey = params.skillKey.replace(
-    /[.*+?^${}()|[\]\\]/g,
-    "\\$&",
-  );
-  const matched = params.rawText
-    .trim()
-    .match(new RegExp(`^/${escapedSkillKey}\\s*([\\s\\S]*)$`, "u"));
-  return normalizeSlashCommandReplayText(matched?.[1]);
-}
-
 function resolveRuntimeSceneReplayText(rawText: string): string | undefined {
   return normalizeSlashCommandReplayText(
     parseRuntimeSceneCommand(rawText)?.userInput,
@@ -112,9 +59,7 @@ function resolveEffectiveInputCapabilityRoute(
   capabilityRoute: InputCapabilitySendRoute | undefined,
   sourceText: string,
 ): InputCapabilitySendRoute | undefined {
-  return normalizeInputCapabilityRoute(
-    capabilityRoute || inferRuntimeSceneCapabilityRoute(sourceText),
-  );
+  return capabilityRoute || inferRuntimeSceneCapabilityRoute(sourceText);
 }
 
 function resolveRoutedSourceText(params: {
@@ -143,18 +88,6 @@ function resolveRoutedSourceText(params: {
     return `${route.commandPrefix}${sourceBody ? ` ${sourceBody}` : ""}`;
   }
 
-  if (route.kind === "installed_skill") {
-    const skillPrefix = `/${route.skillKey}`;
-    if (
-      trimmedSourceText === skillPrefix ||
-      trimmedSourceText.startsWith(`${skillPrefix} `)
-    ) {
-      return params.sourceText;
-    }
-
-    return `${skillPrefix}${sourceBody ? ` ${sourceBody}` : ""}`;
-  }
-
   if (route.kind === "curated_task") {
     return params.sourceText;
   }
@@ -177,18 +110,6 @@ function resolveCompletedSlashUsage(params: {
   const route = params.capabilityRoute;
   if (!route) {
     return null;
-  }
-
-  if (route.kind === "installed_skill") {
-    return {
-      kind: "skill",
-      entryId: route.skillKey,
-      replayText: resolveInstalledSkillReplayText({
-        rawText: params.rawText,
-        skillKey: route.skillKey,
-        displayContent: params.displayContent,
-      }),
-    };
   }
 
   if (route.kind === "runtime_scene") {

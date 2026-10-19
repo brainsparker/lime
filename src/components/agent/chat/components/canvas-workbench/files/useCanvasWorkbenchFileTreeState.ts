@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { listDirectory, type DirectoryListing } from "@/lib/api/fileBrowser";
 import type { HarnessFilePreviewResult } from "../../HarnessStatusPanel";
@@ -7,7 +7,6 @@ import {
   type WorkspaceFileSelection,
 } from "../../CanvasWorkbenchLayoutViewModel";
 import { extractFileNameFromPath } from "../../../workspace/workspacePath";
-import { filterWorkspaceDirectoryListing } from "../../../workspace/workspaceTreeVisibility";
 
 type CanvasWorkbenchTranslation = (
   key: string,
@@ -26,11 +25,9 @@ export interface CanvasWorkbenchFileTreeState {
 }
 
 export function useCanvasWorkbenchFileTreeState({
-  workspaceRoot,
   loadFilePreview,
   translateWorkbench,
 }: {
-  workspaceRoot?: string | null;
   loadFilePreview: (path: string) => Promise<HarnessFilePreviewResult>;
   translateWorkbench: CanvasWorkbenchTranslation;
 }): CanvasWorkbenchFileTreeState {
@@ -46,33 +43,42 @@ export function useCanvasWorkbenchFileTreeState({
   const [workspaceFileSelections, setWorkspaceFileSelections] = useState<
     Record<string, WorkspaceFileSelection>
   >({});
+  const directoryRequests = useRef(new Map<string, Promise<void>>());
 
   const loadDirectory = useCallback(
-    async (path: string) => {
+    (path: string): Promise<void> => {
       if (!path.trim()) {
-        return;
+        return Promise.resolve();
       }
-      setLoadingDirectories((previous) => ({ ...previous, [path]: true }));
-      try {
-        const listing = filterWorkspaceDirectoryListing(
-          await listDirectory(path),
-          workspaceRoot,
-        );
-        setDirectoryCache((previous) => ({
-          ...previous,
-          [path]: listing,
-        }));
-      } catch (error) {
-        toast.error(
-          translateWorkbench("agentChat.canvasWorkbench.workspace.loadFailed", {
-            message: error instanceof Error ? error.message : String(error),
-          }),
-        );
-      } finally {
-        setLoadingDirectories((previous) => ({ ...previous, [path]: false }));
-      }
+      const pending = directoryRequests.current.get(path);
+      if (pending) return pending;
+      const request = (async () => {
+        setLoadingDirectories((previous) => ({ ...previous, [path]: true }));
+        try {
+          const listing = await listDirectory(path);
+          setDirectoryCache((previous) => ({ ...previous, [path]: listing }));
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          setDirectoryCache((previous) => ({
+            ...previous,
+            [path]: { path, parentPath: null, entries: [], error: message },
+          }));
+          toast.error(
+            translateWorkbench(
+              "agentChat.canvasWorkbench.workspace.loadFailed",
+              { message },
+            ),
+          );
+        } finally {
+          directoryRequests.current.delete(path);
+          setLoadingDirectories((previous) => ({ ...previous, [path]: false }));
+        }
+      })();
+      directoryRequests.current.set(path, request);
+      return request;
     },
-    [translateWorkbench, workspaceRoot],
+    [translateWorkbench],
   );
 
   const toggleDirectory = useCallback(

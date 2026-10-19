@@ -28,7 +28,7 @@
 - 路线图主线：`internal/roadmap/`
 - Runtime 当前对齐入口：`internal/aiprompts/architecture.md` 与 `internal/exec-plans/codex-alignment-v1-coordination-plan.md`
 - Refactor v2 全项目 Gate A/B 验收计划：`internal/exec-plans/project-gate-a-b-acceptance-plan.md`
-- 当前发布执行计划：`internal/exec-plans/release-v1.162.0-plan.md`
+- 当前发布执行计划：`internal/exec-plans/release-v1.163.0-plan.md`
 - 已结束版本的发布过程不保留在 active tree；结果以 Git tag、GitHub Release、Release Notes 与 Git history 为准。
 - Codex App GUI 历史基线及领域计划索引：`internal/exec-plans/codex-app-gui-alignment-plan.md`；GUI current 实施统一见下方全面对齐计划。
 - Codex Desktop 跨平台底层对比与对齐计划：`internal/exec-plans/codex-desktop-platform-parity-plan.md`
@@ -73,6 +73,7 @@
 - Agent QC 运营级测试体系执行计划：`internal/exec-plans/agent-qc-ops-testing-plan.md`
 - Agent App v2 独立安装与 Runtime 底座拆分执行计划：`internal/exec-plans/agentapp-v2-standalone-runtime.md`
 - Codex 插件重构与 LimeCore 联动：`internal/exec-plans/codex-plugin-reconstruction.md`
+- Codex 消息 phase 与原生文本提前完成：[执行计划](./codex-message-phase-alignment-plan.md)；grok 仅参考多模型机制。
 - AI 图层化设计 current 路线图：`internal/roadmap/ai-layered-design/README.md`
 - 图片能力 feature-flag / extension-tool 执行计划：`internal/exec-plans/image-capability-feature-flag-extension-tool-plan.md`
 - 图片能力 feature-flag / extension-tool 进度：`internal/exec-plans/image-capability-feature-flag-extension-tool-progress.md`

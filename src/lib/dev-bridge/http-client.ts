@@ -23,6 +23,7 @@ import {
   invokeConsoleError,
   isPersistedAtomCommand,
 } from "./invokeDiagnostics";
+import { commandExecBridgeTimeout } from "./commandExecTimeout";
 
 const BRIDGE_URL = "http://127.0.0.1:3030/invoke";
 const BRIDGE_HEALTH_URL = "http://127.0.0.1:3030/health";
@@ -95,6 +96,10 @@ export function resolveBridgeRequestTimeoutMs(
   cmd: string,
   args?: unknown,
 ): number {
+  if (cmd === "app_server_handle_json_lines") {
+    const commandTimeout = commandExecBridgeTimeout(args);
+    if (commandTimeout !== null) return commandTimeout;
+  }
   switch (resolveDevBridgeCommandTimeoutProfile(cmd, args)) {
     case "startup-truth":
       return DEV_BRIDGE_STARTUP_TRUTH_COMMAND_TIMEOUT_MS;
@@ -246,6 +251,7 @@ async function fetchWithTimeout(
   init: FetchOptions,
   timeoutMs: number,
 ): Promise<Response> {
+  if (timeoutMs <= 0) return await fetch(input, init);
   const controller = new AbortController();
   const timeoutId = globalThis.setTimeout(() => {
     controller.abort();

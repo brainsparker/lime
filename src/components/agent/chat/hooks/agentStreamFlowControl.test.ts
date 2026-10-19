@@ -969,9 +969,7 @@ describe("agentStreamFlowControl", () => {
         id: "agent-message-final-visible-canonical",
         role: "assistant",
         content: "以下是今日国际新闻简要整理：",
-        contentParts: [
-          { type: "text", text: "以下是今日国际新闻简要整理：" },
-        ],
+        contentParts: [{ type: "text", text: "以下是今日国际新闻简要整理：" }],
         timestamp: new Date("2026-07-10T00:00:01.000Z"),
         runtimeTurnId,
       },
@@ -1220,9 +1218,9 @@ describe("agentStreamFlowControl", () => {
         images: [image],
         pathReferences: [pathReference],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
     };
@@ -1295,9 +1293,9 @@ describe("agentStreamFlowControl", () => {
         pathReferences: [pathReference],
         textElements: [],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
     });
@@ -1376,9 +1374,9 @@ describe("agentStreamFlowControl", () => {
         images: [image],
         pathReferences: [pathReference],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
       onRestoreInterruptedInput,
@@ -1398,9 +1396,9 @@ describe("agentStreamFlowControl", () => {
         pathReferences: [pathReference],
         textElements: [],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "draft",
-          skillName: "起草",
+          kind: "builtin_command",
+          commandKey: "draft",
+          commandPrefix: "@inspect",
         },
       },
     });
@@ -1431,9 +1429,9 @@ describe("agentStreamFlowControl", () => {
         images: [image],
         pathReferences: [pathReference],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "capability-report",
-          skillName: "Capability Report",
+          kind: "builtin_command",
+          commandKey: "capability-report",
+          commandPrefix: "@inspect",
         },
       },
     };
@@ -1501,9 +1499,9 @@ describe("agentStreamFlowControl", () => {
         pathReferences: [pathReference],
         textElements: [],
         inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "capability-report",
-          skillName: "Capability Report",
+          kind: "builtin_command",
+          commandKey: "capability-report",
+          commandPrefix: "@inspect",
         },
       },
     });

@@ -1,4 +1,5 @@
 import http from "node:http";
+import { closeThreadSidePanelTab } from "./thread-side-panel-navigation.mjs";
 import { appServerCallFromPage } from "../mcp-config-fixture-smoke.mjs";
 import {
   parseInvokeTraceRaw,
@@ -93,11 +94,11 @@ export function assertRightSurfaceLifecycleEvidence(evidence) {
   );
   for (const stage of [
     "browserOpened",
-    "filesSelected",
+    "changesSelected",
     "browserSelected",
     "closedPrimaryRestored",
     "browserClosed",
-    "filesClosed",
+    "changesClosed",
   ]) {
     assert(
       evidence.stages?.[stage] === true,
@@ -153,7 +154,7 @@ export async function collectRightSurfaceLifecycleEvidence(
           selected.getAttribute("aria-controls") ===
             host.querySelector('[role="tabpanel"]')?.id &&
           (!both ||
-            ["browser", "files"].every((surface) =>
+            ["browser", "changes"].every((surface) =>
               tabs.querySelector(
                 `[data-testid="workspace-right-surface-tab-${surface}"]`,
               ),
@@ -262,17 +263,17 @@ export async function collectRightSurfaceLifecycleEvidence(
     stages.browserOpened = true;
     onStage("browser-opened");
     await page
-      .locator('[data-testid="workspace-right-surface-tab-files"]')
+      .locator('[data-testid="workspace-right-surface-tab-changes"]')
       .click();
-    await waitSurface("files", true);
+    await waitSurface("changes", true);
     assert(
       (await page
-        .locator('[data-testid="workspace-files-surface"]')
+        .locator('[data-testid="workspace-changes-surface"]')
         .getAttribute("data-review-thread-id")) === threadId,
-      "Files 切换到另一 Thread",
+      "Changes 切换到另一 Thread",
     );
-    stages.filesSelected = true;
-    onStage("files-selected");
+    stages.changesSelected = true;
+    onStage("changes-selected");
     await page
       .locator('[data-testid="workspace-right-surface-tab-browser"]')
       .click();
@@ -307,9 +308,9 @@ export async function collectRightSurfaceLifecycleEvidence(
       { timeout: timeoutMs },
     );
     await page
-      .locator('[data-testid="workspace-right-surface-tab-files"]')
+      .locator('[data-testid="workspace-right-surface-tab-changes"]')
       .click();
-    await waitSurface("files", true);
+    await waitSurface("changes", true);
     await page
       .locator('[data-testid="workspace-right-surface-tab-browser"]')
       .click();
@@ -339,11 +340,8 @@ export async function collectRightSurfaceLifecycleEvidence(
       "关闭 primary 后切换复活了旧 tab 或丢失 selected native view",
     );
     onStage("closed-primary-restored");
-    await page
-      .locator('[data-testid="task-center-browser-toggle"]')
-      .first()
-      .click();
-    await waitSurface("files", false);
+    await closeThreadSidePanelTab(page, "browser");
+    await waitSurface("changes", false);
     assert(
       (await page
         .locator(`${TABS} [data-testid="workspace-right-surface-tab-browser"]`)
@@ -352,15 +350,12 @@ export async function collectRightSurfaceLifecycleEvidence(
     );
     stages.browserClosed = true;
     onStage("browser-closed");
+    await closeThreadSidePanelTab(page, "changes");
     await page
-      .locator('[data-testid="task-center-files-toggle"]')
-      .first()
-      .click();
-    await page
-      .locator('[data-testid="workspace-files-surface"]')
+      .locator('[data-testid="workspace-changes-surface"]')
       .waitFor({ state: "detached", timeout: timeoutMs });
-    stages.filesClosed = true;
-    onStage("files-closed");
+    stages.changesClosed = true;
+    onStage("changes-closed");
     const { traceRaw, errorRaw } = await page.evaluate(() => ({
       traceRaw: localStorage.getItem("lime_invoke_trace_buffer_v1"),
       errorRaw: localStorage.getItem("lime_invoke_error_buffer_v1"),

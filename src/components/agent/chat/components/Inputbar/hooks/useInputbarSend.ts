@@ -7,10 +7,9 @@ import type {
 import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
 import { createComposerSubmissionSettlement } from "../../composerSubmissionSettlement";
 import type { MessageImage, MessagePathReference } from "../../../types";
-import type { InputbarKnowledgePackSelection } from "../types";
+
 import type { InputbarSendHandler } from "../inputbarSendPayload";
-import { buildKnowledgeRequestMetadata } from "@/features/knowledge/agent/knowledgeMetadata";
-import { recordCuratedTaskTemplateUsage } from "../../../utils/curatedTaskTemplates";
+
 import { buildPathReferenceRequestMetadata } from "../../../utils/pathReferences";
 import {
   resolveInputCapabilityDispatch,
@@ -33,7 +32,6 @@ interface UseInputbarSendParams {
   pendingImages: MessageImage[];
   pathReferences: MessagePathReference[];
   activeCapability: InputCapabilitySelection | null;
-  knowledgePackSelection?: InputbarKnowledgePackSelection | null;
   activeTools?: Record<string, boolean>;
   projectId?: string | null;
   sessionId?: string | null;
@@ -62,7 +60,6 @@ export function useInputbarSend({
   pendingImages,
   pathReferences,
   activeCapability,
-  knowledgePackSelection,
   activeTools = {},
   projectId,
   sessionId,
@@ -125,16 +122,6 @@ export function useInputbarSend({
           runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
             onComposerAccepted?.(draft, result),
           );
-          if (submittedCapability?.kind === "curated_task") {
-            runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
-              recordCuratedTaskTemplateUsage({
-                templateId: submittedCapability.task.id,
-                launchInputValues: submittedCapability.launchInputValues,
-                referenceMemoryIds: submittedCapability.referenceMemoryIds,
-                referenceEntries: submittedCapability.referenceEntries,
-              }),
-            );
-          }
         },
         onCommitted: (accepted) => {
           // Controller has already been committed by its sole settlement owner.
@@ -231,7 +218,6 @@ export function useInputbarSend({
         submittedImages.length === 0 &&
         submittedReferences.length === 0 &&
         !submittedCapability &&
-        !knowledgePackSelection?.enabled &&
         !hasRuntimeMode &&
         resolvedSubmitTarget !== "queue";
       if (canUsePlainTextFastPath) {
@@ -278,25 +264,11 @@ export function useInputbarSend({
         capabilityDispatch.requestMetadata,
         [...submittedReferences],
       );
-      const knowledgeRequestMetadata =
-        knowledgePackSelection?.enabled &&
-        knowledgePackSelection.packName.trim() &&
-        knowledgePackSelection.workingDir.trim()
-          ? {
-              ...(baseRequestMetadata || {}),
-              ...buildKnowledgeRequestMetadata({
-                workingDir: knowledgePackSelection.workingDir.trim(),
-                packName: knowledgePackSelection.packName.trim(),
-                packs: knowledgePackSelection.companionPacks,
-                source: "inputbar",
-              }),
-            }
-          : baseRequestMetadata;
       const inputbarModeState = {
         planEnabled: Boolean(activeTools["task_mode"]),
         subagentEnabled: Boolean(activeTools["subagent_mode"]),
       };
-      const requestMetadata = knowledgeRequestMetadata;
+      const requestMetadata = baseRequestMetadata;
       const threadGoal =
         activeTools["objective_mode"] && submittedInput.trim()
           ? { objective: submittedInput.trim() }
@@ -388,7 +360,6 @@ export function useInputbarSend({
       getInputRestoreEpoch,
       input,
       isLoading,
-      knowledgePackSelection,
       onComposerAccepted,
       onComposerCommitted,
       projectId,

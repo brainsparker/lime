@@ -7,7 +7,7 @@ import {
   withComposerCodePickerDom,
 } from "./claw-chat-current-fixture-composer-code-picker.mjs";
 const BODY = "  const value = '中😀';\n````";
-const TEXT = `prompt\n${BODY}\n/user:capability-report [Pasted text]`;
+const TEXT = `prompt\n${BODY}\n$capability-report [Pasted text]`;
 const SESSION = "picker-session",
   THREAD = "picker-thread";
 const CHOICES = ["auto", "plaintext", "typescript"];
@@ -117,7 +117,7 @@ function dom() {
   editor.setAttribute("contenteditable", "true");
   editor.dataset.sessionId = SESSION;
   editor.innerHTML =
-    '<p>prompt</p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false"><button class="composer-code-language-trigger" aria-expanded="true" aria-controls="language-menu" aria-label="Choose language">TypeScript</button></div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">\'中😀\'</span>;\n````</code></pre></div><p><span data-composer-token="skill" contenteditable="false">/user:capability-report</span> <span data-composer-token="paste" contenteditable="false">[Pasted text]</span></p>';
+    '<p>prompt</p><div data-composer-code-block="true"><div data-composer-code-block-toolbar="true" contenteditable="false"><button class="composer-code-language-trigger" aria-expanded="true" aria-controls="language-menu" aria-label="Choose language">TypeScript</button></div><pre dir="ltr"><code class="hljs language-typescript">  <span class="hljs-keyword">const</span> value = <span class="hljs-string">\'中😀\'</span>;\n````</code></pre></div><p><span data-composer-token="skill" data-composer-label="$capability-report" data-composer-display-name="Capability Report" contenteditable="false">Capability Report</span> <span data-composer-token="paste" contenteditable="false">[Pasted text]</span></p>';
   const menu = document.createElement("div");
   menu.className = "composer-code-language-menu";
   menu.id = "language-menu";

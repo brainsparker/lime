@@ -7,7 +7,7 @@ import { runRuntimeSubmissionEffect } from "../hooks/agentSendResult";
 import { restoreComposerDraft } from "../hooks/composerDraftRestore";
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
 import {
-  claimComposerCapabilityInitialization,
+  useComposerInitialSkill,
   useComposerCapabilitySelection,
 } from "../skill-selection/useComposerCapabilitySelection";
 import { insertComposerSkill } from "../skill-selection/composerCapabilityMention";
@@ -19,31 +19,17 @@ import React, {
   useState,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { appendSelectedText } from "../utils/promptContext";
-import {
-  buildCuratedTaskLaunchPrompt,
-  buildCuratedTaskTemplateCopy,
-  findCuratedTaskTemplateById,
-  recordCuratedTaskTemplateUsage,
-  replaceCuratedTaskLaunchPromptInInput,
-  type CuratedTaskInputValues,
-  type CuratedTaskTemplateItem,
-} from "../utils/curatedTaskTemplates";
-import type {
-  CuratedTaskReferenceEntry,
-  CuratedTaskReferenceSelection,
-} from "../utils/curatedTaskReferenceSelection";
-import { CuratedTaskLauncherDialog } from "./CuratedTaskLauncherDialog";
+
 import { EmptyStateComposerPanel } from "./EmptyStateComposerPanel";
 import { EmptyStateComposerFrame, EmptyStateLayout } from "./EmptyStateLayout";
 import { buildSkillSelectionProps } from "../skill-selection/skillSelectionBindings";
-import { isGeneralResearchTheme } from "../utils/generalAgentPrompt";
+
 import type { MessagePathReference } from "../types";
 import {
   mergePathReferences,
   buildPathReferenceRequestMetadata,
 } from "../utils/pathReferences";
-import { buildKnowledgeRequestMetadata } from "@/features/knowledge/agent/knowledgeMetadata";
+
 import {
   resolveInputCapabilityDispatch,
   resolveInputCapabilitySelectionFromRoute,
@@ -53,10 +39,9 @@ import {
 import { buildHomeSurfaceCopy } from "../home/homeSurfaceCopy";
 import { buildInputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import { buildInputbarToolPreferencesOverride } from "./Inputbar/utils/inputbarModeRequestMetadata";
-import { resolveEffectiveCuratedTaskReferences } from "./EmptyStateViewModel";
-import { useEmptyStateAttachments } from "./useEmptyStateAttachments";
-import { useEmptyStateRecommendationPreferences } from "./useEmptyStateRecommendationPreferences";
-import { useCuratedTaskLauncherState } from "./useCuratedTaskLauncherState";
+
+import { useComposerAttachments } from "./useComposerAttachments";
+
 import type { AgentI18nKey, EmptyStateProps } from "./EmptyState.types";
 import {
   type BaseComposerSendMetadata,
@@ -79,7 +64,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onStop,
   sendOnPointerDown = false,
   activeTheme = "general",
-  onThemeChange,
   providerType,
   setProviderType,
   model,
@@ -95,18 +79,9 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onObjectiveEnabledChange: onObjectiveEnabledChangeProp,
   subagentEnabled = false,
   onSubagentEnabledChange,
-  selectedText = "",
-  characters = [],
   skills,
-  serviceSkills,
-  serviceSkillGroups,
   isSkillsLoading,
-  onSelectServiceSkill,
-  onNavigateToSettings,
-  onImportSkill,
-  onRefreshSkills,
   onSkillSuggestionsNeeded,
-  onLaunchBrowserAssist,
   projectId = null,
   openedProjects = [],
   onProjectContextChange,
@@ -118,16 +93,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   isLoading = false,
   disabled = false,
   initialInputCapability,
-  creationReplaySurface = null,
-  defaultCuratedTaskReferenceMemoryIds,
-  defaultCuratedTaskReferenceEntries,
-  knowledgePackSelection = null,
-  knowledgePackOptions = [],
-  onToggleKnowledgePack,
-  onSelectKnowledgePack,
-  onToggleKnowledgeCompanionPack,
-  onStartKnowledgeOrganize,
-  onManageKnowledgePacks,
   pathReferences: initialPathReferences = [],
   onAddPathReferences,
   inputRestoreRequest = null,
@@ -135,8 +100,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
-  fileManagerOpen = false,
-  onToggleFileManager,
 }) => {
   const { t, i18n } = useTranslation("agent");
   const {
@@ -238,10 +201,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       t(key as AgentI18nKey, values ?? {}),
     [t],
   );
-  const curatedTaskTemplateCopy = useMemo(
-    () => buildCuratedTaskTemplateCopy(translateAgentCopyKey),
-    [translateAgentCopyKey],
-  );
   const skinCopy = useMemo(
     () => getLimeSkinCopy(homeSkinPresentation.skinId, i18n.language),
     [homeSkinPresentation.skinId, i18n.language],
@@ -258,10 +217,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     inputRestoreRequest?.composerRestoreToken,
   );
   const inputRestoreEpochRef = useRef(0);
-  const [activeCapability, setActiveCapability] =
-    useComposerCapabilitySelection(composerController, skills);
-  const [knowledgeHubOpenRequestKey, setKnowledgeHubOpenRequestKey] =
-    useState(0);
+  const [, setActiveCapability] =
+    useComposerCapabilitySelection(composerController);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
   const objectiveEnabled = objectiveEnabledProp ?? localObjectiveEnabled;
   const handleObjectiveEnabledChange = useCallback(
@@ -274,197 +231,34 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     },
     [onObjectiveEnabledChangeProp],
   );
-  const activeCuratedTaskCapability =
-    activeCapability?.kind === "curated_task" ? activeCapability : null;
-  const activeCuratedTask = activeCuratedTaskCapability?.task ?? null;
-  const activeCuratedTaskLaunchInputValues =
-    activeCuratedTaskCapability?.launchInputValues;
-  const activeCuratedTaskReferenceMemoryIds =
-    activeCuratedTaskCapability?.referenceMemoryIds;
-  const activeCuratedTaskReferenceEntries =
-    activeCuratedTaskCapability?.referenceEntries;
-  const {
-    effectiveDefaultCuratedTaskReferenceMemoryIds,
-    effectiveDefaultCuratedTaskReferenceEntries,
-  } = resolveEffectiveCuratedTaskReferences({
-    defaultCuratedTaskReferenceMemoryIds,
-    defaultCuratedTaskReferenceEntries,
-    creationReplaySurface,
-  });
-  const currentSkill =
-    activeCapability?.kind === "installed_skill"
-      ? activeCapability.skill
-      : null;
-  const activeBuiltinCommandKey =
-    activeCapability?.kind === "builtin_command"
-      ? activeCapability.command.key
-      : null;
   const clearSelectedSkill = useCallback(() => {
     setActiveCapability(null);
   }, [setActiveCapability]);
-  const initialInputCapabilitySignature = useMemo(() => {
-    const route = initialInputCapability?.capabilityRoute;
-    if (!route) {
-      return "";
-    }
-
-    return JSON.stringify({
-      requestKey: initialInputCapability.requestKey ?? 0,
-      route,
-    });
-  }, [initialInputCapability]);
-
-  useEffect(() => {
-    const route = initialInputCapability?.capabilityRoute;
-    if (
-      !route ||
-      !claimComposerCapabilityInitialization(
-        composerController,
-        initialInputCapabilitySignature,
-      )
-    ) {
-      return;
-    }
-
-    const resolvedCapability = resolveInputCapabilitySelectionFromRoute({
-      route,
-      skills,
-    });
-
-    if (
-      route.kind === "curated_task" &&
-      !input.trim() &&
-      route.prompt.trim().length > 0
-    ) {
-      setComposerText(route.prompt);
-    }
-
-    if (resolvedCapability.kind === "installed_skill") {
-      insertComposerSkill(composerController, resolvedCapability.skill);
-      setInput(composerController.getDocument().text);
-    }
-    setActiveCapability(resolvedCapability);
-  }, [
-    initialInputCapability,
-    initialInputCapabilitySignature,
-    composerController,
-    setInput,
-    input,
-    setComposerText,
-    setActiveCapability,
-    skills,
-  ]);
+  useComposerInitialSkill(composerController, initialInputCapability);
   const handleSelectInputCapability = useCallback(
     (capability: InputCapabilitySelection) => {
       if (capability.kind === "installed_skill") {
         insertComposerSkill(composerController, capability.skill);
         setInput(composerController.getDocument().text);
       }
-      if (capability.kind === "service_skill") {
-        setActiveCapability(null);
-        onSelectServiceSkill?.(capability.skill);
-        return;
-      }
-      if (capability.kind === "builtin_command") {
-        if (capability.command.key === "knowledge_pack") {
-          if (!knowledgePackSelection && !onStartKnowledgeOrganize) {
-            onManageKnowledgePacks?.();
-          } else {
-            setKnowledgeHubOpenRequestKey((current) => current + 1);
-          }
-          setActiveCapability(null);
-          return;
-        }
-
-        if (capability.command.key === "knowledge_settle") {
-          onStartKnowledgeOrganize?.();
-          setActiveCapability(null);
-          return;
-        }
-      }
-      setActiveCapability(capability);
     },
-    [
-      composerController,
-      setInput,
-      knowledgePackSelection,
-      onManageKnowledgePacks,
-      onSelectServiceSkill,
-      onStartKnowledgeOrganize,
-      setActiveCapability,
-    ],
+    [composerController, setInput],
   );
-  useEffect(() => {
-    if (activeBuiltinCommandKey !== "knowledge_pack") {
-      return;
-    }
-    setActiveCapability(null);
-    if (!knowledgePackSelection && !onStartKnowledgeOrganize) {
-      onManageKnowledgePacks?.();
-      return;
-    }
-    setKnowledgeHubOpenRequestKey((current) => current + 1);
-  }, [
-    activeBuiltinCommandKey,
-    knowledgePackSelection,
-    onManageKnowledgePacks,
-    onStartKnowledgeOrganize,
-    setActiveCapability,
-  ]);
   const skillSelection = buildSkillSelectionProps({
     skills,
-    serviceSkills,
-    serviceSkillGroups,
     isSkillsLoading,
-    activeSkill: currentSkill,
-    onSelectInputCapability: handleSelectInputCapability,
-    onClearSkill: clearSelectedSkill,
-    onNavigateToSettings,
-    onImportSkill,
-    onRefreshSkills,
     onSkillSuggestionsNeeded,
   });
-  const { appendSelectedTextToRecommendation } =
-    useEmptyStateRecommendationPreferences();
-  const {
-    applyReviewSuggestion: applyLauncherReviewSuggestion,
-    handleOpenChange: handleCuratedTaskLauncherOpenChange,
-    initialInputValues: curatedTaskLauncherInitialInputValues,
-    initialReferenceEntries: curatedTaskLauncherInitialReferenceEntries,
-    initialReferenceMemoryIds: curatedTaskLauncherInitialReferenceMemoryIds,
-    open: openCuratedTaskLauncher,
-    prefillHint: curatedTaskLauncherPrefillHint,
-    reset: resetCuratedTaskLauncher,
-    task: curatedTaskLauncherTask,
-  } = useCuratedTaskLauncherState({
-    effectiveDefaultCuratedTaskReferenceEntries,
-    effectiveDefaultCuratedTaskReferenceMemoryIds,
-    reviewSuggestionPrefillHint:
-      homeSurfaceCopy.curatedTaskReviewSuggestionPrefillHint,
-  });
-
-  // 使用外部传入的 activeTheme，如果有 onThemeChange 则使用受控模式
-  const handleThemeChange = useCallback(
-    (theme: string) => {
-      if (onThemeChange) {
-        onThemeChange(theme === "general" ? theme : "general");
-      }
-    },
-    [onThemeChange],
-  );
-
-  const isGeneralTheme = isGeneralResearchTheme(activeTheme);
   const isComposerBusy = isLoading || disabled;
   const {
     clearPendingImages,
     handleDragOver,
     handleDrop,
-    handleFileSelect,
+    openFileDialog,
     handlePaste,
     handleRemoveImage,
     pendingImages,
-  } = useEmptyStateAttachments({
-    toastCopy: homeSurfaceCopy.toast,
+  } = useComposerAttachments({
     onAddPathReferences: handleAddPathReferences,
     controller: composerController,
   });
@@ -523,7 +317,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const submissionCapability = currentDraft.inputCapabilityRoute
       ? resolveInputCapabilitySelectionFromRoute({
           route: currentDraft.inputCapabilityRoute as InputCapabilitySendRoute,
-          skills,
         })
       : null;
     const composerInputOverride =
@@ -626,25 +419,11 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       capabilityDispatch.requestMetadata,
       [...composerReceipt.submission.pathReferences],
     );
-    const knowledgeRequestMetadata =
-      knowledgePackSelection?.enabled &&
-      knowledgePackSelection.packName.trim() &&
-      knowledgePackSelection.workingDir.trim()
-        ? {
-            ...(baseRequestMetadata || {}),
-            ...buildKnowledgeRequestMetadata({
-              workingDir: knowledgePackSelection.workingDir.trim(),
-              packName: knowledgePackSelection.packName.trim(),
-              packs: knowledgePackSelection.companionPacks,
-              source: "inputbar",
-            }),
-          }
-        : baseRequestMetadata;
     const inputbarModeState = {
       planEnabled: modeState?.planEnabled ?? taskEnabled,
       subagentEnabled: modeState?.subagentEnabled ?? subagentEnabled,
     };
-    const requestMetadata = knowledgeRequestMetadata;
+    const requestMetadata = baseRequestMetadata;
     const threadGoal =
       (modeState?.goalEnabled ?? objectiveEnabled) &&
       composerInputOverride.trim()
@@ -720,113 +499,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     setInput(draft.text);
   };
 
-  const handleCuratedTaskLauncherRequest = useCallback(
-    (
-      template: CuratedTaskTemplateItem,
-      initialInputValues?: CuratedTaskInputValues | null,
-      initialReferenceMemoryIds?: string[] | null,
-      initialReferenceEntries?: CuratedTaskReferenceEntry[] | null,
-      prefillHint?: string | null,
-    ) => {
-      openCuratedTaskLauncher(
-        template,
-        initialInputValues,
-        initialReferenceMemoryIds,
-        initialReferenceEntries,
-        prefillHint,
-      );
-    },
-    [openCuratedTaskLauncher],
-  );
-
-  const handleApplyLauncherReviewSuggestion = useCallback(
-    (
-      template: CuratedTaskTemplateItem,
-      options: {
-        inputValues: CuratedTaskInputValues;
-        referenceSelection: CuratedTaskReferenceSelection;
-      },
-    ) => {
-      applyLauncherReviewSuggestion(template, options);
-    },
-    [applyLauncherReviewSuggestion],
-  );
-
-  const handleApplyCuratedTaskTemplate = useCallback(
-    (
-      template: CuratedTaskTemplateItem,
-      inputValues: CuratedTaskInputValues,
-      referenceSelection: CuratedTaskReferenceSelection,
-    ) => {
-      recordCuratedTaskTemplateUsage({
-        templateId: template.id,
-        launchInputValues: inputValues,
-        referenceMemoryIds: referenceSelection.referenceMemoryIds,
-        referenceEntries: referenceSelection.referenceEntries,
-      });
-      resetCuratedTaskLauncher();
-
-      if (template.shouldEnableTeamMode && !subagentEnabled) {
-        onSubagentEnabledChange?.(true);
-      }
-
-      if (template.themeTarget) {
-        handleThemeChange(template.themeTarget);
-      }
-
-      if (template.shouldLaunchBrowserAssist) {
-        void onLaunchBrowserAssist?.();
-      }
-
-      const resolvedTemplate =
-        findCuratedTaskTemplateById(template.id, curatedTaskTemplateCopy) ??
-        template;
-      const launchPrompt = buildCuratedTaskLaunchPrompt({
-        task: resolvedTemplate,
-        inputValues,
-        referenceEntries: referenceSelection.referenceEntries,
-      });
-      const nextPrompt = appendSelectedText(
-        launchPrompt,
-        selectedText,
-        appendSelectedTextToRecommendation,
-      );
-      const promptWithSelection = replaceCuratedTaskLaunchPromptInInput({
-        currentInput: input,
-        previousPrompt:
-          activeCuratedTask?.id === template.id
-            ? activeCuratedTask.prompt
-            : null,
-        nextPrompt,
-      });
-      setActiveCapability({
-        kind: "curated_task",
-        task: {
-          ...resolvedTemplate,
-          prompt: nextPrompt,
-        },
-        launchInputValues: inputValues,
-        referenceMemoryIds: referenceSelection.referenceMemoryIds,
-        referenceEntries: referenceSelection.referenceEntries,
-      });
-      setComposerText(promptWithSelection);
-    },
-    [
-      activeCuratedTask,
-      appendSelectedTextToRecommendation,
-      curatedTaskTemplateCopy,
-      handleThemeChange,
-      input,
-      onLaunchBrowserAssist,
-      onSubagentEnabledChange,
-      resetCuratedTaskLauncher,
-      selectedText,
-      setComposerText,
-      setActiveCapability,
-      subagentEnabled,
-    ],
-  );
-
   const handleStop = useCallback(() => {
     onStop?.();
   }, [onStop]);
@@ -854,58 +526,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         onManageProviders={onManageProviders}
         isLoading={isComposerBusy}
         disabled={isComposerBusy}
-        isGeneralTheme={isGeneralTheme}
-        characters={characters}
         skillSelection={skillSelection}
-        activeCapability={activeCapability}
         onSelectInputCapability={handleSelectInputCapability}
-        onClearInputCapability={clearSelectedSkill}
-        onEditCuratedTask={
-          activeCuratedTask
-            ? () =>
-                handleCuratedTaskLauncherRequest(
-                  activeCuratedTask,
-                  activeCuratedTaskLaunchInputValues,
-                  activeCuratedTaskReferenceMemoryIds ||
-                    effectiveDefaultCuratedTaskReferenceMemoryIds,
-                  activeCuratedTaskReferenceEntries ||
-                    effectiveDefaultCuratedTaskReferenceEntries,
-                )
-            : undefined
-        }
-        onApplyCuratedTaskReviewSuggestion={
-          activeCuratedTask
-            ? (task) =>
-                handleCuratedTaskLauncherRequest(
-                  task,
-                  activeCuratedTaskLaunchInputValues,
-                  activeCuratedTaskReferenceMemoryIds ||
-                    effectiveDefaultCuratedTaskReferenceMemoryIds,
-                  activeCuratedTaskReferenceEntries ||
-                    effectiveDefaultCuratedTaskReferenceEntries,
-                  homeSurfaceCopy.curatedTaskReviewSuggestionPrefillHint,
-                )
-            : undefined
-        }
-        creationReplaySurface={creationReplaySurface}
         projectId={projectId}
         openedProjects={openedProjects}
         onProjectContextChange={onProjectContextChange}
         sessionId={sessionId}
-        defaultCuratedTaskReferenceMemoryIds={
-          effectiveDefaultCuratedTaskReferenceMemoryIds
-        }
-        defaultCuratedTaskReferenceEntries={
-          effectiveDefaultCuratedTaskReferenceEntries
-        }
-        knowledgePackSelection={knowledgePackSelection}
-        knowledgePackOptions={knowledgePackOptions}
-        knowledgeHubOpenRequestKey={knowledgeHubOpenRequestKey}
-        onToggleKnowledgePack={onToggleKnowledgePack}
-        onSelectKnowledgePack={onSelectKnowledgePack}
-        onToggleKnowledgeCompanionPack={onToggleKnowledgeCompanionPack}
-        onStartKnowledgeOrganize={onStartKnowledgeOrganize}
-        onManageKnowledgePacks={onManageKnowledgePacks}
         copy={homeSurfaceCopy.composer}
         inputbarCopy={inputbarCoreCopy}
         pluginSuggestions={pluginSuggestions}
@@ -919,7 +545,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         subagentEnabled={subagentEnabled}
         onSubagentEnabledChange={onSubagentEnabledChange}
         pendingImages={pendingImages}
-        onFileSelect={handleFileSelect}
+        onAddFiles={openFileDialog}
         onPaste={handlePaste}
         onDragOver={handleDragOver}
         onDrop={handleDrop}
@@ -927,27 +553,14 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         pathReferences={pathReferences}
         onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={handleRemovePathReference}
-        fileManagerOpen={fileManagerOpen}
-        onToggleFileManager={onToggleFileManager}
       />
     </EmptyStateComposerFrame>
   );
 
   return (
-    <EmptyStateLayout heroCopy={homeSurfaceCopy.hero} composer={composerPanel}>
-      <CuratedTaskLauncherDialog
-        open={Boolean(curatedTaskLauncherTask)}
-        task={curatedTaskLauncherTask}
-        projectId={projectId}
-        sessionId={sessionId}
-        initialInputValues={curatedTaskLauncherInitialInputValues}
-        initialReferenceMemoryIds={curatedTaskLauncherInitialReferenceMemoryIds}
-        initialReferenceEntries={curatedTaskLauncherInitialReferenceEntries}
-        prefillHint={curatedTaskLauncherPrefillHint}
-        onOpenChange={handleCuratedTaskLauncherOpenChange}
-        onApplyReviewSuggestion={handleApplyLauncherReviewSuggestion}
-        onConfirm={handleApplyCuratedTaskTemplate}
-      />
-    </EmptyStateLayout>
+    <EmptyStateLayout
+      heroCopy={homeSurfaceCopy.hero}
+      composer={composerPanel}
+    />
   );
 };

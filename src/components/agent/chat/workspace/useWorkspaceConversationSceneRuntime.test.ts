@@ -82,28 +82,6 @@ describe("useWorkspaceConversationSceneRuntime", () => {
     expect(sceneProps.harnessToggleLabel).toBe("Harness");
   });
 
-  it("首页空态应继续透传 service skills 与选择回调", () => {
-    const onSelectServiceSkill = vi.fn();
-    const serviceSkills = [
-      {
-        id: "daily-trend-briefing",
-        title: "每日趋势摘要",
-      },
-    ];
-    const params = createBaseParams({
-      serviceSkills,
-      onSelectServiceSkill,
-    });
-
-    const sceneProps = getRenderedSceneProps(params);
-    expect(sceneProps.landingSurface.emptyStateProps.serviceSkills).toBe(
-      serviceSkills,
-    );
-    expect(sceneProps.landingSurface.emptyStateProps.onSelectServiceSkill).toBe(
-      onSelectServiceSkill,
-    );
-  });
-
   it("parent-owned thread 不应暴露手动上下文压缩入口", () => {
     const params = createBaseParams({
       sessionId: "session-child",

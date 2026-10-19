@@ -1,3 +1,5 @@
+import type { OpenDialogOptions } from "./desktop-host/dialogOptions";
+
 export type ElectronHostEvent<T = unknown> = {
   event: string;
   payload: T;
@@ -11,7 +13,7 @@ export type ElectronHostInvoke = <T = unknown>(
 ) => Promise<T>;
 
 export interface ElectronHostDialogBridge {
-  open(options?: unknown): Promise<string | string[] | null>;
+  open(options?: OpenDialogOptions): Promise<string | string[] | null>;
   save(options?: unknown): Promise<string | null>;
 }
 

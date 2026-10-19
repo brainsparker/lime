@@ -69,6 +69,10 @@ pub(super) fn fork_thread_snapshot(
     source.turns.clear();
     source.turns_view = ThreadTurnsView::NotLoaded;
 
+    // Canonical Threads without optional session settings use null metadata.
+    if source.metadata.is_null() {
+        source.metadata = Value::Object(Map::new());
+    }
     let metadata = source
         .metadata
         .as_object_mut()

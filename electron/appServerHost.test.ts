@@ -1391,6 +1391,25 @@ describe("ElectronAppServerHost", () => {
     ]);
   });
 
+  it("交互command/exec保留协议生命周期，不注入Host超时", async () => {
+    const { ElectronAppServerHost } = await import("./appServerHost");
+    const host = new ElectronAppServerHost();
+    await host.handleJsonLines({
+      lines: [
+        encodeMessage({
+          id: "terminal",
+          method: "command/exec",
+          params: { command: ["/bin/sh", "-i"], disableTimeout: true },
+        }),
+      ],
+    });
+    const calls = fakeConnection.request.mock.calls as unknown as Array<
+      [JsonRpcRequest, string, { timeoutMs?: number }]
+    >;
+    expect(calls.at(-1)?.[1]).toBe("command/exec");
+    expect(calls.at(-1)?.[2].timeoutMs).toBeUndefined();
+  });
+
   it("current conversation import commit 应覆盖大样本导入等待窗口", async () => {
     const { ElectronAppServerHost } = await import("./appServerHost");
     const host = new ElectronAppServerHost();

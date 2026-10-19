@@ -230,6 +230,8 @@ impl RuntimeCore {
         }
         let (session, turns) = self.session_snapshot(session_id)?;
         let existing_events = self.events_for_session(session_id)?;
+        let covered_through_sequence =
+            super::boundary::retained_tail_coverage(&turns, &existing_events)?;
         let context_epoch = super::next_compaction_window_number(
             &existing_events,
             super::latest_compaction_window(&existing_events)?.as_ref(),
@@ -277,6 +279,7 @@ impl RuntimeCore {
                 &session,
                 &turns,
                 &existing_events,
+                covered_through_sequence,
                 &compaction_id,
                 &summary,
                 self.sidecar_store.as_deref(),
@@ -321,8 +324,8 @@ impl RuntimeCore {
         completed_payload.insert("compactionId".to_string(), json!(compaction.compaction_id));
         completed_payload.insert("contextEpoch".to_string(), json!(compaction.context_epoch));
         completed_payload.insert(
-            "tailStartTurnId".to_string(),
-            json!(compaction.tail_start_turn_id),
+            "coveredThroughSequence".to_string(),
+            json!(compaction.covered_through_sequence),
         );
         completed_payload.insert(
             "replacementHistory".to_string(),

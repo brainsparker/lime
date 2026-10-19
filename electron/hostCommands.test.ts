@@ -16,7 +16,6 @@ const {
   browserWindowCtorMock,
   browserWindowGetAllWindowsMock,
   fileShellHostGetFileIconDataUrlMock,
-  fileShellHostGetFileManagerLocationsMock,
   fileShellHostGetHomeDirMock,
   fileShellHostOpenFilePreviewWindowMock,
   fileShellHostOpenWithDefaultAppMock,
@@ -28,7 +27,6 @@ const {
   showDesktopNotificationMock,
   showOpenDialogMock,
   showItemInFolderMock,
-  openProjectPathWithLocalToolMock,
   systemUtilityHostGetBrowserBackendPolicyMock,
   systemUtilityHostGetBrowserBackendsStatusMock,
   systemUtilityHostGetBrowserConnectorInstallStatusMock,
@@ -104,7 +102,6 @@ const {
     contentViewAddChildViewMock,
     contentViewRemoveChildViewMock,
     fileShellHostGetFileIconDataUrlMock: vi.fn(),
-    fileShellHostGetFileManagerLocationsMock: vi.fn(),
     fileShellHostGetHomeDirMock: vi.fn(),
     fileShellHostOpenFilePreviewWindowMock: vi.fn(),
     fileShellHostOpenWithDefaultAppMock: vi.fn(),
@@ -116,7 +113,6 @@ const {
     showDesktopNotificationMock: vi.fn(() => ({ status: "sent" })),
     showOpenDialogMock: vi.fn(),
     showItemInFolderMock: vi.fn(),
-    openProjectPathWithLocalToolMock: vi.fn(),
     systemUtilityHostGetBrowserBackendPolicyMock: vi.fn(),
     systemUtilityHostGetBrowserBackendsStatusMock: vi.fn(),
     systemUtilityHostGetBrowserConnectorInstallStatusMock: vi.fn(),
@@ -183,7 +179,6 @@ vi.mock("./desktopNotificationHost", () => ({
 vi.mock("./fileShellHost", () => ({
   FileShellHost: vi.fn(() => ({
     getFileIconDataUrl: fileShellHostGetFileIconDataUrlMock,
-    getFileManagerLocations: fileShellHostGetFileManagerLocationsMock,
     getHomeDir: fileShellHostGetHomeDirMock,
     openFilePreviewWindow: fileShellHostOpenFilePreviewWindowMock,
     openWithDefaultApp: fileShellHostOpenWithDefaultAppMock,
@@ -219,14 +214,6 @@ vi.mock("./voiceModelHost", () => ({
     listCatalog: voiceModelHostListCatalogMock,
   })),
 }));
-
-vi.mock("./projectToolsHost", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./projectToolsHost")>();
-  return {
-    ...actual,
-    openProjectPathWithLocalTool: openProjectPathWithLocalToolMock,
-  };
-});
 
 function createHost(
   userDataDir: string,
@@ -856,14 +843,6 @@ describe("ElectronHostCommands local file shell facade", () => {
       "data:image/png;base64,abc",
     );
     fileShellHostGetHomeDirMock.mockReturnValueOnce("/Users/demo");
-    fileShellHostGetFileManagerLocationsMock.mockResolvedValueOnce([
-      {
-        id: "home",
-        label: "个人",
-        path: "/Users/demo",
-        kind: "home",
-      },
-    ]);
     const userDataDir = await createTempUserDataDir();
     const host = createHost(userDataDir);
 
@@ -921,15 +900,6 @@ describe("ElectronHostCommands local file shell facade", () => {
     ).resolves.toBe("data:image/png;base64,abc");
 
     await expect(host.invoke("get_home_dir")).resolves.toBe("/Users/demo");
-    await expect(host.invoke("get_file_manager_locations")).resolves.toEqual([
-      {
-        id: "home",
-        label: "个人",
-        path: "/Users/demo",
-        kind: "home",
-      },
-    ]);
-
     expect(fileShellHostRevealInFinderMock).toHaveBeenCalledWith(revealArgs);
     expect(fileShellHostOpenWithDefaultAppMock).toHaveBeenCalledWith(openArgs);
     expect(fileShellHostOpenFilePreviewWindowMock).toHaveBeenCalledWith(
@@ -939,12 +909,9 @@ describe("ElectronHostCommands local file shell facade", () => {
       path: "/Applications/Lime.app",
     });
     expect(fileShellHostGetHomeDirMock).toHaveBeenCalledOnce();
-    expect(fileShellHostGetFileManagerLocationsMock).toHaveBeenCalledOnce();
   });
 
-  it("open_project_path_with_tool 应按工具类型走 Electron shell 或本地工具封装", async () => {
-    openPathMock.mockResolvedValueOnce("");
-    openProjectPathWithLocalToolMock.mockResolvedValue(undefined);
+  it("拒绝已删除的四选一项目工具与旧文件管理器命令", async () => {
     const userDataDir = await createTempUserDataDir();
     const host = createHost(userDataDir);
 
@@ -953,19 +920,12 @@ describe("ElectronHostCommands local file shell facade", () => {
         rootPath: "/tmp/project",
         tool: "finder",
       }),
-    ).resolves.toEqual({});
-    await expect(
-      host.invoke("open_project_path_with_tool", {
-        rootPath: "/tmp/project",
-        tool: "terminal",
-      }),
-    ).resolves.toEqual({});
-
-    expect(openPathMock).toHaveBeenCalledWith("/tmp/project");
-    expect(openProjectPathWithLocalToolMock).toHaveBeenCalledWith(
-      "/tmp/project",
-      "terminal",
+    ).rejects.toThrow("Electron host command is not implemented");
+    await expect(host.invoke("get_file_manager_locations")).rejects.toThrow(
+      "Electron host command is not implemented",
     );
+    expect(openPathMock).not.toHaveBeenCalled();
+    expect(fileShellHostRevealInFinderMock).not.toHaveBeenCalled();
   });
 });
 

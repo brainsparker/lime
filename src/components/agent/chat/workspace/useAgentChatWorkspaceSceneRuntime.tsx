@@ -40,11 +40,10 @@ export function useAgentChatWorkspaceSceneRuntime({
 }: UseAgentChatWorkspaceSceneRuntimeParams) {
   // prettier-ignore
   const {
-    onNavigate: _onNavigate, contentId, agentEntry, lockTheme, fromResources, topBarChrome = "full", onBackToProjectManagement,
+    onNavigate: _onNavigate, contentId, agentEntry, fromResources, topBarChrome = "full", onBackToProjectManagement,
     hideInlineStepProgress, initialSessionName, initialKnowledgePackSelection, newChatAt, onBackgroundSessionRuntimeChange, preferContentReviewInRightRail,
   } = props;
   const resolvedAgentEntry = agentEntry ?? "claw";
-  const resolvedLockTheme = lockTheme ?? false;
   const resolvedFromResources = fromResources ?? false;
   const resolvedHideInlineStepProgress = hideInlineStepProgress ?? false;
   const resolvedPreferContentReviewInRightRail =
@@ -52,15 +51,15 @@ export function useAgentChatWorkspaceSceneRuntime({
   // prettier-ignore
   const {
     untitledTaskLabel, normalizedEntryTheme, shouldBootstrapCanvasOnEntry, activeTheme, artifactPreviewSize, effectiveEntryBannerMessage, entryBannerVisible,
-    expertInfoPanelCollapsed, handleInputRestoreRequestHandled, input, composerController, inputbarObjectiveModeEnabled, inputRestoreRequest, layoutMode, selectedText, setActiveTheme,
+    expertInfoPanelCollapsed, handleInputRestoreRequestHandled, input, composerController, inputbarObjectiveModeEnabled, inputRestoreRequest, layoutMode,
     setArtifactPreviewSize, setCanvasWorkbenchLayoutMode, setExpertInfoPanelCollapsed, setInput, setInputbarObjectiveModeEnabled, setLayoutMode, pathReferences,
-    handleAddPathReferences, handleRemovePathReference, handleClearPathReferences, fileManagerSidebar, activeSessionIdRef, setChatToolPreferences, handleInstallSkillPackageFromFileManager,
+    handleAddPathReferences, handleRemovePathReference, handleClearPathReferences,  activeSessionIdRef, setChatToolPreferences,
     handleOpenSkillsManageFromExpertPanel, projectId, markNewChatRequestHandled, taskCenterWorkspaceId, normalizedInitialSessionId, shouldUseBrowserWorkspaceHomeChrome, shouldDeferWorkspaceAuxiliaryLoads, project,
-    projectMemory, isInitialContentLoading, initialContentLoadError, canvasState, setCanvasState, initialCreationReplaySurface, runtimeWorkspaceId, generalCanvasState,
+    isInitialContentLoading, initialContentLoadError, canvasState, setCanvasState, initialCreationReplaySurface, runtimeWorkspaceId, generalCanvasState,
     setGeneralCanvasState, taskFiles, selectedFileId, openedProjects, handleCloseOpenedProject, clawTraceEnabled, soulArtifactVoiceGenerationBrief, soulArtifactVoiceEnabledForTurn,
-    setSoulArtifactVoiceEnabledForTurn, inputCompletionEnabled, imageGenerationSelectionReady, imageGenerationSelectionWarning, imageWorkbenchGenerationRuntime, imageWorkbenchPreferenceSummary, imageWorkbenchPreferenceWarning, setMentionedCharacters,
-    skills, serviceSkills, serviceSkillGroups, handleRefreshSkills, handleSkillSuggestionsNeeded, mappedTheme, syncStatus,
-    isSpecializedThemeMode, workbenchRequests, handleNavigateToSkillSettings,
+    setSoulArtifactVoiceEnabledForTurn, imageGenerationSelectionReady, imageGenerationSelectionWarning, imageWorkbenchGenerationRuntime, imageWorkbenchPreferenceSummary, imageWorkbenchPreferenceWarning,
+    skills, serviceSkills, handleSkillSuggestionsNeeded, mappedTheme, syncStatus,
+    isSpecializedThemeMode, workbenchRequests,
   } = entryRuntime;
   // prettier-ignore
   const {
@@ -73,7 +72,7 @@ export function useAgentChatWorkspaceSceneRuntime({
     handlePluginSuggestionsNeeded, handleThreadExpertProfileSwitch, workspacePluginInputSuggestions, workspacePluginSuggestionsError, workspacePluginSuggestionsLoading, workspaceSkillBindings, topicById, effectiveChatToolPreferences, canonicalChildren,
     currentSessionTitle, handleStopSending, handleOpenSubagentSession, currentImageWorkbenchState, imageWorkbenchSessionKey, updateCurrentImageWorkbenchState, artifactDisplayState,
     artifactViewMode, currentCanvasArtifact, displayedCanvasArtifact, handleArtifactViewModeChange,
-    handleOpenBrowserRuntimeForBrowserAssist, settledWorkbenchArtifacts, contextHarnessRuntime, effectiveThreadItems, harnessState, inputbarIsSending, rightSurfaceLocalState, contextWorkspace,
+    settledWorkbenchArtifacts, contextHarnessRuntime, effectiveThreadItems, harnessState, inputbarIsSending, rightSurfaceLocalState, contextWorkspace,
     isThemeWorkbench, setHarnessPanelVisible, harnessPendingCount, showHarnessToggle, harnessAttentionLevel, harnessToggleLabel, generalWorkbenchScaffoldRuntime, workspaceServiceSkillEntryActions,
     a2uiSubmissionNotice, effectivePendingA2UIForm, effectivePendingA2UISource, handleMessageA2UISubmit, handlePendingA2UISubmit, pendingPromotedA2UIActionRequest, currentGate, themeWorkbenchRunState,
   } = setupRuntime;
@@ -94,7 +93,6 @@ export function useAgentChatWorkspaceSceneRuntime({
   } = commandRuntime;
   const inputbarScene = useWorkspaceInputbarSceneRuntime({
     contextVariant: agentEntry === "claw" ? "task-center" : "default",
-    setMentionedCharacters,
     taskFiles,
     selectedFileId,
     isThemeWorkbench,
@@ -138,13 +136,8 @@ export function useAgentChatWorkspaceSceneRuntime({
     setAccessMode,
     activeTheme,
     navigationActions,
-    characters: projectMemory?.characters || [],
     skills,
-    serviceSkills: activeTheme === "general" ? serviceSkills : [],
-    serviceSkillGroups: activeTheme === "general" ? serviceSkillGroups : [],
     skillsLoading: combinedSkillsLoading,
-    onSelectServiceSkill:
-      workspaceServiceSkillEntryActions.handleServiceSkillSelect,
     onSkillSuggestionsNeeded: handleSkillSuggestionsNeeded,
     initialInputCapability: effectiveInitialInputCapability,
     initialKnowledgePackSelection,
@@ -155,8 +148,6 @@ export function useAgentChatWorkspaceSceneRuntime({
     setChatToolPreferences,
     objectiveEnabled: inputbarObjectiveModeEnabled,
     onObjectiveEnabledChange: setInputbarObjectiveModeEnabled,
-    handleNavigateToSkillSettings,
-    handleRefreshSkills,
     soulArtifactVoiceGenerationBrief,
     soulArtifactVoiceEnabledForTurn,
     onSoulArtifactVoiceEnabledForTurnChange: setSoulArtifactVoiceEnabledForTurn,
@@ -174,21 +165,12 @@ export function useAgentChatWorkspaceSceneRuntime({
     mappedTheme,
     activeRuntimeStatusTitle: contextHarnessRuntime.activeRuntimeStatusTitle,
     chatToolPreferences: effectiveChatToolPreferences,
-    defaultCuratedTaskReferenceMemoryIds:
-      initialCreationReplaySurface?.defaultReferenceMemoryIds,
-    defaultCuratedTaskReferenceEntries:
-      initialCreationReplaySurface?.defaultReferenceEntries,
     pathReferences,
     onAddPathReferences: handleAddPathReferences,
     inputRestoreRequest,
     onInputRestoreRequestHandled: handleInputRestoreRequestHandled,
     onRemovePathReference: handleRemovePathReference,
     onClearPathReferences: handleClearPathReferences,
-    fileManagerOpen: fileManagerSidebar.fileManagerOpen,
-    onToggleFileManager: fileManagerSidebar.fileManagerAvailable
-      ? fileManagerSidebar.toggleFileManagerSidebar
-      : undefined,
-    inputCompletionEnabled,
   });
   const { handleSaveMessageAsKnowledge } =
     useWorkspaceMessageKnowledgeSaveRuntime({
@@ -439,17 +421,13 @@ export function useAgentChatWorkspaceSceneRuntime({
         chatToolPreferences: effectiveChatToolPreferences,
 
         creationReplaySurface: initialCreationReplaySurface,
-        defaultCuratedTaskReferenceEntries:
-          initialCreationReplaySurface?.defaultReferenceEntries,
-        defaultCuratedTaskReferenceMemoryIds:
-          initialCreationReplaySurface?.defaultReferenceMemoryIds,
         emptyStateDisabled:
           sceneIsPreparingSend || sceneIsSending || composerDraftRestoring,
         emptyStateIsLoading: sceneIsPreparingSend || sceneIsSending,
         emptyStateSendOnPointerDown: true,
         entryBannerMessage: effectiveEntryBannerMessage,
         entryBannerVisible,
-        fileManagerOpen: fileManagerSidebar.fileManagerOpen,
+
         handleSendFromEmptyState,
         initialInputCapability: effectiveInitialInputCapability,
         input,
@@ -460,45 +438,33 @@ export function useAgentChatWorkspaceSceneRuntime({
         composerDraftRestoring,
         inputbarScene,
         inputRestoreRequest,
-        lockTheme: resolvedLockTheme,
         model,
         objectiveEnabled: inputbarObjectiveModeEnabled,
         onAddPathReferences: handleAddPathReferences,
         onClearPathReferences: handleClearPathReferences,
         onDismissEntryBanner: navigationActions.handleDismissEntryBanner,
         onInputRestoreRequestHandled: handleInputRestoreRequestHandled,
-        onLaunchBrowserAssist: handleOpenBrowserRuntimeForBrowserAssist,
         onManageProviders: navigationActions.handleManageProviders,
-        onNavigateToSettings: handleNavigateToSkillSettings,
         onObjectiveEnabledChange: setInputbarObjectiveModeEnabled,
         onPluginSuggestionsNeeded: handlePluginSuggestionsNeeded,
         onProjectChange: navigationActions.handleProjectChange,
-        onRefreshSkills: handleRefreshSkills,
         onSkillSuggestionsNeeded: handleSkillSuggestionsNeeded,
         onRemovePathReference: handleRemovePathReference,
-        onSelectServiceSkill:
-          workspaceServiceSkillEntryActions.handleServiceSkillSelect,
         onStopSending: stopSending,
-        onToggleFileManager: fileManagerSidebar.fileManagerAvailable
-          ? fileManagerSidebar.toggleFileManagerSidebar
-          : undefined,
+
         openedProjects,
         pathReferences,
         pluginSuggestions: workspacePluginInputSuggestions,
         pluginSuggestionsError:
           workspacePluginSuggestionsError?.message ?? null,
         pluginSuggestionsLoading: workspacePluginSuggestionsLoading,
-        projectCharacters: projectMemory?.characters || [],
         projectId: projectId ?? null,
         providerType,
         reasoningEffort,
 
         serviceSkillExecutionCard,
-        serviceSkillGroups: activeTheme === "general" ? serviceSkillGroups : [],
-        serviceSkills: activeTheme === "general" ? serviceSkills : [],
         sessionId: sceneSessionId,
         setAccessMode,
-        setActiveTheme,
         setChatToolPreferences,
         setInput,
         setModel,
@@ -506,7 +472,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         setReasoningEffort,
         skills,
         skillsLoading: combinedSkillsLoading,
-        selectedText,
       },
       messageList: {
         actions: {
@@ -650,20 +615,7 @@ export function useAgentChatWorkspaceSceneRuntime({
         workspaceHealthError,
       },
     },
-    fileManager: {
-      fileManagerSidebar,
-      initialDirectory: project?.rootPath || null,
-      onAddPathReferences: handleAddPathReferences,
-      onImportAsKnowledge: inputbarScene.onImportPathReferenceAsKnowledge,
-      onInstallSkillPackage: _onNavigate
-        ? handleInstallSkillPackageFromFileManager
-        : undefined,
-      onOpenWorkspaceFile: (absolutePath) => {
-        void openProjectFilePreviewInCanvas({
-          absolutePath,
-        });
-      },
-    },
+
     shell: {
       compactChrome: shellChromeRuntime.isWorkspaceCompactChrome,
       isThemeWorkbench,

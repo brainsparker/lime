@@ -71,11 +71,13 @@ describe("workspaceRightSurfaceRuntimeProjection", () => {
       ),
     ).toEqual([
       "workbench",
+      "workspace-new-tab",
       "appSurface",
       "articleWorkspace",
       "expertInfo",
       "browser",
       "files",
+      "changes",
       "shell",
       "harness",
       "trace",
@@ -95,7 +97,7 @@ describe("workspaceRightSurfaceRuntimeProjection", () => {
           suppressHomeNavbarUtilityActions: true,
         }),
       ),
-    ).toEqual(["workbench", "browser"]);
+    ).toEqual(["workbench", "workspace-new-tab", "browser"]);
   });
 
   it("launcher 应聚合 pending 数量并禁用不可用 surface", () => {

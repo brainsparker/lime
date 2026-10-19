@@ -79,7 +79,6 @@ describe("inputbarCoreCopy", () => {
       translateResource(agentEnUSResource, key, values),
     );
 
-    expect(zhCopy.image.add).toBe("添加图片");
     expect(zhCopy.editor.expand).toBe("展开输入框");
     expect(zhCopy.action.running).toBe("正在输出");
     expect(zhCopy.action.defer).toBe("稍后处理");
@@ -88,7 +87,6 @@ describe("inputbarCoreCopy", () => {
       "录音中 1:05，点击停止",
     );
 
-    expect(enCopy.image.add).toBe("Add image");
     expect(enCopy.editor.expand).toBe("Expand input");
     expect(enCopy.action.running).toBe("Generating");
     expect(enCopy.action.defer).toBe("Handle later");

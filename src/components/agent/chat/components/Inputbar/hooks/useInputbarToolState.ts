@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
-import { buildInputbarToolsCopy } from "../components/inputbarToolsCopy";
+import { buildInputbarToolStateCopy } from "./inputbarToolStateCopy";
 
 export interface InputbarToolStates {
   objective: boolean;
@@ -27,7 +27,10 @@ export function useInputbarToolState({
   openFileDialog,
 }: UseInputbarToolStateParams) {
   const { t } = useTranslation("agent");
-  const copy = useMemo(() => buildInputbarToolsCopy((key) => t(key, {})), [t]);
+  const copy = useMemo(
+    () => buildInputbarToolStateCopy((key) => t(key, {})),
+    [t],
+  );
   const [localToolStates, setLocalToolStates] = useState<InputbarToolStates>(
     DEFAULT_INPUTBAR_TOOL_STATES,
   );
@@ -94,6 +97,7 @@ export function useInputbarToolState({
           const nextPlan = !planEnabled;
           updateToolStates({
             plan: nextPlan,
+            ...(nextPlan ? { objective: false } : {}),
           });
           toast.info(copy.task.toast(nextPlan));
           break;
@@ -102,6 +106,7 @@ export function useInputbarToolState({
           const nextObjective = !objectiveEnabled;
           updateToolStates({
             objective: nextObjective,
+            ...(nextObjective ? { plan: false } : {}),
           });
           break;
         }

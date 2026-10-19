@@ -4,7 +4,10 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
-import { open as openDialog, save as saveDialog } from "@/lib/desktop-host/dialog";
+import {
+  open as openDialog,
+  save as saveDialog,
+} from "@/lib/desktop-host/dialog";
 import { toast } from "sonner";
 import { skillsApi, type Skill } from "@/lib/api/skills";
 import { ensureSkillPackageExtension } from "./SkillsWorkspacePageContent";
@@ -20,8 +23,11 @@ interface UseSkillsWorkspaceLocalSkillActionsParams {
   highlightedInstalledSkillDirectory: string | null;
   optimisticInstalledSkillDirectory: string | null;
   refreshLocalSkills: () => Promise<void>;
+  onSelectRuntimeSkill: (skill: Skill) => void;
   setDetailInstalledSkillDirectory: Dispatch<SetStateAction<string | null>>;
-  setHighlightedInstalledSkillDirectory: Dispatch<SetStateAction<string | null>>;
+  setHighlightedInstalledSkillDirectory: Dispatch<
+    SetStateAction<string | null>
+  >;
   setOptimisticInstalledSkill: Dispatch<SetStateAction<Skill | null>>;
   setOptimisticallyHiddenSkillDirectories: Dispatch<
     SetStateAction<Set<string>>
@@ -35,6 +41,7 @@ export function useSkillsWorkspaceLocalSkillActions({
   highlightedInstalledSkillDirectory,
   optimisticInstalledSkillDirectory,
   refreshLocalSkills,
+  onSelectRuntimeSkill,
   setDetailInstalledSkillDirectory,
   setHighlightedInstalledSkillDirectory,
   setOptimisticInstalledSkill,
@@ -42,6 +49,29 @@ export function useSkillsWorkspaceLocalSkillActions({
   t,
   uninstallLocalSkill,
 }: UseSkillsWorkspaceLocalSkillActionsParams) {
+  const handleInstalledSkillSelect = useCallback(
+    async (skill: Skill) => {
+      try {
+        const candidates = (await skillsApi.getRuntimeCatalog()).filter(
+          (candidate) =>
+            candidate.key === skill.key ||
+            (Boolean(skill.localDirectoryPath) &&
+              candidate.localDirectoryPath === skill.localDirectoryPath),
+        );
+        if (candidates.length !== 1) {
+          throw new Error(
+            t("skills.workspace.runtimeEnable.unavailable", {
+              name: skill.name,
+            }),
+          );
+        }
+        onSelectRuntimeSkill(candidates[0]);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [onSelectRuntimeSkill, t],
+  );
   const [uninstallingSkillDirectory, setUninstallingSkillDirectory] = useState<
     string | null
   >(null);
@@ -364,6 +394,7 @@ export function useSkillsWorkspaceLocalSkillActions({
   );
 
   return {
+    handleInstalledSkillSelect,
     exportingSkillDirectory,
     handleExportLocalSkillPackage,
     handleRenameLocalSkill,

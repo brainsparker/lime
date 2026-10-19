@@ -156,15 +156,6 @@ describe("MessageList 用户正文折叠接线", () => {
 
   it.each([
     {
-      kind: "installed_skill",
-      tag: "message-user-skill-tag",
-      route: {
-        kind: "installed_skill",
-        skillKey: "inspect",
-        skillName: "Inspect",
-      },
-    },
-    {
       kind: "builtin_command",
       tag: "message-user-command-tag",
       route: {
@@ -190,7 +181,7 @@ describe("MessageList 用户正文折叠接线", () => {
     expect(root.contains(image)).toBe(false);
   });
 
-  it("canonical_turn 复用同一正文折叠并保留精确 Item、标签与全文复制", async () => {
+  it("canonical_turn 复用同一正文折叠并保留精确 Item 与全文复制，不添加 sidecar 标签", async () => {
     const currentTurn = turn("canonical-turn");
     const userItem = item("canonical-user", currentTurn.id, {
       content,
@@ -214,10 +205,8 @@ describe("MessageList 用户正文折叠接线", () => {
     expect(bubble?.dataset.runtimeTurnId).toBe("canonical-turn");
     expect(bubble?.dataset.directSegmentKind).toBe("message");
     expect(
-      root.contains(
-        container.querySelector('[data-testid="message-user-skill-tag"]'),
-      ),
-    ).toBe(false);
+      container.querySelector('[data-testid="message-user-skill-tag"]'),
+    ).toBeNull();
     expect(root.dataset.userMessageContentState).toBe("collapsed");
     const copy = container.querySelector<HTMLButtonElement>(
       '[aria-label="Copy message"]',
@@ -276,11 +265,6 @@ describe("MessageList 用户正文折叠接线", () => {
       };
       const legacyUser = user("rich-client-user", {
         runtimeTurnId: currentTurn.id,
-        inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "user:inspect",
-          skillName: "Inspect",
-        },
         images: [image],
         contentParts:
           source === "direct-reference"
@@ -340,11 +324,7 @@ describe("MessageList 用户正文折叠接线", () => {
       const labels = [
         ...bubble.querySelectorAll('[data-testid="message-user-skill-tag"]'),
       ];
-      expect(labels.map((label) => label.textContent?.trim())).toEqual([
-        "@Inspect",
-        "@reference.md",
-      ]);
-      expect(labels.every((label) => !root.contains(label))).toBe(true);
+      expect(labels).toHaveLength(0);
       const images = bubble.querySelectorAll<HTMLImageElement>("img");
       expect(images).toHaveLength(1);
       expect(images[0].src).toBe(

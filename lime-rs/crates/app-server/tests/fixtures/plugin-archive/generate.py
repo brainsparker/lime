@@ -152,6 +152,27 @@ def main():
     add("entry-over-limit", entries + entry("overflow") + end, False)
     add("depth-limit", pax_path("/".join(["a"] * 256), b"") + end)
     add("depth-over-limit", pax_path("/".join(["a"] * 257), b"") + end, False)
+    manifests = [
+        ("root", "plugin.json"),
+        ("codex", ".codex-plugin/plugin.json"),
+        ("claude", ".claude-plugin/plugin.json"),
+        ("cursor", ".cursor-plugin/plugin.json"),
+    ]
+    for index, (name, manifest_path) in enumerate(manifests):
+        fallback = entry(manifests[index + 1][1], native()) if index + 1 < len(manifests) else b""
+        for kind, directory in [
+            ("directory", entry(manifest_path + "/", kind=b"5")),
+            ("implicit-file", entry(manifest_path + "/nested/child", b"non-manifest file")),
+            ("implicit-directory", entry(manifest_path + "/nested/child/", kind=b"5")),
+        ]:
+            add(f"manifest-{name}-{kind}", directory + fallback + end, manifest_ok=False)
+        if index > 0:
+            add(f"manifest-{name}-parent-file",
+                entry(manifest_path.split("/")[0], b"non-manifest file") + fallback + end,
+                manifest_ok=False)
+        content = standard if index == 0 else native()
+        add(f"manifest-valid-{name}", entry(manifest_path, content) + end,
+            manifest=(manifest_path, content), manifest_ok=True)
     index = json.dumps({"schemaVersion": 1, "cases": cases}, indent=2) + "\n"
     for output in outputs:
         (output / "index.json").write_text(index)

@@ -60,14 +60,3 @@ export function parseLeadingUserCommandTag(
     body: trimmed.slice(matchedTag.length).trimStart(),
   };
 }
-
-export function resolveInstalledSkillMessageLabel(
-  message: Message,
-): string | null {
-  const route = message.inputCapabilityRoute;
-  if (route?.kind !== "installed_skill") {
-    return null;
-  }
-
-  return route.skillName?.trim() || route.skillKey.trim() || null;
-}

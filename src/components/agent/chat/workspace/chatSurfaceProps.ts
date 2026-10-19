@@ -5,7 +5,6 @@ import { StepProgress } from "@/components/workspace/layout/StepProgress";
 import { ChatNavbar } from "../components/ChatNavbar";
 import { EmptyState } from "../components/EmptyState";
 import type { InputbarSendHandler } from "../components/Inputbar/inputbarSendPayload";
-import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
 
 type ChatToolPreferences = {
   task: boolean;
@@ -74,33 +73,11 @@ interface BuildWorkspaceEmptyStatePropsParams {
     typeof EmptyState
   >["onObjectiveEnabledChange"];
   activeTheme: ComponentProps<typeof EmptyState>["activeTheme"];
-  onThemeChange?: NonNullable<
-    ComponentProps<typeof EmptyState>["onThemeChange"]
-  >;
-  themeLocked: boolean;
-  selectedText: ComponentProps<typeof EmptyState>["selectedText"];
-  characters: NonNullable<ComponentProps<typeof EmptyState>["characters"]>;
   skills: NonNullable<ComponentProps<typeof EmptyState>["skills"]>;
-  serviceSkills: NonNullable<
-    ComponentProps<typeof EmptyState>["serviceSkills"]
-  >;
-  serviceSkillGroups: NonNullable<
-    ComponentProps<typeof EmptyState>["serviceSkillGroups"]
-  >;
   isSkillsLoading: boolean;
-  onSelectServiceSkill?: ComponentProps<
-    typeof EmptyState
-  >["onSelectServiceSkill"];
-  onNavigateToSettings?: ComponentProps<
-    typeof EmptyState
-  >["onNavigateToSettings"];
-  onRefreshSkills?: ComponentProps<typeof EmptyState>["onRefreshSkills"];
   onSkillSuggestionsNeeded?: ComponentProps<
     typeof EmptyState
   >["onSkillSuggestionsNeeded"];
-  onLaunchBrowserAssist?: ComponentProps<
-    typeof EmptyState
-  >["onLaunchBrowserAssist"];
   projectId: string | null;
   openedProjects?: ComponentProps<typeof EmptyState>["openedProjects"];
   sessionId?: string | null;
@@ -118,34 +95,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
   initialInputCapability?: ComponentProps<
     typeof EmptyState
   >["initialInputCapability"];
-  knowledgePackSelection?: ComponentProps<
-    typeof EmptyState
-  >["knowledgePackSelection"];
-  knowledgePackOptions?: ComponentProps<
-    typeof EmptyState
-  >["knowledgePackOptions"];
-  onToggleKnowledgePack?: ComponentProps<
-    typeof EmptyState
-  >["onToggleKnowledgePack"];
-  onSelectKnowledgePack?: ComponentProps<
-    typeof EmptyState
-  >["onSelectKnowledgePack"];
-  onToggleKnowledgeCompanionPack?: ComponentProps<
-    typeof EmptyState
-  >["onToggleKnowledgeCompanionPack"];
-  onStartKnowledgeOrganize?: ComponentProps<
-    typeof EmptyState
-  >["onStartKnowledgeOrganize"];
-  onManageKnowledgePacks?: ComponentProps<
-    typeof EmptyState
-  >["onManageKnowledgePacks"];
-  creationReplaySurface?: CreationReplaySurfaceModel | null;
-  defaultCuratedTaskReferenceMemoryIds?: ComponentProps<
-    typeof EmptyState
-  >["defaultCuratedTaskReferenceMemoryIds"];
-  defaultCuratedTaskReferenceEntries?: ComponentProps<
-    typeof EmptyState
-  >["defaultCuratedTaskReferenceEntries"];
   pathReferences?: ComponentProps<typeof EmptyState>["pathReferences"];
   onAddPathReferences?: ComponentProps<
     typeof EmptyState
@@ -165,10 +114,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
   onClearPathReferences?: ComponentProps<
     typeof EmptyState
   >["onClearPathReferences"];
-  fileManagerOpen?: ComponentProps<typeof EmptyState>["fileManagerOpen"];
-  onToggleFileManager?: ComponentProps<
-    typeof EmptyState
-  >["onToggleFileManager"];
 }
 
 export function buildWorkspaceEmptyStateProps({
@@ -196,19 +141,9 @@ export function buildWorkspaceEmptyStateProps({
   objectiveEnabled,
   onObjectiveEnabledChange,
   activeTheme,
-  onThemeChange,
-  themeLocked,
-  selectedText,
-  characters,
   skills,
-  serviceSkills,
-  serviceSkillGroups,
   isSkillsLoading,
-  onSelectServiceSkill,
-  onNavigateToSettings,
-  onRefreshSkills,
   onSkillSuggestionsNeeded,
-  onLaunchBrowserAssist,
   projectId,
   openedProjects,
   onProjectChange,
@@ -218,16 +153,6 @@ export function buildWorkspaceEmptyStateProps({
   pluginSuggestionsLoading,
   onPluginSuggestionsNeeded,
   initialInputCapability,
-  knowledgePackSelection,
-  knowledgePackOptions,
-  onToggleKnowledgePack,
-  onSelectKnowledgePack,
-  onToggleKnowledgeCompanionPack,
-  onStartKnowledgeOrganize,
-  onManageKnowledgePacks,
-  creationReplaySurface,
-  defaultCuratedTaskReferenceMemoryIds,
-  defaultCuratedTaskReferenceEntries,
   pathReferences,
   onAddPathReferences,
   inputRestoreRequest,
@@ -235,8 +160,6 @@ export function buildWorkspaceEmptyStateProps({
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
-  fileManagerOpen,
-  onToggleFileManager,
 }: BuildWorkspaceEmptyStatePropsParams): ComponentProps<typeof EmptyState> {
   const handleEmptyStateSend: InputbarSendHandler = (payload = {}) =>
     onSendMessage({
@@ -272,22 +195,9 @@ export function buildWorkspaceEmptyStateProps({
     onSubagentEnabledChange: (enabled) =>
       onToolPreferenceChange("subagent", enabled),
     activeTheme,
-    onThemeChange: themeLocked
-      ? undefined
-      : (theme) => {
-          onThemeChange?.(theme);
-        },
-    selectedText,
-    characters,
     skills,
-    serviceSkills,
-    serviceSkillGroups,
     isSkillsLoading,
-    onSelectServiceSkill,
-    onNavigateToSettings,
-    onRefreshSkills,
     onSkillSuggestionsNeeded,
-    onLaunchBrowserAssist,
     projectId,
     openedProjects,
     onProjectContextChange: onProjectChange,
@@ -297,16 +207,6 @@ export function buildWorkspaceEmptyStateProps({
     pluginSuggestionsLoading,
     onPluginSuggestionsNeeded,
     initialInputCapability,
-    knowledgePackSelection,
-    knowledgePackOptions,
-    onToggleKnowledgePack,
-    onSelectKnowledgePack,
-    onToggleKnowledgeCompanionPack,
-    onStartKnowledgeOrganize,
-    onManageKnowledgePacks,
-    creationReplaySurface,
-    defaultCuratedTaskReferenceMemoryIds,
-    defaultCuratedTaskReferenceEntries,
     pathReferences,
     onAddPathReferences,
     inputRestoreRequest,
@@ -314,8 +214,6 @@ export function buildWorkspaceEmptyStateProps({
     onImportPathReferenceAsKnowledge,
     onRemovePathReference,
     onClearPathReferences,
-    fileManagerOpen,
-    onToggleFileManager,
   };
 }
 

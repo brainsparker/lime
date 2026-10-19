@@ -1,8 +1,18 @@
 import type { ComponentProps, ReactNode } from "react";
-import { TaskCenterShellPanel } from "../components/TaskCenterShellPanel";
+import { TerminalTab } from "../components/TerminalTab";
+import { LocalConversationBackgroundTerminalTab } from "./LocalConversationBackgroundTerminalTab";
+import type { AgentThreadItem } from "../types";
 import { ExpertInfoPanel } from "../experts/ExpertInfoPanel";
 import { GeneralWorkbenchHarnessSurfaceSection } from "./WorkspaceHarnessDialogs";
 import { WorkspaceArticleEditorRightSurface } from "./WorkspaceArticleEditorRightSurface";
+import { WorkspaceFileThreadSidePanelTab } from "./WorkspaceFileThreadSidePanelTab";
+import { ThreadSidePanelNewTab } from "./right-surface/ThreadSidePanelNewTab";
+import type { ThreadSidePanelAction } from "./right-surface/threadSidePanelActions";
+import type {
+  FileSelectionOptions,
+  ThreadSidePanelTab,
+  ThreadSidePanelTabs,
+} from "./right-surface/threadSidePanelTabs";
 import { ReviewThreadSidePanelTab } from "./ReviewThreadSidePanelTab";
 import { WorkspacePluginSurface } from "./WorkspacePluginSurface";
 import { WorkspaceTraceTab } from "./WorkspaceTraceTab";
@@ -25,10 +35,26 @@ type GeneralWorkbenchHarnessSurfaceProps = ComponentProps<
   typeof GeneralWorkbenchHarnessSurfaceSection
 >;
 type PluginSurfaceProps = ComponentProps<typeof WorkspacePluginSurface>;
-type ShellPanelProps = ComponentProps<typeof TaskCenterShellPanel>;
+type TerminalTabProps = ComponentProps<typeof TerminalTab>;
 export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   idPrefix: string;
-  onCloseRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
+  sidePanelTabs: ThreadSidePanelTabs;
+  backgroundTerminalItems?: readonly AgentThreadItem[];
+  sidePanelActions: readonly ThreadSidePanelAction[];
+  onNewSidePanelTab: () => void;
+  onSelectSidePanelTab: (tabId: string) => void;
+  onCloseSidePanelTab: (tabId: string) => void;
+  onSelectSidePanelAction: (
+    kind: WorkspaceRightSurfaceKind,
+    replaceTabId?: string,
+  ) => void;
+  onSelectChatFromNewTab: (tabId: string) => void;
+  onOpenWorkspaceFile: (
+    path: string,
+    sourceTab: ThreadSidePanelTab,
+    options?: FileSelectionOptions,
+  ) => void;
+  onPinSidePanelTab: (tabId: string) => void;
   activePluginSurfaceContainerId: string | null;
   articleActionsDisabled: boolean;
   articleEditorRightSurface:
@@ -39,7 +65,7 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   browserRightSurfaceInitialUrl?: string | null;
   browserRightSurfaceIntentTitle?: string | null;
   browserRightSurfaceHistoricalProjection?: BrowserPanelProps["historicalProjection"];
-  canvasWorkbenchRootPath: ShellPanelProps["projectRootPath"];
+  canvasWorkbenchRootPath: TerminalTabProps["cwd"];
   expertInfoPanelProps: ExpertInfoPanelProps;
   filesRightSurfaceAvailable: boolean;
   filesRightSurfaceTarget: FilesSurfaceProps["target"];
@@ -63,17 +89,24 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   onArticleMarkdownChange: ArticleEditorRightSurfaceProps["onArticleMarkdownChange"];
   onArticleSelectedObjectChange: ArticleEditorRightSurfaceProps["onSelectedObjectChange"];
   onClosePluginSurface: PluginSurfaceProps["onCloseSurface"];
-  onCloseRightSurfaceShell: ShellPanelProps["onClose"];
   onOpenArticlePreviewArtifact: ArticleEditorRightSurfaceProps["onOpenPreviewArtifact"];
   onOpenServiceSkillResultFile?: FilesSurfaceProps["onOpenResultFile"];
   onRightSurfaceBrowserNavigate: BrowserPanelProps["onNavigate"];
   onSelectPluginSurface: PluginSurfaceProps["onSelectSurface"];
-  onSelectRightSurfaceTab: (kind: WorkspaceRightSurfaceKind) => void;
 }
 
 export function renderWorkspaceRightSurfaceHostRuntime({
   idPrefix,
-  onCloseRightSurfaceTab,
+  sidePanelTabs,
+  backgroundTerminalItems = [],
+  sidePanelActions,
+  onNewSidePanelTab,
+  onSelectSidePanelTab,
+  onCloseSidePanelTab,
+  onSelectSidePanelAction,
+  onSelectChatFromNewTab,
+  onOpenWorkspaceFile,
+  onPinSidePanelTab,
   activePluginSurfaceContainerId,
   articleActionsDisabled,
   articleEditorRightSurface,
@@ -103,17 +136,27 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   onArticleMarkdownChange,
   onArticleSelectedObjectChange,
   onClosePluginSurface,
-  onCloseRightSurfaceShell,
   onOpenArticlePreviewArtifact,
   onOpenServiceSkillResultFile,
   onRightSurfaceBrowserNavigate,
   onSelectPluginSurface,
-  onSelectRightSurfaceTab,
 }: RenderWorkspaceRightSurfaceHostRuntimeParams): {
   content: ReactNode;
   tabStrip: ReactNode;
+  open: boolean;
 } {
+  const activeTabId = sidePanelTabs.activeTabId;
   const rightSurfaceDefinitions = buildWorkspaceRightSurfaceDefinitions({
+    "workspace-new-tab": ({ tab }) => (
+      <ThreadSidePanelNewTab
+        actions={sidePanelActions}
+        onActionSelect={(action) =>
+          onSelectSidePanelAction(action.kind, tab.tabId)
+        }
+        onChatSelect={() => onSelectChatFromNewTab(tab.tabId)}
+      />
+    ),
+
     expertInfo: () => <ExpertInfoPanel {...expertInfoPanelProps} />,
     ...(pluginSurfaceRightSurface
       ? {
@@ -149,7 +192,17 @@ export function renderWorkspaceRightSurfaceHostRuntime({
       : {}),
     ...(filesRightSurfaceAvailable
       ? {
-          files: () => (
+          files: ({ tab }) => (
+            <WorkspaceFileThreadSidePanelTab
+              tab={tab}
+              filePath={tab.filePath ?? null}
+              onSelectFile={(path, options) =>
+                onOpenWorkspaceFile(path, tab, options)
+              }
+              projectRootPath={canvasWorkbenchRootPath}
+            />
+          ),
+          changes: () => (
             <ReviewThreadSidePanelTab
               target={filesRightSurfaceTarget}
               projectRootPath={canvasWorkbenchRootPath}
@@ -205,12 +258,19 @@ export function renderWorkspaceRightSurfaceHostRuntime({
           ),
         }
       : {}),
-    shell: () => (
-      <TaskCenterShellPanel
-        variant="surface"
-        projectRootPath={canvasWorkbenchRootPath}
-        threadId={sceneThreadId}
-        onClose={onCloseRightSurfaceShell}
+    "background-terminal": ({ tab }) =>
+      tab.backgroundTerminal ? (
+        <LocalConversationBackgroundTerminalTab
+          itemKey={tab.backgroundTerminal}
+          items={backgroundTerminalItems}
+        />
+      ) : null,
+    shell: ({ tab }) => (
+      <TerminalTab
+        cwd={canvasWorkbenchRootPath}
+        sessionId={tab.tabId}
+        active={sidePanelTabs.open && activeTabId === tab.tabId}
+        onNewTerminalTab={() => onSelectSidePanelAction("shell")}
       />
     ),
   });
@@ -219,25 +279,36 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   );
 
   const activeSurface = rightSurfaceState.activeSurface;
-  if (!activeSurface || !hasActiveRightSurfaceDefinition)
-    return { content: null, tabStrip: null };
+  if (
+    (!activeSurface || !hasActiveRightSurfaceDefinition) &&
+    !sidePanelTabs.tabs.length
+  )
+    return { content: null, tabStrip: null, open: false };
+  const open = Boolean(activeSurface && hasActiveRightSurfaceDefinition);
   return {
+    open,
     content: (
       <RightSurfaceHost
         activeSurface={activeSurface}
         definitions={rightSurfaceDefinitions}
         idPrefix={idPrefix}
+        tabId={activeTabId ?? ""}
+        tabs={sidePanelTabs.tabs}
+        onPinTab={onPinSidePanelTab}
+        previewTabId={sidePanelTabs.previewTabId ?? null}
       />
     ),
-    tabStrip: (
+    tabStrip: open ? (
       <RightSurfaceTabStrip
-        activeSurface={activeSurface}
         definitions={rightSurfaceDefinitions}
-        openSurfaces={rightSurfaceState.openSurfaces}
-        onSelectSurface={onSelectRightSurfaceTab}
-        onCloseSurface={onCloseRightSurfaceTab}
+        tabs={sidePanelTabs.tabs}
+        activeTabId={activeTabId}
+        onNewTab={onNewSidePanelTab}
+        onSelectTab={onSelectSidePanelTab}
+        onCloseTab={onCloseSidePanelTab}
+        previewTabId={sidePanelTabs.previewTabId ?? null}
         idPrefix={idPrefix}
       />
-    ),
+    ) : null,
   };
 }

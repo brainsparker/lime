@@ -47,9 +47,10 @@ vi.mock("@/lib/api/oemCloudRuntime", () => ({
 }));
 
 vi.mock("@/lib/cloudAccount", async () => {
-  const actual = await vi.importActual<typeof import("@/lib/cloudAccount")>(
-    "@/lib/cloudAccount",
-  );
+  const actual =
+    await vi.importActual<typeof import("@/lib/cloudAccount")>(
+      "@/lib/cloudAccount",
+    );
 
   return {
     ...actual,
@@ -3658,14 +3659,17 @@ Extract it into the Agent Skills directory.`,
     }
   });
 
-  it("通过 active installed skill route 发送时，应归一 local:* 并回写 slash skill 最近使用", async () => {
-    const harness = mountHook({
-      input: "整理最近发布计划",
-    });
-
+  it("typed Skill 保留正文与路径，不生成 slash 路由或最近使用", async () => {
+    const text = "$writer 整理最近发布计划";
+    const mention = {
+      type: "skill" as const,
+      name: "writer",
+      path: "/skills/writer/SKILL.md",
+    };
+    const harness = mountHook({ input: text });
     try {
       await act(async () => {
-        const started = await harness
+        const result = await harness
           .getValue()
           .handleSend(
             undefined,
@@ -3674,37 +3678,19 @@ Extract it into the Agent Skills directory.`,
             undefined,
             "react",
             undefined,
-            {
-              capabilityRoute: {
-                kind: "installed_skill",
-                skillKey: "local:writer",
-                skillName: "写作助手",
-              },
-              displayContent: "整理最近发布计划",
-            },
+            { inputMentions: [mention] },
           );
-        expect(started).toMatchObject({ kind: "runtime-accepted" });
+        expect(result).toMatchObject({ kind: "runtime-accepted" });
       });
-
       expect(mockSendMessage).toHaveBeenCalledTimes(1);
-      expect(mockSendMessage.mock.calls[0]?.[0]).toBe(
-        "/writer 整理最近发布计划",
-      );
-      expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
-        displayContent: "整理最近发布计划",
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "writer",
-          skillName: "写作助手",
-        },
-      });
-      expect(listSlashEntryUsage()).toEqual([
-        expect.objectContaining({
-          kind: "skill",
-          entryId: "writer",
-          replayText: "整理最近发布计划",
-        }),
+      expect(mockSendMessage.mock.calls[0]?.[0]).toBe(text);
+      expect(mockSendMessage.mock.calls[0]?.[8]?.inputMentions).toEqual([
+        mention,
       ]);
+      expect(
+        mockSendMessage.mock.calls[0]?.[8]?.capabilityRoute,
+      ).toBeUndefined();
+      expect(listSlashEntryUsage()).toEqual([]);
     } finally {
       harness.unmount();
     }

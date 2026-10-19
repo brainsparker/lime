@@ -107,7 +107,6 @@ function Harness({
     pendingImages,
     pathReferences,
     activeCapability,
-    knowledgePackSelection: null,
     activeTools,
     projectId,
     sessionId,
@@ -399,11 +398,7 @@ describe("useInputbarSend", () => {
       text: "请结合截图和文件生成能力报告",
       images: [image],
       pathReferences: [createPathReference()],
-      inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "capability-report",
-        skillName: "Capability Report",
-      },
+      inputCapabilityRoute: undefined,
     });
     expect(payload?.sendOptions?.inputRestoreDraft?.images).not.toBe(
       pendingImages,
@@ -427,9 +422,9 @@ describe("useInputbarSend", () => {
       name: "latest.md",
     });
     const route = {
-      kind: "installed_skill" as const,
-      skillKey: "latest-report",
-      skillName: "最新报告",
+      kind: "builtin_command" as const,
+      commandKey: "latest-report",
+      commandPrefix: "@latest-report",
     };
     renderHarness({
       composerController,
@@ -553,7 +548,7 @@ describe("useInputbarSend", () => {
     expect(clearActiveCapabilityMock).not.toHaveBeenCalled();
   });
 
-  it("技能路由和 typed 计划模式不应因显式文本发送丢失", async () => {
+  it("过期技能选择不生成发送路由，typed 计划模式保持完整", async () => {
     const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHarness({
       activeCapability: createInstalledSkillSelection(),
@@ -573,21 +568,12 @@ describe("useInputbarSend", () => {
       images: undefined,
       textOverride: "生成一份能力报告",
       sendOptions: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "capability-report",
-          skillName: "Capability Report",
-        },
         inputRestoreDraft: {
           text: "生成一份能力报告",
           images: [],
           pathReferences: [],
           textElements: [],
-          inputCapabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "capability-report",
-            skillName: "Capability Report",
-          },
+          inputCapabilityRoute: undefined,
         },
         displayContent: "生成一份能力报告",
         collaborationMode: "plan",

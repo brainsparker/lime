@@ -17,7 +17,13 @@ export function readComposerEditorTextDom(element) {
     if (node.tagName === "BR") {
       return node.classList.contains("ProseMirror-trailingBreak") ? "" : "\n";
     }
-    if (node.hasAttribute("data-composer-token")) return node.textContent || "";
+    const kind = node.getAttribute("data-composer-token");
+    if (["file", "skill", "plugin"].includes(kind)) {
+      const label = node.getAttribute("data-composer-label");
+      if (!label) throw new Error(`Missing canonical Composer ${kind} label`);
+      return label;
+    }
+    if (kind) return node.textContent || "";
     return Array.from(node.childNodes).map(readNode).join("");
   };
   let text = "";

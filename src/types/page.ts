@@ -8,7 +8,7 @@
  */
 
 import type { SettingsTabs } from "./settings";
-import type { SkillScaffoldTarget } from "@/lib/api/skills";
+import type { Skill, SkillScaffoldTarget } from "@/lib/api/skills";
 import type { InputCapabilitySendRoute } from "@/components/agent/chat/skill-selection/inputCapabilitySelection";
 
 export type WorkspaceTheme = "general";
@@ -39,10 +39,10 @@ export interface AgentPendingServiceSkillLaunchParams {
   launchUserInput?: string;
 }
 
-export interface AgentInitialInputCapabilityParams {
-  capabilityRoute: InputCapabilitySendRoute;
-  requestKey?: number;
-}
+export type AgentInitialInputCapabilityParams = (
+  | { skill: Skill; capabilityRoute?: never }
+  | { capabilityRoute: InputCapabilitySendRoute; skill?: never }
+) & { requestKey?: number };
 
 export interface AgentInitialKnowledgePackSelectionParams {
   enabled: boolean;

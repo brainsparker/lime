@@ -246,5 +246,3 @@ export const TEAM_PRIMARY_CHAT_PANEL_WIDTH =
   "min(100%, clamp(420px, 34%, 560px))";
 export const CODE_WORKBENCH_CHAT_PANEL_WIDTH =
   "min(100%, clamp(640px, 54%, 1180px))";
-export const RIGHT_SURFACE_CHAT_PANEL_WIDTH =
-  "min(100%, clamp(680px, 60%, 1040px))";

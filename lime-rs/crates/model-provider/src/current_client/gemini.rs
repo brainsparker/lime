@@ -54,6 +54,7 @@ pub(super) fn request(
     request: &CanonicalRequest,
     media_payloads: &BTreeMap<String, String>,
 ) -> Result<Value, CurrentProviderError> {
+    super::tool_arguments::ensure_structured_history(request, "Gemini")?;
     let mut contents = Vec::new();
     for message in &request.messages {
         let (role, parts) = match message.role {
@@ -411,7 +412,6 @@ fn projected_schema_type(value: Option<&Value>) -> Option<&str> {
 struct GeminiStreamState {
     text_open: bool,
     reasoning_open: bool,
-    next_tool_call_id: u64,
     emitted_tool_call: bool,
     usage: Option<Usage>,
     finish_reason: Option<FinishReason>,
@@ -540,17 +540,18 @@ fn reduce_event(
             }
             if let Some(call) = part.get("functionCall").and_then(Value::as_object) {
                 events.extend(close_content(state));
-                let name = call
-                    .get("name")
-                    .and_then(Value::as_str)
-                    .map(str::trim)
-                    .filter(|value| !value.is_empty())
-                    .ok_or_else(|| {
-                        CurrentProviderError::new("Gemini tool call omitted function name")
-                    })?;
+                let name = call.get("name").and_then(Value::as_str).ok_or_else(|| {
+                    CurrentProviderError::new("Gemini tool call omitted function name")
+                })?;
                 let input = call.get("args").cloned().unwrap_or_else(|| json!({}));
-                let id = format!("tool_{}", state.next_tool_call_id);
-                state.next_tool_call_id += 1;
+                // Identity survives subsequent samples and cross-protocol replay.
+                // A response-local counter would alias every step's first call.
+                let id = call
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .filter(|id| !id.trim().is_empty())
+                    .map(str::to_string)
+                    .unwrap_or_else(|| format!("call_{:032x}", rand::random::<u128>()));
                 state.emitted_tool_call = true;
                 let arguments = serde_json::to_string(&input).map_err(|error| {
                     CurrentProviderError::new(format!("序列化 Gemini tool arguments 失败: {error}"))
@@ -621,6 +622,7 @@ fn finish_stream(state: &mut GeminiStreamState) -> Vec<LlmEvent> {
     events.push(LlmEvent::Finish {
         reason: state.finish_reason.take().unwrap_or(FinishReason::Unknown),
         usage: state.usage.take(),
+        needs_follow_up: false,
         response_id: None,
     });
     events
@@ -665,3 +667,7 @@ fn gemini_usage(value: &Value) -> Usage {
 fn u64_field(value: &Value, key: &str) -> Option<u64> {
     value.get(key).and_then(Value::as_u64)
 }
+
+#[cfg(test)]
+#[path = "gemini/identity_tests.rs"]
+mod identity_tests;

@@ -1,5 +1,6 @@
 import { Schema, type Node as ProseMirrorNode } from "@tiptap/pm/model";
-import type { ComposerEditorDocument } from "./types";
+import type { ComposerEditorDocument, ComposerMentionBinding } from "./types";
+import { composerMentionDOM } from "./composerMention";
 import { composerLinkDefaults, normalizeComposerHref } from "./composerLinks";
 
 export function normalizeComposerCodeLanguage(value: unknown): string | null {
@@ -110,18 +111,17 @@ export const composerSchema = new Schema({
       inline: true,
       group: "inline",
       atom: true,
-      attrs: { id: {}, kind: {}, name: {}, path: {}, label: {} },
-      toDOM: (node) => [
-        "span",
-        {
-          "data-composer-token": node.attrs.kind,
-          "data-composer-id": node.attrs.id,
-          "data-composer-name": node.attrs.name,
-          "data-composer-path": node.attrs.path,
-          contenteditable: "false",
-        },
-        node.attrs.label,
-      ],
+      selectable: false,
+      attrs: {
+        id: {},
+        kind: {},
+        name: {},
+        path: {},
+        label: {},
+        displayName: { default: "", validate: "string" },
+      },
+      leafText: (node) => node.attrs.displayName || node.attrs.label,
+      toDOM: (node) => composerMentionDOM(node.attrs as ComposerMentionBinding),
     },
     paste: {
       inline: true,
@@ -248,7 +248,7 @@ export function composerDocumentFromJSON(
       )
         throw new Error("Invalid composer code language");
     } else if (node.type.name === "mention") {
-      requireStrings(["id", "kind", "name", "path", "label"]);
+      requireStrings(["id", "kind", "name", "path", "label", "displayName"]);
       if (!["file", "skill", "plugin"].includes(attrs.kind)) {
         throw new Error("Invalid composer mention kind");
       }

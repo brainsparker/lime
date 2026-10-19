@@ -1,21 +1,9 @@
-/* global process */
 import { stat } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { app, BrowserWindow, shell } from "./electronRuntime";
 
 type HostArgs = Record<string, unknown> | null | undefined;
-type ElectronKnownPathName = "home" | "desktop" | "documents" | "downloads";
-
-type FileManagerLocation = {
-  id: string;
-  label: string;
-  path: string;
-  kind: string;
-};
-type FileManagerLocationCandidate = Omit<FileManagerLocation, "path"> & {
-  path: string | null;
-};
 type OpenFilePreviewWindowResult = {
   opened: true;
   reused: boolean;
@@ -39,15 +27,15 @@ export class FileShellHost {
     const request = readRequest(args);
     const targetPath = readRequiredString(request, "path");
 
-    if (await isDirectory(targetPath)) {
-      const errorMessage = await shell.openPath(targetPath);
-      if (errorMessage) {
-        throw new Error(errorMessage);
-      }
+    if (await isFile(targetPath)) {
+      shell.showItemInFolder(targetPath);
       return {};
     }
 
-    shell.showItemInFolder(targetPath);
+    const errorMessage = await shell.openPath(targetPath);
+    if (errorMessage) {
+      throw new Error(errorMessage);
+    }
     return {};
   }
 
@@ -81,97 +69,6 @@ export class FileShellHost {
       throw new Error("无法获取主目录");
     }
     return homePath;
-  }
-
-  async getFileManagerLocations(): Promise<FileManagerLocation[]> {
-    const locations: FileManagerLocation[] = [];
-    const seenPaths = new Set<string>();
-    const homePath = readElectronPath("home");
-
-    await appendFileManagerLocation(locations, seenPaths, {
-      id: "home",
-      label: "个人",
-      kind: "home",
-      path: homePath,
-    });
-    await appendFileManagerLocation(locations, seenPaths, {
-      id: "desktop",
-      label: "桌面",
-      kind: "desktop",
-      path: readElectronPath("desktop"),
-    });
-    await appendFileManagerLocation(locations, seenPaths, {
-      id: "documents",
-      label: "文档",
-      kind: "documents",
-      path: readElectronPath("documents"),
-    });
-    await appendFileManagerLocation(locations, seenPaths, {
-      id: "downloads",
-      label: "下载",
-      kind: "downloads",
-      path: readElectronPath("downloads"),
-    });
-
-    if (process.platform === "darwin") {
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "applications",
-        label: "应用程序",
-        kind: "applications",
-        path: "/Applications",
-      });
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "user-applications",
-        label: "用户应用程序",
-        kind: "applications",
-        path: homePath ? path.join(homePath, "Applications") : null,
-      });
-    }
-
-    if (process.platform === "win32") {
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "start-menu-programs",
-        label: "应用程序",
-        kind: "applications",
-        path: process.env.APPDATA
-          ? path.join(
-              process.env.APPDATA,
-              "Microsoft",
-              "Windows",
-              "Start Menu",
-              "Programs",
-            )
-          : null,
-      });
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "common-start-menu-programs",
-        label: "公共应用程序",
-        kind: "applications",
-        path: process.env.PROGRAMDATA
-          ? path.join(
-              process.env.PROGRAMDATA,
-              "Microsoft",
-              "Windows",
-              "Start Menu",
-              "Programs",
-            )
-          : null,
-      });
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "program-files",
-        label: "Program Files",
-        kind: "applications",
-        path: process.env.ProgramFiles || null,
-      });
-      await appendFileManagerLocation(locations, seenPaths, {
-        id: "program-files-x86",
-        label: "Program Files (x86)",
-        kind: "applications",
-        path: process.env["ProgramFiles(x86)"] || null,
-      });
-    }
-
-    return locations;
   }
 }
 
@@ -261,7 +158,7 @@ function readString(value: unknown, key: string): string | null {
   return trimmed || null;
 }
 
-function readElectronPath(name: ElectronKnownPathName): string | null {
+function readElectronPath(name: "home"): string | null {
   try {
     const next = app.getPath(name);
     return next.trim() ? next : null;
@@ -270,33 +167,12 @@ function readElectronPath(name: ElectronKnownPathName): string | null {
   }
 }
 
-async function isDirectory(targetPath: string): Promise<boolean> {
+async function isFile(targetPath: string): Promise<boolean> {
   try {
-    return (await stat(targetPath)).isDirectory();
+    return (await stat(targetPath)).isFile();
   } catch {
     return false;
   }
-}
-
-async function appendFileManagerLocation(
-  locations: FileManagerLocation[],
-  seenPaths: Set<string>,
-  location: FileManagerLocationCandidate,
-): Promise<void> {
-  const normalizedPath = location.path?.trim() ?? "";
-  if (!normalizedPath || seenPaths.has(normalizedPath)) {
-    return;
-  }
-  try {
-    const metadata = await stat(normalizedPath);
-    if (!metadata.isDirectory()) {
-      return;
-    }
-  } catch {
-    return;
-  }
-  seenPaths.add(normalizedPath);
-  locations.push({ ...location, path: normalizedPath });
 }
 
 function toRecord(value: unknown): Record<string, unknown> | null {

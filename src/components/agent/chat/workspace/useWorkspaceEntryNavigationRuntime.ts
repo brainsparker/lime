@@ -13,18 +13,6 @@ export function useWorkspaceEntryNavigationRuntime({
   onNavigate,
   setChatToolPreferences,
 }: UseWorkspaceEntryNavigationRuntimeParams) {
-  const handleInstallSkillPackageFromFileManager = useCallback(
-    (entry: { path: string; name: string }) => {
-      onNavigate?.("skills", {
-        initialView: "installed",
-        initialSkillPackagePath: entry.path,
-        initialSkillPackageName: entry.name,
-        initialSkillPackageRequestKey: Date.now(),
-      });
-    },
-    [onNavigate],
-  );
-
   const handleOpenSkillsManageFromExpertPanel = useCallback(
     (options?: ExpertSkillsManageOptions) => {
       const searchQuery = options?.searchQuery?.trim();
@@ -57,7 +45,6 @@ export function useWorkspaceEntryNavigationRuntime({
   }, [setChatToolPreferences]);
 
   return {
-    handleInstallSkillPackageFromFileManager,
     handleOpenSkillsManageFromExpertPanel,
     handleOpenSubagents,
   };

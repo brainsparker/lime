@@ -1337,6 +1337,7 @@ async function run() {
     );
 
     await executeScenarioFlow({
+      app,
       page,
       options,
       workspace,

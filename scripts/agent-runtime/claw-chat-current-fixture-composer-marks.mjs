@@ -63,16 +63,16 @@ export function composerMarksFixture({ prompt, skillIdentity, pasteText }) {
   );
   const body = `${CODE}\n\n`;
   const pasteLabel = `[Pasted text 1: ${pasteText.length} characters]`;
-  const skillLabel = `/${skillIdentity.key}`;
+  const skillLabel = `$${skillIdentity.name}`;
   const displayPrefix = `${prompt}\n${LINK.label}\n${body}\n${TAIL} `;
-  const markdownPrefix = `/${skillIdentity.name} ${prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`typescript\n${body}\n\`\`\`\`\`\n${TAIL} `;
+  const markdownPrefix = `${prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`typescript\n${body}\n\`\`\`\`\`\n${TAIL} `;
   const pasteStart = Buffer.byteLength(markdownPrefix, "utf8");
   const pasteEnd = pasteStart + Buffer.byteLength(pasteText, "utf8");
   return {
     text: `${markdownPrefix}${pasteText} ${skillLabel}`,
     displayText: `${displayPrefix}${pasteLabel} ${skillLabel}`,
     renderedTextParts: [
-      `/${skillIdentity.name} ${prompt}`,
+      prompt,
       LINK.label,
       body,
       `${TAIL} ${pasteText} ${skillLabel}`,

@@ -167,9 +167,9 @@ describe("agentStreamSubmitDraft browser paint boundary", () => {
       content: "/image_generate 生成 春日咖啡馆插画",
       displayContent: "@配图 生成 春日咖啡馆插画",
       capabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "image_generate",
-        skillName: "配图",
+        kind: "builtin_command",
+        commandKey: "image_generate",
+        commandPrefix: "@inspect",
       },
       images: [],
       skipUserMessage: false,
@@ -194,9 +194,9 @@ describe("agentStreamSubmitDraft browser paint boundary", () => {
       id: "user-3",
       content: "@配图 生成 春日咖啡馆插画",
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "image_generate",
-        skillName: "配图",
+        kind: "builtin_command",
+        commandKey: "image_generate",
+        commandPrefix: "@inspect",
       },
     });
     expect(isSending).toBe(true);

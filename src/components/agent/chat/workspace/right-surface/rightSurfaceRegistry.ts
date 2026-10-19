@@ -74,10 +74,31 @@ export const WORKSPACE_RIGHT_SURFACE_SPECS: readonly WorkspaceRightSurfaceSpec[]
       collapseTarget: "topToolbar",
     },
     {
+      kind: "changes",
+      slot: "canvasPanel",
+      exclusiveGroup: "workspaceRightSurface",
+      openSources: ["user", "route", "runtime"],
+      collapseTarget: "topToolbar",
+    },
+    {
+      kind: "workspace-new-tab",
+      slot: "canvasPanel",
+      exclusiveGroup: "workspaceRightSurface",
+      openSources: ["user"],
+      collapseTarget: "topToolbar",
+    },
+    {
       kind: "shell",
       slot: "canvasPanel",
       exclusiveGroup: "workspaceRightSurface",
       openSources: ["user", "runtime"],
+      collapseTarget: "topToolbar",
+    },
+    {
+      kind: "background-terminal",
+      slot: "canvasPanel",
+      exclusiveGroup: "workspaceRightSurface",
+      openSources: ["user"],
       collapseTarget: "topToolbar",
     },
     {
@@ -115,6 +136,8 @@ export function buildWorkspaceRightSurfaceDefinitions(
     if (typeof renderer === "function") {
       return [{ kind: spec.kind, render: renderer }];
     }
-    return [{ kind: spec.kind, label: renderer.label, render: renderer.render }];
+    return [
+      { kind: spec.kind, label: renderer.label, render: renderer.render },
+    ];
   });
 }

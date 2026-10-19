@@ -22,12 +22,7 @@ pub(super) struct UnifiedExecSession {
 
 #[derive(Default)]
 struct UnifiedExecSessionRegistry {
-    sessions: HashMap<i32, UnifiedExecSessionRegistration>,
-}
-
-struct UnifiedExecSessionRegistration {
-    process_id: String,
-    session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
+    sessions: HashMap<i32, Arc<tokio::sync::Mutex<UnifiedExecSession>>>,
 }
 
 pub(super) async fn session_facts(
@@ -62,19 +57,12 @@ pub(super) fn next_session_id() -> i32 {
 
 pub(super) fn register_session(
     session_id: i32,
-    process_id: String,
     session: Arc<tokio::sync::Mutex<UnifiedExecSession>>,
 ) -> Result<(), RuntimeToolExecutionError> {
     let mut registry = session_registry()
         .lock()
         .map_err(|_| unified_exec_error("unified exec session registry is unavailable"))?;
-    registry.sessions.insert(
-        session_id,
-        UnifiedExecSessionRegistration {
-            process_id,
-            session,
-        },
-    );
+    registry.sessions.insert(session_id, session);
     Ok(())
 }
 
@@ -86,7 +74,7 @@ pub(super) fn find_session(
         .map_err(|_| unified_exec_error("unified exec session registry is unavailable"))?
         .sessions
         .get(&session_id)
-        .map(|registration| Arc::clone(&registration.session))
+        .map(Arc::clone)
         .ok_or_else(|| unified_exec_error(format!("unified exec session not found: {session_id}")))
 }
 
@@ -118,7 +106,7 @@ async fn sessions_for_scope(
         .expect("unified exec session registry mutex poisoned")
         .sessions
         .iter()
-        .map(|(id, registration)| (*id, Arc::clone(&registration.session)))
+        .map(|(id, session)| (*id, Arc::clone(session)))
         .collect::<Vec<_>>();
     let mut owned = Vec::new();
     for (id, session) in sessions {
@@ -131,12 +119,4 @@ async fn sessions_for_scope(
         }
     }
     owned
-}
-
-pub fn forget_process_session(process_id: &str) {
-    if let Ok(mut registry) = session_registry().lock() {
-        registry
-            .sessions
-            .retain(|_, registration| registration.process_id != process_id);
-    }
 }

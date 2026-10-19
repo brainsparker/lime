@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { useLimeSkills } from "../hooks/useLimeSkills";
 import { useServiceSkills } from "../service-skills/useServiceSkills";
 import { useWorkspaceServiceSkillDirectoryToastRuntime } from "./useWorkspaceEntrySideEffectsRuntime";
@@ -17,7 +17,6 @@ export function useWorkspaceSkillDirectoryRuntime({
   shouldDeferWorkspaceAuxiliaryLoads,
 }: UseWorkspaceSkillDirectoryRuntimeParams) {
   const skillSuggestionsRequestedRef = useRef(false);
-  const serviceSkillSuggestionsRequestedRef = useRef(false);
 
   const {
     skills,
@@ -36,7 +35,6 @@ export function useWorkspaceSkillDirectoryRuntime({
     groups: serviceSkillGroups,
     isLoading: serviceSkillsLoading,
     error: serviceSkillsError,
-    refresh: loadServiceSkills,
     recordUsage: recordServiceSkillUsage,
   } = useServiceSkills({
     enabled: activeTheme === "general",
@@ -56,32 +54,10 @@ export function useWorkspaceSkillDirectoryRuntime({
   }, [loadSkills]);
 
   const handleSkillSuggestionsNeeded = useCallback(() => {
-    if (skillSuggestionsRequestedRef.current) {
-      if (
-        serviceSkillSuggestionsRequestedRef.current ||
-        activeTheme !== "general"
-      ) {
-        return;
-      }
-    } else {
-      skillSuggestionsRequestedRef.current = true;
-      void loadSkills(false);
-    }
-
-    if (
-      activeTheme === "general" &&
-      !serviceSkillSuggestionsRequestedRef.current
-    ) {
-      serviceSkillSuggestionsRequestedRef.current = true;
-      void loadServiceSkills();
-    }
-  }, [activeTheme, loadServiceSkills, loadSkills]);
-
-  useEffect(() => {
-    if (activeTheme !== "general") {
-      serviceSkillSuggestionsRequestedRef.current = false;
-    }
-  }, [activeTheme]);
+    if (skillSuggestionsRequestedRef.current) return;
+    skillSuggestionsRequestedRef.current = true;
+    void loadSkills(false);
+  }, [loadSkills]);
 
   return {
     skills,

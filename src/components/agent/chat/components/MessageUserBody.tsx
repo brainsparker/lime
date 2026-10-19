@@ -3,15 +3,11 @@ import type { A2UIFormData } from "@/components/workspace/a2ui/types";
 import { MarkdownRenderer } from "./MarkdownRenderer";
 import { RuntimePeerMessageCards } from "./RuntimePeerMessageCards";
 import { CollapsibleUserMessageContent } from "./CollapsibleUserMessageContent";
-import {
-  UserCommandMessageContent,
-  UserInstalledSkillMessageContent,
-} from "./MessageListUserContent";
+import { UserCommandMessageContent } from "./MessageListUserContent";
 import type { Message } from "../types";
 
 interface MessageUserBodyProps {
   content: string;
-  installedSkillMessageLabel: string | null;
   isUserCommandMessage: boolean;
   message: Message;
   onA2UISubmit?: (formData: A2UIFormData, messageId: string) => void;
@@ -24,7 +20,6 @@ interface MessageUserBodyProps {
 
 export function MessageUserBody({
   content,
-  installedSkillMessageLabel,
   isUserCommandMessage,
   message,
   onA2UISubmit,
@@ -36,17 +31,6 @@ export function MessageUserBody({
 }: MessageUserBodyProps) {
   if (!content) {
     return null;
-  }
-
-  if (installedSkillMessageLabel) {
-    return (
-      <UserInstalledSkillMessageContent
-        content={content}
-        label={installedSkillMessageLabel}
-        onBeforeToggle={onBeforeToggle}
-        revealRequestKey={revealRequestKey}
-      />
-    );
   }
 
   if (isUserCommandMessage) {

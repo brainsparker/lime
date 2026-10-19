@@ -55,19 +55,19 @@ afterAll(() => fs.rmSync(root, { recursive: true, force: true }));
 
 function fixture() {
   const prompt = "保留正文和图像。";
-  const label = `/${skillIdentity.key}`;
+  const label = `$${skillIdentity.name}`;
   const prefix = `${prompt} `;
-  const routedPrefix = `/${skillIdentity.name} ${prefix}`;
+  const wirePrefix = prefix;
   const imageBase64 = Buffer.from("fixture-image").toString("base64");
   const input = [
     {
       type: "text",
-      text: `${routedPrefix}${label}`,
+      text: `${wirePrefix}${label}`,
       text_elements: [
         {
           byteRange: {
-            start: Buffer.byteLength(routedPrefix),
-            end: Buffer.byteLength(routedPrefix + label),
+            start: Buffer.byteLength(wirePrefix),
+            end: Buffer.byteLength(wirePrefix + label),
           },
           placeholder: label,
         },
@@ -127,13 +127,13 @@ function fixture() {
       threadId: request.params.threadId,
       turnId: "turn-rich",
       expectedSubmission: {
-        text: `${routedPrefix}${label}`,
+        text: `${wirePrefix}${label}`,
         displayText: `${prefix}${label}`,
         textElements: [
           {
             byteRange: {
-              start: Buffer.byteLength(routedPrefix),
-              end: Buffer.byteLength(routedPrefix + label),
+              start: Buffer.byteLength(wirePrefix),
+              end: Buffer.byteLength(wirePrefix + label),
             },
             placeholder: label,
           },
@@ -334,17 +334,17 @@ describe("rich Composer submission evidence", () => {
 
   it("uses independent Markdown rather than link labels and code display text", () => {
     const input = fixture();
-    const display = `${input.evidence.prompt}\n中😀\n  中😀\n\`\`\`\`\n\n\n /${skillIdentity.key}`;
-    const markdown = `/${skillIdentity.name} ${input.evidence.prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`ts\n  中😀\n\`\`\`\`\n\n\n\`\`\`\`\`\n /${skillIdentity.key}`;
+    const display = `${input.evidence.prompt}\n中😀\n  中😀\n\`\`\`\`\n\n\n $${skillIdentity.name}`;
+    const markdown = `${input.evidence.prompt}\n[中😀](https://example.invalid/marks "标题")\n\`\`\`\`\`ts\n  中😀\n\`\`\`\`\n\n\n\`\`\`\`\`\n $${skillIdentity.name}`;
     input.evidence.editorText = display;
     const part = input.request.params.input[0];
     part.text = markdown;
     part.text_elements = [
       {
-        placeholder: `/${skillIdentity.key}`,
+        placeholder: `$${skillIdentity.name}`,
         byteRange: {
           start: Buffer.byteLength(
-            markdown.slice(0, markdown.lastIndexOf(`/${skillIdentity.key}`)),
+            markdown.slice(0, markdown.lastIndexOf(`$${skillIdentity.name}`)),
           ),
           end: Buffer.byteLength(markdown),
         },
@@ -360,7 +360,7 @@ describe("rich Composer submission evidence", () => {
     expect(summarize(input).ok).toBe(true);
   });
   it.each([
-    "missing-prefix",
+    "missing-body",
     "wrong-prefix",
     "double-prefix",
     "suffix",
@@ -372,7 +372,7 @@ describe("rich Composer submission evidence", () => {
       const body = input.request.params.input[0];
       const expected = body.text;
       body.text = {
-        "missing-prefix": input.evidence.editorText,
+        "missing-body": `$${skillIdentity.name}`,
         "wrong-prefix": `/foreign ${input.evidence.editorText}`,
         "double-prefix": `/capability-report ${expected}`,
         suffix: `${expected} extra`,
@@ -533,29 +533,25 @@ describe("rich Composer submission evidence", () => {
     input.evidence.pasteText = pasteText;
     const expanded = `${prefix}${pasteText} ${skillLabel}`;
     const part = input.request.params.input[0];
-    part.text = `/${skillIdentity.name} ${expanded}`;
+    part.text = expanded;
     part.text_elements = [
       {
         placeholder: label,
         byteRange: {
-          start: Buffer.byteLength(`/${skillIdentity.name} ${prefix}`),
-          end: Buffer.byteLength(
-            `/${skillIdentity.name} ${prefix}${pasteText}`,
-          ),
+          start: Buffer.byteLength(`${prefix}`),
+          end: Buffer.byteLength(`${prefix}${pasteText}`),
         },
       },
       {
         placeholder: skillLabel,
         byteRange: {
-          start: Buffer.byteLength(
-            `/${skillIdentity.name} ${prefix}${pasteText} `,
-          ),
+          start: Buffer.byteLength(`${prefix}${pasteText} `),
           end: Buffer.byteLength(part.text),
         },
       },
     ];
     input.evidence.expectedSubmission = {
-      text: `/${skillIdentity.name} ${expanded}`,
+      text: expanded,
       displayText: `${prefix}${label} ${skillLabel}`,
       textElements: structuredClone(part.text_elements),
     };
@@ -567,7 +563,7 @@ describe("rich Composer submission evidence", () => {
       skillRangePreserved: true,
     });
     part.text_elements[1].byteRange = {
-      start: Buffer.byteLength(`${prefix}${pasteText} `),
+      start: Buffer.byteLength(`${prefix}${label} `),
       end: Buffer.byteLength(expanded),
     };
     expect(summarize(input).skillRangePreserved).toBe(false);

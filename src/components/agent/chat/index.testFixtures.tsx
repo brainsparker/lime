@@ -9,23 +9,7 @@ import {
 } from "@/components/app-shell/AppShell";
 import { harness as createDraftHarness } from "@/components/input-kit/ComposerDraftCoordinator.testFixtures";
 import { acceptedSubmission } from "./hooks/agentSendResult.testFixtures";
-import { agentEnUSResource, agentZhCNResource } from "@/i18n/agentResources";
-import type { WorkspaceRightSurfaceLauncherProjection } from "./workspace/right-surface/rightSurfaceToolbarProjection";
 import { resetInitialSessionNavigationDeduplicationForTests } from "./workspace/useWorkspaceInitialSessionNavigation";
-
-export const WORKSPACE_HARNESS_TITLE_CANDIDATES = [
-  agentZhCNResource["agentChat.workspaceHarnessDialog.title"],
-  agentEnUSResource["agentChat.workspaceHarnessDialog.title"],
-] as const;
-export const WORKSPACE_HARNESS_DESCRIPTION_CANDIDATES = [
-  agentZhCNResource["agentChat.workspaceHarnessDialog.description"],
-  agentEnUSResource["agentChat.workspaceHarnessDialog.description"],
-] as const;
-export const textContainsAny = (
-  text: string | null | undefined,
-  values: readonly string[],
-) => Boolean(text && values.some((value) => text.includes(value)));
-export const GENERAL_CONTEXT_HINT = "普通聊天模式";
 
 export type MockEmptyStateProps = {
   input?: string;
@@ -476,96 +460,6 @@ vi.mock("@/lib/workspace/workbenchUi", () => ({
   StepProgress: () => <div data-testid="step-progress" />,
 }));
 
-vi.mock("./components/ChatNavbar", () => ({
-  ChatNavbar: ({
-    onToggleCanvas,
-    showCanvasToggle,
-    isCanvasOpen,
-    onProjectChange,
-    showHarnessToggle,
-    harnessPanelVisible,
-    onToggleHarnessPanel,
-    harnessToggleLabel,
-    showContextCompactionAction,
-    onToggleSettings,
-    contextVariant,
-  }: {
-    onToggleCanvas?: () => void;
-    showCanvasToggle?: boolean;
-    isCanvasOpen?: boolean;
-    onProjectChange?: (projectId: string | null) => void;
-    showHarnessToggle?: boolean;
-    harnessPanelVisible?: boolean;
-    onToggleHarnessPanel?: () => void;
-    harnessToggleLabel?: string;
-    showContextCompactionAction?: boolean;
-    onToggleSettings?: () => void;
-    contextVariant?: string;
-  }) => (
-    <div
-      data-testid="chat-navbar"
-      data-context-variant={contextVariant || "default"}
-      data-show-harness-toggle={showHarnessToggle ? "true" : "false"}
-      data-harness-panel-visible={harnessPanelVisible ? "true" : "false"}
-      data-harness-toggle-label={harnessToggleLabel || "Harness"}
-      data-show-canvas-toggle={showCanvasToggle ? "true" : "false"}
-      data-canvas-open={isCanvasOpen ? "true" : "false"}
-      data-show-context-compaction-action={
-        showContextCompactionAction ? "true" : "false"
-      }
-      data-show-settings-button={onToggleSettings ? "true" : "false"}
-    >
-      {showCanvasToggle ? (
-        <button
-          type="button"
-          data-testid="toggle-canvas"
-          onClick={() => {
-            onToggleCanvas?.();
-          }}
-        >
-          {isCanvasOpen ? "折叠画布" : "展开画布"}
-        </button>
-      ) : null}
-      <button
-        type="button"
-        data-testid="set-project"
-        onClick={() => {
-          onProjectChange?.("project-manual");
-        }}
-      >
-        选择项目
-      </button>
-      {showHarnessToggle ? (
-        <button
-          type="button"
-          data-testid="toggle-harness"
-          onClick={() => {
-            onToggleHarnessPanel?.();
-          }}
-        >
-          切换 {harnessToggleLabel || "Harness"}
-        </button>
-      ) : null}
-      {showContextCompactionAction ? (
-        <button type="button" data-testid="compact-context">
-          压缩上下文
-        </button>
-      ) : null}
-      {onToggleSettings ? (
-        <button
-          type="button"
-          data-testid="toggle-settings"
-          onClick={() => {
-            onToggleSettings?.();
-          }}
-        >
-          设置
-        </button>
-      ) : null}
-    </div>
-  ),
-}));
-
 vi.mock("./components/GeneralWorkbenchSidebar", () => ({
   GeneralWorkbenchSidebar: ({
     onSwitchTopic,
@@ -666,99 +560,11 @@ vi.mock("./components/Inputbar", () => ({
 
 vi.mock("./components/TaskCenterUtilityToolbar", () => ({
   TaskCenterUtilityToolbar: ({
-    showCanvasToggle,
-    isCanvasOpen,
-    onToggleCanvas,
-    showHarnessToggle,
-    harnessPanelVisible,
-    onToggleHarnessPanel,
-    harnessToggleLabel,
-    showExpertInfoToggle,
-    expertInfoPanelVisible,
-    onToggleExpertInfoPanel,
-    rightSurfaceLaunchers,
-  }: {
-    showCanvasToggle?: boolean;
-    isCanvasOpen?: boolean;
-    onToggleCanvas?: () => void;
-    showHarnessToggle?: boolean;
-    harnessPanelVisible?: boolean;
-    onToggleHarnessPanel?: () => void;
-    harnessToggleLabel?: string;
-    showExpertInfoToggle?: boolean;
-    expertInfoPanelVisible?: boolean;
-    onToggleExpertInfoPanel?: () => void;
-    rightSurfaceLaunchers?: readonly WorkspaceRightSurfaceLauncherProjection[];
-  }) => (
-    <div
-      data-testid="task-center-utility-toolbar"
-      data-show-canvas-toggle={showCanvasToggle ? "true" : "false"}
-      data-canvas-open={isCanvasOpen ? "true" : "false"}
-      data-show-harness-toggle={showHarnessToggle ? "true" : "false"}
-      data-harness-panel-visible={
-        harnessPanelVisible ||
-        rightSurfaceLaunchers?.some(
-          (launcher) => launcher.kind === "harness" && launcher.active,
-        )
-          ? "true"
-          : "false"
-      }
-      data-harness-toggle-label={harnessToggleLabel || "Harness"}
-      data-show-expert-info-toggle={showExpertInfoToggle ? "true" : "false"}
-      data-expert-info-panel-visible={expertInfoPanelVisible ? "true" : "false"}
-    >
-      {showCanvasToggle ? (
-        <button
-          type="button"
-          data-testid="toggle-canvas"
-          onClick={() => {
-            onToggleCanvas?.();
-          }}
-        >
-          {isCanvasOpen ? "折叠画布" : "展开画布"}
-        </button>
-      ) : null}
-      {showHarnessToggle ? (
-        <button
-          type="button"
-          data-testid="toggle-harness"
-          onClick={() => {
-            onToggleHarnessPanel?.();
-          }}
-        >
-          切换 {harnessToggleLabel || "Harness"}
-        </button>
-      ) : null}
-      {rightSurfaceLaunchers?.some(
-        (launcher) => launcher.kind === "harness",
-      ) ? (
-        <button
-          type="button"
-          data-testid="task-center-harness-toggle"
-          disabled={
-            rightSurfaceLaunchers.find(
-              (launcher) => launcher.kind === "harness",
-            )?.disabled
-          }
-          onClick={() => {
-            onToggleHarnessPanel?.();
-          }}
-        >
-          右侧 {harnessToggleLabel || "Harness"}
-        </button>
-      ) : null}
-      {showExpertInfoToggle ? (
-        <button
-          type="button"
-          data-testid="task-center-expert-info-toggle"
-          onClick={() => {
-            onToggleExpertInfoPanel?.();
-          }}
-        >
-          {expertInfoPanelVisible ? "关闭专家信息" : "打开专家信息"}
-        </button>
-      ) : null}
-    </div>
+    sidePanelLauncher,
+  }: ComponentProps<
+    typeof import("./components/TaskCenterUtilityToolbar").TaskCenterUtilityToolbar
+  >) => (
+    <div data-testid="task-center-utility-toolbar">{sidePanelLauncher}</div>
   ),
 }));
 

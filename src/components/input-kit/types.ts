@@ -8,7 +8,7 @@ export type ComposerInputMention = Extract<
 >;
 
 export interface ComposerSelection {
-  /** UTF-16 offsets in the displayed text, independent of PM positions. */
+  /** UTF-16 offsets in serialized editor text, independent of PM positions. */
   start: number;
   end: number;
 }
@@ -58,6 +58,7 @@ export type ComposerInline =
         name: string;
         path: string;
         label: string;
+        displayName?: string;
       };
     }
   | { type: "paste"; attrs: { id: string; placeholder: string; text: string } }
@@ -92,6 +93,7 @@ export interface ComposerMentionBinding {
   name: string;
   path: string;
   label: string;
+  displayName?: string;
   from: number;
   to: number;
 }

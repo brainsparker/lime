@@ -19,6 +19,11 @@ import {
 import { composerLinkDefaults, normalizeComposerHref } from "./composerLinks";
 import { replaceComposerAnnotations } from "./composerAnnotations";
 import { composerTextSelection } from "./composerPositions";
+import * as suggestions from "./composerSuggestions";
+import type {
+  ComposerSuggestion,
+  ComposerSuggestionSource,
+} from "./composerSuggestions";
 import type {
   ComposerAttachment,
   ComposerDocumentInput,
@@ -128,6 +133,42 @@ export class ComposerController {
 
   getEditorState(): EditorState {
     return this.state;
+  }
+
+  getSuggestion = (): ComposerSuggestion =>
+    suggestions.getComposerSuggestion(this.state);
+
+  toggleContextSuggestions(): void {
+    this.applyTransaction(suggestions.toggleContext(this.state));
+  }
+
+  dismissSuggestions(): void {
+    this.applyTransaction(suggestions.dismiss(this.state));
+  }
+
+  setSuggestionSource(
+    source: ComposerSuggestionSource | null,
+    suggestion = this.getSuggestion(),
+  ): void {
+    const transaction = suggestions.setSource(this.state, source, suggestion);
+    if (transaction) this.applyTransaction(transaction);
+  }
+
+  clearSuggestion(suggestion = this.getSuggestion()): void {
+    const transaction = suggestions.clear(this.state, suggestion);
+    if (transaction) this.applyTransaction(transaction);
+  }
+
+  completeSuggestionQuery(
+    query: string,
+    suggestion = this.getSuggestion(),
+  ): void {
+    const transaction = suggestions.completeQuery(
+      this.state,
+      query,
+      suggestion,
+    );
+    if (transaction) this.applyTransaction(transaction);
   }
 
   applyTransaction(transaction: Transaction): boolean {

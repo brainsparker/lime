@@ -94,7 +94,7 @@ export function summarizeRichInputSubmission({
     editorText.startsWith(prompt) &&
     typeof expectedWireText === "string" &&
     typeof skillIdentity?.name === "string" &&
-    expectedWireText.startsWith(`/${skillIdentity.name} ${prompt}`) &&
+    expectedWireText.startsWith(prompt) &&
     editorText === expectedSubmission?.displayText &&
     !!body;
   const pasteExpanded =
@@ -118,7 +118,7 @@ export function summarizeRichInputSubmission({
     ) &&
     skillToken.editable === "false" &&
     skillToken.id === skillIdentity?.key &&
-    skillToken.label === `/${skillIdentity?.key}`;
+    skillToken.label === `$${skillIdentity?.name}`;
   const skills = input.filter((part) => part?.type === "skill");
   const skillIdentityPreserved =
     validSkillToken &&

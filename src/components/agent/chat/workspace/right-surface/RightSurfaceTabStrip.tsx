@@ -1,18 +1,21 @@
 import { useTranslation } from "react-i18next";
-import { X } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidePanelTabActive } from "@/components/app-shell/unifiedTabStripContext";
+import type { ThreadSidePanelTab } from "./threadSidePanelTabs";
 import type {
   RightSurfaceDefinition,
   WorkspaceRightSurfaceKind,
 } from "./rightSurfaceTypes";
 
 export interface RightSurfaceTabStripProps {
-  activeSurface: WorkspaceRightSurfaceKind;
   definitions: readonly RightSurfaceDefinition[];
-  openSurfaces?: readonly WorkspaceRightSurfaceKind[];
-  onSelectSurface?: (kind: WorkspaceRightSurfaceKind) => void;
-  onCloseSurface?: (kind: WorkspaceRightSurfaceKind) => void;
+  tabs: readonly ThreadSidePanelTab[];
+  activeTabId: string | null;
+  onNewTab: () => void;
+  onSelectTab: (tabId: string) => void;
+  onCloseTab: (tabId: string) => void;
+  previewTabId: string | null;
   idPrefix: string;
 }
 
@@ -44,9 +47,18 @@ const RIGHT_SURFACE_TAB_LABELS: Record<
     key: "agentChat.rightSurface.tabs.files",
     fallback: "文件",
   },
+  changes: { key: "agentChat.rightSurface.tabs.changes", fallback: "变更" },
+  "workspace-new-tab": {
+    key: "agentChat.rightSurface.tabs.newTab",
+    fallback: "新建标签页",
+  },
   shell: {
     key: "agentChat.rightSurface.tabs.shell",
     fallback: "Shell",
+  },
+  "background-terminal": {
+    key: "agentChat.summary.backgroundTerminal",
+    fallback: "后台终端",
   },
   harness: {
     key: "agentChat.rightSurface.tabs.harness",
@@ -59,76 +71,94 @@ const RIGHT_SURFACE_TAB_LABELS: Record<
 };
 
 export function RightSurfaceTabStrip({
-  activeSurface,
   definitions,
-  openSurfaces,
-  onSelectSurface,
-  onCloseSurface,
+  tabs,
+  activeTabId,
+  onNewTab,
+  onSelectTab,
+  onCloseTab,
+  previewTabId,
   idPrefix,
 }: RightSurfaceTabStripProps) {
   const { t } = useTranslation("agent");
   const panelActive = useSidePanelTabActive();
   const byKind = new Map(definitions.map((item) => [item.kind, item]));
-  const tabs = [...new Set([...(openSurfaces ?? []), activeSurface])].filter(
-    (kind) => byKind.has(kind),
-  );
   return (
     <div
       className="flex h-full min-w-0 items-center gap-1"
       data-testid="workspace-right-surface-tabs"
     >
-      {tabs.map((kind) => {
-        const active = kind === activeSurface && panelActive;
-        const label =
-          byKind.get(kind)?.label?.trim() ||
-          t(RIGHT_SURFACE_TAB_LABELS[kind].key, {
-            defaultValue: RIGHT_SURFACE_TAB_LABELS[kind].fallback,
-          });
-        return (
-          <div
-            key={kind}
-            className={cn(
-              "flex h-8 min-w-0 shrink-0 items-center rounded-lg",
-              active && "bg-[color:var(--lime-chrome-tab-active-surface)]",
-            )}
-          >
-            <button
-              type="button"
-              role="tab"
-              id={`${idPrefix}-tab-${kind}`}
-              aria-controls={`${idPrefix}-panel`}
-              aria-selected={active}
-              aria-label={label}
-              tabIndex={active ? 0 : -1}
-              data-testid={`workspace-right-surface-tab-${kind}`}
-              className="h-8 max-w-48 truncate rounded-lg px-2.5 text-xs text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
-              onClick={() => onSelectSurface?.(kind)}
-              onKeyDown={(event) => {
-                if (event.key === "Delete") {
-                  event.preventDefault();
-                  onCloseSurface?.(kind);
-                  return;
-                }
-              }}
+      {tabs
+        .filter((tab) => byKind.has(tab.kind))
+        .map(({ tabId, kind, filePath, title }) => {
+          const active = tabId === activeTabId && panelActive;
+          const label =
+            title ||
+            (filePath
+              ? filePath.replace(/\\/g, "/").split("/").at(-1)
+              : null) ||
+            byKind.get(kind)?.label?.trim() ||
+            t(RIGHT_SURFACE_TAB_LABELS[kind].key, {
+              defaultValue: RIGHT_SURFACE_TAB_LABELS[kind].fallback,
+            });
+          return (
+            <div
+              key={tabId}
+              className={cn(
+                "flex h-8 min-w-0 shrink-0 items-center rounded-lg",
+                active && "bg-[color:var(--lime-chrome-tab-active-surface)]",
+              )}
             >
-              {label}
-            </button>
-            {onCloseSurface ? (
               <button
                 type="button"
+                role="tab"
+                id={`${idPrefix}-tab-${tabId}`}
+                aria-controls={`${idPrefix}-panel-${tabId}`}
+                aria-selected={active}
+                aria-label={label}
+                title={filePath ?? label}
+                data-file-path={filePath ?? undefined}
+                data-tab-preview={previewTabId === tabId || undefined}
                 tabIndex={active ? 0 : -1}
-                aria-label={t("agentChat.canvasWorkbench.tabs.closeAria", {
-                  label,
-                })}
-                className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
-                onClick={() => onCloseSurface(kind)}
+                data-testid={`workspace-right-surface-tab-${kind}`}
+                className="h-8 max-w-48 truncate rounded-lg px-2.5 text-xs text-[color:var(--lime-text-strong)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
+                onClick={() => onSelectTab(tabId)}
+                onKeyDown={(event) => {
+                  if (event.key === "Delete") {
+                    event.preventDefault();
+                    onCloseTab(tabId);
+                    return;
+                  }
+                }}
               >
-                <X size={12} aria-hidden="true" />
+                {label}
               </button>
-            ) : null}
-          </div>
-        );
-      })}
+              {onCloseTab ? (
+                <button
+                  type="button"
+                  tabIndex={active ? 0 : -1}
+                  data-testid="workspace-right-surface-tab-close"
+                  aria-label={t("agentChat.canvasWorkbench.tabs.closeAria", {
+                    label,
+                  })}
+                  className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
+                  onClick={() => onCloseTab(tabId)}
+                >
+                  <X size={12} aria-hidden="true" />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
+      <button
+        type="button"
+        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[color:var(--lime-text-muted)] hover:bg-[color:var(--lime-chrome-tab-hover)]"
+        onClick={onNewTab}
+        aria-label={t("agentChat.rightSurface.tabs.newTab")}
+        data-testid="workspace-right-surface-new-tab"
+      >
+        <Plus size={14} aria-hidden="true" />
+      </button>
     </div>
   );
 }

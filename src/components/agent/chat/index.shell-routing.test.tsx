@@ -276,10 +276,14 @@ describe("AgentChatPage 工作区路由", () => {
       projectId: "project-standard",
       showChatPanel: false,
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "writer",
-          skillName: "写作助手",
+        skill: {
+          key: "writer",
+          name: "写作助手",
+          directory: "writer",
+          localDirectoryPath: "/skills/" + "writer",
+          installed: true,
+          sourceKind: "other" as const,
+          description: "",
         },
         requestKey: 20260418,
       },
@@ -296,10 +300,14 @@ describe("AgentChatPage 工作区路由", () => {
     expect(workspace?.dataset.showChatPanel).toBe("true");
     expect(latestWorkspaceProps.value).toMatchObject({
       initialInputCapability: {
-        capabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "writer",
-          skillName: "写作助手",
+        skill: {
+          key: "writer",
+          name: "写作助手",
+          directory: "writer",
+          localDirectoryPath: "/skills/" + "writer",
+          installed: true,
+          sourceKind: "other" as const,
+          description: "",
         },
         requestKey: 20260418,
       },

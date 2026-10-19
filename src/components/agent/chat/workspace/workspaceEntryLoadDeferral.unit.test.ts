@@ -83,10 +83,14 @@ describe("resolveWorkspaceEntryLoadDeferral", () => {
       resolve({
         initialUserPrompt: "打开能力",
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "writer",
-            skillName: "写作助手",
+          skill: {
+            key: "writer",
+            name: "写作助手",
+            directory: "writer",
+            localDirectoryPath: "/skills/" + "writer",
+            installed: true,
+            sourceKind: "other" as const,
+            description: "",
           },
         },
       }).shouldPrioritizeInitialPromptEntry,

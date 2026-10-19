@@ -20,6 +20,7 @@ mod coding_events;
 mod context_auto_compaction;
 mod external_events;
 mod gateway_runner;
+mod input_commit;
 mod knowledge;
 mod media_context;
 mod memory_prompt;

@@ -6,7 +6,6 @@ import {
   flushEffects,
   getIndexTestMocks,
   installMockAgentChatUnifiedState,
-  textContainsAny,
   type MockInputbarSendProps,
   mountPage,
   observedWorkspaceIds,
@@ -14,14 +13,13 @@ import {
   sharedSendMessageMock,
   sharedSwitchTopicMock,
   sharedTriggerAIGuideMock,
-  WORKSPACE_HARNESS_TITLE_CANDIDATES,
 } from "./index.testFixtures";
 
 const { mockInputbar, mockSkillsGetAll, mockUseAgentChatUnified } =
   getIndexTestMocks();
 
 describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
-  it("用户手动关闭通用画布后，同一轮重渲染不应再次抢焦点", async () => {
+  it("用户手动关闭侧面板后，同一轮重渲染不应再次抢焦点", async () => {
     localStorage.setItem(
       "lime.chat.team_selection.v1.general",
       JSON.stringify({
@@ -125,7 +123,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat");
 
-    clickButton(mounted.container, "toggle-canvas");
+    clickButton(mounted.container, "thread-side-panel-toggle");
     await flushEffects(8);
 
     expect(
@@ -134,7 +132,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat-canvas");
 
-    clickButton(mounted.container, "toggle-canvas");
+    clickButton(mounted.container, "thread-side-panel-toggle");
     await flushEffects(8);
 
     expect(
@@ -223,7 +221,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     ).toBe("chat");
   });
 
-  it("仅有已选 Subagents profile 兼容偏好时，顶部展开仍只打开通用画布", async () => {
+  it("已选 Subagents profile 不应改变工具新标签的显式打开行为", async () => {
     localStorage.setItem(
       "lime.chat.team_selection.v1.general",
       JSON.stringify({
@@ -268,7 +266,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
         ?.getAttribute("data-mode"),
     ).toBe("chat");
 
-    clickButton(mounted.container, "toggle-canvas");
+    clickButton(mounted.container, "thread-side-panel-toggle");
     await flushEffects(8);
 
     expect(
@@ -278,11 +276,11 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     ).toBe("chat-canvas");
     expect(
       mounted.container.querySelector(
-        '[data-testid="canvas-workbench-layout-mock"]',
+        '[data-testid="thread-side-panel-new-tab"]',
       ),
     ).not.toBeNull();
 
-    clickButton(mounted.container, "toggle-canvas");
+    clickButton(mounted.container, "thread-side-panel-toggle");
     await flushEffects(8);
 
     expect(
@@ -292,7 +290,7 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     ).toBe("chat");
   });
 
-  it("已安装 skills 但未显式激活时，通用工作台不应展示技能区块", async () => {
+  it("已安装 skills 不应自动打开或恢复旧 Harness 技能区块", async () => {
     mockSkillsGetAll.mockResolvedValue([
       {
         key: "research",
@@ -310,27 +308,33 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     );
 
     const container = renderPage({
+      projectId: "project-side-panel-skills",
       theme: "general",
       lockTheme: true,
     });
     await flushEffects(10);
 
-    clickButton(container, "toggle-harness");
+    expect(
+      container
+        .querySelector('[data-testid="thread-side-panel-toggle"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
+    clickButton(container, "thread-side-panel-toggle");
     await flushEffects();
 
     expect(
-      textContainsAny(
-        document.body.textContent,
-        WORKSPACE_HARNESS_TITLE_CANDIDATES,
-      ),
-    ).toBe(true);
+      container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-harness"]'),
+    ).toBeNull();
     expect(document.body.textContent).not.toContain("已激活技能");
     expect(
       document.body.querySelector('button[aria-label="跳转到已激活技能"]'),
     ).toBeNull();
   });
 
-  it("用户消息显式触发 slash skill 后，通用工作台应展示已激活技能", async () => {
+  it("显式 slash skill 消息不应恢复旧 Harness 弹窗或自动打开侧面板", async () => {
     mockSkillsGetAll.mockResolvedValue([
       {
         key: "research",
@@ -382,15 +386,26 @@ describe("AgentChatPage 通用工作台", { timeout: 20_000 }, () => {
     );
 
     const container = renderPage({
+      projectId: "project-side-panel-skills",
       theme: "general",
       lockTheme: true,
     });
     await flushEffects(10);
 
-    clickButton(container, "toggle-harness");
+    expect(
+      container
+        .querySelector('[data-testid="thread-side-panel-toggle"]')
+        ?.getAttribute("aria-expanded"),
+    ).toBe("false");
+    clickButton(container, "thread-side-panel-toggle");
     await flushEffects();
 
-    expect(document.body.textContent).toContain("已激活技能");
-    expect(document.body.textContent).toContain("research");
+    expect(
+      container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="toggle-harness"]'),
+    ).toBeNull();
+    expect(document.body.textContent).not.toContain("已激活技能");
   });
 });

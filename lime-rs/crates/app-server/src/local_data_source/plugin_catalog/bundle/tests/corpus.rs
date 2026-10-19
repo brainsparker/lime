@@ -31,7 +31,7 @@ fn bundle_shared_corpus_matches_core_archive_and_manifest_contract() {
     let fixtures = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/plugin-archive");
     let corpus: Corpus =
         serde_json::from_slice(&fs::read(fixtures.join("index.json")).unwrap()).unwrap();
-    assert_eq!(corpus.cases.len(), 56);
+    assert_eq!(corpus.cases.len(), 75);
     for case in corpus.cases {
         let bytes = fs::read(fixtures.join(&case.file)).unwrap();
         assert_eq!(hash(&bytes), case.sha256, "{} fixture drift", case.id);

@@ -1,38 +1,22 @@
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
-import { insertComposerSkill } from "../../../skill-selection/composerCapabilityMention";
 import type { ComposerEditorHandle } from "@/components/input-kit";
 import React from "react";
-import { FolderOpen } from "lucide-react";
+
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
-import type { Character } from "@/lib/api/projectMemory";
+
 import type { AgentSessionExecutionRuntime } from "@/lib/api/agentExecutionRuntime";
 import type { MessageImage, MessagePathReference } from "../../../types";
-import { CharacterMention } from "../../../skill-selection/CharacterMention";
 import { InputbarCore } from "./InputbarCore";
-import { SkillSelector } from "../../../skill-selection/SkillSelector";
 import { InputbarWorkflowStatusPanel } from "./InputbarWorkflowStatusPanel";
 import { InputbarModelExtra } from "./InputbarModelExtra";
 import { InputbarVisionCapabilityNotice } from "./InputbarVisionCapabilityNotice";
 import { InputbarAccessModeSelect } from "./InputbarAccessModeSelect";
 import { InputbarModeStatusChip } from "./InputbarModeStatusChip";
 import { ThreadGoalPanel } from "../../ThreadGoalPanel";
-import { InputbarPluginSelector } from "./InputbarPluginSelector";
-import { isGeneralResearchTheme } from "../../../utils/generalAgentPrompt";
-import {
-  buildSkillSelectionBindings,
-  type SkillSelectionProps,
-} from "../../../skill-selection/skillSelectionBindings";
-import type {
-  InputCapabilitySelection,
-  SelectInputCapabilityHandler,
-} from "../../../skill-selection/inputCapabilitySelection";
+import { type SkillSelectionProps } from "../../../skill-selection/skillSelectionBindings";
+import type { SelectInputCapabilityHandler } from "../../../skill-selection/inputCapabilitySelection";
 import type { AgentAccessMode } from "../../../hooks/agentChatStorage";
-import type { CuratedTaskReferenceEntry } from "../../../utils/curatedTaskReferenceSelection";
-import type {
-  InputbarKnowledgePackOption,
-  InputbarKnowledgePackSelection,
-} from "../types";
-import { InputbarKnowledgeControl } from "../knowledge/InputbarKnowledgeControl";
+
 import type { InputbarComposerSectionCopy } from "./inputbarComposerSectionCopy";
 import type { InputbarCoreCopy } from "./inputbarCoreCopy";
 import type { InputbarWorkflowPanelCopy } from "../inputbarWorkflowCopy";
@@ -42,18 +26,12 @@ import type {
   WorkflowStep,
 } from "../../../utils/workflowInputState";
 import {
-  MetaIconButton,
   PlanModeContext,
   PlanModeContextSegment,
   PlanModeContextSeparator,
 } from "../styles";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
-import type {
-  InputbarPluginCapability,
-  InputbarPluginSelection,
-  InputbarPluginSelectionOptions,
-  InputbarPluginSkillCapability,
-} from "../pluginInputCapability";
+import type { InputbarPluginCapability } from "../pluginInputCapability";
 import type { BaseComposerSendMetadata } from "@/components/input-kit";
 import type { ComposerController } from "@/components/input-kit";
 import type { ThreadGoal } from "@limecloud/app-server-client";
@@ -71,36 +49,15 @@ interface InputbarComposerSectionProps {
   workflowSummaryLabel: string;
   inputAdapter: ChatInputAdapter;
   composerController: ComposerController;
-  characters: Character[];
   skillSelection: SkillSelectionProps;
   onSkillSuggestionsNeeded?: () => void;
   editorRef: React.RefObject<ComposerEditorHandle>;
-  input: string;
   disabledPlaceholder?: string;
-  onSelectCharacter?: (character: Character) => void;
   onSelectInputCapability: SelectInputCapabilityHandler;
-  activeCapability?: InputCapabilitySelection | null;
-  activePluginSelection?: InputbarPluginSelection | null;
   pluginSuggestions?: readonly InputbarPluginCapability[];
   pluginSuggestionsError?: string | null;
   pluginSuggestionsLoading?: boolean;
   onPluginSuggestionsNeeded?: () => void;
-  onSelectPlugin?: (
-    plugin: InputbarPluginCapability,
-    skill?: InputbarPluginSkillCapability,
-    options?: InputbarPluginSelectionOptions,
-  ) => void;
-  defaultCuratedTaskReferenceMemoryIds?: string[];
-  defaultCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
-  knowledgePackSelection?: InputbarKnowledgePackSelection | null;
-  knowledgePackOptions?: InputbarKnowledgePackOption[];
-  knowledgeHubOpenRequestKey?: number;
-  onKnowledgePacksNeeded?: () => void;
-  onToggleKnowledgePack?: (enabled: boolean) => void;
-  onSelectKnowledgePack?: (packName: string) => void;
-  onToggleKnowledgeCompanionPack?: (packName: string, enabled: boolean) => void;
-  onStartKnowledgeOrganize?: () => void;
-  onManageKnowledgePacks?: () => void;
   onSend: (metadata?: BaseComposerSendMetadata) => void;
   onToolClick: (tool: string) => void;
   activeTools: Record<string, boolean>;
@@ -109,8 +66,7 @@ interface InputbarComposerSectionProps {
   pathReferences?: MessagePathReference[];
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
-  fileManagerOpen?: boolean;
-  onToggleFileManager?: () => void;
+
   onPaste: (event: ClipboardEvent) => void;
   onKeyDown?: (event: KeyboardEvent) => boolean | void;
   onHistoryRecall?: (draft: ComposerDraftSnapshot) => void;
@@ -124,7 +80,6 @@ interface InputbarComposerSectionProps {
   accessMode?: AgentAccessMode;
   setAccessMode?: (mode: AgentAccessMode) => void;
   showModelControls?: boolean;
-  topExtra?: React.ReactNode;
   contextVariant?: "default" | "task-center";
   projectId?: string | null;
   sessionId?: string | null;
@@ -132,7 +87,6 @@ interface InputbarComposerSectionProps {
   threadGoal?: ThreadGoal | null;
   threadGoalError?: unknown;
   threadGoalLoading?: boolean;
-  inputCompletionEnabled?: boolean;
   copy: InputbarComposerSectionCopy;
   inputbarCopy: InputbarCoreCopy;
   workflowPanelCopy: InputbarWorkflowPanelCopy;
@@ -153,32 +107,15 @@ export const InputbarComposerSection: React.FC<
   workflowSummaryLabel,
   inputAdapter,
   composerController,
-  characters,
   skillSelection,
   onSkillSuggestionsNeeded,
   editorRef,
-  input,
   disabledPlaceholder,
-  onSelectCharacter,
   onSelectInputCapability,
-  activeCapability,
-  activePluginSelection = null,
   pluginSuggestions = [],
   pluginSuggestionsError = null,
   pluginSuggestionsLoading = false,
   onPluginSuggestionsNeeded,
-  onSelectPlugin,
-  defaultCuratedTaskReferenceMemoryIds = [],
-  defaultCuratedTaskReferenceEntries = [],
-  knowledgePackSelection,
-  knowledgePackOptions = [],
-  knowledgeHubOpenRequestKey,
-  onKnowledgePacksNeeded,
-  onToggleKnowledgePack,
-  onSelectKnowledgePack,
-  onToggleKnowledgeCompanionPack,
-  onStartKnowledgeOrganize,
-  onManageKnowledgePacks,
   onSend,
   onHistoryRecall,
   onToolClick,
@@ -188,8 +125,7 @@ export const InputbarComposerSection: React.FC<
   pathReferences = [],
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
-  fileManagerOpen = false,
-  onToggleFileManager,
+
   onPaste,
   onKeyDown,
   isFullscreen,
@@ -202,7 +138,6 @@ export const InputbarComposerSection: React.FC<
   accessMode,
   setAccessMode,
   showModelControls = false,
-  topExtra,
   contextVariant = "default",
   projectId = null,
   sessionId = null,
@@ -210,17 +145,13 @@ export const InputbarComposerSection: React.FC<
   threadGoal = null,
   threadGoalError = null,
   threadGoalLoading = false,
-  inputCompletionEnabled = true,
   copy,
   inputbarCopy,
   workflowPanelCopy,
 }) => {
-  const showSkillSelector = isGeneralResearchTheme(activeTheme);
   const currentPendingImages =
     (inputAdapter.state.attachments as MessageImage[] | undefined) ||
     pendingImages;
-  const { mentionProps: mentionSkillProps, selectorProps: skillSelectorProps } =
-    buildSkillSelectionBindings(skillSelection);
   const resolvedProviderType = inputAdapter.model?.providerType;
   const resolvedModel = inputAdapter.model?.model;
   const resolvedReasoningEffort =
@@ -236,22 +167,6 @@ export const InputbarComposerSection: React.FC<
     Boolean(resolvedProviderType?.trim()) &&
     Boolean(resolvedModel?.trim());
   const inputbarDisabled = Boolean(inputAdapter.state.disabled);
-  const activeKnowledgeStatusControl =
-    knowledgePackSelection?.enabled &&
-    knowledgePackSelection.packName.trim() &&
-    knowledgePackSelection.workingDir.trim() ? (
-      <InputbarKnowledgeControl
-        knowledgePackSelection={knowledgePackSelection}
-        knowledgePackOptions={knowledgePackOptions}
-        inputText={input}
-        openKnowledgeHubRequestKey={knowledgeHubOpenRequestKey}
-        onToggleKnowledgePack={onToggleKnowledgePack}
-        onSelectKnowledgePack={onSelectKnowledgePack}
-        onToggleKnowledgeCompanionPack={onToggleKnowledgeCompanionPack}
-        onStartKnowledgeOrganize={onStartKnowledgeOrganize}
-        onManageKnowledgePacks={onManageKnowledgePacks}
-      />
-    ) : null;
   const objectiveInlinePanel =
     threadId && (threadGoal || threadGoalLoading) ? (
       <ThreadGoalPanel
@@ -264,14 +179,9 @@ export const InputbarComposerSection: React.FC<
       />
     ) : null;
   const resolvedTopExtra =
-    activeKnowledgeStatusControl ||
-    objectiveInlinePanel ||
-    topExtra ||
-    shouldShowVisionNotice ? (
+    objectiveInlinePanel || shouldShowVisionNotice ? (
       <>
-        {activeKnowledgeStatusControl}
         {objectiveInlinePanel}
-        {topExtra}
         {shouldShowVisionNotice && resolvedProviderType && resolvedModel ? (
           <InputbarVisionCapabilityNotice
             providerType={resolvedProviderType}
@@ -285,7 +195,7 @@ export const InputbarComposerSection: React.FC<
     onToolClick(tool);
   };
   const planModeStatusLabel = copy.planStatus.label;
-  const objectiveStatusLabel = copy.plusMenu.objective;
+  const objectiveStatusLabel = copy.contextCommands.goal;
   const planStatusModelLabel = resolvedModel?.trim()
     ? copy.planStatus.model(resolvedModel.trim())
     : copy.planStatus.modelFallback;
@@ -297,89 +207,48 @@ export const InputbarComposerSection: React.FC<
     planStatusReasoningLevel,
   );
   const planStatusTitle = [
-    copy.plusMenu.planMode,
+    copy.contextCommands.planMode,
     planStatusModelLabel,
     planStatusReasoningLabel,
   ].join(" · ");
-  const plusMenuKnowledgePanel =
-    knowledgePackSelection || onStartKnowledgeOrganize ? (
-      <InputbarKnowledgeControl
-        renderMode="inline"
-        knowledgePackSelection={knowledgePackSelection}
-        knowledgePackOptions={knowledgePackOptions}
-        inputText={input}
-        openKnowledgeHubRequestKey={knowledgeHubOpenRequestKey}
-        onToggleKnowledgePack={onToggleKnowledgePack}
-        onSelectKnowledgePack={onSelectKnowledgePack}
-        onToggleKnowledgeCompanionPack={onToggleKnowledgeCompanionPack}
-        onStartKnowledgeOrganize={onStartKnowledgeOrganize}
-        onManageKnowledgePacks={onManageKnowledgePacks}
-      />
-    ) : undefined;
-  const plusMenuSkillsPanel = showSkillSelector ? (
-    <SkillSelector {...skillSelectorProps} onSelectInputCapability={(capability, options) => {
-      if (capability.kind === "installed_skill") { insertComposerSkill(composerController, capability.skill); inputAdapter.actions.setText(composerController.getDocument().text); }
-      skillSelectorProps.onSelectInputCapability(capability, options);
-    }} renderMode="inline" />
-  ) : undefined;
-  const plusMenuPluginsPanel = onSelectPlugin ? (
-    <InputbarPluginSelector
-      plugins={pluginSuggestions}
-      labels={{
-        empty: copy.pluginChip.empty,
-        error: copy.pluginChip.error,
-        loading: copy.pluginChip.loading,
-        skillPrefix: copy.pluginChip.skillPrefix,
-        title: copy.pluginChip.selectorTitle,
-        unavailable: copy.pluginChip.unavailable,
-      }}
-      loading={pluginSuggestionsLoading}
-      error={pluginSuggestionsError}
-      onSelectPlugin={onSelectPlugin}
-    />
-  ) : undefined;
-  const fileManagerLabel = fileManagerOpen
-    ? copy.fileManager.close
-    : copy.fileManager.open;
   const workspacePlaceholder =
     workflowGate?.status === "waiting"
       ? copy.workspacePlaceholder.waiting
       : contextVariant === "task-center"
         ? copy.workspacePlaceholder.taskCenter
         : copy.workspacePlaceholder.default;
-  const plusMenu = {
-    labels: copy.plusMenu,
-    taskEnabled: Boolean(activeTools["task_mode"]),
-    knowledgeOpenRequestKey: knowledgeHubOpenRequestKey,
-    subagentEnabled: Boolean(activeTools["subagent_mode"]),
-    knowledgeActive: Boolean(knowledgePackSelection?.enabled),
-    objectiveActive: Boolean(activeTools["objective_mode"]),
-    pluginsActive: Boolean(activePluginSelection),
-    skillsActive: Boolean(skillSelection.activeSkill),
-    knowledgePanel: plusMenuKnowledgePanel,
-    pluginsPanel: plusMenuPluginsPanel,
-    skillsPanel: plusMenuSkillsPanel,
-    onPanelOpen: (panelId: "knowledge" | "plugins" | "skills") => {
-      if (panelId === "knowledge") {
-        onKnowledgePacksNeeded?.();
-      } else if (panelId === "plugins") {
-        onPluginSuggestionsNeeded?.();
-      } else if (panelId === "skills") {
-        onSkillSuggestionsNeeded?.();
-      }
-    },
+  const contextualSuggestions = {
     onAddFiles: () => handleToolAction("attach"),
-    onToggleTask: () => handleToolAction("task_mode"),
-    onToggleObjective: () => handleToolAction("objective_mode"),
-    onToggleSubagent: showSkillSelector
-      ? () => handleToolAction("subagent_mode")
-      : undefined,
+    commands: [
+      {
+        id: "goal" as const,
+        label: copy.contextCommands.goal,
+        onSelect: () => {
+          if (!activeTools["objective_mode"])
+            handleToolAction("objective_mode");
+        },
+      },
+      {
+        id: "plan-mode" as const,
+        label: copy.contextCommands.planMode,
+        onSelect: () => handleToolAction("task_mode"),
+      },
+    ],
+    projectId,
+    skills: skillSelection.skills,
+    skillsLoading: skillSelection.isSkillsLoading,
+    onSkillSuggestionsNeeded,
+    onSelectInputCapability,
+    plugins: pluginSuggestions,
+    pluginsLoading: pluginSuggestionsLoading,
+    pluginsError: pluginSuggestionsError,
+    onPluginSuggestionsNeeded,
+    onChange: inputAdapter.actions.setText,
   };
   const shouldShowLeftExtra =
     Boolean(activeTools["task_mode"]) ||
     Boolean(activeTools["objective_mode"]) ||
-    Boolean(setAccessMode) ||
-    Boolean(onToggleFileManager);
+    Boolean(setAccessMode);
   const leftExtra = shouldShowLeftExtra ? (
     <>
       <InputbarAccessModeSelect
@@ -419,19 +288,6 @@ export const InputbarComposerSection: React.FC<
           disabled={inputbarDisabled}
           onRemove={() => handleToolAction("objective_mode")}
         />
-      ) : null}
-
-      {onToggleFileManager ? (
-        <MetaIconButton
-          type="button"
-          $active={fileManagerOpen}
-          aria-label={fileManagerLabel}
-          title={fileManagerLabel}
-          data-testid="inputbar-file-manager-toggle"
-          onClick={onToggleFileManager}
-        >
-          <FolderOpen className="h-4 w-4" aria-hidden />
-        </MetaIconButton>
       ) : null}
     </>
   ) : undefined;
@@ -487,35 +343,6 @@ export const InputbarComposerSection: React.FC<
         onStop={inputAdapter.actions.stop}
         copy={workflowPanelCopy}
       />
-      <CharacterMention
-        {...mentionSkillProps}
-        characters={characters}
-        editorRef={editorRef}
-        controller={composerController}
-        value={input}
-        onChange={inputAdapter.actions.setText}
-        onSelectCharacter={onSelectCharacter}
-        onSelectInputCapability={onSelectInputCapability}
-        onSkillSuggestionsNeeded={onSkillSuggestionsNeeded}
-        pluginSuggestions={pluginSuggestions}
-        onPluginSuggestionsNeeded={onPluginSuggestionsNeeded}
-        onSelectPlugin={onSelectPlugin}
-        projectId={projectId}
-        sessionId={sessionId}
-        defaultCuratedTaskReferenceMemoryIds={
-          activeCapability?.kind === "curated_task"
-            ? activeCapability.referenceMemoryIds ||
-              defaultCuratedTaskReferenceMemoryIds
-            : defaultCuratedTaskReferenceMemoryIds
-        }
-        defaultCuratedTaskReferenceEntries={
-          activeCapability?.kind === "curated_task"
-            ? activeCapability.referenceEntries ||
-              defaultCuratedTaskReferenceEntries
-            : defaultCuratedTaskReferenceEntries
-        }
-        inputCompletionEnabled={inputCompletionEnabled}
-      />
       <InputbarCore
         uiCopy={inputbarCopy}
         controller={composerController}
@@ -529,7 +356,6 @@ export const InputbarComposerSection: React.FC<
         disabled={inputbarDisabled}
         sessionId={sessionId}
         onToolClick={handleToolAction}
-        activeTools={activeTools}
         pendingImages={currentPendingImages}
         onRemoveImage={onRemoveImage}
         pathReferences={pathReferences}
@@ -542,16 +368,13 @@ export const InputbarComposerSection: React.FC<
           disabledPlaceholder ||
           (isWorkspaceVariant ? workspacePlaceholder : undefined)
         }
-        toolMode={isWorkspaceVariant ? "attach-only" : "default"}
         showDragHandle={!isWorkspaceVariant}
         visualVariant={isWorkspaceVariant ? "floating" : "default"}
         connectedContextBar={false}
         topExtra={resolvedTopExtra}
-        activeTheme={activeTheme}
         leftExtra={leftExtra}
         trailingMeta={trailingMeta}
-        showMetaTools={false}
-        plusMenu={plusMenu}
+        contextualSuggestions={contextualSuggestions}
       />
     </>
   );

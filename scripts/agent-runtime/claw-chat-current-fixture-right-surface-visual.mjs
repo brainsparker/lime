@@ -1,4 +1,9 @@
 import path from "node:path";
+import {
+  collectThreadSidePanelNewTabEvidence,
+  createThreadSidePanelFileFixture,
+} from "../electron/lib/thread-side-panel-new-tab-scenario.mjs";
+import { selectThreadSidePanelTool } from "../electron/lib/thread-side-panel-navigation.mjs";
 import { waitForPageCondition } from "../electron/mcp-config-fixture-smoke.mjs";
 import {
   APP_SERVER_METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST,
@@ -35,15 +40,17 @@ export async function runRightSurfaceVisualMatrix({
     "Right Surface visual matrix 缺少 workspace rootPath",
   );
 
+  const fileFixture = createThreadSidePanelFileFixture(workspace);
+
   const requests = {
     files: await requestRightSurfacePending(page, appServerRequests, {
       workspace,
       sessionId,
       surfaceKind: "files",
-      candidateId: "internal/roadmap/rightsurface/README.md",
+      candidateId: fileFixture.relativePath,
       metadata: {
-        relativePath: "internal/roadmap/rightsurface/README.md",
-        title: "Right Surface roadmap",
+        relativePath: fileFixture.relativePath,
+        title: fileFixture.relativePath,
       },
     }),
     browser: await requestRightSurfacePending(page, appServerRequests, {
@@ -74,12 +81,10 @@ export async function runRightSurfaceVisualMatrix({
   try {
     captures.files = await clickAndAssertRightSurface(page, options, {
       surfaceKind: "files",
-      toggleTestId: "task-center-files-toggle",
       rootTestId: RIGHT_SURFACE_ROOTS.files,
     });
     captures.browser = await clickAndAssertRightSurface(page, options, {
       surfaceKind: "browser",
-      toggleTestId: "task-center-browser-toggle",
       rootTestId: RIGHT_SURFACE_ROOTS.browser,
       screenshotName: "right-surface-browser",
     });
@@ -115,6 +120,13 @@ export async function runRightSurfaceVisualMatrix({
       captures,
     });
   }
+
+  captures.newTabLifecycle = await collectThreadSidePanelNewTabEvidence(
+    page,
+    options,
+    workspace,
+    fileFixture,
+  );
 
   const pendingAfterClicks = await listRightSurfacePending(
     page,
@@ -252,6 +264,11 @@ export async function runThreadSummaryPanelSmoke({ page, options, sessionId }) {
   await page
     .getByTestId("thread-summary-popover")
     .waitFor({ state: "detached" });
+  await page.waitForFunction(
+    (trigger) => trigger === document.activeElement,
+    await toggle.elementHandle(),
+    { timeout: Math.min(options.timeoutMs, 10_000) },
+  );
   const focusRestored = await toggle.evaluate(
     (node) => node === document.activeElement,
   );
@@ -321,17 +338,17 @@ async function captureRightSurfaceToolbarDiagnostics(page) {
   return await page.evaluate(() => {
     const toggleByKind = {
       appSurface: "workspace-right-surface-tab-appSurface",
-      browser: "task-center-browser-toggle",
-      files: "task-center-files-toggle",
-      shell: "task-center-shell-toggle",
-      trace: "task-center-trace-toggle",
-      workbench: "task-center-workbench-toggle",
+      browser: "workspace-right-surface-tab-browser",
+      files: "workspace-right-surface-tab-files",
+      shell: "workspace-right-surface-tab-shell",
+      changes: "workspace-right-surface-tab-changes",
+      newTab: "workspace-right-surface-new-tab",
     };
     const toolbar = document.querySelector(
       '[data-testid="task-center-utility-toolbar"]',
     );
     const panelGroup = document.querySelector(
-      '[data-testid="task-center-tool-group-panels"]',
+      '[data-testid="thread-side-panel-toggle"]',
     );
     const host = document.querySelector(
       '[data-testid="workspace-right-surface-host"]',
@@ -425,14 +442,16 @@ export async function clickAndAssertRightSurface(
   {
     surfaceKind,
     activeSurfaceKind = surfaceKind,
-    toggleTestId,
     rootTestId,
     screenshotName = null,
     requireCanvasPanelFill = true,
   },
 ) {
-  const toggle = await waitForRightSurfaceToggle(page, options, toggleTestId);
-  await clickRightSurfaceToggle(page, toggleTestId);
+  const toggle = await selectThreadSidePanelTool(
+    page,
+    surfaceKind,
+    options.timeoutMs,
+  );
   const opened = await waitForRightSurfaceSnapshot(page, options, {
     activeSurfaceKind,
     requireCanvasPanelFill,
@@ -476,95 +495,6 @@ async function captureRightSurfaceScreenshot(page, options, screenshotName) {
     timeout: 15_000,
   });
   return screenshotPath;
-}
-
-async function waitForRightSurfaceToggle(page, options, testId) {
-  const startedAt = Date.now();
-  let lastSnapshot = null;
-  while (Date.now() - startedAt < options.timeoutMs) {
-    const snapshot = await page.evaluate(
-      ({ testId }) => {
-        const element = document.querySelector(`[data-testid="${testId}"]`);
-        const rect = element?.getBoundingClientRect();
-        const style = element ? window.getComputedStyle(element) : null;
-        const button =
-          element instanceof HTMLButtonElement
-            ? element
-            : element?.closest("button");
-        const visible = Boolean(
-          element &&
-          rect &&
-          rect.width > 8 &&
-          rect.height > 8 &&
-          style?.display !== "none" &&
-          style?.visibility !== "hidden",
-        );
-        return {
-          testId,
-          visible,
-          disabled:
-            button instanceof HTMLButtonElement
-              ? button.disabled ||
-                button.getAttribute("aria-disabled") === "true"
-              : null,
-          ariaExpanded: button?.getAttribute("aria-expanded") ?? null,
-          title: button?.getAttribute("title") ?? "",
-          text: button?.textContent ?? "",
-          rect: rect ? rectToJson(rect) : null,
-        };
-
-        function rectToJson(rect) {
-          return {
-            x: Math.round(rect.x),
-            y: Math.round(rect.y),
-            width: Math.round(rect.width),
-            height: Math.round(rect.height),
-            top: Math.round(rect.top),
-            left: Math.round(rect.left),
-            right: Math.round(rect.right),
-            bottom: Math.round(rect.bottom),
-          };
-        }
-      },
-      { testId },
-    );
-    lastSnapshot = snapshot;
-    if (snapshot.visible && snapshot.disabled === false) {
-      return snapshot;
-    }
-    await sleep(options.intervalMs);
-  }
-
-  throw new Error(
-    `Right Surface 顶部按钮不可用: ${testId}; snapshot=${JSON.stringify(
-      sanitizeJson(lastSnapshot),
-    )}`,
-  );
-}
-
-async function clickRightSurfaceToggle(page, testId) {
-  const clicked = await page.evaluate(
-    ({ testId }) => {
-      const element = document.querySelector(`[data-testid="${testId}"]`);
-      const button =
-        element instanceof HTMLButtonElement
-          ? element
-          : element?.closest("button");
-      if (!button) {
-        return { clicked: false, reason: "missing-button" };
-      }
-      button.click();
-      return {
-        clicked: true,
-        testId,
-        ariaExpanded: button.getAttribute("aria-expanded"),
-        title: button.getAttribute("title") || "",
-      };
-    },
-    { testId },
-  );
-  assert(clicked.clicked, `Right Surface 顶部按钮点击失败: ${testId}`);
-  return clicked;
 }
 
 async function waitForRightSurfaceSnapshot(

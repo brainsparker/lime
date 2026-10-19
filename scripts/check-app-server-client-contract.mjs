@@ -3993,7 +3993,7 @@ const checks = [
       'type: "inputAudio";',
       "error: null | {",
       "result: null | {",
-      'export type MessagePhase = "commentary" | "final_answer";',
+      'export type MessagePhase = "commentary" | "final_answer" | "partial_answer";',
     ],
     absentSnippets: [
       "export interface AppServerClientRequest",
@@ -7661,7 +7661,7 @@ const checks = [
       "throw new Error(",
     ],
     normalizedSnippets: [
-      "resolveAppServerRequestTimeoutMs(proxiedMessage.message.method,request.timeoutMs,)",
+      "resolveAppServerRequestTimeoutMs(proxiedMessage.message.method,request.timeoutMs,proxiedMessage.message.params,)",
     ],
     absentSnippets: [
       'backendMode: "mock"',
@@ -7846,6 +7846,7 @@ const checks = [
       "lime-rs/crates/app-server/src/runtime.rs",
       "lime-rs/crates/app-server/src/runtime/error.rs",
       "lime-rs/crates/app-server/src/runtime/turn_execution.rs",
+      "lime-rs/crates/app-server/src/runtime/turn_execution/input_commit.rs",
       "lime-rs/crates/app-server/src/runtime/tests/queue.rs",
       "lime-rs/crates/app-server/src/runtime/tests/sessions.rs",
       "lime-rs/crates/app-server/src/tests/lifecycle.rs",

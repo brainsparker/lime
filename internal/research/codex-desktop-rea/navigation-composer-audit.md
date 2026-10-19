@@ -84,7 +84,7 @@ Gate 接线沿 `queued-message-list[data-thread-id]`、`queued-message-action-li
 | staged worktree                      | 上游可确认 draft mode；Lime 当前点击立即创建并导航                                        | 单独定义 draft / submit handoff，不能用改名或 Local 文案掩盖                                                              |
 | remote / environment / full composer | UtilityBar 有 readiness、existing workspace、read-only 和 execution target 字段           | 继续从 current transport/environment/workspace owner 接入；无证据处 unknown                                               |
 
-主导航和窗口视觉仍需补证；主 Composer 已取得独立 focused Evidence，adapter/controller/editor 映射、附件 generation 与 IME 见 [主输入审计](./main-composer-audit.md)，完整富文本结构仍待实施。`sidebar-actions` 实为 entity/place details，`sidebar-CVOwfery` 是 panel-left 图标，`SectionNavigation` 是分节会话；不能机械迁成全局导航 owner。`BrowserSkillsComposer` / `submitWithBrowserSkills` 是浏览器技能提交，`createSketchComposerState` / `SketchComposerHost` 是 Sketch，不是主 Composer。
+主导航和窗口视觉的当前验收由活动计划维护；主 Composer 已采用结构化 Controller/ProseMirror 与持久草稿链，adapter/controller/editor 映射、附件 generation、IME 和底栏补证见 [主输入审计](./main-composer-audit.md)。完整行为与平台覆盖仍待逐项验证。`sidebar-actions` 实为 entity/place details，`sidebar-CVOwfery` 是 panel-left 图标，`SectionNavigation` 是分节会话；不能机械迁成全局导航 owner。`BrowserSkillsComposer` / `submitWithBrowserSkills` 是浏览器技能提交，`createSketchComposerState` / `SketchComposerHost` 是 Sketch，不是主 Composer。
 
 ## ComposerUtilityBar focused 证据
 
@@ -167,3 +167,8 @@ readable 副本 `function Zl` 从 7433 行起；7193 行附近 `Kl` 是 local/wo
 公开Codex `ext/queue` 将pending存于独立queued_items；admission成功后才启动执行Turn。Lime保留现有内部durable materializer/User Item与媒体，publicread/list/resume和Turn/Itempaging排除pending；不新增v2Turn queue字段。证据索引记录current源码revision、源文件SHA和边界。sidebarresume会唤醒idleQueue，因此真实Gate先启动并中断一个current external基线回合，再添加pending，验证同loadedruntime暂停、idle与pending排除；不声称跨unload/restart暂停持久化。
 
 同一REAQueuechunk的UTF16offset11048含size-6的img，来源为submissioncontext第一张图片preview。当前`queuedMessageInput.getQueuedMessageImage`通过既有`MessageImageAttachments`thumbnail和`media/read`读取第一图；collapse卸载并取消请求，五语言alt/unavailable复用既有文案。新 public projection / Queue / media 等 9 文件 76 tests 通过；公共搜索新增 store 6 + JSONL 11 tests 通过，正向执行基线与 sourceKinds=appServer 防止负向空跑。新版真实 pending Gate 已通过富输入 mutation、public history/paging/search 排除及首图 media 读取；旧 transcript 正向 Gate 不再适用。
+### 2026-10-19 底栏窄宽度后继
+
+49多行槽位在真实800px窗口失败，不能按标准GUI成功结算。53按控制消费者及宽度hook的REA51/52合同，将model槽位标签与可见性适配放到共享显示层；模型、权限和输入业务owner不变。触发按钮从ModelSelector抽为ModelSelectorTrigger，不保留旧固定宽度双轨。完整矩形、失败图和后继结果由[Composer计划](../../exec-plans/codex-composer-layout-20261019.md)记录；自动单行/IME布局锁及完整voice仍是独立缺口。
+
+54修复模型异步加载后原effect未安装观察器的问题；53在新回归失败后受控停止，未取得产品通过。根生命周期回归覆盖加载、控件替换、更名、紧凑/隐藏/恢复及同EditorView草稿/选择区/焦点；独立54完整质量和真实几何待验，不能用根jsdom通过代替Electron。

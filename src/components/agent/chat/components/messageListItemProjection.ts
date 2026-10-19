@@ -12,10 +12,7 @@ import {
   contentPartsHaveInterruptedPlaceholder,
 } from "../hooks/agentInterruptedMessageContent";
 import { buildHistoricalMessagePreview } from "./messageListHistoricalPreviewText";
-import {
-  parseLeadingUserCommandTag,
-  resolveInstalledSkillMessageLabel,
-} from "./messageListUserContentState";
+import { parseLeadingUserCommandTag } from "./messageListUserContentState";
 import {
   buildTimelineFileChangesContentPart,
   buildTimelineInlineContentParts,
@@ -178,15 +175,15 @@ export function resolveMessageListItemProjection({
         : null;
   const isImportedHistoryTurn = Boolean(
     group.isImportedHistory ||
-      [...(group.timeline?.items ?? []), ...(timeline?.items ?? [])].some(
-        (item) => isImportedHistoryMetadata(item.metadata),
-      ) ||
-      message.artifacts?.some((artifact) =>
-        isImportedHistoryMetadata(artifact.meta),
-      ) ||
-      message.contentParts?.some((part) =>
-        isImportedHistoryMetadata(part.metadata),
-      ),
+    [...(group.timeline?.items ?? []), ...(timeline?.items ?? [])].some(
+      (item) => isImportedHistoryMetadata(item.metadata),
+    ) ||
+    message.artifacts?.some((artifact) =>
+      isImportedHistoryMetadata(artifact.meta),
+    ) ||
+    message.contentParts?.some((part) =>
+      isImportedHistoryMetadata(part.metadata),
+    ),
   );
   const groupTimelineTurnId = group.timeline?.turn.id?.trim() || null;
   const messageTurnId = message.runtimeTurnId?.trim() || groupTimelineTurnId;
@@ -703,11 +700,8 @@ export function resolveMessageListItemProjection({
     : shouldUseRuntimeFailureFallbackText
       ? runtimeFailureFallbackActionContent
       : runtimeFailureSanitizedActionContent;
-  const installedSkillMessageLabel =
-    message.role === "user" ? resolveInstalledSkillMessageLabel(message) : null;
   const isUserCommandMessage =
     message.role === "user" &&
-    !installedSkillMessageLabel &&
     Boolean(
       parseLeadingUserCommandTag(displayContent, message.inputCapabilityRoute),
     );
@@ -973,7 +967,6 @@ export function resolveMessageListItemProjection({
     historicalAssistantPreviewContent,
     imageWorkbenchRendererState,
     inlineProcessCoverage,
-    installedSkillMessageLabel,
     isActiveProcessOnlyOutput,
     isConversationTailAssistant,
     isCurrentInteractiveAssistantMessage,

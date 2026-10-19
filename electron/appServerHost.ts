@@ -293,7 +293,7 @@ export class ElectronAppServerHost {
       request,
       method,
       {
-        timeoutMs: resolveAppServerRequestTimeoutMs(method),
+        timeoutMs: resolveAppServerRequestTimeoutMs(method, undefined, params),
       },
     );
     this.#dynamicToolHost.observeClientResult(method, response.result);
@@ -332,6 +332,7 @@ export class ElectronAppServerHost {
         const timeoutMs = resolveAppServerRequestTimeoutMs(
           proxiedMessage.message.method,
           request.timeoutMs,
+          proxiedMessage.message.params,
         );
         try {
           const result = await this.#withActiveProxyRequest(

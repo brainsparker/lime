@@ -155,7 +155,7 @@ export const INPUTBAR_RICH_RESTORE_PATH = path.join(
   "fixtures",
   INPUTBAR_RICH_RESTORE_PATH_NAME,
 );
-export const INPUTBAR_RICH_RESTORE_SKILL_NAME = "Capability Report";
+export const INPUTBAR_RICH_RESTORE_SKILL_NAME = "capability-report";
 export const WEB_TOOLS_RENDERING_PROMPT = "验证网页搜索渲染";
 export const MCP_STRUCTURED_CONTENT_PROMPT = "验证 MCP structuredContent 展示";
 export const ASSISTANT_DONE_TEXT = "CLAW_NEWS_FIXTURE_DONE";

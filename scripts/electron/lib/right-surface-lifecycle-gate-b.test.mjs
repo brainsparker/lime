@@ -30,11 +30,11 @@ function fixture() {
     threadId: "thread-a",
     stages: {
       browserOpened: true,
-      filesSelected: true,
+      changesSelected: true,
       browserSelected: true,
       closedPrimaryRestored: true,
       browserClosed: true,
-      filesClosed: true,
+      changesClosed: true,
     },
     first: { ...identity },
     restored: { ...identity },
@@ -70,11 +70,11 @@ describe("Right Surface real Electron lifecycle oracle", () => {
   });
   it.each([
     "browserOpened",
-    "filesSelected",
+    "changesSelected",
     "browserSelected",
     "closedPrimaryRestored",
     "browserClosed",
-    "filesClosed",
+    "changesClosed",
   ])("rejects an unobserved GUI stage: %s", (stage) => {
     const value = fixture();
     value.stages[stage] = false;

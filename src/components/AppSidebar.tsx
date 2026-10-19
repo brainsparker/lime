@@ -326,39 +326,14 @@ export function AppSidebar({
       window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
     );
   });
-  const collapsedRef = useRef(collapsed);
   const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth();
-  const collapseRestoreBySourceRef = useRef<Record<string, boolean>>({});
-  useEffect(() => {
-    collapsedRef.current = collapsed;
-  }, [collapsed]);
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
 
     const handleCollapseRequest = (event: Event) => {
-      const detail = (
-        event as CustomEvent<{ collapsed?: boolean; source?: string }>
-      ).detail;
-      const source = detail?.source?.trim();
-      if (source) {
-        if (detail?.collapsed === false) {
-          const previous = collapseRestoreBySourceRef.current[source];
-          delete collapseRestoreBySourceRef.current[source];
-          if (typeof previous === "boolean") {
-            setCollapsed(previous);
-          }
-          return;
-        }
-
-        if (!(source in collapseRestoreBySourceRef.current)) {
-          collapseRestoreBySourceRef.current[source] = collapsedRef.current;
-        }
-        setCollapsed(true);
-        return;
-      }
-
+      const detail = (event as CustomEvent<{ collapsed?: boolean }>).detail;
       setCollapsed(detail?.collapsed ?? true);
     };
 
@@ -664,9 +639,6 @@ export function AppSidebar({
 
   useEffect(() => {
     if (typeof window === "undefined") {
-      return;
-    }
-    if (Object.keys(collapseRestoreBySourceRef.current).length > 0) {
       return;
     }
 

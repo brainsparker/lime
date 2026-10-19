@@ -214,8 +214,8 @@ async fn compacted_thread_fork_replays_replacement_and_surviving_tail_after_rest
         Some(&json!(source_compaction_item_id))
     );
     assert_eq!(
-        target_marker.payload.get("tailStartTurnId"),
-        source_marker.payload.get("tailStartTurnId")
+        target_marker.payload.get("coveredThroughSequence"),
+        source_marker.payload.get("coveredThroughSequence")
     );
     drop(server);
 
@@ -347,13 +347,18 @@ fn replacement_messages(payload: &Value) -> Vec<CurrentProviderMessage> {
                     )
                 })
                 .collect();
-            CurrentProviderMessage { role, content }
+            CurrentProviderMessage {
+                producer: None,
+                role,
+                content,
+            }
         })
         .collect()
 }
 
 fn text_message(role: CurrentProviderRole, text: String) -> CurrentProviderMessage {
     CurrentProviderMessage {
+        producer: None,
         role,
         content: vec![CurrentProviderContent::Text(text)],
     }

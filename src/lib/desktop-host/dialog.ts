@@ -1,13 +1,6 @@
 import { getElectronHostBridge } from "@/lib/electron-host";
-
-export interface OpenDialogOptions {
-  title?: string;
-  defaultPath?: string;
-  filters?: Array<{ name: string; extensions: string[] }>;
-  multiple?: boolean;
-  directory?: boolean;
-  recursive?: boolean;
-}
+import type { OpenDialogOptions } from "./dialogOptions";
+export type { OpenDialogOptions } from "./dialogOptions";
 
 export interface SaveDialogOptions {
   title?: string;
@@ -46,7 +39,7 @@ const openDialog = async (
   console.log("[Mock] Dialog open:", options);
 
   // 浏览器预览拿不到本机绝对目录路径；不能伪造目录，否则会让发布链路误以为已选中真实目录。
-  if (options?.directory) {
+  if (options?.directory || options?.filesAndDirectories) {
     throw new Error(
       "Native directory dialog is unavailable in browser preview.",
     );

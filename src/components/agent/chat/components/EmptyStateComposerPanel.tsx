@@ -3,58 +3,26 @@ import {
   type RuntimeSubmissionResult,
 } from "../hooks/agentSendResult";
 import type { ComposerDraftSnapshot } from "@/components/input-kit";
-import {
-  insertComposerSkill,
-  insertComposerPlugin,
-} from "../skill-selection/composerCapabilityMention";
 import { ComposerController } from "@/components/input-kit";
 import type { ComposerEditorHandle } from "@/components/input-kit";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import styled from "styled-components";
-import { FolderOpen } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { CharacterMention } from "../skill-selection/CharacterMention";
-import { BuiltinCommandBadge } from "./Inputbar/components/BuiltinCommandBadge";
+
 import { InputbarAccessModeSelect } from "./Inputbar/components/InputbarAccessModeSelect";
 import { InputbarCore } from "./Inputbar/components/InputbarCore";
 import { InputbarModeStatusChip } from "./Inputbar/components/InputbarModeStatusChip";
-import { InputbarPluginSelector } from "./Inputbar/components/InputbarPluginSelector";
 import { ComposerUtilityBar } from "./Inputbar/components/ComposerUtilityBar";
 import type { ComposerProject } from "./Inputbar/components/composerUtilityBarTypes";
-import { InputbarKnowledgeControl } from "./Inputbar/knowledge/InputbarKnowledgeControl";
 import { InputbarModelExtra } from "./Inputbar/components/InputbarModelExtra";
-import { RuntimeSceneBadge } from "./Inputbar/components/RuntimeSceneBadge";
-import { CuratedTaskBadge } from "../skill-selection/CuratedTaskBadge";
-import { SkillSelector } from "../skill-selection/SkillSelector";
-import type { Character } from "@/lib/api/projectMemory";
+
 import type { MessageImage, MessagePathReference } from "../types";
-import { EMPTY_STATE_PASSIVE_BADGE_CLASSNAME } from "./emptyStateSurfaceTokens";
-import { resolveEmptyStateActiveCapability } from "./EmptyStateComposerPanelViewModel";
-import { MetaIconButton } from "./Inputbar/styles";
-import {
-  buildSkillSelectionBindings,
-  type SkillSelectionProps,
-} from "../skill-selection/skillSelectionBindings";
+
+import { type SkillSelectionProps } from "../skill-selection/skillSelectionBindings";
 import type { HomeSurfaceComposerCopy } from "../home/homeSurfaceCopy";
 import type { AgentAccessMode } from "../hooks/agentChatStorage";
-import type {
-  InputCapabilitySelection,
-  SelectInputCapabilityHandler,
-} from "../skill-selection/inputCapabilitySelection";
-import type { CuratedTaskTemplateItem } from "../utils/curatedTaskTemplates";
-import type { CuratedTaskReferenceEntry } from "../utils/curatedTaskReferenceSelection";
-import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
-import type {
-  InputbarKnowledgePackOption,
-  InputbarKnowledgePackSelection,
-} from "./Inputbar/types";
-import {
-  normalizeInputbarPluginTrigger,
-  type InputbarPluginCapability,
-  type InputbarPluginSelection,
-  type InputbarPluginSelectionOptions,
-  type InputbarPluginSkillCapability,
-} from "./Inputbar/pluginInputCapability";
+import type { SelectInputCapabilityHandler } from "../skill-selection/inputCapabilitySelection";
+
+import { type InputbarPluginCapability } from "./Inputbar/pluginInputCapability";
 import type { InputbarCoreCopy } from "./Inputbar/components/inputbarCoreCopy";
 import type { ModelReasoningEffortLevel } from "@/lib/types/modelRegistry";
 import type { BaseComposerSendMetadata } from "@/components/input-kit";
@@ -156,31 +124,14 @@ interface EmptyStateComposerPanelProps {
   accessMode?: AgentAccessMode;
   setAccessMode?: (mode: AgentAccessMode) => void;
   onManageProviders?: () => void;
-  isGeneralTheme: boolean;
-  characters: Character[];
   skillSelection: SkillSelectionProps;
-  activeCapability?: InputCapabilitySelection | null;
   onSelectInputCapability?: SelectInputCapabilityHandler;
-  onClearInputCapability?: () => void;
-  onEditCuratedTask?: () => void;
-  onApplyCuratedTaskReviewSuggestion?: (task: CuratedTaskTemplateItem) => void;
-  creationReplaySurface?: CreationReplaySurfaceModel | null;
   projectId?: string | null;
   openedProjects?: ComposerProject[];
   onProjectContextChange?: (projectId: string | null) => void;
   projectContextModeLabel?: string;
   projectContextBranchLabel?: string;
   sessionId?: string | null;
-  defaultCuratedTaskReferenceMemoryIds?: string[];
-  defaultCuratedTaskReferenceEntries?: CuratedTaskReferenceEntry[];
-  knowledgePackSelection?: InputbarKnowledgePackSelection | null;
-  knowledgePackOptions?: InputbarKnowledgePackOption[];
-  knowledgeHubOpenRequestKey?: number;
-  onToggleKnowledgePack?: (enabled: boolean) => void;
-  onSelectKnowledgePack?: (packName: string) => void;
-  onToggleKnowledgeCompanionPack?: (packName: string, enabled: boolean) => void;
-  onStartKnowledgeOrganize?: () => void;
-  onManageKnowledgePacks?: () => void;
   copy: HomeSurfaceComposerCopy;
   inputbarCopy: InputbarCoreCopy;
   pluginSuggestions?: readonly InputbarPluginCapability[];
@@ -194,7 +145,7 @@ interface EmptyStateComposerPanelProps {
   subagentEnabled: boolean;
   onSubagentEnabledChange?: (enabled: boolean) => void;
   pendingImages: MessageImage[];
-  onFileSelect: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onAddFiles: () => Promise<boolean>;
   onPaste?: (event: ClipboardEvent) => void;
   onDragOver?: (event: React.DragEvent) => void;
   onDrop?: (event: React.DragEvent) => void;
@@ -202,8 +153,6 @@ interface EmptyStateComposerPanelProps {
   pathReferences?: MessagePathReference[];
   onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
-  fileManagerOpen?: boolean;
-  onToggleFileManager?: () => void;
 }
 
 export function EmptyStateComposerPanel({
@@ -226,31 +175,14 @@ export function EmptyStateComposerPanel({
   accessMode,
   setAccessMode,
   onManageProviders,
-  isGeneralTheme,
-  characters,
   skillSelection,
-  activeCapability = null,
   onSelectInputCapability,
-  onClearInputCapability,
-  onEditCuratedTask,
-  onApplyCuratedTaskReviewSuggestion,
-  creationReplaySurface = null,
   projectId = null,
   openedProjects = [],
   onProjectContextChange,
   projectContextModeLabel,
   projectContextBranchLabel,
   sessionId = null,
-  defaultCuratedTaskReferenceMemoryIds = [],
-  defaultCuratedTaskReferenceEntries = [],
-  knowledgePackSelection = null,
-  knowledgePackOptions = [],
-  knowledgeHubOpenRequestKey,
-  onToggleKnowledgePack,
-  onSelectKnowledgePack,
-  onToggleKnowledgeCompanionPack,
-  onStartKnowledgeOrganize,
-  onManageKnowledgePacks,
   copy,
   inputbarCopy,
   pluginSuggestions = [],
@@ -264,7 +196,7 @@ export function EmptyStateComposerPanel({
   subagentEnabled,
   onSubagentEnabledChange,
   pendingImages,
-  onFileSelect,
+  onAddFiles,
   onPaste,
   onDragOver,
   onDrop,
@@ -272,50 +204,15 @@ export function EmptyStateComposerPanel({
   pathReferences = [],
   onImportPathReferenceAsKnowledge,
   onRemovePathReference,
-  fileManagerOpen = false,
-  onToggleFileManager,
 }: EmptyStateComposerPanelProps) {
   const { composerDecorations } = useHomeSkinPresentation();
-  const [activePluginSelection, setActivePluginSelection] =
-    useState<InputbarPluginSelection | null>(null);
   const [fallbackController] = useState(
     () => controller ?? new ComposerController({ text: input }),
   );
   const resolvedController = controller ?? fallbackController;
   const editorRef = useRef<ComposerEditorHandle>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
   const objectiveEnabled = objectiveEnabledProp ?? localObjectiveEnabled;
-  const activeCapabilityState = resolveEmptyStateActiveCapability({
-    activeCapability,
-    fallbackActiveSkill: skillSelection.activeSkill ?? null,
-  });
-  const {
-    activeBuiltinCommand,
-    activeRuntimeScene,
-    activeCuratedTask,
-    activeCuratedTaskReferenceEntries,
-    activeSkill,
-  } = activeCapabilityState;
-  const { mentionProps: mentionSkillProps, selectorProps: skillSelectorProps } =
-    buildSkillSelectionBindings(skillSelection);
-  useEffect(
-    () =>
-      resolvedController.subscribe(() => {
-        const document = resolvedController.getDocument();
-        if (
-          activePluginSelection &&
-          !document.mentionBindings.some(
-            (binding) =>
-              binding.kind === "plugin" &&
-              binding.id === activePluginSelection.plugin.pluginId,
-          )
-        )
-          setActivePluginSelection(null);
-      }),
-    [activePluginSelection, resolvedController],
-  );
-
   const handleSendDraft = (triggerMetadata?: BaseComposerSendMetadata) => {
     const submittedInput = resolvedController.getDocument().text;
     const result = onSend(
@@ -338,11 +235,16 @@ export function EmptyStateComposerPanel({
   };
 
   const handleToggleTaskMode = () => {
+    if (!taskEnabled && objectiveEnabled) {
+      if (onObjectiveEnabledChange) onObjectiveEnabledChange(false);
+      else setLocalObjectiveEnabled(false);
+    }
     onTaskEnabledChange?.(!taskEnabled);
   };
 
   const handleToggleObjectiveMode = () => {
     const nextObjectiveEnabled = !objectiveEnabled;
+    if (nextObjectiveEnabled && taskEnabled) onTaskEnabledChange?.(false);
     if (onObjectiveEnabledChange) {
       onObjectiveEnabledChange(nextObjectiveEnabled);
       return;
@@ -350,39 +252,20 @@ export function EmptyStateComposerPanel({
     setLocalObjectiveEnabled(nextObjectiveEnabled);
   };
 
-  const handleSelectPlugin = (
-    plugin: InputbarPluginCapability,
-    skill?: InputbarPluginSkillCapability,
-    _options?: InputbarPluginSelectionOptions,
-  ) => {
-    const blocked =
-      plugin.disabled ||
-      (plugin.blockerCodes?.length ?? 0) > 0 ||
-      skill?.disabled ||
-      (skill?.blockerCodes?.length ?? 0) > 0;
-    if (blocked) {
-      return;
-    }
-    insertComposerPlugin(resolvedController, plugin, skill, {
-      start: 0,
-      end: 0,
-    });
-    setInput(resolvedController.getDocument().text);
-    setActivePluginSelection({
-      plugin,
-      skill,
-      trigger: normalizeInputbarPluginTrigger(plugin, skill),
-      text: resolvedController.getDocument().text,
-      preserveInput: true,
-    });
-    editorRef.current?.focus();
-  };
-
   const handleToolAction = (tool: string) => {
     switch (tool) {
-      case "attach":
-        imageInputRef.current?.click();
+      case "attach": {
+        const editor = editorRef.current;
+        void onAddFiles().then((added) => {
+          if (
+            added &&
+            editorRef.current === editor &&
+            editor?.getElement()?.isConnected
+          )
+            editor.focus();
+        });
         return;
+      }
       case "task_mode":
         handleToggleTaskMode();
         return;
@@ -397,132 +280,38 @@ export function EmptyStateComposerPanel({
     }
   };
 
-  const topExtra =
-    activePluginSelection ||
-    activeBuiltinCommand ||
-    activeRuntimeScene ||
-    activeCuratedTask ||
-    activeSkill ||
-    creationReplaySurface ? (
-      <>
-        {activeBuiltinCommand ? (
-          <BuiltinCommandBadge
-            command={activeBuiltinCommand}
-            onClear={onClearInputCapability ?? (() => undefined)}
-          />
-        ) : null}
-
-        {activeRuntimeScene ? (
-          <RuntimeSceneBadge
-            command={activeRuntimeScene}
-            onClear={onClearInputCapability ?? (() => undefined)}
-          />
-        ) : null}
-
-        {activeCuratedTask ? (
-          <CuratedTaskBadge
-            task={activeCuratedTask}
-            projectId={projectId}
-            sessionId={sessionId}
-            referenceEntries={activeCuratedTaskReferenceEntries}
-            onEdit={onEditCuratedTask}
-            onApplyReviewSuggestion={onApplyCuratedTaskReviewSuggestion}
-            onClear={onClearInputCapability ?? (() => undefined)}
-          />
-        ) : null}
-
-        {creationReplaySurface ? (
-          <Badge
-            className={`${EMPTY_STATE_PASSIVE_BADGE_CLASSNAME} max-w-[320px] justify-start gap-1.5`}
-            title={`${creationReplaySurface.eyebrow} · ${creationReplaySurface.title} · ${creationReplaySurface.summary}`}
-          >
-            <span className="shrink-0 text-[color:var(--lime-brand-strong)]">
-              {creationReplaySurface.badgeLabel}
-            </span>
-            <span className="truncate">{creationReplaySurface.title}</span>
-          </Badge>
-        ) : null}
-      </>
-    ) : undefined;
-
-  const hasKnowledgePackControl = Boolean(
-    knowledgePackSelection || onStartKnowledgeOrganize,
-  );
-  const plusMenuKnowledgePanel = hasKnowledgePackControl ? (
-    <InputbarKnowledgeControl
-      renderMode="inline"
-      knowledgePackSelection={knowledgePackSelection}
-      knowledgePackOptions={knowledgePackOptions}
-      inputText={input}
-      openKnowledgeHubRequestKey={knowledgeHubOpenRequestKey}
-      onToggleKnowledgePack={onToggleKnowledgePack}
-      onSelectKnowledgePack={onSelectKnowledgePack}
-      onToggleKnowledgeCompanionPack={onToggleKnowledgeCompanionPack}
-      onStartKnowledgeOrganize={onStartKnowledgeOrganize}
-      onManageKnowledgePacks={onManageKnowledgePacks}
-    />
-  ) : undefined;
-  const plusMenuSkillsPanel = isGeneralTheme ? (
-    <SkillSelector
-      {...skillSelectorProps}
-      onSelectInputCapability={(capability, options) => {
-        if (capability.kind === "installed_skill") {
-          insertComposerSkill(resolvedController, capability.skill);
-          setInput(resolvedController.getDocument().text);
-        }
-        skillSelectorProps.onSelectInputCapability(capability, options);
-      }}
-      renderMode="inline"
-    />
-  ) : undefined;
-  const plusMenuPluginsPanel = (
-    <InputbarPluginSelector
-      plugins={pluginSuggestions}
-      labels={{
-        empty: copy.pluginChip.empty,
-        error: copy.pluginChip.error,
-        loading: copy.pluginChip.loading,
-        skillPrefix: copy.pluginChip.skillPrefix,
-        title: copy.pluginChip.selectorTitle,
-        unavailable: copy.pluginChip.unavailable,
-      }}
-      loading={pluginSuggestionsLoading}
-      error={pluginSuggestionsError}
-      onSelectPlugin={handleSelectPlugin}
-    />
-  );
-  const plusMenuLabels = copy.plusMenu;
-  const planModeStatusLabel = plusMenuLabels.planMode
+  const contextCommands = copy.contextCommands;
+  const planModeStatusLabel = contextCommands.planMode
     .replace(/模式$/, "")
     .replace(/ mode$/i, "");
-  const objectiveStatusLabel = plusMenuLabels.objective;
-  const fileManagerToggleLabel = fileManagerOpen
-    ? copy.fileManager.close
-    : copy.fileManager.open;
-  const plusMenu = {
-    labels: plusMenuLabels,
-    taskEnabled,
-    knowledgeOpenRequestKey: knowledgeHubOpenRequestKey,
-    subagentEnabled,
-    knowledgeActive: Boolean(knowledgePackSelection?.enabled),
-    objectiveActive: objectiveEnabled,
-    pluginsActive: Boolean(activePluginSelection),
-    skillsActive: Boolean(skillSelection.activeSkill),
-    knowledgePanel: plusMenuKnowledgePanel,
-    pluginsPanel: plusMenuPluginsPanel,
-    skillsPanel: plusMenuSkillsPanel,
-    onPanelOpen: (panelId: "knowledge" | "plugins" | "skills") => {
-      if (panelId === "plugins") {
-        onPluginSuggestionsNeeded?.();
-      }
-    },
+  const objectiveStatusLabel = contextCommands.goal;
+
+  const contextualSuggestions = {
     onAddFiles: () => handleToolAction("attach"),
-    onToggleTask: () => handleToolAction("task_mode"),
-    onToggleObjective: () => handleToolAction("objective_mode"),
-    onToggleSubagent:
-      isGeneralTheme && onSubagentEnabledChange
-        ? () => handleToolAction("subagent_mode")
-        : undefined,
+    commands: [
+      {
+        id: "goal" as const,
+        label: contextCommands.goal,
+        onSelect: () => {
+          if (!objectiveEnabled) handleToolAction("objective_mode");
+        },
+      },
+      {
+        id: "plan-mode" as const,
+        label: contextCommands.planMode,
+        onSelect: () => handleToolAction("task_mode"),
+      },
+    ],
+    projectId,
+    skills: skillSelection.skills,
+    skillsLoading: skillSelection.isSkillsLoading,
+    onSkillSuggestionsNeeded: skillSelection.onSkillSuggestionsNeeded,
+    onSelectInputCapability,
+    plugins: pluginSuggestions,
+    pluginsLoading: pluginSuggestionsLoading,
+    pluginsError: pluginSuggestionsError,
+    onPluginSuggestionsNeeded,
+    onChange: setInput,
   };
   const leftExtra = (
     <>
@@ -546,19 +335,6 @@ export function EmptyStateComposerPanel({
           testId="empty-state-objective-status"
           onRemove={() => handleToolAction("objective_mode")}
         />
-      ) : null}
-
-      {onToggleFileManager ? (
-        <MetaIconButton
-          type="button"
-          $active={fileManagerOpen}
-          aria-label={fileManagerToggleLabel}
-          title={fileManagerToggleLabel}
-          data-testid="inputbar-file-manager-toggle"
-          onClick={onToggleFileManager}
-        >
-          <FolderOpen className="h-4 w-4" aria-hidden />
-        </MetaIconButton>
       ) : null}
     </>
   );
@@ -591,46 +367,13 @@ export function EmptyStateComposerPanel({
   );
   return (
     <>
-      <CharacterMention
-        {...mentionSkillProps}
-        characters={characters}
-        editorRef={editorRef}
-        controller={resolvedController}
-        value={input}
-        onChange={setInput}
-        onSelectInputCapability={onSelectInputCapability}
-        pluginSuggestions={pluginSuggestions}
-        onPluginSuggestionsNeeded={onPluginSuggestionsNeeded}
-        onSelectPlugin={handleSelectPlugin}
-        projectId={projectId}
-        defaultCuratedTaskReferenceMemoryIds={
-          activeCapability?.kind === "curated_task"
-            ? activeCapability.referenceMemoryIds ||
-              defaultCuratedTaskReferenceMemoryIds
-            : defaultCuratedTaskReferenceMemoryIds
-        }
-        defaultCuratedTaskReferenceEntries={
-          activeCapability?.kind === "curated_task"
-            ? activeCapability.referenceEntries ||
-              defaultCuratedTaskReferenceEntries
-            : defaultCuratedTaskReferenceEntries
-        }
-      />
-
-      <input
-        ref={imageInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        style={{ display: "none" }}
-        onChange={onFileSelect}
-      />
-
       <HomeComposerDecorationFrame>
         <ConnectedComposerShell data-testid="inputbar-connected-composer">
           <InputbarCore
             uiCopy={inputbarCopy}
             controller={resolvedController}
+            sessionId={sessionId}
+            commandPriority="fallback"
             editorRef={editorRef}
             text={input}
             setText={setInput}
@@ -640,32 +383,24 @@ export function EmptyStateComposerPanel({
             isLoading={isLoading}
             disabled={disabled}
             onToolClick={handleToolAction}
-            activeTools={{
-              objective_mode: objectiveEnabled,
-              task_mode: taskEnabled,
-              subagent_mode: subagentEnabled,
-            }}
             pendingImages={pendingImages}
             onRemoveImage={onRemoveImage}
             onPaste={onPaste}
             onDragOver={onDragOver}
             onDrop={onDrop}
             placeholder={placeholder}
-            activeTheme={activeTheme}
             showDragHandle={false}
             visualVariant="default"
             connectedContextBar
             deferSendOnEnter
             sendOnPointerDown
-            topExtra={topExtra}
             leftExtra={leftExtra}
             trailingMeta={trailingMeta}
             pathReferences={pathReferences}
             onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
             onRemovePathReference={onRemovePathReference}
-            showMetaTools={false}
             showEditorExpandButton={false}
-            plusMenu={plusMenu}
+            contextualSuggestions={contextualSuggestions}
           />
           {projectContextBar}
         </ConnectedComposerShell>

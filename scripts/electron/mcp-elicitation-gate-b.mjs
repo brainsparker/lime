@@ -454,17 +454,16 @@ async function verifyPluginPackageDisabledNewThreadBoundary({
     route,
   });
   await page.locator('[data-testid="inputbar-plus-trigger"]').click();
-  await page.locator('[data-testid="inputbar-plus-menu"]').waitFor({
+  await page.locator('[data-testid="composer-context-suggestions"]').waitFor({
     state: "visible",
     timeout: options.timeoutMs,
   });
-  await page.locator('[data-testid="inputbar-plus-plugins"]').click();
   const pluginPanel = page.locator(
-    '[data-testid="inputbar-plus-panel-plugins"]',
+    '[data-testid="composer-context-suggestions"]',
   );
   await pluginPanel.waitFor({ state: "visible", timeout: options.timeoutMs });
   const disabledOption = pluginPanel
-    .locator('[data-testid="inputbar-plugin-option"]')
+    .locator('[data-suggestion-key^="plugin:"]')
     .filter({ hasText: PLUGIN_PACKAGE_DISPLAY_NAME })
     .first();
   await disabledOption.waitFor({
@@ -1035,17 +1034,16 @@ async function startPluginPackageTurnFromGui({
     `Use $${PLUGIN_PACKAGE_NAME}:${PLUGIN_PACKAGE_SKILL_ID} to run the release check through the available MCP tool.`,
   );
   await page.locator('[data-testid="inputbar-plus-trigger"]').click();
-  await page.locator('[data-testid="inputbar-plus-menu"]').waitFor({
+  await page.locator('[data-testid="composer-context-suggestions"]').waitFor({
     state: "visible",
     timeout: options.timeoutMs,
   });
-  await page.locator('[data-testid="inputbar-plus-plugins"]').click();
   const pluginPanel = page.locator(
-    '[data-testid="inputbar-plus-panel-plugins"]',
+    '[data-testid="composer-context-suggestions"]',
   );
   await pluginPanel.waitFor({ state: "visible", timeout: options.timeoutMs });
   const pluginOption = pluginPanel
-    .locator('[data-testid="inputbar-plugin-option"]')
+    .locator('[data-suggestion-key^="plugin:"]')
     .filter({ hasText: PLUGIN_PACKAGE_DISPLAY_NAME })
     .first();
   await pluginOption.waitFor({ state: "visible", timeout: options.timeoutMs });
@@ -1059,10 +1057,10 @@ async function startPluginPackageTurnFromGui({
     "Claw Plugin inline token identity 不一致",
   );
   assert(
-    (await readComposerEditorText(input)).startsWith(
+    (await readComposerEditorText(input)).includes(
       `@${PLUGIN_PACKAGE_DISPLAY_NAME}`,
     ),
-    "Claw composer 未写入 Plugin 显式触发前缀",
+    "Composer 未在当前光标写入 Plugin mention",
   );
   await page.screenshot({ path: screenshotPath, fullPage: true });
   await page.keyboard.press("Escape");
@@ -1244,8 +1242,9 @@ function providerRequestSummary(requests) {
       index,
       path: request.path,
       pluginSkillContextSeen:
-        serializedPrompt.includes(`<name>${PLUGIN_PACKAGE_NAME}:${PLUGIN_PACKAGE_SKILL_ID}</name>`) &&
-        serializedPrompt.includes(PLUGIN_PACKAGE_SKILL_BODY_MARKER),
+        serializedPrompt.includes(
+          `<name>${PLUGIN_PACKAGE_NAME}:${PLUGIN_PACKAGE_SKILL_ID}</name>`,
+        ) && serializedPrompt.includes(PLUGIN_PACKAGE_SKILL_BODY_MARKER),
       stream: request.body?.stream === true,
       toolNames: (request.body?.tools ?? [])
         .map((tool) => String(tool?.function?.name || tool?.name || "").trim())
@@ -1818,7 +1817,8 @@ export async function run({ pluginPackage = false } = {}) {
       summary.marketplaceInstallObserved = true;
       summary.appCenterInstallCompleted = true;
       const installedSummary = pluginLifecycle.read.result?.plugin?.summary;
-      summary.pluginMarketplaceId = pluginLifecycle.read.result?.plugin?.marketplaceName ?? null;
+      summary.pluginMarketplaceId =
+        pluginLifecycle.read.result?.plugin?.marketplaceName ?? null;
       summary.pluginSource = installedSummary?.source ?? null;
       summary.pluginVersion = installedSummary?.version ?? null;
       summary.standardManifestSeen = pluginLifecycle.standardManifestSeen;

@@ -518,6 +518,7 @@ impl RuntimeBackend {
                 plugin_hooks::source(self.current_app_data_source()?);
             session_config.supports_custom_tools = route_resolution.supports_custom_tools;
             mention_selection.apply_to_session_config(&mut session_config);
+            session_config.model_history_recorder = sink.model_history_recorder();
             let model_context_window = lime_agent::model_request_policy_from_turn_context(
                 session_config.turn_context.as_ref(),
             )

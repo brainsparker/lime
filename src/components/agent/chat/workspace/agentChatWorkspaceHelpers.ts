@@ -19,12 +19,9 @@ export const SESSION_RECENT_METADATA_BACKGROUND_SYNC_DELAY_MS = 12_000;
 export const SESSION_RECENT_METADATA_NAVIGATION_DEFER_MS = 45_000;
 export const SESSION_RECENT_METADATA_BACKGROUND_SYNC_IDLE_TIMEOUT_MS = 20_000;
 
-export const FILE_MANAGER_NAV_COLLAPSE_BREAKPOINT_PX = 1180;
-export const APP_SIDEBAR_COLLAPSE_EVENT = "lime:app-sidebar-collapse";
 export const NOOP_SET_CHAT_MESSAGES: Dispatch<SetStateAction<Message[]>> = () =>
   undefined;
 
-const FILE_MANAGER_SIDEBAR_OPEN_STORAGE_KEY = "lime.file-manager.sidebar-open";
 interface ResolveTaskCenterHomeSurfaceStateParams {
   agentEntry: string;
   draftSurfaceActive: boolean;
@@ -112,21 +109,6 @@ export function shouldAutoRecoverWorkspacePathMissing(
   }
 
   return project?.workspaceType === "temporary";
-}
-
-export function loadFileManagerSidebarOpen(): boolean {
-  return false;
-}
-
-export function saveFileManagerSidebarOpen(open: boolean): void {
-  if (typeof window === "undefined") {
-    return;
-  }
-  if (open) {
-    window.localStorage.removeItem(FILE_MANAGER_SIDEBAR_OPEN_STORAGE_KEY);
-    return;
-  }
-  window.localStorage.setItem(FILE_MANAGER_SIDEBAR_OPEN_STORAGE_KEY, "false");
 }
 
 export function createLocalImageWorkbenchSessionKey(): string {

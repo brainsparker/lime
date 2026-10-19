@@ -42,6 +42,7 @@ pub(crate) fn normalize_tool_history(
             if call_key(part).is_some_and(|key| !outputs.contains(&key)) {
                 normalized.push(CurrentProviderMessage {
                     role: message.role.clone(),
+                    producer: message.producer.clone(),
                     content: std::mem::take(&mut content),
                 });
                 normalized.push(aborted_output(part));
@@ -50,6 +51,7 @@ pub(crate) fn normalize_tool_history(
         if !content.is_empty() || message.content.is_empty() {
             normalized.push(CurrentProviderMessage {
                 role: message.role.clone(),
+                producer: message.producer.clone(),
                 content,
             });
         }

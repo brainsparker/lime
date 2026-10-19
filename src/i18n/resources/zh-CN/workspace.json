@@ -5,7 +5,6 @@
   "workspace.pendingA2UI.footer.stale": "刚刚补充的信息已收到，暂时不用重复提交。",
   "workspace.pendingA2UI.status.progressStep": "第 {{currentStep}}/{{totalSteps}} 步",
   "workspace.pendingA2UI.status.stale": "继续处理中",
-  "workspace.layout.compactMode.ariaLabel": "切换聊天与工作台",
   "workspace.layout.compactMode.chat": "聊天",
   "workspace.layout.compactMode.workbench": "工作台",
   "workspace.layout.splitter.resizeAria": "拖动调整对话区和工作台宽度",
@@ -724,5 +723,9 @@
   "workspace.presentationTable.headerColumn": "标题列",
   "workspace.presentationTable.reorderRow": "移动第 {{row}} 行",
   "workspace.presentationTable.reorderColumn": "移动 {{column}} 列",
-  "workspace.presentationTable.reorderHint": "拖动以移动；Alt + 方向键调整顺序"
+  "workspace.presentationTable.reorderHint": "拖动以移动；Alt + 方向键调整顺序",
+  "workspace.artifactPreviewHeader.open": "打开",
+  "workspace.artifactPreviewHeader.openOptions": "打开选项",
+  "workspace.artifactPreviewHeader.openInFolder": "在文件夹中打开",
+  "workspace.artifactPreviewHeader.saveAs": "另存为…"
 }

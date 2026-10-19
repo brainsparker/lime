@@ -404,14 +404,16 @@ fn windows_sandbox_setup_and_warning_contract_round_trip() {
 
 #[test]
 fn v2_agent_message_phase_uses_the_canonical_enum_owner() {
-    let item = json!({
-        "type": "agentMessage",
-        "id": "message-1",
-        "text": "done",
-        "phase": "final_answer"
-    });
-    let decoded: ThreadItem = serde_json::from_value(item.clone()).expect("agent message");
-    assert_eq!(serde_json::to_value(decoded).unwrap(), item);
+    for phase in ["commentary", "partial_answer", "final_answer"] {
+        let item = json!({
+            "type": "agentMessage",
+            "id": "message-1",
+            "text": "done",
+            "phase": phase
+        });
+        let decoded: ThreadItem = serde_json::from_value(item.clone()).expect("agent message");
+        assert_eq!(serde_json::to_value(decoded).unwrap(), item);
+    }
 }
 
 #[test]

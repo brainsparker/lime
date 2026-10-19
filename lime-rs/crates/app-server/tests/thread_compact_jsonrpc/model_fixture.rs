@@ -10,6 +10,8 @@ use tokio::net::TcpStream;
 #[path = "model_tool_reply.rs"]
 mod tool_reply;
 
+type ToolScript = Box<dyn FnMut(&Capture) -> Option<(String, String, Value)> + Send>;
+
 type SamplingGate = (
     tokio::sync::oneshot::Sender<()>,
     tokio::sync::oneshot::Receiver<()>,
@@ -191,6 +193,27 @@ impl ModelFixture {
         catalog: Option<Value>,
         mut first_tool: Option<(String, Value)>,
     ) -> Self {
+        Self::start_scripted(
+            wire,
+            catalog,
+            Box::new(move |_| {
+                first_tool
+                    .take()
+                    .map(|(name, args)| ("origin-tool".to_string(), name, args))
+            }),
+        )
+        .await
+    }
+
+    pub(super) async fn start_with_script(
+        wire: Wire,
+        catalog: Value,
+        script: impl FnMut(&Capture) -> Option<(String, String, Value)> + Send + 'static,
+    ) -> Self {
+        Self::start_scripted(wire, Some(catalog), Box::new(script)).await
+    }
+
+    async fn start_scripted(wire: Wire, catalog: Option<Value>, mut script: ToolScript) -> Self {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/v1", listener.local_addr().unwrap());
         let requests = Arc::new(Mutex::new(Vec::new()));
@@ -227,6 +250,7 @@ impl ModelFixture {
                     continue;
                 }
                 let compact = has_prompt(&capture.body);
+                let tool = (!compact).then(|| script(&capture)).flatten();
                 captured.lock().unwrap().push(capture);
                 let gate = if compact {
                     None
@@ -248,14 +272,9 @@ impl ModelFixture {
                 } else {
                     "MODEL-ASSISTANT-NOTE: observed project state".to_string()
                 };
-                let events = if !compact {
-                    first_tool
-                        .take()
-                        .map(|(name, args)| wire.tool_response(&name, &args))
-                } else {
-                    None
-                }
-                .unwrap_or_else(|| wire.response(&text, mode));
+                let events = tool
+                    .map(|(id, name, args)| wire.tool_response(&id, &name, &args))
+                    .unwrap_or_else(|| wire.response(&text, mode));
                 let headers = if mode == 2 {
                     "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nConnection: close\r\n\r\n".to_string()
                 } else {
@@ -283,6 +302,10 @@ impl ModelFixture {
 
     pub(super) fn last_request(&self) -> Capture {
         self.requests.lock().unwrap().last().unwrap().clone()
+    }
+
+    pub(super) fn request_count(&self) -> usize {
+        self.requests.lock().unwrap().len()
     }
 
     pub(super) fn catalog_requests(&self) -> Vec<Capture> {

@@ -18,12 +18,21 @@ interface ProjectFileMentionSearchState {
   status: ProjectFileMentionSearchStatus;
 }
 
+interface SearchResult extends ProjectFileMentionSearchState {
+  identity: string;
+}
+
 export function useProjectFileMentionSearch(params: {
   active: boolean;
   projectId?: string | null;
   query: string;
 }): ProjectFileMentionSearchState {
-  const [state, setState] = useState<ProjectFileMentionSearchState>({
+  const projectId = params.projectId?.trim() ?? "";
+  const query = params.query.trim();
+  const eligible = params.active && Boolean(projectId && query);
+  const identity = JSON.stringify([eligible, projectId, query]);
+  const [state, setState] = useState<SearchResult>({
+    identity: "",
     files: [],
     status: "idle",
   });
@@ -32,18 +41,16 @@ export function useProjectFileMentionSearch(params: {
   const requestVersionRef = useRef(0);
 
   useEffect(() => {
-    const projectId = params.projectId?.trim();
-    const query = params.query.trim();
     const requestVersion = ++requestVersionRef.current;
     const abortController = new AbortController();
 
-    if (!params.active || !projectId || !query) {
-      setState({ files: [], status: "idle" });
+    if (!eligible) {
+      setState({ identity, files: [], status: "idle" });
       return () => abortController.abort();
     }
 
     const timer = window.setTimeout(() => {
-      setState((current) => ({ ...current, status: "loading" }));
+      setState({ identity, files: [], status: "loading" });
       void (async () => {
         try {
           const project = await getProject(projectId);
@@ -57,7 +64,7 @@ export function useProjectFileMentionSearch(params: {
               !abortController.signal.aborted &&
               requestVersionRef.current === requestVersion
             ) {
-              setState({ files: [], status: "idle" });
+              setState({ identity, files: [], status: "idle" });
             }
             return;
           }
@@ -76,7 +83,7 @@ export function useProjectFileMentionSearch(params: {
           ) {
             return;
           }
-          setState({ files, status: "ready" });
+          setState({ identity, files, status: "ready" });
         } catch {
           if (
             abortController.signal.aborted ||
@@ -84,7 +91,7 @@ export function useProjectFileMentionSearch(params: {
           ) {
             return;
           }
-          setState({ files: [], status: "error" });
+          setState({ identity, files: [], status: "error" });
         }
       })();
     }, SEARCH_DEBOUNCE_MS);
@@ -93,7 +100,9 @@ export function useProjectFileMentionSearch(params: {
       window.clearTimeout(timer);
       abortController.abort();
     };
-  }, [cancellationToken, params.active, params.projectId, params.query]);
+  }, [cancellationToken, eligible, identity, projectId, query]);
 
-  return state;
+  return state.identity === identity
+    ? { files: state.files, status: state.status }
+    : { files: [], status: eligible ? "loading" : "idle" };
 }

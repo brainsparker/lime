@@ -648,3 +648,29 @@ async fn anthropic_finish_releases_http_body_before_consumer_polls_again() {
     })
     .await;
 }
+
+#[test]
+fn responses_completion_keeps_explicit_continuation_separate_from_finish_reason() {
+    for (end_turn, needs_follow_up) in [(None, false), (Some(true), false), (Some(false), true)] {
+        let mut payload = serde_json::json!({"type":"response.completed","response":{"id":"partial","output":[]}});
+        if let Some(value) = end_turn {
+            payload["response"]["end_turn"] = value.into();
+        }
+        let batch = ResponsesEventReducer::new(None, false)
+            .push(&payload)
+            .unwrap();
+        assert!(
+            batch.terminal,
+            "one response stream ends even when sampling must continue"
+        );
+        assert_eq!(
+            batch.events,
+            vec![CanonicalLlmEvent::Finish {
+                reason: runtime_core::FinishReason::Stop,
+                needs_follow_up,
+                usage: None,
+                response_id: Some("partial".into()),
+            }]
+        );
+    }
+}

@@ -30,7 +30,6 @@ pub use definitions::{
 };
 use invocation::Invocation;
 use output::{project_output, terminal_interaction_summary};
-pub use session::forget_process_session;
 use session::{
     find_session, next_session_id, register_session, remove_session, session_facts,
     UnifiedExecSession,
@@ -162,7 +161,7 @@ async fn execute_command(
         interaction_lock: Arc::new(tokio::sync::Mutex::new(())),
         output_sink: request.output_sink.clone(),
     }));
-    register_session(session_id, process_id.clone(), Arc::clone(&session))?;
+    register_session(session_id, Arc::clone(&session))?;
 
     let start_result = gateway
         .start_process(

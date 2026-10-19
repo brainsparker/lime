@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Skill } from "@/lib/api/skills";
 import {
-  resolveInputCapabilitySelectionFromRoute,
   resolveInputCapabilitySendRoute,
+  resolveInputCapabilitySelectionFromRoute,
 } from "./inputCapabilitySelection";
 
 function createSkill(overrides: Partial<Skill> = {}): Skill {
@@ -18,38 +18,27 @@ function createSkill(overrides: Partial<Skill> = {}): Skill {
 }
 
 describe("inputCapabilitySelection", () => {
-  it("本地已安装 Skill 发送时应使用目录名作为 slash 执行 key", () => {
+  it("拒绝已删除的技能路由，不能落入场景 fallback", () => {
+    expect(() =>
+      resolveInputCapabilitySelectionFromRoute({
+        route: {
+          kind: "installed_skill",
+          skillKey: "writer",
+          skillName: "Writer",
+        } as never,
+      }),
+    ).toThrow("Unsupported input capability route");
+  });
+  it("已安装技能直接使用文档 atom，不创建发送路由", () => {
     const route = resolveInputCapabilitySendRoute({
       kind: "installed_skill",
       skill: createSkill(),
     });
 
-    expect(route).toEqual({
-      kind: "installed_skill",
-      skillKey: "brand-product-knowledge-builder",
-      skillName: "产品知识库",
-    });
+    expect(route).toBeUndefined();
   });
 
-  it("从 Skills 页带回 local:* 路由时仍应匹配已安装 Skill", () => {
-    const skill = createSkill();
-
-    const selection = resolveInputCapabilitySelectionFromRoute({
-      route: {
-        kind: "installed_skill",
-        skillKey: "local:brand-product-knowledge-builder",
-        skillName: "产品知识库",
-      },
-      skills: [skill],
-    });
-
-    expect(selection).toEqual({
-      kind: "installed_skill",
-      skill,
-    });
-  });
-
-  it("没有目录名时应剥离 local: 前缀，避免生成 /local:* 命令", () => {
+  it("不从缺失目录或 local key 生成技能命令", () => {
     const route = resolveInputCapabilitySendRoute({
       kind: "installed_skill",
       skill: createSkill({
@@ -59,10 +48,6 @@ describe("inputCapabilitySelection", () => {
       }),
     });
 
-    expect(route).toMatchObject({
-      kind: "installed_skill",
-      skillKey: "writer",
-      skillName: "写作助手",
-    });
+    expect(route).toBeUndefined();
   });
 });

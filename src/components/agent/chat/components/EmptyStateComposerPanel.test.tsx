@@ -3,11 +3,11 @@ import {
   setComposerEditorText,
 } from "@/components/input-kit/composerEditor.testUtils";
 import { act } from "react";
+import { changeLimeLocale } from "@/i18n/createI18n";
 import { describe, expect, it, vi } from "vitest";
 import {
   createSkillSelection,
-  mockEmptyStateCharacterMention,
-  openPlusMenuPanel,
+  openContextSuggestions,
   renderPanel,
   TEST_EN_COMPOSER_COPY,
   TEST_EN_INPUTBAR_CORE_COPY,
@@ -16,7 +16,6 @@ import {
 describe("EmptyStateComposerPanel", () => {
   it("已开启的偏好若缺少 runtime current tools，也不应再显示页级告警", () => {
     const container = renderPanel({
-      isGeneralTheme: true,
       subagentEnabled: true,
     });
 
@@ -32,9 +31,8 @@ describe("EmptyStateComposerPanel", () => {
     );
   });
 
-  it("首页空态输入区默认隐藏技能入口，通过加号菜单打开独立技能浮层", () => {
+  it("首页 + 与 typed @ 使用同一个建议视图，空查询隐藏 Skills", async () => {
     const container = renderPanel({
-      isGeneralTheme: true,
       skillSelection: createSkillSelection({
         skills: [
           {
@@ -48,322 +46,91 @@ describe("EmptyStateComposerPanel", () => {
         ],
       }),
     });
-
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="composer-editor"]',
+    )!;
+    openContextSuggestions(container);
+    expect(document.querySelectorAll('[role="listbox"]')).toHaveLength(1);
     expect(
-      container.querySelector('[data-testid="empty-state-character-mention"]'),
-    ).toBeTruthy();
-    expect(
-      container.querySelector('[data-testid="empty-state-skill-selector"]'),
+      document.querySelector('[data-suggestion-key="skill:writer"]'),
     ).toBeNull();
-
-    openPlusMenuPanel(container, "skills");
-
-    expect(
-      document.body.querySelector('[data-testid="empty-state-skill-selector"]'),
-    ).toBeTruthy();
+    act(() => setComposerEditorText(editor, "@写作"));
+    expect(document.querySelectorAll('[role="listbox"]')).toHaveLength(1);
+    const skill = document.querySelector<HTMLButtonElement>(
+      '[data-suggestion-key="skill:writer"]',
+    )!;
+    expect(skill).toBeTruthy();
+    await act(async () => skill.click());
+    expect(editor.querySelector('[data-composer-token="skill"]')).toBeTruthy();
+    expect(document.activeElement).toBe(editor);
   });
 
-  it("首页空态输入区加号菜单应显示写文章插件入口", () => {
-    const container = renderPanel({
-      isGeneralTheme: true,
-      pluginSuggestions: [
-        {
-          pluginId: "content-factory-app",
-          displayName: "写文章",
-          trigger: "@写文章",
-          description: "生成文章草稿",
-        },
-      ],
-    });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const pluginsRow = document.body.querySelector(
-      '[data-testid="inputbar-plus-plugins"]',
-    ) as HTMLButtonElement | null;
-    expect(pluginsRow).toBeTruthy();
-    expect(pluginsRow?.textContent).toContain("插件");
-    expect(pluginsRow?.disabled).toBe(false);
-    expect(
-      document.body.querySelector('[data-testid="inputbar-plus-panel-plugins"]')
-        ?.textContent,
-    ).toContain("写文章");
-    expect(
-      document.body.querySelector('[data-testid="inputbar-plus-panel-plugins"]')
-        ?.textContent,
-    ).not.toContain("当前没有可选插件");
-  });
-
-  it("首页空态输入区打开插件面板时应请求加载已安装插件", () => {
+  it("打开共享建议时加载插件，loading 和错误显示明确状态", () => {
     const onPluginSuggestionsNeeded = vi.fn();
     const container = renderPanel({
-      isGeneralTheme: true,
       onPluginSuggestionsNeeded,
-    });
-
-    openPlusMenuPanel(container, "plugins");
-
-    expect(onPluginSuggestionsNeeded).toHaveBeenCalledTimes(1);
-  });
-
-  it("首页空态输入区插件候选加载中时不应提前显示空态", () => {
-    const container = renderPanel({
-      isGeneralTheme: true,
       pluginSuggestionsLoading: true,
     });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const pluginsPanel = document.body.querySelector(
-      '[data-testid="inputbar-plus-panel-plugins"]',
+    openContextSuggestions(container);
+    expect(onPluginSuggestionsNeeded).toHaveBeenCalledOnce();
+    expect(document.querySelector('[role="status"]')?.textContent).toBe(
+      "加载中…",
     );
-    expect(pluginsPanel?.textContent).toContain("正在读取已安装插件");
-    expect(pluginsPanel?.textContent).not.toContain("当前没有可选插件");
   });
 
-  it("首页空态输入区选择写文章插件时应写回 @写文章 触发前缀", async () => {
-    const container = renderPanel({
-      input: "写一篇公众号文章",
-      isGeneralTheme: true,
-      pluginSuggestions: [
-        {
-          pluginId: "content-factory-app",
-          displayName: "写文章",
-          trigger: "@写文章",
-          description: "生成文章草稿",
-        },
-      ],
-    });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const option = document.body.querySelector(
-      '[data-testid="inputbar-plugin-option"]',
-    ) as HTMLButtonElement | null;
-    expect(option).toBeTruthy();
-
-    await act(async () => {
-      option?.click();
-      await Promise.resolve();
-    });
-
-    expect(
-      container.querySelector('[data-composer-token="plugin"]')?.textContent,
-    ).toContain("写文章");
-    expect(
-      getComposerEditorText(
-        container.querySelector<HTMLElement>(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ),
-    ).toBe("@写文章 写一篇公众号文章");
-  });
-
-  it("首页空态输入区通过 mention 选择插件时不应重复写回触发词", async () => {
-    const plugin = {
-      pluginId: "content-factory-app",
-      displayName: "写文章",
-      trigger: "@写文章",
-      description: "生成文章草稿",
-    };
-    const container = renderPanel({
-      input: "",
-      isGeneralTheme: true,
-      pluginSuggestions: [plugin],
-    });
-
-    const mentionProps = mockEmptyStateCharacterMention.mock.calls.at(-1)?.[0];
-    expect(mentionProps?.onSelectPlugin).toBeTruthy();
-
-    await act(async () => {
-      mentionProps?.onSelectPlugin?.(plugin, undefined, {
-        inputOverride: "",
-        preserveInputOverride: true,
-      });
-      await Promise.resolve();
-    });
-
-    expect(
-      container.querySelector('[data-composer-token="plugin"]')?.textContent,
-    ).toContain("写文章");
-    expect(
-      getComposerEditorText(
-        container.querySelector<HTMLElement>(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ),
-    ).toBe("@写文章");
-  });
-
-  it("首页空态输入区选择插件时应写回显式触发前缀并显示插件标记", async () => {
+  it("首页选择插件保留正文和 editor，删除 atom 不会自动恢复", async () => {
     const container = renderPanel({
       input: "整理今天的选题",
-      isGeneralTheme: true,
       pluginSuggestions: [
-        {
-          pluginId: "content-workbench",
-          displayName: "内容工厂",
-          description: "整理内容生产资料",
-        },
+        { pluginId: "content-workbench", displayName: "内容工厂" },
       ],
     });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const option = document.body.querySelector(
-      '[data-testid="inputbar-plugin-option"]',
-    ) as HTMLButtonElement | null;
-    expect(option).toBeTruthy();
-
-    await act(async () => {
-      option?.click();
-      await Promise.resolve();
-    });
-
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="composer-editor"]',
+    )!;
+    openContextSuggestions(container);
+    const item = document.querySelector<HTMLButtonElement>(
+      '[data-suggestion-key="plugin:content-workbench"]',
+    )!;
+    await act(async () => item.click());
     expect(
-      container.querySelector('[data-composer-token="plugin"]')?.textContent,
+      editor.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("内容工厂");
-    expect(
-      getComposerEditorText(
-        container.querySelector<HTMLElement>(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ),
-    ).toBe("@内容工厂 整理今天的选题");
+    expect(getComposerEditorText(editor)).toBe("整理今天的选题 @内容工厂");
+    expect(document.activeElement).toBe(editor);
+    act(() => setComposerEditorText(editor, "整理今天的选题"));
+    expect(editor.querySelector('[data-composer-token="plugin"]')).toBeNull();
   });
 
-  it("首页空态输入区手动删除插件前缀后不应自动恢复标记", async () => {
+  it("插件名称为空时显示实际 plugin id，阻断插件不能写入文档", async () => {
     const container = renderPanel({
-      input: "整理今天的选题",
-      isGeneralTheme: true,
       pluginSuggestions: [
+        { pluginId: "content-workbench", displayName: " " },
         {
-          pluginId: "content-workbench",
-          displayName: "内容工厂",
-          description: "整理内容生产资料",
+          pluginId: "blocked",
+          displayName: "Blocked",
+          blockerCodes: ["login"],
         },
       ],
     });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const option = document.body.querySelector(
-      '[data-testid="inputbar-plugin-option"]',
-    ) as HTMLButtonElement | null;
-    expect(option).toBeTruthy();
-
-    await act(async () => {
-      option?.click();
-      await Promise.resolve();
-    });
-
+    openContextSuggestions(container);
+    const item = document.querySelector<HTMLButtonElement>(
+      '[data-suggestion-key="plugin:content-workbench"]',
+    )!;
+    expect(item.textContent).toContain("content-workbench");
     expect(
-      container.querySelector('[data-composer-token="plugin"]'),
-    ).toBeTruthy();
-
-    const textarea = container.querySelector(
-      '[data-testid="composer-editor"][role="textbox"]',
-    ) as HTMLElement | null;
-    act(() => setComposerEditorText(textarea, "整理今天的选题"));
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-
-    expect(
-      container.querySelector('[data-composer-token="plugin"]'),
-    ).toBeNull();
-    expect(
-      getComposerEditorText(
-        container.querySelector<HTMLElement>(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ),
-    ).toBe("整理今天的选题");
-  });
-
-  it("首页空态输入区选择插件技能时应写回 @插件:技能 前缀", async () => {
-    const container = renderPanel({
-      input: "整理今天的选题",
-      isGeneralTheme: true,
-      pluginSuggestions: [
-        {
-          pluginId: "content-workbench",
-          displayName: "内容工厂",
-          description: "整理内容生产资料",
-          skills: [
-            {
-              skillId: "article-writer",
-              title: "文章写作",
-              description: "生成文章草稿",
-            },
-          ],
-        },
-      ],
-    });
-
-    openPlusMenuPanel(container, "plugins");
-
-    const option = document.body.querySelector(
-      '[data-testid="inputbar-plugin-skill-option"]',
-    ) as HTMLButtonElement | null;
-    expect(option).toBeTruthy();
-
-    await act(async () => {
-      option?.click();
-      await Promise.resolve();
-    });
-
-    expect(
-      container.querySelector('[data-composer-token="plugin"]')?.textContent,
-    ).toContain("内容工厂:文章写作");
-    expect(
-      getComposerEditorText(
-        container.querySelector<HTMLElement>(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ),
-    ).toBe("@内容工厂:文章写作 整理今天的选题");
-  });
-
-  it("首页空态输入区插件名称为空时应回退显示插件 id", async () => {
-    const container = renderPanel({
-      input: "整理今天的选题",
-      isGeneralTheme: true,
-      pluginSuggestions: [
-        {
-          pluginId: "content-workbench",
-          displayName: " ",
-          description: "整理内容生产资料",
-        },
-      ],
-    });
-
-    openPlusMenuPanel(container, "plugins");
-
-    expect(
-      document.body.querySelector('[data-testid="inputbar-plus-panel-plugins"]')
-        ?.textContent,
-    ).toContain("content-workbench");
-
-    const option = document.body.querySelector(
-      '[data-testid="inputbar-plugin-option"]',
-    ) as HTMLButtonElement | null;
-
-    await act(async () => {
-      option?.click();
-      await Promise.resolve();
-    });
-
+      document.querySelector<HTMLButtonElement>(
+        '[data-suggestion-key="plugin:blocked"]',
+      )!.disabled,
+    ).toBe(true);
+    await act(async () => item.click());
     expect(
       container.querySelector('[data-composer-token="plugin"]')?.textContent,
     ).toContain("content-workbench");
   });
 
   it("首页空态输入区应使用紧凑输入壳，避免遮挡主视觉", () => {
-    const container = renderPanel({
-      isGeneralTheme: true,
-    });
+    const container = renderPanel({});
 
     const composer = container.querySelector(
       '[data-testid="inputbar-core-container"]',
@@ -374,9 +141,7 @@ describe("EmptyStateComposerPanel", () => {
   });
 
   it("首页空态输入区应在右下角显示语音和发送主操作", () => {
-    const container = renderPanel({
-      isGeneralTheme: true,
-    });
+    const container = renderPanel({});
 
     const primaryActions = container.querySelector(
       '[data-testid="inputbar-primary-actions"]',
@@ -404,7 +169,6 @@ describe("EmptyStateComposerPanel", () => {
 
   it("首页项目栏应连接在同一个输入壳内以继承聚焦态", () => {
     const container = renderPanel({
-      isGeneralTheme: true,
       projectId: "default",
       openedProjects: [
         {
@@ -499,7 +263,6 @@ describe("EmptyStateComposerPanel", () => {
   it("没有真实项目时不应把 UUID 会话号显示成项目", () => {
     const staleProjectId = "240ed157-3e7a-456c-a2c2-a05d499f5991";
     const container = renderPanel({
-      isGeneralTheme: true,
       projectId: staleProjectId,
       openedProjects: [
         {
@@ -530,51 +293,22 @@ describe("EmptyStateComposerPanel", () => {
     expect(menu?.textContent).not.toContain(staleProjectId);
   });
 
-  it("首页空态输入区应显示文件管理器按钮并触发开关", () => {
-    const onToggleFileManager = vi.fn();
-    const container = renderPanel({
-      onToggleFileManager,
-      fileManagerOpen: false,
-    });
-
-    const toggleButton = container.querySelector(
-      '[data-testid="inputbar-file-manager-toggle"]',
-    ) as HTMLButtonElement | null;
-
-    expect(toggleButton).toBeTruthy();
-    expect(toggleButton?.getAttribute("aria-label")).toBe("打开左侧文件管理器");
-
-    act(() => {
-      toggleButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(onToggleFileManager).toHaveBeenCalledTimes(1);
-  });
-
-  it("首页空态输入区 chrome 文案应支持 en-US copy", () => {
+  it("首页空态输入区 chrome 文案应支持 en-US", async () => {
+    await changeLimeLocale("en-US");
     const container = renderPanel({
       copy: TEST_EN_COMPOSER_COPY,
       inputbarCopy: TEST_EN_INPUTBAR_CORE_COPY,
-      isGeneralTheme: true,
-      onToggleFileManager: vi.fn(),
     });
 
     const plusTrigger = container.querySelector(
       '[data-testid="inputbar-plus-trigger"]',
     ) as HTMLButtonElement | null;
-    expect(plusTrigger?.getAttribute("aria-label")).toBe("Open input settings");
-    expect(plusTrigger?.getAttribute("title")).toBe("Open input settings");
+    expect(plusTrigger?.getAttribute("aria-label")).toBe("Add context");
+    expect(plusTrigger?.getAttribute("title")).toBe("Add context");
     expect(container.textContent).not.toContain("Current model");
     expect(
       container.querySelector('[data-testid="empty-state-model-selector"]'),
     ).toBeTruthy();
-
-    const fileManagerToggle = container.querySelector(
-      '[data-testid="inputbar-file-manager-toggle"]',
-    ) as HTMLButtonElement | null;
-    expect(fileManagerToggle?.getAttribute("aria-label")).toBe(
-      "Open file manager sidebar",
-    );
 
     expect(container.textContent).not.toContain("General task context");
   });

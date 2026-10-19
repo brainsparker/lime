@@ -143,6 +143,17 @@ export function SkillsWorkspacePage({
   );
   const creationProjectId = pageParams?.creationProjectId?.trim() || undefined;
 
+  const navigateToSkill = useCallback(
+    (skill: Skill) => {
+      onNavigate("agent", {
+        ...buildHomeAgentParams({ projectId: creationProjectId }),
+        initialInputCapability: { skill, requestKey: Date.now() },
+        preferHomeForInitialInputCapability: true,
+      });
+    },
+    [creationProjectId, onNavigate],
+  );
+
   const { currentProjectState } = useSkillsWorkspaceProject({
     activeView,
     creationProjectId,
@@ -151,6 +162,7 @@ export function SkillsWorkspacePage({
   const {
     exportingSkillDirectory,
     handleExportLocalSkillPackage,
+    handleInstalledSkillSelect,
     handleRenameLocalSkill,
     handleReplaceLocalSkillPackage,
     handleRevealLocalSkill,
@@ -162,6 +174,7 @@ export function SkillsWorkspacePage({
     skillAutoLoadPreferences,
     uninstallingSkillDirectory,
   } = useSkillsWorkspaceLocalSkillActions({
+    onSelectRuntimeSkill: navigateToSkill,
     detailInstalledSkillDirectory,
     highlightedInstalledSkillDirectory,
     optimisticInstalledSkillDirectory:
@@ -481,26 +494,6 @@ export function SkillsWorkspacePage({
       scaffoldCreationReplay,
       serviceSkillLaunchPrefillCopy,
     ],
-  );
-
-  const handleInstalledSkillSelect = useCallback(
-    (skill: Skill) => {
-      onNavigate("agent", {
-        ...buildHomeAgentParams({
-          projectId: creationProjectId,
-        }),
-        initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: skill.key,
-            skillName: skill.name,
-          },
-          requestKey: Date.now(),
-        },
-        preferHomeForInitialInputCapability: true,
-      });
-    },
-    [creationProjectId, onNavigate],
   );
 
   const handleEnableRegisteredSkillRuntime = useCallback(

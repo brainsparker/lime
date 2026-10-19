@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { ThreadSidePanelTab } from "./threadSidePanelTabs";
 
 export type WorkspaceRightSurfaceKind =
   | "workbench"
@@ -7,7 +8,10 @@ export type WorkspaceRightSurfaceKind =
   | "expertInfo"
   | "browser"
   | "files"
+  | "changes"
+  | "workspace-new-tab"
   | "shell"
+  | "background-terminal"
   | "harness"
   | "trace";
 
@@ -28,6 +32,7 @@ export interface WorkspaceRightSurfaceState {
 
 export interface RightSurfaceRenderInput {
   activeSurface: WorkspaceRightSurfaceKind | null;
+  tab: ThreadSidePanelTab;
 }
 
 export interface RightSurfaceDefinition {
@@ -47,7 +52,10 @@ export function normalizeWorkspaceRightSurfaceKind(
     case "expertInfo":
     case "browser":
     case "files":
+    case "changes":
+    case "workspace-new-tab":
     case "shell":
+    case "background-terminal":
     case "harness":
     case "trace":
       return normalized;

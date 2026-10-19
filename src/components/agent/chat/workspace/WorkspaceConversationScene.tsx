@@ -1,5 +1,6 @@
+import { useThreadProjectDirectory } from "../hooks/useThreadProjectDirectory";
 import { HeaderToolbar } from "@/components/app-shell/HeaderToolbar";
-import { useState, type ComponentProps, type ReactNode } from "react";
+import { type ComponentProps, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { ThreadGoal } from "@limecloud/app-server-client";
 import { AlertTriangle, CheckCircle2, Info, Loader2 } from "lucide-react";
@@ -10,11 +11,7 @@ import type {
 } from "@/components/workspace/a2ui/types";
 import { CanvasWorkbenchLayout } from "../components/CanvasWorkbenchLayout";
 import { ChatNavbar } from "../components/ChatNavbar";
-import {
-  TaskCenterShellPanel,
-  TASK_CENTER_SHELL_PANEL_DEFAULT_HEIGHT_PX,
-  TASK_CENTER_SHELL_PANEL_MAX_HEIGHT_RATIO,
-} from "../components/TaskCenterShellPanel";
+
 import { TaskCenterUtilityToolbar } from "../components/TaskCenterUtilityToolbar";
 import type { GeneralWorkbenchWorkflowStepInput } from "../components/generalWorkbenchWorkflowPanelViewModel";
 import type { SidebarActivityLog } from "../hooks/useThemeContextWorkspace";
@@ -284,6 +281,7 @@ function renderWorkspaceChatContent({
 
 interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
   threadHeader?: ThreadWorkspaceHeaderViewModel | null;
+  onOpenPluginDirectory?: () => void;
   landingSurface: WorkspaceConversationLandingSurfaceRuntime;
   stepProgressProps?: WorkspaceChatContentParams["stepProgressProps"];
   showChatLayout: boolean;
@@ -339,9 +337,6 @@ interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
   onToggleHarnessPanel?: ComponentProps<
     typeof ChatNavbar
   >["onToggleHarnessPanel"];
-  showExpertInfoToggle?: boolean;
-  expertInfoPanelVisible?: boolean;
-  onToggleExpertInfoPanel?: () => void;
   harnessPendingCount: number;
   harnessAttentionLevel: ComponentProps<
     typeof ChatNavbar
@@ -361,17 +356,11 @@ interface WorkspaceConversationSceneProps extends WorkspaceMainAreaProps {
   liveCanvasPreview: ReactNode;
   rightSurfaceContent?: ReactNode;
   rightSurfaceTabStrip?: ReactNode;
-  rightSurfaceLaunchers?: ComponentProps<
-    typeof TaskCenterUtilityToolbar
-  >["rightSurfaceLaunchers"];
-  rightSurfaceBrowserOpen?: boolean;
-  onToggleRightSurfaceBrowser?: () => void;
-  rightSurfaceFilesOpen?: boolean;
-  onToggleRightSurfaceFiles?: () => void;
-  rightSurfaceTraceOpen?: boolean;
-  onToggleRightSurfaceTrace?: () => void;
-  rightSurfaceShellOpen?: boolean;
-  onToggleRightSurfaceShell?: () => void;
+  rightSurfaceLauncher?: ReactNode;
+  onOpenBackgroundTerminal?: ComponentProps<
+    typeof ThreadSummaryPanel
+  >["onOpenBackgroundTerminal"];
+  onRefreshThread?: () => void | Promise<unknown>;
   currentImageWorkbenchActive: boolean;
   shouldShowCanvasLoadingState: boolean;
   canvasWorkbenchLayoutProps: CanvasWorkbenchLayoutProps;
@@ -404,6 +393,7 @@ export function WorkspaceConversationScene({
   workspaceType,
   deferWorkspaceListLoad,
   onOpenSettings,
+  onOpenPluginDirectory,
   navbarVisible,
   isRunning,
   navbarChrome,
@@ -417,9 +407,6 @@ export function WorkspaceConversationScene({
   showHarnessToggle,
   harnessPanelVisible,
   onToggleHarnessPanel,
-  showExpertInfoToggle,
-  expertInfoPanelVisible,
-  onToggleExpertInfoPanel,
   harnessPendingCount,
   harnessAttentionLevel,
   harnessToggleLabel,
@@ -430,16 +417,11 @@ export function WorkspaceConversationScene({
   hasLiveCanvasPreviewContent,
   liveCanvasPreview,
   rightSurfaceContent,
+  rightSurfaceOpen = false,
   rightSurfaceTabStrip,
-  rightSurfaceLaunchers,
-  rightSurfaceBrowserOpen,
-  onToggleRightSurfaceBrowser,
-  rightSurfaceFilesOpen,
-  onToggleRightSurfaceFiles,
-  rightSurfaceTraceOpen,
-  onToggleRightSurfaceTrace,
-  rightSurfaceShellOpen,
-  onToggleRightSurfaceShell,
+  rightSurfaceLauncher,
+  onOpenBackgroundTerminal,
+  onRefreshThread,
   currentImageWorkbenchActive,
   shouldShowCanvasLoadingState,
   canvasWorkbenchLayoutProps,
@@ -459,6 +441,9 @@ export function WorkspaceConversationScene({
     taskRail?.threadRead?.thread_id?.trim() ||
     taskRail?.sessionId?.trim() ||
     null;
+  const threadDirectory = useThreadProjectDirectory({
+    threadId: currentThreadId,
+  });
   const currentWorkspaceName =
     openedProjects?.find((project) => project.id === projectId)?.name ?? null;
   const queueStatusNode = (
@@ -469,12 +454,21 @@ export function WorkspaceConversationScene({
   );
   const summaryPanel = (
     <ThreadSummaryPanel
+      threadId={currentThreadId}
+      projectless={
+        !threadDirectory.loading &&
+        !threadDirectory.error &&
+        !threadDirectory.projectId
+      }
+      onOpenPluginDirectory={onOpenPluginDirectory}
+      turns={messageListProps.turns}
       threadItems={messageListProps.threadItems}
+      onOpenBackgroundTerminal={onOpenBackgroundTerminal}
+      onRefresh={onRefreshThread}
       canonicalChildren={messageListProps.canonicalChildren}
       onOpenSubagentSession={messageListProps.onOpenSubagentSession}
       onFileClick={messageListProps.onFileClick}
       onOpenArtifactFromTimeline={messageListProps.onOpenArtifactFromTimeline}
-      onOpenUrlPreview={messageListProps.onOpenUrlPreview}
       persistenceError={summary.persistenceError}
     />
   );
@@ -506,36 +500,8 @@ export function WorkspaceConversationScene({
       workspaceDismissAria: text("workspaceAlert.dismissAria"),
     },
   });
-  const [localShellPanelOpen, setLocalShellPanelOpen] = useState(false);
-  const [shellPanelHeightPx, setShellPanelHeightPx] = useState(
-    TASK_CENTER_SHELL_PANEL_DEFAULT_HEIGHT_PX,
-  );
-  const [shellPanelMaximized, setShellPanelMaximized] = useState(false);
-  // The active Thread header owns the task actions even when the workspace
-  // tab strip is absent (for example after restoring a deep-linked thread).
   const shouldUseTaskCenterUtilityToolbar =
     navbarContextVariant === "task-center";
-  const shellManagedByRightSurface = Boolean(onToggleRightSurfaceShell);
-  const shellPanelOpen = shellManagedByRightSurface
-    ? Boolean(rightSurfaceShellOpen)
-    : localShellPanelOpen;
-  const bottomShellPanelOpen =
-    localShellPanelOpen &&
-    shouldUseTaskCenterUtilityToolbar &&
-    !shellManagedByRightSurface;
-  const effectiveShellPanelHeightPx = bottomShellPanelOpen
-    ? shellPanelMaximized && typeof window !== "undefined"
-      ? Math.max(
-          TASK_CENTER_SHELL_PANEL_DEFAULT_HEIGHT_PX,
-          Math.floor(
-            window.innerHeight * TASK_CENTER_SHELL_PANEL_MAX_HEIGHT_RATIO,
-          ),
-        )
-      : shellPanelHeightPx
-    : 0;
-  const effectiveShellBottomInset = bottomShellPanelOpen
-    ? `calc(${shellBottomInset} + ${effectiveShellPanelHeightPx}px)`
-    : shellBottomInset;
   const shouldRenderThreadHeader = Boolean(threadHeader && showChatLayout);
   const taskCenterUtilityToolbarNode = shouldUseTaskCenterUtilityToolbar ? (
     <TaskCenterUtilityToolbar
@@ -543,42 +509,7 @@ export function WorkspaceConversationScene({
       onProjectChange={onProjectChange}
       taskRail={taskRail}
       placement={shouldRenderThreadHeader ? "workbench-header" : "task-strip"}
-      showCanvasToggle={!isThemeWorkbench}
-      isCanvasOpen={layoutMode !== "chat"}
-      onToggleCanvas={onToggleCanvas}
-      showHarnessToggle={showHarnessToggle}
-      harnessPanelVisible={harnessPanelVisible}
-      onToggleHarnessPanel={onToggleHarnessPanel}
-      showExpertInfoToggle={showExpertInfoToggle}
-      expertInfoPanelVisible={expertInfoPanelVisible}
-      onToggleExpertInfoPanel={onToggleExpertInfoPanel}
-      harnessPendingCount={harnessPendingCount}
-      harnessAttentionLevel={harnessAttentionLevel ?? "idle"}
-      harnessToggleLabel={harnessToggleLabel ?? "Harness"}
-      shellPanelOpen={shellPanelOpen}
-      onToggleBrowserPanel={
-        rightSurfaceBrowserOpen || onToggleRightSurfaceBrowser
-          ? onToggleRightSurfaceBrowser
-          : undefined
-      }
-      onToggleFilesPanel={
-        rightSurfaceFilesOpen || onToggleRightSurfaceFiles
-          ? onToggleRightSurfaceFiles
-          : undefined
-      }
-      onToggleTracePanel={
-        rightSurfaceTraceOpen || onToggleRightSurfaceTrace
-          ? onToggleRightSurfaceTrace
-          : undefined
-      }
-      rightSurfaceLaunchers={rightSurfaceLaunchers}
-      onToggleShellPanel={() => {
-        if (onToggleRightSurfaceShell) {
-          onToggleRightSurfaceShell();
-          return;
-        }
-        setLocalShellPanelOpen((current) => !current);
-      }}
+      sidePanelLauncher={rightSurfaceLauncher}
     />
   ) : null;
   const threadHeaderNode =
@@ -659,24 +590,6 @@ export function WorkspaceConversationScene({
         );
       })()
     : null;
-  const taskCenterShellPanelNode = bottomShellPanelOpen ? (
-    <TaskCenterShellPanel
-      heightPx={effectiveShellPanelHeightPx}
-      maximized={shellPanelMaximized}
-      projectRootPath={projectRootPath}
-      threadId={currentThreadId}
-      onClose={() => {
-        setLocalShellPanelOpen(false);
-      }}
-      onHeightChange={(heightPx) => {
-        setShellPanelMaximized(false);
-        setShellPanelHeightPx(heightPx);
-      }}
-      onToggleMaximize={() => {
-        setShellPanelMaximized((current) => !current);
-      }}
-    />
-  ) : null;
   const canvasContent =
     !liveCanvasPreview ? null : currentImageWorkbenchActive ||
       shouldShowCanvasLoadingState ? (
@@ -707,9 +620,8 @@ export function WorkspaceConversationScene({
         }
         mainTabLabel={threadHeader?.title}
         sidePanelTabStrip={rightSurfaceTabStrip}
-        taskCenterShellPanelNode={taskCenterShellPanelNode}
         contentSyncNoticeNode={contentSyncNoticeNode}
-        shellBottomInset={effectiveShellBottomInset}
+        shellBottomInset={shellBottomInset}
         layoutMode={layoutMode}
         forceCanvasMode={forceCanvasMode}
         chatContent={
@@ -722,6 +634,7 @@ export function WorkspaceConversationScene({
           )
         }
         canvasContent={canvasContent}
+        rightSurfaceOpen={rightSurfaceOpen}
         rightSurfaceContent={
           rightSurfaceContent ? (
             <ReviewThreadSidePanelProjectionContext.Provider

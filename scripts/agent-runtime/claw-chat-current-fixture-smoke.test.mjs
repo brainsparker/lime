@@ -1427,11 +1427,8 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain("attachFixtureImage");
     expect(content).toContain("dropPathReference");
     expect(content).toContain("selectCapabilityReportSkill");
-    expect(content).toContain("normalizeMentionText");
-    expect(content).toContain("toLocaleLowerCase()");
-    expect(content.split('.replace(/[\\s_-]+/g, "")')).toHaveLength(3);
-    expect(content).toContain("expectedSkillName");
-    expect(content).toContain("lastSelectionResult");
+    expect(content).toContain("selectComposerSkillFromGui");
+    expect(content).toContain("trustedPointer");
     expect(content).toContain("sendPromptFromGui");
     expect(content).toContain("waitForBackendLedgerTurnStart");
     expect(content).toContain("waitForStopButtonVisibleAndClick");
@@ -2520,7 +2517,7 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain("stableFrameCount < 2");
     expect(content).toContain('scrollRoot.dispatchEvent(new Event("scroll"))');
     expect(content).toContain("workspace-files-surface");
-    expect(content).toContain("task-center-files-toggle");
+    expect(content).toContain("clickAndAssertRightSurface");
     expect(content).toContain("textRangeRect");
     expect(content).toContain("noTailInputOverlap");
     expect(content).toContain("noTableTailInputOverlap");
@@ -2820,8 +2817,8 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).toContain('origin: "runtime"');
     expect(content).not.toContain("fixture:right-surface-visual-matrix");
     expect(content).toContain("workspaceRightSurface/pending/list");
-    expect(content).toContain("task-center-files-toggle");
-    expect(content).toContain("task-center-browser-toggle");
+    expect(content).toContain("selectThreadSidePanelTool");
+    expect(content).toContain("workspace-right-surface-tab-browser");
     expect(content).toContain("thread-workspace-summary-toggle");
     expect(content).toContain("workspace-right-surface-tab-appSurface");
     expect(content).toContain("right-surface-browser.png");
@@ -2930,5 +2927,21 @@ describe("claw chat current Electron fixture smoke guard", () => {
     expect(content).not.toContain("explicitMockFallback");
     expect(content).not.toContain("safeInvoke(");
     expect(content).not.toContain("agent_runtime_");
+  });
+});
+
+describe("current Composer skill GUI ingress", () => {
+  it("keeps rich restore and persisted draft on the shared trusted suggestion driver", () => {
+    for (const file of [
+      "scripts/agent-runtime/claw-chat-current-fixture-inputbar-rich-restore.mjs",
+      "scripts/agent-runtime/claw-chat-current-fixture-draft-persistence.mjs",
+    ]) {
+      const content = fs.readFileSync(file, "utf8");
+      expect(content).toContain("selectComposerSkillFromGui");
+      expect(content).toContain("trustedPointer");
+      expect(content).not.toContain("mention-popover-content");
+      expect(content).not.toContain("[cmdk-item]");
+      expect(content).not.toContain('insertText(" /capability-report")');
+    }
   });
 });

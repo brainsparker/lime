@@ -261,9 +261,9 @@ describe("canonical assistant ownership within an anchored group", () => {
     (hasLegacyImage) => {
       const { input, user, items } = fixture();
       user.inputCapabilityRoute = {
-        kind: "installed_skill",
-        skillKey: "user:inspect",
-        skillName: "Inspect",
+        kind: "builtin_command",
+        commandKey: "user:inspect",
+        commandPrefix: "@inspect",
       };
       if (hasLegacyImage) {
         user.images = [{ data: "aW1hZ2U=", mediaType: "image/png" }];
@@ -301,9 +301,9 @@ describe("canonical assistant ownership within an anchored group", () => {
       id: "local-routed-user",
       content: "尚未被 canonical 接管的输入",
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "user:local",
-        skillName: "Local",
+        kind: "builtin_command",
+        commandKey: "user:local",
+        commandPrefix: "@inspect",
       },
     };
     input.messageGroups.unshift({

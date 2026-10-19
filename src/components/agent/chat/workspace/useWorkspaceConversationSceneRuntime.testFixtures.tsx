@@ -60,6 +60,7 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       handleOpenExecutionPolicySettings: noop,
       handleProjectChange: noop,
       handleOpenAppearanceSettings: noop,
+      handleOpenPluginDirectory: noop,
       handleOpenChannels: noop,
       handleOpenChromeRelay: noop,
       handleBackToResources: noop,
@@ -93,8 +94,13 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       serviceSkillExecutionCard:
         overrides.serviceSkillExecutionCard as React.ReactNode,
       emptyStateProps: {
-        serviceSkills: overrides.serviceSkills ?? [],
-        onSelectServiceSkill: overrides.onSelectServiceSkill ?? noop,
+        input: "",
+        setInput: noop,
+        onSend: noop,
+        providerType: "openai",
+        setProviderType: noop,
+        model: "fixture",
+        setModel: noop,
       } as never,
       ...((overrides.landingSurface as Record<string, unknown> | undefined) ??
         {}),
@@ -198,33 +204,14 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
     fromResources: false,
     handleBackHome: noop,
     rightSurfaceChrome: {
+      open: Boolean(overrides.rightSurfaceOpen),
       content: overrides.rightSurfaceContent as React.ReactNode,
-      launchers: overrides.rightSurfaceLaunchers as React.ReactNode,
-      browserOpen: Boolean(overrides.rightSurfaceBrowserOpen),
-      onToggleBrowser:
-        (overrides.onToggleRightSurfaceBrowser as (() => void) | undefined) ??
-        noop,
-      filesOpen: Boolean(overrides.rightSurfaceFilesOpen),
-      onToggleFiles:
-        (overrides.onToggleRightSurfaceFiles as (() => void) | undefined) ??
-        noop,
-      traceOpen: Boolean(overrides.rightSurfaceTraceOpen),
-      onToggleTrace:
-        (overrides.onToggleRightSurfaceTrace as (() => void) | undefined) ??
-        noop,
-      shellOpen: Boolean(overrides.rightSurfaceShellOpen),
-      onToggleShell:
-        (overrides.onToggleRightSurfaceShell as (() => void) | undefined) ??
-        noop,
+      tabStrip: overrides.rightSurfaceTabStrip as React.ReactNode,
+      launcher: overrides.rightSurfaceLauncher as React.ReactNode,
       showHarnessToggle: Boolean(overrides.showHarnessToggle),
       harnessPanelVisible: Boolean(overrides.navbarHarnessPanelVisible),
       onToggleHarnessPanel:
         (overrides.handleToggleHarnessPanel as (() => void) | undefined) ??
-        noop,
-      showExpertInfoToggle: Boolean(overrides.showExpertInfoToggle),
-      expertInfoPanelVisible: Boolean(overrides.expertInfoPanelVisible),
-      onToggleExpertInfoPanel:
-        (overrides.handleToggleExpertInfoPanel as (() => void) | undefined) ??
         noop,
       harnessPendingCount: (overrides.harnessPendingCount as number) ?? 0,
       harnessAttentionLevel:

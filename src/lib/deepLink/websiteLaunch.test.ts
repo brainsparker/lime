@@ -57,13 +57,26 @@ describe("resolveWebsiteOpenNavigation", () => {
   });
 
   it("应把官网 install action 解析成已安装 Skill 输入能力入口", () => {
-    const result = resolveWebsiteInstalledSkillNavigation({
-      kind: "skill",
-      slug: "viral-content-breakdown",
-      source: "website",
-      version: "1",
-      action: "install",
-    });
+    const skill = {
+      key: "user:viral-content-breakdown",
+      name: "viral-content-breakdown",
+      displayName: "拆解一条爆款内容",
+      directory: "viral-content-breakdown",
+      localDirectoryPath: "/skills/viral-content-breakdown",
+      installed: true,
+      sourceKind: "other" as const,
+      description: "",
+    };
+    const result = resolveWebsiteInstalledSkillNavigation(
+      {
+        kind: "skill",
+        slug: "viral-content-breakdown",
+        source: "website",
+        version: "1",
+        action: "install",
+      },
+      skill,
+    );
 
     expect(result).toMatchObject({
       page: "agent",
@@ -71,11 +84,7 @@ describe("resolveWebsiteOpenNavigation", () => {
         agentEntry: "new-task",
         initialSessionName: "拆解一条爆款内容",
         initialInputCapability: {
-          capabilityRoute: {
-            kind: "installed_skill",
-            skillKey: "viral-content-breakdown",
-            skillName: "拆解一条爆款内容",
-          },
+          skill,
           requestKey: expect.any(Number),
         },
       },

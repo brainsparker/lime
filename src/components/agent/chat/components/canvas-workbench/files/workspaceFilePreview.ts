@@ -7,7 +7,7 @@ import type {
 
 export function resolveWorkspaceFilePreviewTarget(
   file: WorkspaceFileSelection,
-  copy: CanvasWorkbenchCopy,
+  copy: Pick<CanvasWorkbenchCopy, "workspaceFile">,
 ): CanvasWorkbenchPreviewTarget {
   const location = {
     title: file.title,

@@ -1,9 +1,8 @@
-import React, { type ComponentProps } from "react";
+import React, { act, type ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { WorkspaceMainArea } from "./WorkspaceMainArea";
 import { AppShell, AppShellHeader } from "@/components/app-shell/AppShell";
-import { RIGHT_SURFACE_CHAT_PANEL_WIDTH } from "./WorkspaceStyles";
 import {
   cleanupMountedRoots,
   mountHarness,
@@ -22,6 +21,7 @@ function WorkspaceMainAreaHarness(
       <div style={{ width: "1200px", height: "720px" }}>
         <WorkspaceMainArea
           compactChrome={false}
+          rightSurfaceOpen={false}
           contentSyncNoticeNode={null}
           shellBottomInset="0px"
           layoutMode="chat-canvas"
@@ -45,6 +45,38 @@ describe("WorkspaceMainArea", () => {
   const mountedRoots: MountedRoot[] = [];
   const originalInnerWidth = window.innerWidth;
   const originalInnerHeight = window.innerHeight;
+
+  it("折叠只隐藏既有右侧内容，重新展开复用同一DOM", () => {
+    const content = (
+      <input data-testid="retained-file-state" defaultValue="unsaved" />
+    );
+    const props = {
+      layoutMode: "chat" as const,
+      rightSurfaceContent: content,
+      rightSurfaceOpen: true,
+    };
+    const view = mountHarness(WorkspaceMainAreaHarness, props, mountedRoots);
+    const input = view.container.querySelector<HTMLInputElement>(
+      '[data-testid="retained-file-state"]',
+    )!;
+    input.value = "still unsaved";
+    view.rerender({ ...props, rightSurfaceOpen: false });
+    expect(
+      view.container.querySelector('[data-testid="retained-file-state"]'),
+    ).toBe(input);
+    expect(input.closest("[hidden]")).not.toBeNull();
+    expect(
+      view.container
+        .querySelector('[data-testid="layout-canvas-panel"]')
+        ?.getAttribute("aria-hidden"),
+    ).toBe("true");
+    view.rerender(props);
+    expect(
+      view.container.querySelector('[data-testid="retained-file-state"]'),
+    ).toBe(input);
+    expect(input.closest("[hidden]")).toBeNull();
+    expect(input.value).toBe("still unsaved");
+  });
 
   beforeEach(() => {
     Object.defineProperty(window, "innerWidth", {
@@ -186,6 +218,7 @@ describe("WorkspaceMainArea", () => {
       WorkspaceMainAreaHarness,
       {
         layoutMode: "chat",
+        rightSurfaceOpen: true,
         rightSurfaceContent: (
           <div data-testid="workspace-right-surface">expert</div>
         ),
@@ -209,10 +242,13 @@ describe("WorkspaceMainArea", () => {
     expect(
       container.querySelector('[data-testid="workspace-canvas-content"]'),
     ).toBeNull();
+    const viewport = container.querySelector<HTMLElement>('[data-testid="layout-transition-root"]')!;
+    viewport.getBoundingClientRect = () => ({ left: 0, width: 1200, height: 720 }) as DOMRect;
+    act(() => window.dispatchEvent(new Event("resize")));
     expect(
       container.querySelector<HTMLElement>('[data-testid="layout-chat-panel"]')
         ?.dataset.chatPanelWidth,
-    ).toBe(RIGHT_SURFACE_CHAT_PANEL_WIDTH);
+    ).toBe("500px");
     expect(
       container.querySelector<HTMLElement>('[data-testid="layout-chat-panel"]')
         ?.dataset.chatPanelMinWidth,
@@ -227,6 +263,7 @@ describe("WorkspaceMainArea", () => {
       WorkspaceMainAreaHarness,
       {
         layoutMode: "chat",
+        rightSurfaceOpen: true,
         rightSurfaceContent: (
           <div data-testid="workspace-right-surface">trace</div>
         ),

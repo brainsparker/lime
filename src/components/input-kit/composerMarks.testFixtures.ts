@@ -75,6 +75,7 @@ export function mixedDocument(): ComposerEditorDocument {
               name: "审阅",
               path: "/skills/review",
               label: "$审阅",
+              displayName: "审阅",
             },
           },
           { type: "text", text: "尾" },

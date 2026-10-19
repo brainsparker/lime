@@ -626,9 +626,9 @@ describe("workspaceSendHelpers", () => {
       prompt: "/brand-product-knowledge-builder 继续处理当前任务",
       displayContent: "继续处理当前任务",
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "brand-product-knowledge-builder",
-        skillName: "产品知识库",
+        kind: "builtin_command",
+        commandKey: "brand-product-knowledge-builder",
+        commandPrefix: "@inspect",
       },
       images: [],
     });
@@ -647,9 +647,9 @@ describe("workspaceSendHelpers", () => {
       role: "user",
       content: "继续处理当前任务",
       inputCapabilityRoute: {
-        kind: "installed_skill",
-        skillKey: "brand-product-knowledge-builder",
-        skillName: "产品知识库",
+        kind: "builtin_command",
+        commandKey: "brand-product-knowledge-builder",
+        commandPrefix: "@inspect",
       },
     });
     expect(messages[1]).toMatchObject({

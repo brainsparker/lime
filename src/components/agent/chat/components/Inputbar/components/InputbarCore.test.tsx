@@ -6,13 +6,13 @@ import { changeLimeLocale } from "@/i18n/createI18n";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import { InputbarCore } from "./InputbarCore";
 import {
+  createContextualSuggestionsFixture,
+  stubSuggestionGeometry,
+} from "./contextualSuggestions.testFixtures";
+import {
   buildInputbarCoreCopy,
   type InputbarCoreCopyKey,
 } from "./inputbarCoreCopy";
-
-vi.mock("./InputbarTools", () => ({
-  InputbarTools: () => <div data-testid="inputbar-tools">tools</div>,
-}));
 
 const asrProviderMocks = vi.hoisted(() => ({
   polishVoiceInputText: vi.fn(),
@@ -42,6 +42,7 @@ const TEST_INPUTBAR_CORE_COPY = buildInputbarCoreCopy((key, values) =>
 );
 
 beforeEach(async () => {
+  stubSuggestionGeometry();
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -83,9 +84,8 @@ const renderInputbarCore = async (
         text=""
         setText={vi.fn()}
         onSend={vi.fn()}
-        activeTools={{}}
         onToolClick={vi.fn()}
-        toolMode="attach-only"
+        contextualSuggestions={createContextualSuggestionsFixture()}
         visualVariant="floating"
         {...props}
       />,
@@ -120,7 +120,6 @@ describe("InputbarCore", () => {
   it("应在输入框右侧主操作区渲染 current 录音按钮", async () => {
     const container = await renderInputbarCore({
       visualVariant: "default",
-      toolMode: "default",
     });
 
     const primaryActions = container.querySelector(
@@ -370,7 +369,7 @@ describe("InputbarCore", () => {
     expect(asrProviderMocks.transcribeVoiceInputAudio).toHaveBeenCalledTimes(1);
   });
 
-  it("主题工作台空输入时应保持单行紧凑态，聚焦后也不应放大", async () => {
+  it("空输入与聚焦共用完整编辑区，附件和主动作位于底栏", async () => {
     const container = await renderInputbarCore();
     const editor = container.querySelector(
       '[data-testid="composer-editor"][role="textbox"]',
@@ -380,23 +379,36 @@ describe("InputbarCore", () => {
     ) as HTMLDivElement | null;
     expect(editor).toBeTruthy();
     expect(inputBar).toBeTruthy();
-    expect(editor?.className).toContain("floating-collapsed");
+    const input = editor?.closest("[data-composer-footer-input]");
+    const footer = input?.parentElement;
+    expect(footer?.getAttribute("data-composer-rows")).toBe("stacked");
+    expect(input?.querySelector("button")).toBeNull();
     expect(
-      container.querySelector('[data-testid="inputbar-tools"]'),
-    ).toBeNull();
-
-    act(() => {
+      container
+        .querySelector('[data-testid="inputbar-plus-trigger"]')
+        ?.closest("[data-composer-leading-controls]"),
+    ).toBeTruthy();
+    expect(
+      container
+        .querySelector('[data-testid="send-btn"]')
+        ?.closest("[data-composer-trailing-controls]"),
+    ).toBeTruthy();
+    editor?.blur();
+    expect(document.activeElement).not.toBe(editor);
+    await act(async () => {
       inputBar?.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
-      editor?.focus();
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
     });
 
-    expect(editor?.className).toContain("floating-collapsed");
-    expect(
-      container.querySelector('[data-testid="inputbar-tools"]'),
-    ).toBeNull();
+    expect(document.activeElement).toBe(editor);
+    expect(container.querySelector('[data-testid="composer-editor"]')).toBe(
+      editor,
+    );
   });
 
-  it("主题工作台有输入内容时应展开为常规编辑态", async () => {
+  it("有内容时继续使用完整编辑区和底栏附件入口", async () => {
     const container = await renderInputbarCore({
       text: "继续补充当前分析",
     });
@@ -405,9 +417,9 @@ describe("InputbarCore", () => {
     ) as HTMLElement | null;
 
     expect(editor).toBeTruthy();
-    expect(editor?.className).not.toContain("floating-collapsed");
+    expect(editor?.closest("[data-composer-footer-input]")).toBeTruthy();
     expect(
-      container.querySelector('button[aria-label="添加图片"]'),
+      container.querySelector('[data-testid="inputbar-plus-trigger"]'),
     ).toBeTruthy();
   });
 
@@ -419,157 +431,67 @@ describe("InputbarCore", () => {
       '[data-testid="composer-editor"][role="textbox"]',
     ) as HTMLElement | null;
 
-    expect(editor?.getAttribute("data-session-id")).toBe(
-      "session-inputbar-1",
-    );
+    expect(editor?.getAttribute("data-session-id")).toBe("session-inputbar-1");
   });
 
-  it("左侧加号应打开输入设置浮层并触发工具动作", async () => {
+  it("加号使用共享建议列表，动作保留草稿与同一个 editor", async () => {
     const onAddFiles = vi.fn();
-    const onToggleTask = vi.fn();
-    const onToggleObjective = vi.fn();
-    const onToggleSubagent = vi.fn();
+    const onPlan = vi.fn();
+    const onGoal = vi.fn();
     const container = await renderInputbarCore({
       text: "继续处理",
-      plusMenu: {
-        labels: {
-          open: "打开输入设置",
-          addFiles: "添加照片和文件",
-          attachKnowledge: "附加资料",
-          planMode: "计划模式",
-          subagent: "子代理",
-          objective: "追求目标",
-          skills: "技能",
-          plugins: "插件",
-          unavailable: "当前会话暂不可用",
-        },
-        taskEnabled: true,
-        subagentEnabled: false,
-        knowledgeActive: true,
-        objectiveActive: true,
-        skillsActive: true,
+      contextualSuggestions: createContextualSuggestionsFixture({
         onAddFiles,
-        onToggleTask,
-        onToggleObjective,
-        onToggleSubagent,
-        knowledgePanel: <div>资料面板</div>,
-        skillsPanel: <div>技能面板</div>,
-      },
+        commands: [
+          { id: "plan-mode", label: "计划模式", onSelect: onPlan },
+          { id: "goal", label: "追求目标", onSelect: onGoal },
+        ],
+      }),
     });
-
-    const plusButton = container.querySelector(
-      'button[aria-label="打开输入设置"]',
-    ) as HTMLButtonElement | null;
-    expect(plusButton).toBeTruthy();
-
-    await act(async () => {
-      plusButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    const menu = document.body.querySelector(
-      '[data-testid="inputbar-plus-menu"]',
-    );
-    expect(menu).toBeTruthy();
-    expect(menu?.textContent).toContain("添加照片和文件");
-    expect(menu?.textContent).toContain("计划模式");
-    expect(menu?.textContent).toContain("子代理");
-    expect(menu?.textContent).toContain("追求目标");
-    expect(menu?.textContent).toContain("技能");
-
-    const planModeRow = document.body.querySelector(
-      '[data-testid="inputbar-plus-plan-mode"]',
-    );
-    const subagentModeRow = document.body.querySelector(
-      '[data-testid="inputbar-plus-subagent-mode"]',
-    );
-    const objectiveRow = document.body.querySelector(
-      '[data-testid="inputbar-plus-objective"]',
-    );
-    expect(planModeRow?.getAttribute("role")).toBe("menuitemcheckbox");
-    expect(planModeRow?.getAttribute("aria-checked")).toBe("true");
-    expect(planModeRow?.querySelector('[data-state="checked"]')).toBeTruthy();
-    expect(subagentModeRow?.getAttribute("role")).toBe("menuitemcheckbox");
-    expect(subagentModeRow?.getAttribute("aria-checked")).toBe("false");
+    const editor = container.querySelector<HTMLElement>(
+      '[data-testid="composer-editor"]',
+    )!;
+    const plus = container.querySelector<HTMLButtonElement>(
+      '[data-testid="inputbar-plus-trigger"]',
+    )!;
+    const open = async () => {
+      await act(async () => plus.click());
+      expect(document.activeElement).toBe(editor);
+      expect(editor.textContent).toBe("继续处理");
+      return document.querySelector('[role="listbox"]')!;
+    };
+    let list = await open();
     expect(
-      subagentModeRow?.querySelector('[data-state="unchecked"]'),
-    ).toBeTruthy();
-    expect(objectiveRow?.getAttribute("role")).toBe("menuitemcheckbox");
-    expect(objectiveRow?.getAttribute("aria-checked")).toBe("true");
-
-    await act(async () => {
-      planModeRow
-        ?.querySelector('[data-state="checked"]')
-        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(onToggleTask).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      subagentModeRow
-        ?.querySelector('[data-state="unchecked"]')
-        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(onToggleSubagent).toHaveBeenCalledTimes(1);
-
-    await act(async () => {
-      objectiveRow?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(onToggleObjective).toHaveBeenCalledTimes(1);
-    expect(
-      document.body.querySelector(
-        '[data-testid="inputbar-plus-panel-objective"]',
+      [...list.querySelectorAll('[role="option"]')].map(
+        (item) => item.textContent,
       ),
-    ).toBeNull();
-
-    await act(async () => {
-      document.body
-        .querySelector('[data-testid="inputbar-plus-knowledge"]')
-        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(
-      document.body.querySelector(
-        '[data-testid="inputbar-plus-panel-knowledge"]',
-      )?.textContent,
-    ).toContain("资料面板");
-
-    await act(async () => {
-      document.body
-        .querySelector('[data-testid="inputbar-plus-add-files"]')
-        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(onAddFiles).toHaveBeenCalledTimes(1);
+    ).toEqual(["添加照片和文件", "追求目标", "计划模式"]);
+    for (const [key, action] of [
+      ["command:plan-mode", onPlan],
+      ["command:goal", onGoal],
+      ["context-action:pick-local-files", onAddFiles],
+    ] as const) {
+      await act(async () => {
+        list
+          .querySelector<HTMLButtonElement>(
+            '[data-suggestion-key="' + key + '"]',
+          )!
+          .click();
+      });
+      expect(action).toHaveBeenCalledOnce();
+      expect(document.querySelector('[role="listbox"]')).toBeNull();
+      expect(document.activeElement).toBe(editor);
+      expect(container.querySelector('[data-testid="composer-editor"]')).toBe(
+        editor,
+      );
+      expect(editor.textContent).toBe("继续处理");
+      if (key !== "context-action:pick-local-files") list = await open();
+    }
   });
 
   it("底部 meta 应支持左侧状态和右侧模型分区", async () => {
     const container = await renderInputbarCore({
       text: "继续处理",
-      plusMenu: {
-        labels: {
-          open: "打开输入设置",
-          addFiles: "添加照片和文件",
-          attachKnowledge: "附加资料",
-          planMode: "计划模式",
-          subagent: "子代理",
-          objective: "追求目标",
-          skills: "技能",
-          plugins: "插件",
-          unavailable: "当前会话暂不可用",
-        },
-        taskEnabled: false,
-        onAddFiles: vi.fn(),
-        onToggleTask: vi.fn(),
-        onToggleObjective: vi.fn(),
-      },
       leftExtra: <span data-testid="left-meta-item">完全访问</span>,
       trailingMeta: <span data-testid="trailing-meta-item">模型切换</span>,
     });
@@ -590,6 +512,13 @@ describe("InputbarCore", () => {
     expect(
       leftMeta?.querySelector('[data-testid="trailing-meta-item"]'),
     ).toBeNull();
+    const trailingControls = rightMeta?.closest(
+      "[data-composer-trailing-controls]",
+    );
+    expect(
+      trailingControls?.querySelector('[data-testid="send-btn"]'),
+    ).toBeTruthy();
+    expect(container.querySelector('button[aria-label="添加图片"]')).toBeNull();
   });
 
   it("添加路径引用时应显示 chip 并允许移除", async () => {
@@ -709,7 +638,6 @@ describe("InputbarCore", () => {
   it("点击展开按钮应切换输入框展开态", async () => {
     const container = await renderInputbarCore({
       visualVariant: "default",
-      toolMode: "default",
     });
     const editor = container.querySelector(
       '[data-testid="composer-editor"][role="textbox"]',

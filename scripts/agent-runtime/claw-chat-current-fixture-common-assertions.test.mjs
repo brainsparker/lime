@@ -242,13 +242,13 @@ describe("rich Composer restored readiness assertion", () => {
       sendButtonExists: true,
       sendButtonDisabled: false,
       stopButtonVisible: false,
-      editorText: `${INPUTBAR_RICH_RESTORE_PROMPT} [Pasted text 1: 1620 characters] /user:capability-report`,
+      editorText: `${INPUTBAR_RICH_RESTORE_PROMPT} [Pasted text 1: 1620 characters] $capability-report`,
       skillTokenData: [
         {
           id: "user:capability-report",
           name: "capability-report",
           path: "/fixture/.agents/skills/capability-report/SKILL.md",
-          label: "/user:capability-report",
+          label: "$capability-report",
           editable: "false",
         },
       ],
@@ -305,7 +305,7 @@ describe("rich Composer restored readiness assertion", () => {
       );
     if (mode === "missing-skill")
       restored.editorText = restored.editorText.replace(
-        " /user:capability-report",
+        " $capability-report",
         "",
       );
     if (mode === "same-label-wrong-id")

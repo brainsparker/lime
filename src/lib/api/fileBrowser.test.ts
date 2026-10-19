@@ -4,9 +4,9 @@ import { safeInvoke } from "@/lib/dev-bridge";
 import {
   createDirectoryAtPath,
   createFileAtPath,
+  copyFile,
   deletePath,
   getFileIconDataUrl,
-  getFileManagerLocations,
   listDirectory,
   readFilePreview,
   readFileBytes,
@@ -51,6 +51,23 @@ vi.mock("@/lib/dev-bridge", () => ({
 describe("fileBrowser API", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("文件副本委托 current fs/copy，不读取或转码内容，并保留失败", async () => {
+    appServerCopyMock.mockResolvedValueOnce({ result: {} });
+    await copyFile("/work/source.bin", "C:\\exports\\copy.bin");
+    expect(appServerCopyMock).toHaveBeenCalledExactlyOnceWith({
+      sourcePath: "/work/source.bin",
+      destinationPath: "C:\\exports\\copy.bin",
+      recursive: false,
+    });
+    expect(appServerReadFileMock).not.toHaveBeenCalled();
+    expect(appServerWriteFileMock).not.toHaveBeenCalled();
+    expect(safeInvoke).not.toHaveBeenCalled();
+    appServerCopyMock.mockRejectedValueOnce(new Error("copy denied"));
+    await expect(copyFile("/work/source.bin", "/copy.bin")).rejects.toThrow(
+      "copy denied",
+    );
   });
 
   it("原字节写入使用同一fs/writeFile合同，二进制和多块内容不转码", async () => {
@@ -140,6 +157,45 @@ describe("fileBrowser API", () => {
     });
   });
 
+  it.each([
+    [1, "a"],
+    [2, "a"],
+    [3, "a"],
+    [4, "a中"],
+    [5, "a中"],
+    [7, "a中"],
+    [8, "a中😀"],
+    [9, "a中😀b"],
+  ])("有效UTF-8文件在第%d字节截断仍为文本", async (limit, content) => {
+    const bytes = Buffer.from("a中😀b", "utf8");
+    appServerReadFileMock.mockResolvedValueOnce({
+      result: { dataBase64: bytes.toString("base64") },
+    });
+    await expect(readFilePreview("/tmp/unicode.txt", limit)).resolves.toEqual({
+      path: "/tmp/unicode.txt",
+      content,
+      isBinary: false,
+      size: bytes.length,
+      error: null,
+    });
+  });
+
+  it.each([
+    [0x61, 0xe4, 0xb8],
+    [0x61, 0xff],
+    [0x61, 0x00],
+  ])("预览之外的坏编码或NUL仍使完整文件归类为binary：%j", async (...values) => {
+    const bytes = Buffer.from(values);
+    appServerReadFileMock.mockResolvedValueOnce({
+      result: { dataBase64: bytes.toString("base64") },
+    });
+    await expect(readFilePreview("/tmp/binary.dat", 1)).resolves.toMatchObject({
+      content: null,
+      isBinary: true,
+      size: bytes.length,
+    });
+  });
+
   it("专业文件原字节保留零字节与非 UTF-8 值，读取拒绝直接失败", async () => {
     appServerReadFileMock
       .mockResolvedValueOnce({ result: { dataBase64: "JVBERgD/" } })
@@ -218,53 +274,6 @@ describe("fileBrowser API", () => {
       path: windowsPath,
       recursive: true,
     });
-  });
-
-  it("应代理文件管理器快捷入口命令", async () => {
-    vi.mocked(safeInvoke).mockResolvedValueOnce([
-      {
-        id: "downloads",
-        label: "下载",
-        path: "/Users/demo/Downloads",
-        kind: "downloads",
-      },
-    ]);
-
-    await expect(getFileManagerLocations()).resolves.toEqual([
-      expect.objectContaining({ id: "downloads", label: "下载" }),
-    ]);
-    expect(safeInvoke).toHaveBeenCalledWith("get_file_manager_locations");
-  });
-
-  it("文件管理器快捷入口遇到 Electron empty diagnostic list 时应 fail closed", async () => {
-    const diagnosticList: unknown[] = [];
-    Object.defineProperty(diagnosticList, "__diagnostic", {
-      value: {
-        command: "get_file_manager_locations",
-        source: "electron-empty-diagnostic",
-        status: "degraded",
-      },
-      enumerable: false,
-    });
-
-    vi.mocked(safeInvoke).mockResolvedValueOnce(diagnosticList);
-
-    await expect(getFileManagerLocations()).rejects.toThrow(
-      "get_file_manager_locations 尚未接入真实文件管理 current 通道，收到 electron-empty-diagnostic 诊断返回。",
-    );
-  });
-
-  it("文件管理器快捷入口遇到 mock-like payload 或缺字段项时应 fail closed", async () => {
-    vi.mocked(safeInvoke)
-      .mockResolvedValueOnce({ success: true })
-      .mockResolvedValueOnce([{ id: "downloads" }]);
-
-    await expect(getFileManagerLocations()).rejects.toThrow(
-      "get_file_manager_locations did not return file manager locations",
-    );
-    await expect(getFileManagerLocations()).rejects.toThrow(
-      "get_file_manager_locations did not return file manager locations",
-    );
   });
 
   it("应代理文件图标异步读取命令", async () => {

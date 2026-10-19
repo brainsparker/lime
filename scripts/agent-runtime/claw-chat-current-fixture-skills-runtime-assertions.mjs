@@ -50,10 +50,10 @@ export function buildSkillsRuntimeScenarioAssertions({
       summary.skillsChangedCatalogRefresh?.automaticRefresh?.increment > 0,
     guiSkillCatalogUpdated:
       summary.skillsChangedCatalogRefresh?.gui?.panelVisible === true &&
-      summary.skillsChangedCatalogRefresh?.gui?.selectorVisible === true &&
+      summary.skillsChangedCatalogRefresh?.gui?.listVisible === true &&
       summary.skillsChangedCatalogRefresh?.gui?.skillVisible === true,
-    skillsCatalogRefreshDidNotUseManualRefresh:
-      summary.skillsChangedCatalogRefresh?.manualRefresh?.clickCount === 0,
+    skillsCatalogRefreshWithoutUserInteraction:
+      summary.skillsChangedCatalogRefresh?.userInteraction?.count === 0,
     skillsRuntimePromptReachedBackend:
       skillsRuntimeTurnStart?.inputText === SKILLS_RUNTIME_PROMPT,
     guiSkillsRuntimeInputSubmitted:

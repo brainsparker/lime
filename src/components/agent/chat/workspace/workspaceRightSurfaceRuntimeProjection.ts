@@ -22,6 +22,7 @@ export interface BuildWorkspaceRightSurfaceRuntimeLaunchersParams {
   articleWorkspaceAvailable?: boolean;
   pendingIntents: WorkspaceRightSurfaceIntent[];
   shellAvailable: boolean;
+  backgroundTerminalAvailable?: boolean;
   showHarnessToggle: boolean;
   traceAvailable?: boolean;
   suppressHomeNavbarUtilityActions: boolean;
@@ -33,7 +34,10 @@ export function hasWorkspaceRightSurfaceRuntimePendingSignals({
   preferredServiceSkillResultFileTargetRelativePath,
   showHarnessToggle,
   suppressHomeNavbarUtilityActions,
-}: Omit<BuildWorkspaceRightSurfaceRuntimePendingIntentsParams, "createdAt">): boolean {
+}: Omit<
+  BuildWorkspaceRightSurfaceRuntimePendingIntentsParams,
+  "createdAt"
+>): boolean {
   if (
     !suppressHomeNavbarUtilityActions &&
     showHarnessToggle &&
@@ -69,6 +73,7 @@ export function buildWorkspaceRightSurfaceRuntimePendingIntents({
 }
 
 export function buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
+  backgroundTerminalAvailable = false,
   filesAvailable,
   appSurfaceAvailable = false,
   hasExpertInfoPanel,
@@ -84,11 +89,15 @@ export function buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
   | "filesAvailable"
   | "articleWorkspaceAvailable"
   | "shellAvailable"
+  | "backgroundTerminalAvailable"
   | "showHarnessToggle"
   | "traceAvailable"
   | "suppressHomeNavbarUtilityActions"
 >): ReadonlySet<WorkspaceRightSurfaceKind> {
-  const surfaces: WorkspaceRightSurfaceKind[] = ["workbench"];
+  const surfaces: WorkspaceRightSurfaceKind[] = [
+    "workbench",
+    "workspace-new-tab",
+  ];
   if (appSurfaceAvailable) {
     surfaces.push("appSurface");
   }
@@ -100,11 +109,12 @@ export function buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
   }
   surfaces.push("browser");
   if (filesAvailable) {
-    surfaces.push("files");
+    surfaces.push("files", "changes");
   }
   if (!suppressHomeNavbarUtilityActions && shellAvailable) {
     surfaces.push("shell");
   }
+  if (backgroundTerminalAvailable) surfaces.push("background-terminal");
   if (!suppressHomeNavbarUtilityActions && showHarnessToggle) {
     surfaces.push("harness");
   }
@@ -115,6 +125,7 @@ export function buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
 }
 
 export function buildWorkspaceRightSurfaceRuntimeLaunchers({
+  backgroundTerminalAvailable,
   filesAvailable,
   appSurfaceAvailable,
   hasExpertInfoPanel,
@@ -130,6 +141,7 @@ export function buildWorkspaceRightSurfaceRuntimeLaunchers({
     surfaceState,
     pendingIntents,
     availableSurfaces: buildWorkspaceRightSurfaceRuntimeAvailableSurfaces({
+      backgroundTerminalAvailable,
       filesAvailable,
       appSurfaceAvailable,
       hasExpertInfoPanel,

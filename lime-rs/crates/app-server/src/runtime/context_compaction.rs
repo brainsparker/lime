@@ -7,7 +7,9 @@ use chrono::{SecondsFormat, Utc};
 use serde_json::{json, Value};
 use uuid::Uuid;
 
-const COMPACTION_ARTIFACT_SCHEMA: &str = "session_context_compaction.v2";
+pub(crate) mod boundary;
+
+const COMPACTION_ARTIFACT_SCHEMA: &str = "session_context_compaction.v3";
 const MAX_USER_BOUNDARY_CHARS: usize = 12_000;
 const MAX_TAIL_TURNS: usize = 4;
 
@@ -15,7 +17,7 @@ const MAX_TAIL_TURNS: usize = 4;
 pub(crate) struct SessionContextCompaction {
     pub(crate) compaction_id: String,
     pub(crate) context_epoch: u64,
-    pub(crate) tail_start_turn_id: Option<String>,
+    pub(crate) covered_through_sequence: u64,
     pub(crate) window: CompactionWindow,
     pub(crate) summary: String,
     pub(crate) artifact: Value,
@@ -39,10 +41,10 @@ pub(crate) struct CompactionWindow {
 /// Validated compaction lineage used when rebuilding an AgentControl child history.
 ///
 /// The marker remains a session-level event. The fork owner rewrites only the session/thread
-/// identity and tail turn id; replacement and window lineage stay intact.
+/// identity and the covered prefix sequence; replacement and window lineage stay intact.
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct ForkCompactionSeed {
-    pub(crate) source_tail_start_turn_id: String,
+    pub(crate) covered_through_sequence: u64,
     pub(crate) payload: Value,
 }
 
@@ -60,13 +62,7 @@ pub(crate) fn latest_fork_compaction_seed(
         return Ok(None);
     };
     validate_replacement_history(&window.replacement_history, event)?;
-    let tail = event
-        .payload
-        .get("tailStartTurnId")
-        .and_then(Value::as_str)
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| invalid_compaction_lineage(event, "missing tailStartTurnId"))?;
+    let covered_through_sequence = boundary::covered_sequence(event)?;
     let artifact = event
         .payload
         .get("artifact")
@@ -74,7 +70,7 @@ pub(crate) fn latest_fork_compaction_seed(
         .and_then(Value::as_object);
     if let Some(artifact) = artifact {
         for field in [
-            "tailStartTurnId",
+            "coveredThroughSequence",
             "replacementHistory",
             "windowNumber",
             "firstWindowId",
@@ -111,7 +107,7 @@ pub(crate) fn latest_fork_compaction_seed(
         }
     }
     Ok(Some(ForkCompactionSeed {
-        source_tail_start_turn_id: tail.to_string(),
+        covered_through_sequence,
         payload: event.payload.clone(),
     }))
 }
@@ -161,6 +157,7 @@ pub(crate) fn build_session_context_compaction(
     session: &AgentSession,
     turns: &[AgentTurn],
     events: &[AgentEvent],
+    covered_through_sequence: u64,
     compaction_id: &str,
     summary: &str,
     sidecar_store: Option<&SidecarStore>,
@@ -168,7 +165,7 @@ pub(crate) fn build_session_context_compaction(
     let previous_window = latest_compaction_window(events)?;
     let context_epoch = next_compaction_window_number(events, previous_window.as_ref());
     let compaction_id = compaction_id.to_string();
-    let tail_start_turn_id = tail_start_turn_id(turns);
+    boundary::validate_snapshot_boundary(events, covered_through_sequence)?;
     if summary.trim().is_empty() {
         return Err(RuntimeCoreError::Backend(
             "context compaction requires a model summary".to_string(),
@@ -178,9 +175,8 @@ pub(crate) fn build_session_context_compaction(
     let window = build_compaction_window(
         context_epoch,
         &summary,
-        turns,
         events,
-        tail_start_turn_id.as_deref(),
+        covered_through_sequence,
         previous_window,
     );
     let artifact = json!({
@@ -189,7 +185,7 @@ pub(crate) fn build_session_context_compaction(
         "sessionId": session.session_id,
         "threadId": session.thread_id,
         "contextEpoch": context_epoch,
-        "tailStartTurnId": tail_start_turn_id,
+        "coveredThroughSequence": covered_through_sequence,
         "replacementHistory": window.replacement_history,
         "windowNumber": window.window_number,
         "firstWindowId": window.first_window_id,
@@ -202,7 +198,7 @@ pub(crate) fn build_session_context_compaction(
         "policy": {
             "durableHistoryRewrite": false,
             "providerHistoryRewrite": true,
-            "providerTailMode": "from_tail_start_turn",
+            "providerTailMode": "after_covered_sequence",
             "longTermMemoryWrite": false,
             "artifactScope": "session"
         }
@@ -232,7 +228,7 @@ pub(crate) fn build_session_context_compaction(
     Ok(SessionContextCompaction {
         compaction_id,
         context_epoch,
-        tail_start_turn_id,
+        covered_through_sequence,
         window,
         summary,
         artifact,
@@ -243,9 +239,8 @@ pub(crate) fn build_session_context_compaction(
 fn build_compaction_window(
     window_number: u64,
     summary: &str,
-    turns: &[AgentTurn],
     events: &[AgentEvent],
-    tail_start_turn_id: Option<&str>,
+    covered_through_sequence: u64,
     previous: Option<CompactionWindow>,
 ) -> CompactionWindow {
     let window_id = Uuid::now_v7().to_string();
@@ -256,7 +251,7 @@ fn build_compaction_window(
     let previous_window_id = previous.map(|window| window.window_id);
 
     CompactionWindow {
-        replacement_history: build_replacement_history(summary, turns, events, tail_start_turn_id),
+        replacement_history: build_replacement_history(summary, events, covered_through_sequence),
         window_number,
         first_window_id,
         previous_window_id,
@@ -353,20 +348,16 @@ fn invalid_compaction_lineage(
 
 fn build_replacement_history(
     summary: &str,
-    turns: &[AgentTurn],
     events: &[AgentEvent],
-    tail_start_turn_id: Option<&str>,
+    covered_through_sequence: u64,
 ) -> Vec<Value> {
     // Keep the most recent user boundaries within the budget, then append the summary. The
     // durable event log remains unchanged.
-    let compacted_turn_ids = compacted_turn_ids(turns, tail_start_turn_id);
     let mut selected = Vec::new();
     let mut remaining_chars = MAX_USER_BOUNDARY_CHARS;
-    for event in events
-        .iter()
-        .rev()
-        .filter(|event| is_compacted_user_message(event, &compacted_turn_ids))
-    {
+    for event in events.iter().rev().filter(|event| {
+        event.sequence <= covered_through_sequence && event.event_type == "message.created"
+    }) {
         let Some(text) = payload_text(&event.payload) else {
             continue;
         };
@@ -398,14 +389,6 @@ fn build_replacement_history(
     history
 }
 
-fn is_compacted_user_message(event: &AgentEvent, compacted_turn_ids: &[String]) -> bool {
-    event.event_type == "message.created"
-        && event
-            .turn_id
-            .as_deref()
-            .is_some_and(|turn_id| compacted_turn_ids.iter().any(|id| id == turn_id))
-}
-
 fn next_compaction_window_number(
     events: &[AgentEvent],
     previous_window: Option<&CompactionWindow>,
@@ -420,33 +403,6 @@ fn existing_compaction_count(events: &[AgentEvent]) -> u64 {
         .iter()
         .filter(|event| event.event_type == "context.compaction.completed")
         .count() as u64
-}
-
-fn tail_start_turn_id(turns: &[AgentTurn]) -> Option<String> {
-    let completed = turns
-        .iter()
-        .filter(|turn| matches!(turn.status, app_server_protocol::AgentTurnStatus::Completed))
-        .collect::<Vec<_>>();
-    if completed.len() <= MAX_TAIL_TURNS {
-        return completed.first().map(|turn| turn.turn_id.clone());
-    }
-    completed
-        .get(completed.len().saturating_sub(MAX_TAIL_TURNS))
-        .map(|turn| turn.turn_id.clone())
-}
-
-fn compacted_turn_ids(turns: &[AgentTurn], tail_start_turn_id: Option<&str>) -> Vec<String> {
-    let Some(tail_start_turn_id) = tail_start_turn_id else {
-        return Vec::new();
-    };
-    let start = turns
-        .iter()
-        .position(|turn| turn.turn_id == tail_start_turn_id)
-        .unwrap_or(turns.len());
-    turns[..start]
-        .iter()
-        .map(|turn| turn.turn_id.clone())
-        .collect()
 }
 
 fn payload_text(payload: &Value) -> Option<String> {

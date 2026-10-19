@@ -380,6 +380,147 @@
       "file": "depth-over-limit.tar.gz",
       "sha256": "0145fe7826fdba68d4f7039d00e4f5bcd803e7e983a34ea1c70bb31d0eb209b1",
       "archiveAccepted": false
+    },
+    {
+      "id": "manifest-root-directory",
+      "file": "manifest-root-directory.tar.gz",
+      "sha256": "79c6cde28f929ce870b9986b209c5a2fe604fcfd41cc02e6edcff26c2f10cd6b",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-root-implicit-file",
+      "file": "manifest-root-implicit-file.tar.gz",
+      "sha256": "443670f6ba95e5836c3b9a161d104a4e6024d2e8347b8437cbafa2aec9190fdc",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-root-implicit-directory",
+      "file": "manifest-root-implicit-directory.tar.gz",
+      "sha256": "1b055d7d3b45d75f81a0f5e44962bcebf2b9548228f92205209501e639ad031e",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-valid-root",
+      "file": "manifest-valid-root.tar.gz",
+      "sha256": "263b0f8ed56cd9eb5172ec8d5dacf8db88793e82139b9456a183e0c03a39e8e4",
+      "archiveAccepted": true,
+      "manifestAccepted": true,
+      "manifestPath": "plugin.json",
+      "manifestHash": "934b22f66a15191a02051a134aa356071b14853de995bc2117a4ccf9a115f189"
+    },
+    {
+      "id": "manifest-codex-directory",
+      "file": "manifest-codex-directory.tar.gz",
+      "sha256": "c2cfa56727d2042b561240fdc4b23c7abfb2c9e84fe060002311c5f8c86f8a34",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-codex-implicit-file",
+      "file": "manifest-codex-implicit-file.tar.gz",
+      "sha256": "0dcdc03836aa9708823507c835447bcc384e09f069bdd2df14ce26c08c5808a5",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-codex-implicit-directory",
+      "file": "manifest-codex-implicit-directory.tar.gz",
+      "sha256": "9e536fe0f7e8dfd0390a8ee52ce444594a0c6c423cd6109cb4966ae8311ca4be",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-codex-parent-file",
+      "file": "manifest-codex-parent-file.tar.gz",
+      "sha256": "ea72937e73d69ebc55aa01ccf7acd6441358fd6889edcc77f4246d0bef4bd635",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-valid-codex",
+      "file": "manifest-valid-codex.tar.gz",
+      "sha256": "0c54c50981b91af82c754a6fd2d6186531b8f06ac8b4d6a8fe0f6b8c317f81f0",
+      "archiveAccepted": true,
+      "manifestAccepted": true,
+      "manifestPath": ".codex-plugin/plugin.json",
+      "manifestHash": "20a68fe1cb7ea4f7d208648a86bfdddd6b93e188245a620c4268afeef7d4cffe"
+    },
+    {
+      "id": "manifest-claude-directory",
+      "file": "manifest-claude-directory.tar.gz",
+      "sha256": "6f76adfe35025b509aff81e62627530d092c58420ab4a222a9e44bfa9dde849b",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-claude-implicit-file",
+      "file": "manifest-claude-implicit-file.tar.gz",
+      "sha256": "a9c07bd9ff398c97aa52f64e97ac3b926f87df131003fef4cabec61a946712db",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-claude-implicit-directory",
+      "file": "manifest-claude-implicit-directory.tar.gz",
+      "sha256": "146a035f6b46874bf458885eb7250dbe7c652f07fb7961d787bae83392d69a45",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-claude-parent-file",
+      "file": "manifest-claude-parent-file.tar.gz",
+      "sha256": "985fcb9ff4cf0bc72f6e93cd216be4eb934595b26d5c1938f4ab54e04c7df298",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-valid-claude",
+      "file": "manifest-valid-claude.tar.gz",
+      "sha256": "3861b6bd6c1b7b1696d3056fbd729fb429912d0748dec2fd1e5fa74a711ca981",
+      "archiveAccepted": true,
+      "manifestAccepted": true,
+      "manifestPath": ".claude-plugin/plugin.json",
+      "manifestHash": "20a68fe1cb7ea4f7d208648a86bfdddd6b93e188245a620c4268afeef7d4cffe"
+    },
+    {
+      "id": "manifest-cursor-directory",
+      "file": "manifest-cursor-directory.tar.gz",
+      "sha256": "ec5e943b3460b4abc5b89a9a3b4e7c175a058324b65d6e5c87e5482ef30cfca5",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-cursor-implicit-file",
+      "file": "manifest-cursor-implicit-file.tar.gz",
+      "sha256": "481cf1a56680b54c89e63b8759ecae29bf145ae4d8e8dad89ba75816569758ca",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-cursor-implicit-directory",
+      "file": "manifest-cursor-implicit-directory.tar.gz",
+      "sha256": "4220822bf170fdac36dbaa7360a1eb9815063cbbc5a7be68d0c38e5a024fdfec",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-cursor-parent-file",
+      "file": "manifest-cursor-parent-file.tar.gz",
+      "sha256": "cb37cc274c9dfc3ff0974d222fe1c23226ee70f5b16c7171b2ad98bc0cb0cdea",
+      "archiveAccepted": true,
+      "manifestAccepted": false
+    },
+    {
+      "id": "manifest-valid-cursor",
+      "file": "manifest-valid-cursor.tar.gz",
+      "sha256": "bc22200024c94c8730f4fc1419d8a4a5a2eba3940ed1e16fdd5e00cd7bda5ffd",
+      "archiveAccepted": true,
+      "manifestAccepted": true,
+      "manifestPath": ".cursor-plugin/plugin.json",
+      "manifestHash": "20a68fe1cb7ea4f7d208648a86bfdddd6b93e188245a620c4268afeef7d4cffe"
     }
   ]
 }

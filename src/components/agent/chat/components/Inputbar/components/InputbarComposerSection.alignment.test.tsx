@@ -1,10 +1,17 @@
 import React from "react";
+import { stubSuggestionGeometry } from "./contextualSuggestions.testFixtures";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatInputAdapter } from "@/components/input-kit/adapters/types";
-import { ComposerController, type ComposerEditorHandle } from "@/components/input-kit";
-import { COMPOSER_EDITOR_SELECTOR, getComposerEditorText } from "@/components/input-kit/composerEditor.testUtils";
+import {
+  ComposerController,
+  type ComposerEditorHandle,
+} from "@/components/input-kit";
+import {
+  COMPOSER_EDITOR_SELECTOR,
+  getComposerEditorText,
+} from "@/components/input-kit/composerEditor.testUtils";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { agentZhCNResource } from "@/i18n/agentResources";
 import { createModelMetadata } from "@/components/input-kit/ModelSelector.testFixtures";
@@ -86,11 +93,7 @@ function translateResource(
 
 const defaultSkillSelection: SkillSelectionProps = {
   skills: [],
-  serviceSkills: [],
-  serviceSkillGroups: [],
-  activeSkill: null,
   isSkillsLoading: false,
-  onSelectInputCapability: vi.fn(),
 };
 
 function createInputAdapter(): ChatInputAdapter {
@@ -122,6 +125,7 @@ function createInputAdapter(): ChatInputAdapter {
 }
 
 beforeEach(async () => {
+  stubSuggestionGeometry();
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -205,7 +209,6 @@ describe("InputbarComposerSection empty draft", () => {
           workflowSummaryLabel=""
           inputAdapter={createInputAdapter()}
           composerController={composerController}
-          characters={[]}
           skillSelection={defaultSkillSelection}
           editorRef={editorRef}
           input=""
@@ -230,8 +233,12 @@ describe("InputbarComposerSection empty draft", () => {
     });
     mountedRoots.push({ root, container });
 
-    expect(getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR))).toBe("");
-    expect(editorRef.current?.getElement()).toBe(container.querySelector(COMPOSER_EDITOR_SELECTOR));
+    expect(
+      getComposerEditorText(container.querySelector(COMPOSER_EDITOR_SELECTOR)),
+    ).toBe("");
+    expect(editorRef.current?.getElement()).toBe(
+      container.querySelector(COMPOSER_EDITOR_SELECTOR),
+    );
     expect(
       container.querySelector('[data-testid="inputbar-dictation-toggle"]'),
     ).not.toBeNull();
@@ -245,10 +252,14 @@ describe("InputbarComposerSection empty draft", () => {
       '[data-testid="inputbar-meta-left"]',
     );
     expect(actionRow).not.toBeNull();
-    expect(actionRow?.className).not.toContain("floating-collapsed");
-    expect(actionRow?.parentElement?.className).not.toContain(
-      "floating-collapsed",
-    );
+    expect(
+      actionRow?.closest("[data-composer-leading-controls]"),
+    ).not.toBeNull();
+    expect(
+      modelSelector
+        ?.closest("[data-composer-trailing-controls]")
+        ?.querySelector('[data-testid="send-btn"]'),
+    ).not.toBeNull();
 
     const plusTrigger = container.querySelector(
       '[data-testid="inputbar-plus-trigger"]',
@@ -276,7 +287,9 @@ describe("InputbarComposerSection empty draft", () => {
       plusTrigger?.click();
     });
     expect(
-      document.body.querySelector('[data-testid="inputbar-plus-add-files"]'),
+      document.body.querySelector(
+        '[data-suggestion-key="context-action:pick-local-files"]',
+      ),
     ).not.toBeNull();
   });
 });

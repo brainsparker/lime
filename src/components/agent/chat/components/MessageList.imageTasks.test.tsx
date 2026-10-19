@@ -501,33 +501,6 @@ describe("MessageList image tasks", () => {
     expect(container.textContent).not.toContain("任务已提交");
   });
 
-  it("用户消息带已安装 Skill route 时应保留 @ Skill 标签展示", async () => {
-    const container = await renderZh([
-      {
-        id: "msg-user-installed-skill",
-        role: "user",
-        content: "帮我写一篇关于三国的故事",
-        timestamp: new Date(),
-        inputCapabilityRoute: {
-          kind: "installed_skill",
-          skillKey: "brand-product-knowledge-builder",
-          skillName: "brand-product-knowledge-builder",
-        },
-      } as Message,
-    ]);
-
-    const skillTag = container.querySelector(
-      '[data-testid="message-user-skill-tag"]',
-    );
-
-    expect(skillTag?.textContent).toContain("@");
-    expect(skillTag?.textContent).toContain("brand-product-knowledge-builder");
-    expect(
-      container.querySelector('[data-testid="message-user-command-tag"]'),
-    ).toBeNull();
-    expect(container.textContent).toContain("帮我写一篇关于三国的故事");
-  });
-
   it("用户消息仅通过 builtin command route 进入时，也应保留 @命令 标签展示", async () => {
     const container = await renderZh([
       {

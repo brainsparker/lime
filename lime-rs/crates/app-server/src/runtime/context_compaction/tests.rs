@@ -32,10 +32,15 @@ fn compaction_artifact_does_not_claim_memory_write() {
         payload: json!({"content": {"text": "hello"}}),
     }];
 
+    let invalid =
+        build_session_context_compaction(&session, &turns, &events, 2, "invalid", "summary", None)
+            .expect_err("producer must reject coverage outside its captured snapshot");
+    assert!(invalid.to_string().contains("prefix boundary"));
     let artifact = build_session_context_compaction(
         &session,
         &turns,
         &events,
+        0,
         "compact-fixture",
         "model summary",
         None,
@@ -62,6 +67,13 @@ fn compaction_artifact_does_not_claim_memory_write() {
     assert_eq!(artifact.artifact["policy"]["providerHistoryRewrite"], true);
     assert_eq!(artifact.artifact["policy"]["longTermMemoryWrite"], false);
     assert_eq!(artifact.summary, "model summary");
+    assert_eq!(artifact.covered_through_sequence, 0);
+    assert_eq!(artifact.artifact["coveredThroughSequence"], 0);
+    assert_eq!(artifact.artifact["schema"], "session_context_compaction.v3");
+    assert_eq!(
+        artifact.artifact["policy"]["providerTailMode"],
+        "after_covered_sequence"
+    );
 }
 
 #[test]
@@ -113,6 +125,7 @@ fn replacement_history_keeps_compacted_user_boundaries_before_summary() {
         &session,
         &turns,
         &events,
+        1,
         "compact-fixture",
         "model summary",
         None,
@@ -135,16 +148,6 @@ fn replacement_history_keeps_compacted_user_boundaries_before_summary() {
 
 #[test]
 fn replacement_history_keeps_the_most_recent_user_boundaries_within_budget() {
-    let turns = (1..=4)
-        .map(|index| AgentTurn {
-            turn_id: format!("turn-{index}"),
-            session_id: "sess-budget".to_string(),
-            thread_id: "thread-budget".to_string(),
-            status: AgentTurnStatus::Completed,
-            started_at: None,
-            completed_at: None,
-        })
-        .collect::<Vec<_>>();
     let events = (1..=3)
         .map(|index| AgentEvent {
             event_id: format!("evt-{index}"),
@@ -158,7 +161,7 @@ fn replacement_history_keeps_the_most_recent_user_boundaries_within_budget() {
         })
         .collect::<Vec<_>>();
 
-    let replacement = build_replacement_history("summary", &turns, &events, Some("turn-4"));
+    let replacement = build_replacement_history("summary", &events, 3);
 
     assert_eq!(replacement.len(), 3);
     assert_eq!(replacement[0]["turnId"], "turn-2");
@@ -201,6 +204,7 @@ fn compaction_windows_preserve_replacement_history_lineage() {
         &session,
         &turns,
         &[event],
+        0,
         "compact-fixture",
         "model summary",
         None,
@@ -220,6 +224,7 @@ fn compaction_windows_preserve_replacement_history_lineage() {
         &session,
         &turns,
         &[previous],
+        0,
         "compact-fixture",
         "model summary",
         None,
@@ -264,6 +269,7 @@ fn compaction_windows_preserve_replacement_history_lineage() {
         &session,
         &turns,
         &[imported],
+        0,
         "compact-fixture",
         "model summary",
         None,
@@ -319,6 +325,7 @@ fn malformed_compaction_lineage_fails_closed_instead_of_resetting_ids() {
         &session,
         &turns,
         &[incomplete],
+        0,
         "compact-fixture",
         "model summary",
         None,
@@ -343,13 +350,13 @@ fn fork_compaction_seed_rejects_mismatched_nested_marker_fields() {
         event_type: "context.compaction.completed".to_string(),
         timestamp: "now".to_string(),
         payload: json!({
-            "tailStartTurnId": "turn-tail",
+            "coveredThroughSequence": 0,
             "replacementHistory": [{"role": "user", "content": "summary"}],
             "windowNumber": 1,
             "firstWindowId": first_window_id,
             "windowId": window_id,
             "artifact": {
-                "tailStartTurnId": "turn-other",
+                "coveredThroughSequence": 1,
                 "replacementHistory": [{"role": "user", "content": "summary"}],
                 "windowNumber": 1,
                 "firstWindowId": first_window_id,
@@ -363,7 +370,7 @@ fn fork_compaction_seed_rejects_mismatched_nested_marker_fields() {
         error,
         RuntimeCoreError::Backend(message)
             if message.contains("evt-mismatched-fork-marker")
-                && message.contains("tailStartTurnId disagree")
+                && message.contains("coveredThroughSequence")
     ));
 }
 
@@ -380,13 +387,13 @@ fn fork_compaction_seed_rejects_partial_nested_marker_fields() {
         event_type: "context.compaction.completed".to_string(),
         timestamp: "now".to_string(),
         payload: json!({
-            "tailStartTurnId": "turn-tail",
+            "coveredThroughSequence": 0,
             "replacementHistory": [{"role": "user", "content": "summary"}],
             "windowNumber": 1,
             "firstWindowId": first_window_id,
             "windowId": window_id,
             "artifact": {
-                "tailStartTurnId": "turn-tail",
+                "coveredThroughSequence": 0,
                 "replacementHistory": [{"role": "user", "content": "summary"}],
                 "windowNumber": 1,
                 "firstWindowId": first_window_id,

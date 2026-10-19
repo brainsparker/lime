@@ -22,9 +22,10 @@ mod step;
 pub use handle::RuntimeSessionHandle;
 pub use input_queue::{
     RuntimeSessionClosureTask, RuntimeSessionInput, RuntimeSessionInputActivity,
-    RuntimeSessionInputHandle, RuntimeSessionMailboxDeliveryPhase, RuntimeSessionMailboxLoader,
-    RuntimeSessionPendingResponse, RuntimeSessionResponseKind, RuntimeSessionTask,
-    RuntimeSessionTaskContext, RuntimeSessionTaskKind, RuntimeSessionTaskOutcome,
+    RuntimeSessionInputCommit, RuntimeSessionInputHandle, RuntimeSessionMailboxDeliveryPhase,
+    RuntimeSessionMailboxLoader, RuntimeSessionPendingResponse, RuntimeSessionResponseKind,
+    RuntimeSessionTask, RuntimeSessionTaskContext, RuntimeSessionTaskKind,
+    RuntimeSessionTaskOutcome,
 };
 pub use inter_agent::{
     RuntimeSessionInterAgentDeliveryMode, RuntimeSessionInterAgentInput,
@@ -145,6 +146,7 @@ pub enum RuntimeSessionOperation {
     UserInput {
         expected_turn_id: Option<String>,
         input: Vec<RuntimeSessionInput>,
+        before_delivery: Option<RuntimeSessionInputCommit>,
         task: Option<Arc<dyn RuntimeSessionTask>>,
         queue_if_busy: bool,
     },
@@ -221,12 +223,14 @@ impl fmt::Debug for RuntimeSessionOperation {
             Self::UserInput {
                 expected_turn_id,
                 input,
+                before_delivery,
                 task,
                 queue_if_busy,
             } => f
                 .debug_struct("UserInput")
                 .field("expected_turn_id", expected_turn_id)
                 .field("input_count", &input.len())
+                .field("durable_commit", &before_delivery.is_some())
                 .field(
                     "candidate_turn_id",
                     &task.as_ref().map(|task| task.turn_id()),
@@ -380,5 +384,7 @@ impl std::error::Error for RuntimeSessionLoopError {}
 use actor::RuntimeSessionActor;
 #[cfg(test)]
 mod activity_tests;
+#[cfg(test)]
+mod input_commit_tests;
 #[cfg(test)]
 mod tests;

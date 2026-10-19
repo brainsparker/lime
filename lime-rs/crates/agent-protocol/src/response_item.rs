@@ -9,18 +9,29 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+/// Assistant message phase; absent phase remains unknown for providers that omit it.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum MessagePhase {
     Commentary,
+    PartialAnswer,
     FinalAnswer,
 }
 
 impl MessagePhase {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Commentary => "commentary",
+            Self::PartialAnswer => "partial_answer",
+            Self::FinalAnswer => "final_answer",
+        }
+    }
+
     pub fn from_wire(value: &str) -> Option<Self> {
-        match value.trim() {
+        match value {
             "commentary" => Some(Self::Commentary),
-            "final" | "finalAnswer" | "final_answer" => Some(Self::FinalAnswer),
+            "partial_answer" => Some(Self::PartialAnswer),
+            "final_answer" => Some(Self::FinalAnswer),
             _ => None,
         }
     }

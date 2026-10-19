@@ -136,7 +136,7 @@ describe.each(["pdf", "docx", "xlsx"])("%s 的两条真实组件分发", (format
       ).toBeNull();
       expect(
         container.querySelector(
-          "[data-testid=canvas-workbench-preview-mode-tabs]",
+          "[data-testid=file-preview-mode-toggle]",
         ),
       ).toBeNull();
     },

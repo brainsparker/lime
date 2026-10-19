@@ -6,6 +6,20 @@ import {
   type Dispatch,
   type SetStateAction,
 } from "react";
+import {
+  activeSidePanelTab,
+  openSidePanelTab,
+  closeSidePanelTab,
+  selectSidePanelTab,
+  pinSidePanelTab,
+  type FileSelectionOptions,
+  type ThreadSidePanelTabs,
+} from "./right-surface/threadSidePanelTabs";
+import { openWorkspaceFile } from "./right-surface/openWorkspaceFile";
+import { openBackgroundTerminal } from "./right-surface/openBackgroundTerminal";
+import type { AgentThreadItem } from "../types";
+import type { ThreadSidePanelTab } from "./right-surface/threadSidePanelTabs";
+import type { FileEditorDraft } from "./text-file-editor/FileEditorController";
 import type { ReviewThreadSidePanelTarget } from "./ReviewThreadSidePanelTab";
 import {
   canOpenWorkspaceRightSurface,
@@ -23,8 +37,7 @@ export interface WorkspaceRightSurfaceOwner {
 
 interface RightSurfaceLocalState {
   owner: WorkspaceRightSurfaceOwner;
-  manualRightSurface: WorkspaceRightSurfaceKind | null;
-  openedRightSurfaces: readonly WorkspaceRightSurfaceKind[];
+  sidePanelTabs: ThreadSidePanelTabs;
   activeFilesRightSurfaceTarget: ReviewThreadSidePanelTarget | null;
   activeArticleWorkspace: WorkspaceArticleWorkspace | null;
   rightSurfaceBrowserTitle: string | null;
@@ -37,8 +50,7 @@ interface RightSurfaceLocalState {
 function emptyState(owner: WorkspaceRightSurfaceOwner): RightSurfaceLocalState {
   return {
     owner,
-    manualRightSurface: null,
-    openedRightSurfaces: [],
+    sidePanelTabs: { tabs: [], activeTabId: null, open: false },
     activeFilesRightSurfaceTarget: null,
     activeArticleWorkspace: null,
     rightSurfaceBrowserTitle: null,
@@ -67,13 +79,31 @@ function stateForOwner(
   return canAdopt ? { ...current, owner } : emptyState(owner);
 }
 
-function appendSurface(
-  current: readonly WorkspaceRightSurfaceKind[],
+function manualSurface(
+  current: RightSurfaceLocalState,
+): WorkspaceRightSurfaceKind | null {
+  return current.sidePanelTabs.open
+    ? (activeSidePanelTab(current.sidePanelTabs)?.kind ?? null)
+    : null;
+}
+
+function openSurface(
+  current: RightSurfaceLocalState,
   kind: WorkspaceRightSurfaceKind,
-): readonly WorkspaceRightSurfaceKind[] {
-  return canOpenWorkspaceRightSurface(kind, "user") && !current.includes(kind)
-    ? [...current, kind]
-    : current;
+  replaceTabId?: string,
+): RightSurfaceLocalState {
+  if (!canOpenWorkspaceRightSurface(kind, "user")) return current;
+  const sidePanelTabs =
+    kind === "files"
+      ? openWorkspaceFile(current.sidePanelTabs, null, { replaceTabId })
+      : openSidePanelTab(
+          current.sidePanelTabs,
+          { tabId: crypto.randomUUID(), kind },
+          replaceTabId,
+        );
+  return sidePanelTabs === current.sidePanelTabs
+    ? current
+    : { ...current, sidePanelTabs };
 }
 
 export function useWorkspaceRightSurfaceLocalStateRuntime({
@@ -91,8 +121,11 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
     ownerRef.current = { key, version: ownerRef.current.version + 1 };
   }
   const version = ownerRef.current.version;
+  const fileDrafts = useRef(new WeakMap<ThreadSidePanelTab, FileEditorDraft>());
   const [stored, setStored] = useState(() => emptyState(owner));
   const state = stateForOwner(stored, owner);
+  const stateRef = useRef(state);
+  stateRef.current = state;
 
   useEffect(() => {
     setStored((current) => stateForOwner(current, owner));
@@ -128,20 +161,28 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
           if (current[field] === next) {
             return current;
           }
-          return {
-            ...current,
-            [field]: next,
-            openedRightSurfaces:
-              field === "manualRightSurface" && next
-                ? appendSurface(
-                    current.openedRightSurfaces,
-                    next as WorkspaceRightSurfaceKind,
-                  )
-                : current.openedRightSurfaces,
-          };
+          return { ...current, [field]: next };
         });
       };
     return {
+      getFileDraft: (tab: ThreadSidePanelTab): FileEditorDraft | null =>
+        ownerRef.current.version === version &&
+        stateRef.current.sidePanelTabs.tabs.includes(tab)
+          ? (fileDrafts.current.get(tab) ?? null)
+          : null,
+      setFileDraft: (
+        tab: ThreadSidePanelTab,
+        draft: FileEditorDraft | null,
+      ) => {
+        if (
+          ownerRef.current.version !== version ||
+          tab.kind !== "files" ||
+          !stateRef.current.sidePanelTabs.tabs.includes(tab)
+        )
+          return;
+        if (draft) fileDrafts.current.set(tab, draft);
+        else fileDrafts.current.delete(tab);
+      },
       setActiveArticleWorkspace: setter("activeArticleWorkspace"),
       setActiveBrowserRightSurfaceIntent: setter(
         "activeBrowserRightSurfaceIntent",
@@ -154,60 +195,118 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
       setDismissedPluginSurfaceContainerIds: setter(
         "dismissedPluginSurfaceContainerIds",
       ),
-      setManualRightSurface: setter("manualRightSurface"),
+      setManualRightSurface: (
+        value: SetStateAction<WorkspaceRightSurfaceKind | null>,
+      ) =>
+        update((current) => {
+          const next =
+            typeof value === "function" ? value(manualSurface(current)) : value;
+          return next
+            ? openSurface(current, next)
+            : {
+                ...current,
+                sidePanelTabs: { ...current.sidePanelTabs, open: false },
+              };
+        }),
+      canReplaceSidePanelTab: (tabId: string) =>
+        ownerRef.current.version === version &&
+        stateRef.current.sidePanelTabs.tabs.some(
+          (tab) => tab.tabId === tabId && tab.kind === "workspace-new-tab",
+        ),
+      openSidePanelTab: (
+        kind: WorkspaceRightSurfaceKind,
+        replaceTabId?: string,
+      ) => update((current) => openSurface(current, kind, replaceTabId)),
+      openWorkspaceFile: (
+        path: string,
+        sourceTab: ThreadSidePanelTab,
+        options?: FileSelectionOptions,
+      ) =>
+        update((current) => {
+          const sidePanelTabs = openWorkspaceFile(current.sidePanelTabs, path, {
+            ...options,
+            sourceTab,
+          });
+          return sidePanelTabs === current.sidePanelTabs
+            ? current
+            : { ...current, sidePanelTabs };
+        }),
+      pinSidePanelTab: (tabId: string) =>
+        update((current) => {
+          const sidePanelTabs = pinSidePanelTab(current.sidePanelTabs, tabId);
+          return sidePanelTabs === current.sidePanelTabs
+            ? current
+            : { ...current, sidePanelTabs };
+        }),
+      openBackgroundTerminal: (item: AgentThreadItem) =>
+        update((current) => {
+          if (item.thread_id !== current.owner.threadId) return current;
+          const sidePanelTabs = openBackgroundTerminal(
+            current.sidePanelTabs,
+            item,
+          );
+          return sidePanelTabs === current.sidePanelTabs
+            ? current
+            : { ...current, sidePanelTabs };
+        }),
+      selectSidePanelTab: (tabId: string) =>
+        update((current) => ({
+          ...current,
+          sidePanelTabs: selectSidePanelTab(current.sidePanelTabs, tabId),
+        })),
+      closeSidePanelTab: (tabId: string) =>
+        update((current) => ({
+          ...current,
+          sidePanelTabs: closeSidePanelTab(current.sidePanelTabs, tabId),
+        })),
+      showSidePanel: () =>
+        update((current) =>
+          current.sidePanelTabs.tabs.length
+            ? {
+                ...current,
+                sidePanelTabs: { ...current.sidePanelTabs, open: true },
+              }
+            : openSurface(current, "workspace-new-tab"),
+        ),
+
       setRightSurfaceBrowserTitle: setter("rightSurfaceBrowserTitle"),
       rememberRightSurface: (kind: WorkspaceRightSurfaceKind) =>
-        update((current) => {
-          const opened = appendSurface(current.openedRightSurfaces, kind);
-          return opened === current.openedRightSurfaces
+        update((current) =>
+          current.sidePanelTabs.tabs.some((tab) => tab.kind === kind)
             ? current
-            : { ...current, openedRightSurfaces: opened };
-        }),
+            : openSurface(current, kind),
+        ),
       closeRightSurface: (kind: WorkspaceRightSurfaceKind) =>
         update((current) => {
-          const opened = current.openedRightSurfaces.filter(
-            (surface) => surface !== kind,
+          const tabs = current.sidePanelTabs.tabs.filter(
+            (tab) => tab.kind === kind,
           );
-          if (
-            opened.length === current.openedRightSurfaces.length &&
-            current.manualRightSurface !== kind
-          ) {
-            return current;
-          }
           return {
             ...current,
-            openedRightSurfaces: opened,
-            manualRightSurface:
-              current.manualRightSurface === kind
-                ? (opened.at(-1) ?? null)
-                : current.manualRightSurface,
+            sidePanelTabs: tabs.reduce(
+              (state, tab) => closeSidePanelTab(state, tab.tabId),
+              current.sidePanelTabs,
+            ),
           };
         }),
       pruneRightSurfaces: (available: ReadonlySet<WorkspaceRightSurfaceKind>) =>
         update((current) => {
-          const opened = current.openedRightSurfaces.filter((kind) =>
-            available.has(kind),
+          const removed = current.sidePanelTabs.tabs.filter(
+            (tab) => !available.has(tab.kind),
           );
-          const manual = current.manualRightSurface;
-          if (
-            opened.length === current.openedRightSurfaces.length &&
-            (!manual || available.has(manual))
-          ) {
-            return current;
-          }
+          if (!removed.length) return current;
           return {
             ...current,
-            openedRightSurfaces: opened,
-            manualRightSurface:
-              manual && !available.has(manual)
-                ? (opened.at(-1) ?? null)
-                : manual,
+            sidePanelTabs: removed.reduce(
+              (state, tab) => closeSidePanelTab(state, tab.tabId),
+              current.sidePanelTabs,
+            ),
           };
         }),
       clearActiveRightSurfaceTargets: () =>
         update((current) => ({
           ...current,
-          manualRightSurface: null,
+          sidePanelTabs: { ...current.sidePanelTabs, open: false },
           activeFilesRightSurfaceTarget: null,
           activeArticleWorkspace: null,
         })),
@@ -215,18 +314,20 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
         articleWorkspace: WorkspaceArticleWorkspace,
       ) =>
         update((current) => ({
-          ...current,
+          ...openSurface(current, "articleWorkspace"),
           activeArticleWorkspace: articleWorkspace,
-          manualRightSurface: "articleWorkspace",
-          openedRightSurfaces: appendSurface(
-            current.openedRightSurfaces,
-            "articleWorkspace",
-          ),
         })),
     };
   }, [owner, version]);
 
-  return { ...state, ...actions };
+  return {
+    ...state,
+    ...actions,
+    manualRightSurface: manualSurface(state),
+    openedRightSurfaces: [
+      ...new Set(state.sidePanelTabs.tabs.map((tab) => tab.kind)),
+    ],
+  };
 }
 
 export type WorkspaceRightSurfaceLocalStateRuntime = ReturnType<

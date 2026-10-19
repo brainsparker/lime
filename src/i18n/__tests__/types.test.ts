@@ -240,8 +240,7 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.home.composer.pathReferenceFallbackPrompt", {
     ns: "agent",
   });
-  i18n.t("agentChat.home.composer.fileManager.open", { ns: "agent" });
-  i18n.t("agentChat.home.composer.fileManager.close", { ns: "agent" });
+
   i18n.t("agentChat.inputbar.core.dictation.recording", {
     ns: "agent",
     duration: "0:12",
@@ -274,7 +273,6 @@ function assertI18nKeyTypes() {
     ns: "agent",
     index: 1,
   });
-  i18n.t("agentChat.inputbar.core.image.add", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.containerLabel", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.localFolder", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.localFile", { ns: "agent" });
@@ -313,41 +311,6 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.inputbar.controller.toast.systemPathDropUnsupported", {
     ns: "agent",
   });
-  i18n.t(
-    "agentChat.inputbar.controller.curatedTask.reviewSuggestionPrefillHint",
-    { ns: "agent" },
-  );
-  i18n.t("agentChat.inputbar.composer.advancedSettings.label", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.composer.advancedSettings.expand", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.composer.advancedSettings.collapse", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.composer.currentModel.label", { ns: "agent" });
-  i18n.t("agentChat.inputbar.composer.currentModel.title", {
-    ns: "agent",
-    model: "OpenAI / gpt-4.1",
-  });
-  i18n.t("agentChat.inputbar.composer.fileManager.open", { ns: "agent" });
-  i18n.t("agentChat.inputbar.composer.fileManager.close", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.open", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.addFiles", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.attachKnowledge", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.planMode", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.objective", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.plugins", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.skills", { ns: "agent" });
-  i18n.t("agentChat.inputbar.plusMenu.unavailable", { ns: "agent" });
-  i18n.t("agentChat.inputbar.pluginChip.empty", { ns: "agent" });
-  i18n.t("agentChat.inputbar.pluginChip.remove", {
-    ns: "agent",
-    name: "内容工厂",
-  });
-  i18n.t("agentChat.inputbar.pluginChip.selectorTitle", { ns: "agent" });
-  i18n.t("agentChat.inputbar.pluginChip.unavailable", { ns: "agent" });
   i18n.t("agentChat.inputbar.composer.workspacePlaceholder.waiting", {
     ns: "agent",
   });
@@ -357,14 +320,9 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.inputbar.composer.workspacePlaceholder.default", {
     ns: "agent",
   });
-  i18n.t("agentChat.inputbar.tools.task.label", { ns: "agent" });
-  i18n.t("agentChat.inputbar.tools.task.title.enabled", { ns: "agent" });
-  i18n.t("agentChat.inputbar.tools.task.title.disabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.task.toast.enabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.task.toast.disabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.subagent.label", { ns: "agent" });
-  i18n.t("agentChat.inputbar.tools.subagent.title.enabled", { ns: "agent" });
-  i18n.t("agentChat.inputbar.tools.subagent.title.disabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.subagent.toast.enabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.subagent.toast.disabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.fullscreen.toast.entered", {
@@ -434,14 +392,20 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.inputbar.workflow.quickAction.nextStep.label", {
     ns: "agent",
   });
+  i18n.t("agentChat.inputbar.suggestions.label", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.addFiles", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.add", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.plugins", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.skills", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.files", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.noResults", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.loading", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.error", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.planMode", { ns: "agent" });
+  i18n.t("agentChat.inputbar.suggestions.goal", { ns: "agent" });
   i18n.t("agentChat.home.hero.slogan", { ns: "agent" });
-  i18n.t("agentChat.home.toast.imageReadFailed", {
-    ns: "agent",
-    fileName: "cover.png",
-  });
-  i18n.t("agentChat.home.curatedTask.reviewSuggestionPrefillHint", {
-    ns: "agent",
-  });
+
+  i18n.t("agentChat.inputbar.attachments.failed", { ns: "agent" });
   i18n.t("skills.skillCard.source.builtin", { ns: "agent" });
   i18n.t("skills.skillCard.action.install", { ns: "agent" });
   i18n.t("skills.skillCard.compliance.standard", { ns: "agent" });

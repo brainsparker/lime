@@ -14,6 +14,7 @@ describe("agentMessagePhase", () => {
     expect(shouldUseAgentMessageAsFinalText("")).toBe(true);
     expect(shouldUseAgentMessageAsFinalText(" final_answer ")).toBe(true);
     expect(shouldUseAgentMessageAsFinalText("commentary")).toBe(false);
+    expect(shouldUseAgentMessageAsFinalText("partial_answer")).toBe(false);
     expect(shouldUseAgentMessageAsFinalText("analysis")).toBe(false);
   });
 
@@ -52,6 +53,21 @@ describe("agentMessagePhase", () => {
     ]);
 
     expect([...selected]).toEqual(["assistant-final"]);
+  });
+
+  it("partial_answer 完成后仍不能充当最终正文", () => {
+    expect(isAgentMessageFinalAnswerPhase("partial_answer")).toBe(false);
+    expect([
+      ...resolveFinalAgentMessageItemIds([
+        {
+          id: "partial",
+          type: "agent_message",
+          turn_id: "turn-1",
+          phase: "partial_answer",
+          text: "部分答案",
+        },
+      ]),
+    ]).toEqual([]);
   });
 
   it("应把 content/message 字段也纳入最终正文候选", () => {
