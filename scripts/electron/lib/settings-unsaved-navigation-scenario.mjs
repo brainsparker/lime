@@ -65,7 +65,7 @@ export async function runSettingsUnsavedNavigationScenario({
     const trigger = {
       section: page.getByTestId("settings-sidebar-tab-about"),
       back: page.getByTestId("settings-back-button"),
-      home: page.getByTestId("app-sidebar-nav-home-general"),
+      home: page.getByTestId("app-sidebar-nav-new-chat"),
       root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
     }[target];
     await trigger.click();
@@ -126,7 +126,7 @@ export async function runSettingsUnsavedNavigationScenario({
             .getAttribute("aria-current"),
           "page",
         );
-        await page.getByTestId("app-sidebar-nav-home-general").click();
+        await page.getByTestId("app-sidebar-nav-new-chat").click();
         await waitForHome();
       }
       await returnToSession();

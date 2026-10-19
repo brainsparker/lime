@@ -10,6 +10,5 @@
   "agentChat.home.composer.pathReferenceFallbackPrompt": "これらのファイルまたはフォルダーを確認してください。",
   "agentChat.home.hero.eyebrow": "制作",
   "agentChat.home.hero.slogan": "Limeに聞けば、ひらめきが動き出す",
-  "agentChat.home.hero.description": "目標を一言伝えれば、Lime が続きの作業を進めます。",
-  "agentChat.home.curatedTask.reviewSuggestionPrefillHint": "直近の判断に基づき、より適した結果テンプレートへ切り替えました。生成に進む前に引き続き編集できます。"
+  "agentChat.home.hero.description": "目標を一言伝えれば、Lime が続きの作業を進めます。"
 }

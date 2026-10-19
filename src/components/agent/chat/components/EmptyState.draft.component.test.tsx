@@ -136,7 +136,7 @@ describe("EmptyState draft current integration", () => {
 
     expectEmptyStateSend(onSend, {
       images: [image],
-      textOverride: originalDraft.text,
+      textOverride: "继续生成提纲 [$起草](draft/SKILL.md)",
       sendOptions: expect.objectContaining({
         inputRestoreDraft: expect.objectContaining({
           ...originalDraft,

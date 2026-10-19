@@ -117,6 +117,7 @@ function renderLayer(
         interactions={interactions}
         threadId="thread-1"
         onRespond={onRespond}
+        onDismiss={vi.fn(async () => ({ accepted: true }))}
       />,
     );
   });

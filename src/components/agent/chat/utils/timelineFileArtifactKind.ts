@@ -36,17 +36,12 @@ function isReadMarker(value: string | null): boolean {
   );
 }
 
-export function isTimelineReadOnlyFileArtifact(
-  item: AgentThreadItem,
-): boolean {
+export function isTimelineReadOnlyFileArtifact(item: AgentThreadItem): boolean {
   if (item.type !== "file_artifact") {
     return false;
   }
 
   const metadata = asRecord(item.metadata);
-  const sourceProvenance =
-    asRecord(metadata?.source_provenance) ||
-    asRecord(metadata?.sourceProvenance);
   const source = item.source.trim();
   const markers = [
     source,
@@ -54,14 +49,6 @@ export function isTimelineReadOnlyFileArtifact(
       "source",
       "eventClass",
       "event_class",
-      "operation",
-      "action",
-      "toolName",
-      "tool_name",
-      "sourceEventType",
-      "source_event_type",
-    ]),
-    readString(sourceProvenance, [
       "operation",
       "action",
       "toolName",

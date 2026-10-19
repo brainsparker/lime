@@ -279,7 +279,7 @@ fn append_runtime_events_to_stored_session(
         } else {
             output_refs::normalize_large_output_payload(&event_type, payload)
         };
-        let event_timestamp = runtime_event_timestamp(event_class, &normalized.payload);
+        let event_timestamp = timestamp();
         let mut event = AgentEvent {
             event_id: new_id("evt"),
             sequence: stored
@@ -787,36 +787,6 @@ fn is_turn_terminal_event_class(event_class: &str) -> bool {
         event_class,
         "turn.completed" | "turn.failed" | "turn.canceled"
     )
-}
-
-fn runtime_event_timestamp(event_class: &str, payload: &Value) -> String {
-    let is_imported_codex_event = payload.get("imported").and_then(Value::as_bool) == Some(true)
-        && payload
-            .get("sourceClient")
-            .or_else(|| payload.get("source_client"))
-            .and_then(Value::as_str)
-            == Some("codex");
-    if is_imported_codex_event && event_class == "turn.started" {
-        if let Some(started_at) = payload
-            .get("startedAt")
-            .or_else(|| payload.get("started_at"))
-            .and_then(Value::as_str)
-            .filter(|value| chrono::DateTime::parse_from_rfc3339(value).is_ok())
-        {
-            return started_at.to_string();
-        }
-    }
-    if is_imported_codex_event && is_turn_terminal_event_class(event_class) {
-        if let Some(completed_at) = payload
-            .get("completedAt")
-            .or_else(|| payload.get("completed_at"))
-            .and_then(Value::as_str)
-            .filter(|value| chrono::DateTime::parse_from_rfc3339(value).is_ok())
-        {
-            return completed_at.to_string();
-        }
-    }
-    timestamp()
 }
 
 fn is_terminal_turn(stored: &StoredSession, turn_id: Option<&str>) -> bool {

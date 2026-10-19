@@ -3,7 +3,9 @@ use std::time::Duration;
 
 /// Coordinate authenticated remote mutations across App Server processes.
 /// The ordinary store lock is acquired later and owns staging/cache/config changes.
-pub(in crate::local_data_source::plugin_catalog) async fn acquire(store: &PluginStore) -> Result<fs::File, String> {
+pub(in crate::local_data_source::plugin_catalog) async fn acquire(
+    store: &PluginStore,
+) -> Result<fs::File, String> {
     let root = store.root.clone();
     let file = tokio::task::spawn_blocking(move || {
         fs::create_dir_all(&root).map_err(io_error("创建 Plugin remote gate 失败"))?;

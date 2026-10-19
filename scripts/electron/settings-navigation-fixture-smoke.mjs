@@ -681,7 +681,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
     await openSettings(page, options);
     await page.getByTestId("settings-back-button").click();
     await surface(page, options, sessionId);
-    await page.getByTestId("app-sidebar-nav-home-general").click();
+    await page.getByTestId("app-sidebar-nav-new-chat").click();
     const home = await surface(page, options, null);
     assert.equal(home.home, true);
     assert.equal(home.settings, false);

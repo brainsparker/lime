@@ -1,8 +1,38 @@
 use super::super::*;
+use crate::MemoryStageTwoProvider;
+use app_server_protocol::{MemoryStatusParams, MemoryStatusResponse};
 use async_trait::async_trait;
 
 #[async_trait]
 impl MemoryAppDataSource for LocalAppDataSource {
+    async fn run_memory_stage1(
+        &self,
+        root: MemoryStoreRootParams,
+        version: MemoryStageOneVersion,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageOneProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        self.memory_backend
+            .run_stage1(root, version, route, provider)
+            .await
+    }
+
+    async fn run_memory_stage2(
+        &self,
+        root: MemoryStoreRootParams,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        self.memory_backend.run_stage2(root, route, provider).await
+    }
+
+    async fn memory_status(
+        &self,
+        params: MemoryStatusParams,
+    ) -> Result<MemoryStatusResponse, RuntimeCoreError> {
+        self.memory_backend.status(params).await
+    }
+
     async fn read_project_memory(
         &self,
         params: ProjectMemoryReadParams,
@@ -52,8 +82,12 @@ impl MemoryAppDataSource for LocalAppDataSource {
     async fn consolidate_memory_store(
         &self,
         params: MemoryStoreConsolidateParams,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
-        self.memory_backend.consolidate(params).await
+        self.memory_backend
+            .consolidate(params, route, provider)
+            .await
     }
 
     async fn list_memory_store_review_notes(

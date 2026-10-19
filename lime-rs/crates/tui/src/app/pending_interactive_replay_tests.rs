@@ -174,7 +174,6 @@ fn item_started_clears_command_and_file_approval_by_item_id() {
         started_at_ms: 0,
         item: ThreadItem::CommandExecution {
             id: "exec-item".to_string(),
-            metadata: None,
             plugin_id: None,
             script_path: None,
             command: "echo ok".to_string(),
@@ -198,7 +197,6 @@ fn item_started_clears_command_and_file_approval_by_item_id() {
         started_at_ms: 0,
         item: ThreadItem::FileChange {
             id: "patch-item".to_string(),
-            metadata: None,
             changes: Vec::new(),
             status: app_server_protocol::protocol::v2::PatchApplyStatus::InProgress,
         },
@@ -349,7 +347,6 @@ fn item_start_in_another_turn_cannot_clear_command_or_file_approval() {
     let items = [
         ThreadItem::CommandExecution {
             id: "item".into(),
-            metadata: None,
             plugin_id: None,
             script_path: None,
             command: "echo ok".into(),
@@ -365,7 +362,6 @@ fn item_start_in_another_turn_cannot_clear_command_or_file_approval() {
         },
         ThreadItem::FileChange {
             id: "item".into(),
-            metadata: None,
             changes: Vec::new(),
             status: app_server_protocol::protocol::v2::PatchApplyStatus::InProgress,
         },

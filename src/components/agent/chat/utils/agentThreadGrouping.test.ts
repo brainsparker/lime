@@ -501,41 +501,6 @@ describe("agentThreadGrouping", () => {
     );
   });
 
-  it("本地历史 provenance 不应改变普通过程分组", () => {
-    const importedMetadata = {
-      imported: true,
-      imported_synthetic: true,
-      source_client: "codex",
-    };
-    const items: AgentThreadItem[] = [
-      {
-        ...createBaseItem("cmd-imported", 1),
-        type: "command_execution",
-        command: "npm test",
-        cwd: "/workspace/imported-codex",
-        aggregated_output: "ok",
-        metadata: importedMetadata,
-      },
-      {
-        ...createBaseItem("search-imported", 2),
-        type: "web_search",
-        action: "search_query",
-        output: '"search_query"',
-        metadata: importedMetadata,
-      },
-    ];
-
-    const model = buildAgentThreadDisplayModel(items);
-
-    expect(model.orderedBlocks).toHaveLength(1);
-    expect(model.orderedBlocks[0]?.title).toBe("执行过程");
-    expect(model.orderedBlocks[0]?.countLabel).toBe("2 步");
-    expect(model.orderedBlocks[0]?.rawDetailLabel).toBe("查看执行过程");
-    expect(model.orderedBlocks[0]?.defaultExpanded).toBe(false);
-    expect(model.orderedBlocks[0]?.forceExpanded).toBeUndefined();
-    expect(JSON.stringify(model.orderedBlocks[0])).toContain("npm test");
-  });
-
   it("workspace patch 宿主工具 WebSearch 也应按调用边界拆分", () => {
     const items: AgentThreadItem[] = [
       {
@@ -573,52 +538,45 @@ describe("agentThreadGrouping", () => {
     expect(model.orderedBlocks[1]?.title).toBe("已搜索网页：golang 并发实践");
   });
 
-  it("本地历史混合推理过程应复用普通过程分组", () => {
-    const importedMetadata = {
-      imported: true,
-      imported_synthetic: true,
-      source_client: "codex",
-    };
+  it("混合推理与工具后出现补丁时应保留独立文件变更块", () => {
     const items: AgentThreadItem[] = [
       {
-        ...createBaseItem("assistant-imported-progress", 1),
+        ...createBaseItem("assistant-canonical-progress", 1),
         type: "agent_message",
         text: "我会先运行测试并检查失败。",
-        metadata: importedMetadata,
       },
       {
-        ...createBaseItem("reasoning-imported", 2),
+        ...createBaseItem("reasoning-canonical", 2),
         type: "reasoning",
         text: "需要先确认测试失败点。",
-        metadata: importedMetadata,
       },
       {
-        ...createBaseItem("cmd-imported", 3),
+        ...createBaseItem("cmd-canonical", 3),
         type: "command_execution",
         command: "npm test",
-        cwd: "/workspace/imported-codex",
+        cwd: "/workspace/canonical-codex",
         aggregated_output: "ok",
-        metadata: importedMetadata,
       },
       {
-        ...createBaseItem("search-imported", 5),
+        ...createBaseItem("search-canonical", 5),
         type: "web_search",
         action: "search_query",
         output: '"search_query"',
-        metadata: importedMetadata,
       },
       {
-        ...createBaseItem("patch-imported", 6),
+        ...createBaseItem("patch-canonical", 6),
         type: "patch",
-        text: "Patch changed /workspace/imported-codex/src/lib.rs",
-        paths: ["/workspace/imported-codex/src/lib.rs"],
-        metadata: importedMetadata,
+        text: "Patch changed /workspace/canonical-codex/src/lib.rs",
+        paths: ["/workspace/canonical-codex/src/lib.rs"],
       },
     ];
 
     const model = buildAgentThreadDisplayModel(items);
 
-    expect(model.orderedBlocks).toHaveLength(1);
+    expect(model.orderedBlocks.map((block) => block.kind)).toEqual([
+      "process",
+      "artifact",
+    ]);
     expect(model.orderedBlocks[0]?.title).toBe("执行过程");
     expect(model.orderedBlocks[0]?.defaultExpanded).toBe(false);
     expect(model.orderedBlocks[0]?.forceExpanded).toBeUndefined();
@@ -626,74 +584,6 @@ describe("agentThreadGrouping", () => {
     expect(JSON.stringify(model.orderedBlocks[0])).toContain(
       "需要先确认测试失败点",
     );
-  });
-
-  it("本地历史 provenance 不应触发 imported-only 本地化分支", () => {
-    const importedMetadata = {
-      imported: true,
-      imported_synthetic: true,
-      source_client: "codex",
-    };
-    const items: AgentThreadItem[] = [
-      {
-        ...createBaseItem("reasoning-imported", 1),
-        type: "reasoning",
-        text: "Need to inspect the repo",
-        metadata: importedMetadata,
-      },
-      {
-        ...createBaseItem("cmd-imported", 2),
-        type: "command_execution",
-        command: "npm test",
-        cwd: "/workspace/imported-codex",
-        aggregated_output: "ok",
-        metadata: importedMetadata,
-      },
-    ];
-
-    const model = buildAgentThreadDisplayModel(items);
-
-    expect(model.orderedBlocks[0]?.title).toBe("执行过程");
-    expect(model.orderedBlocks[0]?.countLabel).toBe("2 步");
-    expect(model.orderedBlocks[0]?.rawDetailLabel).toBe("查看执行过程");
-  });
-
-  it("无翻译回调时本地历史也应使用普通过程语义", () => {
-    const importedMetadata = {
-      imported: true,
-      imported_synthetic: true,
-      source_client: "codex",
-    };
-    const items: AgentThreadItem[] = [
-      {
-        ...createBaseItem("reasoning-imported", 1),
-        type: "reasoning",
-        text: "Need to inspect the repo",
-        metadata: importedMetadata,
-      },
-      {
-        ...createBaseItem("cmd-imported", 2),
-        type: "command_execution",
-        command: "npm test",
-        cwd: "/workspace/imported-codex",
-        aggregated_output: "ok",
-        metadata: importedMetadata,
-      },
-      {
-        ...createBaseItem("patch-imported", 3),
-        type: "patch",
-        text: "Patch changed /workspace/imported-codex/src/lib.rs",
-        paths: ["/workspace/imported-codex/src/lib.rs"],
-        metadata: importedMetadata,
-      },
-    ];
-
-    const model = buildAgentThreadDisplayModel(items);
-
-    expect(model.orderedBlocks[0]?.title).toBe("执行过程");
-    expect(model.orderedBlocks[0]?.countLabel).toBe("3 步");
-    expect(model.orderedBlocks[0]?.rawDetailLabel).toBe("查看执行过程");
-    expect(JSON.stringify(model.orderedBlocks[0])).toContain("npm test");
   });
 
   it("交互与任务结果预览应使用更直白的用户文案", () => {

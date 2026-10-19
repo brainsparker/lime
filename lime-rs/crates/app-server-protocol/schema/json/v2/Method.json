@@ -43,6 +43,7 @@
     "mcpServerStatus/list",
     "media/read",
     "memory/reset",
+    "memory/status",
     "model/list",
     "modelProvider/capabilities/read",
     "permissionProfile/list",

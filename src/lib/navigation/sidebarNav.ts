@@ -38,8 +38,8 @@ function isAgentEntryActive(
 
 const BASE_MAIN_SIDEBAR_NAV_ITEMS: SidebarNavItemDefinition[] = [
   {
-    id: "home-general",
-    label: "新建任务",
+    id: "new-chat",
+    label: "新聊天",
     icon: SquarePen,
     page: "agent",
     params: buildHomeAgentParams(),

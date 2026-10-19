@@ -145,6 +145,7 @@ export const GREETING_PROMPT = "你好";
 export const CONTINUE_PROMPT = "继续输出";
 export const PLAN_PROMPT = "先给我一个修复计划，不要直接改代码";
 export const GOAL_PROMPT = "本周完成 Goal E2E 修复";
+export const GOAL_FIRST_TURN_TEXT = `/goal ${GOAL_PROMPT}`;
 export const INPUTBAR_RICH_RESTORE_PROMPT =
   "请结合这个截图、文件和 Capability Report 技能，先不要输出正文。";
 export const INPUTBAR_RICH_RESTORE_PATH_NAME = "composer-reference.md";

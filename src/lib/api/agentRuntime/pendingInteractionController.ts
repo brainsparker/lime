@@ -211,18 +211,17 @@ export class PendingInteractionController {
       }
       case "request_user_input": {
         const params = pending.userInputParams;
-        if (!params) {
+        if (!params || !response.confirmed) {
           return { accepted: false };
         }
-        this.#settle(
-          response.interactionId,
-          response.confirmed
-            ? responseFromUserData(
-                params,
-                response.userData ?? response.response,
-              )
-            : { answers: {} },
+        const wireResponse = responseFromUserData(
+          params,
+          response.userData ?? response.response,
         );
+        if (!wireResponse) {
+          return { accepted: false };
+        }
+        this.#settle(response.interactionId, wireResponse);
         return { accepted: true };
       }
       case "mcp_elicitation": {
@@ -623,8 +622,11 @@ function userInputActionFromRequest(
     actionType: "ask_user",
     prompt: params.questions[0]?.question,
     questions: params.questions.map<Question>((question) => ({
+      id: question.id,
       header: question.header,
       question: question.question,
+      isOther: question.isOther,
+      isSecret: question.isSecret,
       options: question.options?.map((option) => ({
         label: option.label,
         description: option.description,
@@ -725,65 +727,54 @@ function declinedPermissionsResponse(): PermissionsRequestApprovalResponse {
 function responseFromUserData(
   params: ToolRequestUserInputParams,
   userData: unknown,
-): ToolRequestUserInputResponse {
-  const answers: ToolRequestUserInputResponse["answers"] = {};
-  for (const question of params.questions) {
-    const value = answerValue(
-      userData,
-      question.id,
-      question.header,
-      question.question,
-    );
-    const normalized = normalizeAnswers(value);
-    if (normalized.length > 0) {
-      answers[question.id] = { answers: normalized };
+): ToolRequestUserInputResponse | null {
+  let value = userData;
+  if (typeof value === "string") {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return null;
     }
   }
-  return { answers };
-}
-
-function answerValue(
-  userData: unknown,
-  id: string,
-  header: string,
-  question: string,
-): unknown {
-  if (
-    typeof userData !== "object" ||
-    userData === null ||
-    Array.isArray(userData)
-  ) {
-    return userData;
+  if (!isAnswerRecord(value) || !isAnswerRecord(value.answers)) {
+    return null;
   }
-  const record = userData as Record<string, unknown>;
-  const nested =
-    typeof record.answers === "object" && record.answers !== null
-      ? (record.answers as Record<string, unknown>)
-      : undefined;
-  return (
-    record[id] ??
-    record[header] ??
-    record[question] ??
-    nested?.[id] ??
-    nested?.[header] ??
-    nested?.[question]
+  const questions = new Map(
+    params.questions.map((question) => [question.id, question]),
   );
+  if (
+    questions.size !== params.questions.length ||
+    params.questions.some((question) => !question.id.trim())
+  ) {
+    return null;
+  }
+  const entries: Array<[string, { answers: string[] }]> = [];
+  for (const [id, answer] of Object.entries(value.answers)) {
+    const question = questions.get(id);
+    if (
+      !question ||
+      !isAnswerRecord(answer) ||
+      !Array.isArray(answer.answers) ||
+      answer.answers.some((entry) => typeof entry !== "string" || !entry.trim())
+    ) {
+      return null;
+    }
+    const answers = (answer.answers as string[]).map((entry) => entry.trim());
+    if (
+      (question.options?.length ?? 0) > 0 &&
+      !question.isOther &&
+      answers.some(
+        (entry) =>
+          !question.options?.some((option) => option.label.trim() === entry),
+      )
+    ) {
+      return null;
+    }
+    entries.push([id, { answers }]);
+  }
+  return { answers: Object.fromEntries(entries) };
 }
 
-function normalizeAnswers(value: unknown): string[] {
-  const values = Array.isArray(value) ? value : [value];
-  return values
-    .flatMap((entry) =>
-      typeof entry === "string" && entry.includes(",")
-        ? entry.split(",")
-        : [entry],
-    )
-    .map((entry) =>
-      typeof entry === "string"
-        ? entry.trim()
-        : typeof entry === "number" || typeof entry === "boolean"
-          ? String(entry)
-          : "",
-    )
-    .filter(Boolean);
+function isAnswerRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }

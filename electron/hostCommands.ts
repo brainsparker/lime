@@ -74,7 +74,7 @@ const OEM_CLOUD_OAUTH_CALLBACK_HTML = `<!doctype html>
 export class ElectronHostCommands {
   readonly #appServerHost: ElectronAppServerHost;
   readonly #emit: HostEventEmitter;
-  readonly #fileShellHost = new FileShellHost();
+  readonly #fileShellHost: FileShellHost;
   readonly #layeredDesignProjectHost = new LayeredDesignProjectHost();
   readonly #systemUtilityHost: SystemUtilityHost;
   readonly #voiceModelHost: VoiceModelHost;
@@ -97,6 +97,11 @@ export class ElectronHostCommands {
       readConfig: () => this.#readConfig(),
       emit,
     });
+    this.#fileShellHost = new FileShellHost({
+      appDataRoot,
+      nativeQuery: (args) =>
+        this.#systemUtilityHost.invokeMacOSNativeHost(args),
+    });
     this.#voiceModelHost = new VoiceModelHost(appDataRoot, emit);
   }
 
@@ -118,8 +123,16 @@ export class ElectronHostCommands {
         return showDesktopNotification(args);
       case "reveal_in_finder":
         return this.#fileShellHost.revealInFinder(args);
-      case "open_with_default_app":
-        return await this.#fileShellHost.openWithDefaultApp(args);
+      case "open_in_get_targets":
+        return this.#fileShellHost.getTargets(args);
+      case "open_in_detect_target":
+        return this.#fileShellHost.detectTarget(args);
+      case "open_in_load_target_icon":
+        return this.#fileShellHost.loadTargetIcon(args);
+      case "open_in_open":
+        return this.#fileShellHost.open(args);
+      case "open_in_set_global_preferred_target":
+        return this.#fileShellHost.setGlobalPreferredTarget(args);
       case "save_exported_document":
         return await this.#saveExportedDocument(args);
       case "save_layered_design_project_export":

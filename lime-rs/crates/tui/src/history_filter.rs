@@ -120,7 +120,6 @@ mod tests {
     fn text_message(id: &str, text: &str) -> ThreadItem {
         ThreadItem::UserMessage {
             id: id.to_string(),
-            metadata: None,
             client_id: None,
             content: vec![UserInput::Text {
                 text: text.to_string(),
@@ -145,7 +144,6 @@ mod tests {
     fn entered(id: &str) -> ThreadItem {
         ThreadItem::EnteredReviewMode {
             id: id.to_string(),
-            metadata: None,
             review: "review".to_string(),
         }
     }
@@ -153,7 +151,6 @@ mod tests {
     fn exited(id: &str) -> ThreadItem {
         ThreadItem::ExitedReviewMode {
             id: id.to_string(),
-            metadata: None,
             review: "review".to_string(),
         }
     }

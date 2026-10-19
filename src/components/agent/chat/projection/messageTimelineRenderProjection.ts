@@ -21,7 +21,6 @@ export interface MessageRenderGroupProjection extends MessageTurnGroup {
   timelineMessageId: string | null;
   timeline: MessageTurnTimeline | CurrentTurnTimelineProjection | null;
   isActiveGroup: boolean;
-  isImportedHistory?: boolean;
 }
 
 export function buildTimelineByMessageIdProjection(params: {

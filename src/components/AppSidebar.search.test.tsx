@@ -4,7 +4,7 @@ import {
   cleanupAppSidebarTest,
   flushEffects,
   mockGetProject,
-  mockListAgentRuntimeSessions,
+  mockListRecentThreads,
   mockRecordAgentUiPerformanceMetric,
   mountSidebarContainer,
   resetAppSidebarTest,
@@ -25,7 +25,7 @@ describe("AppSidebar search", () => {
   afterEach(cleanupAppSidebarTest);
 
   it("搜索按钮应打开标题搜索弹窗，并按会话标题过滤结果", async () => {
-    mockListAgentRuntimeSessions.mockResolvedValue([
+    mockListRecentThreads.mockResolvedValue([
       {
         id: "session-agent",
         name: "写一篇AI Agent的公众号",
@@ -97,7 +97,7 @@ describe("AppSidebar search", () => {
     expect(dialog?.textContent).not.toContain("啊啊啊啊啊");
   });
 
-  it("搜索弹窗应支持查看更多对话并展示后续结果", async () => {
+  it("搜索弹窗应展示当前分页加载的全部结果", async () => {
     const sessions = Array.from({ length: 12 }, (_, index) => {
       const number = String(index + 1).padStart(2, "0");
       return {
@@ -106,11 +106,29 @@ describe("AppSidebar search", () => {
         created_at: 1713000000 + index,
         updated_at: 1713000600 + index,
         archived_at: null,
-        workspace_id: "project-1",
+        workspace_id: null,
         messages_count: 1,
       };
     }).reverse();
-    mockListAgentRuntimeSessions.mockResolvedValue(sessions);
+    mockListRecentThreads.mockImplementation(
+      async ({
+        cursor,
+        limit,
+        sectionId,
+      }: {
+        cursor?: string;
+        limit?: number;
+        sectionId?: string | null;
+      }) => {
+        if (sectionId) {
+          return { sessions: [], nextCursor: null };
+        }
+        if (limit >= 21 || cursor) {
+          return { sessions, nextCursor: null };
+        }
+        return { sessions, nextCursor: "search-more" };
+      },
+    );
 
     const container = mountSidebarContainer({
       currentPage: "agent",
@@ -133,41 +151,21 @@ describe("AppSidebar search", () => {
     let dialog = document.body.querySelector<HTMLElement>(
       '[data-testid="app-sidebar-search-dialog"]',
     );
-    expect(dialog?.textContent).toContain("查看更多对话");
     expect(dialog?.textContent).toContain("对话 12");
-    expect(dialog?.textContent).not.toContain("对话 02");
-
-    await act(async () => {
-      dialog
-        ?.querySelector<HTMLButtonElement>(
-          '[data-testid="app-sidebar-search-more"]',
-        )
-        ?.click();
-      await Promise.resolve();
-    });
-    await flushEffects(2);
-
-    dialog = document.body.querySelector<HTMLElement>(
-      '[data-testid="app-sidebar-search-dialog"]',
-    );
     expect(dialog?.textContent).toContain("对话 02");
     expect(dialog?.textContent).not.toContain("查看更多对话");
-    expect(mockListAgentRuntimeSessions).toHaveBeenLastCalledWith({
-      limit: 21,
-      cwd: "/repo/project-1",
-    });
   });
 
   it("搜索结果点击应复用会话导航并关闭弹窗", async () => {
     const onNavigate = vi.fn();
-    mockListAgentRuntimeSessions.mockResolvedValue([
+    mockListRecentThreads.mockResolvedValue([
       {
         id: "session-target",
         name: "目标历史会话",
         created_at: 1713000000,
         updated_at: 1713000600,
         archived_at: null,
-        workspace_id: "project-1",
+        workspace_id: null,
         working_dir: "/repo/project-1",
         messages_count: 3,
       },
@@ -227,7 +225,7 @@ describe("AppSidebar search", () => {
 
   it("搜索结果从项目上下文打开无项目对话时不应继承项目 ID", async () => {
     const onNavigate = vi.fn();
-    mockListAgentRuntimeSessions.mockResolvedValue([
+    mockListRecentThreads.mockResolvedValue([
       {
         id: "session-standalone-search",
         name: "搜索无项目会话",
@@ -284,7 +282,7 @@ describe("AppSidebar search", () => {
 
   it("搜索结果悬停不应再触发旧会话预取，避免抢占点击切换", async () => {
     vi.useFakeTimers();
-    mockListAgentRuntimeSessions.mockResolvedValue([
+    mockListRecentThreads.mockResolvedValue([
       {
         id: "session-prefetch-search",
         name: "搜索预取历史会话",
@@ -351,7 +349,7 @@ describe("AppSidebar search", () => {
   it("搜索结果快速点击不应再触发预取计时器并应直接导航", async () => {
     vi.useFakeTimers();
     const onNavigate = vi.fn();
-    mockListAgentRuntimeSessions.mockResolvedValue([
+    mockListRecentThreads.mockResolvedValue([
       {
         id: "session-click-search",
         name: "搜索点击历史会话",
@@ -419,7 +417,7 @@ describe("AppSidebar search", () => {
 
   it("搜索弹窗的新建对话入口应复用现有新建导航", async () => {
     const onNavigate = vi.fn();
-    mockListAgentRuntimeSessions.mockResolvedValue([]);
+    mockListRecentThreads.mockResolvedValue([]);
 
     const container = mountSidebarContainer({
       currentPage: "agent",
@@ -465,7 +463,7 @@ describe("AppSidebar search", () => {
   });
 
   it("Meta/Ctrl + K 应打开搜索弹窗，Escape 应关闭弹窗", async () => {
-    mockListAgentRuntimeSessions.mockResolvedValue([]);
+    mockListRecentThreads.mockResolvedValue([]);
 
     mountSidebarContainer({
       currentPage: "agent",
@@ -481,10 +479,12 @@ describe("AppSidebar search", () => {
     ).toBeNull();
 
     await act(async () => {
+      const isMac = /Mac/i.test(navigator.platform);
       window.dispatchEvent(
         new KeyboardEvent("keydown", {
           key: "k",
-          metaKey: true,
+          metaKey: isMac,
+          ctrlKey: !isMac,
           bubbles: true,
           cancelable: true,
         }),

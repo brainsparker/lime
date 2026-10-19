@@ -38,6 +38,15 @@ pub(super) async fn write_rollout_summary(
     reject_symlink_chain(&root, &path)?;
 
     let relative = backend.relative_path(&root, &path)?;
+    backend
+        .state
+        .register_rollout(
+            &backend.state_scope_key(&root)?,
+            &relative,
+            &summary_content,
+            &params.exported_at,
+        )
+        .map_err(backend_error)?;
     let end_line_number = summary_content.lines().count().max(1);
     Ok(MemoryStoreAddNoteResponse {
         path: relative.clone(),

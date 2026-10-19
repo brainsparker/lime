@@ -1,10 +1,10 @@
 use super::*;
 
 #[test]
-fn imported_workspace_event_repair_restores_current_directory_and_explicit_empty_roots() {
+fn canonical_workspace_event_repair_restores_current_directory_and_explicit_empty_roots() {
     let (_temp, agent_root, store) = store_with_rollout();
     let mut source = thread("workspace-repair", 1_700_000_000_000);
-    source.metadata = legacy_workspace();
+    source.metadata = workspace_metadata();
     create(&store, &source);
     let db_path = store.path().to_path_buf();
     drop(store);
@@ -20,7 +20,7 @@ fn imported_workspace_event_repair_restores_current_directory_and_explicit_empty
                 turn_id: None,
                 event_type: "session.started".into(),
                 timestamp: "2026-06-16T00:00:00Z".into(),
-                payload: json!({"session":{"workingDir":"/stale", "metadata":legacy_workspace()}}),
+                payload: json!({"session":{"workingDir":"/stale", "metadata":workspace_metadata()}}),
             }],
         )
         .unwrap();
@@ -39,28 +39,26 @@ fn imported_workspace_event_repair_restores_current_directory_and_explicit_empty
     assert_eq!(cwd, "/current");
 }
 
-fn legacy_workspace() -> serde_json::Value {
+fn workspace_metadata() -> serde_json::Value {
     json!({
-        "sourceClient":"codex", "sourceThreadId":"original", "workingDir":"/current",
+        "workingDir":"/current",
         "cwd":"/stale", "runtimeWorkspaceRoots":[], "workspaceRoot":"/stale-root",
-        "importedContinuation":{"cwd":"/source", "workspaceRoot":"/source-root", "model":"keep"},
-        "codexMetadata":{"cwd":"/source", "workspaceRoot":"/source-root"}
+        "unrelated":42
     })
 }
 
 fn expected_workspace() -> serde_json::Value {
     json!({
-        "sourceClient":"codex", "sourceThreadId":"original", "workingDir":"/current",
-        "runtimeWorkspaceRoots":[], "importedContinuation":{"model":"keep"},
-        "codexMetadata":{"cwd":"/source", "workspaceRoot":"/source-root"}
+        "workingDir":"/current",
+        "runtimeWorkspaceRoots":[], "unrelated":42
     })
 }
 
 #[test]
-fn imported_workspace_migration_preserves_archival_provenance_and_rebuilds_idempotently() {
+fn canonical_workspace_migration_preserves_archival_provenance_and_rebuilds_idempotently() {
     let (_temp, agent_root, store) = store_with_rollout();
     let mut source = thread("workspace-archived", 1_700_000_000_000);
-    source.metadata = legacy_workspace();
+    source.metadata = workspace_metadata();
     create(&store, &source);
     block_on(store.archive_thread(ArchiveThreadParams {
         thread_id: source.thread_id.clone(),
@@ -101,10 +99,10 @@ fn imported_workspace_migration_preserves_archival_provenance_and_rebuilds_idemp
 }
 
 #[test]
-fn imported_workspace_migration_retries_a_failed_commit_without_duplicate_rollout_records() {
+fn canonical_workspace_migration_retries_a_failed_commit_without_duplicate_rollout_records() {
     let (_temp, agent_root, store) = store_with_rollout();
     let mut source = thread("workspace-retry", 1_700_000_000_000);
-    source.metadata = legacy_workspace();
+    source.metadata = workspace_metadata();
     create(&store, &source);
     let path = rollout_path(&store, &agent_root, &source.thread_id);
     let db_path = store.path().to_path_buf();
@@ -153,10 +151,10 @@ fn imported_workspace_migration_retries_a_failed_commit_without_duplicate_rollou
 }
 
 #[test]
-fn imported_workspace_invalid_migration_keeps_old_data_and_reports_thread_identity() {
+fn canonical_workspace_invalid_migration_keeps_old_data_and_reports_thread_identity() {
     let (_temp, agent_root, store) = store_with_rollout();
     let mut source = thread("workspace-invalid", 1_700_000_000_000);
-    source.metadata = legacy_workspace();
+    source.metadata = workspace_metadata();
     source.metadata["runtimeWorkspaceRoots"] = json!([false]);
     create(&store, &source);
     let path = rollout_path(&store, &agent_root, &source.thread_id);

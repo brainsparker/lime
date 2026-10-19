@@ -85,7 +85,7 @@ id_type!(ModelId);
 ///
 /// Adapted from Codex `ResponseItemId` (`5c19155cbd93bfa099016e7487259f61669823ff`),
 /// Apache-2.0; see the repository's recorded provenance and NOTICE. New IDs are
-/// always prefixed, while deserialization remains permissive for legacy history.
+/// generated with a domain prefix; existing source identities are retained.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, JsonSchema)]
 #[serde(transparent)]
 pub struct ItemId(String);
@@ -143,9 +143,9 @@ impl ItemId {
         Self::new(suffix.to_string())
     }
 
-    /// Explicit legacy boundary. Legacy IDs are readable but must not be used
-    /// for newly materialized items without passing through `new`/`generated`.
-    pub fn from_legacy(value: impl Into<String>) -> Self {
+    /// Retain an identity already assigned by the source, such as a tool call.
+    /// Locally generated identities use `new` or `generated` instead.
+    pub fn from_source(value: impl Into<String>) -> Self {
         Self(value.into())
     }
 
@@ -178,9 +178,8 @@ impl<'de> Deserialize<'de> for ItemId {
     where
         D: serde::Deserializer<'de>,
     {
-        // History imports may contain IDs from before the prefix contract. Keep
-        // that read path permissive; all new writes use `new` or `generated`.
-        String::deserialize(deserializer).map(Self::from_legacy)
+        // Persistence and upstream events already own their item identities.
+        String::deserialize(deserializer).map(Self::from_source)
     }
 }
 
@@ -277,15 +276,15 @@ pub struct RuntimeSnapshot {
 pub use message_content::{MessageContentPart, MessageContentReference};
 pub use response_item::ResponseItem;
 pub use thread::{
-    ApprovalAction, ApprovalDecision, ApprovalScope, CollabAgentOperation, CollabAgentState,
-    CollabAgentStatus, DynamicToolCallContentItem, FileChange, FileChangeKind, FileChangeStatus,
-    ItemKind, ItemStatus, McpToolCallAppContext, PageCursor, PlanStep, PlanStepStatus,
-    SortDirection, SubAgentActivityKind, Thread, ThreadActiveFlag, ThreadHistoryChange,
-    ThreadHistoryChangeSet, ThreadItem, ThreadItemPayload, ThreadItemsListParams,
-    ThreadItemsListResponse, ThreadListParams, ThreadListResponse, ThreadStatus,
-    ThreadTurnsListParams, ThreadTurnsListResponse, ThreadTurnsView, ToolArgument, ToolOutput,
-    Turn, TurnAdmissionState, TurnApprovalState, TurnError, TurnItemsView, TurnQueueState,
-    TurnStatus,
+    AgentMessageDelivery, ApprovalAction, ApprovalDecision, ApprovalScope, AsyncUserInputQuestion,
+    CollabAgentOperation, CollabAgentState, CollabAgentStatus, DynamicToolCallContentItem,
+    FileChange, FileChangeKind, FileChangeStatus, ItemKind, ItemStatus, McpToolCallAppContext,
+    PageCursor, PlanStep, PlanStepStatus, SortDirection, SubAgentActivityKind, Thread,
+    ThreadActiveFlag, ThreadHistoryChange, ThreadHistoryChangeSet, ThreadItem, ThreadItemPayload,
+    ThreadItemsListParams, ThreadItemsListResponse, ThreadListParams, ThreadListResponse,
+    ThreadStatus, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadTurnsView, ToolArgument,
+    ToolOutput, Turn, TurnAdmissionState, TurnApprovalState, TurnError, TurnItemsView,
+    TurnQueueState, TurnStatus,
 };
 
 #[cfg(test)]
@@ -302,12 +301,22 @@ mod tests {
     }
 
     #[test]
-    fn item_ids_canonicalize_new_writes_and_keep_legacy_explicit() {
+    fn item_ids_generate_prefixed_values_and_retain_source_identity() {
         let generated = ItemId::generated();
         assert!(generated.is_prefixed());
         assert!(ItemId::new("suffix").is_prefixed());
-        assert_eq!(ItemId::from_legacy("legacy-id").as_str(), "legacy-id");
-        assert!(ItemId::parse("legacy-id").is_err());
+        for source in [
+            "call-question",
+            "2df45473-f723-4b39-9f41-9a9c5d14a622",
+            "call_123",
+        ] {
+            let id = ItemId::from_source(source);
+            assert_eq!(id.as_str(), source);
+            let restored: ItemId =
+                serde_json::from_str(&serde_json::to_string(&id).unwrap()).unwrap();
+            assert_eq!(restored, id);
+        }
+        assert!(ItemId::parse("call-question").is_err());
         assert_eq!(
             ItemId::parse("msg_123").expect("prefixed id").as_str(),
             "msg_123"

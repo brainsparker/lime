@@ -7,6 +7,7 @@ pub use app_server_protocol::protocol::v2::ThreadRevertParams;
 pub use app_server_protocol::protocol::v2::ThreadRevertResponse;
 pub use app_server_protocol::protocol::v2::ThreadRevertedNotification;
 pub use app_server_protocol::protocol::v2::METHOD_HOOKS_LIST;
+pub use app_server_protocol::protocol::v2::METHOD_MEMORY_STATUS;
 pub use app_server_protocol::protocol::v2::METHOD_SKILLS_LIST;
 pub use app_server_protocol::protocol::v2::METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION;
 pub use app_server_protocol::protocol::v2::METHOD_THREAD_ARCHIVE;
@@ -177,6 +178,8 @@ pub use app_server_protocol::MediaTaskArtifactListResponse;
 pub use app_server_protocol::MediaTaskArtifactLookupParams;
 pub use app_server_protocol::MediaTaskArtifactResponse;
 pub use app_server_protocol::MemoryResetResponse;
+pub use app_server_protocol::MemoryStatusParams;
+pub use app_server_protocol::MemoryStatusResponse;
 pub use app_server_protocol::MemoryStoreAddNoteParams;
 pub use app_server_protocol::MemoryStoreAddNoteResponse;
 pub use app_server_protocol::MemoryStoreConsolidateParams;
@@ -1232,6 +1235,13 @@ impl AppServerClient {
         self.typed_request(typed::read_project_memory(params))
     }
 
+    pub fn memory_status(
+        &mut self,
+        params: MemoryStatusParams,
+    ) -> Result<JsonRpcRequest, ClientError> {
+        self.typed_request(typed::memory_status(params))
+    }
+
     pub fn list_memory_store(
         &mut self,
         params: MemoryStoreListParams,
@@ -2070,6 +2080,10 @@ pub mod typed {
         params: ProjectMemoryReadParams,
     ) -> TypedRequest<ProjectMemoryReadParams> {
         TypedRequest::new(METHOD_PROJECT_MEMORY_READ, params)
+    }
+
+    pub fn memory_status(params: MemoryStatusParams) -> TypedRequest<MemoryStatusParams> {
+        TypedRequest::new(METHOD_MEMORY_STATUS, params)
     }
 
     pub fn list_memory_store(params: MemoryStoreListParams) -> TypedRequest<MemoryStoreListParams> {
@@ -3472,6 +3486,11 @@ mod tests {
                 project_id: "workspace-main".to_string(),
             })
             .expect("project memory");
+        let memory_status = client
+            .memory_status(MemoryStatusParams {
+                min_consolidated_threads: Some(3),
+            })
+            .expect("memory status");
         let memory_store_list = client
             .list_memory_store(MemoryStoreListParams {
                 root: MemoryStoreRootParams {
@@ -3528,6 +3547,7 @@ mod tests {
                     scope: app_server_protocol::MemoryStoreScope::Workspace,
                     workspace_root: Some("/workspace/project".to_string()),
                 },
+                session_id: "memory-test-session".to_string(),
                 max_notes: Some(10),
             })
             .expect("memory store consolidate");
@@ -3664,6 +3684,11 @@ mod tests {
         assert_eq!(
             memory.params.expect("params"),
             json!({ "projectId": "workspace-main" })
+        );
+        assert_eq!(memory_status.method, METHOD_MEMORY_STATUS);
+        assert_eq!(
+            memory_status.params.expect("params"),
+            json!({ "minConsolidatedThreads": 3 })
         );
         assert_eq!(memory_store_list.method, METHOD_MEMORY_STORE_LIST);
         assert_eq!(

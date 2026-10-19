@@ -289,7 +289,6 @@ fn a_terminal_message_without_deltas_replaces_only_the_active_status_copy_source
                     text: "new terminal answer".into(),
                     phase: None,
                     memory_citation: None,
-                    metadata: None,
                     delivery: None,
                 },
             },

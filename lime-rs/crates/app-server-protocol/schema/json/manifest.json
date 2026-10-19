@@ -167,22 +167,6 @@
       "method": "connectRelayApiKey/save"
     },
     {
-      "kind": "request",
-      "method": "conversationImport/job/read"
-    },
-    {
-      "kind": "request",
-      "method": "conversationImport/source/scan"
-    },
-    {
-      "kind": "request",
-      "method": "conversationImport/thread/commit"
-    },
-    {
-      "kind": "request",
-      "method": "conversationImport/thread/preview"
-    },
-    {
       "kind": "serverRequest",
       "method": "currentTime/read"
     },
@@ -681,6 +665,10 @@
     {
       "kind": "request",
       "method": "memory/reset"
+    },
+    {
+      "kind": "request",
+      "method": "memory/status"
     },
     {
       "kind": "request",
@@ -1932,29 +1920,6 @@
       "ConnectPayload",
       "ConnectRelayApiKeySaveParams",
       "ConnectRelayApiKeySaveResponse",
-      "ConversationImportFidelitySummary",
-      "ConversationImportJob",
-      "ConversationImportJobPhase",
-      "ConversationImportJobProgress",
-      "ConversationImportJobReadParams",
-      "ConversationImportJobReadResponse",
-      "ConversationImportJobStatus",
-      "ConversationImportPreviewDryRun",
-      "ConversationImportPreviewEvent",
-      "ConversationImportPreviewMessage",
-      "ConversationImportPreviewSummary",
-      "ConversationImportSourceClient",
-      "ConversationImportSourceProvenance",
-      "ConversationImportSourceScanParams",
-      "ConversationImportSourceScanResponse",
-      "ConversationImportSourceStatus",
-      "ConversationImportSourceSummary",
-      "ConversationImportThreadCommitParams",
-      "ConversationImportThreadCommitResponse",
-      "ConversationImportThreadCommitStartResponse",
-      "ConversationImportThreadPreviewParams",
-      "ConversationImportThreadPreviewResponse",
-      "ConversationImportThreadStatus",
       "DiagnosticsCapabilityRoutingMetricsSnapshot",
       "DiagnosticsIdempotencyDiagnostics",
       "DiagnosticsMetricConfig",
@@ -1998,7 +1963,6 @@
       "GatewayTunnelSyncWebhookUrlParams",
       "GatewayTunnelSyncWebhookUrlResponse",
       "ImageStoryboardSlotInput",
-      "ImportedThreadSummary",
       "InitializeParams",
       "InitializeResponse",
       "KnowledgeCompilePackParams",
@@ -2396,6 +2360,7 @@
       "ArtifactWriteParams",
       "ArtifactWriteResponse",
       "ArtifactWriteSidecar",
+      "AsyncUserInputQuestion",
       "AutoReviewDecisionSource",
       "ClientRequest",
       "ClientResponse",
@@ -2578,6 +2543,8 @@
       "MemoryCitation",
       "MemoryCitationEntry",
       "MemoryResetResponse",
+      "MemoryStatusParams",
+      "MemoryStatusResponse",
       "MergeStrategy",
       "Method",
       "Model",

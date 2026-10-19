@@ -18,7 +18,6 @@ import type { InterruptedInputRestoreRequest } from "../hooks/agentStreamInputRe
 import type { ChatToolPreferences } from "../utils/chatToolPreferences";
 import type { CreationReplaySurfaceModel } from "../utils/creationReplaySurface";
 import { buildWorkspaceEmptyStateProps } from "./chatSurfaceProps";
-import type { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 
 export interface WorkspaceConversationLandingSurfaceRuntime {
   composerDraftStatusNode?: ReactNode;
@@ -29,18 +28,6 @@ export interface WorkspaceConversationLandingSurfaceRuntime {
   serviceSkillExecutionCard?: ReactNode;
   emptyStateProps: ComponentProps<typeof EmptyState>;
 }
-
-type WorkspaceConversationLandingInputbarSceneRuntime = Pick<
-  ReturnType<typeof useWorkspaceInputbarSceneRuntime>,
-  | "knowledgePackSelection"
-  | "knowledgePackOptions"
-  | "onToggleKnowledgePack"
-  | "onSelectKnowledgePack"
-  | "onToggleKnowledgeCompanionPack"
-  | "onStartKnowledgeOrganize"
-  | "onManageKnowledgePacks"
-  | "onImportPathReferenceAsKnowledge"
->;
 
 interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   accessMode: ComponentProps<typeof EmptyState>["accessMode"];
@@ -67,7 +54,6 @@ interface UseWorkspaceConversationLandingSurfaceRuntimeParams {
   onComposerDraftAccepted?: ComponentProps<
     typeof EmptyState
   >["onComposerDraftAccepted"];
-  inputbarScene: WorkspaceConversationLandingInputbarSceneRuntime;
   inputRestoreRequest?: InterruptedInputRestoreRequest | null;
   model: ComponentProps<typeof EmptyState>["model"];
   objectiveEnabled?: ComponentProps<typeof EmptyState>["objectiveEnabled"];
@@ -140,7 +126,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   composerDraftStatus = null,
   composerDraftRestoring = false,
   onComposerDraftAccepted,
-  inputbarScene,
   inputRestoreRequest,
   model,
   objectiveEnabled,
@@ -175,7 +160,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
   skills,
   skillsLoading,
 }: UseWorkspaceConversationLandingSurfaceRuntimeParams): WorkspaceConversationLandingSurfaceRuntime {
-  const { onImportPathReferenceAsKnowledge } = inputbarScene;
   const handleToolPreferenceChange = useCallback(
     (key: keyof ChatToolPreferences, enabled: boolean) =>
       setChatToolPreferences((previous) => ({
@@ -228,7 +212,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
         onAddPathReferences,
         inputRestoreRequest,
         onInputRestoreRequestHandled,
-        onImportPathReferenceAsKnowledge,
         onRemovePathReference,
         onClearPathReferences,
       }),
@@ -251,7 +234,6 @@ export function useWorkspaceConversationLandingSurfaceRuntime({
       objectiveEnabled,
       onAddPathReferences,
       onClearPathReferences,
-      onImportPathReferenceAsKnowledge,
       onInputRestoreRequestHandled,
       onManageProviders,
       onObjectiveEnabledChange,

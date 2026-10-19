@@ -182,12 +182,16 @@ export const StyledComposerEditor = styled(ComposerEditor)`
   font-family: inherit;
   font-size: 16px;
   color: hsl(var(--foreground));
-  min-height: 88px;
+  /* Codex's adaptive footer keeps a generous editing surface above the
+   * controls row.  The previous 88px floor made the workspace composer
+   * visibly shorter than the home composer and collapsed the lower surface
+   * on smaller windows. */
+  min-height: 120px;
 
   &.floating-composer {
     font-size: 17px;
     line-height: 1.78;
-    min-height: 88px;
+    min-height: 136px;
   }
 
   [data-testid="inputbar-core-container"]:has([data-composer-expand-toggle]) & {
@@ -196,6 +200,24 @@ export const StyledComposerEditor = styled(ComposerEditor)`
 
   &.composer-expanded {
     min-height: 210px;
+  }
+
+  [data-composer-footer-input][data-composer-layout="single-line"] & {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    min-height: 0;
+    padding: 0;
+    overflow: hidden;
+    white-space: pre;
+
+    p {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: pre;
+    }
   }
 
   &[data-empty="true"]::before {

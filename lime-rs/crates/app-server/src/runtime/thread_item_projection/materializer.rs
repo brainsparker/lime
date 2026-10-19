@@ -240,23 +240,9 @@ fn item_from_event(
     } else {
         family.item_id(source, turn_id, &event.event_id)?
     };
-    let preserves_imported_codex_plan_id = matches!(family, ItemFamily::Plan)
-        && map_string(source, &["sourceClient", "source_client"]).as_deref() == Some("codex")
-        && family.explicit_item_id(source).is_some();
-    let item_id = if preserves_imported_codex_plan_id {
-        ItemId::from_legacy(raw_item_id)
-    } else {
-        ItemId::new(raw_item_id)
-    };
+    let item_id = ItemId::new(raw_item_id);
     let timestamp = event_timestamp_ms(event);
-    let status = if uses_legacy_import_ordinal(event)
-        && matches!(family, ItemFamily::AgentMessage)
-        && event_type == "message.delta"
-    {
-        ItemStatus::Completed
-    } else {
-        item_status(event_type, &event.payload)
-    };
+    let status = item_status(event_type, &event.payload);
     let payload = typed_payload(family, event_type, source, item_id.as_str(), timestamp)?;
     let completed_at_ms = status.is_terminal().then_some(timestamp);
     Some(ThreadItem {
@@ -525,12 +511,6 @@ fn canonical_payload_is_safe(payload: &ThreadItemPayload) -> bool {
 
 fn canonical_item_ordinal(event: &AgentEvent) -> u64 {
     event.sequence
-}
-
-fn uses_legacy_import_ordinal(event: &AgentEvent) -> bool {
-    event.payload.get("imported").and_then(Value::as_bool) == Some(true)
-        && event.payload.get("sourceClient").and_then(Value::as_str) == Some("codex")
-        && event.payload.get("importVersion").is_none()
 }
 
 fn canonical_item_lifecycle_status(event_type: &str, nested_status: ItemStatus) -> ItemStatus {

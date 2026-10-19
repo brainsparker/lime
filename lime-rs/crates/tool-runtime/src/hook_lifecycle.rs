@@ -9,9 +9,10 @@
 //! - 不执行 handler；执行由持有进程/沙箱写集的 owner 完成，本模块只裁决与归集结果。
 //! - 未实现的 handler 类型和不可信来源一律 fail closed，不静默放行。
 
+pub use crate::turn_snapshot::RuntimeHookEventName;
 use crate::turn_snapshot::{
-    RuntimeHookEventName, RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSnapshot,
-    RuntimeHookTrustStatus, RuntimeTurnSnapshot,
+    RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSnapshot, RuntimeHookTrustStatus,
+    RuntimeTurnSnapshot,
 };
 use std::future::Future;
 use std::path::PathBuf;

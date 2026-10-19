@@ -333,19 +333,6 @@ describe("commandPolicy", () => {
     expect(
       resolveDevBridgeCommandTimeoutProfile("plugin_select_directory"),
     ).toBe("default");
-    expect(
-      resolveDevBridgeCommandTimeoutProfile("app_server_handle_json_lines", {
-        request: {
-          lines: [
-            JSON.stringify({
-              id: "read-codex-import-job",
-              method: "conversationImport/job/read",
-              params: { jobId: "import-job-1" },
-            }),
-          ],
-        },
-      }),
-    ).toBe("app-server-import");
     expect(resolveDevBridgeCommandTimeoutProfile("execute_skill")).toBe(
       "default",
     );

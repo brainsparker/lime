@@ -18,6 +18,7 @@ import {
   resolveCurrentDesktopStorageRoots,
 } from "./appDataPaths";
 import { ElectronAppServerHost } from "./appServerHost";
+import { buildAgentRootArgument } from "./agentRoot";
 import { installAppQuitLifecycle } from "./appQuitLifecycle";
 import {
   ElectronEmbeddedBrowserHost,
@@ -217,10 +218,10 @@ interface TrayModelShortcutsState {
 
 function createMainWindow(): BrowserWindow {
   const window = new BrowserWindow({
-    width: 1440,
-    height: 920,
-    minWidth: 980,
-    minHeight: 680,
+    width: 1280,
+    height: 820,
+    minWidth: 480,
+    minHeight: 600,
     title: APP_NAME,
     ...buildMainWindowStartupOptions(),
     ...buildMainWindowChromeOptions(),
@@ -230,6 +231,9 @@ function createMainWindow(): BrowserWindow {
       nodeIntegration: false,
       sandbox: false,
       preload: path.resolve(__dirname, "../preload/preload.cjs"),
+      additionalArguments: [
+        buildAgentRootArgument(desktopStorageRoots.agentRoot),
+      ],
     },
   });
 
@@ -870,6 +874,9 @@ async function openUpdateNotificationWindow(
       nodeIntegration: false,
       sandbox: false,
       preload: path.resolve(__dirname, "../preload/preload.cjs"),
+      additionalArguments: [
+        buildAgentRootArgument(desktopStorageRoots.agentRoot),
+      ],
     },
   });
 

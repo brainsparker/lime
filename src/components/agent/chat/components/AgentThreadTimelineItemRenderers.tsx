@@ -401,13 +401,6 @@ function renderGroupItemDetails(
     groupedToolCall?: boolean;
     groupMarker?: string;
     openSubagentLabel?: string;
-    sourceMessageId?: string;
-    onSaveFileArtifactAsKnowledge?: (source: {
-      messageId: string;
-      content: string;
-      sourceName?: string;
-      description?: string | null;
-    }) => void;
   },
 ) {
   const toolCall = toToolCallState(item);
@@ -551,8 +544,6 @@ function renderGroupItemDetails(
         timestamp={timestamp}
         onFileClick={onFileClick}
         onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-        sourceMessageId={options?.sourceMessageId}
-        onSaveFileArtifactAsKnowledge={options?.onSaveFileArtifactAsKnowledge}
       />
     );
   }
@@ -692,13 +683,6 @@ interface TimelineItemDetailsProps {
   groupedToolCall?: boolean;
   groupMarker?: string;
   openSubagentLabel?: string;
-  sourceMessageId?: string;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
 }
 
 export function TimelineItemDetails({
@@ -712,8 +696,6 @@ export function TimelineItemDetails({
   groupedToolCall,
   groupMarker,
   openSubagentLabel,
-  sourceMessageId,
-  onSaveFileArtifactAsKnowledge,
 }: TimelineItemDetailsProps) {
   const { t } = useTranslation("agent");
 
@@ -737,8 +719,6 @@ export function TimelineItemDetails({
       groupedToolCall,
       groupMarker,
       openSubagentLabel,
-      sourceMessageId,
-      onSaveFileArtifactAsKnowledge,
     },
   );
 }

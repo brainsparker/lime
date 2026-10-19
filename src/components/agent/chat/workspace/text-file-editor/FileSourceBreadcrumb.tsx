@@ -10,6 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { CanvasWorkbenchFileTreeState } from "../../components/canvas-workbench/files/useCanvasWorkbenchFileTreeState";
 import { WorkspaceDirectoryTree } from "../right-surface/WorkspaceDirectoryTree";
+import { WorkspaceFileContextMenu } from "../right-surface/WorkspaceFileContextMenu";
 import {
   getFilePathBreadcrumb,
   getSelectedBreadcrumbText,
@@ -73,6 +74,7 @@ function DirectoryBreadcrumb({
   target,
   state,
   onSelectFile,
+  cwd,
 }: {
   label: string;
   last: boolean;
@@ -80,21 +82,29 @@ function DirectoryBreadcrumb({
   target: FilePathBreadcrumbTarget;
   state: CanvasWorkbenchFileTreeState;
   onSelectFile: (path: string) => void;
+  cwd?: string | null;
 }) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            "whitespace-nowrap outline-none hover:text-[color:var(--lime-text)] focus-visible:ring-2 focus-visible:ring-ring",
-            last && "font-medium text-[color:var(--lime-text)]",
-          )}
-        >
-          {label}
-        </button>
-      </PopoverTrigger>
+      <WorkspaceFileContextMenu
+        scope={JSON.stringify([root, target.activePath])}
+        filePath={joinFileBreadcrumbPath(root, target.activePath)}
+        cwd={cwd ?? root}
+        openMode={last ? "file" : "workspace"}
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "whitespace-nowrap outline-none hover:text-[color:var(--lime-text)] focus-visible:ring-2 focus-visible:ring-ring",
+              last && "font-medium text-[color:var(--lime-text)]",
+            )}
+          >
+            {label}
+          </button>
+        </PopoverTrigger>
+      </WorkspaceFileContextMenu>
       <PopoverContent
         align="start"
         sideOffset={1}
@@ -179,6 +189,7 @@ export function FileSourceBreadcrumb({
                     target={target}
                     state={tree}
                     onSelectFile={onSelectFile}
+                    cwd={cwd}
                   />
                 ) : (
                   <span

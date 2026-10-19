@@ -150,6 +150,7 @@ where
         session_config,
         cancel_token,
         None,
+        None,
         policy,
         agent_control_gateway,
         None,

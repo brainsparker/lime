@@ -80,6 +80,9 @@ pub struct AgentSessionConfig {
     pub turn_context: Option<AgentTurnContext>,
     pub tool_mode: RuntimeToolMode,
     pub supports_custom_tools: bool,
+    /// Canonical session source for the terminal hook. ThreadSpawn sessions must set
+    /// `SubagentStop` at admission time instead of inferring it from fork lineage.
+    pub stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget,
 }
 
 pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> AgentSessionConfig {
@@ -101,6 +104,7 @@ pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> 
         turn_context: request.turn_context,
         tool_mode: RuntimeToolMode::Direct,
         supports_custom_tools: false,
+        stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
     }
 }
 
@@ -124,6 +128,7 @@ pub struct SessionConfigBuilder {
     turn_context: Option<AgentTurnContext>,
     tool_mode: RuntimeToolMode,
     supports_custom_tools: bool,
+    stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget,
 }
 
 impl SessionConfigBuilder {
@@ -144,6 +149,7 @@ impl SessionConfigBuilder {
             turn_context: None,
             tool_mode: RuntimeToolMode::Direct,
             supports_custom_tools: false,
+            stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
         }
     }
 
@@ -212,6 +218,14 @@ impl SessionConfigBuilder {
         self
     }
 
+    pub fn stop_hook_target(
+        mut self,
+        target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget,
+    ) -> Self {
+        self.stop_hook_target = target;
+        self
+    }
+
     pub fn build(self) -> AgentSessionConfig {
         AgentSessionConfig {
             model_history_recorder: None,
@@ -231,6 +245,7 @@ impl SessionConfigBuilder {
             turn_context: self.turn_context,
             tool_mode: self.tool_mode,
             supports_custom_tools: self.supports_custom_tools,
+            stop_hook_target: self.stop_hook_target,
         }
     }
 }

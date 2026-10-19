@@ -54,14 +54,6 @@ export const METHOD_CONNECT_DEEP_LINK_RESOLVE = "connectDeepLink/resolve";
 export const METHOD_CONNECT_OPEN_DEEP_LINK_RESOLVE =
   "connectOpenDeepLink/resolve";
 export const METHOD_CONNECT_RELAY_API_KEY_SAVE = "connectRelayApiKey/save";
-export const METHOD_CONVERSATION_IMPORT_JOB_READ =
-  "conversationImport/job/read";
-export const METHOD_CONVERSATION_IMPORT_SOURCE_SCAN =
-  "conversationImport/source/scan";
-export const METHOD_CONVERSATION_IMPORT_THREAD_COMMIT =
-  "conversationImport/thread/commit";
-export const METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW =
-  "conversationImport/thread/preview";
 export const METHOD_CURRENT_TIME_READ = "currentTime/read";
 export const METHOD_DIAGNOSTICS_LOG_STORAGE_READ =
   "diagnostics/logStorage/read";
@@ -225,6 +217,7 @@ export const METHOD_MEDIA_TASK_ARTIFACT_TRANSCRIPTION_CREATE =
 export const METHOD_MEDIA_TASK_ARTIFACT_VIDEO_CREATE =
   "mediaTaskArtifact/video/create";
 export const METHOD_MEMORY_RESET = "memory/reset";
+export const METHOD_MEMORY_STATUS = "memory/status";
 export const METHOD_MEMORY_STORE_ADD_NOTE = "memoryStore/addNote";
 export const METHOD_MEMORY_STORE_CONSOLIDATE = "memoryStore/consolidate";
 export const METHOD_MEMORY_STORE_HEALTH = "memoryStore/health";
@@ -664,22 +657,6 @@ export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
     method: "connectRelayApiKey/save",
-  },
-  {
-    kind: "request",
-    method: "conversationImport/job/read",
-  },
-  {
-    kind: "request",
-    method: "conversationImport/source/scan",
-  },
-  {
-    kind: "request",
-    method: "conversationImport/thread/commit",
-  },
-  {
-    kind: "request",
-    method: "conversationImport/thread/preview",
   },
   {
     kind: "serverRequest",
@@ -1180,6 +1157,10 @@ export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
     method: "memory/reset",
+  },
+  {
+    kind: "request",
+    method: "memory/status",
   },
   {
     kind: "request",
@@ -3941,26 +3922,6 @@ export type AppServerClientRequest =
     }
   | {
       id: number | string;
-      method: "conversationImport/source/scan";
-      params?: unknown;
-    }
-  | {
-      id: number | string;
-      method: "conversationImport/thread/preview";
-      params?: unknown;
-    }
-  | {
-      id: number | string;
-      method: "conversationImport/thread/commit";
-      params?: unknown;
-    }
-  | {
-      id: number | string;
-      method: "conversationImport/job/read";
-      params?: unknown;
-    }
-  | {
-      id: number | string;
       method: "agentSession/action/respond";
       params?: unknown;
     }
@@ -4022,10 +3983,6 @@ export type AppServerRequestMethod =
   | "connectDeepLink/resolve"
   | "connectOpenDeepLink/resolve"
   | "connectRelayApiKey/save"
-  | "conversationImport/job/read"
-  | "conversationImport/source/scan"
-  | "conversationImport/thread/commit"
-  | "conversationImport/thread/preview"
   | "diagnostics/logStorage/read"
   | "diagnostics/server/read"
   | "diagnostics/supportBundle/export"
@@ -4372,6 +4329,11 @@ export interface ArtifactWriteSidecar {
   sha256: string;
 }
 
+export interface AsyncUserInputQuestion {
+  options?: string[] | null;
+  title: string;
+}
+
 export type AuthKind =
   | "api_key_ref"
   | "direct_api_key"
@@ -4665,6 +4627,11 @@ export type ClientRequest =
       id: number | string;
       method: "thread/memoryMode/set";
       params: ThreadMemoryModeSetParams;
+    }
+  | {
+      id: number | string;
+      method: "memory/status";
+      params: MemoryStatusParams;
     }
   | {
       id: number | string;
@@ -5512,196 +5479,6 @@ export interface ConnectorMetadata {
   toolSummaries?: AppToolSummary[] | null;
 }
 
-export interface ConversationImportFidelitySummary {
-  approvals: number;
-  attachments: number;
-  budgetDropped: number;
-  commands: number;
-  mcp: number;
-  messages: number;
-  patches: number;
-  provenanceOnly: number;
-  reasoning: number;
-  tools: number;
-  unsupported: number;
-  webSearch: number;
-}
-
-export interface ConversationImportJob {
-  createdAt: string;
-  error?: null | string;
-  jobId: string;
-  progress: ConversationImportJobProgress;
-  result?: ConversationImportThreadCommitResponse | null;
-  sourceClient: ConversationImportSourceClient;
-  sourceThreadId?: null | string;
-  status: ConversationImportJobStatus;
-  updatedAt: string;
-}
-
-export type ConversationImportJobPhase =
-  | "building_history"
-  | "completed"
-  | "failed"
-  | "finalizing"
-  | "persisting_history"
-  | "queued"
-  | "reading_source";
-
-export interface ConversationImportJobProgress {
-  completedItems?: number;
-  completedTurns?: number;
-  phase: ConversationImportJobPhase;
-  totalItems?: number;
-  totalTurns?: number;
-}
-
-export interface ConversationImportJobReadParams {
-  jobId: string;
-}
-
-export interface ConversationImportJobReadResponse {
-  job: ConversationImportJob;
-}
-
-export type ConversationImportJobStatus =
-  | "completed"
-  | "failed"
-  | "queued"
-  | "running";
-
-export interface ConversationImportPreviewDryRun {
-  unsupportedItems: number;
-  willAppendToExistingSession: boolean;
-  willCreateSession: boolean;
-  willImportAttachments: number;
-  willImportMessages: number;
-  willImportTimelineItems: number;
-  willImportTurns: number;
-}
-
-export interface ConversationImportPreviewEvent {
-  kind: string;
-  label?: null | string;
-  provenance?: ConversationImportSourceProvenance | null;
-  timestamp?: null | string;
-}
-
-export interface ConversationImportPreviewMessage {
-  attachments?: AgentAttachment[];
-  omittedBytes?: number;
-  provenance?: ConversationImportSourceProvenance | null;
-  role: string;
-  sourceType?: null | string;
-  text: string;
-  timestamp?: null | string;
-  truncated?: boolean;
-}
-
-export interface ConversationImportPreviewSummary {
-  dryRun: ConversationImportPreviewDryRun;
-  fidelity?: ConversationImportFidelitySummary;
-  lineCount: number;
-  messageCount: number;
-  rolloutEventItems: number;
-  truncated: boolean;
-  unsupportedCount: number;
-  warnings?: string[];
-}
-
-export type ConversationImportSourceClient = "codex";
-
-export interface ConversationImportSourceProvenance {
-  sourceCallId?: null | string;
-  sourceChannel?: null | string;
-  sourceClient: ConversationImportSourceClient;
-  sourceEventSeq?: number | null;
-  sourceEventType?: null | string;
-  sourcePath?: null | string;
-  sourcePayloadType?: null | string;
-  sourceRole?: null | string;
-  sourceThreadId?: null | string;
-}
-
-export interface ConversationImportSourceScanParams {
-  cursor?: null | string;
-  includeArchived?: boolean | null;
-  limit?: number | null;
-  projectPath?: null | string;
-  query?: null | string;
-  sourceClient?: ConversationImportSourceClient | null;
-  sourceRoot?: null | string;
-}
-
-export interface ConversationImportSourceScanResponse {
-  nextCursor?: null | string;
-  source: ConversationImportSourceSummary;
-  threads?: ImportedThreadSummary[];
-}
-
-export type ConversationImportSourceStatus = "missing" | "ready";
-
-export interface ConversationImportSourceSummary {
-  indexedAt?: null | string;
-  message?: null | string;
-  readable: boolean;
-  rolloutFileCount?: number;
-  sourceClient: ConversationImportSourceClient;
-  sourceHomeExists?: boolean;
-  sourceRoot?: null | string;
-  stateDbReadable?: boolean;
-  statePath?: null | string;
-  status: ConversationImportSourceStatus;
-  threadCount?: number;
-}
-
-export interface ConversationImportThreadCommitParams {
-  appId?: null | string;
-  confirmed?: boolean;
-  replaceExisting?: boolean | null;
-  sourceClient?: ConversationImportSourceClient | null;
-  sourcePath?: null | string;
-  sourceRoot?: null | string;
-  sourceThreadId?: null | string;
-  workspaceId?: null | string;
-}
-
-export interface ConversationImportThreadCommitResponse {
-  canContinue: boolean;
-  importedMessages: number;
-  importedTurns: number;
-  session: AgentSession;
-  summary: ConversationImportPreviewSummary;
-  thread: ImportedThreadSummary;
-  warnings?: string[];
-}
-
-export interface ConversationImportThreadCommitStartResponse {
-  job: ConversationImportJob;
-}
-
-export interface ConversationImportThreadPreviewParams {
-  limit?: number | null;
-  sourceClient?: ConversationImportSourceClient | null;
-  sourcePath?: null | string;
-  sourceRoot?: null | string;
-  sourceThreadId?: null | string;
-}
-
-export interface ConversationImportThreadPreviewResponse {
-  events?: ConversationImportPreviewEvent[];
-  messages?: ConversationImportPreviewMessage[];
-  source: ConversationImportSourceSummary;
-  summary: ConversationImportPreviewSummary;
-  thread: ImportedThreadSummary;
-}
-
-export type ConversationImportThreadStatus =
-  | "conflict"
-  | "imported"
-  | "importing"
-  | "not_imported";
-
 export interface CurrentTimeReadParams {
   threadId: string;
 }
@@ -6530,7 +6307,6 @@ export interface HooksListResponse {
 
 export interface ImageGenerationItem {
   id: string;
-  metadata?: ThreadItemMetadata | null;
   result: string;
   revisedPrompt?: null | string;
   savedPath?: null | string;
@@ -6542,22 +6318,6 @@ export interface ImageStoryboardSlotInput {
   prompt: string;
   shotType?: null | string;
   slotId?: null | string;
-}
-
-export interface ImportedThreadSummary {
-  archived?: boolean;
-  createdAt?: null | string;
-  cwd?: null | string;
-  importJobId?: null | string;
-  importStatus: ConversationImportThreadStatus;
-  metadata?: unknown;
-  modelProvider?: null | string;
-  source?: null | string;
-  sourceClient: ConversationImportSourceClient;
-  sourcePath?: null | string;
-  sourceThreadId: string;
-  title?: null | string;
-  updatedAt?: null | string;
 }
 
 export interface InitializeCapabilities {
@@ -7449,6 +7209,15 @@ export interface MemoryCitationEntry {
 
 export type MemoryResetResponse = Record<string, unknown>;
 
+export interface MemoryStatusParams {
+  minConsolidatedThreads?: number | null;
+}
+
+export interface MemoryStatusResponse {
+  v2ConsolidatedThreads: number;
+  v2Ready: boolean;
+}
+
 export interface MemoryStoreAddNoteParams {
   content: string;
   scope?: MemoryStoreScope;
@@ -7471,6 +7240,7 @@ export interface MemoryStoreCitation {
 export interface MemoryStoreConsolidateParams {
   maxNotes?: number | null;
   scope?: MemoryStoreScope;
+  sessionId?: string;
   workspaceRoot?: null | string;
 }
 
@@ -7679,6 +7449,7 @@ export type Method =
   | "mcpServerStatus/list"
   | "media/read"
   | "memory/reset"
+  | "memory/status"
   | "model/list"
   | "modelProvider/capabilities/read"
   | "permissionProfile/list"
@@ -10082,7 +9853,6 @@ export interface SkillsListResponse {
 export interface SleepItem {
   durationMs?: number | null;
   id: string;
-  metadata?: ThreadItemMetadata | null;
 }
 
 export type SortDirection = "asc" | "desc";
@@ -10426,34 +10196,30 @@ export type ThreadItem =
       clientId?: null | string;
       content: UserInput[];
       id: string;
-      metadata?: ThreadItemMetadata | null;
       type: "userMessage";
     }
   | {
       fragments: HookPromptFragment[];
       id: string;
-      metadata?: ThreadItemMetadata | null;
       type: "hookPrompt";
     }
   | {
       delivery?: AgentMessageDelivery | null;
       id: string;
       memoryCitation?: MemoryCitation | null;
-      metadata?: ThreadItemMetadata | null;
       phase?: MessagePhase | null;
+      questions?: AsyncUserInputQuestion[] | null;
       text: string;
       type: "agentMessage";
     }
   | {
       id: string;
-      metadata?: ThreadItemMetadata | null;
       text: string;
       type: "plan";
     }
   | {
       content?: string[];
       id: string;
-      metadata?: ThreadItemMetadata | null;
       summary?: string[];
       type: "reasoning";
     }
@@ -10465,7 +10231,6 @@ export type ThreadItem =
       durationMs?: number | null;
       exitCode?: number | null;
       id: string;
-      metadata?: ThreadItemMetadata | null;
       pluginId?: null | string;
       processId?: null | string;
       scriptPath?: null | string;
@@ -10477,7 +10242,6 @@ export type ThreadItem =
   | {
       changes: FileUpdateChange[];
       id: string;
-      metadata?: ThreadItemMetadata | null;
       status: PatchApplyStatus;
       type: "fileChange";
     }
@@ -10490,7 +10254,6 @@ export type ThreadItem =
       };
       id: string;
       mcpAppResourceUri?: null | string;
-      metadata?: ThreadItemMetadata | null;
       pluginId?: null | string;
       readOnlyHint?: boolean | null;
       result: null | {
@@ -10508,7 +10271,6 @@ export type ThreadItem =
       contentItems?: DynamicToolCallOutputContentItem[] | null;
       durationMs?: number | null;
       id: string;
-      metadata?: ThreadItemMetadata | null;
       namespace?: null | string;
       status: DynamicToolCallStatus;
       success?: boolean | null;
@@ -10518,7 +10280,6 @@ export type ThreadItem =
   | {
       agentsStates?: Record<string, unknown>;
       id: string;
-      metadata?: ThreadItemMetadata | null;
       model?: null | string;
       prompt?: null | string;
       reasoningEffort?: ReasoningEffort | null;
@@ -10533,13 +10294,11 @@ export type ThreadItem =
       agentThreadId: string;
       id: string;
       kind: SubAgentActivityKind;
-      metadata?: ThreadItemMetadata | null;
       type: "subAgentActivity";
     }
   | WebSearchItem
   | {
       id: string;
-      metadata?: ThreadItemMetadata | null;
       path: string;
       type: "imageView";
     }
@@ -10547,25 +10306,21 @@ export type ThreadItem =
   | ImageGenerationItem
   | {
       id: string;
-      metadata?: ThreadItemMetadata | null;
       review: string;
       type: "enteredReviewMode";
     }
   | {
       id: string;
-      metadata?: ThreadItemMetadata | null;
       review: string;
       type: "exitedReviewMode";
     }
   | {
       id: string;
-      metadata?: ThreadItemMetadata | null;
       type: "contextCompaction";
     }
   | {
       fieldNames: string[];
       id: string;
-      metadata?: ThreadItemMetadata | null;
       type: "unknownItem";
       upstreamType: string;
     };
@@ -11471,7 +11226,6 @@ export interface WarningNotification {
 export interface WebSearchItem {
   action?: unknown;
   id: string;
-  metadata?: ThreadItemMetadata | null;
   query?: null | string;
 }
 
@@ -11961,32 +11715,6 @@ export type HookRunStatus =
   | "stopped";
 
 export type HookScope = "thread" | "turn";
-
-export interface ThreadItemMetadata {
-  imported?: boolean | null;
-  importedIncomplete?: boolean | null;
-  importedReadOnly?: boolean | null;
-  importedSynthetic?: boolean | null;
-  importedSyntheticId?: boolean | null;
-  sourceCallId?: null | string;
-  sourceClient?: null | string;
-  sourceEventSeq?: number | null;
-  sourceEventType?: null | string;
-  sourceProvenance?: ThreadItemSourceProvenance | null;
-  sourceThreadId?: null | string;
-}
-
-export interface ThreadItemSourceProvenance {
-  sourceCallId?: null | string;
-  sourceChannel?: null | string;
-  sourceClient?: null | string;
-  sourceEventSeq?: number | null;
-  sourceEventType?: null | string;
-  sourcePath?: null | string;
-  sourcePayloadType?: null | string;
-  sourceRole?: null | string;
-  sourceThreadId?: null | string;
-}
 
 export type AgentMessageDelivery = "async";
 

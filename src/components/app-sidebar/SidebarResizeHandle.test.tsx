@@ -11,13 +11,19 @@ vi.mock("react-i18next", () => ({
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 let dispose = () => {};
 
-function mount() {
+function mount(minimumWidth = 240) {
   const host = document.createElement("div");
   document.body.append(host);
   const root = createRoot(host);
   function Harness() {
-    const { width, setWidth } = useSidebarWidth();
-    return <SidebarResizeHandle width={width} onWidthChange={setWidth} />;
+    const { width, setWidth } = useSidebarWidth(minimumWidth);
+    return (
+      <SidebarResizeHandle
+        width={width}
+        onWidthChange={setWidth}
+        minimumWidth={minimumWidth}
+      />
+    );
   }
   act(() => root.render(<Harness />));
   dispose = () => {
@@ -40,6 +46,20 @@ afterEach(() => {
 });
 
 describe("SidebarResizeHandle", () => {
+  it("rail 展开将旧窄偏好约束到 290，设置侧栏仍允许 240", () => {
+    localStorage.setItem("sidebar-width", "240");
+    const handle = mount(290);
+    expect(handle.getAttribute("aria-valuenow")).toBe("290");
+    act(() =>
+      handle.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Home", bubbles: true }),
+      ),
+    );
+    expect(localStorage.getItem("sidebar-width")).toBe("290");
+    dispose();
+    localStorage.setItem("sidebar-width", "240");
+    expect(mount().getAttribute("aria-valuenow")).toBe("240");
+  });
   it("键盘调整受可用空间约束，保存后重新挂载恢复", () => {
     const handle = mount();
     act(() =>

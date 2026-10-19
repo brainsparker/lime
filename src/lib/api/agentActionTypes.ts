@@ -24,8 +24,11 @@ export interface ActionRequestGovernanceMeta {
 }
 
 export interface Question {
+  id?: string;
   question: string;
   header?: string;
+  isOther?: boolean;
+  isSecret?: boolean;
   options?: QuestionOption[];
   multiSelect?: boolean;
 }

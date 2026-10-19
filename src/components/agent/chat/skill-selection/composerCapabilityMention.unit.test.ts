@@ -21,7 +21,7 @@ describe("composer capability mentions", () => {
     { prefix: "中", offset: 1, from: 2, byteStart: 4 },
     { prefix: "😀", offset: 2, from: 3, byteStart: 5 },
   ])(
-    "在 $prefix 后插入技能，提交 UTF-8 范围与编辑 UTF-16 范围一致",
+    "在 $prefix 后插入技能，编辑范围保留并提交 canonical 链接",
     ({ prefix, offset, from, byteStart }) => {
       const controller = new ComposerController({ text: `${prefix}尾` });
       insertComposerSkill(controller, reviewSkill, {
@@ -44,9 +44,10 @@ describe("composer capability mentions", () => {
       expect(receipt.submission.inputMentions).toEqual([
         { type: "skill", name: "审阅", path: "review/SKILL.md" },
       ]);
-      expect(receipt.submission.textElements).toEqual(
-        controller.getDocument().textElements,
+      expect(receipt.submission.text).toBe(
+        `${prefix} [$审阅](review/SKILL.md) 尾`,
       );
+      expect(receipt.submission.textElements).toEqual([]);
     },
   );
 
@@ -154,7 +155,7 @@ describe("composer capability mentions", () => {
       { placeholder: "[paste]", text: "原文😀\n下一行" },
     ]);
     expect(controller.submit("start").submission).toMatchObject({
-      text: "@brief 中 $审阅 原文😀\n下一行😀end",
+      text: "[@brief](/tmp/brief.md) 中 [$审阅](review/SKILL.md) 原文😀\n下一行😀end",
       inputMentions: [
         { type: "mention", name: "brief", path: "/tmp/brief.md" },
         { type: "skill", name: "审阅", path: "review/SKILL.md" },

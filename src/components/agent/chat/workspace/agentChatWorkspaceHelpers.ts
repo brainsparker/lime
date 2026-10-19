@@ -464,14 +464,3 @@ export function normalizeVideoResolution(
       return "720p";
   }
 }
-
-export function isUsableKnowledgeSourceText(value: string): boolean {
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (normalized.length < 24) {
-    return false;
-  }
-
-  return !/请先.*(提供|补充).*(资料|素材|原文)|还没有.*(资料|素材|原文)|不能编造|无法.*沉淀/.test(
-    normalized,
-  );
-}

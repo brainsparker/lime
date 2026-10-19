@@ -14,13 +14,16 @@ import {
 } from "../../../skill-selection/useComposerCapabilitySelection";
 import { insertComposerSkill } from "../../../skill-selection/composerCapabilityMention";
 import type { ComposerEditorHandle } from "@/components/input-kit";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useHintRoutes } from "./useHintRoutes";
 import { useComposerAttachments } from "../../useComposerAttachments";
 import { useInputbarAdapter } from "./useInputbarAdapter";
 import { useInputbarSend } from "./useInputbarSend";
+import { useThreadGoalComposer } from "./useThreadGoalComposer";
+import { formatThreadGoalPrompt } from "../../newThreadGoalSubmission";
+import type { ThreadGoal } from "@limecloud/app-server-client";
 import {
   type InputbarToolStates,
   useInputbarToolState,
@@ -84,6 +87,8 @@ interface UseInputbarControllerParams {
   pluginSuggestions?: InputbarPluginCapability[];
   projectId?: string | null;
   sessionId?: string | null;
+  threadId?: string | null;
+  threadGoal?: ThreadGoal | null;
   pathReferences?: MessagePathReference[];
   onAddPathReferences?: (references: MessagePathReference[]) => void;
   onClearPathReferences?: () => void;
@@ -118,6 +123,8 @@ export function useInputbarController({
   pluginSuggestions = [],
   projectId = null,
   sessionId = null,
+  threadId = null,
+  threadGoal = null,
   pathReferences: initialPathReferences = [],
   onAddPathReferences,
   onClearPathReferences,
@@ -273,11 +280,56 @@ export function useInputbarController({
     return added;
   }, [openFileDialog]);
 
-  const { activeTools, handleToolClick, isFullscreen } = useInputbarToolState({
+  const {
+    activeTools: runtimeTools,
+    handleToolClick: handleRuntimeToolClick,
+    isFullscreen,
+  } = useInputbarToolState({
     toolStates,
     onToolStatesChange,
     openFileDialog: openComposerFiles,
   });
+
+  const goalComposer = useThreadGoalComposer({
+    controller: composerController,
+    coordinator: composerDraftCoordinator,
+    projectId,
+    sessionId,
+    threadId,
+    threadGoal,
+    focusComposer: () => editorRef.current?.focus(),
+    onCommitted: () => setInput(composerController.getDocument().text),
+    onGoalSaved: (savedThreadId, objective) => {
+      void promptHistoryClientRef.current
+        ?.appendPromptHistory({
+          threadId: savedThreadId,
+          text: formatThreadGoalPrompt(objective),
+        })
+        .catch(() => undefined);
+    },
+  });
+  const activeTools = useMemo(
+    () =>
+      threadId
+        ? {
+            ...runtimeTools,
+            objective_mode: goalComposer.pendingThreadGoalObjective !== null,
+          }
+        : runtimeTools,
+    [runtimeTools, threadId, goalComposer.pendingThreadGoalObjective],
+  );
+  const handleToolClick = useCallback(
+    (tool: string) => {
+      if (threadId && tool === "objective_mode") {
+        if (goalComposer.pendingThreadGoalObjective === null)
+          goalComposer.openGoalEditor();
+        else goalComposer.closeGoalEditor();
+        return;
+      }
+      handleRuntimeToolClick(tool);
+    },
+    [threadId, goalComposer, handleRuntimeToolClick],
+  );
 
   const {
     showHintPopup,
@@ -291,6 +343,7 @@ export function useInputbarController({
     editorRef,
   });
 
+  const [isNewGoalSubmitting, setIsNewGoalSubmitting] = useState(false);
   const handleSend = useInputbarSend({
     input,
     isLoading,
@@ -308,12 +361,13 @@ export function useInputbarController({
     composerController,
     composerDraftCoordinator,
     onComposerDraftAccepted,
-    onComposerAccepted: (draft, result) => {
-      if (draft?.text.trim()) {
+    onComposerAccepted: (draft, result, historyText) => {
+      const text = historyText ?? draft?.text;
+      if (text?.trim()) {
         void promptHistoryClientRef.current
           ?.appendPromptHistory({
             threadId: result.receipt.threadId,
-            text: draft.text,
+            text,
           })
           .catch(() => undefined);
       }
@@ -322,6 +376,15 @@ export function useInputbarController({
       setInput(text);
     },
     submitTarget,
+    prepareThreadGoalSubmit: threadId
+      ? goalComposer.prepareThreadGoalSubmit
+      : undefined,
+    onGoalModeEnabled: () => {
+      if (!runtimeTools["objective_mode"])
+        handleRuntimeToolClick("objective_mode");
+      setComposerText("");
+    },
+    onGoalSubmittingChange: setIsNewGoalSubmitting,
   });
   const handleInterrupt = useCallback(() => {
     onStop?.();
@@ -330,7 +393,7 @@ export function useInputbarController({
     input,
     setInput: handleSetInput,
     isLoading,
-    disabled,
+    disabled: disabled || goalComposer.isSubmitting || isNewGoalSubmitting,
     providerType,
     setProviderType,
     model,
@@ -394,6 +457,7 @@ export function useInputbarController({
     handleToolClick,
     isFullscreen,
     handleSend,
+    goalComposer,
     inputAdapter,
     pluginSuggestions,
     workflowQuickActions,

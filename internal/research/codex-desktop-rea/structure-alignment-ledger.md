@@ -2,11 +2,15 @@
 
 当前证据有效性以[缺失声明](validation-evidence-lifecycle-20261018.json)为准：旧`.lime/`整个目录消失，本账本旧收据/冻结结果只保留历史观察，不作为当前验收。新表格合同与测试独立补证，新原生结果须由新候选重建。
 
-状态：current / partial。校准日期：2026-10-19。本页归并已有 REA 审计与正式实现映射，不新增参考应用运行结论，也不是全量符号清单。
+状态：current / partial。校准日期：2026-10-20。本页归并已有 REA 审计与正式实现映射，不新增参考应用运行结论，也不是全量符号清单。
 
 参考为 Codex Desktop `26.1007.30912` / build `20156`，Bundle ID `com.openai.codex`，ASAR SHA-256 `75e397e2280dde93b70a85aa926f4282c728eacc84dfeb15ba7fb6ddd84628af`。版本、Evidence ID、原成员摘要和锚点分别由链接的领域审计及[证据索引](evidence-index.json)持有。公开 Rust checkout 只用于共享协议/runtime；不能补出 Desktop 前端原文件名。
 
 ## 已确认名称与 current owner
+
+2026-10-20侧栏更新：REA `ev_06897fd3c273c7d856bbe452f07615486591d2ce1bdceac0a1cac5cd1101f28d`从实际ASAR的iPo→ZNo→QNo定位到明确导出`ProfileDropdownItems`。Lime直接使用同名组件，`SidebarProfileFooter`仅作为本地presentation职责，账号读取/登录/退出继续委托共享owner；旧AppSidebarAccountMenu与Account卡片样式删除。nSs/g2分组合同迁到AppSidebarSection/useSidebarSections，删除先合计截10及旧split helper。跨产品导入链、referral、旧import timeout和fixture专用分支已退役，canonical历史/图片/流式/失败/分页风险迁到current回归；不新增alias。完整映射、证据、验证与剩余范围见[本轮计划](../../exec-plans/codex-sidebar-cleanup-20261020.md)。参考包具有条件性invite/Help，不能将Lime旧referral删除解释为目标没有这些能力；完整菜单和参考运行分支仍待验收。
+
+2026-10-20深层收敛：导入专用identity/query、nested sticky defaults、事件/Item合并旁路与public ThreadItemMetadata/ThreadItemSourceProvenance合同直接退役；schema、Rust/TUI构造、TS public reader和负向护栏同步迁移。当前canonical工具metadata、typed Plan与顶层线程设置保留。thread_read内按采样/terminal复核职责拆出runtime_snapshot，保持canonical唯一owner与分页identity，三入口竞态确定性回归通过；公共wire/新产物结算见同一本轮计划。不存在新增compat或deprecated owner。
 
 2026-10-17：已确认公开导出 `PdfPreviewPanel`、`DocxPreviewPanel`、`WorkbookPanel`、`PresentationPanel`，Lime同名组件由唯一 `ArtifactRenderer -> PreviewArtifactRenderer` 与文件树消费；四种预览和位置反馈均有固定候选原生证据。共享批注唯一owner为`artifact/annotations/`，各格式持有自己的位置适配器；内部拆分名未冒称上游原名。XLSX普通单元格编辑/保存与共享flush已验收；CSV/TSV原生重验因Main正常退出尚未关闭。Presentation对象/正文编辑与导出保存、DOCX/PDF具体编辑入口、进程重启耐久性和全量类/函数映射继续开放。详见[专业文件审计](professional-files-audit.md)与[工作簿实施计划](../../exec-plans/codex-workbook-alignment.md)。
 
@@ -327,3 +331,9 @@ REA101退出补证：认证同ASAR与main成员09d19386e1f23cf4ccbc950fc40d85a1e
 2026-10-19 102/104更新：资源Markdown提交候选102的19套336项、strict lint/types/contracts/i18n/治理、新Renderer及标准GUI通过；原矩阵60项业务观察完成，但Main原15秒正常退出超时，整轮failed，sourceDrift空、325产物manifest SHA 725e417ad2072fcd80510e672858e9995c7590985f64829ef85701f407f082b0。102 recovery1再次完成60观察但同一退出门禁failed；7秒被动sample超时且无有效栈，不能归因或当修复证据。原件均保留，rich独立补测中；97/102退出根因open。
 
 104沿REA103 recovery1的dzt/DC/ozt/wn合同实施文件树默认关闭、共享开关与250px临时宽度（min200/max60%）；不凭截图调整固定像素。泛化既有Host bool owner并直接删除summary专用方法，无alias；Summary、Files、Changes及Workbench消费者收敛同一typed gateway，删除每入口局部开关和true默认。Host7套193项、消费者6套44项已通过；真实桌面三主题/多宽度、保存重载与Files/Changes共享待验。`internal/exec-plans/codex-file-tree-visibility-20261019.md`。无新增业务owner/兼容层，不扩写未知Rust、发布和architecture增量；全GUI保持partial。
+
+2026-10-20 当前后继：侧栏按同ASAR的 `nSs -> TSs -> kPo -> _Po` 明确两种分页模式（REA `ev_95e17fe1ed110460bab4d65b5b01580c6a3b2cc9e6d31969caba53faa847ec2c`，4/4解析、parse0、semantic unknown）。末组Recents自动加载，中间组按钮分页；active项追加，source终止且仅余一项直接展示。映射到现有Shelf/LoadMore/sidebarSessions/ProjectGroups，没有包装层；首轮误将自动展开14条判为失败的收据保留，不能删除已证上游能力。
+
+Help/快捷键沿REA `ev_239bec2aefd37970eb55084dcc0bc983997b19ea6dc17efef692017787a7f1fb` 映射已确认导出 `KeyboardShortcutsDialog`。`ProfileDropdownItems`的Help子菜单按真实父menu底部定位并跟随几何更新；菜单与平台快捷键共享 `showKeyboardShortcuts`。`src/lib/commands`注册真实handler、可用性、平台键位和说明，Dialog消费同一挂载快照，搜索线程/设置与文档保存/取消/撤销重做迁入；不填假静态清单。删除4份document hotkey静态副本及测试，保留实际编辑器/Canvas/设置/平台/焦点回归；8套44项通过。What's new使用Lime现役发布页链接，完整feed、workDialog及远端服务合同仍open。
+
+已有线程目标按REA50的Qft→Lft→Nft→U9n/Q6t进入同一Composer，`useThreadGoalComposer`持有pending mode/替换确认并只委托现有thread/goal/set。旧独立Textarea/Modal与6条死文案删除；scope/revision/coordinator CAS与失败保稿并集97项通过。目标附件、新线程、canonical transcript和auto布局仍open，不能把纯文本限制宣称为上游合同。架构图已由root确认，产品新产物与真实Electron按当前计划结算；新增compat/deprecated为0。

@@ -1,4 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
+import { changeLimeLocale } from "@/i18n/createI18n";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { activityLogger } from "@/lib/workspace/workbenchRuntime";
 import type {
@@ -51,6 +53,8 @@ vi.mock("@/lib/api/modelRegistry", () => ({
     getModelRegistry: getModelRegistryMock,
   },
 }));
+
+vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 
 function noopDispatch<T>() {
   return vi.fn() as unknown as Dispatch<SetStateAction<T>>;
@@ -342,8 +346,18 @@ describe("agentStreamSubmitExecution", () => {
     expect(requestState.requestLogId).toBeTruthy();
   });
 
-  it("canonical thread 存在 active turn 时应提交 typed turn/steer", async () => {
-    getModelRegistryMock.mockResolvedValueOnce([]);
+  it.each([
+    {
+      name: "普通输入在 canonical active turn 应提交 typed turn/steer",
+      withGoal: false,
+    },
+    {
+      name: "新线程目标撞上 active turn 应拒绝且不 set/steer/清理乐观状态",
+      withGoal: true,
+    },
+  ])("$name", async ({ withGoal }) => {
+    await changeLimeLocale("zh-CN");
+    if (!withGoal) getModelRegistryMock.mockResolvedValueOnce([]);
     const unlisten = vi.fn();
     const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
       turn: { id: "turn-start", status: "inProgress" as const },
@@ -352,6 +366,9 @@ describe("agentStreamSubmitExecution", () => {
     const disposeListener = vi.fn();
     const activateStream = vi.fn();
     const steerTurn = vi.fn(async () => ({ turnId: "turn-active" }));
+    const clearOptimisticItem = vi.fn();
+    const clearOptimisticTurn = vi.fn();
+    const onRuntimeAccepted = vi.fn();
     const runtime = {
       listenToTurnEvents: vi.fn(async () => unlisten),
       getThreadTurnControl: vi.fn(async () => ({
@@ -370,7 +387,7 @@ describe("agentStreamSubmitExecution", () => {
       requestFinished: false,
     };
 
-    await executeAgentStreamSubmit({
+    const submission = executeAgentStreamSubmit({
       runtime,
       ensureSession: async () => "session-queued",
       attemptSilentTurnRecovery: async () => false,
@@ -389,7 +406,8 @@ describe("agentStreamSubmitExecution", () => {
       effectiveProviderType: "openai",
       effectiveModel: "gpt-5.4",
       effectiveExecutionStrategy: "react",
-      threadGoal: { objective: "重新激活目标" },
+      ...(withGoal ? { threadGoal: { objective: "新线程目标" } } : {}),
+      observer: { onRuntimeAccepted },
       eventName: "event-queued",
       clientUserMessageId: "user-steer",
       requestState,
@@ -404,8 +422,8 @@ describe("agentStreamSubmitExecution", () => {
       callbacks: {
         activateStream,
         isStreamActivated: () => false,
-        clearOptimisticItem: () => {},
-        clearOptimisticTurn: () => {},
+        clearOptimisticItem,
+        clearOptimisticTurn,
         disposeListener,
         clearActiveStreamIfMatch: () => false,
         registerListener: vi.fn(),
@@ -421,21 +439,27 @@ describe("agentStreamSubmitExecution", () => {
       setExecutionRuntime: noopDispatch<AgentSessionExecutionRuntime | null>(),
     });
 
+    if (withGoal) {
+      await expect(submission).rejects.toThrow("目标操作失败");
+      expect(setThreadGoalMock).not.toHaveBeenCalled();
+      expect(steerTurn).not.toHaveBeenCalled();
+      expect(submitOp).not.toHaveBeenCalled();
+      expect(clearOptimisticItem).not.toHaveBeenCalled();
+      expect(clearOptimisticTurn).not.toHaveBeenCalled();
+      expect(onRuntimeAccepted).not.toHaveBeenCalled();
+      expect(runtime.listenToTurnEvents).not.toHaveBeenCalled();
+      expect(activateStream).not.toHaveBeenCalled();
+      expect(refreshSessionReadModel).not.toHaveBeenCalled();
+      return;
+    }
+    await submission;
     expect(steerTurn).toHaveBeenCalledWith({
       threadId: "thread-queued",
       expectedTurnId: "turn-active",
       clientUserMessageId: "user-steer",
       input: [{ type: "text", text: "排队处理" }],
     });
-    expect(setThreadGoalMock).toHaveBeenCalledWith({
-      threadId: "thread-queued",
-      objective: "重新激活目标",
-      status: "active",
-      tokenBudget: undefined,
-    });
-    expect(setThreadGoalMock.mock.invocationCallOrder[0]).toBeLessThan(
-      steerTurn.mock.invocationCallOrder[0],
-    );
+    expect(setThreadGoalMock).not.toHaveBeenCalled();
     expect(submitOp).not.toHaveBeenCalled();
     expect(runtime.listenToTurnEvents).not.toHaveBeenCalled();
     expect(activateStream).not.toHaveBeenCalled();
@@ -986,107 +1010,123 @@ describe("agentStreamSubmitExecution", () => {
     expect(submittedOp).not.toHaveProperty("metadata");
   });
 
-  it("已接受用户 Turn 后 ThreadGoal 写入失败不应伪装成提交失败", async () => {
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    const unlisten = vi.fn();
-    const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
-      turn: { id: "turn-start", status: "inProgress" as const },
-    }));
-    const ensureSession = vi.fn(async () => "session-1");
-    const registerListener = vi.fn();
-    const activateStream = vi.fn();
-    setThreadGoalMock.mockRejectedValueOnce(new Error("bridge timeout"));
-    const runtime = {
-      listenToTurnEvents: vi.fn(async () => unlisten),
-      getThreadTurnControl: vi.fn(async (threadId: string) =>
-        idleTurnControl(threadId),
-      ),
-      submitOp,
-    } as unknown as AgentRuntimeAdapter;
-    const requestState: StreamRequestState = {
-      accumulatedContent: "",
-      requestLogId: null,
-      requestStartedAt: 0,
-      requestFinished: false,
-    };
+  it.each([
+    ["zh-CN", "目标操作失败"],
+    ["zh-TW", "目標操作失敗"],
+    ["en-US", "Goal action failed"],
+    ["ja-JP", "目標操作に失敗しました"],
+    ["ko-KR", "목표 작업에 실패했습니다"],
+  ] as const)(
+    "%s 已接受用户 Turn 后目标写入失败可见且不伪装成提交失败",
+    async (locale, message) => {
+      await changeLimeLocale(locale);
+      const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const unlisten = vi.fn();
+      const submitOp = vi.fn<AgentRuntimeAdapter["submitOp"]>(async () => ({
+        turn: { id: "turn-start", status: "inProgress" as const },
+      }));
+      const ensureSession = vi.fn(async () => "session-1");
+      const registerListener = vi.fn();
+      const activateStream = vi.fn();
+      setThreadGoalMock.mockRejectedValueOnce(new Error("bridge timeout"));
+      const runtime = {
+        listenToTurnEvents: vi.fn(async () => unlisten),
+        getThreadTurnControl: vi.fn(async (threadId: string) =>
+          idleTurnControl(threadId),
+        ),
+        submitOp,
+      } as unknown as AgentRuntimeAdapter;
+      const requestState: StreamRequestState = {
+        accumulatedContent: "",
+        requestLogId: null,
+        requestStartedAt: 0,
+        requestFinished: false,
+      };
 
-    await executeAgentStreamSubmit({
-      runtime,
-      ensureSession,
-      attemptSilentTurnRecovery: async () => false,
-      refreshSessionReadModel: async () => true,
-      sessionIdRef: { current: null } as MutableRefObject<string | null>,
-      getWorkspaceIdForSubmit: () => "workspace-1",
-      getThreadIdForSubmit: () => "thread-1",
-      getSyncedSessionExecutionStrategy: () => "react",
-      getSyncedSessionRecentPreferences: () => ({
+      const receipt = await executeAgentStreamSubmit({
+        runtime,
+        ensureSession,
+        attemptSilentTurnRecovery: async () => false,
+        refreshSessionReadModel: async () => true,
+        sessionIdRef: { current: null } as MutableRefObject<string | null>,
+        getWorkspaceIdForSubmit: () => "workspace-1",
+        getThreadIdForSubmit: () => "thread-1",
+        getSyncedSessionExecutionStrategy: () => "react",
+        getSyncedSessionRecentPreferences: () => ({
+          webSearch: false,
+          thinking: false,
+          task: false,
+          subagent: false,
+        }),
+        effectiveAccessMode: "read-only",
+        content: "继续生成提纲",
+        images: [],
+        skipUserMessage: false,
+        effectiveProviderType: "openai",
+        effectiveModel: "gpt-5.4",
+        effectiveExecutionStrategy: "react",
         webSearch: false,
         thinking: false,
-        task: false,
-        subagent: false,
-      }),
-      effectiveAccessMode: "read-only",
-      content: "继续生成提纲",
-      images: [],
-      skipUserMessage: false,
-      effectiveProviderType: "openai",
-      effectiveModel: "gpt-5.4",
-      effectiveExecutionStrategy: "react",
-      webSearch: false,
-      thinking: false,
-      skipSessionRestore: true,
-      skipSessionStartHooks: true,
-      threadGoal: { objective: "持续推进真实 E2E 目标" },
-      eventName: "event-1",
-      clientUserMessageId: "user-1",
-      requestState,
-      assistantMsgId: "assistant-1",
-      pendingTurnKey: "pending-turn-1",
-      pendingItemKey: "pending-item-1",
-      warnedKeysRef: { current: new Set<string>() },
-      actionLoggedKeys: new Set<string>(),
-      toolLogIdByToolId: new Map<string, string>(),
-      toolStartedAtByToolId: new Map<string, number>(),
-      toolNameByToolId: new Map<string, string>(),
-      callbacks: {
-        activateStream,
-        isStreamActivated: () => false,
-        clearOptimisticItem: () => {},
-        clearOptimisticTurn: () => {},
-        disposeListener: () => {},
-        clearActiveStreamIfMatch: () => false,
-        registerListener,
-      },
-      appendThinkingToParts: (parts: NonNullable<Message["contentParts"]>) =>
-        parts,
-      setMessages: noopDispatch<Message[]>(),
-      setIsSending: noopDispatch<boolean>(),
-      setPendingActions: noopDispatch<ActionRequired[]>(),
-      setThreadItems: noopDispatch<AgentThreadItem[]>(),
-      setThreadTurns: noopDispatch<AgentThreadTurn[]>(),
-      setCurrentTurnId: noopDispatch<string | null>(),
-      setExecutionRuntime: noopDispatch<AgentSessionExecutionRuntime | null>(),
-    });
-
-    expect(setThreadGoalMock).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalledWith(
-      "[AgentStream] 用户 Turn 已接受，但设置 ThreadGoal 失败:",
-      expect.any(Error),
-    );
-    expect(submitOp).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: "user_input",
+        skipSessionRestore: true,
+        skipSessionStartHooks: true,
+        threadGoal: { objective: "持续推进真实 E2E 目标" },
         eventName: "event-1",
-        turn: expect.objectContaining({
-          threadId: "thread-1",
-          input: [{ type: "text", text: "继续生成提纲" }],
-          model: "gpt-5.4",
-          approvalPolicy: "on-request",
-          permissions: ":read-only",
+        clientUserMessageId: "user-1",
+        requestState,
+        assistantMsgId: "assistant-1",
+        pendingTurnKey: "pending-turn-1",
+        pendingItemKey: "pending-item-1",
+        warnedKeysRef: { current: new Set<string>() },
+        actionLoggedKeys: new Set<string>(),
+        toolLogIdByToolId: new Map<string, string>(),
+        toolStartedAtByToolId: new Map<string, number>(),
+        toolNameByToolId: new Map<string, string>(),
+        callbacks: {
+          activateStream,
+          isStreamActivated: () => false,
+          clearOptimisticItem: () => {},
+          clearOptimisticTurn: () => {},
+          disposeListener: () => {},
+          clearActiveStreamIfMatch: () => false,
+          registerListener,
+        },
+        appendThinkingToParts: (parts: NonNullable<Message["contentParts"]>) =>
+          parts,
+        setMessages: noopDispatch<Message[]>(),
+        setIsSending: noopDispatch<boolean>(),
+        setPendingActions: noopDispatch<ActionRequired[]>(),
+        setThreadItems: noopDispatch<AgentThreadItem[]>(),
+        setThreadTurns: noopDispatch<AgentThreadTurn[]>(),
+        setCurrentTurnId: noopDispatch<string | null>(),
+        setExecutionRuntime:
+          noopDispatch<AgentSessionExecutionRuntime | null>(),
+      });
+
+      expect(receipt).toMatchObject({
+        threadId: "thread-1",
+        turnId: "turn-start",
+      });
+      expect(toast.error).toHaveBeenCalledWith(message);
+      expect(setThreadGoalMock).toHaveBeenCalledTimes(1);
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[AgentStream] 用户 Turn 已接受，但设置 ThreadGoal 失败:",
+        expect.any(Error),
+      );
+      expect(submitOp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "user_input",
+          eventName: "event-1",
+          turn: expect.objectContaining({
+            threadId: "thread-1",
+            input: [{ type: "text", text: "继续生成提纲" }],
+            model: "gpt-5.4",
+            approvalPolicy: "on-request",
+            permissions: ":read-only",
+          }),
         }),
-      }),
-      expect.any(Function),
-    );
-    expect(activateStream).toHaveBeenCalled();
-  });
+        expect.any(Function),
+      );
+      expect(activateStream).toHaveBeenCalled();
+    },
+  );
 });

@@ -66,6 +66,7 @@ async fn failing_history_append(fail_at: usize) {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -155,6 +156,7 @@ async fn committed_native_item_without_deltas_prevents_provider_reroute() {
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         )

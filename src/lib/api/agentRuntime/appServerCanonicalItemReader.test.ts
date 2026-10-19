@@ -327,7 +327,16 @@ describe("readCanonicalThreadItem", () => {
   ])(
     "projects canonical v2 %s without entity-envelope shadow fields",
     (_name, value, expected) => {
-      const projected = readCanonicalThreadItem(item(value), event);
+      const projected = readCanonicalThreadItem(
+        item({
+          ...value,
+          metadata: {
+            privateAnnotation: "must-not-survive",
+            sourceEventType: "file.read",
+          },
+        }),
+        event,
+      );
       expect(projected).toMatchObject({
         id: "item-1",
         thread_id: "thread-1",
@@ -383,6 +392,7 @@ describe("readCanonicalThreadItem", () => {
         id: "plan_turn-1_proposed_plan:fixture-1",
         type: "plan",
         text: "- [ ] 验证历史恢复",
+        metadata: { revisionId: "forged-revision", source: "forged-source" },
       }),
       event,
     );
@@ -744,52 +754,6 @@ describe("readCanonicalThreadItem", () => {
       success: false,
       completed_at: event.timestamp,
     });
-  });
-
-  it("projects a read-only fileChange as a file artifact", () => {
-    const projected = readCanonicalThreadItem(
-      item({
-        type: "fileChange",
-        metadata: { sourceEventType: "file.read" },
-        changes: [
-          {
-            path: "docs/imported-preview.md",
-            kind: { type: "update" },
-            diff: "# imported preview",
-          },
-        ],
-        status: "completed",
-      }),
-      event,
-    );
-
-    expect(projected).toMatchObject({
-      type: "file_artifact",
-      path: "docs/imported-preview.md",
-      source: "file_read",
-      content: "# imported preview",
-      status: "completed",
-    });
-    expect(projected).not.toHaveProperty("changes");
-  });
-
-  it.each([
-    "/Users/example/imported/docs/预算.docx",
-    "C:\\Users\\example\\imported\\预算.xlsx",
-    "\\\\server\\workspace\\报告.pdf",
-    "../reports/source.csv",
-  ])("preserves the actionable read-only source path %s", (path) => {
-    expect(
-      readCanonicalThreadItem(
-        item({
-          type: "fileChange",
-          metadata: { sourceEventType: "file.read" },
-          changes: [{ path, kind: { type: "update" }, diff: "extracted text" }],
-          status: "completed",
-        }),
-        event,
-      ),
-    ).toMatchObject({ type: "file_artifact", path, content: "extracted text" });
   });
 
   it("preserves source and rename destination paths for file review", () => {

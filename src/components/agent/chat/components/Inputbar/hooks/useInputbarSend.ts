@@ -1,14 +1,26 @@
 import { runRuntimeSubmissionEffect } from "../../../hooks/agentSendResult";
 import { useCallback, useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import type {
   ComposerDraftCoordinator,
   ComposerDraftCapture,
 } from "@/components/input-kit/ComposerDraftCoordinator";
 import type { AcceptedRuntimeSubmissionResult } from "@/components/agent/chat/hooks/agentSendResult";
+import type { RuntimeSubmissionResult } from "../../../hooks/agentSendResult";
 import { createComposerSubmissionSettlement } from "../../composerSubmissionSettlement";
+import {
+  buildNewThreadGoalSendPayload,
+  formatThreadGoalPrompt,
+  submitNewThreadGoal,
+} from "../../newThreadGoalSubmission";
+import { prepareThreadGoalDraft } from "./threadGoalDraft";
 import type { MessageImage, MessagePathReference } from "../../../types";
 
-import type { InputbarSendHandler } from "../inputbarSendPayload";
+import type {
+  InputbarSendHandler,
+  InputbarSendPayload,
+} from "../inputbarSendPayload";
 
 import { buildPathReferenceRequestMetadata } from "../../../utils/pathReferences";
 import {
@@ -50,9 +62,13 @@ interface UseInputbarSendParams {
   onComposerAccepted?: (
     draft: ComposerDraftSnapshot | undefined,
     result: AcceptedRuntimeSubmissionResult,
+    historyText?: string,
   ) => void;
   onComposerCommitted?: (text: string, draft?: ComposerDraftSnapshot) => void;
   submitTarget?: ComposerSubmitTarget;
+  prepareThreadGoalSubmit?: () => Promise<RuntimeSubmissionResult> | null;
+  onGoalModeEnabled?: () => void;
+  onGoalSubmittingChange?: (submitting: boolean) => void;
 }
 
 export function useInputbarSend({
@@ -75,8 +91,13 @@ export function useInputbarSend({
   onComposerAccepted,
   onComposerCommitted,
   submitTarget,
+  prepareThreadGoalSubmit,
+  onGoalModeEnabled,
+  onGoalSubmittingChange,
 }: UseInputbarSendParams) {
+  const { t } = useTranslation("agent");
   const mounted = useRef(true);
+  const goalSubmissionPending = useRef(false);
   const surface = useRef({
     composerController,
     composerDraftCoordinator,
@@ -97,12 +118,16 @@ export function useInputbarSend({
   }, []);
   return useCallback(
     async (triggerMetadata?: BaseComposerSendMetadata) => {
+      if (goalSubmissionPending.current) return { kind: "rejected" as const };
+      const goalSubmission = prepareThreadGoalSubmit?.();
+      if (goalSubmission) return goalSubmission;
       const handlerEnteredAt = Date.now();
       const sendRestoreEpoch = getInputRestoreEpoch?.() ?? 0;
       const resolvedSubmitTarget: ComposerSubmitTarget =
         triggerMetadata?.submitTarget ??
         submitTarget ??
         (isLoading ? "steer" : "start");
+      let goalHistoryText: string | undefined;
       const settlement = createComposerSubmissionSettlement({
         controller: composerController,
         coordinator: composerDraftCoordinator,
@@ -120,7 +145,9 @@ export function useInputbarSend({
           (getInputRestoreEpoch?.() ?? sendRestoreEpoch) === sendRestoreEpoch,
         onAccepted: (result, draft) => {
           runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () =>
-            onComposerAccepted?.(draft, result),
+            goalHistoryText
+              ? onComposerAccepted?.(draft, result, goalHistoryText)
+              : onComposerAccepted?.(draft, result),
           );
         },
         onCommitted: (accepted) => {
@@ -201,10 +228,37 @@ export function useInputbarSend({
         workspaceId: projectId ?? null,
       });
       const inputMentions = composerSubmission?.inputMentions ?? [];
+      const goalCommand = (composerDraft?.text ?? submittedInput)
+        .trimStart()
+        .match(/^\/go+al(?=$| )/);
+      const isNewThreadGoal =
+        !prepareThreadGoalSubmit &&
+        (Boolean(activeTools["objective_mode"]) || Boolean(goalCommand));
+      const goalDraft =
+        isNewThreadGoal && composerReceipt
+          ? prepareThreadGoalDraft(composerReceipt, goalCommand?.[0].length)
+          : null;
+      if (isNewThreadGoal && !goalDraft) return { kind: "rejected" as const };
+      if (goalDraft) {
+        if (submittedReferences.length || submittedRoute) {
+          toast.error(t("agentChat.threadGoal.composer.unsupportedContext"));
+          return { kind: "rejected" as const };
+        }
+        if (
+          !goalDraft.objective &&
+          !goalDraft.pastedTextAttachments.length &&
+          !goalDraft.imageAttachments.length
+        ) {
+          onGoalModeEnabled?.();
+          return { kind: "local-handled" as const };
+        }
+        goalHistoryText = formatThreadGoalPrompt(goalDraft.objective);
+      }
       if (
         !submittedInput.trim() &&
         submittedImages.length === 0 &&
-        submittedReferences.length === 0
+        submittedReferences.length === 0 &&
+        !goalDraft?.pastedTextAttachments.length
       ) {
         return;
       }
@@ -219,6 +273,7 @@ export function useInputbarSend({
         submittedReferences.length === 0 &&
         !submittedCapability &&
         !hasRuntimeMode &&
+        !goalDraft &&
         resolvedSubmitTarget !== "queue";
       if (canUsePlainTextFastPath) {
         recordAgentUiPerformanceMetric("inputbar.send.plainTextFastPath", {
@@ -269,10 +324,6 @@ export function useInputbarSend({
         subagentEnabled: Boolean(activeTools["subagent_mode"]),
       };
       const requestMetadata = baseRequestMetadata;
-      const threadGoal =
-        activeTools["objective_mode"] && submittedInput.trim()
-          ? { objective: submittedInput.trim() }
-          : undefined;
       const toolPreferencesOverride =
         buildInputbarToolPreferencesOverride(inputbarModeState);
       const collaborationMode = inputbarModeState.planEnabled
@@ -297,7 +348,7 @@ export function useInputbarSend({
         capabilityDispatch.capabilityRoute ||
         capabilityDispatch.displayContent ||
         requestMetadata ||
-        threadGoal ||
+        goalDraft ||
         toolPreferencesOverride ||
         collaborationMode ||
         inputMentions.length > 0
@@ -315,14 +366,13 @@ export function useInputbarSend({
                   }
                 : {}),
               ...(requestMetadata ? { requestMetadata } : {}),
-              ...(threadGoal ? { threadGoal } : {}),
               ...(toolPreferencesOverride ? { toolPreferencesOverride } : {}),
               ...(collaborationMode ? { collaborationMode } : {}),
             }
           : undefined;
 
       try {
-        const result = await onSend({
+        const payload: InputbarSendPayload = {
           ...captureMetadata,
           images: submittedImages.length > 0 ? [...submittedImages] : undefined,
           textOverride,
@@ -341,11 +391,58 @@ export function useInputbarSend({
                 triggerSource,
               }
             : {}),
-        });
+        };
+        if (goalDraft) {
+          goalSubmissionPending.current = true;
+          onGoalSubmittingChange?.(true);
+          const binding = composerDraftCoordinator?.captureBinding();
+          const generation = composerDraftCoordinator?.getSnapshot().generation;
+          const assertRequestCurrent = () => {
+            const current = composerDraftCoordinator?.getSnapshot();
+            if (
+              !mounted.current ||
+              surface.current.composerController !== composerController ||
+              surface.current.composerDraftCoordinator !==
+                composerDraftCoordinator ||
+              surface.current.projectId !== projectId ||
+              surface.current.sessionId !== sessionId ||
+              (getInputRestoreEpoch?.() ?? sendRestoreEpoch) !==
+                sendRestoreEpoch ||
+              (current &&
+                (current.generation !== generation ||
+                  JSON.stringify(current.scope) !==
+                    JSON.stringify(binding?.scope) ||
+                  current.identity?.draftId !== binding?.identity.draftId))
+            ) {
+              throw new Error("Goal submission is no longer current");
+            }
+          };
+          const result = await submitNewThreadGoal({
+            draft: goalDraft,
+            assertRequestCurrent,
+            onPreparationFailed: () => {
+              try {
+                assertRequestCurrent();
+              } catch {
+                return;
+              }
+              toast.error(t("agentChat.threadGoal.composer.materializeFailed"));
+            },
+            submit: (goalInput) =>
+              onSend(buildNewThreadGoalSendPayload(payload, goalInput)),
+          });
+          return settlement.finish(result);
+        }
+        const result = await onSend(payload);
         return settlement.finish(result);
       } catch (error) {
         // 发送失败时保留图片与技能，交由上层 toast / 恢复逻辑处理。
         return settlement.reject(error);
+      } finally {
+        if (goalDraft) {
+          goalSubmissionPending.current = false;
+          if (mounted.current) onGoalSubmittingChange?.(false);
+        }
       }
     },
     [
@@ -364,10 +461,14 @@ export function useInputbarSend({
       onComposerCommitted,
       projectId,
       submitTarget,
+      prepareThreadGoalSubmit,
+      onGoalModeEnabled,
+      onGoalSubmittingChange,
       sessionId,
       onSend,
       pendingImages,
       pathReferences,
+      t,
     ],
   );
 }

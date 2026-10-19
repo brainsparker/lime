@@ -106,13 +106,6 @@ function renderCard(
     readTimelineArtifactContent?: (
       item: Extract<AgentThreadItem, { type: "file_artifact" }>,
     ) => Promise<AgentRuntimeTimelineArtifactContent | null>;
-    sourceMessageId?: string;
-    onSaveFileArtifactAsKnowledge?: (source: {
-      messageId: string;
-      content: string;
-      sourceName?: string;
-      description?: string | null;
-    }) => void;
   },
 ): HTMLDivElement {
   const container = document.createElement("div");
@@ -127,8 +120,6 @@ function renderCard(
         onFileClick={props?.onFileClick}
         onOpenArtifactFromTimeline={props?.onOpenArtifactFromTimeline}
         readTimelineArtifactContent={props?.readTimelineArtifactContent}
-        sourceMessageId={props?.sourceMessageId}
-        onSaveFileArtifactAsKnowledge={props?.onSaveFileArtifactAsKnowledge}
       />,
     );
   });
@@ -389,51 +380,33 @@ describe("AgentThreadTimelineArtifactCard", () => {
     expect(badge?.getAttribute("title")).not.toContain("产物快照");
   });
 
-  it("Markdown 文件产物应展示为文件附件并保留保存到项目资料动作", () => {
-    const onSaveFileArtifactAsKnowledge = vi.fn();
+  it("Markdown 文件产物应保留文件打开动作且不提供知识保存入口", () => {
+    const onFileClick = vi.fn();
     const content =
-      "# 谢晶营销文案包 v1.0\n\n## 视频号口播\n这是一份可以进入项目资料的营销文案产物，包含口播、朋友圈和私信话术。";
+      "# Result\n\n这是一份完整的 Markdown 文档产物，可以从文件附件卡片打开预览。";
+    const filePath = "outputs/result.md";
     const container = renderCard(
       createFileArtifactItem({
-        path: "outputs/谢晶_营销文案包_KnowledgeV2_E2E.md",
+        path: filePath,
         source: "tool_result",
         content,
-        metadata: {
-          artifactTitle: "谢晶营销文案包 v1.0",
-        },
+        metadata: { artifactTitle: "Result" },
       }),
-      {
-        sourceMessageId: "assistant-message-1",
-        onSaveFileArtifactAsKnowledge,
-      },
+      { onFileClick },
     );
-
     expect(
       container.querySelector('[data-testid="timeline-file-attachment-card"]'),
     ).not.toBeNull();
-    expect(container.textContent).toContain(
-      "谢晶_营销文案包_KnowledgeV2_E2E.md",
-    );
     expect(container.textContent).toContain("文档 · MD");
-    expect(container.textContent).toContain("打开文件");
-    expect(container.textContent).not.toContain("打开方式");
-    expect(container.textContent).toContain("保存这份文档");
-
-    const saveButton = Array.from(
+    expect(container.textContent).not.toContain("保存这份文档");
+    expect(container.textContent).not.toContain("可保存到项目资料");
+    const openButton = Array.from(
       container.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((button) => button.textContent?.includes("保存这份文档"));
-
-    expect(saveButton).not.toBeUndefined();
-
+    ).find((button) => button.textContent?.includes("打开文件"));
+    expect(openButton).not.toBeUndefined();
     act(() => {
-      saveButton?.click();
+      openButton?.click();
     });
-
-    expect(onSaveFileArtifactAsKnowledge).toHaveBeenCalledWith({
-      messageId: "assistant-message-1",
-      content,
-      sourceName: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-      description: "谢晶营销文案包 v1.0",
-    });
+    expect(onFileClick).toHaveBeenCalledWith(filePath, content);
   });
 });

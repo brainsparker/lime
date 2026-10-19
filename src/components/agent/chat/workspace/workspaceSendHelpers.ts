@@ -41,7 +41,6 @@ const OEM_CLOUD_FEATURE_FLAG_KEYS = [
   "profileEditable",
   "hubTokensEnabled",
   "billingEnabled",
-  "referralEnabled",
   "gatewayEnabled",
 ] as const satisfies readonly (keyof OemCloudFeatureFlags)[];
 
@@ -519,6 +518,7 @@ function applyMentionedCharacterContext(
 export async function buildWorkspaceSendText(
   options: BuildWorkspaceSendTextOptions,
 ): Promise<string> {
+  if (options.sendOptions?.threadGoal) return options.sourceText;
   const {
     sourceText,
     contextWorkspace,

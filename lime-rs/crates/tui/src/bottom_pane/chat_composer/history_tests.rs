@@ -213,7 +213,6 @@ fn replay_seed_restores_rich_images_elements_and_mentions_through_up_recall() {
         id: "turn-replay".into(),
         items: vec![ThreadItem::UserMessage {
             id: "user-replay".into(),
-            metadata: None,
             client_id: None,
             content: vec![
                 UserInput::Image {

@@ -12,7 +12,6 @@ use ratatui::{backend::TestBackend, Terminal};
 fn read_item(id: &str, name: &str) -> ThreadItem {
     ThreadItem::CommandExecution {
         id: id.into(),
-        metadata: None,
         plugin_id: None,
         script_path: None,
         command: format!("cat {name}"),
@@ -64,7 +63,6 @@ fn reader(streaming_tail: bool) -> (App, Terminal<TestBackend>) {
                 completed_at_ms: 2,
                 item: ThreadItem::AgentMessage {
                     id: "tail".into(),
-                    metadata: None,
                     text: tail,
                     phase: None,
                     memory_citation: None,
@@ -258,7 +256,6 @@ fn page_join_before_resize_retains_the_group_in_the_full_composer_layout() {
     }
     items.push(ThreadItem::AgentMessage {
         id: "tail".into(),
-        metadata: None,
         text: (0..45)
             .map(|row| format!("READING_SURVIVING_ROW_{row:02}"))
             .collect::<Vec<_>>()

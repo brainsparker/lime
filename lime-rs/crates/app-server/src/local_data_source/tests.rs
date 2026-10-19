@@ -53,7 +53,10 @@ fn setup_data_source() -> LocalAppDataSource {
         db: Arc::new(Mutex::new(conn)),
         app_data_root,
         product_db_path: crate::runtime::product_db_path_for_agent_root(&agent_root),
-        plugin_store: plugin_catalog::PluginStore::new(agent_root.join("plugins"), agent_root.join("config.yaml")),
+        plugin_store: plugin_catalog::PluginStore::new(
+            agent_root.join("plugins"),
+            agent_root.join("config.yaml"),
+        ),
         session_files_root: agent_root.join("artifacts").join("sessions"),
         connect_registry_cache_path: agent_root
             .join("cache")

@@ -6,7 +6,6 @@ import {
   ArrowLeft,
   Check,
   ChevronRight,
-  FileInput,
   FolderInput,
   FolderOpen,
   FolderPlus,
@@ -59,8 +58,6 @@ interface ProjectMenuLabels {
   unpin: string;
   reveal: string;
   createWorktree: string;
-  importConversation: string;
-  importConversationFor: (title: string) => string;
   rename: string;
   remove: string;
 }
@@ -83,7 +80,6 @@ interface AppSidebarConversationMenusProps {
   onCreateProjectWorktree?: (project: SidebarOpenedProjectSummary) => void;
   onRenameProject?: (project: SidebarOpenedProjectSummary) => void;
   onRemoveProject?: (project: SidebarOpenedProjectSummary) => void;
-  onImportConversation?: (project?: SidebarOpenedProjectSummary) => void;
   threadSections: AgentSessionSection[];
   conversationLabels: ConversationMenuLabels;
   projectLabels: ProjectMenuLabels;
@@ -175,7 +171,6 @@ export function AppSidebarConversationMenus({
   onCreateProjectWorktree,
   onRenameProject,
   onRemoveProject,
-  onImportConversation,
   threadSections,
   conversationLabels,
   projectLabels,
@@ -396,27 +391,6 @@ export function AppSidebarConversationMenus({
             >
               <FolderPlus />
               {projectLabels.createWorktree}
-            </ConversationMenuItem>
-          ) : null}
-          {onImportConversation ? (
-            <ConversationMenuItem
-              type="button"
-              role="menuitem"
-              aria-label={projectLabels.importConversationFor(
-                resolveProjectDisplayName(projectMenuState.project),
-              )}
-              title={projectLabels.importConversationFor(
-                resolveProjectDisplayName(projectMenuState.project),
-              )}
-              data-testid="app-sidebar-project-menu-import-conversation"
-              onClick={() =>
-                runMenuAction(() =>
-                  onImportConversation(projectMenuState.project),
-                )
-              }
-            >
-              <FileInput />
-              {projectLabels.importConversation}
             </ConversationMenuItem>
           ) : null}
           {onRenameProject ? (

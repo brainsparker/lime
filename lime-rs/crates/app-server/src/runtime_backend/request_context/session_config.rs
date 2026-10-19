@@ -259,13 +259,7 @@ fn history_ingest_requested(request: &ExecutionRequest) -> bool {
         .into_iter()
         .find_map(|pointer| metadata.pointer(pointer).and_then(Value::as_bool))
     });
-    explicit.unwrap_or_else(|| {
-        request
-            .session
-            .business_object_ref
-            .as_ref()
-            .is_some_and(|reference| reference.kind == "conversation.import")
-    })
+    explicit.unwrap_or(false)
 }
 
 fn harness_max_provider_steps(runtime_metadata: Option<&Value>) -> Option<u32> {

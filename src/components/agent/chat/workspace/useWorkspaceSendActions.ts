@@ -596,8 +596,9 @@ export function useWorkspaceSendActions({
         prepareActiveContextPrompt,
       } = contextWorkspace;
       const shouldAttachContextWorkspace =
-        Boolean(activeContextPrompt.trim()) ||
-        (contextWorkspaceEnabled && isThemeWorkbench);
+        !sendOptions?.threadGoal &&
+        (Boolean(activeContextPrompt.trim()) ||
+          (contextWorkspaceEnabled && isThemeWorkbench));
       const effectiveContextWorkspace = {
         ...contextWorkspace,
         enabled: shouldAttachContextWorkspace,
@@ -659,7 +660,10 @@ export function useWorkspaceSendActions({
         }
         setSubmissionPreview(null);
       };
-      if (sendOptions?.skipWorkspaceCommandRouting === true) {
+      if (
+        sendOptions?.threadGoal ||
+        sendOptions?.skipWorkspaceCommandRouting === true
+      ) {
         let text: string;
         try {
           text = await buildWorkspaceSendText({

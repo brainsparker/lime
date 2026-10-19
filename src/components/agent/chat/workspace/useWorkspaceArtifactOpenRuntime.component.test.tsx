@@ -2,7 +2,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readFilePreview } from "@/lib/api/fileBrowser";
-import { readCanonicalThreadItem } from "@/lib/api/agentRuntime/appServerCanonicalItemReader";
+import { readAgentThreadItemFromPayload } from "@/lib/api/agentRuntime/appServerEventTimelineReaders";
 import type { Artifact } from "@/lib/artifact/types";
 import type { AgentThreadItem } from "../types";
 import { resolveTimelineArtifactNavigation } from "../utils/artifactTimelineNavigation";
@@ -110,10 +110,10 @@ describe("Workspace 文件重新打开", () => {
   });
 
   it.each(["pdf", "docx", "xlsx", "csv", "tsv", "pptx"])(
-    "canonical 导入历史 %s 经时间线打开时保留原文件路径",
+    "canonical file-read 历史 %s 经时间线打开时保留原文件路径",
     async (extension) => {
       const fileName = `report.${extension}`;
-      const path = `/imported/docs/${fileName}`;
+      const path = `/documents/reports/${fileName}`;
       vi.mocked(readFilePreview).mockResolvedValue({
         path,
         content: null,
@@ -125,7 +125,7 @@ describe("Workspace 文件重新打开", () => {
         projectRootPath: null,
         taskFiles: [
           {
-            id: "imported-task-file",
+            id: "same-name-task-file",
             name: fileName,
             type: "document",
             content: "旧抽取文本",
@@ -144,18 +144,17 @@ describe("Workspace 文件重新打开", () => {
           },
         ],
       });
-      const projected = readCanonicalThreadItem(
+      const projected = readAgentThreadItemFromPayload(
         {
-          id: "canonical-imported-item",
-          type: "fileChange",
+          id: "canonical-file-read-item",
+          type: "file_artifact",
           status: "completed",
-          metadata: { sourceEventType: "file.read" },
-          changes: [
-            { path, kind: { type: "update" }, diff: "历史中的抽取文本" },
-          ],
+          path,
+          source: "file_read",
+          content: "历史中的抽取文本",
         },
         {
-          eventId: "imported-file-read",
+          eventId: "canonical-file-read",
           sequence: 7,
           sessionId: "session-1",
           threadId: "thread-1",
@@ -164,6 +163,7 @@ describe("Workspace 文件重新打开", () => {
           timestamp: "2026-10-17T00:00:00Z",
           payload: {},
         },
+        "completed",
       );
       const navigation = resolveTimelineArtifactNavigation(
         projected as unknown as AgentThreadItem,

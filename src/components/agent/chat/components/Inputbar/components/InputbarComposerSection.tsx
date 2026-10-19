@@ -64,7 +64,6 @@ interface InputbarComposerSectionProps {
   pendingImages: MessageImage[];
   onRemoveImage: (index: number) => void;
   pathReferences?: MessagePathReference[];
-  onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
 
   onPaste: (event: ClipboardEvent) => void;
@@ -87,6 +86,9 @@ interface InputbarComposerSectionProps {
   threadGoal?: ThreadGoal | null;
   threadGoalError?: unknown;
   threadGoalLoading?: boolean;
+  onOpenGoalEditor?: () => void;
+  isGoalMode?: boolean;
+  goalPlaceholder?: string;
   copy: InputbarComposerSectionCopy;
   inputbarCopy: InputbarCoreCopy;
   workflowPanelCopy: InputbarWorkflowPanelCopy;
@@ -123,7 +125,6 @@ export const InputbarComposerSection: React.FC<
   pendingImages,
   onRemoveImage,
   pathReferences = [],
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
 
   onPaste,
@@ -145,6 +146,9 @@ export const InputbarComposerSection: React.FC<
   threadGoal = null,
   threadGoalError = null,
   threadGoalLoading = false,
+  onOpenGoalEditor,
+  isGoalMode = false,
+  goalPlaceholder,
   copy,
   inputbarCopy,
   workflowPanelCopy,
@@ -176,6 +180,7 @@ export const InputbarComposerSection: React.FC<
         threadGoalLoading={threadGoalLoading}
         threadId={threadId}
         variant="inline"
+        onEdit={onOpenGoalEditor}
       />
     ) : null;
   const resolvedTopExtra =
@@ -359,13 +364,13 @@ export const InputbarComposerSection: React.FC<
         pendingImages={currentPendingImages}
         onRemoveImage={onRemoveImage}
         pathReferences={pathReferences}
-        onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={onRemovePathReference}
         onPaste={onPaste}
         onKeyDown={onKeyDown}
         isFullscreen={isFullscreen}
         placeholder={
           disabledPlaceholder ||
+          (isGoalMode ? goalPlaceholder : undefined) ||
           (isWorkspaceVariant ? workspacePlaceholder : undefined)
         }
         showDragHandle={!isWorkspaceVariant}

@@ -84,6 +84,8 @@ fn merge_payload(
                 text,
                 phase,
                 content_parts,
+                delivery,
+                questions,
             },
         ) => AgentMessage {
             // The materializer has already resolved this complete body, including
@@ -95,6 +97,8 @@ fn merge_payload(
             },
             phase,
             content_parts: merge_parts(old_parts, content_parts),
+            delivery,
+            questions,
         },
         (
             Plan {

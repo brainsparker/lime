@@ -129,6 +129,52 @@ fn openai_reasoning_controls_follow_native_wire_shapes() {
 }
 
 #[test]
+fn structured_output_schema_is_lowered_for_each_current_protocol() {
+    let mut request = CanonicalRequest::text("memory-model", "extract");
+    request.output_schema = Some(json!({
+        "type": "object",
+        "properties": {
+            "rollout_summary": { "type": "string" },
+            "rollout_slug": { "type": "string" }
+        },
+        "required": ["rollout_summary", "rollout_slug"],
+        "additionalProperties": false
+    }));
+    request.output_schema_strict = true;
+
+    let shape = RuntimeReplyProviderRequestWireShape::default();
+    let chat = chat_completions_request(&config(None), &request, &shape, &BTreeMap::new())
+        .expect("Chat Completions structured output");
+    assert_eq!(chat["response_format"]["type"], "json_schema");
+    assert_eq!(chat["response_format"]["json_schema"]["strict"], true);
+
+    let mut responses_config = config(None);
+    responses_config.protocol = Some(crate::runtime_provider::RuntimeProviderProtocol::Responses);
+    let responses = responses_request(&responses_config, &request, &shape, &BTreeMap::new())
+        .expect("Responses structured output");
+    assert_eq!(responses["text"]["format"]["type"], "json_schema");
+    assert_eq!(responses["text"]["format"]["strict"], true);
+
+    let mut anthropic_config = config(None);
+    anthropic_config.protocol =
+        Some(crate::runtime_provider::RuntimeProviderProtocol::AnthropicMessages);
+    let anthropic = anthropic_request(&anthropic_config, &request, &BTreeMap::new())
+        .expect("Anthropic structured output");
+    assert_eq!(anthropic["output_config"]["format"]["type"], "json_schema");
+
+    let gemini = super::super::gemini::request(&request, &BTreeMap::new())
+        .expect("Gemini structured output");
+    assert_eq!(
+        gemini["generationConfig"]["responseMimeType"],
+        "application/json"
+    );
+    assert_eq!(
+        gemini["generationConfig"]["responseSchema"]["type"],
+        "object"
+    );
+}
+
+#[test]
 fn responses_lowering_emits_session_scoped_prompt_cache_key() {
     let mut request = CanonicalRequest::text("gpt-5-codex", "hello");
     request.metadata.insert(

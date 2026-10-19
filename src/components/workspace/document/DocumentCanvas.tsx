@@ -31,7 +31,7 @@ import { DocumentToolbar } from "./DocumentToolbar";
 import { DocumentRenderer } from "./DocumentRenderer";
 import { NotionEditor, type NotionEditorHandle } from "./editor/NotionEditor";
 import { PlatformTabs } from "./PlatformTabs";
-import { resolveDocumentCanvasHotkeyAction } from "./documentCanvasHotkeys";
+import { useCommand } from "@/lib/commands/useCommand";
 import { exportDocumentContent } from "./utils/exportDocument";
 import {
   ackCanvasImageInsertRequest,
@@ -207,25 +207,22 @@ export const DocumentCanvas: React.FC<DocumentCanvasProps> = memo(
       setCanRedo(redoStackRef.current.length > 0);
     }, [onStateChange]);
 
-    // 键盘快捷键：Cmd+Z 撤销，Cmd+Shift+Z 重做
-    useEffect(() => {
-      const handleKeyDown = (e: KeyboardEvent) => {
-        const action = resolveDocumentCanvasHotkeyAction(e);
-        if (!action) {
-          return;
-        }
-
-        e.preventDefault();
-        if (action === "redo") {
-          handleRedo();
-          return;
-        }
-
-        handleUndo();
-      };
-      window.addEventListener("keydown", handleKeyDown);
-      return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [handleUndo, handleRedo]);
+    useCommand({
+      id: "undoDocument",
+      titleKey: "commands.undoDocument.title",
+      section: "workspace",
+      bindings: ["CommandOrControl+Z"],
+      enabled: canUndo,
+      handler: handleUndo,
+    });
+    useCommand({
+      id: "redoDocument",
+      titleKey: "commands.redoDocument.title",
+      section: "workspace",
+      bindings: ["CommandOrControl+Shift+Z"],
+      enabled: canRedo,
+      handler: handleRedo,
+    });
 
     const [autoContinueSettings, setAutoContinueSettings] =
       useState<AutoContinueSettings>(() => loadAutoContinueSettings(projectId));

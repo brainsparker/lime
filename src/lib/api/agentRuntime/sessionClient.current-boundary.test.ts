@@ -84,6 +84,26 @@ function appServerClientMock(): AppServerSessionRpcClient {
 }
 
 describe("agentRuntime sessionClient current App Server boundary", () => {
+  it("list 保留显式未分组 scope，避免置顶和自定义分组占用最近会话预算", async () => {
+    const appServerClient = appServerClientMock();
+    const client = createSessionClient({ appServerClient });
+    await expect(
+      client.listRecentThreads({
+        archived: false,
+        limit: 11,
+        sectionId: null,
+      }),
+    ).resolves.toMatchObject({ sessions: expect.any(Array), nextCursor: null });
+    expect(appServerClient.request).toHaveBeenCalledExactlyOnceWith(
+      "thread/list",
+      {
+        archived: false,
+        limit: 11,
+        sectionId: null,
+      },
+    );
+  });
+
   it("delete 使用 canonical thread/delete，不承载 metadata 更新", async () => {
     const appServerClient = appServerClientMock();
     const client = createSessionClient({

@@ -29,6 +29,7 @@ pub const COMPACT_TOOL_SURFACE_TOOL_NAMES: &[&str] = &[
     "write_stdin",
     "apply_patch",
     "request_user_input",
+    "request_user_input_async",
     "WebSearch",
     "WebFetch",
     "StructuredOutput",

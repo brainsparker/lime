@@ -39,8 +39,8 @@ describe("EmptyStateComposerPanel attachments", () => {
     );
   });
 
-  it("首页空态输入区的文本文件 chip 应支持设为项目资料", () => {
-    const onImportPathReferenceAsKnowledge = vi.fn();
+  it("首页文本文件附件只提供移除操作", () => {
+    const onRemovePathReference = vi.fn();
     const reference = {
       id: "file:/Users/lime/brief.md",
       path: "/Users/lime/brief.md",
@@ -52,22 +52,28 @@ describe("EmptyStateComposerPanel attachments", () => {
     };
     const container = renderPanel({
       pathReferences: [reference],
-      onImportPathReferenceAsKnowledge,
+      onRemovePathReference,
     });
 
     expect(container.textContent).toContain("brief.md");
     expect(container.textContent).toContain("本地文件");
     expect(container.textContent).not.toContain("/Users/lime/brief.md");
 
-    const importButton = container.querySelector(
-      'button[aria-label="设为项目资料 brief.md"]',
-    ) as HTMLButtonElement | null;
-    expect(importButton).toBeTruthy();
+    const chip = container.querySelector(
+      '[data-testid="inputbar-path-reference-chip"]',
+    );
+    expect(
+      Array.from(chip?.querySelectorAll("button") ?? []).map((button) =>
+        button.getAttribute("aria-label"),
+      ),
+    ).toEqual(["移除路径 brief.md"]);
 
     act(() => {
-      importButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      chip
+        ?.querySelector("button")
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
     });
 
-    expect(onImportPathReferenceAsKnowledge).toHaveBeenCalledWith(reference);
+    expect(onRemovePathReference).toHaveBeenCalledExactlyOnceWith(reference.id);
   });
 });

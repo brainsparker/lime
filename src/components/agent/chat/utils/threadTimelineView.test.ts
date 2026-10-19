@@ -653,125 +653,24 @@ describe("threadTimelineView", () => {
     expect(mergeThreadItems([itemWithoutStart])).toEqual([itemWithoutStart]);
   });
 
-  it("相同文本但 source event 不相邻时必须保留两条用户消息", () => {
-    const sourceProvenance = (sourceEventType: string, sourceEventSeq: number) =>
-      ({
-        imported: true,
-        source_event_seq: sourceEventSeq,
-        source_provenance: {
-          sourceEventType,
-          sourceEventSeq,
-          sourceThreadId: "codex-thread-boundary",
-        },
-      });
-    const responseItem = {
-      id: "user-response-9",
+  it("不同 canonical item/turn 身份的相同用户内容必须保留，同一 item 更新应覆盖", () => {
+    const first: AgentThreadItem = {
+      id: "user-first",
       thread_id: "thread-1",
-      turn_id: "turn-9",
+      turn_id: "turn-first",
       sequence: 1,
+      type: "user_message",
+      content: "继续",
+      content_parts: [
+        { type: "image", mime_type: "image/png", data: "image-a" },
+      ],
       status: "completed",
       started_at: "2026-06-01T00:00:09.000Z",
       updated_at: "2026-06-01T00:00:09.000Z",
-      type: "user_message",
-      content: "重复问题",
-      metadata: sourceProvenance("message", 9),
-    } as AgentThreadItem;
-    const eventItem = {
-      ...responseItem,
-      id: "user-event-11",
-      turn_id: "turn-11",
-      started_at: "2026-06-01T00:00:11.000Z",
-      updated_at: "2026-06-01T00:00:11.000Z",
-      metadata: sourceProvenance("user_message", 11),
-    } as AgentThreadItem;
+    };
+    const next = { ...first, id: "user-next", turn_id: "turn-next" };
+    const updated = { ...first, content: "继续处理" };
 
-    expect(mergeThreadItems([responseItem, eventItem])).toHaveLength(2);
-  });
-
-  it("图片-only 消息只有在图片身份一致时才允许合并", () => {
-    const sourceProvenance = (sourceEventType: string, sourceEventSeq: number) =>
-      ({
-        imported: true,
-        source_event_seq: sourceEventSeq,
-        source_provenance: {
-          sourceEventType,
-          sourceEventSeq,
-          sourceThreadId: "codex-thread-image-identity",
-        },
-      });
-    const item = (
-      id: string,
-      sourceEventType: string,
-      sourceEventSeq: number,
-      image: Record<string, string>,
-    ) =>
-      ({
-        id,
-        thread_id: "thread-1",
-        turn_id: `turn-${sourceEventSeq}`,
-        sequence: 1,
-        status: "completed",
-        started_at: `2026-06-01T00:00:${String(sourceEventSeq).padStart(2, "0")}.000Z`,
-        updated_at: `2026-06-01T00:00:${String(sourceEventSeq).padStart(2, "0")}.000Z`,
-        type: "user_message",
-        content: "",
-        content_parts: [{ type: "image", mime_type: "image/png", ...image }],
-        metadata: sourceProvenance(sourceEventType, sourceEventSeq),
-      }) as AgentThreadItem;
-
-    expect(
-      mergeThreadItems([
-        item("user-image-response", "message", 20, { data: "image-a" }),
-        item("user-image-event", "user_message", 21, { data: "image-a" }),
-      ]),
-    ).toHaveLength(1);
-    expect(
-      mergeThreadItems([
-        item("user-image-response-b", "message", 30, { data: "image-a" }),
-        item("user-image-event-b", "user_message", 31, { data: "image-b" }),
-      ]),
-    ).toHaveLength(2);
-  });
-
-  it("连续相同文本只能按 source event 两两配对，不能串成一条", () => {
-    const sourceProvenance = (sourceEventType: string, sourceEventSeq: number) =>
-      ({
-        imported: true,
-        source_event_seq: sourceEventSeq,
-        source_provenance: {
-          sourceEventType,
-          sourceEventSeq,
-          sourceThreadId: "codex-thread-repeat",
-        },
-      });
-    const item = (
-      id: string,
-      turnId: string,
-      sourceEventType: string,
-      sourceEventSeq: number,
-    ) =>
-      ({
-        id,
-        thread_id: "thread-1",
-        turn_id: turnId,
-        sequence: 1,
-        status: "completed",
-        started_at: `2026-06-01T00:00:${String(sourceEventSeq).padStart(2, "0")}.000Z`,
-        updated_at: `2026-06-01T00:00:${String(sourceEventSeq).padStart(2, "0")}.000Z`,
-        type: "user_message",
-        content: "重复问题",
-        metadata: sourceProvenance(sourceEventType, sourceEventSeq),
-      }) as AgentThreadItem;
-
-    const items = mergeThreadItems([
-      item("user-response-9", "turn-9", "message", 9),
-      item("user-event-10", "turn-10", "user_message", 10),
-      item("user-response-11", "turn-11", "message", 11),
-    ]);
-
-    expect(items.map((entry) => entry.id)).toEqual([
-      "user-event-10",
-      "user-response-11",
-    ]);
+    expect(mergeThreadItems([first, next], [updated])).toEqual([updated, next]);
   });
 });

@@ -73,6 +73,7 @@ export interface PreparedAgentStreamUserInputSend {
   syncedSessionModelPreference: SessionModelPreference | null;
   observer?: SendMessageObserver;
   requestMetadata?: Record<string, unknown>;
+  shouldSendPermissionOverrides?: boolean;
   collaborationMode?: ModeKind;
   threadGoal?: ThreadGoalInput;
   modelInputCapabilityGate?: ModelCapabilitySendGateResult;
@@ -430,6 +431,7 @@ export function prepareAgentStreamUserInputSend(
     syncedSessionModelPreference,
     observer,
     requestMetadata,
+    shouldSendPermissionOverrides: sendOptions?.shouldSendPermissionOverrides,
     ...(sendOptions?.collaborationMode
       ? { collaborationMode: sendOptions.collaborationMode }
       : {}),

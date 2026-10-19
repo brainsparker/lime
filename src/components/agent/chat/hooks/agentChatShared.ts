@@ -108,6 +108,8 @@ import type {
 } from "./agentSendResult";
 
 export interface SendMessageObserver {
+  /** 本地 ensureSession 已返回真实会话；不进入 App Server wire。 */
+  onSessionReady?: (sessionId: string) => void;
   onRuntimeAccepted?: (receipt: RuntimeSubmissionAcceptance) => void;
   onTextDelta?: (delta: string, accumulated: string) => void;
   onComplete?: (content: string) => void;
@@ -139,6 +141,7 @@ export type AgentInputMention = Extract<
 >;
 
 export interface SendMessageOptions {
+  shouldSendPermissionOverrides?: boolean;
   purpose?: Message["purpose"];
   observer?: SendMessageObserver;
   requestMetadata?: Record<string, unknown>;

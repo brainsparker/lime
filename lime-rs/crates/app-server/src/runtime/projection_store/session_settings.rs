@@ -9,22 +9,6 @@ mod restore;
 mod reviewer;
 mod workspace;
 
-fn is_imported(metadata: &Value) -> bool {
-    [
-        ["sourceClient", "source_client"],
-        ["sourceThreadId", "source_thread_id"],
-    ]
-    .iter()
-    .all(|keys| {
-        keys.iter().any(|key| {
-            metadata
-                .get(*key)
-                .and_then(Value::as_str)
-                .is_some_and(|value| !value.trim().is_empty())
-        })
-    })
-}
-
 impl ProjectionStore {
     pub(in crate::runtime) fn persist_session_metadata(
         &self,

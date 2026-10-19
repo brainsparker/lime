@@ -197,7 +197,7 @@ function sourceFromResponse(
   autoResolved: boolean,
 ): string | undefined {
   return (
-    stringValue(response, ["source", "sourceClient", "source_client"]) ||
+    stringValue(response, ["source"]) ||
     stringValue(objectValue(response, ["cache"]), ["source"]) ||
     (autoResolved ? "approval_session_cache" : undefined)
   );

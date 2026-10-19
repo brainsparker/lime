@@ -233,6 +233,39 @@ describe("appServerSessionClient", () => {
     });
   });
 
+  it.each([null, "section-active"])(
+    "list 可直接读取独立 section %s，不混入其他分组",
+    async (sectionId) => {
+      const appServerClient = appServerClientMock();
+      vi.mocked(appServerClient.request).mockResolvedValueOnce(
+        rpcResult({ data: [canonicalThread()], nextCursor: null }),
+      );
+      const client = createAppServerSessionClient({ appServerClient });
+
+      await expect(
+        client.listRecentThreads({
+          archived: false,
+          limit: 11,
+          sectionId,
+          ...(sectionId ? { sortKey: "section_position" as const } : {}),
+        }),
+      ).resolves.toMatchObject({
+        sessions: [expect.objectContaining({ id: "session-1" })],
+        nextCursor: null,
+      });
+      expect(appServerClient.listThreadSections).not.toHaveBeenCalled();
+      expect(appServerClient.request).toHaveBeenCalledExactlyOnceWith(
+        "thread/list",
+        {
+          archived: false,
+          limit: 11,
+          sectionId,
+          ...(sectionId ? { sortKey: "section_position" } : {}),
+        },
+      );
+    },
+  );
+
   it("list 应保持 section catalog 与 section_position 的服务端顺序", async () => {
     const appServerClient = appServerClientMock();
     vi.mocked(appServerClient.listThreadSections).mockResolvedValueOnce(
@@ -339,6 +372,34 @@ describe("appServerSessionClient", () => {
       sectionId: null,
     });
   });
+
+  it.each([
+    { size: 1, nextCursor: "next-short-page" },
+    { size: 11, nextCursor: null },
+  ])(
+    "list page 来源结束只由服务端游标确定: $size/$nextCursor",
+    async ({ size, nextCursor }) => {
+      const appServerClient = appServerClientMock();
+      vi.mocked(appServerClient.request).mockResolvedValueOnce(
+        rpcResult({
+          data: Array.from({ length: size }, (_, index) =>
+            canonicalThread({
+              id: `thread-${index}`,
+              sessionId: `session-${index}`,
+            }),
+          ),
+          nextCursor,
+        }),
+      );
+      const client = createAppServerSessionClient({ appServerClient });
+      const page = await client.listRecentThreads({
+        limit: 11,
+        sectionId: null,
+      });
+      expect(page.sessions).toHaveLength(size);
+      expect(page.nextCursor).toBe(nextCursor);
+    },
+  );
 
   it("list 后首次 get 仍应通过 thread/read 刷新 canonical 产品投影", async () => {
     const appServerClient = appServerClientMock();
@@ -751,18 +812,14 @@ describe("appServerSessionClient", () => {
     );
   });
 
-  it("导入 canonical Thread 应自动读取 Item/Turn 到 EOF，不能从中间开始", async () => {
+  it("显式 historyLimit 为 0 时读取完整 canonical Item/Turn 分页", async () => {
     const appServerClient = appServerClientMock();
     vi.mocked(appServerClient.readThread).mockResolvedValueOnce(
       rpcResult({
         thread: canonicalThread({
-          id: "thread-imported-full-history",
-          sessionId: "session-imported-full-history",
+          id: "thread-full-history",
+          sessionId: "session-full-history",
           historyMode: "paginated",
-          metadata: {
-            source_client: "codex",
-            source_thread_id: "codex-thread-20260729",
-          },
           turns: [],
         }),
       }),
@@ -772,7 +829,7 @@ describe("appServerSessionClient", () => {
         rpcResult({
           data: [
             {
-              turnId: "turn-imported",
+              turnId: "turn-full-history",
               item: {
                 id: "item-latest",
                 type: "agentMessage",
@@ -788,7 +845,7 @@ describe("appServerSessionClient", () => {
         rpcResult({
           data: [
             {
-              turnId: "turn-imported",
+              turnId: "turn-full-history",
               item: {
                 id: "item-earliest",
                 type: "userMessage",
@@ -804,7 +861,7 @@ describe("appServerSessionClient", () => {
         rpcResult({
           data: [
             {
-              id: "turn-imported",
+              id: "turn-full-history",
               status: "completed",
               startedAt: 1780704000,
               completedAt: 1780704001,
@@ -817,8 +874,8 @@ describe("appServerSessionClient", () => {
     const client = createAppServerSessionClient({ appServerClient });
 
     await expect(
-      client.getAgentRuntimeSession("session-imported-full-history", {
-        historyLimit: 40,
+      client.getAgentRuntimeSession("session-full-history", {
+        historyLimit: 0,
       }),
     ).resolves.toMatchObject({
       history_limit: 0,
@@ -839,7 +896,7 @@ describe("appServerSessionClient", () => {
       1,
       "thread/items/list",
       {
-        threadId: "thread-imported-full-history",
+        threadId: "thread-full-history",
         limit: 100,
         sortDirection: "desc",
       },
@@ -848,7 +905,7 @@ describe("appServerSessionClient", () => {
       2,
       "thread/items/list",
       {
-        threadId: "thread-imported-full-history",
+        threadId: "thread-full-history",
         cursor: "item-page-2",
         limit: 100,
         sortDirection: "desc",
@@ -858,7 +915,7 @@ describe("appServerSessionClient", () => {
       3,
       "thread/turns/list",
       {
-        threadId: "thread-imported-full-history",
+        threadId: "thread-full-history",
         limit: 100,
         sortDirection: "desc",
         itemsView: "summary",

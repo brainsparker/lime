@@ -17,8 +17,8 @@ import {
 } from "@/lib/markdown/externalLinks";
 import { getRuntimeAppVersion } from "@/lib/appVersion";
 import { cn } from "@/lib/utils";
+import { PRODUCT_LINKS } from "@/lib/productLinks";
 
-const FALLBACK_RELEASES_URL = "https://github.com/limecloud/lime/releases";
 const PRIMARY_ACTION_BUTTON_CLASS =
   "inline-flex items-center gap-2 rounded-full border border-slate-900 bg-slate-950 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-slate-950/10 transition hover:bg-slate-800 disabled:opacity-50";
 const SECONDARY_ACTION_BUTTON_CLASS =
@@ -50,7 +50,7 @@ export function AboutSection() {
     useState<UpdateInstallSession | null>(null);
   const [installStartFailed, setInstallStartFailed] = useState(false);
   const manualDownloadUrl =
-    versionInfo.releaseNotesUrl || FALLBACK_RELEASES_URL;
+    versionInfo.releaseNotesUrl || PRODUCT_LINKS.releases;
   const manualDownloadRel = resolveHttpExternalHref(manualDownloadUrl)
     ? "noreferrer noopener"
     : undefined;
@@ -134,7 +134,7 @@ export function AboutSection() {
           ...result,
           current:
             normalizeAboutVersion(result.current) ?? runtimeAppVersion ?? "",
-          downloadUrl: result.downloadUrl || FALLBACK_RELEASES_URL,
+          downloadUrl: result.downloadUrl || PRODUCT_LINKS.releases,
         });
       } catch (error) {
         console.error("Failed to load version:", error);
@@ -143,7 +143,7 @@ export function AboutSection() {
           current:
             normalizeAboutVersion(prev.current) ?? runtimeAppVersion ?? "",
           error: t("settings.about.update.errorCheck"),
-          downloadUrl: prev.downloadUrl || FALLBACK_RELEASES_URL,
+          downloadUrl: prev.downloadUrl || PRODUCT_LINKS.releases,
         }));
       }
     };
@@ -187,7 +187,7 @@ export function AboutSection() {
         ...result,
         current:
           normalizeAboutVersion(result.current) ?? runtimeAppVersion ?? "",
-        downloadUrl: result.downloadUrl || FALLBACK_RELEASES_URL,
+        downloadUrl: result.downloadUrl || PRODUCT_LINKS.releases,
       });
     } catch (error) {
       console.error("Failed to check for updates:", error);
@@ -195,7 +195,7 @@ export function AboutSection() {
         ...prev,
         current: normalizeAboutVersion(prev.current) ?? runtimeAppVersion ?? "",
         error: t("settings.about.update.errorCheck"),
-        downloadUrl: prev.downloadUrl || FALLBACK_RELEASES_URL,
+        downloadUrl: prev.downloadUrl || PRODUCT_LINKS.releases,
       }));
     } finally {
       setChecking(false);

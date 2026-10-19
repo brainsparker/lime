@@ -247,6 +247,8 @@ fn completed_turn_with_messages(messages: &[(&str, Option<&str>)]) -> Turn {
                     text: (*text).to_string(),
                     phase: phase.and_then(agent_protocol::response_item::MessagePhase::from_wire),
                     content_parts: Vec::new(),
+                    delivery: None,
+                    questions: None,
                 },
                 metadata: json!({}),
             })

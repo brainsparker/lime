@@ -229,6 +229,18 @@ pub(super) fn typed_payload(
                 .as_deref()
                 .and_then(agent_protocol::response_item::MessagePhase::from_wire),
             content_parts: message_content_parts(payload)?,
+            delivery: payload
+                .get("delivery")
+                .filter(|value| !value.is_null())
+                .map(|value| serde_json::from_value(value.clone()))
+                .transpose()
+                .ok()?,
+            questions: payload
+                .get("questions")
+                .filter(|value| !value.is_null())
+                .map(|value| serde_json::from_value(value.clone()))
+                .transpose()
+                .ok()?,
         },
         ItemFamily::Plan => ThreadItemPayload::Plan {
             text: message_text(payload),

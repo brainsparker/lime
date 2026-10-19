@@ -6,22 +6,17 @@ import { changeLimeLocale } from "@/i18n/createI18n";
 import type { ThreadGoal } from "@limecloud/app-server-client";
 import { ThreadGoalPanel } from "./ThreadGoalPanel";
 
-const {
-  clearThreadGoalMock,
-  setThreadGoalMock,
-  setThreadGoalStatusMock,
-  toastMock,
-} = vi.hoisted(() => ({
-  clearThreadGoalMock: vi.fn(),
-  setThreadGoalMock: vi.fn(),
-  setThreadGoalStatusMock: vi.fn(),
-  toastMock: { success: vi.fn(), error: vi.fn() },
-}));
+const { clearThreadGoalMock, setThreadGoalStatusMock, toastMock } = vi.hoisted(
+  () => ({
+    clearThreadGoalMock: vi.fn(),
+    setThreadGoalStatusMock: vi.fn(),
+    toastMock: { success: vi.fn(), error: vi.fn() },
+  }),
+);
 
 vi.mock("sonner", () => ({ toast: toastMock }));
 vi.mock("@/lib/api/agentRuntime/threadGoalClient", () => ({
   clearThreadGoal: clearThreadGoalMock,
-  setThreadGoal: setThreadGoalMock,
   setThreadGoalStatus: setThreadGoalStatusMock,
 }));
 
@@ -64,18 +59,6 @@ function renderPanel(
   return container;
 }
 
-function setTextareaValue(textarea: HTMLTextAreaElement | null, value: string) {
-  expect(textarea).toBeTruthy();
-  const setter = Object.getOwnPropertyDescriptor(
-    HTMLTextAreaElement.prototype,
-    "value",
-  )?.set;
-  act(() => {
-    setter?.call(textarea, value);
-    textarea?.dispatchEvent(new Event("input", { bubbles: true }));
-  });
-}
-
 async function clickButton(button: HTMLButtonElement | null) {
   expect(button).toBeTruthy();
   await act(async () => {
@@ -90,7 +73,6 @@ beforeEach(async () => {
   ).IS_REACT_ACT_ENVIRONMENT = true;
   await changeLimeLocale("zh-CN");
   clearThreadGoalMock.mockReset();
-  setThreadGoalMock.mockReset();
   setThreadGoalStatusMock.mockReset();
   toastMock.success.mockReset();
   toastMock.error.mockReset();
@@ -121,26 +103,15 @@ describe("ThreadGoalPanel", () => {
     ).toBeNull();
   });
 
-  it("空态通过 thread/goal/set 创建 active Goal", async () => {
-    setThreadGoalMock.mockResolvedValue(createGoal());
-    const container = renderPanel({ threadGoal: null });
-
-    setTextareaValue(
-      container.querySelector('[data-testid="thread-goal-create-input"]'),
-      "完成 canonical Goal 详情",
-    );
+  it("空态创建入口委托主 Composer，不拥有独立目标输入", async () => {
+    const onEdit = vi.fn();
+    const container = renderPanel({ threadGoal: null, onEdit });
     await clickButton(
       container.querySelector('[data-testid="thread-goal-create"]'),
     );
-
-    expect(setThreadGoalMock).toHaveBeenCalledWith({
-      threadId: "thread-1",
-      objective: "完成 canonical Goal 详情",
-      status: "active",
-    });
-    expect(
-      container.querySelector('[data-testid="thread-goal-panel"]'),
-    ).not.toBeNull();
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(container.querySelector("textarea")).toBeNull();
+    expect(document.querySelector('[data-testid="modal-overlay"]')).toBeNull();
   });
 
   it("detail 显式展示 loading 与 load error，inline 保持紧凑不占位", () => {
@@ -193,35 +164,22 @@ describe("ThreadGoalPanel", () => {
     ).not.toBeNull();
   });
 
-  it("通过 thread/goal/set 编辑 complete Goal 并重新激活", async () => {
-    const completed = createGoal("complete");
-    const updated = {
-      ...completed,
-      objective: "完成 canonical Goal GUI 接入",
-      status: "active" as const,
-    };
-    setThreadGoalMock.mockResolvedValue(updated);
-    const container = renderPanel({ threadGoal: completed });
-
+  it("已有目标的编辑入口委托主 Composer，详情只读时隐藏编辑动作", async () => {
+    const onEdit = vi.fn();
+    const container = renderPanel({
+      threadGoal: createGoal("complete"),
+      onEdit,
+    });
     await clickButton(
       container.querySelector('[data-testid="thread-goal-edit"]'),
     );
-    setTextareaValue(
-      document.body.querySelector<HTMLTextAreaElement>(
-        '[data-testid="thread-goal-objective-input"]',
-      ),
-      "完成 canonical Goal GUI 接入",
-    );
-    await clickButton(
-      document.body.querySelector('[data-testid="thread-goal-save"]'),
-    );
-
-    expect(setThreadGoalMock).toHaveBeenCalledWith({
-      threadId: "thread-1",
-      objective: "完成 canonical Goal GUI 接入",
-      status: "active",
-    });
-    expect(container.textContent).toContain("canonical Goal GUI");
+    expect(onEdit).toHaveBeenCalledOnce();
+    expect(container.querySelector("textarea")).toBeNull();
+    expect(document.querySelector('[data-testid="modal-overlay"]')).toBeNull();
+    const readOnly = renderPanel();
+    expect(
+      readOnly.querySelector('[data-testid="thread-goal-edit"]'),
+    ).toBeNull();
   });
 
   it("暂停和清除只调用 canonical ThreadGoal methods", async () => {

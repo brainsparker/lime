@@ -219,6 +219,15 @@ static NATIVE_TOOL_CATALOG: &[ToolCatalogEntry] = &[
         workspace_default_allow: true,
     },
     ToolCatalogEntry {
+        name: "request_user_input_async",
+        profiles: CORE_PROFILES,
+        capabilities: PLAN_CAP,
+        lifecycle: ToolLifecycle::Current,
+        source: ToolSourceKind::RuntimeBuiltin,
+        permission_plane: ToolPermissionPlane::SessionAllowlist,
+        workspace_default_allow: true,
+    },
+    ToolCatalogEntry {
         name: SLEEP_TOOL_NAME,
         profiles: CORE_PROFILES,
         capabilities: PLAN_CAP,

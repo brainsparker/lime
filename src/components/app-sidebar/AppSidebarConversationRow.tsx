@@ -36,7 +36,7 @@ const ConversationItemRow = styled.div<{
   align-items: center;
   gap: 0;
   width: 100%;
-  border-radius: 7px;
+  border-radius: 10px;
   background: ${({ $active }) =>
     $active ? "var(--sidebar-active, #e8e8e6)" : "transparent"};
   transition:
@@ -57,10 +57,10 @@ const ConversationItemButton = styled.button<{
   gap: 8px;
   flex: 1;
   min-width: 0;
-  min-height: 26px;
+  min-height: 30px;
   border: none;
-  border-radius: 7px;
-  padding: 0 7px;
+  border-radius: 10px;
+  padding: 0 8px;
   background: transparent;
   color: ${({ $active }) =>
     $active ? "var(--sidebar-active-foreground)" : "var(--sidebar-foreground)"};

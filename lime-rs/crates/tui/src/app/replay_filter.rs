@@ -106,7 +106,6 @@ mod tests {
                 completed_at_ms: 1,
                 item: ThreadItem::AgentMessage {
                     id: item_id.to_string(),
-                    metadata: None,
                     text: text.to_string(),
                     phase: None,
                     memory_citation: None,

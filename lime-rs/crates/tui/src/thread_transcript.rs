@@ -244,7 +244,6 @@ mod tests {
         let entries = thread_to_transcript_entries(
             thread(vec![ThreadItem::AgentMessage {
                 id: "assistant-1".into(),
-                metadata: None,
                 text: "done".into(),
                 phase: None,
                 memory_citation: None,
@@ -287,17 +286,14 @@ mod tests {
     fn paginated_items_restore_turn_status_for_nested_review_filtering() {
         let entered = ThreadItem::EnteredReviewMode {
             id: "review-enter".to_string(),
-            metadata: None,
             review: "review".to_string(),
         };
         let exited = ThreadItem::ExitedReviewMode {
             id: "review-exit".to_string(),
-            metadata: None,
             review: "review".to_string(),
         };
         let user = |id: &str| ThreadItem::UserMessage {
             id: id.to_string(),
-            metadata: None,
             client_id: None,
             content: vec![app_server_protocol::protocol::v2::UserInput::Text {
                 text: "duplicate review prompt".to_string(),
@@ -379,7 +375,6 @@ mod tests {
     fn agent_message(id: &str) -> ThreadItem {
         ThreadItem::AgentMessage {
             id: id.to_string(),
-            metadata: None,
             text: id.to_string(),
             phase: None,
             memory_citation: None,

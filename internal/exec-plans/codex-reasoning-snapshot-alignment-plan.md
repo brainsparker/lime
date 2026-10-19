@@ -1,6 +1,6 @@
 # Codex 推理完成快照对齐
 
-状态：implemented / public-verifying；2026-10-19；负责人 root；归属 L01/C03；整体 active。
+状态：core-green / product-partial；2026-10-19；负责人 root；归属 L01/C03；整体 active。
 
 ## 目标和事实源
 
@@ -36,11 +36,11 @@ Lime 当前 `provider_turn/model_history.rs::complete` 已持久化原始 reason
 ## 退出条件
 
 1. [x] 未改生产取得 gated public reasoning 行为 red。
-2. [ ] 既有 owner 应用完成快照，receipt/identity/安全字段和取消边界正确。
-3. [ ] 受影响 owner、public live/cold/失败/取消及文本/phase/history 回归通过。
-4. [ ] 架构确认、产品分级结果、治理分类和未验范围归档。
+2. [x] 既有 owner 应用完成快照，receipt/identity/安全字段和取消边界正确。
+3. [x] 受影响 owner、public live/cold/失败/取消及文本/phase/history 回归通过。
+4. [x] 架构确认、产品分级结果、治理分类和未验范围归档。
 
-当前 **1/4（25%）**，生产已接线，完整边界待验证。不替代 L01、Memory 或整体百分比。
+当前 **4/4（核心切片完成）**，产品验收为 partial。不替代 L01、Memory 或整体百分比。
 
 ## 执行记录
 
@@ -90,3 +90,18 @@ thread-store（它无 App Server 反向依赖），其终态后全局源码检�
 未新建 target cache，也未放宽测试 timeout。当前未取得 Rust 修复后 green，不以静态
 检查或前端/contract green 代替。current 为原 runtime/canonical/durable owner，
 compat/deprecated/deleted 本片无新增；整体仍 active，完整产品/Windows/PTY/live 未验。
+
+最终 r2b 回归已完成：thread-store 41、agent-runtime 250、lime-agent 290、runtime-backend
+347、item-projection 73、canonical-message-lifecycle 10、public-snapshot 7、
+public-reasoning-snapshot 10、public-phase 4、public-model-history 10，合计 **1042/1042**。
+六个前端投影/通知/恢复测试文件 **123/123**，`npm run test:contracts`、rustfmt、diff-check
+和 docs boundary 均通过；完整证据见 `artifacts/codex-reasoning-snapshot-20261019/
+regression-final-summary.json`。两组真实 `lime exec`/`exec resume` reasoning fixture（no-delta、
+partial）均通过，包含独立 stdio App Server、cold `thread/read` 和同一固定二进制 SHA，
+证据见 `cli-no-delta/` 与 `cli-partial/`。
+
+本片完成范围是共享 runtime、canonical/thread-store、public current HTTP/SSE 与 CLI
+reasoning snapshot；REA 只提供 Desktop 静态 timeline 证据，不能据此声明 Desktop
+reasoning Gate B。TUI PTY、Windows、live provider，以及完整 Plan/Stop/Memory/工具输出
+drain、同 Turn compaction 仍未验证；Workbench 旧夹具失败继续单独记录。current owner
+不新增 compat/deprecated；整体 Codex 对齐计划继续 active。

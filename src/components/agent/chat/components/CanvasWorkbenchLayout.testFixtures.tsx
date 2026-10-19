@@ -2,6 +2,7 @@ import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, vi } from "vitest";
+import { configureBooleanGateway } from "@/hooks/usePersistedBooleanAtom.testFixtures";
 import type { Artifact } from "@/lib/artifact/types";
 import type { TaskFile } from "./TaskFiles";
 import { CanvasWorkbenchLayout } from "./CanvasWorkbenchLayout";
@@ -18,6 +19,7 @@ type MockResizeObserverCallback = (
 ) => void;
 
 const hoisted = vi.hoisted(() => ({
+  atomGateway: { read: vi.fn(), update: vi.fn(), listen: vi.fn() },
   mockListDirectory: vi.fn(),
   mockReadFileBytes: vi.fn(),
   mockListProjectGitCommits: vi.fn(),
@@ -64,6 +66,12 @@ export const mockXtermLoadAddon = hoisted.mockXtermLoadAddon;
 export const mockXtermTerminalOptions = hoisted.mockXtermTerminalOptions;
 export const mockToast = hoisted.mockToast;
 const resizeObserverState = hoisted.resizeObserverState;
+
+vi.mock("@/lib/api/persistedAtoms", () => ({
+  sendPersistedAtomState: hoisted.atomGateway.read,
+  updatePersistedAtomState: hoisted.atomGateway.update,
+  listenPersistedAtomUpdates: hoisted.atomGateway.listen,
+}));
 
 vi.mock("sonner", () => ({
   toast: hoisted.mockToast,
@@ -580,6 +588,7 @@ beforeEach(() => {
   ).IS_REACT_ACT_ENVIRONMENT = true;
 
   vi.clearAllMocks();
+  configureBooleanGateway(hoisted.atomGateway);
   resizeObserverState.width = 1280;
   resizeObserverState.observers = [];
   mockReadProjectGitDiff.mockResolvedValue({

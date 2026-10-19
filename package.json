@@ -5,7 +5,7 @@
   "workspaces": [
     "packages/*"
   ],
-  "version": "1.163.0",
+  "version": "1.164.0",
   "description": "Open-source full-stack desktop AI agent for global users: coding, research, content, files, terminals, tools, multimodal work, and multi-agent workflows.",
   "keywords": [
     "ai",
@@ -239,10 +239,6 @@
     "smoke:expert-skills-live-runner": "node scripts/agent-runtime/expert-skills-live-runner.mjs",
     "smoke:agent-session-history-electron-fixture": "node scripts/electron/session-history-fixture-smoke.mjs",
     "smoke:session-files-electron-fixture": "node scripts/electron/session-files-fixture-smoke.mjs",
-    "smoke:codex-import-continuation-electron-fixture": "node scripts/electron/codex-import-continuation-fixture-smoke.mjs",
-    "smoke:codex-import-click-through-electron-fixture": "node scripts/electron/codex-import-click-through-fixture-smoke.mjs",
-    "smoke:local-history-import-visual-audit": "node scripts/electron/local-history-import-visual-audit-smoke.mjs",
-    "smoke:local-history-import-real-sample-visual-audit": "node scripts/electron/local-history-import-real-sample-visual-audit-smoke.mjs",
     "smoke:mcp-config-electron-fixture": "node scripts/electron/mcp-config-fixture-smoke.mjs",
     "smoke:model-provider-capabilities-electron-gate-b": "node scripts/electron/model-provider-capabilities-gate-b.mjs",
     "smoke:thread-queue-electron-gate-b": "node scripts/electron/thread-queue-gate-b.mjs",

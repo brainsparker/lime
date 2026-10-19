@@ -170,7 +170,7 @@ async fn approvals_reviewer_reaches_current_and_later_turns_after_cold_resume() 
 }
 
 #[tokio::test]
-async fn approvals_reviewer_published_metadata_migrates_before_public_resume_and_stays_updated() {
+async fn approvals_reviewer_canonical_metadata_migrates_before_public_resume_and_stays_updated() {
     let temp = tempfile::tempdir().unwrap();
     let config = temp.path().join("config.yaml");
     let database = temp.path().join("projection.sqlite");
@@ -186,16 +186,13 @@ async fn approvals_reviewer_published_metadata_migrates_before_public_resume_and
         workspace_id: None,
         locale: None,
         business_object_ref: Some(app_server_protocol::BusinessObjectRef {
-            kind: "conversation.import".into(),
-            id: "original".into(),
+            kind: "agent_session_projection".into(),
+            id: "settings-session".into(),
             title: None,
             uri: None,
             metadata: Some(json!({
                 "providerSelector":"fixture", "modelName":"model",
-                "sourceClient":"codex", "sourceThreadId":"original",
-                "approvalsReviewer":null,
-                "importedContinuation":{"approvals_reviewer":"guardian_subagent"},
-                "codexMetadata":{"approvalsReviewer":"guardian_subagent"}
+                "approvalsReviewer":null, "approvals_reviewer":"guardian_subagent"
             })),
         }),
     })
@@ -226,7 +223,7 @@ async fn approvals_reviewer_published_metadata_migrates_before_public_resume_and
         result["thread"]["extra"]["approvalsReviewer"],
         "auto_review"
     );
-    assert!(result["thread"]["extra"]["importedContinuation"]
+    assert!(result["thread"]["extra"]
         .get("approvals_reviewer")
         .is_none());
     assert_eq!(
@@ -252,7 +249,7 @@ async fn approvals_reviewer_published_metadata_migrates_before_public_resume_and
             .await
             .approvals_reviewer,
         Some(ApprovalsReviewer::User),
-        "old import metadata must not resurrect automatic review"
+        "canonical reviewer changes must survive projection rebuild"
     );
     processor.runtime.shutdown().await.unwrap();
 }

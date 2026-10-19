@@ -9,6 +9,7 @@ const LIFECYCLE_SOURCE: &str = "runtime_message_reasoning.v1";
 enum MessageItemFamily {
     User,
     Agent,
+    AsyncAgent,
     Reasoning,
 }
 
@@ -69,7 +70,9 @@ impl CanonicalMessageLifecycleState {
             ));
         }
         self.items.insert((family, item_id.to_string()), owner);
-        self.active_items.insert(family, item_id.to_string());
+        if family != MessageItemFamily::AsyncAgent {
+            self.active_items.insert(family, item_id.to_string());
+        }
         Ok(())
     }
 
@@ -165,7 +168,8 @@ impl CanonicalMessageLifecycleState {
         if matches!(
             owner,
             LifecycleOwner::ManagedActive | LifecycleOwner::ExternalActive
-        ) {
+        ) && family != MessageItemFamily::AsyncAgent
+        {
             self.active_items.insert(family, item_id);
         } else if self.active_items.get(&family).map(String::as_str) == Some(item_id.as_str()) {
             self.active_items.remove(&family);
@@ -233,7 +237,7 @@ impl MessageItemFamily {
     fn label(self) -> &'static str {
         match self {
             Self::User => "UserMessage",
-            Self::Agent => "AgentMessage",
+            Self::Agent | Self::AsyncAgent => "AgentMessage",
             Self::Reasoning => "Reasoning",
         }
     }
@@ -242,6 +246,7 @@ impl MessageItemFamily {
         match self {
             Self::User => format!("user-{turn_id}"),
             Self::Agent => format!("agent-{turn_id}"),
+            Self::AsyncAgent => format!("async-agent-{turn_id}"),
             Self::Reasoning => format!("reasoning-{turn_id}"),
         }
     }
@@ -578,7 +583,7 @@ fn lifecycle_event(
         Value::String(
             match family {
                 MessageItemFamily::User => "user_message",
-                MessageItemFamily::Agent => "agent_message",
+                MessageItemFamily::Agent | MessageItemFamily::AsyncAgent => "agent_message",
                 MessageItemFamily::Reasoning => "reasoning",
             }
             .to_string(),
@@ -607,6 +612,19 @@ fn lifecycle_item_family(event_type: &str, payload: &Value) -> Option<MessageIte
         return None;
     }
     let item = payload.get("item").unwrap_or(payload);
+    if matches!(
+        serde_json::from_value::<agent_protocol::ThreadItem>(item.clone()),
+        Ok(agent_protocol::ThreadItem {
+            payload: agent_protocol::ThreadItemPayload::AgentMessage {
+                delivery: Some(agent_protocol::AgentMessageDelivery::Async),
+                questions: Some(ref questions),
+                ..
+            },
+            ..
+        }) if !questions.is_empty()
+    ) {
+        return Some(MessageItemFamily::AsyncAgent);
+    }
     let kind = string_field(item, &["kind", "type", "itemType", "item_type"])?;
     match kind.to_ascii_lowercase().as_str() {
         "usermessage" | "user_message" | "user" => Some(MessageItemFamily::User),
@@ -669,18 +687,7 @@ fn lifecycle_status<'a>(payload: &'a Value, fallback: &'a str) -> &'a str {
 fn lifecycle_start_context(payload: &Value) -> Option<Value> {
     let payload = payload.as_object()?;
     let mut context = Map::new();
-    for key in [
-        "ordinal",
-        "imported",
-        "sourceClient",
-        "source_client",
-        "importVersion",
-        "sourceEventSeq",
-        "source_event_seq",
-        "sourceProvenance",
-        "phase",
-        "metadata",
-    ] {
+    for key in ["ordinal", "phase", "metadata"] {
         if let Some(value) = payload.get(key) {
             context.insert(key.to_string(), value.clone());
         }

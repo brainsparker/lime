@@ -3,7 +3,6 @@ import {
   resolveArtifactProtocolFilePath,
 } from "@/lib/artifact-protocol";
 import { isArticleArtifactFrameArtifact } from "./articleArtifactProjection";
-import { resolveKnowledgeSourceFromArtifacts } from "./messageListKnowledgeSource";
 import { isHiddenConversationArtifactPath } from "../utils/internalArtifactVisibility";
 import { resolveLatestProjectFileSavedSiteContentTargetFromMessage } from "../utils/latestSavedSiteContentTarget";
 import {
@@ -13,45 +12,26 @@ import {
 import type { Message } from "../types";
 
 interface ResolveMessageListItemArtifactProjectionParams {
-  actionContent: string;
   alreadyRenderedArtifactPaths: string[];
   canOpenSavedSiteContent: boolean;
   hasTrailingArtifactTimelineItems: boolean;
-  isImportedHistoryTurn: boolean;
   message: Message;
   shouldSuppressImageProcessFlow: boolean;
 }
 
 export function resolveMessageListItemArtifactProjection({
-  actionContent,
   alreadyRenderedArtifactPaths,
   canOpenSavedSiteContent,
   hasTrailingArtifactTimelineItems,
-  isImportedHistoryTurn,
   message,
   shouldSuppressImageProcessFlow,
 }: ResolveMessageListItemArtifactProjectionParams) {
-  const knowledgeArtifactSource =
-    message.role === "assistant"
-      ? resolveKnowledgeSourceFromArtifacts(message.artifacts)
-      : null;
-  const knowledgeSaveContent =
-    knowledgeArtifactSource?.content.trim() || actionContent;
-  const canSaveMessageAsKnowledge = Boolean(
-    message.role === "assistant" &&
-    !message.imageWorkbenchPreview &&
-    !message.isThinking &&
-    knowledgeSaveContent &&
-    knowledgeSaveContent.length >= 24,
-  );
   const messageSavedSiteContentTarget =
     message.role === "assistant"
       ? resolveLatestProjectFileSavedSiteContentTargetFromMessage(message)
       : null;
   const visibleAssistantArtifacts =
-    message.role === "assistant" &&
-    !shouldSuppressImageProcessFlow &&
-    !isImportedHistoryTurn
+    message.role === "assistant" && !shouldSuppressImageProcessFlow
       ? (message.artifacts || []).filter((artifact) => {
           const artifactPath = resolveArtifactProtocolFilePath(artifact);
           if (isHiddenConversationArtifactPath(artifactPath)) {
@@ -81,9 +61,8 @@ export function resolveMessageListItemArtifactProjection({
     : null;
 
   return {
-    canSaveMessageAsKnowledge,
     hasArticleArtifactFrame,
-    knowledgeArtifactSource,
+
     messageCanvasShortcutPath,
     messageCanvasShortcutTitle,
     messageSavedSiteContentTarget,

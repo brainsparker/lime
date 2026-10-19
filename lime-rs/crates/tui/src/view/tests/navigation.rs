@@ -326,7 +326,6 @@ fn sticky_prompt_header_keeps_selection_rows_and_copy_position_stable() {
         "turn-1",
         ThreadItem::UserMessage {
             id: "user-1".to_string(),
-            metadata: None,
             client_id: None,
             content: vec![UserInput::Text {
                 text: "Explain the canonical transcript".to_string(),
@@ -339,7 +338,6 @@ fn sticky_prompt_header_keeps_selection_rows_and_copy_position_stable() {
         "turn-1",
         ThreadItem::AgentMessage {
             id: "assistant-1".to_string(),
-            metadata: None,
             text: (0..10)
                 .map(|index| format!("answer row {index:02}"))
                 .chain(std::iter::once("SELECT_HEADER_ROW tail".to_string()))
@@ -454,7 +452,6 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
             "turn-1",
             ThreadItem::UserMessage {
                 id: "user-1".to_string(),
-                metadata: None,
                 client_id: None,
                 content: vec![UserInput::Text {
                     text: "First question".to_string(),
@@ -466,7 +463,6 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
             "turn-1",
             ThreadItem::AgentMessage {
                 id: "assistant-1".to_string(),
-                metadata: None,
                 text: "first answer".to_string(),
                 phase: None,
                 memory_citation: None,
@@ -477,7 +473,6 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
             "turn-2",
             ThreadItem::UserMessage {
                 id: "user-2".to_string(),
-                metadata: None,
                 client_id: None,
                 content: vec![UserInput::Text {
                     text: "Second question".to_string(),
@@ -489,7 +484,6 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
             "turn-2",
             ThreadItem::AgentMessage {
                 id: "assistant-2".to_string(),
-                metadata: None,
                 text: "answer two\nanswer three\nanswer four\nanswer five\nanswer six".to_string(),
                 phase: None,
                 memory_citation: None,
@@ -541,7 +535,6 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
         "turn-current",
         ThreadItem::UserMessage {
             id: "user-current".to_string(),
-            metadata: None,
             client_id: None,
             content: vec![UserInput::Text {
                 text: "Current question with enough context to truncate safely".to_string(),
@@ -554,7 +547,6 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
         "turn-current",
         ThreadItem::AgentMessage {
             id: "assistant-current".to_string(),
-            metadata: None,
             text: (0..16)
                 .map(|index| format!("current row {index:02} stable anchor text"))
                 .collect::<Vec<_>>()
@@ -593,7 +585,6 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
     app.projection.prepend_items([
         ThreadItem::UserMessage {
             id: "user-older".to_string(),
-            metadata: None,
             client_id: None,
             content: vec![UserInput::Text {
                 text: "Older question".to_string(),
@@ -602,7 +593,6 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
         },
         ThreadItem::AgentMessage {
             id: "assistant-older".to_string(),
-            metadata: None,
             text: "older answer".to_string(),
             phase: None,
             memory_citation: None,

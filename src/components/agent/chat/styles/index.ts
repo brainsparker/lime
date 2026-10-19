@@ -214,15 +214,6 @@ export const MessageActions = styled.div`
     transform 0.18s ease;
   background-color: transparent;
 
-  &.message-actions-persistent {
-    max-height: 48px;
-    margin-top: 8px;
-    overflow: visible;
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-  }
-
   &.image-workbench-message-actions {
     align-self: flex-start;
     margin-top: 8px;

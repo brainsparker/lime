@@ -729,61 +729,6 @@ describe("http-client", () => {
         },
       }),
     ).toBe(30000);
-    expect(
-      resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {
-        request: {
-          lines: [
-            JSON.stringify({
-              id: "read-codex-import-job",
-              method: "conversationImport/job/read",
-              params: { jobId: "import-job-1" },
-            }),
-          ],
-        },
-      }),
-    ).toBe(120000);
-    expect(
-      resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {
-        request: {
-          lines: [
-            JSON.stringify({
-              id: "scan-codex-import",
-              method: "conversationImport/source/scan",
-              params: { sourceClient: "codex" },
-            }),
-          ],
-        },
-      }),
-    ).toBe(120000);
-    expect(
-      resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {
-        request: {
-          lines: [
-            JSON.stringify({
-              id: "preview-codex-import",
-              method: "conversationImport/thread/preview",
-              params: { sourceClient: "codex", sourceThreadId: "thread-1" },
-            }),
-          ],
-        },
-      }),
-    ).toBe(120000);
-    expect(
-      resolveBridgeRequestTimeoutMs("app_server_handle_json_lines", {
-        request: {
-          lines: [
-            JSON.stringify({
-              id: "commit-codex-import",
-              method: "conversationImport/thread/commit",
-              params: {
-                sourceClient: "codex",
-                sourceThreadId: "codex-thread-1",
-              },
-            }),
-          ],
-        },
-      }),
-    ).toBe(120000);
     expect(resolveBridgeRequestTimeoutMs("plugin_start_ui_runtime")).toBe(1800);
     expect(resolveBridgeRequestTimeoutMs("plugin_runtime_get_task")).toBe(1800);
     expect(resolveBridgeRequestTimeoutMs("plugin_runtime_start_task")).toBe(

@@ -56,7 +56,6 @@ fn canonical_history_page_extends_the_original_copy_revision_without_absorbing_l
     ));
     let older = ThreadItem::UserMessage {
         id: "older".into(),
-        metadata: None,
         client_id: None,
         content: vec![UserInput::Text {
             text: "old 中文😀 prompt".into(),
@@ -132,7 +131,6 @@ fn main_selection(mode: crate::history_cell::HistoryRenderMode) -> App {
 fn older_prompt() -> ThreadItem {
     ThreadItem::UserMessage {
         id: "older-main".into(),
-        metadata: None,
         client_id: None,
         content: vec![UserInput::Text {
             text: "OLDER 中文😀 prompt".into(),
@@ -259,7 +257,6 @@ fn main_selection_history_prepend_preserves_the_original_copy_ticket() {
     app.prepend_history_page(
         vec![ThreadItem::AgentMessage {
             id: "even-older".into(),
-            metadata: None,
             text: "EARLIEST canonical answer".into(),
             phase: None,
             memory_citation: None,

@@ -258,13 +258,15 @@ impl MemoryAppDataSource for TestSessionDataSource {
     async fn consolidate_memory_store(
         &self,
         params: MemoryStoreConsolidateParams,
+        route: crate::MemoryStageOneRoute,
+        provider: &dyn crate::MemoryStageTwoProvider,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         let Some(memory_backend) = &self.memory_backend else {
             return Err(RuntimeCoreError::Backend(
                 "memoryStore/consolidate unavailable in test data source".to_string(),
             ));
         };
-        memory_backend.consolidate(params).await
+        memory_backend.consolidate(params, route, provider).await
     }
 }
 impl DiagnosticsAppDataSource for TestSessionDataSource {}

@@ -10,19 +10,16 @@ import {
   useMemo,
   useRef,
   useCallback,
-  type ReactElement,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import {
-  Bell,
   Home,
   Palette,
   Search,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
-import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
 import {
   AgentPageParams,
@@ -41,37 +38,32 @@ import {
   resolveEnabledSidebarNavItems,
   type SidebarNavItemDefinition,
 } from "@/lib/navigation/sidebarNav";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { LIME_BRAND_NAME } from "@/lib/branding";
+import { useCommand } from "@/lib/commands/useCommand";
 import { AppSidebarCustomization } from "@/components/app-sidebar/AppSidebarCustomization";
 import { HeaderAction } from "@/components/app-shell/AppShell";
 import {
   AppNavigationRail,
   NavigationRailButton,
+  NavigationRailTooltip,
 } from "@/components/app-sidebar/AppNavigationRail";
 import { SidebarResizeHandle } from "@/components/app-sidebar/SidebarResizeHandle";
 import { useSidebarWidth } from "@/components/app-sidebar/useSidebarWidth";
 import { AppSidebarAppearancePopover } from "@/components/app-sidebar/AppSidebarAppearancePopover";
 import { AppSidebarConversationShelf } from "@/components/app-sidebar/AppSidebarConversationShelf";
-import { AppSidebarConversationImportDialog } from "@/components/app-sidebar/AppSidebarConversationImportDialog";
-import { AppSidebarInviteDialog } from "@/components/app-sidebar/AppSidebarInviteDialog";
 import { AppSidebarSearchDialog } from "@/components/app-sidebar/AppSidebarSearchDialog";
 import type { AgentBackgroundSessionRuntimeSnapshot } from "@/components/agent/chat";
 import { useOpenedProjectSummaries } from "@/components/agent/chat/hooks/useOpenedProjectSummaries";
 import { useAppSidebarAppearance } from "@/components/app-sidebar/useAppSidebarAppearance";
 import { useAppSidebarConversationActions } from "@/components/app-sidebar/useAppSidebarConversationActions";
-import { useAppSidebarConversationImport } from "@/components/app-sidebar/useAppSidebarConversationImport";
 import { useAppSidebarProjectActions } from "@/components/app-sidebar/useAppSidebarProjectActions";
 import { useAppSidebarSessions } from "@/components/app-sidebar/useAppSidebarSessions";
 import { useSidebarThreadSearch } from "@/components/app-sidebar/useSidebarThreadSearch";
 import { mergeSidebarThreadSearchSessions } from "@/components/app-sidebar/sidebarThreadSearch";
 import type { SidebarOpenedProjectSummary } from "@/components/app-sidebar/sidebarConversationGroups";
 import {
+  APP_SIDEBAR_MIN_WIDTH,
   APP_SIDEBAR_COLLAPSED_STORAGE_KEY,
   APP_SIDEBAR_COLLAPSE_EVENT,
   SIDEBAR_NAV_LABEL_KEYS,
@@ -90,7 +82,6 @@ import {
   NavLabel,
   FooterAppearanceActionSlot,
   IconActionButton,
-  HeaderInviteButton,
 } from "@/components/app-sidebar/AppSidebar.styles";
 import {
   formatSidebarSessionMeta,
@@ -102,31 +93,7 @@ import {
   serializeNavigationParams,
   type SidebarNavigationTarget,
 } from "@/components/app-sidebar/sidebarNavigationTarget";
-import {
-  resolveAccountTenantLabel,
-  resolveCloudBrandLabel,
-} from "@/components/app-sidebar/sidebarAccount";
-import {
-  getOemCloudBootstrapSnapshot,
-  getCloudAccount,
-  subscribeOemCloudBootstrapChanged,
-  subscribeCloudAccount,
-  type CloudAccountView,
-} from "@/lib/cloudAccount";
-import {
-  getClientReferralDashboard,
-  type OemCloudBootstrapResponse,
-  type OemCloudReferralDashboard,
-} from "@/lib/api/oemCloudControlPlane";
-import {
-  createExternalBrowserOpenTarget,
-  startOemCloudLogin,
-} from "@/lib/oemCloudLoginLauncher";
-import {
-  cacheOemCloudReferralDashboard,
-  readCachedOemCloudReferralState,
-  type OemCloudReferralCachedState,
-} from "@/lib/oemCloudReferralCache";
+import { SidebarProfileFooter } from "@/components/app-sidebar/SidebarProfileFooter";
 import {
   LAST_PROJECT_ID_KEY,
   loadPersistedProjectId,
@@ -163,7 +130,6 @@ export function AppSidebar({
   const { t, i18n } = useTranslation("navigation");
   const conversationUntitledLabel = t(
     "navigation.sidebar.conversations.untitled",
-    "未命名对话",
   );
   const resolveLocalizedSessionTitle = useCallback(
     (session: AgentSessionInfo) =>
@@ -179,15 +145,12 @@ export function AppSidebar({
   );
   const renameConversationPromptLabel = t(
     "navigation.sidebar.conversations.rename.prompt",
-    "重命名对话",
   );
   const renameConversationSuccessLabel = t(
     "navigation.sidebar.conversations.rename.success",
-    "已重命名对话",
   );
   const renameConversationErrorLabel = t(
     "navigation.sidebar.conversations.rename.error",
-    "重命名失败，请稍后重试",
   );
   const formatDeleteConversationConfirm = useCallback(
     (title: string) =>
@@ -199,23 +162,9 @@ export function AppSidebar({
   );
   const deleteConversationSuccessLabel = t(
     "navigation.sidebar.conversations.delete.success",
-    "已删除对话",
   );
   const deleteConversationErrorLabel = t(
     "navigation.sidebar.conversations.delete.error",
-    "删除失败，请稍后重试",
-  );
-  const accountDefaultCloudBrandLabel = t(
-    "navigation.sidebar.account.defaultCloudBrand",
-    "Lime 云端",
-  );
-  const accountCloudSuffixLabel = t(
-    "navigation.sidebar.account.cloudSuffix",
-    "云端",
-  );
-  const inviteLoadErrorLabel = t(
-    "navigation.sidebar.invite.feedback.loadFailed",
-    "加载邀请信息失败",
   );
   const activePage = requestedPage ?? currentPage;
   const activePageParams = requestedPageParams ?? currentPageParams;
@@ -326,7 +275,9 @@ export function AppSidebar({
       window.localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY) === "true"
     );
   });
-  const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth();
+  const { width: sidebarWidth, setWidth: setSidebarWidth } = useSidebarWidth(
+    APP_SIDEBAR_MIN_WIDTH,
+  );
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -358,26 +309,6 @@ export function AppSidebar({
     setAppearancePopoverOpen,
     themeState,
   } = useAppSidebarAppearance();
-  const [cloudSessionState, setCloudSessionState] =
-    useState<CloudAccountView | null>(() =>
-      typeof window === "undefined" ? null : getCloudAccount(),
-    );
-  const [cloudBootstrapState, setCloudBootstrapState] =
-    useState<OemCloudBootstrapResponse | null>(() =>
-      typeof window === "undefined"
-        ? null
-        : getOemCloudBootstrapSnapshot<OemCloudBootstrapResponse>(),
-    );
-  const [cachedReferralState, setCachedReferralState] =
-    useState<OemCloudReferralCachedState | null>(() =>
-      typeof window === "undefined" ? null : readCachedOemCloudReferralState(),
-    );
-  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
-  const [inviteDashboard, setInviteDashboard] =
-    useState<OemCloudReferralDashboard | null>(null);
-  const [inviteLoading, setInviteLoading] = useState(false);
-  const [inviteError, setInviteError] = useState<string | null>(null);
-  const [inviteReloadKey, setInviteReloadKey] = useState(0);
   const [sidebarSearchOpen, setSidebarSearchOpen] = useState(false);
   const [sidebarSearchQuery, setSidebarSearchQuery] = useState("");
 
@@ -395,28 +326,16 @@ export function AppSidebar({
     setSidebarSearchQuery("");
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const handleSearchShortcut = (event: KeyboardEvent) => {
-      if (
-        event.key.toLowerCase() !== "k" ||
-        (!event.metaKey && !event.ctrlKey)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
-      openSidebarSearchDialog();
-    };
-
-    window.addEventListener("keydown", handleSearchShortcut);
-    return () => {
-      window.removeEventListener("keydown", handleSearchShortcut);
-    };
-  }, [openSidebarSearchDialog]);
+  useCommand({
+    id: "searchThreads",
+    titleKey: "commands.searchThreads.title",
+    descriptionKey: "commands.searchThreads.description",
+    section: "navigation",
+    bindings: ["CommandOrControl+K"],
+    enabled: true,
+    allowInInput: true,
+    handler: openSidebarSearchDialog,
+  });
 
   useEffect(() => {
     if (!sidebarSearchOpen || typeof window === "undefined") {
@@ -486,113 +405,6 @@ export function AppSidebar({
       ? localizeSidebarNavItem(settingsFooterNavItem)
       : null;
   }, [localizeSidebarNavItem, settingsFooterNavItem]);
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const currentSession = getCloudAccount();
-    setCloudSessionState(currentSession);
-    setCachedReferralState(
-      readCachedOemCloudReferralState(currentSession?.session.tenant.id),
-    );
-    return subscribeCloudAccount((state) => {
-      setCloudSessionState(state);
-      setCachedReferralState(
-        readCachedOemCloudReferralState(state?.session.tenant.id),
-      );
-    });
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const currentBootstrap =
-      getOemCloudBootstrapSnapshot<OemCloudBootstrapResponse>();
-    setCloudBootstrapState(currentBootstrap);
-    setCachedReferralState(
-      readCachedOemCloudReferralState(currentBootstrap?.session?.tenant.id),
-    );
-    return subscribeOemCloudBootstrapChanged((payload) => {
-      const nextBootstrap = (payload as OemCloudBootstrapResponse) ?? null;
-      setCloudBootstrapState(nextBootstrap);
-      setCachedReferralState(
-        readCachedOemCloudReferralState(nextBootstrap?.session?.tenant.id),
-      );
-    });
-  }, []);
-
-  const inviteTenantId = cloudSessionState?.session.tenant.id;
-  const cachedInviteDashboard =
-    cloudBootstrapState?.referral ?? cachedReferralState?.dashboard ?? null;
-  const inviteFeatureEnabled =
-    cloudBootstrapState?.features?.referralEnabled ??
-    cachedReferralState?.referralEnabled ??
-    true;
-  const canLoadReferralDashboard =
-    Boolean(cloudSessionState) && inviteFeatureEnabled;
-
-  useEffect(() => {
-    if (!inviteDialogOpen || !inviteTenantId || !canLoadReferralDashboard) {
-      return;
-    }
-
-    if (cachedInviteDashboard) {
-      setInviteDashboard(cachedInviteDashboard);
-      setInviteError(null);
-      setInviteLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setInviteLoading(true);
-    setInviteError(null);
-
-    getClientReferralDashboard(inviteTenantId)
-      .then((dashboard) => {
-        if (!cancelled) {
-          setCachedReferralState(
-            cacheOemCloudReferralDashboard(inviteTenantId, dashboard),
-          );
-          setInviteDashboard(dashboard);
-        }
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-
-        const message =
-          error instanceof Error && error.message.trim()
-            ? error.message.trim()
-            : inviteLoadErrorLabel;
-        setInviteError(message);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setInviteLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    inviteDialogOpen,
-    inviteReloadKey,
-    inviteTenantId,
-    canLoadReferralDashboard,
-    cachedInviteDashboard,
-    inviteLoadErrorLabel,
-  ]);
-
-  useEffect(() => {
-    if (inviteFeatureEnabled === false && inviteDialogOpen) {
-      setInviteDialogOpen(false);
-    }
-  }, [inviteFeatureEnabled, inviteDialogOpen]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -670,7 +482,6 @@ export function AppSidebar({
     !isCustomizationPage &&
     !(activePage === "agent" && activeAgentPageParams?.immersiveHome);
   const {
-    addImportedSidebarSessionOptimistically,
     beginSidebarSessionAction,
     clearSidebarSessionAction,
     deferConversationNavigation,
@@ -757,7 +568,7 @@ export function AppSidebar({
   });
 
   const handleNavigate = (item: SidebarNavItem) => {
-    if (item.id === "home-general") {
+    if (item.id === "new-chat") {
       conversationActions.navigateToHome();
       return;
     }
@@ -814,30 +625,10 @@ export function AppSidebar({
     onNavigate(scopedTarget.page, scopedTarget.rawParams);
   };
 
-  const maybeWrapWithTooltip = (
-    node: ReactElement,
-    label: string,
-    iconOnly = false,
-  ) => {
-    if (!iconOnly) {
-      return node;
-    }
-
-    return (
-      <Tooltip key={node.key ?? label}>
-        <TooltipTrigger asChild>{node}</TooltipTrigger>
-        <TooltipContent side="right">{label}</TooltipContent>
-      </Tooltip>
-    );
-  };
-
   const renderNavItem = (item: SidebarNavItem, iconOnly = false) => {
     const Button = iconOnly ? NavigationRailButton : NavButton;
     const active = isActive(item);
-    const displayLabel =
-      item.id === "home-general"
-        ? t("navigation.sidebar.items.newChat", "新聊天")
-        : item.label;
+    const displayLabel = item.label;
     const button = (
       <Button
         key={item.id}
@@ -854,30 +645,17 @@ export function AppSidebar({
         ) : (
           <NavLabel>{displayLabel}</NavLabel>
         )}
-        {item.id === "home-general" ? (
-          <span style={{ display: "none" }}>{item.label}</span>
-        ) : null}
       </Button>
     );
 
-    return maybeWrapWithTooltip(button, item.label, iconOnly);
+    return iconOnly ? (
+      <NavigationRailTooltip key={item.id} label={item.label}>
+        {button}
+      </NavigationRailTooltip>
+    ) : (
+      button
+    );
   };
-
-  const conversationImport = useAppSidebarConversationImport({
-    addImportedSidebarSessionOptimistically,
-    refreshSidebarSessions,
-    onImportedSession: (response) => {
-      conversationActions.navigateToConversation({
-        id: response.session.sessionId,
-        name: response.thread.title ?? response.session.sessionId,
-        created_at: Math.floor(Date.parse(response.session.createdAt) / 1000),
-        updated_at: Math.floor(Date.parse(response.session.updatedAt) / 1000),
-        archived_at: null,
-        workspace_id: response.session.workspaceId ?? undefined,
-        working_dir: response.thread.cwd ?? undefined,
-      });
-    },
-  });
 
   const projectActions = useAppSidebarProjectActions({
     currentProjectId: projectScopedNavigationProjectId,
@@ -885,248 +663,33 @@ export function AppSidebar({
     refreshSidebarSessions,
   });
 
-  const accountTenantLabel = resolveAccountTenantLabel(cloudSessionState);
-  const cloudBrandLabel = resolveCloudBrandLabel(
-    cloudBootstrapState,
-    accountDefaultCloudBrandLabel,
-    accountCloudSuffixLabel,
-  );
-  const hasCloudAccount = Boolean(cloudSessionState);
-  const inviteEntryVisible = inviteFeatureEnabled;
-  const homeLabel = t("navigation.sidebar.home.label", "Lime 首页");
-  const homeAriaLabel = t(
-    "navigation.sidebar.home.ariaLabel",
-    "返回 Lime 首页",
-  );
-  const collapseNavigationLabel = t(
-    "navigation.sidebar.actions.collapse",
-    "折叠导航栏",
-  );
-  const expandNavigationLabel = t(
-    "navigation.sidebar.actions.expand",
-    "展开导航栏",
-  );
+  const homeLabel = t("navigation.sidebar.home.label");
+  const homeAriaLabel = t("navigation.sidebar.home.ariaLabel");
+  const collapseNavigationLabel = t("navigation.sidebar.actions.collapse");
+  const expandNavigationLabel = t("navigation.sidebar.actions.expand");
   const navigationToggleLabel = collapsed
     ? expandNavigationLabel
     : collapseNavigationLabel;
-  const searchTaskLabel = t("navigation.sidebar.search.label", "搜索任务");
+  const searchTaskLabel = t("navigation.sidebar.search.label");
   const searchConversationTitleLabel = t(
     "navigation.sidebar.search.inputLabel",
-    "搜索对话",
   );
-  const closeSearchDialogLabel = t(
-    "navigation.sidebar.search.close",
-    "关闭搜索弹窗",
-  );
+  const closeSearchDialogLabel = t("navigation.sidebar.search.close");
   const createConversationLabel = t(
     "navigation.sidebar.search.createConversation",
-    "新建对话",
   );
-  const searchMatchesLabel = t(
-    "navigation.sidebar.search.section.matches",
-    "匹配结果",
-  );
-  const searchRecentLabel = t(
-    "navigation.sidebar.search.section.recent",
-    "最近",
-  );
-  const searchLoadingLabel = t(
-    "navigation.sidebar.search.loading",
-    "正在加载对话",
-  );
+  const searchMatchesLabel = t("navigation.sidebar.search.section.matches");
+  const searchRecentLabel = t("navigation.sidebar.search.section.recent");
+  const searchLoadingLabel = t("navigation.sidebar.search.loading");
   const searchSelectProjectFirstLabel = t(
     "navigation.sidebar.search.selectProjectFirst",
-    "请先选择项目工作区",
   );
-  const searchEmptyMatchesLabel = t(
-    "navigation.sidebar.search.emptyMatches",
-    "没有匹配的对话",
-  );
-  const searchContentErrorLabel = t(
-    "navigation.sidebar.search.contentError",
-    "内容搜索暂时不可用，已保留标题匹配",
-  );
-  const searchEmptyRecentLabel = t(
-    "navigation.sidebar.search.emptyRecent",
-    "还没有最近对话",
-  );
-  const searchLoadingMoreLabel = t(
-    "navigation.sidebar.search.loadingMore",
-    "正在加载...",
-  );
-  const searchMoreMatchesLabel = t(
-    "navigation.sidebar.search.moreMatches",
-    "查看更多匹配结果",
-  );
-  const searchMoreRecentLabel = t(
-    "navigation.sidebar.search.moreRecent",
-    "查看更多对话",
-  );
-  const accountLoginOpenedLabel = t("navigation.sidebar.account.login.opened", {
-    brand: cloudBrandLabel,
-    defaultValue: "已打开 {{brand}} 登录页，请在浏览器完成授权",
-  });
-  const accountLoginFailedFallbackLabel = t(
-    "navigation.sidebar.account.login.failed",
-    {
-      brand: cloudBrandLabel,
-      defaultValue: "打开 {{brand}} 登录页失败",
-    },
-  );
-  const inviteShare = inviteDashboard?.share;
-  const inviteEntryLabel = t(
-    "navigation.sidebar.invite.entry.label",
-    "邀请好友",
-  );
-  const inviteCloseDialogLabel = t(
-    "navigation.sidebar.invite.dialog.close",
-    "关闭邀请弹窗",
-  );
-  const inviteBrandName =
-    inviteShare?.brandName ?? accountTenantLabel ?? "Lime";
-  const inviteEyebrowLabel = t("navigation.sidebar.invite.dialog.eyebrow", {
-    brand: inviteBrandName,
-    defaultValue: "{{brand}} 邀请",
-  });
-  const inviteDialogTitleLabel = t(
-    "navigation.sidebar.invite.dialog.title",
-    "邀请好友",
-  );
-  const inviteHeadline =
-    inviteShare?.headline?.trim() ||
-    t("navigation.sidebar.invite.dialog.headlineFallback", "邀请好友加入内测");
-  const inviteRules =
-    inviteShare?.rules?.trim() ||
-    t(
-      "navigation.sidebar.invite.dialog.rulesFallback",
-      "通过云端邀请策略自动发放奖励，具体到账以当前品牌云端配置为准。",
-    );
-  const inviteDescriptionLabel =
-    !inviteLoading && !inviteError
-      ? t("navigation.sidebar.invite.dialog.descriptionWithRules", {
-          headline: inviteHeadline,
-          rules: inviteRules,
-          defaultValue: "{{headline}}。{{rules}}",
-        })
-      : inviteHeadline;
-  const inviteDisconnectedLabel = t(
-    "navigation.sidebar.invite.status.disconnected",
-    {
-      brand: cloudBrandLabel,
-      defaultValue:
-        "连接 {{brand}} 后会生成专属邀请码，并自动读取当前品牌云端的域名和奖励策略。",
-    },
-  );
-  const inviteConnectAccountLabel = t(
-    "navigation.sidebar.invite.actions.connectCloudAccount",
-    "连接云端账号",
-  );
-  const inviteLoadingLabel = t(
-    "navigation.sidebar.invite.status.loading",
-    "正在从云端同步邀请信息...",
-  );
-  const inviteRetryLabel = t("navigation.sidebar.invite.actions.retry", "重试");
-  const inviteCodeLabel = t("navigation.sidebar.invite.fields.code", "邀请码");
-  const inviteCopyLabel = t("navigation.sidebar.invite.actions.copy", "复制");
-  const inviteDownloadUrlLabel = t(
-    "navigation.sidebar.invite.fields.downloadUrl",
-    "下载地址",
-  );
-  const inviteLandingUrlLabel = t(
-    "navigation.sidebar.invite.fields.landingUrl",
-    "邀请链接",
-  );
-  const inviteReferrerRewardLabel = t(
-    "navigation.sidebar.invite.fields.referrerReward",
-    "邀请人奖励",
-  );
-  const inviteInviteeRewardLabel = t(
-    "navigation.sidebar.invite.fields.inviteeReward",
-    "被邀请人奖励",
-  );
-  const inviteCopyShareTextLabel = t(
-    "navigation.sidebar.invite.actions.copyShareText",
-    "复制邀请文案",
-  );
-  const inviteCopyLandingUrlLabel = t(
-    "navigation.sidebar.invite.actions.copyLandingUrl",
-    "复制邀请链接",
-  );
-  const inviteCopyCodeSuccessLabel = t(
-    "navigation.sidebar.invite.feedback.codeCopied",
-    "已复制邀请码",
-  );
-  const inviteCopyShareTextSuccessLabel = t(
-    "navigation.sidebar.invite.feedback.shareTextCopied",
-    "已复制邀请文案",
-  );
-  const inviteCopyLandingUrlSuccessLabel = t(
-    "navigation.sidebar.invite.feedback.landingUrlCopied",
-    "已复制邀请链接",
-  );
-  const inviteCopyEmptyLabel = t(
-    "navigation.sidebar.invite.feedback.emptyCopy",
-    "暂无可复制内容",
-  );
-  const inviteCopyFailedLabel = t(
-    "navigation.sidebar.invite.feedback.copyFailed",
-    "复制失败，请检查剪贴板权限",
-  );
-  const inviteRewardCurrentPolicyLabel = t(
-    "navigation.sidebar.invite.reward.currentPolicy",
-    "按当前策略发放",
-  );
-  const formatInviteReferralCredits = useCallback(
-    (value: number | undefined): string => {
-      if (typeof value !== "number" || value <= 0) {
-        return inviteRewardCurrentPolicyLabel;
-      }
-
-      return t("navigation.sidebar.invite.reward.credits", {
-        amount: value.toLocaleString(i18n.language),
-        defaultValue: "{{amount}} 积分",
-      });
-    },
-    [i18n.language, inviteRewardCurrentPolicyLabel, t],
-  );
-
-  const handleAccountLogin = useCallback(async () => {
-    const browserTarget = createExternalBrowserOpenTarget();
-    try {
-      await startOemCloudLogin(undefined, {
-        browserTarget,
-        waitForCompletion: false,
-      });
-      toast.success(accountLoginOpenedLabel);
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message.trim()
-          : accountLoginFailedFallbackLabel;
-      toast.error(message);
-    }
-  }, [accountLoginFailedFallbackLabel, accountLoginOpenedLabel]);
-
-  const handleCopyInviteText = useCallback(
-    async (value: string | undefined, successMessage: string) => {
-      const text = value?.trim();
-      if (!text) {
-        toast.info(inviteCopyEmptyLabel);
-        return;
-      }
-
-      try {
-        if (!navigator.clipboard?.writeText) {
-          throw new Error("clipboard unavailable");
-        }
-        await navigator.clipboard.writeText(text);
-        toast.success(successMessage);
-      } catch {
-        toast.error(inviteCopyFailedLabel);
-      }
-    },
-    [inviteCopyEmptyLabel, inviteCopyFailedLabel],
-  );
+  const searchEmptyMatchesLabel = t("navigation.sidebar.search.emptyMatches");
+  const searchContentErrorLabel = t("navigation.sidebar.search.contentError");
+  const searchEmptyRecentLabel = t("navigation.sidebar.search.emptyRecent");
+  const searchLoadingMoreLabel = t("navigation.sidebar.search.loadingMore");
+  const searchMoreMatchesLabel = t("navigation.sidebar.search.moreMatches");
+  const searchMoreRecentLabel = t("navigation.sidebar.search.moreRecent");
 
   return (
     <TooltipProvider>
@@ -1189,10 +752,11 @@ export function AppSidebar({
               {localizedSettingsFooterNavItem
                 ? renderNavItem(localizedSettingsFooterNavItem, true)
                 : null}
+              <SidebarProfileFooter onNavigate={onNavigate} />
             </>
           }
         >
-          {maybeWrapWithTooltip(
+          <NavigationRailTooltip label={homeLabel}>
             <NavigationRailButton
               type="button"
               $active={activePage === "agent"}
@@ -1209,12 +773,10 @@ export function AppSidebar({
               }}
             >
               <Home />
-            </NavigationRailButton>,
-            homeLabel,
-            true,
-          )}
+            </NavigationRailButton>
+          </NavigationRailTooltip>
           {filteredMainNavItems
-            .filter((item) => item.id !== "home-general")
+            .filter((item) => item.id !== "new-chat")
             .map((item) => renderNavItem(item, true))}
         </AppNavigationRail>
         <SidebarSurface
@@ -1235,59 +797,34 @@ export function AppSidebar({
                 data-testid="app-sidebar-header"
               >
                 <HeaderTopRow $collapsed={collapsed}>
-                  {maybeWrapWithTooltip(
-                    <UserButton
-                      $collapsed={collapsed}
-                      onClick={() =>
-                        onStartNewConversation?.({
-                          projectId: null,
-                          freshDraft: false,
-                        })
-                      }
-                      aria-label={homeAriaLabel}
-                      title={homeAriaLabel}
-                      data-testid="app-sidebar-home-button"
-                    >
-                      <UserName $collapsed={collapsed}>
-                        {LIME_BRAND_NAME}
-                      </UserName>
-                    </UserButton>,
-                    homeLabel,
-                  )}
+                  <UserButton
+                    $collapsed={collapsed}
+                    onClick={() =>
+                      onStartNewConversation?.({
+                        projectId: null,
+                        freshDraft: false,
+                      })
+                    }
+                    aria-label={homeAriaLabel}
+                    title={homeAriaLabel}
+                    data-testid="app-sidebar-home-button"
+                  >
+                    <UserName $collapsed={collapsed}>
+                      {LIME_BRAND_NAME}
+                    </UserName>
+                  </UserButton>
 
-                  {inviteEntryVisible
-                    ? maybeWrapWithTooltip(
-                        <HeaderInviteButton
-                          $collapsed={collapsed}
-                          $active={inviteDialogOpen}
-                          onClick={() => {
-                            setInviteDashboard(cachedInviteDashboard);
-                            setInviteDialogOpen(true);
-                          }}
-                          title={inviteEntryLabel}
-                          aria-label={inviteEntryLabel}
-                          data-testid="app-sidebar-invite-button"
-                        >
-                          <Bell />
-                          <span>{inviteEntryLabel}</span>
-                        </HeaderInviteButton>,
-                        inviteEntryLabel,
-                      )
-                    : null}
-                  {maybeWrapWithTooltip(
-                    <SearchButton
-                      $inline
-                      onClick={openSidebarSearchDialog}
-                      title={searchTaskLabel}
-                      aria-label={searchTaskLabel}
-                      aria-haspopup="dialog"
-                      aria-expanded={sidebarSearchOpen ? true : undefined}
-                      data-testid="app-sidebar-search-button"
-                    >
-                      <Search size={14} />
-                    </SearchButton>,
-                    searchTaskLabel,
-                  )}
+                  <SearchButton
+                    $inline
+                    onClick={openSidebarSearchDialog}
+                    title={searchTaskLabel}
+                    aria-label={searchTaskLabel}
+                    aria-haspopup="dialog"
+                    aria-expanded={sidebarSearchOpen ? true : undefined}
+                    data-testid="app-sidebar-search-button"
+                  >
+                    <Search size={14} />
+                  </SearchButton>
                 </HeaderTopRow>
               </HeaderArea>
 
@@ -1295,7 +832,7 @@ export function AppSidebar({
                 {!collapsed ? (
                   <MainNavList data-testid="app-sidebar-main-nav">
                     {filteredMainNavItems
-                      .filter((item) => item.id === "home-general")
+                      .filter((item) => item.id === "new-chat")
                       .map((item) => renderNavItem(item))}
                   </MainNavList>
                 ) : null}
@@ -1319,7 +856,6 @@ export function AppSidebar({
                       }
                       conversationActions.navigateToStandaloneConversation();
                     }}
-                    onImportConversation={conversationImport.open}
                     onNavigateToConversation={
                       conversationActions.navigateToConversation
                     }
@@ -1370,7 +906,7 @@ export function AppSidebar({
         {!collapsed ? (
           <SidebarResizeHandle
             width={sidebarWidth}
-            minimumWidth={290}
+            minimumWidth={APP_SIDEBAR_MIN_WIDTH}
             onWidthChange={setSidebarWidth}
           />
         ) : null}
@@ -1429,45 +965,6 @@ export function AppSidebar({
           showMoreRecentSessions();
         }}
       />
-      <AppSidebarInviteDialog
-        isOpen={inviteDialogOpen}
-        hasCloudAccount={hasCloudAccount}
-        loading={inviteLoading}
-        error={inviteError}
-        dashboard={inviteDashboard}
-        copy={{
-          closeLabel: inviteCloseDialogLabel,
-          eyebrowLabel: inviteEyebrowLabel,
-          titleLabel: inviteDialogTitleLabel,
-          descriptionLabel: inviteDescriptionLabel,
-          disconnectedLabel: inviteDisconnectedLabel,
-          connectAccountLabel: inviteConnectAccountLabel,
-          loadingLabel: inviteLoadingLabel,
-          retryLabel: inviteRetryLabel,
-          codeLabel: inviteCodeLabel,
-          copyLabel: inviteCopyLabel,
-          downloadUrlLabel: inviteDownloadUrlLabel,
-          landingUrlLabel: inviteLandingUrlLabel,
-          referrerRewardLabel: inviteReferrerRewardLabel,
-          inviteeRewardLabel: inviteInviteeRewardLabel,
-          copyShareTextLabel: inviteCopyShareTextLabel,
-          copyLandingUrlLabel: inviteCopyLandingUrlLabel,
-          copyCodeSuccessLabel: inviteCopyCodeSuccessLabel,
-          copyShareTextSuccessLabel: inviteCopyShareTextSuccessLabel,
-          copyLandingUrlSuccessLabel: inviteCopyLandingUrlSuccessLabel,
-        }}
-        formatReferralCredits={formatInviteReferralCredits}
-        onClose={() => setInviteDialogOpen(false)}
-        onConnectAccount={() => {
-          setInviteDialogOpen(false);
-          void handleAccountLogin();
-        }}
-        onRetry={() => setInviteReloadKey((value) => value + 1)}
-        onCopyText={(value, successMessage) =>
-          void handleCopyInviteText(value, successMessage)
-        }
-      />
-      <AppSidebarConversationImportDialog {...conversationImport.dialogProps} />
     </TooltipProvider>
   );
 }

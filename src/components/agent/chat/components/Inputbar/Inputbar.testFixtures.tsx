@@ -41,6 +41,7 @@ vi.mock("../ThreadGoalPanel", () => ({
     threadId?: string | null;
     threadGoal?: { objective: string } | null;
     runtimeBusy?: boolean;
+    onEdit?: () => void;
   }) => (
     <div
       data-testid="thread-goal-inline-panel"
@@ -48,7 +49,13 @@ vi.mock("../ThreadGoalPanel", () => ({
       data-objective={props.threadGoal?.objective ?? ""}
       data-runtime-busy={String(Boolean(props.runtimeBusy))}
       data-variant="inline"
-    />
+    >
+      {props.onEdit ? (
+        <button data-testid="thread-goal-edit" onClick={props.onEdit}>
+          Edit goal
+        </button>
+      ) : null}
+    </div>
   ),
 }));
 

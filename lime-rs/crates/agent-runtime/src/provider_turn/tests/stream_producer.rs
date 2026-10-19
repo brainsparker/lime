@@ -70,6 +70,7 @@ async fn first_visible_output_deadline_is_independent_from_provider_stream_poll(
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         ),

@@ -11,6 +11,9 @@ mod message_snapshot;
 #[path = "history_tests/reasoning_snapshot.rs"]
 mod reasoning_snapshot;
 
+#[path = "history_tests/async_user_input.rs"]
+mod async_user_input;
+
 fn item(sequence: u64, ordinal: u64, id: &str, text: &str) -> ThreadItem {
     ThreadItem {
         session_id: SessionId::new("session-1"),
@@ -30,6 +33,8 @@ fn item(sequence: u64, ordinal: u64, id: &str, text: &str) -> ThreadItem {
             content_parts: vec![MessageContentPart::Text {
                 text: text.to_string(),
             }],
+            delivery: None,
+            questions: None,
         },
         metadata: serde_json::Value::Null,
     }
@@ -92,6 +97,8 @@ fn media_item(sequence: u64, id: &str, uri: &str) -> ThreadItem {
             },
             caption: None,
         }],
+        delivery: None,
+        questions: None,
     };
     item
 }

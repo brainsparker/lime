@@ -315,6 +315,7 @@ describe("PendingInteractionController", () => {
           requestId: "item-input-1",
           actionType: "ask_user",
           prompt: "请选择执行模式",
+          questions: [{ id: "mode", isOther: false, isSecret: false }],
         },
       },
     });
@@ -323,13 +324,152 @@ describe("PendingInteractionController", () => {
         interactionId: interaction.id,
         kind: "request_user_input",
         confirmed: true,
-        userData: { 模式: "确认" },
+        userData: { answers: { mode: { answers: ["确认"] } } },
       }),
     ).toEqual({ accepted: true });
     await expect(response).resolves.toEqual({
       answers: { mode: { answers: ["确认"] } },
     });
     harness.detach();
+  });
+
+  it("保留同文不同 ID、secret/other 与逗号自由答案，跳题不补造答案", async () => {
+    const harness = createHarness();
+    const params = userInputParams();
+    params.questions = [
+      {
+        ...params.questions[0],
+        id: "first",
+        question: "相同正文",
+        isOther: true,
+        isSecret: true,
+      },
+      {
+        ...params.questions[0],
+        id: "second",
+        question: "相同正文",
+        options: null,
+      },
+      { ...params.questions[0], id: "skipped", question: "跳过此题" },
+    ];
+    const response = harness.dispatch(
+      METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
+      params,
+      "wire-input-identity",
+    );
+    const [interaction] = harness.controller.getSnapshot();
+    expect(interaction.kind).toBe("request_user_input");
+    if (interaction.kind !== "request_user_input")
+      throw new Error("wrong kind");
+    expect(interaction.payload.request.questions).toEqual(
+      params.questions.map((question) => ({
+        ...question,
+        options: question.options ?? undefined,
+      })),
+    );
+    expect(
+      harness.controller.respond({
+        interactionId: interaction.id,
+        kind: "request_user_input",
+        confirmed: true,
+        userData: {
+          answers: {
+            first: { answers: [" a,b\n继续 "] },
+            second: { answers: ["甲,乙"] },
+          },
+        },
+      }),
+    ).toEqual({ accepted: true });
+    await expect(response).resolves.toEqual({
+      answers: {
+        first: { answers: ["a,b\n继续"] },
+        second: { answers: ["甲,乙"] },
+      },
+    });
+    harness.detach();
+  });
+
+  it.each([
+    { answer: "确认" },
+    { 模式: "确认" },
+    { answers: { unknown: { answers: ["确认"] } } },
+    { answers: { mode: "确认" } },
+    { answers: { mode: { answers: [1] } } },
+    { answers: { mode: { answers: ["  "] } } },
+    { answers: { mode: { answers: ["未提供的选项"] } } },
+    "not-json",
+  ])(
+    "无效问答结构留在 pending，随后可用 canonical 回包重试 %#",
+    async (userData) => {
+      const harness = createHarness();
+      const response = harness.dispatch(
+        METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
+        userInputParams(),
+        "invalid-answer",
+      );
+      const [interaction] = harness.controller.getSnapshot();
+      expect(
+        harness.controller.respond({
+          interactionId: interaction.id,
+          kind: "request_user_input",
+          confirmed: true,
+          userData,
+        }),
+      ).toEqual({ accepted: false });
+      expect(harness.controller.getSnapshot()).toHaveLength(1);
+      expect(
+        harness.controller.respond({
+          interactionId: interaction.id,
+          kind: "request_user_input",
+          confirmed: true,
+          response: JSON.stringify({
+            answers: { mode: { answers: ["确认"] } },
+          }),
+        }),
+      ).toEqual({ accepted: true });
+      await expect(response).resolves.toEqual({
+        answers: { mode: { answers: ["确认"] } },
+      });
+      harness.detach();
+    },
+  );
+
+  it("重复问题 ID 和取消回包均不提交，只有请求生命周期清理移除 pending", async () => {
+    const harness = createHarness();
+    const params = userInputParams();
+    params.questions.push({ ...params.questions[0] });
+    const response = harness.dispatch(
+      METHOD_ITEM_TOOL_REQUEST_USER_INPUT,
+      params,
+      "duplicate-question",
+    );
+    const [interaction] = harness.controller.getSnapshot();
+    expect(
+      harness.controller.respond({
+        interactionId: interaction.id,
+        kind: "request_user_input",
+        confirmed: true,
+        userData: { answers: { mode: { answers: ["确认"] } } },
+      }),
+    ).toEqual({ accepted: false });
+    expect(
+      harness.controller.respond({
+        interactionId: interaction.id,
+        kind: "request_user_input",
+        confirmed: false,
+      }),
+    ).toEqual({ accepted: false });
+    expect(harness.controller.getSnapshot()).toHaveLength(1);
+    harness.detach();
+    await expect(response).resolves.toEqual({ answers: {} });
+    expect(
+      harness.controller.respond({
+        interactionId: interaction.id,
+        kind: "request_user_input",
+        confirmed: true,
+        userData: { answers: {} },
+      }),
+    ).toEqual({ accepted: false });
   });
 
   it("permissions approval 投影完整 diff，并按 turn 原样授予请求画像", async () => {

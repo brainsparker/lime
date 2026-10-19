@@ -2,13 +2,28 @@
 
 use super::{dispatch_result, parse_params, to_jsonrpc_error, RequestProcessor, RpcDispatch};
 use app_server_protocol::{
-    JsonRpcError, MemoryResetResponse, MemoryStoreAddNoteParams, MemoryStoreConsolidateParams,
-    MemoryStoreListParams, MemoryStoreReadParams, MemoryStoreReviewListParams,
-    MemoryStoreReviewResolveParams, MemoryStoreRootParams, MemoryStoreSearchParams,
+    JsonRpcError, MemoryResetResponse, MemoryStatusParams, MemoryStoreAddNoteParams,
+    MemoryStoreConsolidateParams, MemoryStoreListParams, MemoryStoreReadParams,
+    MemoryStoreReviewListParams, MemoryStoreReviewResolveParams, MemoryStoreRootParams,
+    MemoryStoreSearchParams,
 };
 use serde_json::Value;
 
 impl RequestProcessor {
+    pub(super) async fn handle_memory_status_impl(
+        &self,
+        params: Option<Value>,
+    ) -> Result<RpcDispatch, JsonRpcError> {
+        self.ensure_initialized()?;
+        let params: MemoryStatusParams = parse_params(params)?;
+        let response = self
+            .runtime
+            .memory_status(params)
+            .await
+            .map_err(to_jsonrpc_error)?;
+        dispatch_result(response)
+    }
+
     pub(super) async fn handle_memory_store_list_impl(
         &self,
         params: Option<Value>,

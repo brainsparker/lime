@@ -4,7 +4,7 @@ import {
   act,
   cleanupAppSidebarTest,
   flushEffects,
-  mockListAgentRuntimeSessions,
+  mockListRecentThreads,
   mockScheduleMinimumDelayIdleTask,
   mountSidebarContainer,
   resetAppSidebarTest,
@@ -142,8 +142,10 @@ describe("AppSidebar navigation", () => {
     });
     await flushEffects(2);
 
-    expect(mockListAgentRuntimeSessions).toHaveBeenCalledWith({
+    expect(mockListRecentThreads).toHaveBeenCalledWith({
+      archived: false,
       limit: 11,
+      sectionId: null,
     });
   });
 
@@ -193,7 +195,7 @@ describe("AppSidebar navigation", () => {
     await flushEffects(2);
 
     expect(container.textContent).toContain("任务");
-    expect(container.textContent).toContain("新建任务");
+    expect(container.textContent).toContain("新聊天");
     expect(container.textContent).not.toContain("工作台");
     expect(container.textContent).not.toContain("生成");
     expect(container.textContent).not.toContain("专家");
@@ -221,14 +223,14 @@ describe("AppSidebar navigation", () => {
       '[data-testid="app-sidebar-nav-settings"]',
     );
 
-    expect(mainNavButtons).toEqual(["新建任务"]);
+    expect(mainNavButtons).toEqual(["新聊天"]);
     const rail = container.querySelector('[data-testid="app-sidebar-rail"]')!;
     expect(rail.contains(settingsRailButton)).toBe(true);
     expect(
       rail.querySelector('[data-testid="app-sidebar-nav-plugins"]'),
     ).not.toBeNull();
     expect(
-      rail.querySelector('[data-testid="app-sidebar-nav-home-general"]'),
+      rail.querySelector('[data-testid="app-sidebar-nav-new-chat"]'),
     ).toBeNull();
     expect(
       container.querySelector('[data-testid="app-sidebar-footer-nav"]'),
@@ -241,8 +243,8 @@ describe("AppSidebar navigation", () => {
       container.querySelector('[data-testid="app-sidebar-appearance"]'),
     ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="app-sidebar-account-button"]'),
-    ).toBeNull();
+      rail.querySelector('[data-testid="app-sidebar-account-button"]'),
+    ).not.toBeNull();
   });
 
   it("已安排任务应作为一级入口打开独立任务页面", async () => {
@@ -379,7 +381,7 @@ describe("AppSidebar navigation", () => {
 
     expect(
       container.querySelector(
-        'button[aria-label="新建任务"][aria-current="page"]',
+        'button[aria-label="新聊天"][aria-current="page"]',
       ),
     ).not.toBeNull();
   });

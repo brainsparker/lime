@@ -207,6 +207,7 @@ describe("useInputbarSend", () => {
   });
 
   beforeEach(() => {
+    globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     clearPathReferencesMock = vi.fn();
     clearActiveCapabilityMock = vi.fn();
     clearPendingImagesMock = vi.fn();
@@ -286,7 +287,9 @@ describe("useInputbarSend", () => {
     await send();
 
     const payload = onSend.mock.calls[0]?.[0];
-    expect(payload?.textOverride).toBe("@写文章 帮我整理项目资料");
+    expect(payload?.textOverride).toBe(
+      "[@写文章](plugin://content-factory-app@personal) 帮我整理项目资料",
+    );
     expect(payload?.composerSubmission?.inputMentions).toEqual([
       {
         type: "mention",
@@ -297,9 +300,7 @@ describe("useInputbarSend", () => {
     expect(payload?.composerSubmission?.textElements).toEqual(
       expected.textElements,
     );
-    expect(payload?.composerSubmission?.textElements).toEqual([
-      { byteRange: { start: 0, end: 10 }, placeholder: "@写文章" },
-    ]);
+    expect(payload?.composerSubmission?.textElements).toEqual([]);
   });
 
   it("只有路径引用时仍应发送路径占位文本并保留 metadata", async () => {
@@ -586,13 +587,14 @@ describe("useInputbarSend", () => {
     expect(clearActiveCapabilityMock).toHaveBeenCalledTimes(1);
   });
 
-  it("目标模式应通过 typed threadGoal 发送同一文本", async () => {
+  it("新线程目标消费同一 receipt 并发送带 /goal 的物化正文", async () => {
     const onSend = vi.fn().mockResolvedValue(acceptedSubmission());
     renderHarness({
       activeTools: {
         objective_mode: true,
       },
       input: "保持当前修复目标",
+      composerController: new ComposerController({ text: "保持当前修复目标" }),
       onSend,
       projectId: "workspace-1",
       sessionId: "thread-goal-1",
@@ -602,7 +604,7 @@ describe("useInputbarSend", () => {
 
     expect(onSend).toHaveBeenCalledWith(
       expect.objectContaining({
-        textOverride: "保持当前修复目标",
+        textOverride: "/goal 保持当前修复目标",
         sendOptions: expect.objectContaining({
           threadGoal: { objective: "保持当前修复目标" },
         }),

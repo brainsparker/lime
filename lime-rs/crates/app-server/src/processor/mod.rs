@@ -10,7 +10,6 @@ mod command_exec;
 mod config;
 mod config_warning;
 mod connect;
-mod conversation_import;
 mod diagnostics;
 mod dispatch;
 pub(crate) mod environment;

@@ -33,6 +33,7 @@ export interface BuildUserInputSubmitOpOptions {
   clientUserMessageId?: string;
   eventName: string;
   requestMetadata?: Record<string, unknown>;
+  shouldSendPermissionOverrides?: boolean;
   collaborationMode?: CollaborationModeMask;
   executionRuntime?: AgentSessionExecutionRuntime | null;
   syncedRecentPreferences?: ChatToolPreferences | null;
@@ -151,6 +152,7 @@ export function buildUserInputSubmitOp(
     clientUserMessageId,
     eventName,
     requestMetadata,
+    shouldSendPermissionOverrides = true,
     collaborationMode: collaborationModePreset,
     executionRuntime,
     syncedRecentPreferences,
@@ -209,8 +211,12 @@ export function buildUserInputSubmitOp(
       ...(collaborationMode ? { collaborationMode } : {}),
       ...(compaction.shouldSubmitModel ? { model: turnModel } : {}),
       ...(turnReasoningEffort ? { effort: turnReasoningEffort } : {}),
-      approvalPolicy: runtimePolicies.approvalPolicy,
-      permissions: permissionProfileIdFromAccessMode(effectiveAccessMode),
+      ...(shouldSendPermissionOverrides
+        ? {
+            approvalPolicy: runtimePolicies.approvalPolicy,
+            permissions: permissionProfileIdFromAccessMode(effectiveAccessMode),
+          }
+        : {}),
       ...(Object.keys(additionalContext).length > 0
         ? { additionalContext }
         : {}),

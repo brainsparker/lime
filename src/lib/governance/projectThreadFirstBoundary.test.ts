@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 const REPO_ROOT = cwd();
 
 const PROJECT_THREAD_SCHEMA_NAME_PATTERN =
-  /^(?:AgentSession|MemoryStore|SessionFile|Workspace|ConversationImportThread|ImportedThread)/u;
+  /^(?:AgentSession|MemoryStore|SessionFile|Workspace)/u;
 
 const FORBIDDEN_AGENT_FIRST_ID_FIELD_PATTERN =
   /(^|[^A-Za-z0-9_])(agent_id|expert_id|agentId|expertId)(?![A-Za-z0-9_])/gu;

@@ -338,6 +338,7 @@ describe("InputbarCore", () => {
     );
 
     const container = await renderInputbarCore({ setText });
+    const editor = container.querySelector('[data-testid="composer-editor"]');
     const dictationButton = container.querySelector(
       '[data-testid="inputbar-dictation-toggle"]',
     ) as HTMLButtonElement | null;
@@ -348,6 +349,19 @@ describe("InputbarCore", () => {
       );
       await Promise.resolve();
     });
+    const footer = container.querySelector<HTMLElement>(
+      "[data-composer-footer-responsive]",
+    );
+    const input = container.querySelector<HTMLElement>(
+      "[data-composer-footer-input]",
+    );
+    expect(footer?.dataset.composerDictationView).toBe("waveform");
+    expect(input?.hasAttribute("inert")).toBe(true);
+    expect(
+      container
+        .querySelector('[data-testid="inputbar-dictation-cancel"]')
+        ?.closest("[data-composer-dictation-controls]"),
+    ).toBeTruthy();
     await act(async () => {
       processor?.onaudioprocess?.({
         inputBuffer: {
@@ -367,6 +381,11 @@ describe("InputbarCore", () => {
     expect(preview?.textContent).toContain("实时识别文本");
     expect(setText).toHaveBeenCalledWith("实时识别文本");
     expect(asrProviderMocks.transcribeVoiceInputAudio).toHaveBeenCalledTimes(1);
+    expect(footer?.dataset.composerDictationView).toBe("text");
+    expect(input?.hasAttribute("inert")).toBe(false);
+    expect(container.querySelector('[data-testid="composer-editor"]')).toBe(
+      editor,
+    );
   });
 
   it("空输入与聚焦共用完整编辑区，附件和主动作位于底栏", async () => {
@@ -558,54 +577,60 @@ describe("InputbarCore", () => {
     );
   });
 
-  it("文本路径引用应提供设为项目资料动作", async () => {
-    const onImportPathReferenceAsKnowledge = vi.fn();
-    const reference = {
-      id: "file:/Users/demo/brief.txt",
-      path: "/Users/demo/brief.txt",
-      name: "brief.txt",
-      isDir: false,
-      mimeType: "text/plain",
-      source: "file_manager" as const,
-    };
-    const container = await renderInputbarCore({
-      pathReferences: [reference],
-      onImportPathReferenceAsKnowledge,
-    });
+  it.each([
+    { name: "brief.txt", mimeType: "text/plain" },
+    { name: "contract.pdf", mimeType: "application/pdf" },
+  ])(
+    "文件附件 $name 只提供移除且可以随正文发送",
+    async ({ name, mimeType }) => {
+      const onRemovePathReference = vi.fn();
+      const onSend = vi.fn();
+      const reference = {
+        id: `file:/Users/demo/${name}`,
+        path: `/Users/demo/${name}`,
+        name,
+        isDir: false,
+        mimeType,
+        source: "file_manager" as const,
+      };
+      const container = await renderInputbarCore({
+        text: "请阅读附件",
+        pathReferences: [reference],
+        onRemovePathReference,
+        onSend,
+      });
+      const chip = container.querySelector(
+        '[data-testid="inputbar-path-reference-chip"]',
+      );
+      expect(chip?.textContent).toContain(name);
+      expect(chip?.textContent).toContain("本地文件");
+      expect(
+        Array.from(chip?.querySelectorAll("button") ?? []).map((button) =>
+          button.getAttribute("aria-label"),
+        ),
+      ).toEqual([`移除路径 ${name}`]);
 
-    const importButton = container.querySelector(
-      'button[aria-label="设为项目资料 brief.txt"]',
-    ) as HTMLButtonElement | null;
-    expect(importButton).toBeTruthy();
+      await act(async () => {
+        container
+          .querySelector('[data-testid="send-btn"]')
+          ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+      });
+      expect(onSend).toHaveBeenCalledOnce();
+      expect(onRemovePathReference).not.toHaveBeenCalled();
 
-    await act(async () => {
-      importButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-      await Promise.resolve();
-    });
-
-    expect(onImportPathReferenceAsKnowledge).toHaveBeenCalledWith(reference);
-  });
-
-  it("非文本路径引用不应展示设为项目资料动作", async () => {
-    const onImportPathReferenceAsKnowledge = vi.fn();
-    const reference = {
-      id: "file:/Users/demo/contract.pdf",
-      path: "/Users/demo/contract.pdf",
-      name: "contract.pdf",
-      isDir: false,
-      mimeType: "application/pdf",
-      source: "file_manager" as const,
-    };
-    const container = await renderInputbarCore({
-      pathReferences: [reference],
-      onImportPathReferenceAsKnowledge,
-    });
-
-    expect(
-      container.querySelector('button[aria-label="设为项目资料 contract.pdf"]'),
-    ).toBeNull();
-    expect(container.textContent).toContain("contract.pdf");
-  });
+      await act(async () => {
+        chip
+          ?.querySelector("button")
+          ?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+        await Promise.resolve();
+      });
+      expect(onRemovePathReference).toHaveBeenCalledExactlyOnceWith(
+        reference.id,
+      );
+      expect(onSend).toHaveBeenCalledOnce();
+    },
+  );
 
   it("从输入框正文区域拖放时应由容器优先接收 drop", async () => {
     const onDrop = vi.fn((event: React.DragEvent) => {

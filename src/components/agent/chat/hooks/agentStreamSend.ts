@@ -42,16 +42,25 @@ export async function sendAgentStreamMessage(
   const targetSessionId = sendOptions?.targetSessionId?.trim();
   const shouldBindTargetSession =
     Boolean(targetSessionId) && targetSessionId !== currentSessionId;
+  let ensuredSessionId: string | null = null;
   if (!skipUserMessage && (!hasCurrentSession || shouldBindTargetSession)) {
-    await env.ensureSession({
+    ensuredSessionId = await env.ensureSession({
       targetSessionId: targetSessionId || undefined,
       skipSessionRestore: sendOptions?.skipSessionRestore === true,
       skipSessionStartHooks: sendOptions?.skipSessionStartHooks === true,
     });
   }
 
-  const activeSessionId = env.sessionIdRef.current?.trim() || targetSessionId;
+  const activeSessionId =
+    env.sessionIdRef.current?.trim() ||
+    ensuredSessionId?.trim() ||
+    targetSessionId;
   if (activeSessionId) {
+    try {
+      sendOptions?.observer?.onSessionReady?.(activeSessionId);
+    } catch {
+      console.error("[AgentStream] session readiness observer failed");
+    }
     await env.waitForSessionProviderSelectionSync?.(activeSessionId);
   }
 

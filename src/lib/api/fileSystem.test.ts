@@ -42,14 +42,15 @@ describe("fileSystem API", () => {
     });
   });
 
-  it("应代理 open_with_default_app", async () => {
+  it("默认打开委托唯一 openIn.open", async () => {
     vi.mocked(safeInvoke).mockResolvedValueOnce(undefined);
 
     await expect(
       openPathWithDefaultApp("/tmp/demo.txt"),
     ).resolves.toBeUndefined();
-    expect(safeInvoke).toHaveBeenCalledWith("open_with_default_app", {
+    expect(safeInvoke).toHaveBeenCalledWith("open_in_open", {
       path: "/tmp/demo.txt",
+      target: "systemDefault",
     });
   });
 
@@ -78,11 +79,11 @@ describe("fileSystem API", () => {
       ...diagnosticResult,
       diagnostic: {
         ...diagnosticResult.diagnostic,
-        command: "open_with_default_app",
+        command: "open_in_open",
       },
     });
     await expect(openPathWithDefaultApp("/tmp/demo.txt")).rejects.toThrow(
-      "open_with_default_app 尚未接入真实文件壳 current 通道，收到 electron-host-diagnostic 诊断返回。",
+      "open_in_open 尚未接入真实文件壳 current 通道，收到 electron-host-diagnostic 诊断返回。",
     );
 
     vi.mocked(safeInvoke).mockResolvedValueOnce({
@@ -117,7 +118,7 @@ describe("fileSystem API", () => {
       openPathWithDefaultApp("/tmp/demo.txt"),
     ).resolves.toBeUndefined();
     await expect(openPathWithDefaultApp("/tmp/demo.txt")).rejects.toThrow(
-      "open_with_default_app did not return empty Electron host result",
+      "open_in_open did not return empty Electron host result",
     );
   });
 

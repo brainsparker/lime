@@ -33,6 +33,7 @@ pub mod path_guard;
 pub mod path_uri;
 pub mod request_permissions;
 pub mod request_user_input;
+pub mod request_user_input_async;
 pub mod sandbox;
 pub mod shell;
 pub mod shell_analysis;

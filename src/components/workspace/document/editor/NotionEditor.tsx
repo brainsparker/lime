@@ -17,7 +17,7 @@ import type { SlashMenuKeyHandler, SlashMenuState } from "./slashCommandTypes";
 import { markdownToHtml, htmlToMarkdown } from "./utils/markdown";
 import { isInputLatencyDebugEnabled, logRenderPerf } from "@/lib/perfDebug";
 import { emitDocumentEditorFocus } from "@/lib/documentEditorFocusEvents";
-import { resolveDocumentEditorHotkeyAction } from "@/components/workspace/document/documentEditorHotkeys";
+import { useCommand } from "@/lib/commands/useCommand";
 import "./editor-styles.css";
 
 interface NotionEditorProps {
@@ -237,44 +237,33 @@ const NotionEditorCore = forwardRef<NotionEditorHandle, NotionEditorProps>(
       editor.commands.focus("end");
     }, [editor]);
 
-    useEffect(() => {
-      if (!editor) {
-        return;
-      }
-
-      const element = editor.view.dom as HTMLElement;
-      const handleEditorKeyDown = (event: KeyboardEvent) => {
-        const action = resolveDocumentEditorHotkeyAction(event);
-        if (!action) {
-          return;
-        }
-
-        if (action === "save") {
-          event.preventDefault();
-          clearIdleCommitTimer();
-          const latestContent = flushContent();
-          onSave(latestContent);
-          return;
-        }
-
-        if (action === "cancel" && !slashState.isOpen) {
-          event.preventDefault();
-          onCancel();
-        }
-      };
-
-      element.addEventListener("keydown", handleEditorKeyDown, true);
-      return () => {
-        element.removeEventListener("keydown", handleEditorKeyDown, true);
-      };
-    }, [
-      clearIdleCommitTimer,
-      editor,
-      flushContent,
-      onCancel,
-      onSave,
-      slashState.isOpen,
-    ]);
+    useCommand({
+      id: "saveDocument",
+      titleKey: "commands.saveDocument.title",
+      section: "workspace",
+      bindings: ["CommandOrControl+S"],
+      target: editor?.view.dom ?? null,
+      capture: true,
+      allowInInput: true,
+      allowInDialog: true,
+      enabled: !readOnly,
+      handler: () => {
+        clearIdleCommitTimer();
+        onSave(flushContent());
+      },
+    });
+    useCommand({
+      id: "cancelDocumentEditing",
+      titleKey: "commands.cancelDocumentEditing.title",
+      section: "workspace",
+      bindings: ["Escape"],
+      target: editor?.view.dom ?? null,
+      capture: true,
+      allowInInput: true,
+      allowInDialog: true,
+      enabled: !readOnly && !slashState.isOpen,
+      handler: onCancel,
+    });
 
     useEffect(() => {
       if (!editor) {

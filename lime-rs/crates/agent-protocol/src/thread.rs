@@ -309,6 +309,19 @@ pub struct PlanStep {
     pub status: PlanStepStatus,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AgentMessageDelivery {
+    Async,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct AsyncUserInputQuestion {
+    pub title: String,
+    pub options: Option<Vec<String>>,
+}
+
 /// Typed Item payload union. Unknown upstream items retain only their type and
 /// sanitized field names; raw values must not cross the canonical boundary.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -325,6 +338,10 @@ pub enum ThreadItemPayload {
         phase: Option<MessagePhase>,
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         content_parts: Vec<MessageContentPart>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        delivery: Option<AgentMessageDelivery>,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        questions: Option<Vec<AsyncUserInputQuestion>>,
     },
     /// Proposed plan content. The completed snapshot is authoritative and may
     /// not equal the concatenation of preceding plan deltas.
@@ -811,6 +828,8 @@ mod tests {
                 content_parts: vec![MessageContentPart::Text {
                     text: "hello".to_string(),
                 }],
+                delivery: None,
+                questions: None,
             },
             metadata: Value::Null,
         }

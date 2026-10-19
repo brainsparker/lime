@@ -38,7 +38,10 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
-use tool_runtime::hook_lifecycle::RuntimeHookReporter;
+use tool_runtime::hook_lifecycle::{
+    evaluate_hook_event_async, RuntimeHookEventContext, RuntimeHookEventName, RuntimeHookReporter,
+    RuntimeStopHookContext, RuntimeStopHookTarget,
+};
 use tool_runtime::tool_call::{ToolCall, ToolEnvironment};
 use tool_runtime::tool_executor::{
     RuntimeToolExecutionContext, RuntimeToolExecutionContextInput, RuntimeToolExecutionError,
@@ -46,7 +49,7 @@ use tool_runtime::tool_executor::{
     RuntimeToolExecutorHandle, RuntimeToolPolicyErrorKind,
 };
 use tool_runtime::tool_lifecycle::ToolLifecycleEmitter;
-use tool_runtime::turn_snapshot::RuntimeHookSnapshot;
+use tool_runtime::turn_snapshot::{RuntimeHookSnapshot, RuntimeTurnSnapshot};
 
 mod code_mode;
 mod history_budget;
@@ -85,6 +88,7 @@ pub struct RuntimeToolStepSnapshot {
     code_mode_tools: Arc<Vec<RuntimeCodeModeTool>>,
     filesystem_gateway: Option<Arc<dyn tool_runtime::filesystem_gateway::RuntimeFileSystemGateway>>,
     history_token_limit: Option<usize>,
+    mid_turn_compaction: Option<RuntimeMidTurnCompactionCapabilityHandle>,
 }
 
 impl RuntimeToolStepSnapshot {
@@ -101,6 +105,7 @@ impl RuntimeToolStepSnapshot {
             code_mode_tools: Arc::new(Vec::new()),
             filesystem_gateway: None,
             history_token_limit: None,
+            mid_turn_compaction: None,
         }
     }
 
@@ -119,6 +124,7 @@ impl RuntimeToolStepSnapshot {
             code_mode_tools: Arc::new(Vec::new()),
             filesystem_gateway: None,
             history_token_limit: None,
+            mid_turn_compaction: None,
         }
     }
 
@@ -159,6 +165,108 @@ impl RuntimeToolStepSnapshot {
     ) -> Self {
         self.filesystem_gateway = Some(gateway);
         self
+    }
+
+    /// 注入由 App Server 持有的同 Turn 压缩能力。
+    ///
+    /// agent-runtime 只负责在 provider continuation 边界调用该能力，不依赖 App Server
+    /// 的 durable store 或具体协议；能力实现必须在返回前完成 replacement receipt。
+    pub fn with_mid_turn_compaction(
+        mut self,
+        capability: RuntimeMidTurnCompactionCapabilityHandle,
+    ) -> Self {
+        self.mid_turn_compaction = Some(capability);
+        self
+    }
+
+    fn mid_turn_compaction(&self) -> Option<RuntimeMidTurnCompactionCapabilityHandle> {
+        self.mid_turn_compaction.clone()
+    }
+}
+
+#[derive(Clone)]
+pub struct RuntimeMidTurnCompactionRequest {
+    pub messages: Vec<CurrentProviderMessage>,
+    pub history_prefix_len: usize,
+    pub usage: CurrentProviderUsage,
+    pub attempt: u32,
+    pub system_prompt: Option<String>,
+    pub generation: GenerationOptions,
+    pub provider_options: ProviderMetadata,
+    pub model_request_policy: Option<RuntimeReplyModelRequestPolicy>,
+}
+
+#[derive(Clone)]
+pub struct RuntimeMidTurnCompactionResult {
+    pub messages: Vec<CurrentProviderMessage>,
+    pub history_prefix_len: usize,
+    pub compaction_id: String,
+    pub context_epoch: u64,
+    pub covered_through_sequence: u64,
+}
+
+pub type RuntimeMidTurnCompactionFuture<'a> = Pin<
+    Box<dyn Future<Output = Result<Option<RuntimeMidTurnCompactionResult>, String>> + Send + 'a>,
+>;
+
+pub trait RuntimeMidTurnCompactionCapability: Send + Sync {
+    fn compact(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        cancellation: Option<CancellationToken>,
+    ) -> RuntimeMidTurnCompactionFuture<'_>;
+}
+
+pub type RuntimeMidTurnCompactionCommitFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<RuntimeMidTurnCompactionResult, String>> + Send + 'a>>;
+
+pub trait RuntimeMidTurnCompactionCommit: Send + Sync {
+    fn commit(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        summary: String,
+    ) -> RuntimeMidTurnCompactionCommitFuture<'_>;
+}
+
+#[derive(Clone)]
+pub struct RuntimeMidTurnCompactionCommitHandle(Arc<dyn RuntimeMidTurnCompactionCommit>);
+
+impl std::fmt::Debug for RuntimeMidTurnCompactionCommitHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RuntimeMidTurnCompactionCommitHandle")
+            .finish_non_exhaustive()
+    }
+}
+
+impl RuntimeMidTurnCompactionCommitHandle {
+    pub fn new(commit: Arc<dyn RuntimeMidTurnCompactionCommit>) -> Self {
+        Self(commit)
+    }
+
+    pub async fn commit(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        summary: String,
+    ) -> Result<RuntimeMidTurnCompactionResult, String> {
+        self.0.commit(request, summary).await
+    }
+}
+
+#[derive(Clone)]
+pub struct RuntimeMidTurnCompactionCapabilityHandle(Arc<dyn RuntimeMidTurnCompactionCapability>);
+
+impl RuntimeMidTurnCompactionCapabilityHandle {
+    pub fn new(capability: Arc<dyn RuntimeMidTurnCompactionCapability>) -> Self {
+        Self(capability)
+    }
+
+    async fn compact(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        cancellation: Option<CancellationToken>,
+    ) -> Result<Option<RuntimeMidTurnCompactionResult>, String> {
+        self.0.compact(request, cancellation).await
     }
 }
 
@@ -249,6 +357,7 @@ pub struct CurrentProviderTurnInput {
     pub working_directory: PathBuf,
     pub cancel_token: Option<CancellationToken>,
     pub pending_input: Option<RuntimeSessionInputHandle>,
+    pub mid_turn_compaction: Option<RuntimeMidTurnCompactionCapabilityHandle>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -337,6 +446,11 @@ pub enum CurrentProviderTurnEvent {
         tool_call_count: u32,
         usage: Option<CurrentProviderUsage>,
     },
+    MidTurnCompaction {
+        compaction_id: String,
+        context_epoch: u64,
+        covered_through_sequence: u64,
+    },
 }
 
 pub async fn run_current_provider_turn<F>(
@@ -358,6 +472,7 @@ where
         working_directory,
         cancel_token,
         pending_input,
+        mid_turn_compaction,
     } = input;
     let turn_id = session_config
         .turn_id
@@ -371,6 +486,7 @@ where
         })?;
     let world_state = resolve_world_state(&session_config, &working_directory)?;
     insert_world_state_before_current_user(&mut initial_messages, &world_state);
+    let mut history_prefix_len = initial_messages.len();
     let mut loop_state = RuntimeReplyLoop::new(session_config.max_turns);
     let mut text_output = String::new();
     let mut errors = Vec::new();
@@ -380,6 +496,10 @@ where
     let mut last_server_model = None;
     let mut model_reroute_emitted = false;
     let mut model_verification_emitted = false;
+    // Codex keeps this bit across provider steps. A blocked Stop hook therefore receives
+    // `stop_hook_active=true` on the continuation sampling request and cannot recurse as if it
+    // were the first terminal check.
+    let mut stop_hook_active = false;
     let (generation, provider_options) = provider_request_controls(&session_config);
     let first_visible_output_timeout = first_visible_output_timeout(&session_config);
     let provider_step_timeout = provider_step_timeout(&session_config);
@@ -467,11 +587,24 @@ where
             .await
             .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
 
-        if let Some(ref hook_source) = hook_snapshot_source {
-            hook_snapshot::apply(&mut tool_step_snapshot, hook_source)
-                .await
+        if let Some(capability) = mid_turn_compaction.clone() {
+            tool_step_snapshot = tool_step_snapshot.with_mid_turn_compaction(capability);
+        }
+
+        let hook_step_snapshot = match hook_snapshot_source.as_ref() {
+            Some(source) => Some(
+                source
+                    .capture()
+                    .await
+                    .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?,
+            ),
+            None => None,
+        };
+        if let Some(hook_step_snapshot) = hook_step_snapshot.as_ref() {
+            hook_snapshot::apply_snapshot(&mut tool_step_snapshot, hook_step_snapshot.clone())
                 .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
         }
+        let step_mid_turn_compaction = tool_step_snapshot.mid_turn_compaction();
 
         history_budget::capture(&mut tool_step_snapshot, model_request_policy.as_ref());
         let mut tools = tool_step_snapshot
@@ -515,7 +648,18 @@ where
             .with_tools(tools.clone())
             .with_generation(generation.clone())
             .with_provider_options(provider_options.clone())
-            .with_model_request_policy(model_request_policy.clone());
+            .with_model_request_policy(model_request_policy.clone())
+            .with_output_schema(
+                session_config
+                    .turn_context
+                    .as_ref()
+                    .and_then(|context| context.output_schema.clone()),
+                session_config
+                    .turn_context
+                    .as_ref()
+                    .and_then(|context| context.output_schema.as_ref())
+                    .is_some(),
+            );
         if let Some(metadata) = request_metadata {
             request = request.with_metadata(metadata);
         }
@@ -1271,6 +1415,21 @@ where
             if !pending_messages.is_empty() || needs_follow_up {
                 consumed_pending_input |= !pending_messages.is_empty();
                 initial_messages.extend(pending_messages);
+                maybe_compact_after_step(
+                    step_mid_turn_compaction.as_ref(),
+                    &mut initial_messages,
+                    &mut history_prefix_len,
+                    step_usage.as_ref(),
+                    attempt,
+                    session_config.system_prompt.clone(),
+                    generation.clone(),
+                    provider_options.clone(),
+                    model_request_policy.clone(),
+                    cancel_token.as_ref(),
+                    &mut on_event,
+                    emitted_any,
+                )
+                .await?;
                 continue;
             }
             let current_step_is_empty = !step_has_user_visible_text && !step_emitted_tool_call;
@@ -1308,6 +1467,37 @@ where
                     initial_messages
                         .extend(steer.into_iter().filter_map(runtime_session_input_message));
                     continue;
+                }
+            }
+            if completed {
+                if let Some(hook_step_snapshot) = hook_step_snapshot.as_ref() {
+                    let stop_evaluation = evaluate_stop_hooks(
+                        hook_step_snapshot,
+                        &session_config,
+                        &turn_id,
+                        &working_directory,
+                        stop_hook_active,
+                        step_text_output.text(),
+                    )
+                    .await;
+                    if stop_evaluation.should_stop {
+                        return Ok(RuntimeReplyExecution::new(
+                            text_output,
+                            errors,
+                            emitted_any,
+                            attempts_summary(&loop_state),
+                            false,
+                        ));
+                    }
+                    if let Some(reason) = stop_evaluation.block_reason {
+                        stop_hook_active = true;
+                        initial_messages.push(CurrentProviderMessage::developer(vec![
+                            CurrentProviderContent::Text(format!(
+                                "<stop_hook_continuation>\n{reason}\n</stop_hook_continuation>"
+                            )),
+                        ]));
+                        continue;
+                    }
                 }
             }
             if !completed {
@@ -1449,7 +1639,154 @@ where
         .await?;
         initial_messages.push(CurrentProviderMessage::tool(result_content));
         initial_messages.extend(pending_messages);
+        maybe_compact_after_step(
+            step_mid_turn_compaction.as_ref(),
+            &mut initial_messages,
+            &mut history_prefix_len,
+            step_usage.as_ref(),
+            attempt,
+            session_config.system_prompt.clone(),
+            generation.clone(),
+            provider_options.clone(),
+            model_request_policy.clone(),
+            cancel_token.as_ref(),
+            &mut on_event,
+            emitted_any,
+        )
+        .await?;
     }
+}
+
+struct StopHookEvaluation {
+    should_stop: bool,
+    block_reason: Option<String>,
+}
+
+async fn evaluate_stop_hooks(
+    hook_step: &RuntimeHookStepSnapshot,
+    session_config: &AgentSessionConfig,
+    turn_id: &str,
+    working_directory: &Path,
+    stop_hook_active: bool,
+    last_assistant_message: String,
+) -> StopHookEvaluation {
+    let (event_name, target) = match &session_config.stop_hook_target {
+        RuntimeStopHookTarget::Stop => (RuntimeHookEventName::Stop, RuntimeStopHookTarget::Stop),
+        RuntimeStopHookTarget::SubagentStop {
+            agent_id,
+            agent_type,
+            agent_transcript_path,
+        } => (
+            RuntimeHookEventName::SubagentStop,
+            RuntimeStopHookTarget::SubagentStop {
+                agent_id: agent_id.clone(),
+                agent_type: agent_type.clone(),
+                agent_transcript_path: agent_transcript_path.clone(),
+            },
+        ),
+    };
+    if !hook_step
+        .hooks
+        .iter()
+        .any(|hook| hook.event_name == event_name)
+    {
+        return StopHookEvaluation {
+            should_stop: false,
+            block_reason: None,
+        };
+    }
+    let snapshot = match RuntimeTurnSnapshot::try_new(Vec::new(), hook_step.hooks.clone()) {
+        Ok(snapshot) => snapshot,
+        Err(error) => {
+            return StopHookEvaluation {
+                should_stop: false,
+                block_reason: Some(format!("Stop hook snapshot is invalid: {error:?}")),
+            }
+        }
+    };
+    let context = RuntimeHookEventContext {
+        session_id: Some(session_config.id.clone()),
+        turn_id: Some(turn_id.to_string()),
+        working_directory: working_directory.to_path_buf(),
+        stop: Some(RuntimeStopHookContext {
+            invocation_id: format!("{turn_id}:stop"),
+            model: session_config
+                .turn_context
+                .as_ref()
+                .and_then(|context| context.model.clone())
+                .unwrap_or_else(|| "unknown".to_string()),
+            permission_mode: session_config
+                .turn_context
+                .as_ref()
+                .and_then(|context| context.approval_policy.clone())
+                .unwrap_or_else(|| "default".to_string()),
+            transcript_path: None,
+            stop_hook_active,
+            last_assistant_message: (!last_assistant_message.trim().is_empty())
+                .then_some(last_assistant_message),
+            target,
+        }),
+        ..RuntimeHookEventContext::default()
+    };
+    let evaluation =
+        evaluate_hook_event_async(&snapshot, event_name, &context, hook_step.reporter.as_ref())
+            .await;
+    StopHookEvaluation {
+        should_stop: evaluation.is_aborted(),
+        block_reason: if evaluation.is_aborted() {
+            None
+        } else {
+            evaluation.blocking_reason()
+        },
+    }
+}
+
+async fn maybe_compact_after_step<F>(
+    capability: Option<&RuntimeMidTurnCompactionCapabilityHandle>,
+    messages: &mut Vec<CurrentProviderMessage>,
+    history_prefix_len: &mut usize,
+    usage: Option<&CurrentProviderUsage>,
+    attempt: u32,
+    system_prompt: Option<String>,
+    generation: GenerationOptions,
+    provider_options: ProviderMetadata,
+    model_request_policy: Option<RuntimeReplyModelRequestPolicy>,
+    cancel_token: Option<&CancellationToken>,
+    on_event: &mut F,
+    emitted_any: bool,
+) -> Result<(), RuntimeReplyAttemptError>
+where
+    F: FnMut(CurrentProviderTurnEvent) + Send,
+{
+    let Some(capability) = capability else {
+        return Ok(());
+    };
+    let result = capability
+        .compact(
+            RuntimeMidTurnCompactionRequest {
+                messages: messages.clone(),
+                history_prefix_len: (*history_prefix_len).min(messages.len()),
+                usage: usage.cloned().unwrap_or_default(),
+                attempt,
+                system_prompt,
+                generation,
+                provider_options,
+                model_request_policy,
+            },
+            cancel_token.cloned(),
+        )
+        .await
+        .map_err(|message| RuntimeReplyAttemptError::new(message, emitted_any))?;
+    if let Some(result) = result {
+        *messages = result.messages;
+        *history_prefix_len = result.history_prefix_len.min(messages.len());
+        on_event(CurrentProviderTurnEvent::MidTurnCompaction {
+            compaction_id: result.compaction_id,
+            context_epoch: result.context_epoch,
+            covered_through_sequence: result.covered_through_sequence,
+        });
+    }
+    Ok(())
 }
 
 fn provider_request_controls(

@@ -18,6 +18,8 @@ use tool_runtime::tool_lifecycle::{
     ToolLifecycleEvent, ToolLifecyclePhase, ToolOutputDeltaEvent,
 };
 
+mod async_user_input;
+
 #[cfg(test)]
 #[path = "tool_lifecycle_emitter/command_tests.rs"]
 mod command_tests;
@@ -85,6 +87,11 @@ impl CurrentTurnToolLifecycleEmitter {
     }
 
     pub(super) fn project_all(&self, event: ToolLifecycleEvent) -> Vec<AgentEvent> {
+        if event.tool_name
+            == tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME
+        {
+            return self.project_async_user_input(event);
+        }
         let lifecycle_completed = matches!(event.phase, ToolLifecyclePhase::Completed);
         if lifecycle_completed && event.output.is_none() {
             return Vec::new();

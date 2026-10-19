@@ -53,10 +53,6 @@ pub(super) fn thread_items_from_events(stored: &StoredSession) -> Vec<Value> {
                         items.push(item);
                         continue;
                     }
-                    if agent_message::is_imported_event(event) {
-                        items.push(item);
-                        continue;
-                    }
                     if let Some(turn_id) = event.turn_id.as_deref() {
                         if let Some(existing_index) = last_text_item_by_turn.get(turn_id).copied() {
                             agent_message::merge_item(&mut items[existing_index], &item);
@@ -535,8 +531,7 @@ mod tests {
                 json!({
                     "itemId": "agent-message-commentary",
                     "text": "我先搜索",
-                    "phase": "commentary",
-                    "imported": true
+                    "phase": "commentary"
                 }),
             ),
             agent_event(
@@ -546,8 +541,7 @@ mod tests {
                 json!({
                     "itemId": "agent-message-commentary",
                     "text": "并筛选来源。",
-                    "phase": "commentary",
-                    "imported": true
+                    "phase": "commentary"
                 }),
             ),
         ]);

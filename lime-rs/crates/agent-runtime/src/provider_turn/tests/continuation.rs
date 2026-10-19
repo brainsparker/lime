@@ -45,6 +45,7 @@ fn input(
         working_directory: PathBuf::from("."),
         cancel_token: None,
         pending_input: None,
+        mid_turn_compaction: None,
     }
 }
 

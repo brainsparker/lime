@@ -43,7 +43,7 @@ function normalizePath(value?: string | null): string | null {
   return normalized ? normalized : null;
 }
 
-function sessionBelongsToProject(
+export function sessionBelongsToProject(
   session: AgentSessionInfo,
   project: SidebarOpenedProjectSummary,
 ): boolean {

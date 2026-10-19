@@ -300,6 +300,15 @@ pub struct Request {
     pub provider_options: ProviderMetadata,
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub metadata: ProviderMetadata,
+    /// Structured output contract requested for this sampling step.
+    ///
+    /// The schema stays provider neutral; each wire adapter lowers it to the
+    /// provider's native structured output shape or rejects the request when
+    /// the route cannot represent it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub output_schema: Option<Value>,
+    #[serde(default)]
+    pub output_schema_strict: bool,
 }
 
 impl Request {
@@ -314,6 +323,8 @@ impl Request {
             generation: GenerationOptions::default(),
             provider_options: ProviderMetadata::new(),
             metadata: ProviderMetadata::new(),
+            output_schema: None,
+            output_schema_strict: false,
         }
     }
 

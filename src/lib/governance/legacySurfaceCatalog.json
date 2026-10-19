@@ -1,6 +1,93 @@
 {
   "imports": [
     {
+      "id": "retired-local-conversation-import",
+      "classification": "dead",
+      "description": "Lime 专属本地会话导入 RPC、runtime、GUI、metadata 特例与专用 fixture 已删除；canonical 历史只走同一 Thread/Turn/Item owner，Codex externalAgentConfig 与 project/import 保留",
+      "targets": [
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportFidelitySummary.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJob.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJobPhase.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJobProgress.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJobReadParams.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJobReadResponse.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportJobStatus.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportPreviewDryRun.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportPreviewEvent.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportPreviewMessage.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportPreviewSummary.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceClient.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceProvenance.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceScanParams.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceScanResponse.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceStatus.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportSourceSummary.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadCommitParams.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadCommitResponse.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadCommitStartResponse.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadPreviewParams.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadPreviewResponse.json",
+        "lime-rs/crates/app-server-protocol/schema/json/v0/ConversationImportThreadStatus.json",
+        "lime-rs/crates/app-server-protocol/src/protocol/v0/conversation_import.rs",
+        "lime-rs/crates/app-server/src/processor/conversation_import.rs",
+        "lime-rs/crates/app-server/src/processor/tests/conversation_import.rs",
+        "lime-rs/crates/app-server/src/runtime/conversation_import",
+        "scripts/electron/codex-import-click-through-fixture-smoke.mjs",
+        "scripts/electron/codex-import-click-through-fixture-smoke.test.mjs",
+        "scripts/electron/codex-import-continuation-fixture-smoke.mjs",
+        "scripts/electron/codex-import-continuation-fixture-smoke.test.mjs",
+        "scripts/electron/codex-import-fidelity-acceptance-matrix.test.mjs",
+        "scripts/electron/lib/codex-import-continuation-fixture.mjs",
+        "scripts/electron/lib/imported-file-preview.mjs",
+        "scripts/electron/lib/local-history-import-click-through-fixture.mjs",
+        "scripts/electron/lib/local-history-import-click-through-gui.mjs",
+        "scripts/electron/lib/local-history-import-layout-audit.mjs",
+        "scripts/electron/lib/local-history-import-read-model-expectations.mjs",
+        "scripts/electron/lib/local-history-import-session-open.mjs",
+        "scripts/electron/lib/local-history-import-smoke-utils.mjs",
+        "scripts/electron/lib/local-history-import-source-selection.mjs",
+        "scripts/electron/lib/local-history-import-visual-expectations.mjs",
+        "scripts/electron/local-history-import-real-sample-visual-audit-smoke.mjs",
+        "scripts/electron/local-history-import-real-sample-visual-audit-smoke.test.mjs",
+        "scripts/electron/local-history-import-visual-audit-smoke.mjs",
+        "scripts/electron/local-history-import-visual-audit-smoke.test.mjs",
+        "src/components/agent/chat/components/MessageList.importedHistory.codexImport.test.tsx",
+        "src/components/agent/chat/components/MessageList.importedHistory.test.tsx",
+        "src/components/agent/chat/components/StreamingRenderer.importedHistory.test.tsx",
+        "src/components/agent/chat/components/StreamingRenderer.webSearch.imported.test.tsx",
+        "src/components/agent/chat/components/messageListItemProjection.imported.unit.test.ts",
+        "src/components/agent/chat/components/messageListTimelineContentParts.imported.unit.test.ts",
+        "src/components/agent/chat/hooks/agentChatHistory.imported.test.ts",
+        "src/components/agent/chat/utils/importedUserMessageDedupe.ts",
+        "src/components/agent/chat/workspace/ImportedConversationSourceBanner.tsx",
+        "src/components/agent/chat/workspace/importedConversationSourceSummary.ts",
+        "src/components/agent/chat/workspace/importedConversationSourceSummary.unit.test.ts",
+        "src/components/app-sidebar/AppSidebarConversationImportDialog.tsx",
+        "src/components/app-sidebar/AppSidebarConversationImportProgress.test.tsx",
+        "src/components/app-sidebar/AppSidebarConversationImportProgress.tsx",
+        "src/components/app-sidebar/AppSidebarConversationImportThreadList.tsx",
+        "src/components/app-sidebar/conversationImportDialogViewModel.ts",
+        "src/components/app-sidebar/conversationImportDialogViewModel.unit.test.ts",
+        "src/components/app-sidebar/useAppSidebarConversationImport.ts",
+        "src/lib/api/conversationImport.test.ts",
+        "src/lib/api/conversationImport.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "retired-sidebar-referrals",
+      "classification": "dead",
+      "description": "邀请返利入口、缓存、parser 和专用邀请弹窗已删除，不得恢复为 GUI 或账户旁路能力",
+      "targets": [
+        "src/components/app-sidebar/AppSidebarInviteDialog.tsx",
+        "src/lib/api/oemCloudControlPlaneReferralParsers.ts",
+        "src/lib/oemCloudReferralCache.ts",
+        "src/lib/oemCloudReferralClaim.test.ts",
+        "src/lib/oemCloudReferralClaim.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "retired-composer-context-panels",
       "classification": "dead",
       "description": "ComposerController 的 ProseMirror 建议状态与 ContextualSuggestions 是唯一 +/@/$/命令入口；禁止恢复角色目录、独立技能/插件/知识面板及第二份 trigger/range 状态",
@@ -38,6 +125,8 @@
         "src/components/agent/chat/components/Inputbar/components/InputbarPlusMenu.tsx",
         "src/components/agent/chat/components/Inputbar/components/InputbarPluginSelector.tsx",
         "src/components/agent/chat/components/Inputbar/knowledge/InputbarKnowledgeControl.tsx",
+        "src/components/agent/chat/components/Inputbar/knowledge/knowledgeHubState.ts",
+        "src/components/agent/chat/components/Inputbar/knowledge/knowledgeHubState.test.ts",
         "src/components/agent/chat/components/Inputbar/components/BuiltinCommandBadge.tsx",
         "src/components/agent/chat/components/Inputbar/components/RuntimeSceneBadge.tsx",
         "src/components/agent/chat/skill-selection/CuratedTaskBadge.tsx",
@@ -299,12 +388,24 @@
     {
       "id": "settings-hotkeys-retired-page-surface",
       "classification": "dead",
-      "description": "已删除的 Settings Hotkeys 页面、catalog 与自身测试；现役快捷键定义继续由各工作区 owner 直接持有，不得恢复独立设置页",
+      "description": "已删除的 Settings Hotkeys 页面、catalog 与自身测试；现役命令随真实消费者注册到共享 UI registry，快捷键由独立 KeyboardShortcutsDialog 消费，不得恢复设置页",
       "targets": [
         "src/components/settings-v2/general/hotkeys/index.tsx",
         "src/components/settings-v2/general/hotkeys/index.test.tsx",
         "src/components/settings-v2/general/hotkeys/hotkeyCatalog.ts",
         "src/components/settings-v2/general/hotkeys/hotkeyCatalog.test.ts"
+      ],
+      "allowedPaths": []
+    },
+    {
+      "id": "document-static-hotkey-catalog-surface",
+      "classification": "dead",
+      "description": "已删除的文档快捷键静态副本；真实保存、取消、撤销与重做通过 useCommand 注册，展示与执行共用同一 owner",
+      "targets": [
+        "src/components/workspace/document/documentCanvasHotkeys.ts",
+        "src/components/workspace/document/documentCanvasHotkeys.test.ts",
+        "src/components/workspace/document/documentEditorHotkeys.ts",
+        "src/components/workspace/document/documentEditorHotkeys.test.ts"
       ],
       "allowedPaths": []
     },
@@ -3137,6 +3238,29 @@
   ],
   "frontendText": [
     {
+      "id": "retired-conversation-import-renderer-contract",
+      "classification": "dead",
+      "description": "Renderer 与前端 API 不得重建本地会话导入或邀请返利入口，canonical 历史不根据导入来源分叉",
+      "patterns": [
+        "conversationImport/",
+        "ConversationImport",
+        "isImportedCanonicalThread",
+        "isImportedHistoryMetadata",
+        "isImportedSourceExecutionRuntime",
+        "dedupeImportedUserMessageItems",
+        "imported_continuation",
+        "imported_thread_settings",
+        "oemCloudReferral",
+        "getClientReferralDashboard"
+      ],
+      "includePathPrefixes": [
+        "src/components/",
+        "src/lib/api/",
+        "src/lib/oemCloud"
+      ],
+      "allowedPaths": []
+    },
+    {
       "id": "retired-primary-composer-textarea-adapter",
       "classification": "dead",
       "description": "主输入只由结构化 EditorView 和 Controller 驱动；禁止 textarea 适配器与 Plugin 纯文本替换回流",
@@ -4965,6 +5089,22 @@
     }
   ],
   "rustText": [
+    {
+      "id": "retired-conversation-import-runtime-contract",
+      "classification": "dead",
+      "description": "App Server 只演进 canonical thread 历史与 Codex 的配置/项目导入，不得恢复 Lime 专属 conversationImport runtime 或协议",
+      "patterns": [
+        "conversationImport/",
+        "ConversationImport",
+        "conversation_import::",
+        "mod conversation_import",
+        "projected_import_reference",
+        "projected_import_session_to_protocol",
+        "find_session_by_import_source",
+        "query_projected_import_session_rows"
+      ],
+      "allowedPaths": []
+    },
     {
       "id": "rust-retired-agent-session-runtime-events-append",
       "classification": "dead",

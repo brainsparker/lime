@@ -13,13 +13,18 @@ async fn extra_root_replacement_releases_old_paths_and_observes_new_files() {
         SkillsWatcher::start(server.event_bridge(), [], Duration::from_millis(20)).unwrap();
     watcher.register_runtime_extra_roots([old.clone()]);
     fs::write(old.join("SKILL.md"), "before").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(&mut outbound, Duration::from_secs(3), "original root edit").await;
     watcher.register_runtime_extra_roots([new.clone()]);
     let watched = watcher.state.watched.lock().unwrap().clone();
     assert!(!watched.contains_key(&old.canonicalize().unwrap()));
     assert!(watched.contains_key(&new.canonicalize().unwrap()));
     fs::write(new.join("SKILL.md"), "after").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(3),
+        "replacement root edit",
+    )
+    .await;
     watcher.register_runtime_extra_roots([]);
     assert!(watcher.state.watched.lock().unwrap().is_empty());
 }
@@ -37,7 +42,12 @@ async fn overlapping_thread_registrations_keep_shared_root_until_last_owner_rele
     let second = watcher.register_roots([root.clone()]);
     drop(first);
     fs::write(root.join("SKILL.md"), "shared registration still live").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(3),
+        "remaining shared registration",
+    )
+    .await;
     drop(second);
     assert!(watcher.state.watched.lock().unwrap().is_empty());
 }
@@ -99,13 +109,28 @@ async fn missing_nested_extra_root_creation_and_atomic_replacement_are_observed(
     watcher.register_runtime_extra_roots([root.clone()]);
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("SKILL.md"), "created").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(3),
+        "nested root creation",
+    )
+    .await;
     fs::rename(&root, temp.path().join("retired")).unwrap();
     fs::create_dir_all(&root).unwrap();
     fs::write(root.join("SKILL.md"), "replacement").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(3),
+        "atomic root replacement",
+    )
+    .await;
     fs::write(root.join("SKILL.md"), "replacement edit").unwrap();
-    receive_skills_changed(&mut outbound, Duration::from_secs(3)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(3),
+        "edit after atomic replacement",
+    )
+    .await;
 }
 
 #[tokio::test]
@@ -143,7 +168,12 @@ async fn successful_config_write_broadcasts_and_failed_write_does_not() {
     assert!(
         matches!(&reply[0], JsonRpcMessage::Response(response) if response.result["effectiveEnabled"] == false)
     );
-    receive_skills_changed(&mut outbound, Duration::from_secs(1)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(1),
+        "successful config write",
+    )
+    .await;
     let persisted = fs::read(&config).unwrap();
     let reply = server
         .handle_message(JsonRpcMessage::Request(crate::JsonRpcRequest::new(

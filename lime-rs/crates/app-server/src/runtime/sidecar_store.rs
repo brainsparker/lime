@@ -582,12 +582,9 @@ mod tests {
         let reference = store
             .write_text(&SidecarWriteRequest {
                 session_id: "sess-a".to_string(),
-                kind: "conversation_import_runtime_events".to_string(),
-                logical_id: "normalized-runtime-events".to_string(),
-                relative_path: session_scoped_relative_path(
-                    "sess-a",
-                    "conversation-import/runtime-events.jsonl",
-                ),
+                kind: "runtime_events".to_string(),
+                logical_id: "runtime-events".to_string(),
+                relative_path: session_scoped_relative_path("sess-a", "runtime/events.jsonl"),
                 content: "line".to_string(),
             })
             .expect("write");

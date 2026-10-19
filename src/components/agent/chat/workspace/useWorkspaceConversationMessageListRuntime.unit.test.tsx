@@ -29,7 +29,7 @@ function createDefaultProps(): HookProps {
       onOpenUrlPreview: noop,
       onPermissionResponse: noop,
       onReplayPendingRequest: noop,
-      onSaveMessageAsKnowledge: noop,
+
       onSaveMessageAsSkill: noop,
       onWriteFile: noop,
     },

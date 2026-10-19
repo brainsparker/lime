@@ -7,6 +7,7 @@ import {
   buildInitialDispatchKey,
   buildSubmissionPreviewMessages,
   buildWorkspaceRequestMetadata,
+  buildWorkspaceSendText,
   createSubmissionPreviewSnapshot,
   serviceSkillLaunchRequiresProject,
 } from "./workspaceSendHelpers";
@@ -14,6 +15,27 @@ import {
 describe("workspaceSendHelpers", () => {
   beforeEach(async () => {
     await changeLimeLocale("zh-CN");
+  });
+
+  it("目标首轮保持同源物化正文，不加上下文或角色前缀", async () => {
+    const prepareActiveContextPrompt = vi.fn(async () => "工作区上下文");
+    const text =
+      "/goal Read the Codex goal objective file at /isolated/goal-objective.md before continuing.";
+    expect(
+      await buildWorkspaceSendText({
+        sourceText: text,
+        contextWorkspace: {
+          enabled: true,
+          activeContextPrompt: "已有上下文",
+          prepareActiveContextPrompt,
+        },
+        mentionedCharacters: [
+          { name: "角色", description: "角色设定" },
+        ] as never,
+        sendOptions: { threadGoal: { objective: text.slice(6) } },
+      }),
+    ).toBe(text);
+    expect(prepareActiveContextPrompt).not.toHaveBeenCalled();
   });
 
   it("initialDispatchKey 应稳定编码首轮 prompt 与图片签名", () => {

@@ -481,14 +481,6 @@ pub enum AppServerRequestMethod {
     ConnectRelayApiKeySave,
     #[serde(rename = "connectCallback/send")]
     ConnectCallbackSend,
-    #[serde(rename = "conversationImport/source/scan")]
-    ConversationImportSourceScan,
-    #[serde(rename = "conversationImport/thread/preview")]
-    ConversationImportThreadPreview,
-    #[serde(rename = "conversationImport/thread/commit")]
-    ConversationImportThreadCommit,
-    #[serde(rename = "conversationImport/job/read")]
-    ConversationImportJobRead,
     #[serde(rename = "agentSession/action/respond")]
     AgentSessionActionRespond,
     #[serde(rename = "workflow/read")]
@@ -729,10 +721,6 @@ impl AppServerRequestMethod {
             Self::ConnectOpenDeepLinkResolve => METHOD_CONNECT_OPEN_DEEP_LINK_RESOLVE,
             Self::ConnectRelayApiKeySave => METHOD_CONNECT_RELAY_API_KEY_SAVE,
             Self::ConnectCallbackSend => METHOD_CONNECT_CALLBACK_SEND,
-            Self::ConversationImportSourceScan => METHOD_CONVERSATION_IMPORT_SOURCE_SCAN,
-            Self::ConversationImportThreadPreview => METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW,
-            Self::ConversationImportThreadCommit => METHOD_CONVERSATION_IMPORT_THREAD_COMMIT,
-            Self::ConversationImportJobRead => METHOD_CONVERSATION_IMPORT_JOB_READ,
             Self::AgentSessionActionRespond => METHOD_AGENT_SESSION_ACTION_RESPOND,
             Self::WorkflowRead => METHOD_WORKFLOW_READ,
             Self::WorkflowCancel => METHOD_WORKFLOW_CANCEL,
@@ -980,12 +968,6 @@ impl AppServerRequestMethod {
             METHOD_CONNECT_OPEN_DEEP_LINK_RESOLVE => Some(Self::ConnectOpenDeepLinkResolve),
             METHOD_CONNECT_RELAY_API_KEY_SAVE => Some(Self::ConnectRelayApiKeySave),
             METHOD_CONNECT_CALLBACK_SEND => Some(Self::ConnectCallbackSend),
-            METHOD_CONVERSATION_IMPORT_SOURCE_SCAN => Some(Self::ConversationImportSourceScan),
-            METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW => {
-                Some(Self::ConversationImportThreadPreview)
-            }
-            METHOD_CONVERSATION_IMPORT_THREAD_COMMIT => Some(Self::ConversationImportThreadCommit),
-            METHOD_CONVERSATION_IMPORT_JOB_READ => Some(Self::ConversationImportJobRead),
             METHOD_AGENT_SESSION_ACTION_RESPOND => Some(Self::AgentSessionActionRespond),
             METHOD_WORKFLOW_READ => Some(Self::WorkflowRead),
             METHOD_WORKFLOW_CANCEL => Some(Self::WorkflowCancel),
@@ -1888,22 +1870,6 @@ pub const APP_SERVER_METHODS: &[AppServerMethodSpec] = &[
     },
     AppServerMethodSpec {
         method: METHOD_CONNECT_CALLBACK_SEND,
-        kind: AppServerMethodKind::Request,
-    },
-    AppServerMethodSpec {
-        method: METHOD_CONVERSATION_IMPORT_SOURCE_SCAN,
-        kind: AppServerMethodKind::Request,
-    },
-    AppServerMethodSpec {
-        method: METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW,
-        kind: AppServerMethodKind::Request,
-    },
-    AppServerMethodSpec {
-        method: METHOD_CONVERSATION_IMPORT_THREAD_COMMIT,
-        kind: AppServerMethodKind::Request,
-    },
-    AppServerMethodSpec {
-        method: METHOD_CONVERSATION_IMPORT_JOB_READ,
         kind: AppServerMethodKind::Request,
     },
     AppServerMethodSpec {

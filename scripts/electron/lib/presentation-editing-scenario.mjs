@@ -274,17 +274,7 @@ export async function runPresentationEditingScenario({
     path: path.join(evidenceDir, "presentation-edit-conflict.png"),
   });
   const previous = await panel.elementHandle();
-  const settings = page.getByTestId("app-sidebar-nav-settings");
-  if (await settings.isVisible()) await settings.click();
-  else {
-    await page.getByTestId("app-sidebar-account-button").click();
-    await page
-      .getByTestId("app-sidebar-account-menu")
-      .getByRole("button", {
-        name: /模型设置|AI 服务商|AI Providers|Model Settings/,
-      })
-      .click();
-  }
+  await page.getByTestId("app-sidebar-nav-settings").click();
   await page.getByTestId("settings-navigation").waitFor({ state: "visible" });
   await panel.waitFor({ state: "detached" });
   assert.equal(await previous.evaluate((node) => node.isConnected), false);

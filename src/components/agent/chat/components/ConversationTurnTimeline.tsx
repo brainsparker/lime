@@ -23,8 +23,18 @@ import type {
   CanonicalTurnMessageSegment,
   CanonicalTurnProcessSegment,
   CanonicalTurnRenderEntry,
-  CanonicalTurnRenderSegment,
 } from "../projection/turnTimelineRenderProjection";
+import { readQuestionReplies } from "./asyncUserInput/questions";
+import {
+  expandQuestionSegments,
+  questionRepliesText,
+  type QuestionMessageSegment,
+  type QuestionRenderSegment,
+} from "./asyncUserInput/timelineProjection";
+import {
+  QuestionAnswerButton,
+  QuestionReplies,
+} from "./asyncUserInput/QuestionTimeline";
 import {
   imageGenerationContentPartFromThreadItem,
   mediaReferenceContentPartFromThreadItem,
@@ -99,12 +109,6 @@ interface ConversationTurnTimelineProps {
   onSaveMessageAsSkill?: (source: {
     messageId: string;
     content: string;
-  }) => void;
-  onSaveMessageAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
   }) => void;
   onCodeBlockClick?: (language: string, code: string) => void;
 }
@@ -243,7 +247,7 @@ export function ConversationTurnTimeline({
   onQuoteMessage,
   onRequestThreadRevert,
   onSaveMessageAsSkill,
-  onSaveMessageAsKnowledge,
+
   onCodeBlockClick,
 }: ConversationTurnTimelineProps) {
   const { i18n, t } = useTranslation("agent");
@@ -273,17 +277,18 @@ export function ConversationTurnTimeline({
     isTerminalThreadTurnStatus(entry.turn.status) &&
     threadRead?.can_accept_direct_input !== false,
   );
-  const renderSegments = useMemo<CanonicalTurnRenderSegment[]>(() => {
+  const renderSegments = useMemo<QuestionRenderSegment[]>(() => {
+    const segments = expandQuestionSegments(entry.segments);
     if (isActiveOperationalTurn) {
-      return entry.segments;
+      return segments;
     }
 
-    const processSegments = entry.segments.filter(
+    const processSegments = segments.filter(
       (segment): segment is CanonicalTurnProcessSegment =>
         segment.kind === "process",
     );
     if (processSegments.length <= 1) {
-      return entry.segments;
+      return segments;
     }
 
     // 已结束回合只保留一个回合级过程摘要，避免每个 assistant 段重复显示整轮时长。
@@ -293,31 +298,32 @@ export function ConversationTurnTimeline({
       items: processSegments.flatMap((segment) => segment.items),
     };
     return [
-      ...entry.segments.filter((segment) => segment.kind !== "process"),
+      ...segments.filter((segment) => segment.kind !== "process"),
       mergedProcessSegment,
     ];
   }, [entry.segments, entry.turn.id, isActiveOperationalTurn]);
   const assistantActionOwnerId = useMemo(
     () =>
-      entry.segments
+      renderSegments
         .filter(
-          (segment): segment is CanonicalTurnMessageSegment =>
+          (segment): segment is QuestionMessageSegment =>
             segment.kind === "message" &&
             segment.item.type === "agent_message" &&
-            (segment.item.text ?? "").trim().length > 0,
+            (segment.question?.title ?? segment.item.text ?? "").trim().length >
+              0,
         )
         .at(-1)?.id ?? null,
-    [entry.segments],
+    [renderSegments],
   );
   const lastAssistantSegmentId = useMemo(
     () =>
-      entry.segments
+      renderSegments
         .filter(
-          (segment): segment is CanonicalTurnMessageSegment =>
+          (segment): segment is QuestionMessageSegment =>
             segment.kind === "message" && segment.item.type === "agent_message",
         )
         .at(-1)?.id ?? null,
-    [entry.segments],
+    [renderSegments],
   );
   const canonicalMediaReferenceKeys = useMemo(
     () =>
@@ -347,10 +353,6 @@ export function ConversationTurnTimeline({
     pendingActions,
     submittedActionsInFlight,
   ]);
-  const sourceMessageId = entry.segments.find(
-    (segment) =>
-      segment.kind === "message" && segment.item.type === "agent_message",
-  );
   return (
     <div
       data-testid="conversation-turn-timeline"
@@ -391,12 +393,6 @@ export function ConversationTurnTimeline({
                     showInlineStatusHint={processSegmentIds[0] === segment.id}
                     onFileClick={onFileClick}
                     onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-                    sourceMessageId={
-                      sourceMessageId?.kind === "message"
-                        ? sourceMessageId.item.id
-                        : entry.turn.id
-                    }
-                    onSaveFileArtifactAsKnowledge={onSaveMessageAsKnowledge}
                     onOpenSavedSiteContent={onOpenSavedSiteContent}
                     onOpenSubagentSession={onOpenSubagentSession}
                     onPermissionResponse={onPermissionResponse}
@@ -415,12 +411,6 @@ export function ConversationTurnTimeline({
                     onOpenSavedSiteContent={onOpenSavedSiteContent}
                     onOpenSubagentSession={onOpenSubagentSession}
                     onPermissionResponse={onPermissionResponse}
-                    onSaveFileArtifactAsKnowledge={onSaveMessageAsKnowledge}
-                    sourceMessageId={
-                      sourceMessageId?.kind === "message"
-                        ? sourceMessageId.item.id
-                        : entry.turn.id
-                    }
                     onExpand={() => {
                       setExpandedHistoricalProcessIds((current) => {
                         const next = new Set(current);
@@ -499,13 +489,16 @@ export function ConversationTurnTimeline({
         }
 
         const isUser = segment.item.type === "user_message";
-        const content =
-          segment.item.type === "user_message"
+        const questionReplies = readQuestionReplies(segment.item);
+        const content = questionReplies
+          ? questionRepliesText(questionReplies)
+          : segment.item.type === "user_message"
             ? resolveUserMessageContent(segment)
-            : (segment.item.text ?? "");
+            : (segment.question?.title ?? segment.item.text ?? "");
         const canSave = !isUser && content.trim().length >= 24;
         const isStreaming =
           !isUser &&
+          !segment.question &&
           entry.isActive &&
           entry.turn.status === "running" &&
           segment.item.status === "in_progress";
@@ -519,10 +512,12 @@ export function ConversationTurnTimeline({
         });
         const agentContentParts = isUser
           ? undefined
-          : resolveAgentMessageContentParts(
-              segment,
-              canonicalMediaReferenceKeys,
-            );
+          : segment.question
+            ? [{ type: "text" as const, text: segment.question.title }]
+            : resolveAgentMessageContentParts(
+                segment,
+                canonicalMediaReferenceKeys,
+              );
         const hasNonTextAgentContent = Boolean(
           agentContentParts?.some((part) => part.type !== "text"),
         );
@@ -556,23 +551,28 @@ export function ConversationTurnTimeline({
               <MessageBubble
                 $isUser={isUser}
                 data-message-id={
-                  isUser
-                    ? userMessageId || segment.item.id
-                    : segment.id ===
-                        (assistantActionOwnerId ?? lastAssistantSegmentId)
-                      ? assistantMessageId || segment.item.id
-                      : segment.item.id
+                  segment.question
+                    ? segment.question.id
+                    : isUser
+                      ? userMessageId || segment.item.id
+                      : segment.id ===
+                          (assistantActionOwnerId ?? lastAssistantSegmentId)
+                        ? assistantMessageId || segment.item.id
+                        : segment.item.id
                 }
                 data-message-role={isUser ? "user" : "assistant"}
                 data-runtime-turn-id={entry.turn.id}
                 data-thread-item-id={segment.item.id}
+                data-question-item-id={segment.question?.id}
                 data-direct-segment-kind="message"
                 data-visual-tone={isUser ? "neutral-user" : "neutral-assistant"}
                 aria-label={isUser ? undefined : assistantLabel}
               >
                 {isUser ? (
                   <div className="space-y-2">
-                    {content ? (
+                    {questionReplies ? (
+                      <QuestionReplies replies={questionReplies} />
+                    ) : content ? (
                       <CollapsibleUserMessageContent
                         content={content}
                         onBeforeToggle={onBeforeUserMessageToggle}
@@ -673,6 +673,19 @@ export function ConversationTurnTimeline({
                   />
                 )}
 
+                {segment.question ? (
+                  <QuestionAnswerButton
+                    question={segment.question}
+                    threadId={segment.item.thread_id}
+                    active={Boolean(
+                      sessionId &&
+                      threadRead &&
+                      entry.turn.status === "running" &&
+                      threadRead.can_accept_direct_input !== false,
+                    )}
+                  />
+                ) : null}
+
                 {!isUser &&
                 content.trim() &&
                 segment.id === assistantActionOwnerId ? (
@@ -680,9 +693,6 @@ export function ConversationTurnTimeline({
                     actionContent={content}
                     canCopyMessage={true}
                     canQuoteMessage={Boolean(onQuoteMessage)}
-                    canSaveMessageAsKnowledge={
-                      canSave && Boolean(onSaveMessageAsKnowledge)
-                    }
                     canSaveMessageAsSkill={
                       canSave && Boolean(onSaveMessageAsSkill)
                     }
@@ -691,7 +701,6 @@ export function ConversationTurnTimeline({
                     messageId={segment.item.id}
                     onCopy={handleCopy}
                     onQuoteMessage={onQuoteMessage}
-                    onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
                     onSaveMessageAsSkill={onSaveMessageAsSkill}
                   />
                 ) : null}

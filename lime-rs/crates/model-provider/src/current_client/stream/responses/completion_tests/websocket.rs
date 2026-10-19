@@ -1,7 +1,6 @@
 use super::*;
 use crate::current_client::{
-    CurrentProviderClient, CurrentProviderContent, CurrentProviderMessage,
-    CurrentProviderRequest,
+    CurrentProviderClient, CurrentProviderContent, CurrentProviderMessage, CurrentProviderRequest,
 };
 use crate::runtime_provider::RuntimeProviderProtocol;
 use futures::{SinkExt, StreamExt};

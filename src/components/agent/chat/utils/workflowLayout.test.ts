@@ -13,7 +13,7 @@ describe("workflowLayout", () => {
         workflowRunState: "idle",
         gateStatus: "idle",
       }),
-    ).toBe("88px");
+    ).toBe("136px");
 
     expect(
       resolveWorkflowFloatingChromeInset({
@@ -22,7 +22,7 @@ describe("workflowLayout", () => {
         workflowRunState: "auto_running",
         gateStatus: "idle",
       }),
-    ).toBe("168px");
+    ).toBe("216px");
 
     expect(
       resolveWorkflowFloatingChromeInset({
@@ -45,7 +45,7 @@ describe("workflowLayout", () => {
       }),
     ).toEqual({
       shellBottomInset: "0",
-      messageViewportBottomPadding: "88px",
+      messageViewportBottomPadding: "136px",
     });
   });
 
@@ -59,7 +59,7 @@ describe("workflowLayout", () => {
         gateStatus: "idle",
       }),
     ).toEqual({
-      shellBottomInset: "88px",
+      shellBottomInset: "136px",
       messageViewportBottomPadding: "128px",
     });
   });

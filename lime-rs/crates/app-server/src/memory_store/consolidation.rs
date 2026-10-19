@@ -1,85 +1,287 @@
 use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tokio_util::sync::CancellationToken;
 
-const DEFAULT_CONSOLIDATE_LIMIT: usize = 20;
-const MAX_CONSOLIDATE_LIMIT: usize = 100;
+const PHASE2_LEASE_SECONDS: i64 = 300;
+const PHASE2_HEARTBEAT_SECONDS: u64 = 30;
+const STAGE2_MAX_INPUTS: usize = 20;
+const STAGE2_MAX_OUTPUT_BYTES: usize = 128 * 1024;
+const STAGE2_MAX_MEMORY_CHARS: usize = 9_000;
+const STAGE2_SYSTEM_PROMPT: &str = "You are a Codex memory consolidation agent. You receive immutable stage-1 memory snapshots. Return only the strict JSON artifact. Accept only durable user decisions and workflow facts, redact secrets, and send uncertain or conflicting entries to review. Do not request tools, MCP, plugins, or additional context.";
 pub(super) const PROCESSED_NOTES_DIR: &str = "extensions/ad_hoc/processed";
 pub(super) const PROCESSED_ROLLOUT_SUMMARIES_DIR: &str = "rollout_summaries/processed";
 pub(super) const REVIEW_NOTES_DIR: &str = "extensions/ad_hoc/review";
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum NoteDecision {
-    Accept,
-    Review(&'static str),
-}
-
-#[derive(Debug, Clone)]
-struct PendingNote {
-    path: PathBuf,
-    relative_path: String,
-    content: String,
-    processed_dir: &'static str,
-}
-
-pub(super) async fn consolidate_memory_store(
+/// Runs the provider-backed Codex phase-2 harness. The model proposes only typed artifacts;
+/// this module validates source identity and performs every filesystem/state mutation.
+pub(super) async fn run_stage2(
     backend: &LocalMemoryBackend,
-    params: MemoryStoreConsolidateParams,
-) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
-    let root = backend.resolve_root(&params.root)?;
+    params: MemoryStoreRootParams,
+    route: &MemoryStageOneRoute,
+    provider: &dyn MemoryStageTwoProvider,
+) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+    let root = backend.resolve_root(&params)?;
     backend.ensure_layout(&root)?;
-    let limit = bounded_limit(
-        params.max_notes,
-        DEFAULT_CONSOLIDATE_LIMIT,
-        MAX_CONSOLIDATE_LIMIT,
-    );
-    let notes = collect_pending_candidates(backend, &root, limit)?;
+    let scope_key = backend.state_scope_key(&root)?;
+    let owner = uuid::Uuid::new_v4().to_string();
+    if !backend
+        .state
+        .try_claim_phase2(&scope_key, &owner, PHASE2_LEASE_SECONDS)
+        .map_err(backend_error)?
+    {
+        return Err(backend_error(
+            "memory consolidation is already running for this scope",
+        ));
+    }
+
+    let heartbeat_cancel = CancellationToken::new();
+    let heartbeat_lost = Arc::new(AtomicBool::new(false));
+    let heartbeat_task = {
+        let state = backend.state.clone();
+        let scope_key = scope_key.clone();
+        let owner = owner.clone();
+        let cancel = heartbeat_cancel.clone();
+        let heartbeat_lost = heartbeat_lost.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_secs(PHASE2_HEARTBEAT_SECONDS));
+            interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+            loop {
+                tokio::select! {
+                    _ = cancel.cancelled() => break,
+                    _ = interval.tick() => {
+                        match state.heartbeat_phase2(&scope_key, &owner, PHASE2_LEASE_SECONDS) {
+                            Ok(true) => {}
+                            Ok(false) | Err(_) => {
+                                heartbeat_lost.store(true, Ordering::Release);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    };
+
+    let result = run_stage2_inner(backend, params, route, provider, &root, &scope_key).await;
+    heartbeat_cancel.cancel();
+    let _ = heartbeat_task.await;
+    if heartbeat_lost.load(Ordering::Acquire) {
+        backend
+            .state
+            .finish_phase2(
+                &scope_key,
+                &owner,
+                false,
+                Some("memory consolidation lease heartbeat was lost"),
+            )
+            .map_err(backend_error)?;
+        return Err(backend_error(
+            "memory consolidation lease heartbeat was lost",
+        ));
+    }
+    match result {
+        Ok((result, selected_sources)) => {
+            if !backend
+                .state
+                .commit_phase2_snapshot(
+                    &scope_key,
+                    &owner,
+                    Utc::now().timestamp(),
+                    &selected_sources
+                        .iter()
+                        .map(String::as_str)
+                        .collect::<Vec<_>>(),
+                )
+                .map_err(backend_error)?
+            {
+                return Err(backend_error(
+                    "memory consolidation lease expired before snapshot commit",
+                ));
+            }
+            Ok(result)
+        }
+        Err(error) => {
+            backend
+                .state
+                .finish_phase2(&scope_key, &owner, false, Some(&error.to_string()))
+                .map_err(backend_error)?;
+            Err(error)
+        }
+    }
+}
+
+async fn run_stage2_inner(
+    backend: &LocalMemoryBackend,
+    params: MemoryStoreRootParams,
+    route: &MemoryStageOneRoute,
+    provider: &dyn MemoryStageTwoProvider,
+    root: &Path,
+    scope_key: &str,
+) -> Result<(MemoryStageOneRunResult, Vec<String>), RuntimeCoreError> {
+    let inputs = backend
+        .state
+        .stage2_candidates(scope_key, STAGE2_MAX_INPUTS)
+        .map_err(backend_error)?;
+    if inputs.is_empty() {
+        return Ok((MemoryStageOneRunResult::default(), Vec::new()));
+    }
+    let provider_inputs = inputs
+        .iter()
+        .map(|input| MemoryStageTwoInput {
+            source_path: input.source_path.clone(),
+            raw_memory: input.raw_memory.clone(),
+            rollout_summary: input.rollout_summary.clone(),
+            rollout_slug: input.rollout_slug.clone(),
+        })
+        .collect::<Vec<_>>();
+    let prompt = serde_json::to_string(
+        &provider_inputs
+            .iter()
+            .map(|input| {
+                serde_json::json!({
+                    "source_path": input.source_path,
+                    "raw_memory": input.raw_memory,
+                    "rollout_summary": input.rollout_summary,
+                    "rollout_slug": input.rollout_slug,
+                })
+            })
+            .collect::<Vec<_>>(),
+    )
+    .map_err(|error| backend_error(format!("serialize memory stage-2 inputs: {error}")))?;
+    let output = provider
+        .sample(MemoryStageTwoProviderRequest {
+            session_id: route.session_id.clone(),
+            thread_id: route.thread_id.clone(),
+            turn_id: "memory-stage2-consolidation".to_string(),
+            provider: route.provider.clone(),
+            model: route.model.clone(),
+            reasoning_effort: route.reasoning_effort.clone(),
+            service_tier: route.service_tier.clone(),
+            api_version: route.api_version.clone(),
+            route_protocol: route.route_protocol.clone(),
+            credential_ref: route.credential_ref.clone(),
+            cwd: route.cwd.clone().or_else(|| Some(root.to_path_buf())),
+            root_path: root.to_path_buf(),
+            inputs: provider_inputs,
+            system_prompt: STAGE2_SYSTEM_PROMPT.to_string(),
+            user_prompt: format!(
+                "Consolidate these stage-1 snapshots into a durable artifact:\n{prompt}"
+            ),
+            output_schema: stage_two_output::output_schema(),
+            strict: true,
+        })
+        .await?;
+    if output.len() > STAGE2_MAX_OUTPUT_BYTES {
+        return Err(backend_error("memory stage-2 output exceeds size limit"));
+    }
+    let output = stage_two_output::parse(&output).map_err(backend_error)?;
+    let allowed = inputs
+        .iter()
+        .map(|input| input.source_path.as_str())
+        .collect::<std::collections::HashSet<_>>();
+    let mut seen = std::collections::HashSet::new();
+    // Validate the complete model proposal before moving or writing anything. A malformed
+    // second entry must not leave the first accepted source half-archived.
+    for entry in &output.entries {
+        let source_relative = validate_relative_path(&entry.source_path)
+            .map_err(|_| backend_error("memory stage-2 source path is invalid"))?;
+        if source_relative.is_absolute()
+            || source_relative.components().any(|component| {
+                matches!(
+                    component,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                )
+            })
+            || !allowed.contains(entry.source_path.as_str())
+            || !seen.insert(entry.source_path.clone())
+        {
+            return Err(backend_error(
+                "memory stage-2 output referenced an unknown or duplicate source",
+            ));
+        }
+        let source = root.join(&source_relative);
+        if !source.is_file() || is_symlink(&source)? {
+            return Err(backend_error(match entry.decision {
+                stage_two_output::Decision::Accept => {
+                    "memory stage-2 source is missing or symlinked"
+                }
+                stage_two_output::Decision::Review => {
+                    "memory stage-2 review source is missing or symlinked"
+                }
+            }));
+        }
+        if entry.decision == stage_two_output::Decision::Accept
+            && entry
+                .memory
+                .as_ref()
+                .is_some_and(|memory| memory.chars().count() > STAGE2_MAX_MEMORY_CHARS)
+        {
+            return Err(backend_error(
+                "memory stage-2 memory artifact exceeds size limit",
+            ));
+        }
+    }
     let processed_dir = root.join(PROCESSED_NOTES_DIR);
     let processed_rollout_dir = root.join(PROCESSED_ROLLOUT_SUMMARIES_DIR);
     let review_dir = root.join(REVIEW_NOTES_DIR);
     fs::create_dir_all(&processed_dir).map_err(io_error)?;
     fs::create_dir_all(&processed_rollout_dir).map_err(io_error)?;
     fs::create_dir_all(&review_dir).map_err(io_error)?;
-    reject_symlink_chain(&root, &processed_dir)?;
-    reject_symlink_chain(&root, &processed_rollout_dir)?;
-    reject_symlink_chain(&root, &review_dir)?;
-
+    reject_symlink_chain(root, &processed_dir)?;
+    reject_symlink_chain(root, &processed_rollout_dir)?;
+    reject_symlink_chain(root, &review_dir)?;
     let mut accepted = Vec::new();
+    let mut selected_sources = Vec::new();
     let mut warnings = Vec::new();
-    let mut skipped_notes = 0_usize;
-    let mut archived_notes = 0_usize;
-
-    for note in notes {
-        match classify_note(&note.content) {
-            NoteDecision::Accept => {
-                let archived_path = move_note(&root, &note.path, &root.join(note.processed_dir))?;
-                let archived_relative = backend.relative_path(&root, &archived_path)?;
+    let mut skipped_notes = 0;
+    let mut archived_notes = 0;
+    for entry in output.entries {
+        let source_relative = validate_relative_path(&entry.source_path)
+            .map_err(|_| backend_error("memory stage-2 source path is invalid"))?;
+        match entry.decision {
+            stage_two_output::Decision::Accept => {
+                let source = root.join(&source_relative);
+                let target_dir = if entry.source_path.starts_with("rollout_summaries/") {
+                    &processed_rollout_dir
+                } else {
+                    &processed_dir
+                };
+                let archived_path = move_note(root, &source, target_dir)?;
+                let archived_relative = backend.relative_path(root, &archived_path)?;
+                let memory = entry.memory.expect("validated accepted memory artifact");
+                accepted.push(format!("- {} (source: {archived_relative})", memory.trim()));
+                selected_sources.push(entry.source_path);
                 archived_notes += 1;
-                accepted.push(accepted_note_line(&note.content, &archived_relative));
             }
-            NoteDecision::Review(reason) => {
-                let archived_path = move_note(&root, &note.path, &review_dir)?;
-                let archived_relative = backend.relative_path(&root, &archived_path)?;
-                archived_notes += 1;
+            stage_two_output::Decision::Review => {
+                let source = root.join(&source_relative);
+                move_note(root, &source, &review_dir)?;
+                backend
+                    .state
+                    .mark_rollout_processed(
+                        scope_key,
+                        &entry.source_path,
+                        state::RolloutStatus::Review,
+                    )
+                    .map_err(backend_error)?;
                 skipped_notes += 1;
                 warnings.push(format!(
-                    "{path}: {reason}",
-                    path = if archived_relative.is_empty() {
-                        note.relative_path
-                    } else {
-                        archived_relative
-                    }
+                    "{}: {}",
+                    entry.source_path,
+                    entry.reason.unwrap_or_default()
                 ));
             }
         }
     }
-
     if !accepted.is_empty() {
-        append_memory_register(&root, &accepted)?;
-        rewrite_summary(&root, &accepted)?;
+        append_memory_register(root, &accepted)?;
+        rewrite_summary(root, &accepted)?;
     }
     audit::append_audit_event(
-        &root,
+        root,
         &audit::MemoryAuditEvent::consolidate(
-            params.root.scope,
+            params.scope,
             accepted.len(),
             skipped_notes,
             archived_notes,
@@ -87,141 +289,15 @@ pub(super) async fn consolidate_memory_store(
             !accepted.is_empty(),
         ),
     )?;
-
-    Ok(MemoryStoreConsolidateResponse {
-        root_scope: params.root.scope,
-        root_path: path_to_display_string(&root)?,
-        processed_notes: accepted.len(),
-        skipped_notes,
-        archived_notes,
-        memory_path: MEMORY_FILE.to_string(),
-        summary_path: SUMMARY_FILE.to_string(),
-        warnings,
-        updated: !accepted.is_empty(),
-    })
-}
-
-fn collect_pending_candidates(
-    backend: &LocalMemoryBackend,
-    root: &Path,
-    limit: usize,
-) -> Result<Vec<PendingNote>, RuntimeCoreError> {
-    let mut candidates =
-        collect_markdown_candidates(backend, root, NOTES_DIR, PROCESSED_NOTES_DIR, limit)?;
-    let remaining = limit.saturating_sub(candidates.len());
-    if remaining > 0 {
-        candidates.extend(collect_markdown_candidates(
-            backend,
-            root,
-            ROLLOUT_SUMMARIES_DIR,
-            PROCESSED_ROLLOUT_SUMMARIES_DIR,
-            remaining,
-        )?);
-    }
-    Ok(candidates)
-}
-
-fn collect_markdown_candidates(
-    backend: &LocalMemoryBackend,
-    root: &Path,
-    relative_dir: &'static str,
-    processed_dir: &'static str,
-    limit: usize,
-) -> Result<Vec<PendingNote>, RuntimeCoreError> {
-    if limit == 0 {
-        return Ok(Vec::new());
-    }
-    let notes_dir = root.join(relative_dir);
-    reject_symlink_chain(root, &notes_dir)?;
-    let mut paths = Vec::new();
-    for entry in fs::read_dir(&notes_dir).map_err(io_error)? {
-        let entry = entry.map_err(io_error)?;
-        if should_skip_segment(&entry.file_name()) {
-            continue;
-        }
-        let path = entry.path();
-        if is_symlink(&path)? {
-            continue;
-        }
-        let metadata = fs::metadata(&path).map_err(io_error)?;
-        if metadata.is_file()
-            && path
-                .extension()
-                .and_then(OsStr::to_str)
-                .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
-        {
-            paths.push(path);
-        }
-    }
-    paths.sort();
-    paths.truncate(limit);
-
-    let mut notes = Vec::new();
-    for path in paths {
-        let content = match fs::read_to_string(&path) {
-            Ok(content) => content,
-            Err(error) if error.kind() == io::ErrorKind::InvalidData => {
-                continue;
-            }
-            Err(error) => return Err(io_error(error)),
-        };
-        notes.push(PendingNote {
-            relative_path: backend.relative_path(root, &path)?,
-            path,
-            content,
-            processed_dir,
-        });
-    }
-    Ok(notes)
-}
-
-fn classify_note(content: &str) -> NoteDecision {
-    let comparable = content.to_lowercase();
-    let secret_markers = [
-        "api_key",
-        "apikey",
-        "authorization:",
-        "bearer ",
-        "password",
-        "secret",
-        "token",
-        "sk-",
-        "ghp_",
-        "xoxb-",
-    ];
-    if secret_markers
-        .iter()
-        .any(|marker| comparable.contains(marker))
-    {
-        return NoteDecision::Review("secret-like content requires review");
-    }
-    let conflict_markers = [
-        "conflict:",
-        "[conflict]",
-        "forget this",
-        "do not remember",
-        "don't remember",
-        "不要记",
-        "不用记",
-        "别记",
-        "删除记忆",
-        "忘掉",
-    ];
-    if conflict_markers
-        .iter()
-        .any(|marker| comparable.contains(marker))
-    {
-        return NoteDecision::Review("conflicting memory intent requires review");
-    }
-    let has_meaningful_line = content
-        .lines()
-        .map(str::trim)
-        .any(|line| !line.is_empty() && !line.starts_with('#'));
-    if has_meaningful_line {
-        NoteDecision::Accept
-    } else {
-        NoteDecision::Review("empty note body requires review")
-    }
+    Ok((
+        MemoryStageOneRunResult {
+            claimed: inputs.len(),
+            succeeded: accepted.len(),
+            no_output: skipped_notes,
+            failed: 0,
+        },
+        selected_sources,
+    ))
 }
 
 pub(super) fn accepted_note_line(content: &str, relative_path: &str) -> String {
@@ -261,6 +337,9 @@ pub(super) fn rewrite_summary(root: &Path, accepted: &[String]) -> Result<(), Ru
     let summary_path = root.join(SUMMARY_FILE);
     reject_symlink_chain(root, &summary_path)?;
     let mut existing = fs::read_to_string(&summary_path).unwrap_or_default();
+    if !super::is_valid_memory_summary(&existing) {
+        existing = "v1\n\n## User Profile\n\n## User preferences\n\n## General Tips\n\n## What's in Memory\n\n".to_string();
+    }
     if !existing.trim().is_empty() && !existing.ends_with('\n') {
         existing.push('\n');
     }

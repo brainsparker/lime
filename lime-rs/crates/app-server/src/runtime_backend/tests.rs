@@ -33,6 +33,7 @@ use tempfile::TempDir;
 mod coding_event_projection;
 mod image_tools;
 mod model_selection;
+mod session_history;
 mod session_prompt_context;
 mod session_skill_context;
 mod session_soul_context;
@@ -315,6 +316,7 @@ pub(super) fn request_for_test(
         agent_control_gateway: None,
         command_publisher: None,
         rollout_budget_reminder_source: None,
+        mid_turn_compaction_commit: None,
     }
 }
 
@@ -344,13 +346,5 @@ fn request_with_session_metadata(metadata: Value) -> ExecutionRequest {
         metadata: Some(metadata),
     });
     request.runtime_options = None;
-    request
-}
-
-fn imported_request_with_session_metadata(metadata: Value) -> ExecutionRequest {
-    let mut request = request_with_session_metadata(metadata);
-    if let Some(reference) = request.session.business_object_ref.as_mut() {
-        reference.kind = "conversation.import".to_string();
-    }
     request
 }

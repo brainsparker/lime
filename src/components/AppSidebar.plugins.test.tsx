@@ -1,3 +1,4 @@
+import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
@@ -6,7 +7,6 @@ import {
   mountSidebarContainer,
   mockListInstalledPluginCatalog,
   resetAppSidebarTest,
-  seedCloudAccount,
 } from "./AppSidebar.testFixtures";
 import { logoutCloudAccount } from "@/lib/cloudAccount";
 

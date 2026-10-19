@@ -25,6 +25,7 @@ import {
   UnifiedTabStripRenderer,
   type UnifiedTabStripEntry,
 } from "./UnifiedTabStripRenderer";
+import { KeyboardShortcutsDialogHost } from "@/components/keyboard-shortcuts/KeyboardShortcutsDialogHost";
 
 const HeaderContext = createContext<ReturnType<
   typeof createShellRegistry
@@ -39,7 +40,10 @@ function useHeaderRegistry() {
 export function AppShell({ children }: { children: ReactNode }) {
   const [registry] = useState(createShellRegistry);
   return (
-    <HeaderContext.Provider value={registry}>{children}</HeaderContext.Provider>
+    <HeaderContext.Provider value={registry}>
+      {children}
+      <KeyboardShortcutsDialogHost />
+    </HeaderContext.Provider>
   );
 }
 
@@ -208,6 +212,7 @@ export function AppShellContent({
     <main
       {...props}
       ref={ref}
+      tabIndex={props.tabIndex ?? -1}
       data-app-shell-content
       data-main-content-layout={layout}
       className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${props.className ?? ""}`}

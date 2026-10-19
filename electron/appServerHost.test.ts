@@ -1410,32 +1410,7 @@ describe("ElectronAppServerHost", () => {
     expect(calls.at(-1)?.[2].timeoutMs).toBeUndefined();
   });
 
-  it("current conversation import commit 应覆盖大样本导入等待窗口", async () => {
-    const { ElectronAppServerHost } = await import("./appServerHost");
-    const host = new ElectronAppServerHost();
-
-    await host.handleJsonLines({
-      lines: [
-        encodeMessage({
-          id: "conversation-import-commit",
-          method: "conversationImport/thread/commit",
-          params: {
-            sourceClient: "codex",
-            sourceThreadId: "thread-1",
-            confirmed: true,
-          },
-        }),
-      ],
-    });
-
-    const requestCalls = fakeConnection.request.mock.calls as unknown as Array<
-      [JsonRpcRequest, string, { timeoutMs?: number }]
-    >;
-    expect(requestCalls[0]?.[1]).toBe("conversationImport/thread/commit");
-    expect(requestCalls[0]?.[2]).toMatchObject({ timeoutMs: 180000 });
-  });
-
-  it("current conversation import commit 支持 request 级长导入等待窗口", async () => {
+  it("请求级超时可延长插件安装的等待窗口", async () => {
     const { ElectronAppServerHost } = await import("./appServerHost");
     const host = new ElectronAppServerHost();
 
@@ -1443,12 +1418,11 @@ describe("ElectronAppServerHost", () => {
       timeoutMs: 240000,
       lines: [
         encodeMessage({
-          id: "conversation-import-commit-long-sample",
-          method: "conversationImport/thread/commit",
+          id: "remote-plugin-install-long-request",
+          method: "plugin/install",
           params: {
-            sourceClient: "codex",
-            sourceThreadId: "thread-1",
-            confirmed: true,
+            remoteMarketplaceName: "workspace-directory",
+            pluginName: "opaque~1",
           },
         }),
       ],
@@ -1457,31 +1431,16 @@ describe("ElectronAppServerHost", () => {
     const requestCalls = fakeConnection.request.mock.calls as unknown as Array<
       [JsonRpcRequest, string, { timeoutMs?: number }]
     >;
-    expect(requestCalls[0]?.[1]).toBe("conversationImport/thread/commit");
+    expect(requestCalls[0]?.[1]).toBe("plugin/install");
     expect(requestCalls[0]?.[2]).toMatchObject({ timeoutMs: 240000 });
   });
 
-  it("current import 读取与插件安装保留各自的长窗口", async () => {
+  it("插件安装、协调与分享保留长等待窗口", async () => {
     const { ElectronAppServerHost } = await import("./appServerHost");
     const host = new ElectronAppServerHost();
 
     await host.handleJsonLines({
       lines: [
-        encodeMessage({
-          id: "conversation-import-scan",
-          method: "conversationImport/source/scan",
-          params: { sourceClient: "codex" },
-        }),
-        encodeMessage({
-          id: "conversation-import-preview",
-          method: "conversationImport/thread/preview",
-          params: { sourceClient: "codex", sourceThreadId: "thread-1" },
-        }),
-        encodeMessage({
-          id: "conversation-import-job-read",
-          method: "conversationImport/job/read",
-          params: { jobId: "import-job-1" },
-        }),
         encodeMessage({
           id: "remote-plugin-install",
           method: "plugin/install",
@@ -1510,9 +1469,6 @@ describe("ElectronAppServerHost", () => {
       [JsonRpcRequest, string, { timeoutMs?: number }]
     >;
     expect(requestCalls.map(([, method]) => method)).toEqual([
-      "conversationImport/source/scan",
-      "conversationImport/thread/preview",
-      "conversationImport/job/read",
       "plugin/install",
       "plugin/reconcile",
       "plugin/share/save",
@@ -1522,8 +1478,7 @@ describe("ElectronAppServerHost", () => {
       "plugin/share/delete",
     ]);
     expect(requestCalls.map(([, , options]) => options.timeoutMs)).toEqual([
-      120000, 120000, 120000, 150000, 150000, 150000, 150000, 150000, 150000,
-      150000,
+      150000, 150000, 150000, 150000, 150000, 150000, 150000,
     ]);
   });
 });

@@ -8,15 +8,27 @@ use std::fs;
 use std::hash::{Hash, Hasher};
 use std::io;
 use std::path::{Component, Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+use std::time::Duration;
+use tokio_util::sync::CancellationToken;
 
 use crate::RuntimeCoreError;
 
 mod audit;
+mod citations;
 mod consolidation;
 mod review;
 mod rollout;
+mod stage_one_output;
+mod stage_two_output;
+mod state;
 
+pub(crate) use citations::parse_memory_citation;
 pub use rollout::RolloutSummaryWriteParams;
+use state::MemoryStateStore;
 
 const MEMORY_ROOT_DIR: &str = "memories";
 const WORKSPACE_STATE_DIR: &str = ".lime";
@@ -34,9 +46,142 @@ const DEFAULT_READ_LINES: usize = 80;
 const MAX_READ_LINES: usize = 500;
 const DEFAULT_SEARCH_LIMIT: usize = 50;
 const MAX_SEARCH_LIMIT: usize = 200;
+const MEMORY_STAGE1_LEASE_SECONDS: i64 = 3_600;
+const MEMORY_STAGE1_RETRY_SECONDS: i64 = 3_600;
+const MEMORY_STAGE1_MAX_JOBS: usize = 8;
+const STAGE_ONE_SYSTEM_PROMPT_V1: &str = "You are a Codex memory writing agent. Read the rollout as immutable evidence. Return only the requested JSON object. Preserve user decisions and durable workflow facts, redact secrets, and return empty fields when nothing merits retention.";
+const STAGE_ONE_SYSTEM_PROMPT_V2: &str = "You are a Codex memory writing agent. Read the rollout as immutable evidence. Return only the requested JSON object with rollout_summary and rollout_slug. Preserve user decisions and durable workflow facts, redact secrets, and return empty fields when nothing merits retention.";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MemoryStageOneVersion {
+    V1,
+    V2,
+}
+
+impl MemoryStageOneVersion {
+    fn output_version(self) -> stage_one_output::Version {
+        match self {
+            Self::V1 => stage_one_output::Version::V1,
+            Self::V2 => stage_one_output::Version::V2,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryStageOneProviderRequest {
+    pub session_id: String,
+    pub thread_id: String,
+    pub turn_id: String,
+    pub provider: String,
+    pub model: String,
+    pub reasoning_effort: Option<String>,
+    pub service_tier: Option<String>,
+    pub api_version: Option<String>,
+    pub route_protocol: app_server_protocol::ProtocolKind,
+    pub credential_ref: Option<String>,
+    pub cwd: Option<std::path::PathBuf>,
+    pub scope_key: String,
+    pub source_path: String,
+    pub source_content: String,
+    pub system_prompt: String,
+    pub user_prompt: String,
+    pub output_schema: serde_json::Value,
+    pub strict: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryStageOneRoute {
+    pub session_id: String,
+    pub thread_id: String,
+    pub provider: String,
+    pub model: String,
+    pub reasoning_effort: Option<String>,
+    pub service_tier: Option<String>,
+    pub api_version: Option<String>,
+    pub route_protocol: app_server_protocol::ProtocolKind,
+    pub credential_ref: Option<String>,
+    pub cwd: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryStageTwoInput {
+    pub source_path: String,
+    pub raw_memory: Option<String>,
+    pub rollout_summary: Option<String>,
+    pub rollout_slug: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct MemoryStageTwoProviderRequest {
+    pub session_id: String,
+    pub thread_id: String,
+    pub turn_id: String,
+    pub provider: String,
+    pub model: String,
+    pub reasoning_effort: Option<String>,
+    pub service_tier: Option<String>,
+    pub api_version: Option<String>,
+    pub route_protocol: app_server_protocol::ProtocolKind,
+    pub credential_ref: Option<String>,
+    pub cwd: Option<std::path::PathBuf>,
+    pub root_path: std::path::PathBuf,
+    pub inputs: Vec<MemoryStageTwoInput>,
+    pub system_prompt: String,
+    pub user_prompt: String,
+    pub output_schema: serde_json::Value,
+    pub strict: bool,
+}
+
+#[async_trait]
+pub trait MemoryStageTwoProvider: Send + Sync {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError>;
+}
+
+#[async_trait]
+pub trait MemoryStageOneProvider: Send + Sync {
+    async fn sample(
+        &self,
+        request: MemoryStageOneProviderRequest,
+    ) -> Result<String, RuntimeCoreError>;
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct MemoryStageOneRunResult {
+    pub claimed: usize,
+    pub succeeded: usize,
+    pub no_output: usize,
+    pub failed: usize,
+}
 
 #[async_trait]
 pub trait MemoryBackend: Send + Sync {
+    async fn run_stage1(
+        &self,
+        _root: MemoryStoreRootParams,
+        _version: MemoryStageOneVersion,
+        _route: MemoryStageOneRoute,
+        _provider: &dyn MemoryStageOneProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(backend_error("memory stage-1 is unavailable"))
+    }
+
+    async fn run_stage2(
+        &self,
+        _root: MemoryStoreRootParams,
+        _route: MemoryStageOneRoute,
+        _provider: &dyn MemoryStageTwoProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(backend_error("memory stage-2 is unavailable"))
+    }
+
+    async fn status(
+        &self,
+        params: MemoryStatusParams,
+    ) -> Result<MemoryStatusResponse, RuntimeCoreError>;
+
     async fn list(
         &self,
         params: MemoryStoreListParams,
@@ -65,6 +210,8 @@ pub trait MemoryBackend: Send + Sync {
     async fn consolidate(
         &self,
         params: MemoryStoreConsolidateParams,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError>;
 
     async fn list_review(
@@ -93,13 +240,20 @@ pub trait MemoryBackend: Send + Sync {
 #[derive(Debug, Clone)]
 pub struct LocalMemoryBackend {
     data_root: PathBuf,
+    state: MemoryStateStore,
 }
 
 impl LocalMemoryBackend {
     pub fn new(data_root: impl Into<PathBuf>) -> Self {
+        let data_root = data_root.into();
         Self {
-            data_root: data_root.into(),
+            state: MemoryStateStore::new(&data_root),
+            data_root,
         }
+    }
+
+    fn state_scope_key(&self, root: &Path) -> Result<String, RuntimeCoreError> {
+        path_to_display_string(root)
     }
 
     fn resolve_root(&self, params: &MemoryStoreRootParams) -> Result<PathBuf, RuntimeCoreError> {
@@ -154,10 +308,306 @@ impl LocalMemoryBackend {
             .map_err(|_| backend_error("memory path is outside root"))?;
         path_to_relative_string(relative)
     }
+
+    /// Runs Codex phase-1 extraction through the caller supplied current provider.
+    ///
+    /// The backend owns claim/lease/parse/commit state. Provider selection and wire
+    /// lowering remain outside this module so Chat Completions, Responses, Anthropic
+    /// and Gemini routes share the same durable memory contract.
+    pub async fn run_stage1(
+        &self,
+        root_params: MemoryStoreRootParams,
+        version: MemoryStageOneVersion,
+        route: &MemoryStageOneRoute,
+        provider: &dyn MemoryStageOneProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        let root = self.resolve_root(&root_params)?;
+        self.ensure_layout(&root)?;
+        let scope_key = self.state_scope_key(&root)?;
+        self.register_pending_sources(&root, &scope_key)?;
+        let candidates = self
+            .state
+            .stage1_candidates(&scope_key, MEMORY_STAGE1_MAX_JOBS)
+            .map_err(backend_error)?;
+        let mut result = MemoryStageOneRunResult::default();
+        for source_path in candidates {
+            let source = root.join(&source_path);
+            if !source.is_file() || is_symlink(&source)? {
+                continue;
+            }
+            let content = match fs::read_to_string(&source) {
+                Ok(content) => content,
+                Err(error) if error.kind() == io::ErrorKind::InvalidData => continue,
+                Err(error) => {
+                    let _ = self.state.mark_stage1_failed(
+                        &scope_key,
+                        &source_path,
+                        "memory-stage1",
+                        MEMORY_STAGE1_RETRY_SECONDS,
+                        &error.to_string(),
+                    );
+                    result.failed += 1;
+                    continue;
+                }
+            };
+            if !self
+                .state
+                .try_claim_stage1(
+                    &scope_key,
+                    &source_path,
+                    "memory-stage1",
+                    MEMORY_STAGE1_LEASE_SECONDS,
+                    MEMORY_STAGE1_MAX_JOBS,
+                )
+                .map_err(backend_error)?
+            {
+                continue;
+            }
+            result.claimed += 1;
+            let input = MemoryStageOneProviderRequest {
+                session_id: route.session_id.clone(),
+                thread_id: route.thread_id.clone(),
+                turn_id: format!("memory-stage1-{}", result.claimed),
+                provider: route.provider.clone(),
+                model: route.model.clone(),
+                reasoning_effort: route.reasoning_effort.clone(),
+                service_tier: route.service_tier.clone(),
+                api_version: route.api_version.clone(),
+                route_protocol: route.route_protocol.clone(),
+                credential_ref: route.credential_ref.clone(),
+                cwd: route.cwd.clone().or_else(|| Some(root.clone())),
+                scope_key: scope_key.clone(),
+                source_path: source_path.clone(),
+                source_content: content.clone(),
+                system_prompt: stage_one_system_prompt(version).to_string(),
+                user_prompt: stage_one_user_prompt(&source_path, &content),
+                output_schema: stage_one_output::output_schema(version.output_version()),
+                strict: true,
+            };
+            let heartbeat_cancel = CancellationToken::new();
+            let heartbeat_lost = Arc::new(AtomicBool::new(false));
+            let heartbeat_task = {
+                let state = self.state.clone();
+                let scope_key = scope_key.clone();
+                let source_path = source_path.clone();
+                let cancel = heartbeat_cancel.clone();
+                let heartbeat_lost = heartbeat_lost.clone();
+                tokio::spawn(async move {
+                    let mut interval = tokio::time::interval(Duration::from_secs(30));
+                    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+                    loop {
+                        tokio::select! {
+                            _ = cancel.cancelled() => break,
+                            _ = interval.tick() => {
+                                match state.heartbeat_stage1(&scope_key, &source_path, "memory-stage1", MEMORY_STAGE1_LEASE_SECONDS) {
+                                    Ok(true) => {}
+                                    Ok(false) | Err(_) => {
+                                        heartbeat_lost.store(true, Ordering::Release);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                })
+            };
+            let sampled = provider.sample(input).await;
+            heartbeat_cancel.cancel();
+            let _ = heartbeat_task.await;
+            if heartbeat_lost.load(Ordering::Acquire) {
+                self.state
+                    .mark_stage1_failed(
+                        &scope_key,
+                        &source_path,
+                        "memory-stage1",
+                        MEMORY_STAGE1_RETRY_SECONDS,
+                        "memory stage-1 lease heartbeat was lost",
+                    )
+                    .map_err(backend_error)?;
+                result.failed += 1;
+                continue;
+            }
+            match sampled {
+                Ok(raw) => match stage_one_output::parse(&raw, version.output_version()) {
+                    Ok(output)
+                        if !output.rollout_summary.trim().is_empty()
+                            && (version == MemoryStageOneVersion::V2
+                                || output
+                                    .raw_memory
+                                    .as_deref()
+                                    .is_some_and(|value| !value.trim().is_empty())) =>
+                    {
+                        let saved = self
+                            .state
+                            .save_stage1_output(
+                                &scope_key,
+                                &source_path,
+                                "memory-stage1",
+                                state::StageOneOutputSnapshot {
+                                    source_path: source_path.clone(),
+                                    content_hash: state::hash_content(&content),
+                                    source_updated_at: modified_at_seconds(
+                                        &fs::metadata(&source).map_err(io_error)?,
+                                    )
+                                    .to_string(),
+                                    raw_memory: output.raw_memory,
+                                    rollout_summary: output.rollout_summary,
+                                    rollout_slug: output.rollout_slug,
+                                },
+                            )
+                            .map_err(backend_error)?;
+                        if saved {
+                            result.succeeded += 1;
+                        } else {
+                            result.failed += 1;
+                        }
+                    }
+                    Ok(_) => {
+                        self.state
+                            .mark_stage1_no_output(&scope_key, &source_path, "memory-stage1")
+                            .map_err(backend_error)?;
+                        result.no_output += 1;
+                    }
+                    Err(error) => {
+                        self.state
+                            .mark_stage1_failed(
+                                &scope_key,
+                                &source_path,
+                                "memory-stage1",
+                                MEMORY_STAGE1_RETRY_SECONDS,
+                                &error,
+                            )
+                            .map_err(backend_error)?;
+                        result.failed += 1;
+                    }
+                },
+                Err(error) => {
+                    self.state
+                        .mark_stage1_failed(
+                            &scope_key,
+                            &source_path,
+                            "memory-stage1",
+                            MEMORY_STAGE1_RETRY_SECONDS,
+                            &error.to_string(),
+                        )
+                        .map_err(backend_error)?;
+                    result.failed += 1;
+                }
+            }
+        }
+        Ok(result)
+    }
+
+    fn register_pending_sources(
+        &self,
+        root: &Path,
+        scope_key: &str,
+    ) -> Result<(), RuntimeCoreError> {
+        for relative_dir in [NOTES_DIR, ROLLOUT_SUMMARIES_DIR] {
+            let directory = root.join(relative_dir);
+            reject_symlink_chain(root, &directory)?;
+            for entry in fs::read_dir(&directory).map_err(io_error)? {
+                let entry = entry.map_err(io_error)?;
+                let path = entry.path();
+                if is_symlink(&path)?
+                    || !path.is_file()
+                    || !path
+                        .extension()
+                        .and_then(OsStr::to_str)
+                        .is_some_and(|extension| extension.eq_ignore_ascii_case("md"))
+                {
+                    continue;
+                }
+                let content = match fs::read_to_string(&path) {
+                    Ok(content) => content,
+                    Err(error) if error.kind() == io::ErrorKind::InvalidData => continue,
+                    Err(error) => return Err(io_error(error)),
+                };
+                let source_path = self.relative_path(root, &path)?;
+                self.state
+                    .register_rollout(
+                        scope_key,
+                        &source_path,
+                        &content,
+                        &modified_at_seconds(&fs::metadata(&path).map_err(io_error)?).to_string(),
+                    )
+                    .map_err(backend_error)?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Runs Codex phase-2 through a constrained provider harness. The provider only receives
+    /// stage-1 snapshots and a strict artifact schema; file moves and durable state remain owned
+    /// by this backend.
+    pub async fn run_stage2(
+        &self,
+        root_params: MemoryStoreRootParams,
+        route: &MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        consolidation::run_stage2(self, root_params, route, provider).await
+    }
+}
+
+fn stage_one_system_prompt(version: MemoryStageOneVersion) -> &'static str {
+    match version {
+        MemoryStageOneVersion::V1 => STAGE_ONE_SYSTEM_PROMPT_V1,
+        MemoryStageOneVersion::V2 => STAGE_ONE_SYSTEM_PROMPT_V2,
+    }
+}
+
+fn stage_one_user_prompt(source_path: &str, content: &str) -> String {
+    format!(
+        "Read this immutable rollout record from `{source_path}` as evidence.\n\n<rollout>\n{content}\n</rollout>"
+    )
 }
 
 #[async_trait]
 impl MemoryBackend for LocalMemoryBackend {
+    async fn run_stage1(
+        &self,
+        root: MemoryStoreRootParams,
+        version: MemoryStageOneVersion,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageOneProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        LocalMemoryBackend::run_stage1(self, root, version, &route, provider).await
+    }
+
+    async fn run_stage2(
+        &self,
+        root: MemoryStoreRootParams,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        LocalMemoryBackend::run_stage2(self, root, &route, provider).await
+    }
+
+    async fn status(
+        &self,
+        params: MemoryStatusParams,
+    ) -> Result<MemoryStatusResponse, RuntimeCoreError> {
+        let minimum = params.min_consolidated_threads.unwrap_or(20);
+        if !(1..=4096).contains(&minimum) {
+            return Err(backend_error(
+                "minConsolidatedThreads must be between 1 and 4096",
+            ));
+        }
+
+        let root = self.resolve_root(&MemoryStoreRootParams::default())?;
+        self.ensure_layout(&root)?;
+        let summary = fs::read_to_string(root.join(SUMMARY_FILE)).unwrap_or_default();
+        let state_count = self
+            .state
+            .count_consolidated(&self.state_scope_key(&root)?)
+            .map_err(backend_error)?;
+        Ok(MemoryStatusResponse {
+            v2_consolidated_threads: state_count,
+            v2_ready: state_count >= minimum && is_valid_memory_summary(&summary),
+        })
+    }
+
     async fn list(
         &self,
         params: MemoryStoreListParams,
@@ -267,6 +717,13 @@ impl MemoryBackend for LocalMemoryBackend {
             end.max(start_line_number)
         };
 
+        // Codex memory usage feeds the next phase-2 selection. The read contract stays
+        // fail-open for callers when the auxiliary state database is unavailable.
+        let scope_key = self.state_scope_key(&root)?;
+        let _ = self
+            .state
+            .record_stage1_usage(&scope_key, &[relative.as_str()]);
+
         Ok(MemoryStoreReadResponse {
             path: relative.clone(),
             start_line_number,
@@ -319,6 +776,10 @@ impl MemoryBackend for LocalMemoryBackend {
         let next_offset = offset.saturating_add(hits.len());
         let truncated = next_offset < total;
 
+        let scope_key = self.state_scope_key(&root)?;
+        let usage_paths = hits.iter().map(|hit| hit.path.as_str()).collect::<Vec<_>>();
+        let _ = self.state.record_stage1_usage(&scope_key, &usage_paths);
+
         Ok(MemoryStoreSearchResponse {
             hits,
             truncated,
@@ -364,6 +825,14 @@ impl MemoryBackend for LocalMemoryBackend {
         fs::write(&path, &note_content).map_err(io_error)?;
         reject_symlink_chain(&root, &path)?;
         let relative = self.relative_path(&root, &path)?;
+        self.state
+            .register_rollout(
+                &self.state_scope_key(&root)?,
+                &relative,
+                &note_content,
+                &modified_at_seconds(&fs::metadata(&path).map_err(io_error)?).to_string(),
+            )
+            .map_err(backend_error)?;
         let end_line_number = note_content.lines().count().max(1);
 
         Ok(MemoryStoreAddNoteResponse {
@@ -386,8 +855,23 @@ impl MemoryBackend for LocalMemoryBackend {
     async fn consolidate(
         &self,
         params: MemoryStoreConsolidateParams,
+        route: MemoryStageOneRoute,
+        provider: &dyn MemoryStageTwoProvider,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
-        consolidation::consolidate_memory_store(self, params).await
+        let root_params = params.root.clone();
+        let result = consolidation::run_stage2(self, root_params.clone(), &route, provider).await?;
+        let root = self.resolve_root(&root_params)?;
+        Ok(MemoryStoreConsolidateResponse {
+            root_scope: root_params.scope,
+            root_path: path_to_display_string(&root)?,
+            processed_notes: result.succeeded,
+            skipped_notes: result.no_output,
+            archived_notes: result.succeeded,
+            memory_path: MEMORY_FILE.to_string(),
+            summary_path: SUMMARY_FILE.to_string(),
+            warnings: Vec::new(),
+            updated: result.succeeded > 0,
+        })
     }
 
     async fn list_review(
@@ -434,6 +918,9 @@ impl MemoryBackend for LocalMemoryBackend {
         fs::create_dir_all(&root).map_err(io_error)?;
         reject_symlink(&root)?;
         remove_root_contents(&root)?;
+        self.state
+            .reset_scope(&self.state_scope_key(&root)?)
+            .map_err(backend_error)?;
         self.ensure_layout(&root)?;
         Ok(())
     }
@@ -731,6 +1218,20 @@ fn count_markdown_files(root: &Path) -> Result<usize, RuntimeCoreError> {
         }
     }
     Ok(count)
+}
+
+fn is_valid_memory_summary(summary: &str) -> bool {
+    let mut lines = summary.lines();
+    lines.next() == Some("v1")
+        && summary.len() < 10_000
+        && [
+            "## User Profile",
+            "## User preferences",
+            "## General Tips",
+            "## What's in Memory",
+        ]
+        .iter()
+        .all(|heading| summary.lines().any(|line| line.trim() == *heading))
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

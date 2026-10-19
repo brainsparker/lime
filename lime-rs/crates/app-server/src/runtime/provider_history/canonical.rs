@@ -9,6 +9,9 @@ use model_provider::current_client::{
 use serde_json::Value;
 use std::collections::HashMap;
 
+#[cfg(test)]
+mod async_user_input_tests;
+
 pub(super) fn append_fork_item<G>(
     item: &ThreadItem,
     messages: &mut Vec<CurrentProviderMessage>,
@@ -32,8 +35,19 @@ where
         ThreadItemPayload::AgentMessage {
             text,
             content_parts,
+            delivery,
+            questions,
             ..
         } => {
+            // Questions are a presentation of an actual tool invocation. Forks
+            // retain its call/result history without inventing assistant text.
+            if *delivery == Some(agent_protocol::AgentMessageDelivery::Async)
+                || questions
+                    .as_ref()
+                    .is_some_and(|questions| !questions.is_empty())
+            {
+                return Ok(());
+            }
             if content_parts
                 .iter()
                 .any(|part| matches!(part, agent_protocol::MessageContentPart::Media { .. }))

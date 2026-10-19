@@ -1,44 +1,41 @@
-## Lime v1.163.0
+## Lime v1.164.0
 
 Simplified Chinese release notes are the primary version. This English companion summarizes the same release scope.
 
 ### Features
 
-- Unify home and conversation composers, with native file, folder and image selection and a Sources panel for conversation materials.
-- Consolidate context suggestions through `+`, `@` and skill references for files, skills and commands, retaining structured references and draft restoration.
-- Add workspace file browsing and text editing to the shared side panel, with multiple tabs, syntax highlighting, search, saving and unsaved-change protection.
-- Integrate background terminal lists and terminal tabs to switch between conversation terminals and inspect ongoing output.
+- Add an asynchronous user-input panel with question drafts, answer editing, submission recovery and cross-turn state projection.
+- Add thread goals and goal attachments for new-thread submission, draft restoration and attachment association.
+- Improve the workspace file tree, file menus, context actions and text-editor entry points with shared file targets and side-panel behavior.
+- Improve sidebar conversation sections, pagination, profile, help and keyboard-shortcut entry points with consistent navigation state.
+- Add memory status, citations and staged-output capabilities across the App Server and GUI projections.
 
 ### Fixes
 
-- Correct conversation input commits and queuing, and improve explicit continuation, cancellation, normal completion and their history records.
-- Correct tool-history associations and budgets during truncation, context compaction and conversation forks while retaining traceable calls and outputs.
-- Correct streaming tool-call identity and argument parsing across protocols, including Gemini and Responses history conversion.
-- Preserve native Responses reasoning summaries, encrypted content and ordering across cold recovery, and continue interrupted responses within the same turn.
-- Preserve native message phases and correct streaming item completion and turn projection without treating an unknown phase as a final answer.
-- Correct completed-message snapshots in public notifications and persistence so live views and cold recovery retain full text after missing or partial deltas.
-- Apply completed reasoning snapshots consistently, distinguishing missing text from explicit empty content across summaries, reasoning text and restored views.
-- Improve file, skill and command references in messages and navigation restoration after closing preview tabs.
-- Correct native file opening, attachment draft restoration, sidebar navigation and panel-resize interactions.
+- Correct Thread/Turn/Item identity and terminal states across asynchronous input, cancellation, continuation, completion and cold recovery.
+- Correct persistence and rendering of message, reasoning, web-search and tool history across deltas, snapshots, compaction, forks and model switches.
+- Correct parsing, submission, preview-close and navigation recovery for file, skill, command and message references.
+- Correct Electron file-shell, IPC, main-process quit, window-target and workspace-operation boundaries.
+- Remove retired conversation-import, legacy OEM cloud-referral and duplicate command paths so production no longer depends on deprecated owners.
 
 ### Improvements and Refactoring
 
-- Consolidate composer layout, commands and attachments, removing the old toolbar, separate image-attachment implementation and duplicate file-management entry points.
-- Unify side-panel tabs and lifecycle for file editing, previews, terminals and summaries through existing App Server and tool-execution boundaries.
-- Consolidate tool and native response history within the existing model-history boundary, and split call arguments and input commits into focused modules to reduce duplication.
+- Split composer, goal input, request-user-input, file-tree and sidebar interactions into focused modules while reusing current runtime, App Server and tool-execution boundaries.
+- Consolidate canonical history, runtime snapshots, memory-store and projection flows to reduce duplicate conversions and compatibility branches.
+- Update protocol schemas, client contracts, command catalogs, governance rules and cross-platform release scripts so generated artifacts and consumers stay aligned.
 
 ### Tests and Quality
 
-- Extend regressions and public JSON-RPC scenarios for continuation, interruption, completion, tool history, native attachments, file editing and background terminals.
-- Update interface resources in all five languages, command contracts and Electron fixtures.
-- Correct shared-sidebar and external-process streaming fixtures, and improve release validation for transient macOS notarization ticket failures and Windows updater navigation.
+- Extend targeted regressions for asynchronous user input, thread goals, message history, snapshot recovery, file trees, sidebars, composers, Electron IPC and the App Server.
+- Update five-language resources, GUI fixtures, protocol contracts, Rust owner tests, real Electron smoke coverage and release-workflow guards.
+- Preserve release evidence, REA records and execution plans while documenting live-provider and packaged-platform coverage boundaries.
 
 ### Documentation
 
-- Update architecture, desktop behavior evidence and GUI, runtime and plugin execution plans while retaining open alignment scope and validation limits.
+- Update architecture, governance, Codex GUI-alignment, runtime-snapshot, composer, sidebar, file-operation and asynchronous-input plans and research ledgers.
 
 ### Other
 
-- Align the application, CLI and Rust workspace versions to 1.163.0.
+- Align the application, CLI and Rust workspace versions to 1.164.0.
 
-**Full changes**: `v1.162.0` -> `v1.163.0`
+**Full changes**: `v1.163.0` -> `v1.164.0`

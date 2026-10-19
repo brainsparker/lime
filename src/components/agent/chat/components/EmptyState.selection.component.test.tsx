@@ -150,7 +150,7 @@ describe("EmptyState selection current integration", () => {
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "整理最近发布计划 $写作助手",
+      textOverride: "整理最近发布计划 [$写作助手](writer/SKILL.md)",
       sendOptions: {
         capabilityRoute: undefined,
       },
@@ -197,7 +197,7 @@ describe("EmptyState selection current integration", () => {
       sendButton?.click();
     });
     expectEmptyStateSend(onSend, {
-      textOverride: "帮我设计封面 $canvas-design",
+      textOverride: "帮我设计封面 [$canvas-design](canvas-design/SKILL.md)",
       sendOptions: {
         capabilityRoute: undefined,
       },
@@ -276,12 +276,12 @@ describe("EmptyState selection current integration", () => {
     ) as HTMLButtonElement | null;
     expect(sendButton).toBeTruthy();
 
-    act(() => {
+    await act(async () => {
       sendButton?.click();
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "请先规划再持续推进这个任务",
+      textOverride: "/goal 请先规划再持续推进这个任务",
       sendOptions: expect.objectContaining({
         threadGoal: { objective: "请先规划再持续推进这个任务" },
       }),
@@ -321,7 +321,8 @@ describe("EmptyState selection current integration", () => {
     });
 
     expectEmptyStateSend(onSend, {
-      textOverride: "请输出一篇品牌故事 $custom-writing-skill",
+      textOverride:
+        "请输出一篇品牌故事 [$custom-writing-skill](custom-writing-skill/SKILL.md)",
       sendOptions: {
         capabilityRoute: undefined,
       },

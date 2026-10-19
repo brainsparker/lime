@@ -10,9 +10,11 @@ import {
 } from "@/lib/api/knowledge";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { getDefaultProject, getProject } from "@/lib/api/project";
-import type { KnowledgePageParams } from "@/types/page";
 import { KnowledgePage } from "./KnowledgePage";
-import { buildListResponse, buildPackDetail } from "./KnowledgePage.testFixtures";
+import {
+  buildListResponse,
+  buildPackDetail,
+} from "./KnowledgePage.testFixtures";
 
 const {
   mockListKnowledgePacks,
@@ -90,8 +92,7 @@ const mountedRoots: Array<{ root: Root; container: HTMLDivElement }> = [];
 function renderPage(options?: {
   workingDir?: string;
   selectedPackName?: string;
-  initialView?: "overview" | "import" | "detail" | "save" | "states";
-  saveDraft?: KnowledgePageParams["saveDraft"];
+  initialView?: "overview" | "import" | "detail" | "states";
   onNavigate?: (page: string, params?: unknown) => void;
 }) {
   const container = document.createElement("div");
@@ -106,7 +107,6 @@ function renderPage(options?: {
           workingDir: options?.workingDir,
           selectedPackName: options?.selectedPackName,
           initialView: options?.initialView,
-          saveDraft: options?.saveDraft,
         }}
       />,
     );
@@ -162,9 +162,11 @@ describe("KnowledgePage", () => {
   let pendingPack: KnowledgePackDetail;
 
   beforeEach(async () => {
-    (globalThis as typeof globalThis & {
-      IS_REACT_ACT_ENVIRONMENT?: boolean;
-    }).IS_REACT_ACT_ENVIRONMENT = true;
+    (
+      globalThis as typeof globalThis & {
+        IS_REACT_ACT_ENVIRONMENT?: boolean;
+      }
+    ).IS_REACT_ACT_ENVIRONMENT = true;
     await changeLimeLocale("zh-CN");
     vi.clearAllMocks();
     window.localStorage.clear();
@@ -429,9 +431,8 @@ describe("KnowledgePage", () => {
       "agent",
       expect.objectContaining({
         agentEntry: "claw",
-        initialUserPrompt: expect.stringContaining(
-          "金花黑茶资料，功效表达必须待确认。",
-        ),
+        initialUserPrompt:
+          expect.stringContaining("金花黑茶资料，功效表达必须待确认。"),
         initialRequestMetadata: {
           knowledge_builder: expect.objectContaining({
             working_dir: "/tmp/project",
@@ -587,85 +588,6 @@ describe("KnowledgePage", () => {
             },
           ],
         }),
-      }),
-    );
-  });
-
-  it("保存到项目资料页应说明保存结果和确认后才生效", async () => {
-    const container = renderPage({
-      workingDir: "/tmp/project",
-      selectedPackName: "founder-personal-ip",
-      initialView: "save",
-    });
-    await flushEffects();
-
-    expect(container.textContent).toContain("存到哪里？");
-    expect(container.textContent).toContain("补充已有资料");
-    expect(container.textContent).toContain("新建一份资料");
-    expect(container.textContent).toContain("保存后需要确认");
-    expect(container.textContent).toContain("保存不会自动改变本轮创作资料");
-    expect(container.textContent).toContain(
-      "保存后不会立刻用于创作，确认后才会生效",
-    );
-    expect(container.textContent).not.toContain("新增 2 个内容点");
-
-    const sourceTextarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
-    act(() => {
-      updateFieldValue(
-        sourceTextarea,
-        "对话中总结出的创始人口吻和两个新内容点。",
-      );
-    });
-
-    await clickButton(container, "创始人个人 IP 项目资料");
-    await clickButton(container, "保存到项目资料");
-
-    expect(importKnowledgeSource).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workingDir: "/tmp/project",
-        packName: "founder-personal-ip",
-        sourceText: "对话中总结出的创始人口吻和两个新内容点。",
-      }),
-    );
-    expect(container.textContent).toContain("内容已进入项目资料");
-    expect(container.textContent).toContain("下一步需要确认后才会用于创作");
-  });
-
-  it("从对话保存进入项目资料时应预填待保存内容", async () => {
-    const container = renderPage({
-      workingDir: "/tmp/project",
-      initialView: "save",
-      saveDraft: {
-        sourceText: "AI 总结出的创始人口吻、产品事实和内容规则。",
-        sourceName: "agent-output-message-1.md",
-        description: "对话沉淀资料",
-        packType: "custom",
-        requestKey: 2026050901,
-      },
-    });
-    await flushEffects();
-
-    const sourceTextarea = container.querySelector(
-      "textarea",
-    ) as HTMLTextAreaElement | null;
-    expect(sourceTextarea?.value).toBe(
-      "AI 总结出的创始人口吻、产品事实和内容规则。",
-    );
-    expect(container.textContent).toContain("保存到项目资料");
-    expect(container.textContent).toContain("新建一份资料");
-
-    await clickButton(container, "保存到项目资料");
-
-    expect(importKnowledgeSource).toHaveBeenCalledWith(
-      expect.objectContaining({
-        workingDir: "/tmp/project",
-        packName: "agent-output-message-1",
-        description: "对话沉淀资料",
-        packType: "custom",
-        sourceFileName: "agent-output-message-1.md",
-        sourceText: "AI 总结出的创始人口吻、产品事实和内容规则。",
       }),
     );
   });

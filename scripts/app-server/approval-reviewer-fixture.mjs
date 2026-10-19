@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -367,138 +367,7 @@ async function runCliReview(provider) {
   };
 }
 
-async function importReviewer(id) {
-  const root = path.join(temp, "source");
-  const sourcePath = path.join(root, `rollout-${id}.jsonl`);
-  await mkdir(root, { recursive: true });
-  await writeFile(
-    sourcePath,
-    [
-      {
-        timestamp: "2026-06-16T00:00:00Z",
-        type: "session_meta",
-        payload: {
-          id,
-          cwd: temp,
-          source: "cli",
-          model_provider: "openai",
-          model: fixture.provider.modelPreference,
-          approvals_reviewer: "guardian_subagent",
-        },
-      },
-      {
-        timestamp: "2026-06-16T00:00:01Z",
-        type: "event_msg",
-        payload: {
-          type: "user_message",
-          message: "Preserve the imported reviewer setting.",
-        },
-      },
-    ]
-      .map((record) => JSON.stringify(record))
-      .join("\n") + "\n",
-  );
-  const started = await call("conversationImport/thread/commit", {
-    sourceClient: "codex",
-    sourceRoot: root,
-    sourcePath,
-    confirmed: true,
-  });
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const { job } = await call("conversationImport/job/read", {
-      jobId: started.job.jobId,
-    });
-    assert.notEqual(job.status, "failed", JSON.stringify(job));
-    if (job.status === "completed") return job.result.session.threadId;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error(`import timed out: ${id}`);
-}
-
-function assertCanonicalReviewer(result, expected) {
-  assert.equal(result.thread.extra.approvalsReviewer, expected);
-  assert.equal(
-    result.thread.extra.codexMetadata.approvalsReviewer,
-    "guardian_subagent",
-  );
-  assert.equal(result.thread.extra.approvals_reviewer, undefined);
-  for (const key of ["importedContinuation", "importedThreadSettings"]) {
-    assert.equal(result.thread.extra[key]?.approvalsReviewer, undefined, key);
-    assert.equal(result.thread.extra[key]?.approvals_reviewer, undefined, key);
-  }
-}
-
-async function runLegacyMigration() {
-  const legacyPath = process.env.REVIEWER_LEGACY_BIN?.trim();
-  if (!legacyPath) return null;
-  assert.notEqual(path.resolve(legacyPath), appServerBinaryPath);
-  const legacySha256 = createHash("sha256")
-    .update(await readFile(legacyPath))
-    .digest("hex");
-  await start(legacyPath);
-  const activeThread = await importReviewer("reviewer-legacy-active");
-  const archivedThread = await importReviewer("reviewer-legacy-archived");
-  const old = await call("thread/read", {
-    threadId: activeThread,
-    includeTurns: true,
-  });
-  assert.equal(old.thread.extra.approvalsReviewer, "guardian_subagent");
-  assert.equal(
-    old.thread.extra.importedContinuation.approvalsReviewer,
-    "guardian_subagent",
-  );
-  await call("thread/archive", { threadId: archivedThread });
-  await connected.sidecar.close();
-  await start();
-  for (const threadId of [activeThread, archivedThread]) {
-    assertCanonicalReviewer(
-      await call("thread/read", { threadId, includeTurns: true }),
-      "auto_review",
-    );
-  }
-  const resumed = await call("thread/resume", {
-    threadId: activeThread,
-    excludeTurns: true,
-  });
-  assert.equal(resumed.approvalsReviewer, "auto_review");
-  await call("thread/settings/update", {
-    threadId: activeThread,
-    approvalsReviewer: "user",
-  });
-  const newThread = await importReviewer("reviewer-current-import");
-  assertCanonicalReviewer(
-    await call("thread/read", { threadId: newThread, includeTurns: true }),
-    "auto_review",
-  );
-  await connected.sidecar.close();
-  await start();
-  assertCanonicalReviewer(
-    await call("thread/read", { threadId: activeThread, includeTurns: true }),
-    "user",
-  );
-  assertCanonicalReviewer(
-    await call("thread/read", { threadId: archivedThread, includeTurns: true }),
-    "auto_review",
-  );
-  const again = await call("thread/resume", {
-    threadId: activeThread,
-    excludeTurns: true,
-  });
-  assert.equal(again.approvalsReviewer, "user");
-  await connected.sidecar.close();
-  return {
-    legacyPath,
-    legacySha256,
-    activeThread,
-    archivedThread,
-    newThread,
-    coldReopens: 2,
-  };
-}
-
 try {
-  const migration = await runLegacyMigration();
   await start();
   const provider = await provisionToolExecutionFixtureProvider({
     fixture,
@@ -555,7 +424,6 @@ try {
       turns,
       actualCommandExecutions: cli ? 4 : 3,
       cli,
-      migration,
     }),
   );
 } finally {

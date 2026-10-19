@@ -223,6 +223,27 @@ export function summarizeUserMessageCollapseFailure(facts = {}) {
     observed: safeFailureDom(facts.observed),
     currentObserved: safeFailureDom(facts.currentObserved),
     snapshotUnavailable: facts.snapshotUnavailable === true,
+    ...(facts.collapseChecks && typeof facts.collapseChecks === "object"
+      ? {
+          checks: Object.fromEntries(
+            [
+              "expectationValid",
+              "exactVisibleEntry",
+              "measuredTwentyLineThreshold",
+              "realVisualTransitions",
+              "completeRenderedBodyRetained",
+              "trustedPointerAndKeyboard",
+              "collapsedClipboardFullText",
+              "expandedClipboardFullText",
+              "canonicalFullText",
+              "canonicalPartsUnchanged",
+              "completeInputBoundary",
+              "noAdditionalInput",
+              "referencesScoped",
+            ].map((name) => [name, facts.collapseChecks[name] === true]),
+          ),
+        }
+      : {}),
     ...(Object.keys(clipboardPhases).length ? { clipboardPhases } : {}),
     ...(Object.keys(copyActionPhases).length ? { copyActionPhases } : {}),
     trace: {
@@ -257,7 +278,10 @@ export function extractUserMessageCollapseFailure(error) {
       evidence.scope !== "user-message-collapse"
     )
       return null;
-    return summarizeUserMessageCollapseFailure(evidence);
+    return summarizeUserMessageCollapseFailure({
+      ...evidence,
+      collapseChecks: evidence.checks,
+    });
   } catch {
     return null;
   }
@@ -570,7 +594,10 @@ export function summarizeUserMessageCollapse(facts = {}) {
         expected.tailText,
       ].every((value) => typeof value === "string" && value.length > 0) &&
       expected.text?.includes(expected.headText) === true &&
-      expected.text?.trimEnd().endsWith(expected.tailText) === true,
+      (expected.text?.trimEnd().endsWith(expected.tailText) === true ||
+        (typeof expected.renderedTailText === "string" &&
+          expected.renderedTailText.length > 0 &&
+          expected.tailText === expected.renderedTailText)),
     ...summarizeUserMessageCanonicalPreservation({
       expected,
       beforeRead: facts.beforeRead,

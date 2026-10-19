@@ -25,6 +25,7 @@ import type {
 import { selectActivePendingInteraction } from "./pendingInteractionSelection";
 
 export interface PendingInteractionLayerProps {
+  hostId?: string;
   interactions: readonly TypedPendingInteraction[];
   threadId?: string | null;
   onRespond: (
@@ -32,13 +33,16 @@ export interface PendingInteractionLayerProps {
   ) =>
     | PendingInteractionResponseResult
     | Promise<PendingInteractionResponseResult>;
+  onDismiss: (interactionId: string) => Promise<{ accepted: boolean }>;
 }
 
 /** Composer 上方唯一的 pending interaction 展示层。 */
 export function PendingInteractionLayer({
+  hostId,
   interactions,
   threadId,
   onRespond,
+  onDismiss,
 }: PendingInteractionLayerProps) {
   const interaction = selectActivePendingInteraction(interactions, threadId);
   if (!interaction) {
@@ -67,9 +71,12 @@ export function PendingInteractionLayer({
         />
       ) : interaction.kind === "request_user_input" ? (
         <DecisionPanel
+          key={interaction.id}
+          hostId={hostId}
           request={interaction.payload.request}
+          onDismiss={() => onDismiss(interaction.id)}
           onSubmit={async (response) => {
-            await onRespond({
+            return onRespond({
               confirmed: response.confirmed !== false,
               interactionId: interaction.id,
               kind: "request_user_input",

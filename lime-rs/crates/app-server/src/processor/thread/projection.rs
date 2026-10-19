@@ -14,7 +14,6 @@ use safe_display::{
 mod command;
 mod item;
 mod mcp;
-mod metadata;
 mod safe_display;
 mod thread;
 
@@ -24,7 +23,6 @@ use command::{
 };
 use item::project_item;
 use mcp::{project_mcp_app_context, project_mcp_status, project_mcp_tool_result};
-use metadata::project_item_metadata;
 use thread::{current_model_provider, project_thread};
 
 pub(super) fn lower_thread_read_params(

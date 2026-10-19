@@ -13,6 +13,7 @@ mod path_utils;
 mod persistence;
 mod plugins;
 mod tool_execution;
+mod tools;
 mod tui_keymap;
 mod types;
 mod yaml;
@@ -35,6 +36,7 @@ pub use tool_execution::{
     ToolExecutionRestrictionProfileConfig, ToolExecutionSandboxProfileConfig,
     ToolExecutionWarningPolicyConfig,
 };
+pub use tools::{ExperimentalRequestUserInput, ToolsConfig};
 pub use tui_keymap::{
     KeybindingSpec, KeybindingsSpec, RightClickPaste, TuiAgentsKeymap, TuiConfig, TuiEditorKeymap,
     TuiGlobalKeymap, TuiKeymap, TuiListKeymap, TuiPagerKeymap, TuiVimNormalKeymap,

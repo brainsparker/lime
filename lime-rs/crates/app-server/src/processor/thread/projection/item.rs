@@ -6,39 +6,36 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
     let id = item.item_id.as_str().to_string();
     let status = item.status;
     let metadata = item.metadata;
-    let projected_metadata = project_item_metadata(&metadata);
     match item.payload {
         canonical::ThreadItemPayload::UserMessage { content, client_id } => {
             Ok(v2::ThreadItem::UserMessage {
                 id,
-                metadata: projected_metadata,
                 client_id,
                 content: content.into_iter().map(project_user_input).collect(),
             })
         }
-        canonical::ThreadItemPayload::AgentMessage { text, phase, .. } => {
+        canonical::ThreadItemPayload::AgentMessage { text, phase, delivery, questions, .. } => {
             Ok(v2::ThreadItem::AgentMessage {
                 id,
-                metadata: projected_metadata,
                 text,
                 phase,
-                memory_citation: None,
-                delivery: metadata_string(&metadata, &["delivery"])
-                    .filter(|value| value == "async")
-                    .map(|_| v2::AgentMessageDelivery::Async),
+                memory_citation: metadata
+                    .get("memoryCitation")
+                    .or_else(|| metadata.get("memory_citation"))
+                    .and_then(crate::memory_store::parse_memory_citation),
+                delivery,
+                questions,
             })
         }
         canonical::ThreadItemPayload::Plan { text, .. } => {
             Ok(v2::ThreadItem::Plan {
                 id,
-                metadata: projected_metadata,
                 text,
             })
         }
         canonical::ThreadItemPayload::Reasoning { summary, content } => {
             Ok(v2::ThreadItem::Reasoning {
                 id,
-                metadata: projected_metadata,
                 summary,
                 content,
             })
@@ -50,7 +47,7 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             ..
         } => {
             if let Some(image) =
-                project_image_generation_item(&id, status, &metadata, projected_metadata.clone())?
+                project_image_generation_item(&id, status, &metadata)?
             {
                 return Ok(v2::ThreadItem::ImageGeneration(image));
             }
@@ -61,7 +58,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
                 .or_else(|| terminal_success(status));
             Ok(v2::ThreadItem::DynamicToolCall {
                 id,
-                metadata: projected_metadata,
                 namespace: None,
                 tool: name,
                 arguments: bounded_safe_json(
@@ -85,7 +81,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             ..
         } => Ok(v2::ThreadItem::DynamicToolCall {
             id,
-            metadata: projected_metadata,
             namespace,
             tool,
             arguments: bounded_safe_json(arguments).0,
@@ -122,7 +117,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
                 .map(Box::new);
             Ok(v2::ThreadItem::McpToolCall {
                 id,
-                metadata: projected_metadata,
                 server: server_name,
                 tool: tool_name,
                 status: project_mcp_status(status),
@@ -154,7 +148,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             ..
         } => Ok(v2::ThreadItem::CollabAgentToolCall {
             id,
-            metadata: projected_metadata,
             tool: project_collab_tool(operation),
             status: project_collab_status(status),
             sender_thread_id: item.thread_id.as_str().to_string(),
@@ -188,7 +181,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             exit_code,
         } => Ok(v2::ThreadItem::CommandExecution {
             id,
-            metadata: projected_metadata,
             plugin_id: metadata_string(&metadata, &["pluginId", "plugin_id"]),
             script_path: metadata_string(&metadata, &["scriptPath", "script_path"]),
             command_actions: project_command_actions(&command, cwd.as_deref(), &metadata),
@@ -207,7 +199,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
         canonical::ThreadItemPayload::File { changes, status } => {
             Ok(v2::ThreadItem::FileChange {
                 id,
-                metadata: projected_metadata,
                 changes: changes
                     .into_iter()
                     .map(|change| v2::FileUpdateChange {
@@ -225,7 +216,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             ..
         } if mime_type.starts_with("image/") => Ok(v2::ThreadItem::ImageView {
             id,
-            metadata: projected_metadata,
             path: uri,
         }),
         canonical::ThreadItemPayload::Media { mime_type, .. } => Err(projection_error(format!(
@@ -237,7 +227,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             ..
         } => Ok(v2::ThreadItem::SubAgentActivity {
             id,
-            metadata: projected_metadata,
             kind: project_subagent_activity(activity),
             agent_thread_id: child_thread_id.as_str().to_string(),
             agent_path: metadata_string(&metadata, &["agentPath", "agent_path"])
@@ -246,7 +235,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
         canonical::ThreadItemPayload::ContextCompaction { .. } => {
             Ok(v2::ThreadItem::ContextCompaction {
                 id,
-                metadata: projected_metadata,
             })
         }
         canonical::ThreadItemPayload::Unknown {
@@ -254,7 +242,6 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
             field_names,
         } => Ok(v2::ThreadItem::UnknownItem {
             id,
-            metadata: projected_metadata,
             upstream_type,
             field_names,
         }),
@@ -273,13 +260,11 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
                     if name == "enteredReviewMode" {
                         Ok(v2::ThreadItem::EnteredReviewMode {
                             id,
-                            metadata: projected_metadata,
                             review,
                         })
                     } else {
                         Ok(v2::ThreadItem::ExitedReviewMode {
                             id,
-                            metadata: projected_metadata,
                             review,
                         })
                     }
@@ -326,7 +311,6 @@ fn project_image_generation_item(
     item_id: &str,
     item_status: canonical::ItemStatus,
     metadata: &Value,
-    projected_metadata: Option<v2::ThreadItemMetadata>,
 ) -> Result<Option<v2::ImageGenerationItem>, JsonRpcError> {
     let Some(raw_item) = metadata.pointer("/provider_metadata/raw_response_item") else {
         return Ok(None);
@@ -357,7 +341,6 @@ fn project_image_generation_item(
             .filter(|value| !value.trim().is_empty())
             .unwrap_or(item_id)
             .to_string(),
-        metadata: projected_metadata,
         status,
         revised_prompt: raw_item
             .get("revised_prompt")

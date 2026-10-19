@@ -1,4 +1,3 @@
-import { seedCloudAccount } from "@/test/cloudAccountFixture";
 import React from "react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -15,10 +14,8 @@ import {
   OEM_CLOUD_PAYMENT_RETURN_EVENT,
   readStoredOemCloudPaymentReturn,
 } from "@/lib/oemCloudPaymentReturn";
-import { readStoredOemCloudReferralInvite } from "@/lib/oemCloudReferralClaim";
 
 const {
-  mockClaimClientReferral,
   mockResolveConnectDeepLink,
   mockResolveOpenDeepLink,
   mockSaveConnectRelayApiKey,
@@ -26,7 +23,6 @@ const {
   mockToastInfo,
   mockToastSuccess,
 } = vi.hoisted(() => ({
-  mockClaimClientReferral: vi.fn(),
   mockResolveConnectDeepLink: vi.fn(),
   mockResolveOpenDeepLink: vi.fn(),
   mockSaveConnectRelayApiKey: vi.fn(),
@@ -70,10 +66,6 @@ vi.mock("@/lib/oemCloudDesktopAuth", () => ({
 
 vi.mock("@/lib/api/oemCloudRuntime", () => ({
   resolveOemCloudRuntimeContext: vi.fn(() => null),
-}));
-
-vi.mock("@/lib/api/oemCloudControlPlane", () => ({
-  claimClientReferral: mockClaimClientReferral,
 }));
 
 vi.mock("@/lib/oemLimeHubProvider", () => ({
@@ -144,7 +136,6 @@ describe("useDeepLink", () => {
       provider_name: "Relay Key",
       is_new_provider: true,
     });
-    mockClaimClientReferral.mockResolvedValue({});
     window.localStorage.clear();
 
     delete window.__LIME_OEM_CLOUD__;
@@ -280,57 +271,6 @@ describe("useDeepLink", () => {
       expect.objectContaining({
         description:
           "Syncing cloud entitlements, credit balance, and ledger status.",
-      }),
-    );
-  });
-
-  it("应缓存邀请 deep link，等待云端登录后自动领取", async () => {
-    vi.mocked(getCurrent).mockResolvedValue([
-      "lime://invite?code=nm-45bc-8dhw&tenantId=tenant-0001",
-    ]);
-
-    await renderHook();
-
-    expect(mockClaimClientReferral).not.toHaveBeenCalled();
-    expect(readStoredOemCloudReferralInvite()).toMatchObject({
-      code: "NM-45BC-8DHW",
-      tenantId: "tenant-0001",
-    });
-    expect(mockToastInfo).toHaveBeenCalledWith(
-      "Invite code saved",
-      expect.objectContaining({
-        description: expect.stringContaining("automatically after you sign in"),
-      }),
-    );
-  });
-
-  it("已有云端会话时应自动调用邀请 claim 接口", async () => {
-    await seedCloudAccount({
-      token: "session-token-001",
-      tenant: { id: "tenant-0001", name: "Lime" },
-      user: { id: "user-001", displayName: "晚风" },
-      session: { id: "session-001" },
-    });
-    vi.mocked(getCurrent).mockResolvedValue([
-      "https://limeai.run/invite?code=LIME-2026&tenantId=tenant-0001",
-    ]);
-
-    await renderHook();
-
-    expect(mockClaimClientReferral).toHaveBeenCalledWith(
-      "tenant-0001",
-      expect.objectContaining({
-        code: "LIME-2026",
-        claimMethod: "auto",
-        entrySource: "link",
-        landingPath: "/invite?code=LIME-2026&tenantId=tenant-0001",
-      }),
-    );
-    expect(readStoredOemCloudReferralInvite()).toBeNull();
-    expect(mockToastSuccess).toHaveBeenCalledWith(
-      "Invite code claimed",
-      expect.objectContaining({
-        description: expect.stringContaining("Cloud invite rewards"),
       }),
     );
   });

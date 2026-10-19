@@ -13,12 +13,9 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Modal, ModalBody, ModalFooter } from "@/components/Modal";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import {
   clearThreadGoal,
-  setThreadGoal,
   setThreadGoalStatus,
 } from "@/lib/api/agentRuntime/threadGoalClient";
 import { cn } from "@/lib/utils";
@@ -31,7 +28,7 @@ import {
   THREAD_GOAL_STATUS_LABEL_KEYS,
 } from "./threadGoalCopy";
 
-type ThreadGoalAction = "clear" | "complete" | "pause" | "resume" | "set";
+type ThreadGoalAction = "clear" | "complete" | "pause" | "resume";
 
 type ThreadGoalText = (
   key: string,
@@ -47,6 +44,7 @@ export interface ThreadGoalPanelProps {
   threadId?: string | null;
   variant?: "detail" | "inline";
   onGoalChanged?: (goal: ThreadGoal | null) => void;
+  onEdit?: () => void;
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -110,12 +108,6 @@ function readStatusTone(status: ThreadGoalStatus): string {
   }
 }
 
-function editedGoalStatus(status: ThreadGoalStatus): ThreadGoalStatus {
-  return status === "budgetLimited" || status === "complete"
-    ? "active"
-    : status;
-}
-
 function canResumeGoal(status: ThreadGoalStatus): boolean {
   return (
     status === "paused" || status === "blocked" || status === "usageLimited"
@@ -131,6 +123,7 @@ export function ThreadGoalPanel({
   threadId,
   variant = "detail",
   onGoalChanged,
+  onEdit,
 }: ThreadGoalPanelProps) {
   const { t, i18n } = useTranslation("agent");
   const text = useCallback(
@@ -145,8 +138,6 @@ export function ThreadGoalPanel({
   const canonicalGoal =
     threadGoal?.threadId === resolvedThreadId ? threadGoal : null;
   const [localGoal, setLocalGoal] = useState<ThreadGoal | null>(canonicalGoal);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [objectiveText, setObjectiveText] = useState("");
   const [activeAction, setActiveAction] = useState<ThreadGoalAction | null>(
     null,
   );
@@ -156,15 +147,6 @@ export function ThreadGoalPanel({
     setLocalGoal(canonicalGoal);
   }, [canonicalGoal, resolvedThreadId]);
 
-  useEffect(() => {
-    if (!dialogOpen) {
-      return;
-    }
-    setObjectiveText(localGoal?.objective ?? "");
-    setErrorMessage(null);
-  }, [dialogOpen, localGoal]);
-
-  const trimmedObjectiveText = objectiveText.trim();
   const statusLabel = localGoal
     ? text(THREAD_GOAL_STATUS_LABEL_KEYS[localGoal.status])
     : null;
@@ -218,26 +200,6 @@ export function ThreadGoalPanel({
     },
     [activeAction, onGoalChanged, resolvedThreadId, text],
   );
-
-  const handleSave = useCallback(async () => {
-    if (!trimmedObjectiveText) {
-      setErrorMessage(text(COPY.validationObjectiveRequired));
-      return;
-    }
-    const saved = await runAction(
-      "set",
-      () =>
-        setThreadGoal({
-          threadId: resolvedThreadId,
-          objective: trimmedObjectiveText,
-          status: localGoal ? editedGoalStatus(localGoal.status) : "active",
-        }),
-      COPY.toastSaved,
-    );
-    if (saved) {
-      setDialogOpen(false);
-    }
-  }, [localGoal, resolvedThreadId, runAction, text, trimmedObjectiveText]);
 
   const handleStatusUpdate = useCallback(
     async (
@@ -328,53 +290,38 @@ export function ThreadGoalPanel({
         <p className="mt-1 text-xs leading-5 text-slate-500">
           {text(COPY.descriptionEmpty)}
         </p>
-        <Textarea
-          value={objectiveText}
-          onChange={(event) => setObjectiveText(event.target.value)}
-          placeholder={text(COPY.formObjectivePlaceholder)}
-          aria-label={text(COPY.formObjectiveLabel)}
-          className="mt-3 min-h-[88px] rounded-lg border-slate-300 bg-white text-sm"
-          data-testid="thread-goal-create-input"
-        />
-        <div className="mt-2 flex items-center justify-between gap-3">
-          {errorMessage ? (
-            <span className="text-xs text-rose-700">{errorMessage}</span>
-          ) : (
-            <span />
-          )}
+        {onEdit ? (
           <Button
             type="button"
             size="sm"
-            className="h-8 rounded-lg px-3"
-            disabled={!trimmedObjectiveText || busy}
+            className="mt-3 h-8 rounded-lg px-3"
+            disabled={busy}
             data-testid="thread-goal-create"
-            onClick={() => void handleSave()}
+            onClick={onEdit}
           >
-            {activeAction === "set" ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <Target className="mr-2 h-3.5 w-3.5" />
-            )}
-            {text(COPY.inlineSave)}
+            <Target className="mr-2 h-3.5 w-3.5" />
+            {text(COPY.inlineEdit)}
           </Button>
-        </div>
+        ) : null}
       </div>
     );
   }
 
   const actionButtons = (
     <div className="flex shrink-0 items-center gap-1">
-      <button
-        type="button"
-        className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-        title={text(COPY.inlineEdit)}
-        aria-label={text(COPY.inlineEdit)}
-        disabled={busy}
-        data-testid="thread-goal-edit"
-        onClick={() => setDialogOpen(true)}
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </button>
+      {onEdit ? (
+        <button
+          type="button"
+          className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          title={text(COPY.inlineEdit)}
+          aria-label={text(COPY.inlineEdit)}
+          disabled={busy}
+          data-testid="thread-goal-edit"
+          onClick={onEdit}
+        >
+          <Pencil className="h-3.5 w-3.5" />
+        </button>
+      ) : null}
       {localGoal.status === "active" ? (
         <button
           type="button"
@@ -548,58 +495,6 @@ export function ThreadGoalPanel({
           ) : null}
         </div>
       )}
-
-      <Modal
-        isOpen={dialogOpen}
-        onClose={() => setDialogOpen(false)}
-        maxWidth="max-w-md"
-      >
-        <ModalBody className="space-y-4 p-5">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-700">
-              <Target className="h-4 w-4" />
-            </div>
-            <h2 className="text-base font-semibold text-slate-950">
-              {text(COPY.inlineDialogTitleEdit)}
-            </h2>
-          </div>
-          <Textarea
-            value={objectiveText}
-            onChange={(event) => setObjectiveText(event.target.value)}
-            placeholder={text(COPY.formObjectivePlaceholder)}
-            aria-label={text(COPY.formObjectiveLabel)}
-            className="min-h-[168px] rounded-lg border-sky-300 bg-white text-sm"
-            data-testid="thread-goal-objective-input"
-          />
-          {errorMessage ? (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-xs leading-5 text-rose-800">
-              {errorMessage}
-            </div>
-          ) : null}
-        </ModalBody>
-        <ModalFooter className="gap-2 border-t px-5 py-4">
-          <Button
-            type="button"
-            variant="secondary"
-            className="h-8 rounded-lg px-4"
-            onClick={() => setDialogOpen(false)}
-          >
-            {text(COPY.inlineCancel)}
-          </Button>
-          <Button
-            type="button"
-            className="h-8 rounded-lg px-4"
-            disabled={!trimmedObjectiveText || busy}
-            data-testid="thread-goal-save"
-            onClick={() => void handleSave()}
-          >
-            {activeAction === "set" ? (
-              <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
-            ) : null}
-            {text(COPY.inlineSave)}
-          </Button>
-        </ModalFooter>
-      </Modal>
     </>
   );
 }

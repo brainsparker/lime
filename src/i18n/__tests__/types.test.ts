@@ -32,12 +32,6 @@ function assertI18nKeyTypes() {
   i18n.t("common.createProjectDialog.projectType.general", { ns: "common" });
   i18n.t("common.projects.rename.nameRequired", { ns: "common" });
   i18n.t("common.createProjectDialog.error.unknown", { ns: "common" });
-  i18n.t("common.deepLink.referral.saved.title", { ns: "common" });
-  i18n.t("common.deepLink.referral.claimed.title", { ns: "common" });
-  i18n.t("common.deepLink.referral.tenantMismatch.description", {
-    ns: "common",
-  });
-  i18n.t("common.deepLink.referral.claimFailed.fallback", { ns: "common" });
   i18n.t("common.deepLink.oauth.success.description", {
     ns: "common",
     providerName: "Lime Hub",
@@ -93,7 +87,6 @@ function assertI18nKeyTypes() {
     stepCountLabel: "3",
     meta: "2 tool steps",
   });
-  i18n.t("agentChat.messageList.actions.saveToKnowledge", { ns: "agent" });
   i18n.t("agentChat.toolCall.skillContent.action.view", { ns: "agent" });
   i18n.t("agentChat.toolCall.skillContent.action.expandBody", {
     ns: "agent",
@@ -127,7 +120,6 @@ function assertI18nKeyTypes() {
   });
   i18n.t("agentChat.toolCall.commandSummary.sandboxDisabled", { ns: "agent" });
   i18n.t("agentChat.toolCall.commandSummary.truncated", { ns: "agent" });
-  i18n.t("agentChat.messageList.artifact.saveDocument", { ns: "agent" });
   i18n.t("agentChat.messageList.artifact.checkpointBadge", { ns: "agent" });
   i18n.t("agentChat.messageList.artifact.diffBadge", {
     ns: "agent",
@@ -174,7 +166,7 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.decisionPanel.otherLabel", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.otherPlaceholder", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.multiSelectHint", { ns: "agent" });
-  i18n.t("agentChat.decisionPanel.fallbackQueuedDescription", {
+  i18n.t("agentChat.requestUserInput.submitFailed", {
     ns: "agent",
   });
   i18n.t("agentChat.decisionPanel.permissionRequestTitle", { ns: "agent" });
@@ -187,8 +179,8 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.decisionPanel.action.submit", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.action.cancelling", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.action.cancel", { ns: "agent" });
-  i18n.t("agentChat.decisionPanel.action.recording", { ns: "agent" });
-  i18n.t("agentChat.decisionPanel.action.recordAnswer", { ns: "agent" });
+  i18n.t("agentChat.requestUserInput.nextQuestion", { ns: "agent" });
+  i18n.t("agentChat.requestUserInput.submit", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.action.submitAnswer", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.runtimePermission.title", { ns: "agent" });
   i18n.t("agentChat.decisionPanel.runtimePermission.description", {
@@ -276,11 +268,6 @@ function assertI18nKeyTypes() {
   i18n.t("agentChat.inputbar.core.path.containerLabel", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.localFolder", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.localFile", { ns: "agent" });
-  i18n.t("agentChat.inputbar.core.path.importAsKnowledge", {
-    ns: "agent",
-    name: "brief.txt",
-  });
-  i18n.t("agentChat.inputbar.core.path.importAction", { ns: "agent" });
   i18n.t("agentChat.inputbar.core.path.remove", {
     ns: "agent",
     name: "brief.txt",
@@ -322,7 +309,6 @@ function assertI18nKeyTypes() {
   });
   i18n.t("agentChat.inputbar.tools.task.toast.enabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.task.toast.disabled", { ns: "agent" });
-  i18n.t("agentChat.inputbar.tools.subagent.label", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.subagent.toast.enabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.subagent.toast.disabled", { ns: "agent" });
   i18n.t("agentChat.inputbar.tools.fullscreen.toast.entered", {
@@ -339,59 +325,6 @@ function assertI18nKeyTypes() {
     fileName: "cover.png",
   });
   i18n.t("agentChat.inputbar.imageAttachments.imagePasted", { ns: "agent" });
-  i18n.t("agentChat.inputbar.knowledge.fallbackPackLabel", { ns: "agent" });
-  i18n.t("agentChat.inputbar.knowledge.toggle.label.enabledWithCompanions", {
-    ns: "agent",
-    count: 1,
-    label: "Brand pack",
-  });
-  i18n.t("agentChat.inputbar.knowledge.state.using.title", {
-    ns: "agent",
-    label: "Brand pack",
-  });
-  i18n.t("agentChat.inputbar.knowledge.pendingNotice", {
-    ns: "agent",
-    count: 1,
-  });
-  i18n.t("agentChat.inputbar.knowledge.action.check", { ns: "agent" });
-  i18n.t("agentChat.inputbar.knowledge.meta.companion", { ns: "agent" });
-  i18n.t("agentChat.inputbar.workflow.status.active", { ns: "agent" });
-  i18n.t("agentChat.inputbar.workflow.status.waitingDecision", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.workflow.summary.currentProgress", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.workflow.summary.activeWithTrailing", {
-    ns: "agent",
-    count: 2,
-  });
-  i18n.t("agentChat.inputbar.workflow.progress.completed", {
-    ns: "agent",
-    completed: 1,
-    total: 4,
-  });
-  i18n.t("agentChat.inputbar.workflow.queue.title", { ns: "agent" });
-  i18n.t("agentChat.inputbar.workflow.queue.hiddenSuffix", {
-    ns: "agent",
-    count: 2,
-    progressLabel: "Completed 1/4",
-  });
-  i18n.t("agentChat.inputbar.workflow.queue.itemMetaWithProgress", {
-    ns: "agent",
-    status: "In progress",
-    completed: 1,
-    total: 4,
-  });
-  i18n.t("agentChat.inputbar.workflow.quickAction.topicOptions.label", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.workflow.quickAction.topicOptions.prompt", {
-    ns: "agent",
-  });
-  i18n.t("agentChat.inputbar.workflow.quickAction.nextStep.label", {
-    ns: "agent",
-  });
   i18n.t("agentChat.inputbar.suggestions.label", { ns: "agent" });
   i18n.t("agentChat.inputbar.suggestions.addFiles", { ns: "agent" });
   i18n.t("agentChat.inputbar.suggestions.add", { ns: "agent" });
@@ -547,14 +480,6 @@ function assertI18nKeyTypes() {
   i18n.t("curatedTask.templates.recommendation.recentReviewReasonLabel", {
     ns: "agent",
   });
-  i18n.t("curatedTask.badge.review.suggestedTask", {
-    ns: "agent",
-    title: "Review",
-  });
-  i18n.t("curatedTask.badge.result.failureSignal", {
-    ns: "agent",
-    value: "Needs review",
-  });
   i18n.t("skills.scaffoldDialog.title", { ns: "agent" });
   i18n.t("skills.scaffoldDialog.action.create", { ns: "agent" });
   i18n.t("skills.scaffoldDialog.sourceHint", {
@@ -651,7 +576,7 @@ function assertI18nKeyTypes() {
     ns: "agent",
     severity: "High",
   });
-  i18n.t("navigation.sidebar.items.homeGeneral", { ns: "navigation" });
+  i18n.t("navigation.sidebar.items.newChat", { ns: "navigation" });
   i18n.t(
     "workspace.browserExistingSession.presentation.status.attached.label",
     {

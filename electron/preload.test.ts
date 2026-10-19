@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import process from "node:process";
+import { buildAgentRootArgument } from "./agentRoot";
 
 import {
   ELECTRON_HOST_COMMANDS,
@@ -14,6 +16,7 @@ import {
 } from "./ipcChannels";
 
 const exposedGlobals = new Map<string, unknown>();
+const originalArgv = process.argv;
 const ipcInvoke = vi.hoisted(() => vi.fn());
 const ipcSend = vi.hoisted(() => vi.fn());
 const ipcOn = vi.hoisted(() => vi.fn());
@@ -37,6 +40,7 @@ vi.mock("electron", () => ({
 }));
 
 type PreloadApi = {
+  readonly agentRoot?: string;
   devBridgeFallback: false;
   supportsCommand(command: string): boolean;
   invoke<T = unknown>(
@@ -86,6 +90,10 @@ async function loadPreloadApi(): Promise<PreloadApi> {
 }
 
 describe("electron/preload", () => {
+  afterEach(() => {
+    process.argv = originalArgv;
+    vi.restoreAllMocks();
+  });
   beforeEach(() => {
     ipcInvoke.mockReset();
     ipcSend.mockReset();
@@ -93,6 +101,22 @@ describe("electron/preload", () => {
     ipcRemoveListener.mockReset();
     exposeInMainWorld.mockClear();
     exposedGlobals.clear();
+  });
+
+  it("只读元数据投影 Main 传入的真实 Agent 根，不调用 renderer IPC", async () => {
+    process.argv = [
+      "electron",
+      buildAgentRootArgument("/tmp/隔离根/app-server"),
+    ];
+    const api = await loadPreloadApi();
+    expect(api.agentRoot).toBe("/tmp/隔离根/app-server");
+    expect(ipcInvoke).not.toHaveBeenCalled();
+  });
+
+  it("缺少 Main 元数据时不猜测用户数据根", async () => {
+    process.argv = ["electron"];
+    const api = await loadPreloadApi();
+    expect(api.agentRoot).toBeUndefined();
   });
 
   it("Host persistence commands cross the same invoke boundary", async () => {

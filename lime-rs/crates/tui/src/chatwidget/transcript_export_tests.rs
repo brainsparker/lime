@@ -256,7 +256,6 @@ fn export_views_keep_canonical_transcript_visible_and_stay_bounded() {
                 text: "CANONICAL_EXPORT_BODY".into(),
                 phase: None,
                 memory_citation: None,
-                metadata: None,
                 delivery: None,
             },
         },

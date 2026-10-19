@@ -33,6 +33,43 @@ use tool_runtime::turn_tool_surface::{
 const MCP_TOOL_DISCOVERY_TIMEOUT: Duration = Duration::from_secs(2);
 const DYNAMIC_TOOLS_METADATA_KEY: &str = "dynamicTools";
 
+#[cfg(test)]
+#[path = "mcp_step_snapshot/async_user_input_tests.rs"]
+mod async_user_input_tests;
+
+/// Trusted App Server configuration and canonical Thread identity.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct AsyncUserInputPolicy {
+    pub(super) is_root_agent: bool,
+    pub(super) experimental_request_user_input_enabled: bool,
+}
+
+impl AsyncUserInputPolicy {
+    fn allows(
+        self,
+        native_policy: Option<&crate::model_request_policy::ModelNativeToolPolicySnapshot>,
+    ) -> bool {
+        self.is_root_agent
+            && self.experimental_request_user_input_enabled
+            && native_policy.is_some_and(|policy| {
+                policy.experimental_supported_tools.iter().any(|name| {
+                    matches!(
+                        name.as_str(),
+                        "request_user_input_async" | "send_user_message_async"
+                    )
+                })
+            })
+    }
+}
+
+fn tool_exposure(name: &str) -> RuntimeToolExposure {
+    if name == tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME {
+        RuntimeToolExposure::DirectModelOnly
+    } else {
+        RuntimeToolExposure::Direct
+    }
+}
+
 #[derive(Clone, Default)]
 pub(super) struct DeferredToolSelections(Arc<Mutex<HashSet<String>>>);
 
@@ -153,6 +190,7 @@ pub(super) fn current_tool_step_snapshot_source(
     dynamic_tool_routes: DynamicToolRoutes,
     tool_mode: code_mode::RuntimeToolMode,
     supports_custom_tools: bool,
+    async_user_input_policy: AsyncUserInputPolicy,
 ) -> RuntimeToolStepSnapshotSourceHandle {
     let deferred_tools = DeferredToolSelections::default();
     RuntimeToolStepSnapshotSourceHandle::new(Arc::new(CurrentTurnToolStepSnapshotSource {
@@ -169,6 +207,7 @@ pub(super) fn current_tool_step_snapshot_source(
         dynamic_tool_routes,
         tool_mode,
         supports_custom_tools,
+        async_user_input_policy,
     }))
 }
 
@@ -199,8 +238,10 @@ fn tool_definitions(
     turn_context: Option<&agent_protocol::turn_context::TurnContextOverride>,
     mcp_snapshot: &tool_runtime::mcp_connection::McpStepSnapshot,
     agent_control_gateway: Option<&tool_runtime::agent_control::AgentControlGatewayHandle>,
+    async_user_input_policy: AsyncUserInputPolicy,
 ) -> Result<(Vec<RuntimeToolDefinition>, Vec<DynamicToolRoute>), String> {
     let native_policy = native_tool_policy_from_turn_context(turn_context);
+    let async_user_input_enabled = async_user_input_policy.allows(native_policy.as_ref());
     let update_plan_enabled = turn_context
         .map(|context| {
             let metadata = Value::Object(context.metadata.clone().into_iter().collect());
@@ -221,16 +262,24 @@ fn tool_definitions(
     definitions.extend(tool_runtime::unified_exec::unified_exec_tool_definitions());
     definitions.push(tool_runtime::request_permissions::request_permissions_tool_definition());
     definitions.push(tool_runtime::request_user_input::request_user_input_tool_definition());
+    if async_user_input_enabled {
+        definitions.push(
+            tool_runtime::request_user_input_async::request_user_input_async_tool_definition(),
+        );
+    }
     if let Some(gateway) = agent_control_gateway {
         definitions.extend(gateway.tool_definitions());
     }
     definitions.extend(state.gateway_tools().definitions());
     definitions.extend(mcp_tool_definitions(mcp_snapshot));
     let (dynamic_definitions, dynamic_routes) = dynamic_tool_definitions(turn_context)?;
-    let existing_names = definitions
+    let mut existing_names = definitions
         .iter()
         .map(|definition| definition.name.to_ascii_lowercase())
         .collect::<HashSet<_>>();
+    existing_names.insert(
+        tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME.to_string(),
+    );
     if let Some(collision) = dynamic_definitions
         .iter()
         .find(|definition| existing_names.contains(&definition.name.to_ascii_lowercase()))
@@ -252,6 +301,9 @@ fn tool_definitions(
     definitions.retain(|definition| {
         let key = definition.name.to_ascii_lowercase();
         seen.insert(key)
+            && (definition.name
+                != tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME
+                || async_user_input_enabled)
             && !blocked_by_model
                 .iter()
                 .any(|name| is_same_tool(name, &definition.name))
@@ -406,6 +458,7 @@ struct CurrentTurnToolStepSnapshotSource {
     dynamic_tool_routes: DynamicToolRoutes,
     tool_mode: code_mode::RuntimeToolMode,
     supports_custom_tools: bool,
+    async_user_input_policy: AsyncUserInputPolicy,
 }
 
 struct CodeModeStepPlan {
@@ -458,6 +511,7 @@ impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
                 self.turn_context.as_ref(),
                 &mcp_snapshot,
                 self.agent_control_gateway.as_ref(),
+                self.async_user_input_policy,
             )?;
             self.dynamic_tool_routes.replace(dynamic_routes);
             let serial_mcp_tool_names = mcp_snapshot
@@ -490,16 +544,19 @@ impl RuntimeToolStepSnapshotSource for CurrentTurnToolStepSnapshotSource {
                 agent_control_gateway: self.agent_control_gateway.clone(),
                 pending_input: self.pending_input.clone(),
                 dynamic_tool_routes: self.dynamic_tool_routes.clone(),
+                async_user_input_enabled: self.async_user_input_policy.allows(native_tool_policy_from_turn_context(self.turn_context.as_ref()).as_ref())
+                    && definitions.iter().any(|definition| definition.name == tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME),
             }));
             let runtime_tools = definitions
                 .iter()
                 .cloned()
                 .map(|definition| {
                     let supports_parallel = !serial_mcp_tool_names.contains(&definition.name);
+                    let exposure = tool_exposure(&definition.name);
                     RuntimeToolSnapshot::new(
                         RuntimeToolIdentity::plain(definition.name.clone()),
                         definition,
-                        RuntimeToolExposure::Direct,
+                        exposure,
                         supports_parallel,
                         true,
                     )
@@ -599,17 +656,38 @@ mod tests {
         let policy = resolve_request_tool_policy_with_mode(None, Some(RequestToolPolicyMode::Auto));
         let snapshot =
             tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant());
-        let full = tool_definitions(&state, &policy, None, &snapshot, None)
-            .expect("full definitions")
-            .0;
+        let full = tool_definitions(
+            &state,
+            &policy,
+            None,
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("full definitions")
+        .0;
         let compact_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_COMPACT_TOOLS);
-        let compact = tool_definitions(&state, &policy, Some(&compact_context), &snapshot, None)
-            .expect("compact definitions")
-            .0;
+        let compact = tool_definitions(
+            &state,
+            &policy,
+            Some(&compact_context),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("compact definitions")
+        .0;
         let direct_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_DIRECT_ANSWER);
-        let direct = tool_definitions(&state, &policy, Some(&direct_context), &snapshot, None)
-            .expect("direct definitions")
-            .0;
+        let direct = tool_definitions(
+            &state,
+            &policy,
+            Some(&direct_context),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("direct definitions")
+        .0;
 
         assert!(compact.len() < full.len());
         assert!(!full.iter().any(|tool| tool.name == "update_plan"));
@@ -631,9 +709,16 @@ mod tests {
                 }
             }),
         );
-        let enabled = tool_definitions(&state, &policy, Some(&enabled_context), &snapshot, None)
-            .expect("enabled definitions")
-            .0;
+        let enabled = tool_definitions(
+            &state,
+            &policy,
+            Some(&enabled_context),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("enabled definitions")
+        .0;
         assert!(enabled.iter().any(|tool| tool.name == "update_plan"));
     }
 
@@ -667,10 +752,16 @@ mod tests {
             tool_runtime::mcp_connection::McpStepSnapshot::empty(RuntimeToolCaller::assistant());
         let compact_context = turn_context_with_tool_surface(TURN_TOOL_SURFACE_COMPACT_TOOLS);
 
-        let without_gateway =
-            tool_definitions(&state, &policy, Some(&compact_context), &snapshot, None)
-                .expect("definitions")
-                .0;
+        let without_gateway = tool_definitions(
+            &state,
+            &policy,
+            Some(&compact_context),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("definitions")
+        .0;
         assert!(!without_gateway
             .iter()
             .any(|tool| { tool_runtime::agent_control::is_agent_control_tool_name(&tool.name) }));
@@ -684,6 +775,7 @@ mod tests {
             Some(&compact_context),
             &snapshot,
             Some(&gateway),
+            AsyncUserInputPolicy::default(),
         )
         .expect("definitions")
         .0;
@@ -702,6 +794,7 @@ mod tests {
             Some(&explicitly_allowed_context),
             &snapshot,
             Some(&gateway),
+            AsyncUserInputPolicy::default(),
         )
         .expect("definitions")
         .0;
@@ -712,9 +805,16 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(names, vec!["list_agents", "spawn_agent"]);
 
-        let full = tool_definitions(&state, &policy, None, &snapshot, Some(&gateway))
-            .expect("definitions")
-            .0;
+        let full = tool_definitions(
+            &state,
+            &policy,
+            None,
+            &snapshot,
+            Some(&gateway),
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("definitions")
+        .0;
         assert_eq!(
             full.iter()
                 .filter(|tool| tool_runtime::agent_control::is_agent_control_tool_name(&tool.name))
@@ -819,9 +919,15 @@ mod tests {
             )]),
             ..Default::default()
         };
-        let (definitions, routes) =
-            tool_definitions(&state, &policy, Some(&context), &snapshot, None)
-                .expect("dynamic definitions");
+        let (definitions, routes) = tool_definitions(
+            &state,
+            &policy,
+            Some(&context),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default(),
+        )
+        .expect("dynamic definitions");
         assert!(definitions
             .iter()
             .any(|definition| definition.name == "desktop__appInfo"));
@@ -848,7 +954,15 @@ mod tests {
             )]),
             ..Default::default()
         };
-        assert!(tool_definitions(&state, &policy, Some(&collision), &snapshot, None).is_err());
+        assert!(tool_definitions(
+            &state,
+            &policy,
+            Some(&collision),
+            &snapshot,
+            None,
+            AsyncUserInputPolicy::default()
+        )
+        .is_err());
     }
 
     #[test]

@@ -40,6 +40,8 @@ fn explicit_completed_body_replaces_streamed_text_including_empty_and_whitespace
                 text: text.to_string(),
                 phase: Some(agent_protocol::response_item::MessagePhase::FinalAnswer),
                 content_parts: Vec::new(),
+                delivery: None,
+                questions: None,
             }
         );
     }

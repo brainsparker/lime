@@ -1,4 +1,180 @@
+use super::consolidation::PROCESSED_NOTES_DIR;
+use super::consolidation::REVIEW_NOTES_DIR;
 use super::*;
+
+struct FixtureStageOneProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageOneProvider for FixtureStageOneProvider {
+    async fn sample(
+        &self,
+        request: MemoryStageOneProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        assert!(request.strict);
+        assert_eq!(request.output_schema["additionalProperties"], false);
+        assert!(!request.source_content.trim().is_empty());
+        Ok(serde_json::json!({
+            "raw_memory": "Remember the provider route constraint.",
+            "rollout_summary": "The rollout recorded a durable provider route constraint.",
+            "rollout_slug": "provider-route-constraint"
+        })
+        .to_string())
+    }
+}
+
+struct FixtureStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for FixtureStageTwoProvider {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        assert!(request.strict);
+        assert_eq!(request.output_schema["additionalProperties"], false);
+        let entries = request
+            .inputs
+            .into_iter()
+            .map(|input| {
+                serde_json::json!({
+                    "source_path": input.source_path,
+                    "decision": "accept",
+                    "memory": input.raw_memory.or(input.rollout_summary).unwrap_or_else(|| "durable memory".to_string()),
+                    "reason": null
+                })
+            })
+            .collect::<Vec<_>>();
+        Ok(serde_json::json!({"entries": entries, "summary": "fixture consolidation"}).to_string())
+    }
+}
+
+struct ReviewStageOneProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageOneProvider for ReviewStageOneProvider {
+    async fn sample(
+        &self,
+        _request: MemoryStageOneProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        Ok(serde_json::json!({
+            "rollout_summary": "api_key must remain out of durable memory and requires review.",
+            "rollout_slug": "secret-review"
+        })
+        .to_string())
+    }
+}
+
+struct ReviewStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for ReviewStageTwoProvider {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        let source_path = request
+            .inputs
+            .first()
+            .map(|input| input.source_path.clone())
+            .expect("review input");
+        Ok(serde_json::json!({
+            "entries": [{
+                "source_path": source_path,
+                "decision": "review",
+                "memory": null,
+                "reason": "secret-like content requires review"
+            }],
+            "summary": "review required"
+        })
+        .to_string())
+    }
+}
+
+struct UnknownSourceStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for UnknownSourceStageTwoProvider {
+    async fn sample(
+        &self,
+        _request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        Ok(serde_json::json!({
+            "entries": [{
+                "source_path": "extensions/ad_hoc/notes/unknown.md",
+                "decision": "accept",
+                "memory": "unknown source must be rejected",
+                "reason": null
+            }],
+            "summary": "unsafe"
+        })
+        .to_string())
+    }
+}
+
+struct DuplicateSourceStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for DuplicateSourceStageTwoProvider {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        let source_path = request.inputs[0].source_path.clone();
+        Ok(serde_json::json!({
+            "entries": [
+                {"source_path": source_path.clone(), "decision": "accept", "memory": "first", "reason": null},
+                {"source_path": source_path, "decision": "accept", "memory": "duplicate", "reason": null}
+            ],
+            "summary": "unsafe"
+        })
+        .to_string())
+    }
+}
+
+struct MissingSourceStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for MissingSourceStageTwoProvider {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        Ok(serde_json::json!({
+            "entries": [{
+                "source_path": request.inputs[0].source_path,
+                "decision": "accept",
+                "memory": "missing source must be rejected",
+                "reason": null
+            }],
+            "summary": "unsafe"
+        })
+        .to_string())
+    }
+}
+
+struct OversizedStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for OversizedStageTwoProvider {
+    async fn sample(
+        &self,
+        _request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        Ok("x".repeat(128 * 1024 + 1))
+    }
+}
+
+struct FailingStageTwoProvider;
+
+#[async_trait::async_trait]
+impl MemoryStageTwoProvider for FailingStageTwoProvider {
+    async fn sample(
+        &self,
+        _request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        Err(backend_error("fixture provider failed"))
+    }
+}
 
 fn backend(temp: &tempfile::TempDir) -> LocalMemoryBackend {
     LocalMemoryBackend::new(temp.path().join("data"))
@@ -8,6 +184,21 @@ fn global_root() -> MemoryStoreRootParams {
     MemoryStoreRootParams {
         scope: MemoryStoreScope::Global,
         workspace_root: None,
+    }
+}
+
+fn test_route() -> MemoryStageOneRoute {
+    MemoryStageOneRoute {
+        session_id: "memory-test-session".to_string(),
+        thread_id: "memory-test-thread".to_string(),
+        provider: "fixture-openai".to_string(),
+        model: "fixture-model".to_string(),
+        reasoning_effort: None,
+        service_tier: None,
+        api_version: None,
+        route_protocol: ProtocolKind::OpenaiResponses,
+        credential_ref: None,
+        cwd: None,
     }
 }
 
@@ -37,6 +228,52 @@ async fn list_initializes_stable_layout() {
         .entries
         .iter()
         .all(|entry| !entry.path.starts_with('/')));
+}
+
+#[tokio::test]
+async fn status_reports_codex_memory_readiness_after_rollout_consolidation() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let backend = backend(&temp);
+    let before = backend
+        .status(MemoryStatusParams {
+            min_consolidated_threads: Some(1),
+        })
+        .await
+        .expect("status before consolidation");
+    assert_eq!(before.v2_consolidated_threads, 0);
+    assert!(!before.v2_ready);
+
+    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
+    fs::write(
+        root.join("rollout_summaries/thread-1.md"),
+        "# Thread rollout\n\nRemember the deployment constraint.\n",
+    )
+    .expect("write rollout summary");
+    let route = test_route();
+    let stage_one = backend
+        .run_stage1(
+            global_root(),
+            MemoryStageOneVersion::V1,
+            &route,
+            &FixtureStageOneProvider,
+        )
+        .await
+        .expect("stage one rollout summary");
+    assert_eq!(stage_one.succeeded, 1);
+    let stage_two = backend
+        .run_stage2(global_root(), &route, &FixtureStageTwoProvider)
+        .await
+        .expect("stage two rollout summary");
+    assert_eq!(stage_two.succeeded, 1);
+
+    let after = backend
+        .status(MemoryStatusParams {
+            min_consolidated_threads: Some(1),
+        })
+        .await
+        .expect("status after consolidation");
+    assert_eq!(after.v2_consolidated_threads, 1);
+    assert!(after.v2_ready);
 }
 
 #[tokio::test]
@@ -95,6 +332,237 @@ async fn add_note_only_writes_ad_hoc_note() {
 }
 
 #[tokio::test]
+async fn stage_one_claims_provider_parses_strict_output_and_persists_snapshot() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let backend = backend(&temp);
+    let note = backend
+        .add_note(MemoryStoreAddNoteParams {
+            root: global_root(),
+            title: Some("Provider route".to_string()),
+            slug: Some("provider-route".to_string()),
+            content: "Use the selected provider route for memory extraction.".to_string(),
+        })
+        .await
+        .expect("add note");
+
+    let result = backend
+        .run_stage1(
+            global_root(),
+            MemoryStageOneVersion::V1,
+            &MemoryStageOneRoute {
+                session_id: "memory-test-session".to_string(),
+                thread_id: "memory-test-thread".to_string(),
+                provider: "fixture-openai".to_string(),
+                model: "fixture-model".to_string(),
+                reasoning_effort: None,
+                service_tier: None,
+                api_version: None,
+                route_protocol: ProtocolKind::OpenaiResponses,
+                credential_ref: None,
+                cwd: None,
+            },
+            &FixtureStageOneProvider,
+        )
+        .await
+        .expect("stage one");
+    assert_eq!(result.claimed, 1);
+    assert_eq!(result.succeeded, 1);
+    assert_eq!(result.no_output, 0);
+    assert_eq!(result.failed, 0);
+
+    let scope_key = backend
+        .state_scope_key(&temp.path().join("data").join(MEMORY_ROOT_DIR))
+        .expect("scope key");
+    let conn = backend.state.open().expect("state db");
+    let (status, raw_memory, summary) = conn
+        .query_row(
+            "SELECT status, output_raw_memory, output_rollout_summary FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2",
+            rusqlite::params![scope_key, note.path],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<String>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
+        )
+        .expect("stage one snapshot");
+    assert_eq!(status, "pending");
+    assert_eq!(
+        raw_memory.as_deref(),
+        Some("Remember the provider route constraint.")
+    );
+    assert!(summary
+        .as_deref()
+        .is_some_and(|summary| summary.contains("durable provider route")));
+}
+
+#[tokio::test]
+async fn stage_two_provider_uses_stage_one_snapshot_and_archives_source() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let backend = backend(&temp);
+    let note = backend
+        .add_note(MemoryStoreAddNoteParams {
+            root: global_root(),
+            title: Some("Consolidate route".to_string()),
+            slug: Some("consolidate-route".to_string()),
+            content: "Keep the selected route durable.".to_string(),
+        })
+        .await
+        .expect("add note");
+    let route = MemoryStageOneRoute {
+        session_id: "memory-stage2-session".to_string(),
+        thread_id: "memory-stage2-thread".to_string(),
+        provider: "fixture-openai".to_string(),
+        model: "fixture-model".to_string(),
+        reasoning_effort: None,
+        service_tier: None,
+        api_version: None,
+        route_protocol: ProtocolKind::OpenaiResponses,
+        credential_ref: None,
+        cwd: None,
+    };
+    backend
+        .run_stage1(
+            global_root(),
+            MemoryStageOneVersion::V1,
+            &route,
+            &FixtureStageOneProvider,
+        )
+        .await
+        .expect("stage one");
+    let result = backend
+        .run_stage2(global_root(), &route, &FixtureStageTwoProvider)
+        .await
+        .expect("stage two");
+    assert_eq!(result.claimed, 1);
+    assert_eq!(result.succeeded, 1);
+    assert_eq!(result.no_output, 0);
+    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
+    assert!(!root.join(&note.path).exists());
+    let archived = fs::read_dir(root.join(PROCESSED_NOTES_DIR))
+        .expect("processed notes")
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .any(|path| path.is_file());
+    assert!(archived);
+    let memory = fs::read_to_string(root.join(MEMORY_FILE)).expect("memory register");
+    assert!(memory.contains("Remember the provider route constraint."));
+}
+
+#[tokio::test]
+async fn stage_two_review_moves_source_and_marks_durable_review_state() {
+    let temp = tempfile::tempdir().expect("tempdir");
+    let backend = backend(&temp);
+    let note = backend
+        .add_note(MemoryStoreAddNoteParams {
+            root: global_root(),
+            title: Some("Review route".to_string()),
+            slug: Some("review-route".to_string()),
+            content: "api_key should require human review.".to_string(),
+        })
+        .await
+        .expect("add note");
+    let route = test_route();
+    backend
+        .run_stage1(
+            global_root(),
+            MemoryStageOneVersion::V2,
+            &route,
+            &ReviewStageOneProvider,
+        )
+        .await
+        .expect("stage one");
+    let result = backend
+        .run_stage2(global_root(), &route, &ReviewStageTwoProvider)
+        .await
+        .expect("stage two");
+    assert_eq!(result.succeeded, 0);
+    assert_eq!(result.no_output, 1);
+    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
+    assert!(!root.join(&note.path).exists());
+    let archived_name = Path::new(&note.path).file_name().expect("note file name");
+    assert!(root.join(REVIEW_NOTES_DIR).join(archived_name).is_file());
+    let scope_key = backend.state_scope_key(&root).expect("scope key");
+    let conn = backend.state.open().expect("state db");
+    let status = conn
+        .query_row(
+            "SELECT status FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2",
+            rusqlite::params![scope_key, note.path],
+            |row| row.get::<_, String>(0),
+        )
+        .expect("review status");
+    assert_eq!(status, "review");
+}
+
+#[tokio::test]
+async fn stage_two_rejects_unsafe_provider_outputs_before_mutating_sources() {
+    let cases: Vec<(&str, Box<dyn MemoryStageTwoProvider>)> = vec![
+        ("unknown", Box::new(UnknownSourceStageTwoProvider)),
+        ("duplicate", Box::new(DuplicateSourceStageTwoProvider)),
+        ("oversized", Box::new(OversizedStageTwoProvider)),
+        ("provider failure", Box::new(FailingStageTwoProvider)),
+    ];
+    for (label, provider) in cases {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let backend = backend(&temp);
+        let note = backend
+            .add_note(MemoryStoreAddNoteParams {
+                root: global_root(),
+                title: Some(format!("Unsafe {label}")),
+                slug: Some(format!("unsafe-{label}")),
+                content: "retain source on failed consolidation".to_string(),
+            })
+            .await
+            .expect("add note");
+        let route = test_route();
+        backend
+            .run_stage1(
+                global_root(),
+                MemoryStageOneVersion::V1,
+                &route,
+                &FixtureStageOneProvider,
+            )
+            .await
+            .expect("stage one");
+        let result = backend
+            .run_stage2(global_root(), &route, provider.as_ref())
+            .await;
+        assert!(result.is_err(), "{label} output must fail closed");
+        let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
+        assert!(root.join(&note.path).is_file(), "{label} moved the source");
+    }
+
+    let temp = tempfile::tempdir().expect("tempdir");
+    let backend = backend(&temp);
+    let note = backend
+        .add_note(MemoryStoreAddNoteParams {
+            root: global_root(),
+            title: Some("Missing source".to_string()),
+            slug: Some("missing-source".to_string()),
+            content: "source removed before consolidation".to_string(),
+        })
+        .await
+        .expect("add note");
+    let route = test_route();
+    backend
+        .run_stage1(
+            global_root(),
+            MemoryStageOneVersion::V1,
+            &route,
+            &FixtureStageOneProvider,
+        )
+        .await
+        .expect("stage one");
+    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
+    fs::remove_file(root.join(&note.path)).expect("remove source");
+    let result = backend
+        .run_stage2(global_root(), &route, &MissingSourceStageTwoProvider)
+        .await;
+    assert!(result.is_err(), "missing source must fail closed");
+}
+
+#[tokio::test]
 async fn search_skips_non_utf8_files_and_returns_citations() {
     let temp = tempfile::tempdir().expect("tempdir");
     let backend = backend(&temp);
@@ -122,368 +590,6 @@ async fn search_skips_non_utf8_files_and_returns_citations() {
     assert_eq!(response.hits[0].path, MEMORY_FILE);
     assert_eq!(response.hits[0].match_line_number, 2);
     assert_eq!(response.hits[0].citation.start_line_number, 2);
-}
-
-#[tokio::test]
-async fn consolidate_accepts_notes_updates_summary_and_archives_processed_notes() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Tone".to_string()),
-            slug: Some("tone".to_string()),
-            content: "Prefer concise recommendation first.".to_string(),
-        })
-        .await
-        .expect("add note");
-
-    let response = backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate");
-
-    assert_eq!(response.root_scope, MemoryStoreScope::Global);
-    assert_eq!(response.processed_notes, 1);
-    assert_eq!(response.skipped_notes, 0);
-    assert_eq!(response.archived_notes, 1);
-    assert!(response.updated);
-    assert!(response.warnings.is_empty());
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let memory = fs::read_to_string(root.join(MEMORY_FILE)).expect("memory");
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(memory.contains("## Consolidated notes"));
-    assert!(memory.contains("Prefer concise recommendation first."));
-    assert!(summary.contains("## Consolidated memory"));
-    assert!(summary.contains("Prefer concise recommendation first."));
-    assert!(!root.join(&note.path).exists());
-    let note_file = Path::new(&note.path)
-        .file_name()
-        .expect("note file name")
-        .to_owned();
-    assert!(root
-        .join("extensions/ad_hoc/processed")
-        .join(note_file)
-        .is_file());
-    let audit_log = fs::read_to_string(root.join("audit/memory_events.jsonl")).expect("audit log");
-    assert!(audit_log.contains("\"schemaVersion\":\"memory-audit-event/v1\""));
-    assert!(audit_log.contains("\"operation\":\"consolidate\""));
-    assert!(audit_log.contains("\"processedNotes\":1"));
-    assert!(audit_log.contains("\"updated\":true"));
-}
-
-#[tokio::test]
-async fn consolidate_reviews_secret_or_conflicting_notes_without_summary_update() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let secret_note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Secret".to_string()),
-            slug: Some("secret".to_string()),
-            content: "api_key should never be stored.".to_string(),
-        })
-        .await
-        .expect("secret note");
-    let conflict_note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Conflict".to_string()),
-            slug: Some("conflict".to_string()),
-            content: "Forget this preference.".to_string(),
-        })
-        .await
-        .expect("conflict note");
-
-    let response = backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate");
-
-    assert_eq!(response.processed_notes, 0);
-    assert_eq!(response.skipped_notes, 2);
-    assert_eq!(response.archived_notes, 2);
-    assert!(!response.updated);
-    assert_eq!(response.warnings.len(), 2);
-    assert!(response
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("secret-like content requires review")));
-    assert!(response
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("conflicting memory intent requires review")));
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(!summary.contains("api_key"));
-    assert!(!summary.contains("Forget this preference"));
-    assert!(!root.join(&secret_note.path).exists());
-    assert!(!root.join(&conflict_note.path).exists());
-    let secret_file = Path::new(&secret_note.path)
-        .file_name()
-        .expect("secret file name")
-        .to_owned();
-    let conflict_file = Path::new(&conflict_note.path)
-        .file_name()
-        .expect("conflict file name")
-        .to_owned();
-    assert!(root
-        .join("extensions/ad_hoc/review")
-        .join(secret_file)
-        .is_file());
-    assert!(root
-        .join("extensions/ad_hoc/review")
-        .join(conflict_file)
-        .is_file());
-    let audit_log = fs::read_to_string(root.join("audit/memory_events.jsonl")).expect("audit log");
-    assert!(audit_log.contains("\"operation\":\"consolidate\""));
-    assert!(audit_log.contains("\"processedNotes\":0"));
-    assert!(audit_log.contains("\"skippedNotes\":2"));
-    assert!(audit_log.contains("\"updated\":false"));
-}
-
-#[tokio::test]
-async fn consolidate_accepts_rollout_summaries_only_on_explicit_consolidate() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    backend
-        .list(MemoryStoreListParams {
-            root: global_root(),
-            ..Default::default()
-        })
-        .await
-        .expect("init");
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let rollout_path = root.join("rollout_summaries/thread-1.md");
-    fs::write(
-        &rollout_path,
-        "# Thread rollout\n\nUser prefers architecture decisions with tradeoffs first.\n",
-    )
-    .expect("write rollout summary");
-    let before_summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(!before_summary.contains("architecture decisions"));
-
-    let response = backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate rollout summary");
-
-    assert_eq!(response.processed_notes, 1);
-    assert_eq!(response.skipped_notes, 0);
-    assert_eq!(response.archived_notes, 1);
-    assert!(response.updated);
-    let memory = fs::read_to_string(root.join(MEMORY_FILE)).expect("memory");
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(memory.contains("architecture decisions with tradeoffs first"));
-    assert!(memory.contains("source: rollout_summaries/processed/thread-1.md"));
-    assert!(summary.contains("architecture decisions with tradeoffs first"));
-    assert!(!rollout_path.exists());
-    assert!(root
-        .join("rollout_summaries/processed/thread-1.md")
-        .is_file());
-}
-
-#[tokio::test]
-async fn consolidate_reviews_sensitive_rollout_summaries_without_summary_update() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    backend
-        .list(MemoryStoreListParams {
-            root: global_root(),
-            ..Default::default()
-        })
-        .await
-        .expect("init");
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let rollout_path = root.join("rollout_summaries/thread-secret.md");
-    fs::write(&rollout_path, "api_key appeared in a rollout summary.\n")
-        .expect("write rollout summary");
-
-    let response = backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate rollout summary");
-
-    assert_eq!(response.processed_notes, 0);
-    assert_eq!(response.skipped_notes, 1);
-    assert_eq!(response.archived_notes, 1);
-    assert!(!response.updated);
-    assert!(response
-        .warnings
-        .iter()
-        .any(|warning| warning.contains("secret-like content requires review")));
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(!summary.contains("api_key"));
-    assert!(!rollout_path.exists());
-    assert!(root
-        .join("extensions/ad_hoc/review/thread-secret.md")
-        .is_file());
-}
-
-#[tokio::test]
-async fn review_list_reads_only_review_markdown_notes() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let review_note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Secret".to_string()),
-            slug: Some("secret".to_string()),
-            content: "api_key should be checked by a human.".to_string(),
-        })
-        .await
-        .expect("review note");
-    backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate");
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    fs::write(
-        root.join("extensions/ad_hoc/review/ignored.txt"),
-        "not markdown",
-    )
-    .expect("ignored txt");
-
-    let response = backend
-        .list_review(MemoryStoreReviewListParams {
-            root: global_root(),
-            max_results: Some(20),
-            ..Default::default()
-        })
-        .await
-        .expect("list review notes");
-
-    assert_eq!(response.root_scope, MemoryStoreScope::Global);
-    assert_eq!(response.root_path, root.to_string_lossy());
-    assert_eq!(response.notes.len(), 1);
-    assert!(response.notes[0]
-        .path
-        .starts_with("extensions/ad_hoc/review/"));
-    assert!(response.notes[0].path.ends_with(".md"));
-    assert!(response.notes[0].preview.contains("api_key"));
-    assert_eq!(response.notes[0].citation.start_line_number, 1);
-    assert!(!root.join(&review_note.path).exists());
-}
-
-#[tokio::test]
-async fn review_accept_consolidates_review_note_and_archives_processed() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Conflict".to_string()),
-            slug: Some("conflict".to_string()),
-            content: "Forget this wording, but prefer direct status updates.".to_string(),
-        })
-        .await
-        .expect("review note");
-    backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate");
-    let file_name = Path::new(&note.path)
-        .file_name()
-        .expect("note file name")
-        .to_string_lossy();
-    let review_path = format!("extensions/ad_hoc/review/{file_name}");
-
-    let response = backend
-        .resolve_review(MemoryStoreReviewResolveParams {
-            root: global_root(),
-            path: review_path.clone(),
-            action: MemoryStoreReviewResolveAction::Accept,
-        })
-        .await
-        .expect("accept review note");
-
-    assert_eq!(response.source_path, review_path);
-    assert_eq!(response.action, MemoryStoreReviewResolveAction::Accept);
-    assert!(response
-        .archived_path
-        .starts_with("extensions/ad_hoc/processed/"));
-    assert!(response.updated);
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let memory = fs::read_to_string(root.join(MEMORY_FILE)).expect("memory");
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(memory.contains("prefer direct status updates"));
-    assert!(summary.contains("prefer direct status updates"));
-    assert!(!root.join(response.source_path).exists());
-    assert!(root.join(response.archived_path).is_file());
-    let audit_log = fs::read_to_string(root.join("audit/memory_events.jsonl")).expect("audit log");
-    assert!(audit_log.contains("\"operation\":\"reviewResolve\""));
-    assert!(audit_log.contains("\"action\":\"accept\""));
-    assert!(audit_log.contains("\"updated\":true"));
-}
-
-#[tokio::test]
-async fn review_reject_archives_without_summary_update() {
-    let temp = tempfile::tempdir().expect("tempdir");
-    let backend = backend(&temp);
-    let note = backend
-        .add_note(MemoryStoreAddNoteParams {
-            root: global_root(),
-            title: Some("Secret".to_string()),
-            slug: Some("secret".to_string()),
-            content: "api_key should not enter memory.".to_string(),
-        })
-        .await
-        .expect("review note");
-    backend
-        .consolidate(MemoryStoreConsolidateParams {
-            root: global_root(),
-            max_notes: Some(20),
-        })
-        .await
-        .expect("consolidate");
-    let file_name = Path::new(&note.path)
-        .file_name()
-        .expect("note file name")
-        .to_string_lossy();
-    let review_path = format!("extensions/ad_hoc/review/{file_name}");
-
-    let response = backend
-        .resolve_review(MemoryStoreReviewResolveParams {
-            root: global_root(),
-            path: review_path.clone(),
-            action: MemoryStoreReviewResolveAction::Reject,
-        })
-        .await
-        .expect("reject review note");
-
-    assert_eq!(response.source_path, review_path);
-    assert_eq!(response.action, MemoryStoreReviewResolveAction::Reject);
-    assert!(response
-        .archived_path
-        .starts_with("extensions/ad_hoc/rejected/"));
-    assert!(!response.updated);
-    let root = temp.path().join("data").join(MEMORY_ROOT_DIR);
-    let summary = fs::read_to_string(root.join(SUMMARY_FILE)).expect("summary");
-    assert!(!summary.contains("api_key"));
-    assert!(!root.join(response.source_path).exists());
-    assert!(root.join(response.archived_path).is_file());
-    let audit_log = fs::read_to_string(root.join("audit/memory_events.jsonl")).expect("audit log");
-    assert!(audit_log.contains("\"operation\":\"reviewResolve\""));
-    assert!(audit_log.contains("\"action\":\"reject\""));
-    assert!(audit_log.contains("\"updated\":false"));
 }
 
 #[tokio::test]

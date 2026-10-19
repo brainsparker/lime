@@ -29,6 +29,7 @@ const frontendCommandPatterns = [
 
 const knownDeferredRegistrationReasons = new Map();
 const retiredFileBrowserFacadeCommands = new Set([
+  "open_with_default_app",
   "get_file_manager_locations",
   "list_dir",
   "read_file_preview_cmd",
@@ -528,10 +529,14 @@ const retiredAgentRuntimeRustCommands = new Set([
   ...retiredAgentRuntimeExportRustCommands,
 ]);
 const currentFileBrowserDesktopHostShellCommands = new Set([
+  "open_in_get_targets",
+  "open_in_detect_target",
+  "open_in_load_target_icon",
+  "open_in_open",
+  "open_in_set_global_preferred_target",
   "get_home_dir",
   "get_file_icon_data_url",
   "reveal_in_finder",
-  "open_with_default_app",
   "save_exported_document",
 ]);
 const retiredTauriGenerateHandlerCommands = new Set([

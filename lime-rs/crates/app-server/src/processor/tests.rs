@@ -9,7 +9,6 @@ mod attestation;
 mod capability;
 mod command_exec;
 mod config_warning;
-mod conversation_import;
 mod event_notifications;
 mod mcp;
 mod project_git;

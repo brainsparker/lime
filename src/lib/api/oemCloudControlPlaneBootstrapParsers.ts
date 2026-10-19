@@ -8,7 +8,6 @@ import {
   parseProviderOfferSummary,
   parseProviderPreference,
 } from "./oemCloudControlPlaneCoreParsers";
-import { parseReferralDashboard } from "./oemCloudControlPlaneReferralParsers";
 import {
   OemCloudControlPlaneError,
   isRecord,
@@ -71,8 +70,5 @@ export function parseBootstrap(value: unknown): OemCloudBootstrapResponse {
     gateway: isRecord(value.gateway)
       ? parseGatewayConfig(value.gateway)
       : undefined,
-    referral: isRecord(value.referral)
-      ? parseReferralDashboard(value.referral)
-      : null,
   };
 }

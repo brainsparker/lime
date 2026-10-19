@@ -16,10 +16,7 @@ use std::sync::Arc;
 use super::canonical_rollout::RolloutStore;
 use super::projection_item_events::query_projected_session_item_events;
 use super::projection_payload_summary::bounded_payload_summary;
-use super::projection_protocol::{
-    projected_import_reference_from_metadata, projected_import_session_to_protocol,
-    projected_session_to_protocol, projected_turn_to_protocol,
-};
+use super::projection_protocol::{projected_session_to_protocol, projected_turn_to_protocol};
 use super::projection_schema::create_schema;
 use super::projection_status::{session_status_from_event, turn_status_from_event};
 use super::session_list_scope::SessionListScope;
@@ -288,50 +285,6 @@ impl ProjectionStore {
         }))
     }
 
-    pub(in crate::runtime) fn find_session_by_import_source(
-        &self,
-        source_kind: &str,
-        source_client: &str,
-        source_thread_id: &str,
-    ) -> Result<Option<AgentSession>, String> {
-        let normalized_kind = source_kind.trim();
-        let normalized_client = source_client.trim();
-        let normalized_thread_id = source_thread_id.trim();
-        if normalized_kind.is_empty()
-            || normalized_client.is_empty()
-            || normalized_thread_id.is_empty()
-        {
-            return Ok(None);
-        }
-
-        let conn = self.open_projection_store()?;
-        let rows =
-            query_projected_import_session_rows(&conn, normalized_client, normalized_thread_id)?;
-        let matched = rows
-            .into_iter()
-            .filter_map(|row| {
-                projected_import_reference_from_metadata(
-                    &row,
-                    normalized_kind,
-                    normalized_client,
-                    normalized_thread_id,
-                )
-                .map(|reference| (row, reference))
-            })
-            .max_by(|(left, _), (right, _)| {
-                left.updated_at
-                    .cmp(&right.updated_at)
-                    .then_with(|| left.session_id.cmp(&right.session_id))
-            });
-        let Some((row, business_object_ref)) = matched else {
-            return Ok(None);
-        };
-        Ok(Some(projected_import_session_to_protocol(
-            row,
-            business_object_ref,
-        )))
-    }
-
     pub fn read_watermark(&self, session_id: &str) -> Result<Option<ProjectionWatermark>, String> {
         let conn = self.open_projection_store()?;
         conn.query_row(
@@ -441,46 +394,6 @@ fn query_projected_session(
     )
     .optional()
     .map_err(|error| format!("无法读取 projected_sessions: {error}"))
-}
-
-fn query_projected_import_session_rows(
-    conn: &Connection,
-    source_client: &str,
-    source_thread_id: &str,
-) -> Result<Vec<ProjectedSessionRow>, String> {
-    let source_client_json = serde_json::to_string(source_client)
-        .map_err(|error| format!("无法序列化 import sourceClient 查询: {error}"))?;
-    let source_thread_id_json = serde_json::to_string(source_thread_id)
-        .map_err(|error| format!("无法序列化 import sourceThreadId 查询: {error}"))?;
-    let source_client_camel = format!("\"sourceClient\":{source_client_json}");
-    let source_client_snake = format!("\"source_client\":{source_client_json}");
-    let source_thread_camel = format!("\"sourceThreadId\":{source_thread_id_json}");
-    let source_thread_snake = format!("\"source_thread_id\":{source_thread_id_json}");
-    let mut stmt = conn
-        .prepare(
-            "SELECT session_id, thread_id, status, created_at, updated_at,
-                    archived_at, title, model, workspace_id, working_dir,
-                    execution_strategy, metadata_json, last_event_sequence
-             FROM projected_sessions
-             WHERE metadata_json IS NOT NULL
-               AND (instr(metadata_json, ?1) > 0 OR instr(metadata_json, ?2) > 0)
-               AND (instr(metadata_json, ?3) > 0 OR instr(metadata_json, ?4) > 0)
-             ORDER BY updated_at DESC, session_id DESC",
-        )
-        .map_err(|error| format!("无法准备 projected_sessions import 查询: {error}"))?;
-    let rows = stmt
-        .query_map(
-            params![
-                source_client_camel,
-                source_client_snake,
-                source_thread_camel,
-                source_thread_snake
-            ],
-            projected_session_row,
-        )
-        .map_err(|error| format!("无法查询 projected_sessions import 状态: {error}"))?;
-    rows.collect::<Result<Vec<_>, _>>()
-        .map_err(|error| format!("无法读取 projected_sessions import 状态: {error}"))
 }
 
 fn projected_session_row(row: &rusqlite::Row<'_>) -> Result<ProjectedSessionRow, rusqlite::Error> {

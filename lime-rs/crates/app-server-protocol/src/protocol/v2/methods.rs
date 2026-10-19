@@ -35,6 +35,7 @@ pub const METHOD_THREAD_SEARCH: &str = "thread/search";
 pub const METHOD_THREAD_SEARCH_OCCURRENCES: &str = "thread/searchOccurrences";
 pub const METHOD_THREAD_SETTINGS_UPDATE: &str = "thread/settings/update";
 pub const METHOD_THREAD_MEMORY_MODE_SET: &str = "thread/memoryMode/set";
+pub const METHOD_MEMORY_STATUS: &str = "memory/status";
 pub const METHOD_MEMORY_RESET: &str = "memory/reset";
 pub const METHOD_THREAD_SHELL_COMMAND: &str = "thread/shellCommand";
 pub const METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION: &str = "thread/approveGuardianDeniedAction";
@@ -255,6 +256,8 @@ pub enum Method {
     ThreadSettingsUpdate,
     #[serde(rename = "thread/memoryMode/set")]
     ThreadMemoryModeSet,
+    #[serde(rename = "memory/status")]
+    MemoryStatus,
     #[serde(rename = "memory/reset")]
     MemoryReset,
     #[serde(rename = "thread/shellCommand")]
@@ -476,6 +479,7 @@ impl Method {
             Self::ThreadSearchOccurrences => METHOD_THREAD_SEARCH_OCCURRENCES,
             Self::ThreadSettingsUpdate => METHOD_THREAD_SETTINGS_UPDATE,
             Self::ThreadMemoryModeSet => METHOD_THREAD_MEMORY_MODE_SET,
+            Self::MemoryStatus => METHOD_MEMORY_STATUS,
             Self::MemoryReset => METHOD_MEMORY_RESET,
             Self::ThreadShellCommand => METHOD_THREAD_SHELL_COMMAND,
             Self::ThreadApproveGuardianDeniedAction => METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION,
@@ -605,6 +609,7 @@ impl Method {
             METHOD_THREAD_SEARCH_OCCURRENCES => Some(Self::ThreadSearchOccurrences),
             METHOD_THREAD_SETTINGS_UPDATE => Some(Self::ThreadSettingsUpdate),
             METHOD_THREAD_MEMORY_MODE_SET => Some(Self::ThreadMemoryModeSet),
+            METHOD_MEMORY_STATUS => Some(Self::MemoryStatus),
             METHOD_MEMORY_RESET => Some(Self::MemoryReset),
             METHOD_THREAD_SHELL_COMMAND => Some(Self::ThreadShellCommand),
             METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION => {
@@ -739,6 +744,7 @@ pub const METHODS: &[&str] = &[
     METHOD_THREAD_SEARCH_OCCURRENCES,
     METHOD_THREAD_SETTINGS_UPDATE,
     METHOD_THREAD_MEMORY_MODE_SET,
+    METHOD_MEMORY_STATUS,
     METHOD_MEMORY_RESET,
     METHOD_THREAD_SHELL_COMMAND,
     METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION,

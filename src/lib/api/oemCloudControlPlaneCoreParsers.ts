@@ -393,7 +393,6 @@ export function parseFeatureFlags(value: unknown): OemCloudFeatureFlags {
     profileEditable: normalizeBoolean(record.profileEditable),
     hubTokensEnabled: normalizeBoolean(record.hubTokensEnabled),
     billingEnabled: normalizeBoolean(record.billingEnabled),
-    referralEnabled: normalizeBoolean(record.referralEnabled),
     gatewayEnabled: normalizeBoolean(record.gatewayEnabled),
   };
 }

@@ -386,7 +386,6 @@ fn test_backend_renders_completed_item_summaries() {
         ItemCompletedNotification {
             item: ThreadItem::CommandExecution {
                 id: "command-1".to_string(),
-                metadata: None,
                 plugin_id: None,
                 script_path: None,
                 command: "cargo test -p tui".to_string(),
@@ -409,7 +408,6 @@ fn test_backend_renders_completed_item_summaries() {
         ItemCompletedNotification {
             item: ThreadItem::FileChange {
                 id: "patch-1".to_string(),
-                metadata: None,
                 changes: vec![FileUpdateChange {
                     path: "src/lib.rs".to_string(),
                     kind: PatchChangeKind::Add,
@@ -442,7 +440,6 @@ fn test_backend_renders_live_command_output_below_the_command() {
         .apply(ServerNotification::ItemStarted(ItemStartedNotification {
             item: ThreadItem::CommandExecution {
                 id: "command-1".to_string(),
-                metadata: None,
                 plugin_id: None,
                 script_path: None,
                 command: "printf data".to_string(),
@@ -490,7 +487,6 @@ fn test_backend_renders_bounded_command_output_marker() {
         .apply(ServerNotification::ItemStarted(ItemStartedNotification {
             item: ThreadItem::CommandExecution {
                 id: "command-large".to_string(),
-                metadata: None,
                 plugin_id: None,
                 script_path: None,
                 command: "printf output".to_string(),

@@ -334,6 +334,7 @@ mod tests {
             turn_context: None,
             tool_mode: code_mode::RuntimeToolMode::Direct,
             supports_custom_tools: false,
+            stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
         };
 
         selection.apply_to_session_config(&mut session_config);

@@ -356,17 +356,15 @@ describe("useWorkspaceTaskRailRuntime", () => {
     expect(getValue().todoItems).toBe(todoItems);
   });
 
-  it("应透传导入会话运行态供任务中心显示完整记录入口", async () => {
+  it("应透传 canonical 会话运行态", async () => {
     const executionRuntime = {
-      session_id: "session-imported",
-      source_client: "codex",
-      imported_thread_settings: {
-        cwd: "/tmp/project-1",
-      },
+      session_id: "session-current",
+      provider_selector: "openai",
+      model_name: "gpt-5.4",
       source: "session" as const,
     };
     const { render, getValue } = renderHook({
-      sessionId: "session-imported",
+      sessionId: "session-current",
       executionRuntime,
     });
 

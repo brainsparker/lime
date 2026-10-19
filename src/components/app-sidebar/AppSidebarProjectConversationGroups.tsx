@@ -45,18 +45,18 @@ const ProjectHeader = styled.div`
 `;
 
 const ProjectButton = styled.button<{ $active: boolean }>`
-  min-height: 26px;
+  min-height: 30px;
   min-width: 0;
   flex: 1;
   border: none;
-  border-radius: 7px;
+  border-radius: 10px;
   background: ${({ $active }) =>
     $active ? "var(--sidebar-active)" : "transparent"};
   color: var(--sidebar-foreground);
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 0 7px;
+  padding: 0 8px;
   cursor: pointer;
   text-align: left;
   transition:
@@ -151,6 +151,7 @@ export function AppSidebarProjectConversationGroups({
   onToggleProjectCollapsed,
   onOpenProjectMenu,
 }: AppSidebarProjectConversationGroupsProps) {
+  const [showAllProjects, setShowAllProjects] = useState(false);
   const [expandedProjectIds, setExpandedProjectIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -162,9 +163,29 @@ export function AppSidebarProjectConversationGroups({
       return next;
     });
   };
+  const visibleProjectSections = showAllProjects
+    ? projectSections
+    : projectSections.slice(0, 5);
+  const activeProjectSection = projectSections.find((section) =>
+    section.sessions.some((session) => session.id === currentSessionId),
+  );
+  if (
+    !showAllProjects &&
+    activeProjectSection &&
+    !visibleProjectSections.includes(activeProjectSection)
+  ) {
+    visibleProjectSections.push(activeProjectSection);
+  }
+  if (projectSections.length - visibleProjectSections.length === 1) {
+    visibleProjectSections.push(
+      ...projectSections.filter(
+        (section) => !visibleProjectSections.includes(section),
+      ),
+    );
+  }
   return (
     <>
-      {projectSections.map((section) => {
+      {visibleProjectSections.map((section) => {
         const projectName = resolveProjectDisplayName(section.project);
         const collapsed = collapsedProjectIds.has(section.project.id);
         const expanded = expandedProjectIds.has(section.project.id);
@@ -238,6 +259,16 @@ export function AppSidebarProjectConversationGroups({
           </ProjectGroup>
         );
       })}
+      {projectSections.length > visibleProjectSections.length ? (
+        <ConversationListMoreButton
+          type="button"
+          aria-expanded={showAllProjects}
+          data-testid="app-sidebar-projects-show-more"
+          onClick={() => setShowAllProjects(true)}
+        >
+          {showMoreLabel}
+        </ConversationListMoreButton>
+      ) : null}
     </>
   );
 }

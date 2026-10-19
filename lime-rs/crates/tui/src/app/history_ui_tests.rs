@@ -103,7 +103,6 @@ fn apply_exploration_item(
         ItemCompletedNotification {
             item: ThreadItem::CommandExecution {
                 id: id.to_string(),
-                metadata: None,
                 plugin_id: None,
                 script_path: None,
                 command: command.to_string(),
@@ -129,7 +128,6 @@ fn apply_reasoning_item(app: &mut App, turn_id: &str, id: &str, summary: &str) {
         ItemCompletedNotification {
             item: ThreadItem::Reasoning {
                 id: id.to_string(),
-                metadata: None,
                 summary: vec![summary.to_string()],
                 content: Vec::new(),
             },
@@ -279,7 +277,6 @@ fn flat_reasoning_without_turn_scope_is_hidden_only_from_compact_main() {
     };
     app.projection.prepend_items(vec![ThreadItem::Reasoning {
         id: "reasoning-flat".to_string(),
-        metadata: None,
         summary: vec!["Flat reasoning detail".to_string()],
         content: Vec::new(),
     }]);
@@ -337,7 +334,6 @@ fn raw_main_preserves_markdown_source_while_detailed_pager_retains_reasoning() {
     app.projection.prepend_items(vec![
         ThreadItem::AgentMessage {
             id: "assistant-1".to_string(),
-            metadata: None,
             text: "- first\n\n| A | B |\n| - | - |".to_string(),
             phase: None,
             memory_citation: None,
@@ -345,7 +341,6 @@ fn raw_main_preserves_markdown_source_while_detailed_pager_retains_reasoning() {
         },
         ThreadItem::Reasoning {
             id: "reasoning-1".to_string(),
-            metadata: None,
             summary: vec!["retained reasoning".to_string()],
             content: Vec::new(),
         },

@@ -47,6 +47,7 @@ async fn reasoning_final_completes_once() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -128,6 +129,7 @@ async fn empty_final_completes_once() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -195,6 +197,7 @@ async fn empty_final_after_tool_result_keeps_history() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )

@@ -9,7 +9,10 @@ import type {
   AgentSessionExecutionRuntimeTaskProfile,
   AgentTurnOutputSchemaRuntime,
 } from "./agentExecutionRuntime";
-import type { TurnStartParams } from "@limecloud/app-server-client";
+import type {
+  AsyncUserInputQuestion,
+  TurnStartParams,
+} from "@limecloud/app-server-client";
 export interface AgentContextTraceStep {
   stage: string;
   detail: string;
@@ -195,6 +198,8 @@ export interface AgentThreadAgentMessageItem extends AgentThreadItemBase {
   text: string;
   contentParts?: AgentThreadMessageContentPart[];
   phase?: "commentary" | "final_answer";
+  delivery?: "async";
+  questions?: AsyncUserInputQuestion[];
 }
 export interface AgentThreadPlanItem extends AgentThreadItemBase {
   type: "plan";

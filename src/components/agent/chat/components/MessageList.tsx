@@ -92,7 +92,7 @@ const MessageListInner: React.FC<MessageListProps> = ({
   onArtifactClick,
   onOpenMessagePreview,
   onSaveMessageAsSkill,
-  onSaveMessageAsKnowledge,
+
   onOpenSubagentSession,
   onPermissionResponse,
   collapseCodeBlocks,
@@ -462,7 +462,6 @@ const MessageListInner: React.FC<MessageListProps> = ({
         onPermissionResponse={onPermissionResponse}
         onQuoteMessage={onQuoteMessage}
         onRequestThreadRevert={handleRequestThreadRevert}
-        onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
         onSaveMessageAsSkill={onSaveMessageAsSkill}
         onWriteFile={onWriteFile}
       />
@@ -497,7 +496,7 @@ const MessageListInner: React.FC<MessageListProps> = ({
       onOpenSubagentSession,
       onPermissionResponse,
       onQuoteMessage,
-      onSaveMessageAsKnowledge,
+
       onSaveMessageAsSkill,
       onWriteFile,
       promoteActionRequestsToA2UI,
@@ -667,7 +666,6 @@ const MessageListInner: React.FC<MessageListProps> = ({
                           onQuoteMessage={onQuoteMessage}
                           onRequestThreadRevert={handleRequestThreadRevert}
                           onSaveMessageAsSkill={onSaveMessageAsSkill}
-                          onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
                           onCodeBlockClick={onCodeBlockClick}
                         />
                       </MessageTurnGroup>

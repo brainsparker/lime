@@ -48,6 +48,53 @@ function handler(save = vi.fn(async () => true)) {
   };
 }
 describe("file tab close lifecycle", () => {
+  it("文件外部动作委托同一saveUntilClean，不关闭或放弃当前标签", async () => {
+    const file = tab(),
+      view = mount([file]),
+      h = handler();
+    view.get().register(file, h);
+    expect(await view.get().saveFile(file.filePath!)).toBe(true);
+    expect(h.saveUntilClean).toHaveBeenCalledTimes(1);
+    expect(h.discard).not.toHaveBeenCalled();
+    expect(view.close).not.toHaveBeenCalled();
+    expect(view.get().isTabCurrent(file)).toBe(true);
+    expect(await view.get().saveFile("/work/not-open")).toBe(true);
+  });
+  it.each(["replace", "handler", "close"])(
+    "外部保存期间%s使旧save结果失效",
+    async (change) => {
+      const file = tab(),
+        view = mount([file]);
+      let finish!: (value: boolean) => void;
+      const h = handler(
+        vi.fn(
+          () =>
+            new Promise<boolean>((resolve) => {
+              finish = resolve;
+            }),
+        ),
+      );
+      view.get().register(file, h);
+      const saving = view.get().saveFile(file.filePath!);
+      if (change === "replace") view.render([tab()]);
+      else if (change === "handler") view.get().register(file, handler());
+      else view.render([]);
+      finish(true);
+      expect(await saving).toBe(false);
+      expect(h.discard).not.toHaveBeenCalled();
+      expect(view.close).not.toHaveBeenCalled();
+    },
+  );
+  it("外部保存失败只返回false，不出现关闭确认或放弃编辑", async () => {
+    const file = tab(),
+      view = mount([file]),
+      h = handler(vi.fn(async () => false));
+    view.get().register(file, h);
+    expect(await view.get().saveFile(file.filePath!)).toBe(false);
+    expect(view.get().confirmation).toBeNull();
+    expect(h.discard).not.toHaveBeenCalled();
+    expect(view.close).not.toHaveBeenCalled();
+  });
   it("同一实例保存成功才关闭；重复关闭合并", async () => {
     const file = tab(),
       view = mount([file]);

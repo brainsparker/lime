@@ -364,11 +364,6 @@ fn copy_payload_metadata(metadata: &mut Map<String, Value>, payload: &Value) {
         ("source", "source"),
         ("workflowKey", "workflowKey"),
         ("workflow_key", "workflow_key"),
-        ("sourceClient", "source_client"),
-        ("sourceProvenance", "source_provenance"),
-        ("imported", "imported"),
-        ("importedSynthetic", "imported_synthetic"),
-        ("importedIncomplete", "imported_incomplete"),
     ] {
         if let Some(value) = payload.get(source_key).cloned() {
             metadata.insert(target_key.to_string(), value);

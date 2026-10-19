@@ -10,7 +10,16 @@ import { ElectronHostCommands } from "./hostCommands";
 import type { ElectronAppServerHost } from "./appServerHost";
 import { SystemUtilityHost } from "./systemUtilityHost";
 import { VoiceModelHost } from "./voiceModelHost";
+import { FileShellHost } from "./fileShellHost";
 import type { SecureCredentialStore } from "./secureCredentialStore";
+
+const fileShellTargets = vi.hoisted(() => ({
+  getTargets: vi.fn(),
+  detectTarget: vi.fn(),
+  loadTargetIcon: vi.fn(),
+  open: vi.fn(),
+  setGlobalPreferredTarget: vi.fn(),
+}));
 
 const {
   browserWindowCtorMock,
@@ -18,7 +27,6 @@ const {
   fileShellHostGetFileIconDataUrlMock,
   fileShellHostGetHomeDirMock,
   fileShellHostOpenFilePreviewWindowMock,
-  fileShellHostOpenWithDefaultAppMock,
   fileShellHostRevealInFinderMock,
   getFileIconMock,
   getPathMock,
@@ -104,7 +112,6 @@ const {
     fileShellHostGetFileIconDataUrlMock: vi.fn(),
     fileShellHostGetHomeDirMock: vi.fn(),
     fileShellHostOpenFilePreviewWindowMock: vi.fn(),
-    fileShellHostOpenWithDefaultAppMock: vi.fn(),
     fileShellHostRevealInFinderMock: vi.fn(),
     getFileIconMock: vi.fn(),
     getPathMock: vi.fn((_name: string) => os.tmpdir()),
@@ -178,10 +185,10 @@ vi.mock("./desktopNotificationHost", () => ({
 
 vi.mock("./fileShellHost", () => ({
   FileShellHost: vi.fn(() => ({
+    ...fileShellTargets,
     getFileIconDataUrl: fileShellHostGetFileIconDataUrlMock,
     getHomeDir: fileShellHostGetHomeDirMock,
     openFilePreviewWindow: fileShellHostOpenFilePreviewWindowMock,
-    openWithDefaultApp: fileShellHostOpenWithDefaultAppMock,
     revealInFinder: fileShellHostRevealInFinderMock,
   })),
 }));
@@ -361,7 +368,7 @@ afterEach(async () => {
 });
 
 describe("ElectronHostCommands retired file browser facade", () => {
-  it.each(["list_dir", "read_file_preview_cmd"])(
+  it.each(["list_dir", "read_file_preview_cmd", "open_with_default_app"])(
     "%s 不再作为 Electron Host compat facade 暴露",
     async (command) => {
       const userDataDir = await createTempUserDataDir();
@@ -830,9 +837,41 @@ describe("ElectronHostCommands local file shell facade", () => {
     });
   });
 
+  it("target methods share the FileShellHost and existing native client, preserving request identity", async () => {
+    const root = await createTempUserDataDir();
+    const host = createHost(root);
+    const request = {
+      path: "/work/a",
+      cwd: "/work",
+      target: "systemDefault",
+      appPath: "/Applications/Editor.app",
+    };
+    const commands = {
+      open_in_get_targets: "getTargets",
+      open_in_detect_target: "detectTarget",
+      open_in_load_target_icon: "loadTargetIcon",
+      open_in_open: "open",
+      open_in_set_global_preferred_target: "setGlobalPreferredTarget",
+    } as const;
+    for (const [command, method] of Object.entries(commands)) {
+      fileShellTargets[method].mockResolvedValueOnce({ method });
+      await expect(host.invoke(command, request)).resolves.toEqual({ method });
+      expect(fileShellTargets[method]).toHaveBeenLastCalledWith(request);
+    }
+    const options = vi.mocked(FileShellHost).mock.calls.at(-1)?.[0];
+    expect(options?.appDataRoot).toBe(root);
+    const query = {
+      method: "launchServices.urlHandlers",
+      params: { url: "file:///work/a" },
+    };
+    await options?.nativeQuery?.(query);
+    expect(systemUtilityHostInvokeMacOSNativeHostMock).toHaveBeenLastCalledWith(
+      query,
+    );
+  });
+
   it("File Shell 命令应只分发到 FileShellHost", async () => {
     fileShellHostRevealInFinderMock.mockReturnValueOnce({});
-    fileShellHostOpenWithDefaultAppMock.mockResolvedValueOnce({});
     fileShellHostOpenFilePreviewWindowMock.mockResolvedValueOnce({
       opened: true,
       reused: false,
@@ -850,11 +889,6 @@ describe("ElectronHostCommands local file shell facade", () => {
     await expect(host.invoke("reveal_in_finder", revealArgs)).resolves.toEqual(
       {},
     );
-
-    const openArgs = { path: "/tmp/demo.txt" };
-    await expect(
-      host.invoke("open_with_default_app", openArgs),
-    ).resolves.toEqual({});
 
     const previewArgs = {
       path: "/tmp/demo.html",
@@ -901,7 +935,6 @@ describe("ElectronHostCommands local file shell facade", () => {
 
     await expect(host.invoke("get_home_dir")).resolves.toBe("/Users/demo");
     expect(fileShellHostRevealInFinderMock).toHaveBeenCalledWith(revealArgs);
-    expect(fileShellHostOpenWithDefaultAppMock).toHaveBeenCalledWith(openArgs);
     expect(fileShellHostOpenFilePreviewWindowMock).toHaveBeenCalledWith(
       previewArgs,
     );

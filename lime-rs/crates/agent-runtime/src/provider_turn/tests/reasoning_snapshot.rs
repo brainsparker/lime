@@ -157,6 +157,7 @@ async fn run(
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| {
             if matches!(event, CurrentProviderTurnEvent::ReasoningCompleted { .. }) {

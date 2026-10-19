@@ -309,6 +309,8 @@ fn merge_payload(
                 text,
                 phase,
                 content_parts,
+                delivery,
+                questions,
             },
         ) => ThreadItemPayload::AgentMessage {
             text: if message_text_snapshot {
@@ -318,6 +320,8 @@ fn merge_payload(
             },
             phase,
             content_parts: merge_message_content_parts(previous_parts, content_parts),
+            delivery,
+            questions,
         },
         (
             ThreadItemPayload::Plan {

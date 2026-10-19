@@ -37,6 +37,7 @@ pub(super) struct CurrentTurnToolExecutor {
         Option<tool_runtime::agent_control::AgentControlGatewayHandle>,
     pub(super) pending_input: Option<RuntimeSessionInputHandle>,
     pub(super) dynamic_tool_routes: mcp_step_snapshot::DynamicToolRoutes,
+    pub(super) async_user_input_enabled: bool,
 }
 
 impl RuntimeToolExecutor for CurrentTurnToolExecutor {
@@ -187,6 +188,31 @@ impl RuntimeToolExecutor for CurrentTurnToolExecutor {
                             Value::Bool(response.strict_auto_review.unwrap_or(false)),
                         ),
                     ]),
+                ));
+            }
+
+            if request.tool_name
+                == tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_TOOL_NAME
+            {
+                if !self.async_user_input_enabled {
+                    return Err(RuntimeToolExecutionError::new(
+                        "request_user_input_async is not available for this sampling step",
+                        Some(RuntimeToolPolicyErrorKind::PermissionDenied(
+                            "request_user_input_async_disabled".to_string(),
+                        )),
+                    )
+                    .before_handler());
+                }
+                tool_runtime::request_user_input_async::parse_request_user_input_async_args(
+                    request.params,
+                )
+                .map_err(|error| RuntimeToolExecutionError::new(error, None).before_handler())?;
+                return Ok(RuntimeToolExecutionResult::new(
+                    true,
+                    tool_runtime::request_user_input_async::REQUEST_USER_INPUT_ASYNC_ACCEPTED
+                        .to_string(),
+                    None,
+                    HashMap::new(),
                 ));
             }
 
@@ -544,3 +570,6 @@ fn request_user_input_is_blocking(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod async_user_input_tests;

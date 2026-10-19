@@ -82,14 +82,7 @@ fn is_read_only_file_metadata(metadata: &serde_json::Value) -> bool {
         .any(has_read_marker)
     };
 
-    metadata.as_object().is_some_and(|object| {
-        has_read_marker_in(object)
-            || object
-                .get("sourceProvenance")
-                .or_else(|| object.get("source_provenance"))
-                .and_then(serde_json::Value::as_object)
-                .is_some_and(has_read_marker_in)
-    })
+    metadata.as_object().is_some_and(has_read_marker_in)
 }
 
 fn is_read_file_marker(value: &str) -> bool {
@@ -172,10 +165,18 @@ fn canonical_payload_to_agent_detail(
             text,
             phase,
             content_parts,
+            delivery,
+            questions,
         } => {
             detail.insert("text".to_string(), json!(text));
             if let Some(phase) = phase {
                 detail.insert("phase".to_string(), json!(phase));
+            }
+            if let Some(delivery) = delivery {
+                detail.insert("delivery".to_string(), json!(delivery));
+            }
+            if let Some(questions) = questions {
+                detail.insert("questions".to_string(), json!(questions));
             }
             if !content_parts.is_empty() {
                 detail.insert("contentParts".to_string(), json!(content_parts));

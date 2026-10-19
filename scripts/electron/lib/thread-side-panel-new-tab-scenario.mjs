@@ -8,6 +8,10 @@ import { appServerCallFromPage } from "../mcp-config-fixture-smoke.mjs";
 import { isObservedPreloadAppServerResponse } from "./mcp-config-fixture-evidence.mjs";
 import { captureTerminalFailure } from "./thread-side-panel-terminal-diagnostics.mjs";
 import {
+  verifyFileTreeContextMenu,
+  verifyFileTabContextMenu,
+} from "./workspace-file-menu-fixture.mjs";
+import {
   collectFileEditorEvidence,
   collectMarkdownSaveBeforePreview,
 } from "./thread-side-panel-file-editor-scenario.mjs";
@@ -139,7 +143,18 @@ export function createThreadSidePanelFileFixture(workspace) {
     `# ${markdownMarker}\n`,
     { flag: "wx" },
   );
+  const nestedRelativePath =
+    "src/components/thread-side-panel-nested-" + crypto.randomUUID() + ".ts";
+  fs.mkdirSync(path.dirname(path.join(root, nestedRelativePath)), {
+    recursive: true,
+  });
+  fs.writeFileSync(
+    path.join(root, nestedRelativePath),
+    "export const nested = true;\n",
+    { flag: "wx" },
+  );
   return {
+    nestedRelativePath,
     relativePath,
     marker,
     secondRelativePath,
@@ -203,8 +218,40 @@ export async function collectThreadSidePanelNewTabEvidence(
   assert.equal(await newTabs.count(), 1);
   const tree = page.locator('[data-testid="workspace-file-tree"]:visible');
   const { relativePath, marker } = file;
+  await tree.getByRole("textbox").fill(file.nestedRelativePath);
+  const directoryRow = tree.getByRole("treeitem").and(
+    tree.getByTitle(path.join(workspace.rootPath, "src/components"), {
+      exact: true,
+    }),
+  );
+  const nestedRow = tree.getByRole("treeitem").and(
+    tree.getByTitle(path.join(workspace.rootPath, file.nestedRelativePath), {
+      exact: true,
+    }),
+  );
+  await nestedRow.waitFor({ state: "visible", timeout: options.timeoutMs });
+  assert.equal(await directoryRow.getAttribute("aria-level"), "1");
+  assert.equal(await nestedRow.getAttribute("aria-level"), "2");
+  assert.equal(await directoryRow.textContent(), "src/components");
+  await directoryRow.focus();
+  await directoryRow.press("ArrowRight");
+  assert.equal(
+    await nestedRow.evaluate((node) => node === document.activeElement),
+    true,
+  );
+  await capture("file-search-shared-tree");
+  const treeContextMenu = await verifyFileTreeContextMenu({
+    page,
+    directory: directoryRow,
+    file: nestedRow,
+    cwd: workspace.rootPath,
+    filePath: path.join(workspace.rootPath, file.nestedRelativePath),
+    capture,
+  });
   await tree.getByRole("textbox").fill(relativePath);
-  const result = tree.getByTitle(relativePath, { exact: true });
+  const result = tree.getByTitle(path.join(workspace.rootPath, relativePath), {
+    exact: true,
+  });
   await result.waitFor({ state: "visible", timeout: options.timeoutMs });
   await result.click();
   await page.waitForFunction(
@@ -236,6 +283,12 @@ export async function collectThreadSidePanelNewTabEvidence(
     "Selecting a path must close the empty Files tab",
   );
   assert.equal(await fileTabs.getAttribute("data-file-path"), firstPath);
+  const tabContextMenu = await verifyFileTabContextMenu({
+    page,
+    tab: fileTabs,
+    filePath: firstPath,
+    capture,
+  });
   await tree.getByRole("textbox").fill("no-such-file-" + crypto.randomUUID());
   const emptySearch = tree.getByText("未找到文件", { exact: true });
   await emptySearch.waitFor({ state: "visible", timeout: options.timeoutMs });
@@ -259,7 +312,11 @@ export async function collectThreadSidePanelNewTabEvidence(
     "Empty file search feedback must remain inside the visible tree pane",
   );
   await tree.getByRole("textbox").fill(file.secondRelativePath);
-  await tree.getByTitle(file.secondRelativePath, { exact: true }).click();
+  await tree
+    .getByTitle(path.join(workspace.rootPath, file.secondRelativePath), {
+      exact: true,
+    })
+    .click();
   await page.waitForFunction(
     (marker) =>
       document
@@ -286,7 +343,9 @@ export async function collectThreadSidePanelNewTabEvidence(
   );
   await fileTabs.filter({ hasText: file.secondRelativePath }).click();
   await tree.getByRole("textbox").fill(relativePath);
-  await tree.getByTitle(relativePath, { exact: true }).click();
+  await tree
+    .getByTitle(path.join(workspace.rootPath, relativePath), { exact: true })
+    .click();
   assert.equal(
     await fileTabs.count(),
     2,
@@ -317,7 +376,11 @@ export async function collectThreadSidePanelNewTabEvidence(
     capture,
   );
   await tree.getByRole("textbox").fill(file.markdownRelativePath);
-  await tree.getByTitle(file.markdownRelativePath, { exact: true }).click();
+  await tree
+    .getByTitle(path.join(workspace.rootPath, file.markdownRelativePath), {
+      exact: true,
+    })
+    .click();
   const markdownPane = page.locator(
     '[data-testid="workspace-files-surface"]:visible',
   );
@@ -656,6 +719,13 @@ export async function collectThreadSidePanelNewTabEvidence(
     distinctNewTabIds: ids,
     replacedNewTab: true,
     realFileSearch: relativePath,
+    searchUsesSharedTree: {
+      flattenedAncestor: true,
+      canonicalAbsolutePaths: true,
+      hierarchyLevels: [1, 2],
+      arrowKeyFocus: true,
+    },
+    localFileMenus: { tree: treeContextMenu, tab: tabContextMenu },
     filePathTabs: [firstPath, secondPath],
     utf8FileBeyondPreviewBoundary: {
       sizeBytes: file.secondFileSize,

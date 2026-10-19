@@ -150,7 +150,7 @@
     {
       "type": "userMessage",
       "codexFields": ["id", "clientId", "content"],
-      "limeFields": ["id", "clientId", "content", "metadata"],
+      "limeFields": ["id", "clientId", "content"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -162,7 +162,7 @@
     {
       "type": "hookPrompt",
       "codexFields": ["id", "fragments"],
-      "limeFields": ["id", "fragments", "metadata"],
+      "limeFields": ["id", "fragments"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -171,7 +171,7 @@
     {
       "type": "agentMessage",
       "codexFields": ["id", "text", "phase", "memoryCitation"],
-      "limeFields": ["delivery", "id", "text", "phase", "memoryCitation", "metadata"],
+      "limeFields": ["delivery", "id", "text", "phase", "memoryCitation"],
       "statusful": false,
       "codexStreamMethods": ["item/agentMessage/delta"],
       "limeStreamMethods": ["item/agentMessage/delta"],
@@ -183,7 +183,7 @@
     {
       "type": "plan",
       "codexFields": ["id", "text"],
-      "limeFields": ["id", "text", "metadata"],
+      "limeFields": ["id", "text"],
       "statusful": false,
       "codexStreamMethods": ["item/plan/delta"],
       "limeStreamMethods": ["item/plan/delta"],
@@ -195,7 +195,7 @@
     {
       "type": "reasoning",
       "codexFields": ["id", "summary", "content"],
-      "limeFields": ["id", "summary", "content", "metadata"],
+      "limeFields": ["id", "summary", "content"],
       "statusful": false,
       "codexStreamMethods": [
         "item/reasoning/summaryTextDelta",
@@ -238,7 +238,6 @@
         "aggregatedOutput",
         "exitCode",
         "durationMs",
-        "metadata",
         "terminalInteractions"
       ],
       "statusful": true,
@@ -260,7 +259,7 @@
     {
       "type": "fileChange",
       "codexFields": ["id", "changes", "status"],
-      "limeFields": ["id", "changes", "status", "metadata"],
+      "limeFields": ["id", "changes", "status"],
       "statusful": true,
       "codexStreamMethods": ["item/fileChange/patchUpdated"],
       "limeStreamMethods": ["item/fileChange/patchUpdated"],
@@ -298,8 +297,7 @@
         "readOnlyHint",
         "result",
         "error",
-        "durationMs",
-        "metadata"
+        "durationMs"
       ],
       "statusful": true,
       "codexStreamMethods": ["item/mcpToolCall/progress"],
@@ -330,8 +328,7 @@
         "status",
         "contentItems",
         "success",
-        "durationMs",
-        "metadata"
+        "durationMs"
       ],
       "statusful": true,
       "codexStreamMethods": [],
@@ -363,8 +360,7 @@
         "prompt",
         "model",
         "reasoningEffort",
-        "agentsStates",
-        "metadata"
+        "agentsStates"
       ],
       "statusful": true,
       "codexStreamMethods": [],
@@ -377,7 +373,7 @@
     {
       "type": "subAgentActivity",
       "codexFields": ["id", "kind", "agentThreadId", "agentPath"],
-      "limeFields": ["id", "kind", "agentThreadId", "agentPath", "metadata"],
+      "limeFields": ["id", "kind", "agentThreadId", "agentPath"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -386,7 +382,7 @@
     {
       "type": "webSearch",
       "codexFields": ["id", "query", "action", "results"],
-      "limeFields": ["id", "query", "action", "metadata"],
+      "limeFields": ["id", "query", "action"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -398,7 +394,7 @@
     {
       "type": "imageView",
       "codexFields": ["id", "path"],
-      "limeFields": ["id", "path", "metadata"],
+      "limeFields": ["id", "path"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -410,7 +406,7 @@
     {
       "type": "sleep",
       "codexFields": ["id", "durationMs"],
-      "limeFields": ["id", "durationMs", "metadata"],
+      "limeFields": ["id", "durationMs"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -425,8 +421,7 @@
         "status",
         "revisedPrompt",
         "result",
-        "savedPath",
-        "metadata"
+        "savedPath"
       ],
       "statusful": true,
       "codexStreamMethods": [],
@@ -436,7 +431,7 @@
     {
       "type": "enteredReviewMode",
       "codexFields": ["id", "review"],
-      "limeFields": ["id", "review", "metadata"],
+      "limeFields": ["id", "review"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -445,7 +440,7 @@
     {
       "type": "exitedReviewMode",
       "codexFields": ["id", "review"],
-      "limeFields": ["id", "review", "metadata"],
+      "limeFields": ["id", "review"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -454,7 +449,7 @@
     {
       "type": "contextCompaction",
       "codexFields": ["id"],
-      "limeFields": ["id", "metadata"],
+      "limeFields": ["id"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],
@@ -476,7 +471,7 @@
     {
       "type": "unknownItem",
       "codexFields": [],
-      "limeFields": ["id", "metadata", "upstreamType", "fieldNames"],
+      "limeFields": ["id", "upstreamType", "fieldNames"],
       "statusful": false,
       "codexStreamMethods": [],
       "limeStreamMethods": [],

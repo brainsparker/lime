@@ -249,7 +249,6 @@ mod tests {
     fn user_message(id: &str, text: &str) -> app_server_protocol::protocol::v2::ThreadItem {
         app_server_protocol::protocol::v2::ThreadItem::UserMessage {
             id: id.to_string(),
-            metadata: None,
             client_id: None,
             content: vec![UserInput::Text {
                 text: text.to_string(),
@@ -261,7 +260,6 @@ mod tests {
     fn answer(id: &str, text: &str) -> app_server_protocol::protocol::v2::ThreadItem {
         app_server_protocol::protocol::v2::ThreadItem::AgentMessage {
             id: id.to_string(),
-            metadata: None,
             text: text.to_string(),
             phase: None,
             memory_citation: None,
@@ -274,13 +272,11 @@ mod tests {
         let items = vec![
             app_server_protocol::protocol::v2::ThreadItem::EnteredReviewMode {
                 id: "review-enter".to_string(),
-                metadata: None,
                 review: "review".to_string(),
             },
             user_message("review-prompt", "hidden"),
             app_server_protocol::protocol::v2::ThreadItem::ExitedReviewMode {
                 id: "review-exit".to_string(),
-                metadata: None,
                 review: "review".to_string(),
             },
             answer("answer", "done"),
@@ -469,12 +465,10 @@ mod tests {
             items: vec![
                 app_server_protocol::protocol::v2::ThreadItem::EnteredReviewMode {
                     id: "review-enter".to_string(),
-                    metadata: None,
                     review: "review".to_string(),
                 },
                 app_server_protocol::protocol::v2::ThreadItem::ExitedReviewMode {
                     id: "review-exit".to_string(),
-                    metadata: None,
                     review: "review".to_string(),
                 },
             ],

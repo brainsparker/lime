@@ -834,6 +834,7 @@ async function runObservedInputbarRichRestoreScenario({
       traceCollector,
       expectedText: expectedSubmission.text,
       renderedTextParts: expectedSubmission.renderedTextParts,
+      renderedTailText: expectedSubmission.renderedTailText,
       headText: INPUTBAR_RICH_RESTORE_PROMPT,
     });
 

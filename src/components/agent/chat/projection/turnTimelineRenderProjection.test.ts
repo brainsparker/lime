@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AgentThreadItem, AgentThreadTurn, Message } from "../types";
 import type { MessageRenderGroupProjection } from "./messageTimelineRenderProjection";
 import { buildTurnTimelineRenderProjection } from "./turnTimelineRenderProjection";
-import { messageMatchesCanonicalUserMessage } from "../utils/importedUserMessageDedupe";
+import { messageMatchesCanonicalUserMessage } from "../utils/canonicalUserMessage";
 
 const timestamp = "2026-07-29T04:00:00.000Z";
 

@@ -143,6 +143,7 @@ impl RuntimeMemoryStoreExecutor {
             .await
             .map_err(runtime_memory_store_error)?;
         let content = response.content.clone();
+        let memory_usage = memory_usage_for_path(&response.path);
         let metadata = metadata_map(json!({
             "operation": "read",
             "path": response.path,
@@ -150,6 +151,7 @@ impl RuntimeMemoryStoreExecutor {
             "content": response.content,
             "truncated": response.truncated,
             "citation": response.citation,
+            "memoryUsage": memory_usage,
         }));
         Ok(RuntimeToolExecutionResult::new(
             true, content, None, metadata,
@@ -178,11 +180,17 @@ impl RuntimeMemoryStoreExecutor {
             .await
             .map_err(runtime_memory_store_error)?;
         let hit_count = response.hits.len();
+        let memory_usage = response
+            .hits
+            .iter()
+            .filter_map(|hit| memory_usage_for_path(&hit.path))
+            .collect::<Vec<_>>();
         let metadata = metadata_map(json!({
             "operation": "search",
             "hits": response.hits,
             "truncated": response.truncated,
             "nextCursor": response.next_cursor,
+            "memoryUsage": memory_usage,
         }));
         Ok(RuntimeToolExecutionResult::new(
             true,
@@ -254,6 +262,30 @@ fn metadata_map(value: Value) -> HashMap<String, Value> {
         Value::Object(object) => object.into_iter().collect(),
         _ => HashMap::new(),
     }
+}
+
+fn memory_usage_for_path(path: &str) -> Option<Value> {
+    let normalized = path.replace('\\', "/");
+    let version = if normalized.contains("memories_v2/") {
+        "v2"
+    } else {
+        "v1"
+    };
+    let normalized = normalized.replace("memories_v2/", "memories/");
+    let kind = if normalized.contains("memories/MEMORY.md") {
+        "memory_md"
+    } else if normalized.contains("memories/memory_summary.md") {
+        "memory_summary"
+    } else if normalized.contains("memories/raw_memories.md") {
+        "raw_memories"
+    } else if normalized.contains("memories/rollout_summaries/") {
+        "rollout_summaries"
+    } else if normalized.contains("memories/skills/") {
+        "skills"
+    } else {
+        return None;
+    };
+    Some(json!({"kind": kind, "version": version, "path": path}))
 }
 
 #[cfg(test)]
@@ -372,6 +404,7 @@ mod tests {
         assert_eq!(result.output, "remember this");
         assert_eq!(result.metadata.get("operation"), Some(&json!("read")));
         assert_eq!(result.metadata["citation"]["path"], json!("MEMORY.md"));
+        assert_eq!(result.metadata["memoryUsage"]["kind"], json!("memory_md"));
     }
 
     #[test]

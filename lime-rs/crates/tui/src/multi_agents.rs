@@ -386,7 +386,6 @@ mod tests {
     fn activity(kind: SubAgentActivityKind) -> ThreadItem {
         ThreadItem::SubAgentActivity {
             id: "activity-1".to_string(),
-            metadata: None,
             kind,
             agent_thread_id: "agent-1".to_string(),
             agent_path: "/root/child".to_string(),
@@ -425,7 +424,6 @@ mod tests {
         );
         let item = ThreadItem::CollabAgentToolCall {
             id: "call-wait".to_string(),
-            metadata: None,
             tool: CollabAgentTool::Wait,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),
@@ -445,7 +443,6 @@ mod tests {
         let effort = ReasoningEffort::new("high").expect("effort");
         let item = ThreadItem::CollabAgentToolCall {
             id: "call-spawn".to_string(),
-            metadata: None,
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),

@@ -11,7 +11,6 @@ import {
   createClientOrder,
   createClientOrderCheckout,
   createClientDesktopAuthSession,
-  claimClientReferral,
   getClientActiveAccessToken,
   getClientCloudActivation,
   getClientCreditTopupOrder,
@@ -21,7 +20,6 @@ import {
   getClientSceneSkillPreferences,
   getPublicAuthCatalog,
   getClientProviderOffer,
-  getClientReferralDashboard,
   listClientPaymentConfigs,
   listClientPlans,
   listClientProviderOfferModels,
@@ -217,7 +215,7 @@ describe("oemCloudControlPlane desktop auth", () => {
     });
   });
 
-  it("应解析 bootstrap 中缓存的邀请开关与分享事实源", async () => {
+  it("应通过共享账号读取 bootstrap 并解析 App Server 配置", async () => {
     await seedCloudAccount(
       {
         token: "session-token-001",
@@ -269,38 +267,7 @@ describe("oemCloudControlPlane desktop auth", () => {
             tenantHeader: "X-Lime-Tenant-ID",
           },
           features: {
-            referralEnabled: true,
-          },
-          referral: {
-            code: {
-              id: "refcode-001",
-              tenantId: "tenant-0001",
-              userId: "user-001",
-              code: "LIME-2026",
-              landingUrl: "https://limeai.run/invite?code=LIME-2026",
-              status: "active",
-              createdAt: "2026-04-28T00:00:00.000Z",
-              updatedAt: "2026-04-28T00:00:00.000Z",
-            },
-            policy: {
-              enabled: true,
-              referrerRewardCredits: 480,
-              inviteeRewardCredits: 120,
-              claimWindowDays: 30,
-              autoClaimEnabled: true,
-              allowManualClaimFallback: true,
-            },
-            summary: {},
-            events: [],
-            rewards: [],
-            invitedBy: {},
-            share: {
-              brandName: "Lime",
-              code: "LIME-2026",
-              landingUrl: "https://limeai.run/invite?code=LIME-2026",
-              downloadUrl: "https://limeai.run",
-              shareText: "邀请你体验Lime",
-            },
+            gatewayEnabled: true,
           },
         },
       }),
@@ -315,7 +282,7 @@ describe("oemCloudControlPlane desktop auth", () => {
         method: "GET",
       }),
     );
-    expect(bootstrap.features.referralEnabled).toBe(true);
+    expect(bootstrap.features.gatewayEnabled).toBe(true);
     expect(bootstrap.appServer).toEqual({
       enabled: true,
       endpoint: "wss://llm.limeai.run/v1/app-server",
@@ -324,11 +291,6 @@ describe("oemCloudControlPlane desktop auth", () => {
       authorizationHeader: "Authorization",
       authorizationScheme: "Bearer",
       tenantHeader: "X-Lime-Tenant-ID",
-    });
-    expect(bootstrap.referral?.share).toMatchObject({
-      brandName: "Lime",
-      code: "LIME-2026",
-      downloadUrl: "https://limeai.run",
     });
   });
 
@@ -611,143 +573,6 @@ describe("oemCloudControlPlane desktop auth", () => {
         alias_source: "oem",
       }),
     ]);
-  });
-
-  it("应读取客户端邀请看板并以云端 share 作为事实源", async () => {
-    await seedCloudAccount(
-      {
-        token: "session-token-001",
-        tenant: { id: "tenant-0001" },
-        user: { id: "user-001" },
-        session: { id: "session-001" },
-      },
-      "https://user.limeai.run",
-    );
-
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        code: 200,
-        message: "success",
-        data: {
-          code: {
-            id: "refcode-001",
-            tenantId: "tenant-0001",
-            userId: "user-001",
-            code: "LIME-2026",
-            landingUrl: "https://limeai.run/invite?code=LIME-2026",
-            status: "active",
-            createdAt: "2026-04-28T00:00:00.000Z",
-            updatedAt: "2026-04-28T00:00:00.000Z",
-          },
-          policy: {
-            enabled: true,
-            rewardCredits: 600,
-            referrerRewardCredits: 480,
-            inviteeRewardCredits: 120,
-            claimWindowDays: 30,
-            autoClaimEnabled: true,
-            allowManualClaimFallback: true,
-          },
-          summary: {
-            totalInvites: 2,
-            successfulInvites: 1,
-            totalRewardCredits: 480,
-            referrerRewardCreditsTotal: 480,
-            inviteeRewardCreditsTotal: 0,
-          },
-          events: [],
-          rewards: [],
-          invitedBy: {},
-          share: {
-            brandName: "Lime",
-            code: "LIME-2026",
-            landingUrl: "https://limeai.run/invite?code=LIME-2026",
-            downloadUrl: "https://limeai.run",
-            shareText:
-              "邀请你体验Lime，让AI做牛做马，我们来做牛人！前往 https://limeai.run 下载客户端，复制邀请码 LIME-2026 激活并注册账号参与内测",
-            headline: "登录后自动领取奖励",
-            rules: "复制邀请码后完成注册即可参与内测。",
-          },
-        },
-      }),
-    }));
-    stubCloudRequest(fetchMock);
-
-    const dashboard = await getClientReferralDashboard("tenant-0001");
-
-    expect(cloudRequestMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: "/v1/public/tenants/tenant-0001/client/referral",
-        method: "GET",
-      }),
-    );
-    expect(dashboard.share).toEqual(
-      expect.objectContaining({
-        brandName: "Lime",
-        code: "LIME-2026",
-        downloadUrl: "https://limeai.run",
-      }),
-    );
-    expect(dashboard.policy.referrerRewardCredits).toBe(480);
-    expect(dashboard.policy.inviteeRewardCredits).toBe(120);
-  });
-
-  it("应调用客户端邀请码领取接口", async () => {
-    await seedCloudAccount(
-      {
-        token: "session-token-001",
-        tenant: { id: "tenant-0001" },
-        user: { id: "user-001" },
-        session: { id: "session-001" },
-      },
-      "https://user.limeai.run",
-    );
-
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 201,
-      json: async () => ({
-        code: 201,
-        message: "success",
-        data: {
-          event: { id: "refevent-001", code: "LIME-2026" },
-          reward: { id: "refreward-001", rewardCredits: 120 },
-          rewards: [{ id: "refreward-001" }],
-          creditAccount: {
-            tenantId: "tenant-0001",
-            userId: "user-001",
-            balance: 120,
-            reserved: 0,
-            currency: "credits",
-            updatedAt: "2026-04-28T00:00:00.000Z",
-          },
-          accountLedgers: [{ id: "account-ledger-001" }],
-        },
-      }),
-    }));
-    stubCloudRequest(fetchMock);
-
-    const result = await claimClientReferral("tenant-0001", {
-      code: "LIME-2026",
-      claimMethod: "manual",
-      entrySource: "code_input",
-    });
-
-    expect(cloudRequestMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        path: "/v1/public/tenants/tenant-0001/client/referrals/claim",
-        method: "POST",
-        body: {
-          code: "LIME-2026",
-          claimMethod: "manual",
-          entrySource: "code_input",
-        },
-      }),
-    );
-    expect(result.creditAccount?.balance).toBe(120);
-    expect(result.accountLedgers).toHaveLength(1);
   });
 
   it("应接入套餐、积分、订单和 API Key 控制面接口", async () => {

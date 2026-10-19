@@ -462,6 +462,8 @@ pub struct Config {
     /// 实验室功能配置
     #[serde(default)]
     pub experimental: ExperimentalFeatures,
+    #[serde(default, skip_serializing_if = "super::ToolsConfig::is_default")]
+    pub tools: super::ToolsConfig,
     /// Tool Calling 2.0 配置
     #[serde(default)]
     pub tool_calling: ToolCallingConfig,
@@ -2236,6 +2238,7 @@ impl Default for Config {
             marketplaces: std::collections::BTreeMap::new(),
             orchestrator: OrchestratorConfig::default(),
             experimental: ExperimentalFeatures::default(),
+            tools: super::ToolsConfig::default(),
             tool_calling: ToolCallingConfig::default(),
             workspace_preferences: WorkspacePreferencesConfig::default(),
             navigation: NavigationConfig::default(),

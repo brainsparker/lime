@@ -3,6 +3,7 @@ import { safeInvoke } from "@/lib/dev-bridge";
 import { hasDesktopHostInvokeCapability } from "@/lib/desktop-runtime";
 import { assertNotDiagnosticFacade } from "./diagnosticFacade";
 import { assertEmptyElectronHostResult } from "./electronHostResult";
+import { openIn } from "./openIn";
 
 const FILE_SHELL_CURRENT_SURFACE = "真实文件壳 current 通道";
 
@@ -17,13 +18,7 @@ export async function revealPathInFinder(path: string): Promise<void> {
 }
 
 export async function openPathWithDefaultApp(path: string): Promise<void> {
-  const result = await safeInvoke("open_with_default_app", { path });
-  assertNotDiagnosticFacade(
-    "open_with_default_app",
-    result,
-    FILE_SHELL_CURRENT_SURFACE,
-  );
-  assertEmptyElectronHostResult("open_with_default_app", result);
+  await openIn.open({ path, target: "systemDefault" });
 }
 
 export async function getHomeDirectory(): Promise<string> {

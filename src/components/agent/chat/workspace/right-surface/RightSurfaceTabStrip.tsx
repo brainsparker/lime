@@ -3,6 +3,7 @@ import { Plus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSidePanelTabActive } from "@/components/app-shell/unifiedTabStripContext";
 import type { ThreadSidePanelTab } from "./threadSidePanelTabs";
+import { WorkspaceFileContextMenu } from "./WorkspaceFileContextMenu";
 import type {
   RightSurfaceDefinition,
   WorkspaceRightSurfaceKind,
@@ -90,7 +91,8 @@ export function RightSurfaceTabStrip({
     >
       {tabs
         .filter((tab) => byKind.has(tab.kind))
-        .map(({ tabId, kind, filePath, title }) => {
+        .map((tab) => {
+          const { tabId, kind, filePath, title } = tab;
           const active = tabId === activeTabId && panelActive;
           const label =
             title ||
@@ -101,7 +103,7 @@ export function RightSurfaceTabStrip({
             t(RIGHT_SURFACE_TAB_LABELS[kind].key, {
               defaultValue: RIGHT_SURFACE_TAB_LABELS[kind].fallback,
             });
-          return (
+          const content = (
             <div
               key={tabId}
               className={cn(
@@ -148,6 +150,17 @@ export function RightSurfaceTabStrip({
                 </button>
               ) : null}
             </div>
+          );
+          return kind === "files" && filePath ? (
+            <WorkspaceFileContextMenu
+              key={tabId}
+              scope={tab}
+              filePath={filePath}
+            >
+              {content}
+            </WorkspaceFileContextMenu>
+          ) : (
+            content
           );
         })}
       <button

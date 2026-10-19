@@ -8,7 +8,7 @@ import {
 describe("sidebarNav", () => {
   it("应把主导航与底部系统入口收口为一级列表", () => {
     expect(MAIN_SIDEBAR_NAV_ITEMS.map((item) => item.label)).toEqual([
-      "新建任务",
+      "新聊天",
       "已安排任务",
       "插件",
     ]);
@@ -44,7 +44,7 @@ describe("sidebarNav", () => {
         "image-gen",
         "terminal",
         "tools",
-        "home-general",
+        "new-chat",
         "scheduled-tasks",
         "automation",
         "channels",

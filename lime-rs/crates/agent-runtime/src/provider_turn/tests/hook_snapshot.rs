@@ -1,5 +1,6 @@
 use super::*;
 use tool_runtime::hook_gated_executor::FixedHookReporter;
+use tool_runtime::hook_lifecycle::RuntimeHookHandlerReport;
 use tool_runtime::turn_snapshot::{
     RuntimeHookEventName, RuntimeHookExecutionMode, RuntimeHookHandlerType, RuntimeHookSource,
     RuntimeHookTrustStatus,
@@ -51,6 +52,7 @@ async fn assert_rejected(source: RuntimeHookSnapshotSourceHandle, expected: &str
             working_directory: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -106,4 +108,63 @@ async fn hook_source_failure_stops_sampling() {
         "plugin Hook source unavailable",
     )
     .await;
+}
+
+#[tokio::test]
+async fn terminal_stop_hook_blocks_once_with_the_current_step_snapshot() {
+    let mut stop = hook("stop", 0);
+    stop.event_name = RuntimeHookEventName::Stop;
+    let config = crate::session_config::SessionConfigBuilder::new("session-1")
+        .thread_id("thread-1")
+        .turn_id("turn-1")
+        .build();
+    let evaluation = super::super::evaluate_stop_hooks(
+        &RuntimeHookStepSnapshot {
+            hooks: vec![stop],
+            reporter: Arc::new(FixedHookReporter::new(Some(
+                RuntimeHookHandlerReport::Block {
+                    reason: "continue until checks pass".to_string(),
+                },
+            ))),
+        },
+        &config,
+        "turn-1",
+        Path::new(env!("CARGO_MANIFEST_DIR")),
+        false,
+        "finished response".to_string(),
+    )
+    .await;
+    assert!(!evaluation.should_stop);
+    assert_eq!(
+        evaluation.block_reason.as_deref(),
+        Some("continue until checks pass")
+    );
+}
+
+#[tokio::test]
+async fn terminal_stop_hook_abort_stops_without_continuation() {
+    let mut stop = hook("stop", 0);
+    stop.event_name = RuntimeHookEventName::Stop;
+    let config = crate::session_config::SessionConfigBuilder::new("session-1")
+        .thread_id("thread-1")
+        .turn_id("turn-1")
+        .build();
+    let evaluation = super::super::evaluate_stop_hooks(
+        &RuntimeHookStepSnapshot {
+            hooks: vec![stop],
+            reporter: Arc::new(FixedHookReporter::new(Some(
+                RuntimeHookHandlerReport::Abort {
+                    reason: Some("stop now".to_string()),
+                },
+            ))),
+        },
+        &config,
+        "turn-1",
+        Path::new(env!("CARGO_MANIFEST_DIR")),
+        true,
+        "finished response".to_string(),
+    )
+    .await;
+    assert!(evaluation.should_stop);
+    assert!(evaluation.block_reason.is_none());
 }

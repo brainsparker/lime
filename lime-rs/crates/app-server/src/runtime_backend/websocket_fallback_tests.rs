@@ -220,6 +220,7 @@ fn execution_request(base_url: &str, turn_index: usize) -> ExecutionRequest {
         agent_control_gateway: None,
         command_publisher: None,
         rollout_budget_reminder_source: None,
+        mid_turn_compaction_commit: None,
     }
 }
 

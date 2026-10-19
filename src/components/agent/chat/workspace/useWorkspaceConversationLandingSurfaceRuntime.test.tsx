@@ -26,32 +26,16 @@ function createDefaultProps(overrides: Partial<HookProps> = {}): HookProps {
     entryBannerVisible: false,
     handleSendFromEmptyState: vi.fn(),
     input: "",
-    inputbarScene: {
-      knowledgePackSelection: undefined,
-      knowledgePackOptions: [],
-      onToggleKnowledgePack: vi.fn(),
-      onSelectKnowledgePack: vi.fn(),
-      onToggleKnowledgeCompanionPack: vi.fn(),
-      onStartKnowledgeOrganize: vi.fn(),
-      onManageKnowledgePacks: vi.fn(),
-      onImportPathReferenceAsKnowledge: vi.fn(),
-    },
-    lockTheme: false,
     model: "mock-model",
     onDismissEntryBanner: vi.fn(),
-    projectCharacters: [],
     projectId: "project-1",
     providerType: "mock-provider",
-    serviceSkillGroups: [],
-    serviceSkills: [],
-    setActiveTheme: vi.fn(),
     setChatToolPreferences: vi.fn(),
     setInput: vi.fn(),
     setModel: vi.fn(),
     setProviderType: vi.fn(),
     skills: [],
     skillsLoading: false,
-    selectedText: "",
     ...overrides,
   };
 }
@@ -115,30 +99,21 @@ describe("useWorkspaceConversationLandingSurfaceRuntime", () => {
     getValue().emptyStateProps.onSkillSuggestionsNeeded?.();
     expect(onSkillSuggestionsNeeded).toHaveBeenCalledOnce();
   });
-  it("应集中产出入口 banner、leading card 与空态技能 props", () => {
-    const onSelectServiceSkill = vi.fn();
-    const serviceSkills = [
-      {
-        id: "daily-trend-briefing",
-        title: "每日趋势摘要",
-      },
-    ];
+  it("保留首页 banner 并透传关闭操作", () => {
+    const onDismissEntryBanner = vi.fn();
     const { getValue } = renderHook(
       createDefaultProps({
         entryBannerVisible: true,
         entryBannerMessage: "继续上次的内容",
-        serviceSkills,
-        onSelectServiceSkill,
+        onDismissEntryBanner,
       }),
     );
 
     const runtime = getValue();
     expect(runtime.entryBannerVisible).toBe(true);
     expect(runtime.entryBannerMessage).toBe("继续上次的内容");
-    expect(runtime.emptyStateProps.serviceSkills).toBe(serviceSkills);
-    expect(runtime.emptyStateProps.onSelectServiceSkill).toBe(
-      onSelectServiceSkill,
-    );
+    runtime.onDismissEntryBanner();
+    expect(onDismissEntryBanner).toHaveBeenCalledOnce();
   });
 
   it("空态工具偏好变更应回写 chat tool preferences", () => {
@@ -166,37 +141,25 @@ describe("useWorkspaceConversationLandingSurfaceRuntime", () => {
     });
   });
 
-  it("输入栏知识包与路径导入入口应由 inputbar scene current owner 透传", () => {
-    const onSelectKnowledgePack = vi.fn();
-    const onImportPathReferenceAsKnowledge = vi.fn();
-    const knowledgePackSelection = {
-      workingDir: "/tmp/project",
-      packName: "品牌资料",
+  it("本地路径引用与移除操作交给首页附件 owner", () => {
+    const reference = {
+      id: "file:/workspace/brief.md",
+      name: "brief.md",
+      path: "/workspace/brief.md",
+      isDir: false,
+      source: "file_manager" as const,
     };
-    const knowledgePackOptions = [
-      {
-        workingDir: "/tmp/project",
-        packName: "品牌资料",
-      },
-    ];
+    const onRemovePathReference = vi.fn();
     const { getValue } = renderHook(
       createDefaultProps({
-        inputbarScene: {
-          ...createDefaultProps().inputbarScene,
-          knowledgePackSelection,
-          knowledgePackOptions,
-          onSelectKnowledgePack,
-          onImportPathReferenceAsKnowledge,
-        },
+        pathReferences: [reference],
+        onRemovePathReference,
       }),
     );
 
     const emptyStateProps = getValue().emptyStateProps;
-    expect(emptyStateProps.knowledgePackSelection).toBe(knowledgePackSelection);
-    expect(emptyStateProps.knowledgePackOptions).toBe(knowledgePackOptions);
-    expect(emptyStateProps.onSelectKnowledgePack).toBe(onSelectKnowledgePack);
-    expect(emptyStateProps.onImportPathReferenceAsKnowledge).toBe(
-      onImportPathReferenceAsKnowledge,
-    );
+    expect(emptyStateProps.pathReferences).toEqual([reference]);
+    emptyStateProps.onRemovePathReference?.(reference.id);
+    expect(onRemovePathReference).toHaveBeenCalledWith(reference.id);
   });
 });

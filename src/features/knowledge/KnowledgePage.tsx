@@ -18,7 +18,6 @@ import {
 import { ProjectSelector } from "@/components/projects/ProjectSelector";
 import {
   getKnowledgePack,
-  importKnowledgeSource,
   listKnowledgePacks,
   updateKnowledgePackStatus,
   type KnowledgePackDetail,
@@ -64,7 +63,6 @@ type AsyncStatus = "idle" | "loading" | "ready" | "error";
 const WORKING_DIR_STORAGE_KEY = "lime.knowledge.working-dir";
 const LAST_PROJECT_ID_STORAGE_KEY = "agent_last_project_id";
 const DEFAULT_PACK_NAME = "project-material";
-const DEFAULT_SOURCE_FILE_NAME = "source.md";
 
 function readStoredWorkingDir(): string {
   if (typeof window === "undefined") {
@@ -125,23 +123,11 @@ function readLastProjectId(): string {
   }
 }
 
-function resolveDraftPackNameInput(
-  description?: string | null,
-  sourceName?: string | null,
-): string {
-  return (
-    normalizePackNameInput(description?.trim() ?? "") ||
-    normalizePackNameInput(sourceName?.replace(/\.[^.]+$/, "").trim() ?? "") ||
-    DEFAULT_PACK_NAME
-  );
-}
-
 export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
-  const { t, i18n } = useTranslation("agent");
+  const { t } = useTranslation("agent");
   const initialWorkingDir = pageParams?.workingDir?.trim() ?? "";
   const initialStoredWorkingDir =
     initialWorkingDir || readReusableStoredWorkingDir();
-  const initialSaveDraft = pageParams?.saveDraft;
   const [workingDir, setWorkingDir] = useState(() => initialStoredWorkingDir);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     null,
@@ -165,33 +151,14 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
   const [actionStatus, setActionStatus] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [packNameInput, setPackNameInput] = useState(
-    pageParams?.selectedPackName?.trim() ||
-      resolveDraftPackNameInput(
-        initialSaveDraft?.description,
-        initialSaveDraft?.sourceName,
-      ),
+    pageParams?.selectedPackName?.trim() || DEFAULT_PACK_NAME,
   );
-  const [packDescription, setPackDescription] = useState(
-    () =>
-      initialSaveDraft?.description?.trim() ||
-      initialSaveDraft?.sourceName?.replace(/\.[^.]+$/, "").trim() ||
-      t("knowledgePage.default.description"),
+  const [packDescription, setPackDescription] = useState(() =>
+    t("knowledgePage.default.description"),
   );
-  const [packType, setPackType] = useState(
-    () => initialSaveDraft?.packType?.trim() || "brand-product",
-  );
-  const sourceFileName =
-    pageParams?.saveDraft?.sourceName?.trim() || DEFAULT_SOURCE_FILE_NAME;
-  const [sourceText, setSourceText] = useState(
-    () => initialSaveDraft?.sourceText.trim() ?? "",
-  );
-  const [saveTargetPackName, setSaveTargetPackName] = useState(
-    () => pageParams?.selectedPackName?.trim() ?? "",
-  );
-  const [saveCompletedPackName, setSaveCompletedPackName] = useState("");
+  const [packType, setPackType] = useState("brand-product");
+  const [sourceText, setSourceText] = useState("");
   const activeViewRef = useRef(activeView);
-  const hasSaveDraftRef = useRef(Boolean(pageParams?.saveDraft));
-  const saveTargetPackNameRef = useRef(saveTargetPackName);
   const [knowledgeComposerOpen, setKnowledgeComposerOpen] = useState(false);
   const [composerPersonaPackName, setComposerPersonaPackName] = useState<
     string | null
@@ -260,7 +227,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
         });
       } catch (error) {
         setCatalogStatus("error");
-        setNotice(getErrorMessage(error, t("knowledgePage.notice.catalogReadFailed")));
+        setNotice(
+          getErrorMessage(error, t("knowledgePage.notice.catalogReadFailed")),
+        );
       }
     },
     [t, workingDir],
@@ -292,30 +261,7 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
     }
 
     setSelectedPackName(nextSelectedPackName);
-    setSaveTargetPackName(nextSelectedPackName);
   }, [pageParams?.selectedPackName]);
-
-  useEffect(() => {
-    const draft = pageParams?.saveDraft;
-    if (!draft) {
-      return;
-    }
-
-    const nextSourceText = draft.sourceText.trim();
-    const nextDescription =
-      draft.description?.trim() ||
-      draft.sourceName?.replace(/\.[^.]+$/, "").trim() ||
-      t("knowledgePage.default.conversationResult");
-    setSourceText(nextSourceText);
-    setPackDescription(nextDescription);
-    setPackNameInput(
-      pageParams?.selectedPackName?.trim() ||
-        resolveDraftPackNameInput(nextDescription, draft.sourceName),
-    );
-    setPackType(draft.packType?.trim() || "custom");
-    setSaveTargetPackName(pageParams?.selectedPackName?.trim() || "");
-    setSaveCompletedPackName("");
-  }, [pageParams?.saveDraft, pageParams?.selectedPackName, t]);
 
   useEffect(() => {
     if (workingDir || pageParams?.workingDir?.trim()) {
@@ -397,14 +343,7 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
         }
         setSelectedPack(pack);
         setDetailStatus("ready");
-        const shouldPreserveSaveDraftForm =
-          activeViewRef.current === "save" &&
-          hasSaveDraftRef.current &&
-          !saveTargetPackNameRef.current;
-        if (
-          !shouldPreserveSaveDraftForm &&
-          activeViewRef.current !== "import"
-        ) {
+        if (activeViewRef.current !== "import") {
           setPackNameInput(pack.metadata.name);
           setPackDescription(pack.metadata.description);
           setPackType(pack.metadata.type || "personal-ip");
@@ -415,7 +354,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
           return;
         }
         setDetailStatus("error");
-        setNotice(getErrorMessage(error, t("knowledgePage.notice.detailReadFailed")));
+        setNotice(
+          getErrorMessage(error, t("knowledgePage.notice.detailReadFailed")),
+        );
       });
 
     return () => {
@@ -443,7 +384,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
         setSelectedPack(null);
         await refreshCatalog(nextWorkingDir);
       } catch (error) {
-        setNotice(getErrorMessage(error, t("knowledgePage.notice.projectSelectFailed")));
+        setNotice(
+          getErrorMessage(error, t("knowledgePage.notice.projectSelectFailed")),
+        );
       }
     },
     [refreshCatalog, t],
@@ -456,65 +399,6 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
       setActiveView("detail");
     },
     [],
-  );
-
-  const runImportSource = useCallback(
-    async (
-      statusKey: string,
-      packNameOverride?: string,
-    ): Promise<KnowledgePackDetail | null> => {
-      const normalizedWorkingDir = workingDir.trim();
-      const normalizedPackName = normalizePackNameInput(
-        packNameOverride || packNameInput,
-      );
-      if (!normalizedWorkingDir) {
-        setNotice(t("knowledgePage.notice.selectProjectFirst"));
-        return null;
-      }
-      if (!normalizedPackName) {
-        setNotice(t("knowledgePage.notice.fillPackName"));
-        return null;
-      }
-      if (!sourceText.trim()) {
-        setNotice(t("knowledgePage.notice.pasteSourceFirst"));
-        return null;
-      }
-
-      setActionStatus(statusKey);
-      setNotice(null);
-      try {
-        const response = await importKnowledgeSource({
-          workingDir: normalizedWorkingDir,
-          packName: normalizedPackName,
-          description: packDescription.trim() || undefined,
-          packType: packType.trim() || undefined,
-          sourceFileName: sourceFileName.trim() || undefined,
-          sourceText,
-        });
-        setSelectedPack(response.pack);
-        setSelectedPackName(response.pack.metadata.name);
-        setPackNameInput(response.pack.metadata.name);
-        setSourceText("");
-        setNotice(t("knowledgePage.notice.sourceSaved"));
-        await refreshCatalog(normalizedWorkingDir);
-        return response.pack;
-      } catch (error) {
-        setNotice(getErrorMessage(error, t("knowledgePage.notice.importFailed")));
-        return null;
-      } finally {
-        setActionStatus(null);
-      }
-    },
-    [
-      packDescription,
-      packNameInput,
-      packType,
-      refreshCatalog,
-      sourceFileName,
-      sourceText,
-      t,
-      workingDir,
-    ],
   );
 
   const handleUpdateStatus = useCallback(
@@ -545,7 +429,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
           setActiveView("overview");
         }
       } catch (error) {
-        setNotice(getErrorMessage(error, t("knowledgePage.notice.statusUpdateFailed")));
+        setNotice(
+          getErrorMessage(error, t("knowledgePage.notice.statusUpdateFailed")),
+        );
       } finally {
         setActionStatus(null);
       }
@@ -634,7 +520,14 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
       setComposerDataPackNames(seedRuntimeMode === "data" ? [packName] : []);
       setKnowledgeComposerOpen(true);
     },
-    [packs, readyPersonaPacks, selectedPackName, selectedSummary, t, workingDir],
+    [
+      packs,
+      readyPersonaPacks,
+      selectedPackName,
+      selectedSummary,
+      t,
+      workingDir,
+    ],
   );
 
   const handleToggleComposerDataPack = useCallback((packName: string) => {
@@ -770,18 +663,7 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
 
   useEffect(() => {
     activeViewRef.current = activeView;
-    hasSaveDraftRef.current = Boolean(pageParams?.saveDraft);
-    saveTargetPackNameRef.current = saveTargetPackName;
-  }, [activeView, pageParams?.saveDraft, saveTargetPackName]);
-  const handleSaveDraftToMaterials = async () => {
-    const targetPackName = saveTargetPackName || packNameInput;
-    const saved = await runImportSource("save", targetPackName);
-    if (saved) {
-      setSaveTargetPackName(saved.metadata.name);
-      setSaveCompletedPackName(saved.metadata.name);
-      setActiveView("save");
-    }
-  };
+  }, [activeView]);
 
   const renderMaterialStatus = (pack: KnowledgePackSummary) => {
     if (pack.metadata.status === "ready") {
@@ -830,12 +712,18 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
   const getConfirmationChecklist = (pack: KnowledgePackDetail) => [
     {
       label: t("knowledgePage.checklist.source.label"),
-      state: pack.sourceCount > 0 ? t("knowledgePage.checklist.source.saved") : t("knowledgePage.status.needsSupplement"),
+      state:
+        pack.sourceCount > 0
+          ? t("knowledgePage.checklist.source.saved")
+          : t("knowledgePage.status.needsSupplement"),
       tone: pack.sourceCount > 0 ? "emerald" : "amber",
     },
     {
       label: t("knowledgePage.checklist.document.label"),
-      state: pack.guide.trim() || pack.preview ? t("knowledgePage.checklist.document.generated") : t("knowledgePage.checklist.document.pending"),
+      state:
+        pack.guide.trim() || pack.preview
+          ? t("knowledgePage.checklist.document.generated")
+          : t("knowledgePage.checklist.document.pending"),
       tone: pack.guide.trim() || pack.preview ? "emerald" : "amber",
     },
     {
@@ -1112,7 +1000,8 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                           disabled={
                             actionBusy ||
                             (pack.metadata.status !== "ready" &&
-                              renderPackActionLabel(pack) === t("knowledgePage.action.useForWriting"))
+                              renderPackActionLabel(pack) ===
+                                t("knowledgePage.action.useForWriting"))
                           }
                           onClick={() => {
                             if (pack.metadata.status === "ready") {
@@ -1155,19 +1044,25 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                     {
                       index: "1",
                       title: t("knowledgePage.action.organizeNew"),
-                      description: t("knowledgePage.nextSteps.organize.description"),
+                      description: t(
+                        "knowledgePage.nextSteps.organize.description",
+                      ),
                       icon: FileText,
                     },
                     {
                       index: "2",
                       title: t("knowledgePage.nextSteps.review.title"),
-                      description: t("knowledgePage.nextSteps.review.description"),
+                      description: t(
+                        "knowledgePage.nextSteps.review.description",
+                      ),
                       icon: ClipboardCheck,
                     },
                     {
                       index: "3",
                       title: t("knowledgePage.nextSteps.select.title"),
-                      description: t("knowledgePage.nextSteps.select.description"),
+                      description: t(
+                        "knowledgePage.nextSteps.select.description",
+                      ),
                       icon: Check,
                     },
                   ].map((item, stepIndex, items) => {
@@ -1207,9 +1102,7 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   <ListChecks className="mt-0.5 h-5 w-5 shrink-0" />
-                  <p>
-                    {t("knowledgePage.notice.confirmationGate")}
-                  </p>
+                  <p>{t("knowledgePage.notice.confirmationGate")}</p>
                 </div>
                 <button
                   type="button"
@@ -1230,7 +1123,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
           >
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-sm text-slate-500">{t("knowledgePage.import.breadcrumb")}</p>
+                <p className="text-sm text-slate-500">
+                  {t("knowledgePage.import.breadcrumb")}
+                </p>
                 <h2 className="mt-2 text-2xl font-semibold text-slate-950">
                   {t("knowledgePage.action.organizeNew")}
                 </h2>
@@ -1320,7 +1215,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                           onChange={(event) =>
                             setSourceText(event.target.value)
                           }
-                          placeholder={t("knowledgePage.import.source.placeholder")}
+                          placeholder={t(
+                            "knowledgePage.import.source.placeholder",
+                          )}
                           className="min-h-[180px] resize-y rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
                         />
                       </label>
@@ -1342,13 +1239,24 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                       </p>
                       <div className="mt-4 grid gap-3 md:grid-cols-4">
                         {[
-                          [t("knowledgePage.import.agent.step.read"), sourceText.trim() ? t("knowledgePage.import.agent.state.done") : t("knowledgePage.import.agent.state.waiting")],
-                          [t("knowledgePage.import.agent.step.extract"), t("knowledgePage.import.agent.state.inChat")],
+                          [
+                            t("knowledgePage.import.agent.step.read"),
+                            sourceText.trim()
+                              ? t("knowledgePage.import.agent.state.done")
+                              : t("knowledgePage.import.agent.state.waiting"),
+                          ],
+                          [
+                            t("knowledgePage.import.agent.step.extract"),
+                            t("knowledgePage.import.agent.state.inChat"),
+                          ],
                           [
                             t("knowledgePage.import.agent.step.generateDraft"),
                             t("knowledgePage.import.agent.state.inChat"),
                           ],
-                          [t("knowledgePage.import.agent.step.checkGap"), t("knowledgePage.import.agent.state.inChat")],
+                          [
+                            t("knowledgePage.import.agent.step.checkGap"),
+                            t("knowledgePage.import.agent.state.inChat"),
+                          ],
                         ].map(([title, state], index) => (
                           <div
                             key={title}
@@ -1392,7 +1300,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                         setPackDescription(nextName);
                         setPackNameInput(normalizePackNameInput(nextName));
                       }}
-                      placeholder={t("knowledgePage.import.settings.namePlaceholder")}
+                      placeholder={t(
+                        "knowledgePage.import.settings.namePlaceholder",
+                      )}
                       className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
                     />
                   </label>
@@ -1566,14 +1476,23 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                     </h3>
                     <div className="mt-7 space-y-9">
                       {[
-                        [t("knowledgePage.detail.afterConfirm.ready.title"), t("knowledgePage.detail.afterConfirm.ready.description")],
+                        [
+                          t("knowledgePage.detail.afterConfirm.ready.title"),
+                          t(
+                            "knowledgePage.detail.afterConfirm.ready.description",
+                          ),
+                        ],
                         [
                           t("knowledgePage.detail.afterConfirm.explicit.title"),
-                          t("knowledgePage.detail.afterConfirm.explicit.description"),
+                          t(
+                            "knowledgePage.detail.afterConfirm.explicit.description",
+                          ),
                         ],
                         [
                           t("knowledgePage.detail.afterConfirm.preserve.title"),
-                          t("knowledgePage.detail.afterConfirm.preserve.description"),
+                          t(
+                            "knowledgePage.detail.afterConfirm.preserve.description",
+                          ),
                         ],
                       ].map(([title, description]) => (
                         <div key={title} className="flex gap-4">
@@ -1620,28 +1539,48 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                     <div className="mt-5 grid gap-3 md:grid-cols-3">
                       {[
                         {
-                          title: t("knowledgePage.detail.advanced.source.title"),
-                          value: t("knowledgePage.detail.advanced.source.value", { count: selectedPack.sourceCount }),
+                          title: t(
+                            "knowledgePage.detail.advanced.source.title",
+                          ),
+                          value: t(
+                            "knowledgePage.detail.advanced.source.value",
+                            { count: selectedPack.sourceCount },
+                          ),
                           description:
                             sanitizeKnowledgePreview(
                               selectedPack.sources[0]?.preview,
-                            ) || t("knowledgePage.detail.advanced.source.description"),
+                            ) ||
+                            t(
+                              "knowledgePage.detail.advanced.source.description",
+                            ),
                         },
                         {
                           title: t("knowledgePage.detail.advanced.runs.title"),
-                          value: t("knowledgePage.detail.advanced.runs.value", { count: selectedPack.runCount }),
+                          value: t("knowledgePage.detail.advanced.runs.value", {
+                            count: selectedPack.runCount,
+                          }),
                           description:
                             selectedPack.runCount > 0
-                              ? t("knowledgePage.detail.advanced.runs.description")
+                              ? t(
+                                  "knowledgePage.detail.advanced.runs.description",
+                                )
                               : t("knowledgePage.detail.advanced.runs.empty"),
                         },
                         {
-                          title: t("knowledgePage.detail.advanced.compiled.title"),
-                          value: t("knowledgePage.detail.advanced.compiled.value", { count: selectedPack.compiledCount }),
+                          title: t(
+                            "knowledgePage.detail.advanced.compiled.title",
+                          ),
+                          value: t(
+                            "knowledgePage.detail.advanced.compiled.value",
+                            { count: selectedPack.compiledCount },
+                          ),
                           description:
                             sanitizeKnowledgePreview(
                               selectedPack.compiled[0]?.preview,
-                            ) || t("knowledgePage.detail.advanced.compiled.description"),
+                            ) ||
+                            t(
+                              "knowledgePage.detail.advanced.compiled.description",
+                            ),
                         },
                       ].map((item) => (
                         <article
@@ -1669,48 +1608,48 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                       {t("knowledgePage.detail.supplementHint")}
                     </p>
                     <div className="flex flex-wrap items-center justify-end gap-4">
-                    {selectedPack.metadata.status !== "ready" ? (
+                      {selectedPack.metadata.status !== "ready" ? (
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus("ready")}
+                          disabled={actionBusy}
+                          className="inline-flex h-12 min-w-44 items-center justify-center gap-2 rounded-full border border-emerald-700 bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800 disabled:opacity-60"
+                        >
+                          {actionStatus === "confirm" ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <ClipboardCheck className="h-4 w-4" />
+                          )}
+                          {t("knowledgePage.action.confirmReady")}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleOpenKnowledgeComposer(
+                              selectedPack.metadata.name,
+                            )
+                          }
+                          className="inline-flex h-12 min-w-44 items-center justify-center gap-2 rounded-full border border-emerald-700 bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800"
+                        >
+                          <MessageSquareText className="h-4 w-4" />
+                          {t("knowledgePage.action.useForWriting")}
+                        </button>
+                      )}
                       <button
                         type="button"
-                        onClick={() => handleUpdateStatus("ready")}
-                        disabled={actionBusy}
-                        className="inline-flex h-12 min-w-44 items-center justify-center gap-2 rounded-full border border-emerald-700 bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800 disabled:opacity-60"
+                        onClick={() => setActiveView("import")}
+                        className="inline-flex h-12 min-w-40 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
-                        {actionStatus === "confirm" ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <ClipboardCheck className="h-4 w-4" />
-                        )}
-                        {t("knowledgePage.action.confirmReady")}
+                        {t("knowledgePage.action.supplementMaterial")}
                       </button>
-                    ) : (
                       <button
                         type="button"
-                        onClick={() =>
-                          handleOpenKnowledgeComposer(
-                            selectedPack.metadata.name,
-                          )
-                        }
-                        className="inline-flex h-12 min-w-44 items-center justify-center gap-2 rounded-full border border-emerald-700 bg-emerald-700 px-6 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800"
+                        onClick={() => setActiveView("overview")}
+                        className="inline-flex h-12 min-w-40 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                       >
-                        <MessageSquareText className="h-4 w-4" />
-                        {t("knowledgePage.action.useForWriting")}
+                        {t("knowledgePage.action.later")}
                       </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => setActiveView("import")}
-                      className="inline-flex h-12 min-w-40 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      {t("knowledgePage.action.supplementMaterial")}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setActiveView("overview")}
-                      className="inline-flex h-12 min-w-40 items-center justify-center rounded-full border border-slate-200 bg-white px-6 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      {t("knowledgePage.action.later")}
-                    </button>
                     </div>
                   </div>
                 </section>
@@ -1720,228 +1659,6 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                 {t("knowledgePage.detail.error")}
               </div>
             )}
-          </section>
-        ) : null}
-
-        {activeView === "save" ? (
-          <section className="grid gap-5 xl:grid-cols-3">
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <h2 className="text-lg font-semibold text-slate-950">
-                  {t("knowledgePage.save.title")}
-                </h2>
-              </div>
-              <label className="mt-5 grid gap-1.5 text-xs font-medium text-slate-600">
-                {t("knowledgePage.save.contentLabel")}
-                <textarea
-                  value={sourceText}
-                  onChange={(event) => {
-                    setSourceText(event.target.value);
-                    setSaveCompletedPackName("");
-                  }}
-                  placeholder={t("knowledgePage.save.contentPlaceholder")}
-                  className="min-h-[260px] resize-y rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-emerald-300 focus:bg-white focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={handleSaveDraftToMaterials}
-                disabled={actionBusy || !sourceText.trim()}
-                className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full border border-emerald-700 bg-emerald-700 px-5 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800 disabled:opacity-60"
-              >
-                {t("knowledgePage.action.saveToMaterials")}
-              </button>
-            </section>
-
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5">
-              <h2 className="text-lg font-semibold text-slate-950">
-                {t("knowledgePage.save.target.title")}
-              </h2>
-              <p className="mt-2 text-sm leading-6 text-slate-500">
-                {t("knowledgePage.save.target.description")}
-              </p>
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    const fallbackPackName =
-                      selectedPackName || packs[0]?.metadata.name || "";
-                    setSaveTargetPackName(fallbackPackName);
-                    setSaveCompletedPackName("");
-                  }}
-                  className={cn(
-                    "h-11 rounded-2xl border px-3 text-sm font-semibold transition",
-                    saveTargetPackName
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                  )}
-                >
-                  {t("knowledgePage.save.target.existing")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSaveTargetPackName("");
-                    setSaveCompletedPackName("");
-                  }}
-                  className={cn(
-                    "h-11 rounded-2xl border px-3 text-sm font-semibold transition",
-                    !saveTargetPackName
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                      : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                  )}
-                >
-                  {t("knowledgePage.save.target.new")}
-                </button>
-              </div>
-              <label className="mt-4 grid gap-1.5 text-xs font-medium text-slate-600">
-                {t("knowledgePage.save.newName")}
-                <input
-                  value={packDescription}
-                  onChange={(event) => {
-                    const nextName = event.target.value;
-                    setPackDescription(nextName);
-                    setPackNameInput(normalizePackNameInput(nextName));
-                  }}
-                  placeholder={t("knowledgePage.save.namePlaceholder")}
-                  className="h-11 rounded-2xl border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-              <div className="mt-4 space-y-3">
-                <div className="text-sm font-semibold text-slate-700">
-                  {t("knowledgePage.save.existingMaterials")}
-                </div>
-                {packs.length > 0 ? (
-                  packs.slice(0, 5).map((pack) => {
-                    const active = saveTargetPackName === pack.metadata.name;
-                    return (
-                      <button
-                        key={pack.metadata.name}
-                        type="button"
-                        onClick={() => {
-                          setSaveTargetPackName(pack.metadata.name);
-                          setSaveCompletedPackName("");
-                          setPackNameInput(pack.metadata.name);
-                          setPackDescription(getPackTitle(pack));
-                        }}
-                        className={cn(
-                          "flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-left transition",
-                          active
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-900"
-                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50",
-                        )}
-                      >
-                        <span>
-                          <span className="block text-sm font-semibold">
-                            {getPackTitle(pack)}
-                          </span>
-                          <span className="mt-1 block text-xs text-slate-500">
-                            {t("knowledgePage.save.lastUpdated")}
-                            {new Date(pack.updatedAt).toLocaleDateString(
-                              i18n.language,
-                            )}
-                          </span>
-                        </span>
-                        {active ? <Check className="h-4 w-4" /> : null}
-                      </button>
-                    );
-                  })
-                ) : (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
-                    {t("knowledgePage.save.noExisting")}
-                  </div>
-                )}
-              </div>
-              <p className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3 text-xs leading-5 text-slate-500">
-                {t("knowledgePage.save.existingHint")}
-              </p>
-            </section>
-
-            <section className="rounded-[24px] border border-slate-200 bg-white p-5 shadow-sm shadow-slate-950/5">
-              <div className="mx-auto mt-8 flex h-24 w-24 items-center justify-center rounded-full bg-emerald-50 text-emerald-700">
-                <Check className="h-12 w-12" />
-              </div>
-              <h2 className="mt-6 text-center text-xl font-semibold text-slate-950">
-                {saveCompletedPackName
-                  ? t("knowledgePage.save.completed.title", {
-                      name: packs.find(
-                        (pack) => pack.metadata.name === saveCompletedPackName,
-                      )
-                        ? getPackTitle(
-                            packs.find(
-                              (pack) =>
-                                pack.metadata.name === saveCompletedPackName,
-                            )!,
-                          )
-                        : saveCompletedPackName,
-                    })
-                  : t("knowledgePage.save.pending.title")}
-              </h2>
-              <div className="mt-6 space-y-4 text-sm text-slate-700">
-                {saveCompletedPackName ? (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
-                        ✓
-                      </span>
-                      {t("knowledgePage.save.completed.enteredMaterials")}
-                    </div>
-                    <div className="flex items-center gap-3 text-amber-700">
-                      <AlertTriangle className="h-5 w-5" />
-                      {t("knowledgePage.save.completed.needConfirm")}
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
-                        1
-                      </span>
-                      {t("knowledgePage.save.pending.stepSave")}
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700">
-                        2
-                      </span>
-                      {t("knowledgePage.save.pending.stepConfirm")}
-                    </div>
-                    <div className="flex items-center gap-3 text-amber-700">
-                      <AlertTriangle className="h-5 w-5" />
-                      {t("knowledgePage.save.pending.noAutoChange")}
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="mt-8 grid gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (saveCompletedPackName) {
-                      openPack(saveCompletedPackName, "overview");
-                    } else {
-                      setActiveView("overview");
-                    }
-                  }}
-                  disabled={!saveCompletedPackName}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-emerald-700 bg-emerald-700 px-4 text-sm font-semibold text-white transition hover:border-emerald-800 hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t("knowledgePage.action.review")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveView("overview")}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                >
-                  {t("knowledgePage.action.handleLater")}
-                </button>
-              </div>
-            </section>
-            <div className="xl:col-span-3 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-800">
-              {t("knowledgePage.save.footer")}
-            </div>
           </section>
         ) : null}
 
@@ -2004,7 +1721,9 @@ export function KnowledgePage({ onNavigate, pageParams }: KnowledgePageProps) {
                       {card.description}
                     </p>
                     <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700">
-                      {t("knowledgePage.states.nextAction", { action: card.action })}
+                      {t("knowledgePage.states.nextAction", {
+                        action: card.action,
+                      })}
                     </div>
                   </article>
                 );

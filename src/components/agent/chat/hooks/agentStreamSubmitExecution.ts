@@ -9,6 +9,8 @@ import type { AgentTodoItem } from "@/lib/api/agentRuntime/sessionTypes";
 import type { TurnSteerParams } from "@limecloud/app-server-client";
 import type { ModeKind } from "@limecloud/app-server-client";
 import { setThreadGoal } from "@/lib/api/agentRuntime/threadGoalClient";
+import { getLimeI18n } from "@/i18n/createI18n";
+import { toast } from "sonner";
 import { modelRegistryApi } from "@/lib/api/modelRegistry";
 import type { ModelCapabilitySummary } from "@/lib/model/inferModelCapabilities";
 import {
@@ -100,6 +102,7 @@ interface ExecuteAgentStreamSubmitOptions {
   autoContinue?: AutoContinueRequestPayload;
   systemPrompt?: string;
   requestMetadata?: Record<string, unknown>;
+  shouldSendPermissionOverrides?: boolean;
   collaborationMode?: ModeKind;
   threadGoal?: ThreadGoalInput;
   assistantDraft?: AssistantDraftState;
@@ -211,6 +214,9 @@ async function setAcceptedThreadGoal(
       "[AgentStream] 用户 Turn 已接受，但设置 ThreadGoal 失败:",
       error,
     );
+    toast.error(
+      String(getLimeI18n().t("agent:agentChat.threadGoal.toast.failed")),
+    );
   }
 }
 
@@ -243,6 +249,7 @@ export async function executeAgentStreamSubmit(
     autoContinue,
     systemPrompt,
     requestMetadata,
+    shouldSendPermissionOverrides = true,
     collaborationMode,
     threadGoal,
     assistantDraft,
@@ -339,6 +346,11 @@ export async function executeAgentStreamSubmit(
   requireCurrent();
   const expectedTurnId = turnControl.activeTurnId?.trim();
   if (expectedTurnId) {
+    if (threadGoal) {
+      throw new Error(
+        String(getLimeI18n().t("agent:agentChat.threadGoal.toast.failed")),
+      );
+    }
     const { modelCapabilitySummary } = await resolveSubmitModelPolicy({
       images,
       providerType: effectiveProviderType,
@@ -358,14 +370,6 @@ export async function executeAgentStreamSubmit(
         ? { clientUserMessageId: clientUserMessageId.trim() }
         : {}),
     };
-    if (threadGoal) {
-      await setThreadGoal({
-        threadId: resolvedThreadId,
-        objective: threadGoal.objective,
-        status: "active",
-        tokenBudget: threadGoal.tokenBudget,
-      });
-    }
     callbacks.clearOptimisticItem();
     callbacks.clearOptimisticTurn();
     const response = await runtime.steerTurn(params);
@@ -519,16 +523,16 @@ export async function executeAgentStreamSubmit(
       const collaborationModePreset = collaborationMode
         ? await resolveCollaborationModeMask(collaborationMode)
         : undefined;
-      const permissionProfileId =
-        permissionProfileIdFromAccessMode(effectiveAccessMode);
-      const permissionCwd = workingDir?.trim();
-      if (permissionCwd) {
-        await resolveAllowedPermissionProfile(
-          permissionProfileId,
-          permissionCwd,
-        );
-      } else {
-        await resolveAllowedPermissionProfile(permissionProfileId);
+      if (shouldSendPermissionOverrides) {
+        const permissionProfileId =
+          permissionProfileIdFromAccessMode(effectiveAccessMode);
+        const permissionCwd = workingDir?.trim();
+        if (permissionCwd)
+          await resolveAllowedPermissionProfile(
+            permissionProfileId,
+            permissionCwd,
+          );
+        else await resolveAllowedPermissionProfile(permissionProfileId);
       }
       requireCurrent();
       const submitOp = buildAgentStreamSubmitOp({
@@ -540,6 +544,7 @@ export async function executeAgentStreamSubmit(
         clientUserMessageId,
         eventName,
         requestMetadata: resolvedRequestMetadata,
+        shouldSendPermissionOverrides,
         collaborationMode: collaborationModePreset,
         executionRuntime: resolvedExecutionRuntime,
         syncedRecentPreferences,

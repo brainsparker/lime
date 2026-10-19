@@ -1,20 +1,10 @@
 import type React from "react";
 import type { Artifact } from "@/lib/artifact/types";
 
-export interface SaveMessageAsKnowledgeSource {
-  messageId: string;
-  content: string;
-  sourceName?: string;
-  description?: string | null;
-}
-
 export interface ArtifactFrameRendererProps {
   artifact: Artifact;
   messageId: string;
   onArtifactClick?: (artifact: Artifact) => void;
-  onSaveMessageAsKnowledge?: (
-    source: SaveMessageAsKnowledgeSource,
-  ) => void;
 }
 
 export interface ArtifactFrameRendererEntry {

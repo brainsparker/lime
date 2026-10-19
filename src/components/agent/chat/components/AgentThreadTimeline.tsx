@@ -57,13 +57,6 @@ interface AgentThreadTimelineProps {
   placement?: "leading" | "trailing" | "default";
   onFileClick?: (fileName: string, content: string) => void;
   onOpenArtifactFromTimeline?: (target: ArtifactTimelineOpenTarget) => void;
-  sourceMessageId?: string;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   onOpenSavedSiteContent?: (target: SiteSavedContentTarget) => void;
   onOpenSubagentSession?: (sessionId: string) => void;
   onPermissionResponse?: (response: ConfirmResponse) => void;
@@ -86,8 +79,7 @@ function TimelineBlockCard({
   isExpanded,
   onFileClick,
   onOpenArtifactFromTimeline,
-  sourceMessageId,
-  onSaveFileArtifactAsKnowledge,
+
   onOpenSavedSiteContent,
   onOpenSubagentSession,
   onPermissionResponse,
@@ -108,13 +100,6 @@ function TimelineBlockCard({
   allowOperationalDetails: boolean;
   onFileClick?: (fileName: string, content: string) => void;
   onOpenArtifactFromTimeline?: (target: ArtifactTimelineOpenTarget) => void;
-  sourceMessageId?: string;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   onOpenSavedSiteContent?: (target: SiteSavedContentTarget) => void;
   onOpenSubagentSession?: (sessionId: string) => void;
   onPermissionResponse?: (response: ConfirmResponse) => void;
@@ -236,8 +221,6 @@ function TimelineBlockCard({
           groupMarker={block.items[0]?.id === item.id ? "└" : "·"}
           defaultExpandCompletedToolResult={expandCompletedProcessDetails}
           openSubagentLabel={openSubagentLabel}
-          sourceMessageId={sourceMessageId}
-          onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
         />
       );
 
@@ -248,8 +231,7 @@ function TimelineBlockCard({
     materializedDetailItems,
     onFileClick,
     onOpenArtifactFromTimeline,
-    sourceMessageId,
-    onSaveFileArtifactAsKnowledge,
+
     onOpenSavedSiteContent,
     onOpenSubagentSession,
     onPermissionResponse,
@@ -288,16 +270,12 @@ function TimelineBlockCard({
             items={fileArtifactItems}
             onFileClick={onFileClick}
             onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            sourceMessageId={sourceMessageId}
-            onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
           />
         ) : rendersReadOnlyAttachmentCollection ? (
           <AgentThreadTimelineAttachmentList
             items={readOnlyFileArtifactItems}
             onFileClick={onFileClick}
             onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            sourceMessageId={sourceMessageId}
-            onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
           />
         ) : null}
         {remainingInlineDetailEntries.map((entry) => (
@@ -327,8 +305,6 @@ function TimelineBlockCard({
       onPermissionResponse={onPermissionResponse}
       defaultExpandCompletedToolResult={expandCompletedProcessDetails}
       openSubagentLabel={openSubagentLabel}
-      sourceMessageId={sourceMessageId}
-      onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
     />
   ) : null;
 
@@ -518,8 +494,7 @@ export const AgentThreadTimeline: React.FC<AgentThreadTimelineProps> = ({
   placement = "default",
   onFileClick,
   onOpenArtifactFromTimeline,
-  sourceMessageId,
-  onSaveFileArtifactAsKnowledge,
+
   onOpenSavedSiteContent,
   onOpenSubagentSession,
   onPermissionResponse,
@@ -604,8 +579,6 @@ export const AgentThreadTimeline: React.FC<AgentThreadTimelineProps> = ({
             allowOperationalDetails={showOperationalDetails}
             onFileClick={onFileClick}
             onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            sourceMessageId={sourceMessageId}
-            onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
             onOpenSavedSiteContent={onOpenSavedSiteContent}
             onOpenSubagentSession={onOpenSubagentSession}
             onPermissionResponse={onPermissionResponse}

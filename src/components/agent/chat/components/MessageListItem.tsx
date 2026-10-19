@@ -119,12 +119,6 @@ export interface MessageListItemProps {
   onPermissionResponse?: (response: ConfirmResponse) => void;
   onQuoteMessage?: (content: string, id: string) => void;
   onRequestThreadRevert?: (target: ThreadRevertTarget) => void;
-  onSaveMessageAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   onSaveMessageAsSkill?: (source: {
     messageId: string;
     content: string;
@@ -186,7 +180,7 @@ export function MessageListItem({
   onPermissionResponse,
   onQuoteMessage,
   onRequestThreadRevert,
-  onSaveMessageAsKnowledge,
+
   onSaveMessageAsSkill,
   onWriteFile,
 }: MessageListItemProps) {
@@ -227,7 +221,7 @@ export function MessageListItem({
     isConversationTailAssistant,
     isCurrentInteractiveAssistantMessage,
     isUserCommandMessage,
-    knowledgeArtifactSource,
+
     messageCanvasShortcutPath,
     messageCanvasShortcutTitle,
     messageSavedSiteContentTarget,
@@ -266,9 +260,6 @@ export function MessageListItem({
   const canSaveMessageAsSkill = Boolean(
     onSaveMessageAsSkill && projection.canSaveMessageAsSkill,
   );
-  const canSaveMessageAsKnowledge = Boolean(
-    onSaveMessageAsKnowledge && projection.canSaveMessageAsKnowledge,
-  );
   const revertTurnId = msg.runtimeTurnId?.trim() || "";
   const revertThreadId = threadRead?.thread_id?.trim() || "";
   const canRevertThread = Boolean(
@@ -285,8 +276,7 @@ export function MessageListItem({
     (msg.role === "assistant" &&
       Boolean(msg.imageWorkbenchPreview) &&
       (canQuoteMessage || canCopyMessage)) ||
-    canSaveMessageAsSkill ||
-    canSaveMessageAsKnowledge;
+    canSaveMessageAsSkill;
   const userMessageFooter =
     msg.role === "user" && !isUserCommandMessage ? (
       <div
@@ -380,13 +370,11 @@ export function MessageListItem({
       focusedTimelineItemId={focusedTimelineItemId}
       focusRequestKey={timelineFocusRequestKey}
       isCurrentTurnSending={isSending}
-      messageId={msg.id}
       onFileClick={onFileClick}
       onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
       onOpenSavedSiteContent={onOpenSavedSiteContent}
       onOpenSubagentSession={onOpenSubagentSession}
       onPermissionResponse={onPermissionResponse}
-      onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
       placement="leading"
       renderCompactPreview={
         shouldRenderCompactPrimaryTimeline && Boolean(primaryTimelineKey)
@@ -407,13 +395,11 @@ export function MessageListItem({
         focusedTimelineItemId={focusedTimelineItemId}
         focusRequestKey={timelineFocusRequestKey}
         isCurrentTurnSending={isSending}
-        messageId={msg.id}
         onFileClick={onFileClick}
         onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
         onOpenSavedSiteContent={onOpenSavedSiteContent}
         onOpenSubagentSession={onOpenSubagentSession}
         onPermissionResponse={onPermissionResponse}
-        onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
         placement="trailing"
         renderCompactPreview={trailingTimeline.turn.id !== activeCurrentTurnId}
         shouldDeferHistoricalTimelineDetails={
@@ -584,7 +570,6 @@ export function MessageListItem({
                 artifacts={visibleAssistantArtifacts}
                 messageId={msg.id}
                 onArtifactClick={onArtifactClick}
-                onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
               />
             ) : null}
 
@@ -593,17 +578,12 @@ export function MessageListItem({
                 actionContent={actionContent}
                 canCopyMessage={canCopyMessage}
                 canQuoteMessage={canQuoteMessage}
-                canSaveMessageAsKnowledge={canSaveMessageAsKnowledge}
                 canSaveMessageAsSkill={canSaveMessageAsSkill}
                 copied={copiedId === msg.id}
                 isImageWorkbenchMessage={Boolean(msg.imageWorkbenchPreview)}
-                knowledgeContent={knowledgeArtifactSource?.content}
-                knowledgeDescription={knowledgeArtifactSource?.description}
-                knowledgeSourceName={knowledgeArtifactSource?.sourceName}
                 messageId={msg.id}
                 onCopy={handleCopy}
                 onQuoteMessage={onQuoteMessage}
-                onSaveMessageAsKnowledge={onSaveMessageAsKnowledge}
                 onSaveMessageAsSkill={onSaveMessageAsSkill}
               />
             ) : null}

@@ -10,5 +10,12 @@ export type Register = (
   tab: ThreadSidePanelTab,
   handler: FileTabCloseHandler,
 ) => () => void;
-export const FileTabLifecycleContext = createContext<Register | null>(null);
+export interface FileTabLifecycle {
+  register: Register;
+  saveFile(path: string): Promise<boolean>;
+  isTabCurrent(tab: ThreadSidePanelTab): boolean;
+}
+export const FileTabLifecycleContext = createContext<FileTabLifecycle | null>(
+  null,
+);
 export const useFileTabLifecycle = () => useContext(FileTabLifecycleContext);

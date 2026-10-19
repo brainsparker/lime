@@ -28,10 +28,16 @@ import {
 } from "lucide-react";
 import type { ActionRequired, ConfirmResponse, QuestionOption } from "../types";
 import { isRuntimeActionConfirmationRequestId } from "../utils/runtimeActionConfirmation";
+import {
+  RequestUserInputPanel,
+  type RequestUserInputPanelProps,
+} from "./RequestUserInputPanel";
 
 interface DecisionPanelProps {
+  hostId?: RequestUserInputPanelProps["hostId"];
   request: ActionRequired;
-  onSubmit: (response: ConfirmResponse) => void | Promise<void>;
+  onSubmit: RequestUserInputPanelProps["onSubmit"];
+  onDismiss?: RequestUserInputPanelProps["onDismiss"];
 }
 
 interface DecisionPanelSubmissionState {
@@ -634,120 +640,6 @@ function extractElicitationDescription(
   return typeof description === "string" ? description : undefined;
 }
 
-/** 从问题文本中提取选项（用于 ask_user 缺少 options 的兜底场景） */
-function extractAskUserOptionsFromText(text?: string): QuestionOption[] {
-  if (!text) return [];
-
-  const normalizedText = text.trim();
-  if (!normalizedText) return [];
-
-  const maxOptions = 8;
-  const maxLabelLength = 120;
-  const seen = new Set<string>();
-  const options: QuestionOption[] = [];
-
-  const splitFragments = (raw: string): string[] =>
-    raw
-      .split(/[、,，;/|]/)
-      .map((fragment) => fragment.trim())
-      .filter(Boolean);
-
-  const pushOption = (raw: string) => {
-    if (options.length >= maxOptions) return;
-    const label = raw
-      .replace(/\s+/g, " ")
-      .replace(/^[\s"'“”‘’`]+/, "")
-      .replace(/[\s"'“”‘’`]+$/, "")
-      .trim();
-    if (!label || label.length > maxLabelLength) return;
-
-    const key = label.toLowerCase();
-    if (seen.has(key)) return;
-
-    // 过滤明显不是选项的内容
-    if (/^(option|options|choices?|可选项?)[:：]?$/i.test(label)) return;
-    if (/^[,，、;；/|]+$/.test(label)) return;
-
-    seen.add(key);
-    options.push({ label });
-  };
-
-  const quotedPatterns = [
-    /"([^"\n]{1,160})"/g,
-    /“([^”\n]{1,160})”/g,
-    /'([^'\n]{1,160})'/g,
-    /‘([^’\n]{1,160})’/g,
-    /`([^`\n]{1,160})`/g,
-  ];
-
-  for (const pattern of quotedPatterns) {
-    for (const match of normalizedText.matchAll(pattern)) {
-      pushOption(match[1] ?? "");
-      if (options.length >= maxOptions) break;
-    }
-    if (options.length >= maxOptions) break;
-  }
-
-  if (options.length > 0) return options;
-
-  const parenthesizedPattern = /[（(]([^()（）\n]{2,180})[）)]/g;
-  for (const match of normalizedText.matchAll(parenthesizedPattern)) {
-    const fragments = splitFragments(match[1] ?? "");
-    if (fragments.length < 2) continue;
-    for (const fragment of fragments) {
-      pushOption(fragment);
-    }
-    if (options.length >= maxOptions) break;
-  }
-
-  if (options.length > 0) return options;
-
-  const lineCandidates = normalizedText
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  const indexedOrBulletedLines = lineCandidates
-    .map((line) =>
-      line.match(
-        /^(?:[-*•●]\s+|(?:\d+|[A-Za-z]|[一二三四五六七八九十]+)[.()\])]\s+)(.+)$/,
-      ),
-    )
-    .filter((match): match is RegExpMatchArray => Boolean(match))
-    .map((match) => match[1]?.trim() ?? "")
-    .filter(Boolean);
-
-  if (indexedOrBulletedLines.length >= 2) {
-    for (const line of indexedOrBulletedLines) {
-      const colonIndex = line.search(/[:：]/);
-      const maybeOptionLine =
-        colonIndex >= 0 ? line.slice(colonIndex + 1).trim() : line;
-      const fragments = splitFragments(maybeOptionLine);
-      if (fragments.length >= 2) {
-        for (const fragment of fragments) {
-          pushOption(fragment);
-        }
-      } else {
-        pushOption(line);
-      }
-      if (options.length >= maxOptions) break;
-    }
-  }
-
-  if (options.length > 0) return options;
-
-  const optionLinePattern =
-    /(options?|choices?|可选项?|选项)\s*[:：]\s*([^\n]+)/i;
-  const lineMatch = normalizedText.match(optionLinePattern);
-  if (lineMatch?.[2]) {
-    const fragments = splitFragments(lineMatch[2]);
-    for (const fragment of fragments) {
-      pushOption(fragment);
-    }
-  }
-
-  return options;
-}
-
 /** 运行时归一化 options，兼容字符串数组和对象数组 */
 function normalizeQuestionOptions(rawOptions: unknown): QuestionOption[] {
   if (!Array.isArray(rawOptions)) return [];
@@ -930,7 +822,25 @@ function resolveSubmittedPermissionDecisionLabel(
   return labels.allowed;
 }
 
-export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
+export function DecisionPanel({
+  hostId,
+  request,
+  onSubmit,
+  onDismiss,
+}: DecisionPanelProps) {
+  return request.actionType === "ask_user" ? (
+    <RequestUserInputPanel
+      hostId={hostId}
+      request={request}
+      onSubmit={onSubmit}
+      onDismiss={onDismiss}
+    />
+  ) : (
+    <ActionDecisionPanel request={request} onSubmit={onSubmit} />
+  );
+}
+
+function ActionDecisionPanel({ request, onSubmit }: DecisionPanelProps) {
   const { t } = useTranslation("agent");
   const requestAnchorProps = {
     "data-request-id": request.requestId,
@@ -939,18 +849,7 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
   // 解析问题数据（用于 ask_user 类型）
   const questions = request.questions || [];
   const questionOptions = questions.map((question) => {
-    const normalized = normalizeQuestionOptions(question.options);
-    if (normalized.length > 0) {
-      return normalized;
-    }
-
-    const fallbackText = [question.question, question.header, request.prompt]
-      .filter(
-        (item): item is string =>
-          typeof item === "string" && item.trim().length > 0,
-      )
-      .join("\n");
-    return extractAskUserOptionsFromText(fallbackText);
+    return normalizeQuestionOptions(question.options);
   });
   const elicitationOptions = extractElicitationOptions(request.requestedSchema);
   const elicitationDescription = extractElicitationDescription(
@@ -993,11 +892,8 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
     request.toolName,
     request.arguments,
   );
-  const isFallbackAskPending =
-    request.actionType === "ask_user" && request.isFallback;
   const usesQuestionnaireUi =
-    questions.length > 0 &&
-    (request.actionType === "ask_user" || request.actionType === "elicitation");
+    questions.length > 0 && request.actionType === "elicitation";
 
   // 重置状态当请求变化时
   useEffect(() => {
@@ -1172,15 +1068,15 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
       : isRuntimeActionConfirmation
         ? t("agentChat.decisionPanel.runtimePermission.submittedTitle")
         : request.actionType === "tool_confirmation"
-            ? t("agentChat.decisionPanel.permissionHandledTitle")
-            : t("agentChat.decisionPanel.submittedTitle");
+          ? t("agentChat.decisionPanel.permissionHandledTitle")
+          : t("agentChat.decisionPanel.submittedTitle");
     const submittedClassName = isQueued
       ? "border-sky-200 bg-sky-50/50 dark:border-sky-800 dark:bg-sky-950/20"
       : request.actionType === "tool_confirmation"
-          ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20"
-          : request.actionType === "elicitation"
-            ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
-            : "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20";
+        ? "border-amber-200 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20"
+        : request.actionType === "elicitation"
+          ? "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20"
+          : "border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20";
 
     return (
       <Card className={submittedClassName} {...requestAnchorProps}>
@@ -1393,7 +1289,7 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
     );
   }
 
-  // 渲染结构化问题面板（ask_user 或带问题元数据的 elicitation）
+  // 渲染带问题元数据的 elicitation。
   if (
     usesQuestionnaireUi &&
     request.questions &&
@@ -1518,12 +1414,6 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
             </div>
           ))}
 
-          {isFallbackAskPending && (
-            <p className="text-xs text-muted-foreground">
-              {t("agentChat.decisionPanel.fallbackQueuedDescription")}
-            </p>
-          )}
-
           {/* 操作按钮 */}
           <div className="flex gap-2 pt-2">
             <Button
@@ -1538,12 +1428,8 @@ export function DecisionPanel({ request, onSubmit }: DecisionPanelProps) {
                 <CheckCircle className="mr-1 h-4 w-4" />
               )}
               {submissionState?.key === "allow"
-                ? isFallbackAskPending
-                  ? t("agentChat.decisionPanel.action.recording")
-                  : t("agentChat.decisionPanel.action.submitting")
-                : isFallbackAskPending
-                  ? t("agentChat.decisionPanel.action.recordAnswer")
-                  : t("agentChat.decisionPanel.action.submitAnswer")}
+                ? t("agentChat.decisionPanel.action.submitting")
+                : t("agentChat.decisionPanel.action.submitAnswer")}
             </Button>
             <Button
               size="sm"

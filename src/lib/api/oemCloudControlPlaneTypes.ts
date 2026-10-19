@@ -82,7 +82,6 @@ export interface OemCloudFeatureFlags {
   profileEditable: boolean;
   hubTokensEnabled: boolean;
   billingEnabled: boolean;
-  referralEnabled: boolean;
   gatewayEnabled: boolean;
 }
 
@@ -240,7 +239,6 @@ export interface OemCloudBootstrapResponse {
   sceneCatalog?: Array<{ id: string }>;
   features: OemCloudFeatureFlags;
   gateway?: OemCloudGatewayConfig;
-  referral?: OemCloudReferralDashboard | null;
 }
 
 export interface SendClientAuthEmailCodePayload {
@@ -698,88 +696,4 @@ export interface OemCloudActivationResponse {
   activeAccessToken: OemCloudActiveAccessTokenResponse | null;
   orders: OemCloudOrder[];
   creditTopupOrders: OemCloudCreditTopupOrder[];
-}
-
-export interface OemCloudReferralCode {
-  id: string;
-  tenantId: string;
-  userId: string;
-  code: string;
-  landingUrl: string;
-  channel?: string;
-  status: string;
-  disabledReason?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface OemCloudReferralPolicy {
-  tenantId?: string;
-  enabled: boolean;
-  rewardCredits: number;
-  referrerRewardCredits: number;
-  inviteeRewardCredits: number;
-  claimWindowDays: number;
-  autoClaimEnabled: boolean;
-  allowManualClaimFallback: boolean;
-  landingPageHeadline?: string;
-  landingPageRules?: string;
-  riskReviewEnabled: boolean;
-  updatedAt?: string;
-}
-
-export interface OemCloudReferralSummary {
-  totalInvites: number;
-  successfulInvites: number;
-  totalRewardCredits: number;
-  referrerRewardCreditsTotal: number;
-  inviteeRewardCreditsTotal: number;
-}
-
-export interface OemCloudReferralInviteRelation {
-  eventId?: string;
-  code?: string;
-  referrerUserId?: string;
-  referrerEmail?: string;
-  referrerName?: string;
-  inviteeRewardCredits?: number;
-  claimedAt?: string;
-}
-
-export interface OemCloudReferralShare {
-  brandName: string;
-  code: string;
-  landingUrl: string;
-  downloadUrl: string;
-  shareText: string;
-  headline?: string;
-  rules?: string;
-}
-
-export interface OemCloudReferralDashboard {
-  code: OemCloudReferralCode;
-  policy: OemCloudReferralPolicy;
-  summary: OemCloudReferralSummary;
-  events: unknown[];
-  rewards: unknown[];
-  invitedBy: OemCloudReferralInviteRelation;
-  share: OemCloudReferralShare;
-}
-
-export interface ClaimClientReferralPayload {
-  code: string;
-  inviteeEmail?: string;
-  inviteeName?: string;
-  claimMethod?: "auto" | "manual" | (string & {});
-  entrySource?: "link" | "code_input" | (string & {});
-  landingPath?: string;
-  capturedAt?: string;
-}
-
-export interface OemCloudReferralClaimResponse {
-  event?: unknown;
-  reward?: unknown;
-  rewards: unknown[];
-  creditAccount: OemCloudCreditAccount | null;
-  accountLedgers: unknown[];
 }

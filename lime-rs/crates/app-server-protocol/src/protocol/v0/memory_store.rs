@@ -94,6 +94,9 @@ pub struct MemoryStoreAddNoteParams {
 pub struct MemoryStoreConsolidateParams {
     #[serde(flatten)]
     pub root: MemoryStoreRootParams,
+    /// Canonical root session whose current provider route owns consolidation sampling.
+    #[serde(default)]
+    pub session_id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_notes: Option<usize>,
 }

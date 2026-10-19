@@ -12,7 +12,6 @@ fn page(ids: &[&str], next_cursor: Option<&str>) -> ThreadItemsListResponse {
                 turn_id: "turn-1".to_string(),
                 item: ThreadItem::AgentMessage {
                     id: (*id).to_string(),
-                    metadata: None,
                     text: (*id).to_string(),
                     phase: None,
                     memory_citation: None,

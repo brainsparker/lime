@@ -33,8 +33,9 @@ use super::{
     McpServerEventStreamStopResponse, McpServerOauthLoginCompletedNotification,
     McpServerResourceReadParams, McpServerResourceReadResponse, McpServerStatusUpdatedNotification,
     McpServerToolCallParams, McpServerToolCallResponse, McpToolCallProgressNotification,
-    MediaReadParams, MediaReadResponse, MemoryResetResponse, Method, ModelListParams,
-    ModelListUpdatedNotification, ModelProviderCapabilitiesReadParams, ModelReroutedNotification,
+    MediaReadParams, MediaReadResponse, MemoryResetResponse, MemoryStatusParams,
+    MemoryStatusResponse, Method, ModelListParams, ModelListUpdatedNotification,
+    ModelProviderCapabilitiesReadParams, ModelReroutedNotification,
     ModelSafetyBufferingUpdatedNotification, ModelVerificationNotification,
     PermissionProfileListParams, PermissionsRequestApprovalParams, PlanDeltaNotification,
     PluginInstallParams, PluginInstalledParams, PluginListParams, PluginReadParams,
@@ -295,6 +296,11 @@ pub enum ClientRequest {
     ThreadMemoryModeSet {
         id: RequestId,
         params: ThreadMemoryModeSetParams,
+    },
+    #[serde(rename = "memory/status")]
+    MemoryStatus {
+        id: RequestId,
+        params: MemoryStatusParams,
     },
     #[serde(rename = "memory/reset")]
     MemoryReset { id: RequestId },
@@ -774,6 +780,7 @@ impl ClientRequest {
             | Self::ThreadSearchOccurrences { id, .. }
             | Self::ThreadSettingsUpdate { id, .. }
             | Self::ThreadMemoryModeSet { id, .. }
+            | Self::MemoryStatus { id, .. }
             | Self::MemoryReset { id }
             | Self::ThreadShellCommand { id, .. }
             | Self::ThreadApproveGuardianDeniedAction { id, .. }
@@ -901,6 +908,7 @@ impl ClientRequest {
             Self::ThreadSearchOccurrences { .. } => Method::ThreadSearchOccurrences,
             Self::ThreadSettingsUpdate { .. } => Method::ThreadSettingsUpdate,
             Self::ThreadMemoryModeSet { .. } => Method::ThreadMemoryModeSet,
+            Self::MemoryStatus { .. } => Method::MemoryStatus,
             Self::MemoryReset { .. } => Method::MemoryReset,
             Self::ThreadShellCommand { .. } => Method::ThreadShellCommand,
             Self::ThreadApproveGuardianDeniedAction { .. } => {
@@ -1046,6 +1054,7 @@ pub enum ClientResponsePayload {
     ThreadSearchOccurrences(ThreadSearchOccurrencesResponse),
     ThreadSettingsUpdate(ThreadSettingsUpdateResponse),
     ThreadMemoryModeSet(ThreadMemoryModeSetResponse),
+    MemoryStatus(MemoryStatusResponse),
     MemoryReset(MemoryResetResponse),
     ThreadShellCommand(ThreadShellCommandResponse),
     ThreadApproveGuardianDeniedAction(ThreadApproveGuardianDeniedActionResponse),
@@ -1147,6 +1156,7 @@ impl ClientResponsePayload {
             Self::ThreadSearchOccurrences(_) => Method::ThreadSearchOccurrences,
             Self::ThreadSettingsUpdate(_) => Method::ThreadSettingsUpdate,
             Self::ThreadMemoryModeSet(_) => Method::ThreadMemoryModeSet,
+            Self::MemoryStatus(_) => Method::MemoryStatus,
             Self::MemoryReset(_) => Method::MemoryReset,
             Self::ThreadShellCommand(_) => Method::ThreadShellCommand,
             Self::ThreadApproveGuardianDeniedAction(_) => Method::ThreadApproveGuardianDeniedAction,
@@ -1250,6 +1260,7 @@ impl ClientResponsePayload {
             Self::ThreadSearchOccurrences(response) => serde_json::to_value(response)?,
             Self::ThreadSettingsUpdate(response) => serde_json::to_value(response)?,
             Self::ThreadMemoryModeSet(response) => serde_json::to_value(response)?,
+            Self::MemoryStatus(response) => serde_json::to_value(response)?,
             Self::MemoryReset(response) => serde_json::to_value(response)?,
             Self::ThreadShellCommand(response) => serde_json::to_value(response)?,
             Self::ThreadApproveGuardianDeniedAction(response) => serde_json::to_value(response)?,

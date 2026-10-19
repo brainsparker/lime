@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "查询后台记忆 consolidation 是否已经达到可选用的门槛。\n\n该接口只暴露 readiness 合同，不暴露记忆数据库或文件布局。",
+  "properties": {
+    "minConsolidatedThreads": {
+      "description": "所需的不同已 consolidation thread 数量。默认 20，支持 1..=4096。",
+      "format": "uint32",
+      "minimum": 0,
+      "type": [
+        "integer",
+        "null"
+      ]
+    }
+  },
+  "title": "MemoryStatusParams",
+  "type": "object"
+}

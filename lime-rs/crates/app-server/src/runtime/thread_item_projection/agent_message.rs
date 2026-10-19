@@ -40,16 +40,6 @@ pub(super) fn payload_id(event: &AgentEvent) -> Option<String> {
     .filter(|value| !value.is_empty())
 }
 
-pub(super) fn is_imported_event(event: &AgentEvent) -> bool {
-    event
-        .payload
-        .get("imported")
-        .and_then(Value::as_bool)
-        .unwrap_or(false)
-        || string_field(&event.payload, &["sourceClient", "source_client"])
-            .is_some_and(|value| !value.trim().is_empty())
-}
-
 pub(super) fn upsert_from_item_event(
     stored: &StoredSession,
     event: &AgentEvent,
@@ -100,6 +90,11 @@ pub(super) fn merge_item(existing: &mut Value, next: &Value) {
         }
     }
     merge_content_parts(existing_object, next, next_source_event_type);
+    for field in ["phase", "delivery", "questions"] {
+        if let Some(value) = next.get(field) {
+            existing_object.insert(field.to_string(), value.clone());
+        }
+    }
     if let Some(status) = next.get("status").and_then(Value::as_str) {
         let existing_is_completed = existing_object
             .get("status")
@@ -188,6 +183,8 @@ fn item_from_item_event(stored: &StoredSession, event: &AgentEvent) -> Option<Va
                 .map(|content| content.content_parts)
                 .unwrap_or_default(),
             "phase": phase,
+            "delivery": payload.get("delivery").or_else(|| item.get("delivery")),
+            "questions": payload.get("questions").or_else(|| item.get("questions")),
             "metadata": event_metadata(event),
         })),
     ))
@@ -324,7 +321,7 @@ fn status_from_delta_event(event: &AgentEvent) -> String {
     string_field(&event.payload, &["status"])
         .map(|status| normalize_status(&status))
         .unwrap_or_else(|| {
-            if payload_id(event).is_some() && !is_imported_event(event) {
+            if payload_id(event).is_some() {
                 "in_progress".to_string()
             } else {
                 "completed".to_string()

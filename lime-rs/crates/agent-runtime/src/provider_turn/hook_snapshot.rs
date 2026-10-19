@@ -1,15 +1,17 @@
-use super::{RuntimeHookSnapshotSourceHandle, RuntimeToolStepSnapshot};
+use super::RuntimeToolStepSnapshot;
 use code_mode_protocol::{RuntimeToolExposure, RuntimeToolIdentity, RuntimeToolSnapshot};
 use std::sync::Arc;
 use tool_runtime::hook_gated_executor::hook_gated_executor;
 use tool_runtime::tool_executor::RuntimeToolExecutorHandle;
 use tool_runtime::turn_snapshot::RuntimeTurnSnapshot;
 
-pub(super) async fn apply(
+/// Applies one immutable hook snapshot to the tool executor. The caller may retain the same
+/// snapshot for the terminal Stop hook evaluation so a sampling step cannot observe two
+/// different hook registries.
+pub(super) fn apply_snapshot(
     tool_step: &mut RuntimeToolStepSnapshot,
-    source: &RuntimeHookSnapshotSourceHandle,
+    hook_step: super::RuntimeHookStepSnapshot,
 ) -> Result<(), String> {
-    let hook_step = source.capture().await?;
     if hook_step.hooks.is_empty() {
         return Ok(());
     }

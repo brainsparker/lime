@@ -1,5 +1,7 @@
 import { canBroadcastRendererEvent } from "./rendererEventPolicy";
 import { contextBridge, ipcRenderer } from "electron";
+import process from "node:process";
+import { readAgentRootArgument } from "./agentRoot";
 import {
   ELECTRON_HOST_COMMANDS,
   IPC_DEEP_LINK_GET_CURRENT_CHANNEL,
@@ -29,6 +31,7 @@ function unwrapInvokeResponse<T>(response: ElectronInvokeResponse<T>): T {
 }
 
 contextBridge.exposeInMainWorld("electronAPI", {
+  agentRoot: readAgentRootArgument(process.argv),
   devBridgeFallback: false,
   supportsCommand: (command: string) => supportedCommands.has(command),
   invoke: async <T = unknown>(

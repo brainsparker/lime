@@ -3,6 +3,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 import { SettingsTabs } from "@/types/settings";
+import { getRegisteredCommands } from "@/lib/commands/registry";
 
 import { SettingsSidebar } from "./SettingsSidebar";
 
@@ -59,6 +60,53 @@ afterEach(async () => {
 });
 
 describe("SettingsSidebar", () => {
+  it("搜索键位与可用列表同源，导航在途和卸载时一并撤销", () => {
+    const container = renderSidebar();
+    const input = container.querySelector<HTMLInputElement>(
+      '[data-testid="settings-sidebar-search"]',
+    )!;
+    const button = document.createElement("button");
+    container.append(button);
+    act(() => button.focus());
+    act(() =>
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "f",
+          ctrlKey: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    expect(document.activeElement).toBe(input);
+    expect(getRegisteredCommands().map((command) => command.id)).toEqual([
+      "searchSettings",
+    ]);
+    const root = mounted[mounted.length - 1].root;
+    act(() =>
+      root.render(
+        <SettingsSidebar
+          activeTab={SettingsTabs.Developer}
+          onTabChange={vi.fn()}
+          navigationPending
+        />,
+      ),
+    );
+    act(() => button.focus());
+    act(() =>
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "f",
+          ctrlKey: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    expect(document.activeElement).toBe(button);
+    expect(getRegisteredCommands()).toEqual([]);
+    act(() => root.render(null));
+    expect(getRegisteredCommands()).toEqual([]);
+  });
+
   it("应通过 settings namespace 渲染实验 badge 与搜索名称", () => {
     const container = renderSidebar();
     expect(container.textContent).toContain("Labs");

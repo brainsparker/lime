@@ -45,7 +45,6 @@ const THREAD_TIMELINE_COPY_KEYS = [
   "agentChat.threadTimeline.approval.record.scopeLabel",
   "agentChat.threadTimeline.approval.record.source.approval_session_cache",
   "agentChat.threadTimeline.approval.record.source.gui",
-  "agentChat.threadTimeline.approval.record.source.imported",
   "agentChat.threadTimeline.approval.record.source.inputbar",
   "agentChat.threadTimeline.approval.record.source.runtime",
   "agentChat.threadTimeline.approval.record.source.user",

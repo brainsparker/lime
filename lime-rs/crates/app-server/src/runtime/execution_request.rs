@@ -24,6 +24,9 @@ pub struct ExecutionRequest {
     /// RuntimeCore-owned sampling boundary for later reminders in the same turn.
     pub rollout_budget_reminder_source:
         Option<agent_runtime::session_config::RolloutBudgetReminderSourceHandle>,
+    /// App Server-owned same-turn compaction commit capability.
+    pub mid_turn_compaction_commit:
+        Option<agent_runtime::provider_turn::RuntimeMidTurnCompactionCommitHandle>,
 }
 
 impl ExecutionRequest {

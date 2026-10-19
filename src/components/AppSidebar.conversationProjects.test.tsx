@@ -4,7 +4,7 @@ import {
   cleanupAppSidebarTest,
   flushEffects,
   mockGetProject,
-  mockListAgentRuntimeSessions,
+  mockListRecentThreads,
   mountSidebarContainer,
   resetAppSidebarTest,
 } from "./AppSidebar.testFixtures";
@@ -44,7 +44,7 @@ describe("AppSidebar conversation projects", () => {
   afterEach(cleanupAppSidebarTest);
 
   it("进入项目对话后仍可选择全部已打开项目的会话", async () => {
-    mockListAgentRuntimeSessions.mockImplementation(
+    mockListRecentThreads.mockImplementation(
       async (options?: { limit?: number; cwd?: string | string[] }) =>
         options?.cwd === "/repo/project-1" || options?.cwd === "/repo/project-2"
           ? [
@@ -86,15 +86,21 @@ describe("AppSidebar conversation projects", () => {
     expect(projectGroups[1]?.textContent).toContain("项目二");
     expect(projectGroups[1]?.textContent).toContain("项目二会话");
     expect(projectGroups[1]?.textContent).not.toContain("项目一会话");
-    expect(mockListAgentRuntimeSessions).toHaveBeenCalledWith({
+    expect(mockListRecentThreads).toHaveBeenCalledWith({
+      archived: false,
       limit: 11,
+      sectionId: null,
     });
-    expect(mockListAgentRuntimeSessions).toHaveBeenCalledWith({
+    expect(mockListRecentThreads).toHaveBeenCalledWith({
+      archived: false,
       limit: 11,
+      sectionId: null,
       cwd: "/repo/project-1",
     });
-    expect(mockListAgentRuntimeSessions).toHaveBeenCalledWith({
+    expect(mockListRecentThreads).toHaveBeenCalledWith({
+      archived: false,
       limit: 11,
+      sectionId: null,
       cwd: "/repo/project-2",
     });
     const secondConversation =

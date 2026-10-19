@@ -21,6 +21,9 @@ use crate::UsageStatsAppDataSource;
 use crate::VoiceAppDataSource;
 use crate::WorkspaceAppDataSource;
 use crate::WorkspaceSkillBindingAppDataSource;
+use crate::{
+    MemoryStageOneProvider, MemoryStageOneRoute, MemoryStageOneRunResult, MemoryStageOneVersion,
+};
 mod automation;
 pub(crate) use automation::is_scheduled_task_job;
 mod channels;
@@ -361,7 +364,9 @@ impl LocalAppDataSource {
             data_root.join("plugins"),
             lime_core::config::ConfigManager::default_config_path(),
         );
-        plugin_store.account = Some(Arc::new(crate::account::AccountManager::new(&app_data_root)));
+        plugin_store.account = Some(Arc::new(crate::account::AccountManager::new(
+            &app_data_root,
+        )));
         let session_files_root = SessionFileStorage::base_dir_for_agent_root(&data_root);
         let connect_registry_cache_path =
             connect::connect_registry_cache_path_for_agent_root(&data_root);

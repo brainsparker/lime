@@ -40,13 +40,6 @@ interface AgentThreadTimelineArtifactCardProps {
   readTimelineArtifactContent?: (
     item: Extract<AgentThreadItem, { type: "file_artifact" }>,
   ) => Promise<AgentRuntimeTimelineArtifactContent | null>;
-  sourceMessageId?: string;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   groupedAttachment?: boolean;
 }
 
@@ -309,57 +302,6 @@ function resolveFallbackPreview(content: string | undefined): string | null {
   return truncateInlineText(normalized);
 }
 
-function hasDocumentFileExtension(path: string): boolean {
-  const normalizedPath = path.replace(/\\/g, "/").split(/[?#]/)[0] || "";
-  return /\.(md|markdown|txt)$/i.test(normalizedPath);
-}
-
-function looksLikeMarkdownDocument(content: string): boolean {
-  return /^#\s+.+/m.test(content) || /\n#{2,6}\s+.+/m.test(content);
-}
-
-function resolveKnowledgeDocumentSource({
-  item,
-  metadata,
-  displayTitle,
-}: {
-  item: Extract<AgentThreadItem, { type: "file_artifact" }>;
-  metadata: Record<string, unknown> | undefined;
-  displayTitle: string;
-}): {
-  content: string;
-  sourceName: string;
-  description: string | null;
-} | null {
-  const content = normalizeText(item.content);
-  if (!content || content.length < 24 || /^[[{]/.test(content)) {
-    return null;
-  }
-
-  if (
-    !hasDocumentFileExtension(item.path) &&
-    !looksLikeMarkdownDocument(content)
-  ) {
-    return null;
-  }
-
-  const sourceName =
-    readMetadataText(metadata, [
-      "fileName",
-      "filename",
-      "sourceName",
-      "source_name",
-      "artifactFileName",
-      "artifact_file_name",
-    ]) || resolveFileName(item.path);
-
-  return {
-    content,
-    sourceName,
-    description: displayTitle || sourceName || null,
-  };
-}
-
 function resolveDocumentPreview(
   document: ArtifactDocumentV1 | null,
   displayTitle: string,
@@ -434,8 +376,7 @@ export function AgentThreadTimelineArtifactCard({
   onFileClick,
   onOpenArtifactFromTimeline,
   readTimelineArtifactContent = readAgentRuntimeTimelineArtifactContent,
-  sourceMessageId,
-  onSaveFileArtifactAsKnowledge,
+
   groupedAttachment = false,
 }: AgentThreadTimelineArtifactCardProps) {
   const { t } = useTranslation("agent");
@@ -569,14 +510,6 @@ export function AgentThreadTimelineArtifactCard({
   );
   const blockCount = document?.blocks.length || 0;
   const sourceCount = document?.sources.length || 0;
-  const knowledgeDocumentSource = resolveKnowledgeDocumentSource({
-    item,
-    metadata,
-    displayTitle,
-  });
-  const canSaveAsKnowledge = Boolean(
-    onSaveFileArtifactAsKnowledge && sourceMessageId && knowledgeDocumentSource,
-  );
   const hasArtifactDocumentFacts = Boolean(
     artifactProjectionId ||
     metadataKind ||
@@ -676,23 +609,6 @@ export function AgentThreadTimelineArtifactCard({
               </span>
             </button>
 
-            {canSaveAsKnowledge && knowledgeDocumentSource ? (
-              <button
-                type="button"
-                className="hidden shrink-0 rounded-lg border border-sky-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-50 sm:inline-flex"
-                onClick={() =>
-                  onSaveFileArtifactAsKnowledge?.({
-                    messageId: sourceMessageId!,
-                    content: knowledgeDocumentSource.content,
-                    sourceName: knowledgeDocumentSource.sourceName,
-                    description: knowledgeDocumentSource.description,
-                  })
-                }
-              >
-                {t("agentChat.messageList.artifact.saveDocument")}
-              </button>
-            ) : null}
-
             <button
               type="button"
               className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
@@ -712,19 +628,11 @@ export function AgentThreadTimelineArtifactCard({
     <div className="py-1.5">
       <div
         data-testid="timeline-file-artifact-card"
-        className={
-          knowledgeDocumentSource
-            ? "flex w-full flex-col items-stretch gap-2 rounded-[18px] border border-sky-200/80 bg-sky-50 p-2 text-left shadow-sm shadow-sky-950/5 sm:flex-row"
-            : "rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-left shadow-sm shadow-slate-950/5 transition hover:border-sky-200 hover:bg-sky-50/40"
-        }
+        className="rounded-[18px] border border-slate-200 bg-white px-4 py-3 text-left shadow-sm shadow-slate-950/5 transition hover:border-sky-200 hover:bg-sky-50/40"
       >
         <button
           type="button"
-          className={
-            knowledgeDocumentSource
-              ? "group flex min-w-0 flex-1 items-start gap-3 rounded-[14px] px-2 py-2 text-left transition hover:bg-white"
-              : "group flex w-full items-start gap-3 text-left"
-          }
+          className="group flex w-full items-start gap-3 text-left"
           onClick={() => {
             if (onOpenArtifactFromTimeline && navigation) {
               void openTimelineTarget(
@@ -761,22 +669,6 @@ export function AgentThreadTimelineArtifactCard({
           </div>
 
           <div className="min-w-0 flex-1">
-            {knowledgeDocumentSource ? (
-              <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                <Badge
-                  variant="outline"
-                  className="border-sky-200 bg-white text-sky-700"
-                >
-                  {t("agentChat.messageList.artifact.documentBadge")}
-                </Badge>
-                <Badge
-                  variant="outline"
-                  className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                >
-                  {t("agentChat.messageList.artifact.saveableBadge")}
-                </Badge>
-              </div>
-            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <div className="min-w-0 flex-1 text-sm font-medium leading-6 text-slate-900">
                 <span className="line-clamp-1 break-all">{displayTitle}</span>
@@ -896,23 +788,6 @@ export function AgentThreadTimelineArtifactCard({
             </div>
           </div>
         </button>
-
-        {canSaveAsKnowledge && knowledgeDocumentSource ? (
-          <button
-            type="button"
-            className="flex shrink-0 items-center justify-center rounded-xl border border-sky-200 bg-white px-3 py-2 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-100 hover:text-sky-800 sm:py-0"
-            onClick={() =>
-              onSaveFileArtifactAsKnowledge?.({
-                messageId: sourceMessageId!,
-                content: knowledgeDocumentSource.content,
-                sourceName: knowledgeDocumentSource.sourceName,
-                description: knowledgeDocumentSource.description,
-              })
-            }
-          >
-            {t("agentChat.messageList.artifact.saveDocument")}
-          </button>
-        ) : null}
       </div>
 
       {onOpenArtifactFromTimeline && blockTargets.length > 1 ? (

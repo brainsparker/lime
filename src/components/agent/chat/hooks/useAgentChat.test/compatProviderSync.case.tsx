@@ -11,7 +11,11 @@ import {
   mountHook,
 } from "../useAgentChat.testUtils";
 
-function confirmedModelResponse(threadId: string, modelProvider: string, model: string) {
+function confirmedModelResponse(
+  threadId: string,
+  modelProvider: string,
+  model: string,
+) {
   const threadSettings: ThreadSettings = {
     modelProvider,
     model,
@@ -25,10 +29,12 @@ function confirmedModelResponse(threadId: string, modelProvider: string, model: 
   };
   return {
     result: {},
-    notifications: [{
-      method: "thread/settings/updated",
-      params: { threadId, threadSettings },
-    }],
+    notifications: [
+      {
+        method: "thread/settings/updated",
+        params: { threadId, threadSettings },
+      },
+    ],
   };
 }
 
@@ -97,7 +103,11 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
     const currentModel = "gpt-5.4-mini";
     const nextModel = "gpt-5.4";
     mockUpdateAgentRuntimeThreadSettings.mockResolvedValue(
-      confirmedModelResponse("topic-runtime-model-switch-same-provider", selectedProvider, nextModel),
+      confirmedModelResponse(
+        "topic-runtime-model-switch-same-provider",
+        selectedProvider,
+        nextModel,
+      ),
     );
     localStorage.setItem(
       `agent_pref_provider_${workspaceId}`,
@@ -192,11 +202,18 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
     });
     mockUpdateAgentRuntimeThreadSettings.mockImplementation((request) => {
       if (request?.modelProvider || request?.model) {
-        return new Promise<ReturnType<typeof confirmedModelResponse>>((resolve) => {
-          resolveProviderSync = () => resolve(confirmedModelResponse(
-            "topic-runtime-model-switch-pending-sync", selectedProvider, nextModel,
-          ));
-        });
+        return new Promise<ReturnType<typeof confirmedModelResponse>>(
+          (resolve) => {
+            resolveProviderSync = () =>
+              resolve(
+                confirmedModelResponse(
+                  "topic-runtime-model-switch-pending-sync",
+                  selectedProvider,
+                  nextModel,
+                ),
+              );
+          },
+        );
       }
       return Promise.resolve({ result: {}, notifications: [] });
     });
@@ -344,67 +361,6 @@ describe("useAgentChat 兼容接口 - provider sync", () => {
           .getValue()
           .sendMessage(
             "继续沿用本地话题模型处理",
-            [],
-            false,
-            false,
-            false,
-            "react",
-          );
-      });
-
-      expect(mockSubmitAgentRuntimeTurn).toHaveBeenCalledTimes(1);
-      expect(harness.getValue().providerType).toBe(selectedProvider);
-      expect(getSubmittedTurnStart()?.model).toBe(selectedModel);
-    } finally {
-      harness.unmount();
-    }
-  });
-
-  it("导入会话的来源模型不应阻止续聊提交当前 Lime provider/model", async () => {
-    const workspaceId = "ws-imported-source-runtime-model";
-    const topicId = "topic-imported-source-runtime-model";
-    const selectedProvider = "custom-current-provider";
-    const selectedModel = "gpt-5.5";
-    localStorage.setItem(
-      `agent_pref_provider_${workspaceId}`,
-      JSON.stringify(selectedProvider),
-    );
-    localStorage.setItem(
-      `agent_pref_model_${workspaceId}`,
-      JSON.stringify(selectedModel),
-    );
-    mockGetAgentRuntimeSession.mockResolvedValue({
-      id: topicId,
-      messages: [],
-      execution_strategy: "react",
-      execution_runtime: {
-        session_id: topicId,
-        source: "session",
-        provider_name: "openai",
-        model_name: "gpt-5.4",
-        source_client: "codex",
-        imported_continuation: {
-          modelProvider: "openai",
-          model: "gpt-5.4",
-        },
-      },
-    });
-
-    const harness = mountHook(workspaceId);
-
-    try {
-      await flushEffects();
-      await act(async () => {
-        await harness.getValue().switchTopic(topicId);
-      });
-      await flushEffects();
-      mockSubmitAgentRuntimeTurn.mockClear();
-
-      await act(async () => {
-        await harness
-          .getValue()
-          .sendMessage(
-            "基于导入历史继续处理",
             [],
             false,
             false,

@@ -207,14 +207,7 @@ export interface PluginsPageParams {
 export interface KnowledgePageParams {
   workingDir?: string;
   selectedPackName?: string;
-  initialView?: "overview" | "import" | "detail" | "save" | "states";
-  saveDraft?: {
-    sourceText: string;
-    sourceName?: string;
-    description?: string | null;
-    packType?: string | null;
-    requestKey?: number;
-  };
+  initialView?: "overview" | "import" | "detail" | "states";
 }
 
 export interface ScheduledTasksPageParams {

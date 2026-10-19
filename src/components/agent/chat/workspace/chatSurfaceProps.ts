@@ -105,9 +105,6 @@ interface BuildWorkspaceEmptyStatePropsParams {
   onInputRestoreRequestHandled?: ComponentProps<
     typeof EmptyState
   >["onInputRestoreRequestHandled"];
-  onImportPathReferenceAsKnowledge?: ComponentProps<
-    typeof EmptyState
-  >["onImportPathReferenceAsKnowledge"];
   onRemovePathReference?: ComponentProps<
     typeof EmptyState
   >["onRemovePathReference"];
@@ -157,7 +154,6 @@ export function buildWorkspaceEmptyStateProps({
   onAddPathReferences,
   inputRestoreRequest,
   onInputRestoreRequestHandled,
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
 }: BuildWorkspaceEmptyStatePropsParams): ComponentProps<typeof EmptyState> {
@@ -211,7 +207,6 @@ export function buildWorkspaceEmptyStateProps({
     onAddPathReferences,
     inputRestoreRequest,
     onInputRestoreRequestHandled,
-    onImportPathReferenceAsKnowledge,
     onRemovePathReference,
     onClearPathReferences,
   };

@@ -13,6 +13,7 @@ use thread_store::{
 };
 
 mod history_visibility;
+mod runtime_snapshot;
 mod shutdown;
 
 #[tokio::test]
@@ -139,6 +140,8 @@ async fn canonical_thread_reads_use_the_projection_store_without_session_fallbac
             text: "canonical".to_string(),
             phase: None,
             content_parts: Vec::new(),
+            delivery: None,
+            questions: None,
         },
         metadata: json!({}),
     };

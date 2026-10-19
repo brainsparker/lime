@@ -235,9 +235,14 @@ describe("mockPriorityCommands", () => {
       false,
     );
     expect(shouldDisallowMockFallbackInBrowser("reveal_in_finder")).toBe(false);
-    expect(shouldDisallowMockFallbackInBrowser("open_with_default_app")).toBe(
-      false,
-    );
+    for (const command of [
+      "open_in_get_targets",
+      "open_in_detect_target",
+      "open_in_load_target_icon",
+      "open_in_open",
+      "open_in_set_global_preferred_target",
+    ])
+      expect(shouldDisallowMockFallbackInBrowser(command)).toBe(false);
     expect(
       shouldDisallowMockFallbackInBrowser("open_file_preview_window"),
     ).toBe(true);

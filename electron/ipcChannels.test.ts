@@ -162,7 +162,16 @@ describe("electron/ipcChannels", () => {
     expect(isElectronHostCommand("open_system_settings_url")).toBe(true);
     expect(isElectronHostCommand("macos_native_host_invoke")).toBe(true);
     expect(isElectronHostCommand("windows_native_host_invoke")).toBe(true);
-    expect(isElectronHostCommand("open_with_default_app")).toBe(true);
+    expect(isElectronHostCommand("open_with_default_app")).toBe(false);
+    for (const command of [
+      "open_in_get_targets",
+      "open_in_detect_target",
+      "open_in_load_target_icon",
+      "open_in_open",
+      "open_in_set_global_preferred_target",
+    ]) {
+      expect(isElectronHostCommand(command)).toBe(true);
+    }
     expect(isElectronHostCommand("open_project_path_with_tool")).toBe(false);
     expect(isElectronHostCommand("run_project_shell_command")).toBe(false);
     expect(isElectronHostCommand("project_shell_session_start")).toBe(false);

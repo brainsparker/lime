@@ -100,12 +100,10 @@ fn replay_seed_filters_review_prompts_and_recall_keeps_canonical_order() {
             items: vec![
                 ThreadItem::EnteredReviewMode {
                     id: "review-enter".into(),
-                    metadata: None,
                     review: "main".into(),
                 },
                 ThreadItem::UserMessage {
                     id: "hidden".into(),
-                    metadata: None,
                     client_id: None,
                     content: vec![UserInput::Text {
                         text: "review prompt".into(),
@@ -114,7 +112,6 @@ fn replay_seed_filters_review_prompts_and_recall_keeps_canonical_order() {
                 },
                 ThreadItem::ExitedReviewMode {
                     id: "review-exit".into(),
-                    metadata: None,
                     review: "main".into(),
                 },
             ],
@@ -129,7 +126,6 @@ fn replay_seed_filters_review_prompts_and_recall_keeps_canonical_order() {
             id: "visible".into(),
             items: vec![ThreadItem::UserMessage {
                 id: "visible-user".into(),
-                metadata: None,
                 client_id: None,
                 content: vec![UserInput::Text {
                     text: "visible prompt".into(),

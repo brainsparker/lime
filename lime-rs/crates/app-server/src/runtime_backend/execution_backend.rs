@@ -52,6 +52,7 @@ pub(super) async fn preflight_thread_settings_route(
         agent_control_gateway: None,
         command_publisher: None,
         rollout_budget_reminder_source: None,
+        mid_turn_compaction_commit: None,
     };
     let route = backend.resolve_turn_route(&request).await?;
     if let Some(failure) = route.resolution.resolved_route.failure.as_ref() {
@@ -203,6 +204,146 @@ impl ExecutionBackend for RuntimeBackend {
         sink: &mut dyn RuntimeEventSink,
     ) -> Result<(), RuntimeCoreError> {
         self.handle_turn_start(request, sink).await
+    }
+
+    async fn run_memory_stage1(
+        &self,
+        root: app_server_protocol::MemoryStoreRootParams,
+        version: crate::MemoryStageOneVersion,
+        route: crate::MemoryStageOneRoute,
+        data_source: Arc<dyn AppDataSource>,
+    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
+        data_source
+            .run_memory_stage1(root, version, route, self)
+            .await
+    }
+
+    async fn run_memory_stage2(
+        &self,
+        root: app_server_protocol::MemoryStoreRootParams,
+        route: crate::MemoryStageOneRoute,
+        data_source: Arc<dyn AppDataSource>,
+    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
+        data_source.run_memory_stage2(root, route, self).await
+    }
+
+    async fn consolidate_memory_store(
+        &self,
+        params: app_server_protocol::MemoryStoreConsolidateParams,
+        route: crate::MemoryStageOneRoute,
+        data_source: Arc<dyn AppDataSource>,
+    ) -> Result<app_server_protocol::MemoryStoreConsolidateResponse, RuntimeCoreError> {
+        data_source
+            .consolidate_memory_store(params, route, self)
+            .await
+    }
+
+    async fn resolve_memory_stage1_route(
+        &self,
+        session: &app_server_protocol::AgentSession,
+    ) -> Result<crate::MemoryStageOneRoute, RuntimeCoreError> {
+        let metadata = session
+            .business_object_ref
+            .as_ref()
+            .and_then(|reference| reference.metadata.as_ref());
+        let route_snapshot = metadata.and_then(|value| value.get("agentControlRoute"));
+        let mut runtime_options = app_server_protocol::RuntimeOptions::default();
+        let runtime_request = runtime_options.runtime_request_mut();
+        runtime_request.provider_preference = route_snapshot
+            .and_then(|route| route.get("providerPreference"))
+            .and_then(serde_json::Value::as_str)
+            .map(ToString::to_string)
+            .or_else(|| super::metadata_string(metadata, &["providerSelector", "providerName"]));
+        runtime_request.model_preference = route_snapshot
+            .and_then(|route| route.get("modelPreference"))
+            .and_then(serde_json::Value::as_str)
+            .map(ToString::to_string)
+            .or_else(|| super::metadata_string(metadata, &["modelName", "model"]));
+        runtime_request.reasoning_effort = route_snapshot
+            .and_then(|route| route.pointer("/providerConfig/reasoningEffort"))
+            .and_then(serde_json::Value::as_str)
+            .map(ToString::to_string)
+            .or_else(|| super::metadata_string(metadata, &["reasoningEffort", "reasoning_effort"]));
+        runtime_request.service_tier = route_snapshot
+            .and_then(|route| route.get("serviceTier"))
+            .and_then(serde_json::Value::as_str)
+            .map(ToString::to_string)
+            .or_else(|| super::metadata_string(metadata, &["serviceTier", "service_tier"]));
+        runtime_request.working_dir =
+            super::metadata_string(metadata, &["workingDir", "working_dir"]);
+        if let Some(route_snapshot) = route_snapshot {
+            runtime_request.provider_config = Some(app_server_protocol::RuntimeProviderConfig {
+                provider_id: route_snapshot
+                    .pointer("/providerConfig/providerId")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToString::to_string),
+                provider_name: route_snapshot
+                    .pointer("/providerConfig/providerName")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToString::to_string),
+                model_name: route_snapshot
+                    .pointer("/providerConfig/modelName")
+                    .and_then(serde_json::Value::as_str)
+                    .map(ToString::to_string),
+                ..Default::default()
+            });
+            runtime_request.metadata = Some(serde_json::json!({
+                "agentControlRoute": route_snapshot.clone(),
+            }));
+        }
+
+        let turn_id = format!("memory-stage1-route-{}", session.session_id);
+        let request = ExecutionRequest {
+            host: crate::RuntimeHostContext::default(),
+            session: session.clone(),
+            turn: app_server_protocol::AgentTurn {
+                turn_id,
+                session_id: session.session_id.clone(),
+                thread_id: session.thread_id.clone(),
+                status: app_server_protocol::AgentTurnStatus::Accepted,
+                started_at: None,
+                completed_at: None,
+            },
+            forked_from_thread_id: None,
+            input: agent_runtime::reply_input::RuntimeReplyInput::text(
+                "memory stage-1 route readiness",
+            ),
+            runtime_options: Some(runtime_options),
+            expected_output: None,
+            structured_output: None,
+            output_schema: None,
+            event_name: None,
+            queued_turn_id: None,
+            queue_if_busy: false,
+            skip_pre_submit_resume: false,
+            agent_control_gateway: None,
+            command_publisher: None,
+            rollout_budget_reminder_source: None,
+            mid_turn_compaction_commit: None,
+        };
+        let route = self.resolve_turn_route(&request).await?;
+        if let Some(failure) = route.resolution.resolved_route.failure.as_ref() {
+            return Err(super::runtime_error_from_route_failure(
+                &session.session_id,
+                &route.selection,
+                failure,
+            ));
+        }
+        Ok(crate::MemoryStageOneRoute {
+            session_id: session.session_id.clone(),
+            thread_id: session.thread_id.clone(),
+            provider: route.selection.provider,
+            model: route.selection.model,
+            reasoning_effort: route.selection.reasoning_effort,
+            service_tier: super::service_tier_from_request(&request),
+            api_version: route.resolution.resolved_route.endpoint.api_version.clone(),
+            route_protocol: route.resolution.resolved_route.protocol,
+            credential_ref: route.resolution.resolved_route.auth.credential_ref,
+            cwd: request
+                .runtime_request()
+                .and_then(|runtime| runtime.working_dir.as_deref())
+                .map(std::path::PathBuf::from),
+        })
     }
 
     async fn start_turn_with_provider_history(

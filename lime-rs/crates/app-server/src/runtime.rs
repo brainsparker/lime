@@ -1,3 +1,4 @@
+mod account;
 mod action_response;
 mod agent_control;
 mod agent_control_gateway;
@@ -30,7 +31,6 @@ mod context_auto_compaction;
 mod context_compaction;
 mod context_media;
 mod context_packet;
-mod conversation_import;
 mod diagnostics;
 mod error;
 mod event_log;
@@ -59,7 +59,6 @@ mod model_providers;
 mod output_media;
 mod output_refs;
 pub(crate) mod pending_action_descriptor;
-mod account;
 mod plugins;
 mod project_git;
 mod projection_item_events;
@@ -363,7 +362,6 @@ pub(in crate::runtime) struct RuntimeCoreState {
     shutting_down: bool,
     pub(in crate::runtime) thread_elicitation_counts: HashMap<String, i64>,
     pub(in crate::runtime) thread_goal_continuations: HashSet<String>,
-    pub(in crate::runtime) import_jobs: HashMap<String, conversation_import::ImportJobRecord>,
     pub(in crate::runtime) right_surface_pending:
         Vec<app_server_protocol::WorkspaceRightSurfacePendingRequest>,
 }

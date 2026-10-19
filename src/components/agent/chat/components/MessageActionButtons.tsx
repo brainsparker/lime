@@ -1,11 +1,5 @@
 import React from "react";
-import {
-  Check,
-  Copy,
-  FileText,
-  Quote,
-  Sparkles,
-} from "lucide-react";
+import { Check, Copy, Quote, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { MessageActions } from "../styles";
@@ -14,22 +8,12 @@ interface MessageActionButtonsProps {
   actionContent: string;
   canCopyMessage: boolean;
   canQuoteMessage: boolean;
-  canSaveMessageAsKnowledge: boolean;
   canSaveMessageAsSkill: boolean;
   copied: boolean;
   isImageWorkbenchMessage: boolean;
-  knowledgeContent?: string;
-  knowledgeDescription?: string | null;
-  knowledgeSourceName?: string;
   messageId: string;
   onCopy?: (content: string, messageId: string) => void;
   onQuoteMessage?: (content: string, messageId: string) => void;
-  onSaveMessageAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   onSaveMessageAsSkill?: (source: {
     messageId: string;
     content: string;
@@ -40,17 +24,15 @@ export function MessageActionButtons({
   actionContent,
   canCopyMessage,
   canQuoteMessage,
-  canSaveMessageAsKnowledge,
+
   canSaveMessageAsSkill,
   copied,
   isImageWorkbenchMessage,
-  knowledgeContent,
-  knowledgeDescription,
-  knowledgeSourceName,
+
   messageId,
   onCopy,
   onQuoteMessage,
-  onSaveMessageAsKnowledge,
+
   onSaveMessageAsSkill,
 }: MessageActionButtonsProps) {
   const { t } = useTranslation("agent");
@@ -59,7 +41,6 @@ export function MessageActionButtons({
     <MessageActions
       className={[
         "message-actions",
-        canSaveMessageAsKnowledge ? "message-actions-persistent" : "",
         isImageWorkbenchMessage ? "image-workbench-message-actions" : "",
       ]
         .filter(Boolean)
@@ -109,25 +90,6 @@ export function MessageActionButtons({
           title={t("agentChat.messageList.actions.saveAsSkill")}
         >
           <Sparkles size={12} />
-        </Button>
-      ) : null}
-      {canSaveMessageAsKnowledge ? (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="relative z-10 h-8 w-8 rounded-full border border-sky-200/90 bg-sky-50/92 text-sky-700 shadow-sm shadow-sky-950/5 hover:bg-sky-100 hover:text-sky-800"
-          onClick={() =>
-            onSaveMessageAsKnowledge?.({
-              messageId,
-              content: knowledgeContent || actionContent,
-              sourceName: knowledgeSourceName,
-              description: knowledgeDescription,
-            })
-          }
-          aria-label={t("agentChat.messageList.actions.saveToKnowledge")}
-          title={t("agentChat.messageList.actions.saveToKnowledge")}
-        >
-          <FileText size={12} />
         </Button>
       ) : null}
     </MessageActions>

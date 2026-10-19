@@ -255,13 +255,7 @@ export function renderTimeline(
     }) => void;
     onOpenSubagentSession?: (sessionId: string) => void;
     onOpenArtifactFromTimeline?: (target: ArtifactTimelineOpenTarget) => void;
-    sourceMessageId?: string;
-    onSaveFileArtifactAsKnowledge?: (source: {
-      messageId: string;
-      content: string;
-      sourceName?: string;
-      description?: string | null;
-    }) => void;
+    onFileClick?: (fileName: string, content: string) => void;
     focusedItemId?: string | null;
     focusRequestKey?: number;
     deferCompletedSingleDetails?: boolean;
@@ -284,8 +278,7 @@ export function renderTimeline(
           actionRequests={props?.actionRequests}
           isCurrentTurn={props?.isCurrentTurn}
           onOpenArtifactFromTimeline={props?.onOpenArtifactFromTimeline}
-          sourceMessageId={props?.sourceMessageId}
-          onSaveFileArtifactAsKnowledge={props?.onSaveFileArtifactAsKnowledge}
+          onFileClick={props?.onFileClick}
           onOpenSavedSiteContent={props?.onOpenSavedSiteContent}
           onOpenSubagentSession={props?.onOpenSubagentSession}
           focusedItemId={props?.focusedItemId}

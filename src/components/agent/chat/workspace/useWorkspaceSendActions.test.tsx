@@ -798,6 +798,45 @@ describe("useWorkspaceSendActions", () => {
     }
   });
 
+  it("目标首轮跳过上下文准备、命令解析与预创建，并透传 ownership observer", async () => {
+    const prepareActiveContextPrompt = vi.fn(async () => "工作区上下文");
+    const harness = mountHook({
+      sessionId: null,
+      isThemeWorkbench: true,
+      contextWorkspace: {
+        enabled: true,
+        activeContextPrompt: "",
+        prepareActiveContextPrompt,
+      },
+    });
+    const observer = { onSessionReady: vi.fn(), onRuntimeAccepted: vi.fn() };
+    const text = "/goal @配图 访问 https://example.com 后持续生成封面";
+    try {
+      await act(async () => {
+        expect(
+          await harness
+            .getValue()
+            .handleSend([], false, false, text, "react", undefined, {
+              threadGoal: { objective: text.slice(6) },
+              observer,
+            }),
+        ).toMatchObject({ kind: "runtime-accepted" });
+      });
+      expect(prepareActiveContextPrompt).not.toHaveBeenCalled();
+      expect(mockEnsureSessionForCommandMetadata).not.toHaveBeenCalled();
+      expect(mockResolveImageWorkbenchCommandRequest).not.toHaveBeenCalled();
+      expect(mockOpenRuntimeSceneGate).not.toHaveBeenCalled();
+      expect(mockSendMessage).toHaveBeenCalledOnce();
+      expect(mockSendMessage.mock.calls[0]?.[0]).toBe(text);
+      expect(mockSendMessage.mock.calls[0]?.[8]).toMatchObject({
+        threadGoal: { objective: text.slice(6) },
+        observer: { onSessionReady: observer.onSessionReady },
+      });
+    } finally {
+      harness.unmount();
+    }
+  });
+
   it("专用服务模型场景应按需补齐延迟加载的 service model 配置", async () => {
     const resolveServiceModelsBeforeSend = vi.fn(async () => ({
       agentResponseLanguage: "en-US",
@@ -1416,7 +1455,6 @@ Extract it into the Agent Skills directory.`,
         profileEditable: true,
         hubTokensEnabled: false,
         billingEnabled: true,
-        referralEnabled: false,
         gatewayEnabled: true,
       },
     });
@@ -1443,7 +1481,6 @@ Extract it into the Agent Skills directory.`,
               flags: {
                 gatewayEnabled: true,
                 billingEnabled: true,
-                referralEnabled: false,
                 passwordLoginEnabled: false,
               },
             },

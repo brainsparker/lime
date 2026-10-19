@@ -53,6 +53,13 @@ import { readPromptHistory } from "@/lib/api/promptHistory";
 import { recordAgentUiPerformanceMetric } from "@/lib/agentUiPerformanceMetrics";
 import { getLimeSkinCopy } from "@/lib/appearance/skinContent";
 import { useHomeSkinPresentation } from "./homeSkinPresentation";
+import { toast } from "sonner";
+import { prepareThreadGoalDraft } from "./Inputbar/hooks/threadGoalDraft";
+import {
+  buildNewThreadGoalSendPayload,
+  formatThreadGoalPrompt,
+  submitNewThreadGoal,
+} from "./newThreadGoalSubmission";
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
   composerController: externalComposerController,
@@ -97,7 +104,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAddPathReferences,
   inputRestoreRequest = null,
   onInputRestoreRequestHandled,
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
 }) => {
@@ -220,6 +226,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   const [, setActiveCapability] =
     useComposerCapabilitySelection(composerController);
   const [localObjectiveEnabled, setLocalObjectiveEnabled] = useState(false);
+  const [isGoalSubmitting, setIsGoalSubmitting] = useState(false);
+  const goalSubmissionPending = useRef(false);
   const objectiveEnabled = objectiveEnabledProp ?? localObjectiveEnabled;
   const handleObjectiveEnabledChange = useCallback(
     (enabled: boolean) => {
@@ -249,7 +257,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     isSkillsLoading,
     onSkillSuggestionsNeeded,
   });
-  const isComposerBusy = isLoading || disabled;
+  const isComposerBusy = isLoading || disabled || isGoalSubmitting;
   const {
     clearPendingImages,
     handleDragOver,
@@ -345,8 +353,10 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const hasPathReferences = currentDraft.pathReferences.length > 0;
     if (
       isComposerBusy ||
+      goalSubmissionPending.current ||
       (!composerInputOverride.trim() &&
         currentDraft.attachments.length === 0 &&
+        currentDraft.pendingPastes.length === 0 &&
         !hasPathReferences)
     ) {
       return { kind: "rejected" as const };
@@ -363,6 +373,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     const submitTarget: ComposerSubmitTarget =
       triggerMetadata?.submitTarget ?? (isLoading ? "steer" : "start");
     setComposerControllerText(composerInputOverride);
+    let goalHistoryText: string | undefined;
     const settlement = createComposerSubmissionSettlement({
       controller: composerController,
       coordinator: composerDraftCoordinator,
@@ -378,12 +389,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             surface.current.sessionId === sessionId)) &&
         inputRestoreEpochRef.current === sendRestoreEpoch,
       onAccepted: (result, draft) => {
-        if (draft?.text.trim()) {
+        const historyText = goalHistoryText ?? draft?.text;
+        if (historyText?.trim()) {
           runRuntimeSubmissionEffect(result.receipt, "accepted_submit", () => {
             void promptHistoryClientRef.current
               ?.appendPromptHistory({
                 threadId: result.receipt.threadId,
-                text: draft.text,
+                text: historyText,
               })
               .catch(() => undefined);
           });
@@ -411,6 +423,32 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
     if (composerReceipt.kind === "empty") {
       return { kind: "rejected" as const };
     }
+    const goalCommand = composerInputOverride
+      .trimStart()
+      .match(/^\/go+al(?=$| )/);
+    const goalDraft =
+      (modeState?.goalEnabled ?? objectiveEnabled) || goalCommand
+        ? prepareThreadGoalDraft(composerReceipt, goalCommand?.[0].length)
+        : null;
+    if (goalDraft) {
+      if (
+        composerReceipt.submission.pathReferences.length ||
+        composerReceipt.draft.inputCapabilityRoute
+      ) {
+        toast.error(t("agentChat.threadGoal.composer.unsupportedContext"));
+        return { kind: "rejected" as const };
+      }
+      if (
+        !goalDraft.objective &&
+        !goalDraft.pastedTextAttachments.length &&
+        !goalDraft.imageAttachments.length
+      ) {
+        handleObjectiveEnabledChange(true);
+        setComposerText("");
+        return { kind: "local-handled" as const };
+      }
+      goalHistoryText = formatThreadGoalPrompt(goalDraft.objective);
+    }
     const imagesToSend =
       composerReceipt.submission.attachments.length > 0
         ? [...composerReceipt.submission.attachments]
@@ -424,11 +462,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       subagentEnabled: modeState?.subagentEnabled ?? subagentEnabled,
     };
     const requestMetadata = baseRequestMetadata;
-    const threadGoal =
-      (modeState?.goalEnabled ?? objectiveEnabled) &&
-      composerInputOverride.trim()
-        ? { objective: composerInputOverride.trim() }
-        : undefined;
     const toolPreferencesOverride =
       buildInputbarToolPreferencesOverride(inputbarModeState);
     const collaborationMode = inputbarModeState.planEnabled
@@ -451,7 +484,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
       capabilityDispatch.capabilityRoute ||
       capabilityDispatch.displayContent ||
       requestMetadata ||
-      threadGoal ||
       toolPreferencesOverride ||
       collaborationMode ||
       shouldAttachInputRestoreDraft
@@ -464,14 +496,13 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
               ? { displayContent: capabilityDispatch.displayContent }
               : {}),
             ...(requestMetadata ? { requestMetadata } : {}),
-            ...(threadGoal ? { threadGoal } : {}),
             ...(toolPreferencesOverride ? { toolPreferencesOverride } : {}),
             ...(collaborationMode ? { collaborationMode } : {}),
           }
         : undefined;
 
     try {
-      const result = await onSend({
+      const payload = {
         onRuntimeAccepted: settlement.onRuntimeAccepted,
         composerRestoreToken: settlement.composerRestoreToken,
         composerDraftCapture: settlement.composerDraftCapture,
@@ -488,10 +519,56 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
               triggerSource: triggerMetadata.triggerSource,
             }
           : {}),
-      });
+      };
+      if (goalDraft) {
+        goalSubmissionPending.current = true;
+        setIsGoalSubmitting(true);
+        const binding = composerDraftCoordinator?.captureBinding();
+        const generation = composerDraftCoordinator?.getSnapshot().generation;
+        const assertRequestCurrent = () => {
+          const current = composerDraftCoordinator?.getSnapshot();
+          if (
+            !mounted.current ||
+            surface.current.composerController !== composerController ||
+            surface.current.composerDraftCoordinator !==
+              composerDraftCoordinator ||
+            surface.current.projectId !== projectId ||
+            surface.current.sessionId !== sessionId ||
+            inputRestoreEpochRef.current !== sendRestoreEpoch ||
+            (current &&
+              (current.generation !== generation ||
+                JSON.stringify(current.scope) !==
+                  JSON.stringify(binding?.scope) ||
+                current.identity?.draftId !== binding?.identity.draftId))
+          ) {
+            throw new Error("Goal submission is no longer current");
+          }
+        };
+        const result = await submitNewThreadGoal({
+          draft: goalDraft,
+          assertRequestCurrent,
+          onPreparationFailed: () => {
+            try {
+              assertRequestCurrent();
+            } catch {
+              return;
+            }
+            toast.error(t("agentChat.threadGoal.composer.materializeFailed"));
+          },
+          submit: (goalInput) =>
+            onSend(buildNewThreadGoalSendPayload(payload, goalInput)),
+        });
+        return settlement.finish(result);
+      }
+      const result = await onSend(payload);
       return settlement.finish(result);
     } catch (error) {
       return settlement.reject(error);
+    } finally {
+      if (goalDraft) {
+        goalSubmissionPending.current = false;
+        if (mounted.current) setIsGoalSubmitting(false);
+      }
     }
   };
 
@@ -551,7 +628,6 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         onDrop={handleDrop}
         onRemoveImage={handleRemoveImage}
         pathReferences={pathReferences}
-        onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={handleRemovePathReference}
       />
     </EmptyStateComposerFrame>

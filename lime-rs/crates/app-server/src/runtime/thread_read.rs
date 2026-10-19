@@ -27,6 +27,11 @@ use thread_store::{
 };
 
 mod history_visibility;
+mod runtime_snapshot;
+
+#[cfg(test)]
+use runtime_snapshot::ThreadExecutionState;
+use runtime_snapshot::{normalize_thread_runtime_snapshot, normalize_turn_runtime_snapshots};
 
 const DEFAULT_PAGE_LIMIT: u32 = 100;
 const THREAD_SEARCH_OCCURRENCES_DEFAULT_LIMIT: usize = 50;
@@ -44,93 +49,11 @@ pub(crate) enum ThreadUnloadResult {
     Unloaded,
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-struct ThreadExecutionState {
-    loaded: bool,
-    active_turn_id: Option<String>,
-    pending_turn_ids: Vec<String>,
-}
-
-fn normalize_thread_runtime_snapshot(
-    thread: &mut agent_protocol::Thread,
-    execution: &ThreadExecutionState,
-) {
-    for turn in &mut thread.turns {
-        if turn.status != agent_protocol::TurnStatus::InProgress || is_queued_turn(turn) {
-            continue;
-        }
-        if turn_is_orphaned(turn.turn_id.as_str(), execution) {
-            turn.status = agent_protocol::TurnStatus::Interrupted;
-        }
-    }
-
-    let terminal_projection_pending = thread
-        .turns
-        .iter()
-        .any(|turn| turn.status == agent_protocol::TurnStatus::InProgress && !is_queued_turn(turn));
-    thread.status = if execution.active_turn_id.is_some() || terminal_projection_pending {
-        let active_flags = match &thread.status {
-            agent_protocol::ThreadStatus::Active { active_flags } => active_flags.clone(),
-            _ => Vec::new(),
-        };
-        agent_protocol::ThreadStatus::Active { active_flags }
-    } else if matches!(thread.status, agent_protocol::ThreadStatus::SystemError) {
-        agent_protocol::ThreadStatus::SystemError
-    } else if execution.loaded {
-        agent_protocol::ThreadStatus::Idle
-    } else {
-        agent_protocol::ThreadStatus::NotLoaded
-    };
-}
-
-fn normalize_turn_runtime_snapshots(
-    turns: &mut [agent_protocol::Turn],
-    execution: &ThreadExecutionState,
-) {
-    for turn in turns {
-        if turn.status == agent_protocol::TurnStatus::InProgress
-            && !is_queued_turn(turn)
-            && turn_is_orphaned(turn.turn_id.as_str(), execution)
-        {
-            turn.status = agent_protocol::TurnStatus::Interrupted;
-        }
-    }
-}
-
 fn is_queued_turn(turn: &agent_protocol::Turn) -> bool {
     matches!(turn.queue, TurnQueueState::Queued { .. })
 }
 
-fn turn_is_orphaned(turn_id: &str, execution: &ThreadExecutionState) -> bool {
-    execution.active_turn_id.as_deref() != Some(turn_id)
-        && !execution.pending_turn_ids.iter().any(|id| id == turn_id)
-}
-
 impl RuntimeCore {
-    async fn thread_execution_state(
-        &self,
-        thread_id: &str,
-    ) -> Result<ThreadExecutionState, RuntimeCoreError> {
-        let session_id = self.loaded_session_id_for_thread(thread_id);
-        let Some(session_id) = session_id else {
-            return Ok(ThreadExecutionState::default());
-        };
-        let snapshot = self
-            .session_loops
-            .snapshot(session_id.as_str())
-            .await
-            .map_err(|error| {
-                RuntimeCoreError::Backend(format!(
-                    "read runtime session snapshot for thread state: {error}"
-                ))
-            })?;
-        Ok(ThreadExecutionState {
-            loaded: true,
-            active_turn_id: snapshot.and_then(|snapshot| snapshot.active_turn_id),
-            pending_turn_ids: self.turn_driver_completions.pending_turn_ids(&session_id),
-        })
-    }
-
     pub(crate) fn loaded_session_id_for_thread(&self, thread_id: &str) -> Option<String> {
         self.state
             .lock()
@@ -460,6 +383,8 @@ impl RuntimeCore {
         let execution = self
             .thread_execution_state(thread.thread_id.as_str())
             .await?;
+        self.refresh_terminal_turns(&thread.thread_id, &mut thread.turns, &execution)
+            .await?;
         normalize_thread_runtime_snapshot(&mut thread, &execution);
         thread.turns.retain(|turn| !is_queued_turn(turn));
         Ok(ThreadReadResponse { thread })
@@ -504,6 +429,8 @@ impl RuntimeCore {
         for thread in &mut data {
             let execution = self
                 .thread_execution_state(thread.thread_id.as_str())
+                .await?;
+            self.refresh_terminal_turns(&thread.thread_id, &mut thread.turns, &execution)
                 .await?;
             normalize_thread_runtime_snapshot(thread, &execution);
             thread.turns.retain(|turn| !is_queued_turn(turn));

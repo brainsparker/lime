@@ -9,7 +9,6 @@ import {
   AGENT_RUNTIME_DEFAULT_HISTORY_LIMIT,
   type AgentRuntimeGetSessionOptions,
 } from "./requestTypes";
-import { isImportedCanonicalThread } from "./appServerCanonicalThreadProjection";
 
 const HISTORY_PAGE_LIMIT = 100;
 
@@ -54,7 +53,7 @@ export async function readCanonicalThreadHistoryWindow(
     throw new Error("thread/read returned an empty canonical thread id");
   }
 
-  const historyLimit = resolveHistoryLimit(thread, options);
+  const historyLimit = normalizeHistoryLimit(options?.historyLimit);
   const embeddedTurns = readEmbeddedTurns(thread);
   if (embeddedTurns) {
     const loadedItemCount = embeddedTurns.reduce(
@@ -138,27 +137,6 @@ function normalizeHistoryLimit(value: unknown): number {
     return AGENT_RUNTIME_DEFAULT_HISTORY_LIMIT;
   }
   return Math.trunc(value);
-}
-
-function resolveHistoryLimit(
-  thread: Record<string, unknown>,
-  options: AgentRuntimeGetSessionOptions | undefined,
-): number {
-  const requestedLimit = normalizeHistoryLimit(options?.historyLimit);
-  if (!isImportedCanonicalThread(thread) || hasHistoryCursor(options)) {
-    return requestedLimit;
-  }
-  return 0;
-}
-
-function hasHistoryCursor(
-  options: AgentRuntimeGetSessionOptions | undefined,
-): boolean {
-  return Boolean(
-    options &&
-    (Object.prototype.hasOwnProperty.call(options, "historyItemCursor") ||
-      Object.prototype.hasOwnProperty.call(options, "historyTurnCursor")),
-  );
 }
 
 function readEmbeddedTurns(

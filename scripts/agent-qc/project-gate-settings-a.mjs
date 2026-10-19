@@ -349,7 +349,7 @@ async function runTabMatrix(page, { locale, viewport, tabs, observations }) {
 }
 
 async function verifyNavigationRecovery(page) {
-  await page.locator('[data-testid="app-sidebar-nav-home-general"]').click();
+  await page.locator('[data-testid="app-sidebar-nav-new-chat"]').click();
   await page
     .locator('[data-testid="app-sidebar-account-button"]')
     .waitFor({ state: "visible", timeout: 15_000 });

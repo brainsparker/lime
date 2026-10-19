@@ -41,6 +41,9 @@ import {
 import { buildTurnInput } from "../utils/buildUserInputSubmitOp";
 import { addThreadQueue } from "@/lib/api/agentRuntime/threadQueueActions";
 import type { WorkspaceHandleSend } from "./useWorkspaceSendActions";
+import type { SendMessageFn } from "../hooks/agentChatShared";
+import { useAsyncUserInput } from "./useAsyncUserInput";
+import { QuestionSelectionContext } from "../components/asyncUserInput/QuestionSelectionContext";
 
 import { useWorkspaceKnowledgeRuntime } from "./knowledge/useWorkspaceKnowledgeRuntime";
 import { selectPendingInputbarApprovalAction } from "./inputbarApprovalAction";
@@ -82,6 +85,7 @@ interface UseWorkspaceInputbarSceneRuntimeParams {
   steps: InputbarParams["workflowSteps"];
   workflowRunState: InputbarParams["workflowRunState"];
   handleSend: WorkspaceHandleSend;
+  sendMessage?: SendMessageFn;
   isPreparingSend: boolean;
   isSending: boolean;
   isSessionRestoring?: boolean;
@@ -163,6 +167,7 @@ export function useWorkspaceInputbarSceneRuntime({
   steps,
   workflowRunState,
   handleSend,
+  sendMessage,
   isPreparingSend,
   isSending,
   isSessionRestoring = false,
@@ -216,6 +221,7 @@ export function useWorkspaceInputbarSceneRuntime({
   const {
     interactions: pendingInteractions,
     respond: respondPendingInteraction,
+    dismiss: dismissPendingInteraction,
   } = usePendingInteractions();
   const pendingInteractionThreadId = threadId?.trim() || sessionId?.trim();
   const activePendingInteraction = useMemo(
@@ -241,6 +247,15 @@ export function useWorkspaceInputbarSceneRuntime({
   });
   const resolvedChatToolPreferences =
     chatToolPreferences ?? DEFAULT_CHAT_TOOL_PREFERENCES;
+  const asyncUserInput = useAsyncUserInput({
+    threadId,
+    sessionId,
+    items: generalWorkbenchHarnessPanelBaseProps.threadItems ?? [],
+    turns: generalWorkbenchHarnessPanelBaseProps.turns ?? [],
+    enabled: !directInputBlocked && !isSessionRestoring,
+    sendMessage,
+    collaborationMode: resolvedChatToolPreferences.task ? "plan" : undefined,
+  });
   const inputbarApprovalAction = useMemo(
     () =>
       selectPendingInputbarApprovalAction(
@@ -469,8 +484,6 @@ export function useWorkspaceInputbarSceneRuntime({
         onAddPathReferences,
         inputRestoreRequest,
         onInputRestoreRequestHandled,
-        onImportPathReferenceAsKnowledge:
-          knowledgeRuntime.onImportPathReferenceAsKnowledge,
         onRemovePathReference,
         onClearPathReferences,
       },
@@ -527,6 +540,7 @@ export function useWorkspaceInputbarSceneRuntime({
       interactions={pendingInteractions}
       threadId={pendingInteractionThreadId}
       onRespond={respondPendingInteraction}
+      onDismiss={dismissPendingInteraction}
     />
   ) : null;
   const strictReviewStatusNode =
@@ -536,6 +550,9 @@ export function useWorkspaceInputbarSceneRuntime({
       <StrictReviewStatus status={strictReviewStatus} />
     ) : null;
   const composerStatusNode = pendingInteractionLayer ?? strictReviewStatusNode;
+  const asyncQuestionNode = activePendingInteraction
+    ? null
+    : asyncUserInput.node;
   const draftStatusNode = composerDraftCoordinator ? (
     <ComposerDraftStatus
       status={composerDraftStatus}
@@ -546,16 +563,20 @@ export function useWorkspaceInputbarSceneRuntime({
   return {
     handleInputbarSend,
     ...presentationRuntime,
-    inputbarNode:
-      composerStatusNode || draftStatusNode ? (
-        <div className="w-full min-w-0 space-y-2">
-          {composerStatusNode}
-          {presentationRuntime.inputbarNode}
-          {draftStatusNode}
-        </div>
-      ) : (
-        presentationRuntime.inputbarNode
-      ),
+    inputbarNode: (
+      <QuestionSelectionContext.Provider value={Boolean(asyncQuestionNode)}>
+        {composerStatusNode || draftStatusNode || asyncQuestionNode ? (
+          <div className="w-full min-w-0 space-y-2">
+            {composerStatusNode}
+            {asyncQuestionNode}
+            {presentationRuntime.inputbarNode}
+            {draftStatusNode}
+          </div>
+        ) : (
+          presentationRuntime.inputbarNode
+        )}
+      </QuestionSelectionContext.Provider>
+    ),
     knowledgePackSelection: knowledgeRuntime.knowledgePackSelection,
     knowledgePackOptions: knowledgeRuntime.knowledgePackOptions,
     onToggleKnowledgePack: knowledgeRuntime.onToggleKnowledgePack,
@@ -565,8 +586,5 @@ export function useWorkspaceInputbarSceneRuntime({
     onKnowledgePacksNeeded: knowledgeRuntime.onKnowledgePacksNeeded,
     onStartKnowledgeOrganize: knowledgeRuntime.onStartKnowledgeOrganize,
     onManageKnowledgePacks: knowledgeRuntime.onManageKnowledgePacks,
-    onImportPathReferenceAsKnowledge:
-      knowledgeRuntime.onImportPathReferenceAsKnowledge,
-    onImportTextAsKnowledge: knowledgeRuntime.onImportTextAsKnowledge,
   };
 }

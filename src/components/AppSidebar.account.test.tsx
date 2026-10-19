@@ -1,198 +1,147 @@
+import { accountFixture, seedCloudAccount } from "@/test/cloudAccountFixture";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
+  APP_SIDEBAR_COLLAPSED_STORAGE_KEY,
   changeLimeLocale,
   cleanupAppSidebarTest,
   flushEffects,
-  mockGetClientReferralDashboard,
-  mockToastSuccess,
+  mockStartOemCloudLogin,
+  mockToastError,
   mountSidebarContainer,
   resetAppSidebarTest,
-  seedCloudSessionWithReferral,
-  seedCloudAccount,
+  SettingsTabs,
 } from "./AppSidebar.testFixtures";
 import type { AgentPageParams } from "./AppSidebar.testFixtures";
 
-describe("AppSidebar account menu", () => {
+async function openProfileMenu(container: HTMLElement) {
+  const button = container.querySelector<HTMLButtonElement>(
+    '[data-testid="app-sidebar-account-button"]',
+  )!;
+  await vi.waitFor(() => expect(button.disabled).toBe(false));
+  await act(async () => {
+    button.focus();
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }),
+    );
+  });
+  return await vi.waitFor(() => {
+    const menu = document.body.querySelector<HTMLElement>(
+      '[data-testid="app-sidebar-account-menu"]',
+    );
+    expect(menu).not.toBeNull();
+    return menu!;
+  });
+}
+
+function menuItem(menu: HTMLElement, label: string) {
+  return Array.from(
+    menu.querySelectorAll<HTMLElement>('[role="menuitem"]'),
+  ).find((item) => item.textContent === label)!;
+}
+
+describe("AppSidebar profile footer", () => {
   beforeEach(resetAppSidebarTest);
   afterEach(cleanupAppSidebarTest);
 
-  it("侧栏底部不再渲染账户区，只保留设置与主题入口", async () => {
+  it("展开和折叠均在 rail 底部保留紧凑账号入口，菜单使用共享账号投影", async () => {
     await seedCloudAccount({
-      token: "session-token",
       tenant: { id: "tenant-0001" },
-      user: { id: "user-001", displayName: "zhong feng shan" },
-      session: { id: "session-001" },
-    });
-
-    const container = mountSidebarContainer({
-      currentPage: "agent",
-      currentPageParams: { agentEntry: "new-task" } as AgentPageParams,
-    });
-    await flushEffects(2);
-
-    expect(
-      container.querySelector('[data-testid="app-sidebar-account-button"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[data-testid="app-sidebar-account-slot"]'),
-    ).toBeNull();
-    expect(
-      container.querySelector('[data-testid="app-sidebar-nav-settings"]'),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-testid="app-sidebar-appearance"]'),
-    ).not.toBeNull();
-  });
-
-  it("已登录账户也不会回到侧栏底部", async () => {
-    await seedCloudAccount({
-      token: "session-token",
-      tenant: { id: "tenant-0001", name: "Lime Cloud" },
       user: {
         id: "user-001",
         displayName: "晚风",
         email: "wanfeng@example.com",
       },
-      session: { id: "session-001", provider: "google" },
+      session: { id: "session-001" },
     });
+    const onNavigate = vi.fn();
     const container = mountSidebarContainer({
       currentPage: "agent",
       currentPageParams: { agentEntry: "new-task" } as AgentPageParams,
+      onNavigate,
     });
     await flushEffects(2);
+    const footer = container.querySelector(
+      '[data-testid="app-sidebar-footer"]',
+    )!;
+    const accountButton = footer.querySelector(
+      '[data-testid="app-sidebar-account-button"]',
+    )!;
+    expect(accountButton.getAttribute("title")).toBe("晚风");
     expect(
-      container.querySelector('[data-testid="app-sidebar-account-menu"]'),
-    ).toBeNull();
+      footer.querySelector('[data-testid="app-sidebar-nav-settings"]'),
+    ).not.toBeNull();
     expect(
-      container.querySelector('[data-testid="app-sidebar-account-button"]'),
+      footer.querySelector('[data-testid="app-sidebar-appearance"]'),
+    ).not.toBeNull();
+    expect(
+      container.querySelector('[data-testid="app-sidebar-cloud-account-card"]'),
     ).toBeNull();
+
+    await act(async () => {
+      container
+        .querySelector<HTMLButtonElement>(
+          '[data-testid="app-sidebar-collapse"]',
+        )!
+        .click();
+    });
+    expect(localStorage.getItem(APP_SIDEBAR_COLLAPSED_STORAGE_KEY)).toBe(
+      "true",
+    );
+    expect(footer.contains(accountButton)).toBe(true);
+    const menu = await openProfileMenu(container);
+    expect(menu.textContent).toContain("wanfeng@example.com");
+    await act(async () => menuItem(menu, "个人资料").click());
+    expect(onNavigate).toHaveBeenCalledWith("settings", {
+      tab: SettingsTabs.Profile,
+    });
   });
 
-  it("云端开启邀请时应在头部展示入口并读取 share 事实源", async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
+  it("退出登录调用 canonical 账号 owner，随后菜单切到登录动作", async () => {
+    await seedCloudAccount({
+      tenant: { id: "tenant-0001" },
+      user: { id: "user-001", displayName: "晚风" },
+      session: { id: "session-001" },
     });
-    await seedCloudSessionWithReferral();
-
-    const container = mountSidebarContainer({
-      currentPage: "agent",
-      currentPageParams: {
-        agentEntry: "new-task",
-      } as AgentPageParams,
-    });
+    const container = mountSidebarContainer();
     await flushEffects(2);
-
-    const header = container.querySelector(
-      '[data-testid="app-sidebar-header"]',
-    );
-    const inviteButton = container.querySelector<HTMLButtonElement>(
-      '[data-testid="app-sidebar-invite-button"]',
-    );
-    expect(inviteButton).not.toBeNull();
-    expect(header?.contains(inviteButton)).toBe(true);
-
-    await act(async () => {
-      inviteButton?.click();
-      await Promise.resolve();
-    });
-    await flushEffects(4);
-
-    expect(mockGetClientReferralDashboard).not.toHaveBeenCalled();
-    const dialog = document.body.querySelector(
-      '[data-testid="app-sidebar-invite-dialog"]',
-    );
-    expect(dialog).not.toBeNull();
-    expect(dialog?.textContent).toContain("LIME-2026");
-    expect(dialog?.textContent).toContain("https://limeai.run");
-    expect(dialog?.textContent).toContain("480 积分");
-    expect(dialog?.textContent).toContain("120 积分");
-
-    const copyShareButton = Array.from(
-      document.body.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("复制邀请文案"));
-
-    await act(async () => {
-      copyShareButton?.click();
-      await Promise.resolve();
-    });
-
-    expect(writeText).toHaveBeenCalledWith(
-      "邀请你体验Lime，让AI做牛做马，我们来做牛人！前往 https://limeai.run 下载客户端，复制邀请码 LIME-2026 激活并注册账号参与内测",
-    );
-    expect(mockToastSuccess).toHaveBeenCalledWith("已复制邀请文案");
+    let menu = await openProfileMenu(container);
+    await act(async () => menuItem(menu, "退出登录").click());
+    expect(accountFixture.logout).toHaveBeenCalledOnce();
+    menu = await openProfileMenu(container);
+    expect(menuItem(menu, "登录")).toBeDefined();
+    expect(menuItem(menu, "退出登录")).toBeUndefined();
   });
 
-  it("邀请入口应使用 navigation 命名空间资源", async () => {
-    await changeLimeLocale("en-US");
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    await seedCloudSessionWithReferral();
-
-    const container = mountSidebarContainer({
-      currentPage: "agent",
-      currentPageParams: {
-        agentEntry: "new-task",
-      } as AgentPageParams,
-    });
+  it("未登录可打开登录，失败仍可重试", async () => {
+    mockStartOemCloudLogin.mockRejectedValueOnce(
+      new Error("login unavailable"),
+    );
+    const container = mountSidebarContainer();
     await flushEffects(2);
-
-    const inviteButton = container.querySelector<HTMLButtonElement>(
-      '[data-testid="app-sidebar-invite-button"]',
-    );
-    expect(inviteButton?.textContent).toContain("Invite friends");
-
-    await act(async () => {
-      inviteButton?.click();
-      await Promise.resolve();
-    });
-    await flushEffects(4);
-
-    const dialog = document.body.querySelector(
-      '[data-testid="app-sidebar-invite-dialog"]',
-    );
-    expect(dialog?.textContent).toContain("Lime Invite");
-    expect(dialog?.textContent).toContain("Invite code");
-    expect(dialog?.textContent).toContain("480 credits");
-    expect(dialog?.textContent).toContain("120 credits");
-
-    const copyShareButton = Array.from(
-      document.body.querySelectorAll("button"),
-    ).find((button) => button.textContent?.includes("Copy invite message"));
-
-    await act(async () => {
-      copyShareButton?.click();
-      await Promise.resolve();
-    });
-
-    expect(writeText).toHaveBeenCalledWith(
-      "邀请你体验Lime，让AI做牛做马，我们来做牛人！前往 https://limeai.run 下载客户端，复制邀请码 LIME-2026 激活并注册账号参与内测",
-    );
-    expect(mockToastSuccess).toHaveBeenCalledWith("Invite message copied");
+    let menu = await openProfileMenu(container);
+    await act(async () => menuItem(menu, "登录").click());
+    expect(mockToastError).toHaveBeenCalledWith("login unavailable");
+    menu = await openProfileMenu(container);
+    await act(async () => menuItem(menu, "登录").click());
+    expect(mockStartOemCloudLogin).toHaveBeenCalledTimes(2);
   });
 
-  it("缓存的云端邀请开关关闭时不应展示头部邀请入口", async () => {
-    await seedCloudSessionWithReferral({
-      referralEnabled: false,
-      referral: null,
-    });
-
-    const container = mountSidebarContainer({
-      currentPage: "agent",
-      currentPageParams: {
-        agentEntry: "new-task",
-      } as AgentPageParams,
-    });
-    await flushEffects(2);
-
-    expect(
-      container.querySelector('[data-testid="app-sidebar-invite-button"]'),
-    ).toBeNull();
-    expect(mockGetClientReferralDashboard).not.toHaveBeenCalled();
+  it("五语言均提供账号菜单可访问名称", async () => {
+    const container = mountSidebarContainer();
+    for (const [locale, label] of [
+      ["zh-CN", "打开账号菜单"],
+      ["zh-TW", "開啟帳號選單"],
+      ["en-US", "Open profile menu"],
+      ["ja-JP", "プロフィールメニューを開く"],
+      ["ko-KR", "프로필 메뉴 열기"],
+    ]) {
+      await act(async () => changeLimeLocale(locale));
+      expect(
+        container
+          .querySelector('[data-testid="app-sidebar-account-button"]')
+          ?.getAttribute("aria-label"),
+      ).toBe(label);
+    }
   });
 });

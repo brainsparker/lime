@@ -82,6 +82,7 @@ async fn admitted_candidate_never_delivers_its_input_to_a_different_actor_turn()
         agent_control_gateway: None,
         command_publisher: None,
         rollout_budget_reminder_source: None,
+        mid_turn_compaction_commit: None,
     };
     let result = runtime
         .submit_backend_via_session_loop(request, ProviderTurnHistory::default())

@@ -131,6 +131,68 @@ struct ScriptedProvider {
     requests: Arc<Mutex<Vec<CurrentProviderRequest>>>,
 }
 
+struct TestMidTurnCompaction;
+
+impl RuntimeMidTurnCompactionCapability for TestMidTurnCompaction {
+    fn compact(
+        &self,
+        _request: RuntimeMidTurnCompactionRequest,
+        _cancellation: Option<CancellationToken>,
+    ) -> RuntimeMidTurnCompactionFuture<'_> {
+        Box::pin(async {
+            Ok(Some(RuntimeMidTurnCompactionResult {
+                messages: vec![CurrentProviderMessage::user(vec![
+                    CurrentProviderContent::Text("window summary".to_string()),
+                ])],
+                history_prefix_len: 1,
+                compaction_id: "compact-1".to_string(),
+                context_epoch: 2,
+                covered_through_sequence: 11,
+            }))
+        })
+    }
+}
+
+#[tokio::test]
+async fn same_turn_compaction_replaces_history_and_emits_receipt() {
+    let capability = RuntimeMidTurnCompactionCapabilityHandle::new(Arc::new(TestMidTurnCompaction));
+    let mut messages = vec![CurrentProviderMessage::user(vec![
+        CurrentProviderContent::Text("old".to_string()),
+    ])];
+    let mut prefix_len = 1;
+    let mut events = Vec::new();
+    let mut record = |event| events.push(event);
+    maybe_compact_after_step(
+        Some(&capability),
+        &mut messages,
+        &mut prefix_len,
+        Some(&CurrentProviderUsage {
+            input_tokens: 100,
+            ..Default::default()
+        }),
+        2,
+        None,
+        GenerationOptions::default(),
+        ProviderMetadata::new(),
+        None,
+        None,
+        &mut record,
+        true,
+    )
+    .await
+    .expect("compaction succeeds");
+    assert_eq!(prefix_len, 1);
+    assert_eq!(messages.len(), 1);
+    assert!(matches!(
+        events.first(),
+        Some(CurrentProviderTurnEvent::MidTurnCompaction {
+            compaction_id,
+            context_epoch: 2,
+            covered_through_sequence: 11,
+        }) if compaction_id == "compact-1"
+    ));
+}
+
 impl ScriptedProvider {
     fn new(streams: Vec<Vec<Result<CanonicalLlmEvent, CurrentProviderError>>>) -> Self {
         Self {
@@ -1036,6 +1098,7 @@ async fn empty_final_keeps_budget_reminder() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -1119,6 +1182,7 @@ async fn provider_request_uses_typed_cwd_world_state_without_app_server_snapshot
             working_directory: PathBuf::from("/tmp/task<&>"),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -1215,6 +1279,7 @@ async fn provider_request_projects_typed_world_state_once_before_current_user() 
             working_directory: PathBuf::from("/tmp/ignored-fallback"),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -1301,6 +1366,7 @@ async fn provider_request_preserves_canonical_fork_lineage() {
             working_directory: PathBuf::from("/tmp"),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -1398,6 +1464,7 @@ async fn provider_metadata_is_deduplicated_across_sampling_steps() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -1509,6 +1576,7 @@ async fn reasoning_summary_and_content_share_item_but_only_content_enters_provid
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -1634,6 +1702,7 @@ async fn each_sampling_attempt_emits_independent_provider_phase_trace() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -1834,6 +1903,7 @@ async fn max_turns_stops_before_starting_an_extra_provider_request() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -1931,6 +2001,7 @@ async fn provider_token_budget_stops_before_tool_execution_and_next_sampling() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -2036,6 +2107,7 @@ async fn turn_executes_tool_then_continues_with_tool_result_transcript() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -2154,6 +2226,7 @@ async fn provider_executed_web_search_emits_item_without_local_execution() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2287,6 +2360,7 @@ async fn each_sampling_step_uses_a_fresh_definition_and_executor_snapshot() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2433,6 +2507,7 @@ async fn turn_executes_same_response_tool_batch_in_parallel_when_policy_allows()
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2516,6 +2591,7 @@ async fn turn_propagates_canonical_provider_error() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2568,6 +2644,7 @@ async fn custom_tool_call_fails_without_executable_code_mode_session() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2660,6 +2737,7 @@ async fn custom_exec_uses_code_mode_session_and_resamples_with_typed_result() {
             working_directory: PathBuf::from("."),
             cancel_token: Some(cancel_token),
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2811,6 +2889,7 @@ async fn custom_exec_nested_tool_reuses_the_frozen_executor_and_lifecycle() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -2961,6 +3040,7 @@ async fn wait_function_uses_the_same_code_mode_session_and_resamples() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3063,6 +3143,7 @@ async fn custom_exec_session_failure_is_returned_to_model_for_recovery() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3178,6 +3259,7 @@ async fn mixed_function_and_custom_results_preserve_provider_call_order() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3271,6 +3353,7 @@ async fn cancellation_terminates_a_started_code_mode_cell() {
                 working_directory: PathBuf::from("."),
                 cancel_token: Some(turn_cancel_token),
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         )
@@ -3337,6 +3420,7 @@ async fn non_exec_custom_tool_is_rejected_before_code_mode_dispatch() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3401,6 +3485,7 @@ async fn provider_failure_after_consuming_steer_is_not_reroutable() {
                         working_directory: PathBuf::from("."),
                         cancel_token: None,
                         pending_input: Some(context.input_handle()),
+                        mid_turn_compaction: None,
                     },
                     |_| {},
                 )
@@ -3483,6 +3568,7 @@ async fn provider_quota_error_preserves_usage_limit_kind() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3527,6 +3613,7 @@ async fn content_filtered_empty_response_completes_without_resampling() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3572,6 +3659,7 @@ async fn empty_length_response_fails_without_resampling() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -3617,6 +3705,7 @@ async fn cancelling_during_provider_request_releases_the_turn_without_waiting_fo
                 working_directory: PathBuf::from("."),
                 cancel_token: Some(turn_cancel_token),
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         )
@@ -3669,6 +3758,7 @@ async fn cancelling_while_waiting_for_the_first_provider_event_releases_the_turn
                 working_directory: PathBuf::from("."),
                 cancel_token: Some(turn_cancel_token),
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         )
@@ -3719,6 +3809,7 @@ async fn cancellation_preserves_usage_returned_by_the_same_provider_poll() {
             working_directory: PathBuf::from("."),
             cancel_token: Some(cancel_token),
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |event| events.push(event),
     )
@@ -3785,6 +3876,7 @@ async fn cancellation_flushes_provider_usage_to_the_session_runtime() {
                         working_directory: PathBuf::from("."),
                         cancel_token: Some(cancel_token),
                         pending_input: Some(context.input_handle()),
+                        mid_turn_compaction: None,
                     },
                     |_| {},
                 )
@@ -3846,6 +3938,7 @@ async fn provider_error_flushes_prior_usage_to_the_session_runtime() {
                         working_directory: PathBuf::from("."),
                         cancel_token: None,
                         pending_input: Some(context.input_handle()),
+                        mid_turn_compaction: None,
                     },
                     |_| {},
                 )
@@ -3910,6 +4003,7 @@ async fn stream_error_flushes_prior_usage_to_the_session_runtime() {
                         working_directory: PathBuf::from("."),
                         cancel_token: None,
                         pending_input: Some(context.input_handle()),
+                        mid_turn_compaction: None,
                     },
                     |_| {},
                 )
@@ -3987,6 +4081,7 @@ async fn provider_step_timeout_flushes_prior_usage_to_the_session_runtime() {
                         working_directory: PathBuf::from("."),
                         cancel_token: None,
                         pending_input: Some(context.input_handle()),
+                        mid_turn_compaction: None,
                     },
                     |_| {},
                 )
@@ -4041,6 +4136,7 @@ async fn turn_requires_canonical_turn_id_before_provider_sampling() {
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -4094,6 +4190,7 @@ async fn reasoning_heartbeats_do_not_bypass_first_visible_output_deadline() {
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |event| events.push(event),
         ),
@@ -4153,6 +4250,7 @@ async fn provider_step_deadline_stops_continuous_heartbeat_stream() {
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |event| events.push(event),
         ),
@@ -4212,6 +4310,7 @@ async fn provider_step_deadline_closes_continuous_visible_text_stream() {
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |event| events.push(event),
         ),

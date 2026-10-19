@@ -45,6 +45,7 @@ import {
 } from "./tool-orchestrator-visible-dom-gate-b.mjs";
 import {
   createToolExecutionThreadCurrent,
+  buildToolExecutionUserInputResponse,
   provisionToolExecutionFixtureProvider,
   readToolExecutionThreadCurrent,
   startToolExecutionTurnCurrent,
@@ -2375,38 +2376,6 @@ function buildActionScope(sessionId, request, fallbackTurnId) {
   };
 }
 
-function buildUserResponseForRequest(request) {
-  const payload = request?.payload;
-  const questions = Array.isArray(payload)
-    ? payload
-    : Array.isArray(payload?.questions)
-      ? payload.questions
-      : [];
-  const firstQuestion = questions[0] || {};
-  const firstOption = Array.isArray(firstQuestion.options)
-    ? firstQuestion.options[0]
-    : null;
-  const answer =
-    String(firstOption?.value || firstOption?.label || "Continue").trim() ||
-    "Continue";
-  const questionText = String(
-    firstQuestion.question || request?.title || "",
-  ).trim();
-  const header = String(firstQuestion.header || "").trim();
-  const answers = {};
-  if (questionText) {
-    answers[questionText] = answer;
-  }
-  if (header) {
-    answers[header] = answer;
-  }
-  return {
-    answer,
-    answers,
-    Runtime: answer,
-  };
-}
-
 async function respondPendingRequests(
   options,
   sessionId,
@@ -2422,7 +2391,7 @@ async function respondPendingRequests(
       continue;
     }
     seenRequestIds.add(requestId);
-    const userData = buildUserResponseForRequest(request);
+    const userData = buildToolExecutionUserInputResponse(request.serverRequest);
     await respondAgentServerRequestCurrent(options, {
       requestId,
       serverRequest: request.serverRequest,

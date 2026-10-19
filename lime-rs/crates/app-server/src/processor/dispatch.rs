@@ -237,6 +237,9 @@ impl RequestProcessor {
                 app_server_protocol::protocol::v2::METHOD_MEMORY_RESET => {
                     self.handle_memory_reset_impl().boxed()
                 }
+                app_server_protocol::protocol::v2::METHOD_MEMORY_STATUS => {
+                    self.handle_memory_status_impl(params).boxed()
+                }
                 app_server_protocol::protocol::v2::METHOD_THREAD_SHELL_COMMAND => {
                     self.handle_thread_shell_command_impl(params).boxed()
                 }
@@ -755,18 +758,6 @@ impl RequestProcessor {
                 METHOD_CONNECT_CALLBACK_SEND => {
                     self.handle_connect_callback_send_impl(params).boxed()
                 }
-                METHOD_CONVERSATION_IMPORT_SOURCE_SCAN => self
-                    .handle_conversation_import_source_scan_impl(params)
-                    .boxed(),
-                METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW => self
-                    .handle_conversation_import_thread_preview_impl(params)
-                    .boxed(),
-                METHOD_CONVERSATION_IMPORT_THREAD_COMMIT => self
-                    .handle_conversation_import_thread_commit_impl(params)
-                    .boxed(),
-                METHOD_CONVERSATION_IMPORT_JOB_READ => self
-                    .handle_conversation_import_job_read_impl(params)
-                    .boxed(),
                 METHOD_TURN_START => self
                     .handle_turn_start_v2_impl(params, event_callback)
                     .boxed(),

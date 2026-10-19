@@ -324,24 +324,21 @@ fn canonical_wait_agent_states_survive_materialization_and_lifecycle_merge() {
 }
 
 #[test]
-fn current_codex_import_uses_lime_event_log_ordinal() {
+fn canonical_item_uses_event_log_ordinal() {
     let changes = materialize_events(
         &[event(
-            "imported-tool-start",
+            "tool-start",
             11,
             "item.started",
             "outer-turn",
             json!({
-                "imported": true,
-                "sourceClient": "codex",
-                "importVersion": 2,
-                "item": canonical_tool_item("imported-tool", "inProgress", 7)
+                "item": canonical_tool_item("current-tool", "inProgress", 7)
             }),
         )],
         "session-1",
         "thread-1",
     )
-    .expect("materialize current Codex import");
+    .expect("materialize canonical item");
 
     assert_eq!(changes.changed_items.len(), 1);
     assert_eq!(changes.changed_items[0].ordinal, 11);
@@ -428,6 +425,7 @@ fn canonical_agent_message_merges_typed_content_parts_across_lifecycle() {
         text,
         phase,
         content_parts,
+        ..
     } = &item.payload
     else {
         panic!("canonical agent message payload");

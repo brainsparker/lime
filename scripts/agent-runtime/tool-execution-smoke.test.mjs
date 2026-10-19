@@ -31,6 +31,7 @@ import {
   buildToolExecutionProviderUpdateParams,
   buildToolExecutionThreadStartParams,
   buildToolExecutionTurnStartParams,
+  buildToolExecutionUserInputResponse,
   normalizeToolExecutionThreadReadResponse,
 } from "./tool-execution-current-contract.mjs";
 import { startOpenAiCompatibleFixtureServer } from "../lib/openai-compatible-fixture-server.mjs";
@@ -58,6 +59,51 @@ function readAgentControlGateBSources() {
 }
 
 describe("agent runtime tool execution smoke guard", () => {
+  it("用户问答从 canonical ID 生成 wire answers，保留选项中的逗号", () => {
+    const request = {
+      id: "input-request",
+      method: "item/tool/requestUserInput",
+      params: {
+        threadId: "thread-1",
+        turnId: "turn-1",
+        questions: [
+          {
+            id: "choice",
+            header: "重复标题",
+            question: "重复问题",
+            options: [{ label: "保留 A, B", description: "完整文本" }],
+          },
+          { id: "notes", header: "重复标题", question: "重复问题", options: [] },
+        ],
+      },
+    };
+    expect(
+      buildAppServerRequestResponse(request, {
+        confirmed: true,
+        userData: buildToolExecutionUserInputResponse(request),
+      }),
+    ).toEqual({
+      answers: {
+        choice: { answers: ["保留 A, B"] },
+        notes: { answers: ["Continue"] },
+      },
+    });
+  });
+
+  it.each([
+    undefined,
+    [],
+    [{ id: "", options: [] }],
+    [{ id: "duplicate" }, { id: "duplicate" }],
+  ])("非法问答不能被 smoke 猜测为成功：%j", (questions) => {
+    expect(() =>
+      buildToolExecutionUserInputResponse({
+        method: "item/tool/requestUserInput",
+        params: { questions },
+      }),
+    ).toThrow();
+  });
+
   it("fixture can emit a parallel native tool-call batch", async () => {
     const fixture = await startOpenAiCompatibleFixtureServer({
       scriptedResponses: [

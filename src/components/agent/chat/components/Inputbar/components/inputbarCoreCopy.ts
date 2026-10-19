@@ -21,8 +21,6 @@ export type InputbarCoreCopyKey =
   | "agentChat.inputbar.core.path.containerLabel"
   | "agentChat.inputbar.core.path.localFolder"
   | "agentChat.inputbar.core.path.localFile"
-  | "agentChat.inputbar.core.path.importAsKnowledge"
-  | "agentChat.inputbar.core.path.importAction"
   | "agentChat.inputbar.core.path.remove"
   | "agentChat.inputbar.core.projectContext.projectAria"
   | "agentChat.inputbar.core.projectContext.searchPlaceholder"
@@ -104,8 +102,6 @@ export interface InputbarCoreCopy {
     containerLabel: string;
     localFolder: string;
     localFile: string;
-    importAsKnowledge: (name: string) => string;
-    importAction: string;
     remove: (name: string) => string;
   };
   projectContext: ComposerUtilityBarCopy;
@@ -175,9 +171,6 @@ export function buildInputbarCoreCopy(
       containerLabel: translate("agentChat.inputbar.core.path.containerLabel"),
       localFolder: translate("agentChat.inputbar.core.path.localFolder"),
       localFile: translate("agentChat.inputbar.core.path.localFile"),
-      importAsKnowledge: (name) =>
-        translate("agentChat.inputbar.core.path.importAsKnowledge", { name }),
-      importAction: translate("agentChat.inputbar.core.path.importAction"),
       remove: (name) =>
         translate("agentChat.inputbar.core.path.remove", { name }),
     },

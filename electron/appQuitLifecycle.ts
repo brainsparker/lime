@@ -38,7 +38,10 @@ export function installAppQuitLifecycle(
       .catch(onError)
       .finally(() => {
         drained = true;
-        app.quit();
+        // Electron can remain inside the current `will-quit` dispatch while
+        // running the async drain continuation. Resume the quit on the next
+        // event-loop turn so the second lifecycle pass is not re-entrant.
+        setTimeout(() => app.quit(), 0);
       });
   });
 }

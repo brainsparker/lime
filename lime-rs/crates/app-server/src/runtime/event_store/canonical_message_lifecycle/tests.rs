@@ -19,6 +19,60 @@ fn stored_event(event_type: &str, sequence: u64, payload: Value) -> AgentEvent {
 }
 
 #[test]
+fn async_user_input_coexists_with_streaming_body_and_retains_per_id_validation() {
+    let mut question = agent_protocol::ThreadItem::new(
+        agent_protocol::SessionId::new("session-1"),
+        agent_protocol::ThreadId::new("thread-1"),
+        agent_protocol::TurnId::new("turn-1"),
+        1,
+        1,
+        agent_protocol::ThreadItemPayload::AgentMessage {
+            text: "Choose".to_string(),
+            phase: None,
+            content_parts: Vec::new(),
+            delivery: Some(agent_protocol::AgentMessageDelivery::Async),
+            questions: Some(vec![agent_protocol::AsyncUserInputQuestion {
+                title: "Choose".to_string(),
+                options: None,
+            }]),
+        },
+    );
+    question.item_id = agent_protocol::ItemId::new("question-call");
+    let payload = json!({"item": question});
+    let events = vec![
+        runtime_event(
+            "message.delta",
+            json!({"itemId": "body", "text": "Working"}),
+        ),
+        runtime_event("item.started", payload.clone()),
+        runtime_event("item.completed", payload.clone()),
+        runtime_event("message.delta", json!({"itemId": "body", "text": " done"})),
+        runtime_event(
+            "message.completed",
+            json!({"itemId": "body", "text": "Working done"}),
+        ),
+    ];
+    assert!(with_canonical_message_reasoning_lifecycle(&[], Some("turn-1"), events, None).is_ok());
+    assert!(with_canonical_message_reasoning_lifecycle(
+        &[],
+        Some("turn-1"),
+        vec![runtime_event("item.completed", payload.clone())],
+        None
+    )
+    .is_err());
+    assert!(with_canonical_message_reasoning_lifecycle(
+        &[],
+        Some("turn-1"),
+        vec![
+            runtime_event("item.started", payload.clone()),
+            runtime_event("item.started", payload)
+        ],
+        None
+    )
+    .is_err());
+}
+
+#[test]
 fn wraps_message_and_reasoning_with_codex_item_lifecycle() {
     let events = with_canonical_message_reasoning_lifecycle(
         &[],
@@ -279,7 +333,7 @@ fn distinct_message_identity_starts_a_new_item_after_completion() {
 }
 
 #[test]
-fn synthesized_reasoning_start_preserves_source_ordinal_without_copying_content() {
+fn synthesized_reasoning_start_preserves_context_without_copying_content() {
     let events = with_canonical_message_reasoning_lifecycle(
         &[],
         Some("turn-1"),
@@ -289,10 +343,8 @@ fn synthesized_reasoning_start_preserves_source_ordinal_without_copying_content(
                 json!({
                     "reasoningId": "reasoning-1",
                     "ordinal": 3,
-                    "imported": true,
-                    "sourceClient": "codex",
-                    "importVersion": 2,
-                    "sourceProvenance": {"sourceEventSeq": 3},
+                    "phase": "commentary",
+                    "metadata": {"provider_metadata": {"signature": "reasoning-signature"}},
                     "text": "thinking"
                 }),
             ),
@@ -307,8 +359,11 @@ fn synthesized_reasoning_start_preserves_source_ordinal_without_copying_content(
 
     assert_eq!(events[0].event_type, "item.started");
     assert_eq!(events[0].payload["ordinal"], 3);
-    assert_eq!(events[0].payload["importVersion"], 2);
-    assert_eq!(events[0].payload["sourceProvenance"]["sourceEventSeq"], 3);
+    assert_eq!(events[0].payload["phase"], "commentary");
+    assert_eq!(
+        events[0].payload["metadata"]["provider_metadata"]["signature"],
+        "reasoning-signature"
+    );
     assert!(events[0].payload.get("text").is_none());
     assert_eq!(events[1].payload["text"], "thinking");
     assert_eq!(events[2].event_type, "item.completed");

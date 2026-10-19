@@ -23,7 +23,6 @@ use std::path::PathBuf;
 fn user_message(id: &str, text: &str) -> ThreadItem {
     ThreadItem::UserMessage {
         id: id.to_string(),
-        metadata: None,
         client_id: None,
         content: vec![app_server_protocol::protocol::v2::UserInput::Text {
             text: text.to_string(),
@@ -35,7 +34,6 @@ fn user_message(id: &str, text: &str) -> ThreadItem {
 fn agent_message(id: &str, text: &str, phase: Option<MessagePhase>) -> ThreadItem {
     ThreadItem::AgentMessage {
         id: id.to_string(),
-        metadata: None,
         text: text.to_string(),
         phase,
         memory_citation: None,
@@ -47,13 +45,11 @@ fn review_boundary(id: &str, entered: bool) -> ThreadItem {
     if entered {
         ThreadItem::EnteredReviewMode {
             id: id.to_string(),
-            metadata: None,
             review: "review".to_string(),
         }
     } else {
         ThreadItem::ExitedReviewMode {
             id: id.to_string(),
-            metadata: None,
             review: "review".to_string(),
         }
     }
@@ -464,7 +460,6 @@ fn completed_agent_item_replaces_streaming_delta() {
         ItemCompletedNotification {
             item: ThreadItem::AgentMessage {
                 id: "item-1".to_string(),
-                metadata: None,
                 text: "你好。".to_string(),
                 phase: None,
                 memory_citation: None,
@@ -705,7 +700,6 @@ fn late_reasoning_section_boundary_does_not_mutate_completed_history() {
         ItemCompletedNotification {
             item: ThreadItem::Reasoning {
                 id: "reasoning-1".to_string(),
-                metadata: None,
                 summary: vec!["已完成".to_string()],
                 content: Vec::new(),
             },
@@ -755,7 +749,6 @@ fn hydrated_thread_uses_the_same_phase_aware_final_answer_rule() {
 fn user_message_images_are_numbered_without_retaining_sources() {
     let item = ThreadItem::UserMessage {
         id: "user-images".to_string(),
-        metadata: None,
         client_id: None,
         content: vec![
             app_server_protocol::protocol::v2::UserInput::Image {
@@ -833,7 +826,6 @@ fn hydrate_thread_restores_items_and_active_turn_identity() {
             id: "turn-restore".to_string(),
             items: vec![ThreadItem::AgentMessage {
                 id: "item-restore".to_string(),
-                metadata: None,
                 text: "已恢复".to_string(),
                 phase: None,
                 memory_citation: None,
@@ -956,7 +948,6 @@ fn web_search_action_details_follow_codex_display_contract() {
         let entry = project_item(
             &ThreadItem::WebSearch(WebSearchItem {
                 id: "web-search".to_string(),
-                metadata: None,
                 query: query.map(str::to_string),
                 action,
             }),
@@ -971,7 +962,6 @@ fn web_search_action_details_follow_codex_display_contract() {
 fn web_search_realtime_lifecycle_uses_codex_started_and_completed_labels() {
     let item = ThreadItem::WebSearch(WebSearchItem {
         id: "web-search-lifecycle".to_string(),
-        metadata: None,
         query: Some("Rust release".to_string()),
         action: None,
     });
@@ -1007,7 +997,6 @@ fn web_search_realtime_lifecycle_uses_codex_started_and_completed_labels() {
 fn completed_turn_repair_keeps_web_search_completed_label() {
     let item = ThreadItem::WebSearch(WebSearchItem {
         id: "web-search-turn-repair".to_string(),
-        metadata: None,
         query: Some("Rust release".to_string()),
         action: None,
     });
@@ -1037,7 +1026,6 @@ fn web_search_persisted_projection_is_status_agnostic() {
     let entry = project_item(
         &ThreadItem::WebSearch(WebSearchItem {
             id: "web-search-history".to_string(),
-            metadata: None,
             query: Some("Rust release".to_string()),
             action: None,
         }),
@@ -1059,7 +1047,6 @@ fn web_search_malformed_or_unknown_action_falls_back_to_query() {
         let entry = project_item(
             &ThreadItem::WebSearch(WebSearchItem {
                 id: "web-search-fallback".to_string(),
-                metadata: None,
                 query: Some("canonical query".to_string()),
                 action: Some(action),
             }),
@@ -1075,7 +1062,6 @@ fn web_search_detail_is_localized_at_the_entry_boundary() {
     let entry = project_item(
         &ThreadItem::WebSearch(WebSearchItem {
             id: "web-search-locale".to_string(),
-            metadata: None,
             query: None,
             action: Some(json!({
                 "type": "find_in_page",
@@ -1113,7 +1099,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let command = project_item(
         &ThreadItem::CommandExecution {
             id: "command-1".to_string(),
-            metadata: None,
             plugin_id: None,
             script_path: None,
             command: "cargo test -p tui".to_string(),
@@ -1137,7 +1122,6 @@ fn item_result_fields_become_structured_display_summaries() {
     assert!(project_item(
         &ThreadItem::Sleep(SleepItem {
             id: "sleep-1".to_string(),
-            metadata: None,
             duration_ms: Some(1000),
         }),
         false,
@@ -1147,7 +1131,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let patch = project_item(
         &ThreadItem::FileChange {
             id: "patch-1".to_string(),
-            metadata: None,
             changes: vec![
                 FileUpdateChange {
                     path: "src/new.rs".to_string(),
@@ -1170,7 +1153,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let mcp = project_item(
         &ThreadItem::McpToolCall {
             id: "mcp-1".to_string(),
-            metadata: None,
             server: "docs".to_string(),
             tool: "search".to_string(),
             status: McpToolCallStatus::Failed,
@@ -1206,7 +1188,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let mcp_details = project_item(
         &ThreadItem::McpToolCall {
             id: "mcp-details".to_string(),
-            metadata: None,
             server: "docs".to_string(),
             tool: "search".to_string(),
             status: McpToolCallStatus::Completed,
@@ -1247,7 +1228,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let computer = project_item(
         &ThreadItem::McpToolCall {
             id: "computer-1".to_string(),
-            metadata: None,
             server: "cua_repl".to_string(),
             tool: "computer".to_string(),
             status: McpToolCallStatus::Completed,
@@ -1280,7 +1260,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let dynamic = project_item(
         &ThreadItem::DynamicToolCall {
             id: "dynamic-1".to_string(),
-            metadata: None,
             namespace: Some("browser".to_string()),
             tool: "open".to_string(),
             arguments: json!({}),
@@ -1322,7 +1301,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let collab = project_item(
         &ThreadItem::CollabAgentToolCall {
             id: "collab-1".to_string(),
-            metadata: None,
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),
@@ -1343,7 +1321,6 @@ fn item_result_fields_become_structured_display_summaries() {
     let image = project_item(
         &ThreadItem::ImageGeneration(ImageGenerationItem {
             id: "image-1".to_string(),
-            metadata: None,
             status: "completed".to_string(),
             revised_prompt: Some("a concise prompt".to_string()),
             result: "https://example.test/image.png".to_string(),
@@ -1512,7 +1489,6 @@ fn command_item(
 ) -> ThreadItem {
     ThreadItem::CommandExecution {
         id: id.to_string(),
-        metadata: None,
         plugin_id: None,
         script_path: None,
         command: command.to_string(),
@@ -1593,7 +1569,6 @@ fn activity_group_requires_canonical_kind_and_turn_scope() {
 
     let computer = ThreadItem::McpToolCall {
         id: "computer-1".to_string(),
-        metadata: None,
         server: "cua_repl".to_string(),
         tool: "js".to_string(),
         status: McpToolCallStatus::InProgress,
@@ -1633,7 +1608,6 @@ fn activity_group_requires_canonical_kind_and_turn_scope() {
 
     let reasoning = ThreadItem::Reasoning {
         id: "reasoning-1".to_string(),
-        metadata: None,
         summary: vec!["Inspect the result".to_string()],
         content: Vec::new(),
     };
@@ -1666,7 +1640,6 @@ fn collab_agent_summary_keeps_requested_model_effort_and_prompt() {
     let collab = project_item(
         &ThreadItem::CollabAgentToolCall {
             id: "collab-1".to_string(),
-            metadata: None,
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),
@@ -1714,7 +1687,6 @@ fn collab_wait_projection_keeps_per_agent_results() {
     let collab = project_item(
         &ThreadItem::CollabAgentToolCall {
             id: "collab-wait".to_string(),
-            metadata: None,
             tool: CollabAgentTool::Wait,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),
@@ -1743,7 +1715,6 @@ fn collab_resume_projection_keeps_resume_result() {
     let collab = project_item(
         &ThreadItem::CollabAgentToolCall {
             id: "collab-resume".to_string(),
-            metadata: None,
             tool: CollabAgentTool::ResumeAgent,
             status: CollabAgentToolCallStatus::Completed,
             sender_thread_id: "thread-1".to_string(),
@@ -1772,7 +1743,6 @@ fn turn_terminal_status_settles_in_progress_items() {
     projection.apply(ServerNotification::ItemStarted(ItemStartedNotification {
         item: ThreadItem::CommandExecution {
             id: "command-1".to_string(),
-            metadata: None,
             plugin_id: None,
             script_path: None,
             command: "cargo test -p tui".to_string(),
@@ -1825,7 +1795,6 @@ fn turn_completion_repairs_missing_streamed_items_from_canonical_turn() {
                 id: "turn-1".to_string(),
                 items: vec![ThreadItem::AgentMessage {
                     id: "answer-1".to_string(),
-                    metadata: None,
                     text: "最终回答".to_string(),
                     phase: None,
                     memory_citation: None,
@@ -1865,7 +1834,6 @@ fn turn_completion_replaces_streaming_item_with_canonical_text() {
                 id: "turn-1".to_string(),
                 items: vec![ThreadItem::AgentMessage {
                     id: "answer-1".to_string(),
-                    metadata: None,
                     text: "完整最终回答".to_string(),
                     phase: None,
                     memory_citation: None,
@@ -2066,7 +2034,6 @@ fn turn_completion_inserts_missing_canonical_items_before_known_following_items(
                 items: vec![
                     ThreadItem::UserMessage {
                         id: "user-1".to_string(),
-                        metadata: None,
                         client_id: Some("client-1".to_string()),
                         content: vec![app_server_protocol::protocol::v2::UserInput::Text {
                             text: "请求".to_string(),
@@ -2075,7 +2042,6 @@ fn turn_completion_inserts_missing_canonical_items_before_known_following_items(
                     },
                     ThreadItem::AgentMessage {
                         id: "answer-1".to_string(),
-                        metadata: None,
                         text: "完整回答".to_string(),
                         phase: None,
                         memory_citation: None,

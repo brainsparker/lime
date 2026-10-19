@@ -1,4 +1,5 @@
 import type { AppServerAgentEvent } from "@/lib/api/appServer";
+import type { AsyncUserInputQuestion } from "@limecloud/app-server-client";
 import type {
   AgentMessageContent,
   AgentMessageContentImage,
@@ -59,12 +60,6 @@ export function readCanonicalThreadItem(
     updated_at: event.timestamp,
     ...(isTerminalItemStatus(status) ? { completed_at: event.timestamp } : {}),
   };
-  const base = {
-    ...lifecycle,
-    ...(item.metadata && typeof item.metadata === "object"
-      ? { metadata: item.metadata }
-      : {}),
-  };
 
   switch (type) {
     case "userMessage": {
@@ -73,7 +68,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "user_message",
         content: content.text,
         content_parts: content.parts,
@@ -86,10 +81,12 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "agent_message",
         text,
         phase: readMessagePhase(item.phase),
+        delivery: item.delivery === "async" ? "async" : undefined,
+        questions: readAsyncUserInputQuestions(item.questions),
         memoryCitation: readMemoryCitation(item.memoryCitation),
       };
     }
@@ -99,21 +96,18 @@ export function readCanonicalThreadItem(
         return null;
       }
       const derivedMetadata = canonicalPlanMetadata(id, route.turnId);
-      const existingMetadata = normalizeRecord(item.metadata) ?? {};
       return {
-        ...base,
+        ...lifecycle,
         type: "plan",
         text,
-        ...(derivedMetadata
-          ? { metadata: { ...derivedMetadata, ...existingMetadata } }
-          : {}),
+        ...(derivedMetadata ? { metadata: derivedMetadata } : {}),
       };
     }
     case "reasoning": {
       const summary = readStringList(item.summary);
       const content = readStringList(item.content);
       return {
-        ...base,
+        ...lifecycle,
         type: "reasoning",
         text: summary.join("\n\n"),
         summary,
@@ -128,7 +122,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "command_execution",
         command,
         cwd: safeDisplayPath(cwd),
@@ -155,20 +149,8 @@ export function readCanonicalThreadItem(
         const path = readString(record ?? {}, "path");
         return path ? [path] : [];
       });
-      const readOnlyChange = readOnlyFileChangeMetadata(item.metadata);
-      const firstChange = changes[0];
-      const firstPath = readString(firstChange ?? {}, "path");
-      if (readOnlyChange && firstPath) {
-        return {
-          ...base,
-          type: "file_artifact",
-          path: firstPath,
-          source: "file_read",
-          content: readString(firstChange ?? {}, "diff") ?? "",
-        };
-      }
       return {
-        ...base,
+        ...lifecycle,
         type: "patch",
         text: JSON.stringify(changes),
         changes,
@@ -183,7 +165,7 @@ export function readCanonicalThreadItem(
       return readCanonicalToolThreadItem(item, event);
     case "subAgentActivity":
       return {
-        ...base,
+        ...lifecycle,
         type: "subagent_activity",
         status_label: readString(item, "kind") ?? type,
         session_id: readString(item, "agentThreadId"),
@@ -191,7 +173,7 @@ export function readCanonicalThreadItem(
       };
     case "contextCompaction":
       return {
-        ...base,
+        ...lifecycle,
         type: "context_compaction",
         stage: isTerminalItemStatus(status) ? "completed" : "started",
       };
@@ -216,7 +198,7 @@ export function readCanonicalThreadItem(
       const source = readString(item, "path") ?? "";
       const uri = isSafeMediaReference(source) ? source : "";
       return {
-        ...base,
+        ...lifecycle,
         type: "media",
         uri,
         mime_type: imageMimeType(source),
@@ -232,7 +214,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "image_generation",
         generation_status: generationStatus,
         revised_prompt: readString(item, "revisedPrompt"),
@@ -246,7 +228,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "hook_prompt",
         fragments,
       };
@@ -257,7 +239,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "sleep",
         ...(durationMs === undefined ? {} : { duration_ms: durationMs }),
       };
@@ -269,7 +251,7 @@ export function readCanonicalThreadItem(
         return null;
       }
       return {
-        ...base,
+        ...lifecycle,
         type: "review_boundary",
         boundary: type === "enteredReviewMode" ? "entered" : "exited",
         review,
@@ -278,6 +260,31 @@ export function readCanonicalThreadItem(
     default:
       return null;
   }
+}
+
+function readAsyncUserInputQuestions(
+  value: unknown,
+): AsyncUserInputQuestion[] | undefined {
+  if (!Array.isArray(value) || value.length === 0) return undefined;
+  const questions: AsyncUserInputQuestion[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry))
+      return undefined;
+    const { title, options } = entry as Record<string, unknown>;
+    if (typeof title !== "string" || !title.trim()) return undefined;
+    if (
+      options != null &&
+      (!Array.isArray(options) ||
+        options.length === 0 ||
+        !options.every((option) => typeof option === "string" && option.trim()))
+    )
+      return undefined;
+    questions.push({
+      title,
+      ...(Array.isArray(options) ? { options: [...options] as string[] } : {}),
+    });
+  }
+  return questions;
 }
 
 /**
@@ -339,44 +346,6 @@ export function readRuntimeCanonicalToolThreadItem(
       callId,
     },
   };
-}
-
-function readOnlyFileChangeMetadata(value: unknown): boolean {
-  const metadata = normalizeRecord(value);
-  if (!metadata) {
-    return false;
-  }
-  const sourceProvenance =
-    normalizeRecord(metadata.sourceProvenance) ??
-    normalizeRecord(metadata.source_provenance);
-  return [metadata, sourceProvenance].some((record) =>
-    record
-      ? [
-          "eventClass",
-          "event_class",
-          "operation",
-          "operationKind",
-          "operation_kind",
-          "toolName",
-          "tool_name",
-          "sourceEventType",
-          "source_event_type",
-        ].some((key) => isReadFileMarker(readString(record, key)))
-      : false,
-  );
-}
-
-function isReadFileMarker(value: string | undefined): boolean {
-  if (!value) {
-    return false;
-  }
-  const normalized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[\s_-]+/gu, ".");
-  return new Set(["read", "file.read", "read.file", "file.read.item"]).has(
-    normalized,
-  );
 }
 
 function readTerminalInteractions(

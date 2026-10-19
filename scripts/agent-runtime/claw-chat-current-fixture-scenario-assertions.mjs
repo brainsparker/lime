@@ -10,6 +10,7 @@ import {
   CONTINUE_PROMPT,
   EVENT_READ_PROBE_TOOL_NAME,
   GOAL_PROMPT,
+  GOAL_FIRST_TURN_TEXT,
   HOME_HOTPATH_GREETING_SCENARIO,
   HOME_HOTPATH_SCENARIO,
   IMAGE_COMMAND_CREATE_TASK_TOOL_NAME,
@@ -665,7 +666,7 @@ export function buildScenarioAssertions(context) {
                             "追求目标",
                           ) === true,
                         goalPromptReachedBackend:
-                          goalTurnStart?.inputText === GOAL_PROMPT,
+                          goalTurnStart?.inputText === GOAL_FIRST_TURN_TEXT,
                         goalObjectiveTextReachedBackend:
                           goalObjectiveText === GOAL_PROMPT,
                         goalPausedFromGui:

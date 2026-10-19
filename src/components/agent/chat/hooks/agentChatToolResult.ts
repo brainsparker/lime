@@ -169,7 +169,7 @@ export const normalizeHistoryImagePart = (
   const rawData = readStringField(rawPart, "data");
 
   // Inline data is the only self-contained preview. Prefer it over a stale
-  // host path that may have been carried alongside the same imported image.
+  // host path that may have been carried alongside the same historical image.
   if (rawData) {
     const dataUrlImage = parseDataUrlToHistoryImage(rawData);
     const mediaType =

@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { File, Loader2, Search } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Loader2, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import {
   searchProjectFiles,
@@ -8,6 +8,53 @@ import {
 import type { CanvasWorkbenchFileTreeState } from "../../components/canvas-workbench/files/useCanvasWorkbenchFileTreeState";
 import { WorkspaceDirectoryTree } from "./WorkspaceDirectoryTree";
 import type { FileSelectionOptions } from "./threadSidePanelTabs";
+import { FileTree } from "./FileTree";
+import { createSearchFileTree, getSearchFileTreeRows } from "./fileTreeRows";
+
+type SearchResult = {
+  root: string;
+  query: string;
+} & (
+  | { status: "loading" }
+  | { status: "ready"; files: readonly ProjectFileSearchResult[] }
+  | { status: "error"; message: string }
+);
+
+function SearchResultsTree({
+  root,
+  query,
+  files,
+  onSelectFile,
+}: {
+  root: string;
+  query: string;
+  files: readonly ProjectFileSearchResult[];
+  onSelectFile: (path: string, options?: FileSelectionOptions) => void;
+}) {
+  const tree = useMemo(() => createSearchFileTree(root, files), [root, files]);
+  const [expanded, setExpanded] = useState(tree.expandedDirectories);
+  const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const rows = useMemo(
+    () => getSearchFileTreeRows(tree, expanded),
+    [tree, expanded],
+  );
+  return (
+    <FileTree
+      scope={JSON.stringify([root, query])}
+      cwd={root}
+      rows={rows}
+      expandedDirectories={expanded}
+      selectedPath={selectedPath}
+      onToggleDirectory={(path) =>
+        setExpanded((previous) => ({ ...previous, [path]: !previous[path] }))
+      }
+      onSelectFile={(path, options) => {
+        setSelectedPath(path);
+        onSelectFile(path, options);
+      }}
+    />
+  );
+}
 
 export function WorkspaceFileTree({
   root,
@@ -22,48 +69,45 @@ export function WorkspaceFileTree({
 }) {
   const { t } = useTranslation("agent");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<readonly ProjectFileSearchResult[]>(
-    [],
-  );
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const [result, setResult] = useState<SearchResult | null>(null);
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
-      setSearching(false);
-      setSearchError(null);
+      setResult(null);
       return;
     }
     let current = true;
-    setSearching(true);
-    setSearchError(null);
+    const scope = { root, query };
+    setResult({ ...scope, status: "loading" });
     void searchProjectFiles({
       query,
       rootPath: root,
       cancellationToken: crypto.randomUUID(),
-    })
-      .then(
-        (files) => {
-          if (current) setResults(files);
-        },
-        (error: unknown) => {
-          if (current) {
-            setResults([]);
-            setSearchError(
-              error instanceof Error ? error.message : String(error),
-            );
-          }
-        },
-      )
-      .finally(() => {
-        if (current) setSearching(false);
-      });
+    }).then(
+      (files) => {
+        if (current) setResult({ ...scope, status: "ready", files });
+      },
+      (error: unknown) => {
+        if (current) {
+          setResult({
+            ...scope,
+            status: "error",
+            message: error instanceof Error ? error.message : String(error),
+          });
+        }
+      },
+    );
     return () => {
       current = false;
     };
   }, [query, root]);
-  const row =
-    "flex h-7 w-full min-w-0 items-center gap-1.5 rounded-md px-2 text-left text-xs outline-none hover:bg-[color:var(--lime-chrome-tab-hover)] focus-visible:bg-[color:var(--lime-chrome-tab-hover)]";
+  const visibleResult =
+    result?.root === root && result.query === query ? result : null;
+  const searching =
+    Boolean(query.trim()) &&
+    (!visibleResult || visibleResult.status === "loading");
+  const searchError =
+    visibleResult?.status === "error" ? visibleResult.message : null;
+  const files = visibleResult?.status === "ready" ? visibleResult.files : [];
   return (
     <aside
       data-file-tree-panel
@@ -100,29 +144,22 @@ export function WorkspaceFileTree({
           </p>
         ) : null}
         {query.trim() ? (
-          <div className="min-h-0 flex-1 overflow-auto">
-            {results.map((file) => {
-              const path = `${file.root.replace(/[\\/]$/, "")}/${file.path}`;
-              return (
-                <button
-                  key={path}
-                  type="button"
-                  className={row}
-                  onClick={() => onSelectFile(path, { isPreview: true })}
-                  onDoubleClick={() => onSelectFile(path, { isPreview: false })}
-                  title={file.path}
-                >
-                  <File size={14} className="shrink-0" />
-                  <span className="min-w-0 truncate">{file.path}</span>
-                </button>
-              );
-            })}
-            {!searching && !results.length && !searchError ? (
+          <>
+            {files.length ? (
+              <SearchResultsTree
+                key={JSON.stringify([root, query])}
+                root={root}
+                query={query}
+                files={files}
+                onSelectFile={onSelectFile}
+              />
+            ) : null}
+            {!searching && !files.length && !searchError ? (
               <p className="p-3 text-xs text-[color:var(--lime-text-muted)]">
                 {t("agentChat.rightSurface.files.noResults")}
               </p>
             ) : null}
-          </div>
+          </>
         ) : (
           <WorkspaceDirectoryTree
             directoryPath={root}

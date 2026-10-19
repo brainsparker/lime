@@ -7,6 +7,7 @@ use agent_protocol::{
 use app_server_protocol::AgentEvent;
 use serde_json::json;
 
+mod async_user_input;
 mod canonical_lifecycle;
 mod incremental;
 mod message_snapshot;
@@ -95,27 +96,26 @@ fn artifact_snapshot_lowers_to_applied_file_change() {
 }
 
 #[test]
-fn imported_file_read_preserves_read_only_markers_in_item_metadata() {
+fn file_read_preserves_read_only_markers_in_item_metadata() {
     let changes = materialize_events(
         &[event(
-            "imported-file-read",
+            "file-read",
             1,
             "file.changed",
             "turn-1",
             json!({
-                "path": "docs/imported-preview.md",
-                "content": "# imported preview",
-                "artifactId": "codex-import-file-read",
+                "path": "docs/preview.md",
+                "content": "# preview",
+                "artifactId": "file-read-preview",
                 "eventClass": "file.read",
                 "operation": "read",
                 "toolName": "read_file",
-                "imported": true,
             }),
         )],
         "session-1",
         "thread-1",
     )
-    .expect("materialize imported file read");
+    .expect("materialize file read");
 
     let item = &changes.changed_items[0];
     assert_eq!(item.metadata["event_class"], "file.read");
@@ -213,6 +213,8 @@ fn coalesces_message_delta_into_one_stable_typed_item() {
             text: "hello".to_string(),
             phase: None,
             content_parts: Vec::new(),
+            delivery: None,
+            questions: None,
         }
     );
     assert_eq!(changes.changed_turns.len(), 1);
@@ -272,6 +274,8 @@ fn user_and_agent_messages_have_explicit_terminal_item_lifecycle() {
             text: "answer".to_string(),
             phase: Some(agent_protocol::response_item::MessagePhase::FinalAnswer),
             content_parts: Vec::new(),
+            delivery: None,
+            questions: None,
         }
     );
 }
@@ -502,6 +506,8 @@ fn coalesces_message_delta_batch_into_the_same_typed_item() {
             text: "hello world!".to_string(),
             phase: Some(agent_protocol::response_item::MessagePhase::Commentary),
             content_parts: Vec::new(),
+            delivery: None,
+            questions: None,
         }
     );
 }

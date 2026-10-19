@@ -143,23 +143,29 @@ describe("FileShellHost", () => {
     expect(showItemInFolderMock).not.toHaveBeenCalled();
   });
 
-  it("openWithDefaultApp 通过 Electron shell 打开本地路径", async () => {
+  it("open systemDefault 在 Windows 通过 Electron shell 打开本地路径", async () => {
     openPathMock.mockResolvedValueOnce("");
-    const host = new FileShellHost();
+    const host = new FileShellHost({
+      platform: "win32",
+      appDataRoot: await createTempUserDataDir(),
+    });
 
     await expect(
-      host.openWithDefaultApp({ path: "/tmp/demo.txt" }),
+      host.open({ path: "/tmp/demo.txt", target: "systemDefault" }),
     ).resolves.toEqual({});
 
     expect(openPathMock).toHaveBeenCalledWith("/tmp/demo.txt");
   });
 
-  it("openWithDefaultApp 应暴露 Electron openPath 失败", async () => {
+  it("open systemDefault 应暴露 Electron openPath 失败", async () => {
     openPathMock.mockResolvedValueOnce("Cannot open file");
-    const host = new FileShellHost();
+    const host = new FileShellHost({
+      platform: "win32",
+      appDataRoot: await createTempUserDataDir(),
+    });
 
     await expect(
-      host.openWithDefaultApp({ path: "/tmp/missing.txt" }),
+      host.open({ path: "/tmp/missing.txt", target: "systemDefault" }),
     ).rejects.toThrow("Cannot open file");
   });
 

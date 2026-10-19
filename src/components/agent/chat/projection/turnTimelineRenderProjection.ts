@@ -5,11 +5,7 @@ import type {
   MessageMediaReference,
 } from "../types";
 import type { MessageRenderGroupProjection } from "./messageTimelineRenderProjection";
-import {
-  dedupeImportedUserMessageItems,
-  isImportedHistoryMetadata,
-  messageMatchesCanonicalUserMessage,
-} from "../utils/importedUserMessageDedupe";
+import { messageMatchesCanonicalUserMessage } from "../utils/canonicalUserMessage";
 import { filterConversationThreadItems } from "../utils/threadTimelineView";
 
 type CanonicalMessageItem = Extract<
@@ -91,16 +87,12 @@ export function buildTurnTimelineRenderProjection(params: {
     }
     bindUnanchoredGroupAssistants(group, groupOwners, messageOwners);
     const hasAnchoredOwner = groupOwners.size > 0;
-    const isImportedHistoryGroup = [...groupOwners.values()].some((owner) =>
-      owner.items.some((item) => isImportedHistoryMetadata(item.metadata)),
-    );
     let residualMessages: Message[] = [];
     const flushResidualMessages = () => {
       const residualGroup = buildResidualMessageGroup(
         group,
         residualMessages,
         hasAnchoredOwner,
-        isImportedHistoryGroup,
       );
       residualMessages = [];
       if (!residualGroup) return;
@@ -178,8 +170,8 @@ function buildCanonicalTurnOwners(params: {
   renderedTurns: readonly AgentThreadTurn[];
   renderedThreadItems: readonly AgentThreadItem[];
 }): Map<string, CanonicalTurnOwner> {
-  const visibleItems = dedupeImportedUserMessageItems(
-    filterConversationThreadItems(params.renderedThreadItems),
+  const visibleItems = filterConversationThreadItems(
+    params.renderedThreadItems,
   );
   const itemsByTurnId = new Map<string, AgentThreadItem[]>();
   for (const item of visibleItems) {
@@ -602,7 +594,6 @@ function buildResidualMessageGroup(
   group: MessageRenderGroupProjection,
   messages: Message[],
   clearCanonicalTimeline: boolean,
-  isImportedHistory: boolean,
 ): MessageRenderGroupProjection | null {
   if (messages.length === 0) return null;
   if (!clearCanonicalTimeline && messages.length === group.messages.length) {
@@ -630,7 +621,6 @@ function buildResidualMessageGroup(
     lastAssistantId: assistantMessages.at(-1)?.id ?? null,
     timelineMessageId: null,
     timeline: null,
-    isImportedHistory,
   };
 }
 

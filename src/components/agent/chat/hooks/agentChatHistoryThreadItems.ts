@@ -18,7 +18,6 @@ import {
   isAuxiliaryHistoryTurn,
   readThreadItemText,
 } from "./agentChatHistoryTimelineBasics";
-import { dedupeImportedUserMessageItems } from "../utils/importedUserMessageDedupe";
 import { mergeRuntimeSyncThreadItems } from "./agentSessionTimelineMergePolicy";
 
 function readUserMessageImages(item: AgentThreadItem): MessageImage[] {
@@ -163,9 +162,7 @@ export function hydrateSessionDetailMessagesFromThreadItems(
 export function collectDetailThreadItems(
   detail: AgentSessionDetail,
 ): AgentThreadItem[] {
-  const detailItems = dedupeImportedUserMessageItems(detail.items || []);
-  const readModelItems = dedupeImportedUserMessageItems(
-    detail.thread_read?.thread_items || [],
-  );
+  const detailItems = detail.items || [];
+  const readModelItems = detail.thread_read?.thread_items || [];
   return mergeRuntimeSyncThreadItems(detailItems, readModelItems);
 }

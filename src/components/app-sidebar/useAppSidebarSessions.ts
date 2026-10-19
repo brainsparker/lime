@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  AGENT_RUNTIME_SESSIONS_CHANGED_EVENT,
-  listAgentRuntimeSessions,
-} from "@/lib/api/agentRuntime/sessionClient";
+import { AGENT_RUNTIME_SESSIONS_CHANGED_EVENT } from "@/lib/api/agentRuntime/sessionClient";
 import type { AgentRuntimeSessionsChangedDetail } from "@/lib/api/agentRuntime/sessionClient";
 import type { AgentSessionInfo } from "@/lib/api/agentRuntime/sessionTypes";
 import {
@@ -21,16 +18,14 @@ import {
   SIDEBAR_SESSION_LOAD_RESTART_DEFER_MS,
 } from "./AppSidebar.constants";
 import {
-  buildImportedSidebarSession,
   buildSidebarSessionRequestLimit,
   buildVisibleSidebarSessions,
   hasCachedSidebarSessionEntry,
   matchesSidebarSessionTitle,
   normalizeSidebarSearchText,
   filterSidebarSessions,
-  splitSidebarSessionResult,
 } from "./sidebarSessions";
-import type { ConversationImportThreadCommitResponse } from "@/lib/api/conversationImport";
+import { loadSidebarSessions } from "./loadSidebarSessions";
 
 const SIDEBAR_SEND_HOT_PATH_DEFER_PHASES = new Set([
   "homeInput.submit",
@@ -67,29 +62,6 @@ function mergeSidebarSessions(
 function normalizeSessionProjectValue(value?: string | null): string | null {
   const normalized = value?.trim();
   return normalized ? normalized : null;
-}
-
-function buildSidebarSessionLoadRequests(params: {
-  limit: number;
-  projectCwds: string[];
-}): Array<Promise<AgentSessionInfo[]>> {
-  const { limit, projectCwds } = params;
-  const requests: Array<Promise<AgentSessionInfo[]>> = [
-    listAgentRuntimeSessions({
-      limit,
-    }),
-  ];
-
-  for (const cwd of projectCwds) {
-    requests.push(
-      listAgentRuntimeSessions({
-        limit,
-        cwd,
-      }),
-    );
-  }
-
-  return requests;
 }
 
 function shouldDeferCurrentSessionMetadataRefresh(params: {
@@ -133,6 +105,7 @@ export function useAppSidebarSessions({
     [],
   );
   const [sidebarSessionsHasMore, setSidebarSessionsHasMore] = useState(false);
+  const [loadedRecentSessionCount, setLoadedRecentSessionCount] = useState(0);
   const [sidebarSessionsLoading, setSidebarSessionsLoading] = useState(false);
   const [sidebarSessionActionId, setSidebarSessionActionId] = useState<
     string | null
@@ -405,12 +378,12 @@ export function useAppSidebarSessions({
       projectCwds: normalizedOpenedProjectCwds,
     });
     try {
-      const sessionGroups = await Promise.all(
-        buildSidebarSessionLoadRequests({
+      const { sessionGroups, loadedRecentCount, hasMore } =
+        await loadSidebarSessions({
           limit: recentSessionRequestLimit,
+          projectIds: normalizedActiveProjectIds,
           projectCwds: normalizedOpenedProjectCwds,
-        }),
-      );
+        });
       const listDurationMs = Date.now() - startedAt;
       const sortStartedAt = Date.now();
       const orderedSessions = mergeSidebarSessions(sessionGroups);
@@ -422,11 +395,6 @@ export function useAppSidebarSessions({
         ...optimisticSidebarSessionsRef.current.values(),
       ]);
       const sortDurationMs = Date.now() - sortStartedAt;
-      const { hasMore } = splitSidebarSessionResult({
-        sessions: nextSessions,
-        visibleCount: recentSessionsVisibleCount,
-        pageSize: SIDEBAR_RECENT_SESSION_PAGE_SIZE,
-      });
       const metricContext = {
         hasMore,
         limit: recentSessionRequestLimit,
@@ -452,6 +420,7 @@ export function useAppSidebarSessions({
         },
       );
       setSidebarSessions(nextSessions);
+      setLoadedRecentSessionCount(loadedRecentCount);
       setSidebarSessionsHasMore(hasMore);
     } catch (error) {
       console.warn("加载导航任务列表失败:", error);
@@ -591,9 +560,7 @@ export function useAppSidebarSessions({
         const createdThreadId =
           typeof detail.threadId === "string" ? detail.threadId.trim() : "";
         const createdWorkingDir =
-          typeof detail.workingDir === "string"
-            ? detail.workingDir.trim()
-            : "";
+          typeof detail.workingDir === "string" ? detail.workingDir.trim() : "";
         const optimisticSession: AgentSessionInfo = {
           id: createdSessionId,
           name: createdSessionName || conversationUntitledLabel,
@@ -655,7 +622,7 @@ export function useAppSidebarSessions({
       return;
     }
 
-    if (recentSessionsVisibleCount < sidebarSessions.length) {
+    if (recentSessionsVisibleCount < loadedRecentSessionCount) {
       return;
     }
 
@@ -664,7 +631,7 @@ export function useAppSidebarSessions({
     loadRecentSidebarSessions,
     recentSessionsVisibleCount,
     shouldLoadSidebarConversations,
-    sidebarSessions.length,
+    loadedRecentSessionCount,
     sidebarSessionsHasMore,
   ]);
 
@@ -698,18 +665,10 @@ export function useAppSidebarSessions({
     requireOpenedProjectCwd,
     sidebarSessions,
   ]);
-  const visibleRecentSidebarSessions = useMemo(
-    () =>
-      buildVisibleSidebarSessions({
-        sessions: recentSidebarSessions,
-        currentSessionId,
-        limit: recentSessionsVisibleCount,
-      }),
-    [currentSessionId, recentSessionsVisibleCount, recentSidebarSessions],
-  );
-  const hasMoreRecentSidebarSessions =
-    sidebarSessionsHasMore ||
-    recentSessionsVisibleCount < recentSidebarSessions.length;
+  // Pagination belongs to each rendered group; project and pinned rows must not
+  // consume the Recents group's independent visible-item budget.
+  const visibleRecentSidebarSessions = recentSidebarSessions;
+  const hasMoreRecentSidebarSessions = sidebarSessionsHasMore;
   const normalizedSidebarSearchQuery = useMemo(
     () => normalizeSidebarSearchText(sidebarSearchQuery),
     [sidebarSearchQuery],
@@ -839,25 +798,7 @@ export function useAppSidebarSessions({
     [],
   );
 
-  const addImportedSidebarSessionOptimistically = useCallback(
-    (response: ConversationImportThreadCommitResponse) => {
-      const importedSession = buildImportedSidebarSession(response);
-      optimisticSidebarSessionsRef.current.set(
-        importedSession.id,
-        importedSession,
-      );
-      setSidebarSessions((current) =>
-        filterSidebarSessions([
-          importedSession,
-          ...current.filter((item) => item.id !== importedSession.id),
-        ]),
-      );
-    },
-    [],
-  );
-
   return {
-    addImportedSidebarSessionOptimistically,
     beginSidebarSessionAction,
     clearSidebarSessionAction,
     deferConversationNavigation,

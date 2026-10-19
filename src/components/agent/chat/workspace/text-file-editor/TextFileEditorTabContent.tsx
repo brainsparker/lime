@@ -48,7 +48,7 @@ export function TextFileEditorTabContent({
   tree?: CanvasWorkbenchFileTreeState;
   onSelectFile?: (path: string) => void;
 }) {
-  const register = useFileTabLifecycle();
+  const register = useFileTabLifecycle()?.register;
   const initialDraftRef = useRef(initialDraft);
   initialDraftRef.current = initialDraft;
   const [controller, setController] = useState<FileEditorController | null>(

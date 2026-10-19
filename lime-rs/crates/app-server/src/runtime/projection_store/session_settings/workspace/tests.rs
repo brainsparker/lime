@@ -2,94 +2,94 @@ use super::*;
 use serde_json::json;
 
 #[test]
-fn imported_workspace_prefers_current_settings_and_removes_only_runtime_copies() {
-    let metadata = json!({
-        "sourceClient":"codex", "sourceThreadId":"original", "workingDir":"/current",
-        "cwd":"/stale", "runtimeWorkspaceRoots":[], "workspaceRoot":"/old-root",
-        "importedContinuation":{"cwd":"/old", "workspaceRoot":"/nested-root", "model":"keep"},
-        "imported_thread_settings":{"working_dir":"/older", "projectRoot":"/older-root"},
-        "codexMetadata":{"cwd":"/original", "workspaceRoot":"/original-root"}
-    });
+fn canonical_workspace_wins_and_normalizes_top_level_aliases() {
+    let metadata = json!({"workingDir":"/current", "cwd":"/stale", "runtimeWorkspaceRoots":[], "workspaceRoot":"/stale-root", "unrelated":42});
     let migrated = migrated_workspace_metadata(&metadata).unwrap().unwrap();
     assert_eq!(
         migrated,
-        json!({
-            "sourceClient":"codex", "sourceThreadId":"original", "workingDir":"/current",
-            "runtimeWorkspaceRoots":[], "importedContinuation":{"model":"keep"},
-            "imported_thread_settings":{},
-            "codexMetadata":{"cwd":"/original", "workspaceRoot":"/original-root"}
-        })
+        json!({"workingDir":"/current", "runtimeWorkspaceRoots":[], "unrelated":42})
     );
     assert!(migrated_workspace_metadata(&migrated).unwrap().is_none());
 }
 
 #[test]
-fn imported_workspace_migrates_published_aliases_without_resolving_source_paths() {
+fn current_workspace_aliases_preserve_path_and_empty_root_semantics() {
     for (fields, cwd, roots) in [
         (
-            json!({"cwd":"relative/source"}),
-            Some("relative/source"),
+            json!({"cwd":"relative/current"}),
+            Some("relative/current"),
             None,
         ),
         (
-            json!({"workingDir":null,"working_dir":"C:\\source"}),
-            Some("C:\\source"),
+            json!({"workingDir":null,"working_dir":r"C:\current"}),
+            Some(r"C:\current"),
             None,
         ),
         (
-            json!({"importedContinuation":{"cwd":"/continuation"}, "importedThreadSettings":{"cwd":"/settings"}}),
-            Some("/continuation"),
-            None,
-        ),
-        (
-            json!({"importedThreadSettings":{"cwd":"/settings", "projectRoot":"/root"}}),
-            Some("/settings"),
+            json!({"workingDir":"/current", "projectRoot":"/root"}),
+            Some("/current"),
             Some(json!(["/root"])),
         ),
         (
-            json!({"runtimeWorkspaceRoots":[], "importedContinuation":{"workspaceRoot":"/stale"}}),
+            json!({"runtimeWorkspaceRoots":[], "workspaceRoot":"/stale"}),
             None,
             Some(json!([])),
         ),
     ] {
-        let mut original = json!({"sourceClient":"codex", "sourceThreadId":"original"});
-        original
-            .as_object_mut()
+        let migrated = migrated_workspace_metadata(&fields)
             .unwrap()
-            .extend(fields.as_object().unwrap().clone());
-        let migrated = migrated_workspace_metadata(&original)
-            .unwrap()
-            .unwrap_or(original);
+            .unwrap_or(fields);
         assert_eq!(migrated.get("workingDir").and_then(Value::as_str), cwd);
         assert_eq!(migrated.get("runtimeWorkspaceRoots"), roots.as_ref());
     }
-    assert!(
-        migrated_workspace_metadata(&json!({"importedContinuation":{"cwd":"/foreign"}}))
-            .unwrap()
-            .is_none()
-    );
 }
 
 #[test]
-fn imported_workspace_rejects_invalid_selected_values_and_ignores_overridden_history() {
-    for fields in [
+fn current_workspace_rejects_invalid_selected_values() {
+    for metadata in [
         json!({"workingDir":false}),
         json!({"runtimeWorkspaceRoots":"/bad"}),
         json!({"runtimeWorkspaceRoots":[false]}),
         json!({"runtimeWorkspaceRoots":[""]}),
     ] {
-        let mut metadata = json!({"sourceClient":"codex", "sourceThreadId":"original"});
-        metadata
-            .as_object_mut()
-            .unwrap()
-            .extend(fields.as_object().unwrap().clone());
         assert!(
             migrated_workspace_metadata(&metadata).is_err(),
             "{metadata}"
         );
     }
-    let metadata = json!({"sourceClient":"codex", "sourceThreadId":"original", "workingDir":"/current", "runtimeWorkspaceRoots":[], "importedContinuation":{"cwd":false,"workspaceRoot":false}});
-    let migrated = migrated_workspace_metadata(&metadata).unwrap().unwrap();
-    assert_eq!(migrated["workingDir"], "/current");
-    assert_eq!(migrated["runtimeWorkspaceRoots"], json!([]));
+}
+
+#[test]
+fn obsolete_nested_metadata_cannot_supply_workspace_settings() {
+    for key in [
+        "importedContinuation",
+        "imported_continuation",
+        "importedThreadSettings",
+        "imported_thread_settings",
+    ] {
+        let input = json!({"sourceClient":"codex", "sourceThreadId":"foreign", key:{"cwd":false,"workspaceRoot":false}});
+        assert_eq!(
+            migrated_workspace_metadata(&input).unwrap(),
+            None,
+            "{input}"
+        );
+        let mut current = input;
+        current["workingDir"] = json!("/current");
+        current["runtimeWorkspaceRoots"] = json!([]);
+        assert_eq!(
+            migrated_workspace_metadata(&current).unwrap(),
+            None,
+            "{current}"
+        );
+        let mut projected =
+            json!({"workingDir":"/stale", "cwd":"/stale", "runtimeWorkspaceRoots":["/stale"]})
+                .as_object()
+                .unwrap()
+                .clone();
+        restore_workspace_metadata(&current, &mut projected);
+        assert_eq!(
+            Value::Object(projected),
+            json!({"workingDir":"/current", "runtimeWorkspaceRoots":[]})
+        );
+    }
 }

@@ -26,11 +26,6 @@ import {
   dispatchOemCloudPaymentReturn,
   parseOemCloudPaymentReturnUrl,
 } from "@/lib/oemCloudPaymentReturn";
-import {
-  claimStoredOemCloudReferralInvite,
-  handleOemCloudReferralInviteUrl,
-  type OemCloudReferralClaimResult,
-} from "@/lib/oemCloudReferralClaim";
 import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
 import { resolveOemLimeHubProviderName } from "@/lib/oemLimeHubProvider";
 import {
@@ -171,46 +166,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
     setIsDialogOpen(true);
   }, []);
 
-  const showReferralClaimResult = useCallback(
-    (result: OemCloudReferralClaimResult) => {
-      if (result.status === "claimed") {
-        toast.success(t("common.deepLink.referral.claimed.title"), {
-          description: t("common.deepLink.referral.claimed.description"),
-        });
-        return;
-      }
-
-      if (result.status === "pending_login") {
-        toast.info(t("common.deepLink.referral.saved.title"), {
-          description: t("common.deepLink.referral.saved.description"),
-        });
-        return;
-      }
-
-      if (result.status === "tenant_mismatch") {
-        toast.error(t("common.deepLink.referral.tenantMismatch.title"), {
-          description: t("common.deepLink.referral.tenantMismatch.description"),
-        });
-      }
-    },
-    [t],
-  );
-
-  const tryClaimStoredReferralInvite = useCallback(async () => {
-    try {
-      const result = await claimStoredOemCloudReferralInvite();
-      showReferralClaimResult(result);
-    } catch (error) {
-      const message =
-        error instanceof Error && error.message.trim()
-          ? error.message.trim()
-          : t("common.deepLink.referral.claimFailed.fallback");
-      toast.error(t("common.deepLink.referral.claimFailed.title"), {
-        description: message,
-      });
-    }
-  }, [showReferralClaimResult, t]);
-
   const handleOauthCallbackUrl = useCallback(
     async (url: string) => {
       const payload = parseOemCloudDesktopOAuthCallbackUrl(url);
@@ -235,7 +190,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
             providerName,
           }),
         });
-        await tryClaimStoredReferralInvite();
       } catch (error) {
         const message =
           error instanceof Error && error.message.trim()
@@ -248,7 +202,7 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
 
       return true;
     },
-    [tryClaimStoredReferralInvite, t],
+    [t],
   );
 
   const handleOpenDeepLinkEvent = useCallback(
@@ -279,24 +233,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
       }
 
       if (await handleOauthCallbackUrl(normalizedUrl)) {
-        return;
-      }
-
-      try {
-        const referralClaimResult =
-          await handleOemCloudReferralInviteUrl(normalizedUrl);
-        if (referralClaimResult.status !== "ignored") {
-          showReferralClaimResult(referralClaimResult);
-          return;
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error && error.message.trim()
-            ? error.message.trim()
-            : t("common.deepLink.referral.claimFailed.fallback");
-        toast.error(t("common.deepLink.referral.claimFailed.title"), {
-          description: message,
-        });
         return;
       }
 
@@ -338,7 +274,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
       handleDeepLinkEvent,
       handleOpenDeepLinkEvent,
       handleOauthCallbackUrl,
-      showReferralClaimResult,
       t,
     ],
   );
@@ -477,7 +412,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
               await processDeepLinkUrl(url);
             }
           }
-          await tryClaimStoredReferralInvite();
         } else {
           // 如果组件已卸载，立即取消监听
           if (unlistenDeepLink) unlistenDeepLink();
@@ -501,7 +435,6 @@ export function useDeepLink(options?: UseDeepLinkOptions): UseDeepLinkReturn {
     handleDeepLinkEvent,
     handleOauthCallbackUrl,
     processDeepLinkUrl,
-    tryClaimStoredReferralInvite,
     onOpenWebsiteDeepLink,
   ]);
 

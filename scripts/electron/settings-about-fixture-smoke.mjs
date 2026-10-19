@@ -258,7 +258,7 @@ async function run() {
     };
     writeJsonFile(summaryPath, summary);
 
-    await page.locator('[data-testid="app-sidebar-nav-home-general"]').click();
+    await page.locator('[data-testid="app-sidebar-nav-new-chat"]').click();
     const homeState = await readHomeState(page, options);
     const homeTrace = summarizeSettingsAboutTrace(homeState.traceRaw);
     await page.screenshot({ path: homeScreenshotPath, fullPage: true });

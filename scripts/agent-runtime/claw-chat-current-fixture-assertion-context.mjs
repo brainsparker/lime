@@ -13,7 +13,7 @@ import {
   EXPERT_SKILLS_RUNTIME_PROMPT,
   EXPERT_SKILLS_RUNTIME_SKILL_REF,
   ELECTRON_RESIZE_REFLOW_SCENARIO,
-  GOAL_PROMPT,
+  GOAL_FIRST_TURN_TEXT,
   HOME_HOTPATH_GREETING_SCENARIO,
   HOME_HOTPATH_SCENARIO,
   IMAGE_COMMAND_PROMPT,
@@ -348,7 +348,8 @@ export function buildAssertionContext({
     (entry) => entry.kind === "turnStart" && entry.inputText === PLAN_PROMPT,
   );
   const goalTurnStart = backendLedger.find(
-    (entry) => entry.kind === "turnStart" && entry.inputText === GOAL_PROMPT,
+    (entry) =>
+      entry.kind === "turnStart" && entry.inputText === GOAL_FIRST_TURN_TEXT,
   );
   const inputbarRichRestoreTurnStart = backendLedger.find(
     (entry) =>
@@ -615,7 +616,7 @@ export function buildAssertionContext({
     : isPlanScenario
       ? planTurnStart?.inputText === PLAN_PROMPT
       : isGoalScenario
-        ? goalTurnStart?.inputText === GOAL_PROMPT
+        ? goalTurnStart?.inputText === GOAL_FIRST_TURN_TEXT
         : isHomeHotpathScenario
           ? homeHotpathTurnStart?.inputText === homeHotpathPrompt ||
             homeHotpathTraceTurnStart?.inputText === homeHotpathPrompt

@@ -125,6 +125,25 @@ export function buildToolExecutionProviderUpdateParams(providerId, provider) {
   };
 }
 
+export function buildToolExecutionUserInputResponse(serverRequest) {
+  if (serverRequest?.method !== "item/tool/requestUserInput") return {};
+  const questions = serverRequest.params?.questions;
+  if (!Array.isArray(questions) || questions.length === 0)
+    throw new Error("requestUserInput is missing canonical questions");
+  const answers = Object.create(null);
+  for (const question of questions) {
+    const id = question?.id;
+    if (typeof id !== "string" || !id.trim() || Object.hasOwn(answers, id))
+      throw new Error("requestUserInput requires unique question IDs");
+    const firstOption = question.options?.[0];
+    const answer = firstOption === undefined ? "Continue" : firstOption.label;
+    if (typeof answer !== "string" || !answer.trim())
+      throw new Error("requestUserInput option is missing its label");
+    answers[id] = { answers: [answer] };
+  }
+  return { answers };
+}
+
 export function buildToolExecutionThreadStartParams({
   provider,
   title,

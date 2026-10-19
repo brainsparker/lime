@@ -1,6 +1,9 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
-import { waitForPageCondition } from "./mcp-config-fixture-smoke.mjs";
+import {
+  openSettings,
+  waitForPageCondition,
+} from "./mcp-config-fixture-smoke.mjs";
 
 function readSmokeScript() {
   return fs.readFileSync(
@@ -116,13 +119,36 @@ describe("MCP config Electron fixture smoke guard", () => {
     expect(content).not.toContain("invokeMockOnly");
   });
 
-  it("opens settings through the current sidebar rail before the legacy account fallback", () => {
-    const content = readSmokeScript();
+  it("opens settings through the rail and waits for its navigation", async () => {
+    const actions = [];
+    const page = {
+      locator(selector) {
+        if (selector === '[data-testid="app-sidebar-nav-settings"]') {
+          return { click: async () => actions.push("open-settings") };
+        }
+        if (selector === '[data-testid="settings-navigation"]') {
+          return { waitFor: async (options) => actions.push(options) };
+        }
+        throw new Error(`Unexpected settings entry: ${selector}`);
+      },
+    };
 
-    expect(content).toContain('[data-testid="app-sidebar-nav-settings"]');
-    expect(content).toContain("settingsNav.first().isVisible()");
-    expect(content).toContain('[data-testid="app-sidebar-account-button"]');
-    expect(content).toContain('[data-testid="app-sidebar-account-menu"]');
+    await openSettings(page, { timeoutMs: 60_000 });
+    expect(actions).toEqual([
+      "open-settings",
+      { state: "visible", timeout: 45_000 },
+    ]);
+  });
+
+  it.each([
+    "scripts/electron/mcp-config-fixture-smoke.mjs",
+    "scripts/electron/lib/workbook-annotation-scenario.mjs",
+    "scripts/electron/lib/workbook-editing-scenario.mjs",
+    "scripts/electron/lib/presentation-editing-scenario.mjs",
+  ])("does not restore retired account-menu navigation in %s", (file) => {
+    const content = fs.readFileSync(file, "utf8");
+    expect(content).not.toContain("app-sidebar-account-button");
+    expect(content).not.toContain("app-sidebar-account-menu");
   });
 
   it("writes same-run SETTINGS scenario evidence without relabeling", () => {

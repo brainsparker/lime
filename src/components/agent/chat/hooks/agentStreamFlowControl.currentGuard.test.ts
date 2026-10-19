@@ -10,7 +10,7 @@ function readProductionHookSources() {
     .filter((entry) => /\.(ts|tsx)$/.test(entry.name))
     .filter(
       (entry) =>
-        !/\.test\.|\.unit\.test\.|\.component\.test\./.test(entry.name),
+        !/\.(test(?:Fixtures)?|spec)\./.test(entry.name),
     )
     .map((entry) => ({
       name: entry.name,
@@ -31,7 +31,7 @@ function readProductionAgentChatSources() {
       if (!/\.(ts|tsx)$/.test(entry.name)) {
         continue;
       }
-      if (/\.test\.|\.unit\.test\.|\.component\.test\./.test(entry.name)) {
+      if (/\.(test(?:Fixtures)?|spec)\./.test(entry.name)) {
         continue;
       }
       files.push({

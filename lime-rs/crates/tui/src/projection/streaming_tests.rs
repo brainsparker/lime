@@ -128,7 +128,6 @@ fn placeholder_only_summary_updates_status_without_visible_or_exported_body() {
 fn reasoning(summary: &[&str]) -> ThreadItem {
     ThreadItem::Reasoning {
         id: "reasoning".into(),
-        metadata: None,
         summary: summary.iter().map(|part| (*part).to_string()).collect(),
         content: vec!["RAW_REASONING_MUST_STAY_HIDDEN".into()],
     }

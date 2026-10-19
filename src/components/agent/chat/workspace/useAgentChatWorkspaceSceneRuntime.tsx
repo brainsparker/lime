@@ -7,7 +7,6 @@ import { useWorkspaceArtifactCommentSubmission } from "./useWorkspaceArtifactCom
 import { useWorkspaceCanvasSceneRuntime } from "./useWorkspaceCanvasSceneRuntime";
 import { useWorkspaceInputbarSceneRuntime } from "./useWorkspaceInputbarSceneRuntime";
 import { useWorkspaceTaskCenterSendRuntime } from "./useWorkspaceTaskCenterSendRuntime";
-import { useWorkspaceMessageKnowledgeSaveRuntime } from "./useWorkspaceMessageKnowledgeSaveRuntime";
 import { ScheduledTaskDialog } from "@/components/scheduled-tasks/ScheduledTaskDialog";
 import {
   EMPTY_WORKSPACE_WORKFLOW_STEPS,
@@ -117,6 +116,7 @@ export function useAgentChatWorkspaceSceneRuntime({
     steps: EMPTY_WORKSPACE_WORKFLOW_STEPS,
     workflowRunState: themeWorkbenchRunState,
     handleSend,
+    sendMessage: setupRuntime.sendMessage,
     isPreparingSend,
     isSending: inputbarIsSending,
     isSessionRestoring:
@@ -172,16 +172,6 @@ export function useAgentChatWorkspaceSceneRuntime({
     onRemovePathReference: handleRemovePathReference,
     onClearPathReferences: handleClearPathReferences,
   });
-  const { handleSaveMessageAsKnowledge } =
-    useWorkspaceMessageKnowledgeSaveRuntime({
-      currentSessionTitle,
-      importTextAsKnowledge: inputbarScene.onImportTextAsKnowledge,
-      knowledgeSelectionWorkingDir:
-        inputbarScene.knowledgePackSelection?.workingDir,
-      onNavigate: _onNavigate,
-      projectRootPath: project?.rootPath,
-      selectedPackName: inputbarScene.knowledgePackSelection?.packName,
-    });
 
   const canvasScene = useWorkspaceCanvasSceneRuntime({
     shouldBootstrapCanvasOnEntry,
@@ -436,7 +426,6 @@ export function useAgentChatWorkspaceSceneRuntime({
         onComposerDraftAccepted: handleComposerDraftAccepted,
         composerDraftStatus,
         composerDraftRestoring,
-        inputbarScene,
         inputRestoreRequest,
         model,
         objectiveEnabled: inputbarObjectiveModeEnabled,
@@ -492,7 +481,7 @@ export function useAgentChatWorkspaceSceneRuntime({
           onOpenUrlPreview: handleOpenUrlPreview,
           onPermissionResponse: handlePermissionResponse,
           onReplayPendingRequest: replayPendingAction,
-          onSaveMessageAsKnowledge: handleSaveMessageAsKnowledge,
+
           onSaveMessageAsSkill: handleSaveMessageAsSkill,
           onWriteFile: handleWriteFile,
         },

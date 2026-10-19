@@ -44,7 +44,6 @@ mod tests {
         let mut app = App::default();
         let item = ThreadItem::CollabAgentToolCall {
             id: "spawn-1".to_string(),
-            metadata: None,
             tool: CollabAgentTool::SpawnAgent,
             status: CollabAgentToolCallStatus::InProgress,
             sender_thread_id: "parent-1".to_string(),
@@ -65,7 +64,6 @@ mod tests {
         let mut app = App::default();
         let item = ThreadItem::SubAgentActivity {
             id: "activity-1".to_string(),
-            metadata: None,
             kind: SubAgentActivityKind::Started,
             agent_thread_id: "child-1".to_string(),
             agent_path: "/root/child".to_string(),

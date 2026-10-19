@@ -1,11 +1,6 @@
 import type { KnowledgePackStatus } from "@/lib/api/knowledge";
 
-export type KnowledgeView =
-  | "overview"
-  | "import"
-  | "detail"
-  | "save"
-  | "states";
+export type KnowledgeView = "overview" | "import" | "detail" | "states";
 export type DetailTab =
   | "overview"
   | "content"
@@ -91,7 +86,6 @@ export const VIEW_TABS: Array<{
   { id: "overview", label: "资料首页", description: "状态和下一步" },
   { id: "import", label: "整理新资料", description: "添加原始资料" },
   { id: "detail", label: "确认资料", description: "检查完整文档" },
-  { id: "save", label: "保存到项目资料", description: "把好内容存回来" },
   { id: "states", label: "状态说明", description: "看懂每类状态" },
 ];
 

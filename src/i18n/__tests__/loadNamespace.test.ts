@@ -10,6 +10,25 @@ import {
 import { SUPPORTED_LOCALES } from "../locales";
 
 describe("i18n namespace loader", () => {
+  it("五语资源不得恢复消息知识保存和 saveDraft 页面文案", () => {
+    const resources = loadBundledI18nResources();
+    const retiredKeys = new Set([
+      "agentChat.messageList.actions.saveToKnowledge",
+      "agentChat.messageList.artifact.saveDocument",
+      "agentChat.messageList.artifact.saveableBadge",
+      "knowledgePage.action.saveToMaterials",
+      "knowledgePage.default.conversationResult",
+    ]);
+    for (const locale of SUPPORTED_LOCALES) {
+      expect(
+        Object.keys(resources[locale].agent).filter(
+          (key) =>
+            retiredKeys.has(key) || key.startsWith("knowledgePage.save."),
+        ),
+        locale,
+      ).toEqual([]);
+    }
+  });
   it("Soul 内置风格包文案覆盖所有支持 locale", () => {
     const resources = loadBundledI18nResources();
     const requiredKeys = DEFAULT_SOUL_STYLE_PROFILE_REGISTRY.packs.flatMap(
@@ -119,7 +138,6 @@ describe("i18n namespace loader", () => {
       for (const key of [
         "agentChat.messageList.historicalAssistantPreview.longNotice",
         "agentChat.messageList.historicalTimeline.deferredMeta",
-        "agentChat.messageList.actions.saveToKnowledge",
         "agentChat.toolCall.skillContent.action.view",
         "agentChat.toolCall.skillContent.action.expandBody",
         "agentChat.toolCall.skillContent.action.collapseBody",
@@ -156,7 +174,6 @@ describe("i18n namespace loader", () => {
         "agentChat.toolCall.memoryEvidence.path",
         "agentChat.toolCall.memoryEvidence.citation",
         "agentChat.toolCall.memoryEvidence.truncated",
-        "agentChat.messageList.artifact.saveDocument",
         "agentChat.messageList.artifact.checkpointBadge",
         "agentChat.messageList.artifact.diffBadge",
         "agentChat.messageList.artifact.validationBadge",
@@ -182,7 +199,7 @@ describe("i18n namespace loader", () => {
         "agentChat.decisionPanel.otherLabel",
         "agentChat.decisionPanel.otherPlaceholder",
         "agentChat.decisionPanel.multiSelectHint",
-        "agentChat.decisionPanel.fallbackQueuedDescription",
+        "agentChat.requestUserInput.submitFailed",
         "agentChat.decisionPanel.permissionRequestTitle",
         "agentChat.decisionPanel.assistantWantsUse",
         "agentChat.decisionPanel.unknownTool",
@@ -191,8 +208,8 @@ describe("i18n namespace loader", () => {
         "agentChat.decisionPanel.action.submit",
         "agentChat.decisionPanel.action.cancelling",
         "agentChat.decisionPanel.action.cancel",
-        "agentChat.decisionPanel.action.recording",
-        "agentChat.decisionPanel.action.recordAnswer",
+        "agentChat.requestUserInput.nextQuestion",
+        "agentChat.requestUserInput.submit",
         "agentChat.decisionPanel.action.submitAnswer",
         "agentChat.decisionPanel.runtimePermission.title",
         "agentChat.decisionPanel.runtimePermission.description",
@@ -300,8 +317,6 @@ describe("i18n namespace loader", () => {
         "agentChat.inputbar.core.path.containerLabel",
         "agentChat.inputbar.core.path.localFolder",
         "agentChat.inputbar.core.path.localFile",
-        "agentChat.inputbar.core.path.importAsKnowledge",
-        "agentChat.inputbar.core.path.importAction",
         "agentChat.inputbar.core.path.remove",
         "agentChat.inputbar.core.suggestion.acceptTitle",
         "agentChat.inputbar.core.editor.expand",
@@ -321,7 +336,6 @@ describe("i18n namespace loader", () => {
         "agentChat.inputbar.composer.workspacePlaceholder.taskCenter",
         "agentChat.inputbar.composer.workspacePlaceholder.default",
         "agentChat.inputbar.tools.task.toast.disabled",
-        "agentChat.inputbar.tools.subagent.label",
         "agentChat.inputbar.tools.subagent.toast.disabled",
         "agentChat.inputbar.tools.fullscreen.toast.entered",
         "agentChat.inputbar.tools.fullscreen.toast.exited",
@@ -329,23 +343,6 @@ describe("i18n namespace loader", () => {
         "agentChat.inputbar.imageAttachments.imageReadFailed",
         "agentChat.inputbar.imageAttachments.imageAdded",
         "agentChat.inputbar.imageAttachments.imagePasted",
-        "agentChat.inputbar.knowledge.fallbackPackLabel",
-        "agentChat.inputbar.knowledge.toggle.label.enabledWithCompanions",
-        "agentChat.inputbar.knowledge.state.using.title",
-        "agentChat.inputbar.knowledge.pendingNotice",
-        "agentChat.inputbar.knowledge.action.check",
-        "agentChat.inputbar.knowledge.meta.companion",
-        "agentChat.inputbar.workflow.status.active",
-        "agentChat.inputbar.workflow.status.waitingDecision",
-        "agentChat.inputbar.workflow.summary.currentProgress",
-        "agentChat.inputbar.workflow.summary.activeWithTrailing",
-        "agentChat.inputbar.workflow.progress.completed",
-        "agentChat.inputbar.workflow.queue.title",
-        "agentChat.inputbar.workflow.queue.hiddenSuffix",
-        "agentChat.inputbar.workflow.queue.itemMetaWithProgress",
-        "agentChat.inputbar.workflow.quickAction.topicOptions.label",
-        "agentChat.inputbar.workflow.quickAction.topicOptions.prompt",
-        "agentChat.inputbar.workflow.quickAction.nextStep.label",
         "agentChat.inputbar.suggestions.label",
         "agentChat.inputbar.suggestions.addFiles",
         "agentChat.inputbar.suggestions.add",
@@ -361,6 +358,12 @@ describe("i18n namespace loader", () => {
         "agentChat.inputbar.attachments.failed",
       ]) {
         expect(resources[locale].agent).toHaveProperty(key);
+      }
+      for (const retiredKey of [
+        "agentChat.inputbar.core.path.importAsKnowledge",
+        "agentChat.inputbar.core.path.importAction",
+      ]) {
+        expect(resources[locale].agent).not.toHaveProperty(retiredKey);
       }
     }
   });
@@ -435,18 +438,6 @@ describe("i18n namespace loader", () => {
       );
       expect(resources[locale].common).toHaveProperty(
         "common.createProjectDialog.error.unknown",
-      );
-      expect(resources[locale].common).toHaveProperty(
-        "common.deepLink.referral.saved.title",
-      );
-      expect(resources[locale].common).toHaveProperty(
-        "common.deepLink.referral.claimed.title",
-      );
-      expect(resources[locale].common).toHaveProperty(
-        "common.deepLink.referral.tenantMismatch.description",
-      );
-      expect(resources[locale].common).toHaveProperty(
-        "common.deepLink.referral.claimFailed.fallback",
       );
       expect(resources[locale].common).toHaveProperty(
         "common.deepLink.oauth.success.description",
@@ -672,12 +663,6 @@ describe("i18n namespace loader", () => {
       );
       expect(resources[locale].agent).toHaveProperty(
         "curatedTask.templates.recommendation.recentReviewReasonLabel",
-      );
-      expect(resources[locale].agent).toHaveProperty(
-        "curatedTask.badge.review.suggestedTask",
-      );
-      expect(resources[locale].agent).toHaveProperty(
-        "curatedTask.badge.result.failureSignal",
       );
       expect(resources[locale].agent).toHaveProperty(
         "skills.scaffoldDialog.title",
@@ -1387,11 +1372,6 @@ describe("i18n namespace loader", () => {
     ).toBe("未知错误");
     expect(
       loadNamespaceResource("fr-FR", "common")[
-        "common.deepLink.referral.saved.title"
-      ],
-    ).toBe("邀请码已保存");
-    expect(
-      loadNamespaceResource("fr-FR", "common")[
         "common.app.startup.windows.blockingTitle"
       ],
     ).toBe("Windows 启动自检发现阻塞问题");
@@ -1753,9 +1733,9 @@ describe("i18n namespace loader", () => {
   it("应内联主导航 namespace 的首屏文案", () => {
     expect(
       loadNamespaceResource("en-US", "navigation")[
-        "navigation.sidebar.items.homeGeneral"
+        "navigation.sidebar.items.newChat"
       ],
-    ).toBe("New Task");
+    ).toBe("New chat");
     expect(
       loadNamespaceResource("zh-CN", "navigation")[
         "navigation.sidebar.items.knowledge"

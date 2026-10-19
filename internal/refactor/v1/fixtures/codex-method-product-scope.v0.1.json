@@ -1187,7 +1187,7 @@
         "lime-rs/crates/app-server/tests/fs_jsonrpc.rs",
         "packages/app-server-client/src/server-notifications.ts",
         "src/lib/api/fileSystemWatch.ts",
-        "src/components/agent/chat/components/FileManager/FileManagerSidebar.tsx"
+        "src/components/agent/chat/workspace/text-file-editor/TextFileEditorTabContent.tsx"
       ],
       "methods": ["fs/changed"]
     },

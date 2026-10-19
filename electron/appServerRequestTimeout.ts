@@ -3,13 +3,6 @@ import { commandExecRequestTimeoutMs } from "../packages/app-server-client/src/c
 const DEFAULT_APP_SERVER_REQUEST_TIMEOUT_MS = 30_000;
 const APP_SERVER_BACKEND_TIMEOUT_GRACE_MS = 30_000;
 const APP_SERVER_TURN_START_METHOD = "turn/start";
-const APP_SERVER_CONVERSATION_IMPORT_THREAD_COMMIT_METHOD =
-  "conversationImport/thread/commit";
-const APP_SERVER_CONVERSATION_IMPORT_JOB_READ_METHOD =
-  "conversationImport/job/read";
-const APP_SERVER_CONVERSATION_IMPORT_THREAD_COMMIT_TIMEOUT_MS = 180_000;
-const APP_SERVER_CONVERSATION_IMPORT_SCAN_TIMEOUT_MS = 120_000;
-const APP_SERVER_CONVERSATION_IMPORT_PREVIEW_TIMEOUT_MS = 120_000;
 const APP_SERVER_REQUEST_TIMEOUT_OVERRIDE_CEILING_MS = 600_000;
 
 export function parsePositiveInteger(
@@ -50,18 +43,6 @@ function resolveDefaultAppServerRequestTimeoutMs(method: string): number {
     ].includes(method)
   )
     return 150_000;
-  if (method === APP_SERVER_CONVERSATION_IMPORT_THREAD_COMMIT_METHOD) {
-    return APP_SERVER_CONVERSATION_IMPORT_THREAD_COMMIT_TIMEOUT_MS;
-  }
-  if (method === APP_SERVER_CONVERSATION_IMPORT_JOB_READ_METHOD) {
-    return APP_SERVER_CONVERSATION_IMPORT_SCAN_TIMEOUT_MS;
-  }
-  if (method === "conversationImport/source/scan") {
-    return APP_SERVER_CONVERSATION_IMPORT_SCAN_TIMEOUT_MS;
-  }
-  if (method === "conversationImport/thread/preview") {
-    return APP_SERVER_CONVERSATION_IMPORT_PREVIEW_TIMEOUT_MS;
-  }
   if (method !== APP_SERVER_TURN_START_METHOD) {
     return DEFAULT_APP_SERVER_REQUEST_TIMEOUT_MS;
   }

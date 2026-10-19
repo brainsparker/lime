@@ -70,7 +70,7 @@ roots 和 Thread project roots 共用同一 OS watcher；`registration` 只管�
 不复制 catalog、配置或 snapshot。extra roots 替换立即释放旧注册；Thread 注册由
 `ThreadStateManager` 持有，在替换、卸载、删除或 shutdown 时释放，共享根保留到最后
 一个 owner 释放。Thread project roots 直接消费 `session_runtime_defaults` 的同一有效目录
-与项目根，包含 `runtimeWorkspaceRoots` 和导入会话优先级；settings 成功持久化后
+与项目根，只读取 canonical 顶层 `workingDir` / `runtimeWorkspaceRoots`；settings 成功持久化后
 替换注册，删除 watcher 专用 metadata 解析与导出；
 已选择 remote environment 的目录不交给本机文件监听。文件变化立即失效既有 snapshot
 cache，typed `skills/changed` 经现有 event bridge 节流广播；成功的配置/目录变更经
@@ -79,16 +79,15 @@ processor 的同一 catalog mutation 通道广播。App Server 初始化归 `ini
 Architecture impact: minor；责任 root，2026-10-17，确认资源注册不持有业务状态或
 新增持久化 owner，仍走原 App Server/runtime/Skills 主链；运行验收另见执行计划。
 
-导入会话的 mutable workspace 同样归 canonical Thread。`projection_store/session_settings`
-在初始化恢复 rollout 后一次迁移已发布的根别名与 imported continuation/settings 目录副本，
-复用原 metadata transaction/durable writer；reviewer 和 workspace 在同一 Thread 事务归一。
-`migration`、`restore`、`reviewer`、`workspace` 分别负责事务、事件重建投影和字段规则，
-不复制持久化实现。`runtimeWorkspaceRoots: []` 显式清除旧项目根；runtime defaults 和 watcher
-只读取当前根 workspace 字段。新 importer 不再写 nested workspace 运行副本；历史 Turn、
-来源 rollout 和 `codexMetadata` 保留。事件投影 repair 从 canonical settings 恢复目录/roots，
-避免旧 SessionStarted 事件复活来源目录。迁移不解析/改写来源机器的路径；resume 的服务端
-归一仍归原 settings actor。Architecture impact: minor；责任 root，2026-10-17 确认：
-Surface -> App Server -> RuntimeCore -> canonical Thread 的图与依赖方向保持不变；验收归 S09-F。
+mutable workspace 归 canonical Thread。`projection_store/session_settings` 在初始化恢复
+rollout 后归一现役根字段别名，复用原 metadata transaction/durable writer；reviewer 和
+workspace 在同一 Thread 事务归一。`migration`、`restore`、`reviewer`、`workspace` 分别
+负责事务、事件重建投影和字段规则，不复制持久化实现。`runtimeWorkspaceRoots: []`
+显式清除项目根；runtime defaults 和 watcher 只读取 canonical 顶层设置。事件投影 repair
+从 canonical settings 恢复目录/roots，避免旧 SessionStarted 事件复活过期目录。
+跨产品导入、nested continuation/settings 与来源优先级已删除，不参与归一或恢复。
+Architecture impact: minor；责任 root，2026-10-20 确认：
+Surface -> App Server -> RuntimeCore -> canonical Thread 的依赖方向不变。
 
 Plugin Skills 的来源为既有 `PluginDataSource::list_enabled_plugin_turn_snapshots`。
 catalog、Turn snapshot 和文件监听共用 `PluginTurnSnapshot::skill_root`，不分别猜测包目录。
@@ -1093,6 +1092,8 @@ Unified后继直接迁移：`UnifiedTabStrip`与Header/HeaderAction共用同一s
 
 既有LayoutTransition负责实际容器宽度、resize和动画，驱动full/split/chat及tabpanel/aria/inert、编辑焦点恢复；统一壳只消费展示注册，不读取业务协议。当前mainPaneWidth和sidePanelActive是Lime本地展示适配字段，不冒称上游原类型。当前没有参考实现的共享route transition context和全部content/divider/context-menu action destination，不宣称该部分等价。责任root确认上述内部依赖方向与架构图，2026-10-18；业务runtime/protocol/持久化owner没有迁移。产品证据和退出条件由[unified计划](../exec-plans/codex-unified-workspace-20261018.md)持有，未通过真实场景前保持active。
 
+侧栏读取由 `loadSidebarSessions` 统一调用既有 session gateway 的 canonical `thread/list` page，保留真实 `nextCursor`，各 scope 独立推进至显示预算或来源结束；项目归属复用 `sessionBelongsToProject`，Pinned/custom 不消耗 Recents 预算。旧通用列表仍保持合并总量限制，不能用于独立分组的分页来源。`hasMore` 从服务端游标派生，不按数组长度猜测。此为 Lime 现有 sectionId 协议的适配；Codex 参考使用 catalog pageScope/host source，不能把本地拆分请求说成其原始 RPC 形状。删除 hook 内旧平面请求 helper；没有新业务 store、runtime 或持久化 owner。责任 root 确认此依赖方向，2026-10-20。
+
 ### 3.2 Renderer 数据流
 
 ```text
@@ -1107,6 +1108,54 @@ UI event
 ```
 
 Renderer 可以临时保存输入框、选择态、展开态和 optimistic UI；不能生成、修补或持久化 Thread/Turn/Item 真相。流完成、取消和失败必须消费 App Server terminal event/read model，禁止通过固定 timeout 或本地合成事件断言完成。
+
+### 3.2.1 同步问答与 pending identity
+
+`PendingInteractionController` 是 reverse request 的唯一前端 pending owner；
+`PendingInteractionLayer` 选择当前线程的 canonical 请求，`DecisionPanel` 只把
+`ask_user` 委托 `RequestUserInputPanel`。问答面板只拥有逐题选择、草稿、焦点和提交锁，
+使用独立的 `ComposerController/ComposerEditor`，不替换或恢复主 Composer 草稿。
+`RequestUserInputDraftStore` 由既有 Jotai Store 按应用独立初始化，只保存共享 UI 稿；
+它不承担 pending、业务投影或持久化 authority，不使用模块全局 Map。
+
+```mermaid
+flowchart LR
+  Request["item/tool/requestUserInput"] --> Controller["PendingInteractionController · thread/turn/item"]
+  Controller --> Layer["PendingInteractionLayer → DecisionPanel → RequestUserInputPanel"]
+  Layer <-->|"UI draft · memory only"| Drafts["Jotai Store → RequestUserInputDraftStore"]
+  Layer --> Answer["question.id → answers: string[]"]
+  Answer --> Reply["controller.respond → 原 dispatcher 请求闭包"]
+  Layer --> Dismiss["usePendingInteractions.dismiss · semantic interaction id"]
+  Dismiss --> Interrupt["interruptAgentRuntimeTurn → turn/interrupt"]
+  Terminal["canonical resolved / Turn terminal"] --> Abort["dispatcher AbortSignal"]
+  Abort --> Controller
+```
+
+wire 的 `question.id/isOther/isSecret` 原样投影；答案按真实 ID 返回
+`{answers:{[id]:{answers:[text]}}}`，不以题文、header 或索引猜 key，也不拆逗号。
+合法跳题省略当前 ID；`accepted=false`、异常和校验失败均保留同一编辑器与草稿。
+identity 包含 thread、turn、item/request 和 question IDs；切换后清理旧选择推进任务，
+迟到结果不能改新请求。共享 Map 按 host/thread/request 保存 `{answers,questionIndex}`，
+读取核对 turn/题目 ID 序列，缺失 scope 不共享保存；当前单 Desktop host 使用受控 `local`
+UI scope，不新增远端 host authority。Map 更新和答案读写均复制，同 Store 跨线程与 remount
+可恢复；不同应用 Store 隔离。提交/dismiss 在原回调前按 requestId 条件清稿；失败只保留
+仍挂载的内部稿，不经 render/effect 复活共享 Map，下一次编辑/导航可再保存。
+secret 草稿仅应用内存，不持久化、不写日志或已提交答案回显；独立输入无听写入口。
+
+普通 Escape/关闭委托 `usePendingInteractions.dismiss`，从唯一 pending owner 读取
+精确 thread/turn，再调用现有 typed interrupt gateway；缺失或失效 identity fail closed。
+中断成功仅锁住当前操作，等待 dispatcher 消费 canonical resolved/terminal 后移除请求，
+不发伪空答案、不合成本地终态、不调用会恢复主草稿的通用停止流程。失败显示固定反馈且可重试。
+参考 onboarding/scheduled 的空响应例外仍缺 Lime canonical producer，不能从计时字段推测。
+异步 `AgentMessage.questions` 与普通 follow-up 回答链仍是独立 gap，不由同步请求替代。
+
+参考为 Codex Desktop `26.1007.30912` 的 REA
+`ev_a908f380896c707334ef1867c231f191790e0fbe29708ec243c6a7cb5306f437`，
+共享草稿补充 `ev_5734ec041f1dd5e183fcd1f5a15c97b1e71e7efb9b79694d4069dd1ea7bf21c4`。
+静态证据不代表目标 App 已运行；TTL、外部取消或线程删除的额外草稿清理仍 unknown。
+Architecture impact: minor；既有 App Server/runtime/
+projection/transport authority 不变；责任 root 已核对并确认共享 UI 草稿节点和上述依赖方向，验证范围见
+[同步问答计划](../exec-plans/codex-request-user-input-alignment-20261020.md)。
 
 ### 3.3 Composer 运行位置与 Worktree 首发
 
@@ -1161,6 +1210,8 @@ Architecture impact: major（Renderer owner/data flow 接线）；责任开发�
 | `electron/forge/`、`forge.config.mjs`  | Forge 打包、maker、签名和 release 事实源。                                                             |
 
 Electron 负责窗口、托盘、Dock、系统文件选择、权限、外部链接、自动更新和 sidecar 生命周期。它不得保存业务 session、解释 provider response、执行模型工具、拼 Thread/Turn/Item 或提供业务 mock fallback。
+
+主窗口尺寸由 `electron/main.ts#createMainWindow` 唯一持有：按指定 Codex 安装包完整 `createWindow/getPrimaryMinimumSize` 与常量声明证据，primary 初始1280×820、最小480×600；屏幕workArea仍约束实际尺寸。真实Electron fixture读取生产minimum并测量contentSize，不通过修改minimum或仅模拟viewport绕过产品限制。证据与退出条件见[侧栏计划](../exec-plans/codex-sidebar-cleanup-20261020.md)。本次仅调整既有Host presentation选项，root确认不改变业务owner、协议或架构依赖方向。
 
 新增 Electron 命令前先判断是否只是已有 `app_server_handle_json_lines` 的转发。只有系统宿主能力才新增 IPC；业务能力一律优先新增 App Server JSON-RPC。
 
@@ -1354,6 +1405,51 @@ flowchart LR
 
 程序化初始输入（含 Skills 工作台试用）没有 Composer 草稿 settlement；CommandWiring 在既有 sendMessage 收到真实 accepted 后，以捕获的 navigation epoch 提交同一可见 workspace 的 topic，仍由现有 navigation owner 等待真实 session 再绑定。该路径不 consume Home 草稿；Composer 自身发送继续走原 captured identity promotion/consume。非接受、迟到或不可见回执不能越过 ready/scope 门禁。此为既有4.3链路的接线修复，非新增 authority；root，2026-10-15确认。
 
+已有线程的目标编辑由 `useThreadGoalComposer` 在同一主 Controller 内持有 pending mode 和替换确认，ThreadGoalPanel 只展示 canonical 目标与操作。目标提交在普通 start/steer settlement 之前进入既有 `threadGoalClient -> thread/goal/set -> RuntimeCore thread_goal`，不伪造 Turn acceptance。成功只清匹配 surface、binding、generation 和 revision 的草稿；取消、失败、线程切换与在途编辑保留输入。旧独立目标 Textarea/Modal 删除。
+
+目标草稿经 `threadGoalDraft -> threadGoalAttachments` 物化粘贴文本、本地/data 图片与超长 objective。Desktop Main 只把统一 storage roots 的真实 AgentRoot 作为只读启动元数据传给 preload；Renderer 不猜 home/default/config 根、不新增存储 IPC。附件只写入该根下本次 UUIDv4 所有的目录，失败仅清本次目录，成功移交后保留，不删除原附件。goal 提交引用在 4000 Unicode codepoint 内，路径/能力资源无法表达时拒绝并保稿；prepare 完成还须匹配捕获的 generation/scope/draft identity。模型读取目标文件的引用句沿参考合同保留，不作为 UI 品牌文案改写。
+
+Home 与无 threadId 的 Inputbar 共用 `submitNewThreadGoal`，只有该 owner 将物化后的目标序列化为 `/goal <objective>`，再经同一 payload lowering 提交首轮。Workspace 不为目标附加普通任务上下文或提前创建会话。`onSessionReady` 仅观察真实 ensureSession 的结果以移交本次素材；首轮 accepted 后才调用 canonical `thread/goal/set`，set 失败显示反馈而不改写已接受的 Turn。创建前失败回收本次素材，创建后首轮拒绝、accepted 或 unknown 均保留恢复所需文件；没有第二套线程或文件存储。
+
+```mermaid
+flowchart LR
+  Home["Home / threadless Inputbar"] --> Submit["submitNewThreadGoal"]
+  Submit --> Files["threadGoalAttachments · AgentRoot/attachments/UUID"]
+  Files --> Payload["formatThreadGoalPrompt → shared payload lowering"]
+  Payload --> Send["Workspace → App Server turn/start"]
+  Send --> Ready["real session-ready → retain owned files"]
+  Send --> Accepted["canonical Turn acceptance"]
+  Accepted --> Goal["thread/goal/set"]
+  Existing["existing thread · useThreadGoalComposer"] --> Goal
+  Goal --> Runtime["RuntimeCore → canonical goal projection"]
+```
+
+责任 root 已核对并确认该 Renderer 分工和已有业务 owner；真实桌面结果由目标专项计划结算。canonical transcript 仍由 App Server/RuntimeCore 投影，不把本地 completed/null-turn 提示行补成业务历史；公开 Codex 的 user origin/retained context 是独立协议/runtime 后继。
+
+责任 root 于 2026-10-20 确认复用上图的 Controller/coordinator、统一 Desktop storage roots 与既有 canonical 业务链，没有新增后端或持久化 authority；限定目标切片的验证与剩余范围见 Composer auto-layout 计划。
+
+### 4.3.1 Desktop UI 命令与快捷键
+
+`src/lib/commands/registry.ts` 是当前已迁移 UI 命令的唯一注册 owner；`useCommand` 随真实消费者挂载处理器、平台键位、可用性和说明，卸载一起移除。`KeyboardShortcutsDialog` 直接消费同一注册快照，Help 菜单与 `showKeyboardShortcuts` 命令打开同一独立 Dialog。禁止维护仅展示而没有处理器的快捷键清单。
+
+`AppShell` 在普通页面与 Settings 共用的根作用域内唯一挂载 `KeyboardShortcutsDialogHost`。Host 持有 `showKeyboardShortcuts` 注册、lazy Dialog 和显示/返回焦点状态；Footer 只派发同一命令，不再拥有弹窗生命周期。切离 Sidebar 或卸载 Footer 不撤销 Mod+/，AppShell 卸载才撤销。关闭优先返回仍连接的原控件；导航已卸载原控件时，返回当前可程序聚焦的 `AppShellContent`。旧 Menu/Dialog 的延迟 autofocus 不得夺取新显示层焦点。这是 Renderer 局部显示与输入 owner 的迁移，不增加业务 authority；Host 为 Lime 职责名，不声称恢复了 Codex 压缩符号的原名。
+
+```mermaid
+flowchart LR
+  Surface[Sidebar / Settings / Document editor] --> Hook[useCommand]
+  Hook --> Registry[UI command registry]
+  Registry --> Keys[Platform keyboard dispatch]
+  Registry --> Dialog[KeyboardShortcutsDialog]
+  Keys --> Handler[Existing surface action]
+  Help[ProfileDropdownItems Help] --> Show[showKeyboardShortcuts]
+  Shell[AppShell] --> Host[KeyboardShortcutsDialogHost]
+  Host --> Hook
+  Show --> Host
+  Host --> Dialog
+```
+
+注册表只管理 Renderer 交互与展示，不执行工具、持久化业务状态或建立第二套 App Server 命令。文档保存、取消、撤销/重做与设置导航仍委托既有 owner。原 `documentCanvasHotkeys` / `documentEditorHotkeys` 静态副本及测试删除；有效输入法、只读、焦点、在途与卸载回归迁到实际消费者。CommandOrControl 的显示与执行共用平台判定：macOS 为 Meta，其他平台为 Ctrl。责任 root 于 2026-10-20 核对上述架构图与依赖方向；安装包静态证据与 Lime 实际桌面验证分别记录，完整命令清单仍需继续迁移。
+
 ### 4.4 Desktop 设置章节
 
 `src/components/settings-v2/sections.tsx` 是 current 设置章节的唯一登记 owner，派生导航、可用性、预加载与内容渲染。公开入口直接导出已确认的 `SettingsPage`；category hook 只做翻译分组，layout 只组装容器和 Suspense。Home 保持同步入口，由 layout 注入 render factory，避免 Home/category/sections 循环依赖。业务页继续拥有各自的编辑与保存逻辑。
@@ -1499,6 +1595,8 @@ outer JSON-RPC id 只负责 App Server 到客户端的响应关联，domain toke
 会话提交的唯一执行 owner 是 `agent-runtime::session_loop`：每个 session 只有一个串行 actor，FIFO task、regular/review/compact kind、replace/interrupt/shutdown、迟到 completion 防护和 steer/mailbox 分流均在此收口。所有 actor 命令先进入统一 operation envelope；envelope 使用 UUIDv7 identity，并携带可选 client user message identity 与 W3C trace carrier，首次启动和 FIFO promote 必须把同一份不可变 metadata 交给 task context。普通用户输入只通过 typed `UserInput` operation 进入该队列：active regular task 存在时原子 steer，否则启动或排队 candidate task，同一份输入必须成为新 task 的 initial input；App Server 只能消费 actor 返回的 `Submitted/Steered` receipt，不能把 read model 的预判当成调度事实。Review、Compact、ThreadSettings、SetMemoryMode、RefreshMcp、ReloadConfig 与 RunShell 使用各自的 typed task operation，并校验 operation 与 task kind 一致；Approval、UserInput、Permission、DynamicTool 与 MCP elicitation response 使用五类独立 response operation，禁止恢复通用 response operation。durable inter-agent append 成功后，App Server 只向已经存在的 recipient actor 提交 typed `InterAgentCommunication` envelope，保留 message/root/sender/recipient/source-turn identity、kind、result status 与 delivery mode；actor 只发布 durable activity，不复制 store payload，也不得为了通知创建空 actor。child terminal result 必须先完成 canonical Turn 与 durable result mailbox append，再由正常 append、durable replay、restart recovery 三条路径统一发布同一 typed activity；通知失败不能回滚 durable record，也不能创建空 actor。provider boundary 只能由 durable loader 把同一记录转换为 typed runtime input，禁止重新解析自由 JSON。steer 与 mailbox activity 通过 typed watch 发布；mailbox pending 使用单调 generation，loader 成功只确认调用前捕获的 generation，失败或并发新 append 必须继续保持 pending。sampling step snapshot 单调增加 step index；pending context rollover 只由下一次 snapshot 原子消费并推进一次 context epoch，显式推进 epoch 也必须清除 pending rollover，禁止在后续 step 重复滚动。RuntimeCore 只负责把 provider/tool 执行、canonical event 持久化和 durable mailbox loader 接到该 actor；QueueOnly mailbox 只有在 provider step 明确打开 mailbox boundary 后才 append + ack，不能由 AgentControl 或 GUI 另起活动回合旁路。AgentControl wait 必须先向既有 actor 注册 activity receiver，再读取 pending snapshot；steer、mailbox 和 queued admission 由 actor 的 typed watch 唤醒，不能通过固定间隔扫描 RuntimeCore turns。
 
 Composer 的唯一 Renderer 文档 owner 是 `input-kit::ComposerController`，持有 ProseMirror `EditorState` 与附件/路径/能力资源。`ComposerEditor` 只持有 `EditorView`，引用该 state 并把 Transaction 交回 Controller；`applyTransaction` 消费 appended transactions 后原子发布 revision/snapshot。严格 JSON schema 接收 doc/paragraph/code_block/text/hard_break/mention/paste/text_element 与 link mark；code_block 仅容纳无 mark 的 text，保留 language 与 autoDetectLanguage。link 保存 href/title/sourceAppId、literal source、flags 与有限数值 occurrence；普通链接仅接受 HTTP/HTTPS/mailto，能力提及协议由独立 owner 处理。文本、选择区、mention 与 pending paste 由同一文档派生，不建第二份 React/TipTap document store。主输入 DOM 为 `[data-testid="composer-editor"][role="textbox"]`，file/skill/plugin/paste/element 均为不可编辑 atom；普通表单 textarea 不受影响。提及检测与选择动作统一通过同一PM投影的atom-aware候选解析；不可编辑标签和跨atom的查询不能打开菜单或拦截历史方向键，可编辑正文中的新触发字符仍有效。
+
+Composer 路径附件只消费既有上下文资源与移除/发送动作；Home、Conversation 和 Landing 不再透传“设为项目资料”callback。匹配安装包 REA 的附件、消息动作槽与文件动作 consumer 合同支持删除路径附件及消息/Artifact 的额外知识保存入口。专用保存 runtime、navigation、文本/路径导入 helper、知识保存资格/回调投影和 KnowledgePage saveDraft 分支均已删除；普通文件打开/预览仍消费既有 canonical identity。独立 KnowledgePage 的目录/状态查询和已有资料选择保持 current，普通整理通过既有 Agent 导航与 metadata 入口承接，不再保留只服务 save 分支的直接文本导入函数。底层知识 API、runtime、read model 与协议 owner 不变；知识产品面整体去留仍待独立对标，不属于新增保留特色。参考与验证限制见 `composer-project-knowledge-removal-plan.md` 和 `message-artifact-knowledge-removal-plan.md`。
 
 ```mermaid
 flowchart TD
@@ -2078,7 +2176,7 @@ model-visible definition
   -> RuntimeEvent and Thread/Turn/Item projection
 ```
 
-current provider 不得绕过 `RuntimeTool::execute_call` 直接调用 executor，也不得在 provider loop、lime-agent adapter 或 App Server 重复计时、归一化或合成 start/end。host emitter 负责把同一 lifecycle 直接投影为 canonical `item.started/item.completed`，并保证 `ItemStarted -> ActionRequired -> ItemCompleted` 的确定性顺序。执行上下文必须显式绑定 typed call/turn identity，current turn executor 必须持有已校验的 canonical thread identity；approval 和 request-user-input 不得从松散 metadata 反推 scope。`AgentEvent::ToolStart/ToolEnd`、App Server raw start/result mapper 与 backend event-name mapper、`core::agent::types::{StreamEvent,ToolExecutionResult,StreamResult}`、image-command raw lifecycle、live `tool.args` 与 imported raw Tool product wire 均为 `dead / deleted / forbidden-to-restore`。conversation import 只允许在 Codex source parser 输入边界读取 rollout，并在 source adapter 内维护 typed `CodexTimelineItem` / `CodexRolloutEvent` 解析态；`history_builder::build_canonical_history_events` 随即将其映射为 canonical Item。terminal-only、incomplete 和重复 lifecycle 必须在 source adapter 内确定性补齐或幂等忽略，随后在真实 session/thread/turn identity 边界写入 canonical Item。raw Tool intermediate 绝不得进入 normalizer 之后的链路、`StoredSession`、event log、ProjectionStore、read model、notification 或 GUI。
+current provider 不得绕过 `RuntimeTool::execute_call` 直接调用 executor，也不得在 provider loop、lime-agent adapter 或 App Server 重复计时、归一化或合成 start/end。host emitter 负责把同一 lifecycle 直接投影为 canonical `item.started/item.completed`，并保证 `ItemStarted -> ActionRequired -> ItemCompleted` 的确定性顺序。执行上下文必须显式绑定 typed call/turn identity，current turn executor 必须持有已校验的 canonical thread identity；approval 和 request-user-input 不得从松散 metadata 反推 scope。`AgentEvent::ToolStart/ToolEnd`、App Server raw start/result mapper 与 backend event-name mapper、`core::agent::types::{StreamEvent,ToolExecutionResult,StreamResult}`、image-command raw lifecycle、live `tool.args` 与 imported raw Tool product wire 均为 `dead / deleted / forbidden-to-restore`。跨产品 conversation import/source parser/history builder 已删除，不再作为任何业务入口；历史只消费 canonical Thread/Turn/Item。raw Tool intermediate 不得进入 `StoredSession`、event log、ProjectionStore、read model、notification 或 GUI。
 
 current provider 的工具面按 model sampling step 冻结，不按整个用户 Turn 永久冻结。每次发 provider request 前必须生成一个 `RuntimeToolStepSnapshot`，同一 snapshot 同时拥有 model-visible definitions 与 exact executor；本 step 返回的 tool call 只能调用该 definitions allowlist 中的名称，未广告名称仍产生 canonical failed lifecycle，但不得进入真实 native/gateway/MCP executor。MCP snapshot 的唯一 owner 是 `tool-runtime::mcp_connection`：它按 server 隔离 discovery error/timeout，并把 prefixed definition、per-tool caller policy、dispatch route 与 immutable connection handle 一起冻结；同一步不得回查 live registry。`tool_search` 只更新本 Turn 的 deferred selection，旧 snapshot 不变，下一 sampling step 才可重新 capture。MCP bridge 的已归一化 tool timeout 固化在 connection client 中，因此 registry replace 后旧 step 继续使用旧 handle/timeout，新 step 才看到新配置。
 
@@ -2281,6 +2379,8 @@ flowchart LR
 
 2026-10-19 前缀边界架构图确认（root）：本片沿既有 App Server、EventLog、canonical projection 和 fork owner 修改，没有第二 store、公开 RPC 或兼容入口。此边界为同 Turn 自动压缩的前置条件；生产 Loop 尚未接入，不能据此声明 C02 或 Desktop 自动压缩完成。验证范围见执行计划及 `codex-compaction-boundary-20261019/validation.json`。
 
+2026-10-20 同 Turn capability 接线确认（root）：`ExecutionRequest.mid_turn_compaction_commit` 是 App Server 注入的 step-scoped capability；`agent-runtime::provider_turn` 只接收 provider-neutral request/receipt，在 tool output 或 pending input continuation 边界按 selected model 的 `auto_compact_token_limit` 请求摘要。当前 route 的 `model-provider` 负责摘要采样，App Server 在 receipt 成功后追加 `context.compaction.completed`，并返回 summary 加 `history_prefix_len` 之后的 suffix 继续同一 Turn。该接线不调用独立 `compact_session_now`，不引入第二 EventLog、旧插件或协议兼容层；真实 provider、四协议、cold/fork、GUI/TUI 和 tar.gz 证据仍开放。Architecture impact: major；责任 root，2026-10-20。
+
 模型工具历史的正文以逐次 `ModelHistoryRecord` 为准，保存产生时的原始返回值与独立 host budget；后续 sampling/summary 只裁剪请求副本，不能用聚合命令或 UI preview 重建逐次结果。canonical 工具展示和显式 artifact 读取仍只以 nested `ToolOutput` 为正文来源：App Server 可在 append 边界把过长 `text` 截为 preview，并把完整内容写入 `tool_output` sidecar；nested output 回写稳定 `outputRef + truncated`，outer event 只保留 `outputBytes/outputSnapshotFile/sidecarRef` 等持久投影，禁止从 outer `output/result/runtimeEvent` 反向恢复正文。没有逐次记录的 canonical 导入历史只消费 preview，仍在请求边界有界截断；full sidecar 只供显式 artifact/evidence/read owner 读取，禁止为模型历史自动回灌。Tool、MCP 与 Collab 使用同一 sidecar owner；raw `tool_end` 与 raw Tool lifecycle 一并在 EventStore normalization 前 fail-closed。
 
 图片任务的 GUI media projection 只消费 `item.completed` 中 completed `ThreadItemPayload::Tool`：tool identity 来自 typed call/name，任务 owner facts 来自 `item.metadata`，结构化响应来自 `ToolOutput.structured_content`。只有 `normalized_status=succeeded` 且图片拥有可校验 sidecar reference 时才生成 final media content part；pending、非 terminal、失败、无 sidecar 或 raw Tool event 必须 fail closed。异步 worker 的最终结果继续由 media task store read owner enrich，不得把“任务创建完成”误报为“图片生成完成”。
@@ -2339,40 +2439,23 @@ Renderer
 
 Codex app-server 的核心约束在 Lime 中保持不变：先初始化连接；以 Thread 开始或恢复会话；以 Turn 驱动一次执行；以 Item 和 notification 报告过程；以明确 terminal turn 状态结束；从持久化 read model 恢复历史。任何 UI、Plugin 或桌面入口都必须进入这条主链。
 
-Codex 对话导入同样服从这条主链。`conversationImport/*` 只负责只读发现来源、解析
-Codex persisted rollout，并在 source adapter 内维护 `CodexTimelineItem` / `CodexRolloutEvent`
-等解析态；`history_builder::build_canonical_history_events` 随即将其映射为 canonical
-Thread / Turn / Item 历史。导入链不得创建 `ImportedRuntimeEvent`、imported-only tool
-lifecycle、第二套完整历史 sidecar 或 Renderer 专用工具卡。历史 command、patch、MCP 和
-tool call 只能作为已完成/失败的 canonical Item 写入，绝不重新执行。导入后的新 Turn
-通过普通 `turn/start` 进入当前 provider loop 与 `tool-runtime`，使用当前模型、
-审批和 sandbox；导入模块不得拥有 executor、pending approval 或 tool catalog。
-
-超大 rollout 也不得把长解析和持久化占在单个 JSON-RPC 请求内。current 导入控制流固定为
-`conversationImport/thread/commit -> RuntimeCore import job -> conversationImport/job/read`：
-commit 只完成用户确认、同源 active job 去重和后台 worker 启动；worker 仍调用同一个
-canonical commit owner，按 reading/building/persisting/finalizing 阶段报告 turn/item 进度；
-只有 terminal result 才向 GUI 暴露可继续的 session。job registry 只拥有调度状态、进度和
-terminal result，不保存第二份 Thread/Turn/Item，也不得绕过 EventLog、ThreadStore 或
-ProjectionStore。Renderer 只能通过 typed gateway 轮询，Electron 不得承接 job runner。
-批量确认时 Renderer 必须先为全部勾选会话启动或复用 job，再观察 terminal；关闭弹窗只
-abort 当前 Renderer observer，不取消 App Server job。再次打开时 source scan 投影
-`importing` 与 `importJobId`，Renderer 直接通过 `job/read` 继续观察；不得用第二次 commit
-代替显式 job identity，以免 terminal 竞态创建重复会话。
+本地历史扫描、预览和跨产品会话导入的 `conversationImport/*` 已删除。历史恢复只通过
+canonical `thread/read`、`thread/resume` 和分页投影进入同一主链；Renderer 不再按导入来源
+设置全量历史、失败消息或工具显示特例。Codex 的 `externalAgentConfig/import` 和
+`externalAgentConfig/import/recordHistory` 属于配置导入，由其现有 owner 继续持有。
 
 Agent GUI 的聊天/工作台响应式布局同样不得按来源分叉。`LayoutTransition` 是唯一布局
 owner：实际工作区容器宽度大于 `900px` 时可以并排展示聊天与工作台；不大于 `900px`
 时必须切为聊天优先的单面板，并提供明确的“聊天 / 工作台”模式切换。断点切换只能改变
 排列和显隐，不能重挂载消息树，否则会丢失 canonical timeline、滚动位置或输入草稿。
-普通会话、历史恢复和导入续聊共享该 contract；真实 Electron 视觉门禁必须覆盖
+普通会话与历史恢复共享该 contract；真实 Electron 视觉门禁必须覆盖
 desktop、compact、narrow，并拒绝模式控件与其他按钮发生矩形重叠。
 
 历史 GUI 投影遵循 Codex App 的运行态边界：canonical Thread/Turn/Item 和 read model 永远
 保留完整 command、reasoning、tool、approval、search、patch 等事实，但 Renderer 只有当前
 active turn 才挂载 operational details。terminal turn（completed、failed、canceled 或
 interrupted）只投影最终正文、附件、文件产物/变更与处理时长分隔；历史分隔是不可交互的
-`div`，没有展开、预览恢复或按历史 item 重新挂载的入口。该规则不区分普通、恢复或 Codex
-导入来源；read model 完整性必须由 App Server `thread/read` / `thread/items/list` 独立验证，
+`div`，没有展开、预览恢复或按历史 item 重新挂载的入口。该规则同时适用于普通会话与历史恢复；read model 完整性必须由 App Server `thread/read` / `thread/items/list` 独立验证，
 不能用 GUI 隐藏推断 canonical item 被裁剪。运行中审批卡、command/tool/search/reasoning
 仍按当前 turn 的真实 lifecycle 展示，turn 终态后统一收口为 compact history。
 
@@ -2546,6 +2629,23 @@ App Server reverse requests
   -> semantic interaction identity only
   -> one actionable layer above Composer
 ```
+
+异步问题（2026-10-20，minor impact；root 已核对 owner 与下图，可信配置接线仍待写窗）：
+
+```text
+trusted canonical root + resolved tools config + model capability [接线待完成]
+  -> existing tool-runtime request_user_input_async
+  -> existing tool lifecycle emitter
+  -> canonical AgentMessage { delivery, questions } / same call ID
+  -> existing live / read / rebuild projection
+  -> same Renderer canonical Item reader
+     -> per-question timeline view IDs (source item + index)
+     -> AppScope QuestionDraftStore (local drafts and selection only)
+     -> shared QuestionAnswerEditor above the main Composer
+     -> existing sendMessage -> turn/steer or turn/start
+```
+
+公开 `AsyncUserInputQuestion` 为唯一问题合同；不是同步 reverse request，不新增 pending waiter、私有问答 RPC、业务历史 store 或 runtime。题目与已接受答案由同一 canonical Item 派生，本地草稿按 host/thread 隔离；每题时间线只展示 title，用户答案复用普通用户正文。普通发送器省略问答的权限覆盖，真实 runtime-accepted 才消费未被后续编辑的快照；失败保稿，关闭/跳过不 interrupt。selected async question 无附件时驱动已有 Composer 单行布局，同步 pending 不冒充该 selection。工具和投影叶模块已实施，但六个 trusted-context 接点当前仍默认 false，agent-control fork 的展示文本过滤也待合并；不能将此图视为实际 producer 已启用或 Gate B 已通过。
 
 direct notification 没有上游 event id 时，stream owner 只能在 router 去重之后分配 request 内单调到达序号；不能用内容 hash 去重，因为相同 chunk 可以合法重复，也不能把该序号当作跨重连 replay identity。Item identity 仍是 `thread_id + turn_id + item.id`，首次 canonical sequence 决定顺序，completed snapshot 权威覆盖 delta 草稿，terminal 后 late delta 只记录诊断。
 
@@ -4351,6 +4451,43 @@ boundary while retaining the existing storage owner. The product direction remai
 JSON-RPC -> RuntimeCore/domain owner -> GUI. Responsible developer confirmation: root, 2026-08-07. Confirmation content:
 已核对目录归属、删除边界、依赖方向、协议形态和 durable history 隔离门禁。
 
+## 32.1 Codex Memory Readiness Boundary
+
+Codex 的 memory readiness 只通过 `memory/status` 暴露 consolidation 进度和可用性，不把记忆文件、数据库表或
+内部 lease 结构暴露给 Desktop、CLI 或 TUI。Lime 复用 `MemoryStore` current owner，并沿同一主链提供：
+
+```text
+Desktop / CLI / TUI
+  -> App Server JSON-RPC memory/status
+  -> RuntimeCore::memory_status
+  -> MemoryAppDataSource::memory_status
+  -> LocalMemoryBackend::status
+  -> consolidated-thread count + strict v2 summary validation
+```
+
+`MemoryStatusParams.minConsolidatedThreads` 使用 Codex 的 `1..=4096` 校验和默认 20；响应只包含
+`v2ConsolidatedThreads` 与 `v2Ready`。summary 必须以 `v1` 开头、低于 10KB，并包含 Codex v2 的四个固定段落。
+Lime 本地 rollout consolidation 仍是现有文件 owner 的当前实现，但 readiness 不再用“目录存在”或任意 Markdown
+标题推断，避免把旧 `services::ContextMemoryService` 当成 runtime memory owner。
+
+`memoryStore/*` 继续作为 Lime 内部 memory tool / 文件读写 surface；其扩展 CRUD、搜索和审计不是 Codex
+`memory/status` 的替代协议。`LocalMemoryBackend` 现在把 `memory_state.sqlite` 作为唯一的 readiness/ownership
+事实源：rollout content hash/status、phase1 lease/retry、strict provider output snapshot、usage count、phase2
+owner lease、lease expiry、失败原因和 completion watermark 写入状态库，`rollout_summaries/processed` 与
+`memory_summary.md` 只是可读投影。并发 consolidation 必须先取得 scope-scoped lease，完成或失败后清理 owner；
+文件存在不能绕过 lease 或伪造 readiness。`memory_store/stage_one_output.rs` 直接复刻 Codex
+`memories/write/src/phase1_output.rs` 的 v1/v2 `deny_unknown_fields` schema、secret redaction 与 v2 9KB
+摘要上限；read/search citation 会把使用计数回写状态 owner。当前还没有 Codex 完整的 phase1 provider 调度、
+model capability/budget/protocol 路由、phase2 模型 agent 和 heartbeat，且 reset/thread 删除/disabled scope
+清理仍待接入，所以这只是 M01/M02 的状态与契约边界落地，不代表 Memory pipeline 完成。无生产消费者的
+`services::ContextMemoryService` 仍是 M01 的 dead-candidate，后续 memory pipeline 替换完成后直接删除，不新增
+compat 包装。Architecture impact:
+major；负责 root，2026-10-20。确认内容：已直接读取 Codex `app-server-protocol/v2/memory.rs`、
+`request_processors/memory_status.rs`、`state/src/runtime/memories.rs`、`memories/write/src/{start,phase1,phase2}.rs`
+与 `memories/write/workspace.rs`，并用 Lime protocol/schema/backend 测试固定 wire、ready 和失败边界。
+确认内容：已直接读取 Codex `app-server-protocol/v2/memory.rs`、`request_processors/memory_status.rs` 与
+`memories/write/workspace.rs`，并用 Lime protocol/schema/backend 测试固定 wire、ready 和失败边界。
+
 ## 33. Exact Process Control Owner
 
 Codex exact process lifecycle 复用 `tool-runtime` 的 local process supervisor，但 public handle ownership 只属于
@@ -5608,7 +5745,7 @@ right-surface LocalState: tab/path/contentInstance
         -> FileEditorHistoryToolbar (actual history depth + same controller save status)
      -> InlineFileDiffReview (external conflict overlay; same document and resolution owner)
      -> FileSourceBreadcrumb -> shared HeaderToolbar pane + local directory popover
-        -> WorkspaceDirectoryTree (same renderer as WorkspaceFileTree)
+        -> WorkspaceDirectoryTree -> FileTree (shared with WorkspaceFileTree search)
         -> useCanvasWorkbenchFileTreeState -> existing App Server fs/readDirectory
      -> textFileStorage -> existing typed App Server fs/{getMetadata,readFile,writeFile}
      -> current fs/watch -> canonical fs/changed -> same controller
@@ -5635,7 +5772,63 @@ CodeMirror在存在undo/redo时回传historyField初始化扩展，保存为干�
 
 目录顺序唯一归fileTreeOrder：依据model/controller/store与完整比较函数REA链，目录在前，名称按小写自然数字token比较，再以lower/原始文本稳定tie-break。旧VM内容包/Markdown/locale优先级及三个sort helper删除；主树/菜单共用WorkspaceDirectoryTree，旧visibility回流受负向guard限制。共享renderer由同一directoryCache/expanded投影扁平可见行，按REA tree/treeitem的level/posinset/setsize/selected和单焦点tabIndex组织，焦点仅是presentation局部状态，不复制selection或目录读取。目录chevron与文件icon共用一列，旧双图标/aria-current/私有旧data标记清退。43追加fileTreeViewport纯投影与useFileTreeViewport局部DOM适配：28px固定行、overscan10、sticky目录、离屏parked焦点行；键盘使用逻辑行索引而非已挂载DOM下标，选中路径首次可用时定位且不抢外部焦点。WorkspaceFileTree和面包屑共同委托该滚动owner，删除面包屑失效的旧aria-current选择器；目录读取和业务selection仍归原owner。34在renderer之后验证目录消失仍为failed；35/36独立后继已通过，37树行后继另验。
 
-文件viewer默认动作由ArtifactPreviewHeader消费现有usePublicFileAction的pending/scope/error owner；Open无首选target时走既有file-shell reveal IPC，Save as使用原生位置选择后在scope仍有效时调用同一App Server fs/copy，原文件不转码。TextFileEditorTabContent接入该动作；没有新增protocol、backend或文件store。项目位置的现有消费者同样委托revealPathInFinder -> FileShellHost；旧projectToolsHost、四值ProjectPathOpenTool、open_project_path_with_tool及其gateway已整条删除，无第二原生执行路径或compat。该删除仅收敛既有职责，架构确认root，2026-10-19。FileShellHost按REA仅对stat确认为文件的路径showItemInFolder，其余openPath并暴露原生错误；不存在的工作区不能假定位成功。目标应用发现、首选target、GitHub/Drive和其它预览消费者仍开放。35重新冻结当前根并构建验证，原生菜单验证与OS保存对话框完整流程分别结算。
+Files 搜索与目录行共用唯一 Renderer（2026-10-20，root 已核对目录/搜索投影与实际消费者）：
+
+```mermaid
+flowchart LR
+  Cache[Current directory cache and expansion] --> Directory[WorkspaceDirectoryTree]
+  Directory --> DirectoryRows[getDirectoryTreeRows]
+  Query[WorkspaceFileTree root and query] --> Gateway[Current fuzzy file gateway]
+  Gateway --> Search[createSearchFileTree and getSearchFileTreeRows]
+  Search --> SearchRows[Local search rows and expansion]
+  DirectoryRows --> Tree[FileTree]
+  SearchRows --> Tree
+  Tree --> Viewport[useFileTreeViewport and fileTreeViewport]
+  Tree --> Open[Existing onSelectFile and canonical file tabs]
+```
+
+`FileTree` 承接已有 DOM、键盘、viewport 与 sticky；`WorkspaceDirectoryTree` 只适配真实目录读取结果。搜索结果按 root/query 校验身份，临时树去重路径、展开命中祖先并合并单目录链，query/root 变化重置搜索显示状态；迟到请求不得回流。搜索展开与选中仅属 presentation，不写 directoryCache、不覆盖普通目录展开或文件标签身份。旧平面搜索列表删除，没有新增网络入口、协议、业务 store、菜单或重命名 authority；目录和搜索均通过现有文件打开合同产生 preview/固定标签。Architecture impact: minor；责任 root 于 2026-10-20 核对并确认此图与实际依赖方向；真实 Electron 验收独立结算。
+
+### 32.2 Codex Memory phase-2 与 Agent Loop Stop 边界（2026-10-20）
+
+Memory 的 phase-2 业务 owner 是 `App Server -> RuntimeBackend -> LocalMemoryBackend -> memory_state.sqlite`。RuntimeCore 只解析当前 eligible root session 的 provider route；provider-backed consolidation harness 只接收 durable stage-1 snapshot，输出由 `stage_two_output` 严格解析，LocalMemoryBackend 负责 source identity、大小、symlink、archive/review、selected-source watermark 和 audit。所有 entry 必须先完整校验，确认 unknown/duplicate/missing/symlink/oversized/provider failure 不会产生部分 archive 或 review 写入后，才执行文件移动和状态提交。`memory/status` 只读取状态表的 consolidation count/readiness，不能由摘要文件、索引或 GUI projection 伪造。accept 写入 `extensions/ad_hoc/processed` 或 `rollout_summaries/processed`，review 写入 `extensions/ad_hoc/review` 并保留 durable review 状态；lease heartbeat 丢失时拒绝提交。此链路保留 Lime 的多模型、多协议 route，但 route/capability/readiness 只能来自当前 provider 控制面，不能把 grok-build 的 catalog 当作 Codex Memory runtime。
+
+Agent Loop 的 Stop owner 是 `agent-runtime::provider_turn`，Hook source/reporter 仍由 App Server/Agent host 提供。每个 sampling step 捕获一次 immutable `RuntimeHookStepSnapshot`，同一快照同时用于工具 gate 和 terminal Stop evaluation；终态检查发生在工具 continuation、pending input 与 provider completion 已收敛之后。Block 结果通过同一 Turn 的 developer continuation prompt 重采样，并置 `stop_hook_active`；Abort 直接完成 Turn；invalid/untrusted/missing decision fail closed。该实现尚未把 continuation 升级为 canonical user-role `HookPrompt` Item，也未完成 ThreadSpawn/SubagentStop 来源、取消终态和 MemoryConsolidation 防递归，不能宣称完整 Codex Stop Loop。
+
+架构图确认：`Product Surface -> App Server JSON-RPC -> RuntimeCore -> agent-runtime/provider_turn -> provider/tool/hook owners -> Thread/Turn/Item projection`；Memory phase-2 的 provider 请求与 Stop hook 都沿同一 RuntimeCore/App Server 边界，不新增第二业务后端、兼容包装或 Lime 旧插件 owner。负责 root，2026-10-20。验证证据：Memory 定向测试 14/14、provider-turn 76/76、`npm run test:contracts` 通过；startup 调度、真实 provider capture、canonical HookPrompt receipt、插件/tar.gz/LimeCore 仍按执行计划开放。
+
+Files 本地文件菜单与原生目标后继（2026-10-20，minor impact；root 已核对并确认原保存链、唯一 FileShellHost、共享 native client 和 Host 偏好依赖方向；实际 OS/GUI 独立验收）：
+
+```mermaid
+flowchart LR
+  Tree[FileTree native composedPath file only] --> Menu[WorkspaceFileContextMenu]
+  Tab[Existing file tab instance] --> Menu
+  Breadcrumb[Actual file source breadcrumb button] --> Menu
+  Menu --> TreeItems[getFileTreeContextMenuItems]
+  Menu --> TabItems[getWorkspaceFileTabContextMenuItems]
+  TreeItems --> Actions[useWorkspaceFileActions]
+  TabItems --> Actions
+  Actions --> Clipboard[System clipboard with actual path]
+  Actions --> Text[Same FileTabLifecycle saveUntilClean]
+  Text --> Document[Existing usePublicFileAction document flush]
+  Document --> Save[Existing saveFileCopy and native save dialog]
+  Save --> Copy[Current App Server fs copyFile]
+  Menu --> Targets[Shared open-in-targets query and prefetch]
+  Targets --> Gateway[Typed openIn gateway]
+  Actions --> Gateway
+  Gateway --> IPC[Shared Electron IPC allowlist and preload]
+  IPC --> FileShell[Single FileShellHost]
+  FileShell --> Native[Existing SystemUtilityHost native client]
+  Native --> Associations[NSWorkspace file associations and default app]
+  FileShell --> Preferences[Host open-in-target-preferences global and perPath]
+  FileShell --> Launch[Checked OS launch and reveal]
+```
+
+tabStrip 与内容分发同一 lifecycle 实例，文件菜单不会绕开 dirty/close owner；菜单目标与 root/query、完整 tab 实例绑定，迟到保存/对话框不能复制旧文件。树只从 file 行 composedPath 取真实路径；目录树行无菜单，已证面包屑按钮单独按目录 workspace/file 模式接同一菜单。树不等待 query，显示 disabled Open in；内容/标签等待同一 query，实际打开组后才画分隔线。首选/Open with、Save as、Copy path 使用同一目标快照与原保存链；内容/标签的 Reveal 委托同一 fileManager target。
+
+目标 query 以 cwd/hostId/path/deferEnrichment 隔离，一分钟 staleTime，pointer/focus 预取与 consumer 共用同一 QueryClient；detect 失败只退出该目标，图标失败保留可用性，abort 后不回写。FileShellHost 的 getTargets/detectTarget/loadTargetIcon/open/setGlobalPreferredTarget 是唯一目标 authority，macOS 复用已交付 helper 的 Launch Services 只读原语，实际打开使用参数数组与退出结果。Windows 只有系统默认/文件管理器入口，完整关联发现为 unsupported，不能把 catalog 视为本机安装集合。显式不可用、remote host 或非绝对本地路径 fail closed。普通选择不保存偏好，明确 preference path 才同时写 global/perPath；全局设置只改 global。偏好只落统一 appDataRoot 下一个原子 Host 值，不使用 renderer localStorage。旧 open_with_default_app IPC/Host/catalog 全删，现默认打开 gateway 直接委托 openIn.open，原 reveal/icon/HTML preview 仍由 FileShellHost 承接。没有新增 Agent 后端或业务 store，新增仅 Electron 文件壳合同和偏好；前驱冻结保持独立。完整 editor/custom target catalog、Windows 原生关联枚举、remote transport、Copy contents、GitHub/library/Add to chat 和其它实际内容消费者继续 gap，真实 OS/GUI 验收由 root 独立结算。
+
+文件viewer默认动作由ArtifactPreviewHeader消费现有usePublicFileAction的pending/scope/error owner；Open无首选target时走既有file-shell reveal IPC，Save as使用原生位置选择后在scope仍有效时调用同一App Server fs/copy，原文件不转码。TextFileEditorTabContent接入该动作；没有新增protocol、backend或文件store。项目位置的现有消费者同样委托revealPathInFinder -> FileShellHost；旧projectToolsHost、四值ProjectPathOpenTool、open_project_path_with_tool及其gateway已整条删除，无第二原生执行路径或compat。该删除仅收敛既有职责，架构确认root，2026-10-19。FileShellHost按REA仅对stat确认为文件的路径showItemInFolder，其余openPath并暴露原生错误；不存在的工作区不能假定位成功。本地关联发现与首选target已由上段2026-10-20的唯一Host/query接管；剩余为editor/custom target、Windows完整关联、remote及GitHub/Drive和其它预览消费者。35是前驱构建记录，不能证明本轮菜单与OS保存对话框；两类真实交互分别结算。
 
 结构/数据流确认：root，2026-10-19。新增组件名按模块职责命名，未知上游压缩类名不伪装为已恢复源码名称。
 

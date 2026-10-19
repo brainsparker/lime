@@ -271,11 +271,6 @@ pub(super) fn selection_from_session_default(
     let metadata = business_object_ref.metadata.as_ref()?;
     let provider = session_default_provider(metadata)?;
     let model = session_default_model(metadata)?;
-    if business_object_ref.kind == "conversation.import"
-        && !session_default_has_current_provider_selector(metadata)
-    {
-        return None;
-    }
     Some(RuntimeModelSelection {
         provider,
         model,
@@ -300,21 +295,6 @@ fn session_default_provider(metadata: &Value) -> Option<String> {
             "/execution_runtime/provider_name",
         ],
     )
-}
-
-fn session_default_has_current_provider_selector(metadata: &Value) -> bool {
-    json_pointer_string(
-        metadata,
-        &[
-            "/providerSelector",
-            "/provider_selector",
-            "/executionRuntime/providerSelector",
-            "/execution_runtime/provider_selector",
-            "/extensionData/lime_provider_routing.v0/providerSelector",
-            "/extensionData/lime_provider_routing.v0/provider_selector",
-        ],
-    )
-    .is_some()
 }
 
 fn session_default_model(metadata: &Value) -> Option<String> {

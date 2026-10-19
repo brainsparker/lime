@@ -24,11 +24,15 @@
     "start_oem_cloud_oauth_callback_bridge"
   ],
   "fileBrowserCommands": [
+    "open_in_get_targets",
+    "open_in_detect_target",
+    "open_in_load_target_icon",
+    "open_in_open",
+    "open_in_set_global_preferred_target",
     "get_home_dir",
     "get_file_icon_data_url",
     "get_file_name",
     "reveal_in_finder",
-    "open_with_default_app",
     "open_file_preview_window",
     "open_resource_manager_window"
   ],

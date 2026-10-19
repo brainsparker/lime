@@ -8,6 +8,7 @@
 import styled from "styled-components";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useCommand } from "@/lib/commands/useCommand";
 import { useSettingsCategory } from "../hooks/useSettingsCategory";
 import { SettingsTabs } from "@/types/settings";
 import { resolveOemCloudRuntimeContext } from "@/lib/api/oemCloudRuntime";
@@ -149,26 +150,20 @@ export function SettingsSidebar({
     setSearchQuery("");
   }, [activeTab, searchRequestKey]);
 
-  useEffect(() => {
-    const handleSearchShortcut = (event: KeyboardEvent) => {
-      if (
-        navigationPending ||
-        event.key.toLowerCase() !== "f" ||
-        (!event.metaKey && !event.ctrlKey)
-      ) {
-        return;
-      }
-
-      event.preventDefault();
+  useCommand({
+    id: "searchSettings",
+    titleKey: "commands.searchSettings.title",
+    descriptionKey: "commands.searchSettings.description",
+    section: "configure",
+    bindings: ["CommandOrControl+F"],
+    target: document,
+    enabled: !navigationPending,
+    allowInInput: true,
+    handler: () => {
       searchInputRef.current?.focus();
       searchInputRef.current?.select();
-    };
-
-    document.addEventListener("keydown", handleSearchShortcut);
-    return () => {
-      document.removeEventListener("keydown", handleSearchShortcut);
-    };
-  }, [navigationPending]);
+    },
+  });
 
   return (
     <SidebarContainer data-testid="settings-sidebar">

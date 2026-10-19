@@ -77,6 +77,10 @@ export function composerMarksFixture({ prompt, skillIdentity, pasteText }) {
   return {
     text: `${markdownPrefix}${pasteText} ${skillLink}`,
     displayText: `${displayPrefix}${pasteLabel} ${skillLabel}`,
+    // The canonical submission keeps the Skill as a resource Markdown link,
+    // while the rendered user bubble exposes the Skill display name. Collapse
+    // geometry must use the visible tail when checking the rendered body.
+    renderedTailText: skillIdentity.displayName || skillLabel,
     renderedTextParts: [
       prompt,
       LINK.label,

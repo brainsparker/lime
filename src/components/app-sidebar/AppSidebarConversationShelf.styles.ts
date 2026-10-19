@@ -7,7 +7,7 @@ export const ConversationShelf = styled.div`
   margin: 4px 0 12px;
 `;
 
-export const ConversationSection = styled.section<{ $compact?: boolean }>`
+export const ConversationSection = styled.section`
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -32,8 +32,44 @@ export const ConversationSectionActions = styled.div`
   align-items: center;
   gap: 0;
   flex-shrink: 0;
-  opacity: 1;
+  opacity: 0;
   pointer-events: auto;
+
+  ${ConversationSectionHeader}:hover &,
+  ${ConversationSectionHeader}:focus-within & {
+    opacity: 1;
+    pointer-events: auto;
+  }
+`;
+
+export const ConversationSectionToggle = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  min-height: 28px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  svg {
+    width: 12px;
+    height: 12px;
+    transform: rotate(-90deg);
+  }
+
+  &[aria-expanded="true"] svg {
+    transform: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--sidebar-active-foreground);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 `;
 
 export const ConversationSectionTitle = styled.h2`

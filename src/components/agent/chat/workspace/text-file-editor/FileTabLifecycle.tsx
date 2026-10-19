@@ -10,18 +10,18 @@ import {
 } from "@/components/ui/dialog";
 import {
   FileTabLifecycleContext,
-  type Register,
+  type FileTabLifecycle,
 } from "./fileTabLifecycleContext";
 
 export function FileTabLifecycleProvider({
-  register,
+  lifecycle,
   children,
 }: {
-  register: Register;
+  lifecycle: FileTabLifecycle;
   children: ReactNode;
 }) {
   return (
-    <FileTabLifecycleContext.Provider value={register}>
+    <FileTabLifecycleContext.Provider value={lifecycle}>
       {children}
     </FileTabLifecycleContext.Provider>
   );

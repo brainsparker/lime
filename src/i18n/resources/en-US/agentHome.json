@@ -10,6 +10,5 @@
   "agentChat.home.composer.pathReferenceFallbackPrompt": "Please review these files or folders.",
   "agentChat.home.hero.eyebrow": "Creation",
   "agentChat.home.hero.slogan": "Ask Lime, spark the idea",
-  "agentChat.home.hero.description": "Say the goal and Lime will keep going with you.",
-  "agentChat.home.curatedTask.reviewSuggestionPrefillHint": "Switched to a better-fit result template based on the latest signal. You can keep editing before generating."
+  "agentChat.home.hero.description": "Say the goal and Lime will keep going with you."
 }

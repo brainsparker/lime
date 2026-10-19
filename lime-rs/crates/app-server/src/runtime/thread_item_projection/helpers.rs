@@ -137,21 +137,6 @@ pub(super) fn merge_lifecycle_metadata(object: &mut Map<String, Value>, event: &
     );
     metadata.insert("source_event_id".to_string(), json!(event.event_id));
     metadata.insert("source_event_type".to_string(), json!(event.event_type));
-    if let Some(value) = event.payload.get("sourceClient").cloned() {
-        metadata.insert("source_client".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("sourceProvenance").cloned() {
-        metadata.insert("source_provenance".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("imported").cloned() {
-        metadata.insert("imported".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("importedSynthetic").cloned() {
-        metadata.insert("imported_synthetic".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("importedIncomplete").cloned() {
-        metadata.insert("imported_incomplete".to_string(), value);
-    }
 }
 
 fn merge_metadata_array(metadata: &mut Map<String, Value>, key: &str, value: Value) {
@@ -251,24 +236,6 @@ pub(super) fn event_metadata(event: &AgentEvent) -> Value {
     let mut metadata = serde_json::Map::new();
     metadata.insert("source_event_id".to_string(), json!(event.event_id));
     metadata.insert("source_event_type".to_string(), json!(event.event_type));
-    if let Some(value) = event.payload.get("sourceClient").cloned() {
-        metadata.insert("source_client".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("sourceProvenance").cloned() {
-        metadata.insert("source_provenance".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("imported").cloned() {
-        metadata.insert("imported".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("importedSynthetic").cloned() {
-        metadata.insert("imported_synthetic".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("importedIncomplete").cloned() {
-        metadata.insert("imported_incomplete".to_string(), value);
-    }
-    if let Some(value) = event.payload.get("importedReadOnly").cloned() {
-        metadata.insert("imported_read_only".to_string(), value);
-    }
     if let Some(value) = event.payload.get("outputRefs").cloned() {
         metadata.insert("output_refs".to_string(), value);
     }

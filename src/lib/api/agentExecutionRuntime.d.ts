@@ -100,9 +100,6 @@ export interface AgentSessionExecutionRuntime {
     provider_selector?: string | null;
     provider_name?: string | null;
     model_name?: string | null;
-    source_client?: string | null;
-    imported_continuation?: Record<string, unknown> | null;
-    imported_thread_settings?: Record<string, unknown> | null;
     execution_strategy?: AgentExecutionStrategy | null;
     output_schema_runtime?: AgentTurnOutputSchemaRuntime | null;
     source: AgentSessionExecutionRuntimeSource;

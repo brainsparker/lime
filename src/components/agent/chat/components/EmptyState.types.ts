@@ -74,7 +74,6 @@ export interface EmptyStateProps extends SkillSelectionSourceProps {
   onAddPathReferences?: (references: MessagePathReference[]) => void;
   inputRestoreRequest?: ScopedComposerRestoreRequest | null;
   onInputRestoreRequestHandled?: (requestId: string) => void;
-  onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
   onClearPathReferences?: () => void;
 }

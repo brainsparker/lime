@@ -5,40 +5,50 @@ interface AppSidebarLoadMoreProps {
   itemCount: number;
   label: string;
   onLoadMore: () => void;
+  mode: "button" | "infiniteScroll";
 }
 
 export function AppSidebarLoadMore({
   itemCount,
   label,
   onLoadMore,
+  mode,
 }: AppSidebarLoadMoreProps) {
-  const buttonRef = useRef<HTMLButtonElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const target = buttonRef.current;
-    if (!target || typeof IntersectionObserver === "undefined") {
+    const target = sentinelRef.current;
+    if (mode !== "infiniteScroll" || !target) {
+      return;
+    }
+    if (typeof IntersectionObserver === "undefined") {
+      onLoadMore();
       return;
     }
     let requested = false;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (!requested && entries.some((entry) => entry.isIntersecting)) {
-          requested = true;
-          onLoadMore();
-        }
-      },
-      {
-        root: target.closest('[data-testid="app-sidebar-menu-scroll"]'),
-        rootMargin: "0px 0px 80px 0px",
-      },
-    );
+    const observer = new IntersectionObserver((entries) => {
+      if (!requested && entries.some((entry) => entry.isIntersecting)) {
+        requested = true;
+        observer.disconnect();
+        onLoadMore();
+      }
+    });
     observer.observe(target);
     return () => observer.disconnect();
-  }, [itemCount, onLoadMore]);
+  }, [itemCount, mode, onLoadMore]);
+
+  if (mode === "infiniteScroll") {
+    return (
+      <div
+        ref={sentinelRef}
+        className="min-h-px w-full"
+        data-testid="app-sidebar-pagination-sentinel"
+      />
+    );
+  }
 
   return (
     <ConversationListMoreButton
-      ref={buttonRef}
       type="button"
       onClick={onLoadMore}
       data-testid="app-sidebar-load-more"

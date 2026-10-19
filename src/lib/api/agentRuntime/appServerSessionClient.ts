@@ -141,6 +141,24 @@ export function createAppServerSessionClient({
     return sessions.map(appServerSessionOverviewToRuntimeInfo);
   }
 
+  async function listRecentThreads(params: AppServerThreadListParams) {
+    const response = await appServerClient.request<AppServerThreadListResponse>(
+      METHOD_THREAD_LIST,
+      params,
+    );
+    const sessions = readCanonicalThreadListResponse(response.result, {
+      archived: params.archived === true,
+    });
+    if (!sessions) throw new Error("thread/list did not return session list");
+    for (const session of sessions) {
+      rememberSessionThreadId(session.sessionId, session.threadId);
+    }
+    return {
+      sessions: sessions.map(appServerSessionOverviewToRuntimeInfo),
+      nextCursor: response.result.nextCursor?.trim() || null,
+    };
+  }
+
   async function getAgentRuntimeSession(
     sessionId: string,
     options?: AgentRuntimeGetSessionOptions,
@@ -297,6 +315,7 @@ export function createAppServerSessionClient({
     forkAgentRuntimeSession,
     getAgentRuntimeSession,
     listAgentRuntimeSessions,
+    listRecentThreads,
     unarchiveAgentRuntimeSession,
     updateAgentRuntimeThreadToolPreferences,
   };

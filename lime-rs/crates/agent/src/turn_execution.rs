@@ -7,6 +7,7 @@ use crate::provider_configuration::{
 use crate::request_tool_policy::{ReplyAttemptError, RequestToolPolicy, StreamReplyExecution};
 use crate::runtime_state::AgentRuntimeState;
 use crate::AgentSessionConfig;
+use agent_runtime::provider_turn::RuntimeMidTurnCompactionCommitHandle;
 use agent_runtime::reply_input::RuntimeReplyInput;
 use agent_runtime::session_loop::RuntimeSessionInputHandle;
 use lime_core::database::DbConnection;
@@ -29,6 +30,7 @@ pub struct AgentTurnExecutionRequest<'a> {
     pub command_publisher: Option<crate::CommandEventPublisher>,
     pub pending_input: Option<RuntimeSessionInputHandle>,
     pub cancellation_token: Option<CancellationToken>,
+    pub mid_turn_compaction_commit: Option<RuntimeMidTurnCompactionCommitHandle>,
 }
 
 pub struct AgentTurnProviderConfiguration<'a> {
@@ -107,6 +109,7 @@ where
         session_config,
         Some(cancel_token),
         request.pending_input,
+        request.mid_turn_compaction_commit,
         request.request_tool_policy,
         request.agent_control_gateway,
         request.command_publisher,

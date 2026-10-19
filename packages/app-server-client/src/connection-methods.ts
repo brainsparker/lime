@@ -1175,30 +1175,6 @@ declare module "./connection.js" {
       params: protocol.ConnectCallbackSendParams,
       options?: AppServerRequestOptions,
     ): Promise<AppServerRequestResult<protocol.ConnectCallbackSendResponse>>;
-    scanConversationImportSource(
-      params?: protocol.ConversationImportSourceScanParams,
-      options?: AppServerRequestOptions,
-    ): Promise<
-      AppServerRequestResult<protocol.ConversationImportSourceScanResponse>
-    >;
-    previewConversationImportThread(
-      params: protocol.ConversationImportThreadPreviewParams,
-      options?: AppServerRequestOptions,
-    ): Promise<
-      AppServerRequestResult<protocol.ConversationImportThreadPreviewResponse>
-    >;
-    commitConversationImportThread(
-      params: protocol.ConversationImportThreadCommitParams,
-      options?: AppServerRequestOptions,
-    ): Promise<
-      AppServerRequestResult<protocol.ConversationImportThreadCommitStartResponse>
-    >;
-    readConversationImportJob(
-      params: protocol.ConversationImportJobReadParams,
-      options?: AppServerRequestOptions,
-    ): Promise<
-      AppServerRequestResult<protocol.ConversationImportJobReadResponse>
-    >;
     spawnProcess(
       params: protocol.ProcessSpawnParams,
       options?: AppServerRequestOptions,

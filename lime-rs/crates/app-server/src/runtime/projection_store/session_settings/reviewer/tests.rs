@@ -2,49 +2,27 @@ use super::*;
 use serde_json::json;
 
 #[test]
-fn canonical_reviewer_wins_and_all_obsolete_copies_are_removed() {
-    let input = json!({
-        "sourceClient":"codex", "sourceThreadId":"source", "approvalsReviewer":"user",
-        "approvals_reviewer":"guardian_subagent",
-        "importedContinuation":{"approvalsReviewer":"invalid", "cwd":"/keep"},
-        "imported_continuation":{"approvals_reviewer":"auto_review"},
-        "importedThreadSettings":{"approvalsReviewer":"auto_review"},
-        "imported_thread_settings":{"approvals_reviewer":"auto_review"},
-        "codexMetadata":{"approvalsReviewer":"guardian_subagent"}
-    });
+fn canonical_reviewer_wins_over_its_top_level_alias() {
+    let input = json!({"approvalsReviewer":"user", "approvals_reviewer":"guardian_subagent", "unrelated":42});
     let migrated = migrated_reviewer_metadata(&input).unwrap().unwrap();
     assert_eq!(
         migrated,
-        json!({
-            "sourceClient":"codex", "sourceThreadId":"source", "approvalsReviewer":"user",
-            "importedContinuation":{"cwd":"/keep"}, "imported_continuation":{},
-            "importedThreadSettings":{}, "imported_thread_settings":{},
-            "codexMetadata":{"approvalsReviewer":"guardian_subagent"}
-        })
+        json!({"approvalsReviewer":"user", "unrelated":42})
     );
     assert_eq!(migrated_reviewer_metadata(&migrated).unwrap(), None);
 }
 
 #[test]
-fn published_reviewer_precedence_ignores_null_but_rejects_invalid_selected_values() {
+fn current_reviewer_ignores_null_and_rejects_invalid_selected_values() {
     for (extra, expected) in [
         (
             json!({"approvals_reviewer":"guardian_subagent"}),
             "auto_review",
         ),
-        (
-            json!({"importedContinuation":{"approvalsReviewer":null},
-            "importedThreadSettings":{"approvals_reviewer":"guardian_subagent"}}),
-            "auto_review",
-        ),
-        (
-            json!({"approvals_reviewer":"user", "importedContinuation":{"approvalsReviewer":"auto_review"}}),
-            "user",
-        ),
+        (json!({"approvals_reviewer":"user"}), "user"),
         (json!({}), "user"),
     ] {
-        let mut input =
-            json!({"sourceClient":"codex", "sourceThreadId":"source", "approvalsReviewer":null});
+        let mut input = json!({"approvalsReviewer":null});
         input
             .as_object_mut()
             .unwrap()
@@ -61,16 +39,23 @@ fn published_reviewer_precedence_ignores_null_but_rejects_invalid_selected_value
 }
 
 #[test]
-fn ordinary_threads_do_not_inherit_import_only_reviewer_settings() {
-    assert_eq!(
-        migrated_reviewer_metadata(&json!({
-            "importedContinuation":{"approvalsReviewer":"auto_review"}, "unrelated":42
-        }))
-        .unwrap(),
-        Some(json!({"approvalsReviewer":"user", "importedContinuation":{}, "unrelated":42}))
-    );
-    assert_eq!(
-        migrated_reviewer_metadata(&json!({"unrelated":42})).unwrap(),
-        None
-    );
+fn obsolete_nested_metadata_cannot_supply_reviewer_settings() {
+    for key in [
+        "importedContinuation",
+        "imported_continuation",
+        "importedThreadSettings",
+        "imported_thread_settings",
+    ] {
+        for reviewer_key in ["approvalsReviewer", "approvals_reviewer"] {
+            let input = json!({"sourceClient":"codex", "sourceThreadId":"foreign", key:{reviewer_key:"auto_review"}});
+            assert_eq!(migrated_reviewer_metadata(&input).unwrap(), None, "{input}");
+            let mut current = input;
+            current["approvalsReviewer"] = json!("user");
+            assert_eq!(
+                migrated_reviewer_metadata(&current).unwrap(),
+                None,
+                "{current}"
+            );
+        }
+    }
 }

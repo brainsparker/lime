@@ -179,7 +179,6 @@ export interface WorkspaceConversationMessageListRuntime {
   onOpenUrlPreview?: ConversationScenePresentationParams["messageList"]["onOpenUrlPreview"];
   onOpenMessagePreview?: ConversationScenePresentationParams["messageList"]["onOpenMessagePreview"];
   onSaveMessageAsSkill?: ConversationScenePresentationParams["messageList"]["onSaveMessageAsSkill"];
-  onSaveMessageAsKnowledge?: ConversationScenePresentationParams["messageList"]["onSaveMessageAsKnowledge"];
   onOpenSubagentSession: ConversationScenePresentationParams["messageList"]["onOpenSubagentSession"];
   onPermissionResponse: ConversationScenePresentationParams["messageList"]["onPermissionResponse"];
   onRefreshSessionReadModel?: (
@@ -393,7 +392,7 @@ export function useWorkspaceConversationSceneRuntime({
     onOpenUrlPreview,
     onOpenMessagePreview,
     onSaveMessageAsSkill,
-    onSaveMessageAsKnowledge,
+
     onOpenSubagentSession,
     onPermissionResponse,
     onRefreshSessionReadModel,
@@ -678,7 +677,7 @@ export function useWorkspaceConversationSceneRuntime({
       onOpenUrlPreview,
       onOpenMessagePreview,
       onSaveMessageAsSkill,
-      onSaveMessageAsKnowledge,
+
       onOpenSubagentSession,
       onPermissionResponse,
       promoteActionRequestsToA2UI: Boolean(pendingPromotedA2UIActionRequest),

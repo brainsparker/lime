@@ -353,22 +353,33 @@ describe("AgentChatPage 任务中心初始会话标签", { timeout: 20_000 }, ()
     ).toBeNull();
   });
 
-  it("外部路由带项目时将项目上下文放入共享页头，正文不重复导航栏", async () => {
+  it("外部线程路由带项目时由当前线程页头承接项目动作，正文不重复导航栏", async () => {
     const onNavigate = vi.fn();
     installMockAgentChatUnifiedState(createMockAgentChatUnifiedState());
 
     const mounted = mountPage({
       agentEntry: "claw",
+      initialSessionId: "session-1",
       projectId: "project-default",
       onNavigate,
     });
     await flushEffects();
 
     expect(
+      mounted.container
+        .querySelector('[data-testid="thread-workspace-header"]')
+        ?.getAttribute("data-session-id"),
+    ).toBe("session-1");
+    expect(
       mounted.container.querySelector(
-        '[data-testid="app-shell-header"] [data-testid="chat-navbar"]',
+        '[data-testid="app-shell-header"] [data-testid="thread-workspace-header-tools"] [data-testid="thread-project-selector"]',
       ),
     ).not.toBeNull();
+    expect(
+      mounted.container.querySelectorAll(
+        '[data-testid="thread-project-selector"]',
+      ),
+    ).toHaveLength(1);
     expect(
       mounted.container.querySelector(
         '[data-testid="workspace-main-area"] [data-testid="chat-navbar"]',

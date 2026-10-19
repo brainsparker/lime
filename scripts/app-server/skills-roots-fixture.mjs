@@ -55,11 +55,6 @@ const projectSkill = path.join(
 const peers = [];
 const turns = [];
 const captures = [];
-const importedSources = [];
-const importedWorkspace = process.argv.includes("--scope-import");
-const legacyBinary = importedWorkspace
-  ? process.env.WORKSPACE_LEGACY_BIN?.trim() || undefined
-  : undefined;
 const runFile = promisify(execFile);
 let daemon;
 let daemonExit;
@@ -353,60 +348,6 @@ async function turn(
   turns.push({ threadId, turnId, label });
 }
 
-async function importWorkspace(id) {
-  const root = path.join(temp, "source");
-  const sourcePath = path.join(root, `rollout-${id}.jsonl`);
-  await mkdir(root, { recursive: true });
-  await writeFile(
-    sourcePath,
-    [
-      {
-        timestamp: "2026-06-16T00:00:00Z",
-        type: "session_meta",
-        payload: {
-          id,
-          cwd: workspace,
-          source: "cli",
-          model_provider: "openai",
-          model: fixture.provider.modelPreference,
-        },
-      },
-      {
-        timestamp: "2026-06-16T00:00:01Z",
-        type: "event_msg",
-        payload: {
-          type: "user_message",
-          message: "Preserve imported workspace context.",
-        },
-      },
-    ]
-      .map((record) => JSON.stringify(record))
-      .join("\n") + "\n",
-  );
-  importedSources.push({
-    sourcePath,
-    sha256: createHash("sha256")
-      .update(await readFile(sourcePath))
-      .digest("hex"),
-  });
-  const started = await call("conversationImport/thread/commit", {
-    sourceClient: "codex",
-    sourceRoot: root,
-    sourcePath,
-    confirmed: true,
-  });
-  const deadline = Date.now() + 30_000;
-  while (Date.now() < deadline) {
-    const { job } = await call("conversationImport/job/read", {
-      jobId: started.job.jobId,
-    });
-    assert.notEqual(job.status, "failed", JSON.stringify(job));
-    if (job.status === "completed") return job.result.session.threadId;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  }
-  throw new Error(`import timed out: ${id}`);
-}
-
 try {
   await writeSkill(skill, "watch-root-proof", "EXTRA_BEFORE_WATCH_381");
   await writeSkill(
@@ -414,7 +355,7 @@ try {
     "workspace-watch-proof",
     "PROJECT_BEFORE_WATCH_381",
   );
-  await start(legacyBinary ?? binary);
+  await start();
   const provider = await provisionToolExecutionFixtureProvider({
     fixture,
     invoke: (_options, method, params) => call(method, params),
@@ -423,54 +364,15 @@ try {
     call("skills/extraRoots/set", { extraRoots: [extra] }),
   );
   await assertCatalog("watch-root-proof", "EXTRA_BEFORE_WATCH_381");
-  let threadId;
-  if (importedWorkspace) {
-    threadId = await importWorkspace("workspace-import-proof");
-    await call("thread/settings/update", {
-      threadId,
-      model: provider.modelPreference,
-      modelProvider: provider.providerPreference,
-    });
-    if (legacyBinary) {
-      await stop();
-      peers.length = 0;
-      await start();
-      coldRestarts++;
-      await mutate("reopened process extra roots registration", () =>
-        call("skills/extraRoots/set", { extraRoots: [extra] }),
-      );
-    }
-    const imported = await call("thread/resume", {
-      threadId,
-      excludeTurns: true,
-    });
-    assert.equal(imported.cwd, workspace);
-    assert.equal(imported.thread.extra.cwd, undefined);
-    for (const key of ["importedContinuation", "importedThreadSettings"]) {
-      for (const field of [
-        "cwd",
-        "workingDir",
-        "workspaceRoot",
-        "projectRoot",
-        "runtimeWorkspaceRoots",
-      ])
-        assert.equal(
-          imported.thread.extra[key]?.[field],
-          undefined,
-          key + "." + field,
-        );
-    }
-  } else {
-    const started = await call(
-      "thread/start",
-      buildToolExecutionThreadStartParams({
-        provider,
-        title: "Skills root proof",
-        workspaceRoot: workspace,
-      }),
-    );
-    threadId = started.thread.id;
-  }
+  const started = await call(
+    "thread/start",
+    buildToolExecutionThreadStartParams({
+      provider,
+      title: "Skills root proof",
+      workspaceRoot: workspace,
+    }),
+  );
+  const threadId = started.thread.id;
   await turn(
     threadId,
     "initial snapshot",
@@ -561,17 +463,17 @@ try {
         ["PROJECT_BEFORE_WATCH_381"],
       );
     }
-    if (importedWorkspace && process.argv.includes("--scope-turn")) {
+    if (process.argv.includes("--scope-turn")) {
       await turn(
         threadId,
-        "import roots inherited independently from cwd",
+        "roots inherited independently from cwd",
         ["SELECTED_BEFORE_WATCH_381", "PROJECT_BEFORE_WATCH_381"],
         [],
         { runtimeWorkspaceRoots: [workspace] },
       );
       await turn(
         threadId,
-        "import roots cleared",
+        "roots cleared",
         ["SELECTED_BEFORE_WATCH_381"],
         ["PROJECT_BEFORE_WATCH_381"],
         { runtimeWorkspaceRoots: [] },
@@ -584,7 +486,7 @@ try {
       assert.deepEqual(cleared.thread.extra.runtimeWorkspaceRoots, []);
       await turn(
         threadId,
-        "import cleared roots inherited",
+        "cleared roots inherited",
         ["SELECTED_BEFORE_WATCH_381"],
         ["PROJECT_BEFORE_WATCH_381"],
       );
@@ -627,7 +529,7 @@ try {
       ["SELECTED_AFTER_WATCH_381"],
       ["SELECTED_BEFORE_WATCH_381"],
     );
-    if (process.argv.includes("--scope-turn") || importedWorkspace) {
+    if (process.argv.includes("--scope-turn")) {
       await stop();
       peers.length = 0;
       await start();
@@ -637,10 +539,7 @@ try {
         excludeTurns: true,
       });
       assert.equal(resumed.cwd, selected);
-      assert.deepEqual(
-        resumed.runtimeWorkspaceRoots,
-        importedWorkspace ? [] : [selected],
-      );
+      assert.deepEqual(resumed.runtimeWorkspaceRoots, []);
       await turn(
         threadId,
         "cold workspace snapshot",
@@ -736,14 +635,6 @@ try {
       );
     }
   }
-  for (const source of importedSources)
-    assert.equal(
-      createHash("sha256")
-        .update(await readFile(source.sourcePath))
-        .digest("hex"),
-      source.sha256,
-      "source rollout must remain unchanged",
-    );
   const output = path.resolve(
     process.env.SKILLS_ROOTS_EVIDENCE ??
       ".lime/qc/shared-backend/s09a/skills-roots-runtime.json",
@@ -759,15 +650,6 @@ try {
         notificationsPerConnection: peers.map((peer) => peer.changes),
         turns,
         captures,
-        importedSources,
-        legacyBinary: legacyBinary
-          ? {
-              path: legacyBinary,
-              sha256: createHash("sha256")
-                .update(await readFile(legacyBinary))
-                .digest("hex"),
-            }
-          : null,
         liveProviderUsed: false,
         runtimePromptVerified: true,
         coldRestarts,

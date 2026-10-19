@@ -768,18 +768,6 @@ export interface AppServerClient {
   sendConnectCallback(
     params: protocol.ConnectCallbackSendParams,
   ): protocol.JsonRpcRequest;
-  scanConversationImportSource(
-    params?: protocol.ConversationImportSourceScanParams,
-  ): protocol.JsonRpcRequest;
-  previewConversationImportThread(
-    params: protocol.ConversationImportThreadPreviewParams,
-  ): protocol.JsonRpcRequest;
-  commitConversationImportThread(
-    params: protocol.ConversationImportThreadCommitParams,
-  ): protocol.JsonRpcRequest;
-  readConversationImportJob(
-    params: protocol.ConversationImportJobReadParams,
-  ): protocol.JsonRpcRequest;
   spawnProcess(params: protocol.ProcessSpawnParams): protocol.JsonRpcRequest;
   writeProcessStdin(
     params: protocol.ProcessWriteStdinParams,

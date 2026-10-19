@@ -29,34 +29,6 @@ import { mergeImageWorkbenchPreview } from "./agentChatHistoryProcess";
 import { resolveSessionDetailTurnUsage } from "./agentChatHistoryUsage";
 import { contentPartMetadataFromThreadToolItem } from "./agentChatHistoryReasoning";
 
-function isImportedHistorySession(detail: AgentSessionDetail): boolean {
-  const runtime = detail.execution_runtime;
-  const runtimeRecord =
-    runtime && typeof runtime === "object" && !Array.isArray(runtime)
-      ? (runtime as unknown as Record<string, unknown>)
-      : null;
-  if (
-    readHistoryString(runtimeRecord?.source_client) ||
-    readHistoryString(runtimeRecord?.sourceClient) ||
-    runtimeRecord?.imported_continuation ||
-    runtimeRecord?.importedContinuation ||
-    runtimeRecord?.imported_thread_settings ||
-    runtimeRecord?.importedThreadSettings
-  ) {
-    return true;
-  }
-
-  const threadReadRecord = asHistoryRecord(detail.thread_read);
-  const diagnostics = asHistoryRecord(threadReadRecord?.diagnostics);
-  const runtimeSummary = asHistoryRecord(threadReadRecord?.runtime_summary);
-  return Boolean(
-    readHistoryString(diagnostics?.source_client) ||
-    readHistoryString(diagnostics?.sourceClient) ||
-    readHistoryString(runtimeSummary?.source_client) ||
-    readHistoryString(runtimeSummary?.sourceClient),
-  );
-}
-
 function findLatestFailedRuntimeTurnId(
   detail: AgentSessionDetail,
 ): string | null {
@@ -128,10 +100,6 @@ export function hydrateFailedRuntimeReadModelMessage(
   detail: AgentSessionDetail,
   topicId: string,
 ): Message | null {
-  if (isImportedHistorySession(detail)) {
-    return null;
-  }
-
   const diagnostics = detail.thread_read?.diagnostics;
   if (!isFailedHistoryStatus(diagnostics?.latest_turn_status)) {
     return null;

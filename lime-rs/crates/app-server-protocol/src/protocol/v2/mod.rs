@@ -93,3 +93,6 @@ mod service_tier_tests;
 
 #[cfg(test)]
 mod apps_tests;
+
+#[cfg(test)]
+mod async_user_input_tests;

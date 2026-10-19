@@ -427,6 +427,7 @@ export function createSessionClient(deps: AgentRuntimeSessionClientDeps = {}) {
     forkAgentRuntimeSession,
     getAgentRuntimeSession,
     listAgentRuntimeSessions,
+    listRecentThreads: appServerSessionClient.listRecentThreads,
     unarchiveAgentRuntimeSession,
     updateAgentRuntimeThreadToolPreferences,
   };
@@ -439,6 +440,7 @@ export const {
   forkAgentRuntimeSession,
   getAgentRuntimeSession,
   listAgentRuntimeSessions,
+  listRecentThreads,
   unarchiveAgentRuntimeSession,
   updateAgentRuntimeThreadToolPreferences,
 } = createSessionClient();

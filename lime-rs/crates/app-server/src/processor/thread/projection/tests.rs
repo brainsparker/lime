@@ -2,6 +2,7 @@ use super::*;
 use serde_json::json;
 use std::collections::HashMap;
 
+mod async_user_input;
 mod queue;
 
 #[test]
@@ -168,51 +169,27 @@ fn user_shell_command_metadata_projects_to_the_v2_item() {
 }
 
 #[test]
-fn imported_item_metadata_projects_only_safe_provenance_markers() {
+fn canonical_item_metadata_does_not_cross_the_v2_boundary() {
     let mut thread = canonical_thread(false);
     thread.turns[0].items[0].metadata = json!({
         "imported": true,
-        "imported_read_only": true,
-        "source_client": "codex",
-        "source_event_seq": 9,
-        "source_event_type": "message",
-        "source_thread_id": "source-thread",
-        "source_call_id": "call-9",
-        "source_provenance": {
-            "sourceClient": "codex",
-            "sourceThreadId": "source-thread",
-            "sourceEventType": "response_item",
-            "sourceEventSeq": 8,
-            "sourcePayloadType": "message",
-            "rawPayload": {"secret": "must-not-cross"}
-        },
-        "rawPayload": {"secret": "must-not-cross"}
+        "sourceEventType": "message",
+        "privateAnnotation": "must-not-cross",
+        "sourceProvenance": {"rawPayload": "must-not-cross"}
     });
 
-    let projected = project_thread(thread).expect("project imported metadata");
-    let item = &projected.turns[0].items[0];
-    let v2::ThreadItem::UserMessage { metadata, .. } = item else {
-        panic!("user message item projection");
-    };
-    let metadata = metadata.as_ref().expect("import metadata");
-    assert_eq!(metadata.imported, Some(true));
-    assert_eq!(metadata.imported_read_only, Some(true));
-    assert_eq!(metadata.source_event_seq, Some(9));
-    assert_eq!(metadata.source_thread_id.as_deref(), Some("source-thread"));
+    let projected = project_thread(thread).expect("project user message");
+    let wire =
+        serde_json::to_value(&projected.turns[0].items[0]).expect("serialize public user message");
     assert_eq!(
-        metadata
-            .source_provenance
-            .as_ref()
-            .and_then(|value| value.source_event_seq),
-        Some(8)
+        wire,
+        json!({
+            "type": "userMessage",
+            "id": "item_message-1",
+            "clientId": "client-1",
+            "content": [{"type": "text", "text": "hello"}]
+        })
     );
-
-    let wire = serde_json::to_value(item).expect("serialize imported item");
-    assert_eq!(wire["metadata"]["imported"], true);
-    assert_eq!(wire["metadata"]["sourceEventSeq"], 9);
-    assert_eq!(wire["metadata"]["sourceProvenance"]["sourceEventSeq"], 8);
-    assert!(wire.to_string().contains("source-thread"));
-    assert!(!wire.to_string().contains("must-not-cross"));
 }
 
 #[test]
@@ -506,7 +483,6 @@ fn provider_image_generation_projects_exact_codex_item() {
         projected.turns[0].items[0],
         v2::ThreadItem::ImageGeneration(v2::ImageGenerationItem {
             id: "ig_1".to_string(),
-            metadata: None,
             status: "completed".to_string(),
             revised_prompt: Some("a blue square".to_string()),
             result: "Zm9v".to_string(),

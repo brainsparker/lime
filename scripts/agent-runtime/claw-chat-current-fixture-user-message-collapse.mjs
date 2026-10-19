@@ -696,6 +696,7 @@ export async function runUserMessageCollapseGate({
             error,
             stage,
           ),
+          collapseChecks: error.evidence,
         }),
         configurable: true,
       });
@@ -729,6 +730,7 @@ export async function runRichUserMessageCollapseGate({
   traceCollector,
   expectedText,
   renderedTextParts,
+  renderedTailText,
   headText,
 }) {
   const readModel = summary?.inputbarRichRestoreReadModelCanceled;
@@ -741,6 +743,7 @@ export async function runRichUserMessageCollapseGate({
     text: expectedText,
     renderedText: expectedText,
     renderedTextParts,
+    renderedTailText,
     headText,
     requireAcceptedSubmission: true,
     renderEntryKind: "canonical_turn",
@@ -755,7 +758,10 @@ export async function runRichUserMessageCollapseGate({
       throw new Error(
         "rich UserMessage collapse requires accepted canceled canonical evidence",
       );
-    expected.tailText = expectedText.trimEnd().split(/\s+/u).at(-1);
+    expected.tailText =
+      typeof renderedTailText === "string" && renderedTailText.length > 0
+        ? renderedTailText
+        : expectedText.trimEnd().split(/\s+/u).at(-1);
     return await runUserMessageCollapseGate({
       page,
       options,

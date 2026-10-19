@@ -24,18 +24,11 @@ interface MessageTimelineSectionProps {
   focusedTimelineItemId?: string | null;
   focusRequestKey: number;
   isCurrentTurnSending: boolean;
-  messageId: string;
   onFileClick?: (fileName: string, content: string) => void;
   onOpenArtifactFromTimeline?: (target: ArtifactTimelineOpenTarget) => void;
   onOpenSavedSiteContent?: (target: SiteSavedContentTarget) => void;
   onOpenSubagentSession?: (sessionId: string) => void;
   onPermissionResponse?: (response: ConfirmResponse) => void;
-  onSaveMessageAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   placement: "leading" | "trailing";
   renderCompactPreview?: boolean;
   shouldDeferHistoricalTimelineDetails: boolean;
@@ -51,13 +44,13 @@ export function MessageTimelineSection({
   focusedTimelineItemId,
   focusRequestKey,
   isCurrentTurnSending,
-  messageId,
+
   onFileClick,
   onOpenArtifactFromTimeline,
   onOpenSavedSiteContent,
   onOpenSubagentSession,
   onPermissionResponse,
-  onSaveMessageAsKnowledge,
+
   placement,
   renderCompactPreview = false,
   shouldDeferHistoricalTimelineDetails,
@@ -90,8 +83,6 @@ export function MessageTimelineSection({
         onOpenSavedSiteContent={onOpenSavedSiteContent}
         onOpenSubagentSession={onOpenSubagentSession}
         onPermissionResponse={onPermissionResponse}
-        onSaveFileArtifactAsKnowledge={onSaveMessageAsKnowledge}
-        sourceMessageId={messageId}
         onExpand={() => setExpandedTimelineKey(timelineKey)}
       />
     );
@@ -114,8 +105,6 @@ export function MessageTimelineSection({
       placement={placement}
       onFileClick={onFileClick}
       onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-      sourceMessageId={messageId}
-      onSaveFileArtifactAsKnowledge={onSaveMessageAsKnowledge}
       onOpenSavedSiteContent={onOpenSavedSiteContent}
       onOpenSubagentSession={onOpenSubagentSession}
       onPermissionResponse={onPermissionResponse}

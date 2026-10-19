@@ -5,10 +5,8 @@ fn approvals_reviewer_migration_reopens_archived_rollouts_idempotently() {
     let (_temp, agent_root, store) = store_with_rollout();
     let mut source = thread("reviewer-archived", 1_700_000_000_000);
     source.metadata = json!({
-        "sourceClient":"codex", "sourceThreadId":"original", "approvalsReviewer":null,
-        "importedContinuation":{"approvals_reviewer":"guardian_subagent", "cwd":"/imported"},
-        "importedThreadSettings":{"approvalsReviewer":"user"},
-        "codexMetadata":{"approvalsReviewer":"guardian_subagent"}
+        "approvalsReviewer":null, "approvals_reviewer":"guardian_subagent",
+        "workingDir":"/current", "unrelated":42
     });
     create(&store, &source);
     block_on(store.archive_thread(ArchiveThreadParams {
@@ -33,9 +31,7 @@ fn approvals_reviewer_migration_reopens_archived_rollouts_idempotently() {
     assert_eq!(
         migrated.metadata,
         json!({
-            "sourceClient":"codex", "sourceThreadId":"original", "approvalsReviewer":"auto_review",
-            "workingDir":"/imported", "importedContinuation":{}, "importedThreadSettings":{},
-            "codexMetadata":{"approvalsReviewer":"guardian_subagent"}
+            "approvalsReviewer":"auto_review", "workingDir":"/current", "unrelated":42
         })
     );
     assert_eq!(rollout_lines(&path).len(), before + 1);

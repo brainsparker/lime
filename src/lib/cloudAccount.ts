@@ -2,7 +2,6 @@ import { loginAccount, logoutAccount, readAccount } from "./api/account";
 import { subscribeAppServerNotifications } from "./api/appServerEventBus";
 import type { AppServerAccount } from "./api/appServerTypes";
 import type { OemCloudCurrentSession } from "./api/oemCloudControlPlaneTypes";
-import { cacheOemCloudReferralStateFromBootstrap } from "./oemCloudReferralCache";
 
 export const OEM_CLOUD_BOOTSTRAP_CHANGED_EVENT =
   "lime:oem-cloud-bootstrap-changed";
@@ -190,7 +189,6 @@ export function setOemCloudBootstrapSnapshot(payload: unknown): void {
   } else {
     bootstrap = payload;
   }
-  if (bootstrap) cacheOemCloudReferralStateFromBootstrap(bootstrap);
   emitBootstrapChanged();
 }
 

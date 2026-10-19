@@ -22,8 +22,28 @@ export function useFileTabCloseGuard(
       if (handlers.current.get(tab) === handler) handlers.current.delete(tab);
     };
   }, []);
-  const valid = (tab: ThreadSidePanelTab, handler: FileTabCloseHandler) =>
-    current.current.tabs.includes(tab) && handlers.current.get(tab) === handler;
+  const isTabCurrent = useCallback(
+    (tab: ThreadSidePanelTab) => current.current.tabs.includes(tab),
+    [],
+  );
+  const valid = useCallback(
+    (tab: ThreadSidePanelTab, handler: FileTabCloseHandler) =>
+      current.current.tabs.includes(tab) &&
+      handlers.current.get(tab) === handler,
+    [],
+  );
+  // 文件外部动作与关闭共用同一个save对象；保存结果不得跨内容实例回流。
+  const saveFile = useCallback(
+    async (path: string): Promise<boolean> => {
+      const tab = current.current.tabs.find((entry) => entry.filePath === path);
+      if (!tab) return true;
+      const handler = handlers.current.get(tab);
+      if (!handler) return true;
+      const saved = await handler.saveUntilClean().catch(() => false);
+      return saved && valid(tab, handler);
+    },
+    [valid],
+  );
   const requestClose = async (tabId: string) => {
     const tab = current.current.tabs.find((tab) => tab.tabId === tabId);
     if (!tab || pending.current.has(tab)) return;
@@ -41,6 +61,8 @@ export function useFileTabCloseGuard(
   };
   return {
     register,
+    saveFile,
+    isTabCurrent,
     requestClose: (tabId: string) => {
       void requestClose(tabId);
     },

@@ -90,6 +90,7 @@ async fn repaired_tool_call_keeps_original_model_history_and_executed_projection
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -230,6 +231,7 @@ async fn repaired_tool_call_cancel_wins_over_late_handler_completion() {
                 working_directory: PathBuf::from("."),
                 cancel_token: Some(turn_cancel_token),
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         )
@@ -342,6 +344,7 @@ async fn repaired_tool_call_is_not_replayed_when_next_provider_step_times_out() 
                 working_directory: PathBuf::from("."),
                 cancel_token: None,
                 pending_input: None,
+                mid_turn_compaction: None,
             },
             |_| {},
         ),
@@ -477,6 +480,7 @@ async fn malformed_unknown_and_schema_mismatched_calls_fail_without_reaching_ste
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )

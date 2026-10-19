@@ -47,9 +47,11 @@ use crate::RuntimeCoreError;
 use crate::RuntimeEvent;
 use crate::RuntimeEventSink;
 use agent_runtime::session_loop::RuntimeSessionInputHandle;
+use agent_runtime::turn_executor::TurnProviderConfiguration;
 use lime_agent::{
-    run_agent_turn_with_policy, AgentRuntimeState, AgentTurnExecutionRequest,
-    AgentTurnProviderConfiguration,
+    build_agent_turn_context, run_agent_turn_with_policy, run_direct_text_generation_with_db,
+    AgentRuntimeState, AgentTurnContextConfigurationRequest, AgentTurnExecutionRequest,
+    AgentTurnProviderConfiguration, DirectTextGenerationRequest, ModelRouteProviderConfiguration,
 };
 use lime_core::database::DbConnection;
 use lime_services::api_key_provider_service::ApiKeyProviderService;
@@ -59,6 +61,118 @@ use std::collections::HashSet;
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio_util::sync::CancellationToken;
+
+#[async_trait::async_trait]
+impl crate::MemoryStageOneProvider for RuntimeBackend {
+    async fn sample(
+        &self,
+        request: crate::MemoryStageOneProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        if request.provider.trim().is_empty() || request.model.trim().is_empty() {
+            return Err(RuntimeCoreError::Backend(
+                "memory stage-1 route is missing provider or model".to_string(),
+            ));
+        }
+        let db = initialize_runtime_database(self.db.as_ref())?;
+        let turn_context = build_agent_turn_context(AgentTurnContextConfigurationRequest {
+            cwd: request.cwd,
+            model: Some(request.model.clone()),
+            effort: request.reasoning_effort.clone(),
+            output_schema: Some(request.output_schema),
+            ..Default::default()
+        });
+        let route_configuration = ModelRouteProviderConfiguration {
+            turn_provider: TurnProviderConfiguration::from_model_selection(
+                request.provider,
+                request.model,
+                request.reasoning_effort,
+            ),
+            service_tier: request.service_tier,
+            api_version: request.api_version,
+            route_protocol: Some(request.route_protocol),
+            credential_ref: request.credential_ref.clone(),
+            direct_provider_config: None,
+            auth: model_provider::runtime_provider::RuntimeProviderAuth::ApiKey,
+        };
+        let result = run_direct_text_generation_with_db(
+            &self.agent_state,
+            DirectTextGenerationRequest {
+                session_id: request.session_id.clone(),
+                thread_id: request.thread_id,
+                turn_id: request.turn_id,
+                system_prompt: request.system_prompt,
+                user_prompt: request.user_prompt,
+                turn_context,
+                provider_configuration: Some(route_configuration),
+            },
+            &db,
+        )
+        .await
+        .map_err(RuntimeCoreError::Backend)?;
+        Ok(result.text)
+    }
+}
+
+#[async_trait::async_trait]
+impl crate::MemoryStageTwoProvider for RuntimeBackend {
+    async fn sample(
+        &self,
+        request: crate::MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        if request.provider.trim().is_empty() || request.model.trim().is_empty() {
+            return Err(RuntimeCoreError::Backend(
+                "memory stage-2 route is missing provider or model".to_string(),
+            ));
+        }
+        let db = initialize_runtime_database(self.db.as_ref())?;
+        let turn_context = build_agent_turn_context(AgentTurnContextConfigurationRequest {
+            cwd: request.cwd,
+            model: Some(request.model.clone()),
+            effort: request.reasoning_effort.clone(),
+            output_schema: Some(request.output_schema),
+            ..Default::default()
+        });
+        let route_configuration = ModelRouteProviderConfiguration {
+            turn_provider: TurnProviderConfiguration::from_model_selection(
+                request.provider,
+                request.model,
+                request.reasoning_effort,
+            ),
+            service_tier: request.service_tier,
+            api_version: request.api_version,
+            route_protocol: Some(request.route_protocol),
+            credential_ref: request.credential_ref.clone(),
+            direct_provider_config: None,
+            auth: model_provider::runtime_provider::RuntimeProviderAuth::ApiKey,
+        };
+        let result = run_direct_text_generation_with_db(
+            &self.agent_state,
+            DirectTextGenerationRequest {
+                session_id: request.session_id,
+                thread_id: request.thread_id,
+                turn_id: request.turn_id,
+                system_prompt: request.system_prompt,
+                user_prompt: request.user_prompt,
+                turn_context,
+                provider_configuration: Some(route_configuration),
+            },
+            &db,
+        )
+        .await
+        .map_err(RuntimeCoreError::Backend)?;
+        Ok(result.text)
+    }
+}
+
+fn metadata_string(metadata: Option<&Value>, keys: &[&str]) -> Option<String> {
+    let metadata = metadata?.as_object()?;
+    keys.iter()
+        .filter_map(|key| metadata.get(*key))
+        .find_map(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToString::to_string)
+}
 
 mod request_context;
 
@@ -565,6 +679,7 @@ impl RuntimeBackend {
                     command_publisher: request.command_publisher.clone(),
                     pending_input: pending_input.clone(),
                     cancellation_token: cancellation_token.clone(),
+                    mid_turn_compaction_commit: request.mid_turn_compaction_commit.clone(),
                 },
                 |event| {
                     if let lime_agent::AgentEvent::Done { usage } = event {

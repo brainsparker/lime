@@ -158,7 +158,7 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       onOpenUrlPreview: overrides.handleOpenUrlPreview,
       onOpenMessagePreview: overrides.handleOpenMessagePreview,
       onSaveMessageAsSkill: overrides.handleSaveMessageAsSkill,
-      onSaveMessageAsKnowledge: overrides.handleSaveMessageAsKnowledge,
+
       onOpenSubagentSession: overrides.handleOpenSubagentSession ?? noop,
       onPermissionResponse: overrides.handlePermissionResponse ?? noop,
       onRefreshSessionReadModel: overrides.onRefreshSessionReadModel,

@@ -7,7 +7,6 @@ use serde_json::json;
 fn reasoning(id: &str, parts: &[&str]) -> ThreadItem {
     ThreadItem::Reasoning {
         id: id.into(),
-        metadata: None,
         summary: parts.iter().map(|part| (*part).to_string()).collect(),
         content: vec!["RAW_MUST_STAY_HIDDEN".into()],
     }

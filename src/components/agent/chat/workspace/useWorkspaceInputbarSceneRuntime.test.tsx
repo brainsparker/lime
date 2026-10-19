@@ -14,6 +14,7 @@ const mockInputbarRender = vi.hoisted(() => vi.fn());
 const mockPendingInteractionRuntime = vi.hoisted(() => ({
   interactions: [] as unknown[],
   respond: vi.fn(() => ({ accepted: true })),
+  dismiss: vi.fn(async () => ({ accepted: true })),
 }));
 const mockStrictReviewRuntime = vi.hoisted(() => ({
   status: null as null | {
@@ -68,8 +69,6 @@ vi.mock("./knowledge/useWorkspaceKnowledgeRuntime", () => ({
     onToggleKnowledgeCompanionPack: vi.fn(),
     onStartKnowledgeOrganize: vi.fn(),
     onManageKnowledgePacks: vi.fn(),
-    onImportPathReferenceAsKnowledge: vi.fn(),
-    onImportTextAsKnowledge: vi.fn(),
   }),
 }));
 
@@ -279,6 +278,8 @@ beforeEach(async () => {
     }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   mockPendingInteractionRuntime.interactions = [];
+  mockPendingInteractionRuntime.dismiss.mockClear();
+  mockPendingInteractionRuntime.respond.mockClear();
   mockStrictReviewRuntime.status = null;
   await changeLimeLocale("zh-CN");
 });
@@ -369,6 +370,50 @@ describe("useWorkspaceInputbarSceneRuntime", () => {
     expect(
       container.querySelector('[data-testid="inputbar-approval-replacement"]'),
     ).toBeNull();
+  });
+
+  it("同步问答关闭只透传 semantic interaction identity 给 scoped 中断 owner", async () => {
+    const interactionId = "request_user_input:thread-1:turn-1:item-1";
+    mockPendingInteractionRuntime.interactions = [
+      {
+        id: interactionId,
+        thread_id: "thread-1",
+        turn_id: "turn-1",
+        kind: "request_user_input",
+        status: "pending",
+        payload: {
+          request: {
+            requestId: "item-1",
+            actionType: "ask_user",
+            scope: { threadId: "thread-1", turnId: "turn-1" },
+            questions: [
+              {
+                id: "mode",
+                question: "请选择模式",
+                options: [{ label: "自动", description: "继续" }],
+              },
+            ],
+          },
+        },
+      },
+    ];
+    const stop = vi.fn();
+    const container = renderHookNode(
+      createDefaultProps({
+        threadId: "thread-1",
+        handleStopSending: stop,
+      }),
+    );
+    const close = container.querySelector<HTMLButtonElement>(
+      '[aria-label="关闭问题"]',
+    );
+    expect(close).not.toBeNull();
+    await act(async () => close?.click());
+    expect(
+      mockPendingInteractionRuntime.dismiss,
+    ).toHaveBeenCalledExactlyOnceWith(interactionId);
+    expect(mockPendingInteractionRuntime.respond).not.toHaveBeenCalled();
+    expect(stop).not.toHaveBeenCalled();
   });
 
   it("active reverse request 应独占 action slot，不再把 Plan 决策面板挂在其下方", () => {

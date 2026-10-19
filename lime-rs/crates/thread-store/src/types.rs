@@ -475,6 +475,8 @@ mod tests {
                     text: "canonical".to_string(),
                     phase: None,
                     content_parts: Vec::new(),
+                    delivery: None,
+                    questions: None,
                 },
             )],
         };

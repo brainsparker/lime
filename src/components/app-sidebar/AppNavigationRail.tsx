@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
 import styled from "styled-components";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 // D2o: 36px control with 8px horizontal gutters; the rail stays on collapse.
 const Rail = styled.nav`
@@ -61,6 +66,21 @@ export const NavigationRailButton = styled.button<{ $active?: boolean }>`
     height: 20px;
   }
 `;
+
+export function NavigationRailTooltip({
+  children,
+  label,
+}: {
+  children: ReactNode;
+  label: string;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
 
 export function AppNavigationRail({
   children,

@@ -263,6 +263,7 @@ pub(super) fn selected_agent_control_fork_history(
                             text,
                             phase,
                             content_parts,
+                            ..
                         } if matches!(
                             phase,
                             Some(agent_protocol::response_item::MessagePhase::FinalAnswer)

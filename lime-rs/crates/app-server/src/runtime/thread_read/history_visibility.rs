@@ -129,6 +129,8 @@ impl RuntimeCore {
         )
         .await?;
         let execution = self.thread_execution_state(thread_id.as_str()).await?;
+        self.refresh_terminal_turns(&thread_id, &mut page.data, &execution)
+            .await?;
         normalize_turn_runtime_snapshots(&mut page.data, &execution);
         Ok(ThreadTurnsListResponse {
             data: page.data,

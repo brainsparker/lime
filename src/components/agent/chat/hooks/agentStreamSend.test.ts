@@ -25,6 +25,64 @@ describe("sendAgentStreamMessage", () => {
       ...overrides,
     }) as never;
 
+  it("真实 ensureSession 返回后、模型同步和乐观准备前移交创建身份", async () => {
+    const order: string[] = [];
+    const onSessionReady = vi.fn((sessionId: string) => order.push(sessionId));
+    const env = createEnv({
+      sessionIdRef: { current: null },
+      ensureSession: vi.fn(async () => {
+        order.push("create");
+        return "session-created";
+      }),
+      waitForSessionProviderSelectionSync: vi.fn(async () => {
+        order.push("model-sync");
+      }),
+    });
+    vi.mocked(prepareAgentStreamUserInputSend).mockImplementation(() => {
+      order.push("prepare");
+      return {} as never;
+    });
+    await sendAgentStreamMessage({
+      content: "/goal 目标",
+      images: [],
+      options: { observer: { onSessionReady } },
+      env,
+    });
+    expect(order).toEqual([
+      "create",
+      "session-created",
+      "model-sync",
+      "prepare",
+    ]);
+    expect(onSessionReady).toHaveBeenCalledOnce();
+  });
+
+  it("会话身份 observer 异常不阻断真实发送", async () => {
+    const error = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    try {
+      await sendAgentStreamMessage({
+        content: "继续",
+        images: [],
+        env: createEnv(),
+        options: {
+          observer: {
+            onSessionReady: () => {
+              throw new Error("observer failed");
+            },
+          },
+        },
+      });
+      expect(dispatchPreparedAgentStreamSend).toHaveBeenCalledOnce();
+      expect(error).toHaveBeenCalledWith(
+        "[AgentStream] session readiness observer failed",
+      );
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("应串起 prepare 与 dispatch", async () => {
     const env = createEnv();
     const preparedSend = { prepared: true };

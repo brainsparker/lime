@@ -63,6 +63,7 @@ pub(super) fn chat_completions_request(
     apply_generation_options(&mut object, request, "max_tokens", false);
     apply_chat_reasoning_effort(&mut object, config);
     apply_service_tier(&mut object, config);
+    apply_chat_structured_output(&mut object, request)?;
     if let Some(enable_thinking) = request
         .provider_options
         .get("enable_thinking")
@@ -151,6 +152,7 @@ pub(super) fn responses_request(
     apply_generation_options(&mut object, request, "max_output_tokens", false);
     apply_responses_reasoning(&mut object, config, wire_shape);
     apply_text_verbosity(&mut object, wire_shape);
+    apply_responses_structured_output(&mut object, request, wire_shape)?;
     apply_service_tier(&mut object, config);
     if let Some(session_id) = responses_prompt_cache_key(config, request) {
         object.insert("prompt_cache_key".to_string(), Value::String(session_id));
@@ -268,7 +270,106 @@ pub(super) fn anthropic_request(
         );
     }
     apply_generation_options(&mut object, request, "max_tokens", true);
+    apply_anthropic_structured_output(&mut object, request)?;
     Ok(Value::Object(object))
+}
+
+fn normalized_output_schema(request: &CanonicalRequest) -> Option<&Value> {
+    let value = request.output_schema.as_ref()?;
+    if value.get("type").and_then(Value::as_str) == Some("json_schema") {
+        value.get("schema").or(Some(value))
+    } else {
+        Some(value)
+    }
+}
+
+fn output_schema_name(schema: &Value) -> String {
+    schema
+        .get("title")
+        .and_then(Value::as_str)
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("structured_output")
+        .chars()
+        .map(|character| {
+            if character.is_ascii_alphanumeric() || character == '_' || character == '-' {
+                character
+            } else {
+                '_'
+            }
+        })
+        .collect()
+}
+
+fn apply_chat_structured_output(
+    object: &mut Map<String, Value>,
+    request: &CanonicalRequest,
+) -> Result<(), super::CurrentProviderError> {
+    let Some(schema) = normalized_output_schema(request) else {
+        return Ok(());
+    };
+    object.insert(
+        "response_format".to_string(),
+        json!({
+            "type": "json_schema",
+            "json_schema": {
+                "name": output_schema_name(schema),
+                "strict": request.output_schema_strict,
+                "schema": schema,
+            }
+        }),
+    );
+    Ok(())
+}
+
+fn apply_responses_structured_output(
+    object: &mut Map<String, Value>,
+    request: &CanonicalRequest,
+    wire_shape: &RuntimeReplyProviderRequestWireShape,
+) -> Result<(), super::CurrentProviderError> {
+    let Some(schema) = normalized_output_schema(request) else {
+        return Ok(());
+    };
+    let mut text = object
+        .remove("text")
+        .and_then(|value| value.as_object().cloned())
+        .unwrap_or_default();
+    text.insert(
+        "format".to_string(),
+        json!({
+            "type": "json_schema",
+            "name": output_schema_name(schema),
+            "strict": request.output_schema_strict,
+            "schema": schema,
+        }),
+    );
+    if let Some(verbosity) = wire_shape
+        .text_verbosity
+        .as_deref()
+        .filter(|verbosity| matches!(*verbosity, "low" | "medium" | "high"))
+    {
+        text.insert("verbosity".to_string(), json!(verbosity));
+    }
+    object.insert("text".to_string(), Value::Object(text));
+    Ok(())
+}
+
+fn apply_anthropic_structured_output(
+    object: &mut Map<String, Value>,
+    request: &CanonicalRequest,
+) -> Result<(), super::CurrentProviderError> {
+    let Some(schema) = normalized_output_schema(request) else {
+        return Ok(());
+    };
+    object.insert(
+        "output_config".to_string(),
+        json!({
+            "format": {
+                "type": "json_schema",
+                "schema": schema,
+            }
+        }),
+    );
+    Ok(())
 }
 
 fn apply_generation_options(

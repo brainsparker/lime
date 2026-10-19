@@ -6,13 +6,7 @@ import {
   type MouseEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import {
-  FileInput,
-  FolderPlus,
-  MessageSquarePlus,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { FolderPlus, MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
 import type {
   AgentSessionInfo,
   AgentSessionSection,
@@ -45,13 +39,14 @@ import {
 import { resolveSidebarFloatingMenuPosition } from "@/components/app-sidebar/sidebarFloatingMenuPosition";
 import { PINNED_THREAD_SECTION } from "@/lib/api/threadSections";
 import { useAppSidebarThreadSections } from "@/components/app-sidebar/useAppSidebarThreadSections";
+import { AppSidebarSection } from "./AppSidebarSection";
+import { useSidebarSections } from "./useSidebarSections";
+import { buildVisibleSidebarSessions } from "./sidebarSessions";
+import { SIDEBAR_RECENT_SESSION_PAGE_SIZE } from "./AppSidebar.constants";
 import {
   ConversationActionButton,
   ConversationList,
-  ConversationSection,
   ConversationSectionActions,
-  ConversationSectionHeader,
-  ConversationSectionTitle,
   ConversationShelf,
 } from "@/components/app-sidebar/AppSidebarConversationShelf.styles";
 
@@ -65,7 +60,6 @@ interface AppSidebarConversationShelfProps {
   hasMoreRecent: boolean;
   actionSessionId: string | null;
   onCreateConversation: (project?: SidebarOpenedProjectSummary) => void;
-  onImportConversation?: (project?: SidebarOpenedProjectSummary) => void;
   onNavigateToConversation: (session: AgentSessionInfo) => void;
   onRenameConversation?: (session: AgentSessionInfo) => void;
   onDeleteConversation?: (session: AgentSessionInfo) => void;
@@ -148,7 +142,6 @@ export function AppSidebarConversationShelf({
   hasMoreRecent,
   actionSessionId,
   onCreateConversation,
-  onImportConversation,
   onNavigateToConversation,
   onRenameConversation,
   onDeleteConversation,
@@ -198,6 +191,38 @@ export function AppSidebarConversationShelf({
       }),
     [openedProjects, recentSessions, threadSectionCatalog],
   );
+  const displayedThreadSections =
+    activeConversationGroups.threadSections.filter(
+      ({ section, sessions }) =>
+        section.id !== PINNED_THREAD_SECTION.id || sessions.length > 0,
+    );
+  const sectionKeyFor = (section: AgentSessionSection) =>
+    section.id === PINNED_THREAD_SECTION.id ? "pinned" : `custom:${section.id}`;
+  const sections = useSidebarSections([
+    "threads",
+    ...displayedThreadSections.map(({ section }) => sectionKeyFor(section)),
+    "chats",
+  ]);
+  const sectionProps = (sectionKey: string) => ({
+    sectionKey,
+    collapsed: sections.isCollapsed(sectionKey),
+    onToggleCollapsed: () => sections.toggleCollapsed(sectionKey),
+    onReorder: sections.reorder,
+    onMove: (direction: -1 | 1) => sections.move(sectionKey, direction),
+  });
+  const [recentVisibleCount, setRecentVisibleCount] = useState(
+    SIDEBAR_RECENT_SESSION_PAGE_SIZE,
+  );
+  const visibleStandaloneSessions = buildVisibleSidebarSessions({
+    sessions: activeConversationGroups.standaloneSessions,
+    currentSessionId,
+    limit: recentVisibleCount,
+    hasMore: hasMoreRecent,
+  });
+  const showMoreRecent = useCallback(() => {
+    setRecentVisibleCount((count) => count + SIDEBAR_RECENT_SESSION_PAGE_SIZE);
+    onShowMoreRecent();
+  }, [onShowMoreRecent]);
   const [menuState, setMenuState] = useState<ConversationMenuState>(null);
   const [projectMenuState, setProjectMenuState] =
     useState<ProjectMenuState>(null);
@@ -316,14 +341,6 @@ export function AppSidebarConversationShelf({
   const newProjectConversationLabel = t(
     "navigation.sidebar.conversations.newProjectConversation",
     "在此项目新建对话",
-  );
-  const importConversationLabel = t(
-    "navigation.sidebar.conversations.importConversation",
-    "Import Conversation",
-  );
-  const importProjectConversationLabel = t(
-    "navigation.sidebar.conversations.importProjectConversation",
-    "Import Conversation",
   );
   const loadingRecentLabel = t(
     "navigation.sidebar.conversations.loadingRecent",
@@ -454,25 +471,19 @@ export function AppSidebarConversationShelf({
     );
   };
 
-  const threadSections = activeConversationGroups.threadSections
-    .filter(
-      ({ section, sessions }) =>
-        section.id !== PINNED_THREAD_SECTION.id || sessions.length > 0,
-    )
-    .map(({ section, sessions }) => (
-      <ConversationSection
-        key={section.id}
-        $compact
-        data-testid="app-sidebar-thread-section"
-        data-section-id={section.id}
-      >
-        <ConversationSectionHeader>
-          <ConversationSectionTitle>
-            {section.id === PINNED_THREAD_SECTION.id
-              ? pinnedTitleLabel
-              : section.name}
-          </ConversationSectionTitle>
-          {section.id !== PINNED_THREAD_SECTION.id ? (
+  const threadSections = displayedThreadSections.map(
+    ({ section, sessions }) => (
+      <AppSidebarSection
+        key={sectionKeyFor(section)}
+        {...sectionProps(sectionKeyFor(section))}
+        threadSectionId={section.id}
+        title={
+          section.id === PINNED_THREAD_SECTION.id
+            ? pinnedTitleLabel
+            : section.name
+        }
+        actions={
+          section.id !== PINNED_THREAD_SECTION.id ? (
             <ConversationSectionActions>
               <ConversationActionButton
                 type="button"
@@ -519,21 +530,18 @@ export function AppSidebarConversationShelf({
                 <Trash2 />
               </ConversationActionButton>
             </ConversationSectionActions>
-          ) : null}
-        </ConversationSectionHeader>
+          ) : null
+        }
+      >
         <ConversationList>
           {sessions.map((session) => renderConversationRow(session))}
         </ConversationList>
-      </ConversationSection>
-    ));
+      </AppSidebarSection>
+    ),
+  );
 
   const projectsSection = (
-    <ConversationSection>
-      <ConversationSectionHeader>
-        <ConversationSectionTitle>
-          {projectsTitleLabel}
-        </ConversationSectionTitle>
-      </ConversationSectionHeader>
+    <AppSidebarSection {...sectionProps("threads")} title={projectsTitleLabel}>
       <ConversationList data-testid="app-sidebar-project-conversations">
         {recentLoading ? (
           <AppSidebarConversationEmptyState text={loadingRecentLabel} />
@@ -571,15 +579,14 @@ export function AppSidebarConversationShelf({
           />
         )}
       </ConversationList>
-    </ConversationSection>
+    </AppSidebarSection>
   );
 
   const conversationsSection = (
-    <ConversationSection>
-      <ConversationSectionHeader>
-        <ConversationSectionTitle>
-          {standaloneTitleLabel}
-        </ConversationSectionTitle>
+    <AppSidebarSection
+      {...sectionProps("chats")}
+      title={standaloneTitleLabel}
+      actions={
         <ConversationSectionActions>
           <ConversationActionButton
             type="button"
@@ -591,17 +598,6 @@ export function AppSidebarConversationShelf({
           >
             <FolderPlus />
           </ConversationActionButton>
-          {onImportConversation ? (
-            <ConversationActionButton
-              type="button"
-              onClick={() => onImportConversation()}
-              aria-label={importConversationLabel}
-              title={importConversationLabel}
-              data-testid="app-sidebar-import-conversation-button"
-            >
-              <FileInput />
-            </ConversationActionButton>
-          ) : null}
           <ConversationActionButton
             type="button"
             onClick={() => onCreateConversation()}
@@ -612,33 +608,47 @@ export function AppSidebarConversationShelf({
             <MessageSquarePlus />
           </ConversationActionButton>
         </ConversationSectionActions>
-      </ConversationSectionHeader>
+      }
+    >
       <ConversationList data-testid="app-sidebar-recent-conversations">
         {recentLoading ? (
           <AppSidebarConversationEmptyState text={loadingRecentLabel} />
-        ) : activeConversationGroups.standaloneSessions.length > 0 ? (
-          activeConversationGroups.standaloneSessions.map((session) =>
+        ) : visibleStandaloneSessions.length > 0 ? (
+          visibleStandaloneSessions.map((session) =>
             renderConversationRow(session),
           )
         ) : (
           <AppSidebarConversationEmptyState text={emptyStandaloneLabel} />
         )}
-        {hasMoreRecent ? (
+        {hasMoreRecent ||
+        activeConversationGroups.standaloneSessions.length >
+          recentVisibleCount ? (
           <AppSidebarLoadMore
-            itemCount={recentSessions.length}
+            mode={
+              sections.orderedKeys.at(-1) === "chats"
+                ? "infiniteScroll"
+                : "button"
+            }
+            itemCount={visibleStandaloneSessions.length}
             label={moreRecentLabel}
-            onLoadMore={onShowMoreRecent}
+            onLoadMore={showMoreRecent}
           />
         ) : null}
       </ConversationList>
-    </ConversationSection>
+    </AppSidebarSection>
   );
 
   return (
     <ConversationShelf data-testid="app-sidebar-conversation-shelf">
-      {threadSections}
-      {projectsSection}
-      {conversationsSection}
+      {sections.orderedKeys.map((key) => (
+        <div className="contents" key={key}>
+          {key === "threads"
+            ? projectsSection
+            : key === "chats"
+              ? conversationsSection
+              : threadSections.find((section) => section.key === key)}
+        </div>
+      ))}
 
       <AppSidebarConversationMenus
         conversationMenuState={menuState}
@@ -655,7 +665,6 @@ export function AppSidebarConversationShelf({
         onCreateProjectWorktree={onCreateProjectWorktree}
         onRenameProject={onRenameProject}
         onRemoveProject={onRemoveProject}
-        onImportConversation={onImportConversation}
         threadSections={activeConversationGroups.threadSections.map(
           ({ section }) => section,
         )}
@@ -684,12 +693,6 @@ export function AppSidebarConversationShelf({
           unpin: projectUnpinActionLabel,
           reveal: projectRevealActionLabel,
           createWorktree: projectWorktreeActionLabel,
-          importConversation: importProjectConversationLabel,
-          importConversationFor: (title) =>
-            t("navigation.sidebar.conversations.importProjectConversationFor", {
-              title,
-              defaultValue: "Import local history to {{title}}",
-            }),
           rename: projectRenameActionLabel,
           remove: projectRemoveActionLabel,
         }}

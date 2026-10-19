@@ -89,12 +89,6 @@ export interface MessageListProps {
     content: string;
   }) => void;
   /** 将助手结果保存到项目资料 */
-  onSaveMessageAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
   /** 打开子代理会话 */
   onOpenSubagentSession?: (sessionId: string) => void;
   /** 权限确认响应回调 */

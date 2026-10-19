@@ -13,6 +13,10 @@ use super::workflow::cancel::workflow_cancel_events_from_audit_records;
 use super::workflow::events::{WORKFLOW_RUN_RESUMING, WORKFLOW_STEP_RESUMING};
 use super::*;
 use agent_protocol::{ItemStatus, ThreadId, ThreadItem, ThreadItemPayload, ThreadTurnsView};
+use agent_runtime::provider_turn::{
+    RuntimeMidTurnCompactionCommit, RuntimeMidTurnCompactionCommitFuture,
+    RuntimeMidTurnCompactionRequest, RuntimeMidTurnCompactionResult,
+};
 use agent_runtime::session_loop::{
     RuntimeSessionClosureTask, RuntimeSessionHandle, RuntimeSessionInput,
     RuntimeSessionInputHandle, RuntimeSessionLoopError, RuntimeSessionOperation,
@@ -867,6 +871,138 @@ impl AppendingRuntimeEventSink<'_> {
 }
 
 impl RuntimeCore {
+    fn same_turn_compaction_commit(
+        &self,
+        session_id: &str,
+        thread_id: &str,
+        turn_id: &str,
+    ) -> agent_runtime::provider_turn::RuntimeMidTurnCompactionCommitHandle {
+        agent_runtime::provider_turn::RuntimeMidTurnCompactionCommitHandle::new(Arc::new(
+            RuntimeCoreMidTurnCompactionCommit {
+                runtime: self.clone(),
+                session_id: session_id.to_string(),
+                thread_id: thread_id.to_string(),
+                turn_id: turn_id.to_string(),
+            },
+        ))
+    }
+
+    async fn commit_same_turn_compaction(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        summary: String,
+        session_id: &str,
+        thread_id: &str,
+        turn_id: &str,
+    ) -> Result<RuntimeMidTurnCompactionResult, String> {
+        let (session, turns, events) = {
+            let state = self
+                .state
+                .lock()
+                .map_err(|_| "runtime core state mutex poisoned".to_string())?;
+            let stored = state
+                .sessions
+                .get(session_id)
+                .ok_or_else(|| format!("session not found: {session_id}"))?;
+            (
+                stored.session.clone(),
+                stored.turns.clone(),
+                stored.events.clone(),
+            )
+        };
+        let covered = events
+            .last()
+            .map(|event| event.sequence)
+            .unwrap_or_default();
+        if session.thread_id != thread_id {
+            return Err(format!(
+                "same-turn compaction thread mismatch: expected {}, got {}",
+                session.thread_id, thread_id
+            ));
+        }
+        let compaction_id = format!("mid-turn-{turn_id}-{covered}");
+        let compaction = super::context_compaction::build_session_context_compaction(
+            &session,
+            &turns,
+            &events,
+            covered,
+            &compaction_id,
+            &summary,
+            self.sidecar_store.as_deref(),
+        )
+        .map_err(|error| error.to_string())?;
+        let result_compaction_id = compaction.compaction_id.clone();
+        let payload = json!({
+            "source": "turn/continuation",
+            "eventName": "turn/continuation:autoCompact",
+            "compactionId": compaction.compaction_id.clone(),
+            "contextEpoch": compaction.context_epoch,
+            "coveredThroughSequence": compaction.covered_through_sequence,
+            "replacementHistory": compaction.window.replacement_history.clone(),
+            "windowNumber": compaction.window.window_number,
+            "firstWindowId": compaction.window.first_window_id.clone(),
+            "previousWindowId": compaction.window.previous_window_id.clone(),
+            "windowId": compaction.window.window_id.clone(),
+            "trigger": "context_limit",
+            "summary": compaction.summary.clone(),
+            "artifact": compaction.artifact,
+        });
+        self.event_appender()
+            .append_external_runtime_events(
+                session_id,
+                Some(turn_id),
+                vec![RuntimeEvent::new("context.compaction.completed", payload)],
+            )
+            .map_err(|error| error.to_string())?;
+        let mut messages = vec![
+            model_provider::current_client::CurrentProviderMessage::user(vec![
+                model_provider::current_client::CurrentProviderContent::Text(summary),
+            ]),
+        ];
+        messages.extend(
+            request
+                .messages
+                .into_iter()
+                .skip(request.history_prefix_len),
+        );
+        Ok(RuntimeMidTurnCompactionResult {
+            messages,
+            history_prefix_len: 1,
+            compaction_id: result_compaction_id,
+            context_epoch: compaction.context_epoch,
+            covered_through_sequence: compaction.covered_through_sequence,
+        })
+    }
+}
+
+struct RuntimeCoreMidTurnCompactionCommit {
+    runtime: RuntimeCore,
+    session_id: String,
+    thread_id: String,
+    turn_id: String,
+}
+
+impl RuntimeMidTurnCompactionCommit for RuntimeCoreMidTurnCompactionCommit {
+    fn commit(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        summary: String,
+    ) -> RuntimeMidTurnCompactionCommitFuture<'_> {
+        Box::pin(async move {
+            self.runtime
+                .commit_same_turn_compaction(
+                    request,
+                    summary,
+                    &self.session_id,
+                    &self.thread_id,
+                    &self.turn_id,
+                )
+                .await
+        })
+    }
+}
+
+impl RuntimeCore {
     pub async fn start_turn<P>(
         &self,
         params: P,
@@ -1340,6 +1476,7 @@ impl RuntimeCore {
                     turn_id: turn.turn_id.clone(),
                 },
             )),
+            mid_turn_compaction_commit: None,
         };
         let effective_runtime_options = self
             .backend
@@ -1855,12 +1992,14 @@ impl RuntimeCore {
 
     async fn submit_backend_via_session_loop(
         &self,
-        request: ExecutionRequest,
+        mut request: ExecutionRequest,
         provider_history: super::provider_history::ProviderTurnHistory,
     ) -> Result<SubmittedRuntimeSessionTurn, RuntimeCoreError> {
         let session_id = request.session.session_id.clone();
         let thread_id = request.session.thread_id.clone();
         let turn_id = request.turn.turn_id.clone();
+        request.mid_turn_compaction_commit =
+            Some(self.same_turn_compaction_commit(&session_id, &thread_id, &turn_id));
         let queue_if_busy = request.queue_if_busy;
         let (client_user_message_id, trace) =
             super::session_submission::metadata(request.runtime_metadata());

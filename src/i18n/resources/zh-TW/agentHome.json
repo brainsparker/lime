@@ -10,6 +10,5 @@
   "agentChat.home.composer.pathReferenceFallbackPrompt": "請查看這些檔案或資料夾。",
   "agentChat.home.hero.eyebrow": "創作",
   "agentChat.home.hero.slogan": "青檸一下，靈感即來",
-  "agentChat.home.hero.description": "說一句目標，Lime 就接著幫你做。",
-  "agentChat.home.curatedTask.reviewSuggestionPrefillHint": "已按最近判斷切到更適合的結果模板，你可以繼續修改後再進入生成。"
+  "agentChat.home.hero.description": "說一句目標，Lime 就接著幫你做。"
 }

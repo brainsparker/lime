@@ -22,6 +22,11 @@
       "$ref": "#/$defs/MemoryStoreScope",
       "default": "global"
     },
+    "sessionId": {
+      "default": "",
+      "description": "Canonical root session whose current provider route owns consolidation sampling.",
+      "type": "string"
+    },
     "workspaceRoot": {
       "type": [
         "null",

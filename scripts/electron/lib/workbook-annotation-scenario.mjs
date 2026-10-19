@@ -191,17 +191,7 @@ export async function runWorkbookAnnotationScenario({
   });
   // 通过真实设置路由卸载 Workspace，返回后仍由同一应用 scope 保留批注。
   const originalComposer = await composer.elementHandle();
-  const settings = page.getByTestId("app-sidebar-nav-settings");
-  if (await settings.isVisible()) await settings.click();
-  else {
-    await page.getByTestId("app-sidebar-account-button").click();
-    await page
-      .getByTestId("app-sidebar-account-menu")
-      .getByRole("button", {
-        name: /模型设置|AI 服务商|AI Providers|Model Settings/,
-      })
-      .click();
-  }
+  await page.getByTestId("app-sidebar-nav-settings").click();
   await page.getByTestId("settings-navigation").waitFor({ state: "visible" });
   await composer.waitFor({ state: "detached" });
   assert.ok(originalComposer);

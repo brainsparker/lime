@@ -129,6 +129,56 @@ async fn model_switch_preflight_requires_ready_catalog_model_and_supported_effor
 }
 
 #[tokio::test]
+async fn memory_stage1_route_uses_current_session_selection_and_fails_closed_on_switch() {
+    let (backend, provider_id) = configured_model_switch_backend();
+    let mut session = request_for_test("memory route", None, None).session;
+    session.business_object_ref = Some(app_server_protocol::BusinessObjectRef {
+        kind: "agent.thread".to_string(),
+        id: session.thread_id.clone(),
+        title: None,
+        uri: None,
+        metadata: Some(serde_json::json!({
+            "providerSelector": provider_id,
+            "providerName": "openai",
+            "modelName": CANONICAL_CHAT_MODEL,
+            "workingDir": "/tmp/memory-route"
+        })),
+    });
+
+    let route = backend
+        .resolve_memory_stage1_route(&session)
+        .await
+        .expect("current session route should be admitted");
+    assert_eq!(route.model, CANONICAL_CHAT_MODEL);
+    assert_eq!(
+        route.cwd.as_deref(),
+        Some(std::path::Path::new("/tmp/memory-route"))
+    );
+    assert!(matches!(
+        route.route_protocol,
+        app_server_protocol::ProtocolKind::OpenaiChat
+            | app_server_protocol::ProtocolKind::OpenaiResponses
+            | app_server_protocol::ProtocolKind::CodexResponses
+    ));
+
+    let metadata = session
+        .business_object_ref
+        .as_mut()
+        .and_then(|reference| reference.metadata.as_mut())
+        .expect("session route metadata");
+    metadata["modelName"] = serde_json::json!("missing-model");
+    let switched = backend
+        .resolve_memory_stage1_route(&session)
+        .await
+        .expect_err("a switched model without readiness must fail closed");
+    assert!(matches!(
+        switched,
+        RuntimeCoreError::PendingRoute { reason_code, .. }
+            if reason_code == "model_registry_metadata_missing"
+    ));
+}
+
+#[tokio::test]
 async fn prepared_route_pins_the_round_robin_credential_for_execution() {
     let connection = rusqlite::Connection::open_in_memory().expect("open database");
     lime_core::database::schema::create_tables(&connection).expect("create schema");
@@ -439,10 +489,8 @@ fn host_provider_config_without_direct_credentials_stays_database_backed() {
 }
 
 #[test]
-fn imported_session_source_model_is_not_session_default_route() {
-    let request = imported_request_with_session_metadata(json!({
-        "providerName": "openai",
-        "modelName": "gpt-5.5",
+fn nested_metadata_is_not_a_session_default_route() {
+    let request = request_with_session_metadata(json!({
         "sourceClient": "codex",
         "importedContinuation": {
             "modelProvider": "openai",
@@ -454,8 +502,8 @@ fn imported_session_source_model_is_not_session_default_route() {
 }
 
 #[test]
-fn imported_session_current_provider_selector_remains_session_default_route() {
-    let request = imported_request_with_session_metadata(json!({
+fn current_provider_selector_remains_the_session_default_route() {
+    let request = request_with_session_metadata(json!({
         "providerSelector": "custom-current-provider",
         "providerName": "openai",
         "modelName": "gpt-5.5",

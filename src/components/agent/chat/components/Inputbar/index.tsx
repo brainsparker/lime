@@ -1,4 +1,5 @@
 import { ArtifactAnnotationComposerAccessory } from "@/components/artifact/annotations/ArtifactAnnotationComposerAccessory";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type {
   ComposerDraftCoordinator,
   ComposerDraftCapture,
@@ -107,7 +108,6 @@ interface InputbarProps extends SkillSelectionSourceProps {
   onAddPathReferences?: (references: MessagePathReference[]) => void;
   inputRestoreRequest?: ScopedComposerRestoreRequest | null;
   onInputRestoreRequestHandled?: (requestId: string) => void;
-  onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
   onClearPathReferences?: () => void;
   submitTarget?: ComposerSubmitTarget;
@@ -161,7 +161,6 @@ export const Inputbar: React.FC<InputbarProps> = ({
   onAddPathReferences,
   inputRestoreRequest = null,
   onInputRestoreRequestHandled,
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onClearPathReferences,
 
@@ -209,6 +208,7 @@ export const Inputbar: React.FC<InputbarProps> = ({
     handleToolClick,
     isFullscreen,
     handleSend,
+    goalComposer,
     inputAdapter,
     workflowQuickActions,
     workflowQueueItems,
@@ -248,6 +248,8 @@ export const Inputbar: React.FC<InputbarProps> = ({
     pluginSuggestions,
     projectId,
     sessionId,
+    threadId,
+    threadGoal,
     pathReferences,
     onAddPathReferences,
     inputRestoreRequest,
@@ -277,6 +279,15 @@ export const Inputbar: React.FC<InputbarProps> = ({
         </SecondaryControlsRow>
       ) : null}
       <ArtifactAnnotationComposerAccessory />
+      <ConfirmDialog
+        isOpen={goalComposer.goalReplacementConfirmation !== null}
+        title={t("agentChat.threadGoal.composer.replaceTitle")}
+        message={t("agentChat.threadGoal.composer.replaceDescription")}
+        confirmText={t("agentChat.threadGoal.composer.replaceConfirm")}
+        variant="default"
+        onCancel={goalComposer.handleCloseGoalReplacement}
+        onConfirm={() => void goalComposer.handleConfirmGoalReplacement()}
+      />
       <InputbarComposerSection
         renderWorkflowGeneratingPanel={renderWorkflowGeneratingPanel}
         workflowGate={workflowGate}
@@ -305,13 +316,15 @@ export const Inputbar: React.FC<InputbarProps> = ({
         threadGoal={threadGoal}
         threadGoalError={threadGoalError}
         threadGoalLoading={threadGoalLoading}
+        onOpenGoalEditor={goalComposer.openGoalEditor}
+        isGoalMode={goalComposer.pendingThreadGoalObjective !== null}
+        goalPlaceholder={t("agentChat.threadGoal.form.objectivePlaceholder")}
         onSend={handleSend}
         onToolClick={handleToolClick}
         activeTools={activeTools}
         pendingImages={pendingImages}
         onRemoveImage={handleRemoveImage}
         pathReferences={composerPathReferences}
-        onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
         onRemovePathReference={(id) => {
           composerController.setPathReferences(
             composerController

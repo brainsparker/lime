@@ -139,6 +139,7 @@ impl RequestProcessor {
         self.runtime
             .start_session(start_params)
             .map_err(to_jsonrpc_error)?;
+        self.runtime.spawn_memory_stage1_startup(session_id.clone());
         self.record_environment_selections(&thread_id, environments.as_deref());
         self.append_environment_world_state(
             &session_id,

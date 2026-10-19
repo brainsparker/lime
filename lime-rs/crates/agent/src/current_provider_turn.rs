@@ -17,8 +17,11 @@ use crate::request_tool_policy::{
 use crate::runtime_state::AgentRuntimeState;
 use crate::write_artifact_events::WriteArtifactEventEmitter;
 use agent_protocol::{ItemStatus, ThreadId, ThreadItemPayload};
+use agent_runtime::context_compaction::summarize_context;
 use agent_runtime::provider_turn::{
     run_current_provider_turn, CurrentProviderTurnEvent, CurrentProviderTurnInput,
+    RuntimeMidTurnCompactionCapability, RuntimeMidTurnCompactionCapabilityHandle,
+    RuntimeMidTurnCompactionCommitHandle, RuntimeMidTurnCompactionRequest,
 };
 use agent_runtime::reply_input::RuntimeReplyInput;
 use agent_runtime::session_config::AgentSessionConfig;
@@ -65,6 +68,7 @@ pub(crate) async fn stream_current_provider_turn<F>(
     mut session_config: AgentSessionConfig,
     cancel_token: Option<CancellationToken>,
     pending_input: Option<RuntimeSessionInputHandle>,
+    mid_turn_compaction_commit: Option<RuntimeMidTurnCompactionCommitHandle>,
     policy: &RequestToolPolicy,
     agent_control_gateway: Option<tool_runtime::agent_control::AgentControlGatewayHandle>,
     command_publisher: Option<CommandEventPublisher>,
@@ -92,6 +96,13 @@ where
         })?;
     let model_request_policy =
         runtime_reply_model_request_policy_from_turn_context(session_config.turn_context.as_ref());
+    let mid_turn_compaction_limit =
+        crate::model_request_policy::model_request_policy_from_turn_context(
+            session_config.turn_context.as_ref(),
+        )
+        .and_then(|policy| policy.context_policy)
+        .and_then(|policy| policy.auto_compact_token_limit)
+        .and_then(|limit| u64::try_from(limit).ok());
     let skill_snapshot = skill_snapshot_from_turn_context(session_config.turn_context.as_ref());
     if let Some(message) = user_message(&input) {
         initial_messages.push(message);
@@ -130,6 +141,7 @@ where
         dynamic_tool_routes.clone(),
         session_config.tool_mode,
         session_config.supports_custom_tools,
+        mcp_step_snapshot::AsyncUserInputPolicy::default(),
     );
     let mut lifecycle_emitter = CurrentTurnToolLifecycleEmitter::with_tool_routes(
         host_event_sender.clone(),
@@ -147,6 +159,15 @@ where
         pending_input.clone(),
         cancel_token.clone(),
     );
+    let mid_turn_compaction = mid_turn_compaction_commit.map(|commit| {
+        RuntimeMidTurnCompactionCapabilityHandle::new(Arc::new(
+            CurrentProviderMidTurnCompactionCapability {
+                provider: Arc::new(provider.session()),
+                token_limit: mid_turn_compaction_limit,
+                commit,
+            },
+        ))
+    });
 
     session_config.model_history_recorder = session_config
         .model_history_recorder
@@ -165,6 +186,7 @@ where
             working_directory,
             cancel_token,
             pending_input,
+            mid_turn_compaction,
         },
         move |event| {
             let _ = host_event_sender.send(CurrentTurnHostEvent::Provider(event));
@@ -213,6 +235,43 @@ where
         });
     }
     Ok(execution)
+}
+
+struct CurrentProviderMidTurnCompactionCapability {
+    provider: Arc<dyn model_provider::current_client::CurrentProvider>,
+    token_limit: Option<u64>,
+    commit: RuntimeMidTurnCompactionCommitHandle,
+}
+
+impl RuntimeMidTurnCompactionCapability for CurrentProviderMidTurnCompactionCapability {
+    fn compact(
+        &self,
+        request: RuntimeMidTurnCompactionRequest,
+        cancellation: Option<CancellationToken>,
+    ) -> agent_runtime::provider_turn::RuntimeMidTurnCompactionFuture<'_> {
+        let Some(token_limit) = self.token_limit else {
+            return Box::pin(async { Ok(None) });
+        };
+        if u64::from(request.usage.input_tokens) < token_limit {
+            return Box::pin(async { Ok(None) });
+        }
+        let provider = Arc::clone(&self.provider);
+        let commit = self.commit.clone();
+        Box::pin(async move {
+            let summary_request = model_provider::current_client::CurrentProviderRequest::new(
+                request.messages.clone(),
+            )
+            .with_system_prompt(request.system_prompt.clone())
+            .with_generation(request.generation.clone())
+            .with_provider_options(request.provider_options.clone())
+            .with_model_request_policy(request.model_request_policy.clone());
+            let cancellation = cancellation.unwrap_or_else(CancellationToken::new);
+            let summary = summarize_context(provider.as_ref(), summary_request, cancellation)
+                .await
+                .map_err(|error| error.to_string())?;
+            commit.commit(request, summary).await.map(Some)
+        })
+    }
 }
 
 enum CurrentTurnHostEvent {
@@ -515,6 +574,7 @@ fn handle_provider_event<F>(
                 on_event,
             );
         }
+        CurrentProviderTurnEvent::MidTurnCompaction { .. } => {}
     }
 }
 

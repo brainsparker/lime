@@ -34,14 +34,14 @@ export function resolveWorkflowFloatingChromeInset({
   }
 
   if (workflowRunState === "auto_running") {
-    return "168px";
+    return "216px";
   }
 
   if (gateStatus === "waiting") {
-    return "136px";
+    return "184px";
   }
 
-  return "88px";
+  return "136px";
 }
 
 export function resolveWorkflowLayoutBottomSpacing({

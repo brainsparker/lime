@@ -4,7 +4,7 @@ import process from "node:process";
 import { describe, expect, it } from "vitest";
 
 describe("AgentChatWorkspace entry navigation runtime boundary", () => {
-  it("文件、技能管理与子代理入口动作必须由 entry navigation owner 提供", () => {
+  it("技能管理与子代理入口动作由 entry navigation owner 提供", () => {
     const workspaceSource = [
       "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
       "src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts",
@@ -25,7 +25,6 @@ describe("AgentChatWorkspace entry navigation runtime boundary", () => {
     expect(workspaceSource).toContain("useWorkspaceEntryNavigationRuntime({");
     expect(ownerSource.split("\n").length).toBeLessThan(120);
     for (const entryNavigationGlue of [
-      "initialSkillPackageRequestKey: Date.now()",
       "initialScaffoldRequestKey: requestKey",
       "previous.subagent ? previous",
     ]) {

@@ -60,7 +60,7 @@ describe("Inputbar selection current integration", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划 $写作助手",
+      textOverride: "整理最近发布计划 [$写作助手](writer/SKILL.md)",
     });
     expect(
       onSend.mock.calls[0]?.[0]?.composerSubmission?.inputMentions,
@@ -93,7 +93,8 @@ describe("Inputbar selection current integration", () => {
           .click(),
       );
       expectInputbarSend(onSend, {
-        textOverride: "继续执行当前任务",
+        textOverride:
+          mode === "goal" ? "/goal 继续执行当前任务" : "继续执行当前任务",
         sendOptions:
           mode === "plan-mode"
             ? {
@@ -102,7 +103,6 @@ describe("Inputbar selection current integration", () => {
                 toolPreferencesOverride: { task: true, subagent: false },
               }
             : {
-                displayContent: "继续执行当前任务",
                 threadGoal: { objective: "继续执行当前任务" },
               },
       });
@@ -329,7 +329,7 @@ describe("Inputbar selection current integration", () => {
     });
 
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划 $写作助手",
+      textOverride: "整理最近发布计划 [$写作助手](writer/SKILL.md)",
     });
     expect(
       onSend.mock.calls[0]?.[0]?.composerSubmission?.inputMentions,
@@ -514,7 +514,7 @@ describe("Inputbar selection current integration", () => {
 
     expect(onSend).toHaveBeenCalledTimes(1);
     expectInputbarSend(onSend, {
-      textOverride: "整理最近发布计划 $写作助手",
+      textOverride: "整理最近发布计划 [$写作助手](writer/SKILL.md)",
     });
     expect(
       onSend.mock.calls[0]?.[0]?.composerSubmission?.inputMentions,

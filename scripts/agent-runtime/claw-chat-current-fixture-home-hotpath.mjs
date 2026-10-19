@@ -212,7 +212,46 @@ async function openNewConversationHome(page, options, matchers) {
     withComposerEditorDom(readHomeHotpathSnapshot),
     matchers,
   );
-  await button.click();
+  try {
+    await button.click();
+  } catch (error) {
+    const pointerDiagnostic = await page.evaluate(() => {
+      const target = document.querySelector(
+        '[data-testid="app-sidebar-new-conversation-button"]',
+      );
+      if (!(target instanceof HTMLElement)) return null;
+      const rect = target.getBoundingClientRect();
+      const blocker = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return {
+        target: {
+          tag: target.tagName,
+          className: target.className,
+          rect: {
+            left: rect.left,
+            top: rect.top,
+            width: rect.width,
+            height: rect.height,
+          },
+        },
+        blocker: blocker
+          ? {
+              tag: blocker.tagName,
+              className: blocker.className,
+              id: blocker.id,
+              testId: blocker.getAttribute("data-testid"),
+              role: blocker.getAttribute("role"),
+              outer: blocker.outerHTML.slice(0, 500),
+            }
+          : null,
+      };
+    });
+    throw new Error(
+      `${error instanceof Error ? error.message : String(error)}; pointerDiagnostic=${JSON.stringify(pointerDiagnostic)}`,
+    );
+  }
   const after = await waitForHomeHotpathReady(page, options, matchers);
   return sanitizeJson({ before, after });
 }

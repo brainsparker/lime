@@ -22,7 +22,6 @@ fn turn(id: &str, inputs: Vec<UserInput>) -> Turn {
         items_view: TurnItemsView::Full,
         items: vec![ThreadItem::UserMessage {
             id: format!("{id}-user"),
-            metadata: None,
             client_id: None,
             content: inputs,
         }],
@@ -405,12 +404,10 @@ fn browsing_rejects_steers_partial_running_invalid_and_cross_page_review_prompts
         items: vec![
             ThreadItem::EnteredReviewMode {
                 id: "enter".into(),
-                metadata: None,
                 review: "review".into(),
             },
             ThreadItem::ExitedReviewMode {
                 id: "exit".into(),
-                metadata: None,
                 review: "review".into(),
             },
         ],

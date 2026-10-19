@@ -351,7 +351,7 @@ describe("AgentChatWorkspace general workbench harness surface boundary", () => 
       "useWorkspaceInputbarSceneRuntime({",
     );
     const inputbarCallEnd = workspaceSource.indexOf(
-      "useWorkspaceMessageKnowledgeSaveRuntime({",
+      "const canvasScene = useWorkspaceCanvasSceneRuntime({",
       inputbarCallStart,
     );
     expect(inputbarCallStart).toBeGreaterThanOrEqual(0);
@@ -460,44 +460,45 @@ describe("AgentChatWorkspace general workbench harness surface boundary", () => 
   });
 });
 
-describe("AgentChatWorkspace message knowledge save boundary", () => {
-  it("消息沉淀为知识的校验、导航和 fallback import 必须由 message knowledge save runtime 提供", () => {
-    const workspaceSource = [
-      "src/components/agent/chat/useAgentChatWorkspaceRuntime.tsx",
-      "src/components/agent/chat/workspace/useAgentChatWorkspaceEntryRuntime.ts",
-      "src/components/agent/chat/workspace/useAgentChatWorkspaceSetupRuntime.ts",
-      "src/components/agent/chat/workspace/useAgentChatWorkspaceCommandRuntime.ts",
+describe("AgentChatWorkspace retired message knowledge save boundary", () => {
+  it("消息与文件产物不得恢复独立知识保存入口或 fallback import", () => {
+    for (const ownerPath of [
+      "src/components/agent/chat/workspace/useWorkspaceMessageKnowledgeSaveRuntime.ts",
+      "src/components/agent/chat/workspace/knowledge/knowledgeSaveNavigation.ts",
+      "src/components/agent/chat/components/messageListKnowledgeSource.ts",
+      "src/features/knowledge/import/knowledgeSourceImport.ts",
+      "src/features/knowledge/import/knowledgeSourceSupport.ts",
+    ]) {
+      expect(existsSync(join(process.cwd(), ownerPath)), ownerPath).toBe(false);
+    }
+    const surfaceSource = [
       "src/components/agent/chat/workspace/useAgentChatWorkspaceSceneRuntime.tsx",
+      "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
+      "src/components/agent/chat/workspace/knowledge/useWorkspaceKnowledgeRuntime.ts",
+      "src/components/agent/chat/components/MessageList.types.ts",
+      "src/components/agent/chat/components/MessageActionButtons.tsx",
+      "src/components/agent/chat/components/MessageArtifactCards.tsx",
+      "src/components/agent/chat/components/AgentThreadTimelineArtifactCard.tsx",
+      "src/components/agent/chat/components/messageListItemProjectionArtifacts.ts",
+      "src/components/agent/chat/components/artifactFrameRegistry.ts",
     ]
       .map((ownerPath) => readFileSync(join(process.cwd(), ownerPath), "utf8"))
       .join("\n");
-    const ownerSource = readFileSync(
-      join(
-        process.cwd(),
-        "src/components/agent/chat/workspace/useWorkspaceMessageKnowledgeSaveRuntime.ts",
-      ),
+    expect(surfaceSource).not.toMatch(
+      /onSaveMessageAsKnowledge|onSaveFileArtifactAsKnowledge|onImportTextAsKnowledge|canSaveMessageAsKnowledge|knowledgeArtifactSource/,
+    );
+    const knowledgeSource = readFileSync(
+      join(process.cwd(), "src/features/knowledge/KnowledgePage.tsx"),
       "utf8",
     );
-
-    expect(workspaceSource).toContain(
-      "useWorkspaceMessageKnowledgeSaveRuntime({",
+    const pageParams = readFileSync(
+      join(process.cwd(), "src/types/page.ts"),
+      "utf8",
     );
-    expect(ownerSource.split("\n").length).toBeLessThan(180);
-    for (const retiredWorkspaceKnowledgeSaveOwner of [
-      "const handleSaveMessageAsKnowledge = useCallback",
-      "isUsableKnowledgeSourceText(",
-      "buildKnowledgeSavePageParams({",
-      'onNavigate("knowledge"',
-      "importTextAsKnowledge({",
-      'packType: "custom"',
-      "这条结果暂时没有可沉淀的内容",
-    ]) {
-      expect(workspaceSource).not.toContain(retiredWorkspaceKnowledgeSaveOwner);
-      expect(ownerSource).toContain(retiredWorkspaceKnowledgeSaveOwner);
-    }
-    expect(workspaceSource).toContain(
-      "importTextAsKnowledge: inputbarScene.onImportTextAsKnowledge",
+    expect(knowledgeSource).not.toMatch(
+      /saveDraft|activeView\s*===\s*["']save["']/,
     );
+    expect(pageParams).not.toContain("saveDraft");
   });
 });
 
@@ -659,7 +660,6 @@ describe("Workspace Inputbar scene presentation boundary", () => {
       "renderSoulArtifactVoiceAccessory",
       "renderGeneralWorkbenchEntryPromptAccessory",
       "InputbarControlReplacement",
-      "<Inputbar ",
       "<GeneralWorkbenchDialogSection",
       "resolveCanvasTaskFileTarget(",
       "isRenderableTaskFile(",
@@ -667,6 +667,8 @@ describe("Workspace Inputbar scene presentation boundary", () => {
       expect(inputbarSource).not.toContain(retiredPresentationOwner);
       expect(ownerSource).toContain(retiredPresentationOwner);
     }
+    expect(inputbarSource).not.toMatch(/<Inputbar\s/u);
+    expect(ownerSource).toMatch(/<Inputbar\s/u);
   });
 });
 
@@ -807,7 +809,7 @@ describe("AgentChatWorkspace conversation landing surface boundary", () => {
     );
     const sceneCallSource = workspaceSource.slice(sceneCallStart, sceneCallEnd);
 
-    expect(landingCallSource).toContain("inputbarScene,");
+    expect(landingCallSource).not.toContain("inputbarScene,");
     for (const retiredInputbarLandingParam of [
       "onImportPathReferenceAsKnowledge:",
       "onManageKnowledgePacks:",

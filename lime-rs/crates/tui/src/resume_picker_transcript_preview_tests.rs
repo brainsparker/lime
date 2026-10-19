@@ -4,7 +4,6 @@ use app_server_protocol::protocol::v2::{ThreadItem, Turn, TurnItemsView, TurnSta
 fn user_item(text: &str) -> ThreadItem {
     ThreadItem::UserMessage {
         id: String::from("user"),
-        metadata: None,
         client_id: None,
         content: vec![UserInput::Text {
             text: text.to_string(),
@@ -16,7 +15,6 @@ fn user_item(text: &str) -> ThreadItem {
 fn assistant_item(text: &str) -> ThreadItem {
     ThreadItem::AgentMessage {
         id: String::from("assistant"),
-        metadata: None,
         text: text.to_string(),
         phase: None,
         memory_citation: None,
@@ -58,7 +56,6 @@ fn preview_keeps_newest_lines_and_restores_transcript_order() {
 fn preview_ignores_non_text_inputs_and_blank_lines() {
     let lines = preview_from_items(&[ThreadItem::UserMessage {
         id: String::from("user"),
-        metadata: None,
         client_id: None,
         content: vec![
             UserInput::Image {
@@ -110,13 +107,11 @@ fn preview_uses_canonical_review_filtering_before_selecting_speakers() {
     let lines = preview_from_items(&[
         ThreadItem::EnteredReviewMode {
             id: String::from("review-enter"),
-            metadata: None,
             review: String::from("review"),
         },
         user_item("hidden review prompt"),
         ThreadItem::ExitedReviewMode {
             id: String::from("review-exit"),
-            metadata: None,
             review: String::from("review"),
         },
         assistant_item("visible answer"),
@@ -138,13 +133,11 @@ fn bounded_preview_applies_turn_review_ids_across_page_boundaries() {
         items: vec![
             ThreadItem::EnteredReviewMode {
                 id: String::from("review-enter"),
-                metadata: None,
                 review: String::from("review"),
             },
             user_item("hidden review prompt"),
             ThreadItem::ExitedReviewMode {
                 id: String::from("review-exit"),
-                metadata: None,
                 review: String::from("review"),
             },
         ],

@@ -111,9 +111,6 @@ const {
   METHOD_CONNECT_DEEP_LINK_RESOLVE,
   METHOD_CONNECT_OPEN_DEEP_LINK_RESOLVE,
   METHOD_CONNECT_RELAY_API_KEY_SAVE,
-  METHOD_CONVERSATION_IMPORT_SOURCE_SCAN,
-  METHOD_CONVERSATION_IMPORT_THREAD_COMMIT,
-  METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW,
   METHOD_FS_COPY,
   METHOD_FS_CREATE_DIRECTORY,
   METHOD_FS_GET_METADATA,
@@ -2455,20 +2452,6 @@ test("builds connect deep link requests with current methods", () => {
     status: "success",
     refCode: "ref-001",
   });
-  const importScan = client.scanConversationImportSource({
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    projectPath: "/workspace/lime",
-    query: "runtime",
-    includeArchived: true,
-    limit: 20,
-  });
-  const importPreview = client.previewConversationImportThread({
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    sourceThreadId: "thread-1",
-    limit: 10,
-  });
 
   assert.equal(connect.id, 1);
   assert.equal(connect.method, METHOD_CONNECT_DEEP_LINK_RESOLVE);
@@ -2494,40 +2477,6 @@ test("builds connect deep link requests with current methods", () => {
     apiKey: "sk-relay-key",
     status: "success",
     refCode: "ref-001",
-  });
-  assert.equal(importScan.id, 5);
-  assert.equal(importScan.method, METHOD_CONVERSATION_IMPORT_SOURCE_SCAN);
-  assert.deepEqual(importScan.params, {
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    projectPath: "/workspace/lime",
-    query: "runtime",
-    includeArchived: true,
-    limit: 20,
-  });
-  assert.equal(importPreview.id, 6);
-  assert.equal(importPreview.method, METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW);
-  assert.deepEqual(importPreview.params, {
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    sourceThreadId: "thread-1",
-    limit: 10,
-  });
-  const importCommit = client.commitConversationImportThread({
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    sourceThreadId: "thread-1",
-    workspaceId: "workspace-1",
-    confirmed: true,
-  });
-  assert.equal(importCommit.id, 7);
-  assert.equal(importCommit.method, METHOD_CONVERSATION_IMPORT_THREAD_COMMIT);
-  assert.deepEqual(importCommit.params, {
-    sourceClient: "codex",
-    sourceRoot: "/Users/example/.codex",
-    sourceThreadId: "thread-1",
-    workspaceId: "workspace-1",
-    confirmed: true,
   });
 });
 

@@ -352,6 +352,9 @@ export interface TuiConfig {
 }
 
 export interface Config {
+  tools?: {
+    experimental_request_user_input?: { enabled?: boolean };
+  };
   /** Explicit raw reasoning visibility shared by GUI and TUI; defaults to false. */
   show_raw_agent_reasoning?: boolean;
   hide_agent_reasoning?: boolean;

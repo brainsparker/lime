@@ -55,6 +55,7 @@ export interface ElectronHostDeepLinkBridge {
 }
 
 export interface ElectronHostBridge {
+  readonly agentRoot?: string;
   invoke: ElectronHostInvoke;
   devBridgeFallback?: boolean;
   supportsCommand?(command: string): boolean;

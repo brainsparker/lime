@@ -1842,30 +1842,6 @@ export const APP_SERVER_REQUEST_CLIENT_METHODS: readonly AppServerRequestClientM
       params: "required",
     },
     {
-      name: "scanConversationImportSource",
-      method: protocol.METHOD_CONVERSATION_IMPORT_SOURCE_SCAN,
-      kind: "request",
-      params: "optional-empty",
-    },
-    {
-      name: "previewConversationImportThread",
-      method: protocol.METHOD_CONVERSATION_IMPORT_THREAD_PREVIEW,
-      kind: "request",
-      params: "required",
-    },
-    {
-      name: "commitConversationImportThread",
-      method: protocol.METHOD_CONVERSATION_IMPORT_THREAD_COMMIT,
-      kind: "request",
-      params: "required",
-    },
-    {
-      name: "readConversationImportJob",
-      method: protocol.METHOD_CONVERSATION_IMPORT_JOB_READ,
-      kind: "request",
-      params: "required",
-    },
-    {
       name: "spawnProcess",
       method: protocol.METHOD_PROCESS_SPAWN,
       kind: "request",

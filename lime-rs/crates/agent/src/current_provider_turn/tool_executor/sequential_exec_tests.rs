@@ -123,6 +123,7 @@ fn executor(state: AgentRuntimeState) -> CurrentTurnToolExecutor {
         agent_control_gateway: None,
         pending_input: None,
         dynamic_tool_routes: mcp_step_snapshot::DynamicToolRoutes::default(),
+        async_user_input_enabled: false,
     }
 }
 

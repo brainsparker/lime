@@ -5,6 +5,7 @@ use std::fs;
 
 mod lifecycle;
 mod scope;
+mod watch_ready;
 
 #[test]
 fn only_catalog_mutations_trigger_invalidation() {
@@ -72,7 +73,12 @@ async fn throttled_change_is_coalesced_into_trailing_notification() {
     );
 
     notifier.notify();
-    receive_skills_changed(&mut outbound, Duration::from_secs(1)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(1),
+        "initial notification",
+    )
+    .await;
 
     notifier.notify();
     assert!(
@@ -81,7 +87,12 @@ async fn throttled_change_is_coalesced_into_trailing_notification() {
             .is_err(),
         "throttled change must not broadcast immediately"
     );
-    receive_skills_changed(&mut outbound, Duration::from_secs(1)).await;
+    receive_skills_changed(
+        &mut outbound,
+        Duration::from_secs(1),
+        "trailing notification",
+    )
+    .await;
     notifier.cancel_pending();
 }
 
@@ -131,6 +142,7 @@ async fn skill_root_created_after_start_broadcasts_typed_invalidation() {
 async fn receive_skills_changed(
     outbound: &mut tokio::sync::broadcast::Receiver<JsonRpcMessage>,
     timeout: Duration,
+    phase: &str,
 ) -> JsonRpcMessage {
     tokio::time::timeout(timeout, async {
         loop {
@@ -145,5 +157,5 @@ async fn receive_skills_changed(
         }
     })
     .await
-    .expect("wait for skills/changed")
+    .unwrap_or_else(|error| panic!("wait for skills/changed during {phase}: {error}"))
 }

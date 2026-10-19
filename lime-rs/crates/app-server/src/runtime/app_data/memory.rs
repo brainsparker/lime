@@ -2,11 +2,41 @@ use super::unavailable;
 use super::NoopAppDataSource;
 use super::RuntimeCoreError;
 use crate::RolloutSummaryWriteParams;
+use crate::{
+    MemoryStageOneProvider, MemoryStageOneRoute, MemoryStageOneRunResult, MemoryStageOneVersion,
+    MemoryStageTwoProvider,
+};
 use app_server_protocol::*;
 use async_trait::async_trait;
 
 #[async_trait]
 pub trait MemoryAppDataSource: Send + Sync {
+    async fn run_memory_stage1(
+        &self,
+        _root: MemoryStoreRootParams,
+        _version: MemoryStageOneVersion,
+        _route: MemoryStageOneRoute,
+        _provider: &dyn MemoryStageOneProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(unavailable("memory stage-1"))
+    }
+
+    async fn run_memory_stage2(
+        &self,
+        _root: MemoryStoreRootParams,
+        _route: MemoryStageOneRoute,
+        _provider: &dyn MemoryStageTwoProvider,
+    ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(unavailable("memory stage-2"))
+    }
+
+    async fn memory_status(
+        &self,
+        _params: MemoryStatusParams,
+    ) -> Result<MemoryStatusResponse, RuntimeCoreError> {
+        Err(unavailable("memory/status"))
+    }
+
     async fn read_project_memory(
         &self,
         _params: ProjectMemoryReadParams,
@@ -52,6 +82,8 @@ pub trait MemoryAppDataSource: Send + Sync {
     async fn consolidate_memory_store(
         &self,
         _params: MemoryStoreConsolidateParams,
+        _route: MemoryStageOneRoute,
+        _provider: &dyn MemoryStageTwoProvider,
     ) -> Result<MemoryStoreConsolidateResponse, RuntimeCoreError> {
         Err(unavailable("memoryStore/consolidate"))
     }

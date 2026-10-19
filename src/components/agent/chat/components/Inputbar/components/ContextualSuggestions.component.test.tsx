@@ -184,7 +184,7 @@ describe("ContextualSuggestions with the real ProseMirror editor", () => {
     const receipt = view.controller.submit("start");
     expect(receipt.kind).toBe("accepted");
     expect(receipt.submission).toMatchObject({
-      text: "$Review",
+      text: "[$Review](/skills/review/SKILL.md)",
       inputMentions: [
         { type: "skill", name: "Review", path: "/skills/review/SKILL.md" },
       ],

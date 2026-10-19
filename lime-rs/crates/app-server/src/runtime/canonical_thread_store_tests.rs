@@ -299,6 +299,8 @@ fn item(thread: &Thread, turn_id: &str, id: &str, sequence: u64, ordinal: u64) -
             text: id.to_string(),
             phase: None,
             content_parts: Vec::new(),
+            delivery: None,
+            questions: None,
         },
         metadata: json!({}),
     }
@@ -2189,14 +2191,14 @@ fn canonical_builder_rejects_item_turn_identity_conflict_atomically() {
 }
 
 #[test]
-fn imported_and_live_items_share_event_log_ordinal_domain() {
+fn obsolete_source_metadata_cannot_override_canonical_event_ordinals() {
     let temp = tempfile::tempdir().expect("tempdir");
     let database_path = temp.path().join("projection.sqlite");
     let store = ProjectionStore::initialize(database_path.clone()).expect("projection store");
     let stored = StoredSession {
         session: app_server_protocol::AgentSession {
-            session_id: "session-live-ordinal".to_string(),
-            thread_id: "thread-live-ordinal".to_string(),
+            session_id: "session-ordinal".to_string(),
+            thread_id: "thread-ordinal".to_string(),
             app_id: "agent-chat".to_string(),
             workspace_id: None,
             business_object_ref: None,
@@ -2211,11 +2213,11 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
         output_blobs: HashMap::new(),
     };
     let event = |sequence: u64, event_type: &str, payload| app_server_protocol::AgentEvent {
-        event_id: format!("live-ordinal-event-{sequence}"),
+        event_id: format!("ordinal-event-{sequence}"),
         sequence,
         session_id: stored.session.session_id.clone(),
         thread_id: Some(stored.session.thread_id.clone()),
-        turn_id: Some("turn-live-ordinal".to_string()),
+        turn_id: Some("turn-ordinal".to_string()),
         event_type: event_type.to_string(),
         timestamp: format!("2026-07-15T00:00:{sequence:02}Z"),
         payload,
@@ -2225,7 +2227,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
             "sessionId": "producer-session",
             "threadId": "producer-thread",
             "turnId": "producer-turn",
-            "itemId": "tool-live-ordinal",
+            "itemId": "tool-ordinal",
             "sequence": 1,
             "ordinal": 1,
             "createdAtMs": 1,
@@ -2235,7 +2237,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
             "status": status,
             "payload": {
                 "type": "tool",
-                "call_id": "tool-live-ordinal",
+                "call_id": "tool-ordinal",
                 "name": "read_file",
                 "arguments": [],
                 "output": null
@@ -2244,6 +2246,8 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
         })
     };
 
+    // Retired source fields are opaque metadata, even when their ordinal collides
+    // with a later canonical event.
     store
         .apply_canonical_events(
             &stored,
@@ -2259,7 +2263,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
                         "sessionId": "producer-session",
                         "threadId": "producer-thread",
                         "turnId": "producer-turn",
-                        "itemId": "message-imported-ordinal",
+                        "itemId": "message-ordinal",
                         "sequence": 0,
                         "ordinal": 20,
                         "createdAtMs": 0,
@@ -2269,7 +2273,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
                         "status": "completed",
                         "payload": {
                             "type": "agentMessage",
-                            "text": "imported",
+                            "text": "canonical message",
                             "content_parts": []
                         },
                         "metadata": {"source_event_seq": 20}
@@ -2277,7 +2281,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
                 }),
             )],
         )
-        .expect("imported Item must use Lime EventLog ordinal");
+        .expect("obsolete source metadata must not replace canonical EventLog ordinal");
     store
         .apply_canonical_events(
             &stored,
@@ -2287,7 +2291,7 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
                 json!({"item": tool_item("inProgress")}),
             )],
         )
-        .expect("live Item must not collide with imported source ordinal");
+        .expect("canonical tool Item must not collide with an obsolete source ordinal");
     store
         .apply_canonical_events(
             &stored,
@@ -2297,23 +2301,23 @@ fn imported_and_live_items_share_event_log_ordinal_domain() {
                 json!({"item": tool_item("completed")}),
             )],
         )
-        .expect("tool completion must preserve the first live ordinal");
+        .expect("tool completion must preserve the first canonical ordinal");
     drop(store);
 
     let store = ProjectionStore::initialize(database_path).expect("reopen projection store");
     let thread = block_on(store.read_thread(ReadThreadParams {
-        thread_id: ThreadId::new("thread-live-ordinal"),
+        thread_id: ThreadId::new("thread-ordinal"),
         include_archived: false,
         turns_view: ThreadTurnsView::Full,
     }))
-    .expect("read live ordinal thread")
-    .expect("live ordinal thread");
+    .expect("read canonical ordinal thread")
+    .expect("canonical ordinal thread");
     let items = &thread.turns[0].items;
     assert_eq!(items.len(), 2);
     assert_eq!(items[0].ordinal, 1);
-    assert_eq!(items[0].item_id.as_str(), "message-imported-ordinal");
+    assert_eq!(items[0].item_id.as_str(), "message-ordinal");
     assert_eq!(items[1].ordinal, 20);
-    assert_eq!(items[1].item_id.as_str(), "tool-live-ordinal");
+    assert_eq!(items[1].item_id.as_str(), "tool-ordinal");
     assert_eq!(items[1].status, ItemStatus::Completed);
 }
 

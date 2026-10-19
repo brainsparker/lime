@@ -65,7 +65,6 @@ impl SkillsWatcher {
         let rearm = Arc::new(Mutex::new(HashSet::new()));
         let signal = Arc::new(Notify::new());
         let notifier = CatalogChangeNotifier::new(bridge, handle, throttle_interval);
-        let callback_notifier = notifier.clone();
         let callback_roots = roots.clone();
         let callback_rearm = rearm.clone();
         let callback_signal = signal.clone();
@@ -101,7 +100,6 @@ impl SkillsWatcher {
                         .filter(|root| event.paths.iter().any(|path| root.starts_with(path))),
                 );
             callback_signal.notify_one();
-            callback_notifier.notify();
         }) {
             Ok(watcher) => watcher,
             Err(error) => {
@@ -123,13 +121,13 @@ impl SkillsWatcher {
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             interval.tick().await;
             loop {
-                tokio::select! {
-                    _ = interval.tick() => {},
-                    _ = signal.notified() => {},
-                }
-                if reconcile_state.reconcile() {
+                let catalog_changed = tokio::select! {
+                    _ = interval.tick() => false,
+                    _ = signal.notified() => true,
+                };
+                reconcile_catalog_change(&reconcile_state, catalog_changed, || {
                     reconcile_notifier.notify();
-                }
+                });
             }
         });
         Some(Arc::new(Self {
@@ -137,6 +135,14 @@ impl SkillsWatcher {
             notifier,
             reconcile_task,
         }))
+    }
+}
+
+fn reconcile_catalog_change(state: &WatchState, catalog_changed: bool, notify: impl FnOnce()) {
+    // Consumers may react immediately, so native watches must be ready first.
+    let watch_changed = state.reconcile();
+    if catalog_changed || watch_changed {
+        notify();
     }
 }
 

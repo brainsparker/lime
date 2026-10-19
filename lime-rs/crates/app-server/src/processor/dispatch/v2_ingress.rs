@@ -269,6 +269,7 @@ pub(super) fn into_parts(
         ClientRequest::ThreadMemoryModeSet { id, params } => {
             parts(id, Method::ThreadMemoryModeSet, params)
         }
+        ClientRequest::MemoryStatus { id, params } => parts(id, Method::MemoryStatus, params),
         ClientRequest::MemoryReset { id } => {
             Ok((id, Method::MemoryReset.as_str().to_string(), None))
         }

@@ -7,7 +7,6 @@ export type DevBridgeCommandTimeoutProfile =
   | "agent-session-patch"
   | "agent-session-create"
   | "app-server-turn-start"
-  | "app-server-import"
   | "app-server-long-running"
   | "app-server-provider-network"
   | "app-server-read"
@@ -89,12 +88,6 @@ const APP_SERVER_HANDLE_JSON_LINES_COMMAND = "app_server_handle_json_lines";
 const APP_SERVER_DRAIN_EVENTS_COMMAND = "app_server_drain_events";
 const APP_SERVER_THREAD_LIST_METHOD = "thread/list";
 const APP_SERVER_TURN_START_METHOD = "turn/start";
-const APP_SERVER_CONVERSATION_IMPORT_METHODS = new Set([
-  "conversationImport/job/read",
-  "conversationImport/source/scan",
-  "conversationImport/thread/preview",
-  "conversationImport/thread/commit",
-]);
 const APP_SERVER_KNOWLEDGE_COMPILE_METHOD = "knowledgePack/compile";
 const APP_SERVER_LONG_RUNNING_METHODS = new Set([
   "scheduledTask/run/start",
@@ -188,9 +181,6 @@ export function resolveDevBridgeCommandTimeoutProfile(
   if (isAppServerTurnStartCommand(command, args)) {
     return "app-server-turn-start";
   }
-  if (isAppServerConversationImportCommand(command, args)) {
-    return "app-server-import";
-  }
   if (isAppServerLongRunningCommand(command, args)) {
     return "app-server-long-running";
   }
@@ -239,18 +229,6 @@ function isAppServerTurnStartCommand(command: string, args: unknown): boolean {
   }
   return extractAppServerJsonLines(args).some((line) =>
     jsonRpcLineHasMethod(line, APP_SERVER_TURN_START_METHOD),
-  );
-}
-
-function isAppServerConversationImportCommand(
-  command: string,
-  args: unknown,
-): boolean {
-  if (command !== APP_SERVER_HANDLE_JSON_LINES_COMMAND) {
-    return false;
-  }
-  return extractAppServerJsonLines(args).some((line) =>
-    jsonRpcLineHasAnyMethod(line, APP_SERVER_CONVERSATION_IMPORT_METHODS),
   );
 }
 

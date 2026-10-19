@@ -9,7 +9,6 @@ import { MarkdownRenderer } from "./MarkdownRenderer";
 import { AgentThreadTimelineAttachmentList } from "./AgentThreadTimelineAttachmentList";
 import { TimelineItemDetails } from "./AgentThreadTimelineItemRenderers";
 import { hasTimelineFileChangeEvidence } from "./AgentThreadTimelineFileChangesCard";
-import { isImportedHistoryMetadata } from "../utils/importedUserMessageDedupe";
 import {
   formatHistoricalContentLength,
   formatHistoricalTimelineDuration,
@@ -99,13 +98,6 @@ export const HistoricalTimelinePreview: React.FC<{
   onOpenSavedSiteContent?: (target: SiteSavedContentTarget) => void;
   onOpenSubagentSession?: (sessionId: string) => void;
   onPermissionResponse?: (response: ConfirmResponse) => void;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
-  sourceMessageId?: string;
   onExpand?: () => void;
 }> = ({
   items,
@@ -115,8 +107,7 @@ export const HistoricalTimelinePreview: React.FC<{
   completedAt,
   onFileClick,
   onOpenArtifactFromTimeline,
-  onSaveFileArtifactAsKnowledge,
-  sourceMessageId,
+
   onExpand,
 }) => {
   const { t } = useTranslation("agent");
@@ -156,9 +147,6 @@ export const HistoricalTimelinePreview: React.FC<{
           meta: summaryMetaText,
         })
       : t("agentChat.messageList.historicalTimeline.deferredMeta");
-  const showImportedSummaryMeta = items.some((item) =>
-    isImportedHistoryMetadata(item.metadata),
-  );
   const durationLabel = formatHistoricalTimelineDuration(
     resolveHistoricalTimelineDurationMs(items, startedAt, completedAt),
   );
@@ -220,13 +208,7 @@ export const HistoricalTimelinePreview: React.FC<{
   const summaryRow = (
     <>
       <span className="shrink-0 whitespace-nowrap font-medium">{title}</span>
-      {showImportedSummaryMeta ? (
-        <span className="min-w-0 flex-1 truncate text-xs text-slate-400">
-          {metaText}
-        </span>
-      ) : onExpand ? (
-        <span className="min-w-0 flex-1" aria-hidden="true" />
-      ) : null}
+      {onExpand ? <span className="min-w-0 flex-1" aria-hidden="true" /> : null}
       {onExpand ? (
         <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
       ) : null}
@@ -299,8 +281,6 @@ export const HistoricalTimelinePreview: React.FC<{
             items={fileArtifactItems}
             onFileClick={onFileClick}
             onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            sourceMessageId={sourceMessageId}
-            onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
           />
         </div>
       ) : null}

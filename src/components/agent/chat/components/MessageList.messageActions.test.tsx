@@ -247,92 +247,48 @@ describe("MessageList message actions", () => {
     expect(saveButton).toBeNull();
   });
 
-  it("助手结果应支持保存到项目资料", () => {
-    const onSaveMessageAsKnowledge = vi.fn();
+  it("助手文档产物应保留打开动作且不提供知识保存入口", () => {
     const now = new Date();
-    const messages: Message[] = [
-      {
-        id: "msg-assistant-save-knowledge",
-        role: "assistant",
-        content:
-          "这是一段足够长的项目事实说明，用来验证助手消息上会出现保存到项目资料的入口。",
-        timestamp: now,
-      },
-    ];
-
-    const container = render(messages, { onSaveMessageAsKnowledge });
-    const saveButton = container.querySelector(
-      'button[aria-label="Save to project knowledge"]',
+    const onArtifactClick = vi.fn();
+    const artifact = {
+      id: "artifact-document-output",
+      type: "document" as const,
+      title: "result.md",
+      content: "# Result\n\n这是已生成文档的完整内容。",
+      status: "complete" as const,
+      meta: { filename: "result.md" },
+      position: { start: 0, end: 28 },
+      createdAt: now.getTime(),
+      updatedAt: now.getTime(),
+    };
+    const container = render(
+      [
+        {
+          id: "msg-assistant-document",
+          role: "assistant",
+          content: "文档已生成。",
+          timestamp: now,
+          artifacts: [artifact],
+        },
+      ],
+      { onArtifactClick },
     );
-    const messageActions = container.querySelector(
-      '[data-testid="message-actions"]',
+    const card = container.querySelector(
+      '[data-testid="message-artifact-card"]',
     );
-
-    expect(saveButton).not.toBeNull();
-    expect(messageActions?.className).toContain("message-actions-persistent");
-    expect(saveButton?.getAttribute("title")).toBe("Save to project knowledge");
-    expect(saveButton?.textContent).not.toContain("Save to project knowledge");
-
+    expect(card).not.toBeNull();
+    expect(card?.textContent).toContain("Document artifact");
+    expect(
+      container.querySelector('button[aria-label="Save to project knowledge"]'),
+    ).toBeNull();
+    expect(container.textContent).not.toContain("Save this document");
+    expect(container.textContent).not.toContain(
+      "Can save to project knowledge",
+    );
     act(() => {
-      saveButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      card?.querySelector("button")?.click();
     });
-
-    expect(onSaveMessageAsKnowledge).toHaveBeenCalledWith({
-      messageId: "msg-assistant-save-knowledge",
-      content:
-        "这是一段足够长的项目事实说明，用来验证助手消息上会出现保存到项目资料的入口。",
-    });
-  });
-
-  it("助手结果带产物时应优先把产物正文保存到项目资料", () => {
-    const onSaveMessageAsKnowledge = vi.fn();
-    const now = new Date();
-    const artifactContent =
-      "# 谢晶营销文案包 v1.0\n\n这是一份已经写入项目目录的 Markdown 产物，应该作为项目资料来源。";
-    const messages: Message[] = [
-      {
-        id: "msg-assistant-save-artifact-knowledge",
-        role: "assistant",
-        content:
-          "文件已生成，下面是摘要。这里不应该覆盖真正的 Markdown 产物正文。",
-        timestamp: now,
-        artifacts: [
-          {
-            id: "artifact-knowledge-output",
-            type: "document",
-            title: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-            content: artifactContent,
-            status: "complete",
-            meta: {
-              filename: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-            },
-            position: { start: 0, end: artifactContent.length },
-            createdAt: now.getTime(),
-            updatedAt: now.getTime(),
-          },
-        ],
-      },
-    ];
-
-    const container = render(messages, { onSaveMessageAsKnowledge });
-    expect(container.textContent).toContain("Document artifact");
-    expect(container.textContent).toContain("Can save to project knowledge");
-    const saveButton = Array.from(container.querySelectorAll("button")).find(
-      (button) => button.textContent?.includes("Save this document"),
-    );
-
-    expect(saveButton).not.toBeNull();
-
-    act(() => {
-      saveButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-    });
-
-    expect(onSaveMessageAsKnowledge).toHaveBeenCalledWith({
-      messageId: "msg-assistant-save-artifact-knowledge",
-      content: artifactContent,
-      sourceName: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-      description: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-    });
+    expect(onArtifactClick).toHaveBeenCalledWith(artifact);
   });
 
   it("聊天主列与助手消息气泡应和输入区使用同一阅读宽度", () => {
@@ -547,7 +503,6 @@ describe("MessageList message actions", () => {
   it("内容工厂文章产物应在过程之后以受控预览展示", () => {
     const now = new Date();
     const onArtifactClick = vi.fn();
-    const onSaveMessageAsKnowledge = vi.fn();
     const fullArticle =
       "# 公众号文章草稿\n\n这是第一段正文，应该在独立产物框内完整显示。\n\n这是第二段正文，点击框头后进入右侧文章编辑器。";
     const messages: Message[] = [
@@ -629,7 +584,6 @@ describe("MessageList message actions", () => {
 
     const container = render(messages, {
       onArtifactClick,
-      onSaveMessageAsKnowledge,
     });
     const artifactFrame = container.querySelector(
       '[data-testid="article-artifact-frame"]',
@@ -642,13 +596,7 @@ describe("MessageList message actions", () => {
     ) as HTMLButtonElement | null;
 
     expect(artifactFrame).not.toBeNull();
-    expect(messageActions).not.toBeNull();
-    expect(
-      Boolean(
-        artifactFrame!.compareDocumentPosition(messageActions!) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-      ),
-    ).toBe(true);
+    expect(messageActions).toBeNull();
     expect(container.textContent).toContain("公众号文章草稿");
     expect(container.textContent).toContain("Document created:");
     expect(container.textContent).toContain("Open document");

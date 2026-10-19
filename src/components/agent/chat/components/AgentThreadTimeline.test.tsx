@@ -414,53 +414,34 @@ describe("AgentThreadTimeline", () => {
       }),
     );
   });
-  it("时间线 Markdown 产物应透传保存到项目资料回调", () => {
-    const onSaveFileArtifactAsKnowledge = vi.fn();
-    const content =
-      "# 谢晶营销文案包 v1.0\n\n## 视频号口播\n这是一份可以保存到项目资料的 Document 产物，后续对话可以继续复用。";
+  it("时间线 Markdown 产物应透传文件打开回调", () => {
+    const onFileClick = vi.fn();
+    const content = "# Result\n\n这是 canonical 时间线里的 Markdown 文件内容。";
+    const filePath = "outputs/result.md";
     const container = renderTimeline(
       [
         createFileArtifactItem({
-          path: "outputs/谢晶_营销文案包_KnowledgeV2_E2E.md",
+          path: filePath,
           source: "tool_result",
           content,
-          metadata: {
-            artifactTitle: "谢晶营销文案包 v1.0",
-          },
+          metadata: { artifactTitle: "Result" },
         }),
       ],
-      {
-        sourceMessageId: "assistant-message-1",
-        onSaveFileArtifactAsKnowledge,
-      },
+      { onFileClick },
     );
-
     expect(
       container.querySelector('[data-testid="timeline-file-attachment-card"]'),
     ).not.toBeNull();
-    expect(container.textContent).toContain(
-      "谢晶_营销文案包_KnowledgeV2_E2E.md",
-    );
     expect(container.textContent).toContain("文档 · MD");
-    expect(container.textContent).toContain("打开文件");
-    expect(container.textContent).not.toContain("打开方式");
-
-    const saveButton = Array.from(
+    expect(container.textContent).not.toContain("保存这份文档");
+    const openButton = Array.from(
       container.querySelectorAll<HTMLButtonElement>("button"),
-    ).find((button) => button.textContent?.includes("保存这份文档"));
-
-    expect(saveButton).not.toBeUndefined();
-
+    ).find((button) => button.textContent?.includes("打开文件"));
+    expect(openButton).not.toBeUndefined();
     act(() => {
-      saveButton?.click();
+      openButton?.click();
     });
-
-    expect(onSaveFileArtifactAsKnowledge).toHaveBeenCalledWith({
-      messageId: "assistant-message-1",
-      content,
-      sourceName: "谢晶_营销文案包_KnowledgeV2_E2E.md",
-      description: "谢晶营销文案包 v1.0",
-    });
+    expect(onFileClick).toHaveBeenCalledWith(filePath, content);
   });
   it("不应把 .lime/tasks 下的内部任务快照 JSON 渲染到时间线里", () => {
     const container = renderTimeline([

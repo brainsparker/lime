@@ -32,12 +32,7 @@ import {
   ensureRuntime,
   requestControlPlane,
 } from "./oemCloudControlPlaneRuntime";
-import {
-  parseReferralClaimResponse,
-  parseReferralDashboard,
-} from "./oemCloudControlPlaneReferralParsers";
 import type {
-  ClaimClientReferralPayload,
   ClientPasswordLoginPayload,
   CreateClientAccessTokenPayload,
   CreateClientCreditTopupOrderPayload,
@@ -65,8 +60,6 @@ import type {
   OemCloudProviderOfferSummary,
   OemCloudProviderPreference,
   OemCloudPublicAuthCatalog,
-  OemCloudReferralClaimResponse,
-  OemCloudReferralDashboard,
   OemCloudRotateAccessTokenResponse,
   OemCloudSceneSkillPreference,
   OemCloudSubscription,
@@ -412,35 +405,6 @@ export async function getClientBillingDashboard(
     await requestControlPlane<unknown>(
       `/v1/public/tenants/${encodeURIComponent(tenantId)}/client/billing/dashboard`,
       {
-        auth: true,
-      },
-    ),
-  );
-}
-
-export async function getClientReferralDashboard(
-  tenantId: string,
-): Promise<OemCloudReferralDashboard> {
-  return parseReferralDashboard(
-    await requestControlPlane<unknown>(
-      `/v1/public/tenants/${encodeURIComponent(tenantId)}/client/referral`,
-      {
-        auth: true,
-      },
-    ),
-  );
-}
-
-export async function claimClientReferral(
-  tenantId: string,
-  payload: ClaimClientReferralPayload,
-): Promise<OemCloudReferralClaimResponse> {
-  return parseReferralClaimResponse(
-    await requestControlPlane<unknown>(
-      `/v1/public/tenants/${encodeURIComponent(tenantId)}/client/referrals/claim`,
-      {
-        method: "POST",
-        payload,
         auth: true,
       },
     ),

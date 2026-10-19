@@ -3,7 +3,6 @@ use agent_protocol::CollaborationMode;
 use app_server_protocol::{AgentSession, RuntimeOptions, RuntimeRequest};
 use serde_json::{json, Map, Value};
 
-const IMPORTED_CONVERSATION_KIND: &str = "conversation.import";
 const DYNAMIC_TOOLS_METADATA_KEY: &str = "dynamicTools";
 
 impl RuntimeCore {
@@ -49,43 +48,14 @@ fn default_runtime_options_for_session(
 ) -> Result<Option<RuntimeOptions>, RuntimeCoreError> {
     let reference = session.business_object_ref.as_ref();
     let metadata = reference.and_then(|reference| reference.metadata.as_ref());
-    let imported = reference.is_some_and(|reference| reference.kind == IMPORTED_CONVERSATION_KIND);
-    let imported_continuation = if imported {
-        metadata.and_then(|metadata| {
-            metadata
-                .get("importedContinuation")
-                .or_else(|| metadata.get("imported_continuation"))
-        })
-    } else {
-        None
-    };
-    let thread_settings = if imported {
-        metadata.and_then(|metadata| {
-            metadata
-                .get("importedThreadSettings")
-                .or_else(|| metadata.get("imported_thread_settings"))
-        })
-    } else {
-        None
-    };
-    let sources = [imported_continuation, thread_settings, metadata];
-    let provider_preference = metadata
-        .and_then(|metadata| string_alias(metadata, &["providerSelector", "provider_selector"]))
-        .or_else(|| {
-            if imported {
-                None
-            } else {
-                metadata
-                    .and_then(|metadata| string_alias(metadata, &["providerName", "provider_name"]))
-            }
-        });
+    let setting = |keys: &[&str]| metadata.and_then(|metadata| string_alias(metadata, keys));
+    let provider_preference = setting(&["providerSelector", "provider_selector"])
+        .or_else(|| setting(&["providerName", "provider_name"]));
     let persisted_model_preference = provider_preference
         .as_ref()
-        .and_then(|_| string_alias_from_sources(&sources, &["modelName", "model_name", "model"]));
-    let collaboration_mode = sources
-        .iter()
-        .filter_map(|source| *source)
-        .find_map(|source| source.get("collaborationMode"))
+        .and_then(|_| setting(&["modelName", "model_name", "model"]));
+    let collaboration_mode = metadata
+        .and_then(|metadata| metadata.get("collaborationMode"))
         .cloned()
         .map(serde_json::from_value::<CollaborationMode>)
         .transpose()
@@ -99,8 +69,7 @@ fn default_runtime_options_for_session(
         .as_ref()
         .map(|mode| mode.settings.model.clone())
         .or(persisted_model_preference);
-    // Published import workspace copies are migrated at the durable store
-    // boundary. Runtime and watcher consume the same current Thread settings.
+    // Runtime and watcher consume the same current Thread settings.
     let working_dir =
         metadata.and_then(|metadata| string_alias(metadata, &["workingDir", "cwd", "working_dir"]));
     let workspace_root = metadata.and_then(|metadata| {
@@ -121,17 +90,9 @@ fn default_runtime_options_for_session(
             )
         }
     });
-    let imported_metadata = imported.then(|| {
-        continuation_metadata(
-            metadata.unwrap_or(&Value::Null),
-            thread_settings,
-            imported_continuation,
-        )
-    });
-    let settings_metadata = metadata
+    let runtime_metadata = metadata
         .map(thread_settings_runtime_metadata)
         .filter(|value| value.as_object().is_some_and(|value| !value.is_empty()));
-    let runtime_metadata = merge_json_objects(imported_metadata, settings_metadata);
     let reviewer = agent_protocol::ApprovalsReviewer::parse(
         metadata.and_then(|metadata| metadata.get("approvalsReviewer")),
     )
@@ -144,29 +105,15 @@ fn default_runtime_options_for_session(
         reasoning_effort: collaboration_mode
             .as_ref()
             .and_then(|mode| mode.settings.reasoning_effort.clone())
-            .or_else(|| {
-                string_alias_from_sources(
-                    &sources,
-                    &["effort", "reasoningEffort", "reasoning_effort"],
-                )
-            }),
-        service_tier: string_alias_from_sources(&sources, &["serviceTier", "service_tier"]),
-        approval_policy: string_alias_from_sources(
-            &sources,
-            &["approvalPolicy", "approval_policy"],
-        ),
-        sandbox_policy: string_alias_from_sources(
-            &sources,
-            &["sandboxPolicy", "sandbox_policy", "sandbox"],
-        ),
+            .or_else(|| setting(&["effort", "reasoningEffort", "reasoning_effort"])),
+        service_tier: setting(&["serviceTier", "service_tier"]),
+        approval_policy: setting(&["approvalPolicy", "approval_policy"]),
+        sandbox_policy: setting(&["sandboxPolicy", "sandbox_policy", "sandbox"]),
         workspace_id: session.workspace_id.clone(),
         working_dir: working_dir.clone(),
         workspace_root: workspace_root.clone(),
         project_root: workspace_root.or(working_dir),
-        execution_strategy: string_alias_from_sources(
-            &sources,
-            &["executionStrategy", "execution_strategy"],
-        ),
+        execution_strategy: setting(&["executionStrategy", "execution_strategy"]),
         system_prompt: collaboration_mode.and_then(|mode| mode.settings.developer_instructions),
         metadata: runtime_metadata,
         ..RuntimeRequest::default()
@@ -262,30 +209,6 @@ fn merge_runtime_requests(
     })
 }
 
-fn continuation_metadata(
-    metadata: &Value,
-    thread_settings: Option<&Value>,
-    imported_continuation: Option<&Value>,
-) -> Value {
-    compact_json(json!({
-        "imported": true,
-        "sourceClient": string_alias(metadata, &["sourceClient", "source_client"]),
-        "sourceThreadId": string_alias(metadata, &["sourceThreadId", "source_thread_id"]),
-        "sourceRoot": string_alias(metadata, &["sourceRoot", "source_root"]),
-        "sourcePath": string_alias(metadata, &["sourcePath", "source_path"]),
-        "statePath": string_alias(metadata, &["statePath", "state_path"]),
-        "threadSource": string_alias(metadata, &["threadSource", "thread_source"]),
-        "memoryMode": string_alias(metadata, &["memoryMode", "memory_mode"]),
-        "agentPath": string_alias(metadata, &["agentPath", "agent_path"]),
-        "cliVersion": string_alias(metadata, &["cliVersion", "cli_version"]),
-        "gitSha": string_alias(metadata, &["gitSha", "git_sha"]),
-        "gitBranch": string_alias(metadata, &["gitBranch", "git_branch"]),
-        "gitOriginUrl": string_alias(metadata, &["gitOriginUrl", "git_origin_url"]),
-        "importedThreadSettings": thread_settings.cloned(),
-        "importedContinuation": imported_continuation.cloned(),
-    }))
-}
-
 fn thread_settings_runtime_metadata(metadata: &Value) -> Value {
     compact_json(json!({
         DYNAMIC_TOOLS_METADATA_KEY: metadata.get(DYNAMIC_TOOLS_METADATA_KEY).cloned(),
@@ -309,13 +232,6 @@ fn string_alias(value: &Value, keys: &[&str]) -> Option<String> {
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .map(str::to_string)
-}
-
-fn string_alias_from_sources(sources: &[Option<&Value>], keys: &[&str]) -> Option<String> {
-    sources
-        .iter()
-        .filter_map(|source| *source)
-        .find_map(|source| string_alias(source, keys))
 }
 
 fn first_string(value: &Value, keys: &[&str]) -> Option<String> {
@@ -545,33 +461,44 @@ mod tests {
     }
 
     #[test]
-    fn imported_source_route_is_not_promoted_without_current_selector() {
-        let options = default_runtime_options_for_session(&session(
-            IMPORTED_CONVERSATION_KIND,
-            json!({
-                "providerName": "openai",
-                "modelName": "gpt-5.4",
-                "workingDir": "/imported",
-                "importedContinuation": {
-                    "approvalPolicy": "never"
-                }
-            }),
-        ))
-        .expect("valid metadata")
-        .expect("continuation defaults");
-        let request = options.runtime_request.expect("runtime request");
+    fn retired_nested_metadata_cannot_override_current_thread_settings() {
+        for kind in ["agent.thread", "conversation.import"] {
+            let options = default_runtime_options_for_session(&session(
+                kind,
+                json!({
+                    "providerName": "current-provider",
+                    "modelName": "current-model",
+                    "workingDir": "/workspace",
+                    "approvalPolicy": "on-request",
+                    "sourceClient": "codex",
+                    "sourceThreadId": "foreign-thread",
+                    "importedContinuation": {
+                        "providerName": "foreign-provider",
+                        "model": "foreign-model",
+                        "approvalPolicy": "never",
+                        "cwd": "/foreign"
+                    },
+                    "importedThreadSettings": {
+                        "reasoningEffort": "high",
+                        "sandboxPolicy": "danger-full-access"
+                    }
+                }),
+            ))
+            .expect("valid current settings")
+            .expect("defaults");
+            let request = options.runtime_request.expect("runtime request");
 
-        assert!(request.provider_preference.is_none());
-        assert!(request.model_preference.is_none());
-        assert_eq!(request.working_dir.as_deref(), Some("/imported"));
-        assert_eq!(request.approval_policy.as_deref(), Some("never"));
-        assert_eq!(
-            request
-                .metadata
-                .as_ref()
-                .and_then(|value| value.get("imported")),
-            Some(&Value::Bool(true))
-        );
+            assert_eq!(
+                request.provider_preference.as_deref(),
+                Some("current-provider")
+            );
+            assert_eq!(request.model_preference.as_deref(), Some("current-model"));
+            assert_eq!(request.working_dir.as_deref(), Some("/workspace"));
+            assert_eq!(request.approval_policy.as_deref(), Some("on-request"));
+            assert!(request.reasoning_effort.is_none());
+            assert!(request.sandbox_policy.is_none());
+            assert!(request.metadata.is_none());
+        }
     }
 
     #[test]

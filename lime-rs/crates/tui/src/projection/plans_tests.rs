@@ -70,7 +70,6 @@ fn closed_turn_late_plan_is_ignored_and_hydrate_does_not_invent_durable_counts()
         TurnStatus::Completed,
         vec![ThreadItem::Plan {
             id: "text-only-plan".into(),
-            metadata: None,
             text: "[x] visible checklist-like text".into(),
         }],
     )]));

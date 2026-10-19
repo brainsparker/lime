@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "properties": {
+    "v2ConsolidatedThreads": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "v2Ready": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "v2ConsolidatedThreads",
+    "v2Ready"
+  ],
+  "title": "MemoryStatusResponse",
+  "type": "object"
+}

@@ -2271,7 +2271,6 @@ fn subagent_activity_marks_the_thread_parent_owned_before_resume() {
         app_server_protocol::protocol::v2::ItemStartedNotification {
             item: app_server_protocol::protocol::v2::ThreadItem::SubAgentActivity {
                 id: "activity-1".to_string(),
-                metadata: None,
                 kind: app_server_protocol::protocol::v2::SubAgentActivityKind::Started,
                 agent_thread_id: "agent-1".to_string(),
                 agent_path: "/root/worker".to_string(),
@@ -2294,7 +2293,6 @@ fn sub_agent_activity_updates_navigation_liveness_and_label() {
         app_server_protocol::protocol::v2::ItemStartedNotification {
             item: app_server_protocol::protocol::v2::ThreadItem::SubAgentActivity {
                 id: "activity-1".to_string(),
-                metadata: None,
                 kind: app_server_protocol::protocol::v2::SubAgentActivityKind::Started,
                 agent_thread_id: "agent-1".to_string(),
                 agent_path: "/root/worker".to_string(),

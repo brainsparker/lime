@@ -12,13 +12,6 @@ interface AgentThreadTimelineAttachmentListProps {
   items: FileArtifactItem[];
   onFileClick?: (fileName: string, content: string) => void;
   onOpenArtifactFromTimeline?: (target: ArtifactTimelineOpenTarget) => void;
-  sourceMessageId?: string;
-  onSaveFileArtifactAsKnowledge?: (source: {
-    messageId: string;
-    content: string;
-    sourceName?: string;
-    description?: string | null;
-  }) => void;
 }
 
 const COLLAPSED_ATTACHMENT_COUNT = 3;
@@ -27,8 +20,6 @@ export function AgentThreadTimelineAttachmentList({
   items,
   onFileClick,
   onOpenArtifactFromTimeline,
-  sourceMessageId,
-  onSaveFileArtifactAsKnowledge,
 }: AgentThreadTimelineAttachmentListProps) {
   const { t } = useTranslation("agent");
   const [expanded, setExpanded] = useState(false);
@@ -50,8 +41,6 @@ export function AgentThreadTimelineAttachmentList({
             groupedAttachment={true}
             onFileClick={onFileClick}
             onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            sourceMessageId={sourceMessageId}
-            onSaveFileArtifactAsKnowledge={onSaveFileArtifactAsKnowledge}
           />
         ))}
       </div>

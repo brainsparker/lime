@@ -268,8 +268,12 @@ export function useWorkspaceRightSurfaceHostRuntime({
   });
   return {
     ...surfaces,
+    tabStrip: createElement(FileTabLifecycleProvider, {
+      lifecycle: fileTabLifecycle,
+      children: surfaces.tabStrip,
+    }),
     content: createElement(FileTabLifecycleProvider, {
-      register: fileTabLifecycle.register,
+      lifecycle: fileTabLifecycle,
       children: createElement(
         "div",
         { className: "contents" },

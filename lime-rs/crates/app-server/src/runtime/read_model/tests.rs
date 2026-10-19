@@ -566,9 +566,9 @@ fn canonical_file_read_projects_as_file_artifact() {
         status: ItemStatus::Completed,
         payload: ThreadItemPayload::File {
             changes: vec![FileChange {
-                path: "docs/imported-preview.md".to_string(),
+                path: "docs/preview.md".to_string(),
                 kind: FileChangeKind::Update { move_path: None },
-                diff: "# imported preview".to_string(),
+                diff: "# preview".to_string(),
             }],
             status: FileChangeStatus::Applied,
         },
@@ -583,10 +583,19 @@ fn canonical_file_read_projects_as_file_artifact() {
     let detail = canonical_item_to_agent_detail(&item);
 
     assert_eq!(detail["type"], "file_artifact");
-    assert_eq!(detail["path"], "docs/imported-preview.md");
+    assert_eq!(detail["path"], "docs/preview.md");
     assert_eq!(detail["source"], "file_read");
-    assert_eq!(detail["content"], "# imported preview");
+    assert_eq!(detail["content"], "# preview");
     assert_eq!(detail["status"], "completed");
+
+    for key in ["sourceProvenance", "source_provenance"] {
+        let mut marked_file_change = item.clone();
+        marked_file_change.metadata = json!({ (key): { "operation": "read" } });
+        let detail = canonical_item_to_agent_detail(&marked_file_change);
+        assert_eq!(detail["type"], "patch");
+        assert_eq!(detail["paths"], json!(["docs/preview.md"]));
+        assert_eq!(detail["source"], "canonical_thread_store");
+    }
 }
 
 #[test]
@@ -946,6 +955,8 @@ fn read_detail_prefers_canonical_thread_store_items_after_restart() {
                     caption: Some("result image".to_string()),
                 },
             ],
+            delivery: None,
+            questions: None,
         },
         metadata: json!({}),
     };

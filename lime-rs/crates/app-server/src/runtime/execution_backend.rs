@@ -75,6 +75,53 @@ pub trait ExecutionBackend: Send + Sync {
         sink: &mut dyn RuntimeEventSink,
     ) -> Result<(), RuntimeCoreError>;
 
+    async fn run_memory_stage1(
+        &self,
+        _root: app_server_protocol::MemoryStoreRootParams,
+        _version: crate::MemoryStageOneVersion,
+        _route: crate::MemoryStageOneRoute,
+        _data_source: Arc<dyn AppDataSource>,
+    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime backend does not support memory stage-1".to_string(),
+        ))
+    }
+
+    async fn run_memory_stage2(
+        &self,
+        _root: app_server_protocol::MemoryStoreRootParams,
+        _route: crate::MemoryStageOneRoute,
+        _data_source: Arc<dyn AppDataSource>,
+    ) -> Result<crate::MemoryStageOneRunResult, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime backend does not support memory stage-2".to_string(),
+        ))
+    }
+
+    async fn consolidate_memory_store(
+        &self,
+        _params: app_server_protocol::MemoryStoreConsolidateParams,
+        _route: crate::MemoryStageOneRoute,
+        _data_source: Arc<dyn AppDataSource>,
+    ) -> Result<app_server_protocol::MemoryStoreConsolidateResponse, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime backend does not support provider-backed memory consolidation".to_string(),
+        ))
+    }
+
+    /// Resolve the current session route before a background memory sampling job.
+    ///
+    /// Memory must use the same provider/model/protocol/readiness decision as a normal
+    /// Turn. Backends without a live provider intentionally fail closed here.
+    async fn resolve_memory_stage1_route(
+        &self,
+        _session: &AgentSession,
+    ) -> Result<crate::MemoryStageOneRoute, RuntimeCoreError> {
+        Err(RuntimeCoreError::Backend(
+            "runtime backend does not resolve memory stage-1 routes".to_string(),
+        ))
+    }
+
     async fn compact_context(
         &self,
         _request: ExecutionRequest,

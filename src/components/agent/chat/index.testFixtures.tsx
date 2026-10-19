@@ -686,29 +686,33 @@ vi.mock("@/lib/artifact/store", () => ({
   selectedArtifactIdAtom: mockSelectedArtifactIdAtom,
 }));
 
-vi.mock("jotai", () => ({
-  useAtomValue: (atom: unknown) => {
-    if (atom === mockSelectedArtifactAtom) {
-      return mockJotaiState.selectedArtifact;
-    }
-    if (atom === mockArtifactsAtom) {
-      return mockJotaiState.artifacts;
-    }
-    if (atom === mockSelectedArtifactIdAtom) {
-      return mockJotaiState.selectedArtifactId;
-    }
-    return [];
-  },
-  useSetAtom: (atom: unknown) => {
-    if (atom === mockArtifactsAtom) {
-      return mockSetArtifactsAtom;
-    }
-    if (atom === mockSelectedArtifactIdAtom) {
-      return mockSetSelectedArtifactIdAtom;
-    }
-    return vi.fn();
-  },
-}));
+vi.mock("jotai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("jotai")>();
+  return {
+    ...actual,
+    useAtomValue: (atom: import("jotai").Atom<unknown>) => {
+      if (atom === mockSelectedArtifactAtom) {
+        return mockJotaiState.selectedArtifact;
+      }
+      if (atom === mockArtifactsAtom) {
+        return mockJotaiState.artifacts;
+      }
+      if (atom === mockSelectedArtifactIdAtom) {
+        return mockJotaiState.selectedArtifactId;
+      }
+      return actual.useAtomValue(atom);
+    },
+    useSetAtom: (atom: unknown) => {
+      if (atom === mockArtifactsAtom) {
+        return mockSetArtifactsAtom;
+      }
+      if (atom === mockSelectedArtifactIdAtom) {
+        return mockSetSelectedArtifactIdAtom;
+      }
+      return vi.fn();
+    },
+  };
+});
 
 vi.mock("./utils/workflowMapping", async (importOriginal) => {
   const actual =
@@ -1455,8 +1459,6 @@ beforeEach(async () => {
     onToggleKnowledgeCompanionPack: vi.fn(),
     onStartKnowledgeOrganize: vi.fn(),
     onManageKnowledgePacks: vi.fn(),
-    onImportPathReferenceAsKnowledge: vi.fn(),
-    onImportTextAsKnowledge: vi.fn(),
   });
   mockUseGlobalMediaGenerationDefaults.mockReturnValue({
     mediaDefaults: {},

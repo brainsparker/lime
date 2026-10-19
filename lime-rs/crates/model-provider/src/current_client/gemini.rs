@@ -122,6 +122,21 @@ pub(super) fn request(
     if let Some(top_k) = request.generation.top_k {
         generation.insert("topK".to_string(), json!(top_k));
     }
+    if let Some(schema) = request.output_schema.as_ref().and_then(|value| {
+        (value.get("type").and_then(Value::as_str) == Some("json_schema"))
+            .then(|| value.get("schema").unwrap_or(value))
+            .or(Some(value))
+    }) {
+        generation.insert("responseMimeType".to_string(), json!("application/json"));
+        generation.insert(
+            "responseSchema".to_string(),
+            gemini_tool_schema(schema).ok_or_else(|| {
+                CurrentProviderError::invalid_request(
+                    "Gemini structured output schema must be a representable object",
+                )
+            })?,
+        );
+    }
     if !generation.is_empty() {
         object.insert("generationConfig".to_string(), Value::Object(generation));
     }

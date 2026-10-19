@@ -3,11 +3,13 @@ import type { ComposerDraftSnapshot } from "@/components/input-kit";
 import type { ComposerEditorHandle } from "@/components/input-kit";
 import React, {
   useCallback,
+  useContext,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { QuestionSelectionContext } from "../../asyncUserInput/QuestionSelectionContext";
 import { toast } from "sonner";
 import {
   ActionButtonGroup,
@@ -22,7 +24,6 @@ import {
   PathReferenceChip,
   PathReferenceContainer,
   PathReferenceIcon,
-  PathReferenceKnowledgeButton,
   PathReferenceName,
   PathReferencePath,
   PathReferenceRemoveButton,
@@ -41,6 +42,7 @@ import {
   ExpansionControl,
 } from "../composerStyles";
 import { AdaptiveFooter } from "./ComposerLayout";
+import { useComposerLayout } from "./useComposerLayout";
 import {
   ArrowUp,
   ChevronDown,
@@ -59,7 +61,6 @@ import {
   type BaseComposerSendMetadata,
   ComposerController,
 } from "@/components/input-kit";
-import { isKnowledgeTextSourceCandidate } from "@/features/knowledge/import/knowledgeSourceSupport";
 import type { MessageImage, MessagePathReference } from "../../../types";
 import type { InputbarCoreCopy } from "./inputbarCoreCopy";
 import {
@@ -111,7 +112,6 @@ interface InputbarCoreProps {
   pendingImages?: MessageImage[];
   onRemoveImage?: (index: number) => void;
   pathReferences?: MessagePathReference[];
-  onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
   onPaste?: (e: ClipboardEvent) => boolean | void;
   onKeyDown?: (e: KeyboardEvent) => boolean | void;
@@ -159,7 +159,6 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
   pendingImages = [],
   onRemoveImage,
   pathReferences = [],
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
   onPaste,
   onKeyDown,
@@ -211,6 +210,18 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
     controller,
     sessionId,
     disabled: disabled || isLoading,
+  });
+  const dictationShowTranscript = isDictationBusy
+    ? Boolean(liveTranscript.trim())
+    : undefined;
+  const isAwaitingInput = useContext(QuestionSelectionContext);
+  const composerLayout = useComposerLayout({
+    controller,
+    editorRef: resolvedEditorRef,
+    hasVisibleAttachments:
+      pendingImages.length > 0 || pathReferences.length > 0,
+    dictationShowTranscript,
+    isAwaitingInput,
   });
   const composerDisabled = disabled || isDictationBusy;
   useComposerCommand({
@@ -268,24 +279,6 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
       onRemovePathReference?.(id);
     },
     [onRemovePathReference],
-  );
-  const handleImportPathReferenceMouseDown = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [],
-  );
-  const handleImportPathReferenceClick = useCallback(
-    (
-      event: React.MouseEvent<HTMLButtonElement>,
-      reference: MessagePathReference,
-    ) => {
-      event.preventDefault();
-      event.stopPropagation();
-      onImportPathReferenceAsKnowledge?.(reference);
-    },
-    [onImportPathReferenceAsKnowledge],
   );
 
   const handleToggleEditorExpanded = useCallback(() => {
@@ -364,11 +357,116 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
           });
         };
 
+        const primaryActions = (
+          <ActionButtonGroup data-testid="inputbar-primary-actions">
+            {dictationEnabled ? (
+              <InputIconButton
+                type="button"
+                data-testid="inputbar-dictation-toggle"
+                onClick={() => {
+                  void handleDictationToggle();
+                }}
+                disabled={
+                  disabled ||
+                  isLoading ||
+                  (isDictationBusy && dictationState !== "listening")
+                }
+                className={dictationButtonClassName}
+                aria-label={dictationButtonLabel}
+                aria-pressed={dictationState === "listening"}
+                title={dictationButtonLabel}
+              >
+                {dictationState === "listening" ? (
+                  <>
+                    <DictationRecordingDot aria-hidden />
+                    <DictationRecordingDuration>
+                      {formatRecordingDuration(recordingStatus?.duration ?? 0)}
+                    </DictationRecordingDuration>
+                    <DictationRecordingWaveform aria-hidden />
+                    <Mic size={14} aria-hidden />
+                  </>
+                ) : isDictationStarting || isDictationProcessing ? (
+                  <Loader2 size={14} aria-hidden />
+                ) : (
+                  <Mic size={14} aria-hidden />
+                )}
+              </InputIconButton>
+            ) : null}
+            {isDictationBusy ? (
+              <InputIconButton
+                type="button"
+                data-testid="inputbar-dictation-cancel"
+                onClick={handleDictationCancel}
+                aria-label={uiCopy.dictation.cancel}
+                title={uiCopy.dictation.cancel}
+              >
+                <X size={14} aria-hidden />
+              </InputIconButton>
+            ) : null}
+            {isLoading ? (
+              <SecondaryActionButton
+                type="button"
+                onClick={onPrimaryAction}
+                disabled={isPrimaryDisabled}
+                aria-label={loadingSecondaryActionLabel}
+                title={loadingSecondaryActionLabel}
+              >
+                <span>{loadingSecondaryActionLabel}</span>
+              </SecondaryActionButton>
+            ) : null}
+            {isLoading ? (
+              <InputIconButton
+                type="button"
+                onClick={() =>
+                  onSend({
+                    triggeredAt: Date.now(),
+                    triggerSource: "button",
+                    submitTarget: "queue",
+                  })
+                }
+                disabled={isPrimaryDisabled}
+                aria-label={uiCopy.action.queue}
+                title={uiCopy.action.queue}
+              >
+                <ListPlus size={14} />
+              </InputIconButton>
+            ) : null}
+            {isLoading ? (
+              <InputIconButton
+                type="button"
+                onClick={onStop}
+                disabled={!onStop}
+                $destructive
+                aria-label={uiCopy.action.stop}
+                title={uiCopy.action.stop}
+              >
+                <Square size={14} fill="currentColor" />
+              </InputIconButton>
+            ) : null}
+            {!isLoading && !isDictationBusy ? (
+              <SendButton
+                type="button"
+                data-testid="send-btn"
+                onPointerDown={
+                  sendOnPointerDown ? onPrimaryActionStart : undefined
+                }
+                onClick={onPrimaryAction}
+                disabled={isPrimaryDisabled}
+                aria-label={uiCopy.action.send}
+                title={uiCopy.action.send}
+              >
+                <ArrowUp size={16} strokeWidth={2.4} />
+              </SendButton>
+            ) : null}
+          </ActionButtonGroup>
+        );
+
         return (
           <Container className={containerClassName}>
             <InputBarContainer
               ref={inputBarContainerRef}
               data-testid="inputbar-core-container"
+              data-composer-layout={composerLayout.bodyLayout}
               className={inputBarClassName}
               onMouseDownCapture={handleContainerMouseDownCapture}
               onDragEnterCapture={onDragOver}
@@ -433,22 +531,6 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                               : uiCopy.path.localFile}
                           </PathReferencePath>
                         </PathReferenceText>
-                        {onImportPathReferenceAsKnowledge &&
-                        isKnowledgeTextSourceCandidate(reference) ? (
-                          <PathReferenceKnowledgeButton
-                            type="button"
-                            aria-label={uiCopy.path.importAsKnowledge(
-                              reference.name,
-                            )}
-                            onMouseDown={handleImportPathReferenceMouseDown}
-                            onClick={(event) =>
-                              handleImportPathReferenceClick(event, reference)
-                            }
-                          >
-                            <FileText size={12} aria-hidden />
-                            {uiCopy.path.importAction}
-                          </PathReferenceKnowledgeButton>
-                        ) : null}
                         <PathReferenceRemoveButton
                           type="button"
                           aria-label={uiCopy.path.remove(reference.name)}
@@ -500,6 +582,7 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                     <StyledComposerEditor
                       {...editorProps}
                       onCompositionStateChange={(active) => {
+                        composerLayout.onCompositionStateChange(active);
                         editorProps.onCompositionStateChange?.(active);
                         if (active && discardDictationSession()) {
                           toast.info(uiCopy.dictation.interruptedByComposition);
@@ -548,110 +631,17 @@ export const InputbarCore: React.FC<InputbarCoreProps> = ({
                     </MetaSlot>
                   ) : null
                 }
-                trailingControls={
-                  <ActionButtonGroup data-testid="inputbar-primary-actions">
-                    {dictationEnabled ? (
-                      <InputIconButton
-                        type="button"
-                        data-testid="inputbar-dictation-toggle"
-                        onClick={() => {
-                          void handleDictationToggle();
-                        }}
-                        disabled={
-                          disabled ||
-                          isLoading ||
-                          (isDictationBusy && dictationState !== "listening")
-                        }
-                        className={dictationButtonClassName}
-                        aria-label={dictationButtonLabel}
-                        aria-pressed={dictationState === "listening"}
-                        title={dictationButtonLabel}
-                      >
-                        {dictationState === "listening" ? (
-                          <>
-                            <DictationRecordingDot aria-hidden />
-                            <DictationRecordingDuration>
-                              {formatRecordingDuration(
-                                recordingStatus?.duration ?? 0,
-                              )}
-                            </DictationRecordingDuration>
-                            <DictationRecordingWaveform aria-hidden />
-                            <Mic size={14} aria-hidden />
-                          </>
-                        ) : isDictationStarting || isDictationProcessing ? (
-                          <Loader2 size={14} aria-hidden />
-                        ) : (
-                          <Mic size={14} aria-hidden />
-                        )}
-                      </InputIconButton>
-                    ) : null}
-                    {isDictationBusy ? (
-                      <InputIconButton
-                        type="button"
-                        data-testid="inputbar-dictation-cancel"
-                        onClick={handleDictationCancel}
-                        aria-label={uiCopy.dictation.cancel}
-                        title={uiCopy.dictation.cancel}
-                      >
-                        <X size={14} aria-hidden />
-                      </InputIconButton>
-                    ) : null}
-                    {isLoading ? (
-                      <SecondaryActionButton
-                        type="button"
-                        onClick={onPrimaryAction}
-                        disabled={isPrimaryDisabled}
-                        aria-label={loadingSecondaryActionLabel}
-                        title={loadingSecondaryActionLabel}
-                      >
-                        <span>{loadingSecondaryActionLabel}</span>
-                      </SecondaryActionButton>
-                    ) : null}
-                    {isLoading ? (
-                      <InputIconButton
-                        type="button"
-                        onClick={() =>
-                          onSend({
-                            triggeredAt: Date.now(),
-                            triggerSource: "button",
-                            submitTarget: "queue",
-                          })
-                        }
-                        disabled={isPrimaryDisabled}
-                        aria-label={uiCopy.action.queue}
-                        title={uiCopy.action.queue}
-                      >
-                        <ListPlus size={14} />
-                      </InputIconButton>
-                    ) : null}
-                    {isLoading ? (
-                      <InputIconButton
-                        type="button"
-                        onClick={onStop}
-                        disabled={!onStop}
-                        $destructive
-                        aria-label={uiCopy.action.stop}
-                        title={uiCopy.action.stop}
-                      >
-                        <Square size={14} fill="currentColor" />
-                      </InputIconButton>
-                    ) : null}
-                    {!isLoading && !isDictationBusy ? (
-                      <SendButton
-                        type="button"
-                        data-testid="send-btn"
-                        onPointerDown={
-                          sendOnPointerDown ? onPrimaryActionStart : undefined
-                        }
-                        onClick={onPrimaryAction}
-                        disabled={isPrimaryDisabled}
-                        aria-label={uiCopy.action.send}
-                        title={uiCopy.action.send}
-                      >
-                        <ArrowUp size={16} strokeWidth={2.4} />
-                      </SendButton>
-                    ) : null}
-                  </ActionButtonGroup>
+                trailingControls={isDictationBusy ? null : primaryActions}
+                inputRef={composerLayout.inputRef}
+                layout={composerLayout.layout}
+                isComposing={composerLayout.isComposing}
+                dictation={
+                  isDictationBusy
+                    ? {
+                        showTranscript: Boolean(dictationShowTranscript),
+                        controls: primaryActions,
+                      }
+                    : undefined
                 }
               />
             </InputBarContainer>

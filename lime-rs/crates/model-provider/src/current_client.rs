@@ -194,6 +194,8 @@ pub struct CurrentProviderRequest {
     pub provider_options: ProviderMetadata,
     pub metadata: Option<CurrentProviderRequestMetadata>,
     pub model_request_policy: Option<RuntimeReplyModelRequestPolicy>,
+    pub output_schema: Option<Value>,
+    pub output_schema_strict: bool,
 }
 
 impl CurrentProviderRequest {
@@ -206,6 +208,8 @@ impl CurrentProviderRequest {
             provider_options: ProviderMetadata::new(),
             metadata: None,
             model_request_policy: None,
+            output_schema: None,
+            output_schema_strict: false,
         }
     }
 
@@ -239,6 +243,12 @@ impl CurrentProviderRequest {
         model_request_policy: Option<RuntimeReplyModelRequestPolicy>,
     ) -> Self {
         self.model_request_policy = model_request_policy;
+        self
+    }
+
+    pub fn with_output_schema(mut self, schema: Option<Value>, strict: bool) -> Self {
+        self.output_schema = schema;
+        self.output_schema_strict = strict;
         self
     }
 
@@ -292,6 +302,8 @@ impl CurrentProviderRequest {
         if let Some(metadata) = &self.metadata {
             canonical.metadata = metadata.canonical_metadata();
         }
+        canonical.output_schema = self.output_schema.clone();
+        canonical.output_schema_strict = self.output_schema_strict;
         Ok(canonical)
     }
 

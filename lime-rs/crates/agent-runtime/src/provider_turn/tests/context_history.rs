@@ -108,6 +108,7 @@ async fn live_output(
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )
@@ -206,6 +207,7 @@ async fn sampling_and_explicit_continuation_normalize_history_without_executing_
             working_directory: PathBuf::from("."),
             cancel_token: None,
             pending_input: None,
+            mid_turn_compaction: None,
         },
         |_| {},
     )

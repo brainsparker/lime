@@ -3360,6 +3360,31 @@ fn memory_reset_contract_accepts_unit_params_and_returns_empty_object() {
 }
 
 #[test]
+fn memory_status_contract_round_trips_codex_shape() {
+    let request = json!({
+        "id": 4,
+        "method": "memory/status",
+        "params": {"minConsolidatedThreads": 3}
+    });
+    let decoded: ClientRequest =
+        serde_json::from_value(request.clone()).expect("decode memory/status request");
+    assert_eq!(decoded.method(), Method::MemoryStatus);
+    assert_eq!(
+        serde_json::to_value(decoded).expect("encode memory/status request"),
+        request
+    );
+
+    let response = MemoryStatusResponse {
+        v2_consolidated_threads: 3,
+        v2_ready: true,
+    };
+    assert_eq!(
+        serde_json::to_value(response).expect("encode memory/status response"),
+        json!({"v2ConsolidatedThreads": 3, "v2Ready": true})
+    );
+}
+
+#[test]
 fn process_requests_and_notifications_round_trip_exact_codex_shape() {
     let requests = [
         json!({

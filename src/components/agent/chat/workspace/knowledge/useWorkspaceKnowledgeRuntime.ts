@@ -1,15 +1,9 @@
 import type { WorkspaceHandleSend } from "../useWorkspaceSendActions";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 import {
   listKnowledgePacks,
   type KnowledgePackSummary,
 } from "@/lib/api/knowledge";
-import {
-  importKnowledgePathSource,
-  importKnowledgeTextSource,
-} from "@/features/knowledge/import/knowledgeSourceImport";
-import { getKnowledgeUnsupportedSourceMessage } from "@/features/knowledge/import/knowledgeSourceSupport";
 import {
   buildKnowledgeOrganizePrompt,
   normalizeKnowledgeDraftName,
@@ -24,7 +18,6 @@ import type {
   InputbarKnowledgePackOption,
   InputbarKnowledgePackSelection,
 } from "../../components/Inputbar/types";
-import type { MessagePathReference } from "../../types";
 
 type WorkspaceKnowledgeHandleSend = WorkspaceHandleSend;
 
@@ -66,13 +59,6 @@ interface UseWorkspaceKnowledgeRuntimeResult {
   onKnowledgePacksNeeded: () => void;
   onStartKnowledgeOrganize: () => void;
   onManageKnowledgePacks?: () => void;
-  onImportPathReferenceAsKnowledge: (reference: MessagePathReference) => void;
-  onImportTextAsKnowledge: (source: {
-    sourceName: string;
-    sourceText: string;
-    description?: string | null;
-    packType?: string | null;
-  }) => void;
 }
 
 export function useWorkspaceKnowledgeRuntime({
@@ -455,105 +441,6 @@ export function useWorkspaceKnowledgeRuntime({
     [effectiveProjectRootPath, onOpenKnowledgeManagement],
   );
 
-  const handleKnowledgeImportSuccess = useCallback(
-    async (
-      workingDir: string,
-      packName: string,
-      description?: string | null,
-    ) => {
-      await refreshKnowledgePacks(workingDir, packName);
-      setKnowledgePackEnabled(false);
-      toast.success("项目资料已整理，确认后可用于生成", {
-        description: description || undefined,
-      });
-    },
-    [refreshKnowledgePacks],
-  );
-
-  const handleImportPathReferenceAsKnowledge = useCallback(
-    (reference: MessagePathReference) => {
-      const workingDir = effectiveProjectRootPath;
-      if (!workingDir) {
-        toast.error("请先选择一个项目，再添加项目资料。");
-        return;
-      }
-      if (reference.isDir) {
-        toast.info(
-          "文件夹暂时只能添加到对话，请选择 Markdown 或文本文件作为项目资料。",
-        );
-        return;
-      }
-      const unsupportedMessage =
-        getKnowledgeUnsupportedSourceMessage(reference);
-      if (unsupportedMessage) {
-        toast.info(unsupportedMessage);
-        return;
-      }
-
-      toast.info(`正在整理项目资料：${reference.name}`);
-      void importKnowledgePathSource({
-        workingDir,
-        source: reference,
-      })
-        .then(async (result) => {
-          await handleKnowledgeImportSuccess(
-            workingDir,
-            result.pack.metadata.name,
-            result.pack.metadata.description,
-          );
-        })
-        .catch((error) => {
-          console.error("导入项目资料失败:", error);
-          toast.error(
-            error instanceof Error && error.message.trim()
-              ? error.message
-              : "导入项目资料失败，请稍后重试。",
-          );
-        });
-    },
-    [effectiveProjectRootPath, handleKnowledgeImportSuccess],
-  );
-
-  const handleImportTextAsKnowledge = useCallback(
-    (source: {
-      sourceName: string;
-      sourceText: string;
-      description?: string | null;
-      packType?: string | null;
-    }) => {
-      const workingDir = effectiveProjectRootPath;
-      if (!workingDir) {
-        toast.error("请先选择一个项目，再添加项目资料。");
-        return;
-      }
-
-      toast.info(`正在整理项目资料：${source.sourceName}`);
-      void importKnowledgeTextSource({
-        workingDir,
-        sourceName: source.sourceName,
-        sourceText: source.sourceText,
-        description: source.description,
-        packType: source.packType,
-      })
-        .then(async (result) => {
-          await handleKnowledgeImportSuccess(
-            workingDir,
-            result.pack.metadata.name,
-            result.pack.metadata.description,
-          );
-        })
-        .catch((error) => {
-          console.error("保存项目资料失败:", error);
-          toast.error(
-            error instanceof Error && error.message.trim()
-              ? error.message
-              : "保存项目资料失败，请稍后重试。",
-          );
-        });
-    },
-    [effectiveProjectRootPath, handleKnowledgeImportSuccess],
-  );
-
   return {
     knowledgePackSelection,
     knowledgePackOptions,
@@ -563,7 +450,5 @@ export function useWorkspaceKnowledgeRuntime({
     onKnowledgePacksNeeded: handleKnowledgePacksNeeded,
     onStartKnowledgeOrganize: handleStartKnowledgeOrganize,
     onManageKnowledgePacks: handleManageKnowledgePacks,
-    onImportPathReferenceAsKnowledge: handleImportPathReferenceAsKnowledge,
-    onImportTextAsKnowledge: handleImportTextAsKnowledge,
   };
 }

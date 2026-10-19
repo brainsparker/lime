@@ -151,7 +151,6 @@ interface EmptyStateComposerPanelProps {
   onDrop?: (event: React.DragEvent) => void;
   onRemoveImage?: (index: number) => void;
   pathReferences?: MessagePathReference[];
-  onImportPathReferenceAsKnowledge?: (reference: MessagePathReference) => void;
   onRemovePathReference?: (id: string) => void;
 }
 
@@ -202,7 +201,6 @@ export function EmptyStateComposerPanel({
   onDrop,
   onRemoveImage,
   pathReferences = [],
-  onImportPathReferenceAsKnowledge,
   onRemovePathReference,
 }: EmptyStateComposerPanelProps) {
   const { composerDecorations } = useHomeSkinPresentation();
@@ -397,7 +395,6 @@ export function EmptyStateComposerPanel({
             leftExtra={leftExtra}
             trailingMeta={trailingMeta}
             pathReferences={pathReferences}
-            onImportPathReferenceAsKnowledge={onImportPathReferenceAsKnowledge}
             onRemovePathReference={onRemovePathReference}
             showEditorExpandButton={false}
             contextualSuggestions={contextualSuggestions}

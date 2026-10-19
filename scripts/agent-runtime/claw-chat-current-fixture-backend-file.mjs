@@ -154,6 +154,13 @@ export function createTempRuntimeEnv() {
     env: withElectronFixtureSystemPath({
       ...process.env,
       HOME: home,
+      // The fixture deliberately isolates application state under a temporary
+      // HOME, but Rust toolchain resolution must continue to use the host
+      // toolchain. Without these two paths rustup tries to bootstrap a second
+      // toolchain inside the fixture and can stall sidecar preparation.
+      CARGO_HOME: process.env.CARGO_HOME || path.join(os.homedir(), ".cargo"),
+      RUSTUP_HOME:
+        process.env.RUSTUP_HOME || path.join(os.homedir(), ".rustup"),
       XDG_CONFIG_HOME: xdgConfigHome,
       XDG_DATA_HOME: xdgDataHome,
       APPDATA: roamingAppData,
