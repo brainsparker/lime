@@ -15,6 +15,17 @@ function notification(
 }
 
 describe("App Server notification drift", () => {
+  it("keeps thread status with the canonical read projection", () => {
+    const source = notification("thread/status/changed", {
+      threadId: "thread-waiting",
+      status: { type: "active", activeFlags: ["waitingOnUserInput"] },
+    });
+    expect(readAppServerNotificationDrift(source).disposition).toBe(
+      "known_projected",
+    );
+    expect(projectAppServerNotificationDriftPayload(source)).toBeNull();
+  });
+
   it("records planned notifications without retaining field values", () => {
     const source = notification("hook/started", {
       threadId: "thread-1",

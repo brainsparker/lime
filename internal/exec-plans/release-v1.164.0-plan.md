@@ -12,6 +12,12 @@
 - 后继调试连接诊断 `/tmp/lime-quit-detached-probe.json`：先释放 Node inspector，再正常 app.quit，同一真实 Electron/preload/App Server 条件下 Main 在 2.4s 内 exitCode 0/signal null，forcedCleanup null。发布 root 追加窄写集为 `persisted-atom-fixture-driver.mjs` 及其既有测试、`claw-chat-current-fixture-teardown.test.mjs`：把断开测试调试连接放入正常退出请求，保留原 15s 预算、真实 child receipt 与失败后单独回收规则；无生产退出逻辑变更。首次回归暴露下游 fake 仍只实现 app.close，迁移其 quit-request fixture 后重新验证；独立真实 helper 复验进行中。
 - 真实 helper 的第一轮复验仍失败：只断 Node inspector 未释放 Playwright browser transport，虽收到 quit 事件仍未在 15s 内收到 Main child exit；保留 `/tmp/lime-quit-current-helper-probe.{json,log}`，未把回收记为通过。后继补回 Playwright public close，完整调试连接释放与正常退出同时执行；28/28 回归通过，真实进程终态待结算。最终 contracts、scoped script lint、版本一致性均 exit0；只提交当前候选以重跑质量矩阵，标签仍等待产品证据。
 - 上述 helper 后继真实复验 `/tmp/lime-quit-current-helper-final.{json,log}` 仍为 15s 超时，业务 quit 事件不能替代 child exit。已精确撤回本轮三个 helper/test 文件补丁，恢复当前 main 的退出合同；单次断调试连接诊断与 28 项临时回归不作为最终修复通过。未改动生产退出实现或增加预算，原失败与无 inspector 条件成功均保留。
+- 后继候选 `467259cb392dbd03eda649c289c14aeb0be5e373` 已正常提交并推送 main，提交钩子 21/21 通过。完整 Quality 为 [39403455902](https://github.com/limecloud/lime/actions/runs/39403455902)，仍待终态。源码/文档 diff whitespace 通过；原始 JSON-RPC 测试日志保留尾部空行，未改写原始证据。提交后的问答 helper 迁入既有 threadReadActivity owner 的结构调整仍由原 owner 收口，最终标签尚未移动。
+- 当前收据新增：临时线程真实 stdio/runtime/loopback provider 与工具 continuation 通过，3 次采样、两个进程 EOF 正常退出、私密 marker 未落盘及冷恢复拒绝；Agent Runtime 266/266、App Server Client 50/50。标准 GUI smoke `standalone-shell-01-20261020095127-70083` 24/24。unknown Item Electron 场景 `memory-ephemeral-unknown-item-final-20261020` 业务与 teardown 全部通过，Main PID 99939 在 0.75s 内 exitCode 0/signal null、forcedCleanup null；这是当前原 helper 的新成功证据，不抵消此前不同 run 的退出失败，也不替代尚待完成的问答专项。
+- 问答专项 r44 已真实 Electron 全部通过，最终正文/终态与 Esc scoped Stop 验收正常；Main PID 19270 在 4.31s 内正常退出（exitCode 0、signal null、forcedCleanup null）。原始 summary `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r44/summary.json`，由原 owner 收齐最终仓库证据。
+- Quality 39403455902 的 Frontend Full 在第93/141批发现五条中文期望实际返回韩文；发布 root 认领唯一污染源 `agentStreamSubmitExecution.test.ts` 的语言 fixture 清理。按 producer→两 consumer 固定顺序与原 singleFork 条件复现 5失败/25通过（`/tmp/lime-v11640-locale-ordered-red-2.log`）；首次 CLI sequencer 参数使用不正确、未执行测试的日志单独保留。修复按每项测试捕获并恢复进入时的真实 locale，保留五语言覆盖和全部原行为断言。该既有测试文件已超1000行，本刀只补生命周期清理，不堆业务用例；退出条件为原跨文件失败消失，后续按职责拆分独立处理。
+- 语言隔离最终按 product copy 的 document→已初始化 i18n→fallback 顺序只读捕获有效 locale，同时恢复原文档 lang/dir。中间使用会初始化 i18n 的 getter 导致英文默认值，5条仍失败，诊断原件保留；最终固定顺序 **30/30 通过**（`/tmp/lime-v11640-locale-ordered-final.log`），临时调试输出已移除。未修改语言资源、生产分支或放宽期望；后继候选须重新覆盖完整前端矩阵。
+- r44 人工截图发现合法 `thread/status/changed` 仍有“尚未接入”toast，原 owner r45 在既有 read-model refresh owner 处理状态失效并消除此告警，66/66 定向回归通过，最终桌面重验待结算。该现存产品缺口属于本版；Memory phase-2 新实现仍排除在本版完成声明外。RuntimeCore 最终 885/885、runner 管道输出23/23通过，完整日志入库；旧截断与失败日志保留。发布候选在这些已实现修复处冻结，接下来只接受当前门禁失败所需修正和验证收据。
 - 本轮发布写集限定为 release notes、当前计划及 Agnes 退出收据；问答和 Memory 生产实现仍由其既有 owner 修改。本版在当前修复与其最终验证收齐后冻结候选，Memory phase-2 共享 Agent 等尚未实施的路线图保留 active，不作为本版全面完成声明。
 - `90bb735978dedc3c85fca9901c5ea6c4c2638ad7` 的 Quality `39373078331` 六项全部 success。后继设置布局、Agnes live helper、问答跨 Turn 绑定与 Memory ephemeral 生命周期进入新候选，不能沿用该旧提交的完整通过声明。
 - 设置页截图问题已在原 owner 修复并在真实 Electron 三宽度复验；Agnes 3.0 Flash 聊天与 2.5 Flash 图片在同一 canonical Thread/Turn 上完成，任务/workflow/JSONL 审计通过，收据见 Agnes 计划和同名 JSON。Main 15s 正常退出仍 fail，保留独立 lifecycle 缺口。
@@ -53,6 +59,14 @@
 - 最终候选类型检查再次通过；active-turn 相关8文件139/139通过（`/tmp/lime-active-turn-resume-green-r26.log`）。本轮 current fixture 聚合在 unknown Item 场景所有业务断言通过后，正常退出 Main 的15s期限失败；独立复验同样失败，均没有把 SIGKILL 回收记为通过，日志 `/tmp/lime-v11640-all-current-fixture.log`、`/tmp/lime-v11640-unknown-recheck.log`。其余聚合子场景未执行；SHELL-01 通过不替代该聚合终态，退出缺口继续排查。
 
 ## 目标与范围
+
+### 最终候选收口（2026-10-20）
+
+- `467259cb392dbd03eda649c289c14aeb0be5e373` 的 Quality `39403455902` 已完成：Rust Full、Windows Shell Runtime、GUI Smoke 与 Integrity 通过；Frontend Full 仅有测试间语言污染导致的五项失败。保留原日志，污染源测试恢复进入前的有效语言及文档属性，固定 producer→两 consumer 顺序复验30/30通过，未修改生产逻辑或原断言。
+- 后继候选包含活动 Turn 判断迁入既有 projection、queue/status 共用单一 thread read owner、Rust runner 输出 drain 修正和 ephemeral 多模型路由验收；旧 queue-only hook 直接迁移，新增 compat/deprecated 为0。当前只接受门禁失败修正和验收记录，Memory phase-2 shared Agent 与全仓模块拆分仍在各自路线图，不扩充本版实现范围。
+- Agnes 3.0 Flash 文字与 Image 2.5 Flash 图片已走真实 Electron/IPC/App Server/runtime 完成；服务商设置在1024、1440、2048宽度无横向溢出。问答 r44 业务与正常退出通过，r45正复验合法状态通知零提示。
+- 完整 types 最终复核与后继 CI、标签重定位及全部 Desktop/R2/CLI/npm 仍待完成，不能把已触发工作流记为发布成功。原始验证日志保留其空行与空白，不为 diff whitespace 改写原件；源码与文档单独检查。
+- 后继完整 `npm run typecheck` exit0，原件 `/tmp/lime-v11640-final-typecheck-verified.log` 与 `.exit`；最终 GUI SHELL-01 `standalone-shell-01-20261020102955-67648` 通过24/24。docs boundary、ephemeral fixture语法、源码/文档diff whitespace通过。42文件候选先提交启动CI；之后新增的并行typed sandbox协议/执行边界尚在开发，保留工作树，待对应owner完成定向与合同后再合入最终发布标签，不把这批在途文件混入已冻结索引。
 
 - 发布应用、CLI 与 Rust workspace `v1.164.0`，创建并推送 `v1.164.0` 标签。
 - 候选起点为已发布的 `v1.163.0`；当前工作树中该标签之后的源码、协议、测试、脚本、治理规则、研究证据和执行计划全部纳入本版。

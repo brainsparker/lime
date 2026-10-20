@@ -1134,6 +1134,16 @@ recent replay 的完成登记仍属于请求该 replay 的订阅，不转移给�
 canonical `active_turn_id` 及同一 Turn 的 running 状态，不得仅凭线程等待标签将其判为
 空闲并卸载事件路由。缺失、终态或不匹配的 active Turn 仍不恢复。该规则对应 Codex
 `ThreadStatus::Active` 的 waiting flags；root 于 2026-10-20 确认继续使用原恢复 owner。
+活动判断 `hasActiveRuntimeTurn` 直接归现有 `projection/threadReadActivity.ts`，复用该模块的
+canonical Turn 与终态判断；`useAgentChat` 直接消费 projection，不经过会话状态 hook 转导出。
+旧 `agentSessionState.ts` 定义与重复终态 helper 已删除，相关行为测试迁至 projection 的
+既有 unit suite。root 于 2026-10-20 确认该迁移沿现有依赖方向，不增加新的状态 owner。
+
+`thread/status/changed` 与 `thread/queue/changed` 共用 `useAgentThreadReadSync` 现有的
+串行 canonical 读取订阅；通知只使匹配线程失效，不直接用通知字段合成业务状态。
+已有 session/workspace generation 检查、在途合并和末次读取继续生效；旧 queue-only
+hook 与测试直接迁移，无第二 drain、订阅或状态 store。合法状态通知不进入通用告警。
+root 于 2026-10-20 确认该接线属于原 App Server read model 消费边界。
 
 `PendingInteractionController` 是 reverse request 的唯一前端 pending owner；
 `PendingInteractionLayer` 选择当前线程的 canonical 请求，`DecisionPanel` 只把
@@ -3354,7 +3364,7 @@ thread/queue/{add,update,reorder,delete}
   -> ThreadStore canonical Turn + completed UserMessage Item
   -> thread/queue/changed -> AppServerEventBus
        -> scoped queue list reader -> QueuedMessageList
-       -> useAgentThreadQueueSync -> existing session full thread/read
+       -> useAgentThreadReadSync -> existing session full thread/read
             -> thread_read/history_visibility excludes pending Queue
             -> same-read public thread_turns/thread_items -> timeline replacement
 ```

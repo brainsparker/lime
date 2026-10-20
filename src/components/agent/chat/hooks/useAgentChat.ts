@@ -41,7 +41,7 @@ import {
   sanitizeGeneratedAutoTitle,
   shouldGenerateAutoTitle,
 } from "./agentChatAutoTitleViewModel";
-import { hasActiveRuntimeTurn } from "./agentSessionState";
+import { hasActiveRuntimeTurn } from "../projection/threadReadActivity";
 import { resolveAgentChatCopy } from "@/i18n/agentChatCopy";
 import { useExecutionScopeHandoff } from "./useExecutionScopeHandoff";
 import { requireExecutionScope } from "./executionScope";

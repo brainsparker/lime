@@ -41,15 +41,15 @@ budget:normal；P1。输入为已 claim 的 durable stage1 selection + root sess
 
 ### 已定位的共享 Agent 接入前提
 
-| 合同 | current owner / 事实 | 下一步必须改动 |
-| --- | --- | --- |
-| 同一 Thread/Turn manager | `runtime/session_lifecycle.rs::start_session`、`turn_execution.rs::start_turn`、`session_shutdown.rs::shutdown_session_runtime` 共用 `RuntimeCore.state`、session registry、backend | consolidation runner 复用这些 owner；不能新建独立 runtime/actor registry |
-| 真正 ephemeral | `processor/thread/lifecycle.rs` 的 public `thread/start` 已接收 ephemeral 并写 metadata，但 `start_session` 仍写 canonical thread；`thread_fork/settings.rs` 则明确拒绝未实现的 ephemeral storage | Codex `core/src/session/session.rs:1041/1159` 在 ephemeral 时同时跳过 thread persistence 和 state DB。Lime 必须让实际 projection/EventLog/rollout 生命周期与 shutdown 成对，且不反哺 phase1；只存 metadata 不满足合同 |
-| 扩展隔离 | `runtime_backend.rs::handle_turn_start_with_provider_history` 当前读取 plugin snapshots、初始化 MCP、discover orchestrator skills；`request_context/session_config.rs` 合并 AGENTS/Skills/Memory/Soul | typed internal source 必须在读取、发现、prompt、hook 与执行边界都生效；单纯空 snapshot/prompt 禁止词不够 |
-| 工具隔离 | `agent/current_provider_turn/mcp_step_snapshot.rs` 每 step 重捕获本地/MCP/dynamic tools；`tool_executor.rs` 承接真实执行 | 限制必须同时约束 snapshot 与执行，避免全局 gateway registry/工具检索重新暴露被禁能力 |
-| 仅 memory root 写权限 | `tool-runtime/sandbox/command.rs` 的默认 Seatbelt profile 允许 `/tmp`、`/private/tmp`、`/var/tmp`、`/private/var/tmp` | Codex managed Memory config 排除临时目录；复用现有 sandbox owner 补内部限制，不能把普通 workspace-write 当成已对齐。父级 Disabled/External 的处理仍按 Codex 源码 |
-| 真实终态与关闭 | `start_turn` 等 session task 完成；`unload_thread_if_idle` 经同一 close owner 释放资源 | 需证明 Completed/Failed/Cancelled、Stop 拒绝、取消后 drain、shutdown 失败保留 lease，再核销共享 harness；本片取消直接采样不提供该证明 |
-| 精确 snapshot selection | Codex `state/runtime/memories.rs::mark_global_phase2_job_succeeded` 使用 `thread_id + source_updated_at`；本轮 Lime 提交/Review 已携带 `source_path + source_updated_at + content_hash`，定向验证中 | 共享 Agent 继续传递该实际选中版本，不能降回按路径提交；当前来源文件检查不提供跨数据库/文件系统的原子事务 |
+| 合同                     | current owner / 事实                                                                                                                                                                                  | 下一步必须改动                                                                                                                                                                                                        |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 同一 Thread/Turn manager | `runtime/session_lifecycle.rs::start_session`、`turn_execution.rs::start_turn`、`session_shutdown.rs::shutdown_session_runtime` 共用 `RuntimeCore.state`、session registry、backend                   | consolidation runner 复用这些 owner；不能新建独立 runtime/actor registry                                                                                                                                              |
+| 真正 ephemeral           | `processor/thread/lifecycle.rs` 的 public `thread/start` 已接收 ephemeral 并写 metadata，但 `start_session` 仍写 canonical thread；`thread_fork/settings.rs` 则明确拒绝未实现的 ephemeral storage     | Codex `core/src/session/session.rs:1041/1159` 在 ephemeral 时同时跳过 thread persistence 和 state DB。Lime 必须让实际 projection/EventLog/rollout 生命周期与 shutdown 成对，且不反哺 phase1；只存 metadata 不满足合同 |
+| 扩展隔离                 | `runtime_backend.rs::handle_turn_start_with_provider_history` 当前读取 plugin snapshots、初始化 MCP、discover orchestrator skills；`request_context/session_config.rs` 合并 AGENTS/Skills/Memory/Soul | typed internal source 必须在读取、发现、prompt、hook 与执行边界都生效；单纯空 snapshot/prompt 禁止词不够                                                                                                              |
+| 工具隔离                 | `agent/current_provider_turn/mcp_step_snapshot.rs` 每 step 重捕获本地/MCP/dynamic tools；`tool_executor.rs` 承接真实执行                                                                              | 限制必须同时约束 snapshot 与执行，避免全局 gateway registry/工具检索重新暴露被禁能力                                                                                                                                  |
+| 仅 memory root 写权限    | `tool-runtime/sandbox/command.rs` 的默认 Seatbelt profile 允许 `/tmp`、`/private/tmp`、`/var/tmp`、`/private/var/tmp`                                                                                 | Codex managed Memory config 排除临时目录；复用现有 sandbox owner 补内部限制，不能把普通 workspace-write 当成已对齐。父级 Disabled/External 的处理仍按 Codex 源码                                                      |
+| 真实终态与关闭           | `start_turn` 等 session task 完成；`unload_thread_if_idle` 经同一 close owner 释放资源                                                                                                                | 需证明 Completed/Failed/Cancelled、Stop 拒绝、取消后 drain、shutdown 失败保留 lease，再核销共享 harness；本片取消直接采样不提供该证明                                                                                 |
+| 精确 snapshot selection  | Codex `state/runtime/memories.rs::mark_global_phase2_job_succeeded` 使用 `thread_id + source_updated_at`；本轮 Lime 提交/Review 已携带 `source_path + source_updated_at + content_hash`，定向验证中   | 共享 Agent 继续传递该实际选中版本，不能降回按路径提交；当前来源文件检查不提供跨数据库/文件系统的原子事务                                                                                                              |
 
 上述是直接源码事实与实施约束，不是已完成能力。REA Desktop timeline 证据只复用其静态 UI 观察范围；不用于证明后端 ownership、关闭顺序或真实产品执行。
 
@@ -110,3 +110,29 @@ ephemeral 进程验证追加窄写集：`scripts/app-server/ephemeral-fixture.mj
 Codex `memories/write/src/runtime.rs::spawn_consolidation_agent` 在同一 ThreadManager 以 typed `Internal(MemoryConsolidation)` / `ThreadSource::MemoryConsolidation` 建线程，`start_turn_if_idle` 接受输入；关闭经 `shutdown_and_wait`，10 秒超时成功后才 remove。`phase2.rs::agent::get_config` 对 managed permission 使用 memory-root-only workspace-write，排除 TMPDIR 与 slash-tmp；显式 Disabled/External 父级选择保留。`agent::handle` 的顺序是终态→关闭→artifact 校验→ownership heartbeat→workspace baseline→精确 selection/watermark；关闭失败保留 lease 到过期。
 
 Lime 下一实现从 `runtime/memory.rs` 发起共享内部会话，限制必须逐层传到 `runtime_backend.rs` 的扩展发现/配置、provider-step snapshot 和真实工具 executor。当前 metadata 中的 `memory_consolidation` 识别仅影响 Stop target，不能当成可信 admission 或隔离能力；公共 metadata 不能授权内部工具策略。下一片需以内部 typed admission 传递限制，不增加公开 RPC 或第二 registry。多模型仍走原 `resolve_turn_route` 和 model-provider；phase-1 独立采样保留，phase-2 的 `MemoryStageTwoProvider::sample`、JSON proposal 与旧正向测试随真实接线一并删除。
+
+### 续接：真实 stdio 存储验收
+
+追加窄写集 `scripts/run-rust-layer.mjs` 与现有 unit test：修复 buffered stdout/stderr 在 `process.exit` 时未 drain 导致的大日志截断。保持 Cargo exit code 与零测试 fail-closed 合同，以真实子进程管道覆盖 >64KiB 双流及通过/失败状态；先保留失败回归，再修复并补完整 RuntimeCore summary。该修复直接服务本轮 harness 证据完整性，不扩大为脚本治理项目。
+
+`scripts/app-server/ephemeral-fixture.mjs` 最终 **exit 0**，日志 `ephemeral-stdio-runtime-complete.log`。同一固定 sidecar 的真实 stdio + RuntimeBackend + OpenAI-compatible loopback provider 执行真实 `exec_command`，3 次采样覆盖工具 continuation 和第二轮内存历史；公开 metadata/loaded list 正常，历史读取明确拒绝，两个进程都经 EOF 正常退出。隔离 data/app 目录未发现合成 thread/turn/input/tool/output marker；冷 read/resume 拒绝，普通线程冷读/list 仍可用。此为本地受控 provider 证据，不是 live、四协议、Windows、GUI、CLI 或 PTY 验收。
+
+前置失败全部保留：最初 fixture 只注册 observer、未继续读 stdio；随后缺少 experimentalApi 握手；再后直接扫描 runtime 没有创建的 app-data 目录。最终使用现有 `nextServerMessage` 读取并拒绝意外 reverse request，声明实验能力并预建隔离目录。未修改生产 runtime、原成功断言或超时预算；失败诊断只输出事件身份/终态与 provider 请求类型，不额外复制 provider prompt。更新最终冻结中的 fixture 摘要；23 个 Lime 与 4 个 Codex 源码摘要仍一致。
+
+Agent Runtime **266/266**、App Server Client **50/50** 通过；最终 GUI smoke **24/24、exit 0、正常退出**，完整 summary 见 `ephemeral-gui-smoke-summary.json`。标准 stdio fail-closed smoke 同样 exit 0。RuntimeCore 最终串行回归和重建后的 Electron 场景尚待终态；ephemeral 前提继续 validating。完整默认本地门禁尚未通过；不把并行 runner 的共享续跑状态混入本轮结论。Memory phase-2 仍是 direct sampling，受限共享 Agent 尚未接入。
+
+### 续接：ephemeral 核心合同验收
+
+最终 RuntimeCore **885/885、exit 0**，完整 summary 为 `ephemeral-runtime-drained-final.log`：0 failed/ignored，1091 filtered，81.32s。原串行回归也 exit 0，但因 runner 写入 buffered 双流后立即 `process.exit`，原日志在第 600 行附近截断，不能仅凭该日志宣称计数。新增真实 Node 子进程管道回归，用大于管道容量的 stdout/stderr 分别验证 status 0 和 101，旧代码两例均只收到约 8KiB stdout；最终改用 `process.exitCode` 等待 drain，原有 Cargo 状态与零测试保护保留。相关 runner/classifier **23/23 通过**，原失败与 fixture 环境错误均单独保留，没有修改产品测试断言或预算。
+
+同一 runner 入口用 `pathToFileURL` 比较当前模块与 argv 路径，保留空 argv/import 的保护，覆盖 Windows 路径和带空格路径的 URL 编码语义；最终相关回归仍 **23/23**（`rust-output-final.log`）。本机只执行 macOS，不能标记 Windows 运行通过。
+
+重建后的 Electron `unknown-item`、`home-hotpath`、`home-hotpath-greeting` 分别 exit 0，均 business assertions passed，Main code 0/signal null、无 forced cleanup。只有第一个场景实际重建 renderer；其余由既有 freshness 检查确认后复用产物，没有使用 build-ready override。原聚合未继续执行的其它场景仍未验证，三个定向场景不等于聚合全通过。
+
+ephemeral 核心退出条件 **4/4，100%**：公共 metadata/loaded 读取、多轮共享 runtime 与模型历史、集中持久化和 sidecar 旁路隔离、关闭后不可冷恢复（包含普通 durable 对照）。证据仅覆盖已记录的本地平台/受控 backend；完整项目交付门禁和受限 Memory Agent 不在这个百分比中。默认门禁仍未通过；本轮复制现有续跑状态到独立 `.lime/test/vitest-smart-memory-ephemeral-20261020.json` 再启动 `verify:local`，保留原共享状态和失败记录，等待该轮终态。
+
+后继接线需保留以下直接源码细节：`phase2_workspace_roots_tests.rs` 同时断言 cwd 和 workspace_roots 只有 Memory root，不能仅换 cwd 后继续继承父项目写根；`phase2_sandbox_tests.rs` 断言 Disabled/External 原样保留。`agent::get_config` 只关闭 `SkillMcpDependencyInstall`，没有全面禁用 Skills，不能把 Apps/Plugin/MCP 的限制扩大为删除全部本地 Skill 和 AGENTS 指令。实际工具面、hook 与依赖安装分别依据上游配置和 current executor 落地。
+
+同一窄 fixture 追加多模型真实路由验收已 **exit 0**（`ephemeral-stdio-route-switch.log`）：第一 provider 完成工具 continuation，调用公开 `thread/settings/update` 切到另一 provider/model/key；第二 provider 收到真实第二轮请求和原工具历史，旧 provider 不再收到采样，请求计数 `[2,1]`。两个进程 EOF 正常退出，持久化隔离与冷恢复拒绝均通过。继续使用 OpenAI-compatible loopback 协议，不把两 provider 误记成四协议矩阵。最终摘要同步到冻结与账本，原单 provider 通过记录保留。
+
+下一实现保持业务责任分离：RuntimeCore 承接同一会话/回合的内部 admission、终态和 shutdown；LocalMemoryBackend 保留 root、lease、精确来源、workspace artifact/baseline 与提交；model-provider 保留实际路由/readiness/协议 lowering。替换 `ExecutionBackend` 的 phase-2 直接采样委托，注入受限共享 Agent 执行能力；不得保留当前 JSON proposal 返回协议作为 fallback。尚未开始该接线，M01 与总目标继续 active。

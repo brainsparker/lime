@@ -1,6 +1,8 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import i18n from "i18next";
 import { toast } from "sonner";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import { FALLBACK_LOCALE } from "@/i18n/locales";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { activityLogger } from "@/lib/workspace/workbenchRuntime";
 import type {
@@ -115,7 +117,22 @@ function modelFixture(
 }
 
 describe("agentStreamSubmitExecution", () => {
-  afterEach(() => {
+  let previousLocale: string;
+  let previousDocumentLang: string;
+  let previousDocumentDir: string;
+  beforeEach(() => {
+    previousDocumentLang = document.documentElement.lang;
+    previousDocumentDir = document.documentElement.dir;
+    previousLocale =
+      previousDocumentLang ||
+      (i18n.isInitialized ? i18n.language : "") ||
+      FALLBACK_LOCALE;
+  });
+
+  afterEach(async () => {
+    await changeLimeLocale(previousLocale);
+    document.documentElement.lang = previousDocumentLang;
+    document.documentElement.dir = previousDocumentDir;
     activityLogger.clear();
     vi.clearAllMocks();
     vi.restoreAllMocks();

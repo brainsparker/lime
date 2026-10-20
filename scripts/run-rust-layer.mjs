@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import process from "node:process";
+import { pathToFileURL } from "node:url";
 
 import {
   RUST_TEST_LAYER_NAMES,
@@ -392,9 +393,10 @@ function main() {
     return;
   }
 
-  process.exit(runCargo(layer, scopedCargoArgs, testArgs));
+  // Let buffered Cargo output drain before exiting, including when piped to evidence logs.
+  process.exitCode = runCargo(layer, scopedCargoArgs, testArgs);
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

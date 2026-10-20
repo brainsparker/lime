@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type { AppServerJsonRpcNotification } from "@/lib/api/appServer";
 import {
   subscribeAppServerNotifications,
   type AppServerEventBusSubscription,
@@ -6,7 +7,7 @@ import {
 import type { AgentSessionReadModelRefreshRequest } from "./agentSessionRefresh";
 import { isScopedThreadQueueChangedNotification } from "./useAgentSessionThreadQueue";
 
-interface ThreadQueueSyncOptions {
+interface ThreadReadSyncOptions {
   workspaceId?: string;
   sessionId: string | null;
   threadId: string | null;
@@ -20,7 +21,23 @@ interface ThreadQueueSyncOptions {
   onWarn?: (error: unknown) => void;
 }
 
-export function useAgentThreadQueueSync(options: ThreadQueueSyncOptions) {
+function isScopedThreadReadNotification(
+  notification: AppServerJsonRpcNotification,
+  threadId: string,
+): boolean {
+  if (isScopedThreadQueueChangedNotification(notification, threadId)) return true;
+  const params = notification.params;
+  return (
+    notification.method === "thread/status/changed" &&
+    params !== null &&
+    typeof params === "object" &&
+    !Array.isArray(params) &&
+    "threadId" in params &&
+    params.threadId === threadId
+  );
+}
+
+export function useAgentThreadReadSync(options: ThreadReadSyncOptions) {
   const sessionId = options.sessionId?.trim() || null;
   const threadId = options.threadId?.trim() || null;
   const workspaceId = options.workspaceId?.trim() || "";
@@ -73,7 +90,7 @@ export function useAgentThreadQueueSync(options: ThreadQueueSyncOptions) {
         if (
           isCurrent() &&
           notifications.some((notification) =>
-            isScopedThreadQueueChangedNotification(notification, threadId),
+            isScopedThreadReadNotification(notification, threadId),
           )
         ) {
           pending = true;

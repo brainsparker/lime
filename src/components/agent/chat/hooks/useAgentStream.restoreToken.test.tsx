@@ -7,7 +7,7 @@ import { useAgentStream } from "./useAgentStream";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import { activityLogger } from "@/lib/workspace/workbenchRuntime";
 import { clearAllAgentStreamTextOverlays } from "./agentStreamTextOverlayStore";
-import { hasActiveRuntimeTurn } from "./agentSessionState";
+import { hasActiveRuntimeTurn } from "../projection/threadReadActivity";
 import {
   rememberLocallyInterruptedAgentStreamBinding,
   rememberLocallyStartedAgentStreamBinding,

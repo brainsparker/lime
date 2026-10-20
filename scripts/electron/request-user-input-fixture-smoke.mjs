@@ -65,6 +65,11 @@ const SOURCE_FILES = [
   "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
   "src/components/agent/chat/hooks/streamBindingRecords.ts",
   "src/components/agent/chat/hooks/agentSessionState.ts",
+  "src/components/agent/chat/projection/threadReadActivity.ts",
+  "src/components/agent/chat/hooks/useAgentChat.ts",
+  "src/components/agent/chat/hooks/useAgentRuntimeSyncEffects.ts",
+  "src/components/agent/chat/hooks/useAgentThreadReadSync.ts",
+  "src/lib/api/agentRuntime/appServerNotificationDrift.ts",
   "scripts/agent-runtime/tool-execution-current-contract.mjs",
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",
@@ -594,6 +599,15 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     await panel
       .locator('[data-testid="composer-editor"][role="textbox"]')
       .fill("此草稿不会作为答案提交");
+    const threadStatusWarningCount = await page
+      .locator("[data-sonner-toast]")
+      .filter({ hasText: "thread/status/changed" })
+      .count();
+    assert.equal(
+      threadStatusWarningCount,
+      0,
+      "canonical thread status must refresh the read model without an unprojected warning",
+    );
     await page.screenshot({
       path: path.join(evidenceDir, "before-question-cancel.png"),
     });
@@ -666,6 +680,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     };
     summary.trace = { complete: true, provenance: verified.provenance };
     summary.errors = {
+      threadStatusWarningCount,
       invokeErrorCount: await page.evaluate(
         () =>
           JSON.parse(

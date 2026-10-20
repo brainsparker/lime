@@ -1,3 +1,5 @@
+import type { AgentThreadTurn } from "@/lib/api/agentProtocol";
+import type { AgentRuntimeThreadReadModel } from "@/lib/api/agentRuntime/sessionTypes";
 import { isRunningSessionCommand } from "./commandActivity";
 
 export const STALE_RUNNING_THREAD_READ_MS = 30 * 60 * 1000;
@@ -292,4 +294,71 @@ export function hasRunningSessionOverviewActivity(
     isRunningTurnStatus(latestTurnStatus) &&
     isFreshRunningRecord(record, options),
   );
+}
+
+export function hasActiveRuntimeTurn(options: {
+  currentTurnId?: string | null;
+  threadRead?: AgentRuntimeThreadReadModel | null;
+  threadReadStatus?: string | null;
+  turns: readonly AgentThreadTurn[];
+}): boolean {
+  const normalizedThreadReadStatus =
+    options.threadReadStatus?.trim().toLowerCase() ?? null;
+  const normalizedProfileStatus =
+    options.threadRead?.profile_status?.trim().toLowerCase() ?? null;
+  if (
+    isExplicitTerminalThreadStatus(normalizedThreadReadStatus) ||
+    isExplicitTerminalThreadStatus(normalizedProfileStatus)
+  ) {
+    return false;
+  }
+  if (options.threadRead) {
+    if (
+      [normalizedThreadReadStatus, normalizedProfileStatus].some(
+        (status) => status === "waitingaction" || status === "blocked",
+      )
+    ) {
+      return hasActiveThreadReadActivity(options.threadRead);
+    }
+    const readModelReportsRunning =
+      normalizedThreadReadStatus === "running" ||
+      normalizedProfileStatus === "running";
+    const readModelReportsQueued =
+      normalizedThreadReadStatus === "queued" ||
+      normalizedProfileStatus === "queued";
+    const hasAuthoritativeReadModelStatus = Boolean(
+      normalizedThreadReadStatus || normalizedProfileStatus,
+    );
+    if (
+      hasAuthoritativeReadModelStatus &&
+      !readModelReportsRunning &&
+      !readModelReportsQueued
+    ) {
+      return false;
+    }
+    if (
+      hasRunningThreadReadActivity(options.threadRead, {
+        allowThreadStatusWithoutTurn: true,
+      })
+    ) {
+      return true;
+    }
+    if (readModelReportsQueued) {
+      return true;
+    }
+    if (readModelReportsRunning) {
+      return Boolean(options.threadRead.active_turn_id?.trim());
+    }
+  } else if (
+    normalizedThreadReadStatus === "running" ||
+    normalizedThreadReadStatus === "queued"
+  ) {
+    return true;
+  }
+
+  if (options.turns.some((turn) => hasRunningTurnRecordActivity(turn))) {
+    return true;
+  }
+
+  return false;
 }

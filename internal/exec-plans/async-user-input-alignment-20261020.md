@@ -152,3 +152,25 @@ r41 真实Electron再次在同步终态正文显示失败：canonical同一Turn�
 fixture最终新增的显式正文/Stop断言已通过3项wire回归、最终script ESLint与docs boundary。r41失败诊断、截图、r42红绿回归及Codex waiting flag源码摘录/摘要保存至 `artifacts/async-user-input-20261020/waiting-active-turn/`；原件与静态参考均保留各自限制。
 
 本轮 `verify:local -- --base bc3f3672c` 已通过版本、五语和unused检查，但全局lint与Renderer构建并行争用资源。root核对14013→14094→14560→14579均属于该命令、进程组14013后，仅向该组发送SIGINT，exit130（`/tmp/lime-waiting-turn-local-resume-r42.log`）；没有停止外部Cargo/其他任务。独立Vitest状态未改写，后续串行续跑；该中断不是默认门禁通过。
+
+## r44 活动判断归 projection 与最终候选
+
+复核发现 `agentSessionState.ts` 已达1030行；本刀将 `hasActiveRuntimeTurn` 直接迁入既有 `projection/threadReadActivity.ts`，复用终态 helper，删除旧定义与重复 helper；`useAgentChat`、恢复 hook 测试直接导入 projection，不保留 alias/re-export。8项活动判断测试迁入既有 projection unit suite，fixture source inventory 同步覆盖真实调用者。迁移后 state948行、projection364行；本切片退出条件为旧定义/转导出归零且state低于1000行，不继续向state堆业务逻辑。剩余会话状态职责超过800行的拆分仍须独立按真实职责实施，不能宣称整个模块重构完成。
+
+迁移后5套77/77通过（`/tmp/lime-waiting-turn-projection-green-r44.log`），scoped ESLint与diff whitespace通过。architecture已同步唯一projection owner及依赖方向，责任root确认。
+
+标准GUI r42已exit0，真实shell `standalone-shell-01-20261020095127-70083`通过；完整types r42也exit0。该Renderer早于上述结构迁移，两项结果不充当最终候选证明，r44重新检查types并串行重建标准GUI。新组合问答、受影响current fixture与默认门禁尚未完成。
+
+独立前端续跑r43完成至第32/141批，第33批的DeepSWE大补丁捕获超过原20秒而失败（其余15文件135项通过）。相同字节、相同期限的单项独立复跑通过，测试体7.31秒，原日志 `/tmp/lime-large-patch-isolated-r44.log`；未修改该测试、超时或生产实现。孤立通过不能抹去整批失败，后续仍从原独立状态续跑，不从第1批重跑。
+
+r44 docs boundary与scripts治理exit0。额外全仓体量守卫exit1，报告113处违规（`/tmp/lime-waiting-turn-size-r44.log`），其中本刀缩小后的state仍按现基线判为949行、useAgentChat934行，均超过800阈值；其余跨Rust/provider等owner未在本刀改动。没有提高阈值、刷新基线或把缩小写成守卫通过。继续优先验证等待Turn恢复的产品行为，后继按真实职责继续拆分这两处；全仓体量治理仍开放，不借本切片结算结构全面完成。
+
+## r44 产品通过与 r45 状态通知接线
+
+r44最终types与标准GUI均exit0；shell `standalone-shell-01-20261020100622-9246`通过24/24，已查看1280×800截图。组合问答 `codex-question-20261020-r44`真实Electron整轮通过：异步生产/普通答案与同Renderer跨线程稿、同步答案到provider、同canonical Turn completed且正文可见/Stop隐藏、Escape精确interrupt、主稿保留均通过。Main原15秒内实际4.309秒正常code0/signalnull，forced cleanup为null；freshness前后均fresh、源/产物身份稳定、IPC/console/page错误与mock命中均0。证据只涵盖隔离macOS source-build、真实runtime与本地受控provider；生产异步能力catalog、参考运行、Windows、packaged、live及跨进程题稿不在范围。
+
+人工查看3张问答截图后发现新的产品缺口：取消前出现合法 `thread/status/changed` 的“尚未接入”toast。r44限定流程的pass保持原样，不能据此声称界面无协议告警。Codex公开 `ThreadStatusChangedNotification {threadId,status}` 已确认；Lime current协议/producer已有该通知，缺的是Renderer资源接线。
+
+r45窄写集追加现queue读取hook及测试、`useAgentRuntimeSyncEffects`调用点、notification drift分类/测试、fixture零告警断言与源码inventory、architecture和计划。两条确定性红回归复现：状态通知没有触发canonical read，分类仍为known_unprojected；2套2失败/19通过（`/tmp/lime-thread-status-projection-red-r45.log`）。直接将原hook/测试迁为`useAgentThreadReadSync`，queue与status共用同一个串行/末次读取、scope generation及失败恢复；只校验通知thread identity来失效现read model，不读取通知status字段合成状态，不增加订阅或drain。旧queue-only命名及入口删除，不保留alias。fixture在原异常截图节点显式检查该toast为0，保留原超时与Main门禁。后继定向、contracts、新产物与真实进程尚待结算，不把r44用作r45通过。
+
+后继5套66/66及完整本轮scoped ESLint通过，日志 `/tmp/lime-thread-status-projection-green-r45.log`、`/tmp/lime-thread-status-scoped-lint-r45.log`。发现并行类型检查后，root以stdout路径 `/tmp/lime-thread-status-types-r45.log` 核对本轮43327→43328，仅向自己的tsc43328发送SIGINT，exit130；外部42259→42263及其日志 `/tmp/lime-v11640-frozen-candidate-typecheck.log`未动。r45不声明types通过，最终完整types留给后继串行默认门禁；新标准GUI在生成候选。并行任务已把本轮部分文件stage到共享索引，root未执行add、commit、push、reset或更改索引。

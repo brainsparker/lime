@@ -8,7 +8,6 @@ import { mkdir, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { setTimeout as delay } from "node:timers/promises";
 import { startOpenAiCompatibleFixtureServer } from "../lib/openai-compatible-fixture-server.mjs";
 import {
   buildToolExecutionThreadStartParams,
@@ -33,7 +32,11 @@ const { connectAppServerSidecar, stdioSidecar } = await import(
 );
 const temp = await mkdtemp(path.join(tmpdir(), "ephemeral-fixture-"));
 const workspace = path.join(temp, "workspace");
-await mkdir(workspace);
+await Promise.all(
+  [workspace, path.join(temp, "data"), path.join(temp, "app")].map(
+    (directory) => mkdir(directory),
+  ),
+);
 const markers = {
   input: "EPHEMERAL_PRIVATE_INPUT_20261020",
   tool: "EPHEMERAL_TOOL_OUTPUT_20261020",
@@ -58,9 +61,9 @@ const fixture = await startOpenAiCompatibleFixtureServer({
       },
     },
     { type: "text", content: markers.first },
-    { type: "text", content: markers.second },
   ],
 });
+let alternateFixture;
 let connected;
 let notifications = [];
 let normalExits = 0;
@@ -72,7 +75,10 @@ async function start() {
       ...stdioSidecar(binaryPath, undefined, path.join(temp, "data")),
       backendMode: "runtime",
     },
-    { clientInfo: { name: "ephemeral-fixture", version: "1" } },
+    {
+      clientInfo: { name: "ephemeral-fixture", version: "1" },
+      capabilities: { experimentalApi: true },
+    },
     {
       args: [
         "--listen",
@@ -145,7 +151,14 @@ async function runTurn(threadId, provider, message, expected) {
       null,
       "App Server exited during turn",
     );
-    await delay(20);
+    const message = await connected.connection.nextServerMessage(
+      Math.max(1, deadline - Date.now()),
+    );
+    assert.equal(
+      "id" in message,
+      false,
+      `unexpected server request: ${JSON.stringify(message)}`,
+    );
   }
   assert.equal(
     completed?.params.turn.status,
@@ -193,6 +206,15 @@ try {
     fixture,
     invoke: (_, method, params) => call(method, params),
   });
+  alternateFixture = await startOpenAiCompatibleFixtureServer({
+    model: "ephemeral-alternate-model",
+    apiKey: "ephemeral-alternate-key",
+    scriptedResponses: [{ type: "text", content: markers.second }],
+  });
+  const alternateProvider = await provisionToolExecutionFixtureProvider({
+    fixture: alternateFixture,
+    invoke: (_, method, params) => call(method, params),
+  });
   const defaults = buildToolExecutionThreadStartParams({
     provider,
     title: "Ephemeral storage fixture",
@@ -229,13 +251,36 @@ try {
     ),
     "real tool lifecycle reached the canonical Item projection",
   );
+  await call("thread/settings/update", {
+    threadId: thread.id,
+    modelProvider: alternateProvider.providerPreference,
+    model: alternateProvider.modelPreference,
+  });
+  const switched = await call("thread/read", { threadId: thread.id });
+  assert.equal(
+    switched.thread.modelProvider,
+    alternateProvider.providerPreference,
+  );
+  assert.equal(
+    switched.thread.extra.modelName,
+    alternateProvider.modelPreference,
+  );
   const second = await runTurn(
     thread.id,
-    provider,
+    alternateProvider,
     "Continue using the previous turn.",
     markers.second,
   );
-  const history = JSON.stringify(fixture.requests.at(-1).body);
+  assert.equal(
+    fixture.requests.length,
+    2,
+    "old route receives no switched sample",
+  );
+  assert.equal(alternateFixture.requests.length, 1);
+  const switchedRequest = alternateFixture.requests[0];
+  assert.equal(switchedRequest.body.model, alternateProvider.modelPreference);
+  assert.equal(switchedRequest.authorization, "Bearer ephemeral-alternate-key");
+  const history = JSON.stringify(switchedRequest.body);
   for (const marker of [markers.input, markers.tool, markers.first]) {
     assert.ok(
       history.includes(marker),
@@ -288,7 +333,13 @@ try {
       ephemeralThreadId: thread.id,
       turnIds: [first, second],
       durableThreadId: durable.id,
-      providerRequests: fixture.requests.length,
+      providerRequests:
+        fixture.requests.length + alternateFixture.requests.length,
+      providerRequestCounts: [
+        fixture.requests.length,
+        alternateFixture.requests.length,
+      ],
+      providerModelCredentialSwitch: true,
       realToolContinuation: true,
       inMemoryHistory: true,
       privateRecordsOnDisk: false,
@@ -297,8 +348,34 @@ try {
       normalExits,
     }),
   );
+} catch (error) {
+  console.error(
+    JSON.stringify({
+      failed: true,
+      binaryPath,
+      binarySha256,
+      notifications: notifications.map(({ method, params }) => ({
+        method,
+        threadId: params.threadId,
+        turnId: params.turnId ?? params.turn?.id,
+        status: params.turn?.status,
+        error: params.turn?.error,
+      })),
+      providerRequests: [
+        ...fixture.requests,
+        ...(alternateFixture?.requests ?? []),
+      ].map((request) => ({
+        path: request.path,
+        responseKind: request.responseKind,
+        responseToolName: request.responseToolName,
+      })),
+      stderr: connected?.sidecar.stderrLines,
+    }),
+  );
+  throw error;
 } finally {
   await connected?.sidecar.close();
   await fixture.close();
+  await alternateFixture?.close();
   await rm(temp, { recursive: true, force: true });
 }

@@ -2,10 +2,10 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppServerEventBusSubscription } from "@/lib/api/appServerEventBus";
-import { useAgentThreadQueueSync } from "./useAgentThreadQueueSync";
+import { useAgentThreadReadSync } from "./useAgentThreadReadSync";
 import { refreshAgentSessionReadModelState } from "./agentSessionRefresh";
 
-type Options = Parameters<typeof useAgentThreadQueueSync>[0];
+type Options = Parameters<typeof useAgentThreadReadSync>[0];
 const roots: Array<{
   root: ReturnType<typeof createRoot>;
   container: HTMLDivElement;
@@ -44,7 +44,7 @@ function harness(refreshSessionReadModel: Options["refreshSessionReadModel"]) {
     onWarn,
   };
   function Component({ options }: { options: Options }) {
-    useAgentThreadQueueSync(options);
+    useAgentThreadReadSync(options);
     return null;
   }
   const render = async (change: Partial<Options> = {}) => {
@@ -66,7 +66,7 @@ function harness(refreshSessionReadModel: Options["refreshSessionReadModel"]) {
   return { render, notify, subscriptions, unsubscriptions, onWarn };
 }
 
-describe("queue notification to canonical session projection", () => {
+describe("thread notification to canonical session projection", () => {
   beforeEach(() => {
     (
       globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -92,6 +92,39 @@ describe("queue notification to canonical session projection", () => {
       expectedThreadId: "thread-a",
       isCurrent: expect.any(Function),
     });
+  });
+
+  it("refreshes canonical state for thread status changes without trusting notification fields", async () => {
+    const refresh = vi.fn().mockResolvedValue(true);
+    const current = harness(refresh);
+    await current.render();
+    const notify = async (threadId: string) => {
+      await act(async () => {
+        current.subscriptions[0].onNotifications?.([
+          {
+            method: "thread/status/changed",
+            params: {
+              threadId,
+              status: {
+                type: "active",
+                activeFlags: ["waitingOnUserInput"],
+              },
+            },
+          },
+        ]);
+      });
+    };
+    await notify("thread-b");
+    expect(refresh).not.toHaveBeenCalled();
+    await notify("thread-a");
+    expect(refresh).toHaveBeenCalledExactlyOnceWith("session-a", {
+      timelineMode: "replace",
+      expectedThreadId: "thread-a",
+      isCurrent: expect.any(Function),
+    });
+    await current.render({ threadId: "thread-b" });
+    await notify("thread-a");
+    expect(refresh).toHaveBeenCalledOnce();
   });
 
   it("serializes bursts and always reads the final notification after an in-flight read", async () => {

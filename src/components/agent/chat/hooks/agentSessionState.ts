@@ -37,11 +37,6 @@ import { createExecutionRuntimeFromSessionDetail } from "../utils/sessionExecuti
 import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import { isAuxiliaryAgentSessionId } from "@/lib/api/agentRuntime/sessionIdentity";
-import {
-  hasActiveThreadReadActivity,
-  hasRunningThreadReadActivity,
-  hasRunningTurnRecordActivity,
-} from "../projection/threadReadActivity";
 import { resolveFinalAgentMessageItemIds } from "../utils/agentMessagePhase";
 import {
   appendInterruptedPlaceholderText,
@@ -543,83 +538,6 @@ export function shouldPreserveActiveLocalSessionDuringBackgroundRestoreInitializ
     options.threadTurnsCount > 0 ||
     options.threadItemsCount > 0 ||
     options.activeStreamingTimeline
-  );
-}
-
-export function hasActiveRuntimeTurn(options: {
-  currentTurnId?: string | null;
-  threadRead?: AgentRuntimeThreadReadModel | null;
-  threadReadStatus?: string | null;
-  turns: readonly AgentThreadTurn[];
-}): boolean {
-  const normalizedThreadReadStatus =
-    options.threadReadStatus?.trim().toLowerCase() ?? null;
-  const normalizedProfileStatus =
-    options.threadRead?.profile_status?.trim().toLowerCase() ?? null;
-  if (
-    isExplicitTerminalRuntimeStatus(normalizedThreadReadStatus) ||
-    isExplicitTerminalRuntimeStatus(normalizedProfileStatus)
-  ) {
-    return false;
-  }
-  if (options.threadRead) {
-    if (
-      [normalizedThreadReadStatus, normalizedProfileStatus].some(
-        (status) => status === "waitingaction" || status === "blocked",
-      )
-    ) {
-      return hasActiveThreadReadActivity(options.threadRead);
-    }
-    const readModelReportsRunning =
-      normalizedThreadReadStatus === "running" ||
-      normalizedProfileStatus === "running";
-    const readModelReportsQueued =
-      normalizedThreadReadStatus === "queued" ||
-      normalizedProfileStatus === "queued";
-    const hasAuthoritativeReadModelStatus = Boolean(
-      normalizedThreadReadStatus || normalizedProfileStatus,
-    );
-    if (
-      hasAuthoritativeReadModelStatus &&
-      !readModelReportsRunning &&
-      !readModelReportsQueued
-    ) {
-      return false;
-    }
-    if (
-      hasRunningThreadReadActivity(options.threadRead, {
-        allowThreadStatusWithoutTurn: true,
-      })
-    ) {
-      return true;
-    }
-    if (readModelReportsQueued) {
-      return true;
-    }
-    if (readModelReportsRunning) {
-      return Boolean(options.threadRead.active_turn_id?.trim());
-    }
-  } else if (
-    normalizedThreadReadStatus === "running" ||
-    normalizedThreadReadStatus === "queued"
-  ) {
-    return true;
-  }
-
-  if (options.turns.some((turn) => hasRunningTurnRecordActivity(turn))) {
-    return true;
-  }
-
-  return false;
-}
-
-function isExplicitTerminalRuntimeStatus(status: string | null): boolean {
-  return (
-    status === "completed" ||
-    status === "failed" ||
-    status === "canceled" ||
-    status === "cancelled" ||
-    status === "aborted"
   );
 }
 

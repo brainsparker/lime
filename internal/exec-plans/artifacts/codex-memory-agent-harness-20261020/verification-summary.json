@@ -8,18 +8,22 @@
       "LocalMemoryBackend phase-2 lease and artifact pipeline",
       "RuntimeBackend phase-2 cancellation",
       "Exact phase-2 snapshot selection and review",
-      "Version-qualified phase-1 output save with unique claim tokens"
+      "Version-qualified phase-1 output save with unique claim tokens",
+      "shared ephemeral RuntimeCore/session actor and storage policy",
+      "Rust harness output drains before preserving Cargo exit status"
     ],
     "compat": [],
     "deprecated": [],
     "deleted": [
       "AtomicBool-only phase-2 heartbeat loss signaling",
       "Path-only mark_rollout_processed and RolloutStatus",
-      "Fixed memory-stage1 ownership token"
+      "Fixed memory-stage1 ownership token",
+      "observer-only fixture wait without stdio read demand",
+      "immediate Rust runner exit before captured output drain"
     ],
     "outstanding": [
+      "trusted internal Memory admission",
       "phase-2 direct sampling replacement",
-      "true ephemeral internal session",
       "restricted tools/MCP/plugins/apps/skills/sandbox",
       "shared Agent terminal/shutdown/Stop, Codex Thread source lifecycle and workspace baseline"
     ]
@@ -202,6 +206,250 @@
       "testDurationMs": 1658,
       "log": "ephemeral-no-video-isolated.log",
       "qualification": "Unchanged test and timeout. The isolated pass does not erase the original full-gate timeout."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server runtime::",
+      "exitCode": 101,
+      "passed": 882,
+      "failed": 3,
+      "log": "ephemeral-runtime-final-tests.log",
+      "failedTests": [
+        "typed_media_rejects_local_leaks_and_mismatched_payloads",
+        "active_wait_recovers_terminal_result_written_after_initial_repair",
+        "active_shell_command_reuses_the_current_turn"
+      ],
+      "qualification": "Old frozen compile; independent input_media fixture correction was made after compiler start."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p agent-runtime",
+      "exitCode": 0,
+      "passed": 266,
+      "log": "ephemeral-agent-runtime-tests.log"
+    },
+    {
+      "command": "fixed app-server test binary: two original wait/shell failures, --test-threads=1",
+      "exitCode": 0,
+      "passed": 2,
+      "log": "ephemeral-runtime-isolated-failures.log",
+      "qualification": "Same original tests and assertions; supplied Cargo-equivalent native-library path and stack environment."
+    },
+    {
+      "command": "npm run test:resume",
+      "exitCode": 143,
+      "status": "interrupted",
+      "log": "ephemeral-frontend-resume.log",
+      "passedBatches": [
+        9,
+        10,
+        11,
+        12
+      ],
+      "passedTests": 19,
+      "interruptedBatch": 13,
+      "reason": "Stopped verified owned PID tree after independent second resume runner began writing shared state; left other runner untouched."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server-client",
+      "exitCode": 0,
+      "passed": 50,
+      "log": "ephemeral-client-tests.log"
+    },
+    {
+      "command": "node scripts/app-server/stdio-smoke.mjs (fixed sidecar)",
+      "exitCode": 0,
+      "log": "ephemeral-stdio-smoke.log"
+    },
+    {
+      "command": "npm run verify:gui-smoke",
+      "exitCode": 0,
+      "log": "ephemeral-gui-smoke.log",
+      "passed": 24,
+      "summary": "ephemeral-gui-smoke-summary.json",
+      "level": "real Electron shell Gate B-F; clean normal lifecycle; no Memory provider Turn proof"
+    },
+    {
+      "command": "APP_SERVER_BIN=<fixed sidecar> node scripts/app-server/ephemeral-fixture.mjs",
+      "exitCode": 0,
+      "log": "ephemeral-stdio-runtime-complete.log",
+      "level": "real stdio + RuntimeBackend + local tool + OpenAI-compatible loopback provider",
+      "normalExits": 2,
+      "providerRequests": 3,
+      "binarySha256": "d7a55d126ab669ac61c0c48adf18e99b6a31ed7d8443ff01d86e8e8bdec34588",
+      "qualification": "Not live, Windows, four protocols, GUI, CLI or PTY."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server runtime:: -- --test-threads=1",
+      "exitCode": 0,
+      "passed": 885,
+      "log": "ephemeral-runtime-drained-final.log",
+      "sha256": "deba83c605eed1f5a63c7bce80366a226e1e8b09d952bfdd5170a33d5360d7df"
+    },
+    {
+      "command": "npx vitest run scripts/run-rust-layer.unit.test.mjs scripts/rust-test-layer-classifier.test.mjs",
+      "exitCode": 0,
+      "passed": 23,
+      "log": "rust-output-green.log",
+      "sha256": "e7a1963c40cd11b40da215a3b9d1cff8370fb14b1d34b81f36ae6edb9457b7ee"
+    },
+    {
+      "command": "node scripts/agent-runtime/claw-chat-current-fixture-smoke.mjs --scenario unknown-item --prefix memory-ephemeral-unknown-item-final-20261020 --timeout-ms 240000",
+      "exitCode": 0,
+      "log": "ephemeral-electron-unknown-item.log",
+      "summary": "ephemeral-electron-unknown-item-summary.json",
+      "businessAssertionsPassed": true,
+      "teardown": {
+        "ok": true,
+        "steps": [
+          {
+            "phase": "normal-main-exit",
+            "startedAt": "2026-10-20T10:03:33.713Z",
+            "completedAt": "2026-10-20T10:03:34.462Z",
+            "ok": true
+          },
+          {
+            "phase": "image-provider",
+            "startedAt": "2026-10-20T10:03:34.462Z",
+            "completedAt": "2026-10-20T10:03:34.462Z",
+            "ok": true
+          },
+          {
+            "phase": "temp-root",
+            "startedAt": "2026-10-20T10:03:34.462Z",
+            "completedAt": "2026-10-20T10:03:34.527Z",
+            "ok": true
+          }
+        ],
+        "normalMainExit": {
+          "pid": 99939,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal"
+        },
+        "forcedCleanup": null
+      },
+      "qualification": "Explicit controlled Electron scenario; not the entire aggregate or a Memory provider Turn."
+    },
+    {
+      "command": "node scripts/agent-runtime/claw-chat-current-fixture-smoke.mjs --scenario home-hotpath --prefix memory-ephemeral-home-final-20261020 --timeout-ms 240000",
+      "exitCode": 0,
+      "log": "ephemeral-electron-home.log",
+      "summary": "ephemeral-electron-home-summary.json",
+      "businessAssertionsPassed": true,
+      "teardown": {
+        "ok": true,
+        "steps": [
+          {
+            "phase": "normal-main-exit",
+            "startedAt": "2026-10-20T10:04:23.955Z",
+            "completedAt": "2026-10-20T10:04:28.658Z",
+            "ok": true
+          },
+          {
+            "phase": "image-provider",
+            "startedAt": "2026-10-20T10:04:28.658Z",
+            "completedAt": "2026-10-20T10:04:28.659Z",
+            "ok": true
+          },
+          {
+            "phase": "temp-root",
+            "startedAt": "2026-10-20T10:04:28.659Z",
+            "completedAt": "2026-10-20T10:04:28.711Z",
+            "ok": true
+          }
+        ],
+        "normalMainExit": {
+          "pid": 3105,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal"
+        },
+        "forcedCleanup": null
+      },
+      "qualification": "Explicit controlled Electron scenario; not the entire aggregate or a Memory provider Turn."
+    },
+    {
+      "command": "node scripts/agent-runtime/claw-chat-current-fixture-smoke.mjs --scenario home-hotpath-greeting --prefix memory-ephemeral-greeting-final-20261020 --timeout-ms 240000",
+      "exitCode": 0,
+      "log": "ephemeral-electron-greeting.log",
+      "summary": "ephemeral-electron-greeting-summary.json",
+      "businessAssertionsPassed": true,
+      "teardown": {
+        "ok": true,
+        "steps": [
+          {
+            "phase": "normal-main-exit",
+            "startedAt": "2026-10-20T10:05:12.854Z",
+            "completedAt": "2026-10-20T10:05:19.998Z",
+            "ok": true
+          },
+          {
+            "phase": "image-provider",
+            "startedAt": "2026-10-20T10:05:19.998Z",
+            "completedAt": "2026-10-20T10:05:19.999Z",
+            "ok": true
+          },
+          {
+            "phase": "temp-root",
+            "startedAt": "2026-10-20T10:05:19.999Z",
+            "completedAt": "2026-10-20T10:05:20.041Z",
+            "ok": true
+          }
+        ],
+        "normalMainExit": {
+          "pid": 4916,
+          "exited": true,
+          "exitCode": 0,
+          "signal": null,
+          "mode": "normal"
+        },
+        "forcedCleanup": null
+      },
+      "qualification": "Explicit controlled Electron scenario; not the entire aggregate or a Memory provider Turn."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server runtime:: -- --test-threads=1 (before output drain fix)",
+      "exitCode": 0,
+      "log": "ephemeral-runtime-serial-final.log",
+      "qualification": "stdout was truncated by immediate process.exit; do not infer final count from this raw log. Same unchanged test binary repeated with drain fix: 885 passed."
+    },
+    {
+      "command": "npx vitest run scripts/run-rust-layer.unit.test.mjs scripts/rust-test-layer-classifier.test.mjs",
+      "exitCode": 0,
+      "passed": 23,
+      "log": "rust-output-final.log",
+      "qualification": "Includes portable pathToFileURL entrypoint comparison; executed on macOS only."
+    },
+    {
+      "command": "APP_SERVER_BIN=<fixed sidecar> node scripts/app-server/ephemeral-fixture.mjs",
+      "exitCode": 0,
+      "log": "ephemeral-stdio-route-switch.log",
+      "sha256": "2e6d91e7ab8c48a0f2518b09a5a5cedde5ee0a3c9d91bd3ae5a9da9a670315b5",
+      "level": "real stdio + RuntimeBackend + OpenAI-compatible loopback provider + local tool",
+      "normalExits": 2,
+      "providerRequests": 3,
+      "providerRequestCounts": [
+        2,
+        1
+      ],
+      "providerModelCredentialSwitch": true,
+      "qualification": "OpenAI-compatible loopback only; no live/four-protocol/platform-wide claim."
+    },
+    {
+      "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run verify:local",
+      "status": "running",
+      "log": "ephemeral-local-isolated-state.log",
+      "passedStages": [
+        "app-version",
+        "i18n unused",
+        "lint",
+        "changed-copy scan",
+        "typecheck"
+      ],
+      "priorStateQualification": "Copied existing first 12 batch records; this invocation starts at batch 13. Shared resume state unchanged.",
+      "lastObservedBatch": 17,
+      "exitCode": null
     }
   ],
   "attempts": [
@@ -220,6 +468,47 @@
         "rea-session-reference-rejected.json"
       ],
       "resolution": "complete inline Evidence view succeeded"
+    },
+    {
+      "operation": "real stdio ephemeral fixture",
+      "exitCode": 1,
+      "log": "ephemeral-stdio-runtime.log",
+      "reason": "Fixture observer did not keep the shared stdio read pump active.",
+      "resolution": "Final fixture passes without changing runtime code, assertions or budgets."
+    },
+    {
+      "operation": "real stdio ephemeral fixture",
+      "exitCode": 1,
+      "log": "ephemeral-stdio-diagnostic.log",
+      "reason": "Same fixture read-demand defect; diagnostic attempt retained.",
+      "resolution": "Final fixture passes without changing runtime code, assertions or budgets."
+    },
+    {
+      "operation": "real stdio ephemeral fixture",
+      "exitCode": 1,
+      "log": "ephemeral-stdio-runtime-final.log",
+      "reason": "Fixture lacked experimentalApi admission for history pagination; two runtime turns passed before failure.",
+      "resolution": "Final fixture passes without changing runtime code, assertions or budgets."
+    },
+    {
+      "operation": "real stdio ephemeral fixture",
+      "exitCode": 1,
+      "log": "ephemeral-stdio-runtime-verified.log",
+      "reason": "Fixture tried to scan app-data directory which the runtime never created; two turns and EOF shutdown passed before failure.",
+      "resolution": "Final fixture passes without changing runtime code, assertions or budgets."
+    },
+    {
+      "operation": "Rust runner output regression initial fixture",
+      "exitCode": 1,
+      "log": "rust-output-red.log",
+      "reason": "Vitest/jsdom URL rejected by fileURLToPath; corrected test path without changing production."
+    },
+    {
+      "operation": "Rust runner output regression actual red",
+      "exitCode": 1,
+      "log": "rust-output-red-actual.log",
+      "failed": 2,
+      "reason": "Both status 0/101 paths emitted only about 8KiB instead of complete >393KiB stdout; exit status alone was already correct."
     }
   ],
   "limitations": [
@@ -227,7 +516,9 @@
     "No live provider, Windows, CLI/TUI or LimeCore run in this slice.",
     "No public JSON-RPC contract/schema/config/dependency changes in this slice.",
     "Current filesystem snapshot versions are guarded; source-file checks and SQLite changes are not one atomic transaction.",
-    "Shell smoke passed 24 business assertions but required cleanup of a verified orphan NetworkService helper; no Memory provider turn was executed."
+    "Earlier shell smoke needed orphan cleanup; the final ephemeral GUI smoke has clean teardown. Both original records are retained.",
+    "Full default local gate remains pending/previously failed; task-specific resume isolates shared-state writes.",
+    "The three final controlled Electron scenarios do not cover unexecuted aggregate scenarios."
   ],
   "snapshot_gui_teardown": {
     "businessAssertionsPassed": 24,
@@ -269,7 +560,7 @@
   },
   "snapshot_source_freeze": "snapshot-source-freeze.json",
   "ephemeral_prerequisite": {
-    "status": "validating",
+    "status": "core_complete_product_gate_partial",
     "classification": {
       "current": [
         "shared ephemeral session lifecycle",
@@ -283,28 +574,29 @@
       ]
     },
     "remaining": [
-      "RuntimeCore and agent-runtime unit results",
-      "app-server-client unit results and stdio transport verification",
-      "current fixture Electron scenarios after final sidecar build",
-      "GUI smoke result",
-      "local gate batch 9 timeout isolation, then resume",
-      "final input_media inline-test fixture edit by independent process"
+      "full local gate: independent resume state running (starting at batch 13); prior gate failure retained",
+      "Restricted shared Memory Agent is the next implementation slice"
     ],
     "limits": [
       "No Memory phase2 shared Agent wiring in this prerequisite.",
       "Desktop REA timeline evidence remains static-only; backend behavior follows Codex source."
     ],
-    "source_freeze": "ephemeral-source-freeze.json",
+    "source_freeze": "ephemeral-final-source-freeze.json",
     "verified": [
       "public JSON-RPC durable and ephemeral lifecycle (2 tests)",
       "contracts",
       "final governance scan (0 violations)",
-      "source freeze (23 Lime files, 4 Codex files, no drift)"
+      "agent-runtime 266 tests",
+      "app-server-client 50 tests",
+      "GUI shell smoke 24 checks, clean EOF",
+      "real stdio tool continuation, in-memory history, cold rejection and durable control",
+      "RuntimeCore 885/885, complete final output retained",
+      "Electron unknown-item, home-hotpath and home-hotpath-greeting; all normal Main exit"
     ],
     "stdio_fixture": {
       "path": "scripts/app-server/ephemeral-fixture.mjs",
-      "sha256": "c15634e085186bacda3ed2c5d468860ac809cbef97f19d42af1c3c4a95470382",
-      "status": "awaiting_final_sidecar",
+      "sha256": "db1df594a8899e865cd5bd513f57915e34b885efd152e7098a60862e8e6a88e6",
+      "status": "passed",
       "level": "real stdio + RuntimeBackend + OpenAI-compatible loopback provider + local tool",
       "claims": [
         "tool continuation",
@@ -313,14 +605,30 @@
         "normal EOF shutdown",
         "no synthetic private identity/content in isolated data/app files",
         "cold read/resume rejection",
-        "ordinary thread cold recovery control"
+        "ordinary thread cold recovery control",
+        "public settings provider/model/credential switch preserves tool history; request counts [2,1]"
       ],
       "limits": [
         "not live provider",
         "not full multi-protocol matrix",
         "not Desktop/CLI/TUI proof"
-      ]
+      ],
+      "log": "ephemeral-stdio-route-switch.log",
+      "providerRequestCounts": [
+        2,
+        1
+      ],
+      "normalExits": 2
     },
-    "source_drift": "ephemeral-source-drift.json"
-  }
+    "source_drift": "ephemeral-source-drift.json",
+    "final_source_freeze": "ephemeral-final-source-freeze.json",
+    "completion": {
+      "coreContractsPassed": 4,
+      "coreContractsTotal": 4,
+      "percent": 100,
+      "qualification": "Only the shared ephemeral prerequisite; not Memory phase2, M01 or full Codex alignment."
+    },
+    "initial_source_freeze": "ephemeral-source-freeze.json"
+  },
+  "updatedAt": "2026-10-20T10:22:57.869158+00:00"
 }

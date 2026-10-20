@@ -10,7 +10,7 @@ import type {
   AgentSessionDetailRefreshRequest,
   AgentSessionReadModelRefreshRequest,
 } from "./agentSessionRefresh";
-import { useAgentThreadQueueSync } from "./useAgentThreadQueueSync";
+import { useAgentThreadReadSync } from "./useAgentThreadReadSync";
 import {
   hasRunningCommandReadActivity,
   hasRunningThreadReadActivity,
@@ -428,13 +428,13 @@ interface UseAgentRuntimeSyncEffectsOptions {
 export function useAgentRuntimeSyncEffects(
   options: UseAgentRuntimeSyncEffectsOptions,
 ) {
-  useAgentThreadQueueSync({
+  useAgentThreadReadSync({
     workspaceId: options.workspaceId,
     sessionId: options.sessionId,
     threadId: readString(readRecord(options.threadRead) ?? {}, ["thread_id"]),
     refreshSessionReadModel: options.refreshSessionReadModel,
     onWarn: (error) => {
-      console.warn("[AgentChat] Queue timeline refresh failed:", error);
+      console.warn("[AgentChat] Thread read refresh failed:", error);
     },
   });
   const {

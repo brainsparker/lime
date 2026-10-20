@@ -16,6 +16,7 @@ Simplified Chinese release notes are the primary version. This English companion
 - Fix provider-settings width allocation and header wrapping so names, endpoint addresses and action buttons remain readable.
 - Preserve recovered-turn listeners when presentation callbacks change and deliver in-flight event batches to current subscriptions.
 - Keep tracking the active turn while waiting for user input or approval so final replies and terminal states appear after an answer.
+- Refresh the canonical thread read model for status and queue changes without showing unsupported-notification alerts for valid status events.
 - Give memory extraction independent ownership tokens and bind consolidation commits to exact source snapshots so stale tasks cannot overwrite newer versions.
 - Correct Thread/Turn/Item identity and terminal states across asynchronous input, cancellation, continuation, completion and cold recovery.
 - Correct persistence and rendering of message, reasoning, web-search and tool history across deltas, snapshots, compaction, forks and model switches.

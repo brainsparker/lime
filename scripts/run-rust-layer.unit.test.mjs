@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -67,6 +69,48 @@ version = "0.0.0"
 }
 
 describe("run-rust-layer unit helpers", () => {
+  it.each([0, 101])("管道完整保留大日志及最终状态 %s", (status) => {
+    const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "rust-output-"));
+    const stdout =
+      "test output\n".repeat(32_768) +
+      "test result: ok. 885 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out;\n";
+    const stderr = "compiler output\n".repeat(16_384) + "COMPILER_OUTPUT_END\n";
+    const loader = path.join(tempRoot, "cargo-fixture.mjs");
+    try {
+      fs.writeFileSync(
+        loader,
+        `
+import childProcess from "node:child_process";
+import { syncBuiltinESMExports } from "node:module";
+const original = childProcess.spawnSync;
+childProcess.spawnSync = (command, ...args) => command === "cargo"
+  ? { status: ${status}, stdout: ${JSON.stringify(stdout)}, stderr: ${JSON.stringify(stderr)} }
+  : original(command, ...args);
+syncBuiltinESMExports();
+`,
+      );
+      const result = spawnSync(
+        process.execPath,
+        [
+          "--import",
+          pathToFileURL(loader).href,
+          path.resolve("scripts/run-rust-layer.mjs"),
+          "unit",
+          "runtime::",
+        ],
+        { encoding: "utf8", maxBuffer: 2 * 1024 * 1024 },
+      );
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(status);
+      expect(result.stdout.length).toBeGreaterThanOrEqual(stdout.length);
+      expect(result.stdout.endsWith(stdout)).toBe(true);
+      expect(result.stderr.length).toBe(stderr.length);
+      expect(result.stderr.endsWith("COMPILER_OUTPUT_END\n")).toBe(true);
+    } finally {
+      fs.rmSync(tempRoot, { force: true, recursive: true });
+    }
+  });
+
   it("macOS 默认使用 8 MiB test worker 栈并保留显式覆盖", () => {
     expect(resolveRustTestEnv({ PATH: "/bin" }, "darwin")).toEqual({
       PATH: "/bin",
