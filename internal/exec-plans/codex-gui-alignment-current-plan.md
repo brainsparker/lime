@@ -99,3 +99,5 @@ current：表中唯一owner、canonical输入与消息投影。已删除：旧sl
 - 问答r44已通过最终types、标准GUI24/24及真实组合Electron：同步终态正文/Stop、异步普通答案与跨线程稿、精确Escape、原15秒内正常Main退出、源/产物稳定、零IPC/console/page错误与mock命中均通过。活动判断已迁入唯一projection并删除旧定义和重复helper，5套77项通过。人工查看3张截图另发现合法thread/status/changed被提示未接入；r45已将queue-only hook直接迁为useAgentThreadReadSync，与状态通知共用原串行canonical读取和scope generation，不增加订阅或状态副本。2条红回归复现，后继5套66项通过；新产物/零告警Gate B、聚合current fixture与默认门禁仍待结算。独立前端停在第33/141批，原期限单项复跑通过、整批待续跑。全仓体量守卫113处违规仍开放。详见[专项计划](async-user-input-alignment-20261020.md)。
 
 - 问答r46后继：新完整contracts和仅appServer段刷新均exit0；真实Electron全部交互/wire断言及零状态toast通过，三图已人工复核，Main0.534秒正常退出。但运行期间并行sandbox源码漂移，最终freshness失败，整轮保留fail；不以交互观察抵消冻结失败。默认门禁正沿独立前端状态串行续跑，随后再刷新sidecar复验。限定原件与收据见[validation-r46](artifacts/async-user-input-20261020/thread-status-read/validation-r46.json)。
+
+- r47/48后继：问答fixture直接执行已指纹记录的dist-electron sidecar，删除共享target/debug选择入口，新增相对路径/SHA绑定；旧read hook仍删除，7文件源摘要无漂移。完整Renderer/Node types、全局lint通过；前端第33批整批通过，后续第45批暴露预览测试hook中的重复模块预加载超时，测试生命周期直接修复，产品懒加载/断言/期限未改，定向3套18项通过。完整前端现从45/142续跑；新三段构建正在既有锁后等待，新问答/侧栏/Goal/Files、聚合current fixture及默认门禁未结算。详见[专项计划](async-user-input-alignment-20261020.md)及同目录限定收据。

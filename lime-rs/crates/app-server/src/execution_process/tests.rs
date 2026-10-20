@@ -972,7 +972,11 @@ async fn execution_process_server_uses_current_unsandboxed_fallback_when_backend
 #[cfg(target_os = "macos")]
 #[tokio::test]
 async fn execution_process_server_enforces_seatbelt_workspace_boundaries() {
-    let root = tempfile::tempdir().expect("sandbox temp root");
+    // The default workspace policy allows TMPDIR, so keep this denial fixture outside it.
+    let root = tempfile::Builder::new()
+        .prefix(".lime-seatbelt-boundary-")
+        .tempdir_in(dirs::home_dir().expect("sandbox fixture home"))
+        .expect("sandbox root outside temporary write grants");
     let workspace = root.path().join("workspace");
     std::fs::create_dir_all(&workspace).expect("sandbox workspace");
     let outside_path = root.path().join("outside.txt");

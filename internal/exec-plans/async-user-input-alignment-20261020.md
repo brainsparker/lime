@@ -190,3 +190,11 @@ sidecar刷新已exit0，启动前renderer/host/appServer三段均fresh。`codex-
 只读审查发现问答fixture在校验`dist-electron`指纹之后，仍经`resolveDevAppServerBinary`选择共享`target/debug`二进制；即使已单独记录执行文件SHA，末次artifact树校验也不覆盖该路径。该路径选择现在直接使用既有`electronAppServerBinaryDestination`，在摘要记录相对路径，并要求执行文件SHA与启动前artifact条目一致，末次完整artifact fingerprint继续守住同一文件。删除fixture的dev resolver导入/调用，不增加fallback或解析owner；resource helper纳入source inventory。这只加强test-only身份合同，不改变生产host/runtime，r46原收据保持原样；新字节语法检查及diff whitespace通过，scoped lint、wire回归与新真实Electron待验。
 
 r47 fixture scoped ESLint、docs boundary均exit0，7文件输入摘要已保存为`sources-r47.json`，旧hook两个物理路径仍不存在。串行默认门禁r46已通过全局lint、五语言/unused、受影响文案扫描和完整Renderer/Node类型检查；前端第33批已整体16文件136项通过，旧大补丁用例保持原20秒期限实际1.105秒。发现1个新增测试后总批次增至142，既有记录不改；当前继续后继批次，整轮默认门禁未完成。
+
+默认门禁最终在前端第45/142批exit1：15文件99项通过，`PreviewArtifactRenderer.component.test.tsx`第一例在`beforeEach`预加载WorkbookPanel时超过原10秒，DOM尚未创建，afterEach又因root未定义产生二次异常。相同批次第二个组件例及Profile Help九项通过；不能将其记作产品预览失败或全量通过。只读确认相关生产/测试路径均clean后，将窄写集追加该既有测试文件：原本每例动态预加载的模块直接作为测试模块依赖，清理使用可选访问处理未完成初始化；产品React.lazy、加载实现、用例断言和全部期限不变。该迁移只修正测试生命周期，定向预览/wire/assets三套回归与新批次续跑另行结算。最终scoped ESLint及diff whitespace通过，原默认门禁失败日志保持不改。
+
+后继三套18/18已exit0（`/tmp/lime-preview-fixture-regression-r47.log`），两条预览身份/选区断言均通过；日志、原默认门禁失败、scoped lint、源摘要和`preview-init-validation-r47.json`已归档同一证据目录。共享HEAD由外部推进至`a6923021a`，root未操作Git索引或提交。
+
+r48预检发现外部生成协议客户端晚于全部三段产物，按既有`ensureElectronFixtureBuild`进入刷新（`/tmp/lime-thread-status-refresh-r48.log`）；既有并行构建PID87168持有锁，root的session仅等待、未抢锁/清锁或重复构建。等待期间恢复独立前端第45批（`/tmp/lime-preview-frontend-resume-r48.log`），保持现有single worker、不新增构建；真实Electron仍排在构建和前端资源窗口之后。两进程未退出前不写通过。
+
+r48的root刷新入口最终在原20分钟锁等待上限exit1，未取得锁、未执行构建，也未停止外部持有者。后继只读检查renderer与host已fresh，appServer仍stale，最新输入为并行`app-server/src/execution_process/tests.rs`。保留原上限和失败日志，不提前启动新Electron，不对同一未变化的锁状态重复提交刷新。独立前端第45批已整批16文件100项通过，继续至第69/142批且无新失败；其余批次仍pending/running，完整门禁不结算通过。

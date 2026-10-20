@@ -552,6 +552,40 @@
       "exitCode": 0,
       "log": "sandbox-contract-tests.log",
       "scope": "typed command/exec canonical policy; protocol drift, client 296 checks, command/harness/modality/script/release/Desktop/CLI/cleanup/docs guards"
+    },
+    {
+      "command": "npm run typecheck",
+      "exitCode": 0,
+      "log": "sandbox-typecheck.log",
+      "scope": "renderer and Node consumers after canonical protocol generation"
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server command_exec -- --test-threads=1",
+      "exitCode": 101,
+      "status": "build_failed_before_tests",
+      "log": "sandbox-command-exec-tests.log",
+      "reason": "Incremental object copy ENOENT after shared target replacement; see sandbox-target-recreation.json"
+    },
+    {
+      "command": "npm run test:rust:integration -- -p app-server --test command_exec_jsonrpc -- --test-threads=1",
+      "exitCode": 143,
+      "status": "interrupted",
+      "log": "sandbox-command-exec-stdio-tests.log",
+      "reason": "Verified owned Cargo held obsolete lock inode after target recreation; stopped to prevent concurrent writes"
+    },
+    {
+      "command": "npm run test:rust:unit -- -p tool-runtime sandbox::",
+      "exitCode": 143,
+      "status": "interrupted",
+      "log": "sandbox-tool-runtime-final-tests.log",
+      "reason": "Verified owned Cargo held obsolete lock inode after target recreation; stopped to prevent concurrent writes"
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server-protocol",
+      "exitCode": 0,
+      "passed": 145,
+      "log": "sandbox-protocol-tests.log",
+      "qualification": "Current lock inode 920906273; schema registry and canonical fixture tree included."
     }
   ],
   "attempts": [
@@ -739,7 +773,7 @@
     },
     "initial_source_freeze": "ephemeral-source-freeze.json"
   },
-  "updatedAt": "2026-10-20T11:02:28.329330+00:00",
+  "updatedAt": "2026-10-20T11:36:55.740964+00:00",
   "sandbox_execution_prerequisite": {
     "status": "validating",
     "source_freeze": "sandbox-source-freeze.json",
@@ -767,6 +801,11 @@
       "Windows ACL implementation updated; Windows runtime unverified",
       "No phase2 shared Agent, extension isolation or workspace baseline implementation"
     ],
-    "generated_sources": "sandbox-source-freeze.json#generatedSources"
+    "generated_sources": "sandbox-source-freeze.json#generatedSources",
+    "build_recovery": "sandbox-target-recreation.json",
+    "parallel_head_observation": {
+      "head": "a6923021a737da63c563d3e6f0724ce33eaf2e0f",
+      "qualification": "Another process committed unchanged frozen sandbox source during verification. This task issued no commit/stage/reset/branch commands; 31 frozen hashes still match."
+    }
   }
 }

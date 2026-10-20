@@ -7,6 +7,7 @@ import { createPreviewArtifactFromFile } from "@/lib/artifact/previewArtifact";
 import { mergeArtifacts } from "@/components/agent/chat/utils/messageArtifacts";
 import type { Artifact } from "@/lib/artifact/types";
 import { changeLimeLocale } from "@/i18n/createI18n";
+import "./workbook/WorkbookPanel";
 
 const mocks = vi.hoisted(() => ({ load: vi.fn() }));
 vi.mock("./workbook/loadWorkbookDocument", () => ({
@@ -73,7 +74,6 @@ describe("专业预览重载边界", () => {
   beforeEach(async () => {
     globalThis.IS_REACT_ACT_ENVIRONMENT = true;
     await changeLimeLocale("zh-CN");
-    await import("./workbook/WorkbookPanel");
     vi.stubGlobal(
       "ResizeObserver",
       class {
@@ -106,8 +106,8 @@ describe("专业预览重载边界", () => {
     root = createRoot(container);
   });
   afterEach(async () => {
-    await act(async () => root.unmount());
-    container.remove();
+    await act(async () => root?.unmount());
+    container?.remove();
     vi.unstubAllGlobals();
   });
 
