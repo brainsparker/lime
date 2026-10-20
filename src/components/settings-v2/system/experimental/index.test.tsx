@@ -3,6 +3,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 
+const originalUserAgent = Object.getOwnPropertyDescriptor(navigator, "userAgent");
+
 const { mockGetConfig, mockSaveConfig } = vi.hoisted(() => ({
   mockGetConfig: vi.fn(),
   mockSaveConfig: vi.fn(),
@@ -279,6 +281,11 @@ afterEach(async () => {
   }
 
   vi.clearAllMocks();
+  if (originalUserAgent) {
+    Object.defineProperty(navigator, "userAgent", originalUserAgent);
+  } else {
+    Reflect.deleteProperty(navigator, "userAgent");
+  }
   await changeLimeLocale("zh-CN");
 });
 

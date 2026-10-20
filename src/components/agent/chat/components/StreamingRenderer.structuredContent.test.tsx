@@ -76,6 +76,32 @@ describe("StreamingRenderer structured content", () => {
     expect(card?.getAttribute("data-has-on-submit")).toBe("no");
   });
 
+  it("当前 ask_user 不在消息流重复挂载问答表单", () => {
+    const onPermissionResponse = vi.fn();
+    const { container } = renderHarness({
+      content: "",
+      actionRequests: [
+        {
+          requestId: "live-question",
+          actionType: "ask_user",
+          status: "pending",
+          prompt: "请选择执行方式",
+          questions: [{ id: "choice", question: "请选择执行方式" }],
+        },
+      ],
+      onPermissionResponse,
+    });
+
+    expect(container.querySelector('[data-testid="a2ui-card"]')).toBeNull();
+    expect(
+      container.querySelector('[data-testid="decision-panel"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="request-user-input-panel"]'),
+    ).toBeNull();
+    expect(onPermissionResponse).not.toHaveBeenCalled();
+  });
+
   it("历史 pending ask_user 应渲染只读 A2UI 回显而不是可提交 DecisionPanel", () => {
     const { container } = renderHarness({
       content: "",
@@ -125,7 +151,9 @@ describe("StreamingRenderer structured content", () => {
     expect(
       container.querySelector('[data-testid="streaming-write-file-card"]'),
     ).toBeNull();
-    expect(container.textContent).toContain('<write_file path="notes/live.md">');
+    expect(container.textContent).toContain(
+      '<write_file path="notes/live.md">',
+    );
     expect(container.textContent).toContain("正在生成中");
     expect(onWriteFile).not.toHaveBeenCalled();
   });
@@ -145,7 +173,7 @@ describe("StreamingRenderer structured content", () => {
     expect(container.textContent).toContain("然后开始执行");
   });
 
-  it("提升为对话内 A2UI 的待处理问答应渲染为可提交卡片，approval 不走消息流提交", () => {
+  it("待处理问答与 approval 均由 Composer 承接，不在消息流挂载提交入口", () => {
     const { container } = renderHarness({
       content: "",
       actionRequests: [
@@ -163,7 +191,6 @@ describe("StreamingRenderer structured content", () => {
           prompt: "请确认是否继续",
         },
       ],
-      promoteActionRequestsToA2UI: true,
       onPermissionResponse: vi.fn(),
     });
 
@@ -172,12 +199,7 @@ describe("StreamingRenderer structured content", () => {
     ).toHaveLength(0);
     expect(
       container.querySelectorAll('[data-testid="a2ui-card"]'),
-    ).toHaveLength(1);
-    expect(
-      container
-        .querySelector('[data-testid="a2ui-card"]')
-        ?.getAttribute("data-has-on-submit"),
-    ).toBe("yes");
+    ).toHaveLength(0);
   });
 
   it("已排队的 ask_user 应继续以内联只读 A2UI 卡片回显", () => {
@@ -198,7 +220,6 @@ describe("StreamingRenderer structured content", () => {
           submittedUserData: { answer: "小红书" },
         },
       ],
-      promoteActionRequestsToA2UI: true,
       onPermissionResponse: vi.fn(),
     });
 
@@ -241,7 +262,7 @@ describe("StreamingRenderer structured content", () => {
     ).toBeNull();
   });
 
-  it("交错 action_required 应保留前后正文的 DOM 顺序", () => {
+  it("已提交问答的只读回显应保留前后正文的 DOM 顺序", () => {
     const { container } = renderHarness({
       content: "",
       contentParts: [
@@ -254,9 +275,10 @@ describe("StreamingRenderer structured content", () => {
           actionRequired: {
             requestId: "ask-inline-order",
             actionType: "ask_user",
-            status: "pending",
+            status: "submitted",
             prompt: "请选择执行方式。",
             questions: [{ question: "请选择执行方式。" }],
+            submittedUserData: { answer: "自动执行" },
           },
         },
         {
@@ -270,9 +292,7 @@ describe("StreamingRenderer structured content", () => {
     const markdownNodes = container.querySelectorAll(
       '[data-testid="markdown-renderer"]',
     );
-    const decisionPanel = container.querySelector(
-      '[data-testid="decision-panel"]',
-    );
+    const decisionPanel = container.querySelector('[data-testid="a2ui-card"]');
 
     expect(markdownNodes).toHaveLength(2);
     expect(markdownNodes[0]?.textContent).toContain("需要你的决定");

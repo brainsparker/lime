@@ -184,7 +184,6 @@ export interface WorkspaceConversationMessageListRuntime {
   onRefreshSessionReadModel?: (
     request?: AgentSessionReadModelRefreshRequest,
   ) => void | Promise<unknown>;
-  pendingPromotedA2UIActionRequest: unknown;
   collapseCodeBlocks: ConversationScenePresentationParams["messageList"]["collapseCodeBlocks"];
   shouldCollapseCodeBlock: ConversationScenePresentationParams["messageList"]["shouldCollapseCodeBlock"];
   onCodeBlockClick: ConversationScenePresentationParams["messageList"]["onCodeBlockClick"];
@@ -396,7 +395,6 @@ export function useWorkspaceConversationSceneRuntime({
     onOpenSubagentSession,
     onPermissionResponse,
     onRefreshSessionReadModel,
-    pendingPromotedA2UIActionRequest,
     collapseCodeBlocks,
     shouldCollapseCodeBlock,
     onCodeBlockClick,
@@ -680,7 +678,6 @@ export function useWorkspaceConversationSceneRuntime({
 
       onOpenSubagentSession,
       onPermissionResponse,
-      promoteActionRequestsToA2UI: Boolean(pendingPromotedA2UIActionRequest),
       renderA2UIInline: shellChromeRuntime.shouldRenderInlineA2UI,
       activePendingA2UISource: pendingA2UISource,
       collapseCodeBlocks,

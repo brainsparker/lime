@@ -626,7 +626,7 @@ impl MemoryStateStore {
                     retry_at = NULL,
                     last_success_at = ?2,
                     updated_at = ?2
-                WHERE scope_key = ?3 AND lease_owner = ?4
+                WHERE scope_key = ?3 AND status = 'leased' AND lease_owner = ?4
                 "#,
                 params![completion_watermark, now, scope_key, owner],
             )

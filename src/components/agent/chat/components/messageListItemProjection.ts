@@ -607,7 +607,6 @@ export function resolveMessageListItemProjection({
       ? timelineActionRequests
       : undefined;
   const shouldSuppressInlineA2UI = false;
-  const suppressedActionRequestId = null;
   const hasActiveStreamingOverlay = Boolean(
     streamingFinalTextOverlayContent?.trim(),
   );
@@ -984,7 +983,6 @@ export function resolveMessageListItemProjection({
     shouldSuppressInlineA2UI,
     shouldSuppressRendererProcessFlow,
     shouldSuppressStandaloneImageWorkbenchProcess,
-    suppressedActionRequestId,
     trailingActionRequests,
     trailingTimeline,
     visibleAssistantArtifacts,

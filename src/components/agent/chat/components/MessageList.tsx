@@ -98,7 +98,6 @@ const MessageListInner: React.FC<MessageListProps> = ({
   collapseCodeBlocks,
   shouldCollapseCodeBlock,
   onCodeBlockClick,
-  promoteActionRequestsToA2UI = false,
   isRestoringSession = false,
   onInterruptCurrentTurn,
   compactLeadingSpacing = false,
@@ -426,7 +425,6 @@ const MessageListInner: React.FC<MessageListProps> = ({
         isRestoredHistoryWindow={historyState.isRestoredHistoryWindow}
         isSending={isSending}
         lastAssistantMessageId={timelineState.lastAssistantMessageId}
-        promoteActionRequestsToA2UI={promoteActionRequestsToA2UI}
         promptCacheNotice={promptCacheNotice}
         providerType={providerType}
         renderA2UIInline={renderA2UIInline}
@@ -499,7 +497,6 @@ const MessageListInner: React.FC<MessageListProps> = ({
 
       onSaveMessageAsSkill,
       onWriteFile,
-      promoteActionRequestsToA2UI,
       promptCacheNotice,
       providerType,
       renderA2UIInline,

@@ -1,6 +1,4 @@
 use super::*;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 const PHASE2_LEASE_SECONDS: i64 = 300;
@@ -13,13 +11,30 @@ pub(super) const PROCESSED_NOTES_DIR: &str = "extensions/ad_hoc/processed";
 pub(super) const PROCESSED_ROLLOUT_SUMMARIES_DIR: &str = "rollout_summaries/processed";
 pub(super) const REVIEW_NOTES_DIR: &str = "extensions/ad_hoc/review";
 
-/// Runs the provider-backed Codex phase-2 harness. The model proposes only typed artifacts;
+/// Runs the current phase-2 artifact pipeline. The model proposes only typed artifacts;
 /// this module validates source identity and performs every filesystem/state mutation.
 pub(super) async fn run_stage2(
     backend: &LocalMemoryBackend,
     params: MemoryStoreRootParams,
     route: &MemoryStageOneRoute,
     provider: &dyn MemoryStageTwoProvider,
+) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
+    run_stage2_with_heartbeat(
+        backend,
+        params,
+        route,
+        provider,
+        Duration::from_secs(PHASE2_HEARTBEAT_SECONDS),
+    )
+    .await
+}
+
+async fn run_stage2_with_heartbeat(
+    backend: &LocalMemoryBackend,
+    params: MemoryStoreRootParams,
+    route: &MemoryStageOneRoute,
+    provider: &dyn MemoryStageTwoProvider,
+    heartbeat_interval: Duration,
 ) -> Result<MemoryStageOneRunResult, RuntimeCoreError> {
     let root = backend.resolve_root(&params)?;
     backend.ensure_layout(&root)?;
@@ -36,7 +51,7 @@ pub(super) async fn run_stage2(
     }
 
     let heartbeat_cancel = CancellationToken::new();
-    let heartbeat_lost = Arc::new(AtomicBool::new(false));
+    let heartbeat_lost = CancellationToken::new();
     let heartbeat_task = {
         let state = backend.state.clone();
         let scope_key = scope_key.clone();
@@ -44,7 +59,7 @@ pub(super) async fn run_stage2(
         let cancel = heartbeat_cancel.clone();
         let heartbeat_lost = heartbeat_lost.clone();
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(PHASE2_HEARTBEAT_SECONDS));
+            let mut interval = tokio::time::interval(heartbeat_interval);
             interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
             loop {
                 tokio::select! {
@@ -53,7 +68,7 @@ pub(super) async fn run_stage2(
                         match state.heartbeat_phase2(&scope_key, &owner, PHASE2_LEASE_SECONDS) {
                             Ok(true) => {}
                             Ok(false) | Err(_) => {
-                                heartbeat_lost.store(true, Ordering::Release);
+                                heartbeat_lost.cancel();
                                 break;
                             }
                         }
@@ -63,10 +78,23 @@ pub(super) async fn run_stage2(
         })
     };
 
-    let result = run_stage2_inner(backend, params, route, provider, &root, &scope_key).await;
+    // Dropping this future must not leave a detached task renewing the lease forever.
+    let _heartbeat_guard = heartbeat_cancel.clone().drop_guard();
+    let _execution_guard = heartbeat_lost.clone().drop_guard();
+    let result = run_stage2_inner(
+        backend,
+        params,
+        route,
+        provider,
+        &root,
+        &scope_key,
+        &owner,
+        &heartbeat_lost,
+    )
+    .await;
     heartbeat_cancel.cancel();
     let _ = heartbeat_task.await;
-    if heartbeat_lost.load(Ordering::Acquire) {
+    if heartbeat_lost.is_cancelled() {
         backend
             .state
             .finish_phase2(
@@ -118,6 +146,8 @@ async fn run_stage2_inner(
     provider: &dyn MemoryStageTwoProvider,
     root: &Path,
     scope_key: &str,
+    owner: &str,
+    cancellation: &CancellationToken,
 ) -> Result<(MemoryStageOneRunResult, Vec<String>), RuntimeCoreError> {
     let inputs = backend
         .state
@@ -151,6 +181,7 @@ async fn run_stage2_inner(
     .map_err(|error| backend_error(format!("serialize memory stage-2 inputs: {error}")))?;
     let output = provider
         .sample(MemoryStageTwoProviderRequest {
+            cancellation: cancellation.clone(),
             session_id: route.session_id.clone(),
             thread_id: route.thread_id.clone(),
             turn_id: "memory-stage2-consolidation".to_string(),
@@ -172,6 +203,18 @@ async fn run_stage2_inner(
             strict: true,
         })
         .await?;
+    // The worker may have lost its lease while the model was running. Confirm ownership
+    // before parsing/applying the proposal, rather than discovering the loss after writes.
+    if cancellation.is_cancelled()
+        || !backend
+            .state
+            .heartbeat_phase2(scope_key, owner, PHASE2_LEASE_SECONDS)
+            .map_err(backend_error)?
+    {
+        return Err(backend_error(
+            "memory consolidation lease was lost before artifact validation",
+        ));
+    }
     if output.len() > STAGE2_MAX_OUTPUT_BYTES {
         return Err(backend_error("memory stage-2 output exceeds size limit"));
     }
@@ -221,6 +264,16 @@ async fn run_stage2_inner(
                 "memory stage-2 memory artifact exceeds size limit",
             ));
         }
+    }
+    if cancellation.is_cancelled()
+        || !backend
+            .state
+            .heartbeat_phase2(scope_key, owner, PHASE2_LEASE_SECONDS)
+            .map_err(backend_error)?
+    {
+        return Err(backend_error(
+            "memory consolidation lease was lost before artifact writes",
+        ));
     }
     let processed_dir = root.join(PROCESSED_NOTES_DIR);
     let processed_rollout_dir = root.join(PROCESSED_ROLLOUT_SUMMARIES_DIR);
@@ -389,3 +442,6 @@ pub(super) fn move_note(
     fs::rename(source, &target).map_err(io_error)?;
     Ok(target)
 }
+
+#[cfg(test)]
+mod tests;

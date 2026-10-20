@@ -3743,6 +3743,7 @@ mod tests {
             json!({
                 "scope": "workspace",
                 "workspaceRoot": "/workspace/project",
+                "sessionId": "memory-test-session",
                 "maxNotes": 10,
             })
         );

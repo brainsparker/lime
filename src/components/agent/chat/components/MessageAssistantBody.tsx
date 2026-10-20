@@ -57,7 +57,6 @@ interface MessageAssistantBodyProps {
     context?: WriteArtifactContext,
   ) => void;
   primaryTimeline: React.ReactNode;
-  promoteActionRequestsToA2UI: boolean;
   readOnlyInteractiveContent: boolean;
   renderA2UIInline: boolean;
   rendererActionRequests: Message["actionRequests"] | undefined;
@@ -76,7 +75,6 @@ interface MessageAssistantBodyProps {
   shouldRenderPrimaryTimelineOutsideBubble: boolean;
   shouldSuppressInlineA2UI: boolean;
   shouldSuppressRendererProcessFlow: boolean;
-  suppressedActionRequestId: string | null;
 }
 
 export function MessageAssistantBody({
@@ -107,7 +105,6 @@ export function MessageAssistantBody({
   onQuoteMessage,
   onWriteFile,
   primaryTimeline,
-  promoteActionRequestsToA2UI,
   readOnlyInteractiveContent,
   renderA2UIInline,
   rendererActionRequests,
@@ -126,15 +123,14 @@ export function MessageAssistantBody({
   shouldRenderPrimaryTimelineOutsideBubble,
   shouldSuppressInlineA2UI,
   shouldSuppressRendererProcessFlow,
-  suppressedActionRequestId,
 }: MessageAssistantBodyProps) {
   const hasTerminalRuntimeStatus =
     message.runtimeStatus?.phase === "failed" ||
     message.runtimeStatus?.phase === "cancelled";
   const isMessageStreaming = Boolean(
     (message.isThinking || isActiveProcessOnlyOutput) &&
-      isCurrentInteractiveAssistantMessage &&
-      !hasTerminalRuntimeStatus,
+    isCurrentInteractiveAssistantMessage &&
+    !hasTerminalRuntimeStatus,
   );
   const shouldShowStreamingCursor = Boolean(
     message.isThinking && isMessageStreaming,
@@ -254,8 +250,6 @@ export function MessageAssistantBody({
           collapseCodeBlocks={collapseCodeBlocks}
           shouldCollapseCodeBlock={shouldCollapseCodeBlock}
           onCodeBlockClick={onCodeBlockClick}
-          promoteActionRequestsToA2UI={promoteActionRequestsToA2UI}
-          suppressedActionRequestId={suppressedActionRequestId}
           showRuntimeStatusInline={true}
           renderProposedPlanBlocks={renderProposedPlanBlocks}
           suppressProcessFlow={shouldSuppressRendererProcessFlow}

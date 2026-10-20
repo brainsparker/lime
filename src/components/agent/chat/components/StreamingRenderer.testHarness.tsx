@@ -34,7 +34,6 @@ export interface StreamingRendererHarnessProps {
   showRuntimeStatusInline?: boolean;
   toolCalls?: AgentToolCallState[];
   actionRequests?: ActionRequired[];
-  promoteActionRequestsToA2UI?: boolean;
   onPermissionResponse?: (payload: unknown) => void;
   onWriteFile?: (
     content: string,

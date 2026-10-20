@@ -113,9 +113,7 @@ interface StreamingRendererProps {
   onCodeBlockClick?: (language: string, code: string) => void;
   runtimeStatus?: AgentRuntimeStatus;
   showRuntimeStatusInline?: boolean;
-  promoteActionRequestsToA2UI?: boolean;
   renderProposedPlanBlocks?: boolean;
-  suppressedActionRequestId?: string | null;
   suppressProcessFlow?: boolean;
   showContentBlockActions?: boolean;
   onQuoteContent?: (content: string) => void;
@@ -151,10 +149,8 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
     collapseCodeBlocks,
     shouldCollapseCodeBlock,
     onCodeBlockClick,
-    promoteActionRequestsToA2UI = false,
     renderProposedPlanBlocks = true,
     runtimeStatus,
-    suppressedActionRequestId = null,
     suppressProcessFlow = false,
     showContentBlockActions = false,
     onQuoteContent,
@@ -163,12 +159,6 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
     readOnlyActionRequests = false,
   }) => {
     const { t } = useTranslation("agent");
-    const shouldRenderInlineActionRequest = React.useCallback(
-      (request: ActionRequired) =>
-        suppressedActionRequestId !== request.requestId,
-      [suppressedActionRequestId],
-    );
-
     // 判断是否使用交错显示模式
     const displayContent = useMemo(
       () =>
@@ -265,9 +255,7 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
       displayContent.trim().length > 0 || shouldRenderRuntimePeerCards;
     const shouldKeepProcessOpenForFinalAnswer =
       processIsActive && !hasFinalRenderableContent;
-    const visibleActionRequests = (actionRequests || []).filter(
-      shouldRenderInlineActionRequest,
-    );
+    const visibleActionRequests = actionRequests || [];
 
     // 判断是否有正在执行的工具
     const hasRunningTools = useMemo(() => {
@@ -298,7 +286,6 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
           shouldKeepProcessOpenForFinalAnswer={
             shouldKeepProcessOpenForFinalAnswer
           }
-          promoteActionRequestsToA2UI={promoteActionRequestsToA2UI}
           readOnlyActionRequests={readOnlyActionRequests}
           onPermissionResponse={onPermissionResponse}
           onFileClick={onFileClick}
@@ -313,7 +300,6 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
         onOpenUrlPreview,
         onPermissionResponse,
         processIsActive,
-        promoteActionRequestsToA2UI,
         readOnlyActionRequests,
         shouldKeepProcessOpenForFinalAnswer,
       ],
@@ -532,7 +518,7 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
           if (part.type === "media_reference") {
             return Boolean(part.reference.uri);
           }
-          return shouldRenderInlineActionRequest(part.actionRequired);
+          return true;
         }) ||
         (isStreaming &&
           (displayContent.length > 0 ||
@@ -568,7 +554,7 @@ export const StreamingRenderer: React.FC<StreamingRendererProps> = memo(
           if (part.type === "media_reference") {
             return Boolean(part.reference.uri);
           }
-          return shouldRenderInlineActionRequest(part.actionRequired);
+          return true;
         });
 
       const processBufferOnlyThinking = () =>

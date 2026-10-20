@@ -366,10 +366,6 @@ export type PendingA2UISource =
       messageId: string;
     }
   | {
-      kind: "action_request";
-      requestId: string;
-    }
-  | {
       kind: "scene_gate";
       gateKey: string;
       sceneKey: string;

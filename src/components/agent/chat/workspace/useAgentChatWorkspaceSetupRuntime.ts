@@ -508,7 +508,6 @@ export function useAgentChatWorkspaceSetupRuntime({
     hasPendingA2UIForm,
     openRuntimeSceneGate,
     pendingActionRequest,
-    pendingPromotedA2UIActionRequest,
   } = useWorkspacePendingInputRuntime({
     activeTheme,
     applyProjectSelection,
@@ -519,7 +518,6 @@ export function useAgentChatWorkspaceSetupRuntime({
     dismissedInitialPendingServiceSkillLaunchSignatureRef,
     handlePendingServiceSkillLaunchSubmit:
       workspaceServiceSkillEntryActions.handlePendingServiceSkillLaunchSubmit,
-    handlePermissionResponse,
     handledInitialPendingServiceSkillLaunchSignatureRef,
     initialPendingServiceSkillLaunch,
     initialPendingServiceSkillLaunchSignature,
@@ -716,7 +714,6 @@ export function useAgentChatWorkspaceSetupRuntime({
     hasPendingA2UIForm,
     openRuntimeSceneGate,
     pendingActionRequest,
-    pendingPromotedA2UIActionRequest,
     currentGate,
     documentEditorFocusedRef,
     themeWorkbenchActiveQueueItem,

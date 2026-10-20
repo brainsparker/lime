@@ -4,12 +4,7 @@ import type {
   A2UIResponse,
 } from "@/components/workspace/a2ui/types";
 import type { AgentPendingServiceSkillLaunchParams } from "@/types/page";
-import type {
-  ActionRequired,
-  ConfirmResponse,
-  Message,
-  PendingA2UISource,
-} from "../types";
+import type { ActionRequired, Message, PendingA2UISource } from "../types";
 import type { SendMessageFn } from "../hooks/agentChatShared";
 import type { ServiceSkillHomeItem } from "../service-skills/types";
 import type { CreationReplayMetadata } from "../utils/creationReplayMetadata";
@@ -33,7 +28,6 @@ interface UseWorkspacePendingInputRuntimeParams {
   handlePendingServiceSkillLaunchSubmit: (
     formData: A2UIFormData,
   ) => Promise<boolean>;
-  handlePermissionResponse: (response: ConfirmResponse) => Promise<void>;
   handledInitialPendingServiceSkillLaunchSignatureRef: MutableRefObject<string>;
   initialPendingServiceSkillLaunch?: AgentPendingServiceSkillLaunchParams;
   initialPendingServiceSkillLaunchSignature: string;
@@ -70,7 +64,6 @@ export function useWorkspacePendingInputRuntime({
   creationReplay,
   dismissedInitialPendingServiceSkillLaunchSignatureRef,
   handlePendingServiceSkillLaunchSubmit,
-  handlePermissionResponse,
   handledInitialPendingServiceSkillLaunchSignatureRef,
   initialPendingServiceSkillLaunch,
   initialPendingServiceSkillLaunchSignature,
@@ -115,7 +108,6 @@ export function useWorkspacePendingInputRuntime({
     pendingA2UIForm,
     pendingA2UISource,
     pendingActionRequest,
-    pendingPromotedA2UIActionRequest,
     resolvePendingA2UISubmit,
   } = useWorkspaceA2UIRuntime({
     messages,
@@ -176,8 +168,6 @@ export function useWorkspacePendingInputRuntime({
     ],
   );
   const { handleInputbarA2UISubmit } = useWorkspaceA2UISubmitActions({
-    handlePermissionResponse,
-    pendingPromotedA2UIActionRequest,
     resolvePendingA2UISubmit,
     sendMessage,
   });
@@ -220,6 +210,5 @@ export function useWorkspacePendingInputRuntime({
     hasPendingA2UIForm,
     openRuntimeSceneGate,
     pendingActionRequest,
-    pendingPromotedA2UIActionRequest,
   };
 }

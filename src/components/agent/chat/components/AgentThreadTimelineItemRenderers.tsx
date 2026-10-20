@@ -419,6 +419,13 @@ function renderGroupItemDetails(
 
   if (actionRequest) {
     if (
+      actionRequest.actionType === "ask_user" &&
+      actionRequest.status !== "submitted" &&
+      actionRequest.status !== "queued"
+    ) {
+      return null;
+    }
+    if (
       actionRequest.actionType === "tool_confirmation" &&
       actionRequest.status !== "submitted"
     ) {

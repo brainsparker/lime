@@ -100,7 +100,6 @@ export interface MessageListProps {
   /** 代码块点击回调（用于在画布中显示） */
   onCodeBlockClick?: (language: string, code: string) => void;
   /** 是否将待处理问答提升为对话内 A2UI 表单 */
-  promoteActionRequestsToA2UI?: boolean;
   /** 会话是否仍在自动恢复 */
   isRestoringSession?: boolean;
   /** 中断当前执行 */

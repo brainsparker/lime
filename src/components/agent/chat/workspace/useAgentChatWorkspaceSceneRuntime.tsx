@@ -73,7 +73,7 @@ export function useAgentChatWorkspaceSceneRuntime({
     artifactViewMode, currentCanvasArtifact, displayedCanvasArtifact, handleArtifactViewModeChange,
     settledWorkbenchArtifacts, contextHarnessRuntime, effectiveThreadItems, harnessState, inputbarIsSending, rightSurfaceLocalState, contextWorkspace,
     isThemeWorkbench, setHarnessPanelVisible, harnessPendingCount, showHarnessToggle, harnessAttentionLevel, harnessToggleLabel, generalWorkbenchScaffoldRuntime, workspaceServiceSkillEntryActions,
-    a2uiSubmissionNotice, effectivePendingA2UIForm, effectivePendingA2UISource, handleMessageA2UISubmit, handlePendingA2UISubmit, pendingPromotedA2UIActionRequest, currentGate, themeWorkbenchRunState,
+    a2uiSubmissionNotice, effectivePendingA2UIForm, effectivePendingA2UISource, handleMessageA2UISubmit, handlePendingA2UISubmit, currentGate, themeWorkbenchRunState,
   } = setupRuntime;
   // prettier-ignore
   const {
@@ -495,7 +495,6 @@ export function useAgentChatWorkspaceSceneRuntime({
           quoteInput: input,
           onQuoteInputChange: setInput,
         },
-        pendingPromotedA2UIActionRequest,
         projection: {
           currentTurnId: sceneCurrentTurnId,
           executionRuntime: sceneExecutionRuntime,

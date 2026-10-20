@@ -162,8 +162,6 @@ export function createBaseParams(overrides: Record<string, unknown> = {}) {
       onOpenSubagentSession: overrides.handleOpenSubagentSession ?? noop,
       onPermissionResponse: overrides.handlePermissionResponse ?? noop,
       onRefreshSessionReadModel: overrides.onRefreshSessionReadModel,
-      pendingPromotedA2UIActionRequest:
-        overrides.pendingPromotedA2UIActionRequest ?? null,
       collapseCodeBlocks: Boolean(overrides.shouldCollapseCodeBlocks),
       shouldCollapseCodeBlock: overrides.shouldCollapseCodeBlockInChat ?? noop,
       onCodeBlockClick: overrides.handleCodeBlockClick ?? noop,

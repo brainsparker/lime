@@ -5,10 +5,6 @@ import type {
   A2UIResponse,
 } from "@/components/workspace/a2ui/types";
 import {
-  buildActionRequestA2UI,
-  isActionRequestA2UICompatible,
-} from "../utils/actionRequestA2UI";
-import {
   buildProgressiveA2UIStepForm,
   hasMeaningfulProgressiveA2UIAnswers,
   type ProgressiveA2UIStepView,
@@ -22,19 +18,10 @@ interface A2UISubmissionNotice {
   summary: string;
 }
 
-type PendingA2UIResolution =
-  | {
-      form: A2UIResponse;
-      source: PendingA2UISource & {
-        kind: "assistant_message";
-      };
-    }
-  | {
-      form: A2UIResponse;
-      source: PendingA2UISource & {
-        kind: "action_request";
-      };
-    };
+interface PendingA2UIResolution {
+  form: A2UIResponse;
+  source: PendingA2UISource & { kind: "assistant_message" };
+}
 
 interface UseWorkspaceA2UIRuntimeParams {
   messages: Message[];
@@ -69,10 +56,6 @@ function getPendingA2UISourceKey(
     return null;
   }
 
-  if (resolution.source.kind === "action_request") {
-    return `${resolution.source.kind}:${resolution.source.requestId}:${resolution.form.id}`;
-  }
-
   return `${resolution.source.kind}:${resolution.source.messageId}:${resolution.form.id}`;
 }
 
@@ -84,18 +67,7 @@ function isSamePendingA2UIResolution(
     return false;
   }
 
-  if (
-    previous.source.kind === "action_request" &&
-    next.source.kind === "action_request"
-  ) {
-    return previous.source.requestId === next.source.requestId;
-  }
-
-  return (
-    previous.source.kind !== "action_request" &&
-    next.source.kind !== "action_request" &&
-    previous.source.messageId === next.source.messageId
-  );
+  return previous.source.messageId === next.source.messageId;
 }
 
 function isReadOnlyInteractiveMessage(
@@ -114,7 +86,6 @@ export function useWorkspaceA2UIRuntime({
   pendingA2UIForm: A2UIResponse | null;
   pendingA2UISource: PendingA2UISource | null;
   pendingActionRequest: ActionRequired | null;
-  pendingPromotedA2UIActionRequest: ActionRequired | null;
   resolvePendingA2UISubmit: (
     formData: A2UIFormData,
   ) => PendingA2UISubmitResolution;
@@ -205,83 +176,7 @@ export function useWorkspaceA2UIRuntime({
     readOnlyInteractiveMessageIds,
     suppressPendingA2UI,
   ]);
-  const pendingMessageA2UIForm = pendingMessageA2UI?.form ?? null;
-
-  const pendingPromotedA2UIActionRequest =
-    useMemo<ActionRequired | null>(() => {
-      if (suppressPendingA2UI) {
-        return null;
-      }
-
-      if (pendingMessageA2UIForm) {
-        return null;
-      }
-
-      for (let i = currentAssistantTail.length - 1; i >= 0; i -= 1) {
-        const message = currentAssistantTail[i];
-        if (
-          isReadOnlyInteractiveMessage(message, readOnlyInteractiveMessageIds)
-        ) {
-          continue;
-        }
-
-        const pendingRequest = [...(message.actionRequests || [])]
-          .reverse()
-          .find(
-            (request) =>
-              request.status === "pending" &&
-              isActionRequestA2UICompatible(request),
-          );
-
-        if (pendingRequest) {
-          return governActionRequest(pendingRequest);
-        }
-      }
-
-      return null;
-    }, [
-      currentAssistantTail,
-      pendingMessageA2UIForm,
-      readOnlyInteractiveMessageIds,
-      suppressPendingA2UI,
-    ]);
-
-  const resolvedPendingA2UI = useMemo<PendingA2UIResolution | null>(() => {
-    if (pendingMessageA2UI) {
-      return pendingMessageA2UI;
-    }
-
-    if (pendingPromotedA2UIActionRequest) {
-      const form = buildActionRequestA2UI(pendingPromotedA2UIActionRequest);
-      if (!form) {
-        return null;
-      }
-
-      return {
-        form,
-        source: {
-          kind: "action_request",
-          requestId: pendingPromotedA2UIActionRequest.requestId,
-        },
-      };
-    }
-
-    return null;
-  }, [pendingMessageA2UI, pendingPromotedA2UIActionRequest]);
-
-  const hasRecentA2UISubmission = useMemo(() => {
-    if (resolvedPendingA2UI) {
-      return false;
-    }
-
-    return currentAssistantTail.some((message) =>
-      (message.actionRequests || []).some(
-        (request) =>
-          request.status === "submitted" &&
-          isActionRequestA2UICompatible(request),
-      ),
-    );
-  }, [currentAssistantTail, resolvedPendingA2UI]);
+  const resolvedPendingA2UI = pendingMessageA2UI;
 
   const a2uiSubmissionNotice: A2UISubmissionNotice | null = null;
 
@@ -303,28 +198,12 @@ export function useWorkspaceA2UIRuntime({
       return;
     }
 
-    if (hasRecentA2UISubmission) {
-      setRetainedPendingA2UI(null);
-      return;
-    }
-
     setRetainedPendingA2UI((previous) => {
       if (!previous) {
         return null;
       }
 
       const source = previous.source;
-      if (source.kind === "action_request") {
-        const requestStillExists = currentAssistantTail.some((message) =>
-          isReadOnlyInteractiveMessage(message, readOnlyInteractiveMessageIds)
-            ? false
-            : (message.actionRequests || []).some(
-                (request) => request.requestId === source.requestId,
-              ),
-        );
-        return requestStillExists ? previous : null;
-      }
-
       const sourceMessageStillExists = currentAssistantTail.some(
         (message) =>
           message.id === source.messageId &&
@@ -334,7 +213,6 @@ export function useWorkspaceA2UIRuntime({
     });
   }, [
     currentAssistantTail,
-    hasRecentA2UISubmission,
     readOnlyInteractiveMessageIds,
     resolvedPendingA2UI,
     suppressPendingA2UI,
@@ -347,9 +225,7 @@ export function useWorkspaceA2UIRuntime({
   useEffect(() => {
     const sourceKey = getPendingA2UISourceKey(visiblePendingA2UI);
     if (!sourceKey) {
-      if (hasRecentA2UISubmission) {
-        setPendingA2UIProgressState(null);
-      }
+      setPendingA2UIProgressState(null);
       return;
     }
 
@@ -362,14 +238,10 @@ export function useWorkspaceA2UIRuntime({
             accumulatedFormData: {},
           },
     );
-  }, [hasRecentA2UISubmission, visiblePendingA2UI]);
+  }, [visiblePendingA2UI]);
 
   const progressivePendingA2UI = useMemo<ProgressiveA2UIStepView | null>(() => {
     if (!visiblePendingA2UI) {
-      return null;
-    }
-
-    if (visiblePendingA2UI.source.kind !== "assistant_message") {
       return null;
     }
 
@@ -438,29 +310,11 @@ export function useWorkspaceA2UIRuntime({
     [pendingA2UIProgressState, progressivePendingA2UI, visiblePendingA2UI],
   );
 
-  useEffect(() => {
-    if (
-      !pendingActionRequest ||
-      resolvedPendingA2UI ||
-      !isActionRequestA2UICompatible(pendingActionRequest)
-    ) {
-      return;
-    }
-
-    console.warn("[AgentChatPage] 待处理 action_required 未生成对话内 A2UI", {
-      requestId: pendingActionRequest.requestId,
-      actionType: pendingActionRequest.actionType,
-      prompt: pendingActionRequest.prompt,
-      scope: pendingActionRequest.scope,
-    });
-  }, [pendingActionRequest, resolvedPendingA2UI]);
-
   return {
     a2uiSubmissionNotice,
     pendingA2UIForm,
     pendingA2UISource,
     pendingActionRequest,
-    pendingPromotedA2UIActionRequest,
     resolvePendingA2UISubmit,
   };
 }

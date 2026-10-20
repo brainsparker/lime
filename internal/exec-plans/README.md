@@ -73,6 +73,7 @@
 - Agent QC 运营级测试体系执行计划：`internal/exec-plans/agent-qc-ops-testing-plan.md`
 - Agent App v2 独立安装与 Runtime 底座拆分执行计划：`internal/exec-plans/agentapp-v2-standalone-runtime.md`
 - Codex 插件重构与 LimeCore 联动：`internal/exec-plans/codex-plugin-reconstruction.md`
+- Codex Memory phase-2 共享 Agent harness：[执行计划](./codex-memory-agent-harness-alignment.md)；Codex 源码决定 Memory/runtime，grok 仅参考多模型机制。
 - Codex 消息 phase 与原生文本提前完成：[执行计划](./codex-message-phase-alignment-plan.md)；grok 仅参考多模型机制。
 - Codex 完成消息权威快照与无 delta 展示：[执行计划](./codex-output-snapshot-alignment-plan.md)；独立公共行为回归先行。
 - AI 图层化设计 current 路线图：`internal/roadmap/ai-layered-design/README.md`

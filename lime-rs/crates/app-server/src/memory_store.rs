@@ -113,6 +113,8 @@ pub struct MemoryStageTwoInput {
 
 #[derive(Debug, Clone)]
 pub struct MemoryStageTwoProviderRequest {
+    /// Losing the phase-2 lease cancels execution before any artifact may be committed.
+    pub cancellation: CancellationToken,
     pub session_id: String,
     pub thread_id: String,
     pub turn_id: String,

@@ -9,6 +9,34 @@ import {
 import { changeLimeLocale } from "@/i18n/createI18n";
 
 describe("AgentThreadTimeline", () => {
+  it("未回答的 canonical 问题由 Composer 承接，时间线不挂载第二份表单", () => {
+    const container = renderTimeline(
+      [
+        {
+          ...createBaseItem("input-live", 1),
+          type: "request_user_input",
+          status: "in_progress",
+          completed_at: undefined,
+          request_id: "live-question",
+          action_type: "ask_user",
+          prompt: "请选择执行方式",
+          questions: [{ question: "请选择执行方式" }],
+        },
+      ],
+      { turn: { status: "running" }, isCurrentTurn: true },
+    );
+
+    expect(
+      container.querySelector('[data-testid="decision-panel"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="timeline-a2ui-card"]'),
+    ).toBeNull();
+    expect(
+      container.querySelector('[data-testid="request-user-input-panel"]'),
+    ).toBeNull();
+  });
+
   it("应按真实发生顺序渲染思考与工具块", () => {
     const items: AgentThreadItem[] = [
       {

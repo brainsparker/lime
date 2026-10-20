@@ -21,8 +21,10 @@ import {
 } from "../hooks/agentStreamTextOverlayStore";
 
 export const IMAGE_WORKBENCH_FOCUS_EVENT = "lime:image-workbench-focus";
-export const IMAGE_WORKBENCH_TASK_ACTION_EVENT = "lime:image-workbench-task-action";
-export const VIDEO_WORKBENCH_TASK_ACTION_EVENT = "lime:video-workbench-task-action";
+export const IMAGE_WORKBENCH_TASK_ACTION_EVENT =
+  "lime:image-workbench-task-action";
+export const VIDEO_WORKBENCH_TASK_ACTION_EVENT =
+  "lime:video-workbench-task-action";
 export type MockConfiguredProvider = {
   key: string;
   label?: string;
@@ -31,10 +33,9 @@ export type MockConfiguredProvider = {
   providerId?: string;
 };
 
-export function isMockToolUsePart(part: Record<string, unknown>): part is Record<
-  string,
-  unknown
-> & {
+export function isMockToolUsePart(
+  part: Record<string, unknown>,
+): part is Record<string, unknown> & {
   toolCall: { id?: string; name?: string; status?: string };
 } {
   return (
@@ -91,8 +92,7 @@ export const mockTokenUsageDisplay = vi.fn(
     <div data-testid="token-usage-display" data-inline={inline ? "yes" : "no"}>
       {promptCacheNotice?.label ||
         `${
-          ((usage?.input_tokens ?? 0) + (usage?.output_tokens ?? 0)) /
-          1_000
+          ((usage?.input_tokens ?? 0) + (usage?.output_tokens ?? 0)) / 1_000
         }.0K Tokens`}
     </div>
   ),
@@ -190,7 +190,6 @@ export const mockStreamingRenderer = vi.fn(
     toolCalls?: unknown[];
     isStreaming?: boolean;
     renderA2UIInline?: boolean;
-    suppressedActionRequestId?: string | null;
     suppressProcessFlow?: boolean;
     showRuntimeStatusInline?: boolean;
     renderProposedPlanBlocks?: boolean;
@@ -261,7 +260,9 @@ export const mockAgentThreadTimeline = vi.fn(
       {MOCK_AGENT_THREAD_TIMELINE_LABEL}
       {actionRequests?.length ? `:${actionRequests.length}` : ""}
       {(items || [])
-        .filter((item) => item.type === "web_search" || item.type === "tool_call")
+        .filter(
+          (item) => item.type === "web_search" || item.type === "tool_call",
+        )
         .map((item) => (
           <span
             key={item.id}
@@ -286,7 +287,6 @@ vi.mock("./StreamingRenderer", () => ({
   StreamingRenderer: (props: {
     content: string;
     renderA2UIInline?: boolean;
-    suppressedActionRequestId?: string | null;
     markdownRenderMode?: string;
     readOnlyA2UI?: boolean;
     readOnlyActionRequests?: boolean;
@@ -411,7 +411,6 @@ export function createConversationMessages(count: number): Message[] {
     ),
   }));
 }
-
 
 export const getAgentUiPerformanceMetrics = readAgentUiPerformanceMetrics;
 export const upsertAgentStreamTextOverlay = upsertAgentStreamTextOverlayEntry;

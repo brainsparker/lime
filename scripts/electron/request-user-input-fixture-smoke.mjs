@@ -63,6 +63,25 @@ const SOURCE_FILES = [
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",
   "src/components/agent/chat/components/RequestUserInputPanel.tsx",
+  "src/components/agent/chat/components/StreamingProcessRun.tsx",
+  "src/components/agent/chat/components/AgentThreadTimelineItemRenderers.tsx",
+  "src/components/agent/chat/components/ActionRequestA2UIPreviewCard.tsx",
+  "src/components/agent/chat/components/StreamingRenderer.tsx",
+  "src/components/agent/chat/components/MessageList.types.ts",
+  "src/components/agent/chat/components/MessageList.tsx",
+  "src/components/agent/chat/components/MessageListItem.tsx",
+  "src/components/agent/chat/components/MessageAssistantBody.tsx",
+  "src/components/agent/chat/components/messageListItemProjection.ts",
+  "src/components/agent/chat/components/messageListItemProjectionHelpers.ts",
+  "src/components/agent/chat/types.ts",
+  "src/components/agent/chat/utils/actionRequestA2UI.ts",
+  "src/components/agent/chat/workspace/useWorkspaceA2UIRuntime.ts",
+  "src/components/agent/chat/workspace/useWorkspaceA2UISubmitActions.ts",
+  "src/components/agent/chat/workspace/useWorkspacePendingInputRuntime.ts",
+  "src/components/agent/chat/workspace/useWorkspaceConversationMessageListRuntime.ts",
+  "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx",
+  "src/components/agent/chat/workspace/useAgentChatWorkspaceSceneRuntime.tsx",
+  "src/components/agent/chat/workspace/useAgentChatWorkspaceSetupRuntime.ts",
   "src/components/agent/chat/components/QuestionAnswerEditor.tsx",
   "src/components/agent/chat/components/requestUserInputDraft.ts",
   "src/components/agent/chat/components/RequestUserInputDraftStore.ts",
@@ -140,7 +159,9 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
   };
   const consoleErrors = [];
   const pageErrors = [];
+  const rendererMessages = [];
   let handle, mainExit, fixture, collector, collectorPage, failure;
+  const asyncQuestion = Promise.withResolvers();
   const asyncContinuation = Promise.withResolvers();
   const stage = (value) => {
     summary.stage = value;
@@ -154,6 +175,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
   const captureDiagnostics = async (name) => {
     const snapshot = {
       stage: summary.stage,
+      rendererMessages,
       providerRequests: (fixture?.requests ?? []).map((request) => ({
         path: request.path,
         model: request.body?.model,
@@ -204,11 +226,14 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     fixture = await startOpenAiCompatibleFixtureServer({
       deferScriptedToolCallsUntilAvailable: true,
       scriptedResponses: [
-        {
-          type: "tool_call",
-          id: "call-async-question",
-          name: "request_user_input_async",
-          arguments: { questions: ASYNC_QUESTIONS },
+        async () => {
+          await asyncQuestion.promise;
+          return {
+            type: "tool_call",
+            id: "call-async-question",
+            name: "request_user_input_async",
+            arguments: { questions: ASYNC_QUESTIONS },
+          };
         },
         async () => {
           await asyncContinuation.promise;
@@ -264,6 +289,12 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       }
     });
     const page = handle.page;
+    page.on("console", (message) => {
+      if (!["warning", "error"].includes(message.type())) return;
+      const entry = { type: message.type(), text: message.text() };
+      rendererMessages.push(entry);
+      if (message.type() === "error") consoleErrors.push(entry.text);
+    });
     const call = async (method, params) => {
       const reply = await appServerCallFromPage(page, method, params);
       assert.equal(reply.ipcObservation.electron, true);
@@ -364,6 +395,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
         mainEditorHandle = await mainEditor.elementHandle();
       },
       releaseContinuation: () => asyncContinuation.resolve(),
+      releaseQuestion: () => asyncQuestion.resolve(),
       fixture,
       evidenceDir,
       summary,
@@ -645,6 +677,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
         })
         .catch(() => undefined);
   } finally {
+    asyncQuestion.resolve();
     asyncContinuation.resolve();
     summary.teardown = await settleFixtureResources({
       app: handle?.app,

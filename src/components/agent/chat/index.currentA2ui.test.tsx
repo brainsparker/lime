@@ -229,7 +229,7 @@ ask<arg_key>question</arg_key><arg_key>arg_value>请提供您希望我研究的�
     expect(latestPendingPanelProps?.a2uiSubmissionNotice ?? null).toBeNull();
   });
 
-  it("真实 action_required 存在时，应在消息内承载当前 A2UI", async () => {
+  it("真实 action_required 不应派生第二份 A2UI source 或输入区表单", async () => {
     mockUseAgentChatUnified.mockImplementation(
       ({ workspaceId }: { workspaceId: string }) => {
         observedWorkspaceIds.push(workspaceId);
@@ -321,7 +321,6 @@ ask<arg_key>question</arg_key><arg_key>arg_value>请提供您希望我研究的�
             requestId?: string;
           } | null;
           messages?: Array<Record<string, unknown>>;
-          promoteActionRequestsToA2UI?: boolean;
           renderA2UIInline?: boolean;
         }
       | undefined;
@@ -329,11 +328,7 @@ ask<arg_key>question</arg_key><arg_key>arg_value>请提供您希望我研究的�
       "为了继续推进，我需要你先补充以下信息",
     );
     expect(latestMessageListProps?.renderA2UIInline).toBe(true);
-    expect(latestMessageListProps?.promoteActionRequestsToA2UI).toBe(true);
-    expect(latestMessageListProps?.activePendingA2UISource).toEqual({
-      kind: "action_request",
-      requestId: "req-action-required",
-    });
+    expect(latestMessageListProps?.activePendingA2UISource).toBeNull();
     expect(collectPendingA2UIFormIds()).not.toContain(
       "action-request-req-action-required",
     );

@@ -4,9 +4,7 @@ import {
   mockStreamingRenderer,
   render,
 } from "./MessageList.testHarness";
-import type {
-  Message,
-} from "./MessageList.testHarness";
+import type { Message } from "./MessageList.testHarness";
 
 describe("MessageList inline actions", () => {
   it("assistant 消息应把 URL 预览入口透传给流式渲染器", () => {
@@ -27,8 +25,7 @@ describe("MessageList inline actions", () => {
             startTime: now,
             result: {
               success: true,
-              output:
-                "Example result\nhttps://example.com/result\n搜索摘要。",
+              output: "Example result\nhttps://example.com/result\n搜索摘要。",
             },
           },
         ],
@@ -37,8 +34,9 @@ describe("MessageList inline actions", () => {
 
     const container = render(messages, { onOpenUrlPreview });
 
-    expect(container.querySelector('[data-testid="streaming-renderer"]')).not
-      .toBeNull();
+    expect(
+      container.querySelector('[data-testid="streaming-renderer"]'),
+    ).not.toBeNull();
     expect(mockStreamingRenderer).toHaveBeenCalledWith(
       expect.objectContaining({
         onOpenUrlPreview,
@@ -66,38 +64,6 @@ describe("MessageList inline actions", () => {
 
     expect(mockStreamingRenderer).toHaveBeenCalledWith(
       expect.objectContaining({ renderA2UIInline: true }),
-    );
-  });
-
-  it("当前活动 action_request 不应再被底部面板抑制", () => {
-    const now = new Date();
-    const messages: Message[] = [
-      {
-        id: "msg-assistant-action",
-        role: "assistant",
-        content: "请先确认执行方式。",
-        timestamp: now,
-        actionRequests: [
-          {
-            requestId: "req-action-1",
-            actionType: "ask_user",
-            status: "pending",
-            prompt: "请选择执行方式",
-            questions: [{ question: "请选择执行方式" }],
-          },
-        ],
-      },
-    ];
-
-    render(messages, {
-      activePendingA2UISource: {
-        kind: "action_request",
-        requestId: "req-action-1",
-      },
-    });
-
-    expect(mockStreamingRenderer).toHaveBeenCalledWith(
-      expect.objectContaining({ suppressedActionRequestId: null }),
     );
   });
 
@@ -136,7 +102,7 @@ describe("MessageList inline actions", () => {
     );
   });
 
-  it("当前活动 assistant action_request 仍保持可提交，不降级为历史只读", () => {
+  it("当前 pending owner 关联的 assistant 不应降级为历史只读", () => {
     const now = new Date();
     const messages: Message[] = [
       {
@@ -291,5 +257,4 @@ describe("MessageList inline actions", () => {
     });
     expect(contentParts[2]).toEqual({ type: "text", text: "最终说明" });
   });
-
 });

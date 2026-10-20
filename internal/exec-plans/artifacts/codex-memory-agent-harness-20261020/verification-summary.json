@@ -1,0 +1,93 @@
+{
+  "status": "active",
+  "scope": "Memory phase-2 lease ownership/cancellation prerequisite; shared Agent harness not completed",
+  "reference": "reference-identity.json",
+  "source_freeze": "source-freeze.json",
+  "classification": {
+    "current": [
+      "LocalMemoryBackend phase-2 lease and artifact pipeline",
+      "RuntimeBackend phase-2 cancellation"
+    ],
+    "compat": [],
+    "deprecated": [],
+    "deleted": [
+      "AtomicBool-only phase-2 heartbeat loss signaling"
+    ],
+    "outstanding": [
+      "phase-2 direct sampling replacement",
+      "true ephemeral internal session",
+      "restricted tools/MCP/plugins/apps/skills/sandbox",
+      "shared Agent terminal/shutdown/Stop and exact stage1 snapshot identity"
+    ]
+  },
+  "checks": [
+    {
+      "command": "npm run test:rust:unit -- -p app-server memory_store::",
+      "exitCode": 0,
+      "passed": 31,
+      "new_regressions": 4,
+      "log": "memory-store-final.log",
+      "level": "owner integration with isolated SQLite/filesystem and explicit provider fixture"
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server runtime_backend::tests::model_selection::",
+      "exitCode": 0,
+      "passed": 36,
+      "log": "model-selection-unit.log",
+      "level": "owner route regression; no four-protocol request capture claim"
+    },
+    {
+      "command": "npm run governance:legacy-report",
+      "exitCode": 0,
+      "sourceFiles": 2361,
+      "testFiles": 1608,
+      "candidates": 0,
+      "classificationDrift": 0,
+      "violations": 0
+    },
+    {
+      "command": "rea inspect-analysis-view <complete-inline-evidence-summary-input>",
+      "exitCode": 0,
+      "evidence_id": "ev_b212d26b5571deaba6f011086e90ef84b98d4239d755e3dac731e8e23c629300",
+      "log": "rea-timeline-summary.json",
+      "level": "static Desktop preserved timeline subset"
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture",
+      "status": "running",
+      "preflightPassed": 369,
+      "log": "agent-current-fixture.log"
+    },
+    {
+      "command": "npm run verify:local",
+      "status": "running",
+      "log": "verify-local.log",
+      "scope": "entire current worktree, including independent parallel changes"
+    }
+  ],
+  "attempts": [
+    {
+      "command": "direct Rust test binary model selection",
+      "exitCode": 1,
+      "reason": "native dylib path unavailable without Cargo runtime environment",
+      "log": "model-selection-direct-attempt.log",
+      "resolution": "rerun canonical npm/Cargo wrapper passed 36 tests"
+    },
+    {
+      "operation": "REA wrong input / session-only Evidence reference",
+      "exitCode": 1,
+      "logs": [
+        "rea-input-rejected.json",
+        "rea-session-reference-rejected.json"
+      ],
+      "resolution": "complete inline Evidence view succeeded"
+    }
+  ],
+  "limitations": [
+    "Shared Memory consolidation Agent is not implemented; no full Memory alignment claim.",
+    "No live provider, Windows, CLI/TUI or LimeCore run in this slice.",
+    "No public JSON-RPC contract/schema/config/dependency changes in this slice.",
+    "No Electron Gate B result until fixture reaches terminal.",
+    "Ownership confirmation precedes local artifact writes; no cross-filesystem transaction or exact snapshot-version upgrade claim."
+  ]
+}

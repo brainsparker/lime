@@ -1,5 +1,4 @@
 import { cn } from "@/lib/utils";
-import type { A2UIFormData } from "@/components/workspace/a2ui/types";
 import {
   CHAT_A2UI_TASK_CARD_PRESET,
   TIMELINE_A2UI_TASK_CARD_PRESET,
@@ -16,8 +15,6 @@ interface ActionRequestA2UIPreviewCardProps {
   compact?: boolean;
   context?: "chat" | "timeline";
   className?: string;
-  readOnly?: boolean;
-  onSubmit?: (formData: A2UIFormData) => void;
 }
 
 function resolveStatusLabel(request: ActionRequired): string {
@@ -61,8 +58,6 @@ export function ActionRequestA2UIPreviewCard({
   compact = false,
   context = "chat",
   className,
-  readOnly = true,
-  onSubmit,
 }: ActionRequestA2UIPreviewCardProps) {
   const response = buildActionRequestA2UI(request);
   if (!response) {
@@ -73,28 +68,20 @@ export function ActionRequestA2UIPreviewCard({
     context === "timeline"
       ? TIMELINE_A2UI_TASK_CARD_PRESET
       : CHAT_A2UI_TASK_CARD_PRESET;
-  const previewResponse =
-    readOnly || request.status === "submitted" || request.status === "queued"
-      ? {
-          ...response,
-          submitAction: undefined,
-        }
-      : response;
+  const previewResponse = { ...response, submitAction: undefined };
 
   return (
     <A2UITaskCard
       response={previewResponse}
       compact={compact}
-      onSubmit={readOnly ? undefined : onSubmit}
-      preview={readOnly}
+      preview={true}
       preset={preset}
       title={resolveTitle(request)}
       subtitle={resolveSubtitle(request, context)}
       statusLabel={resolveStatusLabel(request)}
       initialFormData={resolveActionRequestInitialFormData(request)}
       className={cn(
-        readOnly &&
-          "[&_button]:pointer-events-none [&_button]:cursor-default [&_input]:pointer-events-none [&_textarea]:pointer-events-none",
+        "[&_button]:pointer-events-none [&_button]:cursor-default [&_input]:pointer-events-none [&_textarea]:pointer-events-none",
         className,
       )}
     />

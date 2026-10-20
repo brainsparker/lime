@@ -1,0 +1,109 @@
+
+> lime@1.164.0 smoke:agent-runtime-current-fixture
+> node scripts/agent-runtime/current-fixture-regression-smoke.mjs
+
+
+[smoke:agent-runtime-current-fixture] > Agent 历史/缓存终态恢复
+
+ RUN  v3.2.4 /Users/coso/Documents/dev/ai/aiclientproxy/lime
+
+ ✓ src/components/agent/chat/hooks/agentChatHistory.test.ts (12 tests) 94ms
+ ✓ src/components/agent/chat/hooks/agentSessionScopedStorage.test.ts (19 tests) 53ms
+
+ Test Files  2 passed (2)
+      Tests  31 passed (31)
+   Start at  11:46:18
+   Duration  13.67s (transform 6.97s, setup 0ms, collect 21.32s, tests 147ms, environment 2.21s, prepare 494ms)
+
+JSON report written to /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/vitest-smoke-iFdiU3/results.json
+[smoke:agent-runtime-current-fixture] Agent 历史/缓存终态恢复: executed=31
+
+[smoke:agent-runtime-current-fixture] > Agent 流式完成与运行态收尾
+
+ RUN  v3.2.4 /Users/coso/Documents/dev/ai/aiclientproxy/lime
+
+ ✓ src/components/agent/chat/hooks/agentStreamCompletionController.test.ts (26 tests | 19 skipped) 10ms
+ ✓ src/components/agent/chat/hooks/agentStreamRuntimeHandler.typedError.test.ts (2 tests) 34ms
+ ✓ src/components/agent/chat/hooks/agentStreamRuntimeHandler.unit.test.ts (57 tests | 32 skipped) 616ms
+
+ Test Files  3 passed (3)
+      Tests  34 passed | 51 skipped (85)
+   Start at  11:46:36
+   Duration  33.07s (transform 26.61s, setup 0ms, collect 68.29s, tests 660ms, environment 9.31s, prepare 1.68s)
+
+JSON report written to /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/vitest-smoke-IZBzyD/results.json
+[smoke:agent-runtime-current-fixture] Agent 流式完成与运行态收尾: executed=34
+
+[smoke:agent-runtime-current-fixture] > Claw 消息列表终态 UI
+
+ RUN  v3.2.4 /Users/coso/Documents/dev/ai/aiclientproxy/lime
+
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+ ✓ src/components/agent/chat/components/MessageList.runtimeStatus.test.tsx (13 tests | 10 skipped) 655ms
+   ✓ MessageList runtime status > assistant 已有正文且仍在发送时，不应在消息尾部追加处理中状态回复  515ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed | 10 skipped (13)
+   Start at  11:47:13
+   Duration  23.20s (transform 10.95s, setup 0ms, collect 17.98s, tests 655ms, environment 2.00s, prepare 712ms)
+
+JSON report written to /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/vitest-smoke-phPNl8/results.json
+[smoke:agent-runtime-current-fixture] Claw 消息列表终态 UI: executed=3
+
+[smoke:agent-runtime-current-fixture] > Electron/App Server fixture smoke guard
+
+ RUN  v3.2.4 /Users/coso/Documents/dev/ai/aiclientproxy/lime
+
+ ✓ scripts/electron/code-artifact-workbench-fixture-smoke.test.mjs (8 tests) 125ms
+ ✓ scripts/electron/session-history-fixture-smoke.test.mjs (7 tests) 16ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-user-message-collapse-evidence.unit.test.mjs (99 tests) 210ms
+ ✓ scripts/lib/invoke-trace-collector.test.mjs (69 tests) 2092ms
+   ✓ continuous trace collector source and interval > validates more than 240 new appends while retaining the native 240-entry ring  1189ms
+   ✓ continuous trace invalidation > rejects a capture from a different installation identity  352ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-user-message-collapse.test.mjs (12 tests) 694ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-teardown.test.mjs (6 tests) 30ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-unknown-item.test.mjs (8 tests) 16ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-user-message-collapse-rich.integration.test.mjs (9 tests) 5533ms
+   ✓ accepted rich canonical user-message collapse > requires canonical_turn throughout the rich wrapper and accepts a complete canonical projection  641ms
+   ✓ accepted rich canonical user-message collapse > rejects a complete rich message_group fallback even when Item, Turn, body and copy all match  534ms
+   ✓ accepted rich canonical user-message collapse > keeps the generic message_group consumer valid when canonical entry is not required  722ms
+   ✓ accepted rich canonical user-message collapse > retains both successful copy phase proofs when a later aggregate oracle fails  557ms
+   ✓ accepted rich canonical user-message collapse > retains native rejection diagnostics from both phases in aggregate failure  2619ms
+ ✓ scripts/agent-runtime/claw-chat-current-fixture-smoke.test.mjs (83 tests) 1141ms
+
+ Test Files  9 passed (9)
+      Tests  301 passed (301)
+   Start at  11:47:40
+   Duration  10.47s (transform 3.04s, setup 0ms, collect 8.26s, tests 9.86s, environment 21.14s, prepare 5.27s)
+
+JSON report written to /var/folders/87/s6cpr7hd1_v43cs833x4s_900000gn/T/vitest-smoke-05D1k8/results.json
+[smoke:agent-runtime-current-fixture] Electron/App Server fixture smoke guard: executed=301
+
+[smoke:agent-runtime-current-fixture] > Electron fixture packaged renderer/assets build
+[smoke:agent-runtime-current-fixture] rebuilding stale packaged fixture assets; segments=renderer,appServer newestSource=src/components/agent/chat/workspace/useWorkspacePendingInputRuntime.ts oldestArtifact=dist-electron/app-server/darwin-arm64/app-server
+[smoke:agent-runtime-current-fixture] > verify app version
+
+> lime@1.164.0 verify:app-version
+> node scripts/check-app-version-consistency.mjs
+
+[lime] 版本一致性检查通过: 1.164.0
+[smoke:agent-runtime-current-fixture] rebuilding renderer fixture assets
+[smoke:agent-runtime-current-fixture] > build renderer
+
+> lime@1.164.0 build:renderer:electron:smoke
+> node scripts/electron/build-renderer-smoke.mjs
+
+[electron-renderer-build] waiting for renderer build lock
+vite v5.4.21 building for production...
+<script src="./oem-runtime-config.js"> in "/index.html" can't be bundled without type="module" attribute
+transforming...
+Browserslist: browsers data (caniuse-lite) is 10 months old. Please run:
+  npx update-browserslist-db@latest
+  Why you should do it regularly: https://github.com/browserslist/update-db#readme
+[electron-renderer-build] still running after 60s at 2026-10-20T03:59:42.452Z
+[electron-renderer-build] still running after 120s at 2026-10-20T04:00:42.464Z
+[electron-renderer-build] still running after 180s at 2026-10-20T04:01:42.481Z
+[electron-renderer-build] still running after 240s at 2026-10-20T04:02:42.495Z
+[electron-renderer-build] still running after 300s at 2026-10-20T04:03:42.507Z

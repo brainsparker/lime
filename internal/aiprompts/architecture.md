@@ -1118,6 +1118,12 @@ Renderer 可以临时保存输入框、选择态、展开态和 optimistic UI；
 `RequestUserInputDraftStore` 由既有 Jotai Store 按应用独立初始化，只保存共享 UI 稿；
 它不承担 pending、业务投影或持久化 authority，不使用模块全局 Map。
 
+待回答的 `ask_user` 不在时间线或 Message 流再挂载可提交面板；历史、submitted 与 queued
+投影仅只读回显。工具请求到 A2UI 的 promotion、第二套提交载荷构造和消息抑制参数均已删除，
+Workspace 的普通正文 A2UI 只消费 `assistant_message`，不响应工具问题。唯一可回答入口仍为
+上述 PendingInteractionLayer，不新增协议、pending store 或 runtime。责任开发者 root 已于
+2026-10-20 确认本段与下图的 owner/依赖方向；真实桌面结果由问答执行计划单独结算。
+
 ```mermaid
 flowchart LR
   Request["item/tool/requestUserInput"] --> Controller["PendingInteractionController · thread/turn/item"]
@@ -5801,7 +5807,7 @@ Memory 的 phase-2 业务 owner 是 `App Server -> RuntimeBackend -> LocalMemory
 
 Agent Loop 的 Stop owner 是 `agent-runtime::provider_turn::stop_hooks`，Hook source/reporter 仍由 App Server/Agent host 提供。每个 sampling step 捕获一次 immutable `RuntimeHookStepSnapshot`，同一快照用于工具 gate 和 terminal Stop evaluation；终态检查发生在工具 continuation、pending input 与 provider completion 收敛之后。Block 构造成同一 Turn 的 user-role `HookPrompt`，先经既有双层 ordered `ModelHistoryRecorder` 等待真实 EventLog `event_id/sequence` 回执，再发出 `item.started`/`item.completed`、追加 provider user message、原子重开当前 Turn 的 steer/mailbox 边界，置 `stop_hook_active` 继续采样。缺 recorder 或 durable append 失败均不发布 HookPrompt、不继续采样或切换路由；fragment identity 必须全部有效，不可静默丢弃部分 prompt。记录保持 provider-neutral user text，不接受 native envelope、producer 或 tool budget。
 
-`AgentSessionSource` 是 Hook target 的唯一 typed 来源：Root/普通 fork 使用 Stop；ThreadSpawn 使用 SubagentStop，并携带父子 transcript、agent id/type；SyntheticSubagent 禁用用户 lifecycle hook；MemoryConsolidation 的 block **或 abort** 都失败，禁止无人值守递归。取消后的 terminal check 跳过 Stop。provider history 按 `(turn_id, source_item_id)` 优先恢复持久记录，抑制同一 canonical HookPrompt Item 的重复输入；fork 复用既有 model-history copy owner，保留 source identity/order，不建立第二历史表。
+`AgentSessionSource` 是 Hook target 的唯一 typed 来源：Root/普通 fork 使用 Stop；ThreadSpawn 使用 SubagentStop，并携带父子 transcript、agent id/type；SyntheticSubagent 不派发 Stop/SubagentStop；MemoryConsolidation 的 block **或 abort** 都失败，禁止无人值守递归。取消后的 terminal check 跳过 Stop。provider history 按 `(turn_id, source_item_id)` 优先恢复持久记录，抑制同一 canonical HookPrompt Item 的重复输入；fork 复用既有 model-history copy owner，保留 source identity/order，不建立第二历史表。
 
 ```text
 Product Surface -> App Server JSON-RPC -> RuntimeCore/session actor

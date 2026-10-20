@@ -43,9 +43,6 @@ function createDefaultProps(): HookProps {
       quoteInput: "引用输入",
       onQuoteInputChange: noop,
     },
-    pendingPromotedA2UIActionRequest: {
-      requestId: "a2ui-1",
-    },
     projection: {
       currentTurnId: "turn-1",
       executionRuntime: {

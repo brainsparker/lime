@@ -306,19 +306,7 @@ export function resolveMessageInteractiveProjectionState(params: {
     if (source.kind === "assistant_message") {
       return source.messageId === params.message.id;
     }
-    if (source.kind !== "action_request") {
-      return false;
-    }
-    return (
-      (params.message.actionRequests || []).some(
-        (request) => request.requestId === source.requestId,
-      ) ||
-      (params.message.contentParts || []).some(
-        (part) =>
-          part.type === "action_required" &&
-          part.actionRequired.requestId === source.requestId,
-      )
-    );
+    return false;
   })();
   const hasPendingActionRequestForMessage =
     (params.message.actionRequests || []).some(

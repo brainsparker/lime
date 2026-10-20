@@ -145,7 +145,6 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().pendingA2UIForm).toBeNull();
     expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().pendingActionRequest).toBeNull();
-    expect(getValue().pendingPromotedA2UIActionRequest).toBeNull();
   });
 
   it("历史 action_required 不应提升到底部可提交 A2UI 表单", async () => {
@@ -183,7 +182,6 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().pendingA2UIForm).toBeNull();
     expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().pendingActionRequest).toBeNull();
-    expect(getValue().pendingPromotedA2UIActionRequest).toBeNull();
   });
 
   it("历史问卷正文不应再生成 pending A2UI 表单", async () => {
@@ -208,7 +206,6 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().pendingA2UIForm).toBeNull();
     expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().pendingActionRequest).toBeNull();
-    expect(getValue().pendingPromotedA2UIActionRequest).toBeNull();
     expect(getValue().a2uiSubmissionNotice).toBeNull();
   });
 
@@ -246,7 +243,7 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().a2uiSubmissionNotice).toBeNull();
   });
 
-  it("promoted action_required 在 pending 短暂切到 queued 时应继续保留输入区 A2UI", async () => {
+  it("ask_user 在 pending 和 queued 状态都不生成第二份 A2UI 表单", async () => {
     const pendingMessage: Message = {
       id: "assistant-action",
       role: "assistant",
@@ -282,22 +279,16 @@ describe("useWorkspaceA2UIRuntime", () => {
     });
 
     await render({ messages: [pendingMessage] });
-    expect(getValue().pendingA2UIForm?.id).toBe("action-request-req-a2ui-1");
-    expect(getValue().pendingA2UISource).toEqual({
-      kind: "action_request",
-      requestId: "req-a2ui-1",
-    });
+    expect(getValue().pendingA2UIForm).toBeNull();
+    expect(getValue().pendingA2UISource).toBeNull();
 
     await render({ messages: [queuedMessage] });
-    expect(getValue().pendingA2UIForm?.id).toBe("action-request-req-a2ui-1");
-    expect(getValue().pendingA2UISource).toEqual({
-      kind: "action_request",
-      requestId: "req-a2ui-1",
-    });
+    expect(getValue().pendingA2UIForm).toBeNull();
+    expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().a2uiSubmissionNotice).toBeNull();
   });
 
-  it("approval pending 抢占输入区时应暂停 ask_user A2UI，释放后恢复", async () => {
+  it("approval 抢占与释放都不把 ask_user 转换成 A2UI 表单", async () => {
     const pendingMessage: Message = {
       id: "assistant-action-approval-blocked",
       role: "assistant",
@@ -332,20 +323,14 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().pendingA2UIForm).toBeNull();
     expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().pendingActionRequest).toBeNull();
-    expect(getValue().pendingPromotedA2UIActionRequest).toBeNull();
 
     await render({
       messages: [pendingMessage],
       suppressPendingA2UI: false,
     });
 
-    expect(getValue().pendingA2UIForm?.id).toBe(
-      "action-request-req-a2ui-approval-blocked",
-    );
-    expect(getValue().pendingA2UISource).toEqual({
-      kind: "action_request",
-      requestId: "req-a2ui-approval-blocked",
-    });
+    expect(getValue().pendingA2UIForm).toBeNull();
+    expect(getValue().pendingA2UISource).toBeNull();
   });
 
   it("新一轮用户消息后不应继续提升上一轮未完成 action_required", async () => {
@@ -380,9 +365,7 @@ describe("useWorkspaceA2UIRuntime", () => {
     });
 
     await render({ messages: [stalePendingMessage] });
-    expect(getValue().pendingA2UIForm?.id).toBe(
-      "action-request-req-stale-a2ui",
-    );
+    expect(getValue().pendingA2UIForm).toBeNull();
 
     await render({
       messages: [
@@ -395,10 +378,9 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().pendingA2UIForm).toBeNull();
     expect(getValue().pendingA2UISource).toBeNull();
     expect(getValue().pendingActionRequest).toBeNull();
-    expect(getValue().pendingPromotedA2UIActionRequest).toBeNull();
   });
 
-  it("action_required 提交后应清理旧输入区表单且不再显示确认提示", async () => {
+  it("action_required 提交前后都不生成输入区 A2UI 或确认提示", async () => {
     const pendingMessage: Message = {
       id: "assistant-action-submitted",
       role: "assistant",
@@ -434,9 +416,7 @@ describe("useWorkspaceA2UIRuntime", () => {
     });
 
     await render({ messages: [pendingMessage] });
-    expect(getValue().pendingA2UIForm?.id).toBe(
-      "action-request-req-a2ui-submitted",
-    );
+    expect(getValue().pendingA2UIForm).toBeNull();
 
     await render({ messages: [submittedMessage] });
     expect(getValue().pendingA2UIForm).toBeNull();
@@ -468,7 +448,7 @@ describe("useWorkspaceA2UIRuntime", () => {
     expect(getValue().a2uiSubmissionNotice).toBeNull();
   });
 
-  it("多问题 action_required 应只展示当前一问，并直接提交当前回答", async () => {
+  it("多问题 action_required 不生成 A2UI，保留工具请求的独立投影", async () => {
     const pendingMessage: Message = {
       id: "assistant-action-progressive",
       role: "assistant",
@@ -500,49 +480,10 @@ describe("useWorkspaceA2UIRuntime", () => {
 
     await render({ messages: [pendingMessage] });
 
-    expect(getValue().pendingA2UIForm?.data).toMatchObject({
-      governance: {
-        originalQuestionCount: 3,
-        deferredQuestionCount: 2,
-      },
-    });
-    expect(getValue().pendingA2UIForm?.components).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          component: "TextField",
-          label: "你要我先聚焦哪一部分？",
-        }),
-      ]),
+    expect(getValue().pendingA2UIForm).toBeNull();
+    expect(getValue().pendingA2UISource).toBeNull();
+    expect(getValue().pendingActionRequest?.requestId).toBe(
+      "req-a2ui-progressive",
     );
-    expect(getValue().pendingA2UIForm?.components).not.toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          label: "这一步更看重速度还是完整度？",
-        }),
-      ]),
-    );
-
-    const currentField = getValue().pendingA2UIForm?.components.find(
-      (component) =>
-        component.component === "TextField" && typeof component.id === "string",
-    ) as { id: string } | undefined;
-
-    let submissionResult:
-      | ReturnType<ReturnType<typeof getValue>["resolvePendingA2UISubmit"]>
-      | undefined;
-
-    await act(async () => {
-      submissionResult = getValue().resolvePendingA2UISubmit({
-        [currentField?.id || ""]: "先看 A2UI 对话呈现",
-      });
-      await Promise.resolve();
-    });
-
-    expect(submissionResult).toMatchObject({
-      status: "submit",
-      formData: {
-        [currentField?.id || ""]: "先看 A2UI 对话呈现",
-      },
-    });
   });
 });

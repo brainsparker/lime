@@ -1,6 +1,6 @@
 # 异步问题 current 纵切
 
-状态：实施中；同步问答 r18 已验收，组合异步桌面 r19 失败，正在定位。负责人：Codex，2026-10-20。
+状态：实施中；同步问答 r18 已验收，组合异步桌面 r19/r20/r21/r26 首次显示失败，正在定位。负责人：Codex，2026-10-20。
 
 目标：对齐 `request_user_input_async -> AgentMessage.questions -> 同一发送协调器`，不新增问答 RPC、同步 pending 或业务历史 store。参考与限制见 `internal/research/codex-desktop-rea/async-user-input-audit-20261020.md`。
 
@@ -64,3 +64,22 @@ REA 参考仍为上述 Ktn/qtn 的同一 Thread/Turn/Item 生命周期及 lIt/mI
 另修复题目 Item 先到、active Turn 后到时提前登记导致不自动选题的竞态；用户主动关闭后仍不自动重开，34 项相关回归通过。全量前端迁移了缺正文的旧 canonical fixture，并精确登记共享新线程目标 lowering 的 inputRestoreDraft 消费；不恢复旧目标表单或队列状态。
 
 上述运行缺口的后继 Renderer、真实 Electron、current fixture 和标准 GUI smoke 尚未验收。r19/r20/r21 失败原件保留，不改写为通过。默认前端续跑使用独立 `.lime/test/vitest-smart-gui-alignment-20261020.json`，避免并行进程共写状态。
+
+r26 后继结果：活动 Turn/Command 路由、sequence gate、thread client 与 flow guard 的 8 套 139 项通过；完整类型检查和 contracts exit0，新 Renderer 构建成功。独立前端续跑 r25 的 140/140 批通过；它早于最后路由改动，后者另由上述定向回归覆盖，不能合成完整 verify:local 通过。
+
+真实 Electron r26 仍在首次问题表面等待超时，原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r26/`。invoke 时间序列证明产品恢复绑定确实触发了带完整 read 的 resume；服务端问题存在，界面只显示用户消息并停在生成中。因此不能将全部失败归为旧 restoreCommands 缺口，也不能把路由单元通过写成产品通过。r27 仅增强 Renderer warning/error 观察，继续检查 live route、canonical projection 与组件接线，不放宽原超时或序列校验。生产 catalog 窄写集尚未进入实施，避免在该真实进程期间修改候选字节。
+
+
+## 2026-10-20 单一问答入口收口
+
+r27 的真实 async 子场景已完成：两题来自同一个 canonical source Item；真实侧栏跨线程后题稿及题号保留；未回答时 producer 已 completed；普通 Enter 发送标准 wrapper 后 provider 收到真实 accepted 工具结果和答案，主 Composer 草稿保留。该轮整体仍失败：后继同步 request 同时在 virtualized-turn-list 与 pending-interaction-layer 挂载两份可提交面板，strict locator 拒绝继续。Main 正常 code0/signalnull，console/page error 为零，另观察到 5 次 duplicate_event_id warning，未过滤，来源仍须核对。原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r27/` 保留；其 async 截图已人工查看，不代表参考应用运行证据。
+
+本刀沿 REA 已确认的 PendingRequestItemPanel/逐题 Composer 合同保留 PendingInteractionController → PendingInteractionLayer 的唯一 authority。窄写集为 StreamingProcessRun、AgentThreadTimelineItemRenderers 的 pending ask_user 渲染；MessageList/Workspace 的 promotion 透传、A2UI submit hook 与类型；相关测试、fixture source inventory 和本计划/architecture。并行 Stop、Memory、发布及未知目录保持避让，不动索引或其他进程。
+
+已删除工具问答→A2UI promotion producer、action_request source variant、第二套权限提交分支、永远为 null 的 suppressedActionRequestId 透传/过滤、失去生产消费者的 formData normalization 与 payload wrapper。只读 ActionRequestA2UIPreviewCard 删除可提交 props 和死分支，历史/已提交/queued 继续只读回显。普通正文 A2UI、scene_gate、service_skill 的现有消费者未在本刀判死；不把其他真实 scope 的 action_request 字符串误删。
+
+迁移旧 promotion 正向断言，新增 current pending ask_user 不在时间线/消息流挂载问答面板的行为回归，并在现有 flow guard 禁止三条退役参数回流。首次 7 套出现旧多题 A2UI 断言失败、scoped lint 捕获未用 ConfirmResponse；修正后 8 套 71/71 通过，fixture wire 3/3 通过。日志 `/tmp/lime-question-single-owner-unit-r28b.log` 与 `/tmp/lime-question-fixture-tests-r28.log`。结构/调用者清理与 scoped lint 已通过；最终 types/contracts/治理、新 Renderer 和 r28 真实 Electron 在执行中，不提前记成功。
+
+r28 将首个 async 工具输出延迟到真实产品 thread/read(includeTurns=true) 完成后才发布，随后验证 live delivery；不注入 renderer 业务状态、不添加固定等待、不修改原 120 秒显示期限或 producer 期限。新 Renderer 构建期间已确认并释放此前本进程中断构建留下的孤立锁（PID 20633 已不存在），未停止他人构建或清理空间。
+
+分类：PendingInteraction 与 canonical runtime/projection 为 current；上述 promotion/透传/payload 为 dead/deleted/forbidden-to-restore；本刀新增 compat/deprecated 为零。单一入口清理源码与定向回归已完成，产品验收尚未完成；整体 GUI 仍 partial，无完整分母，不编造总完成百分比。

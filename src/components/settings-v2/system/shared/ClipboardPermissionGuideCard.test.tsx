@@ -3,6 +3,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { changeLimeLocale } from "@/i18n/createI18n";
 
+const originalPlatform = Object.getOwnPropertyDescriptor(navigator, "platform");
+const originalUserAgent = Object.getOwnPropertyDescriptor(navigator, "userAgent");
+
 (
   globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -62,6 +65,13 @@ describe("ClipboardPermissionGuideCard", () => {
     }
 
     vi.restoreAllMocks();
+    for (const [key, descriptor] of [
+      ["platform", originalPlatform],
+      ["userAgent", originalUserAgent],
+    ] as const) {
+      if (descriptor) Object.defineProperty(navigator, key, descriptor);
+      else Reflect.deleteProperty(navigator, key);
+    }
     await changeLimeLocale("zh-CN");
   });
 

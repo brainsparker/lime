@@ -21,10 +21,7 @@ import type {
   SiteSavedContentTarget,
 } from "../types";
 import type { SearchResultPreviewItem } from "../utils/searchResultPreview";
-import {
-  buildActionRequestSubmissionPayload,
-  isActionRequestA2UICompatible,
-} from "../utils/actionRequestA2UI";
+import { isActionRequestA2UICompatible } from "../utils/actionRequestA2UI";
 import { toApprovalRecordFromActionRequired } from "./timeline-utils";
 
 function threadItemIdFromMetadata(
@@ -57,7 +54,6 @@ interface StreamingProcessRunProps {
   isStreaming: boolean;
   processIsActive: boolean;
   shouldKeepProcessOpenForFinalAnswer: boolean;
-  promoteActionRequestsToA2UI: boolean;
   readOnlyActionRequests: boolean;
   onPermissionResponse?: (response: ConfirmResponse) => void;
   onFileClick?: (fileName: string, content: string) => void;
@@ -72,7 +68,6 @@ export const StreamingProcessRun: React.FC<StreamingProcessRunProps> = memo(
     isStreaming,
     processIsActive,
     shouldKeepProcessOpenForFinalAnswer,
-    promoteActionRequestsToA2UI,
     readOnlyActionRequests,
     onPermissionResponse,
     onFileClick,
@@ -81,6 +76,15 @@ export const StreamingProcessRun: React.FC<StreamingProcessRunProps> = memo(
   }) => {
     const renderActionRequestNode = useCallback(
       (request: ActionRequired) => {
+        // Live questions belong to the Composer pending interaction owner.
+        if (
+          request.actionType === "ask_user" &&
+          !readOnlyActionRequests &&
+          request.status !== "submitted" &&
+          request.status !== "queued"
+        ) {
+          return null;
+        }
         if (request.actionType === "tool_confirmation") {
           if (request.status !== "submitted") {
             return null;
@@ -95,37 +99,13 @@ export const StreamingProcessRun: React.FC<StreamingProcessRunProps> = memo(
           isActionRequestA2UICompatible(request) &&
           (readOnlyActionRequests ||
             request.status === "submitted" ||
-            request.status === "queued" ||
-            (promoteActionRequestsToA2UI && request.status === "pending"));
+            request.status === "queued");
         if (shouldRenderA2UICard) {
-          const isReadOnly =
-            readOnlyActionRequests ||
-            request.status === "submitted" ||
-            request.status === "queued" ||
-            !onPermissionResponse;
           return (
             <ActionRequestA2UIPreviewCard
               request={request}
               compact={true}
               context="chat"
-              readOnly={isReadOnly}
-              onSubmit={
-                isReadOnly
-                  ? undefined
-                  : (formData) => {
-                      const payload = buildActionRequestSubmissionPayload(
-                        request,
-                        formData,
-                      );
-                      onPermissionResponse({
-                        requestId: request.requestId,
-                        confirmed: true,
-                        actionType: request.actionType,
-                        response: payload.responseText,
-                        userData: payload.userData,
-                      });
-                    }
-              }
             />
           );
         }
@@ -136,11 +116,7 @@ export const StreamingProcessRun: React.FC<StreamingProcessRunProps> = memo(
           />
         );
       },
-      [
-        onPermissionResponse,
-        promoteActionRequestsToA2UI,
-        readOnlyActionRequests,
-      ],
+      [onPermissionResponse, readOnlyActionRequests],
     );
 
     const renderProcessEntry = useCallback(

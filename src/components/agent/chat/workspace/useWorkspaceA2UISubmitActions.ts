@@ -1,14 +1,9 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
 import type { A2UIFormData } from "@/components/workspace/a2ui/types";
-import type { ConfirmResponse } from "../types";
 import type { SendMessageFn } from "../hooks/agentChatShared";
-import type { ActionRequired } from "../types";
-import { buildActionRequestSubmissionPayload } from "../utils/actionRequestA2UI";
 
 interface UseWorkspaceA2UISubmitActionsParams {
-  handlePermissionResponse: (response: ConfirmResponse) => Promise<void>;
-  pendingPromotedA2UIActionRequest: ActionRequired | null;
   resolvePendingA2UISubmit: (formData: A2UIFormData) => {
     status: "advance" | "empty" | "submit";
     formData?: A2UIFormData;
@@ -17,8 +12,6 @@ interface UseWorkspaceA2UISubmitActionsParams {
 }
 
 export function useWorkspaceA2UISubmitActions({
-  handlePermissionResponse,
-  pendingPromotedA2UIActionRequest,
   resolvePendingA2UISubmit,
   sendMessage,
 }: UseWorkspaceA2UISubmitActionsParams) {
@@ -54,30 +47,9 @@ export function useWorkspaceA2UISubmitActions({
 
       const effectiveFormData = resolvedSubmission.formData || formData;
 
-      if (pendingPromotedA2UIActionRequest) {
-        const payload = buildActionRequestSubmissionPayload(
-          pendingPromotedA2UIActionRequest,
-          effectiveFormData,
-        );
-
-        void handlePermissionResponse({
-          requestId: pendingPromotedA2UIActionRequest.requestId,
-          confirmed: true,
-          actionType: pendingPromotedA2UIActionRequest.actionType,
-          response: payload.responseText,
-          userData: payload.userData,
-        });
-        return;
-      }
-
       void handleA2UISubmit(effectiveFormData, "");
     },
-    [
-      handleA2UISubmit,
-      handlePermissionResponse,
-      pendingPromotedA2UIActionRequest,
-      resolvePendingA2UISubmit,
-    ],
+    [handleA2UISubmit, resolvePendingA2UISubmit],
   );
 
   return {

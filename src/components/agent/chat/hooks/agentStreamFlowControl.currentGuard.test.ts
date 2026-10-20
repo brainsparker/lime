@@ -8,10 +8,7 @@ function readProductionHookSources() {
   return readdirSync(hooksDir, { withFileTypes: true })
     .filter((entry) => entry.isFile())
     .filter((entry) => /\.(ts|tsx)$/.test(entry.name))
-    .filter(
-      (entry) =>
-        !/\.(test(?:Fixtures)?|spec)\./.test(entry.name),
-    )
+    .filter((entry) => !/\.(test(?:Fixtures)?|spec)\./.test(entry.name))
     .map((entry) => ({
       name: entry.name,
       source: readFileSync(join(hooksDir, entry.name), "utf8"),
@@ -49,6 +46,23 @@ function readSource(relativePath: string) {
 }
 
 describe("agentStreamFlowControl current runtime boundary", () => {
+  it("工具问答不得通过 A2UI promotion 或消息抑制参数建立第二提交链", () => {
+    const retiredPaths = [
+      "pendingPromotedA2UIActionRequest",
+      "promoteActionRequestsToA2UI",
+      "suppressedActionRequestId",
+    ];
+    const offenders: string[] = [];
+    for (const { relativePath, source } of readProductionAgentChatSources()) {
+      for (const pattern of retiredPaths) {
+        if (source.includes(pattern)) {
+          offenders.push(`${pattern}: ${relativePath}`);
+        }
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+
   it("queue / steer / draft 生产写入口必须停留在 current owner inventory", () => {
     const ownerInventory = new Map<string, Set<string>>([
       [

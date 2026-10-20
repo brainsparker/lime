@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { composerEditorSelector } from "../../lib/composer-editor-dom.mjs";
+import { INVOKE_TRACE_COLLECTOR_KEY } from "../../lib/invoke-trace-collector.mjs";
 
 export const ASYNC_QUESTIONS = [
   { title: "异步选择如何继续？", options: ["保留推荐方案", "另一个方案"] },
@@ -21,6 +22,7 @@ export async function runAsyncUserInputScenario({
   verifyMainDraft,
   refreshMainEditor,
   releaseContinuation,
+  releaseQuestion,
   fixture,
   evidenceDir,
   summary,
@@ -56,6 +58,28 @@ export async function runAsyncUserInputScenario({
       .waitFor();
   }
   await refreshMainEditor();
+  // Publish after the product has restored its full active-Turn subscription,
+  // so this scenario proves live delivery rather than a lucky history snapshot.
+  stage("async-live-subscription-restored");
+  await page.waitForFunction(
+    ({ key, threadId }) =>
+      JSON.parse(localStorage.getItem(key) || "[]").some(
+        (entry) =>
+          entry.command === "app_server_handle_json_lines" &&
+          entry.transport === "electron-ipc" &&
+          entry.status === "success" &&
+          (entry.args_preview?.request?.lines ?? []).some((line) => {
+            const request = JSON.parse(line);
+            return (
+              request.method === "thread/read" &&
+              request.params?.threadId === threadId &&
+              request.params?.includeTurns === true
+            );
+          }),
+      ),
+    { key: INVOKE_TRACE_COLLECTOR_KEY, threadId: identity.threadId },
+  );
+  releaseQuestion();
   stage("async-first-question-visible");
   await panel.waitFor({ state: "visible" });
   const sourceItemId = await panel.getAttribute("data-source-item-id");

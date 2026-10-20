@@ -86,7 +86,6 @@ export interface MessageListItemProps {
   isRestoredHistoryWindow: boolean;
   isSending: boolean;
   lastAssistantMessageId: string | null;
-  promoteActionRequestsToA2UI: boolean;
   promptCacheNotice?: TokenUsagePromptCacheNotice | null;
   providerType?: string;
   renderA2UIInline: boolean;
@@ -150,7 +149,6 @@ export function MessageListItem({
   isRestoredHistoryWindow,
   isSending,
   lastAssistantMessageId,
-  promoteActionRequestsToA2UI,
   promptCacheNotice,
   providerType,
   renderA2UIInline,
@@ -250,7 +248,6 @@ export function MessageListItem({
     shouldSuppressInlineA2UI,
     shouldSuppressRendererProcessFlow,
     shouldSuppressStandaloneImageWorkbenchProcess,
-    suppressedActionRequestId,
     trailingActionRequests,
     trailingTimeline,
     visibleAssistantArtifacts,
@@ -484,7 +481,6 @@ export function MessageListItem({
                   onQuoteMessage={onQuoteMessage}
                   onWriteFile={onWriteFile}
                   primaryTimeline={primaryTimelineNode}
-                  promoteActionRequestsToA2UI={promoteActionRequestsToA2UI}
                   readOnlyInteractiveContent={shouldReadOnlyInteractiveContent}
                   renderA2UIInline={renderA2UIInline}
                   rendererActionRequests={rendererActionRequests}
@@ -515,7 +511,6 @@ export function MessageListItem({
                   shouldSuppressRendererProcessFlow={
                     shouldSuppressRendererProcessFlow
                   }
-                  suppressedActionRequestId={suppressedActionRequestId}
                 />
               )
             ) : (

@@ -23,8 +23,6 @@ type WorkspaceConversationMessageListSubmittedActions =
   WorkspaceConversationMessageListRuntime["submittedActionsInFlight"];
 type WorkspaceConversationMessageListSessionHistoryWindow =
   WorkspaceConversationMessageListRuntime["sessionHistoryWindow"];
-type WorkspaceConversationMessageListPendingA2UIAction =
-  WorkspaceConversationMessageListRuntime["pendingPromotedA2UIActionRequest"];
 
 interface WorkspaceConversationMessageListProviderInput {
   accessMode: WorkspaceConversationMessageListAccessMode;
@@ -87,7 +85,6 @@ interface UseWorkspaceConversationMessageListRuntimeParams {
   emptyStateVariant?: WorkspaceConversationMessageListRuntime["emptyStateVariant"];
   focus: WorkspaceConversationMessageListFocusInput;
   input: WorkspaceConversationMessageListInputBinding;
-  pendingPromotedA2UIActionRequest: WorkspaceConversationMessageListPendingA2UIAction;
   projection: WorkspaceConversationMessageListProjectionInput;
   provider: WorkspaceConversationMessageListProviderInput;
   refreshSessionReadModel: (
@@ -104,7 +101,6 @@ export function useWorkspaceConversationMessageListRuntime({
   emptyStateVariant,
   focus,
   input,
-  pendingPromotedA2UIActionRequest,
   projection,
   provider,
   refreshSessionReadModel,
@@ -150,7 +146,6 @@ export function useWorkspaceConversationMessageListRuntime({
       onPermissionResponse: actions.onPermissionResponse,
       onRefreshSessionReadModel: (request) =>
         refreshSessionReadModel(sceneSessionId || undefined, request),
-      pendingPromotedA2UIActionRequest,
       collapseCodeBlocks,
       shouldCollapseCodeBlock,
       onCodeBlockClick: actions.onCodeBlockClick,
@@ -165,7 +160,6 @@ export function useWorkspaceConversationMessageListRuntime({
       focus.timelineFocusRequestKey,
       input.onQuoteInputChange,
       input.quoteInput,
-      pendingPromotedA2UIActionRequest,
       projection,
       provider.accessMode,
       provider.model,

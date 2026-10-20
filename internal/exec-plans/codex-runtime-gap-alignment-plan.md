@@ -869,3 +869,6 @@ npm run smoke:agent-runtime-current-fixture
 L02 receipt 当前验证补记：owner 265/265、Stop补验5/5、provider-history38/38、ordered host2/2、public Stop cold/fork2/2与原工具receipt1/1均通过；fresh独立GUI smoke exit0。Agent聚合前置369项和三个Electron场景通过，Coding Workbench打开失败，后续场景未执行。本地门禁lint/typecheck通过后因MessageList旧夹具缺文本在95批失败；只读发现并行4行修正后从原批续跑，原失败与复验分账。当前implementation摘要12项未漂移，产品义务不核销，整体目标active。
 
 下一刀固定为 [Memory consolidation Agent harness](./codex-memory-agent-harness-alignment.md)：Codex `phase2.rs`/`runtime.rs` 的受限内部Agent启动和终态/lease/artifact/ownership/watermark顺序。Lime phase2现仍直接采样；已有typed Memory Stop支持不能代替生产harness接线。该计划为planned，尚无新片生产实现，不恢复旧插件或兼容层。
+
+
+L02最终验证补记：前端续跑95–140共46批/5497项通过，历史1–94批未重跑；原本地门禁exit1与两次失败保留，后续聚合阶段不宣称通过。独立GUI smoke和core/domain/public JSON-RPC证据通过，Agent fixture的工作台打开失败仍开放，L02 receipt切片5/6（83%），整体目标active。下一片Memory共享Agent harness保持planned；本片12项源码摘要无漂移。完整分账见 `artifacts/codex-hook-prompt-receipt-20261020/verification-summary.json`。

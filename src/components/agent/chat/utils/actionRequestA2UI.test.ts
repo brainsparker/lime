@@ -4,9 +4,7 @@ import type { ActionRequired } from "../types";
 import {
   buildActionRequestA2UI,
   buildActionRequestSubmissionContext,
-  buildActionRequestSubmissionPayload,
   isActionRequestA2UICompatible,
-  normalizeActionRequestFormDataForSubmission,
   resolveActionRequestInitialFormData,
   summarizeActionRequestSubmission,
 } from "./actionRequestA2UI";
@@ -80,109 +78,6 @@ describe("actionRequestA2UI", () => {
         }),
       ]),
     );
-  });
-
-  it("应将单选 A2UI 表单值归一化为 ask_user 提交载荷", () => {
-    const request: ActionRequired = {
-      requestId: "req-ask-1",
-      actionType: "ask_user",
-      prompt: "请选择执行模式",
-      questions: [
-        {
-          question: "请选择执行模式",
-          options: [{ label: "自动执行" }, { label: "确认后执行" }],
-        },
-      ],
-      status: "pending",
-    };
-
-    const payload = normalizeActionRequestFormDataForSubmission(request, {
-      "req-ask-1_answer": ["自动执行"],
-    });
-
-    expect(payload.userData).toEqual({ answer: "自动执行" });
-    expect(payload.responseText).toBe('{"answer":"自动执行"}');
-  });
-
-  it("应为真实 action_required 提交生成统一的 elicitation_context 元数据", () => {
-    const request: ActionRequired = {
-      requestId: "req-ask-meta-1",
-      actionType: "ask_user",
-      prompt: "请选择执行模式",
-      questions: [
-        {
-          question: "请选择执行模式",
-          options: [{ label: "自动执行" }, { label: "确认后执行" }],
-        },
-      ],
-      status: "pending",
-    };
-
-    const payload = buildActionRequestSubmissionPayload(request, {
-      "req-ask-meta-1_answer": ["自动执行"],
-    });
-
-    expect(payload.requestMetadata).toMatchObject({
-      elicitation_context: {
-        source: "action_required",
-        mode: "runtime_protocol",
-        form_id: "req-ask-meta-1",
-        action_type: "ask_user",
-        field_count: 1,
-        prompt: "请选择执行模式",
-        entries: [
-          {
-            fieldKey: "answer",
-            label: "请选择执行模式",
-            value: "自动执行",
-            summary: "自动执行",
-          },
-        ],
-      },
-    });
-  });
-
-  it("多字段 elicitation 提交 metadata 时应保留治理信息", () => {
-    const request: ActionRequired = {
-      requestId: "req-eli-governed-meta",
-      actionType: "elicitation",
-      prompt: "补充创作约束",
-      requestedSchema: {
-        type: "object",
-        required: ["topic", "audience"],
-        properties: {
-          topic: {
-            type: "string",
-            title: "主题",
-          },
-          audience: {
-            type: "string",
-            title: "目标人群",
-          },
-        },
-      },
-      status: "pending",
-    };
-
-    const payload = buildActionRequestSubmissionPayload(request, {
-      "req-eli-governed-meta_topic": "A2UI 治理",
-    });
-
-    expect(payload.requestMetadata).toMatchObject({
-      elicitation_context: {
-        governance: {
-          originalFieldCount: 2,
-          retainedFieldKey: "topic",
-          deferredFieldCount: 1,
-        },
-        entries: [
-          expect.objectContaining({
-            fieldKey: "topic",
-            label: "主题",
-          }),
-        ],
-      },
-    });
   });
 
   it("应基于已解析 userData 为 elicitation 构造字段级 metadata", () => {

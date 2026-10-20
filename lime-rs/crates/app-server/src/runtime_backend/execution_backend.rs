@@ -55,7 +55,8 @@ impl crate::MemoryStageTwoProvider for RuntimeBackend {
         &self,
         request: crate::MemoryStageTwoProviderRequest,
     ) -> Result<String, RuntimeCoreError> {
-        sample_memory_stage(
+        let cancellation = request.cancellation;
+        let sample = sample_memory_stage(
             self,
             request.provider,
             request.model,
@@ -72,8 +73,12 @@ impl crate::MemoryStageTwoProvider for RuntimeBackend {
             request.system_prompt,
             request.user_prompt,
             "memory stage-2 route is missing provider or model",
-        )
-        .await
+        );
+        tokio::select! {
+            biased;
+            _ = cancellation.cancelled() => Err(RuntimeCoreError::RequestCanceled),
+            result = sample => result,
+        }
     }
 }
 

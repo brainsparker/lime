@@ -11870,13 +11870,31 @@
     "rustTestsPassed": 204,
     "frontendTestsPassedUnion": 111,
     "trustedProducerEnabled": true,
-    "trustedProducerValidation": "App Server serial unit 1957/1957 and agent 295/295 passed; combined real Electron r19 failed waiting for async form",
-    "desktopGateB": "failed-r19; r20-diagnosing",
+    "trustedProducerValidation": "App Server serial unit 1957/1957 and agent 295/295 passed; combined real Electron r19/r20/r21/r26 failed waiting for async form; active Turn restore routing 139 tests passed, fresh renderer/types/contracts passed",
+    "desktopGateB": "r27 async closed, combined failed duplicate synchronous panels; r28 single-owner successor pending",
     "remaining": [
-      "Combined synchronous/async Electron r19 failed; stage-specific r20 investigation in progress",
+      "Fresh r28 live async delivery and combined synchronous single-owner Electron verification pending",
       "Production catalog experimental-tool capability discovery remains unverified",
-      "Current fixture aggregate, latest GUI smoke and default gate remain pending"
-    ]
+      "Current fixture aggregate, latest GUI smoke and default gate remain pending",
+      "Renderer duplicate_event_id warnings observed in r27 require source diagnosis"
+    ],
+    "singleQuestionOwner20261020": {
+      "status": "implemented-targeted-passed-desktop-pending",
+      "referenceParent": "ev_a908f380896c707334ef1867c231f191790e0fbe29708ec243c6a7cb5306f437",
+      "referenceSummary": "ev_c551b82d0da69399e3c4b89de8601a3f516756bed281e68d4750c571663ee7ff",
+      "referenceExecuted": false,
+      "tests": {
+        "componentDomain": 71,
+        "fixtureWire": 3
+      },
+      "deleted": [
+        "tool-question A2UI promotion and action_request source variant",
+        "duplicate permission submission branch",
+        "constant-null suppression props",
+        "unused formData normalization and payload wrapper",
+        "interactive preview-card props"
+      ]
+    }
   },
   "requestUserInputDesktop20261020": {
     "status": "desktop-gate-b-passed-for-recorded-candidate",

@@ -2,6 +2,15 @@
 
 状态：active / 用户追加全部新增改动进入 v1.164.0，完成本地门禁后重建候选并执行远端完整矩阵。
 
+## 最新候选收口（2026-10-20）
+
+- `a5a42c27febe1b1e774d7bcb02801988307f3b29` 已提交并推送 main，包含当时全部候选；标签仍为 `7462c764aaf2197f7a4383119db590fad5e98575`，等待最终修复候选。以下恢复记录中的旧排除清单均已被用户“全部发布”覆盖。
+- Quality `39363308128`：Integrity、GUI Smoke、Windows Shell Runtime 通过；Frontend Full 与 Rust Full 失败。Rust 失败是客户端 consolidate fixture 已发送必填 `sessionId`、expected JSON 却遗漏，已同步 current 合同；前端失败已通过固定顺序复现为 experimental 测试改写 navigator.userAgent 后没有恢复，污染 NotionEditor Ctrl+S。修复实验设置与剪贴板平台 fixture 的原始属性恢复；固定顺序 3 文件 10/10 通过，保存/IME/卸载原断言保持。失败原件 `/tmp/lime-v11640-notion-ordered-2.log`，通过原件 `/tmp/lime-v11640-notion-ordered-green.log`。
+- 后继新增 Memory phase-2 lease/cancellation 与 GUI 同步问答单 owner 改动全部进入候选。Memory 新增 3/3 lease 回归通过；其 shared Agent harness 的完整对齐仍 active，不以本版发布核销。GUI 单 owner 8 文件 71/71 通过，后继真实组合 Electron 仍待终态。
+- current fixture 聚合此前因 Main 正常退出 15s 超时没有完成；独立标准预算诊断正常退出 11.2s 通过，另一次临时扩大 cleanup budget 的诊断实际退出 0.58s。后者仅诊断，不算标准聚合通过；不提高仓库超时，不把强制回收记成成功。
+- 本轮实际写集：客户端 fixture、实验设置/剪贴板测试、发布说明和本计划；用户授权纳入其他进程的全部新增候选，不覆盖其实现。无新增 compat/deprecated/dead 运行路径；旧 action_request 到 A2UI 的重复提交路径在 existing owner 中直接迁出，历史只读回显保留。
+- 后继收口：`npm run typecheck` exit0（`/tmp/lime-v11640-candidate-final-typecheck.log`），Rust app-server-client 50/50 通过，版本一致性 1.164.0、完整 contracts、受影响两文件 lint 和 diff whitespace 通过。Memory 模型选择 36/36 通过。Renderer 已构建成功，最新侧车及组合 Electron 仍运行，不能提前记为 Gate B 通过。
+
 ## 2026-10-20 发布恢复
 
 - 最新范围指令：“新的也要一起发布，全部发布”。此前排除的新增 runtime、协议、GUI、研究、执行计划、测试与未跟踪源码全部纳入；只排除 `tsconfig.node.tsbuildinfo` 等构建缓存和忽略目录中的临时运行产物。旧的窄写集排除记录仅为当时状态。

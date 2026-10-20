@@ -42,13 +42,6 @@ export interface ActionRequestSubmissionContext {
   };
 }
 
-export interface ActionRequestSubmissionPayload {
-  userData: unknown;
-  responseText: string;
-  entries: ActionRequestSubmissionEntry[];
-  requestMetadata?: ActionRequestSubmissionContext["requestMetadata"];
-}
-
 function sanitizeId(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]+/g, "_");
 }
@@ -445,34 +438,6 @@ export function buildActionRequestA2UI(
   };
 }
 
-export function normalizeActionRequestFormDataForSubmission(
-  request: ActionRequired,
-  formData: A2UIFormData,
-): { userData: unknown; responseText: string } {
-  const governedRequest = governActionRequest(request);
-  const fieldEntries = buildActionRequestFieldEntries(governedRequest);
-
-  const record = fieldEntries.reduce<Record<string, unknown>>(
-    (accumulator, entry) => {
-      accumulator[entry.fieldKey] = normalizeSubmissionValue(
-        formData[entry.component.id],
-      );
-      return accumulator;
-    },
-    {},
-  );
-
-  const userData =
-    Object.keys(record).length === 1 && "answer" in record
-      ? { answer: record.answer }
-      : record;
-
-  return {
-    userData,
-    responseText: JSON.stringify(userData),
-  };
-}
-
 function normalizeSubmissionRecordFromUserData(
   fieldEntries: ActionRequestFieldEntry[],
   userData: unknown,
@@ -576,26 +541,6 @@ export function buildActionRequestSubmissionContext(
         governance: governedRequest.governance,
       },
     },
-  };
-}
-
-export function buildActionRequestSubmissionPayload(
-  request: ActionRequired,
-  formData: A2UIFormData,
-): ActionRequestSubmissionPayload {
-  const normalizedPayload = normalizeActionRequestFormDataForSubmission(
-    request,
-    formData,
-  );
-  const submissionContext = buildActionRequestSubmissionContext(
-    request,
-    normalizedPayload.userData,
-  );
-
-  return {
-    ...normalizedPayload,
-    entries: submissionContext?.entries || [],
-    requestMetadata: submissionContext?.requestMetadata,
   };
 }
 

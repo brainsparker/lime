@@ -69,6 +69,7 @@ internal/exec-plans/*
 !internal/exec-plans/conversation-projection-cleanup-20261020.md
 !internal/exec-plans/codex-composer-auto-layout-20261020.md
 !internal/exec-plans/codex-request-user-input-alignment-20261020.md
+!internal/exec-plans/codex-memory-agent-harness-alignment.md
 !internal/exec-plans/file-tree-search-20261020.md
 !internal/exec-plans/file-menus-20261020.md
 !internal/exec-plans/composer-project-knowledge-removal-plan.md
@@ -76,6 +77,17 @@ internal/exec-plans/*
 !internal/exec-plans/async-user-input-alignment-20261020.md
 !internal/exec-plans/artifacts/
 internal/exec-plans/artifacts/*
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/
+internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/*
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/reference-identity.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/verification-summary.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/source-freeze.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/memory-store-unit.log
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/memory-store-final.log
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/model-selection-*.log
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/agent-current-fixture.log
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/verify-local.log
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/rea-*.json
 !internal/exec-plans/artifacts/keyboard-escape-20261020/
 internal/exec-plans/artifacts/keyboard-escape-20261020/*
 !internal/exec-plans/artifacts/keyboard-escape-20261020/rea-records.tar.gz
