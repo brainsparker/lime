@@ -1,7 +1,7 @@
 {
-  "recordedAt": "2026-10-20T12:13:05.662540+00:00",
-  "qualitySha": "d32e7054c8c8bf0c4cc142dbe2c2d928c6854d33",
-  "qualityRun": 39416681327,
+  "recordedAt": "2026-10-20T14:21:54.675193+00:00",
+  "qualitySha": "74e18a467aa975924bef95548df20ff1ce1cbd79",
+  "qualityRun": 39420828765,
   "qualityConclusion": "success",
   "questionFinal": "release-v11640-question-final-r2",
   "retainedQuestionFailure": "release-v11640-question-final-r1",
@@ -316,14 +316,14 @@
       "sha256": "69c219df961f7717f9f592e2bce413d39097ca4fb74a04c7572afa127a9c2168"
     },
     {
-      "path": "internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/sandbox-gui-smoke/summary.json",
-      "bytes": 15628,
-      "sha256": "36673ff17de1c3c62fa3f56c2e1643cfa22c5ed43d3e2e4b47cd99da5b03b1da"
-    },
-    {
       "path": "internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/sandbox-gui-smoke.log",
       "bytes": 27236,
       "sha256": "f79c6c87d8051b07271a3fb155595467cbee19e7cd91b7ec480ef0f954be53ed"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/sandbox-gui-smoke/summary.json",
+      "bytes": 15628,
+      "sha256": "36673ff17de1c3c62fa3f56c2e1643cfa22c5ed43d3e2e4b47cd99da5b03b1da"
     },
     {
       "path": "internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/sandbox-local-resume-after-locale.log",
@@ -416,9 +416,24 @@
       "sha256": "8112aed05504c9b076d59a9fcc3912321c2d97493826a8f063610148c2b679fb"
     },
     {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/npm-availability.json",
+      "bytes": 2048,
+      "sha256": "d866b3e4579e8ed33f1e193033dc83a18450f20de61e46862a826c640a9d34f1"
+    },
+    {
       "path": "internal/exec-plans/artifacts/release-v1.164.0/npm-before.json",
       "bytes": 632,
       "sha256": "0f18865d888469de984d629e8bbd66cf1583ca127c99b167ab864979562c0c31"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/npm-publish.log.gz",
+      "bytes": 11024,
+      "sha256": "126a70f62dafb19eee1e7b175919c817f69d1b406565b6c5d972917d8aed6ed1"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/published-cli.json",
+      "bytes": 1424,
+      "sha256": "32dcbb52c4fdd92f782fcb3014fff12a299901ce4e4764a35b768c4c35fe2fa3"
     },
     {
       "path": "internal/exec-plans/artifacts/release-v1.164.0/quality-a692-rust-failed.log.gz",
@@ -429,6 +444,11 @@
       "path": "internal/exec-plans/artifacts/release-v1.164.0/quality-d32.json",
       "bytes": 15668,
       "sha256": "2e16961dc598c489406d7f233b8f7b5e891452059c9635baef5beaa9f3b4f886"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/quality-final.json",
+      "bytes": 12686,
+      "sha256": "505cc473cb33a1138a6fc3e803934edd2f3caaea3a7e96da38f261cceef82e47"
     },
     {
       "path": "internal/exec-plans/artifacts/release-v1.164.0/question-final-summary.json",
@@ -451,6 +471,56 @@
       "sha256": "8c4ba923be5b78f8f80c5503278b29b55025deb9736df221df82613ebd87ba77"
     },
     {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/r2-final-publish.log.gz",
+      "bytes": 8668,
+      "sha256": "23ba155628846f9b6563209a4d0a8afdfd6902d3af5eac9bcc80e7b8fd92495f"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/r2-first-failed.log.gz",
+      "bytes": 7936,
+      "sha256": "860e4f707abd5289171d5d60bc729d6b5515a6f4130589ab72aace75d08df6df"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/r2-publish.log.gz",
+      "bytes": 9287,
+      "sha256": "016406811a17c263f3cc2125d20ba02d5d36f4551ffc4d4d60ee5f2fd7bd7a2f"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/r2-retry-success.log.gz",
+      "bytes": 8899,
+      "sha256": "20dbee930d447903e0bcc63d5848a8846a6e14d08affa5157901ca893622ff15"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/r2-stable-feed-observation.json",
+      "bytes": 1269,
+      "sha256": "9c6720101b61507bb3b8e4a286e58b2967ea63d61bd8c6fd0d5440c37f6c53b8"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/release-audit-first.json",
+      "bytes": 11095,
+      "sha256": "f0f1f227d968320463ed12a388c0fd0e30b7cd144541537c46a0482ef09227eb"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/release-audit-r2-missing.json",
+      "bytes": 7309,
+      "sha256": "baa7f8ce3b3930e9907c0ceb9c96bb975103a74abc331e31c59edbe85fecbb0e"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/release-audit.json",
+      "bytes": 12374,
+      "sha256": "2b810079b8c207ec78cf16e44c130ac79946fc667725ef3bdca7fc5874d0155a"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/release-first-run.json",
+      "bytes": 44141,
+      "sha256": "1904682ced1e133320448a635bb847761d4d38a9f0642ef4f813e76a5a35746f"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/release-run.json",
+      "bytes": 44141,
+      "sha256": "217b3b9f00c78a7b3f047f9da1e410501363e40a6344cac4b6e76f15d55994f6"
+    },
+    {
       "path": "internal/exec-plans/artifacts/release-v1.164.0/seatbelt-final.log",
       "bytes": 961,
       "sha256": "f20e2b4011f2c5a3d1791bea4d3168ac50f3f4bfbb1f316ade64cb9a1aadf72f"
@@ -459,10 +529,184 @@
       "path": "internal/exec-plans/artifacts/release-v1.164.0/typecheck-final.log",
       "bytes": 268,
       "sha256": "294ad36948f988ab3434a50261b7701480ad1001f205bfaaf446172aab1e62c5"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/updater-recovery-final-run.json",
+      "bytes": 2099,
+      "sha256": "8a08f9b517db08288944820a5f5a129036c28bd08ac2df32dd15468f15a036e8"
+    },
+    {
+      "path": "internal/exec-plans/artifacts/release-v1.164.0/updater-recovery-run.json",
+      "bytes": 2099,
+      "sha256": "84fa0ac0faf3803ca38245ea559d810963a022b8db4d73fe55851b4b8ba6d591"
     }
   ],
   "finalFullTypecheck": {
     "exitCode": 0,
     "log": "typecheck-final.log"
-  }
+  },
+  "releaseSha": "74e18a467aa975924bef95548df20ff1ce1cbd79",
+  "tag": "v1.164.0",
+  "tagPushStartedAt": "2026-10-20T12:15:27Z",
+  "parentQuality": {
+    "sha": "d32e7054c8c8bf0c4cc142dbe2c2d928c6854d33",
+    "run": 39416681327,
+    "conclusion": "success"
+  },
+  "releaseRun": 39420905140,
+  "releaseConclusion": "success",
+  "releaseDeliveryPercent": 100,
+  "githubAssets": 14,
+  "npmPackagesAvailable": 5,
+  "r2VerifiedObjects": 18,
+  "r2FeedCopies": 6,
+  "r2FirstFailure": {
+    "job": 118647579095,
+    "error": "NoSuchUpload at CompleteMultipartUpload",
+    "receipt": "r2-first-failed.log.gz"
+  },
+  "r2Recovery": {
+    "run": 39429918814,
+    "conclusion": "success",
+    "receipt": "r2-publish.log.gz"
+  },
+  "r2OriginalJobRetry": {
+    "job": 118669689088,
+    "conclusion": "success",
+    "receipt": "r2-retry-success.log.gz"
+  },
+  "r2FinalRecovery": {
+    "run": 39429918814,
+    "attempt": 2,
+    "job": 118679057198,
+    "conclusion": "success",
+    "reason": "Stable darwin-x64 feed became public404 after earlier remote verification; same verified assets recovered without cleanup.",
+    "receipt": "r2-final-publish.log.gz"
+  },
+  "postFreezeScope": "Tagged product frozen; other-owner working tree changes excluded from this evidence-only commit.",
+  "baseEvidenceSnapshot": "74e18a467aa975924bef95548df20ff1ce1cbd79",
+  "publishedNativeCliScope": "macOS arm64 registry root launcher --version execution and Mach-O arm64 headers for lime/app-server/code-mode-host; no native execution claim for the other three platforms or CLI Agent Gate B.",
+  "registryInitialRead": "Publisher explicitly reported server-side processing. Initial queries returned 404/transport 56; processing transitions retained in npm-availability.json. Audit SRI prefix assertion corrected from sha512: to standard sha512-. No product integrity failure or republishing occurred.",
+  "remainingProductLimits": [
+    "Agnes old 2.5 Pro is unavailable for the configured account (upstream model_not_found); no global retirement claim.",
+    "Memory phase-2 shared Agent remains unimplemented.",
+    "Earlier GUI normal-quit and local aggregate failures are retained; final success does not erase those observations."
+  ],
+  "classification": {
+    "current": [
+      "Forge/Electron",
+      "App Server JSON-RPC/runtime",
+      "canonical projection",
+      "typed sandbox",
+      "existing updater recovery"
+    ],
+    "compat": [],
+    "deprecated": [],
+    "deleted": [
+      "queue-only legacy entry"
+    ]
+  },
+  "excludedPostFreezeWorkingTreePaths": [
+    "internal/aiprompts/architecture.md",
+    "internal/exec-plans/artifacts/async-user-input-20261020/thread-status-read/manifest.json",
+    "internal/exec-plans/async-user-input-alignment-20261020.md",
+    "internal/exec-plans/codex-gui-alignment-current-plan.md",
+    "internal/exec-plans/codex-memory-agent-harness-alignment.md",
+    "lime-rs/crates/agent-runtime/src/session_config.rs",
+    "lime-rs/crates/agent/src/current_provider_turn.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/mcp_step_snapshot.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/mcp_step_snapshot/tests.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/tool_executor.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/tool_executor/async_user_input_tests.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/tool_executor/orchestration/attempt.rs",
+    "lime-rs/crates/agent/src/current_provider_turn/tool_executor/sequential_exec_tests.rs",
+    "lime-rs/crates/app-server/src/execution_process.rs",
+    "lime-rs/crates/app-server/src/lib.rs",
+    "lime-rs/crates/app-server/src/local_data_source/impls/memory.rs",
+    "lime-rs/crates/app-server/src/main.rs",
+    "lime-rs/crates/app-server/src/memory_store.rs",
+    "lime-rs/crates/app-server/src/memory_store/consolidation.rs",
+    "lime-rs/crates/app-server/src/memory_store/consolidation/tests.rs",
+    "lime-rs/crates/app-server/src/memory_store/consolidation_prompt.md",
+    "lime-rs/crates/app-server/src/memory_store/stage_two_output.rs",
+    "lime-rs/crates/app-server/src/memory_store/state.rs",
+    "lime-rs/crates/app-server/src/memory_store/state/tests.rs",
+    "lime-rs/crates/app-server/src/memory_store/tests.rs",
+    "lime-rs/crates/app-server/src/memory_store/workspace.rs",
+    "lime-rs/crates/app-server/src/runtime.rs",
+    "lime-rs/crates/app-server/src/runtime/agent_control_gateway/spawn_runtime_options.rs",
+    "lime-rs/crates/app-server/src/runtime/app_data/memory.rs",
+    "lime-rs/crates/app-server/src/runtime/context_compaction/operation.rs",
+    "lime-rs/crates/app-server/src/runtime/execution_backend.rs",
+    "lime-rs/crates/app-server/src/runtime/execution_request.rs",
+    "lime-rs/crates/app-server/src/runtime/memory.rs",
+    "lime-rs/crates/app-server/src/runtime/memory_agent.rs",
+    "lime-rs/crates/app-server/src/runtime/memory_agent/tests.rs",
+    "lime-rs/crates/app-server/src/runtime/session_shutdown.rs",
+    "lime-rs/crates/app-server/src/runtime/tests/support/session_data_source.rs",
+    "lime-rs/crates/app-server/src/runtime/turn_execution.rs",
+    "lime-rs/crates/app-server/src/runtime/turn_execution/input_commit/tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/execution_backend.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/image_command/presentation/tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/image_command/tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/initialization_tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/mention_selection.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/request_context/session_config.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/request_context/session_source.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/request_context/workspace_scope.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/runtime_reroute_tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/tests.rs",
+    "lime-rs/crates/app-server/src/runtime_backend/websocket_fallback_tests.rs",
+    "lime-rs/crates/app-server/tests/memory_filesystem.rs",
+    "lime-rs/crates/tool-runtime/src/apply_patch.rs",
+    "lime-rs/crates/tool-runtime/src/execution_orchestrator.rs",
+    "lime-rs/crates/tool-runtime/src/filesystem_helper.rs",
+    "lime-rs/crates/tool-runtime/src/internal_agent.rs",
+    "lime-rs/crates/tool-runtime/src/lib.rs",
+    "scripts/agent-runtime/claw-chat-current-fixture-goal-identity.test.mjs",
+    "scripts/agent-runtime/claw-chat-current-fixture-goal.mjs",
+    "scripts/agent-runtime/claw-chat-current-fixture-gui-input-modes.mjs",
+    "scripts/agent-runtime/claw-chat-current-fixture-scenario-flow.mjs",
+    "scripts/electron/code-artifact-workbench-fixture-smoke.mjs",
+    "scripts/electron/code-artifact-workbench-fixture-smoke.test.mjs",
+    "scripts/electron/lib/review-thread-side-panel-gate-b.mjs",
+    "scripts/electron/lib/right-surface-lifecycle-gate-b.mjs",
+    "scripts/electron/lib/right-surface-lifecycle-gate-b.test.mjs",
+    "scripts/electron/request-user-input-fixture-smoke.mjs",
+    "scripts/lib/legacy-surface-report-core.test.ts",
+    "src/components/ConfirmDialog.test.tsx",
+    "src/components/ConfirmDialog.tsx",
+    "src/components/Modal.tsx",
+    "src/components/agent/chat/components/CanvasWorkbenchLayout.coding.test.tsx",
+    "src/components/agent/chat/components/CanvasWorkbenchLayout.testFixtures.tsx",
+    "src/components/agent/chat/components/CanvasWorkbenchLayout.tsx",
+    "src/components/agent/chat/components/Inputbar/Inputbar.goal.component.test.tsx",
+    "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchLayoutState.ts",
+    "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchShell.tsx",
+    "src/components/agent/chat/components/canvas-workbench/tabs/CanvasWorkbenchToolTabsViewModel.ts",
+    "src/components/agent/chat/components/canvas-workbench/tabs/CanvasWorkbenchToolTabsViewModel.unit.test.ts",
+    "src/components/agent/chat/components/canvas-workbench/tabs/CanvasWorkbenchTopTabs.tsx",
+    "src/components/agent/chat/components/canvas-workbench/useCanvasWorkbenchDocumentState.ts",
+    "src/components/agent/chat/utils/threadTimelineView.test.ts",
+    "src/components/agent/chat/utils/threadTimelineView.ts",
+    "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.test.tsx",
+    "src/components/agent/chat/workspace/CodingWorkbenchLogPanel.tsx",
+    "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.codingWorkbench.test.ts",
+    "src/components/agent/chat/workspace/useWorkspaceConversationSceneRuntime.tsx",
+    "src/components/agent/chat/workspace/workspaceConversationCodingViews.tsx",
+    "src/components/agent/chat/workspace/workspaceConversationCodingViews.unit.test.tsx",
+    "src/i18n/resources/en-US/agent.json",
+    "src/i18n/resources/en-US/agentRuntime.json",
+    "src/i18n/resources/ja-JP/agent.json",
+    "src/i18n/resources/ja-JP/agentRuntime.json",
+    "src/i18n/resources/ko-KR/agent.json",
+    "src/i18n/resources/ko-KR/agentRuntime.json",
+    "src/i18n/resources/zh-CN/agent.json",
+    "src/i18n/resources/zh-CN/agentRuntime.json",
+    "src/i18n/resources/zh-TW/agent.json",
+    "src/i18n/resources/zh-TW/agentRuntime.json",
+    "src/lib/governance/legacySurfaceCatalog.json",
+    "src/lib/governance/legacySurfaceCatalog.test.ts"
+  ]
 }

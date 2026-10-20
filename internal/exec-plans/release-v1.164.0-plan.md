@@ -1,26 +1,29 @@
 # v1.164.0 发布执行计划
 
-状态：active / 产品实现冻结，正在完成最终候选门禁；随后重定位同版本标签并完成 Desktop、R2、四平台 CLI 与 npm 发布。
+状态：completed / 本次 v1.164.0 全渠道交付100%；最终候选、Quality、Release、Desktop、R2、四平台 CLI/npm 与正式 CLI 启动已验证，标签固定，收尾提交仅包含发布记录与收据。
 
-## 当前发布状态（d32e7054c）
+## 当前发布状态（74e18a467）
 
-- 用户已经明确授权全部新增候选、正常提交、推送 main、同版本标签重定位与完整发布，沿用确认，不重复请求。
-- 当前已推送候选为 `d32e7054c8c8bf0c4cc142dbe2c2d928c6854d33`，完整 Quality 为 [39416681327](https://github.com/limecloud/lime/actions/runs/39416681327)。该轮完整 typecheck、lint、版本一致性和 Windows restricted execution security matrix 已通过，其余任务等待终态。
-- 生产字节冻结于 `a6923021a737da63c563d3e6f0724ce33eaf2e0f`；d32 仅修正两处测试夹具及记录。前一轮 a692 的 Frontend Full、Windows、GUI、Integrity 全部通过；Rust Full 1977/1978，唯一 Seatbelt 断言的夹具误把被拒写路径放入默认允许的 TMPDIR。d32 将夹具移至 home 下的隔离临时目录，保留伪造 metadata 输入、全部拒绝断言及原权限策略。
-- 预览组件测试将每例重复预加载移为模块依赖，并保护未完成 setup 的 teardown；产品 React.lazy、断言和全部期限不变。预览/wire/assets 三套18/18通过。最新正常提交 hooks 7/7。
-- Agnes 3.0 Flash 文字、Image 2.5 Flash 图片及设置页1024/1440/2048宽度已真实 Electron 验收；旧2.5 Pro只对当前账户证实上游 model_not_found，不声明全球退役。Agnes 原 live fixture 的15秒正常退出失败仍保留，独立无 inspector 正常退出证据不改写该失败。
-- 问答 r44 已通过；r46业务、零状态告警与0.534秒正常退出均通过，但末次来源漂移导致整轮失败。r47加强执行侧车与artifact指纹一致性；最终复验等待既有构建PID87168完成，不抢构建锁或跳过 freshness。
-- 并行本地前端续跑 r48 在第79/142批失败，保留原日志，不宣称默认本地门禁全绿。共享 target 被未知进程重建导致的旧编译中断同样保留；新锁下的本地 Rust 仍待终态。
-- 本轮收口写集为本发布计划、精确 `.gitignore` 证据白名单和最终收据；其他 owner 的源码/计划只读避让，`tsconfig.node.tsbuildinfo` 排除。Memory phase-2 shared Agent 仍未实现，不新增到本版冻结写集或完成声明。
-- current 为同一 Electron/App Server/runtime、typed sandbox 与canonical read owner；queue-only旧入口已删除，无新增compat/deprecated路径。正式发布以最终引用、平台产物、更新feed和registry实测收据为退出条件。
-- 后继结果：d32 的 Frontend Full、Windows Shell Runtime、GUI Smoke、Integrity 已全部 success，Rust Full 仍待终态。本地重建后 command_exec 16/16、tool-runtime sandbox 13/13、真实 stdio/PTY 2/2、process regression App Server25/25及tool-runtime27/27通过；发布 root 的精确 Seatbelt 用例1/1通过，新 Electron 三段构建exit0。
-- 最终问答 `release-v11640-question-final-r2` 整轮 Desktop Gate B pass：真实新侧车、IPC/App Server/runtime、同步/异步回答、跨线程题稿、最终正文及Stop隐藏、Escape精确interrupt全部通过；状态告警、invoke/console/page错误和mock命中均0，前后fresh且source/artifact身份稳定。Main PID87727在0.562秒内正常code0/signalnull、forcedCleanup null；三张截图已人工查看。该证据限定隔离macOS source-build与受控provider，不是live或Windows/packaged问答证据。
-- 前一轮 `release-v11640-question-final-r1` 业务全部通过但15秒正常退出超时，整轮fail原样保留。两轮被测source摘要一致，dist-electron及client产物一致，但两轮之间外部`dist/index.html`摘要变化，其余文件条目一致；不能称两轮artifact树完全相同。两轮各自运行前后均fresh且身份稳定。发布root复核只增加Playwright调试日志，没有改源码、预算或断言；成功轮观察到Waiting for the debugger to disconnect后正常退出，不能归因于日志或声称退出不稳定性已被根治。两轮原件见 `artifacts/release-v1.164.0/`，最终候选发布结论不核销历史失败。
-- Quality [39416681327](https://github.com/limecloud/lime/actions/runs/39416681327) 已完成且整体success，全部执行job通过；完整JSON收据为`artifacts/release-v1.164.0/quality-d32.json`。最终证据提交不改变产品源码，追加的ProviderSetting语言隔离测试26/26与原批130/130已通过；提交前完整typecheck另行执行，不以局部检查替代。
-- 冻结后并行会话追加的`code-artifact-workbench-fixture-smoke{,.test}.mjs`迁移仍active/partial，r54在新侧栏定位处失败；`request-user-input-fixture-smoke.mjs`追加退出诊断仍开发中。三处均属后继test-only写集，保留工作树供原owner继续验证，不纳入本次已冻结的发布提交；全部已完成产品实现仍纳入d32候选。构建缓存继续排除，未删除、撤回或覆盖任何外部修改。
-- 提交前完整 `npm run typecheck` 再次exit0，原件`artifacts/release-v1.164.0/typecheck-final.log`。最终暂存为发布证据、计划、精确白名单及已通过的ProviderSetting测试语言隔离，产品源码与d32完整Quality候选一致；源码/文档whitespace和docs boundary通过。正常hooks、main推送及标签租约执行后继续跟到所有发布任务结束。
+- 目标：完成 v1.164.0 的 Desktop、R2 更新源、四平台 CLI 与五个 npm 包实际分发。用户已明确授权全部已完成候选、正常 commit/main push、同版本标签重定位与完整发布，沿用授权，不重复询问。
+- 最终标签固定为 `74e18a467aa975924bef95548df20ff1ce1cbd79`，正常提交 hooks **94/94**；main 与 tag 已推送复核。标签推送起始 UTC 为 `2026-10-20T12:15:27Z`。产品源码冻结于 a692；d32 修复两处测试夹具，74e18 仅追加语言隔离测试和证据，不改产品。后继收尾仅提交本计划、精确白名单和发布收据，不再移动标签。
+- 最终全渠道审计 **11/11通过**：公开 GitHub 14个产物的 target/size/SHA256/更新时间、npm 五包的版本/SRI/dist tags/根包依赖、R2 stable/versioned 六份feed逐字节一致、18对象SHA256/size与GitHub逐项一致且公开HEAD大小正确。完整收据 `release-audit.json`；105份证据的摘要与发布边界见 `evidence-manifest.json`。发布链接：https://github.com/limecloud/lime/releases/tag/v1.164.0 。
+- 最终完整 [Quality 39420828765](https://github.com/limecloud/lime/actions/runs/39420828765) **success**，Frontend Full、Rust Full、GUI Smoke、Integrity 全部通过。该轮 Windows 质量矩阵按变更检测未重复运行，父候选 d32 的 [39416681327](https://github.com/limecloud/lime/actions/runs/39416681327) 已整组 success；最终 Release 内 Windows 真实安装、CodeMode 与 native-host Gate B 也通过。提交前完整 `npm run typecheck` exit0，不以局部验证替代。
+- [Release 39420905140](https://github.com/limecloud/lime/actions/runs/39420905140) 的 macOS arm64、macOS x64、Windows x64 与 Desktop publish 全部 **success**。签名/公证、package resources 与 native host 通过；Windows Squirrel 安装 smoke 通过。公开 Release 的九个 Desktop assets 已逐项复核最终 target、非 draft、正数 size、SHA256 digest 和标签推送后的更新时间。
+- 原 R2 job `118647579095` 在 `2026-10-20T13:17:20Z` 上传 versioned macOS x64 zip 时，`CompleteMultipartUpload` 返回 `NoSuchUpload`，当轮仅六个 payload 验证，未发布最终 feed。原始失败完整保留于 `r2-first-failed.log.gz`；整轮仍运行时，GitHub 拒绝单 job rerun，未取消其余构建。
+- 随后复用既有 `publish-updater.yml`，基于同一标签启动 [恢复 39429918814](https://github.com/limecloud/lime/actions/runs/39429918814)，该轮 **success**。原始提交与四项 Desktop gates 全部核对后，复用原 staged assets，18个对象全部验证，最后发布六份 feed。独立公开审计已通过：18个对象的 SHA256/size 与 GitHub artifacts 逐项一致、公开 HEAD size 一致；stable/versioned 六份 feed 与 GitHub 逐字节一致。成功原始日志 `r2-publish.log.gz`，恢复 JSON `updater-recovery-run.json`。
+- 最终 Release 已在仅重跑原 R2 job 后整体 **success / 11个job全部成功**，首轮失败收据 `release-first-run.json` 与最终收据 `release-run.json` 分别保存；原 R2 重跑再次验证18对象，完整日志 `r2-retry-success.log.gz`。四平台 CLI build/package/upload、npm platform-first/root-last 均成功，公开 GitHub 共14个产物。
+- npm正式运行证据：从公开 registry 隔离下载根包与macOS arm64包，校验registry SHA512与GitHub SHA256；三个原生程序的Mach-O arm64头均正确，真实根launcher执行 `--version` 输出 `lime 1.164.0`、exit0。只覆盖macOS arm64版本启动，不冒充其他平台原生运行或CLI完整Agent Gate B。初次查询时另三平台仍被npm服务器处理并返回404，现均已可用。首次审计失败 `release-audit-first.json` 保留；审计脚本SRI前缀误写已改为标准 `sha512-`，不是产品完整性失败，未重发不可变版本。
+- npm 后继状态：Windows、macOS x64、Linux 已先后变为公开HTTP200；五包版本、SRI、dist tags 和根包依赖已在最终审计全部通过。处理等待的全部观察保留在 `npm-availability.json`，未重发不可变版本或移动标签。
+- 最终审计发现并恢复的公开feed缺口：stable `darwin-x64/RELEASES.json` 一度404，版本化feed仍200/SHA256正确；原R2 retry在14:01:50Z曾验证该stable对象，cleanup明确跳过。原因尚未确认，原失败 `release-audit-r2-missing.json` 与HTTP观察 `r2-stable-feed-observation.json` 保留。仅重跑既有恢复39429918814（attempt2/job118679057198，无cleanup），复用同一候选与staged assets成功；stable公开读取恢复200且SHA256正确，最终18对象/六feed全通过。最终日志 `r2-final-publish.log.gz`、任务收据 `updater-recovery-final-run.json`；恢复成功不等于已根治该公开端点的短暂不可用原因。
+- Agnes 3.0 Flash 文字和 Image 2.5 Flash 图片已在真实 Electron 同一 canonical Thread 上验收；设置页 1024/1440/2048 三宽度无横向溢出。旧2.5 Pro仅对当前账户证实上游503/model_not_found，不声明全球退役。原 live fixture 的15秒正常退出失败保留，独立无 inspector 正常退出不抵消该失败。详情见 [Agnes 恢复计划](agnes-model-recovery-20261020.md)。
+- 最终问答 `release-v11640-question-final-r2` 整轮 Desktop Gate B **pass**：真实侧车、Electron/preload/IPC、App Server/runtime、同步/异步回答、跨线程题稿、最终正文/Stop隐藏、Escape精确interrupt通过；告警、invoke/console/page错误与mock命中均0。运行前后 source/artifact 稳定；Main PID87727 在0.562秒内正常 code0/signalnull、forcedCleanup null，三张截图已查看。限定 macOS source-build/受控provider，不扩大为 live 或 Windows/packaged 问答证据。
+- 问答 r1 的15秒正常退出失败原样保留。两轮被测 source、dist-electron/client 一致，但中间外部 `dist/index.html` 摘要变化，各轮内部均稳定。r2只增加Playwright调试日志；不能声称整个 artifact 树相同或退出不稳定已根治。
+- typed sandbox 的 current owner、schema/generated client、真实 stdio/PTY 与精确 Seatbelt 用例已通过；本地部分完整门禁历史失败仍保留，不宣称默认本地门禁全绿。Memory phase-2 shared Agent 尚未实现，保留 active，不因本版发布标100%。
+- 窄写集：本计划、`.gitignore` 精确证据白名单、`artifacts/release-v1.164.0/` 最终收据。冻结后的其他会话测试迁移、GUI源码、计划与 `tsconfig.node.tsbuildinfo` 不纳入本版，不覆盖、不stage。已提交证据清单中的 `thread-status-read/manifest.json` 正由原owner继续更新，本版沿用标签快照，其原 SHA256 与清单一致。
+- 分类：current 为 Forge/Electron、同一 App Server/runtime、typed sandbox 与canonical read owner；本轮无新增compat/deprecated路径，queue-only旧入口已删除。采用既有 owner 和恢复入口，不新增发布后端或生产mock。
+- 本次替换同一版本号的先前产物；已有旧v1.164.0安装包的用户应从Release重新下载安装，不能依赖版本号变化触发升级。
 
-## 最新候选收口（2026-10-20）
+## 候选收口历史（2026-10-20，终态以顶部为准）
 
 - 当前 main 为 `bc3f3672c6c88bdf54736aad85ed6680b825a169`；Quality `39399106645` 的 Integrity、GUI Smoke、Windows Shell Runtime 已 success，Frontend Full 与 Rust Full 尚在执行。v1.164.0 仍指向 `7462c764aaf2197f7a4383119db590fad5e98575`，尚未覆盖公开旧产物；npm 根包 1.164.0 尚未发布。
 - 该轮 Rust workspace 后继结果为 app-server 1975/1976，通过以外唯一失败是 `typed_media_rejects_local_leaks_and_mismatched_payloads`：不存在的硬编码路径先触发文件读取错误，未到原 sidecar 断言。发布 root 仅认领该既有测试体，把输入换成隔离临时目录中的有效 PNG；生产逻辑、错误顺序和全部原断言不变。原日志 `/tmp/lime-v11640-bc3f-rust-job.log` 保留；这是后于 ephemeral freeze 的测试夹具修正，旧摘要不覆盖该变更，后继候选仍须重新验证。
@@ -119,9 +122,11 @@
 2. `npm run typecheck` 通过；协议、命令、治理、发布脚本和相关 Rust/前端定向回归按改动风险通过。
 3. `npm run verify:gui-smoke` 尽量通过；若环境限制导致失败，保留日志并在收尾明确证据等级和缺口。
 4. `git diff --check`、正常提交钩子预检和 staged 摘要通过。
-5. 提交 `Release v1.164.0`，创建 `v1.164.0`，推送 `main` 与标签，并复核本地及远端引用指向同一提交。
+5. 正常提交候选、推送 `main` 与标签，并复核本地及远端引用指向最终候选；允许发布后 main 追加纯证据提交，但标签固定且 main 必须是其仅含发布证据改动的后代。
+6. Desktop 九产物、四平台 CLI 与 npm 根包共14个 GitHub assets、五包 npm registry/dist tags、R2 18对象及六份 feed 通过实际审计；已发布 macOS arm64 CLI 从 registry 隔离下载、完整性校验、原生 `--version` 执行通过。其余三平台 CLI 仅按实际构建/打包证据报告，不冒充本机原生运行。
 
 ## 收尾记录
 
-- 完成度、提交/tag/push 状态、验证命令、环境限制和 current/compat/deprecated/dead 分类在最终发布报告中记录。
+- 本次发布交付100%，候选commit/main/tag推送及同版本标签租约复核完成；本记录、精确白名单与最终收据按窄写集正常提交推送main，tag固定。暂存范围必须仅含发布证据，实际提交快照逐条验证清单摘要；原owner在途工作与构建缓存全部保留，不夹写。
+- 版本事实源为package/CLI package、Rust workspace/Cargo.lock，中文和英文Release Notes仅保留v1.164.0；版本一致性、完整typecheck、contracts、GUI、最终Quality/Release及公开渠道验证以本计划顶部和收据为准。
 - GUI/runtime 对齐、live provider、Windows/macOS 打包和公证覆盖只按实际证据报告，不因版本发布自动核销。
