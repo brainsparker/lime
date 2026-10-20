@@ -348,6 +348,9 @@ importers:
       '@types/fabric':
         specifier: ^5.3.11
         version: 5.3.11
+      '@types/hast':
+        specifier: ^3.0.4
+        version: 3.0.4
       '@types/node':
         specifier: ^22.9.0
         version: 22.19.3
@@ -408,6 +411,12 @@ importers:
       knip:
         specifier: ^6.0.2
         version: 6.0.5
+      mdast-util-from-markdown:
+        specifier: ^2.0.2
+        version: 2.0.2
+      micromark-util-types:
+        specifier: ^2.0.2
+        version: 2.0.2
       playwright:
         specifier: ^1.59.1
         version: 1.59.1
@@ -417,6 +426,9 @@ importers:
       prettier:
         specifier: ^3.3.3
         version: 3.7.4
+      remark-parse:
+        specifier: ^11.0.0
+        version: 11.0.0
       smol-toml:
         specifier: ^1.6.1
         version: 1.6.1
@@ -429,6 +441,9 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.3
+      unified:
+        specifier: ^11.0.5
+        version: 11.0.5
       vite:
         specifier: ^5.4.21
         version: 5.4.21(@types/node@22.19.3)(terser@5.48.0)

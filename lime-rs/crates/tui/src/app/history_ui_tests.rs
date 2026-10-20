@@ -338,6 +338,7 @@ fn raw_main_preserves_markdown_source_while_detailed_pager_retains_reasoning() {
             phase: None,
             memory_citation: None,
             delivery: None,
+            questions: None,
         },
         ThreadItem::Reasoning {
             id: "reasoning-1".to_string(),

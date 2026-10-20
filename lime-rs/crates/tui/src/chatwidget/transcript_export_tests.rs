@@ -257,6 +257,7 @@ fn export_views_keep_canonical_transcript_visible_and_stay_bounded() {
                 phase: None,
                 memory_citation: None,
                 delivery: None,
+                questions: None,
             },
         },
     ));

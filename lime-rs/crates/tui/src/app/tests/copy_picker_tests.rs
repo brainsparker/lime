@@ -290,6 +290,7 @@ fn a_terminal_message_without_deltas_replaces_only_the_active_status_copy_source
                     phase: None,
                     memory_citation: None,
                     delivery: None,
+                    questions: None,
                 },
             },
         ));

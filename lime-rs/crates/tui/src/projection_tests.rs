@@ -38,6 +38,7 @@ fn agent_message(id: &str, text: &str, phase: Option<MessagePhase>) -> ThreadIte
         phase,
         memory_citation: None,
         delivery: None,
+        questions: None,
     }
 }
 
@@ -464,6 +465,7 @@ fn completed_agent_item_replaces_streaming_delta() {
                 phase: None,
                 memory_citation: None,
                 delivery: None,
+                questions: None,
             },
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
@@ -830,6 +832,7 @@ fn hydrate_thread_restores_items_and_active_turn_identity() {
                 phase: None,
                 memory_citation: None,
                 delivery: None,
+                questions: None,
             }],
             items_view: TurnItemsView::Full,
             status: TurnStatus::InProgress,
@@ -1799,6 +1802,7 @@ fn turn_completion_repairs_missing_streamed_items_from_canonical_turn() {
                     phase: None,
                     memory_citation: None,
                     delivery: None,
+                    questions: None,
                 }],
                 items_view: TurnItemsView::Full,
                 status: TurnStatus::Completed,
@@ -1838,6 +1842,7 @@ fn turn_completion_replaces_streaming_item_with_canonical_text() {
                     phase: None,
                     memory_citation: None,
                     delivery: None,
+                    questions: None,
                 }],
                 items_view: TurnItemsView::Full,
                 status: TurnStatus::Completed,
@@ -2046,6 +2051,7 @@ fn turn_completion_inserts_missing_canonical_items_before_known_following_items(
                         phase: None,
                         memory_citation: None,
                         delivery: None,
+                        questions: None,
                     },
                 ],
                 items_view: TurnItemsView::Full,

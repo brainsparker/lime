@@ -346,6 +346,7 @@ fn sticky_prompt_header_keeps_selection_rows_and_copy_position_stable() {
             phase: None,
             memory_citation: None,
             delivery: None,
+            questions: None,
         },
     );
     let mut terminal = Terminal::new(TestBackend::new(60, 10)).expect("terminal");
@@ -467,6 +468,7 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
                 phase: None,
                 memory_citation: None,
                 delivery: None,
+                questions: None,
             },
         ),
         (
@@ -488,6 +490,7 @@ fn sticky_prompt_header_yields_at_turn_boundary_until_the_viewport_moves() {
                 phase: None,
                 memory_citation: None,
                 delivery: None,
+                questions: None,
             },
         ),
     ] {
@@ -554,6 +557,7 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
             phase: None,
             memory_citation: None,
             delivery: None,
+            questions: None,
         },
     );
     app.scroll_up(4);
@@ -597,6 +601,7 @@ fn sticky_prompt_header_and_reading_anchor_survive_prepend_and_reflow() {
             phase: None,
             memory_citation: None,
             delivery: None,
+            questions: None,
         },
     ]);
     wide.draw(|frame| render(frame, &app))

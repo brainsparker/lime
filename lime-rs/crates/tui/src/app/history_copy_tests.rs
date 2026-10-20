@@ -261,6 +261,7 @@ fn main_selection_history_prepend_preserves_the_original_copy_ticket() {
             phase: None,
             memory_citation: None,
             delivery: None,
+            questions: None,
         }],
         &[],
         true,

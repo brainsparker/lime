@@ -350,8 +350,8 @@ function installMainProcessDiagnostics(
   window: BrowserWindow,
   diagnostics: ElectronSmokeDiagnostics,
 ): void {
-  window.webContents.on("console-message", (_event, level) => {
-    if (level === 3) {
+  window.webContents.on("console-message", ({ level }) => {
+    if (level === "error") {
       diagnostics.consoleErrorCount += 1;
     }
   });

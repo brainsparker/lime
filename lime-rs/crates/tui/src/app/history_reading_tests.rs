@@ -67,6 +67,7 @@ fn reader(streaming_tail: bool) -> (App, Terminal<TestBackend>) {
                     phase: None,
                     memory_citation: None,
                     delivery: None,
+                    questions: None,
                 },
             },
         ));
@@ -263,6 +264,7 @@ fn page_join_before_resize_retains_the_group_in_the_full_composer_layout() {
         phase: None,
         memory_citation: None,
         delivery: None,
+        questions: None,
     });
     let turn = Turn {
         id: "turn-group".into(),

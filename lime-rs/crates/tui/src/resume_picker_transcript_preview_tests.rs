@@ -19,6 +19,7 @@ fn assistant_item(text: &str) -> ThreadItem {
         phase: None,
         memory_citation: None,
         delivery: None,
+        questions: None,
     }
 }
 
