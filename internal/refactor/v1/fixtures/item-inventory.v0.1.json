@@ -171,7 +171,7 @@
     {
       "type": "agentMessage",
       "codexFields": ["id", "text", "phase", "memoryCitation"],
-      "limeFields": ["delivery", "id", "text", "phase", "memoryCitation"],
+      "limeFields": ["delivery", "id", "text", "phase", "memoryCitation", "questions"],
       "statusful": false,
       "codexStreamMethods": ["item/agentMessage/delta"],
       "limeStreamMethods": ["item/agentMessage/delta"],

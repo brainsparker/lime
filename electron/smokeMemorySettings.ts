@@ -277,11 +277,6 @@ export async function waitForElectronSmokeMemorySettingsReady(
         result = await waitFor(memoryActionsReady, "wait memory index rebuild");
         if (!result.ok) return result;
 
-        if (!click('[data-testid="settings-memory-consolidate"]')) return summarize("consolidate memory notes");
-        await waitForReactActionFlush();
-        result = await waitFor(memoryActionsReady, "wait memory consolidate");
-        if (!result.ok) return result;
-
         if (!click('[data-testid="settings-memory-rollout-refresh"]')) return summarize("refresh rollout candidates");
         await waitForReactActionFlush();
         result = await waitFor(() => memoryActionsReady() && rolloutCandidatesReady(), "wait rollout candidates refresh");

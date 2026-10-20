@@ -10,10 +10,132 @@ use crate::{
 };
 use agent_runtime::action_required::{ActionTerminalStatus, PendingActionRestoreOutcome};
 use agent_runtime::session_loop::RuntimeSessionInputHandle;
+use agent_runtime::turn_executor::TurnProviderConfiguration;
 use async_trait::async_trait;
+use lime_agent::{
+    build_agent_turn_context, run_direct_text_generation_with_db,
+    AgentTurnContextConfigurationRequest, DirectTextGenerationRequest,
+    ModelRouteProviderConfiguration,
+};
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
+
+#[async_trait]
+impl crate::MemoryStageOneProvider for RuntimeBackend {
+    async fn sample(
+        &self,
+        request: crate::MemoryStageOneProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        sample_memory_stage(
+            self,
+            request.provider,
+            request.model,
+            request.reasoning_effort,
+            request.service_tier,
+            request.api_version,
+            request.route_protocol,
+            request.credential_ref,
+            request.cwd,
+            request.output_schema,
+            request.session_id,
+            request.thread_id,
+            request.turn_id,
+            request.system_prompt,
+            request.user_prompt,
+            "memory stage-1 route is missing provider or model",
+        )
+        .await
+    }
+}
+
+#[async_trait]
+impl crate::MemoryStageTwoProvider for RuntimeBackend {
+    async fn sample(
+        &self,
+        request: crate::MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        sample_memory_stage(
+            self,
+            request.provider,
+            request.model,
+            request.reasoning_effort,
+            request.service_tier,
+            request.api_version,
+            request.route_protocol,
+            request.credential_ref,
+            request.cwd,
+            request.output_schema,
+            request.session_id,
+            request.thread_id,
+            request.turn_id,
+            request.system_prompt,
+            request.user_prompt,
+            "memory stage-2 route is missing provider or model",
+        )
+        .await
+    }
+}
+
+async fn sample_memory_stage(
+    backend: &RuntimeBackend,
+    provider: String,
+    model: String,
+    reasoning_effort: Option<String>,
+    service_tier: Option<String>,
+    api_version: Option<String>,
+    route_protocol: app_server_protocol::ProtocolKind,
+    credential_ref: Option<String>,
+    cwd: Option<std::path::PathBuf>,
+    output_schema: serde_json::Value,
+    session_id: String,
+    thread_id: String,
+    turn_id: String,
+    system_prompt: String,
+    user_prompt: String,
+    missing_route_message: &str,
+) -> Result<String, RuntimeCoreError> {
+    if provider.trim().is_empty() || model.trim().is_empty() {
+        return Err(RuntimeCoreError::Backend(missing_route_message.to_string()));
+    }
+    let db = initialize_runtime_database(backend.db.as_ref())?;
+    let turn_context = build_agent_turn_context(AgentTurnContextConfigurationRequest {
+        cwd,
+        model: Some(model.clone()),
+        effort: reasoning_effort.clone(),
+        output_schema: Some(output_schema),
+        ..Default::default()
+    });
+    let route_configuration = ModelRouteProviderConfiguration {
+        turn_provider: TurnProviderConfiguration::from_model_selection(
+            provider,
+            model,
+            reasoning_effort,
+        ),
+        service_tier,
+        api_version,
+        route_protocol: Some(route_protocol),
+        credential_ref,
+        direct_provider_config: None,
+        auth: model_provider::runtime_provider::RuntimeProviderAuth::ApiKey,
+    };
+    let result = run_direct_text_generation_with_db(
+        &backend.agent_state,
+        DirectTextGenerationRequest {
+            session_id,
+            thread_id,
+            turn_id,
+            system_prompt,
+            user_prompt,
+            turn_context,
+            provider_configuration: Some(route_configuration),
+        },
+        &db,
+    )
+    .await
+    .map_err(RuntimeCoreError::Backend)?;
+    Ok(result.text)
+}
 
 pub(super) async fn preflight_thread_settings_route(
     backend: &RuntimeBackend,
