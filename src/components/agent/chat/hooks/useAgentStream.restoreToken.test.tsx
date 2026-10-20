@@ -4,8 +4,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComposerSubmissionRestoreToken } from "../components/composerSubmissionSettlement";
 import { createRestoreTokenFixture } from "./agentStreamRestoreToken.testFixtures";
 import { useAgentStream } from "./useAgentStream";
+import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import { activityLogger } from "@/lib/workspace/workbenchRuntime";
 import { clearAllAgentStreamTextOverlays } from "./agentStreamTextOverlayStore";
+import {
+  rememberLocallyInterruptedAgentStreamBinding,
+  rememberLocallyStartedAgentStreamBinding,
+} from "./streamBindingRecords";
 
 vi.mock("@/lib/api/permissionProfiles", () => ({
   resolveAllowedPermissionProfile: vi.fn().mockResolvedValue({ allowed: true }),
@@ -77,6 +82,77 @@ function token(): ComposerSubmissionRestoreToken {
 }
 
 describe("useAgentStream restore capability lifetime", () => {
+  it.each([
+    ["submitted", rememberLocallyStartedAgentStreamBinding],
+    ["interrupted", rememberLocallyInterruptedAgentStreamBinding],
+  ] as const)(
+    "同线程前一回合 %s 不能阻断后续回合的恢复和终态",
+    async (kind, remember) => {
+      const sessionId = `restore-after-${kind}`;
+      const turnId = "next-canonical-turn";
+      remember({
+        assistantMsgId: "previous-assistant",
+        eventName: `agent_stream_${kind}`,
+        sessionId,
+        turnId: "previous-canonical-turn",
+      });
+      const handlers = new Set<(event: { payload: unknown }) => void>();
+      const h = mountHook((f) => ({
+        sessionId,
+        runtime: {
+          ...f.env.runtime,
+          listenToTurnEvents: vi.fn<AgentRuntimeAdapter["listenToTurnEvents"]>(
+            async (_eventName, handler) => {
+              handlers.add(handler);
+              return () => handlers.delete(handler);
+            },
+          ),
+          resumeThread: vi.fn().mockResolvedValue(true),
+        },
+        allowRecoveredStreamBinding: true,
+        threadBusy: true,
+        threadRead: {
+          thread_id: sessionId,
+          active_turn_id: turnId,
+          status: "running",
+          turns: [{ id: turnId, status: "running" }],
+        } as NonNullable<Parameters<typeof useAgentStream>[0]["threadRead"]>,
+      }));
+      try {
+        await act(async () => {});
+        expect(handlers.size).toBe(1);
+        expect(h.getHook().isSending).toBe(true);
+        act(() => {
+          const timestamp = new Date().toISOString();
+          for (const handler of handlers) {
+            handler({
+              payload: {
+                type: "turn_completed",
+                protocol_method: "turn/completed",
+                session_id: sessionId,
+                turn_id: turnId,
+                turn: {
+                  id: turnId,
+                  thread_id: sessionId,
+                  prompt_text: "",
+                  status: "completed",
+                  started_at: timestamp,
+                  completed_at: timestamp,
+                  created_at: timestamp,
+                  updated_at: timestamp,
+                },
+              },
+            });
+          }
+        });
+        expect(h.getHook().isSending).toBe(false);
+        expect(handlers.size).toBe(0);
+      } finally {
+        h.unmount();
+      }
+    },
+  );
+
   it("恢复流的展示回调更新不能卸载当前线程监听或丢失真实终态", async () => {
     const handlers = new Set<(event: { payload: unknown }) => void>();
     const listen = vi.fn(

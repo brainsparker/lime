@@ -51,6 +51,7 @@ const LIFECYCLE_KEY = "lime:debug:app-server-server-request-lifecycle:v1";
 const SOURCE_FILES = [
   "scripts/electron/request-user-input-fixture-smoke.mjs",
   "scripts/electron/lib/async-user-input-scenario.mjs",
+  "scripts/lib/electron-fixture-build.mjs",
   "src/components/agent/chat/workspace/useAsyncUserInput.tsx",
   "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
   "src/components/agent/chat/components/asyncUserInput/AsyncUserInputPanel.tsx",
@@ -62,6 +63,7 @@ const SOURCE_FILES = [
   "src/lib/api/appServerEventBus.ts",
   "src/components/agent/chat/hooks/useAgentStream.ts",
   "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
+  "src/components/agent/chat/hooks/streamBindingRecords.ts",
   "scripts/agent-runtime/tool-execution-current-contract.mjs",
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",

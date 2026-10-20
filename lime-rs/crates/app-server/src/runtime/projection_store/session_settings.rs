@@ -14,6 +14,9 @@ impl ProjectionStore {
         &self,
         session: &mut AgentSession,
     ) -> Result<(), String> {
+        if super::super::session_is_ephemeral(session) {
+            return Ok(());
+        }
         let mut conn = self.open_projection_store()?;
         let tx = conn
             .transaction_with_behavior(TransactionBehavior::Immediate)

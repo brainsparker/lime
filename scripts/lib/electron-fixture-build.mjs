@@ -573,13 +573,16 @@ function runBuildStep(step, { rootDir, env, logPrefix, runCommand }) {
   if (result.error) {
     throw result.error;
   }
-  if (typeof result.status === "number" && result.status !== 0) {
+  if (result.status !== 0 || result.signal) {
+    const termination = result.signal
+      ? `signal=${result.signal}`
+      : `exit=${result.status ?? "unknown"}`;
     const error = new Error(
       `[${logPrefix}] ${step.label} 失败: ${step.command} ${step.args.join(
         " ",
-      )}`,
+      )} (${termination})`,
     );
-    error.exitCode = result.status;
+    error.exitCode = result.status ?? 1;
     throw error;
   }
 }

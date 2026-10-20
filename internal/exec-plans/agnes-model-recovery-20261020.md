@@ -37,3 +37,23 @@
 5. 与其他全部候选共同完成发布门禁和实际发布。
 
 分类：current owner 扩展；无新增 compat/deprecated 或生产 mock 路径。current_client 超大 facade 本刀只抽出既有 HTTP error helper 到子模块，退出条件为不增加 facade 业务逻辑且所有调用直接迁移，不保留重复 helper。
+
+## 2026-10-20 追加：服务商设置布局与发布复验
+
+- 用户截图中整个双栏工作区受设置页共用 48rem 宽度上限约束，固定 320px 模型列进一步压缩详情；头部不可收缩的操作区使 Host 接近逐字符折行。仅 Providers 设置页使用可用宽度，模型列随父容器在 220–320px 间分配，详情允许收缩；头部按内容换行，保留标题/地址的可读宽度，模型刷新按钮不参与压缩。
+- 追加窄写集：`settings-v2/_layout/index.tsx`、`api-key-provider/{ApiKeyProviderSection,ModelProviderList,ProviderSetting}.tsx`。保持原设置/模型配置 owner，不新增文案或业务状态。
+- `current_client` 本地 HTTP 错误测试首次 175/177，两个 fixture 请求受环境代理影响被返回 502；只对 loopback fixture 使用 `.no_proxy()`，原认证、重试与隐私断言不变。后继全组 177/177，通过；Agnes registry 8/8，通过。
+- 设置布局与构建中断相关 5 文件 128 项通过；完整 `npm run typecheck` 和 Renderer production build exit0。页面宽窄视觉证据仍需在最终源码继续验收，不用组件测试替代。
+- 隔离真实 Electron/runtime 通过 GUI 输入固定消息，3.0 Flash 显示 `OK`；随后 `@配图` 得到 Agnes Image 2.5 Flash 的实际 1024×1024 图片。该轮已见业务结果，但临时 launcher 正常关闭未收敛，后续仅终止自己启动的测试进程，不记 clean lifecycle pass；完整同 identity 的审计与正式 live smoke 继续补齐。
+- Beta 官方未公布准确价格，canonical pricing 记未知，避免把模板中的零价当成免费承诺。
+- `90bb735978dedc3c85fca9901c5ea6c4c2638ad7` 的 Quality `39373078331` 全部完成：Frontend Full、Rust Full、Integrity、GUI Smoke、Windows Shell Runtime 与聚合均 success。该结果仅覆盖该提交，后继布局与并行新增源码另行验证后重建候选。
+
+## 2026-10-20 真实 Electron 后继收据
+
+- 通过隔离真实 Electron 的源码 Renderer（`http://127.0.0.1:1439/?nativeStartup=1`）发送固定聊天，3.0 Flash 显示 `OK`。线程 `01a15880-f62f-79c0-abaf-44fe3d8e40e0`，回合 `turn_7fdb42e697e34b49b885331f575804b0` 的 `thread/read(includeTurns=true)` 为 completed；输入恢复。
+- 同一 GUI 发送 `@配图`，回合 `turn_4a1843b748c64736b43887a0ff5a2707`、任务 `c035e4bd-72a2-4af1-bd70-7b8c67c7b989`。实际 1024×1024 图片、正文与 854 Tokens 可见；canonical completed，workflow completed 且 task ID 相同，五个 workflow steps、六条任务审计事件含 task_succeeded，敏感字段检查通过。
+- 原 live helper 先因旧“思考”文本检测超时，又发现 thread/read 还使用 sessionId/historyLimit。迁移到 current 折叠 timeline 的实际可访问思路计数及 threadId/includeTurns；不将 JSON-RPC request ID 误认 Turn ID，并追加真实 media Turn completed 断言。原失败不覆盖，复用同一实际提交和任务做完整现有断言复核，全部通过。新增协议/身份回归与原 guard 7/7 通过；ModelProviderList 3/3 通过。
+- 设置页真实 1024/1440/2048 宽度测量无横向溢出；标题、Host 和操作区正常，窄窗徽标单行。1024 最终截图和其余两尺寸截图已人工查看，数据见同名 JSON 收据。单行 Host 编辑框自身可水平滚动不等于页面溢出。
+- 本轮原 Main 正常退出 15s 期限再次失败，仅失败后回收本 fixture PID 13178，SIGKILL 不记通过；业务/audit pass 与 clean lifecycle fail 分开记录，正在用无 Provider 的隔离实例观察退出阶段。
+- 完整 typecheck、contracts 与版本一致性后继已 exit0。runtime 全组 877/878，唯一 active_wait 延迟恢复夹具在并发删除 identity 窗口失败；同一构建的单项隔离不改预算通过，保留两份原件，尚不能把全组写成通过。
+- 证据摘要：`agnes-model-recovery-20261020.json`。current owner 保持不变；新增 compat/deprecated 为零；没有恢复旧命令或 mock。

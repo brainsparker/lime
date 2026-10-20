@@ -76,7 +76,11 @@ impl RuntimeCore {
         );
         let workflow_audit_events =
             self.read_workflow_audit_events_for_session(&params.session_id)?;
-        let detail = match self.projection_store.as_deref() {
+        let detail = match self
+            .projection_store
+            .as_deref()
+            .filter(|_| !super::session_is_ephemeral(&stored.session))
+        {
             Some(projection_store) => read_model::runtime_session_read_detail_from_thread_store(
                 &read_snapshot,
                 read_model::ReadDetailOptions::from_params(params),
@@ -154,6 +158,16 @@ impl RuntimeCore {
         &self,
         session_id: &str,
     ) -> Result<Vec<AgentEvent>, RuntimeCoreError> {
+        if self
+            .state
+            .lock()
+            .expect("runtime core state mutex poisoned")
+            .sessions
+            .get(session_id)
+            .is_some_and(|stored| super::session_is_ephemeral(&stored.session))
+        {
+            return Ok(Vec::new());
+        }
         self.event_log_writer
             .as_ref()
             .map(|writer| {
@@ -201,7 +215,8 @@ fn should_prefer_projection_history_read(
     context: &SessionLoadContext,
     params: &AgentSessionReadParams,
 ) -> bool {
-    params.history_limit.is_some()
+    !super::session_is_ephemeral(&context.stored.session)
+        && params.history_limit.is_some()
         && context.stored.events.is_empty()
         && context.response.detail.as_ref().is_some_and(|detail| {
             detail_array_is_empty(detail, "messages") && detail_array_is_empty(detail, "items")

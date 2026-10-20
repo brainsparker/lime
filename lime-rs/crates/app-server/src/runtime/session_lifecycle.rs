@@ -318,10 +318,12 @@ impl RuntimeCore {
             return Err(RuntimeCoreError::SessionAlreadyExists(session_id));
         }
         state.ensure_session_accepts_input(&session_id)?;
-        if let Some(projection_store) = self.projection_store.as_deref() {
-            projection_store
-                .create_empty_canonical_thread(&stored)
-                .map_err(RuntimeCoreError::Backend)?;
+        if !session_is_ephemeral(&session) {
+            if let Some(projection_store) = self.projection_store.as_deref() {
+                projection_store
+                    .create_empty_canonical_thread(&stored)
+                    .map_err(RuntimeCoreError::Backend)?;
+            }
         }
         state.sessions.insert(session_id, stored);
 

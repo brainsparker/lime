@@ -131,7 +131,8 @@ impl RuntimeCore {
         path: &str,
         content: &str,
     ) -> Option<Value> {
-        if contains_secret_like_content(content) {
+        let (session, _) = self.session_snapshot(session_id).ok()?;
+        if super::session_is_ephemeral(&session) || contains_secret_like_content(content) {
             return None;
         }
         let sidecar_store = self.sidecar_store.as_deref()?;
@@ -643,6 +644,42 @@ fn append_context_block(system_prompt: Option<String>, context: Option<String>) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ephemeral_memory_prompt_does_not_write_a_summary_sidecar() {
+        use app_server_protocol::{AgentSessionStartParams, BusinessObjectRef};
+        use std::sync::Arc;
+        let temp = tempfile::tempdir().unwrap();
+        let runtime = RuntimeCore::default().with_sidecar_store(Arc::new(
+            super::super::SidecarStore::new(temp.path()).unwrap(),
+        ));
+        runtime
+            .start_session(AgentSessionStartParams {
+                session_id: Some("ephemeral-memory".to_string()),
+                thread_id: None,
+                app_id: "test".to_string(),
+                workspace_id: None,
+                locale: None,
+                business_object_ref: Some(BusinessObjectRef {
+                    kind: "agent.thread".to_string(),
+                    id: "memory".to_string(),
+                    title: None,
+                    uri: None,
+                    metadata: Some(json!({"ephemeral":true})),
+                }),
+            })
+            .unwrap();
+        assert!(runtime
+            .memory_summary_sidecar_ref(
+                "ephemeral-memory",
+                None,
+                "global",
+                "memory_summary.md",
+                "private summary"
+            )
+            .is_none());
+        assert_eq!(std::fs::read_dir(temp.path()).unwrap().count(), 0);
+    }
     use lime_core::config::MemorySoulConfig;
     use serde_json::json;
 

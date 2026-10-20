@@ -75,6 +75,8 @@ internal/exec-plans/*
 !internal/exec-plans/composer-project-knowledge-removal-plan.md
 !internal/exec-plans/message-artifact-knowledge-removal-plan.md
 !internal/exec-plans/async-user-input-alignment-20261020.md
+!internal/exec-plans/agnes-model-recovery-20261020.md
+!internal/exec-plans/agnes-model-recovery-20261020.json
 !internal/exec-plans/artifacts/
 internal/exec-plans/artifacts/*
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/
@@ -119,6 +121,12 @@ internal/exec-plans/artifacts/async-user-input-20261020/*
 !internal/exec-plans/artifacts/async-user-input-20261020/renderer-validation-logs.tar.gz
 !internal/exec-plans/artifacts/async-user-input-20261020/memory-contract-guard.patch
 !internal/exec-plans/artifacts/async-user-input-20261020/memory-contract-guard.json
+!internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/
+internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/*
+!internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/red-r37.log
+!internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/fixture-migration-failure-r38.log
+!internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/green-r39.log
+!internal/exec-plans/artifacts/async-user-input-20261020/cross-turn-binding/rea-summary-r38.json
 !internal/exec-plans/codex-public-item-metadata-cleanup-20261020.md
 !internal/exec-plans/thread-runtime-snapshot-consistency-2026-10-20.md
 !internal/exec-plans/codex-professional-files-alignment.md

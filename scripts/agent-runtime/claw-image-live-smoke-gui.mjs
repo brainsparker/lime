@@ -9,11 +9,12 @@ import { INTERNAL_UI_MARKERS } from "./claw-image-live-smoke-options.mjs";
 export function extractSessionAndTurn(inputSend) {
   const turnStart = inputSend?.afterClick?.matchingTurnStartTrace ?? null;
   const sessionId =
+    normalizedString(turnStart?.threadId) ||
     normalizedString(turnStart?.sessionId) ||
     normalizedString(inputSend?.clicked?.sessionId) ||
     normalizedString(inputSend?.sendReady?.editorSessionId) ||
     normalizedString(inputSend?.before?.editorSessionId);
-  const turnId = normalizedString(turnStart?.id || turnStart?.turnId);
+  const turnId = normalizedString(turnStart?.turnId);
   return {
     sessionId,
     turnId,
@@ -221,7 +222,23 @@ export async function waitForLiveImageGuiTerminal(page, options, prompt) {
           }
           return count;
         };
+        // Completed reasoning is folded into the current timeline summary.
+        const reasoningSummaryVisible = Array.from(
+          document.querySelectorAll(
+            '[data-testid^="message-list-historical-timeline-preview:"]',
+          ),
+        ).some((summary) => {
+          const rect = summary.getBoundingClientRect();
+          return (
+            rect.width > 0 &&
+            rect.height > 0 &&
+            /[1-9]\d*(?:\.\d+)?[Kk]?\s*条思路/.test(
+              summary.getAttribute("aria-label") || "",
+            )
+          );
+        });
         const reasoningVisible =
+          reasoningSummaryVisible ||
           mainText.includes("已完成思考") ||
           mainText.includes("思考") ||
           mainText.includes("Thinking");

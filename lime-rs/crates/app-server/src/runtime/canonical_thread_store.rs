@@ -241,6 +241,9 @@ impl ProjectionStore {
         &self,
         stored: &StoredSession,
     ) -> Result<(), String> {
+        if super::session_is_ephemeral(&stored.session) {
+            return Ok(());
+        }
         self.create_thread_sync(CreateThreadParams {
             thread: canonical_thread_from_stored_session(stored),
         })
@@ -252,6 +255,9 @@ impl ProjectionStore {
         stored: &StoredSession,
         events: &[AgentEvent],
     ) -> Result<(), String> {
+        if super::session_is_ephemeral(&stored.session) {
+            return Ok(());
+        }
         if self.rollout_store().is_some() {
             // Raw diagnostic events are not allowed to replace canonical rollout history.
             return Ok(());
@@ -972,7 +978,7 @@ fn derive_agent_state(thread: &Thread, edge_status: ThreadSpawnEdgeStatus) -> Co
     CollabAgentState { status, message }
 }
 
-fn canonical_thread_from_stored_session(stored: &StoredSession) -> Thread {
+pub(in crate::runtime) fn canonical_thread_from_stored_session(stored: &StoredSession) -> Thread {
     let session = &stored.session;
     let title = session
         .business_object_ref

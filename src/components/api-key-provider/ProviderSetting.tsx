@@ -1282,8 +1282,8 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
           className="mx-auto w-full max-w-[820px] rounded-[30px] border border-slate-200/80 bg-white p-5 shadow-sm shadow-slate-950/5 lg:p-6"
           data-testid="provider-simple-card"
         >
-          <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
+          <header className="flex flex-wrap items-start justify-between gap-4">
+            <div className="flex min-w-[min(100%,16rem)] flex-1 items-center gap-3">
               <ProviderIcon
                 providerType={provider.id}
                 fallbackText={provider.name}
@@ -1318,7 +1318,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                     </Badge>
                   ) : null}
                 </div>
-                <p className="mt-1 break-all text-sm text-slate-500">
+                <p className="mt-1 break-words text-sm text-slate-500">
                   {providerHostLabel}
                 </p>
               </div>
@@ -1706,7 +1706,7 @@ const ProviderSettingBody: React.FC<ProviderSettingBodyProps> = ({
                   type="button"
                   variant="outline"
                   size="sm"
-                  className="h-9 rounded-full border-slate-200 bg-white"
+                  className="h-9 shrink-0 rounded-full border-slate-200 bg-white"
                   onClick={() => {
                     void handleFetchModelsFromApi();
                   }}

@@ -105,6 +105,7 @@ impl RuntimeCore {
         &self,
         params: ThreadTurnsListParams,
     ) -> Result<ThreadTurnsListResponse, RuntimeCoreError> {
+        self.reject_ephemeral_history(params.thread_id.as_str(), "thread/turns/list")?;
         let store = self.canonical_thread_store()?;
         let thread_id = params.thread_id;
         let items_view = params.items_view;
@@ -143,6 +144,7 @@ impl RuntimeCore {
         &self,
         params: ThreadItemsListParams,
     ) -> Result<ThreadItemsListResponse, RuntimeCoreError> {
+        self.reject_ephemeral_history(params.thread_id.as_str(), "thread/items/list")?;
         let store = self.canonical_thread_store()?;
         let thread_id = params.thread_id;
         let queued = store

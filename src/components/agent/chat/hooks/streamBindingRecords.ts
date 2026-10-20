@@ -12,7 +12,7 @@ interface LocallyStartedAgentStreamBindingRecord {
   eventName: string;
   recordedAt: number;
   sessionId: string;
-  turnId: string | null;
+  turnId: string;
 }
 
 const locallyStartedAgentStreamBindingRecords = new Map<
@@ -38,9 +38,9 @@ function pruneAgentStreamBindingRecords(
 
 function createLocallyStartedAgentStreamBindingKey(
   sessionId: string,
-  turnId?: string | null,
+  turnId: string,
 ): string {
-  return `${sessionId}:${turnId || "*"}`;
+  return `${sessionId}:${turnId}`;
 }
 
 export function rememberLocallyStartedAgentStreamBinding(
@@ -57,6 +57,9 @@ export function rememberLocallyStartedAgentStreamBinding(
     LOCALLY_STARTED_STREAM_BINDING_TTL_MS,
   );
   const turnId = normalizeRealTurnId(stream?.turnId);
+  if (!turnId) {
+    return;
+  }
   const recordedAt = Date.now();
   const record: LocallyStartedAgentStreamBindingRecord = {
     eventName,
@@ -66,10 +69,6 @@ export function rememberLocallyStartedAgentStreamBinding(
   };
   locallyStartedAgentStreamBindingRecords.set(
     createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
-    record,
-  );
-  locallyStartedAgentStreamBindingRecords.set(
-    createLocallyStartedAgentStreamBindingKey(sessionId, null),
     record,
   );
 }
@@ -88,6 +87,9 @@ export function rememberLocallyInterruptedAgentStreamBinding(
     LOCALLY_INTERRUPTED_STREAM_BINDING_TTL_MS,
   );
   const turnId = normalizeRealTurnId(stream?.turnId);
+  if (!turnId) {
+    return;
+  }
   const recordedAt = Date.now();
   const record: LocallyStartedAgentStreamBindingRecord = {
     eventName: eventName ?? "",
@@ -97,10 +99,6 @@ export function rememberLocallyInterruptedAgentStreamBinding(
   };
   locallyInterruptedAgentStreamBindingRecords.set(
     createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
-    record,
-  );
-  locallyInterruptedAgentStreamBindingRecords.set(
-    createLocallyStartedAgentStreamBindingKey(sessionId, null),
     record,
   );
 }
@@ -118,13 +116,11 @@ export function hasLocallyStartedAgentStreamBinding(
     LOCALLY_STARTED_STREAM_BINDING_TTL_MS,
   );
   const turnId = normalizeRealTurnId(target?.turnId);
-  return (
-    locallyStartedAgentStreamBindingRecords.has(
-      createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
-    ) ||
-    locallyStartedAgentStreamBindingRecords.has(
-      createLocallyStartedAgentStreamBindingKey(sessionId, null),
-    )
+  if (!turnId) {
+    return false;
+  }
+  return locallyStartedAgentStreamBindingRecords.has(
+    createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
   );
 }
 
@@ -141,13 +137,11 @@ export function hasLocallyInterruptedAgentStreamBinding(
     LOCALLY_INTERRUPTED_STREAM_BINDING_TTL_MS,
   );
   const turnId = normalizeRealTurnId(target?.turnId);
-  return (
-    locallyInterruptedAgentStreamBindingRecords.has(
-      createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
-    ) ||
-    locallyInterruptedAgentStreamBindingRecords.has(
-      createLocallyStartedAgentStreamBindingKey(sessionId, null),
-    )
+  if (!turnId) {
+    return false;
+  }
+  return locallyInterruptedAgentStreamBindingRecords.has(
+    createLocallyStartedAgentStreamBindingKey(sessionId, turnId),
   );
 }
 
@@ -164,27 +158,9 @@ export function consumeLocallyInterruptedAgentStreamBinding(
     LOCALLY_INTERRUPTED_STREAM_BINDING_TTL_MS,
   );
   const turnId = normalizeRealTurnId(target?.turnId);
-  const exactKey = createLocallyStartedAgentStreamBindingKey(sessionId, turnId);
-  const sessionKey = createLocallyStartedAgentStreamBindingKey(sessionId, null);
-  const record =
-    locallyInterruptedAgentStreamBindingRecords.get(exactKey) ??
-    locallyInterruptedAgentStreamBindingRecords.get(sessionKey);
-  if (!record) {
+  if (!turnId) {
     return false;
   }
-
-  locallyInterruptedAgentStreamBindingRecords.delete(exactKey);
-  locallyInterruptedAgentStreamBindingRecords.delete(sessionKey);
-  if (record.turnId) {
-    locallyInterruptedAgentStreamBindingRecords.delete(
-      createLocallyStartedAgentStreamBindingKey(
-        record.sessionId,
-        record.turnId,
-      ),
-    );
-  }
-  locallyInterruptedAgentStreamBindingRecords.delete(
-    createLocallyStartedAgentStreamBindingKey(record.sessionId, null),
-  );
-  return true;
+  const exactKey = createLocallyStartedAgentStreamBindingKey(sessionId, turnId);
+  return locallyInterruptedAgentStreamBindingRecords.delete(exactKey);
 }

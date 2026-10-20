@@ -117,7 +117,14 @@ mod tests {
             let (base_url, _, server) =
                 spawn_http_fixture(vec![fixture_response("503 Service Unavailable", "", &body)])
                     .await;
-            let response = Client::new().get(base_url).send().await.unwrap();
+            let response = Client::builder()
+                .no_proxy()
+                .build()
+                .unwrap()
+                .get(base_url)
+                .send()
+                .await
+                .unwrap();
             let error = ensure_success_response(response).await.unwrap_err();
             assert_eq!(error.message, "Provider 请求失败 (503 Service Unavailable)");
             assert!(error.retryable);
@@ -137,7 +144,14 @@ mod tests {
             r#"{"error":{"code":"model_not_found","message":"sk-secret"}}"#,
         )])
         .await;
-        let response = Client::new().get(base_url).send().await.unwrap();
+        let response = Client::builder()
+            .no_proxy()
+            .build()
+            .unwrap()
+            .get(base_url)
+            .send()
+            .await
+            .unwrap();
         let error = ensure_success_response(response).await.unwrap_err();
         assert_eq!(
             error.classification,

@@ -32,6 +32,7 @@ mod context_compaction;
 mod context_media;
 mod context_packet;
 mod diagnostics;
+mod ephemeral;
 mod error;
 mod event_log;
 mod event_sink;
@@ -375,6 +376,19 @@ pub(in crate::runtime) struct StoredSession {
         HashMap<String, app_server_protocol::RuntimeOptions>,
     pub(in crate::runtime) events: Vec<AgentEvent>,
     pub(in crate::runtime) output_blobs: HashMap<String, output_refs::OutputBlobRecord>,
+}
+
+/// Ephemeral internal sessions share the normal runtime state machine but never become
+/// user-visible durable threads. This predicate is the single persistence boundary used by
+/// session creation and event projection.
+pub(in crate::runtime) fn session_is_ephemeral(session: &AgentSession) -> bool {
+    session
+        .business_object_ref
+        .as_ref()
+        .and_then(|reference| reference.metadata.as_ref())
+        .and_then(|metadata| metadata.get("ephemeral"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false)
 }
 
 impl Default for RuntimeCore {

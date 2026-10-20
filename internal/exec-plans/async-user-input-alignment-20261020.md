@@ -1,6 +1,6 @@
 # 异步问题 current 纵切
 
-状态：实施中；同步问答 r18 已验收，组合异步桌面 r19/r20/r21/r26 首次显示失败，正在定位。负责人：Codex，2026-10-20。
+状态：实施中；同步 r18 已验收，组合 r35 的异步生产/展示/跨线程题稿/普通回复已通过，同步后续 Turn 完成展示仍失败；r36 启动前被产物漂移拦截。负责人：Codex，2026-10-20。
 
 目标：对齐 `request_user_input_async -> AgentMessage.questions -> 同一发送协调器`，不新增问答 RPC、同步 pending 或业务历史 store。参考与限制见 `internal/research/codex-desktop-rea/async-user-input-audit-20261020.md`。
 
@@ -112,3 +112,23 @@ r31 同样在启动前被新的并行 Memory 源码使 sidecar 过期而拦截�
 生产接线进一步确认：`useAgentChatWorkspaceSetupRuntime.ts:139` 的 onWriteFile 是每次渲染新建的 inline callback，因此上述 effect cleanup 有真实触发者；不能靠要求调用者永远 memoize 修复唯一监听 owner。原始红测试为 handler 1→0；首个修复回归随后因新增测试自身缺 canonical turn 对象失败，原日志保留。补齐真实 turn/completed projection 后 4/4 通过（`/tmp/lime-recovered-listener-lifetime-terminal-r33b.log`），另外两套 binding/controller 18项在上一轮通过；并集 3套22项，不将失败轮写成通过。scoped lint 通过，新 Renderer/sidecar 及 Desktop 后继仍待结算。
 
 资源调度：`verify:local` r31 的五语与全局 lint 已通过，但完整类型检查尚未完成。本机空闲内存约75MiB，当前 Renderer 与并行 Memory 测试编译明显变慢；root 核对父进程链 `28935 → 29035 → 50936 → 50965 → 50966` 后，仅对本轮 tsc 50966 发送 SIGINT，门禁 exit130，原日志 `/tmp/lime-question-local-resume-r31.log` 保留。未停止其他进程、未清空间；第25批失败的独立 Vitest 状态保持原样。后续先完成构建和真实桌面，再以同一状态继续默认门禁，不将中断写成通过。
+
+## r33 构建漂移与 r34 中断传播
+
+恢复监听修复的 Renderer 与 sidecar 已构建 exit0，但 r33 启动前 freshness 发现后继翻译和 provider 源码晚于产物，拒绝启动 Electron；不是新的产品运行失败。r34 只刷新受影响段，遇到另一进程已持有 Renderer 锁。root 仅向自己的排队 Renderer 子进程 94121 发送 SIGINT，避免重复构建，没有停止锁持有者或其余 Cargo。
+
+由此直接观察到既有 `runBuildStep` 忽略 `status=null, signal=SIGINT`，错误地进入后续 sidecar 步骤。窄写集追加 `scripts/lib/electron-fixture-build.mjs` 及其既有测试：仅 status=0 且无 signal 才可继续；中断/无退出状态必须抛错、不得设置 build-ready，并仍释放本进程 fixture 锁。SIGINT、SIGTERM、未知退出三项红回归全部复现（`/tmp/lime-build-interruption-red-r34.log`），后继完整回归正在执行。该脚本为测试构建 owner，不新增产品 runtime、协议或兼容路径；fixture source inventory 同步记录它。已运行的 r34 父进程仍使用修复前加载的实现，不以其退出码单独结算构建，后续必须重新检查 freshness 和产物身份。
+
+## r35/r36 与后续回合恢复阻断
+
+构建中断传播 38/38 回归通过（`/tmp/lime-build-interruption-green-r34.log`）。真实组合 r35 完成异步工具生产、活动 Turn 恢复、首次表面、跨线程题稿、生产者非阻塞完成及普通答案 canonical wire；同步回答已到达 provider，canonical Turn completed，但 UI 未显示终态正文。Main 正常 code0/signalnull，整轮仍 fail，原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r35/`。临时回答前 refresh 接线的 36 项组件回归与 scoped lint 通过；全量 tsconfig.json 检查因当前测试夹具基线失败（770 行，`/tmp/lime-tsc-r36.log`），不是 renderer 类型通过。该 refresh 接线没有真实效果证据，后续已撤回，不增加第二入口。
+
+r36 在启动前 freshness 拦截 renderer/appServer，未运行产品。实际 newest renderer source 是并行 `ModelProviderList.tsx`，晚于新产物约8秒；appServer 为并行 runtime/event_store.rs。使用既有 ensureElectronFixtureBuild 串行刷新受影响段，遇到其他 Renderer 构建锁时等待，不停止持有者、不豁免 freshness。
+
+进一步只读定位 `streamBindingRecords`：本地发送与 Stop 都额外写入 session:*，恢复检查和停止标记消费无条件命中该线程；因此异步答案本地发送后的五分钟会阻断同线程后继同步 Turn。新增真实 hook 生命周期回归分别复现前一 Turn submitted/interrupted 导致当前监听0（`/tmp/lime-cross-turn-binding-red-r37.log`，2失败/4通过）。按 canonical session/turn 删除通配写入、匹配及消费，缺少真实 Turn ID 不登记，保持同 Turn 防重复与 Stop 语义。首次复验33通过/1失败，失败的旧夹具仅提供session而要求猜测Turn；已迁移为真实 scoped Turn，不恢复 wildcard，原失败 `/tmp/lime-cross-turn-binding-green-r38.log` 保留。
+
+窄写集：streamBindingRecords.ts、现有恢复hook/会话同步测试、新增精确消费回归、fixture source inventory、architecture及本计划；Workspace Scene 两文件撤回临时接线后与基线一致。并行 runtime/provider/Settings/Memory及生成产物只读避让。current仍为同一event bus/router/stream controller；线程通配路径dead/deleted，新compat/deprecated为0。责任root确认architecture现有owner/依赖方向不变；最终定向复验、Renderer types、contracts、current fixture、标准GUI与新Gate B尚待结算。
+
+REA复用同步草稿 parent `ev_5734ec041f1dd5e183fcd1f5a15c97b1e71e7efb9b79694d4069dd1ea7bf21c4`，本次实际CLI summary `ev_276d117876bf501146dbfde45bf4fd02c62fe42a98a28da0ef067297ae6aba66`（`/tmp/lime-question-rea-view-r38.json`）。23完整声明、4322 AST节点、parse failure0；semantic unknown905，不冒称完整闭包或参考运行。Codex公开thread_lifecycle的连接订阅与active Turn快照维持canonical scope，Lime竞态由本地红回归证明，不声称REA观察到了Lime执行。
+
+后继r39定向5套37/37通过，scoped lint与diff whitespace通过；红/迁移失败/最终绿/REA summary已保存至`artifacts/async-user-input-20261020/cross-turn-binding/`。contracts的协议类型、client/command/harness、modality/scripts/release/desktop/CLI及cleanup检查完成，最后docs boundary因Git索引内的并行`internal/exec-plans/agnes-model-recovery-20261020.md`失败，未改该文件或索引。原日志`/tmp/lime-question-contracts-r39.log`；整轮不记通过。为避免共享机器继续争用，root核对11605为本轮renderer tsc后仅向其发送SIGINT，exit130（`/tmp/lime-question-renderer-types-r39.log`），类型改为构建后串行复验，不停止任何外部任务。r37 Renderer仍在既有锁释放后的实际构建，后继sidecar与产品结果未取得。

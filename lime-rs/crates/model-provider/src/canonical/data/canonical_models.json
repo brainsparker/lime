@@ -184,12 +184,7 @@
     ],
     "supports_tools": true,
     "supports_reasoning": true,
-    "pricing": {
-      "prompt": 0.0,
-      "completion": 0.0,
-      "request": 0.0,
-      "image": 0.0
-    }
+    "pricing": {}
   },
   {
     "id": "agnes/agnes-3.0-flash",

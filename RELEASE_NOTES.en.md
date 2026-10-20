@@ -13,6 +13,7 @@ Simplified Chinese release notes are the primary version. This English companion
 ### Fixes
 
 - Add official capabilities for Agnes 3.0, 2.5 Pro Beta and image models, invalidate old capability caches, show an actionable unavailable-model message, and exclude media generators from general chat candidates.
+- Fix provider-settings width allocation and header wrapping so names, endpoint addresses and action buttons remain readable.
 - Preserve recovered-turn listeners when presentation callbacks change and deliver in-flight event batches to current subscriptions.
 - Give memory extraction independent ownership tokens and bind consolidation commits to exact source snapshots so stale tasks cannot overwrite newer versions.
 - Correct Thread/Turn/Item identity and terminal states across asynchronous input, cancellation, continuation, completion and cold recovery.

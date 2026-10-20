@@ -124,6 +124,14 @@
       "status": "intermediate_pass",
       "log": "memory-snapshot-intermediate-tests.log",
       "qualification": "Compiler started before the last overlapping-worker regression and stale-result counter edit; rerunning against the frozen sources before accepting final verification."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server memory_store::",
+      "exitCode": 0,
+      "passed": 39,
+      "status": "final_pass",
+      "log": "memory-snapshot-final-tests.log",
+      "qualification": "Final run after precise snapshot and independent phase1 ownership changes; only this prerequisite is closed."
     }
   ],
   "attempts": [
@@ -162,7 +170,7 @@
     "qualification": "Business Gate B-F assertions passed; teardown required external cleanup, so this is not a clean lifecycle pass."
   },
   "snapshot_prerequisite": {
-    "status": "validating",
+    "status": "complete",
     "source_freeze": "snapshot-source-freeze.json",
     "classification": {
       "current": [
@@ -189,5 +197,28 @@
       "GUI shell smoke did not execute a Memory provider turn."
     ]
   },
-  "snapshot_source_freeze": "snapshot-source-freeze.json"
+  "snapshot_source_freeze": "snapshot-source-freeze.json",
+  "ephemeral_prerequisite": {
+    "status": "validating",
+    "classification": {
+      "current": [
+        "shared ephemeral session lifecycle",
+        "session-scoped storage policy",
+        "in-memory history receipt with explicit non-durability"
+      ],
+      "compat": [],
+      "deprecated": [],
+      "deleted": [
+        "unconditional ephemeral canonical thread persistence"
+      ]
+    },
+    "remaining": [
+      "final Rust unit and public JSON-RPC results",
+      "current fixture and GUI/local gates"
+    ],
+    "limits": [
+      "No Memory phase2 shared Agent wiring in this prerequisite.",
+      "Desktop REA timeline evidence remains static-only; backend behavior follows Codex source."
+    ]
+  }
 }

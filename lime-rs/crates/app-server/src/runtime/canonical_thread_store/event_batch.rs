@@ -6,7 +6,7 @@ impl ProjectionStore {
         stored: &StoredSession,
         events: &[AgentEvent],
     ) -> Result<(), String> {
-        if events.is_empty() {
+        if events.is_empty() || super::super::session_is_ephemeral(&stored.session) {
             return Ok(());
         }
         let thread_id = ThreadId::new(stored.session.thread_id.clone());

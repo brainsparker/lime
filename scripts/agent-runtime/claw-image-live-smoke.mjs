@@ -261,6 +261,7 @@ async function run() {
       page,
       turnRef.sessionId,
       options.prompt,
+      summary.imageTask.payload?.turnId,
     );
 
     logStage("read-workflow-audit");
@@ -286,6 +287,10 @@ async function run() {
       usedRealElectron: summary.rendererSnapshot?.electron === true,
       usedCurrentAppServerBridge:
         summary.rendererSnapshot?.supportsAppServer === true,
+      canonicalTurnCompleted:
+        summary.sessionRead.hasThread === true &&
+        summary.sessionRead.turn?.id === summary.imageTask.payload?.turnId &&
+        summary.sessionRead.turn?.status === "completed",
       singleTurnStartTrace: summary.turnStartTraceCount === 1,
       guiPromptVisible: summary.guiTerminal.userMessageVisible === true,
       guiPromptNotDuplicated:

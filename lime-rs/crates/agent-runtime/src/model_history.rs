@@ -15,15 +15,31 @@ pub const MODEL_HISTORY_EVENT_TYPE: &str = "provider.model_history";
 pub struct HistoryReceipt {
     event_id: String,
     sequence: u64,
+    durable: bool,
 }
 
 impl HistoryReceipt {
     pub fn new(event_id: impl Into<String>, sequence: u64) -> Result<Self, String> {
         let event_id = event_id.into();
         if event_id.trim().is_empty() || sequence == 0 {
-            return Err("model history receipt omitted durable record identity".to_string());
+            return Err("model history receipt omitted record identity".to_string());
         }
-        Ok(Self { event_id, sequence })
+        Ok(Self {
+            event_id,
+            sequence,
+            durable: true,
+        })
+    }
+
+    /// Ephemeral sessions acknowledge the actual in-memory record, without claiming durability.
+    pub fn in_memory(event_id: impl Into<String>, sequence: u64) -> Result<Self, String> {
+        let mut receipt = Self::new(event_id, sequence)?;
+        receipt.durable = false;
+        Ok(receipt)
+    }
+
+    pub fn is_durable(&self) -> bool {
+        self.durable
     }
 
     pub fn event_id(&self) -> &str {

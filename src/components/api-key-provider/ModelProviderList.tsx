@@ -41,7 +41,7 @@ export const ModelProviderList: React.FC<ModelProviderListProps> = ({
   return (
     <aside
       className={cn(
-        "flex h-full min-h-0 w-[320px] flex-col overflow-hidden border-r border-slate-200/80 bg-[#fbfaf7]",
+        "flex h-full min-h-0 w-[clamp(220px,26%,320px)] flex-col overflow-hidden border-r border-slate-200/80 bg-[#fbfaf7]",
         className,
       )}
       data-testid="enabled-model-list"
@@ -119,7 +119,7 @@ export const ModelProviderList: React.FC<ModelProviderListProps> = ({
                         {title}
                       </span>
                       {item.isDefault ? (
-                        <Badge className="border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[11px] text-emerald-700 hover:bg-emerald-50">
+                        <Badge className="shrink-0 whitespace-nowrap border border-emerald-200 bg-emerald-50 px-1.5 py-0 text-[11px] text-emerald-700 hover:bg-emerald-50">
                           {t(
                             "settings.providers.modelList.badge.default",
                             "默认",

@@ -76,19 +76,28 @@ function collectStringMatches(value, patterns) {
   return Array.from(matches).slice(0, 20);
 }
 
-async function readSessionDiagnostics(page, sessionId, prompt) {
+async function readSessionDiagnostics(page, sessionId, prompt, turnId) {
   if (!sessionId) {
     return null;
   }
   const read = await invokeAppServerFromPage(
     page,
     APP_SERVER_METHOD_SESSION_READ,
-    { sessionId, historyLimit: 100 },
+    { threadId: sessionId, includeTurns: true },
     null,
   );
   const serialized = JSON.stringify(read.result ?? {});
+  const thread = read.result?.thread;
+  const turn = thread?.turns?.find((entry) => entry.id === turnId);
   return sanitizeJson({
-    hasDetail: Boolean(read.result?.detail),
+    hasThread: thread?.id === sessionId,
+    turn: turn
+      ? {
+          id: turn.id,
+          status: turn.status,
+          itemTypes: turn.items.map((item) => item.type),
+        }
+      : null,
     includesPrompt: prompt ? serialized.includes(prompt) : false,
     includesImageTaskCreateFailed: serialized.includes(
       "image_task.create_failed",
@@ -371,7 +380,12 @@ export async function readWorkflowAudit(page, sessionId, turnId, taskId) {
   });
 }
 
-export async function readSessionSummary(page, sessionId, prompt) {
-  const diagnostics = await readSessionDiagnostics(page, sessionId, prompt);
+export async function readSessionSummary(page, sessionId, prompt, turnId) {
+  const diagnostics = await readSessionDiagnostics(
+    page,
+    sessionId,
+    prompt,
+    turnId,
+  );
   return sanitizeJson(diagnostics);
 }

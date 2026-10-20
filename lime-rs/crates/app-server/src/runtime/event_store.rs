@@ -161,6 +161,15 @@ fn append_runtime_events_to_stored_session(
     message_lifecycle: Option<&mut CanonicalMessageLifecycleState>,
     terminal_turn_policy: TerminalTurnAppendPolicy,
 ) -> Result<Vec<AgentEvent>, RuntimeCoreError> {
+    // Ephemeral internal sessions still use the canonical in-memory state machine, but their
+    // rollout/event/projection stores must remain untouched. Centralizing this guard covers
+    // normal turns, command publishers, cancellation, and external event appenders.
+    let ephemeral = session_is_ephemeral(&stored.session);
+    let (event_log_writer, trace_event_writer, projection_store) = if ephemeral {
+        (None, None, None)
+    } else {
+        (event_log_writer, trace_event_writer, projection_store)
+    };
     if terminal_turn_policy == TerminalTurnAppendPolicy::Reject && is_terminal_turn(stored, turn_id)
     {
         return Ok(Vec::new());
@@ -168,7 +177,7 @@ fn append_runtime_events_to_stored_session(
     let runtime_events = deduplicate_mailbox_runtime_events(stored, runtime_events);
     let mut runtime_events = runtime_events_with_turn_input(stored, turn_id, runtime_events);
     for event in &mut runtime_events {
-        if turn_input_events::runtime_event_is_provider_input(event) {
+        if !ephemeral && turn_input_events::runtime_event_is_provider_input(event) {
             super::input_media::attach_input_media_output_refs(
                 &mut event.payload,
                 sidecar_store,
@@ -302,7 +311,7 @@ fn append_runtime_events_to_stored_session(
         if let Some(trace_context) = trace_context.as_ref() {
             trace::attach_agent_event_trace(&mut event, trace_context);
         }
-        if !text_delta_event {
+        if !ephemeral && !text_delta_event {
             crate::file_checkpoint_snapshot::persist_runtime_file_checkpoint_snapshot(
                 &mut event,
                 session_id,
@@ -338,8 +347,11 @@ fn append_runtime_events_to_stored_session(
             .map_err(RuntimeCoreError::Backend)?;
         if let Some(output_blob) = normalized.output_blob {
             let output = output_refs::record_output_blob(&event, output_blob);
-            let output =
-                output_refs::persist_output_record(output, session_id, output_snapshot_store)?;
+            let output = if ephemeral {
+                output
+            } else {
+                output_refs::persist_output_record(output, session_id, output_snapshot_store)?
+            };
             output_refs::attach_output_snapshot_ref(&mut event.payload, &output);
             output_records.push(output);
         }

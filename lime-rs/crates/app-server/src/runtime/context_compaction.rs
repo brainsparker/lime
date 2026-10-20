@@ -203,7 +203,9 @@ pub(crate) fn build_session_context_compaction(
             "artifactScope": "session"
         }
     });
-    let sidecar_ref = if let Some(sidecar_store) = sidecar_store {
+    let sidecar_ref = if let Some(sidecar_store) =
+        sidecar_store.filter(|_| !super::session_is_ephemeral(session))
+    {
         let content = serde_json::to_string_pretty(&artifact).map_err(|error| {
             RuntimeCoreError::Backend(format!("failed to encode compaction artifact: {error}"))
         })?;

@@ -89,6 +89,9 @@ impl RuntimeCore {
                 "threadId is required to check direct-input policy".to_string(),
             ));
         }
+        if let Some(thread) = self.loaded_ephemeral_thread(thread_id) {
+            return Ok(thread.parent_thread_id.is_none());
+        }
         let thread = self
             .canonical_thread_store()?
             .read_thread(ReadThreadParams {
@@ -358,6 +361,14 @@ impl RuntimeCore {
         &self,
         params: ThreadReadParams,
     ) -> Result<ThreadReadResponse, RuntimeCoreError> {
+        if let Some(thread) = self.loaded_ephemeral_thread(params.thread_id.as_str()) {
+            if params.turns_view != agent_protocol::ThreadTurnsView::NotLoaded {
+                return Err(RuntimeCoreError::InvalidRequest(
+                    "ephemeral threads do not support includeTurns".to_string(),
+                ));
+            }
+            return Ok(ThreadReadResponse { thread });
+        }
         let store = self.canonical_thread_store()?;
         let thread_id = params.thread_id.clone();
         let turns_view = params.turns_view;

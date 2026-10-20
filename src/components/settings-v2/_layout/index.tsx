@@ -69,12 +69,12 @@ const ContentContainer = styled.main`
   }
 `;
 
-const ContentWrapper = styled.div`
+const ContentWrapper = styled.div<{ $wide?: boolean }>`
   display: flex;
   flex-direction: column;
   width: 100%;
   min-width: min(100%, 320px);
-  max-width: 48rem;
+  max-width: ${({ $wide }) => ($wide ? "none" : "48rem")};
   margin-inline: auto;
 `;
 
@@ -253,6 +253,7 @@ export function SettingsPage({
             data-testid="settings-content"
           >
             <ContentWrapper
+              $wide={activeTab === SettingsTabs.Providers}
               key={`${activeTab}:${pageParams.searchFocus?.requestKey ?? ""}`}
             >
               {renderSettingsContent(

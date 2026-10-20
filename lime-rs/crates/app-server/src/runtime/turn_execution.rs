@@ -40,6 +40,7 @@ use uuid::Uuid;
 mod cancellation;
 mod input_commit;
 mod model_history;
+mod persistence;
 
 #[derive(Default)]
 pub(in crate::runtime) struct CollectingRuntimeEventSink {
@@ -683,7 +684,7 @@ impl RuntimeEventSink for AppendingRuntimeEventSink<'_> {
                 } else {
                     self.review_output.trim().to_string()
                 };
-                self.emit_durable(review_boundary_event(
+                self.emit_recorded(review_boundary_event(
                     "item.completed",
                     "exitedReviewMode",
                     &self.session_id,
@@ -703,23 +704,8 @@ impl RuntimeEventSink for AppendingRuntimeEventSink<'_> {
             }
             _ => None,
         };
-        self.emit_durable(event)?;
-        if let (Some(trace_event_writer), Some(status)) =
-            (self.trace_event_writer.as_ref(), code_cell_terminal_status)
-        {
-            if let Err(error) = trace_event_writer.close_code_cells_for_turn(
-                &self.session_id,
-                &self.thread_id,
-                &self.turn_id,
-                status,
-            ) {
-                tracing::warn!(
-                    "[trace-event-store] failed to close CodeCells for turn {}: {}",
-                    self.turn_id,
-                    error
-                );
-            }
-        }
+        self.emit_recorded(event)?;
+        self.close_code_cell_traces(code_cell_terminal_status)?;
         Ok(())
     }
 
@@ -727,6 +713,9 @@ impl RuntimeEventSink for AppendingRuntimeEventSink<'_> {
         &mut self,
         event: tool_runtime::tool_lifecycle::CodeCellTraceEvent,
     ) -> Result<(), RuntimeCoreError> {
+        if self.is_ephemeral()? {
+            return Ok(());
+        }
         let Some(trace_event_writer) = self.trace_event_writer.as_ref() else {
             return Ok(());
         };
@@ -794,7 +783,7 @@ impl RuntimeEventSink for AppendingRuntimeEventSink<'_> {
 }
 
 impl AppendingRuntimeEventSink<'_> {
-    fn emit_durable(&mut self, event: RuntimeEvent) -> Result<(), RuntimeCoreError> {
+    fn emit_recorded(&mut self, event: RuntimeEvent) -> Result<(), RuntimeCoreError> {
         let mut next_message_lifecycle = self.message_lifecycle.clone();
         let mut events = append_runtime_events_to_state_with_message_lifecycle(
             &self.state,
@@ -1263,7 +1252,8 @@ impl RuntimeCore {
             .await?;
         validate_user_input(&params.input).map_err(RuntimeCoreError::InvalidRequest)?;
 
-        let thread_id = self.session_snapshot(&params.session_id)?.0.thread_id;
+        let session_snapshot = self.session_snapshot(&params.session_id)?.0;
+        let thread_id = session_snapshot.thread_id.clone();
         let root_thread_id = self
             .projection_store
             .as_deref()
@@ -1333,12 +1323,7 @@ impl RuntimeCore {
             self.ensure_capability_allowed_with_context(&capability_context, capability_id)?;
         }
 
-        let prepared_input = super::input_media::prepare_runtime_input(
-            params.input,
-            self.sidecar_store.as_deref(),
-            &params.session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
+        let prepared_input = self.prepare_session_input(&session_snapshot, params.input)?;
         params.input = prepared_input.durable;
 
         let queued_turn = {
@@ -2524,7 +2509,11 @@ impl RuntimeCore {
             self.finish_turn_interrupt(&session, &turn_snapshot, host)
                 .await?,
         );
-        if let Some(event_log_writer) = self.event_log_writer.as_deref() {
+        if let Some(event_log_writer) = self
+            .event_log_writer
+            .as_deref()
+            .filter(|_| !session_is_ephemeral(&session))
+        {
             let workflow_audit_records = event_log_writer
                 .read_session_workflow_audit_events(&session.session_id)
                 .map_err(RuntimeCoreError::Backend)?;
@@ -2820,7 +2809,9 @@ impl RuntimeCore {
         precommitted_events.append(&mut events);
         let events = precommitted_events;
         append_workflow_audit_runtime_events(
-            self.event_log_writer.as_deref(),
+            self.event_log_writer
+                .as_deref()
+                .filter(|_| !session_is_ephemeral(&session)),
             &session.session_id,
             &session.thread_id,
             turn_snapshot.as_ref().map(|turn| turn.turn_id.as_str()),

@@ -884,7 +884,7 @@ describe("agentSessionState runtimeSync detail refresh", () => {
     expect(result.snapshot.currentTurnId).toBe(turnId);
   });
 
-  it("terminal detail 只有 completed partial 时应消费本地停止绑定并保留已停止终态", () => {
+  it("terminal detail 只有 completed partial 时仅消费同一 canonical Turn 的本地停止绑定", () => {
     const topicId = "topic-runtime-sync-local-interrupted-binding";
     const turnId = "turn-runtime-sync-local-interrupted-binding";
     const promptText = "整理今天的国际新闻";
@@ -894,6 +894,7 @@ describe("agentSessionState runtimeSync detail refresh", () => {
       assistantMsgId: "local-interrupted-assistant",
       eventName: "agent_stream_local-interrupted-binding",
       sessionId: topicId,
+      turnId,
     });
 
     const detail = {

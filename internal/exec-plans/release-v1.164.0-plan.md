@@ -4,6 +4,12 @@
 
 ## 最新候选收口（2026-10-20）
 
+- `90bb735978dedc3c85fca9901c5ea6c4c2638ad7` 的 Quality `39373078331` 六项全部 success。后继设置布局、Agnes live helper、问答跨 Turn 绑定与 Memory ephemeral 生命周期进入新候选，不能沿用该旧提交的完整通过声明。
+- 设置页截图问题已在原 owner 修复并在真实 Electron 三宽度复验；Agnes 3.0 Flash 聊天与 2.5 Flash 图片在同一 canonical Thread/Turn 上完成，任务/workflow/JSONL 审计通过，收据见 Agnes 计划和同名 JSON。Main 15s 正常退出仍 fail，保留独立 lifecycle 缺口。
+- 新候选完整 typecheck、contracts、版本检查 exit0；provider current_client 177/177、Agnes registry 8/8、设置与构建回归 128项通过；live helper 7/7、模型列表3/3。runtime 全组 877/878，单个并发身份删除夹具隔离通过；完整聚合不能记绿。后继 Memory 字节还须取其定向终态。
+- Git 忽略规则按现有精确白名单登记 Agnes 计划/收据及问答原始红绿记录，不绕过 docs boundary。只排除构建缓存；产品、测试、脚本与记录继续全部纳入。
+
+
 - `249a9c878a63151e01faa10dba0d1bca0069cc6b` 已推送 main；Quality `39367836958` 的 Integrity、GUI Smoke 与 Windows Shell Runtime 通过。Frontend Full 失败追加定位到 WindowsSandboxReadinessStatus 测试将 navigator 恢复为写死的 Mac，污染 NotionEditor Ctrl+S；已改为恢复原始属性，固定顺序 4 文件 14/14 通过。Rust Full 失败为 Memory read 相对路径 `MEMORY.md` 未产生引用 metadata；在 tool-runtime 路径分类 owner 修复，定向验证等待共享 Cargo 锁。
 - 用户追加要求 Agnes 模型选择、聊天、图片全部跑通，允许 computer use。安装版 Agnes 2.5 Pro 返回 503，最小请求证实该账户为 model_not_found；2.5 Flash 真实 GUI 已回复 OK 且 canonical turn.completed。3.0 与图片缺权威 capability，修复和完整 live 验证在 [Agnes 恢复计划](agnes-model-recovery-20261020.md) 跟踪，直接接口成功不冒充 GUI 完成。
 - 后继 Memory 精确快照/token、事件 drain 当前订阅与 restored-turn presentation listener 修复全部纳入；不覆盖其并行写集，最终发布以最后验证候选为准。

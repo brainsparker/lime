@@ -1124,6 +1124,12 @@ recent replay 的完成登记仍属于请求该 replay 的订阅，不转移给�
 原事件处理器清理 stream 与监听，线程切换/卸载仍走原 scope 清理。root 于 2026-10-20 确认
 本段为现有恢复 owner 的生命周期修正，非新的订阅或 runtime。
 
+本地发送/Stop 绑定记录只接受真实 canonical Turn ID，并按 session/turn 精确匹配。
+前一 Turn 的记录不得阻止同线程后续 Turn 订阅，也不得在历史恢复时被后续 Turn 消费。
+缺少 Turn ID 或只有 optimistic ID 时不生成线程级通配记录；当前 active stream/listener
+继续由同一个 controller 持有。root 于 2026-10-20 确认：删除线程通配阻断与消费路径，
+不添加回答前刷新、宽限时间或第二个恢复入口。红绿回归及新产物结果见问答执行计划。
+
 `PendingInteractionController` 是 reverse request 的唯一前端 pending owner；
 `PendingInteractionLayer` 选择当前线程的 canonical 请求，`DecisionPanel` 只把
 `ask_user` 委托 `RequestUserInputPanel`。问答面板只拥有逐题选择、草稿、焦点和提交锁，
@@ -5817,6 +5823,20 @@ flowchart LR
 Memory 的 phase-2 业务 owner 是 `App Server -> RuntimeBackend -> LocalMemoryBackend -> memory_state.sqlite`。RuntimeCore 只解析当前 eligible root session 的 provider route；provider-backed consolidation harness 只接收 durable stage-1 snapshot，输出由 `stage_two_output` 严格解析，LocalMemoryBackend 负责 source identity、大小、symlink、archive/review、selected-source watermark 和 audit。所有 entry 必须先完整校验，确认 unknown/duplicate/missing/symlink/oversized/provider failure 不会产生部分 archive 或 review 写入后，才执行文件移动和状态提交。`memory/status` 只读取状态表的 consolidation count/readiness，不能由摘要文件、索引或 GUI projection 伪造。accept 写入 `extensions/ad_hoc/processed` 或 `rollout_summaries/processed`，review 写入 `extensions/ad_hoc/review` 并保留 durable review 状态；lease heartbeat 丢失时拒绝提交。此链路保留 Lime 的多模型、多协议 route，但 route/capability/readiness 只能来自当前 provider 控制面，不能把 grok-build 的 catalog 当作 Codex Memory runtime。
 
 当前 phase-2 的 `MemoryStageTwoProvider::sample` 仍复用 `run_direct_text_generation_with_db`，尚未像 Codex `memories/write/src/phase2.rs` 启动受限 consolidation agent。它不能证明 MemoryConsolidation typed Stop target 已接入生产 Memory 调度；此链路属于未完成的 M01 harness 对齐，下一片必须复用既有共享 Agent runtime，并保留 Lime 多模型 route/capability 边界。
+
+共享 ephemeral 会话由原 `RuntimeCore.state` / session actor 承接，不能克隆一个移除 writer 的 Core 冒充隔离。`start_session` 跳过 canonical 创建，`event_store::append_runtime_events_to_stored_session` 在真实会话标记上统一关闭 EventLog、trace、projection、checkpoint、artifact/media sidecar 和 output snapshot 写入；canonical store 的创建/修复入口也拒绝为该会话建立持久历史。CodeCell 独立 trace 和 workflow cancel/resume audit 同样受会话策略约束。输入媒体在 start/steer/queue 与 provider history 重建时保留经校验的内存数据；模型切换仍经现有 metadata actor 和 route preflight，ephemeral 只跳过持久提交。ModelHistoryRecorder 保留原 event identity/order，`HistoryReceipt::in_memory` 明确不承诺落盘，普通会话仍要求真实 EventLog owner。
+
+```text
+thread/start(ephemeral) -> same RuntimeCore state / session actor / ExecutionBackend
+  -> same Thread/Turn/Item materializer + ordered in-memory model history
+  -> central session storage policy -> no rollout/projection/trace/sidecar writes
+thread/read -> loaded metadata only; includeTurns and history pagination reject
+same shutdown owner -> cancel/drain/close -> remove loaded session -> no cold recovery
+```
+
+Context compaction artifact 与 Memory summary prompt sidecar 的写入发生在事件提交前，由 `context_compaction` / `memory_prompt` 各自检查同一会话标记，保留内存 context/window 而跳过 sidecar。
+
+架构图确认：root，2026-10-20；对照 Codex `core/src/session/session.rs` 与 App Server `load_live_thread_view`，唯一 runtime、provider、工具和存储 owner 不变。此为受限 Memory Agent 的存储前提，尚不证明 phase-2 Agent、工具隔离或 Memory workspace 对齐；验证终态记录到 Memory harness 执行计划。
 
 Agent Loop 的 Stop owner 是 `agent-runtime::provider_turn::stop_hooks`，Hook source/reporter 仍由 App Server/Agent host 提供。每个 sampling step 捕获一次 immutable `RuntimeHookStepSnapshot`，同一快照用于工具 gate 和 terminal Stop evaluation；终态检查发生在工具 continuation、pending input 与 provider completion 收敛之后。Block 构造成同一 Turn 的 user-role `HookPrompt`，先经既有双层 ordered `ModelHistoryRecorder` 等待真实 EventLog `event_id/sequence` 回执，再发出 `item.started`/`item.completed`、追加 provider user message、原子重开当前 Turn 的 steer/mailbox 边界，置 `stop_hook_active` 继续采样。缺 recorder 或 durable append 失败均不发布 HookPrompt、不继续采样或切换路由；fragment identity 必须全部有效，不可静默丢弃部分 prompt。记录保持 provider-neutral user text，不接受 native envelope、producer 或 tool budget。
 

@@ -1,5 +1,81 @@
 import fs from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { readSessionSummary } from "./claw-image-live-smoke-audit.mjs";
+import { extractSessionAndTurn } from "./claw-image-live-smoke-gui.mjs";
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe("live image canonical identity", () => {
+  it("does not treat a JSON-RPC request ID as a Turn ID", () => {
+    const identity = extractSessionAndTurn({
+      afterClick: {
+        matchingTurnStartTrace: { id: "request-1", threadId: "thread-1" },
+      },
+    });
+    expect(identity.sessionId).toBe("thread-1");
+    expect(identity.turnId).toBe("");
+  });
+
+  it("reads the canonical Thread and requires the actual media Turn identity", async () => {
+    const requests = [];
+    vi.stubGlobal("window", {
+      electronAPI: {
+        invoke: async (command, { request }) => {
+          const message = JSON.parse(request.lines[0]);
+          requests.push({
+            command,
+            method: message.method,
+            params: message.params,
+          });
+          return {
+            lines: [
+              JSON.stringify({
+                jsonrpc: "2.0",
+                id: message.id,
+                result: {
+                  thread: {
+                    id: "thread-1",
+                    turns: [
+                      { id: "turn-old", status: "completed", items: [] },
+                      {
+                        id: "turn-image",
+                        status: "completed",
+                        items: [{ type: "dynamicToolCall" }],
+                      },
+                    ],
+                  },
+                },
+              }),
+            ],
+          };
+        },
+      },
+    });
+    const page = { evaluate: (evaluate, args) => evaluate(args) };
+    const summary = await readSessionSummary(
+      page,
+      "thread-1",
+      "",
+      "turn-image",
+    );
+    expect(requests).toEqual([
+      {
+        command: "app_server_handle_json_lines",
+        method: "thread/read",
+        params: { threadId: "thread-1", includeTurns: true },
+      },
+    ]);
+    expect(summary.hasThread).toBe(true);
+    expect(summary.turn).toEqual({
+      id: "turn-image",
+      status: "completed",
+      itemTypes: ["dynamicToolCall"],
+    });
+    expect(
+      (await readSessionSummary(page, "thread-1", "", "turn-missing")).turn,
+    ).toBeNull();
+  });
+});
 
 const liveSmokeFiles = [
   "scripts/agent-runtime/claw-image-live-smoke.mjs",

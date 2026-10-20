@@ -44,9 +44,12 @@ impl AppendingRuntimeEventSink<'_> {
         &mut self,
         record: ModelHistoryRecord,
     ) -> Result<HistoryReceipt, RuntimeCoreError> {
-        let event_log_writer = self.event_log_writer.as_deref().ok_or_else(|| {
-            RuntimeCoreError::Backend("model tool history requires an EventLog writer".to_string())
-        })?;
+        let ephemeral = self.is_ephemeral()?;
+        if !ephemeral && self.event_log_writer.is_none() {
+            return Err(RuntimeCoreError::Backend(
+                "model tool history requires an EventLog writer".to_string(),
+            ));
+        }
         record
             .clone()
             .into_message()
@@ -60,7 +63,7 @@ impl AppendingRuntimeEventSink<'_> {
             self.file_checkpoint_snapshot_store.as_ref(),
             self.output_snapshot_store.as_ref(),
             self.sidecar_store.as_deref(),
-            Some(event_log_writer),
+            self.event_log_writer.as_deref(),
             self.trace_event_writer.as_deref(),
             self.projection_store.as_deref(),
             Some(&self.session_loops),
@@ -74,8 +77,12 @@ impl AppendingRuntimeEventSink<'_> {
                 "model tool history append did not commit exactly one record".to_string(),
             ));
         };
-        HistoryReceipt::new(event.event_id.clone(), event.sequence)
-            .map_err(RuntimeCoreError::Backend)
+        let receipt = if ephemeral {
+            HistoryReceipt::in_memory
+        } else {
+            HistoryReceipt::new
+        };
+        receipt(event.event_id.clone(), event.sequence).map_err(RuntimeCoreError::Backend)
     }
 }
 

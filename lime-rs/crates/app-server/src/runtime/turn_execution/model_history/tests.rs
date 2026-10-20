@@ -115,6 +115,100 @@ fn history_append_without_event_log_cannot_return_a_durable_receipt() {
     );
 }
 
+#[test]
+fn ephemeral_history_receipt_identifies_a_real_memory_record_without_claiming_durability() {
+    let (_temp, mut sink) = fixture(AgentTurnStatus::Running);
+    {
+        let mut state = sink.state.lock().unwrap();
+        state
+            .sessions
+            .get_mut("history-session")
+            .unwrap()
+            .session
+            .business_object_ref = Some(BusinessObjectRef {
+            kind: "agent.thread".to_string(),
+            id: "history-thread".to_string(),
+            title: None,
+            uri: None,
+            metadata: Some(json!({"ephemeral":true})),
+        });
+    }
+    let writer = sink.event_log_writer.clone().unwrap();
+    let receipt = sink.persist_model_history(call_record()).unwrap();
+    assert!(!receipt.is_durable());
+    let state = sink.state.lock().unwrap();
+    let event = state.sessions["history-session"].events.last().unwrap();
+    assert_eq!(receipt.event_id(), event.event_id);
+    assert_eq!(receipt.sequence(), event.sequence);
+    assert!(writer
+        .read_session_events("history-session")
+        .unwrap()
+        .is_empty());
+    drop(state);
+    sink.event_log_writer = None;
+    let second = sink.persist_model_history(call_record()).unwrap();
+    assert!(!second.is_durable());
+    assert!(second.sequence() > receipt.sequence());
+}
+
+#[test]
+fn ephemeral_code_cell_trace_and_terminal_cleanup_do_not_touch_the_trace_store() {
+    use tool_runtime::tool_lifecycle::CodeCellTraceEvent;
+    let (temp, mut sink) = fixture(AgentTurnStatus::Running);
+    let writer = Arc::new(TraceEventWriter::new(temp.path().join("traces")).unwrap());
+    let started = |cell: &str| CodeCellTraceEvent::Started {
+        turn_id: "history-turn".to_string(),
+        runtime_cell_id: cell.to_string(),
+        model_visible_call_id: cell.to_string(),
+        source_js: "private source".to_string(),
+    };
+    writer
+        .append_code_cell_trace_event(
+            "history-session",
+            "history-thread",
+            CodeCellTraceEvent::SourceItemObserved {
+                turn_id: "history-turn".to_string(),
+                model_visible_call_id: "existing".to_string(),
+                source_item_id: "source-existing".to_string(),
+            },
+        )
+        .unwrap();
+    writer
+        .append_code_cell_trace_event("history-session", "history-thread", started("existing"))
+        .unwrap();
+    let before = writer
+        .read_code_cell_trace("history-session", "history-thread")
+        .unwrap();
+    assert_eq!(before.code_cells.len(), 1);
+    sink.trace_event_writer = Some(writer.clone());
+    sink.state
+        .lock()
+        .unwrap()
+        .sessions
+        .get_mut("history-session")
+        .unwrap()
+        .session
+        .business_object_ref = Some(BusinessObjectRef {
+        kind: "agent.thread".to_string(),
+        id: "history-thread".to_string(),
+        title: None,
+        uri: None,
+        metadata: Some(json!({"ephemeral":true})),
+    });
+    sink.emit_code_cell_trace(started("ephemeral")).unwrap();
+    sink.emit(RuntimeEvent::new(
+        "turn.failed",
+        json!({"message":"test failure"}),
+    ))
+    .unwrap();
+    assert_eq!(
+        writer
+            .read_code_cell_trace("history-session", "history-thread")
+            .unwrap(),
+        before
+    );
+}
+
 #[tokio::test]
 async fn session_history_receipt_preserves_each_exact_event_log_identity() {
     let (_temp, mut sink) = fixture(AgentTurnStatus::Running);

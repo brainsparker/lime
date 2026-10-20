@@ -280,6 +280,54 @@ describe("Electron renderer entry assets", () => {
     }
   });
 
+  it.each([
+    [{ status: null, signal: "SIGINT" }, "signal=SIGINT"],
+    [{ status: null, signal: "SIGTERM" }, "signal=SIGTERM"],
+    [{ status: null }, "exit=unknown"],
+  ])(
+    "stops all later build steps after an interrupted result %j",
+    (result, reason) => {
+      const rootDir = rendererFixture(
+        '<script type="module" src="/assets/entry.js"></script>',
+      );
+      writeFile(
+        path.join(rootDir, "lime-rs", "crates", "app-server", "src", "lib.rs"),
+        "pub fn changed() {}",
+        new Date("2026-01-01T00:20:00.000Z"),
+      );
+      const envKey = electronFixtureBuildReadyEnv();
+      const previousEnv = process.env[envKey];
+      delete process.env[envKey];
+      const runCommand = vi
+        .fn()
+        .mockReturnValueOnce({ status: 0 })
+        .mockReturnValue(result);
+      vi.spyOn(console, "log").mockImplementation(() => {});
+      try {
+        expect(() =>
+          ensureElectronFixtureBuild({
+            rootDir,
+            logPrefix: "interrupted-build-test",
+            runCommand,
+          }),
+        ).toThrow(reason);
+        expect(runCommand.mock.calls.map(([step]) => step.args)).toEqual([
+          ["run", "verify:app-version"],
+          ["run", "build:renderer:electron:smoke"],
+        ]);
+        expect(process.env[envKey]).toBeUndefined();
+        expect(
+          fs.existsSync(
+            path.join(rootDir, ".lime", "electron-fixture-build.lock"),
+          ),
+        ).toBe(false);
+      } finally {
+        if (previousEnv === undefined) delete process.env[envKey];
+        else process.env[envKey] = previousEnv;
+      }
+    },
+  );
+
   it("preserves explicit app URL and trusted build-ready overrides", () => {
     const rootDir = rendererFixture(
       '<script type="module" src="/assets/entry.js"></script>',

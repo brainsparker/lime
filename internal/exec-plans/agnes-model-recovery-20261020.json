@@ -1,0 +1,497 @@
+{
+  "recordedAt": "2026-10-20T09:02:29Z",
+  "classification": "Desktop Gate B / live provider / source renderer",
+  "entry": "real Electron GUI -> preload/IPC -> App Server JSON-RPC -> runtime -> canonical Thread/Turn/Item and media task -> GUI",
+  "chat": {
+    "recordedAt": "2026-10-20T08:51:36.245Z",
+    "backendMode": "runtime",
+    "providerId": "custom-e3f01bab-6763-409b-af17-dc20a7ba7e10",
+    "textModel": "agnes-3.0-flash",
+    "imageModel": "agnes-image-2.5-flash",
+    "workspaceId": "0e7b3642-9125-46e9-a272-e6b39448a9b8",
+    "methods": [
+      "threadSection/list",
+      "thread/list"
+    ],
+    "readModels": [
+      {
+        "threadId": "01a15880-f62f-79c0-abaf-44fe3d8e40e0",
+        "turns": [
+          {
+            "turnId": "turn_7fdb42e697e34b49b885331f575804b0",
+            "status": "completed",
+            "itemTypes": [
+              "userMessage",
+              "agentMessage"
+            ]
+          }
+        ]
+      }
+    ],
+    "ui": {
+      "native": true,
+      "ipc": true,
+      "model": "CEagnes-3.0-flash",
+      "images": [],
+      "editorTextLength": 0
+    }
+  },
+  "image": {
+    "sameThreadId": "01a15880-f62f-79c0-abaf-44fe3d8e40e0",
+    "turnId": "turn_4a1843b748c64736b43887a0ff5a2707",
+    "taskId": "c035e4bd-72a2-4af1-bd70-7b8c67c7b989",
+    "assertions": {
+      "liveProviderAllowed": true,
+      "usedRealElectron": true,
+      "usedCurrentAppServerBridge": true,
+      "canonicalTurnCompleted": true,
+      "singleTurnStartTrace": true,
+      "guiPromptVisible": true,
+      "guiPromptNotDuplicated": true,
+      "guiReasoningVisible": true,
+      "guiAssistantTextVisible": true,
+      "guiImageCardVisible": true,
+      "guiImagePreviewLoaded": true,
+      "guiTokenVisible": true,
+      "guiRightSurfaceNotAutoOpen": true,
+      "guiInternalFieldsHidden": true,
+      "taskArtifactSucceeded": true,
+      "workflowReadProjected": true,
+      "workflowReadRedacted": true,
+      "taskAuditJsonlWritten": true,
+      "taskAuditJsonlSucceeded": true,
+      "taskAuditJsonlNoSensitiveTokens": true
+    },
+    "canonical": {
+      "hasThread": true,
+      "turn": {
+        "id": "turn_4a1843b748c64736b43887a0ff5a2707",
+        "status": "completed",
+        "itemTypes": [
+          "userMessage",
+          "reasoning",
+          "reasoning",
+          "agentMessage",
+          "dynamicToolCall"
+        ]
+      },
+      "includesPrompt": true,
+      "includesImageTaskCreateFailed": false,
+      "includesToolFailed": false,
+      "includesWorkflowKey": true,
+      "includesRawTaskPath": true,
+      "includesTemplateTaskId": false,
+      "reasonCodes": [],
+      "userVisibleErrors": []
+    },
+    "workflow": {
+      "sessionId": "01a15880-f62f-79c0-abaf-44fe3d8e40e0",
+      "turnId": "turn_4a1843b748c64736b43887a0ff5a2707",
+      "taskId": "c035e4bd-72a2-4af1-bd70-7b8c67c7b989",
+      "runCount": 1,
+      "stepCount": 5,
+      "expectedRunId": "image-command-run-turn_4a1843b748c64736b43887a0ff5a2707",
+      "matchedRun": {
+        "workflowRunId": "image-command-run-turn_4a1843b748c64736b43887a0ff5a2707",
+        "workflowKey": "image_command_workflow",
+        "status": "completed",
+        "taskId": "c035e4bd-72a2-4af1-bd70-7b8c67c7b989",
+        "turnId": "turn_4a1843b748c64736b43887a0ff5a2707"
+      },
+      "matchedStepIds": [
+        "create_tasks",
+        "generate",
+        "intent",
+        "persist_outputs",
+        "route"
+      ],
+      "containsPrompt": false,
+      "containsTaskPath": false,
+      "taskIdMatches": true
+    },
+    "imageDimensions": [
+      1024,
+      1024
+    ],
+    "taskAudit": {
+      "lineCount": 6,
+      "eventNames": [
+        "worker_loaded",
+        "task_queued",
+        "task_running",
+        "request_slot_started",
+        "request_slot_succeeded",
+        "task_succeeded"
+      ],
+      "hasNoSensitiveTokens": true
+    },
+    "recheck": "same actual GUI-submitted run; original legacy detector failure preserved in /tmp/lime-agnes-image-final-evidence.json"
+  },
+  "settingsLayouts": [
+    {
+      "viewport": {
+        "width": 1024,
+        "height": 875
+      },
+      "elements": {
+        "settings-content": {
+          "x": 340,
+          "y": 46,
+          "width": 684,
+          "height": 829,
+          "right": 1024,
+          "bottom": 875,
+          "scrollWidth": 684,
+          "clientWidth": 684
+        },
+        "api-key-provider-section": {
+          "x": 360,
+          "y": 114,
+          "width": 644,
+          "height": 595,
+          "right": 1004,
+          "bottom": 709,
+          "scrollWidth": 642,
+          "clientWidth": 642
+        },
+        "enabled-model-list": {
+          "x": 361,
+          "y": 115,
+          "width": 220,
+          "height": 593,
+          "right": 581,
+          "bottom": 708,
+          "scrollWidth": 219,
+          "clientWidth": 219
+        },
+        "api-key-provider-detail": {
+          "x": 581,
+          "y": 115,
+          "width": 422,
+          "height": 593,
+          "right": 1003,
+          "bottom": 708,
+          "scrollWidth": 422,
+          "clientWidth": 422
+        },
+        "provider-simple-card": {
+          "x": 605,
+          "y": 135,
+          "width": 374,
+          "height": 918,
+          "right": 979,
+          "bottom": 1053,
+          "scrollWidth": 372,
+          "clientWidth": 372
+        },
+        "provider-name": {
+          "x": 690,
+          "y": 160,
+          "width": 55.5859375,
+          "height": 28,
+          "right": 745.5859375,
+          "bottom": 188,
+          "scrollWidth": 56,
+          "clientWidth": 56
+        },
+        "provider-api-host-input": {
+          "x": 630,
+          "y": 318,
+          "width": 197.140625,
+          "height": 48,
+          "right": 827.140625,
+          "bottom": 366,
+          "scrollWidth": 232,
+          "clientWidth": 195
+        },
+        "provider-api-key-link": {
+          "x": 630,
+          "y": 228,
+          "width": 145.671875,
+          "height": 38,
+          "right": 775.671875,
+          "bottom": 266,
+          "scrollWidth": 144,
+          "clientWidth": 144
+        },
+        "provider-delete-button": {
+          "x": 783.671875,
+          "y": 229,
+          "width": 102,
+          "height": 36,
+          "right": 885.671875,
+          "bottom": 265,
+          "scrollWidth": 100,
+          "clientWidth": 100
+        },
+        "fetch-models-button": {
+          "x": 838,
+          "y": 502,
+          "width": 116,
+          "height": 36,
+          "right": 954,
+          "bottom": 538,
+          "scrollWidth": 114,
+          "clientWidth": 114
+        }
+      },
+      "header": {
+        "x": 630,
+        "y": 160,
+        "width": 324,
+        "height": 106,
+        "right": 954,
+        "bottom": 266,
+        "scrollWidth": 324,
+        "clientWidth": 324
+      }
+    },
+    {
+      "viewport": {
+        "width": 1440,
+        "height": 875
+      },
+      "elements": {
+        "settings-content": {
+          "x": 340,
+          "y": 46,
+          "width": 1100,
+          "height": 829,
+          "right": 1440,
+          "bottom": 875,
+          "scrollWidth": 1100,
+          "clientWidth": 1100
+        },
+        "api-key-provider-section": {
+          "x": 360,
+          "y": 114,
+          "width": 1060,
+          "height": 595,
+          "right": 1420,
+          "bottom": 709,
+          "scrollWidth": 1058,
+          "clientWidth": 1058
+        },
+        "enabled-model-list": {
+          "x": 361,
+          "y": 115,
+          "width": 275.078125,
+          "height": 593,
+          "right": 636.078125,
+          "bottom": 708,
+          "scrollWidth": 274,
+          "clientWidth": 274
+        },
+        "api-key-provider-detail": {
+          "x": 636.078125,
+          "y": 115,
+          "width": 782.921875,
+          "height": 593,
+          "right": 1419,
+          "bottom": 708,
+          "scrollWidth": 783,
+          "clientWidth": 783
+        },
+        "provider-simple-card": {
+          "x": 660.078125,
+          "y": 135,
+          "width": 734.921875,
+          "height": 848,
+          "right": 1395,
+          "bottom": 983,
+          "scrollWidth": 733,
+          "clientWidth": 733
+        },
+        "provider-name": {
+          "x": 745.078125,
+          "y": 160,
+          "width": 55.5859375,
+          "height": 28,
+          "right": 800.6640625,
+          "bottom": 188,
+          "scrollWidth": 56,
+          "clientWidth": 56
+        },
+        "provider-api-host-input": {
+          "x": 685.078125,
+          "y": 264,
+          "width": 558.0625,
+          "height": 48,
+          "right": 1243.140625,
+          "bottom": 312,
+          "scrollWidth": 556,
+          "clientWidth": 556
+        },
+        "provider-api-key-link": {
+          "x": 1114.328125,
+          "y": 160,
+          "width": 145.671875,
+          "height": 38,
+          "right": 1260,
+          "bottom": 198,
+          "scrollWidth": 144,
+          "clientWidth": 144
+        },
+        "provider-delete-button": {
+          "x": 1268,
+          "y": 161,
+          "width": 102,
+          "height": 36,
+          "right": 1370,
+          "bottom": 197,
+          "scrollWidth": 100,
+          "clientWidth": 100
+        },
+        "fetch-models-button": {
+          "x": 1254,
+          "y": 440,
+          "width": 116,
+          "height": 36,
+          "right": 1370,
+          "bottom": 476,
+          "scrollWidth": 114,
+          "clientWidth": 114
+        }
+      },
+      "header": {
+        "x": 685.078125,
+        "y": 160,
+        "width": 684.921875,
+        "height": 52,
+        "right": 1370,
+        "bottom": 212,
+        "scrollWidth": 685,
+        "clientWidth": 685
+      }
+    },
+    {
+      "viewport": {
+        "width": 2048,
+        "height": 875
+      },
+      "elements": {
+        "settings-content": {
+          "x": 340,
+          "y": 46,
+          "width": 1708,
+          "height": 829,
+          "right": 2048,
+          "bottom": 875,
+          "scrollWidth": 1708,
+          "clientWidth": 1708
+        },
+        "api-key-provider-section": {
+          "x": 360,
+          "y": 114,
+          "width": 1668,
+          "height": 595,
+          "right": 2028,
+          "bottom": 709,
+          "scrollWidth": 1666,
+          "clientWidth": 1666
+        },
+        "enabled-model-list": {
+          "x": 361,
+          "y": 115,
+          "width": 320,
+          "height": 593,
+          "right": 681,
+          "bottom": 708,
+          "scrollWidth": 319,
+          "clientWidth": 319
+        },
+        "api-key-provider-detail": {
+          "x": 681,
+          "y": 115,
+          "width": 1346,
+          "height": 593,
+          "right": 2027,
+          "bottom": 708,
+          "scrollWidth": 1346,
+          "clientWidth": 1346
+        },
+        "provider-simple-card": {
+          "x": 944,
+          "y": 135,
+          "width": 820,
+          "height": 848,
+          "right": 1764,
+          "bottom": 983,
+          "scrollWidth": 818,
+          "clientWidth": 818
+        },
+        "provider-name": {
+          "x": 1029,
+          "y": 160,
+          "width": 55.5859375,
+          "height": 28,
+          "right": 1084.5859375,
+          "bottom": 188,
+          "scrollWidth": 56,
+          "clientWidth": 56
+        },
+        "provider-api-host-input": {
+          "x": 969,
+          "y": 264,
+          "width": 643.140625,
+          "height": 48,
+          "right": 1612.140625,
+          "bottom": 312,
+          "scrollWidth": 641,
+          "clientWidth": 641
+        },
+        "provider-api-key-link": {
+          "x": 1483.328125,
+          "y": 160,
+          "width": 145.671875,
+          "height": 38,
+          "right": 1629,
+          "bottom": 198,
+          "scrollWidth": 144,
+          "clientWidth": 144
+        },
+        "provider-delete-button": {
+          "x": 1637,
+          "y": 161,
+          "width": 102,
+          "height": 36,
+          "right": 1739,
+          "bottom": 197,
+          "scrollWidth": 100,
+          "clientWidth": 100
+        },
+        "fetch-models-button": {
+          "x": 1623,
+          "y": 440,
+          "width": 116,
+          "height": 36,
+          "right": 1739,
+          "bottom": 476,
+          "scrollWidth": 114,
+          "clientWidth": 114
+        }
+      },
+      "header": {
+        "x": 969,
+        "y": 160,
+        "width": 770,
+        "height": 52,
+        "right": 1739,
+        "bottom": 212,
+        "scrollWidth": 770,
+        "clientWidth": 770
+      }
+    }
+  ],
+  "lifecycle": {
+    "normalExit": false,
+    "budgetMs": 15000,
+    "forcedCleanup": "SIGKILL only this fixture Main after failed Gate",
+    "claimBoundary": "business and audit assertions passed; clean lifecycle is not passed"
+  },
+  "scopeLimitations": [
+    "Current-account direct text-model probes cover all configured newer Agnes text models; GUI live covers 3.0 Flash.",
+    "Current-account agnes-2.5-pro returns model_not_found; this is not evidence of global retirement.",
+    "Packaged and Windows/macOS Intel live-provider execution are not covered."
+  ]
+}

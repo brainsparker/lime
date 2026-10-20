@@ -30,13 +30,8 @@ impl RuntimeCore {
         )?;
         let session_id = self.ensure_queue_thread_hydrated(thread_id).await?;
         self.ensure_queue_capacity(&session_id)?;
-        let input = super::input_media::prepare_runtime_input(
-            input,
-            self.sidecar_store.as_deref(),
-            &session_id,
-        )
-        .map_err(RuntimeCoreError::InvalidRequest)?
-        .durable;
+        let session = self.session_snapshot(&session_id)?.0;
+        let input = self.prepare_session_input(&session, input)?.durable;
         let queued = {
             let mut state = self
                 .state
@@ -129,13 +124,8 @@ impl RuntimeCore {
                 .ok_or_else(|| RuntimeCoreError::SessionNotFound(session_id.clone()))?;
             require_queued_turn(stored, &queued_submission_id)?;
         }
-        let input = super::input_media::prepare_runtime_input(
-            input,
-            self.sidecar_store.as_deref(),
-            &session_id,
-        )
-        .map_err(RuntimeCoreError::InvalidRequest)?
-        .durable;
+        let session = self.session_snapshot(&session_id)?.0;
+        let input = self.prepare_session_input(&session, input)?.durable;
         let (previous_input, client_user_message_id) = {
             let mut state = self
                 .state

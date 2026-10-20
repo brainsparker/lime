@@ -97,11 +97,12 @@ pub(in crate::runtime) fn provider_turn_history_excluding_current_turn_input(
     messages.extend(
         messages_from_events_with_provider_input(&events, |input| {
             RuntimeReplyInput::try_from_user_parts(input, |media| {
-                super::input_media::resolve_runtime_input_media(
-                    media,
-                    sidecar_store,
-                    &stored.session.session_id,
-                )
+                let resolve = if super::session_is_ephemeral(&stored.session) {
+                    super::input_media::resolve_ephemeral_input_media
+                } else {
+                    super::input_media::resolve_runtime_input_media
+                };
+                resolve(media, sidecar_store, &stored.session.session_id)
             })
             .map_err(|error| error.to_string())
         })

@@ -458,7 +458,7 @@ export const ApiKeyProviderSection = forwardRef<
 
             {/* 右侧：Provider 设置面板 / 添加模型流程 */}
             <div
-              className="relative min-h-0 flex-1 overflow-hidden bg-white"
+              className="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-white"
               data-testid="api-key-provider-detail"
             >
               {showAddModelFlow ? (

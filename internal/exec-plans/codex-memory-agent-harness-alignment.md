@@ -75,3 +75,17 @@ budget:normal；P1。输入为已 claim 的 durable stage1 selection + root sess
 源码摘要、直接 Codex 引用和 Lime 来源身份适配边界见 `snapshot-source-freeze.json`。Lime 现阶段来源仍是 filesystem `scope_key + source_path`，以 source_updated_at 和 content_hash 限定版本；完整 Codex Thread 来源生命周期、workspace baseline 和共享 Agent 都继续开放。窄切片四项退出条件是精确选中提交、来源登记与 retry、独立提取 ownership、旧入口清理；最终定向验证终态收齐后才核销。
 
 下一刀的存储拦截点必须覆盖 `event_store::append_runtime_events_to_stored_session` 与 `RuntimeCoreEventAppender`：它们还会被 command publisher、cancel/shutdown 和外部事件入口调用。不能仅在 Memory 的 start-turn 调用处关闭 writer，或克隆一个移除 projection store 的 Core 视图，就宣称会话无持久化；原 Core 的关闭入口仍可能写入。此为沿当前调用链的源码限制，尚未实现或取得 ephemeral 运行证据。
+
+### 续接：共享 ephemeral 生命周期
+
+前一步最终定向测试已经结束，`memory-snapshot-final-tests.log` 为 **39/39 通过**；仅核销精确快照子步骤。
+
+本轮 root 认领 `runtime.rs`、`runtime/{session_lifecycle,event_store,load_context,thread_read,canonical_thread_store,turn_execution}.rs` 中 ephemeral 补丁点、其相关子模块和独立回归，以及本计划、architecture 和验证账本。避让前端、Electron fixture、model-provider 和 async-user-input 计划中的并行改动；不格式化整个 workspace。
+
+Codex `app-server/src/request_processors/thread_processor.rs::load_live_thread_view` 在 loaded ephemeral 上允许 metadata read，拒绝 includeTurns；`thread_turns_list_history_items` 拒绝 ephemeral 历史分页；loaded/list 读取实际 thread manager。Lime 复用原 RuntimeCore state 和 canonical metadata builder，不创建第二存储或降级 backend。退出条件是 public thread/start/read 可用、turn 仍经过共享 runtime、事件/trace/sidecar/checkpoint/output/history 均不落盘、关闭后无法恢复。该前提通过后才继续接受限 Memory Agent，不能以 ephemeral 单项宣称 phase-2 已替换。
+
+沿真实调用追加的同一写集：`runtime/input_media.rs`、`provider_history.rs`、`thread_queue.rs`、`projection_store/session_settings.rs`、`canonical_thread_store/event_batch.rs`、`turn_execution/{input_commit,model_history,persistence}.rs`、独立测试及 `tests/tool_history_receipt_jsonrpc.rs`；`agent-runtime/src/model_history.rs` 只区分真实内存回执与 durable 回执。start、steer、queue 和后续历史恢复共同使用会话级媒体策略，防止首轮不写、第二轮重建 provider history 时又写 sidecar。model switch 仍走原 session metadata actor + provider preflight，只在唯一 metadata store owner 跳过 ephemeral 的持久提交。没有新增 RPC、schema、配置或依赖。
+
+最终 IO 复核补到 `context_compaction.rs` 与 `memory_prompt.rs`：同回合自动 compact 的 artifact 和 Memory summary prompt sidecar 在事件提交之前写入，不能靠 central event guard 阻止。这两个现役 owner 已按真实 session 标记保留内存上下文而跳过 sidecar，补对应回归。独立生命周期测试位于 `runtime/ephemeral/tests/mod.rs`，不新增治理白名单。
+
+`turn_execution.rs` 已超过 1000 行，本轮只替换接线；CodeCell trace 的独立持久化判定迁入 `turn_execution/persistence.rs`，不继续在主文件堆叠业务。退出条件是本轮 diff 净减主文件逻辑，后续 Memory runner 放独立模块。直接 phase-2 sampling 尚未删除，工具/扩展/sandbox 隔离尚未接入；全目标继续 active。

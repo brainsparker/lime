@@ -51,12 +51,7 @@ impl RuntimeCore {
             stored.session.clone()
         };
 
-        let prepared_input = super::input_media::prepare_runtime_input(
-            input,
-            self.sidecar_store.as_deref(),
-            &session.session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
+        let prepared_input = self.prepare_session_input(&session, input)?;
         let session_loop = self
             .session_loop_for_input(&session.session_id, &session.thread_id)
             .await?;
@@ -106,12 +101,7 @@ impl RuntimeCore {
             stored.session.clone()
         };
 
-        let prepared_input = super::input_media::prepare_runtime_input(
-            params.input.clone(),
-            self.sidecar_store.as_deref(),
-            &params.session_id,
-        )
-        .map_err(RuntimeCoreError::Backend)?;
+        let prepared_input = self.prepare_session_input(&session, params.input.clone())?;
         let (client_user_message_id, trace) = super::session_submission::metadata(
             params
                 .runtime_options

@@ -24,8 +24,25 @@ pub(super) fn prepare_runtime_input(
     sidecar_store: Option<&SidecarStore>,
     session_id: &str,
 ) -> Result<PreparedRuntimeInput, String> {
+    prepare_input(input, sidecar_store, session_id, true)
+}
+
+pub(super) fn prepare_ephemeral_runtime_input(
+    input: Vec<AgentInput>,
+    sidecar_store: Option<&SidecarStore>,
+    session_id: &str,
+) -> Result<PreparedRuntimeInput, String> {
+    prepare_input(input, sidecar_store, session_id, false)
+}
+
+fn prepare_input(
+    input: Vec<AgentInput>,
+    sidecar_store: Option<&SidecarStore>,
+    session_id: &str,
+    persist: bool,
+) -> Result<PreparedRuntimeInput, String> {
     let provider = RuntimeReplyInput::try_from_user_parts(input.clone(), |media| {
-        resolve_runtime_input_media(media, sidecar_store, session_id)
+        resolve_input_media(media, sidecar_store, session_id, persist)
     })
     .map_err(|error| error.to_string())?;
     let resolved_images = provider.images().cloned().collect::<Vec<_>>();
@@ -54,26 +71,37 @@ pub(super) fn resolve_runtime_input_media(
     sidecar_store: Option<&SidecarStore>,
     session_id: &str,
 ) -> Result<RuntimeReplyInputImage, String> {
+    resolve_input_media(media, sidecar_store, session_id, true)
+}
+
+pub(super) fn resolve_ephemeral_input_media(
+    media: RuntimeReplyInputMedia,
+    sidecar_store: Option<&SidecarStore>,
+    session_id: &str,
+) -> Result<RuntimeReplyInputImage, String> {
+    resolve_input_media(media, sidecar_store, session_id, false)
+}
+
+fn resolve_input_media(
+    media: RuntimeReplyInputMedia,
+    sidecar_store: Option<&SidecarStore>,
+    session_id: &str,
+    persist: bool,
+) -> Result<RuntimeReplyInputImage, String> {
     match media {
         RuntimeReplyInputMedia::Image { uri, detail } => {
             let uri = uri.trim();
             if uri.to_ascii_lowercase().starts_with("data:") {
-                let store = sidecar_store.ok_or_else(|| {
-                    "inline provider media requires an initialized App Server sidecar store"
-                        .to_string()
-                })?;
                 let (bytes, media_type) = decode_image_data_url(uri)?;
                 validate_image_bytes(&bytes, Some(&media_type))?;
-                let sidecar_ref = persist_image_bytes(&bytes, &media_type, store, session_id)?;
-                return Ok(RuntimeReplyInputImage {
-                    uri: sidecar_ref.ref_id,
-                    media_type: media_type.clone(),
-                    provider_data: Some(format!(
-                        "data:{media_type};base64,{}",
-                        BASE64_STANDARD.encode(bytes)
-                    )),
+                return prepare_image_bytes(
+                    &bytes,
+                    &media_type,
                     detail,
-                });
+                    sidecar_store,
+                    session_id,
+                    persist,
+                );
             }
             if uri.to_ascii_lowercase().starts_with("sidecar://") {
                 return hydrate_persisted_image(uri, detail, sidecar_store, session_id);
@@ -95,9 +123,6 @@ pub(super) fn resolve_runtime_input_media(
             if path.as_os_str().is_empty() {
                 return Err("local image path must not be empty".to_string());
             }
-            let store = sidecar_store.ok_or_else(|| {
-                "local provider image requires an initialized App Server sidecar store".to_string()
-            })?;
             let metadata = std::fs::metadata(path)
                 .map_err(|error| format!("read local image metadata failed: {error}"))?;
             if !metadata.is_file() {
@@ -112,18 +137,41 @@ pub(super) fn resolve_runtime_input_media(
             let bytes =
                 std::fs::read(path).map_err(|error| format!("read local image failed: {error}"))?;
             let media_type = validate_image_bytes(&bytes, None)?.to_string();
-            let sidecar_ref = persist_image_bytes(&bytes, &media_type, store, session_id)?;
-            Ok(RuntimeReplyInputImage {
-                uri: sidecar_ref.ref_id,
-                media_type: media_type.clone(),
-                provider_data: Some(format!(
-                    "data:{media_type};base64,{}",
-                    BASE64_STANDARD.encode(bytes)
-                )),
+            prepare_image_bytes(
+                &bytes,
+                &media_type,
                 detail,
-            })
+                sidecar_store,
+                session_id,
+                persist,
+            )
         }
     }
+}
+
+fn prepare_image_bytes(
+    bytes: &[u8],
+    media_type: &str,
+    detail: Option<agent_protocol::ImageDetail>,
+    sidecar_store: Option<&SidecarStore>,
+    session_id: &str,
+    persist: bool,
+) -> Result<RuntimeReplyInputImage, String> {
+    let provider_data = format!("data:{media_type};base64,{}", BASE64_STANDARD.encode(bytes));
+    let uri = if persist {
+        let store = sidecar_store.ok_or_else(|| {
+            "provider media requires an initialized App Server sidecar store".to_string()
+        })?;
+        persist_image_bytes(bytes, media_type, store, session_id)?.ref_id
+    } else {
+        provider_data.clone()
+    };
+    Ok(RuntimeReplyInputImage {
+        uri,
+        media_type: media_type.to_string(),
+        provider_data: Some(provider_data),
+        detail,
+    })
 }
 
 fn decode_image_data_url(source: &str) -> Result<(Vec<u8>, String), String> {
