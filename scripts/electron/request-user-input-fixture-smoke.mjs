@@ -22,8 +22,10 @@ import {
 } from "./lib/sidebar-layout-fixture-evidence.mjs";
 import { settleFixtureResources } from "../agent-runtime/claw-chat-current-fixture-teardown.mjs";
 import { inspectElectronFixtureBuildFreshness } from "../lib/electron-fixture-build.mjs";
-import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
-import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
+import {
+  electronAppServerBinaryDestination,
+  resolveElectronAppServerRuntimeEnv,
+} from "../lib/electron-app-server-assets.mjs";
 import { startOpenAiCompatibleFixtureServer } from "../lib/openai-compatible-fixture-server.mjs";
 import {
   buildToolExecutionTurnStartParams,
@@ -52,6 +54,7 @@ const SOURCE_FILES = [
   "scripts/electron/request-user-input-fixture-smoke.mjs",
   "scripts/electron/lib/async-user-input-scenario.mjs",
   "scripts/lib/electron-fixture-build.mjs",
+  "scripts/lib/electron-app-server-assets.mjs",
   "src/components/agent/chat/workspace/useAsyncUserInput.tsx",
   "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
   "src/components/agent/chat/components/asyncUserInput/AsyncUserInputPanel.tsx",
@@ -276,12 +279,21 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
         { type: "text", content: "UNEXPECTED_AFTER_CANCEL" },
       ],
     });
-    const binary = resolveDevAppServerBinary({
-      env: runtimeEnv.env,
-      repoRoot: rootDir,
-      forceBuild: false,
+    const binary = electronAppServerBinaryDestination({
+      outputRoot: path.join(rootDir, "dist-electron"),
     });
+    summary.appServerExecutableRelativePath = path
+      .relative(rootDir, binary)
+      .split(path.sep)
+      .join("/");
     summary.appServerExecutableSha256 = sha256(fs.readFileSync(binary));
+    assert.equal(
+      summary.artifactsBefore["dist-electron"].files.find(
+        (file) => file.file === summary.appServerExecutableRelativePath,
+      )?.sha256,
+      summary.appServerExecutableSha256,
+      "executed App Server must be included in the artifact fingerprint",
+    );
     const appServerEnv = resolveElectronAppServerRuntimeEnv({
       env: { ...runtimeEnv.env, APP_SERVER_BIN: binary },
     });

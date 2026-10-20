@@ -12,7 +12,6 @@ import { createServer as createNetServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import process from "node:process";
-import { chromium } from "playwright";
 
 const PRODUCT_NAME = "Lime";
 const SQUIRREL_PACKAGE_NAME = "lime";
@@ -539,6 +538,7 @@ export async function exerciseNMinusOneUpdate({
       },
       { label: "N-1 Electron CDP endpoint", timeoutMs: 60_000 },
     );
+    const { chromium } = await import("playwright");
     browser = await chromium.connectOverCDP(cdpUrl);
     const page = await waitFor(
       async () => {

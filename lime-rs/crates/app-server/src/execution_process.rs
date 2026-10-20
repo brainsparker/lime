@@ -853,7 +853,8 @@ fn orchestrated_sandbox(
     }
     Ok(Some(LocalExecutionSandbox {
         backend: plan.backend,
-        requested_policy: effective_policy.label().map(str::to_string),
+        policy: tool_runtime::sandbox::sandbox_policy_from_label(effective_policy.label())
+            .map_err(|error| ExecutionProcessError::Sandbox(error.to_string()))?,
         granted_permissions: Some(attempt.granted_permissions().clone()),
         windows_mode: plan.config.windows_mode,
     }))
@@ -917,7 +918,8 @@ fn legacy_execution_sandbox(
                 "execution decision did not identify a sandbox backend".to_string(),
             )
         })?,
-        requested_policy: sandbox_policy.map(str::to_string),
+        policy: tool_runtime::sandbox::sandbox_policy_from_label(sandbox_policy)
+            .map_err(|error| ExecutionProcessError::Sandbox(error.to_string()))?,
         granted_permissions: None,
         windows_mode: runtime_windows_sandbox_mode(runtime_metadata),
     }))

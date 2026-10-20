@@ -1,8 +1,45 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
+
+use super::AbsolutePathBuf;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum NetworkAccess {
+    #[default]
+    Restricted,
+    Enabled,
+}
+
+/// Complete execution policy; roots and temporary-directory exclusions must reach the OS runner.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(tag = "type", rename_all = "camelCase")]
+pub enum SandboxPolicy {
+    DangerFullAccess,
+    #[serde(rename_all = "camelCase")]
+    ReadOnly {
+        #[serde(default)]
+        network_access: bool,
+    },
+    #[serde(rename_all = "camelCase")]
+    ExternalSandbox {
+        #[serde(default)]
+        network_access: NetworkAccess,
+    },
+    #[serde(rename_all = "camelCase")]
+    WorkspaceWrite {
+        #[serde(default)]
+        writable_roots: Vec<AbsolutePathBuf>,
+        #[serde(default)]
+        network_access: bool,
+        #[serde(default)]
+        exclude_tmpdir_env_var: bool,
+        #[serde(default)]
+        exclude_slash_tmp: bool,
+    },
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "camelCase")]
@@ -39,7 +76,7 @@ pub struct CommandExecParams {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub size: Option<CommandExecTerminalSize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub sandbox_policy: Option<Value>,
+    pub sandbox_policy: Option<SandboxPolicy>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub permission_profile: Option<String>,
 }
@@ -101,4 +138,37 @@ pub struct CommandExecOutputDeltaNotification {
     pub stream: CommandExecOutputStream,
     pub delta_base64: String,
     pub cap_reached: bool,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn command_exec_keeps_complete_workspace_policy_and_rejects_untyped_policy() {
+        let root = std::env::current_dir().unwrap().join("memories");
+        let wire = json!({
+            "command": ["pwd"],
+            "sandboxPolicy": {
+                "type": "workspaceWrite",
+                "writableRoots": [root],
+                "networkAccess": false,
+                "excludeTmpdirEnvVar": true,
+                "excludeSlashTmp": true
+            }
+        });
+        let params: CommandExecParams = serde_json::from_value(wire.clone()).unwrap();
+        assert_eq!(serde_json::to_value(params).unwrap(), wire);
+        for invalid in [
+            json!("workspace-write"),
+            json!({"type": "unknown"}),
+            json!({"type": "workspaceWrite", "writableRoots": ["relative/path"]}),
+            json!({"type": "workspaceWrite", "excludeSlashTmp": "true"}),
+        ] {
+            let mut request = wire.clone();
+            request["sandboxPolicy"] = invalid;
+            assert!(serde_json::from_value::<CommandExecParams>(request).is_err());
+        }
+    }
 }

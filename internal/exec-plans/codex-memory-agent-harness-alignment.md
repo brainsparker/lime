@@ -2,6 +2,14 @@
 
 状态：active；完整对齐目标继续 active。负责人 root，2026-10-20。
 
+当前进度（续接汇总）：
+
+- 已验收：精确 snapshot / extraction ownership **39/39**；共享 ephemeral 核心合同 **4/4（100%，仅此前提）**；真实 stdio provider/model/key 切换保留工具历史。
+- 正在验证：完整 typed `SandboxPolicy` -> 现有 OS runner，关闭临时目录越权写入；schema/TypeScript 已生成，client **139/139** 与 contracts 已通过，真实 OS/stdio 和定向 Rust 结果待收齐。
+- 已修复门禁问题：Windows evidence CLI 的纯参数入口提前加载 Playwright，改为实际 CDP 连接前加载；原断言/超时下相关 **39/39** 通过。
+- 默认门禁：独立续跑已通过批次 29..37；最新第 38 批协议生成器三项超过原 5000ms，完整门禁未通过；原样单跑 **6/6** 不替代聚合结果。
+- 下一刀：同一 RuntimeCore 的可信 typed Memory admission、snapshot/executor 扩展隔离、workspace artifact/baseline、真实终态/shutdown 后精确提交；删除 phase-2 direct sampling。上述 Agent 接线尚未实施，M01 继续 active。
+
 ## 主目标与来源
 
 延续 [runtime 主计划](./codex-runtime-gap-alignment-plan.md) 与 [HookPrompt receipt 切片](./codex-hook-prompt-receipt-alignment.md)：把 Memory phase-2 从直接文本采样替换为现役共享 Agent runtime 的受限内部会话。Codex 决定 runtime/harness；grok 仅参考多模型 route/readiness，不能定义 Memory 业务语义。
@@ -136,3 +144,21 @@ ephemeral 核心退出条件 **4/4，100%**：公共 metadata/loaded 读取、�
 同一窄 fixture 追加多模型真实路由验收已 **exit 0**（`ephemeral-stdio-route-switch.log`）：第一 provider 完成工具 continuation，调用公开 `thread/settings/update` 切到另一 provider/model/key；第二 provider 收到真实第二轮请求和原工具历史，旧 provider 不再收到采样，请求计数 `[2,1]`。两个进程 EOF 正常退出，持久化隔离与冷恢复拒绝均通过。继续使用 OpenAI-compatible loopback 协议，不把两 provider 误记成四协议矩阵。最终摘要同步到冻结与账本，原单 provider 通过记录保留。
 
 下一实现保持业务责任分离：RuntimeCore 承接同一会话/回合的内部 admission、终态和 shutdown；LocalMemoryBackend 保留 root、lease、精确来源、workspace artifact/baseline 与提交；model-provider 保留实际路由/readiness/协议 lowering。替换 `ExecutionBackend` 的 phase-2 直接采样委托，注入受限共享 Agent 执行能力；不得保留当前 JSON proposal 返回协议作为 fallback。尚未开始该接线，M01 与总目标继续 active。
+
+### 续接：Memory 写根限制的真实执行前提
+
+直接源码复核发现现有 `command/exec` 的 `sandbox_policy_label` 丢弃所有结构化限制；`tool-runtime/sandbox/command.rs` 无条件允许 `/tmp`、`/var/tmp`，read-only 同样可写临时目录。这会使后继 Memory managed 配置在实际进程层失效。本轮先闭合该执行前提，再回到 phase-2 共享 Agent 接线；不核销 Memory Agent。
+
+窄写集：protocol v2 `command_exec.rs`、其 schema/type 生成物和回归；App Server `command_exec` 的 sandbox lowering、测试及现有 `execution_process` 构造接线；tool-runtime `sandbox/command`、`execution_process` 的 typed policy 接线与 Windows ACL 对应分支、其定向测试。读取 Codex `app-server-protocol/.../permissions.rs::SandboxPolicy`、`request_processors/command_exec_processor.rs`、`protocol.rs::get_writable_roots_with_cwd` 和 phase2 `get_config`，不是推测权限语义。替换 `command/exec` 的任意 JSON/string policy 为 canonical tagged enum，不增加兼容分支；原 turn/runtime 的字符串配置继续在其现有边界转换，不能作为公开 command wire。退出条件：typed wire/消费者与 schema 同步、读写/网络/临时根实传、真实进程拒绝越界且允许明确根、定向回归和 contracts 通过。多模型路由不参与 OS sandbox lowering。
+
+默认门禁独立续跑在第 29/142 批 exit 1：`windows-packaged-evidence.test.mjs` 的真实 CLI 帮助与缺参两次子进程超过原 5000ms。原样单独复跑同样失败（5690ms），不能归零或仅归因主机负载。直接依赖定位：`windows-packaged-evidence` -> `windows-squirrel-rc-smoke` -> `windows-squirrel-n-minus-one` 顶层引入 Playwright，仅复用版本规范化也要加载浏览器栈。追加窄写集只改后者的导入时机，移到实际 CDP 连接前；保留全部断言与原超时，定向覆盖两份原测试。该修复只服务现有门禁，不新增发布流程。
+
+`tool-runtime/execution_process.rs` 与 App Server 同名文件均已超过 1000 行，本片只替换 typed policy 接线；新根解析和网络合并逻辑放 `sandbox/policy.rs`，不在超长进程 owner 继续堆业务逻辑。原有 workspace/permission profile 的字符串转换保留在其既有配置边界，`command/exec` 的任意 JSON/string 入口直接删除。Windows ACL 同步接 typed roots 与临时目录排除；本机不能证明 Windows 实际权限执行。
+
+### 沙箱验证续接
+
+canonical schema 与 TypeScript 已生成：1060 个协议类型，零生成失败；公开 `command/exec.sandboxPolicy` 已由 unknown 收为 tagged `SandboxPolicy | null`。现有 TypeScript client **139/139** 和完整 `test:contracts` 均 exit 0。命令 gateway 原定向 **6/6** 通过。没有修改 Electron IPC/preload 方法或添加第二 transport；CLI debug 仍传 permission profile，由同一 processor 转换 typed policy。
+
+tool-runtime 首轮 **12/13**，唯一失败是测试固定 `/tmp/workspace` 在本机存在后被 canonicalize 为 `/private/tmp/workspace`，与旧硬编码路径断言不同；已将夹具换为唯一 tempdir，保留 metadata 保护与命令透传断言，最终重跑待终态。生产实现未因此修改。该已知测试差异和生成物 SHA256 已登记 `sandbox-source-freeze.json`，其余 19 个 Lime 来源和 4 个 Codex 来源逐项校验无漂移。
+
+最新独立 resume 第 38 批 **132 passed / 3 failed**，失败均为生成器原 5000ms 超时；完整本地门禁继续 failed，未调整预算或断言。主机采样时 load 约 100、swap 约 23GiB，仅记录构建资源状态，不将其认定为全部失败的根因。等待现有 Rust 队列排空后再续跑，避免并行追加完整 gate。

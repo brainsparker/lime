@@ -489,7 +489,7 @@ impl ExecutionProcessManager {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LocalExecutionSandbox {
     pub backend: SandboxBackend,
-    pub requested_policy: Option<String>,
+    pub policy: app_server_protocol::protocol::v2::SandboxPolicy,
     pub granted_permissions: Option<GrantedPermissionProfile>,
     pub windows_mode: Option<WindowsSandboxExecutionMode>,
 }
@@ -763,7 +763,11 @@ fn start_local_execution_process_with_inherited_environment(
     inherited_environment: impl IntoIterator<Item = (String, String)>,
 ) -> io::Result<LocalExecutionProcessHandle> {
     request.env = resolve_child_environment(request.env_clear, inherited_environment, &request.env);
-    if let Some(sandbox) = request.sandbox.take() {
+    if let Some(mut sandbox) = request.sandbox.take() {
+        sandbox.granted_permissions = super::sandbox::policy::effective_permissions(
+            &sandbox.policy,
+            sandbox.granted_permissions,
+        );
         if sandbox.backend == SandboxBackend::RestrictedToken {
             #[cfg(target_os = "windows")]
             {
@@ -785,7 +789,7 @@ fn start_local_execution_process_with_inherited_environment(
         })?;
         request.command = prepare_sandbox_command(SandboxCommandRequest {
             backend: sandbox.backend,
-            requested_policy: sandbox.requested_policy.as_deref(),
+            policy: &sandbox.policy,
             command: request.command,
             working_directory,
             granted_permissions: sandbox.granted_permissions.as_ref(),

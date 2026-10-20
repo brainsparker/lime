@@ -174,3 +174,19 @@ r44最终types与标准GUI均exit0；shell `standalone-shell-01-20261020100622-9
 r45窄写集追加现queue读取hook及测试、`useAgentRuntimeSyncEffects`调用点、notification drift分类/测试、fixture零告警断言与源码inventory、architecture和计划。两条确定性红回归复现：状态通知没有触发canonical read，分类仍为known_unprojected；2套2失败/19通过（`/tmp/lime-thread-status-projection-red-r45.log`）。直接将原hook/测试迁为`useAgentThreadReadSync`，queue与status共用同一个串行/末次读取、scope generation及失败恢复；只校验通知thread identity来失效现read model，不读取通知status字段合成状态，不增加订阅或drain。旧queue-only命名及入口删除，不保留alias。fixture在原异常截图节点显式检查该toast为0，保留原超时与Main门禁。后继定向、contracts、新产物与真实进程尚待结算，不把r44用作r45通过。
 
 后继5套66/66及完整本轮scoped ESLint通过，日志 `/tmp/lime-thread-status-projection-green-r45.log`、`/tmp/lime-thread-status-scoped-lint-r45.log`。发现并行类型检查后，root以stdout路径 `/tmp/lime-thread-status-types-r45.log` 核对本轮43327→43328，仅向自己的tsc43328发送SIGINT，exit130；外部42259→42263及其日志 `/tmp/lime-v11640-frozen-candidate-typecheck.log`未动。r45不声明types通过，最终完整types留给后继串行默认门禁；新标准GUI在生成候选。并行任务已把本轮部分文件stage到共享索引，root未执行add、commit、push、reset或更改索引。
+
+r45新标准GUI已exit0，真实shell `standalone-shell-01-20261020102955-67648`通过24/24，本轮窄源码摘要无漂移、旧hook物理文件仍不存在。后继问答 `codex-question-20261020-r45` 在启动Electron前被freshness拦截：新的并行 `tool-runtime/src/sandbox/policy.rs` 晚于sidecar；renderer/host均fresh。原失败保留，不列为运行回归，也不算零告警产品验证。root只读避让sandbox、v2/command_exec及生成合同，使用既有ensureElectronFixtureBuild仅刷新appServer段（`/tmp/lime-thread-status-refresh-r46.log`），再换新run ID；不豁免外部源漂移、不覆盖并行代码。
+
+## r46 后继验证窗口
+
+接续既有sidecar构建session，不重复构建Renderer或停止外部Cargo。共享HEAD已由外部推进至`974627088`；root未操作Git索引、提交、推送或分支。窄源码仍以r45摘要逐项核对，本轮写集限问答fixture及其专项/主计划和证据收据，避让Memory、command/exec、Windows sandbox与发布热区。新的完整`npm run test:contracts`已exit0（`/tmp/lime-thread-status-contracts-r46.log`），协议生成无漂移；此结果不替代待执行的零状态告警问答、聚合current fixture、独立前端续跑与默认门禁。
+
+sidecar刷新已exit0，启动前renderer/host/appServer三段均fresh。`codex-question-20261020-r46`实际完成全部问答、provider/wire、终态正文/Stop、跨线程稿和精确Escape断言；`threadStatusWarningCount=0`且其余五类错误/mock计数均0，Main原15秒内0.534秒正常code0/signalnull、forcedCleanup=null。已人工查看三张截图，原状态toast消失。但是并行`tool-runtime/src/sandbox/command.rs`在运行期间改变，末次freshness失败，**整轮仍fail**，不能冒称新Gate B通过。原summary/log、构建日志、截图与限定收据保存在`artifacts/async-user-input-20261020/thread-status-read/validation-r46.json`及同目录manifest，保留此前r45预检失败。
+
+为避免重复构建与前端测试争用资源，先执行串行默认`verify:local -- --base 467259cb3`（`/tmp/lime-thread-status-local-r46.log`），沿独立状态`.lime/test/vitest-smart-gui-alignment-20261020.json`恢复，不改批次记录或原期限。后继再刷新sidecar、以全新run ID复验无源漂移的问答，以及聚合current fixture与专项侧栏/Goal/Files；各命令尚在执行或未执行时均不结算通过。
+
+## r47 执行产物与指纹收敛
+
+只读审查发现问答fixture在校验`dist-electron`指纹之后，仍经`resolveDevAppServerBinary`选择共享`target/debug`二进制；即使已单独记录执行文件SHA，末次artifact树校验也不覆盖该路径。该路径选择现在直接使用既有`electronAppServerBinaryDestination`，在摘要记录相对路径，并要求执行文件SHA与启动前artifact条目一致，末次完整artifact fingerprint继续守住同一文件。删除fixture的dev resolver导入/调用，不增加fallback或解析owner；resource helper纳入source inventory。这只加强test-only身份合同，不改变生产host/runtime，r46原收据保持原样；新字节语法检查及diff whitespace通过，scoped lint、wire回归与新真实Electron待验。
+
+r47 fixture scoped ESLint、docs boundary均exit0，7文件输入摘要已保存为`sources-r47.json`，旧hook两个物理路径仍不存在。串行默认门禁r46已通过全局lint、五语言/unused、受影响文案扫描和完整Renderer/Node类型检查；前端第33批已整体16文件136项通过，旧大补丁用例保持原20秒期限实际1.105秒。发现1个新增测试后总批次增至142，既有记录不改；当前继续后继批次，整轮默认门禁未完成。

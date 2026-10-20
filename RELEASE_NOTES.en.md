@@ -17,6 +17,7 @@ Simplified Chinese release notes are the primary version. This English companion
 - Preserve recovered-turn listeners when presentation callbacks change and deliver in-flight event batches to current subscriptions.
 - Keep tracking the active turn while waiting for user input or approval so final replies and terminal states appear after an answer.
 - Refresh the canonical thread read model for status and queue changes without showing unsupported-notification alerts for valid status events.
+- Preserve complete sandbox policies during command execution, including explicit writable roots, temporary-directory exclusions and network restrictions.
 - Give memory extraction independent ownership tokens and bind consolidation commits to exact source snapshots so stale tasks cannot overwrite newer versions.
 - Correct Thread/Turn/Item identity and terminal states across asynchronous input, cancellation, continuation, completion and cold recovery.
 - Correct persistence and rendering of message, reasoning, web-search and tool history across deltas, snapshots, compaction, forks and model switches.
@@ -39,6 +40,7 @@ Simplified Chinese release notes are the primary version. This English companion
 
 - Extend targeted regressions for asynchronous user input, thread goals, message history, snapshot recovery, file trees, sidebars, composers, Electron IPC and the App Server.
 - Update five-language resources, GUI fixtures, protocol contracts, Rust owner tests, real Electron smoke coverage and release-workflow guards.
+- Load browser dependencies only when needed by release evidence commands so help and argument checks avoid unnecessary initialization.
 - Preserve release evidence, REA records and execution plans while documenting live-provider and packaged-platform coverage boundaries.
 
 ### Documentation

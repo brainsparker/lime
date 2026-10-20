@@ -646,6 +646,14 @@ Codex exact 独立命令执行与 Desktop 交互终端只允许走 connection-sc
 与 Electron Host 都消费同一规则，不能用普通请求的 30 秒或固定 10 分钟提前切断交互 PTY；其它 method
 继续原有 deadline。进程超时、权限和终止 authority 仍在 App Server，没有客户端延长执行权限。
 
+`command/exec.sandboxPolicy` 使用 Codex 的 tagged `SandboxPolicy`，不接受字符串或任意 JSON：
+`readOnly`、`workspaceWrite`、`dangerFullAccess`、`externalSandbox`。完整策略由 protocol 经
+CommandExecServer 传入 tool-runtime 的同一 OS runner，不能压缩成 label 后丢弃限制。
+`workspaceWrite` 的写根为 cwd、显式 `writableRoots`，以及未被 `excludeTmpdirEnvVar` /
+`excludeSlashTmp` 排除的 TMPDIR / Unix `/tmp`；readOnly 不获得隐式临时写根。`networkAccess`
+与已授权的 permission profile 一起 lower 到同一 runner。Windows 同步 roots / TEMP、TMP 排除，
+其实际 ACL enforcement 仍需 Windows 平台证据。该配置不控制 model-provider 的采样网络。
+
 旧 `project_shell_*`、`run_project_shell_command`、Project Shell v0 DTO/schema、旧 API gateway 和 Electron 私有
 session host 均为 `dead / deleted / forbidden-to-restore`；没有 compat/deprecated wrapper。
 

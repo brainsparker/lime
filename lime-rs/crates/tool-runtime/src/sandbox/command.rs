@@ -1,7 +1,7 @@
-use super::{parse_requested_sandbox_policy, RequestedSandboxPolicy, SandboxBackend};
+use super::{policy, SandboxBackend};
 use app_server_protocol::protocol::v2::{
     AdditionalFileSystemPermissions, FileSystemAccessMode, FileSystemPath, FileSystemSpecialPath,
-    GrantedPermissionProfile,
+    GrantedPermissionProfile, SandboxPolicy,
 };
 use std::fmt;
 use std::path::{Path, PathBuf};
@@ -21,10 +21,6 @@ const SEATBELT_BASE_POLICY: &str = r#"
 (allow file-write-data (literal "/dev/null"))
 (allow file-read* file-write* (literal "/dev/null"))
 (allow file-read* file-write* (subpath "/dev/fd"))
-(allow file-read* file-write* (subpath "/tmp"))
-(allow file-read* file-write* (subpath "/private/tmp"))
-(allow file-read* file-write* (subpath "/var/tmp"))
-(allow file-read* file-write* (subpath "/private/var/tmp"))
 (allow sysctl-read)
 (allow mach-lookup)
 (allow ipc-posix-sem)
@@ -42,7 +38,7 @@ const SEATBELT_BASE_POLICY: &str = r#"
 #[derive(Debug)]
 pub struct SandboxCommandRequest<'a> {
     pub backend: SandboxBackend,
-    pub requested_policy: Option<&'a str>,
+    pub policy: &'a SandboxPolicy,
     pub command: Vec<String>,
     pub working_directory: &'a Path,
     pub granted_permissions: Option<&'a GrantedPermissionProfile>,
@@ -81,11 +77,12 @@ pub fn prepare_sandbox_command(
     if request.command.is_empty() {
         return Err(SandboxCommandError::EmptyCommand);
     }
-    let policy = parse_requested_sandbox_policy(request.requested_policy)
-        .unwrap_or(RequestedSandboxPolicy::WorkspaceWrite);
-    if policy == RequestedSandboxPolicy::DangerFullAccess {
+    if matches!(
+        request.policy,
+        SandboxPolicy::DangerFullAccess | SandboxPolicy::ExternalSandbox { .. }
+    ) {
         return Err(SandboxCommandError::UnsupportedPolicy(
-            policy.label().to_string(),
+            super::sandbox_policy_label(request.policy).to_string(),
         ));
     }
 
@@ -93,13 +90,13 @@ pub fn prepare_sandbox_command(
         SandboxBackend::Seatbelt => Ok(prepare_seatbelt_command(
             request.command,
             request.working_directory,
-            policy,
+            request.policy,
             request.granted_permissions,
         )),
         SandboxBackend::LinuxSandbox => Ok(prepare_bubblewrap_command(
             request.command,
             request.working_directory,
-            policy,
+            request.policy,
             request.granted_permissions,
         )),
         SandboxBackend::None | SandboxBackend::RestrictedToken => {
@@ -111,31 +108,42 @@ pub fn prepare_sandbox_command(
 fn prepare_seatbelt_command(
     command: Vec<String>,
     working_directory: &Path,
-    policy: RequestedSandboxPolicy,
+    policy: &SandboxPolicy,
     granted_permissions: Option<&GrantedPermissionProfile>,
 ) -> Vec<String> {
     let mut profile = SEATBELT_BASE_POLICY.to_string();
-    if policy == RequestedSandboxPolicy::WorkspaceWrite {
-        profile.push_str("\n(allow file-write* (subpath (param \"WORKSPACE\")))\n");
+    let mut parameters = Vec::new();
+    for (index, root) in policy::writable_roots(policy, working_directory)
+        .iter()
+        .enumerate()
+    {
+        profile.push_str(&format!(
+            "\n(allow file-write* (subpath (param \"WRITABLE_ROOT_{index}\")))\n"
+        ));
+        parameters.push(format!(
+            "-DWRITABLE_ROOT_{index}={}",
+            root.to_string_lossy()
+        ));
         for name in PROTECTED_METADATA_NAMES {
             profile.push_str(&format!(
-                "(deny file-write* (regex #\"{}/{}(/.*)?$\"))\n",
-                regex::escape(&working_directory.to_string_lossy()),
-                regex::escape(name),
+                "(deny file-write* (subpath (param \"PROTECTED_{index}_{name}\")))\n"
+            ));
+            parameters.push(format!(
+                "-DPROTECTED_{index}_{name}={}",
+                root.join(name).to_string_lossy()
             ));
         }
+    }
+    if policy::allows_network(policy) {
+        profile.push_str("\n(allow network*)\n");
     }
     if let Some(permissions) = granted_permissions {
         append_seatbelt_permissions(&mut profile, permissions, working_directory);
     }
 
-    let mut wrapped = vec![
-        MACOS_SANDBOX_EXEC.to_string(),
-        "-p".to_string(),
-        profile,
-        format!("-DWORKSPACE={}", working_directory.to_string_lossy()),
-        "--".to_string(),
-    ];
+    let mut wrapped = vec![MACOS_SANDBOX_EXEC.to_string(), "-p".to_string(), profile];
+    wrapped.extend(parameters);
+    wrapped.push("--".to_string());
     wrapped.extend(command);
     wrapped
 }
@@ -143,7 +151,7 @@ fn prepare_seatbelt_command(
 fn prepare_bubblewrap_command(
     command: Vec<String>,
     working_directory: &Path,
-    policy: RequestedSandboxPolicy,
+    policy: &SandboxPolicy,
     granted_permissions: Option<&GrantedPermissionProfile>,
 ) -> Vec<String> {
     let cwd = working_directory.to_string_lossy().to_string();
@@ -164,26 +172,19 @@ fn prepare_bubblewrap_command(
         "--proc".to_string(),
         "/proc".to_string(),
     ];
-    if !granted_permissions
-        .and_then(|permissions| permissions.network.as_ref())
-        .and_then(|network| network.enabled)
-        .unwrap_or(false)
+    if !policy::allows_network(policy)
+        && !granted_permissions
+            .and_then(|permissions| permissions.network.as_ref())
+            .and_then(|network| network.enabled)
+            .unwrap_or(false)
     {
         wrapped.insert(7, "--unshare-net".to_string());
     }
-    for temporary_root in ["/tmp", "/var/tmp"] {
-        if Path::new(temporary_root).is_dir() {
-            wrapped.extend([
-                "--bind".to_string(),
-                temporary_root.to_string(),
-                temporary_root.to_string(),
-            ]);
-        }
-    }
-    if policy == RequestedSandboxPolicy::WorkspaceWrite {
-        wrapped.extend(["--bind".to_string(), cwd.clone(), cwd.clone()]);
+    for root in policy::writable_roots(policy, working_directory) {
+        let path = root.to_string_lossy().into_owned();
+        wrapped.extend(["--bind".to_string(), path.clone(), path]);
         for name in PROTECTED_METADATA_NAMES {
-            let path = working_directory.join(name);
+            let path = root.join(name);
             if path.exists() {
                 let path = path.to_string_lossy().to_string();
                 wrapped.extend(["--ro-bind".to_string(), path.clone(), path]);
@@ -343,27 +344,40 @@ mod tests {
 
     #[test]
     fn seatbelt_workspace_write_wraps_command_and_protects_metadata() {
+        let workspace = tempfile::tempdir().unwrap();
         let command = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::Seatbelt,
-            requested_policy: Some("workspace-write"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             command: vec!["sh".to_string(), "-c".to_string(), "pwd".to_string()],
-            working_directory: Path::new("/tmp/workspace"),
+            working_directory: workspace.path(),
             granted_permissions: None,
         })
         .expect("seatbelt command");
 
         assert_eq!(command[0], MACOS_SANDBOX_EXEC);
-        assert!(command[2].contains("(allow file-write* (subpath (param \"WORKSPACE\")))"));
-        assert!(command[2].contains(r"/\.git(/.*)?$"));
-        assert_eq!(command[3], "-DWORKSPACE=/tmp/workspace");
-        assert_eq!(&command[5..], ["sh", "-c", "pwd"]);
+        assert!(command[2].contains("(allow file-write* (subpath (param \"WRITABLE_ROOT_"));
+        let protected = format!(
+            "={}",
+            std::fs::canonicalize(workspace.path())
+                .unwrap()
+                .join(".git")
+                .display()
+        );
+        assert!(command
+            .iter()
+            .any(|argument| argument.ends_with(&protected)));
+        let delimiter = command
+            .iter()
+            .position(|argument| argument == "--")
+            .unwrap();
+        assert_eq!(&command[delimiter + 1..], ["sh", "-c", "pwd"]);
     }
 
     #[test]
     fn bubblewrap_read_only_does_not_bind_workspace_writable() {
         let command = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::LinuxSandbox,
-            requested_policy: Some("read-only"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("read-only")).unwrap(),
             command: vec!["pwd".to_string()],
             working_directory: Path::new("/workspace"),
             granted_permissions: None,
@@ -377,13 +391,14 @@ mod tests {
         assert!(!command
             .windows(3)
             .any(|args| args == ["--bind", "/workspace", "/workspace"]));
+        assert!(!command.windows(3).any(|args| args[0] == "--bind"));
     }
 
     #[test]
     fn restricted_token_backend_fails_closed_without_runner() {
         let error = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::RestrictedToken,
-            requested_policy: Some("workspace-write"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             command: vec!["cmd.exe".to_string()],
             working_directory: Path::new("C:/workspace"),
             granted_permissions: None,
@@ -411,7 +426,7 @@ mod tests {
         };
         let command = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::Seatbelt,
-            requested_policy: Some("workspace-write"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             command: vec!["pwd".to_string()],
             working_directory: Path::new("/tmp/workspace"),
             granted_permissions: Some(&permissions),
@@ -441,7 +456,7 @@ mod tests {
         };
         let granted = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::LinuxSandbox,
-            requested_policy: Some("workspace-write"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             command: vec!["pwd".to_string()],
             working_directory: root.path(),
             granted_permissions: Some(&permissions),
@@ -457,12 +472,44 @@ mod tests {
 
         let isolated = prepare_sandbox_command(SandboxCommandRequest {
             backend: SandboxBackend::LinuxSandbox,
-            requested_policy: Some("workspace-write"),
+            policy: &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             command: vec!["pwd".to_string()],
             working_directory: root.path(),
             granted_permissions: None,
         })
         .expect("isolated bubblewrap command");
         assert!(isolated.iter().any(|argument| argument == "--unshare-net"));
+    }
+
+    #[test]
+    fn bubblewrap_memory_scope_has_no_implicit_temporary_write_bind() {
+        let memory = tempfile::tempdir().unwrap();
+        let extra = tempfile::tempdir().unwrap();
+        let policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: vec![extra.path().to_path_buf().try_into().unwrap()],
+            network_access: false,
+            exclude_tmpdir_env_var: true,
+            exclude_slash_tmp: true,
+        };
+        let command = prepare_sandbox_command(SandboxCommandRequest {
+            backend: SandboxBackend::LinuxSandbox,
+            policy: &policy,
+            command: vec!["pwd".to_string()],
+            working_directory: memory.path(),
+            granted_permissions: None,
+        })
+        .unwrap();
+        let binds = command
+            .windows(3)
+            .filter(|args| args[0] == "--bind")
+            .map(|args| PathBuf::from(&args[1]))
+            .collect::<Vec<_>>();
+        let mut expected = vec![
+            std::fs::canonicalize(memory.path()).unwrap(),
+            std::fs::canonicalize(extra.path()).unwrap(),
+        ];
+        expected.sort();
+        assert_eq!(binds, expected);
+        assert!(command.iter().any(|arg| arg == "--unshare-net"));
     }
 }

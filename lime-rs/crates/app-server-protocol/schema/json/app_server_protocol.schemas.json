@@ -11458,7 +11458,16 @@
                 "string"
               ]
             },
-            "sandboxPolicy": true,
+            "sandboxPolicy": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SandboxPolicy"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
             "size": {
               "anyOf": [
                 {
@@ -12347,6 +12356,13 @@
             }
           ]
         },
+        "NetworkAccess": {
+          "enum": [
+            "enabled",
+            "restricted"
+          ],
+          "type": "string"
+        },
         "PermissionProfileListParams": {
           "properties": {
             "cursor": {
@@ -13176,6 +13192,86 @@
               },
               "required": [
                 "instructions",
+                "type"
+              ],
+              "type": "object"
+            }
+          ]
+        },
+        "SandboxPolicy": {
+          "description": "Complete execution policy; roots and temporary-directory exclusions must reach the OS runner.",
+          "oneOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "dangerFullAccess",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "networkAccess": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "type": {
+                  "const": "readOnly",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "networkAccess": {
+                  "$ref": "#/$defs/NetworkAccess",
+                  "default": "restricted"
+                },
+                "type": {
+                  "const": "externalSandbox",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "excludeSlashTmp": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "excludeTmpdirEnvVar": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "networkAccess": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "type": {
+                  "const": "workspaceWrite",
+                  "type": "string"
+                },
+                "writableRoots": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/AbsolutePathBuf"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
                 "type"
               ],
               "type": "object"
@@ -18133,6 +18229,10 @@
     },
     "CommandExecParams": {
       "$defs": {
+        "AbsolutePathBuf": {
+          "description": "A host path validated when entering the protocol boundary.",
+          "type": "string"
+        },
         "CommandExecTerminalSize": {
           "properties": {
             "cols": {
@@ -18153,6 +18253,93 @@
             "rows"
           ],
           "type": "object"
+        },
+        "NetworkAccess": {
+          "enum": [
+            "enabled",
+            "restricted"
+          ],
+          "type": "string"
+        },
+        "SandboxPolicy": {
+          "description": "Complete execution policy; roots and temporary-directory exclusions must reach the OS runner.",
+          "oneOf": [
+            {
+              "properties": {
+                "type": {
+                  "const": "dangerFullAccess",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "networkAccess": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "type": {
+                  "const": "readOnly",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "networkAccess": {
+                  "$ref": "#/$defs/NetworkAccess",
+                  "default": "restricted"
+                },
+                "type": {
+                  "const": "externalSandbox",
+                  "type": "string"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            },
+            {
+              "properties": {
+                "excludeSlashTmp": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "excludeTmpdirEnvVar": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "networkAccess": {
+                  "default": false,
+                  "type": "boolean"
+                },
+                "type": {
+                  "const": "workspaceWrite",
+                  "type": "string"
+                },
+                "writableRoots": {
+                  "default": [],
+                  "items": {
+                    "$ref": "#/$defs/AbsolutePathBuf"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "type"
+              ],
+              "type": "object"
+            }
+          ]
         }
       },
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -18208,7 +18395,16 @@
             "string"
           ]
         },
-        "sandboxPolicy": true,
+        "sandboxPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SandboxPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "size": {
           "anyOf": [
             {
@@ -41022,6 +41218,15 @@
       "title": "MultiAgentVersion",
       "type": "string"
     },
+    "NetworkAccess": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "enum": [
+        "enabled",
+        "restricted"
+      ],
+      "title": "NetworkAccess",
+      "type": "string"
+    },
     "NetworkApprovalContext": {
       "$defs": {
         "NetworkApprovalProtocol": {
@@ -56391,6 +56596,101 @@
       ],
       "title": "RuntimeToolCallStrategy",
       "type": "string"
+    },
+    "SandboxPolicy": {
+      "$defs": {
+        "AbsolutePathBuf": {
+          "description": "A host path validated when entering the protocol boundary.",
+          "type": "string"
+        },
+        "NetworkAccess": {
+          "enum": [
+            "enabled",
+            "restricted"
+          ],
+          "type": "string"
+        }
+      },
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Complete execution policy; roots and temporary-directory exclusions must reach the OS runner.",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "dangerFullAccess",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "networkAccess": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "readOnly",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "networkAccess": {
+              "$ref": "#/$defs/NetworkAccess",
+              "default": "restricted"
+            },
+            "type": {
+              "const": "externalSandbox",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "excludeSlashTmp": {
+              "default": false,
+              "type": "boolean"
+            },
+            "excludeTmpdirEnvVar": {
+              "default": false,
+              "type": "boolean"
+            },
+            "networkAccess": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "workspaceWrite",
+              "type": "string"
+            },
+            "writableRoots": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/AbsolutePathBuf"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        }
+      ],
+      "title": "SandboxPolicy"
     },
     "ScheduledTask": {
       "$defs": {

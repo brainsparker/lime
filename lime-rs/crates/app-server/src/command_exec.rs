@@ -12,7 +12,6 @@ use app_server_transport::ConnectionId;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use futures::future::BoxFuture;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -98,9 +97,8 @@ impl CommandExecServer {
         if !cwd.is_dir() {
             return Err(invalid_request("command/exec cwd must be a directory"));
         }
-        let sandbox_policy = sandbox_policy_label(params.sandbox_policy.as_ref());
         let sandbox = sandbox::resolve_command_exec_sandbox(
-            sandbox_policy.as_deref(),
+            params.sandbox_policy.as_ref(),
             granted_permissions,
             crate::runtime_backend::current_agent_runtime_config_metadata().as_ref(),
         )?;
@@ -480,23 +478,6 @@ fn parse_timeout(timeout: Option<i64>) -> Result<Option<std::time::Duration>, Js
             "timeoutMs must be non-negative, got {value}"
         ))),
     }
-}
-
-fn sandbox_policy_label(value: Option<&Value>) -> Option<String> {
-    let value = value?;
-    if let Some(label) = value.as_str() {
-        return Some(label.to_string());
-    }
-    value.get("type").and_then(Value::as_str).map(|value| {
-        let mut label = String::new();
-        for (index, character) in value.chars().enumerate() {
-            if character.is_uppercase() && index > 0 {
-                label.push('-');
-            }
-            label.push(character.to_ascii_lowercase());
-        }
-        label
-    })
 }
 
 fn key(connection_id: ConnectionId, process_id: &str) -> CommandExecKey {

@@ -180,7 +180,9 @@ async fn explicit_read_only_policy_fails_closed_for_mutating_command() {
     let temp = tempfile::tempdir().expect("tempdir");
     let mut params = exec_params(None, "touch command-exec-must-not-exist");
     params.cwd = Some(temp.path().to_path_buf());
-    params.sandbox_policy = Some(serde_json::json!("read-only"));
+    params.sandbox_policy = Some(app_server_protocol::protocol::v2::SandboxPolicy::ReadOnly {
+        network_access: false,
+    });
 
     let result = CommandExecServer::default()
         .exec(ConnectionId(10), params, None)
@@ -194,6 +196,85 @@ async fn explicit_read_only_policy_fails_closed_for_mutating_command() {
         Err(error) => assert_eq!(error.code, error_codes::RUNTIME_ERROR),
     }
     assert!(!temp.path().join("command-exec-must-not-exist").exists());
+}
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn memory_workspace_policy_reaches_the_real_process() {
+    use app_server_protocol::protocol::v2::SandboxPolicy;
+    let root = tempfile::tempdir().unwrap();
+    let memory = root.path().join("memory root");
+    let extra = root.path().join("extra \"scope\"");
+    let sibling = root.path().join("sibling");
+    let slash_tmp = tempfile::tempdir_in("/tmp").unwrap();
+    let git = extra.join(".git");
+    for dir in [&memory, &extra, &sibling] {
+        std::fs::create_dir(dir).unwrap();
+    }
+    std::fs::create_dir(&git).unwrap();
+    let policy = SandboxPolicy::WorkspaceWrite {
+        writable_roots: vec![extra.clone().try_into().unwrap()],
+        network_access: false,
+        exclude_tmpdir_env_var: true,
+        exclude_slash_tmp: true,
+    };
+    let server = CommandExecServer::default();
+    for (index, (directory, allowed)) in [
+        (memory.as_path(), true),
+        (extra.as_path(), true),
+        (sibling.as_path(), false),
+        (slash_tmp.path(), false),
+        (git.as_path(), false),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let target = directory.join("output");
+        let mut params = exec_params(None, "printf scoped > \"$TARGET\"");
+        params.cwd = Some(memory.clone());
+        params.env = Some(HashMap::from([(
+            "TARGET".to_string(),
+            Some(target.to_string_lossy().into_owned()),
+        )]));
+        params.sandbox_policy = Some(policy.clone());
+        let response = server
+            .exec(ConnectionId(30 + index as u64), params, None)
+            .await
+            .unwrap();
+        assert_eq!(response.exit_code == 0, allowed, "{response:?}");
+        assert_eq!(target.exists(), allowed);
+    }
+    // Read-only must not retain the historical unconditional temporary write grants.
+    let target = sibling.join("read-only-output");
+    let mut params = exec_params(None, "printf denied > \"$TARGET\"");
+    params.cwd = Some(memory);
+    params.env = Some(HashMap::from([(
+        "TARGET".to_string(),
+        Some(target.to_string_lossy().into_owned()),
+    )]));
+    params.sandbox_policy = Some(SandboxPolicy::ReadOnly {
+        network_access: false,
+    });
+    let response = server.exec(ConnectionId(34), params, None).await.unwrap();
+    assert_ne!(response.exit_code, 0);
+    assert!(!target.exists());
+}
+
+#[cfg(target_os = "macos")]
+#[tokio::test]
+async fn command_policy_network_switch_reaches_the_real_process() {
+    use app_server_protocol::protocol::v2::SandboxPolicy;
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    for network_access in [false, true] {
+        let mut params = exec_params(None, &format!("/usr/bin/nc -z -w 1 127.0.0.1 {port}"));
+        params.sandbox_policy = Some(SandboxPolicy::ReadOnly { network_access });
+        let response = CommandExecServer::default()
+            .exec(ConnectionId(35), params, None)
+            .await
+            .unwrap();
+        assert_eq!(response.exit_code == 0, network_access, "{response:?}");
+    }
 }
 
 #[cfg(unix)]

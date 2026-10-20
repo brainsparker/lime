@@ -438,7 +438,7 @@
     },
     {
       "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run verify:local",
-      "status": "running",
+      "status": "failed",
       "log": "ephemeral-local-isolated-state.log",
       "passedStages": [
         "app-version",
@@ -448,8 +448,110 @@
         "typecheck"
       ],
       "priorStateQualification": "Copied existing first 12 batch records; this invocation starts at batch 13. Shared resume state unchanged.",
-      "lastObservedBatch": 17,
-      "exitCode": null
+      "lastObservedBatch": 29,
+      "exitCode": 1,
+      "reason": "scripts/electron/windows-packaged-evidence.test.mjs CLI help regression exceeded the unchanged 5000ms timeout; isolated reproduction pending"
+    },
+    {
+      "command": "npx vitest run scripts/electron/windows-packaged-evidence.test.mjs",
+      "exitCode": 1,
+      "log": "ephemeral-windows-evidence-isolated.log",
+      "passed": 7,
+      "failed": 1,
+      "qualification": "Unchanged 5000ms; CLI entry took 5690ms. Import graph traced to eager Playwright load."
+    },
+    {
+      "command": "npx vitest run scripts/electron/windows-packaged-evidence.test.mjs scripts/electron/windows-squirrel-rc-smoke.test.mjs",
+      "exitCode": 0,
+      "log": "ephemeral-windows-evidence-lazy-import.log",
+      "passed": 39,
+      "qualification": "Same assertions/budgets; Playwright loaded only before actual CDP connection. Original CLI regression now 305ms. This is script validation on macOS, not Windows runtime."
+    },
+    {
+      "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run test:resume",
+      "exitCode": 1,
+      "status": "failed",
+      "log": "ephemeral-local-resume-after-lazy-import.log",
+      "passedBatches": [
+        29,
+        30,
+        31,
+        32,
+        33,
+        34,
+        35,
+        36,
+        37
+      ],
+      "failedBatch": 38,
+      "failedTests": [
+        "scripts/lib/protocol-types-check.test.mjs formatter failure isolation",
+        "scripts/lib/protocol-types-check.test.mjs exact generated output"
+      ],
+      "reason": "Both exceeded unchanged 5000ms; isolated reproduction pending schema generation."
+    },
+    {
+      "command": "real stdio regression probe against fixed old sidecar",
+      "exitCode": 0,
+      "status": "regression_reproduced",
+      "log": "sandbox-old-sidecar-regression-complete.json",
+      "binarySha256": "d7a55d126ab669ac61c0c48adf18e99b6a31ed7d8443ff01d86e8e8bdec34588",
+      "qualification": "Unique /tmp root; explicit workspaceWrite with excludeTmpdirEnvVar/excludeSlashTmp still wrote sibling. Old artifact only; does not verify new code."
+    },
+    {
+      "command": "npx vitest run src/lib/api/commandExec.test.ts",
+      "exitCode": 0,
+      "passed": 6,
+      "log": "sandbox-command-gateway-tests.log",
+      "qualification": "Existing gateway regression now includes complete sandbox policy; typecheck follows canonical generation."
+    },
+    {
+      "command": "npx vitest run scripts/lib/protocol-types-check.test.mjs",
+      "exitCode": 0,
+      "passed": 6,
+      "log": "ephemeral-protocol-generator-isolated.log",
+      "qualification": "Unchanged assertions and 5000ms test budget; exact generator success 1718ms. Original batch 38 failures retained; this check precedes new schema generation."
+    },
+    {
+      "command": "cargo run --manifest-path lime-rs/Cargo.toml -p app-server-protocol --bin write_schema_fixtures",
+      "exitCode": 0,
+      "log": "sandbox-schema-generate.log"
+    },
+    {
+      "command": "npm run generate:protocol-types",
+      "exitCode": 0,
+      "log": "sandbox-protocol-types-generate.log",
+      "generatedTypes": 1060
+    },
+    {
+      "command": "npm --prefix packages/app-server-client test",
+      "exitCode": 0,
+      "log": "sandbox-client-tests.log",
+      "passed": 139,
+      "qualification": "Generated client built before tests; complete sandbox policy included in existing command/exec roundtrip."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p tool-runtime sandbox::",
+      "exitCode": 101,
+      "log": "sandbox-tool-runtime-tests.log",
+      "passed": 12,
+      "failed": 1,
+      "qualification": "Original Seatbelt argument test expected noncanonical /tmp/workspace even though directory exists on this machine; unique tempfile/canonical assertion correction recorded; final rerun pending."
+    },
+    {
+      "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run test:resume",
+      "exitCode": 1,
+      "log": "ephemeral-local-resume-after-generator-isolated.log",
+      "failedBatch": 38,
+      "passed": 132,
+      "failed": 3,
+      "qualification": "Unchanged generator assertions/5000ms budget; original timeout records retained. Isolated 6/6 is not a full-gate pass."
+    },
+    {
+      "command": "npm run test:contracts",
+      "exitCode": 0,
+      "log": "sandbox-contract-tests.log",
+      "scope": "typed command/exec canonical policy; protocol drift, client 296 checks, command/harness/modality/script/release/Desktop/CLI/cleanup/docs guards"
     }
   ],
   "attempts": [
@@ -509,16 +611,23 @@
       "log": "rust-output-red-actual.log",
       "failed": 2,
       "reason": "Both status 0/101 paths emitted only about 8KiB instead of complete >393KiB stdout; exit status alone was already correct."
+    },
+    {
+      "operation": "old sidecar regression probe",
+      "exitCode": 1,
+      "log": "sandbox-old-sidecar-regression.json",
+      "reason": "First fixture used TMPDIR; old profile grants /tmp and /var/tmp, not TMPDIR. Sibling write denied so this did not reproduce target regression.",
+      "resolution": "Unique /tmp fixture reproduced the old bug; original attempt retained."
     }
   ],
   "limitations": [
     "Shared Memory consolidation Agent is not implemented; no full Memory alignment claim.",
     "No live provider, Windows, CLI/TUI or LimeCore run in this slice.",
-    "No public JSON-RPC contract/schema/config/dependency changes in this slice.",
     "Current filesystem snapshot versions are guarded; source-file checks and SQLite changes are not one atomic transaction.",
     "Earlier shell smoke needed orphan cleanup; the final ephemeral GUI smoke has clean teardown. Both original records are retained.",
     "Full default local gate remains pending/previously failed; task-specific resume isolates shared-state writes.",
-    "The three final controlled Electron scenarios do not cover unexecuted aggregate scenarios."
+    "The three final controlled Electron scenarios do not cover unexecuted aggregate scenarios.",
+    "Sandbox prerequisite changes command/exec policy schema and generated consumers; no dependency or public method added. Restricted phase2 Agent remains unimplemented."
   ],
   "snapshot_gui_teardown": {
     "businessAssertionsPassed": 24,
@@ -574,7 +683,7 @@
       ]
     },
     "remaining": [
-      "full local gate: independent resume state running (starting at batch 13); prior gate failure retained",
+      "full local gate: batch 38 still fails on three unchanged generator test timeouts; isolated 6/6 passed; latest resume exit 1 retained",
       "Restricted shared Memory Agent is the next implementation slice"
     ],
     "limits": [
@@ -630,5 +739,34 @@
     },
     "initial_source_freeze": "ephemeral-source-freeze.json"
   },
-  "updatedAt": "2026-10-20T10:22:57.869158+00:00"
+  "updatedAt": "2026-10-20T11:02:28.329330+00:00",
+  "sandbox_execution_prerequisite": {
+    "status": "validating",
+    "source_freeze": "sandbox-source-freeze.json",
+    "classification": {
+      "current": [
+        "canonical tagged command/exec SandboxPolicy",
+        "complete policy reaches existing OS process supervisor",
+        "single root and temporary-directory policy owner"
+      ],
+      "compat": [],
+      "deprecated": [],
+      "deleted": [
+        "arbitrary JSON/string command policy",
+        "lossy command sandbox label helper",
+        "unconditional /var/tmp and read-only temporary write grants"
+      ]
+    },
+    "remaining": [
+      "final Rust tests and schema/client generation",
+      "contracts and affected consumer checks",
+      "restricted shared Memory Agent remains next product slice"
+    ],
+    "limits": [
+      "Linux wrapper only until target runtime proof",
+      "Windows ACL implementation updated; Windows runtime unverified",
+      "No phase2 shared Agent, extension isolation or workspace baseline implementation"
+    ],
+    "generated_sources": "sandbox-source-freeze.json#generatedSources"
+  }
 }

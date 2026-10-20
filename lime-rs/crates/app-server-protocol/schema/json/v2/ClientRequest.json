@@ -304,7 +304,16 @@
             "string"
           ]
         },
-        "sandboxPolicy": true,
+        "sandboxPolicy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SandboxPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "size": {
           "anyOf": [
             {
@@ -1193,6 +1202,13 @@
         }
       ]
     },
+    "NetworkAccess": {
+      "enum": [
+        "enabled",
+        "restricted"
+      ],
+      "type": "string"
+    },
     "PermissionProfileListParams": {
       "properties": {
         "cursor": {
@@ -2022,6 +2038,86 @@
           },
           "required": [
             "instructions",
+            "type"
+          ],
+          "type": "object"
+        }
+      ]
+    },
+    "SandboxPolicy": {
+      "description": "Complete execution policy; roots and temporary-directory exclusions must reach the OS runner.",
+      "oneOf": [
+        {
+          "properties": {
+            "type": {
+              "const": "dangerFullAccess",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "networkAccess": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "readOnly",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "networkAccess": {
+              "$ref": "#/$defs/NetworkAccess",
+              "default": "restricted"
+            },
+            "type": {
+              "const": "externalSandbox",
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "excludeSlashTmp": {
+              "default": false,
+              "type": "boolean"
+            },
+            "excludeTmpdirEnvVar": {
+              "default": false,
+              "type": "boolean"
+            },
+            "networkAccess": {
+              "default": false,
+              "type": "boolean"
+            },
+            "type": {
+              "const": "workspaceWrite",
+              "type": "string"
+            },
+            "writableRoots": {
+              "default": [],
+              "items": {
+                "$ref": "#/$defs/AbsolutePathBuf"
+              },
+              "type": "array"
+            }
+          },
+          "required": [
             "type"
           ],
           "type": "object"

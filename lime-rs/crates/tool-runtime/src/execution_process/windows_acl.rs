@@ -35,7 +35,7 @@ pub(super) struct AclPlan {
 
 pub(super) fn build_acl_plan(
     cwd: &Path,
-    policy: RequestedSandboxPolicy,
+    policy: &SandboxPolicy,
     permissions: Option<&GrantedPermissionProfile>,
     environment: &HashMap<String, String>,
 ) -> io::Result<AclPlan> {
@@ -43,14 +43,22 @@ pub(super) fn build_acl_plan(
     let mut write_grants = Vec::new();
     let mut write_denies = Vec::new();
     let mut access_denies = Vec::new();
-    if policy == RequestedSandboxPolicy::WorkspaceWrite {
-        write_grants.push(canonical_existing(cwd)?);
-        write_grants.extend(windows_temp_write_roots(environment)?);
-        for name in PROTECTED_METADATA_NAMES {
-            let path = cwd.join(name);
-            if path.exists() {
-                write_denies.push(canonical_existing(&path)?);
+    if let SandboxPolicy::WorkspaceWrite {
+        exclude_tmpdir_env_var,
+        ..
+    } = policy
+    {
+        for root in crate::sandbox::policy::writable_roots(policy, cwd) {
+            write_grants.push(canonical_absolute(&root)?);
+            for name in PROTECTED_METADATA_NAMES {
+                let path = root.join(name);
+                if path.exists() {
+                    write_denies.push(canonical_existing(&path)?);
+                }
             }
+        }
+        if !exclude_tmpdir_env_var {
+            write_grants.extend(windows_temp_write_roots(environment)?);
         }
     }
 
@@ -581,7 +589,7 @@ mod tests {
         std::fs::create_dir(root.path().join(".git")).expect("git metadata");
         let plan = build_acl_plan(
             root.path(),
-            RequestedSandboxPolicy::WorkspaceWrite,
+            &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             None,
             &HashMap::new(),
         )
@@ -604,7 +612,9 @@ mod tests {
         let root = tempfile::tempdir().expect("workspace");
         let plan = build_acl_plan(
             root.path(),
-            RequestedSandboxPolicy::ReadOnly,
+            &SandboxPolicy::ReadOnly {
+                network_access: false,
+            },
             None,
             &HashMap::new(),
         )
@@ -650,7 +660,7 @@ mod tests {
         };
         let plan = build_acl_plan(
             root.path(),
-            RequestedSandboxPolicy::WorkspaceWrite,
+            &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             Some(&permissions),
             &HashMap::new(),
         )
@@ -691,7 +701,7 @@ mod tests {
 
         let plan = build_acl_plan(
             &workspace,
-            RequestedSandboxPolicy::WorkspaceWrite,
+            &crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
             None,
             &environment,
         )
@@ -704,5 +714,31 @@ mod tests {
                 std::fs::canonicalize(&workspace).unwrap(),
             ]
         );
+    }
+
+    #[test]
+    fn memory_acl_policy_excludes_parent_temp_grants() {
+        let root = tempfile::tempdir().unwrap();
+        let memory = root.path().join("memory");
+        let extra = root.path().join("extra");
+        std::fs::create_dir(&memory).unwrap();
+        std::fs::create_dir(&extra).unwrap();
+        let policy = SandboxPolicy::WorkspaceWrite {
+            writable_roots: vec![extra.clone().try_into().unwrap()],
+            network_access: false,
+            exclude_tmpdir_env_var: true,
+            exclude_slash_tmp: true,
+        };
+        let environment = HashMap::from([(
+            "TEMP".to_string(),
+            root.path().to_string_lossy().into_owned(),
+        )]);
+        let plan = build_acl_plan(&memory, &policy, None, &environment).unwrap();
+        let mut expected = vec![
+            std::fs::canonicalize(memory).unwrap(),
+            std::fs::canonicalize(extra).unwrap(),
+        ];
+        expected.sort();
+        assert_eq!(plan.write_grants, expected);
     }
 }

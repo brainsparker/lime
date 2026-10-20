@@ -5217,7 +5217,7 @@ export interface CommandExecParams {
   outputBytesCap?: number | null;
   permissionProfile?: null | string;
   processId?: null | string;
-  sandboxPolicy?: unknown;
+  sandboxPolicy?: SandboxPolicy | null;
   size?: CommandExecTerminalSize | null;
   streamStdin?: boolean;
   streamStdoutStderr?: boolean;
@@ -7945,6 +7945,8 @@ export interface ModelVerificationNotification {
 
 export type MultiAgentVersion = "disabled" | "v1" | "v2";
 
+export type NetworkAccess = "enabled" | "restricted";
+
 export interface NetworkApprovalContext {
   host: string;
   protocol: NetworkApprovalProtocol;
@@ -8939,6 +8941,26 @@ export interface RuntimeRequest {
 export type RuntimeSearchMode = "auto" | "disabled" | "required";
 
 export type RuntimeToolCallStrategy = "native" | "tool_shim";
+
+export type SandboxPolicy =
+  | {
+      type: "dangerFullAccess";
+    }
+  | {
+      networkAccess?: boolean;
+      type: "readOnly";
+    }
+  | {
+      networkAccess?: NetworkAccess;
+      type: "externalSandbox";
+    }
+  | {
+      excludeSlashTmp?: boolean;
+      excludeTmpdirEnvVar?: boolean;
+      networkAccess?: boolean;
+      type: "workspaceWrite";
+      writableRoots?: AbsolutePathBuf[];
+    };
 
 export interface ScheduledTask {
   createdAt: string;

@@ -415,6 +415,13 @@ test("command/exec helpers use exact methods, connection-scoped process ids, and
     outputBytesCap: 4096,
     timeoutMs: 5000,
     size: { rows: 24, cols: 80 },
+    sandboxPolicy: {
+      type: "workspaceWrite",
+      writableRoots: ["/workspace/memories"],
+      networkAccess: false,
+      excludeTmpdirEnvVar: true,
+      excludeSlashTmp: true,
+    },
   });
   const write = client.writeCommandExec({
     processId: "shell-1",
@@ -439,6 +446,13 @@ test("command/exec helpers use exact methods, connection-scoped process ids, and
     outputBytesCap: 4096,
     timeoutMs: 5000,
     size: { rows: 24, cols: 80 },
+    sandboxPolicy: {
+      type: "workspaceWrite",
+      writableRoots: ["/workspace/memories"],
+      networkAccess: false,
+      excludeTmpdirEnvVar: true,
+      excludeSlashTmp: true,
+    },
   });
   assert.equal(write.id, 2);
   assert.equal(write.method, METHOD_COMMAND_EXEC_WRITE);

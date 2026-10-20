@@ -67,6 +67,9 @@
 - Agnes 3.0 Flash 文字与 Image 2.5 Flash 图片已走真实 Electron/IPC/App Server/runtime 完成；服务商设置在1024、1440、2048宽度无横向溢出。问答 r44 业务与正常退出通过，r45正复验合法状态通知零提示。
 - 完整 types 最终复核与后继 CI、标签重定位及全部 Desktop/R2/CLI/npm 仍待完成，不能把已触发工作流记为发布成功。原始验证日志保留其空行与空白，不为 diff whitespace 改写原件；源码与文档单独检查。
 - 后继完整 `npm run typecheck` exit0，原件 `/tmp/lime-v11640-final-typecheck-verified.log` 与 `.exit`；最终 GUI SHELL-01 `standalone-shell-01-20261020102955-67648` 通过24/24。docs boundary、ephemeral fixture语法、源码/文档diff whitespace通过。42文件候选先提交启动CI；之后新增的并行typed sandbox协议/执行边界尚在开发，保留工作树，待对应owner完成定向与合同后再合入最终发布标签，不把这批在途文件混入已冻结索引。
+- 已推送候选 `974627088debee29861263b14698cf73d8651589`，正常提交钩子39/39。完整 Quality `39409169817`：https://github.com/limecloud/lime/actions/runs/39409169817 ，等待终态。typed sandbox切片收口后纳入全部发布；请并行owner在该切片完成后冻结新增实现，让本轮tag、Desktop/R2/CLI/npm基于一个稳定候选结算；Memory shared Agent后续路线图保持active，不在本轮追逐新增实现。
+- `974627088` 的远端 Frontend Full已完成141/141批，GUI与Integrity通过，Rust仍运行。后继typed sandbox已同步JSON Schema、manifest、生成TS、App Server/进程执行和Windows ACL；完整contracts通过、TS client 139/139与gateway 6/6通过。GUI独立 `verify:local` r46在完整`npm run typecheck`之后已进入第33/142批，确认新生成类型检查exit0；此后批次尚未结算，不宣称默认门禁通过。先提交这批实现启动最终源码CI，OS sandbox定向/真实执行、稳定产物问答和完整矩阵仍必须在标签之前结算。
+- 问答r46已实际验证状态告警0、最终正文/Stop、答案wire、跨线程稿和精确中断，Main0.534秒正常退出；因并行Rust源码变化，末次freshness失败，整轮fail。后继fixture明确执行纳入产物指纹的`dist-electron`侧车，禁止通过宽限、touch产物或豁免freshness结算；冻结后以新run ID复验。
 
 - 发布应用、CLI 与 Rust workspace `v1.164.0`，创建并推送 `v1.164.0` 标签。
 - 候选起点为已发布的 `v1.163.0`；当前工作树中该标签之后的源码、协议、测试、脚本、治理规则、研究证据和执行计划全部纳入本版。

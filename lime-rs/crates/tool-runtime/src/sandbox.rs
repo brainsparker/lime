@@ -4,8 +4,10 @@ use serde_json::Map as JsonMap;
 use serde_json::Value as JsonValue;
 
 mod command;
+pub(crate) mod policy;
 
 pub use command::{prepare_sandbox_command, SandboxCommandError, SandboxCommandRequest};
+pub use policy::{sandbox_policy_from_label, sandbox_policy_label};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestedSandboxPolicy {

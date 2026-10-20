@@ -360,7 +360,7 @@ fn restricted_token_sandbox_fails_closed_off_windows() {
     );
     request.sandbox = Some(LocalExecutionSandbox {
         backend: SandboxBackend::RestrictedToken,
-        requested_policy: Some("workspace-write".to_string()),
+        policy: crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
         granted_permissions: None,
         windows_mode: None,
     });
@@ -531,7 +531,7 @@ fn shell_command(script: &str) -> Vec<String> {
 fn local_sandbox_defaults_to_elevated_windows_mode() {
     let sandbox = LocalExecutionSandbox {
         backend: SandboxBackend::RestrictedToken,
-        requested_policy: Some("workspace-write".to_string()),
+        policy: crate::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
         granted_permissions: None,
         windows_mode: None,
     };

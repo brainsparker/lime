@@ -653,6 +653,8 @@ pub(super) fn v2_schemas() -> Vec<GeneratedJsonSchema> {
         typed_schema::<v2::ProcessOutputDeltaNotification>("ProcessOutputDeltaNotification"),
         typed_schema::<v2::ProcessExitedNotification>("ProcessExitedNotification"),
         typed_schema::<v2::CommandExecTerminalSize>("CommandExecTerminalSize"),
+        typed_schema::<v2::SandboxPolicy>("SandboxPolicy"),
+        typed_schema::<v2::NetworkAccess>("NetworkAccess"),
         typed_schema::<v2::CommandExecParams>("CommandExecParams"),
         typed_schema::<v2::CommandExecResponse>("CommandExecResponse"),
         typed_schema::<v2::CommandExecWriteParams>("CommandExecWriteParams"),

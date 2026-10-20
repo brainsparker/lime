@@ -118,7 +118,10 @@ fn resolve_command_exec_permission_profile_with_policy(
             "permissionProfile cannot be combined with sandboxPolicy",
         ));
     }
-    params.sandbox_policy = Some(Value::String(profile.sandbox_policy));
+    params.sandbox_policy = Some(
+        tool_runtime::sandbox::sandbox_policy_from_label(Some(&profile.sandbox_policy))
+            .map_err(|error| JsonRpcError::new(error_codes::INVALID_PARAMS, error.to_string()))?,
+    );
     params.permission_profile = None;
     Ok(profile.granted_permissions)
 }
@@ -186,7 +189,9 @@ mod tests {
         assert_eq!(params.permission_profile, None);
         assert_eq!(
             params.sandbox_policy,
-            Some(Value::String("workspace-write".into()))
+            Some(
+                tool_runtime::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap()
+            )
         );
         assert!(grants.is_some());
     }
@@ -204,7 +209,7 @@ mod tests {
         assert!(grants.is_none());
         assert_eq!(
             params.sandbox_policy,
-            Some(Value::String("read-only".into()))
+            Some(tool_runtime::sandbox::sandbox_policy_from_label(Some("read-only")).unwrap())
         );
     }
 

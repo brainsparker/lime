@@ -43,6 +43,13 @@ describe("commandExec gateway", () => {
       disableTimeout: true,
       cwd: "/tmp/project",
       size: { cols: 120, rows: 14 },
+      sandboxPolicy: {
+        type: "workspaceWrite" as const,
+        writableRoots: ["/workspace/memories"],
+        networkAccess: false,
+        excludeTmpdirEnvVar: true,
+        excludeSlashTmp: true,
+      },
     };
 
     await expect(execCommand(params, client)).resolves.toEqual({

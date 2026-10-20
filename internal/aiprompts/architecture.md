@@ -5851,6 +5851,17 @@ same shutdown owner -> cancel/drain/close -> remove loaded session -> no cold re
 
 Context compaction artifact 与 Memory summary prompt sidecar 的写入发生在事件提交前，由 `context_compaction` / `memory_prompt` 各自检查同一会话标记，保留内存 context/window 而跳过 sidecar。
 
+Memory managed 写根限制复用现有 OS 进程 owner，结构化 `SandboxPolicy` 不得在 launch 前丢字段：
+
+```text
+command/exec typed SandboxPolicy -> existing permission profile admission
+  -> CommandExecServer -> LocalExecutionSandbox (complete policy + granted permissions)
+  -> tool-runtime sandbox policy -> same Seatbelt / bubblewrap / Windows ACL runner
+existing Turn string configuration -> boundary conversion -> same LocalExecutionSandbox
+```
+
+`sandbox/policy.rs` 统一解析 cwd、显式绝对写根与未被排除的 TMPDIR / Unix `/tmp`；readOnly 没有隐式临时写根。网络配置继续由该 runner 与实际 permission grants 执行，模型采样网络仍归 model-provider。`command/exec` 的任意 JSON/string policy 与丢字段的 label helper 已替换，schema/client 同步生成；不增加第二 sandbox 或 runtime。Windows 同步 typed roots 与 TEMP/TMP 排除，但不因此宣称 Windows 运行验收。root 于 2026-10-20 确认上述 owner、数据流与依赖方向；此片只闭合共享执行前提，受限 Memory Agent 的 typed admission、扩展隔离、workspace 与关闭提交仍未接入。
+
 架构图确认：root，2026-10-20；对照 Codex `core/src/session/session.rs` 与 App Server `load_live_thread_view`，唯一 runtime、provider、工具和存储 owner 不变。此为受限 Memory Agent 的存储前提，尚不证明 phase-2 Agent、工具隔离或 Memory workspace 对齐；验证终态记录到 Memory harness 执行计划。
 
 Agent Loop 的 Stop owner 是 `agent-runtime::provider_turn::stop_hooks`，Hook source/reporter 仍由 App Server/Agent host 提供。每个 sampling step 捕获一次 immutable `RuntimeHookStepSnapshot`，同一快照用于工具 gate 和 terminal Stop evaluation；终态检查发生在工具 continuation、pending input 与 provider completion 收敛之后。Block 构造成同一 Turn 的 user-role `HookPrompt`，先经既有双层 ordered `ModelHistoryRecorder` 等待真实 EventLog `event_id/sequence` 回执，再发出 `item.started`/`item.completed`、追加 provider user message、原子重开当前 Turn 的 steer/mailbox 边界，置 `stop_hook_active` 继续采样。缺 recorder 或 durable append 失败均不发布 HookPrompt、不继续采样或切换路由；fragment identity 必须全部有效，不可静默丢弃部分 prompt。记录保持 provider-neutral user text，不接受 native envelope、producer 或 tool budget。

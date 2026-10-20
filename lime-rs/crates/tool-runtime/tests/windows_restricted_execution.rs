@@ -49,7 +49,7 @@ fn restricted_request(root: &Path, command: Vec<String>) -> LocalExecutionReques
     request.cwd = Some(root.to_path_buf());
     request.sandbox = Some(LocalExecutionSandbox {
         backend: SandboxBackend::RestrictedToken,
-        requested_policy: Some("workspace-write".to_string()),
+        policy: tool_runtime::sandbox::sandbox_policy_from_label(Some("workspace-write")).unwrap(),
         granted_permissions: Some(GrantedPermissionProfile {
             network: Some(AdditionalNetworkPermissions {
                 enabled: Some(true),

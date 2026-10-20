@@ -1,6 +1,6 @@
 use super::*;
-use crate::sandbox::{parse_requested_sandbox_policy, RequestedSandboxPolicy};
 use app_server_protocol::protocol::v2::GrantedPermissionProfile;
+use app_server_protocol::protocol::v2::SandboxPolicy;
 use std::ffi::c_void;
 use std::os::windows::ffi::OsStrExt;
 use std::path::Path;
@@ -97,12 +97,14 @@ pub(super) fn start_windows_restricted_execution_process(
             "Windows restricted token sandbox requires a working directory",
         )
     })?;
-    let policy = parse_requested_sandbox_policy(sandbox.requested_policy.as_deref())
-        .unwrap_or(RequestedSandboxPolicy::WorkspaceWrite);
-    if policy == RequestedSandboxPolicy::DangerFullAccess {
+    let policy = &sandbox.policy;
+    if matches!(
+        policy,
+        SandboxPolicy::DangerFullAccess | SandboxPolicy::ExternalSandbox { .. }
+    ) {
         return Err(io::Error::new(
             io::ErrorKind::InvalidInput,
-            "danger-full-access must bypass the restricted token sandbox",
+            "unmanaged execution must bypass the restricted token sandbox",
         ));
     }
 
