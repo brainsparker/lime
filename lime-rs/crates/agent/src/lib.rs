@@ -122,7 +122,7 @@ pub use runtime_state_support::{
 };
 pub use session_configuration::{
     build_agent_session_config, AgentSessionConfig, AgentSessionConfigurationRequest,
-    SessionConfigBuilder,
+    AgentSessionSource, SessionConfigBuilder,
 };
 pub use session_execution_runtime::{
     SessionExecutionRuntimeCostState, SessionExecutionRuntimeLimitEvent,

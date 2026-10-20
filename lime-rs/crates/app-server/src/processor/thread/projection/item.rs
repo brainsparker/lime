@@ -14,6 +14,18 @@ pub(super) fn project_item(item: canonical::ThreadItem) -> Result<v2::ThreadItem
                 content: content.into_iter().map(project_user_input).collect(),
             })
         }
+        canonical::ThreadItemPayload::HookPrompt { fragments } => {
+            Ok(v2::ThreadItem::HookPrompt {
+                id,
+                fragments: fragments
+                    .into_iter()
+                    .map(|fragment| v2::HookPromptFragment {
+                        text: fragment.text,
+                        hook_run_id: fragment.hook_run_id,
+                    })
+                    .collect(),
+            })
+        }
         canonical::ThreadItemPayload::AgentMessage { text, phase, delivery, questions, .. } => {
             Ok(v2::ThreadItem::AgentMessage {
                 id,

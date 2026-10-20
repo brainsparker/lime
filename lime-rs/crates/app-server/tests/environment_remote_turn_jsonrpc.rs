@@ -222,14 +222,12 @@ fn assert_remote_command_item(
         .expect("thread/read turns");
     assert_eq!(turns.len(), expected_turns);
     let command = turns
+        .last()
+        .expect("latest remote turn")
+        .get("items")
+        .and_then(Value::as_array)
+        .expect("latest remote turn items")
         .iter()
-        .flat_map(|turn| {
-            turn.get("items")
-                .and_then(Value::as_array)
-                .into_iter()
-                .flatten()
-        })
-        .rev()
         .find(|item| item["type"] == "commandExecution")
         .expect("remote commandExecution item");
     assert_eq!(
@@ -357,10 +355,17 @@ async fn handle_provider_connection(
 }
 
 fn streaming_provider_response(request: &Value) -> String {
-    let has_tool_result = request
+    let messages = request
         .get("messages")
         .and_then(Value::as_array)
-        .is_some_and(|messages| messages.iter().any(|message| message["role"] == "tool"));
+        .expect("provider request messages");
+    let current_turn_start = messages
+        .iter()
+        .rposition(|message| message["role"] == "user")
+        .expect("current turn user message");
+    let has_tool_result = messages[current_turn_start + 1..]
+        .iter()
+        .any(|message| message["role"] == "tool");
     if has_tool_result {
         return sse(&[
             json!({

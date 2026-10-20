@@ -1,6 +1,6 @@
 # 异步问题 current 纵切
 
-状态：实施中，未取得真实桌面验收。负责人：Codex，2026-10-20。
+状态：实施中；同步问答 r18 已验收，组合异步桌面 r19 失败，正在定位。负责人：Codex，2026-10-20。
 
 目标：对齐 `request_user_input_async -> AgentMessage.questions -> 同一发送协调器`，不新增问答 RPC、同步 pending 或业务历史 store。参考与限制见 `internal/research/codex-desktop-rea/async-user-input-audit-20261020.md`。
 
@@ -29,6 +29,9 @@
 
 ## 当前实施与证据
 
+- 2026-10-20 后继 root 收口：在现有六处候选接点逐段合并 canonical `is_root_agent` 和 resolved tools 开关，保留 typed Stop source 并行增量；同步迁移构造调用及定向回归，随后执行公共 JSON-RPC/provider capture 与真实 Electron。窄写集为 execution_request、turn admission、session_config、provider_config、current provider snapshot 接线及其消费者。旧的“默认 false 尚未接线”记录作为此前状态保留，取得新证据前不标完成。
+- 结构护栏修复：将 session source 解析原样迁到 `request_context/session_source.rs`，主文件由 806 降至 754 行，不放宽 800 行上限。
+
 - 后端自持叶模块冻结，204项Rust测试通过；schema writer、1058个协议类型生成及drift通过。唯一源ID入口改为 `ItemId::from_source`，旧名称与metadata.delivery解释路径删除。详见 [backend-implementation.md](artifacts/async-user-input-20261020/backend-implementation.md) 与 [backend-freeze.json](artifacts/async-user-input-20261020/backend-freeze.json)。
 - Renderer已接严格canonical reader、AppScope题稿/selection、共用答案编辑器、Next/Skip/失败重试/late edit，使用普通sendMessage，主Composer不清。问答发送显式省略权限覆盖，plan以现有模式传递，普通模式不重设collaborationMode。
 - 新REA确认每题独立助手行、仅title、未答且未选中时的Answer入口，以及题目标签＋普通用户正文的答案模板；当前时间线已替换整段源text显示，derived ID不改变canonical source identity。手动可重开skipped未答题，不新增已答题重开入口。
@@ -37,14 +40,27 @@
 - timeline scoped lint-r1发现正则多余转义，r2已通过；types-r1误用不存在的npm脚本，改实际tsc后r2发现Token字段收窄错误，修正后r3已确认exit0。五语检查100%通过，docs boundary及scoped diff whitespace通过。Files菜单fixture三份node语法检查通过；同步问答/侧栏脚本15项与canonical history1项另有后继通过，同跑的题稿6项是既有并集，不重复累加。真实菜单尚未执行。
 - 新REA原件136成员归档并全部hash回读：[selected-question-timeline-integrity.json](artifacts/async-user-input-20261020/selected-question-timeline-integrity.json)。目标未执行，静态证据不冒充运行观察。architecture已由root确认当前owner/依赖方向，图中明确标注未接可信producer。
 
-## 阻塞与下一刀
+## 此前阻塞与当前验证
 
-六个可信root/config接点发现 `current_provider_turn.rs` 树外变化，按并行协作规则已提交最小补丁并询问接管写窗，尚未收到明确答复；不得把时间流逝视为同意。候选 `trusted-context-hotspots.patch`、fork语义与外部构造式补丁均未应用。当前策略仍默认false，真实模型不开放该工具。
+六个可信 root/config 接点和 agent-control fork 已按最新基线逐段合并，保留 typed Stop source 增量，构造式消费者已迁移。candidate patch 仅保留为当时的交接原件，不再作为未实施列表。缺失 canonical Thread 或 resolved config 时 fail closed；普通 fork 可为 root，子 agent 不可借 renderer metadata 开启该工具。
 
-统一contracts已实际执行，protocol drift通过，随后外部memory owner旧源码字符串守卫失败：要求 `self.app_data_source.consolidate_memory_store(params).await`，当前实现已改变。原失败 `/tmp/lime-codex-contracts-async-r1.log` 保留，待owner对齐守卫；不回退memory实现或放宽其他合同。
+此前 memory 字符串守卫失败原件 `/tmp/lime-codex-contracts-async-r1.log` 保留；后继 root 已完整执行 `npm run test:contracts` 并取得 exit0，不恢复旧 memory 委托链。
 
-该guard源码归属未确认，已在 [memory-contract-guard.patch](artifacts/async-user-input-20261020/memory-contract-guard.patch) 准备迁移到真实route/backend委托的最小候选，`git apply --check`通过但未应用。contracts后续独立检查已实际执行：commands、harness、modality、scripts、Electron release、Desktop reference与CLI boundary通过；这不把聚合contracts变成通过。
+异步已有后端定向 4/4＋5/5 通过，后继新增 typed 配置边界回归和完整受影响 Rust crates 正在执行。REA 复用 `ev_c2b5509b493e5e04e3b3676441433bad4398c1386f19e937c69f9697bba0ee40`，本轮 summary 在 `/tmp/lime-async-rea-summary-20261020.json`，7 个静态 JS 成员、parse failures=0、semantic unknowns=611；没有执行参考 App。
 
-`npm run electron:build`已通过：新Renderer、Host/preload、协议client与Rust sidecar资产完整构建；当前进入侧栏r11真实Electron专项。构建存在外部memory模块的既有dead-code warning，未修改该并行模块。异步producer仍关闭，构建成功不证明异步功能端到端启用。
+同步问答 r18 已通过真实 Electron（见主计划收据）。后继组合问答 fixture 直接通过受控 provider 工具产生异步 canonical Item，等待真实表单可见后才放行模型续跑，随后验证普通答案发送、跨线程题稿和主 Composer 保稿；测试的模型能力由显式 test-only native policy 提供，不冒称生产 catalog 发现已验收。
 
-继续补新Renderer/Host、真实侧栏r11与同步问答、Files/Goal矩阵、`smoke:agent-runtime-current-fixture`、GUI smoke和默认门禁。异步Gate B必须在可信接线完成后通过真实模型fixture产生canonical问题；不允许renderer注入模拟producer。
+新 sidecar 已构建成功（`/tmp/lime-async-sidecar-build-r20.log`）。受影响 Rust 串行复验 App Server 1957/1957、agent 295/295 通过（`/tmp/lime-async-trusted-rust-serial-r21.log`）；此前 agent-runtime 265/265 通过。组合桌面 r19 等待 async 表面超时；canonical 历史已含同 source ID 的真实问题，producer 随后触发无可见输出期限，失败原件在 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r19/`。尚未确认首次显示与切线程哪个阶段失败，不凭工具已注册判成功；r20 增加细分阶段、DOM 和 invoke trace 诊断后复验。current fixture 聚合、GUI smoke 与默认门禁仍待结算。前端续跑切换至已安装 Node24.21.0；Node23 的 registerHooks 失败和后继原 5 秒 PPTX 组件超时均保留，不改超时或过滤断言。Files/Goal 完整矩阵、生产 catalog 的实验工具能力路由、Windows/live/packaged 继续开放。
+
+
+## 活动 Turn 恢复缺口（后继定位）
+
+r20 的细分诊断确认首次表单不可见，canonical 问题真实存在且主草稿保留；r19 中另一次主草稿发送未在 r20 复现，不据此归因。r21 使用实际线程导航恢复，界面恢复了初始用户消息但继续丢失问题和终态。current `resumeThread` 在消费快照后只调用 `restoreCommands`；路由明确跳过 inProgress Turn，因此已恢复窗口没有该活动 Turn 的 live route。
+
+REA 参考仍为上述 Ktn/qtn 的同一 Thread/Turn/Item 生命周期及 lIt/mIt canonical 跟随合同；2026-10-20 再次通过 REA summary 复用 `ev_c2b5509b493e5e04e3b3676441433bad4398c1386f19e937c69f9697bba0ee40`，summary ID `ev_1dcc4684f813af880b706b411e13b8a3958c8860f13283b76fbfee87d3315ca0`。没有执行参考应用。Codex `app-server/src/request_processors/thread_lifecycle.rs` 的连接订阅与 current producer 生命周期提供运行边界参考；压缩符号不作为新源码命名。
+
+窄修复沿唯一 `AppServerAgentSessionEventDrainRouter`：将快照恢复入口直接改名 `restoreThread`，同时恢复 active Turn 与 terminal Turn 的 session Command；迁移唯一生产调用及测试，不保留旧 alias。恢复路由固定 canonical Turn ID，首个外线程/外 Turn 事件不得重定向它。既有 sequence gate、终态 tombstone、command/process identity 继续生效。新增确定性回归先复现“没有 subscription”（`/tmp/lime-active-turn-resume-red-r22.log`），再覆盖问题 Item started/completed、真实 terminal、foreign scope 和回收。
+
+另修复题目 Item 先到、active Turn 后到时提前登记导致不自动选题的竞态；用户主动关闭后仍不自动重开，34 项相关回归通过。全量前端迁移了缺正文的旧 canonical fixture，并精确登记共享新线程目标 lowering 的 inputRestoreDraft 消费；不恢复旧目标表单或队列状态。
+
+上述运行缺口的后继 Renderer、真实 Electron、current fixture 和标准 GUI smoke 尚未验收。r19/r20/r21 失败原件保留，不改写为通过。默认前端续跑使用独立 `.lime/test/vitest-smart-gui-alignment-20261020.json`，避免并行进程共写状态。

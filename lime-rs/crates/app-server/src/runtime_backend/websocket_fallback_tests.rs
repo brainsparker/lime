@@ -182,6 +182,7 @@ fn execution_request(base_url: &str, turn_index: usize) -> ExecutionRequest {
             completed_at: None,
         },
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text(format!("turn {turn_index}")),
         runtime_options: Some(RuntimeOptions {
             stream: true,

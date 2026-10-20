@@ -24,7 +24,8 @@ pub(crate) fn current_agent_runtime_config_metadata() -> Option<Value> {
                 },
                 "orchestrator": {
                     "loadError": error.to_string(),
-                }
+                },
+                "tools": { "loadError": error.to_string() }
             }));
         }
     };
@@ -51,15 +52,15 @@ fn current_agent_runtime_config_metadata_from_config(
     let orchestrator_config =
         (!OrchestratorConfig::is_default(&config.orchestrator)).then(|| json!(config.orchestrator));
     let soul_context = memory_soul_prompt_context_from_config(config.memory.soul.as_ref());
-    if agent_config.is_empty()
-        && skills_config.is_none()
-        && orchestrator_config.is_none()
-        && soul_context.is_none()
-    {
-        return None;
-    }
-
     let mut metadata = serde_json::Map::new();
+    metadata.insert(
+        "tools".to_string(),
+        json!({
+            "experimental_request_user_input": {
+                "enabled": config.tools.experimental_request_user_input_enabled()
+            }
+        }),
+    );
     if !agent_config.is_empty() {
         metadata.insert("agent".to_string(), Value::Object(agent_config));
     }
@@ -88,8 +89,23 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn default_config_does_not_emit_runtime_metadata() {
-        assert!(current_agent_runtime_config_metadata_from_config(&Config::default()).is_none());
+    fn config_projects_the_resolved_question_tool_switch() {
+        let mut config = Config::default();
+        for enabled in [true, false] {
+            config.tools.experimental_request_user_input =
+                Some(lime_core::config::ExperimentalRequestUserInput { enabled });
+            let metadata = current_agent_runtime_config_metadata_from_config(&config).unwrap();
+            assert_eq!(
+                metadata.pointer("/tools/experimental_request_user_input/enabled"),
+                Some(&json!(enabled))
+            );
+        }
+        let metadata =
+            current_agent_runtime_config_metadata_from_config(&Config::default()).unwrap();
+        assert_eq!(
+            metadata.pointer("/tools/experimental_request_user_input/enabled"),
+            Some(&json!(true))
+        );
     }
 
     #[test]

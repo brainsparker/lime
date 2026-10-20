@@ -8,6 +8,8 @@ pub struct ExecutionRequest {
     pub turn: app_server_protocol::AgentTurn,
     /// Canonical Thread lineage captured at turn admission.
     pub forked_from_thread_id: Option<String>,
+    /// Canonical Thread authority captured at admission; missing Thread is not root.
+    pub is_root_agent: bool,
     pub input: RuntimeReplyInput,
     pub runtime_options: Option<app_server_protocol::RuntimeOptions>,
     pub expected_output: Option<serde_json::Value>,

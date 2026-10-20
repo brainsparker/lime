@@ -141,7 +141,11 @@ where
         dynamic_tool_routes.clone(),
         session_config.tool_mode,
         session_config.supports_custom_tools,
-        mcp_step_snapshot::AsyncUserInputPolicy::default(),
+        mcp_step_snapshot::AsyncUserInputPolicy {
+            is_root_agent: session_config.is_root_agent,
+            experimental_request_user_input_enabled: session_config
+                .experimental_request_user_input_enabled,
+        },
     );
     let mut lifecycle_emitter = CurrentTurnToolLifecycleEmitter::with_tool_routes(
         host_event_sender.clone(),
@@ -575,6 +579,20 @@ fn handle_provider_event<F>(
             );
         }
         CurrentProviderTurnEvent::MidTurnCompaction { .. } => {}
+        CurrentProviderTurnEvent::HookPrompt { item } => {
+            let mut started = item.clone();
+            started.status = ItemStatus::InProgress;
+            emit_with_artifacts(
+                artifact_events,
+                AgentEvent::ItemStarted { item: started },
+                on_event,
+            );
+            emit_with_artifacts(
+                artifact_events,
+                AgentEvent::ItemCompleted { item },
+                on_event,
+            );
+        }
     }
 }
 

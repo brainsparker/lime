@@ -125,18 +125,16 @@ export class AppServerAgentSessionEventDrainRouter {
     };
   }
 
-  restoreCommands(params: {
+  restoreThread(params: {
     eventName: string;
     thread: CommandSequenceSnapshot;
   }): void {
     const { eventName, thread } = params;
     restoreAgentRuntimeCommandSequenceGate(eventName, thread);
     for (const turn of thread.turns ?? []) {
-      if (
-        turn.status === "inProgress" ||
-        this.#closedSessionTurnKeys.has(sessionTurnKey(thread.id, turn.id))
-      )
+      if (this.#closedSessionTurnKeys.has(sessionTurnKey(thread.id, turn.id)))
         continue;
+      const turnCompleted = turn.status !== "inProgress";
       let route = [...this.#routes.values()].find(
         (existing) =>
           existing.eventName === eventName &&
@@ -146,7 +144,7 @@ export class AppServerAgentSessionEventDrainRouter {
       if (!route) {
         const commands = new CommandContinuation();
         commands.restore(turn.items ?? []);
-        if (!commands.active) continue;
+        if (turnCompleted && !commands.active) continue;
         this.register({ eventName, sessionId: thread.id, turnId: turn.id });
         route = [...this.#routes.values()].find(
           (existing) =>
@@ -156,10 +154,10 @@ export class AppServerAgentSessionEventDrainRouter {
         );
       }
       if (!route) continue;
-      route.turnCompleted = true;
+      route.turnCompleted = turnCompleted;
       route.hasPublishedEvent = true;
       route.commands.restore(turn.items ?? []);
-      if (!route.commands.active) {
+      if (route.turnCompleted && !route.commands.active) {
         this.#rememberClosedRoute(route, turn.id);
         this.#routes.delete(route.registrationKey);
       }
@@ -371,6 +369,7 @@ export class AppServerAgentSessionEventDrainRouter {
       }
       if (route.turnId && event.turnId && route.turnId !== event.turnId) {
         if (
+          route.requestedTurnId ||
           route.hasPublishedEvent ||
           this.#isClosedRouteForEvent(route, event)
         ) {

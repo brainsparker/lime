@@ -23,6 +23,18 @@ const setup = () => {
 };
 
 describe("AppScope async question drafts", () => {
+  it("selects questions when their active Turn arrives after the items without reopening a closed form", () => {
+    const store = new QuestionDraftStore();
+    store.reconcile(scope, questions, new Map(), new Set());
+    expect(store.read(scope).selection).toBeNull();
+    store.reconcile(scope, questions, new Map(), active);
+    expect(store.read(scope).selection?.ids).toEqual(["q0", "q1"]);
+    store.close(scope);
+    store.reconcile(scope, questions, new Map(), new Set());
+    store.reconcile(scope, questions, new Map(), active);
+    expect(store.read(scope).selection).toBeNull();
+  });
+
   it("selects active unanswered questions once; close does not reopen from an identical projection", () => {
     const store = setup();
     expect(store.read(scope).selection).toEqual({

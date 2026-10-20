@@ -160,6 +160,7 @@ pub(super) async fn preflight_thread_settings_route(
             completed_at: None,
         },
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text(
             "thread settings route preflight",
         ),
@@ -427,6 +428,7 @@ impl ExecutionBackend for RuntimeBackend {
                 completed_at: None,
             },
             forked_from_thread_id: None,
+            is_root_agent: false,
             input: agent_runtime::reply_input::RuntimeReplyInput::text(
                 "memory stage-1 route readiness",
             ),

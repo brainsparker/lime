@@ -144,6 +144,8 @@ mod tests {
                 id: Some("primary_color".to_string()),
                 question: "你希望主色调是什么？".to_string(),
                 header: Some("主色调".to_string()),
+                is_other: false,
+                is_secret: false,
                 options: vec![
                     RequestUserInputOption {
                         value: "blue-purple".to_string(),
@@ -186,6 +188,8 @@ mod tests {
                     id: Some("mode".to_string()),
                     question: "第二问".to_string(),
                     header: Some("mode".to_string()),
+                    is_other: false,
+                    is_secret: false,
                     options: vec![
                         RequestUserInputOption::with_label("auto", "自动执行"),
                         RequestUserInputOption::with_label("confirm", "确认后执行"),
@@ -223,6 +227,8 @@ mod tests {
                 id: Some("skills".to_string()),
                 question: "请选择能力".to_string(),
                 header: Some("skills".to_string()),
+                is_other: false,
+                is_secret: false,
                 options: vec![
                     RequestUserInputOption::with_label("analysis", "分析"),
                     RequestUserInputOption::with_label("coding", "编码"),
@@ -265,6 +271,8 @@ mod tests {
                 id: Some("mode".to_string()),
                 question: "请选择执行模式".to_string(),
                 header: Some("mode".to_string()),
+                is_other: false,
+                is_secret: false,
                 options: vec![
                     RequestUserInputOption::with_label("auto", "自动执行"),
                     RequestUserInputOption::with_label("confirm", "确认后执行"),

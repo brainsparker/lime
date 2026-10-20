@@ -161,6 +161,18 @@ fn canonical_payload_to_agent_detail(
             }
             "user_message"
         }
+        ThreadItemPayload::HookPrompt { fragments } => {
+            detail.insert("fragments".to_string(), json!(fragments));
+            detail.insert(
+                "text".to_string(),
+                json!(fragments
+                    .iter()
+                    .filter_map(agent_protocol::HookPromptFragment::provider_text)
+                    .collect::<Vec<_>>()
+                    .join("\n")),
+            );
+            "hook_prompt"
+        }
         ThreadItemPayload::AgentMessage {
             text,
             phase,

@@ -831,3 +831,41 @@ npm run smoke:agent-runtime-current-fixture
 - **契约验证**：`memory_store::tests` **13/13** 通过；`npm run test:contracts` 通过（protocol 1058 类型、App Server client 296 项及 governance checks）；`cargo check -p agent-runtime` 与 Stop hook 定向测试通过。因当前 hook prompt 尚未提升为 canonical user-role `HookPrompt` Item，本片不宣称完整 durable HookPrompt 对齐。
 - **失败闭环补强**：发现 duplicate source 在第二条 entry 才失败时会先移动第一条 source；现已改为先完整校验 provider proposal，再执行任何 archive/review/write，unknown/duplicate/missing/symlink/oversized/provider failure 均保持原 source 不动。新增 fail-closed 回归后 `memory_store::tests` **14/14** 通过。
 - **未关闭退出条件**：Memory startup/export 自动调度、phase-2 多模型能力/readiness、usage feedback→consolidation→prompt 注入、thread delete/disabled scope/cold/fork recovery、四协议真实 provider capture、LimeCore Core/MySQL 链路；Stop 的 canonical HookPrompt durable receipt、ThreadSpawn/SubagentStop 来源、取消终态、Memory 防递归和 GUI/TUI/CLI 实证仍开放。下一刀优先把同一 history receipt owner 扩展为 HookPrompt，再补 Stop 的来源与取消语义；插件、tar.gz 和 LimeCore 范围继续保留。
+### M02 / Codex HookPrompt canonical item 接线（2026-10-20）
+
+- **事实源**：Codex `core/src/session/turn.rs` 在 Stop block 时调用 `build_hook_prompt_message`，生成 user-role response item，写入同一 Turn 后设置 `stop_hook_active` 继续；`core/src/event_mapping.rs` 与 `thread-store` 将该 XML message 解析为 `TurnItem::HookPrompt` 并恢复到 history。grok-build 不参与本项语义。
+- **current owner**：`agent-protocol::ThreadItemPayload::HookPrompt` 与 `HookPromptFragment` 是唯一 canonical 类型；`agent-runtime::provider_turn` 负责 Stop evaluation、fragment identity 和同 Turn provider user lowering；`lime-agent` 负责 Item started/completed 生命周期；App Server materializer/projection、provider history 和 fork lowering 只做投影/恢复，不建立第二 store。
+- **已实施**：Stop block 不再注入 Lime 专有 developer continuation 文本；按 `hook_run_id` 保留所有阻断 fragment，构造成 `<hook_prompt hook_run_id="…">…</hook_prompt>` user message；同一 Turn 发出 durable `item.started`/`item.completed`；App Server v2 `HookPrompt`、canonical item materializer、ThreadItem projection、provider history cold restart 和 fork seed 均已接线。XML 文本/属性做转义，空 run id fail closed。
+- **验证**：`cargo check -p agent-runtime`、`cargo check -p app-server` 通过；agent-runtime provider-turn **81/81**；HookPrompt lowering **5/5**；provider-history HookPrompt 恢复 **1/1**；Memory **14/14** 与 `npm run test:contracts` 继续通过。曾有一次未设置 Rusty V8 本地归档的测试命中上游 404，复用本地归档后通过，不计产品失败。
+- **未关闭**：ThreadSpawn/SubagentStop 的 typed source、父子 transcript path、取消终态、MemoryConsolidation Stop 防递归、startup/export 自动触发、四协议真实 provider capture、GUI/TUI/CLI 真实 Gate B、插件/tar.gz 与 LimeCore 仍开放。当前 HookPrompt receipt 由 canonical EventLog item lifecycle 承担，尚未把 Codex rollout 的独立 response-item receipt API 全量复刻。
+- **下一刀**：先补 SubagentStop source/agent id/type/matcher/transcript 与取消回归，再将 HookPrompt receipt 接入同一 history owner 的 durable acknowledgement；随后处理 Memory prompt 注入闭环和插件/tar.gz/LimeCore。不会恢复旧 Lime 插件标准或兼容包装。
+
+### L02 / typed stop target 收尾（2026-10-20）
+
+- **Codex 事实源**：`core/src/hook_runtime.rs::run_turn_stop_hooks` 将 ThreadSpawn 子会话派发到 `SubagentStop`；synthetic subagent 不派发用户 lifecycle hook；MemoryConsolidation 使用独立 target。`hooks/src/events/stop.rs` 的 matcher 只读取 `agent_type`，而 `core/src/session/turn.rs` 在 Memory stop block 时直接结束，不能递归续跑。
+- **Lime current 改动**：`RuntimeStopHookTarget` 新增 `MemoryConsolidation` 与 `Disabled`；`AgentSessionSource` 明确区分 Root、ThreadSpawn、SyntheticSubagent、MemoryConsolidation；ThreadSpawn 保留父/子 transcript path、child thread 作为 `agent_id`、空角色回退 `default`，普通 fork 仍走 `Stop`。Memory target 只接收 system/managed/unknown hook source，block 直接返回错误；Disabled fail closed 且不序列化为用户 hook。child transcript lookup 错误直接失败并回滚部分 spawn。
+- **验证**：受影响文件 `rustfmt --edition 2021 --check` 与窄 `git diff --check` 通过；治理扫描仍为 2361 源码、1608 测试、0 dead-candidate、0 分类漂移、0 边界违规。Rust 定向 wrapper 曾受共享 target 并行构建破坏和 rusty_v8 macOS arm64 archive 404 阻塞，当前不能把本片写成测试 green，需在独占稳定 target 后重跑。
+- **Remaining**：app-server child source cold recovery integration test、取消 terminal regression、HookPrompt durable ACK、Memory startup/export scheduling 与 prompt/usage/cold/fork 闭环、四协议 provider capture、插件/tar.gz 与 LimeCore Core/MySQL → 客户端 Turn 实证。
+- **补验结果**：共享构建结束后，原定向 wrapper 通过：`agent-runtime` 5/5、`app-server` 19/19、`tool-runtime` 2/2。新增取消终态回归 1/1 通过；ThreadSpawn provider-defaults 重启恢复 1/1 通过，且验证 `agentControlSource.kind=thread_spawn`、`parentThreadId` 在冷恢复后仍存在。child transcript path 按 Codex 语义保持可选：canonical rollout 尚未落盘时允许缺失，若存在则必须为非空路径。
+- **状态修正**：本片不再受 Rust 编译环境阻塞；剩余项收敛为 HookPrompt 独立 durable ACK、Memory 自动调度/usage/prompt/cold/fork、四协议真实 capture、tar.gz/LimeCore 发布到客户端 Turn，以及 GUI/TUI/CLI Gate B。
+- **Memory 现状复核**：`processor/thread/lifecycle.rs` 已在 root thread start 后调用 `RuntimeCore::spawn_memory_stage1_startup`，并按同一 session route 顺序尝试 phase-1、phase-2；ephemeral、disabled、subagent/agent source 会跳过。剩余项是 provider readiness 失败后的可观测重试、usage feedback→prompt 注入以及真实 cold/fork 证据，不能把已有 spawn 接线误写成完整 Memory 闭环。
+
+### request_user_input 取消生命周期（2026-10-20）
+
+- **Codex 事实源**：`core/src/tools/handlers/dynamic.rs` 先发 dynamic tool `item.started`，取消等待后仍发 `item.completed`，并由 `finishes_on_cancellation()` 收束生命周期；取消不能放宽 sequence verifier。
+- **Lime current 改动**：`app-server/src/runtime/turn_execution.rs` 在 `turn/interrupt` 与 action cancel 路径复核已持久化 start；并发 start 未落库时按 `item.started → item.completed` 同批提交，request_user_input action 缺少 tool item 时构造 canonical `Tool` item，取消后重新读取 pending action，避免 completion without start。
+- **验证状态**：r14/r15 的原失败保留。并行类型冲突修正、sidecar 重建后，r18 真实 Electron Gate B 通过：选项＋自由文本、切线程题稿恢复、精确 Escape interrupt、无伪造空回答，正常 Main code0/signalnull，零 invoke/console/page/mock 错误。严格 verifier 保持不变。收据见 [validation-r18.json](artifacts/request-user-input-20261020/validation-r18.json)。同候选标准 GUI smoke 为 24/24；后续异步接线与当前混合树需独立结算，不能据此声明完整 GUI 完成。
+
+
+### 2026-10-20 L02 HookPrompt durable receipt（active）
+
+- 主目标继续为 Codex CLI 源码 + Desktop REA 完整对齐；grok 只参考多模型，不参与 runtime/harness/插件语义。上一片 source/cancel/cold 恢复之后，本片补 receipt-before-Item/next-sampling，详见 [执行计划](./codex-hook-prompt-receipt-alignment.md)。
+- Codex `session/turn.rs`/`record_response_item_and_emit_turn_item` 证明先记录、再 Item、再同 Turn 输入续跑；Lime 新 red 回归 2/2 复现当前无 ACK/写盘拒绝仍续跑。现役 ModelHistoryRecord/EventLog 被直接扩展为 typed user input record，未新增 store/公开 RPC/兼容层。
+- Stop owner 拆至 `provider_turn/stop_hooks.rs`；缺 recorder/写盘失败拒绝 Item/采样/reroute；成功后原子重开 steer/mailbox。Memory block 或 abort 均拒绝，synthetic 禁用。恢复按 turn/source identity 去重，fork 沿既有 copy owner。
+- 已取得当前 owner 测试 265/265、provider-history 38/38。public JSON-RPC live/cold/fork、fragment 全量校验补验与产品门禁正在取终态；本条不得当作整体完成。REA CLI 已复核保全 timeline parent，完整返回和源码 SHA 入本片 artifacts；静态证据不证明后端提交顺序。
+- 架构 32.2 已由 root 确认；Memory startup 已有真实接线，usage/prompt/retry/cold/fork、四协议 HTTP capture、GUI/CLI/TUI Gate B、插件/tar.gz/LimeCore Core/MySQL 仍开放。不恢复旧 Lime 插件，不考虑历史兼容。
+
+
+L02 receipt 当前验证补记：owner 265/265、Stop补验5/5、provider-history38/38、ordered host2/2、public Stop cold/fork2/2与原工具receipt1/1均通过；fresh独立GUI smoke exit0。Agent聚合前置369项和三个Electron场景通过，Coding Workbench打开失败，后续场景未执行。本地门禁lint/typecheck通过后因MessageList旧夹具缺文本在95批失败；只读发现并行4行修正后从原批续跑，原失败与复验分账。当前implementation摘要12项未漂移，产品义务不核销，整体目标active。
+
+下一刀固定为 [Memory consolidation Agent harness](./codex-memory-agent-harness-alignment.md)：Codex `phase2.rs`/`runtime.rs` 的受限内部Agent启动和终态/lease/artifact/ownership/watermark顺序。Lime phase2现仍直接采样；已有typed Memory Stop支持不能代替生产harness接线。该计划为planned，尚无新片生产实现，不恢复旧插件或兼容层。

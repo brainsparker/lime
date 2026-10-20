@@ -126,6 +126,7 @@ impl ItemStatus {
 #[serde(rename_all = "camelCase")]
 pub enum ItemKind {
     UserMessage,
+    HookPrompt,
     AgentMessage,
     Plan,
     Reasoning,
@@ -148,6 +149,45 @@ pub enum ItemKind {
 pub struct ToolArgument {
     pub name: String,
     pub value: String,
+}
+
+/// A user-role prompt emitted by a lifecycle hook to continue the same turn.
+///
+/// The provider lowering uses the Codex wire form
+/// `<hook_prompt hook_run_id="…">…</hook_prompt>`; keeping the fragment typed
+/// here lets projections preserve the hook identity without parsing rendered UI text.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct HookPromptFragment {
+    pub text: String,
+    pub hook_run_id: String,
+}
+
+impl HookPromptFragment {
+    pub fn provider_text(&self) -> Option<String> {
+        let hook_run_id = self.hook_run_id.trim();
+        if hook_run_id.is_empty() {
+            return None;
+        }
+        Some(format!(
+            "<hook_prompt hook_run_id=\"{}\">{}</hook_prompt>",
+            escape_xml_attribute(hook_run_id),
+            escape_xml_text(&self.text),
+        ))
+    }
+}
+
+fn escape_xml_text(value: &str) -> String {
+    value
+        .replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+}
+
+fn escape_xml_attribute(value: &str) -> String {
+    escape_xml_text(value)
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, JsonSchema)]
@@ -332,6 +372,9 @@ pub enum ThreadItemPayload {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         client_id: Option<String>,
     },
+    HookPrompt {
+        fragments: Vec<HookPromptFragment>,
+    },
     AgentMessage {
         text: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -488,6 +531,7 @@ impl ThreadItemPayload {
     pub fn kind(&self) -> ItemKind {
         match self {
             Self::UserMessage { .. } => ItemKind::UserMessage,
+            Self::HookPrompt { .. } => ItemKind::HookPrompt,
             Self::AgentMessage { .. } => ItemKind::AgentMessage,
             Self::Plan { .. } => ItemKind::Plan,
             Self::Reasoning { .. } => ItemKind::Reasoning,

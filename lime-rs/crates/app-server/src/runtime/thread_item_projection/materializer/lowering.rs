@@ -17,6 +17,7 @@ const UNKNOWN_ITEM_REDACTED_FIELD_NAME: &str = "[redacted]";
 #[derive(Clone, Copy)]
 pub(super) enum ItemFamily {
     UserMessage,
+    HookPrompt,
     AgentMessage,
     Plan,
     Reasoning,
@@ -54,6 +55,7 @@ impl ItemFamily {
     fn stable_name(self) -> &'static str {
         match self {
             Self::UserMessage => "user",
+            Self::HookPrompt => "hook-prompt",
             Self::AgentMessage => "agent",
             Self::Plan => "plan",
             Self::Reasoning => "reasoning",
@@ -94,7 +96,11 @@ impl ItemFamily {
 
     pub(super) fn fallback_id(self, turn_id: &str, event_id: &str) -> String {
         match self {
-            Self::UserMessage | Self::AgentMessage | Self::Reasoning | Self::ContextCompaction => {
+            Self::UserMessage
+            | Self::HookPrompt
+            | Self::AgentMessage
+            | Self::Reasoning
+            | Self::ContextCompaction => {
                 format!("{}-{turn_id}", self.stable_name())
             }
             _ => format!("{}-{event_id}", self.stable_name()),
@@ -117,6 +123,7 @@ pub(super) fn item_family(event_type: &str, payload: &Value) -> Option<ItemFamil
         let kind = upstream_type.to_ascii_lowercase();
         return match kind.as_str() {
             "user_message" | "usermessage" | "user" => Some(ItemFamily::UserMessage),
+            "hook_prompt" | "hookprompt" => Some(ItemFamily::HookPrompt),
             "agent_message" | "agentmessage" | "assistant" | "message" => {
                 Some(ItemFamily::AgentMessage)
             }
@@ -218,6 +225,9 @@ pub(super) fn typed_payload(
         ItemFamily::UserMessage => ThreadItemPayload::UserMessage {
             content: user_message_content(payload)?,
             client_id: map_string(payload, &["clientId", "client_id"]),
+        },
+        ItemFamily::HookPrompt => ThreadItemPayload::HookPrompt {
+            fragments: hook_prompt_fragments(payload)?,
         },
         ItemFamily::AgentMessage => ThreadItemPayload::AgentMessage {
             text: payload
@@ -436,6 +446,26 @@ pub(super) fn typed_payload(
             field_names: unknown_item_field_names(payload),
         },
     })
+}
+
+fn hook_prompt_fragments(
+    payload: &Map<String, Value>,
+) -> Option<Vec<agent_protocol::HookPromptFragment>> {
+    let fragments = payload
+        .get("fragments")
+        .or_else(|| {
+            payload
+                .get("payload")
+                .and_then(|item| item.get("fragments"))
+        })
+        .or_else(|| payload.get("item").and_then(|item| item.get("fragments")))
+        .or_else(|| {
+            payload
+                .get("item")
+                .and_then(|item| item.get("payload"))
+                .and_then(|item| item.get("fragments"))
+        })?;
+    serde_json::from_value(fragments.clone()).ok()
 }
 
 fn unknown_item_upstream_type(payload: &Map<String, Value>) -> Option<String> {

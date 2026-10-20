@@ -5710,7 +5710,11 @@
     "semantic_status": "partial",
     "semantic_truncated": true,
     "return_sites_complete": true,
-    "return_values": ["unknown", "unknown", "unknown"],
+    "return_values": [
+      "unknown",
+      "unknown",
+      "unknown"
+    ],
     "return_limitation": "Unsupported SequenceExpression value.",
     "target_executed": false,
     "report": "navigation-composer-audit.md",
@@ -5724,13 +5728,20 @@
       {
         "path": "codex-rs/ext/queue/src/service.rs",
         "sha256": "110253b6c2b74de1ad8610b347ac331479d4f09873a1c8f9793a6921438d6ae1",
-        "lines": [264, 373, 472, 549],
+        "lines": [
+          264,
+          373,
+          472,
+          549
+        ],
         "observation": "enqueue writes separate queued_items and wakes loaded threads; successful admission starts an execution Turn, then deletes the locked queue record. Interrupted idle skips automatic queue drain."
       },
       {
         "path": "codex-rs/core/src/tasks/lifecycle.rs",
         "sha256": "8fcce8184a0358b068bdd8b4b18aecf8b7d8198dbafceceea62ed92af906f033",
-        "lines": [59],
+        "lines": [
+          59
+        ],
         "observation": "Session interruption changes completion cause to Interrupted even after active_turn is cleared."
       }
     ],
@@ -5748,22 +5759,36 @@
       {
         "path": "webview/assets/app-primary-6f60e9ac4103.js",
         "sha256": "7fe9c00b03cb1de3ebc3a4bf298fc44b13a7fe67ca9cc335a9e2ecda969a1321",
-        "utf16_anchors": [1224067, 1229672]
+        "utf16_anchors": [
+          1224067,
+          1229672
+        ]
       },
       {
         "path": "webview/assets/app-initial-6350d04672d0.js",
         "sha256": "604b5d2de4fbb41f3d0dc5b3662129c558e1c7b8aac8cc87225286f58dcfaf8f",
-        "utf16_anchors": [6445585]
+        "utf16_anchors": [
+          6445585
+        ]
       },
       {
         "path": "webview/assets/app-shared-8bd9d0399038.js",
         "sha256": "607ad0866dd25ed3764711b4467a9b60708353a599485b5249ff4cbe0e870245",
-        "utf16_anchors": [3061030, 3120424, 3123785, 3133939, 3752246]
+        "utf16_anchors": [
+          3061030,
+          3120424,
+          3123785,
+          3133939,
+          3752246
+        ]
       },
       {
         "path": ".vite/build/main-CqEoQDOU.js",
         "sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
-        "utf16_anchors": [42279, 734231]
+        "utf16_anchors": [
+          42279,
+          734231
+        ]
       }
     ],
     "target_executed": false,
@@ -6107,7 +6132,10 @@
     "foundationReceipt": {
       "path": ".lime/qc/composer-persistence/foundation-final-receipt.json",
       "sha256": "ef8ed5e08e98557448897860736088a55da3b7afb32ca680715855836ac9f268",
-      "normalExitPids": [96100, 96356],
+      "normalExitPids": [
+        96100,
+        96356
+      ],
       "savedRevision": 7,
       "cases": 15,
       "ipcCalls": 36,
@@ -6131,7 +6159,10 @@
         "files": 20,
         "passed": 439
       },
-      "normalExitPids": [24613, 25004],
+      "normalExitPids": [
+        24613,
+        25004
+      ],
       "cases": 21,
       "savedRevision": 10,
       "ipcInvocations": 46,
@@ -6438,8 +6469,14 @@
       "ev_5872c498b099311cff8f5d0c5d7ca8b99dae35efcceb3f42eeabd3eb526e9c47"
     ],
     "confirmedExport": "startNewConversation",
-    "currentIdentityKeys": ["home", "panel"],
-    "atoms": ["draft-thread-identities-v1", "client-thread-bindings-v1"],
+    "currentIdentityKeys": [
+      "home",
+      "panel"
+    ],
+    "atoms": [
+      "draft-thread-identities-v1",
+      "client-thread-bindings-v1"
+    ],
     "restorationGate": "primary window persistence owner",
     "referenceRuntimeObserved": false,
     "allDraftSidebarPicker": "unknown",
@@ -6547,7 +6584,11 @@
     "summary": ".lime/qc/composer-persistence/gui-navigation-readiness-evidence/composer-navigation-readiness-local16/composer-draft-gui-persistence.json",
     "result": "pass",
     "scope": "three existing canonical local conversations/two normal cold restarts/rejection Undo/accepted new-edit/foreign workspace isolation",
-    "mainPids": [34272, 38556, 40802],
+    "mainPids": [
+      34272,
+      38556,
+      40802
+    ],
     "packet": ".lime/qc/composer-persistence/gui-verification-packet-navigation-readiness-13.json",
     "wholeGui": "partial",
     "limitations": "controlled external backend, saved before normal quit; no live/Windows/abrupt pending exit"
@@ -6576,7 +6617,10 @@
     "result": "pass",
     "receipt": ".lime/qc/composer-persistence/home-cold-final-receipt.json",
     "run": "composer-navigation-home-cold-6",
-    "mainPids": [17922, 18120],
+    "mainPids": [
+      17922,
+      18120
+    ],
     "sourceArtifactDrift": 0,
     "wholeGui": "partial"
   },
@@ -6699,7 +6743,11 @@
     "firstSubmission": {
       "result": "pass",
       "run": "composer-navigation-first-send-8",
-      "normalMainPids": [99739, 655, 1318],
+      "normalMainPids": [
+        99739,
+        655,
+        1318
+      ],
       "passiveDiagnosticOnly": true
     },
     "richStop": {
@@ -6710,13 +6758,20 @@
     "homeCold": {
       "result": "pass",
       "run": "composer-navigation-home-7",
-      "normalMainPids": [6249, 6729],
+      "normalMainPids": [
+        6249,
+        6729
+      ],
       "coldMutationCount": 0
     },
     "existingLocalCold": {
       "result": "pass",
       "run": "composer-navigation-existing-local-17",
-      "normalMainPids": [7882, 10853, 11390],
+      "normalMainPids": [
+        7882,
+        10853,
+        11390
+      ],
       "workspaces": 3,
       "coldRestarts": 2
     },
@@ -6743,7 +6798,10 @@
     },
     "asyncTabs": {
       "result": "pass",
-      "executed": [3, 11],
+      "executed": [
+        3,
+        11
+      ],
       "initial": "stale selectors,187 skipped/0 executed, fail retained",
       "migration": "current canonical hydration/sidebar test paths and execution count guards",
       "receipt": ".lime/qc/composer-persistence/async-tabs-canonical-migration-receipt.json",
@@ -6754,7 +6812,11 @@
     "priorRun": {
       "runId": "codex-composer-current-20261015-2",
       "result": "fail",
-      "directedGroupsPassed": [31, 34, 3],
+      "directedGroupsPassed": [
+        31,
+        34,
+        3
+      ],
       "guardGroup": {
         "passed": 293,
         "failed": 1
@@ -6779,7 +6841,12 @@
       "runId": "codex-composer-current-20261015-4",
       "result": "pass",
       "exitCode": 0,
-      "directedGroupsPassed": [31, 34, 3, 294],
+      "directedGroupsPassed": [
+        31,
+        34,
+        3,
+        294
+      ],
       "electronScenesPassed": 22,
       "manifest": {
         "path": ".lime/qc/composer-persistence/current-aggregate-4-complete/manifest.json",
@@ -6853,7 +6920,10 @@
     "green": "6suites81/81 including unchanged historyWindow14/14",
     "checks": "strict lint passed; standard default run4 in progress from original batch89",
     "scope": "Current Agent copy hot-path repair, not all-timeout root-cause claim",
-    "pending": ["default run4", "final build and full current aggregate"]
+    "pending": [
+      "default run4",
+      "final build and full current aggregate"
+    ]
   },
   "runtime_sync_canonical_acceptance_fixture": {
     "receipt": ".lime/qc/composer-persistence/runtime-sync-canonical-acceptance-fixture-receipt.json",
@@ -6937,7 +7007,12 @@
       "boundary": "fixture-only4path delta;production unchanged from packet30",
       "exitCode": 0,
       "sceneCount": 22,
-      "directedGroupsPassed": [31, 34, 3, 300],
+      "directedGroupsPassed": [
+        31,
+        34,
+        3,
+        300
+      ],
       "manifest": {
         "path": ".lime/qc/composer-persistence/current-aggregate-7-complete/manifest.json",
         "sha256": "69340c52a05833c450ad6f0d8667add345fa61d262b0aec3a6d8485674c9973c"
@@ -7070,7 +7145,21 @@
       "nativePending": false
     },
     "retainedNativeFailures": {
-      "rounds": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+      "rounds": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
       "pathPattern": ".lime/qc/settings-sections/settings-navigation-native-20261015-N/summary.json",
       "round5and6": "Home first send return passed; existing session return blocked in restoring shell; recovery target parameters correct in round6",
       "oldExitTimeoutCause": "unknown",
@@ -7101,7 +7190,10 @@
         "totalBatches": 130,
         "registeredExistingFiles": 1759,
         "snapshot": ".lime/qc/settings-sections/navigation-final-20261015-1/validation/vitest-smart-last-run.json",
-        "failedBatchesRetained": [11, 61],
+        "failedBatchesRetained": [
+          11,
+          61
+        ],
         "resumeCacheBoundary": "Original passed batches retained; affected changed owners also ran directed regressions."
       },
       "gui": "standard round4 wrapper exit0, 24/24; renderer rebuilt exit0 after final testSupport registration; native round14 full pass",
@@ -7136,7 +7228,10 @@
     },
     "reference_contract": {
       "navigation": "requestNavigation executes immediately when clean and retains a continuation when dirty",
-      "dialog_actions": ["Keep editing", "Discard changes"],
+      "dialog_actions": [
+        "Keep editing",
+        "Discard changes"
+      ],
       "discard": "clear pending before invoking captured continuation",
       "external_dirty_registry": "unknown"
     },
@@ -7449,7 +7544,10 @@
         },
         "freshness": "ready-before-and-after",
         "failedNativeRuns": 0,
-        "screenshotsReviewed": ["web-search-saved.png", "note-saved.png"],
+        "screenshotsReviewed": [
+          "web-search-saved.png",
+          "note-saved.png"
+        ],
         "url": "file:///index.html?nativeStartup",
         "finalVisibleState": "new conversation Home after settings and service-skill reset checks; Electron normally exited"
       },
@@ -7550,7 +7648,12 @@
       "source_artifact_sidecar_drift": 0,
       "build_freshness": "ready-before-and-after",
       "sidecar_sha256": "d0780858f959f44a170ca11f803e20bfe9f5853d6d5b5a6c772ebd2621d0a2d0",
-      "preserved_failed_native_runs": [1, 2, 3, 4],
+      "preserved_failed_native_runs": [
+        1,
+        2,
+        3,
+        4
+      ],
       "failed_native_reasons": [
         "nonexistent New sidebar button in settings",
         "unmounted sidebar shortcut; normal Main exit timed out and required failed-resource reap",
@@ -7661,7 +7764,9 @@
         "visible_contracts": "5/5; four navigation targets plus save/read/reopen/restore",
         "themes": "4/4; current skin1440x1000; system media emulated",
         "minimum_rule_control_contrast": [
-          11.108669666946227, 13.34656666466356, 11.108669666946227,
+          11.108669666946227,
+          13.34656666466356,
+          11.108669666946227,
           13.34656666466356
         ],
         "screenshots_reviewed": 4,
@@ -7698,8 +7803,16 @@
         },
         "safe_gui_failure_retained_and_retried": true,
         "cold_readback_and_restoration": true,
-        "main_exit_pids": [13301, 13665, 13996],
-        "normal_exit_ms": [793, 303, 445],
+        "main_exit_pids": [
+          13301,
+          13665,
+          13996
+        ],
+        "normal_exit_ms": [
+          793,
+          303,
+          445
+        ],
         "forced_cleanup": 0,
         "errors_and_mock": 0,
         "freshness": "ready-before-and-after",
@@ -8198,7 +8311,11 @@
         },
         {
           "name": "contracts",
-          "command": ["npm", "run", "test:contracts"],
+          "command": [
+            "npm",
+            "run",
+            "test:contracts"
+          ],
           "startedAt": "2026-10-16T15:30:24.921719+00:00",
           "status": "passed",
           "exitCode": 0,
@@ -8206,7 +8323,11 @@
         },
         {
           "name": "typecheck",
-          "command": ["npm", "run", "typecheck"],
+          "command": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
           "startedAt": "2026-10-16T15:31:55.963623+00:00",
           "status": "passed",
           "exitCode": 0,
@@ -8227,7 +8348,10 @@
         },
         {
           "name": "gui-final",
-          "command": ["node", "scripts/electron/smoke.mjs"],
+          "command": [
+            "node",
+            "scripts/electron/smoke.mjs"
+          ],
           "status": "passed",
           "startedAt": "2026-10-16T16:01:22.754438+00:00",
           "exitCode": 0,
@@ -9253,7 +9377,10 @@
       "presentation-table-native-20261018-1",
       "presentation-structure-revalidation-20261018-2"
     ],
-    "real_ipc": [70, 175],
+    "real_ipc": [
+      70,
+      175
+    ],
     "native_validation": "freshness and all source/artifact hashes stable; console/page/trace/mock errors zero; both Main processes normal code0/signalnull; no forced cleanup",
     "candidate2": ".lime/validation/presentation-table-structure-1.160.0-20261018-2",
     "candidate2_sources": 11219,
@@ -9477,7 +9604,10 @@
     "sourceBoundary": "same settingsSearchDocuments/white-list/sections/requestKey/draft guard; static labels only; no credential values or automatic secret expansion/focus",
     "targetCount": 47,
     "newTargetCount": 11,
-    "excludes": ["full settings/GUI coverage", "Electron/live/Windows"]
+    "excludes": [
+      "full settings/GUI coverage",
+      "Electron/live/Windows"
+    ]
   },
   "public_profile_shared_account_audit_20261018": {
     "original_availability": "historical originals missing after external cleanup; current audit is being re-established separately",
@@ -9769,8 +9899,14 @@
     "source_member": "webview/assets/local-conversation-thread-c8c5e92ea89e.js",
     "source_sha256": "ee192ab3f19d493d64580f7690c94b05c589fe59c1757984e1c5a076976a47eb",
     "ranges": {
-      "yx": [40226, 41867],
-      "process_list": [30957, 33929]
+      "yx": [
+        40226,
+        41867
+      ],
+      "process_list": [
+        30957,
+        33929
+      ]
     },
     "target_executed": false,
     "application": "complete-focused-input",
@@ -9941,7 +10077,10 @@
     "normal_main_exit": true,
     "page_errors": [],
     "actionable_console_errors": [],
-    "manual_visual_review": ["file-editor-history", "compact"],
+    "manual_visual_review": [
+      "file-editor-history",
+      "compact"
+    ],
     "cleanup": "Header Save/Unsaved path removed; editor history/save state appears only in bottom-right toolbar.",
     "limits": [
       "Candidate30 terminal timeout cause unresolved;31 success does not establish a fix",
@@ -10401,9 +10540,15 @@
     ],
     "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-viewport-evidence-43.json.gz",
     "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/base-file-tree-viewport-bundle-manifest-43.json",
-    "ast_nodes": [277, 793],
+    "ast_nodes": [
+      277,
+      793
+    ],
     "parse_failures": 0,
-    "semantic_unknowns": [55, 184],
+    "semantic_unknowns": [
+      55,
+      184
+    ],
     "target_executed": false,
     "product_status": "19 root risks passed;45 combines viewport, search empty-state and sticky layering; full types/Renderer/GUI/native pending",
     "limits": [
@@ -10428,11 +10573,27 @@
     "member_sha256": "09d19386e1f23cf4ccbc950fc40d85a1e8a064a08be588b2a4be6a89f6ada9e6",
     "evidence": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-discovery-evidence-44.json.gz",
     "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/thread-controls/file-open-discovery-bundle-manifest-44.json",
-    "definitions": [15, 10, 16],
-    "bytes": [2681, 2455, 2911],
-    "ast_nodes": [856, 796, 784],
+    "definitions": [
+      15,
+      10,
+      16
+    ],
+    "bytes": [
+      2681,
+      2455,
+      2911
+    ],
+    "ast_nodes": [
+      856,
+      796,
+      784
+    ],
     "parse_failures": 0,
-    "semantic_unknowns": [231, 202, 156],
+    "semantic_unknowns": [
+      231,
+      202,
+      156
+    ],
     "target_executed": false,
     "export_transport_timed_out": true,
     "exported_artifact_observed_and_validated": true,
@@ -10468,10 +10629,19 @@
       "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-layout-extraction-47.json",
       "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-surface-extraction-48.json"
     ],
-    "bytes": [61203, 42080],
-    "ast_nodes": [16322, 15843],
+    "bytes": [
+      61203,
+      42080
+    ],
+    "ast_nodes": [
+      16322,
+      15843
+    ],
     "parse_failures": 0,
-    "semantic_unknowns": [2913, 2882],
+    "semantic_unknowns": [
+      2913,
+      2882
+    ],
     "current_owner": "InputbarCore -> ComposerLayout.AdaptiveFooter + composerStyles; same ComposerController and EditorView",
     "deleted": "MainRow/BottomBar/empty-draft forced collapse and duplicate attach button; no compatibility aliases",
     "root_validation": "47 related cases passed across original45/47 and original5000ms sequential retry9/9; strict lint passed. Frozen49 independently passed full Renderer/Node types, all47 risks, lint/docs, Renderer and standard GUI; real home800 geometry failed and was frozen.",
@@ -10509,10 +10679,22 @@
       "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-controls-bundle-manifest-51.json",
       "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-width-bundle-manifest-52.json"
     ],
-    "declarations": [2, 1],
-    "bytes": [3342, 2435],
-    "ast_nodes": [1460, 1029],
-    "semantic_unknowns": [288, 245],
+    "declarations": [
+      2,
+      1
+    ],
+    "bytes": [
+      3342,
+      2435
+    ],
+    "ast_nodes": [
+      1460,
+      1029
+    ],
+    "semantic_unknowns": [
+      288,
+      245
+    ],
     "parse_failures": 0,
     "confirmed": "Consumer supplies availableWidth; hook measures expanded/compact widths,first collapses labels,then hides control after compact measurement;ResizeObserver recalculates and restores. Actual reference runtime geometry unobserved.",
     "implementation": "InlineControlLayout presentation context plus extracted ModelSelectorTrigger; same model selection owner and same EditorView/draft. Frozen53 superseded after new root async-mount regression failed; frozen54 adds container observation and invalidates measurements on control/label changes. Own complete quality/Renderer/desktop pending.",
@@ -10534,7 +10716,11 @@
     "summary_evidence_id": "ev_3622c0d554ad650788ace385751e01f0c8e4872c247c4fe18467b70dcd18760d",
     "bundle": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/composer-overflow-evidence-55.json.gz",
     "bundle_sha256": "a173ad14a61cc25bc5929f0252ed1885b8e7d400f9a5c0ba48e5b7740acf7502",
-    "declarations": ["uHc", "vdl", "cGc"],
+    "declarations": [
+      "uHc",
+      "vdl",
+      "cGc"
+    ],
     "bytes": 6094,
     "ast_nodes": 1866,
     "parse_failures": 0,
@@ -10572,7 +10758,13 @@
     "extraction": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/workspace-file-menus-extraction-59.json",
     "bundle_manifest": "internal/exec-plans/artifacts/codex-shared-page-header-20261018/workspace-file-menus-bundle-manifest-59.json",
     "bundle_sha256": "9d0494f84fedb6d1d2e8942cc03f920586a05ac08f15bf390701f82fbc0dd3ff",
-    "declarations": ["hsa", "gsa", "ysa", "bsa", "msa"],
+    "declarations": [
+      "hsa",
+      "gsa",
+      "ysa",
+      "bsa",
+      "msa"
+    ],
     "bytes": 3792,
     "ast_nodes": 1020,
     "parse_failures": 0,
@@ -10899,7 +11091,10 @@
       "thread-summary-panel",
       "plan"
     ],
-    "not_run": ["skills-runtime", "matrix"],
+    "not_run": [
+      "skills-runtime",
+      "matrix"
+    ],
     "sourceDrift": [],
     "full_gui_claim": false
   },
@@ -11533,8 +11728,14 @@
       ],
       "artifacts": "internal/exec-plans/artifacts/file-target-closure-20261020",
       "owner": "electron/main.ts#createMainWindow",
-      "initialSize": [1280, 820],
-      "minimumSize": [480, 600],
+      "initialSize": [
+        1280,
+        820
+      ],
+      "minimumSize": [
+        480,
+        600
+      ],
       "fixtureMinimumOverrideDeleted": true,
       "referenceExecuted": false
     }
@@ -11652,7 +11853,7 @@
     "fullGuiClaim": false
   },
   "asyncUserInputResearch20261020": {
-    "status": "implementation-in-progress-trusted-context-and-gate-b-pending",
+    "status": "trusted-context-implemented-combined-gate-b-pending",
     "report": "internal/research/codex-desktop-rea/async-user-input-audit-20261020.md",
     "evidenceIds": [
       "ev_e4e0901acf437ccf3ed6d3ec29a0096f3b9ab1d80ed85001fe349ae806e73f32",
@@ -11668,13 +11869,30 @@
     "timelineArchiveSha256": "3b50cb1af5094cc8f8afa1df93cbbb819b6a13edd0842dbc83d5031be571a4ca",
     "rustTestsPassed": 204,
     "frontendTestsPassedUnion": 111,
-    "trustedProducerEnabled": false,
-    "desktopGateB": "not-run",
+    "trustedProducerEnabled": true,
+    "trustedProducerValidation": "App Server serial unit 1957/1957 and agent 295/295 passed; combined real Electron r19 failed waiting for async form",
+    "desktopGateB": "failed-r19; r20-diagnosing",
     "remaining": [
-      "Six trusted canonical-root/configuration context wiring points await an explicit shared-file write window",
-      "Agent-control fork must exclude async display text from assistant history fallback",
-      "Contracts currently fail on an external memory-owner source guard mismatch",
-      "Fresh build, current fixture aggregate and real Electron validation remain pending"
+      "Combined synchronous/async Electron r19 failed; stage-specific r20 investigation in progress",
+      "Production catalog experimental-tool capability discovery remains unverified",
+      "Current fixture aggregate, latest GUI smoke and default gate remain pending"
     ]
+  },
+  "requestUserInputDesktop20261020": {
+    "status": "desktop-gate-b-passed-for-recorded-candidate",
+    "runId": "codex-question-20261020-r18",
+    "receipt": "internal/exec-plans/artifacts/request-user-input-20261020/validation-r18.json",
+    "receiptSha256": "079cc5686d7cb56ec9c213ba32c2700ce9f3022849347f3e6f3942b2d7160262",
+    "scope": "Isolated source-build macOS Electron, current preload/IPC, App Server/runtime and localhost provider, including same-renderer question draft restoration across threads. Does not prove reference execution, live provider, Windows, packaged release, async questions or restoration across app restarts.",
+    "result": "pass",
+    "errors": {
+      "invokeErrorCount": 0,
+      "failedTraceCount": 0,
+      "mockFallbackHitCount": 0,
+      "consoleErrorCount": 0,
+      "pageErrorCount": 0
+    },
+    "standardGuiSmokeRunId": "standalone-shell-01-20261020015412-79399",
+    "asyncQuestions": "not covered; fresh trusted-context implementation and combined scenario pending"
   }
 }

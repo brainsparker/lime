@@ -85,6 +85,7 @@ fn answer_candidate_keys(
     total: usize,
 ) -> Vec<String> {
     let mut keys = vec![
+        question.id.clone().unwrap_or_default(),
         question.question.clone(),
         question.header.clone().unwrap_or_default(),
         requested_schema_field_key(question, index, total),

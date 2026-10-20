@@ -543,3 +543,25 @@ fn stop_input_serializes_non_unicode_paths_as_display_strings() {
     assert_eq!(input["stop_hook_active"], true);
     assert_eq!(input["last_assistant_message"], "last answer");
 }
+
+#[test]
+fn memory_consolidation_uses_stop_input_without_subagent_fields() {
+    let cwd = tempfile::tempdir().expect("workspace");
+    let mut context = context(cwd.path(), RuntimeHookEventName::Stop);
+    context.stop.as_mut().expect("stop context").target =
+        RuntimeStopHookTarget::MemoryConsolidation;
+    let input = command_input(RuntimeHookEventName::Stop, &context).expect("stop input");
+    assert_eq!(input["hook_event_name"], "Stop");
+    assert!(input.get("agent_id").is_none());
+    assert!(input.get("agent_type").is_none());
+}
+
+#[test]
+fn disabled_stop_target_cannot_be_serialized_as_a_user_hook() {
+    let cwd = tempfile::tempdir().expect("workspace");
+    let mut context = context(cwd.path(), RuntimeHookEventName::Stop);
+    context.stop.as_mut().expect("stop context").target = RuntimeStopHookTarget::Disabled;
+    let error = command_input(RuntimeHookEventName::Stop, &context)
+        .expect_err("disabled target must fail closed");
+    assert!(error.contains("target does not match"));
+}

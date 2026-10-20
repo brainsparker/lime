@@ -608,6 +608,7 @@ fn execution_request(primary_provider: &str, backup_provider: &str) -> Execution
             completed_at: None,
         },
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text("hello"),
         runtime_options: Some(RuntimeOptions {
             stream: true,

@@ -323,6 +323,8 @@ mod tests {
             thread_id: Some("thread-1".to_string()),
             turn_id: Some("turn-1".to_string()),
             forked_from_thread_id: None,
+            is_root_agent: false,
+            experimental_request_user_input_enabled: false,
             schedule_id: None,
             max_turns: None,
             provider_token_budget: None,
@@ -335,6 +337,7 @@ mod tests {
             tool_mode: code_mode::RuntimeToolMode::Direct,
             supports_custom_tools: false,
             stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
+            stop_hook_transcript_path: None,
         };
 
         selection.apply_to_session_config(&mut session_config);

@@ -51,7 +51,7 @@
 | Office/专业文件 | 原字节预览、批注、已有Workbook/PPTX编辑owner | 见各领域计划；局部单元格/元素修改不代表完整Excel/PowerPoint，DOCX/PDF正文编辑入口证据仍不完整 |
 | 输入与平台 | 当前macOS Electron/IPC及受控fixture；已有线程目标复用主Composer，AppShell唯一快捷键Host | 目标附件84项、同步问答102项及共享题稿57项、新线程目标97项与执行层13项已定向验证，真实进程待验；异步选中问题、compact/awaited、原生IME、microphone/voice、Windows与packaged完整矩阵仍开放，不能将任意pending状态猜为auto模式 |
 
-异步问题的[完整静态调查](../research/codex-desktop-rea/async-user-input-audit-20261020.md)已转入[current纵切](async-user-input-alignment-20261020.md)：工具/canonical/public projection与Renderer表单、每题时间线、标准答案消息已实施；204项Rust回归和111项前端回归并集取得通过。六个可信root/config接点仍待写窗，真实producer默认关闭，agent-control fork过滤与真实Gate B尚未闭合；不得借同步reverse request或queue/start替代。消息/Artifact额外资料保存入口及其专用runtime、导航、资格、五语26key/语言和孤立helper已删除，133项独立定向通过，见[删除计划](message-artifact-knowledge-removal-plan.md)。普通Knowledge页面/底层API仍有消费者，后续独立对标，不列为额外保留特色。
+异步问题的[完整静态调查](../research/codex-desktop-rea/async-user-input-audit-20261020.md)已转入[current纵切](async-user-input-alignment-20261020.md)：工具/canonical/public projection与Renderer表单、每题时间线、标准答案消息已实施；204项Rust回归和111项前端回归并集取得通过。六个可信root/config接点与agent-control fork过滤已按新基线接入，typed配置边界回归通过，组合真实Gate B及生产catalog能力发现尚未闭合；不得借同步reverse request或queue/start替代。消息/Artifact额外资料保存入口及其专用runtime、导航、资格、五语26key/语言和孤立helper已删除，133项独立定向通过，见[删除计划](message-artifact-knowledge-removal-plan.md)。普通Knowledge页面/底层API仍有消费者，后续独立对标，不列为额外保留特色。
 
 其余跨owner合同见[剩余实施账本](../research/codex-desktop-rea/gui-remaining-implementation-20261018.md)。缺少外部服务合同或参考运行flag时记录unknown，不造API或可用能力。
 
@@ -91,3 +91,5 @@ current：表中唯一owner、canonical输入与消息投影。已删除：旧sl
 - 2026-10-20后继冻结：Files 8套54项、同步问答102项、目标附件84项；Files冻结版renderer types与scoped lint通过。root已核对并确认architecture 3.2.1、Files共享树及目标附件职责。r8统一构建与真实Desktop场景执行中。
 
 - 冻结后门禁：完整 Renderer/Node types r12、全局lint r11（后继goal窄改另有scoped lint）、五语言完整率100%/unused0、contracts r10通过。标准 `npm run verify:gui-smoke` r11通过，真实shell run `standalone-shell-01-20261019205845-49442`；新Renderer/Host/sidecar均已构建，专项Desktop场景与聚合current fixture待结算。类型r11在冻结前捕获payload literal widen两错，已由current owner显式类型修正，原失败日志保留。
+
+- 同步问答新收据：`codex-question-20261020-r18` 已通过真实 Electron Gate B，覆盖选项/自由文本、同 Renderer 跨线程题稿恢复及 Escape 精确取消；正常 Main code0/signalnull、零错误、源/产物身份稳定。标准 shell `standalone-shell-01-20261020015412-79399` 为 24/24。详见 [验证收据](artifacts/request-user-input-20261020/validation-r18.json)；后继异步可信接线、完整 Files/Goal/Workbench 与 Windows/live/packaged 不在该收据范围。

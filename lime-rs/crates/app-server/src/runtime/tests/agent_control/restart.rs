@@ -494,6 +494,12 @@ async fn restart_preserves_agent_control_provider_defaults() {
         .as_ref()
         .and_then(|reference| reference.metadata.as_ref())
         .expect("child provider defaults");
+    let source = metadata["agentControlSource"]
+        .as_object()
+        .expect("child source metadata");
+    assert_eq!(source["kind"], "thread_spawn");
+    assert_eq!(source["parentThreadId"], "provider-parent-thread");
+    assert!(source.contains_key("parentTranscriptPath"));
     assert_eq!(metadata["providerSelector"], "fixture-provider");
     assert_eq!(metadata["providerName"], "fixture-provider");
     assert_eq!(metadata["modelName"], "fixture-model");
@@ -581,6 +587,15 @@ async fn restart_preserves_agent_control_provider_defaults() {
         .as_ref()
         .and_then(|reference| reference.metadata.as_ref())
         .expect("restored provider defaults");
+    let source = metadata["agentControlSource"]
+        .as_object()
+        .expect("restored child source metadata");
+    assert_eq!(source["kind"], "thread_spawn");
+    assert_eq!(source["parentThreadId"], "provider-parent-thread");
+    assert!(source.contains_key("parentTranscriptPath"));
+    if let Some(path) = source.get("agentTranscriptPath") {
+        assert!(path.as_str().is_some_and(|path| !path.trim().is_empty()));
+    }
     assert_eq!(metadata["providerSelector"], "fixture-provider");
     assert_eq!(metadata["modelName"], "fixture-model");
     let restored_options =

@@ -215,6 +215,14 @@ impl RuntimeCore {
             (Vec::new(), None)
         };
 
+        let parent_transcript_path = projection_store
+            .rollout_path_for_thread_sync(&ThreadId::new(parent.thread_id.clone()))
+            .map_err(|error| {
+                RuntimeCoreError::Backend(format!(
+                    "failed to resolve parent transcript path for child source: {error}"
+                ))
+            })?;
+
         projection_store
             .create_pending_thread_spawn_edge(
                 ThreadId::new(parent.thread_id.clone()),
@@ -229,8 +237,17 @@ impl RuntimeCore {
             })?;
 
         let child_business_object_ref = {
-            let metadata = agent_control_session_default_metadata(runtime_options.as_ref());
-            (!metadata.is_empty()).then(|| BusinessObjectRef {
+            let mut metadata = agent_control_session_default_metadata(runtime_options.as_ref());
+            metadata.insert(
+                "agentControlSource".to_string(),
+                json!({
+                    "kind": "thread_spawn",
+                    "parentThreadId": parent.thread_id,
+                    "agentRole": null,
+                    "parentTranscriptPath": parent_transcript_path,
+                }),
+            );
+            Some(BusinessObjectRef {
                 kind: "agent.session".to_string(),
                 id: child_session_id.clone(),
                 title: None,
@@ -259,6 +276,20 @@ impl RuntimeCore {
                 };
             }
         };
+        if let Err(error) = self.persist_agent_control_child_transcript_source(
+            &response.session.session_id,
+            &response.session.thread_id,
+        ) {
+            return match self
+                .rollback_staged_agent_control_spawn(&response.session)
+                .await
+            {
+                Ok(()) => Err(error),
+                Err(cleanup_error) => Err(RuntimeCoreError::Backend(format!(
+                    "failed to persist child transcript source: {error}; failed to remove partial child session: {cleanup_error}"
+                ))),
+            };
+        }
         if let Err(error) = self.persist_agent_control_session_defaults(
             &response.session.session_id,
             runtime_options.as_ref(),
@@ -335,6 +366,78 @@ impl RuntimeCore {
             session: response.session,
             parent_thread_id: parent.thread_id,
         })
+    }
+
+    fn persist_agent_control_child_transcript_source(
+        &self,
+        session_id: &str,
+        thread_id: &str,
+    ) -> Result<(), RuntimeCoreError> {
+        let agent_transcript_path = self
+            .projection_store
+            .as_ref()
+            .map(|store| {
+                store
+                    .rollout_path_for_thread_sync(&ThreadId::new(thread_id.to_string()))
+                    .map_err(|error| {
+                        RuntimeCoreError::Backend(format!(
+                            "failed to resolve child transcript path: {error}"
+                        ))
+                    })
+            })
+            .transpose()?
+            .flatten();
+        let mut session = {
+            let mut state = self
+                .state
+                .lock()
+                .expect("runtime core state mutex poisoned");
+            let stored = state
+                .sessions
+                .get_mut(session_id)
+                .ok_or_else(|| RuntimeCoreError::SessionNotFound(session_id.to_string()))?;
+            let reference =
+                stored
+                    .session
+                    .business_object_ref
+                    .get_or_insert_with(|| BusinessObjectRef {
+                        kind: "agent.session".to_string(),
+                        id: session_id.to_string(),
+                        title: None,
+                        uri: None,
+                        metadata: Some(serde_json::json!({})),
+                    });
+            let metadata = reference
+                .metadata
+                .get_or_insert_with(|| serde_json::json!({}));
+            let object = metadata.as_object_mut().ok_or_else(|| {
+                RuntimeCoreError::Backend("agent session metadata is not an object".to_string())
+            })?;
+            let source = object
+                .entry("agentControlSource".to_string())
+                .or_insert_with(|| serde_json::json!({"kind": "thread_spawn"}));
+            let source = source.as_object_mut().ok_or_else(|| {
+                RuntimeCoreError::Backend("agent control source is not an object".to_string())
+            })?;
+            if let Some(path) = agent_transcript_path {
+                source.insert("agentTranscriptPath".to_string(), json!(path));
+            }
+            stored.session.updated_at = timestamp();
+            stored.session.clone()
+        };
+        if let Some(store) = self.projection_store.as_deref() {
+            store
+                .persist_session_metadata(&mut session)
+                .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?;
+            let mut state = self
+                .state
+                .lock()
+                .expect("runtime core state mutex poisoned");
+            if let Some(stored) = state.sessions.get_mut(session_id) {
+                stored.session = session;
+            }
+        }
+        Ok(())
     }
 
     pub(crate) async fn commit_agent_control_spawn(

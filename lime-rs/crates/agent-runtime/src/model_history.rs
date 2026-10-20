@@ -47,7 +47,7 @@ pub struct ModelHistoryRecord {
 pub struct ModelHistoryMetadata {
     // Host budgets are persisted separately and restored only into request copies.
     pub output_token_limits: BTreeMap<String, usize>,
-    /// Canonical presentation identity replaced by this completed item.
+    /// Canonical item represented by this authoritative history record.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_item_id: Option<String>,
 }
@@ -57,6 +57,20 @@ impl ModelHistoryRecord {
         message: CurrentProviderMessage,
         source_item_id: String,
     ) -> Result<Self, String> {
+        if message.role != CurrentProviderRole::Assistant {
+            return Err("completed model history requires an assistant item".to_string());
+        }
+        Self::identified(message, source_item_id)
+    }
+
+    pub fn input(message: CurrentProviderMessage, source_item_id: String) -> Result<Self, String> {
+        if message.role != CurrentProviderRole::User {
+            return Err("model input history requires a user item".to_string());
+        }
+        Self::identified(message, source_item_id)
+    }
+
+    fn identified(message: CurrentProviderMessage, source_item_id: String) -> Result<Self, String> {
         let record = Self {
             message,
             metadata: ModelHistoryMetadata {
@@ -104,23 +118,28 @@ impl ModelHistoryRecord {
 
     pub fn into_message(mut self) -> Result<CurrentProviderMessage, String> {
         if self.message.content.is_empty() {
-            return Err("model tool history record has no content".to_string());
+            return Err("model history record has no content".to_string());
         }
         if let Some(source) = &self.metadata.source_item_id {
-            if source.is_empty()
-                || self.message.role != CurrentProviderRole::Assistant
-                || self
-                    .message
-                    .producer
-                    .as_ref()
-                    .is_none_or(|origin| origin.is_empty())
+            let valid_content = match self.message.role {
+                CurrentProviderRole::User => {
+                    self.message.producer.is_none()
+                        && self.message.content.iter().all(|part| {
+                            matches!(part, CurrentProviderContent::Text(text) if !text.trim().is_empty())
+                        })
+                }
+                CurrentProviderRole::Assistant => {
+                    self.message.producer.as_ref().is_some_and(|origin| !origin.is_empty())
+                        && matches!(self.message.content.as_slice(), [CurrentProviderContent::RawResponseItem(item)]
+                            if matches!(item.get("type").and_then(serde_json::Value::as_str), Some("message" | "reasoning")))
+                }
+                _ => false,
+            };
+            if source.trim().is_empty()
                 || !self.metadata.output_token_limits.is_empty()
-                || !matches!(self.message.content.as_slice(), [CurrentProviderContent::RawResponseItem(item)]
-                    if matches!(item.get("type").and_then(serde_json::Value::as_str), Some("message" | "reasoning")))
+                || !valid_content
             {
-                return Err(
-                    "invalid completed model history identity, source or content".to_string(),
-                );
+                return Err("invalid model history identity, source or content".to_string());
             }
             return Ok(self.message);
         }

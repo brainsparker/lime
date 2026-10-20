@@ -537,6 +537,16 @@ where
                 }
             }
             "item.completed" => {
+                if let Some(message) = canonical::hook_prompt_from_event(event, &history) {
+                    flush_assistant(
+                        &mut messages,
+                        &mut assistant_content,
+                        &mut assistant_text_by_item,
+                    );
+                    flush_tool_results(&mut messages, &mut tool_results);
+                    messages.push(message);
+                    continue;
+                }
                 if let Some(result) = canonical::tool_result_from_event(event) {
                     if history.has_output(event, &result.call_id) {
                         continue;

@@ -44,6 +44,7 @@ pub(super) async fn prepare(
             completed_at: None,
         },
         forked_from_thread_id: Some(parent_session.thread_id.clone()),
+        is_root_agent: false,
         input: RuntimeReplyInput::text("agent control spawn route preflight"),
         runtime_options: Some(options),
         expected_output: None,

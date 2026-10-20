@@ -114,24 +114,37 @@ async function uploadUpdateFeedPlan(
   for (const item of ordered) {
     const source = files.get(item.file);
     const endpointArgs = ["--endpoint-url", credentials.endpoint];
-    execute(
-      [
-        ...endpointArgs,
-        "s3",
-        "cp",
-        item.file,
-        `s3://${item.bucket}/${item.key}`,
-        "--content-type",
-        item.contentType,
-        "--cache-control",
-        item.cacheControl,
-        "--metadata",
-        `sha256=${source.sha256}`,
-        "--no-progress",
-        "--only-show-errors",
-      ],
-      awsEnv,
-    );
+    const uploadArgs = [
+      ...endpointArgs,
+      "s3",
+      "cp",
+      item.file,
+      `s3://${item.bucket}/${item.key}`,
+      "--content-type",
+      item.contentType,
+      "--cache-control",
+      item.cacheControl,
+      "--metadata",
+      `sha256=${source.sha256}`,
+      "--no-progress",
+      "--only-show-errors",
+    ];
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        execute(uploadArgs, awsEnv);
+        break;
+      } catch (error) {
+        if (
+          attempt >= 3 ||
+          !/\(InvalidPart\).*CompleteMultipartUpload/s.test(error.message)
+        ) {
+          throw error;
+        }
+        report(
+          `Retrying R2 multipart upload: ${item.key} (attempt ${attempt + 1}/3)`,
+        );
+      }
+    }
     const remote = JSON.parse(
       execute(
         [

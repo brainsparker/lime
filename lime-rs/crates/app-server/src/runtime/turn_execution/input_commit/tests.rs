@@ -70,6 +70,7 @@ async fn admitted_candidate_never_delivers_its_input_to_a_different_actor_turn()
         session,
         turn,
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text("candidate-only"),
         runtime_options: None,
         expected_output: None,

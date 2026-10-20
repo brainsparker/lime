@@ -1,7 +1,33 @@
 use ::code_mode::RuntimeToolMode;
 use agent_protocol::turn_context::TurnContextOverride as AgentTurnContext;
 use std::fmt;
+use std::path::PathBuf;
 use std::sync::Arc;
+
+/// Typed origin of the runtime session, aligned with Codex `SessionSource`.
+///
+/// Fork lineage alone is not enough to select lifecycle hooks: only a
+/// `ThreadSpawn` child receives `SubagentStop`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AgentSessionSource {
+    Root,
+    ThreadSpawn {
+        parent_thread_id: String,
+        agent_role: Option<String>,
+        parent_transcript_path: Option<PathBuf>,
+        agent_transcript_path: Option<PathBuf>,
+    },
+    SyntheticSubagent,
+    MemoryConsolidation,
+}
+
+impl Default for AgentSessionSource {
+    fn default() -> Self {
+        Self::Root
+    }
+}
+
+const DEFAULT_AGENT_ROLE: &str = "default";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RolloutBudgetReminder {
@@ -50,6 +76,8 @@ pub struct AgentSessionConfigurationRequest {
     pub thread_id: String,
     pub turn_id: String,
     pub forked_from_thread_id: Option<String>,
+    pub is_root_agent: bool,
+    pub experimental_request_user_input_enabled: bool,
     pub max_turns: Option<u32>,
     pub provider_token_budget: Option<u64>,
     /// 标记本回合是否需要 provider 侧的历史摄取语义。
@@ -58,6 +86,7 @@ pub struct AgentSessionConfigurationRequest {
     pub system_prompt: Option<String>,
     pub turn_context: Option<AgentTurnContext>,
     pub include_context_trace: bool,
+    pub source: AgentSessionSource,
 }
 
 #[derive(Debug, Clone)]
@@ -69,6 +98,8 @@ pub struct AgentSessionConfig {
     pub thread_id: Option<String>,
     pub turn_id: Option<String>,
     pub forked_from_thread_id: Option<String>,
+    pub is_root_agent: bool,
+    pub experimental_request_user_input_enabled: bool,
     pub schedule_id: Option<String>,
     pub max_turns: Option<u32>,
     pub provider_token_budget: Option<u64>,
@@ -83,9 +114,14 @@ pub struct AgentSessionConfig {
     /// Canonical session source for the terminal hook. ThreadSpawn sessions must set
     /// `SubagentStop` at admission time instead of inferring it from fork lineage.
     pub stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget,
+    /// Transcript path supplied to the hook request. For a thread-spawned
+    /// child Codex sends the parent transcript here.
+    pub stop_hook_transcript_path: Option<PathBuf>,
 }
 
 pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> AgentSessionConfig {
+    let stop_hook_target = stop_hook_target_for_source(&request.source, &request.thread_id);
+    let stop_hook_transcript_path = stop_hook_transcript_path_for_source(&request.source);
     AgentSessionConfig {
         model_history_recorder: None,
         plugin_hook_source: None,
@@ -93,6 +129,8 @@ pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> 
         thread_id: Some(request.thread_id),
         turn_id: Some(request.turn_id),
         forked_from_thread_id: request.forked_from_thread_id,
+        is_root_agent: request.is_root_agent,
+        experimental_request_user_input_enabled: request.experimental_request_user_input_enabled,
         schedule_id: None,
         max_turns: request.max_turns,
         provider_token_budget: request.provider_token_budget,
@@ -104,7 +142,47 @@ pub fn build_agent_session_config(request: AgentSessionConfigurationRequest) -> 
         turn_context: request.turn_context,
         tool_mode: RuntimeToolMode::Direct,
         supports_custom_tools: false,
-        stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
+        stop_hook_target,
+        stop_hook_transcript_path,
+    }
+}
+
+fn stop_hook_target_for_source(
+    source: &AgentSessionSource,
+    thread_id: &str,
+) -> tool_runtime::hook_lifecycle::RuntimeStopHookTarget {
+    match source {
+        AgentSessionSource::ThreadSpawn {
+            agent_role,
+            agent_transcript_path,
+            ..
+        } => tool_runtime::hook_lifecycle::RuntimeStopHookTarget::SubagentStop {
+            agent_id: thread_id.to_string(),
+            agent_type: agent_role
+                .clone()
+                .filter(|role| !role.trim().is_empty())
+                .unwrap_or_else(|| DEFAULT_AGENT_ROLE.to_string()),
+            agent_transcript_path: agent_transcript_path.clone(),
+        },
+        AgentSessionSource::Root => tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
+        AgentSessionSource::SyntheticSubagent => {
+            tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Disabled
+        }
+        AgentSessionSource::MemoryConsolidation => {
+            tool_runtime::hook_lifecycle::RuntimeStopHookTarget::MemoryConsolidation
+        }
+    }
+}
+
+fn stop_hook_transcript_path_for_source(source: &AgentSessionSource) -> Option<PathBuf> {
+    match source {
+        AgentSessionSource::ThreadSpawn {
+            parent_transcript_path,
+            ..
+        } => parent_transcript_path.clone(),
+        AgentSessionSource::Root
+        | AgentSessionSource::SyntheticSubagent
+        | AgentSessionSource::MemoryConsolidation => None,
     }
 }
 
@@ -117,6 +195,8 @@ pub struct SessionConfigBuilder {
     thread_id: Option<String>,
     turn_id: Option<String>,
     forked_from_thread_id: Option<String>,
+    is_root_agent: bool,
+    experimental_request_user_input_enabled: bool,
     schedule_id: Option<String>,
     max_turns: Option<u32>,
     provider_token_budget: Option<u64>,
@@ -129,6 +209,7 @@ pub struct SessionConfigBuilder {
     tool_mode: RuntimeToolMode,
     supports_custom_tools: bool,
     stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget,
+    stop_hook_transcript_path: Option<PathBuf>,
 }
 
 impl SessionConfigBuilder {
@@ -138,6 +219,8 @@ impl SessionConfigBuilder {
             thread_id: None,
             turn_id: None,
             forked_from_thread_id: None,
+            is_root_agent: false,
+            experimental_request_user_input_enabled: false,
             schedule_id: None,
             max_turns: None,
             provider_token_budget: None,
@@ -150,6 +233,7 @@ impl SessionConfigBuilder {
             tool_mode: RuntimeToolMode::Direct,
             supports_custom_tools: false,
             stop_hook_target: tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop,
+            stop_hook_transcript_path: None,
         }
     }
 
@@ -234,6 +318,8 @@ impl SessionConfigBuilder {
             thread_id: self.thread_id,
             turn_id: self.turn_id,
             forked_from_thread_id: self.forked_from_thread_id,
+            is_root_agent: self.is_root_agent,
+            experimental_request_user_input_enabled: self.experimental_request_user_input_enabled,
             schedule_id: self.schedule_id,
             max_turns: self.max_turns,
             provider_token_budget: self.provider_token_budget,
@@ -246,6 +332,7 @@ impl SessionConfigBuilder {
             tool_mode: self.tool_mode,
             supports_custom_tools: self.supports_custom_tools,
             stop_hook_target: self.stop_hook_target,
+            stop_hook_transcript_path: self.stop_hook_transcript_path,
         }
     }
 }
@@ -261,6 +348,8 @@ mod tests {
             thread_id: "thread-1".to_string(),
             turn_id: "turn-1".to_string(),
             forked_from_thread_id: Some("thread-source".to_string()),
+            is_root_agent: true,
+            experimental_request_user_input_enabled: true,
             max_turns: Some(2),
             provider_token_budget: Some(1_000),
             history_ingest_requested: true,
@@ -268,8 +357,11 @@ mod tests {
             system_prompt: Some("system".to_string()),
             turn_context: None,
             include_context_trace: true,
+            source: AgentSessionSource::Root,
         });
 
+        assert!(config.is_root_agent);
+        assert!(config.experimental_request_user_input_enabled);
         assert_eq!(config.id, "session-1");
         assert_eq!(config.thread_id.as_deref(), Some("thread-1"));
         assert_eq!(config.turn_id.as_deref(), Some("turn-1"));
@@ -305,5 +397,118 @@ mod tests {
         assert_eq!(config.system_prompt.as_deref(), Some("system"));
         assert_eq!(config.system_prompt_override, Some(true));
         assert_eq!(config.include_context_trace, Some(false));
+    }
+
+    #[test]
+    fn thread_spawn_source_selects_subagent_stop_with_codex_context() {
+        let config = build_agent_session_config(AgentSessionConfigurationRequest {
+            session_id: "child-session".to_string(),
+            thread_id: "child-thread".to_string(),
+            turn_id: "turn-1".to_string(),
+            forked_from_thread_id: Some("parent-thread".to_string()),
+            is_root_agent: false,
+            experimental_request_user_input_enabled: false,
+            max_turns: None,
+            provider_token_budget: None,
+            history_ingest_requested: false,
+            rollout_budget_reminder_source: None,
+            system_prompt: None,
+            turn_context: None,
+            include_context_trace: true,
+            source: AgentSessionSource::ThreadSpawn {
+                parent_thread_id: "parent-thread".to_string(),
+                agent_role: None,
+                parent_transcript_path: Some(PathBuf::from("/tmp/parent.jsonl")),
+                agent_transcript_path: Some(PathBuf::from("/tmp/child.jsonl")),
+            },
+        });
+
+        assert_eq!(
+            config.stop_hook_transcript_path,
+            Some(PathBuf::from("/tmp/parent.jsonl"))
+        );
+        match config.stop_hook_target {
+            tool_runtime::hook_lifecycle::RuntimeStopHookTarget::SubagentStop {
+                agent_id,
+                agent_type,
+                agent_transcript_path,
+            } => {
+                assert_eq!(agent_id, "child-thread");
+                assert_eq!(agent_type, "default");
+                assert_eq!(
+                    agent_transcript_path,
+                    Some(PathBuf::from("/tmp/child.jsonl"))
+                );
+            }
+            tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop => {
+                panic!("thread spawn must dispatch SubagentStop")
+            }
+            other => panic!("thread spawn selected unexpected hook target: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn normal_fork_source_keeps_stop_target() {
+        let config = build_agent_session_config(AgentSessionConfigurationRequest {
+            session_id: "fork-session".to_string(),
+            thread_id: "fork-thread".to_string(),
+            turn_id: "turn-1".to_string(),
+            forked_from_thread_id: Some("parent-thread".to_string()),
+            is_root_agent: false,
+            experimental_request_user_input_enabled: false,
+            max_turns: None,
+            provider_token_budget: None,
+            history_ingest_requested: false,
+            rollout_budget_reminder_source: None,
+            system_prompt: None,
+            turn_context: None,
+            include_context_trace: true,
+            source: AgentSessionSource::Root,
+        });
+        assert!(matches!(
+            config.stop_hook_target,
+            tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Stop
+        ));
+    }
+
+    #[test]
+    fn internal_sources_do_not_use_thread_spawn_stop_semantics() {
+        for source in [
+            AgentSessionSource::SyntheticSubagent,
+            AgentSessionSource::MemoryConsolidation,
+        ] {
+            let expect_disabled = matches!(source, AgentSessionSource::SyntheticSubagent);
+            let config = build_agent_session_config(AgentSessionConfigurationRequest {
+                session_id: "internal-session".to_string(),
+                thread_id: "internal-thread".to_string(),
+                turn_id: "turn-1".to_string(),
+                forked_from_thread_id: Some("parent-thread".to_string()),
+                is_root_agent: false,
+                experimental_request_user_input_enabled: false,
+                max_turns: None,
+                provider_token_budget: None,
+                history_ingest_requested: false,
+                rollout_budget_reminder_source: None,
+                system_prompt: None,
+                turn_context: None,
+                include_context_trace: true,
+                source,
+            });
+            assert!(config.stop_hook_transcript_path.is_none());
+            assert_eq!(
+                matches!(
+                    &config.stop_hook_target,
+                    tool_runtime::hook_lifecycle::RuntimeStopHookTarget::Disabled
+                ),
+                expect_disabled
+            );
+            assert_eq!(
+                matches!(
+                    &config.stop_hook_target,
+                    tool_runtime::hook_lifecycle::RuntimeStopHookTarget::MemoryConsolidation
+                ),
+                !expect_disabled
+            );
+        }
     }
 }

@@ -240,7 +240,9 @@ fn admit(
                     RuntimeStopHookTarget::SubagentStop { agent_type, .. } => {
                         Some(agent_type.as_str())
                     }
-                    RuntimeStopHookTarget::Stop => None,
+                    RuntimeStopHookTarget::Stop
+                    | RuntimeStopHookTarget::MemoryConsolidation
+                    | RuntimeStopHookTarget::Disabled => None,
                 });
                 matcher_matches(matcher, agent_type.unwrap_or_default())?
             }

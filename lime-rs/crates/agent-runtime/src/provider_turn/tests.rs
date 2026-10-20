@@ -48,6 +48,8 @@ mod model_history;
 mod output_snapshot;
 #[path = "tests/reasoning_snapshot.rs"]
 mod reasoning_snapshot;
+#[path = "tests/stop_receipt.rs"]
+mod stop_receipt;
 #[path = "tests/stream_producer.rs"]
 mod stream_producer;
 #[path = "tests/tool_call.rs"]

@@ -1,7 +1,7 @@
 use super::*;
 use agent_protocol::{
-    ImageDetail, ItemId, ItemKind, ItemStatus, SessionId, ThreadId, ThreadItemPayload,
-    ToolArgument, ToolOutput, TurnId,
+    HookPromptFragment, ImageDetail, ItemId, ItemKind, ItemStatus, SessionId, ThreadId, ThreadItem,
+    ThreadItemPayload, ToolArgument, ToolOutput, TurnId,
 };
 use serde_json::json;
 
@@ -77,6 +77,66 @@ fn message_text(message: &CurrentProviderMessage) -> &str {
         panic!("expected one text content part");
     };
     text
+}
+
+#[test]
+fn hook_prompt_item_is_restored_as_a_user_message() {
+    let mut item = ThreadItem::new(
+        SessionId::new("session-1"),
+        ThreadId::new("thread-1"),
+        TurnId::new("turn-1"),
+        1,
+        1,
+        ThreadItemPayload::HookPrompt {
+            fragments: vec![HookPromptFragment {
+                text: "continue after checks".to_string(),
+                hook_run_id: "stop:0:/tmp/hooks.json:turn-1:stop".to_string(),
+            }],
+        },
+    );
+    item.status = ItemStatus::Completed;
+    let messages =
+        super::messages_from_events(&[event(1, "item.completed", json!({"item": item}))]);
+    assert_eq!(messages.len(), 1);
+    assert_eq!(messages[0].role, CurrentProviderRole::User);
+    assert_eq!(
+        message_text(&messages[0]),
+        "<hook_prompt hook_run_id=\"stop:0:/tmp/hooks.json:turn-1:stop\">continue after checks</hook_prompt>"
+    );
+}
+
+#[test]
+fn hook_prompt_receipt_is_authoritative_and_only_deduplicates_its_own_turn() {
+    use agent_runtime::model_history::{ModelHistoryRecord, MODEL_HISTORY_EVENT_TYPE};
+    let mut item = ThreadItem::new(
+        SessionId::new("session-1"),
+        ThreadId::new("thread-1"),
+        TurnId::new("turn-1"),
+        1,
+        1,
+        ThreadItemPayload::HookPrompt {
+            fragments: vec![HookPromptFragment {
+                text: "canonical display".into(),
+                hook_run_id: "stop:1".into(),
+            }],
+        },
+    );
+    item.status = ItemStatus::Completed;
+    let message = CurrentProviderMessage::user(vec![CurrentProviderContent::Text(
+        "authoritative persisted prompt".into(),
+    )]);
+    let record = ModelHistoryRecord::input(message.clone(), item.item_id.to_string()).unwrap();
+    let receipt = event(1, MODEL_HISTORY_EVENT_TYPE, json!(record));
+    let display = event(2, "item.completed", json!({"item":item}));
+    assert_eq!(
+        super::messages_from_events(&[receipt.clone(), display.clone()]),
+        vec![message.clone()]
+    );
+    let other_turn = turn_event(3, "other-turn", "item.completed", display.payload);
+    let messages = super::messages_from_events(&[receipt, other_turn]);
+    assert_eq!(messages.len(), 2);
+    assert_eq!(messages[0], message);
+    assert!(message_text(&messages[1]).contains("canonical display"));
 }
 
 #[test]

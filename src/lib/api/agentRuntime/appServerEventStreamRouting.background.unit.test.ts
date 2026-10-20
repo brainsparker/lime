@@ -7,7 +7,7 @@ import type { AppServerJsonRpcNotification } from "../appServer";
 
 beforeEach(resetAgentRuntimeEventSequenceGatesForTests);
 
-it("canonical 快照直接恢复原 Command route，无 started 通知也能消费后续输出和单次退出", async () => {
+it("恢复活动 Turn 后继续接收真实问题 Item 与终态，不需要重复 turn/started", async () => {
   let subscription: AppServerEventBusSubscription | undefined;
   const stop = vi.fn();
   const router = new AppServerAgentSessionEventDrainRouter(
@@ -22,120 +22,235 @@ it("canonical 快照直接恢复原 Command route，无 started 通知也能消�
   const received: unknown[] = [];
   const unlisten = await createAgentRuntimeEventListener({
     listen: async () => () => {},
-  })("restored-route", (event) => received.push(event.payload));
-  const item = {
-    id: "command",
-    type: "commandExecution",
-    source: "unifiedExecStartup",
-    processId: "process",
-    status: "inProgress",
-    command: "wait",
-    cwd: "/workspace",
-    aggregatedOutput: "ready\n",
-  };
-  router.restoreCommands({
-    eventName: "restored-route",
+  })("agentSession/event/thread", (event) => received.push(event.payload));
+  router.restoreThread({
+    eventName: "agentSession/event/thread",
     thread: {
       id: "thread",
-      turns: [
-        {
-          id: "original",
-          status: "completed",
-          startedAt: 1,
-          completedAt: 2,
-          items: [item],
-        },
-      ],
-    } as Parameters<typeof router.restoreCommands>[0]["thread"],
+      turns: [{ id: "active", status: "inProgress", startedAt: 1, items: [] }],
+    } as Parameters<typeof router.restoreThread>[0]["thread"],
   });
-  expect(received).toEqual([]);
   expect(subscription).toBeDefined();
+  const item = {
+    id: "question",
+    type: "agentMessage",
+    text: "继续？",
+    delivery: "async",
+    questions: [{ title: "继续？", options: ["方案 A"] }],
+  };
   subscription!.onNotifications!([
     {
-      method: "item/commandExecution/outputDelta",
+      method: "item/started",
       params: {
         threadId: "foreign",
-        turnId: "original",
-        itemId: "command",
-        delta: "foreign",
+        turnId: "active",
+        item,
+        startedAtMs: 1000,
       },
     },
     {
-      method: "item/commandExecution/outputDelta",
+      method: "item/started",
       params: {
         threadId: "thread",
         turnId: "foreign",
-        itemId: "command",
-        delta: "foreign",
+        item,
+        startedAtMs: 1000,
       },
     },
     {
-      method: "item/commandExecution/outputDelta",
-      params: {
-        threadId: "thread",
-        turnId: "original",
-        itemId: "foreign",
-        delta: "foreign",
-      },
+      method: "item/started",
+      params: { threadId: "thread", turnId: "active", item, startedAtMs: 1000 },
     },
     {
       method: "item/completed",
       params: {
         threadId: "thread",
-        turnId: "original",
-        item: { ...item, status: "completed", processId: "foreign" },
-        completedAtMs: 3000,
+        turnId: "active",
+        item,
+        completedAtMs: 2000,
       },
     },
     {
-      method: "item/commandExecution/outputDelta",
+      method: "turn/completed",
       params: {
         threadId: "thread",
-        turnId: "original",
-        itemId: "command",
-        delta: "tail\n",
-      },
-    },
-    {
-      method: "item/completed",
-      params: {
-        threadId: "thread",
-        turnId: "original",
-        item: {
-          ...item,
+        turn: {
+          id: "active",
           status: "completed",
-          exitCode: 0,
-          aggregatedOutput: "ready\ntail\n",
+          startedAt: 1,
+          completedAt: 3,
+          items: [item],
         },
-        completedAtMs: 4000,
-      },
-    },
-    {
-      method: "item/commandExecution/outputDelta",
-      params: {
-        threadId: "thread",
-        turnId: "original",
-        itemId: "command",
-        delta: "late",
       },
     },
   ]);
   expect(received).toMatchObject([
-    { type: "tool_output_delta", delta: "tail\n" },
+    {
+      type: "item_started",
+      item: { id: "question", turn_id: "active", questions: item.questions },
+    },
     {
       type: "item_completed",
-      item: {
-        id: "command",
-        turn_id: "original",
-        status: "completed",
-        process_id: "process",
-      },
+      item: { id: "question", turn_id: "active", questions: item.questions },
     },
+    { type: "turn_completed", turn: { id: "active", status: "completed" } },
   ]);
-  expect(received).toHaveLength(2);
+  expect(received).toHaveLength(3);
   expect(stop).toHaveBeenCalledTimes(1);
   unlisten();
 });
+
+it.each(["completed", "inProgress"])(
+  "canonical %s 快照恢复原 Command route，无 started 通知也能消费后续输出和单次退出",
+  async (status) => {
+    let subscription: AppServerEventBusSubscription | undefined;
+    const stop = vi.fn();
+    const router = new AppServerAgentSessionEventDrainRouter(
+      { drainEvents: () => [] },
+      {
+        subscribe(value) {
+          subscription = value;
+          return stop;
+        },
+      },
+    );
+    const received: unknown[] = [];
+    const unlisten = await createAgentRuntimeEventListener({
+      listen: async () => () => {},
+    })("restored-route", (event) => received.push(event.payload));
+    const item = {
+      id: "command",
+      type: "commandExecution",
+      source: "unifiedExecStartup",
+      processId: "process",
+      status: "inProgress",
+      command: "wait",
+      cwd: "/workspace",
+      aggregatedOutput: "ready\n",
+    };
+    router.restoreThread({
+      eventName: "restored-route",
+      thread: {
+        id: "thread",
+        turns: [
+          {
+            id: "original",
+            status,
+            startedAt: 1,
+            completedAt: status === "completed" ? 2 : null,
+            items: [item],
+          },
+        ],
+      } as Parameters<typeof router.restoreThread>[0]["thread"],
+    });
+    expect(received).toEqual([]);
+    expect(subscription).toBeDefined();
+    if (status === "inProgress") {
+      subscription!.onNotifications!([
+        {
+          method: "turn/completed",
+          params: {
+            threadId: "thread",
+            turn: {
+              id: "original",
+              status: "completed",
+              startedAt: 1,
+              completedAt: 2,
+              items: [item],
+            },
+          },
+        },
+      ]);
+      expect(stop).not.toHaveBeenCalled();
+      received.length = 0;
+    }
+    subscription!.onNotifications!([
+      {
+        method: "item/commandExecution/outputDelta",
+        params: {
+          threadId: "foreign",
+          turnId: "original",
+          itemId: "command",
+          delta: "foreign",
+        },
+      },
+      {
+        method: "item/commandExecution/outputDelta",
+        params: {
+          threadId: "thread",
+          turnId: "foreign",
+          itemId: "command",
+          delta: "foreign",
+        },
+      },
+      {
+        method: "item/commandExecution/outputDelta",
+        params: {
+          threadId: "thread",
+          turnId: "original",
+          itemId: "foreign",
+          delta: "foreign",
+        },
+      },
+      {
+        method: "item/completed",
+        params: {
+          threadId: "thread",
+          turnId: "original",
+          item: { ...item, status: "completed", processId: "foreign" },
+          completedAtMs: 3000,
+        },
+      },
+      {
+        method: "item/commandExecution/outputDelta",
+        params: {
+          threadId: "thread",
+          turnId: "original",
+          itemId: "command",
+          delta: "tail\n",
+        },
+      },
+      {
+        method: "item/completed",
+        params: {
+          threadId: "thread",
+          turnId: "original",
+          item: {
+            ...item,
+            status: "completed",
+            exitCode: 0,
+            aggregatedOutput: "ready\ntail\n",
+          },
+          completedAtMs: 4000,
+        },
+      },
+      {
+        method: "item/commandExecution/outputDelta",
+        params: {
+          threadId: "thread",
+          turnId: "original",
+          itemId: "command",
+          delta: "late",
+        },
+      },
+    ]);
+    expect(received).toMatchObject([
+      { type: "tool_output_delta", delta: "tail\n" },
+      {
+        type: "item_completed",
+        item: {
+          id: "command",
+          turn_id: "original",
+          status: "completed",
+          process_id: "process",
+        },
+      },
+    ]);
+    expect(received).toHaveLength(2);
+    expect(stop).toHaveBeenCalledTimes(1);
+    unlisten();
+  },
+);
 
 it("后台命令保留原 route，下一 Turn 不覆盖它，真实退出后才回收订阅", async () => {
   let subscription: AppServerEventBusSubscription | undefined;

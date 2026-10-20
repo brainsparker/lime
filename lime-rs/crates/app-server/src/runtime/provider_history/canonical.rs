@@ -32,6 +32,22 @@ where
                 messages.push(message);
             }
         }
+        ThreadItemPayload::HookPrompt { fragments } => {
+            flush_assistant(messages, assistant_content, assistant_text_by_item);
+            flush_tool_results(messages, tool_results);
+            let content = fragments
+                .iter()
+                .filter_map(agent_protocol::HookPromptFragment::provider_text)
+                .map(CurrentProviderContent::Text)
+                .collect::<Vec<_>>();
+            if content.is_empty() {
+                return Err(format!(
+                    "fork canonical hook prompt {} omitted valid fragments",
+                    item.item_id
+                ));
+            }
+            messages.push(CurrentProviderMessage::user(content));
+        }
         ThreadItemPayload::AgentMessage {
             text,
             content_parts,
@@ -123,6 +139,27 @@ where
         | ThreadItemPayload::SubAgent { .. } => {}
     }
     Ok(())
+}
+
+pub(super) fn hook_prompt_from_event(
+    event: &AgentEvent,
+    history: &super::model_history::ModelHistoryProjection,
+) -> Option<CurrentProviderMessage> {
+    let item = serde_json::from_value::<ThreadItem>(event.payload.get("item")?.clone()).ok()?;
+    if history.has_completed(event, item.item_id.as_str()) {
+        return None;
+    }
+    let ThreadItemPayload::HookPrompt { fragments } = item.payload else {
+        return None;
+    };
+    let content = fragments
+        .iter()
+        .map(agent_protocol::HookPromptFragment::provider_text)
+        .collect::<Option<Vec<_>>>()?
+        .into_iter()
+        .map(CurrentProviderContent::Text)
+        .collect::<Vec<_>>();
+    (!content.is_empty()).then(|| CurrentProviderMessage::user(content))
 }
 
 pub(super) fn tool_call_from_event(event: &AgentEvent) -> Option<CurrentProviderToolCall> {

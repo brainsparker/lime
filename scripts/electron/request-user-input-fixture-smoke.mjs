@@ -10,6 +10,12 @@ import {
 } from "./mcp-config-fixture-smoke.mjs";
 import { captureMainProcessExit } from "./lib/persisted-atom-fixture-driver.mjs";
 import {
+  ASYNC_QUESTIONS,
+  ASYNC_DONE,
+  ASYNC_REPLY_DONE,
+  runAsyncUserInputScenario,
+} from "./lib/async-user-input-scenario.mjs";
+import {
   fingerprintArtifacts,
   fingerprintSources,
   sha256,
@@ -44,6 +50,15 @@ const FREEFORM = "自由答案，保留逗号, 和换行\n第二行";
 const LIFECYCLE_KEY = "lime:debug:app-server-server-request-lifecycle:v1";
 const SOURCE_FILES = [
   "scripts/electron/request-user-input-fixture-smoke.mjs",
+  "scripts/electron/lib/async-user-input-scenario.mjs",
+  "src/components/agent/chat/workspace/useAsyncUserInput.tsx",
+  "src/components/agent/chat/workspace/useWorkspaceInputbarSceneRuntime.tsx",
+  "src/components/agent/chat/components/asyncUserInput/AsyncUserInputPanel.tsx",
+  "src/components/agent/chat/components/asyncUserInput/QuestionDraftStore.ts",
+  "src/components/agent/chat/components/asyncUserInput/questions.ts",
+  "src/lib/api/agentRuntime/appServerCanonicalItemReader.ts",
+  "src/lib/api/agentRuntime/appServerEventStreamRouting.ts",
+  "src/lib/api/agentRuntime/threadClient.ts",
   "scripts/agent-runtime/tool-execution-current-contract.mjs",
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",
@@ -118,7 +133,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     backendMode: "runtime",
     live: false,
     claimBoundary:
-      "Isolated source-build macOS Electron, current preload/IPC, App Server/runtime and localhost provider, including same-renderer question draft restoration across threads. Does not prove reference execution, live provider, Windows, packaged release, async questions or restoration across app restarts.",
+      "Isolated source-build macOS Electron, current preload/IPC, App Server/runtime and localhost provider; synchronous and async questions, canonical replies and same-renderer draft restoration across threads. Async model capability uses explicit test-only policy; production catalog discovery, reference execution, live provider, Windows, packaged release and app-restart draft restoration are not claimed.",
     startedAt: new Date().toISOString(),
     ipcReceipts: [],
     screenshots: [],
@@ -126,6 +141,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
   const consoleErrors = [];
   const pageErrors = [];
   let handle, mainExit, fixture, collector, collectorPage, failure;
+  const asyncContinuation = Promise.withResolvers();
   const stage = (value) => {
     summary.stage = value;
     console.log(`[request-user-input-fixture] stage=${value}`);
@@ -137,6 +153,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
   };
   const captureDiagnostics = async (name) => {
     const snapshot = {
+      stage: summary.stage,
       providerRequests: (fixture?.requests ?? []).map((request) => ({
         path: request.path,
         model: request.body?.model,
@@ -156,6 +173,23 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
             includeTurns: true,
           }).catch((error) => ({ error: error.message }))
         : null,
+      dom: await handle?.page
+        .evaluate(() => ({
+          text: document.body.innerText.slice(-12000),
+          editors: Array.from(
+            document.querySelectorAll('[data-testid="composer-editor"]'),
+          ).map((node) => ({
+            sessionId: node.getAttribute("data-session-id"),
+            text: node.textContent,
+            visible: node.getClientRects().length > 0,
+          })),
+        }))
+        .catch((error) => ({ error: error.message })),
+      invokeTrace: collector
+        ? await captureInvokeTraceCollector(collectorPage, collector).catch(
+            (error) => ({ error: error.message }),
+          )
+        : null,
     };
     fs.writeFileSync(
       path.join(evidenceDir, `diagnostics-${name}.json`),
@@ -170,6 +204,17 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     fixture = await startOpenAiCompatibleFixtureServer({
       deferScriptedToolCallsUntilAvailable: true,
       scriptedResponses: [
+        {
+          type: "tool_call",
+          id: "call-async-question",
+          name: "request_user_input_async",
+          arguments: { questions: ASYNC_QUESTIONS },
+        },
+        async () => {
+          await asyncContinuation.promise;
+          return { type: "text", content: ASYNC_DONE };
+        },
+        { type: "text", content: ASYNC_REPLY_DONE },
         toolCall("call-question-answer", [
           {
             id: "choice_id",
@@ -270,11 +315,21 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       `${composerEditorSelector(identity.sessionId)}:visible`,
     );
     await mainEditor.waitFor({ state: "visible" });
+    await page.waitForFunction(
+      (selector) =>
+        Array.from(document.querySelectorAll(selector)).some(
+          (node) =>
+            node instanceof HTMLElement &&
+            node.getClientRects().length > 0 &&
+            node.getAttribute("aria-disabled") === "false",
+        ),
+      composerEditorSelector(identity.sessionId),
+    );
     await fillComposerEditor(page, DRAFT, identity.sessionId);
     let mainEditorHandle = await mainEditor.elementHandle();
     collectorPage = page;
     collector = await installInvokeTraceCollector(page);
-    const startTurn = async (message, clientUserMessageId) => {
+    const startTurn = async (message, clientUserMessageId, metadata) => {
       const result = await call(
         "turn/start",
         buildToolExecutionTurnStartParams({
@@ -283,6 +338,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
           message,
           clientUserMessageId,
           model: provider.modelPreference,
+          metadata,
         }),
       );
       assert.ok(result.turn?.id, "canonical Turn ID required");
@@ -295,6 +351,26 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       );
       assert.equal(await readComposerEditorText(mainEditor), DRAFT);
     };
+    stage("async-question-producer-and-ordinary-reply");
+    summary.asyncQuestions = await runAsyncUserInputScenario({
+      page,
+      identity,
+      otherIdentity,
+      call,
+      startTurn,
+      waitForTurn,
+      verifyMainDraft,
+      refreshMainEditor: async () => {
+        mainEditorHandle = await mainEditor.elementHandle();
+      },
+      releaseContinuation: () => asyncContinuation.resolve(),
+      fixture,
+      evidenceDir,
+      summary,
+      stage,
+    });
+    // Thread navigation remounts the editor; the async scenario verified its draft.
+    mainEditorHandle = await mainEditor.elementHandle();
     stage("answer-provider-questions-through-gui");
     const answeredTurnId = await startTurn(
       "请用 request_user_input 提问两题，得到完整答案后完成。",
@@ -357,6 +433,16 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       )
       .click();
     await mainEditor.waitFor({ state: "visible" });
+    await page.waitForFunction(
+      (selector) =>
+        Array.from(document.querySelectorAll(selector)).some(
+          (node) =>
+            node instanceof HTMLElement &&
+            node.getClientRects().length > 0 &&
+            node.getAttribute("aria-disabled") === "false",
+        ),
+      composerEditorSelector(identity.sessionId),
+    );
     await panel.waitFor({ state: "visible" });
     assert.equal(await panel.getAttribute("data-request-id"), answeredItemId);
     assert.equal(await panel.getAttribute("data-question-id"), "freeform_id");
@@ -451,7 +537,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       path: path.join(evidenceDir, "before-question-cancel.png"),
     });
     summary.screenshots.push("before-question-cancel.png");
-    await page.keyboard.press("Escape");
+    await panel.press("Escape");
     const interrupted = await waitForTurn(
       call,
       identity.threadId,
@@ -464,6 +550,29 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     verified = validateInvokeTraceCollectorCapture(capture, collector);
     assert.equal(verified.complete, true);
     const wire = decodeUserInputWire(verified.ledgerEntries);
+    const asyncReplies = wire.filter(
+      (message) =>
+        message.method === "turn/start" &&
+        message.params?.threadId === identity.threadId &&
+        JSON.stringify(message.params.input).includes(
+          "send_user_message_question_reply",
+        ),
+    );
+    assert.equal(
+      asyncReplies.length,
+      1,
+      "async reply uses ordinary scoped turn/start",
+    );
+    assert.equal(
+      Object.hasOwn(asyncReplies[0].params, "approvalPolicy"),
+      false,
+    );
+    assert.equal(Object.hasOwn(asyncReplies[0].params, "sandboxPolicy"), false);
+    summary.asyncQuestions.replyWire = {
+      method: "turn/start",
+      count: 1,
+      permissionOverrides: false,
+    };
     assert.equal(
       wire.filter((message) => Object.hasOwn(message, "result")).length,
       1,
@@ -536,6 +645,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
         })
         .catch(() => undefined);
   } finally {
+    asyncContinuation.resolve();
     summary.teardown = await settleFixtureResources({
       app: handle?.app,
       mainExit,

@@ -51,6 +51,11 @@ pub(in crate::runtime_backend) fn session_config_from_request_with_plugins_and_o
     plugin_snapshots: &[PluginTurnSnapshot],
     orchestrator_skills: &[lime_skills::AgentSkillMetadata],
 ) -> AgentSessionConfig {
+    let experimental_request_user_input_enabled = config_metadata
+        .as_ref()
+        .and_then(|config| config.pointer("/tools/experimental_request_user_input/enabled"))
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let workspace_scope = request_workspace_scope(request, host_request);
     let mut metadata_values = super::super::skill_runtime_enable::request_metadata_values(request);
     if let Some(config_metadata) = config_metadata.as_ref() {
@@ -153,6 +158,8 @@ pub(in crate::runtime_backend) fn session_config_from_request_with_plugins_and_o
         thread_id: scope.thread_id.clone(),
         turn_id: scope.turn_id.clone(),
         forked_from_thread_id: request.forked_from_thread_id.clone(),
+        is_root_agent: request.is_root_agent,
+        experimental_request_user_input_enabled,
         max_turns: harness_max_provider_steps(runtime_metadata),
         provider_token_budget: harness_provider_token_budget(runtime_metadata),
         history_ingest_requested: history_ingest_requested(request),
@@ -160,6 +167,7 @@ pub(in crate::runtime_backend) fn session_config_from_request_with_plugins_and_o
         system_prompt,
         turn_context,
         include_context_trace: !turn_tool_surface.uses_light_session_prompt(),
+        source: super::session_source_from_request(request),
     })
 }
 

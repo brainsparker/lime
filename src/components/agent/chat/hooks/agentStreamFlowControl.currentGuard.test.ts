@@ -56,6 +56,7 @@ describe("agentStreamFlowControl current runtime boundary", () => {
         new Set([
           "src/components/agent/chat/components/EmptyState.tsx",
           "src/components/agent/chat/components/Inputbar/hooks/useInputbarSend.ts",
+          "src/components/agent/chat/components/newThreadGoalSubmission.ts",
           "src/components/agent/chat/hooks/agentChatShared.ts",
           "src/components/agent/chat/hooks/agentStreamUserInputSendPreparation.ts",
           "src/components/agent/chat/hooks/handleSendTypes.ts",

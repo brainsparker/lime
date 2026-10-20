@@ -1,6 +1,28 @@
 # v1.164.0 发布执行计划
 
-状态：active / 候选整理与门禁执行中。
+状态：active / 用户追加全部新增改动进入 v1.164.0，完成本地门禁后重建候选并执行远端完整矩阵。
+
+## 2026-10-20 发布恢复
+
+- 最新范围指令：“新的也要一起发布，全部发布”。此前排除的新增 runtime、协议、GUI、研究、执行计划、测试与未跟踪源码全部纳入；只排除 `tsconfig.node.tsbuildinfo` 等构建缓存和忽略目录中的临时运行产物。旧的窄写集排除记录仅为当时状态。
+- 新增候选涵盖 Stop Hook durable receipt/typed source/canonical HookPrompt/history fork、异步问答 root/config/工具终态、GUI 题稿与测试 fixture 修复。architecture 已记录各唯一 owner、依赖方向与责任 root 的图确认；未完成的 live/产品全场景对齐仍保留在各执行计划，不作为本版完成声明。
+- 用户已明确确认继续同版本发布；沿用本轮 commit、main/tag 推送和标签重定位授权。
+- 首次发布提交 `f5ba4d71c`；第一轮门禁修复 `094d1dbc2`；当前候选 `7462c764aaf2197f7a4383119db590fad5e98575`。远端 main、v1.164.0 与草稿 Release target 均已复核为当前候选。
+- 后续新增的 runtime/request-user-input 并行未提交改动不纳入本轮恢复候选，保留原工作树；构建缓存继续排除。恢复直接写集为下列修复涉及的依赖、Electron smoke、TUI/搜索测试、Item inventory 与 runtime backend owner。
+- `094d1dbc2`：补齐 Markdown 直接类型依赖及锁文件、迁移 Electron console-message 事件参数、补齐 TUI AgentMessage questions fixture。typecheck、版本、contracts、GUI smoke 和 TUI crate 回归已通过。
+- `7462c764a`：补齐搜索测试 AgentMessage 的 delivery/questions 与 Item inventory 的 questions；将 Memory provider sampling 移入现有 execution_backend owner，runtime_backend.rs 回到 797 行（含末尾换行计数为 798）；SHELL-01 只检查无 provider 会话的启动与设置操作，不调用需要 eligible root session 和模型路由的 memoryStore/consolidate，保留其按钮可见性断言。
+- 上轮 Quality `39348998189` 的前端失败为 facade 行数与 inventory 字段漂移，Rust 为上述 fixture 编译遗漏；Windows Release `39349083451` 已构建成功，失败在 installed SHELL-01 的 noConsoleErrors，与 GUI smoke 失败阶段相同。旧证据只存 console error 计数，不能声称已取到原始 error 文本。
+- 当前工作树 `cargo check -p app-server --tests` 与 `thread_search_occurrences_jsonrpc` 2/2 通过；GUI smoke `standalone-shell-01-20261020015650-86182` 通过；提交钩子 5/5 通过。治理定向测试 inventory 4/4 与 runtime facade 检查通过；工作树另有并行 request_context.rs 806 行的未提交失败，候选 HEAD 为 753 行，该并行改动保留不提交。Rust 验证使用已有本地 rusty_v8 缓存；裸 Cargo 的上游预编译包 URL 返回 404，不改系统或依赖。
+- 当前远端 Quality：[39356454630](https://github.com/limecloud/lime/actions/runs/39356454630)。Release：[39356523636](https://github.com/limecloud/lime/actions/runs/39356523636)。退出前需核实三平台 Desktop、Quality、公开 assets、R2 和四平台 CLI/npm 的实际结果。
+- 分类：current 仍为 Forge/Electron、App Server/runtime 与现有测试 owner；无新增 compat/deprecated/dead 运行路径。修改遵循既有 owner 和窄写集，不降低 facade 上限或引入 mock fallback。
+- 后续 Quality `39356454630`：GUI、Windows Shell、lint/typecheck、Integrity 已通过；Frontend 在第 66/140 批发现 Host 偏好文件缺少 storage root 登记，Rust 在 `environment_remote_turn_jsonrpc` 发现 fixture 把冷恢复历史中的上一回合 tool 结果当作本回合结果，导致第二回合未发出 process/start。修复采用工作树已有的两行精确文件登记；provider fixture 只查询最新 user 之后的 tool 结果，read model 断言限定最新回合。
+- Release `39356523636` 三平台 Desktop 和公开 assets 已成功；R2 在 Windows nupkg 的 CompleteMultipartUpload 返回 InvalidPart。已请求取消尚未完成的 CLI/npm 构建，npm 根包 1.164.0 仍不存在。R2 current uploader 对该错误最多重新上传三次，成功后仍验证 size/SHA256/content type/cache control，所有 payload 通过后才发布 feed；补成功重试与重试耗尽的回归。301 MiB 文件哈希测试使用独立 30s I/O 预算，避免本地并行编译时默认 5s 超时。
+- 本次追加写集：`src/lib/governance/storageRootBoundary.test.ts`、`lime-rs/crates/app-server/tests/environment_remote_turn_jsonrpc.rs`、`scripts/electron/upload-update-feed-r2{,.test}.mjs` 与本计划；其余并行 runtime、GUI、研究证据和构建缓存继续排除。
+- 依最新范围继续追加上述全部产品写集与 release notes。当前 `npm run typecheck`、`npm run test:contracts`、`npm run verify:app-version`、storage root 15/15、file targets 9/9、release assets 12/12、R2 uploader 14/14 和远程执行/冷恢复 1/1 通过。首次远程执行复验在本地高负载下等待终态超时，随后同一用例不修改预算取得通过，原始日志 `/tmp/lime-v11640-remote-turn.log` 与后继日志 `/tmp/lime-v11640-remote-turn-2.log` 保留。
+- 本轮 Stop Hook public JSON-RPC live/cold/fork 2/2 通过（`/tmp/lime-v11640-stop-receipt.log`）；facade、inventory、current flow control 三文件 35/35 通过（`/tmp/lime-v11640-boundaries.log`）。新增后台恢复事件路由归既有 `AppServerAgentSessionEventDrainRouter.restoreThread`，恢复 inProgress turn 时注册同 identity 路由，消费者 threadClient 同步迁移；不新增第二业务 owner。
+- 全部候选的真实 Electron SHELL-01 已通过：`standalone-shell-01-20261020030250-46385`。前端续跑 r25 已执行至140/140批，新增 active-turn 恢复确定性回归 r25 为132/132通过；初始本地路由回归缺少 lifecycle 时间戳的失败保留，后继已补全 current 合同，无放宽 sequence gate。current fixture 聚合仍在执行，结果另行结算。
+- 发布策略：先递交全部候选到 main 并收口远端 Quality，再把同版本 tag 以旧 SHA 租约重定位到最终候选；旧 Release run 已取消且 npm 1.164.0 未发布。新 Desktop 产物、R2 更新索引和四平台 CLI/npm 必须基于同一最终候选重新完成。
+- 最终候选类型检查再次通过；active-turn 相关8文件139/139通过（`/tmp/lime-active-turn-resume-green-r26.log`）。本轮 current fixture 聚合在 unknown Item 场景所有业务断言通过后，正常退出 Main 的15s期限失败；独立复验同样失败，均没有把 SIGKILL 回收记为通过，日志 `/tmp/lime-v11640-all-current-fixture.log`、`/tmp/lime-v11640-unknown-recheck.log`。其余聚合子场景未执行；SHELL-01 通过不替代该聚合终态，退出缺口继续排查。
 
 ## 目标与范围
 

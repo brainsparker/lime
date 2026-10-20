@@ -250,12 +250,16 @@ describe("MessageList layout and scrolling", () => {
             {
               id: "item-user-message-turn-scope",
               type: "user_message",
+              thread_id: "thread-scope",
+              content: "第一轮问题",
               status: "completed",
               turn_id: "turn-scope-1",
             },
             {
               id: "item-agent-message-turn-scope",
               type: "agent_message",
+              thread_id: "thread-scope",
+              text: "第一轮回答",
               status: "completed",
               turn_id: "turn-scope-1",
             },

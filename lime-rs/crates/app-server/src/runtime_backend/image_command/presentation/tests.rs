@@ -43,6 +43,7 @@ fn request_for_presentation_test(
             completed_at: None,
         },
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text("@配图 画一张深圳夏天的图"),
         runtime_options: Some(RuntimeOptions {
             stream: true,

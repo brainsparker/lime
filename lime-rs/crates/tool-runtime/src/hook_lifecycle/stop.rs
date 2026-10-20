@@ -15,6 +15,12 @@ pub struct RuntimeStopHookContext {
 #[derive(Debug, Clone)]
 pub enum RuntimeStopHookTarget {
     Stop,
+    /// Internal memory work uses the Stop event but has a distinct target so
+    /// the runtime can terminate on rejection instead of recursively
+    /// continuing the consolidation loop.
+    MemoryConsolidation,
+    /// Synthetic/internal subagents do not dispatch user lifecycle hooks.
+    Disabled,
     SubagentStop {
         agent_id: String,
         agent_type: String,

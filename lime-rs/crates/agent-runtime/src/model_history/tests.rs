@@ -2,6 +2,63 @@ use super::*;
 use model_provider::current_client::{CurrentProviderToolCall, CurrentProviderToolResult};
 
 #[test]
+fn identified_user_input_round_trips_without_provider_envelopes() {
+    let message = CurrentProviderMessage::user(vec![CurrentProviderContent::Text(
+        "<hook_prompt hook_run_id=\"stop:1\">verify &amp; retry</hook_prompt>".into(),
+    )]);
+    let record = ModelHistoryRecord::input(message.clone(), "hook-item".into()).unwrap();
+    let restored: ModelHistoryRecord =
+        serde_json::from_value(serde_json::to_value(record).unwrap()).unwrap();
+    assert_eq!(
+        restored.metadata.source_item_id.as_deref(),
+        Some("hook-item")
+    );
+    assert_eq!(restored.into_message().unwrap(), message);
+    assert!(ModelHistoryRecord::completed(message, "hook-item".into()).is_err());
+}
+
+#[test]
+fn identified_input_rejects_missing_identity_native_payloads_roles_and_budgets() {
+    let valid = ModelHistoryRecord::input(
+        CurrentProviderMessage::user(vec![CurrentProviderContent::Text("retry".into())]),
+        "hook-item".into(),
+    )
+    .unwrap();
+    for change in 0..7 {
+        let mut invalid = valid.clone();
+        match change {
+            0 => invalid.metadata.source_item_id = Some("  ".into()),
+            1 => invalid.message.producer = Some("provider".into()),
+            2 => invalid
+                .message
+                .content
+                .push(CurrentProviderContent::RawResponseItem(
+                    serde_json::json!({"type":"message","role":"user"}),
+                )),
+            3 => invalid.message.role = CurrentProviderRole::Assistant,
+            4 => {
+                invalid
+                    .metadata
+                    .output_token_limits
+                    .insert("other".into(), 1);
+            }
+            5 => invalid.message.content.clear(),
+            6 => invalid.message.content = vec![CurrentProviderContent::Text("  ".into())],
+            _ => unreachable!(),
+        }
+        assert!(
+            invalid.into_message().is_err(),
+            "invalid input case {change}"
+        );
+    }
+    assert!(ModelHistoryRecord::input(
+        CurrentProviderMessage::assistant(vec![CurrentProviderContent::Text("retry".into())]),
+        "hook-item".into(),
+    )
+    .is_err());
+}
+
+#[test]
 fn history_receipt_requires_a_real_record_identity_and_sequence() {
     for (event_id, sequence) in [("", 1), ("  ", 1), ("event", 0)] {
         assert!(HistoryReceipt::new(event_id, sequence).is_err());

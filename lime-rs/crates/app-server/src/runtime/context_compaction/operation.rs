@@ -426,6 +426,7 @@ impl RuntimeCore {
                     completed_at: None,
                 },
                 forked_from_thread_id: None,
+                is_root_agent: false,
                 input: agent_runtime::reply_input::RuntimeReplyInput::text(
                     lime_agent::SUMMARIZATION_PROMPT,
                 ),

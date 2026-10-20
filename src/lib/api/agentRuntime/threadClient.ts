@@ -313,7 +313,7 @@ export function createThreadClient(deps: AgentRuntimeThreadClientDeps = {}) {
       thread: { ...response.result.thread, turns: read.result.thread.turns },
     };
     consumeSnapshot(snapshot);
-    appServerEventRouter?.restoreCommands({
+    appServerEventRouter?.restoreThread({
       eventName: `agentSession/event/${threadId}`,
       thread: snapshot.thread,
     });

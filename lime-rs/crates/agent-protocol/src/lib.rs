@@ -278,13 +278,13 @@ pub use response_item::ResponseItem;
 pub use thread::{
     AgentMessageDelivery, ApprovalAction, ApprovalDecision, ApprovalScope, AsyncUserInputQuestion,
     CollabAgentOperation, CollabAgentState, CollabAgentStatus, DynamicToolCallContentItem,
-    FileChange, FileChangeKind, FileChangeStatus, ItemKind, ItemStatus, McpToolCallAppContext,
-    PageCursor, PlanStep, PlanStepStatus, SortDirection, SubAgentActivityKind, Thread,
-    ThreadActiveFlag, ThreadHistoryChange, ThreadHistoryChangeSet, ThreadItem, ThreadItemPayload,
-    ThreadItemsListParams, ThreadItemsListResponse, ThreadListParams, ThreadListResponse,
-    ThreadStatus, ThreadTurnsListParams, ThreadTurnsListResponse, ThreadTurnsView, ToolArgument,
-    ToolOutput, Turn, TurnAdmissionState, TurnApprovalState, TurnError, TurnItemsView,
-    TurnQueueState, TurnStatus,
+    FileChange, FileChangeKind, FileChangeStatus, HookPromptFragment, ItemKind, ItemStatus,
+    McpToolCallAppContext, PageCursor, PlanStep, PlanStepStatus, SortDirection,
+    SubAgentActivityKind, Thread, ThreadActiveFlag, ThreadHistoryChange, ThreadHistoryChangeSet,
+    ThreadItem, ThreadItemPayload, ThreadItemsListParams, ThreadItemsListResponse,
+    ThreadListParams, ThreadListResponse, ThreadStatus, ThreadTurnsListParams,
+    ThreadTurnsListResponse, ThreadTurnsView, ToolArgument, ToolOutput, Turn, TurnAdmissionState,
+    TurnApprovalState, TurnError, TurnItemsView, TurnQueueState, TurnStatus,
 };
 
 #[cfg(test)]

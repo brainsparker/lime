@@ -132,6 +132,8 @@ mod tests {
                     id: Some("mode".to_string()),
                     question: "第二问".to_string(),
                     header: Some("mode".to_string()),
+                    is_other: false,
+                    is_secret: false,
                     options: vec![
                         RequestUserInputOption::with_label("auto", "自动执行"),
                         RequestUserInputOption::with_label("confirm", "确认后执行"),
@@ -168,6 +170,8 @@ mod tests {
                 id: Some("mode".to_string()),
                 question: "请选择执行模式".to_string(),
                 header: Some("mode".to_string()),
+                is_other: false,
+                is_secret: false,
                 options: vec![
                     RequestUserInputOption::with_label("auto", "自动执行"),
                     RequestUserInputOption::with_label("confirm", "确认后执行"),

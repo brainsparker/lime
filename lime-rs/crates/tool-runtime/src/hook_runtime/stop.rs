@@ -53,7 +53,8 @@ pub(super) fn command_input(
         "last_assistant_message": stop.last_assistant_message,
     });
     match (&stop.target, event) {
-        (RuntimeStopHookTarget::Stop, RuntimeHookEventName::Stop) => {}
+        (RuntimeStopHookTarget::Stop, RuntimeHookEventName::Stop)
+        | (RuntimeStopHookTarget::MemoryConsolidation, RuntimeHookEventName::Stop) => {}
         (
             RuntimeStopHookTarget::SubagentStop {
                 agent_id,

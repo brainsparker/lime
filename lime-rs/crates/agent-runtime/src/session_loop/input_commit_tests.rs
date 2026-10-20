@@ -50,6 +50,42 @@ fn user() -> Vec<RuntimeSessionInput> {
     ))]
 }
 
+#[tokio::test]
+async fn committed_continuation_reopens_the_same_turn_for_durable_steer() {
+    let (actor, input) = fixture().await;
+    input.mark_mailbox_delivery_for_next_turn().await;
+    assert!(input.mark_finishing().await);
+    assert!(matches!(
+        actor
+            .steer_for_turn_id_with_metadata(Some("input-turn"), user(), None, None, None,)
+            .await,
+        Err(RuntimeSessionLoopError::InvalidTask(_))
+    ));
+    input.resume_sampling().await;
+    assert_eq!(
+        input.mailbox_delivery_phase().await,
+        RuntimeSessionMailboxDeliveryPhase::CurrentTurn
+    );
+    let committed = Arc::new(AtomicUsize::new(0));
+    let count = committed.clone();
+    let commit = RuntimeSessionInputCommit::new(move |turn| {
+        assert_eq!(turn, "input-turn");
+        count.fetch_add(1, Ordering::SeqCst);
+        Ok(())
+    });
+    assert_eq!(
+        actor
+            .steer_for_turn_id_with_metadata(Some("input-turn"), user(), None, None, Some(commit),)
+            .await
+            .unwrap(),
+        "input-turn"
+    );
+    assert_eq!(committed.load(Ordering::SeqCst), 1);
+    assert_eq!(input.try_take_pending_input(false).await.unwrap().len(), 1);
+    assert!(input.mark_finishing().await);
+    actor.interrupt().await.unwrap();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 3)]
 async fn durable_commit_is_a_barrier_for_consumption_and_finishing() {
     assert_commit_barrier(false).await;

@@ -16,6 +16,9 @@ Simplified Chinese release notes are the primary version. This English companion
 - Correct persistence and rendering of message, reasoning, web-search and tool history across deltas, snapshots, compaction, forks and model switches.
 - Correct parsing, submission, preview-close and navigation recovery for file, skill, command and message references.
 - Correct Electron file-shell, IPC, main-process quit, window-target and workspace-operation boundaries.
+- Wait for durable history receipts before publishing Stop Hook prompts and continuing sampling, preventing duplicate inputs during cold recovery and forks.
+- Wire trusted root-thread and tool configuration into asynchronous questions, and correct draft restoration and interrupted tool states.
+- Retry R2 multipart completion failures within a fixed limit and publish updater feeds after all payloads pass verification.
 - Remove retired conversation-import, legacy OEM cloud-referral and duplicate command paths so production no longer depends on deprecated owners.
 
 ### Improvements and Refactoring

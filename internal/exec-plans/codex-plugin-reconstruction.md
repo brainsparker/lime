@@ -2665,3 +2665,15 @@ reconcile、plugin/skill/read和share全组；完整Hooks/onboarding/Skill metad
 新批exec/PTY、Windows、live与packaged均未验证。`verify:local`未全跑：大量并行脏改动且入口
 无写集过滤，当前只对实际定向与产品结果负责，不声称全仓green。完整目标、P03–P05仍active；
 下一刀回到市场来源管理与物化，并同步LimeCore控制面及公共消费者。
+
+### 旧 Lime 插件清理复核（2026-10-20）
+
+- `npm run governance:legacy-report` 已扫描 2361 个源码文件、1608 个测试文件：0 个 dead-candidate、0 个分类漂移、0 个边界违规。
+- 旧 Tauri/DevBridge plugin center、旧 `plugin-ui`、旧 marketplace 页面以及旧 provider/plugin 示例已物理删除；不保留 Lime 原有插件标准、ZIP 双轨、compat wrapper 或第二 registry。
+- current owner 仅保留 Codex 方向的 `src/features/plugin`、App Server `plugin_catalog`/`plugin_remote`、MCP Agent Plugin parser 与 LimeCore control-plane release/package。`lime-rs/crates/core/src/plugin` 为空目录且无编译入口，不作为 current owner。
+- 本复核不删除现役 owner，也不新增迁移层。后续只继续补 marketplace/reconcile/share、嵌套 Hooks schema、tar.gz 全量边界和 LimeCore 发布到客户端 Turn 的真实证据。
+
+### tar.gz 跨仓状态复核（2026-10-20）
+
+- Lime Rust extractor/packer 与 LimeCore 当前 archive owner 均以 Codex tar.gz 为唯一生产格式：`application/gzip`、100 MiB 压缩输入、512 MiB 展开预算、10,000 entries、路径/链接/特殊文件/重复路径/gzip trailer/多成员流 fail closed；ZIP 仅保留拒绝回归，不进入兼容分支。
+- LimeCore 定向 `control-plane-svc/internal/service` archive/scan/components 测试通过；Lime 侧共享 75 包 corpus 与 Core 38 个 manifest directory 场景已有计划证据。真实 Core/MySQL、远端下载/授权和发布到客户端 Turn 仍是未完成退出条件，不能把定向测试写成跨仓端到端 green。

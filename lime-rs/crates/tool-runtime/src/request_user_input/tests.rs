@@ -32,6 +32,25 @@ fn parse_request_user_input_tool_input_validates_current_surface() {
 }
 
 #[test]
+fn parse_request_user_input_accepts_codex_freeform_questions() {
+    let request = parse_request_user_input_tool_input(serde_json::json!({
+        "questions": [{
+            "id": "details",
+            "header": "说明",
+            "question": "填写具体说明？",
+            "isOther": true,
+            "isSecret": false
+        }]
+    }))
+    .expect("Codex freeform question should parse");
+
+    assert_eq!(request.questions[0].id.as_deref(), Some("details"));
+    assert!(request.questions[0].options.is_empty());
+    assert!(request.questions[0].is_other);
+    assert!(!request.questions[0].is_secret);
+}
+
+#[test]
 fn request_user_input_tool_definition_uses_current_name_and_schema() {
     let definition = request_user_input_tool_definition();
 
@@ -94,6 +113,8 @@ fn build_requested_schema_embeds_questions_extension() {
             id: Some("primary_color".to_string()),
             question: "你希望主色调是什么？".to_string(),
             header: Some("主色调".to_string()),
+            is_other: false,
+            is_secret: false,
             options: vec![
                 RequestUserInputOption {
                     value: "blue-purple".to_string(),
@@ -136,6 +157,8 @@ fn extract_response_normalizes_question_answers() {
                 id: Some("mode".to_string()),
                 question: "第二问".to_string(),
                 header: Some("mode".to_string()),
+                is_other: false,
+                is_secret: false,
                 options: vec![
                     RequestUserInputOption::with_label("auto", "自动执行"),
                     RequestUserInputOption::with_label("confirm", "确认后执行"),
@@ -173,6 +196,8 @@ fn extract_response_uses_question_text_as_single_answer_key() {
             id: Some("mode".to_string()),
             question: "请选择执行模式".to_string(),
             header: Some("mode".to_string()),
+            is_other: false,
+            is_secret: false,
             options: vec![
                 RequestUserInputOption::with_label("auto", "自动执行"),
                 RequestUserInputOption::with_label("confirm", "确认后执行"),
@@ -203,12 +228,45 @@ fn extract_response_uses_question_text_as_single_answer_key() {
 }
 
 #[test]
+fn extract_response_accepts_codex_question_id_keys() {
+    let request = RequestUserInputRequest {
+        questions: vec![RequestUserInputQuestion {
+            id: Some("freeform_id".to_string()),
+            question: "填写具体说明？".to_string(),
+            header: Some("说明".to_string()),
+            is_other: true,
+            is_secret: false,
+            options: Vec::new(),
+            multi_select: false,
+        }],
+        auto_resolution_ms: None,
+    };
+
+    assert_eq!(
+        extract_response(
+            &request,
+            &serde_json::json!({
+                "freeform_id": "自由答案"
+            }),
+        ),
+        Some(serde_json::json!({
+            "answer": "自由答案",
+            "answers": {
+                "填写具体说明？": "自由答案"
+            }
+        }))
+    );
+}
+
+#[test]
 fn normalize_result_preserves_annotations_and_option_identity() {
     let request = RequestUserInputRequest {
         questions: vec![RequestUserInputQuestion {
             id: Some("mode".to_string()),
             question: "请选择执行模式".to_string(),
             header: Some("mode".to_string()),
+            is_other: false,
+            is_secret: false,
             options: vec![
                 RequestUserInputOption::with_label("auto", "自动执行"),
                 RequestUserInputOption::with_label("confirm", "确认后执行"),
@@ -251,6 +309,8 @@ fn project_request_user_input_result_builds_output_and_metadata() {
             id: Some("mode".to_string()),
             question: "请选择执行模式".to_string(),
             header: Some("mode".to_string()),
+            is_other: false,
+            is_secret: false,
             options: vec![
                 RequestUserInputOption::with_label("auto", "自动执行"),
                 RequestUserInputOption::with_label("confirm", "确认后执行"),

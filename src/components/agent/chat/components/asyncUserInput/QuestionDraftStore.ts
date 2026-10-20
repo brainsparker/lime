@@ -83,7 +83,8 @@ export class QuestionDraftStore {
         answer === undefined
       )
         added.push(question);
-      registered.add(question.id);
+      if (activeTurnIds.has(question.turnId) || answer !== undefined)
+        registered.add(question.id);
     }
     this.#registered.set(scope, registered);
     let selection = previous.selection;

@@ -927,6 +927,7 @@ fn execution_request_for_tool_confirmation_bridge_test(
             completed_at: None,
         },
         forked_from_thread_id: None,
+        is_root_agent: false,
         input: agent_runtime::reply_input::RuntimeReplyInput::text(
             "run the runtime confirmation command",
         ),

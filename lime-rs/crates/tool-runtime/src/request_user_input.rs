@@ -25,6 +25,10 @@ Set autoResolutionMs, from 60000 to 240000 milliseconds, only when the question 
 but non-blocking and continuing with best judgment is acceptable if the user does not answer; \
 omit it when explicit user input is required.";
 
+fn is_false(value: &bool) -> bool {
+    !*value
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RequestUserInputSurfaceErrorKind {
     InvalidParams,
@@ -77,6 +81,10 @@ pub struct RequestUserInputQuestion {
     pub question: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub header: Option<String>,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_other: bool,
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub is_secret: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub options: Vec<RequestUserInputOption>,
     #[serde(default, alias = "multi_select")]
@@ -89,6 +97,8 @@ impl RequestUserInputQuestion {
             id: None,
             question: question.into(),
             header: None,
+            is_other: false,
+            is_secret: false,
             options: Vec::new(),
             multi_select: false,
         }
@@ -99,6 +109,8 @@ impl RequestUserInputQuestion {
             id: None,
             question: question.into(),
             header: None,
+            is_other: false,
+            is_secret: false,
             options,
             multi_select: false,
         }
@@ -108,12 +120,6 @@ impl RequestUserInputQuestion {
         if self.question.trim().is_empty() {
             return Err(RequestUserInputSurfaceError::invalid_params(
                 "Question text cannot be empty",
-            ));
-        }
-
-        if self.options.len() > 4 {
-            return Err(RequestUserInputSurfaceError::invalid_params(
-                "Question options cannot exceed 4 choices",
             ));
         }
 
@@ -159,12 +165,6 @@ impl RequestUserInputQuestion {
             return Err(RequestUserInputSurfaceError::invalid_params(format!(
                 "Question header cannot exceed {REQUEST_USER_INPUT_HEADER_WIDTH} characters"
             )));
-        }
-
-        if self.options.len() < 2 || self.options.len() > 3 {
-            return Err(RequestUserInputSurfaceError::invalid_params(
-                "Each request_user_input question must provide 2-3 options",
-            ));
         }
 
         let mut labels = BTreeSet::new();
@@ -450,6 +450,10 @@ struct RequestUserInputQuestionInput {
     id: Option<String>,
     question: String,
     header: Option<String>,
+    #[serde(default, rename = "isOther")]
+    is_other: bool,
+    #[serde(default, rename = "isSecret")]
+    is_secret: bool,
     options: Option<Vec<RequestUserInputOptionInput>>,
     #[serde(default, alias = "multi_select")]
     multi_select: bool,
@@ -470,6 +474,8 @@ impl TryFrom<RequestUserInputQuestionInput> for RequestUserInputQuestion {
             id: value.id,
             question: value.question,
             header: value.header,
+            is_other: value.is_other,
+            is_secret: value.is_secret,
             options,
             multi_select: value.multi_select,
         };
@@ -536,11 +542,17 @@ pub fn request_user_input_tool_input_schema() -> Value {
                             "type": "string",
                             "description": "Single-sentence prompt shown to the user."
                         },
+                        "isOther": {
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "isSecret": {
+                            "type": "boolean",
+                            "default": false
+                        },
                         "options": {
                             "type": "array",
-                            "description": "Provide 2-3 mutually exclusive choices. Put the recommended option first and suffix its label with \"(Recommended)\". Do not include an \"Other\" option in this list; the client will add a free-form \"Other\" option automatically.",
-                            "minItems": 2,
-                            "maxItems": 3,
+                            "description": "Optional selectable choices. Omit this field for a free-form answer.",
                             "items": {
                                 "type": "object",
                                 "additionalProperties": false,
@@ -558,7 +570,7 @@ pub fn request_user_input_tool_input_schema() -> Value {
                             }
                         }
                     },
-                    "required": ["id", "header", "question", "options"]
+                    "required": ["id", "header", "question"]
                 }
             },
             "autoResolutionMs": {

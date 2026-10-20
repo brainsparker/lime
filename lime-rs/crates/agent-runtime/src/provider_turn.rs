@@ -17,6 +17,9 @@ use ::code_mode::{
 use agent_protocol::provider_trace::{ProviderTraceEvent, ProviderTraceFailure};
 use agent_protocol::response_item::MessagePhase;
 use agent_protocol::world_state::{RuntimeWorldState, WORLD_STATE_TURN_METADATA_KEY};
+use agent_protocol::{
+    HookPromptFragment, ItemId, ItemStatus, SessionId, ThreadId, ThreadItem, ThreadItemPayload,
+};
 use code_mode_protocol::{RuntimeToolDefinition, RuntimeToolExposure};
 use futures::future::join_all;
 use futures::FutureExt;
@@ -57,6 +60,7 @@ mod hook_snapshot;
 mod input;
 mod model_history;
 mod output_lifecycle;
+mod stop_hooks;
 mod stream_producer;
 mod tool_call;
 use code_mode::PendingProviderToolCall;
@@ -67,6 +71,8 @@ use output_lifecycle::{
     complete_text_output_item, defer_text_output_item_end, end_reasoning_output_item,
     finish_active_output_items, provider_output_item_id, start_output_item, ProviderOutputFamily,
 };
+#[cfg(test)]
+use stop_hooks::{evaluate_stop_hooks, hook_prompt_provider_message};
 use stream_producer::{start_provider_stream, ProviderStreamStart};
 use tool_call::prepare_provider_tool_call;
 use tool_runtime::tool_result_projection::NormalizedToolOutput;
@@ -451,6 +457,9 @@ pub enum CurrentProviderTurnEvent {
         context_epoch: u64,
         covered_through_sequence: u64,
     },
+    HookPrompt {
+        item: ThreadItem,
+    },
 }
 
 pub async fn run_current_provider_turn<F>(
@@ -500,6 +509,7 @@ where
     // `stop_hook_active=true` on the continuation sampling request and cannot recurse as if it
     // were the first terminal check.
     let mut stop_hook_active = false;
+    let mut hook_prompt_index = 0_u64;
     let (generation, provider_options) = provider_request_controls(&session_config);
     let first_visible_output_timeout = first_visible_output_timeout(&session_config);
     let provider_step_timeout = provider_step_timeout(&session_config);
@@ -1471,31 +1481,24 @@ where
             }
             if completed {
                 if let Some(hook_step_snapshot) = hook_step_snapshot.as_ref() {
-                    let stop_evaluation = evaluate_stop_hooks(
+                    if let Some((message, item)) = stop_hooks::continuation(
                         hook_step_snapshot,
                         &session_config,
                         &turn_id,
                         &working_directory,
                         stop_hook_active,
                         step_text_output.text(),
+                        hook_prompt_index,
                     )
-                    .await;
-                    if stop_evaluation.should_stop {
-                        return Ok(RuntimeReplyExecution::new(
-                            text_output,
-                            errors,
-                            emitted_any,
-                            attempts_summary(&loop_state),
-                            false,
-                        ));
-                    }
-                    if let Some(reason) = stop_evaluation.block_reason {
+                    .await?
+                    {
+                        on_event(CurrentProviderTurnEvent::HookPrompt { item });
+                        initial_messages.push(message);
+                        if let Some(input) = pending_input.as_ref() {
+                            input.resume_sampling().await;
+                        }
+                        hook_prompt_index = hook_prompt_index.saturating_add(1);
                         stop_hook_active = true;
-                        initial_messages.push(CurrentProviderMessage::developer(vec![
-                            CurrentProviderContent::Text(format!(
-                                "<stop_hook_continuation>\n{reason}\n</stop_hook_continuation>"
-                            )),
-                        ]));
                         continue;
                     }
                 }
@@ -1654,90 +1657,6 @@ where
             emitted_any,
         )
         .await?;
-    }
-}
-
-struct StopHookEvaluation {
-    should_stop: bool,
-    block_reason: Option<String>,
-}
-
-async fn evaluate_stop_hooks(
-    hook_step: &RuntimeHookStepSnapshot,
-    session_config: &AgentSessionConfig,
-    turn_id: &str,
-    working_directory: &Path,
-    stop_hook_active: bool,
-    last_assistant_message: String,
-) -> StopHookEvaluation {
-    let (event_name, target) = match &session_config.stop_hook_target {
-        RuntimeStopHookTarget::Stop => (RuntimeHookEventName::Stop, RuntimeStopHookTarget::Stop),
-        RuntimeStopHookTarget::SubagentStop {
-            agent_id,
-            agent_type,
-            agent_transcript_path,
-        } => (
-            RuntimeHookEventName::SubagentStop,
-            RuntimeStopHookTarget::SubagentStop {
-                agent_id: agent_id.clone(),
-                agent_type: agent_type.clone(),
-                agent_transcript_path: agent_transcript_path.clone(),
-            },
-        ),
-    };
-    if !hook_step
-        .hooks
-        .iter()
-        .any(|hook| hook.event_name == event_name)
-    {
-        return StopHookEvaluation {
-            should_stop: false,
-            block_reason: None,
-        };
-    }
-    let snapshot = match RuntimeTurnSnapshot::try_new(Vec::new(), hook_step.hooks.clone()) {
-        Ok(snapshot) => snapshot,
-        Err(error) => {
-            return StopHookEvaluation {
-                should_stop: false,
-                block_reason: Some(format!("Stop hook snapshot is invalid: {error:?}")),
-            }
-        }
-    };
-    let context = RuntimeHookEventContext {
-        session_id: Some(session_config.id.clone()),
-        turn_id: Some(turn_id.to_string()),
-        working_directory: working_directory.to_path_buf(),
-        stop: Some(RuntimeStopHookContext {
-            invocation_id: format!("{turn_id}:stop"),
-            model: session_config
-                .turn_context
-                .as_ref()
-                .and_then(|context| context.model.clone())
-                .unwrap_or_else(|| "unknown".to_string()),
-            permission_mode: session_config
-                .turn_context
-                .as_ref()
-                .and_then(|context| context.approval_policy.clone())
-                .unwrap_or_else(|| "default".to_string()),
-            transcript_path: None,
-            stop_hook_active,
-            last_assistant_message: (!last_assistant_message.trim().is_empty())
-                .then_some(last_assistant_message),
-            target,
-        }),
-        ..RuntimeHookEventContext::default()
-    };
-    let evaluation =
-        evaluate_hook_event_async(&snapshot, event_name, &context, hook_step.reporter.as_ref())
-            .await;
-    StopHookEvaluation {
-        should_stop: evaluation.is_aborted(),
-        block_reason: if evaluation.is_aborted() {
-            None
-        } else {
-            evaluation.blocking_reason()
-        },
     }
 }
 

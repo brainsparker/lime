@@ -12,7 +12,9 @@ use super::turn_start::{
 use super::workflow::cancel::workflow_cancel_events_from_audit_records;
 use super::workflow::events::{WORKFLOW_RUN_RESUMING, WORKFLOW_STEP_RESUMING};
 use super::*;
-use agent_protocol::{ItemStatus, ThreadId, ThreadItem, ThreadItemPayload, ThreadTurnsView};
+use agent_protocol::{
+    ItemId, ItemStatus, SessionId, ThreadId, ThreadItem, ThreadItemPayload, ThreadTurnsView, TurnId,
+};
 use agent_runtime::provider_turn::{
     RuntimeMidTurnCompactionCommit, RuntimeMidTurnCompactionCommitFuture,
     RuntimeMidTurnCompactionRequest, RuntimeMidTurnCompactionResult,
@@ -99,10 +101,125 @@ fn active_tool_item_for_turn(
         if item.turn_id.as_str() != turn_id || item.status.is_terminal() {
             return None;
         }
-        match &item.payload {
-            ThreadItemPayload::Tool { call_id, .. } if call_id == tool_call_id => Some(item),
-            _ => None,
+        (thread_item_tool_call_id(&item) == Some(tool_call_id)).then_some(item)
+    })
+}
+
+fn thread_item_tool_call_id(item: &ThreadItem) -> Option<&str> {
+    match &item.payload {
+        ThreadItemPayload::Tool { call_id, .. }
+        | ThreadItemPayload::DynamicToolCall { call_id, .. }
+        | ThreadItemPayload::McpToolCall { call_id, .. }
+        | ThreadItemPayload::CollabAgentToolCall { call_id, .. } => Some(call_id),
+        _ => None,
+    }
+}
+
+fn tool_item_started_for_turn(stored: &StoredSession, turn_id: &str, tool_call_id: &str) -> bool {
+    stored.events.iter().any(|event| {
+        if event.event_type != "item.started" || event.turn_id.as_deref() != Some(turn_id) {
+            return false;
         }
+        let Some(item) = event.payload.get("item") else {
+            return false;
+        };
+        let Ok(item) = serde_json::from_value::<ThreadItem>(item.clone()) else {
+            return false;
+        };
+        thread_item_tool_call_id(&item) == Some(tool_call_id)
+    })
+}
+
+fn pending_request_user_input_item(
+    stored: &StoredSession,
+    turn_id: &str,
+    tool_call_id: &str,
+) -> ThreadItem {
+    let (sequence, ordinal) = stored
+        .events
+        .iter()
+        .filter_map(|event| {
+            serde_json::from_value::<ThreadItem>(event.payload.get("item")?.clone()).ok()
+        })
+        .fold((0_u64, 0_u64), |(sequence, ordinal), item| {
+            (sequence.max(item.sequence), ordinal.max(item.ordinal))
+        });
+    let now = chrono::Utc::now().timestamp_millis();
+    let payload = ThreadItemPayload::Tool {
+        call_id: tool_call_id.to_string(),
+        name: "request_user_input".to_string(),
+        arguments: Vec::new(),
+        output: None,
+    };
+    ThreadItem {
+        session_id: SessionId::new(stored.session.session_id.clone()),
+        thread_id: ThreadId::new(stored.session.thread_id.clone()),
+        turn_id: TurnId::new(turn_id),
+        item_id: ItemId::new(tool_call_id),
+        sequence: sequence.saturating_add(1),
+        ordinal: ordinal.saturating_add(1),
+        created_at_ms: now,
+        updated_at_ms: now,
+        completed_at_ms: None,
+        kind: payload.kind(),
+        status: ItemStatus::InProgress,
+        payload,
+        metadata: json!({"source": "turn_interrupt"}),
+    }
+}
+
+fn pending_tool_item_for_turn(stored: &StoredSession, turn_id: &str) -> Option<ThreadItem> {
+    let (request_id, identity) =
+        pending_action_descriptor::pending_identity_for_turn(stored, turn_id)?;
+    let tool_call_id = pending_action_descriptor::from_stored_session(stored, &request_id)
+        .and_then(|descriptor| descriptor.tool_id)
+        .or_else(|| pending_action_descriptor::pending_tool_id_for_turn(stored, turn_id))?;
+    active_tool_item_for_turn(stored, turn_id, &tool_call_id).or_else(|| {
+        (identity.action_type == AgentSessionActionType::AskUser)
+            .then(|| pending_request_user_input_item(stored, turn_id, &tool_call_id))
+    })
+}
+
+fn turn_interrupt_tool_events(tool_item_started: bool, item: ThreadItem) -> Vec<RuntimeEvent> {
+    let mut events = Vec::with_capacity(2);
+    if !tool_item_started {
+        let mut started = item.clone();
+        started.status = ItemStatus::InProgress;
+        started.completed_at_ms = None;
+        events.push(RuntimeEvent::new(
+            "item.started",
+            json!({
+                "item": started,
+                "reason": "turn_interrupted",
+            }),
+        ));
+    }
+    events.push(turn_interrupt_tool_completed_event(item));
+    events
+}
+
+fn turn_interrupt_tool_started_event(mut item: ThreadItem) -> RuntimeEvent {
+    item.status = ItemStatus::InProgress;
+    item.completed_at_ms = None;
+    RuntimeEvent::new(
+        "item.started",
+        json!({
+            "item": item,
+            "reason": "turn_interrupted",
+        }),
+    )
+}
+
+fn runtime_events_complete_tool(events: &[RuntimeEvent], tool_call_id: &str) -> bool {
+    events.iter().any(|event| {
+        event.event_type == "item.completed"
+            && serde_json::from_value::<ThreadItem>(
+                event.payload.get("item").cloned().unwrap_or(Value::Null),
+            )
+            .ok()
+            .and_then(|item| thread_item_tool_call_id(&item).map(str::to_string))
+            .as_deref()
+                == Some(tool_call_id)
     })
 }
 
@@ -1413,7 +1530,7 @@ impl RuntimeCore {
         let runtime_options = params.runtime_options.clone();
         let request_host = host.clone();
         let agent_control_host = host.clone();
-        let forked_from_thread_id = self
+        let (forked_from_thread_id, is_root_agent) = self
             .projection_store
             .as_deref()
             .map(|store| {
@@ -1426,12 +1543,19 @@ impl RuntimeCore {
             .transpose()
             .map_err(|error| RuntimeCoreError::Backend(error.to_string()))?
             .flatten()
-            .and_then(|thread| thread.forked_from_id.map(|id| id.to_string()));
+            .map(|thread| {
+                (
+                    thread.forked_from_id.map(|id| id.to_string()),
+                    thread.parent_thread_id.is_none(),
+                )
+            })
+            .unwrap_or_default();
         let mut request = ExecutionRequest {
             host,
             session: session.clone(),
             turn: turn.clone(),
             forked_from_thread_id,
+            is_root_agent,
             input: provider_input,
             event_name: params
                 .runtime_options
@@ -2274,7 +2398,7 @@ impl RuntimeCore {
         params: AgentSessionTurnCancelParams,
         host: RuntimeHostContext,
     ) -> Result<RuntimeCoreOutput<AgentSessionTurnCancelResponse>, RuntimeCoreError> {
-        let (session, turn_snapshot, pending_action, pending_tool_item) = {
+        let (session, turn_snapshot, pending_action, pending_tool_item, pending_tool_started) = {
             let state = self
                 .state
                 .lock()
@@ -2294,16 +2418,39 @@ impl RuntimeCore {
 
             let pending_action =
                 pending_action_descriptor::pending_identity_for_turn(stored, &params.turn_id);
-            let pending_tool_item =
-                pending_action_descriptor::pending_tool_id_for_turn(stored, &params.turn_id)
-                    .and_then(|tool_call_id| {
-                        active_tool_item_for_turn(stored, &params.turn_id, &tool_call_id)
-                    });
+            let pending_tool_call_id = pending_action
+                .as_ref()
+                .and_then(|(request_id, _)| {
+                    pending_action_descriptor::from_stored_session(stored, request_id)
+                })
+                .and_then(|descriptor| descriptor.tool_id)
+                .or_else(|| {
+                    pending_action_descriptor::pending_tool_id_for_turn(stored, &params.turn_id)
+                });
+            let pending_tool_item = pending_tool_call_id.as_deref().and_then(|tool_call_id| {
+                active_tool_item_for_turn(stored, &params.turn_id, tool_call_id).or_else(|| {
+                    pending_action
+                        .as_ref()
+                        .is_some_and(|(_, identity)| {
+                            identity.action_type == AgentSessionActionType::AskUser
+                        })
+                        .then(|| {
+                            pending_request_user_input_item(stored, &params.turn_id, tool_call_id)
+                        })
+                })
+            });
+            let pending_tool_started = pending_tool_item.as_ref().is_some_and(|item| {
+                let Some(call_id) = thread_item_tool_call_id(item) else {
+                    return false;
+                };
+                tool_item_started_for_turn(stored, &params.turn_id, call_id)
+            });
             (
                 stored.session.clone(),
                 turn.clone(),
                 pending_action,
                 pending_tool_item,
+                pending_tool_started,
             )
         };
 
@@ -2317,15 +2464,6 @@ impl RuntimeCore {
         } else {
             Vec::new()
         };
-        if let Some(item) = pending_tool_item {
-            pre_cancel_events.extend(self.append_runtime_events(
-                &session.session_id,
-                &session.thread_id,
-                Some(&turn_snapshot.turn_id),
-                vec![turn_interrupt_tool_completed_event(item)],
-            )?);
-        }
-
         let driver_completion = self
             .turn_driver_completions
             .get(&session.session_id, &params.turn_id);
@@ -2344,6 +2482,42 @@ impl RuntimeCore {
             if let Some(driver_completion) = driver_completion {
                 driver_completion.wait().await;
             }
+        }
+        let pending_tool_item = pending_tool_item.or_else(|| {
+            let state = self
+                .state
+                .lock()
+                .expect("runtime core state mutex poisoned");
+            state
+                .sessions
+                .get(&session.session_id)
+                .and_then(|stored| pending_tool_item_for_turn(stored, &turn_snapshot.turn_id))
+        });
+        if let Some(item) = pending_tool_item {
+            let started_after_interrupt = {
+                let state = self
+                    .state
+                    .lock()
+                    .expect("runtime core state mutex poisoned");
+                state
+                    .sessions
+                    .get(&session.session_id)
+                    .is_some_and(|stored| {
+                        thread_item_tool_call_id(&item).is_some_and(|call_id| {
+                            tool_item_started_for_turn(stored, &turn_snapshot.turn_id, call_id)
+                        })
+                    })
+            };
+            pre_cancel_events.extend(self.append_runtime_events(
+                &session.session_id,
+                &session.thread_id,
+                Some(&turn_snapshot.turn_id),
+                if started_after_interrupt || pending_tool_started {
+                    vec![turn_interrupt_tool_completed_event(item)]
+                } else {
+                    turn_interrupt_tool_events(false, item)
+                },
+            )?);
         }
         let mut events = pre_cancel_events;
         events.extend(
@@ -2386,6 +2560,7 @@ impl RuntimeCore {
             pending_action_identity,
             pending_action_descriptor,
             pending_tool_item,
+            pending_tool_started,
         ) = {
             let state = self
                 .state
@@ -2414,16 +2589,29 @@ impl RuntimeCore {
                 .clone();
             let pending_action_descriptor =
                 pending_action_descriptor::from_stored_session(stored, &request_id);
-            let pending_tool_item = pending_action_descriptor::pending_tool_id_for_turn(
-                stored, turn_id,
-            )
-            .and_then(|tool_call_id| active_tool_item_for_turn(stored, turn_id, &tool_call_id));
+            let pending_tool_call_id = pending_action_descriptor
+                .as_ref()
+                .and_then(|descriptor| descriptor.tool_id.clone())
+                .or_else(|| pending_action_descriptor::pending_tool_id_for_turn(stored, turn_id));
+            let pending_tool_item = pending_tool_call_id.as_deref().and_then(|tool_call_id| {
+                active_tool_item_for_turn(stored, turn_id, tool_call_id).or_else(|| {
+                    (pending_action_identity.action_type == AgentSessionActionType::AskUser)
+                        .then(|| pending_request_user_input_item(stored, turn_id, tool_call_id))
+                })
+            });
+            let pending_tool_started = pending_tool_item.as_ref().is_some_and(|item| {
+                let Some(call_id) = thread_item_tool_call_id(item) else {
+                    return false;
+                };
+                tool_item_started_for_turn(stored, turn_id, call_id)
+            });
             (
                 stored.session.clone(),
                 Some(turn),
                 pending_action_identity,
                 pending_action_descriptor,
                 pending_tool_item,
+                pending_tool_started,
             )
         };
         if params.action_type != pending_action_identity.action_type {
@@ -2511,20 +2699,55 @@ impl RuntimeCore {
             let backend_completed_turn = backend_events
                 .iter()
                 .any(|event| runtime_event_is_turn_terminal(&event.event_type));
-            precommitted_events.extend(self.append_runtime_events(
-                &session.session_id,
-                &session.thread_id,
-                turn_snapshot.as_ref().map(|turn| turn.turn_id.as_str()),
-                backend_events,
-            )?);
-            if decision.is_some_and(AgentSessionApprovalDecision::is_cancel) {
-                if let Some(item) = pending_tool_item {
+            let pending_tool_call_id = pending_tool_item
+                .as_ref()
+                .and_then(thread_item_tool_call_id)
+                .map(str::to_string);
+            if decision.is_some_and(AgentSessionApprovalDecision::is_cancel)
+                && !pending_tool_started
+            {
+                if let Some(item) = pending_tool_item.as_ref() {
+                    // The provider can publish the terminal dynamic-tool event
+                    // before the queued lifecycle start reaches this driver.
+                    // Commit the start first so the strict sequence verifier
+                    // observes the same Codex ordering.
                     precommitted_events.extend(self.append_runtime_events(
                         &session.session_id,
                         &session.thread_id,
                         turn_snapshot.as_ref().map(|turn| turn.turn_id.as_str()),
-                        vec![turn_interrupt_tool_completed_event(item)],
+                        vec![turn_interrupt_tool_started_event(item.clone())],
                     )?);
+                }
+            }
+            precommitted_events.extend(self.append_runtime_events(
+                &session.session_id,
+                &session.thread_id,
+                turn_snapshot.as_ref().map(|turn| turn.turn_id.as_str()),
+                backend_events.clone(),
+            )?);
+            if decision.is_some_and(AgentSessionApprovalDecision::is_cancel) {
+                if let Some(item) = pending_tool_item {
+                    let backend_completed_item =
+                        pending_tool_call_id.as_deref().is_some_and(|call_id| {
+                            runtime_events_complete_tool(&backend_events, call_id)
+                        });
+                    if backend_completed_item {
+                        // The backend already emitted the terminal item after
+                        // the synthetic start above.
+                    } else {
+                        precommitted_events.extend(self.append_runtime_events(
+                            &session.session_id,
+                            &session.thread_id,
+                            turn_snapshot.as_ref().map(|turn| turn.turn_id.as_str()),
+                            if pending_tool_started {
+                                vec![turn_interrupt_tool_completed_event(item)]
+                            } else {
+                                // A synthetic start was committed before backend
+                                // events, so only finish the item here.
+                                vec![turn_interrupt_tool_completed_event(item)]
+                            },
+                        )?);
+                    }
                 }
             }
             // External backends may resolve the action and finish the turn in

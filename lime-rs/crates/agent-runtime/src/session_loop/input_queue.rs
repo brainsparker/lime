@@ -616,6 +616,13 @@ impl RuntimeSessionInputHandle {
             RuntimeSessionMailboxDeliveryPhase::CurrentTurn;
     }
 
+    /// A committed continuation reopens input for the same active turn.
+    pub async fn resume_sampling(&self) {
+        let mut input = self.state.input.lock().await;
+        input.finishing = false;
+        input.mailbox_delivery_phase = RuntimeSessionMailboxDeliveryPhase::CurrentTurn;
+    }
+
     pub(super) async fn push_steer(&self, input: Vec<RuntimeSessionInput>) -> bool {
         self.push_steer_with_commit(input, None)
             .await

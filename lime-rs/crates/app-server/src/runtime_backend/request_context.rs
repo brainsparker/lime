@@ -25,12 +25,14 @@ const HARNESS_TURN_POLICY_SOURCE: &str = "harness_turn_policy";
 const RESPONSIVE_CHAT_MODEL_SLOT: &str = "fast";
 
 mod session_config;
+mod session_source;
 mod turn_context;
 mod workspace_scope;
 
 #[cfg(test)]
 pub(super) use session_config::session_config_from_request;
 pub(super) use session_config::session_config_from_request_with_plugins_and_orchestrator;
+pub(super) use session_source::session_source_from_request;
 pub(super) use turn_context::turn_context_from_request;
 pub(super) use workspace_scope::request_workspace_scope;
 

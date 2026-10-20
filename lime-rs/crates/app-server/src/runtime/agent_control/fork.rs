@@ -263,11 +263,16 @@ pub(super) fn selected_agent_control_fork_history(
                             text,
                             phase,
                             content_parts,
-                            ..
-                        } if matches!(
-                            phase,
-                            Some(agent_protocol::response_item::MessagePhase::FinalAnswer)
-                        ) =>
+                            delivery,
+                            questions,
+                        } if *delivery != Some(agent_protocol::AgentMessageDelivery::Async)
+                            && questions
+                                .as_ref()
+                                .is_none_or(|questions| questions.is_empty())
+                            && matches!(
+                                phase,
+                                Some(agent_protocol::response_item::MessagePhase::FinalAnswer)
+                            ) =>
                         {
                             Some(ForkedAgentControlMessage {
                                 source_thread_id: turn.thread_id.as_str().to_string(),
@@ -341,7 +346,8 @@ fn validate_agent_control_fork_items(turn: &agent_protocol::Turn) -> Result<(), 
             ThreadItemPayload::UserMessage { .. } => {
                 return Err(unsupported_agent_control_fork_item(turn, item));
             }
-            ThreadItemPayload::Reasoning { .. }
+            ThreadItemPayload::HookPrompt { .. }
+            | ThreadItemPayload::Reasoning { .. }
             | ThreadItemPayload::Tool { .. }
             | ThreadItemPayload::DynamicToolCall { .. }
             | ThreadItemPayload::McpToolCall { .. }

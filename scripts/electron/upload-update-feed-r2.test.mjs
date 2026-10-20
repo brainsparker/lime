@@ -238,6 +238,56 @@ describe("R2 verified publishing", () => {
     ).toHaveLength(2);
     expect(calls[1].env.AWS_SECRET_ACCESS_KEY).toBe("test-secret");
     expect(calls[1].args).not.toContain("test-secret");
+  }, 30000);
+
+  it("restarts an InvalidPart multipart upload before verifying and advancing the feed", async () => {
+    const { plan, calls, execute } = fixture();
+    let attempts = 0;
+    const verified = await uploadUpdateFeedPlan(plan, credentials, {
+      report: () => {},
+      execute: (args, env) => {
+        if (args.includes("cp") && attempts++ < 2) {
+          throw new Error(
+            "AWS CLI failed: An error occurred (InvalidPart) when calling the CompleteMultipartUpload operation",
+          );
+        }
+        return execute(args, env);
+      },
+    });
+    expect(attempts).toBe(4);
+    expect(verified.map((item) => item.key)).toEqual([
+      "stable/package.zip",
+      "stable/RELEASES.json",
+    ]);
+    expect(
+      calls.filter((call) => call.args.includes("head-object")),
+    ).toHaveLength(2);
+  });
+
+  it("stops after three InvalidPart failures without advancing the feed", async () => {
+    const { plan, calls, execute } = fixture();
+    let attempts = 0;
+    await expect(
+      uploadUpdateFeedPlan(plan, credentials, {
+        report: () => {},
+        execute: (args, env) => {
+          if (args.includes("cp")) {
+            attempts += 1;
+            throw new Error(
+              "AWS CLI failed: An error occurred (InvalidPart) when calling the CompleteMultipartUpload operation",
+            );
+          }
+          return execute(args, env);
+        },
+      }),
+    ).rejects.toThrow("InvalidPart");
+    expect(attempts).toBe(3);
+    expect(calls.some((call) => call.args.includes("head-object"))).toBe(false);
+    expect(
+      calls.some((call) =>
+        call.args.some((arg) => arg.includes("RELEASES.json")),
+      ),
+    ).toBe(false);
   });
 
   it("stops at a payload failure without advancing the feed", async () => {

@@ -139,6 +139,14 @@ async fn terminal_stop_hook_blocks_once_with_the_current_step_snapshot() {
         evaluation.block_reason.as_deref(),
         Some("continue until checks pass")
     );
+    assert_eq!(evaluation.continuation_fragments.len(), 1);
+    assert_eq!(
+        evaluation.continuation_fragments[0].text,
+        "continue until checks pass"
+    );
+    assert!(evaluation.continuation_fragments[0]
+        .hook_run_id
+        .contains("turn-1:stop"));
 }
 
 #[tokio::test]
@@ -167,4 +175,93 @@ async fn terminal_stop_hook_abort_stops_without_continuation() {
     .await;
     assert!(evaluation.should_stop);
     assert!(evaluation.block_reason.is_none());
+    assert!(evaluation.continuation_fragments.is_empty());
+}
+
+#[tokio::test]
+async fn cancellation_after_completed_provider_step_skips_stop_hook_dispatch() {
+    let provider = Arc::new(ScriptedProvider::new(vec![vec![
+        Ok(CanonicalLlmEvent::TextDelta {
+            id: "answer".into(),
+            text: "finished response".into(),
+        }),
+        Ok(CanonicalLlmEvent::Finish {
+            reason: FinishReason::Stop,
+            needs_follow_up: false,
+            usage: None,
+            response_id: None,
+        }),
+    ]]));
+    let cancellation = CancellationToken::new();
+    let mut stop = hook("stop", 0);
+    stop.event_name = RuntimeHookEventName::Stop;
+    let hook_snapshot = RuntimeHookStepSnapshot {
+        hooks: vec![stop],
+        reporter: Arc::new(FixedHookReporter::new(Some(
+            RuntimeHookHandlerReport::Block {
+                reason: "must not be dispatched after cancellation".to_string(),
+            },
+        ))),
+    };
+    let mut events = Vec::new();
+    let result = run_current_provider_turn(
+        CurrentProviderTurnInput {
+            provider,
+            provider_trace_metadata: None,
+            session_config: crate::session_config::SessionConfigBuilder::new("session-cancel-stop")
+                .thread_id("thread-cancel-stop")
+                .turn_id("turn-cancel-stop")
+                .build(),
+            initial_messages: vec![CurrentProviderMessage::user(vec![
+                CurrentProviderContent::Text("hello".to_string()),
+            ])],
+            tool_step_snapshot_source: RuntimeToolStepSnapshotSourceHandle::fixed(
+                RuntimeToolStepSnapshot::new(
+                    Vec::new(),
+                    RuntimeToolExecutorHandle::new(Arc::new(EchoTool)),
+                ),
+            ),
+            hook_snapshot_source: Some(RuntimeHookSnapshotSourceHandle::fixed(hook_snapshot)),
+            model_request_policy: None,
+            tool_lifecycle_emitter: Arc::new(RecordingLifecycleEmitter::default()),
+            working_directory: PathBuf::from(env!("CARGO_MANIFEST_DIR")),
+            cancel_token: Some(cancellation.clone()),
+            pending_input: None,
+            mid_turn_compaction: None,
+        },
+        |event| {
+            if matches!(
+                event,
+                CurrentProviderTurnEvent::ProviderStep {
+                    completed: true,
+                    ..
+                }
+            ) {
+                cancellation.cancel();
+            }
+            events.push(event);
+        },
+    )
+    .await
+    .expect("cancellation is a normal terminal result");
+
+    assert!(result.cancelled);
+    assert!(!events
+        .iter()
+        .any(|event| matches!(event, CurrentProviderTurnEvent::HookPrompt { .. })));
+}
+
+#[test]
+fn hook_prompt_lowering_uses_codex_user_wire_shape() {
+    let fragments = vec![agent_protocol::HookPromptFragment {
+        text: "retry <checks> & keep going".to_string(),
+        hook_run_id: "stop:0:/tmp/hooks.json:turn-1:stop".to_string(),
+    }];
+    let message = super::super::hook_prompt_provider_message(&fragments).expect("hook prompt");
+    assert_eq!(message.role, CurrentProviderRole::User);
+    assert!(matches!(
+        &message.content[..],
+        [CurrentProviderContent::Text(text)]
+            if text == "<hook_prompt hook_run_id=\"stop:0:/tmp/hooks.json:turn-1:stop\">retry &lt;checks&gt; &amp; keep going</hook_prompt>"
+    ));
 }
