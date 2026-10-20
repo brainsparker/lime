@@ -101,3 +101,36 @@ current：表中唯一owner、canonical输入与消息投影。已删除：旧sl
 - 问答r46后继：新完整contracts和仅appServer段刷新均exit0；真实Electron全部交互/wire断言及零状态toast通过，三图已人工复核，Main0.534秒正常退出。但运行期间并行sandbox源码漂移，最终freshness失败，整轮保留fail；不以交互观察抵消冻结失败。默认门禁正沿独立前端状态串行续跑，随后再刷新sidecar复验。限定原件与收据见[validation-r46](artifacts/async-user-input-20261020/thread-status-read/validation-r46.json)。
 
 - r47/48后继：问答fixture直接执行已指纹记录的dist-electron sidecar，删除共享target/debug选择入口，新增相对路径/SHA绑定；旧read hook仍删除，7文件源摘要无漂移。完整Renderer/Node types、全局lint通过；前端第33批整批通过，后续第45批暴露预览测试hook中的重复模块预加载超时，测试生命周期直接修复，产品懒加载/断言/期限未改，定向3套18项通过。完整前端现从45/142续跑；新三段构建正在既有锁后等待，新问答/侧栏/Goal/Files、聚合current fixture及默认门禁未结算。详见[专项计划](async-user-input-alignment-20261020.md)及同目录限定收据。
+
+## r51 Thread 工作流 fixture 迁移（2026-10-20）
+
+状态：active / partial；责任 root，2026-10-20。
+
+目标：聚合 current fixture 经共享 Thread 侧栏验证 Changes，经时间线验证 canonical command 输出，经 Composer 发起普通后续 Turn。删除已经退出产品主入口的 task-center/harness/Canvas 导航猜测及其正向守卫。主题、多模型和首页 Banner 的保留范围不变。
+
+## 参考与写集
+
+- Desktop：复用 `codex-shared-page-header-20261018/thread-controls/thread-side-panel-contract.md`；REA parents `ev_711fef79660733ea60f13c15c73f7d1b83ecb24a6c1c6a626c6ccd2b23097ac7`、`ev_b035fa067bc31b0a8eff82e1f634d0efaa1340a231383d3671351d4dd009c4b7` 确认统一 launcher/New tab/Changes 职责。参考运行 flags 未知，静态证据不冒充点击观察。
+- 当前 owner：`thread-side-panel-navigation.mjs`、`collectReviewThreadSidePanelEvidence`、当前 MessageList/Composer 与 public `turn/start`、`thread/read`。
+- 窄写集：`scripts/electron/code-artifact-workbench-fixture-smoke{,.test}.mjs`、必要的既有 `scripts/electron/lib/` GUI helper、本计划、GUI 主计划、问答计划的验证续记及证据。Memory、command/exec、sandbox、发布和用户数据只读避让。
+- 该入口现有 4000 余行，本片只直接替换 GUI 观察并净删除旧逻辑；不继续增加 backend 业务。体量退出条件是后继将 backend fixture 和 host lifecycle 迁入既有领域 helper，未达到前不宣称结构完成。
+
+## Verification Contract
+
+- 预算 normal；风险 P1；test-only fixture 迁移，不改变 runtime/protocol authority。
+- 主链：GUI Composer/侧栏 → 现有 gateway → preload/IPC `app_server_handle_json_lines` → App Server `turn/start`、`thread/read` → external fixture backend → canonical Thread/Turn/Item → MessageList/Changes。
+- Happy path：已有 fixture Thread 的完成项可见；Changes 选择并定位真实四类 diff；失败命令在时间线展开并读取相同 item 的输出；用户经 Composer 明确发送后续请求，新的 completed Turn 与独立 execution IDs 在 backend、IPC trace、read model、GUI 保持同一身份。
+- Failure path：旧入口不得使 hydrate/open 成功；错误 thread/item、缺失输出、未完成 Turn、旧 recovery metadata、renderer/IPC 错误、生产 mock 和异常 Main 退出均失败。没有 live provider 或生产 runtime 执行证明。
+- 验证顺序：脚本语法/scoped ESLint → 定向 fixture/边界测试 → fresh 三段产物 → 新 run ID 的真实 Electron → 聚合 current fixture、GUI smoke、默认门禁。共享构建未 fresh 时先保留阻塞，不绕过锁。
+
+## 当前验证与阻塞
+
+- 前端独立续跑 r48 第79批失败2项；两项独立原期限复跑 r49 通过。r50 同一批最终14文件132项通过、2文件4项触发原5000ms期限，整轮 exit1；没有修改 PPTX 实现、断言或预算，也不以独立通过抵消整批失败。
+- 共享构建 PID87168 仍持锁，App Server 等待外部 Cargo；root 未停止进程或清锁。后继产品验证待 fresh 窗口。
+- 旧 `CanvasWorkbenchLayout` 仍有真实 artifact preview 消费者，整个模块不能仅由本 fixture 的旧入口判死。其 Outputs/Logs/Recovery 产品清理需要后继单独完成，不以本片测试迁移冒称删除。
+
+本片 REA CLI 6.4.0 直接回读旧 portable bundle 时返回 canonical manifest 校验失败，原 bundle 未重写；改为取出原完整 parent record，经 `inspect-analysis-view` inline 成功回读同一 `ev_e9061c5043b041351cc2e22726b17dc4f4c18872178ef81160cbbb9f5308b866`。4文件34270 bytes、11563 AST节点、parse failures 0、semantic unknowns 2283。该回读复用旧原始记录，不重复分析或扩大参考运行证据。
+
+已直接迁移 fixture：删除旧 workbench hydrate/open、Canvas changes/outputs/logs 遍历和专用 Recovery metadata；Changes 走 current launcher/New tab，命令输出走同一 canonical item 的时间线，普通后续 Turn 从 Composer 发送。执行 sidecar 同时绑定 dist-electron 路径/SHA、三段 freshness 及前后源/产物指纹；异常 Main exit 或漂移继续判 fail。当前仅属 test-only 验证迁移，旧画布产品消费者仍待清理。两套定向29项通过，新增产物守卫后的复验正在进行；不提前结算真实工作流。
+
+共享构建已经结束，三段 fresh。新的组合问答 `codex-question-20261020-r51` 完成全部 async/sync/Escape、provider/wire 和零告警断言，源/产物稳定；但 Main 原15秒内未正常退出、失败后强制回收，整轮 exit1，不能计 Gate B pass。原日志 `/tmp/lime-question-combined-electron-r51.log`、原 summary `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r51/summary.json`；后继侧栏真实Electron正在执行，退出原因仍待定位，预算保持不变。

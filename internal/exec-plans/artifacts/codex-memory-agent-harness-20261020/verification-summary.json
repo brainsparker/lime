@@ -586,6 +586,147 @@
       "passed": 145,
       "log": "sandbox-protocol-tests.log",
       "qualification": "Current lock inode 920906273; schema registry and canonical fixture tree included."
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server -p tool-runtime execution_process:: -- --test-threads=1",
+      "exitCode": 101,
+      "passed": 24,
+      "failed": 1,
+      "log": "sandbox-process-regression-tests.log",
+      "scope": "App Server only; Cargo stopped before tool-runtime tests",
+      "qualification": "Workspace boundary denial fixture was inside default TMPDIR write root. External commit d32e7054c moved only the fixture outside implicit grants; original assertions preserved; rebuilt validation pending."
+    },
+    {
+      "command": "CARGO_BUILD_JOBS=2 npm run test:rust:unit -- -p app-server command_exec -- --test-threads=1",
+      "exitCode": 0,
+      "passed": 16,
+      "failed": 0,
+      "log": "sandbox-command-exec-rebuilt-tests.log",
+      "qualification": "Rebuilt current-lock App Server unit binary. Includes real macOS filesystem exclusions, protected metadata, explicit root and local network enable/deny; not Memory Agent or live provider."
+    },
+    {
+      "command": "CARGO_BUILD_JOBS=2 npm run test:rust:unit -- -p tool-runtime sandbox::",
+      "exitCode": 0,
+      "passed": 13,
+      "failed": 0,
+      "log": "sandbox-tool-runtime-rebuilt-tests.log",
+      "qualification": "Final isolated-path fixture correction included. macOS execution; Linux lowering checked as command data, not Linux runtime; Windows not executed."
+    },
+    {
+      "command": "cargo test --manifest-path lime-rs/Cargo.toml -p app-server --test command_exec_jsonrpc -- --test-threads=1 (canonical Rust/V8 environment)",
+      "exitCode": 0,
+      "passed": 2,
+      "failed": 0,
+      "log": "sandbox-command-exec-exact-stdio-tests.log",
+      "qualification": "Real stdio App Server, real PTY keyboard/write/resize/exit and complete managed policy; unavailable model backend, no provider sampling. Normal EOF exit asserted."
+    },
+    {
+      "command": "CARGO_BUILD_JOBS=2 npm run test:rust:unit -- -p app-server -p tool-runtime execution_process:: -- --test-threads=1",
+      "exitCode": 0,
+      "passed": 52,
+      "failed": 0,
+      "byCrate": {
+        "app-server": 25,
+        "tool-runtime": 27
+      },
+      "log": "sandbox-process-corrected-regression-tests.log",
+      "qualification": "Includes corrected default TMPDIR denial fixture. Original failure retained; production policy and boundary assertions unchanged. Windows-named generic data tests on macOS are not Windows runtime proof."
+    },
+    {
+      "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run test:resume",
+      "exitCode": 1,
+      "log": "sandbox-local-resume-final.log",
+      "passedBatches": [
+        38,
+        39,
+        40,
+        41,
+        42
+      ],
+      "failedBatch": 43,
+      "passed": 129,
+      "failed": 1,
+      "qualification": "Original batch 38 generator checks passed without assertion/5000ms-budget changes. Provider UI expected zh/en while document language was ko-KR. Only test language setup/restoration correction follows; full gate remains failed."
+    },
+    {
+      "command": "npx vitest run src/components/api-key-provider/ProviderSetting.ui.test.tsx",
+      "exitCode": 0,
+      "passed": 26,
+      "failed": 0,
+      "log": "sandbox-provider-locale-fixture-tests.log",
+      "qualification": "Only test document language setup/restore changed. Original 402 error classification, actionable text and raw provider error exclusion assertions preserved. Full resumed batch still required."
+    },
+    {
+      "command": "CARGO_BUILD_JOBS=2 npm run verify:gui-smoke",
+      "exitCode": 0,
+      "log": "sandbox-gui-smoke.log",
+      "summary": "sandbox-gui-smoke/summary.json",
+      "qualification": "Real Electron startup, renderer reload, preload/IPC, App Server JSON-RPC, Workbench readiness, Settings route, and three-size responsive layout contract; no provider turn, Thread/Turn/Item identity, live-provider, packaged-app, or Codex Desktop pixel-parity claim.",
+      "assertions": {
+        "total": 24,
+        "passed": 24,
+        "failed": [],
+        "details": {
+          "startupVisible": true,
+          "workbenchReady": true,
+          "workbenchReloadReady": true,
+          "settingsMemoryReady": true,
+          "electronRenderer": true,
+          "electronPreloadInvokeAvailable": true,
+          "appServerCommandSupported": true,
+          "electronIpcAppServerBridgeUsed": true,
+          "currentAppServerMethodObserved": true,
+          "hostAppServerInitialized": true,
+          "noConsoleErrors": true,
+          "noPageErrors": true,
+          "noInvokeErrors": true,
+          "noRendererCrashes": true,
+          "noRendererUnresponsiveEvents": true,
+          "noPreloadErrors": true,
+          "noRendererLoadErrors": true,
+          "noLegacyCommandHits": true,
+          "noMockFallbackHits": true,
+          "traceCaptured": true,
+          "screenshotCaptured": true,
+          "layoutViewportsCaptured": true,
+          "layoutGeometryStable": true,
+          "layoutScreenshotsCaptured": true
+        }
+      }
+    },
+    {
+      "command": "APP_SERVER_BIN=<frozen current binary> node scripts/app-server/ephemeral-fixture.mjs",
+      "exitCode": 0,
+      "log": "sandbox-ephemeral-runtime-regression.log",
+      "binarySha256": "170238d1633ce4de7675c77dc76da3ddbfb1359609efc39dd09425e45ff4d6d3",
+      "normalExits": 2,
+      "providerRequestCounts": [
+        2,
+        1
+      ],
+      "qualification": "Real stdio + shared RuntimeBackend + loopback OpenAI-compatible provider/tool. Tool continuation, ephemeral history, no private records on disk, cold reject, durable control, public route/model/credential switch. Not live/four-protocol/CLI/TUI."
+    },
+    {
+      "command": "LIME_VITEST_SMART_STATE=.lime/test/vitest-smart-memory-ephemeral-20261020.json npm run test:resume",
+      "exitCode": 1,
+      "log": "sandbox-local-resume-after-locale.log",
+      "passedBatches": [
+        43,
+        44,
+        45
+      ],
+      "failedBatch": 46,
+      "passed": 156,
+      "failed": 8,
+      "qualification": "Provider locale fixture passed in original batch 130/130. Two PPTX Worker fixtures require node:module.registerHooks, absent in default Node v23.4.0 (package engines >=22). Installed Node v25 isolated validation follows; no presentation production change."
+    },
+    {
+      "command": "/Users/coso/.nvm/versions/node/v25.0.0/bin/node node_modules/vitest/vitest.mjs run scripts/electron/lib/presentation-table-builtin-scenario.test.mjs scripts/electron/lib/presentation-table-format-scenario.test.mjs",
+      "exitCode": 1,
+      "passed": 10,
+      "failed": 4,
+      "log": "sandbox-node25-presentation-fixtures.log",
+      "qualification": "registerHooks missing-API failure absent under installed Node 25. Builtin 8/8 passed; format 2/6 passed with four original 5000ms timeouts. No assertions, budgets, engine manifest or production presentation code changed. Does not clear batch 46/default gate."
     }
   ],
   "attempts": [
@@ -773,9 +914,9 @@
     },
     "initial_source_freeze": "ephemeral-source-freeze.json"
   },
-  "updatedAt": "2026-10-20T11:36:55.740964+00:00",
+  "updatedAt": "2026-10-20T12:10:00.426475+00:00",
   "sandbox_execution_prerequisite": {
-    "status": "validating",
+    "status": "core_complete_product_gate_partial",
     "source_freeze": "sandbox-source-freeze.json",
     "classification": {
       "current": [
@@ -789,12 +930,15 @@
         "arbitrary JSON/string command policy",
         "lossy command sandbox label helper",
         "unconditional /var/tmp and read-only temporary write grants"
+      ],
+      "testOnly": [
+        "Unique canonical-path sandbox fixtures",
+        "Provider UI saves/fixes/restores document language"
       ]
     },
     "remaining": [
-      "final Rust tests and schema/client generation",
-      "contracts and affected consumer checks",
-      "restricted shared Memory Agent remains next product slice"
+      "Full local gate batch 46: default Node 23.4 lacks registerHooks; installed Node 25 targeted run still has four original 5000ms format-fixture timeouts",
+      "Restricted shared Memory Agent: trusted typed admission, extension isolation, native filesystem helper, workspace baseline, terminal/shutdown/artifact/lease commit and direct phase2 sampling deletion"
     ],
     "limits": [
       "Linux wrapper only until target runtime proof",
@@ -806,6 +950,29 @@
     "parallel_head_observation": {
       "head": "a6923021a737da63c563d3e6f0724ce33eaf2e0f",
       "qualification": "Another process committed unchanged frozen sandbox source during verification. This task issued no commit/stage/reset/branch commands; 31 frozen hashes still match."
-    }
+    },
+    "executionCompletion": {
+      "passed": 4,
+      "total": 4,
+      "percent": 100,
+      "qualification": "Typed command wire + exact OS policy + shared process regressions + real stdio/PTY on macOS only. Not full Memory phase2, all native tools, Windows/Linux runtime or complete product gates."
+    },
+    "fixedArtifact": "sandbox-fixed-sidecar.json",
+    "testOnlyGateFix": {
+      "path": "src/components/api-key-provider/ProviderSetting.ui.test.tsx",
+      "sha256": "da40ee71b7b02c550b76be0f9d9aa07a5c7b5b09bdc475021330cda8c9c60c22",
+      "classification": "test-only; fixed/restored DOM locale"
+    },
+    "guiSummary": "sandbox-gui-smoke/summary.json",
+    "verified": [
+      "schema and 1060 TypeScript types generated",
+      "client 139/139; gateway 6/6; contracts/typecheck",
+      "protocol 145/145; command_exec 16/16; sandbox 13/13",
+      "App Server + tool-runtime process regression 52/52",
+      "real stdio + PTY 2/2",
+      "fixed current shared runtime loopback provider/tool and route switch; normal exits 2",
+      "real Electron shell smoke 24/24, exit 0",
+      "32 frozen source/generated/upstream hashes unchanged"
+    ]
   }
 }

@@ -198,3 +198,10 @@ r47 fixture scoped ESLint、docs boundary均exit0，7文件输入摘要已保存
 r48预检发现外部生成协议客户端晚于全部三段产物，按既有`ensureElectronFixtureBuild`进入刷新（`/tmp/lime-thread-status-refresh-r48.log`）；既有并行构建PID87168持有锁，root的session仅等待、未抢锁/清锁或重复构建。等待期间恢复独立前端第45批（`/tmp/lime-preview-frontend-resume-r48.log`），保持现有single worker、不新增构建；真实Electron仍排在构建和前端资源窗口之后。两进程未退出前不写通过。
 
 r48的root刷新入口最终在原20分钟锁等待上限exit1，未取得锁、未执行构建，也未停止外部持有者。后继只读检查renderer与host已fresh，appServer仍stale，最新输入为并行`app-server/src/execution_process/tests.rs`。保留原上限和失败日志，不提前启动新Electron，不对同一未变化的锁状态重复提交刷新。独立前端第45批已整批16文件100项通过，继续至第69/142批且无新失败；其余批次仍pending/running，完整门禁不结算通过。
+
+
+## r49–r51 续跑与正常退出缺口
+
+r48前端第79批最终2项失败；两项r49独立原期限复验通过。r50同批最终14文件132项通过、2文件4项触发原5000ms timeout，整个续跑exit1。没有修改PPTX实现、期限或断言；原失败与独立通过分账，默认门禁仍未通过。
+
+共享构建结束后只读预检三段fresh；新组合问答`codex-question-20261020-r51`真实完成全部async/sync问答、普通回复、跨线程稿、精确Escape、provider/wire、正文/Stop和零状态toast检查；全部六类错误计数0，`sourceAndArtifactIdentityStable=true`。但是正常Main退出触发原15秒上限，`normalMainExit=null`、失败后`forcedCleanup.signal=SIGKILL`，整轮exit1；预算未放宽，不继承r46的正常退出观察。原summary与三图保存在`.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r51/`，日志`/tmp/lime-question-combined-electron-r51.log`。后继先定位退出等待、验证侧栏和当前Thread工作流；GUI主计划已记录旧Workbench fixture的直接迁移写集。

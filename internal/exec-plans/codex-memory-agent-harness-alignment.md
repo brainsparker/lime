@@ -5,7 +5,7 @@
 当前进度（续接汇总）：
 
 - 已验收：精确 snapshot / extraction ownership **39/39**；共享 ephemeral 核心合同 **4/4（100%，仅此前提）**；真实 stdio provider/model/key 切换保留工具历史。
-- 正在验证：完整 typed `SandboxPolicy` -> 现有 OS runner，关闭临时目录越权写入；schema/TypeScript 已生成，client **139/139** 与 contracts 已通过，真实 OS/stdio 和定向 Rust 结果待收齐。
+- 沙箱执行前提已验证：完整 typed `SandboxPolicy` -> 现有 OS runner，执行合同 **4/4**；client **139/139**、protocol **145/145**、command_exec **16/16**、sandbox **13/13**、进程回归 **52/52**、真实 stdio/PTY **2/2** 与 contracts 通过。新产物共享 runtime 回归和 GUI smoke **24/24** 通过；完整默认门禁仍未通过。
 - 已修复门禁问题：Windows evidence CLI 的纯参数入口提前加载 Playwright，改为实际 CDP 连接前加载；原断言/超时下相关 **39/39** 通过。
 - 默认门禁：独立续跑已通过批次 29..37；最新第 38 批协议生成器三项超过原 5000ms，完整门禁未通过；原样单跑 **6/6** 不替代聚合结果。
 - 下一刀：同一 RuntimeCore 的可信 typed Memory admission、snapshot/executor 扩展隔离、workspace artifact/baseline、真实终态/shutdown 后精确提交；删除 phase-2 direct sampling。上述 Agent 接线尚未实施，M01 继续 active。
@@ -161,8 +161,28 @@ canonical schema 与 TypeScript 已生成：1060 个协议类型，零生成失�
 
 tool-runtime 首轮 **12/13**，唯一失败是测试固定 `/tmp/workspace` 在本机存在后被 canonicalize 为 `/private/tmp/workspace`，与旧硬编码路径断言不同；已将夹具换为唯一 tempdir，保留 metadata 保护与命令透传断言，最终重跑待终态。生产实现未因此修改。该已知测试差异和生成物 SHA256 已登记 `sandbox-source-freeze.json`，其余 19 个 Lime 来源和 4 个 Codex 来源逐项校验无漂移。
 
+最终 tool-runtime sandbox **13/13、exit 0**，修正后的 unique tempfile/canonical path 断言已覆盖。Linux bubblewrap lowering 仅验证命令数据，未在 Linux 运行；Windows ACL 仍无本机运行证据。canonical Rust protocol **145/145** 与 renderer/Node typecheck 也已通过。32 项冻结来源（含新增记录的进程边界夹具）检查无漂移。
+
 最新独立 resume 第 38 批 **132 passed / 3 failed**，失败均为生成器原 5000ms 超时；完整本地门禁继续 failed，未调整预算或断言。主机采样时 load 约 100、swap 约 23GiB，仅记录构建资源状态，不将其认定为全部失败的根因。等待现有 Rust 队列排空后再续跑，避免并行追加完整 gate。
 
 构建恢复：共享 `lime-rs/target/debug/.cargo-lock` 在任务运行中由 inode `917503761` 变为 `920906273`。旧 App Server unit 编译先发生 incremental object ENOENT，尚未执行测试，exit 101；随后用 `lsof` 确认两套 Cargo 分别持有旧/新 inode。只 SIGTERM 本轮已确认的旧锁任务树（stdio integration / tool-runtime sandbox，均 exit 143），保留新锁上的 protocol / process regression；未删除任何共享 cache/target，未触碰外部进程。记录 `sandbox-target-recreation.json`；原因确定为 target 已重建，执行者未知。冻结源码无漂移，后续 Rust 通过结果必须来自新锁下重建后的产物。
 
 后继 Memory 接线的本地文件边界已进一步定位（只读，不混入本片 OS runner 完成度）：Codex `tools/handlers/apply_patch.rs` 在 verify 时传 selected Environment sandbox，`tools/runtimes/apply_patch.rs` 在 apply 时再次传 `FileSystemSandboxContext`（cwd、workspace roots、permissions）。Lime 的 `tool-runtime/apply_patch.rs` 本地分支直接 `spawn_blocking -> patch_apply`，不会经过 Seatbelt；attempt check 认可 cwd 内写入，`patch-apply/apply.rs` 负责 existing-prefix canonicalization 和 workdir escape 拒绝，但本次检查的这两个 owner 没有 `.git/.codex/.agents` 元数据保护规则。下一片必须把可信 Memory policy 传到本地 add/update/delete/move 实际执行，尤其保护 baseline 元数据；不能用本片 shell 保护证明全部工具已受限。来源 SHA 和有界观察见 `memory-native-filesystem-source-map.json`；尚未复现工具级越权，不作全工具漏洞或运行通过声明。
+
+Memory hook 接线还需区分插件 hook 与用户配置的全局 hook：Codex phase2 `get_config` 克隆父 config 后关闭 Plugins，但未清空全局 hooks；typed `MemoryConsolidation` 的 Stop block/abort 仍应走现有明确失败分支。后继实现不能以“禁用插件”为由全面关闭 Stop，使该终态约束失效；与本地 Skills/AGENTS 保留、仅关闭 dependency install 的限制一起验证。此为源码配置复核，未新增 Memory 运行通过声明。
+
+进程回归首轮 App Server **24 passed / 1 failed，exit 101**，原日志 `sandbox-process-regression-tests.log` 保留；Cargo 在此停止，不能据此计入 tool-runtime 同过滤器的结果。失败夹具原用 `tempfile::tempdir()`，其 sibling 位于默认 workspace-write 明确允许的 TMPDIR 内；与 Codex `get_writable_roots_with_cwd` 的默认临时写根合同冲突。并行进程在 `d32e7054c` 已把该唯一 denial 夹具移至 home 下的独立临时目录，保留 inside 可写、outside 不存在及伪造 metadata grant 不生效的原断言；本任务没有重复修改或提交。该修改仅修正测试前提，尚待新产物回归终态。
+
+重建后的 App Server `command_exec` **16/16、exit 0**：包括真实 macOS 进程的只读拒写、Memory 临时根排除/显式写根/元数据保护与 loopback 网络开关。该二进制来自新锁下最终生产源码；不等于真实 stdio/PTY 或 Memory phase-2 Agent 通过。原生文件路径继续沿上游追到 `exec-server::LocalFileSystem::file_system_for_writes -> SandboxedFileSystem -> FileSystemSandboxRunner -> SandboxManager`：managed 操作使用 typed filesystem helper 和同一 OS sandbox；缺 runtime paths 时明确失败。后继不得以路径预检查替代该执行边界，或声称解决 symlink race。来源摘要补入 `memory-native-filesystem-source-map.json`，没有据此提前修改/启用 Memory Agent。
+
+真实 `command_exec_jsonrpc` **2/2、exit 0**：stdio App Server 执行完整 policy、拒绝旧字符串、允许 Memory cwd、拒绝被排除的 `/tmp` sibling，PTY 输入/resize/退出及正常 EOF 均通过。修正夹具后的 `execution_process::` App Server **25/25**、tool-runtime **27/27**，同轮 exit 0，包含原失败的边界断言。
+
+默认门禁续跑第 38 批 **135/135**，原生成器断言和 5000ms 预算未变；第 39–42 批也通过。第 43 批 **129 passed / 1 failed**：`ProviderSetting.ui.test.tsx` 的 402 业务错误固定断言中英文，但 `resolveAgentChatCopy` 优先读取残留的 `document.documentElement.lang=ko-KR`。追加窄写集只在该测试 beforeEach 保存并固定 `zh-CN`，afterEach 恢复，不改业务文案、错误分类或原断言；目标文件此前 clean，未触碰其它 Provider owner。该修正服务门禁确定性，不计入 Memory 行为完成度。原失败日志 `sandbox-local-resume-final.log` 保留，验证修正后继续独立 resume。
+
+新固定 App Server SHA256 `170238d1633ce4de7675c77dc76da3ddbfb1359609efc39dd09425e45ff4d6d3`，清单 `sandbox-fixed-sidecar.json`；旧 red 产物保持原样。最终共享 runtime stdio loopback 回归 exit 0：工具 continuation、多轮内存历史、无私有记录落盘、冷恢复拒绝、普通 durable 对照、公开 provider/model/凭证切换均通过，请求计数 `[2,1]`、正常退出 2 次。该证据仅为 OpenAI-compatible loopback。`verify:gui-smoke` 重建 renderer/host/sidecar 后 **24/24、exit 0**，summary 为 `sandbox-gui-smoke/summary.json`，证明真实 Electron/preload/IPC/current App Server 与壳/Memory 设置，未执行 Memory provider Turn。
+
+语言夹具定向 **26/26**、原第 43 批 **130/130** 通过，第 44–45 批也通过。第 46 批 **156 passed / 8 failed**，两个 PPTX Worker 夹具依赖 `node:module.registerHooks`，默认 Node `v23.4.0` 中该 API 为 undefined；本机另有已安装 Node `v25.0.0`，先用其定向验证再继续原独立状态。未改系统 Node 配置、package engines、PPTX owner、原断言或超时；原失败日志 `sandbox-local-resume-after-locale.log` 保留。完整默认门禁继续 failed，沙箱执行前提 **4/4、100%** 只指 typed wire、真实 macOS 完整 policy、共享进程回归、真实 stdio/PTY 四项合同，不能替代 Memory phase-2 或未运行平台验收。
+
+Node 25 定向终态 **10 passed / 4 failed、exit 1**：builtin **8/8**，format **2/6**，后者四项超过原 5000ms；缺失 `registerHooks` 的报错已不再出现，但不能据此宣称整个运行环境问题已解决。原日志 `sandbox-node25-presentation-fixtures.log` 保留，本轮没有再扩大到无关 PPTX 实现或修改其测试预算。完整门禁仍停在第 46/142 批；所有本轮启动的测试与 GUI 命令均已取得终态。
+
+本片收尾：`current` 为 typed wire、完整 policy 与现有 OS runner；无新增 compat/deprecated；已删除丢字段 policy label lowering、任意 JSON/string command policy、无条件 `/var/tmp` 和 read-only 临时写权限。test-only 为两处沙箱夹具修正及 Provider 文档语言保存/恢复。root 本次只追加 Provider 测试四行、主计划和本目录证据；既有沙箱源码与并行提交保持不变，32 个冻结摘要均匹配。避让 `.gitignore`、发布计划、async-user-input、GUI/Artifact 及其它并行写集。本片执行合同 **4/4**；M01 和整体对齐继续 active，下一刀仍归共享 RuntimeCore / tool-runtime / memory_store 的受限 Memory Agent，不由默认门禁的无关失败替代主线。

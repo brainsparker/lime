@@ -52,6 +52,7 @@ interface MountedRoot {
 }
 
 const mountedRoots: MountedRoot[] = [];
+let previousDocumentLanguage: string;
 
 function renderSetting(
   provider: ProviderWithKeysDisplay | null,
@@ -120,6 +121,8 @@ function byTestId<T extends HTMLElement>(
 }
 
 beforeEach(() => {
+  previousDocumentLanguage = document.documentElement.lang;
+  document.documentElement.lang = "zh-CN";
   (
     globalThis as typeof globalThis & {
       IS_REACT_ACT_ENVIRONMENT?: boolean;
@@ -136,6 +139,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  document.documentElement.lang = previousDocumentLanguage;
   vi.clearAllMocks();
   window.localStorage.clear();
 

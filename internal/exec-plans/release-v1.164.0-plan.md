@@ -1,6 +1,24 @@
 # v1.164.0 发布执行计划
 
-状态：active / 用户追加全部新增改动进入 v1.164.0，完成本地门禁后重建候选并执行远端完整矩阵。
+状态：active / 产品实现冻结，正在完成最终候选门禁；随后重定位同版本标签并完成 Desktop、R2、四平台 CLI 与 npm 发布。
+
+## 当前发布状态（d32e7054c）
+
+- 用户已经明确授权全部新增候选、正常提交、推送 main、同版本标签重定位与完整发布，沿用确认，不重复请求。
+- 当前已推送候选为 `d32e7054c8c8bf0c4cc142dbe2c2d928c6854d33`，完整 Quality 为 [39416681327](https://github.com/limecloud/lime/actions/runs/39416681327)。该轮完整 typecheck、lint、版本一致性和 Windows restricted execution security matrix 已通过，其余任务等待终态。
+- 生产字节冻结于 `a6923021a737da63c563d3e6f0724ce33eaf2e0f`；d32 仅修正两处测试夹具及记录。前一轮 a692 的 Frontend Full、Windows、GUI、Integrity 全部通过；Rust Full 1977/1978，唯一 Seatbelt 断言的夹具误把被拒写路径放入默认允许的 TMPDIR。d32 将夹具移至 home 下的隔离临时目录，保留伪造 metadata 输入、全部拒绝断言及原权限策略。
+- 预览组件测试将每例重复预加载移为模块依赖，并保护未完成 setup 的 teardown；产品 React.lazy、断言和全部期限不变。预览/wire/assets 三套18/18通过。最新正常提交 hooks 7/7。
+- Agnes 3.0 Flash 文字、Image 2.5 Flash 图片及设置页1024/1440/2048宽度已真实 Electron 验收；旧2.5 Pro只对当前账户证实上游 model_not_found，不声明全球退役。Agnes 原 live fixture 的15秒正常退出失败仍保留，独立无 inspector 正常退出证据不改写该失败。
+- 问答 r44 已通过；r46业务、零状态告警与0.534秒正常退出均通过，但末次来源漂移导致整轮失败。r47加强执行侧车与artifact指纹一致性；最终复验等待既有构建PID87168完成，不抢构建锁或跳过 freshness。
+- 并行本地前端续跑 r48 在第79/142批失败，保留原日志，不宣称默认本地门禁全绿。共享 target 被未知进程重建导致的旧编译中断同样保留；新锁下的本地 Rust 仍待终态。
+- 本轮收口写集为本发布计划、精确 `.gitignore` 证据白名单和最终收据；其他 owner 的源码/计划只读避让，`tsconfig.node.tsbuildinfo` 排除。Memory phase-2 shared Agent 仍未实现，不新增到本版冻结写集或完成声明。
+- current 为同一 Electron/App Server/runtime、typed sandbox 与canonical read owner；queue-only旧入口已删除，无新增compat/deprecated路径。正式发布以最终引用、平台产物、更新feed和registry实测收据为退出条件。
+- 后继结果：d32 的 Frontend Full、Windows Shell Runtime、GUI Smoke、Integrity 已全部 success，Rust Full 仍待终态。本地重建后 command_exec 16/16、tool-runtime sandbox 13/13、真实 stdio/PTY 2/2、process regression App Server25/25及tool-runtime27/27通过；发布 root 的精确 Seatbelt 用例1/1通过，新 Electron 三段构建exit0。
+- 最终问答 `release-v11640-question-final-r2` 整轮 Desktop Gate B pass：真实新侧车、IPC/App Server/runtime、同步/异步回答、跨线程题稿、最终正文及Stop隐藏、Escape精确interrupt全部通过；状态告警、invoke/console/page错误和mock命中均0，前后fresh且source/artifact身份稳定。Main PID87727在0.562秒内正常code0/signalnull、forcedCleanup null；三张截图已人工查看。该证据限定隔离macOS source-build与受控provider，不是live或Windows/packaged问答证据。
+- 前一轮 `release-v11640-question-final-r1` 业务全部通过但15秒正常退出超时，整轮fail原样保留。两轮被测source摘要一致，dist-electron及client产物一致，但两轮之间外部`dist/index.html`摘要变化，其余文件条目一致；不能称两轮artifact树完全相同。两轮各自运行前后均fresh且身份稳定。发布root复核只增加Playwright调试日志，没有改源码、预算或断言；成功轮观察到Waiting for the debugger to disconnect后正常退出，不能归因于日志或声称退出不稳定性已被根治。两轮原件见 `artifacts/release-v1.164.0/`，最终候选发布结论不核销历史失败。
+- Quality [39416681327](https://github.com/limecloud/lime/actions/runs/39416681327) 已完成且整体success，全部执行job通过；完整JSON收据为`artifacts/release-v1.164.0/quality-d32.json`。最终证据提交不改变产品源码，追加的ProviderSetting语言隔离测试26/26与原批130/130已通过；提交前完整typecheck另行执行，不以局部检查替代。
+- 冻结后并行会话追加的`code-artifact-workbench-fixture-smoke{,.test}.mjs`迁移仍active/partial，r54在新侧栏定位处失败；`request-user-input-fixture-smoke.mjs`追加退出诊断仍开发中。三处均属后继test-only写集，保留工作树供原owner继续验证，不纳入本次已冻结的发布提交；全部已完成产品实现仍纳入d32候选。构建缓存继续排除，未删除、撤回或覆盖任何外部修改。
+- 提交前完整 `npm run typecheck` 再次exit0，原件`artifacts/release-v1.164.0/typecheck-final.log`。最终暂存为发布证据、计划、精确白名单及已通过的ProviderSetting测试语言隔离，产品源码与d32完整Quality候选一致；源码/文档whitespace和docs boundary通过。正常hooks、main推送及标签租约执行后继续跟到所有发布任务结束。
 
 ## 最新候选收口（2026-10-20）
 
