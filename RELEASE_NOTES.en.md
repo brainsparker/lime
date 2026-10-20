@@ -15,6 +15,7 @@ Simplified Chinese release notes are the primary version. This English companion
 - Add official capabilities for Agnes 3.0, 2.5 Pro Beta and image models, invalidate old capability caches, show an actionable unavailable-model message, and exclude media generators from general chat candidates.
 - Fix provider-settings width allocation and header wrapping so names, endpoint addresses and action buttons remain readable.
 - Preserve recovered-turn listeners when presentation callbacks change and deliver in-flight event batches to current subscriptions.
+- Keep tracking the active turn while waiting for user input or approval so final replies and terminal states appear after an answer.
 - Give memory extraction independent ownership tokens and bind consolidation commits to exact source snapshots so stale tasks cannot overwrite newer versions.
 - Correct Thread/Turn/Item identity and terminal states across asynchronous input, cancellation, continuation, completion and cold recovery.
 - Correct persistence and rendering of message, reasoning, web-search and tool history across deltas, snapshots, compaction, forks and model switches.
@@ -30,6 +31,7 @@ Simplified Chinese release notes are the primary version. This English companion
 
 - Split composer, goal input, request-user-input, file-tree and sidebar interactions into focused modules while reusing current runtime, App Server and tool-execution boundaries.
 - Consolidate canonical history, runtime snapshots, memory-store and projection flows to reduce duplicate conversions and compatibility branches.
+- Reuse the shared runtime for ephemeral threads, keep multi-turn history and media context in memory, and reject persistent recovery after shutdown.
 - Update protocol schemas, client contracts, command catalogs, governance rules and cross-platform release scripts so generated artifacts and consumers stay aligned.
 
 ### Tests and Quality

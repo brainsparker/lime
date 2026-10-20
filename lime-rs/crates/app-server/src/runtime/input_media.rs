@@ -602,9 +602,14 @@ mod tests {
 
     #[test]
     fn typed_media_rejects_local_leaks_and_mismatched_payloads() {
+        let root = tempfile::tempdir().expect("sidecar root");
+        let image_path = root.path().join("input.png");
+        let (_, encoded) = PNG_DATA_URL.split_once(',').expect("png data URL");
+        let bytes = BASE64_STANDARD.decode(encoded).expect("decode fixture");
+        std::fs::write(&image_path, bytes).expect("write local image");
         let without_store = resolve_runtime_input_media(
             RuntimeReplyInputMedia::LocalImage {
-                path: "/workspace/image.png".to_string(),
+                path: image_path.display().to_string(),
                 detail: None,
             },
             None,
@@ -613,7 +618,6 @@ mod tests {
         .expect_err("local image requires sidecar");
         assert!(without_store.contains("sidecar store"));
 
-        let root = tempfile::tempdir().expect("sidecar root");
         let store = SidecarStore::new(root.path()).expect("sidecar store");
         let mismatched = resolve_runtime_input_media(
             RuntimeReplyInputMedia::Image {

@@ -85,6 +85,9 @@ internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/*
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/verification-summary.json
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/source-freeze.json
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/snapshot-source-freeze.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/ephemeral-source-freeze.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/ephemeral-source-drift.json
+!internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/ephemeral-jsonrpc-tests.log
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/memory-snapshot-*.log
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/gui-smoke-snapshot.log
 !internal/exec-plans/artifacts/codex-memory-agent-harness-20261020/gui-smoke-snapshot-summary.json

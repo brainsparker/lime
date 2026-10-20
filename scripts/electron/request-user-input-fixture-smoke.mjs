@@ -64,6 +64,7 @@ const SOURCE_FILES = [
   "src/components/agent/chat/hooks/useAgentStream.ts",
   "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
   "src/components/agent/chat/hooks/streamBindingRecords.ts",
+  "src/components/agent/chat/hooks/agentSessionState.ts",
   "scripts/agent-runtime/tool-execution-current-contract.mjs",
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",
@@ -517,6 +518,9 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     );
     assert.ok(JSON.stringify(completed).includes(DONE));
     await page.getByText(DONE, { exact: true }).waitFor({ state: "visible" });
+    await page
+      .getByRole("button", { name: "停止", exact: true })
+      .waitFor({ state: "hidden" });
     await panel.waitFor({ state: "hidden" });
     await verifyMainDraft();
     let capture = await captureInvokeTraceCollector(page, collector);
@@ -557,6 +561,8 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       turnId: answeredTurnId,
       itemId: answeredItemId,
       canonicalStatus: completed.status,
+      finalAnswerVisible: true,
+      stopHidden: true,
       exactCanonicalAnswers: true,
       responseIdSha256: sha256(JSON.stringify(resultMessages[0].id)),
       providerReceivedAnswers: true,

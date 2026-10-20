@@ -4,6 +4,15 @@
 
 ## 最新候选收口（2026-10-20）
 
+- 当前 main 为 `bc3f3672c6c88bdf54736aad85ed6680b825a169`；Quality `39399106645` 的 Integrity、GUI Smoke、Windows Shell Runtime 已 success，Frontend Full 与 Rust Full 尚在执行。v1.164.0 仍指向 `7462c764aaf2197f7a4383119db590fad5e98575`，尚未覆盖公开旧产物；npm 根包 1.164.0 尚未发布。
+- 该轮 Rust workspace 后继结果为 app-server 1975/1976，通过以外唯一失败是 `typed_media_rejects_local_leaks_and_mismatched_payloads`：不存在的硬编码路径先触发文件读取错误，未到原 sidecar 断言。发布 root 仅认领该既有测试体，把输入换成隔离临时目录中的有效 PNG；生产逻辑、错误顺序和全部原断言不变。原日志 `/tmp/lime-v11640-bc3f-rust-job.log` 保留；这是后于 ephemeral freeze 的测试夹具修正，旧摘要不覆盖该变更，后继候选仍须重新验证。
+- 后继问答 r42 只修复等待标志仍保有 canonical active Turn 时的活动判断，77/77 定向回归通过，真实桌面新字节验证进行中；r41 同步最终正文未显示的失败保留，不能用单测核销。后继完整 typecheck 正在执行。
+- 后继完整 `npm run typecheck` 已 exit0（`/tmp/lime-v11640-question-final-typecheck.log`）。bc3f 的 Frontend Full 最终 success；该轮 Quality 仅 Rust Full 的上述媒体夹具失败。修正夹具仍须后继完整矩阵验证，不把 1975 项通过写成全组通过。
+- 独立无 inspector/CDP 的同一 Electron Host 已通过原生退出，Main exitCode 0、signal null，无强制回收；收据 `/tmp/lime-quit-uninstrumented.json`。该条件证据不抵消 Playwright fixture 的原 15s 正常退出失败。
+- 后继调试连接诊断 `/tmp/lime-quit-detached-probe.json`：先释放 Node inspector，再正常 app.quit，同一真实 Electron/preload/App Server 条件下 Main 在 2.4s 内 exitCode 0/signal null，forcedCleanup null。发布 root 追加窄写集为 `persisted-atom-fixture-driver.mjs` 及其既有测试、`claw-chat-current-fixture-teardown.test.mjs`：把断开测试调试连接放入正常退出请求，保留原 15s 预算、真实 child receipt 与失败后单独回收规则；无生产退出逻辑变更。首次回归暴露下游 fake 仍只实现 app.close，迁移其 quit-request fixture 后重新验证；独立真实 helper 复验进行中。
+- 真实 helper 的第一轮复验仍失败：只断 Node inspector 未释放 Playwright browser transport，虽收到 quit 事件仍未在 15s 内收到 Main child exit；保留 `/tmp/lime-quit-current-helper-probe.{json,log}`，未把回收记为通过。后继补回 Playwright public close，完整调试连接释放与正常退出同时执行；28/28 回归通过，真实进程终态待结算。最终 contracts、scoped script lint、版本一致性均 exit0；只提交当前候选以重跑质量矩阵，标签仍等待产品证据。
+- 上述 helper 后继真实复验 `/tmp/lime-quit-current-helper-final.{json,log}` 仍为 15s 超时，业务 quit 事件不能替代 child exit。已精确撤回本轮三个 helper/test 文件补丁，恢复当前 main 的退出合同；单次断调试连接诊断与 28 项临时回归不作为最终修复通过。未改动生产退出实现或增加预算，原失败与无 inspector 条件成功均保留。
+- 本轮发布写集限定为 release notes、当前计划及 Agnes 退出收据；问答和 Memory 生产实现仍由其既有 owner 修改。本版在当前修复与其最终验证收齐后冻结候选，Memory phase-2 共享 Agent 等尚未实施的路线图保留 active，不作为本版全面完成声明。
 - `90bb735978dedc3c85fca9901c5ea6c4c2638ad7` 的 Quality `39373078331` 六项全部 success。后继设置布局、Agnes live helper、问答跨 Turn 绑定与 Memory ephemeral 生命周期进入新候选，不能沿用该旧提交的完整通过声明。
 - 设置页截图问题已在原 owner 修复并在真实 Electron 三宽度复验；Agnes 3.0 Flash 聊天与 2.5 Flash 图片在同一 canonical Thread/Turn 上完成，任务/workflow/JSONL 审计通过，收据见 Agnes 计划和同名 JSON。Main 15s 正常退出仍 fail，保留独立 lifecycle 缺口。
 - 新候选完整 typecheck、contracts、版本检查 exit0；provider current_client 177/177、Agnes registry 8/8、设置与构建回归 128项通过；live helper 7/7、模型列表3/3。runtime 全组 877/878，单个并发身份删除夹具隔离通过；完整聚合不能记绿。后继 Memory 字节还须取其定向终态。

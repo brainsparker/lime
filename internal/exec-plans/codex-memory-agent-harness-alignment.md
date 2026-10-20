@@ -89,3 +89,24 @@ Codex `app-server/src/request_processors/thread_processor.rs::load_live_thread_v
 最终 IO 复核补到 `context_compaction.rs` 与 `memory_prompt.rs`：同回合自动 compact 的 artifact 和 Memory summary prompt sidecar 在事件提交之前写入，不能靠 central event guard 阻止。这两个现役 owner 已按真实 session 标记保留内存上下文而跳过 sidecar，补对应回归。独立生命周期测试位于 `runtime/ephemeral/tests/mod.rs`，不新增治理白名单。
 
 `turn_execution.rs` 已超过 1000 行，本轮只替换接线；CodeCell trace 的独立持久化判定迁入 `turn_execution/persistence.rs`，不继续在主文件堆叠业务。退出条件是本轮 diff 净减主文件逻辑，后续 Memory runner 放独立模块。直接 phase-2 sampling 尚未删除，工具/扩展/sandbox 隔离尚未接入；全目标继续 active。
+
+### ephemeral 验证续接
+
+- 最终源码冻结 `ephemeral-source-freeze.json`：23 个 Lime 源码/测试文件及 4 个 Codex 来源；续接时逐项校验 SHA256，无漂移。构建期间保持该写集不变。
+- 公共 App Server JSON-RPC 集成 **2/2 通过**（`ephemeral-jsonrpc-tests.log`，exit 0）：普通会话的 durable history receipt 与冷恢复；ephemeral 的公共 start/read、loaded list、多轮执行、模型切换、内存历史、历史分页拒绝和冷恢复失败。使用 external test backend，不是 live provider、stdio 或 Electron 执行证据。
+- `test:contracts` 与最终治理扫描均 exit 0；后者违规 0。源码、执行计划与架构文档的 diff 格式检查通过。
+- current fixture 的定向 history/cache、streaming/terminal、UI 与 fixture guards 合计 **369 项通过**。Electron 前等待构建锁时发现另一活跃 owner 接近 helper 的 stale 阈值，主动终止本轮已核实持有的等待进程，聚合 exit 143；没有动对方锁或进程。不能记为完整聚合通过。
+- 锁已释放，最终源码后的 `verify:gui-smoke` 正在标准 renderer→host→App Server assets 构建链。仅在构建真实完成后复用该产物续跑 Electron 子场景，不能用 build-ready 标记绕过未完成构建。
+- RuntimeCore 与 agent-runtime 定向回归、默认本地门禁仍待终态；此前已通过的单项不重复执行。当前只核销已有通过证据，ephemeral 存储前提仍为 validating，phase-2 共享 Agent 为未实施。
+
+默认本地门禁随后 **exit 1**：version、i18n、lint、changed-copy、typecheck 通过；resume 在第 9/141 批 `index.noVideo.test.tsx` 的唯一测试超过既有 5000ms 超时，未取得完整前端结果。检查时主机 load 超过 130，Rust 编译与其他任务仍运行；资源争用只是待隔离复核的假设，不能直接认定环境噪声。保留原日志与 `ephemeral-host-load.log`，不改测试超时或断言，待构建压力下降后单独复核再 resume。追加的 stdio 验证按质量矩阵补 app-server-client 定向回归，沿用原 Cargo 队列，不启动第二套构建目录。
+
+原样单独复跑的前端失败用例 **1/1 通过**（测试耗时 1.66s），随后单独启动 `test:resume` 续跑；不抹去首次门禁失败。续接期间另一进程修改 `runtime/input_media.rs` 的 inline 测试，使其先创建有效本地 PNG，再断言缺少 sidecar；生产逻辑无变化，本轮保持该文件只读并保留修改。旧源码冻结与差异分别保留为 `ephemeral-source-freeze.json` / `ephemeral-source-drift.json`，已启动的旧编译不算覆盖该夹具修正，最终必须补验证。
+
+### phase-2 接线顺序（直接源码复核）
+
+ephemeral 进程验证追加窄写集：`scripts/app-server/ephemeral-fixture.mjs`、`scripts/README.md` 和本计划/账本。复用现有 stdio client、provider provisioning 与 loopback server，不新增测试 transport 或第二 runtime。固定最终 sidecar 后验证实际工具 continuation、多轮 provider history、正常 EOF 关闭，以及隔离 data/app 文件中不存在合成的 thread/turn/input/tool/output marker；普通线程作为 durable 对照。此为真实 stdio + RuntimeBackend + loopback provider 证据，不是 live、多协议全矩阵、GUI 或 CLI/PTY。
+
+Codex `memories/write/src/runtime.rs::spawn_consolidation_agent` 在同一 ThreadManager 以 typed `Internal(MemoryConsolidation)` / `ThreadSource::MemoryConsolidation` 建线程，`start_turn_if_idle` 接受输入；关闭经 `shutdown_and_wait`，10 秒超时成功后才 remove。`phase2.rs::agent::get_config` 对 managed permission 使用 memory-root-only workspace-write，排除 TMPDIR 与 slash-tmp；显式 Disabled/External 父级选择保留。`agent::handle` 的顺序是终态→关闭→artifact 校验→ownership heartbeat→workspace baseline→精确 selection/watermark；关闭失败保留 lease 到过期。
+
+Lime 下一实现从 `runtime/memory.rs` 发起共享内部会话，限制必须逐层传到 `runtime_backend.rs` 的扩展发现/配置、provider-step snapshot 和真实工具 executor。当前 metadata 中的 `memory_consolidation` 识别仅影响 Stop target，不能当成可信 admission 或隔离能力；公共 metadata 不能授权内部工具策略。下一片需以内部 typed admission 传递限制，不增加公开 RPC 或第二 registry。多模型仍走原 `resolve_turn_route` 和 model-provider；phase-1 独立采样保留，phase-2 的 `MemoryStageTwoProvider::sample`、JSON proposal 与旧正向测试随真实接线一并删除。

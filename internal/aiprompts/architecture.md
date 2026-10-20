@@ -1130,6 +1130,11 @@ recent replay 的完成登记仍属于请求该 replay 的订阅，不转移给�
 继续由同一个 controller 持有。root 于 2026-10-20 确认：删除线程通配阻断与消费路径，
 不添加回答前刷新、宽限时间或第二个恢复入口。红绿回归及新产物结果见问答执行计划。
 
+`waitingAction/blocked` 只表示当前活动 Turn 正在等待用户输入或审批；恢复判断仍检查
+canonical `active_turn_id` 及同一 Turn 的 running 状态，不得仅凭线程等待标签将其判为
+空闲并卸载事件路由。缺失、终态或不匹配的 active Turn 仍不恢复。该规则对应 Codex
+`ThreadStatus::Active` 的 waiting flags；root 于 2026-10-20 确认继续使用原恢复 owner。
+
 `PendingInteractionController` 是 reverse request 的唯一前端 pending owner；
 `PendingInteractionLayer` 选择当前线程的 canonical 请求，`DecisionPanel` 只把
 `ask_user` 委托 `RequestUserInputPanel`。问答面板只拥有逐题选择、草稿、焦点和提交锁，

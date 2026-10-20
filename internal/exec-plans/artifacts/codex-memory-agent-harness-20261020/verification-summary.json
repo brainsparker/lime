@@ -1,6 +1,6 @@
 {
   "status": "active",
-  "scope": "Memory phase-2 lease/cancellation and exact snapshot prerequisites, with independent phase-1 ownership; shared Agent harness remains incomplete",
+  "scope": "Memory phase-2 lease/exact snapshot prerequisites and shared ephemeral session storage; restricted consolidation Agent remains incomplete",
   "reference": "reference-identity.json",
   "source_freeze": "source-freeze.json",
   "classification": {
@@ -132,6 +132,76 @@
       "status": "final_pass",
       "log": "memory-snapshot-final-tests.log",
       "qualification": "Final run after precise snapshot and independent phase1 ownership changes; only this prerequisite is closed."
+    },
+    {
+      "command": "npm run test:contracts",
+      "exitCode": 0,
+      "scope": "frozen ephemeral prerequisite",
+      "log": "ephemeral-contracts.log",
+      "level": "protocol/client/command/harness and repository boundary contracts"
+    },
+    {
+      "command": "npm run governance:legacy-report",
+      "exitCode": 0,
+      "violations": 0,
+      "scope": "frozen ephemeral prerequisite",
+      "log": "ephemeral-governance-final.log"
+    },
+    {
+      "exitCode": 0,
+      "passed": 2,
+      "log": "ephemeral-jsonrpc-tests.log",
+      "level": "public in-process App Server JSON-RPC with external test backend",
+      "limits": [
+        "Not live provider, stdio, CLI, PTY or Electron evidence"
+      ],
+      "cargoTestTarget": "app-server/tests/tool_history_receipt_jsonrpc.rs",
+      "invocationQualification": "Raw log records the Cargo test target and result; exact invocation is not retained in this log."
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture",
+      "exitCode": 143,
+      "status": "interrupted_before_electron",
+      "preflightPassed": 369,
+      "log": "ephemeral-current-fixture.log",
+      "reason": "Stopped only verified owned waiting process before shared build-lock stale timeout could remove another active owner lock",
+      "unexecuted": "Electron aggregate scenarios"
+    },
+    {
+      "command": "npm run verify:local",
+      "exitCode": 1,
+      "status": "failed",
+      "log": "ephemeral-verify-local.log",
+      "scope": "entire current worktree, including independent frontend changes",
+      "passedStages": [
+        "app-version",
+        "i18n unused",
+        "lint",
+        "changed-copy scan",
+        "typecheck"
+      ],
+      "failedBatch": 9,
+      "totalBatches": 141,
+      "failedTest": "src/components/agent/chat/index.noVideo.test.tsx",
+      "reason": "single test exceeded existing 5000ms timeout; no assertion or timeout change",
+      "qualification": "Host load exceeded 130 at failure inspection. Resource contention is a hypothesis pending isolated reproduction; not a confirmed root cause.",
+      "followup": "unchanged isolated test passed; frontend resume started separately"
+    },
+    {
+      "command": "npm run governance:scripts",
+      "exitCode": 0,
+      "scope": "new ephemeral fixture in existing scripts/app-server domain",
+      "rootFiles": 89,
+      "directories": 11,
+      "violations": 0
+    },
+    {
+      "command": "vitest run src/components/agent/chat/index.noVideo.test.tsx",
+      "exitCode": 0,
+      "passed": 1,
+      "testDurationMs": 1658,
+      "log": "ephemeral-no-video-isolated.log",
+      "qualification": "Unchanged test and timeout. The isolated pass does not erase the original full-gate timeout."
     }
   ],
   "attempts": [
@@ -213,12 +283,44 @@
       ]
     },
     "remaining": [
-      "final Rust unit and public JSON-RPC results",
-      "current fixture and GUI/local gates"
+      "RuntimeCore and agent-runtime unit results",
+      "app-server-client unit results and stdio transport verification",
+      "current fixture Electron scenarios after final sidecar build",
+      "GUI smoke result",
+      "local gate batch 9 timeout isolation, then resume",
+      "final input_media inline-test fixture edit by independent process"
     ],
     "limits": [
       "No Memory phase2 shared Agent wiring in this prerequisite.",
       "Desktop REA timeline evidence remains static-only; backend behavior follows Codex source."
-    ]
+    ],
+    "source_freeze": "ephemeral-source-freeze.json",
+    "verified": [
+      "public JSON-RPC durable and ephemeral lifecycle (2 tests)",
+      "contracts",
+      "final governance scan (0 violations)",
+      "source freeze (23 Lime files, 4 Codex files, no drift)"
+    ],
+    "stdio_fixture": {
+      "path": "scripts/app-server/ephemeral-fixture.mjs",
+      "sha256": "c15634e085186bacda3ed2c5d468860ac809cbef97f19d42af1c3c4a95470382",
+      "status": "awaiting_final_sidecar",
+      "level": "real stdio + RuntimeBackend + OpenAI-compatible loopback provider + local tool",
+      "claims": [
+        "tool continuation",
+        "second-turn in-memory model history",
+        "history pagination rejection",
+        "normal EOF shutdown",
+        "no synthetic private identity/content in isolated data/app files",
+        "cold read/resume rejection",
+        "ordinary thread cold recovery control"
+      ],
+      "limits": [
+        "not live provider",
+        "not full multi-protocol matrix",
+        "not Desktop/CLI/TUI proof"
+      ]
+    },
+    "source_drift": "ephemeral-source-drift.json"
   }
 }

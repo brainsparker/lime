@@ -95,3 +95,5 @@ current：表中唯一owner、canonical输入与消息投影。已删除：旧sl
 - 同步问答新收据：`codex-question-20261020-r18` 已通过真实 Electron Gate B，覆盖选项/自由文本、同 Renderer 跨线程题稿恢复及 Escape 精确取消；正常 Main code0/signalnull、零错误、源/产物身份稳定。标准 shell `standalone-shell-01-20261020015412-79399` 为 24/24。详见 [验证收据](artifacts/request-user-input-20261020/validation-r18.json)；后继异步可信接线、完整 Files/Goal/Workbench 与 Windows/live/packaged 不在该收据范围。
 
 - 组合问答后继：r27 的真实 async 子场景通过，但同步出现两份可提交面板；重复问答→A2UI producer、透传和提交分支已直接删除。r28/r30 在实时异步问题显示与 normal Main exit 门禁失败，r29/r31 在 Electron 启动前被过期 sidecar 拦截，均保留原失败。已确定并修复 shared drain 在途订阅替换竞态，后继 5 套 80 项、contracts、新 Renderer 通过；该修复不足以解释 r30 全部故障。当前阶段继续定位通知→当前路由→canonical projection，不以定向全绿或此前单场景通过结算组合或整体 GUI 完成。详见[问答计划](async-user-input-alignment-20261020.md)与[后继收据](artifacts/async-user-input-20261020/delivery-validation-r29-r32.json)。
+
+- 问答r42：已删除前一Turn的线程通配阻断；r41新构建/完整contracts通过，但组合Electron仍缺同步终态正文且正常Main退出失败。新诊断确认等待输入的canonical活动Turn被线程状态判断提前排除，四条红回归复现；最小修复后5套77项通过、scoped lint通过，新标准GUI正在重建。REA问答证据与Codex `ThreadStatus::Active`等待标志共同约束此修复；新Gate B、聚合current fixture及默认门禁未完成，不能关闭该缺口。

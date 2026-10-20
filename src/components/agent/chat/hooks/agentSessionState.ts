@@ -38,6 +38,7 @@ import { normalizeExecutionStrategy } from "./agentChatCoreUtils";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import { isAuxiliaryAgentSessionId } from "@/lib/api/agentRuntime/sessionIdentity";
 import {
+  hasActiveThreadReadActivity,
   hasRunningThreadReadActivity,
   hasRunningTurnRecordActivity,
 } from "../projection/threadReadActivity";
@@ -562,6 +563,13 @@ export function hasActiveRuntimeTurn(options: {
     return false;
   }
   if (options.threadRead) {
+    if (
+      [normalizedThreadReadStatus, normalizedProfileStatus].some(
+        (status) => status === "waitingaction" || status === "blocked",
+      )
+    ) {
+      return hasActiveThreadReadActivity(options.threadRead);
+    }
     const readModelReportsRunning =
       normalizedThreadReadStatus === "running" ||
       normalizedProfileStatus === "running";

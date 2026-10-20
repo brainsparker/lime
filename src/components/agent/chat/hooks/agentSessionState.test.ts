@@ -383,6 +383,39 @@ describe("agentSessionState", () => {
     ).toBe(true);
   });
 
+  it.each(["waitingAction", "blocked"])(
+    "%s 的 canonical active Turn 仍属于活动运行时",
+    (status) => {
+      const threadRead = {
+        thread_id: "thread-waiting",
+        status,
+        profile_status: "blocked" as const,
+        active_turn_id: "turn-waiting",
+        turns: [{ turn_id: "turn-waiting", status: "running" as const }],
+      };
+      expect(
+        hasActiveRuntimeTurn({ threadRead, threadReadStatus: status, turns: [] }),
+      ).toBe(true);
+      expect(
+        hasActiveRuntimeTurn({
+          threadRead: { ...threadRead, active_turn_id: undefined },
+          threadReadStatus: status,
+          turns: [],
+        }),
+      ).toBe(false);
+      expect(
+        hasActiveRuntimeTurn({
+          threadRead: {
+            ...threadRead,
+            turns: [{ turn_id: "turn-waiting", status: "completed" }],
+          },
+          threadReadStatus: status,
+          turns: [],
+        }),
+      ).toBe(false);
+    },
+  );
+
   it("无权威 read model 时陈旧本地 running turn 不应永久阻塞输入框", () => {
     expect(
       hasActiveRuntimeTurn({

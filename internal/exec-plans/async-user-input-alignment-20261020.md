@@ -1,6 +1,6 @@
 # 异步问题 current 纵切
 
-状态：实施中；同步 r18 已验收，组合 r35 的异步生产/展示/跨线程题稿/普通回复已通过，同步后续 Turn 完成展示仍失败；r36 启动前被产物漂移拦截。负责人：Codex，2026-10-20。
+状态：实施中；组合 r41 的异步生产/展示/跨线程题稿/普通回复已通过，同步后续 Turn 完成展示仍失败；等待状态提前排除活动 Turn 的修复已通过定向回归，正在重建和复验。负责人：Codex，2026-10-20。
 
 目标：对齐 `request_user_input_async -> AgentMessage.questions -> 同一发送协调器`，不新增问答 RPC、同步 pending 或业务历史 store。参考与限制见 `internal/research/codex-desktop-rea/async-user-input-audit-20261020.md`。
 
@@ -132,3 +132,23 @@ r36 在启动前 freshness 拦截 renderer/appServer，未运行产品。实际 
 REA复用同步草稿 parent `ev_5734ec041f1dd5e183fcd1f5a15c97b1e71e7efb9b79694d4069dd1ea7bf21c4`，本次实际CLI summary `ev_276d117876bf501146dbfde45bf4fd02c62fe42a98a28da0ef067297ae6aba66`（`/tmp/lime-question-rea-view-r38.json`）。23完整声明、4322 AST节点、parse failure0；semantic unknown905，不冒称完整闭包或参考运行。Codex公开thread_lifecycle的连接订阅与active Turn快照维持canonical scope，Lime竞态由本地红回归证明，不声称REA观察到了Lime执行。
 
 后继r39定向5套37/37通过，scoped lint与diff whitespace通过；红/迁移失败/最终绿/REA summary已保存至`artifacts/async-user-input-20261020/cross-turn-binding/`。contracts的协议类型、client/command/harness、modality/scripts/release/desktop/CLI及cleanup检查完成，最后docs boundary因Git索引内的并行`internal/exec-plans/agnes-model-recovery-20261020.md`失败，未改该文件或索引。原日志`/tmp/lime-question-contracts-r39.log`；整轮不记通过。为避免共享机器继续争用，root核对11605为本轮renderer tsc后仅向其发送SIGINT，exit130（`/tmp/lime-question-renderer-types-r39.log`），类型改为构建后串行复验，不停止任何外部任务。r37 Renderer仍在既有锁释放后的实际构建，后继sidecar与产品结果未取得。
+
+## r41 冻结字节与组合桌面复验
+
+r40 后继 fixture/wire、构建中断与恢复 hook 共3套47/47通过，Renderer 类型检查 exit0；r41 scoped lint与完整 `npm run test:contracts` exit0，包括最后 docs boundary。r39 的 docs 失败由并行任务修正其文档忽略规则后解除，root未修改该文档或索引。日志分别为 `/tmp/lime-question-fixture-binding-r40.log`、`/tmp/lime-question-renderer-types-r40.log`、`/tmp/lime-question-scoped-lint-r41.log`、`/tmp/lime-question-contracts-r41.log`；不与37项重叠回归累加。
+
+r37 按既有串行构建入口完成新 Renderer 与 App Server/code-mode sidecar，exit0（`/tmp/lime-question-refresh-r37.log`）；真实启动前复核三个产物段均 fresh。使用唯一新 run ID `codex-question-20261020-r41` 执行真实 runtime/provider 组合问答，保持原显示期限、strict locator、源/产物摘要与15秒Main正常退出要求；尚未结算的进程结果不提前记通过。期间外部任务将共享主树提交至 `bc3f3672c`，root没有执行 add/commit/push/reset或清理空间。
+
+## r42 等待标志与活动 Turn
+
+r41 真实Electron再次在同步终态正文显示失败：canonical同一Turn已completed且含最终正文，但Renderer路由记录中完全没有该同步Turn；异步两个Turn仍有路由。Main原15秒正常退出也失败，fixture按原失败回收流程结束；console/page error为空不能抵消两个失败。原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r41/`，失败截图已人工查看。
+
+只读核对 current projection：public `active + waitingOnUserInput/Approval` → `waitingAction/blocked`，同一 `active_turn_id` 和 running Turn 均保留；`hasActiveRuntimeTurn`却在读取Turn前按线程等待标签提前返回false，使恢复目标为null。Codex current `app-server/src/thread_status.rs::loaded_thread_status`与`app-server-protocol/src/protocol/v2/thread.rs::ThreadStatus/ThreadActiveFlag`明确等待标志仍是Active。REA问答组件/草稿证据仍复用前述同摘要原件；该判断属于公开状态合同，不从GUI截图猜测。
+
+窄写集追加 `agentSessionState.ts`及其既有测试、恢复hook测试、fixture source inventory/显式终态与Stop断言、architecture本节和计划。先补四条红回归，2套4失败/38通过（`/tmp/lime-waiting-turn-active-red-r42.log`）；只在等待状态下用现有canonical active Turn helper判断，缺失/不匹配/终态仍不恢复。后继5套77/77通过（`/tmp/lime-waiting-turn-active-green-r42.log`）、scoped lint与diff whitespace通过。线程级通配记录、回答前刷新和第二订阅入口均不恢复；current为既有活动Turn判断/stream controller，误判提前返回路径dead/deleted，新增compat/deprecated为0。root已确认architecture不改变owner或依赖方向。
+
+标准 `npm run verify:gui-smoke` 正在重建并验证新字节（`/tmp/lime-waiting-turn-gui-smoke-r42.log`），完成后再跑新的组合问答、受影响聚合与默认门禁。77项回归不是新Gate B通过，整体仍partial。
+
+fixture最终新增的显式正文/Stop断言已通过3项wire回归、最终script ESLint与docs boundary。r41失败诊断、截图、r42红绿回归及Codex waiting flag源码摘录/摘要保存至 `artifacts/async-user-input-20261020/waiting-active-turn/`；原件与静态参考均保留各自限制。
+
+本轮 `verify:local -- --base bc3f3672c` 已通过版本、五语和unused检查，但全局lint与Renderer构建并行争用资源。root核对14013→14094→14560→14579均属于该命令、进程组14013后，仅向该组发送SIGINT，exit130（`/tmp/lime-waiting-turn-local-resume-r42.log`）；没有停止外部Cargo/其他任务。独立Vitest状态未改写，后续串行续跑；该中断不是默认门禁通过。

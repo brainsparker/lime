@@ -57,3 +57,5 @@
 - 本轮原 Main 正常退出 15s 期限再次失败，仅失败后回收本 fixture PID 13178，SIGKILL 不记通过；业务/audit pass 与 clean lifecycle fail 分开记录，正在用无 Provider 的隔离实例观察退出阶段。
 - 完整 typecheck、contracts 与版本一致性后继已 exit0。runtime 全组 877/878，唯一 active_wait 延迟恢复夹具在并发删除 identity 窗口失败；同一构建的单项隔离不改预算通过，保留两份原件，尚不能把全组写成通过。
 - 证据摘要：`agnes-model-recovery-20261020.json`。current owner 保持不变；新增 compat/deprecated 为零；没有恢复旧命令或 mock。
+
+- 后继退出诊断：同一现有 Host 的 before-quit、window closed、will-quit、quit 均在约200ms内执行，Playwright 仍等待实际 Main 退出；另一次原生快捷键触发后出现等待 debugger disconnect。独立无 inspector/CDP 的真实 Electron 使用相同隔离启动和 backend unavailable，经 computer use 原生快捷键退出，PID 3870 返回 code0/signalnull。该结果证明此启动条件的正常退出，不核销此前 Playwright 15s Gate，也不冒充 live 业务场景的 clean lifecycle。只回收本人测试进程，没有改生产退出逻辑、预算或依赖。

@@ -7,6 +7,7 @@ import { useAgentStream } from "./useAgentStream";
 import type { AgentRuntimeAdapter } from "./agentRuntimeAdapter";
 import { activityLogger } from "@/lib/workspace/workbenchRuntime";
 import { clearAllAgentStreamTextOverlays } from "./agentStreamTextOverlayStore";
+import { hasActiveRuntimeTurn } from "./agentSessionState";
 import {
   rememberLocallyInterruptedAgentStreamBinding,
   rememberLocallyStartedAgentStreamBinding,
@@ -82,6 +83,74 @@ function token(): ComposerSubmissionRestoreToken {
 }
 
 describe("useAgentStream restore capability lifetime", () => {
+  it.each(["waitingAction", "blocked"])(
+    "等待输入的 %s 回合恢复监听后接收真实终态",
+    async (status) => {
+      const sessionId = `restore-waiting-${status}`;
+      const turnId = "canonical-waiting-turn";
+      const threadRead = {
+        thread_id: sessionId,
+        active_turn_id: turnId,
+        status,
+        profile_status: "blocked" as const,
+        turns: [{ turn_id: turnId, status: "running" as const }],
+      };
+      const handlers = new Set<(event: { payload: unknown }) => void>();
+      const h = mountHook((f) => ({
+        sessionId,
+        runtime: {
+          ...f.env.runtime,
+          listenToTurnEvents: vi.fn<AgentRuntimeAdapter["listenToTurnEvents"]>(
+            async (_eventName, handler) => {
+              handlers.add(handler);
+              return () => handlers.delete(handler);
+            },
+          ),
+          resumeThread: vi.fn().mockResolvedValue(true),
+        },
+        allowRecoveredStreamBinding: true,
+        threadBusy: hasActiveRuntimeTurn({
+          threadRead,
+          threadReadStatus: status,
+          turns: [],
+        }),
+        threadRead,
+      }));
+      try {
+        await act(async () => {});
+        expect(handlers.size).toBe(1);
+        expect(h.getHook().isSending).toBe(true);
+        act(() => {
+          const timestamp = new Date().toISOString();
+          for (const handler of handlers) {
+            handler({
+              payload: {
+                type: "turn_completed",
+                protocol_method: "turn/completed",
+                session_id: sessionId,
+                turn_id: turnId,
+                turn: {
+                  id: turnId,
+                  thread_id: sessionId,
+                  prompt_text: "",
+                  status: "completed",
+                  started_at: timestamp,
+                  completed_at: timestamp,
+                  created_at: timestamp,
+                  updated_at: timestamp,
+                },
+              },
+            });
+          }
+        });
+        expect(h.getHook().isSending).toBe(false);
+        expect(handlers.size).toBe(0);
+      } finally {
+        h.unmount();
+      }
+    },
+  );
+
   it.each([
     ["submitted", rememberLocallyStartedAgentStreamBinding],
     ["interrupted", rememberLocallyInterruptedAgentStreamBinding],

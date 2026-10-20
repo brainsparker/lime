@@ -127,6 +127,12 @@ Windows Console 输入模式接管/恢复、editor handoff 和 reader 启动边�
 
 App Server release manifest 与 sidecar smoke 脚本已迁到 `scripts/app-server/`。对外继续使用 `package.json` 里的 `app-server:*` 与 `smoke:app-server-*` npm scripts，不直接依赖根目录脚本路径。所有会创建 session/turn 的 stdio、external 与 packaged smoke 必须把 `dataDir` 指向本轮临时目录；固定 fixture identity 不得写入真实用户 App Server data root。
 
+`scripts/app-server/ephemeral-fixture.mjs` 使用显式 `APP_SERVER_BIN` 的固定产物，走真实
+stdio、RuntimeBackend、loopback provider 和本地命令工具，验证 ephemeral 多轮内存历史、
+工具 continuation、历史分页拒绝、正常 EOF 关闭、零私密记录落盘与冷恢复拒绝；普通线程
+作为持久化对照。配置与数据均隔离到本轮临时目录；证据只输出合成 marker 的断言、身份
+与 binary SHA，不保存 provider 请求正文。它不证明 live provider、GUI 或 TUI PTY。
+
 `npm run smoke:cli-gate-b` 使用真实 `lime exec`、真实 App Server stdio 进程和测试专用 external backend，核对同一 canonical Thread/Turn identity、Item 事件序列、`--json`逐事件JSONL、pipe stdin、失败/中断退出码与 shell completion。后端屏障只在CLI读到command item.started后放行，证明结束前flush；cold thread/read核对原canonical身份、摘要/原文隔离和最后usage.total。旧jsonl参数仅保留负向断言。它不调用正式 Provider，也不允许 mock backend 或固定 timer 合成完成态。交互式 alternate-screen/PTY 证据归独立的 TUI Gate B，不用该 CLI smoke 冒充。
 
 同一入口的 `cli-reasoning-gate-b.mjs` 覆盖默认摘要、显式原文、隐藏与原文同时开启、
