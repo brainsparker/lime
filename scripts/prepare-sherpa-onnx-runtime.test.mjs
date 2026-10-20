@@ -44,20 +44,28 @@ describe("prepare sherpa-onnx runtime", () => {
         copySherpaRuntimeLibraries(plan, {
           copy: (from, to, flags) => {
             expect(to).not.toBe(target);
-            expect(fs.readFileSync(target)).toEqual(
-              published
-                ? fs.readFileSync(source)
-                : Buffer.from("previous complete library"),
-            );
+            expect(
+              fs
+                .readFileSync(target)
+                .equals(
+                  published
+                    ? fs.readFileSync(source)
+                    : Buffer.from("previous complete library"),
+                ),
+            ).toBe(true);
             fs.copyFileSync(from, to, flags);
           },
           publish: (from, to) => {
-            expect(fs.readFileSync(from)).toEqual(fs.readFileSync(source));
+            expect(fs.readFileSync(from).equals(fs.readFileSync(source))).toBe(
+              true,
+            );
             fs.renameSync(from, to);
             published = true;
           },
         });
-        expect(fs.readFileSync(target)).toEqual(fs.readFileSync(source));
+        expect(fs.readFileSync(target).equals(fs.readFileSync(source))).toBe(
+          true,
+        );
         expect(fs.readdirSync(destination)).toEqual([name]);
       } finally {
         fs.rmSync(root, { recursive: true, force: true });

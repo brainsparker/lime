@@ -40,6 +40,27 @@ function createModel(
 }
 
 describe("modelThemePolicy", () => {
+  it("general 主题不将仅输出媒体的模型当作聊天候选", () => {
+    const result = filterModelsByTheme("general", [
+      createModel("agnes-3.0-flash", { output_modalities: ["text"] }),
+      createModel("agnes-video-2.5", {
+        task_families: ["video_generation"],
+        output_modalities: ["video"],
+      }),
+      createModel("agnes-video-2.5-flash", {
+        task_families: ["video_generation"],
+      }),
+      createModel("agnes-image-2.5-flash", {
+        task_families: ["image_generation", "image_edit"],
+        input_modalities: ["text", "image"],
+        output_modalities: ["image"],
+      }),
+    ]);
+
+    expect(result.models.map((model) => model.id)).toEqual(["agnes-3.0-flash"]);
+    expect(result.filteredOutCount).toBe(3);
+  });
+
   it("模型列表短暂缺失时应返回空结果而不是崩溃", () => {
     expect(filterModelsByTheme("general", undefined)).toEqual({
       models: [],

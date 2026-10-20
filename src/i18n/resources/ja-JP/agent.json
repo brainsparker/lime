@@ -852,6 +852,7 @@
   "agentChat.runtimeError.modelSelectionRequired": "入力欄下部で利用可能なモデルを選択するか、プロバイダーへのサインインを完了してから送信してください。",
   "agentChat.modelSettings.updateFailed": "モデル設定の更新に失敗しました：{{message}}",
   "agentChat.runtimeError.providerQuota": "現在のモデルチャネルが課金またはクォータ系のエラーを返しました。Provider/モデルチャネルの課金、クォータ、認可状態を確認するか、別の利用可能なモデルに切り替えてください。",
+  "agentChat.runtimeError.modelNotFound": "このモデルは現在のプロバイダーアカウントでは利用できません。モデル一覧を更新し、利用可能な別のモデルを選択してください。",
   "agentChat.runtimeError.providerUnavailable": "現在のモデルチャネルは一時的に利用できません。しばらくしてから再試行してください。失敗が続く場合は Provider の状態を確認するか、別の利用可能なモデルに切り替えてください。",
   "agentChat.runtime.failure.prefix": "実行に失敗しました：",
   "agentChat.runtimeStrip.action.reviewFileChanges": "変更を確認",

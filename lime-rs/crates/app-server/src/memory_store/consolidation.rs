@@ -116,10 +116,7 @@ async fn run_stage2_with_heartbeat(
                     &scope_key,
                     &owner,
                     Utc::now().timestamp(),
-                    &selected_sources
-                        .iter()
-                        .map(String::as_str)
-                        .collect::<Vec<_>>(),
+                    &selected_sources,
                 )
                 .map_err(backend_error)?
             {
@@ -148,7 +145,7 @@ async fn run_stage2_inner(
     scope_key: &str,
     owner: &str,
     cancellation: &CancellationToken,
-) -> Result<(MemoryStageOneRunResult, Vec<String>), RuntimeCoreError> {
+) -> Result<(MemoryStageOneRunResult, Vec<state::StageTwoInput>), RuntimeCoreError> {
     let inputs = backend
         .state
         .stage2_candidates(scope_key, STAGE2_MAX_INPUTS)
@@ -254,6 +251,21 @@ async fn run_stage2_inner(
                 }
             }));
         }
+        let snapshot = inputs
+            .iter()
+            .find(|input| input.source_path == entry.source_path)
+            .expect("validated stage-2 source snapshot");
+        // This artifact pipeline still archives source files. A newer version must remain
+        // untouched for a later run rather than being moved by an older model proposal.
+        if !backend
+            .state
+            .stage2_snapshot_is_current(scope_key, snapshot)
+            .map_err(backend_error)?
+            || state::hash_content(&fs::read_to_string(&source).map_err(io_error)?)
+                != snapshot.content_hash
+        {
+            return Err(backend_error("memory stage-2 source snapshot changed"));
+        }
         if entry.decision == stage_two_output::Decision::Accept
             && entry
                 .memory
@@ -290,6 +302,10 @@ async fn run_stage2_inner(
     let mut skipped_notes = 0;
     let mut archived_notes = 0;
     for entry in output.entries {
+        let snapshot = inputs
+            .iter()
+            .find(|input| input.source_path == entry.source_path)
+            .expect("validated stage-2 source snapshot");
         let source_relative = validate_relative_path(&entry.source_path)
             .map_err(|_| backend_error("memory stage-2 source path is invalid"))?;
         match entry.decision {
@@ -304,7 +320,7 @@ async fn run_stage2_inner(
                 let archived_relative = backend.relative_path(root, &archived_path)?;
                 let memory = entry.memory.expect("validated accepted memory artifact");
                 accepted.push(format!("- {} (source: {archived_relative})", memory.trim()));
-                selected_sources.push(entry.source_path);
+                selected_sources.push(snapshot.clone());
                 archived_notes += 1;
             }
             stage_two_output::Decision::Review => {
@@ -312,11 +328,7 @@ async fn run_stage2_inner(
                 move_note(root, &source, &review_dir)?;
                 backend
                     .state
-                    .mark_rollout_processed(
-                        scope_key,
-                        &entry.source_path,
-                        state::RolloutStatus::Review,
-                    )
+                    .mark_stage2_review(scope_key, snapshot)
                     .map_err(backend_error)?;
                 skipped_notes += 1;
                 warnings.push(format!(

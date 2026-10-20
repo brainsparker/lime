@@ -83,3 +83,32 @@ r27 的真实 async 子场景已完成：两题来自同一个 canonical source 
 r28 将首个 async 工具输出延迟到真实产品 thread/read(includeTurns=true) 完成后才发布，随后验证 live delivery；不注入 renderer 业务状态、不添加固定等待、不修改原 120 秒显示期限或 producer 期限。新 Renderer 构建期间已确认并释放此前本进程中断构建留下的孤立锁（PID 20633 已不存在），未停止他人构建或清理空间。
 
 分类：PendingInteraction 与 canonical runtime/projection 为 current；上述 promotion/透传/payload 为 dead/deleted/forbidden-to-restore；本刀新增 compat/deprecated 为零。单一入口清理源码与定向回归已完成，产品验收尚未完成；整体 GUI 仍 partial，无完整分母，不编造总完成百分比。
+
+
+## r28 实时恢复失败与 r29 在途订阅竞态
+
+r28 在新 Renderer/sidecar 上通过 freshness 后，确认产品完成活动线程恢复与两个完整 thread/read，再放行真实 async 工具；首次表面仍在原 120 秒期限失败。canonical read 保留 call-async-question 的两题，producer 后续触发原 60 秒无可见输出期限；GUI 停在生成中。Renderer 没有 duplicate_event_id warning，只有语言初始化和开发 CSP warning，因此该轮不能继续归因重复序列。失败原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r28/` 与 `/tmp/lime-question-combined-electron-r28.log` 保留，整轮没有通过。
+
+只读核对确认唯一全局 AppServerEventBus，不存在按 AppServerClient 分裂 bus 的假设；root 未据此创建第二 bus。进一步发现 shared drain 在 await 之前快照 activeSubscriptions，完成时仍向旧快照投递。新增确定性回归：在 drain 在途时注册当前订阅并卸载旧订阅，返回真实形状的问题 Item 与 turn/completed；原代码当前订阅零回调，红测试保留 `/tmp/lime-active-subscription-red-r29.log`。
+
+r29 窄写集为 AppServerEventBus.ts 与其 unit test、fixture source inventory、architecture 和本计划。修复只在 drain 完成且 generation 仍有效后重新读取当前 active subscriptions，问题/终态与 pending reverse request 均交付当前订阅；includeRecent 完成登记仍绑定原本发起该 replay 的订阅，不清空去重、终态或 generation。Codex thread_lifecycle 的连接订阅与 pending-unload 串行合同及已复用 REA 的根通知→canonical projection提供参考；这项单元竞态已证，不提前断言它覆盖 r28 的全部根因。
+
+修复后 event bus、active/background routing 与 v2 projection 3 套 64/64 通过（`/tmp/lime-active-subscription-green-r29.log`）；首次命令里不存在的 eventSequenceGate.unit.test.ts 未计入执行套数。新 Renderer、真实 r29 与后续聚合正在验证。r28 前的完整类型、contracts、治理及 Renderer 构建已通过；新 bus 字节由后继门禁结算。并行进程于期间将主树提交到 249a9c878；root 没有执行 add/commit/push/reset，不改变外部索引或发布任务。
+
+r29 的 scoped lint 与 Renderer 构建均已 exit0；该轮 Electron 入口在 freshness 阶段检测到并行 Memory 后继源码使 sidecar 过期，尚未启动 Electron，因此没有产品结果。已重建 current sidecar（`/tmp/lime-active-subscription-sidecar-r30.log`），使用新 run ID `codex-question-20261020-r30` 复验。r28 原件还记录了原 15 秒 normal Main exit 超时和随后强制回收；该失败独立保留，不能仅凭 console/page error 为零写成正常退出。
+
+默认 `verify:local` 使用本任务独立 Vitest 状态继续运行，已通过 lint、五语言与完整类型后进入 140 批前端测试；在完成前不记为通过。architecture 3.2.1 已同步 drain 完成时使用当前活动订阅的合同，root 确认不增加第二 bus、业务状态或序列豁免。
+
+r30 freshness 通过，但首次 async 表面与 normal Main exit 仍失败；canonical 已有同 identity 的真实问题，Renderer 无 duplicate_event_id、console/page error。原件 `.lime/qc/gui-evidence/request-user-input/codex-question-20261020-r30/` 保留，说明单项在途竞态修复不足以闭合产品。r31 在现有 debug 开关下记录 bus drain 方法/数量、路由 scope/匹配数和 delivery error，不记录问题正文、不改业务状态；fixture 同时保存结构化 console 参数，继续使用原超时、strict locator 与退出门禁。新增观察接线的 3 套 20 项和后继 projection/sequence 2 套 60 项通过，scoped lint、contracts 与新 Renderer 已通过；真实 r31 待结算。
+
+默认门禁在第 25/140 批因 ONNX 原子发布两项测试的 128KiB Buffer 深比较超过 5 秒而失败，独立运行再次复现（`/tmp/lime-local-onnx-atomic-red-r31.log`）。本轮额外窄写集仅 `scripts/prepare-sherpa-onnx-runtime.test.mjs`，以原生 `Buffer.equals` 比较全部字节，仍检查复制期间为完整旧库、发布前临时文件为完整新库、发布后目标完整且无临时残留；不改 payload、超时或生产实现。20/20 通过、测试体耗时 63ms（`/tmp/lime-local-onnx-atomic-green-r31.log`）。`verify:local` 已以同一独立状态续跑，保留第 25 批失败原件，不从首批重测。
+
+## r33 恢复监听的 presentation 生命周期
+
+r31 同样在启动前被新的并行 Memory 源码使 sidecar 过期而拦截；r32 刷新在等待另一个 Cargo 释放产物锁，未停止其他进程。等待期间在 useAgentStream 恢复 effect 中另发现 presentation callbacks/soulCopy 变动即 cleanup，但 activeStream 标记使后继 effect 不再绑定。React 回归已确定复现：同一活动线程保持 isSending=true，onWriteFile 变更后真正注册的 handler 从 1 降至 0（`/tmp/lime-recovered-listener-lifetime-red-r32.log`），不是 timeout 或 mock provider 的推测。
+
+额外窄写集为 useAgentStream.ts、现有 restoreToken hook 测试和 fixture source inventory。只将文件展示、read model 刷新及 setup 展示文案放入最新 presentation ref，文件/刷新动作使用稳定回调；业务 identity、runtime、序列门禁、active turn 与原 terminal 清理不变。architecture 已同步并由 root 确认。新增行为回归还必须证明同一 canonical turn/completed 可清理监听与运行态，不能只断言调用次数。定向复验、新 Renderer 与真实桌面正在执行，不提前归因为 r30 全部根因。
+
+生产接线进一步确认：`useAgentChatWorkspaceSetupRuntime.ts:139` 的 onWriteFile 是每次渲染新建的 inline callback，因此上述 effect cleanup 有真实触发者；不能靠要求调用者永远 memoize 修复唯一监听 owner。原始红测试为 handler 1→0；首个修复回归随后因新增测试自身缺 canonical turn 对象失败，原日志保留。补齐真实 turn/completed projection 后 4/4 通过（`/tmp/lime-recovered-listener-lifetime-terminal-r33b.log`），另外两套 binding/controller 18项在上一轮通过；并集 3套22项，不将失败轮写成通过。scoped lint 通过，新 Renderer/sidecar 及 Desktop 后继仍待结算。
+
+资源调度：`verify:local` r31 的五语与全局 lint 已通过，但完整类型检查尚未完成。本机空闲内存约75MiB，当前 Renderer 与并行 Memory 测试编译明显变慢；root 核对父进程链 `28935 → 29035 → 50936 → 50965 → 50966` 后，仅对本轮 tsc 50966 发送 SIGINT，门禁 exit130，原日志 `/tmp/lime-question-local-resume-r31.log` 保留。未停止其他进程、未清空间；第25批失败的独立 Vitest 状态保持原样。后续先完成构建和真实桌面，再以同一状态继续默认门禁，不将中断写成通过。

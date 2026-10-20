@@ -71,6 +71,14 @@ export async function ensureLiveAgnesProviderFromEnv(
 ) {
   const apiKey = process.env[options.apiKeyEnv]?.trim();
   assert(apiKey, `${options.apiKeyEnv} 未配置`);
+  const sharesTextProvider =
+    options.textProviderPreference === options.providerPreference;
+  const models = Array.from(new Set([
+    options.modelPreference,
+    ...(sharesTextProvider && options.textModelPreference
+      ? [options.textModelPreference]
+      : []),
+  ]));
   const created = await invokeAppServerFromPage(
     page,
     "modelProvider/create",
@@ -90,7 +98,7 @@ export async function ensureLiveAgnesProviderFromEnv(
     {
       providerId,
       enabled: true,
-      models: [{ id: options.modelPreference }],
+      models: models.map((id) => ({ id })),
       sortOrder: 1,
     },
     requestLog,
@@ -107,6 +115,9 @@ export async function ensureLiveAgnesProviderFromEnv(
     requestLog,
   );
   options.providerPreference = providerId;
+  if (sharesTextProvider) {
+    options.textProviderPreference = providerId;
+  }
   return sanitizeJson({
     providerId,
     providerName: provider?.name ?? AGNES_PROVIDER_NAME,

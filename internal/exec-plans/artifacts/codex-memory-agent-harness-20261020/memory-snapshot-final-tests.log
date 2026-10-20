@@ -1,0 +1,5 @@
+
+> lime@1.164.0 test:rust:unit
+> node scripts/run-rust-layer.mjs unit -p app-server memory_store::
+
+[rust-layer] running cargo test --manifest-path lime-rs/Cargo.toml --lib -p app-server memory_store::

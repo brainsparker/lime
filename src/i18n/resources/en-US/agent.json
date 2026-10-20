@@ -852,6 +852,7 @@
   "agentChat.runtimeError.modelSelectionRequired": "Choose an available model at the bottom of the input box, or finish provider sign-in before sending.",
   "agentChat.modelSettings.updateFailed": "Failed to update model settings: {{message}}",
   "agentChat.runtimeError.providerQuota": "The current model channel returned a billing or quota error. Check the provider/model channel billing, quota, or authorization state, or switch to another available model.",
+  "agentChat.runtimeError.modelNotFound": "This model is unavailable for this provider account. Refresh the model list and choose another available model.",
   "agentChat.runtimeError.providerUnavailable": "The current model channel is temporarily unavailable. Try again later; if it keeps failing, check the provider status or switch to another available model.",
   "agentChat.runtime.failure.prefix": "Execution failed: ",
   "agentChat.runtimeStrip.action.reviewFileChanges": "Review changes",

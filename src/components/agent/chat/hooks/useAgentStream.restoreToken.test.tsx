@@ -26,7 +26,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function mountHook() {
+function mountHook(
+  configure?: (
+    fixture: ReturnType<typeof createRestoreTokenFixture>,
+  ) => Partial<Parameters<typeof useAgentStream>[0]>,
+) {
   const f = createRestoreTokenFixture();
   const options = {
     ...f.env,
@@ -41,6 +45,7 @@ function mountHook() {
     threadBusy: false,
     threadTurns: [],
     onRestoreInterruptedInput: f.onRestoreInterruptedInput,
+    ...configure?.(f),
   };
   let current: ReturnType<typeof useAgentStream> | undefined;
   const container = document.createElement("div");
@@ -54,6 +59,10 @@ function mountHook() {
   return {
     ...f,
     getHook: () => current!,
+    rerender: (patch: Partial<Parameters<typeof useAgentStream>[0]>) => {
+      Object.assign(options, patch);
+      act(() => root.render(<Harness />));
+    },
     unmount: () => {
       act(() => {
         current?.detachStreamBindings();
@@ -68,6 +77,70 @@ function token(): ComposerSubmissionRestoreToken {
 }
 
 describe("useAgentStream restore capability lifetime", () => {
+  it("恢复流的展示回调更新不能卸载当前线程监听或丢失真实终态", async () => {
+    const handlers = new Set<(event: { payload: unknown }) => void>();
+    const listen = vi.fn(
+      async (
+        _eventName: string,
+        handler: (event: { payload: unknown }) => void,
+      ) => {
+        handlers.add(handler);
+        return () => handlers.delete(handler);
+      },
+    );
+    const h = mountHook((f) => ({
+      runtime: {
+        ...f.env.runtime,
+        listenToTurnEvents: listen,
+        resumeThread: vi.fn().mockResolvedValue(true),
+      },
+      allowRecoveredStreamBinding: true,
+      threadBusy: true,
+      threadRead: {
+        thread_id: "thread-1",
+        active_turn_id: "turn-1",
+        status: "running",
+        turns: [{ id: "turn-1", status: "running" }],
+      } as NonNullable<Parameters<typeof useAgentStream>[0]["threadRead"]>,
+      onWriteFile: vi.fn(),
+    }));
+    try {
+      await act(async () => {});
+      expect(handlers.size).toBe(1);
+      expect(h.getHook().isSending).toBe(true);
+      h.rerender({ onWriteFile: vi.fn() });
+      await act(async () => {});
+      expect(handlers.size).toBe(1);
+      act(() => {
+        const timestamp = new Date().toISOString();
+        for (const handler of handlers) {
+          handler({
+            payload: {
+              type: "turn_completed",
+              protocol_method: "turn/completed",
+              session_id: "session-1",
+              turn_id: "turn-1",
+              turn: {
+                id: "turn-1",
+                thread_id: "thread-1",
+                prompt_text: "",
+                status: "completed",
+                started_at: timestamp,
+                completed_at: timestamp,
+                created_at: timestamp,
+                updated_at: timestamp,
+              },
+            },
+          });
+        }
+      });
+      expect(h.getHook().isSending).toBe(false);
+      expect(handlers.size).toBe(0);
+    } finally {
+      h.unmount();
+    }
+  });
+
   it.each([false, true])(
     "preserves token identity with active stream detached=%s",
     async (detached) => {

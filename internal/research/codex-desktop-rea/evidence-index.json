@@ -11853,7 +11853,7 @@
     "fullGuiClaim": false
   },
   "asyncUserInputResearch20261020": {
-    "status": "trusted-context-implemented-combined-gate-b-pending",
+    "status": "implemented-live-delivery-failure-under-diagnosis",
     "report": "internal/research/codex-desktop-rea/async-user-input-audit-20261020.md",
     "evidenceIds": [
       "ev_e4e0901acf437ccf3ed6d3ec29a0096f3b9ab1d80ed85001fe349ae806e73f32",
@@ -11871,15 +11871,15 @@
     "frontendTestsPassedUnion": 111,
     "trustedProducerEnabled": true,
     "trustedProducerValidation": "App Server serial unit 1957/1957 and agent 295/295 passed; combined real Electron r19/r20/r21/r26 failed waiting for async form; active Turn restore routing 139 tests passed, fresh renderer/types/contracts passed",
-    "desktopGateB": "r27 async closed, combined failed duplicate synchronous panels; r28 single-owner successor pending",
+    "desktopGateB": "r27 async closed but duplicate synchronous panels failed; r28/r30 live async visibility and normal Main exit failed; r29/r31 freshness guard rejected stale sidecar before Electron launch",
     "remaining": [
-      "Fresh r28 live async delivery and combined synchronous single-owner Electron verification pending",
+      "Fresh sidecar and r30 live async/synchronous single-owner Electron verification",
       "Production catalog experimental-tool capability discovery remains unverified",
       "Current fixture aggregate, latest GUI smoke and default gate remain pending",
-      "Renderer duplicate_event_id warnings observed in r27 require source diagnosis"
+      "r28 async visibility and normal Main exit failures remain open; no duplicate_event_id warning observed in that run"
     ],
     "singleQuestionOwner20261020": {
-      "status": "implemented-targeted-passed-desktop-pending",
+      "status": "implemented-targeted-passed-combined-desktop-failed",
       "referenceParent": "ev_a908f380896c707334ef1867c231f191790e0fbe29708ec243c6a7cb5306f437",
       "referenceSummary": "ev_c551b82d0da69399e3c4b89de8601a3f516756bed281e68d4750c571663ee7ff",
       "referenceExecuted": false,
@@ -11894,6 +11894,32 @@
         "unused formData normalization and payload wrapper",
         "interactive preview-card props"
       ]
+    },
+    "inFlightSubscription20261020": {
+      "status": "deterministic-race-fixed-insufficient-for-r30-desktop",
+      "owner": "AppServerEventBus",
+      "redLog": "/tmp/lime-active-subscription-red-r29.log",
+      "greenLog": "/tmp/lime-active-subscription-green-r29.log",
+      "testFiles": 3,
+      "testsPassed": 64,
+      "scope": "Deliver a pending drain batch to current active subscriptions after generation check; retain replay identity and existing sequence gates.",
+      "explainsAllDesktopFailures": false,
+      "successorObservationTests": {
+        "files": 5,
+        "passed": 80,
+        "contracts": "pass",
+        "renderer": "pass",
+        "desktop": "r32 pending current sidecar"
+      }
+    },
+    "validationReceipt": "internal/exec-plans/artifacts/async-user-input-20261020/delivery-validation-r29-r32.json",
+    "recoveredListenerLifetime20261020": {
+      "status": "deterministic-race-fixed-desktop-pending",
+      "productionTrigger": "Inline Workspace onWriteFile callback updates recovered stream effect; cleanup removes listener but retains blocking active state.",
+      "testsPassedDistinct": 22,
+      "files": 3,
+      "referenceExecuted": false,
+      "receipt": "internal/exec-plans/artifacts/async-user-input-20261020/delivery-validation-r29-r32.json"
     }
   },
   "requestUserInputDesktop20261020": {

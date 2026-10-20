@@ -88,6 +88,13 @@ function looksLikeImageGenerationModel(model: EnhancedModelMetadata): boolean {
 }
 
 function looksLikeChatModel(model: EnhancedModelMetadata): boolean {
+  if (
+    model.output_modalities?.length &&
+    !model.output_modalities.includes("text")
+  ) {
+    return false;
+  }
+
   if (looksLikeImageGenerationModel(model)) {
     return false;
   }
@@ -97,7 +104,8 @@ function looksLikeChatModel(model: EnhancedModelMetadata): boolean {
     modelSupportsTaskFamily(model, "rerank") ||
     modelSupportsTaskFamily(model, "moderation") ||
     modelSupportsTaskFamily(model, "speech_to_text") ||
-    modelSupportsTaskFamily(model, "text_to_speech")
+    modelSupportsTaskFamily(model, "text_to_speech") ||
+    modelSupportsTaskFamily(model, "video_generation")
   ) {
     return false;
   }

@@ -32,6 +32,8 @@ import { WindowsSandboxReadinessStatus } from "./WindowsSandboxReadinessStatus";
 let container: HTMLDivElement;
 let root: Root;
 let notifyWindowsSandbox: (notification: WindowsSandboxNotification) => void;
+const originalPlatform = Object.getOwnPropertyDescriptor(navigator, "platform");
+const originalUserAgent = Object.getOwnPropertyDescriptor(navigator, "userAgent");
 
 function setNavigator(platform: string, userAgent: string) {
   Object.defineProperty(window.navigator, "platform", {
@@ -74,7 +76,13 @@ beforeEach(async () => {
 afterEach(async () => {
   act(() => root.unmount());
   container.remove();
-  setNavigator("MacIntel", "Mozilla/5.0 (Macintosh)");
+  for (const [key, descriptor] of [
+    ["platform", originalPlatform],
+    ["userAgent", originalUserAgent],
+  ] as const) {
+    if (descriptor) Object.defineProperty(navigator, key, descriptor);
+    else Reflect.deleteProperty(navigator, key);
+  }
   await changeLimeLocale("zh-CN");
 });
 

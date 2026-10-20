@@ -21,6 +21,7 @@ import {
 } from "./appServerNotificationDrift";
 import { readAppServerV2NotificationRoute } from "./appServerV2Notification";
 import { CommandContinuation } from "./commandContinuation";
+import { logAgentDebug } from "@/lib/agentDebug";
 
 export const APP_SERVER_EVENT_DRAIN_LIMIT = 50;
 export const APP_SERVER_EVENT_DRAIN_ACTIVE_INTERVAL_MS = 32;
@@ -116,6 +117,16 @@ export class AppServerAgentSessionEventDrainRouter {
         this.#routes.delete(existingKey);
     }
     this.#routes.set(registeredRoute.registrationKey, registeredRoute);
+    logAgentDebug(
+      "AppServerEventRouter",
+      "register",
+      {
+        eventName,
+        sessionId,
+        turnId: route.turnId,
+      },
+      { consoleOnly: true },
+    );
     this.#ensureEventBusSubscription();
 
     return {
@@ -255,6 +266,17 @@ export class AppServerAgentSessionEventDrainRouter {
     }
 
     const matchedRoutes = this.#matchingRoutes(routable, notification);
+    logAgentDebug(
+      "AppServerEventRouter",
+      "route",
+      {
+        method: notification.method,
+        sessionId: routable.sessionId,
+        turnId: routable.turnId,
+        matchCount: matchedRoutes.length,
+      },
+      { consoleOnly: true },
+    );
     if (
       matchedRoutes.length === 0 &&
       fallbackEventName &&

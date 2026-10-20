@@ -44,11 +44,34 @@ budget:normal；P1。输入为已 claim 的 durable stage1 selection + root sess
 | 合同 | current owner / 事实 | 下一步必须改动 |
 | --- | --- | --- |
 | 同一 Thread/Turn manager | `runtime/session_lifecycle.rs::start_session`、`turn_execution.rs::start_turn`、`session_shutdown.rs::shutdown_session_runtime` 共用 `RuntimeCore.state`、session registry、backend | consolidation runner 复用这些 owner；不能新建独立 runtime/actor registry |
-| 真正 ephemeral | `thread_fork/settings.rs` 明确拒绝未实现的 ephemeral storage；`start_session` 仍写 canonical thread | 不能只加 metadata 标志冒充 ephemeral；须让内部会话的实际 projection/EventLog/rollout 生命周期与 shutdown 成对，且不反哺 phase1 |
+| 真正 ephemeral | `processor/thread/lifecycle.rs` 的 public `thread/start` 已接收 ephemeral 并写 metadata，但 `start_session` 仍写 canonical thread；`thread_fork/settings.rs` 则明确拒绝未实现的 ephemeral storage | Codex `core/src/session/session.rs:1041/1159` 在 ephemeral 时同时跳过 thread persistence 和 state DB。Lime 必须让实际 projection/EventLog/rollout 生命周期与 shutdown 成对，且不反哺 phase1；只存 metadata 不满足合同 |
 | 扩展隔离 | `runtime_backend.rs::handle_turn_start_with_provider_history` 当前读取 plugin snapshots、初始化 MCP、discover orchestrator skills；`request_context/session_config.rs` 合并 AGENTS/Skills/Memory/Soul | typed internal source 必须在读取、发现、prompt、hook 与执行边界都生效；单纯空 snapshot/prompt 禁止词不够 |
 | 工具隔离 | `agent/current_provider_turn/mcp_step_snapshot.rs` 每 step 重捕获本地/MCP/dynamic tools；`tool_executor.rs` 承接真实执行 | 限制必须同时约束 snapshot 与执行，避免全局 gateway registry/工具检索重新暴露被禁能力 |
 | 仅 memory root 写权限 | `tool-runtime/sandbox/command.rs` 的默认 Seatbelt profile 允许 `/tmp`、`/private/tmp`、`/var/tmp`、`/private/var/tmp` | Codex managed Memory config 排除临时目录；复用现有 sandbox owner 补内部限制，不能把普通 workspace-write 当成已对齐。父级 Disabled/External 的处理仍按 Codex 源码 |
 | 真实终态与关闭 | `start_turn` 等 session task 完成；`unload_thread_if_idle` 经同一 close owner 释放资源 | 需证明 Completed/Failed/Cancelled、Stop 拒绝、取消后 drain、shutdown 失败保留 lease，再核销共享 harness；本片取消直接采样不提供该证明 |
-| 精确 snapshot selection | Codex `state/runtime/memories.rs::mark_global_phase2_job_succeeded` 使用 `thread_id + source_updated_at`；Lime 当前按 `source_path` 更新 selection | 共享 Agent/产物替换时同时绑定选中 stage1 的版本，避免把采样期间新抽取的同路径 snapshot 误标记为已合并 |
+| 精确 snapshot selection | Codex `state/runtime/memories.rs::mark_global_phase2_job_succeeded` 使用 `thread_id + source_updated_at`；本轮 Lime 提交/Review 已携带 `source_path + source_updated_at + content_hash`，定向验证中 | 共享 Agent 继续传递该实际选中版本，不能降回按路径提交；当前来源文件检查不提供跨数据库/文件系统的原子事务 |
 
 上述是直接源码事实与实施约束，不是已完成能力。REA Desktop timeline 证据只复用其静态 UI 观察范围；不用于证明后端 ownership、关闭顺序或真实产品执行。
+
+### 续接：精确快照提交
+
+当前窄写集：`memory_store/state.rs`、其独立测试模块、`memory_store/consolidation.rs` 与同目录测试；本计划和验证账本。Codex `state/src/runtime/memories.rs::mark_global_phase2_job_succeeded` 的选中更新需要 `thread_id + source_updated_at`；Lime 对应来源身份为 `scope_key + source_path`，并携带来源更新时间和内容摘要。替换按路径提交，保证等待 Agent 时同路径产生的新快照不被旧执行标为 consolidated，review 决策也不能覆盖新版。无公开协议、schema、配置或依赖变更。该并发正确性子步骤不能核销共享 Agent harness。
+
+本轮 `verify:local` 已在 typecheck 后进入前端批次，确认另一独立 local-ci 同时写共享 Vitest resume 状态，停止本轮持有的 PID 58261 及其子进程。实际 exit 143，未执行完默认门禁；version/i18n/lint/typecheck 通过，前端前三批共 21 项通过，第四批中断。保留其他进程；不得把该结果写成通过，后续只复用其独立生成的终态证据。
+
+实际实现：phase-2 candidate 带来源版本，事务内按精确版本推进 selection；review 不覆盖更新的提取结果。同版本 register 是 no-op，保留已有提取/选中标记/运行 lease；新版本清除旧提取产物与选中标记。旧模型 proposal 在文件归档前验证实际选中版本和文件摘要，发现更新则拒绝整份 proposal。删除已无生产调用的按路径 `mark_rollout_processed`、`RolloutStatus` 及其旧正向测试；状态测试迁入 `memory_store/state/tests.rs`，降低生产模块大小。没有引入 compat/deprecated 包装。
+
+该步骤对齐的是 snapshot selection 合同，不表示当前 note→archive artifact 机制已等同 Codex Memory workspace，也不承诺 SQLite 与文件系统之间的并发原子性。仍须在共享 Agent 片删除 phase-2 direct sampling 和旧 artifact proposal 接口。
+
+顺链核对发现 phase-1 实际所有任务共用固定 `memory-stage1` owner，且在返回后才读取来源 mtime。追加窄写集：`memory_store.rs` 的 phase-1 方法迁入新 `memory_store/extraction.rs`、上述状态 owner 与定向测试。直接对照 Codex `try_claim_stage1_job` 的独立 `ownership_token` 与更新输入版本后重新允许 retry 的条件，改为每次 claim 独立 token，提交绑定采样开始时的来源版本；旧提取者的 heartbeat、空输出、失败和成功不得覆盖新 token。该追加修复是精确快照成立的生产前提，仍不代替 phase-2 Agent harness。
+
+### 本轮验证边界
+
+- 第一轮快照回归 **37/37** 通过，原始结果保留 `memory-snapshot-initial-tests.log`；之后删除旧按路径处理入口并追加 phase-1 独立 token 修复，最终源码必须重新验证，不能用此结果覆盖后续变更。
+- `verify:gui-smoke` 真实 Electron 壳、preload/IPC、App Server JSON-RPC、reload、Memory 设置入口与三尺寸布局 **24/24** 通过。Main 和 npm 已退出，但 NetworkService utility 孤立后持有日志管道，导致 tee 不结束；通过测试专属 user-data 目录和 pipe identity 确认 PID 35961，仅对该 helper 发 SIGTERM 后命令 exit 0。原始 summary 保留，不改断言或 timeout；记为 **business pass / teardown residue**，不记 clean lifecycle pass，也不证明 Memory provider turn。
+- 较早两次 unknown-item current fixture 仍是业务断言通过、Main 正常退出超时，聚合后续场景未执行。不能用上述 shell smoke 消除此失败。
+- 同时存在独立 local-ci，已停止本轮持有的默认门禁，完整 `verify:local` 不通过/未完成；不用并行测试状态冒充本轮覆盖。
+
+源码摘要、直接 Codex 引用和 Lime 来源身份适配边界见 `snapshot-source-freeze.json`。Lime 现阶段来源仍是 filesystem `scope_key + source_path`，以 source_updated_at 和 content_hash 限定版本；完整 Codex Thread 来源生命周期、workspace baseline 和共享 Agent 都继续开放。窄切片四项退出条件是精确选中提交、来源登记与 retry、独立提取 ownership、旧入口清理；最终定向验证终态收齐后才核销。
+
+下一刀的存储拦截点必须覆盖 `event_store::append_runtime_events_to_stored_session` 与 `RuntimeCoreEventAppender`：它们还会被 command publisher、cancel/shutdown 和外部事件入口调用。不能仅在 Memory 的 start-turn 调用处关闭 writer，或克隆一个移除 projection store 的 Core 视图，就宣称会话无持久化；原 Core 的关闭入口仍可能写入。此为沿当前调用链的源码限制，尚未实现或取得 ephemeral 运行证据。

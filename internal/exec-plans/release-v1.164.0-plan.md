@@ -4,6 +4,10 @@
 
 ## 最新候选收口（2026-10-20）
 
+- `249a9c878a63151e01faa10dba0d1bca0069cc6b` 已推送 main；Quality `39367836958` 的 Integrity、GUI Smoke 与 Windows Shell Runtime 通过。Frontend Full 失败追加定位到 WindowsSandboxReadinessStatus 测试将 navigator 恢复为写死的 Mac，污染 NotionEditor Ctrl+S；已改为恢复原始属性，固定顺序 4 文件 14/14 通过。Rust Full 失败为 Memory read 相对路径 `MEMORY.md` 未产生引用 metadata；在 tool-runtime 路径分类 owner 修复，定向验证等待共享 Cargo 锁。
+- 用户追加要求 Agnes 模型选择、聊天、图片全部跑通，允许 computer use。安装版 Agnes 2.5 Pro 返回 503，最小请求证实该账户为 model_not_found；2.5 Flash 真实 GUI 已回复 OK 且 canonical turn.completed。3.0 与图片缺权威 capability，修复和完整 live 验证在 [Agnes 恢复计划](agnes-model-recovery-20261020.md) 跟踪，直接接口成功不冒充 GUI 完成。
+- 后继 Memory 精确快照/token、事件 drain 当前订阅与 restored-turn presentation listener 修复全部纳入；不覆盖其并行写集，最终发布以最后验证候选为准。
+- Agnes 候选完整 `npm run typecheck`、`npm run test:contracts` 与 `npm run verify:app-version` 已 exit0（`/tmp/lime-v11640-agnes-{typecheck,contracts,version}.log`）。先递交 main 触发远端完整质量矩阵；Rust 与最新 live 产品证据在本地继续，所有门禁收齐前保持旧 tag 不动。
 - `a5a42c27febe1b1e774d7bcb02801988307f3b29` 已提交并推送 main，包含当时全部候选；标签仍为 `7462c764aaf2197f7a4383119db590fad5e98575`，等待最终修复候选。以下恢复记录中的旧排除清单均已被用户“全部发布”覆盖。
 - Quality `39363308128`：Integrity、GUI Smoke、Windows Shell Runtime 通过；Frontend Full 与 Rust Full 失败。Rust 失败是客户端 consolidate fixture 已发送必填 `sessionId`、expected JSON 却遗漏，已同步 current 合同；前端失败已通过固定顺序复现为 experimental 测试改写 navigator.userAgent 后没有恢复，污染 NotionEditor Ctrl+S。修复实验设置与剪贴板平台 fixture 的原始属性恢复；固定顺序 3 文件 10/10 通过，保存/IME/卸载原断言保持。失败原件 `/tmp/lime-v11640-notion-ordered-2.log`，通过原件 `/tmp/lime-v11640-notion-ordered-green.log`。
 - 后继新增 Memory phase-2 lease/cancellation 与 GUI 同步问答单 owner 改动全部进入候选。Memory 新增 3/3 lease 回归通过；其 shared Agent harness 的完整对齐仍 active，不以本版发布核销。GUI 单 owner 8 文件 71/71 通过，后继真实组合 Electron 仍待终态。

@@ -1,23 +1,27 @@
 {
   "status": "active",
-  "scope": "Memory phase-2 lease ownership/cancellation prerequisite; shared Agent harness not completed",
+  "scope": "Memory phase-2 lease/cancellation and exact snapshot prerequisites, with independent phase-1 ownership; shared Agent harness remains incomplete",
   "reference": "reference-identity.json",
   "source_freeze": "source-freeze.json",
   "classification": {
     "current": [
       "LocalMemoryBackend phase-2 lease and artifact pipeline",
-      "RuntimeBackend phase-2 cancellation"
+      "RuntimeBackend phase-2 cancellation",
+      "Exact phase-2 snapshot selection and review",
+      "Version-qualified phase-1 output save with unique claim tokens"
     ],
     "compat": [],
     "deprecated": [],
     "deleted": [
-      "AtomicBool-only phase-2 heartbeat loss signaling"
+      "AtomicBool-only phase-2 heartbeat loss signaling",
+      "Path-only mark_rollout_processed and RolloutStatus",
+      "Fixed memory-stage1 ownership token"
     ],
     "outstanding": [
       "phase-2 direct sampling replacement",
       "true ephemeral internal session",
       "restricted tools/MCP/plugins/apps/skills/sandbox",
-      "shared Agent terminal/shutdown/Stop and exact stage1 snapshot identity"
+      "shared Agent terminal/shutdown/Stop, Codex Thread source lifecycle and workspace baseline"
     ]
   },
   "checks": [
@@ -54,15 +58,72 @@
     },
     {
       "command": "npm run smoke:agent-runtime-current-fixture",
-      "status": "running",
+      "status": "failed",
       "preflightPassed": 369,
-      "log": "agent-current-fixture.log"
+      "log": "agent-current-fixture.log",
+      "exitCode": 1,
+      "businessAssertionsPassed": true,
+      "failedScenario": "unknown-item normal-main-exit teardown",
+      "reason": "Main failed to exit normally within 15000 ms; reaped by SIGKILL after Gate failure",
+      "summary": "agent-unknown-item-failure-summary.json",
+      "unexecuted": "all later aggregate scenarios"
     },
     {
       "command": "npm run verify:local",
-      "status": "running",
+      "status": "interrupted",
       "log": "verify-local.log",
-      "scope": "entire current worktree, including independent parallel changes"
+      "scope": "entire current worktree, including independent parallel changes",
+      "exitCode": 143,
+      "reason": "Stopped only owned local-ci tree after confirming concurrent local-ci writing shared Vitest resume state",
+      "passedStages": [
+        "app-version",
+        "i18n unused",
+        "lint",
+        "changed-copy scan",
+        "typecheck"
+      ],
+      "frontendPassed": 21,
+      "frontendBatchesPassed": 3,
+      "interruptedBatch": 4
+    },
+    {
+      "command": "npm run smoke:claw-chat-current-fixture -- --scenario unknown-item --prefix memory-lease-unknown-item-isolated-20261020 --timeout-ms 240000",
+      "exitCode": 1,
+      "businessAssertionsPassed": true,
+      "reason": "same Main normal-exit timeout",
+      "summary": "agent-unknown-item-isolated-summary.json",
+      "log": "agent-unknown-item-isolated.log",
+      "build": "reused the renderer/sidecar built by this aggregate via its current build-ready flag; no timeout or assertion changes"
+    },
+    {
+      "command": "npm run verify:gui-smoke",
+      "exitCode": 0,
+      "status": "business_pass_with_teardown_residue",
+      "passed": 24,
+      "log": "gui-smoke-snapshot.log",
+      "summary": "gui-smoke-snapshot-summary.json",
+      "level": "Real Electron shell Gate B-F; inherited stdout required verified orphan cleanup; not a clean lifecycle pass or Memory Agent proof"
+    },
+    {
+      "command": "npm run governance:legacy-report",
+      "exitCode": 0,
+      "scope": "final snapshot and extraction owner cleanup",
+      "sourceFiles": 2361,
+      "testFiles": 1608,
+      "candidates": 0,
+      "classificationDrift": 0,
+      "violations": 0,
+      "log": "memory-snapshot-governance.log",
+      "rustSourceFiles": 2167,
+      "rustTestFiles": 301
+    },
+    {
+      "command": "npm run test:rust:unit -- -p app-server memory_store::",
+      "exitCode": 0,
+      "passed": 39,
+      "status": "intermediate_pass",
+      "log": "memory-snapshot-intermediate-tests.log",
+      "qualification": "Compiler started before the last overlapping-worker regression and stale-result counter edit; rerunning against the frozen sources before accepting final verification."
     }
   ],
   "attempts": [
@@ -87,7 +148,46 @@
     "Shared Memory consolidation Agent is not implemented; no full Memory alignment claim.",
     "No live provider, Windows, CLI/TUI or LimeCore run in this slice.",
     "No public JSON-RPC contract/schema/config/dependency changes in this slice.",
-    "No Electron Gate B result until fixture reaches terminal.",
-    "Ownership confirmation precedes local artifact writes; no cross-filesystem transaction or exact snapshot-version upgrade claim."
-  ]
+    "Current filesystem snapshot versions are guarded; source-file checks and SQLite changes are not one atomic transaction.",
+    "Shell smoke passed 24 business assertions but required cleanup of a verified orphan NetworkService helper; no Memory provider turn was executed."
+  ],
+  "snapshot_gui_teardown": {
+    "businessAssertionsPassed": 24,
+    "mainExited": true,
+    "wrapperStatus": "awaiting inherited stdout EOF",
+    "residualPid": 35961,
+    "residualType": "Electron NetworkService utility",
+    "ownershipProof": "Test-only user-data directory and FD 1/2 pipe 0x20ff1e55a8701228 paired with owned tee PID 16821 stdin 0x29d889ee22d6f16f",
+    "action": "SIGTERM only this verified orphan; no Main kill or assertion/timeout change",
+    "qualification": "Business Gate B-F assertions passed; teardown required external cleanup, so this is not a clean lifecycle pass."
+  },
+  "snapshot_prerequisite": {
+    "status": "validating",
+    "source_freeze": "snapshot-source-freeze.json",
+    "classification": {
+      "current": [
+        "version-qualified stage1 snapshot selection and review",
+        "independent phase1 claim ownership and guarded output save"
+      ],
+      "compat": [],
+      "deprecated": [],
+      "deleted": [
+        "path-only mark_rollout_processed",
+        "RolloutStatus",
+        "positive regression for path-only processing",
+        "fixed memory-stage1 lease owner"
+      ]
+    },
+    "remaining": [
+      "restricted shared consolidation Agent",
+      "ephemeral per-session storage",
+      "tool/extension/sandbox isolation",
+      "terminal shutdown and direct sampling deletion"
+    ],
+    "limits": [
+      "Source filesystem checks and SQLite writes do not form a cross-filesystem atomic transaction.",
+      "GUI shell smoke did not execute a Memory provider turn."
+    ]
+  },
+  "snapshot_source_freeze": "snapshot-source-freeze.json"
 }

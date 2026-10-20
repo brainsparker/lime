@@ -50,6 +50,8 @@ pub(super) struct MemoryStateStore {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(super) struct StageTwoInput {
     pub(super) source_path: String,
+    pub(super) source_updated_at: String,
+    pub(super) content_hash: String,
     pub(super) raw_memory: Option<String>,
     pub(super) rollout_summary: Option<String>,
     pub(super) rollout_slug: Option<String>,
@@ -85,16 +87,18 @@ impl MemoryStateStore {
         let conn = self.open()?;
         let mut statement = conn
             .prepare(
-                "SELECT source_path, output_raw_memory, output_rollout_summary, output_rollout_slug FROM memory_rollout_jobs WHERE scope_key = ?1 AND status = 'pending' AND (output_raw_memory IS NOT NULL OR output_rollout_summary IS NOT NULL) ORDER BY updated_at, source_path LIMIT ?2",
+                "SELECT source_path, source_updated_at, content_hash, output_raw_memory, output_rollout_summary, output_rollout_slug FROM memory_rollout_jobs WHERE scope_key = ?1 AND status = 'pending' AND (output_raw_memory IS NOT NULL OR output_rollout_summary IS NOT NULL) ORDER BY updated_at, source_path LIMIT ?2",
             )
             .map_err(|error| format!("prepare memory stage2 candidates: {error}"))?;
         let rows = statement
             .query_map(params![scope_key, limit.max(1) as i64], |row| {
                 Ok(StageTwoInput {
                     source_path: row.get(0)?,
-                    raw_memory: row.get(1)?,
-                    rollout_summary: row.get(2)?,
-                    rollout_slug: row.get(3)?,
+                    source_updated_at: row.get(1)?,
+                    content_hash: row.get(2)?,
+                    raw_memory: row.get(3)?,
+                    rollout_summary: row.get(4)?,
+                    rollout_slug: row.get(5)?,
                 })
             })
             .map_err(|error| format!("read memory stage2 candidates: {error}"))?;
@@ -108,6 +112,8 @@ impl MemoryStateStore {
         }
     }
 
+    /// Re-registering the same source version must preserve its output and active lease.
+    /// A new version cannot inherit extraction output or selection from its predecessor.
     pub(super) fn register_rollout(
         &self,
         scope_key: &str,
@@ -126,44 +132,24 @@ impl MemoryStateStore {
             ON CONFLICT(scope_key, source_path) DO UPDATE SET
                 content_hash = excluded.content_hash,
                 source_updated_at = excluded.source_updated_at,
-                status = CASE
-                    WHEN memory_rollout_jobs.status = 'consolidated'
-                        AND memory_rollout_jobs.content_hash = excluded.content_hash
-                    THEN 'consolidated'
-                    ELSE 'pending'
-                END,
+                status = 'pending',
                 lease_owner = NULL,
                 lease_expires_at = NULL,
+                output_raw_memory = NULL,
+                output_rollout_summary = NULL,
+                output_rollout_slug = NULL,
+                generated_at = NULL,
+                selected_for_phase2 = 0,
+                retry_at = NULL,
+                retry_remaining = 3,
+                last_error = NULL,
                 updated_at = excluded.updated_at
+            WHERE memory_rollout_jobs.content_hash != excluded.content_hash
+               OR memory_rollout_jobs.source_updated_at != excluded.source_updated_at
             "#,
             params![scope_key, source_path, content_hash, source_updated_at, now],
         )
         .map_err(|error| format!("register memory rollout: {error}"))?;
-        Ok(())
-    }
-
-    pub(super) fn mark_rollout_processed(
-        &self,
-        scope_key: &str,
-        source_path: &str,
-        status: RolloutStatus,
-    ) -> Result<(), String> {
-        let now = now_seconds();
-        let conn = self.open()?;
-        conn.execute(
-            r#"
-            INSERT INTO memory_rollout_jobs
-                (scope_key, source_path, content_hash, source_updated_at, status, updated_at)
-            VALUES (?1, ?2, '', '', ?3, ?4)
-            ON CONFLICT(scope_key, source_path) DO UPDATE SET
-                status = excluded.status,
-                lease_owner = NULL,
-                lease_expires_at = NULL,
-                updated_at = excluded.updated_at
-            "#,
-            params![scope_key, source_path, status.as_str(), now],
-        )
-        .map_err(|error| format!("mark memory rollout: {error}"))?;
         Ok(())
     }
 
@@ -474,7 +460,9 @@ impl MemoryStateStore {
                     last_error = NULL,
                     generated_at = ?6,
                     updated_at = ?6
-                WHERE scope_key = ?7 AND source_path = ?8 AND lease_owner = ?9
+                WHERE scope_key = ?7 AND source_path = ?8
+                  AND status = 'leased' AND lease_owner = ?9
+                  AND content_hash = ?1 AND source_updated_at = ?2
                 "#,
                 params![
                     output.content_hash,
@@ -602,12 +590,14 @@ impl MemoryStateStore {
         Ok(updated)
     }
 
+    /// Commit only the selected source versions, matching Codex's stage-1 snapshot identity.
+    /// A newer extraction at the same path remains pending for the next phase-2 run.
     pub(super) fn commit_phase2_snapshot(
         &self,
         scope_key: &str,
         owner: &str,
         completion_watermark: i64,
-        selected_sources: &[&str],
+        selected_sources: &[StageTwoInput],
     ) -> Result<bool, String> {
         let mut conn = self.open()?;
         let tx = conn
@@ -640,16 +630,44 @@ impl MemoryStateStore {
             params![scope_key],
         )
         .map_err(|error| format!("clear memory phase2 selection: {error}"))?;
-        for source_path in selected_sources {
+        for snapshot in selected_sources {
             tx.execute(
-                "UPDATE memory_rollout_jobs SET status = 'consolidated', selected_for_phase2 = 1, lease_owner = NULL, lease_expires_at = NULL, updated_at = ?1 WHERE scope_key = ?2 AND source_path = ?3",
-                params![now, scope_key, source_path],
+                "UPDATE memory_rollout_jobs SET status = 'consolidated', selected_for_phase2 = 1, lease_owner = NULL, lease_expires_at = NULL, updated_at = ?1 WHERE scope_key = ?2 AND source_path = ?3 AND source_updated_at = ?4 AND content_hash = ?5",
+                params![now, scope_key, snapshot.source_path, snapshot.source_updated_at, snapshot.content_hash],
             )
             .map_err(|error| format!("commit memory phase2 selection: {error}"))?;
         }
         tx.commit()
             .map_err(|error| format!("commit memory phase2 snapshot: {error}"))?;
         Ok(true)
+    }
+
+    pub(super) fn mark_stage2_review(
+        &self,
+        scope_key: &str,
+        snapshot: &StageTwoInput,
+    ) -> Result<bool, String> {
+        self.open()?
+            .execute(
+                "UPDATE memory_rollout_jobs SET status = 'review', lease_owner = NULL, lease_expires_at = NULL, updated_at = ?1 WHERE scope_key = ?2 AND source_path = ?3 AND source_updated_at = ?4 AND content_hash = ?5",
+                params![now_seconds(), scope_key, snapshot.source_path, snapshot.source_updated_at, snapshot.content_hash],
+            )
+            .map(|changed| changed > 0)
+            .map_err(|error| format!("mark memory stage2 snapshot for review: {error}"))
+    }
+
+    pub(super) fn stage2_snapshot_is_current(
+        &self,
+        scope_key: &str,
+        snapshot: &StageTwoInput,
+    ) -> Result<bool, String> {
+        self.open()?
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2 AND source_updated_at = ?3 AND content_hash = ?4)",
+                params![scope_key, snapshot.source_path, snapshot.source_updated_at, snapshot.content_hash],
+                |row| row.get(0),
+            )
+            .map_err(|error| format!("check memory stage2 snapshot identity: {error}"))
     }
 }
 
@@ -677,21 +695,6 @@ fn ensure_column(
     Ok(())
 }
 
-#[derive(Debug, Clone, Copy)]
-pub(super) enum RolloutStatus {
-    Consolidated,
-    Review,
-}
-
-impl RolloutStatus {
-    fn as_str(self) -> &'static str {
-        match self {
-            Self::Consolidated => "consolidated",
-            Self::Review => "review",
-        }
-    }
-}
-
 pub(super) fn hash_content(content: &str) -> String {
     let digest = Sha256::digest(content.as_bytes());
     hex::encode(digest)
@@ -705,167 +708,4 @@ fn now_seconds() -> i64 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn phase2_lease_is_exclusive_until_expiry() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        assert!(store
-            .try_claim_phase2("global", "owner-a", 60)
-            .expect("claim"));
-        assert!(!store
-            .try_claim_phase2("global", "owner-b", 60)
-            .expect("claim"));
-        store
-            .finish_phase2("global", "owner-a", true, None)
-            .expect("finish");
-        assert!(store
-            .try_claim_phase2("global", "owner-b", 60)
-            .expect("reclaim"));
-    }
-
-    #[test]
-    fn rollout_status_tracks_content_and_consolidation() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        store
-            .register_rollout("global", "rollout-1.md", "candidate", "2026-10-20")
-            .expect("register");
-        assert_eq!(store.count_consolidated("global").expect("count"), 0);
-        store
-            .mark_rollout_processed("global", "rollout-1.md", RolloutStatus::Consolidated)
-            .expect("mark");
-        assert_eq!(store.count_consolidated("global").expect("count"), 1);
-    }
-
-    #[test]
-    fn stage1_claim_snapshot_and_retry_are_recoverable() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        store
-            .register_rollout("global", "rollout-1.md", "candidate", "1")
-            .expect("register");
-        assert!(store
-            .try_claim_stage1("global", "rollout-1.md", "worker-a", 60, 1)
-            .expect("claim"));
-        assert!(!store
-            .try_claim_stage1("global", "rollout-1.md", "worker-b", 60, 1)
-            .expect("exclusive claim"));
-        assert!(store
-            .save_stage1_output(
-                "global",
-                "rollout-1.md",
-                "worker-a",
-                StageOneOutputSnapshot {
-                    source_path: "rollout-1.md".to_string(),
-                    content_hash: "hash".to_string(),
-                    source_updated_at: "1".to_string(),
-                    raw_memory: Some("fact".to_string()),
-                    rollout_summary: "summary".to_string(),
-                    rollout_slug: Some("slug".to_string()),
-                },
-            )
-            .expect("snapshot"));
-        assert!(store
-            .try_claim_stage1("global", "rollout-1.md", "worker-b", 60, 1)
-            .expect("claim after snapshot"));
-        assert!(store
-            .mark_stage1_failed("global", "rollout-1.md", "worker-b", 60, "provider")
-            .expect("failure"));
-        assert!(!store
-            .try_claim_stage1("global", "rollout-1.md", "worker-c", 60, 1)
-            .expect("backoff"));
-    }
-
-    #[test]
-    fn phase2_snapshot_commits_watermark_and_selected_sources_together() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        store
-            .register_rollout("global", "rollout-1.md", "candidate", "1")
-            .expect("register");
-        assert!(store
-            .try_claim_phase2("global", "owner-a", 60)
-            .expect("claim"));
-        assert!(store
-            .commit_phase2_snapshot("global", "owner-a", 42, &["rollout-1.md"])
-            .expect("commit"));
-        assert_eq!(store.count_consolidated("global").expect("count"), 1);
-    }
-
-    #[test]
-    fn phase2_heartbeat_requires_current_owner() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        assert!(store
-            .try_claim_phase2("global", "owner-a", 60)
-            .expect("claim"));
-        assert!(store
-            .heartbeat_phase2("global", "owner-a", 120)
-            .expect("heartbeat"));
-        assert!(!store
-            .heartbeat_phase2("global", "owner-b", 120)
-            .expect("foreign heartbeat"));
-    }
-
-    #[test]
-    fn stage1_no_output_clears_previous_snapshot_and_selection() {
-        let temp = tempfile::tempdir().expect("tempdir");
-        let store = MemoryStateStore::new(temp.path());
-        store
-            .register_rollout("global", "rollout-1.md", "candidate", "1")
-            .expect("register");
-        assert!(store
-            .try_claim_stage1("global", "rollout-1.md", "worker-a", 60, 1)
-            .expect("claim"));
-        assert!(store
-            .save_stage1_output(
-                "global",
-                "rollout-1.md",
-                "worker-a",
-                StageOneOutputSnapshot {
-                    source_path: "rollout-1.md".to_string(),
-                    content_hash: "hash".to_string(),
-                    source_updated_at: "1".to_string(),
-                    raw_memory: Some("fact".to_string()),
-                    rollout_summary: "summary".to_string(),
-                    rollout_slug: Some("slug".to_string()),
-                },
-            )
-            .expect("snapshot"));
-        assert!(store
-            .try_claim_phase2("global", "owner-a", 60)
-            .expect("claim phase2"));
-        assert!(store
-            .commit_phase2_snapshot("global", "owner-a", 1, &["rollout-1.md"])
-            .expect("commit phase2"));
-        assert!(store
-            .try_claim_stage1("global", "rollout-1.md", "worker-b", 60, 1)
-            .expect("reclaim"));
-        assert!(store
-            .mark_stage1_no_output("global", "rollout-1.md", "worker-b")
-            .expect("mark no output"));
-
-        let conn = store.open().expect("open state");
-        let row = conn
-            .query_row(
-                "SELECT status, output_rollout_summary, selected_for_phase2, last_error FROM memory_rollout_jobs WHERE scope_key = 'global' AND source_path = 'rollout-1.md'",
-                [],
-                |row| {
-                    Ok((
-                        row.get::<_, String>(0)?,
-                        row.get::<_, Option<String>>(1)?,
-                        row.get::<_, i64>(2)?,
-                        row.get::<_, Option<String>>(3)?,
-                    ))
-                },
-            )
-            .expect("read no-output state");
-        assert_eq!(row.0, "review");
-        assert_eq!(row.1, None);
-        assert_eq!(row.2, 0);
-        assert_eq!(row.3.as_deref(), Some("no_output"));
-    }
-}
+mod tests;

@@ -32,6 +32,8 @@ use tokio::sync::RwLock;
 mod managed_model_fetch_access;
 mod runtime_metadata;
 #[cfg(test)]
+mod agnes_tests;
+#[cfg(test)]
 mod truncation_tests;
 pub use runtime_metadata::{
     ProviderModelCacheAccess, ProviderModelRegistryMetadata, ProviderModelRegistryMetadataSource,
@@ -39,7 +41,7 @@ pub use runtime_metadata::{
 
 const PROVIDER_MODELS_CACHE_KEY_PREFIX: &str = "provider_models_fetch_cache:";
 const PROVIDER_MODELS_CACHE_TTL_SECONDS: i64 = 10 * 24 * 60 * 60;
-const PROVIDER_MODELS_CACHE_TAXONOMY_VERSION: u32 = 4;
+const PROVIDER_MODELS_CACHE_TAXONOMY_VERSION: u32 = 5;
 const XIAOMI_MODEL_FETCH_HOST_KEYWORDS: &[&str] = &["xiaomimimo.com"];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -4167,6 +4169,9 @@ mod tests {
             ("agnes-2.5-flash", "agnes/agnes-2.5-flash"),
             ("agnes-2.5-pro", "agnes/agnes-2.5-pro"),
             ("agnes-2.5-pro-alpha", "agnes/agnes-2.5-pro-alpha"),
+            ("agnes-2.5-pro-beta", "agnes/agnes-2.5-pro-beta"),
+            ("agnes-3.0-flash", "agnes/agnes-3.0-flash"),
+            ("agnes-3.0-pro", "agnes/agnes-3.0-pro"),
         ] {
             let response = ModelRegistryService::parse_openai_models_response(&format!(
                 r#"{{"data":[{{"id":"{model_id}"}}]}}"#

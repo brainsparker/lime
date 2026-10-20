@@ -18,6 +18,9 @@ const PROVIDER_CHANNEL_ERROR_MESSAGE =
 const PROVIDER_UNAVAILABLE_ERROR_MESSAGE =
   "当前模型通道暂时不可用，请稍后重试；如果持续失败，请检查 Provider 状态或切换到其他可用模型。";
 
+const MODEL_NOT_FOUND_ERROR_MESSAGE =
+  "当前模型在此服务商账户下不可用，请刷新模型列表并选择其他可用模型。";
+
 const INTERNAL_RUNTIME_ERROR_MESSAGE =
   "运行时返回内部错误，已保留详情用于排查。请稍后重试，或检查服务商与工具连接状态。";
 
@@ -236,6 +239,14 @@ export function resolveAgentRuntimeErrorPresentation(errorMessage: string): {
       displayMessage: PROVIDER_SESSION_EXPIRED_ERROR_MESSAGE,
       toastMessage: PROVIDER_SESSION_EXPIRED_ERROR_MESSAGE,
     };
+  }
+
+  if (/\bmodel_not_found\b/.test(lowerMessage)) {
+    const message = readAgentRuntimeCopy(
+      "agentChat.runtimeError.modelNotFound",
+      MODEL_NOT_FOUND_ERROR_MESSAGE,
+    );
+    return { displayMessage: message, toastMessage: message };
   }
 
   if (isLikelyProviderChannelError(lowerMessage)) {

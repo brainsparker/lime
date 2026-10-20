@@ -239,6 +239,27 @@ export function useAgentStream(options: UseAgentStreamOptions) {
   const getThreadItemsRef = useRef(getThreadItems);
   getMessagesRef.current = getMessages;
   getThreadItemsRef.current = getThreadItems;
+  const recoveredPresentationRef = useRef({
+    onWriteFile,
+    refreshSessionReadModel,
+    soulCopy,
+  });
+  recoveredPresentationRef.current = {
+    onWriteFile,
+    refreshSessionReadModel,
+    soulCopy,
+  };
+  const recoveredWriteFile = useCallback(
+    (...args: Parameters<NonNullable<typeof onWriteFile>>) => {
+      recoveredPresentationRef.current.onWriteFile?.(...args);
+    },
+    [],
+  );
+  const refreshRecoveredSession = useCallback(
+    (targetSessionId?: string) =>
+      recoveredPresentationRef.current.refreshSessionReadModel(targetSessionId),
+    [],
+  );
 
   const preparedSendEnv = useMemo<AgentStreamPreparedSendEnv>(
     () =>
@@ -388,8 +409,8 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       getMessages: () => getMessagesRef.current?.() ?? [],
       getThreadItems: () => getThreadItemsRef.current?.() ?? [],
       listenerMapRef,
-      onWriteFile,
-      refreshSessionReadModel,
+      onWriteFile: recoveredWriteFile,
+      refreshSessionReadModel: refreshRecoveredSession,
       runtime,
       setActiveStream,
       setCurrentTurnId,
@@ -399,7 +420,7 @@ export function useAgentStream(options: UseAgentStreamOptions) {
       setPendingActions,
       setThreadItems,
       setThreadTurns,
-      soulCopy,
+      soulCopy: recoveredPresentationRef.current.soulCopy,
       target,
       warnedKeysRef,
     })
@@ -430,10 +451,10 @@ export function useAgentStream(options: UseAgentStreamOptions) {
     getMessagesRef,
     getThreadItemsRef,
     listenerMapRef,
-    onWriteFile,
+    recoveredWriteFile,
     recoveredBindingKey,
     recoveredBindingTargetRef,
-    refreshSessionReadModel,
+    refreshRecoveredSession,
     runtime,
     setActiveStream,
     setCurrentTurnId,
@@ -443,7 +464,6 @@ export function useAgentStream(options: UseAgentStreamOptions) {
     setPendingActions,
     setThreadItems,
     setThreadTurns,
-    soulCopy,
     warnedKeysRef,
   ]);
 

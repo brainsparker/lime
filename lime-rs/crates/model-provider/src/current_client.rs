@@ -57,6 +57,7 @@ mod lowering;
 mod ollama_responses_tests;
 #[cfg(test)]
 mod request_capture_tests;
+mod response_error;
 mod stream;
 #[cfg(test)]
 mod stream_tests;
@@ -73,6 +74,7 @@ pub use health::{
     CurrentProviderHealthRegistry, CurrentProviderHealthSnapshot, CurrentProviderHealthState,
 };
 use lowering::{anthropic_request, chat_completions_request, responses_request};
+use response_error::ensure_success_response;
 use stream::{anthropic_sse, openai_chat_sse, responses_sse};
 use transport::{
     observed_retry_delay, provider_retry_after, request_failure, request_retry_reason,
@@ -1300,23 +1302,28 @@ impl CurrentProviderClient {
                     last_response = Some(response);
                     break;
                 }
-                if should_retry_stream_request_status(response.status())
-                    && !server_disallows_retry(response.headers())
+                let status = response.status();
+                let headers = response.headers().clone();
+                let error = match ensure_success_response(response).await {
+                    Ok(response) => return Ok(response),
+                    Err(error) => error,
+                };
+                if should_retry_stream_request_status(status)
+                    && error.retryable
                     && attempts < MAX_STREAM_REQUEST_ATTEMPTS
                 {
                     let delay = observed_retry_delay(
                         &self.health,
-                        response.headers(),
+                        &headers,
                         attempts,
                         "http",
                         "server_error",
-                        Some(response.status().as_u16()),
+                        Some(status.as_u16()),
                     );
-                    drop(response);
                     tokio::time::sleep(delay).await;
                     continue;
                 }
-                return ensure_success_response(response).await;
+                return Err(error);
             }
         }
 
@@ -1494,23 +1501,6 @@ fn health_failure(
         Some(FailureClassification::Unknown) => retryable.unwrap_or(unknown_is_failure),
         None => retryable.unwrap_or(unknown_is_failure),
     }
-}
-
-async fn ensure_success_response(response: Response) -> Result<Response, CurrentProviderError> {
-    if response.status().is_success() {
-        return Ok(response);
-    }
-    let status = response.status();
-    let retry_after = provider_retry_after(response.headers());
-    let mut error = CurrentProviderError::with_status(
-        status,
-        format!("Provider 请求失败 ({status})"),
-        retry_after,
-    );
-    if server_disallows_retry(response.headers()) {
-        error.retryable = false;
-    }
-    Err(error)
 }
 
 fn classification_from_status(status: StatusCode) -> FailureClassification {
@@ -2045,7 +2035,10 @@ mod tests {
         assert!(error.message.contains("require a Responses provider route"));
     }
 
-    async fn stream_error(client: &CurrentProviderClient, scenario: &str) -> CurrentProviderError {
+    pub(super) async fn stream_error(
+        client: &CurrentProviderClient,
+        scenario: &str,
+    ) -> CurrentProviderError {
         match client.stream(text_request()).await {
             Ok(_) => panic!("{scenario}: expected provider request to fail"),
             Err(error) => error,
@@ -3578,7 +3571,7 @@ mod tests {
         assert!(error.retryable);
     }
 
-    async fn spawn_http_fixture(
+    pub(super) async fn spawn_http_fixture(
         responses: Vec<String>,
     ) -> (String, Arc<AtomicUsize>, JoinHandle<()>) {
         let listener = TcpListener::bind("127.0.0.1:0")
@@ -3836,7 +3829,7 @@ mod tests {
         String::from_utf8_lossy(&received).into_owned()
     }
 
-    fn fixture_response(status: &str, extra_headers: &str, body: &str) -> String {
+    pub(super) fn fixture_response(status: &str, extra_headers: &str, body: &str) -> String {
         format!(
             "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n{extra_headers}\r\n{body}",
             body.len()

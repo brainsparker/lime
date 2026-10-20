@@ -59,6 +59,9 @@ const SOURCE_FILES = [
   "src/lib/api/agentRuntime/appServerCanonicalItemReader.ts",
   "src/lib/api/agentRuntime/appServerEventStreamRouting.ts",
   "src/lib/api/agentRuntime/threadClient.ts",
+  "src/lib/api/appServerEventBus.ts",
+  "src/components/agent/chat/hooks/useAgentStream.ts",
+  "src/components/agent/chat/hooks/agentStreamResumeBinding.ts",
   "scripts/agent-runtime/tool-execution-current-contract.mjs",
   "scripts/lib/openai-compatible-fixture-server.mjs",
   "scripts/lib/invoke-trace-collector.mjs",
@@ -160,6 +163,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
   const consoleErrors = [];
   const pageErrors = [];
   const rendererMessages = [];
+  const rendererMessageReads = [];
   let handle, mainExit, fixture, collector, collectorPage, failure;
   const asyncQuestion = Promise.withResolvers();
   const asyncContinuation = Promise.withResolvers();
@@ -173,6 +177,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     return { ready: true, reason: freshness.reason };
   };
   const captureDiagnostics = async (name) => {
+    await Promise.allSettled(rendererMessageReads);
     const snapshot = {
       stage: summary.stage,
       rendererMessages,
@@ -290,9 +295,24 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
     });
     const page = handle.page;
     page.on("console", (message) => {
-      if (!["warning", "error"].includes(message.type())) return;
+      if (
+        !["warning", "error"].includes(message.type()) &&
+        !message.text().startsWith("[AgentDebug]")
+      )
+        return;
       const entry = { type: message.type(), text: message.text() };
       rendererMessages.push(entry);
+      rendererMessageReads.push(
+        Promise.allSettled(
+          message.args().map((argument) => argument.jsonValue()),
+        ).then((results) => {
+          entry.details = results.map((result) =>
+            result.status === "fulfilled"
+              ? result.value
+              : { unavailable: String(result.reason) },
+          );
+        }),
+      );
       if (message.type() === "error") consoleErrors.push(entry.text);
     });
     const call = async (method, params) => {
@@ -332,6 +352,7 @@ export async function runRequestUserInputFixture(argv = process.argv.slice(2)) {
       model: provider.modelPreference,
     });
     await page.evaluate((sessionId) => {
+      localStorage.setItem("lime:agent-debug", "1");
       localStorage.setItem("lime:debug:claw-trace-enabled:v1", "true");
       sessionStorage.setItem(
         "lime.appNavigation.restore.v1",

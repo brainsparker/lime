@@ -15,6 +15,56 @@ describe("AppServerEventBus", () => {
     vi.useRealTimers();
   });
 
+  it("drain 在途切换订阅时，应向当前订阅交付问题与终态，不能回投已卸载订阅", async () => {
+    vi.useFakeTimers();
+    const pendingDrain = Promise.withResolvers<unknown[]>();
+    const drainEvents = vi
+      .fn()
+      .mockReturnValueOnce(pendingDrain.promise)
+      .mockResolvedValue([]);
+    const eventBus = new AppServerEventBus({ drainEvents });
+    const previous = vi.fn();
+    const current = vi.fn();
+    const unsubscribePrevious = eventBus.subscribe({
+      onNotifications: previous,
+    });
+    const unsubscribeCurrent = eventBus.subscribe({ onNotifications: current });
+    unsubscribePrevious();
+    const notifications = [
+      {
+        method: "item/completed",
+        params: {
+          threadId: "thread-1",
+          turnId: "turn-1",
+          item: {
+            id: "question-1",
+            type: "agentMessage",
+            delivery: "async",
+            text: "How should I continue?",
+            questions: [{ title: "How should I continue?", options: [] }],
+          },
+        },
+      },
+      {
+        method: "turn/completed",
+        params: {
+          threadId: "thread-1",
+          turn: { id: "turn-1", status: "completed" },
+        },
+      },
+    ];
+    try {
+      pendingDrain.resolve(notifications);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(current).toHaveBeenCalledExactlyOnceWith(notifications);
+      expect(previous).not.toHaveBeenCalled();
+    } finally {
+      unsubscribeCurrent();
+      eventBus.reset();
+      await vi.runOnlyPendingTimersAsync();
+    }
+  });
+
   it("重置默认 event bus 后旧 drain loop 应退出", async () => {
     vi.useFakeTimers();
     const oldDrainEvents = vi.fn().mockResolvedValue([]);

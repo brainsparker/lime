@@ -852,6 +852,7 @@
   "agentChat.runtimeError.modelSelectionRequired": "请先在输入框底部选择可用模型，或完成服务商登录后再发送。",
   "agentChat.modelSettings.updateFailed": "模型设置更新失败：{{message}}",
   "agentChat.runtimeError.providerQuota": "当前模型通道返回了计费或额度类错误，请检查该 Provider/模型通道的计费、配额或授权状态，或切换到其他可用模型后重试。",
+  "agentChat.runtimeError.modelNotFound": "当前模型在此服务商账户下不可用，请刷新模型列表并选择其他可用模型。",
   "agentChat.runtimeError.providerUnavailable": "当前模型通道暂时不可用，请稍后重试；如果持续失败，请检查 Provider 状态或切换到其他可用模型。",
   "agentChat.runtime.failure.prefix": "执行失败：",
   "agentChat.runtimeStrip.action.reviewFileChanges": "查看变更",

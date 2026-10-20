@@ -93,3 +93,5 @@ current：表中唯一owner、canonical输入与消息投影。已删除：旧sl
 - 冻结后门禁：完整 Renderer/Node types r12、全局lint r11（后继goal窄改另有scoped lint）、五语言完整率100%/unused0、contracts r10通过。标准 `npm run verify:gui-smoke` r11通过，真实shell run `standalone-shell-01-20261019205845-49442`；新Renderer/Host/sidecar均已构建，专项Desktop场景与聚合current fixture待结算。类型r11在冻结前捕获payload literal widen两错，已由current owner显式类型修正，原失败日志保留。
 
 - 同步问答新收据：`codex-question-20261020-r18` 已通过真实 Electron Gate B，覆盖选项/自由文本、同 Renderer 跨线程题稿恢复及 Escape 精确取消；正常 Main code0/signalnull、零错误、源/产物身份稳定。标准 shell `standalone-shell-01-20261020015412-79399` 为 24/24。详见 [验证收据](artifacts/request-user-input-20261020/validation-r18.json)；后继异步可信接线、完整 Files/Goal/Workbench 与 Windows/live/packaged 不在该收据范围。
+
+- 组合问答后继：r27 的真实 async 子场景通过，但同步出现两份可提交面板；重复问答→A2UI producer、透传和提交分支已直接删除。r28/r30 在实时异步问题显示与 normal Main exit 门禁失败，r29/r31 在 Electron 启动前被过期 sidecar 拦截，均保留原失败。已确定并修复 shared drain 在途订阅替换竞态，后继 5 套 80 项、contracts、新 Renderer 通过；该修复不足以解释 r30 全部故障。当前阶段继续定位通知→当前路由→canonical projection，不以定向全绿或此前单场景通过结算组合或整体 GUI 完成。详见[问答计划](async-user-input-alignment-20261020.md)与[后继收据](artifacts/async-user-input-20261020/delivery-validation-r29-r32.json)。

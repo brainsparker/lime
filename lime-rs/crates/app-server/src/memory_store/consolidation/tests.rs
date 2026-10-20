@@ -270,3 +270,113 @@ async fn dropped_phase2_cancels_execution_and_keeps_lease_until_expiry() {
         .unwrap());
     assert!(root.join(source).is_file());
 }
+
+struct ChangingSource {
+    state: MemoryStateStore,
+    scope: String,
+    register_new_version: bool,
+    review: bool,
+}
+
+#[async_trait]
+impl MemoryStageTwoProvider for ChangingSource {
+    async fn sample(
+        &self,
+        request: MemoryStageTwoProviderRequest,
+    ) -> Result<String, RuntimeCoreError> {
+        let source = &request.inputs[0].source_path;
+        let path = request.root_path.join(source);
+        if self.register_new_version {
+            // A new extraction at the same path must not inherit the old decision, even
+            // when the underlying text is unchanged and only the source version advances.
+            let content = fs::read_to_string(&path).unwrap();
+            self.state
+                .register_rollout(&self.scope, source, &content, "new-source-version")
+                .unwrap();
+            assert!(self
+                .state
+                .try_claim_stage1(&self.scope, source, "new-extraction", 60, 8)
+                .unwrap());
+            assert!(self
+                .state
+                .save_stage1_output(
+                    &self.scope,
+                    source,
+                    "new-extraction",
+                    state::StageOneOutputSnapshot {
+                        source_path: source.clone(),
+                        content_hash: state::hash_content(&content),
+                        source_updated_at: "new-source-version".into(),
+                        raw_memory: Some("New snapshot must remain pending.".into()),
+                        rollout_summary: "A new extraction arrived during phase-2.".into(),
+                        rollout_slug: None,
+                    },
+                )
+                .unwrap());
+        } else {
+            // External file edits need protection before an older proposal archives them.
+            fs::write(path, "New source contents that have not been extracted.").unwrap();
+        }
+        Ok(serde_json::json!({
+            "entries": [{
+                "source_path": source,
+                "decision": if self.review { "review" } else { "accept" },
+                "memory": if self.review { None } else { Some("An old decision.") },
+                "reason": if self.review { Some("An old review decision.") } else { None }
+            }],
+            "summary": "old snapshot"
+        })
+        .to_string())
+    }
+}
+
+#[tokio::test]
+async fn changed_source_version_during_phase2_preserves_new_source_and_artifacts() {
+    for register_new_version in [false, true] {
+        for review in [false, true] {
+            let temp = tempfile::tempdir().unwrap();
+            let backend = LocalMemoryBackend::new(temp.path().join("data"));
+            let (root, scope, source) = seed(&backend).await;
+            let memory_before = fs::read(root.join(MEMORY_FILE)).unwrap();
+            let summary_before = fs::read(root.join(SUMMARY_FILE)).unwrap();
+            let worker = ChangingSource {
+                state: backend.state.clone(),
+                scope: scope.clone(),
+                register_new_version,
+                review,
+            };
+            let error = run_stage2(&backend, root_params(), &route(), &worker)
+                .await
+                .unwrap_err();
+            assert!(
+                error.to_string().contains("source snapshot changed"),
+                "{error}"
+            );
+            assert!(
+                root.join(&source).is_file(),
+                "new source must not be archived"
+            );
+            assert_eq!(fs::read(root.join(MEMORY_FILE)).unwrap(), memory_before);
+            assert_eq!(fs::read(root.join(SUMMARY_FILE)).unwrap(), summary_before);
+            let snapshots = backend.state.stage2_candidates(&scope, 20).unwrap();
+            assert_eq!(snapshots.len(), 1);
+            if register_new_version {
+                assert_eq!(snapshots[0].source_updated_at, "new-source-version");
+                assert_eq!(
+                    snapshots[0].raw_memory.as_deref(),
+                    Some("New snapshot must remain pending.")
+                );
+            } else {
+                assert_eq!(
+                    fs::read_to_string(root.join(&source)).unwrap(),
+                    "New source contents that have not been extracted."
+                );
+            }
+            let (watermark, selected): (i64, bool) = backend.state.open().unwrap().query_row(
+                "SELECT completed_watermark, (SELECT selected_for_phase2 FROM memory_rollout_jobs WHERE scope_key = ?1 AND source_path = ?2) FROM memory_phase2_jobs WHERE scope_key = ?1",
+                params![scope, source], |row| Ok((row.get(0)?, row.get(1)?)),
+            ).unwrap();
+            assert_eq!((watermark, selected), (0, false));
+        }
+    }
+}

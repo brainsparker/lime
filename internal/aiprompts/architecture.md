@@ -1111,6 +1111,19 @@ Renderer 可以临时保存输入框、选择态、展开态和 optimistic UI；
 
 ### 3.2.1 同步问答与 pending identity
 
+共享 `AppServerEventBus` 继续作为 Renderer 的唯一 drain/fanout owner。drain 在途期间
+订阅可能卸载或替换，因此返回批次通过 connection generation 检查后，必须重新读取当前
+活动订阅，再投递 notification 与 reverse request；不得向发起 drain 时的已卸载快照投递。
+recent replay 的完成登记仍属于请求该 replay 的订阅，不转移给后继订阅，也不清除序列门禁。
+这只是现有 transport 消费合同的修正，不增加业务状态或第二份事件总线；root 于
+2026-10-20 确认。对应确定性红绿回归与真实桌面结果见问答执行计划。
+
+活动 Turn 的恢复监听由 thread/turn scope 与既有 stream controller 持有。
+文件展示回调、read model 刷新回调和展示文案的引用更新不得拆除该监听；回调通过稳定入口
+读取最新 presentation 引用，不改变 canonical projection 或 listener identity。真实终态仍经
+原事件处理器清理 stream 与监听，线程切换/卸载仍走原 scope 清理。root 于 2026-10-20 确认
+本段为现有恢复 owner 的生命周期修正，非新的订阅或 runtime。
+
 `PendingInteractionController` 是 reverse request 的唯一前端 pending owner；
 `PendingInteractionLayer` 选择当前线程的 canonical 请求，`DecisionPanel` 只把
 `ask_user` 委托 `RequestUserInputPanel`。问答面板只拥有逐题选择、草稿、焦点和提交锁，

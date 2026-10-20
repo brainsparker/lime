@@ -272,15 +272,19 @@ fn memory_usage_for_path(path: &str) -> Option<Value> {
         "v1"
     };
     let normalized = normalized.replace("memories_v2/", "memories/");
-    let kind = if normalized.contains("memories/MEMORY.md") {
+    let relative = normalized
+        .strip_prefix("memories/")
+        .or_else(|| normalized.rsplit_once("/memories/").map(|(_, path)| path))
+        .unwrap_or(&normalized);
+    let kind = if relative == "MEMORY.md" {
         "memory_md"
-    } else if normalized.contains("memories/memory_summary.md") {
+    } else if relative == "memory_summary.md" {
         "memory_summary"
-    } else if normalized.contains("memories/raw_memories.md") {
+    } else if relative == "raw_memories.md" {
         "raw_memories"
-    } else if normalized.contains("memories/rollout_summaries/") {
+    } else if relative.starts_with("rollout_summaries/") {
         "rollout_summaries"
-    } else if normalized.contains("memories/skills/") {
+    } else if relative.starts_with("skills/") {
         "skills"
     } else {
         return None;

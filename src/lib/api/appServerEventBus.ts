@@ -1,4 +1,5 @@
 import { AppServerClient } from "./appServerClient";
+import { logAgentDebug } from "@/lib/agentDebug";
 import {
   METHOD_SERVER_REQUEST_RESOLVED,
   isThreadSettingsUpdatedNotification,
@@ -162,19 +163,45 @@ export class AppServerEventBus {
           }
           const notifications = readNotifications(drainedMessages);
           const serverRequests = readServerRequests(drainedMessages);
+          // Subscriptions can change while the shared transport drain is pending.
+          const deliverySubscriptions = this.#activeSubscriptions();
+          if (drainedMessages.length > 0) {
+            logAgentDebug(
+              "AppServerEventBus",
+              "drain",
+              {
+                methods: notifications.map(
+                  (notification) => notification.method,
+                ),
+                notificationCount: notifications.length,
+                serverRequestCount: serverRequests.length,
+                subscriptionCount: deliverySubscriptions.length,
+              },
+              { consoleOnly: true },
+            );
+          }
           hasDrainedMessages =
             notifications.length > 0 || serverRequests.length > 0;
           this.#dispatchNotifications(
             notifications,
             "drain",
-            activeSubscriptions,
+            deliverySubscriptions,
           );
           this.#queueServerRequests(serverRequests);
-          this.#flushPendingServerRequests(activeSubscriptions);
+          this.#flushPendingServerRequests(deliverySubscriptions);
         } catch (error) {
           if (connectionGeneration !== this.#connectionGeneration) {
             continue;
           }
+          logAgentDebug(
+            "AppServerEventBus",
+            "deliveryFailed",
+            { error },
+            {
+              consoleOnly: true,
+              level: "error",
+            },
+          );
           for (const subscription of activeSubscriptions) {
             subscription.onError?.(error);
           }
