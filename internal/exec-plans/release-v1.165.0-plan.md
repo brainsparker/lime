@@ -104,3 +104,9 @@
 
 - CodeMode 阻断已在真实同版 macOS packaged artifact 复现：Memory consolidation 插入前台两次采样之间，原夹具向 Memory 返回400并错误归入前台证据。HTTP 可控重现证明 Memory 抢先时前台自身会400。仅认领四份 CodeMode gate/fixture/test 文件，原树对应路径仍精确等于 e6，已安全同步；provider 逻辑移入同领域 helper，gate 主文件由1026降为923行，不扩展生产业务。本次退出条件为独立后台采样、保留严格 foreground tool output / trace / process / DOM 断言、异常证据落盘、定向回归及修复后 Windows packaged gate 复验。
 - 修复后11/11定向测试、四文件ESLint、版本一致性1.165.0和release workflow guard均通过；同版macOS安装包21/21业务断言通过，foreground 2次、Memory 1次、provider error 0。两个本任务本地packaged Main退出清理未自行完成，已只对它们发送SIGTERM并保留收据，不冒充自然退出或Windows通过。旧SHA的第二次Release重跑已取消；本版仍draft、无正式资产/npm/R2发布。等待已推送tag移动策略，原tag不自动覆盖。收据 `artifacts/release-v1.165.0/windows-code-mode-gate-fix.json`。
+
+- 用户单独明确确认重打已推送标签；四份测试夹具修复及发布证据提交 `86403391a2b3abdd7a31de870c797229137f93a6` 已推送 main，实际提交钩子27/27。以旧tag object精确force-with-lease将 `v1.165.0` 更新为新annotated object `cec63993673cb4dfb9849d7a0f5c8e0e82da9e8f`，远端peeled commit精确为864。新Release `39589593962` 与Quality `39588619226` 绑定同一修复SHA，等待全渠道实际终态；原发布收据保留，新增 `tag-replacement.json`。本阶段窄写集仅本计划与 `artifacts/release-v1.165.0/` 发布记录，不纳入后续owner改动。
+
+- 新Release第三轮Windows CodeMode快速失败且成功保存summary：foreground 3、memory 0，第二请求已有严格tool marker、第三请求被误判为前台。隔离副本将canonical prompt检出为CRLF并实际替换模板变量后8/8 HTTP回归稳定失败，确认LF空行切分遗漏Windows CRLF。新Quality第八轮Rust Full与GUI Smoke成功，Frontend 121批6项因Review测试留下只读scrollIntoView失败；固定Review先执行可稳定重现6失败，反向顺序11/11成功。本轮追加窄写集仅code-mode fixture及其测试、ReviewThreadSidePanelTab.test.tsx和本发布记录：归一化提示词换行、覆盖LF/CRLF和实际模板替换、恢复原DOM属性descriptor；不改生产源码、超时或业务断言。修复验证后继续同版发布。
+
+- 三文件修复后canonical CRLF检出 + LF/CRLF实际模板替换回归8/8、CodeMode完整定向15/15、固定Review先执行的原失败组合11/11、ESLint、完整 `npm run typecheck`（renderer与Node）、版本一致性1.165.0全部通过。前端从121批继续已越过原失败批次；保留原CI与可控失败日志。准备仅提交三测试文件和发布证据并继续已授权的同版发布，不纳入其他owner改动。

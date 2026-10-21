@@ -21,10 +21,13 @@ const MEMORY_PROMPT_PREFIX = fs
     ),
     "utf8",
   )
+  .replaceAll("\r\n", "\n")
   .split("\n\n")[0];
 
 function isMemoryRequest(value) {
-  if (typeof value === "string") return value.startsWith(MEMORY_PROMPT_PREFIX);
+  if (typeof value === "string") {
+    return value.replaceAll("\r\n", "\n").startsWith(MEMORY_PROMPT_PREFIX);
+  }
   if (Array.isArray(value)) return value.some(isMemoryRequest);
   if (value && typeof value === "object") {
     return Object.values(value).some(isMemoryRequest);

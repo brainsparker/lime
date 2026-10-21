@@ -39,11 +39,17 @@ vi.mock("react-i18next", () => ({
 
 const roots: Array<{ root: Root; container: HTMLDivElement }> = [];
 const scrollIntoView = vi.fn();
+let originalScrollIntoView: PropertyDescriptor | undefined;
 beforeEach(() => {
   configureBooleanGateway(atomGateway, { "app-shell-file-tree-open": true });
   globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+  originalScrollIntoView = Object.getOwnPropertyDescriptor(
+    HTMLElement.prototype,
+    "scrollIntoView",
+  );
   Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
     configurable: true,
+    writable: true,
     value: scrollIntoView,
   });
   git.status.mockResolvedValue({
@@ -62,6 +68,15 @@ afterEach(() => {
   for (const { root, container } of roots.splice(0)) {
     act(() => root.unmount());
     container.remove();
+  }
+  if (originalScrollIntoView) {
+    Object.defineProperty(
+      HTMLElement.prototype,
+      "scrollIntoView",
+      originalScrollIntoView,
+    );
+  } else {
+    delete (HTMLElement.prototype as Partial<HTMLElement>).scrollIntoView;
   }
   vi.resetAllMocks();
 });

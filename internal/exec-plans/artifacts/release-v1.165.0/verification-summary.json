@@ -583,21 +583,24 @@
     "tagged": true,
     "pushed": true,
     "remoteTagExists": true,
-    "checkpoint": "Release draft blocked by Memory/CodeMode test fixture interference. Four test-only files repaired and verified locally; existing tag unchanged.",
+    "checkpoint": "Tag replacement triggered release r3; Windows blocked by CRLF fixture prompt parsing. Three test-only repairs pass exact CRLF and order regressions, full typecheck, ESLint and version checks; preparing repair commit.",
     "mainPushed": true,
     "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
     "qualityRun": 39573513577,
     "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39573513577",
-    "latestSourceCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+    "latestSourceCommit": "86403391a2b3abdd7a31de870c797229137f93a6",
     "tag": "v1.165.0",
-    "tagCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+    "tagCommit": "86403391a2b3abdd7a31de870c797229137f93a6",
     "tagReceipt": "tag-publication.json",
-    "releaseRun": 39577054805,
-    "releaseUrl": "https://github.com/limecloud/lime/actions/runs/39577054805",
+    "releaseRun": 39589593962,
+    "releaseUrl": "https://github.com/limecloud/lime/actions/runs/39589593962",
     "qualityConclusion": "success",
     "qualityTerminal": "quality-r7-terminal.json",
-    "releaseConclusion": "attempt-1-failure-attempt-2-cancelled",
-    "releaseAttempt": 2
+    "releaseConclusion": "in_progress",
+    "releaseAttempt": 1,
+    "tagReplacementReceipt": "tag-replacement.json",
+    "latestQualityRun": 39588619226,
+    "latestQualityConclusion": "failure: frontend fixture property order; Rust Full and GUI Smoke succeeded"
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
@@ -631,7 +634,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T10:53:40.248641+00:00",
+  "recordedAt": "2026-10-21T11:34:43.153527+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -715,5 +718,6 @@
     "curlExitCode": 28,
     "error": "SSL connection timeout",
     "qualification": "Default host prepublication connectivity only. Infer actual public host from built release feed before final channel verification."
-  }
+  },
+  "crlfAndDomFixReceipt": "crlf-and-dom-gate-fixes.json"
 }

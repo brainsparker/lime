@@ -18,9 +18,6 @@ const memoryPrompt = fs.readFileSync(
   ),
   "utf8",
 );
-const memoryInput = [
-  { role: "user", content: [{ type: "input_text", text: memoryPrompt }] },
-];
 const foregroundInput = [{ role: "user", content: "Run the CodeMode gate" }];
 const tools = [
   { type: "custom", name: "exec", format: { type: "grammar", syntax: "lark" } },
@@ -38,7 +35,24 @@ async function sample(fixture, input) {
   return { status: response.status, text: await response.text() };
 }
 
-describe("CodeMode fixture conversations", () => {
+describe.each([
+  { label: "LF", newline: "\n" },
+  { label: "CRLF", newline: "\r\n" },
+])("CodeMode fixture conversations ($label)", ({ newline }) => {
+  const memoryInput = [
+    {
+      role: "user",
+      content: [
+        {
+          type: "input_text",
+          text: memoryPrompt
+            .replaceAll("\r\n", "\n")
+            .replaceAll("\n", newline)
+            .replace(/\{\{[^}]+\}\}/gu, "fixture-memory-value"),
+        },
+      ],
+    },
+  ];
   it.each([0, 1, 2])(
     "isolates startup memory at foreground boundary %i",
     async (memoryBoundary) => {
