@@ -545,13 +545,47 @@
       "bytes": 0,
       "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "compressedSha256": "9ceffb7310338057cfe71a4ae1e2c98d2c485d81cdef906532a801f457a38d64"
+    },
+    {
+      "source": "/tmp/lime-v11650-quality-r6-frontend-full.log",
+      "artifact": "lime-v11650-quality-r6-frontend-full.log.gz",
+      "bytes": 71346095,
+      "sha256": "630f81c746da79f9e69b6170de9c4d5843dd1bde5f20dff66a905edcef851d0c",
+      "compressedSha256": "0b350b1f798964ffade95785799cf45dfa47351940a5c4d486cafb909c0d11c0"
+    },
+    {
+      "source": "Release repair evidence code-mode-fixed-gate-b.log",
+      "artifact": "code-mode-fixed-gate-b.log.gz",
+      "bytes": 463,
+      "sha256": "8cf63bad4dd95e0612740a7217ab6eeaf892a3771e53d5880ddaa649e84208a1",
+      "compressedSha256": "097554fe0314cdecd68f7921d97ceafbb1392634f49ac8302b7b84b46b303817"
+    },
+    {
+      "source": "Release repair evidence code-mode-fixture-tests.log",
+      "artifact": "code-mode-fixture-tests.log.gz",
+      "bytes": 640,
+      "sha256": "a0741040a6e2cb4ab84ef08df5c06cb9cc771a8684c933a4083e9668e43021e9",
+      "compressedSha256": "7cf665cd68e704c352f04e13c4bf7134d2fac10d7fab6e2264e1fdd379548d6a"
+    },
+    {
+      "source": "Release repair evidence code-mode-original-observation.log",
+      "artifact": "code-mode-original-observation.log.gz",
+      "bytes": 833,
+      "sha256": "957db12d0ad46051d71cfb9f8dfde6be6cde29430aeafecfa37c0500310010a2",
+      "compressedSha256": "abe8106dac5e294f7ddad7fc30421d34b9ef99d91760f1cfce0a80c05614ba99"
+    },
+    {
+      "source": "Release repair evidence release-r1-failed.log",
+      "artifact": "release-r1-failed.log.gz",
+      "bytes": 43590,
+      "sha256": "acfa27e81a6653dee9924639d58ff1447add8e58983d080b64546ff77d7f144c",
+      "compressedSha256": "97967d3ab3a4c26bad82b9d899927a20a5ea60047860bcdaafd3f21bd804f750"
     }
   ],
   "pending": [
-    "canonical and full fork follow-up",
-    "final GUI smoke",
-    "final Quality",
+    "Move already-pushed tag only after separate authorization",
+    "Repaired Windows packaged CodeMode gate",
     "Release publication and channel verification"
   ],
-  "recordedAt": "2026-10-21T08:58:44.859414+00:00"
+  "recordedAt": "2026-10-21T10:56:05.336905+00:00"
 }

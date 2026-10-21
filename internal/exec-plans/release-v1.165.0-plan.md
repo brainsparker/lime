@@ -1,6 +1,6 @@
 # v1.165.0 发布执行计划
 
-状态：quality-r6-running；负责人：root；日期：2026-10-21。
+状态：quality-r7-running；负责人：root；日期：2026-10-21。
 
 ## 目标与候选范围
 
@@ -95,3 +95,12 @@
 - 第六轮 Quality 终态 failure：Frontend Full、GUI Smoke、Integrity、Windows 全部成功；Rust compact 34/35，仅 Anthropic 交互命令旧断言固定首次 250ms 返回必须含 CMD-READY。真实 captured request 显示首返回 waiting/empty，第二返回 CMD-READY 与第一输入，第三返回第二输入/exit_code 0，完整输出、三次调用和投影无丢失。只认领原树仍干净的 command_history.rs，改为精确校验三次 structured result 拼接 stdout 全量字节、顺序、projection 相等、session identity 与 terminal zero；保留三次调用、持久化、冷恢复、四协议切换、fork、summary 全部断言，不增加等待或修改生产逻辑。四协议定向执行中；未创建 tag。
 
 - 输出分块断言修正后，默认并行度的四协议交互命令回归 4/4、exit 0（55.17s），精确 stdout、投影、identity、冷恢复与 summary 均通过。只提交一个既有测试文件与发布证据，继续下一轮 Quality；不改生产实现、等待预算、发布版本或冻结功能范围。
+
+- 单测试修复以 `e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba` 推送，第七轮 Quality `39573513577`。实际提交钩子 18/18，通过后再 push。原树该测试同步前 hash 仍等于旧 commit，故仅同步该文件；22 个 post-freeze 路径及 HEAD blob SHA 均精确符合修复收据，未纳入后续功能。自动 tag 流程绑定新 SHA，等待本次 Quality 全绿并复核必要修复全部内容摘要；旧流程已停止且未创建 tag。
+
+- 用户随后明确要求“推送标签吧”，覆盖此前等待完整 Quality 终态的时序。已停止本任务旧等待脚本；创建并推送 annotated tag `v1.165.0`，远端 tag object `834b28d35306371cd78892ff50a636875e11ee1f` 的 peeled commit 精确为冻结最终候选 `e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba`。推送时 Frontend Full/typecheck、Integrity、GUI Smoke、Windows Shell Runtime 均成功，Rust Full 仍在运行。Release push run `39577054805` 已触发；标签步骤完成，安装包、CLI/npm 与 updater 渠道待各自实际验证，不纳入任何冻结后功能。收据 `artifacts/release-v1.165.0/tag-publication.json`。
+
+- 发布首轮 `39577054805` 失败：macOS arm64/x64 构建与 packaged native-host 均通过，Windows N-1 Squirrel 更新安装及 shell 21/21 通过；CodeMode 在 terminal 后等待 `CODE_MODE_GATE_B_VISIBLE` 超时 600000ms。此异常分支未保存 CodeMode summary，后继 native-host 未启动，identity 验证与 native evidence 上传连带失败。GitHub Release 仍 draft、assets 为空，npm/R2 发布任务 skipped。Quality 第七轮最终全绿，包括 Rust Full。只重跑同一 SHA 的 failed jobs，同时保留首轮日志并在隔离副本调查；不移动已推送标签或放宽断言。
+
+- CodeMode 阻断已在真实同版 macOS packaged artifact 复现：Memory consolidation 插入前台两次采样之间，原夹具向 Memory 返回400并错误归入前台证据。HTTP 可控重现证明 Memory 抢先时前台自身会400。仅认领四份 CodeMode gate/fixture/test 文件，原树对应路径仍精确等于 e6，已安全同步；provider 逻辑移入同领域 helper，gate 主文件由1026降为923行，不扩展生产业务。本次退出条件为独立后台采样、保留严格 foreground tool output / trace / process / DOM 断言、异常证据落盘、定向回归及修复后 Windows packaged gate 复验。
+- 修复后11/11定向测试、四文件ESLint、版本一致性1.165.0和release workflow guard均通过；同版macOS安装包21/21业务断言通过，foreground 2次、Memory 1次、provider error 0。两个本任务本地packaged Main退出清理未自行完成，已只对它们发送SIGTERM并保留收据，不冒充自然退出或Windows通过。旧SHA的第二次Release重跑已取消；本版仍draft、无正式资产/npm/R2发布。等待已推送tag移动策略，原tag不自动覆盖。收据 `artifacts/release-v1.165.0/windows-code-mode-gate-fix.json`。

@@ -89,10 +89,11 @@
     },
     "guiSmoke": {
       "status": "passed",
-      "run": 39568761225,
-      "sourceCommit": "388604d53c35ea3c5d42fcce48bd7330e12fa8ce",
-      "summary": "quality-r6-gui-smoke-summary.json",
-      "assertions": 4,
+      "run": 39573513577,
+      "sourceCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+      "summary": "quality-r7-gui-smoke-summary.json",
+      "totalAssertions": 24,
+      "passedAssertions": 24,
       "claimBoundary": "Real Electron startup, renderer reload, preload/IPC, App Server JSON-RPC, Workbench readiness, Settings route, and three-size responsive layout contract; no provider turn, Thread/Turn/Item identity, live-provider, packaged-app, or Codex Desktop pixel-parity claim."
     },
     "targetedEslint": {

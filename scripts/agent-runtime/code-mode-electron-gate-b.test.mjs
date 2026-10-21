@@ -344,8 +344,13 @@ describe("CodeMode Electron Gate B", () => {
       path.resolve("scripts/electron/mcp-config-fixture-smoke.mjs"),
       "utf8",
     );
+    const providerFixtureSource = fs.readFileSync(
+      path.resolve("scripts/agent-runtime/code-mode-electron-fixture.mjs"),
+      "utf8",
+    );
 
-    expect(source).toContain(
+    expect(source).toContain('from "./code-mode-electron-fixture.mjs"');
+    expect(providerFixtureSource).toContain(
       'const OFFICIAL_OPENAI_BASE_URL = "http://api.openai.com/v1"',
     );
     expect(source).toContain('backendMode: "runtime"');
@@ -354,10 +359,11 @@ describe("CodeMode Electron Gate B", () => {
     expect(source).toContain("candidateRunId: process.env.LIME_GATE_RUN_ID");
     expect(source).toContain("process.env.LIME_CANDIDATE_SHA");
     expect(source).toContain("packagedExecutablePath: packagedExecutable");
-    expect(source).toContain("HTTP_PROXY");
-    expect(source).toContain('modelToolMode: "code_mode"');
-    expect(source).toContain('"custom_tools"');
-    expect(source).toContain('path === "/v1/responses"');
+    expect(providerFixtureSource).toContain("HTTP_PROXY");
+    expect(providerFixtureSource).toContain('modelToolMode: "code_mode"');
+    expect(providerFixtureSource).toContain('"custom_tools"');
+    expect(providerFixtureSource).toContain('path === "/v1/responses"');
+    expect(source).toContain("codeModeResponses(fixture).length");
     expect(source).toContain('call.method === "turn/start"');
     expect(source).toContain('"diagnostics/trace/read"');
     expect(source).toContain("codeModeHostOwnedByAppServer");

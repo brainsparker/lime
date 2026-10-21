@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "1.165.0",
-  "status": "quality-r6-one-test-assertion-fix",
+  "status": "code-mode-gate-fixed-awaiting-tag-authorization",
   "scope": "All candidates frozen by user; later edits deferred to next release",
   "checks": [
     {
@@ -520,6 +520,31 @@
       "exitCode": 0,
       "seconds": 55.17,
       "log": "lime-v11650-command-chunks-final.log.gz"
+    },
+    {
+      "command": "Quality r6 complete Frontend Full",
+      "status": "passed",
+      "run": 39568761225,
+      "sourceCommit": "388604d53c35ea3c5d42fcce48bd7330e12fa8ce",
+      "vitestBatchResults": 141,
+      "passedTests": 16498,
+      "log": "lime-v11650-quality-r6-frontend-full.log.gz",
+      "qualification": "Full lint, full typecheck, layer budget and all 141 Vitest batches succeeded; later r7 changes only one Rust test assertion"
+    },
+    {
+      "command": "Quality r7 real Electron GUI smoke",
+      "status": "passed",
+      "run": 39573513577,
+      "sourceCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+      "totalAssertions": 24,
+      "passedAssertions": 24,
+      "summary": "quality-r7-gui-smoke-summary.json",
+      "claimBoundary": "Real Electron startup, renderer reload, preload/IPC, App Server JSON-RPC, Workbench readiness, Settings route, and three-size responsive layout contract; no provider turn, Thread/Turn/Item identity, live-provider, packaged-app, or Codex Desktop pixel-parity claim."
+    },
+    {
+      "command": "CodeMode installed release gate fixture repair",
+      "status": "11 unit/HTTP tests passed; packaged macOS business assertions passed; local Main teardown signaled; Windows pending",
+      "receipt": "windows-code-mode-gate-fix.json"
     }
   ],
   "existingEvidence": [
@@ -555,15 +580,24 @@
   },
   "publication": {
     "committed": true,
-    "tagged": false,
-    "pushed": false,
-    "remoteTagExists": false,
-    "checkpoint": "Main candidate pushed; tag and published channels remain pending",
+    "tagged": true,
+    "pushed": true,
+    "remoteTagExists": true,
+    "checkpoint": "Release draft blocked by Memory/CodeMode test fixture interference. Four test-only files repaired and verified locally; existing tag unchanged.",
     "mainPushed": true,
     "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
-    "qualityRun": 39568761225,
-    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39568761225",
-    "latestSourceCommit": "388604d53c35ea3c5d42fcce48bd7330e12fa8ce"
+    "qualityRun": 39573513577,
+    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39573513577",
+    "latestSourceCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+    "tag": "v1.165.0",
+    "tagCommit": "e6c1d25e5b7efb0ee213ca44f9eb556529cf88ba",
+    "tagReceipt": "tag-publication.json",
+    "releaseRun": 39577054805,
+    "releaseUrl": "https://github.com/limecloud/lime/actions/runs/39577054805",
+    "qualityConclusion": "success",
+    "qualityTerminal": "quality-r7-terminal.json",
+    "releaseConclusion": "attempt-1-failure-attempt-2-cancelled",
+    "releaseAttempt": 2
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
@@ -597,7 +631,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T08:58:44.859414+00:00",
+  "recordedAt": "2026-10-21T10:53:40.248641+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -645,10 +679,41 @@
         }
       },
       "recordedAt": "2026-10-21T05:22:56.569703+00:00"
+    },
+    {
+      "path": "scripts/agent-runtime/code-mode-electron-gate-b.mjs",
+      "beforeSha256": "7711c6e31d0004b6e0c75eeca2f02c974128315f9d31f635209534fa052bd5f0",
+      "afterSha256": "a5f3a7ae1604f8db6488a8fc37799f5f7498a4a2fa9111d7b8866fccbddec2f2",
+      "kind": "test-only release gate repair"
+    },
+    {
+      "path": "scripts/agent-runtime/code-mode-electron-gate-b.test.mjs",
+      "beforeSha256": "18aa7c8ad34a54fe8385c5d2eb18438330359903f6448fc3e4f6995186471873",
+      "afterSha256": "0058ff4adc341c6a77bc0774fdc54b2c6355b41a3d46fbbf6754468d07d0605b",
+      "kind": "test-only release gate repair"
+    },
+    {
+      "path": "scripts/agent-runtime/code-mode-electron-fixture.mjs",
+      "beforeSha256": null,
+      "afterSha256": "e51fb15d5e45d549abf11b5701f07372be555df7f9fa192f5911946892b65100",
+      "kind": "test-only release gate repair"
+    },
+    {
+      "path": "scripts/agent-runtime/code-mode-electron-fixture.test.mjs",
+      "beforeSha256": null,
+      "afterSha256": "dc777b6fc9224f8511c7217995e3ff2fe38a3567a7cd33487fb782b7f6152b82",
+      "kind": "test-only release gate repair"
     }
   ],
   "postFreezeNecessaryFixReceipt": "storage-and-contract-gate-fixes.json",
   "recoveredSnapshot": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/.lime/qc/release-v11650-candidate-r6",
   "postFreezeFacadeAndHistoryReceipt": "facade-and-history-gate-fixes.json",
-  "commandChunkGateFix": "command-output-chunk-gate-fix.json"
+  "commandChunkGateFix": "command-output-chunk-gate-fix.json",
+  "prepublicationUpdaterProbe": {
+    "at": "2026-10-21T09:07:07Z",
+    "url": "https://updates.limecloud.com/lime/stable/darwin-arm64/RELEASES.json",
+    "curlExitCode": 28,
+    "error": "SSL connection timeout",
+    "qualification": "Default host prepublication connectivity only. Infer actual public host from built release feed before final channel verification."
+  }
 }

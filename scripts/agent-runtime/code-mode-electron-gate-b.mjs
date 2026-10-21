@@ -16,7 +16,6 @@ import {
 } from "../electron/mcp-config-fixture-smoke.mjs";
 import { resolveElectronAppServerRuntimeEnv } from "../lib/electron-app-server-assets.mjs";
 import { resolveDevAppServerBinary } from "../lib/electron-dev-sidecar.mjs";
-import { startOpenAiCompatibleFixtureServer } from "../lib/openai-compatible-fixture-server.mjs";
 import {
   bindGuiWorkspaceAndModelPreferences,
   clearInvokeBuffers,
@@ -26,20 +25,26 @@ import {
   waitForRendererReady,
 } from "./claw-chat-current-fixture-rpc.mjs";
 
+import {
+  codeModeResponses,
+  EXEC_CALL_ID,
+  EXEC_OUTPUT_MARKER,
+  FINAL_TEXT,
+  installProviderProxy,
+  MODEL_NAME,
+  provisionProvider,
+  startCodeModeFixture,
+  summarizeProviderEvidence,
+} from "./code-mode-electron-fixture.mjs";
+export { summarizeProviderEvidence } from "./code-mode-electron-fixture.mjs";
+
 const LOG_PREFIX = "[smoke:code-mode-electron-gate-b]";
 const DEFAULT_OUTPUT = path.resolve(
   ".lime/qc/gui-evidence/code-mode-electron-gate-b/code-mode-electron-gate-b-summary.json",
 );
 const DEFAULT_TIMEOUT_MS = 180_000;
 const DEFAULT_INTERVAL_MS = 250;
-const OFFICIAL_OPENAI_BASE_URL = "http://api.openai.com/v1";
-const MODEL_NAME = "fixture-code-mode";
-const PROVIDER_API_KEY = "fixture-code-mode-key";
-const PROVIDER_TYPE = "gateway";
 const PROMPT = "运行 CodeMode 专项桌面闭环，并返回最终可见结果。";
-const EXEC_CALL_ID = "call-code-mode-gate-b";
-const EXEC_OUTPUT_MARKER = "CODE_MODE_GATE_B_OK";
-const FINAL_TEXT = "CODE_MODE_GATE_B_VISIBLE";
 const NAVIGATION_RESTORE_STORAGE_KEY = "lime.appNavigation.restore.v1";
 const INVOKE_TRACE_STORAGE_KEY = "lime_invoke_trace_buffer_v1";
 const INVOKE_ERROR_STORAGE_KEY = "lime_invoke_error_buffer_v1";
@@ -129,129 +134,6 @@ function assert(condition, message) {
 
 function logStage(stage) {
   console.log(`${LOG_PREFIX} stage=${stage}`);
-}
-
-function modelConfig() {
-  return {
-    id: MODEL_NAME,
-    capability: {
-      taskFamilies: ["chat"],
-      inputModalities: ["text"],
-      outputModalities: ["text"],
-      runtimeFeatures: [
-        "streaming",
-        "tool_calling",
-        "custom_tools",
-        "responses_api",
-      ],
-      capabilities: {
-        vision: false,
-        tools: true,
-        streaming: true,
-        jsonMode: false,
-        functionCalling: true,
-        reasoning: false,
-      },
-    },
-  };
-}
-
-function customToolOutput(body) {
-  const input = Array.isArray(body?.input) ? body.input : [];
-  return input.find(
-    (item) =>
-      item?.type === "custom_tool_call_output" &&
-      item?.call_id === EXEC_CALL_ID,
-  );
-}
-
-async function startCodeModeFixture() {
-  return await startOpenAiCompatibleFixtureServer({
-    apiKey: PROVIDER_API_KEY,
-    model: MODEL_NAME,
-    modelRuntimeFeatures: modelConfig().capability.runtimeFeatures,
-    modelToolMode: "code_mode",
-    scriptedResponses: [
-      {
-        type: "custom_tool_call",
-        id: EXEC_CALL_ID,
-        name: "exec",
-        input: `text("${EXEC_OUTPUT_MARKER}");`,
-      },
-      ({ body }) => {
-        const output = customToolOutput(body);
-        if (!String(output?.output || "").includes(EXEC_OUTPUT_MARKER)) {
-          throw new Error(
-            "second Responses request is missing the CodeMode custom_tool_call_output marker",
-          );
-        }
-        return { type: "text", content: FINAL_TEXT };
-      },
-    ],
-  });
-}
-
-function installProviderProxy(runtimeEnv, proxyUrl) {
-  Object.assign(runtimeEnv.env, {
-    HTTP_PROXY: proxyUrl,
-    http_proxy: proxyUrl,
-    NO_PROXY: "127.0.0.1,localhost,::1",
-    no_proxy: "127.0.0.1,localhost,::1",
-  });
-}
-
-async function provisionProvider(page, requestLog) {
-  const created = await invokeAppServerFromPage(
-    page,
-    "modelProvider/create",
-    {
-      name: `CodeMode Gate B ${process.pid}`,
-      providerType: PROVIDER_TYPE,
-      apiHost: OFFICIAL_OPENAI_BASE_URL,
-    },
-    requestLog,
-  );
-  const providerId = String(created.result?.provider?.id || "").trim();
-  assert(providerId, "modelProvider/create did not return provider.id");
-
-  await invokeAppServerFromPage(
-    page,
-    "modelProvider/update",
-    {
-      providerId,
-      enabled: true,
-      sortOrder: 0,
-      models: [modelConfig()],
-    },
-    requestLog,
-  );
-  await invokeAppServerFromPage(
-    page,
-    "modelProviderKey/create",
-    {
-      providerId,
-      apiKey: PROVIDER_API_KEY,
-      alias: "code-mode-gate-b",
-      replaceExisting: true,
-    },
-    requestLog,
-  );
-  const fetched = await invokeAppServerFromPage(
-    page,
-    "modelProvider/fetchModels",
-    { providerId },
-    requestLog,
-  );
-  const models = Array.isArray(fetched.result?.models)
-    ? fetched.result.models
-    : [];
-  const model = models.find((candidate) => candidate?.id === MODEL_NAME);
-  assert(model, "modelProvider/fetchModels did not return the CodeMode model");
-  return {
-    providerId,
-    model,
-    source: fetched.result?.source || null,
-  };
 }
 
 async function createThread(page, requestLog, providerId, workspaceRoot) {
@@ -417,9 +299,7 @@ async function waitForTerminalThread(
     last = {
       thread,
       turn,
-      responseRequestCount: fixture.requests.filter(
-        (request) => request.path === "/v1/responses",
-      ).length,
+      responseRequestCount: codeModeResponses(fixture).length,
     };
     if (
       turn &&
@@ -541,42 +421,6 @@ async function readInvokeDiagnostics(page) {
     },
     { errorKey: INVOKE_ERROR_STORAGE_KEY, traceKey: INVOKE_TRACE_STORAGE_KEY },
   );
-}
-
-function requestTool(request, name) {
-  const tools = Array.isArray(request?.body?.tools) ? request.body.tools : [];
-  return tools.find((tool) => String(tool?.name || "").trim() === name) || null;
-}
-
-export function summarizeProviderEvidence(fixture) {
-  const responses = fixture.requests.filter(
-    (request) => request.path === "/v1/responses",
-  );
-  const first = responses[0] || null;
-  const second = responses[1] || null;
-  const execTool = requestTool(first, "exec");
-  const output = customToolOutput(second?.body);
-  return {
-    discoveryRequestCount: fixture.modelRequests.length,
-    discoveryUsedOfficialHost: fixture.modelRequests.some(
-      (request) => request.host === "api.openai.com",
-    ),
-    responsesRequestCount: responses.length,
-    responsesUsedOfficialHost: responses.every(
-      (request) => request.host === "api.openai.com",
-    ),
-    firstRequestAdvertisedExec: Boolean(execTool),
-    execToolType: execTool?.type || null,
-    execFormatType: execTool?.format?.type || null,
-    execFormatSyntax: execTool?.format?.syntax || null,
-    secondRequestHasCustomToolOutput: Boolean(output),
-    customToolOutputContainsMarker: String(output?.output || "").includes(
-      EXEC_OUTPUT_MARKER,
-    ),
-    requestErrors: responses
-      .map((request) => request.responseError)
-      .filter(Boolean),
-  };
 }
 
 export function summarizeCodeCellTrace(response) {
@@ -853,12 +697,17 @@ export async function runGateB(options) {
       });
   let fixture = null;
   let electronHandle = null;
+  let stage = "fixture";
+  let identity = null;
+  let terminal = null;
+  let codeCellTrace = null;
+  let evidence = null;
   try {
     logStage("fixture");
     fixture = await startCodeModeFixture();
     installProviderProxy(runtimeEnv, fixture.baseUrl);
 
-    logStage("electron");
+    logStage((stage = "electron"));
     electronHandle = await launchElectronFixture({
       options,
       runtimeEnv,
@@ -873,31 +722,36 @@ export async function runGateB(options) {
     const workspaceRoot = String(workspace.rootPath || "").trim();
     assert(workspaceRoot, "workspace/default/ensure did not return rootPath");
 
-    logStage("provider");
+    logStage((stage = "provider"));
     const provisioned = await provisionProvider(page, requestLog);
-    const identity = await createThread(
+    identity = await createThread(
       page,
       requestLog,
       provisioned.providerId,
       workspaceRoot,
     );
 
-    logStage("gui-turn");
+    logStage((stage = "gui-turn"));
     const input = await restoreThreadInGui(page, options, {
       providerId: provisioned.providerId,
       sessionId: identity.sessionId,
       workspaceId: workspace.workspaceId,
     });
     await submitTurnFromGui(page, input, options);
-    const terminal = await waitForTerminalThread(
+    terminal = await waitForTerminalThread(
       page,
       options,
       identity.threadId,
       fixture,
       requestLog,
     );
-    logStage("trace");
-    const codeCellTrace = await readCodeCellTrace(page, identity, requestLog);
+    assert(
+      turnStatus(terminal.turn) === "completed",
+      `CodeMode turn failed: ${sanitizeText(JSON.stringify(terminal.turn))}`,
+    );
+    logStage((stage = "trace"));
+    codeCellTrace = await readCodeCellTrace(page, identity, requestLog);
+    stage = "visible";
     const visible = await readVisibleState(page, options, identity.sessionId);
     const diagnostics = await readInvokeDiagnostics(page);
     const provider = summarizeProviderEvidence(fixture);
@@ -930,7 +784,7 @@ export async function runGateB(options) {
     const failedAssertions = Object.entries(assertions)
       .filter(([, passed]) => !passed)
       .map(([name]) => name);
-    const evidence = {
+    evidence = {
       schemaVersion: "v1",
       scenarioId: "code-mode-electron-gate-b",
       status: failedAssertions.length === 0 ? "pass" : "fail",
@@ -998,6 +852,49 @@ export async function runGateB(options) {
     }
     console.log(`${LOG_PREFIX} pass thread=${identity.threadId}`);
     return evidence;
+  } catch (error) {
+    const page = electronHandle?.page;
+    const screenshotPath = options.output.replace(/\.json$/u, "-failure.png");
+    let bodyText = null;
+    let diagnostics = null;
+    if (page && !page.isClosed()) {
+      fs.mkdirSync(path.dirname(options.output), { recursive: true });
+      bodyText = await page
+        .locator("body")
+        .innerText()
+        .catch(() => null);
+      diagnostics = await readInvokeDiagnostics(page).catch(() => null);
+      await page
+        .screenshot({ path: screenshotPath, fullPage: true })
+        .catch(() => undefined);
+    }
+    writeEvidence(options.output, {
+      ...evidence,
+      schemaVersion: "v1",
+      scenarioId: "code-mode-electron-gate-b",
+      status: "fail",
+      generatedAt: new Date().toISOString(),
+      candidateRunId: process.env.LIME_GATE_RUN_ID?.trim() || null,
+      candidateSha:
+        process.env.LIME_CANDIDATE_SHA?.trim().toLowerCase() || null,
+      packagedExecutable: Boolean(packagedExecutable),
+      packagedExecutablePath: packagedExecutable,
+      failedStage: stage,
+      error: sanitizeText(error instanceof Error ? error.stack : String(error)),
+      identity,
+      terminal,
+      provider: fixture ? summarizeProviderEvidence(fixture) : null,
+      codeCellTrace,
+      bridge: diagnostics,
+      gui: {
+        ...evidence?.gui,
+        bodyText: sanitizeText(bodyText),
+        screenshotPath,
+        ...errors,
+      },
+      requestMethods: requestLog.map((entry) => entry.method),
+    });
+    throw error;
   } finally {
     await closeElectronFixture(electronHandle);
     await fixture?.close().catch(() => undefined);
