@@ -244,16 +244,24 @@ async fn command_history(wire: Wire) {
     assert_eq!(expected[0]["name"], "exec_command");
     assert_eq!(expected[2]["name"], "write_stdin");
     assert_eq!(expected[4]["name"], "write_stdin");
-    for (index, text) in [
-        (1, "CMD-READY"),
-        (3, "CMD-FIRST:first-value"),
-        (5, "CMD-SECOND:second-value"),
-    ] {
-        assert!(
-            expected[index]["output"].as_str().unwrap().contains(text),
-            "{expected:?}"
-        );
-    }
+    let outputs = [1, 3, 5].map(|index| {
+        serde_json::from_str::<Value>(expected[index]["output"].as_str().unwrap())
+            .expect("structured command result")
+    });
+    // A yield can return before stdout is ready; later writes drain the same
+    // process. Preserve the exact ordered bytes without pinning chunk timing.
+    let stdout = outputs
+        .iter()
+        .map(|result| result["output"].as_str().unwrap())
+        .collect::<String>();
+    assert_eq!(
+        stdout,
+        "CMD-READY\nCMD-FIRST:first-value\nCMD-SECOND:second-value\n",
+        "{expected:?}"
+    );
+    assert_eq!(output, stdout, "projection and model history must agree");
+    assert_eq!(outputs[0]["session_id"], outputs[1]["session_id"]);
+    assert_eq!(outputs[2]["exit_code"], 0);
     drop(server);
 
     let server = AppServer::with_runtime(catalog_truncation::runtime(&temp).await);

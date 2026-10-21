@@ -1,6 +1,6 @@
 # v1.165.0 发布执行计划
 
-状态：necessary-gate-fixes-in-progress；负责人：root；日期：2026-10-21。
+状态：quality-r6-running；负责人：root；日期：2026-10-21。
 
 ## 目标与候选范围
 
@@ -87,3 +87,11 @@
 - 捕获实际 provider history 证明交互命令脚本被后台 memory consolidation 请求消耗；历史无 session_id 来自 memory Agent 独立请求，并非工具输出丢失。只认领 tests/thread_compact_jsonrpc/model_fixture.rs：使用 canonical consolidation prompt 前缀识别辅助采样并独立返回 fixture no-op；不消耗前台脚本、sampling gate 或 foreground capture。保留全部命令调用、原始错误工具历史、跨协议、冷恢复、fork 与 summary 断言，并在两份原失败回归加入实际 history 错误上下文。仅改测试依赖，不修改生产 memory 或 model history。完整 35 项回归执行中。
 
 - 本地并行 compaction 27 passed / 8 failed，运行期间发现 `/tmp` 副本 node_modules 与 Rust 源码被外部移除；后半段 missing cwd 与 timeout 结果不能记为有效源码验证。已从精确 HEAD 恢复到 `.lime/qc/release-v11650-candidate-r6`，只重放六文件窄修复；五文件 SHA 与移除前一致，facade 仅导入位置/空行差异、796 行且相同函数原样迁移。依赖仅复用原树外部 npm，四个 workspace link 指向新副本。独立 APFS Cargo clone、显式 CARGO_TARGET_DIR 避免上级配置将产物写回原树；完整 35 项改为单测试线程复验，原 15s terminal 预算与断言不变。五语言导航 8/8、定向 ESLint exit 0。
+
+- 六文件必要修复及证据已提交并推送 `388604d53c35ea3c5d42fcce48bd7330e12fa8ce`，第六轮 Quality `39568761225`。恢复 archive 缺少 ignored `.husky/_`，此次自动 commit hook 未触发；已恢复原 helper 并用同一验证器对精确 26 个提交文件补跑，26/26 exit 0，不声称自动钩子执行。六份原树源码在同步时仍精确等于提交前 hash，已只同步这六份，其他 owner 脏区保留。后继 GUI 证据由本 SHA 的 CI 真实 Electron 任务收口，纯函数在既有 owner 内迁移不引入新增行为；本地旧 GUI 成功仅保留原覆盖范围。
+
+- 恢复副本完整 thread_compact_jsonrpc 35/35、exit 0（396.30s），包括真实 stdio restart 与四协议交互命令；现有 timeout 和历史/identity 断言未放宽。前端 63–141 续跑收口，82–141 本轮 7,333 项通过，1–62 不冒充重跑；facade boundary 25/25。当前 SHA 的 CI GUI Smoke 已成功，summary 保留其 shell startup/reload/preload/IPC/settings/layout 范围，不冒充 provider turn、live provider 或 packaged-app。
+
+- 第六轮 Quality 终态 failure：Frontend Full、GUI Smoke、Integrity、Windows 全部成功；Rust compact 34/35，仅 Anthropic 交互命令旧断言固定首次 250ms 返回必须含 CMD-READY。真实 captured request 显示首返回 waiting/empty，第二返回 CMD-READY 与第一输入，第三返回第二输入/exit_code 0，完整输出、三次调用和投影无丢失。只认领原树仍干净的 command_history.rs，改为精确校验三次 structured result 拼接 stdout 全量字节、顺序、projection 相等、session identity 与 terminal zero；保留三次调用、持久化、冷恢复、四协议切换、fork、summary 全部断言，不增加等待或修改生产逻辑。四协议定向执行中；未创建 tag。
+
+- 输出分块断言修正后，默认并行度的四协议交互命令回归 4/4、exit 0（55.17s），精确 stdout、投影、identity、冷恢复与 summary 均通过。只提交一个既有测试文件与发布证据，继续下一轮 Quality；不改生产实现、等待预算、发布版本或冻结功能范围。

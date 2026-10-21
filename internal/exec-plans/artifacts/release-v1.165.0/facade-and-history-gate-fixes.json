@@ -1,6 +1,6 @@
 {
   "sourceCommit": "6c47372840abcd1b348d23e2648bdf2e3897cb26",
-  "recordedAt": "2026-10-21T08:13:09.009568+00:00",
+  "recordedAt": "2026-10-21T08:37:41.232975+00:00",
   "classification": "Necessary release gate repairs; no post-freeze feature work",
   "paths": [
     {
@@ -46,7 +46,7 @@
       "exitCode": 0
     },
     "threadCompactTarget": {
-      "status": "rerunning-on-recovered-snapshot",
+      "status": "passed",
       "originalRun": {
         "passed": 27,
         "failed": 8,
@@ -55,7 +55,12 @@
         "qualification": "Snapshot source/dependencies were removed during execution. Missing cwd and timeout failures preserved; not candidate source validation."
       },
       "serialThreads": 1,
-      "existingTimeoutsUnchanged": true
+      "existingTimeoutsUnchanged": true,
+      "passed": 35,
+      "failed": 0,
+      "exitCode": 0,
+      "seconds": 396.3,
+      "log": "lime-v11650-recovered-compact-r2.log.gz"
     },
     "settingsNavigation": {
       "passed": 8,
@@ -63,14 +68,41 @@
       "log": "lime-v11650-settings-navigation-fix.log.gz"
     },
     "frontendResume": {
-      "status": "pending"
+      "status": "passed",
+      "exitCode": 0,
+      "completedBatches": [
+        63,
+        141
+      ],
+      "skippedEarlierBatches": [
+        1,
+        62
+      ],
+      "latestInvocation": {
+        "batches": [
+          82,
+          141
+        ],
+        "passedTests": 7333
+      },
+      "log": "lime-v11650-frontend-resume-b82.log.gz"
     },
     "guiSmoke": {
-      "status": "pending"
+      "status": "passed",
+      "run": 39568761225,
+      "sourceCommit": "388604d53c35ea3c5d42fcce48bd7330e12fa8ce",
+      "summary": "quality-r6-gui-smoke-summary.json",
+      "assertions": 4,
+      "claimBoundary": "Real Electron startup, renderer reload, preload/IPC, App Server JSON-RPC, Workbench readiness, Settings route, and three-size responsive layout contract; no provider turn, Thread/Turn/Item identity, live-provider, packaged-app, or Codex Desktop pixel-parity claim."
     },
     "targetedEslint": {
       "exitCode": 0,
       "log": "lime-v11650-settings-navigation-lint-r2.log.gz"
+    },
+    "facadeBoundary": {
+      "passed": 25,
+      "exitCode": 0,
+      "log": "lime-v11650-facade-boundary-recovered.log.gz"
     }
   },
   "recoveredSnapshot": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/.lime/qc/release-v11650-candidate-r6"

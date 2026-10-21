@@ -29,6 +29,13 @@
       "compressedSha256": "80b64235b98a14d1624737209c6c59d8c12b137928a9f7030e4a103c7bca0d06"
     },
     {
+      "source": "/tmp/lime-v11650-command-chunks-final.log",
+      "artifact": "lime-v11650-command-chunks-final.log.gz",
+      "bytes": 980,
+      "sha256": "aa305fd7d8b93d7342e45f551860d02923e022f58693b9284eaca3c09a27d605",
+      "compressedSha256": "d5de5bdfa4b19ec54f60946be1921b04860e6be22ab28039f9210ca288119d9c"
+    },
+    {
       "source": "/tmp/lime-v11650-compaction-final-r1.log",
       "artifact": "lime-v11650-compaction-final-r1.log.gz",
       "bytes": 7470,
@@ -99,6 +106,13 @@
       "compressedSha256": "24dfe51a7ca7fa8ec24cc9d7d33690fab0ddd267c587b0cff0aab1cf62d8b1d5"
     },
     {
+      "source": "/tmp/lime-v11650-facade-boundary-recovered.log",
+      "artifact": "lime-v11650-facade-boundary-recovered.log.gz",
+      "bytes": 360,
+      "sha256": "206d4060a87f32d308d5e663147a7a0c8157df269ef292f826af4b43a633b84c",
+      "compressedSha256": "e61ebc455af3b8343fdf4e94606189d81fa636b83c63c2de3a7bad97201699de"
+    },
+    {
       "source": "/tmp/lime-v11650-facade-owner-rust-gui.log",
       "artifact": "lime-v11650-facade-owner-rust-gui.log.gz",
       "bytes": 42593,
@@ -118,6 +132,13 @@
       "bytes": 71359,
       "sha256": "855b497e3493f4133c3d25bc9d04262b8ce6798d8c68e377811efb9ce9ac874a",
       "compressedSha256": "1810a50760ccdb5c8cce4671de2b7be174cb3cc8e437197baf0876b1e37115f7"
+    },
+    {
+      "source": "/tmp/lime-v11650-frontend-resume-b82.log",
+      "artifact": "lime-v11650-frontend-resume-b82.log.gz",
+      "bytes": 60421584,
+      "sha256": "377a42a93a2ffc764c51af74cf9bd8e9db588e4ca85dd1d2341c3ae00b97e112",
+      "compressedSha256": "9af2f807f4a565b6255ed10423fa9273ac5a2e3dddf265c0cb89b45727f598eb"
     },
     {
       "source": "/tmp/lime-v11650-frontend.log",
@@ -372,6 +393,20 @@
       "compressedSha256": "a86d257147f185458e48ecbe3971497735f0afe1febc61a377e3e42a090e6a6d"
     },
     {
+      "source": "/tmp/lime-v11650-quality-r6-gui.log",
+      "artifact": "lime-v11650-quality-r6-gui.log.gz",
+      "bytes": 134778,
+      "sha256": "09c5e00b892ec714be092ab319b5defe342023e127924a8de77613bb64002da7",
+      "compressedSha256": "7a57877c3145064a630575823c9669b975ef43550bc44933e5ae3e4d780085c3"
+    },
+    {
+      "source": "/tmp/lime-v11650-quality-r6-rust-full.log",
+      "artifact": "lime-v11650-quality-r6-rust-full.log.gz",
+      "bytes": 418274,
+      "sha256": "77d570a50f6701f7256e17e1ed93cb354921b6c4b1c4683a11e70645e764fa81",
+      "compressedSha256": "e3f9282c7eb4cde61e974ee3ad5ca375ce9748f00d505aa79fac888b12d9a604"
+    },
+    {
       "source": "/tmp/lime-v11650-quality-rust-full.log",
       "artifact": "lime-v11650-quality-rust-full.log.gz",
       "bytes": 378092,
@@ -384,6 +419,41 @@
       "bytes": 1545,
       "sha256": "c822d33116b756b862105d4a27a76714631473404f6b61cbba2b5b38e6d8d82e",
       "compressedSha256": "c5c95691df205e22e8bcb130be85ac4c0030b791f2524e08c8bf0722c5c49ec8"
+    },
+    {
+      "source": "/tmp/lime-v11650-r6-commit.log",
+      "artifact": "lime-v11650-r6-commit.log.gz",
+      "bytes": 1730,
+      "sha256": "3615962379b114c53b5f123b11ffea64fdc8a859b52ff634252ce048d93a3670",
+      "compressedSha256": "4e35069df238b8229687f5d6e449f01a09e75535433869f3c0493de8d95ddc46"
+    },
+    {
+      "source": "/tmp/lime-v11650-r6-explicit-hook-validation.log",
+      "artifact": "lime-v11650-r6-explicit-hook-validation.log.gz",
+      "bytes": 3293,
+      "sha256": "5919c4205bf63df0c5f4a8b2bc12f1ac495dc21a379bef5839b4dc9dd3dd0bc3",
+      "compressedSha256": "d975a3868791983d3ffa60692e2cc057142bd3d9c362d6c532ff0b4424be040f"
+    },
+    {
+      "source": "/tmp/lime-v11650-r6-hook-recovery.log",
+      "artifact": "lime-v11650-r6-hook-recovery.log.gz",
+      "bytes": 2307,
+      "sha256": "b2b8446595c9ef360fe0616c2120a804a14685ce0eaf2d53f5cdc6421160cbd5",
+      "compressedSha256": "229603fc629f4de91642f5ee9c2daaa67508ecaffb7825ed51b270573878a009"
+    },
+    {
+      "source": "/tmp/lime-v11650-r6-push.log",
+      "artifact": "lime-v11650-r6-push.log.gz",
+      "bytes": 71,
+      "sha256": "d6e3de3f1ea46ea2ccfa1d52b432d729e92351efab8a9c2ac9d60420fe5e2df3",
+      "compressedSha256": "3d0845dac953c086eadcd2deb94c30f62b3ce0ed20e35e1711b20641bb80438d"
+    },
+    {
+      "source": "/tmp/lime-v11650-recovered-compact-r2.log",
+      "artifact": "lime-v11650-recovered-compact-r2.log.gz",
+      "bytes": 22768,
+      "sha256": "6bcb34831a04d7ad28ca9c688853389a4f290a0b604766f2ab961e530b805c4d",
+      "compressedSha256": "156a72bf8ae69b818ceae46f331c5977fac7bb1955fac7b6ea454fb53709d80e"
     },
     {
       "source": "/tmp/lime-v11650-rich-r2.log",
@@ -483,5 +553,5 @@
     "final Quality",
     "Release publication and channel verification"
   ],
-  "recordedAt": "2026-10-21T08:21:08.929895+00:00"
+  "recordedAt": "2026-10-21T08:58:44.859414+00:00"
 }
