@@ -249,10 +249,15 @@ impl ModelFixture {
                         .unwrap();
                     continue;
                 }
+                // Startup memory uses the same provider route. Keep its independent
+                // sampling out of the foreground script and history assertions.
+                let memory = has_memory_prompt(&capture.body);
                 let compact = has_prompt(&capture.body);
-                let tool = (!compact).then(|| script(&capture)).flatten();
-                captured.lock().unwrap().push(capture);
-                let gate = if compact {
+                let tool = (!compact && !memory).then(|| script(&capture)).flatten();
+                if !memory {
+                    captured.lock().unwrap().push(capture);
+                }
+                let gate = if compact || memory {
                     None
                 } else {
                     next_sampling_gate.lock().unwrap().take()
@@ -266,7 +271,9 @@ impl ModelFixture {
                 } else {
                     0
                 };
-                let text = if compact {
+                let text = if memory {
+                    "MEMORY-FIXTURE: no update needed".to_string()
+                } else if compact {
                     summaries += 1;
                     format!("MODEL-SUMMARY-{summaries}: {wire:?}; preserve the user constraint, decisions, and pending work")
                 } else {
@@ -335,6 +342,19 @@ fn has_prompt(value: &Value) -> bool {
         Value::String(text) => text == lime_agent::SUMMARIZATION_PROMPT,
         Value::Array(values) => values.iter().any(has_prompt),
         Value::Object(values) => values.values().any(has_prompt),
+        _ => false,
+    }
+}
+
+fn has_memory_prompt(value: &Value) -> bool {
+    let prefix = include_str!("../../src/memory_store/consolidation_prompt.md")
+        .split("\n\n")
+        .next()
+        .expect("memory consolidation prompt prefix");
+    match value {
+        Value::String(text) => text.starts_with(prefix),
+        Value::Array(values) => values.iter().any(has_memory_prompt),
+        Value::Object(values) => values.values().any(has_memory_prompt),
         _ => false,
     }
 }

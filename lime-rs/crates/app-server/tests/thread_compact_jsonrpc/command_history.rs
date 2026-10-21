@@ -31,8 +31,12 @@ fn script() -> impl FnMut(&Capture) -> Option<(String, String, Value)> + Send {
                 }),
             )),
             1 | 2 => {
-                let id = session_id(capture.history())
-                    .expect("real exec_command must return an interactive session");
+                let id = session_id(capture.history()).unwrap_or_else(|| {
+                    panic!(
+                        "real exec_command must return an interactive session: {}",
+                        capture.history()
+                    )
+                });
                 Some((
                     if step == 1 {
                         "command-write-1"

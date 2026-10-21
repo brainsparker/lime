@@ -1,6 +1,6 @@
 {
   "version": "1.165.0",
-  "recordedAt": "2026-10-21T07:39:10.627002+00:00",
+  "recordedAt": "2026-10-21T07:45:27.432085+00:00",
   "baseCommit": "5e0dfeb8a1cee0f476ba88a76b213b1ba3197957",
   "scope": "Necessary frozen-candidate release blockers only; later product work remains deferred",
   "files": [
@@ -90,11 +90,22 @@
       "exitCode": 0,
       "log": "lime-v11650-compression-final-r3.log.gz"
     },
-    "canonicalAndFullFork": "running",
+    "canonicalAndFullFork": {
+      "canonicalPassed": 282,
+      "fullForkPassed": 39,
+      "exitCode": 0,
+      "log": "lime-v11650-compression-final-r3.log.gz"
+    },
     "settingsSearchAndGateA": {
       "passed": 23,
       "exitCode": 0
+    },
+    "finalGuiSmoke": {
+      "exitCode": 0,
+      "summary": "final-gui-smoke-summary.json",
+      "log": "lime-v11650-gui-final.log.gz"
     }
   },
-  "diagnostic": "Rust backtrace proved startup settings migration caused materialization; temporary instrumentation removed. History append production code unchanged."
+  "diagnostic": "Rust backtrace proved startup settings migration caused materialization; temporary instrumentation removed. History append production code unchanged.",
+  "commit": "6c47372840abcd1b348d23e2648bdf2e3897cb26"
 }

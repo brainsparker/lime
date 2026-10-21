@@ -23,7 +23,12 @@ fn assert_chat_original(fixture: &ModelFixture) {
     let call = messages
         .iter()
         .find_map(|message| message.get("tool_calls")?.as_array()?.first())
-        .expect("original failed call must stay in model history");
+        .unwrap_or_else(|| {
+            panic!(
+                "original failed call must stay in model history: {}",
+                captured.body
+            )
+        });
     assert_eq!(call["id"], "origin-tool");
     assert_eq!(call["function"]["name"], "Read");
     assert_eq!(

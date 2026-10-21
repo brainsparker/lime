@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "1.165.0",
-  "status": "quality-in-progress",
+  "status": "necessary-gate-fixes-in-progress",
   "scope": "All candidates frozen by user; later edits deferred to next release",
   "checks": [
     {
@@ -367,14 +367,14 @@
       "status": "passed",
       "exitCode": 0,
       "passed": 2,
-      "rawLogPendingCompletion": "/tmp/lime-v11650-compression-final-r3.log"
+      "log": "lime-v11650-compression-final-r3.log.gz"
     },
     {
       "command": "Hooks public JSON-RPC current metadata regression",
       "status": "passed",
       "exitCode": 0,
       "passed": 3,
-      "rawLogPendingCompletion": "/tmp/lime-v11650-compression-final-r3.log"
+      "log": "lime-v11650-compression-final-r3.log.gz"
     },
     {
       "command": "Quality r4",
@@ -386,6 +386,72 @@
         "lime-v11650-quality-r4-rust-full.log.gz",
         "lime-v11650-quality-r4-frontend-full.log.gz"
       ]
+    },
+    {
+      "command": "Final canonical regression after thread/start metadata fix",
+      "status": "passed",
+      "passed": 282,
+      "exitCode": 0,
+      "log": "lime-v11650-compression-final-r3.log.gz"
+    },
+    {
+      "command": "Final complete thread_fork_jsonrpc target",
+      "status": "passed",
+      "passed": 39,
+      "exitCode": 0,
+      "log": "lime-v11650-compression-final-r3.log.gz"
+    },
+    {
+      "command": "Final npm run verify:gui-smoke",
+      "status": "passed",
+      "exitCode": 0,
+      "seconds": 139.48,
+      "summary": "final-gui-smoke-summary.json",
+      "log": "lime-v11650-gui-final.log.gz"
+    },
+    {
+      "command": "Quality r5",
+      "status": "failed",
+      "run": 39563645890,
+      "sourceCommit": "6c47372840abcd1b348d23e2648bdf2e3897cb26",
+      "reasons": [
+        "Frontend batch 63: runtime_backend.rs 812 lines exceeds 800 facade budget",
+        "thread_compact_jsonrpc: 30 passed / 5 failed; foreground scripted provider captures background memory sampling"
+      ],
+      "successfulJobs": [
+        "Integrity",
+        "GUI Smoke",
+        "Windows Shell Runtime"
+      ],
+      "terminal": "quality-r5-terminal.json"
+    },
+    {
+      "command": "runtime_backend:: unit regression after unchanged function relocation",
+      "status": "passed",
+      "passed": 353,
+      "exitCode": 0,
+      "log": "lime-v11650-facade-owner-rust-gui.log.gz",
+      "qualification": "Following GUI build was interrupted before desktop scenarios; not GUI success"
+    },
+    {
+      "command": "npm test -- --from-batch 63",
+      "status": "failed",
+      "exitCode": 1,
+      "failedBatch": 82,
+      "passedBatches": [
+        63,
+        81
+      ],
+      "failedTests": 5,
+      "reason": "Existing five-locale navigation test expected 15; frozen current sections contain browser and keyboard entries (17). Original failure preserved.",
+      "log": "lime-v11650-frontend-resume-b63.log.gz"
+    },
+    {
+      "command": "Settings current navigation and five locales",
+      "status": "passed",
+      "passed": 8,
+      "exitCode": 0,
+      "log": "lime-v11650-settings-navigation-fix.log.gz"
     }
   ],
   "existingEvidence": [
@@ -427,8 +493,9 @@
     "checkpoint": "Main candidate pushed; tag and published channels remain pending",
     "mainPushed": true,
     "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
-    "qualityRun": 39549294867,
-    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39549294867"
+    "qualityRun": 39563645890,
+    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39563645890",
+    "latestSourceCommit": "6c47372840abcd1b348d23e2648bdf2e3897cb26"
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
@@ -462,7 +529,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T07:39:10.627002+00:00",
+  "recordedAt": "2026-10-21T08:21:08.929895+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -512,5 +579,7 @@
       "recordedAt": "2026-10-21T05:22:56.569703+00:00"
     }
   ],
-  "postFreezeNecessaryFixReceipt": "storage-and-contract-gate-fixes.json"
+  "postFreezeNecessaryFixReceipt": "storage-and-contract-gate-fixes.json",
+  "recoveredSnapshot": "/Users/coso/Documents/dev/ai/aiclientproxy/lime/.lime/qc/release-v11650-candidate-r6",
+  "postFreezeFacadeAndHistoryReceipt": "facade-and-history-gate-fixes.json"
 }

@@ -17,6 +17,7 @@ mod mention_selection;
 mod model_candidate_set;
 mod model_capability;
 mod model_registry_metadata;
+use model_registry_metadata::merge_route_model_metadata;
 mod model_route_contract;
 pub(crate) mod model_route_credential;
 mod model_route_resolver;
@@ -771,22 +772,6 @@ impl RuntimeBackend {
         };
         app_data_source.list_enabled_plugin_turn_snapshots().await
     }
-}
-
-fn merge_route_model_metadata(
-    config_metadata: Option<serde_json::Value>,
-    model_registry: Option<&serde_json::Value>,
-) -> Option<serde_json::Value> {
-    let Some(model_registry) = model_registry else {
-        return config_metadata;
-    };
-    let mut metadata = match config_metadata {
-        Some(serde_json::Value::Object(object)) => object,
-        _ => serde_json::Map::new(),
-    };
-    metadata.insert("modelRegistry".to_string(), model_registry.clone());
-    metadata.insert("model_registry".to_string(), model_registry.clone());
-    Some(serde_json::Value::Object(metadata))
 }
 
 fn backend_error(error: impl std::fmt::Display) -> RuntimeCoreError {

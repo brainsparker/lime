@@ -1,6 +1,6 @@
 # v1.165.0 发布执行计划
 
-状态：candidate-to-quality；负责人：root；日期：2026-10-21。
+状态：necessary-gate-fixes-in-progress；负责人：root；日期：2026-10-21。
 
 ## 目标与候选范围
 
@@ -78,3 +78,12 @@
 
 - thread/start 修复后两项公共压缩回归中，初始化/读取不解压已通过；继续执行到恢复后的 turn，暴露共享 `HistoryCaptureBackend` 为不同回合重复使用固定 Item ID。只认领冻结副本 `tests/thread_fork_jsonrpc/backend.rs`：tool/message Item ID 加入真实 turn identity，不修改 provider 文本、call/result 语义或恢复断言。
 - 第四轮 Quality 完整 Rust 到达 Hooks 公共回归：`HookMetadata` current `Command { async: false }` 已替换旧 executionMode 字段，旧测试仍断言 sync。只认领冻结副本 `tests/hooks_jsonrpc.rs`，断言 async=false 且 executionMode 不存在；保留其余 metadata、trust 与 plugin 回归，不恢复旧字段。旧 run 的 Rust/Frontend 失败日志均保留。
+
+- 必要修复提交 `6c47372840abcd1b348d23e2648bdf2e3897cb26` 已推送 main；第五轮 Quality `39563645890`。本地最终压缩公共回归 2/2、Hooks 3/3、canonical 282/282、完整 thread_fork_jsonrpc 39/39、标准真实 Electron GUI smoke exit 0（139.48s）。source freeze 与 HEAD 之间仅 16 个记录过的门禁修复路径，无额外产品漂移。标签与发布渠道待 Quality 终态。
+
+- 第五轮 Frontend Full 到 63/141 批触发既有 facade 800 行护栏：冻结 `runtime_backend.rs` 为 812 行。只认领冻结副本 `runtime_backend.rs` 与既有 `runtime_backend/model_registry_metadata.rs`，将原有 `merge_route_model_metadata` 原样移到 model registry owner，主 facade 保持 import 供现有调用者使用；不提高护栏，不删除断言，不新增功能或平行 owner。主文件降为 797 行，补 runtime_backend 定向、边界测试与后继 GUI smoke；前端从 63 批继续执行，尽早发现后续阻断。此为同一 crate 内纯函数归位，不改变 public boundary 或依赖方向，不构成重大架构变更。
+
+- 第五轮 Quality 终态 failure：Integrity、GUI Smoke、Windows Shell Runtime 成功；Frontend Full facade 护栏失败，Rust Full 在 thread_compact_jsonrpc 为 30/35。原始日志与终态完整保留。facade 函数原样归位后 runtime_backend 353/353；后续 GUI 构建因本机资源争用中断，未计通过。前端从 63 批续跑，63–81 通过、82 批五语言导航旧 15 项断言失败；只认领既有 useSettingsCategory.test.tsx，明确补 current Browser/KeyboardShortcuts、精确 17 项与去重断言。
+- 捕获实际 provider history 证明交互命令脚本被后台 memory consolidation 请求消耗；历史无 session_id 来自 memory Agent 独立请求，并非工具输出丢失。只认领 tests/thread_compact_jsonrpc/model_fixture.rs：使用 canonical consolidation prompt 前缀识别辅助采样并独立返回 fixture no-op；不消耗前台脚本、sampling gate 或 foreground capture。保留全部命令调用、原始错误工具历史、跨协议、冷恢复、fork 与 summary 断言，并在两份原失败回归加入实际 history 错误上下文。仅改测试依赖，不修改生产 memory 或 model history。完整 35 项回归执行中。
+
+- 本地并行 compaction 27 passed / 8 failed，运行期间发现 `/tmp` 副本 node_modules 与 Rust 源码被外部移除；后半段 missing cwd 与 timeout 结果不能记为有效源码验证。已从精确 HEAD 恢复到 `.lime/qc/release-v11650-candidate-r6`，只重放六文件窄修复；五文件 SHA 与移除前一致，facade 仅导入位置/空行差异、796 行且相同函数原样迁移。依赖仅复用原树外部 npm，四个 workspace link 指向新副本。独立 APFS Cargo clone、显式 CARGO_TARGET_DIR 避免上级配置将产物写回原树；完整 35 项改为单测试线程复验，原 15s terminal 预算与断言不变。五语言导航 8/8、定向 ESLint exit 0。

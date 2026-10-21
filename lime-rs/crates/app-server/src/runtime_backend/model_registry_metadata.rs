@@ -11,6 +11,22 @@ use lime_services::api_key_provider_service::ApiKeyProviderService;
 use lime_services::model_registry_service::{ModelRegistryService, ProviderModelCacheAccess};
 use serde_json::{json, Value};
 
+pub(super) fn merge_route_model_metadata(
+    config_metadata: Option<serde_json::Value>,
+    model_registry: Option<&serde_json::Value>,
+) -> Option<serde_json::Value> {
+    let Some(model_registry) = model_registry else {
+        return config_metadata;
+    };
+    let mut metadata = match config_metadata {
+        Some(serde_json::Value::Object(object)) => object,
+        _ => serde_json::Map::new(),
+    };
+    metadata.insert("modelRegistry".to_string(), model_registry.clone());
+    metadata.insert("model_registry".to_string(), model_registry.clone());
+    Some(serde_json::Value::Object(metadata))
+}
+
 #[derive(Debug, Clone)]
 pub(super) struct RuntimeModelRegistryMetadata {
     payload: Value,

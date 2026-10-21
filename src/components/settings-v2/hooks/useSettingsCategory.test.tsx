@@ -139,8 +139,14 @@ describe("current settings navigation translations", () => {
       });
       const items = groups.flatMap((group) => group.items);
       expect(groups).toHaveLength(5);
-      expect(items).toHaveLength(15);
-      expect(new Set(items.map((item) => item.key)).size).toBe(15);
+      expect(items).toHaveLength(17);
+      expect(new Set(items.map((item) => item.key)).size).toBe(17);
+      expect(items.map((item) => item.key)).toEqual(
+        expect.arrayContaining([
+          SettingsTabs.Browser,
+          SettingsTabs.KeyboardShortcuts,
+        ]),
+      );
       for (const group of groups) {
         expect(group.title.trim()).not.toBe("");
         expect(group.title).not.toContain("settings.group.");
