@@ -31,6 +31,11 @@ pub(super) fn scan_rollout_reader(
         ));
     }
     let mut initial_thread = initial_thread;
+    // Resolve the optional recency default from the session header, before
+    // metadata revisions advance their independent updated_at timestamp.
+    let recency_at_ms = initial_thread
+        .recency_at_ms
+        .unwrap_or(initial_thread.updated_at_ms);
     let mut metadata_digest = metadata_content_digest(
         &session_id,
         &thread_id,
@@ -135,6 +140,7 @@ pub(super) fn scan_rollout_reader(
         created_at_ms,
         rollout_path,
         initial_thread,
+        recency_at_ms,
         metadata_digest,
         history,
     })

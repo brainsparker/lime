@@ -92,6 +92,7 @@ function openSurface(
   current: RightSurfaceLocalState,
   kind: WorkspaceRightSurfaceKind,
   replaceTabId?: string,
+  active = true,
 ): RightSurfaceLocalState {
   if (!canOpenWorkspaceRightSurface(kind, "user")) return current;
   const sidePanelTabs =
@@ -104,7 +105,16 @@ function openSurface(
         );
   return sidePanelTabs === current.sidePanelTabs
     ? current
-    : { ...current, sidePanelTabs };
+    : {
+        ...current,
+        sidePanelTabs: active
+          ? sidePanelTabs
+          : {
+              ...sidePanelTabs,
+              activeTabId: current.sidePanelTabs.activeTabId,
+              open: current.sidePanelTabs.open,
+            },
+      };
 }
 
 export function useWorkspaceRightSurfaceLocalStateRuntime({
@@ -234,6 +244,8 @@ export function useWorkspaceRightSurfaceLocalStateRuntime({
         kind: WorkspaceRightSurfaceKind,
         replaceTabId?: string,
       ) => update((current) => openSurface(current, kind, replaceTabId)),
+      openBrowserInBackground: () =>
+        update((current) => openSurface(current, "browser", undefined, false)),
       openWorkspaceFile: (
         path: string,
         sourceTab?: ThreadSidePanelTab,

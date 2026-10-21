@@ -46,6 +46,16 @@ export async function openExternalUrlWithSystemBrowser(
   assertEmptyElectronHostResult("open_external_url", result);
 }
 
+export async function isDefaultBrowser(): Promise<boolean> {
+  const result = await safeInvoke<unknown>("is_default_browser");
+  if (typeof result !== "boolean") {
+    throw new Error(
+      "is_default_browser did not return a boolean Electron host result",
+    );
+  }
+  return result;
+}
+
 export async function startOemCloudOAuthCallbackBridge(): Promise<OemCloudOAuthCallbackBridgeStartResponse> {
   const result = await safeInvoke<unknown>(
     "start_oem_cloud_oauth_callback_bridge",

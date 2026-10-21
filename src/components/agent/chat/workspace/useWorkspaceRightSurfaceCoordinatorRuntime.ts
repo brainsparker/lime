@@ -259,6 +259,7 @@ export function useWorkspaceRightSurfaceCoordinatorRuntime({
     ...derivedRuntime,
     ...actionRuntime,
     outputs,
+    openBrowserInBackground: localState.openBrowserInBackground,
     handleBrowserLaunchApplied: (requestId: string) => {
       localState.setActiveBrowserRightSurfaceIntent((current) =>
         current?.sourceRequestId === requestId && !current.launchApplied

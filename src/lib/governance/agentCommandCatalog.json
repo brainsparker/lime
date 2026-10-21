@@ -20,6 +20,7 @@
   "persistedAtomCommands": ["persisted_atom_read", "persisted_atom_update"],
   "systemUtilityCommands": [
     "open_external_url",
+    "is_default_browser",
     "show_desktop_notification",
     "start_oem_cloud_oauth_callback_bridge"
   ],

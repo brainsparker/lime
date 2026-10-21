@@ -15,6 +15,14 @@ fn approvals_reviewer_migration_reopens_archived_rollouts_idempotently() {
     .expect("archive published thread");
     let path = rollout_path(&store, &agent_root, &source.thread_id);
     let before = rollout_lines(&path).len();
+    let archived_updated_at = block_on(store.read_thread(ReadThreadParams {
+        thread_id: source.thread_id.clone(),
+        include_archived: true,
+        turns_view: ThreadTurnsView::NotLoaded,
+    }))
+    .unwrap()
+    .unwrap()
+    .updated_at_ms;
     let db_path = store.path().to_path_buf();
     drop(store);
     let reopened = ProjectionStore::initialize_with_agent_root(&db_path, &agent_root)
@@ -27,7 +35,7 @@ fn approvals_reviewer_migration_reopens_archived_rollouts_idempotently() {
     .unwrap()
     .unwrap();
     assert!(migrated.archived);
-    assert_eq!(migrated.updated_at_ms, source.updated_at_ms);
+    assert_eq!(migrated.updated_at_ms, archived_updated_at);
     assert_eq!(
         migrated.metadata,
         json!({

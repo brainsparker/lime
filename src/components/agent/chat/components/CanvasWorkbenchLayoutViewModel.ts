@@ -1,11 +1,9 @@
-import { resolveWorkspaceFilePreviewTarget } from "./canvas-workbench/files/workspaceFilePreview";
 import { resolveArtifactProtocolFilePath } from "@/lib/artifact-protocol";
 import type { Artifact } from "@/lib/artifact/types";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
 import type { DocumentVersion } from "@/components/workspace/canvas/canvasUtils";
 import {
   extractFileNameFromPath,
-  normalizeManagedWorkspacePathForDisplay,
   resolveAbsoluteWorkspacePath,
 } from "../workspace/workspacePath";
 import {
@@ -80,17 +78,6 @@ export interface CanvasWorkbenchCopy {
     taskFile: string;
     version: string;
     versionTitle: (count: number) => string;
-    workspaceFile: string;
-  };
-  tab: {
-    files: string;
-    generated: string;
-    tasks: string;
-    sessionMain: string;
-  };
-  workspaceFile: {
-    binaryUnsupported: string;
-    readFailed: string;
   };
 }
 
@@ -199,85 +186,6 @@ export function resolveWorkspaceRelativeDisplayPath(
   }
 
   return normalizedPath;
-}
-
-export function resolveWorkspaceRelativePath(
-  workspaceRoot: string | null | undefined,
-  path: string | null | undefined,
-): string | null {
-  const normalizedPath = normalizeCanvasWorkbenchPath(path?.trim() || "");
-  if (!normalizedPath) {
-    return null;
-  }
-
-  const normalizedRoot = normalizeCanvasWorkbenchPath(
-    workspaceRoot?.trim() || "",
-  );
-  if (!normalizedRoot) {
-    return normalizedPath;
-  }
-
-  if (normalizedPath === normalizedRoot) {
-    return "";
-  }
-
-  const prefix = `${normalizedRoot}/`;
-  if (normalizedPath.startsWith(prefix)) {
-    return normalizedPath.slice(prefix.length);
-  }
-
-  if (!/^(\/|[A-Za-z]:\/|\\\\)/.test(normalizedPath)) {
-    return normalizedPath;
-  }
-
-  return null;
-}
-
-export function resolveSavedContentBundleRoot(
-  workspaceRoot: string | null | undefined,
-  selectionPath: string | null | undefined,
-): string | null {
-  const relativePath = resolveWorkspaceRelativePath(
-    workspaceRoot,
-    selectionPath,
-  );
-  if (!relativePath) {
-    return null;
-  }
-
-  const match = relativePath.match(/^(exports\/[^/]+\/[^/]+)/);
-  if (!match?.[1]) {
-    return null;
-  }
-
-  return resolveAbsoluteWorkspacePath(workspaceRoot, match[1]) || null;
-}
-
-export function resolveWorkspacePanelDisplayPath(
-  workspaceRoot: string | null | undefined,
-  panelRootPath: string | null | undefined,
-): string | undefined {
-  const normalizedPanelRoot = normalizeCanvasWorkbenchPath(
-    panelRootPath?.trim() || "",
-  );
-  if (!normalizedPanelRoot) {
-    return undefined;
-  }
-
-  const normalizedWorkspaceRoot = normalizeCanvasWorkbenchPath(
-    workspaceRoot?.trim() || "",
-  );
-  if (
-    normalizedWorkspaceRoot &&
-    normalizedPanelRoot !== normalizedWorkspaceRoot
-  ) {
-    return (
-      resolveWorkspaceRelativeDisplayPath(workspaceRoot, panelRootPath) ||
-      normalizeManagedWorkspacePathForDisplay(normalizedPanelRoot)
-    );
-  }
-
-  return normalizeManagedWorkspacePathForDisplay(normalizedPanelRoot);
 }
 
 function buildSyntheticArtifact(
@@ -598,7 +506,6 @@ export function resolveSelectionContext({
   selectionKey,
   defaultPreview,
   entryMap,
-  workspaceFileSelections,
   canvasState,
   artifacts,
   copy,
@@ -607,7 +514,6 @@ export function resolveSelectionContext({
   selectionKey: string | null;
   defaultPreview: CanvasWorkbenchDefaultPreview | null;
   entryMap: Map<string, CanvasWorkbenchEntry>;
-  workspaceFileSelections: Record<string, WorkspaceFileSelection>;
   canvasState: CanvasStateUnion | null;
   artifacts: Artifact[];
   copy: CanvasWorkbenchCopy;
@@ -626,44 +532,6 @@ export function resolveSelectionContext({
     return defaultPreview
       ? buildDefaultPreviewSelection(defaultPreview, copy)
       : null;
-  }
-
-  if (selectionKey.startsWith("workspace-file:")) {
-    const rawPath = selectionKey.replace(/^workspace-file:/, "");
-    const workspaceFile = workspaceFileSelections[selectionKey] || {
-      path: rawPath,
-      title: extractFileNameFromPath(rawPath),
-      status: "loading" as const,
-    };
-
-    const target = resolveWorkspaceFilePreviewTarget(workspaceFile, copy);
-
-    const displayPath = resolveWorkspaceRelativeDisplayPath(
-      workspaceRoot,
-      workspaceFile.path,
-    );
-
-    return {
-      selectionKey,
-      entrySource: "workspace-file",
-      title: workspaceFile.title,
-      tabLabel:
-        extractFileNameFromPath(workspaceFile.path) || workspaceFile.title,
-      subtitle: displayPath,
-      kindLabel: copy.kind.workspaceFile,
-      target,
-      content: resolvePreviewContent(target),
-      previousContent:
-        workspaceFile.status === "ready"
-          ? resolveMappedPreviousContentForPath(
-              workspaceFile.path,
-              canvasState,
-              artifacts,
-              workspaceRoot,
-            )
-          : null,
-      selectionPath: resolvePreviewPath(target),
-    };
   }
 
   const entry = entryMap.get(selectionKey) || null;

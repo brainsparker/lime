@@ -22,6 +22,7 @@ use thread_store::{
 use super::canonical_rollout::RolloutStore;
 use super::{ProjectionStore, StorageRoots, StoredSession};
 
+mod archive;
 mod queue;
 mod reviewer;
 mod workspace;
@@ -681,7 +682,11 @@ fn rollout_metadata_retry_reconciles_projection_and_rejects_divergence() {
     .expect("read rebuilt metadata thread")
     .expect("rebuilt metadata thread");
     assert_eq!(rebuilt_thread.metadata["modelName"], "model-b");
-    assert_eq!(rebuilt_thread.updated_at_ms, 1_700_000_001_000);
+    assert_eq!(
+        rebuilt_thread.updated_at_ms,
+        chrono::DateTime::<chrono::Utc>::from(fs::metadata(&path).unwrap().modified().unwrap())
+            .timestamp_millis()
+    );
 }
 
 #[test]
@@ -727,166 +732,6 @@ fn projection_rebuild_rejects_tampered_rollout_metadata() {
     )
     .expect_err("tampered metadata rollout must fail projection rebuild");
     assert!(error.contains("invalid rollout metadata record"));
-}
-
-#[test]
-fn canonical_rollout_archive_moves_and_restores_the_original_date_path() {
-    let (_temp, agent_root, store) = store_with_rollout();
-    let source = thread("archive-thread", 1_700_000_000_000);
-    create(&store, &source);
-    block_on(store.apply_history(ApplyThreadHistoryParams {
-        session_id: source.session_id.clone(),
-        thread_id: source.thread_id.clone(),
-        changes: ThreadHistoryChangeSet {
-            sequence: 1,
-            changed_turns: vec![turn(&source, "turn-1", TurnStatus::Completed)],
-            ..Default::default()
-        },
-    }))
-    .expect("seed rollout history");
-    let active_path = rollout_path(&store, &agent_root, &source.thread_id);
-
-    block_on(store.archive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect("archive rollout");
-    let archived_path = rollout_path(&store, &agent_root, &source.thread_id);
-    assert_eq!(
-        archived_path.parent(),
-        Some(agent_root.join("archived_sessions").as_path())
-    );
-    assert!(!active_path.exists());
-    assert!(archived_path.exists());
-    block_on(store.archive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect("idempotent archive");
-    let error = block_on(store.apply_history(ApplyThreadHistoryParams {
-        session_id: source.session_id.clone(),
-        thread_id: source.thread_id.clone(),
-        changes: ThreadHistoryChangeSet {
-            sequence: 2,
-            changed_turns: vec![turn(&source, "turn-2", TurnStatus::InProgress)],
-            ..Default::default()
-        },
-    }))
-    .expect_err("archived thread must reject append");
-    assert!(error.to_string().contains("is archived"));
-    drop(store);
-
-    let restarted = ProjectionStore::initialize_with_agent_root(
-        agent_root.join("runtime").join("projection.sqlite"),
-        &agent_root,
-    )
-    .expect("restart archived store");
-    let restored = block_on(restarted.unarchive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect("unarchive rollout");
-    assert!(!restored.archived);
-    assert!(!archived_path.exists());
-    assert!(active_path.exists());
-    assert_eq!(
-        rollout_path(&restarted, &agent_root, &source.thread_id),
-        active_path
-    );
-    block_on(restarted.unarchive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id,
-    }))
-    .expect("idempotent unarchive");
-    assert_eq!(rollout_lines(&active_path).len(), 2);
-}
-
-#[test]
-fn rollout_archive_and_unarchive_retry_after_projection_commit_failure() {
-    let (_temp, agent_root, store) = store_with_rollout();
-    let source = thread("archive-retry", 1_700_000_000_000);
-    create(&store, &source);
-    let active_path = rollout_path(&store, &agent_root, &source.thread_id);
-    let archived_path = agent_root
-        .join("archived_sessions")
-        .join(active_path.file_name().expect("rollout filename"));
-    let conn = Connection::open(store.path()).expect("open projection DB");
-    conn.execute_batch(
-        "PRAGMA foreign_keys = ON;
-         CREATE TABLE rollout_archive_guard_parent (id INTEGER PRIMARY KEY);
-         CREATE TABLE rollout_archive_guard_child (
-             id INTEGER PRIMARY KEY,
-             parent_id INTEGER NOT NULL,
-             FOREIGN KEY (parent_id) REFERENCES rollout_archive_guard_parent(id)
-                 DEFERRABLE INITIALLY DEFERRED
-         );
-         CREATE TRIGGER fail_rollout_archive_commit
-         AFTER UPDATE OF archived ON canonical_threads
-         WHEN NEW.archived = 1
-         BEGIN
-             INSERT INTO rollout_archive_guard_child (id, parent_id) VALUES (1, 999);
-         END;",
-    )
-    .expect("install archive commit failure");
-    drop(conn);
-
-    let error = block_on(store.archive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect_err("archive projection commit must fail");
-    assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
-    assert!(!active_path.exists());
-    assert!(archived_path.exists());
-    assert_eq!(
-        rollout_path(&store, &agent_root, &source.thread_id),
-        active_path
-    );
-
-    let conn = Connection::open(store.path()).expect("reopen projection DB");
-    conn.execute_batch("DROP TRIGGER fail_rollout_archive_commit;")
-        .expect("remove archive failure");
-    drop(conn);
-    block_on(store.archive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect("retry archive");
-    assert_eq!(
-        rollout_path(&store, &agent_root, &source.thread_id),
-        archived_path
-    );
-
-    let conn = Connection::open(store.path()).expect("open projection DB");
-    conn.execute_batch(
-        "CREATE TRIGGER fail_rollout_unarchive_commit
-         AFTER UPDATE OF archived ON canonical_threads
-         WHEN NEW.archived = 0
-         BEGIN
-             INSERT INTO rollout_archive_guard_child (id, parent_id) VALUES (1, 999);
-         END;",
-    )
-    .expect("install unarchive commit failure");
-    drop(conn);
-    let error = block_on(store.unarchive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect_err("unarchive projection commit must fail");
-    assert!(error.to_string().contains("FOREIGN KEY constraint failed"));
-    assert!(active_path.exists());
-    assert!(!archived_path.exists());
-    assert_eq!(
-        rollout_path(&store, &agent_root, &source.thread_id),
-        archived_path
-    );
-
-    let conn = Connection::open(store.path()).expect("reopen projection DB");
-    conn.execute_batch("DROP TRIGGER fail_rollout_unarchive_commit;")
-        .expect("remove unarchive failure");
-    drop(conn);
-    block_on(store.unarchive_thread(ArchiveThreadParams {
-        thread_id: source.thread_id.clone(),
-    }))
-    .expect("retry unarchive");
-    assert_eq!(
-        rollout_path(&store, &agent_root, &source.thread_id),
-        active_path
-    );
-    assert_eq!(rollout_lines(&active_path).len(), 1);
 }
 
 #[test]
@@ -949,7 +794,17 @@ fn empty_projection_rebuilds_active_and_archived_threads_from_rollouts() {
         .expect("read canonical thread")
         .expect("canonical thread")
     };
-    let active_before = read_full(&store, active.thread_id.clone());
+    let mut active_before = read_full(&store, active.thread_id.clone());
+    active_before
+        .recency_at_ms
+        .get_or_insert(active_before.updated_at_ms);
+    active_before.updated_at_ms = chrono::DateTime::<chrono::Utc>::from(
+        fs::metadata(rollout_path(&store, &agent_root, &active.thread_id))
+            .unwrap()
+            .modified()
+            .unwrap(),
+    )
+    .timestamp_millis();
     let archived_before = read_full(&store, archived.thread_id.clone());
     drop(store);
 

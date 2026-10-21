@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "version": "1.166.0",
+  "status": "verified-static-candidate-checkpoint",
+  "recordedAt": "2026-10-21T14:35:55.686989+00:00",
+  "sourceFreezeTree": "29e1ab860dc77bab85a12fd4ac9a10792ca0ec29",
+  "baseCommit": "85dcb9930a1a0b7f75a1666d94225558caae2501",
+  "candidateFiles": 337,
+  "checks": [
+    {
+      "command": "npm run verify:app-version",
+      "status": "passed",
+      "version": "1.166.0"
+    },
+    {
+      "command": "npm run typecheck",
+      "status": "passed",
+      "receipt": "typecheck-r2.json"
+    },
+    {
+      "command": "npm run test:contracts",
+      "status": "passed",
+      "receipt": "contracts.json"
+    },
+    {
+      "command": "Changed frontend and script tests",
+      "status": "passed",
+      "files": 33,
+      "passed": 329,
+      "receipts": ["directed-tests.json", "directed-script-tests-r2.json"],
+      "qualification": "First 31 Vitest files passed; initial Node runner invocation for two Vitest mjs files failed, then original files passed under Vitest. No test changes."
+    },
+    {
+      "command": "Additional all-path ESLint",
+      "status": "failed-baseline",
+      "receipt": "scoped-eslint.json",
+      "reason": "request-client.ts class/interface merge triggers 3 pre-existing errors on exact HEAD; standard lint covers src. Other 97 changed TS/JS paths passed separately."
+    },
+    {
+      "command": "Exact published rollout before/after float parsing feature",
+      "status": "passed-diagnosis",
+      "receipt": "float-roundtrip-diagnosis.json",
+      "beforeDigestMismatches": 1,
+      "afterDigestMismatches": 0
+    },
+    {
+      "command": "Pre-fix Rust and GUI builds",
+      "status": "superseded-not-passed",
+      "receipt": "superseded-before-float-fix.json",
+      "qualification": "Only this task descendants stopped before manifest/test update; final builds rerun. lime-core config tests completed in original source scope."
+    }
+  ],
+  "publication": {
+    "committed": false,
+    "tagged": false,
+    "pushed": false
+  },
+  "limitations": [
+    "Full Codex/Memory roadmap acceptance remains open.",
+    "Previous version background-command archive failure requires candidate revalidation."
+  ],
+  "necessaryPostFreezeFix": "float-roundtrip-fix.json"
+}

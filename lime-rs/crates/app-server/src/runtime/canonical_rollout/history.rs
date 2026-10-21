@@ -11,6 +11,7 @@ impl RolloutStore {
         runtime_events: &[AgentEvent],
         sidecar_store: Option<&super::super::SidecarStore>,
     ) -> Result<bool, String> {
+        let _writer = self.acquire_writer(thread_id)?;
         let (changes, runtime_events) =
             media::portable_history(changes, runtime_events, sidecar_store, session_id)?;
         let (changes, runtime_events) = (&changes, runtime_events.as_slice());
@@ -77,6 +78,7 @@ impl RolloutStore {
         sequence: u64,
         fingerprint: &str,
     ) -> Result<(), String> {
+        let _writer = self.acquire_writer(thread_id)?;
         let path = self.resolve_active(relative_path)?;
         let scan = scan_rollout_repaired(&path)?;
         validate_scan_identity(&scan, relative_path, session_id, thread_id, &path)?;

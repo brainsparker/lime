@@ -1,12 +1,10 @@
+import { writeThreadSidePanelTerminalMarker } from "./thread-side-panel-terminal-scenario.mjs";
 import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
 import os from "node:os";
 import crypto from "node:crypto";
 import { closeThreadSidePanelTab } from "./thread-side-panel-navigation.mjs";
-import { appServerCallFromPage } from "../mcp-config-fixture-smoke.mjs";
-import { isObservedPreloadAppServerResponse } from "./mcp-config-fixture-evidence.mjs";
-import { captureTerminalFailure } from "./thread-side-panel-terminal-diagnostics.mjs";
 import {
   verifyFileTreeContextMenu,
   verifyFileTabContextMenu,
@@ -458,117 +456,10 @@ export async function collectThreadSidePanelNewTabEvidence(
     .getByTestId("terminal-tab")
     .waitFor({ state: "visible", timeout: options.timeoutMs });
   const terminalHandle = await page.getByTestId("terminal-tab").elementHandle();
-  const writeTerminalMarker = async (marker, delaySeconds = 0) => {
-    const attempt = {
-      marker,
-      delaySeconds,
-      startedAt: new Date().toISOString(),
-      monotonicMs: performance.now(),
-      phase: "wait-ready",
-    };
-    try {
-      await page
-        .locator('[data-testid="terminal-tab"][data-ready="true"]:visible')
-        .waitFor({ state: "visible", timeout: options.timeoutMs });
-      const startedAt = await page.evaluate(() => Date.now());
-      const suffix = crypto.randomUUID().replaceAll("-", "");
-      const expectedOutput = `${marker}_${suffix}`;
-      attempt.expectedOutput = expectedOutput;
-      attempt.phase = "keyboard-input";
-      const input = page
-        .locator('[data-testid="terminal-xterm"]:visible')
-        .locator(".xterm-helper-textarea");
-      // The complete marker is absent from the typed command, so terminal echo cannot pass.
-      await input.pressSequentially(
-        `${delaySeconds ? `sleep ${delaySeconds}; ` : ""}printf '${marker}_%s\\n' '${suffix}'`,
-      );
-      await input.press("Enter");
-      attempt.phase = "wait-keyboard-rpc";
-      const write = await page.waitForFunction(
-        (after) => {
-          const entries = JSON.parse(
-            localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
-          );
-          for (const entry of entries.reverse()) {
-            if (
-              entry.transport !== "electron-ipc" ||
-              entry.status !== "success" ||
-              Date.parse(entry.timestamp) < after
-            )
-              continue;
-            for (const line of entry.args_preview?.request?.lines ?? []) {
-              const request = JSON.parse(line);
-              if (
-                request.method === "command/exec/write" &&
-                request.params?.processId
-              )
-                return {
-                  method: request.method,
-                  transport: entry.transport,
-                  status: entry.status,
-                  processId: request.params.processId,
-                };
-            }
-          }
-          return null;
-        },
-        startedAt,
-        { timeout: options.timeoutMs },
-      );
-      const request = await write.jsonValue();
-      attempt.processId = request.processId;
-      attempt.phase = "wait-keyboard-output";
-      const waitOutput = async (expected) => {
-        await page.waitForFunction(
-          (expected) => {
-            const terminal = [
-              ...document.querySelectorAll('[data-testid="terminal-xterm"]'),
-            ].find((node) => node.getBoundingClientRect().width > 0);
-            return terminal?.textContent?.includes(expected);
-          },
-          expected,
-          { timeout: options.timeoutMs },
-        );
-      };
-      await waitOutput(expectedOutput);
-      attempt.phase = "rpc-input";
-      const rpcMarker = `${marker}_RPC_${suffix}`;
-      const response = await appServerCallFromPage(page, "command/exec/write", {
-        processId: request.processId,
-        deltaBase64: Buffer.from(
-          `printf '${marker}_RPC_%s\\n' '${suffix}'\r`,
-        ).toString("base64"),
-      });
-      assert.equal(
-        isObservedPreloadAppServerResponse(
-          response.ipcObservation,
-          "command/exec/write",
-        ),
-        true,
-        "Terminal write requires a real matching JSON-RPC result",
-      );
-      assert.deepEqual(response.result, {});
-      attempt.phase = "wait-rpc-output";
-      await waitOutput(rpcMarker);
-      return {
-        ...request,
-        expectedOutput,
-        rpcOutput: rpcMarker,
-        rpcObservation: response.ipcObservation,
-        rpcResult: response.result,
-        actualOutput: await page
-          .locator('[data-testid="terminal-xterm"]:visible')
-          .textContent(),
-        lifetimeMs: (await page.evaluate(() => Date.now())) - startedAt,
-      };
-    } catch (error) {
-      const diagnostic = await captureTerminalFailure(page, options, attempt);
-      throw new Error(`${String(error)}; terminal diagnostics: ${diagnostic}`, {
-        cause: error,
-      });
-    }
-  };
-  const terminalBeforeCollapse = await writeTerminalMarker(
+
+  const terminalBeforeCollapse = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
     "LIME_SIDE_PANEL_BEFORE",
     31,
   );
@@ -581,7 +472,9 @@ export async function collectThreadSidePanelNewTabEvidence(
   await page.getByTestId("thread-side-panel-toggle").click();
   await waitSurface("shell");
   assert.equal(await terminalHandle.evaluate((node) => node.isConnected), true);
-  const terminalAfterCollapse = await writeTerminalMarker(
+  const terminalAfterCollapse = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
     "LIME_SIDE_PANEL_AFTER",
   );
   assert.equal(
@@ -605,7 +498,11 @@ export async function collectThreadSidePanelNewTabEvidence(
     await secondTerminalHandle.getAttribute("data-session-id"),
     await terminalHandle.getAttribute("data-session-id"),
   );
-  const secondTerminal = await writeTerminalMarker("LIME_SIDE_PANEL_SECOND");
+  const secondTerminal = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
+    "LIME_SIDE_PANEL_SECOND",
+  );
   assert.notEqual(secondTerminal.processId, terminalBeforeCollapse.processId);
   assert.equal(
     secondTerminal.actualOutput.includes(terminalBeforeCollapse.expectedOutput),
@@ -615,7 +512,11 @@ export async function collectThreadSidePanelNewTabEvidence(
   await capture("two-terminals");
   await page.locator(`[id="${firstTerminalTabId}"]`).click();
   assert.equal(await terminalHandle.evaluate((node) => node.isConnected), true);
-  const firstAfterSwitch = await writeTerminalMarker("LIME_SIDE_PANEL_FIRST");
+  const firstAfterSwitch = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
+    "LIME_SIDE_PANEL_FIRST",
+  );
   assert.equal(firstAfterSwitch.processId, terminalBeforeCollapse.processId);
   assert.equal(
     firstAfterSwitch.actualOutput.includes(secondTerminal.expectedOutput),
@@ -670,7 +571,11 @@ export async function collectThreadSidePanelNewTabEvidence(
     "The terminal must consume the active theme tokens",
   );
   assert.equal(await terminalHandle.evaluate((node) => node.isConnected), true);
-  const afterTheme = await writeTerminalMarker("LIME_SIDE_PANEL_DARK");
+  const afterTheme = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
+    "LIME_SIDE_PANEL_DARK",
+  );
   assert.equal(afterTheme.processId, terminalBeforeCollapse.processId);
   await capture("terminal-dark");
   await page.getByTestId("app-sidebar-appearance").click();
@@ -711,7 +616,11 @@ export async function collectThreadSidePanelNewTabEvidence(
     false,
   );
   assert.equal(await terminalTabs.count(), 1);
-  const afterClose = await writeTerminalMarker("LIME_SIDE_PANEL_SURVIVOR");
+  const afterClose = await writeThreadSidePanelTerminalMarker(
+    page,
+    options,
+    "LIME_SIDE_PANEL_SURVIVOR",
+  );
   assert.equal(afterClose.processId, terminalBeforeCollapse.processId);
   await capture("terminal-close-one");
   await page.getByTestId("workspace-right-surface-new-tab").click();

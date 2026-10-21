@@ -62,7 +62,9 @@ const BrowserUseSettings = lazy(() =>
 );
 const loadKeyboardShortcuts = () => import("./general/keyboard-shortcuts");
 const KeyboardShortcutsSettings = lazy(() =>
-  loadKeyboardShortcuts().then((module) => ({ default: module.KeyboardShortcutsSettings })),
+  loadKeyboardShortcuts().then((module) => ({
+    default: module.KeyboardShortcutsSettings,
+  })),
 );
 
 const loadArchivedConversations = () =>

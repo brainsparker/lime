@@ -38,6 +38,7 @@ mod request_serialization;
 mod request_trace;
 mod review;
 mod right_surface;
+mod rollout;
 mod session_operations;
 mod skill;
 mod soul;

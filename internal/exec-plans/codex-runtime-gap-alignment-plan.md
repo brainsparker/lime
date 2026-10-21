@@ -12,6 +12,27 @@ rollout path、完整历史返回、归档/分页约束和公共验证。最新�
 整体仍 active / partial；
 用户要求完整复刻的范围不缩减，插件、tar.gz、LimeCore 与多模型约束继续有效。
 
+2026-10-21 compressed-only 原线程恢复继续见
+[`rollout 模型上下文计划`](codex-rollout-context-alignment.md)：r31 owner/ThreadStore/workspace
+76/76、恢复公共回归 44/44、补充线程公共回归 19/19、1.165.0 构建与基础 GUI smoke 通过。
+真实 CLI 两次仅压缩历史空索引恢复后，同一线程三轮 completed、输入各一次；archive 保留
+压缩字节与实际 mtime，unarchive 更新时间且保持 recency。时间/回滚切片退出条件
+3/3（100%）；portable rollout 切片仍为 4/5（80%），不代表整体完成。Electron 归档
+聚合在历史长列表等待超时，后续设置归档场景未执行；Agent 聚合 **371 项定向测试与
+22 个 Electron 子场景全部通过**，核销此前 Coding Workbench 浏览器标签场景的失败。
+完整 TUI、压缩专属 PTY、Windows/live/packaged 与 `verify:local` 仍按同一计划分账。
+该切片不代替后台自动压缩，以及 Memory/Tools/Extensions/harness、
+插件/tar.gz 与 LimeCore 的剩余合同。
+
+2026-10-21 r33 已实现 unarchive 无归档源的 InvalidRequest 和后台 rollout 压缩，
+包括实际 writer ownership/维护锁、冷文件发布/回滚边界、六小时冷却、
+默认关闭的 startup gate 与 experimental RPC 握手；协议/schema/Rust/TS client/gateway 同步。
+owner 84/84、protocol/client/schema 198/198、公共 RPC 23/23、TS 148/148、
+contracts、基础 GUI smoke 与真实 stdio 跨进程 writer 排除/压缩后续聊通过。
+34 项输入无漂移；该切片 4/4 完成，整体仍 active / partial。
+独立归档 GUI 长列表、完整 PTY、Windows/live/packaged 和全量门禁未核销；
+详见同一 rollout 计划及 maintenance-verification-summary-r33.json。
+
 ## 当前证据与实施顺序（2026-10-18）
 
 CLI 唯一上游事实源是 `/Users/coso/Documents/dev/rust/codex`，本轮复核 HEAD

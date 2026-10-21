@@ -1,6 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import process from "node:process";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -26,6 +27,7 @@ const {
 
 vi.mock("./electronRuntime", () => ({
   app: {
+    isDefaultProtocolClient: () => false,
     getVersion: () => "1.0.0-test",
   },
   shell: {

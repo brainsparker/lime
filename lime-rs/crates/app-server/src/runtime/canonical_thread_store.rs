@@ -30,6 +30,7 @@ use super::projection_rebuild::{projected_tables_are_empty, rebuild_projected_th
 use super::{ProjectionStore, StoredSession};
 
 mod agent_graph;
+mod archive;
 mod event_batch;
 mod goal;
 mod goal_accounting;
@@ -41,6 +42,7 @@ mod goal_projection_tests;
 mod goal_rebind;
 mod history;
 mod history_builder;
+mod metadata;
 mod persistence;
 mod projects;
 mod queries;
@@ -356,135 +358,6 @@ impl ProjectionStore {
             next_cursor,
             backwards_cursor,
         })
-    }
-
-    fn update_thread_metadata_sync(
-        &self,
-        params: UpdateThreadMetadataParams,
-    ) -> ThreadStoreResult<Thread> {
-        let mut conn = self.open_thread_store()?;
-        let tx = conn.transaction().map_err(store_error)?;
-        let Some((mut thread, archived)) = read_thread_row(&tx, &params.thread_id)? else {
-            return Err(error(format!("thread {} does not exist", params.thread_id)));
-        };
-        if archived && !params.include_archived {
-            return Err(error(format!("thread {} is archived", params.thread_id)));
-        }
-        let previous = thread.clone();
-        apply_metadata_patch(&mut thread, params.patch);
-        self.persist_rollout_metadata(&tx, &previous, &mut thread, archived)?;
-        persist_thread_snapshot(&tx, &thread)?;
-        tx.commit().map_err(store_error)?;
-        Ok(thread)
-    }
-
-    fn set_archived_sync(
-        &self,
-        params: ArchiveThreadParams,
-        archived: bool,
-    ) -> ThreadStoreResult<Option<Thread>> {
-        let mut conn = self.open_thread_store()?;
-        let tx = conn
-            .transaction_with_behavior(TransactionBehavior::Immediate)
-            .map_err(store_error)?;
-        let result = self.set_archived_in_tx(&tx, params, archived)?;
-        tx.commit().map_err(store_error)?;
-        Ok(result)
-    }
-
-    fn set_archived_in_tx(
-        &self,
-        tx: &Transaction<'_>,
-        params: ArchiveThreadParams,
-        archived: bool,
-    ) -> ThreadStoreResult<Option<Thread>> {
-        let Some((mut thread, current_archived)) = read_thread_row(tx, &params.thread_id)? else {
-            return Err(error(format!("thread {} does not exist", params.thread_id)));
-        };
-        let rollout_path = tx
-            .query_row(
-                "SELECT rollout_path FROM canonical_threads WHERE thread_id = ?1",
-                params![params.thread_id.as_str()],
-                |row| row.get::<_, Option<String>>(0),
-            )
-            .map_err(store_error)?;
-        if self.rollout_store().is_some() && rollout_path.is_none() {
-            return Err(error(format!(
-                "thread {} has no rollout_path; migration is required",
-                params.thread_id
-            )));
-        }
-        if current_archived == archived {
-            if let (Some(store), Some(path)) = (self.rollout_store(), rollout_path.as_deref()) {
-                store
-                    .verify_location(
-                        std::path::Path::new(path),
-                        thread.session_id.as_str(),
-                        thread.thread_id.as_str(),
-                        archived,
-                    )
-                    .map_err(error)?;
-            }
-            return if archived { Ok(None) } else { Ok(Some(thread)) };
-        }
-        thread.archived = archived;
-        let rollout_move = match (self.rollout_store(), rollout_path.as_deref()) {
-            (Some(store), Some(path)) => {
-                let current = std::path::PathBuf::from(path);
-                let next = if archived {
-                    store.archive_path(&current)
-                } else {
-                    store.unarchive_path(&current)
-                }
-                .map_err(error)?;
-                let stored = store.location_storage_path(&next).map_err(error)?;
-                Some((current, next, stored))
-            }
-            (Some(_), None) => unreachable!("missing rollout path rejected above"),
-            (None, _) => None,
-        };
-        let next_rollout_path = rollout_move
-            .as_ref()
-            .map(|(_, _, stored)| stored.clone())
-            .or(rollout_path);
-        tx.execute(
-            "UPDATE canonical_threads
-             SET archived = ?2, thread_json = ?3, rollout_path = ?4
-             WHERE thread_id = ?1",
-            params![
-                params.thread_id.as_str(),
-                i64::from(archived),
-                encode_json(&thread)?,
-                next_rollout_path,
-            ],
-        )
-        .map_err(store_error)?;
-        if let (Some(store), Some((current, expected, _))) =
-            (self.rollout_store(), rollout_move.as_ref())
-        {
-            let moved = if archived {
-                store.archive(
-                    current,
-                    thread.session_id.as_str(),
-                    thread.thread_id.as_str(),
-                )
-            } else {
-                store.unarchive(
-                    current,
-                    thread.session_id.as_str(),
-                    thread.thread_id.as_str(),
-                )
-            }
-            .map_err(error)?;
-            if &moved != expected {
-                return Err(error("rollout move resolved an unexpected destination"));
-            }
-        }
-        if archived {
-            Ok(None)
-        } else {
-            Ok(Some(thread))
-        }
     }
 
     fn delete_thread_sync(&self, params: DeleteThreadParams) -> ThreadStoreResult<()> {

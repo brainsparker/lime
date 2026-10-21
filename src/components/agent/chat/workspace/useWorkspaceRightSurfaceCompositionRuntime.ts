@@ -112,6 +112,7 @@ export function useWorkspaceRightSurfaceCompositionRuntime({
   });
 
   return {
+    openLink: rightSurfaceContent.openLink,
     openBackgroundTerminal: rightSurfaceRuntime.openBackgroundTerminal,
     canvasWorkbenchRootPath,
     generalWorkbenchSidebarNode: renderGeneralWorkbenchSidebarNode({

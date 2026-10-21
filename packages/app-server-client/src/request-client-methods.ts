@@ -966,6 +966,12 @@ export const APP_SERVER_REQUEST_CLIENT_METHODS: readonly AppServerRequestClientM
       params: "required",
     },
     {
+      name: "compressRollouts",
+      method: protocol.METHOD_ROLLOUT_COMPRESS,
+      kind: "request",
+      params: "omitted",
+    },
+    {
       name: "resetMemory",
       method: protocol.METHOD_MEMORY_RESET,
       kind: "request",

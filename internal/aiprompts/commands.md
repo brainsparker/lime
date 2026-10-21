@@ -906,3 +906,15 @@ Cloud managed config、MDM/managed requirements、cwd 对应的 project-local po
 仍属于 deferred/fail-closed；Cloud profile 只能由 authenticated remote transport 提供，不能在 CLI 伪造。多模型 catalog、
 model switch、provider capability/readiness、retry/circuit breaker 与多模态 sampling/media lowering 继续归
 Grok-aligned `model-provider`。
+
+本地 rollout 维护入口为 rollout/compress，params 只接受省略、null 或空对象；返回 {}
+只确认触发，不表示压缩已经结束。只支持本地 canonical rollout owner，缺少该 owner
+按 Codex 返回 MethodNotFound。Rust typed client、共享 TypeScript client 与
+src/lib/api/rolloutMaintenance.ts 均走同一 JSON-RPC，不增加 IPC 或 mock 命令。
+可通过共享 config/value/write 设置 experimental.local_thread_store_compression；
+默认 false，只控制下次启动自动触发，手动 RPC 不受 startup gate 限制。
+thread/unarchive 在未归档/不存在时返回 InvalidRequest，无成功或环境连接通知。
+
+r33 源码补核：Codex message_processor.rs、v2/rollout_compress_tests.rs 要求
+连接 initialize.capabilities.experimentalApi=true；rollout/compress 现在遵守该
+connection-local opt-in，无声明返回 -32600 和上游同文错误，且不调度 worker。

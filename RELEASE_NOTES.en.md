@@ -1,41 +1,37 @@
-## Lime v1.165.0
+## Lime v1.166.0
 
-Simplified Chinese release notes are the primary version. This English companion summarizes the same release scope.
+Simplified Chinese release notes are the primary version.
 
 ### Features
 
-- Add recent outputs, file previews and website entry points to the workspace side panel with consistent tab, browser and editor navigation.
-- Support range and multiple selection in the file tree, with improved menus, keyboard actions and editor integration.
-- Run Memory consolidation through the shared Agent runtime with restricted tools, native file changes, citations and usage tracking.
+- Add experimental background compression for idle local thread history, with writes materializing history through the shared App Server owner. Disabled by default.
+- Add browser preferences for link destinations and unify link, website artifact, and native browser-tab opening.
 
 ### Fixes
 
-- Correct asynchronous question drafts, cross-thread recovery, cancellation and terminal rendering to avoid duplicate input and invalid status alerts.
-- Restore session settings, compaction checkpoints, model history, input images and usage across thread forks and cold recovery.
-- Preserve Anthropic signature deltas and Gemini signed content, and isolate native history by provider route during replay.
-- Cancel and drain native file tasks during internal Agent shutdown before committing their results.
-- Fix loading of adjacent dynamic libraries by sandboxed native file tools on macOS.
-- Fall back to the global Memory summary until a workspace summary is available, while retaining workspace precedence.
+- Preserve exact floating-point command timings during history parsing so archive integrity checks accept previously written rollout records.
+
+- Refine thread archive, restore, and rollback file movement, timestamps, and history reads while preserving durable thread identity.
+- Preserve source tabs and workspace context when opening website artifacts and local HTML, with protection against late navigation responses.
+- Improve file previews, Markdown links, browser preferences, and keyboard shortcut settings.
 
 ### Improvements and Refactoring
 
-- Persist canonical changes, compaction and model records in the same rollout batch and durable receipt, supporting standalone recovery from plain and compressed rollouts.
-- Use a single strict structured request without tools for Memory extraction, and retain exact source-version and ownership checks during consolidation.
-- Synchronize Hook metadata, plugin projections, protocol schemas and generated clients.
-- Split history recovery, thread usage, file output and build-input modules, and remove the old consolidation proposal path and duplicate conversions.
+- Separate archive, metadata, and compression maintenance into existing domain modules with shared writer and maintenance locks.
+- Consolidate output browsing in the workspace side panel and remove duplicate workbench file panels and tab state.
+- Synchronize Electron IPC, public JSON-RPC schemas, TypeScript/Rust clients, and command catalogs.
 
 ### Tests and Quality
 
-- Extend public JSON-RPC coverage for forks, cold recovery, four-protocol history capture and native filesystem permissions.
-- Update side-panel, file-tree, question, five-language, Electron fixture and build-freshness regressions.
-- Memory, full Codex alignment and platform coverage remain subject to the actual acceptance scope recorded in their execution plans.
+- Extend targeted regressions and real-process checks for background compression, thread lifecycle, link opening, website tabs, and browser preferences.
+- Complete Codex alignment, TUI, live-provider, and other unexecuted scenarios remain subject to their documented acceptance boundaries.
 
 ### Documentation
 
-- Update architecture, GUI, Memory, thread recovery, plugin and runtime alignment plans while preserving open acceptance work and original failure records.
+- Update shared runtime, thread-store, and GUI architecture and execution records, retaining historical failures and open issues.
 
 ### Other
 
-- Align the application, CLI and Rust workspace versions to 1.165.0.
+- Align app, CLI, and Rust workspace versions to 1.166.0.
 
-**Full changes**: `v1.164.0` -> `v1.165.0`
+**Full changes**: `v1.165.0` -> `v1.166.0`

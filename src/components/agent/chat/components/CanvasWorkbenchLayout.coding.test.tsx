@@ -3,17 +3,13 @@ import { act } from "react";
 import type { CanvasWorkbenchDefaultPreview } from "./CanvasWorkbenchLayout";
 import {
   clickByAriaLabel,
-  clickNewWorkbenchTool,
   toggleFilePreview,
   clickWorkbenchTab,
   createTaskFile,
-  expectNewWorkbenchToolInMenu,
-  expectWorkbenchTabNotInNewMenu,
   flushEffects,
   mockListProjectGitCommits,
   mount,
   mockReadProjectGitDiff,
-  mockExecCommand,
   mockToast,
   mountHarness,
 } from "./CanvasWorkbenchLayout.testFixtures";
@@ -26,20 +22,6 @@ function updateInputValue(element: HTMLInputElement, value: string) {
   setter?.call(element, value);
   element.dispatchEvent(new Event("input", { bubbles: true }));
   element.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
-function createPointerLikeEvent(
-  type: string,
-  init: ConstructorParameters<typeof MouseEvent>[1] & {
-    pointerId?: number;
-  } = {},
-) {
-  const event = new MouseEvent(type, init);
-  Object.defineProperty(event, "pointerId", {
-    configurable: true,
-    value: init.pointerId ?? 1,
-  });
-  return event;
 }
 
 describe("CanvasWorkbenchLayout coding mode", () => {
@@ -59,7 +41,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       canvasState: null,
       taskFiles: [],
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview,
       loadFilePreview: vi.fn(async (path: string) => ({
         path,
@@ -153,7 +134,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "当前画布草稿",
@@ -212,13 +192,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
         '[data-testid="canvas-workbench-direct-tabs"] [aria-label="切换画布标签-scratch.md"]',
       ),
     ).not.toBeNull();
-    expectNewWorkbenchToolInMenu(container, "终端");
-    expectNewWorkbenchToolInMenu(container, "文件");
-    expectWorkbenchTabNotInNewMenu(container, "浏览器");
-    expectWorkbenchTabNotInNewMenu(container, "Markdown");
-    expectWorkbenchTabNotInNewMenu(container, "HTML");
-    expectWorkbenchTabNotInNewMenu(container, "Code");
-    expectWorkbenchTabNotInNewMenu(container, "审查");
     mockReadProjectGitDiff.mockResolvedValueOnce({
       rootPath: "/workspace",
       repositoryRoot: "/workspace",
@@ -339,18 +312,9 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ),
     ).not.toBeNull();
 
-    clickByAriaLabel(container, "打开工作台切换菜单");
-    await flushEffects();
-    const tabMenu = container.querySelector(
-      '[data-testid="canvas-workbench-tab-menu"]',
-    );
-    expect(tabMenu?.className).toContain("left-0");
-    expect(tabMenu?.className).toContain("top-[calc(100%+5px)]");
     expect(
-      tabMenu?.querySelector('[aria-label="切换画布标签-Markdown"]'),
+      container.querySelector('[data-testid="canvas-workbench-tab-menu"]'),
     ).toBeNull();
-    clickByAriaLabel(container, "打开工作台切换菜单");
-    await flushEffects();
   });
 
   it("coding 审查入口在 admission 成功后不应永久停留在正在启动", async () => {
@@ -360,7 +324,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       canvasState: null,
       taskFiles: [],
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: null,
       loadFilePreview: vi.fn(async (path: string) => ({
         path,
@@ -423,7 +386,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "index.html",
@@ -464,13 +426,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
     expect(
       container.querySelector('button[aria-label="切换画布标签-HTML"]'),
     ).toBeNull();
-    expectNewWorkbenchToolInMenu(container, "终端");
-    expectNewWorkbenchToolInMenu(container, "文件");
-    expectWorkbenchTabNotInNewMenu(container, "浏览器");
-    expectWorkbenchTabNotInNewMenu(container, "Code");
-    expectWorkbenchTabNotInNewMenu(container, "审查");
-    expectWorkbenchTabNotInNewMenu(container, "输出");
-    expectWorkbenchTabNotInNewMenu(container, "日志");
     expect(
       container.querySelector('button[aria-label="切换画布标签-index.html"]'),
     ).not.toBeNull();
@@ -485,123 +440,12 @@ describe("CanvasWorkbenchLayout coding mode", () => {
     ).not.toBeNull();
     expect(container.textContent).toContain("上轮对话");
 
-    clickNewWorkbenchTool(container, "文件");
-    await flushEffects();
-    const projectFilesPanel = container.querySelector(
-      '[data-testid="canvas-workbench-panel-project-files"]',
-    ) as HTMLElement | null;
-    const projectFilesResizer = container.querySelector(
-      '[data-testid="canvas-workbench-project-files-resizer"]',
-    ) as HTMLElement | null;
-    expect(projectFilesPanel).not.toBeNull();
-    expect(projectFilesPanel?.style.gridTemplateColumns).toContain("34%");
-    expect(projectFilesResizer).not.toBeNull();
-    expect(projectFilesResizer?.getAttribute("role")).toBe("separator");
-    expect(projectFilesResizer?.getAttribute("aria-label")).toBe(
-      "调整项目文件宽度",
-    );
-    Object.defineProperty(projectFilesPanel, "getBoundingClientRect", {
-      configurable: true,
-      value: () => ({
-        bottom: 500,
-        height: 420,
-        left: 0,
-        right: 1000,
-        top: 80,
-        width: 1000,
-        x: 0,
-        y: 80,
-        toJSON: () => ({}),
-      }),
-    });
-    act(() => {
-      projectFilesResizer?.dispatchEvent(
-        createPointerLikeEvent("pointerdown", {
-          bubbles: true,
-          clientX: 600,
-          pointerId: 1,
-        }),
-      );
-      window.dispatchEvent(
-        createPointerLikeEvent("pointermove", {
-          bubbles: true,
-          clientX: 520,
-          pointerId: 1,
-        }),
-      );
-      window.dispatchEvent(
-        createPointerLikeEvent("pointerup", {
-          bubbles: true,
-          pointerId: 1,
-        }),
-      );
-    });
-    await flushEffects();
-    expect(projectFilesPanel?.style.gridTemplateColumns).toContain("48%");
-    act(() => {
-      projectFilesResizer?.dispatchEvent(
-        new KeyboardEvent("keydown", {
-          bubbles: true,
-          key: "ArrowRight",
-        }),
-      );
-    });
-    await flushEffects();
-    expect(projectFilesPanel?.style.gridTemplateColumns).toContain("46%");
-    clickByAriaLabel(container, "选择工作区文件-README.md");
-    await flushEffects();
-
-    expect(loadFilePreview).toHaveBeenCalledWith("/workspace/README.md");
+    // Files 和终端由共享右侧面承载，预览壳不再创建自己的工具入口。
     expect(
       container.querySelector(
-        '[data-testid="canvas-workbench-markdown-preview"]',
+        '[data-testid="canvas-workbench-tab-menu-trigger"]',
       ),
-    ).not.toBeNull();
-    toggleFilePreview(container);
-    await flushEffects();
-    expect(
-      container.querySelector(
-        '[data-testid="canvas-workbench-panel-project-files"] [data-testid="canvas-workbench-code-preview"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('button[aria-label="切换画布标签-README.md"]'),
-    ).not.toBeNull();
-
-    clickNewWorkbenchTool(container, "终端");
-    await flushEffects();
-    expect(
-      container.querySelector(
-        '[data-testid="canvas-workbench-panel-terminal"]',
-      ),
-    ).not.toBeNull();
-    expect(
-      container.querySelector('[data-testid="terminal-xterm"]'),
-    ).not.toBeNull();
-    expect(mockExecCommand).toHaveBeenCalledWith(
-      expect.objectContaining({
-        command: ["/bin/sh", "-i"],
-        cwd: "/workspace",
-        tty: true,
-        size: { cols: 120, rows: 14 },
-      }),
-    );
-
-    clickNewWorkbenchTool(container, "文件");
-    await flushEffects();
-    expect(
-      container.querySelector(
-        '[data-testid="canvas-workbench-panel-project-files"]',
-      ),
-    ).not.toBeNull();
-    clickByAriaLabel(container, "选择工作区文件-README.md");
-    await flushEffects();
-    expect(loadFilePreview).toHaveBeenCalledWith("/workspace/README.md");
-    expect(
-      container.querySelector(
-        '[data-testid="canvas-workbench-panel-project-files"] [data-testid="canvas-workbench-markdown-preview"]',
-      ),
-    ).not.toBeNull();
+    ).toBeNull();
   });
 
   it("coding 模式选择 Git 基准时应展示非 Git 目录诊断", async () => {
@@ -620,7 +464,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace/non-git",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "当前草稿",
@@ -693,7 +536,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "index.html",
@@ -1250,7 +1092,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "greeting.ts",
@@ -1360,7 +1201,6 @@ describe("CanvasWorkbenchLayout coding mode", () => {
       ],
       selectedFileId: "task-current",
       workspaceRoot: "/workspace",
-      workspaceUnavailable: false,
       defaultPreview: {
         selectionKey: "task:task-current",
         title: "当前画布草稿",

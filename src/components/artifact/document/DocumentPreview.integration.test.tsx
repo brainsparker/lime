@@ -7,10 +7,7 @@ import { ArtifactRenderer } from "../ArtifactRenderer";
 import { resolveWorkspaceFilePreviewTarget } from "@/components/agent/chat/components/canvas-workbench/files/workspaceFilePreview";
 import { CanvasWorkbenchPreviewModePanel } from "@/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel";
 import { resolveCanvasWorkbenchPreviewModeState } from "@/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModeViewModel";
-import type {
-  CanvasWorkbenchCopy,
-  CanvasWorkbenchResolvedSelection,
-} from "@/components/agent/chat/components/CanvasWorkbenchLayoutViewModel";
+import type { CanvasWorkbenchResolvedSelection } from "@/components/agent/chat/components/CanvasWorkbenchLayoutViewModel";
 
 vi.mock("./PdfPreviewPanel", () => ({
   PdfPreviewPanel: ({ path, title }: { path: string; title: string }) => (
@@ -48,7 +45,7 @@ const copy = {
     readFailed: "read failed",
     binaryUnsupported: "binary unsupported",
   },
-} as CanvasWorkbenchCopy;
+};
 
 describe.each(["pdf", "docx", "xlsx"])("%s 的两条真实组件分发", (format) => {
   it("空正文的会话文件进入页面面板而非空文档或系统打开", async () => {
@@ -135,9 +132,7 @@ describe.each(["pdf", "docx", "xlsx"])("%s 的两条真实组件分发", (format
         ),
       ).toBeNull();
       expect(
-        container.querySelector(
-          "[data-testid=file-preview-mode-toggle]",
-        ),
+        container.querySelector("[data-testid=file-preview-mode-toggle]"),
       ).toBeNull();
     },
   );

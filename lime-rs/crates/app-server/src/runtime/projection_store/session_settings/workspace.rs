@@ -51,7 +51,15 @@ pub(super) fn migrated_workspace_metadata(metadata: &Value) -> Result<Option<Val
                 .collect::<Result<Vec<_>, _>>()
                 .map(Value::Array)
         })
-        .transpose()?;
+        .transpose()?
+        // Current thread/start uses null for inherited roots. Keep that valid
+        // representation so opening an index does not rewrite portable history.
+        .or_else(|| {
+            metadata
+                .get("runtimeWorkspaceRoots")
+                .filter(|value| value.is_null())
+                .cloned()
+        });
     remove_workspace_aliases(&mut next);
     if let Some(cwd) = cwd {
         next.insert("workingDir".into(), cwd);

@@ -7,10 +7,7 @@ use serde_json::Value;
 use super::{scan_rollout, validate_rollout_prefix, ROLLOUT_TAIL_READ_CHUNK_BYTES};
 
 pub(super) fn repair_crash_tail(path: &Path) -> Result<(), String> {
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .open(path)
+    let mut file = File::open(path)
         .map_err(|error| format!("failed to open rollout file {}: {error}", path.display()))?;
     let file_len = file
         .metadata()

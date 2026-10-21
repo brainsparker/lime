@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { projectCodingWorkbenchViewFromEvents } from "@limecloud/agent-runtime-projection";
-import { ThreadSummaryPanel } from "./ThreadSummaryPanel";
 import { buildWorkspaceConversationCodingViews } from "./workspaceConversationCodingViews";
 
 vi.mock("@limecloud/agent-runtime-projection", async (importOriginal) => {
@@ -55,7 +54,7 @@ describe("buildWorkspaceConversationCodingViews", () => {
     expect(projectCodingWorkbenchViewFromEvents).toHaveBeenCalledOnce();
     expect(views.currentSessionTurn?.id).toBe("turn-plain");
     expect(views.counters.shouldUseRuntimeWorkbench).toBe(false);
-    expect(views.sessionView).toBeNull();
+    expect(views).not.toHaveProperty("sessionView");
     expect(views).not.toHaveProperty("logView");
     expect(views.changeView).toMatchObject({
       reviewThreadId: "thread-plain",
@@ -63,7 +62,7 @@ describe("buildWorkspaceConversationCodingViews", () => {
     });
   });
 
-  it("Coding Workbench Summary 复用 canonical ThreadSummaryPanel owner", () => {
+  it("运行中的 canonical 投影保留审阅身份，但不为 Canvas 创建第二个 Summary", () => {
     const threadItems = [
       {
         id: "plan-1",
@@ -75,16 +74,6 @@ describe("buildWorkspaceConversationCodingViews", () => {
         text: "Ship the change",
       },
     ] as const;
-    const canonicalChildren = [
-      {
-        name: "Reviewer",
-        threadId: "child-1",
-        sessionId: "session-child",
-        parentThreadId: "thread-summary",
-        status: "running",
-        updatedAtMs: 1,
-      },
-    ];
     const views = buildWorkspaceConversationCodingViews({
       turns: [
         {
@@ -108,16 +97,10 @@ describe("buildWorkspaceConversationCodingViews", () => {
         },
       ],
       threadRead: { thread_id: "thread-summary" },
-      canonicalChildren,
     });
 
-    const panel = views.sessionView?.renderPanel();
-    expect(panel).toBeTruthy();
-    expect((panel as { type?: unknown }).type).toBe(ThreadSummaryPanel);
-    expect((panel as { props?: Record<string, unknown> }).props).toMatchObject({
-      threadId: "thread-summary",
-      threadItems,
-      canonicalChildren,
-    });
+    expect(views.changeView?.reviewThreadId).toBe("thread-summary");
+    expect(views.counters.shouldExposeSessionProgress).toBe(true);
+    expect(views).not.toHaveProperty("sessionView");
   });
 });

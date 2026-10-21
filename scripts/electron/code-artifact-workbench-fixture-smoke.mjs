@@ -27,7 +27,10 @@ import {
   stopInvokeTraceCollector,
   validateInvokeTraceCollectorCapture,
 } from "../lib/invoke-trace-collector.mjs";
-import { collectReviewThreadSidePanelEvidence } from "./lib/review-thread-side-panel-gate-b.mjs";
+import {
+  collectReviewThreadSidePanelEvidence,
+  collectThreadSummaryEntryEvidence,
+} from "./lib/review-thread-side-panel-gate-b.mjs";
 import { selectThreadSidePanelTool } from "./lib/thread-side-panel-navigation.mjs";
 import { collectRightSurfaceLifecycleEvidence } from "./lib/right-surface-lifecycle-gate-b.mjs";
 import {
@@ -74,6 +77,7 @@ const SOURCE_FILES = [
   "scripts/electron/lib/thread-side-panel-navigation.mjs",
   "scripts/electron/lib/review-thread-side-panel-gate-b.mjs",
   "scripts/electron/lib/right-surface-lifecycle-gate-b.mjs",
+  "scripts/electron/lib/thread-side-panel-terminal-scenario.mjs",
   "scripts/electron/lib/thread-side-panel-recents-gate-b.mjs",
   "scripts/electron/lib/code-artifact-file-change-gate-b.mjs",
   "scripts/electron/lib/sidebar-layout-fixture-evidence.mjs",
@@ -3130,6 +3134,16 @@ async function run() {
         summary.followupRead,
       );
       logStage("review-files-from-right-surface");
+      summary.threadSummaryEntry = await collectThreadSummaryEntryEvidence(
+        page,
+        {
+          timeoutMs: options.timeoutMs,
+          screenshotPath: path.join(
+            options.evidenceDir,
+            `${options.prefix}-thread-summary.png`,
+          ),
+        },
+      );
       summary.filesReview = await collectReviewThreadSidePanelEvidence(page, {
         threadId: THREAD_ID,
         timeoutMs: options.timeoutMs,
@@ -3170,6 +3184,8 @@ async function run() {
           workspaceId: workspace.workspaceId,
           workspaceRoot: workspace.rootPath,
           timeoutMs: options.timeoutMs,
+          evidenceDir: options.evidenceDir,
+          prefix: options.prefix,
           onStage: (stage) => logStage(`right-surface-${stage}`),
         });
       logStage("new-tab-recents");
@@ -3409,6 +3425,12 @@ async function run() {
           ) &&
           summary.filesReview.externalOpenBefore ===
             summary.filesReview.externalOpenAfter),
+      threadSummaryUniqueHeaderEntry:
+        options.scenario !== "gui-coding-input" ||
+        (summary.threadSummaryEntry?.opened?.count === 1 &&
+          summary.threadSummaryEntry.opened.inCanvas === false &&
+          summary.threadSummaryEntry.opened.obsoleteTabCount === 0 &&
+          summary.threadSummaryEntry.closed === true),
       recentsCanonicalFileOpened:
         options.scenario !== "gui-coding-input" ||
         (summary.recents?.threadId === THREAD_ID &&
@@ -3422,6 +3444,9 @@ async function run() {
         (summary.recentsWebsite?.rounds?.length === 2 &&
           summary.recentsWebsite.sameNativeOwner === true &&
           summary.recentsWebsite.actualHttpReads === true &&
+          summary.recentsWebsite.linkClicks?.background === true &&
+          summary.recentsWebsite.linkClicks?.foreground === true &&
+          summary.recentsWebsite.linkClicks?.markdownBackground === true &&
           summary.recentsWebsite.html?.actualFileRead === true &&
           summary.recentsWebsite.html?.iframeBodyMatched === true &&
           summary.recentsWebsite.html?.sourceNewTabPreserved === true),

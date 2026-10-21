@@ -51,20 +51,21 @@ use super::{
     ProjectUpdateResponse, PromptHistoryAppendParams, PromptHistoryAppendResponse,
     PromptHistoryReadParams, PromptHistoryReadResponse, ReasoningSummaryPartAddedNotification,
     ReasoningSummaryTextDeltaNotification, ReasoningTextDeltaNotification, ReviewStartParams,
-    ReviewStartResponse, ScheduledTaskChangedNotification, ScheduledTaskRunUpdatedNotification,
-    ServerRequestResolvedNotification, SkillsChangedNotification, SkillsConfigWriteParams,
-    SkillsConfigWriteResponse, SkillsExtraRootsSetParams, SkillsExtraRootsSetResponse,
-    SkillsListParams, SkillsListResponse, StrictReviewRequiredNotification,
-    ThreadApproveGuardianDeniedActionParams, ThreadApproveGuardianDeniedActionResponse,
-    ThreadArchiveParams, ThreadArchiveResponse, ThreadArchivedNotification,
-    ThreadBackgroundTerminalsCleanParams, ThreadBackgroundTerminalsCleanResponse,
-    ThreadBackgroundTerminalsListParams, ThreadBackgroundTerminalsListResponse,
-    ThreadBackgroundTerminalsTerminateParams, ThreadBackgroundTerminalsTerminateResponse,
-    ThreadClosedNotification, ThreadCompactStartParams, ThreadCompactStartResponse,
-    ThreadDecrementElicitationParams, ThreadDecrementElicitationResponse, ThreadDeleteParams,
-    ThreadDeleteResponse, ThreadDeletedNotification, ThreadForkParams, ThreadForkResponse,
-    ThreadGoalClearParams, ThreadGoalClearResponse, ThreadGoalClearedNotification,
-    ThreadGoalGetParams, ThreadGoalGetResponse, ThreadGoalSetParams, ThreadGoalSetResponse,
+    ReviewStartResponse, RolloutCompressResponse, ScheduledTaskChangedNotification,
+    ScheduledTaskRunUpdatedNotification, ServerRequestResolvedNotification,
+    SkillsChangedNotification, SkillsConfigWriteParams, SkillsConfigWriteResponse,
+    SkillsExtraRootsSetParams, SkillsExtraRootsSetResponse, SkillsListParams, SkillsListResponse,
+    StrictReviewRequiredNotification, ThreadApproveGuardianDeniedActionParams,
+    ThreadApproveGuardianDeniedActionResponse, ThreadArchiveParams, ThreadArchiveResponse,
+    ThreadArchivedNotification, ThreadBackgroundTerminalsCleanParams,
+    ThreadBackgroundTerminalsCleanResponse, ThreadBackgroundTerminalsListParams,
+    ThreadBackgroundTerminalsListResponse, ThreadBackgroundTerminalsTerminateParams,
+    ThreadBackgroundTerminalsTerminateResponse, ThreadClosedNotification, ThreadCompactStartParams,
+    ThreadCompactStartResponse, ThreadDecrementElicitationParams,
+    ThreadDecrementElicitationResponse, ThreadDeleteParams, ThreadDeleteResponse,
+    ThreadDeletedNotification, ThreadForkParams, ThreadForkResponse, ThreadGoalClearParams,
+    ThreadGoalClearResponse, ThreadGoalClearedNotification, ThreadGoalGetParams,
+    ThreadGoalGetResponse, ThreadGoalSetParams, ThreadGoalSetResponse,
     ThreadGoalUpdatedNotification, ThreadIncrementElicitationParams,
     ThreadIncrementElicitationResponse, ThreadInjectItemsParams, ThreadInjectItemsResponse,
     ThreadItemsListParams, ThreadItemsListResponse, ThreadListParams, ThreadListResponse,
@@ -304,6 +305,8 @@ pub enum ClientRequest {
     },
     #[serde(rename = "memory/reset")]
     MemoryReset { id: RequestId },
+    #[serde(rename = "rollout/compress")]
+    RolloutCompress { id: RequestId },
     #[serde(rename = "thread/shellCommand")]
     ThreadShellCommand {
         id: RequestId,
@@ -782,6 +785,7 @@ impl ClientRequest {
             | Self::ThreadMemoryModeSet { id, .. }
             | Self::MemoryStatus { id, .. }
             | Self::MemoryReset { id }
+            | Self::RolloutCompress { id }
             | Self::ThreadShellCommand { id, .. }
             | Self::ThreadApproveGuardianDeniedAction { id, .. }
             | Self::ThreadBackgroundTerminalsClean { id, .. }
@@ -910,6 +914,7 @@ impl ClientRequest {
             Self::ThreadMemoryModeSet { .. } => Method::ThreadMemoryModeSet,
             Self::MemoryStatus { .. } => Method::MemoryStatus,
             Self::MemoryReset { .. } => Method::MemoryReset,
+            Self::RolloutCompress { .. } => Method::RolloutCompress,
             Self::ThreadShellCommand { .. } => Method::ThreadShellCommand,
             Self::ThreadApproveGuardianDeniedAction { .. } => {
                 Method::ThreadApproveGuardianDeniedAction
@@ -1056,6 +1061,7 @@ pub enum ClientResponsePayload {
     ThreadMemoryModeSet(ThreadMemoryModeSetResponse),
     MemoryStatus(MemoryStatusResponse),
     MemoryReset(MemoryResetResponse),
+    RolloutCompress(RolloutCompressResponse),
     ThreadShellCommand(ThreadShellCommandResponse),
     ThreadApproveGuardianDeniedAction(ThreadApproveGuardianDeniedActionResponse),
     ThreadBackgroundTerminalsClean(ThreadBackgroundTerminalsCleanResponse),
@@ -1158,6 +1164,7 @@ impl ClientResponsePayload {
             Self::ThreadMemoryModeSet(_) => Method::ThreadMemoryModeSet,
             Self::MemoryStatus(_) => Method::MemoryStatus,
             Self::MemoryReset(_) => Method::MemoryReset,
+            Self::RolloutCompress(_) => Method::RolloutCompress,
             Self::ThreadShellCommand(_) => Method::ThreadShellCommand,
             Self::ThreadApproveGuardianDeniedAction(_) => Method::ThreadApproveGuardianDeniedAction,
             Self::ThreadBackgroundTerminalsClean(_) => Method::ThreadBackgroundTerminalsClean,
@@ -1262,6 +1269,7 @@ impl ClientResponsePayload {
             Self::ThreadMemoryModeSet(response) => serde_json::to_value(response)?,
             Self::MemoryStatus(response) => serde_json::to_value(response)?,
             Self::MemoryReset(response) => serde_json::to_value(response)?,
+            Self::RolloutCompress(response) => serde_json::to_value(response)?,
             Self::ThreadShellCommand(response) => serde_json::to_value(response)?,
             Self::ThreadApproveGuardianDeniedAction(response) => serde_json::to_value(response)?,
             Self::ThreadBackgroundTerminalsClean(response) => serde_json::to_value(response)?,

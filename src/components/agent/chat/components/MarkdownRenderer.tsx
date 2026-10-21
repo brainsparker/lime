@@ -28,6 +28,7 @@ import { ArtifactPlaceholder } from "./ArtifactPlaceholder";
 import { A2UITaskCard, A2UITaskLoadingCard } from "./A2UITaskCard";
 import { MarkdownImageWithFallback } from "./MarkdownImageWithFallback";
 import { MarkdownLink } from "./MarkdownLink";
+import { markdownElements } from "./MarkdownElements";
 import { remarkPromptLinks } from "./remarkPromptLinks";
 import {
   CODE_FONT_FAMILY,
@@ -41,12 +42,6 @@ import {
   MarkdownBlockActions,
   MarkdownBlockShell,
   MarkdownContainer,
-  MarkdownDivider,
-  MarkdownQuoteBody,
-  MarkdownQuoteCard,
-  MarkdownQuoteInner,
-  MarkdownQuoteIconShell,
-  MarkdownTableScroll,
 } from "./MarkdownRendererStyles";
 import {
   FLOW_ARROW_ONLY_PATTERN,
@@ -131,6 +126,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
     promptLinkItemId,
   }) => {
     const { t } = useTranslation("agent");
+    const renderLink = React.useCallback(
+      (props: React.ComponentProps<typeof MarkdownLink>) => (
+        <MarkdownLink {...props} itemId={promptLinkItemId} />
+      ),
+      [promptLinkItemId],
+    );
     const [copied, setCopied] = React.useState<string | null>(null);
     const [bundleImageOverrides, setBundleImageOverrides] = React.useState<
       Record<string, string>
@@ -634,6 +635,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
               skipHtml={useLightweightMarkdownRender}
               urlTransform={transformMarkdownUrl}
               components={{
+                ...markdownElements,
+                a: renderLink,
                 // 使用 pre 组件来处理代码块，以便更好地控制 a2ui 的渲染
                 pre({ children, ...props }: any) {
                   // ReactMarkdown 传递的 children 是一个 React 元素
@@ -786,39 +789,6 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                     </CodeBlockContainer>
                   );
                 },
-                code({ inline, className, children, ...props }: any) {
-                  const content = String(
-                    Array.isArray(children)
-                      ? children.join("")
-                      : children || "",
-                  );
-                  const isInlineCode =
-                    typeof inline === "boolean"
-                      ? inline
-                      : !className && !content.includes("\n");
-
-                  if (isInlineCode) {
-                    return (
-                      <code
-                        className={className}
-                        data-inline-code="true"
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    );
-                  }
-
-                  // 非 inline code 统一由 pre 组件处理，避免块级元素落入 <p>
-                  return (
-                    <code className={className} {...props}>
-                      {children}
-                    </code>
-                  );
-                },
-                a(props: any) {
-                  return <MarkdownLink {...props} itemId={promptLinkItemId} />;
-                },
                 // 普通图片渲染（非 base64）
                 img({ src, alt, ...props }: any) {
                   // base64 图片已经在上面单独处理了，这里只处理普通 URL 图片
@@ -852,49 +822,6 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = memo(
                       unavailableLabel={imageUnavailableLabel}
                       {...props}
                     />
-                  );
-                },
-                h1({ children, ...props }: any) {
-                  return (
-                    <h1 data-markdown-heading-level="1" {...props}>
-                      {children}
-                    </h1>
-                  );
-                },
-                h2({ children, ...props }: any) {
-                  return (
-                    <h2 data-markdown-heading-level="2" {...props}>
-                      {children}
-                    </h2>
-                  );
-                },
-                h3({ children, ...props }: any) {
-                  return (
-                    <h3 data-markdown-heading-level="3" {...props}>
-                      {children}
-                    </h3>
-                  );
-                },
-                blockquote({ children }: any) {
-                  return (
-                    <MarkdownQuoteCard data-testid="markdown-blockquote-card">
-                      <MarkdownQuoteInner>
-                        <MarkdownQuoteIconShell aria-hidden="true">
-                          <Quote size={15} />
-                        </MarkdownQuoteIconShell>
-                        <MarkdownQuoteBody>{children}</MarkdownQuoteBody>
-                      </MarkdownQuoteInner>
-                    </MarkdownQuoteCard>
-                  );
-                },
-                hr() {
-                  return <MarkdownDivider data-testid="markdown-divider" />;
-                },
-                table({ children, ...props }: any) {
-                  return (
-                    <MarkdownTableScroll data-testid="markdown-table-scroll">
-                      <table {...props}>{children}</table>
-                    </MarkdownTableScroll>
                   );
                 },
               }}

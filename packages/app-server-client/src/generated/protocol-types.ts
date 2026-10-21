@@ -306,6 +306,7 @@ export const METHOD_PROJECT_MEMORY_READ = "projectMemory/read";
 export const METHOD_PROMPT_HISTORY_APPEND = "promptHistory/append";
 export const METHOD_PROMPT_HISTORY_READ = "promptHistory/read";
 export const METHOD_REVIEW_START = "review/start";
+export const METHOD_ROLLOUT_COMPRESS = "rollout/compress";
 export const METHOD_SCHEDULED_TASK_CHANGED = "scheduledTask/changed";
 export const METHOD_SCHEDULED_TASK_CREATE = "scheduledTask/create";
 export const METHOD_SCHEDULED_TASK_DELETE = "scheduledTask/delete";
@@ -1489,6 +1490,10 @@ export const GENERATED_APP_SERVER_METHODS = [
   {
     kind: "request",
     method: "review/start",
+  },
+  {
+    kind: "request",
+    method: "rollout/compress",
   },
   {
     kind: "notification",
@@ -4639,6 +4644,10 @@ export type ClientRequest =
     }
   | {
       id: number | string;
+      method: "rollout/compress";
+    }
+  | {
+      id: number | string;
       method: "thread/shellCommand";
       params: ThreadShellCommandParams;
     }
@@ -7512,6 +7521,7 @@ export type Method =
   | "promptHistory/append"
   | "promptHistory/read"
   | "review/start"
+  | "rollout/compress"
   | "skills/config/write"
   | "skills/extraRoots/set"
   | "skills/list"
@@ -8865,6 +8875,8 @@ export type ReviewTarget =
       instructions: string;
       type: "custom";
     };
+
+export type RolloutCompressResponse = Record<string, unknown>;
 
 export interface RouteDefaults {
   promptCacheMode?: null | string;

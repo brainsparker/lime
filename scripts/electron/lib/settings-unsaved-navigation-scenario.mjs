@@ -10,10 +10,8 @@ export async function runSettingsUnsavedNavigationScenario({
   page,
   options,
   evidenceDir,
-  sessionId,
   stage,
   waitForSession,
-  waitForHome,
 }) {
   const readEnabled = async () => {
     const response = await invokeAppServerFromPage(page, "config/read", {
@@ -49,24 +47,14 @@ export async function runSettingsUnsavedNavigationScenario({
     await toggle.waitFor({ state: "visible" });
     assert.equal(await toggle.getAttribute("aria-checked"), String(saved));
   };
-  const returnToSession = async () => {
-    await page
-      .locator(
-        `[data-testid="app-sidebar-conversation-open"][data-session-id="${sessionId}"]`,
-      )
-      .click();
-    await waitForSession();
-  };
 
-  for (const target of ["section", "back", "home", "root"]) {
+  for (const target of ["section", "back"]) {
     stage(`unsaved-memory-${target}`);
     await openMemory();
     await toggle.click();
     const trigger = {
       section: page.getByTestId("settings-sidebar-tab-about"),
       back: page.getByTestId("settings-back-button"),
-      home: page.getByTestId("app-sidebar-nav-new-chat"),
-      root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
     }[target];
     await trigger.click();
     await dialog.waitFor({ state: "visible" });
@@ -114,23 +102,8 @@ export async function runSettingsUnsavedNavigationScenario({
     if (target === "section") {
       await waitForAbout();
       await page.getByTestId("settings-back-button").click();
-      await waitForSession();
-    } else if (target === "back") await waitForSession();
-    else {
-      if (target === "home") await waitForHome();
-      else {
-        await memory.waitFor({ state: "detached" });
-        assert.equal(
-          await page
-            .getByTestId("app-sidebar-nav-scheduled-tasks")
-            .getAttribute("aria-current"),
-          "page",
-        );
-        await page.getByTestId("app-sidebar-nav-new-chat").click();
-        await waitForHome();
-      }
-      await returnToSession();
     }
+    await waitForSession();
     assert.equal(
       await readEnabled(),
       saved,

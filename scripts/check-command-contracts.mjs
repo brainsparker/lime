@@ -758,6 +758,7 @@ const currentElectronHostRequiredCommands = new Set([
   ...currentFileBrowserDesktopHostShellCommands,
   "get_default_provider",
   "get_environment_preview",
+  "is_default_browser",
   "open_external_url",
   "open_system_settings_url",
   "start_oem_cloud_oauth_callback_bridge",

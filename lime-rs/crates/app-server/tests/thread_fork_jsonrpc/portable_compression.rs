@@ -33,16 +33,6 @@ async fn seed(source: &TempDir, workspace: &TempDir) -> (String, PathBuf) {
     )
     .await;
     let id = required_string(&started, "/result/thread/id");
-    let initial: String = Connection::open(source.path().join("projection.sqlite"))
-        .unwrap()
-        .query_row(
-            "SELECT thread_json FROM canonical_threads WHERE thread_id=?1",
-            [&id],
-            |row| row.get(0),
-        )
-        .unwrap();
-    let initial: Value = serde_json::from_str(&initial).unwrap();
-    assert!(initial["metadata"].get("runtimeWorkspaceRoots").is_none());
     start_and_complete(
         &server,
         &id,
@@ -73,9 +63,20 @@ async fn compressed_only_original_thread_discovers_resumes_appends_and_restarts(
     source.close().unwrap();
 
     let capture = Arc::new(HistoryCaptureBackend::default());
-    let server = AppServer::with_runtime(runtime(&target, capture.clone()));
+    // The copied source already owns the fixture's seed Item IDs. Continuations
+    // capture that history without emitting the source-only Items a second time.
+    capture.calls.store(1, Ordering::SeqCst);
+    let core = runtime(&target, capture.clone());
+    assert!(
+        !path.exists(),
+        "index rebuild must keep the compressed representation"
+    );
+    let server = AppServer::with_runtime(core);
     initialize(&server, 3).await;
-    assert!(!path.exists(), "initialization must remain streaming");
+    assert!(
+        !path.exists(),
+        "initialization must not materialize history"
+    );
     let list = request(&server, 4, METHOD_THREAD_LIST, json!({})).await;
     assert_eq!(
         list["result"]["data"].as_array().unwrap().len(),
@@ -83,6 +84,7 @@ async fn compressed_only_original_thread_discovers_resumes_appends_and_restarts(
         "{list}"
     );
     assert_eq!(list["result"]["data"][0]["id"], id);
+    assert!(!path.exists(), "thread/list must not materialize history");
     let read = request(
         &server,
         5,
@@ -221,13 +223,19 @@ async fn compressed_archived_original_updates_restores_and_stays_deleted_after_r
         json!({"threadId":id,"gitInfo":{"branch":"must-not-commit"}}),
     )
     .await;
-    assert!(!archived.exists());
+    assert!(
+        !archived.exists(),
+        "failed metadata write must not publish history"
+    );
     assert_eq!(
         std::fs::read(compressed(&archived)).unwrap(),
         b"invalid compressed rollout"
     );
     let unchanged = request(&server, 61, METHOD_THREAD_READ, json!({"threadId":id})).await;
-    assert!(unchanged["result"]["thread"]["gitInfo"]["branch"].is_null());
+    assert!(
+        unchanged["result"]["thread"]["gitInfo"]["branch"].is_null(),
+        "{unchanged}"
+    );
     std::fs::write(compressed(&archived), saved).unwrap();
     request(
         &server,
@@ -254,7 +262,9 @@ async fn compressed_archived_original_updates_restores_and_stays_deleted_after_r
         read["result"]["thread"]["turns"].as_array().unwrap().len(),
         1
     );
-    compress(&path, false);
+    if path.exists() {
+        compress(&path, false);
+    }
     drop(server);
     let core = RuntimeCore::with_backend(capture.clone()).with_projection_store(Arc::new(
         ProjectionStore::initialize_with_agent_root(
@@ -267,10 +277,10 @@ async fn compressed_archived_original_updates_restores_and_stays_deleted_after_r
     initialize(&server, 90).await;
     let cold = request(&server, 91, METHOD_THREAD_READ, json!({"threadId":id})).await;
     assert_eq!(
-        cold["result"]["thread"]["gitInfo"]["branch"],
-        "compressed-branch"
+        cold["result"]["thread"]["gitInfo"]["branch"], "compressed-branch",
+        "{cold}"
     );
-    assert!(!path.exists());
+    assert!(!path.exists(), "cold metadata read must retain compression");
     request(&server, 10, METHOD_THREAD_DELETE, json!({"threadId":id})).await;
     drop(server);
     assert!(!path.exists());

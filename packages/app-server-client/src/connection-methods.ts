@@ -503,9 +503,7 @@ declare module "./connection.js" {
     listMcpServersWithStatus(
       params?: protocol.ListMcpServerStatusParams,
       options?: AppServerRequestOptions,
-    ): Promise<
-      AppServerRequestResult<protocol.ListMcpServerStatusResponse>
-    >;
+    ): Promise<AppServerRequestResult<protocol.ListMcpServerStatusResponse>>;
     createMcpServer(
       params: protocol.McpServerCreateParams,
       options?: AppServerRequestOptions,
@@ -624,6 +622,9 @@ declare module "./connection.js" {
       params: protocol.MemoryStoreRootParams,
       options?: AppServerRequestOptions,
     ): Promise<AppServerRequestResult<protocol.MemoryStoreHealthResponse>>;
+    compressRollouts(
+      options?: AppServerRequestOptions,
+    ): Promise<AppServerRequestResult<protocol.RolloutCompressResponse>>;
     resetMemory(
       options?: AppServerRequestOptions,
     ): Promise<AppServerRequestResult<protocol.MemoryResetResponse>>;

@@ -54,7 +54,7 @@ export const sourcePaths = [
   "src/components/agent/chat/components/canvas-workbench/useCanvasWorkbenchDocumentState.ts",
   "src/components/agent/chat/components/CanvasWorkbenchLayoutViewModel.ts",
   "src/components/agent/chat/components/canvas-workbench/files/workspaceFilePreview.ts",
-  "src/components/agent/chat/components/canvas-workbench/files/CanvasWorkbenchProjectFilesPanel.tsx",
+  "scripts/electron/lib/thread-side-panel-terminal-scenario.mjs",
   "src/components/agent/chat/components/canvas-workbench/CanvasWorkbenchPreviewModePanel.tsx",
   "scripts/electron/document-preview-fixture-smoke.mjs",
   "scripts/electron/lib/pdf-preview-scenario.mjs",

@@ -1,4 +1,5 @@
 import path from "node:path";
+import process from "node:process";
 import { chmod, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { app, shell } from "./electronRuntime";
 import { MacOSNativeHostClient, NativeHostError } from "./macosNativeHost";
@@ -19,6 +20,7 @@ type SystemUtilityHostOptions = {
 };
 
 export class SystemUtilityHost {
+  readonly #isDefaultBrowser = app.isDefaultProtocolClient("https");
   readonly #appDataRoot: string;
   readonly #readConfig: ConfigReader;
   readonly #macOSNativeHost = new MacOSNativeHostClient();
@@ -50,6 +52,10 @@ export class SystemUtilityHost {
     const url = readRequiredString(request, "url");
     await shell.openExternal(normalizeExternalUrl(url));
     return {};
+  }
+
+  isDefaultBrowser(): boolean {
+    return this.#isDefaultBrowser;
   }
 
   async openSystemSettingsUrl(args: HostArgs): Promise<Record<string, never>> {

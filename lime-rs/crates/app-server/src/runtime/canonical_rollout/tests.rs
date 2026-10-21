@@ -11,6 +11,7 @@ use super::{scan_rollout, RolloutStore, ROLLOUT_SCHEMA_VERSION};
 
 mod compression;
 mod digest;
+mod lifecycle;
 mod runtime;
 
 fn thread(id: &str) -> Thread {
@@ -39,7 +40,7 @@ fn thread(id: &str) -> Thread {
     }
 }
 
-fn setup(id: &str) -> (tempfile::TempDir, RolloutStore, Thread, PathBuf, PathBuf) {
+pub(super) fn setup(id: &str) -> (tempfile::TempDir, RolloutStore, Thread, PathBuf, PathBuf) {
     let temp = tempfile::tempdir().expect("tempdir");
     let agent_root = temp.path().join("agent-root");
     let store = RolloutStore::new(&agent_root);

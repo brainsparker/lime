@@ -68,6 +68,7 @@ impl RequestProcessor {
             request.await
         } else {
             match method {
+                v2::METHOD_ROLLOUT_COMPRESS => self.handle_rollout_compress().boxed(),
                 v2::METHOD_ACCOUNT_LOGIN_START => self.handle_account_login_start(params).boxed(),
                 v2::METHOD_CLOUD_REQUEST => self.handle_cloud_request(params).boxed(),
                 v2::METHOD_ACCOUNT_READ => self.handle_account_read(params).boxed(),

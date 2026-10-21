@@ -1,5 +1,66 @@
 import { selectThreadSidePanelTool } from "./thread-side-panel-navigation.mjs";
 
+/** Summary 只通过 current 页头入口打开，不再注入 Canvas 工具标签。 */
+export async function collectThreadSummaryEntryEvidence(
+  page,
+  { screenshotPath, timeoutMs = 60_000 },
+) {
+  const trigger = page.getByTestId("thread-workspace-summary-toggle");
+  await trigger.waitFor({ state: "visible", timeout: timeoutMs });
+  if ((await trigger.count()) !== 1) {
+    throw new Error("Summary must have exactly one header entry");
+  }
+  const initialOpen = (await trigger.getAttribute("aria-pressed")) === "true";
+  if (!initialOpen) await trigger.click();
+  const panel = page.getByTestId("thread-summary-panel");
+  await panel.waitFor({ state: "visible", timeout: timeoutMs });
+  const opened = await page.evaluate(() => {
+    const panel = document.querySelector(
+      '[data-testid="thread-summary-panel"]',
+    );
+    const layout = document.querySelector(
+      '[data-testid="thread-summary-layout"]',
+    );
+    const container = panel?.closest(
+      '[data-testid="thread-summary-inline"], [data-testid="thread-summary-popover"]',
+    );
+    return {
+      mode: layout?.getAttribute("data-summary-mode"),
+      container: container?.getAttribute("data-testid"),
+      count: document.querySelectorAll('[data-testid="thread-summary-panel"]')
+        .length,
+      inCanvas: Boolean(
+        panel?.closest('[data-testid="canvas-workbench-shell"]'),
+      ),
+      obsoleteTabCount: document.querySelectorAll(
+        '[data-testid="canvas-workbench-panel-summary"], [data-canvas-tab-key="summary"]',
+      ).length,
+    };
+  });
+  if (
+    opened.count !== 1 ||
+    opened.inCanvas ||
+    opened.obsoleteTabCount !== 0 ||
+    !["overlay", "shift", "gutter"].includes(opened.mode) ||
+    opened.container !==
+      (opened.mode === "overlay"
+        ? "thread-summary-popover"
+        : "thread-summary-inline")
+  ) {
+    throw new Error(`Summary owner/layout mismatch: ${JSON.stringify(opened)}`);
+  }
+  if (screenshotPath) await page.screenshot({ path: screenshotPath });
+  await trigger.click();
+  await panel.waitFor({ state: "hidden", timeout: timeoutMs });
+  const closed = (await trigger.getAttribute("aria-pressed")) === "false";
+  if (!closed) throw new Error("Header Summary did not close");
+  if (initialOpen) {
+    await trigger.click();
+    await panel.waitFor({ state: "visible", timeout: timeoutMs });
+  }
+  return { initialOpen, opened, closed, restored: initialOpen, screenshotPath };
+}
+
 /** Changes 复用 current review projection 的真实 Electron 交互证据。 */
 export async function collectReviewThreadSidePanelEvidence(
   page,

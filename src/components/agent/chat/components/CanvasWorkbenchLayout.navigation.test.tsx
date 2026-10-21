@@ -159,7 +159,25 @@ async function settle() {
   await act(async () => {});
 }
 
+let nextRequestKey = 0;
+async function requestFile(
+  mounted: ReturnType<typeof mountWorkbench>,
+  path: string,
+) {
+  const id = `requested:${path}`;
+  mounted.rerender({
+    artifacts: [artifact("original", originalPath), artifact(id, path)],
+    previewOpenRequest: {
+      requestKey: ++nextRequestKey,
+      selectionKey: `artifact:${id}`,
+      filePath: path,
+    },
+  });
+  await settle();
+}
+
 beforeEach(() => {
+  nextRequestKey = 0;
   configureBooleanGateway(atomGateway);
   (
     globalThis as typeof globalThis & {
@@ -194,13 +212,8 @@ describe("Workbench 保存前导航", () => {
   it.each([
     {
       name: "tab 选择",
-      action: (s: ShellProps) => s.onSelectTab("summary"),
-      next: "summary",
-    },
-    {
-      name: "新建工具",
-      action: (s: ShellProps) => s.onNewToolTab("terminal"),
-      next: "terminal:1",
+      action: (s: ShellProps) => s.onSelectTab("changes"),
+      next: "changes",
     },
     {
       name: "预览模式",
@@ -245,7 +258,7 @@ describe("Workbench 保存前导航", () => {
     },
   );
 
-  it("文件选择在保存成功前不进入读取或 loading，重复导航共用同一个锁", async () => {
+  it("预览请求与tab切换共享同一个保存锁，失败不替换文档", async () => {
     const saving = deferred<boolean>();
     const flush = vi.fn(() => saving.promise);
     const store = createStore();
@@ -253,28 +266,22 @@ describe("Workbench 保存前导航", () => {
     const mounted = mountWorkbench({}, store);
     await settle();
 
-    await invoke((s) => {
-      s.onSelectFile("/workspace/next.pptx");
-      s.onNewToolTab("terminal");
-      s.onSelectTab("summary");
-    });
+    await requestFile(mounted, "/workspace/next.pptx");
+    await invoke((s) => s.onSelectTab("changes"));
     expect(flush).toHaveBeenCalledTimes(1);
-    expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
     expect(visiblePath()).toBe(originalPath);
     expect(shell().documentContext?.target.kind).toBe("artifact");
 
     await act(async () => saving.resolve(false));
-    expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
-    expect(shell().documentSelectionKey).toBe("artifact:original");
+    expect(shell().documentContext?.selectionKey).toBe("artifact:original");
     flush.mockImplementation(async () => true);
-    await invoke((s) => s.onSelectFile("/workspace/next.pptx"));
-    expect(mounted.props.loadFilePreview).toHaveBeenCalledWith(
-      "/workspace/next.pptx",
-    );
+    await requestFile(mounted, "/workspace/next.pptx");
+    expect(flush).toHaveBeenCalledTimes(2);
     expect(visiblePath()).toBe("/workspace/next.pptx");
+    expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
   });
 
-  it("同路径重开失败仍保留当前文件；实际文件与外层 artifact 不同也保存实际 owner", async () => {
+  it("后续请求保存实际可见文件，同路径重开失败保留当前文档", async () => {
     const originalFlush = vi.fn(async () => true);
     const currentFlush = vi.fn(async () => true);
     const store = createStore();
@@ -282,30 +289,27 @@ describe("Workbench 保存前导航", () => {
     editor(store, "/workspace/current.pptx", currentFlush);
     const mounted = mountWorkbench({}, store);
     await settle();
-    await invoke((s) => s.onNewToolTab("project-files"));
-    await invoke((s) => s.onSelectFile("/workspace/current.pptx"));
+    await requestFile(mounted, "/workspace/current.pptx");
     expect(visiblePath()).toBe("/workspace/current.pptx");
     const originalSaveCount = originalFlush.mock.calls.length;
-    const readCount = vi.mocked(mounted.props.loadFilePreview).mock.calls
-      .length;
     const saving = deferred<boolean>();
     currentFlush.mockImplementation(() => saving.promise);
 
-    await invoke((s) => s.onSelectFile("/workspace/current.pptx"));
+    await requestFile(mounted, "/workspace/current.pptx");
     expect(currentFlush).toHaveBeenCalledTimes(1);
-    expect(mounted.props.loadFilePreview).toHaveBeenCalledTimes(readCount);
+    expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
     await act(async () => saving.resolve(false));
     expect(visiblePath()).toBe("/workspace/current.pptx");
-    expect(shell().documentContext?.target.kind).toBe("synthetic-artifact");
+    expect(shell().documentContext?.target.kind).toBe("artifact");
     expect(originalFlush).toHaveBeenCalledTimes(originalSaveCount);
 
     currentFlush.mockImplementation(async () => true);
-    await invoke((s) => s.onSelectFile("/workspace/current.pptx"));
-    expect(mounted.props.loadFilePreview).toHaveBeenCalledTimes(readCount + 1);
+    await requestFile(mounted, "/workspace/current.pptx");
+    expect(mounted.props.loadFilePreview).not.toHaveBeenCalled();
     expect(currentFlush).toHaveBeenCalledTimes(2);
   });
 
-  it("项目文件预览模式与当前 tab 关闭都保存当前文件，失败保留工具 tab", async () => {
+  it("文件预览模式与关闭都保存当前文件，失败保留预览", async () => {
     const store = createStore();
     editor(
       store,
@@ -314,28 +318,22 @@ describe("Workbench 保存前导航", () => {
     );
     const flush = vi.fn(async () => true);
     editor(store, "/workspace/current.pptx", flush);
-    mountWorkbench({}, store);
+    const mounted = mountWorkbench({}, store);
     await settle();
-    await invoke((s) => s.onNewToolTab("project-files"));
-    await invoke((s) => s.onSelectFile("/workspace/current.pptx"));
-    expect(shell().projectFilesPreviewMode).toBe("code");
+    await requestFile(mounted, "/workspace/current.pptx");
+    expect(shell().contentTab).toBe("markdown");
     flush.mockImplementation(async () => false);
-
-    await invoke((s) => s.onSelectProjectFilesPreviewMode("markdown"));
-    expect(shell().projectFilesPreviewMode).toBe("code");
-    await invoke((s) => s.onCloseTab?.("project-files:1"));
-    expect(shell().contentTab).toBe("project-files:1");
-    expect(shell().tabs.some((tab) => tab.key === "project-files:1")).toBe(
-      true,
-    );
+    await invoke((s) => s.onSelectPreviewMode("code"));
+    expect(shell().contentTab).toBe("markdown");
+    await invoke((s) => s.onClose?.());
+    expect(mounted.props.onClose).not.toHaveBeenCalled();
+    expect(visiblePath()).toBe("/workspace/current.pptx");
 
     flush.mockImplementation(async () => true);
-    await invoke((s) => s.onSelectProjectFilesPreviewMode("markdown"));
-    expect(shell().projectFilesPreviewMode).toBe("markdown");
-    await invoke((s) => s.onCloseTab?.("project-files:1"));
-    expect(shell().tabs.some((tab) => tab.key === "project-files:1")).toBe(
-      false,
-    );
+    await invoke((s) => s.onSelectPreviewMode("code"));
+    expect(shell().contentTab).toBe("code");
+    await invoke((s) => s.onClose?.());
+    expect(mounted.props.onClose).toHaveBeenCalledTimes(1);
     expect(flush).toHaveBeenCalledTimes(4);
   });
 
@@ -437,9 +435,10 @@ describe("Workbench 保存前导航", () => {
     editor(store, originalPath, flush);
     const mounted = mountWorkbench({}, store);
     await settle();
-    await invoke((s) => s.onSelectFile("/workspace/late.pptx"));
+    await requestFile(mounted, "/workspace/late.pptx");
     mounted.rerender({
       workspaceRoot: "/different",
+      previewOpenRequest: null,
       artifacts: [artifact("different", "/different/current.pptx")],
     });
     await settle();
@@ -549,16 +548,13 @@ describe("Workbench 保存前导航", () => {
     },
   );
 
-  it("会话面板先等待新文档投影就绪，再自动聚焦；不争用同一个保存锁", async () => {
+  it("空审阅等待新文档投影就绪再聚焦，不争用同一个保存锁", async () => {
     const store = createStore();
     const flush = vi.fn(async () => true);
     editor(store, originalPath, flush);
-    const mounted = mountWorkbench(
-      { artifacts: [], sessionView: { renderPanel: () => null } },
-      store,
-    );
+    const mounted = mountWorkbench({ artifacts: [] }, store);
     await settle();
-    expect(shell().contentTab).toBe("summary");
+    expect(shell().contentTab).toBe("changes");
     mounted.rerender({ artifacts: [artifact("original", originalPath)] });
     await settle();
     expect(visiblePath()).toBe(originalPath);
@@ -566,41 +562,32 @@ describe("Workbench 保存前导航", () => {
     expect(flush).not.toHaveBeenCalled();
   });
 
-  it("文件读取完成前切换工作区后，迟到读取不能再选中新文件", async () => {
-    const reading = deferred<{
-      path: string;
-      content: string;
-      isBinary: boolean;
-      size: number;
-      error: null;
-    }>();
-    const load = vi.fn(() => reading.promise);
-    const store = createStore();
-    editor(
-      store,
-      originalPath,
-      vi.fn(async () => true),
-    );
-    const mounted = mountWorkbench({ loadFilePreview: load }, store);
-    await settle();
-    await invoke((s) => s.onSelectFile("/workspace/late.pptx"));
-    expect(load).toHaveBeenCalledTimes(1);
-    mounted.rerender({
-      workspaceRoot: "/different",
-      artifacts: [artifact("different", "/different/current.pptx")],
+  it("工作区切换后的迟到artifact入库不能确认旧预览请求", async () => {
+    const ack = vi.fn();
+    const mounted = mountWorkbench({
+      previewOpenRequest: {
+        requestKey: 1,
+        selectionKey: "artifact:late",
+        filePath: "/workspace/late.pptx",
+      },
+      onPreviewOpenRequestHandled: ack,
     });
     await settle();
-    await act(async () =>
-      reading.resolve({
-        path: "/workspace/late.pptx",
-        content: "late",
-        isBinary: false,
-        size: 4,
-        error: null,
-      }),
-    );
+    const current = artifact("different", "/different/current.pptx");
+    mounted.rerender({
+      workspaceRoot: "/different",
+      artifacts: [current],
+      previewOpenRequest: null,
+    });
+    await settle();
+    mounted.rerender({
+      artifacts: [current, artifact("late", "/workspace/late.pptx", "late")],
+    });
+    await settle();
+    expect(ack).not.toHaveBeenCalled();
     expect(visiblePath()).toBe("/different/current.pptx");
-    expect(shell().documentSelectionKey).toBe("artifact:different");
+    expect(shell().documentContext?.selectionKey).toBe("artifact:different");
+    expect(mounted.container.textContent).not.toContain("late");
   });
 
   it("注册外层离开 guard 后 Shell 关闭仅获取一次锁，注册读取最新实际可见文件", async () => {
@@ -623,8 +610,7 @@ describe("Workbench 保存前导航", () => {
       store,
     );
     await settle();
-    await invoke((s) => s.onNewToolTab("project-files"));
-    await invoke((s) => s.onSelectFile("/workspace/current.pptx"));
+    await requestFile(mounted, "/workspace/current.pptx");
     expect(register).toHaveBeenCalledTimes(1);
     const oldSaveCount = originalFlush.mock.calls.length;
     await invoke((s) => s.onClose?.());

@@ -231,11 +231,11 @@ async fn archive_unarchive_preserves_queue_and_delete_clears_it() {
             if message.contains("archived thread does not support queued submissions")
     ));
 
-    let (_, changed) = core
+    let restored = core
         .unarchive_thread(agent_protocol::ThreadId::new("thread_queue_lifecycle"))
         .await
         .expect("unarchive queued thread");
-    assert!(changed);
+    assert!(!restored.archived);
     assert_eq!(
         core.list_thread_queue_submissions("thread_queue_lifecycle")
             .await

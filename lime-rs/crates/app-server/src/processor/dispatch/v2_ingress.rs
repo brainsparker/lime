@@ -1,6 +1,6 @@
 use app_server_protocol::error_codes;
 use app_server_protocol::protocol::v2::{
-    ClientRequest, Method, METHOD_COMMAND_EXEC, METHOD_MEMORY_RESET,
+    ClientRequest, Method, METHOD_COMMAND_EXEC, METHOD_MEMORY_RESET, METHOD_ROLLOUT_COMPRESS,
     METHOD_WINDOWS_SANDBOX_SETUP_START,
 };
 use app_server_protocol::{JsonRpcError, JsonRpcRequest, RequestId};
@@ -37,10 +37,17 @@ pub(super) fn decode(request: &JsonRpcRequest) -> Result<Option<ClientRequest>, 
         Some(serde_json::Value::Object(params)) => params.is_empty(),
         Some(_) => false,
     };
-    if request.method == METHOD_MEMORY_RESET && !memory_reset_params_valid {
+    if matches!(
+        request.method.as_str(),
+        METHOD_MEMORY_RESET | METHOD_ROLLOUT_COMPRESS
+    ) && !memory_reset_params_valid
+    {
         return Err(JsonRpcError::new(
             error_codes::INVALID_PARAMS,
-            "memory/reset accepts only omitted, null, or empty object params",
+            format!(
+                "{} accepts only omitted, null, or empty object params",
+                request.method
+            ),
         ));
     }
     if request.method == METHOD_WINDOWS_SANDBOX_SETUP_START {
@@ -270,6 +277,9 @@ pub(super) fn into_parts(
             parts(id, Method::ThreadMemoryModeSet, params)
         }
         ClientRequest::MemoryStatus { id, params } => parts(id, Method::MemoryStatus, params),
+        ClientRequest::RolloutCompress { id } => {
+            Ok((id, Method::RolloutCompress.as_str().to_string(), None))
+        }
         ClientRequest::MemoryReset { id } => {
             Ok((id, Method::MemoryReset.as_str().to_string(), None))
         }

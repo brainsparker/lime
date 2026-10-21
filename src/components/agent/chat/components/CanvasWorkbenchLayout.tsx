@@ -38,34 +38,18 @@ import {
   type CanvasWorkbenchDefaultPreview,
   type CanvasWorkbenchLayoutMode,
   type CanvasWorkbenchMode,
-  type CanvasWorkbenchNewToolTab,
   type CanvasWorkbenchTab,
   type CanvasWorkbenchTranslation,
 } from "./canvas-workbench/CanvasWorkbenchLayoutState";
 import { useCanvasWorkbenchDocumentState } from "./canvas-workbench/useCanvasWorkbenchDocumentState";
-import { buildCanvasWorkbenchToolTabProjection } from "./canvas-workbench/tabs/CanvasWorkbenchToolTabsViewModel";
-import { useCanvasWorkbenchToolTabsState } from "./canvas-workbench/tabs/useCanvasWorkbenchToolTabsState";
+import type { CanvasWorkbenchTopTab } from "./canvas-workbench/tabs/CanvasWorkbenchTopTabs";
 
 export type {
   CanvasWorkbenchDefaultPreview,
   CanvasWorkbenchLayoutMode,
   CanvasWorkbenchMode,
-  CanvasWorkbenchNewToolTab,
   CanvasWorkbenchTab,
 };
-
-export interface CanvasWorkbenchPanelCopy {
-  introText?: string;
-  emptyText?: string;
-  unavailableText?: string;
-  sectionEyebrow?: string;
-  loadingText?: string;
-  emptyDirectoryText?: string;
-}
-
-export interface CanvasWorkbenchHeaderView {
-  panelCopy?: CanvasWorkbenchPanelCopy;
-}
 
 export type { CanvasWorkbenchPreviewTarget };
 
@@ -73,10 +57,6 @@ export interface CanvasWorkbenchPreviewOpenRequest {
   requestKey: string | number;
   selectionKey?: string | null;
   filePath?: string | null;
-}
-
-export interface CanvasWorkbenchSessionView extends CanvasWorkbenchHeaderView {
-  renderPanel: () => ReactNode;
 }
 
 function getPreviewTargetPath(
@@ -95,7 +75,6 @@ export interface CanvasWorkbenchLayoutProps {
   taskFiles: TaskFile[];
   selectedFileId?: string;
   workspaceRoot?: string | null;
-  workspaceUnavailable?: boolean;
   defaultPreview: CanvasWorkbenchDefaultPreview | null;
   loadFilePreview: (path: string) => Promise<HarnessFilePreviewResult>;
   onOpenPath: (path: string) => Promise<void>;
@@ -104,8 +83,6 @@ export interface CanvasWorkbenchLayoutProps {
   onBeforeLeaveChange?: (guard: (() => Promise<boolean>) | null) => void;
   onLayoutModeChange?: (mode: CanvasWorkbenchLayoutMode) => void;
   workbenchMode?: CanvasWorkbenchMode;
-  workspaceView?: CanvasWorkbenchHeaderView | null;
-  sessionView?: CanvasWorkbenchSessionView | null;
   changeView?: CanvasWorkbenchChangeView | null;
   topRightTools?: ReactNode;
   previewOpenRequest?: CanvasWorkbenchPreviewOpenRequest | null;
@@ -140,7 +117,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   taskFiles,
   selectedFileId,
   workspaceRoot,
-  workspaceUnavailable = false,
   defaultPreview,
   loadFilePreview,
   onOpenPath,
@@ -149,15 +125,12 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
   onBeforeLeaveChange,
   onLayoutModeChange,
   workbenchMode = "default",
-  workspaceView = null,
-  sessionView = null,
   changeView = null,
   topRightTools = null,
   previewOpenRequest = null,
   onPreviewOpenRequestHandled,
 }: CanvasWorkbenchLayoutProps) {
-  const { i18n, t } = useTranslation("agent");
-  const locale = i18n.language || "zh-CN";
+  const { t } = useTranslation("agent");
   const canvasT = t as unknown as CanvasWorkbenchTranslation;
   const [shellNodeVersion, setShellNodeVersion] = useState(0);
   const canvasTRef = useRef(canvasT);
@@ -195,34 +168,11 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
           translateWorkbench("agentChat.canvasWorkbench.kind.versionTitle", {
             count,
           }),
-        workspaceFile: translateWorkbench(
-          "agentChat.canvasWorkbench.kind.workspaceFile",
-        ),
-      },
-      tab: {
-        files: translateWorkbench("agentChat.canvasWorkbench.tabs.files"),
-        generated: translateWorkbench(
-          "agentChat.canvasWorkbench.tabs.generated",
-        ),
-        tasks: translateWorkbench("agentChat.canvasWorkbench.tabs.tasks"),
-        sessionMain: translateWorkbench(
-          "agentChat.canvasWorkbench.tabs.sessionMain",
-        ),
-      },
-      workspaceFile: {
-        binaryUnsupported: translateWorkbench(
-          "agentChat.canvasWorkbench.workspaceFile.binaryUnsupported",
-        ),
-        readFailed: translateWorkbench(
-          "agentChat.canvasWorkbench.workspaceFile.readFailed",
-        ),
       },
     }),
     [translateWorkbench],
   );
   const isCodingWorkbench = workbenchMode === "coding";
-  const hasDefaultPreviewContent = Boolean(defaultPreview?.content.trim());
-  const hasCustomSessionView = Boolean(sessionView?.renderPanel);
   const shellRef = useRef<HTMLElement | null>(null);
   const [isStackedLayout, setIsStackedLayout] = useState(false);
   const previewRequestIdentity = previewOpenRequest
@@ -240,43 +190,23 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     documentSelectionKey,
     documentTransitionPending,
     previewModeState,
-    projectFilesPreviewMode,
-    applyProjectFilesPreviewMode,
-    workspacePanelRootPath,
-    workspacePanelDisplayPath,
-    directoryCache,
-    expandedDirectories,
-    loadingDirectories,
-    toggleDirectory,
-    refreshDirectorySubtree,
     fileAction,
     publicFilePath: sourcePath,
     resolveDocumentSelection,
     applyDocumentSelection,
-    handleSelectWorkspaceFile,
   } = useCanvasWorkbenchDocumentState({
     artifacts,
     canvasState,
     taskFiles,
     selectedFileId,
     workspaceRoot,
-    workspaceUnavailable,
     defaultPreview,
-    loadFilePreview,
     workbenchCopy,
-    translateWorkbench,
-    hasDefaultPreviewContent,
-    hasCustomSessionView,
     isCodingWorkbench,
     changeView,
     previewRequestIdentity,
   });
   const { run: runFileAction, busy: fileActionBusy } = fileAction;
-  const { openedToolTabs, openNewToolTab, closeToolTab, resolveToolTabKind } =
-    useCanvasWorkbenchToolTabsState({
-      activeTab,
-      setActiveTab: applyActiveTab,
-    });
   const fileTree = useFileTreePanel();
   const [previewOnlyFilePath, setPreviewOnlyFilePath] = useState<string | null>(
     null,
@@ -489,8 +419,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       return;
     if (
       !hasAutoFocusedInitialDocumentTabRef.current &&
-      sessionView?.renderPanel &&
-      activeTab === "summary" &&
       documentSelectionKey &&
       documentContext?.selectionKey === documentSelectionKey
     ) {
@@ -528,31 +456,35 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     previewRequestIdentity,
     resolveDocumentSelection,
     runFileAction,
-    sessionView?.renderPanel,
     sourcePath,
     workspaceRoot,
   ]);
 
-  const { primaryTabs: basePrimaryTabs, newTabActions } = useMemo(
-    () =>
-      buildCanvasWorkbenchToolTabProjection({
-        changeItemCount,
-        documentDiffLineCount: documentDiffLines.length,
-        failedChangeItemCount,
-        utilityTabs: {
-          summary: hasCustomSessionView,
-        },
-        openedToolTabs,
-        translateWorkbench: canvasT,
-      }),
-    [
-      changeItemCount,
-      documentDiffLines.length,
-      failedChangeItemCount,
-      openedToolTabs,
-      hasCustomSessionView,
-      canvasT,
+  const basePrimaryTabs = useMemo<CanvasWorkbenchTopTab[]>(
+    () => [
+      {
+        key: "changes",
+        label: translateCanvasWorkbenchText(
+          canvasT,
+          "agentChat.canvasWorkbench.coding.tabs.changes",
+        ),
+        badge:
+          changeItemCount > 0
+            ? changeItemCount > 99
+              ? "99+"
+              : String(changeItemCount)
+            : documentDiffLines.length > 0
+              ? String(documentDiffLines.length)
+              : undefined,
+        badgeTone:
+          failedChangeItemCount > 0
+            ? "rose"
+            : changeItemCount > 0 || documentDiffLines.length > 0
+              ? "sky"
+              : "slate",
+      },
     ],
+    [changeItemCount, documentDiffLines.length, failedChangeItemCount, canvasT],
   );
   const primaryTabs = useMemo(() => {
     if (!documentContext) {
@@ -629,20 +561,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     },
     [activeTab, applyActiveTab, runFileAction, sourcePath],
   );
-  const handleNewToolTab = useCallback(
-    (tab: CanvasWorkbenchNewToolTab) => {
-      void runFileAction(sourcePath, () => openNewToolTab(tab));
-    },
-    [openNewToolTab, runFileAction, sourcePath],
-  );
-  const handleCloseToolTab = useCallback(
-    (tab: CanvasWorkbenchTab) => {
-      void runFileAction(tab === activeTab ? sourcePath : null, () =>
-        closeToolTab(tab),
-      );
-    },
-    [activeTab, closeToolTab, runFileAction, sourcePath],
-  );
   const handleClose = useCallback(() => {
     // 外层注册后统一在外层 await guard，避免同一锁被嵌套获取。
     if (onBeforeLeaveChange) {
@@ -652,7 +570,6 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
     void runFileAction(sourcePath, () => onClose?.());
   }, [onBeforeLeaveChange, onClose, runFileAction, sourcePath]);
 
-  const activeToolTabKind = resolveToolTabKind(activeTab);
   const topActiveTab: CanvasWorkbenchTab =
     documentContext && activeTab === "code"
       ? previewModeState.defaultMode
@@ -670,17 +587,10 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       activeTab={topActiveTab}
       contentTab={activeTab}
       tabs={primaryTabs}
-      newTabActions={newTabActions}
       topRightTools={topRightTools}
-      detailHeaderVisible={
-        activeTab !== "changes" &&
-        activeToolTabKind !== "terminal" &&
-        (activeToolTabKind !== "project-files" || Boolean(activePreviewContext))
-      }
+      detailHeaderVisible={activeTab !== "changes"}
       translateWorkbench={translateWorkbench}
       onSelectTab={handleSelectTab}
-      onNewToolTab={handleNewToolTab}
-      onCloseTab={handleCloseToolTab}
       onClose={onClose ? handleClose : undefined}
       closeWorkbenchLabel={closeWorkbenchLabel}
       headerActionsVisible={headerActionsVisible}
@@ -699,41 +609,17 @@ export const CanvasWorkbenchLayout = memo(function CanvasWorkbenchLayout({
       }}
       onDownload={handleDownload}
       documentContext={documentContext}
-      documentSelectionKey={documentSelectionKey}
       documentDiffLines={documentDiffLines}
       previewModeState={previewModeState}
       changeView={resolvedChangeView}
       changesFilesPanelOpen={fileTree.isOpen}
       loadFilePreview={loadFilePreview}
-      workspaceUnavailable={workspaceUnavailable}
       workspaceRoot={workspaceRoot}
-      workspacePanelRootPath={workspacePanelRootPath}
-      workspacePanelDisplayPath={workspacePanelDisplayPath}
-      projectFilesPreviewMode={projectFilesPreviewMode}
-      directoryCache={directoryCache}
-      expandedDirectories={expandedDirectories}
-      loadingDirectories={loadingDirectories}
-      workspacePanelCopy={workspaceView?.panelCopy}
-      locale={locale}
-      sessionView={sessionView}
       shellClassName={WORKBENCH_SHELL_CLASSNAME}
       panelClassName={WORKBENCH_PANEL_CLASSNAME}
       mutedPanelClassName={WORKBENCH_MUTED_PANEL_CLASSNAME}
       ghostButtonClassName={WORKBENCH_GHOST_BUTTON_CLASSNAME}
-      onToggleDirectory={toggleDirectory}
-      onSelectFile={(path) => {
-        void handleSelectWorkspaceFile(path);
-      }}
-      onRefreshDirectory={(path) => {
-        void refreshDirectorySubtree(path);
-      }}
       onSelectPreviewMode={handleSelectTab}
-      onSelectProjectFilesPreviewMode={(mode) => {
-        if (mode === projectFilesPreviewMode) return;
-        void runFileAction(sourcePath, () =>
-          applyProjectFilesPreviewMode(mode),
-        );
-      }}
       onToggleChangesFilesPanel={
         fileTree.disabled ? undefined : () => void fileTree.toggle()
       }

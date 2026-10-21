@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { safeInvoke } from "@/lib/dev-bridge";
 import {
+  isDefaultBrowser,
   openExternalUrlWithSystemBrowser,
   startOemCloudOAuthCallbackBridge,
 } from "./externalUrl";
@@ -11,7 +12,37 @@ vi.mock("@/lib/dev-bridge", () => ({
 
 describe("externalUrl API", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.mocked(safeInvoke).mockReset();
+  });
+
+  it.each([true, false])(
+    "reads the native default browser status %s",
+    async (value) => {
+      vi.mocked(safeInvoke).mockResolvedValueOnce(value);
+      await expect(isDefaultBrowser()).resolves.toBe(value);
+      expect(safeInvoke).toHaveBeenCalledExactlyOnceWith("is_default_browser");
+    },
+  );
+
+  it.each([
+    undefined,
+    null,
+    0,
+    1,
+    "true",
+    "false",
+    {},
+    { isDefaultBrowser: true },
+    { diagnostic: { source: "electron-host-diagnostic" } },
+  ])("rejects invalid native default browser status %j", async (value) => {
+    vi.mocked(safeInvoke).mockResolvedValueOnce(value);
+    await expect(isDefaultBrowser()).rejects.toThrow();
+  });
+
+  it("propagates native default browser query failures", async () => {
+    const error = new Error("OS query failed");
+    vi.mocked(safeInvoke).mockRejectedValueOnce(error);
+    await expect(isDefaultBrowser()).rejects.toBe(error);
   });
 
   it("应通过 native 命令打开系统默认浏览器", async () => {

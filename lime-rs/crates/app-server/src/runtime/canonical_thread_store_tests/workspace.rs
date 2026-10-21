@@ -66,6 +66,14 @@ fn canonical_workspace_migration_preserves_archival_provenance_and_rebuilds_idem
     .unwrap();
     let path = rollout_path(&store, &agent_root, &source.thread_id);
     let before = rollout_lines(&path).len();
+    let archived_updated_at = block_on(store.read_thread(ReadThreadParams {
+        thread_id: source.thread_id.clone(),
+        include_archived: true,
+        turns_view: ThreadTurnsView::NotLoaded,
+    }))
+    .unwrap()
+    .unwrap()
+    .updated_at_ms;
     let db_path = store.path().to_path_buf();
     drop(store);
     for _ in 0..2 {
@@ -79,7 +87,7 @@ fn canonical_workspace_migration_preserves_archival_provenance_and_rebuilds_idem
         .unwrap();
         assert_eq!(migrated.metadata, expected_workspace());
         assert!(migrated.archived);
-        assert_eq!(migrated.updated_at_ms, source.updated_at_ms);
+        assert_eq!(migrated.updated_at_ms, archived_updated_at);
         assert_eq!(rollout_lines(&path).len(), before + 1);
     }
     let rebuilt = ProjectionStore::initialize_with_agent_root(

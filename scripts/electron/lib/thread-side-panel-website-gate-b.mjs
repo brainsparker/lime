@@ -89,7 +89,13 @@ async function submitWebsiteOutput(
   return { turn, message };
 }
 
-async function openRecentWebsite(page, { timeoutMs }, target, name) {
+async function openRecentWebsite(
+  page,
+  { timeoutMs },
+  target,
+  name,
+  activate = (output) => output.press("Enter"),
+) {
   const add = page.getByTestId("workspace-right-surface-new-tab");
   if (!(await add.isVisible()))
     await page.getByTestId("thread-side-panel-toggle").click();
@@ -110,8 +116,254 @@ async function openRecentWebsite(page, { timeoutMs }, target, name) {
     `website名称不符合参考合同: ${target}`,
   );
   await output.focus();
-  await output.press("Enter");
+  await activate(output);
   return sourceId;
+}
+
+async function waitNativeWebsite(app, id, url, route, timeoutMs) {
+  let native;
+  const deadline = Date.now() + Math.min(timeoutMs, 15000);
+  do {
+    native = await app.evaluate(({ webContents }, id) => {
+      const contents = webContents.fromId(id);
+      return {
+        alive: Boolean(contents && !contents.isDestroyed()),
+        url: contents?.getURL(),
+        title: contents?.getTitle(),
+      };
+    }, id);
+    if (
+      native.alive &&
+      native.url === url &&
+      native.title === `RECENTS_NATIVE${route}`
+    )
+      return native;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  throw new Error(
+    `website未到达真实native WebContents: ${JSON.stringify({ id, url, actual: native })}`,
+  );
+}
+
+export async function waitForLinkTab(readTabs, { url, beforeIds, timeoutMs }) {
+  const deadline = Date.now() + timeoutMs;
+  let tabs;
+  do {
+    tabs = await readTabs();
+    if (tabs.some((tab) => tab.url === url && !beforeIds.includes(tab.tabId)))
+      return tabs;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  } while (Date.now() < deadline);
+  throw new Error(
+    `点击后未观察到新native标签: ${JSON.stringify({ url, beforeIds, actual: tabs })}`,
+  );
+}
+
+async function collectLinkClickEvidence(page, app, context, origin, requests) {
+  const browserSessionId = await page
+    .getByTestId("right-surface-browser-panel")
+    .getAttribute("data-browser-session-id");
+  assert(browserSessionId, "修饰键场景缺少canonical Browser session");
+  const scope = { browserSessionId, threadId: context.threadId };
+  const readTabs = () =>
+    page.evaluate(
+      (scope) => window.electronAPI.invoke("browser_tab_list", scope),
+      scope,
+    );
+  const readCreationRequests = async () => {
+    const trace = await page.evaluate(
+      () => localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
+    );
+    return parseJsonRpcRequestsFromInvokeTrace(trace).filter(
+      (entry) =>
+        entry.method === "workspaceRightSurface/request" &&
+        entry.params?.reason === "browser_identity_createTab" &&
+        entry.params?.sessionId === context.sessionId &&
+        entry.params?.metadata?.browser?.browserSessionId ===
+          browserSessionId &&
+        entry.transport === "electron-ipc" &&
+        entry.status === "success",
+    );
+  };
+  const clicks = [];
+  for (const { route, background, markdown } of [
+    { route: "/background", background: true, markdown: false },
+    { route: "/foreground", background: false, markdown: false },
+    { route: "/markdown-background", background: true, markdown: true },
+  ]) {
+    const url = origin + route;
+    const { turn, message } = await submitWebsiteOutput(page, context, url);
+    const before = await readTabs();
+    const selectedBefore = before.find((tab) => tab.selected);
+    assert(selectedBefore, "修饰键场景缺少先前native选择");
+    const creationCount = (await readCreationRequests()).length;
+    const activate = (output) =>
+      output.click({
+        button: "middle",
+        modifiers: background ? [] : ["Shift"],
+      });
+    let sourceId = null;
+    if (markdown) {
+      await page.getByTestId("thread-side-panel-toggle").click();
+      await page
+        .getByTestId("workspace-right-surface-active-pane")
+        .waitFor({ state: "hidden", timeout: context.timeoutMs });
+      const link = page
+        .getByText(`Website ready: ${url}`, { exact: true })
+        .getByRole("link", { name: url, exact: true });
+      const beforeClick = await link.evaluate((anchor) => {
+        const events = [];
+        const href = anchor.href;
+        const observe = (event) => {
+          if (event.target.closest("a")?.href === href)
+            events.push({
+              event,
+              originalAnchor: event.target.closest("a") === anchor,
+            });
+        };
+        for (const type of ["mousedown", "mouseup", "auxclick"])
+          document.addEventListener(type, observe, true);
+        window.__linkClickEvidence = { events, observe };
+        return {
+          html: anchor.outerHTML,
+        };
+      });
+      await activate(link);
+      const afterClick = await page.evaluate(() => {
+        const { events, observe } = window.__linkClickEvidence;
+        for (const type of ["mousedown", "mouseup", "auxclick"])
+          document.removeEventListener(type, observe, true);
+        delete window.__linkClickEvidence;
+        return {
+          events: events.map(({ event, originalAnchor }) => ({
+            type: event.type,
+            button: event.button,
+            trusted: event.isTrusted,
+            defaultPrevented: event.defaultPrevented,
+            originalAnchor,
+            targetConnected: event.target.isConnected,
+          })),
+          trace: JSON.parse(
+            localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
+          ),
+        };
+      });
+      writeFileSync(
+        context.linkClickEvidencePath,
+        JSON.stringify({ url, scope, beforeClick, afterClick }, null, 2),
+      );
+      assert(
+        afterClick.events.some(
+          (event) =>
+            event.type === "auxclick" &&
+            event.button === 1 &&
+            event.trusted &&
+            event.defaultPrevented,
+        ),
+        `正文中键缺少真实且已处理的auxclick: ${JSON.stringify({ url, events: afterClick.events })}`,
+      );
+    } else {
+      sourceId = await openRecentWebsite(
+        page,
+        context,
+        url,
+        `${new URL(url).host}${route}`,
+        activate,
+      );
+    }
+    const tabs = await waitForLinkTab(readTabs, {
+      url,
+      beforeIds: before.map((tab) => tab.tabId),
+      timeoutMs: context.timeoutMs,
+    });
+    const next = tabs.find((tab) => tab.url === url);
+    assert(
+      tabs.length === before.length + 1 &&
+        next?.browserSessionId === browserSessionId &&
+        next.threadId === context.threadId &&
+        !before.some(
+          (tab) =>
+            tab.tabId === next.tabId ||
+            tab.webContentsId === next.webContentsId,
+        ),
+      `点击未创建独立canonical/native标签: ${JSON.stringify({ url, before, tabs })}`,
+    );
+    assert(
+      (await readCreationRequests()).length === creationCount + 1,
+      `点击缺少同session的真实preload createTab请求: ${url}`,
+    );
+    const native = await waitNativeWebsite(
+      app,
+      next.webContentsId,
+      url,
+      route,
+      context.timeoutMs,
+    );
+    assert(requests.includes(route), `新标签未实际读取HTTP: ${route}`);
+    if (background) {
+      assert(
+        next.selected === false &&
+          tabs.find((tab) => tab.selected)?.tabId === selectedBefore.tabId,
+        `后台点击夺取native选择: ${url}`,
+      );
+      if (markdown)
+        assert(
+          !(await page
+            .getByTestId("workspace-right-surface-active-pane")
+            .isVisible()),
+          "正文后台点击错误展开已关闭侧栏",
+        );
+      else
+        assert(
+          (await page
+            .locator(`[id=${JSON.stringify(sourceId)}][aria-selected="true"]`)
+            .count()) === 1,
+          "Recents后台点击未保留来源New tab选择",
+        );
+    } else {
+      await page.waitForFunction(
+        (tabId) =>
+          document
+            .querySelector(
+              '[data-testid="workspace-right-surface-active-pane"] [data-testid="right-surface-browser-panel"]',
+            )
+            ?.getAttribute("data-browser-tab-id") === tabId,
+        next.tabId,
+        { timeout: context.timeoutMs },
+      );
+      const selected = (await readTabs()).filter((tab) => tab.selected);
+      assert(
+        selected.length === 1 && selected[0].tabId === next.tabId,
+        "前台点击未选择明确的新canonical标签",
+      );
+    }
+    if (sourceId)
+      assert(
+        (await page.locator(`[id=${JSON.stringify(sourceId)}]`).count()) === 1,
+        "修饰键点击错误消费来源New tab",
+      );
+    clicks.push({
+      url,
+      threadId: context.threadId,
+      turnId: turn.id,
+      itemId: message.id,
+      tabId: next.tabId,
+      webContentsId: next.webContentsId,
+      native,
+      background,
+      markdown,
+      sourceTabId: sourceId,
+      canonicalCreateObserved: true,
+      selectionMatched: true,
+      closedSidebarPreserved: markdown,
+    });
+  }
+  return {
+    clicks,
+    background: true,
+    foreground: true,
+    markdownBackground: true,
+  };
 }
 
 /** GUI提交→canonical输出→Recents→当前Browser/native WebContents，两次网址验证恢复后的新导航。 */
@@ -131,9 +383,25 @@ export async function collectThreadSidePanelWebsiteEvidence(
     typeof workspaceRoot === "string" && path.isAbsolute(workspaceRoot),
     "website夹具缺少隔离工作区绝对路径",
   );
+  const defaultBrowser = await page.evaluate(() =>
+    window.electronAPI.invoke("is_default_browser"),
+  );
+  const nativeDefaultBrowser = await app.evaluate(({ app }) =>
+    app.isDefaultProtocolClient("https"),
+  );
+  assert(
+    typeof defaultBrowser === "boolean" &&
+      defaultBrowser === nativeDefaultBrowser,
+    "默认浏览器IPC未匹配真实OS HTTPS协议身份",
+  );
   const htmlPath = path.join(workspaceRoot, htmlFilename);
   writeFileSync(htmlPath, htmlDocument);
-  const context = { sessionId, threadId, timeoutMs };
+  const context = {
+    sessionId,
+    threadId,
+    timeoutMs,
+    linkClickEvidencePath: screenshotPath.replace(/\.png$/, "-link-click.json"),
+  };
   const requests = [];
   const server = http.createServer((request, response) => {
     requests.push(request.url);
@@ -183,30 +451,12 @@ export async function collectThreadSidePanelWebsiteEvidence(
       const nativeId = Number(
         await browser.getAttribute("data-browser-web-contents-id"),
       );
-      let native;
-      const nativeDeadline = Date.now() + Math.min(timeoutMs, 15000);
-      do {
-        native = await app.evaluate(({ webContents }, id) => {
-          const contents = webContents.fromId(id);
-          return {
-            alive: Boolean(contents && !contents.isDestroyed()),
-            url: contents?.getURL(),
-            title: contents?.getTitle(),
-          };
-        }, nativeId);
-        if (
-          native.alive &&
-          native.url === url &&
-          native.title === `RECENTS_NATIVE${route}`
-        )
-          break;
-        await new Promise((resolve) => setTimeout(resolve, 100));
-      } while (Date.now() < nativeDeadline);
-      assert(
-        native?.alive &&
-          native.url === url &&
-          native.title === `RECENTS_NATIVE${route}`,
-        "website未到达真实native WebContents",
+      const native = await waitNativeWebsite(
+        app,
+        nativeId,
+        url,
+        route,
+        timeoutMs,
       );
       assert(
         (await page.locator(`[id=${JSON.stringify(sourceId)}]`).count()) === 1,
@@ -250,6 +500,13 @@ export async function collectThreadSidePanelWebsiteEvidence(
     );
     if (screenshotPath)
       await page.screenshot({ path: screenshotPath, animations: "disabled" });
+    const linkClicks = await collectLinkClickEvidence(
+      page,
+      app,
+      context,
+      origin,
+      requests,
+    );
     const { turn, message } = await submitWebsiteOutput(
       page,
       context,
@@ -302,7 +559,28 @@ export async function collectThreadSidePanelWebsiteEvidence(
         path: htmlScreenshotPath,
         animations: "disabled",
       });
+    const defaultBrowserReads = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]")
+        .filter((entry) => entry.command === "is_default_browser")
+        .map(({ transport, status }) => ({ transport, status })),
+    );
+    assert(
+      defaultBrowserReads.some(
+        (entry) =>
+          entry.transport === "electron-ipc" && entry.status === "success",
+      ) &&
+        defaultBrowserReads.every(
+          (entry) =>
+            entry.transport === "electron-ipc" && entry.status === "success",
+        ),
+      `实际链接点击缺少成功的默认浏览器宿主查询: ${JSON.stringify(defaultBrowserReads)}`,
+    );
     return {
+      defaultBrowser: {
+        value: defaultBrowser,
+        matchesNative: true,
+        reads: defaultBrowserReads,
+      },
       rounds,
       html: {
         threadId,
@@ -318,6 +596,7 @@ export async function collectThreadSidePanelWebsiteEvidence(
       },
       sameNativeOwner: true,
       actualHttpReads: true,
+      linkClicks,
       screenshotPath,
     };
   } finally {

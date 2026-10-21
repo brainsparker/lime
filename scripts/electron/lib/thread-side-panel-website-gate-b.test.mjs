@@ -1,6 +1,57 @@
 import { spawnSync } from "node:child_process";
-import { describe, expect, it } from "vitest";
-import { renderRecentsWebsiteBackendScript } from "./thread-side-panel-website-gate-b.mjs";
+import { describe, expect, it, vi } from "vitest";
+import {
+  renderRecentsWebsiteBackendScript,
+  waitForLinkTab,
+} from "./thread-side-panel-website-gate-b.mjs";
+
+it("awaits asynchronous native snapshots until the new identity is present", async () => {
+  vi.useFakeTimers();
+  try {
+    const old = { tabId: "old", url: "http://localhost/old" };
+    const next = { tabId: "canonical-new", url: "http://localhost/new" };
+    const read = vi
+      .fn()
+      .mockResolvedValueOnce([old])
+      .mockResolvedValue([old, next]);
+    let settled = false;
+    const result = waitForLinkTab(read, {
+      url: next.url,
+      beforeIds: [old.tabId],
+      timeoutMs: 500,
+    }).then((tabs) => {
+      settled = true;
+      return tabs;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    expect(read).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await result).toEqual([old, next]);
+    expect(read).toHaveBeenCalledTimes(2);
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("retains the original deadline and reports expected and actual native identities", async () => {
+  vi.useFakeTimers();
+  try {
+    const old = { tabId: "old", url: "http://localhost/new" };
+    const result = waitForLinkTab(async () => [old], {
+      url: old.url,
+      beforeIds: [old.tabId],
+      timeoutMs: 200,
+    });
+    const check = expect(result).rejects.toThrow(
+      JSON.stringify({ url: old.url, beforeIds: [old.tabId], actual: [old] }),
+    );
+    await vi.advanceTimersByTimeAsync(200);
+    await check;
+  } finally {
+    vi.useRealTimers();
+  }
+});
 
 describe("Recents website external fixture", () => {
   it("实际子进程只为明确fixture请求产生带独立Turn身份的网站消息", () => {

@@ -13,13 +13,17 @@ mod compression;
 mod delete;
 mod digest;
 mod history;
+mod lifecycle;
 mod media;
 mod read;
 mod scan;
+use lifecycle::RolloutMove;
 use scan::scan_rollout_reader;
+pub(in crate::runtime) mod maintenance;
 mod tail_repair;
 #[cfg(test)]
 mod tests;
+mod writer_lock;
 
 use digest::{
     history_content_digest, metadata_content_digest,
@@ -75,6 +79,7 @@ struct RolloutScan {
     created_at_ms: i64,
     rollout_path: String,
     initial_thread: Thread,
+    recency_at_ms: i64,
     metadata_digest: String,
     history: Vec<RolloutHistoryRecord>,
 }
@@ -140,9 +145,11 @@ impl RolloutStore {
         relative_path: &Path,
         thread: &Thread,
     ) -> Result<(), String> {
+        let _writer = self.acquire_writer(thread.thread_id.as_str())?;
         let stored_path = active_storage_path(relative_path)?;
         let path = self.resolve_active(relative_path)?;
-        if compression::existing_path(&path)?.is_some() {
+        self.materialize_for_append(&path)?;
+        if path.exists() {
             return self.validate_existing_thread(&path, thread, &stored_path);
         }
         let parent = path
@@ -189,6 +196,7 @@ impl RolloutStore {
         next: &Thread,
         archived: bool,
     ) -> Result<i64, String> {
+        let _writer = self.acquire_writer(expected.thread_id.as_str())?;
         validate_metadata_update(expected, next)?;
         let (path, active_path) = if archived {
             (
@@ -216,16 +224,18 @@ impl RolloutStore {
         {
             return Ok(scan.initial_thread.updated_at_ms);
         }
-        // History may advance the index timestamp without changing rollout metadata.
-        if scan.initial_thread.metadata != expected.metadata
-            || scan.initial_thread.updated_at_ms > expected.updated_at_ms
-        {
+        // The index's updated_at can come from mtime, which changes when a copied
+        // file is repaired. Compare content under the store transaction instead;
+        // the verified chain supplies its own previous digest and record time.
+        if scan.initial_thread.metadata != expected.metadata {
             return Err(format!(
                 "rollout metadata state conflict for thread {}",
                 expected.thread_id
             ));
         }
-        if next.updated_at_ms < expected.updated_at_ms {
+        if next.updated_at_ms < expected.updated_at_ms
+            || next.updated_at_ms < scan.initial_thread.updated_at_ms
+        {
             return Err(format!(
                 "rollout metadata timestamp moved backwards for thread {}",
                 expected.thread_id
@@ -261,12 +271,11 @@ impl RolloutStore {
         relative_path: &Path,
         session_id: &str,
         thread_id: &str,
-    ) -> Result<PathBuf, String> {
+    ) -> Result<RolloutMove, String> {
         let source = self.resolve_active(relative_path)?;
         let archived_path = self.archive_path(relative_path)?;
         let destination = self.resolve_archived(&archived_path)?;
-        self.move_rollout(&source, &destination, relative_path, session_id, thread_id)?;
-        Ok(archived_path)
+        self.move_rollout(&source, &destination, relative_path, session_id, thread_id)
     }
 
     pub(super) fn archive_path(&self, relative_path: &Path) -> Result<PathBuf, String> {
@@ -282,12 +291,12 @@ impl RolloutStore {
         relative_path: &Path,
         session_id: &str,
         thread_id: &str,
-    ) -> Result<PathBuf, String> {
+    ) -> Result<RolloutMove, String> {
         let source = self.resolve_archived(relative_path)?;
         let restored_path = self.unarchive_path(relative_path)?;
         let destination = self.resolve_active(&restored_path)?;
-        self.move_rollout(&source, &destination, &restored_path, session_id, thread_id)?;
-        Ok(restored_path)
+        self.move_rollout(&source, &destination, &restored_path, session_id, thread_id)?
+            .touch()
     }
 
     pub(super) fn unarchive_path(&self, relative_path: &Path) -> Result<PathBuf, String> {
@@ -301,6 +310,7 @@ impl RolloutStore {
         thread_id: &str,
         archived: bool,
     ) -> Result<(), String> {
+        let _writer = self.acquire_writer(thread_id)?;
         let (path, active_path) = if archived {
             (
                 self.resolve_archived(relative_path)?,
@@ -335,6 +345,8 @@ impl RolloutStore {
             } else {
                 self.resolve_active(&relative_path)?
             };
+            let thread_id = maintenance::thread_id(&path).map_err(|error| error.to_string())?;
+            let _writer = self.acquire_writer(&thread_id)?;
             let scan = scan_rollout_repaired(&path)?;
             let active_path = if archived {
                 active_path_from_archived(&relative_path)?
@@ -348,10 +360,15 @@ impl RolloutStore {
                 scan.thread_id.as_str(),
                 &path,
             )?;
+            let mut initial_thread = scan.initial_thread;
+            initial_thread
+                .recency_at_ms
+                .get_or_insert(scan.recency_at_ms);
+            initial_thread.updated_at_ms = lifecycle::file_updated_at_ms(&path)?;
             snapshots.push(RolloutSnapshot {
                 relative_path,
                 archived,
-                initial_thread: scan.initial_thread,
+                initial_thread,
                 history: scan.history,
             });
         }
@@ -377,57 +394,6 @@ impl RolloutStore {
             "existing rollout metadata does not match thread {}",
             thread.thread_id
         ))
-    }
-
-    fn move_rollout(
-        &self,
-        source: &Path,
-        destination: &Path,
-        active_path: &Path,
-        session_id: &str,
-        thread_id: &str,
-    ) -> Result<(), String> {
-        let source_exists = compression::existing_path(source)?.is_some();
-        let destination_exists = compression::existing_path(destination)?.is_some();
-        match (source_exists, destination_exists) {
-            (true, false) => {
-                let scan = scan_rollout_repaired(source)?;
-                validate_scan_identity(&scan, active_path, session_id, thread_id, source)?;
-                self.materialize_for_append(source)?;
-                // A stale compressed sibling must not resurrect the source on rebuild.
-                compression::remove_compressed(source)?;
-                let parent = destination.parent().ok_or_else(|| {
-                    format!("rollout path has no parent: {}", destination.display())
-                })?;
-                fs::create_dir_all(parent).map_err(|error| {
-                    format!(
-                        "failed to create rollout directory {}: {error}",
-                        parent.display()
-                    )
-                })?;
-                fs::rename(source, destination).map_err(|error| {
-                    format!(
-                        "failed to move rollout {} to {}: {error}",
-                        source.display(),
-                        destination.display()
-                    )
-                })
-            }
-            (false, true) => {
-                let scan = scan_rollout_repaired(destination)?;
-                validate_scan_identity(&scan, active_path, session_id, thread_id, destination)
-            }
-            (true, true) => Err(format!(
-                "rollout move refused because source and destination both exist: {} -> {}",
-                source.display(),
-                destination.display()
-            )),
-            (false, false) => Err(format!(
-                "rollout move source and destination are both missing: {} -> {}",
-                source.display(),
-                destination.display()
-            )),
-        }
     }
 
     fn collect_rollouts(

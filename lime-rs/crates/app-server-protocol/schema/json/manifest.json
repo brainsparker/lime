@@ -999,6 +999,10 @@
       "method": "review/start"
     },
     {
+      "kind": "request",
+      "method": "rollout/compress"
+    },
+    {
       "kind": "notification",
       "method": "scheduledTask/changed"
     },
@@ -2672,6 +2676,7 @@
       "ReviewStartParams",
       "ReviewStartResponse",
       "ReviewTarget",
+      "RolloutCompressResponse",
       "SandboxPolicy",
       "ScheduledTaskChange",
       "ScheduledTaskChangedNotification",

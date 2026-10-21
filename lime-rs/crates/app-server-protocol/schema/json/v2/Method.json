@@ -74,6 +74,7 @@
     "promptHistory/append",
     "promptHistory/read",
     "review/start",
+    "rollout/compress",
     "skills/config/write",
     "skills/extraRoots/set",
     "skills/list",

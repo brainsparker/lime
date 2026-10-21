@@ -1,12 +1,7 @@
 use super::*;
 
 pub(super) fn plain_path(path: &Path) -> PathBuf {
-    if path.extension().is_some_and(|extension| extension == "zst")
-        && path
-            .with_extension("")
-            .extension()
-            .is_some_and(|extension| extension == "jsonl")
-    {
+    if path.extension().is_some_and(|extension| extension == "zst") {
         path.with_extension("")
     } else {
         path.to_path_buf()
@@ -140,7 +135,7 @@ impl RolloutStore {
     }
 }
 
-fn sync_directory(path: &Path) -> Result<(), String> {
+pub(super) fn sync_directory(path: &Path) -> Result<(), String> {
     #[cfg(unix)]
     File::open(path)
         .and_then(|file| file.sync_all())

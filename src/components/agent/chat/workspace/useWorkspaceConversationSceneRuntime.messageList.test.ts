@@ -150,7 +150,9 @@ describe("useWorkspaceConversationSceneRuntime message list projection", () => {
     expect(sceneProps.messageListProps.threadItems).toEqual([]);
     expect(sceneProps.messageListProps.currentTurnId).toBeNull();
     expect(sceneProps.messageListProps.pendingActions).toEqual([]);
-    expect(sceneProps.canvasWorkbenchLayoutProps.sessionView).toBeNull();
+    expect(sceneProps.canvasWorkbenchLayoutProps).not.toHaveProperty(
+      "sessionView",
+    );
 
     act(() => {
       vi.advanceTimersByTime(700);

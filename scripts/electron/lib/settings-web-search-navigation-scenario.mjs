@@ -10,10 +10,8 @@ export async function runSettingsWebSearchNavigationScenario({
   page,
   options,
   evidenceDir,
-  sessionId,
   stage,
   waitForSession,
-  waitForHome,
 }) {
   const read = async () => {
     const response = await invokeAppServerFromPage(page, "config/read", {
@@ -52,16 +50,6 @@ export async function runSettingsWebSearchNavigationScenario({
         !document.querySelector('[data-testid="settings-page-loading"]'),
       "Web Search committed About",
     );
-  const reopenSession = async () => {
-    await page
-      .locator(
-        '[data-testid="app-sidebar-conversation-open"][data-session-id="' +
-          sessionId +
-          '"]',
-      )
-      .click();
-    await waitForSession();
-  };
   const sameConfig = async (expected, message) => {
     const actual = await read();
     // Compare in memory without putting credential-bearing config in assertion output.
@@ -72,15 +60,13 @@ export async function runSettingsWebSearchNavigationScenario({
     );
   };
   const observations = [];
-  for (const target of ["section", "back", "home", "root"]) {
+  for (const target of ["section", "back"]) {
     stage("unsaved-web-search-" + target);
     await open();
     await select.selectOption(changedEngine);
     const trigger = {
       section: page.getByTestId("settings-sidebar-tab-about"),
       back: page.getByTestId("settings-back-button"),
-      home: page.getByTestId("app-sidebar-nav-new-chat"),
-      root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
     }[target];
     await trigger.click();
     await dialog.waitFor({ state: "visible" });
@@ -98,22 +84,8 @@ export async function runSettingsWebSearchNavigationScenario({
     if (target === "section") {
       await about();
       await page.getByTestId("settings-back-button").click();
-      await waitForSession();
-    } else if (target === "back") await waitForSession();
-    else {
-      if (target === "root") {
-        await select.waitFor({ state: "detached" });
-        assert.equal(
-          await page
-            .getByTestId("app-sidebar-nav-scheduled-tasks")
-            .getAttribute("aria-current"),
-          "page",
-        );
-        await page.getByTestId("app-sidebar-nav-new-chat").click();
-      }
-      await waitForHome();
-      await reopenSession();
     }
+    await waitForSession();
     await sameConfig(initial, "discard never persists Web Search");
     observations.push({
       target,

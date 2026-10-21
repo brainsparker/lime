@@ -1,15 +1,11 @@
 import { memo, type ReactNode } from "react";
 import { Copy, Download, ExternalLink, FolderOpen, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { DirectoryListing } from "@/lib/api/fileBrowser";
 import type { CanvasWorkbenchDiffLine } from "../../utils/canvasWorkbenchDiff";
 import type {
   CanvasWorkbenchLayoutMode,
-  CanvasWorkbenchNewToolTab,
-  CanvasWorkbenchSessionView,
   CanvasWorkbenchTab,
 } from "../CanvasWorkbenchLayout";
-import { resolveCanvasWorkbenchToolTabKind } from "./CanvasWorkbenchLayoutState";
 import type { HarnessFilePreviewResult } from "../HarnessStatusPanel";
 import type { CanvasWorkbenchResolvedSelection } from "../CanvasWorkbenchLayoutViewModel";
 import { CanvasWorkbenchChangesPanel } from "./changes/CanvasWorkbenchChangesPanel";
@@ -22,15 +18,8 @@ import {
 } from "./CanvasWorkbenchPreviewModeViewModel";
 import {
   CanvasWorkbenchTopTabs,
-  type CanvasWorkbenchNewTabAction,
   type CanvasWorkbenchTopTab,
 } from "./tabs/CanvasWorkbenchTopTabs";
-import {
-  CanvasWorkbenchWorkspacePanel,
-  type CanvasWorkbenchWorkspacePanelProps,
-} from "./CanvasWorkbenchWorkspacePanel";
-import { CanvasWorkbenchProjectFilesPanel } from "./files/CanvasWorkbenchProjectFilesPanel";
-import { TerminalTab } from "../TerminalTab";
 
 type CanvasWorkbenchTranslation = (
   key: string,
@@ -43,13 +32,10 @@ interface CanvasWorkbenchShellProps {
   activeTab: CanvasWorkbenchTab;
   contentTab: CanvasWorkbenchTab;
   tabs: CanvasWorkbenchTopTab[];
-  newTabActions: CanvasWorkbenchNewTabAction[];
   topRightTools?: ReactNode;
   detailHeaderVisible?: boolean;
   translateWorkbench: CanvasWorkbenchTranslation;
   onSelectTab: (tab: CanvasWorkbenchTab) => void;
-  onNewToolTab: (tab: CanvasWorkbenchNewToolTab) => void;
-  onCloseTab?: (tab: CanvasWorkbenchTab) => void;
   onClose?: () => void;
   closeWorkbenchLabel: string;
   headerActionsVisible: boolean;
@@ -62,32 +48,17 @@ interface CanvasWorkbenchShellProps {
   onRevealPath: (path: string) => void;
   onDownload: () => void;
   documentContext: CanvasWorkbenchResolvedSelection | null;
-  documentSelectionKey: string | null;
   documentDiffLines: CanvasWorkbenchDiffLine[];
   previewModeState: CanvasWorkbenchPreviewModeState;
   changeView?: CanvasWorkbenchChangeView | null;
   changesFilesPanelOpen: boolean;
   loadFilePreview?: (path: string) => Promise<HarnessFilePreviewResult>;
-  workspaceUnavailable: boolean;
   workspaceRoot?: string | null;
-  workspacePanelRootPath: string | null;
-  workspacePanelDisplayPath?: string | null;
-  projectFilesPreviewMode: CanvasWorkbenchPreviewMode;
-  directoryCache: Record<string, DirectoryListing>;
-  expandedDirectories: Record<string, boolean>;
-  loadingDirectories: Record<string, boolean>;
-  workspacePanelCopy?: CanvasWorkbenchWorkspacePanelProps["panelCopy"];
-  locale: string;
-  sessionView?: CanvasWorkbenchSessionView | null;
   shellClassName: string;
   panelClassName: string;
   mutedPanelClassName: string;
   ghostButtonClassName: string;
-  onToggleDirectory: (path: string) => void;
-  onSelectFile: (path: string) => void;
-  onRefreshDirectory: (path: string) => void;
   onSelectPreviewMode: (mode: CanvasWorkbenchPreviewMode) => void;
-  onSelectProjectFilesPreviewMode: (mode: CanvasWorkbenchPreviewMode) => void;
   onToggleChangesFilesPanel?: () => void;
 }
 
@@ -130,13 +101,10 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
   activeTab,
   contentTab,
   tabs,
-  newTabActions,
   topRightTools = null,
   detailHeaderVisible = true,
   translateWorkbench,
   onSelectTab,
-  onNewToolTab,
-  onCloseTab,
   onClose,
   closeWorkbenchLabel,
   headerActionsVisible,
@@ -149,56 +117,19 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
   onRevealPath,
   onDownload,
   documentContext,
-  documentSelectionKey,
   documentDiffLines,
   previewModeState,
   changeView,
   changesFilesPanelOpen,
   loadFilePreview,
-  workspaceUnavailable,
   workspaceRoot,
-  workspacePanelRootPath,
-  workspacePanelDisplayPath,
-  projectFilesPreviewMode,
-  directoryCache,
-  expandedDirectories,
-  loadingDirectories,
-  workspacePanelCopy,
-  locale,
-  sessionView,
   shellClassName,
   panelClassName,
   mutedPanelClassName,
   ghostButtonClassName,
-  onToggleDirectory,
-  onSelectFile,
-  onRefreshDirectory,
   onSelectPreviewMode,
-  onSelectProjectFilesPreviewMode,
   onToggleChangesFilesPanel,
 }: CanvasWorkbenchShellProps) {
-  const contentToolTabKind = resolveCanvasWorkbenchToolTabKind(contentTab);
-  const workspacePanel = (
-    <CanvasWorkbenchWorkspacePanel
-      workspaceUnavailable={workspaceUnavailable}
-      workspaceRoot={workspaceRoot}
-      workspacePanelRootPath={workspacePanelRootPath}
-      workspacePanelDisplayPath={workspacePanelDisplayPath}
-      selectedFileKey={documentSelectionKey}
-      directoryCache={directoryCache}
-      expandedDirectories={expandedDirectories}
-      loadingDirectories={loadingDirectories}
-      panelCopy={workspacePanelCopy}
-      locale={locale}
-      ghostButtonClassName={ghostButtonClassName}
-      mutedPanelClassName={mutedPanelClassName}
-      translateWorkbench={translateWorkbench}
-      onToggleDirectory={onToggleDirectory}
-      onSelectFile={onSelectFile}
-      onRefreshDirectory={onRefreshDirectory}
-    />
-  );
-
   return (
     <section
       ref={shellRef}
@@ -223,11 +154,8 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
             <CanvasWorkbenchTopTabs
               activeTab={activeTab}
               tabs={tabs}
-              newTabActions={newTabActions}
               translateWorkbench={translateWorkbench}
               onSelectTab={onSelectTab}
-              onNewToolTab={onNewToolTab}
-              onCloseTab={onCloseTab}
             />
           </div>
 
@@ -336,29 +264,7 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
             translateWorkbench={translateWorkbench}
             onSelectMode={onSelectPreviewMode}
           />
-        ) : contentTab === "workspace" ? (
-          workspacePanel
-        ) : contentToolTabKind === "project-files" ? (
-          <CanvasWorkbenchProjectFilesPanel
-            workspaceUnavailable={workspaceUnavailable}
-            workspaceRoot={workspaceRoot}
-            selectedFileKey={documentSelectionKey}
-            documentContext={documentContext}
-            previewMode={projectFilesPreviewMode}
-            directoryCache={directoryCache}
-            expandedDirectories={expandedDirectories}
-            loadingDirectories={loadingDirectories}
-            panelCopy={workspacePanelCopy}
-            locale={locale}
-            ghostButtonClassName={ghostButtonClassName}
-            mutedPanelClassName={mutedPanelClassName}
-            translateWorkbench={translateWorkbench}
-            onToggleDirectory={onToggleDirectory}
-            onSelectFile={onSelectFile}
-            onRefreshDirectory={onRefreshDirectory}
-            onSelectPreviewMode={onSelectProjectFilesPreviewMode}
-          />
-        ) : contentTab === "changes" ? (
+        ) : (
           <CanvasWorkbenchChangesPanel
             changeView={changeView}
             documentContext={documentContext}
@@ -371,45 +277,7 @@ export const CanvasWorkbenchShell = memo(function CanvasWorkbenchShell({
             filesPanelOpen={changesFilesPanelOpen}
             onToggleFilesPanel={onToggleChangesFilesPanel}
           />
-        ) : contentTab === "summary" ? (
-          <div
-            data-testid="canvas-workbench-panel-summary"
-            className="flex h-full min-h-0 flex-col overflow-hidden bg-white"
-          >
-            {sessionView?.renderPanel ? (
-              <div className="min-h-0 flex-1 overflow-hidden">
-                {sessionView.renderPanel()}
-              </div>
-            ) : (
-              <div className="p-5">
-                <div className={mutedPanelClassName}>
-                  {translateWorkbench("agentChat.canvasWorkbench.workspace.empty")}
-                </div>
-              </div>
-            )}
-          </div>
-        ) : contentToolTabKind === "terminal" ? null : (
-          workspacePanel
         )}
-        {tabs
-          .filter(
-            (tab) => resolveCanvasWorkbenchToolTabKind(tab.key) === "terminal",
-          )
-          .map((tab) => (
-            <section
-              key={tab.key}
-              hidden={contentTab !== tab.key}
-              data-testid="canvas-workbench-panel-terminal"
-              className="h-full min-h-0 bg-[color:var(--lime-surface)]"
-            >
-              <TerminalTab
-                cwd={workspaceRoot}
-                sessionId={tab.key}
-                active={contentTab === tab.key}
-                onNewTerminalTab={() => onNewToolTab("terminal")}
-              />
-            </section>
-          ))}
       </div>
     </section>
   );

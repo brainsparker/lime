@@ -60,6 +60,7 @@ export const ELECTRON_HOST_COMMANDS = [
   "get_or_create_default_project",
   "analyze_layered_design_flat_image",
   "open_external_url",
+  "is_default_browser",
   "open_file_preview_window",
   "open_resource_manager_window",
   "open_system_settings_url",

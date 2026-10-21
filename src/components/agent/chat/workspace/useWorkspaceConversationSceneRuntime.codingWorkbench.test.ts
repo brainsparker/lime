@@ -5,48 +5,10 @@ import {
 } from "./useWorkspaceConversationSceneRuntime.testFixtures";
 
 describe("useWorkspaceConversationSceneRuntime coding workbench projection", () => {
-  it("应向画布壳透传 workspaceView 头部语义", () => {
-    const params = createBaseParams({
-      settledWorkbenchArtifacts: [{ id: "artifact-1" }, { id: "artifact-2" }],
-      taskFiles: [{ id: "task-1", name: "draft.md" }],
-      projectRootPath: "/tmp/demo-project",
-      workspacePathMissing: false,
-      workspaceHealthError: false,
-      threadRead: {
-        thread_id: "thread-1",
-        active_turn_id: "turn-1",
-        pending_requests: [
-          {
-            id: "approval-command-1",
-            thread_id: "thread-1",
-            turn_id: "turn-1",
-            request_type: "tool_confirmation",
-            status: "pending",
-            title: "确认执行命令",
-            payload: {
-              command: "npm test",
-            },
-          },
-        ],
-      },
-      submittedActionsInFlight: [
-        {
-          requestId: "approval-other",
-          actionType: "tool_confirmation",
-          status: "submitted",
-        },
-      ],
-    });
-
-    const sceneProps = getRenderedSceneProps(params);
-    const workspaceView = sceneProps.canvasWorkbenchLayoutProps.workspaceView;
-
-    expect(workspaceView?.panelCopy).toEqual(
-      expect.objectContaining({
-        unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-        emptyText: "当前工作区 demo-project 没有可浏览的文件。",
-        sectionEyebrow: undefined,
-      }),
+  it("目录浏览由current Files承接，不再向Canvas生成第二套目录copy", () => {
+    const sceneProps = getRenderedSceneProps(createBaseParams());
+    expect(sceneProps.canvasWorkbenchLayoutProps).not.toHaveProperty(
+      "workspaceView",
     );
   });
 
@@ -61,9 +23,6 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     expect(sceneProps.projectRootPath).toBe("/tmp/project-record-root");
     expect(sceneProps.canvasWorkbenchLayoutProps.workspaceRoot).toBe(
       "/tmp/project-record-root",
-    );
-    expect(sceneProps.canvasWorkbenchLayoutProps.workspaceView).toEqual(
-      expect.objectContaining({ panelCopy: expect.any(Object) }),
     );
   });
 
@@ -220,7 +179,7 @@ describe("useWorkspaceConversationSceneRuntime coding workbench projection", () 
     const canvasProps = sceneProps.canvasWorkbenchLayoutProps;
 
     expect(canvasProps.workbenchMode).toBe("default");
-    expect(canvasProps.sessionView).toBeNull();
+    expect(canvasProps).not.toHaveProperty("sessionView");
     expect(canvasProps).not.toHaveProperty("logView");
     expect(canvasProps.changeView).toBeNull();
   });

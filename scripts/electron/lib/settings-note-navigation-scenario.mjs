@@ -10,10 +10,8 @@ export async function runSettingsNoteNavigationScenario({
   page,
   options,
   evidenceDir,
-  sessionId,
   stage,
   waitForSession,
-  waitForHome,
 }) {
   const input = page.getByTestId("settings-memory-note-textarea");
   const dialog = page.getByTestId("settings-unsaved-changes-dialog");
@@ -48,24 +46,14 @@ export async function runSettingsNoteNavigationScenario({
         !document.querySelector('[data-testid="settings-page-loading"]'),
       "note navigation committed About",
     );
-  const reopenSession = async () => {
-    await page
-      .locator(
-        `[data-testid="app-sidebar-conversation-open"][data-session-id="${sessionId}"]`,
-      )
-      .click();
-    await waitForSession();
-  };
   const observations = [];
-  for (const target of ["section", "back", "home", "root"]) {
+  for (const target of ["section", "back"]) {
     stage(`unsaved-note-${target}`);
     await openMemory();
     await input.fill(marker);
     const trigger = {
       section: page.getByTestId("settings-sidebar-tab-about"),
       back: page.getByTestId("settings-back-button"),
-      home: page.getByTestId("app-sidebar-nav-new-chat"),
-      root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
     }[target];
     await trigger.click();
     await dialog.waitFor({ state: "visible" });
@@ -87,22 +75,8 @@ export async function runSettingsNoteNavigationScenario({
     if (target === "section") {
       await waitForAbout();
       await page.getByTestId("settings-back-button").click();
-      await waitForSession();
-    } else if (target === "back") await waitForSession();
-    else {
-      if (target === "root") {
-        await input.waitFor({ state: "detached" });
-        assert.equal(
-          await page
-            .getByTestId("app-sidebar-nav-scheduled-tasks")
-            .getAttribute("aria-current"),
-          "page",
-        );
-        await page.getByTestId("app-sidebar-nav-new-chat").click();
-      }
-      await waitForHome();
-      await reopenSession();
     }
+    await waitForSession();
     assert.deepEqual(
       await listNotes(),
       initialPaths,

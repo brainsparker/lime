@@ -21,7 +21,9 @@ export function effectiveDesktopPreferences(config?: DesktopConfig) {
   };
 }
 
-export async function getDesktopPreferences(options?: { forceRefresh?: boolean }): Promise<DesktopConfig> {
+export async function getDesktopPreferences(options?: {
+  forceRefresh?: boolean;
+}): Promise<DesktopConfig> {
   return (await getConfig(options)).desktop ?? {};
 }
 

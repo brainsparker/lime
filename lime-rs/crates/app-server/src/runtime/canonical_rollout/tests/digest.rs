@@ -1,6 +1,57 @@
 use super::*;
 
 #[test]
+fn float_command_timings_survive_append_archive_and_cold_scan() {
+    let (_temp, store, source, relative, absolute) = setup("float-command-timing");
+    let payload = json!({"wall_time_seconds": 2.5593350839999998_f64});
+    let event = app_server_protocol::AgentEvent {
+        event_id: "command-timing-event".to_string(),
+        sequence: 1,
+        session_id: source.session_id.to_string(),
+        thread_id: Some(source.thread_id.to_string()),
+        turn_id: None,
+        event_type: "command_timing".to_string(),
+        timestamp: "2026-10-21T13:01:35Z".to_string(),
+        payload: payload.clone(),
+    };
+    store
+        .append_history(
+            &relative,
+            source.session_id.as_str(),
+            source.thread_id.as_str(),
+            &fingerprint('a'),
+            &changes(1),
+            &[event],
+            None,
+        )
+        .unwrap();
+    assert_eq!(
+        scan_rollout(&absolute).unwrap().history[0].runtime_events[0].payload,
+        payload
+    );
+    append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
+    let archived = absolute.parent().unwrap().join("archived-float.jsonl");
+    let archived_relative = store
+        .move_rollout(
+            &absolute,
+            &archived,
+            &relative,
+            source.session_id.as_str(),
+            source.thread_id.as_str(),
+        )
+        .unwrap()
+        .commit();
+    assert!(!absolute.exists());
+    assert_eq!(
+        archived_relative,
+        relative.parent().unwrap().join("archived-float.jsonl")
+    );
+    let cold = scan_rollout(&archived).unwrap();
+    assert_eq!(cold.history.len(), 2);
+    assert_eq!(cold.history[0].runtime_events[0].payload, payload);
+}
+
+#[test]
 fn obsolete_schema_is_rejected_without_migration() {
     for version in [1, 2] {
         let (_temp, _store, _source, _relative, absolute) = setup("obsolete-schema");

@@ -162,7 +162,7 @@ describe("useWorkspaceConversationSceneRuntime task rail projection", () => {
     expect(sceneProps.taskRail?.context).toBeUndefined();
   });
 
-  it("需要用户关注时才向画布壳透传 Summary 面板", () => {
+  it("需要用户关注时保留 canonical 投影，不向 Canvas 注入第二个 Summary", () => {
     const handlePermissionResponse = vi.fn();
     const params = createBaseParams({
       handlePermissionResponse,
@@ -219,13 +219,15 @@ describe("useWorkspaceConversationSceneRuntime task rail projection", () => {
     });
 
     const sceneProps = getRenderedSceneProps(params);
-    const sessionView = sceneProps.canvasWorkbenchLayoutProps.sessionView;
-
-    expect(sessionView).toBeDefined();
-    expect(sessionView).not.toHaveProperty("title");
-    expect(sessionView).not.toHaveProperty("subtitle");
-    expect(sessionView).not.toHaveProperty("summaryStats");
-    expect(typeof sessionView?.renderPanel).toBe("function");
+    expect(sceneProps.canvasWorkbenchLayoutProps).not.toHaveProperty(
+      "sessionView",
+    );
+    expect(sceneProps.messageListProps.pendingActions).toEqual(
+      params.pendingActions,
+    );
+    expect(sceneProps.messageListProps.threadItems).toBe(
+      params.messageListRuntime.threadItems,
+    );
   });
 
   it("任务中心输出文件应按工作区根目录解析后再打开", () => {

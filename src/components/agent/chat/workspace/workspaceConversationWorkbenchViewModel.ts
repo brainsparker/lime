@@ -1,47 +1,12 @@
 import type { AgentRuntimeFileCheckpointThreadSummary } from "@/lib/api/agentRuntime/sessionTypes";
 import type { AgentThreadItem } from "@/lib/api/agentProtocolCoreTypes";
 import type { CodingWorkbenchView } from "@limecloud/agent-runtime-projection";
-import type { CanvasWorkbenchHeaderView } from "../components/CanvasWorkbenchLayout";
 import type {
   CanvasWorkbenchChangeItem,
   CanvasWorkbenchChangeView,
 } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanelViewModel";
 import { extractFileNameFromPath } from "./workspacePath";
 import { parseCanvasWorkbenchPatchDiffLines } from "../components/canvas-workbench/changes/CanvasWorkbenchChangesPanelViewModel";
-
-export function resolvePathLeaf(value?: string | null): string {
-  const normalized = (value || "").trim().replace(/\\/g, "/");
-  if (!normalized) {
-    return "";
-  }
-  const segments = normalized.split("/").filter(Boolean);
-  return segments.at(-1) || normalized;
-}
-
-export function buildWorkspaceHeaderView({
-  projectRootPath,
-  workspacePathMissing,
-  workspaceHealthError,
-}: {
-  projectRootPath?: string | null;
-  workspacePathMissing?: boolean | null;
-  workspaceHealthError?: boolean | null;
-}): CanvasWorkbenchHeaderView {
-  const workspaceRootLabel = resolvePathLeaf(projectRootPath) || "未绑定";
-
-  return {
-    panelCopy: {
-      unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-      emptyText: projectRootPath?.trim()
-        ? `当前工作区 ${workspaceRootLabel} 没有可浏览的文件。`
-        : "当前会话没有绑定可浏览的工作区目录。",
-      sectionEyebrow:
-        workspacePathMissing || workspaceHealthError ? "项目目录" : undefined,
-      loadingText: "正在加载目录...",
-      emptyDirectoryText: "暂无目录内容。",
-    },
-  };
-}
 
 function statusForCanvasChange(
   status: string,

@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import type { ComponentProps, MouseEvent, ReactNode } from "react";
 import { TerminalTab } from "../components/TerminalTab";
 import { LocalConversationBackgroundTerminalTab } from "./LocalConversationBackgroundTerminalTab";
 import type { AgentThreadItem } from "../types";
@@ -44,7 +44,7 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   backgroundTerminalItems?: readonly AgentThreadItem[];
   sidePanelActions: readonly ThreadSidePanelAction[];
   outputs?: readonly ThreadOutput[];
-  onOpenWebsite: (url: string) => void;
+  onOpenWebsite: (url: string, event: MouseEvent<HTMLButtonElement>) => void;
   onNewSidePanelTab: () => void;
   onSelectSidePanelTab: (tabId: string) => void;
   onCloseSidePanelTab: (tabId: string) => void;
@@ -67,6 +67,7 @@ export interface RenderWorkspaceRightSurfaceHostRuntimeParams {
   browserRightSurfaceAvailable: boolean;
   ensureBrowserWorkspaceOwner?: BrowserPanelProps["ensureOwner"];
   browserRightSurfaceInitialUrl?: string | null;
+  browserRightSurfaceLaunchTabId?: string | null;
   browserRightSurfaceLaunchRequestId?: string | null;
   onBrowserLaunchApplied?: (requestId: string) => void;
   browserRightSurfaceIntentTitle?: string | null;
@@ -121,6 +122,7 @@ export function renderWorkspaceRightSurfaceHostRuntime({
   browserRightSurfaceAvailable,
   ensureBrowserWorkspaceOwner,
   browserRightSurfaceInitialUrl,
+  browserRightSurfaceLaunchTabId,
   browserRightSurfaceLaunchRequestId,
   onBrowserLaunchApplied,
   browserRightSurfaceIntentTitle,
@@ -165,10 +167,10 @@ export function renderWorkspaceRightSurfaceHostRuntime({
         }
         onChatSelect={() => onSelectChatFromNewTab(tab.tabId)}
         outputs={outputs}
-        onOpenOutput={(output) => {
+        onOpenOutput={(output, event) => {
           if (output.type === "website") {
             if (/^https?:\/\//i.test(output.target)) {
-              onOpenWebsite(output.target);
+              onOpenWebsite(output.target, event);
             } else {
               onOpenWorkspaceFile(
                 resolveOutputPath(
@@ -254,6 +256,7 @@ export function renderWorkspaceRightSurfaceHostRuntime({
                 active={rightSurfaceState.activeSurface === "browser"}
                 ensureOwner={ensureBrowserWorkspaceOwner}
                 initialUrl={browserRightSurfaceInitialUrl ?? null}
+                launchTabId={browserRightSurfaceLaunchTabId}
                 launchRequestId={browserRightSurfaceLaunchRequestId}
                 onLaunchApplied={onBrowserLaunchApplied}
                 runtimeSessionId={sceneSessionId}

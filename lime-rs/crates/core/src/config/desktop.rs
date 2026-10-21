@@ -47,10 +47,16 @@ mod tests {
         assert!(config.is_default());
         assert_eq!(config.open_link_in_target_preference, None);
         assert_eq!(config.open_local_url_in_target_preference, None);
-        assert_eq!(config.external_browser_link_shortcut, ExternalBrowserLinkShortcut::Primary);
-        assert_eq!(serde_json::to_value(config).unwrap(), json!({
-            "external-browser-link-shortcut": "primary"
-        }));
+        assert_eq!(
+            config.external_browser_link_shortcut,
+            ExternalBrowserLinkShortcut::Primary
+        );
+        assert_eq!(
+            serde_json::to_value(config).unwrap(),
+            json!({
+                "external-browser-link-shortcut": "primary"
+            })
+        );
     }
 
     #[test]
@@ -81,7 +87,10 @@ mod tests {
             json!({"external-browser-link-shortcut": null}),
             json!({"unknown-link-preference": "in-app-browser"}),
         ] {
-            assert!(serde_json::from_value::<DesktopConfig>(value.clone()).is_err(), "{value}");
+            assert!(
+                serde_json::from_value::<DesktopConfig>(value.clone()).is_err(),
+                "{value}"
+            );
         }
     }
 }

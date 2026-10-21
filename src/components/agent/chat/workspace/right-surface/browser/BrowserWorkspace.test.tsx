@@ -131,6 +131,7 @@ describe("BrowserWorkspace", () => {
     mocks.openIdentity.mockReset();
     mocks.createIdentity.mockReset();
     mocks.setBounds.mockReset();
+    mocks.select.mockReset();
     mocks.downloadHandler = null;
     mocks.loadFailedHandler = null;
     mocks.permissionHandler = null;
@@ -175,6 +176,53 @@ describe("BrowserWorkspace", () => {
     });
     vi.unstubAllGlobals();
     container.remove();
+  });
+
+  it("selects the explicitly requested canonical tab without navigating the previously selected tab", async () => {
+    const old = browserState({
+      tabId: "old",
+      selected: true,
+      url: "https://example.com/old",
+    });
+    const target = browserState({
+      tabId: "canonical-new",
+      viewId: "new-view",
+      selected: false,
+      url: "http://localhost:4317/new",
+    });
+    mocks.list.mockResolvedValue([old, target]);
+    let selectedId = old.tabId;
+    mocks.select.mockImplementation(async ({ tabId }) => {
+      selectedId = tabId;
+      return { ...target, selected: true };
+    });
+    mocks.setBounds.mockImplementation(async ({ tabId }) => ({
+      ...(tabId === old.tabId ? old : target),
+      selected: tabId === selectedId,
+    }));
+    const ack = vi.fn();
+    await act(async () =>
+      root.render(
+        <BrowserWorkspace
+          runtimeSessionId="session-1"
+          threadId="thread-1"
+          initialUrl={target.url}
+          launchTabId={target.tabId}
+          launchRequestId="explicit-tab"
+          onLaunchApplied={ack}
+        />,
+      ),
+    );
+    expect(mocks.select).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ tabId: "canonical-new" }),
+    );
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(
+      container
+        .querySelector('[data-testid="browser-workspace"]')
+        ?.getAttribute("data-browser-tab-id"),
+    ).toBe("canonical-new");
+    expect(ack).toHaveBeenCalledExactlyOnceWith("explicit-tab");
   });
 
   it("applies a new launch request to a restored native tab and ignores an older navigation result", async () => {

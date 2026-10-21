@@ -7,6 +7,7 @@ import {
 } from "./WorkspaceRightSurfaceHostRuntime";
 import type { ThreadOutput } from "./right-surface/threadOutputs";
 import type { ThreadSidePanelTab } from "./right-surface/threadSidePanelTabs";
+import type { LinkClick } from "@/lib/linkOpening";
 import { useWorkspaceRightSurfaceHostRuntime } from "./useWorkspaceRightSurfaceHostRuntime";
 import {
   applyWorkspaceRightSurfacePendingChanges,
@@ -20,6 +21,27 @@ import type {
 const requestWebsite = vi.hoisted(() =>
   vi.fn<(params: WorkspaceRightSurfaceRequestParams) => Promise<void>>(),
 );
+const links = vi.hoisted(() => ({
+  preferences: vi.fn(),
+  external: vi.fn(async () => undefined),
+  newTab: vi.fn(),
+}));
+vi.mock("@/lib/api/desktopPreferences", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/desktopPreferences")>()),
+  getDesktopPreferences: links.preferences,
+}));
+vi.mock("@/lib/api/externalUrl", () => ({
+  isDefaultBrowser: async () => false,
+  openExternalUrlWithSystemBrowser: links.external,
+}));
+vi.mock("@/lib/api/browserTab", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/browserTab")>()),
+  isBrowserTabHostAvailable: () => true,
+}));
+vi.mock("@/lib/api/browserWorkspace", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/api/browserWorkspace")>()),
+  createBrowserWorkspaceLinkTab: links.newTab,
+}));
 vi.mock("@/lib/api/workspaceRightSurface", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/api/workspaceRightSurface")>()),
   requestWorkspaceRightSurface: requestWebsite,
@@ -62,6 +84,12 @@ vi.mock("react-i18next", () => ({
 let container: HTMLDivElement;
 let root: Root;
 beforeEach(() => {
+  links.preferences.mockReset().mockResolvedValue({});
+  links.external.mockClear();
+  links.newTab.mockReset().mockResolvedValue({
+    browserSessionId: "canonical-browser",
+    tabId: "canonical-new",
+  });
   requestWebsite.mockClear();
   requestWebsite.mockResolvedValue(undefined);
   (
@@ -82,6 +110,7 @@ afterEach(() => {
   act(() => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("Recents production Host routing", () => {
@@ -149,6 +178,7 @@ describe("Recents production Host routing", () => {
       } else {
         expect(onOpenWebsite).toHaveBeenCalledExactlyOnceWith(
           "http://localhost:4317/demo",
+          expect.objectContaining({ button: 0 }),
         );
         expect(onOpenWorkspaceFile).not.toHaveBeenCalled();
         expect(
@@ -158,82 +188,181 @@ describe("Recents production Host routing", () => {
     },
   );
 
-  it("真实Host hook发出的网站请求能被当前workspace pending消费者接收", async () => {
-    const source: ThreadSidePanelTab = {
-      tabId: "new-tab:website",
-      kind: "workspace-new-tab",
-    };
-    const tabs = { open: true, activeTabId: source.tabId, tabs: [source] };
-    const state = {
-      activeSurface: "workspace-new-tab",
-      previousSurface: null,
-      openSurfaces: ["workspace-new-tab"],
-      source: "user",
-      layoutVariant: "docked",
-    };
-    const outputs: ThreadOutput[] = [
-      {
-        type: "website",
-        target: "http://localhost:4317/demo",
-        threadId: "thread",
-        turnId: "turn",
-        itemId: "website-message",
-      },
-    ];
-    const params = {
-      sidePanelTabs: tabs,
-      rightSurfaceState: state,
-      canvasWorkbenchRootPath: "/project",
-      runtimeWorkspaceId: "workspace",
-      sceneSessionId: "session",
-      sceneThreadId: "thread",
-      rightSurfaceRuntime: {
+  it.each<{
+    external: boolean;
+    platform: string;
+    click: LinkClick;
+    newTab: boolean;
+    background: boolean;
+  }>([
+    {
+      external: false,
+      platform: "MacIntel",
+      click: {},
+      newTab: false,
+      background: false,
+    },
+    {
+      external: true,
+      platform: "MacIntel",
+      click: {},
+      newTab: false,
+      background: false,
+    },
+    {
+      external: true,
+      platform: "MacIntel",
+      click: { metaKey: true },
+      newTab: false,
+      background: false,
+    },
+    {
+      external: false,
+      platform: "MacIntel",
+      click: { ctrlKey: true },
+      newTab: false,
+      background: false,
+    },
+    {
+      external: false,
+      platform: "Win32",
+      click: { ctrlKey: true, shiftKey: true },
+      newTab: true,
+      background: false,
+    },
+    {
+      external: false,
+      platform: "MacIntel",
+      click: { button: 1 },
+      newTab: true,
+      background: true,
+    },
+  ])(
+    "真实Host hook消费local偏好/点击意图并保留作用域：%j",
+    async ({ external, platform, click, newTab, background }) => {
+      vi.spyOn(window.navigator, "platform", "get").mockReturnValue(platform);
+      links.preferences.mockResolvedValue({
+        "open-local-url-in-target-preference":
+          external && !click.metaKey ? "external-browser" : "in-app-browser",
+      });
+      const source: ThreadSidePanelTab = {
+        tabId: "new-tab:website",
+        kind: "workspace-new-tab",
+      };
+      const tabs = { open: true, activeTabId: source.tabId, tabs: [source] };
+      const state = {
+        activeSurface: "workspace-new-tab",
+        previousSurface: null,
+        openSurfaces: ["workspace-new-tab"],
+        source: "user",
+        layoutVariant: "docked",
+      };
+      const outputs: ThreadOutput[] = [
+        {
+          type: "website",
+          target: "http://localhost:4317/demo",
+          threadId: "thread",
+          turnId: "turn",
+          itemId: "website-message",
+        },
+      ];
+      const params = {
         sidePanelTabs: tabs,
         rightSurfaceState: state,
-        rightSurfaceLaunchers: [],
-        outputs,
-        getFileDraft: () => null,
-        setFileDraft: vi.fn(),
-        handleCloseSidePanelTab: vi.fn(),
-        openWorkspaceFile: vi.fn(),
-      },
-      handleSendRef: { current: vi.fn() },
-      restoreInput: vi.fn(),
-      setLayoutMode: vi.fn(),
-    } as unknown as Parameters<typeof useWorkspaceRightSurfaceHostRuntime>[0];
-    function Probe() {
-      return useWorkspaceRightSurfaceHostRuntime(params).content;
-    }
-    await act(async () => root.render(<Probe />));
-    const button = container.querySelector<HTMLButtonElement>("ul button")!;
-    await act(async () => button.click());
-    expect(requestWebsite).toHaveBeenCalledOnce();
-    const request = requestWebsite.mock.calls[0]?.[0];
-    expect(request).toMatchObject({
-      surfaceKind: "browser",
-      sessionId: "session",
-      workspaceId: "workspace",
-      workspaceRoot: "/project",
-      priority: "foreground",
-      metadata: { browser: { launchUrl: "http://localhost:4317/demo" } },
-    });
-    const pending = {
-      ...request,
-      requestId: "website-request",
-      status: "pending",
-      requestedAt: "2026-10-21T00:00:00Z",
-    } as WorkspaceRightSurfacePendingRequest;
-    const listParams = buildWorkspaceRightSurfacePendingListParams({
-      workspaceId: "workspace",
-      workspaceRoot: "/project",
-      sessionId: "session",
-    });
-    expect(
-      applyWorkspaceRightSurfacePendingChanges(
-        [],
-        [{ changeType: "requested", pending: [pending] }],
-        listParams,
-      ),
-    ).toEqual([pending]);
-  });
+        canvasWorkbenchRootPath: "/project",
+        runtimeWorkspaceId: "workspace",
+        sceneSessionId: "session",
+        sceneThreadId: "thread",
+        rightSurfaceRuntime: {
+          sidePanelTabs: tabs,
+          rightSurfaceState: state,
+          rightSurfaceLaunchers: [],
+          outputs,
+          getFileDraft: () => null,
+          setFileDraft: vi.fn(),
+          handleCloseSidePanelTab: vi.fn(),
+          openWorkspaceFile: vi.fn(),
+          openBrowserInBackground: vi.fn(),
+        },
+        handleSendRef: { current: vi.fn() },
+        restoreInput: vi.fn(),
+        setLayoutMode: vi.fn(),
+      } as unknown as Parameters<typeof useWorkspaceRightSurfaceHostRuntime>[0];
+      function Probe() {
+        return useWorkspaceRightSurfaceHostRuntime(params).content;
+      }
+      await act(async () => root.render(<Probe />));
+      const button = container.querySelector<HTMLButtonElement>("ul button")!;
+      await act(async () =>
+        button.dispatchEvent(
+          new MouseEvent(click.button === 1 ? "auxclick" : "click", {
+            bubbles: true,
+            cancelable: true,
+            ...click,
+          }),
+        ),
+      );
+      if (external) {
+        expect(links.external).toHaveBeenCalledExactlyOnceWith(
+          "http://localhost:4317/demo",
+        );
+        expect(requestWebsite).not.toHaveBeenCalled();
+        expect(
+          container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+        ).not.toBeNull();
+        return;
+      }
+      if (newTab) {
+        expect(links.newTab).toHaveBeenCalledWith(
+          expect.objectContaining({
+            owner: { runtimeSessionId: "session", threadId: "thread" },
+            url: "http://localhost:4317/demo",
+            background,
+          }),
+        );
+      } else expect(links.newTab).not.toHaveBeenCalled();
+      if (background) {
+        expect(
+          params.rightSurfaceRuntime.openBrowserInBackground,
+        ).toHaveBeenCalledOnce();
+        expect(requestWebsite).not.toHaveBeenCalled();
+        expect(
+          container.querySelector('[data-testid="thread-side-panel-new-tab"]'),
+        ).not.toBeNull();
+        return;
+      }
+      expect(requestWebsite).toHaveBeenCalledOnce();
+      const request = requestWebsite.mock.calls[0]?.[0];
+      expect(request).toMatchObject({
+        surfaceKind: "browser",
+        sessionId: "session",
+        workspaceId: "workspace",
+        workspaceRoot: "/project",
+        priority: "foreground",
+        metadata: { browser: { launchUrl: "http://localhost:4317/demo" } },
+      });
+      if (newTab)
+        expect(request).toMatchObject({
+          metadata: { browser: { tabId: "canonical-new" } },
+        });
+      const pending = {
+        ...request,
+        requestId: "website-request",
+        status: "pending",
+        requestedAt: "2026-10-21T00:00:00Z",
+      } as WorkspaceRightSurfacePendingRequest;
+      const listParams = buildWorkspaceRightSurfacePendingListParams({
+        workspaceId: "workspace",
+        workspaceRoot: "/project",
+        sessionId: "session",
+      });
+      expect(
+        applyWorkspaceRightSurfacePendingChanges(
+          [],
+          [{ changeType: "requested", pending: [pending] }],
+          listParams,
+        ),
+      ).toEqual([pending]);
+    },
+  );
 });

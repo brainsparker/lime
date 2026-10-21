@@ -3,29 +3,9 @@ import type { CanvasWorkbenchDefaultPreview } from "../CanvasWorkbenchLayoutView
 
 export type { CanvasWorkbenchDefaultPreview } from "../CanvasWorkbenchLayoutViewModel";
 
-export type CanvasWorkbenchFixedTab =
-  | "markdown"
-  | "html"
-  | "code"
-  | "workspace"
-  | "changes"
-  | "summary";
-export type CanvasWorkbenchNewToolTab = "terminal" | "project-files";
-export type CanvasWorkbenchToolTabId = `${CanvasWorkbenchNewToolTab}:${number}`;
-export type CanvasWorkbenchToolTab =
-  | CanvasWorkbenchNewToolTab
-  | CanvasWorkbenchToolTabId;
-export type CanvasWorkbenchTab =
-  | CanvasWorkbenchFixedTab
-  | CanvasWorkbenchToolTab;
+export type CanvasWorkbenchTab = "markdown" | "html" | "code" | "changes";
 export type CanvasWorkbenchLayoutMode = "split" | "stacked";
 export type CanvasWorkbenchMode = "default" | "coding";
-
-export interface CanvasWorkbenchOpenedToolTab {
-  id: CanvasWorkbenchToolTabId;
-  kind: CanvasWorkbenchNewToolTab;
-  sequence: number;
-}
 
 export type CanvasWorkbenchTranslation = (
   key: string,
@@ -48,7 +28,6 @@ export function resolveInitialCanvasWorkbenchTab(
   defaultPreview: CanvasWorkbenchDefaultPreview | null,
   changeView: { items?: unknown[] } | null | undefined,
   initialDocumentPath: string | null | undefined,
-  shouldPreferSessionTab: boolean,
   shouldPreferReviewTab: boolean,
 ): CanvasWorkbenchTab {
   if (
@@ -68,7 +47,7 @@ export function resolveInitialCanvasWorkbenchTab(
     );
   }
 
-  return shouldPreferSessionTab ? "summary" : "workspace";
+  return "changes";
 }
 
 export function translateCanvasWorkbenchText(
@@ -92,30 +71,4 @@ export function translateCanvasWorkbenchText(
   return fallbackDetails.length > 0
     ? `${key} ${fallbackDetails.join(" ")}`
     : translated;
-}
-
-export function isCanvasWorkbenchToolTab(
-  tab: CanvasWorkbenchTab,
-): tab is CanvasWorkbenchToolTab {
-  return resolveCanvasWorkbenchToolTabKind(tab) !== null;
-}
-
-export function createCanvasWorkbenchToolTabId(
-  kind: CanvasWorkbenchNewToolTab,
-  sequence: number,
-): CanvasWorkbenchToolTabId {
-  return `${kind}:${sequence}` as CanvasWorkbenchToolTabId;
-}
-
-export function resolveCanvasWorkbenchToolTabKind(
-  tab: CanvasWorkbenchTab,
-): CanvasWorkbenchNewToolTab | null {
-  if (tab === "terminal" || tab === "project-files") {
-    return tab;
-  }
-  const [kind] = tab.split(":");
-  if (kind === "terminal" || kind === "project-files") {
-    return kind;
-  }
-  return null;
 }

@@ -6110,7 +6110,48 @@ GUI Item 只接收可展示内容。provider request 副本先校验完整 produ
 
 压缩历史的物理文件也由同一 `canonical_rollout/compression` 管理。active/archived 发现
 将 `.jsonl.zst` 归一为 plain 逻辑路径并去重；read/rebuild 流式校验，不生成 plain 文件。
-history/metadata 写入与生命周期移动前先解压至同目录临时文件，校验摘要、序列和 identity，
-保留权限及 mtime，fsync 后无覆盖发布，再删除压缩源。plain sibling 优先；移动和删除同时
+history/metadata 写入前先解压至同目录临时文件，校验摘要、序列和 identity，
+保留权限及 mtime，fsync 后无覆盖发布，再删除压缩源。归档/恢复直接移动所选物理文件，
+保持压缩形式，沿用 Codex 的生命周期边界。plain sibling 优先；移动和删除同时
 清掉隐藏压缩副本，防止新索引重建复活旧线程。ThreadStore、provider route 与公共 JSON-RPC
 边界不变。root 于 2026-10-21 确认此 owner/dataflow；通过情况继续以 rollout 执行计划为准。
+
+公共 `thread/metadata/update` 的 metadata patch 也经 `canonical_thread_store/metadata`
+调用上述 rollout writer，刷盘后才提交同一 SQLite 事务；不再只有索引中的 Git 信息。
+name/preview 等索引字段继续由现有 snapshot owner 管理。工作区默认 roots 的合法 `null`
+表示在 settings 规范化中保持原样，避免读取 current 压缩历史时发生无意义 metadata 重写；
+显式 `[]` 仍表示空 roots。未增加存储、协议、provider 分支或兼容层。
+责任开发者 root 于 2026-10-21 确认此补充的数据流与原有边界一致，验证状态见同一执行计划。
+
+生命周期继续由 `canonical_thread_store/archive` 与 `canonical_rollout/lifecycle` 持有。
+同一 SQLite 写事务内先验证并移动所选 plain/zstd 物理文件；取消归档触碰 mtime，
+索引 updated_at 取物理 mtime，recency 保持原值。移动 guard 在 SQLite 提交后才释放；
+touch、SQL update 或 commit 失败显式恢复原路径与 mtime，Drop 只承担异常退出兜底。
+read/rebuild 使用文件时间恢复 updated_at，metadata record 的时间继续承担摘要链 revision；
+metadata 更新在同一 store 写事务内核对 expected 内容，使用已校验记录的 previous digest
+与单调时间推进摘要链，物理 mtime 不充当内容版本。修复或复制文件后，mtime 改变不会
+错误拒绝合法重试；身份、内容冲突与摘要校验仍然有效。没有新 schema、存储、RPC 或兼容路径。
+默认 recency 在初始 header 解析，归档事务同时写回 SQL 列与 Thread JSON，防止
+列表在缺省时按新的 updated_at 回退而推升排序。COMMIT 失败时保留事务对象的写锁，
+先回滚物理文件，再释放 SQLite 事务。
+架构影响 minor；root 于 2026-10-21 确认 owner、依赖与事务边界。r31 owner 76/76、
+公共 RPC 63/63 与真实 CLI 生命周期通过；Electron 聚合边界及其余未验证事项见 rollout 计划。
+
+后台压缩继续在同一 canonical_rollout owner：RuntimeCore 的 startup gate
+experimental.local_thread_store_compression 默认 false；rollout/compress 通过现有
+App Server JSON-RPC 调度同一个 worker，只返回 ACK。Electron IPC 仍是透明 JSONL 转发，
+Rust 与 TypeScript client 消费同一 protocol/schema/catalog，不增加宿主业务分支。
+
+worker 使用独立非阻塞 maintenance 文件锁与六小时 run marker，冷文件阈值七天，
+zstd level 3、最多两个 blocking jobs、五小时扫描预算；仅清理六小时旧压缩临时文件。
+编码和完整解码/记录校验在发布锁外；发布时经 coordination 锁阻止 writer 获取，
+探测真实 writer ownership 后复查源长度/mtime/权限，再 fsync/no-clobber 发布、
+复查并删除原文件。写入/尾修复/移动/删除均参与同一 writer 文件锁命名空间，
+生命周期移动 guard 保留锁至索引提交或文件回滚；持锁对象脱离 store 后仍保有 ownership。
+当前 Lime writer 同步开闭文件，不引入空壳 recorder actor，也不以活跃 Turn 代替文件锁。
+
+unarchive 的唯一 mutation 判定在 canonical ThreadStore：缺少 archived 线程返回
+InvalidRequest（wire -32600），不预读猜测 changed；成功才投影 thread/unarchived 与
+环境通知。重复 archive 的既有语义保持其独立 owner，不由此次修改推导。
+本片架构影响 minor，root 于 2026-10-21 确认 current owner/调用流和锁边界；
+无 compat/deprecated/迁移层。验证结果继续记录在 rollout 执行计划。

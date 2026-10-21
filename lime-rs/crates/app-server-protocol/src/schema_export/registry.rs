@@ -1156,6 +1156,7 @@ pub(super) fn v2_schemas() -> Vec<GeneratedJsonSchema> {
         typed_schema::<v2::MemoryStatusParams>("MemoryStatusParams"),
         typed_schema::<v2::MemoryStatusResponse>("MemoryStatusResponse"),
         typed_schema::<v2::MemoryResetResponse>("MemoryResetResponse"),
+        typed_schema::<v2::RolloutCompressResponse>("RolloutCompressResponse"),
         typed_schema::<v2::TurnStartParams>("TurnStartParams"),
         typed_schema::<v2::TurnStartResponse>("TurnStartResponse"),
         typed_schema::<v2::ReviewStartParams>("ReviewStartParams"),

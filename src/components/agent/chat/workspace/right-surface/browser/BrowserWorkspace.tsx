@@ -73,6 +73,7 @@ interface BrowserWorkspaceProps {
   active?: boolean;
   ensureOwner?: () => Promise<BrowserWorkspaceOwner | null>;
   initialUrl?: string | null;
+  launchTabId?: string | null;
   launchRequestId?: string | null;
   onLaunchApplied?: (requestId: string) => void;
   runtimeSessionId?: string | null;
@@ -87,6 +88,7 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
   active = true,
   ensureOwner,
   initialUrl,
+  launchTabId,
   launchRequestId,
   onLaunchApplied,
   runtimeSessionId,
@@ -189,33 +191,52 @@ export const BrowserWorkspace = memo(function BrowserWorkspace({
   );
 
   useEffect(() => {
-    if (!active || !launchRequestId || !owner || !selected || !isCurrent())
+    const target = launchTabId
+      ? tabs.find((tab) => tab.tabId === launchTabId)
+      : selected;
+    if (!active || !launchRequestId || !owner || !target || !isCurrent())
       return;
     const key = `${owner.runtimeSessionId}\u0000${owner.threadId}\u0000${launchRequestId}`;
     if (appliedLaunchRef.current === key) return;
     appliedLaunchRef.current = key;
-    if (selected.url === resolvedInitialUrl) {
+    const current = () => isCurrent() && appliedLaunchRef.current === key;
+    void (async () => {
+      let state = target;
+      if (!state.selected) {
+        const element = viewportRef.current;
+        if (!element) throw new Error("Browser viewport is unavailable");
+        state = await selectBrowserTab({
+          tabId: target.tabId,
+          bounds: resolveElementBounds(element),
+        });
+        if (!current()) return;
+      }
+      if (state.url !== resolvedInitialUrl) {
+        state = await navigateBrowserTab(state.tabId, resolvedInitialUrl);
+        if (!current()) return;
+      }
+      if (
+        state.tabId !== target.tabId ||
+        state.browserSessionId !== target.browserSessionId ||
+        state.threadId !== owner.threadId
+      )
+        throw new Error(
+          "Browser launch response does not belong to the requested tab",
+        );
+      acceptState(state);
       onLaunchApplied?.(launchRequestId);
-      return;
-    }
-    void navigateBrowserTab(selected.tabId, resolvedInitialUrl).then(
-      (state) => {
-        if (isCurrent() && appliedLaunchRef.current === key) {
-          acceptState(state);
-          onLaunchApplied?.(launchRequestId);
-          setError((current) => (current?.source === "host" ? null : current));
-        }
-      },
-      (reason: unknown) => {
-        if (isCurrent() && appliedLaunchRef.current === key)
-          reportHostError(reason);
-      },
-    );
+      setError((previous) => (previous?.source === "host" ? null : previous));
+    })().catch((reason: unknown) => {
+      if (isCurrent() && appliedLaunchRef.current === key)
+        reportHostError(reason);
+    });
   }, [
     active,
     launchRequestId,
+    launchTabId,
     owner,
     selected,
+    tabs,
     resolvedInitialUrl,
     isCurrent,
     acceptState,

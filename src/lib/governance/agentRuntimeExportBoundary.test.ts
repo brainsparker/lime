@@ -215,12 +215,27 @@ describe("Agent runtime export boundary", () => {
     const panel = readRepoFile(`${componentRoot}/TerminalPanel.tsx`);
     expect(panel).toContain("@/lib/api/commandExec");
     expect(panel).not.toMatch(/bg-white|PROJECT_SHELL_THEME|runQuickCommand/);
-    for (const file of [
+    const host = readRepoFile(
       "src/components/agent/chat/workspace/WorkspaceRightSurfaceHostRuntime.tsx",
+    );
+    expect(host).toContain("<TerminalTab");
+    const canvas = readRepoFile(
       `${componentRoot}/canvas-workbench/CanvasWorkbenchShell.tsx`,
+    );
+    expect(canvas).not.toMatch(/\bTerminalTab\b|\bTerminalPanel\b/);
+    for (const name of [
+      "tabs/useCanvasWorkbenchToolTabsState.ts",
+      "tabs/CanvasWorkbenchToolTabsViewModel.ts",
+      "files/CanvasWorkbenchProjectFilesPanel.tsx",
+      "files/useCanvasWorkbenchProjectFilesSplitState.ts",
+      "CanvasWorkbenchWorkspacePanel.tsx",
     ]) {
-      const source = readRepoFile(file);
-      expect(source).toContain("<TerminalTab");
+      expect(
+        existsSync(join(REPO_ROOT, componentRoot, "canvas-workbench", name)),
+        `${name} 不得恢复重复的目录或终端 owner`,
+      ).toBe(false);
+    }
+    for (const source of [host, canvas]) {
       expect(source).not.toMatch(
         /ProjectShellSurface|TaskCenterShellPanel|ShellBackgroundTerminalList/,
       );
@@ -249,13 +264,14 @@ describe("Agent runtime export boundary", () => {
     }
   });
   it("项目文件动作共用文件壳，已删除的四选一工具Host不得回流", () => {
-    expect(
-      existsSync(join(REPO_ROOT, "electron/projectToolsHost.ts")),
-    ).toBe(false);
+    expect(existsSync(join(REPO_ROOT, "electron/projectToolsHost.ts"))).toBe(
+      false,
+    );
     expect(readRepoFile("src/lib/api/fileSystem.ts")).not.toMatch(
       /ProjectPathOpenTool|openProjectPathWithTool|open_project_path_with_tool/,
     );
-    expect(readRepoFile("src/lib/governance/agentCommandCatalog.json"))
-      .not.toContain("open_project_path_with_tool");
+    expect(
+      readRepoFile("src/lib/governance/agentCommandCatalog.json"),
+    ).not.toContain("open_project_path_with_tool");
   });
 });

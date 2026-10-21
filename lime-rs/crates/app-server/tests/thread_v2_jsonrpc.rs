@@ -1522,128 +1522,6 @@ async fn thread_resume_rejects_legacy_shape_and_unimplemented_sources_or_overrid
 }
 
 #[tokio::test]
-async fn thread_archive_moves_the_dated_rollout_and_unarchive_restores_it() {
-    let (temp, server) = test_server();
-    initialize_server(&server).await;
-    let started = request(
-        &server,
-        2,
-        METHOD_THREAD_START,
-        json!({
-            "model": "gpt-5.4",
-            "modelProvider": "openai",
-            "historyMode": "paginated",
-            "environments": [{
-                "environmentId": "local",
-                "cwd": "/tmp/lime-thread-environment"
-            }]
-        }),
-    )
-    .await;
-    let thread_id = started
-        .pointer("/result/thread/id")
-        .and_then(Value::as_str)
-        .expect("thread/start id")
-        .to_string();
-    let agent_root = temp.path().join("agent-root");
-    let active_files = rollout_files(&agent_root.join("sessions"));
-    assert_eq!(active_files.len(), 1, "one dated rollout must be created");
-    let active_path = active_files[0].clone();
-    assert_eq!(
-        active_path
-            .strip_prefix(agent_root.join("sessions"))
-            .expect("dated rollout relative path")
-            .components()
-            .count(),
-        4,
-        "rollout path must be YYYY/MM/DD/<file>"
-    );
-
-    let archive_lines = request_lines(
-        &server,
-        3,
-        METHOD_THREAD_ARCHIVE,
-        json!({"threadId": thread_id}),
-    )
-    .await;
-    assert_eq!(
-        archive_lines
-            .iter()
-            .find(|line| line.get("id") == Some(&json!(3)))
-            .and_then(|line| line.get("result")),
-        Some(&json!({}))
-    );
-    assert_eq!(
-        archive_lines
-            .iter()
-            .find(|line| line.get("method") == Some(&json!("thread/archived")))
-            .and_then(|line| line.pointer("/params/threadId")),
-        Some(&json!(thread_id))
-    );
-    assert!(!active_path.exists());
-    let archived_files = rollout_files(&agent_root.join("archived_sessions"));
-    assert_eq!(archived_files.len(), 1);
-    assert_eq!(archived_files[0].file_name(), active_path.file_name());
-
-    let active = request(&server, 4, METHOD_THREAD_LIST, json!({"archived": false})).await;
-    assert_eq!(active.pointer("/result/data"), Some(&json!([])));
-    let archived = request(&server, 5, METHOD_THREAD_LIST, json!({"archived": true})).await;
-    assert_eq!(
-        archived.pointer("/result/data/0/id"),
-        Some(&json!(thread_id))
-    );
-
-    let duplicate_archive = request_lines(
-        &server,
-        6,
-        METHOD_THREAD_ARCHIVE,
-        json!({"threadId": thread_id}),
-    )
-    .await;
-    assert!(duplicate_archive
-        .iter()
-        .all(|line| line.get("method") != Some(&json!("thread/archived"))));
-
-    let unarchive_lines = request_lines(
-        &server,
-        7,
-        METHOD_THREAD_UNARCHIVE,
-        json!({"threadId": thread_id}),
-    )
-    .await;
-    assert_eq!(
-        unarchive_lines
-            .iter()
-            .find(|line| line.get("id") == Some(&json!(7)))
-            .and_then(|line| line.pointer("/result/thread/id")),
-        Some(&json!(thread_id))
-    );
-    assert_eq!(
-        unarchive_lines
-            .iter()
-            .find(|line| line.get("method") == Some(&json!("thread/environment/connected")))
-            .and_then(|line| line.pointer("/params/threadId")),
-        Some(&json!(thread_id))
-    );
-    assert_eq!(
-        unarchive_lines
-            .iter()
-            .find(|line| line.get("method") == Some(&json!("thread/environment/connected")))
-            .and_then(|line| line.pointer("/params/environmentId")),
-        Some(&json!("local"))
-    );
-    assert_eq!(
-        unarchive_lines
-            .iter()
-            .find(|line| line.get("method") == Some(&json!("thread/unarchived")))
-            .and_then(|line| line.pointer("/params/threadId")),
-        Some(&json!(thread_id))
-    );
-    assert!(active_path.exists());
-    assert!(rollout_files(&agent_root.join("archived_sessions")).is_empty());
-}
-
-#[tokio::test]
 async fn retired_agent_session_start_is_not_a_production_method() {
     let (_temp, server) = test_server();
     initialize_server(&server).await;
@@ -1882,3 +1760,9 @@ async fn request_lines(server: &AppServer, id: u64, method: &str, params: Value)
     );
     values
 }
+
+#[path = "thread_v2_jsonrpc/lifecycle.rs"]
+mod lifecycle;
+
+#[path = "thread_v2_jsonrpc/maintenance.rs"]
+mod maintenance;

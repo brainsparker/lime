@@ -485,6 +485,7 @@ pub const V2_SCHEMA_TYPE_NAMES: &[&str] = &[
     "MemoryStatusParams",
     "MemoryStatusResponse",
     "MemoryResetResponse",
+    "RolloutCompressResponse",
     "TurnStartParams",
     "TurnStartResponse",
     "ReviewStartParams",

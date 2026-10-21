@@ -23,6 +23,8 @@ import {
 describe("commandPolicy", () => {
   it("集中声明必须走真实桥接的前后端 truth 命令", () => {
     expect(isBridgeTruthCommand("app_server_handle_json_lines")).toBe(true);
+    expect(isBridgeTruthCommand("is_default_browser")).toBe(false);
+    expect(shouldDisallowMockFallbackCommand("is_default_browser")).toBe(true);
     expect(isBridgeTruthCommand("agent_runtime_submit_turn")).toBe(false);
     expect(isBridgeTruthCommand("workspace_list")).toBe(true);
     for (const command of [

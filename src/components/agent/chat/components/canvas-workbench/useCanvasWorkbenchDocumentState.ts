@@ -12,38 +12,25 @@ import type { Artifact } from "@/lib/artifact/types";
 import { isAbsoluteLocalFilePath } from "@/lib/api/fileSystem";
 import { usePublicFileAction } from "@/components/artifact/usePublicFileAction";
 import type { CanvasStateUnion } from "@/components/workspace/canvas/canvasUtils";
-import type { HarnessFilePreviewResult } from "../HarnessStatusPanel";
 import type { TaskFile } from "../TaskFiles";
 import {
-  buildDefaultPreviewSelection,
   buildEntries,
-  resolveSavedContentBundleRoot,
   resolveSelectionContext,
-  resolveWorkspacePanelDisplayPath,
   type CanvasWorkbenchCopy,
   type CanvasWorkbenchResolvedSelection,
 } from "../CanvasWorkbenchLayoutViewModel";
 import {
   isCanvasWorkbenchPreviewMode,
-  resolveCanvasWorkbenchPreferredPreviewModeFromPath,
   resolveCanvasWorkbenchPreviewModeState,
-  type CanvasWorkbenchPreviewMode,
   type CanvasWorkbenchPreviewModeState,
 } from "./CanvasWorkbenchPreviewModeViewModel";
 import {
-  resolveCanvasWorkbenchToolTabKind,
   resolveInitialCanvasWorkbenchTab,
   type CanvasWorkbenchDefaultPreview,
   type CanvasWorkbenchTab,
 } from "./CanvasWorkbenchLayoutState";
-import { useCanvasWorkbenchFileTreeState } from "./files/useCanvasWorkbenchFileTreeState";
 import type { CanvasWorkbenchChangeView } from "./changes/CanvasWorkbenchChangesPanelViewModel";
 import { resolveAbsoluteWorkspacePath } from "../../workspace/workspacePath";
-
-type CanvasWorkbenchTranslation = (
-  key: string,
-  options?: Record<string, unknown>,
-) => string;
 
 interface UseCanvasWorkbenchDocumentStateParams {
   artifacts: Artifact[];
@@ -51,13 +38,8 @@ interface UseCanvasWorkbenchDocumentStateParams {
   taskFiles: TaskFile[];
   selectedFileId?: string;
   workspaceRoot?: string | null;
-  workspaceUnavailable: boolean;
   defaultPreview: CanvasWorkbenchDefaultPreview | null;
-  loadFilePreview: (path: string) => Promise<HarnessFilePreviewResult>;
   workbenchCopy: CanvasWorkbenchCopy;
-  translateWorkbench: CanvasWorkbenchTranslation;
-  hasDefaultPreviewContent: boolean;
-  hasCustomSessionView: boolean;
   isCodingWorkbench: boolean;
   changeView?: CanvasWorkbenchChangeView | null;
   previewRequestIdentity?: string | null;
@@ -71,28 +53,6 @@ interface UseCanvasWorkbenchDocumentStateResult {
   documentSelectionKey: string | null;
   documentTransitionPending: boolean;
   previewModeState: CanvasWorkbenchPreviewModeState;
-  projectFilesPreviewMode: CanvasWorkbenchPreviewMode;
-  applyProjectFilesPreviewMode: Dispatch<
-    SetStateAction<CanvasWorkbenchPreviewMode>
-  >;
-  sessionContext: CanvasWorkbenchResolvedSelection | null;
-  workspacePanelRootPath: string | null;
-  workspacePanelDisplayPath?: string;
-  directoryCache: ReturnType<
-    typeof useCanvasWorkbenchFileTreeState
-  >["directoryCache"];
-  expandedDirectories: ReturnType<
-    typeof useCanvasWorkbenchFileTreeState
-  >["expandedDirectories"];
-  loadingDirectories: ReturnType<
-    typeof useCanvasWorkbenchFileTreeState
-  >["loadingDirectories"];
-  toggleDirectory: ReturnType<
-    typeof useCanvasWorkbenchFileTreeState
-  >["toggleDirectory"];
-  refreshDirectorySubtree: ReturnType<
-    typeof useCanvasWorkbenchFileTreeState
-  >["refreshDirectorySubtree"];
   fileAction: ReturnType<typeof usePublicFileAction>;
   publicFilePath: string | null;
   resolveDocumentSelection: (
@@ -101,7 +61,6 @@ interface UseCanvasWorkbenchDocumentStateResult {
   applyDocumentSelection: (
     selectionKey: string,
   ) => CanvasWorkbenchResolvedSelection | null;
-  handleSelectWorkspaceFile: (path: string) => Promise<void>;
 }
 
 function resolvePublicFilePath(
@@ -134,31 +93,12 @@ export function useCanvasWorkbenchDocumentState({
   taskFiles,
   selectedFileId,
   workspaceRoot,
-  workspaceUnavailable,
   defaultPreview,
-  loadFilePreview,
   workbenchCopy,
-  translateWorkbench,
-  hasDefaultPreviewContent,
-  hasCustomSessionView,
   isCodingWorkbench,
   changeView,
   previewRequestIdentity = null,
 }: UseCanvasWorkbenchDocumentStateParams): UseCanvasWorkbenchDocumentStateResult {
-  const {
-    directoryCache,
-    expandedDirectories,
-    loadingDirectories,
-    workspaceFileSelections,
-    loadDirectory,
-    refreshDirectorySubtree,
-    toggleDirectory,
-    selectWorkspaceFile,
-  } = useCanvasWorkbenchFileTreeState({
-    loadFilePreview,
-    translateWorkbench,
-  });
-
   const entries = useMemo(
     () =>
       buildEntries(
@@ -205,12 +145,6 @@ export function useCanvasWorkbenchDocumentState({
         entryMap.get(initialDocumentSelectionKey)?.absolutePath ||
         entryMap.get(initialDocumentSelectionKey)?.title
       : null);
-  const shouldPreferSessionTabOnMount = Boolean(
-    !isCodingWorkbench &&
-    (hasCustomSessionView || hasDefaultPreviewContent) &&
-    !initialDocumentSelectionKey,
-  );
-
   const workspaceKey = workspaceRoot?.trim() || "";
   const [selection, setSelection] = useState({
     workspaceKey,
@@ -220,25 +154,24 @@ export function useCanvasWorkbenchDocumentState({
     selection.workspaceKey === workspaceKey
       ? selection.key
       : initialDocumentSelectionKey;
+  useLayoutEffect(() => {
+    if (selection.workspaceKey !== workspaceKey) {
+      setSelection({ workspaceKey, key: initialDocumentSelectionKey });
+    }
+  }, [initialDocumentSelectionKey, selection.workspaceKey, workspaceKey]);
   const [activeTab, setActiveTab] = useState<CanvasWorkbenchTab>(() => {
     return resolveInitialCanvasWorkbenchTab(
       defaultPreview,
       changeView,
       initialDocumentPath || initialDocumentSelectionKey,
-      shouldPreferSessionTabOnMount,
       isCodingWorkbench,
     );
   });
-  const [projectFilesPreviewMode, setProjectFilesPreviewMode] =
-    useState<CanvasWorkbenchPreviewMode>("code");
 
   const isKnownSelectionKey = useCallback(
     (selectionKey: string | null) => {
       if (!selectionKey) {
         return false;
-      }
-      if (selectionKey.startsWith("workspace-file:")) {
-        return true;
       }
       return (
         entryMap.has(selectionKey) ||
@@ -247,16 +180,6 @@ export function useCanvasWorkbenchDocumentState({
     },
     [defaultPreview?.selectionKey, entryMap],
   );
-
-  useEffect(() => {
-    if (!workspaceRoot?.trim() || workspaceUnavailable) {
-      return;
-    }
-    if (directoryCache[workspaceRoot]) {
-      return;
-    }
-    void loadDirectory(workspaceRoot);
-  }, [directoryCache, loadDirectory, workspaceRoot, workspaceUnavailable]);
 
   const documentSelectionKey = useMemo(() => {
     return selectedKey || fallbackSelectionKey;
@@ -268,7 +191,6 @@ export function useCanvasWorkbenchDocumentState({
         selectionKey,
         defaultPreview,
         entryMap,
-        workspaceFileSelections,
         canvasState,
         artifacts,
         copy: workbenchCopy,
@@ -279,7 +201,6 @@ export function useCanvasWorkbenchDocumentState({
       canvasState,
       defaultPreview,
       entryMap,
-      workspaceFileSelections,
       workbenchCopy,
       workspaceRoot,
     ],
@@ -328,80 +249,21 @@ export function useCanvasWorkbenchDocumentState({
     workspaceKey,
   ]);
 
-  const sessionContext = useMemo(() => {
-    if (documentContext) {
-      return documentContext;
-    }
-    if (defaultPreview?.content.trim()) {
-      return buildDefaultPreviewSelection(defaultPreview, workbenchCopy);
-    }
-    return null;
-  }, [defaultPreview, documentContext, workbenchCopy]);
-
-  const workspacePanelRootPath = useMemo(
-    () =>
-      resolveSavedContentBundleRoot(
-        workspaceRoot,
-        documentContext?.selectionPath || sessionContext?.selectionPath,
-      ) ||
-      workspaceRoot ||
-      null,
-    [
-      documentContext?.selectionPath,
-      sessionContext?.selectionPath,
-      workspaceRoot,
-    ],
-  );
-
-  const workspacePanelDisplayPath = useMemo(
-    () =>
-      resolveWorkspacePanelDisplayPath(workspaceRoot, workspacePanelRootPath),
-    [workspacePanelRootPath, workspaceRoot],
-  );
-
   const previewModeState = useMemo(
     () => resolveCanvasWorkbenchPreviewModeState(documentContext),
     [documentContext],
   );
 
-  useEffect(() => {
-    if (!workspacePanelRootPath?.trim() || workspaceUnavailable) {
-      return;
-    }
-    if (directoryCache[workspacePanelRootPath]) {
-      return;
-    }
-    void loadDirectory(workspacePanelRootPath);
-  }, [
-    directoryCache,
-    loadDirectory,
-    workspacePanelRootPath,
-    workspaceUnavailable,
-  ]);
-
-  const canShowSummaryTab = Boolean(
-    sessionContext || hasCustomSessionView,
-  );
-  const activeToolTabKind = resolveCanvasWorkbenchToolTabKind(activeTab);
   const activePreviewContext = isCanvasWorkbenchPreviewMode(activeTab)
     ? documentContext
-    : activeToolTabKind === "project-files" &&
-        documentSelectionKey?.startsWith("workspace-file:")
-      ? documentContext
-      : activeTab === "summary"
-        ? hasCustomSessionView
-          ? null
-          : sessionContext
-        : null;
+    : null;
   const publicFilePath = resolvePublicFilePath(
     activePreviewContext,
     workspaceRoot,
   );
   const navigationScope = JSON.stringify([
     workspaceKey,
-    workspaceUnavailable,
     activeTab,
-    projectFilesPreviewMode,
     documentSelectionKey,
     publicFilePath,
     projectedIdentity,
@@ -417,35 +279,11 @@ export function useCanvasWorkbenchDocumentState({
       if (context?.selectionKey !== selectionKey) return null;
       setSelection({ workspaceKey, key: selectionKey });
       setAcceptedSelection({ workspaceKey, context });
-      const mode = selectionKey.startsWith("workspace-file:")
-        ? resolveCanvasWorkbenchPreferredPreviewModeFromPath(
-            selectionKey.slice("workspace-file:".length),
-          )
-        : resolveCanvasWorkbenchPreviewModeState(context).defaultMode;
-      if (resolveCanvasWorkbenchToolTabKind(activeTab) === "project-files") {
-        setProjectFilesPreviewMode(mode);
-      } else {
-        setActiveTab(mode);
-      }
+      setActiveTab(resolveCanvasWorkbenchPreviewModeState(context).defaultMode);
       return context;
     },
-    [activeTab, workspaceKey],
+    [workspaceKey],
   );
-  const handleSelectWorkspaceFile = useCallback(
-    async (path: string) => {
-      await runFileAction(publicFilePath, async (isCurrent) => {
-        await selectWorkspaceFile(path);
-        if (isCurrent()) applyDocumentSelection(`workspace-file:${path}`);
-      });
-    },
-    [
-      applyDocumentSelection,
-      publicFilePath,
-      runFileAction,
-      selectWorkspaceFile,
-    ],
-  );
-
   const attemptedFallbackRef = useRef<string | null>(null);
   useEffect(() => {
     // 显式打开请求优先；保存失败不由 busy 的变化触发无限重试。
@@ -461,14 +299,10 @@ export function useCanvasWorkbenchDocumentState({
       projectedIdentity !== acceptedIdentity &&
       projectedContext?.selectionKey === nextSelectionKey;
     const nextTab =
-      activeTab === "summary" && !canShowSummaryTab
-        ? documentContext
-          ? previewModeState.defaultMode
-          : "workspace"
-        : isCanvasWorkbenchPreviewMode(activeTab) &&
-            !previewModeState.modes[activeTab].enabled
-          ? previewModeState.defaultMode
-          : activeTab;
+      isCanvasWorkbenchPreviewMode(activeTab) &&
+      !previewModeState.modes[activeTab].enabled
+        ? previewModeState.defaultMode
+        : activeTab;
     if (!unknownSelection && !canAcceptProjection && nextTab === activeTab) {
       attemptedFallbackRef.current = null;
       return;
@@ -492,7 +326,6 @@ export function useCanvasWorkbenchDocumentState({
   }, [
     acceptedIdentity,
     activeTab,
-    canShowSummaryTab,
     documentContext,
     documentSelectionKey,
     fallbackSelectionKey,
@@ -519,20 +352,9 @@ export function useCanvasWorkbenchDocumentState({
     documentTransitionPending:
       sameWorkspace && projectedIdentity !== acceptedIdentity,
     previewModeState,
-    projectFilesPreviewMode,
-    applyProjectFilesPreviewMode: setProjectFilesPreviewMode,
-    sessionContext,
-    workspacePanelRootPath,
-    workspacePanelDisplayPath,
-    directoryCache,
-    expandedDirectories,
-    loadingDirectories,
-    toggleDirectory,
-    refreshDirectorySubtree,
     fileAction,
     publicFilePath,
     resolveDocumentSelection,
     applyDocumentSelection,
-    handleSelectWorkspaceFile,
   };
 }

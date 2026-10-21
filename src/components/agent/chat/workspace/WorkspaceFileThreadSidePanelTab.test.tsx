@@ -42,13 +42,18 @@ vi.mock(
       context,
       mode,
     }: {
-      context: { selectionPath: string; content: string };
+      context: {
+        selectionPath: string;
+        content: string;
+        target: { kind: string };
+      };
       mode: string;
     }) => (
       <div
         data-testid="file-preview"
         data-path={context.selectionPath}
         data-mode={mode}
+        data-target-kind={context.target.kind}
       >
         {context.content}
       </div>
@@ -94,7 +99,11 @@ afterEach(() => {
   }
   vi.resetAllMocks();
 });
-function render(initialPath: string | null = null, onSelect = vi.fn()) {
+function render(
+  initialPath: string | null = null,
+  onSelect = vi.fn(),
+  projectRootPath: string | null = "/work",
+) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -106,7 +115,7 @@ function render(initialPath: string | null = null, onSelect = vi.fn()) {
     );
     return (
       <WorkspaceFileThreadSidePanelTab
-        projectRootPath="/work"
+        projectRootPath={projectRootPath}
         filePath={path}
         tab={tab}
         onSelectFile={(path, options) => {
@@ -126,6 +135,73 @@ function fileButton(container: HTMLElement, name: string) {
   ).find((button) => button.textContent === name)!;
 }
 describe("Workspace file tab", () => {
+  it("没有项目目录时不发起目录读取，打开文件保持禁用", async () => {
+    const container = render(null, vi.fn(), null);
+    await flush();
+    expect(boundary.list).not.toHaveBeenCalled();
+    expect(
+      fileButton(container, "agentChat.rightSurface.files.openFile").disabled,
+    ).toBe(true);
+    expect(
+      container.querySelector('[data-testid="workspace-file-tree"]'),
+    ).toBeNull();
+  });
+
+  it.each([
+    { isBinary: true, error: null },
+    { isBinary: false, error: "read failed" },
+  ])(
+    "二进制或读取失败沿当前文件预览显示不可用，不进入文本编辑器：%j",
+    async ({ isBinary, error }) => {
+      boundary.read.mockResolvedValue({
+        path: "/work/binary.dat",
+        content: null,
+        size: 2048,
+        isBinary,
+        error,
+      });
+      const container = render("/work/binary.dat");
+      await flush();
+      expect(container.querySelector('[data-testid="file-editor"]')).toBeNull();
+      expect(
+        container
+          .querySelector('[data-testid="file-preview"]')
+          ?.getAttribute("data-target-kind"),
+      ).toBe("unsupported");
+      expect(
+        container
+          .querySelector('[data-testid="file-preview"]')
+          ?.getAttribute("data-path"),
+      ).toBe("/work/binary.dat");
+    },
+  );
+
+  it("当前Files重新展开目录时刷新空缓存，展示后来产生的文件", async () => {
+    let reads = 0;
+    boundary.list.mockImplementation(async (path: string) => ({
+      path,
+      error: null,
+      entries:
+        path === "/work"
+          ? [{ ...entry("images"), isDir: true }]
+          : ++reads === 1
+            ? []
+            : [{ ...entry("image-1.jpg"), path: "/work/images/image-1.jpg" }],
+    }));
+    const container = render();
+    await flush();
+    act(() => fileButton(container, "images").click());
+    await flush();
+    expect(container.textContent).not.toContain("image-1.jpg");
+    act(() => fileButton(container, "images").click());
+    await flush();
+    act(() => fileButton(container, "images").click());
+    await flush();
+    expect(boundary.list).toHaveBeenCalledWith("/work/images");
+    expect(reads).toBe(2);
+    expect(container.textContent).toContain("image-1.jpg");
+  });
+
   it("default closed gives a direct file full width and Open file explicitly focuses the shared tree", async () => {
     configureBooleanGateway(atomGateway);
     const direct = render("/work/README.md");

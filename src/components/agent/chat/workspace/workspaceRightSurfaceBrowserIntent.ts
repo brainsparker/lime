@@ -11,6 +11,7 @@ export interface WorkspaceRightSurfaceBrowserIntent {
   reason?: string | null;
   priority: "foreground" | "background";
   launchUrl?: string | null;
+  tabId?: string;
   launchApplied?: boolean;
   title?: string | null;
   historicalProjection?: BrowserTabHistoricalProjection | null;
@@ -41,6 +42,9 @@ export function buildWorkspaceRightSurfacePendingBrowserIntent(
       priority: request.priority === "foreground" ? "foreground" : "background",
       launchUrl,
       title: firstString(browser?.title),
+      ...(firstString(browser?.tabId)
+        ? { tabId: firstString(browser?.tabId)! }
+        : {}),
     };
     if (historicalProjection) {
       intent.historicalProjection = historicalProjection;

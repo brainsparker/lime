@@ -4,8 +4,9 @@ import path from "node:path";
 import process from "node:process";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { openExternalMock } = vi.hoisted(() => ({
+const { openExternalMock, isDefaultProtocolClientMock } = vi.hoisted(() => ({
   openExternalMock: vi.fn(),
+  isDefaultProtocolClientMock: vi.fn(() => false),
 }));
 
 vi.mock("./electronRuntime", () => ({
@@ -13,6 +14,7 @@ vi.mock("./electronRuntime", () => ({
     getName: () => "Lime",
     getVersion: () => "0.0.0-test",
     isPackaged: true,
+    isDefaultProtocolClient: isDefaultProtocolClientMock,
   },
   systemPreferences: {
     isTrustedAccessibilityClient: () => false,
@@ -53,6 +55,20 @@ afterEach(async () => {
 });
 
 describe("SystemUtilityHost", () => {
+  it.each([true, false])(
+    "保存启动时的 HTTPS 默认协议身份 %s，不在每次读取时重查 OS",
+    async (value) => {
+      isDefaultProtocolClientMock.mockReturnValueOnce(value);
+      const host = createHost(await createTempUserDataDir());
+      expect(isDefaultProtocolClientMock).toHaveBeenCalledExactlyOnceWith(
+        "https",
+      );
+      expect(host.isDefaultBrowser()).toBe(value);
+      expect(host.isDefaultBrowser()).toBe(value);
+      expect(isDefaultProtocolClientMock).toHaveBeenCalledOnce();
+      host.dispose();
+    },
+  );
   it("openExternalUrl 只允许 http/https 并通过系统浏览器打开", async () => {
     const host = createHost(await createTempUserDataDir());
     openExternalMock.mockResolvedValueOnce(undefined);
@@ -126,7 +142,8 @@ describe("SystemUtilityHost", () => {
         packaged: true,
         capabilities: expect.objectContaining({
           accessibility: expect.objectContaining({
-            status: process.platform === "darwin" ? "not_granted" : "unsupported",
+            status:
+              process.platform === "darwin" ? "not_granted" : "unsupported",
           }),
           applicationGroups: expect.objectContaining({
             status: "not_configured",

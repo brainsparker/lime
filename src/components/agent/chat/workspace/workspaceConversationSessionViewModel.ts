@@ -1,6 +1,5 @@
 import type { AgentRuntimeFileCheckpointThreadSummary } from "@/lib/api/agentRuntime/sessionTypes";
 import type { CodingWorkbenchView } from "@limecloud/agent-runtime-projection";
-import type { CanvasWorkbenchSessionView } from "../components/CanvasWorkbenchLayout";
 
 export interface SessionRuntimeProjectionState {
   key: string;
@@ -226,19 +225,4 @@ export function buildSessionRuntimeCountersFromCodingProjection({
       codingView.mainObject.status === "running" ||
       codingView.mainObject.status === "blocked",
   };
-}
-
-export function buildSessionSummaryViewModel({
-  counters,
-}: {
-  counters: SessionRuntimeCounters;
-}): Omit<CanvasWorkbenchSessionView, "renderPanel"> | null {
-  if (
-    !counters.shouldUseRuntimeWorkbench &&
-    !counters.shouldExposeSessionProgress
-  ) {
-    return null;
-  }
-
-  return {};
 }

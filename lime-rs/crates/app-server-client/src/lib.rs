@@ -397,6 +397,7 @@ pub use app_server_protocol::METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_DISMISS;
 pub use app_server_protocol::METHOD_WORKSPACE_RIGHT_SURFACE_PENDING_LIST;
 pub use app_server_protocol::METHOD_WORKSPACE_RIGHT_SURFACE_REQUEST;
 pub use app_server_protocol::METHOD_WORKSPACE_SKILL_BINDINGS_LIST;
+pub use app_server_protocol::{RolloutCompressResponse, METHOD_ROLLOUT_COMPRESS};
 use app_server_transport::encode_message;
 use serde::Serialize;
 use thiserror::Error;
@@ -1298,6 +1299,10 @@ impl AppServerClient {
         self.typed_request(typed::health_memory_store(params))
     }
 
+    pub fn compress_rollouts(&mut self) -> Result<JsonRpcRequest, ClientError> {
+        self.typed_request(typed::compress_rollouts())
+    }
+
     pub fn reset_memory(&mut self) -> Result<JsonRpcRequest, ClientError> {
         self.typed_request(typed::reset_memory())
     }
@@ -2128,6 +2133,10 @@ pub mod typed {
         params: MemoryStoreRootParams,
     ) -> TypedRequest<MemoryStoreRootParams> {
         TypedRequest::new(METHOD_MEMORY_STORE_HEALTH, params)
+    }
+
+    pub fn compress_rollouts() -> TypedRequest<serde_json::Value> {
+        TypedRequest::new(METHOD_ROLLOUT_COMPRESS, serde_json::Value::Null)
     }
 
     pub fn reset_memory() -> TypedRequest<serde_json::Value> {

@@ -207,9 +207,8 @@ export function useWorkspaceRightSurfaceActionRuntime({
       return;
     }
     if (
-      manualRightSurface === "browser" &&
       activeBrowserRightSurfaceIntent?.sourceRequestId ===
-        pendingBrowserRightSurfaceIntent.sourceRequestId
+      pendingBrowserRightSurfaceIntent.sourceRequestId
     ) {
       return;
     }
@@ -226,7 +225,6 @@ export function useWorkspaceRightSurfaceActionRuntime({
     activeBrowserRightSurfaceIntent?.sourceRequestId,
     closeCompetingRightSurfaces,
     consumePendingRequestsForSurface,
-    manualRightSurface,
     pendingBrowserRightSurfaceIntent,
     refreshRightSurfacePendingRequests,
     setActiveBrowserRightSurfaceIntent,

@@ -30,10 +30,7 @@ import type { CanonicalChildThreadSummary } from "../projection/canonicalChildTh
 import type { AgentSessionReadModelRefreshRequest } from "../hooks/agentSessionRefresh";
 import { useWorkspaceTaskRailRuntime } from "./useWorkspaceTaskRailRuntime";
 import { useSessionRuntimeProjectionDeferral } from "./useSessionRuntimeProjectionDeferral";
-import {
-  buildQuotedReplyText,
-  buildWorkspaceHeaderView,
-} from "./workspaceConversationSceneViewModel";
+import { buildQuotedReplyText } from "./workspaceConversationSceneViewModel";
 import type { WorkspaceConversationLandingSurfaceRuntime } from "./useWorkspaceConversationLandingSurfaceRuntime";
 import {
   buildWorkspaceConversationRightSurfaceSceneProps,
@@ -96,10 +93,7 @@ interface ConversationScenePresentationParams {
     workspacePathMissing: boolean;
     workspaceHealthError: boolean;
   };
-  canvasWorkbenchLayout: Omit<
-    CanvasWorkbenchLayoutProps,
-    "workspaceUnavailable"
-  >;
+  canvasWorkbenchLayout: CanvasWorkbenchLayoutProps;
 }
 interface WorkspaceConversationScenePresentationResult {
   workspaceAlertVisible: boolean;
@@ -200,11 +194,6 @@ function renderWorkspaceConversationScene({
     workspaceAlert.workspacePathMissing || workspaceAlert.workspaceHealthError,
   );
 
-  const canvasWorkbenchLayoutProps: CanvasWorkbenchLayoutProps = {
-    ...canvasWorkbenchLayout,
-    workspaceUnavailable: workspaceAlertVisible,
-  };
-
   return {
     workspaceAlertVisible,
     mainAreaNode: (
@@ -214,7 +203,7 @@ function renderWorkspaceConversationScene({
         messageListProps={messageList}
         workspaceAlertVisible={workspaceAlertVisible}
         projectId={scene.projectId ?? null}
-        canvasWorkbenchLayoutProps={canvasWorkbenchLayoutProps}
+        canvasWorkbenchLayoutProps={canvasWorkbenchLayout}
       />
     ),
   };
@@ -479,32 +468,15 @@ export function useWorkspaceConversationSceneRuntime({
         threadItems: projectedThreadItems,
         currentTurnId: projectedCurrentTurnId,
         threadRead: projectedThreadRead,
-        canonicalChildren,
         pendingActions: projectedPendingActions,
         isSending,
-        projectless: !projectRootPath?.trim() && !projectId,
         onOpenFile: canvasScene.handleOpenCanvasWorkbenchPath,
-        onFileClick,
-        onOpenArtifactFromTimeline,
-        onOpenSubagentSession,
-        onOpenBackgroundTerminal,
-        onRefreshThread: onRefreshSessionReadModel,
-        onOpenPluginDirectory: navigationActions.handleOpenPluginDirectory,
         onStartReview,
       }),
     [
       canvasScene.handleOpenCanvasWorkbenchPath,
-      onFileClick,
-      onOpenArtifactFromTimeline,
-      onOpenBackgroundTerminal,
-      onOpenSubagentSession,
-      onRefreshSessionReadModel,
-      navigationActions.handleOpenPluginDirectory,
       onStartReview,
       isSending,
-      projectId,
-      projectRootPath,
-      canonicalChildren,
       projectedCurrentTurnId,
       projectedPendingActions,
       projectedThreadItems,
@@ -541,12 +513,6 @@ export function useWorkspaceConversationSceneRuntime({
     onOpenWorkspacePath: canvasScene.handleOpenCanvasWorkbenchPath,
     onRespondToAction: onPermissionResponse,
   });
-  const workspaceView = buildWorkspaceHeaderView({
-    projectRootPath: effectiveCanvasWorkbenchRootPath,
-    workspacePathMissing: Boolean(workspacePathMissing),
-    workspaceHealthError,
-  });
-
   return renderWorkspaceConversationScene({
     scene: {
       threadHeader,
@@ -684,8 +650,6 @@ export function useWorkspaceConversationSceneRuntime({
       onClose: canvasScene.handleCloseCanvasWorkbench,
       onBeforeLeaveChange: onBeforeCanvasLeaveChange,
       workbenchMode: shouldUseCodingWorkbenchChrome ? "coding" : "default",
-      workspaceView,
-      sessionView: codingWorkbenchViews.sessionView,
       changeView: codingWorkbenchViews.changeView,
       onLayoutModeChange: shouldSyncCanvasWorkbenchLayoutMode
         ? setCanvasWorkbenchLayoutMode

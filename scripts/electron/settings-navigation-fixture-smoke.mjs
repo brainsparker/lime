@@ -52,198 +52,12 @@ import {
   validateInvokeTraceCollectorCapture,
 } from "../lib/invoke-trace-collector.mjs";
 
-const sourcePaths = [
-  "scripts/electron/lib/settings-search-scenario.mjs",
-  "src/components/settings-v2/settingsSearchDocuments.ts",
-  "src/components/settings-v2/settingsSearch.ts",
-  "src/components/settings-v2/_layout/SettingsSearch.tsx",
-  "src/components/settings-v2/_layout/SettingsSidebar.tsx",
-  "src/components/settings-v2/_layout/useSettingsSearchTarget.ts",
-  "src/components/settings-v2/hooks/useSettingsCategory.ts",
-  "src/lib/api/oemCloudRuntime.ts",
-
-  ...[
-    "index.tsx",
-    "ProfileFieldEditor.tsx",
-    "ProfileContent.tsx",
-    "profileConfig.ts",
-    "ProfileLayout.tsx",
-    "useProfileDraft.ts",
-  ].map((file) => "src/components/settings-v2/account/profile/" + file),
-  "scripts/electron/lib/settings-profile-navigation-scenario.mjs",
-  "scripts/electron/lib/settings-profile-fixture-driver.mjs",
-  "src/hooks/useAppNavigation.ts",
-  "src/lib/navigationGuard.ts",
-  "src/types/page.ts",
-  "src/App.tsx",
-  "electron/main.ts",
-  "src/hooks/useDeepLink.ts",
-  "src/lib/deepLink/websiteLaunch.ts",
-  "src/components/AppPageContent.tsx",
-  "src/components/app-sidebar/SidebarResizeHandle.tsx",
-  "src/components/app-sidebar/useSidebarWidth.ts",
-  "src/components/app-sidebar/AppSidebar.constants.ts",
-  "src/components/settings-v2/sections.tsx",
-  "src/components/settings-v2/_layout/index.tsx",
-  "src/components/settings-v2/_layout/SettingsNavigation.tsx",
-  "src/components/settings-v2/_layout/SettingsNavigationGuard.tsx",
-  "src/components/settings-v2/_layout/SettingsUnsavedChangesDialog.tsx",
-  "src/components/settings-v2/_layout/useSettingsDraft.ts",
-  "src/components/settings-v2/general/memory/index.tsx",
-  "src/components/settings-v2/general/memory/AdvancedMemorySettings.tsx",
-  "src/components/settings-v2/general/memory/soul/SoulSettingsPanel.tsx",
-  "src/components/settings-v2/general/appearance/index.tsx",
-  "src/components/settings-v2/general/appearance/AppearanceSettingsView.tsx",
-  "src/components/settings-v2/general/memory/memoryConfig.ts",
-  "src/components/settings-v2/general/memory/useMemorySettingsDraft.ts",
-  "src/components/settings-v2/general/memory/MemoryStoreStatusPanel.tsx",
-  "src/components/settings-v2/general/memory/MemoryNoteEditor.tsx",
-  ...[
-    "index.tsx",
-    "useWebSearchDraft.ts",
-    "webSearchConfig.ts",
-    "SearchChainPanel.tsx",
-    "SearchCredentialsPanel.tsx",
-    "MultiSearchPanel.tsx",
-    "ImageSearchPanel.tsx",
-    "WebSearchFields.tsx",
-    "webSearchPresentation.ts",
-    "useWebSearchPresentation.ts",
-  ].map((file) => "src/components/settings-v2/system/web-search/" + file),
-  ...[
-    "index.tsx",
-    "useEnvironmentSettingsDraft.ts",
-    "environmentConfig.ts",
-    "environmentPresentation.ts",
-    "EnvironmentFields.tsx",
-    "EnvironmentPreviewPanel.tsx",
-  ].map((file) => "src/components/settings-v2/system/environment/" + file),
-  "scripts/electron/lib/settings-environment-navigation-scenario.mjs",
-  ...[
-    "index.tsx",
-    "useExecutionPolicyDraft.ts",
-    "executionPolicyConfig.ts",
-    "executionPolicyPresentation.ts",
-    "ExecutionPolicyFields.tsx",
-    "PolicySourceLayerPanel.tsx",
-    "ExecutionPolicyNetworkFocusPanel.tsx",
-    "executionPolicyFocus.ts",
-    "WindowsSandboxReadinessStatus.tsx",
-    "windowsSandboxPlatform.ts",
-  ].map((file) => "src/components/settings-v2/system/execution-policy/" + file),
-  "scripts/electron/lib/settings-execution-policy-navigation-scenario.mjs",
-  "src/components/agent/chat/index.tsx",
-  "src/components/agent/chat/agentChatWorkspaceContract.ts",
-  "src/components/agent/chat/workspace/useAgentChatWorkspaceSetupRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspaceContextSurfaceRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspaceTaskCenterNavigationRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspacePendingInputRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspaceResetRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspaceInitialSessionNavigation.ts",
-  "src/components/agent/chat/workspace/useWorkspaceTopicSwitch.ts",
-  "src/components/agent/chat/workspace/useWorkspaceComposerDraftRuntime.ts",
-  "src/components/agent/chat/workspace/useWorkspaceComposerDraftNavigation.ts",
-  "scripts/electron/settings-navigation-fixture-smoke.mjs",
-  "scripts/electron/lib/settings-unsaved-navigation-scenario.mjs",
-  "scripts/electron/lib/settings-note-navigation-scenario.mjs",
-  "scripts/electron/lib/settings-web-search-navigation-scenario.mjs",
-  "scripts/electron/mcp-config-fixture-smoke.mjs",
-  "scripts/electron/lib/persisted-atom-fixture-driver.mjs",
-  "scripts/agent-runtime/claw-chat-current-fixture-teardown.mjs",
-  "scripts/agent-runtime/claw-chat-current-fixture-rpc.mjs",
-  "scripts/agent-runtime/claw-chat-current-fixture-backend-script.mjs",
-  "scripts/lib/invoke-trace-collector.mjs",
-  "scripts/lib/electron-fixture-build.mjs",
-  ...["zh-CN", "zh-TW", "en-US", "ja-JP", "ko-KR"].map(
-    (locale) => `src/i18n/resources/${locale}/settings.json`,
-  ),
-];
-const fingerprints = () =>
-  Object.fromEntries(
-    sourcePaths.map((file) => [
-      file,
-      createHash("sha256").update(fs.readFileSync(file)).digest("hex"),
-    ]),
-  );
-
-// Directory identity includes retained chunks; it does not claim every file loaded.
-function artifactFingerprints() {
-  const records = {};
-  const visit = (directory) => {
-    for (const entry of fs
-      .readdirSync(directory, { withFileTypes: true })
-      .sort((a, b) => a.name.localeCompare(b.name))) {
-      const file = path.join(directory, entry.name);
-      if (entry.isDirectory()) visit(file);
-      else if (entry.isFile())
-        records[file] = createHash("sha256")
-          .update(fs.readFileSync(file))
-          .digest("hex");
-    }
-  };
-  for (const directory of [
-    "dist",
-    "dist-electron",
-    "packages/app-server-client/dist",
-  ])
-    visit(directory);
-  return records;
-}
-
-async function surface(page, options, sessionId) {
-  return waitForPageCondition(
-    page,
-    options,
-    ({ sessionId: expected, answerText }) => {
-      const editors = [
-        ...document.querySelectorAll(
-          '[data-testid="composer-editor"][role="textbox"]',
-        ),
-      ].filter(
-        (node) =>
-          node instanceof HTMLElement && node.getClientRects().length > 0,
-      );
-      const editor = editors.length === 1 ? editors[0] : null;
-      const actual = editor?.dataset.sessionId || null;
-      if (
-        !editor ||
-        actual !== expected ||
-        editor.getAttribute("contenteditable") !== "true"
-      )
-        return null;
-      const workspaceRoot = expected
-        ? document
-            .querySelector('[data-testid="thread-workspace-header-directory"]')
-            ?.getAttribute("title") || null
-        : document
-            .querySelector('[data-testid="composer-utility-bar"]')
-            ?.getAttribute("data-workspace-root") || null;
-      const answerVisible = document.body.innerText.includes(answerText);
-      const home = Boolean(
-        document.querySelector('[data-testid="home-composer-page"]'),
-      );
-      if (expected ? !workspaceRoot || !answerVisible : !home) return null;
-      return {
-        electron: window.__LIME_ELECTRON__ === true,
-        preload:
-          typeof window.electronAPI?.invoke === "function" &&
-          window.electronAPI.devBridgeFallback === false,
-        sessionId: actual,
-        workspaceRoot,
-        home,
-        settings: Boolean(
-          document.querySelector('[data-testid="settings-navigation"]'),
-        ),
-        answerVisible,
-        restore: JSON.parse(
-          sessionStorage.getItem("lime.appNavigation.restore.v1") || "null",
-        ),
-      };
-    },
-    `expected visible editable session ${sessionId}`,
-    { sessionId, answerText: GREETING_SUMMARY_TEXT },
-  );
-}
+import {
+  fingerprints,
+  artifactFingerprints,
+} from "./lib/settings-navigation-fixture-identity.mjs";
+import { runBrowserPreferencesScenario } from "./lib/settings-browser-preferences-scenario.mjs";
+import { readSettingsNavigationSurface as surface } from "./lib/settings-navigation-surface.mjs";
 
 export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
   assert.match(runId, /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
@@ -258,8 +72,9 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
     startedAt: new Date().toISOString(),
     sourceSha256: fingerprints(),
     limitations: [
-      "Controlled external backend bypasses the production runtime backend and provider execution; only the declared Memory/Web Search/Environment/Execution Policy/Profile configuration and note scenarios are covered. Profile uses a non-OEM test override. Search covers only the declared 36 content targets/current section titles. No live search/provider/tool execution, auth, Windows, reference runtime or full-settings claim.",
+      "Controlled external backend bypasses the production runtime backend and provider execution; only the declared Browser/Keyboard shortcuts save/reload and Memory/Web Search/Environment/Execution Policy/Profile configuration and note scenarios are covered. Profile uses a non-OEM test override. Search covers only the declared 36 content targets/current section titles. No live search/provider/tool execution, auth, Windows, reference runtime or full-settings claim.",
       "Website launch uses the public Electron open-url event; OS URL dispatch is not exercised.",
+      "Current Settings replaces the root rail. Draft GUI navigation covers section/back; Home/Root/New guard authority is separate component evidence, not Desktop clicks.",
     ],
     rounds: [],
     navigationObservations: [],
@@ -420,11 +235,20 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       model: preference.modelId,
     });
     await reloadRendererDocument(page, options);
+    summary.browserPreferences = await runBrowserPreferencesScenario({
+      page,
+      options,
+      evidenceDir,
+      configPath: path.join(runtimeEnv.electronUserDataDir, "config.yaml"),
+      stage,
+    });
     collector = await installInvokeTraceCollector(page);
     await page.getByTestId("app-sidebar-home-button").click();
     await surface(page, options, null);
     stage("select-home-workspace");
-    const projectTrigger = page.getByTestId("composer-utility-project-trigger");
+    const projectTrigger = page
+      .getByTestId("home-composer-page")
+      .getByTestId("composer-utility-project-trigger");
     await projectTrigger.scrollIntoViewIfNeeded();
     summary.projectPickerBefore = await projectTrigger.boundingBox();
     await projectTrigger.click();
@@ -435,7 +259,9 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       };
       return {
         viewport: { width: innerWidth, height: innerHeight },
-        trigger: rect('[data-testid="composer-utility-project-trigger"]'),
+        trigger: rect(
+          '[data-testid="home-composer-page"] [data-testid="composer-utility-project-trigger"]',
+        ),
         menu: rect('[data-testid="composer-utility-menu"]'),
         project: rect('[data-testid="composer-utility-opened-project"]'),
       };
@@ -506,7 +332,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       projectId: canonical.projectId,
       cwd: canonical.cwd,
       workspaceIdentitySource:
-        "workspace/default/ensure id/root, thread/read cwd, visible directory and restored navigation projectId",
+        "workspace/default/ensure id/root, canonical thread/read cwd for the visible editor session and restored navigation projectId",
     };
     assert.equal(canonical.turns.length, 1);
     assert.equal(canonical.turns[0].status, "completed");
@@ -517,6 +343,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       true,
     );
     assert.equal(before.workspaceRoot, workspace.rootPath);
+    assert.equal(before.threadId, thread.id);
     assert.equal(before.settings, false);
 
     for (const origin of ["home-first-send", "existing-session"]) {
@@ -536,6 +363,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
         surface: await surface(page, options, sessionId),
       });
       await openSettings(page, options);
+      assert.equal(await page.getByTestId("app-sidebar").count(), 0);
       for (const section of ["about", "appearance", "providers"]) {
         await page.getByTestId(`settings-sidebar-tab-${section}`).click();
         await waitForPageCondition(
@@ -571,6 +399,7 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       assert.equal(after.home, false);
       assert.equal(after.answerVisible, true);
       assert.equal(after.workspaceRoot, before.workspaceRoot);
+      assert.equal(after.threadId, before.threadId);
       assert.equal(after.restore.params.initialSessionId, sessionId);
       assert.equal(after.restore.params.projectId, workspace.workspaceId);
       assert.equal(after.restore.params.initialUserPrompt, undefined);
@@ -604,38 +433,30 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
       page,
       options,
       evidenceDir,
-      sessionId,
       stage,
       waitForSession: () => surface(page, options, sessionId),
-      waitForHome: () => surface(page, options, null),
     });
     summary.unsavedNote = await runSettingsNoteNavigationScenario({
       page,
       options,
       evidenceDir,
-      sessionId,
       stage,
       waitForSession: () => surface(page, options, sessionId),
-      waitForHome: () => surface(page, options, null),
     });
     summary.unsavedWebSearch = await runSettingsWebSearchNavigationScenario({
       page,
       options,
       evidenceDir,
-      sessionId,
       stage,
       waitForSession: () => surface(page, options, sessionId),
-      waitForHome: () => surface(page, options, null),
     });
     summary.unsavedEnvironment = await runSettingsEnvironmentNavigationScenario(
       {
         page,
         options,
         evidenceDir,
-        sessionId,
         stage,
         waitForSession: () => surface(page, options, sessionId),
-        waitForHome: () => surface(page, options, null),
       },
     );
     summary.unsavedExecutionPolicy =
@@ -643,19 +464,15 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
         page,
         options,
         evidenceDir,
-        sessionId,
         stage,
         waitForSession: () => surface(page, options, sessionId),
-        waitForHome: () => surface(page, options, null),
       });
     summary.unsavedProfile = await runSettingsProfileNavigationScenario({
       page,
       options,
       evidenceDir,
-      sessionId,
       stage,
       waitForSession: () => surface(page, options, sessionId),
-      waitForHome: () => surface(page, options, null),
     });
     summary.settingsSearch = await runSettingsSearchScenario({
       page,
@@ -686,7 +503,11 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
     assert.equal(home.home, true);
     assert.equal(home.settings, false);
     assert.equal(ledger().length, 1);
-    summary.backThenHome = { home: true, sessionId: null, backendTurnStarts: 1 };
+    summary.backThenHome = {
+      home: true,
+      sessionId: null,
+      backendTurnStarts: 1,
+    };
     stage("verify-incoming-service-skill-and-new-conversation");
     await handle.app.evaluate(({ app }, url) => {
       app.emit("open-url", { preventDefault() {} }, url);
@@ -798,12 +619,12 @@ export async function runSettingsNavigationFixture({ runId, evidenceDir }) {
             restore: JSON.parse(
               sessionStorage.getItem("lime.appNavigation.restore.v1") || "null",
             ),
-            workspaceRoot:
+            homeWorkspaceRoot:
               document
                 .querySelector(
-                  '[data-testid="thread-workspace-header-directory"]',
+                  '[data-testid="home-composer-page"] [data-testid="composer-utility-bar"]',
                 )
-                ?.getAttribute("title") || null,
+                ?.getAttribute("data-workspace-root") || null,
           }),
           { answerText: GREETING_SUMMARY_TEXT },
         )

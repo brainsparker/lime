@@ -227,7 +227,9 @@ export interface AppServerClient {
   ): protocol.JsonRpcRequest;
   searchPlugins(params: protocol.PluginSearchParams): protocol.JsonRpcRequest;
   readPlugin(params: protocol.PluginReadParams): protocol.JsonRpcRequest;
-  readPluginSkill(params: protocol.PluginSkillReadParams): protocol.JsonRpcRequest;
+  readPluginSkill(
+    params: protocol.PluginSkillReadParams,
+  ): protocol.JsonRpcRequest;
   installPlugin(params: protocol.PluginInstallParams): protocol.JsonRpcRequest;
   uninstallPlugin(
     params: protocol.PluginUninstallParams,
@@ -408,6 +410,7 @@ export interface AppServerClient {
   healthMemoryStore(
     params: protocol.MemoryStoreRootParams,
   ): protocol.JsonRpcRequest;
+  compressRollouts(): protocol.JsonRpcRequest;
   resetMemory(): protocol.JsonRpcRequest;
   rebuildMemoryStoreIndex(
     params: protocol.MemoryStoreRootParams,

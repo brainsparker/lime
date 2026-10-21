@@ -320,7 +320,7 @@ impl RequestProcessor {
         self.ensure_initialized()?;
         let params: ThreadUnarchiveParams = parse_params(params)?;
         let thread_id = required_thread_value(&params.thread_id, "thread/unarchive")?;
-        let (thread, changed) = self
+        let thread = self
             .runtime
             .unarchive_thread(agent_protocol::ThreadId::new(thread_id.clone()))
             .await
@@ -333,9 +333,6 @@ impl RequestProcessor {
         let environments = self.normalize_environment_selections(environments).await?;
         self.record_environment_selections(&thread_id, environments.as_deref());
         let dispatch = dispatch_result(ThreadUnarchiveResponse { thread })?;
-        if !changed {
-            return Ok(dispatch);
-        }
         let notification: JsonRpcNotification =
             ServerNotification::ThreadUnarchived(ThreadUnarchivedNotification {
                 thread_id: thread_id.clone(),

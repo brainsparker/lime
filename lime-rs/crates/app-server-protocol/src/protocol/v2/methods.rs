@@ -37,6 +37,7 @@ pub const METHOD_THREAD_SETTINGS_UPDATE: &str = "thread/settings/update";
 pub const METHOD_THREAD_MEMORY_MODE_SET: &str = "thread/memoryMode/set";
 pub const METHOD_MEMORY_STATUS: &str = "memory/status";
 pub const METHOD_MEMORY_RESET: &str = "memory/reset";
+pub const METHOD_ROLLOUT_COMPRESS: &str = "rollout/compress";
 pub const METHOD_THREAD_SHELL_COMMAND: &str = "thread/shellCommand";
 pub const METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION: &str = "thread/approveGuardianDeniedAction";
 pub const METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN: &str = "thread/backgroundTerminals/clean";
@@ -260,6 +261,8 @@ pub enum Method {
     MemoryStatus,
     #[serde(rename = "memory/reset")]
     MemoryReset,
+    #[serde(rename = "rollout/compress")]
+    RolloutCompress,
     #[serde(rename = "thread/shellCommand")]
     ThreadShellCommand,
     #[serde(rename = "thread/approveGuardianDeniedAction")]
@@ -481,6 +484,7 @@ impl Method {
             Self::ThreadMemoryModeSet => METHOD_THREAD_MEMORY_MODE_SET,
             Self::MemoryStatus => METHOD_MEMORY_STATUS,
             Self::MemoryReset => METHOD_MEMORY_RESET,
+            Self::RolloutCompress => METHOD_ROLLOUT_COMPRESS,
             Self::ThreadShellCommand => METHOD_THREAD_SHELL_COMMAND,
             Self::ThreadApproveGuardianDeniedAction => METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION,
             Self::ThreadBackgroundTerminalsClean => METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN,
@@ -611,6 +615,7 @@ impl Method {
             METHOD_THREAD_MEMORY_MODE_SET => Some(Self::ThreadMemoryModeSet),
             METHOD_MEMORY_STATUS => Some(Self::MemoryStatus),
             METHOD_MEMORY_RESET => Some(Self::MemoryReset),
+            METHOD_ROLLOUT_COMPRESS => Some(Self::RolloutCompress),
             METHOD_THREAD_SHELL_COMMAND => Some(Self::ThreadShellCommand),
             METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION => {
                 Some(Self::ThreadApproveGuardianDeniedAction)
@@ -746,6 +751,7 @@ pub const METHODS: &[&str] = &[
     METHOD_THREAD_MEMORY_MODE_SET,
     METHOD_MEMORY_STATUS,
     METHOD_MEMORY_RESET,
+    METHOD_ROLLOUT_COMPRESS,
     METHOD_THREAD_SHELL_COMMAND,
     METHOD_THREAD_APPROVE_GUARDIAN_DENIED_ACTION,
     METHOD_THREAD_BACKGROUND_TERMINALS_CLEAN,

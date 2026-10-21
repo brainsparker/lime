@@ -2,6 +2,24 @@ use super::*;
 use serde_json::json;
 
 #[test]
+fn inherited_and_explicit_empty_roots_do_not_rewrite_current_metadata() {
+    for roots in [Value::Null, json!([])] {
+        let metadata = json!({"workingDir":"/current", "runtimeWorkspaceRoots":roots});
+        assert_eq!(
+            migrated_workspace_metadata(&metadata).unwrap(),
+            None,
+            "{metadata}"
+        );
+        let mut projected = json!({"cwd":"/stale", "workspaceRoot":"/stale-root"})
+            .as_object()
+            .unwrap()
+            .clone();
+        restore_workspace_metadata(&metadata, &mut projected);
+        assert_eq!(Value::Object(projected), metadata);
+    }
+}
+
+#[test]
 fn canonical_workspace_wins_and_normalizes_top_level_aliases() {
     let metadata = json!({"workingDir":"/current", "cwd":"/stale", "runtimeWorkspaceRoots":[], "workspaceRoot":"/stale-root", "unrelated":42});
     let migrated = migrated_workspace_metadata(&metadata).unwrap().unwrap();

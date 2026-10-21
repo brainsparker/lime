@@ -1,13 +1,17 @@
 import { createPreviewArtifactFromFile } from "@/lib/artifact/previewArtifact";
 import type {
-  CanvasWorkbenchCopy,
   CanvasWorkbenchPreviewTarget,
   WorkspaceFileSelection,
 } from "../../CanvasWorkbenchLayoutViewModel";
 
 export function resolveWorkspaceFilePreviewTarget(
   file: WorkspaceFileSelection,
-  copy: Pick<CanvasWorkbenchCopy, "workspaceFile">,
+  copy: {
+    workspaceFile: {
+      binaryUnsupported: string;
+      readFailed: string;
+    };
+  },
 ): CanvasWorkbenchPreviewTarget {
   const location = {
     title: file.title,

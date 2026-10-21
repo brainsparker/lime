@@ -11,10 +11,8 @@ export async function runSettingsExecutionPolicyNavigationScenario({
   page,
   options,
   evidenceDir,
-  sessionId,
   stage,
   waitForSession,
-  waitForHome,
 }) {
   const read = async () => {
     const response = await invokeAppServerFromPage(page, "config/read", {
@@ -70,26 +68,14 @@ export async function runSettingsExecutionPolicyNavigationScenario({
     // Never write configuration values or credential-bearing Config to evidence.
     assert.equal(isDeepStrictEqual(await read(), expected), true, message);
   };
-  const reopenSession = async () => {
-    await page
-      .locator(
-        '[data-testid="app-sidebar-conversation-open"][data-session-id="' +
-          sessionId +
-          '"]',
-      )
-      .click();
-    await waitForSession();
-  };
   const observations = [];
-  for (const target of ["section", "back", "home", "root"]) {
+  for (const target of ["section", "back"]) {
     stage("unsaved-execution-policy-" + target);
     await open();
     await field.click();
     const trigger = {
       section: page.getByTestId("settings-sidebar-tab-about"),
       back: page.getByTestId("settings-back-button"),
-      home: page.getByTestId("app-sidebar-nav-new-chat"),
-      root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
     }[target];
     await trigger.click();
     await dialog.waitFor({ state: "visible" });
@@ -110,22 +96,8 @@ export async function runSettingsExecutionPolicyNavigationScenario({
     if (target === "section") {
       await about();
       await page.getByTestId("settings-back-button").click();
-      await waitForSession();
-    } else if (target === "back") await waitForSession();
-    else {
-      if (target === "root") {
-        await field.waitFor({ state: "detached" });
-        assert.equal(
-          await page
-            .getByTestId("app-sidebar-nav-scheduled-tasks")
-            .getAttribute("aria-current"),
-          "page",
-        );
-        await page.getByTestId("app-sidebar-nav-new-chat").click();
-      }
-      await waitForHome();
-      await reopenSession();
     }
+    await waitForSession();
     await sameConfig(initial, "discard never persists Execution Policy");
     observations.push({
       target,

@@ -4680,6 +4680,22 @@
           "$ref": "#/$defs/RequestId"
         },
         "method": {
+          "const": "rollout/compress",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "method"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "id": {
+          "$ref": "#/$defs/RequestId"
+        },
+        "method": {
           "const": "thread/shellCommand",
           "type": "string"
         },

@@ -1,5 +1,6 @@
 import type { ComponentProps } from "react";
 import { WorkspaceShellScene } from "./WorkspaceShellScene";
+import { LinkOpeningContext } from "../components/LinkOpeningContext";
 
 import { useWorkspaceConversationCompositionRuntime } from "./useWorkspaceConversationCompositionRuntime";
 import { useWorkspaceBackgroundSessionRuntime } from "./useWorkspaceBackgroundSessionRuntime";
@@ -70,6 +71,7 @@ export function useAgentChatWorkspaceSceneComposition({
     rightSurfaceChrome,
     sceneDisplayMessagesWithArticleWorkspaceArtifact,
     openBackgroundTerminal,
+    openLink,
   } = useWorkspaceRightSurfaceCompositionRuntime({
     ...rightSurface,
     chrome: rightSurface.chrome,
@@ -103,10 +105,12 @@ export function useAgentChatWorkspaceSceneComposition({
   });
 
   return (
-    <WorkspaceShellScene
-      {...shell}
-      generalWorkbenchSidebarNode={generalWorkbenchSidebarNode}
-      mainAreaNode={conversationSceneRuntime.mainAreaNode}
-    />
+    <LinkOpeningContext.Provider value={openLink}>
+      <WorkspaceShellScene
+        {...shell}
+        generalWorkbenchSidebarNode={generalWorkbenchSidebarNode}
+        mainAreaNode={conversationSceneRuntime.mainAreaNode}
+      />
+    </LinkOpeningContext.Provider>
   );
 }

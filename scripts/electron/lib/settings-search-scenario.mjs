@@ -91,6 +91,7 @@ export async function runSettingsSearchScenario({
     return response.result.config;
   };
   const initial = await read();
+  const searchShortcut = process.platform === "darwin" ? "Meta+f" : "Control+f";
   await openSettings(page, options);
   const desktop = page.getByTestId("settings-sidebar-search");
   const dialog = page.getByTestId("settings-unsaved-changes-dialog");
@@ -457,7 +458,7 @@ export async function runSettingsSearchScenario({
     height: window.innerHeight,
   }));
   await page.setViewportSize({ width: 600, height: 900 });
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   const narrowSearch = page.getByTestId("settings-sidebar-search");
   await narrowSearch.waitFor({ state: "visible" });
   assert.equal(
@@ -472,7 +473,7 @@ export async function runSettingsSearchScenario({
   await page.getByRole("button", { name: "编辑个人简介", exact: true }).click();
   const bio = page.locator("#profile-field-bio");
   await bio.fill("narrow search unsaved draft");
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   await narrowSearch.fill(messages["settings.environment.overrides.title"]);
   await page.screenshot({
     path: path.join(evidenceDir, "search-narrow-results.png"),
@@ -497,7 +498,7 @@ export async function runSettingsSearchScenario({
   await page.screenshot({
     path: path.join(evidenceDir, "search-narrow-target.png"),
   });
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   await narrowSearch.waitFor({ state: "visible" });
   await search(
     "web-search-mse-timeout",
@@ -506,7 +507,7 @@ export async function runSettingsSearchScenario({
   );
   const timeout = page.locator("#web-search-mse-timeout");
   await timeout.fill("27182");
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   await narrowSearch.fill(messages["settings.webSearch.images.pixabay.label"]);
   await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });
@@ -538,7 +539,7 @@ export async function runSettingsSearchScenario({
   await page.screenshot({
     path: path.join(evidenceDir, "search-web-search-narrow.png"),
   });
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   await narrowSearch.waitFor({ state: "visible" });
   await search(
     "memory-import",
@@ -546,7 +547,7 @@ export async function runSettingsSearchScenario({
     narrowSearch,
   );
   await imported.fill("narrow search fixture private import draft");
-  await page.keyboard.press("Control+f");
+  await page.keyboard.press(searchShortcut);
   await narrowSearch.fill(messages["settings.appearance.language.title"]);
   await narrowSearch.press("Enter");
   await dialog.waitFor({ state: "visible" });

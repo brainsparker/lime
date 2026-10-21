@@ -277,22 +277,12 @@ impl RuntimeCore {
     pub async fn unarchive_thread(
         &self,
         thread_id: agent_protocol::ThreadId,
-    ) -> Result<(agent_protocol::Thread, bool), RuntimeCoreError> {
+    ) -> Result<agent_protocol::Thread, RuntimeCoreError> {
         let store = self.canonical_thread_store()?;
-        let current = store
-            .read_thread(ReadThreadParams {
-                thread_id: thread_id.clone(),
-                include_archived: true,
-                turns_view: agent_protocol::ThreadTurnsView::NotLoaded,
-            })
-            .await
-            .map_err(store_error)?
-            .ok_or_else(|| RuntimeCoreError::Backend(format!("thread not found: {thread_id}")))?;
-        let thread = store
+        store
             .unarchive_thread(ArchiveThreadParams { thread_id })
             .await
-            .map_err(store_error)?;
-        Ok((thread, current.archived))
+            .map_err(store_error)
     }
 
     pub(crate) async fn resume_thread(

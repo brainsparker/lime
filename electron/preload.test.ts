@@ -119,6 +119,21 @@ describe("electron/preload", () => {
     expect(api.agentRoot).toBeUndefined();
   });
 
+  it.each([true, false])(
+    "默认浏览器身份 %s 经真实 command allowlist 和 invoke 解包",
+    async (value) => {
+      const api = await loadPreloadApi();
+      expect(api.supportsCommand("is_default_browser")).toBe(true);
+      ipcInvoke.mockResolvedValueOnce({ ok: true, result: value });
+      await expect(api.invoke("is_default_browser")).resolves.toBe(value);
+      expect(ipcInvoke).toHaveBeenCalledExactlyOnceWith(
+        IPC_INVOKE_CHANNEL,
+        "is_default_browser",
+        undefined,
+      );
+    },
+  );
+
   it("Host persistence commands cross the same invoke boundary", async () => {
     const api = await loadPreloadApi();
     expect(api.supportsCommand("persisted_atom_read")).toBe(true);

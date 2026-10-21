@@ -13,10 +13,11 @@ import type { AgentThreadItem } from "../types";
 import { buildWorkspaceRightSurfaceDefinitions } from "./right-surface";
 import type { WorkspaceArticleWorkspace } from "./workspaceArticleWorkspaceModel";
 import type { WorkspacePluginSurfaceDescriptor } from "./workspacePluginSurfaceModel";
+import type { WorkspaceRightSurfaceBrowserIntent } from "./workspaceRightSurfaceBrowserIntent";
 
 const pending = vi.hoisted(() => ({
   pendingIntents: [],
-  pendingBrowserIntent: null,
+  pendingBrowserIntent: null as WorkspaceRightSurfaceBrowserIntent | null,
   pendingFileTarget: null,
   refreshPendingRequests: vi.fn(async () => undefined),
   consumePendingRequestsForSurface: vi.fn(async () => undefined),
@@ -177,6 +178,7 @@ beforeEach(() => {
     globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
   ).IS_REACT_ACT_ENVIRONMENT = true;
   vi.clearAllMocks();
+  pending.pendingBrowserIntent = null;
 });
 afterEach(() => {
   for (const { root, container } of mounted.splice(0)) {
@@ -364,6 +366,103 @@ describe("Right Surface 标签生命周期接线", () => {
     expect(view.get().coordinator.rightSurfaceState.activeSurface).toBeNull();
     expect(pending.refreshPendingRequests).not.toHaveBeenCalled();
     expect(pending.consumePendingRequestsForSurface).not.toHaveBeenCalled();
+  });
+
+  it("已展示的前台Browser请求在等待确认期间不抢回用户的新标签或Files选择", () => {
+    pending.pendingBrowserIntent = {
+      source: "rightSurfacePending",
+      sourceRequestId: "browser-request-first",
+      origin: "user",
+      priority: "foreground",
+      launchUrl: "https://example.com/first",
+    };
+    const view = mount();
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "browser",
+    );
+    expect(pending.consumePendingRequestsForSurface).toHaveBeenCalledTimes(1);
+
+    act(() =>
+      view.container
+        .querySelector('[data-testid="workspace-right-surface-new-tab"]')
+        ?.dispatchEvent(new MouseEvent("click", { bubbles: true })),
+    );
+    const newTabId = view.get().local.sidePanelTabs.activeTabId;
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "workspace-new-tab",
+    );
+    view.render();
+    expect(view.get().local.sidePanelTabs.activeTabId).toBe(newTabId);
+
+    act(() => view.get().coordinator.handleSelectRightSurfaceTab("files"));
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "files",
+    );
+    // 只有显式Files动作额外消费一次，旧Browser请求不能再消费或改变选择。
+    expect(pending.consumePendingRequestsForSurface.mock.calls).toEqual([
+      ["browser"],
+      ["files"],
+    ]);
+
+    pending.pendingBrowserIntent = {
+      ...pending.pendingBrowserIntent,
+      sourceRequestId: "browser-request-next",
+      launchUrl: "https://example.com/next",
+    };
+    view.render();
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "browser",
+    );
+    expect(
+      view.get().local.activeBrowserRightSurfaceIntent?.sourceRequestId,
+    ).toBe("browser-request-next");
+    expect(pending.consumePendingRequestsForSurface).toHaveBeenCalledTimes(3);
+
+    act(() => view.get().coordinator.handleToggleRightSurfaceBrowser());
+    expect(view.get().local.sidePanelTabs.open).toBe(true);
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).not.toBe(
+      "browser",
+    );
+    const selectedAfterClose = view.get().local.sidePanelTabs.activeTabId;
+    view.render();
+    expect(view.get().local.sidePanelTabs.activeTabId).toBe(selectedAfterClose);
+    expect(
+      view.get().local.sidePanelTabs.tabs.some((tab) => tab.kind === "browser"),
+    ).toBe(false);
+    expect(pending.consumePendingRequestsForSurface).toHaveBeenCalledTimes(3);
+  });
+
+  it("后台Browser请求不改变选择，换owner后可接收自己的同名新请求", () => {
+    const view = mount();
+    act(() => view.get().coordinator.handleNewSidePanelTab());
+    const tabId = view.get().local.sidePanelTabs.activeTabId;
+    pending.pendingBrowserIntent = {
+      source: "rightSurfacePending",
+      sourceRequestId: "browser-request",
+      origin: "user",
+      priority: "background",
+      launchUrl: "https://example.com/background",
+    };
+    view.render();
+    expect(view.get().local.sidePanelTabs.activeTabId).toBe(tabId);
+    expect(pending.consumePendingRequestsForSurface).not.toHaveBeenCalled();
+    pending.pendingBrowserIntent = {
+      ...pending.pendingBrowserIntent,
+      priority: "foreground",
+    };
+    view.render();
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "browser",
+    );
+    expect(pending.consumePendingRequestsForSurface).toHaveBeenCalledTimes(1);
+    view.render({
+      owner: { ...owner, sessionId: "session-b", threadId: "thread-b" },
+    });
+    expect(view.get().local.owner.threadId).toBe("thread-b");
+    expect(view.get().coordinator.rightSurfaceState.activeSurface).toBe(
+      "browser",
+    );
+    expect(pending.consumePendingRequestsForSurface).toHaveBeenCalledTimes(2);
   });
 
   it("Browser打开请求只确认当前身份，关闭重开保留已应用标记", () => {

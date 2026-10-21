@@ -20,6 +20,7 @@ pub(super) struct ClientContext {
 struct ClientState {
     initialize_accepted: bool,
     initialized: bool,
+    experimental_api: bool,
     client_info: Option<ClientInfo>,
     canceled_request_ids: HashSet<RequestId>,
 }
@@ -155,6 +156,7 @@ impl RequestProcessor {
             ));
         }
         state.initialize_accepted = true;
+        state.experimental_api = params.capabilities.experimental_api;
         state.client_info = Some(params.client_info);
         serialize_result(InitializeResponse {
             server_info: ServerInfo {
@@ -193,6 +195,22 @@ impl RequestProcessor {
 
     pub(super) fn client_info(&self) -> Option<ClientInfo> {
         self.client_context.client_info()
+    }
+
+    pub(super) fn ensure_experimental_api(&self, method: &str) -> Result<(), JsonRpcError> {
+        if !self
+            .client_context
+            .state
+            .lock()
+            .expect("app-server client state mutex poisoned")
+            .experimental_api
+        {
+            return Err(JsonRpcError::new(
+                error_codes::INVALID_REQUEST,
+                format!("{method} requires experimentalApi capability"),
+            ));
+        }
+        Ok(())
     }
 
     pub(crate) fn runtime_host_context(&self) -> RuntimeHostContext {

@@ -1,6 +1,5 @@
 export {
   CanvasWorkbenchTopTabs,
-  type CanvasWorkbenchNewTabAction,
   type CanvasWorkbenchTopTab,
 } from "./tabs/CanvasWorkbenchTopTabs";
 export {
@@ -12,5 +11,3 @@ export {
 } from "./CanvasWorkbenchPreviewModeViewModel";
 export type { CanvasWorkbenchChangeView } from "./changes/CanvasWorkbenchChangesPanelViewModel";
 export { CanvasWorkbenchShell } from "./CanvasWorkbenchShell";
-export { CanvasWorkbenchWorkspacePanel } from "./CanvasWorkbenchWorkspacePanel";
-export { CanvasWorkbenchProjectFilesPanel } from "./files/CanvasWorkbenchProjectFilesPanel";

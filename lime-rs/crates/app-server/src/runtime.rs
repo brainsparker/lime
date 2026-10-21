@@ -78,6 +78,7 @@ mod projection_store_tests;
 mod prompt_history;
 pub(crate) mod provider_history;
 mod rollout_budget;
+mod rollout_maintenance;
 pub use execution_backend::ExecutionBackend;
 pub(crate) use prompt_history::PromptHistoryStore;
 #[doc(hidden)]
@@ -560,6 +561,7 @@ impl RuntimeCore {
 
     pub fn with_projection_store(mut self, projection_store: Arc<ProjectionStore>) -> Self {
         self.projection_store = Some(projection_store);
+        self.start_rollout_maintenance();
         self
     }
 

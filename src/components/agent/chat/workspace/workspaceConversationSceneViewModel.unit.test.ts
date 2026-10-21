@@ -4,13 +4,10 @@ import { projectCodingWorkbenchViewFromEvents } from "@limecloud/agent-runtime-p
 import {
   buildCanvasWorkbenchChangeViewFromCodingProjection,
   buildQuotedReplyText,
-  buildSessionSummaryViewModel,
   buildSessionRuntimeCountersFromCodingProjection,
   buildSessionRuntimeProjectionIdentity,
   buildSessionRuntimeProjectionState,
-  buildWorkspaceHeaderView,
   resolveNextSessionRuntimeProjectionState,
-  resolvePathLeaf,
   resolveSessionRuntimeProjectionStatus,
   shouldConsiderSessionRuntimeProjectionDeferral,
 } from "./workspaceConversationSceneViewModel";
@@ -29,25 +26,7 @@ function createCheckpointSummary(
   } as AgentRuntimeFileCheckpointThreadSummary;
 }
 
-function createTranslate() {
-  return ((key: string, options?: Record<string, unknown>) => {
-    if (typeof options?.prompt === "string") {
-      return `${key}:${options.prompt}`;
-    }
-    if (typeof options?.countLabel === "string") {
-      return `${key}:${options.countLabel}`;
-    }
-    return key;
-  }) as never;
-}
-
 describe("workspaceConversationSceneViewModel", () => {
-  it("应解析跨平台路径末尾名称", () => {
-    expect(resolvePathLeaf("C:\\Users\\lime\\project")).toBe("project");
-    expect(resolvePathLeaf("/tmp/project/")).toBe("project");
-    expect(resolvePathLeaf("   ")).toBe("");
-  });
-
   it("应构造引用回复文本，并保留已有输入", () => {
     expect(
       buildQuotedReplyText({ content: "  第一行\n第二行  ", input: "" }),
@@ -60,8 +39,7 @@ describe("workspaceConversationSceneViewModel", () => {
     ).toBeNull();
   });
 
-  it("应构造 session header 与 workspace change 的纯 view model", () => {
-    const t = createTranslate();
+  it("应从 canonical 投影派生运行状态与文件计数", () => {
     const codingView = projectCodingWorkbenchViewFromEvents({
       executionEvents: [],
       codingReadModel: {
@@ -114,39 +92,13 @@ describe("workspaceConversationSceneViewModel", () => {
       fileCheckpointSummary: createCheckpointSummary({ count: 1 }),
       pendingActionCount: 1,
     });
-    const sessionView = buildSessionSummaryViewModel({
-      t,
-      counters,
-    });
-    expect(sessionView).toEqual({});
-  });
-
-  it("应构造工作区 header，并标记路径异常", () => {
-    expect(
-      buildWorkspaceHeaderView({
-        projectRootPath: "C:\\Users\\lime\\project",
-        workspacePathMissing: false,
-        workspaceHealthError: false,
-      }),
-    ).toMatchObject({
-      panelCopy: expect.objectContaining({
-        unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-        emptyText: "当前工作区 project 没有可浏览的文件。",
-        loadingText: "正在加载目录...",
-        emptyDirectoryText: "暂无目录内容。",
-      }),
-    });
-    expect(
-      buildWorkspaceHeaderView({
-        projectRootPath: "/tmp/project",
-        workspacePathMissing: true,
-        workspaceHealthError: false,
-      }),
-    ).toMatchObject({
-      panelCopy: expect.objectContaining({
-        unavailableText: "当前工作区路径不可用，暂时无法浏览项目文件。",
-        sectionEyebrow: "项目目录",
-      }),
+    expect(counters).toMatchObject({
+      shouldUseRuntimeWorkbench: true,
+      shouldExposeSessionProgress: true,
+      inProgressItemCount: 1,
+      generatedFileCount: 1,
+      hasRuntimeFileChanges: true,
+      hasRuntimeOutputs: true,
     });
   });
 

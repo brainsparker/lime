@@ -12,7 +12,6 @@ import { FileDiff, Files, Globe, SquareTerminal } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { readProjectGitStatus } from "@/lib/api/projectGit";
-import { requestWorkspaceRightSurface } from "@/lib/api/workspaceRightSurface";
 import { ThreadSidePanelLauncher } from "./right-surface/ThreadSidePanelLauncher";
 import { FileTabLifecycleProvider } from "./text-file-editor/FileTabLifecycle";
 import { FileTabDraftContext } from "./text-file-editor/fileTabDraftContext";
@@ -28,6 +27,8 @@ import {
 import type { WorkspaceRightSurfaceCoordinatorRuntime } from "./useWorkspaceRightSurfaceCoordinatorRuntime";
 import { submitWorkspaceArticleEditorActionIntent } from "./workspaceArticleEditorActionDispatch";
 import type { WorkspaceArticleWorkspaceActionIntent } from "./workspaceArticleWorkspaceModel";
+import { useWorkspaceLinkOpening } from "./useWorkspaceLinkOpening";
+import type { OpenLink } from "../components/LinkOpeningContext";
 
 type RightSurfaceHostRuntimeProjection = Pick<
   WorkspaceRightSurfaceCoordinatorRuntime,
@@ -35,6 +36,7 @@ type RightSurfaceHostRuntimeProjection = Pick<
   | "browserRightSurfaceAvailable"
   | "browserRightSurfaceIntent"
   | "handleBrowserLaunchApplied"
+  | "openBrowserInBackground"
   | "filesRightSurfaceAvailable"
   | "filesRightSurfaceTarget"
   | "handleClosePluginSurface"
@@ -117,7 +119,7 @@ export function useWorkspaceRightSurfaceHostRuntime({
   ...hostRuntimeParams
 }: UseWorkspaceRightSurfaceHostRuntimeParams): ReturnType<
   typeof renderWorkspaceRightSurfaceHostRuntime
-> & { launcher: ReactNode } {
+> & { launcher: ReactNode; openLink: OpenLink } {
   const idPrefix = useId();
   const fileTabDrafts = useMemo(
     () => ({
@@ -132,6 +134,20 @@ export function useWorkspaceRightSurfaceHostRuntime({
   );
   const { t } = useTranslation("agent");
   const root = hostRuntimeParams.canvasWorkbenchRootPath?.trim() || null;
+  const openLink = useWorkspaceLinkOpening({
+    sessionId: hostRuntimeParams.sceneSessionId,
+    threadId: hostRuntimeParams.sceneThreadId,
+    workspaceId: hostRuntimeParams.runtimeWorkspaceId,
+    workspaceRoot: root,
+    ensureOwner: hostRuntimeParams.ensureBrowserWorkspaceOwner,
+    onOpenBackgroundBrowser: rightSurfaceRuntime.openBrowserInBackground,
+    onError: (error) =>
+      toast.error(
+        t("agentChat.browserWorkspace.loadFailedBody", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      ),
+  });
   const gitContext = useMemo(() => ({ root }), [root]);
   const [gitStatus, setGitStatus] = useState<{
     context: typeof gitContext;
@@ -237,28 +253,7 @@ export function useWorkspaceRightSurfaceHostRuntime({
     backgroundTerminalItems: rightSurfaceRuntime.backgroundTerminalItems,
     sidePanelActions,
     outputs: rightSurfaceRuntime.outputs,
-    onOpenWebsite: (url) => {
-      void requestWorkspaceRightSurface({
-        surfaceKind: "browser",
-        origin: "user",
-        priority: "foreground",
-        reason: "open_thread_output",
-        sessionId:
-          hostRuntimeParams.sceneSessionId ??
-          hostRuntimeParams.sceneThreadId ??
-          null,
-        workspaceId: hostRuntimeParams.runtimeWorkspaceId ?? null,
-        workspaceRoot: root,
-        candidateId: url,
-        metadata: { browser: { launchUrl: url } },
-      }).catch((error: unknown) => {
-        toast.error(
-          t("agentChat.browserWorkspace.loadFailedBody", {
-            message: error instanceof Error ? error.message : String(error),
-          }),
-        );
-      });
-    },
+    onOpenWebsite: openLink,
     onNewSidePanelTab: rightSurfaceRuntime.handleNewSidePanelTab,
     onSelectSidePanelTab: rightSurfaceRuntime.handleSelectSidePanelTab,
     onCloseSidePanelTab: fileTabLifecycle.requestClose,
@@ -275,6 +270,8 @@ export function useWorkspaceRightSurfaceHostRuntime({
       rightSurfaceRuntime.browserRightSurfaceAvailable,
     browserRightSurfaceInitialUrl:
       rightSurfaceRuntime.browserRightSurfaceIntent?.launchUrl ?? null,
+    browserRightSurfaceLaunchTabId:
+      rightSurfaceRuntime.browserRightSurfaceIntent?.tabId ?? null,
     browserRightSurfaceLaunchRequestId:
       rightSurfaceRuntime.browserRightSurfaceIntent?.launchApplied ||
       !rightSurfaceRuntime.browserRightSurfaceIntent?.launchUrl
@@ -306,6 +303,7 @@ export function useWorkspaceRightSurfaceHostRuntime({
   });
   return {
     ...surfaces,
+    openLink,
     tabStrip: createElement(FileTabLifecycleProvider, {
       lifecycle: fileTabLifecycle,
       children: surfaces.tabStrip,

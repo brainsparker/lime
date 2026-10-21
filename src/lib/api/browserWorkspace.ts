@@ -3,6 +3,7 @@ import {
   requestWorkspaceRightSurface,
   type WorkspaceRightSurfaceAppServerClient,
 } from "./workspaceRightSurface";
+import { closeBrowserTab, mountBrowserTab } from "./browserTab";
 
 export interface BrowserWorkspaceIdentity {
   browserSessionId: string;
@@ -18,10 +19,13 @@ export interface BrowserWorkspaceIdentityDeps {
   appServerClient?: WorkspaceRightSurfaceAppServerClient;
 }
 
-export async function openBrowserWorkspaceIdentity(params: {
-  runtimeSessionId?: string | null;
-  threadId: string;
-}, deps: BrowserWorkspaceIdentityDeps = {}): Promise<BrowserWorkspaceIdentity> {
+export async function openBrowserWorkspaceIdentity(
+  params: {
+    runtimeSessionId?: string | null;
+    threadId: string;
+  },
+  deps: BrowserWorkspaceIdentityDeps = {},
+): Promise<BrowserWorkspaceIdentity> {
   return await requestBrowserIdentity(
     {
       action: "open",
@@ -32,11 +36,14 @@ export async function openBrowserWorkspaceIdentity(params: {
   );
 }
 
-export async function createBrowserWorkspaceTabIdentity(params: {
-  browserSessionId: string;
-  runtimeSessionId?: string | null;
-  threadId: string;
-}, deps: BrowserWorkspaceIdentityDeps = {}): Promise<BrowserWorkspaceIdentity> {
+export async function createBrowserWorkspaceTabIdentity(
+  params: {
+    browserSessionId: string;
+    runtimeSessionId?: string | null;
+    threadId: string;
+  },
+  deps: BrowserWorkspaceIdentityDeps = {},
+): Promise<BrowserWorkspaceIdentity> {
   return await requestBrowserIdentity(
     {
       action: "createTab",
@@ -46,6 +53,61 @@ export async function createBrowserWorkspaceTabIdentity(params: {
     },
     deps,
   );
+}
+
+export async function createBrowserWorkspaceLinkTab(
+  params: {
+    owner: BrowserWorkspaceOwner;
+    url: string;
+    background: boolean;
+    isCurrent: () => boolean;
+  },
+  deps: BrowserWorkspaceIdentityDeps = {},
+): Promise<BrowserWorkspaceIdentity | null> {
+  if (!params.isCurrent()) return null;
+  const workspace = await openBrowserWorkspaceIdentity(params.owner, deps);
+  if (!params.isCurrent()) return null;
+  const next = await createBrowserWorkspaceTabIdentity(
+    {
+      ...params.owner,
+      browserSessionId: workspace.browserSessionId,
+    },
+    deps,
+  );
+  if (!params.isCurrent()) return null;
+  try {
+    const state = await mountBrowserTab({
+      ...next,
+      threadId: params.owner.threadId,
+      bounds: { x: 0, y: 0, width: 0, height: 0 },
+      selected: !params.background,
+      url: params.url,
+      visible: false,
+    });
+    if (
+      state.browserSessionId !== next.browserSessionId ||
+      state.tabId !== next.tabId ||
+      state.threadId !== params.owner.threadId
+    )
+      throw new Error(
+        "Browser link tab does not belong to the canonical workspace",
+      );
+  } catch (error) {
+    try {
+      await closeBrowserTab(next.tabId);
+    } catch (cleanupError) {
+      throw new AggregateError(
+        [error, cleanupError],
+        "Browser link mount and cleanup failed",
+      );
+    }
+    throw error;
+  }
+  if (!params.isCurrent()) {
+    await closeBrowserTab(next.tabId);
+    return null;
+  }
+  return next;
 }
 
 async function requestBrowserIdentity(

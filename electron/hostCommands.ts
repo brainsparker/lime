@@ -107,6 +107,8 @@ export class ElectronHostCommands {
 
   async invoke(command: string, args?: HostArgs): Promise<unknown> {
     switch (command) {
+      case "is_default_browser":
+        return this.#systemUtilityHost.isDefaultBrowser();
       case "open_external_url":
         return await this.#systemUtilityHost.openExternalUrl(args);
       case "open_file_preview_window":

@@ -1084,6 +1084,9 @@ pub struct WebMcpConfig {
 /// 管理所有实验性功能的开关和配置
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct ExperimentalFeatures {
+    /// 本地历史后台压缩，默认关闭。
+    #[serde(default)]
+    pub local_thread_store_compression: bool,
     /// WebMCP 预留配置
     #[serde(default)]
     pub webmcp: WebMcpConfig,
@@ -3667,17 +3670,20 @@ memory:
     fn test_experimental_features_default() {
         let config = ExperimentalFeatures::default();
         assert!(!config.webmcp.enabled);
+        assert!(!config.local_thread_store_compression);
     }
 
     #[test]
     fn test_experimental_features_serialization() {
         let config = ExperimentalFeatures {
+            local_thread_store_compression: true,
             webmcp: WebMcpConfig { enabled: true },
             ..Default::default()
         };
 
         let yaml = serde_yaml::to_string(&config).unwrap();
         assert!(yaml.contains("webmcp"));
+        assert!(yaml.contains("local_thread_store_compression: true"));
         assert!(yaml.contains("enabled: true"));
         assert!(!yaml.contains("screenshot_chat"));
 

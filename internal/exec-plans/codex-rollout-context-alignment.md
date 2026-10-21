@@ -48,7 +48,7 @@ current owner：`runtime/canonical_rollout/**`、`canonical_thread_store/{histor
 
 ## 退出条件
 
-- [ ] 原生模型记录/checkpoint/usage 与 changes 原子落盘，并验证摘要、身份、顺序、幂等与崩溃尾部。
+- [x] 原生模型记录/checkpoint/usage 与 changes 原子落盘，并验证摘要、身份、顺序、幂等与崩溃尾部。
 - [x] 脱离源存储的 plain/zstd，四协议同 provider 和跨 provider 请求捕获通过。
 - [x] durable fork 的 cold/nested fork、session compaction suffix 和用量通过。
 - [x] 单一 current schema、过期分支清理、根模块拆分和架构确认。
@@ -183,6 +183,8 @@ rollout / ThreadStore / provider completed-item history；无 compat/deprecated�
 materialize_rollout_for_append_blocking}`、`compression/path_metadata.rs`、
 `list_files.rs::thread_candidate` 与 `compression_tests.rs`。plain 优先、压缩副本去重；
 读取保持流式，追加先在同目录临时文件解压、刷盘、无覆盖发布，再清除压缩源。
+归档与恢复继续对照 Codex `thread-store/src/local/{archive_thread,unarchive_thread}.rs`：
+直接移动实际物理文件并保留压缩形式；只有真实 history/metadata 写入才物化。
 
 窄写集：`canonical_rollout/{compression,read,history,delete}.rs`、根模块接线、
 `canonical_rollout/tests/compression.rs`、公共 fork portable recovery 测试及本计划/架构小节。
@@ -195,6 +197,251 @@ metadata、archive/unarchive/delete 使用同一物理文件 owner，删除后�
 先 owner + 公共 JSON-RPC 定向回归，再补 contracts、current fixture、GUI smoke；
 完整 TUI/renderer/全量门禁的既有阻塞继续分账，不将历史固定产物记为新实现验证。
 
-- [ ] compressed-only 自动发现、逻辑路径及 plain 优先去重。
-- [ ] 安全续写、metadata 与 active/archived 生命周期完整。
-- [ ] owner 负向与公共 JSON-RPC 冷恢复回归通过。
+- [x] compressed-only 自动发现、逻辑路径及 plain 优先去重。
+- [x] 安全续写、metadata 与 active/archived 物理表示及删除合同通过（mtime/recency 分账）。
+- [x] owner 负向与公共 JSON-RPC 冷恢复回归通过。
+
+实现已接线，r19 owner **19/19** 通过；公共 integration 正在执行，产品门禁未核销。
+r16 使用全局 debug=0 与复制缓存不匹配，主动取消；r17
+在 App Server 编译阶段遭遇明显内存压力，主动取消且未运行测试，不计产品失败/通过。
+r19 固定隔离 target `/tmp/lime-rollout-compressed-target-20261021`，保留依赖默认 profile，
+只对 app-server 设置 dev/test package debug=0，jobs=1；不清理共享 target、锁或未知进程。
+最终写集及 8 个 Codex 源文件摘要见 `compressed-implementation-r19.json`。
+contracts、docs boundary、legacy report r16 均 exit 0。
+owner r19 经过 37m45s 编译后执行，19 个用例 0.65s 完成；本任务 rustc 的短时采样
+证明 LLVM 代码生成阶段约 4GB 内存占用，未等待 Cargo 锁。采样日志已保留。
+先前 current-schema 负向夹具的身份/摘要拒绝与源文件不变断言也已通过。
+
+真实 CLI 驱动已准备：只复制标准压缩 rollout，删除整个源目录，两次全新索引恢复并续聊，
+同一 canonical Thread 保留三轮输入/终态。使用本轮新二进制与 controlled external backend，
+不替代四协议 request capture；尚未执行，不能提前核销 CLI 或完整 TUI/GUI 门禁。
+
+只读补记：Codex `thread-store/src/local/unarchive_thread.rs` 在恢复后调用
+`touch_modified_time`；Lime `canonical_thread_store.rs::set_archived_in_tx` 当前仅更新
+archived/path，没有对应 recency/touch 提交。本轮只核销物理表示、历史、identity 与删除
+合同；恢复排序/时间以及后台自动压缩 worker 另列开放项，不能据此宣称完整生命周期对齐。
+
+#### 公共链回归与补齐（2026-10-21，r22 active）
+
+r19 公共回归执行 compaction 1/1、fork 37 passed / 2 failed；Cargo 在 fork 失败后停止，
+metadata/replay targets 尚未执行。两个失败分别是只读发现物化 plain、公共 Git metadata
+未写 rollout，不能用 owner 19/19 代替跨层成功。r21 ThreadStore 是旧 libtest 的 47/48：
+编译期间外部提交 `c323596f2` 已把队列的手工 sidecar locator 改成真实 PNG data URI，
+旧二进制仍含前一版本夹具；当前夹具需重新构建验证，生产媒体完整性校验不变。
+
+扩展窄写集：`canonical_thread_store.rs` 仅移出 metadata 方法并接线，新增
+`canonical_thread_store/metadata.rs`。公共 metadata patch 使用既有 rollout metadata
+writer，在同一 SQLite 事务提交前持久化，active/archived 共享路径与校验；index-only
+字段仍由既有 owner 承接，没有新 schema、协议或兼容入口。上游补读
+`thread-store/src/local/update_thread_metadata.rs::{update_thread_metadata,update_rollout_metadata}`。
+压缩公共测试增加 rebuild/initialize/list 各阶段的只读断言，定位首次物化而不放宽要求。
+上述行为尚在 r22 验证，尚未核销退出条件。
+
+只读物化根因：`thread/start` 当前合法保存 `runtimeWorkspaceRoots: null`；settings
+workspace 规范化删除该键后调用 durable metadata writer，触发不必要的压缩物化。
+窄写集增加 `projection_store/session_settings/workspace.rs` 及其既有 tests，保留
+current 的 null 默认值，并覆盖与显式 `[]` 的区别及 projected settings 恢复。
+不删除必要的值校验或为旧格式新增 reader。r23 固定 16 项输入后顺序执行公共
+compressed-only、完整相关 JSON-RPC、owner/ThreadStore/workspace tests 和本轮二进制构建。
+压缩归档公共测试另验证损坏源的 metadata 更新拒绝、索引回滚和源文件不变，修复后重试
+并以第二个空索引确认 Git patch 真正来自 portable rollout。
+
+恢复时间补读结论：上游 `unarchive_thread` 的测试明确要求 `recency_at` 保持原值；
+`state/src/runtime/threads.rs::mark_unarchived` 不推升 recency。开放差距是物理 rollout 的
+mtime touch/失败回滚，不能把 `touch_modified_time` 猜成 recency 排序提升。之前的
+“recency/touch”记录仅作为待核实问题保留，以此源码结论为准。
+
+r22 定位到 rebuild 阶段物化；r23 的固定源码回归已证明该问题修复，归档/metadata
+回滚/新索引恢复通过。剩余失败是续聊夹具重发固定 source Item ID，runtime 正确以跨
+Turn identity 冲突返回 failed。修正续聊 backend 的 seed-only 分支，不改变生产身份
+校验；r24 重新执行完整合同，保留 r22/r23 失败证据。r23 sourceDrift 为空。
+
+r24 压缩公共切片 2/2、四个相关 public JSON-RPC targets **44/44** 通过，固定
+16 项输入无漂移。它们包含四协议/跨 provider request capture、compaction、冷 resume
+事件顺序、metadata 与损坏压缩回滚。owner/ThreadStore 最新夹具及本轮 CLI 构建继续验证。
+contracts/docs/legacy r23 通过。Agent 聚合 r24 的 371 个定向测试与三个真实 Electron
+子场景（unknown Item、home hotpath、greeting）通过；在 Coding Workbench 的新建独立
+canonical/native 浏览器标签处 exit 1，后续子场景未执行。右侧 Browser/Recents 相关
+文件存在并行改动，本片不夹写。已复制实际子场景摘要至同一 evidence 目录，保留失败。
+
+后续后台压缩的源码合同已定位：`rollout/src/compression.rs::worker` 只选 mtime 超过
+7 天的 cold 文件，zstd level 3、至多 2 个并行压缩；startup/RPC fire-and-forget，
+maintenance lock + run marker 防重入。编码/校验不阻塞 writer，发布前锁定并重查
+原文件状态，temp fsync + no-clobber publish 后才删除源。公共入口是上游
+`app-server/src/request_processors/rollout.rs::rollout_compress`，只支持 LocalThreadStore。
+本轮未新增该 worker 或 `rollout/compress`，不能将 compressed reader 的通过算作它们已实现。
+
+r24 owner/ThreadStore/workspace **72/72** 通过，其中 ThreadStore 48 项完整通过，
+包括新编译的真实 PNG 队列夹具；r21 旧二进制的 47/48 失败已由该 fresh 结果核销。
+current schema 的身份/摘要、顺序/幂等、crash tail、元数据重试与 SQLite commit 失败
+恢复均已验证。16 项实现输入仍无漂移。原 portable rollout 退出条件更新为 **4/5（80%）**；
+未关闭的第 5 项是完整产品/聚合门禁，不能表述为整个 Codex 复刻完成。
+
+#### r24 产品结果与 r26 生命周期切片
+
+r24 CLI/App Server/code-mode-host 构建 exit 0（1.165.0），基础 GUI smoke exit 0。
+真实 CLI compressed-only 冷恢复通过：两次仅复制 `.jsonl.zst` 到空索引并删除前一个
+数据目录，最终保留同一 Thread、三轮 completed、三个输入各提交一次；只读 show 不物化。
+该 fixture 使用 controlled external backend，不证明 live provider 或 TUI PTY。
+16 项实现输入与 9 项上游源码摘要无漂移，完整汇总见
+`artifacts/codex-rollout-context-20261021/compressed-verification-summary-r24.json`。
+Agent 聚合的浏览器标签失败仍开放；原 portable rollout 切片保持 4/5（80%）。
+上轮命令通道阻塞现已恢复；r25 blocker 文件已实际写入，本轮未覆盖其历史记录。
+
+r26 主目标：按 Codex `thread-store/src/local/{unarchive_thread,helpers}.rs` 与
+`state/src/runtime/threads.rs::mark_unarchived`，补物理 mtime touch、索引 updated_at、
+recency 不变，以及文件移动/时间与 SQLite 失败回滚。归档保持原 mtime；compressed
+物理表示不因 archive/unarchive 物化。metadata writer 必须区分文件时间与记录 revision，
+保留身份、摘要和冲突校验，不能仅改 SQLite timestamp 而使后续 metadata 写入失败。
+
+窄写集增加 `canonical_rollout/lifecycle.rs`、`canonical_thread_store/archive.rs`，从根模块
+移入现有生命周期实现；定向测试分别落既有 tests 子目录。GUI/浏览器/发布并行写集只读。
+不新增 public method、schema、迁移或兼容层，后台 compression worker 独立开放。
+
+Verification Contract（P1）：plain 与 compressed 的归档/恢复均保持字节与压缩形式；
+unarchive 后 updated_at 等于物理 mtime、recency 不变；冷索引读取同一时间事实，随后
+metadata 更新与续写正常；touch、SQL update、deferred commit 失败恢复原路径和 mtime。
+先 owner/ThreadStore/公共恢复测试，再按当前实现构建真实 CLI/stdio；产品聚合失败单独记账。
+
+- [x] 生命周期文件/索引时间合同及失败回滚。
+- [x] metadata 冲突校验与空索引恢复。
+- [x] 定向回归和真实 CLI/stdio 证据。
+
+r26 首次编译 exit 101：新增 fixture 的 `ThreadMetadataPatch.metadata` 少了一层
+ClearableField 包装，尚未运行测试；已按现役类型修正，r27 重跑，失败日志保留。
+额外覆盖 recency 为空时的默认排序事实：先将原 updated_at 回退值解析成 recency，
+再投影文件 mtime，防止 archive/unarchive 或 cold rebuild 意外改变有效 recency。
+
+r27 owner 为 71/76：默认 recency 在 metadata record 后被重新推导为新时间（有效缺口）；
+plain 有效文件的 tail 检查不必要地要求写权限，导致 touch 失败夹具提前返回（有效缺口）；
+另外三项旧断言仍固定归档前 updated_at。已将默认 recency 来源固定到初始 header，
+有效 tail 使用只读句柄，只有真实修复才打开写句柄；迁移测试改为验证归档后的
+updated_at 不被 metadata 规范化推进，完整恢复比较仍验证文件时间与所有历史内容。
+扩展窄写集到 `canonical_rollout/{scan,tail_repair}.rs` 及既有 reviewer/workspace tests。
+同时复用并行提交已加入的 `persist_rollout_metadata`，删除本片 metadata 模块内重复逻辑。
+未改动该并行 helper 的实现。r28 固定新输入后重新验证。
+
+提交失败的锁边界补充：Codex 在文件回滚期间仍持有 lifecycle/writer guard。
+本片沿既有 SQLite writer coordination 保留失败的事务对象，在其写锁下完成文件回滚，
+随后再由 Transaction Drop 回滚索引；不使用会在错误时先释放锁的 consuming commit。
+该修正写入 r28 编译期间，因此 r28 sourceDrift 必须如实记录，最终输入另由 r29 验证。
+
+r29 最终 owner **76/76**、sourceDrift 为空；public compaction 1/1，fork 38/39，失败后
+其余 targets 未运行。公共 compressed archived fixture 定位到物理 mtime 与内容 revision
+混用：原样恢复损坏压缩源的字节会改变 mtime，旧索引时间不再等于 record 或文件时间，
+正常更新被错误拒绝。按 Codex metadata 更新与文件时间分离的边界，现由同一写事务核对
+expected metadata 内容，以 scanner 校验后的 latest digest/record timestamp 推进摘要链；
+物理 mtime 不充当内容版本。源身份、内容冲突、previous digest、record 单调时间、失败
+重试与索引回滚断言保留。公共失败夹具不修改，r30 固定最终输入后重跑。
+
+下一阶段源码审计归档到 `compression-worker-source-audit-r30.json`：startup 受
+`local_thread_store_compression` gate 控制且上游默认 false；experimental RPC 的 `{}`
+只确认触发，不确认压缩完成。maintenance lock 与 run marker 分工不同；成功后 marker
+保留六小时冷却，worker 最长五小时，过期 temp 清理阈值六小时。发布锁需覆盖 detached
+recorder 的 writer ownership，不得只检查当前活跃 Turn。后台 worker/public method 未实现。
+另确认一项响应语义残差：Codex 对无 archived rollout 的 unarchive 返回 InvalidRequest，
+Lime 当前保留幂等 archive/unarchive；本次时间/回滚切片不将该差异标为已对齐。
+
+r30 编译期间隔离 target 目录整体消失，Cargo 写 fingerprint 返回 ENOENT；未运行测试，
+本任务没有执行清理。现存仓库 `lime-rs/target` 缓存完整且无 Cargo 进程，r31 改用该
+现役 target，仍 jobs=1、仅 app-server package debug=0，不删除目录/锁或停止未知进程。
+收尾审阅补齐 recency 的 SQL 索引列接线：默认回退值不能只写 thread JSON；新增同一
+列表中 peer 的排序断言，证明取消归档不提升有效 recency。r31 冻结全部最终输入。
+
+r31 最终 owner/ThreadStore/workspace **76/76** 通过，冻结输入无漂移；包括默认 recency
+的 SQL 排序、物理时间与 metadata revision 分离、readonly touch 和 deferred COMMIT
+失败回滚。scoped rustfmt check exit 0。四个公共 JSON-RPC targets 和产品进程证据继续执行，
+在它们实际结束前不核销本片最后的验证退出条件。
+
+r31 四个恢复公共 targets **44/44**、补充线程公共 target **19/19** 通过；后者包含
+archive/unarchive 的通知、环境恢复和原路径校验。CLI/App Server/code-mode-host
+1.165.0 构建通过。最终重新核对 26 项实现与 13 项 Codex 输入，全部无漂移；
+rustfmt、最终 docs boundary 和 scoped diff check 均 exit 0。
+真实 CLI 生命周期通过：归档前后比较实际 mtime，保持 zstd 字节；取消归档更新时间
+且返回有效、未改变的 recency；两次仅压缩文件的空索引恢复后，同一 Thread 三轮
+completed、三个输入各一次，只读不物化、续写才物化。该进程链使用 controlled external
+backend，不证明 live 模型或压缩专属 TUI PTY。基础 GUI smoke 通过，归档 Electron 与
+Agent 聚合结果分账如下。时间/回滚切片退出条件 **3/3（100%）**，原 portable rollout
+切片仍为 **4/5（80%）**，完整 Codex 对齐继续 active / partial。
+
+r31 归档 Electron 聚合 exit 1：`run-electron-thread-read-long-list` 阶段的
+`page.waitForFunction` 等待 240000ms 超时；后续设置页归档/恢复与冷重开场景未执行。
+失败 summary 的 bridge false / 计数 0 是未采集默认值，不能推断实际未发生 IPC。
+不放宽断言或扩大超时；下次用唯一 prefix 与 `--keep-temp` 保存 owner 的原始错误栈、
+截图和滚动窗口证据后定位。GUI 相关并行写集保持只读，本片不声称设置页归档 Gate B 通过。
+Agent 聚合已独立启动，前序失败不会阻止收取其独立结果。
+
+r31 Agent 聚合 exit 0：**371 项定向测试（31 + 34 + 3 + 303）与 22 个真实 Electron
+子场景全部通过**。包括 r24 失败的 Coding Workbench canonical/native 浏览器标签、
+右侧面板恢复，以及取消/续聊、审批、steer、Plan/Skills/MCP/media 和文章产物场景。
+本片未修改这些 GUI 实现，不据结果推断 r24 的具体修复原因。归档到同目录的
+`lifecycle-agent-r31-scenes.json` 逐项记录输出 summary 的 SHA 与运行窗口，避免只引用
+可被下一次覆盖的 `.lime/qc` 产物。controlled fixture 不提升为 live provider、Windows
+或 packaged 证据。该通过不关闭独立归档长列表失败、完整 TUI 与 `verify:local` 的开放项。
+
+本轮 current 为既有 canonical rollout/ThreadStore 与拆出的 lifecycle/archive 模块，
+metadata 持久化复用现役 helper；无新增 compat/deprecated。重复 metadata 实现已移除，
+旧 schema 和旧插件继续禁止恢复。源码、脚本、产品边界及最终验证汇总见
+`artifacts/codex-rollout-context-20261021/lifecycle-verification-summary-r31.json`。
+下一刀继续按已归档 Codex 源码补齐 unarchive InvalidRequest 响应语义与后台压缩的
+真实 writer ownership/维护锁；归档 GUI 用保留 owner 证据的定向场景定位后再核销。
+Memory/Loop/Tools/Extensions/harness、插件/tar.gz 与 LimeCore 的剩余范围不缩减。
+
+#### r32 / 加速实施：恢复错误语义与后台压缩
+
+主目标保持 Codex 共享后端完整复刻。本片一次实现而后集中验证：取消归档无归档源返回
+InvalidRequest，删除 RuntimeCore 预读/changed 双判定；公共成功通知只在 mutation 成功后发出。
+从 thread_v2_jsonrpc 根测试拆出 lifecycle/maintenance，避免继续堆叠超长测试文件。
+
+压缩进入现役 canonical_rollout owner，新增 writer_lock、maintenance/compress；
+启动 gate 为 experimental.local_thread_store_compression（默认 false），公共
+rollout/compress 为 ACK-only，并同步 protocol/envelopes/catalog/schema/client/gateway。
+上游事实源仍为 Codex HEAD 8c076942 的 rollout/{compression,writer_lock,maintenance}.rs
+和 thread-store/local/unarchive_thread.rs，非 CLI 反编译或自拟产品合同。
+Lime 当前每次同步写入都会关闭文件，没有上游持久 recorder actor；writer guard 覆盖
+真实文件操作，RolloutMove 持 guard 至 SQLite 提交/文件回滚。不得只以 active Turn 过滤。
+保留多模型/四协议路由，本片不修改 provider wire、内容、凭证或预算。
+
+Verification Contract（P1）：无归档源拒绝且无通知/文件时间变化；冷文件压缩保持内容、
+权限、mtime、同一 Thread；近期/忙碌/改变/已压缩文件跳过；编码/验证不持发布锁；
+发布前 writer probe + 源状态复查 + fsync/no-clobber，冷读不物化、续写才物化；
+维护锁防重入、成功 pass 保留六小时 marker、失败清理 marker、只清理六小时旧临时文件。
+先 owner + public RPC + protocol/client/schema/contracts，再真实 stdio 验证受影响边界。
+r31 聚合已有通过结果不重复冒充 r32 运行证据。Windows/live/packaged/PTY 仍单独开放。
+写集避开 GUI/Browser/release 的并行热区；runtime.rs、envelopes 和 client 超长根文件仅做
+模块/枚举/方法接线，新业务逻辑全部进入小模块，后续按领域继续拆分。
+
+r33 源码补核：Codex message_processor.rs、v2/rollout_compress_tests.rs 要求
+连接 initialize.capabilities.experimentalApi=true；rollout/compress 现在遵守该
+connection-local opt-in，无声明返回 -32600 和上游同文错误，且不调度 worker。
+
+r32/r33 最终结果：owner/ThreadStore/queue **84/84**；protocol/client/schema **198/198**；
+公共 thread_v2_jsonrpc 最终 **23/23**（含 handshake、startup、非 local 拒绝、取消归档）；
+TypeScript client/gateway **148/148**；test:contracts、docs boundary、scoped rustfmt/diff 均通过。
+前端 r32 的两项 manifest 比较失败来自未先执行 package build 的旧 dist 缓存；
+正常 build 后 r33 全部通过，保留两次日志，不修改断言。
+r32 公共 22/22 是补 experimental gate 前的历史结果，最终以 r33 23/23 为准。
+
+真实 sidecar 1.165.0 与 stdio 验证通过：独立 Python/flock 进程持有 thread writer 锁，
+ACK 后压缩 pass 不发布/不删源；释放锁并使 cooldown marker 过期后重试，成功生成 zstd，
+保持原 mtime；只读历史不物化，未归档取消归档返回上游 -32600；同一线程续写物化，
+两轮均 completed。使用 controlled external backend，不声称 live provider 或 CLI/PTY。
+script、binary SHA 和完整 JSONL frames 归档为 maintenance-stdio-r32.json /
+rollout-maintenance-stdio-r33.driver.log。
+基础 Electron GUI smoke r33 exit 0：真实 Host/sidecar 初始化、工作台 reload、
+三个 viewport 和 Memory settings 通过；独立归档长列表 Gate B 失败仍未核销。
+标准 GUI smoke 入口另建了桌面 sidecar 资源，未修改该并行构建 owner。
+
+34 项实现最终输入无漂移；9 项 Codex 源码及 HEAD 另归档 maintenance-source-r33.json。
+本片退出条件：错误语义、writer/worker、公共合同/默认 gate、定向/进程验证 **4/4（100%）**。
+原 portable rollout 产品聚合条件仍 **4/5（80%）**，整体复刻 active / partial。
+未重复 r31 已通过的 Agent 371 + 22 场景聚合；未跑完整 TUI/压缩 PTY、Windows、
+live、packaged。verify:local 的已记录 Node registerHooks/超时基线仍开放，本片不以
+定向测试代替其全量通过。
+
+分类：current 为既有 App Server/canonical rollout/ThreadStore 及新增的小职责模块；
+无新增 compat/deprecated；旧 unarchive 预读、changed 分支和幂等成功语义已删除。
+Thread lifecycle 公共测试从超长根文件搬到子模块，保留唯一实现和唯一业务通道；
+未新增插件旧路、迁移、第二 runtime 或模型特例。避让 GUI/Browser/release 并行写集。
+本片收口后回到主计划 Memory/Loop/Tools/Extensions/harness 剩余项，不继续以存储维护
+小切片代替整体交付；插件/tar.gz、LimeCore 和多模型边界仍按总账推进。

@@ -12,10 +12,8 @@ export async function runSettingsProfileNavigationScenario({
   page,
   options,
   evidenceDir,
-  sessionId,
   stage,
   waitForSession,
-  waitForHome,
 }) {
   const read = async () => {
     const response = await invokeAppServerFromPage(page, "config/read", {
@@ -81,17 +79,9 @@ export async function runSettingsProfileNavigationScenario({
     assert.equal(await page.getByTestId("oem-cloud-google-login").count(), 0);
     localEntryVisits += 1;
   };
-  const reopenSession = async () => {
-    await page
-      .locator(
-        `[data-testid="app-sidebar-conversation-open"][data-session-id="${sessionId}"]`,
-      )
-      .click();
-    await waitForSession();
-  };
   const observations = [];
   for (const kind of ["displayName", "bio"]) {
-    for (const target of ["section", "back", "home", "root"]) {
+    for (const target of ["section", "back"]) {
       stage(`unsaved-profile-${kind}-${target}`);
       await open();
       await page
@@ -105,8 +95,6 @@ export async function runSettingsProfileNavigationScenario({
       const trigger = {
         section: page.getByTestId("settings-sidebar-tab-about"),
         back: page.getByTestId("settings-back-button"),
-        home: page.getByTestId("app-sidebar-nav-new-chat"),
-        root: page.getByTestId("app-sidebar-nav-scheduled-tasks"),
       }[target];
       await trigger.click();
       await dialog.waitFor({ state: "visible" });
@@ -134,22 +122,8 @@ export async function runSettingsProfileNavigationScenario({
       if (target === "section") {
         await about();
         await page.getByTestId("settings-back-button").click();
-        await waitForSession();
-      } else if (target === "back") await waitForSession();
-      else {
-        if (target === "root") {
-          await profile.waitFor({ state: "detached" });
-          assert.equal(
-            await page
-              .getByTestId("app-sidebar-nav-scheduled-tasks")
-              .getAttribute("aria-current"),
-            "page",
-          );
-          await page.getByTestId("app-sidebar-nav-new-chat").click();
-        }
-        await waitForHome();
-        await reopenSession();
       }
+      await waitForSession();
       assert.equal(
         isDeepStrictEqual(await read(), initial),
         true,

@@ -66,6 +66,42 @@ afterEach(() => {
 });
 
 describe("Right Surface 本地显示状态", () => {
+  it("正文后台打开Browser保持关闭的侧栏和空选择，随后可显式选择同一标签", async () => {
+    const view = mount();
+    await flush();
+    act(() => view.get().openBrowserInBackground());
+    const tabs = view.get().sidePanelTabs;
+    expect(tabs.tabs.map((tab) => tab.kind)).toEqual(["browser"]);
+    expect(tabs.open).toBe(false);
+    expect(tabs.activeTabId).toBeNull();
+    expect(view.get().manualRightSurface).toBeNull();
+    act(() => view.get().selectSidePanelTab(tabs.tabs[0].tabId));
+    expect(view.get().sidePanelTabs.open).toBe(true);
+    expect(view.get().sidePanelTabs.tabs[0]).toBe(tabs.tabs[0]);
+    expect(view.get().manualRightSurface).toBe("browser");
+  });
+  it("后台Browser保留来源New tab和选择，重复打开不新增壳标签，旧owner不能写入", async () => {
+    const view = mount();
+    await flush();
+    act(() => view.get().openSidePanelTab("workspace-new-tab"));
+    const source = view.get().sidePanelTabs.tabs[0];
+    act(() => view.get().openBrowserInBackground());
+    expect(view.get().sidePanelTabs.tabs.map((tab) => tab.kind)).toEqual([
+      "workspace-new-tab",
+      "browser",
+    ]);
+    expect(view.get().sidePanelTabs.tabs[0]).toBe(source);
+    expect(view.get().sidePanelTabs.activeTabId).toBe(source.tabId);
+    expect(view.get().manualRightSurface).toBe("workspace-new-tab");
+    act(() => view.get().openBrowserInBackground());
+    expect(view.get().sidePanelTabs.tabs).toHaveLength(2);
+    expect(view.get().sidePanelTabs.activeTabId).toBe(source.tabId);
+    const stale = view.get();
+    view.render({ ...owner, threadId: "thread-b", sessionId: "session-b" });
+    act(() => stale.openBrowserInBackground());
+    expect(view.get().sidePanelTabs.tabs).toEqual([]);
+    await flush();
+  });
   it("新空Files展开共享树；已有标签的激活尊重用户折叠，关闭重建才再次展开", async () => {
     const gateway = configureBooleanGateway(atomGateway);
     const view = mount();

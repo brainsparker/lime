@@ -15834,6 +15834,22 @@
               "$ref": "#/$defs/RequestId"
             },
             "method": {
+              "const": "rollout/compress",
+              "type": "string"
+            }
+          },
+          "required": [
+            "id",
+            "method"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/$defs/RequestId"
+            },
+            "method": {
               "const": "thread/shellCommand",
               "type": "string"
             },
@@ -36653,6 +36669,7 @@
         "promptHistory/append",
         "promptHistory/read",
         "review/start",
+        "rollout/compress",
         "skills/config/write",
         "skills/extraRoots/set",
         "skills/list",
@@ -55796,6 +55813,12 @@
         }
       ],
       "title": "ReviewTarget"
+    },
+    "RolloutCompressResponse": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "description": "Acknowledges scheduling; does not report completion of the background pass.",
+      "title": "RolloutCompressResponse",
+      "type": "object"
     },
     "RouteDefaults": {
       "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -119383,6 +119406,7 @@
               "promptHistory/append",
               "promptHistory/read",
               "review/start",
+              "rollout/compress",
               "scheduledTask/create",
               "scheduledTask/delete",
               "scheduledTask/enabled/set",

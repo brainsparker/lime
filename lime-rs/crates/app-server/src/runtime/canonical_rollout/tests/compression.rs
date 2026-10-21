@@ -26,6 +26,12 @@ fn compressed_discovery_is_read_only_and_plain_wins_once() {
     assert_eq!(snapshots[0].history[0].sequence, 1);
     assert!(!path.exists());
     assert_eq!(fs::read(&compressed).unwrap(), before);
+    let copied = store.agent_root.join("copied.zst");
+    fs::write(&copied, &before).unwrap();
+    let (_, recovered, sequence, _) = store.read_requested_thread(&copied).unwrap();
+    assert_eq!(recovered.thread_id, source.thread_id);
+    assert_eq!(sequence, 1);
+    assert!(!copied.with_extension("").exists());
 
     fs::write(&path, zstd::stream::decode_all(before.as_slice()).unwrap()).unwrap();
     append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
@@ -37,7 +43,7 @@ fn compressed_discovery_is_read_only_and_plain_wins_once() {
 }
 
 #[test]
-fn ensure_is_read_only_and_append_preserves_history_and_file_permissions() {
+fn ensure_and_append_materialize_without_losing_history_or_file_permissions() {
     let (_temp, store, source, relative, path) = setup("compressed-append");
     append(&store, &relative, &source, 1, &fingerprint('a')).unwrap();
     let original = fs::read(&path).unwrap();
@@ -48,11 +54,7 @@ fn ensure_is_read_only_and_append_preserves_history_and_file_permissions() {
         fs::set_permissions(&compressed, fs::Permissions::from_mode(0o600)).unwrap();
     }
     store.ensure_thread(&relative, &source).unwrap();
-    assert!(!path.exists());
-    assert!(compressed.exists());
-    append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
-    assert_eq!(scan_rollout(&path).unwrap().history.len(), 2);
-    assert!(fs::read(&path).unwrap().starts_with(&original));
+    assert_eq!(fs::read(&path).unwrap(), original);
     assert!(!compressed.exists());
     #[cfg(unix)]
     {
@@ -62,6 +64,11 @@ fn ensure_is_read_only_and_append_preserves_history_and_file_permissions() {
             0o600
         );
     }
+    compress(&path, false);
+    append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
+    assert_eq!(scan_rollout(&path).unwrap().history.len(), 2);
+    assert!(!compressed.exists());
+    assert!(fs::read(&path).unwrap().starts_with(&original));
 }
 
 #[test]
@@ -75,7 +82,8 @@ fn compressed_archive_metadata_restore_and_delete_do_not_resurrect_siblings() {
             source.session_id.as_str(),
             source.thread_id.as_str(),
         )
-        .unwrap();
+        .unwrap()
+        .commit();
     assert!(!path.exists());
     assert!(!compressed.exists());
     let archived_path = store.agent_root.join(&archived);
@@ -100,14 +108,18 @@ fn compressed_archive_metadata_restore_and_delete_do_not_resurrect_siblings() {
                 source.session_id.as_str(),
                 source.thread_id.as_str()
             )
-            .unwrap(),
+            .unwrap()
+            .commit(),
         relative
     );
     assert!(!archived_compressed.exists());
     assert_eq!(
-        scan_rollout(&path).unwrap().initial_thread.metadata,
+        store.snapshots().unwrap()[0].initial_thread.metadata,
         next.metadata
     );
+    assert!(!path.exists());
+    assert!(compressed.exists());
+    store.materialize_for_append(&path).unwrap();
     for keep_plain in [false, true] {
         if !path.exists() {
             store.ensure_thread(&relative, &source).unwrap();
@@ -129,10 +141,17 @@ fn compressed_archive_metadata_restore_and_delete_do_not_resurrect_siblings() {
 
 #[test]
 fn invalid_compressed_files_never_publish_plain_or_change_the_source() {
-    for corruption in ["frame", "truncated", "digest", "identity"] {
+    for corruption in ["frame", "truncated", "record-tail", "digest", "identity"] {
         let (_temp, store, source, relative, path) = setup(corruption);
         append(&store, &relative, &source, 1, &fingerprint('a')).unwrap();
-        if corruption == "digest" {
+        if corruption == "record-tail" {
+            fs::OpenOptions::new()
+                .append(true)
+                .open(&path)
+                .unwrap()
+                .write_all(b"{\"partial\":")
+                .unwrap();
+        } else if corruption == "digest" {
             let text = fs::read_to_string(&path).unwrap();
             let mut records: Vec<Value> = text
                 .lines()

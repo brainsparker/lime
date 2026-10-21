@@ -4,29 +4,27 @@ Agent 聊天界面的 UI 组件集合。
 
 ## 文件索引
 
-| 文件                             | 说明                                                                          |
-| -------------------------------- | ----------------------------------------------------------------------------- |
-| `ChatNavbar.tsx`                 | 聊天顶部导航栏                                                                |
-| `CanvasWorkbenchLayout.tsx`      | 画布顶部标签壳，统一承载结果、文件、Subagents 进展与动态文件标签              |
-| `EmptyState.tsx`                 | 空状态占位组件                                                                |
-| `MarkdownRenderer.tsx`           | Markdown 渲染组件                                                             |
-| `MessageList.tsx`                | 消息列表组件                                                                  |
-| `StreamingRenderer.tsx`          | 流式消息渲染（支持思考内容、工具调用）                                        |
-| `TokenUsageDisplay.tsx`          | Token 使用量显示                                                              |
-| `ToolCallDisplay.tsx`            | 工具调用显示（状态、参数、日志、结果）                                        |
+| 文件                        | 说明                                                         |
+| --------------------------- | ------------------------------------------------------------ |
+| `ChatNavbar.tsx`            | 聊天顶部导航栏                                               |
+| `CanvasWorkbenchLayout.tsx` | 待迁出的文件／Artifact 预览壳；Summary 由页头当前 owner 展示 |
+| `EmptyState.tsx`            | 空状态占位组件                                               |
+| `MarkdownRenderer.tsx`      | Markdown 渲染组件                                            |
+| `MessageList.tsx`           | 消息列表组件                                                 |
+| `StreamingRenderer.tsx`     | 流式消息渲染（支持思考内容、工具调用）                       |
+| `TokenUsageDisplay.tsx`     | Token 使用量显示                                             |
+| `ToolCallDisplay.tsx`       | 工具调用显示（状态、参数、日志、结果）                       |
 
 ## 核心组件
 
 ### CanvasWorkbenchLayout
 
-- 只负责单画布壳、头部标签、文件标签与顶部操作，不直接依赖具体 slash / skill 业务
-- 顶部收敛为紧凑标签栏 + 文件操作区，去掉大块摘要头，避免与正文和对话信息重复
-- 当存在默认主稿时，默认焦点落在结果预览；只有存在待处理事项或正在生成时才显示进展入口
-- `workspaceView` 可以由运行时显式注入顶部标签文案和面板文案，工作区文件区是画布里真实文件的唯一事实源
-- 文件目录读取与缓存统一归 `useCanvasWorkbenchFileTreeState`；文件树和路径面包屑菜单共享该 owner，显示真实目录及隐藏文件，不按 Lime 内部产物名称排除入口。
-- `panelCopy` 允许运行时覆盖 workspace / Subagents 面板里的引导文案、空态文案与目录区标题，避免布局壳继续承载场景描述
-- Subagents 进展由运行时显式注入插槽定义，布局只消费定义，不在本地重建协作语义
-- 通过 `sessionView` 等插槽注入不同运行时面板，保持未来场景扩展时的边界稳定
+- 只承接尚未迁出的文件／Artifact 预览、文件操作与审阅；旧 Files/Terminal 工具标签、独立序号状态、新建菜单、项目文件专用分栏及其拖拽 hook 已删除。对应能力由当前右侧面 New tab、Files 和 Terminal 承接。
+- Summary、Sources、Subagents 与后台进程由现有页头 Summary owner 展示，Canvas 不再有 Summary slot、tab 或独立状态分支。
+- 当存在默认文件时聚焦文件预览；空面板收到新文件后按同一投影身份切换，保存前导航继续经过原文件 controller。
+- 旧目录fallback、结果目录表格、目录读取/缓存接线及专用copy producer已删除；无文档时显示已有审阅空态，文件浏览统一使用New tab → Files。
+- current Files的目录读取与缓存统一归 `useCanvasWorkbenchFileTreeState`；文件树和路径面包屑菜单共享该 owner，显示真实目录及隐藏文件，不按 Lime 内部产物名称排除入口。
+
 ### ToolCallDisplay
 
 参考 agent UI 设计，提供完整的工具调用可视化：

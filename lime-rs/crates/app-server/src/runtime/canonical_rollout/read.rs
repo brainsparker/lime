@@ -33,6 +33,8 @@ impl RolloutStore {
             return Err("rollout session metadata must not embed turns".to_string());
         }
         let mut thread = scan.initial_thread;
+        thread.recency_at_ms.get_or_insert(scan.recency_at_ms);
+        thread.updated_at_ms = lifecycle::file_updated_at_ms(&path)?;
         let mut builder =
             ThreadHistoryBuilder::for_thread(thread.session_id.clone(), thread.thread_id.clone());
         let mut runtime_events = Vec::new();

@@ -8,10 +8,7 @@ import {
   resolvePreviewContent,
   resolvePreviewPath,
   resolveSelectionContext,
-  resolveSavedContentBundleRoot,
-  resolveWorkspacePanelDisplayPath,
   resolveWorkspaceRelativeDisplayPath,
-  resolveWorkspaceRelativePath,
   type CanvasWorkbenchTaskFile,
   type CanvasWorkbenchCopy,
 } from "./CanvasWorkbenchLayoutViewModel";
@@ -66,17 +63,6 @@ const copy: CanvasWorkbenchCopy = {
     taskFile: "任务文件",
     version: "版本",
     versionTitle: (count) => `文稿版本 ${count}`,
-    workspaceFile: "文件",
-  },
-  tab: {
-    files: "文件",
-    generated: "生成",
-    tasks: "任务",
-    sessionMain: "结果",
-  },
-  workspaceFile: {
-    binaryUnsupported: "二进制文件暂不支持预览",
-    readFailed: "读取文件失败",
   },
 };
 
@@ -108,61 +94,6 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
     expect(resolveWorkspaceRelativeDisplayPath(null, "src\\index.md")).toBe(
       "src/index.md",
     );
-  });
-
-  it("应把 workspace 内路径转成命令用相对路径，并拒绝外部绝对路径", () => {
-    expect(resolveWorkspaceRelativePath("/workspace", "/workspace")).toBe("");
-    expect(
-      resolveWorkspaceRelativePath("/workspace", "/workspace/src/index.md"),
-    ).toBe("src/index.md");
-    expect(resolveWorkspaceRelativePath("/workspace", "src/index.md")).toBe(
-      "src/index.md",
-    );
-    expect(
-      resolveWorkspaceRelativePath("/workspace", "/tmp/outside.md"),
-    ).toBeNull();
-    expect(
-      resolveWorkspaceRelativePath(
-        "C:\\workspace",
-        "C:\\workspace\\src\\index.md",
-      ),
-    ).toBe("src/index.md");
-    expect(
-      resolveWorkspaceRelativePath("C:\\workspace", "D:\\tmp\\outside.md"),
-    ).toBeNull();
-  });
-
-  it("应识别已保存内容包根路径", () => {
-    expect(
-      resolveSavedContentBundleRoot(
-        "/workspace",
-        "/workspace/exports/x-article-export/latest/index.md",
-      ),
-    ).toBe("/workspace/exports/x-article-export/latest");
-    expect(
-      resolveSavedContentBundleRoot(
-        "C:\\workspace",
-        "C:\\workspace\\exports\\x-article-export\\latest\\index.md",
-      ),
-    ).toBe("C:\\workspace/exports/x-article-export/latest");
-    expect(
-      resolveSavedContentBundleRoot("/workspace", "/workspace/src/index.md"),
-    ).toBeNull();
-  });
-
-  it("应为工作区面板根路径生成稳定展示路径", () => {
-    expect(resolveWorkspacePanelDisplayPath("/workspace", "/workspace")).toBe(
-      "/workspace",
-    );
-    expect(
-      resolveWorkspacePanelDisplayPath(
-        "/workspace",
-        "/workspace/exports/x-article-export/latest",
-      ),
-    ).toBe("exports/x-article-export/latest");
-    expect(
-      resolveWorkspacePanelDisplayPath("/workspace", null),
-    ).toBeUndefined();
   });
 
   it("应从 preview target 解析内容和可操作路径", () => {
@@ -293,7 +224,6 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
           previousContent: "旧主稿",
         },
         entryMap,
-        workspaceFileSelections: {},
         canvasState: null,
         artifacts: [previousArtifact, artifact],
         copy,
@@ -307,37 +237,10 @@ describe("CanvasWorkbenchLayoutViewModel", () => {
       selectionPath: "/workspace/draft.md",
     });
 
-    expect(
-      resolveSelectionContext({
-        selectionKey: "workspace-file:/workspace/src/app.ts",
-        defaultPreview: null,
-        entryMap,
-        workspaceFileSelections: {
-          "workspace-file:/workspace/src/app.ts": {
-            path: "/workspace/src/app.ts",
-            title: "app.ts",
-            status: "ready",
-            content: "export const app = true;",
-          },
-        },
-        canvasState: null,
-        artifacts: [],
-        copy,
-        workspaceRoot: "/workspace",
-      }),
-    ).toMatchObject({
-      entrySource: "workspace-file",
-      title: "app.ts",
-      subtitle: "src/app.ts",
-      content: "export const app = true;",
-      previousContent: null,
-    });
-
     const artifactSelection = resolveSelectionContext({
       selectionKey: "artifact:artifact-current",
       defaultPreview: null,
       entryMap,
-      workspaceFileSelections: {},
       canvasState: null,
       artifacts: [previousArtifact, artifact],
       copy,

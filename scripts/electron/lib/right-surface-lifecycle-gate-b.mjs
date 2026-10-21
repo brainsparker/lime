@@ -1,4 +1,5 @@
 import http from "node:http";
+import { collectThreadSidePanelTerminalEvidence } from "./thread-side-panel-terminal-scenario.mjs";
 import { closeThreadSidePanelTab } from "./thread-side-panel-navigation.mjs";
 import { appServerCallFromPage } from "../mcp-config-fixture-smoke.mjs";
 import {
@@ -149,6 +150,8 @@ export async function collectRightSurfaceLifecycleEvidence(
     threadId,
     workspaceId,
     workspaceRoot,
+    evidenceDir,
+    prefix,
     timeoutMs = 60_000,
     onStage = () => {},
   },
@@ -381,7 +384,14 @@ export async function collectRightSurfaceLifecycleEvidence(
       requestObservation: requestResponse.ipcObservation,
     });
     assertRightSurfaceLifecycleEvidence(evidence);
-    return evidence;
+    const terminal = await collectThreadSidePanelTerminalEvidence(page, {
+      timeoutMs,
+      workspaceRoot,
+      evidenceDir,
+      prefix,
+    });
+    onStage("current-terminals-verified");
+    return { ...evidence, terminal };
   } finally {
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));

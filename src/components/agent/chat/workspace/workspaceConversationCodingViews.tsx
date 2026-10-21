@@ -1,12 +1,9 @@
-import type { ComponentProps } from "react";
 import type {
   AgentRuntimeFileCheckpointThreadSummary,
   AgentRuntimeThreadReadModel,
 } from "@/lib/api/agentRuntime/sessionTypes";
 import { projectCodingWorkbenchViewFromEvents } from "@limecloud/agent-runtime-projection";
-import type { CanvasWorkbenchSessionView } from "../components/CanvasWorkbenchLayout";
 import type { CanvasWorkbenchChangeView } from "../components/canvas-workbench";
-import { ThreadSummaryPanel } from "./ThreadSummaryPanel";
 import type {
   ActionRequired,
   AgentThreadItem,
@@ -14,7 +11,6 @@ import type {
 } from "../types";
 import {
   buildCanvasWorkbenchChangeViewFromCodingProjection,
-  buildSessionSummaryViewModel,
   buildSessionRuntimeCountersFromCodingProjection,
   type SessionRuntimeCounters,
 } from "./workspaceConversationSceneViewModel";
@@ -24,25 +20,9 @@ interface WorkspaceConversationCodingViewsParams {
   threadItems?: readonly AgentThreadItem[];
   currentTurnId?: string | null;
   threadRead?: AgentRuntimeThreadReadModel | null;
-  canonicalChildren?: ComponentProps<
-    typeof ThreadSummaryPanel
-  >["canonicalChildren"];
   pendingActions: readonly ActionRequired[];
   isSending?: boolean;
-  projectless?: boolean;
   onOpenFile?: (path: string) => void | Promise<void>;
-  onFileClick?: (fileName: string, content: string) => void;
-  onOpenArtifactFromTimeline?: ComponentProps<
-    typeof ThreadSummaryPanel
-  >["onOpenArtifactFromTimeline"];
-  onOpenSubagentSession?: ComponentProps<
-    typeof ThreadSummaryPanel
-  >["onOpenSubagentSession"];
-  onOpenBackgroundTerminal?: ComponentProps<
-    typeof ThreadSummaryPanel
-  >["onOpenBackgroundTerminal"];
-  onRefreshThread?: ComponentProps<typeof ThreadSummaryPanel>["onRefresh"];
-  onOpenPluginDirectory?: () => void;
   onStartReview?: () => Promise<unknown>;
 }
 
@@ -50,7 +30,6 @@ interface WorkspaceConversationCodingViews {
   currentSessionTurn: AgentThreadTurn | null;
   counters: SessionRuntimeCounters;
   fileCheckpointSummary: AgentRuntimeFileCheckpointThreadSummary | null;
-  sessionView: CanvasWorkbenchSessionView | null;
   changeView: CanvasWorkbenchChangeView | null;
 }
 
@@ -70,17 +49,9 @@ export function buildWorkspaceConversationCodingViews({
   threadItems = [],
   currentTurnId,
   threadRead,
-  canonicalChildren = [],
   pendingActions,
   isSending,
-  projectless = false,
   onOpenFile,
-  onFileClick,
-  onOpenArtifactFromTimeline,
-  onOpenSubagentSession,
-  onOpenBackgroundTerminal,
-  onRefreshThread,
-  onOpenPluginDirectory,
   onStartReview,
 }: WorkspaceConversationCodingViewsParams): WorkspaceConversationCodingViews {
   const currentSessionTurn =
@@ -95,7 +66,6 @@ export function buildWorkspaceConversationCodingViews({
       currentSessionTurn,
       counters: createEmptySessionRuntimeCounters(),
       fileCheckpointSummary: null,
-      sessionView: null,
       changeView: null,
     };
   }
@@ -111,27 +81,6 @@ export function buildWorkspaceConversationCodingViews({
     fileCheckpointSummary,
     pendingActionCount: pendingActions.length,
   });
-  const sessionSummaryView = buildSessionSummaryViewModel({ counters });
-  const sessionView: CanvasWorkbenchSessionView | null = sessionSummaryView
-    ? {
-        ...sessionSummaryView,
-        renderPanel: () => (
-          <ThreadSummaryPanel
-            threadId={threadRead?.thread_id ?? currentSessionTurn?.thread_id}
-            projectless={projectless}
-            turns={turns}
-            threadItems={threadItems}
-            canonicalChildren={canonicalChildren}
-            onOpenBackgroundTerminal={onOpenBackgroundTerminal}
-            onRefresh={onRefreshThread}
-            onOpenSubagentSession={onOpenSubagentSession}
-            onFileClick={onFileClick}
-            onOpenArtifactFromTimeline={onOpenArtifactFromTimeline}
-            onOpenPluginDirectory={onOpenPluginDirectory}
-          />
-        ),
-      }
-    : null;
   const changeView = buildCanvasWorkbenchChangeViewFromCodingProjection({
     codingView,
     fileCheckpointSummary,
@@ -148,7 +97,6 @@ export function buildWorkspaceConversationCodingViews({
     currentSessionTurn,
     counters,
     fileCheckpointSummary,
-    sessionView,
     changeView,
   };
 }

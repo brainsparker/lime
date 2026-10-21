@@ -182,6 +182,14 @@ export function ThreadSidePanelRecents({
               <button
                 type="button"
                 onClick={(event) => onOpen(file, event)}
+                onAuxClick={(event) => {
+                  if (
+                    event.button === 1 &&
+                    file.type === "website" &&
+                    /^https?:\/\//i.test(file.target)
+                  )
+                    onOpen(file, event);
+                }}
                 title={target}
                 aria-label={name}
                 className="flex min-h-14 w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2 text-left text-sm text-[color:var(--lime-text)] outline-none hover:bg-[color:var(--lime-chrome-tab-hover)] focus-visible:bg-[color:var(--lime-chrome-tab-hover)] focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
