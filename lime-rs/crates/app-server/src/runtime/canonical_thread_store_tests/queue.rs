@@ -27,7 +27,11 @@ fn input(text: &str) -> Vec<AgentInput> {
             text_elements: vec![TextElement::new(0..4, Some("read".to_string()))],
         },
         AgentInput::Image {
-            uri: "sidecar://media/input-image.png".to_string(),
+            uri: concat!(
+                "data:image/png;base64,",
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNg+M/wHwAEAQH/cetH5QAAAABJRU5ErkJggg=="
+            )
+            .to_string(),
             detail: Some(ImageDetail::Original),
         },
         AgentInput::text("then review"),

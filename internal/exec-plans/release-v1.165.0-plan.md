@@ -60,3 +60,5 @@
 - 本轮错误并行启动 GUI smoke 和 Agent 聚合，它们争用同一 renderer 构建锁。GUI renderer 编译超过既有 20 分钟等待后，聚合 exit 1，371 项前置通过但没有启动业务场景。保留失败；待 GUI 构建完成后串行重跑聚合，不放宽锁预算或设置 build-ready override。
 - 冻结候选定向 ESLint 119 文件、0 warning/error、exit 0。contracts 的 protocol/client/command/harness/modality 检查通过，脚本治理因导出副本无 `.git` 中断；用独立 frozen index + 原仓库只读对象上下文补齐后重跑，未更改源码、原树 index 或任何断言。
 - 当前提交是进入远端 Quality 的候选检查点，不代表 tag、安装包、npm 或 updater 已发布；这些渠道以收尾 publication receipt 为准。
+- 候选提交 `76dad3c4ad61aac12bc3a40f5981c2c96f5f1076` 已推送 main；实际 commit hook 454/454。Quality run `39546387685` 的 Rust Full 在 App Server 1998 项中 1995 passed / 3 failed：旧队列夹具使用未落盘的 sidecar 地址，另两个重建测试仍把 live sidecar URI 与 portable 内联图片要求为同一字符串。
+- 门禁修正仅认领原树无外部变化的 `canonical_thread_store_tests/queue.rs` 与 `projection_rebuild/queue_tests.rs`：存储夹具改为有效自包含 PNG；portable 重建对比完整预期 Thread / UserMessage（精确文本、PNG bytes/detail、clientId），保留 live sidecar 输入、Item identity、队列顺序、冷恢复、search 与 media/read 断言。不改生产逻辑、不引入后续功能；rustfmt 解析通过，定向 Rust 与远端完整复验继续。

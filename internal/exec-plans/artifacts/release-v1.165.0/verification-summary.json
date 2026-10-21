@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "1.165.0",
-  "status": "candidate-to-quality",
+  "status": "quality-in-progress",
   "scope": "All candidates frozen by user; later edits deferred to next release",
   "checks": [
     {
@@ -258,8 +258,34 @@
     },
     {
       "command": "Build-input tests with Vitest",
-      "status": "running",
+      "status": "passed",
+      "log": "/tmp/lime-v11650-frozen-build-input-vitest.log",
+      "exitCode": 0,
+      "passed": 56
+    },
+    {
+      "command": "Actual pre-commit hook from frozen working tree",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 454,
+      "log": "/tmp/lime-v11650-candidate-git.log"
+    },
+    {
+      "command": "Frozen build input Vitest native runner",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 56,
       "log": "/tmp/lime-v11650-frozen-build-input-vitest.log"
+    },
+    {
+      "command": "Quality Rust Full at 76dad3c4a",
+      "status": "failed",
+      "passed": 1995,
+      "failed": 3,
+      "exitCode": 101,
+      "job": 119045504262,
+      "log": "/tmp/lime-v11650-quality-rust-full.log",
+      "reason": "Portable image URI representation changed; old queue test fixtures/expectations require migration"
     }
   ],
   "existingEvidence": [
@@ -294,11 +320,15 @@
     ]
   },
   "publication": {
-    "committed": false,
+    "committed": true,
     "tagged": false,
     "pushed": false,
     "remoteTagExists": false,
-    "checkpoint": "Before first candidate commit; final publication receipt follows Quality and Release"
+    "checkpoint": "Main candidate pushed; tag and published channels remain pending",
+    "mainPushed": true,
+    "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
+    "qualityRun": 39546387685,
+    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39546387685"
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
@@ -332,5 +362,19 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T04:49:49.034256+00:00"
+  "recordedAt": "2026-10-21T04:49:49.034256+00:00",
+  "releaseGateFixes": [
+    {
+      "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
+      "beforeSha256": "d99c1bc19478f595a1d8ba70573ab5579484931860f23f599c3a8c2defffa9ff",
+      "afterSha256": "4f6e8f94c6a46b6b84b60cc9a210db67f63f50ec76236963db717f7b0ba7ffa4",
+      "kind": "test-only release gate repair"
+    },
+    {
+      "path": "lime-rs/crates/app-server/src/runtime/projection_rebuild/queue_tests.rs",
+      "beforeSha256": "aa2abdf523160973c559645231ea7292c6bed4adc85667269dd49bff9c0ee100",
+      "afterSha256": "7ed7a05540e9cad437f2a25d3427c490d7eb8bfcb3ffd21f03a62d360167ec12",
+      "kind": "test-only release gate repair"
+    }
+  ]
 }

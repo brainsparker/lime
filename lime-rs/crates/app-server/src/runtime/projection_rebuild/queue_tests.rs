@@ -164,16 +164,17 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
         let source = Arc::new(open_store(&roots, "source", split));
         let core = open_core(&roots, source.clone());
         start_session(&core);
+        let portable_input = vec![
+            AgentInput::text(format!("pending-rollout-only {}", "完整输入".repeat(200))),
+            AgentInput::Image {
+                uri: format!("data:image/png;base64,{PNG_BASE64}"),
+                detail: Some(ImageDetail::Original),
+            },
+        ];
         let queued = core
             .add_thread_queue_submission(
                 THREAD_ID,
-                vec![
-                    AgentInput::text(format!("pending-rollout-only {}", "完整输入".repeat(200))),
-                    AgentInput::Image {
-                        uri: format!("data:image/png;base64,{PNG_BASE64}"),
-                        detail: Some(ImageDetail::Original),
-                    },
-                ],
+                portable_input.clone(),
                 "stable-client".to_string(),
             )
             .await
@@ -208,7 +209,20 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
             .await
             .unwrap()
             .unwrap();
-        assert_eq!(raw_after, raw_before);
+        assert_eq!(
+            raw_before.turns[0].items[0].payload,
+            ThreadItemPayload::UserMessage {
+                content: queued.input.clone(),
+                client_id: Some("stable-client".to_string()),
+            }
+        );
+        // Portable history keeps exact image bytes without a local sidecar locator.
+        let mut portable_before = raw_before;
+        portable_before.turns[0].items[0].payload = ThreadItemPayload::UserMessage {
+            content: portable_input.clone(),
+            client_id: Some("stable-client".to_string()),
+        };
+        assert_eq!(raw_after, portable_before);
         let projection = rebuilt
             .read_session_projection(SESSION_ID, ProjectionReadWindow::default())
             .unwrap()
@@ -227,7 +241,7 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
         assert_eq!(summary["clientId"], "stable-client");
         assert_eq!(
             summary["input"],
-            serde_json::to_value(&queued.input).unwrap()
+            serde_json::to_value(&portable_input).unwrap()
         );
         assert!(summary["text"].as_str().unwrap().len() < 1000);
         let expected_watermark = rebuilt
@@ -249,7 +263,7 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
             "pending queue must survive a real rollout rebuild"
         );
         assert_eq!(recovered[0].id, queued.id);
-        assert_eq!(recovered[0].input, queued.input);
+        assert_eq!(recovered[0].input, portable_input);
         assert_eq!(
             recovered[0].client_user_message_id,
             queued.client_user_message_id
@@ -306,16 +320,17 @@ async fn mixed_rollout_rebuild_preserves_interrupted_history_and_admits_same_pen
         )
         .await
         .unwrap();
+        let portable_input = vec![
+            AgentInput::text("pending-rollout-only"),
+            AgentInput::Image {
+                uri: format!("data:image/png;base64,{PNG_BASE64}"),
+                detail: Some(ImageDetail::Original),
+            },
+        ];
         let queued = core
             .add_thread_queue_submission(
                 THREAD_ID,
-                vec![
-                    AgentInput::text("pending-rollout-only"),
-                    AgentInput::Image {
-                        uri: format!("data:image/png;base64,{PNG_BASE64}"),
-                        detail: Some(ImageDetail::Original),
-                    },
-                ],
+                portable_input.clone(),
                 "mixed-stable-client".to_string(),
             )
             .await
@@ -424,7 +439,20 @@ async fn mixed_rollout_rebuild_preserves_interrupted_history_and_admits_same_pen
             .collect::<Vec<_>>();
         assert_eq!(users.len(), 1);
         assert_eq!(users[0].item_id, pending_item.item_id);
-        assert_eq!(users[0].payload, pending_item.payload);
+        assert_eq!(
+            pending_item.payload,
+            ThreadItemPayload::UserMessage {
+                content: queued.input.clone(),
+                client_id: Some("mixed-stable-client".to_string()),
+            }
+        );
+        assert_eq!(
+            users[0].payload,
+            ThreadItemPayload::UserMessage {
+                content: portable_input,
+                client_id: Some("mixed-stable-client".to_string()),
+            }
+        );
         let search = rpc(
             &server,
             12,
