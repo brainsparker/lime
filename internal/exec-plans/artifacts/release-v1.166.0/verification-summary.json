@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "version": "1.166.0",
-  "status": "verified-static-candidate-checkpoint",
-  "recordedAt": "2026-10-21T14:35:55.686989+00:00",
+  "status": "pre-tag-local-gates-passed-remote-rust-pending",
+  "recordedAt": "2026-10-21T15:41:26.946215+00:00",
   "sourceFreezeTree": "29e1ab860dc77bab85a12fd4ac9a10792ca0ec29",
   "baseCommit": "85dcb9930a1a0b7f75a1666d94225558caae2501",
   "candidateFiles": 337,
@@ -27,7 +27,10 @@
       "status": "passed",
       "files": 33,
       "passed": 329,
-      "receipts": ["directed-tests.json", "directed-script-tests-r2.json"],
+      "receipts": [
+        "directed-tests.json",
+        "directed-script-tests-r2.json"
+      ],
       "qualification": "First 31 Vitest files passed; initial Node runner invocation for two Vitest mjs files failed, then original files passed under Vitest. No test changes."
     },
     {
@@ -48,16 +51,93 @@
       "status": "superseded-not-passed",
       "receipt": "superseded-before-float-fix.json",
       "qualification": "Only this task descendants stopped before manifest/test update; final builds rerun. lime-core config tests completed in original source scope."
+    },
+    {
+      "command": "Final targeted Rust owner/public contracts and bins",
+      "status": "passed",
+      "receipt": "rust-float-fix-final.json",
+      "tests": {
+        "canonical": 294,
+        "thread_v2_jsonrpc": 23,
+        "client": 50,
+        "protocol": 147,
+        "doc": 1
+      }
+    },
+    {
+      "command": "Queue rebuild mtime contract",
+      "status": "passed",
+      "receipt": "queue-mtime-final.json",
+      "passed": 2
+    },
+    {
+      "command": "Real stdio default and active shutdown",
+      "status": "passed",
+      "receipt": "shutdown-float-final.json"
+    },
+    {
+      "command": "Complete real CLI Gate B",
+      "status": "passed",
+      "receipt": "cli-final.json",
+      "boundary": "Real OS CLI and stdio App Server; controlled external backend, no live provider or outer TTY."
+    },
+    {
+      "command": "npm run verify:gui-smoke",
+      "status": "passed",
+      "receipt": "desktop-final.json",
+      "qualification": "First command exit0; receipt overall exit1 is the subsequent initial Agent aggregate failure."
+    },
+    {
+      "command": "Coding Workbench r4 and Settings r4",
+      "status": "passed",
+      "receipts": [
+        "coding-exit-r4.json",
+        "settings-final-r4.json"
+      ],
+      "qualification": "Coding r4 used a read-only quit observer; no timeout or production quit changes."
+    },
+    {
+      "command": "Final fixture unit/lint/format",
+      "status": "passed",
+      "receipt": "gui-fixture-final-checks-r2.json",
+      "tests": 16
+    },
+    {
+      "command": "npm run smoke:agent-runtime-current-fixture",
+      "status": "passed",
+      "receipt": "agent-final-r2.json",
+      "electronScenarios": 22
+    },
+    {
+      "command": "Remote Quality",
+      "status": "running",
+      "runId": 39623362323,
+      "headSha": "3eea646e7330b4a39d85e6786914d8332f4bc9a2",
+      "completed": [
+        "Frontend Full",
+        "GUI Smoke",
+        "Windows Shell Runtime",
+        "Integrity"
+      ],
+      "pending": [
+        "Rust Full"
+      ]
     }
   ],
   "publication": {
-    "committed": false,
+    "committed": true,
+    "mainPushed": true,
+    "checkpointCommit": "3eea646e7330b4a39d85e6786914d8332f4bc9a2",
+    "fixtureRepairCommitted": false,
     "tagged": false,
-    "pushed": false
+    "tagPushed": false,
+    "channelsVerified": false
   },
   "limitations": [
     "Full Codex/Memory roadmap acceptance remains open.",
-    "Previous version background-command archive failure requires candidate revalidation."
+    "No live provider or TUI PTY claim; public npm fresh-install verification pending.",
+    "Normal quit transient failure was observed and retained; no production quit fix claimed.",
+    "Additional all-path ESLint retains the separately reproduced SDK baseline failure."
   ],
   "necessaryPostFreezeFix": "float-roundtrip-fix.json"
 }

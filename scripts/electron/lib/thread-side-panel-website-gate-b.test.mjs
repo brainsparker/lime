@@ -19,6 +19,8 @@ it("awaits asynchronous native snapshots until the new identity is present", asy
       url: next.url,
       beforeIds: [old.tabId],
       timeoutMs: 500,
+      readCreationRequests: async () => [{}],
+      creationCount: 0,
     }).then((tabs) => {
       settled = true;
       return tabs;
@@ -42,12 +44,42 @@ it("retains the original deadline and reports expected and actual native identit
       url: old.url,
       beforeIds: [old.tabId],
       timeoutMs: 200,
+      readCreationRequests: async () => [],
+      creationCount: 0,
     });
     const check = expect(result).rejects.toThrow(
       JSON.stringify({ url: old.url, beforeIds: [old.tabId], actual: [old] }),
     );
     await vi.advanceTimersByTimeAsync(200);
     await check;
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+it("waits for the actual preload receipt after native creation is already visible", async () => {
+  vi.useFakeTimers();
+  try {
+    const next = { tabId: "new", url: "http://localhost/new" };
+    const readCreationRequests = vi
+      .fn()
+      .mockResolvedValueOnce([])
+      .mockResolvedValue([{}]);
+    let settled = false;
+    const result = waitForLinkTab(async () => [next], {
+      url: next.url,
+      beforeIds: [],
+      timeoutMs: 500,
+      readCreationRequests,
+      creationCount: 0,
+    }).then((tabs) => {
+      settled = true;
+      return tabs;
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(await result).toEqual([next]);
   } finally {
     vi.useRealTimers();
   }

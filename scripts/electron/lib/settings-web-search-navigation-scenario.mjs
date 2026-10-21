@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import path from "node:path";
+import { isDeepStrictEqual } from "node:util";
 import {
   openSettings,
   waitForPageCondition,
@@ -53,11 +54,7 @@ export async function runSettingsWebSearchNavigationScenario({
   const sameConfig = async (expected, message) => {
     const actual = await read();
     // Compare in memory without putting credential-bearing config in assertion output.
-    assert.equal(
-      JSON.stringify(actual) === JSON.stringify(expected),
-      true,
-      message,
-    );
+    assert.equal(isDeepStrictEqual(actual, expected), true, message);
   };
   const observations = [];
   for (const target of ["section", "back"]) {
@@ -140,7 +137,7 @@ export async function runSettingsWebSearchNavigationScenario({
       if (value.web_search.multi_search)
         delete value.web_search.multi_search.timeout_ms;
     }
-    return JSON.stringify(value);
+    return value;
   };
   stage("web-search-save-read-and-reopen");
   await select.selectOption(changedEngine);
@@ -155,7 +152,7 @@ export async function runSettingsWebSearchNavigationScenario({
     changedTimeout,
   );
   assert.equal(
-    stableFields(saved) === stableFields(initial),
+    isDeepStrictEqual(stableFields(saved), stableFields(initial)),
     true,
     "untouched configuration preserved",
   );

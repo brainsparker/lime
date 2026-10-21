@@ -1,6 +1,6 @@
 # v1.166.0 发布执行计划
 
-状态：候选已冻结，门禁执行中；负责人：root；日期：2026-10-21。
+状态：候选已冻结，本地最终门禁通过，准备 tag；负责人：root；日期：2026-10-21。
 
 ## 目标与范围
 
@@ -54,3 +54,16 @@
 - 唯一失败为既有 `projection_rebuild/queue_tests.rs` 冷重建整对象比较，只有 Thread.updated_at_ms 不同。当前 architecture 与 rollout r26 已明确 read/rebuild 从物理 mtime 恢复 updated_at；队列追加后的 SQLite 旧值不能作为冷读时间预期。原候选已在本机精确复现，保留完整失败日志。
 - 只认领该测试文件：将隔离 rollout 的 mtime 确定设置为旧 updated_at + 60 秒，再用该精确值构造完整 Thread 预期。继续比较所有 Thread/Turn/Item identity、recency、队列输入、图片字节、顺序和公开排除语义；不删除断言、不放宽时间区间、不修改生产实现。测试修正后的 targeted 和远端后继结果单独收口。
 - 本地最终 canonical 相关 294 项与公共 thread_v2_jsonrpc 23 项全部通过，包含浮点 append/archive/cold-scan 新回归。Protocol/client、真实 CLI/GUI 仍在执行。原首次 Quality 及前端/GUI/Rust 原始日志已冻结入本版证据。
+
+
+## 最终真实进程验证与 fixture 修正
+
+- Rust 最终 canonical 294、公共 thread_v2_jsonrpc 23、client 50、protocol 147 与 doc test 1 全部通过，真实 sidecars/bins 构建成功。queue rebuild 两项通过。远端后继 Quality `39623362323` 的前端全量、GUI smoke、版本与 Windows 运行验证成功；Rust 全量待终态，不能提前计为通过。
+- 本地完整真实 CLI Gate B 通过，覆盖 stream/JSON/reasoning/五语言 human、interrupt、resume/fork/review、images/schema/stdin/output-file、unavailable fail closed，以及默认/active stdio 和实际 CLI 命令 shutdown。上一版归档摘要故障在修正后不再重现；正式公开 npm 仍须 fresh install 后复验。
+- 标准 GUI smoke 通过；首次 Agent 聚合在 Coding 全部业务完成后因正常 Main 退出超过原 15 秒失败。原始失败保留，后续 r2/r3/r4 分开记账；未改生产退出路径或延长期限，也不声称已定位退出根因。
+- 网站 fixture 的 240 条有界 trace ring 无法承担累计 createTab 计数。改为复用 caller 已安装且通过 provenance 校验的 continuous ledger，并在原 deadline 内等待新的 native identity 与完成的真实 preload 回执。保留新增数量、identity、真实 IPC 断言；补延迟回执单测。r3 曾漏传 collector context，已修正并保留失败证据。
+- Web Search 导航 fixture 原先把完整 config 与 untouched fields JSON.stringify 后比较，Rust map 的 key 顺序变化会造成假失败。统一改为内存结构严格比较，仍逐字段保值且不输出含凭证配置。
+- 本轮窄写集仅四个 fixture 文件（详见 gui-fixture-repair.json）。16 个 fixture 单测、定向 ESLint、Prettier 通过；Coding r4 全业务与正常退出成功（只读 quit observer），Settings r4 完整场景及正常退出成功。最终标准 Agent 聚合无额外 wrapper 执行中，不能用这些局部结果替代聚合终态。
+- 原树后续 document-preview、office lifecycle、Electron localAsset 等其他 owner 改动保持工作树，按冻结规则留下一版；不进入本版 tag。
+
+- 最终标准 `npm run smoke:agent-runtime-current-fixture` exit 0，用时 399 秒：全部 22 个真实 Electron 场景通过，包括 Coding 业务与正常退出；没有诊断 wrapper 或人为 build-ready override。原失败完整保留。总结见 agent-final-scenarios.json；本地发布门禁完成，远端 Rust 全量与公开发布渠道仍待后继终态。

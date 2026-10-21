@@ -3210,6 +3210,7 @@ async function run() {
           threadId: THREAD_ID,
           workspaceRoot: workspace.rootPath,
           timeoutMs: options.timeoutMs,
+          traceCollector,
           screenshotPath: path.join(
             options.evidenceDir,
             `${options.prefix}-recents-website.png`,

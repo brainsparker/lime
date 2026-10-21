@@ -4,6 +4,10 @@ import path from "node:path";
 import { appServerCallFromPage } from "../mcp-config-fixture-smoke.mjs";
 import { sendPromptFromGui } from "../../agent-runtime/claw-chat-current-fixture-gui-actions.mjs";
 import {
+  captureInvokeTraceCollector,
+  validateInvokeTraceCollectorCapture,
+} from "../../lib/invoke-trace-collector.mjs";
+import {
   isObservedPreloadAppServerResponse,
   parseJsonRpcRequestsFromInvokeTrace,
 } from "./mcp-config-fixture-evidence.mjs";
@@ -145,12 +149,18 @@ async function waitNativeWebsite(app, id, url, route, timeoutMs) {
   );
 }
 
-export async function waitForLinkTab(readTabs, { url, beforeIds, timeoutMs }) {
+export async function waitForLinkTab(
+  readTabs,
+  { url, beforeIds, timeoutMs, readCreationRequests, creationCount },
+) {
   const deadline = Date.now() + timeoutMs;
   let tabs;
   do {
     tabs = await readTabs();
-    if (tabs.some((tab) => tab.url === url && !beforeIds.includes(tab.tabId)))
+    if (
+      tabs.some((tab) => tab.url === url && !beforeIds.includes(tab.tabId)) &&
+      (await readCreationRequests()).length === creationCount + 1
+    )
       return tabs;
     await new Promise((resolve) => setTimeout(resolve, 100));
   } while (Date.now() < deadline);
@@ -171,10 +181,18 @@ async function collectLinkClickEvidence(page, app, context, origin, requests) {
       scope,
     );
   const readCreationRequests = async () => {
-    const trace = await page.evaluate(
-      () => localStorage.getItem("lime_invoke_trace_buffer_v1") || "[]",
+    const capture = await captureInvokeTraceCollector(
+      page,
+      context.traceCollector,
     );
-    return parseJsonRpcRequestsFromInvokeTrace(trace).filter(
+    const trace = validateInvokeTraceCollectorCapture(
+      capture,
+      context.traceCollector,
+    );
+    assert(trace.complete, "链接点击缺少连续preload trace来源证明");
+    return parseJsonRpcRequestsFromInvokeTrace(
+      JSON.stringify(trace.ledgerEntries),
+    ).filter(
       (entry) =>
         entry.method === "workspaceRightSurface/request" &&
         entry.params?.reason === "browser_identity_createTab" &&
@@ -275,6 +293,8 @@ async function collectLinkClickEvidence(page, app, context, origin, requests) {
       url,
       beforeIds: before.map((tab) => tab.tabId),
       timeoutMs: context.timeoutMs,
+      readCreationRequests,
+      creationCount,
     });
     const next = tabs.find((tab) => tab.url === url);
     assert(
@@ -375,6 +395,7 @@ export async function collectThreadSidePanelWebsiteEvidence(
     threadId,
     workspaceRoot,
     timeoutMs,
+    traceCollector,
     screenshotPath,
     htmlScreenshotPath,
   },
@@ -400,6 +421,7 @@ export async function collectThreadSidePanelWebsiteEvidence(
     sessionId,
     threadId,
     timeoutMs,
+    traceCollector,
     linkClickEvidencePath: screenshotPath.replace(/\.png$/, "-link-click.json"),
   };
   const requests = [];
