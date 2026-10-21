@@ -47,3 +47,10 @@
 - 对本任务旧输入的 Rust/GUI 构建后代发送 SIGTERM 并保存 process 收据；这些任务记 superseded、不记通过。原 lime-core config 定向已通过；特性修复后的 canonical/public 协议/客户端与真实 sidecar 重建继续，随后串行执行 CLI、GUI 和 Agent 聚合。
 - 原 owner 日志中的尾部空格/空行是原始终端输出；保持字节与来源摘要，不为了 whitespace 抹改不可变证据。源码/文档 whitespace 单独核验。两份 release notes 已补该归档修复，只有后继实际通过证据才可关闭该项。
 - 此次静态及定向测试通过后的提交为远端 Quality 候选检查点；不代表 tag、GitHub stable、npm 或 updater 已发布，发布依实际后继终态收口。
+
+## 远端 Quality 首次与队列夹具修正
+
+- 发布检查点 `4ffd025662b675900e036e36eaabc2fa114d8e0f` 已推送 main；没有 tag。Quality `39618511788` 完成，前端 lint/typecheck/全量 Vitest、版本一致性、Bridge/contracts、macOS GUI smoke 和 Windows 安全/shell/App Server/Plugin MCP 均成功；Rust Full 在 App Server lib 的 2010 passed / 1 failed 处停止，不记全量通过。
+- 唯一失败为既有 `projection_rebuild/queue_tests.rs` 冷重建整对象比较，只有 Thread.updated_at_ms 不同。当前 architecture 与 rollout r26 已明确 read/rebuild 从物理 mtime 恢复 updated_at；队列追加后的 SQLite 旧值不能作为冷读时间预期。原候选已在本机精确复现，保留完整失败日志。
+- 只认领该测试文件：将隔离 rollout 的 mtime 确定设置为旧 updated_at + 60 秒，再用该精确值构造完整 Thread 预期。继续比较所有 Thread/Turn/Item identity、recency、队列输入、图片字节、顺序和公开排除语义；不删除断言、不放宽时间区间、不修改生产实现。测试修正后的 targeted 和远端后继结果单独收口。
+- 本地最终 canonical 相关 294 项与公共 thread_v2_jsonrpc 23 项全部通过，包含浮点 append/archive/cold-scan 新回归。Protocol/client、真实 CLI/GUI 仍在执行。原首次 Quality 及前端/GUI/Rust 原始日志已冻结入本版证据。

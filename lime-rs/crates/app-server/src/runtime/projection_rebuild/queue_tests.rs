@@ -195,9 +195,26 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
                 .len(),
             1
         );
+        let rollout_path = roots.data_root.join(
+            source
+                .rollout_path_for_thread_sync(&ThreadId::new(THREAD_ID))
+                .unwrap()
+                .unwrap(),
+        );
         drop(core);
         drop(source);
 
+        // Cold rebuild takes updated_at from file time, independently of queue recency.
+        let rebuilt_updated_at_ms = raw_before.updated_at_ms + 60_000;
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(&rollout_path)
+            .unwrap()
+            .set_times(std::fs::FileTimes::new().set_modified(
+                std::time::UNIX_EPOCH
+                    + std::time::Duration::from_millis(rebuilt_updated_at_ms as u64),
+            ))
+            .unwrap();
         assert!(!roots.runtime_root.join("rebuilt").exists());
         let rebuilt = Arc::new(open_store(&roots, "rebuilt", split));
         let raw_after = rebuilt
@@ -218,6 +235,7 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
         );
         // Portable history keeps exact image bytes without a local sidecar locator.
         let mut portable_before = raw_before;
+        portable_before.updated_at_ms = rebuilt_updated_at_ms;
         portable_before.turns[0].items[0].payload = ThreadItemPayload::UserMessage {
             content: portable_input.clone(),
             client_id: Some("stable-client".to_string()),
