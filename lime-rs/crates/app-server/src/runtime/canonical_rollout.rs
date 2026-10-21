@@ -142,8 +142,7 @@ impl RolloutStore {
     ) -> Result<(), String> {
         let stored_path = active_storage_path(relative_path)?;
         let path = self.resolve_active(relative_path)?;
-        self.materialize_for_append(&path)?;
-        if path.exists() {
+        if compression::existing_path(&path)?.is_some() {
             return self.validate_existing_thread(&path, thread, &stored_path);
         }
         let parent = path
@@ -217,8 +216,9 @@ impl RolloutStore {
         {
             return Ok(scan.initial_thread.updated_at_ms);
         }
+        // History may advance the index timestamp without changing rollout metadata.
         if scan.initial_thread.metadata != expected.metadata
-            || scan.initial_thread.updated_at_ms != expected.updated_at_ms
+            || scan.initial_thread.updated_at_ms > expected.updated_at_ms
         {
             return Err(format!(
                 "rollout metadata state conflict for thread {}",

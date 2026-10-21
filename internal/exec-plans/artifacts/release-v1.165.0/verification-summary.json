@@ -345,6 +345,47 @@
       "exitCode": 101,
       "reason": "Direct cargo invocation omitted repository sandboxed rusty_v8 artifact environment; retried using current resolveRustTestEnv/resolveRustyV8CargoEnv helpers. No source or dependency change.",
       "log": "lime-v11650-frozen-rust-r2.log.gz"
+    },
+    {
+      "command": "Frozen full Agent aggregate",
+      "status": "passed",
+      "exitCode": 0,
+      "preflightPassed": 371,
+      "scenariosPassed": 22,
+      "summary": "frozen-agent-current-fixture-summary.json",
+      "liveProviderUsed": false
+    },
+    {
+      "command": "Frozen settings search and Gate A five-language regression",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 23,
+      "summary": "settings-copy-gate-fix.json"
+    },
+    {
+      "command": "Compression/storage gate repair public JSON-RPC regression",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 2,
+      "rawLogPendingCompletion": "/tmp/lime-v11650-compression-final-r3.log"
+    },
+    {
+      "command": "Hooks public JSON-RPC current metadata regression",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 3,
+      "rawLogPendingCompletion": "/tmp/lime-v11650-compression-final-r3.log"
+    },
+    {
+      "command": "Quality r4",
+      "status": "failed",
+      "run": 39549294867,
+      "rustReason": "Old hooks/list executionMode expectation; current protocol uses async=false",
+      "frontendReason": "Missing existing browser and keyboard messages in five locales",
+      "logs": [
+        "lime-v11650-quality-r4-rust-full.log.gz",
+        "lime-v11650-quality-r4-frontend-full.log.gz"
+      ]
     }
   ],
   "existingEvidence": [
@@ -386,8 +427,8 @@
     "checkpoint": "Main candidate pushed; tag and published channels remain pending",
     "mainPushed": true,
     "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
-    "qualityRun": 39546387685,
-    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39546387685"
+    "qualityRun": 39549294867,
+    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39549294867"
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
@@ -421,7 +462,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T05:22:56.569703+00:00",
+  "recordedAt": "2026-10-21T07:39:10.627002+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -470,5 +511,6 @@
       },
       "recordedAt": "2026-10-21T05:22:56.569703+00:00"
     }
-  ]
+  ],
+  "postFreezeNecessaryFixReceipt": "storage-and-contract-gate-fixes.json"
 }

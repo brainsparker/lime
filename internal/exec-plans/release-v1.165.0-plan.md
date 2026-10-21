@@ -66,3 +66,15 @@
 - 首轮 Frontend Full 在 38/141 批发现 Settings Gate A 清单缺失冻结候选已有的 `browser-use`、`keyboard-shortcuts`。只补 `scripts/lib/project-gate-settings-a-core.mjs` 两项，保留覆盖全部 current section 的严格相等断言与完整 viewport/state 矩阵；原测试 7/7 通过。
 - 冻结副本标准 GUI smoke exit 0，真实 Electron 24/24；摘要 `frozen-gui-smoke-summary.json`。Agent 聚合现已串行复跑，复用正常 freshness 校验后的真实产物。Settings Gate A 修正 7/7，原 Frontend Full 失败及 GUI 原日志均归档，不纳入任何冻结后产品新增。
 - 冻结 App Server lib 完整执行 1998 项：1997 passed / 1 failed。剩余失败是冷运行态队列应精确比对原 durable 输入，而非 raw rollout 的 portable 表示；只修正这一处断言，重建队列两项复验 2/2。存储队列两项也已 2/2。原 `--tests` 选择包含 lib，故不能把它声称为 config/fork integration 通过；已改用精确 `--test` 加 current Rust/V8 环境 helper 顺序执行。一次直接 Cargo 漏带 V8 环境的失败保留。
+
+## 冻结候选后继阻断修复写集
+
+- 五语言已有 browser/keyboard 文案补齐（19 个已有 UI key/语言），只修改冻结副本资源；定向 search/Gate A 23/23。
+- 两项压缩历史公共 JSON-RPC 回归 37/39 后阻断；隔离原二进制重现 0/2。只认领 `canonical_rollout.rs` 的 ensure/metadata timestamp guard、`canonical_thread_store.rs` 的 metadata 调用及既有 `canonical_thread_store/rollout.rs` 持久化 helper，和两份既有 compression 回归。目标为读取不解压、metadata 在 SQLite 提交前写入唯一 rollout owner、损坏输入不提交 metadata；不纳入原树其他压缩功能或生命周期变更。
+- 原树存在其他 owner 改动，优先只写冻结副本；对原树只允许可证明无重叠的窄块同步，禁止整文件覆盖脏区。`canonical_thread_store.rs` 接近 1000 行，本轮只增加既有 owner 的委托，helper 落在现有 rollout 模块；退出条件为原两项公共回归、canonical 定向和全量 Quality 通过，不继续堆叠业务。
+
+- 调用栈诊断确认初始化提前解压来自 `migrate_session_settings -> persist_thread_metadata -> append_metadata`，并非历史重放。`thread/start` 写入未设置的 `runtimeWorkspaceRoots:null`，启动迁移移除该字段，触发实际写入。认领冻结副本 `processor/thread/lifecycle.rs` 的单一 metadata 构造点：仅在 roots 显式存在时落盘，保留显式空数组。公共压缩回归的 seed 增加落盘断言；旧数据迁移与校验保持。临时 backtrace 已移除，不纳入候选，不修改 history append 路径。
+- 后继冻结 Agent 聚合 exit 0：371 项前置与 22 个真实 Electron 子场景通过；原始场景摘要已归档，`liveProviderUsed=false`，不冒充 live provider。五语言资源补齐 23/23 通过。本轮 storage/thread-start 修复的精确压缩、canonical 与完整 fork 集成复验继续，随后标准 GUI smoke。
+
+- thread/start 修复后两项公共压缩回归中，初始化/读取不解压已通过；继续执行到恢复后的 turn，暴露共享 `HistoryCaptureBackend` 为不同回合重复使用固定 Item ID。只认领冻结副本 `tests/thread_fork_jsonrpc/backend.rs`：tool/message Item ID 加入真实 turn identity，不修改 provider 文本、call/result 语义或恢复断言。
+- 第四轮 Quality 完整 Rust 到达 Hooks 公共回归：`HookMetadata` current `Command { async: false }` 已替换旧 executionMode 字段，旧测试仍断言 sync。只认领冻结副本 `tests/hooks_jsonrpc.rs`，断言 async=false 且 executionMode 不存在；保留其余 metadata、trust 与 plugin 回归，不恢复旧字段。旧 run 的 Rust/Frontend 失败日志均保留。

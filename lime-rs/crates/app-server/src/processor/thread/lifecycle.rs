@@ -77,7 +77,6 @@ impl RequestProcessor {
             "threadSource": params.thread_source,
             "projectId": params.project_id,
             "ephemeral": params.ephemeral.unwrap_or(false),
-            "runtimeWorkspaceRoots": workspace_roots,
             "serviceTier": service_tier,
             "approvalPolicy": params.approval_policy,
             "approvalsReviewer": approvals_reviewer,
@@ -103,6 +102,9 @@ impl RequestProcessor {
             "experimentalRawEvents": params.experimental_raw_events,
             "cliVersion": env!("CARGO_PKG_VERSION"),
         });
+        if let Some(roots) = workspace_roots {
+            metadata["runtimeWorkspaceRoots"] = json!(roots);
+        }
         if let Some(profile) = active_permission_profile.clone() {
             apply_resolved_permission_profile_to_metadata(
                 metadata

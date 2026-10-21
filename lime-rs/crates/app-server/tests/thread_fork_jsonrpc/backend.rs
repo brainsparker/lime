@@ -42,6 +42,7 @@ impl ExecutionBackend for HistoryCaptureBackend {
             .push(provider_history.messages_for_route("fixture-provider", "fixture-model"));
         sink.emit(RuntimeEvent::new("turn.started", json!({})))?;
         if call == 0 {
+            let answer_id = format!("source-answer-{}", request.turn.turn_id);
             sink.emit(RuntimeEvent::new(
                 "item.started",
                 canonical_tool_payload(&request, ItemStatus::InProgress, None),
@@ -59,12 +60,12 @@ impl ExecutionBackend for HistoryCaptureBackend {
             ))?;
             sink.emit(RuntimeEvent::new(
                 "message.delta",
-                json!({"itemId": "source-answer", "text": "source assistant answer"}),
+                json!({"itemId": answer_id, "text": "source assistant answer"}),
             ))?;
             sink.emit(RuntimeEvent::new(
                 "message.completed",
                 json!({
-                    "itemId": "source-answer",
+                    "itemId": answer_id,
                     "phase": "final_answer",
                     "status": "completed",
                     "text": "source assistant answer"
@@ -112,7 +113,7 @@ fn canonical_tool_payload(
             output,
         },
     );
-    item.item_id = ItemId::new("source-tool-item");
+    item.item_id = ItemId::new(format!("source-tool-item-{}", request.turn.turn_id));
     item.status = status;
     json!({"item": item})
 }

@@ -37,7 +37,7 @@ fn compressed_discovery_is_read_only_and_plain_wins_once() {
 }
 
 #[test]
-fn ensure_and_append_materialize_without_losing_history_or_file_permissions() {
+fn ensure_is_read_only_and_append_preserves_history_and_file_permissions() {
     let (_temp, store, source, relative, path) = setup("compressed-append");
     append(&store, &relative, &source, 1, &fingerprint('a')).unwrap();
     let original = fs::read(&path).unwrap();
@@ -48,7 +48,11 @@ fn ensure_and_append_materialize_without_losing_history_or_file_permissions() {
         fs::set_permissions(&compressed, fs::Permissions::from_mode(0o600)).unwrap();
     }
     store.ensure_thread(&relative, &source).unwrap();
-    assert_eq!(fs::read(&path).unwrap(), original);
+    assert!(!path.exists());
+    assert!(compressed.exists());
+    append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
+    assert_eq!(scan_rollout(&path).unwrap().history.len(), 2);
+    assert!(fs::read(&path).unwrap().starts_with(&original));
     assert!(!compressed.exists());
     #[cfg(unix)]
     {
@@ -58,11 +62,6 @@ fn ensure_and_append_materialize_without_losing_history_or_file_permissions() {
             0o600
         );
     }
-    compress(&path, false);
-    append(&store, &relative, &source, 2, &fingerprint('b')).unwrap();
-    assert_eq!(scan_rollout(&path).unwrap().history.len(), 2);
-    assert!(!compressed.exists());
-    assert!(fs::read(&path).unwrap().starts_with(&original));
 }
 
 #[test]

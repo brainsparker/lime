@@ -370,7 +370,9 @@ impl ProjectionStore {
         if archived && !params.include_archived {
             return Err(error(format!("thread {} is archived", params.thread_id)));
         }
+        let previous = thread.clone();
         apply_metadata_patch(&mut thread, params.patch);
+        self.persist_rollout_metadata(&tx, &previous, &mut thread, archived)?;
         persist_thread_snapshot(&tx, &thread)?;
         tx.commit().map_err(store_error)?;
         Ok(thread)

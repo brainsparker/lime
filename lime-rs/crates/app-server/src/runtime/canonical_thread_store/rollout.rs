@@ -3,6 +3,38 @@ use serde_json::Value;
 use std::path::Path;
 
 impl ProjectionStore {
+    pub(super) fn persist_rollout_metadata(
+        &self,
+        conn: &Connection,
+        expected: &Thread,
+        next: &mut Thread,
+        archived: bool,
+    ) -> ThreadStoreResult<()> {
+        if expected.metadata == next.metadata {
+            return Ok(());
+        }
+        let Some(store) = self.rollout_store() else {
+            return Ok(());
+        };
+        let path = conn
+            .query_row(
+                "SELECT rollout_path FROM canonical_threads WHERE thread_id = ?1",
+                params![expected.thread_id.as_str()],
+                |row| row.get::<_, Option<String>>(0),
+            )
+            .map_err(store_error)?
+            .ok_or_else(|| error("thread metadata update requires a rollout path"))?;
+        // Other index fields retain their existing owners; the rollout metadata record
+        // only carries metadata and its timestamp.
+        let mut metadata_next = expected.clone();
+        metadata_next.metadata = next.metadata.clone();
+        metadata_next.updated_at_ms = next.updated_at_ms;
+        next.updated_at_ms = store
+            .append_metadata(Path::new(&path), expected, &metadata_next, archived)
+            .map_err(error)?;
+        Ok(())
+    }
+
     pub(in crate::runtime) fn thread_for_rollout_path_sync(
         &self,
         requested: &Path,

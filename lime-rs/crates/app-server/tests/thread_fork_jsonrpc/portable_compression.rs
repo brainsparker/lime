@@ -33,6 +33,16 @@ async fn seed(source: &TempDir, workspace: &TempDir) -> (String, PathBuf) {
     )
     .await;
     let id = required_string(&started, "/result/thread/id");
+    let initial: String = Connection::open(source.path().join("projection.sqlite"))
+        .unwrap()
+        .query_row(
+            "SELECT thread_json FROM canonical_threads WHERE thread_id=?1",
+            [&id],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let initial: Value = serde_json::from_str(&initial).unwrap();
+    assert!(initial["metadata"].get("runtimeWorkspaceRoots").is_none());
     start_and_complete(
         &server,
         &id,
@@ -65,6 +75,7 @@ async fn compressed_only_original_thread_discovers_resumes_appends_and_restarts(
     let capture = Arc::new(HistoryCaptureBackend::default());
     let server = AppServer::with_runtime(runtime(&target, capture.clone()));
     initialize(&server, 3).await;
+    assert!(!path.exists(), "initialization must remain streaming");
     let list = request(&server, 4, METHOD_THREAD_LIST, json!({})).await;
     assert_eq!(
         list["result"]["data"].as_array().unwrap().len(),
@@ -201,6 +212,23 @@ async fn compressed_archived_original_updates_restores_and_stays_deleted_after_r
     );
     assert_eq!(list["result"]["data"][0]["id"], id);
     assert!(!archived.exists());
+    let saved = std::fs::read(compressed(&archived)).unwrap();
+    std::fs::write(compressed(&archived), b"invalid compressed rollout").unwrap();
+    request_error(
+        &server,
+        60,
+        METHOD_THREAD_METADATA_UPDATE,
+        json!({"threadId":id,"gitInfo":{"branch":"must-not-commit"}}),
+    )
+    .await;
+    assert!(!archived.exists());
+    assert_eq!(
+        std::fs::read(compressed(&archived)).unwrap(),
+        b"invalid compressed rollout"
+    );
+    let unchanged = request(&server, 61, METHOD_THREAD_READ, json!({"threadId":id})).await;
+    assert!(unchanged["result"]["thread"]["gitInfo"]["branch"].is_null());
+    std::fs::write(compressed(&archived), saved).unwrap();
     request(
         &server,
         7,
@@ -227,6 +255,22 @@ async fn compressed_archived_original_updates_restores_and_stays_deleted_after_r
         1
     );
     compress(&path, false);
+    drop(server);
+    let core = RuntimeCore::with_backend(capture.clone()).with_projection_store(Arc::new(
+        ProjectionStore::initialize_with_agent_root(
+            target.path().join("metadata-rebuilt.sqlite"),
+            target.path().join("agent"),
+        )
+        .unwrap(),
+    ));
+    let server = AppServer::with_runtime(core);
+    initialize(&server, 90).await;
+    let cold = request(&server, 91, METHOD_THREAD_READ, json!({"threadId":id})).await;
+    assert_eq!(
+        cold["result"]["thread"]["gitInfo"]["branch"],
+        "compressed-branch"
+    );
+    assert!(!path.exists());
     request(&server, 10, METHOD_THREAD_DELETE, json!({"threadId":id})).await;
     drop(server);
     assert!(!path.exists());
