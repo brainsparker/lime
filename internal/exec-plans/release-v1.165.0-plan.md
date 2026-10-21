@@ -1,6 +1,6 @@
 # v1.165.0 发布执行计划
 
-状态：quality-r7-running；负责人：root；日期：2026-10-21。
+状态：已发布；发布流程完成 100%；补充 CLI 验收存在未关闭问题；负责人：root；日期：2026-10-21。
 
 ## 目标与候选范围
 
@@ -34,7 +34,7 @@
 5. typecheck 等静态门禁通过后先提交冻结候选并推送 main，启动远端 Quality；本地 Rust/桌面验证继续。待 Quality 与本地验证收口后再创建并推送新标签，复核远端引用；不覆盖既有标签。
 6. 跟踪 Quality/Release 终态，检查 GitHub Desktop/CLI/npm 产物、npm registry 与 R2/feed；只报告实际成功渠道。
 
-## 当前验证
+## 初始验证检查点（历史）
 
 - 初始本地及远端 `v1.165.0` 标签不存在；远端 main 与起点一致。
 - pnpm lockfile 与 Forge/release manifest 无独立显式应用版本，不强行修改。
@@ -110,3 +110,19 @@
 - 新Release第三轮Windows CodeMode快速失败且成功保存summary：foreground 3、memory 0，第二请求已有严格tool marker、第三请求被误判为前台。隔离副本将canonical prompt检出为CRLF并实际替换模板变量后8/8 HTTP回归稳定失败，确认LF空行切分遗漏Windows CRLF。新Quality第八轮Rust Full与GUI Smoke成功，Frontend 121批6项因Review测试留下只读scrollIntoView失败；固定Review先执行可稳定重现6失败，反向顺序11/11成功。本轮追加窄写集仅code-mode fixture及其测试、ReviewThreadSidePanelTab.test.tsx和本发布记录：归一化提示词换行、覆盖LF/CRLF和实际模板替换、恢复原DOM属性descriptor；不改生产源码、超时或业务断言。修复验证后继续同版发布。
 
 - 三文件修复后canonical CRLF检出 + LF/CRLF实际模板替换回归8/8、CodeMode完整定向15/15、固定Review先执行的原失败组合11/11、ESLint、完整 `npm run typecheck`（renderer与Node）、版本一致性1.165.0全部通过。前端从121批继续已越过原失败批次；保留原CI与可控失败日志。准备仅提交三测试文件和发布证据并继续已授权的同版发布，不纳入其他owner改动。
+
+- 三测试文件及15份发布记录精确提交 `30d59ae8754a717756821d0323a74beba8ade986`，实际提交钩子18/18，main推送成功；以旧tag object精确force-with-lease重推同版tag，新object `201b4165865a02168e35fefeb0901f8053453748`，远端main与peeled tag均精确为30d。Release第四轮 `39593259001`、Quality第九轮 `39593196586` 绑定同一SHA；前轮两macOS保持原证据，Windows失败未发布任何正式渠道。本轮继续已确认的同版修复发布，无新增功能。
+
+## 最终发布与补充验收
+
+- 最终源码 `30d59ae8754a717756821d0323a74beba8ade986`；annotated tag `v1.165.0` 的 object 为 `201b4165865a02168e35fefeb0901f8053453748`，远端 peeled tag 与该源码一致。发布后只补证据提交，标签继续绑定该源码。
+- Quality 第九轮 `39593196586` 终态 success：适用任务全部通过，Frontend Full 141/141 批、16,506 项通过，完整 lint/typecheck、Rust Full、真实 Electron GUI Smoke 均通过。历史失败保留，未执行或 skipped 的任务不冒充通过。
+- Release 第四轮 `39593259001` 终态 success：全部 11 个任务通过，涵盖三平台桌面、四平台 CLI、npm、GitHub stable 与 R2。Windows N-1 Squirrel 安装、CodeMode、Native Host 和 packaged identity 均通过；CodeMode 前台请求 2、Memory 请求 1、provider error 0。两 macOS packaged Native Host 也均通过。
+- GitHub stable 已于 `2026-10-21T11:56:59Z` 发布，14 个资产齐全；主 npm 包 `@limecloud/lime@1.165.0` 与四个平台包均已公开，主包 latest 为 1.165.0。三个 updater feed 实际 GET 200、对应 zip/nupkg HEAD 200。最终收据 `artifacts/release-v1.165.0/public-all-channels.json`；原 Linux npm postprocessing 延迟已结束。
+- 使用公共 npm registry 全新安装主包与本机 darwin-arm64 包，真实 launcher 显示 `lime 1.165.0`。补充 CLI 聚合已经通过 JSON streaming、interrupt、reasoning、五语言、resume、fork、review、images、schema、stdin 与输出文件场景，但在默认 command-shutdown 子场景失败：两个线程分别持有后台 shell 命令时，`thread/archive` 返回 `-32000 invalid rollout history record`。用相同公开 App Server 和冻结夹具单独复验再次失败，不将该聚合写成通过。
+- 初步只读检查确认 JSONL 可解析、schema 3、身份与 changes sequence 一致，原始 JSON 的排序摘要可匹配；这些检查不足以证明 Rust typed 反序列化后的摘要正确，根因尚未确定。失败 JSON、rollout、runtime event、进程收据及完整 CLI 日志已压缩归档，见 `published-npm-gate-b-failure.json` 与 `published-npm-command-shutdown-failures.tar.gz`。首轮缺生成 client dist 的环境失败亦单独保留。
+- 下一刀由既有 App Server canonical rollout / thread lifecycle owner 调查并修复该归档问题，保持原进程退出、线程隔离、投影和冷恢复断言。生产源码属于其他 owner 热区，本轮仅只读定位至冻结源码；不覆盖其后续修改，不再改写已公开的同版包或标签。
+- 分类：current 继续使用 Electron/Forge、App Server JSON-RPC、RuntimeCore、canonical Thread/Turn/Item；未新增 compat/deprecated，已删除旧入口继续保持 deleted。发布流程完成 100%，补充 CLI 完整验收未完成；未执行 TUI PTY 与任意 live provider 验收，不据此核销 Codex/Memory 路线图。
+- 最终收尾写集仅本计划、`artifacts/release-v1.165.0/` 发布记录与 `.gitignore` 的三条精确证据路径；源码、协议、架构与后续 owner 证据保持其下一版写集。文档与 JSON 使用轻量格式、引用、摘要和边界检查，不为证据提交重跑全量产品矩阵。
+
+- 证据收尾的 docs 边界检查首次发现前轮已跟踪的两张 CodeMode PNG 未在 `.gitignore` 放行。只对这两张既有截图与本次失败 tar.gz 增加三条精确路径例外，不放宽通配范围；保留截图和原失败，重新执行文档边界检查。

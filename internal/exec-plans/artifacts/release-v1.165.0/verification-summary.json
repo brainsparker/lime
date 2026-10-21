@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "version": "1.165.0",
-  "status": "code-mode-gate-fixed-awaiting-tag-authorization",
+  "status": "published-with-supplemental-cli-acceptance-issue",
   "scope": "All candidates frozen by user; later edits deferred to next release",
   "checks": [
     {
@@ -418,11 +418,7 @@
         "Frontend batch 63: runtime_backend.rs 812 lines exceeds 800 facade budget",
         "thread_compact_jsonrpc: 30 passed / 5 failed; foreground scripted provider captures background memory sampling"
       ],
-      "successfulJobs": [
-        "Integrity",
-        "GUI Smoke",
-        "Windows Shell Runtime"
-      ],
+      "successfulJobs": ["Integrity", "GUI Smoke", "Windows Shell Runtime"],
       "terminal": "quality-r5-terminal.json"
     },
     {
@@ -438,10 +434,7 @@
       "status": "failed",
       "exitCode": 1,
       "failedBatch": 82,
-      "passedBatches": [
-        63,
-        81
-      ],
+      "passedBatches": [63, 81],
       "failedTests": 5,
       "reason": "Existing five-locale navigation test expected 15; frozen current sections contain browser and keyboard entries (17). Original failure preserved.",
       "log": "lime-v11650-frontend-resume-b63.log.gz"
@@ -545,6 +538,42 @@
       "command": "CodeMode installed release gate fixture repair",
       "status": "11 unit/HTTP tests passed; packaged macOS business assertions passed; local Main teardown signaled; Windows pending",
       "receipt": "windows-code-mode-gate-fix.json"
+    },
+    {
+      "command": "Quality r9 final source",
+      "status": "passed",
+      "run": 39593196586,
+      "sourceCommit": "30d59ae8754a717756821d0323a74beba8ade986",
+      "frontendTestsPassed": 16506,
+      "frontendBatchesPassed": 141,
+      "fullLint": true,
+      "fullTypecheck": true,
+      "terminal": "quality-r9-terminal.json",
+      "frontendSummary": "quality-r9-frontend-summary.json",
+      "guiSummary": "quality-r9-gui-smoke-summary.json"
+    },
+    {
+      "command": "Release r4 final source",
+      "status": "passed",
+      "run": 39593259001,
+      "sourceCommit": "30d59ae8754a717756821d0323a74beba8ade986",
+      "terminal": "release-r4-terminal.json",
+      "boundary": "macOS arm64/x64 and Windows x64 Electron; four CLI npm platforms; GitHub stable; R2 updater; npm publishing. Every job succeeded."
+    },
+    {
+      "command": "Public all-channel verification",
+      "status": "passed",
+      "githubAssets": 14,
+      "npmPackages": 5,
+      "updaterPlatforms": 3,
+      "receipt": "public-all-channels.json"
+    },
+    {
+      "command": "Public npm installed CLI gate",
+      "status": "failed-reproduced",
+      "exitCode": 1,
+      "receipt": "published-npm-gate-b-failure.json",
+      "reason": "thread/archive rejects rollout history when closing a thread with a running background command; not npm publication failure."
     }
   ],
   "existingEvidence": [
@@ -583,29 +612,48 @@
     "tagged": true,
     "pushed": true,
     "remoteTagExists": true,
-    "checkpoint": "Tag replacement triggered release r3; Windows blocked by CRLF fixture prompt parsing. Three test-only repairs pass exact CRLF and order regressions, full typecheck, ESLint and version checks; preparing repair commit.",
+    "checkpoint": "GitHub stable, all 14 assets, all 5 npm packages and all 3 R2 updater feeds/downloads verified; final Release and Quality successful. Supplemental installed CLI gate failed in thread/archive and is tracked separately.",
     "mainPushed": true,
-    "releaseCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
-    "qualityRun": 39573513577,
-    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39573513577",
-    "latestSourceCommit": "86403391a2b3abdd7a31de870c797229137f93a6",
+    "releaseCommit": "30d59ae8754a717756821d0323a74beba8ade986",
+    "qualityRun": 39593196586,
+    "qualityUrl": "https://github.com/limecloud/lime/actions/runs/39593196586",
+    "latestSourceCommit": "30d59ae8754a717756821d0323a74beba8ade986",
     "tag": "v1.165.0",
-    "tagCommit": "86403391a2b3abdd7a31de870c797229137f93a6",
+    "tagCommit": "30d59ae8754a717756821d0323a74beba8ade986",
     "tagReceipt": "tag-publication.json",
-    "releaseRun": 39589593962,
-    "releaseUrl": "https://github.com/limecloud/lime/actions/runs/39589593962",
+    "releaseRun": 39593259001,
+    "releaseUrl": "https://github.com/limecloud/lime/actions/runs/39593259001",
     "qualityConclusion": "success",
-    "qualityTerminal": "quality-r7-terminal.json",
-    "releaseConclusion": "in_progress",
+    "qualityTerminal": "quality-r9-terminal.json",
+    "releaseConclusion": "success",
     "releaseAttempt": 1,
     "tagReplacementReceipt": "tag-replacement.json",
-    "latestQualityRun": 39588619226,
-    "latestQualityConclusion": "failure: frontend fixture property order; Rust Full and GUI Smoke succeeded"
+    "latestQualityRun": 39593196586,
+    "latestQualityConclusion": "success",
+    "tagReplacementCrlfReceipt": "tag-replacement-crlf-fix.json",
+    "latestQualityTerminal": "quality-r9-terminal.json",
+    "desktopPublishedAt": "2026-10-21T11:56:59Z",
+    "desktopPublicReceipt": "public-desktop-channels.json",
+    "candidateCheckpointCommit": "76dad3c4ad61aac12bc3a40f5981c2c96f5f1076",
+    "releaseTerminal": "release-r4-terminal.json",
+    "releasePage": "https://github.com/limecloud/lime/releases/tag/v1.165.0",
+    "publicChannelsReceipt": "public-all-channels.json",
+    "npmPublished": true,
+    "githubAssetCount": 14,
+    "npmPackageCount": 5,
+    "updaterPlatformCount": 3,
+    "publicationCompletionPercent": 100,
+    "supplementalCliAcceptance": {
+      "status": "failed-reproduced",
+      "receipt": "published-npm-gate-b-failure.json"
+    },
+    "evidenceOnlyFollowup": "Final evidence is committed after publication; v1.165.0 remains bound to source commit 30d59ae8754a717756821d0323a74beba8ade986."
   },
   "limitations": [
     "Complete Codex and Memory roadmap acceptance remains open.",
-    "Cross-platform/package channels are not validated by local source tests.",
-    "Memory search usage attribution is not claimed: shared parser projects display-only search paths; literal read attribution is covered."
+    "Memory search usage attribution is not claimed: shared parser projects display-only search paths; literal read attribution is covered.",
+    "Supplemental installed npm CLI aggregate failed at thread/archive with invalid rollout history record; exact default command-shutdown scene independently reproduces. Root cause remains open; see published-npm-gate-b-failure.json.",
+    "TUI PTY and arbitrary live provider acceptance were not performed in this release. Published platform evidence only proves the explicitly recorded packaged scenarios."
   ],
   "candidateDriftObserved": [
     "GUI and rollout owner documentation/evidence updated during release checks",
@@ -623,9 +671,7 @@
     "frozenAt": "2026-10-21T04:18:37.383850+00:00",
     "snapshot": "/tmp/lime-v11650-frozen-e5f736891fd7",
     "scope": "All candidates frozen after user instruction; later changes deferred",
-    "excluded": [
-      "tsconfig.node.tsbuildinfo"
-    ],
+    "excluded": ["tsconfig.node.tsbuildinfo"],
     "stagedSummary": "452 files changed, 71620 insertions(+), 11923 deletions(-)"
   },
   "authorization": {
@@ -634,7 +680,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T11:34:43.153527+00:00",
+  "recordedAt": "2026-10-21T13:09:28.717050+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",

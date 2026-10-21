@@ -1,0 +1,9 @@
+{
+  "fromBatch": 121,
+  "throughBatch": 141,
+  "passedBatches": 21,
+  "passedTests": 2531,
+  "exitCode": 0,
+  "source": "Frozen 864 plus three test-only fixes, isolated copy",
+  "claimBoundary": "Does not claim local batches 1-120 reran; current full CI remains required."
+}
