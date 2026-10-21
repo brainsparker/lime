@@ -263,7 +263,7 @@ async fn real_rollout_rebuild_preserves_pending_queue_after_cold_hydration() {
             "pending queue must survive a real rollout rebuild"
         );
         assert_eq!(recovered[0].id, queued.id);
-        assert_eq!(recovered[0].input, portable_input);
+        assert_eq!(recovered[0].input, queued.input);
         assert_eq!(
             recovered[0].client_user_message_id,
             queued.client_user_message_id

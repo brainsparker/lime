@@ -194,12 +194,12 @@
     },
     {
       "command": "Frozen snapshot verify:app-version/typecheck/test:contracts/build-input tests",
-      "status": "running",
+      "status": "partial-pass-then-environment-failure",
       "log": "/tmp/lime-v11650-frozen-static.log"
     },
     {
       "command": "Frozen snapshot Desktop config/canonical_rollout/config_jsonrpc/thread_fork_jsonrpc",
-      "status": "running",
+      "status": "failed-see-cold-runtime-gate-fix",
       "log": "/tmp/lime-v11650-frozen-rust.log"
     },
     {
@@ -212,7 +212,7 @@
     },
     {
       "command": "Frozen snapshot verify:gui-smoke",
-      "status": "running",
+      "status": "passed",
       "log": "/tmp/lime-v11650-frozen-gui-smoke.log"
     },
     {
@@ -239,7 +239,7 @@
     },
     {
       "command": "Frozen contracts with private Git index and build-input Node tests",
-      "status": "running",
+      "status": "contracts-passed-build-tests-invocation-corrected",
       "log": "/tmp/lime-v11650-frozen-contracts-r2.log"
     },
     {
@@ -315,6 +315,36 @@
       "status": "passed",
       "run": 39546387685,
       "summary": "quality-r1-gui-summary.json"
+    },
+    {
+      "command": "Frozen App Server unit tests via integration runner --tests selection",
+      "status": "failed",
+      "passed": 1997,
+      "failed": 1,
+      "exitCode": 101,
+      "reason": "Cold runtime queue assertion compared durable URI to portable input; corrected only assertion. Config/fork integrations did not execute.",
+      "log": "lime-v11650-frozen-rust.log.gz"
+    },
+    {
+      "command": "Frozen queue storage tests",
+      "status": "passed",
+      "passed": 2,
+      "exitCode": 0,
+      "log": "lime-v11650-frozen-queue-gate-tests.log.gz"
+    },
+    {
+      "command": "Frozen projection rebuild queue tests after cold runtime assertion fix",
+      "status": "passed",
+      "passed": 2,
+      "exitCode": 0,
+      "log": "lime-v11650-frozen-rust-r2.log.gz"
+    },
+    {
+      "command": "Direct config_jsonrpc cargo invocation",
+      "status": "failed-environment",
+      "exitCode": 101,
+      "reason": "Direct cargo invocation omitted repository sandboxed rusty_v8 artifact environment; retried using current resolveRustTestEnv/resolveRustyV8CargoEnv helpers. No source or dependency change.",
+      "log": "lime-v11650-frozen-rust-r2.log.gz"
     }
   ],
   "existingEvidence": [
@@ -391,7 +421,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T05:15:53.419557+00:00",
+  "recordedAt": "2026-10-21T05:22:56.569703+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -417,6 +447,28 @@
         "log": "lime-v11650-frozen-settings-gate-test.log.gz"
       },
       "recordedAt": "2026-10-21T05:15:53.419557+00:00"
+    },
+    {
+      "path": "lime-rs/crates/app-server/src/runtime/projection_rebuild/queue_tests.rs",
+      "sourceCommit": "3a1b12e6217fe20c5e088f2ffdd6a6378b7098f1",
+      "beforeSha256": "7ed7a05540e9cad437f2a25d3427c490d7eb8bfcb3ffd21f03a62d360167ec12",
+      "afterSha256": "f8c7f9e26225a77c0c86b530e33c50dd7c78b7e30b28ab7b6642f7e24a54496b",
+      "kind": "test-only release gate repair",
+      "reason": "Raw rebuilt canonical history is portable, while the cold runtime queue restores the full durable input from the session event log. Assert each exact representation at its boundary.",
+      "productionChanges": false,
+      "targetedTests": {
+        "projectionRebuildQueue": {
+          "passed": 2,
+          "exitCode": 0,
+          "log": "lime-v11650-frozen-rust-r2.log.gz"
+        },
+        "canonicalThreadStoreQueue": {
+          "passed": 2,
+          "exitCode": 0,
+          "log": "lime-v11650-frozen-queue-gate-tests.log.gz"
+        }
+      },
+      "recordedAt": "2026-10-21T05:22:56.569703+00:00"
     }
   ]
 }

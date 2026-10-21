@@ -65,3 +65,4 @@
 - 上述测试修正以 `c323596f2534d5135f6c8635fd2ef013209d6448` 推送；Quality `39547702548` 复验。首轮远端 GUI Smoke 成功（run-id `standalone-shell-01-20261021050306-15782`）。本地冻结 canonical rollout 21/21 通过，后继 config/fork 继续；该编译在测试夹具修正前开始，不冒充修正后队列回归。
 - 首轮 Frontend Full 在 38/141 批发现 Settings Gate A 清单缺失冻结候选已有的 `browser-use`、`keyboard-shortcuts`。只补 `scripts/lib/project-gate-settings-a-core.mjs` 两项，保留覆盖全部 current section 的严格相等断言与完整 viewport/state 矩阵；原测试 7/7 通过。
 - 冻结副本标准 GUI smoke exit 0，真实 Electron 24/24；摘要 `frozen-gui-smoke-summary.json`。Agent 聚合现已串行复跑，复用正常 freshness 校验后的真实产物。Settings Gate A 修正 7/7，原 Frontend Full 失败及 GUI 原日志均归档，不纳入任何冻结后产品新增。
+- 冻结 App Server lib 完整执行 1998 项：1997 passed / 1 failed。剩余失败是冷运行态队列应精确比对原 durable 输入，而非 raw rollout 的 portable 表示；只修正这一处断言，重建队列两项复验 2/2。存储队列两项也已 2/2。原 `--tests` 选择包含 lib，故不能把它声称为 config/fork integration 通过；已改用精确 `--test` 加 current Rust/V8 环境 helper 顺序执行。一次直接 Cargo 漏带 V8 环境的失败保留。
