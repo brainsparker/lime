@@ -62,3 +62,6 @@
 - 当前提交是进入远端 Quality 的候选检查点，不代表 tag、安装包、npm 或 updater 已发布；这些渠道以收尾 publication receipt 为准。
 - 候选提交 `76dad3c4ad61aac12bc3a40f5981c2c96f5f1076` 已推送 main；实际 commit hook 454/454。Quality run `39546387685` 的 Rust Full 在 App Server 1998 项中 1995 passed / 3 failed：旧队列夹具使用未落盘的 sidecar 地址，另两个重建测试仍把 live sidecar URI 与 portable 内联图片要求为同一字符串。
 - 门禁修正仅认领原树无外部变化的 `canonical_thread_store_tests/queue.rs` 与 `projection_rebuild/queue_tests.rs`：存储夹具改为有效自包含 PNG；portable 重建对比完整预期 Thread / UserMessage（精确文本、PNG bytes/detail、clientId），保留 live sidecar 输入、Item identity、队列顺序、冷恢复、search 与 media/read 断言。不改生产逻辑、不引入后续功能；rustfmt 解析通过，定向 Rust 与远端完整复验继续。
+- 上述测试修正以 `c323596f2534d5135f6c8635fd2ef013209d6448` 推送；Quality `39547702548` 复验。首轮远端 GUI Smoke 成功（run-id `standalone-shell-01-20261021050306-15782`）。本地冻结 canonical rollout 21/21 通过，后继 config/fork 继续；该编译在测试夹具修正前开始，不冒充修正后队列回归。
+- 首轮 Frontend Full 在 38/141 批发现 Settings Gate A 清单缺失冻结候选已有的 `browser-use`、`keyboard-shortcuts`。只补 `scripts/lib/project-gate-settings-a-core.mjs` 两项，保留覆盖全部 current section 的严格相等断言与完整 viewport/state 矩阵；原测试 7/7 通过。
+- 冻结副本标准 GUI smoke exit 0，真实 Electron 24/24；摘要 `frozen-gui-smoke-summary.json`。Agent 聚合现已串行复跑，复用正常 freshness 校验后的真实产物。Settings Gate A 修正 7/7，原 Frontend Full 失败及 GUI 原日志均归档，不纳入任何冻结后产品新增。

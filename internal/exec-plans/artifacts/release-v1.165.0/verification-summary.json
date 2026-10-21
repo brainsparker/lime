@@ -286,6 +286,35 @@
       "job": 119045504262,
       "log": "/tmp/lime-v11650-quality-rust-full.log",
       "reason": "Portable image URI representation changed; old queue test fixtures/expectations require migration"
+    },
+    {
+      "command": "npm run verify:gui-smoke (frozen snapshot)",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 24,
+      "summary": "frozen-gui-smoke-summary.json",
+      "log": "lime-v11650-frozen-gui-smoke.log.gz",
+      "qualification": "Real Electron/preload/IPC/App Server shell; claim boundaries preserved in summary."
+    },
+    {
+      "command": "Settings Gate A current-section coverage",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 7,
+      "log": "lime-v11650-frozen-settings-gate-test.log.gz"
+    },
+    {
+      "command": "Quality r1 Frontend Full",
+      "status": "failed",
+      "run": 39546387685,
+      "reason": "Missing two frozen settings sections in Gate A list; fixed and targeted test passed.",
+      "log": "lime-v11650-quality-frontend-full.log.gz"
+    },
+    {
+      "command": "Quality r1 GUI Smoke",
+      "status": "passed",
+      "run": 39546387685,
+      "summary": "quality-r1-gui-summary.json"
     }
   ],
   "existingEvidence": [
@@ -362,7 +391,7 @@
     "repeatConfirmationRequired": false,
     "scope": "Frozen candidates only; later work remains deferred"
   },
-  "recordedAt": "2026-10-21T04:49:49.034256+00:00",
+  "recordedAt": "2026-10-21T05:15:53.419557+00:00",
   "releaseGateFixes": [
     {
       "path": "lime-rs/crates/app-server/src/runtime/canonical_thread_store_tests/queue.rs",
@@ -375,6 +404,19 @@
       "beforeSha256": "aa2abdf523160973c559645231ea7292c6bed4adc85667269dd49bff9c0ee100",
       "afterSha256": "7ed7a05540e9cad437f2a25d3427c490d7eb8bfcb3ffd21f03a62d360167ec12",
       "kind": "test-only release gate repair"
+    },
+    {
+      "path": "scripts/lib/project-gate-settings-a-core.mjs",
+      "beforeSha256": "45e37f27361cb4671512e811361122d7aab5248fe292dce173081c5e4e44ed2e",
+      "afterSha256": "24b17ff5f5b98d056cf755815fbdae0a22c4d55f3cf1da0d6df254c3a8e49b41",
+      "kind": "release gate coverage list repair",
+      "reason": "Frozen settings sections browser-use and keyboard-shortcuts must be included in Gate A. Exact all-current-section coverage assertion retained.",
+      "targetedTest": {
+        "passed": 7,
+        "exitCode": 0,
+        "log": "lime-v11650-frozen-settings-gate-test.log.gz"
+      },
+      "recordedAt": "2026-10-21T05:15:53.419557+00:00"
     }
   ]
 }

@@ -17,6 +17,8 @@ export const SETTINGS_GATE_A_TABS = Object.freeze([
   "profile",
   "stats",
   "appearance",
+  "browser-use",
+  "keyboard-shortcuts",
   "memory",
   "archived-conversations",
   "providers",
